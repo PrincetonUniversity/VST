@@ -1,0 +1,144 @@
+               Mechanized Semantic Library
+                      Version 0.3
+
+    Andrew W. Appel, Robert Dockins, Aquinas Hobor
+                    October 2010
+
+Downloaded from: http://msl.cs.princeton.edu/
+
+The Mechanized Semantic Library version 0.3 is an implementation of
+the mathematical ideas from the following papers:
+
+  A Fresh Look at Separation Algebras and Share Accounting
+  by Robert Dockins, Aquinas Hobor, and Andrew Appel  (2009)
+
+  A Theory of Indirection via Approximation
+  by Aquinas Hobor, Robert Dockins, and Andrew Appel  (2009)
+
+  A Logical Mix of Approximation and Separation (2010)
+  by Aquinas Hobor and Robert Dockins
+
+If you use our Coq implementation in your own projects please cite our
+papers!  Here are the URLs and most recent BibTeX information:
+
+    @inproceedings{dockins09:sa,
+    author={Robert Dockins and Aquinas Hobor and Andrew W. Appel},
+    title={A Fresh Look at Separation Algebras and Share Accounting},
+    booktitle={The 7th Asian Symposium on Programming Languages and Systems},
+    publisher={Springer ENTCS},
+    pages={{to appear}},
+    url="http://msl.cs.princeton.edu/fresh-sa.pdf",
+    year=2009
+    }
+
+    @inproceedings{hobor10:popl,
+    author={Aquinas Hobor and Robert Dockins and Andrew W. Appel},
+    title={A Theory of Indirection via Approximation},
+    booktitle={Proc. 37th Annual ACM Symposium on Principles of Programming Languages (POPL'10)},
+    url="http://msl.cs.princeton.edu/indirection.pdf"
+    pages="171--185",year="2010",month=jan
+    }
+
+    @inproceedings{hobor10:aplas,
+    author={Aquinas Hobor and Robert Dockins},
+    title={A Logical Mix of Approximation and Separation},
+    booktitle={Proc. of the 8th ASIAN Symposium on Programming Languages and Systems (APLAS'10)},
+    url="http://msl.cs.princeton.edu/logics.pdf"
+    note={To Appear}
+    }
+
+These proofs are known to compile with Coq 8.2.  The included Makefile
+will build the entire proof development when invoked with the default
+target.  "make gallinahtml" will extract the embedded proof
+documentation as HTML.
+
+Additional explanation, documentation, and examples are available on
+the MSL web site, http://msl.cs.princeton.edu/.
+
+-----------------------------------------------------------------
+
+The following is a listing of the proof files contained in this
+development with a short description.
+
+Extensionality.v
+   This file contains the axiom base for the development.  We assume
+   functional extensionality and propositional extensionality.
+
+base.v
+   This exports the parts of the Coq standard library used throughout
+   the development as well as a few custom convenience tactics.
+
+== Files from "A Fresh Look at Separation Algebras and Share Accounting"
+
+sepalg.v
+   This file defines our relational form of separation algebras
+   with the disjointness axiom.  We also define the join_sub relation
+   and the joins relation.  Additionally, elementary lemmas are
+   proved.
+
+sepalg_generators.v
+   We define SA operators in this file.  All the operators mentioned
+   in the paper appear here, along with a few others.
+
+boolean_alg.v
+   This file defines boolean algebras from an order-theoretic
+   perspective.  We also define axioms relating to properties
+   we desire of share models, including relativization, splitting
+   and token factory axioms.
+
+tree_shares.v
+   Here we construct the boolean-labeled tree share model as discussed
+   in the paper.  Note, however, that the proof of the token counting
+   axioms follow a slightly different path than the proof in the paper.
+   This is mostly because reasoning about sets in Coq is inconvenient.
+
+shares.v
+   This file simply repackages the construction from tree_shares.v
+   into a nicer interface for downstream users.  We also define
+   the notion of a "positive" share; that is a nonunit share.
+
+== Files from "A Theory of Indirection via Approximation"
+
+knot.v
+   This file contains the central "knot" development.  Included
+   are both the axiomitization and the model construction.  It
+   follows section 8 of the paper quite closely.
+
+knot_setoid.v
+   An alternate, axiom-free, development of the knot.  We avoid
+   the need for the extensionality axiom by working explicitly up
+   to equivalance relations and weakening the axioms of the theory
+   accordingly.
+
+knot_lemmas.v
+   Easy lemmas that follow from the theory of indirection.
+
+knot_sa.v
+   The definition of a separation algebra on top of knots.
+   In addition to the properties mentioned in the paper,
+   this development adds several properties (unage_join1 and unage_join2),
+   which require the additional input axiom F_preserves_unmaps.
+   These properties will be covered in an upcoming paper.
+
+knot_prop.v
+   This file specializes the knot construction to use "Prop" as
+   truth values.
+   
+knot_unique.v
+   The development of the uniqueness proof for knots.  We prove that
+   any two implementations of the theory of indirection are isomorphic.
+
+sepalg_functors.v
+   A technical development of "unmapping" needed to get the extra
+   unage* properties in knot_sa.  Not covered in the paper.
+
+age_sepalg.v
+   We enhance the signature of separation algebras with a notion
+   of aging.  The "ASA" typeclass presents an interface sufficent
+   to define the Kripke model below.  The interface is straightforwardly
+   implemented using the properties obtained from knot_sa.
+
+predicates_hered.v
+   Definition of the higher-order modal separation logic as discussed
+   in sections 5, 6 and 7.
+

@@ -1,0 +1,7 @@
+Maps.vo: Maps.v
+FuncListMachine.vo: FuncListMachine.v Maps.vo
+lemmas.vo: lemmas.v Maps.vo FuncListMachine.vo
+hoare_total.vo: hoare_total.v Maps.vo FuncListMachine.vo lemmas.vo
+wp.vo: wp.v Maps.vo FuncListMachine.vo lemmas.vo hoare_total.vo
+programs.vo: programs.v Maps.vo FuncListMachine.vo lemmas.vo hoare_total.vo wp.vo
+erase.vo: erase.v Maps.vo FuncListMachine.vo lemmas.vo

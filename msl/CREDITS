@@ -1,0 +1,18 @@
+(*
+ * Copyright (c) 2009-2011, Andrew Appel, Robert Dockins and Aquinas Hobor.
+ *
+ *)
+
+The MSL is mostly the work of Andrew Appel, Robert Dockins, and Aquinas Hobor, 
+who retain the copyright and have selected a BSD-style license for the library.
+
+However, we welcome contributions by others, and list them here that they may
+be acknowledged by all for their help.  If you are interested in helping, please
+let us know!
+
+Le Xuan Bach (National University of Singapore)
+   combiner_sa.v	(relinquished copyright as of August 22, 2011)
+
+CJ Bell (Princeton University)
+   pred_morphisms.v     (relinquished copyright as of December 22, 2011)
+

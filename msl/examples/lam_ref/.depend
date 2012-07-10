@@ -1,0 +1,11 @@
+lam_ref_tcb.vo: lam_ref_tcb.v
+lam_ref_eval.vo: lam_ref_eval.v lam_ref_tcb.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo
+lam_ref_mach_defs.vo: lam_ref_mach_defs.v lam_ref_tcb.vo
+lam_ref_mach_lemmas.vo: lam_ref_mach_lemmas.v lam_ref_tcb.vo lam_ref_mach_defs.vo
+lam_ref_type_prelim.vo: lam_ref_type_prelim.v lam_ref_tcb.vo lam_ref_mach_defs.vo
+lam_ref_type_defs.vo: lam_ref_type_defs.v lam_ref_tcb.vo lam_ref_mach_defs.vo lam_ref_type_prelim.vo
+lam_ref_type_safety.vo: lam_ref_type_safety.v lam_ref_tcb.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo lam_ref_type_defs.vo
+lam_ref_type_lemmas.vo: lam_ref_type_lemmas.v lam_ref_tcb.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo lam_ref_type_prelim.vo lam_ref_type_defs.vo lam_ref_type_safety.vo
+lam_ref_type_rules.vo: lam_ref_type_rules.v lam_ref_tcb.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo lam_ref_type_defs.vo lam_ref_type_safety.vo lam_ref_type_lemmas.vo
+programs.vo: programs.v lam_ref_tcb.vo lam_ref_eval.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo lam_ref_type_defs.vo lam_ref_type_safety.vo lam_ref_type_rules.vo
+crash.vo: crash.v lam_ref_tcb.vo lam_ref_eval.vo lam_ref_mach_defs.vo lam_ref_mach_lemmas.vo lam_ref_type_defs.vo lam_ref_type_safety.vo lam_ref_type_rules.vo programs.vo

@@ -1,0 +1,458 @@
+Require Import veric.base.
+Require compcert.Clight_sem.
+
+Definition val_to_bool (v: val) : option bool :=
+  match v with 
+    | Vint n => Some (negb (Int.eq n Int.zero))
+    | Vptr _ _ => Some true
+    | _ => None
+  end.
+
+Definition bool_of_valf (v: val): option bool := 
+match v with
+  | Vint i => Some (negb (Int.eq i Int.zero))
+  | Vfloat _ => None
+  | Vptr _ _ => Some true
+  | Vundef => None
+end.
+
+Theorem bool_of_true_valf_inv:
+  forall v, Val.is_true v -> bool_of_valf v = Some true.
+Proof.
+  intros. 
+destruct v; simpl in *; try contradiction.
+replace (Int.eq i Int.zero) with false. auto. 
+symmetry; apply Int.eq_false; auto.
+auto.
+Qed.
+
+Theorem bool_of_false_valf:
+  forall v, Val.is_false v -> bool_of_valf v = Some false.
+Proof.
+  destruct v; simpl; intros; try contradiction.
+  subst i;  constructor.
+Qed.
+
+Lemma bool_of_true_val2f: forall v,
+bool_of_valf v = Some true -> Val.is_true v.
+Proof.
+intros v Hv.
+destruct v; simpl in *; try inversion Hv.
+unfold not; intro.
+subst i.
+replace (Int.eq Int.zero Int.zero) with true in H0. simpl in H0.
+inversion H0.
+symmetry; apply Int.eq_true.
+auto.
+Qed.
+
+Definition var_name (V: Type) (bdec: ident * globvar V) : ident := 
+   fst bdec.
+
+Definition no_dups (F V: Type) (fdecs: list (ident * F)) (bdecs: list (ident * globvar V)) : Prop :=
+  list_norepet (map (@fst ident F) fdecs ++ map (@var_name V) bdecs).
+Implicit Arguments no_dups.
+
+Lemma no_dups_inv:
+  forall  (A V: Type) id f fdecs bdecs,
+    no_dups ((id,f)::fdecs) bdecs ->
+    no_dups fdecs bdecs /\
+     ~ In id (map (@fst ident A) fdecs) /\
+     ~ In id (map (@var_name V) bdecs).
+Proof.
+intros.
+inversion H; clear H. subst.
+repeat split.
+apply H3.
+intro; contradiction H2; apply in_or_app; auto.
+intro; contradiction H2; apply in_or_app; auto.
+Qed.
+Implicit Arguments no_dups_inv.
+ 
+Lemma is_true_Vfalse_elim:
+  forall a: Prop, Val.is_true Vfalse -> a.
+intros.
+simpl in H.
+contradiction H; auto.
+Qed.
+
+Ltac discopt := 
+ try (intros ;  (discriminate || 
+                       match goal with 
+                           | H : Val.is_true Vfalse |- _ => generalize H; apply is_true_Vfalse_elim end )).
+
+Lemma Val_is_true_Vtrue:
+  Val.is_true Vtrue.
+Proof.
+simpl.
+apply Int.one_not_zero.
+Qed.
+
+Lemma val_to_bool_is_true:
+  forall v, val_to_bool v = Some true -> Val.is_true v.
+Proof.
+induction v; simpl; discopt; intros.
+inversion H.
+intro.
+subst i.
+rewrite (Int.eq_true Int.zero) in H1.
+compute in H1.
+discriminate.
+trivial.
+Qed.
+
+Lemma val_to_bool_is_false:
+  forall v, val_to_bool v = Some false -> Val.is_false v.
+Proof.
+induction v; simpl; discopt; intros.
+inversion H; clear H.
+generalize H1; clear H1.
+caseEq (Int.eq i Int.zero).
+intros.
+assert (if Int.eq i Int.zero then i=Int.zero else i <> Int.zero).
+apply Int.eq_spec.
+rewrite H in H0.
+trivial.
+intros.
+compute in H1; discriminate.
+Qed.
+
+Lemma of_bool_Int_eq_e:
+  forall i j, Val.of_bool (Int.eq i j) = Vtrue -> i = j.
+Proof.
+unfold Val.of_bool.
+do 2 intro.
+assert (if Int.eq i j then i=j else i<>j).
+apply Int.eq_spec.
+caseEq (Int.eq i j); intros.
+rewrite H0 in H ; trivial.
+inversion H1.
+Qed.
+
+Lemma of_bool_Int_eq_e':
+  forall i j, Val.is_true (Val.of_bool (Int.eq i j)) -> i = j.
+Proof.
+unfold Val.of_bool, Val.is_true.
+do 2 intro.
+assert (if Int.eq i j then i=j else i<>j).
+apply Int.eq_spec.
+caseEq (Int.eq i j); intros.
+rewrite H0 in H ; trivial.
+simpl in H1.
+contradiction H1.
+trivial.
+Qed.
+
+Lemma eq_block_lem: 
+    forall (A: Set) a (b: A) c, (if eq_block a a then b else c) = b. 
+Proof.
+intros.
+unfold eq_block.
+rewrite zeq_true.
+auto.
+Qed.
+
+Lemma nat_ind2_Type:
+forall P : nat -> Type,
+((forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n):Type) ->
+(forall n, P n).
+Proof.
+intros.
+assert (forall j , (j <= n)%nat -> P j).
+induction n.
+intros.
+replace j with 0%nat ; try omega.
+apply X; intros.
+elimtype False; omega.
+intros.  apply X. intros.
+apply IHn.
+omega.
+apply X0.
+omega.
+Qed.
+
+Lemma nat_ind2:
+forall P : nat -> Prop,
+(forall n, (forall j:nat, (j<n )%nat -> P j) ->  P n) ->
+(forall n, P n).
+Proof.
+intros; apply Wf_nat.lt_wf_ind. auto.
+Qed.
+
+Lemma signed_zero: Int.signed Int.zero = 0.
+Proof. apply Int.signed_zero. Qed.
+
+Lemma equiv_e1 : forall A B: Prop, A=B -> A -> B.
+Proof.
+intros.
+rewrite <- H; auto.
+Qed.
+Implicit Arguments equiv_e1.
+
+Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
+Proof.
+intros.
+rewrite H; auto.
+Qed.
+Implicit Arguments equiv_e2.
+
+Lemma deref_loc_fun: forall {F V ge ty m b z t v v'},
+   @Csem.deref_loc F V ge ty m b z t v -> @Csem.deref_loc F V ge ty m b z t v' -> v=v'.
+ Proof. intros.  inv H; inv H0; try congruence. inversion2 H1 H.
+      inv H3; inv H5; try congruence. inv H6; inv H15; try congruence.
+Qed.
+
+Lemma eval_expr_lvalue_fun:
+  forall ge e le m,
+    (forall a v v', Clight_sem.eval_expr ge e le m a v -> Clight_sem.eval_expr ge e le m a v' -> v=v') /\
+    (forall a b b' i i', Clight_sem.eval_lvalue ge e le m a b i -> Clight_sem.eval_lvalue ge e le m a b' i' ->
+                               (b,i)=(b',i')).
+Proof.
+ intros.
+ destruct (Clight_sem.eval_expr_lvalue_ind ge e le m
+   (fun a v =>  forall v', Clight_sem.eval_expr ge e le m a v' -> v=v')
+   (fun a b i => forall b' i', Clight_sem.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros.
+  inv H; auto. inv H0; auto. inv H; auto. inv H0; auto. inv H0; auto.
+  congruence. inv H1; auto. inv H1; auto. apply H0 in H5. inv H5; auto.
+  inv H2; auto. inv H2; auto. apply H0 in H7.  subst; congruence.
+  inv H3. inv H4. apply H0 in H10. apply H2 in H11. subst; congruence.
+  inv H7. inv H5. inv H5. inv H5. inv H5.
+  inv H5. apply H0 in H10. subst. inversion2 H1 H12. 
+  destruct b. apply H3 in H13. subst. congruence.
+  apply H3 in H13; subst; congruence.
+  inv H6. inv H2. apply H0 in H5; congruence. inv H3.
+  inv H; inv H3. apply H0 in H. inv H.
+  eapply deref_loc_fun; eauto.
+  apply H0 in H. inv H.
+  eapply deref_loc_fun; eauto.
+  apply H0 in H. inv H.
+  eapply deref_loc_fun; eauto.
+  apply H0 in H. inv H.
+  eapply deref_loc_fun; eauto.
+  apply H0 in H. inv H.
+  eapply deref_loc_fun; eauto.
+  inv H0; congruence.
+  inv H2; congruence.
+  inv H1. apply H0 in H6. congruence.
+  inv H3. apply H0 in H7; congruence.
+  apply H0 in H9; congruence.
+  inv H2.
+  apply H0 in H6; congruence.
+  apply H0 in H8; congruence.
+
+ split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
+Qed.
+
+Lemma eval_expr_fun:   forall {ge e le m a v v'},
+    Clight_sem.eval_expr ge e le m a v -> Clight_sem.eval_expr ge e le m a v' -> v=v'.
+Proof.
+  intros. destruct (eval_expr_lvalue_fun ge e le m).
+  eauto.
+Qed.
+
+Lemma eval_exprlist_fun:   forall {ge e le m a ty v v'},
+    Clight_sem.eval_exprlist ge e le m a ty v -> Clight_sem.eval_exprlist ge e le m a ty v' -> v=v'.
+Proof.
+  induction a; intros; inv H; inv H0; f_equal.
+  apply (eval_expr_fun H3) in H6. subst. congruence.
+  eauto.
+Qed.
+
+
+Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z'},
+    Clight_sem.eval_lvalue ge e le m a b z -> Clight_sem.eval_lvalue ge e le m a b' z' -> (b,z)=(b',z').
+Proof.
+  intros. destruct (eval_expr_lvalue_fun ge e le m).
+  eauto.
+Qed.
+
+
+Lemma inv_find_symbol_fun:
+  forall {F V ge id id' b},
+    @Genv.find_symbol F V ge id = Some b ->
+    @Genv.find_symbol F V ge id' = Some b -> 
+    id=id'.
+Proof.
+ intros.
+ destruct (ident_eq id id'); auto.
+  contradiction (Genv.global_addresses_distinct ge n H H0); auto.
+Qed.
+
+Lemma assign_loc_fun: 
+  forall {F V ge ty m b ofs v t1 t2 m1 m2},
+   @Csem.assign_loc F V ge ty m b ofs v t1 m1 ->
+   @Csem.assign_loc F V ge ty m b ofs v t2 m2 ->
+  (t1,m1)=(t2,m2).
+Proof.
+ intros. inv H; inv H0; try congruence. inversion2 H1 H. 
+ inv H3; inv H5; try congruence.
+ inv H6; inv H8; try congruence.
+ apply (inv_find_symbol_fun H0) in H7; subst; auto.
+ apply (inv_find_symbol_fun H0) in H7; subst; auto.
+ apply (inv_find_symbol_fun H0) in H7; subst. auto.
+ apply (inv_find_symbol_fun H10) in H12; subst. auto.
+Qed.
+
+Lemma alloc_variables_fun: 
+  forall {e m vl e1 m1 e2 m2},
+     Csem.alloc_variables e m vl e1 m1 ->
+     Csem.alloc_variables e m vl e2 m2 ->
+     (e1,m1)=(e2,m2).
+Proof.
+ intros until vl; revert e m;
+ induction vl; intros; inv H; inv H0; auto.
+ inversion2 H5 H9.
+ eauto. 
+Qed.
+
+Lemma bind_parameters_fun:
+  forall {F V ge e m p v m1 m2}, 
+    @Csem.bind_parameters F V ge e m p v m1 ->
+    @Csem.bind_parameters F V ge e m p v m2 ->
+    m1=m2.
+Proof.
+intros until p. revert e m; induction p; intros; inv H; inv H0; auto.
+ inversion2 H3 H10.
+ apply (assign_loc_fun H5) in H11. inv H11. eauto.
+Qed.
+
+Lemma eventval_list_match_fun:
+  forall {F V ge a a' t v}, 
+    @Events.eventval_list_match F V ge a t v ->
+    @Events.eventval_list_match F V ge a' t v ->
+    a=a'.
+Proof.
+ intros.
+ revert a' H0; induction H; intros.
+ inv H0; eauto.
+ inv H1.
+ f_equal. clear - H6 H.
+ inv H; inv H6; auto.
+ apply (inv_find_symbol_fun H0) in H3; subst; auto.
+ eauto.
+Qed.
+
+Ltac fun_tac :=
+  match goal with
+  | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H' 
+  | H: Clight_sem.eval_expr ?ge ?e ?le ?m ?A _,
+    H': Clight_sem.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
+        apply (eval_expr_fun H) in H'; subst
+  | H: Clight_sem.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
+    H': Clight_sem.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
+        apply (eval_exprlist_fun H) in H'; subst
+  | H: Clight_sem.eval_lvalue ?ge ?e ?le ?m ?A _ _,
+    H': Clight_sem.eval_lvalue ?ge ?e ?le ?m ?A _ _ |- _ =>
+        apply (eval_lvalue_fun H) in H'; inv H'
+  | H: Csem.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _,
+    H': Csem.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _ |- _ =>
+        apply (assign_loc_fun H) in H'; inv H'
+  | H: Csem.deref_loc ?ge ?ty ?m ?b ?ofs ?t _,
+    H': Csem.deref_loc ?ge ?ty ?m ?b ?ofs ?t _ |- _ =>
+        apply (deref_loc_fun H) in H'; inv H'
+  | H: Csem.alloc_variables ?e ?m ?vl _ _,
+    H': Csem.alloc_variables ?e ?m ?vl _ _ |- _ =>
+        apply (alloc_variables_fun H) in H'; inv H'
+  | H: Csem.bind_parameters ?ge ?e ?m ?p ?vl _,
+    H': Csem.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
+        apply (bind_parameters_fun H) in H'; inv H'
+  | H: Genv.find_symbol ?ge _ = Some ?b,
+    H': Genv.find_symbol ?ge _ = Some ?b |- _ => 
+       apply (inv_find_symbol_fun H) in H'; inv H'
+  | H: Events.eventval_list_match ?ge _ ?t ?v,
+    H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>
+       apply (eventval_list_match_fun H) in H'; inv H'
+ end. 
+
+Fixpoint compute_expr (ge: genviron) (ve: Clight.env) (te: Clight.temp_env) (e: expr) : val :=
+ match e with
+ | Econst_int i ty => Vint i
+ | Econst_float f ty => Vfloat f
+ | Etempvar id ty => force_val (PTree.get id te)
+ | Eaddrof a ty => compute_lvalue ge ve te a
+ | Eunop op a ty =>  force_val (sem_unary_operation op (compute_expr ge ve te a) (typeof a))
+ | Ebinop op a1 a2 ty =>  
+         force_val (sem_binary_operation op
+                    (compute_expr ge ve te a1) (typeof a1)
+                    (compute_expr ge ve te a2) (typeof a2)
+                    (fun _ _ => false))
+ | Econdition a1 a2 a3 ty => 
+    match bool_val (compute_expr ge ve te a1) (typeof a1) with
+    | Some true => force_val (sem_cast (compute_expr ge ve te a2) (typeof a2) ty)
+    | Some false => force_val (sem_cast (compute_expr ge ve te a3) (typeof a3) ty)
+    | None => Vundef
+    end
+ | Ecast a ty => force_val (sem_cast (compute_expr ge ve te a) (typeof a) ty)
+ | _ => Vundef
+ end 
+
+ with compute_lvalue (ge: genviron) (ve: Clight.env) (te: Clight.temp_env) (e: expr) : val := 
+ match e with 
+ | Evar id ty => match PTree.get id ve with
+                         | Some (b,ty') => if type_eq ty ty'
+                                                    then if negb (type_is_volatile ty')
+                                                       then Vptr b Int.zero else Vundef
+                                                    else Vundef
+                         | None => 
+                            match ge id with
+                            | Some (v,ty') => if type_eq ty ty' then v else Vundef
+                            | None => Vundef
+                            end
+                        end
+ | Ederef a ty => match compute_expr ge ve te a with
+                        | Vptr l ofs => Vptr l ofs
+                        | _ => Vundef
+	          end
+ | Efield a i ty => match compute_expr ge ve te a, typeof a with
+                            | Vptr l ofs, Tstruct id fList att =>
+                                  match field_offset i fList with 
+                                  | Errors.OK delta => Vptr l (Int.add ofs (Int.repr delta))
+                                  | _ => Vundef
+                                  end
+                            | Vptr l ofs, Tunion id fList att => Vptr l ofs
+                            | _, _ => Vundef
+                            end
+ | _  => Vundef
+ end.
+
+Lemma compute_eval_expr_lvalue:
+  forall ge ve te m a,
+        match access_mode (typeof a) with
+         | By_value _ => forall v, compute_expr (filter_genv ge) ve te a = v ->  v <> Vundef -> Clight_sem.eval_expr ge ve te m a v
+         | (By_reference | By_copy) => forall b ofs, compute_lvalue (filter_genv ge) ve te a = (Vptr b ofs) ->  Clight_sem.eval_lvalue ge ve te m a b ofs
+         | _ => True
+        end.
+Proof.
+  (* NOT TRUE.  In order to make this true, there would have to be more dynamic type-checks
+   inside compute_expr and compute_lvalue.  It's not worth doing this if we're going to have
+   a static type-checker anyway.
+  *)
+Abort.
+
+Definition modified0 : ident -> Prop := fun _ => False.
+Definition modified1 id : ident -> Prop := fun i => i=id.
+Definition modified2 (s1 s2: ident -> Prop) := fun i => s1 i \/ s2 i.
+
+Fixpoint modifiedvars (c: statement) : ident -> Prop :=
+ match c with
+ | Sset id e => modified1 id
+ | Sifthenelse _ c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
+ | Scall (Some id) _ _ => modified1 id
+ | Ssequence c1 c2 =>  modified2 (modifiedvars c1) (modifiedvars c2)
+ | Swhile e c => modifiedvars c
+ | Sdowhile e c => modifiedvars c
+ | Sfor' e c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
+ | Sswitch e cs => modifiedvars_ls cs
+ | Slabel _ c => modifiedvars c
+ | _ => modified0
+ end
+ with
+ modifiedvars_ls (cs: labeled_statements) : ident -> Prop := 
+ match cs with
+ | LSdefault _ => modified0
+ | LScase _ c ls => modified2 (modifiedvars c) (modifiedvars_ls ls)
+ end.
+
+
+
+

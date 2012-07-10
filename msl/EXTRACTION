@@ -1,0 +1,18 @@
+The share model defined in tree_shares.v can be extracted
+to executable O'Caml code for use in tools.  The extracted
+code is the executable slice of of the module "Share"
+from the file "tree_shares.v".  The module type 
+is "SHARE_MODEL" defined in file "boolean_alg.v"
+
+The exposed interface is essentially the boolean algebra
+operators together with an equality test and some operations
+to split shares and perform the token factory operations.
+The extraction process will also produces to extraneous
+methods "sa" and "saf", which are proof artifacts that
+are incorrectly identified as computational.  They can
+be ignored.
+
+To generate the compilable O'Caml code type "make extract".
+This should produce two files "tree_shares.mli" and
+"tree_shares.ml".  These files can be directly
+included in your O'Caml project.
