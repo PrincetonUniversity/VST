@@ -103,5 +103,3 @@ End CSL.
 Definition semax_prog_rule := semax_prog_rule Hspec.
 
 End MakeSeparationLogic.
-
-(* trivial edit, just to test something *)
