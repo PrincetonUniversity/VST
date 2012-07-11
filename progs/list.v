@@ -16,6 +16,11 @@ Definition val_mapsto (sh: Share.t) (v1: val) (t: type) (v2: val) : pred rmap :=
  | _ => FF
  end.
 
+(* Tstruct "s1" (Fcons "n" (Tint I32 Signed)
+               (Fcons "next" (Tcomp_ptr "s1")
+               Fnil))
+*)
+
 Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  match f with
  | Fnil => Tvoid
@@ -35,8 +40,10 @@ Definition field_of (vt: valt) (fld: ident) : valt :=
 Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: valt) : pred rmap :=
  match v1 with
   | (Vptr l ofs, Tstruct id fList  att) =>
-    let t2 := type_of_field fList fld in
-     match field_offset fld fList, access_mode t2 with
+    let fList' := unroll_composite_fields id (snd v1) fList in
+    let t2 := type_of_field fList' fld in
+     match field_offset fld fList', 
+                access_mode t2 with
      | Errors.OK delta, By_value ch => 
           !! (snd v2 = t2) && 
            address_mapsto ch (fst v2) (unrel Lsh sh) (unrel Rsh sh)  (l, Int.unsigned ofs + delta)
@@ -45,25 +52,37 @@ Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: valt) : p
   | _  => FF
   end.
 
-Fixpoint fields_mapto_aux (sh: Share.t) (v1: val*type) (flds: fieldlist) (v2: list (valt)) : pred rmap :=
+Fixpoint fields_mapto (sh: Share.t) (v1: val*type) (flds: list ident) (v2: list (valt)) : pred rmap :=
   match flds, v2 with
-  | Fnil, nil => emp
-  | Fcons i t flds', vt::v2' => field_mapsto sh v1 i vt * fields_mapto_aux sh v1 flds' v2'
+  | nil, nil => emp
+  | i::flds', vt::v2' => field_mapsto sh v1 i vt * fields_mapto sh v1 flds' v2'
   | _, _ => FF
   end.
 
-Definition fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : pred rmap :=
+Fixpoint field_names (flds: fieldlist) : list ident :=
+  match flds with
+  | Fnil => nil
+  | Fcons i t flds' => i :: field_names flds'
+  end.
+
+Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : pred rmap :=
   match snd v1 with
   | Tstruct id fList  att =>
-         fields_mapto_aux sh v1 fList v2
+         fields_mapto sh v1 (field_names fList) v2
   | _  => FF
   end.
 
-Definition next (fld: ident) (v1 v2: valt) : pred rmap := 
- !! (bool_val (fst v1) (snd v1) = Some true) && field_mapsto Share.top v1 fld v2.
+Definition deref (v: valt) := 
+   match snd v with
+   | Tpointer t _ => (fst v, t)
+   | _ => (Vundef, Tvoid)
+   end.   
+
+Definition next (fld: ident) (sh: share) (v1 v2: valt) : pred rmap := 
+ !! (bool_val (fst v1) (snd v1) = Some true) && field_mapsto sh (deref v1) fld v2.
 
 Lemma next_nonnull: 
-  forall fld x y, next fld x y = !! (bool_val (fst x) (snd x) = Some true) && next fld x y.
+  forall fld sh x y, next fld sh x y = !! (bool_val (fst x) (snd x) = Some true) && next fld sh x y.
 Proof.
  intros. unfold next.
  rewrite <- andp_assoc. f_equal. rewrite andp_dup. auto.
@@ -71,41 +90,137 @@ Qed.
 
 Definition nullval : val := Vint Int.zero.
 
-Lemma next_neq_0: forall fld t y, next fld (nullval,t) y |-- FF.   (* W1 *)
+Lemma next_neq_0: forall fld sh t y, next fld sh (nullval,t) y |-- FF.   (* W1 *)
 Proof.
  intros. 
  intros ? [? ?].
  hnf in H.  simpl in H. destruct t; discriminate.
 Qed.
 
-Definition listcons' (fld: ident) (R: (valt * valt) -> pred rmap) (lp: valt * valt) : pred rmap :=
-      !! (fst lp <> snd lp) && Ex tail:valt, next fld (fst lp) tail * |> R (tail, snd lp).
+Definition ptr_eq (v1 v2: val) : Prop :=
+      match v1,v2 with
+      | Vint n1, Vint n2 => Int.cmpu Ceq n1 n2 = true
+      | Vptr b1 ofs1,  Vptr b2 ofs2  =>
+            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
+      | _,_ => False
+      end.
 
-Definition listempty (lp: valt*valt) : pred rmap :=
-             !! (fst lp = snd lp) && emp.
- 
-Definition listrep' fld (R: valt*valt -> pred rmap) (lp: valt*valt) : pred rmap :=
-        listcons' fld R lp || listempty lp.
 
-Definition listrep (fld: ident):  valt*valt -> pred rmap := HORec (listrep' fld).
 
-XXXXX.
-done to here.  The rest of this file is from the version in msl/examples/cont/lseg.v
+Definition spine fld sh (t: type):= 
+  HORec (fun (R: val*val -> pred rmap) (lp: val*val) =>
+                (!! (~ (ptr_eq (fst lp) (snd lp)))
+                            && Ex tail:val, next fld sh (fst lp, t) (tail, t) * |> R (tail, snd lp))
+            || (!! (ptr_eq (fst lp) (snd lp))) && emp).
 
-Definition lseg (e1 e2: adr) : pred rmap := listrep (e1,e2).
+Definition lseg' (t: type) (data: list ident) (link: ident) (sh: share) := 
+  HORec (fun (R: (list (list valt))*(val*val) -> pred rmap) (lp: (list (list valt))*(val*val)) =>
+        match lp with
+        | (h::hs, (first,last)) =>
+                (!! (~ (ptr_eq first last)) && 
+                        Ex tail:val, 
+                           fields_mapto Share.top (deref (first,t)) data h 
+                           * next link sh (first,t) (tail,t) * |> R (hs, (tail, last)))
+        | (nil, (first,last)) =>
+                 !! (ptr_eq first last) && emp
+        end).
 
-Lemma lseg_unfold: forall e1 e2, 
-   (lseg e1 e2 = (!! (e1<> e2)  && Ex tail:adr, next e1 tail * |> lseg tail e2)
-                        || (!! (e1=e2) && emp))%pred.
+Definition multifield_lseg (data: list ident) (link:ident) (sh: share)
+            (contents: list (list valt)) (v1 v2: valt) : pred rmap := 
+   !!(snd v1=snd v2) && lseg' (snd v1) data link sh (contents,(fst v1, fst v2)).
+
+Definition lseg (contents: list valt) (v1 v2: valt) :=
+ match snd v1 with
+  | Tpointer (Tstruct id (Fcons data _ (Fcons link _ Fnil)) _) _ =>
+          multifield_lseg (data::nil) link Share.top (map (fun x=>x::nil) contents) v1 v2
+  | _ => FF
+  end.
+
+Lemma lseg_unfold: forall contents v1 v2, 
+  snd v1 = snd v2 ->
+  match snd v1 with
+  | Tpointer (Tstruct id (Fcons data _ (Fcons link _ Fnil)) _) _ =>
+    lseg contents v1 v2 = 
+     match contents with
+     | h::t => !! (~ ptr_eq (fst v1) (fst v2)) && Ex tail: val,
+                       field_mapsto Share.top (deref v1) data h * next link Share.top v1 (tail,snd v1) * |> lseg t (tail, snd v1) v2
+     | nil => !! (ptr_eq (fst v1) (fst v2)) && emp
+     end
+  | _ => lseg contents v1 v2 = FF
+ end.
 Proof.
  intros.
- unfold lseg. unfold listrep at 1.
- rewrite HORec_fold_unfold. reflexivity.
+ destruct v1 as [v1 t]. destruct v2 as [v2 t2]. simpl in H. subst t2.
+ simpl fst; simpl snd.
+ destruct t; auto.
+ destruct t; auto. destruct f; auto. destruct f; auto. destruct f; auto.
+ unfold lseg at 1. simpl snd. unfold multifield_lseg. unfold lseg'.
+ rewrite HORec_fold_unfold. simpl fst; simpl snd.
+  normalize.
+ destruct contents. simpl map. simpl. auto.
+  simpl map.
+ symmetry; symmetry.
+ f_equal.
+ f_equal. extensionality tail.
+ unfold fields_mapto. rewrite sepcon_emp.
+ f_equal.
+ f_equal.
+ unfold lseg. simpl snd.
+ symmetry; symmetry.
+ unfold multifield_lseg. simpl snd.
+ rewrite prop_true_andp by auto.
+ unfold lseg'. simpl fst. reflexivity.
+ clear.
+ apply prove_HOcontractive; intros.
+ destruct x.
+ destruct l. destruct p.
+ auto 50 with contractive.
+ destruct p.
  auto 50 with contractive.
 Qed.
 
-Lemma lseg_neq: forall p q: adr, p<>q -> 
-        lseg p q = Ex y:adr, next p y *  |> lseg y q.
+Definition is_list_type (t: type) :=
+    match t with
+    | Tpointer (Tstruct id (Fcons _ _ (Fcons _ _ Fnil)) _) _ => True
+    | _ => False
+   end.
+
+Ltac do_lseg_unfold := match goal with |- context [lseg ?C ?F ?L] =>
+   let H := fresh in
+  assert (H := lseg_unfold C F L (eq_refl _)); simpl snd in H;
+     rewrite H; clear H
+ end.
+Section TestCase.
+Definition myid : ident := 3%positive.
+Definition data_id : ident := 4%positive.
+Definition link_id : ident := 5%positive.
+Definition Tint32s := Tint I32 Signed noattr.
+
+Definition mylist : type := 
+ Tpointer (Tstruct myid (Fcons data_id Tint32s (Fcons link_id (Tcomp_ptr myid noattr) Fnil)) noattr) noattr.
+
+Parameters v v' : val.
+Parameters x y : val.
+Goal  lseg ((x,Tint32s)::(y,Tint32s)::nil) (v,mylist) (v',mylist) |-- FF.
+do_lseg_unfold.
+Abort.
+End TestCase.
+
+DONE TO HERE.
+The rest is old stuff from msl/examples/cont/lseg.v
+
+ 
+
+Lemma lseg_neq: forall vl p q: valt, 
+     is_list_type (snd p) ->
+     snd p = snd q ->
+    ~ (ptr_eq (fst p) (fst q)) ->
+        lseg vl p q = Ex h: val, Ex vl': list valt, 
+                !! (vl = (h,snd p)::vl') && 
+              field_mapsto Share.top (deref v1) data h * 
+              next link Share.top v1 (tail,snd v1) * |> lseg t (tail, snd v1) v2
+
+next p y *  |> lseg y q.
 Proof.
  intros.
  apply pred_ext.
