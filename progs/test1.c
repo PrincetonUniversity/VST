@@ -32,7 +32,9 @@ struct list *reverse (struct list *p) {
 }  
 
 int main (void) {
-  struct list *r = reverse(three);
-  return sumlist(r);
+  struct list *r; int s;
+  r = reverse(three);
+  s = sumlist(r);
+  return s;
 }
 
