@@ -206,6 +206,7 @@ do_lseg_unfold.
 Abort.
 End TestCase.
 
+(*
 DONE TO HERE.
 The rest is old stuff from msl/examples/cont/lseg.v
 
@@ -524,3 +525,4 @@ Proof.
   apply lseg_U5; auto.
 Qed.
 
+*)

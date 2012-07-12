@@ -74,8 +74,8 @@ Definition zet {A} (i: Z) (x: A) (m: ZMap.t (option A)) : ZMap.t (option A) :=
  ZMap.set i (Some x) m.
 Implicit Arguments zet [A].
 
-Definition f_sumlist : fundef :=
- Internal (mkfunction
+Definition f_sumlist : function :=
+  mkfunction
  (* return *) t_int
  (* params *) ((i_p, t_listptr)::nil)
  (* vars *)  nil
@@ -89,10 +89,10 @@ Definition f_sumlist : fundef :=
           (Ssequence (Sset i_h (Efield (Ederef (Etempvar i_t t_listptr) t_list) i_h t_int))
            (Ssequence (Sset i_t (Efield (Ederef (Etempvar i_t t_listptr) t_list) i_t t_listptr))
             (Sset i_s (Ebinop Oadd (Etempvar i_s t_int) (Etempvar i_h t_int) t_int)))))
-   (Sreturn (Some (Etempvar i_s t_int)))))))).
+   (Sreturn (Some (Etempvar i_s t_int))))))).
 
-Definition f_reverse: fundef :=
- Internal (mkfunction
+Definition f_reverse: function :=
+ mkfunction
  (* return *) t_listptr
  (* params *) ((i_p, t_listptr)::nil)
  (* vars *)  nil
@@ -107,10 +107,10 @@ Definition f_reverse: fundef :=
            (Ssequence (Sassign (Efield (Ederef (Etempvar i_v t_listptr) t_list) i_t t_listptr) (Etempvar i_w t_listptr))
            (Ssequence (Sset i_w (Etempvar i_v t_listptr))
             (Sset i_v (Etempvar i_t t_listptr))))))
-   (Sreturn (Some (Etempvar i_w t_listptr)))))))).
+   (Sreturn (Some (Etempvar i_w t_listptr))))))).
 
-Definition f_main: fundef :=
- Internal (mkfunction
+Definition f_main: function :=
+ mkfunction
  (* return *) t_int
  (* params *) nil
  (* vars *)  nil
@@ -118,7 +118,7 @@ Definition f_main: fundef :=
  (* body *) 
   (Ssequence (Scall (Some i_r) (Evar i_reverse (Tfunction (Tcons t_listptr Tnil) t_listptr)) (Evar i_three t_listptr :: nil))
     (Ssequence (Scall (Some i_s) (Evar i_sumlist (Tfunction (Tcons t_listptr Tnil) t_int)) (Etempvar i_r t_listptr::nil)) 
-     (Sreturn (Some (Etempvar i_s t_int)))))).
+     (Sreturn (Some (Etempvar i_s t_int))))).
 
 Definition b_three : block := 1.
 Definition b_sumlist : block := -1.
@@ -133,12 +133,19 @@ Definition g_symb : PTree.t block :=
       (PTree.empty block)))).
 
 Definition g_funs: ZMap.t (option fundef) :=
- zet b_sumlist f_sumlist
- (zet b_reverse f_reverse 
-  (zet b_main f_main
+ zet b_sumlist (Internal f_sumlist)
+ (zet b_reverse (Internal f_reverse)
+  (zet b_main (Internal f_main)
    (ZMap.init None))).
 
-Parameter gv_three : globvar type.
+Definition gv_three : globvar type :=
+  mkglobvar (Tarray t_list 3 noattr)
+       (Init_int32 (Int.repr 1) :: Init_addrof i_three (Int.repr 4) ::
+        Init_int32 (Int.repr 2) :: Init_addrof i_three (Int.repr 8) ::
+        Init_int32 (Int.repr 3) :: Init_addrof i_three (Int.repr 0) ::
+        nil)
+        false
+        false.
 
 Definition g_vars: ZMap.t (option (globvar type)) :=
  zet b_three gv_three 
@@ -147,7 +154,13 @@ Definition g_vars: ZMap.t (option (globvar type)) :=
 Definition g_nextfun : block := -4.
 Definition g_nextvar : block := 2.
 
-Definition prog : Genv.t fundef type.
+Definition prog : program :=
+  mkprogram ((i_sumlist, Internal f_sumlist)::(i_reverse, Internal f_reverse)
+                            ::(i_main, Internal f_main)::nil)
+                      i_main 
+                      ((i_three, gv_three)::nil).
+
+Definition ge : Genv.t fundef type.
  refine (@Genv.mkgenv _ _ g_symb g_funs g_vars g_nextfun g_nextvar
                _ _ _ _ _ _).
 unfold g_nextfun; omega.
