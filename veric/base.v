@@ -53,3 +53,5 @@ Definition force_val (v: option val) : val :=
  match v with Some v' => v' | None => Vundef end.
 
 Definition arguments := list (val* type).
+Definition funsig := (typelist * type)%type. (* argument and result signature *)
+

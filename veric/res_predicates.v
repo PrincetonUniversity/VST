@@ -613,11 +613,9 @@ Lemma nth_error_length:
   forall {A} i (l: list A), nth_error l i = None <-> (i >= length l)%nat.
 Proof.
 induction i; destruct l; simpl; intuition.
-inv H. omegaContradiction.
-destruct (IHi l).
-spec H0 H. omega.
-destruct (IHi l).
-apply H1; omega.
+inv H.
+rewrite IHi in H. omega.
+rewrite IHi. omega.
 Qed.
 
 
@@ -702,7 +700,6 @@ Definition LKspec (R: pred rmap) : spec :=
 
 Definition boolT : Type := bool.
 Definition unitT : Type := unit.
-Definition arguments := list (val*type).
 
 Definition packPQ {A: Type} (P Q: A -> arguments -> pred rmap) := 
   (fun xy : (A*(boolT*(arguments * unitT))) => 

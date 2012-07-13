@@ -8,11 +8,6 @@ Module P := progs.test1.
 
 Import SeqC CSL.
 
-SearchAbout semax_func.
-Print funspec.
-
-(* Admitted:  eliminate duplication definitions of arguments, funsig within veric *)
-
 Definition sumlist_pre (contents: list int) (args: arguments) : predicate :=
   match args with 
   | p::nil => lseg (map (fun i => (Vint i, P.t_int)) contents) p (nullval, snd p)
@@ -57,6 +52,7 @@ Proof.
 split; [split; simpl; repeat constructor; prove_notin | ].
 intro contents.
 simpl.
+
 Admitted.
 
 Lemma body_reverse:

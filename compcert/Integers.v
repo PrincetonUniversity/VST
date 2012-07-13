@@ -653,6 +653,14 @@ Proof.
   auto. unfold max_signed in H. omegaContradiction.
 Qed.
 
+Theorem signed_positive:
+  forall x, signed x >= 0 <-> unsigned x <= max_signed.
+Proof.
+  intros. unfold signed, max_signed.
+  generalize (unsigned_range x) half_modulus_modulus half_modulus_pos; intros.
+  destruct (zlt (unsigned x) half_modulus); omega.
+Qed.
+
 (** ** Properties of zero, one, minus one *)
 
 Theorem unsigned_zero: unsigned zero = 0.
@@ -910,6 +918,15 @@ Proof.
   apply repr_unsigned.
 Qed.
 
+Theorem mul_mone: forall x, mul x mone = neg x.
+Proof.
+  intros; unfold mul, neg. rewrite unsigned_mone. 
+  apply eqm_samerepr.
+  replace (-unsigned x) with (0 - unsigned x) by omega.
+  replace (unsigned x * (modulus - 1)) with (unsigned x * modulus - unsigned x) by ring.
+  apply eqm_sub. exists (unsigned x). omega. apply eqm_refl.
+Qed.
+
 Theorem mul_assoc: forall x y z, mul (mul x y) z = mul x (mul y z).
 Proof.
   intros; unfold mul.
@@ -1005,6 +1022,36 @@ Proof.
   apply eqm_sub. apply eqm_signed_unsigned. 
   apply eqm_unsigned_repr_r. 
   apply eqm_mult. auto with ints. apply eqm_signed_unsigned.
+Qed.
+
+Theorem divu_one:
+  forall x, divu x one = x.
+Proof.
+  unfold divu; intros. rewrite unsigned_one. rewrite Zdiv_1_r. apply repr_unsigned.
+Qed.
+
+Theorem modu_one:
+  forall x, modu x one = zero.
+Proof.
+  intros. rewrite modu_divu. rewrite divu_one. rewrite mul_one. apply sub_idem.
+  apply one_not_zero.
+Qed.
+
+Theorem divs_mone:
+  forall x, divs x mone = neg x.
+Proof.
+  unfold divs, neg; intros. 
+  rewrite signed_mone. replace (Zdiv_round (signed x) (-1)) with (- (signed x)). 
+  apply eqm_samerepr. apply eqm_neg. apply eqm_signed_unsigned. 
+  unfold Zdiv_round. destruct (zlt (signed x) 0).
+  simpl. rewrite Zdiv_1_r. auto. simpl. rewrite Zdiv_1_r. auto. 
+Qed.
+
+Theorem mods_mone:
+  forall x, mods x mone = zero.
+Proof.
+  intros. rewrite mods_divs. rewrite divs_mone. 
+  rewrite <- neg_mul_distr_l. rewrite mul_mone. rewrite neg_involutive. apply sub_idem. 
 Qed.
 
 (** ** Properties of binary decompositions *)
@@ -1183,6 +1230,24 @@ Proof.
   destruct p; inv EQ; auto.
   destruct p; inv EQ; auto. 
   rewrite inj_S in H. omega. rewrite inj_S in H. omega.
+Qed.
+
+Lemma bits_of_Z_greater:
+  forall n x i,
+  0 <= x < two_p i -> bits_of_Z n x i = false.
+Proof.
+  induction n; intros.
+  auto.
+  destruct (zlt i 0). apply bits_of_Z_below. auto.
+  simpl. 
+  destruct (Z_bin_decomp x) as [b x1]_eqn.
+  destruct (zeq i 0).
+  subst i. simpl in H. assert (x = 0) by omega. subst x. simpl in Heqp. congruence.
+  apply IHn. 
+  rewrite <- (Z_shift_add_bin_decomp x) in H. rewrite Heqp in H. simpl in H.
+  replace i with (Zsucc (i-1)) in H by omega. rewrite two_p_S in H. 
+  unfold Z_shift_add in H. destruct b; omega. 
+  omega.
 Qed.
 
 Lemma bits_of_Z_of_bits_gen':
@@ -2244,6 +2309,28 @@ Proof.
   auto.
 Qed.
 
+Theorem shifted_or_is_add:
+  forall x y n,
+  0 <= n < Z_of_nat wordsize ->
+  unsigned y < two_p n ->
+  or (shl x (repr n)) y = repr(unsigned x * two_p n + unsigned y).
+Proof.
+  intros. rewrite <- add_is_or. 
+  rewrite shl_mul_two_p. rewrite unsigned_repr.
+  unfold add. apply eqm_samerepr. unfold mul. auto with ints. 
+  generalize wordsize_max_unsigned; omega.
+  unfold and, shl, bitwise_binop. unfold zero. decEq. apply Z_of_bits_false. intros.
+  rewrite unsigned_repr; auto with ints. rewrite bits_of_Z_of_bits_gen.
+  rewrite unsigned_repr. apply andb_false_iff.  
+  destruct (zlt j n).
+  left. apply bits_of_Z_below. omega. 
+  right. apply bits_of_Z_greater. 
+  split. generalize (unsigned_range y); omega.
+  assert (two_p n <= two_p j). apply two_p_monotone. omega. omega.
+  generalize wordsize_max_unsigned; omega.
+  omega.
+Qed.
+
 (** Unsigned right shifts and unsigned divisions by powers of 2. *)
 
 Lemma Z_of_bits_shift_right:
@@ -2579,6 +2666,44 @@ Proof.
   unfold max_unsigned; omega.
   generalize (signed_range x). fold sx. intros. split. omega. unfold max_signed. omega. 
   generalize min_signed_neg. unfold max_signed. omega. 
+Qed.
+
+(** Connections between [shr] and [shru]. *)
+
+Lemma shr_shru_positive:
+  forall x y,
+  signed x >= 0 -> 
+  shr x y = shru x y.
+Proof.
+  intros.
+  rewrite shr_div_two_p. rewrite shru_div_two_p.
+  rewrite signed_eq_unsigned. auto. apply signed_positive. auto.
+Qed.
+
+Lemma and_positive:
+  forall x y, signed y >= 0 -> signed (and x y) >= 0.
+Proof.
+  intros.
+  assert (unsigned y < half_modulus). rewrite signed_positive in H. unfold max_signed in H; omega. 
+  generalize (sign_bit_of_Z y). rewrite zlt_true; auto. intros A.
+  generalize (sign_bit_of_Z (and x y)).
+  unfold and at 1. unfold bitwise_binop at 1.
+  set (fx := bits_of_Z wordsize (unsigned x)).
+  set (fy := bits_of_Z wordsize (unsigned y)).
+  rewrite unsigned_repr; auto with ints. 
+  rewrite bits_of_Z_of_bits. unfold fy. rewrite A. rewrite andb_false_r. 
+  destruct (zlt (unsigned (and x y)) half_modulus); intros.
+  rewrite signed_positive. unfold max_signed; omega.
+  congruence.
+  generalize wordsize_pos; omega.
+Qed.
+
+Theorem shr_and_is_shru_and:
+  forall x y z,
+  lt y zero = false -> shr (and x y) z = shru (and x y) z.
+Proof.
+  intros. apply shr_shru_positive. apply and_positive. 
+  unfold lt in H. rewrite signed_zero in H. destruct (zlt (signed y) 0). congruence. auto.
 Qed.
 
 (** ** Properties of integer zero extension and sign extension. *)

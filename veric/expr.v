@@ -37,7 +37,6 @@ match combine_types t1 t2 with
 end.
 *)
 Parameter b: bool.
-Check (andb b b).
 (*
 Parameter cast_compatible : type -> type -> bool.
 *)

@@ -70,14 +70,14 @@ Qed.
 
 (** Each address has not one, but two permissions associated
   with it.  The first is the current permission.  It governs whether
-  operations (load, store, free, etc) over this address succeed or not.
-  The other is the maximal permission.  It is always at least as strong
-  as the current permission.  The maximal permission of an address
-  can only decrease after the corresponding block is allocated, e.g.
-  as a result of [free] or [drop_perm] operations, or of external calls.
-  In contrast, the current permission of an address can be temporarily
-  lowered by an external call, then raised again by another external
-  call. *)
+  operations (load, store, free, etc) over this address succeed or
+  not.  The other is the maximal permission.  It is always at least as
+  strong as the current permission.  Once a block is allocated, the
+  maximal permission of an address within this block can only
+  decrease, as a result of [free] or [drop_perm] operations, or of
+  external calls.  In contrast, the current permission of an address
+  can be temporarily lowered by an external call, then raised again by
+  another external call. *)
 
 Inductive perm_kind: Type :=
   | Max: perm_kind
@@ -418,7 +418,6 @@ Axiom load_store_similar:
 
 Axiom load_store_same:
   forall chunk m1 b ofs v m2, store chunk m1 b ofs v = Some m2 ->
-  Val.has_type v (type_of_chunk chunk) ->
   load chunk m2 b ofs = Some (Val.load_result chunk v).
 
 Axiom load_store_other:

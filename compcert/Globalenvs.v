@@ -897,7 +897,6 @@ Proof.
   assert (A: forall chunk v m b p m1 il m',
     Mem.store chunk m b p v = Some m1 ->
     store_init_data_list m1 b (p + size_chunk chunk) il = Some m' ->
-    Val.has_type v (type_of_chunk chunk) ->
     Mem.load chunk m' b p = Some(Val.load_result chunk v)).
   intros. transitivity (Mem.load chunk m1 b p).
   eapply store_init_data_list_outside; eauto. right. omega. 
@@ -909,13 +908,13 @@ Proof.
   intros m1 B C.
   exploit IHil; eauto. intro D. 
   destruct a; simpl in B; intuition.
-  eapply (A Mint8unsigned (Vint i)); eauto. simpl; auto.
-  eapply (A Mint16unsigned (Vint i)); eauto. simpl; auto.
-  eapply (A Mint32 (Vint i)); eauto. simpl; auto.
-  eapply (A Mfloat32 (Vfloat f)); eauto. simpl; auto.
-  eapply (A Mfloat64 (Vfloat f)); eauto. simpl; auto.
+  eapply (A Mint8unsigned (Vint i)); eauto.
+  eapply (A Mint16unsigned (Vint i)); eauto.
+  eapply (A Mint32 (Vint i)); eauto.
+  eapply (A Mfloat32 (Vfloat f)); eauto.
+  eapply (A Mfloat64 (Vfloat f)); eauto.
   destruct (find_symbol ge i); try congruence. exists b0; split; auto. 
-  eapply (A Mint32 (Vptr b0 i0)); eauto. simpl; auto. 
+  eapply (A Mint32 (Vptr b0 i0)); eauto. 
 Qed.
 
 Remark load_alloc_variables:
@@ -1771,34 +1770,41 @@ Proof.
   rewrite H0; simpl. auto.
 Qed.
 
-
-(* This may not yet be in the ideal form for easy use .*)
-(* FIXME
-Theorem find_new_var_exists: 
-  list_norepet (prog_var_names p ++ var_names new_vars) -> 
-  forall id gv m, In (id, gv) new_vars -> 
-  init_mem p' = Some m -> 
-  exists b, find_symbol (globalenv p') id = Some b
-         /\ find_var_info (globalenv p') b = Some gv
-         /\ Mem.range_perm m b 0 (init_data_list_size gv.(gvar_init)) Cur (perm_globvar gv)
-         /\ (gv.(gvar_volatile) = false -> load_store_init_data (globalenv p') m b 0 gv.(gvar_init)).
+Theorem find_new_var_exists:
+  forall id gv,
+  list_norepet (var_names new_vars) ->
+  In (id, gv) new_vars ->
+  exists b, find_symbol (globalenv p') id = Some b /\ find_var_info (globalenv p') b = Some gv.
 Proof.
   intros. 
-  destruct p. 
+  assert (P: forall b vars (ge: t B W),
+          ~In id (var_names vars) ->
+          find_symbol ge id = Some b
+          /\ find_var_info ge b = Some gv ->
+          find_symbol (add_variables ge vars) id = Some b
+          /\ find_var_info (add_variables ge vars) b = Some gv).
+  induction vars; simpl; intros. auto. apply IHvars. tauto.
+  destruct a as [id1 gv1]; unfold add_variable, find_symbol, find_var_info; simpl in *.
+  destruct H2; split. rewrite PTree.gso. auto. intuition. 
+  rewrite ZMap.gso. auto. exploit genv_vars_range; eauto. unfold ZIndexed.t; omega.
+
+  assert (Q: forall vars (ge: t B W),
+          list_norepet (var_names vars) ->
+          In (id, gv) vars ->
+          exists b, find_symbol (add_variables ge vars) id = Some b
+                 /\ find_var_info (add_variables ge vars) b = Some gv).
+    induction vars; simpl; intros.
+    contradiction.
+    destruct a as [id1 gv1]; simpl in *. inv H1. destruct H2. inv H1. 
+    exists (genv_nextvar ge). apply P; auto. 
+    unfold add_variable, find_symbol, find_var_info; simpl in *.
+    split. apply PTree.gss. apply ZMap.gss. 
+    apply IHvars; auto. 
+
   unfold transform_partial_augment_program in transf_OK. 
   monadInv transf_OK. rename x into prog_funct'.  rename x0 into prog_vars'. simpl in *.
-  assert (var_names prog_vars = var_names prog_vars').
-   clear - EQ1.  generalize dependent prog_vars'. induction prog_vars; intros.
-      simpl in EQ1. inversion EQ1; subst; auto.
-      simpl in EQ1. destruct a. destruct (transf_globvar transf_var g); try discriminate. monadInv EQ1.
-      simpl; f_equal; auto.
-  apply find_var_exists. 
-  unfold prog_var_names in *; simpl in *.  
-  rewrite var_names_app. rewrite <- H2. auto.
-  simpl. intuition.
-  auto.
+  unfold globalenv; simpl. repeat rewrite add_variables_app. apply Q; auto.
 Qed.
-*)
 
 Theorem find_var_info_rev_transf_augment:
   forall (b: block) (v': globvar W),

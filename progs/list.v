@@ -151,11 +151,11 @@ Lemma lseg_unfold: forall contents v1 v2,
 Proof.
  intros.
  destruct v1 as [v1 t]. destruct v2 as [v2 t2]. simpl in H. subst t2.
- simpl fst; simpl snd.
+ simpl @fst; simpl @snd.
  destruct t; auto.
  destruct t; auto. destruct f; auto. destruct f; auto. destruct f; auto.
- unfold lseg at 1. simpl snd. unfold multifield_lseg. unfold lseg'.
- rewrite HORec_fold_unfold. simpl fst; simpl snd.
+ unfold lseg at 1. simpl @snd. unfold multifield_lseg. unfold lseg'.
+ rewrite HORec_fold_unfold. simpl @fst; simpl @snd.
   normalize.
  destruct contents. simpl map. simpl. auto.
   simpl map.
@@ -165,11 +165,11 @@ Proof.
  unfold fields_mapto. rewrite sepcon_emp.
  f_equal.
  f_equal.
- unfold lseg. simpl snd.
+ unfold lseg. simpl @snd.
  symmetry; symmetry.
- unfold multifield_lseg. simpl snd.
+ unfold multifield_lseg. simpl @snd.
  rewrite prop_true_andp by auto.
- unfold lseg'. simpl fst. reflexivity.
+ reflexivity.
  clear.
  apply prove_HOcontractive; intros.
  destruct x.
@@ -190,7 +190,8 @@ Ltac do_lseg_unfold := match goal with |- context [lseg ?C ?F ?L] =>
   assert (H := lseg_unfold C F L (eq_refl _)); simpl snd in H;
      rewrite H; clear H
  end.
-Section TestCase.
+
+Module TestCase.
 Definition myid : ident := 3%positive.
 Definition data_id : ident := 4%positive.
 Definition link_id : ident := 5%positive.

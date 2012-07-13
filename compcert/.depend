@@ -11,7 +11,34 @@ Memory.vo Memory.glob: Memory.v Axioms.vo Coqlib.vo Maps.vo AST.vo Integers.vo F
 Smallstep.vo Smallstep.glob: Smallstep.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo
 Values.vo Values.glob: Values.v Coqlib.vo AST.vo Integers.vo Floats.vo
 Integers.vo Integers.glob: Integers.v Axioms.vo Coqlib.vo
-Floats.vo Floats.glob: Floats.v Coqlib.vo Integers.vo
+Floats.vo Floats.glob: Floats.v Axioms.vo Coqlib.vo Integers.vo Fappli_IEEE.vo Fappli_IEEE_bits.vo Fcore.vo Fcalc_round.vo Fcalc_bracket.vo Fprop_Sterbenz.vo
+Fappli_IEEE.vo Fappli_IEEE.glob: Fappli_IEEE.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fcalc_round.vo Fcalc_bracket.vo Fcalc_ops.vo Fcalc_div.vo Fcalc_sqrt.vo Fprop_relative.vo
+Fappli_IEEE_bits.vo Fappli_IEEE_bits.glob: Fappli_IEEE_bits.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fappli_IEEE.vo
+Fcore.vo Fcore.glob: Fcore.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo Fcore_FIX.vo Fcore_FLX.vo Fcore_FLT.vo Fcore_ulp.vo
+Fcore_defs.vo Fcore_defs.glob: Fcore_defs.v Fcore_Raux.vo
+Fcore_digits.vo Fcore_digits.glob: Fcore_digits.v Fcore_Zaux.vo
+Fcore_FIX.vo Fcore_FIX.glob: Fcore_FIX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo
+Fcore_float_prop.vo Fcore_float_prop.glob: Fcore_float_prop.v Fcore_Raux.vo Fcore_defs.vo
+Fcore_FLT.vo Fcore_FLT.glob: Fcore_FLT.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo Fcore_FIX.vo Fcore_rnd_ne.vo
+Fcore_FLX.vo Fcore_FLX.glob: Fcore_FLX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FIX.vo Fcore_rnd_ne.vo
+Fcore_FTZ.vo Fcore_FTZ.glob: Fcore_FTZ.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo
+Fcore_generic_fmt.vo Fcore_generic_fmt.glob: Fcore_generic_fmt.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_float_prop.vo
+Fcore_Raux.vo Fcore_Raux.glob: Fcore_Raux.v Fcore_Zaux.vo
+Fcore_rnd.vo Fcore_rnd.glob: Fcore_rnd.v Fcore_Raux.vo Fcore_defs.vo
+Fcore_rnd_ne.vo Fcore_rnd_ne.glob: Fcore_rnd_ne.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_ulp.vo
+Fcore_ulp.vo Fcore_ulp.glob: Fcore_ulp.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo
+Fcore_Zaux.vo Fcore_Zaux.glob: Fcore_Zaux.v
+Fcalc_bracket.vo Fcalc_bracket.glob: Fcalc_bracket.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
+Fcalc_div.vo Fcalc_div.glob: Fcalc_div.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fcalc_round.vo Fcalc_round.glob: Fcalc_round.v Fcore.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fcalc_digits.vo Fcalc_digits.glob: Fcalc_digits.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo
+Fcalc_ops.vo Fcalc_ops.glob: Fcalc_ops.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
+Fcalc_sqrt.vo Fcalc_sqrt.glob: Fcalc_sqrt.v Fcore_Raux.vo Fcore_defs.vo Fcore_digits.vo Fcore_float_prop.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fprop_div_sqrt_error.vo Fprop_div_sqrt_error.glob: Fprop_div_sqrt_error.v Fcore.vo Fcalc_ops.vo Fprop_relative.vo
+Fprop_plus_error.vo Fprop_plus_error.glob: Fprop_plus_error.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_generic_fmt.vo Fcalc_ops.vo
+Fprop_Sterbenz.vo Fprop_Sterbenz.glob: Fprop_Sterbenz.v Fcore_Raux.vo Fcore_defs.vo Fcore_generic_fmt.vo Fcalc_ops.vo
+Fprop_mult_error.vo Fprop_mult_error.glob: Fprop_mult_error.v Fcore.vo Fcalc_ops.vo
+Fprop_relative.vo Fprop_relative.glob: Fprop_relative.v Fcore.vo
 Coqlib.vo Coqlib.glob: Coqlib.v
 Intv.vo Intv.glob: Intv.v Coqlib.vo
 Ordered.vo Ordered.glob: Ordered.v Coqlib.vo Maps.vo Integers.vo

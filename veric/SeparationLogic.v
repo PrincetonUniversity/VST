@@ -73,8 +73,6 @@ Definition semax_prog
 
 Axiom semax_func_nil: forall G, semax_func G nil nil.
 
-Definition funsig := (typelist * type)%type.
-
 Definition fn_funsig (f: function) : funsig :=
  (type_of_params (fn_params f), fn_return f).
 
