@@ -101,6 +101,15 @@ intros.
 intros ? ? ? ?; auto.
 Qed.
 
+Lemma subp_trans {A} `{agA : ageable A}:
+  forall (B C D: pred A) (w: nat), (B >=> C)%pred w -> (C >=> D)% pred w -> (B >=> D)%pred w.
+Proof.
+intros.
+intros w' ? w'' ? ?.
+eapply H0; eauto.
+eapply H; eauto.
+Qed.
+
 Lemma andp_subp  {A} `{agA : ageable A} :
  forall (P P' Q Q': pred A) (w: nat), (P >=> P') w -> (Q >=> Q') w -> (P && Q >=> P' && Q') w.
 Proof.

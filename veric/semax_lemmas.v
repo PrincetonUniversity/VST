@@ -107,7 +107,8 @@ Qed.
 
 Lemma semax'_pre:
  forall P' Delta G R P c,
-  (forall rho, P rho |-- P' rho)    ->     semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R.
+  (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho)   
+   ->   semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R.
 Proof.
 intros.
 repeat rewrite semax_fold_unfold.
@@ -119,12 +120,15 @@ apply imp_derives; auto.
 unfold guard.
 apply allp_derives; intro rho.
 apply subp_derives; auto.
+apply andp_derives; auto.
+apply prop_andp_left; intros [? ?].
+apply prop_andp_right; auto.
 Qed.
 
 Lemma semax'_pre_post:
  forall 
       P' (R': ret_assert) Delta G (R: ret_assert) P c,
-   (forall rho, P rho |-- P' rho) ->
+   (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho) ->
    (forall ek vl rho, R ek vl rho |-- R' ek vl rho) ->
    semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R'.
 Proof.
@@ -242,7 +246,8 @@ Qed.
 
 Lemma semax_pre:
  forall P' Delta G P c R,
-   (forall rho, P  rho |-- P' rho) ->   semax Hspec Delta G P' c R  -> semax Hspec Delta G P c R.
+   (forall rho, typecheck_environ rho Delta = true ->  P  rho |-- P' rho) ->
+     semax Hspec Delta G P' c R  -> semax Hspec Delta G P c R.
 Proof.
 unfold semax.
 intros.
@@ -259,7 +264,7 @@ Definition semax1 Delta G P c Q :=
 
 Lemma semax1_pre:
       forall P' Delta G P c Q, 
-             (forall rho, P  rho |-- P' rho) -> 
+             (forall rho,  typecheck_environ rho Delta = true ->  P  rho |-- P' rho) -> 
              semax1 Delta G P' c Q -> semax1 Delta G P c Q.
 Proof.
 unfold semax1; intros.
@@ -268,7 +273,7 @@ Qed.
 
 Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
-   (forall rho, P rho |-- P' rho ) ->
+   (forall rho,  typecheck_environ rho Delta = true ->  P rho |-- P' rho ) ->
    (forall ek vl rho , R' ek vl rho |-- R ek vl rho) ->
    semax Hspec Delta G P' c R' ->  semax Hspec Delta G P c R.
 Proof.
@@ -301,16 +306,6 @@ unfold straightline; intros.
 inv H; auto.
 Qed.
 
-(* Admitted:  rename? and move to msl *)
-Lemma pred_sub_trans {A} `{agA : ageable A}:
-  forall (B C D: pred A) (w: nat), (B >=> C)%pred w -> (C >=> D)% pred w -> (B >=> D)%pred w.
-Proof.
-intros.
-intros w' ? w'' ? ?.
-eapply H0; eauto.
-eapply H; eauto.
-Qed.
-
 
 Lemma extract_exists:
   forall  (A : Type) (any: A) (P : A -> assert) c Delta G (R: A -> ret_assert),
@@ -332,7 +327,7 @@ clear - H1.
 unfold rguard in *.
 intros ek vl rho; specialize (H1 ek vl rho).
 red in H1. 
-eapply pred_sub_trans; [| apply H1 ].
+eapply subp_trans; [| apply H1 ].
 apply derives_subp.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -415,7 +410,7 @@ specialize (H1 st F _ H3).
 spec H1.
 destruct H4; split; auto.
 intros ek vl rho. specialize (H5 ek vl rho).
-eapply pred_sub_trans; try apply H5.
+eapply subp_trans; try apply H5.
 apply andp_subp; auto.
 apply andp_subp; auto.
 (* apply subp_later; auto with typeclass_instances. *)
@@ -430,7 +425,7 @@ apply sepcon_subp;  auto.
 apply (pred_nec_hereditary _ _ _ H3) in H0.
 clear - H1 H0.
 intro rho; specialize (H1 rho); specialize (H0 rho).
-eapply pred_sub_trans; try apply H1. clear H1.
+eapply subp_trans; try apply H1. clear H1.
 apply andp_subp; auto.
 apply andp_subp; auto.
 apply sepcon_subp; auto.
@@ -520,7 +515,7 @@ Proof.
 intros.
 intros w ?.
 apply (@pred_sub_later' _ _ natty_rmap P  (assert_safe Hspec ge k rho)); auto.
-eapply pred_sub_trans; try apply H.
+eapply subp_trans; try apply H.
 apply derives_subp; clear.
 intros w0 ?.
 intros w' ?.
@@ -1021,7 +1016,7 @@ Lemma assert_safe_adj':
      app_pred (P >=> assert_safe Hspec ge k' rho) w.
 Proof.
  intros.
- eapply pred_sub_trans; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
+ eapply subp_trans; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
  auto.
 Qed.
 

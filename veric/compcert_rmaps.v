@@ -219,17 +219,6 @@ Proof.
   hnf. repeat decide equality; apply eq_dec.
 Qed.
 
-(* Admitted: move to msl.eq_dec *)
-Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).
-Proof.
- hnf. decide equality; try apply eq_dec.
-Qed.
-
-Instance EqDec_list (A: Type) (EA: EqDec A) : EqDec (list A).
-Proof.
- hnf. apply list_eq_dec; intros; apply EA.
-Qed.
-
 Instance EqDec_kind: EqDec kind.
 Proof.
   hnf. decide equality; try apply eq_dec.

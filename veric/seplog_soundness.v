@@ -1,5 +1,5 @@
 Require Import veric.base.
-Require Import veric.normalize.
+Require Import msl.normalize.
 Require Import veric.Address.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
@@ -892,7 +892,7 @@ normalize.
 destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
-apply pred_sub_trans with
+apply subp_trans with
  (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x)) && funassert G rho').
 apply andp_subp; auto.
 apply sepcon_subp; auto.

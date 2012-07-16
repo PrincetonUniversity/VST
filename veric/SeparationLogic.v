@@ -265,7 +265,7 @@ Axiom semax_Sskip:
 
 Axiom semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
-   (forall rho, P rho |-- P' rho) ->
+   (forall rho,  typecheck_environ rho Delta = true ->    P rho |-- P' rho) ->
    (forall ek vl rho, R' ek vl rho |-- R ek vl rho) ->
    semax Delta G P' c R' -> semax Delta G P c R.
 

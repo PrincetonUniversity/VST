@@ -8,7 +8,7 @@ Require Import veric.res_predicates.
 Require Import veric.expr.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
-Require Import veric.normalize.
+Require Import msl.normalize.
 
 Local Open Scope pred.
 

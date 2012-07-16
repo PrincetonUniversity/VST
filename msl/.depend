@@ -37,6 +37,7 @@ msl_direct.vo msl_direct.glob: msl_direct.v Extensionality.vo base.vo boolean_al
 msl_standard.vo msl_standard.glob: msl_standard.v Extensionality.vo ageable.vo age_sepalg.vo base.vo boolean_alg.vo knot.vo knot_hered.vo knot_lemmas.vo knot_prop.vo knot_sa.vo knot_hered_sa.vo knot_sa_trivial.vo knot_shims.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo contractive.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo combiner_sa.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo
 msl_classical.vo msl_classical.glob: msl_classical.v msl_standard.vo
 predicates_sa.vo predicates_sa.glob: predicates_sa.v base.vo sepalg.vo cross_split.vo
+normalize.vo normalize.glob: normalize.v msl_standard.vo
 env.vo env.glob: env.v base.vo boolean_alg.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo predicates_sa.vo msl_standard.vo
 corec.vo corec.glob: corec.v base.vo sepalg.vo predicates_sa.vo
 Coqlib2.vo Coqlib2.glob: Coqlib2.v Extensionality.vo base.vo

@@ -129,40 +129,6 @@ simpl in H.
 destruct (phi@loc); eauto 50.
 Qed.
 
-(* Admitted: move to MSL *)
-Lemma age_twin {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: 
-  forall phi1 phi2 n phi1', 
-  level phi1 = level phi2 ->
-  ageN n phi1 = Some phi1' ->
-  exists phi2', ageN n phi2 = Some phi2' /\ level phi1' = level phi2'.
-Proof.
-intros until n; revert n phi1 phi2.
-induction n; intros.
-exists phi2.
-split; trivial.
-inversion H0.
-subst phi1'.
-trivial.
-unfold ageN in H0.
-simpl in H0.
-revert H0; case_eq (age1 phi1); intros; try discriminate.
-rename a into phi.
-assert (exists ophi2, age phi2 ophi2 /\ level phi = level ophi2).
-generalize (age_level _ _ H0); intro.
-rewrite H in H2; apply levelS_age1 in H2. destruct H2 as [y ?].
-exists y; split; auto. 
-apply age_level in H0; apply age_level in H2; omega.
-destruct H2 as [ophi2 [? ?]].
-specialize (IHn _ _ _ H3 H1).
-destruct IHn as [phi2' [? ?]].
-exists phi2'.
-split; trivial.
-unfold ageN.
-simpl.
-rewrite H2.
-trivial.
-Qed.
-
 Lemma VAL_valid:
  forall (f: address -> option (pshare*kind)),
    (forall l sh k, f l = Some (sh,k) -> isVAL k) ->
@@ -222,27 +188,6 @@ destruct X as [? ?H].
 destruct (constructive_age1_join _ _ _ _ H1 H) as [[y z] [? [? ?]]].
 simpl in *.
 unfold age in H3. rewrite H0 in H3; inv H3; econstructor; eauto.
-Qed.
-
-(* TODO: move into age_sepalg.v *)
-Lemma age1_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall phi1 phi2 phi3,
-        join phi1 phi2 phi3 ->
-        forall phi1', age1 phi1 = Some phi1' ->
-        forall phi2', age1 phi2 = Some phi2' ->
-        forall phi3', age1 phi3 = Some phi3' ->
-        join phi1' phi2' phi3'.
-Proof.
-intros until phi3.
-intros H phi1' H0 phi2' H1 phi3' H2.
-destruct (age1_join _ H H0) as [phi4 [x' [? [? ?]]]].
-unfold age in *.
-rewrite H4 in H1.
-inversion H1.
-rewrite <- H7.
-rewrite H5 in H2.
-inversion H2.
-rewrite <- H8.
-auto.
 Qed.
 
 
@@ -314,14 +259,6 @@ Proof.
   f_equal.
   destruct j, j'; simpl in *; subst; repeat f_equal; try apply proof_irr.
 Qed.  
-
-Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall a b c, join a b c -> core a = core b. 
-Proof.
-intros. generalize H; intro.
-apply join_com in H.
-apply join_core in H0; apply join_core in H. congruence.
-Qed.
 
 Lemma age1_juicy_mem_unpack'': forall j j',
   age (m_phi j)  (m_phi j')  -> m_dry j = m_dry j' ->
@@ -529,21 +466,6 @@ intros phi loc H.
 destruct (phi @ loc); try solve [inversion H].
 destruct H. subst.
 eauto.
-Qed.
-
-(* Admitted: MOVE TO MSL *)
-Lemma age_core_eq {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall x y x' y', age x x' -> age y y' -> core x = core y -> core x' = core y'.
-Proof.
- intros.
- generalize (core_unit x); unfold unit_for; intro. apply join_com in H2.
- generalize (core_unit y); unfold unit_for; intro. apply join_com in H3.
- destruct (age1_join _ H2 H) as [u [v [? [? ?]]]].
- destruct (age1_join _ H3 H0) as [i [j [? [? ?]]]].
- unfold age in *. inversion2 H H6.  inversion2 H0 H9.
- rewrite H1 in *. inversion2 H5 H8.
- apply join_core2 in H4. apply join_core2 in H7.
-  congruence.
 Qed.
 
 (* resource coherence *)

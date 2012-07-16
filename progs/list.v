@@ -1,7 +1,7 @@
 Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
 Require Import veric.seplog.
-Require Import veric.normalize.
+Require Import msl.normalize.
 Require veric.compcert_rmaps.
 Require Import compcert.Ctypes.
 
@@ -190,6 +190,40 @@ Ltac do_lseg_unfold := match goal with |- context [lseg ?C ?F ?L] =>
   assert (H := lseg_unfold C F L (eq_refl _)); simpl snd in H;
      rewrite H; clear H
  end.
+
+Require Import veric.expr.
+
+Lemma lseg_eq:
+  forall l v t, 
+  match t with Tpointer (Tstruct _ (Fcons _ _ (Fcons _ _ Fnil)) _) _ => True | _ => False end ->
+  typecheck_val v t = true ->
+    lseg l (v,t) (v,t) = !!(l=nil) && emp.
+Proof.
+intros.
+pose proof (lseg_unfold l (v,t) (v,t) (eq_refl _)).
+destruct t; try contradiction.
+destruct t; try contradiction.
+destruct f; try contradiction.
+destruct f; try contradiction.
+destruct f; try contradiction.
+simpl in *.
+destruct l.
+rewrite H1.
+f_equal.
+unfold ptr_eq.
+destruct v; simpl in H0; try discriminate.
+unfold Int.cmpu.
+rewrite Int.eq_true.
+normalize.
+replace (v0 :: l = nil) with False by (apply prop_ext; intuition; congruence).
+apply pred_ext; [ | normalize].
+rewrite H1; clear H1.
+normalize.
+destruct v; normalize.
+contradiction H1.
+simpl. split; auto. apply Int.eq_true.
+Qed.
+
 
 Module TestCase.
 Definition myid : ident := 3%positive.

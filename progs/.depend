@@ -1,2 +1,4 @@
+list.vo list.glob: list.v
+client_lemmas.vo client_lemmas.glob: client_lemmas.v
 test1.vo test1.glob: test1.v
-verif1.vo verif1.glob: verif1.v
+verif1.vo verif1.glob: verif1.v client_lemmas.vo list.vo test1.vo

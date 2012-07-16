@@ -22,6 +22,7 @@ FILES = \
   contractive.v predicates_rec.v \
   msl_direct.v msl_standard.v msl_classical.v \
   predicates_sa.v \
+  normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v
 #  knot_setoid.v \  takes forever to compile, nobody uses it
 
