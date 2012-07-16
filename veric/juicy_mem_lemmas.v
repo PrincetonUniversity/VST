@@ -1001,7 +1001,7 @@ unfold NoneP. f_equal. extensionality z. unfold compose. apply approx_FF.
  clear H0.
 generalize (H3 _ n); intro H3'.
   assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
-  do 2 rewrite core_resource_at. congruence.
+  do 2 rewrite core_resource_at. unfold Join_rmap in *.  unfold Sep_rmap in  *; congruence.
   apply identity_resource in H3'.
   revert H3'; case_eq (m1 @ (b0,ofs0));intros; try contradiction; try constructor.
   apply identity_share_bot in H3'; subst t.
@@ -1030,7 +1030,7 @@ unfold perm_of_res in Ha0. simpl in Ha0.
   elimtype False.
   clear - H2 Hm1 H0.
   assert (core (m1 @ (b0,ofs0)) = core (m_phi j @ (b0,ofs0))).
-  do 2 rewrite core_resource_at. congruence.
+  do 2 rewrite core_resource_at.  unfold Join_rmap in *;  unfold Sep_rmap in  *; congruence.
   rewrite H0 in H. rewrite Hm1 in H. rewrite core_PURE in H. rewrite core_NO in H; inv H.
 Qed.
 

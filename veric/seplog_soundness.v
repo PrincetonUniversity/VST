@@ -61,14 +61,14 @@ hnf in TC'.
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
 specialize (Hc jm  jm1 psi rho k F TC' Hcl  Hge Hage Hglob); clear Hglob.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
-change (level (m_phi jm) = S (level (m_phi jm'))) in H2.
+change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 rewrite H2 in Hsafe.
 eapply safe_step'_back2; [eassumption | ].
 specialize (Hsafe EK_normal nil rho').
 simpl exit_cont in Hsafe.
 specialize (Hsafe (m_phi jm')).
 spec Hsafe.
-omega.
+change R.rmap with rmap; omega.
 specialize (Hsafe _ (necR_refl _)).
 spec Hsafe.
 split; auto.
@@ -78,7 +78,8 @@ destruct H4; split; auto.
 subst rho'.
 destruct rho; simpl in *; auto.
 hnf in Hsafe.
-replace (level (m_phi jm) - 1)%nat with (level (m_phi jm'))%nat by omega.
+change R.rmap with rmap in *.
+replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_phi jm'))%nat by omega.
 apply Hsafe; auto.
 Qed.
 
@@ -253,6 +254,7 @@ exists mf; exists m2; split3; auto.
 apply resource_at_join2.
 rewrite H4. symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
 apply join_level in H; destruct H.
+change R.rmap with rmap in *. change R.ag_rmap with ag_rmap in *.
 rewrite H6; symmetry. apply (level_store_juicy_mem _ _ _ _ _ _ STORE).
 intro; rewrite H5. clear mf H4 H5.
 simpl m_phi.
@@ -736,7 +738,7 @@ Lemma environ_ge_ve_disjoint:
 Admitted.
 
 Lemma semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> arguments -> predicate)
+      forall id fsig (A : Type) (P' Q' : A -> arguments -> pred rmap)
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
@@ -941,7 +943,7 @@ admit.  (* very plausible *)
 hnf in H1.
 specialize (H1 ora' jm2).
 specialize (H1 (eq_refl _)).
-case_eq (level (m_phi jm')); intros; [auto |].
+case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [auto] |].
 destruct (levelS_age1 jm' _ H21) as [jm'' ?].
 destruct (age_twin' jm' jm2 jm'') as [jm2'' [? ?]]; auto.
 pose proof (age_safe _ _ _ _ H26 _ _ _ H1).

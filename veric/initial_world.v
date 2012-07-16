@@ -185,7 +185,9 @@ split.
 apply resource_at_join2.
 subst.
 assert (level m0 = level (m_phi (initial_mem m w IOK))).
+change R.rmap with rmap in *; change R.ag_rmap with ag_rmap in *.
 apply join_level in H4; destruct H4; congruence.
+change R.rmap with rmap in *; change R.ag_rmap with ag_rmap in *.
 rewrite H5.
 simpl; repeat rewrite inflate_initial_mem_level; auto.
 rewrite H1; simpl; rewrite inflate_initial_mem_level; auto.
@@ -338,6 +340,9 @@ simpl.
 rewrite (nextblock_noaccess) by (subst; omega).
 unfold access_at.
 simpl.
+change R.rmap with rmap in *.
+change R.Join_rmap with Join_rmap in *.
+change R.Sep_rmap with Sep_rmap in *.
 replace (core w @ (b,z')) with (NO Share.bot).
 Transparent alloc.
 unfold contents_at.
@@ -370,13 +375,14 @@ simpl.
 rewrite nextblock_noaccess by omega.
 rewrite nextblock_noaccess by omega.
 admit.  (* trivial *)
+change Join_rmap with R.Join_rmap.
+change Sep_rmap with R.Sep_rmap.
 rewrite (IOK (b',z')) by (simpl; auto).
 replace (access_at m' (b',z')) with (access_at m (b',z')).
 replace (contents_at m' (b',z')) with (contents_at m (b',z')).
-destruct (access_at m (b',z')); try destruct p; constructor; apply join_unit2; auto.
+destruct (access_at m (b',z')); try destruct p; constructor; auto.
 unfold contents_at; inv H; simpl. rewrite ZMap.gso by auto. auto.
 unfold access_at; inv H; simpl. rewrite ZMap.gso; auto.
-
 intros (b',z').
 hnf.
 unfold yesat.

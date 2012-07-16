@@ -4,6 +4,17 @@ Require Import veric.juicy_extspec.
 Require Import veric.Clight_lemmas.
 Require Import veric.expr.
 
+Opaque rmap.
+Instance Join_rmap: Join rmap := _.
+Instance Perm_rmap: @Perm_alg rmap Join_rmap := _.
+Instance Sep_rmap: @Sep_alg rmap Join_rmap := _.
+Instance Canc_rmap: @Canc_alg rmap Join_rmap := _.
+Instance Disj_rmap: @Disj_alg rmap Join_rmap := _.
+Instance ag_rmap: ageable rmap := _.
+Instance Age_rmap: @Age_alg rmap Join_rmap ag_rmap := _.
+Instance Cross_rmap: Cross_alg rmap := _.
+Instance Trip_rmap: Trip_alg rmap := _.
+
 
 Module Type EXTERNAL_SPEC.
   Parameter Z:Type.
@@ -35,11 +46,11 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 
 (** THESE RULES FROM semax_prog **)
 
-Definition function_body_entry_assert (f: function) (P: arguments -> predicate) (G: funspecs) : assert :=
+Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
    fun rho : environ =>
-      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho && funassert G rho.
+      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
 
-Definition function_body_ret_assert (f: function) (Q: arguments -> predicate) : ret_assert := 
+Definition function_body_ret_assert (f: function) (Q: arguments -> pred rmap) : ret_assert := 
    fun (ek : exitkind) (vl : list val) rho =>
      match ek with
      | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 
@@ -47,7 +58,7 @@ Definition function_body_ret_assert (f: function) (Q: arguments -> predicate) : 
      end.
 
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> arguments -> predicate) : Prop :=
+       (G: funspecs) (f: function) (A: Type) (P Q: A -> arguments -> pred rmap) : Prop :=
       (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
        list_norepet (map (@fst _ _) (fn_vars f))) /\
   forall x,
@@ -58,11 +69,11 @@ Definition semax_body
 
 Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
-Definition main_pre (prog: program) : unit -> arguments -> predicate :=
+Definition main_pre (prog: program) : unit -> arguments -> pred rmap :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
                              (empty_environ (Genv.globalenv prog))).
 
-Definition main_post (prog: program) : unit -> arguments -> predicate := 
+Definition main_post (prog: program) : unit -> arguments -> pred rmap := 
   (fun tt vl => !! (vl=nil)).
 
 Definition semax_prog 
@@ -85,7 +96,7 @@ Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
-  forall (ef: external_function) (A: Type) (P Q: A -> arguments -> predicate),  Prop.
+  forall (ef: external_function) (A: Type) (P Q: A -> arguments -> pred rmap),  Prop.
 
 Axiom semax_func_cons_ext: 
    forall (G: funspecs) fs id ef fsig A P Q (G': funspecs),
@@ -170,7 +181,7 @@ Definition get_result (ret: option ident) (ty: type) (rho: environ) :=
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)), ty)::nil end.
 
 Axiom semax_call_basic : 
-forall Delta G A (P Q: A -> arguments -> predicate) x F ret fsig a bl
+forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
       (TC1: typecheck_expr Delta a = true)
       (TC2: typecheck_exprlist Delta bl = true),
        semax1 Delta G
@@ -188,7 +199,7 @@ Axiom  semax_return :
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> arguments -> predicate)
+      forall id fsig (A : Type) (P' Q' : A -> arguments -> pred rmap)
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Delta G (fun rho => P rho 

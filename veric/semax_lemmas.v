@@ -165,8 +165,8 @@ apply andp_derives; auto.
 repeat intro.
 simpl in H0.
 specialize (H0 ora jm H1).
-destruct (level a).
-simpl. auto.
+destruct (@level rmap _ a).
+simpl; auto.
 apply convergent_controls_safe with (State (ve_of rho) (te_of rho) k); auto.
 simpl.
 

@@ -40,9 +40,22 @@ Lemma unrel_splice_R:
 Proof.
 Admitted.
 
+(* THESE NEXT DEFINITIONS are inconvenient to have inside the proof
+  of separation logic soundness, but are necessary to have for the 
+  client of the separation logic who wants to import the separation
+   logic opaquely. *)
+Definition rmap := rmap.
+Instance Join_rmap: Join rmap := _.
+Instance Perm_rmap: @Perm_alg rmap Join_rmap := _.
+Instance Sep_rmap: @Sep_alg rmap Join_rmap := _.
+Instance Canc_rmap: @Canc_alg rmap Join_rmap := _.
+Instance Disj_rmap: @Disj_alg rmap Join_rmap := _.
+Instance ag_rmap: ageable rmap := _.
+Instance Age_rmap: @Age_alg rmap Join_rmap ag_rmap := _.
+Instance Cross_rmap: Cross_alg rmap := _.
+Instance Trip_rmap: Trip_alg rmap := _.
 
-Definition predicate := pred rmap.
-Definition assert: Type := environ -> predicate.
+Definition assert: Type := environ -> pred rmap.
 
 Bind Scope pred with assert.
 Open Local Scope pred.
@@ -190,9 +203,8 @@ Fixpoint zip_arguments (vl: list val) (tl: typelist) : list (val * type) :=
   | _, _ => nil
  end.
 
-
 Definition bind_args (formals: list (ident * type)) (P: arguments -> pred rmap) : assert :=
-   fun rho => P (map (fun xt => (force_val (Maps.PTree.get (fst xt) (te_of rho)), snd xt)) formals).
+   fun rho => P (map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)), snd xt)) formals).
 
 Definition bind_ret (vl: list val) (t: type) (Q: arguments -> pred rmap) : pred rmap :=
      match vl, t with

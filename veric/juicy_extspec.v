@@ -84,6 +84,7 @@ Proof.
  destruct H as [H' H].
  split. clear H.
  apply age_level in H0; apply age_level in H1.
+ unfold seplog.rmap, seplog.ag_rmap in *; 
   rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
   clear. forget (level jm2') as n. omega.
   intro l. 
@@ -106,9 +107,11 @@ Proof.
  rewrite approx_oo_approx'.
   auto.
  apply age_level in H0; apply age_level in H1.
+unfold rmap, seplog.ag_rmap in *;
  forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
- subst. omega.
+ subst.  omega.
  apply age_level in H0; apply age_level in H1.
+unfold rmap, seplog.ag_rmap in *.
  forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
  subst. omega.
  right.
@@ -116,7 +119,9 @@ Proof.
   left; exists rsh, v,v'.
   split.
   apply age_level in H1.
-  forget (level jm2) as j2. forget (level jm2') as j2'. subst j2.
+  unfold rmap, seplog.rmap, seplog.ag_rmap in *.
+  forget (@level R.rmap R.ag_rmap jm2) as j2.
+  forget (@level R.rmap R.ag_rmap jm2') as j2'. subst j2.
   clear - H2 H0 LEV.
   revert H2; case_eq (jm1 @ l); intros; inv H2.
   pose proof (necR_YES jm1 jm1' l rsh pfullshare (VAL v) p0 (rt_step _ _ _ _ H0) H).

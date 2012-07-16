@@ -83,7 +83,7 @@ Definition f_sumlist : function :=
  (* body *) 
   (Ssequence (Sset i_s (Econst_int (Int.repr 0) t_int))
    (Ssequence (Sset i_t (Etempvar i_p t_listptr))
-    (Ssequence (Sset i_h (Econst_int (Int.repr 0) t_int))
+    (  (* Ssequence (Sset i_h (Econst_int (Int.repr 0) t_int)) *)
      (Ssequence 
          (Swhile (Etempvar i_t t_listptr)
           (Ssequence (Sset i_h (Efield (Ederef (Etempvar i_t t_listptr) t_list) i_h t_int))
@@ -100,7 +100,7 @@ Definition f_reverse: function :=
  (* body *) 
   (Ssequence (Sset i_w (Econst_int (Int.repr 0) t_int))
    (Ssequence (Sset i_v (Etempvar i_p t_listptr))
-    (Ssequence (Sset i_t (Econst_int (Int.repr 0) t_int))
+    ( (* Ssequence (Sset i_t (Econst_int (Int.repr 0) t_int)) *)
      (Ssequence 
          (Swhile (Etempvar i_v t_listptr)
           (Ssequence (Sset i_t (Efield (Ederef (Etempvar i_v t_listptr) t_list) i_t t_listptr))

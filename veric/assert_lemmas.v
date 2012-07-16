@@ -168,32 +168,12 @@ Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true.
 
 (****************** stuff moved from semax_prog  *****************)
 
-(*
-Lemma fash_fash'': forall 
-               {A: Type} {agA:ageable A}
-               {B: Type} {agB:ageable B} (P: B -> Prop),
-      @fash B agB A agA
-              (@fash B agB B agB P) = 
-              (@fash B agB A agA P).
-Proof.
-intros A agA B agB P.
-extensionality w.
-apply prop_ext; split; intro.
-intros ? ?.
-specialize (H _ H0).
-eapply H.
-apply fashionR_refl.
-intros w' ? w'' ?.
-apply H.
-apply fashionR_trans with w'; auto.
-Qed.
-*)
-
 Lemma rmap_unage_age:
   forall r, age (rmap_unage r) r.
 Proof.
 intros; unfold age, rmap_unage; simpl.
 case_eq (unsquash r); intros.
+change ag_rmap with R.ag_rmap.
 rewrite rmap_age1_eq.
 rewrite unsquash_squash.
 f_equal.

@@ -252,8 +252,9 @@ replace (level a') with (S (level a2))
 subst a'.
 destruct (can_age1_juicy_mem _ _ LEVa2) as [jm' LEVa2'].
 unfold age in LEVa2.
-assert (a2 = m_phi jm') by 
- (generalize (age_jm_phi LEVa2'); unfold age; rewrite LEVa2; intro Hx; inv Hx; auto).
+assert (a2 = m_phi jm').
+  generalize (age_jm_phi LEVa2'); unfold age; change R.rmap with rmap; 
+           change R.ag_rmap with ag_rmap;  rewrite LEVa2; intro Hx; inv Hx; auto.
 subst a2.
 clear LEVa2; rename LEVa2' into LEVa2.
 apply safe_corestep_backward
@@ -265,7 +266,8 @@ admit.  (* maybe need typechecking here *)
 apply age1_resource_decay; auto.
 apply age_level; auto.
 assert (w >= level (m_phi jm)).
-apply necR_nat in H5. apply nec_nat in H5. omega. 
+apply necR_nat in H5. apply nec_nat in H5. 
+ change R.rmap with rmap in *; change R.ag_rmap with ag_rmap in *; omega. 
 clear y H5 H4. rename H11 into H5. pose (H4:=True).
 destruct b.
 (* Case 1: expr evaluates to true *)

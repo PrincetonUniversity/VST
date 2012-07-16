@@ -39,7 +39,7 @@ Definition entry_tempenv (te: temp_env) (f: function) (vl: list val) :=
 
 Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
    fun rho : environ =>
-      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho && funassert G rho.
+      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
 
 Definition function_body_entry_assert' (f: function) (P: arguments -> pred rmap) : assert :=
   (fun rho =>
@@ -126,7 +126,8 @@ Lemma laterR_level: forall w w' : rmap, laterR w w' -> (level w > level w')%nat.
 Proof.
 induction 1.
 unfold age in H. rewrite <- ageN1 in H.
-rewrite (ageN_level _ _ _ H). generalize (level y). intros; omega.
+change rmap with R.rmap; change ag_rmap with R.ag_rmap.
+rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; omega.
 omega.
 Qed.
 
@@ -134,7 +135,8 @@ Lemma necR_level:  forall w w' : rmap, necR w w' -> (level w >= level w')%nat.
 Proof.
 induction 1.
 unfold age in H. rewrite <- ageN1 in H.
-rewrite (ageN_level _ _ _ H).  generalize (level y). intros; omega.
+change rmap with R.rmap; change ag_rmap with R.ag_rmap.
+rewrite (ageN_level _ _ _ H). generalize (@level _ R.ag_rmap y). intros; omega.
 omega.
 omega.
 Qed.
@@ -287,8 +289,21 @@ specialize (H3 x).
 destruct H3.
 specialize (H4 n).
 apply now_later.
-auto.
-
+clear - H4.
+rewrite semax_fold_unfold in H4|-*.
+revert n H4.
+apply allp_derives; intro gx.
+apply imp_derives; auto.
+apply allp_derives; intro k.
+apply allp_derives; intro F.
+apply imp_derives; auto.
+unfold guard.
+apply allp_derives; intro rho.
+eapply subp_derives; auto.
+apply andp_derives; auto.
+apply andp_derives; auto.
+apply sepcon_derives; auto.
+apply andp_left1; auto.
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
