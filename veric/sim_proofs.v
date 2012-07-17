@@ -346,6 +346,10 @@ End Forward_simulation_equals.
 Implicit Arguments Forward_simulation_equals [[G1] [C1] [G2] [C2]].
 End Sim_eq.
 
+Definition siminj (j: meminj) (m1 m2 : mem) :=
+  (forall b, ~(Mem.valid_block m1 b) -> j b = None) /\
+  (forall b b' delta, j b = Some(b', delta) -> Mem.valid_block m2 b').
+
 Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
@@ -364,10 +368,10 @@ Section Forward_simulation_inject.
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
-    (*added by lenb
-    match_inj: forall d j st1 m1 st2 m2,
-               match_state d j st1 m1 st2 m2 -> Mem.inject j m1 m2;
-*)
+    match_state_siminj: 
+      forall d j st1 m1 st2 m2,
+        match_state d j st1 m1 st2 m2 -> siminj j m1 m2;
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd st2 j m2,
@@ -523,7 +527,6 @@ End Forward_simulation_extends.
 Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
 End Sim_ext.
 
-
   Definition inj_compose (j j' : meminj) : meminj :=
     fun b => match j b with None => None
                           | Some (b', delta') => match j' b' with None => None
@@ -610,8 +613,8 @@ End Sim_ext.
   Lemma inject_separated_compose: forall {j1 j1' j2 j2' m1 m2 m3}
         (HJ1: inject_incr j1 j1')
         (HJ2: inject_incr j2 j2')
-        (ZZ1 : Mem.inject j1 m1 m2)
-        (ZZ2 : Mem.inject j2 m2 m3)
+        (ZZ1: siminj j1 m1 m2)
+        (ZZ2: siminj j2 m2 m3)
         (Hsep1: inject_separated j1 j1' m1 m2)
         (Hsep2: inject_separated j2 j2' m2 m3),
     inject_separated (inj_compose j1 j2) (inj_compose j1' j2') m1 m3.
@@ -619,7 +622,7 @@ End Sim_ext.
     intros. destruct ZZ1. destruct ZZ2.
     eapply inj_separated_compose; eauto. 
   Qed. 
-
+(*
   Lemma m_inj_sep_compose: forall {j1 j1' j2 j2' m1 m2 m3}
         (HJ1: inject_incr j1 j1')
         (HJ2: inject_incr j2 j2')
@@ -655,7 +658,7 @@ End Sim_ext.
        apply H.
        apply (ZZ1 _ _ _ H1b').
   Qed.
-  
+*)  
 
 (*
   Lemma injt_separated_compose: forall {j1 j1' j2 j2' m1 m2 m3}
@@ -759,6 +762,25 @@ End Sim_ext.
           subst. inversion Hj2; clear Hj2. subst. econstructor. 
    Qed.
 
+
+Lemma siminj_compose j j' m1 m2 m3 :
+  siminj j m1 m2 -> siminj j' m2 m3 -> 
+  siminj (inj_compose j j') m1 m3.
+Proof.
+unfold inj_compose, siminj. intros [H1 H2][H3 H4].
+split. intros.
+case_eq (j b). intros [b' z] eq.
+case_eq (j' b'). intros [b2 z2] eq2.
+specialize (H1 _ H). congruence. auto. auto.
+intros until delta.
+case_eq (j b). intros [b2 z2] eq2.
+case_eq (j' b2). intros [b3 z3] eq3.
+inversion 1; subst.
+eapply H4; eauto.
+intros ?; inversion 1.
+congruence.
+Qed.
+
 Section ForwardSimInjectInjectCompose.
   Context {G1 C1 G2 C2 G3 C3:Type}.
   Variable Sem1 : CompcertCoreSem G1 C1.
@@ -795,6 +817,7 @@ Section ForwardSimInjectInjectCompose.
        eapply mem_inj_compose. apply Z1. apply Z2.       
      Qed.
 *)
+
   (* An axiom stating that inject forward simulations compose *)
   Lemma forward_simulation_inject_inject_compose :
     Sim_inj.Forward_simulation_inject Sem1 Sem3 ge1 ge3 entry_points13.
@@ -803,6 +826,12 @@ Section ForwardSimInjectInjectCompose.
     eapply (@Sim_inj.Build_Forward_simulation_inject G1 C1 G3 C3 Sem1 Sem3 ge1 ge3 entry_points13 _ compose_match_state).
       apply well_founded_sem_compose_ord.
       (*apply compose_match_inj.*)
+
+      intros until m2. intros [H1 H2]. intros.
+      apply Sim_inj.match_state_siminj in H.
+      apply Sim_inj.match_state_siminj in H0.
+      
+      
   Lemma fsim_compose_diagram: forall (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
           corestep Sem1 ge1 st1 m1 st1' m1' ->
           forall (cd : data13) (st3 : C3) (j : meminj) (m3 : mem),

@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import veric.base.
 Require Import compcert.Events.
 
@@ -265,6 +266,10 @@ End Forward_simulation_equals.
 Implicit Arguments Forward_simulation_equals [[G1] [C1] [G2] [C2]].
 End Sim_eq.
 
+Definition siminj (j: meminj) (m1 m2 : mem) :=
+  (forall b, ~(Mem.valid_block m1 b) -> j b = None) /\
+  (forall b b' delta, j b = Some(b', delta) -> Mem.valid_block m2 b').
+
 Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
@@ -282,6 +287,10 @@ Section Forward_simulation_inject.
     match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
     core_ord : C1 -> C1 -> Prop;
     core_ord_wf : well_founded core_ord;
+
+    match_state_siminj :
+      forall cd j st1 m1 st2 m2,
+        match_state cd j st1 m1 st2 m2 -> siminj j m1 m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
