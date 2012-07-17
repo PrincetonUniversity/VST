@@ -4,6 +4,7 @@ Require Import veric.seplog.
 Require Import msl.normalize.
 Require veric.compcert_rmaps.
 Require Import compcert.Ctypes.
+Require Import veric.expr.
 
 Local Open Scope pred.
 
@@ -45,7 +46,7 @@ Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: valt) : p
      match field_offset fld fList', 
                 access_mode t2 with
      | Errors.OK delta, By_value ch => 
-          !! (snd v2 = t2) && 
+          !! (snd v2 = t2 /\ typecheck_val (fst v2) t2 = true) && 
            address_mapsto ch (fst v2) (unrel Lsh sh) (unrel Rsh sh)  (l, Int.unsigned ofs + delta)
      | _, _ => FF
      end
@@ -224,6 +225,115 @@ contradiction H1.
 simpl. split; auto. apply Int.eq_true.
 Qed.
 
+Lemma lseg_neq:
+  forall t id data link t' ch, 
+  t =  Tpointer (Tstruct id 
+                         (Fcons data t' 
+                            (Fcons link (Tcomp_ptr  id noattr) Fnil)) noattr) noattr -> 
+   forall (UNROLL: forall T, unroll_composite id T t' = t')
+   (MODE: access_mode t' = By_value ch)
+   (DL: data <> link),
+  forall l x z,
+  typecheck_val x t = true ->
+  typecheck_val z t = true ->
+  ~ptr_eq x z -> 
+  lseg l (x,t) (z,t) = 
+    Ex h:val, Ex r:list valt, Ex y:val, 
+             !!(l=(h,t')::r /\ bool_val x t = Some true 
+                /\ typecheck_val h t'  = true/\ typecheck_val y t = true) && 
+             field_mapsto Share.top (deref (x,t)) data (h,t') * 
+             field_mapsto Share.top (deref (x,t)) link (y,t) * 
+             |> lseg r (y, t) (z,t).
+Proof.
+intros.
+pose proof (lseg_unfold l (x,t) (z,t) (eq_refl _)).
+simpl @fst in *; simpl @snd in *.
+pattern t at 1 in H3; rewrite H in H3.
+rewrite H3; clear H3.
+destruct l.
+apply pred_ext; normalize.
+intros.
+destruct H3; inv H3.
+destruct v as [v tv].
+apply pred_ext; normalize.
+intro y.
+apply (exp_right v).
+apply (exp_right l).
+apply (exp_right y).
+unfold next.
+simpl @fst; simpl @snd; normalize.
+rewrite H at 1 2. unfold deref at 1 2.
+ simpl @fst; simpl @snd.
+match goal with |- field_mapsto _ ?A _ _ * _ * _ |-- _ => change A with (x, (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+         noattr)) end.
+unfold field_mapsto. simpl @snd.
+destruct x; normalize.
+replace (unroll_composite_fields id
+     (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+        noattr) (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))) with
+   (Fcons data t' (Fcons link (Tpointer (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+        noattr) noattr) Fnil)).
+Focus 2.
+unfold unroll_composite_fields.
+f_equal.
+change (t' = unroll_composite id (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+        noattr) t').
+symmetry; apply UNROLL.
+f_equal.
+rewrite if_true by auto.
+auto.
+cbv zeta.
+unfold field_offset, field_offset_rec.
+rewrite if_true by auto.
+simpl type_of_field.
+rewrite if_true by auto.
+rewrite MODE.
+rewrite if_false by auto.
+rewrite if_true by auto.
+rewrite if_false by auto.
+rewrite if_true by auto.
+simpl @snd; simpl @fst.
+normalize.
+destruct H4; subst tv.
+change (access_mode
+    (Tpointer
+       (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+          noattr) noattr)) with (By_value Mint32).
+simpl.
+normalize.
+destruct H4.
+rewrite <- H4 in H6.
+apply prop_andp_right; auto.
+unfold deref. simpl.
+subst t.
+simpl.
+rewrite if_true by auto.
+rewrite if_true by auto.
+match goal with |- context [access_mode ?A] => replace A with t' end.
+rewrite MODE.
+normalize.
+rewrite if_false by auto.
+rewrite if_true by auto.
+rewrite if_false by auto.
+rewrite if_true by auto.
+rewrite if_true by auto.
+simpl.
+normalize.
+change (t' = unroll_composite id (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
+        noattr) t').
+symmetry; apply UNROLL.
+(*****)
+intros.
+destruct H3 as [? [? [? ?]]].
+inversion H3; clear H3; subst tv x0 x1.
+exists x2.
+split; auto.
+eapply sepcon_derives; try apply H3; auto.
+apply sepcon_derives; auto.
+unfold next.
+simpl.
+normalize.
+Qed.
 
 Module TestCase.
 Definition myid : ident := 3%positive.

@@ -165,7 +165,56 @@ repeat rewrite andp_assoc; auto.
 apply extract_exists_pre.
 apply nil.
 intro cts.
+assert (LNEQ:= lseg_neq P.t_listptr _ _ _ _ Mint32 (eq_refl _)).
+spec LNEQ; [reflexivity | ].
+spec LNEQ; [reflexivity | ].
+spec LNEQ; [intro Hx; inv Hx | ].
 
+
+pose (P' rho := 
+(Ex  h : val,
+ (Ex  r : list valt,
+  (Ex  y : val,
+  assert_expr (Etempvar P.i_t P.t_listptr) rho &&
+!!(fold_right Int.add Int.zero contents =
+   Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
+     (fold_right Int.add Int.zero cts)) &&
+   !!(map (fun i : int => (Vint i, P.t_int)) cts = (h, P.t_int) :: r /\
+      bool_val (eval_expr rho (Etempvar P.i_t P.t_listptr)) P.t_listptr =
+      Some true /\
+      typecheck_val h P.t_int = true /\ typecheck_val y P.t_listptr = true) &&
+   field_mapsto Share.top
+     (deref (eval_expr rho (Etempvar P.i_t P.t_listptr), P.t_listptr)) P.i_h
+     (h, P.t_int) *
+   field_mapsto Share.top
+     (deref (eval_expr rho (Etempvar P.i_t P.t_listptr), P.t_listptr)) P.i_t
+     (y, P.t_listptr) * |>lseg r (y, P.t_listptr) (nullval, P.t_listptr))))).
+apply semax_pre with P'; unfold P' in *; clear P'.
+intros.
+unfold assert_expr.
+normalize.
+(* BUG: the next line should have been accomplished by normalize *)
+rewrite andp_assoc; apply derives_extract_prop; intro.
+simpl in H0.
+rewrite LNEQ.
+normalize.
+intros h r y.
+normalize. apply (exp_right h).
+normalize. apply (exp_right r).
+normalize. apply (exp_right y).
+normalize.
+admit.  (* typechecking proof *)
+admit.  (* typechecking proof *)
+intro.
+unfold ptr_eq in H1.
+destruct (eval_expr rho (Etempvar P.i_t P.t_listptr)); try contradiction.
+simpl in H1. 
+simpl in H0.
+rewrite H1 in H0. inv H0.
+apply extract_exists_pre; [apply Vundef |  intro h].
+apply extract_exists_pre; [apply nil |  intro r].
+apply extract_exists_pre; [apply Vundef |  intro y].
+clear LNEQ.
 Admitted.
 
 Lemma body_reverse:
