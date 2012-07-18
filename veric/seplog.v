@@ -138,31 +138,13 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
   | (b,n)::bl' => writable_block b n rho * writable_blocks bl' rho
  end.
 
-Definition Dchunk (c: memory_chunk) (v:val) : Prop :=
-match c, v with
-(*  | Mint8unsigned, Vint _ => True
-  | Mint8signed, Vint _ => True
-  | Mint16unsigned, Vint _ => True
-  | Mint16signed, Vint _ => True *)
-  | Mint32, Vint _ => True
-  | Mint32, Vptr _ _ => True
-(*  | Mfloat32, Vfloat _ => True *)
-  | Mfloat64, Vfloat _ => True
-  | _, _ => False
-end.
-
 Definition fun_assert: 
   forall  (v: val) (fml: funsig) (A: Type) (P Q: A -> arguments -> pred rmap), pred rmap :=
   res_predicates.fun_assert.
 
-(* Might need to put this elsewhere? *)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
 
 Definition ret_assert := exitkind -> list val -> assert.
-(*
-Definition eval_lvalue (rho: environ) (e: Clight.expr) : val :=
-   Clight_lemmas.compute_lvalue (ge_of rho) (ve_of rho) (te_of rho) e.
-*)
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
   fun rho => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (val2adr' (eval_lvalue rho e)).
@@ -184,7 +166,7 @@ decide equality.
 Qed.
 
 Definition overridePost  (Q: assert)  (R: ret_assert) := 
-     fun ek vl => if eq_dec ek EK_normal then Q else R ek vl.
+     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
   fun ek vl rho => Ex x:A, R x ek vl rho.
@@ -284,10 +266,6 @@ Proof.  exact address_mapsto_VALspec_range. Qed.
 Definition normal_ret_assert (Q: assert) : ret_assert := 
    fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
 
-(*
-Definition normal_ret_assert (Q: assert) : ret_assert := fun ek vl rho => !!(ek = EK_normal) && Q rho.
-*)
-
 Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
      G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
 
@@ -381,5 +359,104 @@ Qed.
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl rho => R ek vl rho * F rho.
+
+Require Import msl.normalize.
+
+Lemma normal_ret_assert_derives:
+ forall P Q rho,
+  P rho |-- Q rho ->
+  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
+Proof.
+ intros.
+ unfold normal_ret_assert; intros; normalize.
+Qed.
+Hint Resolve normal_ret_assert_derives.
+
+Lemma normal_ret_assert_FF:
+  forall ek vl rho, normal_ret_assert (fun rho => FF) ek vl rho = FF.
+Proof.
+unfold normal_ret_assert. intros. normalize.
+Qed.
+
+Lemma frame_normal:
+  forall P F, 
+   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (fun rho => P rho * F rho).
+Proof.
+intros.
+extensionality ek vl rho.
+unfold frame_ret_assert, normal_ret_assert.
+normalize.
+Qed.
+
+Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+ fun ek vl =>
+ match ek with
+ | EK_normal => Inv
+ | EK_break => R EK_normal nil
+ | EK_continue => Inv
+ | EK_return => R EK_return vl
+ end.
+
+Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+ fun ek vl =>
+ match ek with
+ | EK_normal => Inv
+ | EK_break => fun _ => FF
+ | EK_continue => fun _ => FF 
+ | EK_return => R EK_return vl
+ end.
+
+Lemma frame_for1:
+  forall Q R F, 
+   frame_ret_assert (for1_ret_assert Q R) F = 
+   for1_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
+Proof.
+intros.
+extensionality ek vl rho.
+unfold frame_ret_assert, for1_ret_assert.
+destruct ek; normalize.
+Qed.
+
+Lemma frame_for2:
+  forall Q R F, 
+   frame_ret_assert (for2_ret_assert Q R) F = 
+   for2_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
+Proof.
+intros.
+extensionality ek vl rho.
+unfold frame_ret_assert, for2_ret_assert.
+destruct ek; normalize.
+Qed.
+
+Lemma overridePost_normal:
+  forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
+Proof.
+intros; unfold overridePost, normal_ret_assert.
+extensionality ek vl rho.
+if_tac; normalize.
+subst ek.
+apply pred_ext; normalize.
+apply pred_ext; normalize.
+Qed.
+
+Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
+                 overridePost_normal: normalize.
+
+Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
+   fun rho : environ =>
+      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
+
+Definition function_body_ret_assert (f: function) (Q: arguments -> pred rmap) : ret_assert := 
+   fun (ek : exitkind) (vl : list val) rho =>
+     match ek with
+     | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 
+     | _ => FF
+     end.
+
+
+
+
+
+
 
 

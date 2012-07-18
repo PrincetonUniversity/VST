@@ -46,17 +46,6 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 
 (** THESE RULES FROM semax_prog **)
 
-Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
-   fun rho : environ =>
-      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
-
-Definition function_body_ret_assert (f: function) (Q: arguments -> pred rmap) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) rho =>
-     match ek with
-     | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 
-     | _ => FF
-     end.
-
 Definition semax_body
        (G: funspecs) (f: function) (A: Type) (P Q: A -> arguments -> pred rmap) : Prop :=
       (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
@@ -125,24 +114,6 @@ Axiom seq_assoc:
    forall Delta G P s1 s2 s3 R,
         semax Delta G P (Ssequence s1 (Ssequence s2 s3)) R <->
         semax Delta G P (Ssequence (Ssequence s1 s2) s3) R.
-
-Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => Inv
- | EK_break => R EK_normal nil
- | EK_continue => Inv
- | EK_return => R EK_return vl
- end.
-
-Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => Inv
- | EK_break => fun _ => FF
- | EK_continue => fun _ => FF 
- | EK_return => R EK_return vl
- end.
 
 Definition Cnot (e: Clight.expr) : Clight.expr :=
    Clight.Eunop Onotbool e type_bool.
@@ -219,11 +190,6 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     typecheck_expr Delta e = true ->
     semax Delta G (fun rho => |> subst id (eval_expr rho e) P rho) 
                    (Sset id e) (normal_ret_assert P).
-
-Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
-  forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
-     F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.

@@ -22,24 +22,6 @@ Require Import veric.Clight_lemmas.
 Open Local Scope pred.
 Open Local Scope nat_scope.
 
-Definition for1_ret_assert (Inv : assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => Inv
- | EK_break => R EK_normal nil
- | EK_continue => Inv
- | EK_return => R EK_return vl
- end.
-
-Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => Inv
- | EK_break => fun _ => FF
- | EK_continue => fun _ => FF 
- | EK_return => R EK_return vl
- end.
-
 Section extensions.
 Context {Z} (Hspec : juicy_ext_spec Z).
 
@@ -62,12 +44,10 @@ intros rho ? ? ? ? ?.
 specialize (H rho y H0 a' H1 H2).
 clear - H.
 intros ora jm H2; specialize (H ora jm H2).
-forget (level a' - 0) as n.
 forget (ve_of rho) as ve.
 forget (te_of rho) as te.
-forget (m_dry jm) as m.
 clear - H.
-destruct (level a'); simpl in *; auto.
+destruct (@level rmap ag_rmap a'); simpl in *; auto.
 destruct H as [st' [m' [? ?]]].
 destruct (corestep_preservation_lemma Hspec psi 
                      (Kseq (Ssequence s2 s3) :: k)
@@ -110,12 +90,10 @@ intros rho ? ? ? ? ?.
 specialize (H rho y H0 a' H1 H2).
 clear - H.
 intros ora jm H2; specialize (H ora jm H2).
-forget (level a' - 0) as n.
 forget (ve_of rho) as ve.
 forget (te_of rho) as te.
-forget (m_dry jm) as m.
 clear - H.
-destruct (level a'); simpl in *; auto.
+destruct (@level rmap ag_rmap a'); simpl in *; auto.
 destruct H as [st' [m' [? ?]]].
 destruct (corestep_preservation_lemma Hspec psi 
                      (Kseq s2 :: Kseq s3 :: k)
@@ -186,12 +164,19 @@ intros ek vl.
 intro rho.
 unfold overridePost.
 if_tac.
-inv H.
+subst.
 unfold exit_cont.
 unfold guard in H0.
 rewrite <- andp_assoc.
+assert (app_pred
+  (!!(typecheck_environ rho Delta = true /\ filter_genv psi = ge_of rho) &&
+   (F rho * (Q rho)) && funassert G rho >=>
+   assert_safe Hspec psi (Kseq t :: k) rho) w).
 apply H0; auto.
 repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H i); intuition.
+eapply subp_trans; try apply H.
+apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
+normalize.
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
   by (destruct ek; simpl; congruence).
 apply H2.
@@ -228,15 +213,13 @@ intros ? ? ? ? [[? ?] ?]. hnf in H6.
 apply assert_safe_last; intros a2 LEVa2.
 assert (NEC2: necR w (level a2)).
   apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5. 
-  change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2. 
-  change R.rmap with rmap in *; omega.
+  change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.  omega.
 assert (LT: level a2 < level w).
   apply age_level in LEVa2. apply necR_nat in H5. 
  clear - H4 H5 LEVa2.
    change w with (level w) in H4.
   change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
-  apply nec_nat in H5.
- omega.
+  apply nec_nat in H5. omega.
 destruct H6 as [H6 Hge].
 assert (Prog_OK2: (believe Hspec G psi G) (level a2)) 
   by (apply pred_nec_hereditary with w; auto).
@@ -267,7 +250,7 @@ apply age1_resource_decay; auto.
 apply age_level; auto.
 assert (w >= level (m_phi jm)).
 apply necR_nat in H5. apply nec_nat in H5. 
- change R.rmap with rmap in *; change R.ag_rmap with ag_rmap in *; omega. 
+ change R.rmap with rmap in *; omega. 
 clear y H5 H4. rename H11 into H5. pose (H4:=True).
 destruct b.
 (* Case 1: expr evaluates to true *)

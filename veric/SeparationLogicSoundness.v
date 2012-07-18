@@ -85,16 +85,11 @@ Definition frame_left := frame_left Hspec.
 
 Definition derives_skip := derives_skip Hspec.
 Definition semax_ff := semax_ff Hspec.
-Definition function_body_entry_assert  := function_body_entry_assert .
-Definition function_body_ret_assert  := function_body_ret_assert .
 Definition fn_funsig := fn_funsig.
 Definition semax_external ef A P Q := forall n, semax_ext ef A P Q n.
-Definition for1_ret_assert := for1_ret_assert .
-Definition for2_ret_assert := for2_ret_assert .
 Definition Cnot := Cnot.
 Definition bool_type := bool_type.
 Definition get_result := get_result.
-Definition closed_wrt_vars := closed_wrt_vars.
 Definition closed_wrt_modvars := closed_wrt_modvars.
 End CSL.
 

@@ -103,20 +103,6 @@ Record semaxArg :Type := SemaxArg {
 }.
 
 
-Definition bind_ret (vl: list val) (t: type) (Q: arguments -> pred rmap) : pred rmap :=
-     match vl, t with
-     | nil, Tvoid => Q nil
-     | v::nil, _ => !! (typecheck_val v t = true) && Q ((v,t)::nil)  
-     | _, _ => FF
-     end.
-
-Definition function_body_ret_assert (f: function) (Q: arguments -> pred rmap) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) rho =>
-     match ek with
-     | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 
-     | _ => FF
-     end.
-
 Definition ext_spec_pre' {Z} (Hspec: juicy_ext_spec Z) (ef: external_function) 
    (x': ext_spec_type Hspec ef)(args: arguments) (z: Z) : pred juicy_mem :=
   exist (hereditary age) 

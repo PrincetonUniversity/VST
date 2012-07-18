@@ -285,8 +285,7 @@ pose (Q :=
 apply semax_Sseq with Q.
 apply semax_post with (normal_ret_assert Q).
 intros.
-unfold normal_ret_assert, overridePost.
-normalize. rewrite if_true by auto. auto.
+normalize.
 eapply semax_load_field; eauto.
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)

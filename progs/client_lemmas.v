@@ -83,6 +83,7 @@ intros.
 unfold normal_ret_assert, overridePost.
 normalize.
 rewrite if_true; auto.
+normalize.
 Qed.
 
 Lemma field_offset_rec_unroll:
@@ -231,24 +232,6 @@ destruct H0.
 rewrite <- H0 in H.
 intros w ?; hnf; eauto.
 Qed.
-
-(* Admitted: move these next two lemmas into veric.seplog *)
-Lemma normal_ret_assert_derives:
- forall P Q rho,
-  P rho |-- Q rho ->
-  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
-Proof.
- intros.
- unfold normal_ret_assert; intros; normalize.
-Qed.
-Hint Resolve normal_ret_assert_derives.
-
-Lemma normal_ret_assert_FF:
-  forall ek vl rho, normal_ret_assert (fun rho => FF) ek vl rho = FF.
-Proof.
-unfold normal_ret_assert. intros. normalize.
-Qed.
-Hint Resolve normal_ret_assert_FF : normalize.
 
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 sid fields ,
