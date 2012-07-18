@@ -174,9 +174,6 @@ forall Delta G Q test body R
 
 (* THESE RULES FROM seplog_soundness *)
 
-Definition semax1 Delta G P c Q :=
-  forall (R: ret_assert), R EK_normal nil = Q -> semax Delta G P c R.
-
 Definition get_result (ret: option ident) (ty: type) (rho: environ) :=
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)), ty)::nil end.
 
@@ -184,11 +181,11 @@ Axiom semax_call_basic :
 forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
       (TC1: typecheck_expr Delta a = true)
       (TC2: typecheck_exprlist Delta bl = true),
-       semax1 Delta G
+       semax Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
          (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
          (Scall ret a bl)
-         (fun rho => F * Q x (get_result ret (snd fsig) rho)).
+         (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 
 Axiom  semax_return :
    forall Delta G R ret 
@@ -220,7 +217,8 @@ Axiom semax_set :
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     typecheck_expr Delta (Etempvar id (typeof e)) = true ->   
     typecheck_expr Delta e = true ->
-    semax1 Delta G (fun rho => |> subst id (eval_expr rho e) P rho) (Sset id e) P.
+    semax Delta G (fun rho => |> subst id (eval_expr rho e) P rho) 
+                   (Sset id e) (normal_ret_assert P).
 
 Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
   forall rho te',  
@@ -235,20 +233,20 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
     typecheck_lvalue Delta e1 = true ->
     lvalue_closed_wrt_vars (eq id) e1 ->
-    semax1 Delta G 
+    semax Delta G 
        (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
-       (fun rho => mapsto' sh e1 v2 rho * P rho).
+       (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P,
     typecheck_lvalue Delta e1 = true ->
     typecheck_expr Delta e2 = true ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
-   semax1 Delta G 
+   semax Delta G 
           (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho).
+          (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
@@ -261,7 +259,7 @@ Axiom semax_ifthenelse :
 (* THESE RULES FROM semax_lemmas *)
 
 Axiom semax_Sskip:
-   forall Delta G P, semax1 Delta G P Sskip P.
+   forall Delta G P, semax Delta G P Sskip (normal_ret_assert P).
 
 Axiom semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,

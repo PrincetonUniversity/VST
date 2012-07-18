@@ -72,24 +72,17 @@ normalize.
 rewrite H; auto.
 Qed.
 
-
-Lemma semax1_pre_post: 
-  forall P' Q' Delta G P c Q,
-     (forall rho, typecheck_environ rho Delta = true -> P rho |-- P' rho) ->
-     (forall rho, Q' rho |-- Q rho) ->
-    semax1 Delta G P' c Q' ->
-   semax1 Delta G P c Q.
+Lemma sequential': 
+    forall Q Delta G P c R,
+               semax Delta G P c (normal_ret_assert Q) -> 
+               semax Delta G P c (overridePost Q R).
 Proof.
-unfold semax1; intros.
-eapply semax_pre_post with (R' := normal_ret_assert Q').
-3: apply H1.
-auto.
-intros. unfold normal_ret_assert; normalize.
-rewrite H2.
-auto.
-unfold normal_ret_assert; normalize.
-extensionality rho.
+intros.
+apply semax_post with (normal_ret_assert Q); auto.
+intros.
+unfold normal_ret_assert, overridePost.
 normalize.
+rewrite if_true; auto.
 Qed.
 
 Lemma field_offset_rec_unroll:
@@ -239,6 +232,24 @@ rewrite <- H0 in H.
 intros w ?; hnf; eauto.
 Qed.
 
+(* Admitted: move these next two lemmas into veric.seplog *)
+Lemma normal_ret_assert_derives:
+ forall P Q rho,
+  P rho |-- Q rho ->
+  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
+Proof.
+ intros.
+ unfold normal_ret_assert; intros; normalize.
+Qed.
+Hint Resolve normal_ret_assert_derives.
+
+Lemma normal_ret_assert_FF:
+  forall ek vl rho, normal_ret_assert (fun rho => FF) ek vl rho = FF.
+Proof.
+unfold normal_ret_assert. intros. normalize.
+Qed.
+Hint Resolve normal_ret_assert_FF : normalize.
+
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 sid fields ,
     typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
@@ -249,19 +260,19 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 sid fields ,
           (TC2: t2 =
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax1 Delta G 
+    semax Delta G 
        (fun rho => |> (field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2) * subst id v2 P rho))
        (Sset id (Efield e1 fld t2))
-       (fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2) * P rho).
+       (normal_ret_assert (fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2) * P rho)).
 Proof.
 intros.
 rewrite H2 in *.
 rename H2 into TE1.
 evar (P': assert).
 evar (Q': assert).
-apply (semax1_pre_post
+apply (semax_pre_post
             (fun rho => |> (P' rho * subst id v2  P rho))
-            (fun rho => Q' rho * P rho)).
+            (normal_ret_assert (fun rho => Q' rho * P rho))).
 3: apply semax_load.
 intros.
 apply later_derives. apply sepcon_derives; auto.
@@ -296,6 +307,7 @@ intros.
 unfold Q'.
 unfold mapsto'.
 case_eq (access_mode (typeof (Efield e1 fld t2))); intros; normalize.
+apply normal_ret_assert_derives.
 apply sepcon_derives; auto.
 simpl in H2.
 

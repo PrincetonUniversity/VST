@@ -40,10 +40,9 @@ Lemma semax_straight_simple:
                 jstep cl_core_sem ge (State (ve_of rho) (te_of rho) (Kseq c :: k)) jm 
                                  (State (ve_of rho') (te_of rho') k) jm' /\
               ((F rho' * Q rho') && funassert G rho) (m_phi jm')) ->
-  semax1 Hspec Delta G (fun rho => |> P rho) c Q.
+  semax Hspec Delta G (fun rho => |> P rho) c (normal_ret_assert Q).
 Proof.
-intros until Q; intros TC Hc R HR.
-subst Q.
+intros until Q; intros TC Hc.
 rewrite semax_unfold.
 split; auto.
 intros psi n _ k F Hcl Hsafe rho w Hx w0 H Hglob.
@@ -76,6 +75,11 @@ split; auto.
 subst rho'; auto.
 destruct H4; split; auto.
 subst rho'.
+unfold normal_ret_assert.
+rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
+auto.
+subst rho'.
 destruct rho; simpl in *; auto.
 hnf in Hsafe.
 change R.rmap with rmap in *.
@@ -87,7 +91,8 @@ Lemma semax_set :
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     typecheck_expr Delta (Etempvar id (typeof e)) = true ->   
     typecheck_expr Delta e = true ->
-    semax1 Hspec Delta G (fun rho => |> subst id (eval_expr rho e) P rho) (Sset id e) P.
+    semax Hspec Delta G (fun rho => |> subst id (eval_expr rho e) P rho)
+          (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e. intros TC1 TC2.
 apply semax_straight_simple; auto.
@@ -145,12 +150,12 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
     typecheck_lvalue Delta e1 = true ->
     lvalue_closed_wrt_vars (eq id) e1 ->
-    semax1 Hspec Delta G 
+    semax Hspec Delta G 
        (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
-       (fun rho => mapsto' sh e1 v2 rho * P rho).
+       (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 Proof.
-intros until v2. intros TC1 TC2 TC3 RA.
+intros until v2. intros TC1 TC2 TC3.
 apply semax_straight_simple; auto.
 admit.  (* typechecking proof *)
 intros jm jm1 ge rho k F TC' Hcl Hge ? ?.
@@ -331,10 +336,10 @@ Lemma semax_store:
     typecheck_lvalue Delta e1 = true ->
     typecheck_expr Delta e2 = true ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
-   semax1 Hspec Delta G 
+   semax Hspec Delta G 
           (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho).
+          (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 Proof.
 intros until P. intros TC1 TC2 TC3.
 apply semax_straight_simple; auto.
@@ -1028,14 +1033,13 @@ Lemma semax_call_basic :
 forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
       (TC1: typecheck_expr Delta a = true)
       (TC2: typecheck_exprlist Delta bl = true),
-       semax1 Hspec Delta G
+       semax Hspec Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
          (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
          (Scall ret a bl)
-         (fun rho => F * Q x (get_result ret (snd fsig) rho)).
+         (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
-unfold semax1; rewrite semax_unfold; intros.
-rename H into HR.
+rewrite semax_unfold; intros.
 split.
 admit. (* typechecking proof *)
 intros.
@@ -1106,7 +1110,12 @@ rewrite later_sepcon.
 apply pred_eq_e2 in H10.
 eapply (sepcon_subp (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
-eapply semax_call_basic_aux; eassumption.
+eapply semax_call_basic_aux; try eassumption.
+unfold normal_ret_assert.
+extensionality rho'.
+rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
+auto.
 Qed.
 
 Lemma semax_call_ext:

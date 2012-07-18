@@ -383,8 +383,8 @@ forall Delta G Q test body R
 Proof.
 intros.
 assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
-apply semax_Sskip.
-reflexivity.
+eapply semax_post; try apply semax_Sskip.
+destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0.
 pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
@@ -420,8 +420,8 @@ forall Delta G P Q test body R
 Proof.
 intros.
 assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
-apply semax_Sskip.
-reflexivity.
+eapply semax_post; try apply semax_Sskip.
+destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H1.
 pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H0 H1).
 clear H0 H1.
 rewrite semax_unfold in H,H2|-*.

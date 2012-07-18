@@ -85,7 +85,6 @@ Definition frame_left := frame_left Hspec.
 
 Definition derives_skip := derives_skip Hspec.
 Definition semax_ff := semax_ff Hspec.
-Definition semax1 := semax1 Hspec.
 Definition function_body_entry_assert  := function_body_entry_assert .
 Definition function_body_ret_assert  := function_body_ret_assert .
 Definition fn_funsig := fn_funsig.

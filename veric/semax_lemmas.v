@@ -258,19 +258,6 @@ apply semax'_pre.
 auto.
 Qed.
 
-Definition semax1 Delta G P c Q :=
-  forall (R: ret_assert), R EK_normal nil = Q -> 
-                  semax Hspec Delta G P c R.
-
-Lemma semax1_pre:
-      forall P' Delta G P c Q, 
-             (forall rho,  typecheck_environ rho Delta = true ->  P  rho |-- P' rho) -> 
-             semax1 Delta G P' c Q -> semax1 Delta G P c Q.
-Proof.
-unfold semax1; intros.
-eapply semax_pre; eauto.
-Qed.
-
 Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
    (forall rho,  typecheck_environ rho Delta = true ->  P rho |-- P' rho ) ->
@@ -283,12 +270,14 @@ eapply semax_post; eauto.
 Qed.
 
 Lemma semax_Sskip:
-   forall Delta G P, semax1 Delta G P Sskip P.
+   forall Delta G P, semax Hspec Delta G P Sskip (normal_ret_assert P).
 Proof.
 intros.
-unfold semax1; intros.
 apply derives_skip.
-subst.
+intros. 
+unfold normal_ret_assert.
+rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
 auto.
 Qed.
 

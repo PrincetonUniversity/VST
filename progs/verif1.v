@@ -84,29 +84,6 @@ Proof.
 intros; intros ? ?; auto.
 Qed.
 
-Lemma semax_load_field':
-forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 sid fields ,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
-    typecheck_expr Delta e1 = true ->
-    expr_closed_wrt_vars (eq id) (e1) ->
-    typeof e1 = Tstruct sid fields noattr ->
-  forall (TC1: typecheck_val v2 t2 = true)
-          (TC2: t2 =
-           type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax Delta G 
-       (fun rho => |> (field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2) * subst id v2 P rho))
-       (Sset id (Efield e1 fld t2))
-      (normal_ret_assert
-       (fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2) * P rho)).
-Proof.
-intros.
-eapply semax_load_field; eauto.
-extensionality rho.
-unfold normal_ret_assert.
-normalize.
-Qed.
-
 Require Import Decidable.
 Lemma semax_extract_prop:
   forall Delta G (PP: Prop) P c Q, 
@@ -138,11 +115,10 @@ apply semax_Sseq with
   (fun rho => !! (eval_expr rho (Etempvar P.i_s P.t_int) = (Vint (Int.repr 0))) &&
                               lseg contents' (eval_expr rho (Etempvar P.i_p P.t_listptr), P.t_listptr)
                               (nullval, P.t_listptr)).
-evar (P1: assert); eapply semax_pre; [ | apply semax_set with (P:=P1)]; unfold P1; clear P1;
-   [ | | | reflexivity].
+apply sequential'.
+eapply semax_pre; [ | apply semax_set].
 intros. eapply derives_trans; [ |apply now_later].
 unfold subst.
-unfold overridePost. rewrite if_true by auto.
 apply prop_andp_right.
 rewrite env_gss. reflexivity.
 rewrite sepcon_emp.
@@ -156,11 +132,10 @@ apply semax_Sseq with
                          /\ eval_expr rho (Etempvar P.i_t P.t_listptr) = eval_expr rho (Etempvar P.i_p P.t_listptr)) &&
                               lseg contents' (eval_expr rho (Etempvar P.i_p P.t_listptr), P.t_listptr)
                               (nullval, P.t_listptr)).
-evar (P1: assert); eapply semax_pre; [ | apply semax_set with (P:=P1)]; unfold P1; clear P1;
-   [ | | | reflexivity].
+apply sequential'.
+eapply semax_pre; [ | apply semax_set].
 intros. eapply derives_trans; [ |apply now_later].
 apply prop_andp_left; intro.
-unfold overridePost. rewrite if_true by auto.
 unfold subst.
 apply prop_andp_right.
 split.
@@ -312,7 +287,7 @@ apply semax_post with (normal_ret_assert Q).
 intros.
 unfold normal_ret_assert, overridePost.
 normalize. rewrite if_true by auto. auto.
-eapply semax_load_field'; eauto.
+eapply semax_load_field; eauto.
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)
 unfold e1.
