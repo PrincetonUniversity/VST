@@ -40,6 +40,7 @@ Lemma unrel_splice_R:
 Proof.
 Admitted.
 
+
 (* THESE NEXT DEFINITIONS are inconvenient to have inside the proof
   of separation logic soundness, but are necessary to have for the 
   client of the separation logic who wants to import the separation
@@ -60,6 +61,23 @@ Definition assert: Type := environ -> pred rmap.
 Bind Scope pred with assert.
 Open Local Scope pred.
 
+
+Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
+  forall rho te',  
+     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
+
+Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
+     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     eval_expr rho e = eval_expr (mkEnviron (ge_of rho) (ve_of rho) te') e.
+
+Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
+     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     eval_lvalue rho e = eval_lvalue (mkEnviron (ge_of rho) (ve_of rho) te') e.
+
+
 Definition assert_expr (e: Clight.expr) : assert := 
   fun rho => !! (bool_val (eval_expr rho e) (Clight.typeof e) = Some true).
 
@@ -72,17 +90,20 @@ Definition subst (x: ident) (v: val) (P: assert) : assert :=
 Definition val2adr' (v: val): address :=
  match v with Vptr b i => (b, Int.unsigned i) | _ => (0,0) end.
 
-Definition mapsto (sh: Share.t) (e1: Clight.expr) (e2 : Clight.expr) : assert :=
+Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
  fun rho => 
   match access_mode (Clight.typeof e1) with
   | By_value ch => 
-          address_mapsto ch (eval_expr rho e2) (unrel Lsh sh) (unrel Rsh sh) (val2adr' (eval_lvalue rho e1))
+    match eval_lvalue rho e1 with
+     | Vptr b ofs => 
+          address_mapsto ch v2 (unrel Lsh sh) (unrel Rsh sh) (b, Int.unsigned ofs)
+     | _ => FF
+    end
   | _ => FF
   end. 
 
-Definition mapsto_ch (sh: Share.t) (e1: Clight.expr) (ch: AST.memory_chunk) (e2 : Clight.expr) : assert :=
- fun rho => Ex loc: address, !!val2adr (eval_expr rho e1) loc && 
-         address_mapsto ch (eval_expr rho e2) (unrel Lsh sh) (unrel Rsh sh) loc. 
+Definition mapsto (sh: Share.t) (e1: Clight.expr) (e2 : Clight.expr) : assert :=
+ fun rho =>  mapsto' sh e1 (eval_expr rho e2) rho.
 
 Definition expr_eq (e1 e2 : Clight.expr) : assert :=  
    fun rho => !! (eval_expr rho e1 = eval_expr rho e2).
@@ -138,9 +159,10 @@ Definition fun_assert:
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
 
 Definition ret_assert := exitkind -> list val -> assert.
-
+(*
 Definition eval_lvalue (rho: environ) (e: Clight.expr) : val :=
    Clight_lemmas.compute_lvalue (ge_of rho) (ve_of rho) (te_of rho) e.
+*)
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
   fun rho => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (val2adr' (eval_lvalue rho e)).
@@ -258,7 +280,13 @@ Lemma address_mapsto_VALspec_range:
        |-- VALspec_range (size_chunk ch) rsh sh l.
 Proof.  exact address_mapsto_VALspec_range. Qed.
 
+
+Definition normal_ret_assert (Q: assert) : ret_assert := 
+   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
+
+(*
 Definition normal_ret_assert (Q: assert) : ret_assert := fun ek vl rho => !!(ek = EK_normal) && Q rho.
+*)
 
 Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
      G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).

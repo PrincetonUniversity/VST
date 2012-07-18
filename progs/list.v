@@ -5,27 +5,16 @@ Require Import msl.normalize.
 Require veric.compcert_rmaps.
 Require Import compcert.Ctypes.
 Require Import veric.expr.
+Require Import progs.client_lemmas.
 
 Local Open Scope pred.
 
-Definition rmap := compcert_rmaps.RML.R.rmap.
 Definition valt := (val * type)%type.
 
 Definition val_mapsto (sh: Share.t) (v1: val) (t: type) (v2: val) : pred rmap :=
  match access_mode t with
  | By_value ch =>  address_mapsto ch v2 (unrel Lsh sh) (unrel Rsh sh) (val2adr' v1)
  | _ => FF
- end.
-
-(* Tstruct "s1" (Fcons "n" (Tint I32 Signed)
-               (Fcons "next" (Tcomp_ptr "s1")
-               Fnil))
-*)
-
-Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
- match f with
- | Fnil => Tvoid
- | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
 Definition field_of (vt: valt) (fld: ident) : valt :=
@@ -37,21 +26,6 @@ Definition field_of (vt: valt) (fld: ident) : valt :=
          end
   | _ => (Vundef, Tvoid)
  end.
-
-Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: valt) : pred rmap :=
- match v1 with
-  | (Vptr l ofs, Tstruct id fList  att) =>
-    let fList' := unroll_composite_fields id (snd v1) fList in
-    let t2 := type_of_field fList' fld in
-     match field_offset fld fList', 
-                access_mode t2 with
-     | Errors.OK delta, By_value ch => 
-          !! (snd v2 = t2 /\ typecheck_val (fst v2) t2 = true) && 
-           address_mapsto ch (fst v2) (unrel Lsh sh) (unrel Rsh sh)  (l, Int.unsigned ofs + delta)
-     | _, _ => FF
-     end
-  | _  => FF
-  end.
 
 Fixpoint fields_mapto (sh: Share.t) (v1: val*type) (flds: list ident) (v2: list (valt)) : pred rmap :=
   match flds, v2 with
@@ -73,30 +47,7 @@ Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : pred
   | _  => FF
   end.
 
-Definition deref (v: valt) := 
-   match snd v with
-   | Tpointer t _ => (fst v, t)
-   | _ => (Vundef, Tvoid)
-   end.   
-
-Definition next (fld: ident) (sh: share) (v1 v2: valt) : pred rmap := 
- !! (bool_val (fst v1) (snd v1) = Some true) && field_mapsto sh (deref v1) fld v2.
-
-Lemma next_nonnull: 
-  forall fld sh x y, next fld sh x y = !! (bool_val (fst x) (snd x) = Some true) && next fld sh x y.
-Proof.
- intros. unfold next.
- rewrite <- andp_assoc. f_equal. rewrite andp_dup. auto.
-Qed.
-
 Definition nullval : val := Vint Int.zero.
-
-Lemma next_neq_0: forall fld sh t y, next fld sh (nullval,t) y |-- FF.   (* W1 *)
-Proof.
- intros. 
- intros ? [? ?].
- hnf in H.  simpl in H. destruct t; discriminate.
-Qed.
 
 Definition ptr_eq (v1 v2: val) : Prop :=
       match v1,v2 with
@@ -106,72 +57,104 @@ Definition ptr_eq (v1 v2: val) : Prop :=
       | _,_ => False
       end.
 
+Fixpoint fieldnames (f: fieldlist) : list ident :=
+ match f with
+ | Fcons id _ f' => id :: fieldnames f'
+ | Fnil => nil
+ end.
 
+Fixpoint other_fields (id: ident) (f: fieldlist) : list (ident * type) :=
+ match f with
+ | Fcons i t f' => if eq_dec i id then other_fields id f' else (i,t)::other_fields id f'
+ | Fnil => nil
+ end.
 
-Definition spine fld sh (t: type):= 
-  HORec (fun (R: val*val -> pred rmap) (lp: val*val) =>
-                (!! (~ (ptr_eq (fst lp) (snd lp)))
-                            && Ex tail:val, next fld sh (fst lp, t) (tail, t) * |> R (tail, snd lp))
-            || (!! (ptr_eq (fst lp) (snd lp))) && emp).
+Record multilistspec := mk_multilistspec {
+ mlist_structid: ident;
+ mlist_link: ident;
+ mlist_fields: fieldlist;
+ mlist_fields_norepet: list_norepet (fieldnames mlist_fields);
+ mlist_other_props:
+    forall x, In x (other_fields mlist_link mlist_fields) ->
+              (forall T, unroll_composite mlist_structid T (snd x) = snd x) /\
+              exists ch, access_mode (snd x) = By_value ch
+}.
 
-Definition lseg' (t: type) (data: list ident) (link: ident) (sh: share) := 
+Definition mlist_struct (ls: multilistspec) : type :=
+ Tstruct (mlist_structid ls) (mlist_fields ls) noattr.
+
+Definition mlist_type (ls: multilistspec) := Tpointer (mlist_struct ls) noattr.
+Definition mlist_data_fieldnames (ls: multilistspec) : list ident :=
+     map (@fst _ _) (other_fields (mlist_structid ls) (mlist_fields ls)).
+
+Definition mlseg (ls: multilistspec) (sh: share) := 
   HORec (fun (R: (list (list valt))*(val*val) -> pred rmap) (lp: (list (list valt))*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         Ex tail:val, 
-                           fields_mapto Share.top (deref (first,t)) data h 
-                           * next link sh (first,t) (tail,t) * |> R (hs, (tail, last)))
+                           fields_mapto sh (first, mlist_struct ls) (mlist_data_fieldnames ls) h 
+                           * field_mapsto sh (first, mlist_struct ls) (mlist_link ls) (tail, mlist_type ls)
+                           * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
         end).
 
-Definition multifield_lseg (data: list ident) (link:ident) (sh: share)
-            (contents: list (list valt)) (v1 v2: valt) : pred rmap := 
-   !!(snd v1=snd v2) && lseg' (snd v1) data link sh (contents,(fst v1, fst v2)).
+Class listspec (t: type) := mk_listspec {
+   list_structid: ident;
+   list_data: ident;
+   list_dtype: type;
+   list_link: ident;
+   list_struct: type := (Tstruct list_structid 
+       (Fcons list_data list_dtype
+        (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)) noattr);
+   list_type_is: t = Tpointer list_struct noattr;
+   list_data_not_link: list_data<>list_link;
+   list_unroll_dtype:
+              forall T, unroll_composite list_structid T list_dtype = list_dtype;
+   list_access_mode: exists ch, access_mode list_dtype = By_value ch
+}.
 
-Definition lseg (contents: list valt) (v1 v2: valt) :=
- match snd v1 with
-  | Tpointer (Tstruct id (Fcons data _ (Fcons link _ Fnil)) _) _ =>
-          multifield_lseg (data::nil) link Share.top (map (fun x=>x::nil) contents) v1 v2
-  | _ => FF
-  end.
+Definition lseg' (t: type) {ls: listspec t} (sh: share) := 
+  HORec (fun (R: (list valt)*(val*val) -> pred rmap) (lp: (list valt)*(val*val)) =>
+        match lp with
+        | (h::hs, (first,last)) =>
+                (!! (~ (ptr_eq first last)) && 
+                        Ex tail:val, 
+                           field_mapsto sh (first, list_struct) list_data h 
+                           * field_mapsto sh (first, list_struct) list_link (tail,t)
+                           * |> R (hs, (tail, last)))
+        | (nil, (first,last)) =>
+                 !! (ptr_eq first last) && emp
+        end).
 
-Lemma lseg_unfold: forall contents v1 v2, 
+Definition lseg (contents: list valt) (x y: valt) {ls: listspec (snd x)}: pred rmap :=
+   !! (snd x = snd y) &&
+   lseg' (snd x) Share.top (contents, (fst x, fst y)).
+
+Lemma lseg_unfold: forall contents v1 v2 {ls: listspec (snd v1)},
   snd v1 = snd v2 ->
-  match snd v1 with
-  | Tpointer (Tstruct id (Fcons data _ (Fcons link _ Fnil)) _) _ =>
     lseg contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq (fst v1) (fst v2)) && Ex tail: val,
-                       field_mapsto Share.top (deref v1) data h * next link Share.top v1 (tail,snd v1) * |> lseg t (tail, snd v1) v2
+                       field_mapsto Share.top (fst v1, list_struct) list_data h 
+                      * field_mapsto Share.top (fst v1, list_struct) list_link (tail, snd v1)
+                      * |> lseg t (tail, snd v1) v2
      | nil => !! (ptr_eq (fst v1) (fst v2)) && emp
-     end
-  | _ => lseg contents v1 v2 = FF
- end.
+     end.
 Proof.
- intros.
+ intros. unfold lseg.
  destruct v1 as [v1 t]. destruct v2 as [v2 t2]. simpl in H. subst t2.
- simpl @fst; simpl @snd.
- destruct t; auto.
- destruct t; auto. destruct f; auto. destruct f; auto. destruct f; auto.
- unfold lseg at 1. simpl @snd. unfold multifield_lseg. unfold lseg'.
- rewrite HORec_fold_unfold. simpl @fst; simpl @snd.
+ simpl @fst in *; simpl @snd in *.
+ unfold lseg' at 1. rewrite HORec_fold_unfold.
   normalize.
- destruct contents. simpl map. simpl. auto.
-  simpl map.
- symmetry; symmetry.
+ destruct contents; auto.
  f_equal.
  f_equal. extensionality tail.
- unfold fields_mapto. rewrite sepcon_emp.
  f_equal.
+ f_equal. f_equal. rewrite TT_and.
+ unfold lseg'.
  f_equal.
- unfold lseg. simpl @snd.
- symmetry; symmetry.
- unfold multifield_lseg. simpl @snd.
- rewrite prop_true_andp by auto.
- reflexivity.
- clear.
  apply prove_HOcontractive; intros.
  destruct x.
  destruct l. destruct p.
@@ -180,158 +163,92 @@ Proof.
  auto 50 with contractive.
 Qed.
 
-Definition is_list_type (t: type) :=
-    match t with
-    | Tpointer (Tstruct id (Fcons _ _ (Fcons _ _ Fnil)) _) _ => True
-    | _ => False
-   end.
-
-Ltac do_lseg_unfold := match goal with |- context [lseg ?C ?F ?L] =>
-   let H := fresh in
-  assert (H := lseg_unfold C F L (eq_refl _)); simpl snd in H;
-     rewrite H; clear H
- end.
-
 Require Import veric.expr.
 
 Lemma lseg_eq:
-  forall l v t, 
-  match t with Tpointer (Tstruct _ (Fcons _ _ (Fcons _ _ Fnil)) _) _ => True | _ => False end ->
+  forall l v t {ls: listspec t}, 
   typecheck_val v t = true ->
     lseg l (v,t) (v,t) = !!(l=nil) && emp.
 Proof.
 intros.
-pose proof (lseg_unfold l (v,t) (v,t) (eq_refl _)).
-destruct t; try contradiction.
-destruct t; try contradiction.
-destruct f; try contradiction.
-destruct f; try contradiction.
-destruct f; try contradiction.
-simpl in *.
+rewrite (lseg_unfold l (v,t) (v,t) (eq_refl _)).
 destruct l.
-rewrite H1.
-f_equal.
+simpl. f_equal. f_equal. apply prop_ext; split; intro; auto.
 unfold ptr_eq.
-destruct v; simpl in H0; try discriminate.
+unfold typecheck_val in H.
+rewrite list_type_is in H.
+destruct v; simpl in H; try discriminate.
 unfold Int.cmpu.
-rewrite Int.eq_true.
+rewrite Int.eq_true. auto.
+simpl @fst; simpl @snd.
 normalize.
 replace (v0 :: l = nil) with False by (apply prop_ext; intuition; congruence).
-apply pred_ext; [ | normalize].
-rewrite H1; clear H1.
-normalize.
-destruct v; normalize.
-contradiction H1.
-simpl. split; auto. apply Int.eq_true.
+apply pred_ext; normalize.
+contradiction H0.
+rewrite list_type_is in H.
+unfold ptr_eq, typecheck_val in H|-*.
+destruct v; inv H; auto.
+unfold Int.cmpu.
+rewrite Int.eq_true. auto.
 Qed.
 
 Lemma lseg_neq:
-  forall t id data link t' ch, 
-  t =  Tpointer (Tstruct id 
-                         (Fcons data t' 
-                            (Fcons link (Tcomp_ptr  id noattr) Fnil)) noattr) noattr -> 
-   forall (UNROLL: forall T, unroll_composite id T t' = t')
-   (MODE: access_mode t' = By_value ch)
-   (DL: data <> link),
-  forall l x z,
+  forall t {ls: listspec t} l x z , 
   typecheck_val x t = true ->
   typecheck_val z t = true ->
   ~ptr_eq x z -> 
-  lseg l (x,t) (z,t) = 
-    Ex h:val, Ex r:list valt, Ex y:val, 
-             !!(l=(h,t')::r /\ bool_val x t = Some true 
-                /\ typecheck_val h t'  = true/\ typecheck_val y t = true) && 
-             field_mapsto Share.top (deref (x,t)) data (h,t') * 
-             field_mapsto Share.top (deref (x,t)) link (y,t) * 
+    lseg l (x,t) (z,t) =
+         Ex h:val, Ex r:list valt, Ex y:val, 
+             !!(l=(h, list_dtype)::r 
+                /\ typecheck_val h list_dtype  = true/\ typecheck_val y t = true) && 
+             field_mapsto Share.top (x, list_struct) list_data (h, list_dtype) * 
+             field_mapsto Share.top (x, list_struct) list_link (y,t) * 
              |> lseg r (y, t) (z,t).
 Proof.
 intros.
-pose proof (lseg_unfold l (x,t) (z,t) (eq_refl _)).
-simpl @fst in *; simpl @snd in *.
-pattern t at 1 in H3; rewrite H in H3.
-rewrite H3; clear H3.
+rewrite lseg_unfold at 1; auto.
 destruct l.
+simpl.
 apply pred_ext; normalize.
 intros.
-destruct H3; inv H3.
-destruct v as [v tv].
-apply pred_ext; normalize.
-intro y.
-apply (exp_right v).
-apply (exp_right l).
-apply (exp_right y).
-unfold next.
-simpl @fst; simpl @snd; normalize.
-rewrite H at 1 2. unfold deref at 1 2.
- simpl @fst; simpl @snd.
-match goal with |- field_mapsto _ ?A _ _ * _ * _ |-- _ => change A with (x, (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-         noattr)) end.
-unfold field_mapsto. simpl @snd.
-destruct x; normalize.
-replace (unroll_composite_fields id
-     (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-        noattr) (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))) with
-   (Fcons data t' (Fcons link (Tpointer (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-        noattr) noattr) Fnil)).
-Focus 2.
+destruct H2. inv H2.
+simpl @fst; simpl @snd.
+assert (UNROLL: unroll_composite_fields list_structid list_struct
+       (Fcons list_data list_dtype
+          (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)) =
+     Fcons list_data list_dtype  (Fcons list_link t Fnil)).
 unfold unroll_composite_fields.
 f_equal.
-change (t' = unroll_composite id (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-        noattr) t').
-symmetry; apply UNROLL.
+change (unroll_composite list_structid list_struct list_dtype = list_dtype).
+apply list_unroll_dtype.
+rewrite if_true by auto.
 f_equal.
-rewrite if_true by auto.
-auto.
-cbv zeta.
-unfold field_offset, field_offset_rec.
-rewrite if_true by auto.
-simpl type_of_field.
-rewrite if_true by auto.
-rewrite MODE.
-rewrite if_false by auto.
-rewrite if_true by auto.
-rewrite if_false by auto.
-rewrite if_true by auto.
-simpl @snd; simpl @fst.
+symmetry. apply list_type_is.
+destruct list_access_mode as [ch ACC].
 normalize.
-destruct H4; subst tv.
-change (access_mode
-    (Tpointer
-       (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-          noattr) noattr)) with (By_value Mint32).
-simpl.
-normalize.
-destruct H4.
-rewrite <- H4 in H6.
-apply prop_andp_right; auto.
-unfold deref. simpl.
-subst t.
-simpl.
-rewrite if_true by auto.
-rewrite if_true by auto.
-match goal with |- context [access_mode ?A] => replace A with t' end.
-rewrite MODE.
-normalize.
-rewrite if_false by auto.
-rewrite if_true by auto.
-rewrite if_false by auto.
-rewrite if_true by auto.
-rewrite if_true by auto.
-simpl.
-normalize.
-change (t' = unroll_composite id (Tstruct id (Fcons data t' (Fcons link (Tcomp_ptr id noattr) Fnil))
-        noattr) t').
-symmetry; apply UNROLL.
-(*****)
-intros.
-destruct H3 as [? [? [? ?]]].
-inversion H3; clear H3; subst tv x0 x1.
-exists x2.
-split; auto.
-eapply sepcon_derives; try apply H3; auto.
+apply pred_ext; normalize.
+intro y.
+destruct v as [h t'].
+apply (exp_right h).
+apply (exp_right l).
+apply (exp_right y).
 apply sepcon_derives; auto.
-unfold next.
-simpl.
+simpl @fst; simpl @snd.
+normalize.
+erewrite (field_mapsto_type list_data); [ | reflexivity].
+simpl @snd. normalize.
+fold list_struct.
+rewrite UNROLL.
+unfold type_of_field. rewrite if_true by auto.
+erewrite (field_mapsto_typecheck_val list_data).
+erewrite (field_mapsto_typecheck_val list_link).
+normalize.
+(***)
+intros.
+destruct H2 as [? [? ?]].
+symmetry in H2; inv H2.
+rename x2 into y.
+apply (exp_right y).
 normalize.
 Qed.
 
@@ -344,10 +261,29 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition mylist : type := 
  Tpointer (Tstruct myid (Fcons data_id Tint32s (Fcons link_id (Tcomp_ptr myid noattr) Fnil)) noattr) noattr.
 
+Instance mylist_spec: listspec mylist.
+Proof.
+econstructor.
+reflexivity.
+intro Hx; inv Hx.
+intros.
+unfold unroll_composite; simpl.
+reflexivity.
+econstructor; simpl; reflexivity.
+Defined.
+
 Parameters v v' : val.
 Parameters x y : val.
-Goal  lseg ((x,Tint32s)::(y,Tint32s)::nil) (v,mylist) (v',mylist) |-- FF.
-do_lseg_unfold.
+Parameter whatever : pred rmap.
+Goal  lseg ((x,Tint32s)::(y,Tint32s)::nil) (v,mylist) (v',mylist) |-- whatever.
+rewrite lseg_unfold by auto.
+normalize.
+simpl in H.
+intros.
+simpl @snd. simpl @fst.
+Opaque field_mapsto.
+simpl.
+
 Abort.
 End TestCase.
 

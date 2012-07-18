@@ -231,24 +231,24 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Axiom semax_load : 
-forall (Delta: tycontext) (G: funspecs) sh id P e1 e2,
+forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
     typecheck_lvalue Delta e1 = true ->
-    typecheck_expr Delta e2 = true ->
-    closed_wrt_vars (eq id) (mapsto sh e1 e2) ->
+    lvalue_closed_wrt_vars (eq id) e1 ->
     semax1 Delta G 
-       (fun rho => |> (mapsto sh e1 e2 rho * subst id (eval_expr rho e2) P rho))
+       (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
-       (fun rho => mapsto sh e1 e2 rho * P rho).
+       (fun rho => mapsto' sh e1 v2 rho * P rho).
 
 Axiom semax_store:
- forall Delta G e1 e2 e3 rsh P,
+ forall Delta G e1 e2 v3 rsh P,
     typecheck_lvalue Delta e1 = true ->
     typecheck_expr Delta e2 = true ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
-   semax1 Delta G (fun rho => |> (mapsto (splice rsh Share.top) e1 e3 rho * P rho))
-                   (Sassign e1 e2) 
-                  (fun rho => mapsto (splice rsh Share.top) e1 e2 rho * P rho).
+   semax1 Delta G 
+          (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          (Sassign e1 e2) 
+          (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,

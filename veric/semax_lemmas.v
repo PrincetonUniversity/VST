@@ -1058,15 +1058,16 @@ intros; intro; intros.
 inv H; auto.
 Qed.
 
-Lemma unage_mapsto:
-  forall sh v ch v' w, age1 w <> None -> (|> mapsto sh v ch v') w -> mapsto sh v ch v' w.
+Lemma unage_mapsto':
+  forall sh e v rho w, age1 w <> None -> (|> mapsto' sh e v rho) w -> mapsto' sh e v rho w.
 Proof.
  intros.
  case_eq (age1 w); intros; try contradiction.
  clear H.
  specialize (H0 _ (age_laterR H1)).
- unfold mapsto in *.
- revert H0; case_eq (access_mode (Clight.typeof v)); intros; auto.
+ unfold mapsto' in *.
+ revert H0; case_eq (access_mode (typeof e)); intros; auto.
+ destruct (eval_lvalue rho e); try contradiction.
  rename H into Hmode.
  destruct H0 as [bl [? ?]]; exists bl; split; auto.
  clear - H0 H1.
@@ -1079,6 +1080,14 @@ Proof.
   apply (age1_YES w r); auto.
   unfold noat in *; simpl in *.
  eapply unage1_resource_at_identity; eauto.
+Qed.
+
+Lemma unage_mapsto:
+  forall sh v ch v' w, age1 w <> None -> (|> mapsto sh v ch v') w -> mapsto sh v ch v' w.
+Proof.
+ intros.
+ unfold mapsto in *.
+ eapply unage_mapsto'; eauto.
 Qed.
 
 End extensions.

@@ -872,6 +872,8 @@ apply derives_subp.
 normalize.
 simpl.
 intros ? ? ? ? ?.
+destruct H9 as [[? ?] ?].
+hnf in H9, H11. subst ek vl.
 destruct H8.
 subst a.
 change Clight_new.true_expr with true_expr.

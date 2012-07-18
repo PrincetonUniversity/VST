@@ -141,23 +141,22 @@ apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
 
 Lemma semax_load : 
-forall (Delta: tycontext) (G: funspecs) sh id P e1 e2,
+forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
     typecheck_lvalue Delta e1 = true ->
-    typecheck_expr Delta e2 = true ->
-    closed_wrt_vars (eq id) (mapsto sh e1 e2) ->
+    lvalue_closed_wrt_vars (eq id) e1 ->
     semax1 Hspec Delta G 
-       (fun rho => |> (mapsto sh e1 e2 rho * subst id (eval_expr rho e2) P rho))
+       (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
-       (fun rho => mapsto sh e1 e2 rho * P rho).
+       (fun rho => mapsto' sh e1 v2 rho * P rho).
 Proof.
-intros until e2. intros TC1 TC2 TC3 Hcl0.
+intros until v2. intros TC1 TC2 TC3 RA.
 apply semax_straight_simple; auto.
 admit.  (* typechecking proof *)
 intros jm jm1 ge rho k F TC' Hcl Hge ? ?.
 destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) Hge TC' TC2) as [b [ofs [? ?]]].
 exists jm1.
-exists (PTree.set id (eval_expr rho e2) (te_of rho)).
+exists (PTree.set id v2 (te_of rho)).
 econstructor.
 split.
 reflexivity.
@@ -172,7 +171,7 @@ assert (NONVOL: type_is_volatile (typeof e1) = false).
 admit.  (* typechecking proof *)
 apply Clight_sem.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
-assert ((|> (F rho * (mapsto sh e1 e2 rho * subst id (eval_expr rho e2) P rho)))%pred
+assert ((|> (F rho * (mapsto' sh e1 v2 rho * subst id v2 P rho)))%pred
        (m_phi jm)).
 rewrite later_sepcon.
 eapply sepcon_derives; try apply H0; auto.
@@ -180,15 +179,13 @@ specialize (H3 _ (age_laterR (age_jm_phi H))).
 rewrite sepcon_comm in H3.
 rewrite sepcon_assoc in H3.
 destruct H3 as [m1 [m2 [? [? _]]]].
-unfold mapsto in H4.
+unfold mapsto' in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
-assert (core_load ch  (b, Int.unsigned ofs) (eval_expr rho e2) (m_phi jm1)).
+rewrite H2 in H5.
+assert (core_load ch  (b, Int.unsigned ofs) v2 (m_phi jm1)).
 apply mapsto_core_load with (unrel Lsh sh) (unrel Rsh sh).
 exists m1; exists m2; split3; auto.
-unfold address_mapsto.
-rewrite H2 in H5. simpl val2adr' in H5.
-apply H5.
 apply Csem.deref_loc_value with ch; auto.
 unfold loadv.
 rewrite (age_jm_dry H).
@@ -197,8 +194,9 @@ apply H6.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 
-rewrite <- (Hcl rho (PTree.set id (eval_expr rho e2) (te_of rho))).
-rewrite <- (Hcl0 rho (PTree.set id (eval_expr rho e2) (te_of rho))).
+rewrite <- (Hcl rho (PTree.set id v2 (te_of rho))).
+unfold mapsto'.
+rewrite <- (TC3 rho (PTree.set id v2 (te_of rho))).
 destruct H0.
 split; [ | eapply pred_hereditary; eauto; apply age_jm_phi; eauto].
 apply later_sepcon2 in H0.
@@ -327,14 +325,16 @@ do 3 red. rewrite H5. rewrite if_false by auto.
 apply core_identity.
 Qed.
 
+
 Lemma semax_store:
- forall Delta G e1 e2 e3 rsh P,
+ forall Delta G e1 e2 v3 rsh P,
     typecheck_lvalue Delta e1 = true ->
     typecheck_expr Delta e2 = true ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
-   semax1 Hspec Delta G (fun rho => |> (mapsto (splice rsh Share.top) e1 e3 rho * P rho))
-                   (Sassign e1 e2) 
-                  (fun rho => mapsto (splice rsh Share.top) e1 e2 rho * P rho).
+   semax1 Hspec Delta G 
+          (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          (Sassign e1 e2) 
+          (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho).
 Proof.
 intros until P. intros TC1 TC2 TC3.
 apply semax_straight_simple; auto.
@@ -344,20 +344,20 @@ apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.
 destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
-unfold mapsto in H4.
+unfold mapsto' in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) Hge TC4 TC1) as [b0 [i [He1 He1']]].
-rewrite He1' in *. simpl val2adr' in *.
+rewrite He1' in *.
 destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
 rewrite unrel_splice_R in H4. rewrite unrel_splice_L in H4.
 
-assert (H11': (res_predicates.address_mapsto ch (eval_expr rho e3) rsh Share.top
+assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch (eval_expr rho e3)  rsh Share.top
+assert (H11: (res_predicates.address_mapsto ch v3  rsh Share.top
         (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch (eval_expr rho e3)  rsh Share.top (b0,Int.unsigned i)); unfold precise; intro.
+generalize (address_mapsto_precise ch v3  rsh Share.top (b0,Int.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].
@@ -405,9 +405,9 @@ admit.  (* core_store_juicy_mem *)
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
-unfold mapsto.
+unfold mapsto'.
 rewrite Hmode.
-rewrite He1'. simpl val2adr'.
+rewrite He1'.
 rewrite unrel_splice_R. rewrite unrel_splice_L. auto.
 clear - H6 H5 H1.
 intros ? ?.

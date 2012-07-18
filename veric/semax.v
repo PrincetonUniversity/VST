@@ -19,6 +19,7 @@ Require Import veric.expr.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
+(* Admitted: move this elsewhere *)
 Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
        (P <--> P') && (Q <--> Q') |--  (P || Q) <--> (P' || Q').
 Proof.
@@ -30,6 +31,9 @@ right. destruct H0; eauto.
 left. destruct H; eauto.
 right. destruct H0; eauto.
 Qed.
+
+Definition closed_wrt_modvars c (F: assert) : Prop :=
+    closed_wrt_vars (modifiedvars c) F.
 
 Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
   safeN (juicy_core_sem cl_core_sem) Hspec.
@@ -149,14 +153,6 @@ Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (f
         !! (fsig = (sigargs,sigret)) && semax_ext Hspec ef A P Q 
   | _ => FF 
   end.
-
-Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
-  forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
-     F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
-
-Definition closed_wrt_modvars c (F: assert) : Prop :=
-    closed_wrt_vars (modifiedvars c) F.
 
 Definition fn_funsig (f: function) : funsig := (type_of_params (fn_params f), fn_return f).
 
