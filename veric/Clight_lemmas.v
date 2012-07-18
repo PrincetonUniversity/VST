@@ -364,58 +364,9 @@ Ltac fun_tac :=
        apply (eventval_list_match_fun H) in H'; inv H'
  end. 
 
-Fixpoint compute_expr (ge: genviron) (ve: Clight.env) (te: Clight.temp_env) (e: expr) : val :=
- match e with
- | Econst_int i ty => Vint i
- | Econst_float f ty => Vfloat f
- | Etempvar id ty => force_val (PTree.get id te)
- | Eaddrof a ty => compute_lvalue ge ve te a
- | Eunop op a ty =>  force_val (sem_unary_operation op (compute_expr ge ve te a) (typeof a))
- | Ebinop op a1 a2 ty =>  
-         force_val (sem_binary_operation op
-                    (compute_expr ge ve te a1) (typeof a1)
-                    (compute_expr ge ve te a2) (typeof a2)
-                    (fun _ _ => false))
- | Econdition a1 a2 a3 ty => 
-    match bool_val (compute_expr ge ve te a1) (typeof a1) with
-    | Some true => force_val (sem_cast (compute_expr ge ve te a2) (typeof a2) ty)
-    | Some false => force_val (sem_cast (compute_expr ge ve te a3) (typeof a3) ty)
-    | None => Vundef
-    end
- | Ecast a ty => force_val (sem_cast (compute_expr ge ve te a) (typeof a) ty)
- | _ => Vundef
- end 
 
- with compute_lvalue (ge: genviron) (ve: Clight.env) (te: Clight.temp_env) (e: expr) : val := 
- match e with 
- | Evar id ty => match PTree.get id ve with
-                         | Some (b,ty') => if type_eq ty ty'
-                                                    then if negb (type_is_volatile ty')
-                                                       then Vptr b Int.zero else Vundef
-                                                    else Vundef
-                         | None => 
-                            match ge id with
-                            | Some (v,ty') => if type_eq ty ty' then v else Vundef
-                            | None => Vundef
-                            end
-                        end
- | Ederef a ty => match compute_expr ge ve te a with
-                        | Vptr l ofs => Vptr l ofs
-                        | _ => Vundef
-	          end
- | Efield a i ty => match compute_expr ge ve te a, typeof a with
-                            | Vptr l ofs, Tstruct id fList att =>
-                                  match field_offset i fList with 
-                                  | Errors.OK delta => Vptr l (Int.add ofs (Int.repr delta))
-                                  | _ => Vundef
-                                  end
-                            | Vptr l ofs, Tunion id fList att => Vptr l ofs
-                            | _, _ => Vundef
-                            end
- | _  => Vundef
- end.
 
-Lemma compute_eval_expr_lvalue:
+(*Lemma compute_eval_expr_lvalue:
   forall ge ve te m a,
         match access_mode (typeof a) with
          | By_value _ => forall v, compute_expr (filter_genv ge) ve te a = v ->  v <> Vundef -> Clight_sem.eval_expr ge ve te m a v
@@ -427,7 +378,7 @@ Proof.
    inside compute_expr and compute_lvalue.  It's not worth doing this if we're going to have
    a static type-checker anyway.
   *)
-Abort.
+Abort.*)
 
 Definition modified0 : ident -> Prop := fun _ => False.
 Definition modified1 id : ident -> Prop := fun i => i=id.
