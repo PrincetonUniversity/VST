@@ -31,7 +31,8 @@ Lemma seq_assoc1:
         semax Hspec Delta G P (Ssequence (Ssequence s1 s2) s3) R.
 Proof.
 rewrite semax_unfold; intros.
-destruct H as [TC H]; split; auto.
+destruct H as [TC H]; split.
+admit. (* typechecking proof *)
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -77,7 +78,8 @@ Lemma seq_assoc2:
         semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R.
 Proof.
 rewrite semax_unfold; intros.
-destruct H as [TC H]; split; auto.
+destruct H as [TC H]; split.
+admit. (* typechecking proof *)
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -141,7 +143,8 @@ intros.
 rewrite semax_unfold in H,H0|-*.
 destruct H as [TC H].
 destruct H0 as [TC0 H0].
-split; auto.
+split.
+admit. (* typechecking proof *)
 intros.
 specialize (H psi w Prog_OK).
 specialize (H0 psi w Prog_OK).
@@ -184,7 +187,7 @@ Qed.
 
 Lemma semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC_expr: typecheck_expr Delta test = true)
+     (TC_expr: typecheck_expr Delta test = tc_TT)
      (BT: bool_type (Clight.typeof test) = true) 
          (* Joey:  if it turns out you don't end up needing the BT premise,
                                   then delete it from this rule, and from the semax_while
@@ -357,7 +360,7 @@ Qed.
 
 Lemma semax_while : 
 forall Delta G Q test body R
-     (TC_expr: typecheck_expr Delta test = true)
+     (TC_expr: typecheck_expr Delta test = tc_TT)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
@@ -372,6 +375,7 @@ pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
 destruct H1; split; auto.
+admit.  (* typechecking proof *)
 intros.
 assert (closed_wrt_modvars (Sfor' test Sskip body) F).
 hnf; intros; apply H1.
@@ -393,7 +397,7 @@ Qed.
 
 Lemma semax_dowhile : 
 forall Delta G P Q test body R
-     (TC_expr: typecheck_expr Delta test = true)
+     (TC_expr: typecheck_expr Delta test = tc_TT)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G P body (for1_ret_assert Q R) ->
@@ -408,7 +412,8 @@ destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H
 pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H0 H1).
 clear H0 H1.
 rewrite semax_unfold in H,H2|-*.
-destruct H, H2; split; auto.
+destruct H, H2; split.
+admit.  (* typechecking proof *)
 intros.
 specialize (H0 _ _ Prog_OK (Kseq Scontinue :: Kfor2 test Sskip body :: k) F).
 specialize (H2 _ _ Prog_OK k F).

@@ -180,6 +180,9 @@ rewrite list_type_is in H.
 destruct v; simpl in H; try discriminate.
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
+split; auto. 
+unfold Int.cmpu.
+rewrite Int.eq_true. auto.
 simpl @fst; simpl @snd.
 normalize.
 replace (v0 :: l = nil) with False by (apply prop_ext; intuition; congruence).
@@ -188,6 +191,8 @@ contradiction H0.
 rewrite list_type_is in H.
 unfold ptr_eq, typecheck_val in H|-*.
 destruct v; inv H; auto.
+unfold Int.cmpu.
+rewrite Int.eq_true. auto.
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 Qed.

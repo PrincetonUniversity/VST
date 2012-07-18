@@ -126,7 +126,7 @@ Definition bool_type (t: type) : bool :=
 
 Axiom semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC_expr: typecheck_expr Delta test = true)
+     (TC_expr: typecheck_expr Delta test = tc_TT)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
@@ -136,7 +136,7 @@ forall Delta G Q Q' test incr body R
 
 Axiom semax_while : 
 forall Delta G Q test body R
-     (TC_expr: typecheck_expr Delta test = true)
+     (TC_expr: typecheck_expr Delta test = tc_TT)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
@@ -150,8 +150,8 @@ Definition get_result (ret: option ident) (ty: type) (rho: environ) :=
 
 Axiom semax_call_basic : 
 forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
-      (TC1: typecheck_expr Delta a = true)
-      (TC2: typecheck_exprlist Delta bl = true),
+      (TC1: typecheck_expr Delta a = tc_TT)
+      (TC2: typecheck_exprlist Delta bl = tc_TT),
        semax Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
          (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
@@ -186,8 +186,8 @@ Axiom semax_call_ext:
 
 Axiom semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    typecheck_expr Delta (Etempvar id (typeof e)) = true ->   
-    typecheck_expr Delta e = true ->
+    typecheck_expr Delta (Etempvar id (typeof e)) = tc_TT ->   
+    typecheck_expr Delta e = tc_TT ->
     semax Delta G (fun rho => |> subst id (eval_expr rho e) P rho) 
                    (Sset id e) (normal_ret_assert P).
 
@@ -196,8 +196,8 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
 
 Axiom semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
-    typecheck_lvalue Delta e1 = true ->
+    typecheck_expr Delta (Etempvar id (typeof e1)) = tc_TT ->   
+    typecheck_lvalue Delta e1 = tc_TT ->
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Delta G 
        (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
@@ -206,8 +206,8 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P,
-    typecheck_lvalue Delta e1 = true ->
-    typecheck_expr Delta e2 = true ->
+    typecheck_lvalue Delta e1 = tc_TT ->
+    typecheck_expr Delta e2 = tc_TT ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
    semax Delta G 
           (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
@@ -216,7 +216,7 @@ Axiom semax_store:
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
-     typecheck_expr Delta b = true ->
+     typecheck_expr Delta b = tc_TT ->
       bool_type (typeof b) = true ->
      semax Delta G (fun rho => P rho && assert_expr b rho) c R -> 
      semax Delta G (fun rho => P rho && assert_expr (Cnot b) rho) d R -> 

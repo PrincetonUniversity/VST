@@ -637,12 +637,6 @@ Proof.
   apply (Genv.find_funct_ptr_exists prog id f); auto.
 Qed.
 
-(* Joey:  move this to expr.v ? *)
-Definition empty_tycontext : tycontext := (PTree.empty type, PTree.empty type, Tvoid).
-
-Definition Delta1 := (PTree.set 1%positive Tint32s (PTree.empty type),
-                                 PTree.empty type, Tvoid).
-
 (* there's a place this lemma should be applied, perhaps in seplog_soundness
     proof of semax_call_basic *)
 Lemma funassert_rho:

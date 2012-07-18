@@ -89,14 +89,14 @@ Qed.
 
 Lemma semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    typecheck_expr Delta (Etempvar id (typeof e)) = true ->   
-    typecheck_expr Delta e = true ->
+    typecheck_expr Delta (Etempvar id (typeof e)) = tc_TT ->   
+    typecheck_expr Delta e = tc_TT ->
     semax Hspec Delta G (fun rho => |> subst id (eval_expr rho e) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e. intros TC1 TC2.
 apply semax_straight_simple; auto.
-simpl. rewrite TC2; auto.
+admit. (* typechecking proof *)
 intros jm jm' ge rho k F TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
 econstructor.
@@ -114,6 +114,7 @@ destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
 econstructor; eauto.
 eapply eval_expr_relate; eauto.
+simpl; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 
@@ -147,8 +148,8 @@ Qed.
 
 Lemma semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
-    typecheck_lvalue Delta e1 = true ->
+    typecheck_expr Delta (Etempvar id (typeof e1)) = tc_TT ->   
+    typecheck_lvalue Delta e1 = tc_TT ->
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Hspec Delta G 
        (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
@@ -159,7 +160,8 @@ intros until v2. intros TC1 TC2 TC3.
 apply semax_straight_simple; auto.
 admit.  (* typechecking proof *)
 intros jm jm1 ge rho k F TC' Hcl Hge ? ?.
-destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) Hge TC' TC2) as [b [ofs [? ?]]].
+destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) _ Hge TC' TC2) as [b [ofs [? ?]]].
+simpl; auto.
 exists jm1.
 exists (PTree.set id v2 (te_of rho)).
 econstructor.
@@ -333,8 +335,8 @@ Qed.
 
 Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P,
-    typecheck_lvalue Delta e1 = true ->
-    typecheck_expr Delta e2 = true ->
+    typecheck_lvalue Delta e1 = tc_TT ->
+    typecheck_expr Delta e2 = tc_TT ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
    semax Hspec Delta G 
           (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
@@ -352,7 +354,8 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto' in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) Hge TC4 TC1) as [b0 [i [He1 He1']]].
+destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) _ Hge TC4 TC1) as [b0 [i [He1 He1']]].
+auto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
 rewrite unrel_splice_R in H4. rewrite unrel_splice_L in H4.
@@ -382,11 +385,13 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ (m_dry jm) Hge TC4 TC2); intro.
+generalize (eval_expr_relate _ _ _ _ (m_dry jm) _ Hge TC4 TC2); intro.
 econstructor; try eassumption.
 admit.  (* typechecking proof ? *)
 instantiate (1:= eval_expr rho e2).
+auto.
 rewrite TC3.
+instantiate (1:=eval_expr rho e2).
 admit.  (* make this more general as a kind of typechecking proof *)
 eapply Csem.assign_loc_value.
 apply Hmode.
@@ -423,7 +428,7 @@ Qed.
 
 Lemma semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
-     typecheck_expr Delta b = true ->
+     typecheck_expr Delta b = tc_TT ->
       bool_type (typeof b) = true ->
      semax Hspec Delta G (fun rho => P rho && assert_expr b rho) c R -> 
      semax Hspec Delta G (fun rho => P rho && assert_expr (Cnot b) rho) d R -> 
@@ -457,7 +462,7 @@ specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold assert_expr, Cnot in *.
 intros ora jm Hphi.
-generalize (eval_expr_relate _ _ _ _ (m_dry jm) Hge TC2 TC); intro.
+generalize (eval_expr_relate _ _ _ _ (m_dry jm) _ Hge TC2 TC); intro.
 assert (exists b': bool, bool_val (eval_expr rho b) (typeof b) = Some b').
 clear - TC H TC2.
 admit.  (* typechecking proof *)
@@ -473,6 +478,8 @@ apply (@safe_step'_back2 _ _ _ _ _ _ _ psi ora _ jm
         (State (ve_of rho) (te_of rho) (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.
+apply H8.
+simpl; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 change (level (m_phi jm)) with (level jm).
@@ -709,8 +716,6 @@ Ltac later_magic H1 P :=
   end.
 *)
 
-Definition typecheck_exprlist Delta := forallb (typecheck_expr Delta).
-
 (* Admitted:  move this to normalize.v ? *)
 Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P w, pure P -> P w -> P (core w).
@@ -789,10 +794,8 @@ spec H8. exists id. split; auto. exists b; auto.
 exists b.
 split.
 simpl.
-unfold eval_lvalue.
 rewrite <- Hge.
 unfold filter_genv.
-unfold compute_lvalue.
 rewrite H3.
 rewrite H0.
 destruct (type_of_global psi b); inv H6; auto.
@@ -839,8 +842,8 @@ Lemma semax_call_basic_aux:
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (k : cont) (rho : environ)
   (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
-    typecheck_expr Delta a = true ->
-    typecheck_exprlist Delta bl = true ->
+    typecheck_expr Delta a = tc_TT ->
+    typecheck_exprlist Delta bl = tc_TT ->
     typecheck_environ rho Delta = true ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret (snd fsig) rho0)) ->
@@ -1031,8 +1034,8 @@ Qed.
 
 Lemma semax_call_basic : 
 forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
-      (TC1: typecheck_expr Delta a = true)
-      (TC2: typecheck_exprlist Delta bl = true),
+      (TC1: typecheck_expr Delta a = tc_TT)
+      (TC2: typecheck_exprlist Delta bl = tc_TT),
        semax Hspec Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
          (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
@@ -1130,6 +1133,7 @@ Proof.
 intros.
 rewrite semax_unfold in H1|-*.
 destruct H1; split; auto.
+admit. (* typechecking proof *)
 intros.
 specialize (H2 psi w Prog_OK k F H3 H4).
 intro rho; specialize (H2 rho).

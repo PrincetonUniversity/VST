@@ -235,8 +235,8 @@ Qed.
 
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 sid fields ,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = true ->   
-    typecheck_expr Delta e1 = true ->
+    typecheck_expr Delta (Etempvar id (typeof e1)) = tc_TT ->   
+    typecheck_expr Delta e1 = tc_TT ->
     expr_closed_wrt_vars (eq id) (e1) ->
     typeof e1 = Tstruct sid fields noattr ->
   forall (TC1: typecheck_val v2 t2 = true)
@@ -279,9 +279,7 @@ simpl @snd in *.
 rewrite <- TC2; rewrite H3.
 simpl @fst.
 normalize.
-unfold expr.eval_lvalue.
 simpl.
-unfold eval_expr in H4.
 rewrite H4.
 rewrite TE1.
 rewrite field_offset_unroll in H5. rewrite H5.
@@ -294,10 +292,8 @@ apply normal_ret_assert_derives.
 apply sepcon_derives; auto.
 simpl in H2.
 
-unfold expr.eval_lvalue in *.
-unfold eval_expr.
 simpl.
-case_eq (Clight_lemmas.compute_expr (ge_of rho) (ve_of rho) (te_of rho) e1); 
+case_eq (eval_expr rho e1); 
      intros; normalize.
 rewrite TE1.
 rewrite field_offset_unroll.
@@ -310,7 +306,6 @@ admit. (* typechecking proof *)
 intro; intros.
 specialize (H1 rho _ H2).
 clear - H1.
-unfold eval_expr, expr.eval_lvalue in *.
 simpl.
 simpl in H1.
 rewrite <- H1.

@@ -239,7 +239,8 @@ match e with
  | _  => tc_FF
 end.
 
-(*Definition typecheck_exprlist Delta := forallb (typecheck_expr Delta).*)
+Definition typecheck_exprlist (Delta: tycontext) (el: list expr) : tc_assert := 
+ fold_right (fun e a => tc_andp (typecheck_expr Delta e) a) tc_TT el.
 
 Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
