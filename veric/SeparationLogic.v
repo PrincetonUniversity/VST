@@ -47,7 +47,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> arguments -> pred rmap) : Prop :=
+       (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
       (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
        list_norepet (map (@fst _ _) (fn_vars f))) /\
   forall x,
@@ -58,11 +58,11 @@ Definition semax_body
 
 Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
-Definition main_pre (prog: program) : unit -> arguments -> pred rmap :=
+Definition main_pre (prog: program) : unit -> list val -> pred rmap :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
                              (empty_environ (Genv.globalenv prog))).
 
-Definition main_post (prog: program) : unit -> arguments -> pred rmap := 
+Definition main_post (prog: program) : unit -> list val -> pred rmap := 
   (fun tt vl => !! (vl=nil)).
 
 Definition semax_prog 
@@ -85,7 +85,7 @@ Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
-  forall (ef: external_function) (A: Type) (P Q: A -> arguments -> pred rmap),  Prop.
+  forall (ef: external_function) (A: Type) (P Q: A -> list val -> pred rmap),  Prop.
 
 Axiom semax_func_cons_ext: 
    forall (G: funspecs) fs id ef fsig A P Q (G': funspecs),
@@ -145,16 +145,17 @@ forall Delta G Q test body R
 
 (* THESE RULES FROM seplog_soundness *)
 
-Definition get_result (ret: option ident) (ty: type) (rho: environ) :=
- match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)), ty)::nil end.
+Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
+ match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
 
 Axiom semax_call_basic : 
-forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
+forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
       (TC1: typecheck_expr Delta a = tc_TT)
-      (TC2: typecheck_exprlist Delta bl = tc_TT),
+      (TC2: typecheck_exprlist Delta bl = tc_TT)
+      (TC4: map typeof bl = typelist2list (fst fsig)),
        semax Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
-         (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
+         (F * P x (map (eval_expr rho) bl) ))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 
@@ -167,7 +168,7 @@ Axiom  semax_return :
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> arguments -> pred rmap)
+      forall id fsig (A : Type) (P' Q' : A -> list val -> pred rmap)
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Delta G (fun rho => P rho 

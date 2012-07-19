@@ -104,36 +104,36 @@ Record semaxArg :Type := SemaxArg {
 
 
 Definition ext_spec_pre' {Z} (Hspec: juicy_ext_spec Z) (ef: external_function) 
-   (x': ext_spec_type Hspec ef)(args: arguments) (z: Z) : pred juicy_mem :=
+   (x': ext_spec_type Hspec ef)(args: list val) (z: Z) : pred juicy_mem :=
   exist (hereditary age) 
-     (ext_spec_pre Hspec ef x' (sig_args (ef_sig ef)) (map (@fst _ _) args) z)
+     (ext_spec_pre Hspec ef x' (sig_args (ef_sig ef)) args z)
      (JE_pre_hered _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' {Z} (Hspec: juicy_ext_spec Z)
    (ef: external_function) (x': ext_spec_type Hspec ef) 
-   (ret: arguments) (z: Z) : pred juicy_mem :=
+   (ret: list val) (z: Z) : pred juicy_mem :=
   exist (hereditary age) 
-   (ext_spec_post Hspec ef x' (opt2list (sig_res (ef_sig ef))) (map (@fst _ _) ret) z)
+   (ext_spec_post Hspec ef x' (opt2list (sig_res (ef_sig ef))) ret z)
      (JE_post_hered _ _ _ _ _ _ _).
 
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
 Definition semax_ext  {Z} (Hspec: juicy_ext_spec Z) 
-                  ef (A: Type) (P Q: A -> arguments -> pred rmap): 
+                  ef (A: Type) (P Q: A -> list val -> pred rmap): 
         pred nat := 
  All x: A, 
- |>  All F: pred rmap, All args: arguments,
+ |>  All F: pred rmap, All args: list val,
    juicy_mem_op (P x args * F) >=> 
    Ex x': ext_spec_type Hspec ef,
     All z:_, ext_spec_pre' Hspec ef x' args z &&
-     ! All ret: arguments, All z':Z, 
+     ! All ret: list val, All z':Z, 
       ext_spec_post' Hspec ef x' ret z' >=>
       !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&
           juicy_mem_op (|>(Q x ret * F)).
 
 Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (fsig: funsig)
-   (A: Type) (P Q: A -> arguments -> pred rmap) : pred nat :=
+   (A: Type) (P Q: A -> list val -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret) => 
         !! (fsig = (sigargs,sigret)) && semax_ext Hspec ef A P Q 
@@ -144,7 +144,7 @@ Definition fn_funsig (f: function) : funsig := (type_of_params (fn_params f), fn
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> arguments -> pred rmap) : pred nat :=
+  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
   (Ex b: block, Ex f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -164,7 +164,7 @@ Definition claims (ge: genv) (G: funspecs) v fsig A P Q : Prop :=
 Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred nat)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
   All v:val, All fsig: funsig,
-         All A: Type, All P: A -> arguments -> pred rmap, All Q: A -> arguments -> pred rmap,
+         All A: Type, All P: A -> list val -> pred rmap, All Q: A -> list val -> pred rmap,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal_ semax gx G v fsig A P Q).
@@ -182,7 +182,7 @@ Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta G P c R : pred nat :=
      HORec (semax_  Hspec) (SemaxArg Delta G P c R).
 
 Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> arguments -> pred rmap) : pred nat :=
+  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
   (Ex b: block, Ex f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -196,7 +196,7 @@ Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
 Definition believe {Z} (Hspec:juicy_ext_spec Z)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
   All v:val, All fsig: funsig,
-         All A: Type, All P: A -> arguments -> pred rmap, All Q: A -> arguments -> pred rmap,
+         All A: Type, All P: A -> list val -> pred rmap, All Q: A -> list val -> pred rmap,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal Hspec gx G v fsig A P Q).

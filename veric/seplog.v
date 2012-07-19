@@ -139,7 +139,7 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  end.
 
 Definition fun_assert: 
-  forall  (v: val) (fml: funsig) (A: Type) (P Q: A -> arguments -> pred rmap), pred rmap :=
+  forall  (v: val) (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap), pred rmap :=
   res_predicates.fun_assert.
 
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -179,33 +179,12 @@ simpl;
 auto.
 Qed.
 
-(* Don't use Inductive because it's difficult to export through Module Types
-Definition funspec := prod funsig 
-   (sigT (fun A => prod (A -> arguments -> pred rmap) (A -> arguments -> pred rmap))).
-
- Definition mk_funspec : funsig ->  forall A : Type,
-       (A -> arguments -> pred rmap) -> (A -> arguments -> pred rmap) -> funspec :=
- fun fsig  (A: Type) (P Q : A -> arguments -> pred rmap)=>
-(fsig,
- existT
-  (fun A0 => ((A0 -> arguments -> pred rmap) * (A0 -> arguments -> pred rmap))%type)
-  A
-  (P, Q)).
-*)
-
 Inductive funspec :=
    mk_funspec: funsig -> 
-           forall A: Type, (A -> arguments -> pred rmap) -> (A -> arguments -> pred rmap) 
+           forall A: Type, (A -> list val -> pred rmap) -> (A -> list val -> pred rmap) 
                  -> funspec.
 
 Definition funspecs := list (ident * funspec).
-
-Fixpoint typecheck_vals (vl: list val) (tl: typelist) : bool :=
-  match vl, tl with
-  | v::vl', Tcons t tl' => andb (typecheck_val v t) (typecheck_vals vl' tl')
-  | nil, Tnil => true
-  | _, _ => false
- end.
 
 Fixpoint zip_arguments (vl: list val) (tl: typelist) : list (val * type) :=
   match vl, tl with
@@ -213,19 +192,20 @@ Fixpoint zip_arguments (vl: list val) (tl: typelist) : list (val * type) :=
   | _, _ => nil
  end.
 
-Definition bind_args (formals: list (ident * type)) (P: arguments -> pred rmap) : assert :=
-   fun rho => P (map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)), snd xt)) formals).
+Definition bind_args (formals: list (ident * type)) (P: list val -> pred rmap) : assert :=
+   fun rho => let vl := map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)))) formals
+          in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
 
-Definition bind_ret (vl: list val) (t: type) (Q: arguments -> pred rmap) : pred rmap :=
+Definition bind_ret (vl: list val) (t: type) (Q: list val -> pred rmap) : pred rmap :=
      match vl, t with
      | nil, Tvoid => Q nil
-     | v::nil, _ => !! (typecheck_val v t = true) && Q ((v,t)::nil)  
+     | v::nil, _ => !! (typecheck_val v t = true) && Q (v::nil)  
      | _, _ => FF
      end.
 
 Definition func (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::arguments::nil) (packPQ P Q)) (FUN fsig)
+   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::(list val)::nil) (packPQ P Q)) (FUN fsig)
   end.
 
 Definition type_of_funspec (fs: funspec) : type :=  
@@ -449,11 +429,11 @@ Qed.
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
                  overridePost_normal: normalize.
 
-Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
+Definition function_body_entry_assert (f: function) (P: list val -> pred rmap) (G: funspecs) : assert :=
    fun rho : environ =>
-      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
+      bind_args (fn_params f) (fun vl : list val => P vl) rho *  stackframe_of f rho.
 
-Definition function_body_ret_assert (f: function) (Q: arguments -> pred rmap) : ret_assert := 
+Definition function_body_ret_assert (f: function) (Q: list val -> pred rmap) : ret_assert := 
    fun (ek : exitkind) (vl : list val) rho =>
      match ek with
      | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 

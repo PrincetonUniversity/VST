@@ -27,32 +27,29 @@ Defined.
 
 Local Open Scope pred.
 
-Definition sumlist_pre (contents: list int) (args: arguments) : pred rmap :=
+Definition sumlist_pre (contents: list int) (args: list val) : pred rmap :=
   match args with 
-  | p::nil => !!(snd p = P.t_listptr) &&
-                   lseg (map (fun i => (Vint i, P.t_int)) contents) (fst p, P.t_listptr) (nullval, P.t_listptr)
+  | p::nil => lseg (map (fun i => (Vint i, P.t_int)) contents) (p, P.t_listptr) (nullval, P.t_listptr)
   | _ => FF 
   end.
 
-Definition sumlist_post (contents: list int) (res: arguments) : pred rmap :=
+Definition sumlist_post (contents: list int) (res: list val) : pred rmap :=
   match res with 
-  | (Vint i, _) ::nil => prop (fold_right Int.add Int.zero contents = i)
+  | Vint i :: nil => prop (fold_right Int.add Int.zero contents = i)
   | _ => FF 
   end.
 
 Definition sumlist_fsig : funsig := (Tcons P.t_listptr Tnil, P.t_int).
 
-Definition reverse_pre (contents: list int) (args: arguments) : pred rmap :=
+Definition reverse_pre (contents: list int) (args: list val) : pred rmap :=
   match args with 
-  | p::nil =>  !!(snd p = P.t_listptr) &&
-                     lseg (map (fun i => (Vint i, P.t_int)) contents) (fst p, P.t_listptr) (nullval, P.t_listptr)
+  | p::nil =>   lseg (map (fun i => (Vint i, P.t_int)) contents) (p, P.t_listptr) (nullval, P.t_listptr)
   | _ => FF 
   end.
 
-Definition reverse_post (contents: list int) (res: arguments) : pred rmap :=
+Definition reverse_post (contents: list int) (res: list val) : pred rmap :=
   match res with 
-  | p::nil => !!(snd p = P.t_listptr) &&
-                      lseg (map (fun i => (Vint i, P.t_int)) (rev contents)) (fst p, P.t_listptr) (nullval, P.t_listptr)
+  | p::nil => lseg (map (fun i => (Vint i, P.t_int)) (rev contents)) (p, P.t_listptr) (nullval, P.t_listptr)
   | _ => FF 
   end.
 

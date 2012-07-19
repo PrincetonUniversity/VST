@@ -583,8 +583,8 @@ Proof. intros. subst; split; auto. Qed.
 
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 
-   SomeP (A::boolT::arguments::nil) (approx (level w) oo packPQ P Q) =
-   SomeP (A::boolT::arguments::nil) (approx (level w) oo packPQ P' Q') ->
+   SomeP (A::boolT::list val::nil) (approx (level w) oo packPQ P Q) =
+   SomeP (A::boolT::list val::nil) (approx (level w) oo packPQ P' Q') ->
    ( (forall x vl, (! |> (P' x vl <=> P x vl)) w) /\
      (forall x vl, (! |> (Q' x vl <=> Q x vl)) w)).
 Proof.
@@ -614,108 +614,6 @@ change compcert_rmaps.R.ag_rmap with ag_rmap in *;
 change compcert_rmaps.R.rmap with rmap in *; omega.
 Qed.
 
-(* HERE BEGINS the "later_magic" tactic.
-   Explanation:
-Suppose you have some hairy assumption like this:
-
-Hnotlast : age1 w <> None
-H1 : app_pred
-       (F0 *
-        (|>a =# v &&
-         (|>bl =#* map fst vl &&
-          (|>!prepost_match_sig (P x) (Q x) sig &&
-           (|>Pre && |>(F * ^rho own_all (opt2list ret) * ^m P x vl)))))) w
-
-and what you'd like to have is this:
-
-Hnotlast : age1 w <> None
-H1 : app_pred
-       (F0 *
-        (a =# v &&
-         (bl =#* map fst vl &&
-          (|>!prepost_match_sig (P x) (Q x) sig &&
-           (|>Pre && |>(F * ^rho own_all (opt2list ret) * ^m P x vl)))))) w
-
-Notice that the |> operators are missing before (a =# v) and (bl =#* ...).
-
-Now, for w_eval_expr (that is, =#), it's almost true that
-  |> a =# v    =    a =#v
-
-except when the left hand side is vacuously true because you're at the very last world.  
-But Hnotlast tells us that isn't the case.
-
-That is, the lemma about expression-evaluation is:
-
-Definition ageless {A} {agA: ageable A} (P: pred A) :=
-     forall w, age1 w <> None -> app_pred (|> P) w -> app_pred P w.
-
-Lemma ageless_w_eval_expr: forall e v, ageless (e=#v).
-
-In other words, (|> a =# v) w   =    (a =#v) w, provided that w is not the last world.
-
-So, what we need is a magical tactic that dives down through a bunch 
-of * and && operators to find a term matching (a =# v), and when it gets there,
- it somehow has enough context to apply ageless_w_eval_expr.
-
-My new tactic, demonstrated in action:
-
-later_magic H1 (a =# v).
-later_magic H1 (bl =#* map (@fst _ _) vl).
-
-does exactly that: dive into H1, keeping track of the justification to apply an
- "ageless" lemma.  The result after these two applications of later_magic is
- the "what you'd like to have", above.
-
-Ltac match_context H PP E := 
- match E with
- | (?A * ?B)%pred =>
-    match B with context [|> PP] => 
-                   let HF := fresh "HF" in
-                   match_context HF PP B;
-                   match type of HF with andp_sepconp_context ?F =>
-                     assert (H := ASC_sepcon2 A _ HF);
-                   clear HF
-          end
-    end
- | (?A * ?B)%pred =>
-    match A with context [|> PP] => 
-                   let HF := fresh "HF" in
-                   match_context HF PP A;
-                   match type of HF with andp_sepconp_context ?F =>
-                     assert (H := ASC_sepcon1 _ B HF);
-                   clear HF
-          end
-    end
- | (?A && ?B)%pred =>
-    match B with context [|> PP] => 
-                   let HF := fresh "HF" in
-                   match_context HF PP B;
-                   match type of HF with andp_sepconp_context ?F =>
-                     assert (H := ASC_andp2 A _ HF);
-                   clear HF
-          end
-    end
- | (?A && ?B)%pred =>
-    match A with context [|> PP] => 
-                   let HF := fresh "HF" in
-                   match_context HF PP A;
-                   match type of HF with andp_sepconp_context ?F =>
-                     assert (H := ASC_andp1 _ B HF);
-                   clear HF
-          end
-    end
- | |> PP => match type of PP with pred ?A => assert (H := @ASC_here A _ _ _) end
-end .
-
-Ltac later_magic H1 P := 
-  match type of H1 with app_pred ?E _ =>
-     let H9 := fresh in 
-     match_context H9 P E;
-     apply (ageless_context _ P H9) in H1; [ | auto | auto];
-     clear H9
-  end.
-*)
-
 (* Admitted:  move this to normalize.v ? *)
 Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P w, pure P -> P w -> P (core w).
@@ -729,8 +627,8 @@ rewrite <- H1; auto.
 Qed.
 
 
-Definition get_result (ret: option ident) (ty: type) (rho: environ) :=
- match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)), ty)::nil end.
+Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
+ match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
 
 Lemma prop_andp_subp {A}{agA : ageable A}:
   forall (P: Prop) Q R w, (P -> app_pred (Q >=> R) w) -> app_pred ((!!P && Q) >=> R) w.
@@ -748,7 +646,7 @@ Lemma environ_ge_ve_disjoint:
 Admitted.
 
 Lemma semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> arguments -> pred rmap)
+      forall id fsig (A : Type) (P' Q' : A -> list val -> pred rmap)
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
@@ -838,12 +736,13 @@ Admitted.
 
 Lemma semax_call_basic_aux:
  forall (Delta : tycontext) (G : funspecs) (A : Type)
-  (P Q Q' : A -> arguments -> pred rmap) (x : A) (F : pred rmap)
+  (P Q Q' : A -> list val -> pred rmap) (x : A) (F : pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (k : cont) (rho : environ)
   (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
     typecheck_expr Delta a = tc_TT ->
     typecheck_exprlist Delta bl = tc_TT ->
+    map typeof bl = typelist2list (fst fsig) ->
     typecheck_environ rho Delta = true ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret (snd fsig) rho0)) ->
@@ -854,13 +753,13 @@ Lemma semax_call_basic_aux:
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
-    (forall vl : arguments, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
-    (|>(F0 rho * F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig)))) (m_phi jm) ->
+    (forall vl : list val, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
+    (|>(F0 rho * F * P x (map (eval_expr rho) bl))) (m_phi jm) ->
    jsafeN Hspec psi (level (m_phi jm)) ora
      (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
 intros Delta G A P Q Q' x F F0 ret fsig a bl R psi k rho ora jm b id.
-intros TC1 TC2 TC3 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
+intros TC1 TC2 TC4 TC3 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
@@ -1017,11 +916,13 @@ split; auto.
 unfold bind_args.
 unfold rho3 at 1.
 simpl te_of.
-replace (map (fun xt  => (force_val te' ! (fst xt), snd xt)) (fn_params f))
-       with  (zip_arguments (map (eval_expr rho) bl) (fst fsig)).
 rewrite <- sepcon_assoc.
-admit.  (* plausible; should adjust can_alloc_variables lemma *)
-admit.  (* plausible, could use H21 here *)
+normalize.
+split.
+hnf.
+clear - TC2 H21 TC4 H17.
+admit.  (* should be easy *)
+admit.  (* plausible  *)
 (* end   "spec H19" *)
 
 specialize (H19 ora jm').
@@ -1033,12 +934,13 @@ unfold rho3; simpl; auto.
 Qed.
 
 Lemma semax_call_basic : 
-forall Delta G A (P Q: A -> arguments -> pred rmap) x F ret fsig a bl
+forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
       (TC1: typecheck_expr Delta a = tc_TT)
-      (TC2: typecheck_exprlist Delta bl = tc_TT),
+      (TC2: typecheck_exprlist Delta bl = tc_TT)
+      (TC4: map typeof bl = typelist2list (fst fsig)),
        semax Hspec Delta G
          (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
-         (F * P x (zip_arguments (map (eval_expr rho) bl) (fst fsig))))
+         (F * P x (map (eval_expr rho) bl) ))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
@@ -1097,7 +999,7 @@ assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H11; auto).
 destruct H2; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
-set (args := zip_arguments (map (eval_expr rho) bl) (fst fsig)).
+set (args := map (eval_expr rho) bl).
 fold args in H5.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.

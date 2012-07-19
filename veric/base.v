@@ -52,6 +52,8 @@ Implicit Arguments opt2list.
 Definition force_val (v: option val) : val :=
  match v with Some v' => v' | None => Vundef end.
 
-Definition arguments := list (val* type).
+Fixpoint typelist2list (tl: typelist) : list type :=
+ match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
+
 Definition funsig := (typelist * type)%type. (* argument and result signature *)
 

@@ -37,18 +37,8 @@ Definition entry_tempenv (te: temp_env) (f: function) (vl: list val) :=
                        (combine (map (@fst _ _) f.(fn_params)) vl 
                           ++ map (fun tv => (fst tv, Vundef)) f.(fn_temps)).
 
-Definition function_body_entry_assert (f: function) (P: arguments -> pred rmap) (G: funspecs) : assert :=
-   fun rho : environ =>
-      bind_args (fn_params f) (fun vl : arguments => P vl) rho *  stackframe_of f rho.
-
-Definition function_body_entry_assert' (f: function) (P: arguments -> pred rmap) : assert :=
-  (fun rho =>
-            Ex vl:list val,
-              !! entry_tempenv (te_of rho) f vl
-             && P (combine vl (map (@snd _ _) f.(fn_params))) * stackframe_of f rho).
-
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> arguments -> pred rmap) : Prop :=
+       (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
       (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
        list_norepet (map (@fst _ _) (fn_vars f))) /\
   forall x,
@@ -67,13 +57,13 @@ Definition semax_func
   forall ge, prog_contains ge fdecs -> 
           forall n, believe Hspec G ge G1 n.
 
-Definition main_pre (prog: program) : unit -> arguments -> pred rmap :=
+Definition main_pre (prog: program) : unit -> list val -> pred rmap :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
                              (empty_environ (Genv.globalenv prog))).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : unit -> arguments -> pred rmap := 
+Definition main_post (prog: program) : unit -> list val -> pred rmap := 
   (fun tt vl => !! (vl=nil)).
 
 Definition semax_prog 
@@ -445,7 +435,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
            | Some id => 
                   match find_id id G with
                   | Some (mk_funspec fsig A P Q) => 
-                           PURE (FUN fsig) (SomeP (A::boolT::arguments::nil) (approx n oo packPQ P Q))
+                           PURE (FUN fsig) (SomeP (A::boolT::list val::nil) (approx n oo packPQ P Q))
                   | None => NO Share.bot
                   end
            | None => NO Share.bot
@@ -843,6 +833,7 @@ eapply semax_call_basic_aux with (Delta :=Delta1)(F0:= fun _ => TT)
   try apply H3; try eassumption.
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)
+reflexivity.
 admit.  (* typechecking proof *)
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.
