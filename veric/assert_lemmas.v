@@ -328,12 +328,12 @@ Proof.
  apply corable_exp; intro.
  apply corable_exp; intro.
  apply corable_andp; auto.
- destruct b0.  destruct s;  destruct p.
+ destruct b0.
  apply corable_pureat.
  apply corable_allp; intro.
  apply corable_allp; intro.
  apply corable_imp; auto.
- destruct b0.  destruct s;  destruct p.
+ destruct b0.
  apply corable_pureat.
 Qed.
 

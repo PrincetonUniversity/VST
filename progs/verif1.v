@@ -220,7 +220,6 @@ unfold assert_expr.
 normalize.
 (* BUG: the next line should have been accomplished by normalize *)
 rewrite andp_assoc; apply derives_extract_prop; intro.
-simpl in H0.
 rewrite lseg_neq.
 normalize.
 intros h r y.

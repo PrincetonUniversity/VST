@@ -793,14 +793,14 @@ subst loc.
 spec H8. exists id. split; auto. exists b; auto.
 exists b.
 split.
-simpl.
+hnf.
+unfold eval_lvalue.
 rewrite <- Hge.
-unfold filter_genv.
 rewrite H3.
+unfold filter_genv.
 rewrite H0.
+destruct fsig. simpl @fst; simpl @snd.
 destruct (type_of_global psi b); inv H6; auto.
-unfold type_of_funspec.
-simpl fst.
 rewrite if_true; auto.
 intro loc.
 hnf.
@@ -1079,10 +1079,9 @@ simpl in H10. inversion2 H7 H10.
 simpl in H11. subst b'.
 unfold func in H13.
 rewrite H12 in H13.
-destruct fs as [fsig' [A' [P' Q']]].
-simpl in H15,H16. 
-assert (fsig' = fsig) by (clear - H15 H16; destruct fsig,fsig'; simpl in *; subst; auto).
-clear H15 H16; subst fsig'.
+destruct fs as [fsig' A' P' Q'].
+assert (fsig' = fsig) by (destruct fsig, fsig'; inv H15; auto).
+clear H15; subst fsig'.
 hnf in H6,H13.
 rewrite H6  in H13.
 change (In (id, mk_funspec fsig A' P' Q') G) in H8.

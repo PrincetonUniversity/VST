@@ -179,11 +179,11 @@ simpl;
 auto.
 Qed.
 
-(* Don't use Inductive because it's difficult to export through Module Types *)
+(* Don't use Inductive because it's difficult to export through Module Types
 Definition funspec := prod funsig 
    (sigT (fun A => prod (A -> arguments -> pred rmap) (A -> arguments -> pred rmap))).
 
-Definition mk_funspec : funsig ->  forall A : Type,
+ Definition mk_funspec : funsig ->  forall A : Type,
        (A -> arguments -> pred rmap) -> (A -> arguments -> pred rmap) -> funspec :=
  fun fsig  (A: Type) (P Q : A -> arguments -> pred rmap)=>
 (fsig,
@@ -191,6 +191,12 @@ Definition mk_funspec : funsig ->  forall A : Type,
   (fun A0 => ((A0 -> arguments -> pred rmap) * (A0 -> arguments -> pred rmap))%type)
   A
   (P, Q)).
+*)
+
+Inductive funspec :=
+   mk_funspec: funsig -> 
+           forall A: Type, (A -> arguments -> pred rmap) -> (A -> arguments -> pred rmap) 
+                 -> funspec.
 
 Definition funspecs := list (ident * funspec).
 
@@ -219,10 +225,11 @@ Definition bind_ret (vl: list val) (t: type) (Q: arguments -> pred rmap) : pred 
 
 Definition func (f: funspec): address -> pred rmap :=
   match f with
-   | (fsig, existT A (P,Q)) => pureat (SomeP (A::boolT::arguments::nil) (packPQ P Q)) (FUN fsig)
+   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::arguments::nil) (packPQ P Q)) (FUN fsig)
   end.
 
-Definition type_of_funspec (fs: funspec) : type :=  Tfunction (fst (fst fs)) (snd (fst fs)).
+Definition type_of_funspec (fs: funspec) : type :=  
+  match fs with mk_funspec fsig _ _ _ => Tfunction (fst fsig) (snd fsig)  end.
  
 Definition funassert (G: funspecs) : assert := 
  fun rho => 

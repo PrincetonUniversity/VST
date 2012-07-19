@@ -326,7 +326,7 @@ intros until G'.
 intros Hin Hni H Hf.
 destruct Hf as [Hf' Hf].
 split.
-hnf; simpl; f_equal; auto.
+destruct fsig; hnf; simpl; f_equal; auto.
 intros ge; intros.
 assert (prog_contains ge fs).
 unfold prog_contains in *.
@@ -444,7 +444,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
    then match Genv.invert_symbol ge (fst loc) with
            | Some id => 
                   match find_id id G with
-                  | Some (fsig, existT A (P,Q)) => 
+                  | Some (mk_funspec fsig A P Q) => 
                            PURE (FUN fsig) (SomeP (A::boolT::arguments::nil) (approx n oo packPQ P Q))
                   | None => NO Share.bot
                   end
@@ -462,7 +462,7 @@ unfold initial_core'.
 if_tac; simpl; auto.
 destruct (Genv.invert_symbol ge b); simpl; auto.
 destruct (find_id i G); simpl; auto.
-destruct f; destruct s; destruct p; simpl; auto.
+destruct f; simpl; auto.
 Qed.
 Next Obligation.
 intros.
@@ -470,7 +470,7 @@ extensionality loc; unfold compose, initial_core'.
 if_tac; [ | simpl; auto].
 destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
 destruct (find_id i G); [ | simpl; auto].
-destruct f; destruct s; destruct p.
+destruct f.
 unfold resource_fmap.
 f_equal.
 simpl.
@@ -552,7 +552,7 @@ Proof.
  clear - H0 H1 H2.
  admit.  (* easy *)
  simpl. rewrite Int.signed_zero; auto.
- unfold func. destruct fs. destruct s. destruct p.
+ unfold func. destruct fs.
  unfold initial_core.
  hnf. rewrite resource_at_make_rmap.
  rewrite level_make_rmap.
@@ -564,7 +564,7 @@ Proof.
  clear - H0 H.
  admit. (* easy *)
 
- intros loc'  [fsig' [A' [P' Q']]].
+ intros loc'  [fsig' A' P' Q'].
  unfold func.
  intros w ? ?.
  hnf in H2.
@@ -585,7 +585,7 @@ if_tac in H3; [ | inv H3].
 revert H3; case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst loc')); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
-destruct f; destruct s; destruct p. inv H6.
+destruct f; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv. rewrite H3.
@@ -679,7 +679,7 @@ assert (fst l < 0) by (eapply Genv.find_funct_ptr_negative; eauto).
 unfold access_at.
 rewrite nextblock_noaccess by omega.
 if_tac; auto.
-destruct fs; destruct s; destruct p; repeat rewrite core_PURE; auto.
+destruct fs; repeat rewrite core_PURE; auto.
 repeat rewrite core_NO; auto.
 if_tac; rewrite core_NO;
 destruct (access_at m l); intros; try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
