@@ -13,7 +13,7 @@ Require Import veric.Clight_new.
 Require Import veric.extspec.
 Require Import veric.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
@@ -542,7 +542,7 @@ Proof.
  clear - H0 H1 H2.
  admit.  (* easy *)
  simpl. rewrite Int.signed_zero; auto.
- unfold func. destruct fs.
+ unfold func_at. destruct fs.
  unfold initial_core.
  hnf. rewrite resource_at_make_rmap.
  rewrite level_make_rmap.
@@ -555,7 +555,7 @@ Proof.
  admit. (* easy *)
 
  intros loc'  [fsig' A' P' Q'].
- unfold func.
+ unfold func_at.
  intros w ? ?.
  hnf in H2.
  assert (exists pp, initial_core (Genv.globalenv prog) G n @ loc' = PURE (FUN fsig') pp).

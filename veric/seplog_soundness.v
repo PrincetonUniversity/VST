@@ -14,7 +14,7 @@ Require Import veric.Clight_new.
 Require Import veric.extspec.
 Require Import veric.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
@@ -984,7 +984,7 @@ specialize (H10 id fs _ (necR_refl _) H8).
 destruct H10 as [v' [b' [[H10 H11] H13]]].
 simpl in H10. inversion2 H7 H10.
 simpl in H11. subst b'.
-unfold func in H13.
+unfold func_at in H13.
 rewrite H12 in H13.
 destruct fs as [fsig' A' P' Q'].
 assert (fsig' = fsig) by (destruct fsig, fsig'; inv H15; auto).

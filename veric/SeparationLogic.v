@@ -1,19 +1,9 @@
 Require Import veric.base.
+Require Import veric.expr.
 Require Import veric.seplog.
 Require Import veric.juicy_extspec.
-Require Import veric.Clight_lemmas.
-Require Import veric.expr.
 
 Opaque rmap.
-Instance Join_rmap: Join rmap := _.
-Instance Perm_rmap: @Perm_alg rmap Join_rmap := _.
-Instance Sep_rmap: @Sep_alg rmap Join_rmap := _.
-Instance Canc_rmap: @Canc_alg rmap Join_rmap := _.
-Instance Disj_rmap: @Disj_alg rmap Join_rmap := _.
-Instance ag_rmap: ageable rmap := _.
-Instance Age_rmap: @Age_alg rmap Join_rmap ag_rmap := _.
-Instance Cross_rmap: Cross_alg rmap := _.
-Instance Trip_rmap: Trip_alg rmap := _.
 
 
 Module Type EXTERNAL_SPEC.
@@ -67,7 +57,7 @@ Definition main_post (prog: program) : unit -> list val -> pred rmap :=
 
 Definition semax_prog 
      (prog: program) (G: funspecs) : Prop :=
-  no_dups prog.(prog_funct) prog.(prog_vars) /\
+  list_norepet (map (@fst _ _) prog.(prog_funct) ++ map (@fst _ _) prog.(prog_vars)) /\
   semax_func G (prog.(prog_funct)) G /\
     In (prog.(prog_main), mk_funspec (Tnil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
@@ -115,8 +105,8 @@ Axiom seq_assoc:
         semax Delta G P (Ssequence s1 (Ssequence s2 s3)) R <->
         semax Delta G P (Ssequence (Ssequence s1 s2) s3) R.
 
-Definition Cnot (e: Clight.expr) : Clight.expr :=
-   Clight.Eunop Onotbool e type_bool.
+Definition Cnot (e: expr) : expr :=
+   Eunop Onotbool e type_bool.
 
 Definition bool_type (t: type) : bool :=
   match t with
@@ -127,7 +117,7 @@ Definition bool_type (t: type) : bool :=
 Axiom semax_for : 
 forall Delta G Q Q' test incr body R
      (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
-     (BT: bool_type (Clight.typeof test) = true) 
+     (BT: bool_type (typeof test) = true) 
      (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
@@ -137,7 +127,7 @@ forall Delta G Q Q' test incr body R
 Axiom semax_while : 
 forall Delta G Q test body R
      (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
-     (BT: bool_type (Clight.typeof test) = true) 
+     (BT: bool_type (typeof test) = true) 
      (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->

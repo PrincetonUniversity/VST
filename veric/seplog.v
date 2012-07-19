@@ -87,9 +87,6 @@ Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
 Definition subst (x: ident) (v: val) (P: assert) : assert :=
    fun s => P (env_set s x v).
 
-Definition val2adr' (v: val): address :=
- match v with Vptr b i => (b, Int.unsigned i) | _ => (0,0) end.
-
 Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
  fun rho => 
   match access_mode (Clight.typeof e1) with
@@ -101,30 +98,6 @@ Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
     end
   | _ => FF
   end. 
-
-Definition mapsto (sh: Share.t) (e1: Clight.expr) (e2 : Clight.expr) : assert :=
- fun rho =>  mapsto' sh e1 (eval_expr rho e2) rho.
-
-Definition expr_eq (e1 e2 : Clight.expr) : assert :=  
-   fun rho => !! (eval_expr rho e1 = eval_expr rho e2).
-
-Notation "e '==' f" := (expr_eq e f) (at level 25, no associativity): assert. 
-Notation "e1 '|->' e2" := (mapsto Share.top e1 AST.Mint32 e2) (at level 25, no associativity): assert.
-
-Definition exprlist_eq (e1 e2: list Clight.expr) : assert :=
-   fun rho =>  !! (map (eval_expr rho) e1 = map (eval_expr rho) e2).
-
-Definition assert_env := nat -> assert.
-Definition assert_env_nil : assert_env := fun n rho => FF.
-
-Definition assert_env_cons (hd: assert) (tl:  assert_env) (n: nat) : assert :=
-   match n with O => hd | S n' => tl n' end.
-
-Lemma f_assert_env_cons: forall f hd tl i,
-    f (assert_env_cons hd tl i) = assert_env_cons (f hd) (fun n => f (tl n)) i.
-Proof.
-induction i; auto.
-Qed.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
@@ -142,12 +115,12 @@ Definition fun_assert:
   forall  (v: val) (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap), pred rmap :=
   res_predicates.fun_assert.
 
-Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
-
-Definition ret_assert := exitkind -> list val -> assert.
-
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
-  fun rho => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (val2adr' (eval_lvalue rho e)).
+  fun rho => 
+     match eval_lvalue rho e with 
+     | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
+     | _ => FF
+    end.
 
 Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
@@ -158,18 +131,6 @@ Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable 
 
 Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
-
-Instance EqDec_exitkind: EqDec exitkind.
-Proof.
-hnf. intros.
-decide equality.
-Qed.
-
-Definition overridePost  (Q: assert)  (R: ret_assert) := 
-     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
-
-Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
-  fun ek vl rho => Ex x:A, R x ek vl rho.
 
 Lemma  subst_extens: 
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
@@ -186,12 +147,6 @@ Inductive funspec :=
 
 Definition funspecs := list (ident * funspec).
 
-Fixpoint zip_arguments (vl: list val) (tl: typelist) : list (val * type) :=
-  match vl, tl with
-  | v::vl', Tcons t tl' => (v,t) :: zip_arguments vl' tl'
-  | _, _ => nil
- end.
-
 Definition bind_args (formals: list (ident * type)) (P: list val -> pred rmap) : assert :=
    fun rho => let vl := map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)))) formals
           in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
@@ -203,7 +158,7 @@ Definition bind_ret (vl: list val) (t: type) (Q: list val -> pred rmap) : pred r
      | _, _ => FF
      end.
 
-Definition func (f: funspec): address -> pred rmap :=
+Definition func_at (f: funspec): address -> pred rmap :=
   match f with
    | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::(list val)::nil) (packPQ P Q)) (FUN fsig)
   end.
@@ -216,9 +171,9 @@ Definition funassert (G: funspecs) : assert :=
    (All  id: ident, All fs:funspec,  !! In (id,fs) G -->
               Ex v:val, Ex loc:address, 
                    !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) && func fs loc)
+                                 /\ val2adr v loc) && func_at fs loc)
    && 
-   (All  loc: address, All fs:funspec, func fs loc --> 
+   (All  loc: address, All fs:funspec, func_at fs loc --> 
              Ex id:ident,Ex v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) && !! In (id,fs) G).
 
@@ -249,22 +204,6 @@ Lemma address_mapsto_VALspec_range:
        |-- VALspec_range (size_chunk ch) rsh sh l.
 Proof.  exact address_mapsto_VALspec_range. Qed.
 
-
-Definition normal_ret_assert (Q: assert) : ret_assert := 
-   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
-
-Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
-     G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
-
-Lemma resource_at_identity: forall (m: rmap) (loc: address), 
- identity m -> identity (m @ loc).
-Proof.
-  intros.
-  destruct (@resource_at_empty m H loc) as [?|[? [? ?]]].
-  rewrite H0. apply NO_identity.
-  rewrite H0. apply PURE_identity.
-Qed.
-
 Lemma VALspec_range_0: forall rsh sh loc, VALspec_range 0 rsh sh loc = emp.
   Proof.
    intros.
@@ -279,6 +218,7 @@ Lemma VALspec_range_0: forall rsh sh loc, VALspec_range 0 rsh sh loc = emp.
    do 3 red. apply resource_at_identity; auto.
    destruct loc, b; intros [? ?]; simpl in *; omega.
 Qed.
+Hint Resolve VALspec_range_0: normalize.
 
 Lemma VALspec_range_split2:
   forall (n m r: Z) (rsh sh: Share.t) (b: block) (ofs: Z),
@@ -343,6 +283,29 @@ generalize (Address.size_chunk_pos ch2); intro;
 destruct a2; split; auto; omega.
 auto.
 Qed.
+
+
+Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
+
+Instance EqDec_exitkind: EqDec exitkind.
+Proof.
+hnf. intros.
+decide equality.
+Qed.
+
+Definition ret_assert := exitkind -> list val -> assert.
+
+Definition overridePost  (Q: assert)  (R: ret_assert) := 
+     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
+
+Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
+  fun ek vl rho => Ex x:A, R x ek vl rho.
+
+Definition normal_ret_assert (Q: assert) : ret_assert := 
+   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
+
+Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
+     G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl rho => R ek vl rho * F rho.

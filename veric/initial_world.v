@@ -10,7 +10,7 @@ Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.Clight_lemmas.
 
 Open Local Scope pred.

@@ -14,7 +14,7 @@ Require Import veric.Clight_new.
 Require Import veric.extspec.
 Require Import veric.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.

@@ -4,9 +4,7 @@ Require Import veric.seplog.
 Require Import msl.normalize.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
-Require Import veric.SequentialClight.
 Require Import msl.msl_standard.
-Import SeqC CSL.
 
 Local Open Scope pred.
 

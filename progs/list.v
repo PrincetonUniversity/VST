@@ -2,7 +2,6 @@ Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
 Require Import veric.seplog.
 Require Import msl.normalize.
-Require veric.compcert_rmaps.
 Require Import compcert.Ctypes.
 Require Import veric.expr.
 Require Import progs.client_lemmas.
@@ -10,12 +9,6 @@ Require Import progs.client_lemmas.
 Local Open Scope pred.
 
 Definition valt := (val * type)%type.
-
-Definition val_mapsto (sh: Share.t) (v1: val) (t: type) (v2: val) : pred rmap :=
- match access_mode t with
- | By_value ch =>  address_mapsto ch v2 (unrel Lsh sh) (unrel Rsh sh) (val2adr' v1)
- | _ => FF
- end.
 
 Definition field_of (vt: valt) (fld: ident) : valt :=
  match vt with
@@ -163,8 +156,6 @@ Proof.
  auto 50 with contractive.
 Qed.
 
-Require Import veric.expr.
-
 Lemma lseg_eq:
   forall l v t {ls: listspec t}, 
   typecheck_val v t = true ->
@@ -286,7 +277,6 @@ normalize.
 simpl in H.
 intros.
 simpl @snd. simpl @fst.
-Opaque field_mapsto.
 simpl.
 
 Abort.

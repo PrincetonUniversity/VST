@@ -5,7 +5,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.
@@ -320,7 +320,7 @@ Lemma corable_funassert:
   forall G rho, corable (funassert G rho).
 Proof.
  intros.
- unfold funassert, func.
+ unfold funassert, func_at.
  apply corable_andp.
  apply corable_allp; intro.
  apply corable_allp; intro.

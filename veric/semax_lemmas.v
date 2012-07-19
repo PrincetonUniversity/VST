@@ -12,7 +12,7 @@ Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
 Require Import veric.extspec.
 Require Import veric.step_lemmas.
-Require Import veric.expr.
+Require Import veric.expr veric.expr_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.semax.
 Require Import veric.Clight_lemmas.
@@ -1070,14 +1070,6 @@ Proof.
   apply (age1_YES w r); auto.
   unfold noat in *; simpl in *.
  eapply unage1_resource_at_identity; eauto.
-Qed.
-
-Lemma unage_mapsto:
-  forall sh v ch v' w, age1 w <> None -> (|> mapsto sh v ch v') w -> mapsto sh v ch v' w.
-Proof.
- intros.
- unfold mapsto in *.
- eapply unage_mapsto'; eauto.
 Qed.
 
 End extensions.

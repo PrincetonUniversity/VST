@@ -5,7 +5,8 @@ COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES= \
-  Coqlib2.v  base.v Address.v rmaps.v rmaps_lemmas.v compcert_rmaps.v expr.v \
+  Coqlib2.v  base.v Address.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
+  expr.v expr_lemmas.v \
   extspec.v forward_simulations.v forward_simulations_proofs.v step_lemmas.v \
   Clight_lemmas.v Clight_new.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  \

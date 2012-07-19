@@ -233,7 +233,14 @@ Module RML := Rmaps_Lemmas(R).
 Export RML. 
 Export R.
 
-
+Lemma resource_at_identity: forall (m: rmap) (loc: address), 
+ identity m -> identity (m @ loc).
+Proof.
+  intros.
+  destruct (@resource_at_empty m H loc) as [?|[? [? ?]]].
+  rewrite H0. apply NO_identity.
+  rewrite H0. apply PURE_identity.
+Qed.
 
 Lemma core_YES: forall rsh sh k pp, core (YES rsh sh k pp) = NO Share.bot.
 Proof.
