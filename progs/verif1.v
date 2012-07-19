@@ -114,16 +114,16 @@ apply semax_Sseq with
                               (nullval, P.t_listptr)).
 apply sequential'.
 eapply semax_pre; [ | apply semax_set].
-intros. eapply derives_trans; [ |apply now_later].
+intros.
+unfold bind_args.
+normalize.
+unfold map.
+rewrite prop_true_andp by (compute; auto).
+eapply derives_trans; [ |apply now_later].
 unfold subst.
 apply prop_andp_right.
 rewrite env_gss. reflexivity.
-rewrite sepcon_emp.
 rewrite env_gso by (intro Hx; inv Hx); auto.
-unfold bind_args. simpl.
-normalize.
-admit.  (* typechecking proof *)
-reflexivity.
 apply semax_Sseq with
   (fun rho => !! (eval_expr rho (Etempvar P.i_s P.t_int) = (Vint (Int.repr 0))
                          /\ eval_expr rho (Etempvar P.i_t P.t_listptr) = eval_expr rho (Etempvar P.i_p P.t_listptr)) &&
@@ -131,18 +131,21 @@ apply semax_Sseq with
                               (nullval, P.t_listptr)).
 apply sequential'.
 eapply semax_pre; [ | apply semax_set].
+intros.
+unfold bind_args.
+normalize.
+rewrite prop_true_andp.
+Focus 2.
+unfold tc_expr; split; simpl;rewrite if_true; auto; simpl; auto.
 intros. eapply derives_trans; [ |apply now_later].
-apply prop_andp_left; intro.
 unfold subst.
 apply prop_andp_right.
 split.
 rewrite env_gso by (intro Hx; inv Hx); auto.
 rewrite env_gss. rewrite env_gso by (intro Hx; inv Hx); auto.
 rewrite env_gso by (intro Hx; inv Hx); auto.
-admit.  (* typechecking proof *)
-admit.  (* typechecking proof *)
 unfold contents'; clear contents'.
- apply semax_pre with (sumlist_Inv contents).
+apply semax_pre with (sumlist_Inv contents).
 intros.
 apply prop_andp_left; intros [? ?].
 unfold sumlist_Inv.
@@ -155,11 +158,11 @@ apply semax_Sseq with
   (fun rho => !!(fold_right Int.add Int.zero contents =
               force_int (eval_expr rho (Etempvar P.i_s P.t_int)))).
 apply semax_while.
-admit.  (* typechecking proof *)
+unfold tc_expr; simpl.
+rewrite if_true by auto. simpl; normalize.
 reflexivity.
 intros.
-unfold assert_expr.
-apply prop_andp_left; intro.
+normalize.
 unfold Cnot in H.
 simpl in H.
 assert (eval_expr rho (Etempvar P.i_t P.t_listptr) = nullval).
@@ -170,7 +173,6 @@ apply exp_left; intro cts.
 apply prop_andp_left; intro.
 rewrite H0.
 rewrite (lseg_eq (map (fun i : int => (Vint i, P.t_int)) cts) nullval P.t_listptr).
-2: simpl; auto.
 normalize.
 apply prop_right.
 rewrite H1. destruct cts; inv H2.  simpl fold_right. 
@@ -181,7 +183,7 @@ unfold sumlist_Inv at 1.
 apply semax_pre with 
    (fun rho : environ =>
     (Ex  cts : list int,
-   assert_expr (Etempvar P.i_t P.t_listptr) rho &&
+   !! expr_true (Etempvar P.i_t P.t_listptr) rho &&
     !!(fold_right Int.add Int.zero contents =
        Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
          (fold_right Int.add Int.zero cts)) &&
@@ -190,7 +192,7 @@ apply semax_pre with
       (nullval, P.t_listptr))).
 intro; normalize; intros.
 apply exp_right with x.
-repeat rewrite andp_assoc; auto.
+normalize.
 apply extract_exists_pre.
 apply nil.
 intro cts.
@@ -199,7 +201,7 @@ pose (P' rho :=
 (Ex  h : val,
  (Ex  r : list valt,
   (Ex  y : val,
-  assert_expr (Etempvar P.i_t P.t_listptr) rho &&
+  !! expr_true (Etempvar P.i_t P.t_listptr) rho &&
 !!(fold_right Int.add Int.zero contents =
    Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
      (fold_right Int.add Int.zero cts)) &&
@@ -213,7 +215,6 @@ pose (P' rho :=
      (y, P.t_listptr) * |>lseg r (y, P.t_listptr) (nullval, P.t_listptr))))).
 apply semax_pre with P'; unfold P' in *; clear P'.
 intros.
-unfold assert_expr.
 normalize.
 (* BUG: the next line should have been accomplished by normalize *)
 rewrite andp_assoc; apply derives_extract_prop; intro.
@@ -228,6 +229,7 @@ admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)
 intro.
 unfold ptr_eq in H1.
+unfold expr_true in H0.
 destruct (eval_expr rho (Etempvar P.i_t P.t_listptr)); try contradiction.
 simpl in H1. 
 simpl in H0.
@@ -239,7 +241,7 @@ apply semax_pre with
   (fun rho : environ =>
   !!(map (fun i : int => (Vint i, P.t_int)) cts = (h, P.t_int) :: r /\
       typecheck_val h P.t_int = true /\ typecheck_val y P.t_listptr = true) &&
-   (assert_expr (Etempvar P.i_t P.t_listptr) rho &&
+   (!! expr_true (Etempvar P.i_t P.t_listptr) rho &&
    !!(fold_right Int.add Int.zero contents =
       Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
         (fold_right Int.add Int.zero cts)) &&
@@ -250,14 +252,20 @@ apply semax_pre with
      (eval_expr rho (Etempvar P.i_t P.t_listptr), P.t_list) P.i_t
      (y, P.t_listptr) * |>lseg r (y, P.t_listptr) (nullval, P.t_listptr))).
 intros.
-admit.  (* easy *)
+unfold expr_true.
+normalize.
+apply andp_right.
+apply andp_left1. apply andp_left2. auto.
+apply andp_right.
+apply andp_left1. apply andp_left1. auto.
+apply andp_left2; auto.
 apply semax_extract_prop.
 admit.  (* easy *)
 admit.  (* typechecking proof *)
 intros [? [? ?]].
 set (e1:= (Ederef (Etempvar P.i_t P.t_listptr) P.t_list)).
 set (P := (fun rho0 : environ =>
-         assert_expr (Etempvar P.i_t P.t_listptr) rho0 &&
+         !! expr_true (Etempvar P.i_t P.t_listptr) rho0 &&
          !!(fold_right Int.add Int.zero contents =
             Int.add (force_int (eval_expr rho0 (Etempvar P.i_s P.t_int)))
               (fold_right Int.add Int.zero cts)) &&
@@ -273,6 +281,7 @@ apply semax_pre with
  (fun rho => |> (field_mapsto Share.top (eval_expr rho e1, P.t_list) P.i_h
      (h, P.t_int) 
    * subst P.i_h h P rho)).
+intros.
 admit.
 pose (Q := 
        (fun rho : environ =>
@@ -282,14 +291,15 @@ apply semax_Sseq with Q.
 apply semax_post with (normal_ret_assert Q).
 intros.
 normalize.
-eapply semax_load_field; eauto.
+evar (Q3: assert).
+apply semax_pre with Q3; [ unfold Q3 |  unfold Q3; eapply semax_load_field; eauto].
+intros.
+apply andp_right; auto.
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)
-unfold e1.
-admit.  (* typechecking proof *)
-unfold e1; simpl. reflexivity.
-simpl .
-rewrite if_true by auto. reflexivity.
+unfold e1. reflexivity.
+simpl. reflexivity.
+simpl; rewrite if_true by auto. reflexivity.
 
 Admitted.
 

@@ -476,6 +476,17 @@ Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
   | _ => False
   end.
 
+Definition tc_expr (Delta: tycontext) (e: expr) (rho: environ) : Prop := 
+          denote_tc_assert (typecheck_expr Delta e) rho.
+
+Definition tc_exprlist (Delta: tycontext) (e: list expr) (rho: environ) : Prop := 
+          denote_tc_assert (typecheck_exprlist Delta e) rho.
+
+Definition tc_lvalue (Delta: tycontext) (e: expr) (rho: environ) : Prop := 
+          denote_tc_assert (typecheck_lvalue Delta e) rho.
+
+
+
 (*come back here
 Lemma typecheck_binop_sound:
 forall (Delta : tycontext) (rho : environ) (b0 : binary_operation)
@@ -687,20 +698,18 @@ Qed.*)
 
 
 Lemma eval_expr_relate:
-  forall Delta ge rho e m P,
+  forall Delta ge rho e m,
               filter_genv ge = ge_of rho ->
               typecheck_environ rho Delta = true ->
-              typecheck_expr Delta e = P ->
-              denote_tc_assert P rho ->
+              tc_expr Delta e rho ->
               Clight_sem.eval_expr ge (ve_of rho) (te_of rho) m e  (eval_expr rho e).
 Admitted.
 
 Lemma eval_lvalue_relate:
-  forall Delta ge rho e m P,
+  forall Delta ge rho e m,
               filter_genv ge = ge_of rho ->
               typecheck_environ rho Delta = true ->
-              typecheck_lvalue Delta e = P ->
-              denote_tc_assert P rho ->
+              tc_lvalue Delta e rho ->
               exists b, exists ofs, 
               Clight_sem.eval_lvalue ge (ve_of rho) (te_of rho) m e b ofs /\
               eval_lvalue rho e = Vptr b ofs.
@@ -782,9 +791,11 @@ match update_tycon Delta c with
 | None => false
 end.
 
+(* NOTE:  params start out initialized, temps do not! *)
 Definition func_tycontext (func: function) : tycontext :=
-(fold_right (fun (temp : ident *type) tenv, let (id,ty):= temp in PTree.set id (ty,false) tenv) 
-  (PTree.empty (type * bool)) func.(fn_temps),
+(fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
+ (fold_right (fun (temp : ident *type) tenv, let (id,ty):= temp in PTree.set id (ty,false) tenv) 
+  (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
 fold_right (fun (var : ident * type) venv, let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
 fn_return func).

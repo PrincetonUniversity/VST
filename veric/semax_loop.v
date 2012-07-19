@@ -185,16 +185,26 @@ replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
 apply H2.
 Qed.
 
+(* Admitted: move this to expr.v or something *)
+Lemma typecheck_bool_val:
+  forall v t, typecheck_val v t = true -> bool_type t = true ->
+      exists b, bool_val v t = Some b.
+Proof.
+intros.
+destruct t; inv H0;
+destruct v; inv H; simpl; eauto.
+Qed.
+
 Lemma semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC_expr: typecheck_expr Delta test = tc_TT)
+     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
          (* Joey:  if it turns out you don't end up needing the BT premise,
                                   then delete it from this rule, and from the semax_while
                               and semax_dowhile rules. *)
-     (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
-                (fun rho => assert_expr test rho && Q rho) body (for1_ret_assert Q' R) ->
+                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
      semax Hspec Delta G Q' incr (for2_ret_assert Q R) ->
      semax Hspec Delta G Q (Sfor' test incr body) R.
 Proof.
@@ -228,8 +238,11 @@ assert (Prog_OK2: (believe Hspec G psi G) (level a2))
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
 assert (exists b, bool_val (eval_expr rho test) (typeof test) = Some b).
-clear - H6 TC_expr BT.
-admit.  (* typechecking proof *)
+clear - H6 TC BT H7 Hge.
+destruct H7 as [w1 [w2 [_ [_ ?]]]].
+apply TC in H. hnf in H.
+pose proof (typecheck_expr_sound Delta rho test _ H6 (eq_refl _) H).
+apply typecheck_bool_val; auto.
 destruct H9 as [b ?].
 intros ora jm H11.
 rename Hge into H10.
@@ -337,7 +350,6 @@ apply age_jm_phi; auto.
 split; auto.
 split; auto.
 split; auto.
-unfold assert_expr.
 rewrite prop_true_andp; auto.
 
 (* Case 2: expr evaluates to false *)
@@ -360,18 +372,18 @@ Qed.
 
 Lemma semax_while : 
 forall Delta G Q test body R
-     (TC_expr: typecheck_expr Delta test = tc_TT)
+     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
-     (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
-                (fun rho => assert_expr test rho && Q rho) body (for1_ret_assert Q R) ->
+                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
      semax Hspec Delta G Q (Swhile test body) R.
 Proof.
 intros.
 assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
 eapply semax_post; try apply semax_Sskip.
 destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0.
-pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H H0).
+pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
 destruct H1; split; auto.
@@ -397,19 +409,19 @@ Qed.
 
 Lemma semax_dowhile : 
 forall Delta G P Q test body R
-     (TC_expr: typecheck_expr Delta test = tc_TT)
+     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
-     (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G P body (for1_ret_assert Q R) ->
      semax Hspec Delta G 
-                (fun rho => assert_expr test rho && Q rho) body (for1_ret_assert Q R) ->
+                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
      semax Hspec Delta G Q (Sdowhile test body) R.
 Proof.
 intros.
 assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
 eapply semax_post; try apply semax_Sskip.
 destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H1.
-pose proof (semax_for Delta G Q Q test Sskip body R TC_expr BT POST H0 H1).
+pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H0 H1).
 clear H0 H1.
 rewrite semax_unfold in H,H2|-*.
 destruct H, H2; split.

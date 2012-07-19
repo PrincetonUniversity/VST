@@ -78,8 +78,8 @@ Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop :=
      eval_lvalue rho e = eval_lvalue (mkEnviron (ge_of rho) (ve_of rho) te') e.
 
 
-Definition assert_expr (e: Clight.expr) : assert := 
-  fun rho => !! (bool_val (eval_expr rho e) (Clight.typeof e) = Some true).
+Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
+  bool_val (eval_expr rho e) (Clight.typeof e) = Some true.
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Maps.PTree.set x v (te_of rho)).

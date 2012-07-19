@@ -628,7 +628,7 @@ Proof.
 Qed.
 
 (* there's a place this lemma should be applied, perhaps in seplog_soundness
-    proof of semax_call_basic *)
+    proof of semax_call *)
 Lemma funassert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
 Proof.
@@ -827,11 +827,10 @@ pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) empty_env
                       (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))).
 change empty_env  with (ve_of rho).
 change (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)) with (te_of rho).
-eapply semax_call_basic_aux with (Delta :=Delta1)(F0:= fun _ => TT)
+eapply semax_call_aux with (Delta :=Delta1)(F0:= fun _ => TT)
          (R := normal_ret_assert (fun _ => TT)) (F:=TT)
           (x := tt)(Q := fun _ => main_post prog tt);
   try apply H3; try eassumption.
-admit.  (* typechecking proof *)
 admit.  (* typechecking proof *)
 reflexivity.
 admit.  (* typechecking proof *)

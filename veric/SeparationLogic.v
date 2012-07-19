@@ -126,21 +126,21 @@ Definition bool_type (t: type) : bool :=
 
 Axiom semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC_expr: typecheck_expr Delta test = tc_TT)
+     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
-     (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
-                (fun rho => assert_expr test rho && Q rho) body (for1_ret_assert Q' R) ->
+                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
      semax Delta G Q' incr (for2_ret_assert Q R) ->
      semax Delta G Q (Sfor' test incr body) R.
 
 Axiom semax_while : 
 forall Delta G Q test body R
-     (TC_expr: typecheck_expr Delta test = tc_TT)
+     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
-     (POST: forall rho,  assert_expr (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Delta G 
-                (fun rho => assert_expr test rho && Q rho) body (for1_ret_assert Q R) ->
+                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
      semax Delta G Q (Swhile test body) R.
 
 (* THESE RULES FROM seplog_soundness *)
@@ -148,14 +148,14 @@ forall Delta G Q test body R
 Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
 
-Axiom semax_call_basic : 
+Axiom semax_call : 
 forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC1: typecheck_expr Delta a = tc_TT)
-      (TC2: typecheck_exprlist Delta bl = tc_TT)
       (TC4: map typeof bl = typelist2list (fst fsig)),
        semax Delta G
-         (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
-         (F * P x (map (eval_expr rho) bl) ))
+         (fun rho => 
+         !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 
+         (fun_assert  (eval_expr rho a) fsig A P Q && 
+          (F * P x (map (eval_expr rho) bl) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 
@@ -187,41 +187,46 @@ Axiom semax_call_ext:
 
 Axiom semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    typecheck_expr Delta (Etempvar id (typeof e)) = tc_TT ->   
-    typecheck_expr Delta e = tc_TT ->
-    semax Delta G (fun rho => |> subst id (eval_expr rho e) P rho) 
-                   (Sset id e) (normal_ret_assert P).
+    semax Delta G 
+        (fun rho => 
+          !! (tc_expr Delta (Etempvar id (typeof e)) rho
+              /\ tc_expr Delta e rho)  && 
+            |> subst id (eval_expr rho e) P rho)
+          (Sset id e) (normal_ret_assert P).
 
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Axiom semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = tc_TT ->   
-    typecheck_lvalue Delta e1 = tc_TT ->
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Delta G 
-       (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
+       (fun rho =>
+        !! (tc_expr Delta (Etempvar id (typeof e1)) rho
+           /\ tc_lvalue Delta e1 rho)  && 
+          |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
        (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P,
-    typecheck_lvalue Delta e1 = tc_TT ->
-    typecheck_expr Delta e2 = tc_TT ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
    semax Delta G 
-          (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          (fun rho => 
+        !! (tc_lvalue Delta e1 rho
+           /\ tc_expr Delta e2 rho)  && 
+          |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
-     typecheck_expr Delta b = tc_TT ->
       bool_type (typeof b) = true ->
-     semax Delta G (fun rho => P rho && assert_expr b rho) c R -> 
-     semax Delta G (fun rho => P rho && assert_expr (Cnot b) rho) d R -> 
-     semax Delta G P (Sifthenelse b c d) R.
+     semax Delta G (fun rho => P rho && !! expr_true b rho) c R -> 
+     semax Delta G (fun rho => P rho && !! expr_true (Cnot b) rho) d R -> 
+     semax Delta G 
+       (fun rho => !! tc_expr Delta b rho && P rho)
+              (Sifthenelse b c d) R.
 
 (* THESE RULES FROM semax_lemmas *)
 

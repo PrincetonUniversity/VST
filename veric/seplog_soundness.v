@@ -25,9 +25,10 @@ Section extensions.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
 Lemma semax_straight_simple:
- forall Delta G P c Q,
+ forall Delta G (B: environ -> Prop) P c Q,
   typecheck_stmt Delta c = true -> 
   (forall jm jm1 ge rho k F, 
+              B rho ->
               typecheck_environ rho Delta = true ->
               closed_wrt_modvars c F ->
               filter_genv ge = ge_of rho ->
@@ -40,7 +41,7 @@ Lemma semax_straight_simple:
                 jstep cl_core_sem ge (State (ve_of rho) (te_of rho) (Kseq c :: k)) jm 
                                  (State (ve_of rho') (te_of rho') k) jm' /\
               ((F rho' * Q rho') && funassert G rho) (m_phi jm')) ->
-  semax Hspec Delta G (fun rho => |> P rho) c (normal_ret_assert Q).
+  semax Hspec Delta G (fun rho => !! B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros TC Hc.
 rewrite semax_unfold.
@@ -56,9 +57,12 @@ apply assert_safe_last'; intro Hage.
 intros ora jm H2. subst w.
 rewrite andp_assoc in Hglob.
 destruct Hglob as [[TC' Hge] Hglob].
-hnf in TC'.
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
-specialize (Hc jm  jm1 psi rho k F TC' Hcl  Hge Hage Hglob); clear Hglob.
+rewrite sepcon_andp_prop in Hglob.
+rewrite andp_assoc in Hglob.
+destruct Hglob as [TC2 Hglob].
+hnf in TC2.
+specialize (Hc jm  jm1 psi rho k F TC2 TC' Hcl  Hge Hage Hglob); clear Hglob.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
 change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 rewrite H2 in Hsafe.
@@ -89,22 +93,24 @@ Qed.
 
 Lemma semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    typecheck_expr Delta (Etempvar id (typeof e)) = tc_TT ->   
-    typecheck_expr Delta e = tc_TT ->
-    semax Hspec Delta G (fun rho => |> subst id (eval_expr rho e) P rho)
+    semax Hspec Delta G 
+        (fun rho => 
+          !! (tc_expr Delta (Etempvar id (typeof e)) rho /\ tc_expr Delta e rho)  && 
+            |> subst id (eval_expr rho e) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
-intros until e. intros TC1 TC2.
+intros until e.
 apply semax_straight_simple; auto.
 admit. (* typechecking proof *)
-intros jm jm' ge rho k F TC' Hcl Hge ? ?.
+intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
 econstructor.
 split.
 reflexivity.
 split3; auto.
 apply age_level; auto.
-clear - TC' TC1 TC2.
+normalize in H0.
+clear - TC' TC2 TC3.
 admit. (* typechecking proof *)
 destruct H0.
 split; auto.
@@ -114,7 +120,6 @@ destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
 econstructor; eauto.
 eapply eval_expr_relate; eauto.
-simpl; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 
@@ -148,20 +153,19 @@ Qed.
 
 Lemma semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    typecheck_expr Delta (Etempvar id (typeof e1)) = tc_TT ->   
-    typecheck_lvalue Delta e1 = tc_TT ->
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Hspec Delta G 
-       (fun rho => |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
+       (fun rho =>
+        !! (tc_expr Delta (Etempvar id (typeof e1)) rho /\ tc_lvalue Delta e1 rho)  && 
+          |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
        (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 Proof.
-intros until v2. intros TC1 TC2 TC3.
+intros until v2. intros TC3.
 apply semax_straight_simple; auto.
 admit.  (* typechecking proof *)
-intros jm jm1 ge rho k F TC' Hcl Hge ? ?.
-destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) _ Hge TC' TC2) as [b [ofs [? ?]]].
-simpl; auto.
+intros jm jm1 ge rho k F [TC1 TC2] TC' Hcl Hge ? ?.
+destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm)  Hge TC') as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id v2 (te_of rho)).
 econstructor.
@@ -335,18 +339,18 @@ Qed.
 
 Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P,
-    typecheck_lvalue Delta e1 = tc_TT ->
-    typecheck_expr Delta e2 = tc_TT ->
     typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
    semax Hspec Delta G 
-          (fun rho => |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          (fun rho => 
+        !! (tc_lvalue Delta e1 rho /\ tc_expr Delta e2 rho)  && 
+          |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 Proof.
-intros until P. intros TC1 TC2 TC3.
+intros until P. intros TC3.
 apply semax_straight_simple; auto.
 admit.  (* typechecking proof *)
-intros jm jm1 ge rho k F TC4 Hcl Hge Hage [H0 H0'].
+intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.
@@ -354,8 +358,7 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto' in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ (m_dry jm) _ Hge TC4 TC1) as [b0 [i [He1 He1']]].
-auto.
+destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
 rewrite unrel_splice_R in H4. rewrite unrel_splice_L in H4.
@@ -385,7 +388,7 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ (m_dry jm) _ Hge TC4 TC2); intro.
+generalize (eval_expr_relate _ _ _ e2 (m_dry jm) Hge TC4); intro.
 econstructor; try eassumption.
 admit.  (* typechecking proof ? *)
 instantiate (1:= eval_expr rho e2).
@@ -428,13 +431,14 @@ Qed.
 
 Lemma semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
-     typecheck_expr Delta b = tc_TT ->
       bool_type (typeof b) = true ->
-     semax Hspec Delta G (fun rho => P rho && assert_expr b rho) c R -> 
-     semax Hspec Delta G (fun rho => P rho && assert_expr (Cnot b) rho) d R -> 
-     semax Hspec Delta G P (Sifthenelse b c d) R.
+     semax Hspec Delta G (fun rho => P rho && !! expr_true b rho) c R -> 
+     semax Hspec Delta G (fun rho => P rho && !! expr_true (Cnot b) rho) d R -> 
+     semax Hspec Delta G 
+              (fun rho => !! tc_expr Delta b rho && P rho)
+              (Sifthenelse b c d) R.
 Proof.
-intros until R. intros TC ? ? ?.
+intros.
 rewrite semax_unfold in H0, H1 |- *.
 destruct H0 as [TC0 ?].
 destruct H1 as [TC1 ?].
@@ -456,13 +460,15 @@ revert a'.
 apply fash_derives.
 intros w [? ?].
 intros ?w ? [[[?TC Hge] ?] ?].
+rewrite sepcon_andp_prop in H4.
+destruct H4 as [TC2 H4].
 hnf in TC2.
 destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
-unfold assert_expr, Cnot in *.
+unfold expr_true, Cnot in *.
 intros ora jm Hphi.
-generalize (eval_expr_relate _ _ _ _ (m_dry jm) _ Hge TC2 TC); intro.
+generalize (eval_expr_relate _ _ _ b (m_dry jm) Hge TC); intro.
 assert (exists b': bool, bool_val (eval_expr rho b) (typeof b) = Some b').
 clear - TC H TC2.
 admit.  (* typechecking proof *)
@@ -478,8 +484,6 @@ apply (@safe_step'_back2 _ _ _ _ _ _ _ psi ora _ jm
         (State (ve_of rho) (te_of rho) (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.
-apply H8.
-simpl; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 change (level (m_phi jm)) with (level jm).
@@ -734,14 +738,14 @@ Lemma resource_decay_funassert:
          app_pred (funassert G rho) w'.
 Admitted.
 
-Lemma semax_call_basic_aux:
+Lemma semax_call_aux:
  forall (Delta : tycontext) (G : funspecs) (A : Type)
   (P Q Q' : A -> list val -> pred rmap) (x : A) (F : pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (k : cont) (rho : environ)
   (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
-    typecheck_expr Delta a = tc_TT ->
-    typecheck_exprlist Delta bl = tc_TT ->
+   tc_expr Delta a rho ->
+   tc_exprlist Delta bl rho ->
     map typeof bl = typelist2list (fst fsig) ->
     typecheck_environ rho Delta = true ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
@@ -933,14 +937,14 @@ apply H19.
 unfold rho3; simpl; auto.
 Qed.
 
-Lemma semax_call_basic : 
+Lemma semax_call: 
 forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC1: typecheck_expr Delta a = tc_TT)
-      (TC2: typecheck_exprlist Delta bl = tc_TT)
       (TC4: map typeof bl = typelist2list (fst fsig)),
        semax Hspec Delta G
-         (fun rho => fun_assert  (eval_expr rho a) fsig A P Q && 
-         (F * P x (map (eval_expr rho) bl) ))
+         (fun rho => 
+         !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 
+         (fun_assert  (eval_expr rho a) fsig A P Q && 
+          (F * P x (map (eval_expr rho) bl) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
@@ -970,7 +974,8 @@ specialize (H7 (b,0) (mk_funspec fsig A P Q) _ (necR_refl _) H6).
 destruct H7 as [id [v [[H7 H8] H9]]].
 hnf in H9.
 simpl in H8. unfold val2adr in H8. destruct v; try contradiction.
-symmetry in H8; inv H8. rename H11 into H12.
+symmetry in H8; inv H8.
+destruct H2 as [TC1 TC2].
 assert (H8: exists fs, In (id,fs) G).
 admit.  (* easy *)
 destruct H8 as [fs H8].
@@ -1014,7 +1019,7 @@ rewrite later_sepcon.
 apply pred_eq_e2 in H10.
 eapply (sepcon_subp (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
-eapply semax_call_basic_aux; try eassumption.
+eapply semax_call_aux; try eassumption.
 unfold normal_ret_assert.
 extensionality rho'.
 rewrite prop_true_andp by auto.
