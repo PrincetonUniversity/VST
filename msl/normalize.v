@@ -366,6 +366,7 @@ Ltac normalize1 :=
                 | |- forall _, _ => let x := fresh "x" in (intro x; normalize1; try generalize dependent x)
                 | |- exp _ |-- _ => apply imp_extract_exp_left 
                 | |- !! _ && _ |-- _ => apply derives_extract_prop
+                | |- _ && !! _ |-- _ => apply derives_extract_prop'
                 | |- _ |-- !! (?x = ?y) && _ => 
                             (rewrite prop_true_andp with (P:= (x=y))
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
