@@ -236,17 +236,12 @@ Qed.
 
 Opaque semax'.
 
-Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) G P c Q :=
-  typecheck_stmt Delta c = true /\
-  forall n, semax' Hspec Delta G P c Q n.
+(* At one point I thought that it would be necessary to typecheck 
+  the statement as a static part of semax, but it seems that we don't
+  need that.  So I have left some_static_thing as a placeholder.  -- A.W.A. *)
+Inductive some_static_thing (Delta: tycontext) (c: statement) : Prop :=
+ prove_some_static_thing.
 
-Lemma pred_eq_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
-Proof.
-intros.
-apply pred_ext; intros w ?.
-specialize (H _ (le_refl _)); auto.
-intros n' ?. inv H0; auto.
-eapply pred_nec_hereditary; try apply H. 
-apply nec_nat.
-unfold level in H1. simpl in H1. unfold natLevel in H1. omega.
-Qed.
+Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) G P c Q :=
+  some_static_thing Delta c /\
+  forall n, semax' Hspec Delta G P c Q n.

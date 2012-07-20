@@ -457,3 +457,26 @@ Proof. intros.
  assert (P (level y)). eapply pred_nec_hereditary; try apply H0. 
  apply nec_nat. auto. apply H4.
 Qed.
+
+Lemma pred_eq_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
+Proof.
+intros.
+apply pred_ext; intros w ?.
+specialize (H _ (le_refl _)); auto.
+intros n' ?. inv H0; auto.
+eapply pred_nec_hereditary; try apply H. 
+apply nec_nat.
+unfold level in H1. simpl in H1. unfold natLevel in H1. omega.
+Qed.
+
+Lemma prop_andp_subp {A}{agA : ageable A}:
+  forall (P: Prop) Q R w, (P -> app_pred (Q >=> R) w) -> app_pred ((!!P && Q) >=> R) w.
+Proof.
+intros.
+repeat intro.
+destruct H2.
+apply H in H2.
+eapply H2; eauto.
+Qed.
+
+

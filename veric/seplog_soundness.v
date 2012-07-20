@@ -26,7 +26,7 @@ Context {Z} (Hspec: juicy_ext_spec Z).
 
 Lemma semax_straight_simple:
  forall Delta G (B: environ -> Prop) P c Q,
-  typecheck_stmt Delta c = true -> 
+  some_static_thing Delta c -> 
   (forall jm jm1 ge rho k F, 
               B rho ->
               typecheck_environ rho Delta = true ->
@@ -45,7 +45,8 @@ Lemma semax_straight_simple:
 Proof.
 intros until Q; intros TC Hc.
 rewrite semax_unfold.
-split; auto.
+split.
+auto.
 intros psi n _ k F Hcl Hsafe rho w Hx w0 H Hglob.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
@@ -100,8 +101,8 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
           (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e.
-apply semax_straight_simple; auto.
-admit. (* typechecking proof *)
+apply semax_straight_simple.
+apply prove_some_static_thing.
 intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
 econstructor.
@@ -163,7 +164,7 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
 Proof.
 intros until v2. intros TC3.
 apply semax_straight_simple; auto.
-admit.  (* typechecking proof *)
+apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC' Hcl Hge ? ?.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm)  Hge TC') as [b [ofs [? ?]]]; auto.
 exists jm1.
@@ -349,7 +350,7 @@ Lemma semax_store:
 Proof.
 intros until P. intros TC3.
 apply semax_straight_simple; auto.
-admit.  (* typechecking proof *)
+apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
@@ -443,7 +444,7 @@ rewrite semax_unfold in H0, H1 |- *.
 destruct H0 as [TC0 ?].
 destruct H1 as [TC1 ?].
 split.
-admit.  (* typecheck proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
@@ -618,31 +619,9 @@ change compcert_rmaps.R.ag_rmap with ag_rmap in *;
 change compcert_rmaps.R.rmap with rmap in *; omega.
 Qed.
 
-(* Admitted:  move this to normalize.v ? *)
-Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P w, pure P -> P w -> P (core w).
-Proof.
-intros.
-assert (w = core w).
-apply unit_core.
-apply identity_unit_equiv; auto.
-apply H; auto.
-rewrite <- H1; auto.
-Qed.
-
 
 Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
-
-Lemma prop_andp_subp {A}{agA : ageable A}:
-  forall (P: Prop) Q R w, (P -> app_pred (Q >=> R) w) -> app_pred ((!!P && Q) >=> R) w.
-Proof.
-intros.
-repeat intro.
-destruct H2.
-apply H in H2.
-eapply H2; eauto.
-Qed.
 
 Lemma environ_ge_ve_disjoint:
   forall rho Delta, typecheck_environ rho Delta = true ->
@@ -950,7 +929,7 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
 Proof.
 rewrite semax_unfold; intros.
 split.
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 rename H0 into H1.
 intro rho.
@@ -1039,7 +1018,7 @@ Proof.
 intros.
 rewrite semax_unfold in H1|-*.
 destruct H1; split; auto.
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H2 psi w Prog_OK k F H3 H4).
 intro rho; specialize (H2 rho).
@@ -1084,7 +1063,8 @@ Lemma  semax_return :
                 R.
 Proof.
 intros.
-split; auto.
+split.
+apply prove_some_static_thing.
 intros.
 rewrite semax_fold_unfold.
 intro psi.

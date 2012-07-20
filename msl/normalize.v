@@ -1,7 +1,5 @@
 Require Import msl.msl_standard.
 
-(* Admitted: Move this whole file to msl *) 
-
 Local Open Scope pred.
 
 Lemma andp_TT {A}`{ageable A}: forall (P: pred A), P && TT = P.
@@ -108,6 +106,17 @@ apply (H x); auto.
 Qed.
 
 Hint Resolve @pure_existential.
+
+Lemma pure_core {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall P w, pure P -> P w -> P (core w).
+Proof.
+intros.
+assert (w = core w).
+apply unit_core.
+apply identity_unit_equiv; auto.
+apply H; auto.
+rewrite <- H1; auto.
+Qed.
 
 Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
            forall P, FF * P = FF.

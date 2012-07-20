@@ -17,7 +17,6 @@ Require Import veric.juicy_extspec.
 Require Import veric.semax.
 Require Import veric.Clight_lemmas.
 
-
 Open Local Scope pred.
 
 Hint Resolve @now_later @andp_derives @sepcon_derives.
@@ -150,7 +149,7 @@ Lemma derives_skip:
 Proof.
 intros ? ? ? ?; intros.
 split. 
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros n.
 rewrite semax_fold_unfold.
 intro psi.
@@ -204,7 +203,8 @@ Lemma semax_ff:
    semax Hspec Delta G (fun rho => FF) c R.
 Proof.
 intros.
-split; auto. 
+split.
+apply prove_some_static_thing.
 intro w.
 rewrite semax_fold_unfold.
 repeat intro.
@@ -214,7 +214,7 @@ Qed.
 
 Lemma semax_unfold:
   semax Hspec = fun Delta G P c R =>
-    typecheck_stmt Delta c = true /\ 
+    some_static_thing Delta c /\ 
     forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec G psi G w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
        rguard Hspec psi Delta G F R k w ->

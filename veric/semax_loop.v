@@ -32,7 +32,7 @@ Lemma seq_assoc1:
 Proof.
 rewrite semax_unfold; intros.
 destruct H as [TC H]; split.
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -79,7 +79,7 @@ Lemma seq_assoc2:
 Proof.
 rewrite semax_unfold; intros.
 destruct H as [TC H]; split.
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -144,7 +144,7 @@ rewrite semax_unfold in H,H0|-*.
 destruct H as [TC H].
 destruct H0 as [TC0 H0].
 split.
-admit. (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK).
 specialize (H0 psi w Prog_OK).
@@ -212,8 +212,7 @@ intros.
 rewrite semax_unfold.
 intros.
 split.
-destruct H as [? _]. destruct H0 as [? _]. 
-admit.  (* typechecking proof *)
+apply prove_some_static_thing.
 intros until 2.
 rename H1 into H2.
 assert (CLO_body: closed_wrt_modvars body F).
@@ -386,8 +385,8 @@ destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H
 pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
-destruct H1; split; auto.
-admit.  (* typechecking proof *)
+destruct H1; split.
+apply prove_some_static_thing.
 intros.
 assert (closed_wrt_modvars (Sfor' test Sskip body) F).
 hnf; intros; apply H1.
@@ -425,7 +424,7 @@ pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H0 H1).
 clear H0 H1.
 rewrite semax_unfold in H,H2|-*.
 destruct H, H2; split.
-admit.  (* typechecking proof *)
+apply prove_some_static_thing.
 intros.
 specialize (H0 _ _ Prog_OK (Kseq Scontinue :: Kfor2 test Sskip body :: k) F).
 specialize (H2 _ _ Prog_OK k F).

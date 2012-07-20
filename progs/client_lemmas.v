@@ -1,10 +1,10 @@
+Require Import msl.msl_standard.
+Require Import msl.normalize.
 Require Import veric.base.
 Require Import veric.expr.
 Require Import veric.seplog.
-Require Import msl.normalize.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
-Require Import msl.msl_standard.
 
 Local Open Scope pred.
 
