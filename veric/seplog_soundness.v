@@ -727,6 +727,7 @@ Lemma semax_call_aux:
    tc_exprlist Delta bl rho ->
     map typeof bl = typelist2list (fst fsig) ->
     typecheck_environ rho Delta = true ->
+    (snd fsig=Tvoid <-> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret (snd fsig) rho0)) ->
     filter_genv psi = ge_of rho ->
@@ -742,7 +743,7 @@ Lemma semax_call_aux:
      (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
 intros Delta G A P Q Q' x F F0 ret fsig a bl R psi k rho ora jm b id.
-intros TC1 TC2 TC4 TC3 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
+intros TC1 TC2 TC4 TC3 TC5 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
@@ -845,22 +846,24 @@ simpl.
 unfold rho2.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl.
-destruct ret.
+assert (f.(fn_return)=Tvoid).
+clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
+unfold fn_funsig in H18. rewrite H28 in H18. rewrite H18 in TC5. simpl in TC5.
+destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). rewrite TC5 in *.
+apply step_return with f None Vundef (te_of rho); simpl; auto.
 simpl.
-econstructor; simpl; eauto.
-simpl.
-unfold rval. auto.
-econstructor; simpl; eauto.
-simpl. split; auto.
-admit.  (* typechecking proof, but I'm not sure we have enough info here *)
+assert (typecheck_val v (fn_return f) = true).
+ clear - H22; unfold bind_ret in H22; destruct vl; normalize in H22; try contradiction; auto.
+ destruct H22. destruct H. apply H.
 destruct ret.
 simpl.
 unfold rval.
-econstructor; simpl; eauto.
-simpl. split; auto.
-econstructor; simpl; eauto.
-simpl. split; auto.
-admit.  (* typechecking proof, but I'm not sure we have enough info here *)
+apply step_return with (zap_fn_return f) None v (PTree.set i v (te_of rho)); simpl; auto.
+elimtype False.
+clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
+destruct TC5. rewrite H0 in H28 by auto.
+clear - H28.
+admit.  (* typechecking proof *)
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -918,7 +921,8 @@ Qed.
 
 Lemma semax_call: 
 forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC4: map typeof bl = typelist2list (fst fsig)),
+      (TC4: map typeof bl = typelist2list (fst fsig))
+      (TC5: snd fsig=Tvoid <-> ret=None),
        semax Hspec Delta G
          (fun rho => 
          !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 
@@ -1086,16 +1090,13 @@ apply le_trans with (level n); auto.
 apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
 destruct H3 as [[[? H4] ?] ?].
-hnf in H1.
 specialize (H0 EK_return (map (eval_expr rho) (opt2list ret)) rho).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 split; auto.
 split; auto.
-hnf; intros.
-spec H0.
-split; auto. split; auto. split; auto. split; auto.
-hnf; intros.
+split; auto.
+intros ? ? ?.
 specialize (H0 ora jm H5).
 eapply convergent_controls_safe; try apply H0.
 simpl; auto.
@@ -1104,6 +1105,7 @@ unfold cl_after_external.
 auto.
 simpl; auto.
 intros.
+simpl in H6.
 destruct H6; split; auto.
 revert H6; simpl.
 destruct ret. simpl.
@@ -1122,24 +1124,31 @@ admit.  (* easy *)
 destruct l0.
 clear H0 H2 H7.
 inv H8.
+destruct optid.
+destruct H16; congruence.
 inv H10.
 destruct H16.
 econstructor; try eassumption; simpl.
-2: eassumption.
+2: split; [congruence | eassumption].
 exists (eval_expr rho e).
-clear - H1 TC.
+split.
 admit.  (* typechecking proof *)
+admit.  (* typechecking proof, but this will be difficult because I think there's not enough
+                 information to know that f is really the same as the function that Delta assumes *)
 inv H8.
-inv H13.
+destruct optid.
+destruct H19; congruence.
+symmetry in H13; inv H13.
 destruct H19.
-elimtype False; clear - TC H5 H1.
-admit.  (* typechecking proof *)
+elimtype False.
+admit.  (* typechecking proof, but this will be difficult because I think there's not enough
+                 information to know that f is really the same as the function that Delta assumes;
+               if we could know that, then the fact that fn_return f = Tvoid would do it *)
 simpl.
 intro.
 inv H6.
 econstructor; try eassumption.
 rewrite call_cont_idem in H12; auto.
-auto.
 Qed.
 
 End extensions.

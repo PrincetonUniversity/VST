@@ -222,11 +222,11 @@ le' ->
   | step_return: forall f ve te optexp optid k m v' m' ve' te' te'' k',
       call_cont k = Kcall optid f ve' te' :: k' ->
       Mem.free_list m (Csem.blocks_of_env ve) = Some m' ->
-      match optexp with None => v'=Vundef 
+      match optexp with None => True
                                   | Some a => exists v, Clight_sem.eval_expr ge ve te m a v /\ sem_cast v (typeof a) f.(fn_return) = Some v' 
                             end ->
       match optid with None => f.(fn_return) = Tvoid /\ te''=te'
-                                | Some id => te'' = PTree.set id v' te'
+                                | Some id => optexp <> None /\ te'' = PTree.set id v' te'
       end ->
       cl_step ge (State ve te (Kseq (Sreturn optexp) :: k)) m (State ve' te'' k') m'
 
@@ -314,7 +314,9 @@ inversion2 H H7.
 destruct optexp. destruct H1 as [v [? ?]]. destruct H12 as [v2 [? ?]].
 repeat fun_tac.
 destruct optid. subst. auto. destruct H13,H2; subst; auto.
-destruct optid. subst; auto. destruct H2,H13; subst; auto.
+destruct H2,H13; subst; auto.
+destruct optid; subst; auto. destruct H2; congruence.
+destruct H2,H13; subst; auto.
 inv H; auto.
 Qed.
 

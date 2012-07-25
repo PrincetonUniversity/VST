@@ -356,8 +356,8 @@ Lemma fixup_join : forall a (ac ad: address -> Share.t)  z,
 Proof.
   intros.
   unfold fixup_splitting.
-  case_eq (z x); intros; auto. destruct p.
-  destruct k; auto.
+  case_eq (z x); intros.
+  destruct p;  destruct k.
   destruct (dec_share_identity (ac x)); auto.
   specialize (H2 x). apply join_unit1_e in H2; auto. 
   destruct (dec_share_identity (ad x)); auto.
@@ -451,7 +451,42 @@ Proof.
  congruence.
  simpl. destruct (dec_share_identity Share.bot); auto.
  contradict n0; auto.
- admit.  (* more of the same *)
+Focus 1.
+ destruct (dec_share_identity (ad (b,ofs-z0))).
+ apply join_unit2; [constructor |].
+ pose proof (H2 (b,ofs-z0)). apply join_com in H4. apply i in H4.
+ assert (~identity (share_of (a (b,ofs-z0)))) by (rewrite <- H4; auto).
+ unfold share_of in H5.
+ revert H5; case_eq (a (b,ofs-z0)); intros; [ | contradiction H6; auto].
+ destruct p0.
+ pose proof (H1 (b,ofs-z0)). rewrite H5 in H7.
+ pose proof (H0 b ofs). rewrite H3 in H8. destruct H8 as [s [? ?]].
+ rewrite H9 in H7.
+ destruct H7.
+ assert (k = LK s).
+  inv H7; auto. destruct a2; destruct H13 as [H13 H13']; inv H13'; simpl in *; subst; auto.
+ subst k.
+ specialize (H b (ofs-z0)). rewrite H5 in H. specialize (H z0 H8).
+ replace (ofs-z0+z0) with ofs in H by omega. rewrite H.
+ repeat f_equal.
+ rewrite H5 in H4. destruct p0.  apply exist_ext.  rewrite H4.
+ simpl; auto.
+ case_eq (a (b,ofs-z0)); intros.
+Focus 2.
+ specialize (H2 (b,ofs-z0)); rewrite H4 in H2.
+ simpl in H2. apply split_identity in H2; auto. contradiction.
+ destruct p0.
+ pose proof (H0 b ofs). rewrite H3 in H5. destruct H5 as [s [? ?]].
+ pose proof (H1 (b,ofs-z0)). rewrite H4 in H7; rewrite H6 in H7.
+ assert (k=LK s). destruct H7; inv H7; auto. destruct a2; destruct H11; simpl in *.
+    inv H8; auto. 
+ subst k.
+ specialize (H b (ofs-z0)). rewrite H4 in H. specialize (H _ H5).
+ replace (ofs-z0+z0) with ofs in H by omega. rewrite H.
+ constructor. split; auto. simpl. 
+ specialize (H2 (b,ofs-z0)).
+ rewrite H4 in H2. simpl in H2.
+ apply H2.
  
   destruct (dec_share_identity (ac x)); auto.
   specialize (H2 x). apply join_unit1_e in H2; auto. 

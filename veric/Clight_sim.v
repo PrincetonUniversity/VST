@@ -484,6 +484,22 @@ Qed.
    eapply IHs; [ | eauto]. simpl; auto.
  Qed.
 
+
+Lemma step_continue_strip:
+  forall ge f k ve te m, 
+           SS.star CC.step ge (CC.State f Scontinue k ve te m) Events.E0
+               (CC.State f Scontinue (strip_skip' k) ve te m).
+Proof.
+intros.
+induction k; simpl; try constructor 1.
+destruct (dec_skip s).
+subst.
+eapply star_trans.
+apply SS.star_one; apply CC.step_continue_seq.
+auto.
+destruct s; try congruence; constructor 1.
+Qed.
+
 Lemma sim: forall p, SS.forward_simulation (semantics p) (CC.semantics p).
 Proof.
 intros. 
@@ -522,7 +538,8 @@ inv H7.
  econstructor; split. 
 eapply star_plus_trans. eassumption. eapply SS.plus_two. econstructor; eauto.
  econstructor; eauto. auto.
- constructor. auto. apply match_cont_strip. simpl. constructor; auto.
+ constructor. auto. apply match_cont_strip. simpl.
+ constructor; auto.
 
 Focus 1. (* step_call_external *)
 inv H3. 
@@ -551,7 +568,10 @@ Focus 1. (* step_seq *)
  destruct k0.
  elimtype False; clear - H Heqk0.
  revert H; induction k; intros. inv H.
- admit.
+ forget (a::k) as k';  clear - Heqk0 H.
+ remember (State ve te k') as s.
+ revert ve te k' Heqs Heqk0; induction H; intros; inv Heqs; simpl in *; try congruence.
+ eapply IHcl_step. reflexivity. auto.
  remember (strip_skip' (CC.Kseq s k')) as k0'.
  destruct k0'; inv H6;
   try solve [rewrite <- strip_step in H; rewrite <- Heqk0 in H; inv H].
@@ -710,7 +730,34 @@ clear.
                     (CC.State f Scontinue k1' ve te m) /\
                match_cont (Kseq Scontinue :: Kfor2 e s1 s2 :: l) k1').
  clear - H1 H0.
- admit.  (* quite tedious *)
+ revert H0; induction H1; simpl; intros; try congruence.
+ destruct IHmatch_cont as [k1' [? ?]].
+ rewrite <- continue_cont_skip; auto.
+ econstructor. split; [ | eassumption].
+ eapply star_trans; try apply H.
+ clear.
+ eapply star_trans. apply SS.star_one.
+ apply CC.step_continue_seq.
+ apply step_continue_strip.
+ inv H0.
+ econstructor; split. constructor 1.  constructor.  auto.
+ destruct IHmatch_cont as [k1' [? ?]].
+ rewrite <- continue_cont_skip; auto.
+ econstructor. split; [ | eassumption].
+ eapply star_trans; try apply H.
+ eapply star_trans. apply SS.star_one.
+ apply CC.step_continue_seq.
+ apply step_continue_strip.
+ inv H0.  econstructor; split. constructor 1.  constructor.  auto.
+ inv H0.  econstructor; split. constructor 1.  constructor.  auto.
+ destruct IHmatch_cont as [k1' [? ?]].
+ rewrite <- continue_cont_skip; auto.
+ econstructor. split; [ | eassumption].
+ eapply star_trans; try apply H.
+ eapply star_trans. apply SS.star_one.
+ apply CC.step_continue_switch.
+ apply step_continue_strip.
+
  destruct H4 as [k1' [? ?]].
  generalize (SS.star_trans H2 H4 (eq_refl _)); clear H2 H4; intro H2.
  rewrite H0 in *.
@@ -1021,27 +1068,10 @@ assert (exists k1',
  destruct b. constructor; auto. apply match_cont_strip. constructor. auto.
  constructor; auto. simpl. auto.
 
-(*
-
- Focus 1.  (* step_skip_call *)
-  inv H1. remember (CC.Kseq s k') as k0; inv H7.
- destruct s; inv H8.
- exists (CC.Returnstate Vundef (CC.Kcall lid f1 ve' te' k'0) m'); split.
- eapply star_plus_trans; [ eapply strip_skip'_call; eauto |].
- apply SS.plus_one. constructor; simpl; eauto.
- inv CUR. auto.
- constructor. constructor; auto.
-*)
-
  Focus 1. (* step_return *)
  inv H3.
   remember (strip_skip' (CC.Kseq s k'0)) as k3. simpl in CUR, H9.
  inv H9.
-(*
-   Focus 2. simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
- destruct s; inv H4.
- econstructor; split. apply SS.plus_one. econstructor; eauto.
-*)
  generalize (exec_skips' ge f0 _ _ _ _ ve te m (eq_sym _ _ _ H4)); intro H99.
  assert (f0=f).
  simpl in CUR; clear - CUR H.
@@ -1052,40 +1082,32 @@ assert (exists k1',
  generalize H3; rewrite H; intro. inv H5.
  elimtype False; clear - H10.
  revert H10; induction k'1; simpl; intros; congruence.
- destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; [ subst te'' |]);
- (econstructor; split; [eapply star_plus_trans; [ apply H99  | eapply SS.plus_two ] | ]).
+ destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2']; 
+   try solve [contradiction H2; auto]; subst te'' );
+ try (econstructor; split; [eapply star_plus_trans; [ apply H99  | eapply SS.plus_two ] | ]).
  econstructor; eauto. rewrite <- H13.
  eapply CC.step_returnstate_some. auto. constructor; auto.
  econstructor; eauto. rewrite <- H13.
- eapply CC.step_returnstate_none. auto. 
- destruct H2; subst te''.
+ eapply CC.step_returnstate_none. auto.
  econstructor; eauto.
- econstructor; eauto. rewrite <- H13.  eapply CC.step_returnstate_some. auto. 
+ econstructor; eauto. rewrite <- H13.  eapply CC.step_returnstate_none. auto. 
  subst; econstructor; auto.
- econstructor; eauto. rewrite <- H13.
- eapply CC.step_returnstate_none. auto. destruct H2; subst te''; constructor; auto.
-
- subst v'.
+ destruct optid. destruct H2. congruence.
+ destruct H2; subst te''.
  simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
  destruct s; inv H4.
  assert (SS.star CC.step ge (CC.State f Sskip k'0 ve te m) nil
-                         (CC.State f Sskip (CC.Kcall optid f1 ve' te' k'1) ve te m)).
+                         (CC.State f Sskip (CC.Kcall None f1 ve' te' k'1) ve te m)).
+ clear H1; rename H3 into H1.
  clear - H1. revert H1; induction k'0; intros; try solve [inv H1].
  destruct (dec_skip s). subst s. simpl in H1. 
  eapply star_trans; try apply IHk'0; auto. apply SS.star_one. constructor; auto.
  rewrite strip_skip'_not in H1 by auto. rewrite <- H1. constructor 1.
  simpl in H1. inv H1. constructor 1.
- destruct optid; [ subst te''  | ].
  (econstructor; split; [eapply star_plus_trans; [ apply H  | eapply SS.plus_two ] | ]).
  eapply CC.step_skip_call; simpl; eauto.
- admit. (* I don't know about this, maybe a bug in the official Clight semantics? *) 
  econstructor; eauto. auto.
  econstructor; eauto.
- destruct H2; subst.
- (econstructor; split; [eapply star_plus_trans; [ apply H  | eapply SS.plus_two ] | ]).
- econstructor; simpl; eauto.
-  econstructor; eauto. auto.
- constructor; auto.
  
  Focus 1. (* step_switch *)
  inv H0. simpl strip_skip in H6.

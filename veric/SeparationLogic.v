@@ -140,7 +140,8 @@ Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :
 
 Axiom semax_call : 
 forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC4: map typeof bl = typelist2list (fst fsig)),
+      (TC4: map typeof bl = typelist2list (fst fsig))
+      (TC5: snd fsig=Tvoid <-> ret=None),
        semax Delta G
          (fun rho => 
          !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 

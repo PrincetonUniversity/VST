@@ -175,10 +175,19 @@ rewrite <- H0 in H3.
 simpl in H3. destruct H3; auto.
 Qed.
 
+Lemma fst_match_fdecs:
+ forall {fs G}, match_fdecs fs G -> map (@fst _ _) fs = map (@fst _ _) G.
+Proof.
+induction fs; destruct G; simpl; intros; inv H; simpl; auto.
+f_equal; auto.
+Qed.
 
-Definition uncurry {A B C: Type} (P: A -> B -> C) (x: A*B) : C := P (fst x) (snd x).
-Definition curry {A B C : Type} (P: A * B -> C) (x: A) (y: B) : C := P (x,y).
-
+Lemma in_map_fst: forall {A B: Type} (i: A) (j: B) (G: list (A*B)), 
+  In (i,j) G -> In i (map (@fst _ _ ) G).
+Proof.
+ induction G; simpl; intros; auto.
+ destruct H; [left|right]. subst; simpl; auto. auto.
+Qed.
 Require Import JMeq.
 
 Lemma semax_func_cons_aux:
@@ -209,7 +218,7 @@ destruct (eq_dec id id').
 2: apply (Genv.global_addresses_distinct psi n H H1); auto.
 subst id'.
 clear - Hin H2 Hmf.
-admit.  (* easy *)
+rewrite (fst_match_fdecs Hmf) in Hin; contradiction.
 Qed.
 
 Lemma semax_func_cons: 
@@ -264,7 +273,8 @@ destruct H1.
 inv H1; auto.
 elimtype False.
 clear - Hf' Hni H1.
-admit.  (* easy *) 
+rewrite (fst_match_fdecs Hf') in Hni.
+apply in_map_fst in H1; auto.
 contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
 destruct H.
 intro x.
@@ -503,12 +513,30 @@ right.
 apply IHG; auto.
 Qed.
 
-Lemma find_id_e:
+Lemma find_id_i:
   forall id fs G, 
             In (id,fs) G ->
              list_norepet (map (@fst _ _) G) ->
                   find_id id G = Some fs.
-Admitted.
+Proof.
+induction G; simpl; intros.
+contradiction.
+destruct H. subst. rewrite if_true; auto.
+inv H0.
+destruct a as [i j].
+if_tac.
+subst i.
+simpl in *; f_equal.
+apply in_map_fst in H. contradiction.
+auto.
+Qed.
+
+Lemma find_id_e: 
+   forall id G fs, find_id id G = Some fs -> In (id,fs) G.
+Proof.
+ induction G; simpl; intros. inv H. destruct a. if_tac in H.
+ inv H; subst; auto. right; apply (IHG fs); auto.
+Qed.
 
 Lemma funassert_initial_core:
   forall prog ve te G n, 
@@ -523,9 +551,13 @@ Proof.
  simpl ge_of; simpl fst; simpl snd.
  unfold filter_genv.
  assert (exists f, In (id, f) (prog_funct prog)).
- clear - H0 H1.
- admit.  (* easy *)
- destruct H2 as [f ?].
+apply in_map_fst in H1. apply fst_match_fdecs in H0.
+rewrite <- H0 in H1. forget (prog_funct prog) as g.
+clear - H1.
+induction g; simpl in *. contradiction. destruct H1.
+subst. destruct a; simpl; eauto.
+destruct (IHg H). eauto.
+destruct H2 as [f ?].
  destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
  destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]]; auto.
  destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]]; auto.
@@ -539,8 +571,25 @@ Proof.
  apply Genv.find_funct_ptr_negative in H4. omegaContradiction.
  rewrite H4.
  repeat f_equal.
- clear - H0 H1 H2.
- admit.  (* easy *)
+ unfold no_dups in H.
+ apply list_norepet_append_left in H.
+ forget (prog_funct prog) as g.
+ clear - H H0 H1 H2.
+ unfold match_fdecs in H0. 
+ revert G H H0 H1 H2; induction g; simpl; intros. 
+ contradiction.
+ inv H. destruct G; inv H0.
+ simpl in H1. destruct p as [i p]. destruct a as [i' a].
+ simpl in H3; subst i'. simpl in *.
+ destruct H1. inv H. destruct H2. inv H; auto.
+ apply in_map_fst in H. contradiction.
+ destruct H2. inv H0.
+ contradiction H5.
+ clear - H H7. apply in_map_fst in H.
+ revert G H H7; induction g; destruct G; simpl; intros; try contradiction; auto.
+ inv H7. destruct a; destruct p; simpl in *; inv H7. destruct H; auto; right.
+ apply (IHg G); auto.
+ eapply IHg; eauto.
  simpl. rewrite Int.signed_zero; auto.
  unfold func_at. destruct fs.
  unfold initial_core.
@@ -549,11 +598,16 @@ Proof.
  unfold initial_core'.
  simpl.
  rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
- rewrite (find_id_e _ _ _ H1); auto.
+ rewrite (find_id_i _ _ _ H1); auto.
  apply list_norepet_append_inv in H. destruct H as [H _].
  clear - H0 H.
- admit. (* easy *)
-
+ forget (prog_funct prog) as fs.
+ unfold match_fdecs in H0.
+ revert G H H0; induction fs; destruct G; intros. constructor. inv H0.
+ constructor. inv H. simpl in H0. inv H0.
+ simpl. rewrite <- H1. constructor.
+ rewrite (fst_match_fdecs H5) in H3; auto.
+ rewrite (fst_match_fdecs H5) in H4; auto.
  intros loc'  [fsig' A' P' Q'].
  unfold func_at.
  intros w ? ?.
@@ -572,6 +626,7 @@ unfold initial_core in H3.
 rewrite resource_at_make_rmap in H3.
 unfold initial_core' in H3.
 if_tac in H3; [ | inv H3].
+simpl.
 revert H3; case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst loc')); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
@@ -585,9 +640,14 @@ simpl ge_of. unfold filter_genv. rewrite H3.
   split.
  unfold type_of_global.
 unfold type_of_funspec. simpl.
- assert (exists f, In (i,f) (prog_funct prog)).
- clear - H0 H5. admit.
- destruct H4 as [f H4].
+ assert (exists f, In (i,f) (prog_funct prog) /\ type_of_fundef f = Tfunction (fst fsig') (snd fsig')).
+ clear - H0 H5.
+ forget (prog_funct prog) as g. unfold match_fdecs in H0.
+ revert G H0 H5; induction g; destruct G; simpl; intros. inv H5. inv H0. inv H0.
+ destruct p1. destruct a. simpl in *. inv H0.
+ if_tac in H5. subst i0. inv H5. exists f0; split; auto.
+ destruct (IHg G) as [f3 [? ?]]; auto. exists f3; split; auto.
+ destruct H4 as [f [H4 H4']].
  destruct (Genv.find_funct_ptr_exists prog i f) as [b [? ?]]; auto.
  apply list_norepet_append_inv in H; intuition.
  apply list_norepet_append_inv in H; intuition.
@@ -597,12 +657,11 @@ unfold type_of_funspec. simpl.
  apply Genv.find_funct_ptr_negative in H7. omegaContradiction.
  rewrite H7.
  repeat f_equal.
- clear - H4 H5 H0.
- admit.  (* easy *)
+ auto.
  simpl. rewrite Int.signed_zero.
  auto.
  clear - H5.
- admit.  (* easy *)
+ admit.  (* not provable, need to adjust definition of funassert *)
 Qed.
 
 Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
@@ -659,7 +718,10 @@ rename i into id.
 case_eq (find_id id G); intros; auto.
 rename f into fs.
 assert (exists f, In (id,f) (prog_funct prog)).
-clear - H2 H; admit.  (* easy *)
+apply find_id_e in H2. apply in_map_fst in H2; rewrite <- (fst_match_fdecs H) in H2.
+forget (prog_funct prog) as g; clear - H2.
+induction g; simpl in *. contradiction. destruct a; destruct H2; simpl in *; eauto.
+destruct (IHg H); eauto.
 destruct H3 as [f ?].
 apply Genv.invert_find_symbol in H1.
 destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
@@ -834,6 +896,7 @@ eapply semax_call_aux with (Delta :=Delta1)(F0:= fun _ => TT)
 admit.  (* typechecking proof *)
 reflexivity.
 admit.  (* typechecking proof *)
+hnf; intros; intuition.
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.
 simpl.
