@@ -660,8 +660,7 @@ unfold type_of_funspec. simpl.
  auto.
  simpl. rewrite Int.signed_zero.
  auto.
- clear - H5.
- admit.  (* not provable, need to adjust definition of funassert *)
+ apply find_id_e in H5. apply in_map_fst in H5. auto.
 Qed.
 
 Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
@@ -760,6 +759,28 @@ rewrite sepcon_emp.
 apply sepcon_comm.
 Qed.
 
+
+Lemma add_variables_nextblock:
+  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (var_name V) (vl++(i,g)::ul)) ->
+   Genv.find_symbol (Genv.add_variables ge (vl++(i,g)::ul)) i = 
+          Some (Genv.genv_nextvar ge + Z_of_nat (length vl)).
+Proof.
+ induction vl; intros.
+ simpl.
+ rewrite Genv.add_variables_same_symb.
+ unfold Genv.find_symbol, Genv.add_variable.
+ simpl. rewrite PTree.gss. f_equal; unfold block; omega.
+ simpl in H. inv H. apply H2.
+ simpl length. rewrite inj_S. 
+ transitivity (Some (Genv.genv_nextvar (Genv.add_variable ge a) + (Z_of_nat (length vl)))).
+ rewrite <-  (IHvl (Genv.add_variable ge a) i g ul).
+ f_equal.
+ inv H; auto.
+ f_equal.
+ forget (Z_of_nat (length vl)) as n.
+ simpl. omega.
+Qed.
+
 Lemma initial_writable_blocks:
   forall prog G m n,
      no_dups (prog_funct prog) (prog_vars prog) ->
@@ -777,10 +798,12 @@ Proof.
   unfold Genv.globalenv in *.
   destruct prog as [fl main vl].
   simpl in *.
+  assert (H9: Genv.genv_nextvar (Genv.add_functions (Genv.empty_genv fundef type) fl) = 1).
+  clear. SearchAbout Genv.genv_nextvar. rewrite Genv.add_functions_nextvar. reflexivity.
   forget (Genv.add_functions (Genv.empty_genv fundef type) fl) as ge.
   destruct (list_norepet_append_inv _ _ _ H) as [_ [H' _]].
   clear H; rename H' into H.
-  clear - H H0 IOK.
+  clear - H H0 IOK H9.
   remember (Genv.add_variables ge vl) as gev.
   rewrite <- (rev_involutive vl) in *.
   rewrite alloc_variables_rev_eq in H0.
@@ -816,8 +839,14 @@ Proof.
   exists ((i,g)::ul).
  rewrite app_ass in H1,H2; split; auto.
  assert (Genv.find_symbol gev i = Some b).
- clear - H0 H H1.
- admit.  (* not too bad *)
+ clear - H0 H H1 H2 H9.
+ apply alloc_result in H. subst.
+ rewrite <- alloc_variables_rev_eq in H0. 
+ apply Genv.alloc_variables_nextblock in H0.
+ rewrite H0. clear - H2 H9.
+ rewrite app_ass in *. simpl app in *.
+ simpl nextblock. rewrite <- H9.
+ apply add_variables_nextblock; auto. 
  rewrite H4.
  exists (Vptr b Int.zero, match type_of_global gev b with
       | Some t => t
@@ -865,7 +894,13 @@ Proof.
  destruct H0 as [? [[? ?] ?]].
  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
  clear - H4 H2.
- admit.  (* easy *)
+ forget (prog_main prog) as id.
+ apply in_map_fst in H4. rewrite <- (fst_match_fdecs H2) in H4.
+ forget (prog_funct prog) as g.
+ clear - H4; induction g. inv H4. destruct H4.
+ destruct a; simpl; eauto.
+ destruct (IHg H).
+ exists x; right; auto.
  destruct H5 as [f ?].
 destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
  clear - H0; admit.  (* easy *)
