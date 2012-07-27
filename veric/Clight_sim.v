@@ -161,11 +161,6 @@ Lemma break_cont_skip:
 Proof. induction k; try destruct a; simpl; auto; destruct s; simpl; auto.
 Qed.
 
-Lemma prebreak_cont_skip:
-    forall k, prebreak_cont (strip_skip k) = prebreak_cont k.
-Proof. induction k; try destruct a; simpl; auto; destruct s; simpl; auto.
-Qed.
-
 Lemma continue_cont_is:
  forall k, match (continue_cont k) with nil => True | Kseq e3 :: Kfor3 e2 e3' s :: _ => e3=e3' | _ => False end.
 Proof.

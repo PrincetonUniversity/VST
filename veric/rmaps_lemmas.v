@@ -158,20 +158,6 @@ Lemma make_rmap'':
       unfold resource_at; rewrite unsquash_squash; simpl; split; auto.
 Qed.
 
-(*
-Lemma make_simple_rmap:
-    forall n (f: AV.address -> resource) ,
-      AV.valid (fun l => res_option (f l)) ->
-      (forall l, match f l with YES _ _ (SomeP _ _) => False | _ => True end) ->
-      exists phi:rmap, level phi = n /\ resource_at phi = f.
-Proof.
-  intros; destruct (make_rmap'' n f H) as [phi [? ?]]; exists phi; split; auto.
-  rewrite H2.
-  extensionality l; unfold compose; simpl;  generalize (H0 l); destruct (f l); auto.
-  destruct p0; intros; try contradiction.
-Qed.
-*)
-
 Lemma approx_oo_approx':
   forall n n', (n' >= n)%nat -> approx n oo approx n' = approx n.
 Proof.
@@ -1418,6 +1404,59 @@ Proof.
  apply (resource_at_join _ _ _ i) in H.
  generalize (core_unit (w @ i)); unfold unit_for; intros.
  eapply join_canc; eauto.
+Qed.
+
+Lemma resource_at_identity: forall (m: rmap) (loc: AV.address), 
+ identity m -> identity (m @ loc).
+Proof.
+  intros.
+  destruct (@resource_at_empty m H loc) as [?|[? [? ?]]].
+  rewrite H0. apply NO_identity.
+  rewrite H0. apply PURE_identity.
+Qed.
+
+Lemma core_YES: forall rsh sh k pp, core (YES rsh sh k pp) = NO Share.bot.
+Proof.
+ intros. generalize (core_unit (YES rsh sh k pp)); unfold unit_for; intros. 
+ inv H; auto.
+ apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
+ apply pshare_nonunit in H2. contradiction.
+Qed.
+
+Lemma core_NO: forall rsh, core (NO rsh) = NO Share.bot.
+Proof.
+ intros.  generalize (core_unit (NO rsh)); unfold unit_for; intros.
+ inv H; auto.
+ apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
+Qed.
+
+Lemma core_PURE: forall k pp, core (PURE k pp) = PURE k pp.
+Proof.
+ intros. generalize (core_unit (PURE k pp)); unfold unit_for; intros.
+ inv H; auto.
+Qed.
+
+
+Lemma core_not_YES: forall {w loc rsh sh k pp},
+   core w @ loc = YES rsh sh k pp -> False.
+Proof.
+intros.
+rewrite <- core_resource_at in H.
+destruct (w @ loc); [rewrite core_NO in H | rewrite core_YES in H | rewrite core_PURE in H]; inv H.
+Qed.
+
+Lemma resource_at_empty2:
+ forall phi: rmap, (forall l, identity (phi @ l)) -> identity phi.
+Proof.
+intros.
+assert (phi = core phi).
+apply rmap_ext.
+rewrite level_core. auto.
+intro l; specialize (H l).
+apply identity_unit_equiv in H; apply unit_core in H.
+rewrite core_resource_at in *; auto.
+rewrite H0.
+apply core_identity.
 Qed.
 
 End Rmaps_Lemmas.

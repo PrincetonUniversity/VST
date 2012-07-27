@@ -233,36 +233,6 @@ Module RML := Rmaps_Lemmas(R).
 Export RML. 
 Export R.
 
-Lemma resource_at_identity: forall (m: rmap) (loc: address), 
- identity m -> identity (m @ loc).
-Proof.
-  intros.
-  destruct (@resource_at_empty m H loc) as [?|[? [? ?]]].
-  rewrite H0. apply NO_identity.
-  rewrite H0. apply PURE_identity.
-Qed.
-
-Lemma core_YES: forall rsh sh k pp, core (YES rsh sh k pp) = NO Share.bot.
-Proof.
- intros. generalize (core_unit (YES rsh sh k pp)); unfold unit_for; intros. 
- inv H; auto.
- apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
- apply pshare_nonunit in H2. contradiction.
-Qed.
-
-Lemma core_NO: forall rsh, core (NO rsh) = NO Share.bot.
-Proof.
- intros.  generalize (core_unit (NO rsh)); unfold unit_for; intros.
- inv H; auto.
- apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
-Qed.
-
-Lemma core_PURE: forall k pp, core (PURE k pp) = PURE k pp.
-Proof.
- intros. generalize (core_unit (PURE k pp)); unfold unit_for; intros.
- inv H; auto.
-Qed.
-
 Lemma rmap_valid_e1: forall r b ofs n i, 0 < i < n -> 
      forall sh, res_option (r @ (b,ofs)) = Some (sh, LK n) -> res_option (r @ (b,ofs+i))= Some (sh, CT i).
 Proof.

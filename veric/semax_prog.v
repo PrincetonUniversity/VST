@@ -799,7 +799,7 @@ Proof.
   destruct prog as [fl main vl].
   simpl in *.
   assert (H9: Genv.genv_nextvar (Genv.add_functions (Genv.empty_genv fundef type) fl) = 1).
-  clear. SearchAbout Genv.genv_nextvar. rewrite Genv.add_functions_nextvar. reflexivity.
+  clear. rewrite Genv.add_functions_nextvar. reflexivity.
   forget (Genv.add_functions (Genv.empty_genv fundef type) fl) as ge.
   destruct (list_norepet_append_inv _ _ _ H) as [_ [H' _]].
   clear H; rename H' into H.
@@ -903,8 +903,8 @@ Proof.
  exists x; right; auto.
  destruct H5 as [f ?].
 destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
- clear - H0; admit.  (* easy *)
- clear - H0; admit.  (* easy *)
+ destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+ destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
  exists b.
  unfold make_initial_core; simpl.
 econstructor.

@@ -11,21 +11,6 @@ Require Import veric.res_predicates.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).
 
-(* Admitted: Should move this to rmaps_lemmas *)
-Lemma resource_at_empty2:
- forall phi: rmap, (forall l, identity (phi @ l)) -> identity phi.
-Proof.
-intros.
-assert (phi = core phi).
-apply rmap_ext.
-rewrite level_core. auto.
-intro l; specialize (H l).
-apply identity_unit_equiv in H; apply unit_core in H.
-rewrite core_resource_at in *; auto.
-rewrite H0.
-apply core_identity.
-Qed.
-
 Lemma inflate_initial_mem_empty:
   forall lev, emp (inflate_initial_mem Mem.empty lev).
 intro lev.

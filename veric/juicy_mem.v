@@ -771,15 +771,6 @@ apply (nextblock_noaccess m b ofs Cur).
 auto.
 Qed.
 
-(* Admitted: move to rmaps_lemmas *)
-Lemma core_not_YES: forall {w loc rsh sh k pp},
-   core w @ loc = YES rsh sh k pp -> False.
-Proof.
-intros.
-rewrite <- core_resource_at in H.
-destruct (w @ loc); [rewrite core_NO in H | rewrite core_YES in H | rewrite core_PURE in H]; inv H.
-Qed.
-
 Section initial_mem.
 Variables (m: mem) (w: rmap).
 
@@ -1535,15 +1526,22 @@ rewrite ZMap.gss.
 apply ZMap.gi.
 Qed.
 
-(*
-Definition retain_after_alloc jm lo hi (loc: address) : share :=
- if adr_range_dec (nextblock (m_dry jm), lo) (hi-lo) loc then Share.top else m_retain jm loc. 
-*)
-
 Definition alloc_juicy_mem jm lo hi m' b 
             (H: alloc (m_dry jm) lo hi = (m',b)): juicy_mem.
 assert (forall ofs, m_phi jm @ (b,ofs) = NO Share.bot).
-admit.
+ intro ofs.
+ pose proof (juicy_mem_max_access jm (b,ofs)).
+ unfold max_access_at in H0.
+ simpl in H0. 
+ pose proof (alloc_result _ _ _ _ _ H).
+ subst b.
+ rewrite nextblock_noaccess in H0.
+ destruct (m_phi jm @ (nextblock (m_dry jm), ofs)); simpl in H0.
+ destruct (eq_dec t Share.bot). subst; auto.
+ rewrite perm_of_nonempty in H0 by auto. contradiction.
+ destruct (perm_of_sh_pshare t p). rewrite H1 in H0. contradiction.
+ generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction.
+  generalize (nextblock_pos (m_dry jm)); right; omega.
 refine (mkJuicyMem m'  (after_alloc lo hi b (m_phi jm) H0) _ _ _ _).
 unfold after_alloc; hnf; intros.
 rewrite resource_at_make_rmap in H1. unfold after_alloc' in H1.

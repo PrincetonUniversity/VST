@@ -66,17 +66,6 @@ Fixpoint break_cont (k: cont) : cont :=
   | _ =>  nil (* stuck *)
   end.
 
-
-Fixpoint prebreak_cont (k: cont) : cont :=
-  match k with
-  | Kseq Scontinue :: Kfor2 e2 e3 s :: k' => k
-  | Kfor2 e2 e3 s :: k' => k
-  | Kseq s :: k' => prebreak_cont k'
-  | Kfor3 e2 e3 s :: _ => nil  (* stuck *)
-  | Kswitch :: k' => k
-  | _ =>  nil (* stuck *)
-  end.
-
 Inductive corestate := 
  | State: forall (ve: env) (te: temp_env) (k: cont), corestate
  | ExtCall: forall (ef: external_function) (sig: signature) (args: list val) (lid: option ident) (ve: env) (te: temp_env) (k: cont),
@@ -183,7 +172,6 @@ le' ->
           cl_step ge (State ve te (Kseq (Ssequence s1 s2) :: k)) m st' m'
 
   | step_skip: forall ve te k m st' m',
-(*           (NOTEXT: at_ext_k k = None), *)
           cl_step ge (State ve te k) m st' m' ->
           cl_step ge (State ve te (Kseq Sskip :: k)) m st' m'
 
@@ -192,7 +180,6 @@ le' ->
            cl_step ge (State ve te (Kseq Scontinue :: k)) m st' m' 
 
   | step_break: forall ve te k m st' m',
-(*            (NOTEXT: at_ext_k (break_cont k) = None), *)
                    cl_step ge (State ve te (break_cont k)) m st' m' ->
                    cl_step ge (State ve te (Kseq Sbreak :: k)) m st' m'
 

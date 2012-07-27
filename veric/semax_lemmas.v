@@ -582,7 +582,14 @@ Proof. induction k; intros; auto. destruct a; inv H. destruct s; inv H1; auto.
 Qed.
 
 Lemma strip_strip: forall k, strip_skip (strip_skip k) = strip_skip k.
-Admitted.
+Proof.
+induction k; simpl.
+auto.
+destruct a; simpl; auto.
+destruct (dec_skip s).
+subst; auto.
+destruct s; auto.
+Qed.
 
 Lemma strip_skip_app_cons:
  forall {k c l}, strip_skip k = c::l -> forall k', strip_skip  (k++k') = c::l++k'.
@@ -735,6 +742,27 @@ Definition control_as_safe ge n ctl1 ctl2 :=
      jsafeN Hspec ge n' ora (State ve te ctl1) m ->
      jsafeN Hspec ge n' ora (State ve te ctl2) m.
 
+Fixpoint prebreak_cont (k: cont) : cont :=
+  match k with
+  | Kfor2 e2 e3 s :: k' => k
+  | Kseq s :: k' => prebreak_cont k'
+  | Kfor3 e2 e3 s :: _ => nil  (* stuck *)
+  | Kswitch :: k' => k
+  | _ =>  nil (* stuck *)
+  end.
+
+Lemma prebreak_cont_is: forall k,
+  match (prebreak_cont k) with
+  | Kfor2 _ _ _ :: _ => True
+  | Kswitch :: _ => True
+  | nil => True
+  | _ => False
+  end.
+Proof.
+induction k; simpl; auto.
+destruct (prebreak_cont k); try contradiction; destruct a; auto.
+Qed.
+
 Lemma corestep_preservation_lemma:
    forall ge ctl1 ctl2 ora ve te m n c l c' m',
        filter_seq ctl1 = filter_seq ctl2 ->
@@ -809,7 +837,21 @@ Focus 1.
   case_eq (continue_cont l); intros.
   assert (continue_cont (l++ctl1) = continue_cont (l++ctl2)).
   clear - H0 H2.
-  admit.  (* easy *)
+  induction l; simpl in *.
+ revert ctl2 H0; induction ctl1; simpl; intros.
+ revert H0; induction ctl2; simpl; intros; auto.
+ destruct a; simpl in *; auto. inv H0. inv H0.
+ destruct a; auto. 
+ revert H0; induction ctl2; simpl; intros. inv H0.
+ destruct a; try congruence. rewrite <- (IHctl2 H0).
+ f_equal.
+ revert H0; induction ctl2; simpl; intros; try destruct a; try congruence.
+ auto.
+ revert H0; induction ctl2; simpl; intros; try destruct a; try congruence.
+ auto.
+ revert H0; induction ctl2; simpl; intros; try destruct a; try congruence.
+ auto.
+ destruct a; try congruence. auto. auto.
   rewrite H3 in H.
   exists st', m'0; split; auto.
   split3; auto.
@@ -824,23 +866,61 @@ Focus 1.
  split3; auto.
  constructor. rewrite H3; auto.
   (* break *)
-  case_eq (break_cont l); intros.
+Focus 1.  
+  case_eq (prebreak_cont l); intros.
   assert (break_cont (l++ctl1) = break_cont (l++ctl2)).
   clear - H0 H2.
-  admit.  (* easy *)
+  revert H2; induction l; simpl; intros; try destruct a; try congruence.
+  revert ctl2 H0; induction ctl1; simpl; intros.
+ revert H0; induction ctl2; simpl; intros; try destruct a; try congruence. auto.
+ destruct a. auto.
+ revert H0; induction ctl2; try destruct a; simpl; intros; try congruence; auto.
+ revert H0; induction ctl2; try destruct a; simpl; intros; try congruence; auto.
+ revert H0; induction ctl2; try destruct a; simpl; intros; try congruence; auto.
+ revert H0; induction ctl2; try destruct a; simpl; intros; try congruence; auto.
+ destruct s; auto.
   rewrite H3 in H.
   exists st', m'0; split; auto.
   split3; auto.
   constructor. auto.
-  assert (forall k, break_cont (l++k) = c::l0++k).
-  clear - H2. revert H2; induction l; intros; try destruct a; simpl in *; auto; try discriminate.
-  repeat rewrite cons_app'. f_equal; auto. subst; auto.
-  rewrite H3 in H, IHcl_step.
-  destruct (IHcl_step _ _  _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
+  assert (PB:= prebreak_cont_is l); rewrite H2 in PB.
+  destruct c; try contradiction.
+  assert (forall k, break_cont (l++k) = l0++k).
+  clear - H2.
+  revert H2; induction l; intros; try destruct a; simpl in *; auto; congruence.
+  rewrite H3 in H.
+  destruct l0; simpl in *.
+  hnf in CS0.
+  specialize (CS0 ora ve te m0 (S n)).
+  assert (forward_simulations.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  split3; auto.
+  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
+  apply CS0 in H6; auto.
+  destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
+  exists c2; exists m2; split; auto.
+  destruct H7;  constructor; auto. constructor; auto. rewrite H3. auto.
+  destruct (IHcl_step c l0 m0 (eq_refl _) m'0 (eq_refl _)) as [c2 [m2 [? ?]]]; auto.
+  rewrite H3; auto.
   exists c2,m2; split; auto.
-   destruct H5 as [H5 [H5b H5c]].
- split3; auto.
- constructor. rewrite H3; auto.
+  destruct H5; split; auto. constructor; auto. rewrite H3; auto.
+  assert (forall k, break_cont (l++k) = l0++k).
+  clear - H2.
+  revert H2; induction l; intros; try destruct a; simpl in *; auto; congruence.
+  rewrite H3 in H.
+  destruct l0; simpl in *.
+  hnf in CS0.
+  specialize (CS0 ora ve te m0 (S n)).
+  assert (forward_simulations.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  split3; auto.
+  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
+  apply CS0 in H6; auto.
+  destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
+  exists c2; exists m2; split; auto.
+  destruct H7;  constructor; auto. constructor; auto. rewrite H3. auto.
+  destruct (IHcl_step c l0 m0 (eq_refl _) m'0 (eq_refl _)) as [c2 [m2 [? ?]]]; auto.
+  rewrite H3; auto.
+  exists c2,m2; split; auto.
+  destruct H5; split; auto. constructor; auto. rewrite H3; auto.
   (* ifthenelse *) 
   exists (State ve te (Kseq (if b then s1 else s2) :: l ++ ctl2)), m'.
   split. split3; auto. rewrite <- Heqdm'. econstructor; eauto.
