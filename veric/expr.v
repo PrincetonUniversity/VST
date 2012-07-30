@@ -6,6 +6,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
+
 Fixpoint eval_expr (rho:environ) (e: expr) : val :=
  match e with
  | Econst_int i ty => Vint i
@@ -109,7 +110,6 @@ match ty with
 | _ => false
 end.
 
-(*Might need to include quite a few more!*)
 Definition is_pointer_type ty :=
 match ty with
 | (Tpointer _ _ | Tarray _ _ _ 
@@ -120,74 +120,103 @@ end.
 
 Definition isUnOpResultType op a ty := 
 match op with 
-(*Using classify makes sure that arguments are appropriate*)
   | Onotbool => match classify_bool (typeof a) with
                         | bool_default => false
                         | _ => is_int_type ty 
                         end
   | Onotint => match classify_notint (typeof a) with
                         | notint_default => false
-                        | _ => is_int_type ty (*Int, classify doesn't change *)
+                        | _ => is_int_type ty 
                         end
   | Oneg => match classify_neg (typeof a) with
                     | neg_case_i sg => is_int_type ty
                     | neg_case_f => is_float_type ty
-                    | _ => false
+                    | neg_case_default => false
                     end
 end.
 
 Inductive tc_assert :=
 | tc_FF: tc_assert
+| tc_noproof : tc_assert (*I want to use this for things that should still typecheck in
+                           C, but that we can't really prove correct. Right now this is
+                           only for valid pointers in pp compare*)
 | tc_TT : tc_assert
 | tc_andp: tc_assert -> tc_assert -> tc_assert
 | tc_nonzero: expr -> tc_assert
 | tc_isptr: expr -> tc_assert
-| tc_range32: expr -> tc_assert.
+| tc_ilt: expr -> int -> tc_assert
+| tc_Zle: expr -> Z -> tc_assert
+| tc_Zge: expr -> Z -> tc_assert
+| tc_samebase: expr -> expr -> tc_assert
+| tc_nodivover: expr -> expr -> tc_assert.
 
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
 
 
-(*TODO most tc_FF should be an assert of some sort (not default)*)
+(*TODO make sure return types are correct, figure out valid types for bool
+ also, decide if we can reliably always consider boolean returns (from compares)
+ as an int, rather than other valid boolean types*)
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
 match op with
   | Oadd => match classify_add (typeof a1) (typeof a2) with 
                     | add_default => tc_FF
                     | add_case_ii _ => tc_bool (is_int_type ty) 
-                    | add_case_pi _ _ | add_case_ip _ _ => tc_FF 
-                        (*is_pointer_type ty*)
+                    | add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty)) 
+                    | add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty))
                     | _ => tc_bool (is_float_type ty)
-                    end
+            end
   | Osub => match classify_sub (typeof a1) (typeof a2) with 
                     | sub_default => tc_FF
                     | sub_case_ii _ => tc_bool (is_int_type ty) 
-                    | sub_case_pi _ => tc_FF (*is_pointer_type ty ... comment for now, until I figure out null issue*)
-                    | sub_case_pp _ => tc_FF
+                    | sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty))
+                    | sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)                                      
+                                          tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
+                                           (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty)))
+					    (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)))
                     | _ => tc_bool (is_float_type ty)
-                    end 
+            end 
   | Omul => match classify_mul (typeof a1) (typeof a2) with 
                     | mul_default => tc_FF
                     | mul_case_ii _ => tc_bool (is_int_type ty)
                     | _ => tc_bool (is_float_type ty)
-                    end 
-  | Omod | Odiv | Oshl | Oshr => tc_FF (*these need asserts, not done yet*)
-  | Oand | Oor  | Oxor => match classify_binint (typeof a1) (typeof a2) with
-                          | binint_case_ii _ =>tc_bool (is_int_type ty)
-                          | _ => tc_FF
-                          end   
-  | Oeq | One | Olt 
-    | Ogt | Ole | Oge => 
-       match classify_cmp (typeof a1) (typeof a2) with
-       | cmp_case_pp | cmp_default => tc_FF
-       | _ => tc_bool (is_int_type ty)
-       end
-end.
+            end 
+  | Omod => match classify_binint (typeof a1) (typeof a2) with
+                    | binint_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
+                    | binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2))
+                                                     (tc_bool (is_int_type ty))
+                    | binint_default => tc_FF
+            end
+  | Odiv => match classify_div (typeof a1) (typeof a2) with
+                    | div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
+                    | div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int_type ty))
+                    | div_case_ff | div_case_if _ | div_case_fi _ =>
+                          tc_bool (is_float_type ty) 
+                    | div_default => tc_FF
+            end
+  | Oshl | Oshr => match classify_shift (typeof a1) (typeof a2) with
+                    | shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty))
+                    | shift_case_default => tc_FF
+                   end
+  | Oand | Oor | Oxor => 
+                   match classify_binint (typeof a1) (typeof a2) with
+                    | binint_case_ii _ =>tc_bool (is_int_type ty)
+                    | _ => tc_FF
+                   end   
+  | Oeq | One | Olt | Ogt | Ole | Oge => 
+                   match classify_cmp (typeof a1) (typeof a2) with
+                    | cmp_default 
+		    | cmp_case_pp => tc_noproof
+                    | _ => tc_bool (is_int_type ty)
+                   end
+  end.
 
 
-Definition isCastResultType tfrom tto ty : tc_assert :=
+Definition isCastResultType tfrom tto ty a : tc_assert :=
 match classify_cast tfrom tto with
-| cast_case_default | 
-   cast_case_f2i _ _ => tc_FF (*figure out what this case is and assert it*)
+| cast_case_default => tc_FF
+| cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
+| cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | cast_case_neutral  => if type_eq tfrom ty then tc_TT else tc_FF
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type ty)
@@ -211,8 +240,8 @@ match e with
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
  | Econdition a1 a2 a3 ty => tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tcr a1) (tcr a2)) (tcr a3)) 
                               (tc_bool (is_scalar_type (typeof a1)))) (*int or float...*)
-                              (isCastResultType (typeof a2) ty ty)) (isCastResultType (typeof a3) ty ty)
- | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty)
+                              (isCastResultType (typeof a2) ty ty a2)) (isCastResultType (typeof a3) ty ty a3)
+ | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty a)
  | _ => tc_FF
 end
 
@@ -223,7 +252,9 @@ match e with
                                 (tc_bool (negb (type_is_volatile ty)))
                   | None => tc_FF
                  end
- (*| Ederef a ty => typecheck_expr_pure Delta a && is_pointer_type (typeof a) --need proof it isn't null*) 
+ | Ederef a ty => tc_andp (tc_andp (typecheck_expr Delta a) 
+                          (tc_bool (is_pointer_type (typeof a))))
+                          (tc_isptr a) 
  | Efield a i ty => tc_andp (typecheck_expr Delta a) (match typeof a with
                             | Tstruct id fList att =>
                                   match field_offset i fList with 
@@ -235,6 +266,29 @@ match e with
                             end)
  | _  => tc_FF
 end.
+
+Fixpoint tc_might_be_true (asn : tc_assert) :=
+match asn with
+ | tc_FF => false
+ | tc_andp a1 a2 => tc_might_be_true a1 && tc_might_be_true a2
+ | _ => true
+end.
+
+Fixpoint tc_always_true (asn : tc_assert) := 
+match asn with
+ | tc_TT => true
+ | tc_andp a1 a2 => tc_always_true a1 && tc_always_true a2
+ | _ => false
+end.
+
+(*A more standard typechecker, should approximate the c typechecker,
+might need to add a tc_noproof for nested loads*)
+Definition typecheck_b Delta e :=  tc_might_be_true (typecheck_expr Delta e).
+
+(*Definition of the original *pure* typechecker where true means the expression
+will always evaluate, may not be useful since tc_denote will just compute to true
+on these assertions*)
+Definition typecheck_pure_b Delta e := tc_always_true (typecheck_expr Delta e). 
 
 Definition typecheck_exprlist (Delta: tycontext) (el: list expr) : tc_assert := 
  fold_right (fun e a => tc_andp (typecheck_expr Delta e) a) tc_TT el.
@@ -277,12 +331,13 @@ match vty with
                            typecheck_var_environ tl ve ge
                            else false
                   | None => match ge id with
-                                | Some (v, ty') => if type_eq ty ty' &&  
-                                                      typecheck_val v ty' &&
+                                | Some (Vptr b i , ty') => if type_eq ty ty' &&  
+                                                      typecheck_val (Vptr b i) ty' &&
                                                       is_pointer_type ty' then 
                                                    typecheck_var_environ tl ve ge else
                                                    false
                                 | None => false
+                                | _ => false
                                 end
                   end
  | nil => true
@@ -295,15 +350,45 @@ let (b,c) := d in
 Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
 typecheck_temp_environ (map remove_assignedness (PTree.elements (temp_types Delta))) (te_of env) &&
 typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) (ge_of env).
+ 
 
 Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
   match a with
   | tc_FF => False
+  | tc_noproof => False
   | tc_TT => True
   | tc_andp b c => denote_tc_assert b rho /\ denote_tc_assert c rho
   | tc_nonzero e => match eval_expr rho e with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end
-  | _ => False
+  | tc_isptr e => match (eval_expr rho e) with | Vptr _ _ => True | _ => False end
+  | tc_ilt e i => match (eval_expr rho e) with 
+                     | Vint i1 => is_true (Int.ltu i1 i)
+                     | _ => False
+                  end 
+  | tc_Zle e z => match (eval_expr rho e) with
+                     | Vfloat f => match Float.Zoffloat f with
+                                    | Some n => is_true (Zle_bool n z)
+                                    | None => False
+                                   end
+                     | _ => False (*Might need int here*)
+                  end
+  | tc_Zge e z => match (eval_expr rho e) with
+                     | Vfloat f => match Float.Zoffloat f with
+                                    | Some n => is_true (Zle_bool z n)
+                                    | None => False
+                                   end
+                     | _ => False
+                  end
+  | tc_samebase e1 e2 => match (eval_expr rho e1), (eval_expr rho e2) with
+                           | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
+                           | _, _ => False 
+                         end  
+  | tc_nodivover e1 e2 => match (eval_expr rho e1), (eval_expr rho e2) with
+                           | Vint n1, Vint n2 => is_true (negb 
+                                   (Int.eq n1 (Int.repr Int.min_signed) 
+                                    && Int.eq n2 Int.mone))
+                           | _ , _ => False
+                          end
   end.
 
 Definition tc_expr (Delta: tycontext) (e: expr) (rho: environ) : Prop := 
@@ -328,6 +413,8 @@ Parameter join_tycon: tycontext -> tycontext -> tycontext.
 
 (*Rework when I figure out how non-pure typecheck will work now... probably just make sure there is
 no tc_FF in the assertion*)
+
+(*update_tycon can be separate from typechecking, do this reasonably soon*)
 Parameter update_tycon : tycontext -> Clight.statement -> option tycontext.
 (*Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : option tycontext :=
  match c with
