@@ -411,8 +411,7 @@ Parameter join_tycon: tycontext -> tycontext -> tycontext.
 
 (*Definition bool_expr Delta e := typecheck_expr Delta e && is_scalar_type (typeof e).*)
 
-(*Rework when I figure out how non-pure typecheck will work now... probably just make sure there is
-no tc_FF in the assertion*)
+
 
 (*update_tycon can be separate from typechecking, do this reasonably soon*)
 Parameter update_tycon : tycontext -> Clight.statement -> option tycontext.
