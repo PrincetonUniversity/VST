@@ -240,7 +240,7 @@ assert (exists b, bool_val (eval_expr rho test) (typeof test) = Some b).
 clear - H6 TC BT H7 Hge.
 destruct H7 as [w1 [w2 [_ [_ ?]]]].
 apply TC in H. hnf in H.
-pose proof (typecheck_expr_sound Delta rho test _ H6 (eq_refl _) H).
+pose proof (typecheck_expr_sound Delta rho test H6 H).
 apply typecheck_bool_val; auto.
 destruct H9 as [b ?].
 intros ora jm H11.
