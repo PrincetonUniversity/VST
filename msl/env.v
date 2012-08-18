@@ -410,7 +410,7 @@ destruct (eq_dec id a); auto.
 exists (mk_env _ H1).
 split.
 simpl.
-intro.
+intro x.
 rewrite env_get_mk_env.
 intros.
 destruct H0.

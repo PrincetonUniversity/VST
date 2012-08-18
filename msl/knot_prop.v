@@ -192,10 +192,8 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.unsquash_squash.
     extensionality n p w.
     unfold approx, K.approx, TF.T_bot.
-    case (le_gt_dec n (level (@fst knot other w))); intro; apply prop_ext; firstorder.
-    
-    unfold level, unsquash, TF.F, predicate, K.predicate, knot, TF.T, TF.other in *.
-    elimtype False.
+    case (le_gt_dec n (level (@fst knot other w))); intro; apply prop_ext; firstorder.    
+    unfold knot, ageable_knot, other in *.
     omega.
   Qed.
 
@@ -240,21 +238,21 @@ Module TyFunctorSaProp2TyFunctorSa (TF' : TY_FUNCTOR_SA_PROP) <: TY_FUNCTOR_SA.
 
   Lemma fmap_hom : forall A B (f: (A -> T) -> (B -> T)),
     join_hom f -> join_hom (fmap f).
-  Proof. intros. apply paf_join_hom. Qed.
+  Proof. intros. unfold F, J_F. apply paf_join_hom. Qed.
   Implicit Arguments fmap_hom.
 
   Lemma F_preserves_unmaps_left : forall A B (f : (A -> T) -> (B -> T)) 
     (Hhom : join_hom f),
     unmap_left _ _ f ->
     unmap_left _ _ (fmap f).
-  Proof. intros. apply paf_preserves_unmap_left. Qed.
+  Proof. intros. unfold F, J_F. apply paf_preserves_unmap_left. Qed.
   Implicit Arguments F_preserves_unmaps_left.
 
   Lemma F_preserves_unmaps_right : forall A B (f : (A -> T) -> (B -> T)) 
     (Hhom : join_hom f),
     unmap_right _ _ f ->
     unmap_right _ _ (fmap f).
-  Proof. intros. apply paf_preserves_unmap_right. Qed.
+  Proof. intros. unfold F, J_F. apply paf_preserves_unmap_right. Qed.
   Implicit Arguments F_preserves_unmaps_right.
 
   Lemma T_bot_unit : unit_for T_bot T_bot.

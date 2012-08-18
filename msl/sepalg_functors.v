@@ -143,9 +143,9 @@ Section CoFunSAFunctor.
 
   Instance paf_fun : @pafunctor _ (f_fun dom f_rng) _.
   Proof with auto.
-    constructor; simpl; repeat intro.
-    spec H x0.
-    apply (paf_join_hom f (x x0) (y x0) (z x0) H).
+    constructor; simpl; intros; intro; intros.  intro i.
+    spec H i.
+    apply (paf_join_hom f (x i) (y i) (z i) H).
     (* PU *)
     set (f' := fun d => paf_preserves_unmap_left f (x' d) (y d) (z d) (H d)).
     exists (fun d => projT1 (f' d)).

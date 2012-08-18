@@ -263,7 +263,7 @@ Proof.
 Qed.
   
 Lemma prove_HOcontractive1 {A} `{ageable A} : forall X F,
-  (forall P Q,
+  (forall P Q: X -> pred A,
     (All x:X, |>(P x >=> Q x) |--
         All x:X, F P x >=> F Q x)) ->
    HOcontractive F.
@@ -279,7 +279,7 @@ Qed.
 
 
 Lemma prove_HOcontractive {A} `{ageable A} : forall X F,
-  (forall P Q (x: X),
+  (forall (P Q: X -> pred A) (x: X),
     (All x:X, (|> P x <=> |> Q x) |-- F P x >=> F Q x)) ->
    HOcontractive F.
 Proof.

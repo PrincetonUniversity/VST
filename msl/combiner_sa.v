@@ -12,9 +12,9 @@ Require Import msl.sepalg_functors.
 
 Definition midObj {A} {JA: Join A} (a : A) : Prop := ~identity a /\ ~ full a.
 
-Definition ijoinable {A} {JA: Join A} : Type := {sh : A & midObj sh}.
+Definition ijoinable A {JA: Join A} : Type := {sh : A & midObj sh}.
 
-Definition ijoin {A} {JA: Join A} (j1 j2 j3 : ijoinable) : Prop :=
+Definition ijoin {A} {JA: Join A} (j1 j2 j3 : ijoinable A) : Prop :=
   match (j1, j2, j3) with 
   (existT t1 _, existT t2 _, existT t3 _) => join t1 t2 t3
   end.
@@ -43,7 +43,7 @@ Qed.
 Lemma ijoin_assoc {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} : forall a b c d e,
   ijoin a b d -> 
   ijoin d c e -> 
-  {f : ijoinable | ijoin b c f /\ ijoin a f e}.
+  {f : ijoinable A | ijoin b c f /\ ijoin a f e}.
 Proof with auto.
   intros.
   icase a; icase b; icase c; icase d; icase e.
@@ -145,12 +145,12 @@ Variable combjoin_canc : forall v1 v1' v2 v3,
        exists top, join (projT1 j1) (projT1 j2) top /\ full top
    but, again, we run into Type/Prop problems and wind up needing
    some form of the axiom of choice somewhere or other. *)
-Definition covers (j1 j2 : ijoinable) : Prop :=
+Definition covers (j1 j2 : ijoinable A) : Prop :=
   join (projT1 j1) (projT1 j2) A_top.
 
 Inductive combiner : Type :=
   | CEmpty
-  | CPart : forall (sh : ijoinable) (v : T1), combiner
+  | CPart : forall (sh : ijoinable A) (v : T1), combiner
   | CFull : forall (v : T2), combiner.
 
 Instance Join_combiner : Join combiner := 
@@ -416,9 +416,9 @@ Section ParameterizedCombiner.
   Variable f_T1 : functor T1.
   Variable T2 : Type -> Type.
   Variable f_T2 : functor T2.
-  
+ 
   Definition fcombiner (A : Type) : Type := 
-    combiner _ (T1 A) (T2 A).
+    @combiner S JS (T1 A) (T2 A).
  
   Definition fcombiner_fmap (A B : Type) (f : A -> B) 
     (fa : fcombiner A) : fcombiner B :=
@@ -534,13 +534,13 @@ Section ParameterizedCombiner.
     exists (CEmpty _ _ _). exists (CEmpty _ _ _). firstorder.
     exists (CEmpty _ _ _). exists (CPart _ sh0 v0).
     destruct H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     exists (CEmpty _ _ _). exists (CFull _ _ v0).
     simpl in H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     exists (CPart _ sh v0). exists (CEmpty _ _ _).
     destruct H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     destruct H.
     generalize (paf_preserves_unmap_left f v v0 v1 H0); intro X.
     destruct X as [x [y0 [? [? ?]]]].
@@ -557,7 +557,7 @@ Section ParameterizedCombiner.
     (* end combjoin case *)
     exists (CFull _ _ v0). exists (CEmpty _ _ _).
     simpl in H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
   Qed.
 
   Lemma fmap_fcombiner_preserves_unmap_right: forall A B (f : A -> B),
@@ -568,13 +568,13 @@ Section ParameterizedCombiner.
     exists (CEmpty _ _ _). exists (CEmpty _ _ _). firstorder.
     exists (CPart _ sh v). exists (CPart _ sh v).
     destruct H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     exists (CFull _ _ v). exists (CFull _ _ v).
     simpl in H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     exists (CEmpty _ _ _). exists (CPart _ sh v).
     destruct H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
     destruct H.
     generalize (paf_preserves_unmap_right f v v0 v1 H0); intro X.
     destruct X as [y0 [z [? [? ?]]]].
@@ -591,7 +591,7 @@ Section ParameterizedCombiner.
     (* end combjoin case *)
     exists (CEmpty _ _ _). exists (CFull _ _ v).
     simpl in H. simpl.
-    split... split... congruence.
+    repeat split; congruence.
   Qed.
   
  Instance paf_combiner: @pafunctor _ f_combiner Join_fcombiner.

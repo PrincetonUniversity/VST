@@ -20,17 +20,17 @@ extensionality x.
 apply pred_ext; intros w ?.
 apply H1. intros x' ? ?.
 eapply H.  eapply H0.
-replace (F (corec F)) with (fun (x : B) (w : A) => F (corec F) x w); auto.
-extensionality z z'; auto.
+replace (F (corec F)) with (fun (x : B) (w : A) => F (corec F) x w); auto;
+  (extensionality z z'; auto).  (* this line for compatibility with Coq 8.3 *)
 apply H0; auto.
 intros x ? ?.
 intros ? ?.
 specialize (H (corec F) P).
 apply H1. apply H; auto.
 intros x' ? ?.
-apply H2; auto.
-replace (fun (x'0 : B) (a1 : A) => P x'0 a1) with P; auto.
-extensionality z z'; auto.
+apply H2; auto;
+  (replace (fun (x'0 : B) (a1 : A) => P x'0 a1) with P; auto; (* compability with Coq 8.3 *)
+   extensionality z z'; auto).  (* compability with Coq 8.3 *)
 Qed.
 
 Lemma covariant_sepcon {B}{A} {JA: Join A}{PA: Perm_alg A}:

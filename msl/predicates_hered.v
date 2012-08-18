@@ -1019,7 +1019,7 @@ intros w b ?.
 eapply H; eauto.
 Qed.
 
-Lemma forall_pred_ext  {A} `{agA : ageable A}: forall B P Q, 
+Lemma forall_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
  (All x : B, (P x <--> Q x)) |-- (All x : B, P x) <--> (All x: B, Q x) .
 Proof.
 intros.
@@ -1027,7 +1027,7 @@ intros w ?.
 split; intros ? ? ? ?;  destruct (H b); eauto.
 Qed.
 
-Lemma exists_pred_ext  {A} `{agA : ageable A}: forall B P Q, 
+Lemma exists_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
  (All x : B, (P x <--> Q x)) |-- (Ex x : B, P x) <--> (Ex x: B, Q x) .
 Proof.
 intros.

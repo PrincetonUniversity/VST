@@ -1293,7 +1293,7 @@ Proof.
    intros [a Ha] [b Hb] [c Hc] [d Hd] [e He] ? ?.
    do 2 red in H,H0. simpl in *.
    assert (Cross_alg (AV.address -> option (pshare * AV.kind))).
-     apply cross_split_fun.
+     apply (cross_split_fun  (option (pshare * AV.kind))).
    eapply (Cross_bij' _ _ _ _ (opposite_bij (option_bij (lift_prod_bij _ _)))).
    apply Cross_smash; auto with typeclass_instances.
    clear; intro. destruct x. destruct (dec_share_identity t); [left|right].
@@ -1303,8 +1303,8 @@ Proof.
    clear. extensionality a b c. apply prop_ext.
    destruct a as [[[? ?] ?] | ]; destruct b  as [[[? ?] ?] | ]; destruct c as [[[? ?] ?] | ];
    split; simpl; intro H; inv H; simpl in *; try constructor; auto; hnf in  *; simpl in *;
-   try proof_irr; try constructor.
-   destruct H3; constructor; simpl; auto.
+   try proof_irr; try constructor;
+     destruct H3; constructor; simpl; auto. (* this line for compatibility with Coq 8.3 *)
    destruct (X a b c d e H H0) as [[[[ac ad] bc] bd] [? [? [? ?]]]].
    exists (exist AV.valid ac (V _), exist AV.valid ad (V _), 
               exist AV.valid bc (V _), exist AV.valid bd (V _)).
