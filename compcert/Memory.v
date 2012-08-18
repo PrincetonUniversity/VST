@@ -1004,7 +1004,7 @@ Proof.
   decEq. rewrite store_mem_contents; simpl.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b' b). subst b'.
   destruct H. congruence.
-  destruct (zle n 0). 
+  destruct (zle n 0) as [z | n0]. 
   rewrite (nat_of_Z_neg _ z). auto.
   destruct H. omegaContradiction.
   apply getN_setN_outside. rewrite encode_val_length. rewrite <- size_chunk_conv.
@@ -1089,7 +1089,7 @@ Proof.
     assert (length mvl = sz). 
       generalize (encode_val_length chunk v). rewrite <- H1. rewrite SZ. 
       simpl; congruence.
-    rewrite H4. rewrite size_chunk_conv in z0. omega. 
+    rewrite H4. rewrite size_chunk_conv in *. omega. 
   contradiction.
 
 (* 3. ofs > ofs':
@@ -1107,8 +1107,8 @@ Proof.
     rewrite setN_outside. rewrite ZMap.gss. auto. omega.
   assert (~memval_valid_first (c'#ofs)).
     rewrite SZ' in PSHAPE. simpl in PSHAPE. inv PSHAPE. 
-    apply H4. apply getN_in. rewrite size_chunk_conv in z. 
-    rewrite SZ' in z. rewrite inj_S in z. omega. 
+    apply H4. apply getN_in. rewrite size_chunk_conv in *. 
+    rewrite SZ' in *. rewrite inj_S in *. omega. 
   contradiction.
 Qed.
 

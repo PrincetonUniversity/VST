@@ -1,51 +1,51 @@
-AST.vo AST.glob: AST.v Coqlib.vo Errors.vo Integers.vo Floats.vo
-Determinism.vo Determinism.glob: Determinism.v Coqlib.vo AST.vo Integers.vo Values.vo Events.vo Globalenvs.vo Smallstep.vo Behaviors.vo
-Events.vo Events.glob: Events.v Coqlib.vo Intv.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo Globalenvs.vo Errors.vo
-Memdata.vo Memdata.glob: Memdata.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo
-Memtype.vo Memtype.glob: Memtype.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo
-Switch.vo Switch.glob: Switch.v Coqlib.vo Integers.vo Ordered.vo
-Behaviors.vo Behaviors.glob: Behaviors.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo Smallstep.vo
-Errors.vo Errors.glob: Errors.v Coqlib.vo
-Globalenvs.vo Globalenvs.glob: Globalenvs.v Axioms.vo Coqlib.vo Errors.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo
-Memory.vo Memory.glob: Memory.v Axioms.vo Coqlib.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo Memtype.vo Intv.vo
-Smallstep.vo Smallstep.glob: Smallstep.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo
-Values.vo Values.glob: Values.v Coqlib.vo AST.vo Integers.vo Floats.vo
-Integers.vo Integers.glob: Integers.v Axioms.vo Coqlib.vo
-Floats.vo Floats.glob: Floats.v Axioms.vo Coqlib.vo Integers.vo Fappli_IEEE.vo Fappli_IEEE_bits.vo Fcore.vo Fcalc_round.vo Fcalc_bracket.vo Fprop_Sterbenz.vo
-Fappli_IEEE.vo Fappli_IEEE.glob: Fappli_IEEE.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fcalc_round.vo Fcalc_bracket.vo Fcalc_ops.vo Fcalc_div.vo Fcalc_sqrt.vo Fprop_relative.vo
-Fappli_IEEE_bits.vo Fappli_IEEE_bits.glob: Fappli_IEEE_bits.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fappli_IEEE.vo
-Fcore.vo Fcore.glob: Fcore.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo Fcore_FIX.vo Fcore_FLX.vo Fcore_FLT.vo Fcore_ulp.vo
-Fcore_defs.vo Fcore_defs.glob: Fcore_defs.v Fcore_Raux.vo
-Fcore_digits.vo Fcore_digits.glob: Fcore_digits.v Fcore_Zaux.vo
-Fcore_FIX.vo Fcore_FIX.glob: Fcore_FIX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo
-Fcore_float_prop.vo Fcore_float_prop.glob: Fcore_float_prop.v Fcore_Raux.vo Fcore_defs.vo
-Fcore_FLT.vo Fcore_FLT.glob: Fcore_FLT.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo Fcore_FIX.vo Fcore_rnd_ne.vo
-Fcore_FLX.vo Fcore_FLX.glob: Fcore_FLX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FIX.vo Fcore_rnd_ne.vo
-Fcore_FTZ.vo Fcore_FTZ.glob: Fcore_FTZ.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo
-Fcore_generic_fmt.vo Fcore_generic_fmt.glob: Fcore_generic_fmt.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_float_prop.vo
-Fcore_Raux.vo Fcore_Raux.glob: Fcore_Raux.v Fcore_Zaux.vo
-Fcore_rnd.vo Fcore_rnd.glob: Fcore_rnd.v Fcore_Raux.vo Fcore_defs.vo
-Fcore_rnd_ne.vo Fcore_rnd_ne.glob: Fcore_rnd_ne.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_ulp.vo
-Fcore_ulp.vo Fcore_ulp.glob: Fcore_ulp.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo
-Fcore_Zaux.vo Fcore_Zaux.glob: Fcore_Zaux.v
-Fcalc_bracket.vo Fcalc_bracket.glob: Fcalc_bracket.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
-Fcalc_div.vo Fcalc_div.glob: Fcalc_div.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fcalc_round.vo Fcalc_round.glob: Fcalc_round.v Fcore.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fcalc_digits.vo Fcalc_digits.glob: Fcalc_digits.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo
-Fcalc_ops.vo Fcalc_ops.glob: Fcalc_ops.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
-Fcalc_sqrt.vo Fcalc_sqrt.glob: Fcalc_sqrt.v Fcore_Raux.vo Fcore_defs.vo Fcore_digits.vo Fcore_float_prop.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fprop_div_sqrt_error.vo Fprop_div_sqrt_error.glob: Fprop_div_sqrt_error.v Fcore.vo Fcalc_ops.vo Fprop_relative.vo
-Fprop_plus_error.vo Fprop_plus_error.glob: Fprop_plus_error.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_generic_fmt.vo Fcalc_ops.vo
-Fprop_Sterbenz.vo Fprop_Sterbenz.glob: Fprop_Sterbenz.v Fcore_Raux.vo Fcore_defs.vo Fcore_generic_fmt.vo Fcalc_ops.vo
-Fprop_mult_error.vo Fprop_mult_error.glob: Fprop_mult_error.v Fcore.vo Fcalc_ops.vo
-Fprop_relative.vo Fprop_relative.glob: Fprop_relative.v Fcore.vo
-Coqlib.vo Coqlib.glob: Coqlib.v
-Intv.vo Intv.glob: Intv.v Coqlib.vo
-Ordered.vo Ordered.glob: Ordered.v Coqlib.vo Maps.vo Integers.vo
-Axioms.vo Axioms.glob: Axioms.v
-Maps.vo Maps.glob: Maps.v Coqlib.vo
-Ctypes.vo Ctypes.glob: Ctypes.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo
-Csyntax.vo Csyntax.glob: Csyntax.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo Ctypes.vo
-Csem.vo Csem.glob: Csem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Ctypes.vo Csyntax.vo Smallstep.vo
-Clight.vo Clight.glob: Clight.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Events.vo Globalenvs.vo Ctypes.vo
-Clight_sem.vo Clight_sem.glob: Clight_sem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Smallstep.vo Ctypes.vo Csem.vo Clight.vo
+AST.vo AST.glob AST.v.beautified: AST.v Coqlib.vo Errors.vo Integers.vo Floats.vo
+Determinism.vo Determinism.glob Determinism.v.beautified: Determinism.v Coqlib.vo AST.vo Integers.vo Values.vo Events.vo Globalenvs.vo Smallstep.vo Behaviors.vo
+Events.vo Events.glob Events.v.beautified: Events.v Coqlib.vo Intv.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo Globalenvs.vo Errors.vo
+Memdata.vo Memdata.glob Memdata.v.beautified: Memdata.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo
+Memtype.vo Memtype.glob Memtype.v.beautified: Memtype.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo
+Switch.vo Switch.glob Switch.v.beautified: Switch.v Coqlib.vo Integers.vo Ordered.vo
+Behaviors.vo Behaviors.glob Behaviors.v.beautified: Behaviors.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo Smallstep.vo
+Errors.vo Errors.glob Errors.v.beautified: Errors.v Coqlib.vo
+Globalenvs.vo Globalenvs.glob Globalenvs.v.beautified: Globalenvs.v Axioms.vo Coqlib.vo Errors.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo
+Memory.vo Memory.glob Memory.v.beautified: Memory.v Axioms.vo Coqlib.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo Memtype.vo Intv.vo
+Smallstep.vo Smallstep.glob Smallstep.v.beautified: Smallstep.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo
+Values.vo Values.glob Values.v.beautified: Values.v Coqlib.vo AST.vo Integers.vo Floats.vo
+Integers.vo Integers.glob Integers.v.beautified: Integers.v Axioms.vo Coqlib.vo
+Floats.vo Floats.glob Floats.v.beautified: Floats.v Axioms.vo Coqlib.vo Integers.vo Fappli_IEEE.vo Fappli_IEEE_bits.vo Fcore.vo Fcalc_round.vo Fcalc_bracket.vo Fprop_Sterbenz.vo
+Fappli_IEEE.vo Fappli_IEEE.glob Fappli_IEEE.v.beautified: Fappli_IEEE.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fcalc_round.vo Fcalc_bracket.vo Fcalc_ops.vo Fcalc_div.vo Fcalc_sqrt.vo Fprop_relative.vo
+Fappli_IEEE_bits.vo Fappli_IEEE_bits.glob Fappli_IEEE_bits.v.beautified: Fappli_IEEE_bits.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fappli_IEEE.vo
+Fcore.vo Fcore.glob Fcore.v.beautified: Fcore.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo Fcore_FIX.vo Fcore_FLX.vo Fcore_FLT.vo Fcore_ulp.vo
+Fcore_defs.vo Fcore_defs.glob Fcore_defs.v.beautified: Fcore_defs.v Fcore_Raux.vo
+Fcore_digits.vo Fcore_digits.glob Fcore_digits.v.beautified: Fcore_digits.v Fcore_Zaux.vo
+Fcore_FIX.vo Fcore_FIX.glob Fcore_FIX.v.beautified: Fcore_FIX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo
+Fcore_float_prop.vo Fcore_float_prop.glob Fcore_float_prop.v.beautified: Fcore_float_prop.v Fcore_Raux.vo Fcore_defs.vo
+Fcore_FLT.vo Fcore_FLT.glob Fcore_FLT.v.beautified: Fcore_FLT.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo Fcore_FIX.vo Fcore_rnd_ne.vo
+Fcore_FLX.vo Fcore_FLX.glob Fcore_FLX.v.beautified: Fcore_FLX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FIX.vo Fcore_rnd_ne.vo
+Fcore_FTZ.vo Fcore_FTZ.glob Fcore_FTZ.v.beautified: Fcore_FTZ.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo
+Fcore_generic_fmt.vo Fcore_generic_fmt.glob Fcore_generic_fmt.v.beautified: Fcore_generic_fmt.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_float_prop.vo
+Fcore_Raux.vo Fcore_Raux.glob Fcore_Raux.v.beautified: Fcore_Raux.v Fcore_Zaux.vo
+Fcore_rnd.vo Fcore_rnd.glob Fcore_rnd.v.beautified: Fcore_rnd.v Fcore_Raux.vo Fcore_defs.vo
+Fcore_rnd_ne.vo Fcore_rnd_ne.glob Fcore_rnd_ne.v.beautified: Fcore_rnd_ne.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_ulp.vo
+Fcore_ulp.vo Fcore_ulp.glob Fcore_ulp.v.beautified: Fcore_ulp.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo
+Fcore_Zaux.vo Fcore_Zaux.glob Fcore_Zaux.v.beautified: Fcore_Zaux.v
+Fcalc_bracket.vo Fcalc_bracket.glob Fcalc_bracket.v.beautified: Fcalc_bracket.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
+Fcalc_div.vo Fcalc_div.glob Fcalc_div.v.beautified: Fcalc_div.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fcalc_round.vo Fcalc_round.glob Fcalc_round.v.beautified: Fcalc_round.v Fcore.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fcalc_digits.vo Fcalc_digits.glob Fcalc_digits.v.beautified: Fcalc_digits.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo
+Fcalc_ops.vo Fcalc_ops.glob Fcalc_ops.v.beautified: Fcalc_ops.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
+Fcalc_sqrt.vo Fcalc_sqrt.glob Fcalc_sqrt.v.beautified: Fcalc_sqrt.v Fcore_Raux.vo Fcore_defs.vo Fcore_digits.vo Fcore_float_prop.vo Fcalc_bracket.vo Fcalc_digits.vo
+Fprop_div_sqrt_error.vo Fprop_div_sqrt_error.glob Fprop_div_sqrt_error.v.beautified: Fprop_div_sqrt_error.v Fcore.vo Fcalc_ops.vo Fprop_relative.vo
+Fprop_plus_error.vo Fprop_plus_error.glob Fprop_plus_error.v.beautified: Fprop_plus_error.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_generic_fmt.vo Fcalc_ops.vo
+Fprop_Sterbenz.vo Fprop_Sterbenz.glob Fprop_Sterbenz.v.beautified: Fprop_Sterbenz.v Fcore_Raux.vo Fcore_defs.vo Fcore_generic_fmt.vo Fcalc_ops.vo
+Fprop_mult_error.vo Fprop_mult_error.glob Fprop_mult_error.v.beautified: Fprop_mult_error.v Fcore.vo Fcalc_ops.vo
+Fprop_relative.vo Fprop_relative.glob Fprop_relative.v.beautified: Fprop_relative.v Fcore.vo
+Coqlib.vo Coqlib.glob Coqlib.v.beautified: Coqlib.v
+Intv.vo Intv.glob Intv.v.beautified: Intv.v Coqlib.vo
+Ordered.vo Ordered.glob Ordered.v.beautified: Ordered.v Coqlib.vo Maps.vo Integers.vo
+Axioms.vo Axioms.glob Axioms.v.beautified: Axioms.v
+Maps.vo Maps.glob Maps.v.beautified: Maps.v Coqlib.vo
+Ctypes.vo Ctypes.glob Ctypes.v.beautified: Ctypes.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo
+Csyntax.vo Csyntax.glob Csyntax.v.beautified: Csyntax.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo Ctypes.vo
+Csem.vo Csem.glob Csem.v.beautified: Csem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Ctypes.vo Csyntax.vo Smallstep.vo
+Clight.vo Clight.glob Clight.v.beautified: Clight.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Events.vo Globalenvs.vo Ctypes.vo
+Clight_sem.vo Clight_sem.glob Clight_sem.v.beautified: Clight_sem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Smallstep.vo Ctypes.vo Csem.vo Clight.vo
