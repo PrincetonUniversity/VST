@@ -15,6 +15,7 @@ is a prepublication draft of a (possibly) forthcoming book.
 For access to this draft, send e-mail to Appel for a password
 to  vst.princeton.edu/private
 
-SVN revision 4663 builds in Coq 8.3pl3,
-but soon it will be probably be ported to Coq 8.4,
-at which time we will forget to update this README.
+Revision 4668 builds both in Coq 8.3pl3 and Coq 8.4.
+However, there are several bugs in Coqide 8.4, so until those are
+fixed it's very possible that development will continue in 8.3,
+leading to minor incompatibilities with 8.4.
