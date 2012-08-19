@@ -78,9 +78,6 @@ Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
 simpl.
-unfold function_body_entry_assert.
-simpl fn_params.
-simpl.
 set (contents' :=  map (fun i : int => (Vint i, P.t_int)) contents).
 unfold stackframe_of; simpl.
 apply semax_Sseq with

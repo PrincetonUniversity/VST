@@ -358,8 +358,8 @@ Notation "'WITH' x : tx 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" :=
              (fun (x:tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 
-Notation "'DECLARE' x s" := (x, s)
-   (at level 160, x at level 0, s at level 150).
+Notation "'DECLARE' x s" := (x: ident, s: funspec)
+   (at level 160, x at level 0, s at level 150, only parsing).
 
 Lemma prop_right {A}{agA: ageable A}:
   forall (P: pred A)(Q: Prop), Q -> (P |-- !!Q).

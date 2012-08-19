@@ -778,8 +778,9 @@ spec H19 ; [clear H19 |].
 split.
 repeat intro; f_equal.
 intros ek vl rho'.
+unfold frame_ret_assert.
+rewrite <- (sepcon_comm (stackframe_of f rho')).
 unfold function_body_ret_assert.
-normalize.
 destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.

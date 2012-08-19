@@ -42,13 +42,14 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
+
 Definition semax_body
        (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
   forall x,
       semax Hspec (func_tycontext f) G
-          (function_body_entry_assert f (P x) G)         
+          (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
           f.(fn_body)
-          (function_body_ret_assert f (Q x)).
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)).
 
 Definition match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
  map (fun idf => (fst idf, Clight.type_of_fundef (snd idf))) fdecs = 

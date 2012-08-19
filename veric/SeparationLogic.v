@@ -40,9 +40,9 @@ Definition semax_body
        (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
   forall x,
       semax (func_tycontext f) G
-          (function_body_entry_assert f (P x) G)         
+          (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
           f.(fn_body)
-          (function_body_ret_assert f (Q x)).
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)).
 
 Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 

@@ -142,7 +142,6 @@ Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (f
   end.
 
 Definition fn_funsig (f: function) : funsig := (type_of_params (fn_params f), fn_return f).
-
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
   (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
@@ -154,7 +153,8 @@ Definition believe_internal_
   && All x : A, |> semax (SemaxArg  (func_tycontext f) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
-                              f.(fn_body)  (function_body_ret_assert f (Q x)))).
+                              f.(fn_body)  
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (PTree.empty _) (PTree.empty _).
 
@@ -192,7 +192,8 @@ Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
   && All x : A, |> semax' Hspec (func_tycontext f) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
-                              f.(fn_body)  (function_body_ret_assert f (Q x))).
+                              f.(fn_body)  
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
 
 Definition believe {Z} (Hspec:juicy_ext_spec Z)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=

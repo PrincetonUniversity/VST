@@ -511,14 +511,10 @@ Qed.
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
                  overridePost_normal: normalize.
 
-Definition function_body_entry_assert (f: function) (P: list val -> pred rmap) (G: funspecs) : assert :=
-   fun rho : environ =>
-      bind_args (fn_params f) (fun vl : list val => P vl) rho *  stackframe_of f rho.
-
-Definition function_body_ret_assert (f: function) (Q: list val -> pred rmap) : ret_assert := 
+Definition function_body_ret_assert (ret: type) (Q: list val -> pred rmap) : ret_assert := 
    fun (ek : exitkind) (vl : list val) rho =>
      match ek with
-     | EK_return => stackframe_of f rho * bind_ret vl f.(fn_return) Q 
+     | EK_return => bind_ret vl ret Q 
      | _ => FF
      end.
 
