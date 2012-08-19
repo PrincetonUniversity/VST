@@ -399,8 +399,8 @@ assert (forall z, z > 0 -> exists p, z = Zpos p).
     exists (nat_of_Z (z0 - 1)).
     destruct z0; try solve [inv H6].
     destruct p; auto.
-    auto.
     simpl.
+    change (nat_of_P p~0 = S (nat_of_P (p~0 - 1))).
     rewrite <- nat_of_P_succ_morphism.
     rewrite <- Ppred_minus.
     simpl.

@@ -368,16 +368,16 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Qed.
 
   Definition Perm_pre_rmap (A: Type): Perm_alg (pre_rmap A) :=
-    Perm_prop _ _ _ _ (pre_rmap_sa_valid_join _).
+    Perm_prop _ _ (Perm_fun address _ _ _) _ (pre_rmap_sa_valid_join _).
 
   Definition Sep_pre_rmap (A: Type): Sep_alg (pre_rmap A) :=
-    Sep_prop _ _ _ _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
+    Sep_prop _ _ (Perm_fun address _ _ _) _ (pre_rmap_sa_valid_join _)  _ (pre_rmap_sa_valid_core _).
 
   Definition Canc_pre_rmap (A: Type): Canc_alg (pre_rmap A) :=
-    Canc_prop _ _ _.
+    @Canc_prop _ _ _ (Canc_fun address _ _ _).
 
   Definition Disj_pre_rmap (A: Type): Disj_alg (pre_rmap A) :=
-    Disj_prop _ _ _.
+    @Disj_prop _ _ _ (Disj_fun address _ _ _).
 
 End StratModel.
 
@@ -721,8 +721,8 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
 
   Lemma preds_fmap_id : preds_fmap (id (pred rmap)) = id preds.
   Proof.
-    intros; apply extensionality; intro x; destruct x; simpl; auto.
-    replace (id (pred rmap) oo p) with p; auto.
+    intros; apply extensionality; intro x; destruct x; simpl; auto;
+    replace (id (pred rmap) oo p) with p; auto;
     rewrite id_unit2; auto.
   Qed.
 

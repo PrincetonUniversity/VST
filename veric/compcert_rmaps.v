@@ -753,6 +753,8 @@ simpl.
 auto.
 Qed.
 
+Obligation Tactic := Tactics.program_simpl.
+
 Program Definition writable (l: address): pred rmap :=
  fun phi =>
   match phi @ l with
@@ -766,7 +768,6 @@ Program Definition writable (l: address): pred rmap :=
   simpl in H1. 
   destruct (a' @ l); inv H1; auto.
   Qed.
-
 
 Program Definition readable (loc: address) : pred rmap := 
    fun phi => match phi @ loc with YES _ _ k _ => isVAL k | _ => False end.

@@ -1161,7 +1161,8 @@ destruct loc as [b z]. simpl in *.
 destruct (zle lo z); simpl; auto. destruct (zlt z hi); simpl; auto.
 contradict n; auto.  repeat split; auto. omega.
 if_tac; auto.
-rewrite ZMap.gso; auto.
+rewrite ZMap.gso; solve [auto].
+Unfocus.
 revert H1; case_eq (m_phi jm @ loc); intros; auto.
 destruct loc as [b' z]; destruct a; simpl in *; subst b'.
 specialize (H2 z). spec H2 ; [ omega | ].
@@ -1295,7 +1296,7 @@ rewrite perm_of_empty.
 simpl; auto.
 rewrite perm_of_empty.
 simpl; auto.
-destruct (zlt (fst loc) 0); auto.
+destruct (zlt (fst loc) 0) as [z|z]; auto.
 apply H0 in z. rewrite core_PURE in z. inv z.
 hnf; intros.
 apply H. generalize (nextblock_pos empty); omega.

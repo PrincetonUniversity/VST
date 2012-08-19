@@ -580,7 +580,7 @@ Focus 1. (* step_seq *)
  exists st2; split; auto.
 
  rewrite <- strip_step in H; rewrite <- Heqk0 in H.
- generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ Heqk0')); intro H99.
+ generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ Heqk0')); intro H99.
   destruct (IHcl_step (CC.State f (Swhile a s1) k0' ve te m))
                  as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. rewrite <- Heqk0. constructor. auto.
@@ -1000,7 +1000,7 @@ assert (exists k1',
  Focus 1. (* step_for *)
  inv H1. inv H7.
  change (CC.Kseq (Sfor' a2 a3 s) k'0 = strip_skip' (CC.Kseq s0 k')) in H4.
-  generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ H4)); intro.
+  generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H4)); intro.
  destruct b.
  econstructor; split.
  eapply star_plus_trans; try apply H1.
@@ -1012,7 +1012,7 @@ assert (exists k1',
  constructor; auto.
 
   change (CC.Kseq (Swhile a2 s) k'0 = strip_skip' (CC.Kseq s0 k')) in H6.
-  generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ H6)); intro.
+  generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H6)); intro.
  destruct b.
  exists (CC.State f s (CC.Kwhile a2 s k'0) ve te m); split; auto.
  eapply star_plus_trans; try eassumption.
@@ -1067,7 +1067,7 @@ assert (exists k1',
  inv H3.
   remember (strip_skip' (CC.Kseq s k'0)) as k3. simpl in CUR, H9.
  inv H9.
- generalize (exec_skips' ge f0 _ _ _ _ ve te m (eq_sym _ _ _ H4)); intro H99.
+ generalize (exec_skips' ge f0 _ _ _ _ ve te m (@eq_sym _ _ _ H4)); intro H99.
  assert (f0=f).
  simpl in CUR; clear - CUR H.
  revert H CUR; induction k; intros. inv H. simpl in *. destruct a; auto. inv CUR; auto. inv H; auto.
@@ -1113,7 +1113,7 @@ assert (exists k1',
  Focus 2.
  constructor; eauto. apply match_cont_strip. simpl.
  instantiate (1:= CC.Kswitch k'0). constructor. auto.
- generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ H3)); intro H99.
+ generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
  eapply star_plus_trans; try apply H99.
  unfold s2. apply SS.plus_one. constructor; auto.
 
@@ -1123,7 +1123,7 @@ assert (exists k1',
  constructor; auto. apply match_cont_strip. auto.
  exists st2; split; auto.
  eapply star_plus_trans; try eassumption.
-  generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ H3)); intro H99.
+  generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
  eapply star_trans; try apply H99.
  apply SS.star_one. constructor.
  
@@ -1138,7 +1138,7 @@ assert (exists k1',
  destruct (match_find_label _ _ _ _ _ H0 H) as [s2 [k2' [? ?]]].
  exists (CC.State f s2 k2' ve te m); split.
  simpl in CUR0. inversion2 CUR CUR0.
- generalize (exec_skips' ge f _ _ _ _ ve te m (eq_sym _ _ _ H3)); intro H99.
+ generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
  eapply star_plus_trans; try apply H99.
  apply SS.plus_one. constructor; auto.
  constructor; auto.

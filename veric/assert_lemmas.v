@@ -340,7 +340,7 @@ Qed.
 Hint Resolve corable_funassert.
 
 
-Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) P Q, 
+Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap), 
     (forall loc, corable (P loc)) -> 
     (forall loc, corable (Q loc)) ->
     forall b, corable (jam S P Q b).

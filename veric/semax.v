@@ -46,6 +46,7 @@ Program Definition assert_safe
          m_phi jm = w ->
              jsafeN Hspec ge (level w) ora (State (ve_of rho) (te_of rho) ctl) jm.
  Next Obligation.
+  intro; intros.
   subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    subst.

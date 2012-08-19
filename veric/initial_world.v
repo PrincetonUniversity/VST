@@ -411,7 +411,7 @@ Lemma fold_right_rev_left:
   fold_left f l i = fold_right (fun x y => f y x) i (rev l).
 Proof.
 intros. rewrite fold_left_rev_right.
-f_equal. extensionality x y; auto.
+f_equal; extensionality x y; auto.
 Qed.
 
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=

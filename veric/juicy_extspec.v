@@ -64,9 +64,12 @@ Definition juicy_core_sem  {G C} (csem: CoreSemantics G C mem external_function)
     (jstep_not_halted csem)
     (j_at_external_halted_excl csem).
 
+Obligation Tactic := Tactics.program_simpl.
+
 Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).
  Next Obligation.
+  intro; intros.
   apply age1_juicy_mem_unpack in H.  
   destruct H.
   eapply pred_hereditary; eauto.

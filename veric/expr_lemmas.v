@@ -402,7 +402,7 @@ Lemma typecheck_lvalue_sound : forall Delta rho e,
   (forall pt, 
     is_pointer_type pt = true -> 
     typecheck_val (eval_lvalue rho e) pt=true).
-intros. edestruct (typecheck_both_sound _ _ _ H).
+intros. edestruct (typecheck_both_sound _ _ e H).
 apply H3; eauto.
 Qed.
 
@@ -470,8 +470,9 @@ sem_binary_operation b (eval_expr rho e1) (typeof e1) (eval_expr rho e2)
   (typeof e2) (m2).
 Proof.
 intros.
-destruct b; st; auto; destruct (typeof e1); destruct (typeof e2); 
-try destruct i; try destruct s; try destruct i0; try destruct s0; intuition.
+destruct b; st; auto;
+ unfold sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
+   try destruct i; try destruct s; auto; contradiction.
 Qed. 
 
 Definition some_pt_type := Tpointer Tvoid noattr.

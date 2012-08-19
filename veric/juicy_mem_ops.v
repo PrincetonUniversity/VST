@@ -31,15 +31,19 @@ Axiom juicy_mem_free_succeeds: forall j j' b lo hi,
   -> exists m', free (m_dry j) b lo hi = Some m' /\ m' = m_dry j'.
 End JUICY_MEM_OPS.
 
+Obligation Tactic := Tactics.program_simpl.
+
 Module JuicyMemOps <: JUICY_MEM_OPS.
 Program Definition juicy_mem_store j ch b ofs v: option juicy_mem := 
   if valid_access_dec (m_dry j) ch b ofs Writable 
     then Some (store_juicy_mem j _ ch b ofs v _)
     else None.
 Next Obligation.
+intros.
 apply (proj1_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 Next Obligation.
+intros.
 apply (proj2_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 

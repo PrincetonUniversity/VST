@@ -26,6 +26,7 @@ Qed.
 Program Definition kind_at (k: kind) (l: address) : pred rmap := 
    fun m => exists rsh, exists sh, exists pp, m @ l = YES rsh sh k pp.
  Next Obligation.
+   try intro; intros.
    destruct H0 as [rsh [sh [pp ?]]].
    generalize (resource_at_approx a l); intro.
    generalize (age1_resource_at a a'  H l (a@l) H1); intro.
@@ -38,13 +39,17 @@ Program Definition yesat_raw (pp: preds) (k: kind)
                            (rsh: share) (sh: pshare) (l: address) : pred rmap :=
    fun phi => phi @ l = YES rsh sh k (preds_fmap (approx (level phi)) pp).
   Next Obligation.
+   try intro; intros.
    apply (age1_resource_at a a' H l (YES rsh sh k pp) H0).
   Qed.
+
+Obligation Tactic := idtac.
 
 Program Definition yesat (pp: preds) (k: kind) : spec :=
  fun rsh (sh: Share.t) (l: AV.address) (m: rmap) =>
   exists p, yesat_raw pp k rsh (mk_lifted sh p) l m.
   Next Obligation.
+    intros; intro; intros.
     destruct H0 as [p ?]; exists p.
     apply pred_hereditary with a; auto.
   Qed.
@@ -52,6 +57,7 @@ Program Definition yesat (pp: preds) (k: kind) : spec :=
 Program Definition pureat (pp: preds) (k: kind) (l: AV.address): pred rmap :=
        fun phi => phi @ l = PURE k (preds_fmap (approx (level phi)) pp).
   Next Obligation.
+    intros; intro; intros.
    apply (age1_resource_at a a' H l (PURE k pp) H0).
   Qed.
 
@@ -238,6 +244,7 @@ Lemma extensionally_yesat: forall pp k sh l, extensionally (yesat pp k sh l) = y
 Program Definition noat (l: AV.address) : pred rmap := 
     fun m => identity (m @ l).
  Next Obligation.
+    intros; intro; intros.
     eapply age1_resource_at_identity; eauto.
  Qed.
 
@@ -247,6 +254,7 @@ Definition ct_count (k: kind) : Z :=
 Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred A) : B -> pred A :=
   fun (l: B) m => if S l then P l m else Q l m.
  Next Obligation.
+    intros; intro; intros.
   if_tac; try (eapply pred_hereditary; eauto).
  Qed.
 
@@ -282,7 +290,7 @@ Proof.
    rewrite <- H0 in H1; auto.
 Qed.
 
-Definition extensible_jam: forall A (S': A -> Prop) S P Q, 
+Definition extensible_jam: forall A (S': A -> Prop) S (P Q: A -> pred rmap), 
       (forall (x: A), boxy extendM (P x)) -> 
       (forall x, boxy extendM (Q x)) -> 
       forall x, boxy extendM  (@jam _ _ _ _ _ _ S' S P Q x).
@@ -686,6 +694,7 @@ Definition lock_size : Z := 4.
 Program Definition CTat (base: address) (rsh sh: Share.t) (l: address) : pred rmap :=
  fun m => exists p, m @ l = YES rsh (mk_lifted sh p) (CT (snd l - snd base)) NoneP.
  Next Obligation.
+    intros; intro; intros.
     destruct H0 as [p ?]; exists p.
     apply (age1_YES a a'); auto.
   Qed.
@@ -1481,8 +1490,11 @@ Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap
         = YES rsh (mk_lifted sh p) (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
+    intros; intro; intros.
   destruct H0 as [rsh [sh [p ?]]]; exists rsh, sh, p.
     apply (age1_YES a a'); auto.
+  Qed.
+  Next Obligation.     intros; intro; intros. auto. 
   Qed.
 
 Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval)
@@ -1493,6 +1505,9 @@ Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list
         = YES rsh (mk_lifted sh p) (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
  Next Obligation.
+    intros; intro; intros.
   destruct H0 as [rsh [sh [p ?]]]; exists rsh, sh; exists p.
     apply (age1_YES a a'); auto.
+  Qed.
+  Next Obligation.     intros; intro; intros. auto. 
   Qed.

@@ -75,7 +75,7 @@ Section SemaxContext.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
 Lemma universal_imp_unfold {A} {agA: ageable A}:
-   forall B P Q w,
+   forall B (P Q: B -> pred A) w,
      (All psi : B, P psi --> Q psi) w = (forall psi : B, (P psi --> Q psi) w).
 Proof.
 intros.

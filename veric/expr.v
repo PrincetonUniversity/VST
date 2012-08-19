@@ -480,8 +480,8 @@ end.
 (* NOTE:  params start out initialized, temps do not! *)
 Definition func_tycontext (func: function) : tycontext :=
 (fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
- (fold_right (fun (temp : ident *type) tenv, let (id,ty):= temp in PTree.set id (ty,false) tenv) 
+ (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
   (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
-fold_right (fun (var : ident * type) venv, let (id, ty) := var in PTree.set id ty venv) 
+fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
 fn_return func).
