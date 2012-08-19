@@ -324,3 +324,47 @@ auto.
 Qed.
 
 Opaque field_mapsto.
+
+Notation "'WITH' x 'PRE' [ ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tnil, tz) _
+             (fun x (args : list val) => match args with nil => P%pred | _ => FF%pred end) 
+             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
+Notation "'WITH' x : tx  'PRE' [ ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tnil, tz) _
+             (fun (x : tx) (args : list val) => match args with nil => P%pred | _ => FF%pred end) 
+             (fun (x : tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tcons ta Tnil, tz) _
+             (fun x (args : list val) => match args with a::nil => P%pred | _ => FF%pred end) 
+             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tcons ta Tnil, tz) _
+             (fun (x:tx) (args : list val) => match args with a::nil => P%pred | _ => FF%pred end) 
+             (fun (x:tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
+Notation "'WITH' x 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
+             (fun x (args : list val) => match args with a::b::nil => P%pred | _ => FF%pred end) 
+             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+Notation "'WITH' x : tx 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
+             (fun (x:tx) (args : list val) => match args with a::b::nil => P%pred | _ => FF%pred end) 
+             (fun (x:tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
+Notation "'DECLARE' x s" := (x, s)
+   (at level 160, x at level 0, s at level 150).
+
+Lemma prop_right {A}{agA: ageable A}:
+  forall (P: pred A)(Q: Prop), Q -> (P |-- !!Q).
+Proof.
+intros; intros ? ?; auto.
+Qed.
+
+

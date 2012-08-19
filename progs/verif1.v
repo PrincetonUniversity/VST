@@ -13,6 +13,7 @@ Require Import progs.list.
 Require progs.test1.
 Module P := progs.test1.
 
+Local Open Scope pred.
 
 Instance t_list_spec: listspec P.t_listptr.
 Proof.
@@ -25,46 +26,27 @@ reflexivity.
 econstructor; simpl; reflexivity.
 Defined.
 
-Local Open Scope pred.
 
-Definition sumlist_pre (contents: list int) (args: list val) : pred rmap :=
-  match args with 
-  | p::nil => lseg (map (fun i => (Vint i, P.t_int)) contents) (p, P.t_listptr) (nullval, P.t_listptr)
-  | _ => FF 
-  end.
+Definition int2valt (i: int) := (Vint i, P.t_int).
 
-Definition sumlist_post (contents: list int) (res: list val) : pred rmap :=
-  match res with 
-  | Vint i :: nil => prop (fold_right Int.add Int.zero contents = i)
-  | _ => FF 
-  end.
+Definition sumlist_spec :=
+ DECLARE P.i_sumlist
+  WITH contents 
+  PRE [ p : P.t_listptr]  lseg (map (fun i => (Vint i, P.t_int)) contents) (p, P.t_listptr) (nullval, P.t_listptr)
+  POST [ i : P.t_int ] prop (i = Vint (fold_right Int.add Int.zero contents)).
 
-Definition sumlist_fsig : funsig := (Tcons P.t_listptr Tnil, P.t_int).
+Definition reverse_spec :=
+ DECLARE P.i_reverse
+  WITH contents : list int
+  PRE  [ p : P.t_listptr ] lseg (map int2valt contents) (p, P.t_listptr) (nullval, P.t_listptr)
+  POST [p : P.t_listptr ] lseg (map int2valt (rev contents)) (p, P.t_listptr) (nullval, P.t_listptr).
 
-Definition reverse_pre (contents: list int) (args: list val) : pred rmap :=
-  match args with 
-  | p::nil =>   lseg (map (fun i => (Vint i, P.t_int)) contents) (p, P.t_listptr) (nullval, P.t_listptr)
-  | _ => FF 
-  end.
-
-Definition reverse_post (contents: list int) (res: list val) : pred rmap :=
-  match res with 
-  | p::nil => lseg (map (fun i => (Vint i, P.t_int)) (rev contents)) (p, P.t_listptr) (nullval, P.t_listptr)
-  | _ => FF 
-  end.
-
-Definition reverse_fsig : funsig := (Tcons P.t_listptr Tnil, P.t_listptr).
-
-Definition main_fsig : funsig := (Tnil, P.t_int).
+Definition main_spec := (P.i_main, mk_funspec (Tnil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
 
 Definition Gprog : funspecs := 
-  (P.i_sumlist, mk_funspec sumlist_fsig _ sumlist_pre sumlist_post)::
-  (P.i_reverse, mk_funspec reverse_fsig _ reverse_pre reverse_post)::
-  (P.i_main, mk_funspec main_fsig _ (main_pre P.prog) (main_post P.prog))::
-nil.
+   sumlist_spec :: reverse_spec :: main_spec::nil.
 
 Ltac prove_notin := clear; simpl; intuition; match goal with H: _ = _ |- _ => inv H end.
-
 
 Definition sumlist_Inv (contents: list int) (rho: environ) : pred rmap :=
           (Ex cts: list int, 
@@ -74,12 +56,6 @@ Definition sumlist_Inv (contents: list int) (rho: environ) : pred rmap :=
            lseg (map (fun i => (Vint i, P.t_int)) cts) 
                  (eval_expr rho (Etempvar P.i_t P.t_listptr), P.t_listptr)
                  (nullval, P.t_listptr)).
-
-Lemma prop_right {A}{agA: ageable A}:
-  forall (P: pred A)(Q: Prop), Q -> (P |-- !!Q).
-Proof.
-intros; intros ? ?; auto.
-Qed.
 
 Require Import Decidable.
 Lemma semax_extract_prop:
@@ -97,13 +73,15 @@ intros w [? [? ?]]. contradiction.
 apply semax_ff; auto.
 Qed.
 
-Lemma body_sumlist:
-   semax_body Gprog P.f_sumlist _ sumlist_pre sumlist_post.
+Definition semax_body' (G:  funspecs) (f: function) (spec: ident * funspec) :=
+  match spec with (i, mk_funspec _ A pre post) => semax_body G f A pre post end.
+
+Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 split; [split; simpl; repeat constructor; prove_notin | ].
 intro contents.
 simpl.
-unfold function_body_entry_assert, sumlist_pre.
+unfold function_body_entry_assert.
 simpl fn_params.
 simpl.
 set (contents' :=  map (fun i : int => (Vint i, P.t_int)) contents).
@@ -303,8 +281,7 @@ simpl; rewrite if_true by auto. reflexivity.
 
 Admitted.
 
-Lemma body_reverse:
-   semax_body Gprog P.f_reverse _ reverse_pre reverse_post.
+Lemma body_reverse: semax_body' Gprog P.f_reverse reverse_spec.
 Proof.
 split; [split; simpl; repeat constructor; prove_notin | ].
 intro contents.
