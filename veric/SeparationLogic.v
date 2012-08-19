@@ -38,8 +38,6 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 
 Definition semax_body
        (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
-      (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
-       list_norepet (map (@fst _ _) (fn_vars f))) /\
   forall x,
       semax (func_tycontext f) G
           (function_body_entry_assert f (P x) G)         
@@ -57,7 +55,8 @@ Definition main_post (prog: program) : unit -> list val -> pred rmap :=
 
 Definition semax_prog 
      (prog: program) (G: funspecs) : Prop :=
-  list_norepet (map (@fst _ _) prog.(prog_funct) ++ map (@fst _ _) prog.(prog_vars)) /\
+  compute_list_norepet (map (@fst _ _) prog.(prog_funct)
+                                       ++ map (@fst _ _) prog.(prog_vars)) = true /\
   semax_func G (prog.(prog_funct)) G /\
     In (prog.(prog_main), mk_funspec (Tnil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
@@ -66,9 +65,15 @@ Axiom semax_func_nil: forall G, semax_func G nil nil.
 Definition fn_funsig (f: function) : funsig :=
  (type_of_params (fn_params f), fn_return f).
 
+Definition semax_body_params_ok f : bool :=
+   andb 
+        (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
+        (compute_list_norepet (map (@fst _ _) (fn_vars f))).
+
 Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
-      In id (map (@fst _ _) G) ->
-      not (In id (map (@fst ident fundef) fs)) ->
+      andb (id_in_list id (map (@fst _ _) G)) 
+      (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+        (semax_body_params_ok f)) = true ->
       semax_body G f A P Q ->
       semax_func G fs G' ->
       semax_func G ((id, Internal f)::fs) 
@@ -79,8 +84,8 @@ Parameter semax_external:
 
 Axiom semax_func_cons_ext: 
    forall (G: funspecs) fs id ef fsig A P Q (G': funspecs),
-      In id (map (@fst _ _) G) ->
-      not (In id (map (@fst _ _) fs)) ->
+      andb (id_in_list id (map (@fst _ _) G))
+              (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       semax_external ef A P Q ->
       semax_func G fs G' ->
       semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
@@ -139,9 +144,8 @@ Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
 
 Axiom semax_call : 
-forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC4: map typeof bl = typelist2list (fst fsig))
-      (TC5: snd fsig=Tvoid <-> ret=None),
+forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
+      match_fsig fsig bl ret = true ->
        semax Delta G
          (fun rho => 
          !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 

@@ -920,9 +920,8 @@ unfold rho3; simpl; auto.
 Qed.
 
 Lemma semax_call: 
-forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
-      (TC4: map typeof bl = typelist2list (fst fsig))
-      (TC5: snd fsig=Tvoid <-> ret=None),
+forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
+      match_fsig fsig bl ret = true ->
        semax Hspec Delta G
          (fun rho => 
          !! (tc_expr Delta a rho /\ tc_exprlist Delta bl rho)  && 
@@ -932,6 +931,7 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
 rewrite semax_unfold; intros.
+destruct (match_fsig_e _ _ _ H) as [TC4 TC5]; clear H.
 split.
 apply prove_some_static_thing.
 intros.

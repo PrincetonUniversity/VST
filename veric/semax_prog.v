@@ -37,10 +37,13 @@ Definition entry_tempenv (te: temp_env) (f: function) (vl: list val) :=
                        (combine (map (@fst _ _) f.(fn_params)) vl 
                           ++ map (fun tv => (fst tv, Vundef)) f.(fn_temps)).
 
+Definition semax_body_params_ok f : bool :=
+   andb 
+        (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
+        (compute_list_norepet (map (@fst _ _) (fn_vars f))).
+
 Definition semax_body
        (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
-      (list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) /\
-       list_norepet (map (@fst _ _) (fn_vars f))) /\
   forall x,
       semax Hspec (func_tycontext f) G
           (function_body_entry_assert f (P x) G)         
@@ -68,7 +71,8 @@ Definition main_post (prog: program) : unit -> list val -> pred rmap :=
 
 Definition semax_prog 
      (prog: program) (G: funspecs) : Prop :=
-  no_dups prog.(prog_funct) prog.(prog_vars) /\
+  compute_list_norepet (map (@fst _ _) prog.(prog_funct)
+                                       ++ map (@fst _ _) prog.(prog_vars)) = true  /\
   semax_func G (prog.(prog_funct)) G /\
     In (prog.(prog_main), mk_funspec (Tnil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
@@ -224,15 +228,20 @@ Qed.
 Lemma semax_func_cons: 
    forall 
          fs id f A P Q (G G': funspecs),
-      In id (map (@fst _ _) G) ->
-      not (In id (map (@fst ident fundef) fs)) ->
+      andb (id_in_list id (map (@fst _ _) G)) 
+      (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
+        (semax_body_params_ok f)) = true ->
       semax_body G f A P Q ->
       semax_func G fs G' ->
       semax_func G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q)  :: G').
 Proof.
 intros until G'.
-intros Hin Hni H [Hf' Hf].
+intros H' H3 [Hf' Hf].
+apply andb_true_iff in H'.
+destruct H' as [Hin H'].
+apply andb_true_iff in H'.
+destruct H' as [Hni H].
 split.
 hnf.
 simpl; f_equal; auto.
@@ -254,13 +263,19 @@ spec H0 id (Internal f).
 destruct H0 as [b [? ?]].
 left; auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
+apply negb_true_iff in Hni.
+apply id_in_list_false in Hni.
 destruct (eq_dec  (Vptr b Int.zero) v) as [?H|?H].
 (* Vptr b Int.zero = v *)
 subst v.
 right.
 exists b; exists f.
 split.
-destruct H as [[H H'] ?]; split3; auto.
+apply andb_true_iff in H.
+destruct H as [H H'].
+apply compute_list_norepet_e in H.
+apply compute_list_norepet_e in H'.
+split3; auto.
 rewrite Genv.find_funct_find_funct_ptr in H2; auto.
 split; auto.
 split; auto.
@@ -280,13 +295,14 @@ destruct H.
 intro x.
 simpl in H1.
 pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
-destruct H4 as [H4' [H4 [H4b H4c]]].
+destruct H as [H4' [H4 [H4b H4c]]].
 subst A' fsig.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
 specialize (H3 x).
 destruct H3.
+rename H3 into H4.
 specialize (H4 n).
 apply now_later.
 clear - H4.
@@ -308,23 +324,26 @@ apply andp_left1; auto.
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
 simpl in H1; destruct H1.
-inv H1. destruct H4 as [? [? ?]]; congruence.
+inv H1. destruct H5 as [? [? ?]]; congruence.
 exists id'; split; auto.
 Qed.
 
 Lemma semax_func_cons_ext: 
    forall 
          (G: funspecs) fs id ef fsig A P Q (G': funspecs),
-      In id (map (@fst _ _) G) ->
-      not (In id (map (@fst ident fundef) fs)) ->
+      andb (id_in_list id (map (@fst _ _) G))
+              (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       (forall n, semax_ext Hspec ef A P Q n) ->
       semax_func G fs G' ->
       semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
            ((id, mk_funspec fsig A P Q)  :: G').
 Proof.
 intros until G'.
-intros Hin Hni H Hf.
-destruct Hf as [Hf' Hf].
+intros H' H [Hf' Hf].
+apply andb_true_iff in H'.
+destruct H' as [Hin Hni].
+apply id_in_list_true in Hin.
+apply negb_true_iff in Hni; apply id_in_list_false in Hni.
 split.
 destruct fsig; hnf; simpl; f_equal; auto.
 intros ge; intros.
@@ -902,6 +921,7 @@ Proof.
  destruct (IHg H).
  exists x; right; auto.
  destruct H5 as [f ?].
+ apply compute_list_norepet_e in H0.
 destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
  destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
  destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.

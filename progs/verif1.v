@@ -46,8 +46,6 @@ Definition main_spec := (P.i_main, mk_funspec (Tnil, P.t_int) _ (main_pre P.prog
 Definition Gprog : funspecs := 
    sumlist_spec :: reverse_spec :: main_spec::nil.
 
-Ltac prove_notin := clear; simpl; intuition; match goal with H: _ = _ |- _ => inv H end.
-
 Definition sumlist_Inv (contents: list int) (rho: environ) : pred rmap :=
           (Ex cts: list int, 
            !!(fold_right Int.add Int.zero contents =
@@ -78,7 +76,6 @@ Definition semax_body' (G:  funspecs) (f: function) (spec: ident * funspec) :=
 
 Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
-split; [split; simpl; repeat constructor; prove_notin | ].
 intro contents.
 simpl.
 unfold function_body_entry_assert.
@@ -283,7 +280,6 @@ Admitted.
 
 Lemma body_reverse: semax_body' Gprog P.f_reverse reverse_spec.
 Proof.
-split; [split; simpl; repeat constructor; prove_notin | ].
 intro contents.
 simpl.
 Admitted.
@@ -291,7 +287,6 @@ Admitted.
 Lemma body_main:
    semax_body Gprog P.f_main _ (main_pre P.prog) (main_post P.prog).
 Proof.
-split; [split; simpl; repeat constructor; prove_notin | ].
 intro x; destruct x.
 simpl.
 Admitted.
@@ -300,9 +295,9 @@ Lemma all_funcs_correct:
   semax_func Gprog (prog_funct P.prog) Gprog.
 Proof.
 unfold Gprog, P.prog.
-apply semax_func_cons; [compute; auto | prove_notin | apply body_sumlist | ].
-apply semax_func_cons; [compute; auto | prove_notin | apply body_reverse | ].
-apply semax_func_cons; [compute; auto | prove_notin | apply body_main | ].
+apply semax_func_cons; [ reflexivity | apply body_sumlist | ].
+apply semax_func_cons; [ reflexivity | apply body_reverse | ].
+apply semax_func_cons; [ reflexivity | apply body_main | ].
 apply semax_func_nil.
 Qed.
 

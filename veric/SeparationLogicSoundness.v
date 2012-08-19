@@ -57,6 +57,7 @@ Module ExtSpec := EXT_SPEC.
 Definition semax := semax Hspec.
 Definition extract_exists := extract_exists Hspec.
 Definition initblocksize := initblocksize.
+Definition semax_body_params_ok := semax_body_params_ok.
 Definition semax_body := semax_body Hspec.
 Definition semax_func := semax_func Hspec.
 Definition semax_ext := semax_ext Hspec.

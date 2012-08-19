@@ -485,3 +485,76 @@ Definition func_tycontext (func: function) : tycontext :=
 fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
 fn_return func).
+
+
+(** Type-checking of function parameters **)
+
+Fixpoint match_fsig_aux (bl: list expr) (tl: typelist) : bool :=
+ match bl, tl with
+ | b::bl', Tcons t' tl' => if eq_dec (typeof b) t' then match_fsig_aux bl' tl' else false
+ | nil, Tnil => true
+ | nil, Tcons _ _ => false
+ | _::_, Tnil => false
+ end.
+
+Definition match_fsig (fsig: funsig) (bl: list expr) (ret: option ident) : bool :=
+  andb (match_fsig_aux bl (fst fsig))
+          (match snd fsig, ret with 
+            | Tvoid , None => true 
+            | Tvoid, Some _ => false
+            | _, None => false
+            | _, Some _ => true
+            end).
+
+Lemma match_fsig_e: forall fsig bl ret,
+  match_fsig fsig bl ret = true ->
+  map typeof bl = typelist2list (fst fsig) /\ (snd fsig=Tvoid <-> ret=None).
+Proof.
+ intros.
+ apply andb_true_iff in H.
+ destruct H.
+ split. clear H0.
+ forget (fst fsig) as tl.
+ revert tl H; induction bl; destruct tl; intros; inv H.
+  reflexivity.
+ if_tac in H1. simpl. f_equal; auto. inv H1.
+ clear H.
+ destruct (snd fsig); destruct ret; intuition congruence.
+Qed.
+
+Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
+ match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end. 
+
+Fixpoint compute_list_norepet (ids: list ident) : bool :=
+ match ids with
+ | id :: ids' => if id_in_list id ids' then false else compute_list_norepet ids'
+ | nil => true
+ end.
+
+Lemma id_in_list_true: forall i ids, id_in_list i ids = true -> In i ids.
+Proof.
+ induction ids; simpl; intros. inv H. apply orb_true_iff in H; destruct H; auto.
+ apply Peqb_true_eq in H. subst; auto.
+Qed.
+
+Lemma id_in_list_false: forall i ids, id_in_list i ids = false -> ~In i ids.
+Proof.
+ induction ids; simpl; intros; auto.
+ apply orb_false_iff in H. destruct H.
+ intros [?|?]. subst.
+ rewrite Peqb_refl in H; inv H.
+ apply IHids; auto.
+Qed.
+
+Lemma compute_list_norepet_e: forall ids, 
+     compute_list_norepet ids = true -> list_norepet ids.
+Proof.
+ induction ids; simpl; intros.
+ constructor.
+ revert H; case_eq (id_in_list a ids); intros.
+ inv H0.
+ constructor; auto.
+ apply id_in_list_false in H.
+ auto.
+Qed.
+
