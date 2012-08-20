@@ -197,7 +197,7 @@ Qed.
 
 Lemma semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
+     (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
          (* Joey:  if it turns out you don't end up needing the BT premise,
                                   then delete it from this rule, and from the semax_while
@@ -371,7 +371,7 @@ Qed.
 
 Lemma semax_while : 
 forall Delta G Q test body R
-     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
+     (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
@@ -408,7 +408,7 @@ Qed.
 
 Lemma semax_dowhile : 
 forall Delta G P Q test body R
-     (TC: forall rho, Q rho |-- !! tc_expr Delta test rho)
+     (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G P body (for1_ret_assert Q R) ->

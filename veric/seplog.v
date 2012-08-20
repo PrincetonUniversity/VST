@@ -519,6 +519,23 @@ Definition function_body_ret_assert (ret: type) (Q: list val -> pred rmap) : ret
      end.
 
 
+Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 
+  fun rho => !! denote_tc_assert (typecheck_expr Delta e) rho.
+
+Definition tc_exprlist (Delta: tycontext) (e: list expr) : assert := 
+      fun rho => !! denote_tc_assert (typecheck_exprlist Delta e) rho.
+
+Definition tc_lvalue (Delta: tycontext) (e: expr) : assert := 
+     fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
+
+Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho).
+Admitted.
+Lemma extend_tc_exprlist: forall Delta e rho, boxy extendM (tc_exprlist Delta e rho).
+Admitted.
+Lemma extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
+Admitted.
+Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue.
+Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
 
 

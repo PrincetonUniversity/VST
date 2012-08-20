@@ -90,7 +90,8 @@ intros.
 unfold bind_args.
 normalize.
 unfold map.
-rewrite prop_true_andp by (compute; auto).
+apply andp_right.
+unfold tc_expr; simpl; normalize. 
 eapply derives_trans; [ |apply now_later].
 unfold subst.
 apply prop_andp_right.
@@ -106,9 +107,9 @@ eapply semax_pre; [ | apply semax_set].
 intros.
 unfold bind_args.
 normalize.
-rewrite prop_true_andp.
-Focus 2.
-unfold tc_expr; split; simpl;rewrite if_true; auto; simpl; auto.
+apply andp_right.
+intros ? _.
+simpl. rewrite if_true by auto. hnf; auto.
 intros. eapply derives_trans; [ |apply now_later].
 unfold subst.
 apply prop_andp_right.

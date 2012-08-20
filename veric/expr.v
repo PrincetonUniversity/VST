@@ -391,15 +391,6 @@ Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
                           end
   end.
 
-Definition tc_expr (Delta: tycontext) (e: expr) (rho: environ) : Prop := 
-          denote_tc_assert (typecheck_expr Delta e) rho.
-
-Definition tc_exprlist (Delta: tycontext) (e: list expr) (rho: environ) : Prop := 
-          denote_tc_assert (typecheck_exprlist Delta e) rho.
-
-Definition tc_lvalue (Delta: tycontext) (e: expr) (rho: environ) : Prop := 
-          denote_tc_assert (typecheck_lvalue Delta e) rho.
-
 Definition set_temp_assigned (Delta:tycontext) id :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  

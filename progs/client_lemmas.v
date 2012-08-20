@@ -241,8 +241,7 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
-       (fun rho => 
-          !!(denote_tc_assert (typecheck_expr Delta e1) rho) &&
+       (fun rho => tc_expr Delta e1 rho &&
     |> (field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2) * subst id v2 P rho))
        (Sset id (Efield e1 fld t2))
        (normal_ret_assert (fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2) * P rho)).
@@ -250,9 +249,7 @@ Proof.
 pose proof I.
 intros.
 rename H2 into TE1.
-assert (TC3: forall rho, 
-  denote_tc_assert (typecheck_expr Delta e1) rho ->
-  denote_tc_assert (typecheck_lvalue Delta (Efield e1 fld t2)) rho).
+assert (TC3: forall rho, tc_expr Delta e1 rho |-- tc_lvalue Delta (Efield e1 fld t2) rho).
 intros.
 split; auto.
 rewrite H1.
@@ -261,17 +258,16 @@ admit.  (* provable, but let's wait until the definition of typecheck_lvalue
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
-            (fun rho =>!!(denote_tc_assert (typecheck_expr Delta 
-                    (Etempvar id (typeof (Efield e1 fld t2)))) rho /\
-             denote_tc_assert (typecheck_lvalue Delta (Efield e1 fld t2)) rho) &&
+            (fun rho =>tc_expr Delta (Etempvar id (typeof (Efield e1 fld t2))) rho &&
+             tc_lvalue Delta (Efield e1 fld t2) rho &&
               |> (P' rho * subst id v2  P rho))
             (normal_ret_assert (fun rho => Q' rho * P rho))).
 3: apply semax_load.
 intros.
 apply andp_derives.
-intros w ?; split. hnf in H3.
-simpl typecheck_expr. rewrite TE1. rewrite if_true; auto.
-auto.
+intros w ?; split.
+simpl; auto. rewrite TE1. rewrite if_true; auto.
+apply TC3. auto.
 apply later_derives. apply sepcon_derives; auto.
 unfold P'.
 unfold mapsto'.
