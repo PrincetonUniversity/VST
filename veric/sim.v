@@ -38,7 +38,8 @@ Require Import compcert.Events.
     3) a state cannot both be halted and blocked on an external call
  *)
 Record CoreSemantics {G C M:Type} : Type :=
-  { make_initial_core : G -> val -> list val -> option C
+  { initial_mem: G -> M -> Prop (*characterizes initial memories*)
+  ; make_initial_core : G -> val -> list val -> option C
   ; at_external : C -> option (external_function * list val)
   ; after_external : val -> C -> option C
   ; safely_halted : G -> C -> option int (*maybe delete this, too?*)
@@ -216,7 +217,7 @@ Section Forward_simulation_equals.
   { core_data:Type;
 
     match_core : core_data -> C1 -> C2 -> Prop;
-    core_ord : C1 -> C1 -> Prop;
+    core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
     core_diagram : 
@@ -226,7 +227,7 @@ Section Forward_simulation_equals.
           match_core d' st1' st2' /\
           ((corestep_plus Sem2 ge2 st2 m st2' m') \/
             corestep_star Sem2 ge2 st2 m st2' m' /\
-            core_ord st1' st1);
+            core_ord d' d);
 
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
@@ -270,6 +271,12 @@ Definition siminj (j: meminj) (m1 m2 : mem) :=
   (forall b, ~(Mem.valid_block m1 b) -> j b = None) /\
   (forall b b' delta, j b = Some(b', delta) -> Mem.valid_block m2 b').
 
+Fixpoint injlist_compose (j : list meminj) : meminj :=
+  match j with 
+     nil => fun b => Some (b,0)
+  | cons h t => Mem.meminj_compose h (injlist_compose t)
+  end.
+
 Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
@@ -281,49 +288,298 @@ Section Forward_simulation_inject.
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
 
+Fixpoint check_injectlist (js : list meminj) m1 ms lst : Prop :=
+   match js,ms with
+     nil, nil => m1 = lst
+   | cons j J, cons m M => Mem.inject j m1 m /\ check_injectlist J m M lst
+   | _ , _ => False
+   end.
+
+Fixpoint check_returns (js : list meminj) ret1 (rets : list val) r : Prop :=
+  match js, rets with 
+     nil, nil => r=ret1
+  | (j::J), (ret2::R) => val_inject j ret1 ret2 /\ check_returns J ret2 R r
+  | _ , _ => False
+  end.
+
+Fixpoint check_valslist (js : list meminj) (vals1 : list val) (vals:list (list val)) (w: list val): Prop :=
+   match js,vals with
+     nil, nil => vals1 = w 
+   | cons j J, cons vals2 V => 
+          Forall2 (val_inject j) vals1 vals2 /\ check_valslist J vals2 V w
+   | _ , _ => False
+   end.
+
+Fixpoint mem_square js m1 ms m1' ms' : Prop :=
+  match js, ms, ms' with
+    nil, nil , nil => mem_forward m1 m1' 
+ |  j::jss, m2::mss, m2'::mss' => mem_unchanged_on (loc_unmapped j) m1 m1' /\
+                                 mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+                                 mem_forward m1 m1' /\ mem_square jss m2 mss m2' mss'
+ | _ , _ , _ => False
+  end.
+
+Fixpoint mkInjections m (n:nat) : list meminj :=
+  match n with O => nil
+            | S n' => (Mem.flat_inj (Mem.nextblock m))::mkInjections m n'
+  end.
+
+Fixpoint lift_join (join:mem -> mem -> mem -> Prop) ms1 ms2 ms :=
+  match ms1,ms2,ms with 
+     nil, nil, nil => True
+   | h1::t1,h2::t2,h::t => join h1 h2 h /\ lift_join join t1 t2 t
+   | _ , _ , _ => False
+  end.
+
+Inductive Forall3 {A B C : Type} (R : A -> B -> C -> Prop)
+            : list A -> list B -> list C -> Prop :=
+    Forall3_nil : Forall3 R nil nil nil
+  | Forall3_cons : forall (x : A) (y : B) (z:C) (l : list A) (l' : list B) (l'' : list C),
+                   R x y z -> Forall3 R l l' l'' -> Forall3 R (x :: l) (y :: l') (z::l'').
+
   Record Forward_simulation_inject := {
     core_data : Type;
+    num_passes : nat; (*gives length of js ms,...*)
 
-    match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
-    core_ord : C1 -> C1 -> Prop;
+    match_state : core_data -> list meminj -> C1 -> mem -> C2 -> mem -> Prop;
+   
+    match_state_num_passes: forall cd js st1 m1 st2 m2,
+        match_state cd js st1 m1 st2 m2 -> length js = num_passes;
+
+    core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
+
+(*Maybe we need an axiom like this?
+    thread_axiom: forall cd j m1 c1 m2 c2, match_state cd j c1 m1 c2 m2 ->
+             (*we want maybe same sequence of memops to be applied in both forward_modifications*)
+               allowed_forward_modifications m1 m1' ->
+               allowed_forward_modifications m2 m2' ->
+           exists j', incject_incr j j' /\ inject_separated j j' m1 m2
+               match_state cd j' c1 m1' c2 m2';
+*)
 
     match_state_siminj :
       forall cd j st1 m1 st2 m2,
-        match_state cd j st1 m1 st2 m2 -> siminj j m1 m2;
+        match_state cd j st1 m1 st2 m2 -> siminj (injlist_compose j) m1 m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd st2 j m2,
         match_state cd j st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
+          Forall2 inject_incr j j' /\
+          inject_separated (injlist_compose j) (injlist_compose j') m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord st1' st1);
+            core_ord cd' cd);
+
 
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
-        forall j vals vals' m1 m2,
+        forall vals1 c1 m1,
+          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          initial_mem Sem1 ge1 m1 ->
+          let js := mkInjections m1 num_passes in
+           (*was: let js  map (fun m => Mem.flat_inj (Mem.nextblock m1)) ms in*)
+(*          let m2 := last ms m1 in
+          let vals2 := last valss vals1 in*)
+           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
+           (*Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
+           F orall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->*)
+
+          (*check_valslist js vals1 valss ->
+          Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
+          (*check_injectlist js m1 ms ->*)
+(*          Forall2 (Val.has_type) vals1 (sig_args sig) ->*)
+          exists cd, exists c2, exists vals2, exists m2, 
+            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            initial_mem Sem2 ge2 m2 /\
+            match_state cd js c1 m1 c2 m2;
+
+
+(* Attempt to specify forking, parametric in some join relation. It'll be up to the concurrency machine 
+to decide hoe memory is split - here we just assume ther are splits for all num_passes memories.
+Also, we probably want to allow forking only at (exactly at?) at_external points, and also
+add fiuther hypotheses that allows us to carry on in both threads without waiting for after-external,
+ie we probably want to add mem_square and some toher hypotheses from after_external somewhere here*)
+ (*
+    core_at_fork : forall (join:mem -> mem -> mem -> Prop) v1 v2 sig,
+      In (v1,v2,sig) entry_points ->
+        forall vals1 vals2 (m1:mem) js ms m1l m1r m2l m2r msl msr cd c1 c2 c1',
+          let m2 := last ms m1 in
+          let m2l := last msl m1l in
+          let m2r := last msr m1r in
+
+            match_state cd js c1 m1 c2 m2 ->
+            join m1l m1r m1 ->
+            Forall3 (lift_join join) msl msr ms ->
+           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
+           (*Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
+           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->*)
+
+          Forall2 (val_inject js) vals1 vals2 ->
+          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          make_initial_core Sem1 ge1 v1 vals1 = Some c1' ->
+          exists cd', exists c2', 
+            make_initial_core Sem2 ge2 v2 vals2 = Some c2' /\
+            match_state cd js c1 m1l c2 m2l /\
+            match_state cd' js c1' m1r c2' m2r;
+*)
+    core_halted : forall cd js c1 m1 c2 m2 (v1:int),
+      match_state cd js c1 m1 c2 m2 ->
+      safely_halted Sem1 ge1 c1 = Some v1 ->
+        (safely_halted Sem2 ge2 c2 = Some v1 /\
+         exists ms, check_injectlist js m1 ms m2);
+(*
+    core_at_externalLenbAteempt : 
+      forall cd js st1 m1 st2 m2 e vals1,
+        match_state cd js st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,vals1) ->
+        (Mem.inject (injlist_compose js) m1 m2 /\
+          exists vals2, Forall2 (val_inject (injlist_compose js)) vals1 vals2 /\
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          at_external Sem2 st2 = Some (e,vals2));
+*)
+    core_at_external : 
+      forall cd js st1 m1 st2 m2 e vals1,
+        match_state cd js st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,vals1) ->
+        exists ms, check_injectlist js m1 ms m2 /\
+          exists vals2, Forall2 (val_inject (injlist_compose js)) vals1 vals2 /\
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          at_external Sem2 st2 = Some (e,vals2);
+  (*
+    (core_after_externalForwardSimulation.v :
+      forall cd j j' st1 st2 m1 m2 e1 e2 vals vals' ret ret' m1' m2' sig,
+        match_state cd j st1 m1 st2 m2 ->
+        Mem.inject j m1 m2 ->
+        at_external Sem1 st1 = Some (e1,sig,vals) ->
+        at_external Sem2 st2 = Some (e2,sig,vals') ->
+        match_ext sig e1 e2 ->
+        Forall2 (val_inject j) vals vals' ->
+      
+        inject_incr j j' ->
+        inject_separated j j' m1 m2 ->
+        Mem.inject j' m1' m2' ->
+        val_inject j' ret ret' ->
+
+        mem_unchanged_on (loc_unmapped j) m1 m1' ->
+        mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+        mem_forward m1 m1' ->
+        mem_forward m2 m2' ->
+
+        Forall2 (Val.has_type) vals' (sig_args sig) ->
+        Val.has_type ret' (proj_sig_res sig) ->
+
+        exists cd', exists st1', exists st2',
+          after_external Sem1 (ret::nil) st1 = Some st1' /\
+          after_external Sem2 (ret'::nil) st2 = Some st2' /\
+          match_state cd' j' st1' m1' st2' m2'),*)
+
+    core_after_external :
+      forall cd js js' st1 st2 m1 ms e vals1 (*vals2*) ret1 rets m1' ms' m2 m2' ret2,
+        check_injectlist js m1 ms m2->
+        match_state cd js st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,vals1) ->
+(*        Mem.inject j m1 m2 ->
+        at_external Sem2 st2 = Some (e,vals2) ->
+        Forall2 (val_inject j) vals1 vals2 ->*)
+      
+        Forall2 inject_incr js js' ->
+        inject_separated (injlist_compose js) (injlist_compose js') m1 m2 ->
+        check_injectlist js' m1' ms' m2' ->
+        check_returns js' ret1 rets ret2 ->
+
+        mem_square js m1 ms m1' ms' ->
+
+        Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
+
+        exists cd', exists st1', exists st2',
+          after_external Sem1 ret1 st1 = Some st1' /\
+          after_external Sem2 ret2 st2 = Some st2' /\
+          match_state cd' js' st1' m1' st2' m2'
+
+    }.
+
+  Record Forward_simulation_inject_onepass := {
+    core_dataOP : Type;
+
+    match_stateOP : core_dataOP -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
+    core_ordOP : core_dataOP -> core_dataOP -> Prop;
+    core_ord_wfOP : well_founded core_ordOP;
+
+(*Maybe we need an axiom like this?
+    thread_axiom: forall cd j m1 c1 m2 c2, match_state cd j c1 m1 c2 m2 ->
+             (*we want maybe same sequence of memops to be applied in both forward_modifications*)
+               allowed_forward_modifications m1 m1' ->
+               allowed_forward_modifications m2 m2' ->
+           exists j', incject_incr j j' /\ inject_separated j j' m1 m2
+               match_state cd j' c1 m1' c2 m2';
+*)
+
+    match_state_siminjOP :
+      forall cd j st1 m1 st2 m2,
+        match_stateOP cd j st1 m1 st2 m2 -> siminj j m1 m2;
+
+    core_diagramOP : 
+      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
+      forall cd st2 j m2,
+        match_stateOP cd j st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists j',
+          inject_incr j j' /\
+          inject_separated j j' m1 m2 /\
+          match_stateOP cd' j' st1' m1' st2' m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            core_ordOP cd' cd);
+
+    core_initialOP : forall v1 v2 sig,
+      In (v1,v2,sig) entry_points ->
+        forall vals vals' m1 m2,
+          let j := (Mem.flat_inj (Mem.nextblock m1)) in
+
+           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
+           Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
+           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->
+
           Forall2 (val_inject j) vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.inject j m1 m2 ->
           exists cd, exists c1, exists c2,
             make_initial_core Sem1 ge1 v1 vals = Some c1 /\
             make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
-            match_state cd j c1 m1 c2 m2;
+            match_stateOP cd j c1 m1 c2 m2;
 
-    core_halted : forall cd j c1 m1 c2 m2 (v1:int),
-      match_state cd j c1 m1 c2 m2 ->
+(* Attempt to specify forking, but we're giving away the entire memory here which can't be right.
+  We may later want to reintroduce this lemma, but somehow allow one to specify which part of
+the memory is retained, and which one is given to the thread.
+    core_at_fork : forall v1 v2 sig,
+      In (v1,v2,sig) entry_points ->
+        forall vals vals' m1 m2 j
+          (HM: match_state cd j c1 m1 c2 m2),
+
+           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
+           (*Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
+           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->*)
+
+          Forall2 (val_inject j) vals vals' ->
+          Forall2 (Val.has_type) vals' (sig_args sig) ->
+          Mem.inject j m1 m2 ->
+          exists cd', exists c1', exists c2',
+            make_initial_core Sem1 ge1 v1 vals = Some c1' /\
+            make_initial_core Sem2 ge2 v2 vals' = Some c2' /\
+            match_state cd' j c1' m1 c2' m2;*)
+
+    core_haltedOP : forall cd j c1 m1 c2 m2 (v1:int),
+      match_stateOP cd j c1 m1 c2 m2 ->
       safely_halted Sem1 ge1 c1 = Some v1 ->
         (safely_halted Sem2 ge2 c2 = Some v1 /\
          Mem.inject j m1 m2); (*conjunct Mem.inject j m1 m2 could maybe deleted here?*)
 
-    core_at_external : 
+    core_at_externalOP: 
       forall cd j st1 m1 st2 m2 e vals1,
-        match_state cd j st1 m1 st2 m2 ->
+        match_stateOP cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         exists vals2,
           Mem.inject j m1 m2 /\
@@ -331,9 +587,9 @@ Section Forward_simulation_inject.
           Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
           at_external Sem2 st2 = Some (e,vals2);
   
-    core_after_external :
+    core_after_externalOP :
       forall cd j j' st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2',
-        match_state cd j st1 m1 st2 m2 ->
+        match_stateOP cd j st1 m1 st2 m2 ->
         Mem.inject j m1 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         at_external Sem2 st2 = Some (e,vals2) ->
@@ -356,8 +612,10 @@ Section Forward_simulation_inject.
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' j' st1' m1' st2' m2'
+          match_stateOP cd' j' st1' m1' st2' m2'
     }.
+
+  Axiom OnePassSpecialization: Forward_simulation_inject_onepass -> Forward_simulation_inject.
 
 End Forward_simulation_inject.
 
@@ -380,7 +638,7 @@ Section Forward_simulation_extends.
     core_data : Type;
 
     match_state : core_data -> C1 -> mem -> C2 -> mem -> Prop;
-    core_ord : C1 -> C1 -> Prop;
+    core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
     core_diagram : 
@@ -391,7 +649,7 @@ Section Forward_simulation_extends.
           match_state cd' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord st1' st1);
+            core_ord cd' cd);
 
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
