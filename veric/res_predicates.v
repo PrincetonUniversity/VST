@@ -1511,3 +1511,202 @@ Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list
   Qed.
   Next Obligation.     intros; intro; intros. auto. 
   Qed.
+
+Lemma VALspec_range_0: forall rsh sh loc, VALspec_range 0 rsh sh loc = emp.
+  Proof.
+   intros.
+   apply pred_ext.
+   intros ? ?. simpl in H.
+   do 3 red.
+   apply all_resource_at_identity.
+   intro l. specialize (H l).
+   rewrite if_false in H; auto.
+   destruct loc, l; intros [? ?]; simpl in *; omega.
+   intros ? ?. intro b. rewrite jam_false.
+   do 3 red. apply resource_at_identity; auto.
+   destruct loc, b; intros [? ?]; simpl in *; omega.
+Qed.
+Hint Resolve VALspec_range_0: normalize.
+
+Lemma VALspec_range_split2:
+  forall (n m r: Z) (rsh sh: Share.t) (b: block) (ofs: Z),
+    r = n + m -> n >= 0 -> m >= 0 ->
+    VALspec_range r rsh sh (b, ofs) = 
+    VALspec_range n rsh sh (b, ofs) * VALspec_range m rsh sh (b, ofs + n).
+Proof.
+ intros.
+ assert (r=0 \/ r>0) by omega.
+ destruct H2.
+ subst.
+ rewrite H2.
+  assert (n=0) by omega.
+    assert (m=0) by omega.
+ subst.
+  repeat rewrite VALspec_range_0. rewrite emp_sepcon. auto.
+ unfold VALspec_range.
+ apply pred_ext.
+ intros w ?.
+ assert (AV.valid (res_option oo 
+               (fun l => if adr_range_dec (b,ofs) n l then w @ l else core (w @ l)))).
+ intros b' z'; specialize (H3 (b',z')). 
+ unfold compose.
+ if_tac.
+ rewrite jam_true in H3.
+destruct H3 as [v ?].
+ destruct H3. hnf in H3. rewrite H3. simpl. auto.
+ destruct H4; split; auto; omega.
+ destruct (w @ (b',z')). rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto.
+ rewrite core_PURE; simpl; auto.
+ destruct (remake_rmap _ H4 (level w)) as [w1 [? ?]].
+ intro.
+ specialize (H3 l). do 3 red in H3.
+ if_tac. rewrite if_true in H3.
+ destruct H3 as [v [p ?]]. rewrite H3. right; hnf; auto.
+ apply preds_fmap_NoneP.
+ destruct l; destruct H5; split; auto. omega.
+ if_tac in H3.
+ destruct H3 as [v [p ?]]. rewrite H3. right; hnf; auto.
+ rewrite core_YES; auto.
+ left; exists w; split; auto.
+ symmetry; apply unit_core.
+ apply identity_unit_equiv; try apply H3.
+ clear H4.
+ assert (AV.valid (res_option oo 
+          (fun l => if adr_range_dec (b,ofs+n) m l then w @ l else  core (w @ l)))).
+ intros b' z'; specialize (H3 (b',z')). 
+ unfold compose.
+ if_tac.
+ rewrite jam_true in H3.
+destruct H3 as [v [p ?]]. hnf in H3. rewrite H3. simpl. auto.
+ destruct H4; split; auto; omega.
+ destruct (w @ (b',z')). rewrite core_NO; simpl; auto. rewrite core_YES; simpl; auto.
+ rewrite core_PURE; simpl; auto.
+ destruct (remake_rmap _ H4 (level w)) as [w2 [? ?]].
+ intros [b' z']; specialize (H3 (b',z')).
+ hnf in H3.
+ if_tac. rewrite if_true in H3.
+ destruct H3 as [v [p ?]]. rewrite H3; right; hnf.
+ apply preds_fmap_NoneP.
+ destruct H7; split; auto; omega.
+ if_tac in H3.
+ destruct H3 as [v [p ?]]. rewrite H3; right; hnf.
+ rewrite core_YES; auto.
+ left; exists w; split; auto. 
+ symmetry; apply unit_core; apply identity_unit_equiv;  apply H3.
+ clear H4.
+
+ exists w1; exists w2; split3; auto.
+ apply resource_at_join2; auto.
+ intro loc; rewrite H6; rewrite H8.
+ specialize (H3 loc). 
+ if_tac. rewrite if_false. rewrite jam_true in H3. destruct H3 as [v [p ?]].
+ rewrite H3. rewrite core_YES; constructor. apply join_unit2; auto.
+ destruct loc; destruct H4; split; auto; omega.
+ destruct loc; intros [? ?]. subst b0. destruct H4. omega.
+ if_tac.
+ rewrite jam_true in H3. destruct H3 as [v [p ?]].
+ rewrite H3. rewrite core_YES; constructor. apply join_unit1; auto.
+ destruct loc; destruct H9; split; auto. subst.
+ omega.
+ rewrite jam_false in H3.
+ do 3 red in H3.
+ apply identity_unit_equiv in H3.
+ apply unit_core in H3.
+ rewrite <- H3 at 2. apply core_unit.
+ destruct loc; intros [? ?].
+ subst b0. 
+ destruct (zlt z (ofs+n)).
+ apply H4; split; auto; omega.
+ apply H9; split; auto; omega.
+ intro loc; specialize (H3 loc); hnf in H3|-*; if_tac.
+ rewrite if_true in H3. destruct H3 as [v [p ?]]; exists v,p.
+ hnf in H3|-*; rewrite H6; rewrite if_true; auto.
+ rewrite H5; auto. 
+destruct loc; destruct H4; split; auto; omega.
+ do 3 red; rewrite H6; rewrite if_false. apply core_identity.
+ auto.
+ intro loc; specialize (H3 loc); hnf in H3|-*; if_tac.
+ rewrite if_true in H3. destruct H3 as [v [p ?]]; exists v,p.
+ hnf in H3|-*; rewrite H8; rewrite if_true; auto.
+ rewrite H7; auto. 
+destruct loc; destruct H4; split; auto; omega.
+ do 3 red; rewrite H8; rewrite if_false. apply core_identity.
+ auto.
+ (* backward direction *)
+ intros w ?.
+ destruct H3 as [w1 [w2 [? [? ?]]]].
+ intros [b' z']; specialize (H4 (b',z')); specialize (H5 (b',z')).
+ destruct (join_level _ _ _ H3).
+ apply (resource_at_join _ _ _ (b',z')) in H3.
+ hnf in H4,H5|-*.
+ if_tac.
+ if_tac in H4.
+ destruct H4 as [v [p ?]].
+ rewrite if_false in H5.
+ do 3 red in H5. apply join_com in H3; apply H5 in H3. exists v,p.
+ hnf in H4|-*.
+ change R.rmap with rmap; change R.ag_rmap with ag_rmap; 
+rewrite <- H6; rewrite <- H3; auto.
+ intros [? ?]; destruct H9; subst. omega.
+ rewrite if_true in H5.
+ destruct H5 as [v [p ?]]; exists v,p.
+ do 3 red in H4;  hnf in H5|-*.
+ apply H4 in H3. 
+ change R.rmap with rmap; change R.ag_rmap with ag_rmap; 
+rewrite <- H7; rewrite <- H3; auto.
+ destruct H8; split; auto.
+ destruct (zlt z' (ofs+n)).
+ contradiction H9; split; auto; omega.
+ omega.
+ rewrite if_false in H4. rewrite if_false in H5.
+ do 3 red in H4,H5|-*.
+ apply H4 in H3. rewrite <- H3; auto.
+ contradict H8. destruct H8; split; auto; omega.
+ contradict H8. destruct H8; split; auto; omega.
+Qed.
+
+Lemma VALspec_range_VALspec:
+  forall (n : Z) (v : val) (rsh sh : Share.t) (l : address) (i : Z),
+       0 <= i < n ->
+       VALspec_range n rsh sh l
+       |-- VALspec rsh sh (adr_add l i) * TT.
+Proof.
+ intros.
+  destruct l as [b ofs].
+  rewrite (VALspec_range_split2 i (n-i) n rsh sh b ofs); try omega.
+  rewrite (VALspec_range_split2 1 (n-i-1) (n-i) rsh sh b (ofs+i)); try omega.
+  change (VALspec_range 1) with (VALspec_range 1).
+  rewrite VALspec1.
+  rewrite <- sepcon_assoc.
+  rewrite (sepcon_comm (VALspec_range i rsh sh (b, ofs))).
+  rewrite sepcon_assoc.
+  apply sepcon_derives; auto.
+Qed.
+
+Lemma address_mapsto_overlap:
+  forall rsh sh ch1 v1 ch2 v2 a1 a2,
+     adr_range a1 (size_chunk ch1) a2 ->
+     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
+Proof.
+intros.
+intros w [w1 [w2 [? [? ?]]]].
+hnf in H1, H2.
+destruct H1 as [bl [_ ?]].
+destruct H2 as [bl' [_ ?]].
+spec H1 a2.
+spec H2 a2.
+rewrite jam_true in H1.
+rewrite jam_true in H2.
+destruct H1; destruct H2. hnf in H1,H2.
+apply (resource_at_join _ _ _ a2) in H0.
+rewrite H1 in H0; rewrite H2 in H0.
+clear - H0; simpl in H0.
+inv H0.
+do 3 red in H1. simpl in H1.
+generalize (join_self H1); intro.
+rewrite <- H in H1.
+apply x in H1. contradiction.
+generalize (Address.size_chunk_pos ch2); intro;
+destruct a2; split; auto; omega.
+auto.
+Qed.

@@ -196,7 +196,7 @@ revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
 rewrite H2 in H5.
 assert (core_load ch  (b, Int.unsigned ofs) v2 (m_phi jm1)).
-apply mapsto_core_load with (unrel Lsh sh) (unrel Rsh sh).
+apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 exists m1; exists m2; split3; auto.
 apply Csem.deref_loc_value with ch; auto.
 unfold loadv.
@@ -344,9 +344,9 @@ Lemma semax_store:
    semax Hspec Delta G 
           (fun rho => 
           tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
-          |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 Proof.
 intros until P. intros TC3.
 apply semax_straight_simple; auto.
@@ -362,7 +362,7 @@ rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
-rewrite unrel_splice_R in H4. rewrite unrel_splice_L in H4.
+rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4.
 
 assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
@@ -422,7 +422,7 @@ eapply sepcon_derives; try apply AM; auto.
 unfold mapsto'.
 rewrite Hmode.
 rewrite He1'.
-rewrite unrel_splice_R. rewrite unrel_splice_L. auto.
+rewrite Share.unrel_splice_R. rewrite Share.unrel_splice_L. auto.
 clear - H6 H5 H1.
 intros ? ?.
 do 3 red in H.
@@ -738,7 +738,7 @@ Lemma semax_call_aux:
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : list val, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
-    (|>(F0 rho * F * P x (map (eval_expr rho) bl))) (m_phi jm) ->
+    (|>(F0 rho * F * P x (eval_exprlist rho bl))) (m_phi jm) ->
    jsafeN Hspec psi (level (m_phi jm)) ora
      (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
@@ -871,13 +871,13 @@ admit.  (* not too difficult *)
 destruct (can_alloc_variables jm (fn_vars f)) as [ve' [jm' [? ?]]].
 auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H16.
-destruct (build_call_temp_env f (map (eval_expr rho) bl)) as [te' ?]; auto.
+destruct (build_call_temp_env f (eval_exprlist rho bl)) as [te' ?]; auto.
 exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
                                      :: Kcall ret f (ve_of rho) (te_of rho) :: k)).
 exists  jm'.
 split.
 split; auto.
-eapply step_call_internal with (vargs:=map (eval_expr rho) bl); eauto.
+eapply step_call_internal with (vargs:=eval_exprlist rho bl); eauto.
 4: unfold type_of_function; reflexivity.
 admit. (* typechecking proof *)
 admit. (* typechecking proof *)
@@ -927,7 +927,7 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
          (fun rho => 
            tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
          (fun_assert  (eval_expr rho a) fsig A P Q && 
-          (F * P x (map (eval_expr rho) bl) )))
+          (F * P x (eval_exprlist rho bl) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
@@ -990,7 +990,7 @@ assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H11; auto).
 destruct H2; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
-set (args := map (eval_expr rho) bl).
+set (args := eval_exprlist rho bl).
 fold args in H5.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
@@ -1018,7 +1018,7 @@ Lemma semax_call_ext:
       typeof a = typeof a' ->
       (forall rho, typecheck_environ rho Delta = true ->
                         P rho |-- !! (eval_expr rho a = eval_expr rho a' /\
-                                           map (eval_expr rho) bl = map (eval_expr rho) bl')) ->
+                                           eval_exprlist rho bl = eval_exprlist rho bl')) ->
   semax Hspec Delta G P (Scall ret a bl) Q ->
   semax Hspec  Delta G P (Scall ret a' bl') Q.
 Proof.
@@ -1065,7 +1065,7 @@ Lemma  semax_return :
    forall Delta G R ret 
       (TC: typecheck_stmt Delta (Sreturn ret) = true),
       semax Hspec Delta G 
-                (fun rho => R EK_return (map (eval_expr rho) (opt2list ret)) rho)
+                (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
                 (Sreturn ret)
                 R.
 Proof.
@@ -1093,7 +1093,7 @@ apply le_trans with (level n); auto.
 apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
 destruct H3 as [[[? H4] ?] ?].
-specialize (H0 EK_return (map (eval_expr rho) (opt2list ret)) rho).
+specialize (H0 EK_return (eval_exprlist rho (opt2list ret)) rho).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 split; auto.

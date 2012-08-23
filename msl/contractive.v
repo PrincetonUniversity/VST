@@ -185,7 +185,7 @@ Lemma contractive_nonexpansive {A} `{ageable A} : forall F,
   nonexpansive F.
 Proof.
   unfold contractive, nonexpansive; intros.
-  apply derives_cut with (|>(P <=>Q)); auto.
+  apply @derives_trans with (|>(P <=>Q)); auto.
   apply now_later.
 Qed.
 
@@ -250,12 +250,12 @@ Proof.
   unfold contractive.
   intros.
   apply sub_equ.
-  apply derives_cut with (|>(P >=> Q)).
+  apply @derives_trans with (|>(P >=> Q)).
   apply box_positive.
   apply equ_sub.
   hnf; auto.
   auto.
-  apply derives_cut with (|>(Q >=> P)).
+  apply @derives_trans with (|>(Q >=> P)).
   apply box_positive.
   apply equ_sub2.
   hnf; auto.
@@ -320,7 +320,7 @@ Lemma Rec_sub {A} `{ageable A} : forall G
     G |-- Rec (F P) >=> Rec (F Q).
 Proof.
   intros.
-  apply derives_cut with (P >=> Q); auto.
+  apply @derives_trans with (P >=> Q); auto.
   clear H0.
   apply goedel_loeb; repeat intro.
   destruct H0.
@@ -346,7 +346,7 @@ Lemma HORec_sub {A} `{ageable A} : forall G B
     G |-- All b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.
   intros.
-  apply derives_cut with (P>=>Q); auto.
+  apply @derives_trans with (P>=>Q); auto.
   clear H0.
   apply goedel_loeb; repeat intro.
   destruct H0.
@@ -535,3 +535,85 @@ Proof.
   rewrite <- box_all.
   auto.
 Qed.
+
+Module Trashcan.
+
+(* Note: This approach to proving HOcontractive doesn't automate 
+  as well as the methods above.*)
+
+Lemma orp_HOcontractive {A}{agA: ageable A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x || Q R x).
+Proof.
+ intros.
+ intros F G n H2 x y Hy.
+ specialize (H F G n H2 x y Hy). specialize (H0 F G n H2 x y Hy).
+ destruct H, H0.
+ split; (intros z Hz [?|?]; [left|right]); auto.
+Qed.
+Lemma andp_HOcontractive {A}{agA: ageable A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x && Q R x).
+Proof.
+ intros.
+ intros F G n H2 x y Hy.
+ specialize (H F G n H2 x y Hy). specialize (H0 F G n H2 x y Hy).
+ destruct H, H0.
+ split; (intros z Hz [? ?]); split; auto.
+Qed.
+Lemma sepcon_HOcontractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{NA: natty A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x * Q R x).
+Proof.
+ intros.
+ unfold HOcontractive in *|-.
+ apply prove_HOcontractive; intros F G ?.
+ specialize (H F G). specialize (H0 F G).
+ apply subp_sepcon.
+ eapply derives_trans.
+ apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ eapply derives_trans; [ apply H | ].
+ apply allp_left with x.
+ apply fash_derives. apply andp_left1. auto.
+ eapply derives_trans.
+ apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ eapply derives_trans; [ apply H0 | ].
+ apply allp_left with x.
+ apply fash_derives. apply andp_left1. auto.
+Qed.
+
+Lemma const_HOcontractive{A}{agA: ageable A}: forall X (P : X -> pred A), HOcontractive (fun _ => P).
+Proof.
+ intros.
+ apply prove_HOcontractive. intros. apply sub_refl.
+Qed.
+
+Lemma exp_HOcontractive {A}{agA: ageable A}{NA: natty A}:
+  forall X Y (G: Y -> X -> X) (F: Y -> X -> pred A -> pred A),
+   (forall y x, contractive (F y x)) ->
+   HOcontractive (fun (R: X -> pred A) (x: X) => Ex y: Y, F y x (R (G y x))).
+Proof.
+ intros.
+ apply prove_HOcontractive; intros.
+ apply sub_exp; intro y.
+ specialize (H y x (P (G y x)) (Q (G y x))).
+ eapply derives_trans; [ | apply equ_sub; apply H].
+ rewrite eq_later.
+ apply allp_left with (G y x). auto.
+Qed.
+Lemma const_contractive {A}{agA: ageable A}: forall P : pred A, contractive (fun _ => P).
+Proof.
+ intros.
+ apply prove_contractive. intros. apply sub_refl.
+Qed.
+Lemma later_contractive' {A} `{natty A} : contractive (box laterM).
+Proof.
+  unfold contractive; intros.
+  apply sub_equ.
+  rewrite <- sub_later.
+  apply box_positive; auto.
+  apply equ_sub; auto.
+  rewrite <- sub_later.
+  apply box_positive; auto.
+  apply equ_sub2; auto.
+Qed.
+
+End Trashcan.
+

@@ -23,13 +23,6 @@ Proof.
   apply prop_ext; intuition.
 Qed.
 
-Lemma equiv_eq {A} : forall (P Q:pred A),
-  derives P Q -> derives Q P -> P = Q.
-Proof.
-  intros.
-  unfold derives in *; simpl in *.
-  extensionality w; apply prop_ext; intuition.
-Qed.
 
 Lemma derives_cut {A}  : forall Q P R : pred A,
   derives P Q ->

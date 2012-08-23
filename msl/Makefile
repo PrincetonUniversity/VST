@@ -23,7 +23,8 @@ FILES = \
   msl_direct.v msl_standard.v msl_classical.v \
   predicates_sa.v \
   normalize.v \
-  env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v
+  env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
+  seplog.v alg_seplog.v 
 #  knot_setoid.v \  takes forever to compile, nobody uses it
 
 .PHONY : clean  all lib docs examples extract

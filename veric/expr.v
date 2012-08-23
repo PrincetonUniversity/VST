@@ -58,6 +58,7 @@ Fixpoint eval_expr (rho:environ) (e: expr) : val :=
  | _  => Vundef
  end.
 
+Definition eval_exprlist rho el := map (eval_expr rho) el.
 
 (*Temps, vars, function return*)
 Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type)%type.
@@ -549,3 +550,37 @@ Proof.
  auto.
 Qed.
 
+Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
+     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     eval_expr rho e = eval_expr (mkEnviron (ge_of rho) (ve_of rho) te') e.
+
+Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall rho te',  
+     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     eval_lvalue rho e = eval_lvalue (mkEnviron (ge_of rho) (ve_of rho) te') e.
+
+Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
+  mkEnviron (ge_of rho) (ve_of rho) (Maps.PTree.set x v (te_of rho)).
+
+(* expr.v is not quite the right place for these next few definitions, but
+   we'll work that out later *)
+Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
+
+Instance EqDec_exitkind: EqDec exitkind.
+Proof.
+hnf. intros.
+decide equality.
+Qed.
+
+Inductive funspec :=
+   mk_funspec: funsig -> 
+           forall A: Type, (A -> list val -> pred rmap) -> (A -> list val -> pred rmap) 
+                 -> funspec.
+
+Definition funspecs := list (ident * funspec).
+
+Definition type_of_funspec (fs: funspec) : type :=  
+  match fs with mk_funspec fsig _ _ _ => Tfunction (fst fsig) (snd fsig)  end.
+
+(* END expr.v is not quite the right place for these next few definitions *)

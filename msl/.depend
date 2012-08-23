@@ -1,47 +1,49 @@
-Axioms.vo Axioms.glob Axioms.v.beautified: Axioms.v
-Extensionality.vo Extensionality.glob Extensionality.v.beautified: Extensionality.v Axioms.vo
-base.vo base.glob base.v.beautified: base.v Extensionality.vo
-eq_dec.vo eq_dec.glob eq_dec.v.beautified: eq_dec.v base.vo
-ageable.vo ageable.glob ageable.v.beautified: ageable.v base.vo
-sepalg.vo sepalg.glob sepalg.v.beautified: sepalg.v Extensionality.vo
-psepalg.vo psepalg.glob psepalg.v.beautified: psepalg.v base.vo eq_dec.vo sepalg.vo sepalg_generators.vo
-age_sepalg.vo age_sepalg.glob age_sepalg.v.beautified: age_sepalg.v base.vo ageable.vo sepalg.vo sepalg_generators.vo
-sepalg_generators.vo sepalg_generators.glob sepalg_generators.v.beautified: sepalg_generators.v base.vo sepalg.vo
-functors.vo functors.glob functors.v.beautified: functors.v base.vo
-sepalg_functors.vo sepalg_functors.glob sepalg_functors.v.beautified: sepalg_functors.v base.vo functors.vo sepalg.vo sepalg_generators.vo
-combiner_sa.vo combiner_sa.glob combiner_sa.v.beautified: combiner_sa.v base.vo sepalg.vo functors.vo sepalg_functors.vo
-cross_split.vo cross_split.glob cross_split.v.beautified: cross_split.v base.vo sepalg.vo psepalg.vo sepalg_generators.vo cjoins.vo eq_dec.vo
-join_hom_lemmas.vo join_hom_lemmas.glob join_hom_lemmas.v.beautified: join_hom_lemmas.v base.vo sepalg.vo sepalg_generators.vo psepalg.vo
-cjoins.vo cjoins.glob cjoins.v.beautified: cjoins.v base.vo sepalg.vo
-boolean_alg.vo boolean_alg.glob boolean_alg.v.beautified: boolean_alg.v base.vo eq_dec.vo sepalg.vo
-tree_shares.vo tree_shares.glob tree_shares.v.beautified: tree_shares.v base.vo eq_dec.vo sepalg.vo boolean_alg.vo
-shares.vo shares.glob shares.v.beautified: shares.v base.vo sepalg.vo psepalg.vo sepalg_generators.vo boolean_alg.vo eq_dec.vo tree_shares.vo
-pshares.vo pshares.glob pshares.v.beautified: pshares.v base.vo sepalg.vo psepalg.vo eq_dec.vo shares.vo
-knot.vo knot.glob knot.v.beautified: knot.v base.vo ageable.vo functors.vo
-knot_sa.vo knot_sa.glob knot_sa.v.beautified: knot_sa.v base.vo sepalg.vo sepalg_generators.vo sepalg_functors.vo ageable.vo age_sepalg.vo knot.vo knot_lemmas.vo functors.vo
-knot_prop.vo knot_prop.glob knot_prop.v.beautified: knot_prop.v base.vo knot.vo ageable.vo sepalg.vo sepalg_generators.vo sepalg_functors.vo age_sepalg.vo knot_sa.vo knot_lemmas.vo functors.vo knot_hered.vo knot_hered_sa.vo
-knot_lemmas.vo knot_lemmas.glob knot_lemmas.v.beautified: knot_lemmas.v base.vo ageable.vo knot.vo knot_hered.vo functors.vo
-knot_unique.vo knot_unique.glob knot_unique.v.beautified: knot_unique.v base.vo ageable.vo knot.vo knot_lemmas.vo functors.vo
-knot_hered.vo knot_hered.glob knot_hered.v.beautified: knot_hered.v base.vo ageable.vo functors.vo predicates_hered.vo
-knot_hered_sa.vo knot_hered_sa.glob knot_hered_sa.v.beautified: knot_hered_sa.v base.vo ageable.vo functors.vo sepalg.vo sepalg_functors.vo sepalg_generators.vo predicates_hered.vo knot_hered.vo knot_lemmas.vo age_sepalg.vo
-knot_full.vo knot_full.glob knot_full.v.beautified: knot_full.v base.vo ageable.vo
-knot_shims.vo knot_shims.glob knot_shims.v.beautified: knot_shims.v base.vo knot.vo knot_full.vo ageable.vo predicates_hered.vo
-knot_sa_trivial.vo knot_sa_trivial.glob knot_sa_trivial.v.beautified: knot_sa_trivial.v base.vo sepalg.vo sepalg_generators.vo functors.vo sepalg_functors.vo knot.vo knot_sa.vo knot_hered.vo knot_hered_sa.vo knot_prop.vo
-predicates_hered.vo predicates_hered.glob predicates_hered.v.beautified: predicates_hered.v base.vo ageable.vo
-predicates_sl.vo predicates_sl.glob predicates_sl.v.beautified: predicates_sl.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo cross_split.vo
-subtypes.vo subtypes.glob subtypes.v.beautified: subtypes.v base.vo ageable.vo predicates_hered.vo
-subtypes_sl.vo subtypes_sl.glob subtypes_sl.v.beautified: subtypes_sl.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo predicates_sl.vo subtypes.vo
-contractive.vo contractive.glob contractive.v.beautified: contractive.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo predicates_rec.vo predicates_sl.vo subtypes.vo subtypes_sl.vo
-predicates_rec.vo predicates_rec.glob predicates_rec.v.beautified: predicates_rec.v base.vo ageable.vo predicates_hered.vo subtypes.vo
-msl_direct.vo msl_direct.glob msl_direct.v.beautified: msl_direct.v Extensionality.vo base.vo boolean_alg.vo sepalg.vo predicates_sa.vo functors.vo sepalg_functors.vo sepalg_generators.vo combiner_sa.vo shares.vo cross_split.vo psepalg.vo pshares.vo corec.vo eq_dec.vo
-msl_standard.vo msl_standard.glob msl_standard.v.beautified: msl_standard.v Extensionality.vo ageable.vo age_sepalg.vo base.vo boolean_alg.vo knot.vo knot_hered.vo knot_lemmas.vo knot_prop.vo knot_sa.vo knot_hered_sa.vo knot_sa_trivial.vo knot_shims.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo contractive.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo combiner_sa.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo
-msl_classical.vo msl_classical.glob msl_classical.v.beautified: msl_classical.v msl_standard.vo
-predicates_sa.vo predicates_sa.glob predicates_sa.v.beautified: predicates_sa.v base.vo sepalg.vo cross_split.vo
-normalize.vo normalize.glob normalize.v.beautified: normalize.v msl_standard.vo
-env.vo env.glob env.v.beautified: env.v base.vo boolean_alg.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo predicates_sa.vo msl_standard.vo
-corec.vo corec.glob corec.v.beautified: corec.v base.vo sepalg.vo predicates_sa.vo
-Coqlib2.vo Coqlib2.glob Coqlib2.v.beautified: Coqlib2.v Extensionality.vo base.vo
-sepalg_list.vo sepalg_list.glob sepalg_list.v.beautified: sepalg_list.v msl_standard.vo Coqlib2.vo
-rmaps.vo rmaps.glob rmaps.v.beautified: rmaps.v msl_standard.vo Coqlib2.vo
-rmaps_lemmas.vo rmaps_lemmas.glob rmaps_lemmas.v.beautified: rmaps_lemmas.v msl_standard.vo cjoins.vo rmaps.vo Coqlib2.vo sepalg_list.vo
-op_classes.vo op_classes.glob op_classes.v.beautified: op_classes.v Extensionality.vo sepalg.vo ageable.vo age_sepalg.vo base.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo
+Axioms.vo Axioms.glob: Axioms.v
+Extensionality.vo Extensionality.glob: Extensionality.v Axioms.vo
+base.vo base.glob: base.v Extensionality.vo
+eq_dec.vo eq_dec.glob: eq_dec.v base.vo
+ageable.vo ageable.glob: ageable.v base.vo
+sepalg.vo sepalg.glob: sepalg.v Extensionality.vo
+psepalg.vo psepalg.glob: psepalg.v base.vo eq_dec.vo sepalg.vo sepalg_generators.vo
+age_sepalg.vo age_sepalg.glob: age_sepalg.v base.vo ageable.vo sepalg.vo sepalg_generators.vo
+sepalg_generators.vo sepalg_generators.glob: sepalg_generators.v base.vo sepalg.vo
+functors.vo functors.glob: functors.v base.vo
+sepalg_functors.vo sepalg_functors.glob: sepalg_functors.v base.vo functors.vo sepalg.vo sepalg_generators.vo
+combiner_sa.vo combiner_sa.glob: combiner_sa.v base.vo sepalg.vo functors.vo sepalg_functors.vo
+cross_split.vo cross_split.glob: cross_split.v base.vo sepalg.vo psepalg.vo sepalg_generators.vo cjoins.vo eq_dec.vo
+join_hom_lemmas.vo join_hom_lemmas.glob: join_hom_lemmas.v base.vo sepalg.vo sepalg_generators.vo psepalg.vo
+cjoins.vo cjoins.glob: cjoins.v base.vo sepalg.vo
+boolean_alg.vo boolean_alg.glob: boolean_alg.v base.vo eq_dec.vo sepalg.vo
+tree_shares.vo tree_shares.glob: tree_shares.v base.vo eq_dec.vo sepalg.vo boolean_alg.vo
+shares.vo shares.glob: shares.v base.vo sepalg.vo psepalg.vo sepalg_generators.vo boolean_alg.vo eq_dec.vo tree_shares.vo
+pshares.vo pshares.glob: pshares.v base.vo sepalg.vo psepalg.vo eq_dec.vo shares.vo
+knot.vo knot.glob: knot.v base.vo ageable.vo functors.vo
+knot_sa.vo knot_sa.glob: knot_sa.v base.vo sepalg.vo sepalg_generators.vo sepalg_functors.vo ageable.vo age_sepalg.vo knot.vo knot_lemmas.vo functors.vo
+knot_prop.vo knot_prop.glob: knot_prop.v base.vo knot.vo ageable.vo sepalg.vo sepalg_generators.vo sepalg_functors.vo age_sepalg.vo knot_sa.vo knot_lemmas.vo functors.vo knot_hered.vo knot_hered_sa.vo
+knot_lemmas.vo knot_lemmas.glob: knot_lemmas.v base.vo ageable.vo knot.vo knot_hered.vo functors.vo
+knot_unique.vo knot_unique.glob: knot_unique.v base.vo ageable.vo knot.vo knot_lemmas.vo functors.vo
+knot_hered.vo knot_hered.glob: knot_hered.v base.vo ageable.vo functors.vo predicates_hered.vo
+knot_hered_sa.vo knot_hered_sa.glob: knot_hered_sa.v base.vo ageable.vo functors.vo sepalg.vo sepalg_functors.vo sepalg_generators.vo predicates_hered.vo knot_hered.vo knot_lemmas.vo age_sepalg.vo
+knot_full.vo knot_full.glob: knot_full.v base.vo ageable.vo
+knot_shims.vo knot_shims.glob: knot_shims.v base.vo knot.vo knot_full.vo ageable.vo predicates_hered.vo
+knot_sa_trivial.vo knot_sa_trivial.glob: knot_sa_trivial.v base.vo sepalg.vo sepalg_generators.vo functors.vo sepalg_functors.vo knot.vo knot_sa.vo knot_hered.vo knot_hered_sa.vo knot_prop.vo
+predicates_hered.vo predicates_hered.glob: predicates_hered.v base.vo ageable.vo
+predicates_sl.vo predicates_sl.glob: predicates_sl.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo cross_split.vo
+subtypes.vo subtypes.glob: subtypes.v base.vo ageable.vo predicates_hered.vo
+subtypes_sl.vo subtypes_sl.glob: subtypes_sl.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo predicates_sl.vo subtypes.vo
+contractive.vo contractive.glob: contractive.v base.vo ageable.vo sepalg.vo sepalg_generators.vo age_sepalg.vo predicates_hered.vo predicates_rec.vo predicates_sl.vo subtypes.vo subtypes_sl.vo
+predicates_rec.vo predicates_rec.glob: predicates_rec.v base.vo ageable.vo predicates_hered.vo subtypes.vo
+msl_direct.vo msl_direct.glob: msl_direct.v Extensionality.vo base.vo boolean_alg.vo sepalg.vo predicates_sa.vo functors.vo sepalg_functors.vo sepalg_generators.vo combiner_sa.vo shares.vo cross_split.vo psepalg.vo pshares.vo corec.vo eq_dec.vo
+msl_standard.vo msl_standard.glob: msl_standard.v Extensionality.vo ageable.vo age_sepalg.vo base.vo boolean_alg.vo knot.vo knot_hered.vo knot_lemmas.vo knot_prop.vo knot_sa.vo knot_hered_sa.vo knot_sa_trivial.vo knot_shims.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo contractive.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo combiner_sa.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo
+msl_classical.vo msl_classical.glob: msl_classical.v msl_standard.vo
+predicates_sa.vo predicates_sa.glob: predicates_sa.v base.vo sepalg.vo cross_split.vo
+normalize.vo normalize.glob: normalize.v msl_standard.vo
+env.vo env.glob: env.v base.vo boolean_alg.vo sepalg.vo functors.vo sepalg_functors.vo sepalg_generators.vo shares.vo cross_split.vo psepalg.vo pshares.vo eq_dec.vo predicates_sa.vo msl_standard.vo
+corec.vo corec.glob: corec.v base.vo sepalg.vo predicates_sa.vo
+Coqlib2.vo Coqlib2.glob: Coqlib2.v Extensionality.vo base.vo
+sepalg_list.vo sepalg_list.glob: sepalg_list.v msl_standard.vo Coqlib2.vo
+rmaps.vo rmaps.glob: rmaps.v msl_standard.vo Coqlib2.vo
+rmaps_lemmas.vo rmaps_lemmas.glob: rmaps_lemmas.v msl_standard.vo cjoins.vo rmaps.vo Coqlib2.vo sepalg_list.vo
+op_classes.vo op_classes.glob: op_classes.v Extensionality.vo sepalg.vo ageable.vo age_sepalg.vo base.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo
+seplog.vo seplog.glob: seplog.v Extensionality.vo
+alg_seplog.vo alg_seplog.glob: alg_seplog.v seplog.vo base.vo ageable.vo sepalg.vo age_sepalg.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo contractive.vo

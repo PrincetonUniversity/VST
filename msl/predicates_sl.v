@@ -149,7 +149,7 @@ Lemma sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A
   ((P * Q) * R = P * (Q * R))%pred.
 Proof.
   pose proof I.
-  intros; apply equiv_eq; hnf; intros.
+  intros; apply pred_ext; hnf; intros.
   destruct H0 as [x [y [? [? ?]]]].
   destruct H1 as [z [w [? [? ?]]]].
   destruct (join_assoc H1 H0) as [q [? ?]].
@@ -168,7 +168,7 @@ Lemma sepcon_comm {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A}
   (P * Q = Q * P)%pred.
 Proof.
   pose proof I.
-  intros; apply equiv_eq; hnf; intros.
+  intros; apply pred_ext; hnf; intros.
   destruct H0 as [x [y [? [? ?]]]].
   exists y; exists x; intuition; apply join_com; auto.
   destruct H0 as [x [y [? [? ?]]]].
@@ -200,7 +200,7 @@ Qed.
 Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P:pred A),
   (emp * P = P)%pred.
 Proof.
-  intros; apply equiv_eq; hnf; intros.
+  intros; apply pred_ext; hnf; intros.
   destruct H as [x [y [? [? ?]]]].
   simpl in H0.
   replace a with y; auto.
@@ -230,7 +230,7 @@ Proof.
   pose proof I.
   intros.
   repeat rewrite later_age.
-  apply equiv_eq; hnf; intros.
+  apply pred_ext; hnf; intros.
   simpl; intros.
   simpl in H0.
   case_eq (age1 a); intros. 
@@ -275,7 +275,7 @@ Proof.
   pose (H:=True).
   intros.
   repeat rewrite later_age.
-  apply equiv_eq; hnf; intros.
+  apply pred_ext; hnf; intros.
   simpl in H0.
   case_eq (age1 a); intros.
   destruct (H0 a0) as [w [v [? [? ?]]]]; auto.
@@ -311,7 +311,7 @@ Qed.
 Lemma FF_sepcon : forall {A}{JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
   (FF * P = FF)%pred.
 Proof.
-  intros. apply equiv_eq; repeat intro.
+  intros. apply pred_ext; repeat intro.
   destruct H as [? [? [? [? ?]]]].  elim H0.
   elim H.
 Qed.

@@ -556,7 +556,7 @@ Module Knot_HeredPropOthRel (KI':KNOT_INPUT__HERED_PROP_OTH_REL)
   Proof.
     intros.
     apply exist_ext.
-    apply equiv_eq; hnf; simpl; auto.
+    apply pred_ext; hnf; simpl; auto.
   Qed.
 
   Definition squash (nf:(nat * KI.F assert)) : knot :=
@@ -670,7 +670,7 @@ Module Knot_HeredPropOthRel (KI':KNOT_INPUT__HERED_PROP_OTH_REL)
     unfold compose.
     extensionality p; simpl.
     apply exist_ext.
-    apply equiv_eq; hnf; simpl; intros.
+    apply pred_ext; hnf; simpl; intros.
     rewrite K.approx_spec in H.
     simpl in *.
     unfold unsquash.
@@ -797,7 +797,7 @@ Module Knot_HeredPropOthRel (KI':KNOT_INPUT__HERED_PROP_OTH_REL)
   Proof.
     intros; extensionality p.
     apply exist_ext.
-    apply equiv_eq; intros [k o]; simpl; intuition.
+    apply pred_ext; intros [k o]; simpl; intuition.
   Qed.
 
   Lemma approx_approx2 : forall m n,
@@ -805,7 +805,7 @@ Module Knot_HeredPropOthRel (KI':KNOT_INPUT__HERED_PROP_OTH_REL)
   Proof.
     intros; extensionality p.
     apply exist_ext.
-    apply equiv_eq; intros [k o]; simpl; intuition.
+    apply pred_ext; intros [k o]; simpl; intuition.
   Qed.
 
  
@@ -1005,7 +1005,7 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
   Lemma p2p' : forall p, predicate2pred (pred2predicate p) = p.
   Proof.
     intros.
-    apply equiv_eq; hnf; simpl; auto.
+    apply pred_ext; hnf; simpl; auto.
   Qed.
 
   Definition squash (nf:(nat * KI.F (pred (knot*KI.other)))) : knot :=
@@ -1092,7 +1092,7 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
     f_equal.
     unfold compose.
     extensionality p; simpl.
-    apply equiv_eq; hnf; simpl; intros.
+    apply pred_ext; hnf; simpl; intros.
     rewrite K.approx_spec in H.
     simpl in *.
     unfold unsquash.
@@ -1218,14 +1218,14 @@ Module Knot_HeredPropOth (KI':KNOT_INPUT__HERED_PROP_OTH)
     approx n = approx n oo approx (m+n).
   Proof.
     intros; extensionality p.
-    apply equiv_eq; intros [k o]; simpl; intuition.
+    apply pred_ext; intros [k o]; simpl; intuition.
   Qed.
 
   Lemma approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
   Proof.
     intros; extensionality p.
-    apply equiv_eq; intros [k o]; simpl; intuition.
+    apply pred_ext; intros [k o]; simpl; intuition.
   Qed.
 
 End Knot_HeredPropOth.
@@ -1385,7 +1385,7 @@ Module Knot_HeredProp (KI':KNOT_INPUT__HERED_PROP)
   Lemma p2p' : forall p, predicate2pred (pred2predicate p) = p.
   Proof.
     intros.
-    apply equiv_eq; hnf; simpl; auto.
+    apply pred_ext; hnf; simpl; auto.
   Qed.
 
   Definition squash (nf:(nat * KI.F (pred knot))) : knot :=
@@ -1472,7 +1472,7 @@ Module Knot_HeredProp (KI':KNOT_INPUT__HERED_PROP)
     f_equal.
     unfold compose.
     extensionality p; simpl.
-    apply equiv_eq; hnf; simpl; intros.
+    apply pred_ext; hnf; simpl; intros.
     rewrite K.approx_spec in H.
     simpl in H.
     destruct (le_gt_dec n (@level K.knot K.ageable_knot a)); auto.
@@ -1586,14 +1586,14 @@ Module Knot_HeredProp (KI':KNOT_INPUT__HERED_PROP)
     approx n = approx n oo approx (m+n).
   Proof.
     intros; extensionality p.
-    apply equiv_eq; intros k; simpl; intuition.
+    apply pred_ext; intros k; simpl; intuition.
   Qed.
 
   Lemma approx_approx2 : forall m n,
     approx n = approx (m+n) oo approx n.
   Proof.
     intros; extensionality p.
-    apply equiv_eq; intros k; simpl; intuition.
+    apply pred_ext; intros k; simpl; intuition.
   Qed.
 
 End Knot_HeredProp.

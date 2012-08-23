@@ -178,6 +178,16 @@ Module Type SHARE_MODEL.
   Axiom rel_bot2 : forall x, rel bot x = bot.
   Axiom rel_top1 : forall a, rel a top = a.
   Axiom rel_top2 : forall x, rel top x = x.
+
+  Parameter unrel: t -> t -> t.
+  Axiom rel_unrel: forall x sh, rel x (unrel x sh) = glb x sh.
+  Definition Lsh  : t := fst (split top).
+  Definition Rsh  : t := snd (split top).
+  Definition splice (a b: t) : t := lub (rel Lsh a) (rel Rsh b). 
+
+  Axiom unrel_splice_L: forall a b, unrel Lsh (splice a b) = a.
+  Axiom unrel_splice_R: forall a b, unrel Rsh (splice a b) = b.
+
 End SHARE_MODEL.
 
 

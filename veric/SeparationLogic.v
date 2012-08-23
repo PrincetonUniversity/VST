@@ -5,7 +5,6 @@ Require Import veric.juicy_extspec.
 
 Opaque rmap.
 
-
 Module Type EXTERNAL_SPEC.
   Parameter Z:Type.
   Parameter Hspec : juicy_ext_spec Z.
@@ -150,7 +149,7 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
          (fun rho => 
           tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
          (fun_assert  (eval_expr rho a) fsig A P Q && 
-          (F * P x (map (eval_expr rho) bl) )))
+          (F * P x (eval_exprlist rho bl) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 
@@ -158,7 +157,7 @@ Axiom  semax_return :
    forall Delta G R ret 
       (TC: typecheck_stmt Delta (Sreturn ret) = true),
       semax Delta G 
-                (fun rho => R EK_return (map (eval_expr rho) (opt2list ret)) rho)
+                (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
                 (Sreturn ret)
                 R.
 
@@ -176,7 +175,7 @@ Axiom semax_call_ext:
       typeof a = typeof a' ->
       (forall rho, typecheck_environ rho Delta = true ->
                         P rho |-- !! (eval_expr rho a = eval_expr rho a' /\
-                                           map (eval_expr rho) bl = map (eval_expr rho) bl')) ->
+                                           eval_exprlist rho bl = eval_exprlist rho bl')) ->
   semax Delta G P (Scall ret a bl) Q ->
   semax Delta G P (Scall ret a' bl') Q.
 
@@ -209,9 +208,9 @@ Axiom semax_store:
    semax Delta G 
           (fun rho => 
         tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
-          |> (mapsto' (splice rsh Share.top) e1 v3 rho * P rho))
+          |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto' (splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,

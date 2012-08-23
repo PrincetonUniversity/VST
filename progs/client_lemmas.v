@@ -141,7 +141,7 @@ Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: val*type)
      match field_offset fld fList',  access_mode t2 with
      | Errors.OK delta, By_value ch => 
           !! (snd v2 = t2 /\ typecheck_val (fst v2) t2 = true) && 
-           address_mapsto ch (fst v2) (unrel Lsh sh) (unrel Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
+           address_mapsto ch (fst v2) (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
      | _, _ => FF
      end
   | _  => FF

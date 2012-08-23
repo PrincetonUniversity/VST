@@ -78,4 +78,3 @@ Definition filter_genv (ge: Clight.genv) : genviron :=
                    end. 
 
 Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Maps.PTree.empty _) (Maps.PTree.empty _).
-

@@ -99,7 +99,7 @@ Proof.
    unfold HORec.
     extensionality x.
     cut (forall a, HORec f x a <-> f (HORec f) x a).
-    intros; apply equiv_eq; hnf; firstorder.
+    intros; apply pred_ext; hnf; firstorder.
 
     intro a; simpl.
     case_eq (age1 a); intros.

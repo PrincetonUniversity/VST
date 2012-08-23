@@ -32,6 +32,81 @@ Definition listrep : adr*adr -> pred rmap := HORec listrep'.
 
 Definition lseg (e1 e2: adr) : pred rmap := listrep (e1,e2).
 
+
+Lemma orp_HOcontractive {A}{agA: ageable A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x || Q R x).
+Proof.
+ intros.
+ intros F G n H2 x y Hy.
+ specialize (H F G n H2 x y Hy). specialize (H0 F G n H2 x y Hy).
+ destruct H, H0.
+ split; (intros z Hz [?|?]; [left|right]); auto.
+Qed.
+Lemma andp_HOcontractive {A}{agA: ageable A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x && Q R x).
+Proof.
+ intros.
+ intros F G n H2 x y Hy.
+ specialize (H F G n H2 x y Hy). specialize (H0 F G n H2 x y Hy).
+ destruct H, H0.
+ split; (intros z Hz [? ?]); split; auto.
+Qed.
+Lemma sepcon_HOcontractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{NA: natty A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+       HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x * Q R x).
+Proof.
+ intros.
+ unfold HOcontractive in *|-.
+ apply prove_HOcontractive; intros F G ?.
+ specialize (H F G). specialize (H0 F G).
+ apply subp_sepcon.
+ eapply derives_trans.
+ apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ eapply derives_trans; [ apply H | ].
+ apply allp_left with x.
+ apply fash_derives. apply andp_left1. auto.
+ eapply derives_trans.
+ apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ eapply derives_trans; [ apply H0 | ].
+ apply allp_left with x.
+ apply fash_derives. apply andp_left1. auto.
+Qed.
+
+Lemma const_HOcontractive{A}{agA: ageable A}: forall X (P : X -> pred A), HOcontractive (fun _ => P).
+Proof.
+ intros.
+ apply prove_HOcontractive. intros. apply sub_refl.
+Qed.
+
+Lemma exp_HOcontractive {A}{agA: ageable A}{NA: natty A}:
+  forall X Y (G: Y -> X -> X) (F: Y -> X -> pred A -> pred A),
+   (forall y x, contractive (F y x)) ->
+   HOcontractive (fun (R: X -> pred A) (x: X) => Ex y: Y, F y x (R (G y x))).
+Proof.
+ intros.
+ apply prove_HOcontractive; intros.
+ apply sub_exp; intro y.
+ specialize (H y x (P (G y x)) (Q (G y x))).
+ eapply derives_trans; [ | apply equ_sub; apply H].
+ rewrite eq_later.
+ apply allp_left with (G y x). auto.
+Qed.
+Lemma const_contractive {A}{agA: ageable A}: forall P : pred A, contractive (fun _ => P).
+Proof.
+ intros.
+ apply prove_contractive. intros. apply sub_refl.
+Qed.
+Lemma later_contractive' {A} `{natty A} : contractive (box laterM).
+Proof.
+  unfold contractive; intros.
+  apply sub_equ.
+  rewrite <- sub_later.
+  apply box_positive; auto.
+  apply equ_sub; auto.
+  rewrite <- sub_later.
+  apply box_positive; auto.
+  apply equ_sub2; auto.
+Qed.
+
 Lemma lseg_unfold: forall e1 e2, 
    (lseg e1 e2 = (!! (e1<> e2)  && Ex tail:adr, next e1 tail * |> lseg tail e2)
                         || (!! (e1=e2) && emp))%pred.
@@ -39,7 +114,51 @@ Proof.
  intros.
  unfold lseg. unfold listrep at 1.
  rewrite HORec_fold_unfold. reflexivity.
+
+ apply prove_HOcontractive. intros. unfold listrep', listcons'.
+
+ unfold listrep'.
+ apply orp_HOcontractive.
+ unfold listcons'.
+ apply andp_HOcontractive.
+ apply const_HOcontractive.
+ apply exp_HOcontractive with (G:= fun y x => (y, snd x))
+                   (F := fun tail x P => next (fst x) tail * |> P);  
+   intros.
+ apply sepcon_contractive.
+ apply const_contractive.
+ apply later_contractive'.
+ apply const_HOcontractive.
+Qed.
+
+Lemma exists_contractive {A} `{ageable A} : forall B (X : pred A -> B -> pred A),
+  (forall x, (contractive (fun y => X y x))) ->
+  contractive (fun x => (exp (X x))).
+Proof.
+  unfold contractive; intros.
+  apply sub_equ; apply sub_exp; intros.
+  apply equ_sub; auto.
+  apply equ_sub2; auto.
+Qed.
+
+
+Print const_HOcontractive.
+
+
+Print Hint.
+ intros ? ? ?.
+ -> (X -> pred A)),
+Search HOcontractive.
+
+Print Hint.
+ auto with contractive.
+
+
+
+
  auto 50 with contractive.
+ auto 50 with contractive.
+ do 3 red in H0.
 Qed.
 
 Lemma lseg_neq: forall p q: adr, p<>q -> 

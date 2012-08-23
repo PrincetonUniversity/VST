@@ -2426,4 +2426,50 @@ Module Share : SHARE_MODEL.
     Qed.
 
     Instance EqDec_share : EqDec t := EqDec_canonTree.
+
+
+Definition unrel: t -> t -> t.  
+Admitted.  (* Aquinas promised to prove this *)
+
+Lemma rel_unrel: forall x sh, rel x (unrel x sh) = glb x sh.
+Admitted.  (* Aquinas promised to prove this *)
+
+Lemma unrel_rel: forall x sh, 
+    nonidentity x -> unrel x (rel x sh) = sh.
+Proof.
+intros.
+pose proof (rel_unrel x (rel x sh)).
+pattern x at 4 in H0; rewrite <- rel_top1 in H0.
+rewrite <- rel_preserves_glb in H0.
+rewrite glb_commute in H0.
+rewrite glb_top in H0.
+apply rel_inj_l in H0.
+auto.
+intro; subst x.
+contradiction H; auto.
+clear.
+  hnf; intros.
+  destruct H.
+  rewrite lub_commute in H0.
+  rewrite lub_bot in H0.
+  auto.
+Qed.
+
+Definition Lsh  : Share.t := fst (Share.split Share.top).
+Definition Rsh  : Share.t := snd (Share.split Share.top).
+
+Definition splice (a b: t) : t := Share.lub (rel Lsh a) (rel Rsh b). 
+
+Lemma unrel_splice_L:
+  forall a b, unrel Lsh (splice a b) = a.
+Proof.
+Admitted.  (* Aquinas promised to prove this *)
+
+Lemma unrel_splice_R:
+  forall a b, unrel Rsh (splice a b) = b.
+Proof.
+Admitted.  (* Aquinas promised to prove this *)
+
 End Share.
+
+

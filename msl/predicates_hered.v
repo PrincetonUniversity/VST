@@ -55,32 +55,6 @@ Qed.
  *)
 Definition derives {A} `{ageable A} (P Q:pred A) := forall a:A, P a -> Q a.
 Implicit Arguments derives.
-(* Arguments Scope derives [pred pred]. *)
-
-(* A utility lemma that applies functional extensionality
-   and proof irrelevance.
- *)
-Lemma equiv_eq {A} `{ageable A} : forall (P Q:pred A),
-  derives P Q -> derives Q P -> P = Q.
-Proof.
-  intros.
-  destruct P; destruct Q; unfold derives in *; simpl in *.
-  revert h0; replace x0 with x; intros.
-  replace h0 with h by apply proof_irr; auto.
-  extensionality a.
-  apply prop_ext; intuition.
-Qed.
-
-Lemma derives_cut {A} `{ageable A} : forall Q P R,
-  derives P Q ->
-  derives Q R ->
-  derives P R.
-Proof.
-  repeat intro.
-  apply H1.
-  apply H0.
-  auto.
-Qed.
 
 (* "valid" relations are those that commute with aging.  These
    relations are the ones that can be turned into modalities.
@@ -492,7 +466,7 @@ Lemma boxy_i {A} `{ageable A}:
 Proof.
 intros.
 unfold boxy.
-apply equiv_eq; hnf; intros.
+apply pred_ext; hnf; intros.
 eapply box_e0; eauto.
 hnf; intros.
 eapply H1; eauto.
@@ -564,7 +538,7 @@ Lemma box_refl_trans {A} `{ageable A}: forall (m:modality) p,
   box m (box m p) = box m p.
 Proof.
   intros.
-  apply equiv_eq.
+  apply pred_ext.
   repeat intro.
   assert (box m p a').
   apply H2; auto.
@@ -580,14 +554,14 @@ Qed.
 Lemma box_and {A} `{ageable A}: forall R (P Q:pred A),
   box R (P && Q) = box R P && box R Q.
 Proof.
-  intros; apply equiv_eq; hnf; intuition;
+  intros; apply pred_ext; hnf; intuition;
     unfold andp, box in *; simpl in *; firstorder.
 Qed.
 
 Lemma box_all {A} `{ageable A} : forall B R (F:B -> pred A),
   box R (allp F) = All x:B, box R (F x).
 Proof.
-  intros; apply equiv_eq; hnf; intuition;
+  intros; apply pred_ext; hnf; intuition;
     unfold allp, box in *; simpl in *; firstorder.
 Qed.
 
@@ -608,14 +582,14 @@ Qed.
 Lemma diamond_or {A} `{ageable A} : forall R (P Q:pred A),
   diamond R (P || Q) = diamond R P || diamond R Q.
 Proof.
-  intros; apply equiv_eq; hnf; intuition;
+  intros; apply pred_ext; hnf; intuition;
     unfold diamond, orp in *; simpl in *; firstorder.
 Qed.
 
 Lemma diamond_ex {A} `{ageable A} : forall B R (F:B -> pred A),
   diamond R (exp F) = Ex x:B, diamond R (F x).
 Proof.
-  intros; apply equiv_eq; hnf; intuition;
+  intros; apply pred_ext; hnf; intuition;
     unfold diamond, exp in *; simpl in *; firstorder.
 Qed.
 
@@ -638,7 +612,7 @@ Qed.
 Lemma nec_useless {A} `{ageable A} :
   forall P, []P = P.
 intros.
-  apply equiv_eq; intros.
+  apply pred_ext; intros.
   hnf; intros; apply H0.
   simpl; apply necM_refl.
   hnf; intros.
@@ -650,7 +624,7 @@ Qed.
 Lemma later_age {A} `{ageable A} : forall P,
   |>P = box ageM P.
 Proof.
-  intros; apply equiv_eq; do 2 (hnf; intros).
+  intros; apply pred_ext; do 2 (hnf; intros).
   simpl in H0.
   apply H0.
   apply t_step; auto.
@@ -673,7 +647,7 @@ Lemma now_later2 {A} `{ageable A} : forall G P,
   G |-- P ->
   G |-- |>P.
 Proof.
-  intros; apply derives_cut with P; auto.
+  intros; apply @derives_trans with P; auto.
   apply now_later.
 Qed.
 
@@ -722,7 +696,7 @@ Lemma later_commute {A} `{ageable A} : forall M (P:pred A),
   box M (|>P) = |>(box M P).
 Proof.
   intros.
-  apply equiv_eq; do 3 (hnf; intros).
+  apply pred_ext; do 3 (hnf; intros).
   destruct M as [R HR].
   destruct (valid_rel_commut_later2 R HR _ _ H2 _ H1).
   apply H0 with x; simpl; auto.
@@ -742,7 +716,7 @@ Lemma later_or {A} `{ageable A} : forall (P Q:pred A),
 Proof.
   intros.
   repeat rewrite later_age.
-  apply equiv_eq.
+  apply pred_ext.
   2: apply box_or.
   hnf; intros.
   simpl in H0.
@@ -765,7 +739,7 @@ Lemma later_ex {A} `{ageable A} : forall B (F:B->pred A),
   |>(exp F) = Ex x:B, |>(F x).
 Proof.
   intros.
-  apply equiv_eq.
+  apply pred_ext.
   2: apply box_ex.
   hnf; intros.
   rewrite later_age in H0.
@@ -786,7 +760,7 @@ Lemma later_imp {A} `{ageable A} : forall P Q,
   |>(P --> Q) = |>P --> |>Q.
 Proof.
   intros; repeat rewrite later_age.
-  apply equiv_eq.
+  apply pred_ext.
   apply axiomK.
   hnf; intros.
   simpl; intros.
@@ -803,7 +777,7 @@ Lemma TT_boxy {A} `{ageable A} : forall M,
   boxy M TT.
 Proof.
   intros; hnf.
-  apply equiv_eq; repeat intro; simpl; auto.
+  apply pred_ext; repeat intro; simpl; auto.
 Qed.
 
 Lemma positive_boxy {A} `{ageable A} : forall P Q M,
@@ -828,7 +802,7 @@ Qed.
 Lemma TT_and {A} `{ageable A} : forall P,
   TT && P = P.
 Proof.
-  intros; apply equiv_eq; repeat intro.
+  intros; apply pred_ext; repeat intro.
   destruct H0; auto.
   split; simpl; auto.
 Qed.
@@ -836,19 +810,19 @@ Qed.
 Lemma andp_com {A} `{ageable A} : forall P Q,
   P && Q = Q && P.
 Proof.
-  intros; apply equiv_eq; unfold andp; repeat intro; simpl in *; intuition.
+  intros; apply pred_ext; unfold andp; repeat intro; simpl in *; intuition.
 Qed.
 
 Lemma andp_assoc {A} `{ageable A} : forall P Q R,
   (P && Q) && R = P && (Q && R).
 Proof.
-  intros; apply equiv_eq; auto; unfold derives, andp; simpl; intuition.
+  intros; apply pred_ext; auto; unfold derives, andp; simpl; intuition.
 Qed.
 
 Lemma ex_and : forall {A} `{ageable A} B (P:B->pred A) Q,
   (exp P) && Q = Ex x:B, P x && Q.
 Proof.
-  intros. apply equiv_eq.
+  intros. apply pred_ext.
   repeat intro. destruct H0. destruct H0.
   exists x. split; auto.
   repeat intro.
@@ -859,7 +833,7 @@ Qed.
 Lemma FF_and : forall {A} `{ageable A} (P:pred A),
   FF && P = FF.
 Proof.
-  intros. apply equiv_eq; repeat intro.
+  intros. apply pred_ext; repeat intro.
   destruct H0; auto.
   elim H0.
 Qed.
