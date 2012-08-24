@@ -267,6 +267,238 @@ End Forward_simulation_equals.
 Implicit Arguments Forward_simulation_equals [[G1] [C1] [G2] [C2]].
 End Sim_eq.
 
+Section MEMINSTR.
+Definition value:= compcert.Values.val.
+
+Definition block := compcert.Values.block. 
+
+Inductive val :=
+| Ptr : block -> Z -> val
+| Val : value -> val.
+
+Definition var := nat.
+(*
+Definition env := (var -> option (block * Z)%type). (*also finite*)
+Axioms env_finite: forall E:env, exists n, forall m x, E m = Some x -> le m n.
+*)
+
+Parameter reverse_lookup : block * Z -> env -> env * var.
+(*updates env when necessary*)
+
+Record env : Type := mkEnv
+  { domain: list var;
+    env_proj :> var -> option (block * Z);
+    dom_ax: forall n, ~ In n domain -> env_proj n = None}.
+
+Definition env_ok (E:env) (j: meminj) : Prop :=
+  forall n b off, E n = Some (b,off) -> exists p, j b = Some p.
+
+(*Parameter env_inject : env -> meminj -> option env.*)
+
+(*should be ok when applied to e, j s.t. env_ok_for e j*)
+Definition env_inject (E:env) (j: meminj) (E':env):Prop :=
+  forall n b' o', E' n = Some (b',o') <->
+                  (exists b, exists o, exists oo, 
+                     E n = Some(b,o) /\ j b = Some(b',oo) /\ o' = o+oo).
+
+Lemma env_ok_inject: forall E j, env_ok E j -> exists E', env_inject E j E'.
+  Proof. intros.
+admit. (*held for previous representation
+  exists (fun n => match E n with 
+            None => None
+          | Some (b,off) => match j b with 
+                               None => None
+                             | Some (b1,off1) => Some (b1, off+off1) end end).
+  intros n b off.
+  remember (E n) as z.
+  destruct z; apply eq_sym in Heqz.
+    destruct p as [b1 off1].
+    specialize (H _ _ _ Heqz). destruct H as [[b2 off2] Hp].
+    rewrite Hp.
+    split; intros.
+      inv H. exists b1. exists off1. exists off2; auto.
+    destruct H as [b3 [off3 [off4 [X [Y Q]]]]]. subst.
+      inv X. rewrite Y in Hp. inv Hp. trivial.
+  split; intros. inv H0. 
+    destruct H0 as [b3 [off3 [off4 [X [Y Q]]]]]. inv X.*)
+Qed. 
+
+Lemma env_inject_determ: forall E j E1 E2, env_inject E j E1 -> env_inject E j E2 -> env_proj E1 = env_proj E2.
+  Proof. intros.
+    extensionality n. remember (E1 n) as z.
+    destruct z; apply eq_sym in Heqz.
+                destruct p as [b o]. 
+                destruct (H n b o) as [HE1 _].
+                destruct (HE1 Heqz) as [b1 [off1 [off [HEn [J X]]]]]; subst. clear HE1 Heqz.
+                destruct (H0 n b (off1 + off)) as [_ HE2].
+                apply eq_sym. apply HE2.
+                exists b1. exists off1. exists off. auto.
+    remember (E2 n) as y.
+    destruct y; apply eq_sym in Heqy; trivial.
+                destruct p as [b o]. 
+                destruct (H0 n b o) as [HE2 _].
+                destruct (HE2 Heqy) as [b1 [off1 [off [HEn [J X]]]]]; subst. clear HE2 Heqy.
+                destruct (H n b (off1 + off)) as [_ HE1].
+                rewrite Heqz in HE1.
+                apply HE1. clear HE1.
+                exists b1. exists off1. exists off. auto.
+  Qed.
+Lemma meminj_compose_split: forall j1 j2 b b2 off,
+      Mem.meminj_compose j1 j2 b = Some (b2, off) ->
+      exists b1, exists off1, j1 b = Some (b1,off1) /\
+                 exists off2, j2 b1 = Some (b2,off2) /\ off =off1 + off2.
+  Proof.
+    intros.
+    unfold Mem.meminj_compose in H.
+    remember (j1 b) as z.
+    destruct z. destruct p as [b1 off1].
+      exists b1. exists off1. split; trivial. 
+      remember (j2 b1) as y.
+      destruct y. destruct p as [b3 off2]. inv H.
+        exists off2. split; trivial.
+      inv H.
+    inv H.
+  Qed. 
+Lemma Env_inject_compose: forall E j1 E1 j2 E2, 
+      env_inject E j1 E1 ->
+      env_inject E1 j2 E2 ->
+      env_inject E (Mem.meminj_compose j1 j2) E2.
+  Proof.
+    intros. intros n; intros.
+    split; intros.
+      apply H0 in H1. clear H0.
+      destruct H1 as [b1 [off1 [off2 [E1n [J2b1 X]]]]]. subst.
+      apply H in E1n.
+      destruct E1n as [b2 [off3 [off4 [E2n [Y X]]]]]. subst.
+      exists b2. exists off3. exists (off4 + off2). split; trivial.
+      split. unfold Mem.meminj_compose. rewrite Y. rewrite J2b1. trivial.
+      rewrite <- Zplus_assoc. trivial.
+    destruct H1 as [b1 [off1 [off2 [En [J X]]]]]. subst.
+      apply meminj_compose_split in J. destruct J as [b2 [off3 [J1 [off4 [J2 X]]]]]. subst.
+      assert ( E1 n = Some (b2, off1 + off3)).
+         apply H. rewrite En. exists b1. exists off1. exists off3. auto.
+      apply H0. rewrite H1. exists b2. exists (off1 + off3). exists off4. rewrite <- Zplus_assoc. auto.
+  Qed.    
+
+Lemma Env_ok1: forall j1 j2 E,
+  env_ok E (Mem.meminj_compose  j1 j2) -> env_ok E j1.
+  Proof.
+    intros.
+    intros n; intros.
+    specialize (H _ _ _ H0). 
+    destruct H as [[b1 off1] X].
+    remember (j1 b) as z.
+    destruct z. exists p; trivial.
+    apply eq_sym in Heqz.
+    unfold Mem.meminj_compose in X.
+    rewrite Heqz in X. inv X. 
+  Qed. 
+
+Lemma Env_ok2: forall E j1 j2 E1,
+  env_ok E (Mem.meminj_compose  j1 j2) ->
+  env_inject E j1 E1 ->
+  env_ok E1 j2.
+  Proof.
+    intros.
+    intros n; intros.
+    apply H0 in H1. destruct H1 as [b1 [off1 [off2 [En [J1 X]]]]]. subst.
+    specialize (H _ _ _ En). destruct H as [[b2 off3] X].
+    unfold Mem.meminj_compose in X.
+    rewrite J1 in X.
+    remember (j2 b) as J2.
+    destruct J2. exists p; trivial. inv X.
+  Qed. 
+Lemma Env_ok3: forall E j1 j2 E1 E2,
+  env_ok E (Mem.meminj_compose  j1 j2) ->
+  env_inject E (Mem.meminj_compose j1 j2) E2 -> 
+  env_inject E j1 E1 ->
+  env_inject E1 j2 E2.
+  Proof.
+    intros.
+    assert (OK1 := Env_ok1 _ _ _ H).
+    assert (OK2:= Env_ok2 _ _ _ _ H H1).
+    apply env_ok_inject in OK2. destruct OK2 as [E'' X].
+    assert (Z:= Env_inject_compose _ _ _ _ _ H1 X).
+    apply (env_inject_determ _ _ _ _ H0) in Z. hnf. intros.  rewrite Z. apply X.
+  Qed.
+  
+(*Lemma env_inject_implies_env_ok: forall E j E',
+  env_inject E j E' -> env_ok E j.
+(*  Does not hold*)
+  Proof.
+    unfold env_inject  , env_ok; intros.
+*)
+
+Record Typ : Type := mkTyp {
+  typA :> Type;
+  typR: meminj -> typA -> typA -> Prop;
+  typR_extend: typA -> typA -> Prop
+}.
+
+(*
+Parameter inject_incr : meminj -> meminj -> Prop.
+
+Parameter mem_inject : meminj -> mem -> mem -> Prop.
+
+Notation "Mem.inject" := mem_inject.
+*)
+
+Record MemProg (A: Typ) := mkMemProg {
+  mem_prog : env * mem -> option (A * env * mem);
+  memprog_axiom_inject : 
+    forall j m1 m2 e1 e1' a1 e2 m1', 
+      Mem.inject j m1 m2 -> 
+      env_inject e1 j e2 -> 
+      mem_prog (e1, m1) = Some (a1, e1', m1') -> 
+    exists a2, exists m2', exists e2',
+      mem_prog (e2, m2) = Some (a2, e2', m2') /\ 
+    exists! j', (*hope: j' is uniquely determined by the memprog, e1, m1, e2, m2 and j*)
+        env_inject e1' j' e2' /\ inject_incr j j' /\
+        typR A j' a1 a2 /\ Mem.inject j' m1' m2';
+  memprog_axiom_extend : 
+    forall m1 m2 e1 e1' a1 m1', 
+      Mem.extends m1 m2 -> 
+      mem_prog (e1, m1) = Some (a1, e1', m1') -> 
+    exists a2, exists m2', 
+      mem_prog (e1, m2) = Some (a2, e1', m2') /\
+        typR_extend A a1 a2 /\ Mem.extends m1' m2'
+}.
+      
+Definition ValTyp : Typ := mkTyp Values.val (val_inject) Val.lessdef.
+
+Module MemInstrModule.
+(* An axiom for passes that use memory injections. *)
+Section MemInstr_simulation_inject. 
+  Context {G1 C1 G2 C2:Type}
+          {Sem1 : CompcertCoreSem G1 C1}
+          {Sem2 : CompcertCoreSem G2 C2}
+
+          {ge1:G1}
+          {ge2:G2}
+          {entry_points : list (val * val * signature)}.
+
+  Record MemInstr_simulation_inject := {
+    core_data : Type;
+
+    match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
+
+    core_ord : core_data -> core_data -> Prop;
+    core_ord_wf : well_founded core_ord;
+
+    (* later: add core_diagram, core_initial and core_halted, and maybe macth_siinj*)
+
+    core_at_external : 
+      forall cd js st1 m1 st2 m2 e vals1,
+        match_state cd js st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,vals1) ->
+        exists ms, check_injectlist js m1 ms m2 /\
+          exists vals2, Forall2 (val_inject (injlist_compose js)) vals1 vals2 /\
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          at_external Sem2 st2 = Some (e,vals2);
+
+
+End MemInstrModule.
+
 Definition siminj (j: meminj) (m1 m2 : mem) :=
   (forall b, ~(Mem.valid_block m1 b) -> j b = None) /\
   (forall b b' delta, j b = Some(b', delta) -> Mem.valid_block m2 b').
