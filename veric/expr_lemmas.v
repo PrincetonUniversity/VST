@@ -14,16 +14,42 @@ Definition Delta1 : tycontext := (PTree.set 1%positive (type_int32s, false) (PTr
                                  PTree.empty type, Tvoid).
 
 
+Lemma tc_assert_simpl_sound : forall asn rho, 
+denote_tc_assert asn rho -> denote_tc_assert (tc_assert_simpl asn) rho.
+Proof.
+intros. induction asn; simpl; auto.
+
+simpl in *. intuition. remember (tc_assert_simpl asn1).
+remember (tc_assert_simpl asn2). destruct t; destruct t0; simpl in *; auto.
+
+destruct e; auto. simpl in *. unfold denote_tc_nonzero in *. simpl in *.
+destruct (Int.eq i Int.zero); intuition.
+
+destruct e; auto. simpl in *. unfold denote_tc_ilt in *.
+simpl in *. destruct (Int.ltu i0 i); simpl; intuition.
+
+destruct e; auto. simpl in *. unfold denote_tc_Zle in *.
+simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
+
+destruct e; auto. simpl in *. unfold denote_tc_Zge in *.
+simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
+Qed.
+
 Definition temp_element_correct (te : temp_env) :=
-(fun (tyconEl : (PTree.elt * type)) => let (id,elt) := tyconEl in
-  match te ! id with
-  | Some v => typecheck_val v elt = true
-  | _ => False
+(fun (tyconEl : (PTree.elt * (type * bool))) => 
+  match tyconEl with
+  | (id, (elt, asn)) =>
+    (*if asn then*)
+    match te ! id with
+    | Some v => typecheck_val v elt = true
+    | _ => False
+    end
+    (*else True*)
 end). 
 
 Definition te_correct (te : temp_env) (Delta: tycontext) := Forall
   (temp_element_correct te)
-  (map remove_assignedness (PTree.elements (temp_types Delta))).
+  ((PTree.elements (temp_types Delta))).
 
 Definition var_element_correct (ve: env) (ge:genviron) : 
 (PTree.elt * type) -> Prop :=
@@ -43,7 +69,6 @@ Definition var_element_correct (ve: env) (ge:genviron) :
 Definition ve_correct (ve:env) (ge:genviron) (Delta: tycontext) :=
 Forall (var_element_correct ve ge) (PTree.elements (var_types Delta)).
 
-
 Lemma typecheck_environ_sound : forall ge te ve Delta,
 typecheck_environ (mkEnviron ge ve te) Delta = true ->
 te_correct te Delta /\ ve_correct ve ge Delta.
@@ -51,23 +76,24 @@ Proof.
 intros.
 unfold typecheck_environ in *. destruct Delta. destruct p.
 unfold te_correct. unfold ve_correct.
-unfold temp_types in *. simpl in *. split.
+unfold temp_types in *. simpl in *. rewrite andb_true_iff in *. intuition. 
 
 induction (PTree.elements t0).
 constructor. 
 unfold temp_element_correct.
-simpl in *. destruct a. destruct p0. rewrite Forall_forall; intros.
-destruct x. simpl in *. destruct H0. inv H0. destruct (te!e). 
-destruct (typecheck_val v t3). auto. inv H. inv H.
-destruct (te!p). remember (typecheck_val v t2) as b0. destruct b0. 
-intuition. rewrite Forall_forall in *. unfold temp_element_correct in *.
-specialize (H1 (e,t3)). intuition. inv H. inv H.
+simpl in *. destruct a. destruct p0. rewrite Forall_forall; intros. 
+destruct x. destruct p0. simpl in *. intuition. inv H2. destruct (te!e).
+if_tac in H0; congruence. congruence.
 
-unfold var_types in *; simpl in *. rewrite andb_true_iff in H. destruct H.
-clear H. rewrite Forall_forall. intros.  
+remember (te!p). destruct o; try congruence. remember (typecheck_val v t2).
+destruct b1; try congruence. intuition. rewrite Forall_forall in *.
+specialize (H (e, (t3, b0))). intuition.
+
+unfold var_types in *; simpl in *. 
+clear H0. rewrite Forall_forall. intros.  
 destruct x. induction (PTree.elements t1). inv H.
 simpl in *. destruct a. destruct H. inv H. destruct (ve !e). destruct p.
-destruct (type_eq t2 t3); auto. inv H0. destruct (ge e). destruct p. 
+destruct (type_eq t2 t3); auto. congruence. destruct (ge e). destruct p. 
 destruct v; intuition.
 destruct (type_eq t2 t3). simpl in *. remember (is_pointer_type t3).
 destruct t3; destruct b0; simpl in *; intuition. simpl in *. intuition.
@@ -76,11 +102,11 @@ intuition.
 apply IHl.
 clear IHl.  destruct (ve ! p). destruct p0. 
 destruct (type_eq t3 t4). subst.
-auto. inv H0. destruct (ge p). destruct p0.
+auto. congruence. destruct (ge p). destruct p0.
 destruct v; intuition. remember (is_pointer_type t4).
 destruct (type_eq t3 t4); simpl in *; intuition. subst t3.
 destruct t4; intuition; destruct b0; simpl in *; intuition.
-inv H0. auto.
+congruence. auto.
 Qed.
 
 Lemma typecheck_te_sound : forall dv te,
@@ -88,12 +114,19 @@ typecheck_temp_environ dv te = true ->
 Forall (temp_element_correct te) dv.
 Proof.
 intros. induction dv. auto.
-simpl in *. destruct a. remember (te! p). destruct o; auto.
-remember (typecheck_val v t) as b0. destruct b0. 
-rewrite Forall_forall. intros. simpl in H0. destruct H0. inv H0.
-unfold temp_element_correct. rewrite <- Heqo. auto. intuition.
-rewrite Forall_forall in H1. apply H1. auto. inv H. inv H.
+simpl in *. destruct a. destruct p0. remember (te! p). destruct o; auto.
+remember (typecheck_val v t) as b0. remember b. 
+destruct b0; destruct b1; intuition. 
+rewrite Forall_forall in *. intros. simpl in *. intuition.
+unfold temp_element_correct. destruct x; destruct p0.
+inv H2. 
+rewrite <- Heqo. auto. 
+rewrite Forall_forall in *. intuition.
+simpl in *. intuition. inv H2. simpl. rewrite <- Heqo.
+auto.
+rewrite Forall_forall in *. intuition.
 Qed.
+
 
 Lemma in_fst_in : forall A B (L : list (A*B)) (a:A) (b:B), In (a, b) L  -> In a (map (@fst A B) L) .
 Proof.
@@ -107,6 +140,20 @@ inv H. left. auto. right. eapply  IHL. eauto.
 Qed.
 
 
+Lemma set_elements_PTree : forall A i (v:A) t, In (i,v) (PTree.elements (PTree.set i v t)).
+Proof.
+intros. apply PTree.elements_correct. apply PTree.gss.
+Qed.
+
+Lemma set_element_PTree2 : forall A i (v:A) t, 
+       Forall2
+      (fun i_x i_y => (fst i_x) <> i -> fst i_x = fst i_y /\  (snd i_x) = (snd i_y))
+      (PTree.elements t) (PTree.elements (PTree.set i v t)).
+Proof.
+intros.
+induction t. unfold PTree.elements. simpl. unfold PTree.set.
+Admitted. (*not even sure this will help*)
+
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
 typecheck_environ (mkEnviron ge ve te) Delta = true ->
 (*((temp_types Delta) ! id = Some t ->
@@ -118,31 +165,33 @@ Proof.
 intros. unfold typecheck_environ in *. simpl in *. repeat rewrite andb_true_iff in *.
 intuition. clear H1. destruct Delta. destruct p. unfold temp_types in *; simpl in *.
 
-remember (map remove_assignedness (PTree.elements t0)).
+remember (PTree.elements t0).
 generalize dependent t0. 
 induction l; intros; auto.
 
-simpl in *. destruct  a.  
+simpl in *. destruct  a. destruct p0.  
 remember (te ! p). destruct o; intuition.
 remember (typecheck_val v0 t2). destruct b; intuition.
 remember ((PTree.set id v te) ! p).
-destruct o. remember (typecheck_val v1 t2). destruct b.
+destruct o. remember (typecheck_val v1 t2). destruct b; intuition.
+simpl in *.
 
 admit. (* need proof that a smaller tree exists if there is at least one element*)
 
-clear H.
 assert (typecheck_val v1 t2 = true). 
+destruct b0; intuition. simpl in *.
 apply typecheck_te_sound in H0. rewrite Forall_forall in *.
 unfold temp_element_correct in H0. 
 
 admit. (* proof that we can look up p2 in t0 *)
-rewrite H in Heqb0. inv Heqb0.
+rewrite H in Heqb. inv Heqb.
  
 
-clear H. rewrite PTree.gsspec in Heqo0. 
+rewrite PTree.gsspec in Heqo0. 
 assert (x:=eq_dec p id). destruct x. subst.
 rewrite peq_true in Heqo0. inv Heqo0. rewrite peq_false in Heqo0; auto.
-rewrite <- Heqo in Heqo0. inv Heqo0.
+rewrite <- Heqo in Heqo0. inv Heqo0. destruct b0; intuition.
+admit.
 Qed. (* ===================================================================two admits, comments above*)
 
 
@@ -195,9 +244,6 @@ Qed.
 Ltac tc_assert_ext := 
 repeat match goal with
 | [H : _ /\ _ |- _] => destruct H
-(*| [H : denote_tc_assert (tc_bool (negb ?X)) _ |- _] => idtac H; simpl in H; auto; destruct X; simpl in H; auto
-| [H : denote_tc_assert (tc_bool ?X) _ |- _] => idtac H; simpl in H; auto; destruct X; simpl in H; auto
-| [H : is_true(?X) |- _] => apply is_true_true in H; subst*)
 end.
 
 Ltac revert_all := repeat match goal with
@@ -250,6 +296,16 @@ Qed.*)
 Transparent Float.intoffloat.
 Transparent Float.intuoffloat.
 
+Ltac unfold_tc_denote :=
+unfold denote_tc_nonzero in *;
+unfold denote_tc_isptr in *;
+unfold denote_tc_ilt in *;
+unfold denote_tc_Zle in *;
+unfold denote_tc_Zge in *;
+unfold denote_tc_samebase in *;
+unfold denote_tc_nodivover in *;
+unfold denote_tc_initialized in *.
+
 Lemma typecheck_both_sound: 
   forall Delta rho e , 
              typecheck_environ rho Delta = true ->
@@ -294,7 +350,8 @@ clear H. destruct pt; auto. destruct pt; auto. destruct pt; auto.
 destruct pt; auto. destruct pt; auto.
 
 (*Temp*)
-simpl in *. subst. destruct rho. apply typecheck_environ_sound in H. intuition. 
+Focus 1.
+simpl in *. destruct rho. apply typecheck_environ_sound in H. intuition. 
 unfold te_correct in *. unfold temp_element_correct in *.
 rewrite Forall_forall in *. clear H2.
 unfold eval_id. 
@@ -304,15 +361,17 @@ destruct Delta. destruct p.
 unfold temp_types in *. simpl in *.
 remember (t1 ! i). destruct o.
   symmetry in Heqo. apply PTree.elements_correct in Heqo. 
-  destruct p. specialize (H1 (i,t3)). simpl in *. 
-remember (type_eq t t3). destruct s; auto. subst.
-apply in_rem_in in Heqo. intuition. destruct (te ! i); auto.
-intuition.  
+  destruct p. specialize (H1 (i,(t3,b))). simpl in *. intuition.
+  if_tac in H0; auto.
+remember (type_eq t t3). destruct s; auto. subst. 
+destruct (te ! i); intuition. if_tac in H0; intuition. 
 
 (*deref*)  
-simpl in *. intuition.
-destruct (eval_expr rho e); auto. destruct pt; auto.
-
+simpl in *. intuition. specialize (H3 pt).
+unfold_tc_denote.
+remember (eval_expr rho e); destruct v;
+simpl in *;
+remember (typeof e); destruct t0; intuition; destruct pt; auto.
 
 (*addrof*)
 st. intuition. 
@@ -348,12 +407,12 @@ eapply typecheck_binop_sound; eauto.
 
 (* cast *)
 st. intuition.
-remember (eval_expr rho e).
+remember (eval_expr rho e). 
 destruct v; intuition; remember (typeof e); destruct t0; intuition; destruct t; intuition;
 try destruct i; try destruct i0; try destruct i1; intuition;
 unfold sem_cast; unfold classify_cast; unfold cast_float_int;
-destruct s; auto; try unfold Float.intoffloat; try unfold Float.intuoffloat;
-st; intuition; rewrite <- Heqv in *; destruct f; auto;
+destruct s; auto; unfold_tc_denote; try unfold Float.intoffloat; try unfold Float.intuoffloat;
+st; intuition; unfold_tc_denote; rewrite <- Heqv in *; destruct f; auto;
 st; destruct e0; rewrite H1; rewrite H5; auto.
 
 (*condition*)
@@ -389,6 +448,94 @@ destruct pt; auto.
 
 Qed.
 
+Definition defined_val v :=
+match v with
+Vundef => False
+| _ => True
+end.
+
+Lemma typecheck_both_bool_sound : forall Delta rho e,
+ typecheck_environ rho Delta = true ->
+ (typecheck_b Delta e= true ->
+  defined_val (eval_expr rho e) ->
+  typecheck_val (eval_expr rho e) (typeof e)=true)
+ /\
+ (forall pt, tc_might_be_true (typecheck_lvalue Delta e) =true ->
+  defined_val (eval_lvalue rho e) ->
+  is_pointer_type pt =true ->
+  typecheck_val (eval_lvalue rho e) pt=true).
+Proof.
+intros. unfold typecheck_b. induction e; intuition.
+
+(*int*)
+destruct t; auto; st; try congruence.  
+
+(*float*)
+destruct t; auto; st; try congruence.
+
+(*var*)
+st. remember ((ve_of rho) ! i). destruct o.
+  destruct p; repeat if_tac; destruct pt; auto.
+
+  remember (ge_of rho i). destruct o.
+    destruct p. if_tac. remember ((var_types Delta) ! i).
+    destruct o. subst. destruct (type_eq t0 t1); st; try congruence.
+    subst. apply typecheck_environ_sound in H. 
+    intuition. clear H3. unfold ve_correct in *.
+    rewrite Forall_forall in *. symmetry in Heqo1. 
+    apply PTree.elements_correct in Heqo1.
+    specialize (H4 (i,t1)). intuition. simpl in H; rewrite <- Heqo in H;
+    rewrite <- Heqo0 in H. destruct v; try congruence; auto.
+    destruct (type_eq t1 t1); auto; st; destruct t1; auto;
+    destruct pt; auto. st; congruence. st; auto. auto.
+
+(*temp*)
+simpl in *. unfold defined_val in *.
+unfold eval_id in *. unfold force_val.
+ remember ((temp_types Delta) ! i).
+destruct o.
+  apply typecheck_environ_sound in H. intuition. 
+  remember ((te_of rho) ! i); destruct o; auto. clear H3. symmetry in Heqo.
+  apply PTree.elements_correct in Heqo. unfold te_correct in *.
+  rewrite Forall_forall in *. specialize (H2 (i,p)). if_tac in H0; intuition.
+  intuition. st. destruct p. st. repeat if_tac in H0; intuition.
+  subst. remember ((te_of rho) ! i). destruct o; intuition. inv Heqo0.
+  auto. subst. destruct ((te_of rho) ! i). inv Heqo0. auto.
+  intuition. st. if_tac in H0; intuition. 
+ 
+(*deref*)
+st. remember (eval_expr rho e). destruct v; auto. destruct pt; auto.
+
+(*addrof*)
+st. rewrite andb_true_iff in *. intuition. specialize (H1 t).
+intuition. apply H1. destruct t; auto.
+
+(*unop*)
+st. rewrite andb_true_iff in *. intuition. clear H1.
+destruct u; st;
+match goal with [ |- context[force_val (?H _ _)]] => unfold H in * end;
+  remember (typeof e); destruct t0; st; try congruence; 
+  try destruct i; try destruct s; st; try congruence; auto;
+  destruct (eval_expr rho e); auto; st; try (of_bool_destruct); destruct t; auto;
+  st; try congruence.
+
+(*binop*)
+admit.
+
+(*cast*)
+admit.
+
+(*condition*)
+admit.
+
+(*field*)
+st. remember (eval_expr rho e). destruct v; auto.
+remember (typeof e). destruct t0; auto. remember (field_offset i f).
+destruct r; auto. st. destruct pt; auto.
+destruct pt; auto.
+
+Qed. (*admits, not done, should work ==================================================================*)
+    
 Lemma typecheck_expr_sound : forall Delta rho e,
  typecheck_environ rho Delta = true -> 
               denote_tc_assert (typecheck_expr Delta e) rho ->
@@ -574,8 +721,8 @@ try destruct (type_of_global ge b0); intuition;
 inv Heqo0; auto. rewrite <- H in Heqo0.
 unfold filter_genv in *. destruct (Genv.find_symbol ge i).
 remember (type_of_global ge b0); destruct o. inv Heqo0. rewrite Heqo2; auto.
-inv Heqo0. (*stuck, ask about filter global here, should it allow genv with no type?*)
-admit.
+inv Heqo0. 
+if_tac in H0; try contradiction.
 inv Heqo0. inv H2.
 
 (*temp*)
@@ -587,8 +734,9 @@ constructor. unfold eval_id in *. destruct ((te_of rho) ! i); auto. inv H3.
 (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1.
-intuition. simpl. remember (eval_expr rho e); destruct v;
-intuition.
+intuition. simpl. unfold_tc_denote.
+ remember (eval_expr rho e); destruct v;
+intuition. 
 exists b. exists i. st. intuition. constructor.
 auto.
 
@@ -686,3 +834,4 @@ Lemma eval_lvalue_relate:
               eval_lvalue rho e = Vptr b ofs).
 apply eval_both_relate.
 Qed.
+

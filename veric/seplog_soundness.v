@@ -24,6 +24,10 @@ Open Local Scope pred.
 Section extensions.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
+(*Joey's TODO: Figure out how to restrict store with ints
+figure out how to generalize ints in assign
+think more about updating tycon*)
+
 Lemma semax_straight_simple:
  forall Delta G (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
@@ -112,7 +116,7 @@ split3; auto.
 apply age_level; auto.
 normalize in H0.
 clear - TC' TC2 TC3.
-admit. (* typechecking proof *)
+apply typecheck_environ_put_te. auto.
 destruct H0.
 split; auto.
 simpl.
@@ -174,13 +178,13 @@ split.
 reflexivity.
 split3.
 apply age_level; auto.
-admit.  (* typechecking proof *)
+apply typecheck_environ_put_te. auto.  (* typechecking proof, done with admits in lemma *)
 split.
 split3.
 simpl.
 rewrite <- (age_jm_dry H); constructor; auto.
 assert (NONVOL: type_is_volatile (typeof e1) = false).
-admit.  (* typechecking proof *)
+simpl in TC1. destruct (type_is_volatile (typeof e1)); intuition. (* typechecking proof *)
 apply Clight_sem.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
 assert ((|> (F rho * (mapsto' sh e1 v2 rho * subst id v2 P rho)))%pred
@@ -339,16 +343,23 @@ Qed.
 
 
 Lemma semax_store:
- forall Delta G e1 e2 v3 rsh P,
-    typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
+ forall Delta G e1 e2 v3 rsh P 
+   (IT: (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr))
+   (FT: (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr))
+   (NA : tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true),
+   (*above to say that some unconvertable things (Tarray, Tfunction) can't be assigned*) 
+    typeof e1 = typeof e2 -> 
+    
+    (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)
+    (* admit:  make this more accepting of implicit conversions! *) 
    semax Hspec Delta G 
-          (fun rho => 
+          (fun rho =>
           tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
           |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 Proof.
-intros until P. intros TC3.
+intros until P. intros IT FT NA TC3.
 apply semax_straight_simple; auto.
 apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
@@ -379,8 +390,32 @@ exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store with (v':=(eval_expr rho e2)) in H11.
 Focus 2.
 rewrite TC3 in *.
-clear - TC2 TC4 Hmode.
-admit.  (* typechecking proof *)
+clear - TC2 TC4 IT FT Hmode.
+simpl in TC2. apply typecheck_expr_sound in TC2; auto.
+remember (eval_expr rho e2). destruct v; intuition.
+remember (typeof e2); destruct t; intuition; simpl in Hmode; try congruence.
+inv H. destruct ch; try congruence; auto.
+assert (decode_encode_val (Vint i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vint i)))).
+apply decode_encode_val_general; auto.
+apply decode_encode_val_similar in H; auto.
+destruct ch; simpl in Hmode; try congruence.
+assert (decode_encode_val (Vint i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vint i)))).
+apply decode_encode_val_general; auto.
+apply decode_encode_val_similar in H; auto.
+destruct (typeof e2); try solve[simpl in *; congruence].
+destruct ch; try solve[simpl in *; destruct f0; congruence].
+assert (decode_encode_val (Vfloat f) Mfloat32 Mfloat32 (decode_val Mfloat32 (encode_val Mfloat32 (Vfloat f)))).
+apply decode_encode_val_general; auto.
+apply decode_encode_val_similar in H; auto. simpl in *. auto. intuition.
+inv H0. congruence.
+assert (decode_encode_val (Vfloat f) Mfloat64 Mfloat64 (decode_val Mfloat64 (encode_val Mfloat64 (Vfloat f)))).
+apply decode_encode_val_general; auto.
+apply decode_encode_val_similar in H; auto.
+destruct (typeof e2); try solve[ simpl in *; congruence].
+destruct ch; try solve[simpl in *; congruence].
+assert (decode_encode_val (Vptr b i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vptr b i)))).
+apply decode_encode_val_general; auto.
+apply decode_encode_val_similar in H; auto. (* typechecking proof, simplified by limiting float and int types allowed for now.*)
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
 exists (te_of rho);  exists rho; split3; auto.
@@ -396,7 +431,16 @@ instantiate (1:= eval_expr rho e2).
 auto.
 rewrite TC3.
 instantiate (1:=eval_expr rho e2).
-admit.  (* make this more general as a kind of typechecking proof *)
+unfold tc_expr in TC2. simpl in TC2. apply typecheck_expr_sound in TC2.
+unfold sem_cast.
+remember (typeof e2). unfold classify_cast.
+destruct t; auto; simpl;
+rewrite TC3 in IT; rewrite TC3 in NA; intuition; try inv H8;
+try solve [simpl; destruct (eval_expr rho e2); try solve[intuition]].
+destruct (eval_expr rho e2); intuition. rewrite TC3 in FT.
+intuition. inv H8. auto. auto.
+(* make this more general as a kind of typechecking proof
+           Done with simplifications *)
 eapply Csem.assign_loc_value.
 apply Hmode.
 admit. (* typechecking proof *)
@@ -472,7 +516,9 @@ intros ora jm Hphi.
 generalize (eval_expr_relate _ _ _ b (m_dry jm) Hge TC); intro.
 assert (exists b': bool, bool_val (eval_expr rho b) (typeof b) = Some b').
 clear - TC H TC2.
-admit.  (* typechecking proof *)
+assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+remember (eval_expr rho b). destruct v;
+simpl; destruct (typeof b); intuition; eauto. (* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.
 subst w0.
@@ -503,9 +549,18 @@ split; auto.
 split; auto.
 rewrite andp_com; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
-clear - H TC H9.
-simpl.  
-admit.  (* typechecking proof *)
+clear - H TC TC2 H9.
+assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+simpl. 
+destruct (eval_expr rho b); try solve[inv H9].
+destruct (typeof b); 
+try solve [simpl in *; inv H9; rewrite TCS in H1; congruence].
+intuition; simpl in *;
+unfold sem_notbool; destruct i0; destruct s; auto; simpl;
+inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
+destruct (typeof b); intuition. simpl in *. inv H9.
+rewrite negb_false_iff in H1. rewrite H1; auto.
+destruct (typeof b); intuition. (* typechecking proof *)
 Qed.
 
 
@@ -828,7 +883,7 @@ specialize (H1 _ (necR_refl _)).
 spec H1; [clear H1 | ].
 split.
 split.
-admit.  (* typechecking proof *)
+admit.  (* typechecking proof, looks hard/impossible we don't know anything about rho2*)
 unfold rho2; simpl ge_of. destruct ret; auto.
 rewrite <- sepcon_assoc.
 admit.  (* very plausible *)
@@ -864,7 +919,7 @@ elimtype False.
 clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
 destruct TC5. rewrite H0 in H28 by auto.
 clear - H28.
-admit.  (* typechecking proof *)
+admit.  (* typechecking proof, not true, everything typechecks as void right now*)
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -879,9 +934,11 @@ split.
 split; auto.
 eapply step_call_internal with (vargs:=eval_exprlist rho bl); eauto.
 4: unfold type_of_function; reflexivity.
+unfold classify_fun.
 admit. (* typechecking proof *)
-admit. (* typechecking proof *)
-admit. (* typechecking proof *)
+rewrite <- H3.
+eapply (eval_expr_relate _ _ _ _ _ H0 TC3 TC1).
+admit. (* typechecking proof, make a lemma for this one *)
 
 pose (rho3 := mkEnviron (ge_of rho) ve' te').
 assert (n >= level jm')%nat.
@@ -896,7 +953,7 @@ apply H4.
 specialize (H19 rho3 _ H22 _ (necR_refl _)).
 spec H19; [clear H19|].
 split; [split|]; auto.
-hnf.
+hnf. unfold func_tycontext.
 admit. (* typechecking proof *)
 normalize.
 split; auto.
@@ -1045,13 +1102,14 @@ specialize (H0 _ H7 _ H8).
 destruct H0.
 assert (forall vf, Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a vf
                -> Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a' vf).
-clear - H H0 H1 H7.
-admit.  (* typechecking proof *) 
+clear - H H0 H1 H7 H9 .
+admit.  (* typechecking proof, without typechecking on a we can't do relate
+                               Also need uniqueness proof for eval_expr *) 
 assert (forall tyargs vargs, 
              Clight_sem.eval_exprlist psi (ve_of rho) (te_of rho) (m_dry jm) bl tyargs vargs ->
              Clight_sem.eval_exprlist psi (ve_of rho) (te_of rho) (m_dry jm) bl' tyargs vargs).
 clear - H12 H1 H7.
-admit.  (* typechecking proof *) 
+admit.  (* typechecking proof, same difficulties as above *) 
 destruct H11; split; auto.
 inv H11; [eapply step_call_internal | eapply step_call_external ]; eauto.
 rewrite <- H; auto.
@@ -1062,8 +1120,8 @@ Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
 Admitted.
 
 Lemma  semax_return :
-   forall Delta G R ret 
-      (TC: typecheck_stmt Delta (Sreturn ret) = true),
+   forall Delta G R ret,
+      (*Some typechecking thing*)
       semax Hspec Delta G 
                 (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
                 (Sreturn ret)
@@ -1135,6 +1193,7 @@ econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
 exists (eval_expr rho e).
 split.
+
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof, but this will be difficult because I think there's not enough
                  information to know that f is really the same as the function that Delta assumes *)

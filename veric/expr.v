@@ -73,8 +73,6 @@ Definition temp_types (Delta: tycontext) := fst (fst Delta).
 Definition var_types (Delta: tycontext) := snd (fst Delta).
 Definition ret_type (Delta: tycontext) := snd Delta.
 
-Parameter binary_conversion : binary_operation -> type -> type -> type.
-
 Definition is_scalar_type (ty:type) : bool :=
 match ty with
 | Tint _ _ _ => true
@@ -83,19 +81,6 @@ match ty with
 end.
 (*Make sure I am using the above correctly!!!*)
 
-(*
-Parameter combine_types : type -> type -> option type .
-
-Definition compatable_types (t1: type) (t2 : type) : bool :=
-match combine_types t1 t2 with
-| Some _ => true
-| None => false
-end.
-*)
-Parameter b: bool.
-(*
-Parameter cast_compatible : type -> type -> bool.
-*)
 Definition unOp_result_type op a := 
 match op with 
   | Onotbool => (Tint IBool Signed noattr) (*Bool, classify doesn't change *)
@@ -153,10 +138,36 @@ Inductive tc_assert :=
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
-| tc_nodivover: expr -> expr -> tc_assert.
+| tc_nodivover: expr -> expr -> tc_assert
+| tc_initialized: PTree.elt -> tc_assert.
 
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
+
+Fixpoint tc_assert_simpl asn :=
+match asn with
+| tc_andp a1 a2 =>
+      match (tc_assert_simpl a1), (tc_assert_simpl a2) with
+            | tc_FF, _ => tc_FF
+            | _ , tc_FF => tc_TT
+            | tc_TT, s => s
+            | s, tc_TT => s
+            | tc_noproof, _ => tc_noproof
+            | _, tc_noproof => tc_noproof
+            | _, _ => asn
+            end
+| tc_nonzero (Econst_int i _)=>if (Int.eq i Int.zero) then tc_FF else tc_TT
+| tc_ilt (Econst_int i1 _) i => if (Int.ltu i1 i) then tc_TT else tc_FF
+| tc_Zle (Econst_float f _) z => match (Float.Zoffloat f) with
+                                   | Some n => if (Zle_bool n z) then tc_TT else tc_FF
+                                   | None => tc_FF
+                                 end
+| tc_Zge (Econst_float f _) z => match (Float.Zoffloat f) with
+                                   | Some n => if (Zle_bool z n) then tc_TT else tc_FF
+                                   | None => tc_FF
+                                 end
+| _ => asn
+end.
 
 
 (*TODO make sure return types are correct, figure out valid types for bool
@@ -222,7 +233,7 @@ match classify_cast tfrom tto with
 | cast_case_default => tc_FF
 | cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| cast_case_neutral  => if type_eq tfrom ty then tc_TT else tc_FF
+| cast_case_neutral  => if type_eq tfrom ty then tc_TT else tc_noproof
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type ty)
       | Tfloat _ _  => tc_bool (is_float_type ty)
@@ -236,10 +247,14 @@ let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint _ _ _) => tc_TT 
  | Econst_float _ (Tfloat _ _) => tc_TT
- | Etempvar id ty => match (temp_types Delta)!id with 
-                       | Some ty' => if type_eq ty (fst ty') then tc_TT else tc_FF 
-		       | None => tc_FF
-                     end
+ | Etempvar id ty => if negb (type_is_volatile ty) then
+                       match (temp_types Delta)!id with 
+                         | Some ty' => if type_eq ty (fst ty') then 
+                                         if (snd ty') then tc_TT else (tc_initialized id)
+                                       else tc_FF
+		         | None => tc_FF
+                       end
+                     else tc_FF
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty)) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
@@ -320,10 +335,10 @@ Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
  | _, _ => false
 end.
 
-Fixpoint typecheck_temp_environ (tty : list(positive * type)) (te : PTree.t val) : bool :=
+Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : PTree.t val) : bool :=
 match tty with 
- | (id,ty)::tl => match te ! id with
-                  | Some v => if typecheck_val v ty then typecheck_temp_environ tl te else false
+ | (id,(ty, asn))::tl => match te ! id with
+                  | Some v => if typecheck_val v ty (*&& asn*) then typecheck_temp_environ tl te else false
                   | None => false
                   end
  | nil => true
@@ -350,12 +365,57 @@ end.
 
 Definition remove_assignedness {A B C} (x: (A * (B*C))) := let (a,d) := x in
 let (b,c) := d in 
-(a,b).
+(a,b). 
 
 Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
-typecheck_temp_environ (map remove_assignedness (PTree.elements (temp_types Delta))) (te_of env) &&
+typecheck_temp_environ (PTree.elements (temp_types Delta)) (te_of env) &&
 typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) (ge_of env).
  
+
+Definition denote_tc_nonzero rho e := match eval_expr rho e with Vint i => if negb (Int.eq i Int.zero) then True else False
+                                               | _ => False end.
+
+Definition denote_tc_isptr rho e:= match (eval_expr rho e) with | Vptr _ _ => True | _ => False end.
+
+Definition denote_tc_ilt rho e i :=
+match (eval_expr rho e) with 
+                     | Vint i1 => is_true (Int.ltu i1 i)
+                     | _ => False
+                  end.
+
+Definition denote_tc_Zle rho e z := 
+match (eval_expr rho e) with
+                     | Vfloat f => match Float.Zoffloat f with
+                                    | Some n => is_true (Zle_bool n z)
+                                    | None => False
+                                   end
+                     | _ => False 
+                  end.
+
+Definition denote_tc_Zge rho e z :=
+match (eval_expr rho e) with
+                     | Vfloat f => match Float.Zoffloat f with
+                                    | Some n => is_true (Zle_bool z n)
+                                    | None => False
+                                   end
+                     | _ => False
+                  end.
+
+Definition denote_tc_samebase rho e1 e2 :=
+match (eval_expr rho e1), (eval_expr rho e2) with
+                           | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
+                           | _, _ => False 
+                         end.
+
+Definition denote_tc_nodivover rho e1 e2 :=
+match (eval_expr rho e1), (eval_expr rho e2) with
+                           | Vint n1, Vint n2 => is_true (negb 
+                                   (Int.eq n1 (Int.repr Int.min_signed) 
+                                    && Int.eq n2 Int.mone))
+                           | _ , _ => False
+                          end.
+
+Definition denote_tc_initialized rho id := exists v, (te_of rho) ! id = Some v.
 
 Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
   match a with
@@ -363,37 +423,14 @@ Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
   | tc_noproof => False
   | tc_TT => True
   | tc_andp b c => denote_tc_assert b rho /\ denote_tc_assert c rho
-  | tc_nonzero e => match eval_expr rho e with Vint i => if negb (Int.eq i Int.zero) then True else False
-                                               | _ => False end
-  | tc_isptr e => match (eval_expr rho e) with | Vptr _ _ => True | _ => False end
-  | tc_ilt e i => match (eval_expr rho e) with 
-                     | Vint i1 => is_true (Int.ltu i1 i)
-                     | _ => False
-                  end 
-  | tc_Zle e z => match (eval_expr rho e) with
-                     | Vfloat f => match Float.Zoffloat f with
-                                    | Some n => is_true (Zle_bool n z)
-                                    | None => False
-                                   end
-                     | _ => False (*Might need int here*)
-                  end
-  | tc_Zge e z => match (eval_expr rho e) with
-                     | Vfloat f => match Float.Zoffloat f with
-                                    | Some n => is_true (Zle_bool z n)
-                                    | None => False
-                                   end
-                     | _ => False
-                  end
-  | tc_samebase e1 e2 => match (eval_expr rho e1), (eval_expr rho e2) with
-                           | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
-                           | _, _ => False 
-                         end  
-  | tc_nodivover e1 e2 => match (eval_expr rho e1), (eval_expr rho e2) with
-                           | Vint n1, Vint n2 => is_true (negb 
-                                   (Int.eq n1 (Int.repr Int.min_signed) 
-                                    && Int.eq n2 Int.mone))
-                           | _ , _ => False
-                          end
+  | tc_nonzero e => denote_tc_nonzero rho e
+  | tc_isptr e => denote_tc_isptr rho e
+  | tc_ilt e i => denote_tc_ilt rho e i
+  | tc_Zle e z => denote_tc_Zle rho e z
+  | tc_Zge e z => denote_tc_Zge rho e z
+  | tc_samebase e1 e2 => denote_tc_samebase rho e1 e2
+  | tc_nodivover e1 e2 => denote_tc_nodivover rho e1 e2
+  | tc_initialized id => denote_tc_initialized rho id
   end.
 
 Definition set_temp_assigned (Delta:tycontext) id :=
@@ -403,14 +440,66 @@ match (temp_types Delta) ! id with
 | None => Delta (*Shouldn't happen *)
 end.
 
-Parameter join_tycon: tycontext -> tycontext -> tycontext.
+Definition join_te te1 te2 : PTree.t (type * bool):=
+PTree.fold 
+(fun te id (val: (type * bool)) => 
+   let (ty, assn) := val in
+        match (te2 ! id) with
+        | Some (ty2, assn2) => if eq_dec ty ty2 then
+                                    PTree.set id (ty, assn && assn2) te
+                               else
+                                    te
+        | None => te
+        end
+) te1 (PTree.empty (type * bool)).
 
+Definition join_ve ve1 ve2 :=
+PTree.fold 
+(fun ve id (ty: type) => 
+        match (ve2 ! id) with
+        | Some ty2 => if eq_dec ty ty2 then
+                                    PTree.set id ty ve
+                               else
+                                    ve
+        | None => ve
+        end
+) ve1 (PTree.empty type).
+
+Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
+match tycon1 with  (te1, ve1, r)  =>
+match tycon2 with  (te2, ve2, _)  =>
+  ((join_te te1 te2), (join_ve ve1 ve2), r)
+end end.
+
+                       
+
+(*Strictly for updating the type context... no typechecking here*)
+Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
+ match c with
+ | Sskip | Scontinue | Sbreak => Delta
+ | Sassign e1 e2 => Delta (*already there?*)
+ | Sset id e2 => (set_temp_assigned Delta id)
+ | Ssequence s1 s2 => let Delta' := update_tycon Delta s1 in
+                      update_tycon Delta' s2
+ | Sifthenelse b s1 s2 => join_tycon (update_tycon Delta s1) (update_tycon Delta s2)
+ | Swhile b s1  => (update_tycon Delta s1)
+ | Sdowhile b s1 => (update_tycon Delta s1) 
+ | Sfor' b inc body => update_tycon ((update_tycon Delta inc)) body 
+ | Sswitch e ls => join_tycon_labeled ls Delta
+ | Scall (Some id) _ _ => (set_temp_assigned Delta id)
+ | _ => Delta  (* et cetera *)
+end
 (*Definition bool_expr Delta e := typecheck_expr Delta e && is_scalar_type (typeof e).*)
 
+with join_tycon_labeled ls Delta :=
+match ls with
+| LSdefault s => update_tycon Delta s 
+| LScase int s ls => join_tycon (update_tycon Delta s) 
+                      (join_tycon_labeled ls Delta)
+end.
 
-
-(*update_tycon can be separate from typechecking, do this reasonably soon*)
-Parameter update_tycon : tycontext -> Clight.statement -> option tycontext.
+(*change this to typechecking using typecheck_b, which should estimate the
+c typechecker*)
 (*Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : option tycontext :=
  match c with
  | Sskip | Scontinue | Sbreak => Some Delta
@@ -465,14 +554,6 @@ match ls with
                      end
 end.*)                               
 
-
-
-Definition typecheck_stmt (Delta: tycontext) (c: statement) : bool :=
-match update_tycon Delta c with
-| Some _ => true
-| None => false
-end.
-
 (* NOTE:  params start out initialized, temps do not! *)
 Definition func_tycontext (func: function) : tycontext :=
 (fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
@@ -481,6 +562,38 @@ Definition func_tycontext (func: function) : tycontext :=
 fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
 fn_return func).
+
+Fixpoint typecheck_all_exprs' (body: statement) (Delta :tycontext) : tc_assert:=
+match body with
+    Sskip | Sbreak | Scontinue => tc_TT
+  | Sassign e1 e2 => tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta e2)
+  | Sset _ e => typecheck_expr Delta e 
+  | Svolread _ e => typecheck_expr Delta e
+  | Scall _ e el => tc_andp (typecheck_expr Delta e) (typecheck_exprlist Delta el)
+  | Ssequence s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta) 
+       (typecheck_all_exprs' s2 (update_tycon Delta s1)) 
+  | Sifthenelse b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
+                            (typecheck_all_exprs' s2 Delta)
+  | Swhile b s => (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s Delta))
+  | Sdowhile b s => (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s Delta))
+  | Sfor' b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
+                            (typecheck_all_exprs' s2 (update_tycon Delta s1))
+  | Sreturn (Some e) => typecheck_expr Delta e
+  | Sreturn (None) => tc_TT
+  | Sswitch e ls => tc_andp (typecheck_expr Delta e) (typecheck_labeled_st_exprs Delta ls)
+  | Slabel _ st => typecheck_all_exprs' st Delta
+  | Sgoto _ => tc_TT
+end
+
+with typecheck_labeled_st_exprs Delta ls:= 
+match ls with 
+| LSdefault s => typecheck_all_exprs' s Delta
+| LScase int s ls2 => tc_andp (typecheck_all_exprs' s Delta) (typecheck_labeled_st_exprs Delta ls2) 
+end.
+
+Definition typecheck_all_exprs (func: function) : tc_assert :=
+typecheck_all_exprs' func.(fn_body) (func_tycontext func).
+
 
 
 (** Type-checking of function parameters **)
@@ -554,6 +667,7 @@ Proof.
  auto.
 Qed.
 
+
 Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
@@ -602,3 +716,4 @@ Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig _ _ _ => Tfunction (fst fsig) (snd fsig)  end.
 
 (* END expr.v is not quite the right place for these next few definitions *)
+
