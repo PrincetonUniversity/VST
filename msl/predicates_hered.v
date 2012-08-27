@@ -202,8 +202,13 @@ Obligation Tactic := unfold hereditary; intuition;
 (* Definitions of the basic propositional conectives.
  *)
 
-Program Definition TT {A} `{ageable A}: pred A := fun a:A => True.
-Program Definition FF  {A} `{ageable A}: pred A := fun a:A => False.
+(* Lifting pure mathematical facts to predicates *)
+
+Program Definition prop {A} `{ageable A}  (P: Prop) : pred A := (fun _  => P).
+
+Definition TT {A} `{ageable A}: pred A := prop True.
+Definition FF  {A} `{ageable A}: pred A := prop False.
+
 Program Definition imp {A} `{ageable A} (P Q:pred A) : pred A :=
    fun a:A => forall a':A, necR a a' -> P a' -> Q a'.
 Next Obligation.
@@ -270,9 +275,6 @@ Next Obligation.
 Qed.
 
 Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p.
-
-(* Lifting pure mathematical facts to predicates *)
-Program Definition prop {A} `{ageable A}  (P: Prop) : pred A := (fun _  => P).
 
 (* A pile of notations for the operators we have defined *)
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).

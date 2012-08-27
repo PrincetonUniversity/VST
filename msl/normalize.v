@@ -51,7 +51,7 @@ Qed.
 
 Hint Resolve @pure_e.
 
-Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
  forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
 Proof.
 intros.
@@ -71,8 +71,11 @@ split; auto.
 destruct H1.
 exists w; exists w; split; [|split]; auto.
 apply H in H1. 
-do 3 red in H1. rewrite identity_unit_equiv in H1.
-apply H1.
+do 3 red in H1.
+clear dependent P. clear dependent Q.
+pose proof (core_unit w); unfold unit_for in *.
+pose proof (H1 _ _ (join_com H)).
+rewrite H0 in H; auto.
 Qed.
 
 Lemma pure_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: pure emp.
@@ -216,7 +219,7 @@ intros w [x ?].
 eapply H0; eauto.
 Qed.
 
-Lemma pure_sepcon_TT_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_sepcon_TT_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P Q, pure P -> (P * TT) && Q = (P*Q).
 Proof.
  pose proof I.
@@ -236,7 +239,7 @@ subst; auto.
 apply H0 in H2; auto.
 Qed.
 
-Lemma pure_sepcon_TT_andp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+Lemma pure_sepcon_TT_andp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P Q, pure P -> Q && (P * TT) = (Q*P).
 Proof.
 intros. rewrite andp_com.

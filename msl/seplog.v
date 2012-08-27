@@ -27,8 +27,9 @@ Class NatDed (A: Type) := mkNatDed {
   allp_right: forall {B}(P: A) (Q: B -> A),  (forall v, derives P (Q v)) -> derives P (allp Q);
   imp_andp_adjoint: forall P Q R, derives (andp P Q) R <-> derives P (imp Q R);
   modus_ponens: forall P Q, derives (andp P (imp P Q)) Q;
-  prop_left: forall (P: Prop) Q, ~P -> derives (prop P) Q;
-  prop_right: forall (P: Prop) Q, P -> derives Q (prop P)
+  prop_left: forall (P: Prop) Q, (P -> derives TT Q) -> derives (prop P) Q;
+  prop_right: forall (P: Prop) Q, P -> derives Q (prop P);
+  exp_andp1: forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q))
 }.
 
 Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
@@ -40,13 +41,25 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
     (*imp*) (fun P Q x => imp (P x) (Q x))
     (*prop*) (fun P x => prop P)
     (*derives*) (fun P Q => forall x, derives (P x) (Q x))
- _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
-(* pred_ext *)
+     _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
  intros; extensionality x; apply pred_ext; auto.
- admit. admit. admit. admit.
- admit. admit. admit. admit.
- admit. admit. admit. admit.
- admit. admit. admit. admit.
+ intros; apply derives_refl.
+ intros; eapply derives_trans; eauto.
+ intros; eapply andp_right; eauto.
+ intros; eapply andp_left1; eauto.
+ intros; eapply andp_left2; eauto.
+ intros; eapply orp_left; eauto.
+ intros; eapply orp_right1; eauto.
+ intros; eapply orp_right2; eauto.
+ intros; eapply exp_right; eauto.
+ intros; eapply exp_left; eauto.
+ intros; eapply allp_left; eauto.
+ intros; eapply allp_right; eauto.
+ intros; split; intros;  eapply imp_andp_adjoint; eauto.
+ intros; eapply modus_ponens; eauto.
+ intros; eapply prop_left; eauto.
+ intros; eapply prop_right; eauto.
+ intros; extensionality rho; eapply exp_andp1; eauto.
 Defined.
 
 Delimit Scope logic with logic.
@@ -64,12 +77,16 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   emp: A;
   sepcon: A -> A -> A;
   wand: A -> A -> A;
+  pure := fun (P:A) =>   P |-- emp;
   sepcon_assoc: forall P Q R, sepcon (sepcon P Q) R = sepcon P (sepcon Q R);
   sepcon_comm:  forall P Q, sepcon P Q = sepcon Q P;
   wand_sepcon_adjoint: forall (P Q R: A),  (sepcon P Q |-- R) = (P |-- wand Q R);
   sepcon_FF: forall P, sepcon P FF = FF;
   exp_sepcon1:  forall T (P: T ->  A) Q,  sepcon (exp P) Q = exp (fun x => sepcon (P x) Q);
-  sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R)
+  sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R);
+  sepcon_derives: forall P P' Q Q' : A, P |-- P' -> Q |-- Q' -> sepcon P Q |-- sepcon P' Q';
+  sepcon_pure_andp: forall P Q, pure P -> pure Q -> (sepcon P Q = andp P Q);
+  pure_sepcon_TT_andp: forall P Q, pure P -> andp (sepcon P TT) Q = sepcon P Q
 }.
 
 Notation "P '*' Q" := (sepcon P Q) : logic.
@@ -86,6 +103,9 @@ Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
  intros. simpl. extensionality x. change (!!False) with FF. apply sepcon_FF.
  simpl; intros. extensionality x. apply exp_sepcon1.
  simpl; intros. extensionality x. apply sepcon_andp_prop.
+ simpl; intros; apply sepcon_derives; auto.
+ simpl; intros; extensionality x; apply sepcon_pure_andp; unfold pure; auto.
+ simpl; intros; extensionality x; apply pure_sepcon_TT_andp; unfold pure in *; auto.
 Defined.
 
 Class ClassicalSep  (A: Type) {ND: NatDed A}{SL: SepLog A} := mkCS {
@@ -108,10 +128,4 @@ Instance LiftIntuitionisticSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{IB: Int
         IntuitionisticSep (A -> B).
  apply mkIS.
  intros. intro. simpl. apply all_extensible.
-Qed.
-
-Lemma andp_dup {A}{ND: NatDed A}: forall P: A, P && P = P.
-Proof. intros. apply pred_ext.
-apply andp_left1; apply derives_refl.
-apply andp_right; apply derives_refl.
 Qed.

@@ -9,6 +9,7 @@ Require Import msl.subtypes.
 Require Import msl.subtypes_sl.
 Require Import msl.predicates_rec.
 Require Import msl.contractive.
+Require msl.normalize.
 
 Local Open Scope logic.
 
@@ -32,8 +33,9 @@ Definition algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
  intros ? ?; apply @allp_right.
  apply imp_andp_adjoint.
  repeat intro. destruct H. apply H0; auto.
- repeat intro. hnf in H0; contradiction. 
+ repeat intro. eapply H; eauto. hnf; auto.
  repeat intro. hnf; auto.
+ intros. apply exp_andp1.
 Defined.
 
 Definition algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
@@ -47,6 +49,9 @@ Definition algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T
  intros; simpl. apply predicates_hered.pred_ext; simpl.
           intros ? [w1 [w2 [? [? [? ?]]]]];  split; auto. exists w1; exists w2; repeat split; auto.
           intros ? [? [w1 [w2 [? [? ?]]]]];  exists w1; exists w2; repeat split; auto.
+ intros; intro; apply sepcon_derives; auto.
+ intros. simpl. apply normalize.sepcon_pure_andp;simpl; auto.
+ intros. simpl. apply normalize.pure_sepcon_TT_andp; auto.
 Defined.
 
 Definition algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}{AgeT: Age_alg T}:
@@ -59,17 +64,32 @@ Instance TrivNatDed: NatDed Triv := algNatDed nat.
 Instance TrivSeplog: SepLog Triv := @algSepLog nat _ _ _ _ (asa_nat).
 Instance TrivClassical: ClassicalSep Triv := @algClassicalSep _ _ _ _ _ _ asa_nat.
 
-Section SL. Import msl.seplog.
-
-Class Indir (A: Type) {ND: NatDed A} := mkIndir {
+Class IndirOps (A: Type) {ND: NatDed A} := mkIndirOps {
   later: A -> A;
   fash : A -> Triv;
-  unfash : Triv -> A; 
+  unfash : Triv -> A
+}.
+
+Definition algIndirOps (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+         @IndirOps (pred T) (algNatDed T).
+ apply (@mkIndirOps (pred T) (algNatDed T) (box laterM) subtypes.fash subtypes.fash').
+Defined.
+
+Section SL. Import msl.seplog.
+
+Instance TrivIndirOps: IndirOps Triv := 
+     (*Hidden inside a Section, on purpose! *)
+   @algIndirOps nat _ _ _ _ asa_nat _. 
+ 
+
+Class Indir (A: Type) {ND: NatDed A} := mkIndir {
+  indir_ops :> IndirOps A;
   now_later: forall P, P |-- later P;
   later_K: forall P Q, later (P --> Q) |-- later P --> later Q;
   fash_K: forall P Q, fash (P --> Q) |-- fash P --> fash Q;
   later_derives: forall P Q, P |-- Q -> later P |-- later Q;
   fash_derives: forall P Q, P |-- Q -> fash P |-- fash Q;
+  later_fash:  forall P, later (fash P) = fash (later P);
   later_andp: forall P Q, later (P && Q) = later P && later Q;
   fash_andp: forall P Q, fash (P && Q) = fash P && fash Q;
   later_allp: forall T (F: T -> A),  later (allp F) = All x:T, later (F x);
@@ -77,18 +97,29 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_exp': forall T (any:T) F, later (exp F) = Ex x:T, later (F x);
   later_orp: forall P Q, later (P || Q) = later P || later Q;
   later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
-  goedel_loeb: forall P Q,   Q && later P |-- P ->  Q |-- P
+  goedel_loeb: forall P Q,   Q && later P |-- P ->  Q |-- P;
+  sub_allp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (allp X) (allp Y));
+  sub_exp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (exp X) (exp Y));
+  fash_TT: forall G, G |-- fash TT
 }.
 End SL.
 
-Definition algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
+Notation "'#' e" := (fash e) (at level 30, right associativity): logic.
+Notation "'!' e" := (unfash e) (at level 30, right associativity): logic.
+Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic.
+Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
+
+Definition algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
+                {AgeT: Age_alg T}{nattyT: natty T} :
          @Indir (pred T) (algNatDed T).
- apply (@mkIndir (pred T) (algNatDed T) (box laterM) subtypes.fash subtypes.fash').
+ apply (mkIndir _ _ (algIndirOps T)); intros; simpl in *.
  apply @predicates_hered.now_later.
  apply @predicates_hered.axiomK.
  apply @subtypes.fash_K.
- apply @predicates_hered.later_derives.
- apply @subtypes.fash_derives.
+ apply @predicates_hered.later_derives; auto.
+ apply @subtypes.fash_derives; auto.
+ apply @subtypes.later_fash; auto.
  apply @predicates_hered.later_andp.
  apply @subtypes.fash_and.
  apply @predicates_hered.later_allp.
@@ -96,38 +127,59 @@ Definition algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}
   simpl. intros; apply @later_ex; auto.
  apply @later_or.
  apply @predicates_hered.later_imp.
- apply @predicates_hered.goedel_loeb.
+ apply @predicates_hered.goedel_loeb; auto.
+ apply @subtypes.sub_allp; auto.
+ eapply @subtypes.sub_exp; auto. 
+ repeat intro; hnf; auto.
 Defined.
 
+Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat _.
 
-Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B} {IB: Indir B} : Indir (A -> B).
- apply (@mkIndir (A -> B) _ (fun P rho => later (P rho)) (fun P => fash (P any)) (fun P rho => unfash P)).
- simpl; intros. apply now_later.
- simpl; intros. apply later_K.
- simpl; intros. apply @fash_K.
- simpl; intros. apply later_derives; auto.
- simpl; intros. apply fash_derives; auto.
- simpl; intros. extensionality rho. apply later_andp.
- simpl; intros. apply @fash_andp.
+
+Lemma fash_triv: forall P: Triv, fash P = P.
+Proof.
+ intros.
+ apply pred_ext; intros ? ?.
+ eapply H. unfold level; simpl.  unfold natLevel; auto.
+ hnf; intros. eapply pred_nec_hereditary; try eapply H.
+ apply nec_nat. auto.
+Qed.
+
+
+Instance LiftIndirOps (A: Type) (any: A) (B: Type)  {NB: NatDed B} {IB: IndirOps B} : IndirOps (A -> B).
+ apply (@mkIndirOps (A -> B) _ (fun P rho => later (P rho)) (fun P => fash (P any)) 
+            (fun P rho => unfash P)).
+Defined.
+
+Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
+         @Indir (A -> B) (LiftNatDed A B).
+ apply (mkIndir _ _ (LiftIndirOps A any B)); intros; simpl in *; intros.
+ apply now_later.
+ apply later_K.
+ apply @fash_K; auto.
+ apply later_derives; auto.
+ apply fash_derives; auto.
+ rewrite <- later_fash. simpl. auto.
+ extensionality rho. apply later_andp.
+ simpl; intros. apply @fash_andp; auto.
  simpl; intros. extensionality rho. apply later_allp.
  simpl; intros. apply later_exp.
  simpl; intros. extensionality rho. apply later_exp'; auto.
  simpl; intros. extensionality rho. apply later_orp.
  simpl; intros. extensionality rho. apply later_imp.
  simpl; intros. apply goedel_loeb; auto.
+ apply sub_allp; auto.
+ apply sub_exp; auto.
+ apply fash_TT.
 Defined.
-
-Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
-
-Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat _.
 
 Section SL2. Import msl.seplog.
 
 Class RecIndir (A: Type) {NA: NatDed A}{IA: Indir A} := mkRecIndir {
   HORec : forall {X} (f: (X -> A) -> (X -> A)), X -> A;
-  HOcontractive: forall (X: Type) (f: (X -> A) -> (X -> A)), Prop :=
-         fun X f => forall P Q,  (All x:X, later (fash (P x <--> Q x))) |-- (All x:X, fash (f P x <--> f Q x)); 
-  HORec_fold_unfold : forall X f (H: HOcontractive X f), HORec f = f (HORec f)
+  HOcontractive: forall {X: Type} (f: (X -> A) -> (X -> A)), Prop :=
+         fun {X} f => forall P Q,  (All x:X, later (fash (P x <--> Q x))) |-- (All x:X, fash (f P x <--> f Q x)); 
+  HORec_fold_unfold : forall X (f: (X -> A) -> (X -> A)) (H: HOcontractive f), HORec f = f (HORec f)
 }.
 
 Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}
@@ -138,8 +190,7 @@ End SL2.
 Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
          @RecIndir (pred T) (algNatDed T) (algIndir T).
  apply (mkRecIndir _ _ _ HoRec.HORec).
- intros. apply HoRec.HORec_fold_unfold.
- hnf.  apply H.
+ intros. apply HoRec.HORec_fold_unfold; auto.
 Defined.
 
 Instance TrivRecIndir: RecIndir Triv := algRecIndir nat.
@@ -147,4 +198,17 @@ Instance TrivRecIndir: RecIndir Triv := algRecIndir nat.
 Class SepIndir (A: Type) {ND: NatDed A}{SL: SepLog A}{ID: Indir A} := mkSepIndir {
   later_sepcon: forall P Q, |> (P * Q) = |>P * |>Q
 }.
+
+Definition algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+         @SepIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
+ apply mkSepIndir.
+ simpl.
+ apply @predicates_sl.later_sepcon; auto.
+Qed.
+
+Instance LiftSepIndir  (A: Type) (any: A) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
+     @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A any B).
+ constructor.
+ intros; simpl. extensionality rho.  apply later_sepcon.
+Qed.
 

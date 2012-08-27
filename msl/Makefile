@@ -24,7 +24,7 @@ FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
-  seplog.v alg_seplog.v 
+  seplog.v alg_seplog.v log_normalize.v
 #  knot_setoid.v \  takes forever to compile, nobody uses it
 
 .PHONY : clean  all lib docs examples extract

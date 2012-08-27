@@ -120,8 +120,13 @@ Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable 
    (p: list (pred A)) : pred A :=
  match p with nil => emp | h::t => h * sepcon_list t end.
 
+
+Definition stackframe_of (f: Clight.function) : assert :=
+  fun rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+(*
 Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+*)
 
 Lemma  subst_extens: 
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.

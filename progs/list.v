@@ -1,12 +1,9 @@
-Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
-Require Import veric.seplog.
-Require Import msl.normalize.
+Require Import veric.SeparationLogic.
 Require Import compcert.Ctypes.
-Require Import veric.expr.
 Require Import progs.client_lemmas.
 
-Local Open Scope pred.
+Local Open Scope logic.
 
 Definition valt := (val * type)%type.
 
@@ -20,7 +17,7 @@ Definition field_of (vt: valt) (fld: ident) : valt :=
   | _ => (Vundef, Tvoid)
  end.
 
-Fixpoint fields_mapto (sh: Share.t) (v1: val*type) (flds: list ident) (v2: list (valt)) : pred rmap :=
+Fixpoint fields_mapto (sh: Share.t) (v1: val*type) (flds: list ident) (v2: list (valt)) : mpred :=
   match flds, v2 with
   | nil, nil => emp
   | i::flds', vt::v2' => field_mapsto sh v1 i vt * fields_mapto sh v1 flds' v2'
@@ -33,7 +30,7 @@ Fixpoint field_names (flds: fieldlist) : list ident :=
   | Fcons i t flds' => i :: field_names flds'
   end.
 
-Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : pred rmap :=
+Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : mpred :=
   match snd v1 with
   | Tstruct id fList  att =>
          fields_mapto sh v1 (field_names fList) v2
@@ -81,7 +78,7 @@ Definition mlist_data_fieldnames (ls: multilistspec) : list ident :=
      map (@fst _ _) (other_fields (mlist_structid ls) (mlist_fields ls)).
 
 Definition mlseg (ls: multilistspec) (sh: share) := 
-  HORec (fun (R: (list (list valt))*(val*val) -> pred rmap) (lp: (list (list valt))*(val*val)) =>
+  HORec (fun (R: (list (list valt))*(val*val) -> mpred) (lp: (list (list valt))*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
@@ -109,7 +106,7 @@ Class listspec (t: type) := mk_listspec {
 }.
 
 Definition lseg' (t: type) {ls: listspec t} (sh: share) := 
-  HORec (fun (R: (list valt)*(val*val) -> pred rmap) (lp: (list valt)*(val*val)) =>
+  HORec (fun (R: (list valt)*(val*val) -> mpred) (lp: (list valt)*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
@@ -121,7 +118,7 @@ Definition lseg' (t: type) {ls: listspec t} (sh: share) :=
                  !! (ptr_eq first last) && emp
         end).
 
-Definition lseg (contents: list valt) (x y: valt) {ls: listspec (snd x)}: pred rmap :=
+Definition lseg (contents: list valt) (x y: valt) {ls: listspec (snd x)}: mpred :=
    !! (snd x = snd y) &&
    lseg' (snd x) Share.top (contents, (fst x, fst y)).
 
@@ -145,7 +142,7 @@ Proof.
  f_equal.
  f_equal. extensionality tail.
  f_equal.
- f_equal. f_equal. rewrite TT_and.
+ f_equal. f_equal. rewrite TT_andp.
  unfold lseg'.
  f_equal.
  apply prove_HOcontractive; intros.
@@ -153,7 +150,7 @@ Proof.
  destruct l. destruct p.
  auto 50 with contractive.
  destruct p.
- auto 50 with contractive.
+apply sub_andp; auto 50 with contractive.
 Qed.
 
 Lemma lseg_eq:
@@ -206,8 +203,7 @@ rewrite lseg_unfold at 1; auto.
 destruct l.
 simpl.
 apply pred_ext; normalize.
-intros.
-destruct H2. inv H2.
+intros ? ? ? [? [? ?]]. inv H2.
 simpl @fst; simpl @snd.
 assert (UNROLL: unroll_composite_fields list_structid list_struct
        (Fcons list_data list_dtype
@@ -270,7 +266,7 @@ Defined.
 
 Parameters v v' : val.
 Parameters x y : val.
-Parameter whatever : pred rmap.
+Parameter whatever : mpred.
 Goal  lseg ((x,Tint32s)::(y,Tint32s)::nil) (v,mylist) (v',mylist) |-- whatever.
 rewrite lseg_unfold by auto.
 normalize.

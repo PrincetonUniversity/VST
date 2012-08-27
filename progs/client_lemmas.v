@@ -1,16 +1,12 @@
-Require Import msl.msl_standard.
-Require Import msl.normalize.
-Require Import veric.base.
-Require Import veric.expr.
-Require Import veric.seplog.
+Require Import veric.SeparationLogic.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 
-Local Open Scope pred.
+Local Open Scope logic.
 
 Lemma semax_post:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
-   (forall ek vl rho, R' ek vl rho |-- R ek vl rho) ->
+   (R' |-- R) ->
    semax Delta G P c R' ->  semax Delta G P c R.
 Proof.
 intros; eapply semax_pre_post; eauto.
@@ -51,8 +47,9 @@ Lemma extract_exists_pre:
 Proof.
 intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
-intros ek vl rho w ?.
-simpl in H0. destruct H0; auto.
+intros ek vl rho.
+unfold existential_ret_assert.
+apply exp_left; auto.
 apply extract_exists; auto.
 Qed.
 
@@ -66,8 +63,7 @@ intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
 unfold normal_ret_assert.
-normalize.
-rewrite H; auto.
+intros ? ? ?; normalize.  rewrite H; auto.
 Qed.
 
 Lemma sequential': 
@@ -79,6 +75,7 @@ intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
 unfold normal_ret_assert, overridePost.
+intros ? ? ?.
 normalize.
 rewrite if_true; auto.
 normalize.
@@ -115,8 +112,8 @@ intros.
 apply field_offset_rec_unroll.
 Qed.
 
-Lemma with_prop {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-   forall (Q: pred A)(P: Prop), 
+Lemma with_prop {A} {NA: NatDed A}{SA: SepLog A}:
+   forall (Q: A)(P: Prop), 
            (Q |-- !!P) -> Q= !!P && Q.
 Proof.
 intros.
@@ -133,7 +130,7 @@ Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
-Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: val*type) : pred rmap :=
+Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: val*type) : mpred :=
  match v1 with
   | (Vptr l ofs, Tstruct id fList  att) =>
     let fList' := unroll_composite_fields id (snd v1) fList in
@@ -152,16 +149,15 @@ Lemma field_mapsto_type:
      snd x = Tstruct sid fields a ->
      field_mapsto sh x fld y = 
                !! (snd y = type_of_field (unroll_composite_fields sid (Tstruct sid fields a) fields) fld) && field_mapsto sh x fld y.
-Proof.
-Proof.
+Proof with normalize.
 intros.
-apply pred_ext; normalize.
+apply pred_ext...
 apply andp_right; auto.
 destruct x as [x t].
 simpl in H.
 subst t.
 unfold field_mapsto.
-destruct x; normalize.
+destruct x...
 simpl @snd.
 case_eq (field_offset fld
     (unroll_composite_fields sid (Tstruct sid fields a) fields)); intros;
@@ -228,7 +224,7 @@ case_eq (access_mode
 simpl @snd in *.
 destruct H0.
 rewrite <- H0 in H.
-intros w ?; hnf; eauto.
+apply prop_right; eauto.
 Qed.
 
 Lemma semax_load_field:
@@ -241,34 +237,44 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
-       (fun rho => tc_expr Delta e1 rho &&
-    |> (field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2) * subst id v2 P rho))
+       (tc_expr Delta e1 &&
+    |> ((fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2)) * subst id v2 P))
        (Sset id (Efield e1 fld t2))
-       (normal_ret_assert (fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2) * P rho)).
-Proof.
+       (normal_ret_assert ((fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2)) * P)).
+Proof with normalize.
 pose proof I.
 intros.
 rename H2 into TE1.
-assert (TC3: forall rho, tc_expr Delta e1 rho |-- tc_lvalue Delta (Efield e1 fld t2) rho).
+assert (TC3: tc_expr Delta e1 |-- tc_lvalue Delta (Efield e1 fld t2)).
 intros.
-split; auto.
+intro rho.
+unfold tc_lvalue. simpl.
+(* Admitted: normalize should handle this better *)
+unfold tc_expr.
+rewrite <- andp_TT at 1.
+apply derives_extract_prop.
+intro.
+apply prop_right. split; auto.
 rewrite H1.
 admit.  (* provable, but let's wait until the definition of typecheck_lvalue
                         for Efield settles down *)
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
-            (fun rho =>tc_expr Delta (Etempvar id (typeof (Efield e1 fld t2))) rho &&
-             tc_lvalue Delta (Efield e1 fld t2) rho &&
-              |> (P' rho * subst id v2  P rho))
-            (normal_ret_assert (fun rho => Q' rho * P rho))).
+            (tc_expr Delta (Etempvar id (typeof (Efield e1 fld t2))) &&
+             tc_lvalue Delta (Efield e1 fld t2) &&
+              |> (P' * subst id v2  P))
+            (normal_ret_assert (Q' * P))).
 3: apply semax_load.
 intros.
+normalize.
 apply andp_derives.
-intros w ?; split.
-simpl; auto. rewrite TE1. rewrite if_true; auto.
-apply TC3. auto.
-apply later_derives. apply sepcon_derives; auto.
+apply andp_right.
+unfold tc_expr. simpl. rewrite TE1. rewrite if_true; auto. simpl.
+apply prop_right; auto.
+apply TC3.
+apply later_derives.
+apply sepcon_derives; auto.
 unfold P'.
 unfold mapsto'.
 erewrite field_mapsto_access_mode.
@@ -299,12 +305,13 @@ intros.
 unfold Q'.
 unfold mapsto'.
 case_eq (access_mode (typeof (Efield e1 fld t2))); intros; normalize.
-apply normal_ret_assert_derives.
+intros ? ? ?.
+apply normal_ret_assert_derives...
 apply sepcon_derives; auto.
 simpl in H2.
 
 simpl.
-case_eq (eval_expr rho e1); 
+case_eq (eval_expr x1 e1); 
      intros; normalize.
 rewrite H1.
 rewrite field_offset_unroll.
@@ -312,6 +319,9 @@ case_eq (field_offset fld fields); intros; normalize.
 rewrite <- TC2.
 rewrite H2.
 normalize.
+intros ? ? ?; normalize.
+intros ? ? ?; normalize.
+intros ? ? ?; normalize.
 intro; intros.
 simpl.
 rewrite <- H0.
@@ -319,48 +329,42 @@ auto.
 auto.
 Qed.
 
-Opaque field_mapsto.
+Global Opaque field_mapsto.
 
 Notation "'WITH' x 'PRE' [ ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tnil, tz) _
-             (fun x (args : list val) => match args with nil => P%pred | _ => FF%pred end) 
-             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun x (args : list val) => match args with nil => P%logic | _ => FF%logic end) 
+             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
 Notation "'WITH' x : tx  'PRE' [ ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tnil, tz) _
-             (fun (x : tx) (args : list val) => match args with nil => P%pred | _ => FF%pred end) 
-             (fun (x : tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun (x : tx) (args : list val) => match args with nil => P%logic | _ => FF%logic end) 
+             (fun (x : tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta Tnil, tz) _
-             (fun x (args : list val) => match args with a::nil => P%pred | _ => FF%pred end) 
-             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun x (args : list val) => match args with a::nil => P%logic | _ => FF%logic end) 
+             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta Tnil, tz) _
-             (fun (x:tx) (args : list val) => match args with a::nil => P%pred | _ => FF%pred end) 
-             (fun (x:tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun (x:tx) (args : list val) => match args with a::nil => P%logic | _ => FF%logic end) 
+             (fun (x:tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 
 Notation "'WITH' x 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
-             (fun x (args : list val) => match args with a::b::nil => P%pred | _ => FF%pred end) 
-             (fun x (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun x (args : list val) => match args with a::b::nil => P%logic | _ => FF%logic end) 
+             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 Notation "'WITH' x : tx 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
-             (fun (x:tx) (args : list val) => match args with a::b::nil => P%pred | _ => FF%pred end) 
-             (fun (x:tx) (args : list val) => match args with z::nil => Q%pred | _ => FF%pred end))
+             (fun (x:tx) (args : list val) => match args with a::b::nil => P%logic | _ => FF%logic end) 
+             (fun (x:tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
-
-Lemma prop_right {A}{agA: ageable A}:
-  forall (P: pred A)(Q: Prop), Q -> (P |-- !!Q).
-Proof.
-intros; intros ? ?; auto.
-Qed.
 
 

@@ -47,3 +47,4 @@ rmaps_lemmas.vo rmaps_lemmas.glob: rmaps_lemmas.v msl_standard.vo cjoins.vo rmap
 op_classes.vo op_classes.glob: op_classes.v Extensionality.vo sepalg.vo ageable.vo age_sepalg.vo base.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo
 seplog.vo seplog.glob: seplog.v Extensionality.vo
 alg_seplog.vo alg_seplog.glob: alg_seplog.v seplog.vo base.vo ageable.vo sepalg.vo age_sepalg.vo predicates_hered.vo predicates_sl.vo subtypes.vo subtypes_sl.vo predicates_rec.vo contractive.vo
+log_normalize.vo log_normalize.glob: log_normalize.v seplog.vo alg_seplog.vo Extensionality.vo
