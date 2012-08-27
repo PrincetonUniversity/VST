@@ -4,6 +4,20 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
+Lemma prop_andp_right {A}{NA: NatDed A}: forall (P: Prop) Q R, P -> Q |-- R -> Q |-- !!P && R.
+Proof.
+ repeat intro.
+ apply andp_right; auto. apply prop_right; auto.
+Qed.
+
+Lemma prop_andp_left {A}{NA: NatDed A}: forall (P: Prop) Q R, (P -> Q |-- R) -> !!P && Q |-- R.
+Proof.
+ repeat intro.
+ apply imp_andp_adjoint. apply prop_left; intro.
+ apply imp_andp_adjoint. rewrite TT_andp. auto.
+Qed.
+
+
 Lemma semax_post:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
    (R' |-- R) ->
@@ -22,15 +36,16 @@ Qed.
 Lemma env_gss:
   forall rho id v t, eval_expr (env_set rho id v) (Etempvar id t) = v.
 Proof.
-intros.  unfold eval_expr, env_set; simpl. rewrite PTree.gss. simpl. auto.
+intros. simpl. normalize.
 Qed.
+
+Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
 
 Lemma env_gso:
   forall rho id id' v t, id <> id' -> 
       eval_expr (env_set rho id' v) (Etempvar id t) = eval_expr rho (Etempvar id t).
 Proof.
-intros.  unfold eval_expr, env_set; simpl.
-rewrite PTree.gso by auto. auto.
+intros. simpl; normalize.
 Qed.
 
 Definition force_int (v: val) := 
@@ -52,7 +67,6 @@ unfold existential_ret_assert.
 apply exp_left; auto.
 apply extract_exists; auto.
 Qed.
-
 
 Lemma sequential: 
     forall Q Delta G P c R,
@@ -331,40 +345,83 @@ Qed.
 
 Global Opaque field_mapsto.
 
+Definition bind0 (f: mpred) (args: list val) : mpred := 
+     match args with nil => f | _ => FF end.
+
+Lemma bind0_e: forall f, bind_args nil (bind0 f) = fun rho => f.
+Proof. intros. unfold bind_args, bind0. extensionality rho; simpl.
+ apply prop_true_andp. auto.
+Qed.
+
+Definition bind1 (f: val -> mpred) (args: list val): mpred :=
+       match args with a::nil => f a | _ => FF end.
+
+Lemma bind1_e: forall id t f,
+   bind_args ((id,t)::nil) (bind1 f)  =
+    (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id t)) t) = true))
+          && (fun rho => f (eval_id rho id)).
+Proof. 
+ intros; unfold bind_args, bind1;  simpl. 
+ extensionality rho.
+ f_equal.
+ rewrite andb_true_r; auto.
+Qed.
+
+Definition bind2 (f: val -> val -> mpred) (args: list val): mpred :=
+       match args with a::b::nil => f a b | _ => FF end.
+
+Lemma bind2_e: forall id1 t1 id2 t2 f,
+   bind_args ((id1,t1)::(id2,t2)::nil) (bind2 f)  =
+    (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id1 t1)) t1) = true))
+   && (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id2 t2)) t2) = true))
+          && (fun rho => f (eval_id rho id1) (eval_id rho id2)).
+Proof. 
+ intros; unfold bind_args, bind2;  simpl. 
+ extensionality rho.
+ f_equal.
+ rewrite andb_true_r; auto.
+ destruct (typecheck_val (eval_id rho id1) t1); simpl;  normalize.
+ destruct (typecheck_val (eval_id rho id2) t2); simpl;  normalize.
+ rewrite andp_com. rewrite prop_true_andp; auto.
+Qed.
+
+Hint Rewrite bind0_e bind1_e bind2_e: normalize.
+
 Notation "'WITH' x 'PRE' [ ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tnil, tz) _
-             (fun x (args : list val) => match args with nil => P%logic | _ => FF%logic end) 
-             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun x => bind0 P%logic) 
+             (fun x => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
 Notation "'WITH' x : tx  'PRE' [ ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tnil, tz) _
-             (fun (x : tx) (args : list val) => match args with nil => P%logic | _ => FF%logic end) 
-             (fun (x : tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun (x : tx) => bind0 P%logic)
+             (fun (x : tx) => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta Tnil, tz) _
-             (fun x (args : list val) => match args with a::nil => P%logic | _ => FF%logic end) 
-             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun x => bind1 (fun a => P%logic))
+             (fun x => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta Tnil, tz) _
-             (fun (x:tx) (args : list val) => match args with a::nil => P%logic | _ => FF%logic end) 
-             (fun (x:tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun (x:tx) => bind1 (fun a => P%logic))
+             (fun (x:tx) => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 
 Notation "'WITH' x 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
-             (fun x (args : list val) => match args with a::b::nil => P%logic | _ => FF%logic end) 
-             (fun x (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun x => bind2 (fun a b => P%logic)) 
+             (fun x => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 Notation "'WITH' x : tx 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" := 
      (mk_funspec (Tcons ta (Tcons tb Tnil), tz) _
-             (fun (x:tx) (args : list val) => match args with a::b::nil => P%logic | _ => FF%logic end) 
-             (fun (x:tx) (args : list val) => match args with z::nil => Q%logic | _ => FF%logic end))
+             (fun (x:tx) => bind2 (fun a b => P%logic)) 
+             (fun (x:tx) => bind1 (fun z => Q%logic)))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
 
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
+
 
 

@@ -197,6 +197,28 @@ Proof.
  revert ve te k Heqq k' H; induction H1; intros; inv Heqq; simpl in *.
 Abort.  (* undoubtedly true, tedious to prove, maybe not needed *)
 
+Lemma semax_extract_prop:
+  forall Delta G (PP: Prop) P c Q, 
+           typecheck_stmt Delta c = true ->
+           (PP -> semax Hspec Delta G P c Q) -> 
+           semax Hspec Delta G (fun rho => !!PP && P rho) c Q.
+Proof.
+intros.
+split.
+apply prove_some_static_thing.
+intro w.
+rewrite semax_fold_unfold.
+intros gx w' ? ? k F w'' ? ?.
+intros rho w''' ? w4 ? [[? ?] ?].
+rewrite sepcon_andp_prop in H8.
+destruct H8.
+specialize (H0 H8); clear PP H8.
+destruct H0.
+rewrite semax_fold_unfold in H8.
+eapply H8; try apply H2; try apply H4; try eassumption.
+split; auto. split; auto.
+Qed.
+
 Lemma semax_ff:
   forall Delta G c R,  
    typecheck_stmt Delta c = true -> 

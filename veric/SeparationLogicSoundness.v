@@ -86,6 +86,7 @@ Definition frame_left := frame_left Hspec.
 
 Definition derives_skip := derives_skip Hspec.
 Definition semax_ff := semax_ff Hspec.
+Definition semax_extract_prop := semax_extract_prop Hspec.
 Definition fn_funsig := fn_funsig.
 Definition semax_external ef A P Q := forall n, semax_ext ef A P Q n.
 Definition Cnot := Cnot.

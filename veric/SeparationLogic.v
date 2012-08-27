@@ -90,7 +90,7 @@ Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
 
 Definition stackframe_of (f: Clight.function) : assert :=
-  fun rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+  fold_right sepcon emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
 Lemma  subst_extens: 
  forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
@@ -483,5 +483,11 @@ Axiom semax_ff:
   forall Delta G c R,  
    typecheck_stmt Delta c = true -> 
    semax Delta G FF c R.
+
+Axiom semax_extract_prop:
+  forall Delta G (PP: Prop) P c Q, 
+           typecheck_stmt Delta c = true ->
+           (PP -> semax Delta G P c Q) -> 
+           semax Delta G (fun rho => !!PP && P rho) c Q.
 
 End CLIGHT_SEPARATION_LOGIC.

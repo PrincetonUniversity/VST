@@ -7,11 +7,15 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
 
+Definition eval_id (rho: environ) (id: ident) := force_val (PTree.get id (te_of rho)).
+
 Fixpoint eval_expr (rho:environ) (e: expr) : val :=
  match e with
  | Econst_int i ty => Vint i
  | Econst_float f ty => Vfloat f
- | Etempvar id ty => force_val (PTree.get id (te_of rho))
+ | Etempvar id ty => eval_id rho id (* Don't write force_val here directly; with
+                                                           the intermediate definition eval_id, then
+                                                           eval_expr (Etempvar _ _) simplifies nicer. *)
  | Eaddrof a ty => eval_lvalue rho a
  | Eunop op a ty =>  force_val (sem_unary_operation op (eval_expr rho a) (typeof a))
  | Ebinop op a1 a2 ty =>  
@@ -562,6 +566,20 @@ Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop :=
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Maps.PTree.set x v (te_of rho)).
+
+
+Lemma eval_id_same: forall rho id v, eval_id (env_set rho id v) id = v.
+Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite PTree.gss. auto.
+Qed.
+Hint Rewrite eval_id_same : normalize.
+
+Lemma eval_id_other: forall rho id id' v,
+   id<>id' -> eval_id (env_set rho id v) id' = eval_id rho id'.
+Proof.
+ unfold eval_id, force_val; intros. simpl. rewrite PTree.gso; auto.
+Qed.
+Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
+
 
 (* expr.v is not quite the right place for these next few definitions, but
    we'll work that out later *)

@@ -122,7 +122,18 @@ Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable 
 
 
 Definition stackframe_of (f: Clight.function) : assert :=
-  fun rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
+
+Lemma stackframe_of_eq : stackframe_of = 
+        fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+Proof.
+ extensionality f rho.
+ unfold stackframe_of.
+ forget (fn_vars f) as vl.
+ induction vl; simpl; auto.
+ rewrite IHvl; auto.
+Qed.
+
 (*
 Definition stackframe_of (f: Clight.function) : assert :=
   fun rho => sepcon_list (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).

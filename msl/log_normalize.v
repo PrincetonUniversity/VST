@@ -783,7 +783,10 @@ Lemma sub_sepcon {A} {NA: NatDed A}{IA: Indir A}{SA: SepLog A}{SI: SepIndir A} :
   G |-- Q >=> Q' ->
   G |-- P * Q >=> P' * Q'.
 Proof.
-Admitted.  (* prove this in SepIndir? *)
+ intros.
+ eapply derives_trans; [ | apply sub_sepcon'].
+ apply andp_right; auto.
+Qed.
 
 Ltac sub_unfold := 
    match goal with 

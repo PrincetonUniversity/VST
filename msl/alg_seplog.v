@@ -195,20 +195,38 @@ Defined.
 
 Instance TrivRecIndir: RecIndir Triv := algRecIndir nat.
 
-Class SepIndir (A: Type) {ND: NatDed A}{SL: SepLog A}{ID: Indir A} := mkSepIndir {
-  later_sepcon: forall P Q, |> (P * Q) = |>P * |>Q
+Section SL3. Import msl.seplog.
+Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir {
+  later_sepcon: forall P Q, |> (P * Q) = |>P * |>Q;
+  sub_sepcon': forall P P' Q Q': A, (P >=> P') && (Q >=> Q') |-- (P * Q) >=> (P' * Q')
 }.
+End SL3.
 
 Definition algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
          @SepIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
  apply mkSepIndir.
  simpl.
  apply @predicates_sl.later_sepcon; auto.
+
+  repeat intro. destruct H.
+  destruct H2 as [w1 [w2 [? [? ?]]]].
+  exists w1; exists w2; split; auto.
+  split.
+  eapply H; auto.
+  assert (level w1 = level a').
+  apply comparable_fashionR.  eapply join_sub_comparable; eauto.
+ apply necR_level in H1. omega.
+  eapply H3; auto.
+  assert (level w2 = level a').
+  apply comparable_fashionR. eapply join_sub_comparable; eauto.
+ apply necR_level in H1. omega.
 Qed.
 
 Instance LiftSepIndir  (A: Type) (any: A) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
      @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A any B).
  constructor.
  intros; simpl. extensionality rho.  apply later_sepcon.
+ intros; simpl. intros rho ?. apply sub_sepcon'. auto.
 Qed.
+
 

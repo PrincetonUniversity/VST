@@ -296,7 +296,8 @@ destruct pt; auto. destruct pt; auto.
 (*Temp*)
 simpl in *. subst. destruct rho. apply typecheck_environ_sound in H. intuition. 
 unfold te_correct in *. unfold temp_element_correct in *.
-rewrite Forall_forall in *. clear H2. 
+rewrite Forall_forall in *. clear H2.
+unfold eval_id. 
 
 simpl. unfold force_val.
 destruct Delta. destruct p. 
@@ -579,9 +580,9 @@ inv Heqo0. inv H2.
 
 (*temp*)
 assert (TC:= typecheck_expr_sound).
-specialize (TC Delta rho (Etempvar i t)).
-subst. intuition. st.
-constructor. destruct ((te_of rho) ! i); auto. inv H3.
+specialize (TC Delta rho (Etempvar i t)). st. 
+intuition.
+constructor. unfold eval_id in *. destruct ((te_of rho) ! i); auto. inv H3.
 
 (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
