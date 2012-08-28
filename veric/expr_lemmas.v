@@ -306,6 +306,36 @@ unfold denote_tc_samebase in *;
 unfold denote_tc_nodivover in *;
 unfold denote_tc_initialized in *.
 
+Lemma eval_lvalue_ptr : forall rho e Delta te ve ge,
+mkEnviron ge ve te = rho -> 
+ve_correct ve ge Delta -> 
+denote_tc_assert (typecheck_lvalue Delta e) rho ->
+eval_lvalue rho e = Vundef \/ exists base, exists ofs, eval_lvalue rho e = Vptr base ofs.
+Proof.
+intros.
+induction e; eauto.
+simpl. 
+remember ((ve_of rho) ! i). destruct o; intuition;
+try destruct p; try remember (type_eq t t0); try destruct s;
+try remember (negb (type_is_volatile t0));try destruct b0; auto;
+try solve[right; eauto].
+remember (ge_of rho i). destruct o; eauto. destruct p. if_tac; eauto.
+unfold ve_correct in *. rewrite Forall_forall in *.
+unfold var_element_correct in *. remember ((var_types Delta) ! i).
+destruct o. subst. simpl in H1. remember (var_types Delta) ! i.
+destruct o; intuition. symmetry in Heqo2. apply PTree.elements_correct in Heqo2.
+specialize (H0 (i,t)); intuition. simpl in Heqo. rewrite <- Heqo in H.
+simpl in Heqo0. rewrite <- Heqo0 in H. destruct v; eauto; intuition.
+simpl in H1. rewrite <- Heqo1 in H1. intuition.
+
+st. intuition. destruct (eval_expr rho e); eauto.
+
+st. intuition. destruct (eval_lvalue rho e); eauto; intuition.
+destruct (typeof e); try congruence. 
+destruct (eval_lvalue rho e); intuition. destruct (typeof e); intuition.
+destruct (field_offset i f); eauto.
+Qed.
+
 Lemma typecheck_both_sound: 
   forall Delta rho e , 
              typecheck_environ rho Delta = true ->
@@ -438,13 +468,20 @@ try destruct i0; try destruct s; intuition; try destruct i1; try destruct s0; tr
 remember (typeof e1). unfold bool_val. destruct t0; intuition.*)
 
 (*EField*)
-st. intuition. 
-remember (eval_expr rho e).
-destruct v; intuition; 
-destruct (typeof e); intuition.
+st. intuition. specialize  (H3 pt). intuition. remember rho.
+destruct e0.
+rewrite Heqe0 in H4.
+apply typecheck_environ_sound in H. intuition. clear H0.
+assert (PTR := eval_lvalue_ptr _ _ _ _ _ _ Heqe0 H6 H4).
+rewrite Heqe0 in *. clear Heqe0.
+intuition. 
+remember (eval_lvalue rho e). unfold denote_tc_isptr in *.
+destruct v; intuition; try congruence.
+remember (eval_lvalue rho e). destruct H. destruct H.
+destruct v; intuition; try congruence.
+inv H.
+destruct (typeof e); intuition. 
 destruct (field_offset i f); intuition.
-simpl. destruct pt; auto.
-destruct pt; auto.
 
 Qed.
 
@@ -529,7 +566,7 @@ admit.
 admit.
 
 (*field*)
-st. remember (eval_expr rho e). destruct v; auto.
+st. remember (eval_lvalue rho e). destruct v; auto.
 remember (typeof e). destruct t0; auto. remember (field_offset i f).
 destruct r; auto. st. destruct pt; auto.
 destruct pt; auto.
@@ -580,34 +617,7 @@ Proof.
 intros; destruct v; destruct ty; inv H; eauto; inv H0.
 Qed.*)
 
-Lemma eval_lvalue_ptr : forall rho e Delta te ve ge,
-mkEnviron ge ve te = rho -> 
-ve_correct ve ge Delta -> 
-denote_tc_assert (typecheck_lvalue Delta e) rho ->
-eval_lvalue rho e = Vundef \/ exists base, exists ofs, eval_lvalue rho e = Vptr base ofs.
-Proof.
-intros.
-induction e; eauto.
-simpl. 
-remember ((ve_of rho) ! i). destruct o; intuition;
-try destruct p; try remember (type_eq t t0); try destruct s;
-try remember (negb (type_is_volatile t0));try destruct b0; auto;
-try solve[right; eauto].
-remember (ge_of rho i). destruct o; eauto. destruct p. if_tac; eauto.
-unfold ve_correct in *. rewrite Forall_forall in *.
-unfold var_element_correct in *. remember ((var_types Delta) ! i).
-destruct o. subst. simpl in H1. remember (var_types Delta) ! i.
-destruct o; intuition. symmetry in Heqo2. apply PTree.elements_correct in Heqo2.
-specialize (H0 (i,t)); intuition. simpl in Heqo. rewrite <- Heqo in H.
-simpl in Heqo0. rewrite <- Heqo0 in H. destruct v; eauto; intuition.
-simpl in H1. rewrite <- Heqo1 in H1. intuition.
 
-st. intuition. destruct (eval_expr rho e); eauto.
-
-st. intuition. destruct (eval_expr rho e); eauto; intuition.
-destruct (typeof e); intuition. destruct (field_offset i f); eauto.
-eauto.
-Qed.
 
 
 Lemma tc_binaryop_nomem : forall b e1 e2 m1 m2 t rho,
@@ -806,11 +816,20 @@ admit. (*Pass for now, since cond might go away.....============================
 (*Field*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. intuition.
-st. remember (eval_expr rho e). destruct v; intuition.
+st. remember (eval_lvalue rho e). destruct v; intuition.
 remember (typeof e). destruct t0; intuition. remember (field_offset i f).
 destruct r; intuition. st. exists b. exists (Int.add i0 (Int.repr z)). 
-intuition. eapply Clight_sem.eval_Efield_struct; auto. eauto. auto.
+intuition. eapply Clight_sem.eval_Efield_struct; auto.
+destruct H1. destruct H1. intuition. inv H7. 
+(*new thing*)
+eapply Clight_sem.eval_Elvalue in H4.
+apply H4. rewrite <- Heqt0. auto. apply Csem.deref_loc_copy. rewrite <- Heqt0. auto.
+eauto. eauto.  
 st. exists b. exists i0. intuition. eapply Clight_sem.eval_Efield_union; eauto.
+
+destruct H1. destruct H1. intuition. eapply Clight_sem.eval_Elvalue in H4.
+apply H4. rewrite <- Heqt0. auto. inv H7. apply Csem.deref_loc_copy. rewrite <- Heqt0. auto.
+
 Qed.
 
 Lemma eval_expr_relate:

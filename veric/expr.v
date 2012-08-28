@@ -50,7 +50,7 @@ Fixpoint eval_expr (rho:environ) (e: expr) : val :=
                         | Vptr l ofs => Vptr l ofs
                         | _ => Vundef
 	          end
- | Efield a i ty => match eval_expr rho a, typeof a with
+ | Efield a i ty => match eval_lvalue rho a, typeof a with
                             | Vptr l ofs, Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => Vptr l (Int.add ofs (Int.repr delta))
@@ -275,7 +275,7 @@ match e with
  | Ederef a ty => tc_andp (tc_andp (typecheck_expr Delta a) 
                           (tc_bool (is_pointer_type (typeof a))))
                           (tc_isptr a) 
- | Efield a i ty => tc_andp (typecheck_expr Delta a) (match typeof a with
+ | Efield a i ty => tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => tc_TT
