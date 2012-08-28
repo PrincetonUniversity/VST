@@ -397,8 +397,7 @@ forall Delta G A (P Q: A -> list val -> mpred) x F ret fsig a bl,
          (normal_ret_assert (const F * (fun rho => Q x (get_result ret (snd fsig) rho)))).
 
 Axiom  semax_return :
-   forall Delta G R ret 
-      (TC: typecheck_stmt Delta (Sreturn ret) = true),
+   forall Delta G R ret ,
       semax Delta G 
                 (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
                 (Sreturn ret)
@@ -441,13 +440,21 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
        (normal_ret_assert (mapsto' sh e1 v2 * P)).
 
 Axiom semax_store:
- forall Delta G e1 e2 v3 rsh P,
-    typeof e1 = typeof e2 ->   (* admit:  make this more accepting of implicit conversions! *) 
+ forall Delta G e1 e2 v3 rsh P 
+   (IT: (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr))
+   (FT: (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr))
+   (NA : tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true),
+   (*above to say that some unconvertable things (Tarray, Tfunction) can't be assigned*) 
+    typeof e1 = typeof e2 -> 
+    
+    (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)
+    (* admit:  make this more accepting of implicit conversions! *) 
    semax Delta G 
-          (tc_lvalue Delta e1 && tc_expr Delta e2 && 
-          |> (mapsto' (Share.splice rsh Share.top) e1 v3 * P ))
+          (fun rho =>
+          tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
+          |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (normal_ret_assert ((fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho) * P)).
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
@@ -481,12 +488,10 @@ Axiom derives_skip:
 
 Axiom semax_ff:
   forall Delta G c R,  
-   typecheck_stmt Delta c = true -> 
    semax Delta G FF c R.
 
 Axiom semax_extract_prop:
   forall Delta G (PP: Prop) P c Q, 
-           typecheck_stmt Delta c = true ->
            (PP -> semax Delta G P c Q) -> 
            semax Delta G (fun rho => !!PP && P rho) c Q.
 
