@@ -441,10 +441,7 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P 
-   (IT: (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr))
-   (FT: (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr))
-   (NA : tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true),
-   (*above to say that some unconvertable things (Tarray, Tfunction) can't be assigned*) 
+   (TC: typecheck_store e1 e2),
     typeof e1 = typeof e2 -> 
     
     (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)

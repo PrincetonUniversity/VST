@@ -234,6 +234,9 @@ match classify_cast tfrom tto with
 | cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | cast_case_neutral  => if type_eq tfrom ty then tc_TT else tc_noproof
+| cast_case_void => tc_noproof
+(*Disabling this for the program logic, the only time it is used is not for
+  functionality, more as a noop that "uses" some expression*)
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type ty)
       | Tfloat _ _  => tc_bool (is_float_type ty)
@@ -324,7 +327,8 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
                    | Tfunction _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
  | Vundef, _ => false
- | _, Tvoid => true
+ | _, Tvoid => true (* the only way this should occur is void cast which we have
+                          disabled *)
  | _, _ => false
  end.
 
@@ -717,3 +721,8 @@ Definition type_of_funspec (fs: funspec) : type :=
 
 (* END expr.v is not quite the right place for these next few definitions *)
 
+Definition typecheck_store e1 e2 := 
+(is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
+(is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr) /\
+(tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true).
+(*Typechecking facts to help semax_store go through until it gets generalized*)

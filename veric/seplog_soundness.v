@@ -24,10 +24,6 @@ Open Local Scope pred.
 Section extensions.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
-(*Joey's TODO: Figure out how to restrict store with ints
-figure out how to generalize ints in assign
-think more about updating tycon*)
-
 Lemma semax_straight_simple:
  forall Delta G (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
@@ -342,11 +338,10 @@ apply core_identity.
 Qed.
 
 
+
 Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P 
-   (IT: (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr))
-   (FT: (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr))
-   (NA : tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true),
+   (TC: typecheck_store e1 e2),
    (*above to say that some unconvertable things (Tarray, Tfunction) can't be assigned*) 
     typeof e1 = typeof e2 -> 
     
@@ -359,7 +354,7 @@ Lemma semax_store:
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 Proof.
-intros until P. intros IT FT NA TC3.
+intros until P. intros TC TC3.
 apply semax_straight_simple; auto.
 apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
@@ -389,12 +384,16 @@ subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store with (v':=(eval_expr rho e2)) in H11.
 Focus 2.
-rewrite TC3 in *.
-clear - TC2 TC4 IT FT Hmode.
+clear - TC2 TC4 TC3 TC  Hmode.
+unfold typecheck_store in *.
+destruct TC as [IT  ?].
+destruct H as [FT NA].
+rewrite TC3 in *; clear TC3.
 simpl in TC2. apply typecheck_expr_sound in TC2; auto.
 remember (eval_expr rho e2). destruct v; intuition.
 remember (typeof e2); destruct t; intuition; simpl in Hmode; try congruence.
-inv H. destruct ch; try congruence; auto.
+inv H. 
+destruct ch; try congruence; auto.
 assert (decode_encode_val (Vint i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vint i)))).
 apply decode_encode_val_general; auto.
 apply decode_encode_val_similar in H; auto.
@@ -433,12 +432,15 @@ rewrite TC3.
 instantiate (1:=eval_expr rho e2).
 unfold tc_expr in TC2. simpl in TC2. apply typecheck_expr_sound in TC2.
 unfold sem_cast.
+unfold typecheck_store in *.
+destruct TC as [IT [FT NA]].
+rewrite TC3 in *.
 remember (typeof e2). unfold classify_cast.
 destruct t; auto; simpl;
-rewrite TC3 in IT; rewrite TC3 in NA; intuition; try inv H8;
+intuition; try inv H8;
 try solve [simpl; destruct (eval_expr rho e2); try solve[intuition]].
-destruct (eval_expr rho e2); intuition. rewrite TC3 in FT.
-intuition. inv H8. auto. auto.
+destruct (eval_expr rho e2); intuition. 
+unfold typecheck_store in *.
 (* make this more general as a kind of typechecking proof
            Done with simplifications *)
 eapply Csem.assign_loc_value.
