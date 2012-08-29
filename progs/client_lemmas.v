@@ -345,6 +345,20 @@ Qed.
 
 Global Opaque field_mapsto.
 
+Lemma overridePost_normal:
+  forall P R, overridePost P R EK_normal nil = P.
+Proof.
+ intros. unfold overridePost. rewrite if_true by auto.
+ extensionality rho. apply prop_true_andp. auto.
+Qed.
+Hint Rewrite overridePost_normal : normalize.
+
+Lemma eval_expr_Etempvar: 
+  forall rho i t, eval_expr rho (Etempvar i t) = eval_id rho i.
+Proof. reflexivity.
+Qed.
+Hint Rewrite eval_expr_Etempvar : normalize.
+
 Definition bind0 (f: mpred) (args: list val) : mpred := 
      match args with nil => f | _ => FF end.
 

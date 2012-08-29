@@ -10,7 +10,7 @@ Class NatDed (A: Type) := mkNatDed {
   derives: A -> A -> Prop;
   pred_ext: forall P Q, derives P Q -> derives Q P -> P=Q;
   derives_refl: forall P, derives P P;
-  derives_trans: forall {P Q R}, derives P Q -> derives Q R -> derives P R;
+  derives_trans: forall P Q R, derives P Q -> derives Q R -> derives P R;
   TT := prop True;
   FF := prop False;
   andp_right:  forall X P Q:A, derives X P -> derives X Q -> derives X (andp P Q);

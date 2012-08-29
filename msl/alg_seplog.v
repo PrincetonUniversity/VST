@@ -63,6 +63,10 @@ Definition Triv := predicates_hered.pred nat.
 Instance TrivNatDed: NatDed Triv := algNatDed nat.
 Instance TrivSeplog: SepLog Triv := @algSepLog nat _ _ _ _ (asa_nat).
 Instance TrivClassical: ClassicalSep Triv := @algClassicalSep _ _ _ _ _ _ asa_nat.
+Instance TrivIntuitionistic: IntuitionisticSep Triv.
+ constructor. intros. hnf. intros. destruct H as [w1 [w2 [? [? _]]]].
+ destruct H; subst; auto.
+Qed.
 
 Class IndirOps (A: Type) {ND: NatDed A} := mkIndirOps {
   later: A -> A;

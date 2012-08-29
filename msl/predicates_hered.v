@@ -355,7 +355,7 @@ Qed.
 
 
 Lemma derives_trans {A}`{ageable A}: 
-    forall {P Q R: pred A}, P |-- Q -> Q |-- R -> P |-- R.
+    forall P Q R: pred A, P |-- Q -> Q |-- R -> P |-- R.
 Proof. firstorder. Qed.
 
 Lemma exp_right: 

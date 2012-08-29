@@ -102,10 +102,8 @@ Lemma andp_derives {A} {NA: NatDed A}:
 Proof.
 intros.
 apply andp_right.
-eapply derives_trans; try apply H.
-apply andp_left1; auto.
-eapply derives_trans; try apply H0.
-apply andp_left2; auto.
+apply andp_left1; apply H.
+apply andp_left2; apply H0.
 Qed.
 
 Lemma imp_derives {A} {NA: NatDed A}:
