@@ -92,7 +92,7 @@ Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
-        Ex v: val*type,  Ex a: address, Ex rsh: Share.t,
+        EX v: val*type,  EX a: address, EX rsh: Share.t,
           !! (ge_of rho id = Some v /\ val2adr (fst v) a) && VALspec_range n rsh Share.top a.
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
@@ -160,13 +160,13 @@ Definition bind_ret (vl: list val) (t: type) (Q: list val -> pred rmap) : pred r
 
 Definition funassert (G: funspecs) : assert := 
  fun rho => 
-   (All  id: ident, All fs:funspec,  !! In (id,fs) G -->
-              Ex v:val, Ex loc:address, 
+   (ALL  id: ident, ALL fs:funspec,  !! In (id,fs) G -->
+              EX v:val, EX loc:address, 
                    !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) && func_at fs loc)
    && 
-   (All  loc: address, All fs:funspec, func_at fs loc --> 
-             Ex id:ident,Ex v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
+   (ALL  loc: address, ALL fs:funspec, func_at fs loc --> 
+             EX id:ident,EX v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) && !! In id (map (@fst _ _) G)).
 
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,
@@ -181,7 +181,7 @@ Definition overridePost  (Q: assert)  (R: ret_assert) :=
      fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
-  fun ek vl rho => Ex x:A, R x ek vl rho.
+  fun ek vl rho => EX x:A, R x ek vl rho.
 
 Definition normal_ret_assert (Q: assert) : ret_assert := 
    fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).

@@ -72,7 +72,7 @@ Proof.
   intros.
   apply identities_unique; auto.
   exists s.
-  apply join_com.
+  apply join_comm.
   
   destruct (top_correct' s).
   assert (x = top).
@@ -82,7 +82,7 @@ Proof.
   assert (x = top).
   apply bot_identity; auto.
   subst x; auto.
-  apply join_com in H1.
+  apply join_comm in H1.
   destruct (join_assoc H0 H1); intuition.
   assert (x = top).
   apply H; auto.
@@ -273,9 +273,9 @@ Proof.
   assert (x0 = top).
   apply bot_identity; auto.
   subst x0.
-  apply join_com in H0.
+  apply join_comm in H0.
   destruct (join_assoc H H0); intuition.
-  apply join_com in H2.
+  apply join_comm in H2.
   destruct (join_assoc H1 H2); intuition.
   assert (s = x1).
   apply bot_identity; auto.
@@ -327,7 +327,7 @@ Proof.
   rewrite leq_join_sub in H0.
   destruct H0.
   destruct (join_assoc H H0) as [s [H1 H2]].
-  apply join_com in H2. apply unit_identity in H2.
+  apply join_comm in H2. apply unit_identity in H2.
   eapply split_identity; eauto.
 Qed.
 
@@ -352,7 +352,7 @@ Proof with auto.
   apply leq_join_sub in H0.
   destruct H0.
   spec H x. spec H. exists top...
-  spec H sh top (join_com H0)...
+  spec H sh top (join_comm H0)...
 Qed.
 
 Lemma rel_congruence : forall a x1 x2,
@@ -434,7 +434,7 @@ Proof with auto.
   destruct (eq_dec sh1 sh)...
   subst sh1.
   generalize (split_join _ _ _ H0); intro.
-  apply join_com in H1.
+  apply join_comm in H1.
   apply unit_identity in H1...
 Qed.
 
@@ -480,9 +480,9 @@ Lemma share_rel_nonunit: forall {sh1 sh2: Share.t},
        nonunit sh1 -> nonunit sh2 -> nonunit (Share.rel sh1 sh2).
 Proof. intros. apply nonidentity_nonunit. apply share_rel_nonidentity.
 intro. apply (@identity_unit _ _ _ sh1 Share.bot) in H1. apply H in H1; auto.
-apply joins_com. apply bot_joins.
+apply joins_comm. apply bot_joins.
 intro. apply (@identity_unit _ _ _ sh2 Share.bot) in H1. apply H0 in H1; auto.
-apply joins_com. apply bot_joins.
+apply joins_comm. apply bot_joins.
 Qed.
 
 

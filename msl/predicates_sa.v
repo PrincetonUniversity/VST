@@ -60,8 +60,8 @@ Definition wand {A}  {JA: Join A}  (p q:pred A) := fun y =>
   forall x z, join x y z -> p x -> q z.
 
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
-Notation "'Ex'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
-Notation "'All'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
+Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
+Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
@@ -94,7 +94,7 @@ econstructor; eauto.
 spec H.
 econstructor; eauto.
 subst phi1b.
-generalize (join_canc (join_com H0) (join_com H3)).
+generalize (join_canc (join_comm H0) (join_comm H3)).
 intro; subst phi2b.
 exists phi1a; exists phi2a; split; auto.
 split; auto.
@@ -170,7 +170,7 @@ destruct (join_assoc H1 H0) as [w23 [? ?]].
 exists w1; exists w23; repeat split; auto.
 exists w2; exists w3; split; auto.
 destruct H0 as [w1 [w23 [? [? [w2 [w3 [? [? ?]]]]]]]].
- destruct (join_assoc (join_com H2) (join_com H0)) as [w12 [? ?]].
+ destruct (join_assoc (join_comm H2) (join_comm H0)) as [w12 [? ?]].
 exists w12; exists w3; repeat split; auto.
 exists w1; exists w2; repeat split; auto.
 Qed.
@@ -179,7 +179,7 @@ Lemma sepcon_com {A} {JA: Join A}{PA: Perm_alg A}:  forall (P Q: pred A) , P * Q
 Proof.
 intros.
 extensionality w; apply prop_ext; split; intros;
-(destruct H as [w1 [w2 [? [? ?]]]]; exists w2; exists w1; split ; [apply join_com; auto | split; auto]).
+(destruct H as [w1 [w2 [? [? ?]]]]; exists w2; exists w1; split ; [apply join_comm; auto | split; auto]).
 Qed.
 
 Lemma sepcon_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}: forall P, (P * emp) = P.
@@ -191,11 +191,11 @@ generalize (identity_unit (a:=w1) H1); intro.
 spec H2.
 econstructor; eauto.
 unfold unit_for in H2.
-generalize (join_eq H (join_com H2)).
+generalize (join_eq H (join_comm H2)).
 intros; subst; auto.
 destruct (join_ex_identities w) as [e [? ?]].
 exists w; exists e; repeat split; auto.
-apply join_com.
+apply join_comm.
 apply identity_unit; auto.
 Qed.
 
@@ -230,7 +230,7 @@ Qed.
 
 
 Lemma exists_and1 {A: Type} : forall {T: Type} (P: T -> pred A) (Q: pred A),
-                   exp P && Q = Ex x:T, P x && Q.
+                   exp P && Q = EX x:T, P x && Q.
 Proof.
 intros.
 extensionality w.
@@ -242,7 +242,7 @@ split; auto.
 exists x; auto.
 Qed.
 
-Lemma andp_com {A: Type}: forall (P Q: pred A), P && Q = Q && P.
+Lemma andp_comm {A: Type}: forall (P Q: pred A), P && Q = Q && P.
 Proof.
 intros.
 extensionality w.
@@ -480,7 +480,7 @@ auto.
 Qed.
 
 Lemma wand_exists {A} {JA: Join A}{PA: Perm_alg A}:
-   forall B P Q,  (Ex x: B, P -* Q x) |-- (P -* Ex x : B, Q x).
+   forall B P Q,  (EX x: B, P -* Q x) |-- (P -* EX x : B, Q x).
 Proof.
 pose proof I.
 intros.
@@ -544,7 +544,7 @@ Hint Resolve @superprecise_exactly.
 Lemma find_overlap {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      Cross_alg A ->
      forall S P Q R, (S * P) && (Q * R) |-- 
-                          Ex SQ:_, Ex SR:_, Ex PQ:_, Ex PR:_, 
+                          EX SQ:_, EX SR:_, EX PQ:_, EX PR:_, 
                             (((SQ* SR) && S)*((PQ* PR) && P)) &&
                             (((SQ* PQ) && Q)*((SR* PR) && R)) &&
                             !! (superprecise SQ /\ superprecise SR /\ superprecise PQ /\ superprecise PR).
@@ -655,13 +655,13 @@ intros; apply pred_ext; intros w ?.
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H0 as [w3 [w4 [? [? ?]]]].
 exists w3.
-destruct (join_assoc (join_com H0) H) as [wf [? ?]].
+destruct (join_assoc (join_comm H0) H) as [wf [? ?]].
 exists wf.
 split; [|split]; auto.
 exists w4. exists w2. split; auto. 
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H1 as [w3 [w4 [? [? ?]]]].
-destruct (join_assoc (join_com H) (join_com H1)) as [wf [? ?]].
+destruct (join_assoc (join_comm H) (join_comm H1)) as [wf [? ?]].
 exists wf. exists w4. split; [|split]; auto.
 exists w1; exists w3; split; auto.
 Qed.

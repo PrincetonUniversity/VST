@@ -6,9 +6,9 @@
 
 Require ClassicalFacts.
 
-(** * Extensionality axioms *)
+(** * EXtensionality axioms *)
 
-(** The following [Require Export] gives us functional extensionality for dependent function types:
+(** The following [Require EXport] gives us functional extensionality for dependent function types:
 <<
 Axiom functional_extensionality_dep : forall {A} {B : A -> Type}, 
   forall (f g : forall x : A, B x), 

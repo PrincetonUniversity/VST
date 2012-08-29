@@ -421,7 +421,7 @@ Qed.
 
 (*
 Definition funcptr G v A P Q : assert :=
-   (Ex gm: env ident val, has_ge gm &&
+   (EX gm: env ident val, has_ge gm &&
        !((G && has_ge gm) >=> (TT * ^m fun_assert v Share.top A P Q))).
 
 Lemma semax_prog_rule_aux3:

@@ -2017,7 +2017,7 @@ Fixpoint check_injectlist1 (js : list meminj) m1 ms last : Prop :=
    Qed.
 
 (*
-  Lemma mem_square_memExtAux1: forall js1 m3 m1 ms a
+  Lemma mem_square_memEXtAux1: forall js1 m3 m1 ms a
           (CIL : check_injectlist1 js1 m1 (a::ms) m3) ms'  m1'
           (MSQ : Sim_inj.mem_square js1 m1 ms m1' ms') ms1 b
           (CIL1 : check_injectlist1 js1 m1 (b::ms1) m3),
@@ -2105,7 +2105,7 @@ Fixpoint mem_square1 js m1 ms m1' ms' : Prop :=
            simpl in *. rewrite H3. rewrite <- H4. split; trivial. split; trivial.
    Qed.*)
 (*
-  Lemma mem_square1_memExt: forall J m M m' M',
+  Lemma mem_square1_memEXt: forall J m M m' M',
        S(length J) = length M ->
        forall MM (MSQ: mem_square1 J m MM m' M'),
   mem_square1 J m M m' M'.
@@ -2429,7 +2429,7 @@ Section ForwardSimInjectInjectCompose.
           destruct rets12'; try contradiction. subst. clear CIL1. simpl in *.
 (*          assert (X1 :=  Sim_inj.core_after_external FSim12 d12 nil nil st1 st2 
                 m2 nil e vals1 ret1 nil m2' nil m2 m2'  ret1 (eq_refl _) CMS12).
-          destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]]; simpl; try trivial.
+          destruct X1 as [d12' [st1' [st2' [AftEXt1 [AftEXt2 CMS12']]]]]; simpl; try trivial.
             intros b; intros. inv H.
             apply Sim_inj.mem_square_mem_forward in MSQ. apply MSQ.
             eapply check_returns_types; eauto.*)
@@ -2858,23 +2858,23 @@ End Sim_proof.
 assert (m=m2). admit.
     (*Case js1 = nil
        subst. simpl in *.
-       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtExt1) 
-          as [ms1 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]].
+       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtEXt1) 
+          as [ms1 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]].
        destruct ms1; try contradiction. simpl in *. subst.  inv Incr1. simpl in *.
        assert (X1 :=  Sim_inj.core_after_external FSim12 d12 nil nil st1 st2 
                m2 nil e vals1 ret1 nil m1' nil _ m1' ret1 (eq_refl _) CMS12).
-       destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]]; simpl; try trivial.
+       destruct X1 as [d12' [st1' [st2' [AftEXt1 [AftEXt2 CMS12']]]]]; simpl; try trivial.
          intros b; intros. inv H.
          apply Sim_inj.mem_square_mem_forward in MSQ. apply MSQ.
          eapply check_returns_types; eauto.
        assert (X2 := Sim_inj.core_after_external FSim23 d23 js2 js2' st2 st3 m2 ms e
                      vals2 ret1 rets m1' ms' m3 m3' ret3).
-       destruct X2 as [d23' [stss' [st3' [AftExt22 [AftExt3 CMS23']]]]]; simpl; try trivial.
-       rewrite AftExt2 in AftExt22. apply eq_sym in AftExt22. inv AftExt22.
+       destruct X2 as [d23' [stss' [st3' [AftEXt22 [AftEXt3 CMS23']]]]]; simpl; try trivial.
+       rewrite AftEXt2 in AftEXt22. apply eq_sym in AftEXt22. inv AftEXt22.
        exists (d23',d12').
        exists st1'. exists st3'.
-       split. apply AftExt1. 
-       split. apply AftExt3. 
+       split. apply AftEXt1. 
+       split. apply AftEXt3. 
        assert (ZZ:= intro_compose_match_state _ _ _ _ _ _ _ _ _ _ CMS12' CMS23'). 
           simpl in ZZ. apply ZZ. 
     Case js1 = cons *)
@@ -3190,9 +3190,9 @@ xx
        destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
          constructor.
        destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtExt1) as [INJ1 [vals2 [VI1 [ArgTp2 AtExt2]]]].
-          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]]. *)
+          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]]. *)
        destruct (Sim_inj.core_at_external FSim23 _ _ _ _ _ _ _ _ CMS23 AtExt2) as [INJ2 [vals3 [VI2 [ArgTp3 AtExt3]]]].
-          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]]. *)
+          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]]. *)
        simpl in *. subst. (*  clear CIL1 Hm2 ms1. xx clear CIL1 ms1.*) (* destruct ms1; try contradiction. clear CIL1. inv Incr1. simpl in *.*)
        assert (X1 :=  Sim_inj.core_after_externalRob FSim12 d12 js1 js1' st1 st2 m1 (M1 ++ m :: nil) e vals1 ret1). nil m1' nil).xx
        destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
@@ -3322,17 +3322,17 @@ cc
     destruct CIL as [[NIL CIL2] | [M1 [M2 [m [M [CCIL1 CCIL2]]]]]].
     (*Case js1 = nil*)
        subst. simpl in *.
-       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtExt1) 
-          as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]].
+       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtEXt1) 
+          as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]].
         destruct ms1; try contradiction. clear CIL1. inv Incr1. simpl in *.
 (*      assert (Num1:= Sim_inj.match_state_num_passes _ _ _ _ _ _ _ CMS12). *)
 (* simpl in Num1. simpl in numpasses13. rewrite <- Num1 in numpasses13. simpl in *.*)  
 (*       assert (NIL12:= Sim_inj.match_state_nil FSim12 _ _ _ _ _ CMS12). subst.*)
        assert (X1 :=  Sim_inj.core_after_external FSim12 d12 nil nil st1 st2 m1 nil e vals1 ret1 nil m1' nil).
-       destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
+       destruct X1 as [d12' [st1' [st2' [AftEXt1 [AftEXt2 CMS12']]]]].
          constructor.
          apply CMS12. 
-         apply AtExt1.
+         apply AtEXt1.
          constructor.
          simpl. (*apply inject_separated_refl.*) intros b; intros. inv H.
          constructor.
@@ -3342,20 +3342,20 @@ cc
        simpl in *.
        assert (X2 :=  Sim_inj.core_after_external FSim23 d23 js2 js2' st2 st3 m1 ms e
                      vals2 ret1 rets m1' ms').
-       destruct X2 as [d23' [stss' [st3' [AftExt22 [AftExt3 CMS23']]]]].
+       destruct X2 as [d23' [stss' [st3' [AftEXt22 [AftEXt3 CMS23']]]]].
          apply CIL2.
          unfold m3 in *. apply CMS23.
-         apply AtExt2. 
+         apply AtEXt2. 
          apply Incr2.
          unfold m3 in *. apply Sep13.
          apply CIL'.
          apply RET'.
          apply MSQ.
          unfold ret3 in *. apply Tp3.
-       rewrite AftExt2 in AftExt22. apply eq_sym in AftExt22. inv AftExt22.
+       rewrite AftEXt2 in AftEXt22. apply eq_sym in AftEXt22. inv AftEXt22.
        exists (d23',d12'). exists st1'. exists st3'.
-       split. apply AftExt1. 
-       split. unfold ret3 in *. apply AftExt3. 
+       split. apply AftEXt1. 
+       split. unfold ret3 in *. apply AftEXt3. 
        assert (ZZ:= intro_compose_match_state _ _ _ _ _ _ _ _ _ _ CMS12' CMS23'). 
           simpl in ZZ. unfold m3' in *. apply ZZ. 
     Case js1 = cons*)
@@ -4689,9 +4689,9 @@ Section ForwardSimInjectInjectCompose.
        destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
          constructor.
        destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtExt1) as [INJ1 [vals2 [VI1 [ArgTp2 AtExt2]]]].
-          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]]. *)
+          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]]. *)
        destruct (Sim_inj.core_at_external FSim23 _ _ _ _ _ _ _ _ CMS23 AtExt2) as [INJ2 [vals3 [VI2 [ArgTp3 AtExt3]]]].
-          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]]. *)
+          (*Rob .. as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]]. *)
        simpl in *. subst. (*  clear CIL1 Hm2 ms1. xx clear CIL1 ms1.*) (* destruct ms1; try contradiction. clear CIL1. inv Incr1. simpl in *.*)
        assert (X1 :=  Sim_inj.core_after_externalRob FSim12 d12 js1 js1' st1 st2 m1 (M1 ++ m :: nil) e vals1 ret1). nil m1' nil).xx
        destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
@@ -4821,17 +4821,17 @@ cc
     destruct CIL as [[NIL CIL2] | [M1 [M2 [m [M [CCIL1 CCIL2]]]]]].
     (*Case js1 = nil*)
        subst. simpl in *.
-       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtExt1) 
-          as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtExt2]]]]]].
+       destruct (Sim_inj.core_at_external FSim12 _ _ _ _ _ _ _ _ CMS12 AtEXt1) 
+          as [ms1 [Hm2 [CIL1 [vals2 [VI2 [Tp2 AtEXt2]]]]]].
         destruct ms1; try contradiction. clear CIL1. inv Incr1. simpl in *.
 (*      assert (Num1:= Sim_inj.match_state_num_passes _ _ _ _ _ _ _ CMS12). *)
 (* simpl in Num1. simpl in numpasses13. rewrite <- Num1 in numpasses13. simpl in *.*)  
 (*       assert (NIL12:= Sim_inj.match_state_nil FSim12 _ _ _ _ _ CMS12). subst.*)
        assert (X1 :=  Sim_inj.core_after_external FSim12 d12 nil nil st1 st2 m1 nil e vals1 ret1 nil m1' nil).
-       destruct X1 as [d12' [st1' [st2' [AftExt1 [AftExt2 CMS12']]]]].
+       destruct X1 as [d12' [st1' [st2' [AftEXt1 [AftEXt2 CMS12']]]]].
          constructor.
          apply CMS12. 
-         apply AtExt1.
+         apply AtEXt1.
          constructor.
          simpl. (*apply inject_separated_refl.*) intros b; intros. inv H.
          constructor.
@@ -4841,20 +4841,20 @@ cc
        simpl in *.
        assert (X2 :=  Sim_inj.core_after_external FSim23 d23 js2 js2' st2 st3 m1 ms e
                      vals2 ret1 rets m1' ms').
-       destruct X2 as [d23' [stss' [st3' [AftExt22 [AftExt3 CMS23']]]]].
+       destruct X2 as [d23' [stss' [st3' [AftEXt22 [AftEXt3 CMS23']]]]].
          apply CIL2.
          unfold m3 in *. apply CMS23.
-         apply AtExt2. 
+         apply AtEXt2. 
          apply Incr2.
          unfold m3 in *. apply Sep13.
          apply CIL'.
          apply RET'.
          apply MSQ.
          unfold ret3 in *. apply Tp3.
-       rewrite AftExt2 in AftExt22. apply eq_sym in AftExt22. inv AftExt22.
+       rewrite AftEXt2 in AftEXt22. apply eq_sym in AftEXt22. inv AftEXt22.
        exists (d23',d12'). exists st1'. exists st3'.
-       split. apply AftExt1. 
-       split. unfold ret3 in *. apply AftExt3. 
+       split. apply AftEXt1. 
+       split. unfold ret3 in *. apply AftEXt3. 
        assert (ZZ:= intro_compose_match_state _ _ _ _ _ _ _ _ _ _ CMS12' CMS23'). 
           simpl in ZZ. unfold m3' in *. apply ZZ. 
     Case js1 = cons*)

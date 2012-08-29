@@ -182,7 +182,7 @@ Inductive initial_state (p: program): (corestate * mem) -> Prop :=
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
       type_of_fundef f = Tfunction Tnil type_int32s ->
-      initial_state p (State ve te (Kfun f nil None  :: Kfun (External ef_exit Tnil Tvoid) nil None :: nil), m0).
+      initial_state p (State ve te (Kfun f nil None  :: Kfun (EXternal ef_exit Tnil Tvoid) nil None :: nil), m0).
 *)
   .  (* fixme *)
 
@@ -192,7 +192,7 @@ Inductive final_state: (corestate * mem) -> int -> Prop :=
 (*
   | final_state_intro: forall r ve te m,
       final_state (State ve te 
-                          (Kfun (External ef_exit Tnil Tvoid) nil None :: nil), m) r
+                          (Kfun (EXternal ef_exit Tnil Tvoid) nil None :: nil), m) r
 *)
  . (* fixme *)
 

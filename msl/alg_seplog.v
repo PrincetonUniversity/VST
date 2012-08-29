@@ -96,14 +96,14 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_fash:  forall P, later (fash P) = fash (later P);
   later_andp: forall P Q, later (P && Q) = later P && later Q;
   fash_andp: forall P Q, fash (P && Q) = fash P && fash Q;
-  later_allp: forall T (F: T -> A),  later (allp F) = All x:T, later (F x);
-  later_exp: forall T (F: T-> A), Ex x:T, later (F x) |-- later (exp F);
-  later_exp': forall T (any:T) F, later (exp F) = Ex x:T, later (F x);
+  later_allp: forall T (F: T -> A),  later (allp F) = ALL x:T, later (F x);
+  later_exp: forall T (F: T-> A), EX x:T, later (F x) |-- later (exp F);
+  later_exp': forall T (any:T) F, later (exp F) = EX x:T, later (F x);
   later_orp: forall P Q, later (P || Q) = later P || later Q;
   later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
   goedel_loeb: forall P Q,   Q && later P |-- P ->  Q |-- P;
-  sub_allp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (allp X) (allp Y));
-  sub_exp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (exp X) (exp Y));
+  subp_allp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (allp X) (allp Y));
+  subp_exp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (exp X) (exp Y));
   fash_TT: forall G, G |-- fash TT
 }.
 End SL.
@@ -132,8 +132,8 @@ Definition algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}
  apply @later_or.
  apply @predicates_hered.later_imp.
  apply @predicates_hered.goedel_loeb; auto.
- apply @subtypes.sub_allp; auto.
- eapply @subtypes.sub_exp; auto. 
+ apply @subtypes.subp_allp; auto.
+ eapply @subtypes.subp_exp; auto. 
  repeat intro; hnf; auto.
 Defined.
 
@@ -172,8 +172,8 @@ Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
  simpl; intros. extensionality rho. apply later_orp.
  simpl; intros. extensionality rho. apply later_imp.
  simpl; intros. apply goedel_loeb; auto.
- apply sub_allp; auto.
- apply sub_exp; auto.
+ apply subp_allp; auto.
+ apply subp_exp; auto.
  apply fash_TT.
 Defined.
 
@@ -182,13 +182,13 @@ Section SL2. Import msl.seplog.
 Class RecIndir (A: Type) {NA: NatDed A}{IA: Indir A} := mkRecIndir {
   HORec : forall {X} (f: (X -> A) -> (X -> A)), X -> A;
   HOcontractive: forall {X: Type} (f: (X -> A) -> (X -> A)), Prop :=
-         fun {X} f => forall P Q,  (All x:X, later (fash (P x <--> Q x))) |-- (All x:X, fash (f P x <--> f Q x)); 
+         fun {X} f => forall P Q,  (ALL x:X, later (fash (P x <--> Q x))) |-- (ALL x:X, fash (f P x <--> f Q x)); 
   HORec_fold_unfold : forall X (f: (X -> A) -> (X -> A)) (H: HOcontractive f), HORec f = f (HORec f)
 }.
 
 Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}
         {X: Type} (f: (X -> A) -> (X -> A)) :=
-         forall P Q,  (All x:X, fash (P x <--> Q x)) |-- (All x:X, fash (f P x <--> f Q x)).
+         forall P Q,  (ALL x:X, fash (P x <--> Q x)) |-- (ALL x:X, fash (f P x <--> f Q x)).
 End SL2.
 
 Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :

@@ -1009,7 +1009,7 @@ End SIMULATIONS.
 (* This module type states that forward simulations are sufficent
    to imply correctness with respect to the trace model of external
    functions.  First we demonstrate how to hook up an arbitrary
-   ExtSem with the trace model, then we show simulation in the
+   EXtSem with the trace model, then we show simulation in the
    forward and backward direction.  Finally we show that
    the compiler preserves all trace behaviors for safe input
    programs.
@@ -1024,7 +1024,7 @@ Require Import compcert.Behaviors.
 
 Module Type TRACE_CORRECTNESS.
 
-  Section ExtSem_to_trace.
+  Section EXtSem_to_trace.
     Variables (F C V:Type).
     Variable (Sem:CompcertCoreSem F C V external_function).
 
@@ -1073,7 +1073,7 @@ Module Type TRACE_CORRECTNESS.
 
     Definition safe_prog w ge := forall st, initial_state st -> safe_state w ge st.
 
-  End ExtSem_to_trace.
+  End EXtSem_to_trace.
 
   Axiom forward_simulation_trace_forward : forall
       (F1 C1 V1 F2 C2 V2 :Type)

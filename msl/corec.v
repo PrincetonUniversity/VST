@@ -63,7 +63,7 @@ Qed.
 
 Lemma covariant_exp {C B A}: forall F: C -> (B -> pred A) -> (B -> pred A),
   (forall c, covariant (F c)) -> 
-   covariant (fun P b => Ex c:C, F c P b)%pred.
+   covariant (fun P b => EX c:C, F c P b)%pred.
 Proof.
 intros.
 repeat intro.

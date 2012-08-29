@@ -58,7 +58,7 @@ Proof.
 Qed.
 
 Lemma find_superprecise {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: 
-   forall Q, Q |-- Ex P:_, P && !(P >=> Q) && !!superprecise (P).
+   forall Q, Q |-- EX P:_, P && !(P >=> Q) && !!superprecise (P).
 Proof.
 intros.
 intros w ?.
@@ -73,7 +73,7 @@ do 3 red.
 apply superprecise_exactly.
 Qed.
 
-Lemma sepcon_subp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
+Lemma sepcon_subp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall (P P' Q Q' : pred A) (st: nat),  
     (P >=> P') st -> 
     (Q >=> Q') st -> 
@@ -95,13 +95,13 @@ symmetry. apply comparable_fashionR.
 eapply join_comparable; eauto.
 Qed.
 
-Lemma subp_refl  {A} `{agA : ageable A} :  forall (Q: pred A) (st: nat), (Q >=> Q) st.
+Lemma subp_refl'  {A} `{agA : ageable A} :  forall (Q: pred A) (st: nat), (Q >=> Q) st.
 Proof.
 intros.
 intros ? ? ? ?; auto.
 Qed.
 
-Lemma subp_trans {A} `{agA : ageable A}:
+Lemma subp_trans' {A} `{agA : ageable A}:
   forall (B C D: pred A) (w: nat), (B >=> C)%pred w -> (C >=> D)% pred w -> (B >=> D)%pred w.
 Proof.
 intros.
@@ -110,7 +110,7 @@ eapply H0; eauto.
 eapply H; eauto.
 Qed.
 
-Lemma andp_subp  {A} `{agA : ageable A} :
+Lemma andp_subp'  {A} `{agA : ageable A} :
  forall (P P' Q Q': pred A) (w: nat), (P >=> P') w -> (Q >=> Q') w -> (P && Q >=> P' && Q') w.
 Proof.
 intros.
@@ -119,7 +119,7 @@ eapply H; eauto.
 eapply H0; eauto.
 Qed.
 
-Lemma allp_subp{A} `{agA : ageable A}: forall T (F G: T -> pred A) (w: nat), 
+Lemma allp_subp' {A} `{agA : ageable A}: forall T (F G: T -> pred A) (w: nat), 
    (forall x,  (F x >=> G x) w) -> (allp (fun x:T => (F x >=> G x)) w).
 Proof.
 intros.
@@ -144,10 +144,10 @@ intros w' ? w'' ? ?.
 eapply H; eauto.
 Qed.
 
-Hint Resolve @sepcon_subp.
-Hint Resolve @subp_refl.
-Hint Resolve @andp_subp.
-Hint Resolve @allp_subp.
+Hint Resolve @sepcon_subp'.
+Hint Resolve @subp_refl'.
+Hint Resolve @andp_subp'.
+Hint Resolve @allp_subp'.
 Hint Resolve @derives_subp.
 Hint Resolve @pred_eq_e1.
 Hint Resolve @pred_eq_e2.
@@ -155,17 +155,18 @@ Hint Resolve @pred_eq_e2.
 
 Lemma allp_imp2_later_e2 {B}{A}{agA: ageable A}:
    forall (P Q: B -> pred A) (y: B) ,
-      (All x:B, |> P x <=> |> Q x) |-- |> Q y >=> |> P y.
+      (ALL x:B, |> P x <=> |> Q x) |-- |> Q y >=> |> P y.
 Proof. 
   intros.  intros w ?. specialize (H y). apply pred_eq_e2. auto.
 Qed.
 Lemma allp_imp2_later_e1 {B}{A}{agA: ageable A}:
    forall (P Q: B -> pred A) (y: B) ,
-      (All x:B, |> P x <=> |> Q x) |-- |> P y >=> |> Q y.
+      (ALL x:B, |> P x <=> |> Q x) |-- |> P y >=> |> Q y.
 Proof. 
   intros.  intros w ?. specialize (H y). apply pred_eq_e1. auto.
 Qed.
 
+(*
 Lemma subp_later {A} `{agA:  ageable A} (SS: natty A):
  forall (P Q: pred A), |> (P >=> Q) |-- |> P >=> |> Q.
 Proof.
@@ -174,6 +175,7 @@ rewrite later_fash; auto.
 apply fash_derives.
 apply axiomK.
 Qed.
+*)
 
 Lemma extend_fash' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P: pred nat), boxy extendM (! P).
 Proof.

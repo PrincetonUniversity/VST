@@ -243,7 +243,7 @@ Qed.
 
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
-    expr_closed_wrt_vars (eq id) (e1) ->
+    lvalue_closed_wrt_vars (eq id) (e1) ->
     typeof e1 = Tstruct sid fields noattr ->
     (temp_types Delta) ! id = Some (t2,i2) ->
   forall (TC1: typecheck_val v2 t2 = true)
@@ -251,15 +251,15 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
-       (tc_expr Delta e1 &&
-    |> ((fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2,t2)) * subst id v2 P))
+       (tc_lvalue Delta e1 &&
+    |> ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2,t2)) * subst id v2 P))
        (Sset id (Efield e1 fld t2))
-       (normal_ret_assert ((fun rho => field_mapsto sh (eval_expr rho e1, typeof e1) fld (v2, t2)) * P)).
+       (normal_ret_assert ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2, t2)) * P)).
 Proof with normalize.
 pose proof I.
 intros.
 rename H2 into TE1.
-assert (TC3: tc_expr Delta e1 |-- tc_lvalue Delta (Efield e1 fld t2)).
+assert (TC3: tc_lvalue Delta e1 |-- tc_lvalue Delta (Efield e1 fld t2)).
 intros.
 intro rho.
 unfold tc_lvalue. simpl.
@@ -270,8 +270,15 @@ apply derives_extract_prop.
 intro.
 apply prop_right. split; auto.
 rewrite H1.
-admit.  (* provable, but let's wait until the definition of typecheck_lvalue
-                        for Efield settles down *)
+admit.  (* typechecking proof *)
+assert (TC4: tc_lvalue Delta e1 |-- tc_expr Delta (Etempvar id t2)).
+intro rho; unfold tc_expr; apply prop_right.
+simpl.
+replace (type_is_volatile t2) with false; simpl.
+rewrite TE1.
+simpl; rewrite if_true by auto.
+admit.  (* not quite right *)
+admit.  (* typechecking proof *)
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
@@ -284,8 +291,8 @@ intros.
 normalize.
 apply andp_derives.
 apply andp_right.
-unfold tc_expr. simpl. rewrite TE1. rewrite if_true; auto. simpl.
-apply prop_right; auto.
+simpl.
+apply TC4.
 apply TC3.
 apply later_derives.
 apply sepcon_derives; auto.
@@ -302,7 +309,7 @@ rewrite H3.
 instantiate (1:=sh).
 normalize.
 unfold field_mapsto.
-case_eq (eval_expr rho e1); intros; normalize.
+case_eq (eval_lvalue rho e1); intros; normalize.
 case_eq (field_offset fld
     (unroll_composite_fields sid (snd (Vptr b i, Tstruct sid fields noattr))
        fields)); intros; normalize.
@@ -315,7 +322,7 @@ rewrite H4.
 rewrite H1.
 rewrite field_offset_unroll in H5. rewrite H5.
 auto.
-intros.
+
 unfold Q'.
 unfold mapsto'.
 case_eq (access_mode (typeof (Efield e1 fld t2))); intros; normalize.
@@ -325,7 +332,7 @@ apply sepcon_derives; auto.
 simpl in H2.
 
 simpl.
-case_eq (eval_expr x1 e1); 
+case_eq (eval_lvalue x1 e1); 
      intros; normalize.
 rewrite H1.
 rewrite field_offset_unroll.
@@ -336,6 +343,7 @@ normalize.
 intros ? ? ?; normalize.
 intros ? ? ?; normalize.
 intros ? ? ?; normalize.
+
 intro; intros.
 simpl.
 rewrite <- H0.
@@ -396,7 +404,7 @@ Proof.
  rewrite andb_true_r; auto.
  destruct (typecheck_val (eval_id rho id1) t1); simpl;  normalize.
  destruct (typecheck_val (eval_id rho id2) t2); simpl;  normalize.
- rewrite andp_com. rewrite prop_true_andp; auto.
+ rewrite andp_comm. rewrite prop_true_andp; auto.
 Qed.
 
 Hint Rewrite bind0_e bind1_e bind2_e: normalize.

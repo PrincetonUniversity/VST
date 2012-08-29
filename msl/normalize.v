@@ -65,7 +65,7 @@ assert (w2=w) by (apply (join_eq H4 H1)).
 subst w2.
 assert (join w w1 w1).
 apply identity_unit; apply H0 in H3; simpl in H3; auto. exists w; auto.
-assert (w1=w) by (apply (join_eq H5 (join_com H1))).
+assert (w1=w) by (apply (join_eq H5 (join_comm H1))).
 subst w1.
 split; auto.
 destruct H1.
@@ -74,7 +74,7 @@ apply H in H1.
 do 3 red in H1.
 clear dependent P. clear dependent Q.
 pose proof (core_unit w); unfold unit_for in *.
-pose proof (H1 _ _ (join_com H)).
+pose proof (H1 _ _ (join_comm H)).
 rewrite H0 in H; auto.
 Qed.
 
@@ -242,7 +242,7 @@ Qed.
 Lemma pure_sepcon_TT_andp' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
   forall P Q, pure P -> Q && (P * TT) = (Q*P).
 Proof.
-intros. rewrite andp_com.
+intros. rewrite andp_comm.
 rewrite pure_sepcon_TT_andp; auto.
 apply sepcon_comm.
 Qed.
@@ -331,7 +331,7 @@ Qed.
 Lemma corable_andp_sepcon2{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall P Q R, corable P ->  (Q && P) * R = P && (Q * R).
 Proof.
-intros. rewrite andp_com. apply corable_andp_sepcon1. auto.
+intros. rewrite andp_comm. apply corable_andp_sepcon1. auto.
 Qed.
 
 Lemma corable_sepcon_andp1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
@@ -343,7 +343,7 @@ Qed.
 Lemma corable_sepcon_andp2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
    forall P Q R, corable P ->  Q  * (R && P) = P && (Q * R).
 Proof.
-intros. rewrite sepcon_comm. rewrite andp_com. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
+intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)

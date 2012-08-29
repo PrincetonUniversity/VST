@@ -57,7 +57,7 @@ Proof.
 do 3 intro; revert a b; induction cl; intros; inv H.
 exists e; split; auto; constructor.
 destruct (IHcl _ _ _ _ H6 H0) as [d [? ?]].
-destruct (join_assoc (join_com H4) (join_com H)) as [g [? ?]].
+destruct (join_assoc (join_comm H4) (join_comm H)) as [g [? ?]].
 exists g; split; auto.
 constructor 2 with d; auto.
 Qed.
@@ -153,7 +153,7 @@ discriminate.
 inv H3.
 inv H0.
 simpl.
-destruct (join_assoc H1 (join_com H4))
+destruct (join_assoc H1 (join_comm H4))
       as [f [? ?]].
 exists f; exists (phib::l).
 repeat split; auto.
@@ -164,7 +164,7 @@ inv H.
 inv H0.
 destruct (IHn _ _ _ _ _ _ H H7 H1) as [phic [l' [? [? ?]]]].
 simpl. rewrite H0.
-destruct (join_assoc (join_com H5) H2) as [f [? ?]].
+destruct (join_assoc (join_comm H5) H2) as [f [? ?]].
 exists f; exists (a::l'); repeat split; auto.
 econstructor 2; eauto.
 Qed.
@@ -181,8 +181,8 @@ destruct l; try discriminate.
 inv H0.
 inv H3.
 simpl.
-destruct (list_join_assoc2 H7 (join_com H1)) as [f [? ?]].
-destruct (join_assoc H5 (join_com H)) as [g [? ?]].
+destruct (list_join_assoc2 H7 (join_comm H1)) as [f [? ?]].
+destruct (join_assoc H5 (join_comm H)) as [g [? ?]].
 exists g; exists (g::l); repeat split; auto.
 econstructor 2; eauto.
 destruct l; simpl in H.
@@ -210,7 +210,7 @@ Qed.
 
 Lemma join_comparable'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi2 phi3.
-Proof. intros; apply join_comparable with phi1; apply join_com; auto. Qed.
+Proof. intros; apply join_comparable with phi1; apply join_comm; auto. Qed.
 
 Lemma join_comparable2'  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall phi1 phi2 phi3: A, join phi1 phi2 phi3 -> comparable phi2 phi1.

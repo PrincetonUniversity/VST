@@ -22,9 +22,9 @@ Lemma conj_nonexpansive {A} `{ageable A} : forall (F G:pred A -> pred A),
   nonexpansive (fun x:pred A => F x && G x).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
-  apply sub_andp; apply equ_sub; auto.
-  apply sub_andp; apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_andp; apply eqp_subp; auto.
+  apply subp_andp; apply eqp_subp2; auto.
 Qed.
 
 Lemma conj_contractive {A} `{ageable A} : forall F G,
@@ -33,9 +33,9 @@ Lemma conj_contractive {A} `{ageable A} : forall F G,
   contractive (fun x => F x && G x).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
-  apply sub_andp; apply equ_sub; auto.
-  apply sub_andp; apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_andp; apply eqp_subp; auto.
+  apply subp_andp; apply eqp_subp2; auto.
 Qed.
 
 Lemma impl_contractive {A} `{ageable A} : forall F G,
@@ -44,13 +44,13 @@ Lemma impl_contractive {A} `{ageable A} : forall F G,
   contractive (fun x => F x --> G x).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
-  apply sub_imp.
-  apply equ_sub2; auto.
-  apply equ_sub; auto.
-  apply sub_imp.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_imp.
+  apply eqp_subp2; auto.
+  apply eqp_subp; auto.
+  apply subp_imp.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
   
 Lemma impl_nonexpansive {A} `{ageable A} : forall F G,
@@ -59,13 +59,13 @@ Lemma impl_nonexpansive {A} `{ageable A} : forall F G,
   nonexpansive (fun x => F x --> G x).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
-  apply sub_imp.
-  apply equ_sub2; auto.
-  apply equ_sub; auto.
-  apply sub_imp.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_imp.
+  apply eqp_subp2; auto.
+  apply eqp_subp; auto.
+  apply subp_imp.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma forall_contractive {A} `{ageable A} : forall B (X : pred A -> B -> pred A),
@@ -73,11 +73,11 @@ Lemma forall_contractive {A} `{ageable A} : forall B (X : pred A -> B -> pred A)
   contractive (fun x => (allp (X x))).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
-  apply sub_allp; intros.
-  apply equ_sub; auto.
-  apply sub_allp; intros.
-  apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_allp; intros.
+  apply eqp_subp; auto.
+  apply subp_allp; intros.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma forall_nonexpansive {A} `{ageable A} : forall B (X : pred A -> B -> pred A),
@@ -85,11 +85,11 @@ Lemma forall_nonexpansive {A} `{ageable A} : forall B (X : pred A -> B -> pred A
   nonexpansive (fun x => (allp (X x))).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
-  apply sub_allp; intros.
-  apply equ_sub; auto.
-  apply sub_allp; intros.
-  apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_allp; intros.
+  apply eqp_subp; auto.
+  apply subp_allp; intros.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma exists_contractive {A} `{ageable A} : forall B (X : pred A -> B -> pred A),
@@ -97,9 +97,9 @@ Lemma exists_contractive {A} `{ageable A} : forall B (X : pred A -> B -> pred A)
   contractive (fun x => (exp (X x))).
 Proof.
   unfold contractive; intros.
-  apply sub_equ; apply sub_exp; intros.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply subp_eqp; apply subp_exp; intros.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma exists_nonexpansive {A} `{ageable A} : forall B (X : pred A -> B -> pred A),
@@ -107,9 +107,9 @@ Lemma exists_nonexpansive {A} `{ageable A} : forall B (X : pred A -> B -> pred A
   nonexpansive (fun x => (exp (X x))).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ; apply sub_exp; intros.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply subp_eqp; apply subp_exp; intros.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma later_contractive {A} `{natty A} : forall F,
@@ -117,13 +117,13 @@ Lemma later_contractive {A} `{natty A} : forall F,
   contractive (fun X => (|>(F X))).
 Proof.
   unfold nonexpansive, contractive; intros.
-  apply sub_equ.
-  rewrite <- sub_later.
+  apply subp_eqp.
+  rewrite <- subp_later.
   apply box_positive; auto.
-  apply equ_sub; auto.
-  rewrite <- sub_later.
+  apply eqp_subp; auto.
+  rewrite <- subp_later.
   apply box_positive; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 (*
@@ -133,11 +133,11 @@ Lemma box_contractive {A} `{ageable A} : forall F (M:modality),
   contractive (fun X => box M (F X)).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_box; auto.
-  apply equ_sub; auto.
+  apply eqp_subp; auto.
   apply sub_box; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma box_nonexpansive {A} `{ageable A} : forall F (M:modality),
@@ -146,11 +146,11 @@ Lemma box_nonexpansive {A} `{ageable A} : forall F (M:modality),
   nonexpansive (fun X => box M (F X)).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_box; auto.
-  apply equ_sub; auto.
+  apply eqp_subp; auto.
   apply sub_box; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma diamond_contractive {A} `{ageable A} : forall F (M:modality),
@@ -159,11 +159,11 @@ Lemma diamond_contractive {A} `{ageable A} : forall F (M:modality),
   contractive (fun X => diamond M (F X)).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_diamond; auto.
-  apply equ_sub; auto.
+  apply eqp_subp; auto.
   apply sub_diamond; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma diamond_nonexpansive {A} `{ageable A} : forall F (M:modality),
@@ -172,11 +172,11 @@ Lemma diamond_nonexpansive {A} `{ageable A} : forall F (M:modality),
   nonexpansive (fun X => diamond M (F X)).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_diamond; auto.
-  apply equ_sub; auto.
+  apply eqp_subp; auto.
   apply sub_diamond; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 *)
 
@@ -195,9 +195,9 @@ Lemma sepcon_contractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: age
   contractive (fun x => F x * G x).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
-  apply subp_sepcon; apply equ_sub; auto.
-  apply subp_sepcon; apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_sepcon; apply eqp_subp; auto.
+  apply subp_sepcon; apply eqp_subp2; auto.
 Qed.
 
 Lemma sepcon_nonexpansive {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall F G,
@@ -206,9 +206,9 @@ Lemma sepcon_nonexpansive {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: age
   nonexpansive (fun x => F x * G x).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
-  apply subp_sepcon; apply equ_sub; auto.
-  apply subp_sepcon; apply equ_sub2; auto.
+  apply subp_eqp.
+  apply subp_sepcon; apply eqp_subp; auto.
+  apply subp_sepcon; apply eqp_subp2; auto.
 Qed.
 
 Lemma wand_contractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall F G,
@@ -217,13 +217,13 @@ Lemma wand_contractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageab
   contractive (fun x => F x -* G x).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_wand.
-  apply equ_sub2; auto.
-  apply equ_sub; auto.
+  apply eqp_subp2; auto.
+  apply eqp_subp; auto.
   apply sub_wand.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma wand_nonexpansive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall F G,
@@ -232,13 +232,13 @@ Lemma wand_nonexpansive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: agea
   nonexpansive (fun x => F x -* G x).
 Proof.
   unfold nonexpansive; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_wand.
-  apply equ_sub2; auto.
-  apply equ_sub; auto.
+  apply eqp_subp2; auto.
+  apply eqp_subp; auto.
   apply sub_wand.
-  apply equ_sub; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 Lemma prove_contractive {A} `{ageable A} : forall F,
@@ -249,23 +249,23 @@ Proof.
   intros.
   unfold contractive.
   intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply @derives_trans with (|>(P >=> Q)).
   apply box_positive.
-  apply equ_sub.
+  apply eqp_subp.
   hnf; auto.
   auto.
   apply @derives_trans with (|>(Q >=> P)).
   apply box_positive.
-  apply equ_sub2.
+  apply eqp_subp2.
   hnf; auto.
   auto.
 Qed.
   
 Lemma prove_HOcontractive1 {A} `{ageable A} : forall X F,
   (forall P Q: X -> pred A,
-    (All x:X, |>(P x >=> Q x) |--
-        All x:X, F P x >=> F Q x)) ->
+    (ALL x:X, |>(P x >=> Q x) |--
+        ALL x:X, F P x >=> F Q x)) ->
    HOcontractive F.
 Proof.
   unfold HOcontractive.
@@ -280,7 +280,7 @@ Qed.
 
 Lemma prove_HOcontractive {A} `{ageable A} : forall X F,
   (forall (P Q: X -> pred A) (x: X),
-    (All x:X, (|> P x <=> |> Q x) |-- F P x >=> F Q x)) ->
+    (ALL x:X, (|> P x <=> |> Q x) |-- F P x >=> F Q x)) ->
    HOcontractive F.
 Proof.
   unfold HOcontractive.
@@ -288,10 +288,10 @@ Proof.
   repeat intro.
   split.
   eapply H0; eauto.
-  intro x; specialize (H1 x). apply eq_later1. auto.
+  intro x; specialize (H1 x). apply eqp_later1. auto.
   eapply H0; eauto.
-  intro x; specialize (H1 x). rewrite equ_comm. 
-  apply eq_later1. auto.
+  intro x; specialize (H1 x). rewrite eqp_comm. 
+  apply eqp_later1. auto.
 Qed.
 
 Ltac sub_unfold := 
@@ -307,7 +307,7 @@ Ltac sub_unfold :=
 Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
 Hint Resolve @prove_HOcontractive 
-  @sub_allp @sub_imp @sub_refl @sub_exp @sub_andp @sub_orp @sub_sub
+  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
 Lemma Rec_sub {A} `{ageable A} : forall G
@@ -340,10 +340,10 @@ Lemma HORec_sub {A} `{ageable A} : forall G B
   (F : pred A -> (B -> pred A) -> B -> pred A)
   (HF1 : forall X, HOcontractive (F X))
   (HF2 : forall R a P Q, P >=> Q |-- F P R a >=> F Q R a)
-  (HF3 : forall P Q X, All b:B, |>(P b >=> Q b) |-- All b:B, F X P b >=> F X Q b),
+  (HF3 : forall P Q X, ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
   forall P Q,
     G |-- P >=> Q ->
-    G |-- All b:B, HORec (F P) b >=> HORec (F Q) b.
+    G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.
   intros.
   apply @derives_trans with (P>=>Q); auto.
@@ -448,7 +448,7 @@ Lemma HORec_contractive {A} `{ageable A} : forall B
 Proof.
   intros; hnf; intros.
   simpl.
-  cut (|>(P <=> Q) |-- All a:B, HORec (F P) a <=> HORec (F Q) a).
+  cut (|>(P <=> Q) |-- ALL a:B, HORec (F P) a <=> HORec (F Q) a).
   repeat intro.
   eapply H0; eauto.
 
@@ -496,7 +496,7 @@ Lemma HORec_nonexpansive {A} `{ageable A} : forall B
 Proof.
   intros; hnf; intros.
   simpl.
-  cut (P <=> Q |-- All a:B, HORec (F P) a <=> HORec (F Q) a).
+  cut (P <=> Q |-- ALL a:B, HORec (F P) a <=> HORec (F Q) a).
   repeat intro.
   eapply H0; eauto.
 
@@ -568,12 +568,12 @@ Proof.
  specialize (H F G). specialize (H0 F G).
  apply subp_sepcon.
  eapply derives_trans.
- apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ apply allp_derives; intro. rewrite <- eqp_later. apply derives_refl.
  eapply derives_trans; [ apply H | ].
  apply allp_left with x.
  apply fash_derives. apply andp_left1. auto.
  eapply derives_trans.
- apply allp_derives; intro. rewrite <- eq_later. apply derives_refl.
+ apply allp_derives; intro. rewrite <- eqp_later. apply derives_refl.
  eapply derives_trans; [ apply H0 | ].
  apply allp_left with x.
  apply fash_derives. apply andp_left1. auto.
@@ -582,37 +582,37 @@ Qed.
 Lemma const_HOcontractive{A}{agA: ageable A}: forall X (P : X -> pred A), HOcontractive (fun _ => P).
 Proof.
  intros.
- apply prove_HOcontractive. intros. apply sub_refl.
+ apply prove_HOcontractive. intros. apply subp_refl.
 Qed.
 
 Lemma exp_HOcontractive {A}{agA: ageable A}{NA: natty A}:
   forall X Y (G: Y -> X -> X) (F: Y -> X -> pred A -> pred A),
    (forall y x, contractive (F y x)) ->
-   HOcontractive (fun (R: X -> pred A) (x: X) => Ex y: Y, F y x (R (G y x))).
+   HOcontractive (fun (R: X -> pred A) (x: X) => EX y: Y, F y x (R (G y x))).
 Proof.
  intros.
  apply prove_HOcontractive; intros.
- apply sub_exp; intro y.
+ apply subp_exp; intro y.
  specialize (H y x (P (G y x)) (Q (G y x))).
- eapply derives_trans; [ | apply equ_sub; apply H].
- rewrite eq_later.
+ eapply derives_trans; [ | apply eqp_subp; apply H].
+ rewrite eqp_later.
  apply allp_left with (G y x). auto.
 Qed.
 Lemma const_contractive {A}{agA: ageable A}: forall P : pred A, contractive (fun _ => P).
 Proof.
  intros.
- apply prove_contractive. intros. apply sub_refl.
+ apply prove_contractive. intros. apply subp_refl.
 Qed.
 Lemma later_contractive' {A} `{natty A} : contractive (box laterM).
 Proof.
   unfold contractive; intros.
-  apply sub_equ.
-  rewrite <- sub_later.
+  apply subp_eqp.
+  rewrite <- subp_later.
   apply box_positive; auto.
-  apply equ_sub; auto.
-  rewrite <- sub_later.
+  apply eqp_subp; auto.
+  rewrite <- subp_later.
   apply box_positive; auto.
-  apply equ_sub2; auto.
+  apply eqp_subp2; auto.
 Qed.
 
 End Trashcan.

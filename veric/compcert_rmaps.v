@@ -424,7 +424,7 @@ Proof.
 Focus 1.
  destruct (dec_share_identity (ad (b,ofs-z0))).
  apply join_unit2; [constructor |].
- pose proof (H2 (b,ofs-z0)). apply join_com in H4. apply i in H4.
+ pose proof (H2 (b,ofs-z0)). apply join_comm in H4. apply i in H4.
  assert (~identity (share_of (a (b,ofs-z0)))) by (rewrite <- H4; auto).
  unfold share_of in H5.
  revert H5; case_eq (a (b,ofs-z0)); intros; [ | contradiction H6; auto].
@@ -524,23 +524,23 @@ Proof.
    intro x.  apply join_sub_trans with (share_of (a x)). eexists; apply (H1 x).
    exists (share_of (b x)).  apply join_share_of; auto.
  assert (Sad: forall x : address, join_sub (ad x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (a x)). eexists; eapply join_com; apply (H1 x).
+   intro x.  apply join_sub_trans with (share_of (a x)). eexists; eapply join_comm; apply (H1 x).
    exists (share_of (b x)).  apply join_share_of; auto.
  assert (Sbc: forall x : address, join_sub (bc x) (share_of (z x))).
    intro x.  apply join_sub_trans with (share_of (b x)). eexists; apply (H2 x).
-   exists (share_of (a x)).  eapply join_com; apply join_share_of; auto.
+   exists (share_of (a x)).  eapply join_comm; apply join_share_of; auto.
  assert (Sbd: forall x : address, join_sub (bd x) (share_of (z x))).
-   intro x.  apply join_sub_trans with (share_of (b x)). eexists; eapply join_com; apply (H2 x).
-   exists (share_of (a x)).  eapply join_com; apply join_share_of; auto.
+   intro x.  apply join_sub_trans with (share_of (b x)). eexists; eapply join_comm; apply (H2 x).
+   exists (share_of (a x)).  eapply join_comm; apply join_share_of; auto.
  exists (exist AV.valid _ (fixup_splitting_valid ac z Sac Hz),
             exist AV.valid _ (fixup_splitting_valid ad z Sad Hz),
             exist AV.valid _ (fixup_splitting_valid bc z Sbc Hz),
             exist AV.valid _ (fixup_splitting_valid bd z Sbd Hz)).
  split3; [ | | split];  do 2 red; simpl; intro; apply fixup_join; auto; intro.
  exists (b x0); apply H.
- exists (a x0); apply join_com; apply H.
+ exists (a x0); apply join_comm; apply H.
  exists (d x0); apply H0.
- exists (c x0); apply join_com; apply H0.
+ exists (c x0); apply join_comm; apply H0.
 Qed.
 
 Instance Trip_resource : Trip_alg resource.
@@ -600,7 +600,7 @@ destruct (triple_join_exists_share (pshare_sh sa) (pshare_sh sb) (pshare_sh sc)
                                                      (pshare_sh sab) (pshare_sh sbc) (pshare_sh sac)) as [sabc ?];
   [inv H | inv H0 | inv H1 | ] ; auto.
 assert (nonidentity sabc).
-eapply join_nonidentity; try apply (join_com j0).
+eapply join_nonidentity; try apply (join_comm j0).
  destruct sc; simpl. 
  apply (nonunit_nonidentity n).
 exists (YES rabc (mk_pshare _ (nonidentity_nonunit H2)) kc pc).

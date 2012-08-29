@@ -554,8 +554,8 @@ split.
 eapply jam_noat_splittable_aux; eauto.
 simpl; auto.
 eapply jam_noat_splittable_aux.
-auto. eapply join_com; apply HR. eauto. 2: eauto. 2: eauto.
-simpl; eauto. apply join_com; auto.
+auto. eapply join_comm; apply HR. eauto. 2: eauto. 2: eauto.
+simpl; eauto. apply join_comm; auto.
 Qed.
 
 (****** Specific specs  ****************)
@@ -563,14 +563,14 @@ Qed.
 Definition VALspec : spec :=
        fun (rsh sh: Share.t) (l: address) =>
           allp (jam (eq_dec l)
-                                  (fun l' => Ex v: memval, 
+                                  (fun l' => EX v: memval, 
                                                 yesat NoneP (VAL v) rsh sh l')
                                   noat).
 
 Definition VALspec_range (n: Z) : spec :=
      fun (rsh sh: Share.t) (l: address) =>
           allp (jam (adr_range_dec l n)
-                                  (fun l' => Ex v: memval, 
+                                  (fun l' => EX v: memval, 
                                                 yesat NoneP (VAL v) rsh sh l')
                                   noat).
 
@@ -587,7 +587,7 @@ Definition address_mapsto_old (ch: memory_chunk) (v: val) : spec :=
 
 Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
         fun (rsh sh: Share.t) (l: AV.address) =>
-           Ex bl: list memval, 
+           EX bl: list memval, 
                !! (length bl = size_chunk_nat ch  /\ decode_val ch bl = v /\ (align_chunk ch | snd l))  &&
                 allp (jam (adr_range_dec l (size_chunk ch))
                                     (fun loc => yesat NoneP (VAL (nth (nat_of_Z (snd loc - snd l)) bl Undef)) rsh sh loc)
@@ -742,7 +742,7 @@ subst; auto.
 Qed.
 
 Lemma VALspec_parametric: 
-  spec_parametric (fun l rsh sh l' => Ex v: memval,  yesat NoneP (VAL v) rsh sh l').
+  spec_parametric (fun l rsh sh l' => EX v: memval,  yesat NoneP (VAL v) rsh sh l').
 Proof.
 intros.
 exists NoneP.
@@ -919,7 +919,7 @@ Definition val2address (v: val) : option AV.address :=
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
 Definition fun_assert  (v: val) (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap) : pred rmap :=
- (Ex b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b,0))%pred.
+ (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b,0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
 
@@ -1483,7 +1483,7 @@ apply VALspec_range_precise.
 Qed.
 
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
-  Ex bl: list memval, 
+  EX bl: list memval, 
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
     allp (jam (adr_range_dec l (Address.size_chunk ch))
       (fun l' phi => exists rsh, exists sh, exists p, phi @ l' 
@@ -1643,7 +1643,7 @@ destruct loc; destruct H4; split; auto; omega.
  if_tac in H4.
  destruct H4 as [v [p ?]].
  rewrite if_false in H5.
- do 3 red in H5. apply join_com in H3; apply H5 in H3. exists v,p.
+ do 3 red in H5. apply join_comm in H3; apply H5 in H3. exists v,p.
  hnf in H4|-*.
  change R.rmap with rmap; change R.ag_rmap with ag_rmap; 
 rewrite <- H6; rewrite <- H3; auto.

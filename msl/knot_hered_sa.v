@@ -21,7 +21,7 @@ Module Type TY_FUNCTOR_SA_PROP.
   Import TF.
 
   Parameter Join_F: forall A, Join (F A). Existing Instance Join_F.
-(*   Parameter Perm_F: forall A, Perm_alg (F A). Existing Instance Perm_F. *)
+(*   Parameter Perm_F: forall A, Perm_alg (F A). EXisting Instance Perm_F. *)
   Parameter paf_F : pafunctor f_F.        Existing Instance paf_F.
   Parameter Perm_F: Perm_paf f_F Join_F.
   Parameter Sep_F: Sep_paf f_F Join_F.

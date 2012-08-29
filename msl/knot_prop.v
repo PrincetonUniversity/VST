@@ -27,7 +27,7 @@ Open Local Scope nat_scope.
 Module Type TY_FUNCTOR_PROP.
   Parameter F : Type -> Type.
   Parameter f_F : functor F.
-  Existing Instance f_F.
+  EXisting Instance f_F.
 
   Parameter other : Type.
 End TY_FUNCTOR_PROP.
@@ -37,7 +37,7 @@ Module Type TY_FUNCTOR_SA_PROP.
   Import TF.
   
   Parameter saf_F : safunctor f_F.
-  Existing Instance saf_F.
+  EXisting Instance saf_F.
 End TY_FUNCTOR_SA_PROP.
 *)
 
@@ -106,7 +106,7 @@ End KNOT_SA_PROP.
 
 (* Coercion *)
 Module TyFunctorProp2TyFunctor (TF : TY_FUNCTOR_PROP) <: TY_FUNCTOR.
-(*  Export TFP. Does not seem to work? *)
+(*  EXport TFP. Does not seem to work? *)
   Definition F := TF.F.
   Definition f_F := TF.f_F.
   

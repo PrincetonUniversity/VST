@@ -22,7 +22,7 @@ Module Type TY_FUNCTOR_SA.
 
   Parameter Join_T : Join T.  Existing Instance Join_T.
   Parameter pa_T : Perm_alg T.  Existing Instance pa_T.
-(*   Parameter sa_T : Sep_alg T.  Existing Instance sa_T. *)
+(*   Parameter sa_T : Sep_alg T.  EXisting Instance sa_T. *)
 
   Axiom T_bot_identity : identity T_bot.
   Axiom T_bot_unit : unit_for T_bot T_bot.
@@ -254,7 +254,7 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
       revert H.
       elim (le_gt_dec n (level (fst k))); intros; trivial.
       apply T_bot_identity.
-      apply join_com.
+      apply join_comm.
       trivial.
 
     exists (fun w => if le_gt_dec n (level (fst w)) then projT1 (join_ex_units (z w)) else x' w).
@@ -296,7 +296,7 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
     unfold approx.
     elim (le_gt_dec n (level (fst w))); intros; trivial.
     destruct (join_ex_units (x w)).
-    simpl. apply join_com; apply u.
+    simpl. apply join_comm; apply u.
     
     split.
     unfold approx.

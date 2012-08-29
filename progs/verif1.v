@@ -44,7 +44,7 @@ Definition Gprog : funspecs :=
    sumlist_spec :: reverse_spec :: main_spec::nil.
 
 Definition sumlist_Inv (contents: list int) (rho: environ) : mpred :=
-          (Ex cts: list int, 
+          (EX cts: list int, 
            !!(fold_right Int.add Int.zero contents =
              Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
                        (fold_right Int.add Int.zero cts)) &&
@@ -131,7 +131,7 @@ eapply sequential; [intros; simpl; reflexivity | ].
 unfold sumlist_Inv at 1.
 apply semax_pre with 
    (fun rho : environ =>
-    (Ex  cts : list int,
+    (EX  cts : list int,
     expr_true (Etempvar P.i_t P.t_listptr) rho &&
     !!(fold_right Int.add Int.zero contents =
        Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
@@ -147,9 +147,9 @@ apply nil.
 intro cts.
 
 pose (P' rho := 
-(Ex  h : val,
- (Ex  r : list valt,
-  (Ex  y : val,
+(EX  h : val,
+ (EX  r : list valt,
+  (EX  y : val,
     expr_true (Etempvar P.i_t P.t_listptr) rho &&
 !!(fold_right Int.add Int.zero contents =
    Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))

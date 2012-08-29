@@ -457,7 +457,7 @@ intro i'.
 do 2 rewrite env_get_mk_env.
 destruct (eq_dec i' id).
 subst. rewrite H.
-apply join_com in H0.
+apply join_comm in H0.
 apply i in H0.
 destruct sh; simpl in *.
 subst.
@@ -810,9 +810,9 @@ inv H.
 destruct (dec_share_identity x).
 constructor.
 contradiction n.
-apply unit_identity with (pshare_sh sh2); apply join_com; auto.
+apply unit_identity with (pshare_sh sh2); apply join_comm; auto.
 destruct H4 as [? [? ?]]; simpl snd in *; subst.
-generalize (join_canc (join_com j) (join_com H)); intro; subst.
+generalize (join_canc (join_comm j) (join_comm H)); intro; subst.
 destruct (dec_share_identity (lifted_obj (fst a2))).
 contradiction (@nonunit_nonidentity _ _ _ _ _ (lifted_obj (fst a2))).
 destruct (fst a2); simpl; auto.
@@ -838,10 +838,10 @@ intros.
 split; intros.
 generalize (identity_unit (a:=empty_env)H); intro.
 spec H0.
-exists rho; apply join_com; apply empty_env_unit.
+exists rho; apply join_comm; apply empty_env_unit.
 generalize (empty_env_unit rho); intro.
 unfold unit_for in *.
-generalize (join_eq H0 (join_com H1)); intro; auto.
+generalize (join_eq H0 (join_comm H1)); intro; auto.
 subst.
 simpl.
 apply unit_identity with empty_env; auto.
@@ -911,10 +911,10 @@ intros.
 split; intros.
 generalize (identity_unit (a:=empty_env)H); intro.
 spec H0.
-exists rho; apply join_com; apply empty_env_unit.
+exists rho; apply join_comm; apply empty_env_unit.
 generalize (empty_env_unit rho); intro.
 unfold unit_for in *.
-generalize (join_eq H0 (join_com H1)); intro; auto.
+generalize (join_eq H0 (join_comm H1)); intro; auto.
 subst.
 simpl.
 apply unit_identity with empty_env; auto.

@@ -83,13 +83,13 @@ Require Import msl.eq_dec.
     destruct H4 as [w ?H].
     exists (a',q,b',w). split; auto. split; auto. split; auto.
     destruct (join_assoc H3 H1) as [f [? ?]].
-    apply join_com in H6.
+    apply join_comm in H6.
     destruct (join_assoc H4 H6) as [g [? ?]].
     assert (H10: g = d); [ | rewrite H10 in *; auto].
-    apply join_com in H7.
-    apply join_com in H9.
+    apply join_comm in H7.
+    apply join_comm in H9.
     destruct (join_assoc H9 H7) as [h [? ?]].
-    generalize (join_eq H5 (join_com H10)); intro.
+    generalize (join_eq H5 (join_comm H10)); intro.
     rewrite <- H12 in *; clear H12 h.
     eapply join_canc; eauto.
   Qed.
@@ -231,7 +231,7 @@ destruct (X b).
 assert (a=c).
 destruct a; destruct c. apply exist_ext.
 simpl in j.
-eapply join_eq; try apply j. apply join_com; apply identity_unit; eauto.
+eapply join_eq; try apply j. apply join_comm; apply identity_unit; eauto.
 subst c.
 exists None; constructor.
 exists (Some (mk_lifted _ (nonidentity_nonunit n))).
@@ -280,7 +280,7 @@ apply constructive_join_sub_smash; auto.
 econstructor; econstructor.
 apply join_unit2. econstructor; eauto.
 f_equal. apply exist_ext.
-symmetry. eapply join_eq. eapply join_com; apply j.  apply identity_unit; eauto.
+symmetry. eapply join_eq. eapply join_comm; apply j.  apply identity_unit; eauto.
 split; [split|]; eauto.
 apply constructive_join_sub_smash; auto.
 apply constructive_join_sub_smash; auto.

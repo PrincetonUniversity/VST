@@ -367,7 +367,7 @@ revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
-destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
+destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4.
 
 assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
@@ -543,13 +543,13 @@ eapply H0; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_com; rewrite prop_true_andp by auto.
+rewrite andp_comm; rewrite prop_true_andp by auto.
 do 2 econstructor; split3; eauto.
 eapply H1; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_com; rewrite prop_true_andp.
+rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
@@ -841,17 +841,17 @@ unfold function_body_ret_assert.
 destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
-apply subp_trans with
+apply subp_trans' with
  (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x)) && funassert G rho').
-apply andp_subp; auto.
-apply sepcon_subp; auto.
-apply sepcon_subp; auto.
+apply andp_subp'; auto.
+apply sepcon_subp'; auto.
+apply sepcon_subp'; auto.
 unfold bind_ret.
 destruct vl.
 destruct (fn_return f); auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 destruct vl; auto.
-apply andp_subp; auto.
+apply andp_subp'; auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 clear Q' H11.
 pose proof I.
@@ -1059,10 +1059,10 @@ specialize (H11 x).
 rewrite <- sepcon_assoc in H5.
 assert (H14: app_pred (|> (F0 rho * F * P' x args)) (m_phi jm)).
 do 3 red in H10.
-apply eq_later1 in H10.
+apply eqp_later1 in H10.
 rewrite later_sepcon.
 apply pred_eq_e2 in H10.
-eapply (sepcon_subp (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
+eapply (sepcon_subp' (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
 eapply semax_call_aux; try eassumption.
 unfold normal_ret_assert.

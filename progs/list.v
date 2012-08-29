@@ -82,7 +82,7 @@ Definition mlseg (ls: multilistspec) (sh: share) :=
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
-                        Ex tail:val, 
+                        EX tail:val, 
                            fields_mapto sh (first, mlist_struct ls) (mlist_data_fieldnames ls) h 
                            * field_mapsto sh (first, mlist_struct ls) (mlist_link ls) (tail, mlist_type ls)
                            * |> R (hs, (tail, last)))
@@ -110,7 +110,7 @@ Definition lseg' (t: type) {ls: listspec t} (sh: share) :=
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
-                        Ex tail:val, 
+                        EX tail:val, 
                            field_mapsto sh (first, list_struct) list_data h 
                            * field_mapsto sh (first, list_struct) list_link (tail,t)
                            * |> R (hs, (tail, last)))
@@ -126,7 +126,7 @@ Lemma lseg_unfold: forall contents v1 v2 {ls: listspec (snd v1)},
   snd v1 = snd v2 ->
     lseg contents v1 v2 = 
      match contents with
-     | h::t => !! (~ ptr_eq (fst v1) (fst v2)) && Ex tail: val,
+     | h::t => !! (~ ptr_eq (fst v1) (fst v2)) && EX tail: val,
                        field_mapsto Share.top (fst v1, list_struct) list_data h 
                       * field_mapsto Share.top (fst v1, list_struct) list_link (tail, snd v1)
                       * |> lseg t (tail, snd v1) v2
@@ -150,7 +150,7 @@ Proof.
  destruct l. destruct p.
  auto 50 with contractive.
  destruct p.
-apply sub_andp; auto 50 with contractive.
+apply subp_andp; auto 50 with contractive.
 Qed.
 
 Lemma lseg_eq:
@@ -191,7 +191,7 @@ Lemma lseg_neq:
   typecheck_val z t = true ->
   ~ptr_eq x z -> 
     lseg l (x,t) (z,t) =
-         Ex h:val, Ex r:list valt, Ex y:val, 
+         EX h:val, EX r:list valt, EX y:val, 
              !!(l=(h, list_dtype)::r 
                 /\ typecheck_val h list_dtype  = true/\ typecheck_val y t = true) && 
              field_mapsto Share.top (x, list_struct) list_data (h, list_dtype) * 
@@ -288,7 +288,7 @@ Lemma lseg_neq: forall vl p q: valt,
      is_list_type (snd p) ->
      snd p = snd q ->
     ~ (ptr_eq (fst p) (fst q)) ->
-        lseg vl p q = Ex h: val, Ex vl': list valt, 
+        lseg vl p q = EX h: val, EX vl': list valt, 
                 !! (vl = (h,snd p)::vl') && 
               field_mapsto Share.top (deref v1) data h * 
               next link Share.top v1 (tail,snd v1) * |> lseg t (tail, snd v1) v2
@@ -451,7 +451,7 @@ Proof.
   intros w [w1 [w2 [? [ ? ?]]]]. exists w1; exists w2; split3; auto. split; auto.
   exists w2; exists w; split3; auto.
   apply sepcon_derives; auto.
-  generalize (goedel_loeb (All x:adr,  
+  generalize (goedel_loeb (ALL x:adr,  
     lseg x y * next y z && ewand (next z v) TT >=> lseg x z) TT) ; intro.
   spec H.
   2:  intros w ?; apply (H (@level _ R.ag_rmap w) I x w (le_refl _)); auto.
@@ -502,7 +502,7 @@ Proof.
   specialize (H u).
   rewrite sepcon_assoc in H2.
   destruct H2 as [w1 [w2 [? [? ?]]]].
-  red in H. rewrite sub_later in H.
+  red in H. rewrite subp_later in H.
   specialize (H w2).
   spec H. apply join_level in H2; destruct H2; omega.
   exists w1; exists w2; split3; auto.
@@ -514,7 +514,7 @@ Proof.
   eapply now_later; eauto.
   clear - H2 H1.
   destruct H1 as [w3 [w4 [? [? _]]]].
-  destruct (join_assoc H2 (join_com H)) as [f [? ?]].
+  destruct (join_assoc H2 (join_comm H)) as [f [? ?]].
   exists w3; exists f; split3; auto.
   exists z.
   rewrite lseg_eq.
@@ -529,7 +529,7 @@ Lemma list_append:  (* U3 *)
    forall x y, lseg x y * lseg y 0 |-- lseg x 0.
 Proof.
  intros.
-  generalize (goedel_loeb (All x:adr, lseg x y * lseg y 0  >=> lseg x 0) TT) ; intro.
+  generalize (goedel_loeb (ALL x:adr, lseg x y * lseg y 0  >=> lseg x 0) TT) ; intro.
   spec H; [ clear  | intros w ?; apply (H (@level _ R.ag_rmap w) I x w (le_refl _)); auto].
   apply andp_left2.
   apply allp_right; intro x.
@@ -559,7 +559,7 @@ Proof.
   rewrite later_allp in H.
   specialize (H z).
   destruct H1 as [w1 [w2 [? [? ?]]]].
-  red in H. rewrite sub_later in H.
+  red in H. rewrite subp_later in H.
   specialize (H w2).
   spec H. apply join_level in H1; destruct H1; omega.
   exists w1; exists w2; split3; auto.

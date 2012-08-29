@@ -17,7 +17,7 @@ Class Perm_alg (t: Type) {J: Join t} : Type :=
    join_eq: forall {x y z z'}, join x y z -> join x y z' -> z = z';   
    join_assoc: forall {a b c d e}, join a b d -> join d c e ->
                     {f : t & join b c f /\ join a f e};
-   join_com: forall {a b c}, join a b c -> join b a c;
+   join_comm: forall {a b c}, join a b c -> join b a c;
    join_positivity: forall {a a' b b'}, join a a' b -> join b b' a -> a=b
 }.
 Implicit Arguments Perm_alg [[J]].
@@ -26,13 +26,13 @@ Definition unit_for {t}{J: Join t} (e a: t) := join e a a.
 Definition identity {t} {J: Join t} (e: t) := forall a b, join e a b -> a=b.
 
 Hint Extern 2 (@join _ _ _ _ _) => 
-   (eapply join_com; trivial; 
+   (eapply join_comm; trivial; 
      try eassumption;
      (* This next line looks superfluous, but it is not: it catches the
       case where H is join at a function type, where the goal is
       join at an applied function. *)
      match goal with H: @join _ _ _ _ _ |- _ => apply H end).     
- (* Hint Immediate @join_com. *)
+ (* Hint Immediate @join_comm. *)
 
 Hint Unfold unit_for.
 
@@ -90,7 +90,7 @@ Lemma core_hom {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
 Proof.
  intros.
  generalize (join_core H); intro.
-  generalize (join_core (join_com H)); intro.
+  generalize (join_core (join_comm H)); intro.
  rewrite H0; rewrite H1.
  apply core_duplicable.
 Qed.
@@ -117,17 +117,17 @@ Proof.
  intros.
  generalize  (@core_unit _ _ SA1 x); unfold unit_for; intro.
  generalize  (@core_unit _ _ SA2 x); unfold unit_for; intro.
- destruct (join_assoc (join_com H0) (join_com H1)) as [f [? ?]].
+ destruct (join_assoc (join_comm H0) (join_comm H1)) as [f [? ?]].
  generalize (@core_unit _ _ SA2 (@core _ _ SA1 x)); unfold unit_for; intro.
  generalize (@core_unit _ _ SA1 (@core _ _ SA2 x)); unfold unit_for; intro.
  destruct (join_assoc ( H4) H2) as [g [? ?]].
- destruct (join_assoc H5 (join_com H2)) as [h [? ?]].
- generalize (join_eq H6 (join_com H8)); intro. rewrite <- H10 in *; clear dependent h.
+ destruct (join_assoc H5 (join_comm H2)) as [h [? ?]].
+ generalize (join_eq H6 (join_comm H8)); intro. rewrite <- H10 in *; clear dependent h.
  generalize (@join_core _ _ SA1 _ _ _ H4); intro. 
  generalize (@join_core _ _ SA1 _ _ _ H0); intro. 
  generalize (@join_core _ _ SA2 _ _ _ H0); intro. 
  rewrite H11 in *. rewrite H12 in *. rewrite H10 in *.
- apply join_com in H4.
+ apply join_comm in H4.
  apply (join_eq H4 H5).
 Qed.
 
@@ -145,8 +145,8 @@ Proof.
  generalize (core_unit a); intro.
  rewrite <- Heqc in H2. rename H2 into u.
  unfold unit_for in u.
- destruct (join_assoc (join_com u) (join_com H1)) as [f [? ?]].
- generalize (join_canc H1 (join_com H3)); intro.
+ destruct (join_assoc (join_comm u) (join_comm H1)) as [f [? ?]].
+ generalize (join_canc H1 (join_comm H3)); intro.
  rewrite <- H4 in *; clear f H4 H3.
  destruct (join_assoc H2 H1) as [f [? ?]].
  generalize (join_eq H1 H3); intro.
@@ -156,8 +156,8 @@ Proof.
  rewrite <- H6 in *; clear g H6 H3.
  generalize (join_canc H0 H5); intro.
  rewrite <- H3 in *; clear dependent c.
- eapply join_canc. eapply join_com; apply H1.
- apply join_com; auto.
+ eapply join_canc. eapply join_comm; apply H1.
+ apply join_comm; auto.
 Qed.
 
 Lemma core_identity  {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
@@ -238,9 +238,9 @@ Proof.
  pose proof I. (* hack: shift up auto-named hyps *)
  intros.
  unfold unit_for in *.
- destruct (join_assoc (join_com H1) (join_com H3)) as [f [? ?]].
+ destruct (join_assoc (join_comm H1) (join_comm H3)) as [f [? ?]].
  generalize (H0 _ _ H4); intro.
- generalize (H2 _ _ (join_com H4)); intro.
+ generalize (H2 _ _ (join_comm H4)); intro.
  rewrite H6; apply H7.
 Qed.
 
@@ -251,10 +251,10 @@ Proof.
 intros.
 generalize (unit_identity _ H0); intro.
 unfold unit_for in *.
-destruct (join_assoc (join_com H0) (join_com H1)) as [f [? ?]].
+destruct (join_assoc (join_comm H0) (join_comm H1)) as [f [? ?]].
 generalize (H2 _ _ H3); intro.
 rewrite <- H5 in *; clear f H5.
-apply join_com in H3.
+apply join_comm in H3.
 apply (unit_identity _ H1 _ _ H3).
 Qed.
 
@@ -281,7 +281,7 @@ Qed.
   Proof.
     intros.
     split; intro; destruct H;
-      exists x; apply join_com; trivial.
+      exists x; apply join_comm; trivial.
   Qed.
 
   Lemma joins_sym': forall {A} `{Perm_alg A} {phi1 phi2}, joins phi1 phi2 -> joins phi2 phi1.
@@ -312,7 +312,7 @@ Qed.
     join_sub a a.
   Proof.
     intros.
-    exists (core a). apply join_com.
+    exists (core a). apply join_comm.
     apply core_unit.
   Qed.
 
@@ -337,11 +337,11 @@ Proof.
   intros.
   destruct H4.
   unfold unit_for in *.
-  destruct (join_assoc (join_com H1) H4) as [f [? ?]].
+  destruct (join_assoc (join_comm H1) H4) as [f [? ?]].
    generalize (H0 _ _ H5); intro.
    rewrite <- H7 in *; clear dependent f.
-   destruct (join_assoc H5 (join_com H6)) as [g [? ?]].
-   generalize (join_eq H4 (join_com H7)); intro.
+   destruct (join_assoc H5 (join_comm H6)) as [g [? ?]].
+   generalize (join_eq H4 (join_comm H7)); intro.
    rewrite <- H9 in *; clear dependent g.
    apply same_identity with c; auto.
 Qed.  
@@ -350,9 +350,9 @@ Qed.
     join_sub a b -> joins a b -> joins a a.
   Proof.
     intros a b [? ?] [? ?].
-    apply join_com in H0.
+    apply join_comm in H0.
     destruct (join_assoc H H0) as [? [? ?]].
-    destruct (join_assoc H1 (join_com H2)) as [? [? ?]].
+    destruct (join_assoc H1 (join_comm H2)) as [? [? ?]].
     econstructor; eauto.
   Qed.
   (* Note: there are two other conceivable conclusions from the above
@@ -366,7 +366,7 @@ Qed.
     intros.
     destruct H as [wx ?].
     destruct H0 as [wy ?].
-    destruct (join_assoc (join_com H) H0) as [wf [? ?]].
+    destruct (join_assoc (join_comm H) H0) as [wf [? ?]].
     econstructor; eauto.
   Qed.
 
@@ -376,9 +376,9 @@ Qed.
   Proof.
     intros.
     destruct H; destruct H0; destruct H1.
-    destruct (join_assoc (join_com H) H1) as [f [? ?]].
-    destruct (join_assoc (join_com H0) (join_com H2)) as [g [? ?]].
-    exists g; apply join_com; auto.
+    destruct (join_assoc (join_comm H) H1) as [f [? ?]].
+    destruct (join_assoc (join_comm H0) (join_comm H2)) as [g [? ?]].
+    exists g; apply join_comm; auto.
   Qed.
 
   Definition sub_silhouette {A} `{Perm_alg A} (a b: A) : Prop :=
@@ -429,7 +429,7 @@ Qed.
     intros.
     intro phiu.
     split; intros [phix ?].
-    destruct (join_assoc H0 (join_com H2)) as [phif [? ?]].
+    destruct (join_assoc H0 (join_comm H2)) as [phif [? ?]].
     specialize (H phif).
     destruct H.
     assert (exists phiz, join phi phif phiz) by eauto.
@@ -437,12 +437,12 @@ Qed.
     specialize (H H7).
     clear H5 H6 H7.
     destruct H as [phix' ?].
-    destruct (join_assoc (join_com H3) H) as [phig [? ?]]. 
-    generalize (join_eq H1 (join_com H5)); intro.
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]]. 
+    generalize (join_eq H1 (join_comm H5)); intro.
     rewrite <- H7 in *. clear phig H7 H5.
     exists phix'.
     auto.
-    destruct (join_assoc H1 (join_com H2)) as [phif [? ?]].
+    destruct (join_assoc H1 (join_comm H2)) as [phif [? ?]].
     specialize (H phif).
     destruct H.
     assert (exists phiz, join phi' phif phiz) by eauto.
@@ -450,8 +450,8 @@ Qed.
     specialize (H5 H7).
     clear H H6 H7.
     destruct H5 as [phix' ?].
-    destruct (join_assoc (join_com H3) H) as [phig [? ?]].
-    generalize (join_eq H0 (join_com H5)); intro.
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].
+    generalize (join_eq H0 (join_comm H5)); intro.
     rewrite <- H7 in *; clear phig H7 H5.
     exists phix'.
     auto.
@@ -493,7 +493,7 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
   Proof.
     intros.
     unfold unit_for in *.
-    destruct (join_assoc (join_com H) (join_com H)) as [f [? _]].
+    destruct (join_assoc (join_comm H) (join_comm H)) as [f [? _]].
     generalize (unit_identity _ H); intro.
     generalize (H1 _ _ H0); intro.
    rewrite <- H2 in H0; clear f H2.
@@ -511,7 +511,7 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
     intros.
     destruct H.
     unfold unit_for in *.
-    destruct (join_assoc (join_com H0) H) as [f [? ?]].
+    destruct (join_assoc (join_comm H0) H) as [f [? ?]].
     generalize (unit_identity _ H0 _ _ H2); intro.
     rewrite <- H4 in *; clear f H4.
     eapply same_unit; eauto.
@@ -549,7 +549,7 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
     apply identity_unit; trivial.
     exists a.
     destruct (join_ex_units a) as [ea H0].
-    generalize (join_com H0); intro.
+    generalize (join_comm H0); intro.
     generalize (H ea a H1); intro.
     rewrite <- H2 in *; clear a H2.
     trivial.
@@ -563,7 +563,7 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
     intros.
     destruct H1.
     assert (e2 = x) by auto.
-    apply join_com in H1.
+    apply join_comm in H1.
     assert (e1 = x) by auto.
     rewrite H3; rewrite H2; reflexivity.
   Qed.
@@ -599,10 +599,10 @@ Qed.
   Proof.
     intros ? ? [? ?] [? ?].
     destruct (join_assoc H H0). destruct a.
-    apply join_com in H2.
+    apply join_comm in H2.
     generalize(unit_identity _ H2); intro.
     generalize(split_identity _ _ H1 H3); intro.
-    apply join_com in H.
+    apply join_comm in H.
     auto.
   Qed.
 
@@ -644,7 +644,7 @@ Proof with auto.
   intros a'' ?.
   destruct H1 as [a' ?].
   specialize (H0 a').
-  apply H0. eauto. apply join_com...
+  apply H0. eauto. apply join_comm...
   intros a' ?.
   destruct H1 as [a'' ?].
   rewrite <- (H0 a'') in *; eauto; clear a'' H0.
@@ -714,7 +714,7 @@ Proof.
   intros.
   unfold comparable.
   generalize (join_core H); intro.
-  generalize (join_core (join_com H)); intro.
+  generalize (join_core (join_comm H)); intro.
   rewrite H0; rewrite H1; reflexivity.
 Qed.
 
@@ -743,7 +743,7 @@ Qed.
 Lemma join_unit2 {A} `{Perm_alg A}:
   forall x y z, unit_for y z -> x = z -> join x y z.
 Proof.
-intros. rewrite  H1 in *;  clear x H1. apply join_com; auto.
+intros. rewrite  H1 in *;  clear x H1. apply join_comm; auto.
 Qed.
 
 Lemma join_unit1_e {A} `{Perm_alg A}: 
@@ -758,7 +758,7 @@ Lemma join_unit2_e {A} `{Perm_alg A}:
   forall x y z, identity y -> join x y z -> x = z.
 Proof.
 intros.
-apply join_com in H1.
+apply join_comm in H1.
 eapply join_unit1_e; eauto.
 Qed.
 

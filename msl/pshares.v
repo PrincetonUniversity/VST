@@ -60,7 +60,7 @@ Proof.
   rewrite pfull_pmaximal in H0.
   generalize (H0 _ H); intro.
   destruct H. subst p.
-  apply join_com in H. 
+  apply join_comm in H. 
   contradiction (no_units x pfullshare).
 Qed.
 
@@ -76,7 +76,7 @@ Qed.
 Lemma pshare_join_full_false2 : forall (p:pshare),
    joins p pfullshare -> False.
 Proof.
-  intros. apply joins_com in H. apply pshare_join_full_false1 with p; auto.
+  intros. apply joins_comm in H. apply pshare_join_full_false1 with p; auto.
 Qed.
 
 Lemma pshare_join_full_false3: forall (p1: pshare) sh3,
@@ -91,7 +91,7 @@ Lemma pshare_join_full_false4: forall (p1: pshare) sh3,
   join Share.top (lifted_obj p1) sh3 -> False.
 Proof.
   intros.
-  eapply pshare_join_full_false3. apply join_com in H. eauto.
+  eapply pshare_join_full_false3. apply join_comm in H. eauto.
 Qed.
 
 Lemma pshare_pjoin_full_false3: forall (p1: pshare) pp sh3,
@@ -169,7 +169,7 @@ Proof.
   intros.
   apply psplit_pjoin in H.
   intro contra. subst psh1.
-  apply  join_com in H.
+  apply  join_comm in H.
   apply pjoin_unit in H. trivial.
 Qed.
 

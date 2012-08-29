@@ -68,7 +68,7 @@ Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
 
 Definition guard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: tycontext) (G: funspecs) (P : assert)  (ctl: cont) : pred nat :=
-     All rho:environ, 
+     ALL rho:environ, 
           !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho) && P rho && funassert G rho 
              >=> assert_safe Hspec gx ctl rho.
 
@@ -90,7 +90,7 @@ Definition exit_cont (ek: exitkind) (vl: list val) (k: cont) : cont :=
 
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv)  (Delta: tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
-     All ek: exitkind, All vl: list val, All rho:environ, 
+     ALL ek: exitkind, ALL vl: list val, ALL rho:environ, 
            !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho) && 
          ((F rho * R ek vl rho) && funassert G rho) >=> 
                assert_safe Hspec gx (exit_cont ek vl ctl) rho.
@@ -123,12 +123,12 @@ Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
 Definition semax_ext  {Z} (Hspec: juicy_ext_spec Z) 
                   ef (A: Type) (P Q: A -> list val -> pred rmap): 
         pred nat := 
- All x: A, 
- |>  All F: pred rmap, All args: list val,
+ ALL x: A, 
+ |>  ALL F: pred rmap, ALL args: list val,
    juicy_mem_op (P x args * F) >=> 
-   Ex x': ext_spec_type Hspec ef,
-    All z:_, ext_spec_pre' Hspec ef x' args z &&
-     ! All ret: list val, All z':Z, 
+   EX x': ext_spec_type Hspec ef,
+    ALL z:_, ext_spec_pre' Hspec ef x' args z &&
+     ! ALL ret: list val, ALL z':Z, 
       ext_spec_post' Hspec ef x' ret z' >=>
       !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&
           juicy_mem_op (|>(Q x ret * F)).
@@ -145,12 +145,12 @@ Definition fn_funsig (f: function) : funsig := (type_of_params (fn_params f), fn
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
   (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
-  (Ex b: block, Ex f: function,  
+  (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && All x : A, |> semax (SemaxArg  (func_tycontext f) G
+  && ALL x : A, |> semax (SemaxArg  (func_tycontext f) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
                               f.(fn_body)  
@@ -164,8 +164,8 @@ Definition claims (ge: genv) (G: funspecs) v fsig A P Q : Prop :=
 
 Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred nat)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
-  All v:val, All fsig: funsig,
-         All A: Type, All P: A -> list val -> pred rmap, All Q: A -> list val -> pred rmap,
+  ALL v:val, ALL fsig: funsig,
+         ALL A: Type, ALL P: A -> list val -> pred rmap, ALL Q: A -> list val -> pred rmap,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal_ semax gx G v fsig A P Q).
@@ -173,8 +173,8 @@ Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred na
 Definition semax_  {Z} (Hspec: juicy_ext_spec Z)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
  match a with SemaxArg Delta G P c R =>
-  All gx: genv, (believepred Hspec semax G gx G) --> 
-     All k: cont, All F: assert, 
+  ALL gx: genv, (believepred Hspec semax G gx G) --> 
+     ALL k: cont, ALL F: assert, 
        (!! (closed_wrt_modvars c F) && rguard Hspec gx Delta G F R k) -->
         guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k)
   end.
@@ -184,12 +184,12 @@ Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta G P c R : pred nat :=
 
 Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
   (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
-  (Ex b: block, Ex f: function,  
+  (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && All x : A, |> semax' Hspec (func_tycontext f) G
+  && ALL x : A, |> semax' Hspec (func_tycontext f) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
                               f.(fn_body)  
@@ -197,8 +197,8 @@ Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
 
 Definition believe {Z} (Hspec:juicy_ext_spec Z)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
-  All v:val, All fsig: funsig,
-         All A: Type, All P: A -> list val -> pred rmap, All Q: A -> list val -> pred rmap,
+  ALL v:val, ALL fsig: funsig,
+         ALL A: Type, ALL P: A -> list val -> pred rmap, ALL Q: A -> list val -> pred rmap,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal Hspec gx G v fsig A P Q).
@@ -206,9 +206,9 @@ Definition believe {Z} (Hspec:juicy_ext_spec Z)
 Lemma semax_fold_unfold : forall
   {Z} (Hspec : juicy_ext_spec Z),
   semax' Hspec = fun Delta G P c R =>
-  All gx: genv, 
+  ALL gx: genv, 
        believe Hspec G gx G --> 
-     All k: cont, All F: assert, 
+     ALL k: cont, ALL F: assert, 
         (!! (closed_wrt_modvars c F) && rguard Hspec gx Delta G F R k) -->
         guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
@@ -222,17 +222,17 @@ intros.
 unfold semax_.
 clear.
 sub_unfold.
-apply sub_allp; intros.
-apply sub_imp; [ | auto 50 with contractive].
-apply sub_allp; intros.
-apply sub_allp; intros.
-apply sub_allp; intros.
-apply sub_allp; intros.
-apply sub_allp; intros.
-apply sub_imp; intros; [ auto 50 with contractive | ].
-apply sub_orp; [ auto 50 with contractive | ].
-apply sub_exp; intros.
-apply sub_exp; intros.
+apply subp_allp; intros.
+apply subp_imp; [ | auto 50 with contractive].
+apply subp_allp; intros.
+apply subp_allp; intros.
+apply subp_allp; intros.
+apply subp_allp; intros.
+apply subp_allp; intros.
+apply subp_imp; intros; [ auto 50 with contractive | ].
+apply subp_orp; [ auto 50 with contractive | ].
+apply subp_exp; intros.
+apply subp_exp; intros.
 auto 50 with contractive.
 Qed.
 

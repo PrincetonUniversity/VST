@@ -25,7 +25,7 @@ Proof.
   intros.
   destruct H.
   case_eq (age1 phi2); intros; auto.
-  destruct (age1_join _ (join_com H) H1)  as [phi1' [x' [? [? ?]]]].
+  destruct (age1_join _ (join_comm H) H1)  as [phi1' [x' [? [? ?]]]].
   unfold age in *; rewrite H0 in H3; inv H3.
 Qed.
 
@@ -222,7 +222,7 @@ Proof.
   symmetry; apply age_level; auto.
   symmetry; apply age_level; auto.
   case_eq (age1 y); intros.
-  apply join_com in H1.
+  apply join_comm in H1.
   destruct (age1_join _ H1 H3) as [p [q [? [? ?]]]].
   hnf in H5; rewrite H5 in H2; discriminate.
   rewrite age1_level0 in H2.
@@ -260,14 +260,14 @@ Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageab
 Proof.
   intros.
   destruct (comparable_common_unit H1) as [e [? ?]].
-  destruct (age1_join _ (join_com H2) H) as [a [b [? [? ?]]]].
-  destruct (age1_join _ (join_com H3) H0) as [c [d [? [? ?]]]].
+  destruct (age1_join _ (join_comm H2) H) as [a [b [? [? ?]]]].
+  destruct (age1_join _ (join_comm H3) H0) as [c [d [? [? ?]]]].
   assert (c=a) by (unfold age in *; congruence); subst c.
   assert (b=phi1') by (unfold age in *; congruence). subst b.
   assert (d=phi2') by (unfold age in *; congruence). subst d.
   apply common_unit_comparable.
   exists a.
-  split; apply join_com; auto.
+  split; apply join_comm; auto.
 Qed.
 
 Lemma asa_flat {A} {JOIN: Join A}  :  @Age_alg A JOIN (@ag_flat _).
@@ -371,7 +371,7 @@ Proof.
   destruct (age1_join2 _ H H3) as [u [v [? [? ?]]]].
   apply age_level in H5. congruence.
   destruct (levelS_age1 _ _ H1).
-  destruct (age1_join _ (join_com H) H2) as [u [v [? [? ?]]]].
+  destruct (age1_join _ (join_comm H) H2) as [u [v [? [? ?]]]].
   apply age_level in H4. congruence.
   symmetry in H0.
   destruct (levelS_age1 _ _ H0) as [x' ?].
@@ -394,7 +394,7 @@ Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
   forall a b c, join a b c -> core a = core b. 
 Proof.
 intros. generalize H; intro.
-apply join_com in H.
+apply join_comm in H.
 apply join_core in H0; apply join_core in H. congruence.
 Qed.
 
@@ -402,8 +402,8 @@ Lemma age_core_eq {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}
   forall x y x' y', age x x' -> age y y' -> core x = core y -> core x' = core y'.
 Proof.
  intros.
- generalize (core_unit x); unfold unit_for; intro. apply join_com in H2.
- generalize (core_unit y); unfold unit_for; intro. apply join_com in H3.
+ generalize (core_unit x); unfold unit_for; intro. apply join_comm in H2.
+ generalize (core_unit y); unfold unit_for; intro. apply join_comm in H3.
  destruct (age1_join _ H2 H) as [u [v [? [? ?]]]].
  destruct (age1_join _ H3 H0) as [i [j [? [? ?]]]].
  unfold age in *. rewrite H in H6. inv H6. rewrite H0 in H9; inv H9.

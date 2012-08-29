@@ -278,8 +278,8 @@ Definition boxy {A} `{ageable A} (m: modality) (p: pred A): Prop :=  box m p = p
 
 (* A pile of notations for the operators we have defined *)
 Notation "P '|--' Q" := (derives P Q) (at level 80, no associativity).
-Notation "'Ex'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
-Notation "'All'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
+Notation "'EX'  x ':' T ',' P " := (exp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
+Notation "'ALL'  x ':' T  ',' P " := (allp (fun x:T => P%pred)) (at level 65, x at level 99) : pred.
 Infix "||" := orp (at level 50, left associativity) : pred.
 Infix "&&" := andp (at level 40, left associativity) : pred.
 Notation "P '-->' Q" := (imp P Q) (at level 55, right associativity) : pred.
@@ -561,14 +561,14 @@ Proof.
 Qed.
 
 Lemma box_all {A} `{ageable A} : forall B R (F:B -> pred A),
-  box R (allp F) = All x:B, box R (F x).
+  box R (allp F) = ALL x:B, box R (F x).
 Proof.
   intros; apply pred_ext; hnf; intuition;
     unfold allp, box in *; simpl in *; firstorder.
 Qed.
 
 Lemma box_ex {A} `{ageable A} : forall B R (F:B->pred A),
-  Ex x:B, box R (F x) |-- box R (exp F).
+  EX x:B, box R (F x) |-- box R (exp F).
 Proof.
   unfold derives, exp, box; simpl; firstorder.
 Qed.
@@ -589,7 +589,7 @@ Proof.
 Qed.
 
 Lemma diamond_ex {A} `{ageable A} : forall B R (F:B -> pred A),
-  diamond R (exp F) = Ex x:B, diamond R (F x).
+  diamond R (exp F) = EX x:B, diamond R (F x).
 Proof.
   intros; apply pred_ext; hnf; intuition;
     unfold diamond, exp in *; simpl in *; firstorder.
@@ -602,7 +602,7 @@ Proof.
 Qed.
 
 Lemma diamond_all {A} `{ageable A} : forall B R (F:B->pred A),
-  diamond R (allp F) |-- All x:B, diamond R (F x).
+  diamond R (allp F) |-- ALL x:B, diamond R (F x).
 Proof.
   unfold derives, allp, diamond; simpl; firstorder.
 Qed.
@@ -738,7 +738,7 @@ Qed.
 
 Lemma later_ex {A} `{ageable A} : forall B (F:B->pred A),
   B ->
-  |>(exp F) = Ex x:B, |>(F x).
+  |>(exp F) = EX x:B, |>(F x).
 Proof.
   intros.
   apply pred_ext.
@@ -809,7 +809,7 @@ Proof.
   split; simpl; auto.
 Qed.
 
-Lemma andp_com {A} `{ageable A} : forall P Q,
+Lemma andp_comm {A} `{ageable A} : forall P Q,
   P && Q = Q && P.
 Proof.
   intros; apply pred_ext; unfold andp; repeat intro; simpl in *; intuition.
@@ -822,7 +822,7 @@ Proof.
 Qed.
 
 Lemma ex_and : forall {A} `{ageable A} B (P:B->pred A) Q,
-  (exp P) && Q = Ex x:B, P x && Q.
+  (exp P) && Q = EX x:B, P x && Q.
 Proof.
   intros. apply pred_ext.
   repeat intro. destruct H0. destruct H0.
@@ -996,7 +996,7 @@ eapply H; eauto.
 Qed.
 
 Lemma forall_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
- (All x : B, (P x <--> Q x)) |-- (All x : B, P x) <--> (All x: B, Q x) .
+ (ALL x : B, (P x <--> Q x)) |-- (ALL x : B, P x) <--> (ALL x: B, Q x) .
 Proof.
 intros.
 intros w ?.
@@ -1004,7 +1004,7 @@ split; intros ? ? ? ?;  destruct (H b); eauto.
 Qed.
 
 Lemma exists_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
- (All x : B, (P x <--> Q x)) |-- (Ex x : B, P x) <--> (Ex x: B, Q x) .
+ (ALL x : B, (P x <--> Q x)) |-- (EX x : B, P x) <--> (EX x: B, Q x) .
 Proof.
 intros.
 intros w ?.

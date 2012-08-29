@@ -239,7 +239,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
       exists (PURE' _ kd pd). inv H1; inv H2; split; constructor.
 
       (* saf_com *)
-      intros a b c H; inv H; econstructor;  apply join_com; auto.
+      intros a b c H; inv H; econstructor;  apply join_comm; auto.
 
      (* saf_positivity *)
      intros; inv H; inv H0; auto; f_equal; eapply join_positivity; eauto.
@@ -663,7 +663,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
       exists (PURE kd pd). inv H1; inv H2; split; constructor.
 
       (* saf_com *)
-      intros a b c H; inv H; econstructor;  apply join_com; auto.
+      intros a b c H; inv H; econstructor;  apply join_comm; auto.
 
      (* saf_positivity *)
      intros; inv H; inv H0; auto; f_equal; eapply join_positivity; eauto.

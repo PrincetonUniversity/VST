@@ -23,7 +23,7 @@ Definition cjoins {A} {JA: Join A} (a b : A) : Type := {c : A | join a b c}.
 Definition cjoin_sub {A} {JA: Join A} (a c : A) : Type := {b : A | join a b c}.
 
 (* RENAME THE USES OF THIS! *)
-Lemma joins_com {A} {JA: Join A}{PA: Perm_alg A} : forall a b,
+Lemma joins_comm {A} {JA: Join A}{PA: Perm_alg A} : forall a b,
   joins a b -> joins b a.
 Proof. apply joins_sym.
 Qed.
@@ -35,7 +35,7 @@ Proof with eauto.
   destruct H0 as [a' ?]. unfold full in H.
   spec H a'. spec H...
   destruct H0 as [c ?].
-  spec H c. spec H... subst. apply join_com in H0. 
+  spec H c. spec H... subst. apply join_comm in H0. 
   apply no_units in H0. contradiction.
 Qed.
 
@@ -45,7 +45,7 @@ Proof.
   intros.
   destruct H.
   destruct H0.
-  destruct (join_assoc (join_com H) (join_com H0)) as [? [? _]].
+  destruct (join_assoc (join_comm H) (join_comm H0)) as [? [? _]].
   rewrite (join_self H1) in H1.
   eapply no_units; eauto.
 Qed.
@@ -102,12 +102,12 @@ Section PSA_LIFT.
     assert (nonunit f).
     unfold nonunit, unit_for; intros ? ?.
     destruct (join_assoc H1 H3) as [g [? ?]].
-    generalize (join_positivity (join_com H4) (join_com H5)); intro.
+    generalize (join_positivity (join_comm H4) (join_comm H5)); intro.
     rewrite <- H6 in *; clear dependent g.
     apply n0 in H5.  auto.
     exists (existT _ f H3). simpl. split; auto.
     
-    do 2 red in H|-*. icase a; icase b; icase c; simpl in *; apply join_com; auto.
+    do 2 red in H|-*. icase a; icase b; icase c; simpl in *; apply join_comm; auto.
 
     do 2 red in H,H0.
     icase a; icase a'; icase b; icase b'. simpl in *.
@@ -159,10 +159,10 @@ Section PSA_LIFT.
     assert (nonunit x).
     destruct a as [a Ha]; destruct b as [b Hb]. simpl in H.
     intros ? ?. unfold unit_for in H0. destruct (join_assoc H H0) as [f [? ?]].
-    destruct (join_assoc H0 (join_com H1)) as [g [? ?]].
-    generalize (join_eq H1 (join_com H3)); intro.
+    destruct (join_assoc H0 (join_comm H1)) as [g [? ?]].
+    generalize (join_eq H1 (join_comm H3)); intro.
     rewrite <- H5 in *; clear dependent g.
-    generalize (join_positivity H3 (join_com H2)); intro.
+    generalize (join_positivity H3 (join_comm H2)); intro.
     rewrite <- H5 in *; clear dependent f.
     apply Hb in H1; auto.
     exists (existT _ x H0). trivial.

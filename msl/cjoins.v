@@ -22,7 +22,7 @@ intros.
 destruct j1 as [w2 ?].
 destruct j2 as [w2' ?].
 simpl.
-apply (join_canc (join_com j) (join_com j0)).
+apply (join_canc (join_comm j) (join_comm j0)).
 Qed.
 
 Lemma cjoin_sub_trans {A} `{Perm_alg A}: forall a b c,
@@ -40,7 +40,7 @@ Lemma constructive_join_sub_refl {A} `{Perm_alg A}{SA: Sep_alg A}: forall x, con
 Proof.
 intros.
 destruct (join_ex_units x).
-exists x0. apply join_com; apply u.
+exists x0. apply join_comm; apply u.
 Qed.
 
 Hint Resolve @constructive_join_sub_refl.
@@ -122,27 +122,27 @@ Definition same_constructive_silhouette {A} {JOIN: Join A} (a b: A) :=
     intros * H ? ?.
     intro phiu.                                                                                                                        
     split; intros [phix ?H].                                                                                                            
-    destruct (join_assoc H0 (join_com H2)) as [phif [? ?]].                                                      
+    destruct (join_assoc H0 (join_comm H2)) as [phif [? ?]].                                                      
     spec H phif.                                                                                                                       
     destruct H as [?H ?H].
     assert (H6: constructive_joins phi phif) by (econstructor; eauto).       
     spec H. rewrite constructive_joins_sym.  auto.                                                                                                  
     clear H5 H6.                                                                                                                       
     destruct H as [phix' ?H].                                                                                                           
-    destruct (join_assoc (join_com H3) H) as [phig [? ?]].                                                         
-    generalize (join_eq H1 (join_com H5)); intro. rewrite <- H7 in *; clear H7 phig.                                                        
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].                                                         
+    generalize (join_eq H1 (join_comm H5)); intro. rewrite <- H7 in *; clear H7 phig.                                                        
     clear H5.                                                                                                                          
     exists phix'.                                                                                                                      
     auto.                                                                                                                              
-    destruct (join_assoc H1 (join_com H2)) as [phif [? ?]].                                                        
+    destruct (join_assoc H1 (join_comm H2)) as [phif [? ?]].                                                        
     spec H phif.                                                                                                                       
     destruct H as [?H ?H].
     assert (H6: constructive_joins phi' phif) by (econstructor; eauto).                                                                                                         
     spec H5. rewrite constructive_joins_sym.  auto.                                                                                                 
     clear H H6.
     destruct H5 as [phix' ?H].
-    destruct (join_assoc (join_com H3) H) as [phig [? ?]].
-    generalize (join_eq H0 (join_com H5)); intro. rewrite <- H7 in *; clear H7  phig.
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].
+    generalize (join_eq H0 (join_comm H5)); intro. rewrite <- H7 in *; clear H7  phig.
     clear H5.
     exists phix'.
     auto.
@@ -154,7 +154,7 @@ Proof.
 intros.
 destruct X as [wx X].
 destruct X0 as [wy X0].
-destruct (join_assoc (join_com X) X0) as [wf [? ?]].
+destruct (join_assoc (join_comm X) X0) as [wf [? ?]].
 econstructor; eauto.
 Qed.
 

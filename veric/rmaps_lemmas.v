@@ -221,7 +221,7 @@ Proof.
   spec H. intro; econstructor; apply H0.
   generalize (resources_same_level g phi); intro.
   spec H1.
-  intro. econstructor; eapply join_com; eauto.
+  intro. econstructor; eapply join_comm; eauto.
   generalize (make_rmap'' (level phi) f Hf); intros [phif [? Gf]].
   generalize (make_rmap'' (level phi) g Hg); intros [phig [? Gg]].
   exists phif; exists phig.
@@ -492,7 +492,7 @@ Proof.
   rewrite H1 in H2.
   rewrite H0 in H2.
   contradiction (YES_not_identity rsh0 sh k' p').
-  apply join_com in H2. apply YES_join_full in H2. destruct H2; discriminate.
+  apply join_comm in H2. apply YES_join_full in H2. destruct H2; discriminate.
 Qed.
 
 Lemma necR_NOx:
@@ -1148,7 +1148,7 @@ destruct (share_cross_split _ _ _ _ _ S1 S2) as [[[[ac' ad'] bc'] bd'] [Ha' [Hb'
 destruct (dec_share_identity ac').
 apply i in Ha'; apply i in Hc'. subst.
 destruct (dec_share_identity bd').
-apply join_com in Hb'; apply join_com in Hd'; apply i0 in Hb'; apply i0 in Hd'; subst.
+apply join_comm in Hb'; apply join_comm in Hd'; apply i0 in Hb'; apply i0 in Hd'; subst.
 apply lifted_eq in Hb'. apply lifted_eq in Hd'; subst sb sd.
 exists (NO ac, YES ad sa ka pa, YES bc sc kc pc, NO bd); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
@@ -1156,20 +1156,20 @@ apply nonidentity_nonunit in n.
 exists (NO ac, YES ad sa ka pa, YES bc sc kc pc, YES bd (mk_lifted _ n) kd pd); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
 destruct (dec_share_identity ad').
-apply join_com in Ha'; apply i in Ha'; apply i in Hd'; subst bd' ac'.
+apply join_comm in Ha'; apply i in Ha'; apply i in Hd'; subst bd' ac'.
 clear n.
 destruct (dec_share_identity bc').
-apply join_com in Hc'; apply i0 in Hb'; apply i0 in Hc'.  apply lifted_eq in Hb'; apply lifted_eq in Hc'; subst sd sc.
+apply join_comm in Hc'; apply i0 in Hb'; apply i0 in Hc'.  apply lifted_eq in Hb'; apply lifted_eq in Hc'; subst sd sc.
 exists (YES ac sa ka pa, NO ad, NO bc, YES bd sb kb pb); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
 exists (YES ac sa ka pa, NO ad, YES bc (mk_lifted _ (nonidentity_nonunit n)) kc pc, YES bd sd kd pd);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
 destruct (dec_share_identity bc').
-apply join_com in Hc'; apply i in Hb'; apply i in Hc'.  subst ac' bd'.
+apply join_comm in Hc'; apply i in Hb'; apply i in Hc'.  subst ac' bd'.
 exists (YES ac sc kc pc, YES ad (mk_lifted _ (nonidentity_nonunit n0)) kc pc, NO bc, YES bd sb kb pb);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
 destruct (dec_share_identity bd').
-apply join_com in Hb'; apply join_com in Hd';
+apply join_comm in Hb'; apply join_comm in Hd';
  apply i in Hb'; apply i in Hd'. subst bc' ad'.
 exists (YES ac (mk_lifted _ (nonidentity_nonunit n)) ka pa,  YES ad sd kd pd, YES bc sb kb pb, NO bd);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.

@@ -187,7 +187,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
       (* saf_com *)
       intros a b c H; inv H; econstructor.
-      apply join_com; auto.
+      apply join_comm; auto.
 
      intros; inv H; inv H0; auto. f_equal. eapply join_positivity; eauto.
  Qed.
@@ -566,7 +566,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
 
       (* saf_com *)
       intros a b c H; inv H; econstructor.
-      apply join_com; auto.
+      apply join_comm; auto.
 
       (* positivity *)
       intros. inv H; inv H0; auto. f_equal. eapply join_positivity; eauto.

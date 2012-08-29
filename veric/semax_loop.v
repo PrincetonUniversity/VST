@@ -177,7 +177,7 @@ assert (app_pred
    assert_safe Hspec psi (Kseq t :: k) rho) w).
 apply H0; auto.
 repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H i); intuition.
-eapply subp_trans; try apply H.
+eapply subp_trans'; try apply H.
 apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
 normalize.
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
@@ -286,7 +286,7 @@ unfold exit_cont.
 apply (assert_safe_adj' Hspec) with (k:=Kseq (Sfor' test incr body) :: k); auto.
 repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
   intros q' m' [? [? ?]]; split3; auto. inv H13; econstructor; eauto.
- eapply subp_trans; [ |  eapply (H1 _ LT Prog_OK2 H3' rho2)].
+ eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' rho2)].
  apply derives_subp.
 rewrite andp_assoc.
 apply andp_derives; auto.
@@ -294,21 +294,21 @@ simpl exit_cont.
  normalize. normalize.
 change (exit_cont EK_return vl2 (Kfor3 test incr body :: k))
   with (exit_cont EK_return vl2 k).
-eapply subp_trans; [ | apply H3'].
+eapply subp_trans'; [ | apply H3'].
 auto.
 intro rho2.
 apply (assert_safe_adj' Hspec) with (k:= Kseq incr :: Kfor3 test incr body :: k); auto.
 intros ? ? ? ? ? ? ?.
 eapply convergent_controls_safe; simpl; eauto.
 intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
-eapply subp_trans; try apply H0.
+eapply subp_trans'; try apply H0.
 apply derives_subp.
 rewrite andp_assoc.
 apply andp_derives; auto.
 simpl exit_cont.
 unfold for1_ret_assert.
 intro rho3.
-eapply subp_trans; [ | apply (H3' EK_normal nil rho3)].
+eapply subp_trans'; [ | apply (H3' EK_normal nil rho3)].
 apply derives_subp.
 apply andp_derives; auto.
 unfold exit_cont. simpl continue_cont.
@@ -316,7 +316,7 @@ unfold for1_ret_assert.
 rewrite semax_unfold in H0.
 destruct H0 as [_ H0].
 intro rho2.
-eapply subp_trans; [ | apply (H0 _ _ Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr)].
+eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr)].
 apply derives_subp.
 rewrite andp_assoc.
 apply andp_derives; auto.
@@ -328,7 +328,7 @@ apply (assert_safe_adj' Hspec) with (k:=Kseq (Sfor' test incr body) :: k); auto.
 intros ? ? ? ? ? ? ?.
 eapply convergent_controls_safe; simpl; eauto.
 intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
-eapply subp_trans; [ | eapply H1; eauto].
+eapply subp_trans'; [ | eapply H1; eauto].
 apply derives_subp.
 rewrite andp_assoc.
 apply andp_derives; auto.
@@ -340,7 +340,7 @@ unfold exit_cont, for2_ret_assert; normalize.
 change (exit_cont EK_return vl (Kseq Scontinue :: Kfor2 test incr body :: k))
     with (exit_cont EK_return vl k).
 intro rho4.
-eapply subp_trans; [ | eapply H3'; eauto].
+eapply subp_trans'; [ | eapply H3'; eauto].
 unfold for1_ret_assert.
 auto.
 apply (H' rho _ (le_refl _) (m_phi jm') (necR_refl _)); auto.

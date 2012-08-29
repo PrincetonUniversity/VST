@@ -23,10 +23,10 @@ Definition nonexpansive {A} `{ageable A} (f: pred A -> pred A) : Prop :=
   forall P Q,  (P <=> Q)  |-- f P <=> f Q.
 
 Definition HOcontractive {A} `{ageable A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
-  forall P Q,  (All x:X, |> (P x <=> Q x)) |-- (All x:X, f P x <=> f Q x).
+  forall P Q,  (ALL x:X, |> (P x <=> Q x)) |-- (ALL x:X, f P x <=> f Q x).
 
 Definition HOnonexpansive {A} `{ageable A} (X: Type) (f: (X -> pred A) -> (X -> pred A)) : Prop :=
-  forall P Q, (All x:X, P x <=> Q x)  |-- (All x:X, f P x <=> f Q x).
+  forall P Q, (ALL x:X, P x <=> Q x)  |-- (ALL x:X, f P x <=> f Q x).
 
 Module Type HO_REC.
 
@@ -67,7 +67,7 @@ Section HORec.
    clear H; rename H0 into H. 
     remember (j+n) as i; clear Heqi.
 
-   assert ((All  x : X , (HORec' i x <=> HORec' (S i) x)) (level a)).
+   assert ((ALL  x : X , (HORec' i x <=> HORec' (S i) x)) (level a)).
    clear - H Hcont.
    remember (level a) as n; clear Heqn.
    revert n H; induction i; intros.

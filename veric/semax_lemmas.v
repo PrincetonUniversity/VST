@@ -76,7 +76,7 @@ Context {Z} (Hspec: juicy_ext_spec Z).
 
 Lemma universal_imp_unfold {A} {agA: ageable A}:
    forall B (P Q: B -> pred A) w,
-     (All psi : B, P psi --> Q psi) w = (forall psi : B, (P psi --> Q psi) w).
+     (ALL psi : B, P psi --> Q psi) w = (forall psi : B, (P psi --> Q psi) w).
 Proof.
 intros.
 apply prop_ext; split; intros.
@@ -337,7 +337,7 @@ clear - H1.
 unfold rguard in *.
 intros ek vl rho; specialize (H1 ek vl rho).
 red in H1. 
-eapply subp_trans; [| apply H1 ].
+eapply subp_trans'; [| apply H1 ].
 apply derives_subp.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -392,7 +392,7 @@ intros.
 apply pred_ext; intros w ?.
 destruct H as [w1 [w3 [? [? ?]]]].
 hnf; eapply split_identity.
-eapply join_com; eauto.
+eapply join_comm; eauto.
 auto.
 exists w; exists w; split; auto.
 change (identity w) in H.
@@ -401,8 +401,8 @@ Qed.
 
 Lemma semax_extensionality1:
   forall Delta G (P P': assert) c (R R': ret_assert) ,
-       ((All ek: exitkind, All  vl : list val, All rho: environ,  (R ek vl rho >=> R' ek vl rho))
-      && (All rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta G P c R) |-- semax' Hspec Delta G P' c R').
+       ((ALL ek: exitkind, ALL  vl : list val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta G P c R) |-- semax' Hspec Delta G P' c R').
 Proof.
 intros.
 intros ? ?.
@@ -420,9 +420,9 @@ specialize (H1 st F _ H3).
 spec H1.
 destruct H4; split; auto.
 intros ek vl rho. specialize (H5 ek vl rho).
-eapply subp_trans; try apply H5.
-apply andp_subp; auto.
-apply andp_subp; auto.
+eapply subp_trans'; try apply H5.
+apply andp_subp'; auto.
+apply andp_subp'; auto.
 (* apply subp_later; auto with typeclass_instances. *)
 specialize (H ek vl rho).
 apply (pred_nec_hereditary _ _ _ H3) in H.
@@ -430,15 +430,15 @@ clear - H.
 revert a' H.
 (* apply box_derives. *)
 intros w ?.
-apply sepcon_subp;  auto.
+apply sepcon_subp';  auto.
 
 apply (pred_nec_hereditary _ _ _ H3) in H0.
 clear - H1 H0.
 intro rho; specialize (H1 rho); specialize (H0 rho).
-eapply subp_trans; try apply H1. clear H1.
-apply andp_subp; auto.
-apply andp_subp; auto.
-apply sepcon_subp; auto.
+eapply subp_trans'; try apply H1. clear H1.
+apply andp_subp'; auto.
+apply andp_subp'; auto.
+apply sepcon_subp'; auto.
 Qed.
 
 Lemma believe_cons:
@@ -525,7 +525,7 @@ Proof.
 intros.
 intros w ?.
 apply (@pred_sub_later' _ _ natty_rmap P  (assert_safe Hspec ge k rho)); auto.
-eapply subp_trans; try apply H.
+eapply subp_trans'; try apply H.
 apply derives_subp; clear.
 intros w0 ?.
 intros w' ?.
@@ -654,7 +654,7 @@ Qed.
 Lemma and_FF : forall {A} `{ageable A} (P:pred A),
   P && FF = FF.
 Proof.
-  intros. rewrite andp_com. apply FF_and.
+  intros. rewrite andp_comm. apply FF_and.
 Qed.
 
 Lemma sepcon_FF : forall {A}{JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} (P:pred A),
@@ -1106,7 +1106,7 @@ Lemma assert_safe_adj':
      app_pred (P >=> assert_safe Hspec ge k' rho) w.
 Proof.
  intros.
- eapply subp_trans; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
+ eapply subp_trans'; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
  auto.
 Qed.
 

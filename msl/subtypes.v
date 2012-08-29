@@ -114,7 +114,7 @@ Definition fashionable  (P: pred nat) := # P = P.
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : pred.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : pred.
 
-Lemma sub_equ {A} `{ageable A} : forall G (P Q: pred A),
+Lemma subp_eqp {A} `{ageable A} : forall G (P Q: pred A),
   G |-- P >=> Q ->
   G |-- Q >=> P ->
   G |-- P <=> Q.
@@ -125,7 +125,7 @@ Proof.
   eapply H1; eauto.
 Qed.
 
-Lemma equ_sub {A} `{ageable A} : forall G P Q,
+Lemma eqp_subp {A} `{ageable A} : forall G P Q,
   G |-- P <=> Q ->
   G |-- P >=> Q.
 Proof.
@@ -135,7 +135,7 @@ Proof.
   destruct (H1 _ H2); auto.
 Qed.
 
-Lemma equ_sub2 {A} `{ageable A} : forall G P Q,
+Lemma eqp_subp2 {A} `{ageable A} : forall G P Q,
   G |-- P <=> Q ->
   G |-- Q >=> P.
 Proof.
@@ -145,25 +145,25 @@ Proof.
   destruct (H1 _ H2); auto.
 Qed.
 
-Lemma equ_comm : forall {A} `{ageable A} (P Q:pred A),
+Lemma eqp_comm : forall {A} `{ageable A} (P Q:pred A),
   P <=> Q = Q <=> P.
 Proof.
   intros. apply pred_ext.
-  apply sub_equ.
-    apply equ_sub2. hnf; auto.
-    apply equ_sub. hnf; auto.
-  apply sub_equ.
-    apply equ_sub2. hnf; auto.
-    apply equ_sub. hnf; auto.
+  apply subp_eqp.
+    apply eqp_subp2. hnf; auto.
+    apply eqp_subp. hnf; auto.
+  apply subp_eqp.
+    apply eqp_subp2. hnf; auto.
+    apply eqp_subp. hnf; auto.
 Qed.    
 
-Lemma sub_refl {A} `{ageable A} : forall G P,
+Lemma subp_refl {A} `{ageable A} : forall G P,
   G |-- P >=> P.
 Proof.
   repeat intro; auto.
 Qed.
 
-Lemma sub_trans {A} `{ageable A} : forall G P Q R,
+Lemma subp_trans {A} `{ageable A} : forall G P Q R,
   G |-- P >=> Q ->
   G |-- Q >=> R ->
   G |-- P >=> R.
@@ -173,19 +173,19 @@ Proof.
   eapply H0; eauto.
 Qed.
 
-Lemma sub_top {A} `{ageable A} : forall G P,
+Lemma subp_top {A} `{ageable A} : forall G P,
   G |-- P >=> TT.
 Proof.
   repeat intro; simpl; auto.
 Qed.
 
-Lemma sub_bot {A} `{ageable A} : forall G P,
+Lemma subp_bot {A} `{ageable A} : forall G P,
   G |-- FF >=> P.
 Proof.
   repeat intro; simpl in *; intuition.
 Qed.
 
-Lemma sub_andp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_andp {A} `{ageable A} : forall G P P' Q Q',
   G |-- P >=> P' ->
   G |-- Q >=> Q' ->
   G |-- P && Q >=> (P' && Q').
@@ -196,7 +196,7 @@ Proof.
   eapply H1; eauto.
 Qed.
 
-Lemma sub_imp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_imp {A} `{ageable A} : forall G P P' Q Q',
   G |-- P' >=> P ->
   G |-- Q >=> Q' ->
   G |-- (P --> Q) >=> (P' --> Q').
@@ -207,7 +207,7 @@ Proof.
   eapply H0; eauto.
 Qed.
 
-Lemma sub_orp {A} `{ageable A} : forall G P P' Q Q',
+Lemma subp_orp {A} `{ageable A} : forall G P P' Q Q',
   G |-- P >=> P' ->
   G |-- Q >=> Q' ->
   G |-- (P || Q) >=> (P' || Q').
@@ -218,7 +218,7 @@ Proof.
   eapply H1; eauto.
 Qed.
 
-Lemma sub_sub {A}{agA: ageable A}:
+Lemma subp_subp {A}{agA: ageable A}:
   forall (G: pred nat) (P Q R S: pred A), 
    G |-- (R >=> P) ->
    G |-- (Q >=> S) ->
@@ -239,7 +239,7 @@ Proof.
  apply necR_level in H2.  apply le_trans with (level y); auto. 
 Qed.
 
-Lemma sub_allp {A} `{ageable A} : forall G B (X Y:B -> pred A),
+Lemma subp_allp {A} `{ageable A} : forall G B (X Y:B -> pred A),
   (forall x:B, G |-- X x >=> Y x) ->
   G |-- allp X >=> allp Y.
 Proof.
@@ -247,7 +247,7 @@ Proof.
   eapply H0; eauto.
 Qed.
 
-Lemma sub_exp {A} `{ageable A} : forall G B (X Y:B -> pred A),
+Lemma subp_exp {A} `{ageable A} : forall G B (X Y:B -> pred A),
   (forall x:B, G |-- X x >=> Y x) ->
   G |-- exp X >=> exp Y.
 Proof.
@@ -256,13 +256,13 @@ Proof.
   eapply H0; eauto.
 Qed.
 
-Lemma sub_allp_spec {A} `{ageable A} : forall G B (X:B -> pred A) x,
+Lemma subp_allp_spec {A} `{ageable A} : forall G B (X:B -> pred A) x,
   G |-- allp X >=> X x.
 Proof.
   repeat intro; eauto.
 Qed.
 
-Lemma sub_exp_spec {A} `{ageable A} : forall G B(X:B -> pred A) x,
+Lemma subp_exp_spec {A} `{ageable A} : forall G B(X:B -> pred A) x,
   G |-- X x >=> exp X.
 Proof.
   repeat intro.
@@ -311,7 +311,7 @@ omega.
 constructor 1; auto.
 Qed.
 
-Lemma sub_later1 {A} `{ageable A} : forall P Q,
+Lemma subp_later1 {A} `{ageable A} : forall P Q,
    |>(P >=> Q)  |--   |>P >=> |>Q.
 Proof.
 intros.
@@ -320,7 +320,7 @@ rewrite later_imp.
 intros ? ?; auto.
 Qed.
 
-Lemma sub_later {A} `{natty A} : forall P Q,
+Lemma subp_later {A} `{natty A} : forall P Q,
    |>(P >=> Q) = |>P >=> |>Q.
 Proof.
 intros.
@@ -329,7 +329,7 @@ f_equal.
 apply later_imp.
 Qed.
 
-Lemma eq_later1 {A} `{ageable A} : forall P Q,
+Lemma eqp_later1 {A} `{ageable A} : forall P Q,
    |>(P <=> Q)  |--   |>P <=> |>Q.
 Proof.
 intros.
@@ -338,7 +338,7 @@ rewrite later_and.
 repeat rewrite later_imp. auto.
 Qed.
 
-Lemma eq_later {A} `{natty A} : forall P Q,
+Lemma eqp_later {A} `{natty A} : forall P Q,
     (|>(P <=> Q) = |>P <=> |>Q)%pred.
 Proof.
 intros.
@@ -419,7 +419,7 @@ Qed.
 
 Lemma exp_subp' {A} `{H : ageable A}: 
   forall (T: Type) (P Q: T -> pred A) (st: nat),
-                (forall x, (P x >=> Q x) st) -> ((Ex x : T, P x) >=> (Ex x : T, Q x)) st.
+                (forall x, (P x >=> Q x) st) -> ((EX x : T, P x) >=> (EX x : T, Q x)) st.
 Proof.
 intros.
 repeat intro.
@@ -458,7 +458,7 @@ Proof. intros.
  apply nec_nat. auto. apply H4.
 Qed.
 
-Lemma pred_eq_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
+Lemma eqp_nat: forall P Q: pred nat, (P <=> Q) = (P <--> Q).
 Proof.
 intros.
 apply pred_ext; intros w ?.

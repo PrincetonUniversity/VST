@@ -311,7 +311,7 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
     exists (g ea eb); auto.
   Qed.
 
-(* Examples: *)
+(* EXamples: *)
 
 (*  This example doesn't make so much sense, as "comparable" 
   is not so well-defined for Pos_algs 

@@ -233,7 +233,7 @@ Proof.
   spec H. intro; econstructor; apply H0.
   generalize (resources_same_level g phi); intro.
   spec H1.
-  intro. econstructor; eapply join_com; eauto.
+  intro. econstructor; eapply join_comm; eauto.
   generalize (make_rmap'' (level phi) f Hf); intros [phif [? Gf]].
   generalize (make_rmap'' (level phi) g Hg); intros [phig [? Gg]].
   exists phif; exists phig.
@@ -506,7 +506,7 @@ Proof.
   rewrite H1 in H2.
   rewrite H0 in H2.
   contradiction (YES_not_identity sh k' p').
-  apply join_com in H2. apply YES_join_full in H2. discriminate.
+  apply join_comm in H2. apply YES_join_full in H2. discriminate.
 Qed.
 
 Lemma necR_NOx:
@@ -1188,7 +1188,7 @@ destruct (share_cross_split _ _ _ _ _ H2 H1) as [[[[ac ad] bc] bd] [Ha [Hb [Hc H
 destruct (dec_share_identity ac).
 apply i in Ha; apply i in Hc. subst.
 destruct (dec_share_identity bd).
-apply join_com in Hb; apply join_com in Hd; apply i0 in Hb; apply i0 in Hd; subst.
+apply join_comm in Hb; apply join_comm in Hd; apply i0 in Hb; apply i0 in Hd; subst.
 apply lifted_eq in Hb. apply lifted_eq in Hd; subst b d.
 rename k2 into k; rename p2 into p.
 exists (NO, YES a k p, YES c k p, NO); simpl; split; auto. constructor.
@@ -1198,10 +1198,10 @@ apply nonidentity_nonunit in n.
 exists (NO, YES a k p, YES c k p, YES (mk_lifted _ n) k p); simpl; split; auto.
 constructor. split3; constructor; auto.
 destruct (dec_share_identity ad).
-apply join_com in Ha; apply i in Ha; apply i in Hd; subst bd ac.
+apply join_comm in Ha; apply i in Ha; apply i in Hd; subst bd ac.
 clear n.
 destruct (dec_share_identity bc).
-apply join_com in Hc; apply i0 in Hb; apply i0 in Hc.  apply lifted_eq in Hb; apply lifted_eq in Hc; subst d c.
+apply join_comm in Hc; apply i0 in Hb; apply i0 in Hc.  apply lifted_eq in Hb; apply lifted_eq in Hc; subst d c.
 rename k2 into k; rename p2 into p.
 exists (YES a k p, NO, NO, YES b k p); simpl; split; auto.
 constructor. split3; constructor; auto.
@@ -1209,12 +1209,12 @@ rename k2 into k; rename p2 into p.
 exists (YES a k p, NO, YES (mk_lifted _ (nonidentity_nonunit n)) k p, YES d k p); simpl; split; auto.
 constructor. split3; constructor; auto.
 destruct (dec_share_identity bc).
-apply join_com in Hc; apply i in Hb; apply i in Hc.  subst ac bd.
+apply join_comm in Hc; apply i in Hb; apply i in Hc.  subst ac bd.
 rename k2 into k; rename p2 into p.
 exists (YES c k p, YES (mk_lifted _ (nonidentity_nonunit n0)) k p, NO, YES b k p); simpl; split; auto.
 constructor. auto. split3; constructor; auto.
 destruct (dec_share_identity bd).
-apply join_com in Hb; apply join_com in Hd;
+apply join_comm in Hb; apply join_comm in Hd;
  apply i in Hb; apply i in Hd. subst bc ad.
 rename k2 into k; rename p2 into p.
 exists (YES (mk_lifted _ (nonidentity_nonunit n)) k p,  YES d k p, YES b k p, NO); split; simpl; auto.

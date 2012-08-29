@@ -150,9 +150,9 @@ Lemma join_equiv_refl: forall A (v: A), @join A (Join_equiv A) v v v.
 Proof. split; auto. Qed.
 End JOIN_EQUIV.
 
-(* WARNING: DO NOT DO    [Existing Instance Join_equiv]   BECAUSE
+(* WARNING: DO NOT DO    [EXisting Instance Join_equiv]   BECAUSE
    IT WILL MATCH IN UNINTENDED PLACES.  But I think it will do no harm
-  to do the following Existing Instances: *)
+  to do the following EXisting Instances: *)
 Existing Instance Perm_equiv.
 Existing Instance Sep_equiv.
 Existing Instance Canc_equiv.
@@ -183,7 +183,7 @@ Section SepAlgProp.
      assert (P f) by (apply (HPjoin _ _ _ H1); auto; apply proj2_sig; auto).
      exists (exist P f H3).
      split; auto.
-     do 2 red in H; apply join_com in H; auto.
+     do 2 red in H; apply join_comm in H; auto.
      do 2 red in H,H0. simpl in H,H0.
      destruct a, b; simpl; apply exist_ext; eapply join_positivity; eauto.
  Qed.
@@ -192,7 +192,7 @@ Section SepAlgProp.
   Proof. repeat intro.
      apply mkSep with (fun a : sig P => exist P (core (proj1_sig a)) (HPcore _ (proj2_sig a)));
       intros. apply Perm_prop.
-      do 2 red. destruct t; simpl. apply join_com; apply core_unit.
+      do 2 red. destruct t; simpl. apply join_comm; apply core_unit.
       apply exist_ext.
       do 2 red in H. apply join_core in H. apply H.
   Defined.
@@ -253,7 +253,7 @@ Section SepAlgFun.
    apply (join_eq (H k) (H0 k)).
   exists (fun x => projT1 (join_assoc (H x) (H0 x))).
   split; intro k; destruct (join_assoc (H k) (H0 k)) as [f [? ?]]; auto.
-  intro k; apply join_com; apply H.
+  intro k; apply join_comm; apply H.
   extensionality k; specialize (H k); specialize (H0 k).
   apply (join_positivity H H0).
  Qed.
@@ -310,7 +310,7 @@ Section SepAlgPi.
    extensionality i. apply (join_eq (H i) (H0 i)).
    exists (fun i => projT1 (join_assoc (H i) (H0 i))).
    split; intro i; destruct (join_assoc (H i) (H0 i)) as [f [? ?]]; auto.
-   intro i; apply join_com; auto.
+   intro i; apply join_comm; auto.
    extensionality i. specialize (H i); specialize (H0 i).
    apply (join_positivity H H0).
  Qed.
@@ -348,7 +348,7 @@ Existing Instance Disj_pi.
    construction at any index type.
 
    However, in this version, we use inj_pair2, which comes from
-   msl.Extensionality; the proof there relies on 
+   msl.EXtensionality; the proof there relies on 
    proof-irrelevance (but not on stronger forms of extensionality).
 *)
 Section SepAlgSigma.
@@ -402,10 +402,10 @@ Section SepAlgSigma.
     exists (existT Sigma i f).
     split; constructor; auto.
 
-    (* join_com *)
+    (* join_comm *)
     inv H; subst.
     constructor.
-    apply join_com; auto.
+    apply join_comm; auto.
 
     (* join_positivity *)
     inv H; inv H0.  apply inj_pair2 in H3.  apply inj_pair2 in H5.  subst.
@@ -475,8 +475,8 @@ Section SepAlgProd.
     destruct (join_assoc H0 H2) as [y [? ?]].
     exists (x,y); simpl; repeat split; auto.
 
-    (* join_com *)
-    intros [? ?] [? ?] [? ?] [? ?]; repeat split; simpl in *; apply join_com; auto.
+    (* join_comm *)
+    intros [? ?] [? ?] [? ?] [? ?]; repeat split; simpl in *; apply join_comm; auto.
 
     (* join_positivity *)
     intros [? ?] [? ?] [? ?] [? ?] [? ?] [? ?]; simpl in *.
@@ -542,9 +542,9 @@ Section SepAlgSum.
     exists (inl B f); simpl; auto.
     exists (inr A f); simpl; auto.
 
-    (* join_com *)
+    (* join_comm *)
     intros; destruct a; destruct b; destruct c; hnf in H|-*; try contradiction;
-    apply join_com; auto.
+    apply join_comm; auto.
 
     (* join_positivity *) 
     intros; hnf in H,H0|-*; destruct a; destruct a'; destruct b; destruct b'; try contradiction;
@@ -760,7 +760,7 @@ Section SepAlgBijection.
    destruct (join_assoc H H0) as [m [? ?]]; exists (bij_f _ _ bij m); split;
    do 2 red; rewrite bij_gf; auto.
 
-    do 2 red in H|-*. apply join_com; auto.
+    do 2 red in H|-*. apply join_comm; auto.
 
     do 2 red in H,H0. rewrite <- (bij_fg _ _ bij a); rewrite <- (bij_fg _ _ bij b).
     f_equal. eapply join_positivity; eauto.

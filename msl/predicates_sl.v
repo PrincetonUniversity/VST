@@ -157,8 +157,8 @@ Proof.
   exists w; exists y; intuition.
   destruct H0 as [x [y [? [? ?]]]].
   destruct H2 as [z [w [? [? ?]]]].
-  apply join_com in H0.
-  apply join_com in H2.
+  apply join_comm in H0.
+  apply join_comm in H2.
   destruct (join_assoc H2 H0) as [q [? ?]].
   exists q; exists w; intuition.
   exists x; exists z; intuition.
@@ -170,9 +170,9 @@ Proof.
   pose proof I.
   intros; apply pred_ext; hnf; intros.
   destruct H0 as [x [y [? [? ?]]]].
-  exists y; exists x; intuition; apply join_com; auto.
+  exists y; exists x; intuition; apply join_comm; auto.
   destruct H0 as [x [y [? [? ?]]]].
-  exists y; exists x; intuition; apply join_com; auto.
+  exists y; exists x; intuition; apply join_comm; auto.
 Qed.
 
 Lemma split_sepcon {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P Q R S:pred A),
@@ -422,7 +422,7 @@ revert H0; case_eq (age1 phi1); intros; try discriminate.
 rename a into phi.
 assert (exists ophi2, age phi2 ophi2 /\ comparable phi ophi2).
 destruct (comparable_common_unit H) as [e [? ?]].
-destruct (age1_join _ (join_com H2) H0) as [eo [phi1'a [eof [? ?]]]].
+destruct (age1_join _ (join_comm H2) H0) as [eo [phi1'a [eof [? ?]]]].
 destruct (age1_join _ H3 H4) as [phi2' [phi2'a [eof' [? ?]]]].
 unfold age in H7. rewrite H6 in H7. symmetry in H7; inv H7.
 rewrite H5 in H0. inv H0.
@@ -526,7 +526,7 @@ split.
 rewrite <- H in H2.
 eapply H2.
 exists w0.
-apply join_com; auto.
+apply join_comm; auto.
 exists w0; exists w1; auto.
 Qed.
 Implicit Arguments extend_sepcon_andp.
@@ -579,7 +579,7 @@ econstructor; eauto.
 spec H.
 econstructor; eauto.
 subst phi1b.
-generalize (join_canc (join_com H0) (join_com H3)).
+generalize (join_canc (join_comm H0) (join_comm H3)).
 intro; subst phi2b.
 exists phi1a; exists phi2a; split; auto.
 split; auto.
@@ -645,13 +645,13 @@ Proof.
   apply (H0 _ _ H1 H2 H5).
 Qed.
 
-(* Existential Magic Wand *)
+(* EXistential Magic Wand *)
 
 Program Definition ewand {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A} (P Q: pred A) : pred A :=
   fun w => exists w1, exists w2, join w1 w w2 /\ P w1 /\ Q w2.
 Next Obligation.
 destruct H0 as [w1 [w2 [? [? ?]]]].
-apply join_com in H0; eapply age1_join in H0; eauto.
+apply join_comm in H0; eapply age1_join in H0; eauto.
 destruct H0 as [w1' [w3' [? [? ?]]]].
 exists w1'; exists w3'; split; auto.
 split;   eapply pred_nec_hereditary; try eassumption.
@@ -697,15 +697,15 @@ assert (w4' = w4). apply H0; auto.
 apply comparable_trans with wb. eapply join_comparable; eauto.
 apply comparable_sym.  eapply join_comparable; eauto.
 subst w4'; clear H7.
-assert (w2' = w2). eapply join_canc; try apply join_com; eauto.
+assert (w2' = w2). eapply join_canc; try apply join_comm; eauto.
 subst w2'; clear H6.
 destruct (CrA _ _ _ _ _ H2 H3) as [[[[w24 w25] w34] w35] [? [? [? ?]]]].
 assert (identity w24).
-  destruct (join_assoc (join_com H9) H4) as [f [? ?]].
-  destruct (join_assoc (join_com H6) (join_com H11)) as [g [? ?]].
+  destruct (join_assoc (join_comm H9) H4) as [f [? ?]].
+  destruct (join_assoc (join_comm H6) (join_comm H11)) as [g [? ?]].
   generalize (join_self H13); intro.
   subst g.
-  generalize (join_canc H14 (join_com H11)); intro.
+  generalize (join_canc H14 (join_comm H11)); intro.
   subst w25.
   eapply unit_identity; eauto.
 assert (w34=w4). eapply join_eq; [eapply identity_unit; eauto | auto ].
@@ -713,13 +713,13 @@ subst w34.
 assert (w25 = w2). eapply join_eq; [eapply identity_unit; eauto | auto ].
 subst w25.
 clear H11 H9 H6 w24.
-destruct (join_assoc (join_com H10) (join_com H3)) as [h [? ?]].
-generalize (join_eq H6 (join_com H4)); clear H6; intro; subst h.
-destruct (join_assoc (join_com H4) (join_com H9)) as [h [? ?]].
+destruct (join_assoc (join_comm H10) (join_comm H3)) as [h [? ?]].
+generalize (join_eq H6 (join_comm H4)); clear H6; intro; subst h.
+destruct (join_assoc (join_comm H4) (join_comm H9)) as [h [? ?]].
 generalize (join_eq H6 H7); clear H6; intro; subst h.
 clear H11.
 exists wb; exists w35.
-split. apply join_com; auto.
+split. apply join_comm; auto.
 split; auto.
 exists w2; exists w4; split; auto.
 unfold ewand.
@@ -738,18 +738,18 @@ destruct (CrA _ _ _ _ _ H1 H2) as [[[[ad ae] bd] be] [myH1 [myH2 [myH3 myH4]]]].
 destruct H3 as [x H_x].
 assert (exists X, join ad X be).
 Focus 2. destruct H0 as [X HX]. exists X.
-               destruct (join_assoc (join_com HX) (join_com myH2)) as [y [myH5 myH6]].
+               destruct (join_assoc (join_comm HX) (join_comm myH2)) as [y [myH5 myH6]].
                assert (y=d) by apply (join_eq myH5 myH3).  subst y.
-               apply (join_com myH6).
+               apply (join_comm myH6).
 assert (exists X, join a X e).
 Focus 2. destruct H0 as [X HX]. exists X.
-               destruct (join_assoc (join_com myH1) HX) as [y [myH5 myH6]].
-               assert (y=be) by apply (join_canc (join_com myH6) (join_com  myH4)).  subst y. assumption.
+               destruct (join_assoc (join_comm myH1) HX) as [y [myH5 myH6]].
+               assert (y=be) by apply (join_canc (join_comm myH6) (join_comm  myH4)).  subst y. assumption.
 exists be.
-destruct (join_assoc (join_com myH1) H_x) as [y [myH5 myH6]].
-destruct (join_assoc (join_com myH3) (join_com myH5)) as [z [myH7 myH8]].
+destruct (join_assoc (join_comm myH1) H_x) as [y [myH5 myH6]].
+destruct (join_assoc (join_comm myH3) (join_comm myH5)) as [z [myH7 myH8]].
 assert (ad=z) by apply (join_self myH7). subst ad.
-assert (d=bd) by apply(join_canc (join_com myH5) myH8).  subst d. 
+assert (d=bd) by apply(join_canc (join_comm myH5) myH8).  subst d. 
 assert (bd=y) by apply(join_eq myH3 myH5).  subst bd.
 assert (ae=a) by apply(join_canc  myH6 H_x).  subst ae.
 assumption.
@@ -775,24 +775,24 @@ assert (w4' = w4). apply H0; auto.
 apply comparable_trans with wb. eapply join_comparable; eauto.
 apply comparable_sym.  eapply join_comparable; eauto.
 subst w4'; clear H7.
-assert (w2' = w2). eapply join_canc; try apply join_com; eauto.
+assert (w2' = w2). eapply join_canc; try apply join_comm; eauto.
 subst w2'; clear H6.
 assert (exists y, join w2 y w5).
-    destruct (H _ _ _ _ _ H2 H3 (join_joins (join_com H4))).
-    destruct (join_assoc H6 (join_com H2)) as [y [myH1 myH2]].
-    assert (y=w5) by apply (join_canc  (join_com myH2) (join_com H3)). subst y.
-    exists x. apply (join_com myH1). 
+    destruct (H _ _ _ _ _ H2 H3 (join_joins (join_comm H4))).
+    destruct (join_assoc H6 (join_comm H2)) as [y [myH1 myH2]].
+    assert (y=w5) by apply (join_canc  (join_comm myH2) (join_comm H3)). subst y.
+    exists x. apply (join_comm myH1). 
 exists wb.
 destruct H6 as [y w2_y_w5].
-               destruct (join_assoc w2_y_w5 (join_com H3)) as [x [myH1 myH2]]. 
-               destruct (join_assoc  (join_com myH1) (join_com myH2)) as [z [myH3 myH4]].
-                                        assert (w5=z) by apply  (join_canc (join_com H3) (join_com myH4)). subst w5.
-                                        assert (w3=x) by apply (join_canc (join_com H2) (join_com myH2)).  subst w3.
-                                        destruct (join_assoc myH3 (join_com myH4)) as [u [myH5 myH6]].
-                                        assert (wb=u) by apply (join_eq H4 (join_com myH5)). subst wb.
-               exists y. split. apply (join_com myH6).
-               split. exists w2. exists w4. split. apply (join_com H4). split; assumption.
-               exists w4. exists x; split. apply (join_com myH1). split; assumption.
+               destruct (join_assoc w2_y_w5 (join_comm H3)) as [x [myH1 myH2]]. 
+               destruct (join_assoc  (join_comm myH1) (join_comm myH2)) as [z [myH3 myH4]].
+                                        assert (w5=z) by apply  (join_canc (join_comm H3) (join_comm myH4)). subst w5.
+                                        assert (w3=x) by apply (join_canc (join_comm H2) (join_comm myH2)).  subst w3.
+                                        destruct (join_assoc myH3 (join_comm myH4)) as [u [myH5 myH6]].
+                                        assert (wb=u) by apply (join_eq H4 (join_comm myH5)). subst wb.
+               exists y. split. apply (join_comm myH6).
+               split. exists w2. exists w4. split. apply (join_comm H4). split; assumption.
+               exists w4. exists x; split. apply (join_comm myH1). split; assumption.
 Qed.
 
 Lemma ewand_overlap {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{DA: Disj_alg A}{CrA: Cross_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -807,14 +807,14 @@ destruct H2 as [w3 [w4 [? [? ?]]]].
 generalize (PrecQ  _ _ H4 H1); clear H4; intro.
 spec H4.
 apply comparable_trans with w6.
-apply join_comparable with w3; apply join_com; auto.
+apply join_comparable with w3; apply join_comm; auto.
 apply comparable_trans with w1.
-apply comparable_sym; apply join_comparable with w5; apply join_com; auto.
+apply comparable_sym; apply join_comparable with w5; apply join_comm; auto.
 eapply join_comparable2; eauto.
 subst w4.
 destruct (CrA _ _ _ _ _ H0 H2) as [[[[a b] c] d] [? [? [? ?]]]].
 destruct (join_assoc H5 H) as [f [? ?]].
-destruct (join_assoc H7 (join_com H8)) as [g [? ?]].
+destruct (join_assoc H7 (join_comm H8)) as [g [? ?]].
 generalize (join_self H10); intro.
 subst g.
 assert (identity d).
@@ -853,13 +853,13 @@ intros; apply pred_ext; intros w ?.
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H0 as [w3 [w4 [? [? ?]]]].
 exists w3.
-destruct (join_assoc (join_com H0) H) as [wf [? ?]].
+destruct (join_assoc (join_comm H0) H) as [wf [? ?]].
 exists wf.
 split; [|split]; auto.
 exists w4. exists w2. split; auto. 
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H1 as [w3 [w4 [? [? ?]]]].
-destruct (join_assoc (join_com H) (join_com H1)) as [wf [? ?]].
+destruct (join_assoc (join_comm H) (join_comm H1)) as [wf [? ?]].
 exists wf. exists w4. split; [|split]; auto.
 exists w1; exists w3; split; auto.
 Qed.
@@ -877,7 +877,7 @@ apply pred_ext; intros w ?.
 destruct H1 as [w1 [w2 [? [? ?]]]].
 destruct H3 as [w3 [w4 [? [? ?]]]].
 destruct (CrA _ _ _ _ _ H1 H3) as [[[[? ?] ?] ?] [? [? [? ?]]]].
-generalize (H _ _ _ (join_com H6) H2); intro.
+generalize (H _ _ _ (join_comm H6) H2); intro.
 assert (emp a0).
 apply H0.
 split.
@@ -892,18 +892,18 @@ do 2 econstructor; eauto.
 (*****)
 destruct H1 as [w1 [wR [? [? ?]]]].
 destruct H2 as [wP [wQ [? [? ?]]]].
-apply join_com in H2.
+apply join_comm in H2.
 specialize (Hjoins wP wR).
 spec Hjoins.
 apply comparable_trans with w1; eapply join_comparable2; eauto.
 destruct Hjoins as [w6 ?]; auto.
-destruct (TRIPLE _ _ _ _ _ _ H1 (join_com H6) H2) as [wQR ?].
+destruct (TRIPLE _ _ _ _ _ _ H1 (join_comm H6) H2) as [wQR ?].
 exists wP. exists wQR.
 split; [|split]; auto.
 destruct (join_assoc H1 j) as [wf [? ?]].
-generalize (join_eq H6 (join_com H7)); clear H6; intros; subst w6.
-destruct (join_assoc H7 (join_com H8)) as [wg [? ?]].
-generalize (join_eq H2 (join_com H6)); clear H6; intros; subst wg.
+generalize (join_eq H6 (join_comm H7)); clear H6; intros; subst w6.
+destruct (join_assoc H7 (join_comm H8)) as [wg [? ?]].
+generalize (join_eq H2 (join_comm H6)); clear H6; intros; subst wg.
 do 2 econstructor; eauto.
 Qed.
 
@@ -918,7 +918,7 @@ Proof.
 intros.
 intros w ?.
 destruct H0 as [w1 [w34 [? [? [w3 [w4 [? [? ?]]]]]]]].
-generalize (crosssplit_wkSplit  _ _ _ _ _ H0 (join_com H2)); unfold wk_split; intro.
+generalize (crosssplit_wkSplit  _ _ _ _ _ H0 (join_comm H2)); unfold wk_split; intro.
 spec H5.
 rewrite H in H1.
 destruct H1 as [wa [wb [? [? ?]]]].
@@ -934,14 +934,14 @@ spec H7.
 apply comparable_trans with wb.  eapply join_comparable; eauto.
 apply comparable_sym; eapply join_comparable; eauto.
 subst wx.
-generalize (join_canc (join_com H1) (join_com H4)); clear H4; intro.
+generalize (join_canc (join_comm H1) (join_comm H4)); clear H4; intro.
 subst wy.
 econstructor; eauto.
 destruct H5 as [w5 ?].
 exists w5; exists w4; split; [|split]; auto.
 exists w1; exists w3; split; [|split]; auto.
-destruct (join_assoc H5 (join_com H0)) as [wf [? ?]].
-generalize (join_canc (join_com H7) H2); clear H7; intro.
+destruct (join_assoc H5 (join_comm H0)) as [wf [? ?]].
+generalize (join_canc (join_comm H7) H2); clear H7; intro.
 subst wf.
 auto.
 Qed.
