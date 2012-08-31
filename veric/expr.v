@@ -275,10 +275,10 @@ match e with
                                 (tc_bool (negb (type_is_volatile ty)))
                   | None => tc_FF
                  end
- | Ederef a ty => tc_andp (tc_andp (typecheck_expr Delta a) 
+ | Ederef a ty => tc_andp (tc_andp (tc_andp (typecheck_expr Delta a) 
                           (tc_bool (is_pointer_type (typeof a))))
-                          (tc_isptr a) 
- | Efield a i ty => tc_andp (typecheck_lvalue Delta a) (match typeof a with
+                          (tc_isptr a)) (tc_bool (negb (type_is_volatile ty)))
+ | Efield a i ty => tc_andp (tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => tc_TT
@@ -286,8 +286,14 @@ match e with
                                   end
                             | Tunion id fList att => tc_TT
                             | _ => tc_FF
-                            end)
+                            end)) (tc_bool (negb (type_is_volatile ty)))
  | _  => tc_FF
+end.
+
+Definition typecheck_temp_id id ty Delta:=
+match typecheck_expr Delta (Etempvar id ty) with
+| tc_FF => false
+| _ => true
 end.
 
 Fixpoint tc_might_be_true (asn : tc_assert) :=
@@ -303,6 +309,8 @@ match asn with
  | tc_andp a1 a2 => tc_always_true a1 && tc_always_true a2
  | _ => false
 end.
+
+
 
 (*A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
@@ -327,8 +335,8 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
                    | Tfunction _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
  | Vundef, _ => false
- | _, Tvoid => true (* the only way this should occur is void cast which we have
-                          disabled *)
+(* | _, Tvoid => true (* the only way this should occur is void cast which we have
+                          disabled *)*)
  | _, _ => false
  end.
 

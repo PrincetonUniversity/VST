@@ -92,16 +92,18 @@ replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_ph
 apply Hsafe; auto.
 Qed.
 
+
 Lemma semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     semax Hspec Delta G 
         (fun rho => 
-          tc_expr Delta (Etempvar id (typeof e)) rho && tc_expr Delta e rho  && 
+          !!(typecheck_temp_id id (typeof e) Delta = true) &&
+           tc_expr Delta e rho  && 
             |> subst id (eval_expr rho e) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e.
-apply semax_straight_simple; auto.
+apply semax_straight_simple. admit. (* auto.*)
 apply prove_some_static_thing.
 intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
@@ -112,7 +114,13 @@ split3; auto.
 apply age_level; auto.
 normalize in H0.
 clear - TC' TC2 TC3.
-apply typecheck_environ_put_te. auto.
+apply typecheck_environ_put_te; auto.
+intros. simpl in *. unfold typecheck_temp_id in *.
+simpl in *.
+if_tac in TC2; intuition. rewrite H in TC2.
+if_tac in TC2; intuition.
+apply typecheck_expr_sound in TC3; auto.
+rewrite H0 in *; auto.
 destruct H0.
 split; auto.
 simpl.
@@ -157,13 +165,13 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Hspec Delta G 
        (fun rho =>
-        tc_expr Delta (Etempvar id (typeof e1)) rho && tc_lvalue Delta e1 rho  && 
+        !!(typecheck_temp_id id (typeof e1) Delta = true) && tc_lvalue Delta e1 rho  && 
           |> (mapsto' sh e1 v2 rho * subst id v2 P rho))
        (Sset id e1)
        (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 Proof.
 intros until v2. intros TC3.
-apply semax_straight_simple; auto.
+apply semax_straight_simple. admit. (* auto. *)
 apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC' Hcl Hge ? ?.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm)  Hge TC') as [b [ofs [? ?]]]; auto.
@@ -174,12 +182,20 @@ split.
 reflexivity.
 split3.
 apply age_level; auto.
-apply typecheck_environ_put_te. auto.  (* typechecking proof, done with admits in lemma *)
+apply typecheck_environ_put_te. auto.
+generalize dependent v2.  
+clear - TC1 TC2 TC' H2.
+unfold typecheck_temp_id in *. 
+intros. simpl in *. rewrite H in TC1. 
+if_tac in TC1; intuition. if_tac in TC1; intuition.
+admit.
+(* typechecking proof, stuck, need to figure out how this works *)
 split.
 split3.
 simpl.
 rewrite <- (age_jm_dry H); constructor; auto.
 assert (NONVOL: type_is_volatile (typeof e1) = false).
+unfold typecheck_temp_id in *.
 simpl in TC1. destruct (type_is_volatile (typeof e1)); intuition. (* typechecking proof *)
 apply Clight_sem.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
@@ -342,13 +358,11 @@ Qed.
 Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P 
    (TC: typecheck_store e1 e2),
-   (*above to say that some unconvertable things (Tarray, Tfunction) can't be assigned*) 
     typeof e1 = typeof e2 -> 
-    
-    (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)
-    (* admit:  make this more accepting of implicit conversions! *) 
+   (* admit:  make this more accepting of implicit conversions! *) 
    semax Hspec Delta G 
           (fun rho =>
+          (*!!(denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho) &&*)
           tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
           |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
@@ -367,7 +381,7 @@ revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
-destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
+destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
 rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4.
 
 assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
@@ -390,9 +404,9 @@ destruct TC as [IT  ?].
 destruct H as [FT NA].
 rewrite TC3 in *; clear TC3.
 simpl in TC2. apply typecheck_expr_sound in TC2; auto.
-remember (eval_expr rho e2). destruct v; intuition.
+remember (eval_expr rho e2). destruct v; intuition;
 remember (typeof e2); destruct t; intuition; simpl in Hmode; try congruence.
-inv H. 
+inv H.
 destruct ch; try congruence; auto.
 assert (decode_encode_val (Vint i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vint i)))).
 apply decode_encode_val_general; auto.
@@ -403,13 +417,9 @@ apply decode_encode_val_general; auto.
 apply decode_encode_val_similar in H; auto.
 destruct (typeof e2); try solve[simpl in *; congruence].
 destruct ch; try solve[simpl in *; destruct f0; congruence].
-assert (decode_encode_val (Vfloat f) Mfloat32 Mfloat32 (decode_val Mfloat32 (encode_val Mfloat32 (Vfloat f)))).
-apply decode_encode_val_general; auto.
-apply decode_encode_val_similar in H; auto. simpl in *. auto. intuition.
-inv H0. congruence.
 assert (decode_encode_val (Vfloat f) Mfloat64 Mfloat64 (decode_val Mfloat64 (encode_val Mfloat64 (Vfloat f)))).
 apply decode_encode_val_general; auto.
-apply decode_encode_val_similar in H; auto.
+apply decode_encode_val_similar in H0; auto.
 destruct (typeof e2); try solve[ simpl in *; congruence].
 destruct ch; try solve[simpl in *; congruence].
 assert (decode_encode_val (Vptr b i) Mint32 Mint32 (decode_val Mint32 (encode_val Mint32 (Vptr b i)))).
@@ -424,8 +434,9 @@ split; auto.
 split.
 split3; auto.
 generalize (eval_expr_relate _ _ _ e2 (m_dry jm) Hge TC4); intro.
-econstructor; try eassumption.
-admit.  (* typechecking proof ? *)
+econstructor; try eassumption. 
+unfold tc_lvalue in TC1. simpl in TC1. 
+apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof ? *)
 instantiate (1:= eval_expr rho e2).
 auto.
 rewrite TC3.
@@ -543,13 +554,13 @@ eapply H0; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_comm; rewrite prop_true_andp by auto.
+rewrite andp_com; rewrite prop_true_andp by auto.
 do 2 econstructor; split3; eauto.
 eapply H1; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_comm; rewrite prop_true_andp.
+rewrite andp_com; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
@@ -841,17 +852,17 @@ unfold function_body_ret_assert.
 destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
-apply subp_trans' with
+apply subp_trans with
  (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x)) && funassert G rho').
-apply andp_subp'; auto.
-apply sepcon_subp'; auto.
-apply sepcon_subp'; auto.
+apply andp_subp; auto.
+apply sepcon_subp; auto.
+apply sepcon_subp; auto.
 unfold bind_ret.
 destruct vl.
 destruct (fn_return f); auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 destruct vl; auto.
-apply andp_subp'; auto.
+apply andp_subp; auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 clear Q' H11.
 pose proof I.
@@ -920,8 +931,7 @@ apply step_return with (zap_fn_return f) None v (PTree.set i v (te_of rho)); sim
 elimtype False.
 clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
 destruct TC5. rewrite H0 in H28 by auto.
-clear - H28.
-admit.  (* typechecking proof, not true, everything typechecks as void right now*)
+clear - H28. destruct v; simpl in *; congruence. (* typechecking proof, works when typecheck as void disabled*)
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -936,7 +946,6 @@ split.
 split; auto.
 eapply step_call_internal with (vargs:=eval_exprlist rho bl); eauto.
 4: unfold type_of_function; reflexivity.
-unfold classify_fun.
 admit. (* typechecking proof *)
 rewrite <- H3.
 eapply (eval_expr_relate _ _ _ _ _ H0 TC3 TC1).
@@ -1059,10 +1068,10 @@ specialize (H11 x).
 rewrite <- sepcon_assoc in H5.
 assert (H14: app_pred (|> (F0 rho * F * P' x args)) (m_phi jm)).
 do 3 red in H10.
-apply eqp_later1 in H10.
+apply eq_later1 in H10.
 rewrite later_sepcon.
 apply pred_eq_e2 in H10.
-eapply (sepcon_subp' (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
+eapply (sepcon_subp (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
 eapply semax_call_aux; try eassumption.
 unfold normal_ret_assert.
