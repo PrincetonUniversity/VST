@@ -102,8 +102,10 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
             |> subst id (eval_expr rho e) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
+
 intros until e.
-apply semax_straight_simple. admit. (* auto.*)
+apply semax_straight_simple.
+ admit. (* auto.*)
 apply prove_some_static_thing.
 intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
@@ -116,11 +118,10 @@ normalize in H0.
 clear - TC' TC2 TC3.
 apply typecheck_environ_put_te; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
-simpl in *.
-if_tac in TC2; intuition. rewrite H in TC2.
-if_tac in TC2; intuition.
+rewrite H in TC2.
+destruct t as [t b]; simpl in *.
+rewrite eqb_type_eq in TC2; apply type_eq_true in TC2. subst t.
 apply typecheck_expr_sound in TC3; auto.
-rewrite H0 in *; auto.
 destruct H0.
 split; auto.
 simpl.
@@ -186,17 +187,20 @@ apply typecheck_environ_put_te. auto.
 generalize dependent v2.  
 clear - TC1 TC2 TC' H2.
 unfold typecheck_temp_id in *. 
-intros. simpl in *. rewrite H in TC1. 
-if_tac in TC1; intuition. if_tac in TC1; intuition.
-admit.
-(* typechecking proof, stuck, need to figure out how this works *)
+intros. simpl in TC1. rewrite H in TC1. 
+destruct t as [t x]. rewrite eqb_type_eq in TC1; apply type_eq_true in TC1. subst t.
+simpl.
+admit. (* typechecking proof, stuck, need to figure out how this works *)
 split.
 split3.
 simpl.
 rewrite <- (age_jm_dry H); constructor; auto.
 assert (NONVOL: type_is_volatile (typeof e1) = false).
 unfold typecheck_temp_id in *.
-simpl in TC1. destruct (type_is_volatile (typeof e1)); intuition. (* typechecking proof *)
+simpl in TC1.
+revert TC1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
+destruct p as [t b']. rewrite eqb_type_eq in TC1; apply type_eq_true in TC1. subst t.
+admit. (* typechecking proof *)
 apply Clight_sem.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
 assert ((|> (F rho * (mapsto' sh e1 v2 rho * subst id v2 P rho)))%pred
@@ -381,7 +385,7 @@ revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
-destruct (join_assoc H3 (join_com H0)) as [?w [H6 H7]].
+destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4.
 
 assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
@@ -554,13 +558,13 @@ eapply H0; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_com; rewrite prop_true_andp by auto.
+rewrite andp_comm; rewrite prop_true_andp by auto.
 do 2 econstructor; split3; eauto.
 eapply H1; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_com; rewrite prop_true_andp.
+rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
@@ -750,7 +754,7 @@ unfold filter_genv.
 rewrite H0.
 destruct fsig. simpl @fst; simpl @snd.
 destruct (type_of_global psi b); inv H6; auto.
-rewrite if_true; auto.
+rewrite eqb_type_refl. auto.
 intro loc.
 hnf.
 if_tac; auto.
@@ -852,17 +856,17 @@ unfold function_body_ret_assert.
 destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
-apply subp_trans with
+apply subp_trans' with
  (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x)) && funassert G rho').
-apply andp_subp; auto.
-apply sepcon_subp; auto.
-apply sepcon_subp; auto.
+apply andp_subp'; auto.
+apply sepcon_subp'; auto.
+apply sepcon_subp'; auto.
 unfold bind_ret.
 destruct vl.
 destruct (fn_return f); auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 destruct vl; auto.
-apply andp_subp; auto.
+apply andp_subp'; auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 clear Q' H11.
 pose proof I.
@@ -1068,10 +1072,10 @@ specialize (H11 x).
 rewrite <- sepcon_assoc in H5.
 assert (H14: app_pred (|> (F0 rho * F * P' x args)) (m_phi jm)).
 do 3 red in H10.
-apply eq_later1 in H10.
+apply eqp_later1 in H10.
 rewrite later_sepcon.
 apply pred_eq_e2 in H10.
-eapply (sepcon_subp (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
+eapply (sepcon_subp' (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
 eapply semax_call_aux; try eassumption.
 unfold normal_ret_assert.

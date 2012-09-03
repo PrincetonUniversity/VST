@@ -230,6 +230,9 @@ Definition function_body_ret_assert (ret: type) (Q: list val -> mpred) : ret_ass
      | _ => FF
      end.
 
+Definition tc_temp (Delta: tycontext) (id: ident) (t: type) : assert :=
+  fun rho => !! (typecheck_temp_id id t Delta = true).
+
 Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 
   fun rho => !! denote_tc_assert (typecheck_expr Delta e) rho.
 
@@ -423,7 +426,7 @@ Axiom semax_call_ext:
 Axiom semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     semax Delta G 
-        (tc_expr Delta (Etempvar id (typeof e)) && tc_expr Delta e && 
+        (tc_temp Delta id (typeof e) && tc_expr Delta e && 
            (|> fun rho => subst id (eval_expr rho e) P rho))
           (Sset id e) (normal_ret_assert P).
 
@@ -434,7 +437,7 @@ Axiom semax_load :
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
     lvalue_closed_wrt_vars (eq id) e1 ->
     semax Delta G 
-       (tc_expr Delta (Etempvar id (typeof e1))   && tc_lvalue Delta e1  && 
+       (tc_temp Delta id (typeof e1)  && tc_lvalue Delta e1  && 
           |> (mapsto' sh e1 v2 * subst id v2 P))
        (Sset id e1)
        (normal_ret_assert (mapsto' sh e1 v2 * P)).

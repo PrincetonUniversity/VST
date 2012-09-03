@@ -13,14 +13,17 @@ Require msl.normalize.
 
 Local Open Scope logic.
 
-Definition algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
-  apply (mkNatDed _ andp orp
-                    (@exp _ _) (@allp _ _)
-                    imp prop
-                    (@derives _ _)).
+Instance algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
+  apply (mkNatDed _ 
+                    predicates_hered.andp 
+                    predicates_hered.orp
+                    (@predicates_hered.exp _ _) 
+                    (@predicates_hered.allp _ _)
+                    predicates_hered.imp predicates_hered.prop
+                    (@predicates_hered.derives _ _)).
  apply pred_ext.
  apply derives_refl.
- apply @derives_trans.
+ apply derives_trans.
  apply andp_right.
  apply andp_left1.
  apply andp_left2.
@@ -38,9 +41,9 @@ Definition algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
  intros. apply exp_andp1.
 Defined.
 
-Definition algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
       @SepLog (pred T) (algNatDed T).
- apply (mkSepLog _ (algNatDed T) emp sepcon wand).
+ apply (mkSepLog _ (algNatDed T) predicates_sl.emp predicates_sl.sepcon predicates_sl.wand).
  apply sepcon_assoc.
  apply sepcon_comm.
  apply @wand_sepcon_adjoint.
@@ -54,7 +57,7 @@ Definition algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T
  intros. simpl. apply normalize.pure_sepcon_TT_andp; auto.
 Defined.
 
-Definition algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}{AgeT: Age_alg T}:
+Instance algClassicalSep (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}{AgeT: Age_alg T}:
      @ClassicalSep (pred T) (algNatDed T)(algSepLog T).
  constructor; intros. simpl. apply predicates_sl.sepcon_emp.
 Qed.
@@ -74,7 +77,7 @@ Class IndirOps (A: Type) {ND: NatDed A} := mkIndirOps {
   unfash : Triv -> A
 }.
 
-Definition algIndirOps (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Instance algIndirOps (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
          @IndirOps (pred T) (algNatDed T).
  apply (@mkIndirOps (pred T) (algNatDed T) (box laterM) subtypes.fash subtypes.fash').
 Defined.
@@ -114,7 +117,7 @@ Notation "'!' e" := (unfash e) (at level 30, right associativity): logic.
 Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic.
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
 
-Definition algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
+Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
                 {AgeT: Age_alg T}{nattyT: natty T} :
          @Indir (pred T) (algNatDed T).
  apply (mkIndir _ _ (algIndirOps T)); intros; simpl in *.
@@ -206,7 +209,7 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
 }.
 End SL3.
 
-Definition algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Instance algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
          @SepIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
  apply mkSepIndir.
  simpl.

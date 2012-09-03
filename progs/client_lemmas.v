@@ -241,6 +241,15 @@ rewrite <- H0 in H.
 apply prop_right; eauto.
 Qed.
 
+
+Lemma type_eq_refl:
+ forall t, proj_sumbool (type_eq t t) = true.
+Proof.
+intros.
+apply proj_sumbool_is_true.
+auto.
+Qed.
+
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
     lvalue_closed_wrt_vars (eq id) (e1) ->
@@ -259,30 +268,26 @@ Proof with normalize.
 pose proof I.
 intros.
 rename H2 into TE1.
+assert (TC5: type_is_volatile t2 = false).
+admit.  (* typechecking proof *)
 assert (TC3: tc_lvalue Delta e1 |-- tc_lvalue Delta (Efield e1 fld t2)).
 intros.
 intro rho.
-unfold tc_lvalue. simpl.
-(* Admitted: normalize should handle this better *)
-unfold tc_expr.
-rewrite <- andp_TT at 1.
-apply derives_extract_prop.
-intro.
-apply prop_right. split; auto.
-rewrite H1.
-admit.  (* typechecking proof *)
-assert (TC4: tc_lvalue Delta e1 |-- tc_expr Delta (Etempvar id t2)).
-intro rho; unfold tc_expr; apply prop_right.
+unfold tc_lvalue.
+apply prop_left; intro.
+apply prop_right.
+hnf in H2|-*.
 simpl.
-replace (type_is_volatile t2) with false; simpl.
-rewrite TE1.
-simpl; rewrite if_true by auto.
-admit.  (* not quite right *)
-admit.  (* typechecking proof *)
+split.  split; auto.
+rewrite H1; simpl.
+clear - TC2.
+admit.  (* easy *)
+rewrite TC5.
+simpl. auto.
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
-            (tc_expr Delta (Etempvar id (typeof (Efield e1 fld t2))) &&
+            (tc_temp Delta id (typeof (Efield e1 fld t2)) &&
              tc_lvalue Delta (Efield e1 fld t2) &&
               |> (P' * subst id v2  P))
             (normal_ret_assert (Q' * P))).
@@ -292,7 +297,9 @@ normalize.
 apply andp_derives.
 apply andp_right.
 simpl.
-apply TC4.
+unfold tc_temp.
+unfold typecheck_temp_id. simpl. rewrite TE1.
+apply prop_right; apply eqb_type_refl.
 apply TC3.
 apply later_derives.
 apply sepcon_derives; auto.

@@ -70,6 +70,9 @@ apply sequential'.
 eapply semax_pre; [ | apply semax_set].
 intros.
 normalize.
+apply andp_right.
+apply prop_right.
+compute; auto.
 eapply derives_trans; [ |apply now_later].
 unfold subst.
 normalize.
@@ -86,7 +89,7 @@ normalize.
 unfold tc_expr.
 apply andp_right.
 apply prop_right.
-simpl.  rewrite if_true by auto. hnf; auto.
+compute; auto.
 eapply derives_trans; [ |apply now_later].
 unfold subst.
 normalize.
@@ -107,7 +110,9 @@ apply semax_Sseq with
 apply semax_while.
 intros.
 unfold tc_expr; simpl.
-rewrite if_true by auto.  simpl; normalize.
+unfold denote_tc_initialized.
+unfold sumlist_Inv; normalize. intros.
+admit.  (* true enough *)
 reflexivity.
 intro rho.
 normalize.
@@ -204,7 +209,6 @@ intros.
 unfold expr_true.
 normalize.
 apply semax_extract_prop.
-admit.  (* typechecking proof *)
 intros [? [? ?]].
 set (e1:= Ederef (Etempvar P.i_t P.t_listptr) P.t_list).
 set (P := (fun rho0 : environ =>
@@ -227,20 +231,22 @@ apply semax_pre with
 intros.
 admit.
 pose (Q := 
-       ((fun rho => field_mapsto Share.top ((eval_expr rho e1), typeof e1) P.i_h (h, P.t_int)) * P)).
+       ((fun rho => field_mapsto Share.top ((eval_lvalue rho e1), typeof e1) P.i_h (h, P.t_int)) * P)).
 apply semax_Sseq with Q.
 apply semax_post with (normal_ret_assert Q).
-intros.
 normalize.
 evar (Q3: assert).
 apply semax_pre with Q3; [ unfold Q3 |  unfold Q3; eapply semax_load_field; eauto].
-intros.
-simpl. unfold e1.
-unfold tc_expr.
-unfold typecheck_expr.
+intros. unfold e1.
 simpl.
-admit.
-unfold e1; simpl.
+apply andp_right.
+apply prop_right.
+simpl. split3; auto. split; auto.
+split; auto.
+admit.  (* typechecking proof *)
+admit.  (* typechecking proof *)
+auto.
+unfold e1.
 admit.  (* easy *) 
 simpl. reflexivity.
 simpl. reflexivity.

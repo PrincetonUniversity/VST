@@ -6,6 +6,75 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
+(* Make a completely computational version of type_eq *)
+
+Definition eqb_attr (a b: attr) : bool :=
+ match a, b with
+ | mk_attr av, mk_attr bv => eqb av bv
+ end.
+
+Definition eqb_floatsize (a b: floatsize) : bool :=
+ match a , b with
+ | F32, F32 => true
+ | F64, F64 => true
+ | _, _ => false
+ end.
+
+Definition eqb_ident : ident -> ident -> bool := Peqb.
+
+Definition eqb_intsize (a b: intsize) : bool :=
+ match a , b with
+ | I8, I8 => true
+ | I16, I16 => true
+ | I32, I32 => true
+ | IBool, IBool => true
+ | _, _ => false
+ end.
+
+Definition eqb_signedness (a b : signedness) :=
+ match a, b with
+ | Signed, Signed => true
+ | Unsigned, Unsigned => true
+ | _, _ => false
+ end.
+
+Fixpoint eqb_type (a b: type) {struct a} : bool :=
+ match a, b with
+ | Tvoid, Tvoid => true
+ | Tint ia sa aa, Tint ib sb ab => andb (eqb_intsize ia ib) 
+                                                    (andb (eqb_signedness sa sb) (eqb_attr aa ab))
+ | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
+ | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
+ | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb) 
+                                                                   (andb (Zeq_bool sa sb) (eqb_attr aa ab))
+ | Tfunction sa ta, Tfunction sb tb => andb (eqb_typelist sa sb) (eqb_type ta tb)
+ | Tstruct ia fa aa, Tstruct ib fb ab => andb (eqb_ident ia ib) 
+                                                                  (andb (eqb_fieldlist fa fb) (eqb_attr aa ab))
+ | Tunion ia fa aa, Tunion ib fb ab => andb (eqb_ident ia ib) 
+                                                                  (andb (eqb_fieldlist fa fb) (eqb_attr aa ab))
+ | Tcomp_ptr ia aa, Tcomp_ptr ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
+ | _, _ => false
+ end
+with eqb_typelist (a b: typelist)  {struct a}: bool :=
+  match a, b with
+  | Tcons ta ra, Tcons tb rb => andb (eqb_type ta tb) (eqb_typelist ra rb)
+  | Tnil, Tnil => true
+  | _ , _ => false
+  end
+with eqb_fieldlist (a b: fieldlist)  {struct a}: bool :=
+  match a, b with
+  | Fcons ia ta ra, Fcons ib tb rb =>  andb (eqb_ident ia ib) 
+                                                             (andb (eqb_type ta tb) (eqb_fieldlist ra rb))
+  | Fnil, Fnil => true
+  | _ , _ => false
+  end.
+
+Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
+Admitted.
+
+Lemma eqb_type_refl: forall a, eqb_type a a = true. 
+Proof.
+Admitted.
 
 Definition eval_id (rho: environ) (id: ident) := force_val (PTree.get id (te_of rho)).
 
@@ -36,13 +105,13 @@ Fixpoint eval_expr (rho:environ) (e: expr) : val :=
  with eval_lvalue (rho: environ) (e: expr) : val := 
  match e with 
  | Evar id ty => match PTree.get id (ve_of rho) with
-                         | Some (b,ty') => if type_eq ty ty'
+                         | Some (b,ty') => if eqb_type ty ty'
                                                     then if negb (type_is_volatile ty')
                                                        then Vptr b Int.zero else Vundef
                                                     else Vundef
                          | None => 
                             match (ge_of rho) id with
-                            | Some (v,ty') => if type_eq ty ty' then v else Vundef
+                            | Some (v,ty') => if eqb_type ty ty' then v else Vundef
                             | None => Vundef
                             end
                         end
@@ -233,7 +302,7 @@ match classify_cast tfrom tto with
 | cast_case_default => tc_FF
 | cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| cast_case_neutral  => if type_eq tfrom ty then tc_TT else tc_noproof
+| cast_case_neutral  => if eqb_type tfrom ty then tc_TT else tc_noproof
 | cast_case_void => tc_noproof
 (*Disabling this for the program logic, the only time it is used is not for
   functionality, more as a noop that "uses" some expression*)
@@ -252,7 +321,7 @@ match e with
  | Econst_float _ (Tfloat _ _) => tc_TT
  | Etempvar id ty => if negb (type_is_volatile ty) then
                        match (temp_types Delta)!id with 
-                         | Some ty' => if type_eq ty (fst ty') then 
+                         | Some ty' => if eqb_type ty (fst ty') then 
                                          if (snd ty') then tc_TT else (tc_initialized id)
                                        else tc_FF
 		         | None => tc_FF
@@ -271,7 +340,7 @@ end
 with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match (var_types Delta) ! id with 
-                  | Some ty' => tc_andp (if type_eq ty ty' then tc_TT else tc_FF) 
+                  | Some ty' => tc_andp (if eqb_type ty ty' then tc_TT else tc_FF) 
                                 (tc_bool (negb (type_is_volatile ty)))
                   | None => tc_FF
                  end
@@ -290,11 +359,11 @@ match e with
  | _  => tc_FF
 end.
 
-Definition typecheck_temp_id id ty Delta:=
-match typecheck_expr Delta (Etempvar id ty) with
-| tc_FF => false
-| _ => true
-end.
+Definition typecheck_temp_id id ty Delta : bool :=
+  match (temp_types Delta)!id with
+  | Some (t,_) => eqb_type t ty 
+  | None => false
+ end.
 
 Fixpoint tc_might_be_true (asn : tc_assert) :=
 match asn with
@@ -359,11 +428,11 @@ end.
 Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: env) (ge : genviron) : bool :=
 match vty with
  | (id,ty)::tl => match ve!id with
-                  | Some (_,ty') => if type_eq ty ty' then 
+                  | Some (_,ty') => if eqb_type ty ty' then 
                            typecheck_var_environ tl ve ge
                            else false
                   | None => match ge id with
-                                | Some (Vptr b i , ty') => if type_eq ty ty' &&  
+                                | Some (Vptr b i , ty') => if eqb_type ty ty' &&  
                                                       typecheck_val (Vptr b i) ty' &&
                                                       is_pointer_type ty' then 
                                                    typecheck_var_environ tl ve ge else
