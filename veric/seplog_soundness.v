@@ -38,7 +38,7 @@ Lemma semax_straight_simple:
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) te' /\
                 level jm = S (level jm') /\
-                typecheck_environ rho' Delta = true /\
+                typecheck_environ rho' (update_tycon Delta c) = true /\
                 jstep cl_core_sem ge (State (ve_of rho) (te_of rho) (Kseq c :: k)) jm 
                                  (State (ve_of rho') (te_of rho') k) jm' /\
               ((F rho' * Q rho') && funassert G rho) (m_phi jm')) ->
@@ -92,6 +92,14 @@ replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_ph
 apply Hsafe; auto.
 Qed.
 
+Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
+typecheck_environ (mkEnviron ge ve te) Delta = true ->
+(forall t , ((temp_types Delta) ! id = Some t ->
+  (typecheck_val v (fst t)) = true)) ->
+typecheck_environ (mkEnviron ge ve (PTree.set id v te)) (set_temp_assigned Delta id) = true.
+Proof.
+Admitted. (* typechecking proof *) 
+
 
 Lemma semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
@@ -102,7 +110,6 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
             |> subst id (eval_expr rho e) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
-
 intros until e.
 apply semax_straight_simple.
  admit. (* auto.*)
@@ -116,7 +123,8 @@ split3; auto.
 apply age_level; auto.
 normalize in H0.
 clear - TC' TC2 TC3.
-apply typecheck_environ_put_te; auto.
+simpl in *.
+apply typecheck_environ_put_te'; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
@@ -183,7 +191,7 @@ split.
 reflexivity.
 split3.
 apply age_level; auto.
-apply typecheck_environ_put_te. auto.
+apply typecheck_environ_put_te'. auto.
 generalize dependent v2.  
 clear - TC1 TC2 TC' H2.
 unfold typecheck_temp_id in *. 
@@ -511,9 +519,16 @@ specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
 spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition. left; left; auto.
 spec H1. intros i te' ?.  apply H2; simpl; auto; intros i0; destruct (H4 i0); intuition. left; right; auto.
-specialize (H0 H3).
-specialize (H1 H3).
-clear Prog_OK H3.
+simpl update_tycon in H3.
+assert (H3then: app_pred
+       (rguard Hspec psi (update_tycon Delta c) Delta  G F R k) w).
+admit.
+assert (H3else: app_pred
+       (rguard Hspec psi (update_tycon Delta d) Delta G F R k) w).
+admit.
+specialize (H0 H3then).
+specialize (H1 H3else).
+clear Prog_OK H3 H3then H3else.
 intro rho; specialize (H0 rho); specialize (H1 rho).
 slurp.
 rewrite <- fash_and.
@@ -805,7 +820,7 @@ Lemma semax_call_aux:
     filter_genv psi = ge_of rho ->
     eval_expr rho a = Vptr b Int.zero ->
     (funassert G rho) (m_phi jm) ->
-    (rguard Hspec psi Delta G F0 R k) (level (m_phi jm)) ->
+    (rguard Hspec psi  (update_tycon Delta (Scall ret a bl)) Delta G F0 R k) (level (m_phi jm)) ->
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->

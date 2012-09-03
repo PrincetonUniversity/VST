@@ -63,7 +63,7 @@ simpl fn_params.
 normalize.
 simpl.
 set (contents' :=  map (fun i : int => (Vint i, P.t_int)) contents).
-apply semax_Sseq with
+apply semax_seq with
   ((fun rho => !! (eval_id rho P.i_s = Vint (Int.repr 0))) &&
    (fun rho => lseg contents' (eval_id rho P.i_p, P.t_listptr) (nullval, P.t_listptr))).
 apply sequential'.
@@ -78,7 +78,7 @@ unfold subst.
 normalize.
 cbv beta.
 normalize.
-apply semax_Sseq with
+apply semax_seq with
   (fun rho => !! (eval_id rho P.i_s = Vint (Int.repr 0)
                          /\ eval_id rho P.i_t = eval_id rho P.i_p) &&
                               lseg contents' (eval_id rho P.i_p, P.t_listptr)  (nullval, P.t_listptr)).
@@ -105,14 +105,14 @@ rewrite H0. simpl.
 rewrite Int.add_zero_l. normalize.
 rewrite H1; auto.
 
-apply semax_Sseq with
+apply semax_seq with
   (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id rho P.i_s))).
 apply semax_while.
 intros.
 unfold tc_expr; simpl.
-unfold denote_tc_initialized.
 unfold sumlist_Inv; normalize. intros.
-admit.  (* true enough *)
+unfold eval_id, force_val.
+unfold denote_tc_initialized.
 reflexivity.
 intro rho.
 normalize.
@@ -121,7 +121,7 @@ normalize.
 simpl in H.
 assert (eval_id rho P.i_t = nullval).
 destruct (eval_id rho P.i_t); simpl in H; try discriminate.
-admit.
+admit. (* easy *)
 unfold sumlist_Inv.
 apply exp_left; intro cts.
 normalize.
@@ -229,10 +229,11 @@ apply semax_pre with
      (h, P.t_int) 
    * subst P.i_h h P rho)).
 intros.
+
 admit.
 pose (Q := 
        ((fun rho => field_mapsto Share.top ((eval_lvalue rho e1), typeof e1) P.i_h (h, P.t_int)) * P)).
-apply semax_Sseq with Q.
+apply semax_seq with Q.
 apply semax_post with (normal_ret_assert Q).
 normalize.
 evar (Q3: assert).
@@ -242,8 +243,7 @@ simpl.
 apply andp_right.
 apply prop_right.
 simpl. split3; auto. split; auto.
-split; auto.
-admit.  (* typechecking proof *)
+clear - H2.
 admit.  (* typechecking proof *)
 auto.
 unfold e1.

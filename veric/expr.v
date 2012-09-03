@@ -563,9 +563,9 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Ssequence s1 s2 => let Delta' := update_tycon Delta s1 in
                       update_tycon Delta' s2
  | Sifthenelse b s1 s2 => join_tycon (update_tycon Delta s1) (update_tycon Delta s2)
- | Swhile b s1  => (update_tycon Delta s1)
+ | Swhile b s1  => Delta
  | Sdowhile b s1 => (update_tycon Delta s1) 
- | Sfor' b inc body => update_tycon ((update_tycon Delta inc)) body 
+ | Sfor' b inc body => Delta
  | Sswitch e ls => join_tycon_labeled ls Delta
  | Scall (Some id) _ _ => (set_temp_assigned Delta id)
  | _ => Delta  (* et cetera *)

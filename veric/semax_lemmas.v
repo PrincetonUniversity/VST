@@ -237,7 +237,7 @@ Lemma semax_unfold:
     some_static_thing Delta c /\ 
     forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec G psi G w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Hspec psi Delta G F R k w ->
+       rguard Hspec psi (update_tycon Delta c) Delta G F R k w ->
        guard Hspec psi Delta G (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
@@ -1111,9 +1111,9 @@ Proof.
 Qed.
 
 Lemma rguard_adj:
-  forall ge Delta G F R k k',
+  forall ge Delta1 Delta2 G F R k k',
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
-      rguard Hspec ge Delta G F R k |-- rguard Hspec ge Delta G F R k'.
+      rguard Hspec ge Delta1 Delta2 G F R k |-- rguard Hspec ge Delta1 Delta2 G F R k'.
 Proof.
  intros.
  intros n H0;  hnf in H0|-*.

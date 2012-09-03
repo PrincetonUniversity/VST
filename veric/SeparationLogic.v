@@ -347,10 +347,10 @@ Definition main_params (ge: genv) start : Prop :=
 
 (* THESE RULES FROM semax_loop *)
 
-Axiom semax_Sseq:
+Axiom semax_seq:
 forall Delta G R P Q h t, 
     semax Delta G P h (overridePost Q R) -> 
-    semax Delta G Q t R -> 
+    semax (update_tycon Delta h) G Q t R -> 
     semax Delta G P (Ssequence h t) R.
 
 Axiom seq_assoc:  

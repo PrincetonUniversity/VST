@@ -88,10 +88,13 @@ Definition exit_cont (ek: exitkind) (vl: list val) (k: cont) : cont :=
          end
    end.
 
+Definition choose_tycon (ek: exitkind) (Delta1 Delta2 : tycontext) :=
+ match ek with EK_normal => Delta1 | _ => Delta2 end.
+
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
-    (gx: genv)  (Delta: tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
+    (gx: genv)  (Delta1 Delta2: tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: list val, ALL rho:environ, 
-           !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho) && 
+           !! (typecheck_environ rho (choose_tycon ek Delta1 Delta2) = true /\ filter_genv gx = ge_of rho) && 
          ((F rho * R ek vl rho) && funassert G rho) >=> 
                assert_safe Hspec gx (exit_cont ek vl ctl) rho.
 
@@ -175,7 +178,7 @@ Definition semax_  {Z} (Hspec: juicy_ext_spec Z)
  match a with SemaxArg Delta G P c R =>
   ALL gx: genv, (believepred Hspec semax G gx G) --> 
      ALL k: cont, ALL F: assert, 
-       (!! (closed_wrt_modvars c F) && rguard Hspec gx Delta G F R k) -->
+       (!! (closed_wrt_modvars c F) && rguard Hspec gx (update_tycon Delta c) Delta G F R k) -->
         guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -209,7 +212,7 @@ Lemma semax_fold_unfold : forall
   ALL gx: genv, 
        believe Hspec G gx G --> 
      ALL k: cont, ALL F: assert, 
-        (!! (closed_wrt_modvars c F) && rguard Hspec gx Delta G F R k) -->
+        (!! (closed_wrt_modvars c F) && rguard Hspec gx (update_tycon Delta c) Delta G F R k) -->
         guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
