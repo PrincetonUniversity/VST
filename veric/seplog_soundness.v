@@ -499,6 +499,19 @@ destruct (nec_join2 H6 H) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
+
+Lemma typecheck_environ_join1:
+  forall rho Delta1 Delta2, 
+        typecheck_environ rho Delta1 = true ->
+        typecheck_environ rho (join_tycon Delta1 Delta2) = true.
+Admitted.  (* typechecking proof *)
+
+Lemma typecheck_environ_join2:
+  forall rho Delta1 Delta2, 
+        typecheck_environ rho Delta2 = true ->
+        typecheck_environ rho (join_tycon Delta1 Delta2) = true.
+Admitted.  (* typechecking proof *)
+
 Lemma semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
       bool_type (typeof b) = true ->
@@ -519,13 +532,24 @@ specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
 spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition. left; left; auto.
 spec H1. intros i te' ?.  apply H2; simpl; auto; intros i0; destruct (H4 i0); intuition. left; right; auto.
-simpl update_tycon in H3.
 assert (H3then: app_pred
-       (rguard Hspec psi (update_tycon Delta c) Delta  G F R k) w).
-admit.
+       (rguard Hspec psi (exit_tycon c Delta)  G F R k) w).
+clear - H3.
+intros ek vl rho; specialize (H3 ek vl rho).
+eapply subp_trans'; try apply H3.
+apply derives_subp; apply andp_derives; auto.
+unfold exit_tycon; simpl. destruct ek; simpl; auto.
+intros ? [? ?]; split; auto.
+apply typecheck_environ_join1; auto.
 assert (H3else: app_pred
-       (rguard Hspec psi (update_tycon Delta d) Delta G F R k) w).
-admit.
+       (rguard Hspec psi (exit_tycon d Delta) G F R k) w).
+clear - H3.
+intros ek vl rho; specialize (H3 ek vl rho).
+eapply subp_trans'; try apply H3.
+apply derives_subp; apply andp_derives; auto.
+unfold exit_tycon; simpl. destruct ek; simpl; auto.
+intros ? [? ?]; split; auto.
+apply typecheck_environ_join2; auto.
 specialize (H0 H3then).
 specialize (H1 H3else).
 clear Prog_OK H3 H3then H3else.
@@ -820,7 +844,7 @@ Lemma semax_call_aux:
     filter_genv psi = ge_of rho ->
     eval_expr rho a = Vptr b Int.zero ->
     (funassert G rho) (m_phi jm) ->
-    (rguard Hspec psi  (update_tycon Delta (Scall ret a bl)) Delta G F0 R k) (level (m_phi jm)) ->
+    (rguard Hspec psi  (exit_tycon (Scall ret a bl) Delta) G F0 R k) (level (m_phi jm)) ->
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
