@@ -607,16 +607,34 @@ rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
-simpl. 
-destruct (eval_expr rho b); try solve[inv H9].
-destruct (typeof b); 
-try solve [simpl in *; inv H9; rewrite TCS in H1; congruence].
-intuition; simpl in *;
-unfold sem_notbool; destruct i0; destruct s; auto; simpl;
-inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
-destruct (typeof b); intuition. simpl in *. inv H9.
-rewrite negb_false_iff in H1. rewrite H1; auto.
-destruct (typeof b); intuition. (* typechecking proof *)
+simpl.
+forget (eval_expr rho b) as v.
+forget (typeof b) as t.
+clear - H9 TCS.
+unfold bool_val, typecheck_val, sem_notbool in *.
+destruct v; inv H9.
+destruct t; try congruence.
+inv H0.
+simpl.
+apply negb_false_iff in H1.
+rewrite H1.
+unfold classify_bool; simpl. destruct i0; try destruct s; simpl; auto.
+inv H0.
+simpl.
+apply negb_false_iff in H1.
+rewrite H1. simpl; auto.
+inv H0.
+simpl.
+apply negb_false_iff in H1.
+rewrite H1. simpl; auto.
+inv H0.
+simpl.
+rewrite TCS. simpl. auto.
+destruct t; inv H0.
+apply negb_false_iff in H1.
+rewrite H1.
+simpl. auto.
+destruct t; inv H0.
 Qed.
 
 

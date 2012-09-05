@@ -374,6 +374,19 @@ Proof. reflexivity.
 Qed.
 Hint Rewrite eval_expr_Etempvar : normalize.
 
+Definition app0 (f: mpred) : assert := fun _ => f.
+Definition app1 (f: val -> mpred) (a1: ident*type) : assert := 
+   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && f (eval_id rho (fst a1)).
+Definition app2 (f: val -> val -> mpred) (a1 a2: ident*type) : assert := 
+   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
+                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)).
+Definition app3 (f: val -> val -> val -> mpred) (a1 a2 a3: ident*type) : assert := 
+   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a3)) (snd a3) = true) 
+                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)) (eval_id rho (fst a3)).
 Definition bind0 (f: mpred) (args: list val) : mpred := 
      match args with nil => f | _ => FF end.
 
@@ -385,12 +398,10 @@ Qed.
 Definition bind1 (f: val -> mpred) (args: list val): mpred :=
        match args with a::nil => f a | _ => FF end.
 
-Lemma bind1_e: forall id t f,
-   bind_args ((id,t)::nil) (bind1 f)  =
-    (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id t)) t) = true))
-          && (fun rho => f (eval_id rho id)).
+Lemma bind1_e: forall a f,
+   bind_args (a::nil) (bind1 f)  = app1 f a.
 Proof. 
- intros; unfold bind_args, bind1;  simpl. 
+ intros; unfold bind_args, bind1, app1;  simpl. 
  extensionality rho.
  f_equal.
  rewrite andb_true_r; auto.
@@ -399,18 +410,15 @@ Qed.
 Definition bind2 (f: val -> val -> mpred) (args: list val): mpred :=
        match args with a::b::nil => f a b | _ => FF end.
 
-Lemma bind2_e: forall id1 t1 id2 t2 f,
-   bind_args ((id1,t1)::(id2,t2)::nil) (bind2 f)  =
-    (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id1 t1)) t1) = true))
-   && (fun rho => !!((typecheck_val (eval_expr rho (Etempvar id2 t2)) t2) = true))
-          && (fun rho => f (eval_id rho id1) (eval_id rho id2)).
+Lemma bind2_e: forall a1 a2 f,
+   bind_args (a1::a2::nil) (bind2 f)  = app2 f a1 a2.
 Proof. 
- intros; unfold bind_args, bind2;  simpl. 
+ intros; unfold bind_args, bind2, app2;  simpl. 
  extensionality rho.
  f_equal.
  rewrite andb_true_r; auto.
- destruct (typecheck_val (eval_id rho id1) t1); simpl;  normalize.
- destruct (typecheck_val (eval_id rho id2) t2); simpl;  normalize.
+ destruct (typecheck_val (eval_id rho (fst a1)) (snd a1)); simpl;  normalize.
+ destruct (typecheck_val (eval_id rho (fst a2)) (snd a2)); simpl;  normalize.
  rewrite andp_comm. rewrite prop_true_andp; auto.
 Qed.
 
@@ -453,4 +461,134 @@ Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
 
+Lemma bool_val_int_eq_e: 
+  forall i j, bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
+Proof.
+ intros.
+ apply Clight_lemmas.of_bool_Int_eq_e'.
+ forget (Val.of_bool (Int.eq i j)) as v.
+ destruct v; simpl in *; try discriminate; auto.
+ inv H. intro. subst. rewrite Int.eq_true in H1. inv H1.
+Qed.
 
+Fixpoint temp_free_in (id: ident) (e: expr) := 
+ match e with
+ | Econst_int _ _ => false
+ | Econst_float _ _ => false
+ | Evar _ _ => false
+ | Etempvar i _ => eqb_ident id i
+ | Ederef e1 _ => temp_free_in id e1
+ | Eaddrof e1 _ => temp_free_in id e1
+ | Eunop _ e1 _ => temp_free_in id e1
+ | Ebinop _ e1 e2 _ => orb (temp_free_in id e1) (temp_free_in id e2) 
+ | Ecast e1 _ => temp_free_in id e1
+ | Econdition e0 e1 e2 _ => orb (temp_free_in id e0) (orb (temp_free_in id e1) (temp_free_in id e2)) 
+ | Efield e1 _ _ => temp_free_in id e1
+end.
+
+Lemma forward_set:
+  forall Delta G P id e c Q,
+  typecheck_temp_id id (typeof e) Delta = true ->
+  temp_free_in id e = false ->
+  closed_wrt_vars (modified1 id) P ->
+  TT |-- tc_expr Delta e ->
+  semax (set_temp_assigned Delta id) G
+             ((fun rho => !! (eval_id rho id = eval_expr rho e)) && P)
+             c Q ->
+  semax Delta G P (Ssequence (Sset id e) c) Q.
+Proof.
+ intros.
+ eapply semax_seq; [ | apply H3].
+ apply sequential'.
+ eapply semax_pre; [ |  apply semax_set].
+ clear H3.
+ intros.
+ normalize.
+ apply andp_right.
+ apply andp_right.
+ apply prop_right; auto.
+ specialize (H2 rho).
+ apply derives_trans with TT; [ | apply H2].
+ normalize.
+ eapply derives_trans; [ |apply now_later].
+ unfold subst.
+ normalize. 
+ apply andp_right.
+ apply prop_right.
+ unfold eval_id. simpl.
+ rewrite PTree.gss. simpl.
+ clear - H0.
+ admit.  (* straightforward *)
+ specialize (H1 rho (PTree.set id (eval_expr rho e) (te_of rho))).
+ rewrite H1.
+ unfold env_set. auto.
+ intros. unfold modified1. destruct (eq_dec i id); auto.
+ rewrite PTree.gso; auto.
+Qed.
+
+
+Lemma closed_wrt_andp: forall S P Q,
+  closed_wrt_vars S P -> closed_wrt_vars S Q ->
+  closed_wrt_vars S (P && Q).
+Admitted.
+
+Lemma closed_wrt_sepcon: forall S P Q,
+  closed_wrt_vars S P -> closed_wrt_vars S Q ->
+  closed_wrt_vars S (P * Q).
+Admitted.
+
+Lemma closed_wrt_app1: forall a b f,
+  a<> fst b -> closed_wrt_vars (modified1 a) (app1 f b).
+Proof.
+ intros.  intro; intros.
+ unfold app1.
+ specialize (H0 (fst b)).
+ destruct H0. hnf in H0.  subst; congruence.
+ unfold eval_id; simpl. rewrite H0; auto.
+Qed.
+
+
+Lemma closed_wrt_ideq: forall a b e,
+  a <> b ->
+  temp_free_in a e = false ->
+  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id rho b = eval_expr rho e)).
+Proof.
+Admitted.
+
+Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
+
+Hint Extern 2 (closed_wrt_vars (modified1 _) (app1 _ _)) => 
+      (apply closed_wrt_app1; solve [let Hx := fresh in (intro Hx; inv Hx)]) : closed.
+
+
+Hint Extern 2 (closed_wrt_vars (modified1 _) _) => 
+      (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
+
+
+
+Lemma unfold_app0: forall f  rho,  app0 f rho = f.
+Proof. reflexivity. Qed.
+
+Lemma unfold_app1: forall f a1 rho,  app1 f a1 rho = 
+    !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && f (eval_id rho (fst a1)).
+Proof. reflexivity. Qed.
+
+Lemma unfold_app2: forall f a1 a2 rho, app2 f a1 a2 rho = 
+    !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
+                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)).
+Proof. reflexivity. Qed.
+
+Lemma unfold_app3: forall f a1 a2 a3 rho, app3 f a1 a2 a3 rho =  !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
+                      && !!(typecheck_val (eval_id rho (fst a3)) (snd a3) = true) 
+                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)) (eval_id rho (fst a3)).
+Proof. reflexivity. Qed.
+
+Hint Rewrite unfold_app0 unfold_app1 unfold_app2 unfold_app3: normalize.
+
+Ltac forward_while Inv Postcond :=
+  apply semax_pre with Inv; 
+  [ | apply semax_seq with Postcond;
+    [ apply semax_while ; [ | compute; auto | | ] | ]].

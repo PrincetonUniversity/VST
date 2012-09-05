@@ -55,65 +55,31 @@ Definition sumlist_Inv (contents: list int) (rho: environ) : mpred :=
 Definition semax_body' (G:  funspecs) (f: function) (spec: ident * funspec) :=
   match spec with (i, mk_funspec _ A pre post) => semax_body G f A pre post end.
 
+Lemma typecheck_val_ptr_lemma:
+  forall rho Delta id t a init,
+  typecheck_environ rho Delta = true ->
+  (temp_types Delta) ! id =  Some (Tpointer t a, init) ->
+  bool_val (eval_id rho id) (Tpointer t a) = Some true ->
+  typecheck_val (eval_id rho id) (Tpointer t a) = true.
+Proof.
+Admitted.
 
 Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
-simpl fn_params.
+simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
-simpl.
-set (contents' :=  map (fun i : int => (Vint i, P.t_int)) contents).
-apply semax_seq with
-  ((fun rho => !! (eval_id rho P.i_s = Vint (Int.repr 0))) &&
-   (fun rho => lseg contents' (eval_id rho P.i_p, P.t_listptr) (nullval, P.t_listptr))).
-apply sequential'.
-eapply semax_pre; [ | apply semax_set].
-intros.
-normalize.
-apply andp_right.
-apply prop_right.
-compute; auto.
-eapply derives_trans; [ |apply now_later].
-unfold subst.
-normalize.
-cbv beta.
-normalize.
-apply semax_seq with
-  (fun rho => !! (eval_id rho P.i_s = Vint (Int.repr 0)
-                         /\ eval_id rho P.i_t = eval_id rho P.i_p) &&
-                              lseg contents' (eval_id rho P.i_p, P.t_listptr)  (nullval, P.t_listptr)).
-apply sequential'.
-eapply semax_pre; [ | apply semax_set].
-intros.
-normalize.
-unfold tc_expr.
-apply andp_right.
-apply prop_right.
-compute; auto.
-eapply derives_trans; [ |apply now_later].
-unfold subst.
-normalize.
-unfold contents'; clear contents'.
-apply semax_pre with (sumlist_Inv contents).
-intros.
-normalize.
-destruct H0.
-unfold sumlist_Inv.
-apply exp_right with contents.
-normalize.
-rewrite H0. simpl.
-rewrite Int.add_zero_l. normalize.
-rewrite H1; auto.
+apply forward_set; [compute; auto | compute; auto | auto with closed | normalize | ].
+apply forward_set; [compute; auto | compute; auto | auto with closed | normalize | ].
+forward_while (sumlist_Inv contents)
+    (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id rho P.i_s))).
 
-apply semax_seq with
-  (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id rho P.i_s))).
-apply semax_while.
-intros.
-unfold tc_expr; simpl.
-unfold sumlist_Inv; normalize. intros.
-unfold eval_id, force_val.
-unfold denote_tc_initialized.
-reflexivity.
+unfold sumlist_Inv; intros; simpl; normalize.
+apply exp_right with contents.
+rewrite H0. rewrite H1.  simpl.
+rewrite Int.add_zero_l. normalize.
+
+intros; unfold tc_expr; simpl; normalize.
 intro rho.
 normalize.
 unfold Cnot, expr_true.
@@ -121,7 +87,7 @@ normalize.
 simpl in H.
 assert (eval_id rho P.i_t = nullval).
 destruct (eval_id rho P.i_t); simpl in H; try discriminate.
-admit. (* easy *)
+apply bool_val_int_eq_e in H. subst; auto.
 unfold sumlist_Inv.
 apply exp_left; intro cts.
 normalize.
@@ -131,7 +97,7 @@ rewrite H1.
 normalize.
 destruct cts; inv H2.  simpl fold_right. 
 rewrite Int.add_zero.  normalize.
-admit.  (* typechecking proof *)
+simpl. apply Int.eq_true.
 eapply sequential; [intros; simpl; reflexivity | ].
 unfold sumlist_Inv at 1.
 apply semax_pre with 
@@ -178,9 +144,10 @@ normalize. apply (exp_right h).
 normalize. apply (exp_right r).
 normalize. apply (exp_right y).
 normalize.
-simpl in H0|-*.
-destruct (eval_id rho P.i_t); inv H0; auto.
-admit.  (* typechecking proof *)
+clear - H H0.
+simpl in *.
+eapply typecheck_val_ptr_lemma; eauto; simpl; reflexivity.
+simpl. apply Int.eq_true.
 intro.
 unfold ptr_eq in H2.
 destruct (eval_id rho P.i_t); try contradiction.
@@ -251,6 +218,7 @@ admit.  (* easy *)
 simpl. reflexivity.
 simpl. reflexivity.
 simpl. rewrite if_true by auto. reflexivity.
+
 
 Admitted.
 

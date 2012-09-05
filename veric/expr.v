@@ -398,8 +398,7 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
  | Vint i, Tint _ _ _ => true  (* Maybe this needs to be adjusted to account for
                                                the size of the int?  Maybe not? *)
  | Vfloat v, Tfloat _ _ => true (*  Maybe this needs to be adjusted, ditto *) 
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => 
-                    negb (Int.eq i Int.zero) 
+ | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => Int.eq i Int.zero
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
                    | Tfunction _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
