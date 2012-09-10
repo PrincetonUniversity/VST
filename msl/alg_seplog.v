@@ -77,7 +77,7 @@ Class IndirOps (A: Type) {ND: NatDed A} := mkIndirOps {
   unfash : Triv -> A
 }.
 
-Instance algIndirOps (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Instance algIndirOps (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
          @IndirOps (pred T) (algNatDed T).
  apply (@mkIndirOps (pred T) (algNatDed T) (box laterM) subtypes.fash subtypes.fash').
 Defined.
@@ -86,7 +86,7 @@ Section SL. Import msl.seplog.
 
 Instance TrivIndirOps: IndirOps Triv := 
      (*Hidden inside a Section, on purpose! *)
-   @algIndirOps nat _ _ _ _ asa_nat _. 
+   @algIndirOps nat _ _ _ _ asa_nat. 
  
 
 Class Indir (A: Type) {ND: NatDed A} := mkIndir {
@@ -118,7 +118,7 @@ Notation "P '>=>' Q" := (# (P --> Q)) (at level 55, right associativity) : logic
 Notation "P '<=>' Q" := (# (P <--> Q)) (at level 57, no associativity) : logic.
 
 Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}
-                {AgeT: Age_alg T}{nattyT: natty T} :
+                {AgeT: Age_alg T}:
          @Indir (pred T) (algNatDed T).
  apply (mkIndir _ _ (algIndirOps T)); intros; simpl in *.
  apply @predicates_hered.now_later.
@@ -140,7 +140,7 @@ Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{S
  repeat intro; hnf; auto.
 Defined.
 
-Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat _.
+Instance TrivIndir: Indir Triv := @algIndir nat _ _ _ _ asa_nat.
 
 
 Lemma fash_triv: forall P: Triv, fash P = P.
@@ -194,7 +194,7 @@ Definition HOnonexpansive {A}{NA: NatDed A}{IA: Indir A}
          forall P Q,  (ALL x:X, fash (P x <--> Q x)) |-- (ALL x:X, fash (f P x <--> f Q x)).
 End SL2.
 
-Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Definition algRecIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
          @RecIndir (pred T) (algNatDed T) (algIndir T).
  apply (mkRecIndir _ _ _ HoRec.HORec).
  intros. apply HoRec.HORec_fold_unfold; auto.
@@ -209,7 +209,7 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
 }.
 End SL3.
 
-Instance algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T}{nattyT: natty T} :
+Instance algSepIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
          @SepIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
  apply mkSepIndir.
  simpl.

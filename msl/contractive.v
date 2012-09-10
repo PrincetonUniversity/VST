@@ -112,7 +112,7 @@ Proof.
   apply eqp_subp2; auto.
 Qed.
 
-Lemma later_contractive {A} `{natty A} : forall F,
+Lemma later_contractive {A} `{ageable A} : forall F,
   nonexpansive F ->
   contractive (fun X => (|>(F X))).
 Proof.
@@ -559,7 +559,7 @@ Proof.
  destruct H, H0.
  split; (intros z Hz [? ?]); split; auto.
 Qed.
-Lemma sepcon_HOcontractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}{NA: natty A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
+Lemma sepcon_HOcontractive {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}: forall X (P Q: (X -> pred A) -> (X -> pred A)),
        HOcontractive P -> HOcontractive Q -> HOcontractive (fun R x => P R x * Q R x).
 Proof.
  intros.
@@ -585,7 +585,7 @@ Proof.
  apply prove_HOcontractive. intros. apply subp_refl.
 Qed.
 
-Lemma exp_HOcontractive {A}{agA: ageable A}{NA: natty A}:
+Lemma exp_HOcontractive {A}{agA: ageable A}:
   forall X Y (G: Y -> X -> X) (F: Y -> X -> pred A -> pred A),
    (forall y x, contractive (F y x)) ->
    HOcontractive (fun (R: X -> pred A) (x: X) => EX y: Y, F y x (R (G y x))).
@@ -603,7 +603,7 @@ Proof.
  intros.
  apply prove_contractive. intros. apply subp_refl.
 Qed.
-Lemma later_contractive' {A} `{natty A} : contractive (box laterM).
+Lemma later_contractive' {A} `{ageable A} : contractive (box laterM).
 Proof.
   unfold contractive; intros.
   apply subp_eqp.

@@ -313,49 +313,45 @@ intros.
 apply age1_juicy_mem_unpack in H; intuition.
 Qed.
 
-Lemma unage_juicy_mem: forall j j' j1' : juicy_mem,
-   level (m_phi j') = level (m_phi j1') ->
-   age1_juicy_mem j = Some j' ->
-   exists j1 : juicy_mem, age1_juicy_mem j1 = Some j1'.
+
+Lemma unage_juicy_mem: forall j' : juicy_mem,
+   exists j : juicy_mem, age1_juicy_mem j = Some j'.
 Proof.
 intros.
-apply age1_juicy_mem_unpack in H0. intuition.
-eapply (af_unage age_facts) in H1; eauto.
-destruct H1 as [y ?].
-destruct j1'. simpl in *.
-rename phi into phi'. rename y into phi.
+destruct j' as [m phi'].
+destruct (af_unage age_facts phi') as [phi ?].
 assert (NEC: necR phi phi')  by (constructor 1; auto).
- rename H0 into Hage.
+ rename H into Hage.
 assert (contents_cohere m phi).
   hnf; intros.
-  generalize (necR_YES phi phi' loc rsh sh (VAL v) pp NEC H0); intro.
-  destruct (JMcontents _ _ _ _ _ H1).
-  rewrite H4 in H1.
+  generalize (necR_YES phi phi' loc rsh sh (VAL v) pp NEC H); intro.
+  destruct (JMcontents _ _ _ _ _ H0).
+  rewrite H2 in H0.
   split; auto.
   generalize (necR_YES' _ _ loc rsh sh (VAL v) NEC); intro.
-  apply H5 in H1. congruence.
+  apply H3 in H0. congruence.
 assert (access_cohere m phi). 
   hnf; intros.
   generalize (JMaccess loc); intros.
   case_eq (phi @ loc); intros.
-  apply (necR_NO _ _ loc _ NEC) in H3. rewrite H3 in H1; auto.
-  apply (necR_YES _ _ _ _ _ _ _ NEC) in H3. rewrite H3 in H1; auto.
-  apply (necR_PURE _ _ _ _ _ NEC) in H3. rewrite H3 in H1; auto.
+  apply (necR_NO _ _ loc _ NEC) in H1. rewrite H1 in H0; auto.
+  apply (necR_YES _ _ _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
+  apply (necR_PURE _ _ _ _ _ NEC) in H1. rewrite H1 in H0; auto.
 assert (max_access_cohere m phi). 
   hnf; intros.
   generalize (JMmax_access loc); intros.
   case_eq (phi @ loc); intros.
-  apply (necR_NO _ _ _ _ NEC) in H4; rewrite H4 in H3; auto.
-  rewrite (necR_YES _ _ _ _ _ _ _ NEC H4) in H3; auto.
-  rewrite (necR_PURE _ _ _ _ _ NEC H4) in H3; auto.
+  apply (necR_NO _ _ _ _ NEC) in H2; rewrite H2 in H1; auto.
+  rewrite (necR_YES _ _ _ _ _ _ _ NEC H2) in H1; auto.
+  rewrite (necR_PURE _ _ _ _ _ NEC H2) in H1; auto.
 assert (alloc_cohere m phi).
   hnf; intros.
-  generalize (JMalloc loc H4); intros.
+  generalize (JMalloc loc H2); intros.
   case_eq (phi @ loc); intros.
-  apply (necR_NO _ _ _ _ NEC) in H6; rewrite H6 in H5; auto.
-  rewrite (necR_YES _ _ _ _ _ _ _ NEC H6) in H5; inv H5.
-  rewrite (necR_PURE _ _ _ _ _ NEC H6) in H5; inv H5.
-exists (mkJuicyMem m phi H0 H1 H3 H4).
+  apply (necR_NO _ _ _ _ NEC) in H4; rewrite H4 in H3; auto.
+  rewrite (necR_YES _ _ _ _ _ _ _ NEC H4) in H3; inv H3.
+  rewrite (necR_PURE _ _ _ _ _ NEC H4) in H3; inv H3.
+exists (mkJuicyMem m phi H H0 H1 H2).
 apply age1_juicy_mem_unpack''; simpl; auto.
 Qed.
 

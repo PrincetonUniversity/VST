@@ -972,13 +972,6 @@ rewrite squash_unsquash in H0.
 congruence.
 Qed.
 
-Instance natty_rmap: natty rmap.
-Proof.
-repeat intro.
-exists (rmap_unage x').
-apply rmap_unage_age.
-Qed.
-
 Lemma ageN_resource_at_eq:
   forall phi1 phi2 loc n phi1' phi2', 
           level phi1 = level phi2 ->

@@ -8,7 +8,7 @@ Require Import msl.base.
 Open Local Scope nat_scope.
 
 Record ageable_facts (A:Type) (level: A -> nat) (age1:A -> option A)  :=
-{ af_unage : forall x x' y', level x' = level y' -> age1 x = Some x' -> exists y, age1 y = Some y'
+{ af_unage : forall x':A, exists x, age1 x = Some x'
 ; af_level1 : forall x, age1 x = None <-> level x = 0
 ; af_level2 : forall x y, age1 x = Some y -> level x = S (level y)
 }.
@@ -288,7 +288,7 @@ Section NAT_AGEABLE.
     ageable_facts nat natLevel natAge1.
   Proof.
     constructor.
-    intros; exists (S y'); compute; auto.
+    intros; exists (S x'); compute; auto.
     intro x; destruct x; intuition; inv H.
     firstorder;
       destruct x; inv H; compute; eauto.
@@ -369,16 +369,12 @@ Section BIJECTION.
   Let ageB (x y: B) :=age1B x = Some y.
 
   Lemma age_bij_unage : 
-    forall x x' y', levelB x' = levelB y' -> age1B x = Some x' -> exists y, age1B y = Some y'.
+    forall x', exists x, age1B x = Some x'.
   Proof.
     unfold age1B, levelB; simpl; intros.
     destruct bijAB as [f g fg gf]; simpl in *.
-    revert H0; case_eq (age1 (g x)); intros. inv H1.
-    rewrite gf in H.
-    destruct (af_unage age_facts (g x) a (g y') H H0) as [y ?].
-    exists (f y). rewrite gf; rewrite H1.
-    rewrite fg;     auto.
-    inv H1.
+    destruct (af_unage age_facts (g x')) as [y ?].
+   exists (f y). rewrite gf. rewrite H. f_equal. apply fg. 
   Qed.
 
   Lemma age_bij_level1 :
@@ -431,9 +427,8 @@ Section PROD.
   Proof.
     constructor.
     unfold levelAB, age1AB; simpl; intros.
-    revert H0; case_eq (age1 (fst x)); intros; try discriminate. inv H1. simpl in *.
-    destruct (af_unage age_facts (fst x) a (fst y')) as [y1 ?]; auto.
-    exists (y1, snd y'). simpl. rewrite H1. destruct y'; simpl; auto. 
+    destruct (af_unage age_facts (fst x')) as [y1 ?].
+    exists (y1, snd x'). simpl. rewrite H. f_equal. destruct x'; auto.
     intros [a b]; firstorder.
     unfold age1AB in H; simpl in H.
     case_eq (age1 a); intros; rewrite H0 in H; inv H.
@@ -538,9 +533,8 @@ Section PROD'.
   Proof.
     constructor.
     unfold levelAB, age1AB; simpl; intros.
-    revert H0; case_eq (age1 (snd x)); intros; try discriminate. inv H1. simpl in *.
-    destruct (af_unage age_facts (snd x) b (snd y')) as [y1 ?]; auto.
-    exists (fst y', y1). simpl. rewrite H1. destruct y'; simpl; auto. 
+    destruct (af_unage age_facts (snd x')) as [y2 ?].
+    exists (fst x', y2). simpl. rewrite H. f_equal. destruct x'; auto.
     intros [a b]; firstorder.
     unfold age1AB in H; simpl in H.
     case_eq (age1 b); intros; rewrite H0 in H; inv H.
@@ -910,25 +904,6 @@ destruct H3; auto.
 apply laterR_level in H3; unfold fashionR in H2; elimtype False; omega.
 Qed.
 
-
-Section FLAT.
-
-Variable A : Type.
-
-Lemma ag_flat_facts: ageable_facts A (fun _ => 0) (fun _ => None).
-  intros.
-  constructor.
-  intro; intros. constructor. intros; discriminate.
-  intros; discriminate.
-  intuition.
-  intros; discriminate.
-Qed.
-
-Definition ag_flat : ageable A :=
-   mkAgeable _ _ _ ag_flat_facts.
-
-End FLAT.
-
 Lemma laterR_necR {A} `{agA : ageable A}: 
   forall {x y}, laterR x y -> necR x y.
 Proof.
@@ -937,14 +912,6 @@ constructor; auto.
 econstructor 3; auto.
 apply rt_trans with y; auto.
 Qed.
-
-Lemma necR_flat {A}{agA: ageable A}: 
-       agA = (ag_flat A) -> forall x y,  @necR A agA x y -> x=y.
-Proof.
-intros. 
-induction H0; auto. inv H0. simpl in H2. inv H2. rewrite IHclos_refl_trans1; auto.
-Qed.
-
 
 Lemma necR_refl {A} `{H : ageable A}:
   forall phi, necR phi phi.

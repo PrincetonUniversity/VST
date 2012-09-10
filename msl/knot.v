@@ -3,10 +3,10 @@
  *
  *)
 
-Require Import base.
-Require Import ageable.
+Require Import msl.base.
+Require Import msl.ageable.
 Require Import Eqdep_dec.
-Require Import functors.
+Require Import msl.functors.
 
 Open Local Scope nat_scope.
 
@@ -429,17 +429,14 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Proof.
     constructor.
 
-    unfold def_knot_age1; unfold def_knot_level; simpl; intros x x' y'.
-    case_eq (unsquash x); intros.
-    destruct n; inv H1. simpl in *.
-    subst n.
-    destruct y' as [n yy']. simpl in *.
-    exists (squash (S n, fmap (unstratify n) yy')).
+   unfold def_knot_age1; unfold def_knot_level; simpl; intros x'.
+    case_eq (unsquash x'); intros.
+    destruct x' as [n' xx']. simpl in *. inv H.
+    exists (squash (S n, fmap (unstratify n) xx')).
     rewrite unsquash_squash.
     f_equal.
     f_equal.
-    clear.
-    transitivity ((fmap (stratify n) oo fmap (approx (S n)) oo fmap (unstratify n)) yy'); auto.
+    transitivity ((fmap (stratify n) oo fmap (approx (S n)) oo fmap (unstratify n)) xx'); auto.
     do 2 rewrite fmap_comp.
     replace (stratify n oo approx (S n) oo unstratify n) with (@id (sinv n)).
     rewrite fmap_id. auto.

@@ -1,41 +1,96 @@
 Require Import msl.msl_standard.
 Require Import msl.examples.sep.language.
 
-Definition world := ((var -> option adr)*(adr -> option adr))%type.
+Definition world := (nat * ((var -> option adr)*(adr -> option adr)))%type.
 
 Instance Join_world: Join world :=
-   Join_prod
+  Join_prod nat (Join_equiv nat)
+   _
+   (Join_prod
      (var -> option adr) (Join_equiv _)
-     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (@Join_discrete adr))).
+     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (@Join_discrete adr)))).
 
 Instance Perm_world : Perm_alg world := _.
 Instance Sep_world : Perm_alg world := _.
 Instance Canc_world : Perm_alg world := _.
 Instance Disj_world : Perm_alg world := _.
-Instance ag_world : ageable world := ag_flat _.
-Instance Age_world : Age_alg world := asa_flat.
 
-Definition den (s: state) : world := (table_get (fst s), table_get (snd s)).
+Definition age_world (w: world) : option world :=
+ match fst w with S n => Some (n, snd w) | O => None end.
+
+Definition level_world (w: world) : nat := fst w.
+
+Lemma af_world: ageable_facts _ level_world age_world.
+Proof.
+ constructor.
+ intros [n x]; exists (S n, x); simpl; auto.
+ intros [n x]; unfold age_world; destruct n; simpl; intuition discriminate.
+ intros. destruct x as [n x]; destruct n; inv H; simpl; auto.
+Qed.
+
+Instance ag_world: ageable world := mkAgeable _ _ _ af_world.
+Instance Age_world : Age_alg world.
+ constructor.
+ intros [nx x] [ny y] [nz z] [nx' x'] [? ?] ?; simpl in *. destruct H; subst.
+ unfold age in H1. simpl in H1. unfold age_world in H1. simpl in H1.
+ destruct nz; inv H1. unfold age; simpl. unfold age_world; simpl.
+ exists (nx', y); exists (nx', z); split; auto; split; auto.
+ intros [nx x] [ny y] [nz z] [nz' z'] [? ?] ?; simpl in *. destruct H; subst.
+ unfold age in H1. simpl in H1. unfold age_world in H1. simpl in H1.
+ destruct nz; inv H1. unfold age; simpl. unfold age_world; simpl.
+ exists (nz', x); exists (nz', y); split; auto; split; auto.
+ intros [nx x] [nx' x'] [ny' y'] [nz' z'] [? ?] ?; simpl in *. destruct H; subst.
+ unfold age in H1. simpl in H1. unfold age_world in H1. simpl in H1.
+ destruct nx; inv H1. unfold age; simpl. unfold age_world; simpl.
+ exists (S nz', y'); exists (S nz', z'); split; auto; split; auto.
+ intros [nz z] [nx' x'] [ny' y'] [nz' z'] [? ?] ?; simpl in *. destruct H; subst.
+ unfold age in H1. simpl in H1. unfold age_world in H1. simpl in H1.
+ destruct nz; inv H1. unfold age; simpl. unfold age_world; simpl.
+ exists (S nz', x'); exists (S nz', y'); split; auto; split; auto.
+Qed.
+
+Definition den (lev: nat) (s: state) : world := (lev, (table_get (fst s), table_get (snd s))).
 
 Obligation Tactic := (try solve [repeat intro; match goal with H: age _ _ |- _ => inv H end]).
 
 Program Definition defined (y: var) : pred world :=
-   fun w => exists v, fst w y = Some v.
+   fun w => exists v, fst (snd w) y = Some v.
+Next Obligation.
+ intros. intro; intros.
+ unfold age in H;  destruct a; destruct a'; simpl in H. destruct n; inv H.
+ auto.
+Qed.
 
 Definition fun_set (f: nat -> option nat) (x: nat) (y: option nat) :=
    fun i => if eq_dec i x then y else f i.
 
 Program Definition subst (x y: var) (P: pred world) : pred world :=
-   fun w => P (fun_set (fst w) x (fst w y), snd w).
+   fun w => P (fst w, (fun_set (fst (snd w)) x (fst (snd w) y), snd (snd w))).
+Next Obligation.
+ intros. intro; intros.
+ unfold age in H;  destruct a; destruct a'; simpl in H. destruct n; inv H.
+ simpl in *. eapply pred_hereditary; eauto.
+  unfold age; simpl. unfold age_world; simpl. auto.
+Qed.
 
 Program Definition mapsto (x y: var) : pred world :=
  fun w => 
-    exists ax, fst w x = Some ax /\
-    exists ay, fst w y = Some ay /\
-    forall a, if eq_dec a ax then snd w a = Some ay else snd w a = None.
+    exists ax, fst (snd w) x = Some ax /\
+    exists ay, fst (snd w) y = Some ay /\
+    forall a, if eq_dec a ax then snd (snd w) a = Some ay else snd (snd w) a = None.
+Next Obligation.
+ intros. intro; intros.
+ unfold age in H;  destruct a; destruct a'; simpl in H. destruct n; inv H.
+ simpl in *. auto.
+Qed.
 
 Program Definition equal (x y: var) : pred world := 
-            fun w => fst w x = fst w y.
+            fun w => fst (snd w) x = fst (snd w) y.
+Next Obligation.
+ intros. intro; intros.
+ unfold age in H;  destruct a; destruct a'; simpl in H. destruct n; inv H.
+ simpl in *. auto.
+Qed.
 
 Inductive modvars : command -> var -> Prop :=
 | mod_assign: forall x y, modvars (Assign x y) x
@@ -44,35 +99,44 @@ Inductive modvars : command -> var -> Prop :=
 | mod_seq2: forall x c1 c2, modvars c2 x -> modvars (Seq c1 c2) x.
 
 Definition nonfreevars (P: pred world) (x: var) : Prop :=
-  forall stk hp v, P (stk,hp) -> P (fun_set stk x v, hp). 
+  forall lev stk hp v, P (lev, (stk,hp)) -> P (lev, (fun_set stk x v, hp)). 
 
 Definition subset (S1 S2: var -> Prop) := 
   forall x, S1 x -> S2 x.
 
 Definition semax (P: pred world) (c: command) (Q: pred world) : Prop :=
-  forall F s, subset (modvars c) (nonfreevars F) ->
-    (P*F)%pred (den s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den s').
+  forall lev F s, subset (modvars c) (nonfreevars F) ->
+    (P*F)%pred (den (S lev) s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den lev s').
 
 Lemma semax_assign: forall P x y,
       semax (defined y && subst x y P) (Assign x y) P.
 Proof.
-  intros.  intros F s DISJ H.
-  destruct H as [[stk1 hp1] [[stk2 hp2] [? [[[v ?] ?] ?]]]].
+  intros.  intros lev F s DISJ H.
+  destruct H as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [? [[[v ?] ?] ?]]]].
   exists (table_set x v (fst s), snd s).
-  destruct H.
-  destruct s as [stk hp]; simpl in *.
-  destruct H. subst. rewrite H0; simpl. split; auto.
-  match goal with H0: app_pred P ?X |- _ => exists X; exists (fst X, hp2) end.
-  simpl. split; auto. split; simpl; auto. split; simpl; auto. unfold fun_set.
+  destruct s as [stk hp].
+  destruct H. destruct H3. simpl fst in *. simpl snd in *. destruct H; subst.
+  destruct H3; subst. 
+  split. simpl. rewrite H0. simpl. auto.
+  do 3 red in H1. simpl fst in H1; simpl snd in H1.
+  exists (lev, (fun_set (table_get stk) x (table_get stk y), hp1)).
+  exists (lev, (fun_set (table_get stk) x (table_get stk y), hp2)).
+  simpl. split; auto. split; simpl; auto.  split; simpl; auto.
+  split; simpl; auto. unfold fun_set.
   extensionality i.
   simpl.
   change var with nat; destruct (eq_dec i x); auto. 
   split;  auto.
   specialize (DISJ x).
   unfold nonfreevars in DISJ.
+  eapply pred_hereditary; eauto.
+ reflexivity.
+ 
 
   apply DISJ; auto.
   constructor.
+  eapply pred_hereditary; eauto.
+ reflexivity.
 Qed.
 
 Lemma semax_load: forall x y z, x <> y -> x <> z ->
@@ -80,29 +144,34 @@ Lemma semax_load: forall x y z, x <> y -> x <> z ->
 Proof.
  intros ? ? ? Hxy Hxz; hnf; intros.
 destruct s as [stk hp].
-destruct H0 as [[stk1 hp1] [[stk2 hp2] [[? ?] [[ax [? [ay [? ?]]]] ?]]]].
+destruct H0 as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [[? ?] [[ax [? [ay [? ?]]]] ?]]]].
  simpl in *.
- destruct H0; subst. rewrite H2. simpl.
+ destruct H0; subst. destruct H1; subst.
+ destruct H0; simpl in*; subst.
+ rewrite H2. simpl.
  exists (table_set x ay stk, hp).
  generalize (H4 ax); intros. 
  destruct (eq_dec ax ax); [ | contradiction n; auto].
   generalize (H1 ax); rewrite H0; intro. inv H6. simpl.
   split; auto.
- exists (table_get (table_set x ay stk), hp1).
- exists (table_get (table_set x ay stk), hp2).
- split; split; simpl; auto.
+ exists (lev, (table_get (table_set x ay stk), hp1)).
+ exists (lev, (table_get (table_set x ay stk), hp2)).
+  simpl.
+ split; split; simpl; auto. split; simpl; auto.
  destruct (eq_dec x x);  [ | contradiction n; auto].
  destruct (eq_dec y x); [ contradiction Hxy; auto |].
  destruct (eq_dec z x); [ contradiction Hxz; auto |].
  split; auto.
  exists ax; split; auto.
-  exists ay; split; auto.
- apply H. constructor. auto.
+  exists ay; split; auto. 
+ apply H. constructor.
+ eapply pred_hereditary; eauto. reflexivity.
  destruct H10.
 Qed.
 
 Lemma semax_store: forall x y z,
          semax (defined y && mapsto x z) (Store x y) (mapsto x y).
+(* Not done:  adjust the rest of this file for the "level" field of states *)
 Proof.
  intros; hnf; intros.
  destruct s as [stk hp].

@@ -3,12 +3,12 @@
  *
  *)
 
-Require Import base.
+Require Import msl.base.
 Open Local Scope nat_scope.
 
-Require Import ageable.
-Require Import functors.
-Require Import predicates_hered.
+Require Import msl.ageable.
+Require Import msl.functors.
+Require Import msl.predicates_hered.
 
 Module Type TY_FUNCTOR_PROP.
   Parameter F : Type -> Type.
@@ -620,29 +620,29 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     econstructor.
     (* unage *)
     intros.
-    case_eq (unsquash y'); intros.
-    exists (squash (S n,f)).
+    case_eq (unsquash x'); intros.
+    exists (squash (S n, f)). 
     rewrite knot_age_age1.
     rewrite unsquash_squash.
     f_equal.
     apply unsquash_inj.
-    rewrite H1.
     rewrite unsquash_squash.
+    rewrite H.
     f_equal.
     cut (f = fmap (approx n) f).
     intros.
     rewrite fmap_app.
-    pattern f at 2. rewrite H2.
+    pattern f at 2. rewrite H0.
     f_equal.
     extensionality p.
     apply predicate_eq.
     extensionality w.
     simpl. apply prop_ext.
     intuition.
-    generalize H1; intro.
-    rewrite <- (squash_unsquash y') in H1.
-    rewrite H2 in H1.
-    rewrite unsquash_squash in H1.
+    generalize H; intro.
+    rewrite <- (squash_unsquash x') in H.
+    rewrite H0 in H.
+    rewrite unsquash_squash in H.
     congruence.
     
     (* level 0 *)

@@ -5,8 +5,8 @@
 
 (* Knots with all the bells and whistles *)
 
-Require Import base.
-Require Import ageable.
+Require Import msl.base.
+Require Import msl.ageable.
 
 Open Local Scope nat_scope.
 
@@ -778,30 +778,30 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
   Proof.
     constructor.
 
-    unfold knot_age1_def; unfold knot_level_def; simpl; intros x x' y'.
-    case_eq (unsquash x); intros. destruct n; inv H1. simpl in *. subst n.
-    destruct y'. simpl in *.
-    exists (squash (S x0, TF'.bimap (strat x0) (unstrat x0) f0)).
+    unfold knot_age1_def; unfold knot_level_def; simpl; intros x'.
+    case_eq (unsquash x'); intros.
+    destruct x'.
+    exists (squash (S x, TF'.bimap (strat x) (unstrat x) f0)).
     rewrite unsquash_squash.
     f_equal. f_equal.
     clear.
-    transitivity ((TF'.bimap (unstrat x0) (strat x0) oo TF'.bimap (approx (S x0)) (approx (S x0)) oo TF'.bimap (strat x0) (unstrat x0)) f0); auto.
+    transitivity ((TF'.bimap (unstrat x) (strat x) oo TF'.bimap (approx (S x)) (approx (S x)) oo TF'.bimap (strat x) (unstrat x)) f0); auto.
     do 2 rewrite TF'.bimap_comp.
     rewrite compose_assoc.
-    replace (strat x0 oo approx (S x0) oo unstrat x0) with (@id (sinv x0)).
+    replace (strat x oo approx (S x) oo unstrat x) with (@id (sinv x)).
     rewrite TF'.bimap_id. auto.
-    rewrite <- (strat_unstrat x0).
+    rewrite <- (strat_unstrat x).
     f_equal.
     extensionality a.
     unfold compose, approx.
-    case_eq (unstrat x0 a); intros.
+    case_eq (unstrat x a); intros.
     match goal with
       [ |- _ = exist _ ?X _ ] =>
-      assert (x = X)
+      assert (x0 = X)
     end.
     Focus 2.
-    generalize (approx_obligation_1 (S x0)
-      (exist (fun p => hered p) x h)).
+    generalize (approx_obligation_1 (S x)
+      (exist (fun p => hered p) x0 h)).
     rewrite <- H0.
     intros. f_equal. apply proof_irr.
     extensionality.
@@ -812,21 +812,21 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     unfold unstratify.
     unfold knot_level_def.
     simpl fst.
-    destruct (decompose_nat x x0).
+    destruct (decompose_nat x0 x).
     destruct s.
-    destruct (le_gt_dec (S x0) x).
+    destruct (le_gt_dec (S x) x0).
     elimtype False; omega.
     simpl.
-    destruct (decompose_nat x x0).
+    destruct (decompose_nat x0 x).
     destruct s.
     assert (x1 = x2) by omega.
     subst x2.
     replace e0 with e by apply proof_irr.
     auto.
     elimtype False; omega.
-    destruct (le_gt_dec (S x0) x); auto.
+    destruct (le_gt_dec (S x) x0); auto.
     simpl.
-    destruct (decompose_nat x x0); auto.
+    destruct (decompose_nat x0 x); auto.
     destruct s. elimtype False. omega.
     
     intro.

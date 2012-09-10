@@ -270,11 +270,6 @@ Proof.
   split; apply join_comm; auto.
 Qed.
 
-Lemma asa_flat {A} {JOIN: Join A}  :  @Age_alg A JOIN (@ag_flat _).
-Proof.
-  constructor; intros; inv H0.
-Qed.
-
   Lemma asa_nat : @Age_alg nat (Join_equiv nat) ag_nat.
   Proof.
     constructor.

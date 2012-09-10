@@ -1087,15 +1087,6 @@ constructor 3 with a; auto.
 constructor 1; auto.
 Qed.
 
-Lemma exactly_flat: forall {A} {AG} x,  AG=ag_flat A -> app_pred (@exactly A AG x) = @eq A x.
-Proof.
-intros. subst. extensionality y.
-simpl. apply prop_ext; split; intros; subst; auto.
-apply clos_rt_rt1n in H.
-inv H; auto.
-unfold age, age1 in H0. simpl in H0. inv H0.
-Qed.
-
 Lemma derives_TT {A} `{ageable A}: forall (P: pred A), P |-- TT.
 Proof.
 intros.

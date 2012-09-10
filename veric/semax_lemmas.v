@@ -508,7 +508,7 @@ intros. constructor 1; auto.
 Qed.
 Hint Resolve @age_laterR.
 
-Lemma pred_sub_later' {A} `{H: ageable A} {SS: natty A}:
+Lemma pred_sub_later' {A} `{H: ageable A}:
   forall (P Q: pred A),  
            (|> P >=> |> Q)  |--  (|> (P >=> Q)).
 Proof.
@@ -524,7 +524,7 @@ Lemma later_strengthen_safe1:
 Proof.
 intros.
 intros w ?.
-apply (@pred_sub_later' _ _ natty_rmap P  (assert_safe Hspec ge k rho)); auto.
+apply (@pred_sub_later' _ _ P  (assert_safe Hspec ge k rho)); auto.
 eapply subp_trans'; try apply H.
 apply derives_subp; clear.
 intros w0 ?.

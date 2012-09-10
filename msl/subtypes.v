@@ -27,8 +27,7 @@ Proof.
   rewrite H in H0; discriminate.
 
   hnf in H.
-  destruct (af_unage age_facts _ _ _ H H0) as [x0 ?].
-  exists x0; auto. 
+  destruct (af_unage age_facts x). exists x0. apply H1.
   hnf.
   rewrite (af_level2 age_facts x0 x); auto.
   rewrite (af_level2 age_facts z y); auto.
@@ -269,16 +268,6 @@ Proof.
   exists x; auto.
 Qed.
 
-Class natty (A: Type) {agA: ageable A} : Prop :=
-   mkNatty: forall x': A, exists x, age x x'.
-
-Instance nat_natty : natty nat.
-Proof.
-unfold natty; intros.
-exists (S x'); simpl; auto.
-unfold age, age1. simpl. auto.
-Qed.
-Hint Resolve nat_natty.
 
 Lemma later_fash1 {A} `{agA: ageable A}:
    forall P, |> # P |-- # |> P.
@@ -293,7 +282,7 @@ apply laterR_level in H1.
 omega.
 Qed.
 
-Lemma later_fash {A} `{NA : natty A}: 
+Lemma later_fash {A} `{agA : ageable A}: 
     forall P, |> # P = # |> P.
 Proof.
 intros.
@@ -303,7 +292,7 @@ apply later_fash1.
 intros w ? w' ?.
 simpl in *.
 intros.
-destruct (NA y).
+destruct (af_unage age_facts y).
 apply (H x).
 apply later_nat in H0.
 apply age_level in H2. 
@@ -320,7 +309,7 @@ rewrite later_imp.
 intros ? ?; auto.
 Qed.
 
-Lemma subp_later {A} `{natty A} : forall P Q,
+Lemma subp_later {A} `{ageable A} : forall P Q,
    |>(P >=> Q) = |>P >=> |>Q.
 Proof.
 intros.
@@ -338,7 +327,7 @@ rewrite later_and.
 repeat rewrite later_imp. auto.
 Qed.
 
-Lemma eqp_later {A} `{natty A} : forall P Q,
+Lemma eqp_later {A} `{ageable A} : forall P Q,
     (|>(P <=> Q) = |>P <=> |>Q)%pred.
 Proof.
 intros.
