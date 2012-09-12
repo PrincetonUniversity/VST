@@ -47,9 +47,44 @@ Definition temp_element_correct (te : temp_env) :=
     (*else True*)
 end). 
 
+Definition te_correct' (te: temp_env) (tc: PTree.t (type * bool)) :=
+forall id ty b, tc ! id = Some (ty,b) -> exists v, (te ! id = Some v /\ typecheck_val v ty = true). 
+
 Definition te_correct (te : temp_env) (Delta: tycontext) := Forall
   (temp_element_correct te)
   ((PTree.elements (temp_types Delta))).
+
+
+Lemma te_correct_rel : forall te Delta, 
+te_correct te (Delta) <->
+te_correct' te (temp_types Delta).
+Proof.
+intros.
+split.
+unfold te_correct in *. unfold te_correct' in *.
+intros. destruct Delta; destruct p; unfold temp_types in *; simpl in *.
+rewrite Forall_forall in *.
+
+assert (NOREP := PTree.elements_keys_norepet t0).
+assert (forall t : type * bool, In (id, t) (PTree.elements t0) -> t0 ! id = Some t).
+
+intros. apply PTree.elements_complete in H1. auto.
+apply PTree.elements_correct in H0.
+
+induction (PTree.elements t0); intuition.
+
+simpl in *. intuition. subst. clear IHl NOREP. specialize (H (id, (ty, b))). intuition. clear H2.
+unfold temp_element_correct in *. destruct (te ! id); intuition. exists v. auto.
+
+specialize (H (id, (ty, b))). intuition. unfold temp_element_correct in H.
+destruct (te! id); intuition. exists v. auto.
+
+intros. unfold te_correct. unfold te_correct' in *. rewrite Forall_forall.
+intros. unfold temp_element_correct. destruct x; destruct p.
+specialize (H e t b). apply PTree.elements_complete in H0.
+rewrite H0 in H. intuition. destruct H1. intuition. rewrite H1. auto.
+Qed.
+
 
 Definition var_element_correct (ve: env) (ge:genviron) : 
 (PTree.elt * type) -> Prop :=
@@ -146,6 +181,56 @@ auto.
 rewrite Forall_forall in *. intuition.
 Qed.
 
+Lemma typecheck_te_sound' : forall dv te,
+typecheck_temp_environ (PTree.elements dv) te = true ->
+te_correct' te dv.
+Proof.
+intros. apply typecheck_te_sound in H. rewrite Forall_forall in *.
+unfold te_correct'. intros. apply PTree.elements_correct in H0.
+specialize (H (id, (ty, b))). intuition. unfold temp_element_correct in *.
+destruct (te ! id); intuition. eauto.
+Qed.
+
+Lemma typecheck_te_eqv : forall dv te,
+typecheck_temp_environ (PTree.elements dv) te = true <->
+te_correct' te dv.
+Proof.
+intuition. apply typecheck_te_sound'. auto.
+unfold te_correct' in *. 
+assert (NOREP := PTree.elements_keys_norepet dv).
+assert (forall id (t : type * bool), In (id, t) (PTree.elements dv) -> dv ! id = Some t).
+intros. apply PTree.elements_complete in H0. auto.
+
+induction (PTree.elements dv). auto.
+
+simpl in *. destruct a. destruct p0. simpl in *. inv NOREP.
+rewrite IHl.
+specialize (H0 p (t,b)). intuition. 
+ specialize (H p t b). intuition.
+destruct H2. destruct H. rewrite H. rewrite H2. auto.
+auto. intros. specialize (H0 id t0). intuition.
+Qed.
+
+Lemma typecheck_val_ptr_lemma:
+   forall rho Delta id t a init,
+   typecheck_environ rho Delta = true ->
+   (temp_types Delta) ! id =  Some (Tpointer t a, init) ->
+   bool_val (eval_id rho id) (Tpointer t a) = Some true ->
+   typecheck_val (eval_id rho id) (Tpointer t a) = true.
+Proof.
+intros. unfold bool_val in *. unfold typecheck_val. unfold eval_id.
+destruct (eval_id rho id); try congruence; auto. apply typecheck_environ_sound in H.
+intuition. apply te_correct_rel in H2. clear H3. unfold te_correct' in H2.
+specialize (H2 id (Tpointer t a) init). intuition. inv H. intuition. 
+rewrite H. simpl. unfold typecheck_val in *. destruct x; try congruence.
+
+apply typecheck_environ_sound in H.
+intuition. apply te_correct_rel in H2. clear H3. unfold te_correct' in H2.
+specialize (H2 id (Tpointer t a) init). intuition. inv H. intuition. 
+rewrite H. simpl. unfold typecheck_val in *. destruct x; try congruence.
+Qed.
+
+
 
 Lemma in_fst_in : forall A B (L : list (A*B)) (a:A) (b:B), In (a, b) L  -> In a (map (@fst A B) L) .
 Proof.
@@ -159,39 +244,10 @@ inv H. left. auto. right. eapply  IHL. eauto.
 Qed.
 
 
-Lemma set_elements_PTree : forall A i (v:A) t, In (i,v) (PTree.elements (PTree.set i v t)).
-Proof.
-intros. apply PTree.elements_correct. apply PTree.gss.
-Qed.
-
-Lemma set_element_PTree2 : forall A i (v:A) t, 
-       Forall2
-      (fun i_x i_y => (fst i_x) <> i -> fst i_x = fst i_y /\  (snd i_x) = (snd i_y))
-      (PTree.elements t) (PTree.elements (PTree.set i v t)).
-Proof.
-intros.
-induction t. unfold PTree.elements. simpl. unfold PTree.set.
-Admitted. (*not even sure this will help*)
-
-
-(*need this, don't know if I can prove it*)
-Lemma smaller_tree_exists : forall A hd tl t,
-hd :: tl = PTree.elements t -> exists t2, tl = @PTree.elements A t2.
-Proof.
-intros. generalize dependent hd.
-generalize dependent tl.
-induction t; intros.
-inv H.
-Admitted.
-
-
-
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
 typecheck_environ (mkEnviron ge ve te) Delta = true ->
 (forall t , ((temp_types Delta) ! id = Some t ->
   (typecheck_val v (fst t)) = true)) ->
-(*typecheck_expr Delta (Etempvar id (typeof e)) = true ->
-typecheck_expr Delta e = true ->*) 
 typecheck_environ (mkEnviron ge ve (PTree.set id v te)) Delta = true.
 Proof.
 intros. unfold typecheck_environ in *. simpl in *. repeat rewrite andb_true_iff in *.
@@ -227,6 +283,40 @@ eapply IHl; eauto.
 
 Qed.
  
+
+Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
+typecheck_environ (mkEnviron ge ve te) Delta = true ->
+(forall t , ((temp_types Delta) ! id = Some t ->
+  (typecheck_val v (fst t)) = true)) ->
+typecheck_environ (mkEnviron ge ve (PTree.set id v te)) (set_temp_assigned Delta id) = true.
+Proof.
+intros. 
+assert (typecheck_environ (mkEnviron ge ve (PTree.set id v te)) Delta = true).
+apply typecheck_environ_put_te; auto.
+
+unfold typecheck_environ in *. simpl in *. rewrite andb_true_iff in *. intuition.
+
+destruct Delta. destruct p.  unfold set_temp_assigned. unfold temp_types in *.
+clear H4 H3. simpl in *. 
+remember (t0 ! id). destruct o; auto. destruct p. simpl in *. 
+apply typecheck_te_sound' in H.
+apply typecheck_te_sound' in H2.
+rewrite typecheck_te_eqv.
+
+unfold te_correct' in *. intros.
+rewrite PTree.gsspec in H1.
+destruct (peq id0 id). subst. eapply H. inv H1. eauto.
+
+rewrite PTree.gsspec. destruct (peq id0 id); intuition. eapply H2. eauto.
+
+
+unfold var_types in *. destruct Delta. unfold set_temp_assigned. simpl. 
+destruct ((temp_types (p, t))!id). destruct p0. simpl. unfold var_types.
+auto.
+
+auto.
+Qed.
+
 
 Lemma no_rep_in_pair : forall A B L a b b2, list_norepet (map (@fst A B) (L)) ->
   In (a, b) L -> In (a,b2) L -> b = b2.

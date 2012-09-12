@@ -520,9 +520,7 @@ match (temp_types Delta) ! id with
 | None => Delta (*Shouldn't happen *)
 end.
 
-Definition join_te te1 te2 : PTree.t (type * bool):=
-PTree.fold 
-(fun te id (val: (type * bool)) => 
+Definition join_te' te2 (te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
    let (ty, assn) := val in
         match (te2 ! id) with
         | Some (ty2, assn2) => if eq_dec ty ty2 then
@@ -530,8 +528,10 @@ PTree.fold
                                else
                                     te
         | None => te
-        end
-) te1 (PTree.empty (type * bool)).
+        end.
+
+Definition join_te te1 te2 : PTree.t (type * bool):=
+PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
 Definition join_ve ve1 ve2 :=
 PTree.fold 
