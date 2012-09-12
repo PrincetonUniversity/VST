@@ -96,10 +96,9 @@ Definition writable_block (id: ident) (n: Z): assert :=
           !! (ge_of rho id = Some v /\ val2adr (fst v) a) && VALspec_range n rsh Share.top a.
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
- fun rho => 
  match bl with
-  | nil => emp 
-  | (b,n)::bl' => writable_block b n rho * writable_blocks bl' rho
+  | nil =>  fun rho => emp 
+  | (b,n)::bl' =>  fun rho => writable_block b n rho * writable_blocks bl' rho
  end.
 
 Definition fun_assert: 
@@ -275,10 +274,10 @@ Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: list val -> pred rmap) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) rho =>
+   fun (ek : exitkind) (vl : list val) =>
      match ek with
-     | EK_return => bind_ret vl ret Q 
-     | _ => FF
+     | EK_return => fun rho => bind_ret vl ret Q 
+     | _ => fun rho => FF
      end.
 
 Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 

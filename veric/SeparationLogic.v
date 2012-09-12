@@ -26,7 +26,6 @@ Hint Resolve any_environ : typeclass_instances.
 
 Definition assert := environ -> mpred.
 Definition ret_assert := exitkind -> list val -> assert.
-Definition core_load : memory_chunk -> address -> val -> mpred := res_predicates.core_load.
 
 Definition VALspec_range: Z -> Share.t -> Share.t -> address -> mpred := res_predicates.VALspec_range.
 
@@ -69,10 +68,9 @@ Definition writable_block (id: ident) (n: Z): assert :=
           !! (ge_of rho id = Some v /\ val2adr (fst v) a) && VALspec_range n rsh Share.top a.
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
- fun rho => 
  match bl with
   | nil => emp 
-  | (b,n)::bl' => writable_block b n rho * writable_blocks bl' rho
+  | (b,n)::bl' => writable_block b n * writable_blocks bl'
  end.
 
 Definition fun_assert: 
@@ -93,7 +91,7 @@ Definition stackframe_of (f: Clight.function) : assert :=
   fold_right sepcon emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
 Lemma  subst_extens: 
- forall a v P Q, (forall rho, P rho |-- Q rho) -> forall rho, subst a v P rho |-- subst a v Q rho.
+ forall a v P Q, P |-- Q -> subst a v P |-- subst a v Q.
 Proof.
 unfold subst, derives.
 simpl;
@@ -111,37 +109,20 @@ Definition bind_ret (vl: list val) (t: type) (Q: list val -> mpred) : mpred :=
      | _, _ => FF
      end.
 
-Definition funassert (G: funspecs) : assert := 
- fun rho => 
-   (ALL  id: ident, ALL fs:funspec,  !! In (id,fs) G -->
-              EX v:val, EX loc:address, 
-                   !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) && func_at fs loc)
-   && 
-   (ALL  loc: address, ALL fs:funspec, func_at fs loc --> 
-             EX id:ident,EX v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) && !! In id (map (@fst _ _) G)).
-
-(* Unfortunately, we need core_load in the interface as well as address_mapsto,
-  because the converse of 'mapsto_core_load' lemma is not true.  The reason is
-  that core_load could imply partial ownership of the four bytes of the word
-  using different shares that don't have a common core, whereas address_mapsto
-  requires the same share on all four bytes. *)
-
 Definition overridePost  (Q: assert)  (R: ret_assert) := 
-     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
+     fun ek vl => if eq_dec ek EK_normal then (!! (vl=nil) && Q) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
-  fun ek vl rho => EX x:A, R x ek vl rho.
+  fun ek vl  => EX x:A, R x ek vl .
 
 Definition normal_ret_assert (Q: assert) : ret_assert := 
-   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
+   fun ek vl => !!(ek = EK_normal) && (!! (vl = nil) && Q).
 
 Definition with_ge (ge: genviron) (G: assert) : mpred :=
      G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
-      fun ek vl rho => R ek vl rho * F rho.
+      fun ek vl => R ek vl * F.
 
 Lemma normal_ret_assert_derives:
  forall P Q rho,
@@ -150,21 +131,26 @@ Lemma normal_ret_assert_derives:
 Proof.
  intros.
  unfold normal_ret_assert; intros; normalize.
+ apply andp_derives.
+ apply derives_refl.
+ apply andp_derives.
+ apply derives_refl.
+ auto.
 Qed.
 Hint Resolve normal_ret_assert_derives.
 
 Lemma normal_ret_assert_FF:
-  forall ek vl rho, normal_ret_assert (fun rho => FF) ek vl rho = FF.
+  forall ek vl, normal_ret_assert FF ek vl = FF.
 Proof.
 unfold normal_ret_assert. intros. normalize.
 Qed.
 
 Lemma frame_normal:
   forall P F, 
-   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (fun rho => P rho * F rho).
+   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P * F).
 Proof.
 intros.
-extensionality ek vl rho.
+extensionality ek vl.
 unfold frame_ret_assert, normal_ret_assert.
 normalize.
 Qed.
@@ -190,10 +176,10 @@ Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
 Lemma frame_for1:
   forall Q R F, 
    frame_ret_assert (for1_ret_assert Q R) F = 
-   for1_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
+   for1_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl rho.
+extensionality ek vl.
 unfold frame_ret_assert, for1_ret_assert.
 destruct ek; normalize.
 Qed.
@@ -201,10 +187,10 @@ Qed.
 Lemma frame_for2:
   forall Q R F, 
    frame_ret_assert (for2_ret_assert Q R) F = 
-   for2_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
+   for2_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
-extensionality ek vl rho.
+extensionality ek vl.
 unfold frame_ret_assert, for2_ret_assert.
 destruct ek; normalize.
 Qed.
@@ -213,7 +199,7 @@ Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
 Proof.
 intros; unfold overridePost, normal_ret_assert.
-extensionality ek vl rho.
+extensionality ek vl.
 if_tac; normalize.
 subst ek.
 apply pred_ext; normalize.
@@ -224,9 +210,9 @@ Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: list val -> mpred) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) rho =>
+   fun (ek : exitkind) (vl : list val) =>
      match ek with
-     | EK_return => bind_ret vl ret Q 
+     | EK_return => fun rho => bind_ret vl ret Q 
      | _ => FF
      end.
 
@@ -273,7 +259,7 @@ Axiom extract_exists:
   forall (A : Type) (any: A)   (* must demonstrate that A is inhabited *)
    (P : A -> assert) c (Delta: tycontext) G (R: A -> ret_assert),
   (forall x, semax Delta G (P x) c (R x)) ->
-   semax Delta G (fun rho => EX x:A, P x rho) c (existential_ret_assert R).
+   semax Delta G (EX x:A, P x) c (existential_ret_assert R).
 
 (************** INITIAL WORLD *****************)
 
@@ -369,7 +355,7 @@ Definition bool_type (t: type) : bool :=
 
 Axiom semax_for : 
 forall Delta G Q Q' test incr body R
-     (TC: forall rho, Q rho |-- tc_expr Delta test rho)
+     (TC: Q  |-- tc_expr Delta test)
      (BT: bool_type (typeof test) = true) 
      (POST: expr_true (Cnot test) && Q |-- R EK_normal nil),
      semax Delta G (expr_true test && Q) body (for1_ret_assert Q' R) ->
@@ -378,7 +364,7 @@ forall Delta G Q Q' test incr body R
 
 Axiom semax_while : 
 forall Delta G Q test body R
-     (TC: forall rho, Q rho |-- tc_expr Delta test rho)
+     (TC: Q |-- tc_expr Delta test)
      (BT: bool_type (typeof test) = true) 
      (POST: expr_true (Cnot test) && Q |-- R EK_normal nil),
      semax Delta G (expr_true test && Q)  body (for1_ret_assert Q R) ->
@@ -450,9 +436,8 @@ Axiom semax_store:
     (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)
     (* admit:  make this more accepting of implicit conversions! *) 
    semax Delta G 
-          (fun rho =>
-          tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
-          |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
+          (tc_lvalue Delta e1 && tc_expr Delta e2  && 
+          |> (mapsto' (Share.splice rsh Share.top) e1 v3 * P))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
 
@@ -493,6 +478,6 @@ Axiom semax_ff:
 Axiom semax_extract_prop:
   forall Delta G (PP: Prop) P c Q, 
            (PP -> semax Delta G P c Q) -> 
-           semax Delta G (fun rho => !!PP && P rho) c Q.
+           semax Delta G (!!PP && P) c Q.
 
 End CLIGHT_SEPARATION_LOGIC.

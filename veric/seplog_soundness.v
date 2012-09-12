@@ -855,17 +855,6 @@ apply negb_false_iff in H1.
 rewrite H1.
 simpl. auto.
 destruct t; inv H0.
-simpl. 
-destruct (eval_expr rho b); try solve[inv H9].
-destruct (typeof b); 
-try solve [simpl in *; inv H9; rewrite TCS in *; try congruence; auto].
-intuition; simpl in *;
-unfold sem_notbool; destruct i0; destruct s; auto; simpl;
-inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
-unfold force_val. simpl in *.
-destruct (typeof b); intuition. simpl in *. inv H9.
-rewrite negb_false_iff in H1. rewrite H1; auto.
-destruct (typeof b); intuition. (* typechecking proof *)
 Qed.
 
 
