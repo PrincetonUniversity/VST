@@ -105,63 +105,52 @@ Class listspec (t: type) := mk_listspec {
    list_access_mode: exists ch, access_mode list_dtype = By_value ch
 }.
 
-Definition lseg' (t: type) {ls: listspec t} (sh: share) := 
-  HORec (fun (R: (list valt)*(val*val) -> mpred) (lp: (list valt)*(val*val)) =>
+Definition lseg' (T: type) {ls: listspec T} (sh: share) := 
+  HORec (fun (R: (list val)*(val*val) -> mpred) (lp: (list val)*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           field_mapsto sh (first, list_struct) list_data h 
-                           * field_mapsto sh (first, list_struct) list_link (tail,t)
+                           field_mapsto sh (first, list_struct) list_data (h, list_dtype) 
+                           * field_mapsto sh (first, list_struct) list_link (tail, T)
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
         end).
 
-Definition lseg (contents: list valt) (x y: valt) {ls: listspec (snd x)}: mpred :=
-   !! (snd x = snd y) &&
-   lseg' (snd x) Share.top (contents, (fst x, fst y)).
+Definition lseg (T: type) {ls: listspec T} (contents: list val) (x y: val) : mpred :=
+   lseg'  T Share.top (contents, (x,y)).
 
-Lemma lseg_unfold: forall contents v1 v2 {ls: listspec (snd v1)},
-  snd v1 = snd v2 ->
-    lseg contents v1 v2 = 
+Lemma lseg_unfold (T: type) {ls: listspec T}: forall contents v1 v2,
+    lseg T contents v1 v2 = 
      match contents with
-     | h::t => !! (~ ptr_eq (fst v1) (fst v2)) && EX tail: val,
-                       field_mapsto Share.top (fst v1, list_struct) list_data h 
-                      * field_mapsto Share.top (fst v1, list_struct) list_link (tail, snd v1)
-                      * |> lseg t (tail, snd v1) v2
-     | nil => !! (ptr_eq (fst v1) (fst v2)) && emp
+     | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
+                       field_mapsto Share.top (v1, list_struct) list_data (h, list_dtype) 
+                      * field_mapsto Share.top (v1, list_struct) list_link (tail, T)
+                      * |> lseg T t tail v2
+     | nil => !! (ptr_eq v1 v2) && emp
      end.
 Proof.
  intros. unfold lseg.
- destruct v1 as [v1 t]. destruct v2 as [v2 t2]. simpl in H. subst t2.
- simpl @fst in *; simpl @snd in *.
  unfold lseg' at 1. rewrite HORec_fold_unfold.
   normalize.
- destruct contents; auto.
- f_equal.
- f_equal. extensionality tail.
- f_equal.
- f_equal. f_equal. rewrite TT_andp.
- unfold lseg'.
- f_equal.
  apply prove_HOcontractive; intros.
- destruct x.
- destruct l. destruct p.
+ destruct x. destruct l. 
  auto 50 with contractive.
  destruct p.
-apply subp_andp; auto 50 with contractive.
+ auto 50 with contractive.
 Qed.
 
-Lemma lseg_eq:
-  forall l v t {ls: listspec t}, 
-  typecheck_val v t = true ->
-    lseg l (v,t) (v,t) = !!(l=nil) && emp.
+Lemma lseg_eq T {ls: listspec T}:
+  forall l v , 
+  typecheck_val v T = true ->
+    lseg T l v v = !!(l=nil) && emp.
 Proof.
 intros.
-rewrite (lseg_unfold l (v,t) (v,t) (eq_refl _)).
+rewrite (lseg_unfold T l v v).
 destruct l.
-simpl. f_equal. f_equal. apply prop_ext; split; intro; auto.
+f_equal. f_equal.
+apply prop_ext; split; intro; auto.
 unfold ptr_eq.
 unfold typecheck_val in H.
 rewrite list_type_is in H.
@@ -171,7 +160,6 @@ rewrite Int.eq_true. auto.
 split; auto. 
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
-simpl @fst; simpl @snd.
 normalize.
 replace (v0 :: l = nil) with False by (apply prop_ext; intuition; congruence).
 apply pred_ext; normalize.
@@ -186,29 +174,27 @@ rewrite Int.eq_true. auto.
 Qed.
 
 Lemma lseg_neq:
-  forall t {ls: listspec t} l x z , 
-  typecheck_val x t = true ->
-  typecheck_val z t = true ->
+  forall T {ls: listspec T} l x z , 
+  typecheck_val x T = true ->
+  typecheck_val z T = true ->
   ~ptr_eq x z -> 
-    lseg l (x,t) (z,t) =
-         EX h:val, EX r:list valt, EX y:val, 
-             !!(l=(h, list_dtype)::r 
-                /\ typecheck_val h list_dtype  = true/\ typecheck_val y t = true) && 
+    lseg T l x z =
+         EX h:val, EX r:list val, EX y:val, 
+             !!(l=h::r 
+                /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
              field_mapsto Share.top (x, list_struct) list_data (h, list_dtype) * 
-             field_mapsto Share.top (x, list_struct) list_link (y,t) * 
-             |> lseg r (y, t) (z,t).
+             field_mapsto Share.top (x, list_struct) list_link (y,T) * 
+             |> lseg T r y z.
 Proof.
 intros.
 rewrite lseg_unfold at 1; auto.
 destruct l.
-simpl.
 apply pred_ext; normalize.
 intros ? ? ? [? [? ?]]. inv H2.
-simpl @fst; simpl @snd.
 assert (UNROLL: unroll_composite_fields list_structid list_struct
        (Fcons list_data list_dtype
           (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)) =
-     Fcons list_data list_dtype  (Fcons list_link t Fnil)).
+     Fcons list_data list_dtype  (Fcons list_link T Fnil)).
 unfold unroll_composite_fields.
 f_equal.
 change (unroll_composite list_structid list_struct list_dtype = list_dtype).
@@ -220,20 +206,20 @@ destruct list_access_mode as [ch ACC].
 normalize.
 apply pred_ext; normalize.
 intro y.
-destruct v as [h t'].
+rename v into h.
 apply (exp_right h).
 apply (exp_right l).
 apply (exp_right y).
 apply sepcon_derives; auto.
-simpl @fst; simpl @snd.
 normalize.
 erewrite (field_mapsto_type list_data); [ | reflexivity].
 simpl @snd. normalize.
 fold list_struct.
 rewrite UNROLL.
 unfold type_of_field. rewrite if_true by auto.
-erewrite (field_mapsto_typecheck_val list_data).
-erewrite (field_mapsto_typecheck_val list_link).
+erewrite (field_mapsto_typecheck_val list_data) at 1.
+erewrite (field_mapsto_typecheck_val list_link) at 1.
+simpl.
 normalize.
 (***)
 intros.
@@ -267,12 +253,10 @@ Defined.
 Parameters v v' : val.
 Parameters x y : val.
 Parameter whatever : mpred.
-Goal  lseg ((x,Tint32s)::(y,Tint32s)::nil) (v,mylist) (v',mylist) |-- whatever.
+Goal  lseg mylist (x::y::nil) v v' |-- whatever.
 rewrite lseg_unfold by auto.
 normalize.
-simpl in H.
 intros.
-simpl @snd. simpl @fst.
 simpl.
 
 Abort.

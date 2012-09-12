@@ -58,11 +58,11 @@ Lemma extract_exists_pre:
         (A : Type) (any: A) (P : A -> assert) (c : Clight.statement)
          Delta (G : funspecs) (R : ret_assert),
        (forall x : A, semax Delta G (P x) c R) ->
-       semax Delta G (fun rho => exp (fun x => P x rho)) c R.
+       semax Delta G (exp (fun x => P x)) c R.
 Proof.
 intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
-intros ek vl rho.
+intros ek vl.
 unfold existential_ret_assert.
 apply exp_left; auto.
 apply extract_exists; auto.
@@ -77,7 +77,7 @@ intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
 unfold normal_ret_assert.
-intros ? ? ?; normalize.  rewrite H; auto.
+intros ? ?; normalize.  rewrite H; auto.
 Qed.
 
 Lemma sequential': 
@@ -89,10 +89,9 @@ intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
 unfold normal_ret_assert, overridePost.
-intros ? ? ?.
+intros ? ?.
 normalize.
 rewrite if_true; auto.
-normalize.
 Qed.
 
 Lemma field_offset_rec_unroll:
@@ -260,7 +259,7 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
-       (tc_lvalue Delta e1 &&
+       (local (tc_lvalue Delta e1) &&
     |> ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2,t2)) * subst id v2 P))
        (Sset id (Efield e1 fld t2))
        (normal_ret_assert ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2, t2)) * P)).
@@ -270,7 +269,7 @@ intros.
 rename H2 into TE1.
 assert (TC5: type_is_volatile t2 = false).
 admit.  (* typechecking proof *)
-assert (TC3: tc_lvalue Delta e1 |-- tc_lvalue Delta (Efield e1 fld t2)).
+assert (TC3: local (tc_lvalue Delta e1) |-- local (tc_lvalue Delta (Efield e1 fld t2))).
 intros.
 intro rho.
 unfold tc_lvalue.
@@ -287,8 +286,8 @@ simpl. auto.
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
-            (tc_temp Delta id (typeof (Efield e1 fld t2)) &&
-             tc_lvalue Delta (Efield e1 fld t2) &&
+            (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
+             local (tc_lvalue Delta (Efield e1 fld t2)) &&
               |> (P' * subst id v2  P))
             (normal_ret_assert (Q' * P))).
 3: apply semax_load.
@@ -347,9 +346,9 @@ case_eq (field_offset fld fields); intros; normalize.
 rewrite <- TC2.
 rewrite H2.
 normalize.
-intros ? ? ?; normalize.
-intros ? ? ?; normalize.
-intros ? ? ?; normalize.
+intros ? ?; normalize.
+intros ? ?; normalize.
+intros ? ?; normalize.
 
 intro; intros.
 simpl.
@@ -364,7 +363,7 @@ Lemma overridePost_normal:
   forall P R, overridePost P R EK_normal nil = P.
 Proof.
  intros. unfold overridePost. rewrite if_true by auto.
- extensionality rho. apply prop_true_andp. auto.
+ apply prop_true_andp. auto.
 Qed.
 Hint Rewrite overridePost_normal : normalize.
 
@@ -491,7 +490,7 @@ Lemma forward_set:
   typecheck_temp_id id (typeof e) Delta = true ->
   temp_free_in id e = false ->
   closed_wrt_vars (modified1 id) P ->
-  TT |-- tc_expr Delta e ->
+  (forall rho, tc_expr Delta e rho) ->
   semax (set_temp_assigned Delta id) G
              ((fun rho => !! (eval_id rho id = eval_expr rho e)) && P)
              c Q ->
@@ -508,8 +507,7 @@ Proof.
  apply andp_right.
  apply prop_right; auto.
  specialize (H2 rho).
- apply derives_trans with TT; [ | apply H2].
- normalize.
+ unfold local. normalize.
  eapply derives_trans; [ |apply now_later].
  unfold subst.
  normalize. 
