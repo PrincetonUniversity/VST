@@ -400,7 +400,6 @@ Module Type RMAPS.
     SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
 
   Definition NoneP := SomeP ((Void:Type)::nil) (fun _ => FF).
-  Definition hair := preds.
 
   Inductive resource : Type :=
     | NO: Share.t -> resource
@@ -549,8 +548,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
 
   Definition NoneP := SomeP ((Void:Type)::nil) (fun _ => FF).
-
-  Definition hair := preds.
 
   Inductive resource : Type :=
     | NO: Share.t -> resource

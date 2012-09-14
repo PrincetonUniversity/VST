@@ -19,31 +19,6 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
  Lemma approx_ge : forall p n w, ge (level w) n -> approx n p w -> False.
  Proof. unfold approx; intros. destruct H0; auto. omega. Qed.
 
-  Definition identity_rmap' : R.rmap' := existT valid (fun _: AV.address => R.NO Share.bot) AV.valid_empty.
-  Definition identity_rmap (n:nat) : rmap := R.squash (n, identity_rmap').
-
-  Lemma identity_level : forall n, level (identity_rmap n) = n.
-  Proof.
-    intro n; unfold identity_rmap.
-    rewrite rmap_level_eq. rewrite unsquash_squash. auto.
-  Qed.
-
-  Lemma snd_identity_map : forall n, proj1_sig (snd (R.unsquash (identity_rmap n))) = fun _ => R.NO Share.bot.
-    unfold identity_rmap; intros.
-    rewrite R.unsquash_squash.
-    simpl.
-    apply extensionality; intro l.
-    unfold compose; simpl; auto.
-  Qed.
-
-  Lemma comparable_level : forall phi1 phi2 : rmap , 
-         comparable phi1 phi2 -> level phi1 = level phi2.
-  Proof.
-   intros.
-   apply comparable_fashionR.
-   trivial.
-  Qed.
-
   Lemma ageN_level : forall n (phi1 phi2 : rmap),
     ageN n phi1 = Some phi2 -> level phi1 = (n + (level phi2))%nat.
   Proof.
@@ -805,7 +780,7 @@ right. exists k. exists p. trivial.
 Qed.
 
 Lemma level_age_fash:
-  forall m m': rmap, level m = S (level m') -> exists m1, age m m1. (* /\ comparable m1 m'. *)
+  forall m m': rmap, level m = S (level m') -> exists m1, age m m1.
 Proof.
   intros.
   case_eq (age1 m); intros.
