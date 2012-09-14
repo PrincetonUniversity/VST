@@ -225,7 +225,8 @@ forall Delta G Q Q' test incr body R
      (BT: bool_type (Clight.typeof test) = true) 
          (* Joey:  if it turns out you don't end up needing the BT premise,
                                   then delete it from this rule, and from the semax_while
-                              and semax_dowhile rules. *)
+                              and semax_dowhile rules... doesn't look like I need it unless
+                              I am missing a typechecking proof in here*)
      (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
@@ -261,7 +262,7 @@ destruct H6 as [H6 Hge].
 assert (Prog_OK2: (believe Hspec G psi G) (level a2)) 
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
-assert (exists b, bool_val (eval_expr rho test) (typeof test) = Some b).
+assert (exists b, bool_val (eval_expr test rho) (typeof test) = Some b).
 clear - H6 TC BT H7 Hge.
 destruct H7 as [w1 [w2 [_ [_ ?]]]].
 apply TC in H. hnf in H.
@@ -285,7 +286,9 @@ apply safe_corestep_backward
         jm'.
 split3.
 rewrite (age_jm_dry LEVa2); econstructor; eauto.
-admit.  (* maybe need typechecking here *)
+apply eval_expr_relate with (Delta:=Delta); auto.
+specialize (TC rho). unfold tc_expr in TC. 
+admit.  (* now just needs typechecking out of tc. I don't know how to do that*)
 apply age1_resource_decay; auto.
 apply age_level; auto.
 assert (w >= level (m_phi jm)).

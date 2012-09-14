@@ -101,7 +101,7 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
         (fun rho => 
           !!(typecheck_temp_id id (typeof e) Delta = true) &&
            tc_expr Delta e rho  && 
-            |> subst id (eval_expr rho e) P rho)
+            |> subst id (eval_expr e rho) P rho)
           (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e.
@@ -109,7 +109,7 @@ apply semax_straight_simple.
  admit. (* auto.*)
 apply prove_some_static_thing.
 intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
-exists jm', (PTree.set id (eval_expr rho e) (te_of rho)).
+exists jm', (PTree.set id (eval_expr e rho) (te_of rho)).
 econstructor.
 split.
 reflexivity.
@@ -138,7 +138,7 @@ apply age_level; auto.
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
 
-assert (app_pred (|>  (F rho * subst id (eval_expr rho e) P rho)) (m_phi jm)).
+assert (app_pred (|>  (F rho * subst id (eval_expr e rho) P rho)) (m_phi jm)).
 rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
 assert (laterR (m_phi jm) (m_phi jm')).
 constructor 1.
@@ -146,7 +146,7 @@ destruct (age1_juicy_mem_unpack _ _ H); auto.
 specialize (H2 _ H3).
 eapply sepcon_derives; try  apply H2; auto.
 clear - Hcl.
-specialize (Hcl rho  (PTree.set id (eval_expr rho e) (te_of rho))).
+specialize (Hcl rho  (PTree.set id (eval_expr e rho) (te_of rho))).
 rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
@@ -373,7 +373,7 @@ Lemma semax_store:
           tc_lvalue Delta e1 rho && tc_expr Delta e2 rho  && 
           |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr e2 rho) rho * P rho)).
 Proof.
 intros until P. intros TC TC3.
 apply semax_straight_simple; auto.
@@ -403,7 +403,7 @@ spec H2; [ eauto with typeclass_instances| ].
 spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
-apply address_mapsto_can_store with (v':=(eval_expr rho e2)) in H11.
+apply address_mapsto_can_store with (v':=(eval_expr e2 rho)) in H11.
 Focus 2.
 clear - TC2 TC4 TC3 TC  Hmode.
 unfold typecheck_store in *.
@@ -411,7 +411,7 @@ destruct TC as [IT  ?].
 destruct H as [FT NA].
 rewrite TC3 in *; clear TC3.
 simpl in TC2. apply typecheck_expr_sound in TC2; auto.
-remember (eval_expr rho e2). destruct v; intuition;
+remember (eval_expr e2 rho). destruct v; intuition;
 remember (typeof e2); destruct t; intuition; simpl in Hmode; try congruence.
 inv H.
 destruct ch; try congruence; auto.
@@ -444,10 +444,10 @@ generalize (eval_expr_relate _ _ _ e2 (m_dry jm) Hge TC4); intro.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
-instantiate (1:= eval_expr rho e2).
+instantiate (1:= eval_expr e2 rho).
 auto.
 rewrite TC3.
-instantiate (1:=eval_expr rho e2).
+instantiate (1:=eval_expr e2 rho).
 unfold tc_expr in TC2. simpl in TC2. apply typecheck_expr_sound in TC2.
 unfold sem_cast.
 unfold typecheck_store in *.
@@ -456,9 +456,8 @@ rewrite TC3 in *.
 remember (typeof e2). unfold classify_cast.
 destruct t; auto; simpl;
 intuition; try inv H8;
-try solve [simpl; destruct (eval_expr rho e2); try solve[intuition]].
-destruct (eval_expr rho e2); intuition. 
-unfold typecheck_store in *.
+try solve [simpl; destruct (eval_expr rho e2); try solve[intuition]];
+destruct (eval_expr e2 rho); intuition. auto.
 (* make this more general as a kind of typechecking proof
            Done with simplifications *)
 eapply Csem.assign_loc_value.
@@ -495,6 +494,7 @@ destruct (nec_join2 H6 H) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
+(* moving to expr_lemmas
 
 Lemma list_norepet_rev : forall A (t: PTree.t A),
 list_norepet (map fst (PTree.elements t)) ->
@@ -553,6 +553,7 @@ destruct H. inv H. rewrite H0 in Heqo; congruence.
 apply IHl; auto. inv NOREP. auto.
 
 Qed. 
+
 
 Lemma join_te_denote2 : forall te1 te2 id b t1,
 (join_te te1 te2) ! id = Some (t1,b) ->
@@ -731,6 +732,7 @@ unfold var_types in *. simpl in *. unfold ve_correct' in *.
 intros. apply join_ve_denote2 in H. destruct H.
 intuition.
 Qed.
+*)
 
 Lemma semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
@@ -790,10 +792,10 @@ specialize (H1 w0 H3).
 unfold expr_true, Cnot in *.
 intros ora jm Hphi.
 generalize (eval_expr_relate _ _ _ b (m_dry jm) Hge TC); intro.
-assert (exists b': bool, bool_val (eval_expr rho b) (typeof b) = Some b').
+assert (exists b': bool, bool_val (eval_expr b rho) (typeof b) = Some b').
 clear - TC H TC2.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
-remember (eval_expr rho b). destruct v;
+remember (eval_expr b rho). destruct v;
 simpl; destruct (typeof b); intuition; eauto. (* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.
@@ -827,34 +829,18 @@ rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
-simpl.
-forget (eval_expr rho b) as v.
-forget (typeof b) as t.
-clear - H9 TCS.
-unfold bool_val, typecheck_val, sem_notbool in *.
-destruct v; inv H9.
-destruct t; try congruence.
-inv H0.
-simpl.
-apply negb_false_iff in H1.
-rewrite H1.
-unfold classify_bool; simpl. destruct i0; try destruct s; simpl; auto.
-inv H0.
-simpl.
-apply negb_false_iff in H1.
-rewrite H1. simpl; auto.
-inv H0.
-simpl.
-apply negb_false_iff in H1.
-rewrite H1. simpl; auto.
-inv H0.
-simpl.
-rewrite TCS. simpl. auto.
-destruct t; inv H0.
-apply negb_false_iff in H1.
-rewrite H1.
-simpl. auto.
-destruct t; inv H0.
+simpl. 
+destruct (eval_expr b rho); try solve[inv H9].
+destruct (typeof b); 
+try solve [simpl in *; inv H9; rewrite TCS in *; try congruence; auto].
+intuition; simpl in *;
+unfold sem_notbool; destruct i0; destruct s; auto; simpl;
+inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
+unfold sem_notbool. simpl in *. 
+unfold force_val. simpl in *.
+destruct (typeof b); intuition. simpl in *. inv H9.
+rewrite negb_false_iff in H1. rewrite H1; auto.
+destruct (typeof b); intuition. (* typechecking proof *)
 Qed.
 
 
@@ -982,7 +968,7 @@ Lemma semax_fun_id:
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
-                                && fun_assert (eval_lvalue rho (Evar id (Tfunction (fst fsig) (snd fsig)))) fsig A P' Q')
+                                && fun_assert (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho ) fsig A P' Q')
                               c Q ->
        semax Hspec Delta G P c Q.
 Proof.
@@ -1080,14 +1066,14 @@ Lemma semax_call_aux:
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret (snd fsig) rho0)) ->
     filter_genv psi = ge_of rho ->
-    eval_expr rho a = Vptr b Int.zero ->
+    eval_expr a rho = Vptr b Int.zero ->
     (funassert G rho) (m_phi jm) ->
     (rguard Hspec psi  (exit_tycon (Scall ret a bl) Delta) G F0 R k) (level (m_phi jm)) ->
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : list val, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
-    (|>(F0 rho * F * P x (eval_exprlist rho bl))) (m_phi jm) ->
+    (|>(F0 rho * F * P x (eval_exprlist bl rho))) (m_phi jm) ->
    jsafeN Hspec psi (level (m_phi jm)) ora
      (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
@@ -1219,13 +1205,13 @@ admit.  (* not too difficult *)
 destruct (can_alloc_variables jm (fn_vars f)) as [ve' [jm' [? ?]]].
 auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H16.
-destruct (build_call_temp_env f (eval_exprlist rho bl)) as [te' ?]; auto.
+destruct (build_call_temp_env f (eval_exprlist bl rho)) as [te' ?]; auto.
 exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
                                      :: Kcall ret f (ve_of rho) (te_of rho) :: k)).
 exists  jm'.
 split.
 split; auto.
-eapply step_call_internal with (vargs:=eval_exprlist rho bl); eauto.
+eapply step_call_internal with (vargs:=eval_exprlist bl rho); eauto.
 4: unfold type_of_function; reflexivity.
 admit. (* typechecking proof *)
 rewrite <- H3.
@@ -1275,8 +1261,8 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
        semax Hspec Delta G
          (fun rho => 
            tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
-         (fun_assert  (eval_expr rho a) fsig A P Q && 
-          (F * P x (eval_exprlist rho bl) )))
+         (fun_assert  (eval_expr a rho) fsig A P Q && 
+          (F * P x (eval_exprlist bl rho) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
@@ -1339,7 +1325,7 @@ assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H11; auto).
 destruct H2; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
-set (args := eval_exprlist rho bl).
+set (args := eval_exprlist bl rho).
 fold args in H5.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
@@ -1366,8 +1352,8 @@ Lemma semax_call_ext:
      forall Delta G P Q ret a bl a' bl',
       typeof a = typeof a' ->
       (forall rho, typecheck_environ rho Delta = true ->
-                        P rho |-- !! (eval_expr rho a = eval_expr rho a' /\
-                                           eval_exprlist rho bl = eval_exprlist rho bl')) ->
+                        P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
+                                           eval_exprlist bl rho = eval_exprlist bl' rho )) ->
   semax Hspec Delta G P (Scall ret a bl) Q ->
   semax Hspec  Delta G P (Scall ret a' bl') Q.
 Proof.
@@ -1415,7 +1401,7 @@ Lemma  semax_return :
    forall Delta G R ret,
       (*Some typechecking thing*)
       semax Hspec Delta G 
-                (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
+                (fun rho => R EK_return (eval_exprlist (opt2list ret) rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
@@ -1443,7 +1429,7 @@ apply le_trans with (level n); auto.
 apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
 destruct H3 as [[[? H4] ?] ?].
-specialize (H0 EK_return (eval_exprlist rho (opt2list ret)) rho).
+specialize (H0 EK_return (eval_exprlist (opt2list ret) rho) rho).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 split; auto.
@@ -1483,7 +1469,7 @@ inv H10.
 destruct H16.
 econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
-exists (eval_expr rho e).
+exists (eval_expr e rho).
 split.
 
 admit.  (* typechecking proof *)

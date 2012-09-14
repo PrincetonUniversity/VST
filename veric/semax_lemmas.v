@@ -195,7 +195,7 @@ Proof.
  clear - H H1.
  remember (State ve te k) as q.
  revert ve te k Heqq k' H; induction H1; intros; inv Heqq; simpl in *.
-Abort.  (* undoubtedly true, tedious to prove, maybe not needed *)
+Admitted.  (* undoubtedly true, tedious to prove, maybe not needed *)
 
 Lemma semax_extract_prop:
   forall Delta G (PP: Prop) P c Q, 
@@ -1157,7 +1157,7 @@ Proof.
  specialize (H0 _ (age_laterR H1)).
  unfold mapsto' in *.
  revert H0; case_eq (access_mode (typeof e)); intros; auto.
- destruct (eval_lvalue rho e); try contradiction.
+ destruct (eval_lvalue e rho); try contradiction.
  rename H into Hmode.
  destruct H0 as [bl [? ?]]; exists bl; split; auto.
  clear - H0 H1.
@@ -1186,12 +1186,12 @@ Definition Cnot (e: Clight.expr) : Clight.expr :=
 Lemma bool_val_Cnot:
   forall rho a b, 
     bool_type (typeof a) = true ->
-    bool_val (eval_expr rho a) (typeof a) = Some b ->
-    bool_val (eval_expr rho (Cnot a)) (typeof (Cnot a)) = Some (negb b).
+    bool_val (eval_expr a rho) (typeof a) = Some b ->
+    bool_val (eval_expr (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
 Proof.
  intros.
  unfold Cnot. simpl.
- destruct (eval_expr rho a);   try solve [inv H0];
+ destruct (eval_expr a rho);   try solve [inv H0];
  simpl in H0; 
  revert H H0; case_eq (typeof a); intros; inv H1; inv H0;
    try rewrite negb_involutive;

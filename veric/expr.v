@@ -76,33 +76,33 @@ Lemma eqb_type_refl: forall a, eqb_type a a = true.
 Proof.
 Admitted.
 
-Definition eval_id (rho: environ) (id: ident) := force_val (PTree.get id (te_of rho)).
+Definition eval_id (id: ident) (rho: environ) := force_val (PTree.get id (te_of rho)).
 
-Fixpoint eval_expr (rho:environ) (e: expr) : val :=
+Fixpoint eval_expr (e: expr) (rho:environ) : val :=
  match e with
  | Econst_int i ty => Vint i
  | Econst_float f ty => Vfloat f
- | Etempvar id ty => eval_id rho id (* Don't write force_val here directly; with
+ | Etempvar id ty => eval_id id rho (* Don't write force_val here directly; with
                                                            the intermediate definition eval_id, then
                                                            eval_expr (Etempvar _ _) simplifies nicer. *)
- | Eaddrof a ty => eval_lvalue rho a
- | Eunop op a ty =>  force_val (sem_unary_operation op (eval_expr rho a) (typeof a))
+ | Eaddrof a ty => eval_lvalue a rho
+ | Eunop op a ty =>  force_val (sem_unary_operation op (eval_expr a rho) (typeof a))
  | Ebinop op a1 a2 ty =>  
          force_val (sem_binary_operation op
-                    (eval_expr rho a1) (typeof a1)
-                    (eval_expr rho a2) (typeof a2)
+                    (eval_expr a1 rho) (typeof a1)
+                    (eval_expr a2 rho) (typeof a2)
                     (fun _ _ => false))
  | Econdition a1 a2 a3 ty => 
-    match bool_val (eval_expr rho a1) (typeof a1) with
-    | Some true => force_val (sem_cast (eval_expr rho a2) (typeof a2) ty)
-    | Some false => force_val (sem_cast (eval_expr rho a3) (typeof a3) ty)
+    match bool_val (eval_expr a1 rho) (typeof a1) with
+    | Some true => force_val (sem_cast (eval_expr a2 rho) (typeof a2) ty)
+    | Some false => force_val (sem_cast (eval_expr a3 rho) (typeof a3) ty)
     | None => Vundef
     end
- | Ecast a ty => force_val (sem_cast (eval_expr rho a) (typeof a) ty)
+ | Ecast a ty => force_val (sem_cast (eval_expr a rho) (typeof a) ty)
  | _ => Vundef
  end 
 
- with eval_lvalue (rho: environ) (e: expr) : val := 
+ with eval_lvalue (e: expr) (rho: environ) : val := 
  match e with 
  | Evar id ty => match PTree.get id (ve_of rho) with
                          | Some (b,ty') => if eqb_type ty ty'
@@ -115,11 +115,11 @@ Fixpoint eval_expr (rho:environ) (e: expr) : val :=
                             | None => Vundef
                             end
                         end
- | Ederef a ty => match eval_expr rho a with
+ | Ederef a ty => match eval_expr a rho with
                         | Vptr l ofs => Vptr l ofs
                         | _ => Vundef
 	          end
- | Efield a i ty => match eval_lvalue rho a, typeof a with
+ | Efield a i ty => match eval_lvalue a rho, typeof a with
                             | Vptr l ofs, Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => Vptr l (Int.add ofs (Int.repr delta))
@@ -131,16 +131,19 @@ Fixpoint eval_expr (rho:environ) (e: expr) : val :=
  | _  => Vundef
  end.
 
-Definition eval_exprlist rho el := map (eval_expr rho) el.
+Definition eval_exprlist (el:list expr) (rho:environ) := map (fun e1:expr => eval_expr e1 rho) el.
 
 (*Temps, vars, function return*)
-Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type)%type.
+Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type * (list positive))%type.
 
-Definition empty_tycontext : tycontext := (PTree.empty (type * bool), PTree.empty type, Tvoid).
+Definition empty_tycontext : tycontext := (PTree.empty (type * bool), PTree.empty type, Tvoid, nil).
 
-Definition temp_types (Delta: tycontext) := fst (fst Delta).
-Definition var_types (Delta: tycontext) := snd (fst Delta).
-Definition ret_type (Delta: tycontext) := snd Delta.
+
+
+Definition temp_types (Delta: tycontext): PTree.t (type*bool) := fst (fst (fst Delta)).
+Definition var_types (Delta: tycontext) : PTree.t type := snd (fst (fst Delta)).
+Definition ret_type (Delta: tycontext) : type := snd (fst Delta).
+Definition var_ids (Delta: tycontext) : list positive := snd Delta.
 
 Definition is_scalar_type (ty:type) : bool :=
 match ty with
@@ -398,7 +401,8 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
  | Vint i, Tint _ _ _ => true  (* Maybe this needs to be adjusted to account for
                                                the size of the int?  Maybe not? *)
  | Vfloat v, Tfloat _ _ => true (*  Maybe this needs to be adjusted, ditto *) 
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => Int.eq i Int.zero
+ | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => 
+                    (Int.eq i Int.zero) 
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
                    | Tfunction _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
@@ -424,17 +428,17 @@ match tty with
  | nil => true
 end.
 
-Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: env) (ge : genviron) : bool :=
+Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: env) (ge : genviron)
+ : bool :=
 match vty with
  | (id,ty)::tl => match ve!id with
-                  | Some (_,ty') => if eqb_type ty ty' then 
-                           typecheck_var_environ tl ve ge
-                           else false
+                  | Some (_,ty') => eqb_type ty ty' && 
+                           typecheck_var_environ tl ve ge 
                   | None => match ge id with
                                 | Some (Vptr b i , ty') => if eqb_type ty ty' &&  
                                                       typecheck_val (Vptr b i) ty' &&
                                                       is_pointer_type ty' then 
-                                                   typecheck_var_environ tl ve ge else
+                                                   typecheck_var_environ tl ve ge  else
                                                    false
                                 | None => false
                                 | _ => false
@@ -443,28 +447,33 @@ match vty with
  | nil => true
 end.
 
+Definition typecheck_var_list vl (ve:env) :=
+PTree.fold (fun b id v => in_dec eq_dec id vl && b) ve true &&
+forallb (fun id => match ve!id with Some _ => true | _ => false end) vl.
+
 Definition remove_assignedness {A B C} (x: (A * (B*C))) := let (a,d) := x in
 let (b,c) := d in 
 (a,b). 
 
 Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
 typecheck_temp_environ (PTree.elements (temp_types Delta)) (te_of env) &&
-typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) (ge_of env).
+typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) (ge_of env) &&
+typecheck_var_list (var_ids Delta) (ve_of env).
  
 
-Definition denote_tc_nonzero rho e := match eval_expr rho e with Vint i => if negb (Int.eq i Int.zero) then True else False
+Definition denote_tc_nonzero rho e := match eval_expr e rho with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
 
-Definition denote_tc_isptr rho e:= match (eval_expr rho e) with | Vptr _ _ => True | _ => False end.
+Definition denote_tc_isptr rho e:= match (eval_expr e rho) with | Vptr _ _ => True | _ => False end.
 
 Definition denote_tc_ilt rho e i :=
-match (eval_expr rho e) with 
+match (eval_expr e rho) with 
                      | Vint i1 => is_true (Int.ltu i1 i)
                      | _ => False
                   end.
 
 Definition denote_tc_Zle rho e z := 
-match (eval_expr rho e) with
+match (eval_expr e rho) with
                      | Vfloat f => match Float.Zoffloat f with
                                     | Some n => is_true (Zle_bool n z)
                                     | None => False
@@ -473,7 +482,7 @@ match (eval_expr rho e) with
                   end.
 
 Definition denote_tc_Zge rho e z :=
-match (eval_expr rho e) with
+match (eval_expr e rho) with
                      | Vfloat f => match Float.Zoffloat f with
                                     | Some n => is_true (Zle_bool z n)
                                     | None => False
@@ -482,13 +491,13 @@ match (eval_expr rho e) with
                   end.
 
 Definition denote_tc_samebase rho e1 e2 :=
-match (eval_expr rho e1), (eval_expr rho e2) with
+match (eval_expr e1 rho), (eval_expr e2 rho) with
                            | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
                            | _, _ => False 
                          end.
 
 Definition denote_tc_nodivover rho e1 e2 :=
-match (eval_expr rho e1), (eval_expr rho e2) with
+match (eval_expr e1 rho), (eval_expr e2 rho) with
                            | Vint n1, Vint n2 => is_true (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
@@ -516,7 +525,7 @@ Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
 Definition set_temp_assigned (Delta:tycontext) id :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
-                    , var_types Delta, ret_type Delta)
+                    , var_types Delta, ret_type Delta, var_ids Delta)
 | None => Delta (*Shouldn't happen *)
 end.
 
@@ -545,10 +554,17 @@ PTree.fold
         end
 ) ve1 (PTree.empty type).
 
+Definition join_ve_list vel1 vel2 := 
+fold_right
+ (fun id lst => if in_dec (eq_dec) id vel2 then id::lst else lst)
+ nil vel1.
+
+
+
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  (te1, ve1, r)  =>
-match tycon2 with  (te2, ve2, _)  =>
-  ((join_te te1 te2), (join_ve ve1 ve2), r)
+match tycon1 with  (te1, ve1, r, vl1)  =>
+match tycon2 with  (te2, ve2, _, vl2)  =>
+  ((join_te te1 te2), (join_ve ve1 ve2), r, join_ve_list vl1 vl2)
 end end.
 
                        
@@ -641,7 +657,8 @@ Definition func_tycontext (func: function) : tycontext :=
   (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
 fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
-fn_return func).
+fn_return func,
+(fold_right (fun (var : ident * type) vl => let (id,_) := var in id::vl) nil func.(fn_vars))).
 
 Fixpoint typecheck_all_exprs' (body: statement) (Delta :tycontext) : tc_assert:=
 match body with
@@ -751,24 +768,24 @@ Qed.
 Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
-     eval_expr rho e = eval_expr (mkEnviron (ge_of rho) (ve_of rho) te') e.
+     eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
-     eval_lvalue rho e = eval_lvalue (mkEnviron (ge_of rho) (ve_of rho) te') e.
+     eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Maps.PTree.set x v (te_of rho)).
 
 
-Lemma eval_id_same: forall rho id v, eval_id (env_set rho id v) id = v.
+Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
 Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite PTree.gss. auto.
 Qed.
 Hint Rewrite eval_id_same : normalize.
 
 Lemma eval_id_other: forall rho id id' v,
-   id<>id' -> eval_id (env_set rho id v) id' = eval_id rho id'.
+   id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
  unfold eval_id, force_val; intros. simpl. rewrite PTree.gso; auto.
 Qed.

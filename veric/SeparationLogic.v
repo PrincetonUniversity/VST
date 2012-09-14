@@ -46,7 +46,7 @@ Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop :=
 
 Definition local (P: environ -> Prop) : assert :=  fun rho => !! (P rho).
 
-Definition expr_true (e: Clight.expr) (rho: environ) :=  bool_val (eval_expr rho e) (Clight.typeof e) = Some true.
+Definition expr_true (e: Clight.expr) (rho: environ) :=  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.
 
 Definition subst (x: ident) (v: val) (P: assert) : assert :=
    fun s => P (env_set s x v).
@@ -55,7 +55,7 @@ Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
  fun rho => 
   match access_mode (Clight.typeof e1) with
   | By_value ch => 
-    match eval_lvalue rho e1 with
+    match eval_lvalue e1 rho with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
@@ -79,7 +79,7 @@ Definition fun_assert:
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
   fun rho => 
-     match eval_lvalue rho e with 
+     match eval_lvalue e rho with 
      | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
      | _ => FF
     end.
@@ -99,7 +99,7 @@ auto.
 Qed.
 
 Definition bind_args (formals: list (ident * type)) (P: list val -> mpred) : assert :=
-   fun rho => let vl := map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)))) formals
+   fun rho => let vl := map (fun xt => (eval_expr (Etempvar (fst xt) (snd xt)) rho)) formals
           in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
 
 Definition bind_ret (vl: list val) (t: type) (Q: list val -> mpred) : mpred :=
@@ -373,22 +373,22 @@ forall Delta G Q test body R
 (* THESE RULES FROM seplog_soundness *)
 
 Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
- match ret with None => nil | Some x => (eval_id rho x)::nil end.
+ match ret with None => nil | Some x => (eval_id x rho )::nil end.
 
 Axiom semax_call : 
 forall Delta G A (P Q: A -> list val -> mpred) x F ret fsig a bl,
       match_fsig fsig bl ret = true ->
        semax Delta G
          (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
-         ((fun rho => fun_assert  (eval_expr rho a) fsig A P Q) && 
-          (const F * (fun rho => P x (eval_exprlist rho bl)) )))
+         ((fun rho => fun_assert  (eval_expr a rho) fsig A P Q) && 
+          (const F * (fun rho => P x (eval_exprlist bl rho)) )))
          (Scall ret a bl)
          (normal_ret_assert (const F * (fun rho => Q x (get_result ret (snd fsig) rho)))).
 
 Axiom  semax_return :
    forall Delta G R ret ,
       semax Delta G 
-                (fun rho => R EK_return (eval_exprlist rho (opt2list ret)) rho)
+                (fun rho => R EK_return (eval_exprlist (opt2list ret) rho) rho)
                 (Sreturn ret)
                 R.
 
@@ -397,7 +397,7 @@ Axiom semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> list val -> mpred)
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
-       semax Delta G (P && fun rho => fun_assert (eval_lvalue rho (Evar id (Tfunction (fst fsig) (snd fsig)))) fsig A P' Q')
+       semax Delta G (P && fun rho => fun_assert (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig)))rho) fsig A P' Q')
                               c Q ->
        semax Delta G P c Q.
 
@@ -405,8 +405,8 @@ Axiom semax_call_ext:
      forall Delta G P Q ret a bl a' bl',
       typeof a = typeof a' ->
       (forall rho, typecheck_environ rho Delta = true ->
-                        P rho |-- !! (eval_expr rho a = eval_expr rho a' /\
-                                           eval_exprlist rho bl = eval_exprlist rho bl')) ->
+                        P rho |-- !! (eval_expr a rho  = eval_expr a' rho /\
+                                           eval_exprlist bl rho  = eval_exprlist bl' rho)) ->
   semax Delta G P (Scall ret a bl) Q ->
   semax Delta G P (Scall ret a' bl') Q.
 
@@ -414,7 +414,7 @@ Axiom semax_set :
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
     semax Delta G 
         (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && 
-           (|> fun rho => subst id (eval_expr rho e) P rho))
+           (|> fun rho => subst id (eval_expr e rho) P rho))
           (Sset id e) (normal_ret_assert P).
 
 Definition closed_wrt_modvars c (F: assert) : Prop :=
@@ -440,7 +440,7 @@ Axiom semax_store:
           (local (tc_lvalue Delta e1) && local (tc_expr Delta e2)  && 
           |> (mapsto' (Share.splice rsh Share.top) e1 v3 * P))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr rho e2) rho * P rho)).
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr e2 rho) rho * P rho)).
 
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,

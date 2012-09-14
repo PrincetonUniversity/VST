@@ -73,7 +73,7 @@ Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop :=
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
-  bool_val (eval_expr rho e) (Clight.typeof e) = Some true.
+  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.
 
 Definition subst (x: ident) (v: val) (P: assert) : assert :=
    fun s => P (env_set s x v).
@@ -82,7 +82,7 @@ Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
  fun rho => 
   match access_mode (Clight.typeof e1) with
   | By_value ch => 
-    match eval_lvalue rho e1 with
+    match eval_lvalue e1 rho with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
@@ -107,7 +107,7 @@ Definition fun_assert:
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
   fun rho => 
-     match eval_lvalue rho e with 
+     match eval_lvalue e rho with 
      | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
      | _ => FF
     end.
@@ -147,7 +147,7 @@ auto.
 Qed.
 
 Definition bind_args (formals: list (ident * type)) (P: list val -> pred rmap) : assert :=
-   fun rho => let vl := map (fun xt => (eval_expr rho (Etempvar (fst xt) (snd xt)))) formals
+   fun rho => let vl := map (fun xt => (eval_expr (Etempvar (fst xt) (snd xt)) rho)) formals
           in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
 
 Definition bind_ret (vl: list val) (t: type) (Q: list val -> pred rmap) : pred rmap :=

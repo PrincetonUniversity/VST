@@ -151,7 +151,7 @@ Qed.
 
 
 Definition Dbool (e: Clight.expr) : assert := 
-  fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr rho e) = Some b).
+  fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
 
 Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
 Proof.
