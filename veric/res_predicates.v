@@ -28,7 +28,7 @@ Program Definition kind_at (k: kind) (l: address) : pred rmap :=
  Next Obligation.
    try intro; intros.
    destruct H0 as [rsh [sh [pp ?]]].
-   generalize (resource_at_approx a l); intro.
+   generalize (eq_sym _ _ _ (resource_at_approx a l)); intro.
    generalize (age1_resource_at a a'  H l (a@l) H1); intro.
    rewrite H0 in H2. simpl in H2. eauto.
  Qed.
@@ -78,8 +78,8 @@ Proof.
   intro; intros.
   generalize (resource_at_approx a l); intro.
   generalize (resource_at_approx a' l); intro.
-  rewrite <- H2.
-  rewrite <- H1 in H0.
+  rewrite H2.
+  rewrite H1 in H0.
   apply (age1_resource_at a a'  H); auto.
 Qed.
    
@@ -185,10 +185,8 @@ Proof.
  intros.
   intro; intros.
   destruct H0 as [p ?]; exists p.
-  generalize (resource_at_approx a l); intro.
-  generalize (resource_at_approx a' l); intro.
-  rewrite <- H2.
-  rewrite <- H1 in H0.
+  rewrite resource_at_approx.
+  rewrite resource_at_approx in H0.
   apply (age1_resource_at a a' H); auto.
 Qed.
 
@@ -245,7 +243,7 @@ Program Definition noat (l: AV.address) : pred rmap :=
     fun m => identity (m @ l).
  Next Obligation.
     intros; intro; intros.
-    eapply age1_resource_at_identity; eauto.
+    apply (age1_resource_at_identity _ _ l H); auto.
  Qed.
 
 Definition ct_count (k: kind) : Z := 
@@ -1065,7 +1063,7 @@ f_equal.
 unfold NoneP. f_equal. unfold compose. extensionality x.
 apply pred_ext; unfold approx, FF, prop; intros ? ?;  simpl; intuition.
 rewrite <- level_core.
-symmetry; apply resource_at_approx.
+apply resource_at_approx.
 exists phi.
 split.
 Focus 2.

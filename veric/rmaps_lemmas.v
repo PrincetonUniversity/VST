@@ -56,10 +56,10 @@ Qed.
 
 Lemma age1_resource_at_identity:
   forall phi phi' loc, age1 phi = Some phi' -> 
-               identity (phi@loc) ->
-               identity (phi'@loc).
+               (identity (phi@loc) <-> identity (phi'@loc)).
 Proof.
-  intros.
+ split; intro.
+ (* FORWARD DIRECTION *)
   generalize (identity_NO _ H0); clear H0; intro.
   unfold resource_at in *.
   rewrite rmap_age1_eq in *. 
@@ -71,14 +71,7 @@ Proof.
   unfold compose; simpl. destruct H1 as [H1 | [k [pds H1]]]; rewrite H1; simpl; auto.
   apply NO_identity.
   apply PURE_identity.
-Qed.
-
-Lemma unage1_resource_at_identity:
-  forall phi phi' loc, age1 phi = Some phi' -> 
-               identity (phi'@loc) ->
-               identity (phi@loc).
-Proof.
-  intros.
+ (* BACKWARD DIRECTION *)
   generalize (identity_NO _ H0); clear H0; intro.
   unfold resource_at in *. simpl in H.
   rewrite rmap_age1_eq in H.
@@ -99,7 +92,8 @@ Lemma necR_resource_at_identity:
          identity (phi'@loc).
 Proof.
   induction 1; auto.
-  intro; eapply age1_resource_at_identity; eauto.
+  intro.
+ apply -> (age1_resource_at_identity _ _ loc H); auto.
 Qed.
 
 Lemma make_rmap': forall f, AV.valid (fun l => res_option (f l)) -> 
@@ -506,9 +500,9 @@ Qed.
 
 Lemma resource_at_approx:
   forall phi l, 
-      phi @ l = resource_fmap (approx (level phi)) (phi @ l).
+      resource_fmap (approx (level phi)) (phi @ l) = phi @ l.
 Proof.
-intros. rewrite rmap_level_eq. unfold resource_at.
+intros. symmetry. rewrite rmap_level_eq. unfold resource_at.
 case_eq (unsquash phi); intros.
 simpl.
 destruct r; simpl in *.
@@ -573,7 +567,7 @@ Lemma necR_YES:
          phi' @ loc = YES rsh sh k (preds_fmap (approx (level phi')) pp).
 Proof.
 intros.
-generalize (resource_at_approx phi loc); 
+generalize (eq_sym (resource_at_approx phi loc)); 
 pattern (phi @ loc) at 2; rewrite H0; intro.
 apply (necR_resource_at _ _ _ _ H H1).
 Qed.
@@ -585,7 +579,7 @@ Lemma necR_PURE:
          phi' @ loc = PURE k (preds_fmap (approx (level phi')) pp).
 Proof.
   intros.
-  generalize (resource_at_approx phi loc); 
+  generalize (eq_sym (resource_at_approx phi loc)); 
   pattern (phi @ loc) at 2; rewrite H0; intro.
   apply (necR_resource_at _ _ _ _ H H1).
 Qed.
@@ -897,7 +891,7 @@ Proof.
   destruct H1 as [m [?  ?]].
   rewrite H1.
   subst.
-  symmetry; apply resource_at_approx.
+  apply resource_at_approx.
   destruct (f l); simpl in *; auto;
   [destruct p0 | destruct p];
   rewrite H1;
@@ -943,8 +937,8 @@ simpl in *.
 revert H0 H1; case_eq (age1 phi1); case_eq (age1 phi2); intros; try discriminate.
 assert (level r = level r0) by (apply age_level in H0; apply age_level in H1; omega).
 apply (IHn r0 r); auto.
-rewrite (age1_resource_at _ _ H0 loc _ (resource_at_approx _ _)). 
-rewrite (age1_resource_at _ _ H1 loc _ (resource_at_approx _ _)).
+rewrite (age1_resource_at _ _ H0 loc _ (eq_sym (resource_at_approx _ _))). 
+rewrite (age1_resource_at _ _ H1 loc _ (eq_sym (resource_at_approx _ _))).
 rewrite H. rewrite H4; auto.
 Qed.
 

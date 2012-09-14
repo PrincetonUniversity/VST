@@ -310,7 +310,7 @@ apply join_unit1_e in H; auto.
 rewrite H.
 unfold inflate_store; simpl.
 rewrite resource_at_make_rmap.
-rewrite <- resource_at_approx.
+rewrite resource_at_approx.
 case_eq (m_phi jm @ loc); simpl; intros.
 rewrite core_NO. constructor. apply join_unit1; auto.
 destruct k; try solve [rewrite core_YES; constructor; apply join_unit1; auto].

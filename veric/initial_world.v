@@ -20,13 +20,13 @@ Obligation Tactic := idtac.
 Program Definition allneg : pred rmap := fun r => forall l, identity (r @ l) \/ fst l < 0.
  Next Obligation.
   intro; intros.  destruct (H0 l); [left|right]; auto.
-  eapply age1_resource_at_identity; eauto.
+  apply (age1_resource_at_identity _ _ l H); auto.
  Qed.
 
 Program Definition allpos : pred rmap := fun r => forall l, identity (r @ l) \/ fst l >= 0.
  Next Obligation.
   intro; intros.  destruct (H0 l); [left|right]; auto.
-  eapply age1_resource_at_identity; eauto.
+  apply (age1_resource_at_identity _ _ l H); auto.
  Qed.
 
 Lemma adr_range_divide:
@@ -319,7 +319,7 @@ destruct (w @ l); simpl; [rewrite core_NO | rewrite core_YES | rewrite core_PURE
 destruct (make_rmap _ H1 (level w)) as [phi [? ?]].
 extensionality loc; unfold compose; if_tac.
 unfold resource_fmap. f_equal. apply preds_fmap_NoneP.
-rewrite <- level_core.  symmetry; apply resource_at_approx.
+rewrite <- level_core.  apply resource_at_approx.
 exists (m_phi (initial_mem m w IOK)); exists phi; split3; auto.
 apply resource_at_join2.
 simpl. unfold inflate_initial_mem. do 2 rewrite level_make_rmap. auto.
@@ -579,7 +579,7 @@ Proof.
  extensionality loc;  unfold compose.
   unfold upto_block'.
  if_tac; [ | reflexivity ].
- symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Defined.
 
 Definition beyond_block' (b: block) (w: rmap) :=
@@ -595,7 +595,7 @@ Proof.
  extensionality loc;  unfold compose.
   unfold beyond_block'.
  if_tac; [ reflexivity | ].
- symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Defined.
 
 

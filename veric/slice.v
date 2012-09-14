@@ -53,7 +53,7 @@ Proof.
 intros.
 extensionality l; unfold compose; simpl.
 case_eq (m@l); simpl; intros; auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.
@@ -61,7 +61,7 @@ inversion H0.
 rewrite <- H2.
 rewrite <- H2.
 auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.
@@ -157,7 +157,7 @@ Proof.
 intros.
 extensionality l; unfold compose; simpl.
 case_eq (m@l); simpl; intros; auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.
@@ -165,7 +165,7 @@ inversion H0.
 rewrite <- H2.
 rewrite <- H2.
 auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.
@@ -182,7 +182,7 @@ Proof.
 intros.
 extensionality l; unfold compose; simpl.
 case_eq (m@l); simpl; intros; auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.
@@ -190,7 +190,7 @@ inversion H0.
 rewrite <- H2.
 rewrite <- H2.
 auto.
-generalize (resource_at_approx m l); intro.
+generalize (eq_sym _ _ _ (resource_at_approx m l)); intro.
 pattern (m@l) at 2 in H0; rewrite H in H0.
 simpl in H0.
 rewrite H in H0.

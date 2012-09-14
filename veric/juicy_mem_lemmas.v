@@ -941,7 +941,7 @@ subst j'. simpl. unfold inflate_free. simpl. rewrite level_make_rmap. auto.
 intros (b0, ofs0). 
 subst j'. simpl.
 unfold inflate_free; rewrite resource_at_make_rmap.
-rewrite <- resource_at_approx.
+rewrite resource_at_approx.
 destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs0)).
 (* adr_range *)
 clear H3.

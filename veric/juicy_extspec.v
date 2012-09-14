@@ -100,8 +100,8 @@ Proof.
   destruct H2 as [?|[?|[?|?]]].
   left.
   clear H. unfold age in *.
-  rewrite (age1_resource_at _ _ H0 l (jm1 @ l)); [ |  apply resource_at_approx].
-  rewrite (age1_resource_at _ _ H1 l (jm2 @ l)); [ |  apply resource_at_approx].
+  rewrite (age1_resource_at _ _ H0 l (jm1 @ l)); [ | symmetry; apply resource_at_approx].
+  rewrite (age1_resource_at _ _ H1 l (jm2 @ l)); [ | symmetry; apply resource_at_approx].
   rewrite <- H2.
   rewrite resource_fmap_fmap.
   rewrite resource_fmap_fmap.

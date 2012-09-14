@@ -678,7 +678,7 @@ Proof.
  intro l. split. apply juicy_mem_alloc. left.
  symmetry; apply age1_resource_at with (m_phi jm); eauto.
   destruct (age1_juicy_mem_unpack _ _ H); auto.
- apply resource_at_approx.
+ symmetry; apply resource_at_approx.
 Qed.
 
 Lemma safe_loop_skip:
@@ -1169,7 +1169,7 @@ Proof.
   rewrite preds_fmap_NoneP in *.
   apply (age1_YES w r); auto.
   unfold noat in *; simpl in *.
- eapply unage1_resource_at_identity; eauto.
+ apply <- (age1_resource_at_identity _ _ loc' H1); auto.
 Qed.
 
 End extensions.

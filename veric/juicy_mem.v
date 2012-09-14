@@ -438,7 +438,7 @@ unfold writable.
 destruct (phi @ loc); try discriminate.
 inv H. auto.
 destruct (phi' @ loc); inv H0.
-rewrite <- resource_at_approx. auto.
+rewrite resource_at_approx. auto.
 Qed.
 
 Lemma unage_readable: forall (phi phi': rmap) loc,
@@ -447,7 +447,7 @@ Proof.
 intros.
 simpl in *.
 apply age1_resource_at with (loc := loc) (r := phi @ loc) in H.
- 2: apply resource_at_approx.
+ 2: symmetry; apply resource_at_approx.
 destruct (phi' @ loc); inv H0.
 destruct (phi @ loc); inv H.
 auto.
@@ -526,7 +526,7 @@ extensionality loc.
 destruct (access_at m loc); try destruct p; 
   try solve [unfold resource_fmap; f_equal; try apply preds_fmap_NoneP].
 rewrite <- level_core.
-symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Qed.
 
 Lemma inflate_initial_mem'_valid:
@@ -670,7 +670,7 @@ destruct k; try solve
   [ unfold resource_fmap; rewrite preds_fmap_NoneP; auto
   | unfold resource_fmap; rewrite approx_map_idem; auto ].
 rewrite HeqHPHI.
-symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Defined.
 
 Definition inflate_free: rmap. refine (
@@ -712,12 +712,12 @@ destruct k; destruct (access_at m (b, ofs)); try solve
   | unfold resource_fmap; rewrite approx_map_idem; auto ].
 unfold fmap_option.
 rewrite HeqHPHI.
-rewrite <- resource_at_approx; auto.
+rewrite resource_at_approx; auto.
 unfold fmap_option; auto.
 
 (* PURE *)
 rewrite HeqHPHI.
-symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Defined.
 
 End inflate.
@@ -1350,8 +1350,7 @@ generalize H1; intros.
 apply necR_YES with (phi':=phi) in H1; eauto.
 rewrite <- H1.
 auto.
-generalize (resource_at_approx phi loc); rewrite H1; intro.
-symmetry; apply H2.
+generalize (resource_at_approx phi loc); rewrite H1; auto.
 Qed.
 
 Definition after_alloc
@@ -1681,7 +1680,7 @@ intros.
 split; auto.
 intros; split; auto.
 left.
-symmetry; apply resource_at_approx.
+apply resource_at_approx.
 Qed.
 
 Lemma resource_decay_trans: forall b b' m1 m2 m3, 
@@ -1808,7 +1807,8 @@ assert (H0: level (m_phi jm) = level phi').
 rewrite <- H.
 unfold inflate_store; rewrite level_make_rmap; rewrite resource_at_make_rmap.
 case_eq l'; intros b' ofs' e'; subst.
-remember (m_phi jm @ (b', ofs')) as HPHI; destruct HPHI; try destruct k; auto.
+remember (m_phi jm @ (b', ofs')) as HPHI; destruct HPHI; try destruct k; auto;
+  try solve [rewrite HeqHPHI; rewrite resource_at_approx; auto].
 rewrite (store_phi_elsewhere_eq jm _ _ _ _ _ STORE t p m (b', ofs')); auto.
 assert (H: p0 = NoneP).
   symmetry in HeqHPHI; 
@@ -1820,10 +1820,6 @@ assert (H: p0 = NoneP).
   destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto. 
 rewrite H in HeqHPHI; clear H.
 rewrite HeqHPHI; auto.
-rewrite HeqHPHI; rewrite <- resource_at_approx; auto.
-rewrite HeqHPHI; rewrite <- resource_at_approx; auto.
-rewrite HeqHPHI; rewrite <- resource_at_approx; auto.
-rewrite HeqHPHI; rewrite <- resource_at_approx; auto.
 Qed.
 
 Lemma inflate_free_resource_decay: 
@@ -1876,7 +1872,7 @@ left.
 unfold inflate_free; rewrite level_make_rmap; rewrite resource_at_make_rmap.
 generalize (juicy_mem_contents jm); intro Hc.
 generalize (juicy_mem_access jm (b0,z)); intro Ha.
-rewrite <- resource_at_approx.
+rewrite resource_at_approx.
 case_eq (m_phi jm @ (b0, z)); intros; rewrite H1 in Ha; auto.
 destruct k; auto.
 simpl in Ha.
