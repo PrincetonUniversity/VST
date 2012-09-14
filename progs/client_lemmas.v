@@ -34,7 +34,7 @@ intros; eapply semax_pre_post; eauto.
 Qed.
 
 Lemma env_gss:
-  forall rho id v t, eval_expr (env_set rho id v) (Etempvar id t) = v.
+  forall rho id v t, eval_expr (Etempvar id t)  (env_set rho id v) = v.
 Proof.
 intros. simpl. normalize.
 Qed.
@@ -43,7 +43,7 @@ Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : n
 
 Lemma env_gso:
   forall rho id id' v t, id <> id' -> 
-      eval_expr (env_set rho id' v) (Etempvar id t) = eval_expr rho (Etempvar id t).
+      eval_expr (Etempvar id t) (env_set rho id' v) = eval_expr (Etempvar id t) rho.
 Proof.
 intros. simpl; normalize.
 Qed.
@@ -260,9 +260,9 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
        (local (tc_lvalue Delta e1) &&
-    |> ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2,t2)) * subst id v2 P))
+    |> ((fun rho => field_mapsto sh (eval_lvalue e1 rho, typeof e1) fld (v2,t2)) * subst id v2 P))
        (Sset id (Efield e1 fld t2))
-       (normal_ret_assert ((fun rho => field_mapsto sh (eval_lvalue rho e1, typeof e1) fld (v2, t2)) * P)).
+       (normal_ret_assert ((fun rho => field_mapsto sh (eval_lvalue e1 rho, typeof e1) fld (v2, t2)) * P)).
 Proof with normalize.
 pose proof I.
 intros.
@@ -315,7 +315,7 @@ rewrite H3.
 instantiate (1:=sh).
 normalize.
 unfold field_mapsto.
-case_eq (eval_lvalue rho e1); intros; normalize.
+case_eq (eval_lvalue e1 rho); intros; normalize.
 case_eq (field_offset fld
     (unroll_composite_fields sid (snd (Vptr b i, Tstruct sid fields noattr))
        fields)); intros; normalize.
@@ -338,7 +338,7 @@ apply sepcon_derives; auto.
 simpl in H2.
 
 simpl.
-case_eq (eval_lvalue x1 e1); 
+case_eq (eval_lvalue e1 x1); 
      intros; normalize.
 rewrite H1.
 rewrite field_offset_unroll.
@@ -368,24 +368,24 @@ Qed.
 Hint Rewrite overridePost_normal : normalize.
 
 Lemma eval_expr_Etempvar: 
-  forall rho i t, eval_expr rho (Etempvar i t) = eval_id rho i.
+  forall i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
 Hint Rewrite eval_expr_Etempvar : normalize.
 
 Definition app0 (f: mpred) : assert := fun _ => f.
 Definition app1 (f: val -> mpred) (a1: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && f (eval_id rho (fst a1)).
+   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && f (eval_id (fst a1) rho).
 Definition app2 (f: val -> val -> mpred) (a1 a2: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
-                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)).
+   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
+                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho).
 Definition app3 (f: val -> val -> val -> mpred) (a1 a2 a3: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a3)) (snd a3) = true) 
-                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)) (eval_id rho (fst a3)).
+   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
+                      && !!(typecheck_val (eval_id (fst a3) rho) (snd a3) = true) 
+                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho) (eval_id (fst a3) rho).
 Definition bind0 (f: mpred) (args: list val) : mpred := 
      match args with nil => f | _ => FF end.
 
@@ -416,8 +416,8 @@ Proof.
  extensionality rho.
  f_equal.
  rewrite andb_true_r; auto.
- destruct (typecheck_val (eval_id rho (fst a1)) (snd a1)); simpl;  normalize.
- destruct (typecheck_val (eval_id rho (fst a2)) (snd a2)); simpl;  normalize.
+ destruct (typecheck_val (eval_id (fst a1) rho) (snd a1)); simpl;  normalize.
+ destruct (typecheck_val (eval_id (fst a2) rho) (snd a2)); simpl;  normalize.
  rewrite andp_comm. rewrite prop_true_andp; auto.
 Qed.
 
@@ -492,7 +492,7 @@ Lemma forward_set:
   closed_wrt_vars (modified1 id) P ->
   (forall rho, tc_expr Delta e rho) ->
   semax (set_temp_assigned Delta id) G
-             ((fun rho => !! (eval_id rho id = eval_expr rho e)) && P)
+             ((fun rho => !! (eval_id id rho = eval_expr e rho)) && P)
              c Q ->
   semax Delta G P (Ssequence (Sset id e) c) Q.
 Proof.
@@ -517,7 +517,7 @@ Proof.
  rewrite PTree.gss. simpl.
  clear - H0.
  admit.  (* straightforward *)
- specialize (H1 rho (PTree.set id (eval_expr rho e) (te_of rho))).
+ specialize (H1 rho (PTree.set id (eval_expr e rho) (te_of rho))).
  rewrite H1.
  unfold env_set. auto.
  intros. unfold modified1. destruct (eq_dec i id); auto.
@@ -549,7 +549,7 @@ Qed.
 Lemma closed_wrt_ideq: forall a b e,
   a <> b ->
   temp_free_in a e = false ->
-  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id rho b = eval_expr rho e)).
+  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
 Proof.
 Admitted.
 
@@ -568,20 +568,20 @@ Lemma unfold_app0: forall f  rho,  app0 f rho = f.
 Proof. reflexivity. Qed.
 
 Lemma unfold_app1: forall f a1 rho,  app1 f a1 rho = 
-    !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && f (eval_id rho (fst a1)).
+    !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && f (eval_id (fst a1) rho).
 Proof. reflexivity. Qed.
 
 Lemma unfold_app2: forall f a1 a2 rho, app2 f a1 a2 rho = 
-    !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
-                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)).
+    !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
+                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho).
 Proof. reflexivity. Qed.
 
-Lemma unfold_app3: forall f a1 a2 a3 rho, app3 f a1 a2 a3 rho =  !!(typecheck_val (eval_id rho (fst a1)) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a2)) (snd a2) = true) 
-                      && !!(typecheck_val (eval_id rho (fst a3)) (snd a3) = true) 
-                      && f (eval_id rho (fst a1)) (eval_id rho (fst a2)) (eval_id rho (fst a3)).
+Lemma unfold_app3: forall f a1 a2 a3 rho, app3 f a1 a2 a3 rho =  !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
+                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
+                      && !!(typecheck_val (eval_id (fst a3) rho) (snd a3) = true) 
+                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho) (eval_id (fst a3) rho).
 Proof. reflexivity. Qed.
 
 Hint Rewrite unfold_app0 unfold_app1 unfold_app2 unfold_app3: normalize.

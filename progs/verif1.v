@@ -53,16 +53,16 @@ Definition Gprog : funspecs :=
 Definition sumlist_Inv (contents: list int) : assert :=
           (EX cts: list int, 
            (fun rho => !!(fold_right Int.add Int.zero contents =
-             Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
+             Int.add (force_int (eval_expr (Etempvar P.i_s P.t_int) rho))
                        (fold_right Int.add Int.zero cts))) &&
-           (fun rho => ilseg cts (eval_expr rho (Etempvar P.i_t P.t_listptr)) nullval)).
+           (fun rho => ilseg cts (eval_expr (Etempvar P.i_t P.t_listptr) rho) nullval)).
 
 Definition sumlist_Inv' (contents: list int) (rho: environ) : mpred :=
           (EX cts: list int, 
            !!(fold_right Int.add Int.zero contents =
-             Int.add (force_int (eval_expr rho (Etempvar P.i_s P.t_int)))
+             Int.add (force_int (eval_expr (Etempvar P.i_s P.t_int) rho))
                        (fold_right Int.add Int.zero cts)) &&
-           ilseg cts (eval_expr rho (Etempvar P.i_t P.t_listptr)) nullval).
+           ilseg cts (eval_expr (Etempvar P.i_t P.t_listptr) rho) nullval).
 
 Definition semax_body' (G:  funspecs) (f: function) (spec: ident * funspec) :=
   match spec with (i, mk_funspec _ A pre post) => semax_body G f A pre post end.
@@ -71,8 +71,8 @@ Lemma typecheck_val_ptr_lemma:
   forall rho Delta id t a init,
   typecheck_environ rho Delta = true ->
   (temp_types Delta) ! id =  Some (Tpointer t a, init) ->
-  bool_val (eval_id rho id) (Tpointer t a) = Some true ->
-  typecheck_val (eval_id rho id) (Tpointer t a) = true.
+  bool_val (eval_id id rho) (Tpointer t a) = Some true ->
+  typecheck_val (eval_id id rho) (Tpointer t a) = true.
 Proof.
 Admitted.
 
@@ -185,7 +185,7 @@ Qed.
 
 Lemma expr_true_Cnot_ptr: 
   forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
-     forall rho,  (expr_true (Cnot e) rho) = (eval_expr rho e = nullval).
+     forall rho,  (expr_true (Cnot e) rho) = (eval_expr e rho = nullval).
 Proof.
 intros.
  unfold expr_true, Cnot.
@@ -195,7 +195,7 @@ Hint Rewrite expr_true_Cnot_ptr using (solve [simpl; auto]) : normalize.
 
 Lemma expr_true_Cnot_ptr': 
   forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
-    local (expr_true (Cnot e)) = local (fun rho => eval_expr rho e = nullval).
+    local (expr_true (Cnot e)) = local (fun rho => eval_expr e rho = nullval).
 Proof.
  intros. extensionality rho. unfold local. f_equal. apply expr_true_Cnot_ptr; auto.
 Qed.
@@ -213,7 +213,7 @@ normalize.
 apply forward_set; [compute; auto | compute; auto | auto with closed | compute; auto | ].
 apply forward_set; [compute; auto | compute; auto | auto with closed | compute; auto | ].
 forward_while (sumlist_Inv contents)
-    (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id rho P.i_s))).
+    (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id P.i_s rho))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv; intros; simpl; normalize.
 apply exp_right with contents.
@@ -240,9 +240,9 @@ apply extract_exists_pre; auto;  intro cts.
 apply semax_pre with
 (local (expr_true (Etempvar P.i_t P.t_listptr)) &&
  (fun rho => !!(fold_right Int.add Int.zero contents =
-       Int.add (force_int (eval_id rho P.i_s))
+       Int.add (force_int (eval_id P.i_s rho))
          (fold_right Int.add Int.zero cts))) &&
- (fun rho => ilseg_cons cts (eval_id rho P.i_t) nullval)).
+ (fun rho => ilseg_cons cts (eval_id P.i_t rho) nullval)).
 intro.
 simpl.
 rewrite ilseg_unroll'. auto.
@@ -252,7 +252,7 @@ normalize.
 apply orp_left.
 normalize.
 unfold expr_true, bool_val in H1. simpl in H1.
-unfold ptr_eq in H2. destruct (eval_id rho P.i_t); simpl in *; try contradiction.
+unfold ptr_eq in H2. destruct (eval_id P.i_t rho); simpl in *; try contradiction.
 rewrite H2 in H1; inv H1.
 normalize. intros h r ? y.
 apply exp_right with h; normalize. apply exp_right with r; normalize.
@@ -260,10 +260,10 @@ apply exp_right with y; normalize.
 unfold ilseg_cons.
 match goal with |- semax _ _ (_ && _ && ?P) _ _ => 
   change P with (EX  h : int, EX  r : list int, EX  y : val,  
-      fun rho => !!(~ ptr_eq (eval_id rho P.i_t) nullval) && !!(cts = h :: r) &&
-      field_mapsto Share.top (eval_id rho P.i_t, list_struct) list_data
+      fun rho => !!(~ ptr_eq (eval_id P.i_t rho) nullval) && !!(cts = h :: r) &&
+      field_mapsto Share.top (eval_id P.i_t rho, list_struct) list_data
         (Vint h, P.t_int) *
-      field_mapsto Share.top (eval_id rho P.i_t, list_struct) list_link
+      field_mapsto Share.top (eval_id P.i_t rho, list_struct) list_link
         (y, P.t_listptr) * |>ilseg r y nullval)
  end.
 normalize. apply extract_exists_pre; [apply Int.zero | intro h].
@@ -277,7 +277,7 @@ end.
 intro; normalize.
 apply semax_extract_prop.
 intro; subst cts.
-
+(*
 apply semax_pre with
   (fun rho : environ =>
   !!(map (fun i : int => (Vint i, P.t_int)) cts = (h, P.t_int) :: r /\
@@ -336,7 +336,7 @@ admit.  (* easy *)
 simpl. reflexivity.
 simpl. reflexivity.
 simpl. rewrite if_true by auto. reflexivity.
-
+*)
 
 Admitted.
 
