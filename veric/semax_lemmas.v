@@ -148,8 +148,6 @@ Lemma derives_skip:
         semax Hspec Delta G p Clight.Sskip R.
 Proof.
 intros ? ? ? ?; intros.
-split. 
-apply prove_some_static_thing.
 intros n.
 rewrite semax_fold_unfold.
 intro psi.
@@ -203,8 +201,6 @@ Lemma semax_extract_prop:
            semax Hspec Delta G (fun rho => !!PP && P rho) c Q.
 Proof.
 intros.
-split.
-apply prove_some_static_thing.
 intro w.
 rewrite semax_fold_unfold.
 intros gx w' ? ? k F w'' ? ?.
@@ -212,9 +208,8 @@ intros rho w''' ? w4 ? [[? ?] ?].
 rewrite sepcon_andp_prop in H7.
 destruct H7.
 specialize (H H7); clear PP H7.
-destruct H.
-rewrite semax_fold_unfold in H7.
-eapply H7; try apply H1; try apply H3; try eassumption.
+hnf in H. rewrite semax_fold_unfold in H.
+eapply H; try apply H1; try apply H3; try eassumption.
 split; auto. split; auto.
 Qed.
 
@@ -223,8 +218,6 @@ Lemma semax_ff:
    semax Hspec Delta G (fun rho => FF) c R.
 Proof.
 intros.
-split.
-apply prove_some_static_thing.
 intro w.
 rewrite semax_fold_unfold.
 repeat intro.
@@ -234,7 +227,6 @@ Qed.
 
 Lemma semax_unfold:
   semax Hspec = fun Delta G P c R =>
-    some_static_thing Delta c /\ 
     forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec G psi G w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
        rguard Hspec psi (exit_tycon c Delta) G F R k w ->
@@ -258,30 +250,28 @@ Lemma semax_post:
 Proof.
 unfold semax.
 intros.
-destruct H0; split; auto; intros.
-spec H1 n.
-revert n H1.
+spec H0 n. revert n H0.
 apply semax'_post.
 auto.
 Qed.
 
+
 Lemma semax_pre:
  forall P' Delta G P c R,
-   (forall rho, typecheck_environ rho Delta = true ->  P  rho |-- P' rho) ->
+   (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
      semax Hspec Delta G P' c R  -> semax Hspec Delta G P c R.
 Proof.
 unfold semax.
 intros.
-destruct H0 as [TC H0]; split; intros; auto.
 spec H0 n.
 revert n H0.
 apply semax'_pre.
-auto.
+repeat intro. apply (H rho a). split; auto.
 Qed.
 
 Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
-   (forall rho,  typecheck_environ rho Delta = true ->  P rho |-- P' rho ) ->
+   (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
    (forall ek vl rho , R' ek vl rho |-- R ek vl rho) ->
    semax Hspec Delta G P' c R' ->  semax Hspec Delta G P c R.
 Proof.
@@ -318,19 +308,17 @@ Qed.
 
 
 Lemma extract_exists:
-  forall  (A : Type) (any: A) (P : A -> assert) c Delta G (R: A -> ret_assert),
+  forall  (A : Type) (P : A -> assert) c Delta G (R: A -> ret_assert),
   (forall x, semax Hspec Delta G (P x) c (R x)) ->
    semax Hspec Delta G (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
 Proof.
 rewrite semax_unfold in *.
 intros.
-split.
-destruct (H any); auto.
 intros.
 intros rho ?w ? ?w ? ?.
 rewrite exp_sepcon2 in H4.
 destruct H4 as [[TC [x H5]] ?].
-specialize (H x). destruct H as [TC2 H].
+specialize (H x).
 specialize (H psi w Prog_OK k F H0).
 spec H.
 clear - H1.
@@ -352,7 +340,7 @@ Qed.
 
 Lemma extract_exists_pre:
       forall
-        (A : Type) (any: A) (P : A -> assert) (c : Clight.statement)
+        (A : Type) (P : A -> assert) (c : Clight.statement)
          Delta (G : funspecs) (R : ret_assert),
        (forall x : A, semax Hspec Delta G (P x) c R) ->
        semax Hspec Delta G (fun rho => exp (fun x => P x rho)) c R.
@@ -461,7 +449,7 @@ Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
 rewrite semax_unfold in H.
-destruct H as [TC H]; split; auto; intros.
+intros.
 pose (F0F := fun rho => F0 rho * F rho).
 specialize (H psi w Prog_OK k F0F).
 spec H.

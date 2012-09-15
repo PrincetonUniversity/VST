@@ -109,8 +109,8 @@ Lemma lseg_unroll': forall T {ls: listspec T} l x z ,
     lseg T l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || 
                           (EX h:val, EX r:list val, EX y:val, 
                           !! (~ptr_eq x z) &&  !!(l=h::r) && 
-                       field_mapsto Share.top (x, list_struct) list_data (h, list_dtype) 
-                      * field_mapsto Share.top (x, list_struct) list_link (y, T)
+                       field_mapsto Share.top list_data (x, list_struct) (h, list_dtype) 
+                      * field_mapsto Share.top list_link (x, list_struct) (y, T)
                       * |> lseg T r y z).
 Proof.
 intros.
@@ -142,8 +142,8 @@ Definition ilseg_nil (l: list  int) x z := !! (ptr_eq x z) && !! (l=nil) && emp.
 Definition ilseg_cons l x z := 
                           (EX h:int, EX r:list int, EX y:val, 
                           !! (~ptr_eq x z) &&  !!(l=h::r) && 
-                       field_mapsto Share.top (x, list_struct) list_data (Vint h, P.t_int) 
-                      * field_mapsto Share.top (x, list_struct) list_link (y, P.t_listptr)
+                       field_mapsto Share.top list_data (x, list_struct) (Vint h, P.t_int) 
+                      * field_mapsto Share.top list_link (x, list_struct) (y, P.t_listptr)
                       * |> ilseg r y z).
 
 Lemma ilseg_unroll': forall l x z , 
@@ -171,18 +171,6 @@ simpl.
 normalize.
 Qed.
 
-
-Lemma semax_pre':
- forall (P': assert) Delta G (P: assert) c R,
-   (fun rho => !! (typecheck_environ rho Delta = true)) && P |-- P' ->   
-  semax Delta G P' c R  -> semax Delta G P c R.
-Proof. intros; apply semax_pre with P'; auto. 
-intros.
-eapply derives_trans; [ | apply H].
-simpl; apply andp_right; auto.
-normalize.
-Qed.
-
 Lemma expr_true_Cnot_ptr: 
   forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
      forall rho,  (expr_true (Cnot e) rho) = (eval_expr e rho = nullval).
@@ -197,7 +185,8 @@ Lemma expr_true_Cnot_ptr':
   forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
     local (expr_true (Cnot e)) = local (fun rho => eval_expr e rho = nullval).
 Proof.
- intros. extensionality rho. unfold local. f_equal. apply expr_true_Cnot_ptr; auto.
+ intros. extensionality rho. unfold local, lift0, lift1. f_equal. 
+apply expr_true_Cnot_ptr; auto.
 Qed.
 Hint Rewrite expr_true_Cnot_ptr' using (solve [simpl; auto]) : normalize.
 
@@ -211,6 +200,10 @@ intro contents.
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 apply forward_set; [compute; auto | compute; auto | auto with closed | compute; auto | ].
+simpl @snd; simpl @fst.
+apply closed_wrt_andp.
+xxx...
+Search closed_wrt_vars.
 apply forward_set; [compute; auto | compute; auto | auto with closed | compute; auto | ].
 forward_while (sumlist_Inv contents)
     (fun rho => !!(fold_right Int.add Int.zero contents = force_int (eval_id P.i_s rho))).

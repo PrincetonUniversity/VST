@@ -23,12 +23,14 @@ Lemma semax_post:
    (R' |-- R) ->
    semax Delta G P c R' ->  semax Delta G P c R.
 Proof.
-intros; eapply semax_pre_post; eauto.
+intros; eapply semax_pre_post; try eassumption.
+apply andp_left2; auto.
 Qed.
 
 Lemma semax_pre:
  forall P' Delta G P c R,
-   (forall rho, typecheck_environ rho Delta = true ->  P  rho |-- P' rho) ->   semax Delta G P' c R  -> semax Delta G P c R.
+     (local (tc_environ Delta) && P |-- P') ->
+     semax Delta G P' c R  -> semax Delta G P c R.
 Proof.
 intros; eapply semax_pre_post; eauto.
 Qed.
@@ -143,7 +145,7 @@ Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
-Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: val*type) : mpred :=
+Definition field_mapsto (sh: Share.t) (fld: ident) (v1: val*type) (v2: val*type) : mpred :=
  match v1 with
   | (Vptr l ofs, Tstruct id fList  att) =>
     let fList' := unroll_composite_fields id (snd v1) fList in
@@ -160,8 +162,8 @@ Definition field_mapsto (sh: Share.t) (v1: val*type) (fld: ident) (v2: val*type)
 Lemma field_mapsto_type:
   forall fld sh x sid fields a  y, 
      snd x = Tstruct sid fields a ->
-     field_mapsto sh x fld y = 
-               !! (snd y = type_of_field (unroll_composite_fields sid (Tstruct sid fields a) fields) fld) && field_mapsto sh x fld y.
+     field_mapsto sh fld x y = 
+               !! (snd y = type_of_field (unroll_composite_fields sid (Tstruct sid fields a) fields) fld) && field_mapsto sh fld x y.
 Proof with normalize.
 intros.
 apply pred_ext...
@@ -184,8 +186,8 @@ Qed.
 
 Lemma field_mapsto_typecheck_val:
   forall fld sh x y, 
-     field_mapsto sh x fld y = 
-               !! (typecheck_val (fst y) (snd y) = true) && field_mapsto sh x fld y.
+     field_mapsto sh fld x y = 
+               !! (typecheck_val (fst y) (snd y) = true) && field_mapsto sh fld x y.
 Proof.
 intros.
 apply pred_ext; normalize.
@@ -205,8 +207,8 @@ normalize.
 Qed.
 
 Lemma field_mapsto_nonnull:  forall fld sh x y, 
-     field_mapsto sh x fld y = 
-               !! (bool_val (fst x) (Tpointer (snd x) noattr) = Some true) && field_mapsto sh x fld y.
+     field_mapsto sh fld x y = 
+               !! (bool_val (fst x) (Tpointer (snd x) noattr) = Some true) && field_mapsto sh fld x y.
 Proof.
 intros.
 apply pred_ext; normalize.
@@ -220,8 +222,8 @@ Qed.
 
 Lemma field_mapsto_access_mode:
   forall sh v t fld v' t',
-  field_mapsto sh (v,t) fld (v', t') = 
-   !! (exists ch, access_mode t' = By_value ch) && field_mapsto sh (v,t) fld (v', t').
+  field_mapsto sh fld (v,t) (v', t') = 
+   !! (exists ch, access_mode t' = By_value ch) && field_mapsto sh fld (v,t) (v', t').
 Proof.
 intros.
 apply pred_ext; normalize.
@@ -249,6 +251,9 @@ apply proj_sumbool_is_true.
 auto.
 Qed.
 
+Definition eval_field (e: expr) (rho: environ) : val*type :=
+  (eval_lvalue e rho, typeof e).
+
 Lemma semax_load_field:
 forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
     lvalue_closed_wrt_vars (eq id) (e1) ->
@@ -260,9 +265,9 @@ forall (Delta: tycontext) (G: funspecs) sh id fld P e1 v2 t2 i2 sid fields ,
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
        (local (tc_lvalue Delta e1) &&
-    |> ((fun rho => field_mapsto sh (eval_lvalue e1 rho, typeof e1) fld (v2,t2)) * subst id v2 P))
+    |> (lift2 (field_mapsto sh fld) (eval_field e1) (lift0 (v2,t2)) * subst id (lift0 v2) P))
        (Sset id (Efield e1 fld t2))
-       (normal_ret_assert ((fun rho => field_mapsto sh (eval_lvalue e1 rho, typeof e1) fld (v2, t2)) * P)).
+       (normal_ret_assert (lift2 (field_mapsto sh fld) (eval_field e1) (lift0 (v2, t2)) * P)).
 Proof with normalize.
 pose proof I.
 intros.
@@ -288,25 +293,29 @@ evar (Q': assert).
 apply (semax_pre_post
             (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
              local (tc_lvalue Delta (Efield e1 fld t2)) &&
-              |> (P' * subst id v2  P))
+              |> (P' * subst id (lift0 v2)  P))
             (normal_ret_assert (Q' * P))).
 3: apply semax_load.
 intros.
 normalize.
-apply andp_derives.
 apply andp_right.
+apply andp_right.
+intro rho.
 simpl.
 unfold tc_temp.
 unfold typecheck_temp_id. simpl. rewrite TE1.
+unfold local, lift1, lift0.
 apply prop_right; apply eqb_type_refl.
-apply TC3.
+apply andp_left2. apply andp_left1; auto.
+apply andp_left2. apply andp_left2.
 apply later_derives.
 apply sepcon_derives; auto.
 unfold P'.
 unfold mapsto'.
+unfold lift2,lift0, eval_field. intro rho.
 erewrite field_mapsto_access_mode.
 normalize.
-destruct H3 as [ch H3].
+destruct H2 as [ch H3].
 rewrite H1.
 erewrite field_mapsto_type; [ | reflexivity].
 simpl @snd.
@@ -324,9 +333,9 @@ rewrite <- TC2; rewrite H3.
 simpl @fst.
 normalize.
 simpl.
-rewrite H4.
+rewrite H2.
 rewrite H1.
-rewrite field_offset_unroll in H5. rewrite H5.
+rewrite field_offset_unroll in H4. rewrite H4.
 auto.
 
 unfold Q'.
@@ -341,6 +350,10 @@ simpl.
 case_eq (eval_lvalue e1 x1); 
      intros; normalize.
 rewrite H1.
+unfold field_mapsto. unfold lift2. unfold lift0. unfold eval_field.
+rewrite H3.
+ rewrite H1.
+simpl @snd.
 rewrite field_offset_unroll.
 case_eq (field_offset fld fields); intros; normalize.
 rewrite <- TC2.
@@ -373,23 +386,27 @@ Proof. reflexivity.
 Qed.
 Hint Rewrite eval_expr_Etempvar : normalize.
 
+Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
+Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
+     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
+     fun rho => P (f1 rho) (f2 rho) (f3 rho).
+
 Definition app0 (f: mpred) : assert := fun _ => f.
 Definition app1 (f: val -> mpred) (a1: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
-                      && f (eval_id (fst a1) rho).
+   local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) && lift1 f (eval_id (fst a1)).
 Definition app2 (f: val -> val -> mpred) (a1 a2: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
-                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho).
+  local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) &&
+  local (lift1 (tc_val (snd a2)) (eval_id (fst a2))) &&
+  lift2 f (eval_id (fst a1)) (eval_id (fst a2)).
 Definition app3 (f: val -> val -> val -> mpred) (a1 a2 a3: ident*type) : assert := 
-   fun rho => !!(typecheck_val (eval_id (fst a1) rho) (snd a1) = true) 
-                      && !!(typecheck_val (eval_id (fst a2) rho) (snd a2) = true) 
-                      && !!(typecheck_val (eval_id (fst a3) rho) (snd a3) = true) 
-                      && f (eval_id (fst a1) rho) (eval_id (fst a2) rho) (eval_id (fst a3) rho).
+  local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) &&
+  local (lift1 (tc_val (snd a2)) (eval_id (fst a2))) &&
+  local (lift1 (tc_val (snd a3)) (eval_id (fst a3))) &&
+  lift3 f (eval_id (fst a1)) (eval_id (fst a2)) (eval_id (fst a3)).
 Definition bind0 (f: mpred) (args: list val) : mpred := 
      match args with nil => f | _ => FF end.
 
-Lemma bind0_e: forall f, bind_args nil (bind0 f) = fun rho => f.
+Lemma bind0_e: forall f, bind_args nil (bind0 f) = lift0 f.
 Proof. intros. unfold bind_args, bind0. extensionality rho; simpl.
  apply prop_true_andp. auto.
 Qed.
@@ -397,10 +414,11 @@ Qed.
 Definition bind1 (f: val -> mpred) (args: list val): mpred :=
        match args with a::nil => f a | _ => FF end.
 
-Lemma bind1_e: forall a f,
-   bind_args (a::nil) (bind1 f)  = app1 f a.
+Lemma bind1_e: forall a1 f,
+   bind_args (a1::nil) (bind1 f)  = 
+      local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) && lift1 f (eval_id (fst a1)).
 Proof. 
- intros; unfold bind_args, bind1, app1;  simpl. 
+ intros; unfold bind_args, bind1;  simpl. 
  extensionality rho.
  f_equal.
  rewrite andb_true_r; auto.
@@ -410,11 +428,15 @@ Definition bind2 (f: val -> val -> mpred) (args: list val): mpred :=
        match args with a::b::nil => f a b | _ => FF end.
 
 Lemma bind2_e: forall a1 a2 f,
-   bind_args (a1::a2::nil) (bind2 f)  = app2 f a1 a2.
+   bind_args (a1::a2::nil) (bind2 f)  = 
+  local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) &&
+  local (lift1 (tc_val (snd a2)) (eval_id (fst a2))) &&
+  lift2 f (eval_id (fst a1)) (eval_id (fst a2)).
 Proof. 
- intros; unfold bind_args, bind2, app2;  simpl. 
+ intros; unfold bind_args, bind2;  simpl. 
  extensionality rho.
  f_equal.
+ unfold tc_val, local, lift1.
  rewrite andb_true_r; auto.
  destruct (typecheck_val (eval_id (fst a1) rho) (snd a1)); simpl;  normalize.
  destruct (typecheck_val (eval_id (fst a2) rho) (snd a2)); simpl;  normalize.
@@ -492,7 +514,7 @@ Lemma forward_set:
   closed_wrt_vars (modified1 id) P ->
   (forall rho, tc_expr Delta e rho) ->
   semax (set_temp_assigned Delta id) G
-             ((fun rho => !! (eval_id id rho = eval_expr e rho)) && P)
+             (local (lift2 eq (eval_id id) (eval_expr e)) && P)
              c Q ->
   semax Delta G P (Ssequence (Sset id e) c) Q.
 Proof.
@@ -501,20 +523,13 @@ Proof.
  apply sequential'.
  eapply semax_pre; [ |  apply semax_set].
  clear H3.
- intros.
+ unfold local, lift2, lift1, lift0; intro rho. simpl.
  normalize.
- apply andp_right.
- apply andp_right.
- apply prop_right; auto.
- specialize (H2 rho).
- unfold local. normalize.
  eapply derives_trans; [ |apply now_later].
  unfold subst.
  normalize. 
  apply andp_right.
  apply prop_right.
- unfold eval_id. simpl.
- rewrite PTree.gss. simpl.
  clear - H0.
  admit.  (* straightforward *)
  specialize (H1 rho (PTree.set id (eval_expr e rho) (te_of rho))).
@@ -539,7 +554,7 @@ Lemma closed_wrt_app1: forall a b f,
   a<> fst b -> closed_wrt_vars (modified1 a) (app1 f b).
 Proof.
  intros.  intro; intros.
- unfold app1.
+ unfold app1. unfold local, lift0, lift1, tc_val. simpl.
  specialize (H0 (fst b)).
  destruct H0. hnf in H0.  subst; congruence.
  unfold eval_id; simpl. rewrite H0; auto.

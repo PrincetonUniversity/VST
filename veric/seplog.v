@@ -102,7 +102,7 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  end.
 
 Definition fun_assert: 
-  forall  (v: val) (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap), pred rmap :=
+  forall (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=

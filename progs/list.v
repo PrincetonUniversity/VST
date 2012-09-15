@@ -17,10 +17,10 @@ Definition field_of (vt: valt) (fld: ident) : valt :=
   | _ => (Vundef, Tvoid)
  end.
 
-Fixpoint fields_mapto (sh: Share.t) (v1: val*type) (flds: list ident) (v2: list (valt)) : mpred :=
+Fixpoint fields_mapto (sh: Share.t) (flds: list ident) (v1: val*type) (v2: list (valt)) : mpred :=
   match flds, v2 with
   | nil, nil => emp
-  | i::flds', vt::v2' => field_mapsto sh v1 i vt * fields_mapto sh v1 flds' v2'
+  | i::flds', vt::v2' => field_mapsto sh i v1 vt * fields_mapto sh flds' v1 v2'
   | _, _ => FF
   end.
 
@@ -33,7 +33,7 @@ Fixpoint field_names (flds: fieldlist) : list ident :=
 Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : mpred :=
   match snd v1 with
   | Tstruct id fList  att =>
-         fields_mapto sh v1 (field_names fList) v2
+         fields_mapto sh (field_names fList) v1 v2
   | _  => FF
   end.
 
@@ -83,8 +83,8 @@ Definition mlseg (ls: multilistspec) (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           fields_mapto sh (first, mlist_struct ls) (mlist_data_fieldnames ls) h 
-                           * field_mapsto sh (first, mlist_struct ls) (mlist_link ls) (tail, mlist_type ls)
+                           fields_mapto sh (mlist_data_fieldnames ls) (first, mlist_struct ls) h 
+                           * field_mapsto sh (mlist_link ls) (first, mlist_struct ls) (tail, mlist_type ls)
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -111,8 +111,8 @@ Definition lseg' (T: type) {ls: listspec T} (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           field_mapsto sh (first, list_struct) list_data (h, list_dtype) 
-                           * field_mapsto sh (first, list_struct) list_link (tail, T)
+                           field_mapsto sh list_data (first, list_struct) (h, list_dtype) 
+                           * field_mapsto sh list_link (first, list_struct) (tail, T)
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -125,8 +125,8 @@ Lemma lseg_unfold (T: type) {ls: listspec T}: forall contents v1 v2,
     lseg T contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
-                       field_mapsto Share.top (v1, list_struct) list_data (h, list_dtype) 
-                      * field_mapsto Share.top (v1, list_struct) list_link (tail, T)
+                       field_mapsto Share.top list_data (v1, list_struct) (h, list_dtype) 
+                      * field_mapsto Share.top list_link (v1, list_struct) (tail, T)
                       * |> lseg T t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
      end.
@@ -182,8 +182,8 @@ Lemma lseg_neq:
          EX h:val, EX r:list val, EX y:val, 
              !!(l=h::r 
                 /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
-             field_mapsto Share.top (x, list_struct) list_data (h, list_dtype) * 
-             field_mapsto Share.top (x, list_struct) list_link (y,T) * 
+             field_mapsto Share.top list_data (x, list_struct) (h, list_dtype) * 
+             field_mapsto Share.top list_link (x, list_struct) (y,T) * 
              |> lseg T r y z.
 Proof.
 intros.

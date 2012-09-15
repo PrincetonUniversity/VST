@@ -916,7 +916,7 @@ Qed.
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
-Definition fun_assert  (v: val) (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap) : pred rmap :=
+Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap) (v: val)  : pred rmap :=
  (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b,0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
@@ -1279,10 +1279,10 @@ Qed.
 
 
 Lemma fun_assert_contractive:
-   forall v fml A (P Q: pred rmap -> A -> list val -> pred rmap), 
+   forall fml A (P Q: pred rmap -> A -> list val -> pred rmap) v, 
        (forall x vl, nonexpansive (fun R => P R x vl)) ->
       (forall x vl, nonexpansive (fun R => Q R x vl)) ->
-      contractive (fun R : pred rmap => fun_assert v fml A (P R) (Q R)).
+      contractive (fun R : pred rmap => fun_assert fml A (P R) (Q R) v).
 Proof.
 intros.
 assert (H': forall xvl: A * list val, nonexpansive (fun R => P R (fst xvl) (snd xvl)))

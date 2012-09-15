@@ -81,9 +81,8 @@ Definition semax_return := semax_return Hspec.
 Definition semax_store := semax_store Hspec.
 Definition semax_load := semax_load Hspec.
 Definition semax_Sskip := semax_Sskip Hspec.
-Definition semax_pre_post := semax_pre_post Hspec.
 Definition frame_left := frame_left Hspec.
-
+Definition semax_pre_post := semax_pre_post Hspec.
 Definition derives_skip := derives_skip Hspec.
 Definition semax_ff := semax_ff Hspec.
 Definition semax_extract_prop := semax_extract_prop Hspec.
@@ -93,6 +92,7 @@ Definition Cnot := Cnot.
 Definition bool_type := bool_type.
 Definition get_result := get_result.
 Definition closed_wrt_modvars := closed_wrt_modvars.
+
 End CSL.
 
 Definition semax_prog_rule := semax_prog_rule Hspec.

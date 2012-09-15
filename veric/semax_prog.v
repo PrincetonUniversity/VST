@@ -302,8 +302,8 @@ apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
 specialize (H3 x).
-destruct H3.
 rename H3 into H4.
+pose proof I.
 specialize (H4 n).
 apply now_later.
 clear - H4.

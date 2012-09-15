@@ -27,7 +27,6 @@ Context {Z} (Hspec: juicy_ext_spec Z).
 Lemma semax_straight_simple:
  forall Delta G (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
-  some_static_thing Delta c -> 
   (forall jm jm1 ge rho k F, 
               app_pred (B rho) (m_phi jm) ->
               typecheck_environ rho Delta = true ->
@@ -44,10 +43,8 @@ Lemma semax_straight_simple:
               ((F rho' * Q rho') && funassert G rho) (m_phi jm')) ->
   semax Hspec Delta G (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
-intros until Q; intros EB TC Hc.
+intros until Q; intros EB Hc.
 rewrite semax_unfold.
-split.
-auto.
 intros psi n _ k F Hcl Hsafe rho w Hx w0 H Hglob.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
@@ -106,8 +103,7 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
 Proof.
 intros until e.
 apply semax_straight_simple.
- admit. (* auto.*)
-apply prove_some_static_thing.
+intro. apply boxy_andp; auto. apply boxy_prop; auto.
 intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 exists jm', (PTree.set id (eval_expr e rho) (te_of rho)).
 econstructor.
@@ -174,8 +170,8 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
        (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
 Proof.
 intros until v2. intros TC3.
-apply semax_straight_simple. admit. (* auto. *)
-apply prove_some_static_thing.
+apply semax_straight_simple.
+intro. apply boxy_andp; auto. apply boxy_prop; auto.
 intros jm jm1 ge rho k F [TC1 TC2] TC' Hcl Hge ? ?.
 destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm)  Hge TC') as [b [ofs [? ?]]]; auto.
 exists jm1.
@@ -377,7 +373,6 @@ Lemma semax_store:
 Proof.
 intros until P. intros TC TC3.
 apply semax_straight_simple; auto.
-apply prove_some_static_thing.
 intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
@@ -745,10 +740,6 @@ Lemma semax_ifthenelse :
 Proof.
 intros.
 rewrite semax_unfold in H0, H1 |- *.
-destruct H0 as [TC0 ?].
-destruct H1 as [TC1 ?].
-split.
-apply prove_some_static_thing.
 intros.
 specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
@@ -968,13 +959,13 @@ Lemma semax_fun_id:
               Delta (G : funspecs) P Q c,
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
-                                && fun_assert (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho ) fsig A P' Q')
+                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho))
                               c Q ->
        semax Hspec Delta G P c Q.
 Proof.
 intros.
 rewrite semax_unfold in H0|-*.
-destruct H0; split; auto.
+rename H0 into H1; pose proof I.
 intros.
 specialize (H1 psi w Prog_OK k F H2 H3).
 intros rho w' ? w'' ? ?.
@@ -1261,15 +1252,13 @@ forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
        semax Hspec Delta G
          (fun rho => 
            tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
-         (fun_assert  (eval_expr a rho) fsig A P Q && 
+         (fun_assert  fsig A P Q (eval_expr a rho) && 
           (F * P x (eval_exprlist bl rho) )))
          (Scall ret a bl)
          (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
 Proof.
-rewrite semax_unfold; intros.
+rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? ?.
 destruct (match_fsig_e _ _ _ H) as [TC4 TC5]; clear H.
-split.
-apply prove_some_static_thing.
 intros.
 rename H0 into H1.
 intro rho.
@@ -1351,16 +1340,15 @@ Qed.
 Lemma semax_call_ext:
      forall Delta G P Q ret a bl a' bl',
       typeof a = typeof a' ->
-      (forall rho, typecheck_environ rho Delta = true ->
-                        P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
+      (forall rho, 
+          !! (typecheck_environ rho Delta = true) && P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
                                            eval_exprlist bl rho = eval_exprlist bl' rho )) ->
   semax Hspec Delta G P (Scall ret a bl) Q ->
   semax Hspec  Delta G P (Scall ret a' bl') Q.
 Proof.
 intros.
 rewrite semax_unfold in H1|-*.
-destruct H1; split; auto.
-apply prove_some_static_thing.
+rename H1 into H2. pose proof I.
 intros.
 specialize (H2 psi w Prog_OK k F H3 H4).
 intro rho; specialize (H2 rho).
@@ -1376,7 +1364,7 @@ simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
 reflexivity.
 intros.
 destruct H8 as [w1 [w2 [_ [_ ?]]]].
-specialize (H0 _ H7 _ H8).
+specialize (H0 rho w2 (conj H7 H8)).
 destruct H0.
 assert (forall vf, Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a vf
                -> Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a' vf).
@@ -1399,16 +1387,13 @@ Admitted.
 
 Lemma  semax_return :
    forall Delta G R ret,
-      (*Some typechecking thing*)
       semax Hspec Delta G 
                 (fun rho => R EK_return (eval_exprlist (opt2list ret) rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
 intros.
-split.
-apply prove_some_static_thing.
-intros.
+hnf; intros.
 rewrite semax_fold_unfold.
 intro psi.
 apply derives_imp.

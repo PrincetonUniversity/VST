@@ -89,7 +89,10 @@ Definition exit_cont (ek: exitkind) (vl: list val) (k: cont) : cont :=
    end.
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
-  match ek with EK_normal => update_tycon Delta c | _ => Delta end.
+  match ek with 
+  | EK_normal => update_tycon Delta c 
+  | _ => Delta 
+  end.
 
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv)  (Delta: exitkind -> tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
@@ -241,12 +244,5 @@ Qed.
 
 Opaque semax'.
 
-(* At one point I thought that it would be necessary to typecheck 
-  the statement as a static part of semax, but it seems that we don't
-  need that.  So I have left some_static_thing as a placeholder.  -- A.W.A. *)
-Inductive some_static_thing (Delta: tycontext) (c: statement) : Prop :=
- prove_some_static_thing.
-
 Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) G P c Q :=
-  some_static_thing Delta c /\
   forall n, semax' Hspec Delta G P c Q n.

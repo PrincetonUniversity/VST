@@ -31,8 +31,6 @@ Lemma seq_assoc1:
         semax Hspec Delta G P (Ssequence (Ssequence s1 s2) s3) R.
 Proof.
 rewrite semax_unfold; intros.
-destruct H as [TC H]; split.
-apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -78,8 +76,6 @@ Lemma seq_assoc2:
         semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R.
 Proof.
 rewrite semax_unfold; intros.
-destruct H as [TC H]; split.
-apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK k F).
 spec H.
@@ -146,10 +142,6 @@ forall Delta G (R: ret_assert) P Q h t,
 Proof.
 intros.
 rewrite semax_unfold in H,H0|-*.
-destruct H as [TC H].
-destruct H0 as [TC0 H0].
-split.
-apply prove_some_static_thing.
 intros.
 specialize (H psi w Prog_OK).
 specialize (H0 psi w Prog_OK).
@@ -167,7 +159,7 @@ Focus 2.
 eapply H; eauto.
 repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H3 i); intuition.
 
-clear - TC0 H0 H1 H2.
+clear - H0 H1 H2.
 intros ek vl.
 intro rho.
 unfold overridePost.
@@ -235,9 +227,6 @@ forall Delta G Q Q' test incr body R
 Proof.
 intros.
 rewrite semax_unfold.
-intros.
-split.
-apply prove_some_static_thing.
 intros until 2.
 rename H1 into H2.
 assert (CLO_body: closed_wrt_modvars body F).
@@ -298,14 +287,13 @@ clear y H5 H4. rename H11 into H5. pose (H4:=True).
 destruct b.
 (* Case 1: expr evaluates to true *)
 Focus 1.
-generalize H; rewrite semax_unfold; intros [_ H'].
+generalize H; rewrite semax_unfold; intros H'.
 specialize (H' psi (level jm') Prog_OK2 (Kseq Scontinue :: Kfor2 test incr body :: k) F CLO_body).
 spec H'.
 intros ek vl.
 destruct ek.
 simpl exit_cont.
 rewrite semax_unfold in H0.
-destruct H0 as [_ H0].
 specialize (H0 psi (level jm') Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr).
 spec H0.
 intros ek2 vl2 rho2; unfold for2_ret_assert.
@@ -349,7 +337,6 @@ auto.
 simpl exit_tycon. simpl exit_cont.
 unfold for1_ret_assert.
 rewrite semax_unfold in H0.
-destruct H0 as [_ H0].
 intro rho2.
 eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr)].
 apply derives_subp.
@@ -427,8 +414,7 @@ destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H
 pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
-destruct H1; split.
-apply prove_some_static_thing.
+rename H1 into H0; pose (H:=True).
 intros.
 assert (closed_wrt_modvars (Sfor' test Sskip body) F).
 hnf; intros; apply H1.

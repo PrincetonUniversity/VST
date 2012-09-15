@@ -77,4 +77,9 @@ Definition filter_genv (ge: Clight.genv) : genviron :=
                    | None => None
                    end. 
 
+
+Definition any_environ : environ :=
+ (* Mainly for use in demonstrating that the environ type is inhabited *)
+  mkEnviron (fun _ => None)  (Maps.PTree.empty _) (Maps.PTree.empty _).
+
 Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Maps.PTree.empty _) (Maps.PTree.empty _).
