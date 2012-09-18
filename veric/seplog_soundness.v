@@ -949,14 +949,9 @@ Qed.
 Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
  match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
 
-Lemma environ_ge_ve_disjoint:
-  forall rho Delta, typecheck_environ rho Delta = true ->
-        forall id, ge_of rho id = None \/ PTree.get id (ve_of rho) = None.
-Admitted.
-
 Lemma semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> list val -> pred rmap)
-              Delta (G : funspecs) P Q c,
+              Delta (G : funspecs) P Q c (GLBL : In id (var_ids Delta)),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho))
@@ -980,22 +975,26 @@ apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
 apply nec_nat; auto.
-hnf in H1. 
-pose proof (environ_ge_ve_disjoint _ _ H1 id).
-clear - H6 H8 H H9 Hge.
+hnf in H1.
+apply typecheck_environ_sound in H1.
+destruct H1 as [_ [_ ?]]. unfold tc_vl_denote in *.
+specialize (H1 _ GLBL). 
+(*
+pose proof (environ_ge_ve_disjoint _ _ H1 id).*)
+clear - H6 H8 H (*H9*) Hge H1.
 destruct H6 as [H6 H6'].
 specialize (H6 _ _  _(necR_refl _) H).
 destruct H6 as [v [loc [[? ?] ?]]].
 simpl in H0, H1, H2.
-destruct H9; try congruence.
+(*destruct H9; try congruence.*)
 specialize (H8 v fsig A P' Q' _ (necR_refl _)).
 rewrite <- Hge in H0.
 unfold filter_genv in H0.
 invSome.
 assert (v = Vptr b Int.zero) by (destruct (type_of_global psi b); inv H6; auto).
 subst v.
-unfold val2adr in H1.
-rewrite Int.signed_zero in H1.
+unfold val2adr in H2.
+rewrite Int.signed_zero in H2.
 subst loc.
 spec H8. exists id. split; auto. exists b; auto.
 exists b.
@@ -1003,7 +1002,7 @@ split.
 hnf.
 unfold eval_lvalue.
 rewrite <- Hge.
-rewrite H3.
+rewrite H1.
 unfold filter_genv.
 rewrite H0.
 destruct fsig. simpl @fst; simpl @snd.

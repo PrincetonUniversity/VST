@@ -448,8 +448,10 @@ match vty with
 end.
 
 Definition typecheck_var_list vl (ve:env) :=
-PTree.fold (fun b id v => in_dec eq_dec id vl && b) ve true &&
-forallb (fun id => match ve!id with Some _ => true | _ => false end) vl.
+forallb (fun id => match ve!id with Some _ => false | _ => true end) vl.
+(*Switched the above around, now says what isn't in the var environment,
+this is useful because these variables can be looked up as globals*)
+
 
 Definition remove_assignedness {A B C} (x: (A * (B*C))) := let (a,d) := x in
 let (b,c) := d in 
@@ -559,7 +561,8 @@ fold_right
  (fun id lst => if in_dec (eq_dec) id vel2 then id::lst else lst)
  nil vel1.
 
-
+(*
+Definition join_ve_list (vel1 : list positive) vel2 :=  vel1 ++ vel2.*)
 
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
 match tycon1 with  (te1, ve1, r, vl1)  =>

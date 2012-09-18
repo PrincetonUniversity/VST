@@ -398,7 +398,7 @@ Axiom  semax_return :
 
 Axiom semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> list val -> mpred)
-              Delta (G : funspecs) P Q c,
+              Delta (G : funspecs) P Q c (GLBL : In id (var_ids Delta)),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Delta G (P && lift1 (fun_assert fsig A P' Q') (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig)))))
                               c Q ->
