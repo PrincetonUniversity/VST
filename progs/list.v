@@ -17,10 +17,10 @@ Definition field_of (vt: valt) (fld: ident) : valt :=
   | _ => (Vundef, Tvoid)
  end.
 
-Fixpoint fields_mapto (sh: Share.t) (flds: list ident) (v1: val*type) (v2: list (valt)) : mpred :=
+Fixpoint fields_mapto (sh: Share.t) (t1: type) (flds: list ident) (v1: val) (v2: list val) : mpred :=
   match flds, v2 with
   | nil, nil => emp
-  | i::flds', vt::v2' => field_mapsto sh i v1 vt * fields_mapto sh flds' v1 v2'
+  | i::flds', vt::v2' => field_mapsto sh t1 i v1 vt * fields_mapto sh t1 flds' v1 v2'
   | _, _ => FF
   end.
 
@@ -30,10 +30,10 @@ Fixpoint field_names (flds: fieldlist) : list ident :=
   | Fcons i t flds' => i :: field_names flds'
   end.
 
-Definition struct_fields_mapto (sh: Share.t) (v1: valt) (v2: list (valt)) : mpred :=
-  match snd v1 with
+Definition struct_fields_mapto (sh: Share.t) (t1: type) (v1: val) (v2: list (val)) : mpred :=
+  match t1 with
   | Tstruct id fList  att =>
-         fields_mapto sh (field_names fList) v1 v2
+         fields_mapto sh t1 (field_names fList) v1 v2
   | _  => FF
   end.
 
@@ -46,6 +46,8 @@ Definition ptr_eq (v1 v2: val) : Prop :=
             b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
       | _,_ => False
       end.
+
+Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 
 Fixpoint fieldnames (f: fieldlist) : list ident :=
  match f with
@@ -77,19 +79,6 @@ Definition mlist_type (ls: multilistspec) := Tpointer (mlist_struct ls) noattr.
 Definition mlist_data_fieldnames (ls: multilistspec) : list ident :=
      map (@fst _ _) (other_fields (mlist_structid ls) (mlist_fields ls)).
 
-Definition mlseg (ls: multilistspec) (sh: share) := 
-  HORec (fun (R: (list (list valt))*(val*val) -> mpred) (lp: (list (list valt))*(val*val)) =>
-        match lp with
-        | (h::hs, (first,last)) =>
-                (!! (~ (ptr_eq first last)) && 
-                        EX tail:val, 
-                           fields_mapto sh (mlist_data_fieldnames ls) (first, mlist_struct ls) h 
-                           * field_mapsto sh (mlist_link ls) (first, mlist_struct ls) (tail, mlist_type ls)
-                           * |> R (hs, (tail, last)))
-        | (nil, (first,last)) =>
-                 !! (ptr_eq first last) && emp
-        end).
-
 Class listspec (t: type) := mk_listspec {
    list_structid: ident;
    list_data: ident;
@@ -111,8 +100,8 @@ Definition lseg' (T: type) {ls: listspec T} (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           field_mapsto sh list_data (first, list_struct) (h, list_dtype) 
-                           * field_mapsto sh list_link (first, list_struct) (tail, T)
+                           field_mapsto sh list_struct list_data first h 
+                           * field_mapsto sh list_struct list_link first tail
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -125,8 +114,8 @@ Lemma lseg_unfold (T: type) {ls: listspec T}: forall contents v1 v2,
     lseg T contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
-                       field_mapsto Share.top list_data (v1, list_struct) (h, list_dtype) 
-                      * field_mapsto Share.top list_link (v1, list_struct) (tail, T)
+                       field_mapsto Share.top list_struct list_data v1 h 
+                      * field_mapsto Share.top list_struct list_link v1 tail
                       * |> lseg T t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
      end.
@@ -177,16 +166,16 @@ Lemma lseg_neq:
   forall T {ls: listspec T} l x z , 
   typecheck_val x T = true ->
   typecheck_val z T = true ->
-  ~ptr_eq x z -> 
+  ptr_neq x z -> 
     lseg T l x z =
          EX h:val, EX r:list val, EX y:val, 
              !!(l=h::r 
                 /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
-             field_mapsto Share.top list_data (x, list_struct) (h, list_dtype) * 
-             field_mapsto Share.top list_link (x, list_struct) (y,T) * 
+             field_mapsto Share.top list_struct list_data x h * 
+             field_mapsto Share.top list_struct list_link x y * 
              |> lseg T r y z.
 Proof.
-intros.
+unfold ptr_neq; intros.
 rewrite lseg_unfold at 1; auto.
 destruct l.
 apply pred_ext; normalize.
@@ -212,14 +201,12 @@ apply (exp_right l).
 apply (exp_right y).
 apply sepcon_derives; auto.
 normalize.
-erewrite (field_mapsto_type list_data); [ | reflexivity].
-simpl @snd. normalize.
-fold list_struct.
+rewrite (field_mapsto_typecheck_val list_struct list_data Share.top x h) at 1 by reflexivity.
+rewrite (field_mapsto_typecheck_val list_struct list_link Share.top x y) at 1 by reflexivity.
 rewrite UNROLL.
-unfold type_of_field. rewrite if_true by auto.
-erewrite (field_mapsto_typecheck_val list_data) at 1.
-erewrite (field_mapsto_typecheck_val list_link) at 1.
 simpl.
+rewrite if_true by auto.
+rewrite if_false by apply list_data_not_link. rewrite if_true by auto.
 normalize.
 (***)
 intros.
