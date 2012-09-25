@@ -129,10 +129,6 @@ apply seq_assoc1; auto.
 apply seq_assoc2; auto.
 Qed.
 
-Lemma typecheck_environ_update:
-  forall rho c Delta, typecheck_environ rho (update_tycon Delta c) = true ->
-       typecheck_environ rho Delta = true.
-Admitted. (* typechecking proof *)
 
 Lemma semax_seq:
 forall Delta G (R: ret_assert) P Q h t, 

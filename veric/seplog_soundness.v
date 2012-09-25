@@ -951,7 +951,7 @@ Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :
 
 Lemma semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> list val -> pred rmap)
-              Delta (G : funspecs) P Q c (GLBL : In id (var_ids Delta)),
+              Delta (G : funspecs) P Q c (GLBL : In id (non_var_ids Delta)),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho))

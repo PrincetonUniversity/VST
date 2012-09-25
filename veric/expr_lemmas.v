@@ -7,13 +7,22 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.expr.
 
+
+(*Definitions of some environments*)
 Definition mkEnviron' (ge: Clight.genv) (ve: Clight.env) (te: Clight.temp_env) :=
   mkEnviron (filter_genv ge) ve te.
+
+Definition empty_genv := (Globalenvs.Genv.empty_genv fundef type).
+Definition empty_tenv := PTree.empty val.
+
+Definition empty_environ : environ :=
+mkEnviron (filter_genv empty_genv) empty_env empty_tenv.
 
 Definition Delta1 : tycontext := (PTree.set 1%positive (type_int32s, false) (PTree.empty (type * bool)),
                                  PTree.empty type, Tvoid,nil).
 
 
+(*Simplification soundness*)
 Lemma tc_assert_simpl_sound : forall asn rho, 
 denote_tc_assert asn rho -> denote_tc_assert (tc_assert_simpl asn) rho.
 Proof.
@@ -34,12 +43,18 @@ simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
 destruct e; auto. simpl in *. unfold denote_tc_Zge in *.
 simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
 Qed.
+
+(*Environment typechecking soundness statements*)
+
 Definition tc_te_denote (te: temp_env) (tc: PTree.t (type * bool)) :=
 forall id ty b, tc ! id = Some (ty,b) -> exists v, (te ! id = Some v /\ typecheck_val v ty = true). 
 
 Definition tc_vl_denote (ve:env) le := forall id,
 (In id le -> ve! id = None).
 
+(*This one is a little intense, but it has to deal with the way vars "override"
+globals. Even if globals aren't visible behind vars they still need to be typed
+correctly *)
 Definition tc_ve_denote (ve: env) (ge:genviron) (tc: PTree.t type) :=
 forall id ty, tc ! id = Some (ty) -> 
 ((exists v, (ve ! id = Some(v, ty))) \/
@@ -62,32 +77,8 @@ rewrite eqb_type_refl in H; auto.
 auto.
 Qed.
 
-Lemma join_ve_denote2 : forall ve1 ve2 id v1,
-(join_ve ve1 ve2) ! id = Some (v1) ->
-ve1 ! id = Some (v1) /\ ve2 ! id = Some (v1).
-Proof.
-intros. unfold join_ve in *.
 
-rewrite PTree.fold_spec in *.
-rewrite  <- fold_left_rev_right in *.
-
-assert (forall t : type, In (id, t) (rev (PTree.elements ve1)) -> ve1 ! id = Some t).
-intros. apply PTree.elements_complete. apply in_rev. auto.
-
-assert (NOREP := PTree.elements_keys_norepet (ve1)).
-
-induction (rev (PTree.elements ve1)). simpl in H. rewrite PTree.gempty in *.
-congruence.
-
-destruct a. simpl in H. remember (ve2 ! p). destruct o. simpl in *.
-if_tac in H. subst. rewrite PTree.gsspec in H. if_tac in H. subst.
-specialize (H0 t0). inv H. intuition.
-
-apply IHl; eauto.
-apply IHl; eauto.
-apply IHl; eauto. intros. apply H0. simpl. eauto.
-Qed.
-
+(*Delete if this file builds
 Lemma fold_left_false : forall T l f, 
 fold_left (fun (a:bool) (p: T) => f p && a) l false = false.
 Proof.
@@ -101,15 +92,17 @@ Proof.
 intros.
 induction l; auto. simpl. destruct (f a). simpl. auto. simpl. apply fold_left_false.
 Qed.
+*)
 
+(*environment typecheck soundness*)
 
 Lemma typecheck_vl_eqv : forall vl ve, 
-typecheck_var_list vl ve = true <->
+typecheck_non_var_list vl ve = true <->
 tc_vl_denote ve vl.
 Proof.
 intros. split; intros; unfold tc_vl_denote. intros.
 
-unfold typecheck_var_list in *. 
+unfold typecheck_non_var_list in *. 
 rewrite forallb_forall in H.
 induction vl.
 
@@ -119,7 +112,7 @@ simpl in H0. destruct H0. subst. simpl in *. specialize (H id).
 intuition. destruct (ve ! id); try congruence; auto.
 apply IHvl; auto. intros. simpl in H. specialize (H x). intuition.
 
-unfold tc_vl_denote in *. unfold typecheck_var_list. rewrite forallb_forall.
+unfold tc_vl_denote in *. unfold typecheck_non_var_list. rewrite forallb_forall.
 intros. specialize (H x). intuition. rewrite H1. auto.
 Qed.
 
@@ -235,7 +228,7 @@ Qed.
 Lemma typecheck_environ_sound : forall ge te ve Delta,
 typecheck_environ (mkEnviron ge ve te) Delta = true ->
 tc_te_denote te (temp_types Delta) /\ tc_ve_denote ve ge (var_types Delta) /\ 
-tc_vl_denote ve (var_ids Delta).
+tc_vl_denote ve (non_var_ids Delta).
 Proof.
 intros.
 unfold typecheck_environ in *. destruct Delta. destruct p.
@@ -247,6 +240,35 @@ apply typecheck_ve_eqv; auto.
 
 apply typecheck_vl_eqv; auto.
 
+Qed.
+
+
+(*Lemmas about soundness of environment join*)
+
+Lemma join_ve_denote : forall ve1 ve2 id v1,
+(join_ve ve1 ve2) ! id = Some (v1) ->
+ve1 ! id = Some (v1) /\ ve2 ! id = Some (v1).
+Proof.
+intros. unfold join_ve in *.
+
+rewrite PTree.fold_spec in *.
+rewrite  <- fold_left_rev_right in *.
+
+assert (forall t : type, In (id, t) (rev (PTree.elements ve1)) -> ve1 ! id = Some t).
+intros. apply PTree.elements_complete. apply in_rev. auto.
+
+assert (NOREP := PTree.elements_keys_norepet (ve1)).
+
+induction (rev (PTree.elements ve1)). simpl in H. rewrite PTree.gempty in *.
+congruence.
+
+destruct a. simpl in H. remember (ve2 ! p). destruct o. simpl in *.
+if_tac in H. subst. rewrite PTree.gsspec in H. if_tac in H. subst.
+specialize (H0 t0). inv H. intuition.
+
+apply IHl; eauto.
+apply IHl; eauto.
+apply IHl; eauto. intros. apply H0. simpl. eauto.
 Qed.
 
 
@@ -296,8 +318,6 @@ subst; auto. intuition.
 
 Qed.
 
-
-
 Lemma typecheck_environ_join1:
   forall rho Delta1 Delta2, 
         typecheck_environ rho Delta1 = true ->
@@ -318,7 +338,7 @@ unfold var_types in *. simpl in *. destruct p0.
 destruct p. destruct Delta0. destruct p. destruct p.
 simpl in *.
 unfold tc_ve_denote in *.
-intros. apply join_ve_denote2 in H. destruct H.
+intros. apply join_ve_denote in H. destruct H.
 intuition.
 
 clear H0. rewrite typecheck_vl_eqv in *.
@@ -347,7 +367,7 @@ destruct Delta1. simpl. destruct p. destruct Delta2. destruct p.
 unfold var_types in *.
 destruct p0. destruct p. destruct Delta0. destruct p. destruct p.
  simpl in *. unfold tc_ve_denote in *.
-intros. apply join_ve_denote2 in H. destruct H.
+intros. apply join_ve_denote in H. destruct H.
 intuition.
 
 clear H. clear H2. rewrite typecheck_vl_eqv in *.
@@ -370,19 +390,6 @@ unfold eval_id. apply typecheck_environ_sound in H.
 destruct H as [? _]. unfold tc_te_denote in *.
 edestruct H; eauto. destruct H2. rewrite H2. destruct x; simpl in *; congruence.
 Qed. 
-
-
-
-Lemma in_fst_in : forall A B (L : list (A*B)) (a:A) (b:B), In (a, b) L  -> In a (map (@fst A B) L) .
-Proof.
-intros A B L. induction L; intros. auto. simpl in *. inv H. auto. right. eapply IHL. apply H0.
-Qed.
-
-Lemma in_rem_in : forall A B C (L : list (A*(B*C))) a b c,
-In (a, (b, c)) L -> In (a,b) (map remove_assignedness (L)).
-intros A B C L. induction L; intros. inv H. simpl in *.
-inv H. left. auto. right. eapply  IHL. eauto.
-Qed.
 
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
@@ -429,10 +436,10 @@ destruct p. simpl. unfold var_types. auto. auto.
 
 destruct Delta. destruct p. destruct p. simpl in *. unfold set_temp_assigned.
 destruct ((temp_types (t0, t1, t, l)) ! id); try destruct p;
-unfold var_ids; simpl in *; auto.
+unfold non_var_ids; simpl in *; auto.
 Qed. 
 
-
+(*
 Lemma no_rep_in_pair : forall A B L a b b2, list_norepet (map (@fst A B) (L)) ->
   In (a, b) L -> In (a,b2) L -> b = b2.
 Proof.
@@ -445,7 +452,7 @@ inv H. intuition.
   destruct H4. destruct a; simpl. inv H0. eapply in_fst_in. eauto.
 
   eapply IHL; eauto.
-Qed. 
+Qed. *)
 
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
@@ -501,6 +508,48 @@ remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *;
 destruct c; auto; intuition.
 Qed.
 
+
+(*Typechecking soundness*)
+
+Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
+mkEnviron ge ve te = rho -> 
+tc_ve_denote ve ge (var_types Delta) -> 
+denote_tc_assert (typecheck_lvalue Delta e) rho ->
+eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
+Proof. 
+intros.
+induction e; eauto.
+simpl. 
+remember ((ve_of rho) ! i). destruct o; try rewrite eqb_type_eq; intuition;
+try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
+simpl; try remember (negb (type_is_volatile t0));try destruct b0; auto;
+try solve[right; eauto].
+remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
+destruct o; try rewrite eqb_type_eq; simpl; eauto.
+destruct p; try rewrite eqb_type_eq; simpl; eauto.
+if_tac; eauto.
+unfold tc_ve_denote in *. simpl in H1.
+remember ((var_types Delta) ! i).
+destruct o. subst. simpl in H1.
+try rewrite eqb_type_eq in H1; simpl in *; intuition.
+symmetry in Heqo1.
+specialize (H0 i t1 Heqo1).
+destruct H0. destruct H0. congruence.
+destruct H0. destruct H0. destruct H0. destruct H0.
+destruct H1; congruence. 
+
+destruct H0. destruct H0. destruct H0. destruct H0.
+unfold proj_sumbool in *. destruct (type_eq t t1). subst.
+rewrite <- Heqo0 in H0. inv H0. eauto. inv H.
+
+inv H1. simpl in *. intuition. destruct (eval_expr e rho); eauto.
+
+simpl in *. intuition. destruct (eval_lvalue e rho); eauto; intuition.
+destruct (typeof e); try congruence. 
+destruct (eval_lvalue e rho); intuition. destruct (typeof e); intuition.
+destruct (field_offset i f); eauto.
+Qed. 
+
 Lemma typecheck_binop_sound:
 forall (Delta : tycontext) (rho : environ) (b : binary_operation)
   (e1 e2 : expr) (t : type),
@@ -542,46 +591,6 @@ unfold denote_tc_Zge in *;
 unfold denote_tc_samebase in *;
 unfold denote_tc_nodivover in *;
 unfold denote_tc_initialized in *.
-
-Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
-mkEnviron ge ve te = rho -> 
-tc_ve_denote ve ge (var_types Delta) -> 
-denote_tc_assert (typecheck_lvalue Delta e) rho ->
-eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
-Proof. 
-intros.
-induction e; eauto.
-simpl. 
-remember ((ve_of rho) ! i). destruct o; try rewrite eqb_type_eq; intuition;
-try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
-simpl; try remember (negb (type_is_volatile t0));try destruct b0; auto;
-try solve[right; eauto].
-remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
-destruct o; try rewrite eqb_type_eq; simpl; eauto.
-destruct p; try rewrite eqb_type_eq; simpl; eauto.
-if_tac; eauto.
-unfold tc_ve_denote in *. simpl in H1.
-remember ((var_types Delta) ! i).
-destruct o. subst. simpl in H1.
-try rewrite eqb_type_eq in H1; simpl in *; intuition.
-symmetry in Heqo1.
-specialize (H0 i t1 Heqo1).
-destruct H0. destruct H0. congruence.
-destruct H0. destruct H0. destruct H0. destruct H0.
-destruct H1; congruence. 
-
-destruct H0. destruct H0. destruct H0. destruct H0.
-unfold proj_sumbool in *. destruct (type_eq t t1). subst.
-rewrite <- Heqo0 in H0. inv H0. eauto. inv H.
-
-inv H1. simpl in *. intuition. destruct (eval_expr e rho); eauto.
-
-simpl in *. intuition. destruct (eval_lvalue e rho); eauto; intuition.
-destruct (typeof e); try congruence. 
-destruct (eval_lvalue e rho); intuition. destruct (typeof e); intuition.
-destruct (field_offset i f); eauto.
-Qed. 
-
 
 Lemma typecheck_both_sound: 
   forall Delta rho e , 
@@ -1128,5 +1137,354 @@ if_tac in H1; intuition.
 
 intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
 if_tac in H1; intuition.
+Qed.
+
+(*Proof for "backwards environment checking" that an environment that typechecks
+must have come from an update on an environment that typechecks. 
+TODO: These Lemmas
+should eventually be put in more meaningful places in this file. *)
+
+Lemma join_te_eqv :forall te1 te2 id b1 b2 t1,
+te1 ! id = Some (t1, b1) -> te2 ! id = Some (t1, b2) ->
+(join_te te1 te2) ! id = Some (t1,andb b1 b2).
+Proof.
+intros. 
+unfold join_te. rewrite PTree.fold_spec. rewrite <- fold_left_rev_right.
+assert (forall t : type * bool, In (id, t) (rev (PTree.elements te1)) -> te1 ! id = Some t).
+intros. apply PTree.elements_complete. apply in_rev. auto. 
+assert (forall t, te1 ! id = Some t -> In (id, t) (rev (PTree.elements te1))).
+intros. apply In_rev. rewrite rev_involutive. apply PTree.elements_correct.
+auto.
+
+induction (rev (PTree.elements te1)). simpl in *.
+apply H2 in H. inv H.
+
+simpl in *. destruct a. simpl in *. destruct p0. simpl.
+remember (te2 ! p). destruct o. destruct p0.
+if_tac. subst. rewrite PTree.gsspec. if_tac. subst. specialize (H1 (t0,b)).
+intuition. rewrite H1 in *. inv H.
+ rewrite <- Heqo in *. inv H0. auto.
+apply IHl; auto. intros. specialize (H2 (t1,b1)). intuition. inv H2. destruct H3; auto. 
+specialize (H1 (t1,b1)). intuition.
+rewrite H1 in H4. inv H4. auto.
+apply IHl; auto.
+intros. rewrite H in H4. inv H4. edestruct H2. apply H. inv H4. rewrite H0 in *.
+inv Heqo. destruct H3; auto. auto.
+apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 (t1, b1)).
+intuition. inv H2. congruence.
+Qed.
+
+Lemma join_ve_eqv :forall ve1 ve2 id v,
+ve1 ! id = Some v -> ve2 ! id = Some v ->
+(join_ve ve1 ve2) ! id = Some v.
+Proof.
+intros. unfold join_ve. rewrite PTree.fold_spec. rewrite <- fold_left_rev_right.
+assert (forall v, In (id, v) (rev (PTree.elements ve1)) -> ve1 ! id = Some v).
+intros. apply PTree.elements_complete; apply in_rev; auto.
+assert (forall t, ve1 ! id = Some t -> In (id, t) (rev (PTree.elements ve1))).
+intros. apply In_rev. rewrite rev_involutive. apply PTree.elements_correct.
+auto.
+
+induction (rev (PTree.elements ve1)). apply H2 in H. inv H.
+
+simpl in *. destruct a. simpl in *. remember (ve2 ! p). destruct o.
+if_tac. subst. rewrite PTree.gsspec. if_tac. subst. specialize (H1 t0). 
+intuition. rewrite H1 in *. inv H.
+rewrite <- Heqo in *. inv H0. auto.
+apply IHl; auto. intros. specialize (H2 t). intuition. inv H2. destruct H3; auto. 
+apply IHl; auto.
+intros. rewrite H in H4. inv H4. edestruct H2. apply H. inv H4. rewrite H0 in *.
+inv Heqo. destruct H3; auto. auto.
+apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 t0).
+intuition. inv H2. congruence.
+
+Qed.
+
+Lemma join_vl_eqv : forall vl1 vl2 id,
+In id vl1 -> In id vl2 -> In id (join_ve_list vl1 vl2).
+Proof.
+intros.
+induction vl1. inv H.
+destruct H. subst. unfold join_ve_list. simpl.
+if_tac. simpl. auto. intuition. 
+simpl. if_tac; intuition.
+Qed.
+
+Lemma temp_types_same_type : forall id i t b Delta,
+(temp_types Delta) ! id = Some (t, b) ->
+exists b0 : bool,
+  (temp_types (set_temp_assigned Delta i)) ! id = Some (t, b0).
+Proof.
+intros.
+unfold set_temp_assigned.
+remember ((temp_types Delta) ! i). destruct o.
+destruct p. unfold temp_types in *. simpl. rewrite PTree.gsspec.
+if_tac. subst. rewrite H in *. inv Heqo. eauto. eauto.
+eauto.
+Qed.
+
+Lemma temp_types_update_dist : forall d1 d2 ,
+(temp_types (join_tycon (d1) (d2))) =
+join_te (temp_types (d1)) (temp_types (d2)).
+Proof.
+intros.
+destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
+simpl. unfold temp_types. simpl. auto.
+Qed.
+
+Lemma var_types_update_dist : forall d1 d2 ,
+(var_types (join_tycon (d1) (d2))) =
+join_ve (var_types (d1)) (var_types (d2)).
+Proof.
+intros.
+destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
+simpl. unfold var_types. simpl. auto.
+Qed.
+
+Lemma non_var_ids_update_dist : forall d1 d2 ,
+(non_var_ids (join_tycon (d1) (d2))) =
+join_ve_list (non_var_ids (d1)) (non_var_ids (d2)).
+Proof.
+intros.
+destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
+simpl. unfold var_types. simpl. auto.
+Qed.
+
+
+Lemma update_tycon_te_same : forall c Delta id t b,
+(temp_types Delta) ! id = Some (t,b) ->
+exists b, (temp_types (update_tycon Delta c)) ! id = Some (t, b)
+
+with update_labeled_te_same : forall ls Delta id t b,
+(temp_types Delta) ! id = Some (t,b) ->
+exists b, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b) .
+destruct c; intros; simpl; eauto. simpl. eapply temp_types_same_type; eauto.
+
+simpl. destruct o; eauto. simpl. eapply temp_types_same_type; eauto.
+
+
+assert (forall (c : statement) (Delta : tycontext)
+                         (id : positive) (t : type) (b : bool),
+                       (temp_types Delta) ! id = Some (t, b) ->
+                       exists b0 : bool,
+                         (temp_types (update_tycon Delta c)) ! id =
+                         Some (t, b0)) by auto.
+edestruct update_tycon_te_same. apply H.
+specialize (update_tycon_te_same c2 _ _ _ _ H1). eauto.
+
+simpl. rewrite temp_types_update_dist.
+
+edestruct (update_tycon_te_same c1). apply H.
+edestruct (update_tycon_te_same c2). apply H. 
+erewrite join_te_eqv;
+eauto. 
+
+intros. destruct ls. simpl. eauto.
+simpl. rewrite temp_types_update_dist.
+edestruct update_tycon_te_same. apply H.
+edestruct update_labeled_te_same. apply H.
+erewrite join_te_eqv. eauto.
+apply H0.
+apply H1.
+Qed.
+
+
+Lemma typecheck_environ_update_te:
+  forall rho c Delta, tc_te_denote (te_of rho) (temp_types (update_tycon Delta c)) ->
+tc_te_denote (te_of rho) (temp_types Delta)
+
+with typecheck_ls_update_te : forall Delta ty b id l,
+(temp_types Delta) ! id = Some (ty, b) -> 
+exists b2, (temp_types (join_tycon_labeled l Delta)) ! id = Some (ty, b2).
+Proof.
+intros. unfold tc_te_denote in *.
+destruct c; intros; simpl in *; try solve[eapply H; apply H0].
+
+destruct (eq_dec id i). subst. eapply H; auto.
+unfold set_temp_assigned.
+remember ((temp_types Delta) ! i). destruct o. destruct p.
+unfold temp_types. simpl. inv H0. 
+rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
+eapply H. unfold set_temp_assigned.
+remember ((temp_types Delta) ! i). destruct o. destruct p.
+unfold temp_types. simpl. rewrite PTree.gsspec.
+rewrite peq_false by auto. apply H0. auto.
+
+destruct o.
+destruct (eq_dec id i). subst. eapply H; auto.
+unfold set_temp_assigned.
+remember ((temp_types Delta) ! i). destruct o. destruct p.
+unfold temp_types. simpl. inv H0. 
+rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
+eapply H. unfold set_temp_assigned.
+remember ((temp_types Delta) ! i). destruct o. destruct p.
+unfold temp_types. simpl. rewrite PTree.gsspec.
+rewrite peq_false by auto. apply H0. auto. eauto.
+
+destruct (update_tycon_te_same c1 _ _ _ _ H0).
+destruct (update_tycon_te_same c2 _ _ _ _ H1).
+eapply H. apply H2. 
+
+destruct (update_tycon_te_same c1 _ _ _ _ H0).
+destruct (update_tycon_te_same c2 _ _ _ _ H0).
+ eapply H. unfold join_tycon. remember (update_tycon Delta c1).
+destruct t. destruct p. destruct p. remember (update_tycon Delta c2).
+destruct t2. destruct p. destruct p. unfold temp_types in *.
+unfold update_tycon. simpl in *.
+
+apply join_te_eqv; eauto.    
+
+destruct (update_tycon_te_same c _ _ _ _ H0). 
+eapply H. apply H1. 
+ 
+edestruct update_labeled_te_same. apply H0.
+eapply H. apply H1.
+
+intros. destruct l; simpl in *.
+destruct (update_tycon_te_same s _ _ _ _ H).
+eauto.
+
+ destruct (update_tycon_te_same s _ _ _ _ H).
+edestruct typecheck_ls_update_te. apply H.
+rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
+Qed.
+
+Lemma set_temp_ve : forall Delta i,
+var_types (set_temp_assigned Delta i) = var_types (Delta).
+Proof.
+intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold set_temp_assigned.
+simpl. unfold temp_types. simpl. destruct (t0 ! i); auto. destruct p; auto.
+Qed. 
+
+Lemma set_temp_vl : forall Delta i,
+non_var_ids (set_temp_assigned Delta i) = non_var_ids (Delta).
+Proof.
+intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold set_temp_assigned.
+simpl. unfold temp_types. simpl. destruct (t0 ! i); auto. destruct p; auto.
+Qed. 
+
+Lemma update_tycon_same_ve : forall Delta c id v,
+(var_types (update_tycon Delta c)) ! id = Some v <->
+(var_types (Delta)) ! id = Some v
+
+with update_le_same_ve : forall (l : labeled_statements) (id : positive) (v : type) Delta,
+(var_types (join_tycon_labeled l Delta)) ! id = Some v <->
+(var_types Delta) ! id = Some v.
+Proof.
+intros; split; intros.
+destruct c; simpl in *; try apply H.
+rewrite set_temp_ve in H. auto.
+destruct o. rewrite set_temp_ve in H. auto.
+auto.
+eapply update_tycon_same_ve. rewrite <- update_tycon_same_ve. apply H.
+rewrite var_types_update_dist in H. apply join_ve_denote in H.
+destruct H. rewrite update_tycon_same_ve in H. auto.
+rewrite update_tycon_same_ve in H. apply H.
+erewrite update_le_same_ve in H. apply H.
+
+destruct c; simpl in *; try apply H. rewrite set_temp_ve. apply H.
+destruct o. rewrite set_temp_ve. apply H.
+apply H. rewrite update_tycon_same_ve. rewrite update_tycon_same_ve.
+apply H. rewrite var_types_update_dist. apply join_ve_eqv.
+rewrite update_tycon_same_ve. apply H. rewrite update_tycon_same_ve.
+apply H. rewrite update_tycon_same_ve. apply H.
+rewrite update_le_same_ve. apply H.
+
+intros. split. intros.
+ destruct l. simpl in *. rewrite update_tycon_same_ve in H.
+apply H. simpl in *. rewrite var_types_update_dist in H.
+apply join_ve_denote in H. destruct H. rewrite update_tycon_same_ve in H. apply H.
+
+intros. destruct l; simpl in *.
+rewrite update_tycon_same_ve. apply H.
+rewrite var_types_update_dist. apply join_ve_eqv. rewrite update_tycon_same_ve.
+apply H. apply update_le_same_ve. apply H.
+Qed.   
+
+Lemma ve_join_update :
+(forall (rho : environ) (c : statement) (Delta : tycontext),
+ tc_ve_denote (ve_of rho) (ge_of rho) (var_types (update_tycon Delta c)) ->
+ tc_ve_denote (ve_of rho) (ge_of rho) (var_types Delta)) ->
+forall rho : environ,
+forall (c1 c2 : statement) (Delta : tycontext),
+tc_ve_denote (ve_of rho) (ge_of rho)
+  (join_ve (var_types (update_tycon Delta c1))
+     (var_types (update_tycon Delta c2))) ->
+tc_ve_denote (ve_of rho) (ge_of rho) (var_types Delta).
+Proof.
+intros. unfold tc_ve_denote in *. intros. apply H0.
+clear H0. 
+ 
+unfold join_tycon in *. remember (update_tycon Delta c1).
+destruct t. destruct p. destruct p. remember (update_tycon Delta c2).
+destruct t2. destruct p. destruct p. unfold var_types in *. simpl in *.
+unfold tc_ve_denote in *. intros.
+apply join_ve_eqv. assert (t1 = var_types (update_tycon Delta c1)).
+rewrite <- Heqt. unfold var_types. auto. subst.
+rewrite update_tycon_same_ve. apply H1.
+assert (t4 = var_types (update_tycon Delta c2)).
+rewrite <- Heqt2; unfold var_types; auto. subst.
+rewrite update_tycon_same_ve. apply H1.
+Qed.
+
+
+Lemma typecheck_environ_update_ve : forall (rho : environ) (c : statement) (Delta : tycontext),
+tc_ve_denote (ve_of rho) (ge_of rho) (var_types (update_tycon Delta c)) ->
+tc_ve_denote (ve_of rho) (ge_of rho) (var_types Delta).
+Proof.
+intros. destruct c; simpl in *; try apply H;
+try destruct o; try rewrite set_temp_ve in *; try apply H;
+
+unfold tc_ve_denote in *; intros; apply H; try rewrite var_types_update_dist; 
+try apply join_ve_eqv;
+repeat rewrite update_tycon_same_ve in *; try rewrite update_le_same_ve;
+auto.
+Qed. 
+
+
+Lemma typecheck_environ_update_vl : 
+forall (c : statement) (Delta : tycontext) (id : positive),
+In id (non_var_ids Delta) -> In id (non_var_ids (update_tycon Delta c))
+
+with typecheck_le_update_vl :
+forall (l : labeled_statements) (Delta : tycontext) (id : positive),
+In id (non_var_ids Delta) -> In id (non_var_ids (join_tycon_labeled l Delta)).
+Proof. 
+destruct c; intros; simpl in *; try destruct o; try rewrite set_temp_vl; try apply H.
+
+apply typecheck_environ_update_vl. apply typecheck_environ_update_vl.
+apply H.
+
+rewrite non_var_ids_update_dist. apply join_vl_eqv. apply typecheck_environ_update_vl.
+apply H.
+
+apply typecheck_environ_update_vl. apply H.
+
+apply typecheck_environ_update_vl. apply H.
+
+apply typecheck_le_update_vl. apply H.
+
+intros. destruct l; simpl in *. apply typecheck_environ_update_vl; apply H.
+rewrite non_var_ids_update_dist. apply join_vl_eqv. apply typecheck_environ_update_vl.
+apply H.
+apply typecheck_le_update_vl. apply H.
+Qed.
+
+
+Lemma typecheck_environ_update:
+  forall rho c Delta, typecheck_environ rho (update_tycon Delta c) = true ->
+       typecheck_environ rho Delta = true.
+Proof.
+intros. unfold typecheck_environ in *. repeat rewrite andb_true_iff in *.
+destruct H. destruct H. split. split. clear H0 H1.
+rewrite typecheck_te_eqv in *. eapply typecheck_environ_update_te; eauto.
+
+rewrite typecheck_ve_eqv in *. clear H H0. eapply typecheck_environ_update_ve.
+eauto.
+
+
+rewrite typecheck_vl_eqv in *. clear H H1. unfold tc_vl_denote in *.
+intros. apply H0. clear H0. apply typecheck_environ_update_vl.
+apply H.
 Qed.
 
