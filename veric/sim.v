@@ -397,7 +397,7 @@ Record Forward_simulation_inject := {
        forall vals1 c1 m1 j vals2 m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          (*Is this line needed??*) (forall w1 w2 sigg,  In (v1,v2,sigg) entry_points -> val_inject j w1 w2) ->
+          (*Is this line needed?? (forall w1 w2 sigg,  In (w1,w2,sigg) entry_points -> val_inject j w1 w2) ->*)
            Forall2 (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
@@ -729,6 +729,30 @@ Lemma corestep_star_star_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C)
       eapply plus_star. eapply corestep_plus_plus_step. exists n. apply Hn.
   Qed.
 
+Lemma forall_inject_val_list_inject: forall j args args' (H:Forall2 (val_inject j) args args' ),   val_list_inject j args args'.
+  Proof.
+    intros j args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+Lemma val_list_inject_forall_inject: forall j args args' (H:val_list_inject j args args'), Forall2 (val_inject j) args args' .
+  Proof.
+    intros j args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+
+Lemma forall_lessdef_val_listless: forall args args' (H: Forall2 Val.lessdef args args'),  Val.lessdef_list args args' .
+  Proof.
+    intros args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+Lemma val_listless_forall_lessdef: forall args args' (H:Val.lessdef_list args args'), Forall2 Val.lessdef args args' .
+  Proof.
+    intros args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+
+(*Axioms ExtAX: forall args m t r m', external_call ef (Genv.globalenv P1) args m t r m1 -> In ef ExternIdents)*)
+
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
         (Sem1: CompcertCoreSem (Genv.t F1 V1) C1)  
@@ -736,7 +760,8 @@ Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
         P1 P2 ExternIdents,
         In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.compiler_correctness
-             (fun F C V Sem P => forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x )
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x) /\
+                                                  (forall ef myF args m t r m', external_call ef (Genv.globalenv P) args m t r m' -> In myF ExternIdents))
               ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
@@ -744,7 +769,7 @@ Proof.
   induction X; intros.
   Focus 4. (*trans_case*)
      assert (MM: prog_main P1 = prog_main P2). eapply CompilerCorrectness.cc_main; eauto.
-      spec IHX1. apply H.
+      spec IHX1.  apply H.
       spec IHX1. apply MM.  
       spec IHX2. rewrite MM in H. apply H.
       spec IHX2. eapply CompilerCorrectness.cc_main; eauto.
@@ -799,8 +824,285 @@ Proof.
                     exists d'. exists (c2', m1'). simpl.
                     split; auto. left.  eapply plus_one. eapply step_ext_step. apply AtExt2. Focus 2. apply AftExt2.
                                   eapply external_call_symbols_preserved_gen. Focus 3. apply H9. admit. (*HERE*)
+                              (*globvar*) intros. unfold block_is_volatile. 
+                                      remember  (Genv.find_var_info (Genv.globalenv P1) b) as v.
+                                      destruct v; apply eq_sym in Heqv.
+                                         admit. (*don't have b in extenidents, so can't apply ext_ok*)
+                                      admit. (*our gvar assumptions are assymmetric*)
+         (* fsim_symbols_preserved*) simpl. admit. (*SAME HERE*)
+   (*extends*) 
+        destruct i as [GenvInit1 HGenv1].
+        destruct i0 as [GenvInit2 HGenv2].
+        set (fsim_index := Sim_ext.core_data R).
+        set (fsim_order := Sim_ext.core_ord R).
+        set (fsim_order_wf := Sim_ext.core_ord_wf R).
+        set (fsim_match_states s (x:C1 * mem) (y:C2 * mem) :=
+                        Sim_ext.match_state R s (fst x)  (snd x) (fst y) (snd y)).
+        apply ( @Forward_simulation  (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2)
+                        fsim_index fsim_order fsim_order_wf  fsim_match_states).
+             (*initial_state*) simpl. unfold initial_state. intros.
+                      destruct s1 as [c1 m1]. simpl in *.
+                      destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
+                       unfold CompilerCorrectness.entries_ok in ext_ok.
+                       destruct (ext_ok _ _ H) as [b1 [KK1 [KK2 [Hfound [f1 [f2 [Hf1 Hf2]]]]]]].
+                       rewrite KK1 in K3. inv K3. inv K2. clear K1 ext_ok H.
+                       apply GenvInit1 in K5. apply Extends_init in K5. destruct K5 as [m2 [iniMem2 Mextends]].
+                      assert (X := @Sim_ext.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil nil m1 m2).
+                      destruct X as [d' [c1' [c2' [IniCore1 [IniCore2 ExtMatch]]]]].
+                          constructor.
+                          constructor.
+                          assumption.
+                    rewrite IniCore1 in K4. inv K4.
+                    exists d'. exists (c2', m2); simpl. 
+                         split; auto. 
+                          exists b. exists nil. simpl.
+                          repeat  split; try constructor. 
+                          rewrite <- H0. apply KK2.  
+                         assumption.
+                         apply GenvInit2. apply iniMem2. 
+           (*finalstate*)
+                 simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
+                      eapply (@Sim_ext.core_halted _ _ _ _ Sem1 Sem2
+                                    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ _ H2).
+           (*diagram*)
+                 simpl. subst fsim_match_states. simpl. intros.
+                destruct s1 as [c1 m1]. destruct s2 as [c2 m2].  destruct s1' as [c1' m1'].  simpl in *.
+                 inv H1. 
+                 (*corestep*)  
+                   assert (DD := @Sim_ext.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
+                   destruct DD as [c2' [m2' [d'  [MC' myStep]]]].
+                  exists d'. exists (c2', m2'); simpl. split; auto.
+                    destruct myStep.
+                      (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
+                      (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
+               (*external_step*) 
+                    destruct (@Sim_ext.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ H2 H8) as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
+                   assert (EXT:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H9 Mextends (forall_lessdef_val_listless _ _ lessArgs)).
+                   destruct EXT as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].
+                    assert (DD := @Sim_ext.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ ret ret2 m1' m2' H2 H8 AtExt2 lessArgs TpArgs2).
+                    destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]].
+                            admit.
+                            admit.
+                            assumption.
+                            assumption.
+                            assumption.
+                            apply (external_call_well_typed _ _ _ _ _ _ _ extCall2). 
+                    rewrite AftExt1 in H10. inv H10.
+                      exists d'. exists (c2', m2'); simpl.
+                     split; auto. left.  eapply plus_one.
+                               apply step_ext_step with (ef:=ef)(args:=args2)(ret:=ret2).
+                                    apply AtExt2. 
+                                    apply (@external_call_symbols_preserved_2 ef F1 V1 F2 V2 (fun v1 =>Errors.Error nil)) with (ge1:=(Genv.globalenv P1)).
+                                          apply extCall2.
+                                          admit. (*symmetric hypothesis on Genv.findSymbol*) 
+                                          simpl. admit. (*first hyp on globvars*) 
+                                          simpl. admit. (*second hyp on globvars*) 
+                                    assumption.
+         (* fsim_symbols_preserved*) simpl. admit. (*SAME HERE*)
+   (*inject*)
+        rename j into jInit. rename i into HGenv1. rename i0 into HGenv2.
+        set (fsim_index := Sim_inj.core_data R).
+        set (fsim_order := Sim_inj.core_ord R).
+        set (fsim_order_wf := Sim_inj.core_ord_wf R).
+        set (fsim_match_states s (x:C1 * mem) (y:C2 * mem) :=
+                        exists j,  inject_incr jInit j /\  Sim_inj.match_state R s j (fst x)  (snd x) (fst y) (snd y)).
+        apply ( @Forward_simulation  (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2)
+                        fsim_index fsim_order fsim_order_wf  fsim_match_states).
+             (*initial_state*) simpl. unfold initial_state. intros.
+                      destruct s1 as [c1 m1]. simpl in *.
+                      destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
+                       unfold CompilerCorrectness.entries_ok in ext_ok.
+                       destruct (ext_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
+                      rewrite KK1 in K3. inv K3. inv K2. clear K1.
+                       destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply HGenv1. apply K5.
+                        assert (X := @Sim_inj.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
+                        (*would need relationship between entrypoints and externidents assert (ZZ: (forall (w1 w2 : val) (sigg : signature),  In (w1,w2, sigg) entrypoints -> val_inject j w1 w2)).
+                             intros.  unfold CompilerCorrectness.entries_inject_ok in ext_ok. apply ext_ok in H1.*)
+                        destruct X as [d' [c2 [iniCore2 Match]]].
+                          constructor.
+                          constructor. 
+                          exists d'. exists (c2,m2). simpl in *.
+                          split; auto. exists b2. exists nil.
+                             repeat  split; try constructor.
+                             rewrite <- H0. apply KK2.
+                             assumption.
+                             apply HGenv2. apply initMem2.
+                         exists jInit. split; auto. 
+           (*finalstate*)
+                 simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
+                      eapply (@Sim_inj.core_halted _ _ _ _ Sem1 Sem2
+                                    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ _ _ H2).
+           (*diagram*) 
+                 simpl. subst fsim_match_states. simpl. intros.
+                destruct s1 as [c1 m1]. destruct s2 as [c2 m2].  destruct s1' as [c1' m1'].  simpl in *.
+                destruct H2 as [j [InjJ MCJ]].
+                 inv H1. 
+                 (*corestep*)  
+                   assert (DD := @Sim_inj.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MCJ).
+                   destruct DD as [c2' [m2' [d' [j' [InjJ' [Sep [MC' myStep]]]]]]].
+                  exists d'. exists (c2', m2'); simpl. split; auto.
+                    destruct myStep.
+                      (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
+                      (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
+                   exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
+               (*external_step*) 
+                    destruct (@Sim_inj.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
+                               as[INJ [args2 [LD [TP AtExt2]]]].
+                    assert (HH: meminj_preserves_globals (Genv.globalenv P1) j). it seems inject doesn't preserve globals!
+                             split; intros. destruct HGenv1. apply (H3 _ (id, CompilerCorrectness.extern_func (ef_sig ef))) in H8.  apply ext_ok in H8.
+                                    destruct H8 as [b1 [b2 [Hb1 [Hb2 [Hb1b2 _]]]]]. rewrite Hb1 in H1. inv H1.  apply InjJ. assumption.
+                    apply forall_inject_val_list_inject in LD.
+                   assert (ZZ:= @external_call_mem_inject ef  _ _ (Genv.globalenv P2) _ _ _ _ _ j _ _ HH H8 INJ LD).
+                   destruct ZZ as [j'  [ret2 [m2' [ExtCall2 [RetInj [MInj2 [Munch1 [Munch2 [Inj' Sep']]]]]]]]].
+                     assert (DD := @Sim_inj.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R i j j').
+                    assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
+                    destruct (DD _ _ _ _ _ _ _ _ _ _ INJ MCJ H7 Inj' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
+                         admit. (*mem_forward*)
+                         apply Munch1.
+                         admit. (*mem_forward*)
+                         apply Munch2.
+                         eapply external_call_well_typed. apply ExtCall2. 
+                      rewrite AftExt1 in H9. inv H9.
+                         exists d'. exists (c2', m2').
+                         split. left. apply plus_one. eapply  step_ext_step. apply AtExt2. rewrite apply ExtCall2. 
+                         apply inject_incr_refl. intros z. intros. rewrite H1 in H2. inv H2.   apply inject_separated_refl.  AtExt2 LD TP) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                      apply Val.lessdef_refl.
+                      apply Xt.
+                      apply RetTp.
+                    rewrite AftExt1 in H10. inv H10.
+                    exists d'. exists (c2', m2). simpl.
+                    split; auto. left.  eapply plus_one. eapply step_ext_step. apply AtExt2. Focus 2. apply AftExt2.
+                                  eapply external_call_symbols_preserved_gen. Focus 3. apply H9. admit. (*HERE*)
                                       admit. (*property about volatile*)
-         (* fsim_symbols_preserved*) simpl. SAME HERE
+         (* fsim_symbols_preserved*) simpl. admit. (*SAME HERE*)
+   (*extends*)
+        set (fsim_match_states s (x:C1 * mem) (y:C2 * mem) :=
+                        exists j',  inject_incr j j' /\  Sim_inj.match_state R s j' (fst x)  (snd x) (fst y) (snd y)).
+        apply ( @Forward_simulation  (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2)
+                        fsim_index fsim_order fsim_order_wf  fsim_match_states).
+             (*initial_state*) simpl. unfold initial_state. intros.
+                      destruct s1 as [c1 m1]. simpl in *.
+                      destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
+                       unfold CompilerCorrectness.entries_ok in ext_ok.
+                       destruct (ext_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
+                      rewrite KK1 in K3. inv K3. inv K2. clear K1.
+                       destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply i. apply K5.
+                        assert (X := @Sim_inj.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
+                        (*would need relationship between entrypoints and externidents assert (ZZ: (forall (w1 w2 : val) (sigg : signature),  In (w1,w2, sigg) entrypoints -> val_inject j w1 w2)).
+                             intros.  unfold CompilerCorrectness.entries_inject_ok in ext_ok. apply ext_ok in H1.*)
+                        destruct X as [d' [c2 [iniCore2 Match]]].
+                          constructor.
+                          constructor. 
+                          exists d'. exists (c2,m2). simpl in *.
+                          split; auto. exists b2. exists nil.
+                             repeat  split; try constructor.
+                             rewrite <- H0. apply KK2.
+                             assumption.
+                             apply i0. apply initMem2.
+                         exists j. split; auto. 
+           (*finalstate*)
+                 simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
+                      eapply (@Sim_inj.core_halted _ _ _ _ Sem1 Sem2
+                                    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ _ _ H2).
+           (*diagram*)
+                 simpl. subst fsim_match_states. simpl. intros.
+                destruct s1 as [c1 m1]. destruct s2 as [c2 m2].  destruct s1' as [c1' m1'].  simpl in *.
+                destruct H2 as [j' [Inj MC]].
+                 inv H1. 
+                 (*corestep*)  
+                   assert (DD := @Sim_inj.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MC).
+                   destruct DD as [c2' [m2' [d' [j'' [Inj' [Sep [MC' myStep]]]]]]].
+                  exists d'. exists (c2', m2'); simpl. split; auto.
+                    destruct myStep.
+                      (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
+                      (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
+                   exists j''; split; auto. eapply inject_incr_trans. apply Inj. apply Inj'.                    
+               (*external_step*) 
+                    destruct (@Sim_inj.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MC H7) as[INJ [arg2 [LD [TP AtExt2]]]].
+                    assert (DD := @Sim_inj.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R).
+                    assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
+                    destruct (DD _ _ _ _ _ _ _ _ ret ret m1' m2 H2 H8 AtExt2 LD TP) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                      apply Val.lessdef_refl.
+                      apply Xt.
+                      apply RetTp.
+                    rewrite AftExt1 in H10. inv H10.
+                    exists d'. exists (c2', m2). simpl.
+                    split; auto. left.  eapply plus_one. eapply step_ext_step. apply AtExt2. Focus 2. apply AftExt2.
+                                  eapply external_call_symbols_preserved_gen. Focus 3. apply H9. admit. (*HERE*)
+                                      admit. (*property about volatile*)
+         (* fsim_symbols_preserved*) simpl. admit. (*SAME HERE*)
+   (*extends*)
+
+   (*extends*)
+        intros.
+        set (fsim_index := Sim_ext.core_data R).
+        set (fsim_order := Sim_ext.core_ord R).
+        set (fsim_order_wf := Sim_ext.core_ord_wf R).
+        set (fsim_match_states s (x:C1 * mem) (y:C2 * mem) :=
+                          Sim_ext.match_state R s (fst x)  (snd x) (fst y) (snd y)).
+        apply ( @Forward_simulation  (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2)
+                        fsim_index fsim_order fsim_order_wf  fsim_match_states).
+             (*initial_state*) simpl. unfold initial_state. intros.
+                      destruct s1 as [c1 m1]. simpl in *.
+                      destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
+                       unfold CompilerCorrectness.entries_ok in ext_ok.
+                       destruct (ext_ok _ _ H) as [bb [KK1 [KK2 [KK3 [f1 [f2 [Hf1 Hf2]]]]]]].
+                       assert (X := @Sim_ext.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ KK3 nil nil).
+                       rewrite KK1 in K3. inv K3. inv K2. clear K1.  
+                       simpl in *.
+                       destruct (Extends_init m1) as [m2 [initMem2 Y]].  apply i. apply K5.
+                      destruct (X m1 m2); clear X.
+                          constructor. 
+                          constructor. 
+                          apply Y.
+                          destruct H1 as [cc1 [c2 [iniCore1 [iniCore2 mtch]]]]. rewrite iniCore1 in K4. inv K4.
+                          exists x. exists (c2,m2). simpl in *.
+                          split; auto. exists b. exists nil.
+                             repeat  split; try constructor.
+                             rewrite <- H0. apply KK2.
+                             assumption.
+                             apply i0. apply initMem2. 
+           (*finalstate*)
+                 simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
+                      eapply (@Sim_ext.core_halted _ _ _ _ Sem1 Sem2
+                                    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ H1 H2).
+           (*diagram*)
+                 simpl. subst fsim_match_states. simpl. intros.
+                destruct s1 as [c1 m1]. destruct s2 as [c2 m2].  destruct s1' as [c1' m1'].  simpl in *.
+                 inv H1.
+                 (*corestep*)  
+                   assert (DD := @Sim_ext.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
+                   destruct DD as [c2' [m2' [d' [MC myStep]]]].
+                  exists d'. exists (c2', m2'); simpl. split; auto.
+                    destruct myStep.
+                      (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
+                      (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
+               (*external_step*) 
+                    destruct (@Sim_ext.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ H2 H8) as [arg2 [Xt [LD [TP AtExt2]]]].
+                    assert (DD := @Sim_ext.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R).
+                    assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H9).
+                    destruct (DD _ _ _ _ _ _ _ _ ret ret m1' m2 H2 H8 AtExt2 LD TP) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                       admit. (*apply mem_forward_refl.*)
+                      apply Val.lessdef_refl.
+                      apply Xt.
+                      apply RetTp.
+                    rewrite AftExt1 in H10. inv H10.
+                    exists d'. exists (c2', m2). simpl.
+                    split; auto. left.  eapply plus_one. eapply step_ext_step. apply AtExt2. Focus 2. apply AftExt2.
+                                  eapply external_call_symbols_preserved_gen. Focus 3. apply H9. admit. (*HERE*)
+                                      admit. (*property about volatile*)
+         (* fsim_symbols_preserved*) simpl. admit. (*SAME HERE*)
+   (*extends*)
+
+
 Qed.
 
 Old material
