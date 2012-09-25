@@ -463,7 +463,7 @@ Lemma forward_set:
   temp_free_in id e = false ->
   closed_wrt_vars (modified1 id) P ->
   (forall rho, tc_expr Delta e rho) ->
-  semax (set_temp_assigned Delta id) G
+  semax (initialized id Delta) G
              (local (lift2 eq (eval_id id) (eval_expr e)) && P)
              c Q ->
   semax Delta G P (Ssequence (Sset id e) c) Q.

@@ -362,13 +362,37 @@ simpl.
 normalize.
 Qed.
 
+
+Lemma expr_false_ptr: 
+  forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
+     forall rho,  (expr_false e rho) = (eval_expr e rho = nullval).
+Proof.
+intros.
+unfold expr_false.
+destruct (typeof e); try contradiction.
+unfold lift1, typed_false, strict_bool_val; simpl.
+destruct (eval_expr e rho); apply prop_ext; intuition; try congruence.
+inv H0. 
+pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
+inv H0.
+inv H0. rewrite Int.eq_true. auto.
+inv H0. inv H0.
+Qed.
+
 Lemma expr_true_Cnot_ptr: 
   forall e, match typeof e with Tpointer _ _ => True | _ => False end ->
      forall rho,  (expr_true (Cnot e) rho) = (eval_expr e rho = nullval).
 Proof.
 intros.
  unfold expr_true, Cnot.
- apply bool_val_notbool_ptr; auto.
+ unfold lift1. simpl. destruct (typeof e); try contradiction.
+ unfold typed_true; simpl.
+ destruct (eval_expr e rho); simpl; try solve [ apply prop_ext; intuition discriminate].
+ pose proof (Int.eq_spec i Int.zero).
+ destruct (Int.eq i Int.zero).
+ subst. simpl. apply prop_ext; intuition.
+  subst. simpl. apply prop_ext; intuition.
+ congruence. inv H1. contradiction H0. auto.
 Qed.
 Hint Rewrite expr_true_Cnot_ptr using (solve [simpl; auto]) : normalize.
 
@@ -394,27 +418,6 @@ Proof. intros. unfold ilseg. rewrite lseg_eq; auto. f_equal. f_equal.
  apply prop_ext. destruct s; simpl; intuition congruence.
 Qed.
 Hint Rewrite ilseg_eq : normalize.
-
-
-Definition strict_bool_val (v: val) (t: type) : option bool :=
-  match v, t with
-  | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
-  | Vint n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) =>
-            if Int.eq n Int.zero then Some false else None
-  | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => Some true
-  | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
-  | _, _ => None
-  end.
-
-Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t = Some true.
-Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t = Some false.
-
-Lemma HACK_expr_true:  forall e,
-    expr_true e = lift1 (typed_true (typeof e)) (eval_expr e).
-Proof.
-(* NOT TRUE, but when we use strict_bool_val in the SeparationLogic then it will be true *)
-Admitted.
-
 
 Lemma ilseg_nonnull:
   forall s v,
@@ -446,6 +449,7 @@ unfold ilseg_cons, ilseg_nil.
 apply pred_ext; normalize.
 apply orp_left; auto. normalize.
 unfold expr_true, bool_val,ptr_eq in *.
+unfold lift1, typed_true, strict_bool_val in H; simpl in H.
 destruct (eval_expr e' rho); simpl in *; try contradiction.
 rewrite H0 in H. destruct (typeof e'); inv H.
 intros.
@@ -680,7 +684,7 @@ Lemma forward_set:
   temp_free_in id e = false ->
   closed_wrt_vars (modified1 id) (PROPx P1 (LOCALx P2 (SEPx P3))) ->
   (forall rho, tc_expr Delta e rho) ->
-  semax (set_temp_assigned Delta id) G
+  semax (initialized id Delta) G
              (PROPx P1 (LOCALx (lift2 eq (eval_id id) (eval_expr e) :: P2) (SEPx P3)))
              c Q ->
   semax Delta G (PROPx P1 (LOCALx P2 (SEPx P3))) (Ssequence (Sset id e) c) Q.
@@ -856,9 +860,41 @@ apply semax_extract_prop.
 auto.
 Qed.
 
+Definition bind1' (i1: ident) (P: assert) (args: list val): mpred :=
+   match args with a::nil => ALL rho: environ, !! (eval_id i1 rho = a) --> P rho
+  | _ => FF
+  end.
+
+(*
+Notation "'WITHX' x 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
+     (mk_funspec (Tcons ta Tnil, tz) _
+             (fun x => bind1' a P%logic)
+             (fun x => bind1 (fun z => Q%logic)))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+*)
+
 Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
+(*
+replace (bind1 (fun p : val => ilseg contents p nullval))
+ with (bind1' P.i_p (lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval))).
+Focus 2.
+extensionality args.
+unfold bind1, bind1'.
+destruct args; auto.
+destruct args; auto.
+forget (ilseg contents) as g.
+apply pred_ext.
+apply allp_left with (env_set any_environ P.i_p v).
+normalize.
+admit.
+apply allp_right; intro rho.
+normalize.
+apply imp_andp_adjoint.
+normalize.
+unfold eval_id. simpl.
+*)
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 change ( lift1 (fun p : val => ilseg contents p nullval) (eval_id P.i_p))
@@ -884,12 +920,13 @@ intros; unfold tc_expr; simpl; normalize.
 unfold sumlist_Inv.
 go_lower.
 intros cts ?.
-unfold partial_sum in H0;  rewrite H0. rewrite H. normalize.
+unfold partial_sum in H0;  rewrite H0.
+rewrite expr_false_ptr in H by (simpl; auto).
+simpl in H. rewrite H. normalize.
 (* Prove that loop body preserves invariant *)
 unfold sumlist_Inv at 1.
 normalize.
 apply extract_exists_pre; intro cts.
-rewrite HACK_expr_true. simpl typeof.
 normalize.
 change_in_pre (ilseg cts) (ilseg_cons cts).
    rewrite ilseg_nonnull by auto.
@@ -906,8 +943,6 @@ rewrite restart_canon; rewrite (grab_nth_SEP 0);
    normalize; apply extract_exists_pre; intro y.
    autorewrite with canon.
 apply semax_extract_PROP; intro. subst.
-
-
 
 Admitted.
 

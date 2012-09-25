@@ -412,7 +412,7 @@ Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
 typecheck_environ (mkEnviron ge ve te) Delta = true ->
 (forall t , ((temp_types Delta) ! id = Some t ->
   (typecheck_val v (fst t)) = true)) ->
-typecheck_environ (mkEnviron ge ve (PTree.set id v te)) (set_temp_assigned Delta id) = true.
+typecheck_environ (mkEnviron ge ve (PTree.set id v te)) (initialized id Delta) = true.
 Proof.
 intros. 
 assert (typecheck_environ (mkEnviron ge ve (PTree.set id v te)) Delta = true).
@@ -420,7 +420,7 @@ apply typecheck_environ_put_te; auto.
 
 unfold typecheck_environ in *. simpl in *. repeat rewrite andb_true_iff in *. intuition.
 
-destruct Delta. destruct p. destruct p.  unfold set_temp_assigned. unfold temp_types in *.
+destruct Delta. destruct p. destruct p.  unfold initialized. unfold temp_types in *.
 clear H4 H3 H5 H6. simpl in *. 
 rewrite typecheck_te_eqv in *. unfold tc_te_denote in *. intros. remember (t0 ! id).
 destruct o; try congruence; auto. destruct p. simpl in *. rewrite PTree.gsspec in H.
@@ -431,10 +431,10 @@ rewrite PTree.gsspec. if_tac; intuition. eauto.
 simpl in *. eapply H2; eauto.
 
 unfold var_types in *. destruct Delta. destruct p. destruct p. simpl in *.
-unfold set_temp_assigned. simpl. destruct ((temp_types (t0, t1, t, l))!id).
+unfold initialized. simpl. destruct ((temp_types (t0, t1, t, l))!id).
 destruct p. simpl. unfold var_types. auto. auto.
 
-destruct Delta. destruct p. destruct p. simpl in *. unfold set_temp_assigned.
+destruct Delta. destruct p. destruct p. simpl in *. unfold initialized.
 destruct ((temp_types (t0, t1, t, l)) ! id); try destruct p;
 unfold non_var_ids; simpl in *; auto.
 Qed. 
@@ -1213,10 +1213,10 @@ Qed.
 Lemma temp_types_same_type : forall id i t b Delta,
 (temp_types Delta) ! id = Some (t, b) ->
 exists b0 : bool,
-  (temp_types (set_temp_assigned Delta i)) ! id = Some (t, b0).
+  (temp_types (initialized i Delta)) ! id = Some (t, b0).
 Proof.
 intros.
-unfold set_temp_assigned.
+unfold initialized.
 remember ((temp_types Delta) ! i). destruct o.
 destruct p. unfold temp_types in *. simpl. rewrite PTree.gsspec.
 if_tac. subst. rewrite H in *. inv Heqo. eauto. eauto.
@@ -1301,22 +1301,22 @@ intros. unfold tc_te_denote in *.
 destruct c; intros; simpl in *; try solve[eapply H; apply H0].
 
 destruct (eq_dec id i). subst. eapply H; auto.
-unfold set_temp_assigned.
+unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. inv H0. 
 rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
-eapply H. unfold set_temp_assigned.
+eapply H. unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto.
 
 destruct o.
 destruct (eq_dec id i). subst. eapply H; auto.
-unfold set_temp_assigned.
+unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. inv H0. 
 rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
-eapply H. unfold set_temp_assigned.
+eapply H. unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto. eauto.
@@ -1350,16 +1350,16 @@ rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
 Qed.
 
 Lemma set_temp_ve : forall Delta i,
-var_types (set_temp_assigned Delta i) = var_types (Delta).
+var_types (initialized i Delta) = var_types (Delta).
 Proof.
-intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold set_temp_assigned.
+intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (t0 ! i); auto. destruct p; auto.
 Qed. 
 
 Lemma set_temp_vl : forall Delta i,
-non_var_ids (set_temp_assigned Delta i) = non_var_ids (Delta).
+non_var_ids (initialized i Delta) = non_var_ids (Delta).
 Proof.
-intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold set_temp_assigned.
+intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (t0 ! i); auto. destruct p; auto.
 Qed. 
 

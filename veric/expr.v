@@ -6,6 +6,15 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
+Definition any_environ : environ :=
+ (* Mainly for use in demonstrating that the environ type is inhabited *)
+  mkEnviron (fun _ => None)  (Maps.PTree.empty _) (Maps.PTree.empty _).
+
+Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
+Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
+Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
+   environ -> B := fun rho => P (f1 rho) (f2 rho).
+
 (* Make a completely computational version of type_eq *)
 
 Definition eqb_attr (a b: attr) : bool :=
@@ -151,8 +160,19 @@ Fixpoint eval_expr (e: expr) (rho:environ) : val :=
  | _  => Vundef
  end.
 
-Definition eval_exprlist (el:list expr) (rho:environ) := map (fun e1:expr => eval_expr e1 rho) el.
+Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
+ match el with
+ | nil => lift0 nil
+ | e::el' => lift2 cons (eval_expr e) (eval_exprlist el')
+ end.
 
+Definition eval_exprlist' (el:list expr) (rho:environ) := map (fun e1:expr => eval_expr e1 rho) el.
+
+Lemma eval_exprlist_eq: eval_exprlist = eval_exprlist'.
+Proof.
+extensionality el rho.
+induction el; simpl; try rewrite <- IHel; simpl; try reflexivity.
+Qed.
 
 (*Declaration of type context for typechecking *)
 
@@ -548,7 +568,7 @@ Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
   end.
 
 (*Functions that modify type environments*)
-Definition set_temp_assigned (Delta:tycontext) id :=
+Definition initialized id (Delta: tycontext) :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
                     , var_types Delta, ret_type Delta, non_var_ids Delta)
@@ -597,7 +617,7 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  match c with
  | Sskip | Scontinue | Sbreak => Delta
  | Sassign e1 e2 => Delta (*already there?*)
- | Sset id e2 => (set_temp_assigned Delta id)
+ | Sset id e2 => (initialized id Delta)
  | Ssequence s1 s2 => let Delta' := update_tycon Delta s1 in
                       update_tycon Delta' s2
  | Sifthenelse b s1 s2 => join_tycon (update_tycon Delta s1) (update_tycon Delta s2)
@@ -605,7 +625,7 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Sdowhile b s1 => (update_tycon Delta s1) 
  | Sfor' b inc body => Delta
  | Sswitch e ls => join_tycon_labeled ls Delta
- | Scall (Some id) _ _ => (set_temp_assigned Delta id)
+ | Scall (Some id) _ _ => (initialized id Delta)
  | _ => Delta  (* et cetera *)
 end
 (*Definition bool_expr Delta e := typecheck_expr Delta e && is_scalar_type (typeof e).*)

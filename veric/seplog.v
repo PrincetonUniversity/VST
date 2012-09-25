@@ -75,8 +75,6 @@ Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop :=
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
   bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
 
-Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
-
 Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 = Some true.
 

@@ -18,13 +18,7 @@ Instance Iveric: Indir mpred := algIndir veric.seplog.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir veric.seplog.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir veric.seplog.rmap.
 
-Definition any_environ : environ := base.any_environ.
 Hint Resolve any_environ : typeclass_instances.
-
-Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
-Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
-Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
-   environ -> B := fun rho => P (f1 rho) (f2 rho).
 
 Definition assert := environ -> mpred.
 Definition ret_assert := exitkind -> list val -> assert.
