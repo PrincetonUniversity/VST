@@ -1174,18 +1174,24 @@ Definition Cnot (e: Clight.expr) : Clight.expr :=
 Lemma bool_val_Cnot:
   forall rho a b, 
     bool_type (typeof a) = true ->
-    bool_val (eval_expr a rho) (typeof a) = Some b ->
-    bool_val (eval_expr (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
+    strict_bool_val (eval_expr a rho) (typeof a) = Some b ->
+    strict_bool_val (eval_expr (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
 Proof.
  intros.
  unfold Cnot. simpl.
- destruct (eval_expr a rho);   try solve [inv H0];
- simpl in H0; 
- revert H H0; case_eq (typeof a); intros; inv H1; inv H0;
-   try rewrite negb_involutive;
- unfold sem_notbool, classify_bool, Val.of_bool; 
- try (destruct i0; simpl; auto);
- try (destruct s; simpl; auto);
- try (destruct (Int.eq i Int.zero); auto).
- simpl. destruct (Float.cmp Ceq f Float.zero); auto.
+ destruct (eval_expr a rho); simpl in *; try congruence.
+ destruct (typeof a); simpl in *; try congruence.
+ inv H0. rewrite  negb_involutive. unfold sem_notbool, classify_bool, Val.of_bool.
+ destruct i0; simpl; auto; destruct (Int.eq i Int.zero); auto;
+ destruct s; simpl; auto.
+ 
+ destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
+
+ destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
+
+ destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
+
+ destruct (typeof a); try congruence. simpl. destruct ((Float.cmp Ceq f Float.zero)); inv H0; auto.
+
+ destruct (typeof a); inv H0; simpl; auto.
 Qed.

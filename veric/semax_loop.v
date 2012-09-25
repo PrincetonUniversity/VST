@@ -200,11 +200,11 @@ Qed.
 (* Admitted: move this to expr.v or something *)
 Lemma typecheck_bool_val:
   forall v t, typecheck_val v t = true -> bool_type t = true ->
-      exists b, bool_val v t = Some b.
+      exists b, strict_bool_val v t = Some b.
 Proof.
 intros.
 destruct t; inv H0;
-destruct v; inv H; simpl; eauto.
+destruct v; inv H; simpl; try rewrite H1; eauto. 
 Qed.
 
 Lemma semax_for : 
@@ -215,7 +215,7 @@ forall Delta G Q Q' test incr body R
                                   then delete it from this rule, and from the semax_while
                               and semax_dowhile rules... doesn't look like I need it unless
                               I am missing a typechecking proof in here*)
-     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! expr_false (test) rho && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
      semax Hspec Delta G Q' incr (for2_ret_assert Q R) ->
@@ -247,7 +247,7 @@ destruct H6 as [H6 Hge].
 assert (Prog_OK2: (believe Hspec G psi G) (level a2)) 
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
-assert (exists b, bool_val (eval_expr test rho) (typeof test) = Some b).
+assert (exists b, strict_bool_val (eval_expr test rho) (typeof test) = Some b).
 clear - H6 TC BT H7 Hge.
 destruct H7 as [w1 [w2 [_ [_ ?]]]].
 apply TC in H. hnf in H.
@@ -270,7 +270,7 @@ apply safe_corestep_backward
  with (State (ve_of rho) (te_of rho) (if b then Kseq body :: Kseq Scontinue :: Kfor2 test incr body :: k else k))
         jm'.
 split3.
-rewrite (age_jm_dry LEVa2); econstructor; eauto.
+rewrite (age_jm_dry LEVa2); econstructor; apply strict_bool_val_sub in H9; eauto.
 apply eval_expr_relate with (Delta:=Delta); auto.
 specialize (TC rho). unfold tc_expr in TC. 
 admit.  (* now just needs typechecking out of tc. I don't know how to do that*)
@@ -389,8 +389,10 @@ intros ? ?.
 hnf.
 
 clear - BT H9.
- change true with (negb false);
- apply bool_val_Cnot; auto.
+ simpl in *. 
+ change true with (negb false).
+ assert (x:=bool_val_Cnot rho test false). simpl in x.
+ destruct (typeof test); simpl in *; try congruence; intuition.
 Qed.
 
 
@@ -398,7 +400,7 @@ Lemma semax_while :
 forall Delta G Q test body R
      (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
-     (POST: forall rho,  !! expr_true (Cnot test) rho && Q rho |-- R EK_normal nil rho),
+     (POST: forall rho,  !! (expr_false test rho) && Q rho |-- R EK_normal nil rho),
      semax Hspec Delta G 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
      semax Hspec Delta G Q (Swhile test body) R.

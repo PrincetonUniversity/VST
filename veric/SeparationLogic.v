@@ -48,7 +48,17 @@ Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop :=
 
 Definition local:  (environ -> Prop) -> assert :=  lift1 prop.
 
-Definition expr_true (e: Clight.expr) (rho: environ) :=  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.
+Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
+= Some true.
+
+Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
+Some false.
+
+Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
+
+Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
+
+(*Definition expr_true (e: Clight.expr) (rho: environ) :=  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
 
 Definition subst (x: ident) (v: environ -> val) (P: assert) : assert :=
    fun s => P (env_set s x (v s)).
@@ -361,7 +371,7 @@ Axiom semax_for :
 forall Delta G Q Q' test incr body R
      (TC: Q  |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
-     (POST: local (expr_true (Cnot test)) && Q |-- R EK_normal nil),
+     (POST: local (expr_false test) && Q |-- R EK_normal nil),
      semax Delta G (local (expr_true test) && Q) body (for1_ret_assert Q' R) ->
      semax Delta G Q' incr (for2_ret_assert Q R) ->
      semax Delta G Q (Sfor' test incr body) R.
@@ -370,7 +380,7 @@ Axiom semax_while :
 forall Delta G Q test body R
      (TC: Q |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
-     (POST: local (expr_true (Cnot test)) && Q |-- R EK_normal nil),
+     (POST: local (expr_false test) && Q |-- R EK_normal nil),
      semax Delta G (local (expr_true test) && Q)  body (for1_ret_assert Q R) ->
      semax Delta G Q (Swhile test body) R.
 

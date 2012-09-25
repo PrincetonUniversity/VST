@@ -72,8 +72,20 @@ Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop :=
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
-Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
-  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.
+(*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
+  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
+
+Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
+
+Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
+= Some true.
+
+Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
+Some false.
+
+Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
+
+Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 
 Definition subst (x: ident) (v: val) (P: assert) : assert :=
    fun s => P (env_set s x v).

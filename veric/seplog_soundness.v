@@ -780,14 +780,15 @@ hnf in TC2.
 destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
-unfold expr_true, Cnot in *.
+unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hphi.
 generalize (eval_expr_relate _ _ _ b (m_dry jm) Hge TC); intro.
-assert (exists b': bool, bool_val (eval_expr b rho) (typeof b) = Some b').
+assert (exists b': bool, strict_bool_val (eval_expr b rho) (typeof b) = Some b').
 clear - TC H TC2.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
 remember (eval_expr b rho). destruct v;
-simpl; destruct (typeof b); intuition; eauto. (* typechecking proof *)
+simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
+(* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.
 subst w0.
@@ -800,6 +801,7 @@ apply (@safe_step'_back2 _ _ _ _ _ _ _ psi ora _ jm
         (State (ve_of rho) (te_of rho) (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.
+apply strict_bool_val_sub; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 change (level (m_phi jm)) with (level jm).
@@ -810,7 +812,7 @@ eapply H0; auto.
 split; auto.
 split; auto.
 split; auto.
-rewrite andp_comm; rewrite prop_true_andp by auto.
+rewrite andp_comm. rewrite prop_true_andp by auto.
 do 2 econstructor; split3; eauto.
 eapply H1; auto.
 split; auto.
@@ -820,10 +822,11 @@ rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
-simpl. 
+simpl. unfold lift1. unfold typed_true.   
 destruct (eval_expr b rho); try solve[inv H9].
 destruct (typeof b); 
-try solve [simpl in *; inv H9; rewrite TCS in *; try congruence; auto].
+try solve [simpl in *; inv H9; rewrite TCS in *; simpl in *; try congruence; auto].
+
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;
 inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
@@ -831,7 +834,7 @@ unfold sem_notbool. simpl in *.
 unfold force_val. simpl in *.
 destruct (typeof b); intuition. simpl in *. inv H9.
 rewrite negb_false_iff in H1. rewrite H1; auto.
-destruct (typeof b); intuition. (* typechecking proof *)
+destruct (typeof b); intuition. 
 Qed.
 
 

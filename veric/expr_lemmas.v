@@ -382,7 +382,7 @@ Lemma typecheck_val_ptr_lemma:
    forall rho Delta id t a init,
    typecheck_environ rho Delta = true ->
    (temp_types Delta) ! id =  Some (Tpointer t a, init) ->
-   bool_val (eval_id id rho) (Tpointer t a) = Some true ->
+   strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
 Proof. 
 intros. unfold bool_val in *. unfold typecheck_val.

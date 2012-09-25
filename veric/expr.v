@@ -79,6 +79,23 @@ Admitted.
 (*Functions for evaluating expressions in environments, 
 these return vundef if something goes wrong, meaning they always return some value*)
 
+Definition strict_bool_val (v: val) (t: type) : option bool :=
+   match v, t with
+   | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
+   | Vint n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) =>
+             if Int.eq n Int.zero then Some false else None
+   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => Some true
+   | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
+   | _, _ => None
+   end.
+
+Lemma strict_bool_val_sub : forall v t b, 
+strict_bool_val v t = Some b ->
+bool_val v t = Some b.
+Proof.
+intros. destruct v; destruct t; simpl in *; auto; try if_tac in H; auto; try congruence.
+Qed.
+
 Definition eval_id (id: ident) (rho: environ) := force_val (PTree.get id (te_of rho)).
 
 Fixpoint eval_expr (e: expr) (rho:environ) : val :=
@@ -96,7 +113,7 @@ Fixpoint eval_expr (e: expr) (rho:environ) : val :=
                     (eval_expr a2 rho) (typeof a2)
                     (fun _ _ => false))
  | Econdition a1 a2 a3 ty => 
-    match bool_val (eval_expr a1 rho) (typeof a1) with
+    match strict_bool_val (eval_expr a1 rho) (typeof a1) with
     | Some true => force_val (sem_cast (eval_expr a2 rho) (typeof a2) ty)
     | Some false => force_val (sem_cast (eval_expr a3 rho) (typeof a3) ty)
     | None => Vundef
