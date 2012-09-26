@@ -232,8 +232,10 @@ Ltac canonicalize_pre :=
       rewrite (start_canon P); autorewrite with canon
   end.    
 
-Check (PROP(True) LOCAL (lift0 False) SEP (emp * emp)%logic)%logic.
+(*
+ Check (PROP(True) LOCAL (lift0 False) SEP (emp * emp)%logic)%logic.
 Check (PROP (True) SEP (emp))%logic.
+*)
 
 Require progs.test1.
 Module P := progs.test1.
@@ -561,19 +563,32 @@ Qed.
 
 Hint Resolve @cconv_sepcon1 @cconv_sepcon2 @cconv_andp1 @cconv_andp2 : cconv.
 
+Notation "'DECLARE' x s" := (x: ident, s: funspec)
+   (at level 160, x at level 0, s at level 150, only parsing).
+
+Definition retval : environ -> val := eval_id ret_temp.
+
+Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
+     (mk_funspec ((a, ta)::nil, tz) _ (fun x => P%logic) (fun x => Q%logic))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
+Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
+     (mk_funspec ((a, ta)::nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
 Definition sumlist_spec :=
  DECLARE P.i_sumlist
   WITH contents 
-  PRE [ p : P.t_listptr]  ilseg contents p nullval
-  POST [ i : P.t_int ]  prop (i = Vint (fold_right Int.add Int.zero contents)).
+  PRE [ P.i_p : P.t_listptr]  lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval)
+  POST [ P.t_int ]  local (lift1 (eq (Vint (fold_right Int.add Int.zero contents))) retval).
 
 Definition reverse_spec :=
  DECLARE P.i_reverse
   WITH contents : list int
-  PRE  [ p : P.t_listptr ] ilseg contents p nullval
-  POST [p : P.t_listptr ] ilseg (rev contents) p nullval.
+  PRE  [ P.i_p : P.t_listptr ] lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval)
+  POST [ P.t_listptr ] lift2 (ilseg (rev contents)) retval (lift0 nullval).
 
-Definition main_spec := (P.i_main, mk_funspec (Tnil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
+Definition main_spec := (P.i_main, mk_funspec (nil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
 
 Definition Gprog : funspecs := 
    sumlist_spec :: reverse_spec :: main_spec::nil.
@@ -865,41 +880,12 @@ Definition bind1' (i1: ident) (P: assert) (args: list val): mpred :=
   | _ => FF
   end.
 
-(*
-Notation "'WITHX' x 'PRE' [ a : ta ] P 'POST' [ z : tz ] Q" := 
-     (mk_funspec (Tcons ta Tnil, tz) _
-             (fun x => bind1' a P%logic)
-             (fun x => bind1 (fun z => Q%logic)))
-            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
-*)
 
 Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
-(*
-replace (bind1 (fun p : val => ilseg contents p nullval))
- with (bind1' P.i_p (lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval))).
-Focus 2.
-extensionality args.
-unfold bind1, bind1'.
-destruct args; auto.
-destruct args; auto.
-forget (ilseg contents) as g.
-apply pred_ext.
-apply allp_left with (env_set any_environ P.i_p v).
-normalize.
-admit.
-apply allp_right; intro rho.
-normalize.
-apply imp_andp_adjoint.
-normalize.
-unfold eval_id. simpl.
-*)
 simpl fn_body; simpl fn_params; simpl fn_return.
-normalize.
-change ( lift1 (fun p : val => ilseg contents p nullval) (eval_id P.i_p))
-  with (lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval)).
-
+normalize.    
 canonicalize_pre.
 apply forward_set; [compute; auto | compute; auto | auto 50 with closed | compute; auto | ].
 admit. (* closed *)

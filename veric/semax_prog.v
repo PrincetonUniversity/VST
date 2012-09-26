@@ -44,7 +44,7 @@ Definition semax_body_params_ok f : bool :=
 
 
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> pred rmap) : Prop :=
+       (G: funspecs) (f: function) (A: Type) (P Q: A -> assert) : Prop :=
   forall x,
       semax Hspec (func_tycontext f) G
           (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
@@ -61,21 +61,21 @@ Definition semax_func
   forall ge, prog_contains ge fdecs -> 
           forall n, believe Hspec G ge G1 n.
 
-Definition main_pre (prog: program) : unit -> list val -> pred rmap :=
+Definition main_pre (prog: program) : unit -> assert :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
                              (empty_environ (Genv.globalenv prog))).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : unit -> list val -> pred rmap := 
-  (fun tt vl => !! (vl=nil)).
+Definition main_post (prog: program) : unit -> assert := 
+  (fun tt _ => TT).
 
 Definition semax_prog 
      (prog: program) (G: funspecs) : Prop :=
   compute_list_norepet (map (@fst _ _) prog.(prog_funct)
                                        ++ map (@fst _ _) prog.(prog_vars)) = true  /\
   semax_func G (prog.(prog_funct)) G /\
-    In (prog.(prog_main), mk_funspec (Tnil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
+    In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Lemma semax_func_nil: 
    forall
@@ -337,7 +337,7 @@ Lemma semax_func_cons_ext:
       (forall n, semax_ext Hspec ef A P Q n) ->
       semax_func G fs G' ->
       semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
-           ((id, mk_funspec fsig A P Q)  :: G').
+           ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
 Proof.
 intros until G'.
 intros H' H [Hf' Hf].
@@ -347,6 +347,10 @@ apply id_in_list_true in Hin.
 apply negb_true_iff in Hni; apply id_in_list_false in Hni.
 split.
 destruct fsig; hnf; simpl; f_equal; auto.
+f_equal. f_equal.
+clear; forget 1%positive as n.
+revert n; induction t; simpl;intros; auto.
+f_equal; auto.
 intros ge; intros.
 assert (prog_contains ge fs).
 unfold prog_contains in *.
@@ -372,14 +376,14 @@ left.
 specialize (H n).
 pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
 destruct H3 as [H4' [H4 [H4b H4c]]].
-subst A' fsig.
+subst A' fsig'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
 unfold believe_external.
 rewrite H2.
 split; auto.
-hnf; apply surjective_pairing.
+hnf. auto.
 
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v' fsig' A' P' Q'); auto.
@@ -465,7 +469,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
            | Some id => 
                   match find_id id G with
                   | Some (mk_funspec fsig A P Q) => 
-                           PURE (FUN fsig) (SomeP (A::boolT::list val::nil) (approx n oo packPQ P Q))
+                           PURE (FUN fsig) (SomeP (A::boolT::environ::nil) (approx n oo packPQ P Q))
                   | None => NO Share.bot
                   end
            | None => NO Share.bot
@@ -660,7 +664,7 @@ simpl ge_of. unfold filter_genv. rewrite H3.
   split.
  unfold type_of_global.
 unfold type_of_funspec. simpl.
- assert (exists f, In (i,f) (prog_funct prog) /\ type_of_fundef f = Tfunction (fst fsig') (snd fsig')).
+ assert (exists f, In (i,f) (prog_funct prog) /\ type_of_fundef f = Tfunction (type_of_params (fst fsig')) (snd fsig')).
  clear - H0 H5.
  forget (prog_funct prog) as g. unfold match_fdecs in H0.
  revert G H0 H5; induction g; destruct G; simpl; intros. inv H5. inv H0. inv H0.

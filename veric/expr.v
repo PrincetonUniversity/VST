@@ -710,12 +710,12 @@ fn_return func,
 
 (** Type-checking of function parameters **)
 
-Fixpoint match_fsig_aux (bl: list expr) (tl: typelist) : bool :=
+Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
  match bl, tl with
- | b::bl', Tcons t' tl' => if eq_dec (typeof b) t' then match_fsig_aux bl' tl' else false
- | nil, Tnil => true
- | nil, Tcons _ _ => false
- | _::_, Tnil => false
+ | b::bl', (_,t'):: tl' => if eq_dec (typeof b) t' then match_fsig_aux bl' tl' else false
+ | nil, nil => true
+ | nil, _::_ => false
+ | _::_, nil => false
  end.
 
 Definition match_fsig (fsig: funsig) (bl: list expr) (ret: option ident) : bool :=
@@ -729,7 +729,7 @@ Definition match_fsig (fsig: funsig) (bl: list expr) (ret: option ident) : bool 
 
 Lemma match_fsig_e: forall fsig bl ret,
   match_fsig fsig bl ret = true ->
-  map typeof bl = typelist2list (fst fsig) /\ (snd fsig=Tvoid <-> ret=None).
+  map typeof bl = map (@snd _ _) (fst fsig) /\ (snd fsig=Tvoid <-> ret=None).
 Proof.
  intros.
  apply andb_true_iff in H.
@@ -738,6 +738,7 @@ Proof.
  forget (fst fsig) as tl.
  revert tl H; induction bl; destruct tl; intros; inv H.
   reflexivity.
+ destruct p.
  if_tac in H1. simpl. f_equal; auto. inv H1.
  clear H.
  destruct (snd fsig); destruct ret; intuition congruence.
@@ -819,13 +820,13 @@ Qed.
 
 Inductive funspec :=
    mk_funspec: funsig -> 
-           forall A: Type, (A -> list val -> pred rmap) -> (A -> list val -> pred rmap) 
+           forall A: Type, (A -> environ -> pred rmap) -> (A -> environ -> pred rmap) 
                  -> funspec.
 
 Definition funspecs := list (ident * funspec).
 
 Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig _ _ _ => Tfunction (fst fsig) (snd fsig)  end.
+  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig)  end.
 
 (* END expr.v is not quite the right place for these next few definitions *)
 

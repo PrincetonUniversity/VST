@@ -708,14 +708,14 @@ Definition LKspec (R: pred rmap) : spec :=
 Definition boolT : Type := bool.
 Definition unitT : Type := unit.
 
-Definition packPQ {A: Type} (P Q: A -> list val -> pred rmap) := 
-  (fun xy : (A*(boolT*(list val * unitT))) => 
+Definition packPQ {A: Type} (P Q: A -> environ -> pred rmap) := 
+  (fun xy : (A*(boolT*(environ * unitT))) => 
     if fst (snd xy) then P (fst xy) (fst (snd (snd xy))) else Q (fst xy) (fst (snd (snd xy)))).
 
 Definition TTat (l: address) : pred rmap := TT.
 
-Definition FUNspec (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap)(l: address): pred rmap :=
-          allp (jam (eq_dec l) (pureat (SomeP (A::boolT::list val::nil) (packPQ P Q)) (FUN fml)) TTat).
+Definition FUNspec (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)(l: address): pred rmap :=
+          allp (jam (eq_dec l) (pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml)) TTat).
 
 (***********)
 
@@ -793,10 +793,10 @@ subst; auto.
 Qed.
 
 Lemma FUNspec_parametric: forall fml A P Q, 
-   spec_parametric (fun l sh => yesat (SomeP (A::boolT::list val::nil) (packPQ P Q)) (FUN fml) sh).
+   spec_parametric (fun l sh => yesat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml) sh).
 Proof.
 intros.
-exists (SomeP (A::boolT::list val::nil) (packPQ P Q)).
+exists (SomeP (A::boolT::environ::nil) (packPQ P Q)).
 exists (fun k => k=FUN fml).
 intros.
 simpl.
@@ -916,7 +916,7 @@ Qed.
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
-Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap) (v: val)  : pred rmap :=
+Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap) (v: val)  : pred rmap :=
  (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b,0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
@@ -1279,15 +1279,15 @@ Qed.
 
 
 Lemma fun_assert_contractive:
-   forall fml A (P Q: pred rmap -> A -> list val -> pred rmap) v, 
+   forall fml A (P Q: pred rmap -> A -> environ -> pred rmap) v, 
        (forall x vl, nonexpansive (fun R => P R x vl)) ->
       (forall x vl, nonexpansive (fun R => Q R x vl)) ->
       contractive (fun R : pred rmap => fun_assert fml A (P R) (Q R) v).
 Proof.
 intros.
-assert (H': forall xvl: A * list val, nonexpansive (fun R => P R (fst xvl) (snd xvl)))
+assert (H': forall xvl: A * environ, nonexpansive (fun R => P R (fst xvl) (snd xvl)))
   by auto; clear H; rename H' into H.
-assert (H': forall xvl: A * list val, nonexpansive (fun R => Q R (fst xvl) (snd xvl)))
+assert (H': forall xvl: A * environ, nonexpansive (fun R => Q R (fst xvl) (snd xvl)))
   by auto; clear H0; rename H' into H0.
 intro; intros.
 rename H0 into H'.

@@ -58,7 +58,7 @@ Open Local Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::(list val)::nil) (packPQ P Q)) (FUN fsig)
+   | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig)
   end.
 
 
@@ -112,7 +112,7 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  end.
 
 Definition fun_assert: 
-  forall (fml: funsig) (A: Type) (P Q: A -> list val -> pred rmap)  (v: val) , pred rmap :=
+  forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
@@ -156,15 +156,38 @@ simpl;
 auto.
 Qed.
 
-Definition bind_args (formals: list (ident * type)) (P: list val -> pred rmap) : assert :=
-   fun rho => let vl := map (fun xt => (eval_expr (Etempvar (fst xt) (snd xt)) rho)) formals
-          in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
+Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
+     fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
 
-Definition bind_ret (vl: list val) (t: type) (Q: list val -> pred rmap) : pred rmap :=
+Definition bind_args (formals: list (ident * type)) (P: environ -> pred rmap) : assert :=
+          fun rho => !! tc_formals formals rho && P rho.
+
+Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (PTree.empty _) (PTree.empty _)).
+
+Definition ret_temp : ident := 1%positive.
+
+Fixpoint make_args (il: list ident) (vl: list val) (rho: environ)  :=
+  match il, vl with 
+  | nil, nil => globals_only rho
+  | i::il', v::vl' => env_set (make_args il' vl' rho) i v
+   | _ , _ => rho 
+ end.
+
+Definition get_result1 (ret: ident) (rho: environ) : environ :=
+   make_args (ret_temp::nil) (eval_id ret rho :: nil) rho.
+
+Definition get_result (ret: option ident) : environ -> environ :=
+ match ret with 
+ | None => make_args nil nil
+ | Some x => get_result1 x
+ end.
+
+Definition bind_ret (vl: list val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | nil, Tvoid => Q nil
-     | v::nil, _ => !! (typecheck_val v t = true) && Q (v::nil)  
-     | _, _ => FF
+     | nil, Tvoid => fun rho => Q (make_args nil nil rho)
+     | v::nil, _ => fun rho => !! (typecheck_val v t = true) && 
+                               Q (make_args (ret_temp::nil) (v::nil) rho)
+     | _, _ => fun rho => FF
      end.
 
 Definition funassert (G: funspecs) : assert := 
@@ -283,10 +306,10 @@ Qed.
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
                  overridePost_normal: normalize.
 
-Definition function_body_ret_assert (ret: type) (Q: list val -> pred rmap) : ret_assert := 
+Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
    fun (ek : exitkind) (vl : list val) =>
      match ek with
-     | EK_return => fun rho => bind_ret vl ret Q 
+     | EK_return => bind_ret vl ret Q 
      | _ => fun rho => FF
      end.
 

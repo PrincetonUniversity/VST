@@ -41,7 +41,7 @@ Definition force_val (v: option val) : val :=
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
 
-Definition funsig := (typelist * type)%type. (* argument and result signature *)
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
 Definition modified0 : ident -> Prop := fun _ => False.
 Definition modified1 id : ident -> Prop := fun i => i=id.

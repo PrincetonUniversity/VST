@@ -126,31 +126,44 @@ Program Definition ext_spec_post' {Z} (Hspec: juicy_ext_spec Z)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
+Fixpoint make_ext_args (n: positive) (vl: list val)  :=
+  match vl with 
+  | nil => any_environ (* correct but misleading, really must be empty! *)
+  | v::vl' => env_set (make_ext_args (n+1)%positive vl') n v
+ end.
+
 Definition semax_ext  {Z} (Hspec: juicy_ext_spec Z) 
-                  ef (A: Type) (P Q: A -> list val -> pred rmap): 
+                  ef (A: Type) (P Q: A -> environ -> pred rmap): 
         pred nat := 
  ALL x: A, 
  |>  ALL F: pred rmap, ALL args: list val,
-   juicy_mem_op (P x args * F) >=> 
+   juicy_mem_op (P x (make_ext_args 1%positive args) * F) >=> 
    EX x': ext_spec_type Hspec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' args z &&
      ! ALL ret: list val, ALL z':Z, 
       ext_spec_post' Hspec ef x' ret z' >=>
       !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&
-          juicy_mem_op (|>(Q x ret * F)).
+          juicy_mem_op (|>(Q x (make_ext_args 1%positive ret) * F)).
+
+Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
+ match tl with 
+  | Tnil => nil
+  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
+ end.
 
 Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (fsig: funsig)
-   (A: Type) (P Q: A -> list val -> pred rmap) : pred nat :=
+   (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret) => 
-        !! (fsig = (sigargs,sigret)) && semax_ext Hspec ef A P Q 
+        !! (fsig = (arglist 1%positive sigargs,sigret)) && semax_ext Hspec ef A P Q 
   | _ => FF 
   end.
 
-Definition fn_funsig (f: function) : funsig := (type_of_params (fn_params f), fn_return f).
+Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
+
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
+  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -171,7 +184,7 @@ Definition claims (ge: genv) (G: funspecs) v fsig A P Q : Prop :=
 Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred nat)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
   ALL v:val, ALL fsig: funsig,
-         ALL A: Type, ALL P: A -> list val -> pred rmap, ALL Q: A -> list val -> pred rmap,
+         ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal_ semax gx G v fsig A P Q).
@@ -189,7 +202,7 @@ Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta G P c R : pred nat :=
      HORec (semax_  Hspec) (SemaxArg Delta G P c R).
 
 Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> list val -> pred rmap) : pred nat :=
+  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -204,7 +217,7 @@ Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
 Definition believe {Z} (Hspec:juicy_ext_spec Z)
               (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
   ALL v:val, ALL fsig: funsig,
-         ALL A: Type, ALL P: A -> list val -> pred rmap, ALL Q: A -> list val -> pred rmap,
+         ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx G' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
         || believe_internal Hspec gx G v fsig A P Q).

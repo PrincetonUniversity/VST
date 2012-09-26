@@ -917,8 +917,8 @@ Proof. intros. subst; split; auto. Qed.
 
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 
-   SomeP (A::boolT::list val::nil) (approx (level w) oo packPQ P Q) =
-   SomeP (A::boolT::list val::nil) (approx (level w) oo packPQ P' Q') ->
+   SomeP (A::boolT::environ::nil) (approx (level w) oo packPQ P Q) =
+   SomeP (A::boolT::environ::nil) (approx (level w) oo packPQ P' Q') ->
    ( (forall x vl, (! |> (P' x vl <=> P x vl)) w) /\
      (forall x vl, (! |> (Q' x vl <=> Q x vl)) w)).
 Proof.
@@ -949,15 +949,12 @@ change compcert_rmaps.R.rmap with rmap in *; omega.
 Qed.
 
 
-Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
- match ret with None => nil | Some x => (force_val (PTree.get x (te_of rho)))::nil end.
-
 Lemma semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> list val -> pred rmap)
+      forall id fsig (A : Type) (P' Q' : A -> assert)
               Delta (G : funspecs) P Q c (GLBL : In id (non_var_ids Delta)),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
-                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig))) rho))
+                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
                               c Q ->
        semax Hspec Delta G P c Q.
 Proof.
@@ -1047,17 +1044,17 @@ Admitted.
 
 Lemma semax_call_aux:
  forall (Delta : tycontext) (G : funspecs) (A : Type)
-  (P Q Q' : A -> list val -> pred rmap) (x : A) (F : pred rmap)
+  (P Q Q' : A -> assert) (x : A) (F : pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (k : cont) (rho : environ)
   (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
    tc_expr Delta a rho (m_phi jm) ->
    tc_exprlist Delta bl rho (m_phi jm) ->
-    map typeof bl = typelist2list (fst fsig) ->
+    map typeof bl = map (@snd _ _) (fst fsig) ->
     typecheck_environ rho Delta = true ->
     (snd fsig=Tvoid <-> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
-    R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret (snd fsig) rho0)) ->
+    R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret rho0)) ->
     filter_genv psi = ge_of rho ->
     eval_expr a rho = Vptr b Int.zero ->
     (funassert G rho) (m_phi jm) ->
@@ -1065,8 +1062,10 @@ Lemma semax_call_aux:
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
-    (forall vl : list val, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
-    (|>(F0 rho * F * P x (eval_exprlist bl rho))) (m_phi jm) ->
+    (forall vl : environ, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
+    (|>(F0 rho * F *
+           P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho)
+            )) (m_phi jm) ->
    jsafeN Hspec psi (level (m_phi jm)) ora
      (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
@@ -1113,13 +1112,14 @@ destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
 apply subp_trans' with
- (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x)) && funassert G rho').
+ (F0 rho * F * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x) rho') && funassert G rho').
 apply andp_subp'; auto.
 apply sepcon_subp'; auto.
 apply sepcon_subp'; auto.
 unfold bind_ret.
 destruct vl.
 destruct (fn_return f); auto.
+simpl make_args; simpl seplog.bind_ret.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 destruct vl; auto.
 apply andp_subp'; auto.
@@ -1230,14 +1230,15 @@ normalize.
 split; auto.
 unfold bind_args.
 unfold rho3 at 1.
-simpl te_of.
+unfold tc_formals.
+normalize.
 rewrite <- sepcon_assoc.
 normalize.
 split.
 hnf.
 clear - TC2 H21 TC4 H17.
 admit.  (* should be easy *)
-admit.  (* plausible  *)
+admit.  (* plausible?  *)
 (* end   "spec H19" *)
 
 specialize (H19 ora jm').
@@ -1249,15 +1250,16 @@ unfold rho3; simpl; auto.
 Qed.
 
 Lemma semax_call: 
-forall Delta G A (P Q: A -> list val -> pred rmap) x F ret fsig a bl,
+forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
       match_fsig fsig bl ret = true ->
        semax Hspec Delta G
          (fun rho => 
            tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
          (fun_assert  fsig A P Q (eval_expr a rho) && 
-          (F * P x (eval_exprlist bl rho) )))
+          (F * P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho
+ ))))
          (Scall ret a bl)
-         (normal_ret_assert (fun rho => F * Q x (get_result ret (snd fsig) rho))).
+         (normal_ret_assert (fun rho => F * Q x (get_result ret rho))).
 Proof.
 rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? ?.
 destruct (match_fsig_e _ _ _ H) as [TC4 TC5]; clear H.
@@ -1299,7 +1301,9 @@ simpl in H11. subst b'.
 unfold func_at in H13.
 rewrite H12 in H13.
 destruct fs as [fsig' A' P' Q'].
-assert (fsig' = fsig) by (destruct fsig, fsig'; inv H15; auto).
+assert (fsig' = fsig).
+ clear - H6 H13.
+ unfold pureat in *. simpl in *. inversion2 H6 H13. auto.
 clear H15; subst fsig'.
 hnf in H6,H13.
 rewrite H6  in H13.
@@ -1321,15 +1325,15 @@ fold args in H5.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
 clear H15.
-specialize (H10 x args).
+specialize (H10 x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho)).
 specialize (H11 x).
 rewrite <- sepcon_assoc in H5.
-assert (H14: app_pred (|> (F0 rho * F * P' x args)) (m_phi jm)).
+assert (H14: app_pred (|> (F0 rho * F * P' x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))) (m_phi jm)).
 do 3 red in H10.
 apply eqp_later1 in H10.
 rewrite later_sepcon.
 apply pred_eq_e2 in H10.
-eapply (sepcon_subp' (|>(F0 rho * F)) _ (|> P x args) _ (level (m_phi jm))); eauto.
+eapply (sepcon_subp' (|>(F0 rho * F)) _ (|> P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho)) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
 eapply semax_call_aux; try eassumption.
 unfold normal_ret_assert.

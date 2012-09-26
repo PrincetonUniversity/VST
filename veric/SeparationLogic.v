@@ -52,8 +52,6 @@ Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
 
 Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 
-(*Definition expr_true (e: Clight.expr) (rho: environ) :=  bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
-
 Definition subst (x: ident) (v: environ -> val) (P: assert) : assert :=
    fun s => P (env_set s x (v s)).
 
@@ -79,7 +77,7 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
   | (b,n)::bl' => writable_block b n * writable_blocks bl'
  end.
 
-Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> list val -> mpred) (v: val) : mpred :=
+Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> assert) (v: val) : mpred :=
   res_predicates.fun_assert fml A P Q v.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
@@ -103,14 +101,36 @@ simpl;
 auto.
 Qed.
 
-Definition bind_args (formals: list (ident * type)) (P: list val -> mpred) : assert :=
-   fun rho => let vl := map (fun xt => (eval_expr (Etempvar (fst xt) (snd xt)) rho)) formals
-          in !! (typecheck_vals vl (map (@snd _ _) formals) = true) && P vl.
 
-Definition bind_ret (vl: list val) (t: type) (Q: list val -> mpred) : mpred :=
+Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
+     fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
+
+Definition globals_only (rho: environ) : environ :=
+    mkEnviron (ge_of rho) (PTree.empty _) (PTree.empty _).
+
+Fixpoint make_args (il: list ident) (vl: list val) (rho: environ)  :=
+  match il, vl with 
+  | nil, nil => globals_only rho
+  | i::il', v::vl' => env_set (make_args il' vl' rho) i v
+   | _ , _ => rho 
+ end.
+
+Definition ret_temp : ident := 1%positive.
+
+Definition get_result1 (ret: ident) (rho: environ) : environ :=
+   make_args (ret_temp::nil) (eval_id ret rho :: nil) rho.
+
+Definition get_result (ret: option ident) : environ -> environ :=
+ match ret with 
+ | None => make_args nil nil
+ | Some x => get_result1 x
+ end.
+
+Definition bind_ret (vl: list val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | nil, Tvoid => Q nil
-     | v::nil, _ => !! (typecheck_val v t = true) && Q (v::nil)  
+     | nil, Tvoid => lift1 Q (make_args nil nil)
+     | v::nil, _ => !! (typecheck_val v t = true) && 
+                              lift1 Q (make_args (ret_temp::nil) (v::nil))
      | _, _ => FF
      end.
 
@@ -214,10 +234,10 @@ Qed.
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
                  overridePost_normal: normalize.
 
-Definition function_body_ret_assert (ret: type) (Q: list val -> mpred) : ret_assert := 
+Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
    fun (ek : exitkind) (vl : list val) =>
      match ek with
-     | EK_return => lift0 (bind_ret vl ret Q) 
+     | EK_return => bind_ret vl ret Q
      | _ => FF
      end.
 
@@ -279,33 +299,32 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> list val -> mpred) : Prop :=
+       (G: funspecs) (f: function) (A: Type) (P Q: A -> assert) : Prop :=
   forall x,
       semax (func_tycontext f) G
-          (bind_args (fn_params f) (P x) *  stackframe_of f)
+          ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)).
 
 Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
-Definition main_pre (prog: program) : unit -> list val -> mpred :=
-(fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
+Definition main_pre (prog: program) : unit -> assert :=
+(fun tt _ => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
                              (empty_environ (Genv.globalenv prog))).
 
-Definition main_post (prog: program) : unit -> list val -> mpred := 
-  (fun tt vl => !! (vl=nil)).
+Definition main_post (prog: program) : unit -> assert := 
+  (fun tt => TT).
 
 Definition semax_prog 
      (prog: program) (G: funspecs) : Prop :=
   compute_list_norepet (map (@fst _ _) prog.(prog_funct)
                                        ++ map (@fst _ _) prog.(prog_vars)) = true /\
   semax_func G (prog.(prog_funct)) G /\
-    In (prog.(prog_main), mk_funspec (Tnil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
+    In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Axiom semax_func_nil: forall G, semax_func G nil nil.
 
-Definition fn_funsig (f: function) : funsig :=
- (type_of_params (fn_params f), fn_return f).
+Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition semax_body_params_ok f : bool :=
    andb 
@@ -322,7 +341,14 @@ Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
-  forall (ef: external_function) (A: Type) (P Q: A -> list val -> mpred),  Prop.
+  forall (ef: external_function) (A: Type) (P Q: A -> assert),  Prop.
+
+
+Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
+ match tl with 
+  | Tnil => nil
+  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
+ end.
 
 Axiom semax_func_cons_ext: 
    forall (G: funspecs) fs id ef fsig A P Q (G': funspecs),
@@ -331,7 +357,7 @@ Axiom semax_func_cons_ext:
       semax_external ef A P Q ->
       semax_func G fs G' ->
       semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
-           ((id, mk_funspec fsig A P Q)  :: G').
+           ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
 
 Definition main_params (ge: genv) start : Prop :=
   exists b, exists func,
@@ -380,18 +406,17 @@ forall Delta G Q test body R
 
 (* THESE RULES FROM seplog_soundness *)
 
-Definition get_result (ret: option ident) (ty: type) (rho: environ) : list val :=
- match ret with None => nil | Some x => (eval_id x rho )::nil end.
-
 Axiom semax_call : 
-forall Delta G A (P Q: A -> list val -> mpred) x F ret fsig a bl,
+forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
       match_fsig fsig bl ret = true ->
        semax Delta G
          (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
-          (lift0 F * lift1 (P x) (eval_exprlist bl) )))
+          (lift0 F * fun rho => P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))
+  ))
+(* lift1 (P x) (eval_exprlist bl) ))) *)
          (Scall ret a bl)
-         (normal_ret_assert (lift0 F * lift1 (Q x) (get_result ret (snd fsig)))).
+         (normal_ret_assert (lift0 F * lift1 (Q x) (get_result ret))).
 
 Axiom  semax_return :
    forall Delta G R ret ,
@@ -401,10 +426,11 @@ Axiom  semax_return :
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> list val -> mpred)
+      forall id fsig (A : Type) (P' Q' : A -> environ -> mpred)
               Delta (G : funspecs) P Q c (GLBL : In id (non_var_ids Delta)),
     In (id, mk_funspec fsig A P' Q') G ->
-       semax Delta G (P && lift1 (fun_assert fsig A P' Q') (eval_lvalue (Evar id (Tfunction (fst fsig) (snd fsig)))))
+       semax Delta G (P && lift1 (fun_assert fsig A P' Q') 
+                                            (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig)))))
                               c Q ->
        semax Delta G P c Q.
 

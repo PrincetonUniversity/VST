@@ -222,9 +222,6 @@ Qed.
 Instance EqDec_kind: EqDec kind.
 Proof.
   hnf. decide equality; try apply eq_dec.
-  unfold funsig in *.
- decide equality; try apply eq_dec.
-  apply typelist_eq.
 Qed.
 
 Module R := Rmaps (CompCert_AV).

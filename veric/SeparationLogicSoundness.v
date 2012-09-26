@@ -87,12 +87,13 @@ Definition derives_skip := derives_skip Hspec.
 Definition semax_ff := semax_ff Hspec.
 Definition semax_extract_prop := semax_extract_prop Hspec.
 Definition fn_funsig := fn_funsig.
+Definition arglist := arglist.
 Definition semax_external ef A P Q := forall n, semax_ext ef A P Q n.
 Definition Cnot := Cnot.
 Definition bool_type := bool_type.
 Definition get_result := get_result.
 Definition closed_wrt_modvars := closed_wrt_modvars.
-
+Definition make_args := make_args.
 End CSL.
 
 Definition semax_prog_rule := semax_prog_rule Hspec.

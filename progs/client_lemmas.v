@@ -345,7 +345,100 @@ Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho).
+Lemma bool_val_int_eq_e: 
+  forall i j, bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
+Proof.
+ intros.
+ apply Clight_lemmas.of_bool_Int_eq_e'.
+ forget (Val.of_bool (Int.eq i j)) as v.
+ destruct v; simpl in *; try discriminate; auto.
+ inv H. intro. subst. rewrite Int.eq_true in H1. inv H1.
+Qed.
 
+Fixpoint temp_free_in (id: ident) (e: expr) := 
+ match e with
+ | Econst_int _ _ => false
+ | Econst_float _ _ => false
+ | Evar _ _ => false
+ | Etempvar i _ => eqb_ident id i
+ | Ederef e1 _ => temp_free_in id e1
+ | Eaddrof e1 _ => temp_free_in id e1
+ | Eunop _ e1 _ => temp_free_in id e1
+ | Ebinop _ e1 e2 _ => orb (temp_free_in id e1) (temp_free_in id e2) 
+ | Ecast e1 _ => temp_free_in id e1
+ | Econdition e0 e1 e2 _ => orb (temp_free_in id e0) (orb (temp_free_in id e1) (temp_free_in id e2)) 
+ | Efield e1 _ _ => temp_free_in id e1
+end.
+
+Lemma forward_set:
+  forall Delta G P id e c Q,
+  typecheck_temp_id id (typeof e) Delta = true ->
+  temp_free_in id e = false ->
+  closed_wrt_vars (modified1 id) P ->
+  (forall rho, tc_expr Delta e rho) ->
+  semax (initialized id Delta) G
+             (local (lift2 eq (eval_id id) (eval_expr e)) && P)
+             c Q ->
+  semax Delta G P (Ssequence (Sset id e) c) Q.
+Proof.
+ intros.
+ eapply semax_seq; [ | apply H3].
+ apply sequential'.
+ eapply semax_pre; [ |  apply semax_set].
+ clear H3.
+ unfold local, lift2, lift1, lift0; intro rho. simpl.
+ normalize.
+ eapply derives_trans; [ |apply now_later].
+ unfold subst.
+ normalize. 
+ apply andp_right.
+ apply prop_right.
+ clear - H0.
+ admit.  (* straightforward *)
+ specialize (H1 rho (PTree.set id (eval_expr e rho) (te_of rho))).
+ rewrite H1.
+ unfold env_set. auto.
+ intros. unfold modified1. destruct (eq_dec i id); auto.
+ rewrite PTree.gso; auto.
+Qed.
+
+
+Lemma closed_wrt_andp: forall S P Q,
+  closed_wrt_vars S P -> closed_wrt_vars S Q ->
+  closed_wrt_vars S (P && Q).
+Admitted.
+
+Lemma closed_wrt_sepcon: forall S P Q,
+  closed_wrt_vars S P -> closed_wrt_vars S Q ->
+  closed_wrt_vars S (P * Q).
+Admitted.
+
+Lemma closed_wrt_ideq: forall a b e,
+  a <> b ->
+  temp_free_in a e = false ->
+  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
+Proof.
+Admitted.
+
+Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
+
+Hint Extern 2 (closed_wrt_vars (modified1 _) _) => 
+      (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
+
+
+
+Lemma unfold_lift0: forall {A} (f: A)  rho,  lift0 f rho = f.
+Proof. reflexivity. Qed.
+Hint Rewrite @unfold_lift0 : normalize.
+
+Ltac forward_while Inv Postcond :=
+  apply semax_pre with Inv; 
+  [ | apply semax_seq with Postcond;
+    [ apply semax_while ; [ | compute; auto | | ] | ]].
+
+
+
+(*
 Definition app1 (f: val -> mpred) (a1: ident*type) : assert := 
    local (lift1 (tc_val (snd a1)) (eval_id (fst a1))) && lift1 f (eval_id (fst a1)).
 Definition app2 (f: val -> val -> mpred) (a1 a2: ident*type) : assert := 
@@ -430,76 +523,11 @@ Notation "'WITH' x : tx 'PRE' [ a : ta , b : tb ] P 'POST' [ z : tz ] Q" :=
 
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
+*)
 
 
-Lemma bool_val_int_eq_e: 
-  forall i j, bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
-Proof.
- intros.
- apply Clight_lemmas.of_bool_Int_eq_e'.
- forget (Val.of_bool (Int.eq i j)) as v.
- destruct v; simpl in *; try discriminate; auto.
- inv H. intro. subst. rewrite Int.eq_true in H1. inv H1.
-Qed.
 
-Fixpoint temp_free_in (id: ident) (e: expr) := 
- match e with
- | Econst_int _ _ => false
- | Econst_float _ _ => false
- | Evar _ _ => false
- | Etempvar i _ => eqb_ident id i
- | Ederef e1 _ => temp_free_in id e1
- | Eaddrof e1 _ => temp_free_in id e1
- | Eunop _ e1 _ => temp_free_in id e1
- | Ebinop _ e1 e2 _ => orb (temp_free_in id e1) (temp_free_in id e2) 
- | Ecast e1 _ => temp_free_in id e1
- | Econdition e0 e1 e2 _ => orb (temp_free_in id e0) (orb (temp_free_in id e1) (temp_free_in id e2)) 
- | Efield e1 _ _ => temp_free_in id e1
-end.
-
-Lemma forward_set:
-  forall Delta G P id e c Q,
-  typecheck_temp_id id (typeof e) Delta = true ->
-  temp_free_in id e = false ->
-  closed_wrt_vars (modified1 id) P ->
-  (forall rho, tc_expr Delta e rho) ->
-  semax (initialized id Delta) G
-             (local (lift2 eq (eval_id id) (eval_expr e)) && P)
-             c Q ->
-  semax Delta G P (Ssequence (Sset id e) c) Q.
-Proof.
- intros.
- eapply semax_seq; [ | apply H3].
- apply sequential'.
- eapply semax_pre; [ |  apply semax_set].
- clear H3.
- unfold local, lift2, lift1, lift0; intro rho. simpl.
- normalize.
- eapply derives_trans; [ |apply now_later].
- unfold subst.
- normalize. 
- apply andp_right.
- apply prop_right.
- clear - H0.
- admit.  (* straightforward *)
- specialize (H1 rho (PTree.set id (eval_expr e rho) (te_of rho))).
- rewrite H1.
- unfold env_set. auto.
- intros. unfold modified1. destruct (eq_dec i id); auto.
- rewrite PTree.gso; auto.
-Qed.
-
-
-Lemma closed_wrt_andp: forall S P Q,
-  closed_wrt_vars S P -> closed_wrt_vars S Q ->
-  closed_wrt_vars S (P && Q).
-Admitted.
-
-Lemma closed_wrt_sepcon: forall S P Q,
-  closed_wrt_vars S P -> closed_wrt_vars S Q ->
-  closed_wrt_vars S (P * Q).
-Admitted.
-
+(*
 Lemma closed_wrt_app1: forall a b f,
   a<> fst b -> closed_wrt_vars (modified1 a) (app1 f b).
 Proof.
@@ -509,30 +537,14 @@ Proof.
  destruct H0. hnf in H0.  subst; congruence.
  unfold eval_id; simpl. rewrite H0; auto.
 Qed.
+*)
 
-
-Lemma closed_wrt_ideq: forall a b e,
-  a <> b ->
-  temp_free_in a e = false ->
-  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
-Proof.
-Admitted.
-
-Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
-
+(*
 Hint Extern 2 (closed_wrt_vars (modified1 _) (app1 _ _)) => 
       (apply closed_wrt_app1; solve [let Hx := fresh in (intro Hx; inv Hx)]) : closed.
+*)
 
-
-Hint Extern 2 (closed_wrt_vars (modified1 _) _) => 
-      (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
-
-
-
-Lemma unfold_lift0: forall {A} (f: A)  rho,  lift0 f rho = f.
-Proof. reflexivity. Qed.
-
-
+(*
 Lemma unfold_app1: forall f a1 t1,  app1 f (a1,t1) = 
     local (lift1 (tc_val t1) (eval_id a1)) && lift1 f (eval_id a1).
 Proof. intros; extensionality rho; reflexivity. Qed.
@@ -550,9 +562,6 @@ Lemma unfold_app3: forall f a1 t1 a2 t2 a3 t3, app3 f (a1,t1) (a2,t2) (a3,t3) =
     lift3 f (eval_id a1) (eval_id a2) (eval_id a3).
 Proof. intros; extensionality rho; reflexivity. Qed.
 
-Hint Rewrite @unfold_lift0 unfold_app1 unfold_app2 unfold_app3: normalize.
+Hint Rewrite unfold_app1 unfold_app2 unfold_app3: normalize.
+*)
 
-Ltac forward_while Inv Postcond :=
-  apply semax_pre with Inv; 
-  [ | apply semax_seq with Postcond;
-    [ apply semax_while ; [ | compute; auto | | ] | ]].
