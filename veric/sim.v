@@ -184,8 +184,9 @@ Inductive entry_points_compose: list (val*val*signature) -> list (val*val*signat
    the individual compiler passes and the composition lemma would be used
    to build the main lemma.
  *)
+(*
 Module Type SIMULATIONS.
-
+*)
 Axiom allowed_core_modification_refl : forall m,
   allowed_core_modification m m.
 
@@ -450,16 +451,7 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
       safely_halted Sem1 ge1 c1 = Some v1 ->
         (safely_halted Sem2 ge2 c2 = Some v1 /\
          Mem.inject j m1 m2);
-(*
-    core_at_externalLenbAteempt : 
-      forall cd js st1 m1 st2 m2 e vals1,
-        match_state cd js st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
-        (Mem.inject (injlist_compose js) m1 m2 /\
-          exists vals2, Forall2 (val_inject (injlist_compose js)) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-          at_external Sem2 st2 = Some (e,vals2));
-*)
+
     core_at_external : 
       forall cd j st1 m1 st2 m2 e vals1,
         match_state cd j st1 m1 st2 m2 ->
@@ -468,33 +460,6 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
           at_external Sem2 st2 = Some (e,vals2));
-  (*
-    (core_after_externalForwardSimulation.v :
-      forall cd j j' st1 st2 m1 m2 e1 e2 vals vals' ret ret' m1' m2' sig,
-        match_state cd j st1 m1 st2 m2 ->
-        Mem.inject j m1 m2 ->
-        at_external Sem1 st1 = Some (e1,sig,vals) ->
-        at_external Sem2 st2 = Some (e2,sig,vals') ->
-        match_ext sig e1 e2 ->
-        Forall2 (val_inject j) vals vals' ->
-      
-        inject_incr j j' ->
-        inject_separated j j' m1 m2 ->
-        Mem.inject j' m1' m2' ->
-        val_inject j' ret ret' ->
-
-        mem_unchanged_on (loc_unmapped j) m1 m1' ->
-        mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-        mem_forward m1 m1' ->
-        mem_forward m2 m2' ->
-
-        Forall2 (Val.has_type) vals' (sig_args sig) ->
-        Val.has_type ret' (proj_sig_res sig) ->
-
-        exists cd', exists st1', exists st2',
-          after_external Sem1 (ret::nil) st1 = Some st1' /\
-          after_external Sem2 (ret'::nil) st2 = Some st2' /\
-          match_state cd' j' st1' m1' st2' m2'),*)
 
     core_after_external :
       forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2,
@@ -551,6 +516,71 @@ Definition precise_match_program  (P1: AST.program F1 V1)  (P2: AST.program F2 V
 End PRECISE_MATCH_PROGRAM.
 *)
 
+Lemma forall_inject_val_list_inject: forall j args args' (H:Forall2 (val_inject j) args args' ),   val_list_inject j args args'.
+  Proof.
+    intros j args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+Lemma val_list_inject_forall_inject: forall j args args' (H:val_list_inject j args args'), Forall2 (val_inject j) args args' .
+  Proof.
+    intros j args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+
+Lemma forall_lessdef_val_listless: forall args args' (H: Forall2 Val.lessdef args args'),  Val.lessdef_list args args' .
+  Proof.
+    intros args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+Lemma val_listless_forall_lessdef: forall args args' (H:Val.lessdef_list args args'), Forall2 Val.lessdef args args' .
+  Proof.
+    intros args.
+    induction args; intros;  inv H; constructor; eauto.
+  Qed. 
+
+Require Import compcert.Smallstep.
+Section CoreSem_to_semantics.
+    Variables (F C V:Type).
+    Let genv  := Genv.t F V.
+    Variable (Sem:CompcertCoreSem genv C).
+
+    Let state := (C * mem)%type.
+
+    Inductive step (ge:genv) : state -> trace -> state -> Prop :=
+    | step_corestep : forall c m c' m',
+          corestep Sem ge c m c' m' ->
+          step ge (c,m) E0 (c',m')
+
+    | step_ext_step : forall c m c' m' ef args tr ret,
+          at_external Sem c = Some (ef,args) ->
+          external_call ef ge args m tr ret m' ->
+          after_external Sem ret c = Some c' ->
+          step ge (c,m) tr (c',m').
+
+    Variable (prog:AST.program F V).
+
+    (*Definition main_sig : signature := 
+       mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint).*)
+    Definition main_sig : signature := 
+       mksignature (nil) (Some AST.Tint).
+
+    Definition initial_state (st:state) : Prop :=
+      exists b, exists vals,
+        Forall2 (val_inject (Mem.flat_inj (Mem.nextblock (snd st)))) vals vals /\
+        Forall2 Val.has_type vals (sig_args main_sig) /\
+        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
+        make_initial_core Sem (Genv.globalenv prog) (Vptr b Int.zero) vals = Some (fst st) /\
+        Genv.init_mem prog = Some (snd st). 
+
+    Definition final_state (st:state) (i:int) : Prop :=
+      safely_halted Sem (Genv.globalenv prog) (fst st) = Some i.
+
+   Definition mk_semantics: semantics :=
+           Semantics  step initial_state final_state (Genv.globalenv prog).
+
+End CoreSem_to_semantics.
+Check mk_semantics. 
+
 Module CompilerCorrectness.
 
 Definition globvar_eq {V1 V2: Type} (v1:globvar V1) (v2:globvar V2) :=
@@ -591,6 +621,17 @@ Definition entries_inject_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P
                                                                                                                     globvar_eq v1 v2
                                              end.
 
+Definition GenvHyp {F1 V1 C1 F2 V2 C2} 
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (P1 : AST.program F1 V1) (P2 : AST.program F2 V2): Prop :=
+       (forall id : ident,
+                                 Genv.find_symbol (globalenv (mk_semantics F2 C2 V2 Sem2 P2)) id =
+                                 Genv.find_symbol (globalenv (mk_semantics F1 C1 V1 Sem1 P1)) id)
+       /\ (forall b : block,
+                                          block_is_volatile (Genv.globalenv P2) b =
+                                          block_is_volatile (Genv.globalenv P1) b).
+
 Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C)  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)):
        forall (F1 C1 V1 F2 C2 V2:Type)
@@ -611,6 +652,10 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_eq.Forward_simulation_equals Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 -> 
+
+(*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp Sem1 Sem2 P1 P2 ->
+
                 I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
@@ -626,6 +671,10 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
                prog_main P1 = prog_main P2 -> 
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp Sem1 Sem2 P1 P2 ->
+
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
@@ -641,6 +690,10 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
                (R:Sim_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 ->
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp Sem1 Sem2 P1 P2 ->
+
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | cc_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
@@ -672,98 +725,49 @@ Lemma cc_main: forall {F1 C1 V1 F2 C2 V2}
                     prog_main P1 = prog_main P2.
    Proof. intros. induction X; intuition. congruence. Qed.
 
+(*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
+Lemma cc_Genv:forall {F1 C1 V1 F2 C2 V2}
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)  ExternIdents I,
+                    compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+               GenvHyp Sem1 Sem2 P1 P2.
+   Proof. intros. induction X; intuition. 
+       destruct IHX1.
+       destruct IHX2.
+        split; intros; eauto. rewrite H1. apply H. Qed.
 End CompilerCorrectness.
 
-Require Import compcert.Smallstep.
+Module COMPILER_CORRECTNESS_COMPCERT_SIM.
 
-Module Type COMPILER_CORRECTNESS_COMPCERT_SIM.
-
-  Section CoreSem_to_semantics.
-    Variables (F C V:Type).
-    Let genv  := Genv.t F V.
-    Variable (Sem:CompcertCoreSem genv C).
-
-    Let state := (C * mem)%type.
-
-    Inductive step (ge:genv) : state -> trace -> state -> Prop :=
-    | step_corestep : forall c m c' m',
-          corestep Sem ge c m c' m' ->
-          step ge (c,m) E0 (c',m')
-
-    | step_ext_step : forall c m c' m' ef args tr ret,
-          at_external Sem c = Some (ef,args) ->
-          external_call ef ge args m tr ret m' ->
-          after_external Sem ret c = Some c' ->
-          step ge (c,m) tr (c',m').
-
-    Variable (prog:AST.program F V).
-
-    (*Definition main_sig : signature := 
-       mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint).*)
-    Definition main_sig : signature := 
-       mksignature (nil) (Some AST.Tint).
-
-    Definition initial_state (st:state) : Prop :=
-      exists b, exists vals,
-        Forall2 (val_inject (Mem.flat_inj (Mem.nextblock (snd st)))) vals vals /\
-        Forall2 Val.has_type vals (sig_args main_sig) /\
-        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-        make_initial_core Sem (Genv.globalenv prog) (Vptr b Int.zero) vals = Some (fst st) /\
-        Genv.init_mem prog = Some (snd st). 
-
-    Definition final_state (st:state) (i:int) : Prop :=
-      safely_halted Sem (Genv.globalenv prog) (fst st) = Some i.
-
-   Definition mk_semantics: semantics :=
-           Semantics  step initial_state final_state (Genv.globalenv prog).
-  End CoreSem_to_semantics.
-Check mk_semantics. 
-
-Lemma corestep_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
          corestep Sem (Genv.globalenv P) c m c' m' ->
          plus (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
-  Proof. intros.  eapply plus_left. eapply step_corestep. apply H.  apply star_refl. rewrite E0_left. trivial. Qed.
+    Proof. intros.  eapply plus_left. eapply step_corestep. apply H.  apply star_refl. rewrite E0_left. trivial. Qed.
 
-Lemma corestep_plus_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_plus_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
               corestep_plus Sem (Genv.globalenv P) c m c' m' -> plus (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
-  Proof. intros. unfold corestep_plus in H. destruct H as [n Hn].
-      generalize dependent m.  generalize dependent c. 
+    Proof. intros. unfold corestep_plus in H. destruct H as [n Hn].
+       generalize dependent m.  generalize dependent c. 
       induction n.
          simpl; intros. destruct Hn as [c2 [m2 [Hstep X]]]. inv X. eapply corestep_plus_step; auto.
       intros. simpl in Hn. destruct Hn as [c1 [m1 [Hstep X]]].
           eapply plus_left. eapply step_corestep. apply Hstep.
              eapply plus_star. eapply IHn. apply X.  rewrite E0_left. trivial.
-  Qed.
+   Qed.
 
-Lemma corestep_star_star_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_star_star_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
               corestep_star Sem (Genv.globalenv P) c m c' m' -> star (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
-  Proof. intros. unfold corestep_star in H. destruct H as [n Hn].
+    Proof. intros. unfold corestep_star in H. destruct H as [n Hn].
       destruct n; simpl in Hn. inv Hn. apply star_refl. 
       eapply plus_star. eapply corestep_plus_plus_step. exists n. apply Hn.
-  Qed.
+    Qed.
 
-Lemma forall_inject_val_list_inject: forall j args args' (H:Forall2 (val_inject j) args args' ),   val_list_inject j args args'.
-  Proof.
-    intros j args.
-    induction args; intros;  inv H; constructor; eauto.
-  Qed. 
-Lemma val_list_inject_forall_inject: forall j args args' (H:val_list_inject j args args'), Forall2 (val_inject j) args args' .
-  Proof.
-    intros j args.
-    induction args; intros;  inv H; constructor; eauto.
-  Qed. 
-
-Lemma forall_lessdef_val_listless: forall args args' (H: Forall2 Val.lessdef args args'),  Val.lessdef_list args args' .
-  Proof.
-    intros args.
-    induction args; intros;  inv H; constructor; eauto.
-  Qed. 
-Lemma val_listless_forall_lessdef: forall args args' (H:Val.lessdef_list args args'), Forall2 Val.lessdef args args' .
-  Proof.
-    intros args.
-    induction args; intros;  inv H; constructor; eauto.
-  Qed. 
-
+(*LENB: MAYBE INSTEAD OF USING THIS (INCORRECT) LEMMA IN THE PROOF BELOW
+WE CAN SOMEHOW ADD A HYPOTHESIS meminj_preserves_globals ge j
+SOMEWHERE IN cc_inj OR Sim_inj.at_external or Sim_inj.after_external?
+CURRENTLY WE DON'T HAVE THE ge aAVILABLE THERE...*)
 Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
               (MPj: meminj_preserves_globals ge j) (InjJ : inject_incr j j'),
               meminj_preserves_globals ge j'.
@@ -773,7 +777,6 @@ Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
        split. clear MP1 MP3. intros. apply InjJ. eapply MP2. apply H.
        intros. admit. (*does not hold*)
   Qed.
-  
 
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
@@ -782,10 +785,7 @@ Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
         P1 P2 ExternIdents,
         In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.compiler_correctness
-             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x) 
-                                   (*the following clause is not quite right yet: /\
-                                                 (forall ef myF args m t r m', external_call ef (Genv.globalenv P) args m t r m' ->
-                                                                                                 In myF ExternIdents)*) )
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x))
               ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
@@ -801,15 +801,7 @@ Proof.
       eapply compose_forward_simulation; eauto.
   (*equals_case*)
         rename i into GenvInit1; rename i0 into GenvInit2.
-       assert (HypGenv: forall id : ident,
-                                 Genv.find_symbol (globalenv (mk_semantics F2 C2 V2 Sem2 P2)) id =
-                                 Genv.find_symbol (globalenv (mk_semantics F1 C1 V1 Sem1 P1)) id). admit.
-       assert (HypVolatile:forall b : block,
-                                          block_is_volatile (Genv.globalenv P2) b =
-                                          block_is_volatile (Genv.globalenv P1) b).
-                                            (*intros. assert (ECP:= external_call_spec ef).*)
-                                         admit. (*we don't have b in ExternIdents, so can't apply ext_ok. 
-                                                      Also, our gvar assumptions are assymmetric*)
+        destruct g as [HypGenv HypVolatile].
         set (fsim_index := Sim_eq.core_data R).
         set (fsim_order := Sim_eq.core_ord R).
         set (fsim_order_wf := Sim_eq.core_ord_wf R).
@@ -863,16 +855,8 @@ Proof.
                                         apply H9. 
          (* fsim_symbols_preserved*) simpl. apply HypGenv. (*SAME HERE*) 
    (*extends*) 
-       assert (HypGenv: forall id : ident,
-                                 Genv.find_symbol (globalenv (mk_semantics F2 C2 V2 Sem2 P2)) id =
-                                 Genv.find_symbol (globalenv (mk_semantics F1 C1 V1 Sem1 P1)) id). admit.
-       assert (HypVolatile:forall b : block,
-                                          block_is_volatile (Genv.globalenv P2) b =
-                                          block_is_volatile (Genv.globalenv P1) b).
-                                            (*intros. assert (ECP:= external_call_spec ef).*)
-                                         admit. (*we don't have b in ExternIdents, so can't apply ext_ok. 
-                                                      Also, our gvar assumptions are assymmetric*)
         rename i into GenvInit1; rename i0 into GenvInit2.
+        destruct g as [HypGenv HypVolatile].
         set (fsim_index := Sim_ext.core_data R).
         set (fsim_order := Sim_ext.core_ord R).
         set (fsim_order_wf := Sim_ext.core_ord_wf R).
@@ -952,15 +936,7 @@ Proof.
          (* fsim_symbols_preserved*) simpl. apply HypGenv. (*SAME HERE*)  
    (*inject*)
         rename i into GenvInit1; rename i0 into GenvInit2.
-       assert (HypGenv: forall id : ident,
-                                 Genv.find_symbol (globalenv (mk_semantics F2 C2 V2 Sem2 P2)) id =
-                                 Genv.find_symbol (globalenv (mk_semantics F1 C1 V1 Sem1 P1)) id). admit.
-       assert (HypVolatile:forall b : block,
-                                          block_is_volatile (Genv.globalenv P2) b =
-                                          block_is_volatile (Genv.globalenv P1) b).
-                                            (*intros. assert (ECP:= external_call_spec ef).*)
-                                         admit. (*we don't have b in ExternIdents, so can't apply ext_ok. 
-                                                      Also, our gvar assumptions are assymmetric*)
+        destruct g as [HypGenv HypVolatile].
         set (fsim_index := Sim_inj.core_data R).
         set (fsim_order := Sim_inj.core_ord R).
         set (fsim_order_wf := Sim_inj.core_ord_wf R).
@@ -1045,8 +1021,9 @@ Proof.
                          exists j'; simpl.  split;eauto. eapply inject_incr_trans. apply InjJ. apply InjJ'.
          (* fsim_symbols_preserved*) simpl. apply HypGenv. (*SAME HERE*)
 Qed.
-
-1. The need for the two axioms HypGenv and HypVolatile, currently added at the beginning of all cases. 
+(*
+1. The need for the axiom GenvHyp in all cases (or alternatively the addition of axioms  HypGenv and HypVolatile, 
+     at the beginning of all cases): 
 These are needed in order to apply external_call_symbols_preserved_gen, in order to establish external_call 
 ef (GEnv P2) vargs m1 t vres m2, 
 As mentioned in the file, an alternative proof of this fact using external_call_symbols_preserved_2 would require 
@@ -1056,7 +1033,7 @@ Additionally, HypGenv is also explicitly required in order to discharge Xavier's
 2. The need to establish a "meminj_preserves_globals" property in case inject-diamond-externalStep.
 I temporarily added the condition meminj_preserves_globals jInit in cc_inj, with the idea
   that we would thread it through the execution. But meminj_preserves_globals is formally 
-  not preserved by inj_incr. Mut maybe the 3rd clause in meminj_preserves_globals is
+  not preserved by inj_incr. But maybe the 3rd clause in meminj_preserves_globals is
   stronger than what's needed to prove the CompCert phases?
 
 An alternative (maybe this is needed in any case) would be to have at_external
@@ -1070,403 +1047,8 @@ It seems given the strong condition imposed by meminj_preserves_global, our choi
 differentiate between entries_ok and entries_inject_ok is too fine for current CompCert.
 Maybe we soulh use entries_ok even in inject-case (at least for the sake of demonstrating 
 that our approach works)?
-  
 
-     
-
-Qed.
-
-Old material
-
-Definition siminj (j: meminj) (m1 m2 : mem) :=
-  (forall b, ~(Mem.valid_block m1 b) -> j b = None) /\
-  (forall b b' delta, j b = Some(b', delta) -> Mem.valid_block m2 b').
-
-Fixpoint injlist_compose (j : list meminj) : meminj :=
-  match j with 
-     nil => fun b => Some (b,0)
-  | cons h t => Mem.meminj_compose h (injlist_compose t)
-  end.
-
-Fixpoint check_injectlist (js : list meminj) m1 ms lst : Prop :=
-   match js,ms with
-     nil, nil => m1 = lst
-   | cons j J, cons m M => Mem.inject j m1 m /\ check_injectlist J m M lst
-   | _ , _ => False
-   end.
-
-Fixpoint check_returns (js : list meminj) ret1 (rets : list val) r : Prop :=
-  match js, rets with 
-     nil, nil => r=ret1
-  | (j::J), (ret2::R) => val_inject j ret1 ret2 /\ check_returns J ret2 R r
-  | _ , _ => False
-  end.
-
-Fixpoint check_valslist (js : list meminj) (vals1 : list val) (vals:list (list val)) (w: list val): Prop :=
-   match js,vals with
-     nil, nil => vals1 = w 
-   | cons j J, cons vals2 V => 
-          Forall2 (val_inject j) vals1 vals2 /\ check_valslist J vals2 V w
-   | _ , _ => False
-   end.
-
-Fixpoint mem_square js m1 ms m1' ms' : Prop :=
-  match js, ms, ms' with
-    nil, nil , nil => mem_forward m1 m1' 
- |  j::jss, m2::mss, m2'::mss' => mem_unchanged_on (loc_unmapped j) m1 m1' /\
-                                 mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
-                                 mem_forward m1 m1' /\ mem_square jss m2 mss m2' mss'
- | _ , _ , _ => False
-  end.
-
-Fixpoint mkInjections m (n:nat) : list meminj :=
-  match n with O => nil
-            | S n' => (Mem.flat_inj (Mem.nextblock m))::mkInjections m n'
-  end.
-
-Fixpoint lift_join (join:mem -> mem -> mem -> Prop) ms1 ms2 ms :=
-  match ms1,ms2,ms with 
-     nil, nil, nil => True
-   | h1::t1,h2::t2,h::t => join h1 h2 h /\ lift_join join t1 t2 t
-   | _ , _ , _ => False
-  end.
-
-Inductive Forall3 {A B C : Type} (R : A -> B -> C -> Prop)
-            : list A -> list B -> list C -> Prop :=
-    Forall3_nil : Forall3 R nil nil nil
-  | Forall3_cons : forall (x : A) (y : B) (z:C) (l : list A) (l' : list B) (l'' : list C),
-                   R x y z -> Forall3 R l l' l'' -> Forall3 R (x :: l) (y :: l') (z::l'').
-
-  
-  Record Forward_simulation_inject_onepass := {
-    core_dataOP : Type;
-
-    match_stateOP : core_dataOP -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
-    core_ordOP : core_dataOP -> core_dataOP -> Prop;
-    core_ord_wfOP : well_founded core_ordOP;
-
-(*Maybe we need an axiom like this?
-    thread_axiom: forall cd j m1 c1 m2 c2, match_state cd j c1 m1 c2 m2 ->
-             (*we want maybe same sequence of memops to be applied in both forward_modifications*)
-               allowed_forward_modifications m1 m1' ->
-               allowed_forward_modifications m2 m2' ->
-           exists j', incject_incr j j' /\ inject_separated j j' m1 m2
-               match_state cd j' c1 m1' c2 m2';
-*)
-
-    match_state_siminjOP :
-      forall cd j st1 m1 st2 m2,
-        match_stateOP cd j st1 m1 st2 m2 -> siminj j m1 m2;
-
-    core_diagramOP : 
-      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd st2 j m2,
-        match_stateOP cd j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          match_stateOP cd' j' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ordOP cd' cd);
-
-    core_initialOP : forall v1 v2 sig,
-      In (v1,v2,sig) entry_points ->
-        forall vals vals' m1 m2,
-          let j := (Mem.flat_inj (Mem.nextblock m1)) in
-
-           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
-           Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
-           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->
-
-          Forall2 (val_inject j) vals vals' ->
-          Forall2 (Val.has_type) vals' (sig_args sig) ->
-          Mem.inject j m1 m2 ->
-          exists cd, exists c1, exists c2,
-            make_initial_core Sem1 ge1 v1 vals = Some c1 /\
-            make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
-            match_stateOP cd j c1 m1 c2 m2;
-
-(* Attempt to specify forking, but we're giving away the entire memory here which can't be right.
-  We may later want to reintroduce this lemma, but somehow allow one to specify which part of
-the memory is retained, and which one is given to the thread.
-    core_at_fork : forall v1 v2 sig,
-      In (v1,v2,sig) entry_points ->
-        forall vals vals' m1 m2 j
-          (HM: match_state cd j c1 m1 c2 m2),
-
-           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
-           (*Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
-           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->*)
-
-          Forall2 (val_inject j) vals vals' ->
-          Forall2 (Val.has_type) vals' (sig_args sig) ->
-          Mem.inject j m1 m2 ->
-          exists cd', exists c1', exists c2',
-            make_initial_core Sem1 ge1 v1 vals = Some c1' /\
-            make_initial_core Sem2 ge2 v2 vals' = Some c2' /\
-            match_state cd' j c1' m1 c2' m2;*)
-
-    core_haltedOP : forall cd j c1 m1 c2 m2 (v1:int),
-      match_stateOP cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 ge1 c1 = Some v1 ->
-        (safely_halted Sem2 ge2 c2 = Some v1 /\
-         Mem.inject j m1 m2); (*conjunct Mem.inject j m1 m2 could maybe deleted here?*)
-
-    core_at_externalOP: 
-      forall cd j st1 m1 st2 m2 e vals1,
-        match_stateOP cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
-        exists vals2,
-          Mem.inject j m1 m2 /\
-          Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-          at_external Sem2 st2 = Some (e,vals2);
-  
-    core_after_externalOP :
-      forall cd j j' st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2',
-        match_stateOP cd j st1 m1 st2 m2 ->
-        Mem.inject j m1 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
-        at_external Sem2 st2 = Some (e,vals2) ->
-        Forall2 (val_inject j) vals1 vals2 ->
-      
-        inject_incr j j' ->
-        inject_separated j j' m1 m2 ->
-        Mem.inject j' m1' m2' ->
-        val_inject j' ret1 ret2 ->
-
-        mem_unchanged_on (loc_unmapped j) m1 m1' ->  (*together, these 2 conditions say roughly that*)
-        mem_unchanged_on (loc_out_of_reach j m1) m2 m2' -> (* spill-locations didn't change*)
-
-        mem_forward m1 m1' ->  
-        mem_forward m2 m2' ->
-
-        Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) ->
-        Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
-
-        exists cd', exists st1', exists st2',
-          after_external Sem1 ret1 st1 = Some st1' /\
-          after_external Sem2 ret2 st2 = Some st2' /\
-          match_stateOP cd' j' st1' m1' st2' m2'
-    }.
-
-  Axiom OnePassSpecialization: Forward_simulation_inject_onepass -> Forward_simulation_inject.
-
-End Forward_simulation_inject.
-
-Implicit Arguments Forward_simulation_inject[[G1] [C1] [G2] [C2]].
-End Sim_inj.
-
-  (* An axiom stating that inject forward simulations compose *)
-  Axiom forward_simulation_inject_inject_compose : forall
-    (G1 C1 G2 C2 G3 C3:Type)
-    (Sem1 : CompcertCoreSem G1 C1)
-    (Sem2 : CompcertCoreSem G2 C2)
-    (Sem3 : CompcertCoreSem G3 C3)
-
-    (ge1 : G1)
-    (ge2 : G2)
-    (ge3 : G3)
-
-    (entry_points12 : list (val*val*signature))
-    (entry_points23 : list (val*val*signature))
-
-    (FSim12 : Sim_inj.Forward_simulation_inject Sem1 Sem2 ge1 ge2 entry_points12)
-    (FSim23 : Sim_inj.Forward_simulation_inject Sem2 Sem3 ge2 ge3 entry_points23)
-
-    (entry_points13: list (val*val*signature))
-    (EPC: entry_points_compose entry_points12 entry_points23 entry_points13),
-
-    Sim_inj.Forward_simulation_inject Sem1 Sem3 ge1 ge3 entry_points13.
-
-  (* An axiom stating that extend_inject forward simulations compose *)
-  Axiom forward_simulation_extend_inject_compose : forall
-    (G1 C1 G2 C2 G3 C3:Type)
-    (Sem1 : CompcertCoreSem G1 C1)
-    (Sem2 : CompcertCoreSem G2 C2)
-    (Sem3 : CompcertCoreSem G3 C3)
-
-    (ge1 : G1)
-    (ge2 : G2)
-    (ge3 : G3)
-
-    (entry_points12 : list (val*val*signature))
-    (entry_points23 : list (val*val*signature))
-
-    (FSim12 : Sim_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points12)
-    (FSim23 : Sim_inj.Forward_simulation_inject Sem2 Sem3 ge2 ge3 entry_points23)
-
-    (entry_points13: list (val*val*signature))
-    (EPC: entry_points_compose entry_points12 entry_points23 entry_points13),
-
-    Sim_inj.Forward_simulation_inject Sem1 Sem3 ge1 ge3 entry_points13.
-
-  (* An axiom stating that equal inject forward simulations compose *)
-  Axiom forward_simulation_equal_inject_compose : forall
-    (G1 C1 G2 C2 G3 C3:Type)
-    (Sem1 : CompcertCoreSem G1 C1)
-    (Sem2 : CompcertCoreSem G2 C2)
-    (Sem3 : CompcertCoreSem G3 C3)
-
-    (ge1 : G1)
-    (ge2 : G2)
-    (ge3 : G3)
-
-    (entry_points12 : list (val*val*signature))
-    (entry_points23 : list (val*val*signature))
-
-    (FSim12 : Sim_eq.Forward_simulation_equals Sem1 Sem2 ge1 ge2 entry_points12)
-    (FSim23 : Sim_inj.Forward_simulation_inject Sem2 Sem3 ge2 ge3 entry_points23)
-
-    (entry_points13: list (val*val*signature))
-    (EPC: entry_points_compose entry_points12 entry_points23 entry_points13),
-
-    Sim_inj.Forward_simulation_inject Sem1 Sem3 ge1 ge3 entry_points13.
-
-End SIMULATIONS.
-
-(* This module type states that forward simulations are sufficent
-   to imply correctness with respect to the trace model of external
-   functions.  First we demonstrate how to hook up an arbitrary
-   EXtSem with the trace model, then we show simulation in the
-   forward and backward direction.  Finally we show that
-   the compiler preserves all trace behaviors for safe input
-   programs.
+3. Do we still need the allowed_modifications stuff??
  *)
 
-(* COMMENTED OUT by Andrew, until Rob can adjust it to CompCert's new-style
-    "semantics" definition 
-
-Require Import compcert.Smallstep.
-Require Import compcert.Determinism.
-Require Import compcert.Behaviors.
-
-Module Type TRACE_CORRECTNESS.
-
-  Section EXtSem_to_trace.
-    Variables (F C V:Type).
-    Variable (Sem:CompcertCoreSem F C V external_function).
-
-    Let genv  := G.
-    Let state := (C * mem)%type.
-
-    Inductive step (ge:genv) : state -> trace -> state -> Prop :=
-    | step_corestep : forall c m c' m',
-          corestep Sem ge c m c' m' ->
-          step ge (c,m) E0 (c',m')
-
-    | step_ext_step : forall c m c' m' ef sig args tr ret,
-          at_external Sem c = Some (ef,sig,args) ->
-          sig = ef_sig ef ->
-          external_call ef ge args m tr ret m' ->
-          after_external Sem (ret::nil) c = Some c' ->
-          step ge (c,m) tr (c',m').
-
-    Variable (prog:program (fundef F) V).
-
-    Definition main_sig : signature := 
-      mksignature (Tint :: Tint :: nil) (Some Tint).
-
-    Definition initial_state (st:state) : Prop :=
-      exists b, exists vals,
-        Forall2 (val_inject (Mem.flat_inj (Mem.nextblock (snd st)))) vals vals /\
-        Forall2 Val.has_type vals (sig_args main_sig) /\
-        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-        make_initial_core Sem (Genv.globalenv prog) (Vptr b Int.zero) vals = Some (fst st) /\
-        Genv.init_mem prog = Some (snd st).
-
-    Definition final_state (st:state) (i:int) : Prop :=
-      safely_halted Sem (Genv.globalenv prog) (fst st) (snd st) = Some (Vint i).
-
-    Definition behaves : program_behavior -> Prop :=
-      program_behaves step initial_state final_state (Genv.globalenv prog).
-
-    Definition safe_state w ge st := 
-      forall t w' st',
-        star step ge st t st' ->
-        possible_trace w t w' ->
-          (exists i, final_state st' i) \/
-          (exists t', exists st'', exists w'',
-            step ge st' t' st'' /\
-            possible_trace w' t' w'').
-
-    Definition safe_prog w ge := forall st, initial_state st -> safe_state w ge st.
-
-  End EXtSem_to_trace.
-
-  Axiom forward_simulation_trace_forward : forall
-      (F1 C1 V1 F2 C2 V2 :Type)
-      (Sem1 : CompcertCoreSem F1 C1 V1 external_function)
-      (Sem2 : CompcertCoreSem F2 C2 V2 external_function)
-
-      (prog1 : program (fundef F1) V1)
-      (prog2 : program (fundef F2) V2)
-
-      (entry_points : list (ident * signature))
-
-      (match_fun : fundef F1 -> fundef F2 -> Prop)
-      (match_varinfo : V1 -> V2 -> Prop)
-
-      (main_entry_point : In (prog_main prog1, main_sig) entry_points)
-      (match_prog : match_program match_fun match_varinfo prog1 prog2)
-
-      (fsim : ForwardSimulation Sem1 Sem2 
-               (Genv.globalenv prog1) (Genv.globalenv prog2) entry_points (fun _ => eq)),
-
-      forall beh,
-        not_wrong beh ->
-        behaves _ _ _ Sem1 prog1 beh ->
-        behaves _ _ _ Sem2 prog2 beh.
-
-  Axiom forward_simulation_trace_backward : forall
-      (F1 C1 V1 F2 C2 V2 :Type)
-      (Sem1 : CompcertCoreSem F1 C1 V1 external_function)
-      (Sem2 : CompcertCoreSem F2 C2 V2 external_function)
-
-      (prog1 : program (fundef F1) V1)
-      (prog2 : program (fundef F2) V2)
-
-      (entry_points : list (ident * signature))
-
-      (match_fun : fundef F1 -> fundef F2 -> Prop)
-      (match_varinfo : V1 -> V2 -> Prop)
-
-      (main_entry_point : In (prog_main prog1, main_sig) entry_points)
-      (match_prog : match_program match_fun match_varinfo prog1 prog2)
-
-      (fsim : ForwardSimulation Sem1 Sem2 
-               (Genv.globalenv prog1) (Genv.globalenv prog2) entry_points (fun _ => eq)),
-
-      forall w beh,
-        safe_prog _ _ _ Sem1 prog1 w (Genv.globalenv prog1) ->
-        possible_behavior w beh ->
-        behaves _ _ _ Sem2 prog2 beh ->
-        behaves _ _ _ Sem1 prog1 beh.
-
-  Axiom forward_simulation_trace_correct : forall
-      (F1 C1 V1 F2 C2 V2 :Type)
-      (Sem1 : CompcertCoreSem F1 C1 V1 external_function)
-      (Sem2 : CompcertCoreSem F2 C2 V2 external_function)
-
-      (prog1 : program (fundef F1) V1)
-      (prog2 : program (fundef F2) V2)
-
-      (entry_points : list (ident * signature))
-
-      (match_fun : fundef F1 -> fundef F2 -> Prop)
-      (match_varinfo : V1 -> V2 -> Prop)
-
-      (main_entry_point : In (prog_main prog1, main_sig) entry_points)
-      (match_prog : match_program match_fun match_varinfo prog1 prog2)
-
-      (fsim : ForwardSimulation Sem1 Sem2 
-               (Genv.globalenv prog1) (Genv.globalenv prog2) entry_points (fun _ => eq)),
-
-      (forall w, safe_prog _ _ _ Sem1 prog1 w (Genv.globalenv prog1)) ->
-      forall beh,
-        (behaves _ _ _ Sem1 prog1 beh <-> behaves _ _ _ Sem2 prog2 beh).
-
-End TRACE_CORRECTNESS.
-
-*)
+End COMPILER_CORRECTNESS_COMPCERT_SIM.
