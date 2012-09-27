@@ -19,7 +19,8 @@ Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.
 Require Import msl.normalize.
-Require Import veric.seplog_soundness.
+Require Import veric.semax_call.
+Require Import veric.semax_straight.
 Require Import veric.semax_loop.
 Require Import veric.semax_prog.
 Require Import veric.SeparationLogic.

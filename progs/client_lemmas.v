@@ -225,8 +225,8 @@ forall (Delta: tycontext) (G: funspecs) sh id t1 fld P e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta G 
-       (local (tc_lvalue Delta e1) &&
-    |> (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * subst id (lift0 v2) P))
+       (|> (local (tc_lvalue Delta e1) &&
+          (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * subst id (lift0 v2) P)))
        (Sset id (Efield e1 fld t2))
        (normal_ret_assert (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)).
 Proof with normalize.
@@ -253,13 +253,14 @@ simpl. auto.
 evar (P': assert).
 evar (Q': assert).
 apply (semax_pre_post
-            (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
+            (|> (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
              local (tc_lvalue Delta (Efield e1 fld t2)) &&
-              |> (P' * subst id (lift0 v2)  P))
+               (P' * subst id (lift0 v2)  P)))
             (normal_ret_assert (Q' * P))).
 3: apply semax_load.
 intros.
 normalize.
+repeat rewrite later_andp.
 apply andp_right.
 apply andp_right.
 intro rho.
@@ -267,8 +268,11 @@ simpl.
 unfold tc_temp.
 unfold typecheck_temp_id. simpl. rewrite TE1.
 unfold local, lift1, lift0.
+normalize.
+repeat rewrite <- later_andp. apply later_derives.
 apply prop_right; apply eqb_type_refl.
 apply andp_left2. apply andp_left1; auto.
+apply later_derives; auto.
 apply andp_left2. apply andp_left2.
 apply later_derives.
 apply sepcon_derives; auto.

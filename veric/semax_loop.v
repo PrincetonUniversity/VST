@@ -25,6 +25,115 @@ Open Local Scope nat_scope.
 Section extensions.
 Context {Z} (Hspec : juicy_ext_spec Z).
 
+
+Lemma semax_ifthenelse : 
+   forall Delta G P (b: expr) c d R,
+      bool_type (typeof b) = true ->
+     semax Hspec Delta G (fun rho => P rho && !! expr_true b rho) c R -> 
+     semax Hspec Delta G (fun rho => P rho && !! expr_true (Cnot b) rho) d R -> 
+     semax Hspec Delta G 
+              (fun rho => tc_expr Delta b rho && P rho)
+              (Sifthenelse b c d) R.
+Proof.
+intros.
+rewrite semax_unfold in H0, H1 |- *.
+intros.
+specialize (H0 psi _ Prog_OK k F).
+specialize (H1 psi _ Prog_OK k F).
+spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition. left; left; auto.
+spec H1. intros i te' ?.  apply H2; simpl; auto; intros i0; destruct (H4 i0); intuition. left; right; auto.
+assert (H3then: app_pred
+       (rguard Hspec psi (exit_tycon c Delta)  G F R k) w).
+clear - H3.
+intros ek vl rho; specialize (H3 ek vl rho).
+eapply subp_trans'; try apply H3.
+apply derives_subp; apply andp_derives; auto.
+unfold exit_tycon; simpl. destruct ek; simpl; auto.
+intros ? [? ?]; split; auto.
+apply typecheck_environ_join1; auto.
+assert (H3else: app_pred
+       (rguard Hspec psi (exit_tycon d Delta) G F R k) w).
+clear - H3.
+intros ek vl rho; specialize (H3 ek vl rho).
+eapply subp_trans'; try apply H3.
+apply derives_subp; apply andp_derives; auto.
+unfold exit_tycon; simpl. destruct ek; simpl; auto.
+intros ? [? ?]; split; auto.
+apply typecheck_environ_join2; auto.
+specialize (H0 H3then).
+specialize (H1 H3else).
+clear Prog_OK H3 H3then H3else.
+intro rho; specialize (H0 rho); specialize (H1 rho).
+slurp.
+rewrite <- fash_and.
+intros ? ?. clear w H0.
+revert a'.
+apply fash_derives.
+intros w [? ?].
+intros ?w ? [[[?TC Hge] ?] ?].
+apply extend_sepcon_andp in H4; auto.
+destruct H4 as [TC2 H4].
+hnf in TC2.
+destruct H4 as [w1 [w2 [? [? ?]]]].
+specialize (H0 w0 H3).
+specialize (H1 w0 H3).
+unfold expr_true, expr_false, Cnot in *.
+intros ora jm Hphi.
+generalize (eval_expr_relate _ _ _ b (m_dry jm) Hge TC); intro.
+assert (exists b': bool, strict_bool_val (eval_expr b rho) (typeof b) = Some b').
+clear - TC H TC2.
+assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+remember (eval_expr b rho). destruct v;
+simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
+(* typechecking proof *)
+destruct H9 as [b' ?].
+apply wlog_safeN_gt0; intro.
+subst w0.
+change (level (m_phi jm)) with (level jm) in H10.
+revert H10; case_eq (level jm); intros.
+omegaContradiction.
+apply levelS_age1 in H10. destruct H10 as [jm' ?].
+clear H11.
+apply (@safe_step'_back2 _ _ _ _ _ _ _ psi ora _ jm 
+        (State (ve_of rho) (te_of rho) (Kseq (if b' then c else d) :: k)) jm' _).
+split3.
+rewrite <- (age_jm_dry H10); econstructor; eauto.
+apply strict_bool_val_sub; auto.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+change (level (m_phi jm)) with (level jm).
+replace (level jm - 1)%nat with (level jm' ) by (apply age_level in H10; omega).
+eapply @age_safe; try apply H10.
+destruct b'.
+eapply H0; auto.
+split; auto.
+split; auto.
+split; auto.
+rewrite andp_comm. rewrite prop_true_andp by auto.
+do 2 econstructor; split3; eauto.
+eapply H1; auto.
+split; auto.
+split; auto.
+split; auto.
+rewrite andp_comm; rewrite prop_true_andp.
+do 2 econstructor; split3; eauto.
+clear - H TC TC2 H9.
+assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+simpl. unfold lift1. unfold typed_true.   
+destruct (eval_expr b rho); try solve[inv H9].
+destruct (typeof b); 
+try solve [simpl in *; inv H9; rewrite TCS in *; simpl in *; try congruence; auto].
+
+intuition; simpl in *;
+unfold sem_notbool; destruct i0; destruct s; auto; simpl;
+inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
+unfold sem_notbool. simpl in *. 
+unfold force_val. simpl in *.
+destruct (typeof b); intuition. simpl in *. inv H9.
+rewrite negb_false_iff in H1. rewrite H1; auto.
+destruct (typeof b); intuition. 
+Qed.
+
 Lemma seq_assoc1:  
    forall Delta G P s1 s2 s3 R,
         semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R ->

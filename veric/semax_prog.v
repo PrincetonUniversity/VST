@@ -19,7 +19,7 @@ Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.
 Require Import msl.normalize.
-Require Import veric.seplog_soundness.
+Require Import veric.semax_call.
 
 Open Local Scope pred.
 
@@ -709,8 +709,7 @@ Proof.
   apply (Genv.find_funct_ptr_exists prog id f); auto.
 Qed.
 
-(* there's a place this lemma should be applied, perhaps in seplog_soundness
-    proof of semax_call *)
+(* there's a place this lemma should be applied, perhaps in proof of semax_call *)
 Lemma funassert_rho:
   forall G rho rho', ge_of rho = ge_of rho' -> funassert G rho |-- funassert G rho'.
 Proof.

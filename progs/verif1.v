@@ -498,13 +498,13 @@ Proof. intros. symmetry ; apply andp_assoc. Qed.
 
 Ltac strip1_later P :=
  match P with 
- | |> ?L && |> ?R => constr:(L && R)
- | ?L && |> ?R => let Z := strip1_later L in constr:(Z && R)
- | |> ?L && ?R => let Z := strip1_later R in constr:(L && Z)
+ | do_canon ?L ?R => let L' := strip1_later L in let R' := strip1_later R in constr:(do_canon L' R')
+ | PROPx ?P ?QR => let QR' := strip1_later QR in constr:(PROPx P QR')
+ | LOCALx ?Q ?R => let R' := strip1_later R in constr:(LOCALx Q R')
+ | SEPx ?R => let R' := strip1_later R in constr:(SEPx R')
+ | ?L::?R => let L' := strip1_later L in let R' := strip1_later R in constr:(L'::R')
+ | nil => constr:(nil)
  | ?L && ?R => let L' := strip1_later L in let R' := strip1_later R in constr:(L' && R')
- | |> ?L * |> ?R => constr:(L * R)
- | ?L * |> ?R => let Z := strip1_later L in constr:(Z * R)
- | |> ?L * ?R => let Z := strip1_later R in constr:(L * Z)
  | ?L * ?R => let L' := strip1_later L in let R' := strip1_later R in constr:(L'*R')
  | |> ?L => constr:(L)
  | ?L => constr:(L)
@@ -670,28 +670,6 @@ rewrite H2; auto.
 Qed.
 Hint Extern 2 (closed_wrt_vars (modified1 _) (lift2 _ (eval_id _) (eval_id _))) => 
       (apply closed_wrt_lift2; solve [let Hx := fresh in (intro Hx; inv Hx)]) : closed.
-(*
-Lemma closed_wrt_PROPx:
- forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
-Proof.
-Admitted. 
-Hint Resolve closed_wrt_PROPx: closed.
-
-Lemma closed_wrt_LOCALx:
- forall S Q R, closed_wrt_vars S (local Q) -> closed_wrt_vars S R -> closed_wrt_vars S (LOCALx Q R).
-Admitted. 
-Hint Resolve closed_wrt_LOCALx: closed.
-
-Lemma closed_wrt_SEPx: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (SEPx P).
-Admitted. 
-Hint Resolve closed_wrt_SEPx: closed.
-Lemma closed_wrt_local_lift0: forall S Q, closed_wrt_vars S (local (lift0 Q)).
-Proof.
-intros. intro; intros. unfold local, lift1, lift0. auto.
-Qed.
-Hint Resolve closed_wrt_local_lift0: closed.
-
-*)
 
 Lemma forward_set:
   forall Delta G P1 P2 P3 id e c Q,
@@ -721,6 +699,20 @@ unfold local, lift1. simpl.
 f_equal.
 apply pred_ext; normalize.
 Qed.
+
+
+
+Lemma semax_pre0:
+ forall P' Delta G P c R,
+     P |-- P' ->
+     semax Delta G P' c R  -> 
+     semax Delta G P c R.
+Proof.
+intros.
+eapply semax_pre; try apply H0.
+ apply andp_left2; auto.
+Qed.
+
 
 Lemma semax_pre:
  forall P' Delta G P1 P2 P3 c R,
@@ -856,7 +848,7 @@ Hint Rewrite exp_do_canon: normalize.
 Ltac go_lower := 
  let rho := fresh "rho" in intro rho; unfold PROPx, LOCALx, SEPx; simpl; normalize.
 
-Ltac change_in_pre S S' :=
+Ltac replace_in_pre S S' :=
  match goal with |- semax _ _ ?P _ _ =>
   match P with context C[S] =>
      let P' := context C[S'] in apply semax_pre with P'; [go_lower | ]
@@ -881,6 +873,218 @@ Definition bind1' (i1: ident) (P: assert) (args: list val): mpred :=
   end.
 
 
+Lemma closed_wrt_PROPx:
+ forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
+Proof.
+Admitted. 
+Hint Resolve closed_wrt_PROPx: closed.
+
+Lemma closed_wrt_LOCALx:
+ forall S Q R, Forall (Basics.compose (closed_wrt_vars S) local) Q -> 
+                    closed_wrt_vars S R -> 
+                    closed_wrt_vars S (LOCALx Q R).
+Admitted. 
+Hint Resolve closed_wrt_LOCALx: closed.
+
+Hint Resolve @Forall_cons @Forall_nil : closed.
+
+Lemma closed_wrt_SEPx: forall S P, 
+     Forall (closed_wrt_vars S) P -> closed_wrt_vars S (SEPx P).
+Admitted. 
+Hint Resolve closed_wrt_SEPx: closed.
+Lemma closed_wrt_local_lift0: forall S Q, closed_wrt_vars S (local (lift0 Q)).
+Proof.
+intros. intro; intros. unfold local, lift1, lift0. auto.
+Qed.
+Hint Resolve closed_wrt_local_lift0: closed.
+
+Lemma closed_wrt_tc_formals:
+  forall (S: ident -> Prop) (L: list (ident*type)), 
+    Forall (Basics.compose not S) (map (@fst _ _) L) ->
+    Basics.compose (closed_wrt_vars S) local (tc_formals L).
+Admitted.
+Hint Resolve closed_wrt_tc_formals.
+
+Lemma closed_wrt_not1:
+  forall (i j: ident), 
+   i<>j ->
+   Basics.compose not (modified1 i) j.
+Proof.
+intros.
+hnf. unfold modified1.
+intros; subst; congruence.
+Qed.
+Hint Resolve closed_wrt_not1 : closed.
+Lemma Peqb_neq:
+ forall i j, Peqb i j = false -> i<>j.
+Proof.
+intros i j ? ?; subst j.
+rewrite Peqb_refl in H; inv H.
+Qed.
+Hint Resolve Peqb_neq: closed.
+
+Hint Extern 1 (Forall _ (map (@fst ident type) _)) => simpl map.
+
+Lemma closed_wrt_lift2a:
+ forall {A} S f (x: environ -> A) (y: val), 
+    closed_wrt_vars S (lift1 (fun v => f v y) x) ->
+    closed_wrt_vars S (lift2 f x (lift0 y)).
+Proof.
+Admitted.
+Hint Resolve @closed_wrt_lift2a : closed.
+
+Ltac normalizex :=
+  first [apply semax_extract_PROP; intro 
+         | apply semax_extract_prop; intro
+         | apply extract_exists_pre].
+
+Lemma canon9: forall Q1 P Q R,
+       local Q1 && (PROPx P (LOCALx Q R)) = 
+         PROPx P (LOCALx (Q1::Q) R).
+Proof.
+intros; unfold PROPx, LOCALx; simpl.
+extensionality rho.
+normalize.
+Admitted.
+Hint Rewrite canon9: canon.
+
+Ltac focus_SEP n := 
+ rewrite restart_canon; rewrite (grab_nth_SEP n); unfold nth, delete_nth; normalize.
+
+
+Lemma closed_wrt_subst:
+  forall id e P, closed_wrt_vars (eq id) P -> subst id e P = P.
+Proof.
+intros.
+unfold subst, closed_wrt_vars in *.
+extensionality rho.
+symmetry.
+apply H.
+intros.
+destruct (eq_dec id i); auto.
+right.
+rewrite PTree.gso; auto.
+Qed.
+
+Lemma denote_tc_isptr1:
+  forall Delta rho e,
+   typecheck_environ rho Delta = true -> 
+   denote_tc_assert (typecheck_expr Delta e) rho ->
+   denote_tc_isptr rho e.
+Admitted.
+
+Lemma subst_andp:
+  forall id v P Q, subst id v (P && Q) = subst id v P && subst id v Q.
+Admitted.
+
+Lemma semax_load_field':
+forall (Delta: tycontext) (G: funspecs) sh id t1 a fld PQR e1 v2 t2 i2 sid fields ,
+    lvalue_closed_wrt_vars (eq id) (e1) ->
+    t1 = Tstruct sid fields noattr ->
+    typeof e1 = Tpointer t1 a ->
+    (temp_types Delta) ! id = Some (t2,i2) ->
+    typecheck_val v2 t2 = true ->
+    closed_wrt_vars (eq id) PQR ->
+    t2 = type_of_field (unroll_composite_fields sid t1 fields) fld ->
+ semax Delta G
+   (|>(do_canon (local (tc_expr Delta e1) && lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2))
+          PQR))
+   (Sset id (Efield (Ederef e1 t1) fld t2))
+   (normal_ret_assert 
+     (do_canon (local (lift1 (eq v2) (eval_id id)) &&
+                         lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2))
+         PQR)).
+Proof.
+intros.
+rename H5 into TC3.
+eapply semax_pre_post; [ | | apply semax_load_field with i2 sid fields]; 
+  try eassumption; try reflexivity; try solve [simpl; auto].
+instantiate (2:=sh).
+instantiate (1:=  (local (tc_environ Delta) && local (tc_expr Delta e1) && local (lift1 (eq v2) (eval_id id)) && PQR)).
+repeat rewrite subst_andp.
+rewrite (closed_wrt_subst _ _ PQR) by auto.
+replace (subst id (lift0 v2) (local (tc_expr Delta e1))) with
+          (local (tc_expr Delta e1)).
+Focus 2.
+clear - H.
+admit.
+unfold do_canon.
+apply derives_trans with
+ (|> (local (tc_environ Delta) &&  (local (tc_expr Delta e1) &&
+   lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2) *
+   PQR))).
+repeat rewrite later_andp; auto.
+apply andp_derives; auto. apply now_later.
+apply later_derives.
+intro rho; unfold local,lift1; simpl.
+normalize.
+pose proof (denote_tc_isptr1 _ _ _ H5 H6).
+apply andp_right.
+apply prop_right.
+unfold tc_expr in H6.
+unfold tc_lvalue. simpl; auto.
+repeat split; auto. rewrite H1. simpl. auto.
+rewrite H0; simpl; auto.
+apply sepcon_derives; auto.
+unfold denote_tc_isptr in H7.
+destruct (eval_expr e1 rho); try contradiction; auto.
+apply andp_right; auto.
+unfold subst.
+apply andp_right.
+apply andp_right; auto.
+apply prop_right; auto.
+clear - H5.
+admit.  (* typechecking proof *)
+normalize.
+apply prop_right.
+unfold eval_id, env_set; simpl; rewrite PTree.gss; auto.
+intros ek vl rho.
+unfold normal_ret_assert, do_canon.
+simpl.
+normalize.
+apply sepcon_derives; auto.
+pose proof (denote_tc_isptr1 _ _ _ H5 H6).
+unfold denote_tc_isptr in H7; destruct (eval_expr e1 rho); try contradiction; auto.
+clear - H.
+admit.
+rewrite <- H0; auto.
+Qed.
+
+Lemma PROP_later_derives:
+ forall P QR QR', QR |-- |>QR' ->
+    PROPx P QR |-- |> PROPx P QR'.
+Proof.
+intros.
+unfold PROPx.
+normalize.
+Qed.
+
+Lemma LOCAL_later_derives:
+ forall Q R R', R |-- |>R' -> LOCALx Q R |-- |> LOCALx Q R'.
+Proof.
+unfold LOCALx; intros; normalize.
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+Qed.
+
+Lemma SEP_later_derives:
+  forall P Q P' Q', 
+      P |-- |> P' ->
+      SEPx Q |-- |> SEPx Q' ->
+      SEPx (P::Q) |-- |> SEPx (P'::Q').
+Proof.
+intros.
+intro rho.
+specialize (H0 rho).
+unfold SEPx in *; intros; normalize.
+simpl.
+rewrite later_sepcon.
+apply sepcon_derives; auto.
+apply H.
+Qed.
+Hint Resolve PROP_later_derives LOCAL_later_derives SEP_later_derives : derives.
+
 Lemma body_sumlist: semax_body' Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
@@ -888,10 +1092,7 @@ simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.    
 canonicalize_pre.
 apply forward_set; [compute; auto | compute; auto | auto 50 with closed | compute; auto | ].
-admit. (* closed *)
-apply forward_set; [compute; auto | compute; auto | auto with closed | compute; auto | ].
-admit. (* closed *)
-
+apply forward_set; [compute; auto | compute; auto | auto 50 with closed | compute; auto | ].
 forward_while (sumlist_Inv contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P.i_s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
@@ -912,25 +1113,78 @@ simpl in H. rewrite H. normalize.
 (* Prove that loop body preserves invariant *)
 unfold sumlist_Inv at 1.
 normalize.
-apply extract_exists_pre; intro cts.
-normalize.
-change_in_pre (ilseg cts) (ilseg_cons cts).
+normalizex.
+intro cts.
+autorewrite with canon.
+replace_in_pre (ilseg cts) (ilseg_cons cts).
    rewrite ilseg_nonnull by auto.
    unfold ilseg_cons.
-   normalize; intros h r ? y.
+   normalize. intros h r ? y.
    apply exp_right with h; normalize.
    apply exp_right with r; normalize.
    apply exp_right with y; normalize.
 rewrite lift_ilseg_cons_unfold.
-rewrite restart_canon; rewrite (grab_nth_SEP 0);
-   unfold nth, delete_nth.
-   normalize; apply extract_exists_pre; intro h.
-   normalize; apply extract_exists_pre; intro r.
-   normalize; apply extract_exists_pre; intro y.
-   autorewrite with canon.
-apply semax_extract_PROP; intro. subst.
+focus_SEP 0%nat.
+  normalizex; intro h.
+  normalize; normalizex; intro r.
+  normalize; normalizex; intro y.
+  autorewrite with canon.
+  normalizex. subst cts.
+
+match goal with |- semax ?Delta _ (PROPx ?P (LOCALx ?Q ?R))
+                  (Ssequence (Sset _ (Efield (Ederef ?e _) _ _)) _) _ =>
+  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q)  R)))
+end.
+go_lower. 
+
+focus_SEP 0%nat.
+rewrite (grab_nth_LOCAL 0).
+simpl nth.
+rewrite <- (eval_expr_Etempvar P.i_t P.t_listptr).
+match goal with |- semax _ _ ?P _ _ =>
+ let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
+end.
+match goal with |- semax ?Delta ?G (|> do_canon (?P && ?Q) ?PQR) 
+                  (Ssequence (Sset ?id (Efield ?e1 ?fld ?t2)) _) _ =>
+ pose proof (semax_load_field' Delta G Share.top id list_struct noattr P.i_h PQR
+                      (Etempvar P.i_t P.t_listptr) (Vint h)  P.t_int false P.i_list)
+end.
+(*simpl list_data in *.
+forget (tc_expr
+             (initialized P.i_t
+                (initialized P.i_s (func_tycontext P.f_sumlist)))
+             (Etempvar P.i_t P.t_listptr))  as TCA.
+forget (lift2 (field_mapsto Share.top list_struct P.i_h)
+          (eval_expr (Etempvar P.i_t P.t_listptr)) (lift0 (Vint h))) as FM.
+forget (initialized P.i_t (initialized P.i_s (func_tycontext P.f_sumlist))) as Delta.
+*)
+eapply semax_seq.
+eapply semax_post.
+Focus 2.
+eapply H; eauto.
+2: reflexivity.
+admit.
+apply closed_wrt_PROPx; auto with closed.
+apply closed_wrt_LOCALx; auto with closed.
+apply Forall_cons; auto with closed.
+admit.
+apply Forall_cons; auto with closed.
+admit.
+apply Forall_cons; auto with closed.
+admit.
+apply Forall_cons; auto with closed.
+admit.
+apply closed_wrt_SEPx; auto with closed.
+apply Forall_cons; auto with closed.
+admit.
+apply Forall_cons; auto with closed.
+admit.
+simpl. rewrite if_true by auto. reflexivity.
 
 Admitted.
+
+
+
 
 Lemma body_reverse: semax_body' Gprog P.f_reverse reverse_spec.
 Proof.
