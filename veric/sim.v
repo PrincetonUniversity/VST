@@ -37,8 +37,8 @@ Require Import compcert.Events.
     2) a state cannot both step and be halted
     3) a state cannot both be halted and blocked on an external call
  *)
-Record CoreSemantics {G C M:Type} : Type :=
-  { initial_mem: G -> M -> Prop (*characterizes initial memories*)
+Record CoreSemantics {G C M D:Type}: Type :=
+  { initial_mem: G -> M -> D -> Prop (*characterizes initial memories; type D stands for the type of initialization data, eg list (ident * globvar V)*)
   ; make_initial_core : G -> val -> list val -> option C
   ; at_external : C -> option (external_function * list val)
   ; after_external : val -> C -> option C
@@ -58,7 +58,7 @@ Implicit Arguments CoreSemantics [].
 
 (* Definition of multistepping. *)
 Section corestepN.
-  Context {G C M E:Type} (Sem:CoreSemantics G C M) (ge:G).
+  Context {G C M E D:Type} (Sem:CoreSemantics G C M D) (ge:G).
 
   Fixpoint corestepN (n:nat) : C -> M -> C -> M -> Prop :=
     match n with
@@ -93,6 +93,27 @@ Section corestepN.
 
   Definition corestep_star c m c' m' :=
     exists n, corestepN n c m c' m'.
+
+  Lemma corestep_star_plus_trans : forall c1 c2 c3 m1 m2 m3,
+       corestep_star c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> corestep_plus c1 m1 c3 m3.
+   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+        destruct (corestepN_add n1 (S n2) c1 m1 c3 m3) as [_ H]. rewrite <- plus_n_Sm in H.
+        eexists. apply H.  exists c2. exists m2.  split; assumption.
+   Qed.
+
+  Lemma corestep_plus_star_trans: forall c1 c2 c3 m1 m2 m3,
+         corestep_plus c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 -> corestep_plus c1 m1 c3 m3.
+   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+        destruct (corestepN_add (S n1) n2 c1 m1 c3 m3) as [_ H]. rewrite plus_Sn_m in H.
+        eexists. apply H.  exists c2. exists m2.  split; assumption.
+   Qed.
+
+   Lemma corestep_star_trans: forall c1 c2 c3 m1 m2 m3, 
+        corestep_star c1 m1 c2 m2 -> corestep_star c2 m2 c3 m3 -> corestep_star c1 m1 c3 m3.
+   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+        destruct (corestepN_add n1 n2 c1 m1 c3 m3) as [_ H]. 
+        eexists. apply H.  exists c2. exists m2.  split; assumption.
+   Qed.
 End corestepN.
 
 (* A minimal preservation property we sometimes require.
@@ -141,8 +162,8 @@ Definition allowed_core_modification (m1 m2:mem) :=
 (* The kinds of extensible semantics used by CompCert.  Memories are
    CompCert memories and external requests must contain external functions.
  *)
-Record CompcertCoreSem {G C} :=
-{ csem :> CoreSemantics G C mem
+Record CompcertCoreSem {G C D} :=
+{ csem :> CoreSemantics G C mem D
 
 ; csem_corestep_fun: forall ge m q m1 q1 m2 q2, 
        corestep csem ge q m q1 m1 ->
@@ -157,7 +178,7 @@ Record CompcertCoreSem {G C} :=
 Implicit Arguments CompcertCoreSem [ ].
 
 
-Lemma corestepN_fun (G C:Type) (CSem:CompcertCoreSem G C) :
+Lemma corestepN_fun (G C D:Type) (CSem:CompcertCoreSem G C D) :
   forall ge n c m c1 m1 c2 m2,
     corestepN CSem ge n c m c1 m1 ->
     corestepN CSem ge n c m c2 m2 ->
@@ -218,9 +239,9 @@ Hint Resolve
      layout at all. *)
 Module Sim_eq.
 Section Forward_simulation_equals. 
-  Context {G1 C1 G2 C2:Type}
-          {Sem1 : CompcertCoreSem G1 C1}
-          {Sem2 : CompcertCoreSem G2 C2}
+  Context {G1 C1 D1 G2 C2 D2:Type}
+          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -242,6 +263,10 @@ Section Forward_simulation_equals.
             corestep_star Sem2 ge2 st2 m st2' m' /\
             core_ord d' d);
 
+   (*LENB: Maybe this should be reformulated so that
+      make_initial_core Sem1 ge1 v1 vals = Some c1 implies
+       existence of some c2 with 
+          make_initial_core Sem2 ge2 v2 vals = Some c2 /\  match_core cd c1 c2?*)
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
         forall vals,
@@ -284,9 +309,9 @@ Module Sim_ext.
 
 (* Next, an axiom for passes that allow the memory to undergo extension. *)
 Section Forward_simulation_extends. 
-  Context {G1 C1 G2 C2:Type}
-          {Sem1 : CompcertCoreSem G1 C1}
-          {Sem2 : CompcertCoreSem G2 C2}
+  Context {G1 C1 D1 G2 C2 D2:Type}
+          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -367,9 +392,9 @@ End Sim_ext.
 Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
-  Context {G1 C1 G2 C2:Type}
-          {Sem1 : CompcertCoreSem G1 C1}
-          {Sem2 : CompcertCoreSem G2 C2}
+  Context {G1 C1 D1 G2 C2 D2:Type}
+          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -542,7 +567,7 @@ Require Import compcert.Smallstep.
 Section CoreSem_to_semantics.
     Variables (F C V:Type).
     Let genv  := Genv.t F V.
-    Variable (Sem:CompcertCoreSem genv C).
+    Variable (Sem:CompcertCoreSem genv C (list (ident * globvar V))). (*HERE we specialize type D to program variables*)
 
     Let state := (C * mem)%type.
 
@@ -622,8 +647,8 @@ Definition entries_inject_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P
                                              end.
 
 Definition GenvHyp {F1 V1 C1 F2 V2 C2} 
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1) (P2 : AST.program F2 V2): Prop :=
        (forall id : ident,
                                  Genv.find_symbol (globalenv (mk_semantics F2 C2 V2 Sem2 P2)) id =
@@ -632,25 +657,25 @@ Definition GenvHyp {F1 V1 C1 F2 V2 C2}
                                           block_is_volatile (Genv.globalenv P2) b =
                                           block_is_volatile (Genv.globalenv P1) b).
 
-Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C)  (P : AST.program F V),Prop)
+Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C  (list (ident * globvar V)))  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)):
        forall (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2), Type :=
    cc_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
  (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 ->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
                                         /\ m1 = m2))
                entrypoints
                (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
-               (R:Sim_eq.Forward_simulation_equals Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 -> 
 
 (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -659,17 +684,17 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
 (*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 ->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
                                         /\ Mem.extends m1 m2))
                entrypoints
                (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
-               (R:Sim_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
+               (R:Sim_ext.Forward_simulation_extends _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
                prog_main P1 = prog_main P2 -> 
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -678,17 +703,17 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                entrypoints jInit
-               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 ->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
                                         /\ Mem.inject jInit m1 m2))
                (ext_ok: entries_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-               (R:Sim_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 ->
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -697,9 +722,9 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | cc_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
-               (Sem3 : CompcertCoreSem (Genv.t F3 V3) C3)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem3 : CompcertCoreSem (Genv.t F3 V3) C3 (list (ident * globvar V3)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                (P3 : AST.program F3 V3),
@@ -708,8 +733,8 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                  compiler_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
  
 Lemma cc_I: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -717,8 +742,8 @@ Lemma cc_I: forall {F1 C1 V1 F2 C2 V2}
    Proof. intros. induction X; intuition. Qed.
 
 Lemma cc_main: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -727,8 +752,8 @@ Lemma cc_main: forall {F1 C1 V1 F2 C2 V2}
 
 (*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
 Lemma cc_Genv:forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1)
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2)
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -741,12 +766,12 @@ End CompilerCorrectness.
 
 Module COMPILER_CORRECTNESS_COMPCERT_SIM.
 
-  Lemma corestep_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C  (list (ident * globvar V))) P c m c' m',
          corestep Sem (Genv.globalenv P) c m c' m' ->
          plus (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
     Proof. intros.  eapply plus_left. eapply step_corestep. apply H.  apply star_refl. rewrite E0_left. trivial. Qed.
 
-  Lemma corestep_plus_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_plus_plus_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C (list (ident * globvar V))) P c m c' m',
               corestep_plus Sem (Genv.globalenv P) c m c' m' -> plus (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
     Proof. intros. unfold corestep_plus in H. destruct H as [n Hn].
        generalize dependent m.  generalize dependent c. 
@@ -757,7 +782,7 @@ Module COMPILER_CORRECTNESS_COMPCERT_SIM.
              eapply plus_star. eapply IHn. apply X.  rewrite E0_left. trivial.
    Qed.
 
-  Lemma corestep_star_star_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C) P c m c' m',
+  Lemma corestep_star_star_step: forall F C V (Sem:CompcertCoreSem (Genv.t F V) C  (list (ident * globvar V))) P c m c' m',
               corestep_star Sem (Genv.globalenv P) c m c' m' -> star (step F C V Sem) (Genv.globalenv P) (c, m) E0 (c', m').
     Proof. intros. unfold corestep_star in H. destruct H as [n Hn].
       destruct n; simpl in Hn. inv Hn. apply star_refl. 
@@ -780,12 +805,12 @@ Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
 
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
-        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1)  
-        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2)
+        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
+        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globvar V2)))
         P1 P2 ExternIdents,
         In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.compiler_correctness
-             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x))
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x P.(prog_vars)))
               ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
@@ -813,7 +838,7 @@ Proof.
                       destruct s1 as [c1 m1].
                       destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
                       destruct (ext_ok _ _ H) as [bb [KK1 [KK2 [KK3 KK4]]]].
-                      assert (X := @Sim_eq.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ KK3 nil).
+                      assert (X := @Sim_eq.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ KK3 nil).
                       simpl in X.  destruct X. constructor. 
                             destruct H1 as [cc1 [cc2 [ini1 [ini2 mtch]]]].
                           exists x. exists (cc2,m1).
@@ -835,15 +860,15 @@ Proof.
                       destruct H2. subst.
                  inv H1.
                  (*corestep*)  
-                   assert (DD := @Sim_eq.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ H2).
+                   assert (DD := @Sim_eq.core_diagram _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ H2).
                    destruct DD as [c2' [d' [MC myStep]]].
                   exists d'. exists (c2', m1'); simpl. split; auto.
                     destruct myStep.
                       (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                (*external_step*) 
-                    destruct (@Sim_eq.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ H2 H8) as [AtExt2 TP].
-                    assert (DD := @Sim_eq.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R).
+                    destruct (@Sim_eq.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ H2 H8) as [AtExt2 TP].
+                    assert (DD := @Sim_eq.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R).
                     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H9).
                     destruct (DD _ _ _ ret _ _ H2 H8 AtExt2 TP RetTp) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
                     rewrite AftExt1 in H10. inv H10.
@@ -871,7 +896,7 @@ Proof.
                        destruct (ext_ok _ _ H) as [b1 [KK1 [KK2 [Hfound [f1 [f2 [Hf1 Hf2]]]]]]].
                        rewrite KK1 in K3. inv K3. inv K2. clear K1 ext_ok H.
                        apply GenvInit1 in K5. apply Extends_init in K5. destruct K5 as [m2 [iniMem2 Mextends]].
-                      assert (X := @Sim_ext.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil nil m1 m2).
+                      assert (X := @Sim_ext.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil nil m1 m2).
                       destruct X as [d' [c1' [c2' [IniCore1 [IniCore2 ExtMatch]]]]].
                           constructor.
                           constructor.
@@ -895,14 +920,14 @@ Proof.
                 destruct s1 as [c1 m1]. destruct s2 as [c2 m2].  destruct s1' as [c1' m1'].  simpl in *.
                  inv H1. 
                  (*corestep*)  
-                   assert (DD := @Sim_ext.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
+                   assert (DD := @Sim_ext.core_diagram _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
                    destruct DD as [c2' [m2' [d'  [MC' myStep]]]].
                   exists d'. exists (c2', m2'); simpl. split; auto.
                     destruct myStep.
                       (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                (*external_step*) 
-                    destruct (@Sim_ext.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ H2 H8) as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
+                    destruct (@Sim_ext.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ H2 H8) as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
                    assert (EXT:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H9 Mextends (forall_lessdef_val_listless _ _ lessArgs)).
                    destruct EXT as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].
                    assert (extCall2Genv2 : external_call ef (Genv.globalenv P2) args2 m2 t ret2 m2').
@@ -918,7 +943,7 @@ Proof.
                                           simpl. admit. (*second hyp on globvars*) 
                            *)
                     clear extCall2.
-                    assert (DD := @Sim_ext.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ ret ret2 m1' m2' H2 H8 AtExt2 lessArgs TpArgs2).
+                    assert (DD := @Sim_ext.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ ret ret2 m1' m2' H2 H8 AtExt2 lessArgs TpArgs2).
                     destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]].
                             eapply external_call_mem_forward; eauto.
                             eapply external_call_mem_forward; eauto.
@@ -951,7 +976,7 @@ Proof.
                        destruct (ext_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
                       rewrite KK1 in K3. inv K3. inv K2. clear K1.
                        destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply GenvInit1. apply K5.
-                        assert (X := @Sim_inj.core_initial _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
+                        assert (X := @Sim_inj.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
                         (*would need relationship between entrypoints and externidents assert (ZZ: (forall (w1 w2 : val) (sigg : signature),  In (w1,w2, sigg) entrypoints -> val_inject j w1 w2)).
                              intros.  unfold CompilerCorrectness.entries_inject_ok in ext_ok. apply ext_ok in H1.*)
                         destruct X as [d' [c2 [iniCore2 Match]]].
@@ -976,7 +1001,7 @@ Proof.
                 destruct H2 as [j [InjJ MCJ]].
                  inv H1. 
                  (*corestep*)  
-                   assert (DD := @Sim_inj.core_diagram _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MCJ).
+                   assert (DD := @Sim_inj.core_diagram _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MCJ).
                    destruct DD as [c2' [m2' [d' [j' [InjJ' [Sep [MC' myStep]]]]]]].
                   exists d'. exists (c2', m2'); simpl. split; auto.
                     destruct myStep.
@@ -984,7 +1009,7 @@ Proof.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                    exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
                (*external_step*) 
-                    destruct (@Sim_inj.core_at_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
+                    destruct (@Sim_inj.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
                                as[INJ [args2 [LD [TP AtExt2]]]].
                     assert (HH: meminj_preserves_globals (Genv.globalenv P1) j).
                        eapply meminj_preserves_globals_inject_incr. apply preserves_globals. apply InjJ.
@@ -1006,7 +1031,7 @@ Proof.
                                           simpl. admit. (*first hyp on globvars*) 
                                           simpl. admit. (*second hyp on globvars*) *)
                     clear extCall2.
-                    assert (DD := @Sim_inj.core_after_external _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) 
+                    assert (DD := @Sim_inj.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) 
                                                entrypoints R i j).
                     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
                     destruct (DD j' _ _ _ _ _ _ _ _ _ _ INJ MCJ H7 InjJ' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
@@ -1052,3 +1077,4 @@ that our approach works)?
  *)
 
 End COMPILER_CORRECTNESS_COMPCERT_SIM.
+

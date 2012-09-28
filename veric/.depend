@@ -11,7 +11,7 @@ forward_simulations.vo forward_simulations.glob: forward_simulations.v base.vo
 forward_simulations_proofs.vo forward_simulations_proofs.glob: forward_simulations_proofs.v base.vo forward_simulations.vo
 step_lemmas.vo step_lemmas.glob: step_lemmas.v base.vo extspec.vo forward_simulations.vo
 Clight_lemmas.vo Clight_lemmas.glob: Clight_lemmas.v base.vo
-Clight_new.vo Clight_new.glob: Clight_new.v base.vo Clight_lemmas.vo forward_simulations.vo forward_simulations_proofs.vo
+Clight_new.vo Clight_new.glob: Clight_new.v base.vo Clight_lemmas.vo forward_simulations.vo
 Clight_sim.vo Clight_sim.glob: Clight_sim.v base.vo Clight_lemmas.vo forward_simulations.vo forward_simulations_proofs.vo Clight_new.vo
 slice.vo slice.glob: slice.v base.vo compcert_rmaps.vo Address.vo
 res_predicates.vo res_predicates.glob: res_predicates.v base.vo Address.vo compcert_rmaps.vo slice.vo
