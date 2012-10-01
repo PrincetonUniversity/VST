@@ -190,6 +190,12 @@ Definition non_var_ids (Delta: tycontext) : list positive := snd Delta.
 
 (*Beginning of typechecking *)
 
+Definition bool_type (t: type) : bool :=
+  match t with
+  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | _ => false
+  end.
+
 Definition is_scalar_type (ty:type) : bool :=
 match ty with
 | Tint _ _ _ => true
@@ -830,10 +836,9 @@ Definition type_of_funspec (fs: funspec) : type :=
 
 (* END expr.v is not quite the right place for these next few definitions *)
 
-Definition typecheck_store e1 e2 := 
+Definition typecheck_store e1 := 
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
-(is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr) /\
-(tc_might_be_true (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) =true).
+(is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).
 (*Typechecking facts to help semax_store go through until it gets generalized*)
 
 (*Test function to typecheck expressions in a statement, is a start on a typechecker

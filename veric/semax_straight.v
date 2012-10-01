@@ -377,7 +377,7 @@ Qed.
 
 
 
-Lemma semax_store:
+(*Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P 
    (TC: typecheck_store e1 e2),
     typeof e1 = typeof e2 -> 
@@ -483,6 +483,168 @@ try solve [simpl; destruct (eval_expr rho e2); try solve[intuition]];
 destruct (eval_expr e2 rho); intuition. auto.
 (* make this more general as a kind of typechecking proof
            Done with simplifications *)
+eapply Csem.assign_loc_value.
+apply Hmode.
+unfold tc_lvalue in TC1. simpl in TC1. 
+apply tc_lvalue_nonvol in TC1. auto. (* typechecking proof *)
+unfold Mem.storev.
+simpl m_dry.
+rewrite (age_jm_dry Hage); auto.
+apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
+rewrite (age_jm_dry Hage); omega.
+apply (age1_resource_decay _ _ Hage).
+apply resource_nodecay_decay.
+apply juicy_store_nodecay.
+rewrite level_store_juicy_mem. apply age_level; auto.
+split.
+Focus 2.
+rewrite corable_funassert.
+replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm)).
+rewrite <- corable_funassert; auto.
+symmetry.
+admit.  (* core_store_juicy_mem *) 
+rewrite sepcon_comm.
+rewrite sepcon_assoc.
+eapply sepcon_derives; try apply AM; auto.
+unfold mapsto'.
+rewrite Hmode.
+rewrite He1'.
+rewrite Share.unrel_splice_R. rewrite Share.unrel_splice_L. auto.
+clear - H6 H5 H1.
+intros ? ?.
+do 3 red in H.
+destruct (nec_join2 H6 H) as [w2' [w' [? [? ?]]]].
+exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
+Qed.*)
+
+Ltac dec_enc :=
+match goal with 
+[ |- decode_val ?CH _ = ?V] => assert (DE := decode_encode_val_general V CH CH);
+                               apply decode_encode_val_similar in DE; auto
+end.
+
+Lemma cast_exists : forall Delta e2 e1 rho 
+(TC: typecheck_environ rho Delta = true), 
+denote_tc_assert (typecheck_expr Delta e2) rho ->
+denote_tc_assert (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2)
+  rho ->
+sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) =
+Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))).
+Proof.
+intros. 
+assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)= Some v).
+
+apply typecheck_expr_sound in H.
+remember (typeof e2); remember (typeof e1); remember (eval_expr e2 rho). 
+unfold sem_cast. unfold classify_cast.
+Transparent Float.intoffloat.
+Transparent Float.intuoffloat.
+destruct t; destruct v; destruct t0; simpl in *; 
+try congruence; try contradiction; eauto;
+try solve [
+try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
+
+destruct i; destruct s; try solve[simpl in *; unfold_tc_denote; destruct H0; 
+try rewrite <- Heqv in *; 
+unfold Float.intoffloat; 
+destruct (Float.Zoffloat f0); try contradiction;
+try rewrite H0; try rewrite H1; simpl; eauto | 
+simpl in *;  unfold Float.intuoffloat; destruct H0;
+unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
+try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
+
+try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
+auto.
+
+Opaque Float.intoffloat.
+Opaque Float.intuoffloat.
+
+destruct H1. rewrite H1. auto.
+Qed. 
+
+Lemma semax_store:
+ forall Delta G e1 e2 v3 rsh P 
+   (TC: typecheck_store e1),
+   semax Hspec Delta G 
+          (fun rho =>
+          |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
+             (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho)))
+          (Sassign e1 e2) 
+          (normal_ret_assert (fun rho => mapsto' (Share.splice rsh Share.top) e1 ((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) rho * P rho)).
+Proof.
+intros until P. intros TC.
+replace (fun rho : environ =>
+   |>(tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho &&
+      (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho)))
+ with (fun rho : environ =>
+      |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
+      |> (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho))
+  by (extensionality rho;  repeat rewrite later_andp; auto).
+apply semax_straight_simple; auto.
+intros jm jm1 ge rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
+specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
+specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
+simpl in TC2. destruct TC2 as [TC2 TC3].
+apply later_sepcon2 in H0.
+specialize (H0 _ (age_laterR (age_jm_phi Hage))).
+pose proof I.
+destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
+unfold mapsto' in H4.
+revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
+rename H2 into Hmode. rename m into ch.
+destruct (eval_lvalue_relate _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
+rewrite He1' in *.
+destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
+rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4.
+
+assert (H11': (res_predicates.address_mapsto ch v3 rsh Share.top
+        (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
+ by (exists w1; exists w3; split3; auto).
+assert (H11: (res_predicates.address_mapsto ch v3  rsh Share.top
+        (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
+generalize (address_mapsto_precise ch v3  rsh Share.top (b0,Int.unsigned i)); unfold precise; intro.
+destruct H11' as [m7 [m8 [? [? _]]]].
+specialize (H2 (m_phi jm1) _ _ H4 H9).
+spec H2; [ eauto with typeclass_instances| ].
+spec H2; [ eauto with typeclass_instances | ].
+subst m7.
+exists w1; exists w3; split3; auto. hnf. apply necR_refl.
+apply address_mapsto_can_store with (v':=((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
+Focus 2.
+
+clear - TC2 TC4 TC3 TC TC1 Hmode.
+unfold typecheck_store in *.
+destruct TC as [IT FT].
+simpl in TC2. apply typecheck_expr_sound in TC2; auto.
+remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2). 
+destruct v; try solve [simpl in *; congruence]; destruct t; destruct t0; intuition;
+try inv H; try inv Hmode; dec_enc. 
+clear DE.
+unfold sem_cast. simpl in *.
+Transparent Float.intoffloat.
+unfold Float.intoffloat.
+destruct TC3. unfold_tc_denote. rewrite <- Heqv in *.
+destruct (Float.Zoffloat f); try contradiction.
+rewrite H. rewrite H0. simpl in *.
+dec_enc.
+Opaque Float.intoffloat.
+
+destruct H11 as [m' [H11 AM]].
+exists (store_juicy_mem _ _ _ _ _ _ H11).
+exists (te_of rho);  exists rho; split3; auto.
+destruct rho; simpl; auto.
+rewrite level_store_juicy_mem. apply age_level; auto.
+split; auto.
+split.
+split3; auto.
+generalize (eval_expr_relate _ _ _ e2 (m_dry jm) Hge TC4); intro.
+econstructor; try eassumption. 
+unfold tc_lvalue in TC1. simpl in TC1. 
+apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
+instantiate (1:= eval_expr e2 rho).
+auto.
+instantiate (1:=(force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
+eapply cast_exists; eauto.
 eapply Csem.assign_loc_value.
 apply Hmode.
 unfold tc_lvalue in TC1. simpl in TC1. 

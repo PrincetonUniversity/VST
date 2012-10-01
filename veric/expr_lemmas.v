@@ -1488,3 +1488,12 @@ intros. apply H0. clear H0. apply typecheck_environ_update_vl.
 apply H.
 Qed.
 
+(* Admitted: move this to expr.v or something *)
+Lemma typecheck_bool_val:
+  forall v t, typecheck_val v t = true -> bool_type t = true ->
+      exists b, strict_bool_val v t = Some b.
+Proof.
+intros.
+destruct t; inv H0;
+destruct v; inv H; simpl; try rewrite H1; eauto. 
+Qed.

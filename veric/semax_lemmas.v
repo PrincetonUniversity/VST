@@ -1162,11 +1162,7 @@ Qed.
 
 End extensions.
 
-Definition bool_type (t: type) : bool :=
-  match t with
-  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
-  | _ => false
-  end.
+
 
 Definition Cnot (e: Clight.expr) : Clight.expr :=
    Clight.Eunop Onotbool e type_bool.

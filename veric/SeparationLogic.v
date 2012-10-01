@@ -473,16 +473,13 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P 
-   (TC: typecheck_store e1 e2),
-    typeof e1 = typeof e2 -> 
+   (TC: typecheck_store e1), 
     
-    (*!!denote_tc_assert(isCastResultType (typeof e2) (typeof e1) (typeof e1) e2) rho something along these lines*)
-    (* admit:  make this more accepting of implicit conversions! *) 
    semax Delta G 
-          (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta e2)  && 
+          (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
              (mapsto' (Share.splice rsh Share.top) e1 v3 * P)))
           (Sassign e1 e2) 
-          (normal_ret_assert ( (fun rho => mapsto' (Share.splice rsh Share.top) e1 (eval_expr e2 rho) rho) * P)).
+          (normal_ret_assert ( (fun rho => mapsto' (Share.splice rsh Share.top) e1 ((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) rho) * P)).
 
 (* THESE RULES FROM semax_lemmas *)
 
