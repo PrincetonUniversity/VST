@@ -510,67 +510,68 @@ typecheck_non_var_list (non_var_ids Delta) (ve_of env).
 
 (*Denotation functions for each of the assertions that can be produced by the typechecker*)
 
-Definition denote_tc_nonzero rho e := match eval_expr e rho with Vint i => if negb (Int.eq i Int.zero) then True else False
+Definition denote_tc_nonzero v := 
+         match v with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
 
 (*mostly used to make sure that a pointer isn't null *)
-Definition denote_tc_isptr rho e:= match (eval_expr e rho) with | Vptr _ _ => True | _ => False end.
+Definition denote_tc_isptr v := 
+   match v with | Vptr _ _ => True | _ => False end.
 
-Definition denote_tc_ilt rho e i :=
-match (eval_expr e rho) with 
-                     | Vint i1 => is_true (Int.ltu i1 i)
+Definition denote_tc_igt i v :=
+     match v with | Vint i1 => is_true (Int.ltu i1 i)
                      | _ => False
                   end.
 
-Definition denote_tc_Zle rho e z := 
-match (eval_expr e rho) with
+Definition denote_tc_Zge z v := 
+          match v with
                      | Vfloat f => match Float.Zoffloat f with
-                                    | Some n => is_true (Zle_bool n z)
+                                    | Some n => is_true (Zge_bool z n)
                                     | None => False
                                    end
                      | _ => False 
                   end.
 
-Definition denote_tc_Zge rho e z :=
-match (eval_expr e rho) with
+Definition denote_tc_Zle z v := 
+          match v with
                      | Vfloat f => match Float.Zoffloat f with
                                     | Some n => is_true (Zle_bool z n)
                                     | None => False
                                    end
-                     | _ => False
+                     | _ => False 
                   end.
 
-Definition denote_tc_samebase rho e1 e2 :=
-match (eval_expr e1 rho), (eval_expr e2 rho) with
+Definition denote_tc_samebase v1 v2 :=
+                         match v1, v2 with
                            | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
                            | _, _ => False 
                          end.
 
 (*Case for division of int min by -1, which would cause overflow*)
-Definition denote_tc_nodivover rho e1 e2 :=
-match (eval_expr e1 rho), (eval_expr e2 rho) with
+Definition denote_tc_nodivover v1 v2 :=
+match v1, v2 with
                            | Vint n1, Vint n2 => is_true (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
                            | _ , _ => False
                           end.
 
-Definition denote_tc_initialized rho id := exists v, (te_of rho) ! id = Some v.
+Definition denote_tc_initialized id rho := exists v, (te_of rho) ! id = Some v.
 
-Fixpoint denote_tc_assert (a: tc_assert) (rho: environ): Prop :=
+Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   match a with
-  | tc_FF => False
-  | tc_noproof => False
-  | tc_TT => True
-  | tc_andp b c => denote_tc_assert b rho /\ denote_tc_assert c rho
-  | tc_nonzero e => denote_tc_nonzero rho e
-  | tc_isptr e => denote_tc_isptr rho e
-  | tc_ilt e i => denote_tc_ilt rho e i
-  | tc_Zle e z => denote_tc_Zle rho e z
-  | tc_Zge e z => denote_tc_Zge rho e z
-  | tc_samebase e1 e2 => denote_tc_samebase rho e1 e2
-  | tc_nodivover e1 e2 => denote_tc_nodivover rho e1 e2
-  | tc_initialized id => denote_tc_initialized rho id
+  | tc_FF => lift0 False
+  | tc_noproof => lift0 False
+  | tc_TT => lift0 True
+  | tc_andp b c => lift2 and (denote_tc_assert b) (denote_tc_assert c)
+  | tc_nonzero e => lift1 denote_tc_nonzero (eval_expr e)
+  | tc_isptr e => lift1 denote_tc_isptr (eval_expr e)
+  | tc_ilt e i => lift1 (denote_tc_igt i) (eval_expr e)
+  | tc_Zle e z => lift1 (denote_tc_Zge z) (eval_expr e)
+  | tc_Zge e z => lift1 (denote_tc_Zle z) (eval_expr e)
+  | tc_samebase e1 e2 => lift2 denote_tc_samebase (eval_expr e1) (eval_expr e2)
+  | tc_nodivover e1 e2 => lift2 denote_tc_nodivover (eval_expr e1) (eval_expr e2)
+  | tc_initialized id => denote_tc_initialized id
   end.
 
 (*Functions that modify type environments*)

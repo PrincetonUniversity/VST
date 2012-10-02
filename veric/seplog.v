@@ -67,7 +67,7 @@ Definition assert: Type := environ -> pred rmap.
 Bind Scope pred with assert.
 Local Open Scope pred.
 
-Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
+Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
@@ -85,7 +85,7 @@ Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
 
 Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 
-Definition subst (x: ident) (v: val) (P: assert) : assert :=
+Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
 Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=

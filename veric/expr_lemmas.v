@@ -21,6 +21,34 @@ mkEnviron (filter_genv empty_genv) empty_env empty_tenv.
 Definition Delta1 : tycontext := (PTree.set 1%positive (type_int32s, false) (PTree.empty (type * bool)),
                                  PTree.empty type, Tvoid,nil).
 
+Lemma Zlt_bool_rev: forall x y, Zlt_bool x y = Zgt_bool y x.
+Proof.
+intros. pose proof (Zlt_cases x y). pose proof (Zgt_cases y x).
+destruct (Zlt_bool x y); destruct (Zgt_bool y x); auto;
+elimtype False; omega.
+Qed.
+
+Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
+Proof.
+intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).
+destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
+elimtype False; omega.
+Qed.
+
+Lemma Zlt_bool_opp: forall x y, Zlt_bool x y = negb (Zge_bool x y).
+Proof.
+intros. pose proof (Zlt_cases x y). pose proof (Zge_cases x y).
+destruct (Zlt_bool x y); destruct (Zge_bool x y); auto.
+elimtype False; omega.
+Qed.
+
+Lemma Zgt_bool_opp: forall x y, Zgt_bool x y = negb (Zle_bool x y).
+Proof.
+intros. pose proof (Zgt_cases x y). pose proof (Zle_cases x y).
+destruct (Zgt_bool x y); destruct (Zle_bool x y); auto.
+elimtype False; omega.
+Qed.
+
 
 (*Simplification soundness*)
 Lemma tc_assert_simpl_sound : forall asn rho, 
@@ -28,20 +56,26 @@ denote_tc_assert asn rho -> denote_tc_assert (tc_assert_simpl asn) rho.
 Proof.
 intros. induction asn; simpl; auto.
 
-simpl in *. intuition. remember (tc_assert_simpl asn1).
-remember (tc_assert_simpl asn2). destruct t; destruct t0; simpl in *; auto.
+simpl in *. intuition.
+destruct H.
+remember (tc_assert_simpl asn1).
+remember (tc_assert_simpl asn2).
+ destruct t; destruct t0; simpl in *; unfold lift0,lift1,lift2 in *; auto.
 
-destruct e; auto. simpl in *. unfold denote_tc_nonzero in *. simpl in *.
+destruct e; auto. simpl in *.
+ unfold lift1, denote_tc_nonzero in *.
 destruct (Int.eq i Int.zero); intuition.
 
-destruct e; auto. simpl in *. unfold denote_tc_ilt in *.
-simpl in *. destruct (Int.ltu i0 i); simpl; intuition.
+destruct e; auto. simpl in *. unfold lift1, denote_tc_igt in *.
+simpl in *. destruct (Int.ltu i0 i); hnf in H|-*; intuition.
 
-destruct e; auto. simpl in *. unfold denote_tc_Zle in *.
-simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
+destruct e; auto. simpl in *. unfold lift1, denote_tc_Zge in *.
+simpl in *. destruct (Float.Zoffloat f); intuition. hnf in H|-*.
+rewrite Zle_bool_rev. rewrite H. hnf; auto.
 
-destruct e; auto. simpl in *. unfold denote_tc_Zge in *.
-simpl in *. destruct (Float.Zoffloat f); intuition. rewrite H. simpl. auto.
+destruct e; auto. simpl in *. unfold lift1, denote_tc_Zge in *.
+simpl in *. destruct (Float.Zoffloat f); intuition. hnf in H|-*.
+rewrite H. hnf; auto.
 Qed.
 
 (*Environment typechecking soundness statements*)
@@ -531,6 +565,7 @@ if_tac; eauto.
 unfold tc_ve_denote in *. simpl in H1.
 remember ((var_types Delta) ! i).
 destruct o. subst. simpl in H1.
+unfold lift2 in H1.
 try rewrite eqb_type_eq in H1; simpl in *; intuition.
 symmetry in Heqo1.
 specialize (H0 i t1 Heqo1).
@@ -544,7 +579,7 @@ rewrite <- Heqo0 in H0. inv H0. eauto. inv H.
 
 inv H1. simpl in *. intuition. destruct (eval_expr e rho); eauto.
 
-simpl in *. intuition. destruct (eval_lvalue e rho); eauto; intuition.
+simpl in *. unfold lift2 in *. intuition. destruct (eval_lvalue e rho); eauto; intuition.
 destruct (typeof e); try congruence. 
 destruct (eval_lvalue e rho); intuition. destruct (typeof e); intuition.
 destruct (field_offset i f); eauto.
@@ -585,7 +620,7 @@ Transparent Float.intuoffloat.
 Ltac unfold_tc_denote :=
 unfold denote_tc_nonzero in *;
 unfold denote_tc_isptr in *;
-unfold denote_tc_ilt in *;
+unfold denote_tc_igt in *;
 unfold denote_tc_Zle in *;
 unfold denote_tc_Zge in *;
 unfold denote_tc_samebase in *;
@@ -620,6 +655,7 @@ unfold tc_ve_denote in *.
 
 remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. (*if it isn't in delta, it won't typecheck*)
+unfold lift2 in H0.
 remember (type_eq t t0). destruct s; intuition. (*pt is type that the var lookup checks as*)
 subst. remember (negb(type_is_volatile t0)). destruct b; intuition.
 clear H3. symmetry in Heqo.
@@ -653,19 +689,19 @@ remember (t1 ! i). destruct o.
   if_tac in H0; inv H0.
 
 (*deref*)  
-simpl in *. intuition. specialize (H3 pt).
-unfold_tc_denote.
+simpl in *. unfold lift2 in *. intuition. specialize (H3 pt).
+unfold_tc_denote. unfold lift1 in *.
 remember (eval_expr e rho); destruct v;
-simpl in *;
+simpl in *; unfold lift2 in *;
 remember (typeof e); destruct t0; intuition; destruct pt; auto.
 
 (*addrof*)
-st. intuition. 
+st.  intuition. destruct H0. 
 destruct t; auto.
 
 
 (*Unop*)
-intuition; simpl in *. intuition. 
+intuition; simpl in *. destruct H0. intuition. 
 destruct u; simpl in *. 
 
 unfold sem_notbool in *.
@@ -694,12 +730,17 @@ eapply typecheck_binop_sound; eauto.
 (* cast *)
 st. intuition.
 remember (eval_expr e rho). 
-destruct v; intuition; remember (typeof e); destruct t0; intuition; destruct t; intuition;
+remember (typeof e).
+destruct H0.
+destruct v; destruct t0; intuition; destruct t; intuition;
 try destruct i; try destruct i0; try destruct i1; intuition;
-unfold sem_cast; unfold classify_cast; unfold cast_float_int;
-destruct s; auto; unfold_tc_denote; try unfold Float.intoffloat; try unfold Float.intuoffloat;
-st; intuition; unfold_tc_denote; rewrite <- Heqv in *; destruct f; auto;
-st; destruct e0; rewrite H1; rewrite H5; auto.
+unfold sem_cast, classify_cast, cast_float_int, 
+    Float.intoffloat, Float.intuoffloat;
+ destruct s; auto; destruct H3 as [H3a H3b]; hnf in H3a,H3b;
+ rewrite <- Heqv in *; repeat invSome;
+ inversion2 H3b H3a;
+ hnf in H3b0, H3a0;
+ rewrite H3a0; rewrite Zle_bool_rev; rewrite H3b0; auto.
 
 (*condition*)
 admit. (*condition might go away*)
@@ -724,7 +765,7 @@ try destruct i0; try destruct s; intuition; try destruct i1; try destruct s0; tr
 remember (typeof e1). unfold bool_val. destruct t0; intuition.*)
 
 (*EField*)
-st. intuition. specialize  (H3 pt). intuition. remember rho.
+st. unfold lift2 in *; intuition. specialize  (H3 pt). intuition. remember rho.
 destruct e0.
 apply typecheck_environ_sound in H. intuition. clear H4 H8.
 rewrite Heqe0 in H0.
@@ -738,7 +779,6 @@ destruct v; intuition; try congruence.
 inv H4.
 destruct (typeof e); intuition. 
 destruct (field_offset i f); intuition.
-
 Qed. 
 
 Definition defined_val v :=
@@ -977,7 +1017,7 @@ try rewrite eqb_type_eq in *; simpl in *; intuition.
 destruct (type_eq t t0); simpl in *. subst t0.
 
 remember ((var_types Delta) ! i). 
-destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition.
+destruct o; try rewrite eqb_type_eq in *; simpl in *; unfold lift2 in *; intuition.
 destruct (type_eq t t0); simpl in *; [ | contradiction]. subst t0.
 symmetry in Heqo1. 
 apply typecheck_environ_sound in H0.
@@ -1009,7 +1049,7 @@ constructor. unfold eval_id in *. destruct ((te_of rho) ! i); auto. inv H3.
 (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1.
-intuition. simpl. unfold_tc_denote.
+intuition. simpl. unfold lift1,lift2 in *; unfold_tc_denote.
  remember (eval_expr e rho); destruct v;
 intuition. 
 exists b. exists i. st. intuition. constructor.
@@ -1017,7 +1057,7 @@ auto.
 
 (*addrof*)
 
-simpl in H1.
+simpl in H1. unfold lift2 in *.
 assert (ISPTR := eval_lvalue_ptr rho e Delta (te_of rho) (ve_of rho) (ge_of rho)).
 specialize (IHe ge).
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
@@ -1027,7 +1067,7 @@ destruct H7. destruct H1. destruct H1. destruct H8. destruct H8. simpl.
 intuition. rewrite H8. constructor. rewrite H8 in H7. inversion H7. auto.
 
 (*unop*)
-subst. st. intuition. unfold force_val. remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
+subst. st. unfold lift2 in *. intuition. unfold force_val. remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
 destruct o. eapply Clight_sem.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
 destruct u. st. remember (typeof e); destruct t0; try inv H2;
@@ -1046,7 +1086,7 @@ destruct (eval_expr e rho); intuition; unfold sem_neg in *;
 st; inv Heqo.
 
 (*binop*)
-subst. st. intuition. unfold force_val.
+subst. st. unfold lift2 in *; intuition. unfold force_val.
 remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
 (typeof e2) (fun (_ : block) (_ : Z) => false)).
 destruct o. eapply Clight_sem.eval_Ebinop. eapply IHe1; eauto.
@@ -1060,7 +1100,7 @@ eapply eval_binop_relate_fail; eauto.
 
 (*Cast*)
 subst. assert (TC := typecheck_expr_sound _ _ _ H0 H1).
-st. intuition. unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
+st. unfold lift2 in *; intuition. unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
 destruct o. eapply Clight_sem.eval_Ecast. eapply IHe. auto. apply H2. auto.
 
 specialize (IHe ge). intuition. (*seems too easy, maybe functions are exactly the same?
@@ -1081,7 +1121,7 @@ admit. (*Pass for now, since cond might go away.....============================
 (*Field*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. intuition.
-st. remember (eval_lvalue e rho). destruct v; intuition.
+st. unfold lift2 in *; remember (eval_lvalue e rho). destruct v; intuition.
 remember (typeof e). destruct t0; intuition. remember (field_offset i f).
 destruct r; intuition. st. exists b. exists (Int.add i0 (Int.repr z)). 
 intuition. eapply Clight_sem.eval_Efield_struct; auto.
@@ -1128,14 +1168,14 @@ Proof.
 intros.
 destruct e; intuition; simpl in *. 
 
-destruct ((var_types Delta) ! i); intuition; simpl in *.
+destruct ((var_types Delta) ! i); intuition; simpl in *. unfold lift2 in *;
 intuition. unfold tc_bool in *. rewrite if_negb in *.
-if_tac in H1; simpl in *; intuition.
+if_tac in H1; simpl in *; unfold lift2 in *; intuition.
 
-intuition. unfold tc_bool in *. rewrite if_negb in *.
+unfold lift2 in *; intuition. unfold tc_bool in *. rewrite if_negb in *.
 if_tac in H1; intuition.
 
-intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
+unfold lift2 in *; intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
 if_tac in H1; intuition.
 Qed.
 

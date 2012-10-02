@@ -35,7 +35,7 @@ Definition func_at : funspec -> address -> mpred := veric.seplog.func_at.
 Bind Scope pred with assert.
 Local Open Scope pred.
 
-Definition closed_wrt_vars (S: ident -> Prop) (F: assert) : Prop := 
+Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
      (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
@@ -48,11 +48,7 @@ Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
 Some false.
 
-Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
-
-Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
-
-Definition subst (x: ident) (v: environ -> val) (P: assert) : assert :=
+Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x (v s)).
 
 Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
@@ -93,8 +89,8 @@ Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
 Definition stackframe_of (f: Clight.function) : assert :=
   fold_right sepcon emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
-Lemma  subst_extens: 
- forall a v P Q, P |-- Q -> subst a v P |-- subst a v Q.
+Lemma  subst_extens {A}{NA: NatDed A}: 
+ forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.
 Proof.
 unfold subst, derives.
 simpl;
@@ -379,8 +375,8 @@ Definition bool_type (t: type) : bool :=
 Axiom semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Delta G (P && local (expr_true b)) c R -> 
-     semax Delta G (P && local (expr_true (Cnot b))) d R -> 
+     semax Delta G (P && local (lift1 (typed_true (typeof b)) (eval_expr b))) c R -> 
+     semax Delta G (P && local (lift1 (typed_false (typeof b)) (eval_expr b))) d R -> 
      semax Delta G (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
@@ -398,8 +394,8 @@ Axiom semax_for :
 forall Delta G Q Q' test incr body R
      (TC: Q  |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
-     (POST: local (expr_false test) && Q |-- R EK_normal nil),
-     semax Delta G (local (expr_true test) && Q) body (for1_ret_assert Q' R) ->
+     (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
+     semax Delta G (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
      semax Delta G Q' incr (for2_ret_assert Q R) ->
      semax Delta G Q (Sfor' test incr body) R.
 
@@ -407,8 +403,8 @@ Axiom semax_while :
 forall Delta G Q test body R
      (TC: Q |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
-     (POST: local (expr_false test) && Q |-- R EK_normal nil),
-     semax Delta G (local (expr_true test) && Q)  body (for1_ret_assert Q R) ->
+     (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
+     semax Delta G (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
      semax Delta G Q (Swhile test body) R.
 
 (* THESE RULES FROM semax_call *)
@@ -464,12 +460,12 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
 
 Axiom semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    lvalue_closed_wrt_vars (eq id) e1 ->
     semax Delta G 
        (|> (local (tc_temp Delta id (typeof e1))  && local (tc_lvalue Delta e1)  && 
-            (mapsto' sh e1 v2 * subst id (lift0 v2) P)))
+            (mapsto' sh e1 v2 * P)))
        (Sset id e1)
-       (normal_ret_assert (mapsto' sh e1 v2 * P)).
+       (normal_ret_assert (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
+                                          (subst id (lift0 old) (mapsto' sh e1 v2 * P)))).
 
 Axiom semax_store:
  forall Delta G e1 e2 v3 rsh P 

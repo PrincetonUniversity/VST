@@ -30,7 +30,7 @@ Lemma semax_ifthenelse :
    forall Delta G P (b: expr) c d R,
       bool_type (typeof b) = true ->
      semax Hspec Delta G (fun rho => P rho && !! expr_true b rho) c R -> 
-     semax Hspec Delta G (fun rho => P rho && !! expr_true (Cnot b) rho) d R -> 
+     semax Hspec Delta G (fun rho => P rho && !! expr_false b rho) d R -> 
      semax Hspec Delta G 
               (fun rho => tc_expr Delta b rho && P rho)
               (Sifthenelse b c d) R.
@@ -122,16 +122,13 @@ assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
 simpl. unfold lift1. unfold typed_true.   
 destruct (eval_expr b rho); try solve[inv H9].
 destruct (typeof b); 
+try apply H9;
 try solve [simpl in *; inv H9; rewrite TCS in *; simpl in *; try congruence; auto].
 
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;
 inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
-unfold sem_notbool. simpl in *. 
-unfold force_val. simpl in *.
-destruct (typeof b); intuition. simpl in *. inv H9.
-rewrite negb_false_iff in H1. rewrite H1; auto.
-destruct (typeof b); intuition. 
+apply H9.
 Qed.
 
 Lemma seq_assoc1:  

@@ -170,21 +170,22 @@ Qed.
 
 Lemma semax_load : 
 forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    lvalue_closed_wrt_vars (eq id) e1 ->
     semax Hspec Delta G 
        (fun rho => |>
         (!!(typecheck_temp_id id (typeof e1) Delta = true) && tc_lvalue Delta e1 rho  && 
-          (mapsto' sh e1 v2 rho * subst id v2 P rho)))
+          (mapsto' sh e1 v2 rho * P rho)))
        (Sset id e1)
-       (normal_ret_assert (fun rho => mapsto' sh e1 v2 rho * P rho)).
+       (normal_ret_assert (fun rho => 
+        EX old:val, (!!(v2 = eval_id id rho) &&
+                         (subst id old (fun rho => mapsto' sh e1 v2 rho * P rho) rho)))).
 Proof.
-intros until v2. intros TC3.
+intros until v2. 
 replace (fun rho : environ =>
    |>(!!(typecheck_temp_id id (typeof e1) Delta = true) &&
-      tc_lvalue Delta e1 rho && (mapsto' sh e1 v2 rho * subst id v2 P rho)))
+      tc_lvalue Delta e1 rho && (mapsto' sh e1 v2 rho * P rho)))
  with (fun rho : environ => 
    (|> !!(typecheck_temp_id id (typeof e1) Delta = true) &&
-      |> tc_lvalue Delta e1 rho && |> (mapsto' sh e1 v2 rho * subst id v2 P rho)))
+      |> tc_lvalue Delta e1 rho && |> (mapsto' sh e1 v2 rho * P rho)))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple.
 intro. apply boxy_andp; auto. apply extend_later'. apply boxy_prop; auto.
@@ -221,7 +222,7 @@ unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
 (* typechecking proof *)
 apply Clight_sem.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
-assert ((|> (F rho * (mapsto' sh e1 v2 rho * subst id v2 P rho)))%pred
+assert ((|> (F rho * (mapsto' sh e1 v2 rho * P rho)))%pred
        (m_phi jm)).
 rewrite later_sepcon.
 eapply sepcon_derives; try apply H0; auto.
@@ -245,21 +246,34 @@ apply age1_resource_decay; auto.
 apply age_level; auto.
 
 rewrite <- (Hcl rho (PTree.set id v2 (te_of rho))).
-unfold mapsto'.
-rewrite <- (TC3 rho (PTree.set id v2 (te_of rho))).
+normalize.
+exists (eval_id id rho).
 destruct H0.
-split; [ | eapply pred_hereditary; eauto; apply age_jm_phi; eauto].
 apply later_sepcon2 in H0.
-apply H0. do 3 red. apply age_laterR. apply age_jm_phi; auto.
+specialize (H0 _ (age_laterR (age_jm_phi H))).
+split; [ |  apply pred_hereditary with (m_phi jm); auto; apply age_jm_phi; eauto].
+eapply sepcon_derives; try apply H0; auto.
+assert (env_set
+         (mkEnviron (ge_of rho) (ve_of rho) (PTree.set id v2 (te_of rho))) id
+         (eval_id id rho) = rho).
+destruct rho; unfold env_set, eval_id; simpl; auto.
+f_equal; auto.
+admit.  (* Requires environment extensionality *)
+unfold subst.
+rewrite H4.
+apply andp_right; auto.
+intros ? ?; simpl.
+unfold eval_id, force_val. simpl. rewrite PTree.gss. auto.
+
 intro i; destruct (eq_dec id i); [left; auto | right; rewrite PTree.gso; auto].
-intro i; destruct (eq_dec id i); [left; auto | right; rewrite PTree.gso; auto].
-hnf. auto.
+subst. hnf. auto.
 Qed.
 
 Lemma res_option_core: forall r, res_option (core r) = None.
 Proof.
  destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto.
 Qed.
+
 
 Lemma address_mapsto_can_store: forall jm ch v rsh b ofs v' my,
        (address_mapsto ch v rsh Share.top (b, Int.unsigned ofs) * exactly my)%pred (m_phi jm) ->
@@ -539,12 +553,18 @@ remember (typeof e2); remember (typeof e1); remember (eval_expr e2 rho).
 unfold sem_cast. unfold classify_cast.
 Transparent Float.intoffloat.
 Transparent Float.intuoffloat.
-destruct t; destruct v; destruct t0; simpl in *; 
+clear e1 Heqt0. 
+destruct t; destruct v; destruct t0; simpl in *;
 try congruence; try contradiction; eauto;
+try solve [
+unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
+inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
+simpl; eauto];
 try solve [
 try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
 
-destruct i; destruct s; try solve[simpl in *; unfold_tc_denote; destruct H0; 
+destruct i; destruct s; unfold lift2 in *; try solve[simpl in *; 
+  unfold lift2,lift1 in *;  unfold_tc_denote; destruct H0; 
 try rewrite <- Heqv in *; 
 unfold Float.intoffloat; 
 destruct (Float.Zoffloat f0); try contradiction;
@@ -554,8 +574,18 @@ unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
 try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
 
 try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
-auto.
 
+destruct i; destruct s; unfold lift2 in *;
+simpl in *; unfold lift2,lift1 in *;
+unfold Float.intoffloat, Float.intuoffloat;
+try (
+destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
+destruct (Float.Zoffloat f0); try contradiction;
+hnf in H0,H1; rewrite H0; rewrite Zle_bool_rev; rewrite H1;
+simpl; eauto);
+simpl; eauto.
+
+auto.
 Opaque Float.intoffloat.
 Opaque Float.intuoffloat.
 
@@ -620,12 +650,12 @@ remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2).
 destruct v; try solve [simpl in *; congruence]; destruct t; destruct t0; intuition;
 try inv H; try inv Hmode; dec_enc. 
 clear DE.
-unfold sem_cast. simpl in *.
+unfold sem_cast. simpl in *. unfold lift2,lift1 in *.
 Transparent Float.intoffloat.
 unfold Float.intoffloat.
 destruct TC3. unfold_tc_denote. rewrite <- Heqv in *.
 destruct (Float.Zoffloat f); try contradiction.
-rewrite H. rewrite H0. simpl in *.
+rewrite H. rewrite Zle_bool_rev. rewrite H0. simpl in *.
 dec_enc.
 Opaque Float.intoffloat.
 
