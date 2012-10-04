@@ -18,13 +18,25 @@ Proof.
 Qed.
 
 
+
 Lemma semax_post:
+ forall (R': ret_assert) Delta G (R: ret_assert) P c,
+   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
+   semax Delta G P c R' ->  semax Delta G P c R.
+Proof.
+intros; eapply semax_pre_post; try eassumption.
+apply andp_left2; auto.
+Qed.
+
+Lemma semax_post0:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
    (R' |-- R) ->
    semax Delta G P c R' ->  semax Delta G P c R.
 Proof.
 intros; eapply semax_pre_post; try eassumption.
 apply andp_left2; auto.
+intros. apply andp_left2; auto.
+apply H.
 Qed.
 
 Lemma semax_pre:
@@ -33,6 +45,7 @@ Lemma semax_pre:
      semax Delta G P' c R  -> semax Delta G P c R.
 Proof.
 intros; eapply semax_pre_post; eauto.
+intros; apply andp_left2; auto.
 Qed.
 
 Lemma env_gss:
@@ -66,6 +79,7 @@ intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
 intros ek vl.
 unfold existential_ret_assert.
+apply andp_left2.
 apply exp_left; auto.
 apply extract_exists; auto.
 Qed.
@@ -78,8 +92,9 @@ Proof.
 intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
+apply andp_left2.
 unfold normal_ret_assert.
-intros ? ?; normalize.  rewrite H; auto.
+normalize.   rewrite H; auto.
 Qed.
 
 Lemma sequential': 
@@ -91,9 +106,9 @@ intros.
 apply semax_post with (normal_ret_assert Q); auto.
 intros.
 unfold normal_ret_assert, overridePost.
-intros ? ?.
 normalize.
 rewrite if_true; auto.
+apply andp_left2; auto.
 Qed.
 
 Lemma field_offset_rec_unroll:
@@ -304,7 +319,7 @@ rewrite H1.
 rewrite field_offset_unroll.
 destruct (field_offset fld fields); normalize.
 rewrite <- TC2.
-rewrite H3.
+rewrite H4.
 normalize.
 Qed.
 
@@ -409,7 +424,7 @@ Notation " 'SEP' ( x * .. * y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
-Definition do_canon := (@sepcon assert _ _).
+Definition do_canon (x y : assert) := (sepcon x y).
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.

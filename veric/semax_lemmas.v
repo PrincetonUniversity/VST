@@ -86,7 +86,7 @@ Qed.
 
 Lemma semax'_post:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
-   (forall ek vl rho, R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
    semax' Hspec Delta G P c R' |-- semax' Hspec Delta G P c R.
 Proof.
 intros.
@@ -101,7 +101,18 @@ apply andp_derives; auto.
 apply allp_derives; intro ek.
 apply allp_derives; intro vl.
 apply allp_derives; intro rho.
-apply subp_derives; auto.
+intros ? ?.
+intros ? ? ? ? ?.
+specialize (H0 _ H1 _ H2).
+apply H0.
+destruct H3 as [[? ?] ?].
+split; auto.
+split; auto.
+destruct H5; split; auto.
+specialize (H ek vl rho).
+destruct H5 as [w1 [w2 [? [? ?]]]].
+exists w1; exists w2; split3; auto.
+apply H; split; auto.
 Qed.
 
 Lemma semax'_pre:
@@ -128,7 +139,7 @@ Lemma semax'_pre_post:
  forall 
       P' (R': ret_assert) Delta G (R: ret_assert) P c,
    (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho) ->
-   (forall ek vl rho, R ek vl rho |-- R' ek vl rho) ->
+   (forall ek vl rho, !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&   R ek vl rho |-- R' ek vl rho) ->
    semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R'.
 Proof.
 intros.
@@ -245,7 +256,8 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
-   (forall ek vl rho, R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho
+                        |-- R ek vl rho) ->
    semax Hspec Delta G P c R' ->  semax Hspec Delta G P c R.
 Proof.
 unfold semax.
@@ -272,7 +284,7 @@ Qed.
 Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
-   (forall ek vl rho , R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho , !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
    semax Hspec Delta G P' c R' ->  semax Hspec Delta G P c R.
 Proof.
 intros.
@@ -348,7 +360,7 @@ Proof.
 intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
 intros ek vl rho w ?.
-simpl in H0. destruct H0; auto.
+simpl in H0. destruct H0. destruct H1; auto.
 apply extract_exists; auto.
 Qed.
 

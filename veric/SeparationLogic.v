@@ -455,6 +455,15 @@ forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
             subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 
+Axiom semax_set_forward : 
+forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
+    semax Delta G 
+        (|> (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && P))
+          (Sset id e) 
+        (normal_ret_assert 
+          (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
+                            subst id (lift0 old) P)).
+
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
@@ -482,10 +491,16 @@ Axiom semax_store:
 Axiom semax_Sskip:
    forall Delta G P, semax Delta G P Sskip (normal_ret_assert P).
 
+Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
+  match ek with 
+  | EK_normal => update_tycon Delta c 
+  | _ => Delta 
+  end.
+
 Axiom semax_pre_post:
  forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
-   (R' |-- R) ->
+   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
    semax Delta G P' c R' -> semax Delta G P c R.
 
 (**************** END OF stuff from semax_rules ***********)

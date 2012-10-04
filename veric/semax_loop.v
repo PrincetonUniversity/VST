@@ -514,7 +514,7 @@ Proof.
 intros.
 assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
 eapply semax_post; try apply semax_Sskip.
-destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0.
+destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0; try discriminate.
 pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.

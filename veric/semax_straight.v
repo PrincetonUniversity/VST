@@ -91,6 +91,93 @@ Qed.
 
 
 
+Lemma semax_set_forward : 
+forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
+    semax Hspec Delta G 
+        (fun rho => 
+          |> (!!(typecheck_temp_id id (typeof e) Delta = true) &&
+                tc_expr Delta e rho  && P rho))
+          (Sset id e) 
+        (normal_ret_assert 
+          (fun rho => (EX old:val, 
+                 !! (eval_id id rho =  subst id old (eval_expr e) rho) &&
+                            subst id old P rho))).
+Proof.
+intros until e.
+replace (fun rho : environ =>
+   |>(!!(typecheck_temp_id id (typeof e) Delta = true) && tc_expr Delta e rho &&
+      P rho))
+ with (fun rho : environ =>
+     (|> !!(typecheck_temp_id id (typeof e) Delta = true) && |> tc_expr Delta e rho &&
+      |> P rho))
+  by (extensionality rho;  repeat rewrite later_andp; auto).
+apply semax_straight_simple.
+intro. apply boxy_andp; auto. apply extend_later'. apply boxy_prop; auto.
+intros jm jm' ge rho k F [TC2 TC3] TC' Hcl Hge ? ?.
+specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
+specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
+exists jm', (PTree.set id (eval_expr e rho) (te_of rho)).
+econstructor.
+split.
+reflexivity.
+split3; auto.
+apply age_level; auto.
+normalize in H0.
+clear - TC' TC2 TC3.
+simpl in *.
+apply typecheck_environ_put_te'; auto.
+intros. simpl in *. unfold typecheck_temp_id in *.
+rewrite H in TC2.
+destruct t as [t b]; simpl in *.
+rewrite eqb_type_eq in TC2; apply type_eq_true in TC2. subst t.
+apply typecheck_expr_sound in TC3; auto.
+destruct H0.
+split; auto.
+simpl.
+split3; auto.
+destruct (age1_juicy_mem_unpack _ _ H).
+rewrite <- H3.
+econstructor; eauto.
+eapply eval_expr_relate; eauto.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+
+split.
+2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
+
+assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
+assert (laterR (m_phi jm) (m_phi jm')).
+constructor 1.
+destruct (age1_juicy_mem_unpack _ _ H); auto.
+specialize (H2 _ H3).
+eapply sepcon_derives; try  apply H2; auto.
+clear - Hcl.
+specialize (Hcl rho  (PTree.set id (eval_expr e rho) (te_of rho))).
+rewrite <- Hcl; auto.
+intros.
+destruct (eq_dec id i).
+subst.
+left; hnf; auto.
+right.
+rewrite PTree.gso; auto.
+apply exp_right with (eval_id id rho).
+assert (env_set
+         (mkEnviron (ge_of rho) (ve_of rho)
+            (PTree.set id (eval_expr e rho) (te_of rho))) id (eval_id id rho) = rho).
+  unfold env_set; destruct rho; simpl.
+  f_equal.
+  unfold eval_id; simpl.
+  admit.  (* need environment extensionality *)
+apply andp_right.
+intros ? _. simpl.
+unfold subst.
+rewrite H4.
+unfold eval_id at 1. unfold force_val; simpl.
+rewrite PTree.gss. auto.
+unfold subst; rewrite H4.
+auto.
+Qed.
 
 Lemma semax_set : 
 forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
