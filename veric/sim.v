@@ -63,9 +63,9 @@ Section corestepN.
   Fixpoint corestepN (n:nat) : C -> M -> C -> M -> Prop :=
     match n with
     | O => fun c m c' m' => (c,m) = (c',m')
-    | S n => fun c1 m1 c3 m3 => exists c2, exists m2,
+    | S k => fun c1 m1 c3 m3 => exists c2, exists m2,
                corestep Sem ge c1 m1 c2 m2 /\
-               corestepN n c2 m2 c3 m3
+               corestepN k c2 m2 c3 m3
     end.
 
   Lemma corestepN_add : forall n m c1 m1 c3 m3,
@@ -94,6 +94,13 @@ Section corestepN.
   Definition corestep_star c m c' m' :=
     exists n, corestepN n c m c' m'.
 
+  Lemma corestep_plus_trans : forall c1 c2 c3 m1 m2 m3,
+       corestep_plus c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> corestep_plus c1 m1 c3 m3.
+   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+        destruct (corestepN_add (S n1) (S n2) c1 m1 c3 m3) as [_ H].
+        eexists. apply H. exists c2. exists m2. split; assumption.
+   Qed.
+
   Lemma corestep_star_plus_trans : forall c1 c2 c3 m1 m2 m3,
        corestep_star c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> corestep_plus c1 m1 c3 m3.
    Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
@@ -114,6 +121,38 @@ Section corestepN.
         destruct (corestepN_add n1 n2 c1 m1 c3 m3) as [_ H]. 
         eexists. apply H.  exists c2. exists m2.  split; assumption.
    Qed.
+
+   Lemma corestep_plus_one: forall c m c' m',
+       corestep  Sem ge c m c' m' -> corestep_plus c m c' m'.
+     Proof. intros. unfold corestep_plus, corestepN. simpl.
+          exists O. exists c'. exists m'. eauto. 
+     Qed.
+
+   Lemma corestep_plus_two: forall c m c' m' c'' m'',
+       corestep  Sem ge c m c' m' -> corestep  Sem ge c' m' c'' m'' -> corestep_plus c m c'' m''.
+     Proof. intros. 
+          exists (S O). exists c'. exists m'. split; trivial. 
+          exists c''. exists m''. split; trivial. reflexivity.
+     Qed.
+
+   Lemma corestep_star_zero: forall c m, corestep_star  c m c m.
+     Proof. intros. exists O. reflexivity.  
+     Qed.
+
+   Lemma corestep_star_one: forall c m c' m',
+       corestep  Sem ge c m c' m' -> corestep_star c m c' m'.
+     Proof. intros. 
+          exists (S O). exists c'. exists m'. split; trivial. reflexivity. 
+     Qed.
+
+   Lemma corestep_plus_split: forall c m c' m',
+       corestep_plus c m c' m' ->
+       exists c'', exists m'', corestep  Sem ge c m c'' m'' /\ corestep_star c'' m'' c' m'.
+     Proof. intros.
+         destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*. 
+         exists c2. exists m2. split. assumption. exists n. assumption.  
+     Qed.
+
 End corestepN.
 
 (* A minimal preservation property we sometimes require.
@@ -392,11 +431,11 @@ End Sim_ext.
 Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem G1 C1 D1}
+  Context {F1 V1 C1 D1 G2 C2 D2:Type}
+          {Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 D1}
           {Sem2 : CompcertCoreSem G2 C2 D2}
 
-          {ge1:G1}
+          {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
 
@@ -482,6 +521,7 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         ( Mem.inject j m1 m2 /\
+          meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
           at_external Sem2 st2 = Some (e,vals2));
@@ -491,10 +531,15 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
-(*        Mem.inject j m1 m2 ->
-        at_external Sem2 st2 = Some (e,vals2) ->
+(*     at_external Sem2 st2 = Some (e,vals2) ->
         Forall2 (val_inject j) vals1 vals2 ->*)
-      
+
+(* LENB: we may want to add meminj_preserves_globals ge1 j as another asumption here,
+      to get rid of meminj_preserved_globals_inject_incr below. But this would require spaeicaliing G1 to Genv.t....
+     Maybe we can specialize G1 and G2 of CompCertCoreSem's to Genv F1 V1/Genv F2 V2, but
+    not specialize CoreSem's?*)
+        meminj_preserves_globals ge1 j -> 
+
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
@@ -514,7 +559,8 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
 
 End Forward_simulation_inject. 
 
-Implicit Arguments Forward_simulation_inject [[G1] [C1] [G2] [C2]].
+(*Implicit Arguments Forward_simulation_inject [[G1] [C1] [G2] [C2]].*)
+Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 End Sim_inj.
 
 (*
@@ -617,13 +663,13 @@ Inductive external_description :=
    extern_func: signature -> external_description
 | extern_globvar : external_description.
 
-Definition entries_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P2 : AST.program F2 V2) 
-                                       (ExternIdents : list (ident * external_description)) (entries: list (val * val * signature)): Prop :=
+Definition entryPts_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P2 : AST.program F2 V2) 
+                                       (ExternIdents : list (ident * external_description)) (entryPts: list (val * val * signature)): Prop :=
           forall e d, In (e,d) ExternIdents ->
                               exists b, Genv.find_symbol  (Genv.globalenv P1) e = Some b /\
                                              Genv.find_symbol (Genv.globalenv P2) e = Some b /\
                                              match d with
-                                                      extern_func sig => In (Vptr b Int.zero,Vptr b Int.zero, sig) entries /\
+                                                      extern_func sig => In (Vptr b Int.zero,Vptr b Int.zero, sig) entryPts /\
                                                                                      exists f1, exists f2, Genv.find_funct_ptr (Genv.globalenv P1) b = Some f1 /\ 
                                                                                                                       Genv.find_funct_ptr (Genv.globalenv P2) b = Some f2
                                                     | extern_globvar  => exists v1, exists v2, Genv.find_var_info  (Genv.globalenv P1) b = Some v1 /\
@@ -631,20 +677,25 @@ Definition entries_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P2 : AST
                                                                                                                     globvar_eq v1 v2
                                              end.
 
-Definition entries_inject_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P2 : AST.program F2 V2)  (j: meminj)
-                                       (ExternIdents : list (ident * external_description)) (entries: list (val * val * signature)): Prop :=
+Definition entryPts_inject_ok  {F1 V1 F2 V2:Type}  (P1 : AST.program F1 V1)    (P2 : AST.program F2 V2)  (j: meminj)
+                                       (ExternIdents : list (ident * external_description)) (entryPts: list (val * val * signature)): Prop :=
           forall e d, In (e,d) ExternIdents ->
                               exists b1, exists b2, Genv.find_symbol (Genv.globalenv P1) e = Some b1 /\
                                                                 Genv.find_symbol (Genv.globalenv P2) e = Some b2 /\
                                                                 j b1 = Some(b2,0) /\
                                              match d with
-                                                      extern_func sig => In (Vptr b1 Int.zero,Vptr b2 Int.zero, sig) entries /\
+                                                      extern_func sig => In (Vptr b1 Int.zero,Vptr b2 Int.zero, sig) entryPts /\
                                                                                      exists f1, exists f2, Genv.find_funct_ptr (Genv.globalenv P1) b1 = Some f1 /\ 
                                                                                                                       Genv.find_funct_ptr (Genv.globalenv P2) b2 = Some f2
                                                     | extern_globvar  => exists v1, exists v2, Genv.find_var_info  (Genv.globalenv P1) b1 = Some v1 /\
                                                                                                                     Genv.find_var_info  (Genv.globalenv P2) b2 = Some v2 /\
                                                                                                                     globvar_eq v1 v2
                                              end.
+
+Definition externvars_ok  {F1 V1:Type}  (P1 : AST.program F1 V1) 
+                                             (ExternIdents : list (ident * external_description)) : Prop :=
+         forall b v, Genv.find_var_info  (Genv.globalenv P1) b = Some v -> 
+                        exists e, Genv.find_symbol (Genv.globalenv P1) e = Some b /\ In (e,extern_globvar) ExternIdents.
 
 Definition GenvHyp {F1 V1 C1 F2 V2 C2} 
                (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
@@ -674,7 +725,7 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
                                         /\ m1 = m2))
                entrypoints
-               (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 -> 
 
@@ -693,7 +744,7 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
                                         /\ Mem.extends m1 m2))
                entrypoints
-               (ext_ok: entries_ok P1 P2 ExternIdents entrypoints)
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_ext.Forward_simulation_extends _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
                prog_main P1 = prog_main P2 -> 
 
@@ -711,13 +762,14 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
                      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
                                         /\ Mem.inject jInit m1 m2))
-               (ext_ok: entries_inject_ok P1 P2 jInit ExternIdents entrypoints)
+               (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
                (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 ->
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
                GenvHyp Sem1 Sem2 P1 P2 ->
+                externvars_ok P1 ExternIdents ->
 
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
@@ -837,7 +889,7 @@ Proof.
              (*initial_state*) simpl. unfold initial_state. intros.
                       destruct s1 as [c1 m1].
                       destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
-                      destruct (ext_ok _ _ H) as [bb [KK1 [KK2 [KK3 KK4]]]].
+                      destruct (ePts_ok _ _ H) as [bb [KK1 [KK2 [KK3 KK4]]]].
                       assert (X := @Sim_eq.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ KK3 nil).
                       simpl in X.  destruct X. constructor. 
                             destruct H1 as [cc1 [cc2 [ini1 [ini2 mtch]]]].
@@ -892,9 +944,8 @@ Proof.
              (*initial_state*) simpl. unfold initial_state. intros.
                       destruct s1 as [c1 m1]. simpl in *.
                       destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
-                       unfold CompilerCorrectness.entries_ok in ext_ok.
-                       destruct (ext_ok _ _ H) as [b1 [KK1 [KK2 [Hfound [f1 [f2 [Hf1 Hf2]]]]]]].
-                       rewrite KK1 in K3. inv K3. inv K2. clear K1 ext_ok H.
+                       destruct (ePts_ok _ _ H) as [b1 [KK1 [KK2 [Hfound [f1 [f2 [Hf1 Hf2]]]]]]].
+                       rewrite KK1 in K3. inv K3. inv K2. clear K1 ePts_ok H.
                        apply GenvInit1 in K5. apply Extends_init in K5. destruct K5 as [m2 [iniMem2 Mextends]].
                       assert (X := @Sim_ext.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil nil m1 m2).
                       destruct X as [d' [c1' [c2' [IniCore1 [IniCore2 ExtMatch]]]]].
@@ -972,11 +1023,10 @@ Proof.
              (*initial_state*) simpl. unfold initial_state. intros.
                       destruct s1 as [c1 m1]. simpl in *.
                       destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
-                       unfold CompilerCorrectness.entries_ok in ext_ok.
-                       destruct (ext_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
+                       destruct (ePts_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
                       rewrite KK1 in K3. inv K3. inv K2. clear K1.
                        destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply GenvInit1. apply K5.
-                        assert (X := @Sim_inj.core_initial _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
+                        assert (X := @Sim_inj.core_initial _ _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
                         (*would need relationship between entrypoints and externidents assert (ZZ: (forall (w1 w2 : val) (sigg : signature),  In (w1,w2, sigg) entrypoints -> val_inject j w1 w2)).
                              intros.  unfold CompilerCorrectness.entries_inject_ok in ext_ok. apply ext_ok in H1.*)
                         destruct X as [d' [c2 [iniCore2 Match]]].
@@ -1001,7 +1051,7 @@ Proof.
                 destruct H2 as [j [InjJ MCJ]].
                  inv H1. 
                  (*corestep*)  
-                   assert (DD := @Sim_inj.core_diagram _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MCJ).
+                   assert (DD := @Sim_inj.core_diagram _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H5 _ _ _ _ MCJ).
                    destruct DD as [c2' [m2' [d' [j' [InjJ' [Sep [MC' myStep]]]]]]].
                   exists d'. exists (c2', m2'); simpl. split; auto.
                     destruct myStep.
@@ -1009,17 +1059,18 @@ Proof.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                    exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
                (*external_step*) 
-                    destruct (@Sim_inj.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
-                               as[INJ [args2 [LD [TP AtExt2]]]].
-                    assert (HH: meminj_preserves_globals (Genv.globalenv P1) j).
-                       eapply meminj_preserves_globals_inject_incr. apply preserves_globals. apply InjJ.
+                    destruct (@Sim_inj.core_at_external _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
+                               as[INJ [jPG [args2 [LD [TP AtExt2]]]]].
+                    (*LENB: HERE's where we need that j preserves globals.
+                            assert (HH: meminj_preserves_globals (Genv.globalenv P1) j).
+                       eapply meminj_preserves_globals_inject_incr. apply preserves_globals. apply InjJ.*)
                            (* it seems inject doesn't preserve globals!
                              split; intros. destruct HGenv1. apply (H3 _ (id, CompilerCorrectness.extern_func (ef_sig ef))) in H8.  apply ext_ok in H8.
                                     destruct H8 as [b1 [b2 [Hb1 [Hb2 [Hb1b2 _]]]]]. rewrite Hb1 in H1. inv H1.  apply InjJ. assumption.*)
                     apply forall_inject_val_list_inject in LD.
-                    assert (ZZ:= @external_call_mem_inject ef  _ _ (Genv.globalenv P1) _ _ _ _ _ j _ _ HH H8 INJ LD).
+                    assert (ZZ:= @external_call_mem_inject ef  _ _ (Genv.globalenv P1) _ _ _ _ _ j _ _ jPG H8 INJ LD).
                     destruct ZZ as [j'  [ret2 [m2' [extCall2 [RetInj [MInj2 [Munch1 [Munch2 [InjJ' Sep']]]]]]]]].
-                    assert (extCall2Genv2 : external_call ef (Genv.globalenv P2) args2 m2 t ret2 m2').
+                    assert (extCall2Genv2 : external_call ef (Genv.globalenv P2) args2 m2 t ret2 m2'). 
                          eapply external_call_symbols_preserved_gen. 
                              apply HypGenv. (*HERE*) 
                              apply HypVolatile. (*HERE*)
@@ -1031,10 +1082,10 @@ Proof.
                                           simpl. admit. (*first hyp on globvars*) 
                                           simpl. admit. (*second hyp on globvars*) *)
                     clear extCall2.
-                    assert (DD := @Sim_inj.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) 
+                    assert (DD := @Sim_inj.core_after_external _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) 
                                                entrypoints R i j).
                     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
-                    destruct (DD j' _ _ _ _ _ _ _ _ _ _ INJ MCJ H7 InjJ' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
+                    destruct (DD j' _ _ _ _ _ _ _ _ _ _ INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
                          eapply external_call_mem_forward; eauto.
                          apply Munch1.
                          eapply external_call_mem_forward; eauto.
@@ -1077,4 +1128,11 @@ that our approach works)?
  *)
 
 End COMPILER_CORRECTNESS_COMPCERT_SIM.
-
+(*
+meminj_preserves_globals:
+  - defined in Events (so quite at a high level)
+  - established ONLY in cfrontend/Cminorgenproof (no other compiler phase establishes it!) via the
+    following lemma:
+      Remark inj_preserves_globals: forall f hi, match_globalenvs f hi -> meminj_preserves_globals ge f.
+*)
+    
