@@ -384,6 +384,15 @@ Proof.
  intros. apply imp_andp_adjoint. rewrite TT_andp. apply H; auto.
 Qed.
 
+Lemma derives_extract_prop0 {A}{NA: NatDed A}:
+    forall (P: Prop) (R: A), (P -> TT |-- R)  -> !!P |-- R.
+Proof.
+intros.
+apply derives_trans with (!!P && TT).
+rewrite andp_TT; auto.
+apply derives_extract_prop; auto.
+Qed.
+
 Lemma derives_extract_prop' {A} {NA: NatDed A}:
   forall (P: Prop) (Q R: A), (P -> Q |-- R) ->  Q && !!P|-- R.
 Proof.
@@ -463,6 +472,7 @@ Ltac normalize1 :=
                                               end             
             | |- forall _, _ => let x := fresh "x" in (intro x; normalize1; try generalize dependent x)
             | |- exp _ |-- _ => apply imp_extract_exp_left 
+            | |- !! _ |-- _ => apply derives_extract_prop0
             | |- !! _ && _ |-- _ => apply derives_extract_prop
             | |- _ && !! _ |-- _ => apply derives_extract_prop'
             | |- _ |-- !! (?x = ?y) && _ => 

@@ -295,12 +295,14 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> assert) : Prop :=
-  forall x,
+       (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
+  match spec with (_, mk_funspec _ A P Q) =>
+    forall x,
       semax (func_tycontext f) G
           ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
           f.(fn_body)
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)).
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+ end.
 
 Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
@@ -331,7 +333,7 @@ Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
-      semax_body G f A P Q ->
+      semax_body G f (id, mk_funspec (fn_funsig f) A P Q ) ->
       semax_func G fs G' ->
       semax_func G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').

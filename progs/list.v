@@ -5,18 +5,6 @@ Require Import progs.client_lemmas.
 
 Local Open Scope logic.
 
-Definition valt := (val * type)%type.
-
-Definition field_of (vt: valt) (fld: ident) : valt :=
- match vt with
- | (Vptr l ofs, Tstruct id fList att) =>
-         match field_offset id fList with 
-         | Errors.OK delta => (Vptr l (Int.add ofs (Int.repr delta)), type_of_field fList fld)
-         | _ => (Vundef, Tvoid)
-         end
-  | _ => (Vundef, Tvoid)
- end.
-
 Fixpoint fields_mapto (sh: Share.t) (t1: type) (flds: list ident) (v1: val) (v2: list val) : mpred :=
   match flds, v2 with
   | nil, nil => emp
@@ -36,8 +24,6 @@ Definition struct_fields_mapto (sh: Share.t) (t1: type) (v1: val) (v2: list (val
          fields_mapto sh t1 (field_names fList) v1 v2
   | _  => FF
   end.
-
-Definition nullval : val := Vint Int.zero.
 
 Definition ptr_eq (v1 v2: val) : Prop :=
       match v1,v2 with
@@ -162,20 +148,24 @@ unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 Qed.
 
-Lemma lseg_neq:
-  forall T {ls: listspec T} l x z , 
-  typecheck_val x T = true ->
-  typecheck_val z T = true ->
-  ptr_neq x z -> 
-    lseg T l x z =
-         EX h:val, EX r:list val, EX y:val, 
+Definition lseg_cons T {ls: listspec T} (l: list val) (x z: val) : mpred :=
+        !! (~ ptr_eq x z) && 
+       EX h:val, EX r:list val, EX y:val, 
              !!(l=h::r 
                 /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
              field_mapsto Share.top list_struct list_data x h * 
              field_mapsto Share.top list_struct list_link x y * 
              |> lseg T r y z.
+
+
+Lemma lseg_neq:
+  forall T {ls: listspec T} l x z , 
+  typecheck_val x T = true ->
+  typecheck_val z T = true ->
+  ptr_neq x z -> 
+    lseg T l x z = lseg_cons T l x z.
 Proof.
-unfold ptr_neq; intros.
+unfold lseg_cons, ptr_neq; intros.
 rewrite lseg_unfold at 1; auto.
 destruct l.
 apply pred_ext; normalize.
@@ -220,6 +210,64 @@ intros.
 inv H2.
 apply exp_right with x2.
 normalize.
+Qed.
+
+Lemma lseg_unroll: forall T {ls: listspec T} l x z , 
+    lseg T l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons T l x z.
+Proof.
+intros.
+rewrite lseg_unfold at 1.
+apply pred_ext; destruct l.
+normalize.
+apply orp_right1; auto.
+apply orp_right2.
+unfold lseg_cons.
+normalize. intro y.
+apply exp_right with v.
+normalize.
+apply exp_right with l.
+normalize.
+apply exp_right with y.
+normalize.
+pattern (field_mapsto Share.top list_struct list_data x v) at 1;
+  erewrite (field_mapsto_typecheck_val list_struct list_data Share.top x v); try reflexivity.
+pattern (field_mapsto Share.top list_struct list_link x y) at 1;
+ erewrite (field_mapsto_typecheck_val list_struct list_link Share.top x y); try reflexivity.
+normalize.
+apply andp_right; auto.
+apply andp_right; apply prop_right.
+rewrite <- H0.
+f_equal.
+symmetry.
+etransitivity; [ | apply (list_unroll_dtype list_struct)].
+unfold unroll_composite; simpl.
+rewrite if_true; auto.
+rewrite <- H1.
+f_equal.
+simpl. 
+rewrite if_false by apply list_data_not_link.
+rewrite if_true by auto. rewrite if_true by auto.
+apply list_type_is.
+apply orp_left; normalize.
+unfold lseg_cons.
+normalize. intros. inv H0.
+apply orp_left.
+normalize. inv H0.
+unfold lseg_cons.
+normalize.
+intros. symmetry in H0; inv H0.
+apply exp_right with x2.
+normalize.
+Qed.
+
+Lemma ptr_eq_dec:
+  forall x z, {ptr_eq x z}+{~ptr_eq x z}.
+Proof.
+unfold ptr_eq; intros.
+destruct x; simpl; auto. destruct z; simpl; auto. destruct (Int.eq i i0); auto.
+destruct z; auto. destruct (eq_dec b b0).
+subst. destruct (Int.eq i i0); auto. right; intros [? ?]; auto. inv H0.
+right; intros [? ?]. contradiction.
 Qed.
 
 Module TestCase.

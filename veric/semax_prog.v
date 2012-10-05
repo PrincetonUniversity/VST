@@ -42,14 +42,15 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
-
 Definition semax_body
-       (G: funspecs) (f: function) (A: Type) (P Q: A -> assert) : Prop :=
-  forall x,
+       (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
+  match spec with (_, mk_funspec _ A P Q) =>
+    forall x,
       semax Hspec (func_tycontext f) G
           (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
           f.(fn_body)
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)).
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+ end.
 
 Definition match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
  map (fun idf => (fst idf, Clight.type_of_fundef (snd idf))) fdecs = 
@@ -232,7 +233,7 @@ Lemma semax_func_cons:
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
-      semax_body G f A P Q ->
+      semax_body G f (id, mk_funspec (fn_funsig f) A P Q) ->
       semax_func G fs G' ->
       semax_func G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q)  :: G').
