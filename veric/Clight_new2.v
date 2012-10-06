@@ -42,6 +42,12 @@ Fixpoint current_function (k: cont) : option function :=
   | _ => None
   end.
 
+Lemma call_cont_nonnil: forall k f, current_function k = Some f -> call_cont k <> nil.
+  Proof. intros k.
+     induction k; simpl; intros. inv H.
+     destruct a; eauto. discriminate.
+  Qed.
+
 Fixpoint continue_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k' => continue_cont k'
@@ -379,19 +385,53 @@ Qed.
 
 Hint Resolve free_list_allowed_core_mod : allowed_mod.
 
+Lemma storebytes_allowed_core_modification: forall l m m' b z 
+(H: Mem.storebytes m b z l = Some m'), (* (Hl: l<>nil),*)
+allowed_core_modification m m'.
+  Proof. intros.
+   split; intros.
+      intros k K1. split; intros.  
+          eapply Mem.storebytes_valid_block_1; eassumption.
+          eapply Mem.perm_storebytes_2; eassumption.
+  split; intros.  left. eapply Mem.perm_storebytes_1; eassumption.
+  split; intros. eapply Mem.perm_storebytes_2; eassumption. 
+     destruct (zle n 0).
+           assert (Y:= Mem.loadbytes_empty m b0 ofs' n z0). rewrite Y in H0. inv H0.
+           left.  apply Mem.loadbytes_empty. assumption. 
+    assert (NGEZ: n >= 0).  apply Zle_ge.  apply Zgt_lt in z0.  apply ZOrderedType.Z_as_OT.le_lteq. left; assumption.
+    destruct (eq_block b0 b); subst.
+          Focus 2. left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _  H b0 ofs' n); try assumption.  
+                         left; assumption.
+    destruct (zle (ofs' + n)  z).
+         (*<=*) left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ H); try assumption. right. left. assumption.
+        (*>*)  destruct (zle (z +Z_of_nat (length l)) ofs').
+                         (*<=*)  left. rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ H); try assumption. right. right. assumption.
+                         (*>*)  destruct (zle z ofs'). 
+                                    (*<=*) assert (ZZ:= Mem.storebytes_range_perm _ _ _ _ _ H).
+                                                 right. exists ofs'. split. split.  apply Zle_refl.  assert (qq:= Zplus_le_lt_compat ofs' ofs' 0 n). rewrite Zplus_0_r in qq. apply qq.  apply Zle_refl. apply Zgt_lt. apply z0.
+                                                                      apply ZZ. split; try assumption. apply Zgt_lt. assumption.
+                                    (*>*)  destruct (zlt 0 (Z_of_nat (length l))); simpl in *.
+                                                  right. exists z. split. omega.
+                                                             eapply (Mem.storebytes_range_perm _ _ _ _ _ H). split. apply Zle_refl. omega.
+                                                  destruct l; simpl in *. admit. (*case l= nil still unproven*)
+                                                             rewrite Zpos_P_of_succ_nat in z4. exfalso. clear - z4. remember (length l) as xx. clear Heqxx l.  destruct (intro_Z xx). destruct H. rewrite H in z4.  clear H. omega. 
+                        Qed.
+
+Hint Resolve  storebytes_allowed_core_modification: allowed_mod.
+
 Lemma cl_allowed_modifications : forall ge c m c' m',
   cl_step ge c m c' m' -> allowed_core_modification m m'.
 Proof.
   intros.
   induction H; eauto with allowed_mod.
   inv H3; eauto with allowed_mod. congruence.
-  admit.  (* need allowed_mod theorems about loadbytes and storebytes *)
+  (*eapply storebytes_allowed_core_modification; eauto. LENB: storebytes_allowed_core_modification is now in allowed_mod hint database*)
   apply allowed_core_modification_trans with m1.
-  clear - H5.
-  forget (fn_params f ++ fn_vars f) as l.
-  induction H5; eauto with allowed_mod.
-  forget (fn_params f) as l.
-  clear - H6; induction H6; eauto with allowed_mod.
+    clear - H5.
+    (*forget (fn_params f ++ fn_vars f) as l.*)
+    induction H5; eauto with allowed_mod.
+    forget (fn_params f) as l.
+    clear - H6; induction H6; eauto with allowed_mod.
 Qed.
 
 (*LENB: TYPE HAS CHANGED

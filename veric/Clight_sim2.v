@@ -8,7 +8,8 @@ Require Import veric.Clight_new2.
 Require compcert.Clight_sem.
 Module CC := Clight_sem.
 
-(* Don't need this proof here, but it's a shame to delete it. *)
+(* Don't need this proof here, but it's a shame to delete it. 
+   LENB: NOW it's actually used: below, in the proof  of  CC_step_fun*)
 Lemma cc_step_fun: forall ge s1 s2 s2',
    CC.step ge s1 nil s2 -> CC.step ge s1 nil s2' -> s2=s2'.
 Proof.
@@ -158,7 +159,6 @@ Proof.
  destruct a; auto. destruct s; auto.
 Qed.
 
-
 Lemma break_cont_skip:
     forall k, break_cont (strip_skip k) = break_cont k.
 Proof. induction k; try destruct a; simpl; auto; destruct s; simpl; auto.
@@ -198,11 +198,6 @@ Inductive final_state: (corestate * mem) -> int -> Prop :=
                           (Kfun (EXternal ef_exit Tnil Tvoid) nil None :: nil), m) r
 *)
  . (* fixme *)
-
-(*LENB: COMMENTED OUT -we want to use sim.mk_semantics
-Definition semantics (p: program) :=
-  SS.Semantics step' (initial_state p) final_state (Genv.globalenv p).
-*)
 
 Lemma match_cont_strip:
    forall s k k', match_cont (strip_skip k) (strip_skip' k') ->
@@ -311,7 +306,6 @@ Proof.
  induction k; simpl; intros; auto.
 Qed.
 
-
 Lemma strip_skip'_for2:
   forall ge f ve te m a2 a3 s k1 k, CC.Kfor2 a2 a3 s k1 = strip_skip' k ->
   Smallstep.star CC.step ge (CC.State f Sskip k ve te m) Events.E0 (CC.State f Sskip (CC.Kfor2 a2 a3 s k1) ve te m).
@@ -347,7 +341,7 @@ Proof.
  constructor; auto.
 Qed.
 
-   Lemma match_cont_strip1:
+Lemma match_cont_strip1:
   forall k k', match_cont k k' -> match_cont (strip_skip k) (strip_skip' k').
  Proof. induction 1; try solve [constructor; auto].
  apply match_cont_strip. auto.
@@ -484,7 +478,6 @@ Qed.
    eapply IHs; [ | eauto]. simpl; auto.
  Qed.
 
-
 Lemma step_continue_strip:
   forall ge f k ve te m, 
            Smallstep.star CC.step ge (CC.State f Scontinue k ve te m) Events.E0
@@ -494,8 +487,9 @@ intros.
 induction k; simpl; try constructor 1.
 destruct (dec_skip s).
 subst.
-eapply star_trans.
-apply Smallstep.star_one; apply CC.step_continue_seq.
+eapply Smallstep.star_trans.
+  apply Smallstep.star_one. apply CC.step_continue_seq.
+  apply IHk.
 auto.
 destruct s; try congruence; constructor 1.
 Qed.
@@ -582,7 +576,7 @@ inv H4.
 simpl strip_skip in H9. 
 destruct (exec_skips H9 ge f ve te m) as [k2 [? ?]]; auto.
 exists (CC_core_State f Sskip k2 ve te); split. 
-    eapply star_plus_trans. eassumption.
+    eapply Smallstep.star_plus_trans. eassumption.
           apply Smallstep.plus_one. econstructor; eauto. 
           assert (t=Events.E0). inv H3; try congruence; reflexivity. subst t. auto.
     constructor. apply CUR.  rewrite  H4 in H9.  inv H9.  simpl in *. apply H7.
@@ -591,7 +585,7 @@ Focus 1. (* step_set *)
 inv H0.
 destruct (exec_skips H5 ge f ve te m) as [k2 [? ?]]; auto.
 exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split. 
-  eapply star_plus_trans. eassumption. apply Smallstep.plus_one. econstructor; eauto.
+  eapply Smallstep.star_plus_trans. eassumption. apply Smallstep.plus_one. econstructor; eauto. auto.
   rewrite H0 in H5. inv H5; constructor; auto.
 
 Focus 1. (* step_call_internal *)
@@ -602,7 +596,8 @@ inv H7.
          here - need to instanitate manually.*)
   exists (CC_core_State f (fn_body f) (CC.Kcall optid f0 ve te k2) ve' le').
   split.
-  (*a*) eapply star_plus_trans. eassumption. eapply Smallstep.plus_two. econstructor; eauto.
+  (*a*) eapply star_plus_trans. apply H8. 
+               eapply Smallstep.plus_two. econstructor; eauto. 
               econstructor; eauto.
               auto.
   (*b*) constructor.
@@ -947,19 +942,21 @@ Focus 1. (* case 4 of 4 *)
  (* step_break *)
  Focus 1.
  inv H0. simpl strip_skip in H5.
- destruct (dec_skip s). subst.  simpl strip_skip' in *.
+ destruct (dec_skip s).
+ (*s=skip*)
+ subst.  simpl strip_skip' in *.
  assert (exists k1', strip_skip' k' = CC.Kseq Sbreak k1').
- revert H5; clear. remember (strip_skip' k') as k0'. 
- revert k' Heqk0'; induction k0'; intros; try solve [inv H5].
-  inv H5. eauto.
+     revert H5; clear. remember (strip_skip' k') as k0'.   
+     revert k' Heqk0'; induction k0'; intros; try solve [inv H5].
+        inv H5. eauto.
  destruct H0 as [k1' H0].
  assert (Smallstep.star CC.step ge (CC.State f Sskip k' ve te m) Events.E0
                            (CC.State f Sbreak k1' ve te m)).
-     revert k1' H0; clear; induction k'; intros; try solve [inv H0].
-     destruct (dec_skip s). subst.  simpl in *. specialize (IHk' _ H0).
-        econstructor 2. constructor. eassumption. auto. 
-    rewrite strip_skip'_not in H0 by auto. inv H0.
-       econstructor 2. constructor. constructor 1. auto.
+       revert k1' H0; clear; induction k'; intros; try solve [inv H0].
+        destruct (dec_skip s). subst.  simpl in *. specialize (IHk' _ H0).
+            econstructor 2. constructor. eassumption. auto. 
+      rewrite strip_skip'_not in H0 by auto. inv H0.
+         econstructor 2. constructor. constructor 1. auto.
  simpl.
  forget (CC.State f Sskip k' ve te m) as st1.
  rewrite H0 in *.
@@ -969,62 +966,67 @@ Focus 1. (* case 4 of 4 *)
  simpl in CUR. rewrite <- current_function_strip in CUR. 
  forget (strip_skip k) as k0.
  assert (Smallstep.star CC.step ge st1 Events.E0 (CC.State f Sbreak (strip_skip' k1') ve te m)).
-    eapply Smallstep.star_trans; try apply H1; auto.
-    2:  instantiate (1:=Events.E0); auto.
-    clear.
-    induction k1'; try destruct s; try solve [constructor 1].
-       simpl. econstructor 2; eauto. constructor. auto.
+      eapply Smallstep.star_trans; try apply H1; auto.
+      2:  instantiate (1:=Events.E0); auto.
+      clear.
+      induction k1'; try destruct s; try solve [constructor 1].
+         simpl. econstructor 2; eauto. constructor. auto.
  forget (strip_skip' k1') as k0'. clear k1' H1.
-
-assert (exists k1',
+ assert (X:exists k1',
              Smallstep.plus CC.step ge (CC.State f Sbreak k0' ve te m) Events.E0 
                        (CC.State f Sskip k1' ve te m)
-          /\ match_cont (strip_skip (break_cont k0)) (strip_skip' k1')).
-   clear - H H2.
-   revert H; induction H2; intros; try solve [inv H].
-   rewrite break_cont_skip in *. simpl in H.
-   destruct (IHmatch_cont H) as [k1' [? ?]]; clear IHmatch_cont. simpl.
-   exists k1'; split; auto.
-   eapply Smallstep.star_plus_trans; try eassumption.  2:  instantiate (1:=Events.E0); auto.
-   econstructor 2. constructor.  2:  instantiate (1:=Events.E0); auto.
-   apply break_strip.
+               /\ match_cont (strip_skip (break_cont k0)) (strip_skip' k1')).
+       clear - H H2.
+       revert H; induction H2; intros; try solve [inv H].
+            rewrite break_cont_skip in *. simpl in H.
+               destruct (IHmatch_cont H) as [k1' [? ?]]; clear IHmatch_cont. simpl.
+               exists k1'; split; auto.
+               eapply Smallstep.star_plus_trans; try eassumption.  2:  instantiate (1:=Events.E0); auto.
+               econstructor 2. constructor.  2:  instantiate (1:=Events.E0); auto.
+              apply break_strip.
 
- simpl  in *. exists k'; split.
- apply Smallstep.plus_one.
- eapply CC.step_break_while.
- auto.
+            simpl  in *. exists k'; split.
+               apply Smallstep.plus_one. eapply CC.step_break_while.
+               auto.
 
-  rewrite break_cont_skip in *. simpl in H.
- destruct (IHmatch_cont H) as [k1' [? ?]]; clear IHmatch_cont. simpl.
- exists k1'; split; auto.
- eapply Smallstep.star_plus_trans; try eassumption.  2:  instantiate (1:=Events.E0); auto.
- econstructor 2. constructor.  2:  instantiate (1:=Events.E0); auto.
- apply break_strip.
+            rewrite break_cont_skip in *. simpl in H.
+                destruct (IHmatch_cont H) as [k1' [? ?]]; clear IHmatch_cont. simpl.
+                exists k1'; split; auto.
+                eapply Smallstep.star_plus_trans; try eassumption.  2:  instantiate (1:=Events.E0); auto.
+                econstructor 2. constructor.  2:  instantiate (1:=Events.E0); auto.
+               apply break_strip.
 
- simpl  in *. exists k'; split.
- apply Smallstep.plus_one.
- eapply CC.step_break_dowhile.
- auto.
+            simpl  in *. exists k'; split.
+                apply Smallstep.plus_one. eapply CC.step_break_dowhile.
+                auto.
 
- simpl  in *. exists k'; split. econstructor.
- eapply CC.step_break_for2. constructor 1. auto.
- auto.
- simpl in *. exists k'; split. econstructor. eapply CC.step_skip_break_switch. auto.
- constructor 1; auto. auto. auto.
+            simpl  in *. exists k'; split. econstructor.
+                 eapply CC.step_break_for2. constructor 1. auto.
+                 auto.
 
- destruct H1 as [k1' [? ?]].
+            simpl in *. exists k'; split.
+                  econstructor. eapply CC.step_skip_break_switch. auto.
+                  constructor 1; auto.
+                  auto.
+                  auto.
+
+ destruct X as [k1' [? ?]].
  destruct (IHcl_step (CC_core_State f Sskip k1' ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
- constructor; auto.
- clear - H CUR. revert CUR; induction  k0; intros. inv CUR.
-  destruct a; simpl in *; auto. inv H. inv H.
+       constructor; auto.
+       clear - H CUR.
+       revert CUR; induction  k0; intros. inv CUR.
+       destruct a; simpl in *; auto. inv H. inv H.
  exists st2; split; auto.
  eapply star_plus_trans; try apply H5.
- eapply star_trans; try apply H0.
- apply Smallstep.plus_star; apply H1.  auto.
+      eapply star_trans; try apply H0.
+      apply Smallstep.plus_star; apply H1.
+      auto.
+
+(*s<>skip*)
  rewrite strip_skip'_not in H5 by auto.
  inv H5. clear n.
- admit.  (* probably similar to the previous case *)
+ admit. (*probably similar to the previous case -- means similar so s=skip*)
 
  Focus 1.  (* step_ifthenelse *)
  inv H1. simpl strip_skip in H6.
@@ -1254,7 +1256,7 @@ assert (exists k1',
  inv H0. remember (CC.Kseq s k'0) as k0'. inv H5.
   generalize (match_cont_call_strip k k'1); intro.
  spec H0.
- clear - CUR. admit. (* easy *)
+ clear - CUR. apply (call_cont_nonnil _ _ CUR).
  specialize (H0 H1).
   rewrite <- strip_call' in H0.
  change (Kseq (Sreturn None) :: call_cont k) with (strip_skip (Kseq (Sreturn None) :: call_cont k)) in H0.
@@ -1272,13 +1274,6 @@ assert (exists k1',
         eapply current_function_find_label; eauto.
  apply match_cont_strip1. auto.
 Qed.
-
-
-(*LENB: COMMENTED OUT -we want to use sim.mk_semantics
-Definition semantics (p: program) :=
-  SS.Semantics step' (initial_state p) final_state (Genv.globalenv p).
-*)
-
 
 Definition CC_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
@@ -1419,22 +1414,22 @@ Qed.
 Lemma CC_allowed_modifications : forall 
   (ge : Genv.t fundef type) (c : CC_core) (m : mem) (c' : CC_core) (m' : mem), 
   CC_step ge c m c' m' -> allowed_core_modification m m'.
-  Proof. intros. admit. Qed.
-(*   unfold CC_step in H.
-  destruct c; simpl in *.
-  induction H; eauto with allowed_mod.
-  inv H2; eauto with allowed_mod. congruence.
-  admit.  (* need allowed_mod theorems about loadbytes and storebytes *)
-  apply allowed_core_modification_trans with m1.
-  clear - H5.
-  forget (fn_params f ++ fn_vars f) as l.
-  induction H5; eauto with allowed_mod.
-  forget (fn_params f) as l.
-  clear - H6; induction H6; eauto with allowed_mod.
-   eapply (csem_allowed_modifications ge c m c' m'). unfold corestep. H. cl_allowed_modifications. unfold cl_step. eauto with allowed_mod.
-Focus 2. destruct f.
-         eauto with allowed_mod.
-*)
+  Proof. intros.
+     unfold CC_step in H.
+     destruct c; simpl in *.
+        remember  (CC.State f s c e t m) as st. remember  (CC_core_to_CC_state c' m') as st'.
+         generalize dependent f. generalize dependent s. generalize dependent c. generalize dependent e. 
+          generalize dependent t. generalize dependent m. generalize dependent c'. generalize dependent m'.
+        induction H; intros m'' c'' Heqst' mm tt ee cc ss ff Heqst;
+           inv Heqst; apply CC_core_CC_state_3 in Heqst';  simpl in Heqst';  inv Heqst';  eauto with allowed_mod. 
+               admit.  (* need allowed_mod theorems about loadbytes and storebytes *)
+  destruct f; try contradiction.
+         inv H. apply CC_core_CC_state_3 in H3.  simpl in H3.  inv H3.
+         clear - H6.
+         induction H6; eauto with allowed_mod.
+  inv H;
+    apply CC_core_CC_state_3 in H4;  simpl in H4;  inv H4; apply allowed_core_modification_refl.
+Qed.
 
 Definition CompCertSem: CompcertCoreSem  (Genv.t fundef type) CC_core (list (ident * globvar type)):=
     Build_CompcertCoreSem _ _ _ CC_core_sem CC_step_fun CC_allowed_modifications.
@@ -1500,68 +1495,6 @@ Proof.
  inv H.  apply corestep_star_one. simpl. econstructor.
  rewrite strip_skip'_not in H by auto. inv H. exists O. simpl. reflexivity.
 Qed.
-
-(*DOES NOT HOLD:
-Lemma step_E0_notExternal: forall ge s s'  (H:CC.step ge s Events.E0 s'), ~ isExternalCallState s.
-  Proof. intros ge s s' H. remember Events.E0 as tr.
-    induction H; intros; subst; simpl;eauto. destruct (Events.Eapp_E0_inv _ _ H2). subst. clear H0 H2 s3.
-    inv H; simpl; eauto. simpl in *.
-
-DOES NOT HOLD
-Lemma stepstar_E0_notExternal: forall ge s s' tr (H:Smallstep.plus CC.step ge s tr s'),
-       tr= Events.E0 -> ~ isExternalCallState s.
-  Proof. intros ge s s' tr H.
-    induction H; intros; subst. destruct (Events.Eapp_E0_inv _ _ H2). subst. clear H0 H2 s3.
-    inv H; simpl; eauto. simpl in *.
-
-Lemma star_star: forall ge s s'  tr (H: Smallstep.star CC.step ge s tr s') (HnoCall: ~ isExternalCallState s) c m c' m'
-    (Hs: s =  CC_core_to_CC_state c m)  (Hs': s' =  CC_core_to_CC_state c' m') 
-    , tr = Events.E0 ->
-   corestep_star CompCertSem ge c m c' m'.
- Proof. intros ge s s' tr H.
-  induction H; intros.
-    subst. apply CC_core_to_CC_state_inj in Hs'. inv Hs'. exists O. simpl. reflexivity.
-  subst. destruct (Events.Eapp_E0_inv _ _ H2). subst.
-  Proof. intros ge s. (*H.*)
- assert (X:= @Smallstep.star_E0_ind _ _ CC.step ge (fun t => fun t' => 
-      forall (c : CC_core) (m : mem) (c' : CC_core) (m' : mem), 
-               t = CC_core_to_CC_state c m ->
-               t' = CC_core_to_CC_state c' m' -> ~ isExternalCallState t ->
-              corestep_star CompCertSem ge c m c' m')).
-  simpl in X.
-    intros. subst. 
-    eapply X; clear X. Focus 4. reflexivity. Focus 4. reflexivity.
-        intros; subst. apply CC_core_to_CC_state_inj in H1. inv H1. exists O. simpl. reflexivity.
-        intros; subst. destruct (step_to_CC_step ge _ _ H0 H4) as [cc [mm [cc' [mm' [X [Hs2 Hstep]]]]]].
-                   subst. apply CC_core_to_CC_state_inj in X. inv X.
-                   destruct (H1 _ _ _ _ (eq_refl _) (eq_refl _)) as [n Hn]; clear H1. admit.
-       exists (S n). simpl. exists cc'. exists mm'. split; trivial.
-    assumption. assumption.
-    step_to_CC_step
-    intros ge s s' H.  remember Events.E0 as tr. 
-    induction H; simpl; intros; subst. 
-       apply CC_core_to_CC_state_inj in Hs'. inv Hs'.
-       exists O. reflexivity.
-   apply Events.Eapp_E0_inv in Heqtr. destruct Heqtr. subst.
-      destruct (step_to_CC_step ge _ _ H HnoCall) as [cc [mm [cc' [mm' [X [Hs2 Hstep]]]]]].
-       apply CC_core_to_CC_state_inj in X. inv X.
-       destruct (IHstar (eq_refl _) _ _ _ _ (eq_refl _) (eq_refl _)) as [n Hn]; clear IHstar. admit.
-       exists (S n). simpl. exists cc'. exists mm'. split; trivial.
-  Qed. 
-
-Lemma star_star: forall ge c m c' m',
-  Smallstep.star CC.step ge  (CC_core_to_CC_state c m)  Events.E0  (CC_core_to_CC_state c' m')  ->
-corestep_star CompCertSem ge c m c' m'.
-  Proof. intros. 
-      simpl in *. unfold corestep_star. unfold Smallstep.star in H.
-
-Lemma Smallstep.star CC.step ge (CC.State f s k' ve te m) Events.E0
-       (CC.State f (Sassign a1 a2) k2 ve te m)
-______________________________________(1/17)
-corestep_plus CompCertSem ge (CC_core_State f s k' ve te) m
-  (CC_core_State f Sskip k2 ve te) m'
-
-*)
 
 Lemma strip_skip'_while_CC:
   forall ge f ve te m a s k1 k, CC.Kwhile a s k1 = strip_skip' k ->
@@ -2444,7 +2377,7 @@ Focus 1. (* case 4 of 4 *)
  inv H0. remember (CC.Kseq s k'0) as k0'. inv H5.
   generalize (match_cont_call_strip k k'1); intro.
  spec H0.
- clear - CUR. admit. (* easy *)
+ clear - CUR. apply (call_cont_nonnil _ _ CUR).
  specialize (H0 H1).
   rewrite <- strip_call' in H0.
  change (Kseq (Sreturn None) :: call_cont k) with (strip_skip (Kseq (Sreturn None) :: call_cont k)) in H0.
@@ -2462,8 +2395,6 @@ Focus 1. (* case 4 of 4 *)
         eapply current_function_find_label; eauto.
  apply match_cont_strip1. auto.
 Qed.
-
-
 
 
 Lemma Clightnew_Clight_sim_eq: forall p ExternIdents entrypoints
@@ -2487,9 +2418,10 @@ Proof.
   Focus 4. simpl. unfold cl_step. intros. 
   eapply @Sim_eq.Build_Forward_simulation_equals with (match_core:=match_states).
   
-Print corestate.
-  econstructor. Focus 2. simpl. unfold cl_step.
-Admitted.
+
+(*LENB: COMMENTED OUT -we want to use sim.mk_semantics
+Definition semantics (p: program) :=
+  SS.Semantics step' (initial_state p) final_state (Genv.globalenv p).
 *)
 Theorem Clightnew_Clight_sim: forall p ExternIdents entrypoints
          (ext_ok: CompilerCorrectness.entries_ok p p ExternIdents entrypoints)
