@@ -65,6 +65,7 @@ Definition t_list :=   Tstruct i_list (Fcons i_h t_int
                Fnil)) noattr.
 
 Definition t_listptr := Tpointer t_list noattr.
+Definition t_voidptr := Tpointer Tvoid noattr.
 
 Definition set: forall {A}, ident -> A -> PTree.t A -> PTree.t A := 
  @PTree.set.
@@ -98,7 +99,7 @@ Definition f_reverse: function :=
  (* vars *)  nil
  (* temps *) ((i_w,t_listptr)::(i_t,t_listptr)::(i_v,t_listptr)::nil)
  (* body *) 
-  (Ssequence (Sset i_w (Econst_int (Int.repr 0) t_int))
+  (Ssequence (Sset i_w (Ecast (Ecast (Econst_int (Int.repr 0) t_int) t_voidptr) (t_listptr)))
    (Ssequence (Sset i_v (Etempvar i_p t_listptr))
     ( (* Ssequence (Sset i_t (Econst_int (Int.repr 0) t_int)) *)
      (Ssequence 

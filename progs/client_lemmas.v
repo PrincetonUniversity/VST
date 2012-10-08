@@ -333,13 +333,16 @@ Lemma lift1_unfold: forall {A1 B} (f: A1 -> B) a1 rho,
 Proof. reflexivity. Qed.
 Hint Rewrite @lift2_unfold @lift1_unfold : normalize.
 
-
 Instance Nassert: NatDed assert := _.
 Instance Sassert: SepLog assert := _.
 Instance Cassert: ClassicalSep assert := _. 
 Instance Iassert: Indir assert := _.
 Instance SIassert: SepIndir assert := _.
 
+Lemma lift_prop_unfold: 
+   forall P z,  @prop assert Nassert P z = @prop mpred Nveric P.
+Proof.  reflexivity. Qed.
+Hint Rewrite lift_prop_unfold: normalize.
 
 Lemma andp_unfold: forall P Q rho,
   @andp assert Nassert P Q rho = @andp mpred Nveric (P rho) (Q rho).

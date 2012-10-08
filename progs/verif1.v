@@ -73,6 +73,17 @@ rewrite H0 in H; inv H.
 normalize.
 Qed.
 
+Lemma ilseg_nil_eq: forall p q, ilseg nil p q = !! (ptr_eq p q) && emp.
+Proof. intros.
+ rewrite ilseg_unroll.
+ apply pred_ext.
+ apply orp_left.
+ unfold ilseg_nil.  normalize.
+ unfold ilseg_cons. normalize. unfold lseg_cons. normalize. intros. inv H0.
+ apply orp_right1. unfold ilseg_nil. normalize.
+Qed.
+Hint Rewrite ilseg_nil_eq : normalize.
+
 Lemma lift2_ilseg_cons: 
  forall s p q, lift2 (ilseg_cons s)  p q =
     local (lift2 ptr_neq p q) &&
@@ -137,7 +148,7 @@ Proof.
 intro contents.
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
-canonicalize_pre.         
+canonicalize_pre.       
 forward.
 forward.
 forward_while (sumlist_Inv contents)
@@ -206,34 +217,77 @@ normalize.
 forward.
 go_lower.
 apply andp_right; normalize.
-simpl.
-(*
-Print Nassert.
-Lemma lift_prop_unfold: 
-   forall A B (NDB: NatDed B) (NDAB: NatDed (A -> B)) P z, 
-       NDAB = @LiftNatDed A B NDB ->
-       @prop (A -> B)  NDAB P z = @prop B NDB P.
-Proof.  intros. subst. reflexivity. Qed.
-Hint Rewrite @lift_prop_unfold using reflexivity : normalize.
-*)
-
-normalize.
 eapply tc_eval_id_i; eauto.
-unfold retval.
-normalize.
 rewrite H0.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
 destruct (eval_id P.i_s rho); inv H1; auto.
 Qed.
 
 
-
+Definition reverse_Inv (contents: list int) : assert :=
+          (EX cts1: list int, EX cts2 : list int,
+            PROP (contents = rev cts1 ++ cts2) 
+            LOCAL ()
+            SEP (lift2 (ilseg cts1) (eval_id P.i_w) (lift0 nullval) *
+                   lift2 (ilseg cts2) (eval_id P.i_v) (lift0 nullval))).
 
 Lemma body_reverse: semax_body Gprog P.f_reverse reverse_spec.
 Proof.
 intro contents.
+simpl fn_body; simpl fn_params; simpl fn_return.
+normalize.
+canonicalize_pre.
+forward.
+admit.  (* the cast  does not typecheck, although it should *)
+forward.
+forward_while (reverse_Inv contents)
+         (PROP() LOCAL () SEP( lift2 (ilseg (rev contents)) (eval_id P.i_w) (lift0 nullval))).
+(* precondition implies loop invariant *)
+unfold reverse_Inv.
+go_lower.
+apply exp_right with nil.
+apply exp_right with contents.
+normalize.
+rewrite H0. rewrite H1.
+simpl; normalize. 
+(* loop invariant implies typechecking of loop condition *)
+normalizex.
+(* loop invariant (and not loop condition) implies loop postcondition *)
+unfold reverse_Inv.
+go_lower. intros cts1 cts2.
+rewrite (typed_false_ptr H). 
+normalize.
+rewrite <- app_nil_end. rewrite rev_involutive. auto.
+(* loop body preserves invariant *)
+unfold reverse_Inv at 1.
+normalize.
+apply extract_exists_pre; intro cts.
+normalize.
+apply extract_exists_pre; intro cts2.
+normalizex.
+subst.
+replace_in_pre (ilseg cts2) (ilseg_cons cts2).
+   rewrite (ilseg_nonnull cts2) by auto.
+   unfold ilseg_cons, lseg_cons.
+   normalize. intros h r ? y. destruct cts2; inv H2.
+   apply exp_right with i; normalize.
+   apply exp_right with cts2; normalize.
+   apply exp_right with y; normalize.
+normalizex.
+intros h r y.
+normalizex.
+subst cts2.
+forward.
+admit.  (* take care of the store instruction, rest of loop... *)
+
+(* after the loop *)
+forward.
+go_lower.
 simpl.
-Admitted.
+apply andp_right; normalize.
+apply prop_right.
+eapply tc_eval_id_i; eauto.
+Qed.
 
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.

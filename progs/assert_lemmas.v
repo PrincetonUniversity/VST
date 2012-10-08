@@ -305,6 +305,15 @@ Lemma subst_FF: forall i v, subst i v FF = FF.
 Admitted.
 Hint Rewrite subst_TT subst_FF: normalize.
 
+
+Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+
+Lemma subst_eval_expr_cast:
+  forall i v t e, subst i v  (eval_expr (Ecast e t)) =
+               lift1 (eval_cast (typeof e) t) (subst i v (eval_expr e)).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_eval_expr_cast : normalize.
+
 Definition eval_binop (op: binary_operation) (t1 t2 : type) (v1 v2: val) :=
        force_val (sem_binary_operation op v1 t1 v2 t2 (fun _ _ => false)).
 Lemma subst_eval_expr_binop:
