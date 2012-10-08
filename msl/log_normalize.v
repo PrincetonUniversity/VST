@@ -36,6 +36,12 @@ apply andp_left1...
 apply andp_right...
 Qed.
 
+Lemma TT_prop_right {A}{ND: NatDed A}: forall P: Prop,
+   P -> @derives A ND TT (prop P).
+Proof.
+intros. apply prop_right; auto.
+Qed.
+
 Lemma sepcon_andp_prop'  {A}{NA: NatDed A}{SA: SepLog A}: 
      forall P Q R, (!!Q && P)*R = !!Q&&(P*R).
 Proof with norm.
@@ -480,6 +486,7 @@ Ltac normalize1 :=
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (rewrite prop_true_andp with (P:=(x=y))
                                             by (unfold x; reflexivity); unfold x in *; clear x)
+            | |- TT |-- !! _ => apply TT_prop_right
             | |- _ => solve [auto with typeclass_instances]
             end.
 

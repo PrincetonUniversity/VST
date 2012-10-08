@@ -336,5 +336,32 @@ Lemma local_lift0_True:     local (lift0 True) = TT.
 Proof. reflexivity. Qed.
 Hint Rewrite local_lift0_True : normalize.
 
+Lemma overridePost_EK_return: 
+  forall Q P, overridePost Q P EK_return = P EK_return.
+Proof. unfold overridePost; intros. 
+  extensionality vl rho; rewrite if_false by congruence. auto.
+Qed.
+Hint Rewrite overridePost_EK_return : normalize.
+
+Lemma frame_ret_assert_EK_return:
+ forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.
+Proof. reflexivity. Qed.
+Hint Rewrite frame_ret_assert_EK_return : normalize.
+
+Lemma function_body_ret_assert_EK_return:
+  forall t P vl, function_body_ret_assert t P EK_return vl = bind_ret vl t P.
+Proof. reflexivity. Qed.
+Hint Rewrite function_body_ret_assert_EK_return : normalize.
+
+Lemma bind_ret1_unfold:
+  forall v t Q, bind_ret (v::nil) t Q = !!tc_val t v && lift1 Q (make_args (ret_temp :: nil)(v::nil)).
+Proof. reflexivity. Qed.
+Hint Rewrite bind_ret1_unfold : normalize.
+
+Lemma tc_val_extract_int:
+ forall v sign ch attr, tc_val (Tint ch sign attr) v -> exists n, v = Vint n.
+Proof.
+intros. destruct v; inv H; eauto.
+Qed.
 
 

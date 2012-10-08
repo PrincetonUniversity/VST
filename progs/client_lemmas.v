@@ -488,6 +488,13 @@ Hint Rewrite canon6 using check_nonlocal : canon.
 Hint Rewrite canon6b using check_nonlocal : canon.
 Hint Rewrite canon6c using check_nonlocal : canon.
 
+Lemma canon17 : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
+Proof.
+intros. unfold PROPx. simpl. extensionality rho. apply pred_ext; normalize.
+Qed.
+Hint Rewrite canon17 : canon.
+
+
 Lemma finish_canon: forall R1 P Q R, 
    do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
@@ -1034,10 +1041,11 @@ f_equal; auto.
 Qed.
 Hint Rewrite subst_PROP : normalize.
 
+
 Lemma forward_setx:
   forall Delta G P id e,
   typecheck_temp_id id (typeof e) Delta = true ->
-  (forall rho, tc_expr Delta e rho) ->
+  (P |-- local (tc_expr Delta e)) ->
   semax Delta G
              P
              (Sset id e)
@@ -1049,13 +1057,115 @@ intros.
 eapply semax_pre_post; [ | | apply (semax_set_forward Delta G P id e)].
 eapply derives_trans ; [ | apply now_later].
 go_lower.
+apply andp_right; auto.
+apply H0.
 intros ek vl rho; unfold normal_ret_assert. simpl; normalize.
 intros old ?; apply exp_right with old.
 normalize.
 Qed.
 
+Ltac normalizex :=
+  normalize;
+  repeat 
+  (first [ simpl_tc_expr
+         | flatten_sepcon_in_SEP
+          | apply semax_extract_PROP_True; [solve [auto] | ]
+          | apply semax_extract_PROP; intro
+         | extract_prop_in_LOCAL
+         | extract_exists_in_SEP
+         ]; cbv beta; normalize).
 
 Ltac forward_setx := 
-  (eapply semax_seq; [ apply sequential' ;  apply forward_setx; reflexivity 
-                               | apply extract_exists_pre; normalize; try (intros _) ] ).
+  first [eapply semax_seq; 
+            [ apply sequential' ; apply forward_setx; [reflexivity | normalizex]
+              | apply extract_exists_pre; normalize; try (intros _) ]
+         | eapply semax_post;  [ | apply forward_setx; [reflexivity | normalizex]];
+            cbv beta; normalize
+        ].
+
+Ltac semax_field_tac1 := 
+   eapply semax_load_field'; 
+     [ reflexivity 
+     | reflexivity 
+     | simpl; reflexivity 
+     | type_of_field_tac ].
+
+Ltac isolate_field_tac e fld R := 
+  match R with 
+     | context [|> lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
+          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
+          let n := find_in_list (|> lift2 (field_mapsto sh struct fld') e' v) R
+             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
+                replace e' with (eval_expr e) by auto;
+                rewrite H; clear H
+     | context [ lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
+          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
+         let n := find_in_list (lift2 (field_mapsto sh struct fld') e' v) R
+             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
+                replace e' with (eval_expr e) by auto;
+                rewrite H; clear H
+     end;
+     match goal with |- semax _ _ ?P _ _ =>
+       let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
+     end.
+
+Ltac semax_field_tac :=
+match goal with
+ | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                  (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
+  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+   [ go_lower 
+   | isolate_field_tac e fld R;
+     eapply semax_seq; [ apply sequential'; semax_field_tac1  
+                                          | simpl update_tycon; apply extract_exists_pre
+                                          ]
+    ]
+ | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset _ (Efield (Ederef ?e _) ?fld _)) _ =>
+     apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+     [ go_lower 
+     | isolate_field_tac e fld R;
+       eapply semax_post; [ | semax_field_tac1]
+     ]
+end; normalizex.
+
+Ltac check_sequential s :=
+ match s with
+ | Sskip => idtac
+ | Sassign _ _ => idtac
+ | Sset _ _ => idtac
+ | Scall _ _ _ => idtac
+ | Ssequence ?s1 ?s2 => check_sequential s1; check_sequential s2
+ | _ => fail
+ end.
+
+Ltac sequential := 
+ match goal with
+ |  |- semax _ _ _ _ (normal_ret_assert _) => fail 2
+ |  |- semax _ _ _ ?s _ =>  check_sequential s; apply sequential
+ end.
+
+Ltac is_canonical P :=
+ match P with 
+ | PROPx _ (LOCALx _ (SEPx _)) => idtac
+ | _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
+ end.
+
+Ltac forward := 
+  match goal with
+  | |- semax _ _ ?P (Ssequence (Sset _ (Efield _ _ _)) _) _ => 
+                  is_canonical P; semax_field_tac
+  | |- semax _ _ ?P (Sset _ (Efield _ _ _)) _ => 
+                  is_canonical P; semax_field_tac
+  | |- semax _ _ ?P (Ssequence (Sset _ ?e) _) _ => 
+               is_canonical P; match e with (Efield _ _) => fail 2 | _ => forward_setx end
+  | |- semax _ _ ?P (Sset _ ?e) _ => 
+               is_canonical P; match e with (Efield _ _) => fail 2 | _ => forward_setx end
+  | |- semax _ _ _ (Ssequence (Sreturn _) _) _ =>
+          apply semax_seq with FF; [eapply semax_pre; [ | apply semax_return ]
+                                | apply semax_ff]
+  | |- semax _ _ _ (Sreturn _) _ =>
+          eapply semax_pre; [ | apply semax_return ]
+  end.
+
 

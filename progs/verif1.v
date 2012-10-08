@@ -132,70 +132,14 @@ Definition sumlist_Inv (contents: list int) : assert :=
                                      lift1 (partial_sum contents cts) (eval_id P.i_s)) 
             SEP (TT * lift2 (ilseg cts) (eval_id P.i_t) (lift0 nullval))).
 
-Ltac normalizex :=
-  normalize;
-  repeat 
-  (first [ simpl_tc_expr
-         | flatten_sepcon_in_SEP
-          | apply semax_extract_PROP_True; [solve [auto] | ]
-          | apply semax_extract_PROP; intro
-         | extract_prop_in_LOCAL
-         | extract_exists_in_SEP
-         ]; cbv beta; normalize).
-
-Ltac semax_field_tac1 := 
-   eapply semax_load_field'; 
-     [ reflexivity 
-     | reflexivity 
-     | simpl; reflexivity 
-     | type_of_field_tac ].
-
-Ltac semax_field_tac :=
-match goal with |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                  (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
-  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-   [ go_lower 
-   | match R with 
-     | context [|> lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
-          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
-          let n := find_in_list (|> lift2 (field_mapsto sh struct fld') e' v) R
-             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
-                replace e' with (eval_expr e) by auto;
-                rewrite H; clear H
-     | context [ lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
-          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
-         let n := find_in_list (lift2 (field_mapsto sh struct fld') e' v) R
-             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
-                replace e' with (eval_expr e) by auto;
-                rewrite H; clear H
-     end;
-     match goal with |- semax _ _ ?P _ _ =>
-       let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
-     end;
-   first [eapply semax_seq; [ apply sequential'; semax_field_tac1  
-                                          | simpl update_tycon; apply extract_exists_pre
-                                          ] 
-(* should adjust the "semax_post" in the line below...
-           | eapply semax_post; [ | apply sequential'; semax_field_tac1 ]
-   *)
-         ]
-   ]
-end; normalizex.
-
-Lemma canon17 : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
-Proof.
-intros. unfold PROPx. simpl. extensionality rho. apply pred_ext; normalize.
-Qed.
-Hint Rewrite canon17 : canon.
-
 Lemma body_sumlist: semax_body Gprog P.f_sumlist sumlist_spec.
 Proof.
 intro contents.
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 canonicalize_pre.         
-forward_setx.
-forward_setx.
+forward.
+forward.
 forward_while (sumlist_Inv contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P.i_s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
@@ -226,23 +170,19 @@ replace_in_pre (ilseg cts) (ilseg_cons cts).
    apply exp_right with i; normalize.
    apply exp_right with cts; normalize.
    apply exp_right with y; normalize.
-rewrite lift2_ilseg_cons.
 normalizex.
 intros h r y.
 normalizex.
 subst cts.
 
-semax_field_tac.
-semax_field_tac; intro old_t.
-
-apply sequential; simpl for1_ret_assert.
-
-eapply semax_post;  [ | apply forward_setx; [reflexivity | solve [repeat split; hnf; auto]]];
-  cbv beta; normalize.
+forward.
+forward.  intro old_t.
+forward.
 (* Prove postcondition of loop body implies loop invariant *)
-intros ek vl; unfold normal_ret_assert, for1_ret_assert.
+intros ek vl.
+unfold normal_ret_assert, for1_ret_assert.
 normalize.
- intro x; unfold sumlist_Inv.
+intro x; unfold sumlist_Inv.
  apply exp_right with r.
  go_lower. 
  apply andp_right; 
@@ -253,32 +193,40 @@ unfold partial_sum in *.
 simpl in H4.
 rewrite H4; clear H4. rewrite <- H1; clear H1.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
-assert (exists n, x = Vint n).
-clear - H1 H0.
-rewrite H0 in H1. clear H0.
-destruct x; inv H1. eauto.
-destruct H4; subst x.
+destruct (tc_val_extract_int _ _ _ _ H1) as [n ?].
+rewrite H4 in *.
+destruct x; inv H0.
 simpl.
 symmetry; apply Int.add_assoc.
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 normalize.
 (* After the loop *)
-eapply semax_pre; [ | apply semax_return ].
+
+forward.
 go_lower.
-apply prop_left; intro.
-unfold frame_ret_assert.
+apply andp_right; normalize.
 simpl.
+(*
+Print Nassert.
+Lemma lift_prop_unfold: 
+   forall A B (NDB: NatDed B) (NDAB: NatDed (A -> B)) P z, 
+       NDAB = @LiftNatDed A B NDB ->
+       @prop (A -> B)  NDAB P z = @prop B NDB P.
+Proof.  intros. subst. reflexivity. Qed.
+Hint Rewrite @lift_prop_unfold using reflexivity : normalize.
+*)
+
 normalize.
-apply andp_right; apply prop_right.
 eapply tc_eval_id_i; eauto.
 unfold retval.
 normalize.
 rewrite H0.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
-clear - H2.
-destruct (eval_id P.i_s rho); inv H2; auto.
+destruct (eval_id P.i_s rho); inv H1; auto.
 Qed.
+
+
 
 
 Lemma body_reverse: semax_body Gprog P.f_reverse reverse_spec.
