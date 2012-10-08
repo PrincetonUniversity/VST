@@ -4,7 +4,7 @@ Require Import veric.Clight_lemmas.
 Require Import veric.sim. (*forward_simulations.
 Require Import veric.forward_simulations_proofs.*)
 Require Import veric.Clight_new2.
-(*Require Import veric.Sim_starplus.*)
+Require Import veric.Sim_starplus.
 Require compcert.Clight_sem.
 Module CC := Clight_sem.
 
@@ -2396,28 +2396,33 @@ Focus 1. (* case 4 of 4 *)
  apply match_cont_strip1. auto.
 Qed.
 
+Definition MS (_:nat)(c: corestate) (C: CC_core): Prop := match_states c C.
 
 Lemma Clightnew_Clight_sim_eq: forall p ExternIdents entrypoints
-               (ext_ok : CompilerCorrectness.entries_ok p p ExternIdents entrypoints)
-               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
-                                           initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_vars)),
+               (ext_ok : CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
+(*               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
+                                           initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_vars))*),
               Sim_eq.Forward_simulation_equals _ _ cl_core_sem' CompCertSem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
 Proof.
-  intros. apply eq_simulation_plus with (match_cores:=Unit_match_states)(order:=(fun x => fun y => x < y)%nat).
-      apply lt_wf. 
-  (*initial states*)
-  unfold Unit_match_states. simpl. intros. exists O. admit.
-  (*safely halted*) 
-   simpl.  unfold cl_safely_halted, CC_safely_halted. auto.
+  intros. eapply eq_simulation_plus with (match_cores:=MS) (order:=(fun x => fun y => x < y)%nat); unfold MS.
+      apply lt_wf.
+ (* initial states *)
+      admit.
+ (* final states *)  
+      intros. unfold cl_core_sem' in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
   (*at_external*)
-      simpl. unfold cl_at_external, CC_at_external. intros.
-             unfold Unit_match_states in H.
-          inv H; inv H0. split; auto. admit.
-  
+     intros. inv H; simpl in *; inv H0.
+          split; trivial. admit. (*HOLE REGARDING ARGUMENT TYPES???*)
+  (*after_external*) 
+         intros. inv H; simpl in *; inv H0. clear H1. (*why duplicate facts  H0 H1?*) 
+          admit. (*reason about external functions*)
+  (*simulation_diag*)
+     intros. destruct dc.  simpl in MCS. destruct MCS. Focus 2.  destruct H.  inv H. 
+      assert (X:= Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ CS _ H).
+      destruct X as [c2' [CSP MS']].
+      exists c2'. exists (O, c). simpl. split. left. trivial. apply CSP.
+  Qed.
 
-  Focus 4. simpl. unfold cl_step. intros. 
-  eapply @Sim_eq.Build_Forward_simulation_equals with (match_core:=match_states).
-  
 
 (*LENB: COMMENTED OUT -we want to use sim.mk_semantics
 Definition semantics (p: program) :=
