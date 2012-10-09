@@ -732,15 +732,19 @@ st. intuition.
 remember (eval_expr e rho). 
 remember (typeof e).
 destruct H0.
-destruct v; destruct t0; intuition; destruct t; intuition;
+destruct v; destruct t0; intuition; destruct t; try solve [ intuition;
 try destruct i; try destruct i0; try destruct i1; intuition;
 unfold sem_cast, classify_cast, cast_float_int, 
     Float.intoffloat, Float.intuoffloat;
- destruct s; auto; destruct H3 as [H3a H3b]; hnf in H3a,H3b;
- rewrite <- Heqv in *; repeat invSome;
+ destruct s; auto; try (destruct H3 as [H3a H3b]; hnf in H3a,H3b);
+ try rewrite <- Heqv in *; repeat invSome;
  inversion2 H3b H3a;
  hnf in H3b0, H3a0;
- rewrite H3a0; rewrite Zle_bool_rev; rewrite H3b0; auto.
+ rewrite H3a0; rewrite Zle_bool_rev; rewrite H3b0; auto |
+
+simpl in H3; hnf in H3; simpl; rewrite <- Heqv in *; auto |
+destruct i0; destruct s; simpl in *; auto; hnf in H3; try rewrite <- Heqv in *; try contradiction]. 
+
 
 (*condition*)
 admit. (*condition might go away*)

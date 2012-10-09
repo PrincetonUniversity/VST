@@ -256,6 +256,7 @@ Inductive tc_assert :=
 | tc_TT : tc_assert
 | tc_andp: tc_assert -> tc_assert -> tc_assert
 | tc_nonzero: expr -> tc_assert
+| tc_iszero: expr -> tc_assert
 | tc_isptr: expr -> tc_assert
 | tc_ilt: expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
@@ -353,7 +354,9 @@ match classify_cast tfrom tto with
 | cast_case_default => tc_FF
 | cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| cast_case_neutral  => if eqb_type tfrom ty then tc_TT else tc_noproof
+| cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
+                            (if andb (is_pointer_type ty) (is_pointer_type tfrom) then tc_TT
+                                else tc_iszero a)
 | cast_case_void => tc_noproof
 (*Disabling this for the program logic, the only time it is used is not for
   functionality, more as a noop that "uses" some expression*)
@@ -510,6 +513,9 @@ typecheck_non_var_list (non_var_ids Delta) (ve_of env).
 
 (*Denotation functions for each of the assertions that can be produced by the typechecker*)
 
+Definition denote_tc_iszero v :=
+         match v with Vint i => is_true (Int.eq i Int.zero) | _ => False end.
+
 Definition denote_tc_nonzero v := 
          match v with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
@@ -572,6 +578,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_samebase e1 e2 => lift2 denote_tc_samebase (eval_expr e1) (eval_expr e2)
   | tc_nodivover e1 e2 => lift2 denote_tc_nodivover (eval_expr e1) (eval_expr e2)
   | tc_initialized id => denote_tc_initialized id
+  | tc_iszero e => lift1 denote_tc_iszero (eval_expr e)
   end.
 
 (*Functions that modify type environments*)
