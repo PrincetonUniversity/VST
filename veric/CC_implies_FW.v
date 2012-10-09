@@ -94,10 +94,8 @@ Module CompilerCorrectness_implies_forward_simulation.
     Qed.
 *)
 
-(*LENB: MAYBE INSTEAD OF USING THIS (INCORRECT) LEMMA IN THE PROOF BELOW
-WE CAN SOMEHOW ADD A HYPOTHESIS meminj_preserves_globals ge j
-SOMEWHERE IN cc_inj OR Sim_inj.at_external or Sim_inj.after_external?
-CURRENTLY WE DON'T HAVE THE ge aAVILABLE THERE...*)
+(*LENB: INSTEAD OF USING THIS (INCORRECT) LEMMA IN THE PROOF BELOW
+I added the hypothesis meminj_preserves_globals ge1 j in Sim_inj.at_external and after_external.
 Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
               (MPj: meminj_preserves_globals ge j) (InjJ : inject_incr j j'),
               meminj_preserves_globals ge j'.
@@ -107,6 +105,7 @@ Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
        split. clear MP1 MP3. intros. apply InjJ. eapply MP2. apply H.
        intros. admit. (*does not hold*)
   Qed.
+*)
 
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2

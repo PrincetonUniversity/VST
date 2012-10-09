@@ -469,6 +469,7 @@ Record Forward_simulation_inject := {
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
+
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2,
@@ -534,10 +535,12 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
 (*     at_external Sem2 st2 = Some (e,vals2) ->
         Forall2 (val_inject j) vals1 vals2 ->*)
 
-(* LENB: we may want to add meminj_preserves_globals ge1 j as another asumption here,
-      to get rid of meminj_preserved_globals_inject_incr below. But this would require spaeicaliing G1 to Genv.t....
-     Maybe we can specialize G1 and G2 of CompCertCoreSem's to Genv F1 V1/Genv F2 V2, but
-    not specialize CoreSem's?*)
+(* LENB: I added meminj_preserves_globals ge1 j as another asumption here,
+      in order to get rid of the unprovable Lemma meminj_preserved_globals_inject_incr stated below. 
+     The introduction of meminj_preserves_globals ge1 require specializing G1 to (Genv.t F1 V1).
+      In principle, we could also specialize G2 to (Genv.t F1 V1).
+      Note tha tthis specialization is only done for of CompCertCoreSem's, while
+       CoreSem's stay parametric in G1/G2*)
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
