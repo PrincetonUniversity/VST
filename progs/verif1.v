@@ -238,7 +238,7 @@ simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 canonicalize_pre.
 forward.
-admit.  (* the cast  does not typecheck, although it should *)
+go_lower. apply prop_right; hnf. apply Int.eq_true.
 forward.
 forward_while (reverse_Inv contents)
          (PROP() LOCAL () SEP( lift2 (ilseg (rev contents)) (eval_id P.i_w) (lift0 nullval))).
@@ -278,7 +278,34 @@ intros h r y.
 normalizex.
 subst cts2.
 forward.
-admit.  (* take care of the store instruction, rest of loop... *)
+
+(* Some experiments for store_field ...
+match goal with
+ | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                  (Ssequence (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _) _ =>
+  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2)::Q) 
+                                     (SEPx R))));
+   [ go_lower 
+   | (* Don't know why the fldx stuff in the next line is necessary, but it doesn't work without it *)
+     let fldx:=fresh "fld" in pose (fldx:=fld); isolate_field_tac e fldx R; unfold fldx in *; clear fldx;
+     eapply semax_seq; [ apply sequential'  (*; semax_field_tac1  *)
+                                          | 
+                                          ]
+    ]
+ | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                   (Sassign (Efield (Ederef ?e _) ?fld _) ?e2) _ =>
+     apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+     [ go_lower 
+     | isolate_field_tac e fld R;
+       eapply semax_post; [ | (*semax_field_tac1*) ]
+     ]
+end (*; normalizex*) .
+unfold tc_expr; simpl; normalizex.
+
+eapply semax_store_field'.
+
+*)
+admit.
 
 (* after the loop *)
 forward.

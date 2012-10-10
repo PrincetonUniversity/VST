@@ -120,7 +120,7 @@ Definition field_mapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpr
     let t2 := type_of_field fList' fld in
      match field_offset fld fList',  access_mode t2 with
      | Errors.OK delta, By_value ch => 
-          !! (typecheck_val v2 t2 = true) && 
+          !! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&
            address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
      | _, _ => FF
      end
@@ -154,6 +154,23 @@ unfold field_mapsto.
 unfold bool_val.
 destruct x; normalize.
 Qed.
+
+Lemma field_offset_exists1: 
+  forall sid t fields fld,
+    type_of_field (unroll_composite_fields sid t fields) fld <> Tvoid ->
+    exists n, field_offset fld fields = Errors.OK n.
+intros.
+unfold field_offset.
+forget 0 as k. revert k.
+induction fields; intro k; simpl in H. congruence.
+destruct (eq_dec i fld). subst i.
+econstructor; simpl. rewrite if_true by auto.
+reflexivity.
+simpl. rewrite if_false by auto.
+destruct (IHfields H (align k (alignof t0) + sizeof t0)).
+eauto.
+Qed.
+
 
 Lemma field_mapsto_access_mode:
   forall sh v t fld v' id fList att,
@@ -196,32 +213,15 @@ pose proof I.
 intros.
 subst t1.
 rename H2 into TE1.
-assert (TC5: type_is_volatile t2 = false).
-admit.  (* typechecking proof *)
-assert (TC3: local (tc_lvalue Delta e1) |-- local (tc_lvalue Delta (Efield e1 fld t2))).
-   intros.
-   intro rho.
-   unfold tc_lvalue.
-   apply prop_left; intro.
-   apply prop_right.
-   hnf in H2|-*.
-   simpl.
-   split.  split; auto.
-   rewrite H1; simpl.
-   clear - TC2.
-   admit.  (* easy *)
-   rewrite TC5.
-   simpl. auto.
-
 apply (semax_pre_post
             (|> (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
              local (tc_lvalue Delta (Efield e1 fld t2)) &&
                (mapsto' sh (Efield e1 fld t2) v2 * 
-                  (!! (typecheck_val v2 t2 = true) && P))))
+                  (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&  P))))
             (normal_ret_assert 
               (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
               (subst id (lift0 old) (mapsto' sh (Efield e1 fld t2) v2  * 
-                (!! (typecheck_val v2 t2 = true) && P))))));
+                (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && P))))));
   [ | | apply semax_load].
 
 (* PRECONDITION *)
@@ -231,20 +231,24 @@ simpl. rewrite TE1.
 normalize.
 apply later_derives.
 normalize.
-rewrite andp_assoc.
-rewrite eqb_type_refl. normalize.
-specialize (TC3 rho). unfold local,lift1 in TC3.
-apply andp_right. eapply derives_trans; try apply TC3.
-apply prop_right; auto.
+apply derives_trans with ((!!(eqb_type t2 t2 = true) && !!tc_lvalue Delta (Efield e1 fld t2) rho &&
+    (!!(typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && 
+     (mapsto' sh (Efield e1 fld t2) v2 rho))) * P rho).
+apply sepcon_derives; auto.
 unfold lift2.
-unfold field_mapsto, mapsto'.
-simpl typeof. simpl eval_lvalue.
-destruct (eval_lvalue e1 rho); normalize.
-rewrite H1.
-rewrite field_offset_unroll.
-destruct (field_offset fld fields); normalize.
+rewrite eqb_type_refl. normalize.
+unfold mapsto'.
+unfold tc_lvalue; simpl. unfold lift2.
+unfold tc_lvalue in H3. rewrite H1.
+unfold field_mapsto.
+case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite <- TC2.
-destruct (access_mode t2); normalize.
+rewrite field_offset_unroll.
+case_eq (field_offset fld fields); intros; normalize.
+case_eq (access_mode t2); intros; normalize.
+rewrite H8. 
+normalize.
+normalize.
 
 (* POSTCONDITION *)
 intros ek vl rho; unfold normal_ret_assert; simpl.
@@ -264,7 +268,197 @@ rewrite H1.
 rewrite field_offset_unroll.
 destruct (field_offset fld fields); normalize.
 rewrite <- TC2.
-rewrite H4.
+rewrite H4. rewrite H5.
+normalize.
+Qed.
+
+Lemma splice_top_top: Share.splice Share.top Share.top = Share.top.
+Proof.
+unfold Share.splice.
+unfold Share.Lsh, Share.Rsh.
+case_eq (Share.split Share.top); intros L R ?.
+simpl.
+do 2 rewrite Share.rel_top1.
+erewrite Share.split_together; eauto.
+Qed.
+
+(* move this elsewhere, and by the way it generalizes the same-named lemma
+  in veric/semax_straight.v *)
+Lemma cast_exists : forall Delta e2 t rho 
+(TC: typecheck_environ rho Delta = true), 
+denote_tc_assert (typecheck_expr Delta e2) rho ->
+denote_tc_assert (isCastResultType (typeof e2) t t e2)
+  rho ->
+sem_cast (eval_expr e2 rho) (typeof e2) t =
+Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) t)).
+Proof.
+intros. 
+assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) t= Some v).
+
+apply expr_lemmas.typecheck_expr_sound in H.
+rename t into t0.
+remember (typeof e2); remember (eval_expr e2 rho). 
+unfold sem_cast. unfold classify_cast.
+Transparent Float.intoffloat.
+Transparent Float.intuoffloat.
+destruct t; destruct v; destruct t0; simpl in *;
+try congruence; try contradiction; eauto;
+try solve [
+unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
+inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
+simpl; eauto];
+try solve [
+try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
+
+destruct i; destruct s; unfold lift2 in *; try solve[simpl in *; 
+  unfold lift2,lift1 in *;  expr_lemmas.unfold_tc_denote; destruct H0; 
+try rewrite <- Heqv in *; 
+unfold Float.intoffloat; 
+destruct (Float.Zoffloat f0); try contradiction;
+try rewrite H0; try rewrite H1; simpl; eauto | 
+simpl in *;  unfold Float.intuoffloat; destruct H0;
+expr_lemmas.unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
+try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
+
+try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
+
+destruct i; destruct s; unfold lift2 in *;
+simpl in *; unfold lift2,lift1 in *;
+unfold Float.intoffloat, Float.intuoffloat;
+try (
+destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
+destruct (Float.Zoffloat f0); try contradiction;
+hnf in H0,H1; rewrite H0; rewrite expr_lemmas.Zle_bool_rev; rewrite H1;
+simpl; eauto);
+simpl; eauto.
+
+auto.
+Opaque Float.intoffloat.
+Opaque Float.intuoffloat.
+
+destruct H1. rewrite H1. auto.
+Qed. 
+
+(* Admitted:  after Joey checks in his revision of environments,
+ move this definition (and similar ones in progs/assert_lemmas
+  into expr.v, and use it in the definition of eval_expr *)
+Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
+
+Lemma typecheck_val_eval_cast: 
+  forall t2 e2 rho Delta,
+      tc_environ Delta rho ->
+      denote_tc_assert (typecheck_expr Delta e2) rho ->
+      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
+      typecheck_val (eval_cast (typeof e2) t2 (eval_expr e2 rho)) t2 = true.
+Proof. intros ? ? ? ? H2 H5 H6.
+assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
+assert (H8 := expr_lemmas.typecheck_expr_sound _ _ _ H2 H5).
+clear - H7 H6 H8.
+revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
+unfold eval_cast. rewrite H. simpl.
+case_eq (eval_expr e2 rho); intros; rename H0 into H99;
+ destruct t2; inv H8; inv H; simpl; auto;
+hnf in H6; try contradiction; rewrite H99 in *;
+destruct (typeof e2); inv H2; inv H1; auto;
+try (unfold sem_cast in H0; simpl in H0;
+      destruct i0; simpl in*; destruct s; inv H0; simpl; auto).
+simpl in *. unfold lift1 in H6. rewrite H99 in *. inv H6. auto.
+simpl in *. unfold isCastResultType in H6. simpl in H6.
+unfold sem_cast in H0. 
+simpl in H0.
+destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
+invSome; simpl; auto.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+Qed.
+
+
+Lemma semax_store_field: 
+forall (Delta: tycontext) (G: funspecs) e1 fld P v0 t2 e2 sid fields ,
+    typeof e1 = Tstruct sid fields noattr ->
+    t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+    typecheck_store (Efield e1 fld t2) ->
+   semax Delta G 
+       (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
+          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))
+       (Sassign (Efield e1 fld t2) e2) 
+       (normal_ret_assert 
+          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) 
+                  (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) * P)).
+Proof.
+pose proof I.
+intros.
+rename H0 into TE1.
+rename H2 into TCS.
+apply semax_pre with 
+  (EX v':val, 
+    (|>(local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
+      (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) (lift0 v') * P)))).
+apply andp_left2.
+intro rho. simpl. apply exp_right with (v0 rho). auto.
+apply extract_exists_pre; intro v'.
+clear v0. rename v' into v0.
+
+pose proof (semax_store Delta G (Efield e1 fld t2) e2 v0 Share.top 
+               (local (lift1 (tc_val t2) (lift1 (eval_cast (typeof e2) t2) (eval_expr e2))) &&
+                 !! (type_is_volatile t2 = false) &&   P)).
+simpl typeof in H0. rewrite splice_top_top in H0.
+eapply semax_pre_post ; [ | | apply H0; auto].
+apply derives_trans with(|> (local (tc_environ Delta) &&
+  (local (tc_lvalue Delta e1) &&
+   local (tc_expr Delta (Ecast e2 t2)) &&
+   (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) (lift0 v0) * P)))).
+rewrite (later_andp (local (tc_environ Delta))). apply andp_derives; auto.
+apply now_later.
+apply later_derives.
+intro rho; unfold local,lift0,lift1,lift2. simpl.
+normalize.
+unfold field_mapsto, mapsto'.
+simpl.
+case_eq (eval_lvalue e1 rho); intros; normalize.
+rewrite TE1.
+rewrite field_offset_unroll.
+case_eq (field_offset fld fields); intros; normalize.
+rewrite <- H1. destruct (access_mode t2); normalize.
+apply derives_trans with ((!!tc_lvalue Delta (Efield e1 fld t2) rho &&
+    !!tc_expr Delta (Ecast e2 t2) rho &&
+     (!!tc_val t2 (eval_cast (typeof e2) t2 (eval_expr e2 rho)) &&
+      !!(type_is_volatile t2 = false)) &&
+     address_mapsto m v0 (Share.unrel Share.Lsh Share.top)
+       (Share.unrel Share.Rsh Share.top)
+       (b, Int.unsigned (Int.add i (Int.repr z)))) * P rho).
+apply sepcon_derives; auto. 
+apply andp_right; normalize.
+unfold tc_lvalue; simpl.
+unfold lift2. rewrite TE1.
+repeat apply andp_right; apply prop_right; auto.
+split; auto. split; auto. rewrite H6; auto.
+rewrite H8; simpl; auto.
+eapply typecheck_val_eval_cast; eauto.
+hnf in H4.
+destruct H4; auto.
+unfold tc_expr in H4.
+simpl in H4.
+destruct H4; auto.
+normalize.
+
+intros ek vl rho; unfold local, lift1, normal_ret_assert, lift2; simpl.
+normalize.
+apply sepcon_derives; auto.
+unfold mapsto', field_mapsto.
+simpl.
+case_eq (access_mode t2); intros; normalize.
+case_eq (eval_lvalue e1 rho); intros; normalize.
+rewrite TE1.
+rewrite field_offset_unroll.
+case_eq (field_offset fld fields); intros; normalize.
+rewrite <- H1. rewrite H5.
 normalize.
 Qed.
 
@@ -908,6 +1102,49 @@ auto.
 auto.
 Qed.
 
+Lemma semax_store_field':
+forall (Delta: tycontext) (G: funspecs) t1 fld P Q R e1 e2 v0 t2 sid fields ,
+    t1 = Tstruct sid fields noattr ->
+    typeof e1 = Tpointer t1 noattr ->
+    t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+    typecheck_store (Efield (Ederef e1 t1) fld t2) ->
+    semax Delta G 
+       (|> do_canon 
+             (local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
+              lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) v0)
+            (PROPx P (LOCALx Q (SEPx R))))
+       (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx  (lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) 
+                  (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) :: R))))).
+Proof.
+intros.
+eapply semax_pre_post; [ | | eapply (semax_store_field)].
+3: subst t1; reflexivity.
+3: assumption.
+3: assumption.
+instantiate (2:=v0).
+instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
+autorewrite with canon.
+go_lower. apply later_derives. normalize.
+subst t1.
+unfold tc_lvalue.
+pose proof (denote_tc_isptr1 _ _ _ H3 H6).
+simpl.
+unfold lift2. unfold lift1.
+normalize. 
+repeat apply andp_right; normalize.
+rewrite H0; apply prop_right; simpl; hnf; auto.
+unfold lift1, denote_tc_isptr in H.
+destruct (eval_expr e1 rho); try contradiction; auto.
+
+intros ek vl rho; unfold normal_ret_assert, local, lift1, lift2; simpl.
+normalize.
+unfold PROPx, LOCALx; simpl.
+normalize.
+destruct (eval_expr e1 rho); normalize.
+Qed.
 
 Ltac simpl_tc_expr :=
     match goal with |- context [tc_expr ?A ?B] =>
