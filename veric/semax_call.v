@@ -149,8 +149,8 @@ rewrite semax_unfold in H0|-*.
 rename H0 into H1; pose proof I.
 intros.
 specialize (H1 psi w Prog_OK k F H2 H3).
-intros rho w' ? w'' ? ?.
-apply (H1 rho w' H4 w'' H5); clear H1.
+intros te ve w' ? w'' ? ?.
+apply (H1 te ve w' H4 w'' H5); clear H1.
 destruct H6; split; auto.
 destruct H1 as [[H1 Hge] ?]; split; auto.
 split; auto.
@@ -174,8 +174,9 @@ destruct H6 as [v [loc [[? ?] ?]]].
 simpl in H0, H1, H2.
 (*destruct H9; try congruence.*)
 specialize (H8 v fsig A P' Q' _ (necR_refl _)).
-rewrite <- Hge in H0.
-unfold filter_genv in H0.
+ 
+rewrite Hge in H0.
+unfold filter_genv in H0. simpl in H0.
 invSome.
 assert (v = Vptr b Int.zero) by (destruct (type_of_global psi b); inv H6; auto).
 subst v.
@@ -187,7 +188,7 @@ exists b.
 split.
 hnf.
 unfold eval_lvalue.
-rewrite <- Hge.
+rewrite <- Hge. simpl ve_of.
 rewrite H1.
 unfold filter_genv.
 rewrite H0.
@@ -232,7 +233,7 @@ Lemma semax_call_aux:
  forall (Delta : tycontext) (G : funspecs) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
-  (bl : list expr) (R : ret_assert) (psi : genv) (k : cont) (rho : environ)
+  (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
   (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
    tc_expr Delta a rho (m_phi jm) ->
    tc_exprlist Delta bl rho (m_phi jm) ->
@@ -241,10 +242,11 @@ Lemma semax_call_aux:
     (snd fsig=Tvoid <-> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal nil = (fun rho0 : environ => F * Q x (get_result ret rho0)) ->
-    filter_genv psi = ge_of rho ->
+    rho = construct_rho (filter_genv psi) vx tx ->
+    (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
     (funassert G rho) (m_phi jm) ->
-    (rguard Hspec psi  (exit_tycon (Scall ret a bl) Delta) G F0 R k) (level (m_phi jm)) ->
+    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) G F0 R k) (level (m_phi jm)) ->
     (believe Hspec G psi G) (level (m_phi jm)) ->
     In (id, mk_funspec fsig A P Q') G ->
     Genv.find_symbol psi id = Some b ->
@@ -253,9 +255,9 @@ Lemma semax_call_aux:
            P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho)
             )) (m_phi jm) ->
    jsafeN Hspec psi (level (m_phi jm)) ora
-     (State (ve_of rho) (te_of rho) (Kseq (Scall ret a bl) :: k)) jm.
+     (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros Delta G A P Q Q' x F F0 ret fsig a bl R psi k rho ora jm b id.
+intros Delta G A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
 intros TC1 TC2 TC4 TC3 TC5 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
@@ -284,14 +286,15 @@ rewrite semax_fold_unfold in H19.
 apply (pred_nec_hereditary _ _ n (laterR_necR LATER)) in Prog_OK.
 pose (F0F := fun _: environ => F0 rho * F).
 specialize (H19 _ _ (necR_refl _) (Prog_OK)  
-                      (Kseq (Sreturn None) :: Kcall ret f (ve_of rho) (te_of rho) :: k)
+                      (Kseq (Sreturn None) :: Kcall ret f (vx) (tx) :: k)
                        F0F _ (necR_refl _)).
 unfold F0F in *; clear F0F.
 spec H19 ; [clear H19 |].
 split.
-repeat intro; f_equal.
-intros ek vl rho'.
+repeat intro; f_equal. 
+intros ek vl te ve.  
 unfold frame_ret_assert.
+remember ((construct_rho (filter_genv psi) ve te)) as rho'.
 rewrite <- (sepcon_comm (stackframe_of f rho')).
 unfold function_body_ret_assert.
 destruct ek; try solve [normalize].
@@ -319,61 +322,63 @@ assert (n >= level w')%nat.
 apply necR_level in H21.
 apply le_trans with (level wx); auto.
 clear wx H20 H21.
-intros ora' jm' ?.
+intros ora' jm' VR ?.
 subst w'.
-destruct H15 as [H15 H20].
-assert (FL: exists m2, free_list (m_dry jm')  (Csem.blocks_of_env (ve_of rho')) = Some m2).
+destruct H15 as [H15 H20]. 
+assert (FL: exists m2, free_list (m_dry jm')  (Csem.blocks_of_env vx) = Some m2).
 admit.  (* prove this from H22, stackframe_of *)
 destruct FL as [m2 FL].
 pose (jm2 := free_list_juicy_mem _ _ _ FL).
-assert (FL2: free_list (m_dry jm') (Csem.blocks_of_env (ve_of rho')) = Some (m_dry jm2)) by admit.
+assert (FL2: free_list (m_dry jm') (Csem.blocks_of_env (ve)) = Some (m_dry jm2)) by admit.
 assert (FL3: level jm' = level jm2) by admit.
-pose (rval := match vl with v::_ => v | nil => Vundef end).
-pose (rho2 := match ret with
+pose (rval := match vl with v::_ => v | nil => Vundef end). 
+pose (te2 := match ret with
+            | None => tx
+            | Some rid => PTree.set rid rval tx
+            end).
+(*pose (rho2 := match ret with
                       | None => rho
-                      | Some rid => mkEnviron (ge_of rho) (ve_of rho) (PTree.set rid rval (te_of rho))
-                      end).
-
-specialize (H1 EK_normal nil rho2).
+                      | Some rid => mkEnviron (ge_of rho) (ve_of rho) (Map.set rid rval (te_of rho))
+                      end).*)
+specialize (H1 EK_normal nil te2 vx).  
 rewrite HR in H1; clear R HR. simpl exit_cont in H1.
 specialize (H1 (m_phi jm2)).
 spec H1; [ admit | ]. (* easy *)
-specialize (H1 _ (necR_refl _)).
+specialize (H1 _ (necR_refl _)). simpl in H15. 
 spec H1; [clear H1 | ].
 split.
 split.
-admit.  (* typechecking proof, looks hard/impossible we don't know anything about rho2*)
-unfold rho2; simpl ge_of. destruct ret; auto.
+simpl. unfold te2. destruct ret; auto. admit. (* true only if rval typechecks*) rewrite <- H0. auto.
+(* typechecking proof, stuck, trying to understand what vl is and what we know about it*)
+auto. 
 rewrite <- sepcon_assoc.
 admit.  (* very plausible *)
-hnf in H1.
+hnf in H1. 
 specialize (H1 ora' jm2).
-specialize (H1 (eq_refl _)).
+specialize (H1 (eq_refl _) (eq_refl _)).
 case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [auto] |].
 destruct (levelS_age1 jm' _ H21) as [jm'' ?].
 destruct (age_twin' jm' jm2 jm'') as [jm2'' [? ?]]; auto.
 pose proof (age_safe _ _ _ _ H26 _ _ _ H1).
-exists  (State (ve_of rho2) (te_of rho2) k); exists jm2''.
+exists  (State (vx)(te2) k); exists jm2''.
 replace n0 with (level jm2'') by admit.  (* easy *) 
 split; auto.
 split.
 simpl.
-unfold rho2.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl.
 assert (f.(fn_return)=Tvoid).
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
 unfold fn_funsig in H18. rewrite H28 in H18. rewrite H18 in TC5. simpl in TC5.
-destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). rewrite TC5 in *.
-apply step_return with f None Vundef (te_of rho); simpl; auto.
-simpl.
+destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite TC5 in *.
+apply step_return with f None Vundef (tx); simpl; auto. 
 assert (typecheck_val v (fn_return f) = true).
  clear - H22; unfold bind_ret in H22; destruct vl; normalize in H22; try contradiction; auto.
  destruct H22. destruct H. apply H.
 destruct ret.
 simpl.
 unfold rval.
-apply step_return with (zap_fn_return f) None v (PTree.set i v (te_of rho)); simpl; auto.
+apply step_return with (zap_fn_return f) None v (PTree.set i v tx); simpl; auto.
 elimtype False.
 clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
 destruct TC5. rewrite H0 in H28 by auto.
@@ -386,7 +391,7 @@ auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H16.
 destruct (build_call_temp_env f (eval_exprlist bl rho)) as [te' ?]; auto.
 exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
-                                     :: Kcall ret f (ve_of rho) (te_of rho) :: k)).
+                                     :: Kcall ret f (vx) (tx) :: k)).
 exists  jm'.
 split.
 split; auto.
@@ -394,28 +399,30 @@ eapply step_call_internal with (vargs:=eval_exprlist bl rho); eauto.
 4: unfold type_of_function; reflexivity.
 admit. (* typechecking proof *)
 rewrite <- H3.
-eapply (eval_expr_relate _ _ _ _ _ H0 TC3 TC1).
+eapply eval_expr_relate; try solve[rewrite H0; auto]; eauto. 
 admit. (* typechecking proof, make a lemma for this one *)
 
-pose (rho3 := mkEnviron (ge_of rho) ve' te').
 assert (n >= level jm')%nat.
 destruct H20. clear - H22 H2.
 change (level (m_phi jm)) with (level jm) in H2.
 omega.
+pose (rho3 := mkEnviron (ge_of rho) (make_venv ve') (make_tenv te')).
 assert (app_pred (funassert G rho3) (m_phi jm')).
 clear - H4 H20. destruct H20 as [? _].
 apply (resource_decay_funassert _ _ _ _ _ H) in H4.
 unfold rho3; clear rho3.
 apply H4.
-specialize (H19 rho3 _ H22 _ (necR_refl _)).
+specialize (H19 te' ve' _ H22 _ (necR_refl _)).
 spec H19; [clear H19|].
-split; [split|]; auto.
+split; [split|]; auto. Focus 3. 
+unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
+simpl ge_of in H23. auto. 
 hnf. unfold func_tycontext.
 admit. (* typechecking proof *)
 normalize.
-split; auto.
+split; auto. unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23. 
+simpl ge_of in H23. auto. 
 unfold bind_args.
-unfold rho3 at 1.
 unfold tc_formals.
 normalize.
 rewrite <- sepcon_assoc.
@@ -430,9 +437,9 @@ admit.  (* plausible?  *)
 specialize (H19 ora jm').
 apply age_level in H13.
 destruct H20.
-change (level jm = S n) in H2. rewrite H2 in H24; inv H24.
-apply H19.
-unfold rho3; simpl; auto.
+change (level jm = S n) in H2. rewrite H2 in H24; inversion H24. subst n.
+auto.
+
 Qed.
 
 Lemma semax_call: 
@@ -451,7 +458,7 @@ rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? ?.
 destruct (match_fsig_e _ _ _ H) as [TC4 TC5]; clear H.
 intros.
 rename H0 into H1.
-intro rho.
+intros tx vx.
 intros ? ? ? ? [[TC3 ?] ?].
 assert (H0': necR w (level a')).
 apply nec_nat. apply necR_level in H2. apply le_trans with (level y); auto.
@@ -460,7 +467,7 @@ eapply pred_nec_hereditary in Prog_OK; [ | apply H0'].
 clear w H0' H0 y H2.
 rename a' into w.
 destruct TC3 as [TC3 H0].
-intros ora jm ?.
+intros ora jm _ ?.
 subst w.
 apply extend_sepcon_andp in H3; auto.
 destruct H3 as [H2 H3].
@@ -482,7 +489,7 @@ destruct H8 as [fs H8].
 generalize H4; intros [H10 _].
 specialize (H10 id fs _ (necR_refl _) H8).
 destruct H10 as [v' [b' [[H10 H11] H13]]].
-simpl in H10. inversion2 H7 H10.
+simpl in H10. simpl in H7. inversion2 H7 H10.
 simpl in H11. subst b'.
 unfold func_at in H13.
 rewrite H12 in H13.
@@ -499,13 +506,14 @@ subst A'.
 apply inj_pair2 in H11. rename H11 into H15.
 clear H6; pose (H6:=True).
 clear H9; pose (H9:=True).
-rewrite <- H0 in H7.
-unfold filter_genv in H7.
+rewrite H0 in H7.
+unfold filter_genv in H7. simpl in H7.
 invSome.
 assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H11; auto).
 destruct H2; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
+remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist bl rho).
 fold args in H5.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
@@ -543,7 +551,7 @@ rewrite semax_unfold in H1|-*.
 rename H1 into H2. pose proof I.
 intros.
 specialize (H2 psi w Prog_OK k F H3 H4).
-intro rho; specialize (H2 rho).
+intros tx vx; specialize (H2 tx vx).
 intros ? ? ? ? ?.
 specialize (H2 y H5 a'0 H6 H7).
 destruct H7 as [[? ?] _].
@@ -556,22 +564,24 @@ simpl; intros ? ?. unfold cl_after_external. destruct ret0; auto.
 reflexivity.
 intros.
 destruct H8 as [w1 [w2 [_ [_ ?]]]].
+remember (construct_rho (filter_genv psi) vx tx) as rho.
 specialize (H0 rho w2 (conj H7 H8)).
 destruct H0.
-assert (forall vf, Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a vf
-               -> Clight_sem.eval_expr psi (ve_of rho) (te_of rho) (m_dry jm) a' vf).
+assert (forall vf, Clight_sem.eval_expr psi vx tx (m_dry jm) a vf
+               -> Clight_sem.eval_expr psi vx tx (m_dry jm) a' vf).
 clear - H H0 H1 H7 H9 .
 admit.  (* typechecking proof, without typechecking on a we can't do relate
                                Also need uniqueness proof for eval_expr *) 
 assert (forall tyargs vargs, 
-             Clight_sem.eval_exprlist psi (ve_of rho) (te_of rho) (m_dry jm) bl tyargs vargs ->
-             Clight_sem.eval_exprlist psi (ve_of rho) (te_of rho) (m_dry jm) bl' tyargs vargs).
+             Clight_sem.eval_exprlist psi vx tx (m_dry jm) bl tyargs vargs ->
+             Clight_sem.eval_exprlist psi vx tx (m_dry jm) bl' tyargs vargs).
 clear - H12 H1 H7.
 admit.  (* typechecking proof, same difficulties as above *) 
-destruct H11; split; auto.
-inv H11; [eapply step_call_internal | eapply step_call_external ]; eauto.
+destruct H12; split; auto.
+inv H12; [eapply step_call_internal | eapply step_call_external ]; eauto.
 rewrite <- H; auto.
 rewrite <- H; auto.
+auto.
 Qed.
 
 Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
@@ -587,7 +597,7 @@ Proof.
 intros.
 hnf; intros.
 rewrite semax_fold_unfold.
-intro psi.
+intros psi.
 apply derives_imp.
 clear n.
 intros w ? k F.
@@ -597,7 +607,7 @@ clear w H0.
 rename w' into w.
 destruct H1.
 do 3 red in H.
-intro rho.
+intros te ve.
 intros n ? w' ? ?.
 assert (necR w (level w')).
 apply nec_nat.
@@ -605,15 +615,17 @@ apply necR_level in H2.
 apply le_trans with (level n); auto.
 apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
-destruct H3 as [[[? H4] ?] ?].
-specialize (H0 EK_return (eval_exprlist (opt2list ret) rho) rho).
+destruct H3 as [[[? H4] ?] ?]. 
+remember ((construct_rho (filter_genv psi) ve te)) as rho.
+specialize (H0 EK_return (eval_exprlist (opt2list ret) rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
+rewrite <- Heqrho.
 split; auto.
 split; auto.
 split; auto.
-intros ? ? ?.
-specialize (H0 ora jm H5).
+intros ? ? ? ?.
+specialize (H0 ora jm (eq_refl _) H6).
 eapply convergent_controls_safe; try apply H0.
 simpl; auto.
 intros ? ?; simpl.
@@ -621,51 +633,51 @@ unfold cl_after_external.
 auto.
 simpl; auto.
 intros.
-simpl in H6.
-destruct H6; split; auto.
-revert H6; simpl.
+simpl in H7.
+destruct H7; split; auto.
+revert H7; simpl.
 destruct ret. simpl.
 case_eq (call_cont k); intros.
-inv H8.
-inv H13.
+inv H9.
+inv H14.
 destruct c.
-elimtype False; clear - H6.
+elimtype False; clear - H7.
 admit.  (* easy *)
-elimtype False; clear - H6.
+elimtype False; clear - H7.
 admit.  (* easy *)
-elimtype False; clear - H6.
+elimtype False; clear - H7.
 admit.  (* easy *)
-elimtype False; clear - H6.
+elimtype False; clear - H7.
 admit.  (* easy *)
 destruct l0.
-clear H0 H2 H7.
-inv H8.
+clear H0 H2 H8.
+inv H9.
 destruct optid.
-destruct H16; congruence.
-inv H10.
-destruct H16.
+destruct H17; congruence.
+inv H11.
+destruct H17.
 econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
-exists (eval_expr e rho).
+exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
 split.
 
 admit.  (* typechecking proof *)
 admit.  (* typechecking proof, but this will be difficult because I think there's not enough
                  information to know that f is really the same as the function that Delta assumes *)
-inv H8.
+inv H9.
 destruct optid.
-destruct H19; congruence.
-symmetry in H13; inv H13.
-destruct H19.
+destruct H20; congruence.
+symmetry in H14; inv H14.
+destruct H20.
 elimtype False.
 admit.  (* typechecking proof, but this will be difficult because I think there's not enough
                  information to know that f is really the same as the function that Delta assumes;
                if we could know that, then the fact that fn_return f = Tvoid would do it *)
 simpl.
 intro.
-inv H6.
+inv H7.
 econstructor; try eassumption.
-rewrite call_cont_idem in H12; auto.
+rewrite call_cont_idem in H13; auto.
 Qed.
 
 End extensions.

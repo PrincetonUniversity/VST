@@ -37,7 +37,7 @@ Local Open Scope pred.
 
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition local:  (environ -> Prop) -> assert :=  lift1 prop.
@@ -102,7 +102,7 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
 
 Definition globals_only (rho: environ) : environ :=
-    mkEnviron (ge_of rho) (PTree.empty _) (PTree.empty _).
+    mkEnviron (ge_of rho) (Map.empty _) (Map.empty _).
 
 Fixpoint make_args (il: list ident) (vl: list val) (rho: environ)  :=
   match il, vl with 
@@ -140,7 +140,7 @@ Definition normal_ret_assert (Q: assert) : ret_assert :=
    fun ek vl => !!(ek = EK_normal) && (!! (vl = nil) && Q).
 
 Definition with_ge (ge: genviron) (G: assert) : mpred :=
-     G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
+     G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl => R ek vl * F.

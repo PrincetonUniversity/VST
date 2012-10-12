@@ -41,18 +41,18 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
 Program Definition assert_safe 
      {Z}
      (Hspec : juicy_ext_spec Z)
-     (ge: genv) (ctl: cont) : assert :=
+     (ge: genv) ve te (ctl: cont) : assert :=
   fun rho w => forall ora (jm:juicy_mem),
-         m_phi jm = w ->
-             jsafeN Hspec ge (level w) ora (State (ve_of rho) (te_of rho) ctl) jm.
+       rho = construct_rho (filter_genv ge) ve te ->  
+       m_phi jm = w ->
+             jsafeN Hspec ge (level w) ora (State ve te ctl) jm.
  Next Obligation.
   intro; intros.
   subst.
    destruct (oracle_unage _ _ H) as [jm0 [? ?]].
    subst.
-   specialize (H0 ora jm0 (eq_refl _)).
-   destruct rho; simpl in *.
-   forget (State ve te ctl) as c. clear ve te ctl.
+   specialize (H0 ora jm0 (eq_refl _) (eq_refl _)).
+   forget (State ve te ctl) as c. clear H ve te ctl.
   change (level (m_phi jm)) with (level jm).
   eapply age_safe; eauto.
 Qed.
@@ -68,9 +68,10 @@ Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
 
 Definition guard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: tycontext) (G: funspecs) (P : assert)  (ctl: cont) : pred nat :=
-     ALL rho:environ, 
+     ALL tx : Clight.temp_env, ALL vx : env,
+          let rho := construct_rho (filter_genv gx) vx tx in 
           !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho) && P rho && funassert G rho 
-             >=> assert_safe Hspec gx ctl rho.
+             >=> assert_safe Hspec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
@@ -94,12 +95,19 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
   | _ => Delta 
   end.
 
+Definition r_update_tenv (tx:Clight.temp_env) id vl := 
+match vl, id with 
+| v::_, Some ret => PTree.set ret v tx  
+| _,_ => tx
+end.
+
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
-    (gx: genv)  (Delta: exitkind -> tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
-     ALL ek: exitkind, ALL vl: list val, ALL rho:environ, 
-           !! (typecheck_environ rho (Delta ek) = true /\ filter_genv gx = ge_of rho) && 
+    (gx: genv) (Delta: exitkind -> tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
+     ALL ek: exitkind, ALL vl: list val, ALL tx: Clight.temp_env, ALL vx : env,
+           let rho := construct_rho (filter_genv gx) vx tx in 
+           !! (typecheck_environ rho (Delta ek) = true /\ filter_genv gx = ge_of rho ) && 
          ((F rho * R ek vl rho) && funassert G rho) >=> 
-               assert_safe Hspec gx (exit_cont ek vl ctl) rho.
+               assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -175,7 +183,7 @@ Definition believe_internal_
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
 
-Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (PTree.empty _) (PTree.empty _).
+Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
 Definition claims (ge: genv) (G: funspecs) v fsig A P Q : Prop :=
   exists id, In (id, mk_funspec fsig A P Q) G /\
@@ -225,7 +233,7 @@ Definition believe {Z} (Hspec:juicy_ext_spec Z)
 Lemma semax_fold_unfold : forall
   {Z} (Hspec : juicy_ext_spec Z),
   semax' Hspec = fun Delta G P c R =>
-  ALL gx: genv, 
+  ALL gx: genv,
        believe Hspec G gx G --> 
      ALL k: cont, ALL F: assert, 
         (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) G F R k) -->
@@ -241,7 +249,7 @@ intros.
 unfold semax_.
 clear.
 sub_unfold.
-apply subp_allp; intros.
+do 1 (apply subp_allp; intros). 
 apply subp_imp; [ | auto 50 with contractive].
 apply subp_allp; intros.
 apply subp_allp; intros.

@@ -100,7 +100,8 @@ unfold rguard, guard.
 apply andp_derives; auto.
 apply allp_derives; intro ek.
 apply allp_derives; intro vl.
-apply allp_derives; intro rho.
+apply allp_derives; intro te.
+apply allp_derives; intro ve.
 intros ? ?.
 intros ? ? ? ? ?.
 specialize (H0 _ H1 _ H2).
@@ -109,7 +110,7 @@ destruct H3 as [[? ?] ?].
 split; auto.
 split; auto.
 destruct H5; split; auto.
-specialize (H ek vl rho).
+specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
 destruct H5 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split3; auto.
 apply H; split; auto.
@@ -128,7 +129,8 @@ apply allp_derives; intro k.
 apply allp_derives; intro F.
 apply imp_derives; auto.
 unfold guard.
-apply allp_derives; intro rho.
+apply allp_derives; intro te.
+apply allp_derives; intro ve.
 apply subp_derives; auto.
 apply andp_derives; auto.
 apply prop_andp_left; intros [? ?].
@@ -161,34 +163,34 @@ Proof.
 intros ? ? ? ?; intros.
 intros n.
 rewrite semax_fold_unfold.
-intro psi.
+intros psi.
 intros ?w _ _. clear n.
 intros k F.
 intros ?w _ ?.
 clear w. rename w0 into n.
-intros rho w ?.
+intros te ve w ?.
 destruct H0 as [H0' H0].
-specialize (H0 EK_normal nil rho w H1).
+specialize (H0 EK_normal nil te ve w H1).
 simpl exit_cont in H0.
-simpl in H0'. clear n H1.
+simpl in H0'. clear n H1. remember ((construct_rho (filter_genv psi) ve te)) as rho.
 revert w H0. 
 apply imp_derives; auto.
 rewrite andp_assoc.
 apply andp_derives; auto.
+repeat intro. simpl in *. 
 repeat intro.
 simpl in H0.
-specialize (H0 ora jm H1).
+specialize (H0 ora jm H1 H2).
 destruct (@level rmap _ a).
-simpl; auto.
-apply convergent_controls_safe with (State (ve_of rho) (te_of rho) k); auto.
+simpl; auto. 
+apply convergent_controls_safe with (State ve te k); auto.
+
 simpl.
 
-forget (te_of rho) as te. forget (ve_of rho) as ve.
-
-intros.
-destruct H2 as [? [? ?]].
+intros. 
+destruct H3 as [? [? ?]].
 split3; auto.
-clear - H2.
+
 econstructor; eauto.
 Qed.
 
@@ -215,7 +217,7 @@ intros.
 intro w.
 rewrite semax_fold_unfold.
 intros gx w' ? ? k F w'' ? ?.
-intros rho w''' ? w4 ? [[? ?] ?].
+intros te ve w''' ? w4 ? [[? ?] ?].
 rewrite sepcon_andp_prop in H7.
 destruct H7.
 specialize (H H7); clear PP H7.
@@ -327,7 +329,7 @@ Proof.
 rewrite semax_unfold in *.
 intros.
 intros.
-intros rho ?w ? ?w ? ?.
+intros te ve ?w ? ?w ? ?.
 rewrite exp_sepcon2 in H4.
 destruct H4 as [[TC [x H5]] ?].
 specialize (H x).
@@ -335,7 +337,7 @@ specialize (H psi w Prog_OK k F H0).
 spec H.
 clear - H1.
 unfold rguard in *.
-intros ek vl rho; specialize (H1 ek vl rho).
+intros ek vl tx vx. specialize (H1 ek vl tx vx).
 red in H1. 
 eapply subp_trans'; [| apply H1 ].
 apply derives_subp.
@@ -380,7 +382,7 @@ inv H0.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall psi (Q: assert), exists k,  assert_safe Hspec psi k = Q.
+  forall psi tx vx (Q: assert), exists k,  assert_safe Hspec psi tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator 
   to the programming language 
 *)
@@ -409,7 +411,7 @@ intros ? ?.
 destruct H as [[H ?] ?].
 rewrite semax_fold_unfold; rewrite semax_fold_unfold in H1.
 intros gx ?w ?.
-specialize (H1 gx _ H2).
+specialize (H1 gx _  H2).
 apply (pred_nec_hereditary _ _ _ H2) in H.
 apply (pred_nec_hereditary _ _ _ H2) in H0.
 clear H2 a.
@@ -419,12 +421,12 @@ intros st F ? ? ?.
 specialize (H1 st F _ H3).
 spec H1.
 destruct H4; split; auto.
-intros ek vl rho. specialize (H5 ek vl rho).
+intros ek vl tx vx. specialize (H5 ek vl tx vx).
 eapply subp_trans'; try apply H5.
 apply andp_subp'; auto.
 apply andp_subp'; auto.
 (* apply subp_later; auto with typeclass_instances. *)
-specialize (H ek vl rho).
+specialize (H ek vl).
 apply (pred_nec_hereditary _ _ _ H3) in H.
 clear - H.
 revert a' H.
@@ -434,7 +436,7 @@ apply sepcon_subp';  auto.
 
 apply (pred_nec_hereditary _ _ _ H3) in H0.
 clear - H1 H0.
-intro rho; specialize (H1 rho); specialize (H0 rho).
+intros tx vx; specialize (H1 tx vx).
 eapply subp_trans'; try apply H1. clear H1.
 apply andp_subp'; auto.
 apply andp_subp'; auto.
@@ -475,8 +477,9 @@ replace (fun rho : environ => F0 rho * (P rho * F rho))
   with  (fun rho : environ => F0F rho * P rho).
 apply H.
 unfold F0F; clear - H1.
-intros ek vl rho; specialize (H1 ek vl rho).
+intros ek vl tx vx; specialize (H1 ek vl tx vx).
 red in H1.
+remember ((construct_rho (filter_genv psi) vx tx)) as rho.
 replace (F0 rho * F rho * R ek vl rho) with (F0 rho * (frame_ret_assert R F) ek vl rho); auto.
 clear.
 unfold frame_ret_assert.
@@ -489,9 +492,9 @@ f_equal. apply sepcon_comm.
 Qed.
 
 Lemma assert_safe_last:
-  forall ge st rho w,
-   (forall w', age w w' -> assert_safe Hspec ge st rho w) ->
-    assert_safe Hspec ge st rho w.
+  forall ge ve te st rho w,
+   (forall w', age w w' -> assert_safe Hspec ge ve te st rho w) ->
+    assert_safe Hspec ge ve te st rho w.
 Proof.
 intros.
 case_eq (age1 w). auto.
@@ -519,12 +522,12 @@ auto.
 Qed.
 
 Lemma later_strengthen_safe1:  
-  forall (P: pred rmap) ge k rho,
-              ((|> P) >=> assert_safe Hspec ge k rho) |--   |>  (P >=> assert_safe Hspec ge k rho).
+  forall (P: pred rmap) ge ve te k rho,
+              ((|> P) >=> assert_safe Hspec ge ve te k rho) |--   |>  (P >=> assert_safe Hspec ge ve te k rho).
 Proof.
 intros.
 intros w ?.
-apply (@pred_sub_later' _ _ P  (assert_safe Hspec ge k rho)); auto.
+apply (@pred_sub_later' _ _ P  (assert_safe Hspec ge ve te k rho)); auto.
 eapply subp_trans'; try apply H.
 apply derives_subp; clear.
 intros w0 ?.
@@ -535,7 +538,7 @@ simpl in *; intros.
 subst y. change (level (m_phi jm)) with (level jm).
 generalize (oracle_unage _ _ H); intros [jm0 [? ?]]. subst x.
 eapply age_safe; try eassumption.
-specialize (H0 ora jm0 (eq_refl _)).
+specialize (H0 ora jm0 H1 (eq_refl _)).
 apply H0.
 apply IHclos_trans2.
 eapply pred_nec_hereditary; eauto.
@@ -1083,27 +1086,28 @@ Lemma guard_safe_adj:
 Proof.
 intros.
 unfold guard.
-apply allp_derives. intro rho.
+apply allp_derives. intros tx.
+apply allp_derives. intros vx.
 apply subp_derives; auto.
-intros w ? ? ? ?.
+intros w ? ? ? ? ?.
 apply H.
 eapply H0; eauto.
 Qed.
 
 Lemma assert_safe_adj:
-  forall ge k k' rho, 
+  forall ge ve te k k' rho, 
       (forall n, control_as_safe ge n k k') ->
-     assert_safe Hspec ge k rho |-- assert_safe Hspec ge k' rho.
+     assert_safe Hspec ge ve te k rho |-- assert_safe Hspec ge ve te k' rho.
 Proof.
- intros. intros w ? ? ? ?. specialize (H0 ora jm H1).
+ intros. intros w ? ? ? ? ?. specialize (H0 ora jm H1 H2).
  eapply H; try apply H0. apply le_refl.
 Qed.
 
 Lemma assert_safe_adj':
-  forall ge k k' rho P w, 
+  forall ge ve te k k' rho P w, 
       (forall n, control_as_safe ge n k k') ->
-     app_pred (P >=> assert_safe Hspec ge k rho) w ->
-     app_pred (P >=> assert_safe Hspec ge k' rho) w.
+     app_pred (P >=> assert_safe Hspec ge ve te k rho) w ->
+     app_pred (P >=> assert_safe Hspec ge ve te k' rho) w.
 Proof.
  intros.
  eapply subp_trans'; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
@@ -1117,14 +1121,14 @@ Lemma rguard_adj:
 Proof.
  intros.
  intros n H0;  hnf in H0|-*.
- intros ek vl rho; specialize (H0 ek vl rho).
+ intros ek vl te ve; specialize (H0 ek vl te ve).
  eapply assert_safe_adj'; eauto.
 Qed.
 
 
-Lemma assert_safe_last': forall {Z} (Hspec: juicy_ext_spec Z) ge ctl rho w,
-            (age1 w <> None -> assert_safe Hspec ge ctl rho w) ->
-             assert_safe Hspec ge ctl rho w.
+Lemma assert_safe_last': forall {Z} (Hspec: juicy_ext_spec Z) ge ve te ctl rho w,
+            (age1 w <> None -> assert_safe Hspec ge ve te ctl rho w) ->
+             assert_safe Hspec ge ve te ctl rho w.
 Proof.
  intros. apply assert_safe_last; intros. apply H. rewrite H0. congruence.
 Qed.

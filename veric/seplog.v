@@ -69,7 +69,7 @@ Local Open Scope pred.
 
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
@@ -162,7 +162,7 @@ Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
 Definition bind_args (formals: list (ident * type)) (P: environ -> pred rmap) : assert :=
           fun rho => !! tc_formals formals rho && P rho.
 
-Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (PTree.empty _) (PTree.empty _)).
+Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
 
 Definition ret_temp : ident := 1%positive.
 
@@ -219,7 +219,7 @@ Definition normal_ret_assert (Q: assert) : ret_assert :=
    fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
 
 Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
-     G (mkEnviron ge (Maps.PTree.empty _) (Maps.PTree.empty _)).
+     G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl rho => R ek vl rho * F rho.

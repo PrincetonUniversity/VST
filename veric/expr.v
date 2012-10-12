@@ -8,7 +8,7 @@ Require Import veric.Clight_lemmas.
 
 Definition any_environ : environ :=
  (* Mainly for use in demonstrating that the environ type is inhabited *)
-  mkEnviron (fun _ => None)  (Maps.PTree.empty _) (Maps.PTree.empty _).
+  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
 
 Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
 Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
@@ -105,7 +105,7 @@ Proof.
 intros. destruct v; destruct t; simpl in *; auto; try if_tac in H; auto; try congruence.
 Qed.
 
-Definition eval_id (id: ident) (rho: environ) := force_val (PTree.get id (te_of rho)).
+Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
 Fixpoint eval_expr (e: expr) (rho:environ) : val :=
  match e with
@@ -133,7 +133,7 @@ Fixpoint eval_expr (e: expr) (rho:environ) : val :=
 
  with eval_lvalue (e: expr) (rho: environ) : val := 
  match e with 
- | Evar id ty => match PTree.get id (ve_of rho) with
+ | Evar id ty => match Map.get (ve_of rho) id with
                          | Some (b,ty') => if eqb_type ty ty'
                                                     then if negb (type_is_volatile ty')
                                                        then Vptr b Int.zero else Vundef
@@ -473,19 +473,19 @@ end.
 
 (*Environment typechecking functions *)
 
-Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : PTree.t val) : bool :=
+Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : Map.t val) : bool :=
 match tty with 
- | (id,(ty, asn))::tl => match te ! id with
+ | (id,(ty, asn))::tl => match Map.get te id with
                   | Some v => if typecheck_val v ty (*&& asn*) then typecheck_temp_environ tl te else false
                   | None => false
                   end
  | nil => true
 end.
 
-Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: env) (ge : genviron)
+Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: venviron) (ge : genviron)
  : bool :=
 match vty with
- | (id,ty)::tl => match ve!id with
+ | (id,ty)::tl => match Map.get ve id with
                   | Some (_,ty') => eqb_type ty ty' && 
                            typecheck_var_environ tl ve ge 
                   | None => match ge id with
@@ -501,8 +501,8 @@ match vty with
  | nil => true
 end.
 
-Definition typecheck_non_var_list vl (ve:env) :=
-forallb (fun id => match ve!id with Some _ => false | _ => true end) vl.
+Definition typecheck_non_var_list vl (ve:venviron) :=
+forallb (fun id => match Map.get ve id with Some _ => false | _ => true end) vl.
 
 
 Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
@@ -562,7 +562,7 @@ match v1, v2 with
                            | _ , _ => False
                           end.
 
-Definition denote_tc_initialized id rho := exists v, (te_of rho) ! id = Some v.
+Definition denote_tc_initialized id rho := exists v, Map.get (te_of rho) id = Some v.
 
 Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   match a with
@@ -797,27 +797,27 @@ Qed.
 
 Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
-     (forall i, S i \/ PTree.get i (te_of rho) = PTree.get i te') ->
+     (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
-  mkEnviron (ge_of rho) (ve_of rho) (Maps.PTree.set x v (te_of rho)).
+  mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
 
 
 Lemma eval_id_same: forall rho id v, eval_id id (env_set rho id v) = v.
-Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite PTree.gss. auto.
+Proof. unfold eval_id; intros; simpl. unfold force_val. rewrite Map.gss. auto.
 Qed.
 Hint Rewrite eval_id_same : normalize.
 
 Lemma eval_id_other: forall rho id id' v,
    id<>id' -> eval_id id' (env_set rho id v) = eval_id id' rho.
 Proof.
- unfold eval_id, force_val; intros. simpl. rewrite PTree.gso; auto.
+ unfold eval_id, force_val; intros. simpl. rewrite Map.gso; auto.
 Qed.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
 

@@ -316,7 +316,8 @@ apply allp_derives; intro k.
 apply allp_derives; intro F.
 apply imp_derives; auto.
 unfold guard.
-apply allp_derives; intro rho.
+apply allp_derives; intro tx.
+eapply allp_derives; intro vx.
 eapply subp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -945,14 +946,14 @@ econstructor.
  specialize (H3 (Genv.globalenv prog) (prog_contains_prog_funct _ H0)).
  unfold temp_bindings. simpl length. simpl typed_params. simpl type_of_params.
 pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
-pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) empty_env 
-                      (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))).
-change empty_env  with (ve_of rho).
-change (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)) with (te_of rho).
+pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) (Map.empty (block * type)) 
+                      (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
+(*change empty_env  with (ve_of rho).*)
+(*change (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)) with (te_of rho).*)
 eapply semax_call_aux with (Delta :=Delta1)(F0:= fun _ => TT)
          (R := normal_ret_assert (fun _ => TT)) (F:=TT)
           (x := tt)(Q := fun _ => main_post prog tt);
-  try apply H3; try eassumption.
+  try apply H3; try eassumption. Focus 7. auto.
 admit.  (* typechecking proof *)
 reflexivity.
 admit.  (* typechecking proof *)
@@ -964,13 +965,12 @@ extensionality rho'.
 unfold main_post.
 normalize. rewrite TT_sepcon_TT. auto.
 reflexivity.
-unfold expr.eval_expr; simpl; reflexivity.
 rewrite (corable_funassert G rho).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
 destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
 unfold rho; apply funassert_initial_core; auto.
-intros ek vl rho'.
+intros ek vl tx' vx'.
 unfold normal_ret_assert.
 normalize.
 rewrite TT_sepcon_TT.
@@ -978,7 +978,7 @@ normalize.
 apply derives_subp.
 normalize.
 simpl.
-intros ? ? ? ? ?.
+intros ? ? ? ? _ ?.
 destruct H9 as [[? ?] ?].
 hnf in H9, H11. subst ek vl.
 destruct H8.

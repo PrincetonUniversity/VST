@@ -16,19 +16,88 @@ Require Export EqNat.
 Require Export veric.Coqlib2.
 Require Export Relations.
 
+Set Implicit Arguments.
 
-Definition genviron := ident -> option (val*type).
+(***** GENERAL KV-Maps *****)
+
+Module Map. Section map.
+Variables (B : Type).
+
+Definition t := positive -> option B.
+
+Definition get (h: t) (a:positive) : option B := h a.
+
+Definition set (a:positive) (v: B) (h: t) : t :=
+  fun i => if ident_eq i a then Some v else h i.   
+
+Definition remove (a: positive) (h: t) : t :=
+  fun i => if ident_eq i a then None else h i.
+
+Definition empty : t := fun _ => None.
+
+(* MAP Axioms 
+ *)
+
+Lemma gss h x v : get (set x v h) x = Some v.
+unfold get, set; if_tac; intuition.
+Qed.
+
+Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
+unfold get, set; intros; if_tac; intuition.
+Qed.
+
+Lemma grs h x : get (remove x h) x = None.
+unfold get, remove; intros; if_tac; intuition.
+Qed.
+
+Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
+unfold get, remove; intros; if_tac; intuition.
+Qed.
+
+Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
+Proof.
+intros. extensionality x. apply H. 
+Qed. 
+
+Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
+Proof.
+apply ext; intros; unfold get, set; if_tac; intuition. Qed.
+
+Lemma gsspec:
+    forall (i j: positive) (x: B) (m: t),
+    get (set j x m) i = if ident_eq i j then Some x else get m i. 
+Proof.
+intros. unfold get; unfold set; if_tac; intuition.
+Qed.
+
+Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.
+Proof.
+intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
+if_tac; subst; auto.
+Qed.
+
+End map. 
+
+
+End Map.
+
+
+Definition genviron := Map.t (val*type).
+
+Definition venviron := Map.t (block * type).
+
+Definition tenviron := Map.t val.
 
 Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: Clight.env) (te: Clight.temp_env), environ.
+ mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
 
 Definition ge_of (rho: environ) : genviron :=
   match rho with mkEnviron ge ve te => ge end.
 
-Definition ve_of (rho: environ) : Clight.env :=
+Definition ve_of (rho: environ) : venviron :=
   match rho with mkEnviron ge ve te => ve end.
 
-Definition te_of (rho: environ) : Clight.temp_env :=
+Definition te_of (rho: environ) : tenviron :=
   match rho with mkEnviron ge ve te => te end.
 
 Definition opt2list (A: Type) (x: option A) :=
@@ -77,4 +146,10 @@ Definition filter_genv (ge: Clight.genv) : genviron :=
                    | None => None
                    end. 
 
-Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Maps.PTree.empty _) (Maps.PTree.empty _).
+Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => PTree.get id te.
+
+Definition make_venv (te : Clight.env) : venviron := fun id => PTree.get id te.
+
+Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) . 
+
+Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
