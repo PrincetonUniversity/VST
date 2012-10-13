@@ -7,6 +7,8 @@ Require veric.SequentialClight.
 
 Local Open Scope logic.
 
+Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
+
 Definition force_int (v: val) := 
  match v with
  | Vint i => i | _ => Int.zero 
@@ -213,7 +215,7 @@ apply H.
 intros.
 destruct (eq_dec id i); auto.
 right.
-rewrite PTree.gso; auto.
+rewrite Map.gso; auto.
 Qed.
 
 
@@ -234,14 +236,14 @@ Hint Resolve  eval_expr_Etempvar'.
 Lemma subst_eval_id_eq:
  forall id v, subst id v (eval_id id) = v.
 Proof. unfold subst, eval_id; intros. extensionality rho.
-    unfold force_val, env_set; simpl. rewrite PTree.gss; auto.
+    unfold force_val, env_set; simpl. rewrite Map.gss; auto.
 Qed.
 
 Lemma subst_eval_id_neq:
   forall id v j, id<>j -> subst id v (eval_id j) = eval_id j.
 Proof.
     unfold subst, eval_id; intros. extensionality rho.
-    unfold force_val, env_set; simpl. rewrite PTree.gso; auto.
+    unfold force_val, env_set; simpl. rewrite Map.gso; auto.
 Qed.
 
 Hint Rewrite subst_eval_id_eq : normalize.

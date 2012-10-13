@@ -1,7 +1,7 @@
 Require Import msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import compcert.Ctypes.
-Require Import progs.client_lemmas.
+Require Import progs.field_mapsto.
 
 Local Open Scope logic.
 
@@ -169,7 +169,8 @@ unfold lseg_cons, ptr_neq; intros.
 rewrite lseg_unfold at 1; auto.
 destruct l.
 apply pred_ext; normalize.
-intros; discriminate.
+intros.
+destruct H2; inv H2.
 apply pred_ext; normalize.
 intro.
 apply exp_right with v; normalize.
@@ -210,6 +211,8 @@ intros.
 inv H2.
 apply exp_right with x2.
 normalize.
+inv H3.
+auto.
 Qed.
 
 Lemma lseg_unroll: forall T {ls: listspec T} l x z , 
@@ -235,11 +238,10 @@ pattern (field_mapsto Share.top list_struct list_link x y) at 1;
  erewrite (field_mapsto_typecheck_val list_struct list_link Share.top x y); try reflexivity.
 normalize.
 apply andp_right; auto.
-apply andp_right; apply prop_right.
+apply prop_right; split3; auto.
+rewrite <- (list_unroll_dtype list_struct).
 rewrite <- H0.
 f_equal.
-symmetry.
-etransitivity; [ | apply (list_unroll_dtype list_struct)].
 unfold unroll_composite; simpl.
 rewrite if_true; auto.
 rewrite <- H1.
@@ -250,12 +252,13 @@ rewrite if_true by auto. rewrite if_true by auto.
 apply list_type_is.
 apply orp_left; normalize.
 unfold lseg_cons.
-normalize. intros. inv H0.
+normalize. intros.
+destruct H0. inv H0.
 apply orp_left.
 normalize. inv H0.
 unfold lseg_cons.
 normalize.
-intros. symmetry in H0; inv H0.
+intros. destruct H0. symmetry in H0; inv H0.
 apply exp_right with x2.
 normalize.
 Qed.

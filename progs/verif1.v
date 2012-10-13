@@ -3,8 +3,10 @@ Require Import veric.SeparationLogic.
 Require Import compcert.Ctypes.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
+Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
+Require Import progs.forward.
 Require Import progs.list.
 
 Local Open Scope logic.
@@ -181,10 +183,11 @@ replace_in_pre (ilseg cts) (ilseg_cons cts).
    apply exp_right with i; normalize.
    apply exp_right with cts; normalize.
    apply exp_right with y; normalize.
-normalizex.
-intros h r y.
-normalizex.
-subst cts.
+normalizex. intro h.
+normalizex. intro r.
+normalizex. intro y.
+normalizex. subst cts.
+simpl list_data; simpl list_link.
 
 forward.
 forward.  intro old_t.
@@ -221,8 +224,8 @@ eapply tc_eval_id_i; eauto.
 rewrite H0.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
 destruct (eval_id P.i_s rho); inv H1; auto.
+unfold retval; simpl. normalize.
 Qed.
-
 
 Definition reverse_Inv (contents: list int) : assert :=
           (EX cts1: list int, EX cts2 : list int,
@@ -273,40 +276,57 @@ replace_in_pre (ilseg cts2) (ilseg_cons cts2).
    apply exp_right with i; normalize.
    apply exp_right with cts2; normalize.
    apply exp_right with y; normalize.
-normalizex.
-intros h r y.
-normalizex.
-subst cts2.
+normalizex. intro h.
+normalizex; intro r.
+normalizex; intro y.
+normalizex; subst cts2.
+simpl list_data; simpl list_link.
 forward.
-
-(* Some experiments for store_field ...
-match goal with
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                  (Ssequence (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _) _ =>
-  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2)::Q) 
-                                     (SEPx R))));
-   [ go_lower 
-   | (* Don't know why the fldx stuff in the next line is necessary, but it doesn't work without it *)
-     let fldx:=fresh "fld" in pose (fldx:=fld); isolate_field_tac e fldx R; unfold fldx in *; clear fldx;
-     eapply semax_seq; [ apply sequential'  (*; semax_field_tac1  *)
-                                          | 
-                                          ]
-    ]
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                   (Sassign (Efield (Ederef ?e _) ?fld _) ?e2) _ =>
-     apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-     [ go_lower 
-     | isolate_field_tac e fld R;
-       eapply semax_post; [ | (*semax_field_tac1*) ]
-     ]
-end (*; normalizex*) .
-unfold tc_expr; simpl; normalizex.
-
-eapply semax_store_field'.
-
-*)
-admit.
-
+forward.
+forward. intro old_w.
+forward.
+intros.
+unfold reverse_Inv.
+go_lower.
+unfold normal_ret_assert, for1_ret_assert; normalizex.
+intro. unfold subst; simpl. normalize.
+apply exp_right with (h::cts).
+apply exp_right with r.
+simpl.
+normalize.
+rewrite app_ass.
+simpl.
+normalize.
+rewrite (ilseg_unroll (h::cts)).
+apply derives_trans with (ilseg_cons (h :: cts) (eval_id P.i_w rho) nullval *
+    ilseg r (eval_id P.i_v rho) nullval).
+unfold ilseg_cons, lseg_cons.
+normalize. apply exp_right with (Vint h).
+normalize. apply exp_right with (map Vint cts).
+normalize. apply exp_right with old_w.
+normalize. rewrite H0.
+simpl list_data; simpl list_link.
+repeat rewrite <- sepcon_assoc.
+erewrite (field_mapsto_typecheck_val _ _ _ _ _ P.i_list _  noattr); [ | reflexivity].
+type_of_field_tac.
+normalize.
+apply andp_right.
+apply prop_right.
+clear - H3.
+destruct old_w; inv H3; simpl; auto.
+replace (field_mapsto.eval_cast P.t_listptr P.t_listptr old_w) with old_w.
+Focus 2.
+clear - H3.
+destruct old_w ; inv H3; simpl; auto.
+repeat pull_right (field_mapsto Share.top P.t_list P.i_t (eval_id P.i_w rho) old_w).
+apply sepcon_derives; auto.
+repeat pull_right (field_mapsto Share.top list_struct P.i_h (eval_id P.i_w rho) (Vint h)).
+apply sepcon_derives; auto.
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+apply now_later.
+apply sepcon_derives; auto.
+apply orp_right2; auto.
 (* after the loop *)
 forward.
 go_lower.
@@ -314,13 +334,149 @@ simpl.
 apply andp_right; normalize.
 apply prop_right.
 eapply tc_eval_id_i; eauto.
+unfold retval; normalize.
 Qed.
+
+
+Definition fun_assert_emp fsig A P Q v := emp && fun_assert fsig A P Q v.
+Definition make_args' (fsig: funsig) args rho :=make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
+
+Lemma semax_call1: forall Delta G A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
+           match_fsig fsig bl (Some id) = true ->
+  semax Delta G
+         (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
+            (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
+                      lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
+          (Scall (Some id) a bl)
+          (normal_ret_assert 
+            (EX old:val, 
+              PROPx P (LOCALx Q 
+                (SEPx (lift1 (Post x) (get_result1 id) :: map (subst id (lift0 old)) R))))).
+Proof.
+Admitted.
+
+
+Lemma semax_fun_id':
+      forall id fsig (A : Type) (Pre Post : A -> assert)
+              Delta (G : funspecs) P Q R PostCond c (GLBL : In id (non_var_ids Delta)),
+    In (id, mk_funspec fsig A Pre Post) G ->
+       semax Delta G 
+        (PROPx P (LOCALx Q (SEPx (lift1 (fun_assert_emp fsig A Pre Post)
+                                                     (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))))
+                                                       :: R))))
+                              c PostCond ->
+       semax Delta G (PROPx P (LOCALx Q (SEPx R))) c PostCond.
+Proof.
+intros. 
+apply (semax_fun_id id fsig A Pre Post Delta G); auto.
+eapply semax_pre; [ | apply H0].
+forget (eval_lvalue
+                      (Evar id
+                         (Tfunction (type_of_params (fst fsig)) (snd fsig)))) as f.
+go_lower.
+rewrite andp_comm.
+unfold fun_assert_emp.
+rewrite corable_andp_sepcon2 by apply corable_fun_assert.
+rewrite emp_sepcon; auto.
+Qed.
+
+Ltac semax_call_tac1 :=
+match goal with 
+ |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx 
+          (lift1 (fun_assert_emp ?fs ?A ?Pre ?Post) ?f :: ?R))))
+        (Ssequence (Scall (Some ?id) ?a ?bl) _)
+        _ =>
+ let H := fresh in let x := fresh "x" in let F := fresh "F" in
+      evar (x:A); evar (F: list assert); 
+       let PR := fresh "Pre" in pose (PR := Pre);
+     assert (H: lift1 (PR x)  (make_args' fs (eval_exprlist bl)) * SEPx F |-- SEPx R);
+     [ | 
+            apply semax_pre with (PROPx P
+                (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
+                 (SEPx (lift1 (PR x)  (make_args' fs (eval_exprlist bl)) ::
+                           lift1 (fun_assert_emp fs A Pre Post) f  :: F))));
+              unfold F in *; clear F H
+      ];
+ idtac
+ end.
 
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.
-intro x; destruct x.
+intro u.
+replace (main_pre P.prog u) with 
+   (lift2 (ilseg (map Int.repr (1::2::3::nil))) (eval_expr (Eaddrof (Evar P.i_three P.t_list) P.t_listptr)) (lift0 nullval))
+ by admit. (* must improve global var specifications *)
+simpl fn_body; simpl fn_params; simpl fn_return.
+normalize.
+canonicalize_pre.
+eapply (semax_fun_id' P.i_reverse).
 simpl.
-Admitted.
+admit. (* there's a problem here *)
+right; left; reflexivity.
+semax_call_tac1. unfold Pre,x,F.
+instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
+instantiate (1:=nil). 
+unfold SEPx. unfold fold_right. apply sepcon_derives; auto.
+unfold lift1, make_args'. intro rho.
+unfold lift2.
+simpl @fst. simpl map.
+unfold make_args. unfold eval_exprlist. unfold lift2. unfold lift0.
+normalize.
+apply andp_left2.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; apply prop_right.
+simpl. split3; simpl.
+admit.  (* can't find i_reverse in func_tycontext *)
+admit.  (* can't find i_three in func_tycontext *)
+hnf; auto.
+unfold SEPx, fold_right.
+repeat rewrite sepcon_emp; rewrite sepcon_comm.
+apply sepcon_derives; auto. unfold Pre, make_args'.
+normalize. unfold make_args. unfold eval_exprlist. unfold lift2,lift0.
+intro rho. unfold lift1. normalize.
+eapply semax_seq; [ apply sequential' ; apply semax_call1 | ].
+unfold match_fsig; simpl; rewrite if_true; auto.
+apply extract_exists_pre; normalize.
+clear Pre. unfold x; clear x.
+
+eapply (semax_fun_id' P.i_sumlist).
+simpl.
+admit. (* there's a problem here *)
+left; reflexivity.
+semax_call_tac1.
+unfold x; unfold F; apply sepcon_derives.
+instantiate (1:= Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
+unfold make_args'. simpl @fst. simpl map. unfold eval_exprlist.
+unfold lift2,lift0. simpl make_args. unfold Pre.
+intro rho. normalize. unfold retval. simpl. unfold get_result1.
+simpl. normalize.
+instantiate (1:=nil); auto.
+apply andp_right; normalize.
+simpl; normalize.
+apply andp_right.
+intro rho; apply prop_right.
+simpl. split3; simpl.
+admit.  (* can't find i_sumlist in func_tycontext *)
+repeat split; hnf; auto.
+hnf; auto.
+intro rho; unfold PROPx,LOCALx,SEPx, local,lift1.
+unfold fold_right. normalize.
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+unfold Pre. unfold x. normalize.
+unfold make_args', eval_exprlist. normalize.
+unfold make_args. normalize. simpl. unfold retval,get_result1.
+unfold make_args.
+normalize.
+eapply semax_seq; [ apply sequential' ; apply semax_call1 | ].
+unfold match_fsig; simpl; rewrite if_true; auto.
+apply extract_exists_pre; intro old.
+normalize. clear old.
+forward.
+go_lower.
+eapply tc_eval_id_i; eauto.
+Qed.
 
 Lemma all_funcs_correct:
   semax_func Gprog (prog_funct P.prog) Gprog.

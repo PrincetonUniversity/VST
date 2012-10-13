@@ -4,7 +4,6 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
-
 Lemma semax_post:
  forall (R': ret_assert) Delta G (R: ret_assert) P c,
    (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
@@ -34,8 +33,6 @@ intros; eapply semax_pre_post; eauto.
 intros; apply andp_left2; auto.
 Qed.
 
-Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
-
 Lemma extract_exists_pre:
       forall
         (A : Type) (P : A -> assert) (c : Clight.statement)
@@ -51,7 +48,6 @@ apply andp_left2.
 apply exp_left; auto.
 apply extract_exists; auto.
 Qed.
-
 
 Lemma sequential:
   forall Delta G P c Q,
@@ -76,393 +72,6 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Lemma field_offset_rec_unroll:
-  forall fields0 fld sid fields n,
-    field_offset_rec fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) n =
-    field_offset_rec fld fields n.
-Proof.
-intros. revert n; induction fields; intros; auto.
-unfold unroll_composite_fields, field_offset.
-simpl. if_tac.
-f_equal.
-f_equal.
-change (alignof (unroll_composite  sid (Tstruct sid fields0 noattr) t) = alignof t).
-apply alignof_unroll_composite.
-change (field_offset_rec fld  (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields)
-             (align n (alignof (unroll_composite sid (Tstruct sid fields0 noattr) t)) 
-                          + sizeof (unroll_composite sid (Tstruct sid fields0 noattr) t)) = 
-    field_offset_rec fld fields (align n (alignof t) + sizeof t)).
-rewrite IHfields.
-rewrite alignof_unroll_composite.
-rewrite sizeof_unroll_composite.
-auto.
-Qed.
-
-Lemma field_offset_unroll:
-  forall fields0 fld sid fields,
-    field_offset fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) =
-    field_offset fld fields.
-Proof.
-intros.
-apply field_offset_rec_unroll.
-Qed.
-
-Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
- match f with
- | Fnil => Tvoid
- | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
- end.
-
-Definition field_mapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpred :=
- match v1, t1 with
-  | Vptr l ofs, Tstruct id fList  att =>
-    let fList' := unroll_composite_fields id t1 fList in
-    let t2 := type_of_field fList' fld in
-     match field_offset fld fList',  access_mode t2 with
-     | Errors.OK delta, By_value ch => 
-          !! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&
-           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
-     | _, _ => FF
-     end
-  | _, _  => FF
-  end.
-
-Lemma field_mapsto_typecheck_val:
-  forall t fld sh x y id fList att, 
-     t = Tstruct id fList att ->
-     field_mapsto sh t fld x y = 
-               !! (typecheck_val y (type_of_field (unroll_composite_fields id t fList) fld) = true) && field_mapsto sh t fld x y.
-Proof.
-intros. subst.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_mapsto.
-destruct x; normalize.
-destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
-destruct (access_mode
-    (type_of_field (unroll_composite_fields id (Tstruct id fList att) fList) fld)); normalize.
-Qed.
-
-Lemma field_mapsto_nonnull:  forall t fld sh x y, 
-     field_mapsto sh t fld x y = 
-               !! (bool_val x (Tpointer t noattr) = Some true) && field_mapsto sh t fld x y.
-Proof.
-intros.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_mapsto.
-unfold bool_val.
-destruct x; normalize.
-Qed.
-
-Lemma field_offset_exists1: 
-  forall sid t fields fld,
-    type_of_field (unroll_composite_fields sid t fields) fld <> Tvoid ->
-    exists n, field_offset fld fields = Errors.OK n.
-intros.
-unfold field_offset.
-forget 0 as k. revert k.
-induction fields; intro k; simpl in H. congruence.
-destruct (eq_dec i fld). subst i.
-econstructor; simpl. rewrite if_true by auto.
-reflexivity.
-simpl. rewrite if_false by auto.
-destruct (IHfields H (align k (alignof t0) + sizeof t0)).
-eauto.
-Qed.
-
-
-Lemma field_mapsto_access_mode:
-  forall sh v t fld v' id fList att,
-   t = Tstruct id fList att ->
-  field_mapsto sh t fld v v' = 
-   !! (exists ch, access_mode (type_of_field (unroll_composite_fields id t fList) fld) = By_value ch) 
-           && field_mapsto sh t fld v v'.
-Proof.
-intros. subst.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_mapsto.
-destruct v; normalize.
-destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
-case_eq (access_mode
-    (type_of_field
-       (unroll_composite_fields id (Tstruct id fList att) fList) fld)); intros; normalize.
-apply prop_right; eauto.
-Qed.
-
-Lemma semax_load_field:
-forall (Delta: tycontext) (G: funspecs) sh id t1 fld P e1 v2 t2 i2 sid fields ,
-    typeof e1 = Tstruct sid fields noattr ->
-    (temp_types Delta) ! id = Some (t2,i2) ->
-  forall (TC0: t1 = typeof e1) 
-          (TC2: t2 =
-           type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax Delta G 
-       (|> (local (tc_lvalue Delta e1) &&
-          (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)))
-       (Sset id (Efield e1 fld t2))
-       (normal_ret_assert (
-         EX old:val, local (lift1 (eq v2) (eval_id id)) &&
-                  (subst id (lift0 old) 
-                    (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)))).
-Proof with normalize.
-pose proof I.
-pose proof I.
-intros.
-subst t1.
-rename H2 into TE1.
-apply (semax_pre_post
-            (|> (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
-             local (tc_lvalue Delta (Efield e1 fld t2)) &&
-               (mapsto' sh (Efield e1 fld t2) v2 * 
-                  (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&  P))))
-            (normal_ret_assert 
-              (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
-              (subst id (lift0 old) (mapsto' sh (Efield e1 fld t2) v2  * 
-                (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && P))))));
-  [ | | apply semax_load].
-
-(* PRECONDITION *)
-intro rho.
-unfold tc_temp, typecheck_temp_id, local, lift1, lift0.
-simpl. rewrite TE1.
-normalize.
-apply later_derives.
-normalize.
-apply derives_trans with ((!!(eqb_type t2 t2 = true) && !!tc_lvalue Delta (Efield e1 fld t2) rho &&
-    (!!(typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && 
-     (mapsto' sh (Efield e1 fld t2) v2 rho))) * P rho).
-apply sepcon_derives; auto.
-unfold lift2.
-rewrite eqb_type_refl. normalize.
-unfold mapsto'.
-unfold tc_lvalue; simpl. unfold lift2.
-unfold tc_lvalue in H3. rewrite H1.
-unfold field_mapsto.
-case_eq (eval_lvalue e1 rho); intros; normalize.
-rewrite <- TC2.
-rewrite field_offset_unroll.
-case_eq (field_offset fld fields); intros; normalize.
-case_eq (access_mode t2); intros; normalize.
-rewrite H8. 
-normalize.
-normalize.
-
-(* POSTCONDITION *)
-intros ek vl rho; unfold normal_ret_assert; simpl.
-normalize.
-intro old. apply exp_right with old.
-normalize.
-unfold local,lift0,lift1,lift2; simpl.
-normalize.
-unfold subst.
-normalize.
-apply sepcon_derives; auto.
-unfold mapsto', field_mapsto.
-simpl eval_lvalue. simpl typeof.
-case_eq (access_mode t2); intros; normalize.
-destruct (eval_lvalue e1 (env_set rho id old)); normalize.
-rewrite H1.
-rewrite field_offset_unroll.
-destruct (field_offset fld fields); normalize.
-rewrite <- TC2.
-rewrite H4. rewrite H5.
-normalize.
-Qed.
-
-Lemma splice_top_top: Share.splice Share.top Share.top = Share.top.
-Proof.
-unfold Share.splice.
-unfold Share.Lsh, Share.Rsh.
-case_eq (Share.split Share.top); intros L R ?.
-simpl.
-do 2 rewrite Share.rel_top1.
-erewrite Share.split_together; eauto.
-Qed.
-
-(* move this elsewhere, and by the way it generalizes the same-named lemma
-  in veric/semax_straight.v *)
-Lemma cast_exists : forall Delta e2 t rho 
-(TC: typecheck_environ rho Delta = true), 
-denote_tc_assert (typecheck_expr Delta e2) rho ->
-denote_tc_assert (isCastResultType (typeof e2) t t e2)
-  rho ->
-sem_cast (eval_expr e2 rho) (typeof e2) t =
-Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) t)).
-Proof.
-intros. 
-assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) t= Some v).
-
-apply expr_lemmas.typecheck_expr_sound in H.
-rename t into t0.
-remember (typeof e2); remember (eval_expr e2 rho). 
-unfold sem_cast. unfold classify_cast.
-Transparent Float.intoffloat.
-Transparent Float.intuoffloat.
-destruct t; destruct v; destruct t0; simpl in *;
-try congruence; try contradiction; eauto;
-try solve [
-unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
-inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
-simpl; eauto];
-try solve [
-try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
-
-destruct i; destruct s; unfold lift2 in *; try solve[simpl in *; 
-  unfold lift2,lift1 in *;  expr_lemmas.unfold_tc_denote; destruct H0; 
-try rewrite <- Heqv in *; 
-unfold Float.intoffloat; 
-destruct (Float.Zoffloat f0); try contradiction;
-try rewrite H0; try rewrite H1; simpl; eauto | 
-simpl in *;  unfold Float.intuoffloat; destruct H0;
-expr_lemmas.unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
-try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
-
-try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
-
-destruct i; destruct s; unfold lift2 in *;
-simpl in *; unfold lift2,lift1 in *;
-unfold Float.intoffloat, Float.intuoffloat;
-try (
-destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
-destruct (Float.Zoffloat f0); try contradiction;
-hnf in H0,H1; rewrite H0; rewrite expr_lemmas.Zle_bool_rev; rewrite H1;
-simpl; eauto);
-simpl; eauto.
-
-auto.
-Opaque Float.intoffloat.
-Opaque Float.intuoffloat.
-
-destruct H1. rewrite H1. auto.
-Qed. 
-
-(* Admitted:  after Joey checks in his revision of environments,
- move this definition (and similar ones in progs/assert_lemmas
-  into expr.v, and use it in the definition of eval_expr *)
-Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
-Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
-
-Lemma typecheck_val_eval_cast: 
-  forall t2 e2 rho Delta,
-      tc_environ Delta rho ->
-      denote_tc_assert (typecheck_expr Delta e2) rho ->
-      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
-      typecheck_val (eval_cast (typeof e2) t2 (eval_expr e2 rho)) t2 = true.
-Proof. intros ? ? ? ? H2 H5 H6.
-assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
-assert (H8 := expr_lemmas.typecheck_expr_sound _ _ _ H2 H5).
-clear - H7 H6 H8.
-revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
-unfold eval_cast. rewrite H. simpl.
-case_eq (eval_expr e2 rho); intros; rename H0 into H99;
- destruct t2; inv H8; inv H; simpl; auto;
-hnf in H6; try contradiction; rewrite H99 in *;
-destruct (typeof e2); inv H2; inv H1; auto;
-try (unfold sem_cast in H0; simpl in H0;
-      destruct i0; simpl in*; destruct s; inv H0; simpl; auto).
-simpl in *. unfold lift1 in H6. rewrite H99 in *. inv H6. auto.
-simpl in *. unfold isCastResultType in H6. simpl in H6.
-unfold sem_cast in H0. 
-simpl in H0.
-destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
-invSome; simpl; auto.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-Qed.
-
-
-Lemma semax_store_field: 
-forall (Delta: tycontext) (G: funspecs) e1 fld P v0 t2 e2 sid fields ,
-    typeof e1 = Tstruct sid fields noattr ->
-    t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    typecheck_store (Efield e1 fld t2) ->
-   semax Delta G 
-       (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))
-       (Sassign (Efield e1 fld t2) e2) 
-       (normal_ret_assert 
-          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) 
-                  (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) * P)).
-Proof.
-pose proof I.
-intros.
-rename H0 into TE1.
-rename H2 into TCS.
-apply semax_pre with 
-  (EX v':val, 
-    (|>(local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-      (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) (lift0 v') * P)))).
-apply andp_left2.
-intro rho. simpl. apply exp_right with (v0 rho). auto.
-apply extract_exists_pre; intro v'.
-clear v0. rename v' into v0.
-
-pose proof (semax_store Delta G (Efield e1 fld t2) e2 v0 Share.top 
-               (local (lift1 (tc_val t2) (lift1 (eval_cast (typeof e2) t2) (eval_expr e2))) &&
-                 !! (type_is_volatile t2 = false) &&   P)).
-simpl typeof in H0. rewrite splice_top_top in H0.
-eapply semax_pre_post ; [ | | apply H0; auto].
-apply derives_trans with(|> (local (tc_environ Delta) &&
-  (local (tc_lvalue Delta e1) &&
-   local (tc_expr Delta (Ecast e2 t2)) &&
-   (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) (lift0 v0) * P)))).
-rewrite (later_andp (local (tc_environ Delta))). apply andp_derives; auto.
-apply now_later.
-apply later_derives.
-intro rho; unfold local,lift0,lift1,lift2. simpl.
-normalize.
-unfold field_mapsto, mapsto'.
-simpl.
-case_eq (eval_lvalue e1 rho); intros; normalize.
-rewrite TE1.
-rewrite field_offset_unroll.
-case_eq (field_offset fld fields); intros; normalize.
-rewrite <- H1. destruct (access_mode t2); normalize.
-apply derives_trans with ((!!tc_lvalue Delta (Efield e1 fld t2) rho &&
-    !!tc_expr Delta (Ecast e2 t2) rho &&
-     (!!tc_val t2 (eval_cast (typeof e2) t2 (eval_expr e2 rho)) &&
-      !!(type_is_volatile t2 = false)) &&
-     address_mapsto m v0 (Share.unrel Share.Lsh Share.top)
-       (Share.unrel Share.Rsh Share.top)
-       (b, Int.unsigned (Int.add i (Int.repr z)))) * P rho).
-apply sepcon_derives; auto. 
-apply andp_right; normalize.
-unfold tc_lvalue; simpl.
-unfold lift2. rewrite TE1.
-repeat apply andp_right; apply prop_right; auto.
-split; auto. split; auto. rewrite H6; auto.
-rewrite H8; simpl; auto.
-eapply typecheck_val_eval_cast; eauto.
-hnf in H4.
-destruct H4; auto.
-unfold tc_expr in H4.
-simpl in H4.
-destruct H4; auto.
-normalize.
-
-intros ek vl rho; unfold local, lift1, normal_ret_assert, lift2; simpl.
-normalize.
-apply sepcon_derives; auto.
-unfold mapsto', field_mapsto.
-simpl.
-case_eq (access_mode t2); intros; normalize.
-case_eq (eval_lvalue e1 rho); intros; normalize.
-rewrite TE1.
-rewrite field_offset_unroll.
-case_eq (field_offset fld fields); intros; normalize.
-rewrite <- H1. rewrite H5.
-normalize.
-Qed.
-
-Global Opaque field_mapsto.
 
 Definition PROPx (P: list Prop) (Q: assert) := andp (prop (fold_right and True P)) Q.
 
@@ -829,6 +438,12 @@ Ltac find_in_list A L :=
   | nil => fail
   end.
 
+Ltac length_of R :=
+ match R with
+  |  nil => constr:(O)
+  |  _:: ?R1 => let n := length_of R1 in constr:(S n)
+ end.
+
 Fixpoint delete_nth {A} (n: nat) (xs: list A) {struct n} : list A :=
  match n, xs with
  | O, y::ys => ys
@@ -836,89 +451,52 @@ Fixpoint delete_nth {A} (n: nat) (xs: list A) {struct n} : list A :=
  | _ , _ => nil
  end.
 
-
-Lemma grab_nth_LOCAL':
-   forall n B P Q R,
-    do_canon B (PROPx P (LOCALx Q (SEPx R))) = 
-    do_canon (local (nth n Q (lift0 True)) && B) (PROPx P (LOCALx (delete_nth n Q) (SEPx R))).
-Proof.
-intros n B P Q R; revert n Q B.
-induction n; intros.
-destruct Q; simpl nth. unfold delete_nth.
-f_equal.
-extensionality rho; unfold local, lift0,lift1. simpl. normalize.
-rewrite canon2; auto.
-destruct Q; simpl nth; unfold delete_nth; fold @delete_nth.
-autorewrite with canon.
-f_equal.
-extensionality rho; unfold LOCALx; simpl.
-unfold local, lift1, lift2.
-f_equal.
-f_equal.
-apply prop_ext; intuition.
-extensionality rho; unfold local, lift0,lift1. simpl.
-rewrite <- canon2.
-rewrite <- canon2.
-rewrite IHn.
-f_equal.
-clear rho.
-unfold local, lift0, lift1, lift2; extensionality rho.
-simpl.
-apply pred_ext; normalize.
-Qed.
-
 Lemma grab_nth_LOCAL:
-   forall n B P Q R,
-    do_canon B (PROPx P (LOCALx Q (SEPx R))) = 
-    do_canon (local (nth n Q (lift0 True)) && B) (PROPx P (LOCALx Q (SEPx R))).
+   forall n P Q R,
+     (PROPx P (LOCALx Q (SEPx R))) = 
+     (PROPx P (LOCALx (nth n Q (lift0 True) :: delete_nth n Q) (SEPx R))).
 Proof.
-intros n B P Q R; revert n Q B.
-induction n; intros.
-destruct Q; simpl nth.
+intros n P Q R.
 f_equal.
-extensionality rho; unfold local, lift0,lift1. simpl. normalize.
-rewrite canon2.
+unfold LOCALx.
 f_equal.
-f_equal.
-extensionality rho; unfold LOCALx; simpl.
-f_equal.
-unfold local, lift1, lift2.
-f_equal.
-apply prop_ext; intuition.
-destruct Q; simpl nth.
-f_equal.
-extensionality rho; unfold local, lift0,lift1. simpl. normalize.
-rewrite <- canon2.
-rewrite <- canon2.
-rewrite IHn.
-f_equal.
-unfold local, lift0, lift1, lift2; extensionality rho.
+extensionality rho; unfold local, lift1. f_equal.
+revert Q; induction n; intros.
+destruct Q; simpl nth. unfold delete_nth.
+unfold lift2,lift0; apply prop_ext; simpl; intuition.
+simpl. auto.
+destruct Q; simpl nth; unfold delete_nth; fold @delete_nth.
+unfold lift2,lift0; apply prop_ext; simpl; intuition.
 simpl.
-apply pred_ext; normalize.
+apply prop_ext.
+unfold lift2 at 1 3 4.
+rewrite (IHn Q).
+simpl.
+unfold lift2 at 1.
+clear IHn.
+intuition.
 Qed.
+
 
 Lemma grab_nth_SEP:
-   forall n B P Q R,
-    do_canon B (PROPx P (LOCALx Q (SEPx R))) = do_canon (B* nth n R emp) (PROPx P (LOCALx Q (SEPx (delete_nth n R)))).
+   forall n P Q R,
+    PROPx P (LOCALx Q (SEPx R)) = (PROPx P (LOCALx Q (SEPx (nth n R emp :: delete_nth n R)))).
 Proof.
-intros n B P Q R; revert n R B.
-induction n; intros.
-destruct R.
-simpl nth.  unfold delete_nth.
-f_equal. extensionality rho; simpl; symmetry; apply sepcon_emp.
+intros.
+f_equal. f_equal.
+extensionality rho; unfold SEPx.
+revert R; induction n; intros; destruct R.
+simpl. rewrite sepcon_emp; auto.
 simpl nth.
 unfold delete_nth.
-rewrite canon3 by apply I. auto.
-destruct R.
-simpl nth.  unfold delete_nth.
-f_equal. extensionality rho; simpl; symmetry; apply sepcon_emp.
-rewrite <- canon3 by apply I.
-rewrite (IHn _ (B*a)).
-simpl nth.
-replace (delete_nth (S n) (a::R)) with (a :: delete_nth n R) by reflexivity.
-rewrite <- canon3 by apply I.
-f_equal.
-repeat rewrite sepcon_assoc.
+auto.
+simpl.
+rewrite sepcon_emp; auto.
+change (fold_right sepcon emp (a :: R) rho)
+  with (a rho * fold_right sepcon emp R rho).
+rewrite IHn.
+simpl.
+repeat rewrite <- sepcon_assoc.
 f_equal.
 apply sepcon_comm.
 Qed.
@@ -975,9 +553,10 @@ extensionality rho.
 normalize.
 Admitted.
 Hint Rewrite canon9: canon.
-
+(*
 Ltac focus_SEP n := 
  rewrite restart_canon; rewrite (grab_nth_SEP n); unfold nth, delete_nth; normalize.
+*)
 
 Lemma PROP_later_derives:
  forall P QR QR', QR |-- |>QR' ->
@@ -1021,131 +600,6 @@ Ltac type_of_field_tac :=
                     | simpl; reflexivity].
 
 
-Lemma denote_tc_isptr1:
-  forall Delta rho e,
-   typecheck_environ rho Delta = true -> 
-   denote_tc_assert (typecheck_expr Delta e) rho ->
-   lift1 denote_tc_isptr (eval_expr e) rho.
-Admitted.
-
-Lemma semax_load_field':
-forall (Delta: tycontext) (G: funspecs) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
-    t1 = Tstruct sid fields noattr ->
-    typeof e1 = Tpointer t1 noattr ->
-        (temp_types Delta) ! id = Some (t2,i2) ->
-  forall 
-          (TC2: t2 =
-           type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax Delta G 
-       (|> do_canon 
-             (local (tc_expr Delta e1) &&
-              lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2))
-            (PROPx P (LOCALx Q (SEPx R))))
-       (Sset id (Efield (Ederef e1 t1) fld t2))
-       (normal_ret_assert 
-        (EX old:val,
-          PROPx P (LOCALx (lift1 (eq v2) (eval_id id) :: map (subst id (lift0 old)) Q)
-                (SEPx 
-                  (map (subst id (lift0 old))
-                    (lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2) :: R)))))).
-Proof.
-intros.
-unfold do_canon.
-eapply semax_pre_post;
-  [ | |  apply (semax_load_field Delta G sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) (Ederef e1 t1)
-   v2 t2 i2 sid fields)].
-match goal with |- ?P |-- _ => 
- let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
-end.
-apply later_derives.
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-go_lower.
-unfold tc_expr, tc_lvalue.
-simpl typecheck_lvalue.
-simpl denote_tc_assert.
-rewrite H0. rewrite H.
-simpl.
-normalize.
-pose proof (denote_tc_isptr1 _ _ e1 H2 H3).
-normalize.
-hnf in H4.
-destruct (eval_expr e1 rho); try contradiction.
-auto.
-
-unfold normal_ret_assert.
-intros ek vl rho; normalize.
-intro old; apply exp_right with old.
-simpl.
-normalize.
-unfold subst.
-unfold lift2.
-unfold PROPx, LOCALx, SEPx.
-simpl.
-normalize.
-apply andp_right.
-apply prop_right.
-unfold lift0.
-clear - H4.
-induction Q; simpl; auto.
-destruct H4.
-split; auto.
-case_eq (eval_expr e1 (env_set rho id old)); intros;
- try solve [rewrite field_mapsto_nonnull; simpl bool_val; normalize; discriminate].
-apply sepcon_derives; auto.
-unfold lift0.
-induction R; simpl; auto.
-apply sepcon_derives; auto.
-simpl. auto.
-auto.
-auto.
-auto.
-Qed.
-
-Lemma semax_store_field':
-forall (Delta: tycontext) (G: funspecs) t1 fld P Q R e1 e2 v0 t2 sid fields ,
-    t1 = Tstruct sid fields noattr ->
-    typeof e1 = Tpointer t1 noattr ->
-    t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    typecheck_store (Efield (Ederef e1 t1) fld t2) ->
-    semax Delta G 
-       (|> do_canon 
-             (local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-              lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) v0)
-            (PROPx P (LOCALx Q (SEPx R))))
-       (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
-       (normal_ret_assert
-          (PROPx P (LOCALx Q
-              (SEPx  (lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) 
-                  (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) :: R))))).
-Proof.
-intros.
-eapply semax_pre_post; [ | | eapply (semax_store_field)].
-3: subst t1; reflexivity.
-3: assumption.
-3: assumption.
-instantiate (2:=v0).
-instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
-autorewrite with canon.
-go_lower. apply later_derives. normalize.
-subst t1.
-unfold tc_lvalue.
-pose proof (denote_tc_isptr1 _ _ _ H3 H6).
-simpl.
-unfold lift2. unfold lift1.
-normalize. 
-repeat apply andp_right; normalize.
-rewrite H0; apply prop_right; simpl; hnf; auto.
-unfold lift1, denote_tc_isptr in H.
-destruct (eval_expr e1 rho); try contradiction; auto.
-
-intros ek vl rho; unfold normal_ret_assert, local, lift1, lift2; simpl.
-normalize.
-unfold PROPx, LOCALx; simpl.
-normalize.
-destruct (eval_expr e1 rho); normalize.
-Qed.
-
 Ltac simpl_tc_expr :=
     match goal with |- context [tc_expr ?A ?B] =>
         change (tc_expr A B) with (denote_tc_assert (typecheck_expr A B));
@@ -1159,14 +613,22 @@ intros. extensionality rho. reflexivity.
 Qed.
 Hint Resolve local_lift0: normalize.
 
+Lemma move_prop_from_LOCAL:
+  forall P1 P Q R, PROPx P (LOCALx (lift0 P1::Q) R) = PROPx (P1::P) (LOCALx Q R).
+Proof.
+ intros.
+ extensionality rho.
+ unfold PROPx, LOCALx, local, lift0, lift1.
+ simpl.
+ normalize.
+ apply pred_ext; normalize.
+Qed.
 
 Ltac extract_prop_in_LOCAL :=
  match goal with |- semax _ _ (PROPx _ (LOCALx ?Q _)) _ _ =>
    match Q with context [ lift0 ?z :: _ ] =>
         let n := find_in_list (lift0 z) Q
-         in rewrite restart_canon; rewrite (grab_nth_LOCAL' n); 
-              simpl nth; unfold delete_nth;
-              rewrite local_lift0; cbv beta; autorewrite with canon
+         in rewrite (grab_nth_LOCAL n); rewrite move_prop_from_LOCAL
   end
 end.
 
@@ -1177,23 +639,70 @@ Ltac repeat_extract_exists_pre :=
                 revert x)
            | autorewrite with canon
           ].
-               
+             
+
+Lemma extract_exists_in_SEP:
+  forall {A} (R1: A -> assert) P Q R,   
+    PROPx P (LOCALx Q (SEPx (exp R1 :: R))) = 
+    EX x:A, PROPx P (LOCALx Q (SEPx (R1 x::R))).
+Proof.
+intros.
+extensionality rho.
+unfold PROPx, LOCALx, SEPx; simpl.
+normalize.
+Qed.
+
 Ltac extract_exists_in_SEP :=
  match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
    match R with context [ exp ?z :: _] =>
         let n := find_in_list (exp z) R 
-         in focus_SEP n; repeat_extract_exists_pre
+         in rewrite (grab_nth_SEP n); unfold nth, delete_nth; rewrite extract_exists_in_SEP;
+             repeat_extract_exists_pre
   end
 end.
 
+Lemma flatten_sepcon_in_SEP:
+  forall P Q R1 R2 R, 
+           PROPx P (LOCALx Q (SEPx ((R1*R2) :: R))) = 
+           PROPx P (LOCALx Q (SEPx (R1 :: R2 :: R))).
+Proof.
+intros.
+f_equal. f_equal. extensionality rho.
+simpl. rewrite sepcon_assoc. auto.
+Qed.
+
 Ltac flatten_sepcon_in_SEP :=
- match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-   match R with context [ (?x * ?y) :: _] =>
-        let n := find_in_list (x * y) R 
-         in  rewrite restart_canon; rewrite (grab_nth_SEP n); unfold nth, delete_nth;
-             autorewrite with canon
-  end
+  match goal with |- semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+   match R with context [ (sepcon ?x  ?y) :: ?R'] =>
+  let n := length_of R in let n' := length_of R' in 
+         rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
+         rewrite flatten_sepcon_in_SEP
+end
 end.
+
+Lemma move_prop_from_SEP:
+  forall P1 R1 P Q R, 
+      PROPx P (LOCALx Q (SEPx ((!!P1&&R1) :: R))) = PROPx (P1::P) (LOCALx Q (SEPx (R1::R))).
+Proof.
+ intros.
+ extensionality rho.
+ unfold PROPx, LOCALx, SEPx, local, lift0, lift1.
+ simpl.
+ apply pred_ext; normalize.
+Qed.
+
+Lemma move_local_from_SEP:
+  forall P1 R1 P Q R, 
+      PROPx P (LOCALx Q (SEPx ((local P1&&R1) :: R))) = PROPx P (LOCALx (P1::Q) (SEPx (R1::R))).
+Proof.
+ intros.
+ extensionality rho.
+ unfold PROPx, LOCALx, SEPx, local, lift0, lift1.
+ simpl.
+ apply pred_ext; normalize.
+Qed.
+
+Hint Rewrite move_prop_from_SEP move_local_from_SEP : normalize.
 
 Lemma canon20: forall PQR, do_canon emp PQR = PQR.
 Proof.
@@ -1282,130 +791,5 @@ Qed.
 Hint Rewrite subst_PROP : normalize.
 
 
-Lemma forward_setx:
-  forall Delta G P id e,
-  typecheck_temp_id id (typeof e) Delta = true ->
-  (P |-- local (tc_expr Delta e)) ->
-  semax Delta G
-             P
-             (Sset id e)
-             (normal_ret_assert
-                  (EX old:val,  local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
-                            subst id (lift0 old) P)).
-Proof.
-intros.
-eapply semax_pre_post; [ | | apply (semax_set_forward Delta G P id e)].
-eapply derives_trans ; [ | apply now_later].
-go_lower.
-apply andp_right; auto.
-apply H0.
-intros ek vl rho; unfold normal_ret_assert. simpl; normalize.
-intros old ?; apply exp_right with old.
-normalize.
-Qed.
-
-Ltac normalizex :=
-  normalize;
-  repeat 
-  (first [ simpl_tc_expr
-         | flatten_sepcon_in_SEP
-          | apply semax_extract_PROP_True; [solve [auto] | ]
-          | apply semax_extract_PROP; intro
-         | extract_prop_in_LOCAL
-         | extract_exists_in_SEP
-         ]; cbv beta; normalize).
-
-Ltac forward_setx := 
-  first [eapply semax_seq; 
-            [ apply sequential' ; apply forward_setx; [reflexivity | normalizex]
-              | apply extract_exists_pre; normalize; try (intros _) ]
-         | eapply semax_post;  [ | apply forward_setx; [reflexivity | normalizex]];
-            cbv beta; normalize
-        ].
-
-Ltac semax_field_tac1 := 
-   eapply semax_load_field'; 
-     [ reflexivity 
-     | reflexivity 
-     | simpl; reflexivity 
-     | type_of_field_tac ].
-
-Ltac isolate_field_tac e fld R := 
-  match R with 
-     | context [|> lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
-          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
-          let n := find_in_list (|> lift2 (field_mapsto sh struct fld') e' v) R
-             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
-                replace e' with (eval_expr e) by auto;
-                rewrite H; clear H
-     | context [ lift2 (field_mapsto ?sh ?struct ?fld') ?e' ?v] =>
-          let H := fresh "EE" in assert (H: fld'=fld) by reflexivity;
-         let n := find_in_list (lift2 (field_mapsto sh struct fld') e' v) R
-             in focus_SEP n; rewrite (grab_nth_LOCAL 0); simpl nth;
-                replace e' with (eval_expr e) by auto;
-                rewrite H; clear H
-     end;
-     match goal with |- semax _ _ ?P _ _ =>
-       let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
-     end.
-
-Ltac semax_field_tac :=
-match goal with
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                  (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
-  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-   [ go_lower 
-   | isolate_field_tac e fld R;
-     eapply semax_seq; [ apply sequential'; semax_field_tac1  
-                                          | simpl update_tycon; apply extract_exists_pre
-                                          ]
-    ]
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset _ (Efield (Ederef ?e _) ?fld _)) _ =>
-     apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-     [ go_lower 
-     | isolate_field_tac e fld R;
-       eapply semax_post; [ | semax_field_tac1]
-     ]
-end; normalizex.
-
-Ltac check_sequential s :=
- match s with
- | Sskip => idtac
- | Sassign _ _ => idtac
- | Sset _ _ => idtac
- | Scall _ _ _ => idtac
- | Ssequence ?s1 ?s2 => check_sequential s1; check_sequential s2
- | _ => fail
- end.
-
-Ltac sequential := 
- match goal with
- |  |- semax _ _ _ _ (normal_ret_assert _) => fail 2
- |  |- semax _ _ _ ?s _ =>  check_sequential s; apply sequential
- end.
-
-Ltac is_canonical P :=
- match P with 
- | PROPx _ (LOCALx _ (SEPx _)) => idtac
- | _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
- end.
-
-Ltac forward := 
-  match goal with
-  | |- semax _ _ ?P (Ssequence (Sset _ (Efield _ _ _)) _) _ => 
-                  is_canonical P; semax_field_tac
-  | |- semax _ _ ?P (Sset _ (Efield _ _ _)) _ => 
-                  is_canonical P; semax_field_tac
-  | |- semax _ _ ?P (Ssequence (Sset _ ?e) _) _ => 
-               is_canonical P; match e with (Efield _ _) => fail 2 | _ => forward_setx end
-  | |- semax _ _ ?P (Sset _ ?e) _ => 
-               is_canonical P; match e with (Efield _ _) => fail 2 | _ => forward_setx end
-  | |- semax _ _ _ (Ssequence (Sreturn _) _) _ =>
-          apply semax_seq with FF; [eapply semax_pre; [ | apply semax_return ]
-                                | apply semax_ff]
-  | |- semax _ _ _ (Sreturn _) _ =>
-          eapply semax_pre; [ | apply semax_return ]
-  end.
 
 

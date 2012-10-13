@@ -117,8 +117,14 @@ Definition f_main: function :=
  (* vars *)  nil
  (* temps *)  ((i_r, t_listptr)::(i_s, t_int)::nil) 
  (* body *) 
-  (Ssequence (Scall (Some i_r) (Evar i_reverse (Tfunction (Tcons t_listptr Tnil) t_listptr)) (Evar i_three t_listptr :: nil))
-    (Ssequence (Scall (Some i_s) (Evar i_sumlist (Tfunction (Tcons t_listptr Tnil) t_int)) (Etempvar i_r t_listptr::nil)) 
+  (Ssequence (Scall (Some i_r) 
+                        (Eaddrof (Evar i_reverse (Tfunction (Tcons t_listptr Tnil) t_listptr))
+                                   (Tpointer (Tfunction (Tcons t_listptr Tnil) t_listptr) noattr))
+                        (Eaddrof (Evar i_three t_list) t_listptr :: nil))
+    (Ssequence (Scall (Some i_s) 
+                           (Eaddrof (Evar i_sumlist (Tfunction (Tcons t_listptr Tnil) t_int))
+                                             (Tpointer  (Tfunction (Tcons t_listptr Tnil) t_int)  noattr))
+                          (Etempvar i_r t_listptr::nil)) 
      (Sreturn (Some (Etempvar i_s t_int))))).
 
 Definition b_three : block := 1.

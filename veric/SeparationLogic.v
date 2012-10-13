@@ -8,6 +8,7 @@ Require Export msl.log_normalize.
 Require Export veric.expr.
 Require Import veric.juicy_extspec.
 Require veric.seplog.
+Require veric.assert_lemmas.
 Require msl.msl_standard.
 
 Definition mpred : Type := predicates_hered.pred veric.seplog.rmap.
@@ -258,6 +259,15 @@ intros. intro; intros.
 intros w [? [? [? [? ?]]]].
 unfold local in *.
 apply H0.
+Qed.
+
+Lemma corable_fun_assert: forall fsig A Pre Post v, corable (fun_assert fsig A Pre Post v).
+Proof.
+intros. unfold corable.
+intros.
+simpl.
+apply normalize.corable_andp_sepcon1.
+apply assert_lemmas.corable_fun_assert.
 Qed.
 
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric. 
