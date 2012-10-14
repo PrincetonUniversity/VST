@@ -107,33 +107,57 @@ Qed.
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
-Fixpoint eval_expr (e: expr) (rho:environ) : val :=
+Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+
+Definition eval_unop (op: unary_operation) (t1 : type) (v1 : val) :=
+       force_val (sem_unary_operation op v1 t1).
+
+Definition eval_binop (op: binary_operation) (t1 t2 : type) (v1 v2: val) :=
+       force_val (sem_binary_operation op v1 t1 v2 t2 (fun _ _ => false)).
+
+Definition force_ptr (v: val) : val :=
+              match v with Vptr l ofs => v | _ => Vundef  end.
+
+Definition eval_struct_field (delta: Z) (v: val) : val :=
+          match v with
+             | Vptr l ofs => Vptr l (Int.add ofs (Int.repr delta))
+             | _ => Vundef
+          end.
+
+Definition eval_field (ty: type) (fld: ident) (v: val) : val :=
+          match ty with
+             | Tstruct id fList att =>
+                         match field_offset fld fList with 
+                         | Errors.OK delta => eval_struct_field delta v
+                         | _ => Vundef
+                        end
+             | Tunion id fList att => force_ptr v
+             | _ => Vundef
+          end.
+
+Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
- | Econst_int i ty => Vint i
- | Econst_float f ty => Vfloat f
- | Etempvar id ty => eval_id id rho (* Don't write force_val here directly; with
-                                                           the intermediate definition eval_id, then
-                                                           eval_expr (Etempvar _ _) simplifies nicer. *)
- | Eaddrof a ty => eval_lvalue a rho
- | Eunop op a ty =>  force_val (sem_unary_operation op (eval_expr a rho) (typeof a))
+ | Econst_int i ty => lift0 (Vint i)
+ | Econst_float f ty => lift0 (Vfloat f)
+ | Etempvar id ty => eval_id id 
+ | Eaddrof a ty => eval_lvalue a 
+ | Eunop op a ty =>  lift1 (eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
-         force_val (sem_binary_operation op
-                    (eval_expr a1 rho) (typeof a1)
-                    (eval_expr a2 rho) (typeof a2)
-                    (fun _ _ => false))
- | Econdition a1 a2 a3 ty => 
+                  lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
+ | Econdition a1 a2 a3 ty =>  fun rho =>
     match strict_bool_val (eval_expr a1 rho) (typeof a1) with
     | Some true => force_val (sem_cast (eval_expr a2 rho) (typeof a2) ty)
     | Some false => force_val (sem_cast (eval_expr a3 rho) (typeof a3) ty)
     | None => Vundef
     end
- | Ecast a ty => force_val (sem_cast (eval_expr a rho) (typeof a) ty)
- | _ => Vundef
+ | Ecast a ty => lift1 (eval_cast (typeof a) ty) (eval_expr a) 
+ | _ => lift0 Vundef
  end 
 
- with eval_lvalue (e: expr) (rho: environ) : val := 
+ with eval_lvalue (e: expr) : environ -> val := 
  match e with 
- | Evar id ty => match Map.get (ve_of rho) id with
+ | Evar id ty => fun rho => 
+                         match Map.get (ve_of rho) id with
                          | Some (b,ty') => if eqb_type ty ty'
                                                     then if negb (type_is_volatile ty')
                                                        then Vptr b Int.zero else Vundef
@@ -144,20 +168,9 @@ Fixpoint eval_expr (e: expr) (rho:environ) : val :=
                             | None => Vundef
                             end
                         end
- | Ederef a ty => match eval_expr a rho with
-                        | Vptr l ofs => Vptr l ofs
-                        | _ => Vundef
-	          end
- | Efield a i ty => match eval_lvalue a rho, typeof a with
-                            | Vptr l ofs, Tstruct id fList att =>
-                                  match field_offset i fList with 
-                                  | Errors.OK delta => Vptr l (Int.add ofs (Int.repr delta))
-                                  | _ => Vundef
-                                  end
-                            | Vptr l ofs, Tunion id fList att => Vptr l ofs
-                            | _, _ => Vundef
-                            end
- | _  => Vundef
+ | Ederef a ty => lift1 force_ptr (eval_expr a)
+ | Efield a i ty => lift1 (eval_field (typeof a) i) (eval_lvalue a)
+ | _  => lift0 Vundef
  end.
 
 Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
@@ -165,14 +178,6 @@ Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
  | nil => lift0 nil
  | e::el' => lift2 cons (eval_expr e) (eval_exprlist el')
  end.
-
-Definition eval_exprlist' (el:list expr) (rho:environ) := map (fun e1:expr => eval_expr e1 rho) el.
-
-Lemma eval_exprlist_eq: eval_exprlist = eval_exprlist'.
-Proof.
-extensionality el rho.
-induction el; simpl; try rewrite <- IHel; simpl; try reflexivity.
-Qed.
 
 (*Declaration of type context for typechecking *)
 
@@ -882,3 +887,7 @@ end.
 
 Definition typecheck_all_exprs (func: function) : tc_assert :=
 typecheck_all_exprs' func.(fn_body) (func_tycontext func).
+
+Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
+
+

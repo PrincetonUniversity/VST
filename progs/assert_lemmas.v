@@ -265,14 +265,14 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @lift1_lift0 : normalize.
-
+(*
 Lemma subst_eval_expr_const:
   forall i v n t, subst i v (eval_expr (Econst_int n t)) = eval_expr (Econst_int n t).
 Proof.
 intros. reflexivity.
 Qed.
 Hint Rewrite subst_eval_expr_const : normalize.
-
+*)
 Lemma tc_formals_cons:
   forall i t rest, tc_formals ((i,t) :: rest) =
          lift2 and (lift1 (tc_val t) (eval_id i)) (tc_formals rest).
@@ -308,25 +308,24 @@ Admitted.
 Hint Rewrite subst_TT subst_FF: normalize.
 
 
-Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
-
-Lemma subst_eval_expr_cast:
-  forall i v t e, subst i v  (eval_expr (Ecast e t)) =
-               lift1 (eval_cast (typeof e) t) (subst i v (eval_expr e)).
+Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = lift0 (Vint i).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_eval_expr_cast : normalize.
+Hint Rewrite eval_expr_Econst_int : normalize.
 
-Definition eval_binop (op: binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       force_val (sem_binary_operation op v1 t1 v2 t2 (fun _ _ => false)).
-Lemma subst_eval_expr_binop:
-  forall i v op t e1 e2, subst i v  (eval_expr (Ebinop op e1 e2 t)) =
-           lift2 (eval_binop op (typeof e1) (typeof e2)) 
-                     (subst i v (eval_expr e1)) 
-                     (subst i v (eval_expr e2)).
-Proof.
- intros. reflexivity.
-Qed.
-Hint Rewrite subst_eval_expr_binop : normalize.
+Lemma eval_expr_Ecast: 
+  forall e t, eval_expr (Ecast e t) = lift1 (eval_cast (typeof e) t) (eval_expr e).
+Proof. reflexivity. Qed.
+Hint Rewrite eval_expr_Ecast : normalize.
+
+
+Lemma subst_local: forall id v P,
+  subst id v (local P) = local (subst id v P).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_local : normalize.
+Lemma eval_lvalue_Ederef:
+  forall e t, eval_lvalue (Ederef e t) = lift1 force_ptr (eval_expr e).
+Proof. reflexivity. Qed.
+Hint Rewrite eval_lvalue_Ederef : normalize.
 
 
 Lemma tc_eval_id_i:
@@ -375,4 +374,15 @@ Proof.
 intros. destruct v; inv H; eauto.
 Qed.
 
+
+Lemma normal_ret_assert_eq:
+  forall P ek vl, normal_ret_assert P ek vl =
+             (!! (ek=EK_normal) && (!! (vl=nil) && P)).
+Proof. reflexivity. Qed.
+Hint Rewrite normal_ret_assert_eq: normalize. 
+
+Lemma for1_ret_assert_normal:
+  forall P Q, for1_ret_assert P Q EK_normal nil = P.
+Proof. reflexivity. Qed.
+Hint Rewrite for1_ret_assert_normal: normalize.
 

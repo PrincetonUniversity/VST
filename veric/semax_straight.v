@@ -502,61 +502,6 @@ match goal with
                                apply decode_encode_val_similar in DE; auto
 end.
 
-Lemma cast_exists : forall Delta e2 e1 rho 
-(TC: typecheck_environ rho Delta = true), 
-denote_tc_assert (typecheck_expr Delta e2) rho ->
-denote_tc_assert (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2)
-  rho ->
-sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) =
-Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))).
-Proof.
-intros. 
-assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)= Some v).
-
-apply typecheck_expr_sound in H.
-remember (typeof e2); remember (typeof e1); remember (eval_expr e2 rho). 
-unfold sem_cast. unfold classify_cast.
-Transparent Float.intoffloat.
-Transparent Float.intuoffloat.
-clear e1 Heqt0. 
-destruct t; destruct v; destruct t0; simpl in *;
-try congruence; try contradiction; eauto;
-try solve [
-unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
-inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
-simpl; eauto];
-try solve [
-try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
-
-destruct i; destruct s; unfold lift2 in *; try solve[simpl in *; 
-  unfold lift2,lift1 in *;  unfold_tc_denote; destruct H0; 
-try rewrite <- Heqv in *; 
-unfold Float.intoffloat; 
-destruct (Float.Zoffloat f0); try contradiction;
-try rewrite H0; try rewrite H1; simpl; eauto | 
-simpl in *;  unfold Float.intuoffloat; destruct H0;
-unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
-try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
-
-try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
-
-destruct i; destruct s; unfold lift2 in *;
-simpl in *; unfold lift2,lift1 in *;
-unfold Float.intoffloat, Float.intuoffloat;
-try (
-destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
-destruct (Float.Zoffloat f0); try contradiction;
-hnf in H0,H1; rewrite H0; rewrite Zle_bool_rev; rewrite H1;
-simpl; eauto);
-simpl; eauto.
-
-auto.
-Opaque Float.intoffloat.
-Opaque Float.intuoffloat.
-
-destruct H1. rewrite H1. auto.
-Qed. 
-
 Lemma semax_store:
  forall Delta G e1 e2 v3 rsh P 
    (TC: typecheck_store e1),

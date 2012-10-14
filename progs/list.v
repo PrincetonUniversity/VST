@@ -172,10 +172,9 @@ apply pred_ext; normalize.
 intros.
 destruct H2; inv H2.
 apply pred_ext; normalize.
-intro.
 apply exp_right with v; normalize.
 apply exp_right with l; normalize.
-apply exp_right with x0; normalize.
+apply exp_right with tail; normalize.
 apply andp_right; auto.
 rewrite (field_mapsto_typecheck_val list_struct list_data Share.top x v 
                         list_structid 
@@ -197,7 +196,7 @@ rewrite UNROLL.
 simpl type_of_field. rewrite if_true by auto.
 normalize.
 forget (field_mapsto Share.top list_struct list_data x v) as foo.
-rewrite (field_mapsto_typecheck_val list_struct list_link Share.top x x0
+rewrite (field_mapsto_typecheck_val list_struct list_link Share.top x tail
                         list_structid 
                     (Fcons list_data list_dtype
                         (Fcons list_link (Tcomp_ptr list_structid noattr)
@@ -209,7 +208,7 @@ normalize.
 (***)
 intros.
 inv H2.
-apply exp_right with x2.
+apply exp_right with y.
 normalize.
 inv H3.
 auto.
@@ -225,17 +224,17 @@ normalize.
 apply orp_right1; auto.
 apply orp_right2.
 unfold lseg_cons.
-normalize. intro y.
+normalize.
 apply exp_right with v.
 normalize.
 apply exp_right with l.
 normalize.
-apply exp_right with y.
+apply exp_right with tail.
 normalize.
 pattern (field_mapsto Share.top list_struct list_data x v) at 1;
   erewrite (field_mapsto_typecheck_val list_struct list_data Share.top x v); try reflexivity.
-pattern (field_mapsto Share.top list_struct list_link x y) at 1;
- erewrite (field_mapsto_typecheck_val list_struct list_link Share.top x y); try reflexivity.
+pattern (field_mapsto Share.top list_struct list_link x tail) at 1;
+ erewrite (field_mapsto_typecheck_val list_struct list_link Share.top x tail); try reflexivity.
 normalize.
 apply andp_right; auto.
 apply prop_right; split3; auto.
@@ -259,7 +258,7 @@ normalize. inv H0.
 unfold lseg_cons.
 normalize.
 intros. destruct H0. symmetry in H0; inv H0.
-apply exp_right with x2.
+apply exp_right with y.
 normalize.
 Qed.
 

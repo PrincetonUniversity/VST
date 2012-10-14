@@ -63,17 +63,17 @@ remember (tc_assert_simpl asn2).
  destruct t; destruct t0; simpl in *; unfold lift0,lift1,lift2 in *; auto.
 
 destruct e; auto. simpl in *.
- unfold lift1, denote_tc_nonzero in *.
+ unfold lift0,lift1,lift2, denote_tc_nonzero in *.
 destruct (Int.eq i Int.zero); intuition.
 
-destruct e; auto. simpl in *. unfold lift1, denote_tc_igt in *.
+destruct e; auto. simpl in *. unfold lift0,lift1,lift2, denote_tc_igt in *.
 simpl in *. destruct (Int.ltu i0 i); hnf in H|-*; intuition.
 
-destruct e; auto. simpl in *. unfold lift1, denote_tc_Zge in *.
+destruct e; auto. simpl in *. unfold lift0,lift1,lift2, denote_tc_Zge in *.
 simpl in *. destruct (Float.Zoffloat f); intuition. hnf in H|-*.
 rewrite Zle_bool_rev. rewrite H. hnf; auto.
 
-destruct e; auto. simpl in *. unfold lift1, denote_tc_Zge in *.
+destruct e; auto. simpl in *. unfold lift0,lift1,lift2, denote_tc_Zge in *.
 simpl in *. destruct (Float.Zoffloat f); intuition. hnf in H|-*.
 rewrite H. hnf; auto.
 Qed.
@@ -577,12 +577,18 @@ destruct H0. destruct H0. destruct H0. destruct H0.
 unfold proj_sumbool in *. destruct (type_eq t t1). subst.
 rewrite <- Heqo0 in H0. inv H0. eauto. inv H.
 
-inv H1. simpl in *. intuition. destruct (eval_expr e rho); eauto.
+inv H1. simpl in *. intuition. unfold lift1,lift2,lift0,force_ptr in *; destruct (eval_expr e rho); eauto.
 
-simpl in *. unfold lift2 in *. intuition. destruct (eval_lvalue e rho); eauto; intuition.
-destruct (typeof e); try congruence. 
-destruct (eval_lvalue e rho); intuition. destruct (typeof e); intuition.
+simpl in *. unfold lift1,lift0,lift2 in *. intuition.
+unfold eval_field. unfold eval_struct_field.
+destruct (eval_lvalue e rho); eauto; intuition;
+destruct (typeof e); try congruence; auto.
 destruct (field_offset i f); eauto.
+unfold eval_field. unfold eval_struct_field.
+destruct (eval_lvalue e rho); eauto; intuition;
+destruct (typeof e); try congruence; auto;
+try destruct (field_offset i f); eauto.
+try destruct (field_offset i f0); eauto.
 Qed. 
 
 Lemma typecheck_binop_sound:
@@ -701,7 +707,8 @@ destruct t; auto.
 
 
 (*Unop*)
-intuition; simpl in *. destruct H0. intuition. 
+intuition; simpl in *. destruct H0. intuition.
+unfold eval_unop, lift1. 
 destruct u; simpl in *. 
 
 unfold sem_notbool in *.
@@ -729,6 +736,7 @@ eapply typecheck_binop_sound; eauto.
 
 (* cast *)
 st. intuition.
+unfold lift1,eval_cast.
 remember (eval_expr e rho). 
 remember (typeof e).
 destruct H0.
@@ -769,7 +777,7 @@ try destruct i0; try destruct s; intuition; try destruct i1; try destruct s0; tr
 remember (typeof e1). unfold bool_val. destruct t0; intuition.*)
 
 (*EField*)
-st. unfold lift2 in *; intuition. specialize  (H3 pt). intuition. remember rho.
+st. unfold lift2,eval_field,eval_struct_field,lift1 in *; intuition. specialize  (H3 pt). intuition. remember rho.
 destruct e0.
 apply typecheck_environ_sound in H. intuition. clear H4 H8.
 rewrite Heqe0 in H0.
@@ -1077,7 +1085,7 @@ destruct H7. destruct H1. destruct H1. destruct H8. destruct H8.  simpl in *.
 intuition. rewrite H8. constructor. rewrite H8 in H7. inversion H7. auto.
 
 (*unop*)
-simpl in *. unfold lift2 in *. intuition. unfold force_val. 
+simpl in *. unfold lift1,lift2,eval_unop in *. intuition. unfold force_val. 
 remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
 destruct o. eapply Clight_sem.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
@@ -1097,7 +1105,7 @@ destruct (eval_expr e rho); intuition; unfold sem_neg in *;
 st; inv Heqo.
 
 (*binop*)
-simpl in *. unfold lift2 in *; intuition. unfold force_val.
+simpl in *. unfold lift2,eval_binop in *; intuition. unfold force_val.
 remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
 (typeof e2) (fun (_ : block) (_ : Z) => false)).
 destruct o. eapply Clight_sem.eval_Ebinop. eapply IHe1; eauto.
@@ -1111,7 +1119,7 @@ eapply eval_binop_relate_fail; eauto.
 
 (*Cast*)
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
-simpl in *; unfold lift2 in *; intuition.
+simpl in *; unfold lift2,lift1,eval_cast in *; intuition.
 unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
 destruct o. eapply Clight_sem.eval_Ecast. eapply IHe. auto. apply H2. auto.
 
@@ -1134,20 +1142,25 @@ admit. (*Pass for now, since cond might go away.....============================
 (*Field*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. intuition.
-st. unfold lift2 in *; remember (eval_lvalue e rho). destruct v; intuition.
-remember (typeof e). destruct t0; intuition. remember (field_offset i f).
-destruct r; intuition. st. exists b. exists (Int.add i0 (Int.repr z)). 
-intuition. eapply Clight_sem.eval_Efield_struct; auto.
-destruct H5. destruct H4. intuition. inv H8. 
-(*new thing*)
-eapply Clight_sem.eval_Elvalue in H5.
-apply H5. rewrite <- Heqt0. auto. apply Csem.deref_loc_copy. rewrite <- Heqt0. auto.
-eauto. eauto.  
-st. exists b. exists i0. intuition. eapply Clight_sem.eval_Efield_union; eauto.
-
-destruct H5. destruct H4. intuition. eapply Clight_sem.eval_Elvalue in H5.
-apply H5. rewrite <- Heqt0. auto. inv H8. apply Csem.deref_loc_copy. rewrite <- Heqt0. auto.
-
+st. unfold lift2,lift1,eval_field,eval_struct_field in *; remember (eval_lvalue e rho).
+destruct H1. destruct H1. specialize (H4 H1).
+destruct H4 as [b [ofs H4]].
+remember (typeof e) as t0. destruct t0; intuition.
+remember (field_offset i f) as r.
+destruct r; intuition.
+ destruct v; intuition. st. exists b. exists (Int.add ofs (Int.repr z)). 
+intuition. inv H8.
+ eapply Clight_sem.eval_Efield_struct; auto.
+eapply Clight_sem.eval_Elvalue in H7. apply H7.
+rewrite <- Heqt0. auto. apply Csem.deref_loc_copy. rewrite <- Heqt0.  auto.
+rewrite <- Heqt0; reflexivity. auto.
+inv H8; auto.
+subst v.
+exists b, ofs. rewrite H8. simpl. split; auto.
+eapply Clight_sem.eval_Efield_union; eauto.
+eapply Clight_sem.eval_Elvalue; eauto.
+rewrite <- Heqt0. auto. rewrite <- Heqt0. apply Csem.deref_loc_copy.
+auto. 
 Qed. 
 
 Lemma eval_expr_relate:
@@ -1555,3 +1568,91 @@ Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (P
 intros. unfold Map.set. unfold make_tenv. extensionality. rewrite PTree.gsspec; auto.
 Qed.
 
+Lemma cast_exists : forall Delta e2 t rho 
+(TC: typecheck_environ rho Delta = true), 
+denote_tc_assert (typecheck_expr Delta e2) rho ->
+denote_tc_assert (isCastResultType (typeof e2) t t e2)
+  rho ->
+sem_cast (eval_expr e2 rho) (typeof e2) t =
+Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) t)).
+Proof.
+intros. 
+assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) t= Some v).
+
+apply typecheck_expr_sound in H.
+rename t into t0.
+remember (typeof e2); remember (eval_expr e2 rho). 
+unfold sem_cast. unfold classify_cast.
+Transparent Float.intoffloat.
+Transparent Float.intuoffloat.
+destruct t; destruct v; destruct t0; simpl in *;
+try congruence; try contradiction; eauto;
+try solve [
+unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
+inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
+simpl; eauto];
+try solve [
+try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
+
+destruct i; destruct s; unfold lift2 in *; try solve[simpl in *; 
+  unfold lift2,lift1 in *;  unfold_tc_denote; destruct H0; 
+try rewrite <- Heqv in *; 
+unfold Float.intoffloat; 
+destruct (Float.Zoffloat f0); try contradiction;
+try rewrite H0; try rewrite H1; simpl; eauto | 
+simpl in *;  unfold Float.intuoffloat; destruct H0;
+unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
+try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
+
+try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
+
+destruct i; destruct s; unfold lift2 in *;
+simpl in *; unfold lift2,lift1 in *;
+unfold Float.intoffloat, Float.intuoffloat;
+try (
+destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
+destruct (Float.Zoffloat f0); try contradiction;
+hnf in H0,H1; rewrite H0; rewrite Zle_bool_rev; rewrite H1;
+simpl; eauto);
+simpl; eauto.
+
+auto.
+Opaque Float.intoffloat.
+Opaque Float.intuoffloat.
+
+destruct H1. rewrite H1. auto.
+Qed.
+
+
+Lemma typecheck_val_eval_cast: 
+  forall t2 e2 rho Delta,
+      typecheck_environ rho Delta = true ->
+      denote_tc_assert (typecheck_expr Delta e2) rho ->
+      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
+      typecheck_val (eval_cast (typeof e2) t2 (eval_expr e2 rho)) t2 = true.
+Proof. intros ? ? ? ? H2 H5 H6.
+assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
+assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
+clear - H7 H6 H8.
+revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
+unfold eval_cast. rewrite H. simpl.
+case_eq (eval_expr e2 rho); intros; rename H0 into H99;
+ destruct t2; inv H8; inv H; simpl; auto;
+hnf in H6; try contradiction; rewrite H99 in *;
+destruct (typeof e2); inv H2; inv H1; auto;
+try (unfold sem_cast in H0; simpl in H0;
+      destruct i0; simpl in*; destruct s; inv H0; simpl; auto).
+simpl in *. unfold lift1 in H6. rewrite H99 in *. inv H6. auto.
+simpl in *. unfold isCastResultType in H6. simpl in H6.
+unfold sem_cast in H0. 
+simpl in H0.
+destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
+invSome; simpl; auto.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+Qed.
+ 

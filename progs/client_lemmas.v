@@ -142,6 +142,16 @@ Instance Cassert: ClassicalSep assert := _.
 Instance Iassert: Indir assert := _.
 Instance SIassert: SepIndir assert := _.
 
+
+Lemma lower_sepcon:
+  forall P Q rho, @sepcon assert Nassert Sassert P Q rho = sepcon (P rho) (Q rho).
+Proof. reflexivity. Qed.
+Lemma lower_andp:
+  forall P Q rho, @andp assert Nassert P Q rho = andp (P rho) (Q rho).
+Proof. reflexivity. Qed.
+Hint Rewrite lower_sepcon lower_andp : normalize.
+
+
 Lemma lift_prop_unfold: 
    forall P z,  @prop assert Nassert P z = @prop mpred Nveric P.
 Proof.  reflexivity. Qed.

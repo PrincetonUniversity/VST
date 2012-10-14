@@ -462,7 +462,18 @@ Ltac normalize1 :=
             | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with normalize)
             | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with normalize)
             | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with normalize)
-            | |-  derives ?A   _ => match A with 
+            (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
+                preserves the name of the "y" variable *)
+            | |- context [andp (exp (fun y => _)) _] => 
+                autorewrite with normalize; apply imp_extract_exp_left; intro y
+            | |- context [andp _ (exp (fun y => _))] => 
+                autorewrite with normalize; apply imp_extract_exp_left; intro y
+            | |- context [sepcon (exp (fun y => _)) _] => 
+               autorewrite with normalize; apply imp_extract_exp_left; intro y
+            | |- context [sepcon _ (exp (fun y => _))] => 
+                autorewrite with normalize; apply imp_extract_exp_left; intro y
+ 
+           | |-  derives ?A   _ => match A with 
                           | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
                           | context [ ?Q && (!! ?P && ?R)] =>
                                          match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end

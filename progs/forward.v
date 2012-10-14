@@ -3,6 +3,7 @@ Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 Require Import progs.client_lemmas.
 Require Import progs.field_mapsto.
+Require Import progs.assert_lemmas.
 
 Local Open Scope logic.
 
@@ -65,25 +66,22 @@ case_eq (field_offset fld fields); intros; normalize.
 case_eq (access_mode t2); intros; normalize.
 rewrite H8. 
 normalize.
+simpl. rewrite H5. rewrite H4. simpl. auto.
 normalize.
 
 (* POSTCONDITION *)
-intros ek vl rho; unfold normal_ret_assert; simpl.
-normalize.
-intro old. apply exp_right with old.
-normalize.
-unfold local,lift0,lift1,lift2; simpl.
-normalize.
-unfold subst.
-normalize.
-apply sepcon_derives; auto.
+intros ek vl. go_lower.
+intro old; apply exp_right with old; normalize.
+unfold subst. normalize. apply sepcon_derives; auto.
 unfold mapsto', field_mapsto.
-simpl eval_lvalue. simpl typeof.
+simpl typeof.
 case_eq (access_mode t2); intros; normalize.
-destruct (eval_lvalue e1 (env_set rho id old)); normalize.
-rewrite H1.
+simpl. normalize.
+rewrite H1; simpl. 
 rewrite field_offset_unroll.
 destruct (field_offset fld fields); normalize.
+unfold eval_struct_field.
+destruct (eval_lvalue e1 (env_set rho id old)); normalize.
 rewrite <- TC2.
 rewrite H4. rewrite H5.
 normalize.
@@ -153,24 +151,27 @@ unfold lift2. rewrite TE1.
 repeat apply andp_right; apply prop_right; auto.
 split; auto. split; auto. rewrite H6; auto.
 rewrite H8; simpl; auto.
-eapply typecheck_val_eval_cast; eauto.
+eapply expr_lemmas.typecheck_val_eval_cast; eauto.
 hnf in H4.
 destruct H4; auto.
 unfold tc_expr in H4.
 simpl in H4.
 destruct H4; auto.
+simpl; 
+normalize. rewrite H6; normalize. unfold eval_struct_field.
+rewrite H5.
 normalize.
 
 intros ek vl rho; unfold local, lift1, normal_ret_assert, lift2; simpl.
 normalize.
 apply sepcon_derives; auto.
 unfold mapsto', field_mapsto.
-simpl.
+simpl. unfold lift1. rewrite TE1. simpl.
 case_eq (access_mode t2); intros; normalize.
-case_eq (eval_lvalue e1 rho); intros; normalize.
-rewrite TE1.
 rewrite field_offset_unroll.
+unfold eval_struct_field.
 case_eq (field_offset fld fields); intros; normalize.
+case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite <- H1. rewrite H5.
 normalize.
 Opaque field_mapsto.
@@ -198,7 +199,7 @@ Proof.
 intros.
 eapply semax_pre_post;
   [ | |  apply (semax_load_field Delta G sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) (Ederef e1 t1)
-   v2 t2 i2 sid fields)].
+   v2 t2 i2 sid fields)]; auto.
 match goal with |- ?P |-- _ => 
  let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
 end.
@@ -211,27 +212,13 @@ simpl denote_tc_assert.
 rewrite H0. rewrite H.
 simpl.
 normalize.
-rewrite <- sepcon_andp_prop'.
-apply sepcon_derives; auto.
-unfold bool_val in H6.
 destruct (eval_expr e1 rho); inv H6; normalize.
 
-unfold normal_ret_assert.
-intros ek vl rho; normalize.
-intro old; apply exp_right with old.
-simpl.
 normalize.
-unfold subst.
-unfold lift2.
-unfold PROPx, LOCALx, SEPx.
-simpl.
-normalize.
-case_eq (eval_expr e1 (env_set rho id old)); intros; normalize.
-simpl; auto.
-auto.
-auto.
-auto.
+intro x; apply exp_right with x.
+go_lower.
 Qed.
+
 
 Lemma semax_store_field':
 forall (Delta: tycontext) (G: funspecs) t1 fld P Q R e1 e2 v0 t2 sid fields ,
@@ -275,7 +262,6 @@ intros ek vl rho; unfold normal_ret_assert, local, lift1, lift2; simpl.
 normalize.
 unfold PROPx, LOCALx; simpl.
 normalize.
-destruct (eval_expr e1 rho); normalize.
 Qed.
 
 Lemma forward_setx:
@@ -296,14 +282,34 @@ go_lower.
 apply andp_right; auto.
 apply H0.
 intros ek vl rho; unfold normal_ret_assert. simpl; normalize.
-intros old ?; apply exp_right with old.
+apply exp_right with x.
 normalize.
 Qed.
+
+Lemma normal_ret_assert_derives':
+  forall ek vl P Q, 
+      P |-- Q ->
+      normal_ret_assert P ek vl |-- normal_ret_assert Q ek vl.
+Proof. intros; intro rho. apply normal_ret_assert_derives. auto.
+Qed.
+
+Lemma normal_ret_assert_derives'':
+  forall (P: assert) (Q: ret_assert), 
+      (P |-- Q EK_normal nil) ->
+      normal_ret_assert P |-- Q.
+Proof. intros; intros ek vl rho. 
+    unfold normal_ret_assert; destruct ek; simpl; normalize.
+   inv H0. inv H0. inv H0.
+Qed.
+
 
 Ltac normalizex :=
   normalize;
   repeat 
-  (first [ simpl_tc_expr
+  (first [ apply normal_ret_assert_derives
+         | apply normal_ret_assert_derives'
+         | apply normal_ret_assert_derives''
+         | simpl_tc_expr
          | flatten_sepcon_in_SEP
           | apply semax_extract_PROP_True; [solve [auto] | ]
           | apply semax_extract_PROP; intro

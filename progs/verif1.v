@@ -145,12 +145,17 @@ Definition sumlist_Inv (contents: list int) : assert :=
                                      lift1 (partial_sum contents cts) (eval_id P.i_s)) 
             SEP (TT * lift2 (ilseg cts) (eval_id P.i_t) (lift0 nullval))).
 
+Ltac start_function :=
+match goal with |- semax_body _ _ ?spec => try unfold spec end;
+match goal with |- semax_body _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
+  match Pre with fun i => _ => intro i end;
+  simpl fn_body; simpl fn_params; simpl fn_return;
+  normalize; canonicalize_pre
+ end.
+
 Lemma body_sumlist: semax_body Gprog P.f_sumlist sumlist_spec.
 Proof.
-intro contents.
-simpl fn_body; simpl fn_params; simpl fn_return.
-normalize.
-canonicalize_pre.       
+start_function.     
 forward.
 forward.
 forward_while (sumlist_Inv contents)
@@ -159,15 +164,15 @@ forward_while (sumlist_Inv contents)
 unfold sumlist_Inv.
 apply exp_right with contents.
 go_lower.
-rewrite H0. rewrite H1. simpl. unfold partial_sum.
+rewrite H0. rewrite H1. unfold partial_sum.
 rewrite Int.add_zero_l. normalize.
 rewrite sepcon_comm. apply sepcon_TT.
 (* Prove that loop invariant implies typechecking condition *)
 normalizex.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold sumlist_Inv.
+normalize.
 go_lower.
-intros cts ?.
 unfold partial_sum in H0;  rewrite H0.
 rewrite (typed_false_ptr H).
 normalize.
@@ -179,7 +184,7 @@ normalize.
 replace_in_pre (ilseg cts) (ilseg_cons cts).
    rewrite ilseg_nonnull by auto.
    unfold ilseg_cons, lseg_cons.
-   normalize. intros h r ? y. destruct cts; inv H3.
+   normalize. destruct cts; inv H3.
    apply exp_right with i; normalize.
    apply exp_right with cts; normalize.
    apply exp_right with y; normalize.
@@ -193,8 +198,6 @@ forward.
 forward.  intro old_t.
 forward.
 (* Prove postcondition of loop body implies loop invariant *)
-intros ek vl.
-unfold normal_ret_assert, for1_ret_assert.
 normalize.
 intro x; unfold sumlist_Inv.
  apply exp_right with r.
@@ -241,7 +244,7 @@ simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 canonicalize_pre.
 forward.
-go_lower. apply prop_right; hnf. apply Int.eq_true.
+go_lower.
 forward.
 forward_while (reverse_Inv contents)
          (PROP() LOCAL () SEP( lift2 (ilseg (rev contents)) (eval_id P.i_w) (lift0 nullval))).
@@ -257,7 +260,7 @@ simpl; normalize.
 normalizex.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-go_lower. intros cts1 cts2.
+go_lower. intro cts2.
 rewrite (typed_false_ptr H). 
 normalize.
 rewrite <- app_nil_end. rewrite rev_involutive. auto.
@@ -272,7 +275,7 @@ subst.
 replace_in_pre (ilseg cts2) (ilseg_cons cts2).
    rewrite (ilseg_nonnull cts2) by auto.
    unfold ilseg_cons, lseg_cons.
-   normalize. intros h r ? y. destruct cts2; inv H2.
+   normalize.  destruct cts2; inv H2.
    apply exp_right with i; normalize.
    apply exp_right with cts2; normalize.
    apply exp_right with y; normalize.
@@ -288,13 +291,10 @@ forward.
 intros.
 unfold reverse_Inv.
 go_lower.
-unfold normal_ret_assert, for1_ret_assert; normalizex.
-intro. unfold subst; simpl. normalize.
 apply exp_right with (h::cts).
 apply exp_right with r.
-simpl.
 normalize.
-rewrite app_ass.
+simpl. rewrite app_ass.
 simpl.
 normalize.
 rewrite (ilseg_unroll (h::cts)).
@@ -314,7 +314,7 @@ apply andp_right.
 apply prop_right.
 clear - H3.
 destruct old_w; inv H3; simpl; auto.
-replace (field_mapsto.eval_cast P.t_listptr P.t_listptr old_w) with old_w.
+replace (eval_cast P.t_listptr P.t_listptr old_w) with old_w.
 Focus 2.
 clear - H3.
 destruct old_w ; inv H3; simpl; auto.
