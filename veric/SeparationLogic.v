@@ -52,6 +52,12 @@ Some false.
 Definition subst {A} (x: ident) (v: environ -> val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x (v s)).
 
+Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A)  : environ -> A :=
+   match ret with
+   | Some id => subst id v P
+   | None => P
+   end.
+
 Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
  fun rho => 
   match access_mode (Clight.typeof e1) with
@@ -111,6 +117,8 @@ Fixpoint make_args (il: list ident) (vl: list val) (rho: environ)  :=
   | i::il', v::vl' => env_set (make_args il' vl' rho) i v
    | _ , _ => rho 
  end.
+Definition make_args' (fsig: funsig) args rho :=
+   make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
 
 Definition ret_temp : ident := 1%positive.
 
@@ -422,16 +430,15 @@ forall Delta G Q test body R
 (* THESE RULES FROM semax_call *)
 
 Axiom semax_call : 
-forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
-      match_fsig fsig bl ret = true ->
-       semax Delta G
+    forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
+           match_fsig fsig bl ret = true ->
+  semax Delta G
          (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
-          (lift0 F * fun rho => P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))
-  ))
-(* lift1 (P x) (eval_exprlist bl) ))) *)
+          (F * fun rho => P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))))
          (Scall ret a bl)
-         (normal_ret_assert (lift0 F * lift1 (Q x) (get_result ret))).
+         (normal_ret_assert 
+          (EX old:val, substopt ret (lift0 old) F * lift1 (Q x) (get_result ret))).
 
 Axiom  semax_return :
    forall Delta G R ret ,

@@ -951,7 +951,7 @@ pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) (Map.empty (block * t
 (*change empty_env  with (ve_of rho).*)
 (*change (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)) with (te_of rho).*)
 eapply semax_call_aux with (Delta :=Delta1)(F0:= fun _ => TT)
-         (R := normal_ret_assert (fun _ => TT)) (F:=TT)
+         (R := normal_ret_assert (fun _ => TT)) (F:= fun _ => TT)
           (x := tt)(Q := fun _ => main_post prog tt);
   try apply H3; try eassumption. Focus 7. auto.
 admit.  (* typechecking proof *)
@@ -960,10 +960,10 @@ admit.  (* typechecking proof *)
 hnf; intros; intuition.
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.
-simpl.
 extensionality rho'.
 unfold main_post.
-normalize. rewrite TT_sepcon_TT. auto.
+normalize. rewrite TT_sepcon_TT.
+apply pred_ext. apply exp_right with Vundef; auto. apply exp_left; auto.
 reflexivity.
 rewrite (corable_funassert G rho).
 simpl m_phi.

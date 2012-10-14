@@ -322,7 +322,55 @@ Qed.
 
 
 Definition fun_assert_emp fsig A P Q v := emp && fun_assert fsig A P Q v.
-Definition make_args' (fsig: funsig) args rho :=make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
+
+Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
+Proof. reflexivity. Qed.
+Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
+Proof. reflexivity. Qed.
+Hint Rewrite @substopt_unfold @substopt_unfold_nil : normalize.
+
+
+Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
+Proof. reflexivity. Qed.
+Lemma get_result_None: get_result None = globals_only.
+Proof. reflexivity. Qed.
+Hint Rewrite get_result_unfold get_result_None : normalize.
+
+Lemma semax_call': forall Delta G A (Pre Post: A -> assert) (x: A) ret fsig a bl P Q R,
+           match_fsig fsig bl ret = true ->
+  semax Delta G
+         (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
+            (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
+                      lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
+          (Scall ret a bl)
+          (normal_ret_assert 
+            (EX old:val, 
+              PROPx P (LOCALx (map (substopt ret (lift0 old)) Q) 
+                (SEPx (lift1 (Post x) (get_result ret) :: map (substopt ret (lift0 old)) R))))).
+Proof.
+intros.
+eapply semax_pre_post ; [ | | 
+   apply (semax_call Delta G A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H )].
+go_lower.
+unfold fun_assert_emp.
+repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
+normalize.
+rewrite corable_sepcon_andp1 by apply corable_fun_assert.
+apply andp_derives; auto.
+rewrite sepcon_comm; auto.
+intros.
+normalize.
+intro old.
+apply exp_right with old; normalizex.
+destruct ret; normalizex.
+go_lower.
+rewrite sepcon_comm; auto.
+go_lower.
+rewrite sepcon_comm; auto.
+unfold substopt.
+repeat rewrite list_map_identity.
+normalize.
+Qed.
 
 Lemma semax_call1: forall Delta G A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
            match_fsig fsig bl (Some id) = true ->
@@ -333,11 +381,12 @@ Lemma semax_call1: forall Delta G A (Pre Post: A -> assert) (x: A) id fsig a bl 
           (Scall (Some id) a bl)
           (normal_ret_assert 
             (EX old:val, 
-              PROPx P (LOCALx Q 
+              PROPx P (LOCALx (map (subst id (lift0 old)) Q) 
                 (SEPx (lift1 (Post x) (get_result1 id) :: map (subst id (lift0 old)) R))))).
 Proof.
-Admitted.
-
+intros.
+apply semax_call'; auto.
+Qed.
 
 Lemma semax_fun_id':
       forall id fsig (A : Type) (Pre Post : A -> assert)
@@ -362,6 +411,17 @@ unfold fun_assert_emp.
 rewrite corable_andp_sepcon2 by apply corable_fun_assert.
 rewrite emp_sepcon; auto.
 Qed.
+
+
+Ltac in_tac1 :=  ((left; reflexivity) || (right; in_tac1)).
+
+Ltac semax_call_id_tac :=
+  match goal with
+   | |- semax _ _ _ (Scall _ (Eaddrof (Evar ?fid _) _) _) _ =>  
+         eapply (semax_fun_id' fid) ; [ | in_tac1 | ]
+   | |- semax _ _ _ (Ssequence (Scall _ (Eaddrof (Evar ?fid _) _) _) _) _ =>  
+         eapply (semax_fun_id' fid) ; [ | in_tac1 | ]
+  end.
 
 Ltac semax_call_tac1 :=
 match goal with 
@@ -389,6 +449,18 @@ Lemma retval_get_result1:
 Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
 Hint Rewrite retval_get_result1 : normalize.
 
+
+Lemma unfold_make_args': forall fsig args rho,
+    make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
+Proof. reflexivity. Qed.
+Hint Rewrite unfold_make_args' : normalize.
+Lemma unfold_make_args_cons: forall i il v vl rho,
+   make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
+Proof. reflexivity. Qed.
+Lemma unfold_make_args_nil: make_args nil nil = globals_only.
+Proof. reflexivity. Qed.
+Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
+
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.
 intro u.
@@ -399,46 +471,39 @@ replace (main_pre P.prog u) with
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 canonicalize_pre.
-eapply (semax_fun_id' P.i_reverse).
+semax_call_id_tac.
 simpl.
 admit. (* there's a problem here *)
-right; left; reflexivity.
 semax_call_tac1. unfold Pre,x,F.
 instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
-instantiate (1:=nil). 
-unfold SEPx. unfold fold_right. apply sepcon_derives; auto.
-unfold lift1, make_args'. intro rho.
-unfold lift2.
-simpl @fst. simpl map.
-unfold make_args. unfold eval_exprlist. unfold lift2. unfold lift0.
-normalize.
-apply andp_left2.
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho; apply prop_right.
-simpl. split3; simpl.
+instantiate (1:=nil).
+go_lower.
+go_lower.
+repeat apply andp_right; try apply prop_right.
+split.
 admit.  (* can't find i_reverse in func_tycontext *)
+hnf; auto.
+split3; hnf; auto.
+split.
 admit.  (* can't find i_three in func_tycontext *)
 hnf; auto.
+unfold Pre. clear Pre.
 unfold SEPx, fold_right.
 repeat rewrite sepcon_emp; rewrite sepcon_comm.
-apply sepcon_derives; auto. unfold Pre, make_args'.
-normalize. unfold make_args. unfold eval_exprlist. unfold lift2,lift0.
-intro rho. unfold lift1. normalize.
-eapply semax_seq; [ apply sequential' ; apply semax_call1 | ].
+apply sepcon_derives; auto.
+normalize.
+eapply semax_seq; [ apply sequential' ; apply semax_call'| ].
 unfold match_fsig; simpl; rewrite if_true; auto.
 apply extract_exists_pre; normalize.
 clear Pre. unfold x; clear x.
 
-eapply (semax_fun_id' P.i_sumlist).
+semax_call_id_tac.
 simpl.
 admit. (* there's a problem here *)
-left; reflexivity.
 semax_call_tac1.
 unfold x; unfold F; apply sepcon_derives.
 instantiate (1:= Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
-unfold make_args'. simpl @fst. simpl map. unfold eval_exprlist.
-unfold lift2,lift0. simpl make_args. unfold Pre.
+unfold Pre.
 go_lower.
 instantiate (1:=nil); auto.
 normalize.
@@ -450,13 +515,11 @@ simpl. split3; simpl.
 admit.  (* can't find i_sumlist in func_tycontext *)
 repeat split; hnf; auto.
 normalize.
+unfold Pre, x.
 go_lower.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
-unfold Pre. unfold x. normalize.
-unfold make_args', eval_exprlist. normalize.
-unfold make_args. normalize.
-eapply semax_seq; [ apply sequential' ; apply semax_call1 | ].
+eapply semax_seq; [ apply sequential' ; apply semax_call' | ].
 unfold match_fsig; simpl; rewrite if_true; auto.
 apply extract_exists_pre; intro old.
 normalize. clear old.
@@ -474,7 +537,4 @@ apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].
 apply semax_func_nil.
 Qed.
-
-
-
 
