@@ -553,7 +553,7 @@ eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr
 Proof. 
 intros.
 induction e; eauto.
-simpl. 
+simpl. unfold eval_var. 
 remember (Map.get (ve_of rho) i). destruct o; try rewrite eqb_type_eq; intuition;
 try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
 simpl; try remember (negb (type_is_volatile t0));try destruct b0; auto;
@@ -653,7 +653,7 @@ simpl. subst; destruct t; auto; simpl in H0; inv H0; intuition.
 simpl in *. subst; destruct t; intuition. 
 
 (*Var*)
-st.  
+st. unfold eval_var.  
 
 apply typecheck_environ_sound in H. destruct H.
 clear H. destruct H2. clear H2.
@@ -1019,7 +1019,7 @@ assert (TC_Sound:= typecheck_lvalue_sound).
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
 specialize (TC_Sound some_pt_type).
  
-st. remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
+st. unfold eval_var in *. remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
 try rewrite eqb_type_eq in *; simpl in *.
 destruct (type_eq t t0); simpl in *; intuition.
 subst t0. if_tac; intuition.

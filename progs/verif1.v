@@ -117,7 +117,7 @@ Proof.
          P.i_t); auto.
  type_of_field_tac.
 Qed.
-Hint Rewrite lift2_ilseg_cons : normalize.
+(* Hint Rewrite lift2_ilseg_cons : normalize. *)
 
 Definition sumlist_spec :=
  DECLARE P.i_sumlist
@@ -171,8 +171,7 @@ rewrite sepcon_comm. apply sepcon_TT.
 normalizex.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold sumlist_Inv.
-normalize.
-go_lower.
+go_lower. intros.
 unfold partial_sum in H0;  rewrite H0.
 rewrite (typed_false_ptr H).
 normalize.
@@ -182,18 +181,13 @@ normalize.
 apply extract_exists_pre; intro cts.
 normalize.
 replace_in_pre (ilseg cts) (ilseg_cons cts).
-   rewrite ilseg_nonnull by auto.
-   unfold ilseg_cons, lseg_cons.
-   normalize. destruct cts; inv H3.
-   apply exp_right with i; normalize.
-   apply exp_right with cts; normalize.
-   apply exp_right with y; normalize.
+rewrite ilseg_nonnull by auto. auto.
+rewrite lift2_ilseg_cons.
 normalizex. intro h.
 normalizex. intro r.
 normalizex. intro y.
 normalizex. subst cts.
 simpl list_data; simpl list_link.
-
 forward.
 forward.  intro old_t.
 forward.
@@ -239,10 +233,7 @@ Definition reverse_Inv (contents: list int) : assert :=
 
 Lemma body_reverse: semax_body Gprog P.f_reverse reverse_spec.
 Proof.
-intro contents.
-simpl fn_body; simpl fn_params; simpl fn_return.
-normalize.
-canonicalize_pre.
+start_function.
 forward.
 go_lower.
 forward.
@@ -273,12 +264,8 @@ apply extract_exists_pre; intro cts2.
 normalizex.
 subst.
 replace_in_pre (ilseg cts2) (ilseg_cons cts2).
-   rewrite (ilseg_nonnull cts2) by auto.
-   unfold ilseg_cons, lseg_cons.
-   normalize.  destruct cts2; inv H2.
-   apply exp_right with i; normalize.
-   apply exp_right with cts2; normalize.
-   apply exp_right with y; normalize.
+   rewrite (ilseg_nonnull cts2) by auto. auto.
+rewrite lift2_ilseg_cons.
 normalizex. intro h.
 normalizex; intro r.
 normalizex; intro y.
@@ -310,14 +297,10 @@ repeat rewrite <- sepcon_assoc.
 erewrite (field_mapsto_typecheck_val _ _ _ _ _ P.i_list _  noattr); [ | reflexivity].
 type_of_field_tac.
 normalize.
-apply andp_right.
-apply prop_right.
-clear - H3.
-destruct old_w; inv H3; simpl; auto.
-replace (eval_cast P.t_listptr P.t_listptr old_w) with old_w.
-Focus 2.
-clear - H3.
-destruct old_w ; inv H3; simpl; auto.
+assert (eval_cast P.t_listptr P.t_listptr old_w = old_w)
+  by (destruct old_w ; inv H3; simpl; auto).
+rewrite H4 in *.
+normalize.
 repeat pull_right (field_mapsto Share.top P.t_list P.i_t (eval_id P.i_w rho) old_w).
 apply sepcon_derives; auto.
 repeat pull_right (field_mapsto Share.top list_struct P.i_h (eval_id P.i_w rho) (Vint h)).
@@ -400,9 +383,16 @@ match goal with
  idtac
  end.
 
+
+Lemma retval_get_result1: 
+   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
+Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
+Hint Rewrite retval_get_result1 : normalize.
+
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.
 intro u.
+simpl fn_body; simpl fn_params; simpl fn_return.
 replace (main_pre P.prog u) with 
    (lift2 (ilseg (map Int.repr (1::2::3::nil))) (eval_expr (Eaddrof (Evar P.i_three P.t_list) P.t_listptr)) (lift0 nullval))
  by admit. (* must improve global var specifications *)
@@ -449,9 +439,9 @@ unfold x; unfold F; apply sepcon_derives.
 instantiate (1:= Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
 unfold make_args'. simpl @fst. simpl map. unfold eval_exprlist.
 unfold lift2,lift0. simpl make_args. unfold Pre.
-intro rho. normalize. unfold retval. simpl. unfold get_result1.
-simpl. normalize.
+go_lower.
 instantiate (1:=nil); auto.
+normalize.
 apply andp_right; normalize.
 simpl; normalize.
 apply andp_right.
@@ -459,16 +449,13 @@ intro rho; apply prop_right.
 simpl. split3; simpl.
 admit.  (* can't find i_sumlist in func_tycontext *)
 repeat split; hnf; auto.
-hnf; auto.
-intro rho; unfold PROPx,LOCALx,SEPx, local,lift1.
-unfold fold_right. normalize.
+normalize.
+go_lower.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
 unfold Pre. unfold x. normalize.
 unfold make_args', eval_exprlist. normalize.
-unfold make_args. normalize. simpl. unfold retval,get_result1.
-unfold make_args.
-normalize.
+unfold make_args. normalize.
 eapply semax_seq; [ apply sequential' ; apply semax_call1 | ].
 unfold match_fsig; simpl; rewrite if_true; auto.
 apply extract_exists_pre; intro old.

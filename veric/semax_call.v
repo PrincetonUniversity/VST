@@ -187,7 +187,7 @@ spec H8. exists id. split; auto. exists b; auto.
 exists b.
 split.
 hnf.
-unfold eval_lvalue.
+unfold eval_lvalue, eval_var.
 rewrite <- Hge. simpl ve_of.
 rewrite H1.
 unfold filter_genv.

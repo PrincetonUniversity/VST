@@ -135,6 +135,19 @@ Definition eval_field (ty: type) (fld: ident) (v: val) : val :=
              | _ => Vundef
           end.
 
+Definition eval_var (id:ident) (ty: type) (rho: environ) : val := 
+                         match Map.get (ve_of rho) id with
+                         | Some (b,ty') => if eqb_type ty ty'
+                                                    then if negb (type_is_volatile ty')
+                                                       then Vptr b Int.zero else Vundef
+                                                    else Vundef
+                         | None => 
+                            match (ge_of rho) id with
+                            | Some (v,ty') => if eqb_type ty ty' then v else Vundef
+                            | None => Vundef
+                            end
+                        end.
+
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => lift0 (Vint i)
@@ -152,22 +165,11 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
     end
  | Ecast a ty => lift1 (eval_cast (typeof a) ty) (eval_expr a) 
  | _ => lift0 Vundef
- end 
+ end
 
  with eval_lvalue (e: expr) : environ -> val := 
  match e with 
- | Evar id ty => fun rho => 
-                         match Map.get (ve_of rho) id with
-                         | Some (b,ty') => if eqb_type ty ty'
-                                                    then if negb (type_is_volatile ty')
-                                                       then Vptr b Int.zero else Vundef
-                                                    else Vundef
-                         | None => 
-                            match (ge_of rho) id with
-                            | Some (v,ty') => if eqb_type ty ty' then v else Vundef
-                            | None => Vundef
-                            end
-                        end
+ | Evar id ty => eval_var id ty
  | Ederef a ty => lift1 force_ptr (eval_expr a)
  | Efield a i ty => lift1 (eval_field (typeof a) i) (eval_lvalue a)
  | _  => lift0 Vundef
