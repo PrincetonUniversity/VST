@@ -1,0 +1,52 @@
+inductive_preds.cmi: symbtree.cmi misc.cmi
+misc.cmi:
+paramodulation.cmi:
+parser.cmi: parsetree.cmi
+parsetree.cmi: location.cmo
+symbsimp.cmi: symbtree.cmi parsetree.cmi
+symbtree.cmi: parsetree.cmi misc.cmi location.cmo
+vcgen.cmi: symbtree.cmi parsetree.cmi
+Int31.cmo:
+Int31.cmx:
+config.cmo:
+config.cmx:
+debugging.cmo:
+debugging.cmx:
+driver.cmo: symbtree.cmi paramodulation.cmi misc.cmi config.cmo
+driver.cmx: symbtree.cmx paramodulation.cmx misc.cmx config.cmx
+error.cmo: symbtree.cmi parsetree.cmi location.cmo config.cmo
+error.cmx: symbtree.cmx parsetree.cmx location.cmx config.cmx
+inductive_preds.cmo: symbtree.cmi misc.cmi inductive_preds.cmi
+inductive_preds.cmx: symbtree.cmx misc.cmx inductive_preds.cmi
+lexer.cmo: parser.cmi location.cmo error.cmo
+lexer.cmx: parser.cmx location.cmx error.cmx
+location.cmo:
+location.cmx:
+main-gui.cmo: toplevel.cmo main.cmo config.cmo
+main-gui.cmx: toplevel.cmx main.cmx config.cmx
+main.cmo: toplevel.cmo config.cmo
+main.cmx: toplevel.cmx config.cmx
+misc.cmo: misc.cmi
+misc.cmx: misc.cmi
+paramodulation.cmo: paramodulation.cmi
+paramodulation.cmx: paramodulation.cmi
+parser.cmo: parsetree.cmi misc.cmi location.cmo error.cmo config.cmo \
+    parser.cmi
+parser.cmx: parsetree.cmx misc.cmx location.cmx error.cmx config.cmx \
+    parser.cmi
+parsetree.cmo: misc.cmi location.cmo parsetree.cmi
+parsetree.cmx: misc.cmx location.cmx parsetree.cmi
+symbsimp.cmo: symbtree.cmi parsetree.cmi misc.cmi inductive_preds.cmi \
+    error.cmo config.cmo symbsimp.cmi
+symbsimp.cmx: symbtree.cmx parsetree.cmx misc.cmx inductive_preds.cmx \
+    error.cmx config.cmx symbsimp.cmi
+symbtree.cmo: parsetree.cmi misc.cmi location.cmo config.cmo symbtree.cmi
+symbtree.cmx: parsetree.cmx misc.cmx location.cmx config.cmx symbtree.cmi
+toplevel.cmo: vcgen.cmi parsetree.cmi parser.cmi paramodulation.cmi misc.cmi \
+    lexer.cmo error.cmo driver.cmo config.cmo
+toplevel.cmx: vcgen.cmx parsetree.cmx parser.cmx paramodulation.cmx misc.cmx \
+    lexer.cmx error.cmx driver.cmx config.cmx
+vcgen.cmo: symbtree.cmi parsetree.cmi misc.cmi location.cmo error.cmo \
+    config.cmo vcgen.cmi
+vcgen.cmx: symbtree.cmx parsetree.cmx misc.cmx location.cmx error.cmx \
+    config.cmx vcgen.cmi
