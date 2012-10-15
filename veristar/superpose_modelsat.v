@@ -1,8 +1,8 @@
 Load loadpath.
 Require Import ZArith List Bool Recdef.
 Require Import compcert.Coqlib.
-Require Import paramod.variables paramod.datatypes paramod.clauses 
-               paramod.cclosure paramod.basic paramod.compare.
+Require Import veristar.variables veristar.datatypes veristar.clauses 
+               veristar.cclosure veristar.basic veristar.compare.
 
 (** * Superposition: 
 a superposition-based theorem prover for ground clauses, with a new,

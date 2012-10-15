@@ -1,6 +1,6 @@
 Add LoadPath "..".
 Require Import ZArith List Orders POrderedType.
-Require Import paramod.tactics.
+Require Import veristar.tactics.
 
 (** Module Ident:
 the type of identifiers *)

@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import msl.base msl.sepalg.
-Require Import paramod.variables.
+Require Import veristar.variables.
 
 (** Separation Logic Interface 
 

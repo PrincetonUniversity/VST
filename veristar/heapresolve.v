@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import ZArith Znumtheory Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes paramod.clauses
-               paramod.superpose paramod.basic paramod.compare. 
+Require Import veristar.variables veristar.datatypes veristar.clauses
+               veristar.superpose veristar.basic veristar.compare. 
 Import Superposition.
 Require Recdef.
 

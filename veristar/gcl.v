@@ -1,5 +1,5 @@
 Load loadpath. Load ssrloadpath.
-Require Import paramod.basic paramod.variables.
+Require Import veristar.basic veristar.variables.
 Require Import ssreflect ssrbool ssrnat ssrfun seq eqtype.
 Require Import NArith NOrderedType.
 

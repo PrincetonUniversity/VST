@@ -1,12 +1,12 @@
 Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms ecm.Coqlib2.
+Require Import msl.Axioms veric.Coqlib2.
 Require Import msl.predicates_sa.
-Require Import paramod.datatypes paramod.clauses paramod.clause_lemmas
-               paramod.cclosure paramod.list_denote paramod.superpose_modelsat
-               paramod.basic paramod.compare. 
+Require Import veristar.datatypes veristar.clauses veristar.clause_lemmas
+               veristar.cclosure veristar.list_denote veristar.superpose_modelsat
+               veristar.basic veristar.compare. 
 Import Superposition.
-Require Import paramod.model_type paramod.model.
+Require Import veristar.model_type veristar.model.
 
 Module Type SP_SOUND.
 Declare Module VSM : VERISTAR_MODEL.
@@ -115,7 +115,7 @@ remember (expr_eq (Var v) (Var v0)) as b; destruct b... if_tac...
 rewrite <-(expr_eq_eq' _ _ Heqb) in *. intros H. split... intros H1. 
 simpl in A, B. apply listd_merge_inter' in H1. destruct H1 as [H2 H3].
 2: intros; rewrite pure_atom_cmp_eq...
-spec A H2; spec B H3; rewrite (@listd_insert_uniq_un _ state). 
+specialize (A H2); specialize (B H3); rewrite (@listd_insert_uniq_un _ state). 
 2: intros x y; rewrite <-pure_atom_cmp_eq... destruct A, B. 
 assert (C: (e0 === e1) s) by (eapply var_eq_trans; apply var_eq_sym in H0; eauto).
 left. if_tac... apply var_eq_sym...
@@ -196,7 +196,7 @@ Proof with simpl; auto.
 intros H1 H2 H3. 
 generalize (negative_superposition_sound c d l0 s) as H4; intro.
 generalize (positive_superposition_sound c d l0 s) as H5; intro.
-spec H4 H1 H2 H3; spec H5 H1 H2 H3. 
+specialize (H4 H1 H2 H3); specialize (H5 H1 H2 H3). 
 rewrite (@listd_unfold_inter _ state). split...
 unfold sp. destruct ce...
 Qed.
@@ -216,7 +216,7 @@ assert (H5 :
       listd pure_atom_denote inter TT (Eqv v e0 :: neg) s ->
       listd pure_atom_denote un FF 
         (merge pure_atom_cmp (List.rev pos0) (Eqv u e0 :: pos)) s).
-  simpl. intros [H5 H6]. spec H1 H6. apply expr_eq_eq' in Heqb. subst.
+  simpl. intros [H5 H6]. specialize (H1 H6). apply expr_eq_eq' in Heqb. subst.
   apply listd_merge_un' in H1. destruct H1.
   apply listd_merge_un1. apply pure_atom_cmp_eq. auto.
   apply listd_merge_un2. apply pure_atom_cmp_eq. auto.  
@@ -236,7 +236,7 @@ simpl in H5; destruct H5 as [H|H]. left. if_tac... apply var_eq_sym...
 right. apply listd_merge_un2. apply pure_atom_cmp_eq. simpl. right...
 apply expr_eq_eq' in Heqb; subst.
 intros; rewrite pure_atom_cmp_eq; auto.
-apply IHpos. intros H6. spec H1 H6. 
+apply IHpos. intros H6. specialize (H1 H6). 
 apply listd_merge_un' in H1. destruct H1.
 apply listd_merge_un1. apply pure_atom_cmp_eq. 
 rewrite (@listd_un_rev _ state), (@listd_insert_uniq_un _ state).
@@ -267,7 +267,7 @@ Lemma remove_trivial_atoms_sound b atms s :
   listd pure_atom_denote inter b (remove_trivial_atoms atms) s.
 Proof.
 intro A; induction atms; auto.
-destruct a; simpl in A |- *; destruct A as [A1 A2]; spec IHatms A2.
+destruct a; simpl in A |- *; destruct A as [A1 A2]; specialize (IHatms A2).
 solve [remember (expr_cmp e e0) as b'; destruct b'; simpl; try split; auto].
 Qed.
 
@@ -279,10 +279,10 @@ split; intro A;
 [ |solve[apply remove_trivial_atoms_sound; auto]].
 induction atms; auto; destruct a; simpl in A |- *. 
 remember (expr_cmp e e0) as b'; destruct b'; simpl in A;
-[ |solve[destruct A as [A1 A2]; spec IHatms A2; split; auto]
-  |solve[destruct A as [A1 A2]; spec IHatms A2; split; auto]].
+[ |solve[destruct A as [A1 A2]; specialize (IHatms A2); split; auto]
+  |solve[destruct A as [A1 A2]; specialize (IHatms A2); split; auto]].
 apply comp_eq in Heqb'; auto. subst e0.
-spec IHatms A.
+specialize (IHatms A).
 split; auto.
 solve[apply var_eq_refl].
 Qed.
@@ -428,18 +428,18 @@ Proof with simpl; auto.
 intros H1 H2. destruct c... destruct gamma, delta...
  destruct p... destruct delta... 
 destruct d... intro H3. 
-simpl in H1; spec H1. inversion H1. 2: inversion H. clear H1. subst priority0.
-induction gamma. simpl in H2; spec H2. induction delta...
+simpl in H1; spec H1; auto. inversion H1. 2: inversion H. clear H1. subst priority0.
+induction gamma. simpl in H2; spec H2; auto. induction delta...
 inversion H2. left. apply rewrite_by_sound... right. apply IHdelta...
 destruct H3 as [H3 H4]. apply IHgamma... intro H5. simpl in H2; spec H2.
 split... rewrite <-rewrite_by_eqv in H3... auto.
-induction gamma. simpl in H2; spec H2. induction delta...
+induction gamma. simpl in H2; spec H2; auto. induction delta...
 simpl in H2. intros _. 
 apply rewrite_in_space_sound; auto.
-simpl in H1. spec H1. inversion H1... inversion H.
+simpl in H1. spec H1; auto. inversion H1... inversion H.
 simpl in H2. intros _. inversion H2. 
 left. apply rewrite_by_sound; auto.
-simpl in H1. spec H1. inversion H1... inversion H0.
+simpl in H1. spec H1; auto. inversion H1... inversion H0.
 right. rewrite (@listd_unfold_un _ state). 
 rewrite (@listd_unfold_un _ state) in H. inversion H.
   left. clear - H0 H1. induction delta... 
@@ -447,18 +447,18 @@ rewrite (@listd_unfold_un _ state) in H. inversion H.
   simpl in H1. spec H1... inversion H1... inversion H0.
   right. apply IHdelta...
   right. apply rewrite_in_space_sound... 
-  simpl in H1. spec H1. inversion H1... inversion H3.
+  simpl in H1. spec H1; auto. inversion H1... inversion H3.
 intros. apply IHgamma... intros H3. 
 assert (H4: pure_atom_denote a s). 
   simpl in H. destruct H as [H4 H5]. 
   apply rewrite_by_complete in H4...
-  simpl in H1. spec H1. destruct H1... inversion H.
-simpl in H2. spec H2. split... apply H2.
+  simpl in H1. spec H1; auto. destruct H1... inversion H.
+simpl in H2. spec H2; auto. split... (*apply H2.*)
 apply listd_map_pred with (f:=pure_atom_denote).
 intros a' H3. apply rewrite_by_sound...
-  simpl in H1. spec H1. inversion H1... inversion H0.
+  simpl in H1. spec H1; auto. inversion H1... inversion H0.
 simpl in H. destruct H as [H3 H4]. 
-simpl in H1. spec H1. destruct H1 as [H5|H5]; [|inversion H5].
+simpl in H1. spec H1; auto. destruct H1 as [H5|H5]; [|inversion H5].
 clear - H3 H4 H5. induction gamma...
 split... eapply rewrite_by_complete; eauto. 
 simpl in H4. destruct H4...
@@ -466,15 +466,15 @@ simpl in H4. destruct H4...
 (* NegSpaceClause case *)
 rewrite (@listd_unfold_inter _ state). intros [H3 H4].
 cut (listd pure_atom_denote un FF delta s).
-  intros H5. simpl in H1. spec H1. destruct H1 as [H6|H6]; [|inversion H6]. 
+  intros H5. simpl in H1. spec H1; auto. destruct H1 as [H6|H6]; [|inversion H6]. 
   clear - H5 H6. induction delta... simpl in H5. inversion H5.
   left. apply rewrite_by_sound... right...
 apply H2. rewrite (@listd_unfold_inter _ state). split.
-simpl in H1; spec H1. destruct H1 as [H5|H5]; [|inversion H5].
+simpl in H1; spec H1; auto. destruct H1 as [H5|H5]; [|inversion H5].
 clear - H3 H5. induction gamma... 
 simpl in H3; destruct H3 as [H3 H4]. split... 
 eapply rewrite_by_complete; eauto.
-simpl in H1; spec H1. destruct H1 as [H5|H5]; [|inversion H5].
+simpl in H1; spec H1; auto. destruct H1 as [H5|H5]; [|inversion H5].
 clear - H4 H5. revert s H4 H5. induction sigma... 
 intros s H4 H5. simpl in H4. destruct H4 as [x [y [H4 [H6 H7]]]].
 exists x; exists y. apply rewrite_in_space_eqv in H6... 

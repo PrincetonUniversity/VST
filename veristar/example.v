@@ -3,8 +3,8 @@
 Require Import ZArith.
 Require Import Znumtheory.
 Require Import Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes paramod.clauses.
-Require Import paramod.superpose paramod.veristar. 
+Require Import veristar.variables veristar.datatypes veristar.clauses.
+Require Import veristar.superpose veristar.veristar. 
 Import Superposition VeriStar.
 
 Definition a := Var 1%positive.

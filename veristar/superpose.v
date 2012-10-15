@@ -45,16 +45,17 @@ For more information about system S, see the following tutorial paper:
 Harald Ganzinger.  February 19, 1998.  *)
 
 (** Given-clause style implementation of the superposition subsystem; this module
-    has been superceded by paramod.superpose_modelsat. *)
+    has been superceded by veristar.superpose_modelsat. *)
 
 Load loadpath.
 Require Import ZArith List Bool.
-Require Import paramod.datatypes paramod.clauses.
-Require Import paramod.wellfounded.
+Require Import veristar.datatypes veristar.clauses.
+Require Import veristar.wellfounded.
 Require Import Image.
-Require Import paramod.basic.
-Require Import paramod.clause_universe.
-Require Import paramod.compare.
+Require Import veristar.basic.
+Require Import veristar.clause_universe.
+Require Import veristar.compare.
+Require Import veric.Coqlib2.
 
 Module Type SUPERPOSITION.
 
@@ -72,7 +73,7 @@ Parameter check : entailment -> superposition_result * M.t * M.t.
 
 (* just like check, except we start out with a set of clauses instead of an
    entailment.  this function is the one called by the main theorem prover, 
-   paramodulate.v. *)
+   veristarulate.v. *)
 Parameter check_clauseset : M.t -> superposition_result * M.t * M.t.
 
 Parameter clause_generate : model -> clause -> option (var * expr * clause).
@@ -355,8 +356,8 @@ Fixpoint clauses_generate (R: model) (cl: list clause) : model * M.t :=
            else: loop(n-1, G', U') *)
 Definition arg := (M.t * M.t)%type.
 
-Require Import paramod.variables.
-Require Import paramod.fresh.
+Require Import veristar.variables.
+Require Import veristar.fresh.
 
 Definition varbound (ss: arg) : vset := var_upto (freshmax_list freshmax_clause (M.elements (M.union (fst ss) (snd ss)))).
 
@@ -669,7 +670,7 @@ Proof.
  apply freshmax_demodulate; auto.
 Qed.
 
-Require Import ecm.Coqlib2.
+Require Import msl.Coqlib2.
 
 Lemma freshmax_sp:
   forall m d a l, 

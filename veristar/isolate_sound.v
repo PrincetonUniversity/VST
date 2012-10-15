@@ -1,17 +1,17 @@
 Load loadpath.
 Require Import Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes paramod.list_denote.
+Require Import veristar.variables veristar.datatypes veristar.list_denote.
 Require Import compcert.Coqlib.
-Require Import ecm.Coqlib2.
+Require Import veric.Coqlib2.
 Require Import msl.predicates_sa.
 Require Import ZArith.
-Require Import paramod.veristar_sound.
-Require Import paramod.model_type paramod.model.
+Require Import veristar.veristar_sound.
+Require Import veristar.model_type veristar.model.
 Require Import Permutation.
-Require Import paramod.veristar.
-Require Import paramod.isolate.
-Require Import paramod.fresh.
-Require Import paramod.basic.
+Require Import veristar.veristar.
+Require Import veristar.isolate.
+Require Import veristar.fresh.
+Require Import veristar.basic.
 Require Import Classical.
 
 Module Type ISO_SOUND.

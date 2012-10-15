@@ -6,12 +6,11 @@
     on those (see, eg, test/test.pure.entailments.sf) *)
 
 Load loadpath.
-Require Import List ecm.Coqlib2.
-
+Require Import List veric.Coqlib2 msl.base.
 Require Import msl.predicates_sa.
-Require Import paramod.datatypes paramod.clauses paramod.clause_lemmas
-               paramod.list_denote paramod.basic paramod.compare.
-Require Import paramod.model_type paramod.model.
+Require Import veristar.datatypes veristar.clauses veristar.clause_lemmas
+               veristar.list_denote veristar.basic veristar.compare.
+Require Import veristar.model_type veristar.model.
 
 Section cclosure.
 Context (A B : Type).
@@ -77,8 +76,8 @@ Compute lookC 3 (mergeC 1 8 (mergeC 3 4 (mergeC 1 3 (mergeC 1 2 nil)))).
 End TestCClosure.
 *)
 
-Notation expr_get := (lookC _ _ expr_cmp id).
-Notation expr_merge := (mergeC _ _ expr_cmp expr_cmp id).
+Notation expr_get := (lookC _ _ expr_cmp (@id _)).
+Notation expr_merge := (mergeC _ _ expr_cmp expr_cmp (@id _)).
 
 (* used internally *)
 Local Notation expr_rewriteC := (rewriteC expr _ expr_cmp).
@@ -153,7 +152,7 @@ Proof with simpl; auto.
 induction l... 
 destruct a... destruct gamma... destruct delta... 
 destruct p... destruct delta...
-intros [H1 H2]. simpl in H1. spec H1. 
+intros [H1 H2]. simpl in H1. spec H1. auto.
 inversion H1 as [H3|H3]; [|inversion H3].
 apply expr_merge_sound...
 Qed.

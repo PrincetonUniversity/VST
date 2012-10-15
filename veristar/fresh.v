@@ -1,10 +1,10 @@
 Require Import Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes.
+Require Import veristar.variables veristar.datatypes.
 Require Import compcert.Coqlib.
-Require Import ecm.Coqlib2.
+Require Import msl.Coqlib2.
 Require Import ZArith.
-Require Import paramod.compare.
-Require Import paramod.clauses.
+Require Import veristar.compare.
+Require Import veristar.clauses.
 
 
 Fixpoint freshmax_expr (e: expr) : var :=

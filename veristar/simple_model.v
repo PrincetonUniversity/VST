@@ -1,7 +1,7 @@
 Add LoadPath "..".
 Require Import msl.base msl.sepalg msl.psepalg msl.predicates_sl msl.functors 
                msl.sepalg_functors msl.sepalg_generators. 
-Require Import paramod.variables paramod.model_type.
+Require Import veristar.variables veristar.model_type.
 
 Module BarebonesStates.
 Definition loc := nat.

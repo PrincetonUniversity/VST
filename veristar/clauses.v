@@ -1,8 +1,8 @@
 Load loadpath.
 Require Import ZArith List Recdef Coq.MSets.MSetInterface Coq.Sorting.Mergesort
                Permutation Coq.MSets.MSetAVL. 
-Require Import paramod.basic paramod.tactics paramod.variables paramod.datatypes 
-               paramod.compare paramod.redblack.  
+Require Import veristar.basic veristar.tactics veristar.variables veristar.datatypes 
+               veristar.compare veristar.redblack.  
 
 (** The clause datatype and related definitions and lemmas *)
 

@@ -2,10 +2,10 @@ Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
 Require Import msl.Axioms. 
 Require Import msl.predicates_sa.
-Require Import ecm.Coqlib2.
-Require Import paramod.variables paramod.datatypes paramod.clauses 
-               paramod.list_denote paramod.model_type paramod.model
-               paramod.basic paramod.compare.
+Require Import veric.Coqlib2.
+Require Import veristar.variables veristar.datatypes veristar.clauses 
+               veristar.list_denote veristar.model_type veristar.model
+               veristar.basic veristar.compare.
 
 Module Type SPRED_LEMMAS.
 Declare Module VSM : VERISTAR_MODEL.

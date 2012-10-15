@@ -2,11 +2,11 @@ Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
 Require Import msl.Axioms. 
 Require Import msl.predicates_sa.
-Require Import ecm.Coqlib2.
-Require Import paramod.variables paramod.datatypes paramod.clauses 
-               paramod.list_denote paramod.clause_lemmas paramod.heapresolve
-               paramod.model_type paramod.model paramod.spred_lemmas 
-               paramod.clausify_sound paramod.basic paramod.compare.
+Require Import veric.Coqlib2.
+Require Import veristar.variables veristar.datatypes veristar.clauses 
+               veristar.list_denote veristar.clause_lemmas veristar.heapresolve
+               veristar.model_type veristar.model veristar.spred_lemmas 
+               veristar.clausify_sound veristar.basic veristar.compare.
 
 Require Import Classical. 
 Import HeapResolve.
@@ -1786,7 +1786,8 @@ generalize (do_unfold_sound 500 c1 (M.add c2 M.empty)
 spec H3.  apply setd_add; auto. apply setd_empty_set; auto.
 spec H3.  
 remember (do_unfold 500 c1 (M.add c2 M.empty)) as J.
-clear - H1 H3.
+clear - H1 H3; auto.
+remember (do_unfold 500 c1 (M.add c2 M.empty)) as J.
 rewrite M.fold_spec.
 unfold setd in *.
 remember (@TT state) as b.
@@ -1795,11 +1796,11 @@ unfold Basics.flip; rewrite <- fold_left_rev_right.
 rewrite (@listd_unfold_inter M.elt state) in H3|-*.
 destruct H3; split; auto.
 rewrite <- (@listd_inter_rev _ state) in H.
-revert H; induction (rev (M.elements J)); intros.
+revert H. induction (rev (M.elements J)); intros.
 simpl. rewrite empty_set_elems. auto.
 simpl in H.
 destruct H.
-specialize (IHl H2).
+specialize (IHl H3).
 clear H2.
 simpl.
 apply setd_un.

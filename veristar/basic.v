@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import Coq.Lists.List Coq.Arith.EqNat Coq.Arith.Compare_dec
                Coq.ZArith.ZArith.
-Require Import paramod.tactics.
+Require Import veristar.tactics.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

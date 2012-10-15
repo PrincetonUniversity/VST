@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import paramod.LibTactics.
+Require Import veristar.LibTactics.
 
 (** LibTactics1:
 a couple extra tactics for writing Ssreflect-style proofs *)

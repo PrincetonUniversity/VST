@@ -6,15 +6,15 @@ Entailments are of the form [Pi /\ Sigma ==> Pi' /\ Sigma'].  Here,
 
 Load loadpath.
 Require Import ZArith Znumtheory Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes paramod.clauses 
-               paramod.heapresolve. 
+Require Import veristar.variables veristar.datatypes veristar.clauses 
+               veristar.heapresolve. 
 
 (* To build the model-based saturation system, replace the following line with
 
-       Require Import paramod.superpose_modelsat. *)
+       Require Import veristar.superpose_modelsat. *)
 
-(*Require Import paramod.superpose. *)
-Require Import paramod.superpose_modelsat.
+(*Require Import veristar.superpose. *)
+Require Import veristar.superpose_modelsat.
 
 Import Superposition. Import HeapResolve.
 Require Recdef.

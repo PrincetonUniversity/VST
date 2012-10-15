@@ -1,0 +1,32 @@
+LibTactics.vo LibTactics.glob: LibTactics.v
+LibTactics2.vo LibTactics2.glob: LibTactics2.v ./loadpath.v LibTactics.vo
+tactics.vo tactics.glob: tactics.v LibTactics.vo LibTactics2.vo
+basic.vo basic.glob: basic.v
+redblack.vo redblack.glob: redblack.v
+wellfounded.vo wellfounded.glob: wellfounded.v
+compare.vo compare.glob: compare.v ./loadpath.v
+variables.vo variables.glob: variables.v tactics.vo
+datatypes.vo datatypes.glob: datatypes.v variables.vo
+fresh.vo fresh.glob: fresh.v variables.vo datatypes.vo compare.vo clauses.vo
+superpose.vo superpose.glob: superpose.v ./loadpath.v datatypes.vo clauses.vo wellfounded.vo basic.vo clause_universe.vo variables.vo fresh.vo
+superpose_modelsat.vo superpose_modelsat.glob: superpose_modelsat.v ./loadpath.v variables.vo datatypes.vo clauses.vo cclosure.vo basic.vo
+heapresolve.vo heapresolve.glob: heapresolve.v ./loadpath.v variables.vo datatypes.vo clauses.vo superpose.vo basic.vo
+veristar.vo veristar.glob: veristar.v ./loadpath.v variables.vo datatypes.vo clauses.vo heapresolve.vo superpose_modelsat.vo
+model_type.vo model_type.glob: model_type.v ./loadpath.v variables.vo
+model.vo model.glob: model.v ./loadpath.v datatypes.vo clauses.vo list_denote.vo model_type.vo
+clause_lemmas.vo clause_lemmas.glob: clause_lemmas.v ./loadpath.v datatypes.vo clauses.vo list_denote.vo heapresolve.vo model_type.vo model.vo superpose.vo
+cclosure.vo cclosure.glob: cclosure.v ./loadpath.v datatypes.vo clauses.vo clause_lemmas.vo list_denote.vo basic.vo model_type.vo model.vo
+superpose_sound.vo superpose_sound.glob: superpose_sound.v ./loadpath.v datatypes.vo clauses.vo clause_lemmas.vo list_denote.vo superpose.vo basic.vo model_type.vo model.vo
+superpose_modelsat_sound.vo superpose_modelsat_sound.glob: superpose_modelsat_sound.v ./loadpath.v datatypes.vo clauses.vo clause_lemmas.vo cclosure.vo list_denote.vo superpose_modelsat.vo basic.vo model_type.vo model.vo
+spred_lemmas.vo spred_lemmas.glob: spred_lemmas.v ./loadpath.v variables.vo datatypes.vo clauses.vo list_denote.vo model_type.vo model.vo basic.vo
+clausify_sound.vo clausify_sound.glob: clausify_sound.v ./loadpath.v datatypes.vo clauses.vo list_denote.vo model_type.vo model.vo spred_lemmas.vo basic.vo
+clause_universe.vo clause_universe.glob: clause_universe.v variables.vo datatypes.vo clauses.vo fresh.vo
+wellformed_sound.vo wellformed_sound.glob: wellformed_sound.v ./loadpath.v variables.vo datatypes.vo clauses.vo list_denote.vo heapresolve.vo model_type.vo model.vo clause_lemmas.vo basic.vo
+unfold_sound.vo unfold_sound.glob: unfold_sound.v ./loadpath.v variables.vo datatypes.vo clauses.vo list_denote.vo clause_lemmas.vo heapresolve.vo model_type.vo model.vo spred_lemmas.vo clausify_sound.vo basic.vo
+norm_sound.vo norm_sound.glob: norm_sound.v ./loadpath.v variables.vo datatypes.vo list_denote.vo heapresolve.vo model_type.vo model.vo superpose.vo clauses.vo
+veristar_sound.vo veristar_sound.glob: veristar_sound.v ./loadpath.v datatypes.vo clauses.vo heapresolve.vo veristar.vo superpose_modelsat.vo model_type.vo model.vo clausify_sound.vo norm_sound.vo wellformed_sound.vo unfold_sound.vo superpose_modelsat_sound.vo list_denote.vo clause_lemmas.vo
+clauses.vo clauses.glob: clauses.v ./loadpath.v basic.vo tactics.vo variables.vo datatypes.vo compare.vo redblack.vo
+list_denote.vo list_denote.glob: list_denote.v ./loadpath.v variables.vo datatypes.vo clauses.vo basic.vo
+isolate.vo isolate.glob: isolate.v variables.vo datatypes.vo fresh.vo veristar.vo basic.vo
+isolate_sound.vo isolate_sound.glob: isolate_sound.v ./loadpath.v variables.vo datatypes.vo list_denote.vo veristar_sound.vo model_type.vo model.vo veristar.vo isolate.vo fresh.vo basic.vo
+simple_model.vo simple_model.glob: simple_model.v variables.vo model_type.vo

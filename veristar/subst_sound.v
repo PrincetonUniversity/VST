@@ -1,9 +1,9 @@
 Require Import ZArith Coq.Lists.List Permutation.
 Require Import msl.Axioms. 
 Require Import msl.predicates_sa.
-Require Import paramod.variables paramod.datatypes paramod.clauses 
-               paramod.list_denote paramod.heapresolve
-               paramod.model_type paramod.model.
+Require Import veristar.variables veristar.datatypes veristar.clauses 
+               veristar.list_denote veristar.heapresolve
+               veristar.model_type veristar.model.
 
 Module Type SUBST_SOUND.
 Declare Module VSD: VERISTAR_DEFS.

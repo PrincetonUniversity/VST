@@ -1,5 +1,5 @@
 Require Import ZArith List.
-Require Import paramod.variables.
+Require Import veristar.variables.
 
 (** datatypes.v:
 Datatypes used throughout the development *)

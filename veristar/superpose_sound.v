@@ -1,12 +1,12 @@
 Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms ecm.Coqlib2.
+Require Import msl.Axioms veric.Coqlib2.
 Require Import msl.predicates_sa.
-Require Import paramod.datatypes paramod.clauses paramod.clause_lemmas
-               paramod.list_denote paramod.superpose paramod.basic 
-               paramod.compare.
+Require Import veristar.datatypes veristar.clauses veristar.clause_lemmas
+               veristar.list_denote veristar.superpose veristar.basic 
+               veristar.compare.
 Import Superposition.
-Require Import paramod.model_type paramod.model.
+Require Import veristar.model_type veristar.model.
 
 Module Type SP_SOUND.
 Declare Module VSM : VERISTAR_MODEL.
@@ -102,7 +102,7 @@ destruct gamma, delta as [|atm delta]...
 destruct atm as [e1 e2], delta'... (*destruct p...*) simpl in A; spec A...
 destruct gamma'... destruct gamma'... destruct p...
 remember (expr_eq e1 e) as b; destruct b. 2: simpl; auto.
-if_tac... split... intro H1. spec B H1. simpl in B.
+if_tac... split... intro H1. specialize (B H1). simpl in B.
 rewrite (@listd_insert_uniq_un _ state)... 2: apply pure_atom_cmp_eq.
 destruct A as [A|A];destruct B as [B|B]... rewrite <-(expr_eq_eq' _ _ Heqb) in B. 
 assert (C: (e0 === e2) s) by (eapply var_eq_trans; apply var_eq_sym in B; eauto).
@@ -143,7 +143,6 @@ remember (expr_eq e e0) as b; destruct b; simpl; try split; auto.
 intro Hyp; apply A; rewrite (expr_eq_eq' _ _ Heqb); simpl; split; auto.
 solve[apply var_eq_refl].
 Qed.
-
 
 Lemma ordered_factoring_sound c l0 s :
   clause_denote c s -> listd clause_denote inter TT l0 s -> 
@@ -210,7 +209,8 @@ generalize (negative_superposition_sound c d l0 s) as H4; intro.
 generalize (positive_superposition_sound c d l0 s) as H5; intro.
 generalize (equality_factoring_sound c l0 s) as H6; intro.
 generalize (ordered_factoring_sound c l0 s) as H7; intro.
-spec H4 H1 H2 H3; spec H5 H1 H2 H3. spec H6 H1 H3; spec H7 H1 H3.
+specialize (H4 H1 H2 H3); specialize (H5 H1 H2 H3). 
+specialize (H6 H1 H3); specialize (H7 H1 H3).
 rewrite (@listd_unfold_inter _ state). split... 
 destruct c, d... simpl in H4, H5, H6. 
 destruct gamma, delta... destruct p... 
@@ -231,7 +231,7 @@ Lemma remove_trivial_atoms_sound b atms s :
   listd pure_atom_denote inter b (remove_trivial_atoms atms) s.
 Proof.
 intro A; induction atms; auto.
-destruct a; simpl in A |- *; destruct A as [A1 A2]; spec IHatms A2.
+destruct a; simpl in A |- *; destruct A as [A1 A2]; specialize (IHatms A2).
 solve [remember (expr_cmp e e0) as b'; destruct b'; simpl; try split; auto].
 Qed.
 
@@ -243,10 +243,10 @@ split; intro A;
 [ |solve[apply remove_trivial_atoms_sound; auto]].
 induction atms; auto; destruct a; simpl in A |- *. 
 remember (expr_cmp e e0) as b'; destruct b'; simpl in A;
-[ |solve[destruct A as [A1 A2]; spec IHatms A2; split; auto]
-  |solve[destruct A as [A1 A2]; spec IHatms A2; split; auto]].
+[ |solve[destruct A as [A1 A2]; specialize (IHatms A2); split; auto]
+  |solve[destruct A as [A1 A2]; specialize (IHatms A2); split; auto]].
 apply comp_eq in Heqb'; auto. subst e0.
-spec IHatms A.
+specialize (IHatms A).
 split; auto.
 solve[apply var_eq_refl].
 Qed.
@@ -321,9 +321,10 @@ Lemma demodulate_sound c d s :
 Proof with simpl; auto.
 intros H1 H2. destruct c... destruct gamma, delta...
  destruct p... destruct delta... destruct d... intro H3.
-simpl in H1; spec H1. inversion H1. 2: inversion H. clear H1.
+simpl in H1; spec H1; auto. 
+inversion H1. 2: inversion H. clear H1.
 subst priority0.
-induction gamma. simpl in H2; spec H2. induction delta...
+induction gamma. simpl in H2; spec H2; auto. induction delta...
 inversion H2. left. apply rewrite_by_sound... right. apply IHdelta...
 destruct H3 as [H3 H4]. apply IHgamma... intro H5. simpl in H2; spec H2.
 split... rewrite <-rewrite_by_eqv in H3... auto.
@@ -364,7 +365,7 @@ Lemma insert_uniq_In {A} cmp (l : list A) a a' :
   In a' (insert_uniq cmp a l) -> a = a' \/ In a' l.
 Proof with auto.
 revert a'; induction l... intro a'. simpl. destruct (cmp a a0)...
-simpl; intros [B | B]... spec IHl a' B. destruct IHl...
+simpl; intros [B | B]... specialize (IHl a' B). destruct IHl...
 Qed.
 
 Lemma rsort_uniq_In {A} cmp (l : list A) a : In a (rsort_uniq cmp l) -> In a l.
@@ -463,7 +464,8 @@ set (P := fun (g_u: M.t*M.t) =>
                setd clause_denote inter TT (fst g_u) s /\
                setd clause_denote inter TT (snd g_u) s).
 generalize (simple_loop_induction P). unfold P; intros H3. 
-spec H3 given unselected r given' unselected'. intros H4. apply H3; auto. 
+specialize (H3 given unselected r given' unselected'). 
+intros H4. apply H3; auto. 
 intros ? ? ? ? [? ?] ?; apply one_inference_step_sound
       with (given := g) (unselected := u); auto.
 Qed.

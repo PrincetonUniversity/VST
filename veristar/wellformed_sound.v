@@ -1,10 +1,10 @@
 Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms msl.predicates_sa ecm.Coqlib2.
-Require Import paramod.variables paramod.datatypes paramod.clauses  
-               paramod.list_denote paramod.heapresolve
-               paramod.model_type paramod.model
-               paramod.clause_lemmas paramod.basic.
+Require Import msl.Axioms msl.predicates_sa veric.Coqlib2.
+Require Import veristar.variables veristar.datatypes veristar.clauses  
+               veristar.list_denote veristar.heapresolve
+               veristar.model_type veristar.model
+               veristar.clause_lemmas veristar.basic.
 
 Import HeapResolve.
 
@@ -357,8 +357,8 @@ Lemma factor_hyp_lem gamma delta l s :
       listd pure_atom_denote inter TT gamma s' ->
       listd pure_atom_denote un FF (atms ++ delta) s') inter TT l s.
 Proof with simpl; auto.
-intro A; induction l... split. intro B; spec A B; simpl in A; destruct A as [A C]...
-apply IHl... intro B. spec A B. simpl in A; destruct A as [A C]...
+intro A; induction l... split. intro B; specialize (A B); simpl in A; destruct A as [A C]...
+apply IHl... intro B. specialize (A B). simpl in A; destruct A as [A C]...
 Qed.
 
 Lemma factor_hyp_lem_aux delta l s :
@@ -382,12 +382,12 @@ apply clause_setd_listd.
 apply listd_map_pred 
   with (f := fun atms s => listd pure_atom_denote inter TT gamma s -> 
     listd pure_atom_denote un FF (atms ++ delta) s).
-intros l B C. spec B C. unfold normalize_atoms. 
+intros l B C. specialize (B C). unfold normalize_atoms. 
 rewrite (@listd_sort_uniq_un _ state). 2: apply pure_atom_cmp_eq.
 rewrite listd_map, listd_app; [ | intros a b'; rewrite <- order_eqv_sound; auto ].
 rewrite (@listd_unfold_un _ state). 
 rewrite listd_app in B; rewrite (@listd_unfold_un _ state) in B...
-apply factor_hyp_lem... intro B; spec A B... apply factor_hyp_lem_aux...
+apply factor_hyp_lem... intro B; specialize (A B)... apply factor_hyp_lem_aux...
 rewrite (@listd_unfold_un _ state) in A. destruct A as [A | A].
 right... left. apply do_well_sound... 
 unfold space_denote; rewrite (@listd_sort_sepcon _ state)...

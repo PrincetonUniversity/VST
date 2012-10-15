@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import paramod.compare.
+Require Import veristar.compare.
 
 (** Soundness proof of the SL theorem prover. Imports are organized
     into groups below, defining the main components of the system. *)
@@ -10,27 +10,27 @@ Require Import ZArith Coq.Lists.List Permutation Classical.
 
 (** 2- msl axioms and basic SL predicates *)
 
-Require Import msl.Axioms msl.predicates_sa ecm.Coqlib2.
+Require Import msl.Axioms msl.predicates_sa veric.Coqlib2.
 
 (** 3- defns. of datatypes and clauses *)
 
-Require Import paramod.datatypes paramod.clauses.
+Require Import veristar.datatypes veristar.clauses.
 
 (** 4- implementations of superposition and heap systems. *)
 
-Require Import paramod.heapresolve paramod.veristar.
+Require Import veristar.heapresolve veristar.veristar.
 (*begin hide*)
 (* To build the soundness proof for the model-based saturation system, replace 
     the following line with
 
-       Require Import paramod.superpose_modelsat. *)
-(*Require Import paramod.superpose.*)
+       Require Import veristar.superpose_modelsat. *)
+(*Require Import veristar.superpose.*)
 (*end hide*)
-Require Import paramod.superpose_modelsat. 
+Require Import veristar.superpose_modelsat. 
 
 (** 5- a model of generic SLs *)
 
-Require Import paramod.model_type paramod.model.
+Require Import veristar.model_type veristar.model.
 
 (** 6- soundness proof of (4) wrt. model defined in (5) is split into the
     following major components:
@@ -43,22 +43,22 @@ Require Import paramod.model_type paramod.model.
      -unfold_sound:     soundness of unfolding rules U1-U5 and spatial 
                         resolution (rule SR) *)
 
-Require Import paramod.clausify_sound paramod.norm_sound 
-               paramod.wellformed_sound paramod.unfold_sound.
+Require Import veristar.clausify_sound veristar.norm_sound 
+               veristar.wellformed_sound veristar.unfold_sound.
 (*begin hide*)
 (* To build the soundness proof for the model-based saturation system, replace 
    the following line with
 
-       Require Import paramod.superpose_modelsat_sound. *)
+       Require Import veristar.superpose_modelsat_sound. *)
 (*end hide*)
-Require Import paramod.superpose_modelsat_sound.
+Require Import veristar.superpose_modelsat_sound.
 
 (** 7- misc. lemmas 
 
    lemma library for reasoning about denotations folded over sequences;
    misc. lemmas about clauses *)
 
-Require Import paramod.list_denote paramod.clause_lemmas.
+Require Import veristar.list_denote veristar.clause_lemmas.
 
 (** Signature of soundness proof *)
 
@@ -198,14 +198,14 @@ if_tac... if_tac... if_tac... apply IHnn...
    apply unfolding_sound. 
    apply norm_sound. intro; auto.
    apply check_clauseset_Cexample_sound in HeqS. 
-   spec HeqS st H2. destruct HeqS...
+   specialize (HeqS st H2). destruct HeqS...
    apply simplify_atoms_sound...
    edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS); eauto.
    autounfold with DEBUG_UNFOLD.
    destruct H...
    apply norm_sound... 
    apply check_clauseset_Cexample_sound in HeqS. 
-   spec HeqS st H2. destruct HeqS...
+   specialize (HeqS st H2). destruct HeqS...
    apply simplify_sound...  
    edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS) 
      as [[H4 H5]]; eauto.
@@ -213,19 +213,19 @@ if_tac... if_tac... if_tac... apply IHnn...
    intros. apply relim1_sound; auto.
    apply incorp_sound... apply do_wellformed_sound... apply norm_sound... 
    apply check_clauseset_Cexample_sound in HeqS. 
-   spec HeqS st H2. destruct HeqS...
+   specialize (HeqS st H2). destruct HeqS...
    intros; apply simplify_atoms_sound...
    edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS) 
      as [[H4 H5]]; eauto.
    apply setd_filter_pred... apply unfolding_sound...  
    apply norm_sound...
    apply check_clauseset_Cexample_sound in HeqS. 
-   spec HeqS st H2. destruct HeqS...
+   specialize (HeqS st H2). destruct HeqS...
    intros; apply simplify_atoms_sound... 
    edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS) 
      as [[H4 H5]]; eauto.
    apply check_clauseset_Cexample_sound in HeqS. 
-   spec HeqS st H2. destruct HeqS...
+   specialize (HeqS st H2). destruct HeqS...
    apply norm_sound...
    apply simplify_sound... destruct H...
 apply IHnn...
@@ -240,21 +240,21 @@ apply IHnn...
   apply setd_un.
   apply do_wellformed_sound... apply norm_sound...
   apply check_clauseset_Cexample_sound in HeqS. 
-  spec HeqS st H2. destruct HeqS...
+  specialize (HeqS st H2). destruct HeqS...
   intros; apply simplify_atoms_sound... 
   edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS) 
     as [[H4 H5]]; eauto.
   apply setd_fold... intros; apply relim1_sound...
   apply do_wellformed_sound... apply norm_sound...
   apply check_clauseset_Cexample_sound in HeqS. 
-  spec HeqS st H2. destruct HeqS...
+  specialize (HeqS st H2). destruct HeqS...
   intros; apply simplify_atoms_sound... 
   edestruct (check_clauseset_Cexample_sound _ _ _ _ _ _ HeqS) 
     as [[H4 H5]]; eauto.
 Qed.
 
 (** VeriStar main soundness theorem: 
-    paramodulate e = "Valid" ==> entailment semantically valid.*)
+    veristarulate e = "Valid" ==> entailment semantically valid.*)
 
 Theorem check_entailment_sound: forall (e: entailment), 
   VeriStar.check_entailment e = VeriStar.Valid -> entailment_denote e.

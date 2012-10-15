@@ -1,12 +1,12 @@
 Require Import Coq.Lists.List.
-Require Import paramod.variables paramod.datatypes.
+Require Import veristar.variables veristar.datatypes.
 Require Import compcert.Coqlib.
-Require Import ecm.Coqlib2.
+Require Import veric.Coqlib2.
 Require Import ZArith.
 
-Require Import paramod.fresh.
-Require Import paramod.veristar.
-Require Import paramod.basic.
+Require Import veristar.fresh.
+Require Import veristar.veristar.
+Require Import veristar.basic.
 
 Definition oracle (ent: entailment) : bool :=
  match VeriStar.check_entailment ent with

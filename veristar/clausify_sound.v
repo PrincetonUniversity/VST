@@ -2,9 +2,9 @@ Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List Coq.Sorting.Permutation
                Coq.Logic.Classical.
 Require Import msl.Axioms msl.predicates_sa. 
-Require Import paramod.datatypes paramod.clauses paramod.list_denote 
-               paramod.model_type paramod.model paramod.spred_lemmas
-               paramod.basic.
+Require Import veristar.datatypes veristar.clauses veristar.list_denote 
+               veristar.model_type veristar.model veristar.spred_lemmas
+               veristar.basic.
 
 Module Type CLAUSIFY_SOUND.
 Declare Module VSM : VERISTAR_MODEL.

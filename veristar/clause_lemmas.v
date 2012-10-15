@@ -1,11 +1,11 @@
 Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms ecm.Coqlib2. 
+Require Import msl.Axioms msl.Coqlib2. 
 Require Import msl.predicates_sa.
-Require Import paramod.datatypes paramod.clauses  
-               paramod.list_denote paramod.heapresolve
-               paramod.model_type paramod.model paramod.compare.
-Require Import paramod.superpose.
+Require Import veristar.datatypes veristar.clauses  
+               veristar.list_denote veristar.heapresolve
+               veristar.model_type veristar.model veristar.compare.
+Require Import veristar.superpose.
 
 (* clause lemmas
    -Interpretation of clauses under reordering, etc. *)

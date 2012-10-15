@@ -1,10 +1,10 @@
 Load loadpath.
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms ecm.Coqlib2. 
+Require Import msl.Axioms veric.Coqlib2. 
 Require Import msl.predicates_sa.
-Require Import paramod.variables paramod.datatypes paramod.list_denote 
-               paramod.heapresolve paramod.model_type paramod.model 
-               paramod.superpose paramod.clauses.
+Require Import veristar.variables veristar.datatypes veristar.list_denote 
+               veristar.heapresolve veristar.model_type veristar.model 
+               veristar.superpose veristar.clauses.
 
 Import HeapResolve.
 
@@ -79,7 +79,7 @@ simpl in A. destruct sc; auto; intro C; rewrite (@listd_sort_uniq_un _ state);
 try solve [apply pure_atom_cmp_eq]. rewrite listd_app, listd_unfold_un. 
 rewrite (@listd_sort_uniq_inter _ state) in C. 2: apply pure_atom_cmp_eq.
 rewrite listd_app, listd_unfold_inter in C; destruct C as [C D].
-spec A C. spec B D. rewrite (@listd_unfold_un _ state) in B.
+specialize (A C). specialize (B D). rewrite (@listd_unfold_un _ state) in B.
 destruct A as [A | A]; [ destruct B as [B | B]; right | left; auto]. 
 rewrite listd_unfold_un; left... rewrite listd_unfold_un. right.
 unfold space_denote in B; unfold subst_spaces. 
@@ -87,7 +87,7 @@ solve[rewrite <- subst_space_atoms_sound; auto].
 rewrite listd_app, listd_unfold_un. 
 rewrite (@listd_sort_uniq_inter _ state) in C. 2: apply pure_atom_cmp_eq.
 rewrite listd_app, listd_unfold_inter in C; destruct C as [C D].
-spec A C. destruct A as [A | A]; [ | left; auto].
+specialize (A C). destruct A as [A | A]; [ | left; auto].
 rewrite listd_unfold_inter in D. destruct D as [D E]. 
 unfold subst_spaces in E. rewrite <- subst_space_atoms_sound in E; auto.
 simpl in B. rewrite (@listd_unfold_inter _ state) in B. right; apply B. 
@@ -162,7 +162,7 @@ Qed.
 Lemma normalize2_4_sound sc s : 
   clause_denote sc s -> clause_denote (normalize2_4 sc) s.
 Proof with try solve [simpl; auto; congruence].
-intro A; destruct sc... intro B. spec A B. clear B.
+intro A; destruct sc... intro B. specialize (A B). clear B.
 rewrite (@listd_unfold_un _ state) in A |- *. destruct A; [ left; auto | ].
 right; rewrite <- drop_reflex_lseg_sound...
 intro B. rewrite (@listd_unfold_inter _ state) in B. destruct B as [B C].

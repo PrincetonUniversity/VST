@@ -1,7 +1,7 @@
 Add LoadPath "../..". 
 Add LoadPath "../../..".
-Require Import paramod.superpose paramod.veristar paramod.clauses
-               paramod.variables.
+Require Import veristar.superpose veristar.veristar veristar.clauses
+               veristar.variables.
 
 Extract Inductive bool => "bool" [ "true" "false" ].
 

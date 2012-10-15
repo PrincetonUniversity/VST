@@ -1,8 +1,8 @@
 Load loadpath.
-Require Import Coq.Lists.List Permutation ecm.Coqlib2.
-Require Import msl.Axioms msl.sepalg 
-               msl.predicates_sa paramod.variables paramod.datatypes 
-               paramod.clauses paramod.basic paramod.compare.  
+Require Import Coq.Lists.List Permutation veric.Coqlib2.
+Require Import msl.Axioms msl.sepalg msl.predicates_sa msl.base
+               veristar.variables veristar.datatypes 
+               veristar.clauses veristar.basic veristar.compare.  
 
 (* listd - interpretation functions folded over sequences *)
 
