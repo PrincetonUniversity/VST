@@ -386,3 +386,22 @@ Lemma for1_ret_assert_normal:
 Proof. reflexivity. Qed.
 Hint Rewrite for1_ret_assert_normal: normalize.
 
+Definition retval : environ -> val := eval_id ret_temp.
+
+Lemma retval_get_result1: 
+   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
+Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
+Hint Rewrite retval_get_result1 : normalize.
+
+
+Lemma unfold_make_args': forall fsig args rho,
+    make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
+Proof. reflexivity. Qed.
+Hint Rewrite unfold_make_args' : normalize.
+Lemma unfold_make_args_cons: forall i il v vl rho,
+   make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
+Proof. reflexivity. Qed.
+Lemma unfold_make_args_nil: make_args nil nil = globals_only.
+Proof. reflexivity. Qed.
+Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
+

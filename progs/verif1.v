@@ -153,6 +153,27 @@ match goal with |- semax_body _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   normalize; canonicalize_pre
  end.
 
+
+Opaque sepcon.
+Opaque emp.
+Opaque andp.
+
+Lemma lower_PROP_LOCAL_SEP:
+  forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 
+     (!!fold_right and True P && (local (fold_right (lift2 and) (lift0 True) Q) && (fold_right sepcon emp R))) rho.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_PROP_LOCAL_SEP : normalize.
+
+Ltac go_lower' := let rho := fresh "rho" in intro rho; normalize.
+
+Lemma lower_TT: forall rho, @TT assert Nassert rho = @TT mpred Nveric.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_TT : normalize.
+
+Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_FF : normalize.
+
 Lemma body_sumlist: semax_body Gprog P.f_sumlist sumlist_spec.
 Proof.
 start_function.     
@@ -163,15 +184,16 @@ forward_while (sumlist_Inv contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
-go_lower.
+go_lower'.
 rewrite H0. rewrite H1. unfold partial_sum.
 rewrite Int.add_zero_l. normalize.
-rewrite sepcon_comm. apply sepcon_TT.
+rewrite sepcon_comm.
+apply sepcon_TT.
 (* Prove that loop invariant implies typechecking condition *)
 normalizex.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold sumlist_Inv.
-go_lower. intros.
+go_lower'. intros.
 unfold partial_sum in H0;  rewrite H0.
 rewrite (typed_false_ptr H).
 normalize.
@@ -195,27 +217,23 @@ forward.
 normalize.
 intro x; unfold sumlist_Inv.
  apply exp_right with r.
- go_lower. 
- apply andp_right; 
- normalize.
- rewrite H0.
-apply prop_right.
+go_lower'.
+simpl in H0.
+autorewrite with normalize in H0.
+rewrite H0.
 unfold partial_sum in *.
-simpl in H4.
-rewrite H4; clear H4. rewrite <- H1; clear H1.
+simpl in H4. rewrite H4. clear H4. rewrite <- H1. clear H1.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
 destruct (tc_val_extract_int _ _ _ _ H1) as [n ?].
 rewrite H4 in *.
 destruct x; inv H0.
-simpl.
-symmetry; apply Int.add_assoc.
+simpl. normalize. rewrite Int.add_assoc. normalizex.
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 normalize.
 (* After the loop *)
-
 forward.
-go_lower.
+go_lower'. simpl opt2list. simpl eval_exprlist. normalize.
 apply andp_right; normalize.
 eapply tc_eval_id_i; eauto.
 rewrite H0.
@@ -235,7 +253,7 @@ Lemma body_reverse: semax_body Gprog P.f_reverse reverse_spec.
 Proof.
 start_function.
 forward.
-go_lower.
+go_lower'. simpl. normalize.
 forward.
 forward_while (reverse_Inv contents)
          (PROP() LOCAL () SEP( lift2 (ilseg (rev contents)) (eval_id P.i_w) (lift0 nullval))).
@@ -243,6 +261,12 @@ forward_while (reverse_Inv contents)
 unfold reverse_Inv.
 go_lower.
 apply exp_right with nil.
+(*
+Lemma lower_exp:
+ forall A (P: A -> assert) rho, @exp assert Nassert A P rho = @exp mpred 
+
+ simpl.
+*)
 apply exp_right with contents.
 normalize.
 rewrite H0. rewrite H1.
@@ -443,23 +467,6 @@ match goal with
  idtac
  end.
 
-
-Lemma retval_get_result1: 
-   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
-Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
-Hint Rewrite retval_get_result1 : normalize.
-
-
-Lemma unfold_make_args': forall fsig args rho,
-    make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
-Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args' : normalize.
-Lemma unfold_make_args_cons: forall i il v vl rho,
-   make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
-Proof. reflexivity. Qed.
-Lemma unfold_make_args_nil: make_args nil nil = globals_only.
-Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
 
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.

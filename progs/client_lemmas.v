@@ -383,8 +383,6 @@ Hint Resolve andp_later_derives sepcon_later_derives sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Definition retval : environ -> val := eval_id ret_temp.
-
 Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
      (mk_funspec ((a, ta)::nil, tz) _ (fun x => P%logic) (fun x => Q%logic))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
