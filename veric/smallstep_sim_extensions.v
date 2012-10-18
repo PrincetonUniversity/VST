@@ -240,13 +240,13 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
       (forall n, safeN CS0 signature ge (S n) (PROJ_EXT w) c0 m -> 
                  safeN CS0 signature ge n (PROJ_EXT w') c0 m')))
 
-  (*if the extended machine is at external, then there's some thread that's 
+  (*if the extended machine is at external, then the active thread is
      at external (an extension only implements external functions, it doesn't
      introduce them)*)
   (at_extern_call: forall w ef args,
     at_external wsem w = Some (ef, args) -> 
-    exists i, exists CS, exists c, 
-      THREAD i is (CS, c) in w /\ 
+    exists CS, exists c, 
+      THREAD (ACTIVE w) is (CS, c) in w /\ 
       at_external CS c = Some (ef, args))
 
   (*inject the results of an external call into the extended machine state*)
@@ -258,11 +258,21 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
     exists w', 
       INJ_EXT ora w' = w' /\
       after_external wsem ret w = Some w' /\ 
-      THREAD i is (CS, c') in w' /\
-      (forall CS0 c0 j, i <> j -> 
-        (THREAD j is (CS0, c0) in w' -> THREAD j is (CS0, c0) in w) /\
-        (forall ge n, safeN CS0 signature ge (S n) (PROJ_EXT w) c0 m -> 
-                      safeN CS0 signature ge n (PROJ_EXT w') c0 m'))),
+      THREAD i is (CS, c') in w') 
+
+  (*safety of other threads is preserved when returning from an external 
+     function call*)
+  (at_extern_rest: forall i c w m ora w' m' args ret c' P Q CS ef x,
+    THREAD i is (CS, c) in w -> 
+    spec_of ef signature x = (P, Q) -> 
+    P args (PROJ_EXT w) m -> Q ret ora m' -> 
+    after_external CS ret c = Some c' -> 
+    after_external wsem ret w = Some w' -> 
+    THREAD i is (CS, c') in w' -> 
+    (forall CS0 c0 j, i <> j -> 
+      (THREAD j is (CS0, c0) in w' -> THREAD j is (CS0, c0) in w) /\
+      (forall ge n, safeN CS0 signature ge (S n) (PROJ_EXT w) c0 m -> 
+        safeN CS0 signature ge n (PROJ_EXT w') c0 m'))),
   safety_criteria.
 
 Lemma safety_criteria_safe : safety_criteria -> safe_extension E.
@@ -277,9 +287,9 @@ intros [ef args] AT_EXT.
 destruct (at_external_halted_excl wsem ge w) as [H2|H2].
 rewrite AT_EXT in H2; congruence.
 simpl; rewrite H2.
-destruct (at_extern_call w ef args AT_EXT) as [i [CS [c [[H3 H4] H5]]]].
+destruct (at_extern_call w ef args AT_EXT) as [CS [c [[H3 H4] H5]]].
 generalize H1 as H1'; intro.
-specialize (H1 i CS c H3 H4).
+specialize (H1 (ACTIVE w) CS c H3 H4).
 simpl in H1.
 rewrite H5 in H1.
 destruct (at_external_halted_excl CS ge c) as [H6|H6].
@@ -291,21 +301,21 @@ exists x.
 split; auto.
 intros ret m' z' POST.
 destruct (H8 ret m' z' POST) as [c' [H10 H11]].
-specialize (at_extern_ret i c w m z' m' args ret c' 
+specialize (at_extern_ret (ACTIVE w) c w m z' m' args ret c' 
   (ext_spec_pre signature ef x) (ext_spec_post signature ef x) CS ef x).
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
-destruct at_extern_ret as [w' [H12 [H13 [[H14 H15] H16]]]].
+destruct at_extern_ret as [w' [H12 [H13 [H14 H15]]]].
 exists w'.
 split; auto.
 eapply safety_monotonicity.
 assert (z' = PROJ_EXT w') as -> by (rewrite <-H12, proj_inj; auto).
 eapply IHn.
 intros j CSj cj CSEMJ PROJJ.
-case_eq (eq_nat_dec i j).
+case_eq (eq_nat_dec (ACTIVE w) j).
 (*i=j*)
 intros Heq _; rewrite Heq in *.
 rewrite CSEMJ in H14; inversion H14; rewrite H6 in *.
@@ -313,11 +323,19 @@ rewrite PROJJ in H15; inversion H15; rewrite H9 in *.
 auto.
 (*i<>j*)
 intros Hneq _.
-destruct (H16 CSj cj j Hneq) as [H17 H18].
-destruct H17 as [H19 H20]. 
-split; auto.
-specialize (H1' j CSj cj CSEMJ H20).
-eapply H18; eauto.
+specialize (at_extern_rest (ACTIVE w) c w m (PROJ_EXT w') w' m' args ret c'
+  (ext_spec_pre signature ef x) (ext_spec_post signature ef x) CS ef x).
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+spec at_extern_rest; auto.
+destruct (at_extern_rest CSj cj j Hneq) as [H16 H17].
+eapply H17; eauto.
+destruct H16 as [H18 H19]; auto.
+eapply H1'; eauto.
 
 (*CASE 2: at_external = None; i.e., handled function*)
 intros H2.
