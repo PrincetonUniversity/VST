@@ -7,11 +7,11 @@ Set Implicit Arguments.
 Notation mem := Memory.mem.
 
 Section ExtSig.
-Variable ora_state: Type.
+Variables (M ora_state: Type).
 
 Inductive extsig := mk_extsig: 
   forall (handled: list AST.external_function)
-         (extspec: external_specification mem external_function ora_state), 
+         (extspec: external_specification M external_function ora_state), 
          extsig.
 
 Definition extsig2handled (sigma: extsig) :=
@@ -33,8 +33,8 @@ End ExtSig.
 
 (*for now, punt on spec extension (TO FILL IN LATER)*)
 Definition extends 
-  (ora_state1 ora_state2: Type) 
-  (sigma1: extsig ora_state1) (sigma2: extsig ora_state2) :=
+  (M ora_state1 ora_state2: Type) 
+  (sigma1: extsig M ora_state1) (sigma2: extsig M ora_state2) :=
   forall ef, List.In ef sigma1 -> List.In ef sigma2.
 
 Lemma extfunc_eqdec : forall ef1 ef2 : AST.external_function, 
@@ -46,26 +46,27 @@ apply Address.EqDec_int.
 Qed.
 
 Definition link
-  (ora_state1 ora_state2: Type) 
-  (sigma1: extsig ora_state1) (sigma2: extsig ora_state2) :=
+  (M ora_state1 ora_state2: Type) 
+  (sigma1: extsig M ora_state1) (sigma2: extsig M ora_state2) :=
   mk_extsig (ListSet.set_diff extfunc_eqdec sigma1 sigma2) sigma1.
 
 Module Extension. Record Sig
   (G: Type) (*type of global environments*)
   (W: Type) (*type of corestates of extended semantics*)
   (C: Type) (*type of corestates of core semantics*)
+  (M: Type) (*type of memories*)
   (D: Type) (*type of initialization data*)
   (ext_state: Type) (*the type of _really_ external state*)
 
   (*extended semantics*)
-  (wsem: CompcertCoreSem G W D) 
+  (wsem: CoreSemantics G W M D) 
   (*a set of core semantics*)
-  (csem: nat -> option (CompcertCoreSem G C D))
+  (csem: nat -> option (CoreSemantics G C M D))
 
   (*signature of external functions*)
-  (signature: extsig ext_state)
+  (signature: extsig M ext_state)
   (*subset of external functions "implemented" by this extension*)
-  (handled: extsig W) := Make {
+  (handled: extsig M W) := Make {
 
     (*generalized projection of core i from state w*)
     proj_core : W -> nat -> option C;
@@ -101,7 +102,7 @@ Module Extension. Record Sig
       handles ef signature;
 
     proj_ext_state : W -> ext_state;
-    lift_pred : (ext_state -> mem -> Prop) -> (W -> mem -> Prop);
+    lift_pred : (ext_state -> M -> Prop) -> (W -> M -> Prop);
     proj_ext_state_pre : forall ef x P Q args w m,
       spec_of ef (link signature handled) x = (P, Q) -> 
       P args (proj_ext_state w) m <-> lift_pred (P args) w m;
@@ -116,7 +117,7 @@ Module Extension. Record Sig
     proj_inj : forall ora w, proj_ext_state (inj_ext_state ora w) = ora;
 
     (*a global invariant characterizing "safe" extensions*)
-    all_safe (ge: G) (n: nat) (w: W) (m: Memory.mem) :=
+    all_safe (ge: G) (n: nat) (w: W) (m: M) :=
       forall i CS c, csem i = Some CS -> proj_core w i = Some c -> 
         safeN CS signature ge n (proj_ext_state w) c m
   }.
@@ -127,11 +128,11 @@ End Extension.
 
 Section SafeExtension.
 Variables
-  (G W C D ext_state: Type) 
-  (wsem: CompcertCoreSem G W D) 
-  (csem: nat -> option (CompcertCoreSem G C D))
-  (signature: extsig ext_state)
-  (handled: extsig W).
+  (G W C M D ext_state: Type) 
+  (wsem: CoreSemantics G W M D) 
+  (csem: nat -> option (CoreSemantics G C M D))
+  (signature: extsig M ext_state)
+  (handled: extsig M W).
 
 Notation inv := Extension.all_safe.
 
@@ -143,9 +144,9 @@ End SafeExtension.
 
 Section SafetyMonotonicity.
 Variables 
-  (G C D W ext_state: Type) (CS: CompcertCoreSem G C D)
-  (signature: extsig ext_state) 
-  (handled: extsig W).
+  (G C W M D ext_state: Type) (CS: CoreSemantics G C M D)
+  (signature: extsig M ext_state) 
+  (handled: extsig M W).
 
 Lemma safety_monotonicity : forall ge n ora c m,
   safeN CS (link signature handled) ge n ora c m -> 
@@ -156,11 +157,11 @@ End SafetyMonotonicity.
 
 Section SafetyCriteria.
 Variables
-  (G W C D ext_state: Type) 
-  (wsem: CompcertCoreSem G W D) 
-  (csem: nat -> option (CompcertCoreSem G C D))
-  (signature: extsig ext_state)
-  (handled: extsig W)
+  (G W C M D ext_state: Type) 
+  (wsem: CoreSemantics G W M D) 
+  (csem: nat -> option (CoreSemantics G C M D))
+  (signature: extsig M ext_state)
+  (handled: extsig M W)
   (E: Extension.Sig wsem csem signature handled).
 
 Notation ALL_SAFE := E.(Extension.all_safe).
