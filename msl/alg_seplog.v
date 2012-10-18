@@ -104,7 +104,7 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later_exp': forall T (any:T) F, later (exp F) = EX x:T, later (F x);
   later_orp: forall P Q, later (P || Q) = later P || later Q;
   later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
-  goedel_loeb: forall P Q,   Q && later P |-- P ->  Q |-- P;
+  loeb: forall P,   later P |-- P ->  TT |-- P;
   subp_allp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (allp X) (allp Y));
   subp_exp: forall G B (X Y:B -> A),  (forall x:B, G |-- fash (imp (X x) (Y x))) ->  G |-- fash (imp (exp X) (exp Y));
   fash_TT: forall G, G |-- fash TT
@@ -134,7 +134,7 @@ Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{S
   simpl. intros; apply @later_ex; auto.
  apply @later_or.
  apply @predicates_hered.later_imp.
- apply @predicates_hered.goedel_loeb; auto.
+ apply @predicates_hered.loeb; auto.
  apply @subtypes.subp_allp; auto.
  eapply @subtypes.subp_exp; auto. 
  repeat intro; hnf; auto.
@@ -174,7 +174,7 @@ Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
  simpl; intros. extensionality rho. apply later_exp'; auto.
  simpl; intros. extensionality rho. apply later_orp.
  simpl; intros. extensionality rho. apply later_imp.
- simpl; intros. apply goedel_loeb; auto.
+ simpl; intros. apply loeb; auto.
  apply subp_allp; auto.
  apply subp_exp; auto.
  apply fash_TT.

@@ -174,7 +174,7 @@ Proof.
  admit. (* easy *)
  rewrite H0. simpl. rewrite H1. simpl. split; auto.
  rewrite sepcon_assoc in H|-*.
- rewrite <- (sepcon_com F) in H|-*.
+ rewrite <- (sepcon_comm F) in H|-*.
  rewrite <- sepcon_assoc in H|-*.
  destruct H as [[s1 h1] [[s2 h2] [[? ?] [? ?]]]].
  simpl in *.

@@ -832,6 +832,30 @@ Hint Resolve @prove_HOcontractive
                              so the client must re-do the sub_sepcon hint *)
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
+Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}: 
+    forall P Q,   Q && later P |-- P ->  Q |-- P.
+Proof.
+intros.
+Check imp_andp_adjoint.
+assert (TT |-- Q --> P).
+apply loeb.
+rewrite later_imp.
+apply imp_andp_adjoint.
+eapply derives_trans; [ | apply H].
+apply andp_right.
+apply andp_left2; auto.
+rewrite andp_comm.
+apply derives_trans with (|> Q && (|> Q --> |> P)).
+apply andp_derives; auto.
+apply now_later.
+apply modus_ponens.
+apply derives_trans with (Q && (Q --> P)).
+apply andp_right; auto.
+apply derives_trans with TT; auto.
+apply TT_right.
+apply modus_ponens.
+Qed.
+
 (*Lemma Rec_sub {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G
   (F   : A -> A -> A)
   (HF1 : forall X, contractive (F X))

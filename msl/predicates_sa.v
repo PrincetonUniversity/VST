@@ -175,7 +175,7 @@ exists w12; exists w3; repeat split; auto.
 exists w1; exists w2; repeat split; auto.
 Qed.
 
-Lemma sepcon_com {A} {JA: Join A}{PA: Perm_alg A}:  forall (P Q: pred A) , P * Q = Q * P.
+Lemma sepcon_comm {A} {JA: Join A}{PA: Perm_alg A}:  forall (P Q: pred A) , P * Q = Q * P.
 Proof.
 intros.
 extensionality w; apply prop_ext; split; intros;
@@ -201,7 +201,7 @@ Qed.
 
 Lemma emp_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
     forall P, (emp*P) = P.
-Proof. intros. rewrite sepcon_com; rewrite sepcon_emp; auto. Qed.
+Proof. intros. rewrite sepcon_comm; rewrite sepcon_emp; auto. Qed.
 
 Lemma precise_emp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
      precise emp.
@@ -664,5 +664,153 @@ destruct H1 as [w3 [w4 [? [? ?]]]].
 destruct (join_assoc (join_comm H) (join_comm H1)) as [wf [? ?]].
 exists wf. exists w4. split; [|split]; auto.
 exists w1; exists w3; split; auto.
+Qed.
+
+
+Lemma andp_right {A}  : forall (X P Q:pred A),
+  X |-- P ->
+  X |-- Q ->
+  X |-- P && Q.
+Proof.
+  unfold derives, imp, andp; simpl; intuition.
+Qed.
+
+
+Lemma andp_left1{A}: forall P Q R: pred A,  P |-- R -> P && Q |-- R.
+Proof. repeat intro. destruct H0; auto.
+Qed.
+
+Lemma andp_left2{A}: forall P Q R: pred A,  Q |-- R -> P && Q |-- R.
+Proof. repeat intro. destruct H0; auto.
+Qed.
+
+
+Lemma orp_left{A}: forall P Q R: pred A,  P |-- R -> Q |-- R -> P || Q |-- R.
+Proof. repeat intro. destruct H1; auto.
+Qed.
+
+Lemma orp_right1{A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R. 
+Proof. repeat intro. left; auto.
+Qed.
+
+Lemma orp_right2{A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R. 
+Proof. repeat intro. right; auto.
+Qed.
+
+Lemma exp_right: 
+  forall {B A: Type}(x:B) p (q: B -> pred A),
+    p |-- q x ->
+    p |-- exp q.
+Proof.
+intros.
+eapply derives_trans; try apply H.
+intros w ?; exists x; auto.
+Qed.
+
+Lemma exp_left:
+  forall {B A: Type}(p: B -> pred A) q,
+  (forall x, p x |-- q) ->
+   exp p |-- q.
+Proof.
+intros.
+intros w [x' ?].
+eapply H; eauto.
+Qed.
+
+
+Lemma allp_right {B A: Type}:
+  forall (P: pred A) (Q: B -> pred A),
+  (forall v, P |-- Q v) ->
+   P |-- allp Q.
+Proof.
+ intros. intros w ? v; apply (H v); auto.
+Qed.
+
+Lemma allp_left {B}{A}: 
+   forall (P: B -> pred A) x Q, P x |-- Q -> allp P |-- Q.
+ Proof.
+   intros. intros ? ?. apply H. apply H0.
+Qed.
+
+Lemma imp_andp_adjoint {A}  : forall (P Q R:pred A),
+  (P && Q) |-- R <-> P |-- (Q --> R).
+Proof.
+  split; intros.
+  hnf; intros; simpl; intros.
+  intro; intros. apply H. split; auto.
+  intro; intros. destruct H0. apply H; auto.
+Qed.
+
+
+Lemma exp_andp1 {A} :
+ forall B (p: B -> pred A) q, (exp p && q)%pred = (exp (fun x => p x && q))%pred.
+Proof.
+intros; apply pred_ext; intros w ?.
+destruct H as [[x ?] ?].
+exists x; split; auto.
+destruct H as [x [? ?]]; split; auto. exists x; auto.
+Qed.
+
+
+Lemma exp_sepcon1 {A}  {JA: Join A}{PA: Perm_alg A}:
+  forall T (P: T ->  pred A) Q,  (exp P * Q = exp (fun x => P x * Q))%pred.
+Proof.
+intros.
+apply pred_ext; intros ? ?.
+destruct H as [w1 [w2 [? [[x ?] ?]]]].
+exists x; exists w1; exists w2; split; auto.
+destruct H as [x [w1 [w2 [? [? ?]]]]].
+exists w1; exists w2; split; auto.
+split; auto.
+exists x; auto.
+Qed.
+
+
+Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}
+     (P: pred A) : Prop :=
+   P |-- emp.
+
+Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+ forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
+Proof.
+intros.
+apply pred_ext; intros w ?. 
+destruct H1 as [w1 [w2 [? [? ?]]]].
+unfold pure in *.
+assert (unit_for w1 w2). apply H in H2; simpl in H2; 
+apply identity_unit; auto. exists w; auto.
+unfold unit_for in H4.
+assert (w2=w) by (apply (join_eq H4 H1)).
+subst w2.
+assert (join w w1 w1).
+apply identity_unit; apply H0 in H3; simpl in H3; auto. exists w; auto.
+assert (w1=w) by (apply (join_eq H5 (join_comm H1))).
+subst w1.
+split; auto.
+destruct H1.
+exists w; exists w; split; [|split]; auto.
+apply H in H1.
+clear dependent P. clear dependent Q.
+pose proof (core_unit w); unfold unit_for in *.
+pose proof (H1 _ _ (join_comm H)).
+rewrite H0 in H; auto.
+Qed.
+
+Lemma pure_sepcon_TT_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
+  forall P Q, pure P -> (P * TT) && Q = (P*Q).
+Proof.
+ pose proof I.
+intros.
+apply pred_ext.
+intros w [? ?].
+destruct H1 as [w1 [w2 [? [? ?]]]].
+exists w1; exists w2; split; [|split]; auto.
+apply join_unit1_e in H1; auto.
+subst; auto.
+apply andp_right.
+apply sepcon_derives; auto.
+intros w [w1 [w2 [? [? ?]]]].
+apply join_unit1_e in H1; auto.
+subst; auto.
 Qed.
 
