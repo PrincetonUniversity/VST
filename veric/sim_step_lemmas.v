@@ -1,7 +1,15 @@
 Add LoadPath "..".
 Require Import veric.base.
-Require Export veric.extspec.
 Require Import veric.sim.
+
+Structure external_specification {M E Z:Type} := { 
+  ext_spec_type: E -> Type;
+  ext_spec_pre: forall (e:E), ext_spec_type e -> list val -> Z -> M -> Prop;
+  ext_spec_post: forall (e:E), ext_spec_type e -> val -> Z -> M ->  Prop
+}.
+Implicit Arguments external_specification [].
+
+Definition ext_spec := external_specification mem external_function.
 
 Section safety.
   Context {G C M D Z:Type}.
@@ -21,13 +29,12 @@ Section safety.
              safeN n' z c' m'
        | Some (e,args), None =>
            exists x:ext_spec_type Hspec e,
-             forall z', ext_spec_evolve Hspec z z' ->
-             ext_spec_pre Hspec e x (*(sig_res sig)*) args z' m /\
-             (forall ret m' z'',
-               ext_spec_post Hspec e x (*(opt2list (sig_res sig))*) ret z'' m' ->
+             ext_spec_pre Hspec e x (*(sig_res sig)*) args z m /\
+             (forall ret m' z',
+               ext_spec_post Hspec e x (*(opt2list (sig_res sig))*) ret z' m' ->
                exists c',
                  after_external Hcore ret c = Some c' /\
-                 safeN n' z'' c' m')
+                 safeN n' z' c' m')
        | None, Some i => True
        | Some _, Some _ => False
        end
@@ -38,7 +45,6 @@ Section safety.
        corestep Hcore ge q m q1 m1 -> 
        corestep Hcore ge q m q2 m2 -> 
        (q1, m1) = (q2, m2).
-
 
   Lemma safe_corestep_forward:
      corestep_fun -> 
@@ -74,9 +80,8 @@ Section safety.
     destruct p. (*destruct p.*)
     destruct H as [x ?].
     exists x. 
-    intros z' Hz'. specialize (H z' Hz').
     destruct H. split; auto.
-    intros. specialize (H0 ret m' z'' H1).
+    intros. specialize (H0 ret m' z' H1).
     destruct H0 as [c' [? ?]].
     exists c'; split; auto.
     auto.
@@ -108,9 +113,9 @@ Section safety.
       destruct (safely_halted Hcore ge q2); auto.
     destruct p. 
     destruct H3 as [x ?].
-    exists x. intros z' Hz'. specialize (H3 z' Hz').
+    exists x. 
     destruct H3; split; auto.
-    intros. specialize (H4 ret m' z'' H5).
+    intros. specialize (H4 ret m' z' H5).
     destruct H4 as [c' [? ?]].
     exists c'; split; auto.
     destruct H3 as [c' [m' [? ?]]].

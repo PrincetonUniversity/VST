@@ -55,14 +55,15 @@ Module Extension. Record Sig
   (W: Type) (*type of corestates of extended semantics*)
   (C: Type) (*type of corestates of core semantics*)
   (D: Type) (*type of initialization data*)
+  (ext_state: Type) (*the type of _really_ external state*)
 
   (*extended semantics*)
   (wsem: CompcertCoreSem G W D) 
   (*a set of core semantics*)
   (csem: nat -> option (CompcertCoreSem G C D))
 
-  (*signature of external functions; we assume Z = W, which limits modularity (BAD!) *)
-  (signature: extsig W)
+  (*signature of external functions*)
+  (signature: extsig ext_state)
   (*subset of external functions "implemented" by this extension*)
   (handled: extsig W) := Make {
 
@@ -72,51 +73,79 @@ Module Extension. Record Sig
       corestep wsem ge w m w' m' -> proj_core w' i = Some c' -> 
       exists c, proj_core w i = Some c;
 
-    (*the active (i.e., runnable and currently scheduled) thread, if any*)
-    active : W -> option nat;
-    active_csem : forall w i,
-      active w = Some i -> exists CS, csem i = Some CS;
-    active_proj_core : forall w i, 
-      active w = Some i -> exists c, proj_core w i = Some c;
-    active_none : forall w i c CS,
-      active w = None -> proj_core w i = Some c -> csem i = Some CS -> 
+    (*the active (i.e., currently scheduled) thread*)
+    active : W -> nat;
+    active_csem : forall w, exists CS, csem (active w) = Some CS;
+    active_proj_core : forall w, exists c, proj_core w (active w) = Some c;
+
+    (*runnable = Some i when active w = i and i is runnable (i.e., not blocked
+      waiting on an external function call)*)
+    runnable : W -> option nat;
+    runnable_active : forall w i, 
+      runnable w = Some i -> active w = i;
+    runnable_none : forall w c CS,
+      runnable w = None -> proj_core w (active w) = Some c -> 
+      csem (active w) = Some CS -> 
       exists ef, exists args, at_external CS c = Some (ef, args);
 
+    (*a thread is no longer "at external" once the extension has returned 
+      to it with the result of the external function call*)
     after_at_external_excl : forall i CS c c' ret,
       csem i = Some CS -> after_external CS ret c = Some c' -> 
       at_external CS c' = None;
 
+    handles_ok: forall w i CS c ef args,
+      csem i = Some CS -> proj_core w i = Some c -> 
+      at_external CS c = Some (ef, args) -> 
+      at_external wsem w = None -> 
+      handles ef signature;
+
+    proj_ext_state : W -> ext_state;
+    lift_pred : (ext_state -> mem -> Prop) -> (W -> mem -> Prop);
+    proj_ext_state_pre : forall ef x P Q args w m,
+      spec_of ef (link signature handled) x = (P, Q) -> 
+      P args (proj_ext_state w) m <-> lift_pred (P args) w m;
+    proj_ext_state_post : forall ef x P Q ret w m,
+      spec_of ef (link signature handled) x = (P, Q) -> 
+      Q ret (proj_ext_state w) m <-> lift_pred (Q ret) w m;
+    ext_upd_at_external : forall ge w m w' m',
+      corestep wsem ge w m w' m' -> 
+      proj_ext_state w = proj_ext_state w';
+
+    inj_ext_state : ext_state -> W -> W;
+    proj_inj : forall ora w, proj_ext_state (inj_ext_state ora w) = ora;
+
     (*a global invariant characterizing "safe" extensions*)
-    all_safe (ge: G) (n: nat) (ora: W) (w: W) (m: Memory.mem) :=
+    all_safe (ge: G) (n: nat) (w: W) (m: Memory.mem) :=
       forall i CS c, csem i = Some CS -> proj_core w i = Some c -> 
-        safeN CS signature ge n w c m
+        safeN CS signature ge n (proj_ext_state w) c m
   }.
 
 End Extension. 
 
-(*an extension E is safe when all states satisfy the global invariant E.(inv)*)
+(*an extension E is safe when all states satisfy the "all_safe" invariant*)
 
 Section SafeExtension.
 Variables
-  (G W C D: Type) 
+  (G W C D ext_state: Type) 
   (wsem: CompcertCoreSem G W D) 
   (csem: nat -> option (CompcertCoreSem G C D))
-  (signature: extsig W)
+  (signature: extsig ext_state)
   (handled: extsig W).
 
 Notation inv := Extension.all_safe.
 
 Definition safe_extension (E: Extension.Sig wsem csem signature handled) := 
-  forall ge n ora w m, 
-    E.(inv) ge n ora w m -> 
-    safeN wsem (link signature handled) ge n ora w m.
+  forall ge n w m,  E.(inv) ge n w m -> 
+    safeN wsem (link signature handled) ge n (E.(Extension.proj_ext_state) w) w m.
 
 End SafeExtension.
 
 Section SafetyMonotonicity.
 Variables 
-  (G C D ora_state: Type) (CS: CompcertCoreSem G C D)
-  (signature handled: extsig ora_state).
+  (G C D W ext_state: Type) (CS: CompcertCoreSem G C D)
+  (signature: extsig ext_state) 
+  (handled: extsig W).
 
 Lemma safety_monotonicity : forall ge n ora c m,
   safeN CS (link signature handled) ge n ora c m -> 
@@ -127,64 +156,71 @@ End SafetyMonotonicity.
 
 Section SafetyCriteria.
 Variables
-  (G W C D: Type) 
+  (G W C D ext_state: Type) 
   (wsem: CompcertCoreSem G W D) 
   (csem: nat -> option (CompcertCoreSem G C D))
-  (signature: extsig W)
+  (signature: extsig ext_state)
   (handled: extsig W)
   (E: Extension.Sig wsem csem signature handled).
 
 Notation ALL_SAFE := E.(Extension.all_safe).
 Notation PROJ := E.(Extension.proj_core).
+Notation PROJ_EXT := E.(Extension.proj_ext_state).
+Notation INJ_EXT := E.(Extension.inj_ext_state).
+Notation LIFT := E.(Extension.lift_pred).
 Notation ACTIVE := (E.(Extension.active)).
+Notation RUNNABLE := (E.(Extension.runnable)).
 Notation "'THREAD' i 'is' ( CS , c ) 'in' w" := 
   (csem i = Some CS /\ PROJ w i = Some c)
   (at level 66, no associativity, only parsing).
 Notation proj_exists := E.(Extension.proj_exists).
 Notation active_csem := E.(Extension.active_csem).
 Notation active_proj_core := E.(Extension.active_proj_core).
-Notation active_none := E.(Extension.active_none).
 Notation after_at_external_excl := E.(Extension.after_at_external_excl).
+Notation handles_ok := E.(Extension.handles_ok).
+Notation proj_inj := E.(Extension.proj_inj).
+Notation proj_ext_state_pre := E.(Extension.proj_ext_state_pre).
+Notation proj_ext_state_post := E.(Extension.proj_ext_state_post).
+Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
+Notation runnable_active := E.(Extension.runnable_active).
+Notation runnable_none := E.(Extension.runnable_none).
 
-Lemma all_safe_downward ge n ora w m :
-  ALL_SAFE ge (S n) ora w m -> ALL_SAFE ge n ora w m.
+Lemma all_safe_downward ge n w m :
+  ALL_SAFE ge (S n) w m -> ALL_SAFE ge n w m.
 Proof. intros INV i CS c H2 H3; eapply safe_downward1; eauto. Qed.
-
-Definition NOT_ACTIVE (w: W) (i: nat) :=
-  exists j, i <> j /\ ACTIVE w = Some j.
 
 Inductive safety_criteria: Type := SafetyCriteria: forall 
   (*coresteps preserve the invariant*)
-  (core_pres: forall ge n ora w c m CS i w' c' m', 
-    ALL_SAFE ge n ora w m -> 
-    ACTIVE w = Some i -> THREAD i is (CS, c) in w -> 
+  (core_pres: forall ge n w c m CS i w' c' m', 
+    ALL_SAFE ge n w m -> 
+    ACTIVE w = i -> THREAD i is (CS, c) in w -> 
     corestep CS ge c m c' m' -> corestep wsem ge w m w' m' -> 
-    THREAD i is (CS, c') in w' /\ ALL_SAFE ge n ora w' m')
+    THREAD i is (CS, c') in w' /\ ALL_SAFE ge n w' m')
 
   (*corestates satisfying the invariant can corestep*)
-  (core_prog: forall ge n ora w m i c CS, 
-    ALL_SAFE ge n ora w m -> 
-    ACTIVE w = Some i -> THREAD i is (CS, c) in w -> 
+  (core_prog: forall ge n w m i c CS, 
+    ALL_SAFE ge n w m -> 
+    ACTIVE w = i -> RUNNABLE w = Some i -> THREAD i is (CS, c) in w -> 
     exists c', exists w', exists m', 
       corestep CS ge c m c' m' /\ corestep wsem ge w m w' m' /\
       THREAD i is (CS, c') in w')
 
-  (*steps "internal" to the extension respect function specifications*)
-  (exten_pres: forall ge w m c i w' m' c' CS ef args P Q x, 
-    THREAD i is (CS, c) in w -> 
+  (*"handled" steps respect function specifications*)
+  (handled_pres: forall ge w m c w' m' c' CS ef args P Q x, 
+    let i := ACTIVE w in THREAD i is (CS, c) in w -> 
     at_external CS c = Some (ef, args) -> 
     handles ef signature -> 
-    spec_of ef signature x = (P, Q) -> P args w m -> 
+    spec_of ef signature x = (P, Q) -> LIFT (P args) w m -> 
     corestep wsem ge w m w' m' -> 
     THREAD i is (CS, c') in w' -> 
-      (at_external CS c' = Some (ef, args) /\ P args w' m' /\
-        (forall j, ACTIVE w' = Some j -> i <> j)) \/
-      (exists ret, after_external CS ret c = Some c' /\ Q ret w' m'))
+      ((at_external CS c' = Some (ef, args) /\ LIFT (P args) w' m' /\
+        (forall j, ACTIVE w' = j -> i <> j)) \/
+      (exists ret, after_external CS ret c = Some c' /\ LIFT (Q ret) w' m')))
 
   (*"internal" states satisfying the invariant can step; moreover, core 
-     states that remain "at_external" remain unchanged*)
-  (exten_prog: forall ge n ora w m,
-    ALL_SAFE ge n ora w m -> ACTIVE w = None -> 
+     states that stay "at_external" remain unchanged*)
+  (handled_prog: forall ge n w m,
+    ALL_SAFE ge n w m -> RUNNABLE w = None -> 
     exists w', exists m', corestep wsem ge w m w' m' /\ 
       forall i c CS, THREAD i is (CS, c) in w -> 
         exists c', THREAD i is (CS, c') in w' /\ 
@@ -192,34 +228,51 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
             at_external CS c = Some (ef, args) -> 
             at_external CS c' = Some (ef', args') -> c=c'))
 
+  (*safety of other threads is preserved when handling one step of 
+     blocked thread i*)
+  (handled_rest: forall ge w m w' m' c CS ef args,
+    let i := ACTIVE w in THREAD i is (CS, c) in w -> 
+    at_external CS c = Some (ef, args) -> 
+    at_external wsem w = None -> 
+    corestep wsem ge w m w' m' -> 
+    (forall CS0 c0 j, i <> j ->  
+      (THREAD j is (CS0, c0) in w' -> THREAD j is (CS0, c0) in w) /\
+      (forall n, safeN CS0 signature ge (S n) (PROJ_EXT w) c0 m -> 
+                 safeN CS0 signature ge n (PROJ_EXT w') c0 m')))
+
+  (*if the extended machine is at external, then there's some thread that's 
+     at external (an extension only implements external functions, it doesn't
+     introduce them)*)
   (at_extern_call: forall w ef args,
     at_external wsem w = Some (ef, args) -> 
     exists i, exists CS, exists c, 
       THREAD i is (CS, c) in w /\ 
       at_external CS c = Some (ef, args))
 
-  (at_extern_ret: forall i c w m w' m' args ret c' P Q CS ef x,
+  (*inject the results of an external call into the extended machine state*)
+  (at_extern_ret: forall i c w m ora m' args ret c' P Q CS ef x,
     THREAD i is (CS, c) in w -> 
     spec_of ef signature x = (P, Q) -> 
-    P args w m -> Q ret w' m' -> 
+    P args (PROJ_EXT w) m -> Q ret ora m' -> 
     after_external CS ret c = Some c' -> 
     exists w', 
+      INJ_EXT ora w' = w' /\
       after_external wsem ret w = Some w' /\ 
       THREAD i is (CS, c') in w' /\
       (forall CS0 c0 j, i <> j -> 
         (THREAD j is (CS0, c0) in w' -> THREAD j is (CS0, c0) in w) /\
-        (forall ge n, safeN CS0 signature ge (S n) w c0 m -> 
-                      safeN CS0 signature ge n w' c0 m'))),
+        (forall ge n, safeN CS0 signature ge (S n) (PROJ_EXT w) c0 m -> 
+                      safeN CS0 signature ge n (PROJ_EXT w') c0 m'))),
   safety_criteria.
 
 Lemma safety_criteria_safe : safety_criteria -> safe_extension E.
 Proof.
 inversion 1; subst; intros ge n; induction n.
-intros ora w m H1; simpl; auto.
-intros ora w m H1.
+intros w m H1; simpl; auto.
+intros w m H1.
 simpl; case_eq (at_external wsem w).
 
-(*at_external = Some _*) 
+(*CASE 1: at_external = Some _; i.e. _really_ at_external*) 
 intros [ef args] AT_EXT.
 destruct (at_external_halted_excl wsem ge w) as [H2|H2].
 rewrite AT_EXT in H2; congruence.
@@ -232,117 +285,155 @@ rewrite H5 in H1.
 destruct (at_external_halted_excl CS ge c) as [H6|H6].
 rewrite H6 in H5; congruence.
 rewrite H6 in H1; clear H6.
-assert (EVOLVE: ext_spec_evolve signature w w) by admit. (*evolve*)
-destruct H1 as [x H1]. 
-destruct (H1 w EVOLVE) as [H7 H8].
-exists x; intros w2 H9. 
-split.
-admit. (*by H7 and ext_specs on external states*)
-intros ret m' w' POST.
-destruct (H8 ret m' w' POST) as [c' [H10 H11]].
-specialize (at_extern_ret i c w m w' m' args ret c' 
+destruct H1 as [x H1].
+destruct H1 as [H7 H8].
+exists x.
+split; auto.
+intros ret m' z' POST.
+destruct (H8 ret m' z' POST) as [c' [H10 H11]].
+specialize (at_extern_ret i c w m z' m' args ret c' 
   (ext_spec_pre signature ef x) (ext_spec_post signature ef x) CS ef x).
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
-destruct at_extern_ret as [w'' [H12 [[H13 H14] H15]]].
-exists w''.
+destruct at_extern_ret as [w' [H12 [H13 [[H14 H15] H16]]]].
+exists w'.
 split; auto.
-eapply safety_monotonicity; eapply IHn.
+eapply safety_monotonicity.
+assert (z' = PROJ_EXT w') as -> by (rewrite <-H12, proj_inj; auto).
+eapply IHn.
 intros j CSj cj CSEMJ PROJJ.
 case_eq (eq_nat_dec i j).
 (*i=j*)
-intros Heq _; subst.
-rewrite CSEMJ in H13; inversion H13; subst.
-rewrite PROJJ in H14; inversion H14; subst.
-admit. (*by H11*)
+intros Heq _; rewrite Heq in *.
+rewrite CSEMJ in H14; inversion H14; rewrite H6 in *.
+rewrite PROJJ in H15; inversion H15; rewrite H9 in *.
+auto.
 (*i<>j*)
 intros Hneq _.
-destruct (H15 CSj cj j Hneq) as [H16 H17].
-destruct H16 as [H16 H18]. split; auto.
-specialize (H1' j CSj cj CSEMJ H18).
-eapply H17; eauto.
+destruct (H16 CSj cj j Hneq) as [H17 H18].
+destruct H17 as [H19 H20]. 
+split; auto.
+specialize (H1' j CSj cj CSEMJ H20).
+eapply H18; eauto.
 
-(*at_external = None*)
+(*CASE 2: at_external = None; i.e., handled function*)
 intros H2.
 destruct (safely_halted wsem ge w); auto.
-case_eq (ACTIVE w).
+case_eq (RUNNABLE w).
 (*active thread i*)
-intros i ACT.
-destruct (active_csem _ ACT) as [CS CSEM].
-destruct (active_proj_core _ ACT) as [c PROJECT].
-destruct (core_prog ge n ora w m i c CS (all_safe_downward H1) ACT) 
- as [c' [w' [m' [CORESTEP_C [CORESTEP_W [CSEM' PROJECT']]]]]]; [split; auto|].
-destruct (core_pres ge n ora w c m CS i w' c' m' (all_safe_downward H1) ACT)
+intros i RUN.
+generalize (runnable_active _ RUN) as ACT; intro.
+rewrite <-ACT in *.
+destruct (active_csem w) as [CS CSEM].
+destruct (active_proj_core w) as [c PROJECT].
+destruct (core_prog ge n w m i c CS (all_safe_downward H1) ACT) 
+ as [c' [w' [m' [CORESTEP_C [CORESTEP_W [CSEM' PROJECT']]]]]]; auto.
+rewrite <-ACT; auto.
+rewrite <-ACT; auto.
+destruct (core_pres ge n w c m CS i w' c' m' (all_safe_downward H1) ACT)
  as [_ INV']; auto.
+rewrite <-ACT in *; auto.
 exists w'; exists m'; split; [auto|].
-apply IHn; auto.
+erewrite ext_upd_at_external; eauto.
 (*active thread none*)
-intros ACT.
-destruct (exten_prog ge n ora w m (all_safe_downward H1) ACT) 
+intros RUN.
+destruct (active_csem w) as [CS CSEM].
+destruct (active_proj_core w) as [c PROJECT].
+destruct (handled_prog ge n w m (all_safe_downward H1) RUN) 
  as [w' [m' [CORESTEP_W CORES_PRES]]].
 exists w'; exists m'.
 split; auto.
-apply IHn.
-intros i CS c CSEM PROJECT.
-destruct (proj_exists ge i w m w' m' CORESTEP_W PROJECT)
- as [c0 PROJECT0].
-destruct (active_none w i ACT PROJECT0 CSEM) 
+erewrite ext_upd_at_external; eauto; eapply IHn.
+destruct (runnable_none w RUN PROJECT CSEM) 
  as [ef [args AT_EXT]].
-specialize (H1 i CS c0 CSEM PROJECT0).
-simpl in H1; rewrite AT_EXT in H1.
+intros j CSj cj CSEMj PROJECTj.
+set (i := ACTIVE w) in *.
+case_eq (eq_nat_dec i j).
+(*i=j*)
+intros Heq _; rewrite Heq in *.
+destruct (proj_exists ge j w m w' m' CORESTEP_W PROJECTj)
+ as [c0 PROJECT0].
+rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
+rewrite CSEM in CSEMj; inversion CSEMj; rewrite <-H3 in *.
+specialize (H1 j CS c0 CSEM PROJECT).
+simpl in H1. 
+rewrite AT_EXT in H1.
 remember (safely_halted CS ge c0) as SAFELY_HALTED.
 destruct SAFELY_HALTED; [solve[elimtype False; auto]|].
 destruct H1 as [x H1].
-specialize (H1 w).
-assert (H3: ext_spec_evolve signature w w) by admit. (*evolve*)
-destruct (H1 H3) as [PRE POST].
-specialize (exten_pres ge w m c0 i w' m' c CS ef args
+destruct H1 as [PRE POST].
+specialize (handled_pres ge w m c0 w' m' cj CS ef args
   (ext_spec_pre signature ef x)
   (ext_spec_post signature ef x) x).
-spec exten_pres; auto.
-spec exten_pres; auto.
-spec exten_pres; auto. admit. (*handled*)
-spec exten_pres; auto.
-spec exten_pres; auto.
-spec exten_pres; auto.
-spec exten_pres; auto.
-destruct (CORES_PRES i c0 CS) as [c' H4]; [split; auto|].
-destruct exten_pres as [[AT_EXT' [PRE' ACT']] | POST'].
+rewrite Heq in handled_pres.
+hnf in handled_pres.
+spec handled_pres; auto.
+spec handled_pres; auto.
+spec handled_pres; auto. 
+ eapply handles_ok; eauto.
+spec handled_pres; auto.
+spec handled_pres; auto.
+rewrite <-proj_ext_state_pre 
+ with (ef := ef) (x := x) (Q := ext_spec_post signature ef x); auto.
+spec handled_pres; auto.
+spec handled_pres; auto.
+destruct (CORES_PRES j c0 CS) as [c' H4]; [split; auto|].
+destruct handled_pres as [[AT_EXT' [PRE' ACT']] | POST'].
 (*pre-preserved case*)
 destruct H4 as [[H4 H5] H6].
-rewrite H5 in PROJECT; inversion PROJECT; subst.
+rewrite H5 in PROJECTj; inversion PROJECTj; subst.
 specialize (H6 ef args ef args AT_EXT AT_EXT'); subst.
 clear - PRE' POST AT_EXT' H4 H5 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT', <-HeqSAFELY_HALTED.
 exists x.
-intros w2 H6.
 split.
-admit. (*by PRE' and ext_specs on external state*)
+apply proj_ext_state_pre 
+ with (ef := ef) (x := x) (Q := ext_spec_post signature ef x); auto.
 intros ret m'' w'' H8.
 destruct (POST ret m'' w'' H8) as [c'' [H9 H10]].
 exists c''; split; auto.
 eapply safe_downward1; eauto.
-
 (*post case*)
 destruct H4 as [[H4 H5] H6].
-rewrite H5 in PROJECT; inversion PROJECT; subst.
+rewrite H5 in PROJECTj; inversion PROJECTj; rewrite <-H1 in *.
 destruct POST' as [ret [AFTER_EXT POST']].
-generalize (after_at_external_excl i c0 ret H4 AFTER_EXT); intros AT_EXT'.
+generalize (after_at_external_excl j c0 ret H4 AFTER_EXT); intros AT_EXT'.
 clear - PRE POST POST' AT_EXT' AFTER_EXT H4 H5 H6 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT'.
-case_eq (safely_halted CS ge c); auto.
-destruct (POST ret m' w' POST') as [c' [AFTER_EXT' SAFEN]].
+case_eq (safely_halted CS ge c'); auto.
+apply proj_ext_state_post 
+ with (ef := ef) (x := x) (P := ext_spec_pre signature ef x) in POST'; auto.
+destruct (POST ret m' (PROJ_EXT w') POST') as [c'' [AFTER_EXT' SAFEN]].
 rewrite AFTER_EXT in AFTER_EXT'; inversion AFTER_EXT'; subst.
 simpl in SAFEN.
 rewrite AT_EXT' in SAFEN.
 intros SAFELY_HALTED; rewrite SAFELY_HALTED in SAFEN.
-destruct SAFEN as [c'' [m'' [H7 H8]]].
-exists c''; exists m''; split; auto.
+destruct SAFEN as [c3 [m'' [H7 H8]]].
+exists c3; exists m''; split; auto.
+(*i<>j: i.e., nonactive thread*)
+intros Hneq _.
+destruct (CORES_PRES i c CS) as [c' [[_ PROJ'] H5]]. 
+split; auto.
+specialize (handled_rest ge w m w' m' c CS ef args).
+hnf in handled_rest.
+spec handled_rest; auto.
+spec handled_rest; auto.
+spec handled_rest; auto.
+(* eapply handles_ok with (i := i); eauto.*)
+spec handled_rest; auto.
+destruct (handled_rest CSj cj j Hneq) as [H6 H7].
+eapply H7; eauto.
+destruct (proj_exists ge j w m w' m' CORESTEP_W PROJECTj)
+ as [c0 PROJECT0].
+specialize (H1 j CSj c0 CSEMj PROJECT0).
+destruct H6 as [H8 H9].
+split; auto.
+rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.
 Qed.
 
 End SafetyCriteria.
