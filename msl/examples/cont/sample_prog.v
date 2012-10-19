@@ -1,11 +1,14 @@
 Require Import msl.examples.cont.language.
-Require Import msl.examples.cont.sep_base.
-Require Import msl.msl_standard.
+Require Import msl.base.
+Require Import msl.seplog.
+Require Import msl.alg_seplog.
 Require Import msl.examples.cont.seplog.
 Require Import msl.examples.cont.lseg.
 Require Import msl.Coqlib2.
+Require Import msl.log_normalize.
+Require Import msl.examples.cont.client_lemmas.
 
-Local Open Scope pred.
+Local Open Scope logic.
 
 Import Semax.
 
@@ -44,45 +47,16 @@ Definition LOOPspec: funspec :=  (a::s::p::r::nil,
 
 Definition myspec := (START, STARTspec):: ((LOOP, LOOPspec) :: (DONE, DONEspec) :: nil).
 
-Lemma semax_store_next: forall x y v c vars G (Q P: assert),
-    expcheck vars x = true ->
-    expcheck vars y = true ->
-    Q = (fun s => next (eval x s) v  * P s) ->
-    semax vars G (fun s => next (eval x s) (eval y s) * P s) c ->
-    semax vars G Q  (Do Mem x  := y ; c).
-Proof. intros; subst. 
-    apply semax_pre with (fun s => mapsto (eval x s) v * (!! (eval x s > 0) && P s)).
-    intros. unfold next. rewrite sepcon_andp_prop. 
-    rewrite sepcon_comm. rewrite sepcon_andp_prop. rewrite sepcon_comm; auto.
-    apply semax_store; auto.
-    eapply semax_pre; try apply H2.
-    intros; unfold next.
-    rewrite sepcon_andp_prop. 
-    rewrite (sepcon_comm (andp _ _)). rewrite sepcon_andp_prop.
-   rewrite sepcon_comm; auto.
- Qed.
-
-Lemma semax_load_next: forall x y z c vars G P,
-    expcheck vars y = true ->
-    semax (vs_add x vars) G P c -> 
-    semax vars G (fun s => (next (eval y s) z * TT) && |> subst x z P s)
-               (Do x := Mem y ; c).
-Proof.
- intros.
-  apply semax_pre with (fun s => mapsto (eval y s) z * TT && |> subst x z P s).
- intros. apply andp_derives; auto. apply sepcon_derives; auto. apply andp_left2; auto.
- apply semax_load; auto.
-Qed.
 
 Lemma prove_START: semax_body myspec STARTspec STARTbody. 
  eapply semax_pre; [intro ; call_tac; apply derives_refl |  simpl ].
  rewrite' alloc.
  apply semax_prop; auto; intros _.
  eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
- rewrite' alloc. rewrite' sepcon_comm.  rewrite' sepcon_assoc.
+ rewrite' alloc. rewrite' @sepcon_comm.  rewrite' @sepcon_assoc.
  simpl.
  eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
- rewrite' alloc. rewrite' sepcon_comm. do 2  rewrite' sepcon_assoc.
+ rewrite' alloc. rewrite' @sepcon_comm. do 2  rewrite' @sepcon_assoc.
  eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
  forward.
  rewrite lseg_eq. rewrite emp_sepcon.
@@ -93,8 +67,7 @@ Lemma prove_START: semax_body myspec STARTspec STARTbody.
  apply sepcon_derives; auto.
  repeat rewrite sepcon_assoc.
  rewrite (next_gt_0 (s0 a)).
- rewrite sepcon_andp_prop1.
- apply prop_andp_left; intro.
+ normalize.
  eapply derives_trans;  [ |  eapply lseg_cons; try omega].
  eapply sepcon_derives; [ apply derives_refl |].
  rewrite sepcon_comm.
@@ -106,22 +79,16 @@ Qed.
 Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody. 
   eapply semax_pre; [intro ; call_tac; apply derives_refl | simpl ].
  forward.
- eapply semax_pre. intro s'.
- apply prop_andp_left; intro.
- rewrite (sepcon_comm (lseg (s' s) _)).
- apply prop_andp_left; intros _.
- simpl in H.
- apply andp_derives.
- eapply derives_trans.
- rewrite sepcon_assoc.
- rewrite lseg_neq by auto. apply derives_refl.
- rewrite <- sepcon_assoc.
- do 2 rewrite exp_sepcon1.
- apply derives_refl.
- apply derives_refl.
- rewrite' ex_and.
+ apply semax_pre 
+   with  (fun s' => EX x: adr, (next (s' p) x * |>lseg x 0 * lseg (s' s) (s' p) * allocpool (s' a)) &&
+     cont DONEspec (s' r)).
+ intro s'. normalize. simpl in H.
+ rewrite (lseg_neq (s' p)) by auto. normalize. apply exp_right with y.
+ apply andp_derives; auto.
+ apply sepcon_derives; auto.
+ rewrite sepcon_comm. auto.
  apply (@semax_exp' _ 0). intro tail.
- do 2 rewrite' sepcon_assoc.
+ do 2 rewrite' @sepcon_assoc.
  apply semax_pre with (fun s0 => next (eval (Var p) s0) tail * TT &&
       |> subst p tail (fun s1 =>
                                lseg (eval (Var p) s1) 0 * lseg (eval (Var s) s1) (eval (Var p) s1)
@@ -135,6 +102,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  rewrite env_gso by (intro Hx; inv Hx).
  apply andp_right.
  apply andp_left1. apply sepcon_derives; auto.
+ normalize.
  rewrite later_andp.
  apply andp_derives; auto.
  rewrite sepcon_comm.
@@ -151,6 +119,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  rewrite sepcon_comm. rewrite (sepcon_comm (lseg tail 0)).
  rewrite <- sepcon_assoc.
  apply lseg_cons_in_list_context.
+ apply now_later.
 
  forward.
  apply andp_left1.
@@ -159,12 +128,10 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  forward. 
  apply andp_left1. apply andp_left2.
  apply andp_left2. apply andp_left2. apply derives_refl.
- simpl. apply prop_andp_right; auto.
+ simpl. normalize.
+ autorewrite with args. rewrite H. rewrite lseg_eq. rewrite sepcon_emp.
  apply andp_left1.
- apply prop_andp_left; intro.
- apply andp_left2. rewrite H. apply andp_left1.
- autorewrite with args. rewrite lseg_eq. rewrite sepcon_emp.
- auto.
+ apply andp_left1. auto.
 Qed.
 
 Lemma prove_DONE: semax_body myspec DONEspec DONEbody. 

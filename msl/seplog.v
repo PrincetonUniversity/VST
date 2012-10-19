@@ -29,7 +29,9 @@ Class NatDed (A: Type) := mkNatDed {
   modus_ponens: forall P Q, derives (andp P (imp P Q)) Q;
   prop_left: forall (P: Prop) Q, (P -> derives TT Q) -> derives (prop P) Q;
   prop_right: forall (P: Prop) Q, P -> derives Q (prop P);
-  exp_andp1: forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q))
+  not_prop_right: forall (P: A) (Q: Prop), (Q -> derives P FF) -> derives P (prop (not Q));
+  exp_andp1: forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q));
+  distrib_orp_andp:  forall (P Q R : A), andp (orp P Q) R = orp (andp P R) (andp Q R)
 }.
 
 Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
@@ -41,7 +43,7 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
     (*imp*) (fun P Q x => imp (P x) (Q x))
     (*prop*) (fun P x => prop P)
     (*derives*) (fun P Q => forall x, derives (P x) (Q x))
-     _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
+     _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _.
  intros; extensionality x; apply pred_ext; auto.
  intros; apply derives_refl.
  intros; eapply derives_trans; eauto.
@@ -59,7 +61,9 @@ Instance LiftNatDed (A B: Type) {ND: NatDed B} : NatDed (A -> B) :=
  intros; eapply modus_ponens; eauto.
  intros; eapply prop_left; eauto.
  intros; eapply prop_right; eauto.
+ intros; eapply not_prop_right; eauto.
  intros; extensionality rho; eapply exp_andp1; eauto.
+ intros; extensionality rho; eapply distrib_orp_andp; auto.
 Defined.
 
 Delimit Scope logic with logic.
@@ -77,6 +81,7 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   emp: A;
   sepcon: A -> A -> A;
   wand: A -> A -> A;
+  ewand: A -> A -> A;
   pure := fun (P:A) =>   P |-- emp;
   sepcon_assoc: forall P Q R, sepcon (sepcon P Q) R = sepcon P (sepcon Q R);
   sepcon_comm:  forall P Q, sepcon P Q = sepcon Q P;
@@ -86,15 +91,25 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R);
   sepcon_derives: forall P P' Q Q' : A, P |-- P' -> Q |-- Q' -> sepcon P Q |-- sepcon P' Q';
   sepcon_pure_andp: forall P Q, pure P -> pure Q -> (sepcon P Q = andp P Q);
-  pure_sepcon_TT_andp: forall P Q, pure P -> andp (sepcon P TT) Q = sepcon P Q
+  pure_sepcon_TT_andp: forall P Q, pure P -> andp (sepcon P TT) Q = sepcon P Q;
+  distrib_orp_sepcon:  forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R;
+  distrib_sepcon_andp: forall P Q R, sepcon P (andp Q R) |-- andp (sepcon P Q) (sepcon P R);
+  ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
+  ewand_TT_sepcon: forall (P Q R: A),
+                         andp (sepcon P Q) (ewand R TT) |-- 
+                               sepcon (andp P (ewand R TT)) (andp Q (ewand R TT));
+  exclude_elsewhere: forall P Q: A, sepcon P Q |-- sepcon (andp P (ewand Q TT)) Q;
+  ewand_conflict: forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF
 }.
+
 
 Notation "P '*' Q" := (sepcon P Q) : logic.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : logic.
 
 Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
  apply (mkSepLog (A -> B) _ (fun rho => emp) 
-            (fun P Q rho => P rho * Q rho) (fun P Q rho => P rho -* Q rho)).
+            (fun P Q rho => P rho * Q rho) (fun P Q rho => P rho -* Q rho)
+            (fun P Q rho => ewand (P rho) (Q rho))).
  (* sepcon_assoc *) intros; extensionality rho; apply sepcon_assoc.
  (* sepcon_comm *) intros; extensionality rho; apply sepcon_comm.
  intros. apply prop_ext. simpl. intuition.
@@ -106,6 +121,12 @@ Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
  simpl; intros; apply sepcon_derives; auto.
  simpl; intros; extensionality x; apply sepcon_pure_andp; unfold pure; auto.
  simpl; intros; extensionality x; apply pure_sepcon_TT_andp; unfold pure in *; auto.
+ simpl; intros; extensionality x; apply distrib_orp_sepcon.
+ simpl; intros; apply distrib_sepcon_andp.
+ simpl; intros; extensionality x; apply ewand_sepcon.
+ simpl; intros; eapply ewand_TT_sepcon.
+ simpl; intros; eapply exclude_elsewhere.
+ simpl; intros; eapply ewand_conflict; eauto.
 Defined.
 
 Class ClassicalSep  (A: Type) {ND: NatDed A}{SL: SepLog A} := mkCS {

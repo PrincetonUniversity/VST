@@ -18,6 +18,7 @@ Instance Cveric: ClassicalSep mpred := algClassicalSep veric.seplog.rmap.
 Instance Iveric: Indir mpred := algIndir veric.seplog.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir veric.seplog.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir veric.seplog.rmap.
+Instance SRveric: SepRec mpred := algSepRec veric.seplog.rmap.
 
 Hint Resolve any_environ : typeclass_instances.
 
@@ -278,10 +279,12 @@ apply normalize.corable_andp_sepcon1.
 apply assert_lemmas.corable_fun_assert.
 Qed.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric. 
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
-(* Don't know why this next Hint doesn't work unless fully instantiated... *)
-Hint Resolve (@sub_sepcon mpred Nveric Iveric Sveric SIveric): contractive.
+(* Don't know why this next Hint doesn't work unless fully instantiated;
+   perhaps because one needs both "contractive" and "typeclass_instances"
+   Hint databases if this next line is not added. *)
+Hint Resolve (@subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric): contractive.
 
 Module Type EXTERNAL_SPEC.
   Parameter Z:Type.

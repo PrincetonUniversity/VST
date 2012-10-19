@@ -8,7 +8,7 @@ COQDEP=coqdep -I ../../..
 COQDOC=coqdoc
 
 FILES = \
-  language.v sep_base.v seplog.v lseg.v sample_prog.v
+  language.v seplog.v model.v lseg.v client_lemmas.v sample_prog.v
 
 .PHONY : clean  all lib docs
 

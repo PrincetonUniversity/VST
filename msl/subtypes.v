@@ -468,4 +468,11 @@ apply H in H2.
 eapply H2; eauto.
 Qed.
 
+Lemma subp_e {A}{agA : ageable A}: forall P Q : pred A, TT |-- P >=> Q -> P |-- Q.
+Proof.
+intros.
+repeat intro.
+apply (H (@level _ agA a) I a (le_refl _) a (necR_refl _) H0).
+Qed.
+
 

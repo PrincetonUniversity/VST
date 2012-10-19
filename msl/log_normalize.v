@@ -43,7 +43,7 @@ intros. apply prop_right; auto.
 Qed.
 
 Lemma sepcon_andp_prop'  {A}{NA: NatDed A}{SA: SepLog A}: 
-     forall P Q R, (!!Q && P)*R = !!Q&&(P*R).
+     forall (P:A)  (Q:Prop) (R: A), (!!Q && P)*R = !!Q&&(P*R).
 Proof with norm.
 intros.
 rewrite sepcon_comm. rewrite sepcon_andp_prop.
@@ -69,7 +69,7 @@ Proof. intros.
 Qed.
 
 Lemma andp_comm  {A}{NA: NatDed A}:
-  forall P Q,  P && Q = Q && P.
+  forall P Q: A,  P && Q = Q && P.
 Proof with norm.
  intros.
    apply pred_ext.
@@ -77,7 +77,7 @@ Proof with norm.
     apply andp_right. apply andp_left2... apply andp_left1...
 Qed.
 
-Lemma andp_assoc {A} {NA: NatDed A} : forall P Q R,
+Lemma andp_assoc {A} {NA: NatDed A} : forall P Q R : A,
   (P && Q) && R = P && (Q && R).
 Proof.
   intros; apply pred_ext;   repeat apply andp_right.
@@ -113,7 +113,7 @@ apply andp_left2; apply H0.
 Qed.
 
 Lemma imp_derives {A} {NA: NatDed A}:
-  forall P P' Q Q',
+  forall P P' Q Q' : A,
     P' |-- P ->
     Q |-- Q' -> 
     P --> Q |-- P' --> Q'.
@@ -148,7 +148,7 @@ Qed.
 Hint Resolve @pure_emp.
 
 Lemma pure_sepcon1''  {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
-   forall P Q R, pure P -> Q |-- R -> P * Q |-- R.
+   forall P Q R: A, pure P -> Q |-- R -> P * Q |-- R.
 Proof with norm.
 intros.
 apply @derives_trans with (emp*Q).
@@ -167,7 +167,7 @@ Qed.
 
 Hint Resolve @pure_existential.
 
-Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P, FF * P = FF.
+Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
 Proof.
 intros.
 rewrite sepcon_comm. apply sepcon_FF.
@@ -176,7 +176,7 @@ Qed.
 Hint Rewrite @FF_sepcon @sepcon_FF : normalize.
 
 Lemma prop_true_andp {A} {NA: NatDed A}:
-  forall (P: Prop) Q,  P -> (!! P && Q = Q).
+  forall (P: Prop) (Q: A),  P -> (!! P && Q = Q).
 Proof with norm.
 intros.
 apply pred_ext. apply andp_left2...
@@ -193,7 +193,7 @@ Qed.
 Hint Rewrite @true_eq using (solve [auto]) : normalize.
 
 Lemma pure_con' {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
-      forall P Q, pure P -> pure Q -> pure (P*Q).
+      forall P Q: A, pure P -> pure Q -> pure (P*Q).
 Proof.
 intros.
 unfold pure in *.
@@ -340,7 +340,7 @@ rewrite andp_comm; apply modus_ponens.
 Qed.
 
 Lemma pure_sepcon_TT_andp'  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q, pure P -> Q && (P * TT) = (Q*P).
+  forall P Q : A, pure P -> Q && (P * TT) = (Q*P).
 Proof.
 intros. rewrite andp_comm.
 rewrite pure_sepcon_TT_andp; auto.
@@ -350,7 +350,7 @@ Qed.
 Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
 
 Lemma pure_sepcon1'  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q R, pure P -> P * Q |-- P * R -> P * Q |-- R.
+  forall P Q R : A, pure P -> P * Q |-- P * R -> P * Q |-- R.
 Proof with norm.
 intros.
 eapply derives_trans; try apply H0.
@@ -358,14 +358,14 @@ apply pure_sepcon1''; auto.
 Qed.
 
 Lemma pull_right {A} {NA: NatDed A}{SA: SepLog A}:
- forall P Q R,
+ forall P Q R : A,
    (Q * P * R) = (Q * R * P).
 Proof.
 intros. repeat rewrite sepcon_assoc. rewrite (sepcon_comm P); auto.
 Qed.
 
 Lemma pull_right0 {A} {NA: NatDed A}{SA: SepLog A}:
-  forall P Q,   (P * Q) = (Q * P).
+  forall P Q : A,   (P * Q) = (Q * P).
 Proof.
 intros. rewrite (sepcon_comm P); auto.
 Qed.
@@ -375,7 +375,7 @@ Ltac pull_left A := repeat (rewrite <- (pull_right A) || rewrite <- (pull_right0
 Ltac pull_right A := repeat (rewrite (pull_right A) || rewrite (pull_right0 A)).
 
 Lemma pure_modus {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q,  P |-- Q -> pure Q -> P |-- Q && P.
+  forall P Q : A,  P |-- Q -> pure Q -> P |-- Q && P.
 Proof.
 intros.
 apply andp_right; auto.
@@ -406,31 +406,31 @@ intros. rewrite andp_comm. apply derives_extract_prop; auto.
 Qed.
 
 Lemma andp_assoc' {A}{NA: NatDed A}:
-  forall P Q R, Q && (P && R) = P && (Q && R).
+  forall P Q R : A, Q && (P && R) = P && (Q && R).
 Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm. 
 Qed.
 
 Definition corable {A} {NA: NatDed A}{SA: SepLog A} (P: A) : Prop :=
- forall Q R, (P && Q) * R = P && (Q * R).
+ forall Q R : A, (P && Q) * R = P && (Q * R).
 
 Lemma corable_andp_sepcon1{A}  {NA: NatDed A}{SA: SepLog A} :
-   forall P Q R, corable P ->  (P && Q) * R = P && (Q * R).
+   forall P Q R : A, corable P ->  (P && Q) * R = P && (Q * R).
 Proof. auto. Qed.
 
 Lemma corable_andp_sepcon2{A}  {NA: NatDed A}{SA: SepLog A} :
-   forall P Q R, corable P ->  (Q && P) * R = P && (Q * R).
+   forall P Q R : A, corable P ->  (Q && P) * R = P && (Q * R).
 Proof.
 intros. rewrite andp_comm. apply corable_andp_sepcon1. auto.
 Qed.
 
 Lemma corable_sepcon_andp1 {A}  {NA: NatDed A}{SA: SepLog A} :
-   forall P Q R, corable P ->  Q  * (P && R) = P && (Q * R).
+   forall P Q R : A, corable P ->  Q  * (P && R) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
 Lemma corable_sepcon_andp2 {A}  {NA: NatDed A}{SA: SepLog A} :
-   forall P Q R, corable P ->  Q  * (R && P) = P && (Q * R).
+   forall P Q R : A, corable P ->  Q  * (R && P) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
@@ -451,9 +451,9 @@ Ltac normalize1 :=
             | |- _ => contradiction
             | |- context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
                       change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
-            | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@indir_ops _ _ (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5)) ?D ?F] =>
-                   change (@later A  (@LiftNatDed T B C) (@indir_ops A (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5)) D F) 
-                     with (@later B C (@indir_ops B C X5) (D F))   
+            | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
+                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F) 
+                     with (@later B C X5 (D F))   
             | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D) 
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
@@ -530,7 +530,7 @@ Tactic Notation "normalize" "in" hyp(H) := repeat (normalize1_in H).
 Definition mark {A: Type} (i: nat) (j: A) := j.
 
 Lemma swap_mark1 {A} {NA: NatDed A}{SA: SepLog A}:
-  forall i j Pi Pj B, (i<j)%nat -> B * mark i Pi * mark j Pj = B * mark j Pj * mark i Pi.
+  forall i j (Pi Pj B : A), (i<j)%nat -> B * mark i Pi * mark j Pj = B * mark j Pj * mark i Pi.
 Proof.
 intros.
 repeat rewrite sepcon_assoc.
@@ -539,7 +539,7 @@ apply sepcon_comm.
 Qed.
 
 Lemma swap_mark0 {A} {NA: NatDed A}{SA: SepLog A}:
-  forall i j Pi Pj,  (i<j)%nat -> mark i Pi * mark j Pj = mark j Pj * mark i Pi.
+  forall i j (Pi Pj: A),  (i<j)%nat -> mark i Pi * mark j Pj = mark j Pj * mark i Pi.
 Proof.
 intros.
 apply sepcon_comm.
@@ -586,26 +586,26 @@ Qed.
 
 (***** contractiveness ******)
 
-Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}:
-   forall P, |> # P |-- # |> P.
+Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
+   forall P : A, |> # P |-- # |> P.
 Proof. intros. rewrite later_fash; auto.
 Qed.
 
-Lemma subp_later1 {A}  {NA: NatDed A}{IA: Indir A} : forall P Q,
+Lemma subp_later1 {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
    |>(P >=> Q)  |--   |>P >=> |>Q.
 Proof.
 intros.
 rewrite later_fash. rewrite later_imp. auto.
 Qed.
 
-Lemma subp_later {A}  {NA: NatDed A}{IA: Indir A} : forall P Q,
+Lemma subp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
    |>(P >=> Q) = |>P >=> |>Q.
 Proof.
 intros.
 rewrite later_fash. rewrite later_imp. auto.
 Qed.
 
-Lemma eqp_later1 {A} {NA: NatDed A}{IA: Indir A} : forall P Q,
+Lemma eqp_later1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall P Q : A,
    |>(P <=> Q)  |--   |>P <=> |>Q.
 Proof.
 intros.
@@ -613,7 +613,7 @@ rewrite later_fash.
 rewrite later_andp; repeat rewrite later_imp; repeat  rewrite fash_andp. auto.
 Qed.
 
-Lemma eqp_later {A}  {NA: NatDed A}{IA: Indir A}  : forall P Q,
+Lemma eqp_later {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall P Q: A,
     (|>(P <=> Q) = |>P <=> |>Q).
 Proof.
 intros.
@@ -621,7 +621,7 @@ rewrite later_fash.
 rewrite later_andp; repeat rewrite later_imp; repeat  rewrite fash_andp. auto.
 Qed.
 
-Lemma subp_refl {A} {NA: NatDed A}{IA: Indir A}  : forall G P,
+Lemma subp_refl {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P : A),
   G |-- P >=> P.
 Proof.
 intros.
@@ -633,7 +633,7 @@ apply imp_andp_adjoint.
 apply andp_left2; auto.
 Qed.
 
-Lemma subp_trans {A} {NA: NatDed A}{IA: Indir A}  : forall G P Q R,
+Lemma subp_trans {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P Q R: A),
   G |-- P >=> Q ->
   G |-- Q >=> R ->
   G |-- P >=> R.
@@ -649,7 +649,7 @@ intros.
  apply modus_ponens. apply derives_refl. apply modus_ponens.
 Qed.
 
-Lemma subp_top {A} {NA: NatDed A}{IA: Indir A}  : forall G P,
+Lemma subp_top {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P: A),
   G |-- P >=> TT.
 Proof.
  intros. apply @derives_trans with (#TT).
@@ -658,7 +658,7 @@ Proof.
  apply andp_left1; auto.
 Qed.
 
-Lemma subp_bot {A} {NA: NatDed A}{IA: Indir A}  : forall G P,
+Lemma subp_bot {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P: A),
   G |-- FF >=> P.
 Proof.
  intros. apply @derives_trans with (#TT).
@@ -667,7 +667,7 @@ Proof.
  apply andp_left2; apply FF_left.
 Qed.
 
-Lemma subp_andp {A} {NA: NatDed A}{IA: Indir A}  : forall G P P' Q Q',
+Lemma subp_andp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G {P P' Q Q': A},
   G |-- P >=> P' ->
   G |-- Q >=> Q' ->
   G |-- P && Q >=> (P' && Q').
@@ -687,7 +687,7 @@ Proof.
  apply andp_derives; apply modus_ponens.
 Qed.
 
-Lemma subp_imp {A} {NA: NatDed A}{IA: Indir A}  : forall G P P' Q Q',
+Lemma subp_imp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P P' Q Q' : A),
   G |-- P' >=> P ->
   G |-- Q >=> Q' ->
   G |-- (P --> Q) >=> (P' --> Q').
@@ -712,7 +712,7 @@ Proof.
  apply modus_ponens.
 Qed.
 
-Lemma subp_orp {A} {NA: NatDed A}{IA: Indir A}  : forall G P P' Q Q',
+Lemma subp_orp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall G (P P' Q Q' : A),
   G |-- P >=> P' ->
   G |-- Q >=> Q' ->
   G |-- (P || Q) >=> (P' || Q').
@@ -729,7 +729,7 @@ apply orp_left; apply -> imp_andp_adjoint; [apply orp_right1 | apply orp_right2]
  rewrite <- andp_assoc. apply andp_left1. apply modus_ponens.
 Qed.
 
-Lemma subp_subp {A} {NA: NatDed A}{IA: Indir A}:
+Lemma subp_subp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
   forall G (P Q R S: A), 
    G |-- (R >=> P) ->
    G |-- (Q >=> S) ->
@@ -748,14 +748,14 @@ Proof.
   apply subp_trans with P. apply andp_left1; auto. apply andp_left2; auto.
 Qed.
 
-Lemma allp_imp2_later_e2 {B}{A}{NA: NatDed A}{IA: Indir A}:
+Lemma allp_imp2_later_e2 {B}{A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall (P Q: B -> A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> Q y >=> |> P y.
 Proof. 
   intros. apply allp_left with y. repeat rewrite fash_andp. apply andp_left2; auto.
 Qed.
 
-Lemma allp_imp2_later_e1 {B}{A}{NA: NatDed A}{IA: Indir A}:
+Lemma allp_imp2_later_e1 {B}{A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall (P Q: B -> A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> P y >=> |> Q y.
 Proof. 
@@ -804,7 +804,8 @@ Proof.
   rewrite eqp_later. rewrite andp_comm. auto.
 Qed.
 
-Lemma sub_sepcon {A} {NA: NatDed A}{IA: Indir A}{SA: SepLog A}{SI: SepIndir A} : forall G P P' Q Q',
+Lemma subp_sepcon {A} {NA: NatDed A}{IA: Indir A}{SA: SepLog A}{SI: SepIndir A}{RA: RecIndir A}{SRA: SepRec A} :
+    forall G (P P' Q Q' : A),
   G |-- P >=> P' ->
   G |-- Q >=> Q' ->
   G |-- P * Q >=> P' * Q'.
@@ -828,15 +829,14 @@ Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
 Hint Resolve @prove_HOcontractive 
   @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp 
-  @sub_sepcon (* NOTE: This hint fails to work unless fully instantiated, for some reason;
-                             so the client must re-do the sub_sepcon hint *)
+  @subp_sepcon (* NOTE: This hint fails to work unless fully instantiated, for some reason;
+                             so the client must re-do the subp_sepcon hint *)
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
 Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}: 
-    forall P Q,   Q && later P |-- P ->  Q |-- P.
+    forall P Q : A ,   Q && later P |-- P ->  Q |-- P.
 Proof.
 intros.
-Check imp_andp_adjoint.
 assert (TT |-- Q --> P).
 apply loeb.
 rewrite later_imp.
@@ -869,9 +869,9 @@ Qed.
 Lemma HORec_sub {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A} : forall G B
   (F : A -> (B -> A) -> B -> A)
   (HF1 : forall X, HOcontractive (F X))
-  (HF2 : forall R a P Q, P >=> Q |-- F P R a >=> F Q R a)
-  (HF3 : forall P Q X, ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
-  forall P Q,
+  (HF2 : forall R a (P Q: A), P >=> Q |-- F P R a >=> F Q R a)
+  (HF3 : forall (P Q: B -> A) X, ALL b:B, |>(P b >=> Q b) |-- ALL b:B, F X P b >=> F X Q b),
+  forall P Q : A,
     G |-- P >=> Q ->
     G |-- ALL b:B, HORec (F P) b >=> HORec (F Q) b.
 Proof.

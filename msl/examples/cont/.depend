@@ -1,5 +1,6 @@
 language.vo language.glob: language.v
-sep_base.vo sep_base.glob: sep_base.v
 seplog.vo seplog.glob: seplog.v
+model.vo model.glob: model.v
 lseg.vo lseg.glob: lseg.v
+client_lemmas.vo client_lemmas.glob: client_lemmas.v
 sample_prog.vo sample_prog.glob: sample_prog.v
