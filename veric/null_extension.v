@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import msl.base
                veric.sim veric.step_lemmas veric.base veric.expr
-               veric.smallstep_sim_extensions veric.extspec.
+               veric.extensions veric.extspec.
 
 Set Implicit Arguments.
 
