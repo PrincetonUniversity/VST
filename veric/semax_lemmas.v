@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -723,7 +724,7 @@ Qed.
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
-   j_safely_halted cl_core_sem psi st m  = None ->
+   j_safely_halted cl_core_sem psi st  = None ->
    jsafeN Hspec psi (S n) ora st m ->
  exists st', exists m',
    jstep cl_core_sem psi st m st' m' /\
@@ -818,20 +819,21 @@ Focus 1.
   destruct n; auto.
   simpl in H5|-*.
   destruct H5 as [x ?]; exists x.
-  intros z' H7; specialize (H5 z' H7).
+  generalize I as H7; intro.
+(*  intros z' H7; specialize (H5 z' H7).*)
   destruct H5; split; auto.
   intros ret m'0 z'' H9; specialize (H6 ret m'0 z'' H9).
   destruct H6 as [c' [? ?]].
   unfold cl_after_external in *.
-  destruct ret. inv H6.
-  destruct ret. destruct optid.
-  exists (State ve (PTree.set i v te) (l ++ ctl2)); split; auto.
+  destruct ret as [ret|]. (*inv H6.*)
+  (*destruct ret.*) destruct optid.
+  exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.
   inv H6.
-  apply H4; auto.
+  apply H4; auto. congruence.
   exists (State ve te (l ++ ctl2)); split; auto.
-  inv H6.
+  destruct optid; auto. congruence.
   apply H4; auto.
-  inv H6.  
+  destruct optid; auto. inv H6. inv H6; auto.
   (* sequence  *)
   destruct (IHcl_step (Kseq s1) (Kseq s2 :: l) _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _)) as [c2 [m2 [? ?]]]; clear IHcl_step.
    destruct H2 as [H2 [H2b H2c]].
@@ -915,7 +917,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (forward_simulations.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (sim.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
@@ -933,7 +935,7 @@ Focus 1.
   destruct l0; simpl in *.
   hnf in CS0.
   specialize (CS0 ora ve te m0 (S n)).
-  assert (forward_simulations.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
+  assert (sim.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
   pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.

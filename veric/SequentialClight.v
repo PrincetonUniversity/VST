@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.
@@ -8,7 +9,8 @@ Require Import veric.juicy_mem.
 Require Import veric.NullExtension.
 Require Import veric.Clight_sim.
 Require Import veric.SeparationLogicSoundness.
-Require Import veric.forward_simulations.
+Require Import veric.sim.
+Require Import veric.extspec.
 Require Import msl.msl_standard.
 
 Module SeqC := MakeSeparationLogic NullExtension.
@@ -20,12 +22,9 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_type*)
      (fun ef => False)
      (*ext_spec_pre*)
-     (fun ef Hef sig vl m z => False) 
+     (fun ef Hef tys vl m z => False) 
      (*ext_spec_post*)
-     (fun ef Hef sig vl m z => False)
-     (* ext_spec_evolve *)
-     (fun z z' => True).
-
+     (fun ef Hef ty vl m z => False).
 
  Lemma hoare_safe:
    forall prog G m,

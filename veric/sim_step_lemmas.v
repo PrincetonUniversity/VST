@@ -1,15 +1,5 @@
 Add LoadPath "..".
-Require Import veric.base.
-Require Import veric.sim.
-
-Structure external_specification {M E Z:Type} := { 
-  ext_spec_type: E -> Type;
-  ext_spec_pre: forall (e:E), ext_spec_type e -> list val -> Z -> M -> Prop;
-  ext_spec_post: forall (e:E), ext_spec_type e -> val -> Z -> M ->  Prop
-}.
-Implicit Arguments external_specification [].
-
-Definition ext_spec := external_specification mem external_function.
+Require Import veric.base veric.sim veric.extspec.
 
 Section safety.
   Context {G C M D Z:Type}.

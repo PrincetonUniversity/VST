@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -54,6 +55,8 @@ Program Definition assert_safe
    specialize (H0 ora jm0 (eq_refl _) (eq_refl _)).
    forget (State ve te ctl) as c. clear H ve te ctl.
   change (level (m_phi jm)) with (level jm).
+  change (level (m_phi jm0)) with (level jm0) in H0.
+  unfold jsafeN in *.
   eapply age_safe; eauto.
 Qed.
 
@@ -119,16 +122,16 @@ Record semaxArg :Type := SemaxArg {
 
 
 Definition ext_spec_pre' {Z} (Hspec: juicy_ext_spec Z) (ef: external_function) 
-   (x': ext_spec_type Hspec ef)(args: list val) (z: Z) : pred juicy_mem :=
+   (x': ext_spec_type Hspec ef) (ts: list typ) (args: list val) (z: Z) : pred juicy_mem :=
   exist (hereditary age) 
-     (ext_spec_pre Hspec ef x' (sig_args (ef_sig ef)) args z)
+     (ext_spec_pre Hspec ef x' ts args z)
      (JE_pre_hered _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' {Z} (Hspec: juicy_ext_spec Z)
    (ef: external_function) (x': ext_spec_type Hspec ef) 
-   (ret: list val) (z: Z) : pred juicy_mem :=
+   (tret: option typ) (ret: option val) (z: Z) : pred juicy_mem :=
   exist (hereditary age) 
-   (ext_spec_post Hspec ef x' (opt2list (sig_res (ef_sig ef))) ret z)
+   (ext_spec_post Hspec ef x' tret ret z)
      (JE_post_hered _ _ _ _ _ _ _).
 
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
@@ -140,18 +143,24 @@ Fixpoint make_ext_args (n: positive) (vl: list val)  :=
   | v::vl' => env_set (make_ext_args (n+1)%positive vl') n v
  end.
 
+Definition make_ext_rval (n: positive) (v: option val) :=
+  match v with
+  | Some v' => env_set any_environ n v'
+  | None => any_environ
+  end.
+
 Definition semax_ext  {Z} (Hspec: juicy_ext_spec Z) 
                   ef (A: Type) (P Q: A -> environ -> pred rmap): 
         pred nat := 
  ALL x: A, 
- |>  ALL F: pred rmap, ALL args: list val,
+ |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
    juicy_mem_op (P x (make_ext_args 1%positive args) * F) >=> 
    EX x': ext_spec_type Hspec ef,
-    ALL z:_, ext_spec_pre' Hspec ef x' args z &&
-     ! ALL ret: list val, ALL z':Z, 
-      ext_spec_post' Hspec ef x' ret z' >=>
-      !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&
-          juicy_mem_op (|>(Q x (make_ext_args 1%positive ret) * F)).
+    ALL z:_, ext_spec_pre' Hspec ef x' ts args z &&
+     ! ALL tret: option typ, ALL ret: option val, ALL z':Z, 
+      ext_spec_post' Hspec ef x' tret ret z' >=>
+(*      !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&*)
+          juicy_mem_op (|>(Q x (make_ext_rval 1 ret) * F)).
 
 Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
  match tl with 

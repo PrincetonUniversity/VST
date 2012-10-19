@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -8,53 +9,68 @@ Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.extspec.
 Require Import veric.step_lemmas.
+Require Import veric.initial_world.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
-Require Import veric.forward_simulations.
+Require Import veric.sim.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
-  JE_pre_hered: forall e t sig args z, hereditary age (ext_spec_pre JE_spec e t sig args z);
-  JE_post_hered: forall e t sig args z, hereditary age (ext_spec_post JE_spec e t sig args z)
+  JE_pre_hered: forall e t typs args z, hereditary age (ext_spec_pre JE_spec e t typs args z);
+  JE_post_hered: forall e t tret rv z, hereditary age (ext_spec_post JE_spec e t tret rv z)
 }.
  
-Definition jstep {G C} (csem: CoreSemantics G C mem external_function)
+Definition jstep {G C D} (csem: CoreSemantics G C mem D)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm').
 
-Definition j_safely_halted {G C} (csem: CoreSemantics G C mem external_function)
-       (ge: G) (c: C) (jm: juicy_mem) : option val :=
-     safely_halted csem ge c (m_dry jm).
+Definition j_safely_halted {G C D} (csem: CoreSemantics G C mem D)
+       (ge: G) (c: C) : option int :=
+     safely_halted csem ge c.
 
-
-Lemma jstep_not_at_external {G C} (csem: CoreSemantics G C mem external_function):
+Lemma jstep_not_at_external {G C D} (csem: CoreSemantics G C mem D):
   forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
 Proof.
   intros.
   destruct H. eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {G C} (csem: CoreSemantics G C mem external_function):
-  forall ge m q m' q', jstep csem ge q m q' m' -> j_safely_halted csem ge q m = None.
+Lemma jstep_not_halted  {G C D} (csem: CoreSemantics G C mem D):
+  forall ge m q m' q', jstep csem ge q m q' m' -> j_safely_halted csem ge q = None.
 Proof.
   intros. destruct H. eapply corestep_not_halted; eauto.
 Qed.
 
-Lemma j_at_external_halted_excl {G C} (csem: CoreSemantics G C mem external_function):
-  forall (ge : G) (q : C) (m : juicy_mem),
-  at_external csem q = None \/ j_safely_halted csem ge q m = None.
+Lemma j_at_external_halted_excl {G C D} (csem: CoreSemantics G C mem D):
+  forall (ge : G) (q : C),
+  at_external csem q = None \/ j_safely_halted csem ge q = None.
 Proof.
  intros.
- destruct (at_external_halted_excl csem ge q (m_dry m)); [left | right]; auto.
+ destruct (at_external_halted_excl csem ge q); [left | right]; auto.
 Qed.
 
+Record jm_init_package: Type := {
+  jminit_m: Memory.mem;
+  jminit_prog: program;
+  jminit_G: expr.funspecs;
+  jminit_lev: nat;
+  jminit_init_mem: Genv.init_mem jminit_prog = Some jminit_m;
+  jminit_vars_no_dups: Clight_lemmas.no_dups (prog_funct jminit_prog) (prog_vars jminit_prog);
+  jminit_fdecs_match: match_fdecs (prog_funct jminit_prog) jminit_G
+}.
 
-Definition juicy_core_sem  {G C} (csem: CoreSemantics G C mem external_function) :
-   CoreSemantics G C juicy_mem external_function :=
+Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
+  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d) 
+         (jminit_init_mem d) (jminit_vars_no_dups d) (jminit_fdecs_match d).
+
+Definition juicy_core_sem  
+  {G C D} (csem: CoreSemantics G C mem D) :
+   CoreSemantics G C juicy_mem jm_init_package :=
   @Build_CoreSemantics _ _ _ _
+    init_jmem
     (make_initial_core csem)
     (at_external csem)
     (after_external csem)
@@ -145,7 +161,8 @@ unfold rmap, seplog.ag_rmap in *.
   erewrite <- necR_NO; try eassumption. constructor; auto.
 Qed.
 
-Lemma age_safe {G}{C}(csem: CoreSemantics G C mem external_function){Z}  (Hspec : juicy_ext_spec Z):
+Lemma age_safe {G C D}
+  (csem: CoreSemantics G C mem D){Z}  (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
    safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
@@ -160,24 +177,21 @@ Proof.
   remember (S N) as SN.
    simpl in H0. subst SN.
    revert H0; case_eq (at_external csem c); intros.
-   destruct p. destruct p.
+   destruct p. destruct p. 
    unfold j_safely_halted in *.
-   rewrite <- (age_jm_dry H2).
-   destruct (safely_halted csem ge c (m_dry jm0)); [contradiction | ].
+   destruct (safely_halted csem ge c); [contradiction | ].
   destruct H0 as [x ?]. exists x.
-   intros z' H1; specialize (H0 z' H1).
   destruct H0; split; auto.
   clear - H2 H0.
   eapply JE_pre_hered; eauto.
    intros.
-   destruct (H3 ret m' z'') as [c' [? ?]].
+   destruct (H1 ret m' z') as [c' [? ?]].
    auto.
    exists c'; split; auto.
    eapply safe_downward; try eassumption. 
   omega.
    unfold j_safely_halted in *.
-   rewrite <- (age_jm_dry H2).
-   destruct (safely_halted csem ge c (m_dry jm0)); auto.
+   destruct (safely_halted csem ge c); auto.
    destruct H0 as [c' [jm' [[? [? ?]] ?]]].
    pose proof (age_level _ _ H2).
    assert (level jm' > 0) by omega.

@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import veric.sim veric.sim_step_lemmas veric.base veric.expr.
+Require Import veric.sim veric.step_lemmas veric.base veric.expr veric.extspec.
 Require Import ListSet.
 
 Set Implicit Arguments.
@@ -53,8 +53,8 @@ Definition linkable (signature: extsig M ext_state) (handled: extsig M W) :=
   (*ef:{P}{Q} (handled spec) is a subtype of ef:{P'}{Q'} (assumed by client)*)
   (forall ef x x' P Q P' Q', 
     spec_of ef handled x = (P, Q) -> spec_of ef signature x' = (P', Q') -> 
-    (forall args w m, P' args (proj_ext_state w) m -> P args w m) /\
-    (forall ret w m, Q ret w m -> Q' ret (proj_ext_state w) m)).
+    (forall tys args w m, P' tys args (proj_ext_state w) m -> P tys args w m) /\
+    (forall ty ret w m, Q ty ret w m -> Q' ty ret (proj_ext_state w) m)).
 
 End linkable.
 
@@ -109,21 +109,21 @@ Module Extension. Record Sig
       csem i = Some CS -> after_external CS ret c = Some c' -> 
       at_external CS c' = None;
 
-    handles_ok: forall w i CS c ef args,
+    handles_ok: forall w i CS c ef args sig,
       csem i = Some CS -> proj_core w i = Some c -> 
-      at_external CS c = Some (ef, args) -> 
+      at_external CS c = Some (ef, sig, args) -> 
       at_external wsem w = None -> 
       handles ef signature;
 
     (*type W embeds the external state*)
     proj_ext_state : W -> ext_state;
     lift_pred : (ext_state -> M -> Prop) -> (W -> M -> Prop);
-    proj_ext_state_pre : forall ef x P Q args w m,
+    proj_ext_state_pre : forall ef x P Q tys args w m,
       spec_of ef (link signature handled) x = (P, Q) -> 
-      (P args (proj_ext_state w) m <-> lift_pred (P args) w m);
-    proj_ext_state_post : forall ef x P Q ret w m,
+      (P tys args (proj_ext_state w) m <-> lift_pred (P tys args) w m);
+    proj_ext_state_post : forall ef x P Q ty ret w m,
       spec_of ef (link signature handled) x = (P, Q) -> 
-      (Q ret (proj_ext_state w) m <-> lift_pred (Q ret) w m);
+      (Q ty ret (proj_ext_state w) m <-> lift_pred (Q ty ret) w m);
     ext_upd_at_external : forall ge w m w' m',
       corestep wsem ge w m w' m' -> 
       proj_ext_state w = proj_ext_state w';
@@ -229,16 +229,16 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
       THREAD i is (CS, c') in w')
 
   (*"handled" steps respect function specifications*)
-  (handled_pres: forall ge w m c w' m' c' CS ef args P Q x, 
+  (handled_pres: forall ge w m c w' m' c' CS ef sig args P Q x, 
     let i := ACTIVE w in THREAD i is (CS, c) in w -> 
-    at_external CS c = Some (ef, args) -> 
+    at_external CS c = Some (ef, sig, args) -> 
     handles ef signature -> 
-    spec_of ef signature x = (P, Q) -> LIFT (P args) w m -> 
+    spec_of ef signature x = (P, Q) -> LIFT (P (sig_args sig) args) w m -> 
     corestep wsem ge w m w' m' -> 
     THREAD i is (CS, c') in w' -> 
-      ((at_external CS c' = Some (ef, args) /\ LIFT (P args) w' m' /\
+      ((at_external CS c' = Some (ef, sig, args) /\ LIFT (P (sig_args sig) args) w' m' /\
         (forall j, ACTIVE w' = j -> i <> j)) \/
-      (exists ret, after_external CS ret c = Some c' /\ LIFT (Q ret) w' m')))
+      (exists ret, after_external CS ret c = Some c' /\ LIFT (Q (sig_res sig) ret) w' m')))
 
   (*"handled" states satisfying the invariant can step or are safely halted; 
      core states that stay "at_external" remain unchanged*)
@@ -283,10 +283,10 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
       at_external CS c = Some (ef, args))
 
   (*inject the results of an external call into the extended machine state*)
-  (at_extern_ret: forall c w m ora m' args ret c' P Q CS ef x,
+  (at_extern_ret: forall c w m ora m' tys args ty ret c' P Q CS ef x,
     let i := ACTIVE w in THREAD i is (CS, c) in w -> 
     spec_of ef signature x = (P, Q) -> 
-    P args (PROJ_EXT w) m -> Q ret ora m' -> 
+    P tys args (PROJ_EXT w) m -> Q ty ret ora m' -> 
     after_external CS ret c = Some c' -> 
     exists w', 
       INJ_EXT ora w' = w' /\
@@ -295,10 +295,10 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
 
   (*safety of other threads is preserved when returning from an external 
      function call*)
-  (at_extern_rest: forall c w m ora w' m' args ret c' P Q CS ef x,
+  (at_extern_rest: forall c w m ora w' m' tys args ty ret c' P Q CS ef x,
     let i := ACTIVE w in THREAD i is (CS, c) in w -> 
     spec_of ef signature x = (P, Q) -> 
-    P args (PROJ_EXT w) m -> Q ret ora m' -> 
+    P args tys (PROJ_EXT w) m -> Q ty ret ora m' -> 
     after_external CS ret c = Some c' -> 
     after_external wsem ret w = Some w' -> 
     THREAD i is (CS, c') in w' -> 
@@ -326,6 +326,7 @@ generalize H1 as H1'; intro.
 specialize (H1 (ACTIVE w) CS c H3 H4).
 simpl in H1.
 rewrite H5 in H1.
+destruct ef as [ef sig].
 destruct (at_external_halted_excl CS ge c) as [H6|H6].
 rewrite H6 in H5; congruence.
 rewrite H6 in H1; clear H6.
@@ -335,7 +336,7 @@ exists x.
 split; auto.
 intros ret m' z' POST.
 destruct (H8 ret m' z' POST) as [c' [H10 H11]].
-specialize (at_extern_ret c w m z' m' args ret c' 
+specialize (at_extern_ret c w m z' m' (sig_args sig) args (sig_res sig) ret c' 
   (ext_spec_pre signature ef x) (ext_spec_post signature ef x) CS ef x).
 hnf in at_extern_ret.
 spec at_extern_ret; auto.
@@ -358,7 +359,7 @@ rewrite PROJJ in H15; inversion H15; rewrite H9 in *.
 auto.
 (*i<>j*)
 intros Hneq _.
-specialize (at_extern_rest c w m (PROJ_EXT w') w' m' args ret c'
+specialize (at_extern_rest c w m (PROJ_EXT w') w' m' args (sig_args sig) (sig_res sig) ret c'
   (ext_spec_pre signature ef x) (ext_spec_post signature ef x) CS ef x).
 hnf in at_extern_rest.
 spec at_extern_rest; auto.
@@ -457,10 +458,12 @@ specialize (H1 j CS c0 CSEM PROJECT).
 simpl in H1. 
 rewrite AT_EXT in H1.
 remember (safely_halted CS ge c0) as SAFELY_HALTED.
-destruct SAFELY_HALTED; [solve[elimtype False; auto]|].
+destruct SAFELY_HALTED. 
+solve[destruct ef; elimtype False; auto].
+destruct ef as [ef sig].
 destruct H1 as [x H1].
 destruct H1 as [PRE POST].
-specialize (handled_pres ge w m c0 w' m' cj CS ef args
+specialize (handled_pres ge w m c0 w' m' cj CS ef sig args
   (ext_spec_pre signature ef x)
   (ext_spec_post signature ef x) x).
 rewrite Heq in handled_pres.
@@ -480,7 +483,7 @@ destruct handled_pres as [[AT_EXT' [PRE' ACT']] | POST'].
 (*pre-preserved case*)
 destruct H4 as [[H4 H5] H6].
 rewrite H5 in PROJECTj; inversion PROJECTj; subst.
-specialize (H6 ef args ef args AT_EXT AT_EXT'); subst.
+specialize (H6 (ef,sig) args (ef,sig) args AT_EXT AT_EXT'); subst.
 clear - PRE' POST AT_EXT' H4 H5 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT', <-HeqSAFELY_HALTED.

@@ -46,22 +46,22 @@ But the core_initial axiom in the record Sim_eq.Forward_simulation_equals curren
       safely_halted Sem1 ge1 c1 = Some v -> safely_halted Sem2 ge2 c2 = Some v.
 
   Hypothesis eq_at_external: 
-         forall (d : core_data) (st1 : C1) (st2 : C2) (e : external_function) (args : list val),
+         forall (d : core_data) (st1 : C1) (st2 : C2) (e : external_function) (args : list val) sig,
          match_cores d st1 st2 ->
-         at_external Sem1 st1 = Some (e, args) ->
-         at_external Sem2 st2 = Some (e, args) /\
-         Forall2 Val.has_type args (sig_args (ef_sig e)).
+         at_external Sem1 st1 = Some (e, sig, args) ->
+         at_external Sem2 st2 = Some (e, sig, args) /\
+         Forall2 Val.has_type args (sig_args sig).
 
   Hypothesis eq_after_external: forall (d : core_data) (st1 : C1) (st2 : C2) (ret : val)
-                                                                 (e : external_function) (args : list val),
+                                                                 (e : external_function) (args : list val) sig,
                       match_cores d st1 st2 ->
-                      at_external Sem1 st1 = Some (e, args) ->
-                      at_external Sem2 st2 = Some (e, args) ->
-                      Forall2 Val.has_type args (sig_args (ef_sig e)) ->
-                      Val.has_type ret (proj_sig_res (ef_sig e)) ->
+                      at_external Sem1 st1 = Some (e, sig, args) ->
+                      at_external Sem2 st2 = Some (e, sig, args) ->
+                      Forall2 Val.has_type args (sig_args sig) ->
+                      Val.has_type ret (proj_sig_res sig) ->
                       exists st1' : C1, exists st2' : C2, exists d' : core_data,
-                              after_external Sem1 ret st1 = Some st1' /\
-                              after_external Sem2 ret st2 = Some st2' /\ match_cores d' st1' st2'.
+                              after_external Sem1 (Some ret) st1 = Some st1' /\
+                              after_external Sem2 (Some ret) st2 = Some st2' /\ match_cores d' st1' st2'.
 (*
 Section SIMULATION_STAR_WF.
   Hypothesis eq_simulation:
@@ -196,7 +196,7 @@ Proof.
         destruct H. rewrite X in H. inv H.
    intros. clear eq_star_sim_diag eq_safely_halted  match_initial_cores eq_star_halted_Zero.
            destruct d as [d c]. 
-           destruct H. specialize (eq_after_external _ _ _ _ _ _ H H0 H1 H2 H3).
+           destruct H. specialize (eq_after_external _ _ _ _ _ _ _ H H0 H1 H2 H3).
                 destruct eq_after_external  as [c1' [c2' [d' [AftExt1 [AftExt2 MC]]]]].
                 exists c1'. exists c2'. exists (d',c). split; trivial. split; trivial. left. assumption.
           destruct H. rewrite (eq_star_atExt_Zero _ _ H0) in H. inv H.
@@ -350,23 +350,23 @@ Section Sim_EXT_SIMU_DIAGRAMS.
           Mem.extends m1 m2.
 
   Hypothesis ext_at_external: 
-      forall cd st1 m1 st2 m2 e vals1,
+      forall cd st1 m1 st2 m2 e vals1 sig,
         match_state cd st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         exists vals2,
           Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          Forall2 (Val.has_type) vals2 (sig_args sig) /\
           at_external Sem2 st2 = Some (e,vals2).
 
   Hypothesis ext_after_external:
-      forall cd st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2',
+      forall cd st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2' sig,
         match_state cd st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         at_external Sem2 st2 = Some (e,vals2) ->
 
         Forall2 Val.lessdef vals1 vals2 ->
-        Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) ->
+        Forall2 (Val.has_type) vals2 (sig_args sig) ->
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
@@ -374,11 +374,11 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
 
-        Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
+        Val.has_type ret2 (proj_sig_res sig) ->
 
         exists st1', exists st2', exists cd',
-          after_external Sem1 ret1 st1 = Some st1' /\
-          after_external Sem2 ret2 st2 = Some st2' /\
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' st1' m1' st2' m2'. 
 
 Section EXT_SIMULATION_STAR.
@@ -420,7 +420,7 @@ Proof.
         destruct H. rewrite X in H. inv H.
    intros. clear ext_star_sim_diag ext_safely_halted  match_initial_cores ext_star_halted_Zero ext_at_external.
            destruct cd as [d c]. 
-           destruct H. specialize (ext_after_external _ _ _ _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9).
+           destruct H. specialize (ext_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9).
                 destruct ext_after_external  as [c1' [c2' [d' [AftExt1 [AftExt2 MC]]]]].
                 exists c1'. exists c2'. exists (d',c). split; trivial. split; trivial. left. assumption.
           destruct H. rewrite (ext_star_atExt_Zero _ _ H0) in H. inv H.
@@ -483,17 +483,17 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          Mem.inject j m1 m2).
 
   Hypothesis inj_at_external: 
-      forall cd j st1 m1 st2 m2 e vals1,
+      forall cd j st1 m1 st2 m2 e vals1 sig,
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          Forall2 (Val.has_type) vals2 (sig_args sig) /\
           at_external Sem2 st2 = Some (e,vals2)).
 
   Hypothesis inj_after_external:
-      forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2,
+      forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2 sig,
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
@@ -515,11 +515,11 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          mem_unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
+         Val.has_type ret2 (proj_sig_res sig) ->
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 ret1 st1 = Some st1' /\
-          after_external Sem2 ret2 st2 = Some st2' /\
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' j' st1' m1' st2' m2'. 
 
 Section INJ_SIMULATION_STAR.
@@ -564,7 +564,7 @@ Proof.
         destruct H. rewrite X in H. inv H.
    intros. clear inj_star_sim_diag inj_safely_halted  match_initial_cores inj_star_halted_Zero inj_at_external.
            destruct cd as [d c]. 
-           destruct H0. specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11).
+           destruct H0. specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11).
                 destruct inj_after_external  as [d' [c1' [c2' [AftExt1 [AftExt2 MC]]]]].
                 exists (d',c).  exists c1'. exists c2'. split; trivial. split; trivial. left. assumption.
           destruct H0. rewrite (inj_star_atExt_Zero _ _ H1) in H0. inv H0.

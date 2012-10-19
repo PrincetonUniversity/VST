@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 Require Import veric.forward_simulations.

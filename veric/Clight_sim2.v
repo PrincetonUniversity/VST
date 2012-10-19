@@ -1,9 +1,8 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
-Require Import veric.sim. (*forward_simulations.
-Require Import veric.forward_simulations_proofs.*)
-Require Import veric.Clight_new2.
+Require Import veric.sim. 
+Require Import veric.Clight_new.
 Require Import veric.Sim_starplus.
 Require compcert.Clight_sem.
 Module CC := Clight_sem.
@@ -1275,13 +1274,18 @@ Focus 1. (* case 4 of 4 *)
  apply match_cont_strip1. auto.
 Qed.
 
-Definition CC_at_external (c: CC_core) : option (external_function * list val) :=
+Definition CC_at_external (c: CC_core) : option (external_function * signature * list val) :=
   match c with
-  |  CC_core_State _ _ _ _ _ => None
-  | CC_core_Callstate fd args k => match fd with
-                                                                  Internal _ => None
-                                                                | External ef _ _  => Some(ef, args)
-                                                            end
+  | CC_core_State _ _ _ _ _ => None
+  | CC_core_Callstate fd args k => 
+    match fd with
+      Internal _ => None
+      | External ef tps tp  => 
+          match tp with 
+          | Tvoid => Some (ef, mksignature (typlist_of_typelist tps) None, args)
+          | _ => Some (ef, mksignature (typlist_of_typelist tps) (Some (typ_of_type tp)), args)
+          end
+    end
   | CC_core_Returnstate _ _ => None
  end.
 Parameter mkAfterExtCore: external_function -> typelist -> type -> val -> list val -> CC.cont -> option CC_core.
@@ -1293,14 +1297,16 @@ Definition mkAfterExtCore ge (ef:external_function) (targs: typelist) (tres: typ
                   | _ => False
     end.
 *)
-Definition CC_after_external (v: val) (c: CC_core) : option CC_core :=
-  match c with
-   | CC_core_Callstate fd vargs k =>
+
+Definition CC_after_external (rv: option val) (c: CC_core) : option CC_core :=
+  match rv, c with
+   | Some v, CC_core_Callstate fd vargs k =>
                      match fd with
                          Internal _ => None
                        | External ef tps tp => mkAfterExtCore ef tps tp v vargs k
                      end
-  | _ => None
+(*MAY NEED ANOTHER CASE HERE FOR Tvoid*)
+  | _, _ => None
   end.
 
 Parameter main_function:function. (*IS THIS WHAT THE FIRST ARGUMENT OF CC_core_state is about, ie current function?*)
@@ -1365,7 +1371,8 @@ Lemma CCstep_to_CC_step_1: forall ge c m c' m',
               CC_at_external c = None -> CC_step ge c m c' m'.
    Proof. intros.
       destruct c; try apply H.
-      destruct f; try apply H. inv H0.
+      destruct f; try apply H. 
+      destruct t0; try solve [inv H0].
    Qed.
 
   Lemma CC_atExternal_isExternal: forall s,
@@ -1373,9 +1380,11 @@ Lemma CCstep_to_CC_step_1: forall ge c m c' m',
   Proof. intros. apply prop_ext.
      destruct s; simpl. 
         split; intros; try contradiction. destruct H. inv H.
-        destruct fd; intros.  split; intros; try contradiction. destruct H.  inv H.
-            split; intros. trivial. eexists. reflexivity.
-       split; intros; try contradiction. destruct H.  inv H.
+        destruct fd; simpl; intros.
+        split; try contradiction.
+        intros [z H1]. congruence.
+        destruct t0; split; auto; intros; try solve[eexists; eauto].
+        split; try solve[intros;elimtype False; auto|intros [? ?]; congruence].
   Qed.
 
 Lemma step_to_CC_step: forall ge s s'  (H:CC.step ge s Events.E0 s') (Hs: ~ isExternalCallState s),
@@ -2412,7 +2421,10 @@ Proof.
       intros. unfold cl_core_sem' in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
   (*at_external*)
      intros. inv H; simpl in *; inv H0.
-          split; trivial. admit. (*HOLE REGARDING ARGUMENT TYPES???*)
+          split; trivial. f_equal. f_equal. f_equal.  
+          unfold signature_of_type. f_equal. unfold opttyp_of_type. 
+          admit. (*HOLE REGARDING ARGUMENT TYPES???*)
+          admit. (*HOLE
   (*after_external*) 
          intros. inv H; simpl in *; inv H0. clear H1. (*why duplicate facts  H0 H1?*) 
           admit. (*reason about external functions*)

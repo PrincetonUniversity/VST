@@ -1,7 +1,6 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import veric.base.
 Require Import compcert.Events.
-
 
 (* A "core semantics represents" a fairly traditional,
    sequential, small step semantics of computation.  They
@@ -37,22 +36,26 @@ Require Import compcert.Events.
     2) a state cannot both step and be halted
     3) a state cannot both be halted and blocked on an external call
  *)
+
 Record CoreSemantics {G C M D:Type}: Type :=
-  { initial_mem: G -> M -> D -> Prop (*characterizes initial memories; type D stands for the type of initialization data, eg list (ident * globvar V)*)
-  ; make_initial_core : G -> val -> list val -> option C
-  ; at_external : C -> option (external_function * list val)
-  ; after_external : val -> C -> option C
-  ; safely_halted : G -> C -> option int (*maybe delete this, too?*)
-  ; corestep : G -> C -> M -> C -> M -> Prop
+  { initial_mem: G -> M -> D -> Prop;
+    (*characterizes initial memories; 
+       type D stands for the type of initialization data, 
+       eg list (ident * globvar V)*)
+  make_initial_core : G -> val -> list val -> option C;
+  at_external : C -> option (external_function * signature * list val);
+  after_external : option val -> C -> option C;
+  safely_halted : G -> C -> option int; (*maybe delete this, too?*)
+  corestep : G -> C -> M -> C -> M -> Prop;
 
-  ; corestep_not_at_external:
-       forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+  corestep_not_at_external: forall ge m q m' q', 
+    corestep ge q m q' m' -> at_external q = None;
 
-  ; corestep_not_halted :
-       forall ge m q m' q', corestep ge q m q' m' -> safely_halted ge q = None
+  corestep_not_halted: forall ge m q m' q', 
+    corestep ge q m q' m' -> safely_halted ge q = None;
 
-  ; at_external_halted_excl :
-       forall ge q, at_external q = None \/ safely_halted ge q = None
+  at_external_halted_excl: forall ge q, 
+    at_external q = None \/ safely_halted ge q = None
   }.
 Implicit Arguments CoreSemantics [].
 
@@ -232,18 +235,20 @@ Proof.
   eapply IHn; eauto.
 Qed.
 
-Inductive entry_points_compose: list (val*val*signature) -> list (val*val*signature) -> list (val*val*signature) -> Prop :=
+Inductive entry_points_compose: 
+  list (val*val*signature) -> list (val*val*signature) -> 
+  list (val*val*signature) -> Prop :=
 | EPC1: forall v1 v2 v3 sig r1 r2 r3, 
-                   entry_points_compose r1 r2 r3 ->
-                   entry_points_compose ((v1,v2,sig)::r1) ((v2,v3,sig)::r2) ((v1,v3,sig)::r3)
+  entry_points_compose r1 r2 r3 ->
+  entry_points_compose ((v1,v2,sig)::r1) ((v2,v3,sig)::r2) ((v1,v3,sig)::r3)
 | EPC0: entry_points_compose nil nil nil.
 
- 
 (* Here we present a module type which expresses the sort of forward simulation
    lemmas we have avalaible.  The idea is that these lemmas would be used in
    the individual compiler passes and the composition lemma would be used
    to build the main lemma.
  *)
+
 (*
 Module Type SIMULATIONS.
 *)
@@ -321,22 +326,22 @@ Section Forward_simulation_equals.
       safely_halted Sem2 ge2 c2 = Some v;
 
     core_at_external : 
-      forall d st1 st2 e args,
+      forall d st1 st2 e args ef_sig,
         match_core d st1 st2 ->
-        at_external Sem1 st1 = Some (e,args) ->
-        ( at_external Sem2 st2 = Some (e,args) /\
-          Forall2 Val.has_type args (sig_args (ef_sig e)) );
+        at_external Sem1 st1 = Some (e,ef_sig,args) ->
+        ( at_external Sem2 st2 = Some (e,ef_sig,args) /\
+          Forall2 Val.has_type args (sig_args ef_sig) );
 
     core_after_external :
-      forall d st1 st2 ret e args,
+      forall d st1 st2 ret e args ef_sig,
         match_core d st1 st2 ->
-        at_external Sem1 st1 = Some (e,args) ->
-        at_external Sem2 st2 = Some (e,args) ->
-        Forall2 Val.has_type args (sig_args (ef_sig e)) ->
-        Val.has_type ret (proj_sig_res (ef_sig e)) ->
+        at_external Sem1 st1 = Some (e,ef_sig,args) ->
+        at_external Sem2 st2 = Some (e,ef_sig,args) ->
+        Forall2 Val.has_type args (sig_args ef_sig) ->
+        Val.has_type ret (proj_sig_res ef_sig) ->
         exists st1', exists st2', exists d',
-          after_external Sem1 ret st1 = Some st1' /\
-          after_external Sem2 ret st2 = Some st2' /\
+          after_external Sem1 (Some ret) st1 = Some st1' /\
+          after_external Sem2 (Some ret) st2 = Some st2' /\
           match_core d' st1' st2'
   }.
 End Forward_simulation_equals. 
@@ -392,23 +397,23 @@ Section Forward_simulation_extends.
           Mem.extends m1 m2;
 
     core_at_external : 
-      forall cd st1 m1 st2 m2 e vals1,
+      forall cd st1 m1 st2 m2 e vals1 ef_sig,
         match_state cd st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         exists vals2,
           Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-          at_external Sem2 st2 = Some (e,vals2);
+          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+          at_external Sem2 st2 = Some (e,ef_sig,vals2);
 
     core_after_external :
-      forall cd st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2',
+      forall cd st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2' ef_sig,
         match_state cd st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
-        at_external Sem2 st2 = Some (e,vals2) ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
 
         Forall2 Val.lessdef vals1 vals2 ->
-        Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) ->
+        Forall2 (Val.has_type) vals2 (sig_args ef_sig) ->
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
@@ -416,11 +421,11 @@ Section Forward_simulation_extends.
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
 
-        Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
+        Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         exists st1', exists st2', exists cd',
-          after_external Sem1 ret1 st1 = Some st1' /\
-          after_external Sem2 ret2 st2 = Some st2' /\
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' st1' m1' st2' m2'
    }.
 End Forward_simulation_extends.
@@ -518,17 +523,17 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
          Mem.inject j m1 m2);
 
     core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1,
+      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-          at_external Sem2 st2 = Some (e,vals2));
+          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+          at_external Sem2 st2 = Some (e,ef_sig,vals2));
 
     core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2,
+      forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2 ef_sig,
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,vals1) ->
@@ -552,11 +557,11 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
          mem_unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
+         Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 ret1 st1 = Some st1' /\
-          after_external Sem2 ret2 st2 = Some st2' /\
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' j' st1' m1' st2' m2'
     }.
 

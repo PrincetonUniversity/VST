@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -598,8 +599,6 @@ Proof.
 apply resource_at_approx.
 Defined.
 
-
-
 Lemma allocate_global_blocks:
   forall (prog: AST.program fundef type)
      (H: no_dups (prog_funct prog) (prog_vars prog))
@@ -665,3 +664,149 @@ specialize (IHvs (vr++ (a::nil))).
 rewrite app_ass in IHvs.
 specialize (IHvs H3).
 Admitted.  (* the rest of this is pretty straightforward *)
+
+Fixpoint find_id (id: ident) (G: funspecs) : option funspec  :=
+ match G with 
+ | (id', f)::G' => if eq_dec id id' then Some f else find_id id G'
+ | nil => None
+ end.
+
+Lemma in_map_fst: forall {A B: Type} (i: A) (j: B) (G: list (A*B)), 
+  In (i,j) G -> In i (map (@fst _ _ ) G).
+Proof.
+ induction G; simpl; intros; auto.
+ destruct H; [left|right]. subst; simpl; auto. auto.
+Qed.
+
+Lemma find_id_i:
+  forall id fs G, 
+            In (id,fs) G ->
+             list_norepet (map (@fst _ _) G) ->
+                  find_id id G = Some fs.
+Proof.
+induction G; simpl; intros.
+contradiction.
+destruct H. subst. rewrite if_true; auto.
+inv H0.
+destruct a as [i j].
+if_tac.
+subst i.
+simpl in *; f_equal.
+apply in_map_fst in H. contradiction.
+auto.
+Qed.
+
+Lemma find_id_e: 
+   forall id G fs, find_id id G = Some fs -> In (id,fs) G.
+Proof.
+ induction G; simpl; intros. inv H. destruct a. if_tac in H.
+ inv H; subst; auto. right; apply (IHG fs); auto.
+Qed.
+
+Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: address) : resource :=
+   if eq_dec (snd loc) 0
+   then match Genv.invert_symbol ge (fst loc) with
+           | Some id => 
+                  match find_id id G with
+                  | Some (mk_funspec fsig A P Q) => 
+                           PURE (FUN fsig) (SomeP (A::boolT::environ::nil) (approx n oo packPQ P Q))
+                  | None => NO Share.bot
+                  end
+           | None => NO Share.bot
+          end
+   else NO Share.bot.
+
+Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat) : rmap :=
+  proj1_sig (make_rmap (initial_core' ge G n) _ n _).
+Next Obligation.
+intros.
+intros ? ?.
+unfold compose.
+unfold initial_core'.
+if_tac; simpl; auto.
+destruct (Genv.invert_symbol ge b); simpl; auto.
+destruct (find_id i G); simpl; auto.
+destruct f; simpl; auto.
+Qed.
+Next Obligation.
+intros.
+extensionality loc; unfold compose, initial_core'.
+if_tac; [ | simpl; auto].
+destruct (Genv.invert_symbol ge (fst loc)); [ | simpl; auto].
+destruct (find_id i G); [ | simpl; auto].
+destruct f.
+unfold resource_fmap.
+f_equal.
+simpl.
+change R.approx with approx.
+rewrite <- compose_assoc.
+ rewrite approx_oo_approx.
+auto.
+Qed.
+
+Definition match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
+ map (fun idf => (fst idf, Clight.type_of_fundef (snd idf))) fdecs = 
+ map (fun idf => (fst idf, type_of_funspec (snd idf))) G.
+
+Lemma in_prog_funct_negative:
+ forall (prog: program) id b, 
+  no_dups (prog_funct prog) (prog_vars prog) -> 
+    In id (map (fst (A:=ident) (B:=fundef)) (prog_funct prog)) ->
+             Genv.find_symbol (Genv.globalenv prog) id = Some b ->  b<0.
+Proof.
+intros.
+assert (exists f, In (id,f) (prog_funct prog)).
+remember (prog_funct prog) as l; clear - H0; induction l; simpl in *.
+contradiction.
+destruct a; destruct H0.
+simpl in H; subst.
+econstructor; left; eauto.
+destruct (IHl H); econstructor; right; eauto.
+destruct H2 as [f ?]. 
+destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]].
+exploit (@Genv.find_funct_ptr_exists fundef _ prog id f); auto.
+intros [b' [? ?]].
+rewrite H1 in H6.
+inv H6.
+apply Genv.find_funct_ptr_negative with (p:=prog) (b:= b')(f:=f); 
+auto.
+Qed.
+
+Lemma initial_core_ok: forall (prog: program) G n, 
+     no_dups (prog_funct prog) (prog_vars prog) ->
+      match_fdecs (prog_funct prog) G ->
+     initial_rmap_ok (initial_core (Genv.globalenv prog) G n).
+Proof.
+intros.
+intros [b z] ?.
+unfold initial_core; simpl.
+rewrite <- core_resource_at.
+rewrite resource_at_make_rmap.
+unfold initial_core'.
+simpl in *.
+if_tac; [ | rewrite core_NO; auto].
+case_eq (Genv.invert_symbol (Genv.globalenv prog) b); intros;  [ | rewrite core_NO; auto].
+case_eq (find_id i G); intros; [ | rewrite core_NO; auto].
+apply Genv.invert_find_symbol in H3.
+apply in_prog_funct_negative in H3; auto.
+contradiction.
+forget (prog_funct prog) as fd.
+clear - H0 H4.
+revert fd H4 H0; induction G; simpl; intros. inv H4.
+destruct a.
+if_tac in H4.
+subst i0.
+inv H4.
+destruct fd; inv H0.
+left; auto.
+destruct fd; inv H0.
+right.
+apply IHG; auto.
+Qed.
+
+Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
+        (H: Genv.init_mem prog = Some m)
+        (H1: no_dups (prog_funct prog) (prog_vars prog))
+        (H2: match_fdecs (prog_funct prog) G) : juicy_mem :=
+  initial_mem m (initial_core (Genv.globalenv prog) G n)
+           (initial_core_ok _ _ _ H1 H2).

@@ -1,11 +1,10 @@
-Require Import veric.base.
-Require Export veric.extspec.
-Require Import veric.forward_simulations.
+Add LoadPath "..".
+Require Import veric.base veric.sim veric.extspec.
 
 Section safety.
-  Context {G C M E Z:Type}.
-  Context (Hcore:CoreSemantics G C M E).
-  Variable (Hspec:external_specification M E Z).
+  Context {G C M D Z:Type}.
+  Context (Hcore:CoreSemantics G C M D).
+  Variable (Hspec:external_specification M external_function Z).
 
   Variable ge : G.
 
@@ -13,20 +12,19 @@ Section safety.
     match n with
     | O => True
     | S n' => 
-       match at_external Hcore c, safely_halted Hcore ge c m with
+       match at_external Hcore c, safely_halted Hcore ge c with
        | None, None =>
            exists c', exists m',
              corestep Hcore ge c m c' m' /\
              safeN n' z c' m'
        | Some (e,sig,args), None =>
            exists x:ext_spec_type Hspec e,
-             forall z', ext_spec_evolve Hspec z z' ->
-             ext_spec_pre Hspec e x (sig_args sig) args z' m /\
-             (forall ret m' z'',
-               ext_spec_post Hspec e x (opt2list (sig_res sig)) ret z'' m' ->
+             ext_spec_pre Hspec e x (sig_args sig) args z m /\
+             (forall ret m' z',
+               ext_spec_post Hspec e x (sig_res sig) ret z' m' ->
                exists c',
                  after_external Hcore ret c = Some c' /\
-                 safeN n' z'' c' m')
+                 safeN n' z' c' m')
        | None, Some i => True
        | Some _, Some _ => False
        end
@@ -37,7 +35,6 @@ Section safety.
        corestep Hcore ge q m q1 m1 -> 
        corestep Hcore ge q m q2 m2 -> 
        (q1, m1) = (q2, m2).
-
 
   Lemma safe_corestep_forward:
      corestep_fun -> 
@@ -68,14 +65,13 @@ Section safety.
   Proof.
     induction n; simpl; intros; auto.
     destruct (at_external Hcore c);
-      destruct (safely_halted Hcore ge c m).
+      destruct (safely_halted Hcore ge c).
     destruct p; auto.
     destruct p. destruct p.
     destruct H as [x ?].
     exists x. 
-    intros z' Hz'. specialize (H z' Hz').
     destruct H. split; auto.
-    intros. specialize (H0 ret m' z'' H1).
+    intros. specialize (H0 ret m' z' H1).
     destruct H0 as [c' [? ?]].
     exists c'; split; auto.
     auto.
@@ -97,19 +93,19 @@ Section safety.
       (at_external Hcore q1 = at_external Hcore q2) ->
       (forall ret q', after_external Hcore ret q1 = Some q' ->
                       after_external Hcore ret q2 = Some q') ->
-      (safely_halted Hcore ge q1 m = safely_halted Hcore ge q2 m) ->
+      (safely_halted Hcore ge q1 = safely_halted Hcore ge q2) ->
       (forall q' m', corestep Hcore ge q1 m q' m' -> corestep Hcore ge q2 m q' m') ->
       (forall n z, safeN n z q1 m -> safeN n z q2 m).
   Proof.
     intros. destruct n; simpl in *; auto.
     rewrite H in H3. rewrite H1 in H3.
     destruct (at_external Hcore q2);
-      destruct (safely_halted Hcore ge q2 m); auto.
+      destruct (safely_halted Hcore ge q2); auto.
     destruct p. destruct p.
     destruct H3 as [x ?].
-    exists x. intros z' Hz'. specialize (H3 z' Hz').
+    exists x. 
     destruct H3; split; auto.
-    intros. specialize (H4 ret m' z'' H5).
+    intros. specialize (H4 ret m' z' H5).
     destruct H4 as [c' [? ?]].
     exists c'; split; auto.
     destruct H3 as [c' [m' [? ?]]].

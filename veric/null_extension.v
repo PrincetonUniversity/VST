@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import msl.base
-               veric.sim veric.sim_step_lemmas veric.base veric.expr
-               veric.smallstep_sim_extensions.
+               veric.sim veric.step_lemmas veric.base veric.expr
+               veric.smallstep_sim_extensions veric.extspec.
 
 Set Implicit Arguments.
 
@@ -12,9 +12,9 @@ Definition null_extspec := Build_external_specification
   M AST.external_function ext_state
   ext_spec_type
   (fun (ef: AST.external_function) (_:ext_spec_type ef) 
-       (args: list val) (z: ext_state) (m: M) => False)
+       (tys: list typ) (args: list val) (z: ext_state) (m: M) => False)
   (fun (ef: AST.external_function) (_:ext_spec_type ef) 
-       (ret: val) (z: ext_state) (m: M) => True).
+       (ty: option typ) (ret: option val) (z: ext_state) (m: M) => True).
 
 End NullExtSpec.
 
@@ -34,8 +34,8 @@ Variables
 
   (after_at_external_excl: forall c ret c',
     after_external csem ret c = Some c' -> at_external csem c' = None)
-  (at_external_handled: forall c ef args,
-    at_external csem c = Some (ef, args) -> handles ef signature).
+  (at_external_handled: forall c ef args sig,
+    at_external csem c = Some (ef, sig, args) -> handles ef signature).
 
 Definition cores := fun _:nat => Some csem.
 
@@ -211,7 +211,7 @@ specialize (H10 P Q).
 spec H10; auto.
 spec H10; auto.
 destruct H10 as [H10 H11].
-specialize (H10 args w m H6); elimtype False; auto.
+specialize (H10 (sig_args sig) args w m H6); elimtype False; auto.
 
 (*4*) intros until m; intros H1 H2 H3.
 simpl in H2; unfold runnable in H2.
@@ -264,7 +264,7 @@ specialize (H10 P Q).
 spec H10; auto.
 spec H10; auto.
 destruct H10 as [H10 H11].
-specialize (H10 args w m H4); elimtype False; auto.
+specialize (H10 tys args w m H4); elimtype False; auto.
 
 (*9*) intros until x; intros [H1 H2] H3 H4 H5 H6 H7 [H8 H9]; 
  intros until j; intros H10; split.
