@@ -17,9 +17,9 @@ Section CompcertCoreSem_to_semantics.
           step ge (c,m) E0 (c',m')
 
     | step_ext_step : forall c m c' m' ef args tr ret,
-          at_external Sem c = Some (ef,args) ->
+          at_external Sem c = Some (ef,ef_sig ef,args) ->
           external_call ef ge args m tr ret m' ->
-          after_external Sem ret c = Some c' ->
+          after_external Sem (Some ret) c = Some c' ->
           step ge (c,m) tr (c',m').
 
     Variable (prog:AST.program F V).
@@ -171,10 +171,10 @@ Proof.
                       (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                (*external_step*) 
-                    destruct (@Sim_eq.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ H2 H8) as [AtExt2 TP].
+                    destruct (@Sim_eq.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ (ef_sig ef) H2 H8) as [AtExt2 TP].
                     assert (DD := @Sim_eq.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R).
                     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H9).
-                    destruct (DD _ _ _ ret _ _ H2 H8 AtExt2 TP RetTp) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
+                    destruct (DD _ _ _ ret _ _ _ H2 H8 AtExt2 TP RetTp) as [c1'' [c2' [d' [AftExt1 [AftExt2 CM]]]]]; clear DD.
                     rewrite AftExt1 in H10. inv H10.
                     exists d'. exists (c2', m1'). simpl.
                     split; auto. left.  eapply plus_one. eapply step_ext_step. apply AtExt2. Focus 2. apply AftExt2.
@@ -230,7 +230,7 @@ Proof.
                       (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                (*external_step*) 
-                    destruct (@Sim_ext.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ H2 H8) as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
+                    destruct (@Sim_ext.core_at_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ H2 H8) as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
                    assert (EXT:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H9 Mextends (forall_lessdef_val_listless _ _ lessArgs)).
                    destruct EXT as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].
                    assert (extCall2Genv2 : external_call ef (Genv.globalenv P2) args2 m2 t ret2 m2').
@@ -246,7 +246,7 @@ Proof.
                                           simpl. admit. (*second hyp on globvars*) 
                            *)
                     clear extCall2.
-                    assert (DD := @Sim_ext.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ ret ret2 m1' m2' H2 H8 AtExt2 lessArgs TpArgs2).
+                    assert (DD := @Sim_ext.core_after_external _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ ret ret2 m1' m2' _ H2 H8 AtExt2 lessArgs TpArgs2).
                     destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]].
                             eapply external_call_mem_forward; eauto.
                             eapply external_call_mem_forward; eauto.
@@ -311,7 +311,7 @@ Proof.
                       (*case core_step_star*) right.  destruct H1. split; auto. apply corestep_star_star_step; eauto.
                    exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
                (*external_step*) 
-                    destruct (@Sim_inj.core_at_external _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ MCJ H7) 
+                    destruct (@Sim_inj.core_at_external _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ _ MCJ H7) 
                                as[INJ [jPG [args2 [LD [TP AtExt2]]]]].
                     (*LENB: HERE's where we need that j preserves globals.
                             assert (HH: meminj_preserves_globals (Genv.globalenv P1) j).
@@ -337,7 +337,7 @@ Proof.
                     assert (DD := @Sim_inj.core_after_external _ _ _ _ _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) 
                                                entrypoints R i j).
                     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
-                    destruct (DD j' _ _ _ _ _ _ _ _ _ _ INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
+                    destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInj) as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
                          eapply external_call_mem_forward; eauto.
                          apply Munch1.
                          eapply external_call_mem_forward; eauto.

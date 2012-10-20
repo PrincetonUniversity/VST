@@ -2416,11 +2416,18 @@ Proof.
   intros. eapply eq_simulation_plus with (match_cores:=MS) (order:=(fun x => fun y => x < y)%nat); unfold MS.
       apply lt_wf.
  (* initial states *)
-      admit.
+      intros. unfold cl_core_sem', CompCertSem; simpl. 
+      unfold cl_initial_core, CC_initial_core; simpl.
+     exists O. eexists. eexists. split. reflexivity. split. reflexivity.
+       assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok. admit. (*again some Genv/entrypojnts/ext_ok stuff*)
+       subst.
+       econstructor. simpl. (*Definition of CC_initial_core seems to be wrong here*) admit.
+       simpl. assert (myStatement = Sskip). admit. 
+          rewrite H1. econstructor. simpl. constructor. simpl. constructor.
  (* final states *)  
       intros. unfold cl_core_sem' in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
   (*at_external*)
-     intros. inv H; simpl in *; inv H0.
+     intros. inv H. simpl in *. inv H0. simpl in *. inv H0.
           split; trivial. f_equal. f_equal. f_equal.  
           unfold signature_of_type. f_equal. unfold opttyp_of_type. 
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
@@ -3126,3 +3133,4 @@ assert (exists k1',
  eapply current_function_find_label; eauto.
  apply match_cont_strip1. auto.
 Qed.
+*)

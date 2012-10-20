@@ -97,6 +97,10 @@ Section corestepN.
   Definition corestep_star c m c' m' :=
     exists n, corestepN n c m c' m'.
 
+  Lemma corestep_plus_star : forall c1 c2 m1 m2,
+       corestep_plus c1 m1 c2 m2 -> corestep_star c1 m1 c2 m2.
+   Proof. intros. destruct H as [n1 H1]. eexists. apply H1. Qed.
+
   Lemma corestep_plus_trans : forall c1 c2 c3 m1 m2 m3,
        corestep_plus c1 m1 c2 m2 -> corestep_plus c2 m2 c3 m3 -> corestep_plus c1 m1 c3 m3.
    Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].

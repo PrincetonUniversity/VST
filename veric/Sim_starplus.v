@@ -56,9 +56,16 @@ But the core_initial axiom in the record Sim_eq.Forward_simulation_equals curren
                                                                  (e : external_function) (args : list val) sig,
                       match_cores d st1 st2 ->
                       at_external Sem1 st1 = Some (e, sig, args) ->
+(*                      at_external Sem2 st2 = Some (e, sig, args) ->
+                      Forall2 Val.has_type args (sig_args (ef_sig e)) ->*)
+                      Val.has_type ret (proj_sig_res sig) ->
+(*                      Val.has_type ret (proj_sig_res (ef_sig e)) ->*)
+(*
+                      at_external Sem1 st1 = Some (e, sig, args) ->
                       at_external Sem2 st2 = Some (e, sig, args) ->
                       Forall2 Val.has_type args (sig_args sig) ->
                       Val.has_type ret (proj_sig_res sig) ->
+*)
                       exists st1' : C1, exists st2' : C2, exists d' : core_data,
                               after_external Sem1 (Some ret) st1 = Some st1' /\
                               after_external Sem2 (Some ret) st2 = Some st2' /\ match_cores d' st1' st2'.
@@ -196,7 +203,11 @@ Proof.
         destruct H. rewrite X in H. inv H.
    intros. clear eq_star_sim_diag eq_safely_halted  match_initial_cores eq_star_halted_Zero.
            destruct d as [d c]. 
+           destruct H. specialize (eq_after_external _ _ _ _ _ _ _ H H0 H3).
+              (* specialize (eq_after_external _ _ _ _ _ _ H H0 H1 H2 H3).*)
+(*
            destruct H. specialize (eq_after_external _ _ _ _ _ _ _ H H0 H1 H2 H3).
+*)
                 destruct eq_after_external  as [c1' [c2' [d' [AftExt1 [AftExt2 MC]]]]].
                 exists c1'. exists c2'. exists (d',c). split; trivial. split; trivial. left. assumption.
           destruct H. rewrite (eq_star_atExt_Zero _ _ H0) in H. inv H.
