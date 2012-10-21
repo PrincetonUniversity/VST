@@ -150,3 +150,52 @@ Instance LiftIntuitionisticSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{IB: Int
  apply mkIS.
  intros. intro. simpl. apply all_extensible.
 Qed.
+
+
+Class Indir (A: Type) {ND: NatDed A} := mkIndir {
+  later: A -> A;
+  now_later: forall P: A, P |-- later P;
+  later_K: forall P Q, later (P --> Q) |-- later P --> later Q;
+  later_derives: forall P Q, P |-- Q -> later P |-- later Q;
+  later_andp: forall P Q, later (P && Q) = later P && later Q;
+  later_allp: forall T (F: T -> A),  later (allp F) = ALL x:T, later (F x);
+  later_exp: forall T (F: T-> A), EX x:T, later (F x) |-- later (exp F);
+  later_exp': forall T (any:T) F, later (exp F) = EX x:T, later (F x);
+  later_orp: forall P Q, later (P || Q) = later P || later Q;
+  later_imp: forall P Q,  later(P --> Q) = later P --> later Q;
+  loeb: forall P,   later P |-- P ->  TT |-- P
+}.
+
+Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
+
+
+Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
+         @Indir (A -> B) (LiftNatDed A B).
+ apply (mkIndir _ _ (fun P rho => later (P rho))); intros; simpl in *; intros.
+ apply now_later.
+ apply later_K.
+ apply later_derives; auto.
+ extensionality rho. apply later_andp.
+ simpl; intros. extensionality rho. apply later_allp.
+ simpl; intros. apply later_exp.
+ simpl; intros. extensionality rho. apply later_exp'; auto.
+ simpl; intros. extensionality rho. apply later_orp.
+ simpl; intros. extensionality rho. apply later_imp.
+ simpl; intros. apply loeb; auto.
+Defined.
+
+Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir {
+  later_sepcon: forall P Q, |> (P * Q) = |>P * |>Q;
+  later_wand: forall P Q, |> (P -* Q) = |>P -* |>Q;
+  later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)
+}.
+
+Instance LiftSepIndir  (A: Type) (any: A) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
+     @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A any B).
+ constructor.
+ intros; simpl. extensionality rho.  apply later_sepcon.
+ intros; simpl. extensionality rho.  apply later_wand.
+ intros; simpl. extensionality rho.  apply later_ewand.
+Qed.
+
+

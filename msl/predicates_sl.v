@@ -659,6 +659,37 @@ constructor 1; auto.
 constructor 1; auto.
 Qed.
 
+Lemma later_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall P Q,
+  (|>(ewand P Q) = ewand (|>P) (|>Q))%pred.
+Proof.
+intros.
+apply pred_ext.
+intros w ?.
+case_eq (age1 w); intros.
+destruct (H a (t_step _ _ _ _ H0)) as [a1 [a2 [? [? ?]]]].
+destruct (unage_join _ (join_comm H1) H0) as [w1 [w2 [? [? ?]]]].
+exists w1; exists w2; split; [|split]; auto.
+hnf; intros.
+apply pred_nec_hereditary with a1; auto.
+eapply age_later_nec; eauto.
+hnf; intros.
+apply pred_nec_hereditary with a2; auto.
+eapply age_later_nec; eauto.
+exists (core w), w.
+split; [|split].
+apply core_unit.
+hnf; intros. 
+admit. (* easy *)
+admit. (* easy *)
+
+intros w [w1 [w2 [? [? ?]]]].
+intros w' ?.
+assert (exists w1', exists w2', join w1' w' w2' /\ laterR w1 w1' /\ laterR w2 w2').
+admit.  (* not difficult *)
+destruct H3 as [w1' [w2' [? [? ?]]]].
+exists w1',w2'; split; [|split]; auto.
+Qed.
+
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)
 
 Lemma emp_ewand {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{AG: ageable A}{XA: Age_alg A}: 

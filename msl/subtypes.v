@@ -339,7 +339,7 @@ auto.
 Qed.
 
 
-Program Definition fash' {A} `{agA: ageable A} (P: pred nat) : pred A :=
+Program Definition unfash {A} `{agA: ageable A} (P: pred nat) : pred A :=
      fun x => P (level x).
 Next Obligation.
  apply age_level in H. 
@@ -347,7 +347,7 @@ Next Obligation.
  eapply pred_hereditary; eauto. unfold age;  simpl. auto.
 Qed.
 
-Notation "'!' e" := (fash' e) (at level 30, right associativity): pred.
+Notation "'!' e" := (unfash e) (at level 30, right associativity): pred.
 
 Lemma level_later {A} `{H : ageable A}: forall {w: A} {n': nat}, 
          laterR (level w) n' ->
@@ -371,10 +371,10 @@ symmetry; unfold age in H0; simpl in H0.
   exists w3; split; auto. econstructor 2; eauto.
 Qed.
 
-Lemma later_fash' {A} `{H : ageable A}:
-     forall P, |> (fash' P: pred A) = fash' ( |> P).
+Lemma later_unfash {A} `{H : ageable A}:
+     forall P, |> (unfash P: pred A) = unfash ( |> P).
 Proof.
-unfold fash'; intros.
+unfold unfash; intros.
 apply pred_ext; intros w ?; hnf in *.
 intros n' ?.
 simpl in H1. destruct (level_later H1) as [w' [? ?]].

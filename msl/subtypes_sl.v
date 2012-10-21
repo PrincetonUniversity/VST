@@ -10,7 +10,7 @@ Require Import msl.subtypes.
 Local Open Scope pred.
 
 
-Lemma fash'_derives {A} `{agA : ageable A}:
+Lemma unfash_derives {A} `{agA : ageable A}:
   forall {P Q}, (P |-- Q) -> @derives A _ (! P) (! Q).
 Proof.
 intros. intros w ?. simpl in *. apply H. auto.
@@ -177,11 +177,11 @@ apply axiomK.
 Qed.
 *)
 
-Lemma extend_fash' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P: pred nat), boxy extendM (! P).
+Lemma extend_unfash {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A} : forall (P: pred nat), boxy extendM (! P).
 Proof.
 intros.
 apply boxy_i; auto; intros.
-unfold fash' in *.
+unfold unfash in *.
 simpl in H. destruct H.
 hnf in H0|-*.
 replace (level w') with (level w); auto.
@@ -189,9 +189,9 @@ apply comparable_fashionR.
 eapply join_comparable; eauto.
 Qed.
 
-Hint Resolve @extend_fash'.
+Hint Resolve @extend_unfash.
 
-Lemma subp_fash' {A} `{Age_alg A}:
+Lemma subp_unfash {A} `{Age_alg A}:
   forall (P Q : pred nat) (n: nat), (P >=> Q) n -> ( ! P >=> ! Q) n.
 Proof.
 intros.
@@ -199,13 +199,13 @@ intros w ?. specialize (H0 _ H1).
 intros w' ? ?. apply (H0 _ (necR_level' H2)).
 auto.
 Qed.
-Hint Resolve @subp_fash'.
+Hint Resolve @subp_unfash.
 
 
 Lemma unfash_sepcon_distrib: 
         forall {T}{agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} 
            (P: pred nat) (Q R: pred T),
-               fash' P && (Q*R) = (fash' P && Q) * (fash' P && R).
+               unfash P && (Q*R) = (unfash P && Q) * (unfash P && R).
 Proof.
 intros.
 apply pred_ext.

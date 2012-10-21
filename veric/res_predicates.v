@@ -1321,9 +1321,9 @@ if_tac.
 (* P proof *)
 spec H (x,vl) P0 Q0.
 apply approx_eq_i.
-apply (later_derives (fash'_derives H)); clear H.
-rewrite later_fash'.
-unfold fash'.
+apply (later_derives (unfash_derives H)); clear H.
+rewrite later_unfash.
+unfold unfash.
 red. red. 
 apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
@@ -1331,8 +1331,8 @@ apply nec_nat; auto.
 clear H; rename H' into H.
 spec H (x,vl) P0 Q0.
 apply approx_eq_i.
-apply (later_derives (fash'_derives H)); clear H.
-rewrite later_fash'.
+apply (later_derives (unfash_derives H)); clear H.
+rewrite later_unfash.
 red. red. red.
 apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
@@ -1367,8 +1367,8 @@ if_tac.
 spec H (x,vl) P0 Q0.
 symmetry.
 apply approx_eq_i.
-apply (later_derives (fash'_derives H)); clear H.
-rewrite later_fash'.
+apply (later_derives (unfash_derives H)); clear H.
+rewrite later_unfash.
 red. red. red.
 apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
@@ -1377,8 +1377,8 @@ clear H; rename H' into H.
 spec H (x,vl) P0 Q0.
 symmetry.
 apply approx_eq_i.
-apply (later_derives (fash'_derives H)); clear H.
-rewrite later_fash'.
+apply (later_derives (unfash_derives H)); clear H.
+rewrite later_unfash.
 red. red. red.
 apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
