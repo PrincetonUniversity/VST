@@ -6,31 +6,34 @@ Require Import veric.base veric.sim veric.step_lemmas veric.juicy_extspec
 Require Import veristar.tactics veristar.basic.
 Import juicy_mem.
 
-(* permission maps *)
+(* system call table; Tint is the most general Int/Ptr type used in
+ the CompCert languages *)
 
-Definition pmap := ZMap.t (Z -> perm_kind -> option permission).
-
-Definition init_pmap: pmap := ZMap.init (fun ofs k => None).
-
-Definition schedule := list nat.
-
-(* system call table *)
-
-Notation EXIT := (EF_external 1%positive (mksignature (AST.Tint::nil) None)). 
-(*placeholders: TODO*)
-Notation FORK := (EF_external 2%positive (mksignature nil None)).
-Notation READ := (EF_external 3%positive (mksignature nil None)).
-Notation WRITE := (EF_external 4%positive (mksignature nil None)).
-Notation MKLOCK := (EF_external 5%positive (mksignature nil None)).
-Notation FREE_LOCK := (EF_external 6%positive (mksignature nil None)).
-Notation LOCK := (EF_external 7%positive (mksignature nil None)).
-Notation UNLOCK := (EF_external 8%positive (mksignature nil None)).
+Notation EXIT := 
+  (EF_external 1%positive (mksignature (AST.Tint::nil) None)). 
+Notation FORK := 
+  (EF_external 2%positive 
+  (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+Notation READ := 
+  (EF_external 3%positive 
+  (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+Notation WRITE := 
+  (EF_external 4%positive 
+  (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
+Notation MKLOCK := 
+  (EF_external 5%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+Notation FREE_LOCK := 
+  (EF_external 6%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+Notation LOCK := 
+  (EF_external 7%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
+Notation UNLOCK := 
+  (EF_external 8%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
 
 (* special-purpose CompCert memory operations:
-   rawload: load w/o valid_access check, for checking lock status
-   rawstore: store w/o valid_access check, for updating lock status
-   upd_perms: inject a new permission map into the memory; requires proofs 
-     of access_max and nextblock_noaccess. *)
+   1. rawload: load w/o valid_access check, for checking lock status
+   2. rawstore: store w/o valid_access check, for updating lock status
+   3. upd_perms: inject a new permission map into the memory; requires proofs 
+   of access_max and nextblock_noaccess. *)
 
 Definition rawload (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z) :=
  decode_val chunk
@@ -48,6 +51,10 @@ Definition rawstore (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z) (v: val) 
      Mem.nextblock_noaccess := nextblock_noaccess m |}.
 
 Local Open Scope Z_scope.
+
+Definition pmap := ZMap.t (Z -> perm_kind -> option permission).
+
+Definition init_pmap: pmap := ZMap.init (fun ofs k => None).
 
 Section upd_perms.
 Variables (m: mem) (pm: pmap)
@@ -76,8 +83,8 @@ Notation after_external := csem.(after_external).
 Notation mk_init_core := csem.(make_initial_core).
 
 (* juicy threads comprise:
-   -an rmap, describing this thread's access to the global memory
-   -a concurrent control, which is either "Krun q", indicating the
+   1. an rmap, describing this thread's access to the global memory
+   2. a concurrent control, which is either "Krun q", indicating the
    thread is not blocked, or "Klock b ofs q", indicating the thread is
    blocked waiting on a lock at address (b, ofs) *)
 
@@ -86,22 +93,19 @@ Inductive ccontrol : Type :=
 | Klock : block -> Z -> cT -> ccontrol.
 
 Definition thread := (rmap * ccontrol)%type.
-
 Definition thread_tbl := FinMap.t nat thread.
 
-(* the lock pool is a finite partial function from the addresses of
+(* the lock pool is a finite partial map from the addresses of
    unlocked locks to rmaps. *)
 
 Definition lock_pool := FinMap.t (block * Z) rmap.
 
 Definition isLK (res: resource) := 
   exists rsh, exists psh, exists z, exists pp, res=YES rsh psh (LK z) pp.
-
 Definition isFUN (res: resource) := exists fsig, exists pp, res=PURE (FUN fsig) pp.
 
-(* we don't require "access_cohere m phi" since an appropriate
-   permission map matching phi will be injected into the memory before
-   each corestep *)
+(* we don't require "access_cohere m phi" since an appropriate permission map
+   matching phi will be injected into the memory before each corestep *)
 
 Definition consistent (phi: rmap) (m: mem) := 
   contents_cohere m phi /\ (*access_cohere m phi /\*) 
@@ -112,6 +116,8 @@ Definition consistent' (phi: rmap) (m: mem) :=
   contents_cohere m phi /\ access_cohere m phi /\
   max_access_cohere m phi /\ 
   alloc_cohere m phi.
+
+(* thread_tbl_ok: global thread noninterference invariant *)
   
 Definition thread_tbl_ok (tm: thread_tbl) (lp: lock_pool) (m: mem) :=
   forall phi (k: ccontrol) (i: nat), FinMap.get tm i = Some (phi, k) -> 
@@ -141,7 +147,9 @@ Definition locks_ok (lp: lock_pool) (tm: thread_tbl) (m: mem) :=
       precise R /\ 
       app_pred R phi'.
 
-Definition sched_ok (sched: schedule) (tm: thread_tbl) :=
+Definition schedule := list nat.
+
+(*Definition sched_ok (sched: schedule) (tm: thread_tbl) :=
   (*1- schedule is long enough *)
   (forall i phi k, 
     FinMap.get tm i = Some (phi, k) -> 
@@ -149,43 +157,41 @@ Definition sched_ok (sched: schedule) (tm: thread_tbl) :=
   (*2- scheduled threads are in the thread table *)
   (forall i sched', 
     sched = i :: sched' -> 
-    exists phi, exists k, FinMap.get tm i = Some (phi, k)).
+    exists phi, exists k, FinMap.get tm i = Some (phi, k)).*)
+
+(* worlds: 
+   1: thread table is consistent w/ the lock pool
+   2: lock pools self-joins; lock maps are consistent with the memory
+   3: lock resource invariants are well-formed *)
 
 Inductive world: Type := 
   mk_world: forall (sched: schedule) (tm: thread_tbl) (lp: lock_pool) (m: mem)
-    (*1- thread table is consistent w/ the lock pool*)
-     (Wthread_tbl: thread_tbl_ok tm lp m)
-    (*2- lock pools self-joins; lock maps are consistent with the memory*)
-     (Wlock_pool: lock_pool_ok lp m)
-    (*3- schedule is long enough; scheduled threads are in thread table*)
-     (Wschedule: sched_ok sched tm)
-    (*4- lock resource invariants are well-formed*)
-     (Wlocks_wf: locks_ok lp tm m),
-  world.
+    (Wthread_tbl: thread_tbl_ok tm lp m)
+    (Wlock_pool: lock_pool_ok lp m)
+    (Wlocks_wf: locks_ok lp tm m),
+    world.
 
 Section selectors.
 Variable (w: world).
-Definition w_sched := match w with mk_world sched _ _ _ _ _ _ _ => sched end.
-Definition w_tm := match w with mk_world _ tm _ _ _ _ _ _ => tm end.
-Definition w_lp := match w with mk_world _ _ lp _ _ _ _ _ => lp end.
-Definition w_dry := match w with mk_world _ _ _ m _ _ _ _ => m end.
+Definition w_sched := match w with mk_world sched _ _ _ _ _ _ => sched end.
+Definition w_tm := match w with mk_world _ tm _ _ _ _ _ => tm end.
+Definition w_lp := match w with mk_world _ _ lp _ _ _ _ => lp end.
+Definition w_dry := match w with mk_world _ _ _ m _ _ _ => m end.
 Hint Unfold w_sched w_tm w_lp w_dry : world.
 Lemma w_thread_tbl_ok : thread_tbl_ok w_tm w_lp w_dry. autounfold with world; case w; auto. Qed.
 Lemma w_lock_pool_ok : lock_pool_ok w_lp w_dry. autounfold with world; case w; auto. Qed.
-Lemma w_sched_ok : sched_ok w_sched w_tm. autounfold with world; case w; auto. Qed.
 Lemma w_locks_ok : locks_ok w_lp w_tm w_dry. autounfold with world; case w; auto. Qed.
 End selectors.
 
 Lemma world_exists sched tm lp m : 
   thread_tbl_ok tm lp m -> 
   lock_pool_ok lp m -> 
-  sched_ok sched tm -> 
   locks_ok lp tm m -> 
   exists w, 
     w_sched w = sched /\ w_tm w = tm /\ w_lp w = lp /\ w_dry w = m.
 Proof.
-intros H1 H2 H3 H4.
-exists (mk_world _ _ _ _ H1 H2 H3 H4).
+intros H1 H2 H3.
+exists (mk_world sched _ _ _ H1 H2 H3).
 split; auto.
 Qed.
 
@@ -227,7 +233,6 @@ Definition wringout_rmap_aux (phi: rmap) (m: mem) (bpm: block*pmap) : block*pmap
            end) pm)
   end.
 
-(*this function defined in 8.4 StdLib*)
 Fixpoint nat_iter (n:nat) {A} (f:A->A) (x:A) : A :=
   match n with
     | O => x
@@ -628,7 +633,7 @@ Definition allowed_juicy_modification (jm1 jm2 : juicy_mem) :=
   allowed_alloc jm1 jm2 /\
   nonvals_unchanged jm1 jm2.
 
-(* condition on the CoreSem analogous to the one placed on CompCert CoreSems: *)
+(* noninterference lemmas *)
 
 Lemma consistent_corestep_lem ge phi c jm c' jm' :
   consistent phi (m_dry jm) -> corestep ge c jm c' jm' -> 
@@ -795,8 +800,7 @@ Qed.
 
 Lemma rmaps_consistent_after_ageN n phi phi' m : 
   consistent phi m -> ageN n phi = Some phi' -> consistent phi' m.
-Proof.
-Admitted. (*TODO: relatively easy*)
+Proof. Admitted. (*TODO: relatively easy*)
 
 Lemma mk_juicy_eq {m phi} (Hcoh: consistent phi m) :
   let m' := m_dry (proj1_sig (mk_juicy_mem Hcoh)) in
@@ -846,7 +850,6 @@ generalize (proj2_sig (mk_juicy_mem Hcoh)); intros [H10 H11].
 apply consistent_mk_juicy; auto.
 Qed.
 
-(*TODO: this lemma should go in MSL?*)
 Lemma ageN_joins_eq phi1 phi2 phi1' phi2' n : 
   joins phi1 phi2 -> ageN n phi1 = Some phi1' -> ageN n phi2 = Some phi2' -> 
   joins phi1' phi2'.
@@ -968,21 +971,9 @@ destruct (world_exists (w_sched w)
            (FinMap.set i (m_phi jm', Krun c') tm0) lp' (m_dry jm')).
 eapply thread_tbl_ok_after_corestep; eauto.
 eapply lock_pool_ok_after_corestep; eauto.
-unfold sched_ok.
-split.
-intros. 
-assert (H5: (level phi0 <= level phi)%nat)
-                  by admit. (*phi0 is aged from phi*)
-apply le_lt_trans with (m := level phi); [done0|].
-eapply w_sched_ok; eauto.
-intros until sched'; intros H5; rewrite H5 in H0; inversion H0; subst.
-unfold age_thread_tbl in H3. 
-eapply FinMap.ageNg with (x := i) in H3.
-eexists; eexists; rewrite FinMap.gss; eauto.
-done(eapply H1).
 eapply locks_ok_after_corestep; eauto.
 destruct H as [H5 [H6 [H7 H8]]]; subst.
-done(eexists x; eexists; split; eauto).
+exists x; eexists; split3; eauto.
 Qed.
 
 Definition init_coremem (ge: genv) (c: cT) (d: jm_init_package): thread*mem := 
@@ -1065,30 +1056,73 @@ unfold FinMap.get, FinMap.empty in H1.
 congruence.
 Qed.
 
-Definition cm_initial_mem (ge: genv) (jm: juicy_mem) (d: jm_init_package): Prop:=
+Lemma init_locks_ok: forall m ge c d, 
+  locks_ok init_lock_pool (init_thread_tbl ge c d) m.
+Proof.
+unfold init_lock_pool, locks_ok; intros.
+unfold init_thread_tbl in H.
+case (eq_nat_dec i 1).
+intros Heq; subst.
+unfold isLK in H0.
+destruct H0 as [rsh [psh [z [pp H0]]]].
+rewrite FinMap.gss in H.
+unfold init_coremem in H.
+simpl in H.
+inv H.
+generalize (inflate_initial_mem_all_VALs (jminit_m d)
+  (initial_core (Genv.globalenv (jminit_prog d)) 
+    (jminit_G d) (jminit_lev d))); unfold all_VALs.
+intros H2.
+spec H2 (b, ofs).
+destruct (inflate_initial_mem (jminit_m d)
+           (initial_core (Genv.globalenv (jminit_prog d)) 
+              (jminit_G d) (jminit_lev d)) @ (b, ofs)); try congruence.
+unfold isVAL in H2.
+destruct H2 as [v H2].
+rewrite H2 in H0.
+inv H0.
+intros Hneq.
+rewrite FinMap.gso in H; auto.
+unfold FinMap.empty, FinMap.get in H.
+congruence.
+Qed.
+
+Definition cm_make_initial_jmem (d: jm_init_package): juicy_mem :=
   initial_jm (jminit_prog d) (jminit_m d) 
     (jminit_G d) (jminit_lev d) (jminit_init_mem d)
-    (jminit_vars_no_dups d) (jminit_fdecs_match d) = jm.
+    (jminit_vars_no_dups d) (jminit_fdecs_match d).
 
-Parameter cm_make_initial_core: forall (ge: genv) (v: val) (args: list val), option world.
+Definition cm_initial_mem (ge: genv) (jm: juicy_mem) (d: jm_init_package): Prop:=
+  Genv.globalenv (jminit_prog d) = ge /\ jm = cm_make_initial_jmem d. 
+
+Program Definition cm_make_initial_core 
+      (sched: schedule) (d: jm_init_package) (ge: genv) (v: val) (args: list val) :=
+  match make_initial_core csem ge v args with
+  | None => None
+  | Some c => let thread1 := (m_phi (cm_make_initial_jmem d), c) in
+              Some (mk_world sched (init_thread_tbl ge c d) init_lock_pool 
+                       (snd (init_coremem ge c d)) _ _ _)
+  end.
+Next Obligation. intros; apply init_thread_tbl_ok. Qed.
+Next Obligation. intros; apply init_lock_pool_ok. Qed.
+Next Obligation. intros; apply init_locks_ok. Qed.
 
 Definition cm_at_external (w: world) := 
-  match w with mk_world (i::sched) tm lp m _ _ _ _ => 
+  match w with mk_world (i::sched) tm lp m _ _ _ => 
     match FinMap.get tm i with 
     | None => None
-    | Some (phi, Klock b ofs c) => 
-      if eq_nat_dec (level phi) 0%nat then None 
-      else Some (LOCK, mksignature (AST.Tint::nil) (Some AST.Tint), 
-              Vptr b (Int.repr ofs)::nil)
+    | Some (phi, Klock b ofs c) => None
     | Some (phi, Krun c) => 
-      match at_external c with
-      | None => None
-      | Some (EXIT, sig, args) => None
-      | Some (ef, sig, args) => 
-        if eq_nat_dec (level phi) 0%nat then None 
-        else Some (ef, sig, args) 
-      end end
-  | mk_world nil tm lp m _ _ _ _ => None
+      if eq_nat_dec (level phi) 0%nat then None 
+      else match at_external c with
+           | None => None
+           | Some (EXIT, sig, args) => None
+           | Some (FORK, sig, args) => None
+           | Some (LOCK, sig, args) => None
+           | Some (UNLOCK, sig, args) => None
+           | Some (ef, sig, args) => Some (ef, sig, args)
+           end end
+  | mk_world nil tm lp m _ _ _ => None
   end.
 
 Program Definition cm_after_external (ret: option val) (w: world): option world :=
@@ -1096,17 +1130,12 @@ Program Definition cm_after_external (ret: option val) (w: world): option world 
   | i::sched => 
     match FinMap.get (w_tm w) i with
     | None => None
-    | Some (phi, Klock b ofs c) => 
-      match after_external ret c with
-      | None => None
-      | Some c' => Some (mk_world (i::sched) (FinMap.set i (phi, Krun c') (w_tm w)) 
-                           (w_lp w) (w_dry w) _ _ _ _)      
-      end
+    | Some (phi, Klock b ofs c) => None
     | Some (phi, Krun c) => 
       match after_external ret c with 
       | None => None
       | Some c' => Some (mk_world (i::sched) (FinMap.set i (phi, Krun c') (w_tm w)) 
-                           (w_lp w) (w_dry w) _ _ _ _)
+                           (w_lp w) (w_dry w) _ _ _)
       end
     end
   | nil => None
@@ -1114,11 +1143,8 @@ Program Definition cm_after_external (ret: option val) (w: world): option world 
 Next Obligation. Admitted.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+
+(* cm is safely halted when either schedule is empty or thread rmaps at level 0 *)
 
 Definition cm_safely_halted (ge: genv) (w: world): option int := 
   match w_sched w with 
@@ -1139,34 +1165,40 @@ Inductive cswitch: nat -> world -> world -> Prop :=
   w_dry w' = w_dry w -> 
   cswitch i w w'.
 
-Inductive step_seq: genv -> world -> world -> Prop :=
-| step_CORE: forall prog w tm0 w' i sched phi q q' jm' n (Hcoh: consistent phi (w_dry w)),
+Definition val2ptr (v : val) : option (block * int) := 
+  match v with 
+  | Vptr b ofs => Some (b, ofs)
+  | _ => None
+  end.
+
+Definition val2int (v : val) : option int := 
+  match v with 
+  | Vint i => Some i
+  | _ => None
+  end.
+
+Inductive step: genv -> world -> world -> Prop :=
+| step_NONE: forall ge w w' i sched,
+  w_sched w = i::sched -> 
+  FinMap.get (w_tm w) i = None -> 
+  cswitch i w w' -> 
+  step ge w w'
+| step_CORE: forall ge w tm0 w' i sched phi q q' jm' n (Hcoh: consistent phi (w_dry w)),
   w_sched w = i::sched -> 
   FinMap.get (w_tm w) i = Some (phi, Krun q) -> 
-  corestep prog q (proj1_sig (mk_juicy_mem Hcoh)) q' jm' -> 
+  corestep ge q (proj1_sig (mk_juicy_mem Hcoh)) q' jm' -> 
   w_sched w = w_sched w' -> 
   age_thread_tbl n (w_tm w) = Some tm0 -> 
   w_tm w' = (FinMap.set i (m_phi jm', Krun q') tm0) -> 
   age_lock_pool n (w_lp w) = Some (w_lp w') -> 
   w_dry w' = m_dry jm' -> 
-  step_seq prog w w'.
-
-Inductive step: genv -> world -> world -> Prop :=
-| step_NONE: forall prog w w' i sched,
-  w_sched w = i::sched -> 
-  FinMap.get (w_tm w) i = None -> 
-  cswitch i w w' -> 
-  step prog w w'
-| step_SEQ: forall prog w w', 
-  step_seq prog w w' -> 
-  step prog w w' 
-| step_EXIT: forall prog w w' i phi q sig arg,
+  step ge w w'
+| step_EXIT: forall ge w w' i phi q sig arg,
   FinMap.get (w_tm w) i = Some (phi, Krun q) -> 
   at_external q = Some ((EXIT, sig), arg::nil) -> 
   cswitch i w w' -> 
-  step prog w w'
-(*WILL PORT REST LATER:
-| step_PRELOCK: forall prog a w w2 w' i phi q sig arg b ofs,
+  step ge w w'
+| step_PRELOCK: forall ge w w2 w' i phi q sig arg b ofs,
   FinMap.get (w_tm w) i = Some (phi, Krun q) -> 
   at_external q = Some ((LOCK, sig), (arg::nil)) ->
   val2ptr arg = Some (b, ofs) -> 
@@ -1175,57 +1207,56 @@ Inductive step: genv -> world -> world -> Prop :=
   w_lp w2 = w_lp w -> 
   w_dry w2 = w_dry w -> 
   cswitch i w2 w' -> 
-  step prog a w a w'
-| step_SPINLOCK: forall prog a w w' i phi q b ofs,
+  step ge w w'
+| step_SPINLOCK: forall ge w w' i phi q b ofs,
   FinMap.get (w_tm w) i = Some (phi, Klock b ofs q) -> 
   rawload Mint32 (w_dry w) b ofs = Vint Int.zero -> 
   cswitch i w w' -> 
-  step prog a w a w'
-| step_LOCK: forall prog a w w' i phi0 phi_lock phi q q' b ofs,
+  step ge w w'
+| step_LOCK: forall ge w w' i phi0 phi_lock phi q q' b ofs,
   FinMap.get (w_tm w) i = Some (phi0, Klock b ofs q) ->
   rawload Mint32 (w_dry w) b ofs = Vint Int.one ->
-  after_external (Vint Int.one::nil) q = Some q' ->
+  after_external (Some (Vint Int.zero)) q = Some q' ->
   FinMap.get (w_lp w) (b, ofs) = Some phi_lock -> 
   join phi0 phi_lock phi -> 
   w_sched w' = w_sched w -> (*no context switch?*)
-  w_tm w' = FinMap.set i (phi, Klock b ofs q) (w_tm w) -> 
+  w_tm w' = FinMap.set i (phi, Krun q') (w_tm w) -> 
   w_lp w' = FinMap.remove (b, ofs) (w_lp w) -> 
   w_dry w' = rawstore Mint32 (w_dry w) b ofs (Vint Int.zero) -> 
-  step prog a w a w'
-| step_UNLOCK: forall prog a w w2 w' i phi0 phi_lock phi q q' sig arg b ofs rsh psh R,
+  step ge w w'
+| step_UNLOCK: forall ge w w2 w' i phi0 phi_lock phi q q' sig arg b ofs rsh psh R,
   FinMap.get (w_tm w) i = Some (phi, Krun q) -> 
   join phi0 phi_lock phi -> 
   at_external q = Some ((UNLOCK, sig), arg::nil) ->
   val2ptr arg = Some (b, ofs) -> 
   rawload Mint32 (w_dry w) b (Int.signed ofs) = Vint Int.zero ->
-  phi @ (b, Int.signed ofs) = YES rsh psh (LK 1) (SomeP [unit:Type] (fun _ => R)) -> 
+  phi @ (b, Int.signed ofs) = YES rsh psh (LK 4) (SomeP [unit:Type] (fun _ => R)) -> (*fix args*)
   app_pred R phi_lock -> 
-  after_external (Vint Int.one::nil) q = Some q' ->
+  after_external (Some (Vint Int.one)) q = Some q' ->
   w_sched w2 = w_sched w -> 
   w_tm w2 = FinMap.set i (phi, Krun q') (w_tm w) -> 
   w_lp w2 = FinMap.set (b, Int.signed ofs) phi_lock (w_lp w) -> 
   w_dry w2 = rawstore Mint32 (w_dry w) b (Int.signed ofs) (Vint Int.one) -> 
   cswitch i w2 w' -> 
-  step prog a w a w'
-| step_FORK: forall prog a w w2 w' i i' phi_child phi_parent phi 
-                       funsig q q2 q' sig arg arg2 b ofs fP,
+  step ge w w'
+| step_FORK: forall ge w w2 w' i i' phi_child phi_parent phi 
+                       funsig q q2 q' sig fptr arg b ofs fP,
   FinMap.get (w_tm w) i = Some (phi, Krun q) ->
   join phi_child phi_parent phi -> 
-  at_external q = Some ((FORK, sig), arg::arg2::nil) -> 
-  val2ptr arg = Some (b, ofs) -> 
+  at_external q = Some ((FORK, sig), fptr::arg::nil) -> 
+  val2ptr fptr = Some (b, ofs) -> 
   phi @ (b, Int.signed ofs) = PURE (FUN funsig) (SomeP [val:Type] fP) -> 
-  app_pred (fP (arg2,tt)) phi_child -> 
-  after_external (Vint Int.one::nil) q = Some q2 ->
+  app_pred (fP (arg,tt)) phi_child -> 
+  after_external (Some (Vint Int.zero)) q = Some q2 ->
   FinMap.get (w_tm w) i' = None -> (*i' fresh*)
-  mk_init_core prog arg (arg2::nil) = Some q' ->
+  mk_init_core ge arg (arg::nil) = Some q' ->
   w_sched w2 = w_sched w -> 
   let tm2 := FinMap.set i (phi_parent, Krun q2) (w_tm w) in
-  w_tm w2 = FinMap.set i (phi_child, Krun q') tm2 -> 
+  w_tm w2 = FinMap.set i' (phi_child, Krun q') tm2 -> 
   w_lp w2 = w_lp w ->       
   w_dry w2 = w_dry w -> 
   cswitch i w2 w' -> 
-  step prog a w a w'.*)
-.
+  step ge w w'.
 
 Inductive cm_corestep: genv -> world -> juicy_mem -> world -> juicy_mem -> Prop :=
 | cm_step_corestep: forall ge jm w jm' w',
@@ -1234,38 +1265,27 @@ Inductive cm_corestep: genv -> world -> juicy_mem -> world -> juicy_mem -> Prop 
   m_dry jm'=w_dry w' -> 
   cm_corestep ge w jm w' jm'.
 
-Program Definition cm_esem :=
+Program Definition cm_esem (sched: schedule) (d: jm_init_package) :=
   Build_CoreSemantics genv world juicy_mem jm_init_package 
     cm_initial_mem
-    cm_make_initial_core 
+    (cm_make_initial_core sched d)
     cm_at_external
     cm_after_external
     cm_safely_halted
     cm_corestep _ _ _.
 Next Obligation.
 intros until q'; intros H1.
-inversion H1; subst.
-inversion H0; subst.
+inv H1.
+inv H0.
 (*NONE*)
-unfold cm_at_external.
-destruct q; auto.
-destruct sched0; auto.
-simpl in H4.
-simpl in H3.
-inv H3.
-rewrite H4; auto.
+destruct q; simpl in H1, H3; subst.
+simpl; rewrite H3; auto.
 (*SEQ*)
-inversion H3; subst.
-eapply corestep_not_at_external in H6.
-unfold cm_at_external.
-destruct q; simpl in *.
-destruct sched0; auto.
-inversion H4; subst.
-rewrite H5.
-rewrite H6; auto.
-(*EXIT*)
-admit.
-Qed.
+destruct q; simpl in H1, H3; subst.
+apply corestep_not_at_external in H4.
+simpl; rewrite H3, H4.
+if_tac; auto.
+Admitted.
 Next Obligation.
 intros until q'; intros H1.
 inv H1.
@@ -1278,16 +1298,13 @@ inv H5.
 rewrite H3; auto.
 inv H1.
 specialize (w_thread_tbl_ok q phi (Krun q0) i H3).
-intros [_ [H10 H11]].
 admit. (*by H8*)
-(*EXIT*)
-admit.
-Qed.
+Admitted.
 Next Obligation.
-intros ge q.
+intros sched d ge q.
 unfold cm_safely_halted.
 destruct q.
-destruct sched; [left; auto|]. 
+destruct sched0; [left; auto|]. 
 unfold w_tm, w_sched.
 simpl.
 destruct (FinMap.get tm n).
@@ -1297,19 +1314,8 @@ destruct (at_external c); try solve [left; auto|right; auto].
 destruct p; try solve [left; auto|right; auto].
 destruct p; try solve [left; auto|right; auto].
 destruct e; try solve [if_tac; [left|right]; auto].
-destruct name; try solve [if_tac; [left|right]; auto].
-destruct sg; try solve [if_tac; [left|right]; auto].
-destruct sig_args.
 if_tac; auto.
-destruct t.
-destruct sig_args.
-destruct sig_res.
-if_tac; auto.
-left; auto.
-if_tac; auto.
-if_tac; auto.
-if_tac; auto.
-left; auto.
+auto.
 Qed.
 
 Definition cm_cores (i: nat) := if eq_nat_dec i 1 then Some csem else None.
@@ -1353,8 +1359,8 @@ Implicit Arguments Extension.Make [G xT cT M D Z].
 Variable (client_sig: juicy_ext_sig Z).
 Variable (esig: juicy_ext_sig Z).
 
-Program Definition concurrency_extension :=
-  Extension.Make unit Z cm_esem cm_cores client_sig esig (EXIT::nil)
+Program Definition concurrency_extension (sched: schedule) (d: jm_init_package) :=
+  Extension.Make unit Z (cm_esem sched d) cm_cores client_sig esig (EXIT::nil)
   cm_proj_core _
   cm_active _ _
   cm_runnable _ _ 
