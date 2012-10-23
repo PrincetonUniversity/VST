@@ -169,7 +169,7 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
 Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
 
 
-Instance LiftIndir (A: Type) (any: A) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
+Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
          @Indir (A -> B) (LiftNatDed A B).
  apply (mkIndir _ _ (fun P rho => later (P rho))); intros; simpl in *; intros.
  apply now_later.
@@ -190,8 +190,8 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
   later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)
 }.
 
-Instance LiftSepIndir  (A: Type) (any: A) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
-     @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A any B).
+Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
+     @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A B).
  constructor.
  intros; simpl. extensionality rho.  apply later_sepcon.
  intros; simpl. extensionality rho.  apply later_wand.

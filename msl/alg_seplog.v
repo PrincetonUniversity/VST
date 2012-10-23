@@ -166,8 +166,7 @@ Qed.
 
 Class SepRec  (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A}{RA: RecIndir A} := mkSepRec {
   unfash_sepcon_distrib: forall (P: Triv) (Q R: A),
-                 andp (unfash P) (sepcon Q R) = sepcon (andp (unfash P) Q) (andp (unfash P) R); 
-  sub_sepcon': forall P P' Q Q': A, (P >=> P') && (Q >=> Q') |-- (P * Q) >=> (P' * Q')
+                 andp (unfash P) (sepcon Q R) = sepcon (andp (unfash P) Q) (andp (unfash P) R)
 }.
 
 End SL3.
@@ -184,17 +183,4 @@ Instance algSepRec (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{
          @SepRec (pred T) (algNatDed T) (algSepLog T) (algIndir T)(algRecIndir T).
 constructor.
  intros; simpl. apply subtypes_sl.unfash_sepcon_distrib.
-
-  repeat intro. destruct H.
-  destruct H2 as [w1 [w2 [? [? ?]]]].
-  exists w1; exists w2; split; auto.
-  split.
-  eapply H; auto.
-  assert (level w1 = level a').
-  apply comparable_fashionR.  eapply join_sub_comparable; eauto.
- apply necR_level in H1. omega.
-  eapply H3; auto.
-  assert (level w2 = level a').
-  apply comparable_fashionR. eapply join_sub_comparable; eauto.
- apply necR_level in H1. omega.
 Qed.

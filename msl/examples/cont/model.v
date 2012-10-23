@@ -497,9 +497,9 @@ Definition mpred : Type := predicates_hered.pred rmap.
 Instance Nm: seplog.NatDed mpred := alg_seplog.algNatDed rmap.
 Instance Sm: seplog.SepLog mpred := alg_seplog.algSepLog rmap.
 Instance Cm: seplog.ClassicalSep mpred := alg_seplog.algClassicalSep rmap.
-Instance Im: alg_seplog.Indir mpred := alg_seplog.algIndir rmap.
+Instance Im: seplog.Indir mpred := alg_seplog.algIndir rmap.
 Instance Rm: alg_seplog.RecIndir mpred := alg_seplog.algRecIndir rmap.
-Instance SIm: alg_seplog.SepIndir mpred := alg_seplog.algSepIndir rmap.
+Instance SIm: seplog.SepIndir mpred := alg_seplog.algSepIndir rmap.
 Instance SRm: alg_seplog.SepRec mpred := alg_seplog.algSepRec rmap.
 
 Definition guard (p: program) (G: funspecs) (vars: varset) (P : assert) (k: control) : pred nat :=
@@ -768,7 +768,7 @@ Lemma semax_if: forall x c1 c2 vars G (P: assert),
     expcheck vars x = true ->
     semax vars G (fun s => !!(eval x s <> 0) && P s) c1 ->
     semax vars G (fun s => !! (eval x s = 0) && P s) c2 ->
-    semax vars G (fun s => P s) (If x Then c1 Else c2).
+    semax vars G P (If x Then c1 Else c2).
 Proof.
  intros. rename H into TC.
  destruct H0 as [TC0 H]; destruct H1 as [TC1 H'].

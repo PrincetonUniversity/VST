@@ -804,6 +804,26 @@ Proof.
   rewrite eqp_later. rewrite andp_comm. auto.
 Qed.
 
+Lemma sub_sepcon' {A}{NA: NatDed A}{SL: SepLog A}{IA: Indir A}{RA: RecIndir A}{SRA: SepRec A}:
+  forall P P' Q Q': A, (P >=> P') && (Q >=> Q') |-- (P * Q) >=> (P' * Q').
+Proof.
+intros.
+apply subp_i1.
+rewrite unfash_sepcon_distrib.
+apply sepcon_derives.
+apply derives_trans with ((P --> P') && P).
+apply andp_derives; auto.
+eapply derives_trans; [ | apply unfash_fash ].
+apply unfash_derives. apply andp_left1; auto.
+rewrite andp_comm; apply modus_ponens.
+apply derives_trans with ((Q --> Q') && Q).
+apply andp_derives; auto.
+eapply derives_trans; [ | apply unfash_fash ].
+apply unfash_derives. apply andp_left2; auto.
+rewrite andp_comm; apply modus_ponens.
+Qed.
+
+
 Lemma subp_sepcon {A} {NA: NatDed A}{IA: Indir A}{SA: SepLog A}{SI: SepIndir A}{RA: RecIndir A}{SRA: SepRec A} :
     forall G (P P' Q Q' : A),
   G |-- P >=> P' ->

@@ -59,8 +59,7 @@ Lemma prove_START: semax_body myspec STARTspec STARTbody.
  rewrite' alloc. rewrite' @sepcon_comm. do 2  rewrite' @sepcon_assoc.
  eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
  forward.
- rewrite lseg_eq. rewrite emp_sepcon.
- apply andp_right. apply prop_right. auto.
+ rewrite lseg_eq. normalize.
  apply andp_derives;  [ | apply funassert_e; reflexivity].
  rewrite (sepcon_comm (allocpool _)). repeat rewrite <- sepcon_assoc.
  rewrite (sepcon_comm (next (S (S (s0 a))) _)).
@@ -82,7 +81,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  apply semax_pre 
    with  (fun s' => EX x: adr, (next (s' p) x * |>lseg x 0 * lseg (s' s) (s' p) * allocpool (s' a)) &&
      cont DONEspec (s' r)).
- intro s'. normalize. simpl in H.
+ intro s'. normalize.
  rewrite (lseg_neq (s' p)) by auto. normalize. apply exp_right with y.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
@@ -104,7 +103,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  apply andp_left1. apply sepcon_derives; auto.
  normalize.
  rewrite later_andp.
- apply andp_derives; auto.
+ apply andp_derives.
  rewrite sepcon_comm.
  rewrite sepcon_assoc. rewrite sepcon_comm.
  eapply derives_trans. apply sepcon_derives; [ apply now_later | apply derives_refl].
@@ -121,15 +120,14 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  apply lseg_cons_in_list_context.
  apply now_later.
 
- forward.
+ forward. normalize.
  apply andp_left1.
- apply andp_right; auto. apply prop_right; auto.
  rewrite (sepcon_comm (lseg (s0 s) _)). auto.
- forward. 
- apply andp_left1. apply andp_left2.
- apply andp_left2. apply andp_left2. apply derives_refl.
+ forward.
+ normalize. 
+ apply andp_left1. apply andp_left2. apply derives_refl.
  simpl. normalize.
- autorewrite with args. rewrite H. rewrite lseg_eq. rewrite sepcon_emp.
+ autorewrite with args. rewrite H. rewrite lseg_eq. normalize.
  apply andp_left1.
  apply andp_left1. auto.
 Qed.
