@@ -812,11 +812,22 @@ Inductive linkable_extension: Type := LinkableExtension: forall
   (match_mem_inject: forall cd j c1 c2 m1 m2,
     match_state core_simulation cd j c1 m1 c2 m2 -> 
     Mem.inject j m1 m2)
-  (inject_extend: forall cd cd' j j' c1 c2 m1 m2 m1' m2',
-    match_state core_simulation cd j c1 m1 c2 m2 -> 
+  (match_others: forall cd cd' j j' s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' d1 d2 i,
+    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
+    PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
+    PROJ_CORE E1 s1 i = Some d1 -> 
+    PROJ_CORE E2 s2 i = Some d2 -> 
+    ACTIVE E1 s1 <> i -> 
+    match_states cd j s1 m1 s2 m2 -> 
     inject_incr j j' -> 
     Mem.inject j' m1' m2' -> 
-    match_state core_simulation cd' j' c1 m1' c2 m2')
+    Events.inject_separated j j' m1 m2 -> 
+    corestep source ge c1 m1 c1' m1' -> 
+    corestep_plus target ge c2 m2 c2' m2' -> 
+    corestep (esem source) ge s1 m1 s1' m1' -> 
+    corestep_plus (esem target) ge s2 m2 s2' m2' -> 
+    match_state core_simulation cd' j' c1' m1' c2' m2' -> 
+    match_state core_simulation cd' j' d1 m1' d2 m2')
   (safely_halted_match: forall cd j c1 c2 m1 m1' m2 rv s1 s2 s1',
     match_states cd j s1 m1 s2 m2 -> 
     PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
@@ -944,7 +955,8 @@ split; auto.
  inv esig_linkable.
  admit. (*follows from plus closure of corestep_others and H9', H15*)
 inv esig_linkable.
-apply inject_extend with (cd := cd) (j := j) (m1 := m1) (m2 := m2); eauto.
+eapply match_others with (cd := cd) (j := j) (m1 := m1) (m2 := m2); eauto.
+rewrite <-X0, H4; eauto.
 inv esig_linkable; auto.
 inv esig_linkable.
 rewrite <-X0; auto.
