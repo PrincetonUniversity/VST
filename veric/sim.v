@@ -2,6 +2,9 @@ Load loadpath.
 Require Import veric.base.
 Require Import compcert.Events.
 
+Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m m'.
+  Proof. intros j m m' b; intros. congruence. Qed.
+
 (* A "core semantics represents" a fairly traditional,
    sequential, small step semantics of computation.  They
    are designed to cooperate with "extensions"
@@ -540,8 +543,8 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
       forall cd j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2 ef_sig,
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,vals1) ->
-(*     at_external Sem2 st2 = Some (e,vals2) ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+(*     at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
         Forall2 (val_inject j) vals1 vals2 ->*)
 
 (* LENB: I added meminj_preserves_globals ge1 j as another asumption here,
