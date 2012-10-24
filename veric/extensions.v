@@ -620,3 +620,330 @@ rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.
 Qed.
 
 End SafetyCriteria.
+
+Section CorestepProperties.
+Variables (G xT cT M D Z Zint Zext: Type) 
+  (esem: CoreSemantics G xT M D) 
+  (csem: nat -> option (CoreSemantics G cT M D))
+  (client_sig: ext_sig M Z)
+  (esig: ext_sig M Z)
+  (handled: list AST.external_function)
+  (E: Extension.Sig Zint Zext esem csem client_sig esig handled).
+
+Import Extension.
+
+Definition runnable_corestep := forall ge s m s' m' c CS i,
+  runnable E ge s = Some i -> 
+  csem i = Some CS -> proj_core E s i = Some c -> 
+  corestep esem ge s m s' m' -> 
+  exists c', corestep CS ge c m c' m' /\ proj_core E s' i = Some c'.
+
+Definition corestep_active := forall ge c s m c' s' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestep CS ge c m c' m' -> 
+  corestep esem ge s m s' m' -> 
+  (active E s = active E s' /\ proj_core E s' (active E s) = Some c').
+
+Definition corestep_step := forall ge c s m c' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestep CS ge c m c' m' -> 
+  exists s', corestep esem ge s m s' m' /\ (*conditions somewhat redundant*) 
+    active E s = active E s' /\
+    proj_core E s' (active E s) = Some c'.
+
+Lemma corestep_step_plus: corestep_step -> 
+  forall ge c s m c' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestep_plus CS ge c m c' m' -> 
+  exists s', corestep_plus esem ge s m s' m' /\ 
+    active E s = active E s' /\
+    proj_core E s' (active E s) = Some c'.
+Proof.
+intros H1; intros until CS; intros H2 H3 H4.
+inversion H4 as [n H5]; clear H4; revert c c' m m' s H2 H3 H5; induction n. 
+intros c c' m m' s H2 H3 H5.
+inv H5.
+destruct H as [m2 [H H4]].
+inv H4.
+eapply H1 in H; eauto.
+destruct H as [s2 [H [H4 H5]]].
+exists s2; split; auto.
+exists 0%nat; simpl.
+exists s2; exists m'.
+split; auto.
+intros c c' m m' s H2 H3 H5.
+simpl in H5.
+destruct H5 as [c2 [m2 [H5 H6]]].
+eapply H1 in H5; eauto.
+destruct H5 as [s2 [H5 [H7 H8]]].
+rewrite H7 in H2, H8.
+destruct (IHn c2 c' m2 m' s2 H2 H8) as [s' [H9 [H10 H11]]]; auto.
+exists s'.
+split3.
+inv H9.
+exists (S x).
+simpl.
+exists s2; exists m2; split; auto.
+rewrite H7; auto.
+rewrite H7, H11; auto.
+Qed.
+
+Lemma corestep_step_star: corestep_step -> 
+  forall ge c s m c' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestep_star CS ge c m c' m' -> 
+  exists s', corestep_star esem ge s m s' m' /\ 
+    active E s = active E s' /\
+    proj_core E s' (active E s) = Some c'.
+Proof.
+intros H1; intros until CS; intros H2 H3 H4.
+inversion H4 as [n H5]; clear H4; revert c c' m m' s H2 H3 H5; induction n. 
+intros c c' m m' s H2 H3 H5.
+inv H5.
+exists s; split; auto.
+exists 0%nat; simpl; auto.
+intros c c' m m' s H2 H3 H5.
+simpl in H5.
+destruct H5 as [c2 [m2 [H5 H6]]].
+eapply H1 in H5; eauto.
+destruct H5 as [s2 [H5 [H7 H8]]].
+rewrite H7 in H2, H8.
+destruct (IHn c2 c' m2 m' s2 H2 H8) as [s' [H9 [H10 H11]]]; auto.
+exists s'.
+split3.
+inv H9.
+exists (S x).
+simpl.
+exists s2; exists m2; split; auto.
+rewrite H7; auto.
+rewrite H7, H11; auto.
+Qed.
+
+Definition corestep_others := forall ge i s c m s' c' m' (CS: CoreSemantics G cT M D),
+  proj_core E s' i = Some c' -> 
+  corestep CS ge c m c' m' -> 
+  corestep esem ge s m s' m' -> 
+  forall j, i<>j -> proj_core E s j = proj_core E s' j.
+
+Definition safely_halted_steps := forall ge s c rv m (CS: CoreSemantics G cT M D),
+  proj_core E s (active E s) = Some c -> 
+  safely_halted CS ge c = Some rv -> 
+  exists s', corestep esem ge s m s' m.
+
+End CorestepProperties.
+    
+Section LinkableExtension.
+Variables (fT: forall X:Type, Type) (cT dT D Z Zint Zext: Type)
+  (esem: forall (T: Type) (CS: CompcertCoreSem genv T D), CompcertCoreSem genv (fT T) D) 
+  (source: CompcertCoreSem genv cT D) (target: CompcertCoreSem genv dT D)
+  (client_sig: ext_sig mem Z) (esig: ext_sig mem Z) (handled: list AST.external_function).
+
+Notation ALL_SAFE := (Extension.all_safe).
+Notation PROJ_CORE := (Extension.proj_core).
+Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
+Notation ACTIVE := (Extension.active).
+Notation RUNNABLE := (Extension.runnable).
+Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
+  (csem i = Some CS /\ PROJ_CORE s i = Some c)
+  (at level 66, no associativity, only parsing).
+Notation core_exists := (Extension.core_exists).
+Notation active_csem := (Extension.active_csem).
+Notation active_proj_core := (Extension.active_proj_core).
+Notation after_at_external_excl := (Extension.after_at_external_excl).
+Notation notat_external_handled := (Extension.notat_external_handled).
+Notation at_external_not_handled := (Extension.at_external_not_handled).
+Notation ext_upd_at_external := (Extension.ext_upd_at_external).
+Notation runnable_active := (Extension.runnable_active).
+Notation runnable_none := (Extension.runnable_none).
+
+Let xT := fT cT.
+Let yT := fT dT.
+
+Definition cores (aT:Type) (CS: CompcertCoreSem genv aT D) :=
+  fun i:nat => Some (csem CS).
+
+Variable (E1: Extension.Sig Zint Zext (esem source) (cores source) client_sig esig handled).
+Variable (E2: Extension.Sig Zint Zext (esem target) (cores target) client_sig esig handled).
+Variables (ge: genv) (entry_points: list (val*val*signature)).
+
+Import Sim_inj.
+
+Variable (core_simulation: Forward_simulation_inject D D source target ge ge entry_points).
+
+Definition match_states (cd: core_data core_simulation) (j: meminj) (s1: xT) m1 (s2: yT) m2 :=
+  Mem.inject j m1 m2 /\
+  ACTIVE E1 s1 = ACTIVE E2 s2 /\
+  RUNNABLE E1 ge s1 = RUNNABLE E2 ge s2 /\
+  forall i c1, PROJ_CORE E1 s1 i = Some c1 -> 
+    exists c2, PROJ_CORE E2 s2 i = Some c2 /\ 
+      match_state core_simulation cd j c1 m1 c2 m2.
+
+Inductive linkable_extension: Type := LinkableExtension: forall 
+  (runnable_corestep1: runnable_corestep E1)
+(*  (runnable_corestep2: runnable_corestep E2)*)
+  (corestep_active1: corestep_active E1)
+(*  (corestep_active2: corestep_active E2)*)
+(*  (corestep_step1: corestep_step E1)*)
+  (corestep_step2: corestep_step E2)
+  (corestep_others1: corestep_others E1)
+(*  (corestep_others2: corestep_others E2)*)
+(*  (safely_halted_steps1: safely_halted_steps E1)
+  (safely_halted_steps2: safely_halted_steps E2)*)
+  (match_mem_inject: forall cd j c1 c2 m1 m2,
+    match_state core_simulation cd j c1 m1 c2 m2 -> 
+    Mem.inject j m1 m2)
+  (inject_extend: forall cd cd' j j' c1 c2 m1 m2 m1' m2',
+    match_state core_simulation cd j c1 m1 c2 m2 -> 
+    inject_incr j j' -> 
+    Mem.inject j' m1' m2' -> 
+    match_state core_simulation cd' j' c1 m1' c2 m2')
+  (safely_halted_match: forall cd j c1 c2 m1 m1' m2 rv s1 s2 s1',
+    match_states cd j s1 m1 s2 m2 -> 
+    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
+    PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
+    safely_halted source ge c1 = Some rv -> 
+    corestep (esem source) ge s1 m1 s1' m1' ->  
+    safely_halted target ge c2 = Some rv /\
+    exists s2', exists m2', exists cd', exists j', 
+      inject_incr j j' /\
+      Events.inject_separated j j' m1 m2 /\
+      corestep (esem target) ge s2 m2 s2' m2' /\
+      match_states cd' j' s1' m1' s2' m2'), 
+  linkable_extension.
+
+Variable (esig_linkable: linkable_extension).
+
+Program Definition extended_simulation: 
+  Forward_simulation_inject D D (esem source) (esem target) ge ge entry_points :=
+      Build_Forward_simulation_inject 
+      (core_data core_simulation) 
+      match_states 
+      (core_ord core_simulation)
+      _ _ _ _ _ _.
+Next Obligation. apply (core_ord_wf core_simulation). Qed.
+Next Obligation. 
+generalize H0 as H0'; intro.
+destruct H0 as [Xinj [X0 [X1 H0]]].
+case_eq (RUNNABLE E1 ge st1).
+(*Case 1: runnable thread, appeal to core diagram for cores*)
+intros n H1.
+generalize H1 as H1'; intro.
+apply runnable_active in H1.
+destruct (active_proj_core E1 st1) as [c1 H2].
+rewrite H1 in H2.
+assert (exists c1', corestep source ge c1 m1 c1' m1').
+ inv esig_linkable.
+ unfold runnable_corestep in runnable_corestep1.
+ specialize (runnable_corestep1 ge st1 m1 st1' m1' c1 source (ACTIVE E1 st1)).
+ destruct runnable_corestep1 as [c1' [H3 H4]]; auto.
+ exists c1'; auto.
+destruct H3 as [c1' H3].
+generalize (core_diagram core_simulation).
+intros DIAG.
+generalize H0 as H0''; intro.
+unfold match_states in H0.
+destruct (H0 n c1 H2) as [c2 [H4 H5]].
+destruct (DIAG c1 m1 c1' m1' H3 cd c2 j m2 H5) 
+ as [c2' [m2' [cd' [j' [H6 [H7 [H8 H9]]]]]]].
+destruct H9 as [H9|[H9 H10]].
+(*corestep_plus case*)
+generalize H9 as H9'.
+eapply corestep_step_plus 
+ with (esem := esem target) (csem := cores target) (client_sig := client_sig) 
+   (esig := esig) (E := E2) (s := st2) in H9; eauto.
+destruct H9 as [st2' [H9 [H10 H11]]].
+exists st2'; exists m2'; exists cd'; exists j'.
+split3; auto.
+split; auto.
+unfold match_states.
+split3; auto.
+rewrite <-X0 in H10.
+inv esig_linkable; eauto.
+rewrite <-H10.
+inv esig_linkable.
+eapply corestep_active1 in H3; eauto.
+destruct H3; eauto.
+rewrite <-H1; auto.
+split.
+admit. (*RUNNABLE*)
+intros i c0 H12.
+assert (H13: PROJ_CORE E1 st1' n = Some c1'). 
+ inv esig_linkable.
+ edestruct corestep_active1; eauto.
+ unfold cores; auto.
+case_eq (eq_nat_dec i n).
+(*i=n*)
+intros Heq _.
+subst.
+rewrite H13 in H12.
+inv H12.
+exists c2'.
+rewrite X0; split; auto.
+(*i<>n*)
+intros Hneq _.
+assert (PROJ_CORE E1 st1 i = Some c0). 
+ inv esig_linkable.
+ erewrite corestep_others1; eauto.
+unfold match_states in H0'.
+destruct (H0'' i c0 H14) as [c3 [H15 H16]].
+exists c3.
+split; auto.
+ inv esig_linkable.
+ admit. (*follows from plus closure of corestep_others and H9', H15*)
+inv esig_linkable.
+apply inject_extend with (cd := cd) (j := j) (m1 := m1) (m2 := m2); eauto.
+inv esig_linkable; auto.
+inv esig_linkable.
+rewrite <-X0; auto.
+(*corestep_star case*)
+admit. (*should be similar to corestep_plus*)
+
+(*runnable = None*)
+destruct (active_proj_core E1) with (s := st1) as [c1 H1].
+destruct (active_csem E1) with (s := st1) as [CS H2].
+generalize H2 as H2'; intro.
+inv H2'.
+intros H3.
+apply (runnable_none E1) with (c := c1) (CS := source) (ge := ge) in H2; auto.
+destruct H2 as [H2|H2].
+
+(*active thread is safely halted*)
+destruct H2 as [rv H2].
+unfold match_states in H0.
+specialize (H0 (ACTIVE E1 st1) c1 H1).
+destruct H0 as [c2 [H0 H4]].
+destruct (core_halted core_simulation cd j c1 m1 c2 m2 rv H4 H2) as [H5 H6].
+inv esig_linkable.
+eapply safely_halted_match with (m1' := m1') in H0'; eauto.
+2: rewrite <-X0, H0; eauto.
+destruct H0' as [H7 [st2' [m2' [cd' [j' [H8 [H9 [H10 H11]]]]]]]].
+exists st2'; exists m2'; exists cd'; exists j'.
+split3; auto.
+split; auto.
+left.
+exists 0%nat.
+eexists; eexists; split; eauto.
+simpl; auto.
+
+(*active thread is at_external*)
+destruct H2 as [[ef sig] [args H2]].
+unfold match_states in H0.
+destruct (H0 (ACTIVE E1 st1) c1 H1) as [c2 [H4 H5]].
+destruct (core_at_external core_simulation cd j c1 m1 c2 m2 ef args sig H5 H2)
+ as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
+admit. (*here we need the user to prove a "core diagram" for external function 
+          calls handled by the extension; there must be an appropriate (extended)
+          injection to justify each step that handles one of these calls*)
+Qed.
+Next Obligation. Admitted. (*TODO*)
+Next Obligation. Admitted. (*TODO*)
+Next Obligation. Admitted. (*TODO*)
+Next Obligation. Admitted. (*TODO*)
+
+End LinkableExtension.
+
+
