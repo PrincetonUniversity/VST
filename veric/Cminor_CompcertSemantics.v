@@ -45,6 +45,24 @@ Definition CMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
    Genv.alloc_variables ge Mem.empty d = Some m.
 (*Defined initial memory, by adapting the definition of Genv.init_mem*)
 
+Definition CMin_make_initial_core (ge:genv) (v: val) (args:list val): option CMin_core :=
+   match v with
+        Vptr b i => if Int.eq_dec i  Int.zero 
+                            then 
+                            match Genv.find_funct_ptr ge b with
+                             None => None
+                           | Some f => match funsig f with
+                                           {| sig_args := sargs; sig_res := sres |} => 
+                                                   match sargs, sres with 
+                                                      nil, Some Tint => Some (CMin_Callstate f nil Kstop) (*args = nil???*)
+                                                   | _ , _ => None
+                                                   end
+                                              end
+                           end
+                           else None
+      | _ => None
+   end.  
+(*
 Parameter CMin_MainIdent:ident.
 
 Definition CMin_make_initial_core (ge:genv) (v: val) (args:list val): option CMin_core :=
@@ -61,6 +79,7 @@ Definition CMin_make_initial_core (ge:genv) (v: val) (args:list val): option CMi
                                        end
                   end
    end.  
+*)
 (*Original Cminor_semantics has this for initial states:
 Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->

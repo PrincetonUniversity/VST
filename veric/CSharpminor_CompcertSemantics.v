@@ -41,33 +41,6 @@ Definition FromState (c: Csharpminor.state) : CSharpMin_core * mem :=
    | Returnstate v k m => (CSharpMin_Returnstate v k, m)
   end. 
 
-Definition CSharpMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
-   Genv.alloc_variables ge Mem.empty d = Some m.
-(*Defined initial memory, by adapting the definition of Genv.init_mem*)
-
-Parameter CSharpMin_MainIdent:ident.
-
-Definition CSharpMin_make_initial_core (ge:genv) (v: val) (args:list val): option CSharpMin_core :=
-   match Genv.find_symbol ge CSharpMin_MainIdent with
-        None => None
-      | Some b => match Genv.find_funct_ptr ge b with
-                              None => None
-                            | Some f => match funsig f with
-                                                   {| sig_args := sargs; sig_res := sres |} => 
-                                                       match sargs, sres with 
-                                                          nil, Some Tint => Some (CSharpMin_Callstate f nil Kstop) (*args = nil???*)
-                                                       | _ , _ => None
-                                                       end
-                                                 end
-                            end
-    end.
-(*Original Csharpminor_semantics has this for initial states: 
-      Genv.find_symbol ge p.(prog_main) = Some b ->
-      Genv.find_funct_ptr ge b = Some f ->
-      funsig f = mksignature nil (Some Tint) ->
-      initial_state p (Callstate f nil Kstop m0).
- ie esseantially the same as Cminor*)
-
 Definition CSharpMin_at_external (c: CSharpMin_core) : option (external_function * signature * list val) :=
   match c with
   | CSharpMin_State _ _ _ _ _ => None
@@ -151,6 +124,52 @@ Lemma CSharpMin_at_external_halted_excl :
        forall ge q, CSharpMin_at_external q = None \/ CSharpMin_safely_halted ge q = None.
    Proof. intros. destruct q; auto. Qed.
 
+Definition CSharpMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
+   Genv.alloc_variables ge Mem.empty d = Some m.
+(*Define initial memory, by adapting the definition of Genv.init_mem*)
+
+
+Definition CSharpMin_make_initial_core (ge:genv) (v: val) (args:list val): option CSharpMin_core :=
+   match v with
+        Vptr b i => if Int.eq_dec i  Int.zero 
+                            then 
+                            match Genv.find_funct_ptr ge b with
+                              None => None
+                            | Some f => match funsig f with
+                                                   {| sig_args := sargs; sig_res := sres |} => 
+                                                       match sargs, sres with 
+                                                          nil, Some Tint => Some (CSharpMin_Callstate f nil Kstop) (*args = nil???*)
+                                                       | _ , _ => None
+                                                       end
+                                                 end
+                            end
+                            else None
+   | _ => None
+    end.
+ (*
+Parameter CSharpMin_MainIdent:ident.
+
+Definition CSharpMin_make_initial_core (ge:genv) (v: val) (args:list val): option CSharpMin_core :=
+   match Genv.find_symbol ge CSharpMin_MainIdent with
+        None => None
+      | Some b => match Genv.find_funct_ptr ge b with
+                              None => None
+                            | Some f => match funsig f with
+                                                   {| sig_args := sargs; sig_res := sres |} => 
+                                                       match sargs, sres with 
+                                                          nil, Some Tint => Some (CSharpMin_Callstate f nil Kstop) (*args = nil???*)
+                                                       | _ , _ => None
+                                                       end
+                                                 end
+                            end
+    end.*)
+(*Original Csharpminor_semantics has this for initial states: 
+      Genv.find_symbol ge p.(prog_main) = Some b ->
+      Genv.find_funct_ptr ge b = Some f ->
+      funsig f = mksignature nil (Some Tint) ->
+      initial_state p (Callstate f nil Kstop m0).
+ ie esseantially the same as Cminor*)
+
 Require Import veric.sim.
 Definition CSharpMin_core_sem : CoreSemantics genv CSharpMin_core mem (list (ident * globvar var_kind)).
   eapply @Build_CoreSemantics with (at_external:=CSharpMin_at_external)(corestep:=CSharpMin_corestep)
@@ -178,8 +197,16 @@ Parameter  exec_assign_deterministic: forall ge e m id v m1 m2,
 Parameter Mem_storev_deterministic: forall ch m a v m1 m2,
                 Mem.storev ch m a v = Some m1 -> Mem.storev ch m a v = Some m2 -> m1 = m2.
 
+Lemma eval_exprlist_deterministic: forall ge sp e m a v1 v2,
+                eval_exprlist ge sp e m a v1 ->
+                eval_exprlist ge sp e m a v2 -> v1=v2.
+  intros until a. induction a; simpl; intros. inv H. inv H0. trivial.
+      inv H. inv H0. rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H3 H2). rewrite (IHa _ _ H5 H6). trivial.
+Qed.
+
 Lemma Csharpminor_step_fun: forall ge q q1 t1
- (K1: Csharpminor.step ge q t1 q1) q2 t2 (K2:Csharpminor.step ge q t2 q2), q1 = q2.
+ (K1: Csharpminor.step ge q t1 q1) q2 t2 (K2:Csharpminor.step ge q t2 q2) c m
+  (Hq: q = ToState c m) (Hext: CSharpMin_at_external c = None), q1 = q2.
   Proof. intros g1 q q1 t1 K1.
      induction K1; intros.
           inv K2; simpl in *; try contradiction. trivial.
@@ -187,19 +214,39 @@ Lemma Csharpminor_step_fun: forall ge q q1 t1
           inv K2; simpl in *; try contradiction. rewrite (Mem_freelist_deterministic _ _ _ _ H1 H11). trivial.
           inv K2; simpl in *; try contradiction. rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H H10) in *. rewrite (exec_assign_deterministic _ _ _ _ _ _ _ H0 H11). trivial.
           inv K2; simpl in *; try contradiction. rewrite (eval_expr_deterministic _ _ _ _ _ _ _  H H9). trivial.
+          inv K2; simpl in *; try contradiction. rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H13 H0) in *.  rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H12 H) in *.
+                                                  rewrite (Mem_storev_deterministic _ _ _ _ _ _ H1 H14). trivial.
+          inv K2; simpl in *; try contradiction. rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H14 H) in *. rewrite H16 in H1. inv H1.  rewrite (eval_exprlist_deterministic _ _ _ _ _ _ _ H15 H0) in *. trivial. 
+          inv K2; simpl in *; try contradiction.
+              destruct c; unfold ToState in *; try inv Hq. 
                   
   (*Continue in similar fashion*)
 Admitted.
-
-Lemma CSharpMin_corestep_fun: forall ge m q m1 q1 m2 q2, 
-       CSharpMin_corestep ge q m q1 m1 ->
-       CSharpMin_corestep ge q m q2 m2 -> 
+(*
+Lemma alloc_variables_det: forall vars e m e1 m1 e2 m2 
+     (K1: alloc_variables e m vars e1 m1)  (K2: alloc_variables e m vars e2 m2), e1=e2 /\ m1 =m2.
+  Proof. intro vars.
+   induction vars; intros. inv K1. inv K2. auto.
+     inv K1. inv K2.  
+*)
+Lemma CSharpMin_corestep_fun: forall ge m q m1 q1 m2 q2
+       (K1: CSharpMin_corestep ge q m q1 m1)
+       (K2: CSharpMin_corestep ge q m q2 m2)
+       (KK: CSharpMin_at_external q = None),
           (q1, m1) = (q2, m2).
   Proof.
     intros.
-    destruct q; destruct q1; destruct q2; try inv H; try inv H0;
+    destruct q; destruct q1; destruct q2; try inv K1; try inv K2; simpl in *. clear KK.
+      Focus 10. destruct f.  inv H; inv H0.  
+(*      Focus  destruct f. destruct q1. destruct K1. inv H.  Focus 2.
+        inv H0; inv H; trivial.
+           rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H8 H9) in *. rewrite (exec_assign_deterministic _ _ _ _ _ _ _ H15 H17). trivial.
+           rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H8 H9) in *. trivial.
+           rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H15 H19) in *. rewrite (eval_expr_deterministic _ _ _ _ _ _ _ H10 H8) in *.  rewrite (Mem_storev_deterministic _ _ _ _ _ _ H16 H20). trivial.
+          rewrite (eval_exprlist_deterministic _ _ _ _ _ _ _ H8 H10) in *. simpl in *.  trivial. 
      try assert (X:= Csharpminor_step_fun _ _ _ _ H1 _ _ H); inv X; trivial.
-  Qed.
+*)
+Admitted.
 
 Lemma CSharpMin_allowed_modifications :
     forall ge q m q' m',
@@ -226,7 +273,8 @@ Qed.
 
 Definition CSharpMin_CompcertCoreSem : CompcertCoreSem genv CSharpMin_core (list (ident * globvar var_kind)).
   eapply @Build_CompcertCoreSem with (csem:=CSharpMin_core_sem). 
-    apply CSharpMin_corestep_fun.
+      intros. apply (CSharpMin_corestep_fun ge m q _ _ _ _ H H0). 
+        eapply  CSharpMin_corestep_not_at_external; eauto.
     apply CSharpMin_allowed_modifications.
 Defined.
 

@@ -10,9 +10,11 @@ Require Import veric.sim.
 
 Section Sim_EQ_SIMU_DIAGRAMS.
 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+  Context {M G1 C1 D1 M2 G2 C2 D2:Type}
+(*          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+          {Sem1 : CoreSemantics G1 C1 M D1}
+          {Sem2 : CoreSemantics G2 C2 M D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -73,7 +75,7 @@ Hypothesis order_wf: well_founded order.
       exists c2', match_cores c1' c1' c2' /\
                   (corestep_plus Sem2 ge2  c2 m c2' m' \/ (corestep_star Sem2 ge2 c2 m c2' m' /\ order c1' c1)).
 
-Lemma  eq_simulation_star_wf: Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 ge1 ge2 entry_points.
+Lemma  eq_simulation_star_wf: Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply Sim_eq.Build_Forward_simulation_equals with
         (core_ord := order)
@@ -99,7 +101,7 @@ Section EQ_SIMULATION_STAR.
       (exists c2', corestep_plus Sem2 ge2 c2 m c2' m' /\ match_cores c1' c1' c2')
      \/ (measure c1' < measure c1 /\ m=m' /\ match_cores c1' c1' c2)%nat.
 
-Lemma  eq_simulation_star: Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 ge1 ge2 entry_points.
+Lemma  eq_simulation_star: Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply eq_simulation_star_wf. apply  (well_founded_ltof _ measure).
         intros. destruct (eq_star_simulation _ _ _ _ H _ H0).
@@ -116,7 +118,7 @@ Section EQ_SIMULATION_PLUS.
     forall c2, match_cores c1 c1 c2 ->
             exists c2', corestep_plus Sem2 ge2 c2 m c2' m' /\ match_cores c1' c1' c2'.
 
-Lemma  eq_simulation_plus: Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 ge1 ge2 entry_points.
+Lemma  eq_simulation_plus: Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply eq_simulation_star with (measure:=measure).
         intros. destruct (eq_plus_simulation _ _ _ _ H _ H0).
@@ -127,8 +129,10 @@ End Sim_EQ_SIMU_DIAGRAMS.
 
 Section Sim_EXT_SIMU_DIAGRAMS.
   Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+(*          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+          {Sem1 : CoreSemantics G1 C1 mem D1}
+          {Sem2 : CoreSemantics G2 C2 mem D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -253,8 +257,10 @@ End Sim_EXT_SIMU_DIAGRAMS.
 
 Section Sim_INJ_SIMU_DIAGRAMS.
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem (Genv.t F1 V1)  C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+(*          {Sem1 : CompcertCoreSem (Genv.t F1 V1)  C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
+          {Sem2 : CoreSemantics G2 C2 mem D2}
 
           {ge1: Genv.t F1 V1} 
           {ge2:G2}

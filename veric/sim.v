@@ -213,7 +213,6 @@ Definition allowed_core_modification (m1 m2:mem) :=
  *)
 Record CompcertCoreSem {G C D} :=
 { csem :> CoreSemantics G C mem D
-
 ; csem_corestep_fun: forall ge m q m1 q1 m2 q2, 
        corestep csem ge q m q1 m1 ->
        corestep csem ge q m q2 m2 -> 
@@ -226,7 +225,7 @@ Record CompcertCoreSem {G C D} :=
 }.
 Implicit Arguments CompcertCoreSem [ ].
 
-
+(*
 Lemma corestepN_fun (G C D:Type) (CSem:CompcertCoreSem G C D) :
   forall ge n c m c1 m1 c2 m2,
     corestepN CSem ge n c m c1 m1 ->
@@ -241,6 +240,7 @@ Proof.
   inv H0.
   eapply IHn; eauto.
 Qed.
+*)
 
 Inductive entry_points_compose: 
   list (val*val*signature) -> list (val*val*signature) -> 
@@ -290,9 +290,12 @@ Hint Resolve
      layout at all. *)
 Module Sim_eq.
 Section Forward_simulation_equals. 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+  Context {M G1 C1 D1 G2 C2 D2:Type}
+(*          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+
+          {Sem1 : CoreSemantics G1 C1 M D1}
+          {Sem2 : CoreSemantics G2 C2 M D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -361,8 +364,10 @@ Module Sim_ext.
 (* Next, an axiom for passes that allow the memory to undergo extension. *)
 Section Forward_simulation_extends. 
   Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+(*          {Sem1 : CompcertCoreSem G1 C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+          {Sem1 : CoreSemantics G1 C1 mem D1}
+          {Sem2 : CoreSemantics  G2 C2 mem D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -444,8 +449,10 @@ Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
 Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}
+(*          {Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 D1}
+          {Sem2 : CompcertCoreSem G2 C2 D2}*)
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
+          {Sem2 : CoreSemantics G2 C2 mem D2}
 
           {ge1: Genv.t F1 V1}
           {ge2:G2}
@@ -678,6 +685,115 @@ Definition GenvHyp {F1 V1 F2 V2}
                                           block_is_volatile (Genv.globalenv P2) b =
                                           block_is_volatile (Genv.globalenv P1) b).
 
+Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)))  (P : AST.program F V),Prop)
+        (ExternIdents: list (ident * external_description)):
+       forall (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2), Type :=
+   corec_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+ (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+                                        /\ m1 = m2))
+               entrypoints
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+               (R:Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               prog_main P1 = prog_main P2 -> 
+
+(*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+
+                I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
+               core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+ |  corec_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+(*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
+                                        /\ Mem.extends m1 m2))
+               entrypoints
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+               (R:Sim_ext.Forward_simulation_extends _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
+               prog_main P1 = prog_main P2 -> 
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+
+                I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+               core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+ |  corec_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+               entrypoints jInit
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+                                        /\ Mem.inject jInit m1 m2))
+               (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
+               (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               prog_main P1 = prog_main P2 ->
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+                externvars_ok P1 ExternIdents ->
+
+                I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+               core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+ | corec_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+               (P3 : AST.program F3 V3),
+                 core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+                 core_correctness I ExternIdents F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3 ->
+                 core_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
+ 
+Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)  ExternIdents I,
+                    core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+                     I _ _ _ Sem1 P1 /\ I _ _ _ Sem2 P2.
+   Proof. intros. induction X; intuition. Qed.
+
+Lemma corec_main: forall {F1 C1 V1 F2 C2 V2}
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)  ExternIdents I,
+                    core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+                    prog_main P1 = prog_main P2.
+   Proof. intros. induction X; intuition. congruence. Qed.
+
+(*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
+Lemma corec_Genv:forall {F1 C1 V1 F2 C2 V2}
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)  ExternIdents I,
+                    core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+               GenvHyp P1 P2.
+   Proof. intros. induction X; intuition. 
+       destruct IHX1.
+       destruct IHX2.
+        split; intros; eauto. rewrite H1. apply H. Qed.
+
+(*And here the variant for CompcertCoreSemantics*)
+
 Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C  (list (ident * globvar V)))  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)):
        forall (F1 C1 V1 F2 C2 V2:Type)
@@ -696,7 +812,7 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                                         /\ m1 = m2))
                entrypoints
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-               (R:Sim_eq.Forward_simulation_equals _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
                prog_main P1 = prog_main P2 -> 
 
 (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
