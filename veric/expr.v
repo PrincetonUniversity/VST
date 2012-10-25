@@ -6,6 +6,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
+Definition test := true.
 Definition any_environ : environ :=
  (* Mainly for use in demonstrating that the environ type is inhabited *)
   mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
@@ -181,19 +182,43 @@ Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
  | e::el' => lift2 cons (eval_expr e) (eval_exprlist el')
  end.
 
+
+(* things related to function specifications and return assertions *)
+Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
+
+Instance EqDec_exitkind: EqDec exitkind.
+Proof.
+hnf. intros.
+decide equality.
+Qed.
+
+Inductive funspec :=
+   mk_funspec: funsig -> 
+           forall A: Type, (A -> environ -> pred rmap) -> (A -> environ -> pred rmap) 
+                 -> funspec.
+
+Definition funspecs := list (ident * funspec).
+
+Definition type_of_funspec (fs: funspec) : type :=  
+  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig)  end.
+
+Inductive global_spec :=
+| Global_func : forall fs: funspec, global_spec
+| Global_var:  forall gv: type, global_spec.
+
 (*Declaration of type context for typechecking *)
 
 (*Temps, vars, function return, list of variables that are not vars
  (meaning they can be looked up as globals)*)
-Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type * (list positive))%type.
+Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type 
+                                  * (PTree.t global_spec))%type.
 
-Definition empty_tycontext : tycontext := (PTree.empty (type * bool), PTree.empty type, Tvoid, nil).
-
+Definition empty_tycontext : tycontext := (PTree.empty (type * bool), PTree.empty type, Tvoid, PTree.empty _).
 
 Definition temp_types (Delta: tycontext): PTree.t (type*bool) := fst (fst (fst Delta)).
 Definition var_types (Delta: tycontext) : PTree.t type := snd (fst (fst Delta)).
 Definition ret_type (Delta: tycontext) : type := snd (fst Delta).
-Definition non_var_ids (Delta: tycontext) : list positive := snd Delta.
+Definition glob_types (Delta: tycontext) : PTree.t global_spec := snd Delta.
 
 (*Beginning of typechecking *)
 
@@ -314,10 +339,10 @@ match op with
                     | sub_default => tc_FF
                     | sub_case_ii _ => tc_bool (is_int_type ty) 
                     | sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty))
-                    | sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)                                      
-                                          tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
-                                           (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty)))
-					    (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)))
+                    | sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
+                             tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
+                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty)))
+			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)))
                     | _ => tc_bool (is_float_type ty)
             end 
   | Omul => match classify_mul (typeof a1) (typeof a2) with 
@@ -326,8 +351,10 @@ match op with
                     | _ => tc_bool (is_float_type ty)
             end 
   | Omod => match classify_binint (typeof a1) (typeof a2) with
-                    | binint_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
-                    | binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2))
+                    | binint_case_ii Unsigned => tc_andp (tc_nonzero a2) 
+                                                     (tc_bool (is_int_type ty))
+                    | binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                                                      (tc_nodivover a1 a2))
                                                      (tc_bool (is_int_type ty))
                     | binint_default => tc_FF
             end
@@ -374,6 +401,20 @@ match classify_cast tfrom tto with
       end
 end.
 
+Definition globtype (g: global_spec) : type :=
+match g with 
+ | Global_func fs => type_of_funspec fs
+ | Global_var gv => gv end.
+
+Definition get_var_type (Delta : tycontext) id : option type :=
+match (var_types Delta) ! id with
+| Some ty => Some ty
+| None => match (glob_types Delta) ! id with
+         | Some g => Some (globtype g)
+         | None => None
+           end
+end.
+
 (*Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions*)
 Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
@@ -401,7 +442,7 @@ end
 
 with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
- | Evar id ty => match (var_types Delta) ! id with 
+ | Evar id ty => match get_var_type Delta id with 
                   | Some ty' => tc_andp (if eqb_type ty ty' then tc_TT else tc_FF) 
                                 (tc_bool (negb (type_is_volatile ty)))
                   | None => tc_FF
@@ -489,33 +530,53 @@ match tty with
  | nil => true
 end.
 
-Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: venviron) (ge : genviron)
+
+Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: venviron)
  : bool :=
 match vty with
  | (id,ty)::tl => match Map.get ve id with
                   | Some (_,ty') => eqb_type ty ty' && 
-                           typecheck_var_environ tl ve ge 
-                  | None => match ge id with
-                                | Some (Vptr b i , ty') => if eqb_type ty ty' &&  
-                                                      typecheck_val (Vptr b i) ty' &&
-                                                      is_pointer_type ty' then 
-                                                   typecheck_var_environ tl ve ge  else
-                                                   false
-                                | None => false
-                                | _ => false
-                                end
+                           typecheck_var_environ tl ve 
+                  | None => false
                   end
  | nil => true
 end.
 
-Definition typecheck_non_var_list vl (ve:venviron) :=
-forallb (fun id => match Map.get ve id with Some _ => false | _ => true end) vl.
+Fixpoint typecheck_glob_environ (gty:  list(positive * global_spec)) (ge: genviron) : bool :=
+match gty with
+ | (id,gspec)::tl => match ge id with
+                                | Some (Vptr b i , ty') => if eqb_type (globtype gspec) ty' &&  
+                                                      typecheck_val (Vptr b i) ty' &&
+                                                      is_pointer_type ty' then 
+                                                   typecheck_glob_environ tl ge  else
+                                                   false
+                                | None => false
+                                | _ => false
+                                end
+ | nil => true
+end.
 
+Definition same_mode (ge: genviron) (ve:venviron) 
+                     (gt : PTree.t global_spec) (vt : PTree.t type) id  :=
+match (vt ! id), (gt ! id), ve id  with
+| None, Some _, Some _ => false
+| _, _, _  => true
+end.
+
+Fixpoint same_env  (rho : environ) (Delta : tycontext) (ids : list positive) : bool :=
+match ids with
+| h::t => same_mode (ge_of rho) (ve_of rho) (glob_types Delta) (var_types Delta) h && same_env rho Delta t
+| nil => false
+end. 
+
+Definition all_var_ids (Delta : tycontext) : list positive :=
+(fst (split (PTree.elements (glob_types Delta)))). 
 
 Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
 typecheck_temp_environ (PTree.elements (temp_types Delta)) (te_of env) &&
-typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) (ge_of env) &&
-typecheck_non_var_list (non_var_ids Delta) (ve_of env).
+typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) &&
+typecheck_glob_environ (PTree.elements (glob_types Delta)) (ge_of env)&&
+same_env env Delta (all_var_ids Delta).
  
 
 (*Denotation functions for each of the assertions that can be produced by the typechecker*)
@@ -592,7 +653,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
 Definition initialized id (Delta: tycontext) :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
-                    , var_types Delta, ret_type Delta, non_var_ids Delta)
+                    , var_types Delta, ret_type Delta, glob_types Delta)
 | None => Delta (*Shouldn't happen *)
 end.
 
@@ -609,29 +670,11 @@ Definition join_te' te2 (te : PTree.t (type * bool)) (id: positive) (val: type *
 Definition join_te te1 te2 : PTree.t (type * bool):=
 PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
-Definition join_ve ve1 ve2 :=
-PTree.fold 
-(fun ve id (ty: type) => 
-        match (ve2 ! id) with
-        | Some ty2 => if eq_dec ty ty2 then
-                                    PTree.set id ty ve
-                               else
-                                    ve
-        | None => ve
-        end
-) ve1 (PTree.empty type).
-
-Definition join_ve_list vel1 vel2 := 
-fold_right
- (fun id lst => if in_dec (eq_dec) id vel2 then id::lst else lst)
- nil vel1.
-
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
 match tycon1 with  (te1, ve1, r, vl1)  =>
-match tycon2 with  (te2, ve2, _, vl2)  =>
-  ((join_te te1 te2), (join_ve ve1 ve2), r, join_ve_list vl1 vl2)
-end end.
-               
+match tycon2 with  (te2, _, _, _)  =>
+  ((join_te te1 te2), ve1, r, vl1)
+end end.               
 
 (*Strictly for updating the type context... no typechecking here*)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
@@ -716,18 +759,16 @@ end.*)
 
 (*Creates a typecontext from a function definition *)
 (* NOTE:  params start out initialized, temps do not! *)
-Definition func_tycontext (func: function) : tycontext :=
+
+
+Definition func_tycontext (func: function) (G: funspecs) : tycontext :=
 (fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
  (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
   (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
 fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
    (PTree.empty type) func.(fn_vars) ,
 fn_return func,
-(fold_right (fun (var : ident * type) vl => let (id,_) := var in id::vl) nil func.(fn_vars))).
-
-
-
-
+(fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) (PTree.empty _) G)).
 
 (** Type-checking of function parameters **)
 
@@ -829,28 +870,6 @@ Qed.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normalize.
 
 
-(* expr.v is not quite the right place for these next few definitions, but
-   we'll work that out later *)
-Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
-
-Instance EqDec_exitkind: EqDec exitkind.
-Proof.
-hnf. intros.
-decide equality.
-Qed.
-
-Inductive funspec :=
-   mk_funspec: funsig -> 
-           forall A: Type, (A -> environ -> pred rmap) -> (A -> environ -> pred rmap) 
-                 -> funspec.
-
-Definition funspecs := list (ident * funspec).
-
-Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig)  end.
-
-(* END expr.v is not quite the right place for these next few definitions *)
-
 Definition typecheck_store e1 := 
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
 (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).
@@ -887,8 +906,8 @@ match ls with
 | LScase int s ls2 => tc_andp (typecheck_all_exprs' s Delta) (typecheck_labeled_st_exprs Delta ls2) 
 end.
 
-Definition typecheck_all_exprs (func: function) : tc_assert :=
-typecheck_all_exprs' func.(fn_body) (func_tycontext func).
+Definition typecheck_all_exprs (func: function) (G: funspecs): tc_assert :=
+typecheck_all_exprs' func.(fn_body) (func_tycontext func G).
 
 Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 
