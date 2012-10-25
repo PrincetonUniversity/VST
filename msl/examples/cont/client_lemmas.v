@@ -78,25 +78,7 @@ Ltac forward_magic :=
        unfold v; clear v
   end.
 
-Ltac forward := 
- match goal with
- | |- semax _ _ _ (IfThenElse _ _ _) =>
-          apply semax_if; [ compute; reflexivity | | ]
- | |- semax _ _ _ (Assign (Mem _) _ _) => 
-            eapply semax_store; [ compute ; reflexivity | compute; reflexivity | reflexivity | ]
- | |- semax _ _ ?P (Go ?x ?ys) =>
-  apply semax_G;
-  let p := fresh "P" in 
-   evar (p: funspec);
-   eapply semax_pre with (fun s => cont p (eval x s) && call p (eval_list ys s));
-       [ intro; apply andp_right 
-       | apply semax_go; [ compute; reflexivity ] ]; unfold p; clear p;
-       [ try funassert_tac | call_tac  ]; simpl
- end.
-
 Hint Resolve now_later sepcon_derives.
-
-
 
 Definition semax_body (G: funspecs) (spec: funspec) (f: list var * control) :=
   semax (fst f) G (fun s => call spec (map s (fst f))) (snd f).
@@ -131,3 +113,26 @@ Proof.
  intros. apply andp_derives; auto. apply sepcon_derives; auto. apply andp_left2; auto.
  apply semax_load; auto.
 Qed.
+
+
+
+Ltac forward := 
+ match goal with
+ | |- semax _ _ _ (IfThenElse _ _ _) =>
+          apply semax_if; [ compute; reflexivity | | ]
+ | |- semax _ _ _ (Assign (Mem _) _ _) => 
+            (eapply semax_store || eapply semax_store_next);
+             [ compute ; reflexivity | compute; reflexivity | reflexivity | ]
+ | |- semax _ _ _ (Assign _ (Mem _) _) => 
+            (eapply semax_load || eapply semax_load_next);
+             [ compute ; reflexivity | ]
+ | |- semax _ _ ?P (Go ?x ?ys) =>
+  apply semax_G;
+  let p := fresh "P" in 
+   evar (p: funspec);
+   eapply semax_pre with (fun s => cont p (eval x s) && call p (eval_list ys s));
+       [ intro; apply andp_right 
+       | apply semax_go; [ compute; reflexivity ] ]; unfold p; clear p;
+       [ try funassert_tac | call_tac  ]; simpl
+ end.
+

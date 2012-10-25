@@ -319,7 +319,7 @@ Definition semax_body
        (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
-      semax (func_tycontext f) G
+      semax (func_tycontext f G) G
           ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
@@ -452,7 +452,8 @@ Axiom  semax_return :
 
 Axiom semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> environ -> mpred)
-              Delta (G : funspecs) P Q c (GLBL : In id (non_var_ids Delta)),
+              Delta (G : funspecs) P Q c  
+         (GLBL :  (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Delta G (P && lift1 (fun_assert fsig A P' Q') 
                                             (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig)))))

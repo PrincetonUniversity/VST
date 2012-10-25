@@ -755,7 +755,7 @@ remember (t2 ! i). destruct o.
   destruct p. specialize (H1 i _ b Heqo). simpl in *.
   rewrite eqb_type_eq in *. destruct H1 as [? [? ?]].
   rewrite H. if_tac in H0; simpl in *; try solve [inv H0].
-  destruct (type_eq t _); try solve [inv H0]. subst; auto.
+  destruct (type_eq t t4); try solve [inv H0]. subst; auto.
   if_tac in H0; inv H0.
 
 (*deref*)  
@@ -1379,6 +1379,24 @@ intros.
 destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
 simpl. unfold var_types. simpl. auto.
 Qed.
+
+
+Lemma var_types_update_tycon:
+  forall c Delta, var_types (update_tycon Delta c) = var_types Delta.
+Proof.
+assert (forall i Delta, var_types (initialized i Delta) = var_types Delta).
+intros; unfold initialized.
+destruct ((temp_types Delta)!i); auto. destruct p; auto. 
+induction c; intros; simpl; auto.
+destruct o; auto.
+rewrite IHc2; auto.
+rewrite var_types_update_dist. auto.
+admit. 
+Qed.
+ 
+Lemma glob_types_update_tycon:
+  forall c Delta, glob_types (update_tycon Delta c) = glob_types Delta.
+Admitted. 
 
 
 Lemma update_tycon_te_same : forall c Delta id t b,

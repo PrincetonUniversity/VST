@@ -186,7 +186,7 @@ Definition believe_internal_
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && ALL x : A, |> semax (SemaxArg  (func_tycontext f) G
+  && ALL x : A, |> semax (SemaxArg  (func_tycontext f G) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
                               f.(fn_body)  
@@ -225,7 +225,7 @@ Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && ALL x : A, |> semax' Hspec (func_tycontext f) G
+  && ALL x : A, |> semax' Hspec (func_tycontext f G) G
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert G rho)
                               f.(fn_body)  

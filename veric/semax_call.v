@@ -137,7 +137,9 @@ Qed.
 
 Lemma semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> assert)
-              Delta (G : funspecs) P Q c (GLBL : In id (non_var_ids Delta)),
+              Delta (G : funspecs) P Q c
+   (* (GLBL :  (glob_types Delta) ! id <> None) *)
+      (GLBL: (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
     In (id, mk_funspec fsig A P' Q') G ->
        semax Hspec Delta G (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
@@ -161,13 +163,19 @@ apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
 apply nec_nat; auto.
-hnf in H1.
+pose proof H1. unfold typecheck_environ in H9.
+apply andb_true_iff in H9. destruct H9 as [_ SAME].
 apply typecheck_environ_sound in H1.
-destruct H1 as [_ [_ ?]]. unfold tc_vl_denote in *.
-specialize (H1 _ GLBL). 
-(*
-pose proof (environ_ge_ve_disjoint _ _ H1 id).*)
-clear - H6 H8 H (*H9*) Hge H1.
+destruct H1 as [_ [_ H1]].
+destruct GLBL as [GL1 GL2].
+case_eq ((glob_types Delta)!id); intros; try congruence.
+clear GL2.
+rename H9 into GLBL.
+specialize (H1 _ _ GLBL).
+apply typecheck_mode_eqv in SAME.
+specialize (SAME _ _ GLBL).
+destruct SAME as [SAME | [t SAME]]; [ | congruence].
+clear - H6 H8 H SAME (*H9*) Hge H1.
 destruct H6 as [H6 H6'].
 specialize (H6 _ _  _(necR_refl _) H).
 destruct H6 as [v [loc [[? ?] ?]]].
@@ -184,17 +192,17 @@ unfold val2adr in H2.
 rewrite Int.signed_zero in H2.
 subst loc.
 spec H8. exists id. split; auto. exists b; auto.
+simpl in SAME.
 exists b.
 split.
-hnf.
 unfold eval_lvalue, eval_var.
-rewrite <- Hge. simpl ve_of.
-rewrite H1.
-unfold filter_genv.
-rewrite H0.
+simpl ve_of. unfold Map.get. rewrite SAME.
+rewrite <- Hge.
+destruct H1 as [b' [i' [? ?]]].
 destruct fsig. simpl @fst; simpl @snd.
+unfold filter_genv. rewrite H0.
 destruct (type_of_global psi b); inv H6; auto.
-rewrite eqb_type_refl. auto.
+rewrite eqb_type_refl. hnf; auto.
 intro loc.
 hnf.
 if_tac; auto.

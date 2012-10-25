@@ -414,7 +414,7 @@ Qed.
 
 Lemma semax_fun_id':
       forall id fsig (A : Type) (Pre Post : A -> assert)
-              Delta (G : funspecs) P Q R PostCond c (GLBL : In id (non_var_ids Delta)),
+              Delta (G : funspecs) P Q R PostCond c (GLBL :  (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
     In (id, mk_funspec fsig A Pre Post) G ->
        semax Delta G 
         (PROPx P (LOCALx Q (SEPx (lift1 (fun_assert_emp fsig A Pre Post)

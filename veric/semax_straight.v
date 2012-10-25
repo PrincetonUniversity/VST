@@ -174,12 +174,13 @@ assert (env_set
   unfold eval_id; simpl.
   rewrite Map.override.
   rewrite Map.override_same. subst; auto.
+  rewrite Hge in TC'.
   apply typecheck_environ_sound in TC'.  
   destruct TC' as [TC' _]. unfold tc_te_denote in *.
   simpl in TC2. unfold typecheck_temp_id in *. remember ((temp_types Delta) ! id).
   destruct o; [ | congruence]. symmetry in Heqo. destruct p.
   specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. rewrite H4. simpl.
-  subst; auto. (* need environment extensionality *)
+  f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
 apply andp_right.
 intros ? _. simpl.
 unfold subst.
@@ -364,8 +365,9 @@ remember ((temp_types Delta) ! id). destruct o ; [ | congruence]. destruct p.
 unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [[TC' _] _].
 rewrite typecheck_te_eqv in TC'. unfold tc_te_denote in TC'.
 symmetry in Heqo.
+destruct TC' as [TC' TC''].
 specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. rewrite H4. simpl.
-rewrite Map.override_same; subst; auto.  (* Requires environment extensionality *)
+rewrite Map.override_same; subst; auto.
 unfold subst.
 rewrite H4.
 apply andp_right; auto.

@@ -52,20 +52,18 @@ Lemma prove_START: semax_body myspec STARTspec STARTbody.
  eapply semax_pre; [intro ; call_tac; apply derives_refl |  simpl ].
  rewrite' alloc.
  apply semax_prop; auto; intros _.
- eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
+ forward.
  rewrite' alloc. rewrite' @sepcon_comm.  rewrite' @sepcon_assoc.
- simpl.
- eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
+ forward.
  rewrite' alloc. rewrite' @sepcon_comm. do 2  rewrite' @sepcon_assoc.
- eapply semax_store_next; [ compute ; reflexivity | compute; reflexivity | reflexivity | ].
+ forward.
  forward.
  rewrite lseg_eq. normalize.
  apply andp_derives;  [ | apply funassert_e; reflexivity].
  rewrite (sepcon_comm (allocpool _)). repeat rewrite <- sepcon_assoc.
  rewrite (sepcon_comm (next (S (S (s0 a))) _)).
  apply sepcon_derives; auto.
- repeat rewrite sepcon_assoc.
- rewrite (next_gt_0 (s0 a)).
+ repeat rewrite sepcon_assoc. rewrite (next_gt_0 (s0 a)).
  normalize.
  eapply derives_trans;  [ |  eapply lseg_cons; try omega].
  eapply sepcon_derives; [ apply derives_refl |].

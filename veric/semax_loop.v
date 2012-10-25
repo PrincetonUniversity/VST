@@ -25,7 +25,6 @@ Open Local Scope nat_scope.
 Section extensions.
 Context {Z} (Hspec : juicy_ext_spec Z).
 
-
 Lemma semax_ifthenelse : 
    forall Delta G P (b: expr) c d R,
       bool_type (typeof b) = true ->
@@ -51,6 +50,8 @@ apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join1; auto.
+repeat rewrite var_types_update_tycon. auto.
+repeat rewrite glob_types_update_tycon. auto.
 assert (H3else: app_pred
        (rguard Hspec psi (exit_tycon d Delta) G F R k) w).
 clear - H3.
@@ -60,6 +61,8 @@ apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join2; auto.
+repeat rewrite var_types_update_tycon. auto.
+repeat rewrite glob_types_update_tycon. auto.
 specialize (H0 H3then).
 specialize (H1 H3else).
 clear Prog_OK H3 H3then H3else.
