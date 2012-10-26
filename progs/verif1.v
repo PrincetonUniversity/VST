@@ -210,6 +210,20 @@ normalizex. intro r.
 normalizex. intro y.
 normalizex. subst cts.
 simpl list_data; simpl list_link.
+(*
+match goal with
+ | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                  (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
+  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+   [ go_lower 
+   |isolate_field_tac e fld R (*;  hoist_later_in_pre;
+     eapply semax_seq; [ apply sequential'; semax_field_tac1  
+                                          | simpl update_tycon; apply extract_exists_pre
+                                          ]
+*)
+    ]
+end.
+*)
 forward.
 forward.  intro old_t.
 forward.
@@ -261,12 +275,6 @@ forward_while (reverse_Inv contents)
 unfold reverse_Inv.
 go_lower.
 apply exp_right with nil.
-(*
-Lemma lower_exp:
- forall A (P: A -> assert) rho, @exp assert Nassert A P rho = @exp mpred 
-
- simpl.
-*)
 apply exp_right with contents.
 normalize.
 rewrite H0. rewrite H1.
@@ -360,9 +368,9 @@ Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite get_result_unfold get_result_None : normalize.
 
-Lemma semax_call': forall Delta G A (Pre Post: A -> assert) (x: A) ret fsig a bl P Q R,
+Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret fsig a bl P Q R,
            match_fsig fsig bl ret = true ->
-  semax Delta G
+  semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
             (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
                       lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
@@ -374,7 +382,7 @@ Lemma semax_call': forall Delta G A (Pre Post: A -> assert) (x: A) ret fsig a bl
 Proof.
 intros.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta G A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H )].
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H )].
 go_lower.
 unfold fun_assert_emp.
 repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
@@ -396,9 +404,9 @@ repeat rewrite list_map_identity.
 normalize.
 Qed.
 
-Lemma semax_call1: forall Delta G A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
+Lemma semax_call1: forall Delta A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
            match_fsig fsig bl (Some id) = true ->
-  semax Delta G
+  semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
             (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
                       lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
@@ -414,17 +422,18 @@ Qed.
 
 Lemma semax_fun_id':
       forall id fsig (A : Type) (Pre Post : A -> assert)
-              Delta (G : funspecs) P Q R PostCond c (GLBL :  (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
-    In (id, mk_funspec fsig A Pre Post) G ->
-       semax Delta G 
+              Delta P Q R PostCond c
+            (GLBL: (var_types Delta) ! id = None),
+            (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+       semax Delta 
         (PROPx P (LOCALx Q (SEPx (lift1 (fun_assert_emp fsig A Pre Post)
-                                                     (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))))
+                         (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))))
                                                        :: R))))
                               c PostCond ->
-       semax Delta G (PROPx P (LOCALx Q (SEPx R))) c PostCond.
+       semax Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
 Proof.
 intros. 
-apply (semax_fun_id id fsig A Pre Post Delta G); auto.
+apply (semax_fun_id id fsig A Pre Post Delta); auto.
 eapply semax_pre; [ | apply H0].
 forget (eval_lvalue
                       (Evar id
@@ -439,17 +448,9 @@ Qed.
 
 Ltac in_tac1 :=  ((left; reflexivity) || (right; in_tac1)).
 
-Ltac semax_call_id_tac :=
-  match goal with
-   | |- semax _ _ _ (Scall _ (Eaddrof (Evar ?fid _) _) _) _ =>  
-         eapply (semax_fun_id' fid) ; [ | in_tac1 | ]
-   | |- semax _ _ _ (Ssequence (Scall _ (Eaddrof (Evar ?fid _) _) _) _) _ =>  
-         eapply (semax_fun_id' fid) ; [ | in_tac1 | ]
-  end.
-
 Ltac semax_call_tac1 :=
 match goal with 
- |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx 
+ |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx 
           (lift1 (fun_assert_emp ?fs ?A ?Pre ?Post) ?f :: ?R))))
         (Ssequence (Scall (Some ?id) ?a ?bl) _)
         _ =>
@@ -468,6 +469,14 @@ match goal with
  end.
 
 
+Ltac semax_call_id_tac :=
+  match goal with
+   | |- semax _ _ (Scall _ (Eaddrof (Evar ?fid _) _) _) _ =>  
+         eapply (semax_fun_id' fid) ; [ simpl; reflexivity | simpl; reflexivity | ]
+   | |- semax _ _ (Ssequence (Scall _ (Eaddrof (Evar ?fid _) _) _) _) _ =>  
+         eapply (semax_fun_id' fid) ; [ simpl; reflexivity | simpl; reflexivity | ]
+  end.
+
 Lemma body_main:  semax_body Gprog P.f_main main_spec.
 Proof.
 intro u.
@@ -479,24 +488,18 @@ simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
 canonicalize_pre.
 semax_call_id_tac.
-simpl.
-admit. (* there's a problem here *)
-semax_call_tac1. unfold Pre,x,F.
+semax_call_tac1.
+go_lower. 
+unfold Pre,x,F.
 instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
 instantiate (1:=nil).
-go_lower.
+normalize.
 go_lower.
 repeat apply andp_right; try apply prop_right.
-split.
-admit.  (* can't find i_reverse in func_tycontext *)
-hnf; auto.
-split3; hnf; auto.
-split.
+repeat split; simpl; hnf; auto.
 admit.  (* can't find i_three in func_tycontext *)
-hnf; auto.
 unfold Pre. clear Pre.
-unfold SEPx, fold_right.
-repeat rewrite sepcon_emp; rewrite sepcon_comm.
+rewrite sepcon_comm.
 apply sepcon_derives; auto.
 normalize.
 eapply semax_seq; [ apply sequential' ; apply semax_call'| ].
@@ -505,8 +508,6 @@ apply extract_exists_pre; normalize.
 clear Pre. unfold x; clear x.
 
 semax_call_id_tac.
-simpl.
-admit. (* there's a problem here *)
 semax_call_tac1.
 unfold x; unfold F; apply sepcon_derives.
 instantiate (1:= Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
@@ -518,8 +519,6 @@ apply andp_right; normalize.
 simpl; normalize.
 apply andp_right.
 intro rho; apply prop_right.
-simpl. split3; simpl.
-admit.  (* can't find i_sumlist in func_tycontext *)
 repeat split; hnf; auto.
 normalize.
 unfold Pre, x.

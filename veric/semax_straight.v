@@ -25,7 +25,7 @@ Section extensions.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
 Lemma semax_straight_simple:
- forall Delta G (B: assert) P c Q,
+ forall Delta (B: assert) P c Q,
   (forall rho, boxy extendM (B rho)) ->
   (forall jm jm1 ge ve te rho k F, 
               app_pred (B rho) (m_phi jm) ->
@@ -33,15 +33,15 @@ Lemma semax_straight_simple:
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
-              ((F rho * |>P rho) && funassert G rho) (m_phi jm) ->
+              ((F rho * |>P rho) && funassert Delta rho) (m_phi jm) ->
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
                 typecheck_environ rho' (update_tycon Delta c) = true /\
                 jstep cl_core_sem ge (State ve te (Kseq c :: k)) jm 
                                  (State ve te' k) jm' /\
-              ((F rho' * Q rho') && funassert G rho) (m_phi jm')) ->
-  semax Hspec Delta G (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
+              ((F rho' * Q rho') && funassert Delta rho) (m_phi jm')) ->
+  semax Hspec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold. 
@@ -82,6 +82,8 @@ unfold normal_ret_assert.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 auto.
+replace (funassert (exit_tycon c Delta EK_normal)) with (funassert Delta); auto.
+apply same_glob_funassert; simpl; auto. rewrite glob_types_update_tycon; auto.
 subst rho'. 
 hnf in Hsafe.
 change R.rmap with rmap in *.
@@ -93,8 +95,8 @@ Qed.
  
 
 Lemma semax_set_forward : 
-forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    semax Hspec Delta G 
+forall (Delta: tycontext) (P: assert) id e,
+    semax Hspec Delta 
         (fun rho => 
           |> (!!(typecheck_temp_id id (typeof e) Delta = true) &&
                 tc_expr Delta e rho  && P rho))
@@ -192,8 +194,8 @@ auto.
 Qed.
 
 Lemma semax_set : 
-forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    semax Hspec Delta G 
+forall (Delta: tycontext) (P: assert) id e,
+    semax Hspec Delta 
         (fun rho => 
           |> (!!(typecheck_temp_id id (typeof e) Delta = true) &&
                 tc_expr Delta e rho  && 
@@ -272,8 +274,8 @@ apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
 
 Lemma semax_load : 
-forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    semax Hspec Delta G 
+forall (Delta: tycontext) sh id P e1 v2,
+    semax Hspec Delta 
        (fun rho => |>
         (!!(typecheck_temp_id id (typeof e1) Delta = true) && tc_lvalue Delta e1 rho  && 
           (mapsto' sh e1 v2 rho * P rho)))
@@ -505,9 +507,9 @@ match goal with
 end.
 
 Lemma semax_store:
- forall Delta G e1 e2 v3 rsh P 
+ forall Delta e1 e2 v3 rsh P 
    (TC: typecheck_store e1),
-   semax Hspec Delta G 
+   semax Hspec Delta 
           (fun rho =>
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
              (mapsto' (Share.splice rsh Share.top) e1 v3 rho * P rho)))

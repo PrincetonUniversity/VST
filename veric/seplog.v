@@ -190,16 +190,17 @@ Definition bind_ret (vl: list val) (t: type) (Q: assert) : assert :=
      | _, _ => fun rho => FF
      end.
 
-Definition funassert (G: funspecs) : assert := 
+Definition funassert (Delta: tycontext): assert := 
  fun rho => 
-   (ALL  id: ident, ALL fs:funspec,  !! In (id,fs) G -->
+   (ALL  id: ident, ALL fs:funspec,  !! ((glob_types Delta)!id = Some (Global_func fs)) -->
               EX v:val, EX loc:address, 
                    !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) && func_at fs loc)
    && 
    (ALL  loc: address, ALL fs:funspec, func_at fs loc --> 
              EX id:ident,EX v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) && !! In id (map (@fst _ _) G)).
+                                 /\ val2adr v loc) 
+               && !! exists fs, (glob_types Delta)!id = Some (Global_func fs)).
 
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,
   because the converse of 'mapsto_core_load' lemma is not true.  The reason is

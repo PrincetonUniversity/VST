@@ -297,14 +297,14 @@ Local Open Scope pred.
 
 Declare Module ExtSpec: EXTERNAL_SPEC.
 
-Parameter semax:  tycontext -> funspecs -> assert -> statement -> ret_assert -> Prop.
+Parameter semax:  tycontext -> assert -> statement -> ret_assert -> Prop.
 
 (***************** SEMAX_LEMMAS ****************)
 
 Axiom extract_exists:
-  forall (A : Type)  (P : A -> assert) c (Delta: tycontext) G (R: A -> ret_assert),
-  (forall x, semax Delta G (P x) c (R x)) ->
-   semax Delta G (EX x:A, P x) c (existential_ret_assert R).
+  forall (A : Type)  (P : A -> assert) c (Delta: tycontext) (R: A -> ret_assert),
+  (forall x, semax Delta (P x) c (R x)) ->
+   semax Delta (EX x:A, P x) c (existential_ret_assert R).
 
 (************** INITIAL WORLD *****************)
 
@@ -319,7 +319,7 @@ Definition semax_body
        (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
-      semax (func_tycontext f G) G
+      semax (func_tycontext f G)
           ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
@@ -396,47 +396,47 @@ Definition bool_type (t: type) : bool :=
   end.
 
 Axiom semax_ifthenelse : 
-   forall Delta G P (b: expr) c d R,
+   forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Delta G (P && local (lift1 (typed_true (typeof b)) (eval_expr b))) c R -> 
-     semax Delta G (P && local (lift1 (typed_false (typeof b)) (eval_expr b))) d R -> 
-     semax Delta G (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
+     semax Delta (P && local (lift1 (typed_true (typeof b)) (eval_expr b))) c R -> 
+     semax Delta (P && local (lift1 (typed_false (typeof b)) (eval_expr b))) d R -> 
+     semax Delta (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
-forall Delta G R P Q h t, 
-    semax Delta G P h (overridePost Q R) -> 
-    semax (update_tycon Delta h) G Q t R -> 
-    semax Delta G P (Ssequence h t) R.
+forall Delta R P Q h t, 
+    semax Delta P h (overridePost Q R) -> 
+    semax (update_tycon Delta h) Q t R -> 
+    semax Delta P (Ssequence h t) R.
 
 Axiom seq_assoc:  
-   forall Delta G P s1 s2 s3 R,
-        semax Delta G P (Ssequence s1 (Ssequence s2 s3)) R <->
-        semax Delta G P (Ssequence (Ssequence s1 s2) s3) R.
+   forall Delta P s1 s2 s3 R,
+        semax Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
+        semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
 
 Axiom semax_for : 
-forall Delta G Q Q' test incr body R
+forall Delta Q Q' test incr body R
      (TC: Q  |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
      (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
-     semax Delta G (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
-     semax Delta G Q' incr (for2_ret_assert Q R) ->
-     semax Delta G Q (Sfor' test incr body) R.
+     semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
+     semax Delta Q' incr (for2_ret_assert Q R) ->
+     semax Delta Q (Sfor' test incr body) R.
 
 Axiom semax_while : 
-forall Delta G Q test body R
+forall Delta Q test body R
      (TC: Q |-- local (tc_expr Delta test))
      (BT: bool_type (typeof test) = true) 
      (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
-     semax Delta G (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
-     semax Delta G Q (Swhile test body) R.
+     semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
+     semax Delta Q (Swhile test body) R.
 
 (* THESE RULES FROM semax_call *)
 
 Axiom semax_call : 
-    forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret fsig a bl,
            match_fsig fsig bl ret = true ->
-  semax Delta G
-         (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
+  semax Delta
+          (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
           (F * fun rho => P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))))
          (Scall ret a bl)
@@ -444,43 +444,43 @@ Axiom semax_call :
           (EX old:val, substopt ret (lift0 old) F * lift1 (Q x) (get_result ret))).
 
 Axiom  semax_return :
-   forall Delta G R ret ,
-      semax Delta G 
+   forall Delta R ret ,
+      semax Delta  
                 (lift2 (R EK_return) (eval_exprlist (opt2list ret)) id)
                 (Sreturn ret)
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> environ -> mpred)
-              Delta (G : funspecs) P Q c  
-         (GLBL :  (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
-    In (id, mk_funspec fsig A P' Q') G ->
-       semax Delta G (P && lift1 (fun_assert fsig A P' Q') 
-                                            (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig)))))
+      forall id fsig (A : Type) (P' Q' : A -> assert)
+              Delta P Q c
+      (GLBL: (var_types Delta) ! id = None),
+    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
+       semax Delta (fun rho => P rho 
+                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
                               c Q ->
-       semax Delta G P c Q.
+       semax Delta P c Q.
 
 Axiom semax_call_ext:
-     forall Delta G P Q ret a bl a' bl',
+     forall Delta P Q ret a bl a' bl',
       typeof a = typeof a' ->
        local (tc_environ Delta) && P |-- 
                   local (lift2 eq (eval_expr a) (eval_expr a')) &&
                   local (lift2 eq (eval_exprlist bl) (eval_exprlist bl')) ->
-  semax Delta G P (Scall ret a bl) Q ->
-  semax Delta G P (Scall ret a' bl') Q.
+  semax Delta P (Scall ret a bl) Q ->
+  semax Delta P (Scall ret a' bl') Q.
 
 (* THESE RULES FROM semax_straight *)
 
 Axiom semax_set : 
-forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    semax Delta G 
+forall (Delta: tycontext) (P: assert) id e,
+    semax Delta 
         (|> (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && 
             subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_set_forward : 
-forall (Delta: tycontext) (G: funspecs) (P: assert) id e,
-    semax Delta G 
+forall (Delta: tycontext) (P: assert) id e,
+    semax Delta 
         (|> (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && P))
           (Sset id e) 
         (normal_ret_assert 
@@ -491,8 +491,8 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Axiom semax_load : 
-forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
-    semax Delta G 
+forall (Delta: tycontext) sh id P e1 v2,
+    semax Delta 
        (|> (local (tc_temp Delta id (typeof e1))  && local (tc_lvalue Delta e1)  && 
             (mapsto' sh e1 v2 * P)))
        (Sset id e1)
@@ -500,10 +500,9 @@ forall (Delta: tycontext) (G: funspecs) sh id P e1 v2,
                                           (subst id (lift0 old) (mapsto' sh e1 v2 * P)))).
 
 Axiom semax_store:
- forall Delta G e1 e2 v3 rsh P 
+ forall Delta e1 e2 v3 rsh P 
    (TC: typecheck_store e1), 
-    
-   semax Delta G 
+   semax Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
              (mapsto' (Share.splice rsh Share.top) e1 v3 * P)))
           (Sassign e1 e2) 
@@ -512,7 +511,7 @@ Axiom semax_store:
 (* THESE RULES FROM semax_lemmas *)
 
 Axiom semax_Sskip:
-   forall Delta G P, semax Delta G P Sskip (normal_ret_assert P).
+   forall Delta P, semax Delta P Sskip (normal_ret_assert P).
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
   match ek with 
@@ -521,30 +520,30 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
   end.
 
 Axiom semax_pre_post:
- forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
+ forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
     (local (tc_environ Delta) && P |-- P') ->
    (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
-   semax Delta G P' c R' -> semax Delta G P c R.
+   semax Delta P' c R' -> semax Delta P c R.
 
 (**************** END OF stuff from semax_rules ***********)
 
-Axiom frame_left:  forall Delta G P s R F,
+Axiom frame_left:  forall Delta P s R F,
    closed_wrt_modvars s F ->
-  semax Delta G P s R ->
-    semax Delta G (P * F) s (frame_ret_assert R F).
+  semax Delta P s R ->
+    semax Delta (P * F) s (frame_ret_assert R F).
 
 Axiom derives_skip:
-  forall p Delta G (R: ret_assert),
+  forall p Delta (R: ret_assert),
       (p |-- R EK_normal nil) -> 
-        semax Delta G p Sskip R.
+        semax Delta p Sskip R.
 
 Axiom semax_ff:
-  forall Delta G c R,  
-   semax Delta G FF c R.
+  forall Delta c R,  
+   semax Delta FF c R.
 
 Axiom semax_extract_prop:
-  forall Delta G (PP: Prop) P c Q, 
-           (PP -> semax Delta G P c Q) -> 
-           semax Delta G (!!PP && P) c Q.
+  forall Delta (PP: Prop) P c Q, 
+           (PP -> semax Delta P c Q) -> 
+           semax Delta (!!PP && P) c Q.
 
 End CLIGHT_SEPARATION_LOGIC.

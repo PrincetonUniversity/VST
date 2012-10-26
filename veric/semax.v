@@ -70,10 +70,11 @@ Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
  end.   
 
 Definition guard  {Z} (Hspec : juicy_ext_spec Z)
-    (gx: genv) (Delta: tycontext) (G: funspecs) (P : assert)  (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
-          !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho) && P rho && funassert G rho 
+          !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho)
+                  && P rho && funassert Delta rho 
              >=> assert_safe Hspec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
@@ -105,16 +106,15 @@ match vl, id with
 end.
 
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
-    (gx: genv) (Delta: exitkind -> tycontext) (G: funspecs) (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: exitkind -> tycontext)  (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: list val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! (typecheck_environ rho (Delta ek) = true /\ filter_genv gx = ge_of rho ) && 
-         ((F rho * R ek vl rho) && funassert G rho) >=> 
+         ((F rho * R ek vl rho) && funassert (Delta ek) rho) >=> 
                assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
- sa_G: funspecs;
  sa_P: assert;
  sa_c: statement;
  sa_R: ret_assert
@@ -178,75 +178,84 @@ Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (f
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
+Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
+(fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
+ (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
+  (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
+fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
+   (PTree.empty type) func.(fn_vars) ,
+fn_return func,
+ glob_types Delta).
+
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && ALL x : A, |> semax (SemaxArg  (func_tycontext f G) G
+  && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
-                                             && funassert G rho)
+                                             && funassert (func_tycontext' f Delta) rho)
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
-Definition claims (ge: genv) (G: funspecs) v fsig A P Q : Prop :=
-  exists id, In (id, mk_funspec fsig A P Q) G /\
+Definition claims (ge: genv) (Delta: tycontext) v fsig A P Q : Prop :=
+  exists id, (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q)) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
 Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred nat)
-              (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
+              (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
-       !! claims gx G' v fsig A P Q  -->
+       !! claims gx Delta' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
-        || believe_internal_ semax gx G v fsig A P Q).
+        || believe_internal_ semax gx Delta v fsig A P Q).
 
 Definition semax_  {Z} (Hspec: juicy_ext_spec Z)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
- match a with SemaxArg Delta G P c R =>
-  ALL gx: genv, (believepred Hspec semax G gx G) --> 
+ match a with SemaxArg Delta P c R =>
+  ALL gx: genv, (believepred Hspec semax Delta gx Delta) --> 
      ALL k: cont, ALL F: assert, 
-       (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) G F R k) -->
-        guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k)
+       (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) F R k) -->
+        guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
-Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta G P c R : pred nat := 
-     HORec (semax_  Hspec) (SemaxArg Delta G P c R).
+Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta P c R : pred nat := 
+     HORec (semax_  Hspec) (SemaxArg Delta P c R).
 
 Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
-  (gx: genv) (G:funspecs) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && ALL x : A, |> semax' Hspec (func_tycontext f G) G
+  && ALL x : A, |> semax' Hspec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
-                                             && funassert G rho)
+                                             && funassert (func_tycontext' f Delta) rho)
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
 
 Definition believe {Z} (Hspec:juicy_ext_spec Z)
-              (G: funspecs) (gx: genv) (G': funspecs) : pred nat :=
+              (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
-       !! claims gx G' v fsig A P Q  -->
+       !! claims gx Delta' v fsig A P Q  -->
       (believe_external Hspec gx v fsig A P Q
-        || believe_internal Hspec gx G v fsig A P Q).
+        || believe_internal Hspec gx Delta v fsig A P Q).
 
 Lemma semax_fold_unfold : forall
   {Z} (Hspec : juicy_ext_spec Z),
-  semax' Hspec = fun Delta G P c R =>
+  semax' Hspec = fun Delta P c R =>
   ALL gx: genv,
-       believe Hspec G gx G --> 
+       believe Hspec Delta gx Delta --> 
      ALL k: cont, ALL F: assert, 
-        (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) G F R k) -->
-        guard Hspec gx Delta G (fun rho => F rho * P rho) (Kseq c :: k).
+        (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) F R k) -->
+        guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.
 extensionality G P. extensionality c R.
@@ -274,5 +283,5 @@ Qed.
 
 Opaque semax'.
 
-Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) G P c Q :=
-  forall n, semax' Hspec Delta G P c Q n.
+Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) P c Q :=
+  forall n, semax' Hspec Delta P c Q n.

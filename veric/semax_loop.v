@@ -25,12 +25,21 @@ Open Local Scope nat_scope.
 Section extensions.
 Context {Z} (Hspec : juicy_ext_spec Z).
 
+Lemma funassert_exit_tycon: forall c Delta ek,
+     funassert (exit_tycon c Delta ek) = funassert Delta.
+Proof.
+intros.
+apply same_glob_funassert.
+destruct ek; simpl; auto.
+apply glob_types_update_tycon.
+Qed.
+
 Lemma semax_ifthenelse : 
-   forall Delta G P (b: expr) c d R,
+   forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Hspec Delta G (fun rho => P rho && !! expr_true b rho) c R -> 
-     semax Hspec Delta G (fun rho => P rho && !! expr_false b rho) d R -> 
-     semax Hspec Delta G 
+     semax Hspec Delta (fun rho => P rho && !! expr_true b rho) c R -> 
+     semax Hspec Delta (fun rho => P rho && !! expr_false b rho) d R -> 
+     semax Hspec Delta 
               (fun rho => tc_expr Delta b rho && P rho)
               (Sifthenelse b c d) R.
 Proof.
@@ -40,29 +49,33 @@ intros.
 specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
 spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition. left; left; auto.
-spec H1. intros i te' ?.  apply H2; simpl; auto; intros i0; destruct (H4 i0); intuition. left; right; auto.
+spec H1. intros i te' ?.  apply H2; simpl; auto.
+ clear - H4; intros i0; destruct (H4 i0); intuition. left; right; auto.
 assert (H3then: app_pred
-       (rguard Hspec psi (exit_tycon c Delta)  G F R k) w).
+       (rguard Hspec psi (exit_tycon c Delta)  F R k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
-eapply subp_trans'; try apply H3.
+cbv beta in H3.
+eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join1; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
+repeat rewrite funassert_exit_tycon in *; auto.
 assert (H3else: app_pred
-       (rguard Hspec psi (exit_tycon d Delta) G F R k) w).
+       (rguard Hspec psi (exit_tycon d Delta) F R k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
-eapply subp_trans'; try apply H3.
+eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join2; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
+repeat rewrite funassert_exit_tycon in *; auto.
 specialize (H0 H3then).
 specialize (H1 H3else).
 clear Prog_OK H3 H3then H3else.
@@ -138,9 +151,9 @@ apply H9.
 Qed.
 
 Lemma seq_assoc1:  
-   forall Delta G P s1 s2 s3 R,
-        semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R ->
-        semax Hspec Delta G P (Ssequence (Ssequence s1 s2) s3) R.
+   forall Delta P s1 s2 s3 R,
+        semax Hspec Delta P (Ssequence s1 (Ssequence s2 s3)) R ->
+        semax Hspec Delta P (Ssequence (Ssequence s1 s2) s3) R.
 Proof.
 rewrite semax_unfold; intros.
 intros.
@@ -181,9 +194,9 @@ constructor; constructor; auto.
 Qed.
 
 Lemma seq_assoc2:  
-   forall Delta G P s1 s2 s3 R,
-        semax Hspec Delta G P (Ssequence (Ssequence s1 s2) s3) R ->
-        semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R.
+   forall Delta P s1 s2 s3 R,
+        semax Hspec Delta P (Ssequence (Ssequence s1 s2) s3) R ->
+        semax Hspec Delta P (Ssequence s1 (Ssequence s2 s3)) R.
 Proof.
 rewrite semax_unfold; intros.
 intros.
@@ -227,9 +240,9 @@ constructor. auto.
 Qed. 
 
 Lemma seq_assoc:  
-   forall Delta G P s1 s2 s3 R,
-        semax Hspec Delta G P (Ssequence s1 (Ssequence s2 s3)) R <->
-        semax Hspec Delta G P (Ssequence (Ssequence s1 s2) s3) R.
+   forall Delta P s1 s2 s3 R,
+        semax Hspec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
+        semax Hspec Delta P (Ssequence (Ssequence s1 s2) s3) R.
 Proof.
 intros.
 split; intro.
@@ -237,20 +250,40 @@ apply seq_assoc1; auto.
 apply seq_assoc2; auto.
 Qed.
 
+Lemma funassert_update_tycon:
+  forall Delta h, funassert (update_tycon Delta h) = funassert Delta.
+intros; apply same_glob_funassert. rewrite glob_types_update_tycon. auto.
+Qed.
 
 Lemma semax_seq:
-forall Delta G (R: ret_assert) P Q h t, 
-    semax Hspec Delta G P h (overridePost Q R) -> 
-    semax Hspec (update_tycon Delta h) G Q t R -> 
-    semax Hspec Delta G P (Clight.Ssequence h t) R.
+forall Delta (R: ret_assert) P Q h t, 
+    semax Hspec Delta P h (overridePost Q R) -> 
+    semax Hspec (update_tycon Delta h) Q t R -> 
+    semax Hspec Delta P (Clight.Ssequence h t) R.
 Proof.
 intros.
 rewrite semax_unfold in H,H0|-*.
 intros.
 specialize (H psi w Prog_OK).
-specialize (H0 psi w Prog_OK).
-clear Prog_OK.
-assert ((guard Hspec psi Delta G (fun rho : environ => F rho * P rho)%pred
+specialize (H0 psi w).
+spec H0.
+clear - Prog_OK.
+unfold believe in *.
+unfold believe_internal in *.
+intros v fsig A P Q; specialize (Prog_OK v fsig A P Q).
+intros ? ? ?. specialize (Prog_OK a' H).
+spec Prog_OK.
+destruct H0 as [id [? ?]]. exists id; split; auto.
+rewrite glob_types_update_tycon in H0. auto.
+destruct Prog_OK; [ left; auto | right].
+destruct H1 as [b [f ?]]; exists b,f.
+destruct H1; split; auto.
+intro x; specialize (H2 x).
+replace (func_tycontext' f (update_tycon Delta h)) with (func_tycontext' f Delta); auto.
+unfold func_tycontext'.
+f_equal; try reflexivity. apply eq_refl.
+rewrite glob_types_update_tycon; auto.
+assert ((guard Hspec psi Delta (fun rho : environ => F rho * P rho)%pred
    (Kseq h :: Kseq t :: k)) w).
 Focus 2.
    eapply guard_safe_adj; try apply H3;
@@ -275,49 +308,56 @@ rewrite <- andp_assoc.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
   (!!(typecheck_environ rho (update_tycon Delta h) = true /\ filter_genv psi = ge_of rho) &&
-   (F rho * (Q rho)) && funassert G rho >=>
+   (F rho * (Q rho)) && funassert Delta rho >=>
    assert_safe Hspec psi vx tx (Kseq t :: k) rho) w).
 subst.
-apply H0; auto.
+specialize (H0 k F).
+spec H0.
+clear - H1;
 repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H i); intuition.
-
+spec H0.
 clear - H2.
 intros ek vl te ve; specialize (H2 ek vl te ve).
-eapply subp_trans'; try apply H2.
+eapply subp_trans'; [ | apply H2].
 apply derives_subp. apply andp_derives; auto.
 simpl.
 intros ? [? ?].
 split; auto.
 clear - H.
 destruct ek; simpl in *; auto; try solve [eapply typecheck_environ_update; eauto].
-eapply subp_trans'; try apply H.
+cbv beta in H2.
+repeat rewrite funassert_exit_tycon. 
+rewrite funassert_update_tycon; auto.
+specialize (H0 tx vx). cbv beta in H0.
+rewrite funassert_update_tycon in H0.
+apply H0.
+eapply subp_trans'; [ | apply H].
 apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
 normalize.
+rewrite funassert_exit_tycon; auto.
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
   by (destruct ek; simpl; congruence).
 unfold rguard in H2.
 specialize (H2 ek vl tx vx).
 replace (exit_tycon h Delta ek) with Delta.
-eapply subp_trans'; try apply H2.
+eapply subp_trans'; [ | apply H2].
 apply derives_subp.
 apply andp_derives; auto.
-replace (exit_tycon (Ssequence h t) Delta ek) with Delta.
-auto.
+replace (exit_tycon (Ssequence h t) Delta ek) with Delta; auto.
+destruct ek; try congruence; auto.
 destruct ek; try congruence; auto.
 destruct ek; try congruence; auto.
 Qed.
 
-
-
 Lemma semax_for : 
-forall Delta G Q Q' test incr body R
+forall Delta Q Q' test incr body R
      (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) (*Is used, probably needed*)
      (POST: forall rho,  !! expr_false (test) rho && Q rho |-- R EK_normal nil rho),
-     semax Hspec Delta G 
+     semax Hspec Delta
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
-     semax Hspec Delta G Q' incr (for2_ret_assert Q R) ->
-     semax Hspec Delta G Q (Sfor' test incr body) R.
+     semax Hspec Delta Q' incr (for2_ret_assert Q R) ->
+     semax Hspec Delta Q (Sfor' test incr body) R.
 Proof.
 intros.
 rewrite semax_unfold.
@@ -342,7 +382,7 @@ assert (LT: level a2 < level w).
   change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
   apply nec_nat in H5. omega.
 destruct H6 as [H6 Hge].
-assert (Prog_OK2: (believe Hspec G psi G) (level a2)) 
+assert (Prog_OK2: (believe Hspec Delta psi Delta) (level a2)) 
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
@@ -401,6 +441,7 @@ repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
  eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
  apply derives_subp.
 rewrite andp_assoc.
+rewrite funassert_update_tycon; 
 apply andp_derives; auto.
 intros ? [? ?]; split; auto.
 eapply typecheck_environ_update; eauto.
@@ -418,6 +459,7 @@ intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
 eapply subp_trans'; try apply H0.
 apply derives_subp.
 rewrite andp_assoc.
+rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
 intros ? [? ?]; split; auto.
@@ -449,6 +491,7 @@ intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
 eapply subp_trans'; [ | eapply H1; eauto].
 apply derives_subp.
 rewrite andp_assoc.
+rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
 intros ? [? ?]; split; auto.
@@ -499,19 +542,19 @@ Qed.
 
 
 Lemma semax_while : 
-forall Delta G Q test body R
+forall Delta Q test body R
      (TC: forall rho, Q rho |-- tc_expr Delta test rho)
      (BT: bool_type (Clight.typeof test) = true) 
      (POST: forall rho,  !! (expr_false test rho) && Q rho |-- R EK_normal nil rho),
-     semax Hspec Delta G 
+     semax Hspec Delta 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
-     semax Hspec Delta G Q (Swhile test body) R.
+     semax Hspec Delta Q (Swhile test body) R.
 Proof.
 intros.
-assert (semax Hspec Delta G Q Sskip (for2_ret_assert Q R)).
+assert (semax Hspec Delta Q Sskip (for2_ret_assert Q R)).
 eapply semax_post; try apply semax_Sskip.
 destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0; try discriminate.
-pose proof (semax_for Delta G Q Q test Sskip body R TC BT POST H H0).
+pose proof (semax_for Delta Q Q test Sskip body R TC BT POST H H0).
 clear H H0.
 rewrite semax_unfold in H1|-*.
 rename H1 into H0; pose (H:=True).

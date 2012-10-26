@@ -9,14 +9,14 @@ Local Open Scope logic.
 
 
 Lemma semax_load_field:
-forall (Delta: tycontext) (G: funspecs) sh id t1 fld P e1 v2 t2 i2 sid fields ,
+forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
     (temp_types Delta) ! id = Some (t2,i2) ->
   forall (TC0: t1 = typeof e1) 
           (TC2: t2 =
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax Delta G 
+    semax Delta 
        (|> (local (tc_lvalue Delta e1) &&
           (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)))
        (Sset id (Efield e1 fld t2))
@@ -89,12 +89,12 @@ Opaque field_mapsto.
 Qed.
 
 Lemma semax_store_field: 
-forall (Delta: tycontext) (G: funspecs) e1 fld P v0 t2 e2 sid fields ,
+forall (Delta: tycontext) e1 fld P v0 t2 e2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
     t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield e1 fld t2) ->
-   semax Delta G 
+   semax Delta 
        (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
           (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))
        (Sassign (Efield e1 fld t2) e2) 
@@ -116,7 +116,7 @@ intro rho. simpl. apply exp_right with (v0 rho). auto.
 apply extract_exists_pre; intro v'.
 clear v0. rename v' into v0.
 
-pose proof (semax_store Delta G (Efield e1 fld t2) e2 v0 Share.top 
+pose proof (semax_store Delta (Efield e1 fld t2) e2 v0 Share.top 
                (local (lift1 (tc_val t2) (lift1 (eval_cast (typeof e2) t2) (eval_expr e2))) &&
                  !! (type_is_volatile t2 = false) &&   P)).
 simpl typeof in H0. rewrite splice_top_top in H0.
@@ -178,7 +178,7 @@ Opaque field_mapsto.
 Qed.
 
 Lemma semax_load_field':
-forall (Delta: tycontext) (G: funspecs) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
+forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
         (temp_types Delta) ! id = Some (t2,i2) ->
@@ -186,7 +186,7 @@ forall (Delta: tycontext) (G: funspecs) sh id t1 fld P Q R e1 v2 t2 i2 sid field
           (TC2: t2 =
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
-    semax Delta G 
+    semax Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::Q) (SEPx (lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2)::R))))
        (Sset id (Efield (Ederef e1 t1) fld t2))
        (normal_ret_assert 
@@ -198,7 +198,7 @@ forall (Delta: tycontext) (G: funspecs) sh id t1 fld P Q R e1 v2 t2 i2 sid field
 Proof.
 intros.
 eapply semax_pre_post;
-  [ | |  apply (semax_load_field Delta G sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) (Ederef e1 t1)
+  [ | |  apply (semax_load_field Delta sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) (Ederef e1 t1)
    v2 t2 i2 sid fields)]; auto.
 match goal with |- ?P |-- _ => 
  let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
@@ -221,12 +221,12 @@ Qed.
 
 
 Lemma semax_store_field':
-forall (Delta: tycontext) (G: funspecs) t1 fld P Q R e1 e2 v0 t2 sid fields ,
+forall (Delta: tycontext) t1 fld P Q R e1 e2 v0 t2 sid fields ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield (Ederef e1 t1) fld t2) ->
-    semax Delta G 
+    semax Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t2)::Q)
                              (SEPx (lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) v0::R))))
        (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
@@ -265,10 +265,10 @@ normalize.
 Qed.
 
 Lemma forward_setx:
-  forall Delta G P id e,
+  forall Delta P id e,
   typecheck_temp_id id (typeof e) Delta = true ->
   (P |-- local (tc_expr Delta e)) ->
-  semax Delta G
+  semax Delta
              P
              (Sset id e)
              (normal_ret_assert
@@ -276,7 +276,7 @@ Lemma forward_setx:
                             subst id (lift0 old) P)).
 Proof.
 intros.
-eapply semax_pre_post; [ | | apply (semax_set_forward Delta G P id e)].
+eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e)].
 eapply derives_trans ; [ | apply now_later].
 go_lower.
 apply andp_right; auto.
@@ -345,14 +345,14 @@ Ltac isolate_field_tac e fld R :=
      end.
 
 Ltac hoist_later_in_pre :=
-     match goal with |- semax _ _ ?P _ _ =>
+     match goal with |- semax _ ?P _ _ =>
        let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
      end.
 
 
 Ltac semax_field_tac :=
 match goal with
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+ | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                   (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
   apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
    [ go_lower 
@@ -361,7 +361,7 @@ match goal with
                                           | simpl update_tycon; apply extract_exists_pre
                                           ]
     ]
- | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+ | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset _ (Efield (Ederef ?e _) ?fld _)) _ =>
      apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
      [ go_lower 
@@ -377,7 +377,7 @@ Ltac store_field_tac1 :=
 
 Ltac store_field_tac :=
   match goal with
-  | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Ssequence (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _) _ =>
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
@@ -386,7 +386,7 @@ Ltac store_field_tac :=
    | isolate_field_tac e fld R; hoist_later_in_pre;
       eapply semax_seq; [ apply sequential'; store_field_tac1   |  ]
    ]
-  | |- semax ?Delta _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _ =>
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
@@ -409,8 +409,8 @@ Ltac check_sequential s :=
 
 Ltac sequential := 
  match goal with
- |  |- semax _ _ _ _ (normal_ret_assert _) => fail 2
- |  |- semax _ _ _ ?s _ =>  check_sequential s; apply sequential
+ |  |- semax _ _ _ (normal_ret_assert _) => fail 2
+ |  |- semax _ _ ?s _ =>  check_sequential s; apply sequential
  end.
 
 Ltac is_canonical P :=
@@ -421,22 +421,22 @@ Ltac is_canonical P :=
 
 Ltac forward := 
   match goal with
-  | |- semax _ _ ?P (Ssequence (Sassign (Efield _ _ _) _) _) _ => 
+  | |- semax _ ?P (Ssequence (Sassign (Efield _ _ _) _) _) _ => 
                   is_canonical P; store_field_tac
-  | |- semax _ _ ?P (Sassign (Efield _ _ _) _) _ => 
+  | |- semax _ ?P (Sassign (Efield _ _ _) _) _ => 
                   is_canonical P; store_field_tac
-  | |- semax _ _ ?P (Ssequence (Sset _ (Efield _ _ _)) _) _ => 
+  | |- semax _ ?P (Ssequence (Sset _ (Efield _ _ _)) _) _ => 
                   is_canonical P; semax_field_tac
-  | |- semax _ _ ?P (Sset _ (Efield _ _ _)) _ => 
+  | |- semax _ ?P (Sset _ (Efield _ _ _)) _ => 
                   is_canonical P; semax_field_tac
-  | |- semax _ _ ?P (Ssequence (Sset _ ?e) _) _ => 
+  | |- semax _ ?P (Ssequence (Sset _ ?e) _) _ => 
                is_canonical P; match e with (Efield _ _ _) => fail 2 | _ => forward_setx end
-  | |- semax _ _ ?P (Sset _ ?e) _ => 
+  | |- semax _ ?P (Sset _ ?e) _ => 
                is_canonical P; match e with (Efield _ _ _) => fail 2 | _ => forward_setx end
-  | |- semax _ _ _ (Ssequence (Sreturn _) _) _ =>
+  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
           apply semax_seq with FF; [eapply semax_pre; [ | apply semax_return ]
                                 | apply semax_ff]
-  | |- semax _ _ _ (Sreturn _) _ =>
+  | |- semax _ _ (Sreturn _) _ =>
           eapply semax_pre; [ | apply semax_return ]
   end.
 

@@ -137,14 +137,13 @@ Qed.
 
 Lemma semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> assert)
-              Delta (G : funspecs) P Q c
-   (* (GLBL :  (glob_types Delta) ! id <> None) *)
-      (GLBL: (var_types Delta) ! id = None /\ (glob_types Delta) ! id <> None),
-    In (id, mk_funspec fsig A P' Q') G ->
-       semax Hspec Delta G (fun rho => P rho 
+              Delta P Q c
+      (GLBL: (var_types Delta) ! id = None),
+    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
+       semax Hspec Delta (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
                               c Q ->
-       semax Hspec Delta G P c Q.
+       semax Hspec Delta P c Q.
 Proof.
 intros.
 rewrite semax_unfold in H0|-*.
@@ -158,7 +157,7 @@ destruct H1 as [[H1 Hge] ?]; split; auto.
 split; auto.
 normalize.
 split; auto.
-assert (app_pred (believe Hspec G psi G) (level w'')).
+assert (app_pred (believe Hspec Delta psi Delta) (level w'')).
 apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
@@ -167,13 +166,10 @@ pose proof H1. unfold typecheck_environ in H9.
 apply andb_true_iff in H9. destruct H9 as [_ SAME].
 apply typecheck_environ_sound in H1.
 destruct H1 as [_ [_ H1]].
-destruct GLBL as [GL1 GL2].
-case_eq ((glob_types Delta)!id); intros; try congruence.
-clear GL2.
-rename H9 into GLBL.
-specialize (H1 _ _ GLBL).
+rename GLBL into GL1.
+specialize (H1 _ _ H).
 apply typecheck_mode_eqv in SAME.
-specialize (SAME _ _ GLBL).
+specialize (SAME _ _ H).
 destruct SAME as [SAME | [t SAME]]; [ | congruence].
 clear - H6 H8 H SAME (*H9*) Hge H1.
 destruct H6 as [H6 H6'].
@@ -245,7 +241,7 @@ Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : enviro
    end.
 
 Lemma semax_call_aux:
- forall (Delta : tycontext) (G : funspecs) (A : Type)
+ forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
@@ -260,10 +256,10 @@ Lemma semax_call_aux:
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
-    (funassert G rho) (m_phi jm) ->
-    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) G F0 R k) (level (m_phi jm)) ->
-    (believe Hspec G psi G) (level (m_phi jm)) ->
-    In (id, mk_funspec fsig A P Q') G ->
+    (funassert Delta rho) (m_phi jm) ->
+    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) F0 R k) (level (m_phi jm)) ->
+    (believe Hspec Delta psi Delta) (level (m_phi jm)) ->
+    (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q')) ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : environ, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
     (|>(F0 rho * F rho *
@@ -272,7 +268,7 @@ Lemma semax_call_aux:
    jsafeN Hspec psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros Delta G A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
+intros Delta A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
 intros TC1 TC2 TC4 TC3 TC5 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
@@ -316,7 +312,7 @@ destruct ek; try solve [normalize].
 apply prop_andp_subp; intro.
 repeat rewrite andp_assoc.
 apply subp_trans' with
- (F0 rho * F rho * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x) rho') && funassert G rho').
+ (F0 rho * F rho * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x) rho') && funassert Delta rho').
 apply andp_subp'; auto.
 apply sepcon_subp'; auto.
 apply sepcon_subp'; auto.
@@ -423,7 +419,7 @@ destruct H20. clear - H22 H2.
 change (level (m_phi jm)) with (level jm) in H2.
 omega.
 pose (rho3 := mkEnviron (ge_of rho) (make_venv ve') (make_tenv te')).
-assert (app_pred (funassert G rho3) (m_phi jm')).
+assert (app_pred (funassert Delta rho3) (m_phi jm')).
 clear - H4 H20. destruct H20 as [? _].
 apply (resource_decay_funassert _ _ _ _ _ H) in H4.
 unfold rho3; clear rho3.
@@ -459,9 +455,9 @@ auto.
 Qed.
 
 Lemma semax_call: 
-    forall Delta G A (P Q: A -> assert) x F ret fsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret fsig a bl,
            match_fsig fsig bl ret = true ->
-  semax Hspec Delta G
+  semax Hspec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta bl rho  && 
            (fun_assert  fsig A P Q (eval_expr a rho) && 
           (F rho * P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho ))))
@@ -469,7 +465,7 @@ Lemma semax_call:
          (normal_ret_assert 
           (fun rho => (EX old:val, substopt ret old F rho * Q x (get_result ret rho)))).
 Proof.
-rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? ?.
+rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ?.
 destruct (match_fsig_e _ _ _ H) as [TC4 TC5]; clear H.
 intros.
 rename H0 into H1.
@@ -498,8 +494,8 @@ hnf in H9.
 simpl in H8. unfold val2adr in H8. destruct v; try contradiction.
 symmetry in H8; inv H8.
 destruct H2 as [TC1 TC2].
-assert (H8: exists fs, In (id,fs) G).
-admit.  (* easy *)
+assert (H8: exists fs, (glob_types Delta)!id = Some (Global_func fs)).
+auto.
 destruct H8 as [fs H8].
 generalize H4; intros [H10 _].
 specialize (H10 id fs _ (necR_refl _) H8).
@@ -515,7 +511,7 @@ assert (fsig' = fsig).
 clear H15; subst fsig'.
 hnf in H6,H13.
 rewrite H6  in H13.
-change (In (id, mk_funspec fsig A' P' Q') G) in H8.
+(*change (In (id, mk_funspec fsig A' P' Q') G) in H8. *)
 inversion H13; clear H13.
 subst A'.
 apply inj_pair2 in H11. rename H11 into H15.
@@ -555,13 +551,13 @@ Qed.
 
 
 Lemma semax_call_ext:
-     forall Delta G P Q ret a bl a' bl',
+     forall Delta P Q ret a bl a' bl',
       typeof a = typeof a' ->
       (forall rho, 
           !! (typecheck_environ rho Delta = true) && P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
                                            eval_exprlist bl rho = eval_exprlist bl' rho )) ->
-  semax Hspec Delta G P (Scall ret a bl) Q ->
-  semax Hspec  Delta G P (Scall ret a' bl') Q.
+  semax Hspec Delta P (Scall ret a bl) Q ->
+  semax Hspec  Delta P (Scall ret a' bl') Q.
 Proof.
 intros.
 rewrite semax_unfold in H1|-*.
@@ -605,8 +601,8 @@ Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
 Admitted.
 
 Lemma  semax_return :
-   forall Delta G R ret,
-      semax Hspec Delta G 
+   forall Delta R ret,
+      semax Hspec Delta 
                 (fun rho => R EK_return (eval_exprlist (opt2list ret) rho) rho)
                 (Sreturn ret)
                 R.

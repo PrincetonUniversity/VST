@@ -48,17 +48,23 @@ Definition semax_body
        (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
-      semax Hspec (func_tycontext f G) G
+      semax Hspec (func_tycontext f G)
           (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.
 
+Definition nofunc_tycontext (G: funspecs) : tycontext :=
+(PTree.empty _, PTree.empty _, Tvoid,  
+ fold_right
+  (fun var : ident * funspec => PTree.set (fst var) (Global_func (snd var)))
+  (PTree.empty global_spec) G).
+
 Definition semax_func
         (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
    match_fdecs fdecs G1 /\
   forall ge, prog_contains ge fdecs -> 
-          forall n, believe Hspec G ge G1 n.
+          forall n, believe Hspec (nofunc_tycontext G) ge (nofunc_tycontext G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
@@ -85,7 +91,9 @@ hnf; auto.
 intros.
 intros b fsig ty P Q w ? ?.
 hnf in H1.
-destruct H1 as [b' [? ?]]. inv H1.
+destruct H1 as [b' [? ?]].
+simpl in H1. rewrite PTree.gempty in H1.
+ inv H1.
 Qed.
 
 Program Definition HO_pred_eq {T}{agT: ageable T}
@@ -193,25 +201,29 @@ Lemma semax_func_cons_aux:
   Genv.find_symbol psi id = Some b ->
   ~ In id (map (fst (A:=ident) (B:=fundef)) fs) ->
    match_fdecs fs G'  ->
-   claims  psi ((id, mk_funspec fsig1 A1 P1 Q1) :: G') (Vptr b Int.zero) fsig2 A2 P2 Q2 ->
+   claims  psi (nofunc_tycontext ((id, mk_funspec fsig1 A1 P1 Q1) :: G')) (Vptr b Int.zero) fsig2 A2 P2 Q2 ->
     fsig1=fsig2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
 Proof.
 intros until 1; intros (*Hok*) Hin (* Had *) Hmf; intros.
 destruct H0 as [id' [? ?]].
 simpl in H0.
-destruct H0.
-inv H0.
-apply inj_pair2 in H6. apply inj_pair2 in H7.
+destruct (eq_dec id id').
+subst id'. rewrite PTree.gss in H0. inv H0.
+apply inj_pair2 in H5. apply inj_pair2 in H6.
 subst.
 split; auto.
+rewrite PTree.gso in H0 by auto.
 elimtype False.
 destruct H1 as [b' [? ?]].
 symmetry in H2; inv H2.
 assert (In id' (map (@fst _ _) G')).
 clear - H0.
 revert H0; induction G'; simpl; intros; auto.
-destruct H0; [left | right]; auto.
-destruct a; simpl in *; inv H; auto.
+rewrite PTree.gempty in H0; inv H0.
+destruct a; simpl in *.
+destruct (eq_dec i id'). subst. rewrite PTree.gss in H0. auto.
+rewrite PTree.gso in H0 by auto.
+right; apply IHG'; auto.
 destruct (eq_dec id id').
 2: apply (Genv.global_addresses_distinct psi n H H1); auto.
 subst id'.
@@ -278,12 +290,8 @@ symmetry in H5; inv H5.
 destruct (eq_dec id id').
 subst.
 simpl in H1.
-destruct H1.
+rewrite PTree.gss in H1.
 inv H1; auto.
-elimtype False.
-clear - Hf' Hni H1.
-rewrite (fst_match_fdecs Hf') in Hni.
-apply in_map_fst in H1; auto.
 contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
 destruct H.
 intro x.
@@ -318,8 +326,11 @@ apply andp_left1; auto.
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
-simpl in H1; destruct H1.
-inv H1. destruct H5 as [? [? ?]]; congruence.
+simpl in H1.
+destruct (eq_dec id id').
+subst. rewrite PTree.gss in H1.
+destruct H5 as [? [? ?]]. congruence.
+rewrite PTree.gso in H1 by auto.
 exists id'; split; auto.
 Qed.
 
@@ -382,9 +393,12 @@ hnf. auto.
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v' fsig' A' P' Q'); auto.
 destruct H1 as [id' [? ?]].
-simpl in H1; destruct H1.
-inv H1. destruct H4 as [? [? ?]]; congruence.
+simpl in H1.
+destruct (eq_dec id id').
+subst. rewrite PTree.gss in H1. inv H1.
+destruct H4 as [? [? ?]]; congruence.
 exists id'; split; auto.
+simpl. rewrite PTree.gso in H1 by auto; auto.
 Qed.
 
 Definition main_params (ge: genv) start : Prop :=
@@ -430,7 +444,7 @@ Lemma funassert_initial_core:
   forall prog ve te G n, 
      no_dups (prog_funct prog) (prog_vars prog) ->
       match_fdecs (prog_funct prog) G ->
-      app_pred (funassert G (mkEnviron (filter_genv (Genv.globalenv prog)) ve te))
+      app_pred (funassert (nofunc_tycontext G) (mkEnviron (filter_genv (Genv.globalenv prog)) ve te))
                       (initial_core (Genv.globalenv prog) G n).
 Proof.
  intros; split.
@@ -439,12 +453,16 @@ Proof.
  simpl ge_of; simpl fst; simpl snd.
  unfold filter_genv.
  assert (exists f, In (id, f) (prog_funct prog)).
-apply in_map_fst in H1. apply fst_match_fdecs in H0.
-rewrite <- H0 in H1. forget (prog_funct prog) as g.
-clear - H1.
-induction g; simpl in *. contradiction. destruct H1.
-subst. destruct a; simpl; eauto.
-destruct (IHg H). eauto.
+ simpl in H1. apply fst_match_fdecs in H0.
+ forget (prog_funct prog) as g.
+clear - H1 H0.
+revert id G H1 H0; induction g; destruct G; intros; inv H0; simpl in *.
+rewrite PTree.gempty in H1; inv H1. 
+destruct a,p; simpl in *; subst.
+destruct (eq_dec i0 id). subst; eauto.
+rewrite PTree.gso in H1 by auto.
+destruct (IHg id G). eauto. auto.
+eauto.
 destruct H2 as [f ?].
  destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
  destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]]; auto.
@@ -469,15 +487,12 @@ destruct H2 as [f ?].
  inv H. destruct G; inv H0.
  simpl in H1. destruct p as [i p]. destruct a as [i' a].
  simpl in H3; subst i'. simpl in *.
- destruct H1. inv H. destruct H2. inv H; auto.
+ destruct (eq_dec i id). subst. rewrite PTree.gss in H1. inv H1.
+ destruct H2. inv H. auto.
  apply in_map_fst in H. contradiction.
- destruct H2. inv H0.
- contradiction H5.
- clear - H H7. apply in_map_fst in H.
- revert G H H7; induction g; destruct G; simpl; intros; try contradiction; auto.
- inv H7. destruct a; destruct p; simpl in *; inv H7. destruct H; auto; right.
+ destruct H2. congruence.
+ rewrite PTree.gso in H1 by auto.
  apply (IHg G); auto.
- eapply IHg; eauto.
  simpl. rewrite Int.signed_zero; auto.
  unfold func_at. destruct fs.
  unfold initial_core.
@@ -486,7 +501,16 @@ destruct H2 as [f ?].
  unfold initial_core'.
  simpl.
  rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
- rewrite (find_id_i _ _ _ H1); auto.
+ assert (H9: In (id, mk_funspec f0 A p p0) G).
+    apply list_norepet_append_inv in H. destruct H as [H _].
+    forget (prog_funct prog) as fs. clear - H H0 H1.
+    revert G H0 H1; induction fs; destruct G; simpl; intros; inv H0.
+    rewrite PTree.gempty in H1; inv H1.
+    destruct (eq_dec (fst p1) id). subst; rewrite PTree.gss in H1.
+    destruct p1; inv H1; auto.
+    rewrite PTree.gso in H1 by auto. right. apply IHfs; auto.
+    inv H; auto.
+ rewrite (find_id_i _ _ _ H9); auto.
  apply list_norepet_append_inv in H. destruct H as [H _].
  clear - H0 H.
  forget (prog_funct prog) as fs.
@@ -548,7 +572,13 @@ unfold type_of_funspec. simpl.
  auto.
  simpl. rewrite Int.signed_zero.
  auto.
- apply find_id_e in H5. apply in_map_fst in H5. auto.
+ apply find_id_e in H5. apply in_map_fst in H5.
+ clear - H5.
+ revert H5; induction G; simpl; intro. contradiction.
+ destruct H5. subst. econstructor; rewrite PTree.gss; reflexivity.
+ destruct (IHG H) as [fs ?].
+ destruct (eq_dec (fst a) i). econstructor; subst; rewrite PTree.gss; eauto.
+ econstructor; rewrite PTree.gso by auto; eauto.
 Qed.
 
 Lemma prog_contains_prog_funct: forall prog: program,  
@@ -757,6 +787,14 @@ Proof.
  apply IHvl.
 Qed.
 
+
+Definition Delta1 G: tycontext := (PTree.set 1%positive (type_int32s, false) 
+                                 (PTree.empty (type * bool)),
+                                 PTree.empty type, Tvoid,
+                                  fold_right
+              (fun var : ident * funspec => PTree.set (fst var) (Global_func (snd var)))
+              (PTree.empty global_spec) G).
+
 Lemma semax_prog_rule :
   forall z G prog m,
      semax_prog prog G ->
@@ -803,14 +841,14 @@ econstructor.
 pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
 pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) (Map.empty (block * type)) 
                       (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
-(*change empty_env  with (ve_of rho).*)
-(*change (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)) with (te_of rho).*)
-eapply semax_call_aux with (Delta :=Delta1)(F0:= fun _ => TT)
-         (R := normal_ret_assert (fun _ => TT)) (F:= fun _ => TT)
-          (x := tt)(Q := fun _ => main_post prog tt);
-  try apply H3; try eassumption. Focus 7. auto.
+eapply (semax_call_aux Hspec (Delta1 G) unit
+                    _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
+             None (nil,Tvoid) _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
+                 (construct_rho (filter_genv (Genv.globalenv prog)) empty_env
+  (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
+               _ _ b (prog_main prog));
+  try apply H3; try eassumption; auto.
 admit.  (* typechecking proof *)
-reflexivity.
 admit.  (* typechecking proof *)
 hnf; intros; intuition.
 hnf; intros; intuition.
@@ -819,12 +857,14 @@ extensionality rho'.
 unfold main_post.
 normalize. rewrite TT_sepcon_TT.
 apply pred_ext. apply exp_right with Vundef; auto. apply exp_left; auto.
-reflexivity.
-rewrite (corable_funassert G rho).
+rewrite (corable_funassert _ _).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
 destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+replace (funassert (Delta1 G)) with (funassert (nofunc_tycontext G)).
 unfold rho; apply funassert_initial_core; auto.
+apply same_glob_funassert.
+reflexivity.
 intros ek vl tx' vx'.
 unfold normal_ret_assert.
 normalize.
@@ -841,6 +881,29 @@ subst a.
 change Clight_new.true_expr with true_expr.
 change (level (m_phi jm)) with (level jm).
 apply safe_loop_skip.
+unfold glob_types, Delta1. simpl @snd.
+forget (prog_main prog) as main.
+instantiate (1:=main_post prog). 
+instantiate (1:=main_pre prog).
+ destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+forget (prog_funct prog) as fs.
+clear - H4 H8 H2.
+forget (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)) as fd.
+revert G H2 H4 H8; induction fs; destruct G; intros; inv H2.
+inv H4.
+destruct a; destruct p; simpl in *; subst.
+inv H8.
+specialize (IHfs _ H3).
+destruct (eq_dec i0 main). subst.
+rewrite PTree.gss; auto.
+destruct H4. inv H. auto.
+elimtype False; clear - H3 H2 H.
+apply H2; clear H2.
+revert G H3 H; induction fs; destruct G; intros; inv H3. inv H.
+destruct a,p; simpl in *. subst.
+destruct H. inv H. auto. right; eapply IHfs; eauto.
+rewrite PTree.gso; auto. apply IHfs; auto.
+destruct H4; auto. inv H. congruence.
 intros.
 intros ? ?.
 split; apply derives_imp; auto.

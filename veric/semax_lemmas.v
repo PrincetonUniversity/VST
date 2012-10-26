@@ -86,9 +86,9 @@ intro b; apply H.
 Qed.
 
 Lemma semax'_post:
- forall (R': ret_assert) Delta G (R: ret_assert) P c,
+ forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
-   semax' Hspec Delta G P c R' |-- semax' Hspec Delta G P c R.
+   semax' Hspec Delta P c R' |-- semax' Hspec Delta P c R.
 Proof.
 intros.
 rewrite semax_fold_unfold.
@@ -118,9 +118,9 @@ apply H; split; auto.
 Qed.
 
 Lemma semax'_pre:
- forall P' Delta G R P c,
+ forall P' Delta R P c,
   (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho)   
-   ->   semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R.
+   ->   semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R.
 Proof.
 intros.
 repeat rewrite semax_fold_unfold.
@@ -140,10 +140,10 @@ Qed.
 
 Lemma semax'_pre_post:
  forall 
-      P' (R': ret_assert) Delta G (R: ret_assert) P c,
+      P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho) ->
    (forall ek vl rho, !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&   R ek vl rho |-- R' ek vl rho) ->
-   semax' Hspec Delta G P' c R |-- semax' Hspec Delta G P c R'.
+   semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R'.
 Proof.
 intros.
 eapply derives_trans.
@@ -157,9 +157,9 @@ Proof.  intro; intros. eapply cl_corestep_fun; eauto. Qed.
 Hint Resolve cl_corestep_fun'.
 
 Lemma derives_skip:
-  forall p Delta G (R: ret_assert),
+  forall p Delta (R: ret_assert),
       (forall rho, p rho |-- R EK_normal nil rho) -> 
-        semax Hspec Delta G p Clight.Sskip R.
+        semax Hspec Delta p Clight.Sskip R.
 Proof.
 intros ? ? ? ?; intros.
 intros n.
@@ -210,9 +210,9 @@ Proof.
 Admitted.  (* undoubtedly true, tedious to prove, maybe not needed *)
 
 Lemma semax_extract_prop:
-  forall Delta G (PP: Prop) P c Q, 
-           (PP -> semax Hspec Delta G P c Q) -> 
-           semax Hspec Delta G (fun rho => !!PP && P rho) c Q.
+  forall Delta (PP: Prop) P c Q, 
+           (PP -> semax Hspec Delta P c Q) -> 
+           semax Hspec Delta (fun rho => !!PP && P rho) c Q.
 Proof.
 intros.
 intro w.
@@ -228,8 +228,8 @@ split; auto. split; auto.
 Qed.
 
 Lemma semax_ff:
-  forall Delta G c R,  
-   semax Hspec Delta G (fun rho => FF) c R.
+  forall Delta c R,  
+   semax Hspec Delta (fun rho => FF) c R.
 Proof.
 intros.
 intro w.
@@ -240,14 +240,14 @@ contradiction.
 Qed.
 
 Lemma semax_unfold:
-  semax Hspec = fun Delta G P c R =>
-    forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec G psi G w) (k: cont) (F: assert),
+  semax Hspec = fun Delta P c R =>
+    forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec Delta psi Delta w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Hspec psi (exit_tycon c Delta) G F R k w ->
-       guard Hspec psi Delta G (fun rho => F rho * P rho) (Kseq c :: k) w.
+       rguard Hspec psi (exit_tycon c Delta) F R k w ->
+       guard Hspec psi Delta (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
-extensionality Delta G P; extensionality c R.
+extensionality Delta P; extensionality c R.
 f_equal.
 apply prop_ext; split; intros.
 eapply (H w); eauto.
@@ -258,10 +258,10 @@ eapply pred_nec_hereditary; eauto.
 Qed.
 
 Lemma semax_post:
- forall (R': ret_assert) Delta G (R: ret_assert) P c,
+ forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho
                         |-- R ek vl rho) ->
-   semax Hspec Delta G P c R' ->  semax Hspec Delta G P c R.
+   semax Hspec Delta P c R' ->  semax Hspec Delta P c R.
 Proof.
 unfold semax.
 intros.
@@ -272,9 +272,9 @@ Qed.
 
 
 Lemma semax_pre:
- forall P' Delta G P c R,
+ forall P' Delta P c R,
    (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
-     semax Hspec Delta G P' c R  -> semax Hspec Delta G P c R.
+     semax Hspec Delta P' c R  -> semax Hspec Delta P c R.
 Proof.
 unfold semax.
 intros.
@@ -285,10 +285,10 @@ repeat intro. apply (H rho a). split; auto.
 Qed.
 
 Lemma semax_pre_post:
- forall P' (R': ret_assert) Delta G P c (R: ret_assert) ,
+ forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
    (forall ek vl rho , !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
-   semax Hspec Delta G P' c R' ->  semax Hspec Delta G P c R.
+   semax Hspec Delta P' c R' ->  semax Hspec Delta P c R.
 Proof.
 intros.
 eapply semax_pre; eauto.
@@ -296,7 +296,7 @@ eapply semax_post; eauto.
 Qed.
 
 Lemma semax_Sskip:
-   forall Delta G P, semax Hspec Delta G P Sskip (normal_ret_assert P).
+   forall Delta P, semax Hspec Delta P Sskip (normal_ret_assert P).
 Proof.
 intros.
 apply derives_skip.
@@ -323,9 +323,9 @@ Qed.
 
 
 Lemma extract_exists:
-  forall  (A : Type) (P : A -> assert) c Delta G (R: A -> ret_assert),
-  (forall x, semax Hspec Delta G (P x) c (R x)) ->
-   semax Hspec Delta G (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
+  forall  (A : Type) (P : A -> assert) c Delta (R: A -> ret_assert),
+  (forall x, semax Hspec Delta (P x) c (R x)) ->
+   semax Hspec Delta (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
 Proof.
 rewrite semax_unfold in *.
 intros.
@@ -357,8 +357,8 @@ Lemma extract_exists_pre:
       forall
         (A : Type) (P : A -> assert) (c : Clight.statement)
          Delta (G : funspecs) (R : ret_assert),
-       (forall x : A, semax Hspec Delta G (P x) c R) ->
-       semax Hspec Delta G (fun rho => exp (fun x => P x rho)) c R.
+       (forall x : A, semax Hspec Delta (P x) c R) ->
+       semax Hspec Delta (fun rho => exp (fun x => P x rho)) c R.
 Proof.
 intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
@@ -372,14 +372,17 @@ Definition G0: funspecs := nil.
 Definition empty_genv : Clight.genv :=
   Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil ( 1%positive) nil).
 
-Lemma empty_program_ok: forall ge w, believe Hspec G0 ge G0 w.
+Lemma empty_program_ok: forall Delta ge w, 
+    glob_types Delta = PTree.empty _ -> 
+    believe Hspec Delta ge Delta w.
 Proof.
-intros ge w.
+intros Delta ge w ?. 
 intro b.
 intros fsig A P Q.
 intros ?n ? ?.
-destruct H0 as [id [? [b0 [? ?]]]].
-inv H0.
+destruct H1 as [id [? [b0 [? ?]]]].
+rewrite H in H1. rewrite PTree.gempty in H1.
+inv H1.
 Qed.
 
 Definition all_assertions_computable  :=
@@ -403,9 +406,9 @@ rewrite identity_unit_equiv in H; auto.
 Qed.
 
 Lemma semax_extensionality1:
-  forall Delta G (P P': assert) c (R R': ret_assert) ,
+  forall Delta (P P': assert) c (R R': ret_assert) ,
        ((ALL ek: exitkind, ALL  vl : list val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta G P c R) |-- semax' Hspec Delta G P' c R').
+      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta P c R) |-- semax' Hspec Delta P' c R').
 Proof.
 intros.
 intros ? ?.
@@ -444,22 +447,10 @@ apply andp_subp'; auto.
 apply sepcon_subp'; auto.
 Qed.
 
-Lemma believe_cons:
-  forall gx G P Q st, believe Hspec gx G (P::Q) st -> believe Hspec gx G Q st.
-Proof.
-unfold believe; intros.
-intros id fsig A P0 Q0; spec H id fsig A P0 Q0.
-intros ? ? ?. apply (H _ H0).
-destruct H1 as [id' [? [b [? ?]]]].
-exists id'; split; auto.
-right; auto.
-exists b; split; auto.
-Qed.
-
-Lemma frame_left:  forall Delta G P s R F,
+Lemma frame_left:  forall Delta P s R F,
    closed_wrt_modvars s F ->
-  semax Hspec Delta G P s R ->
-    semax Hspec Delta G (fun rho => P rho * F rho) s (frame_ret_assert R F).
+  semax Hspec Delta P s R ->
+    semax Hspec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
 Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
@@ -1080,11 +1071,11 @@ Qed.
 
 Lemma guard_safe_adj:
  forall 
-   psi Delta G P k1 k2,
+   psi Delta P k1 k2,
   (forall ora m ve te n,
      jsafeN Hspec psi n ora (State ve te k1) m -> 
      jsafeN Hspec psi n ora (State ve te k2) m) ->
-  guard Hspec psi Delta G P k1 |-- guard Hspec psi Delta G P k2.
+  guard Hspec psi Delta P k1 |-- guard Hspec psi Delta P k2.
 Proof.
 intros.
 unfold guard.
@@ -1117,9 +1108,9 @@ Proof.
 Qed.
 
 Lemma rguard_adj:
-  forall ge Delta G F R k k',
+  forall ge Delta F R k k',
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
-      rguard Hspec ge Delta G F R k |-- rguard Hspec ge Delta G F R k'.
+      rguard Hspec ge Delta F R k |-- rguard Hspec ge Delta F R k'.
 Proof.
  intros.
  intros n H0;  hnf in H0|-*.
@@ -1209,4 +1200,13 @@ Proof.
  destruct (typeof a); try congruence. simpl. destruct ((Float.cmp Ceq f Float.zero)); inv H0; auto.
 
  destruct (typeof a); inv H0; simpl; auto.
+Qed.
+
+Lemma same_glob_funassert:
+  forall Delta1 Delta2, glob_types Delta1 = glob_types Delta2 -> 
+              funassert Delta1 = funassert Delta2.
+Proof.
+intros.
+unfold funassert.
+rewrite H; auto.
 Qed.
