@@ -34,8 +34,8 @@ Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
 Import CSL.
 
 Axiom semax_prog_rule :
-  forall z G prog m,
-     semax_prog prog G ->
+  forall z V G prog m,
+     semax_prog prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -65,6 +65,7 @@ Definition semax_func := semax_func Hspec.
 Definition semax_ext := semax_ext Hspec.
 Definition main_pre := main_pre.
 Definition main_post := main_post.
+Definition match_globvars := match_globvars.
 Definition semax_prog := semax_prog Hspec.
 Definition semax_func_nil := semax_func_nil Hspec.
 Definition semax_func_cons := semax_func_cons Hspec.

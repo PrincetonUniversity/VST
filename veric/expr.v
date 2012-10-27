@@ -760,15 +760,27 @@ end.*)
 (*Creates a typecontext from a function definition *)
 (* NOTE:  params start out initialized, temps do not! *)
 
+Definition varspecs : Type := list (ident * type).
 
-Definition func_tycontext (func: function) (G: funspecs) : tycontext :=
+Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
+                       (return_ty: type)
+                       (V: varspecs) (G: funspecs) :  tycontext :=
 (fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
  (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
-  (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
+  (PTree.empty (type * bool)) temps) params,
 fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
-   (PTree.empty type) func.(fn_vars) ,
-fn_return func,
-(fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) (PTree.empty _) G)).
+   (PTree.empty type) vars ,
+   return_ty,
+  (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) 
+      (fold_right (fun (v: ident * type) => PTree.set (fst v) (Global_var (snd v)))
+         (PTree.empty _) V)
+            G)).
+
+Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) : tycontext :=
+  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.
+
+Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
+   make_tycontext nil nil nil Tvoid V G.
 
 (** Type-checking of function parameters **)
 
@@ -906,8 +918,8 @@ match ls with
 | LScase int s ls2 => tc_andp (typecheck_all_exprs' s Delta) (typecheck_labeled_st_exprs Delta ls2) 
 end.
 
-Definition typecheck_all_exprs (func: function) (G: funspecs): tc_assert :=
-typecheck_all_exprs' func.(fn_body) (func_tycontext func G).
+Definition typecheck_all_exprs (func: function) (V: varspecs) (G: funspecs): tc_assert :=
+typecheck_all_exprs' func.(fn_body) (func_tycontext func V G).
 
 Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 

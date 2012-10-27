@@ -133,6 +133,8 @@ Definition reverse_spec :=
 
 Definition main_spec := (P.i_main, mk_funspec (nil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
 
+Definition Vprog : varspecs := (P.i_three, Tarray P.t_list 3 noattr)::nil.
+
 Definition Gprog : funspecs := 
    sumlist_spec :: reverse_spec :: main_spec::nil.
 
@@ -146,8 +148,8 @@ Definition sumlist_Inv (contents: list int) : assert :=
             SEP (TT * lift2 (ilseg cts) (eval_id P.i_t) (lift0 nullval))).
 
 Ltac start_function :=
-match goal with |- semax_body _ _ ?spec => try unfold spec end;
-match goal with |- semax_body _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
+match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
+match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   match Pre with fun i => _ => intro i end;
   simpl fn_body; simpl fn_params; simpl fn_return;
   normalize; canonicalize_pre
@@ -174,7 +176,7 @@ Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
 Proof. reflexivity. Qed.
 Hint Rewrite lower_FF : normalize.
 
-Lemma body_sumlist: semax_body Gprog P.f_sumlist sumlist_spec.
+Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
 start_function.     
 forward.
@@ -210,20 +212,6 @@ normalizex. intro r.
 normalizex. intro y.
 normalizex. subst cts.
 simpl list_data; simpl list_link.
-(*
-match goal with
- | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                  (Ssequence (Sset _ (Efield (Ederef ?e _) ?fld _)) _) _ =>
-  apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-   [ go_lower 
-   |isolate_field_tac e fld R (*;  hoist_later_in_pre;
-     eapply semax_seq; [ apply sequential'; semax_field_tac1  
-                                          | simpl update_tycon; apply extract_exists_pre
-                                          ]
-*)
-    ]
-end.
-*)
 forward.
 forward.  intro old_t.
 forward.
@@ -263,7 +251,7 @@ Definition reverse_Inv (contents: list int) : assert :=
             SEP (lift2 (ilseg cts1) (eval_id P.i_w) (lift0 nullval) *
                    lift2 (ilseg cts2) (eval_id P.i_v) (lift0 nullval))).
 
-Lemma body_reverse: semax_body Gprog P.f_reverse reverse_spec.
+Lemma body_reverse: semax_body Vprog Gprog P.f_reverse reverse_spec.
 Proof.
 start_function.
 forward.
@@ -477,12 +465,15 @@ Ltac semax_call_id_tac :=
          eapply (semax_fun_id' fid) ; [ simpl; reflexivity | simpl; reflexivity | ]
   end.
 
-Lemma body_main:  semax_body Gprog P.f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
 Proof.
 intro u.
 simpl fn_body; simpl fn_params; simpl fn_return.
 replace (main_pre P.prog u) with 
-   (lift2 (ilseg (map Int.repr (1::2::3::nil))) (eval_expr (Eaddrof (Evar P.i_three P.t_list) P.t_listptr)) (lift0 nullval))
+   (lift2 (ilseg (map Int.repr (1::2::3::nil)))
+       (eval_expr (Ecast
+           (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
+              (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)) (lift0 nullval))
  by admit. (* must improve global var specifications *)
 simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
@@ -497,7 +488,7 @@ normalize.
 go_lower.
 repeat apply andp_right; try apply prop_right.
 repeat split; simpl; hnf; auto.
-admit.  (* can't find i_three in func_tycontext *)
+compute; auto.
 unfold Pre. clear Pre.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
@@ -535,7 +526,7 @@ eapply tc_eval_id_i; eauto.
 Qed.
 
 Lemma all_funcs_correct:
-  semax_func Gprog (prog_funct P.prog) Gprog.
+  semax_func Vprog Gprog (prog_funct P.prog) Gprog.
 Proof.
 unfold Gprog, P.prog.
 apply semax_func_cons; [ reflexivity | apply body_sumlist | ].

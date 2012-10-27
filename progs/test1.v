@@ -120,7 +120,7 @@ Definition f_main: function :=
   (Ssequence (Scall (Some i_r) 
                         (Eaddrof (Evar i_reverse (Tfunction (Tcons t_listptr Tnil) t_listptr))
                                    (Tpointer (Tfunction (Tcons t_listptr Tnil) t_listptr) noattr))
-                        (Eaddrof (Evar i_three t_list) t_listptr :: nil))
+                        (Ecast (Eaddrof (Evar i_three (Tarray t_list 3 noattr)) (Tpointer (Tarray t_list 3 noattr) noattr)) t_listptr :: nil))
     (Ssequence (Scall (Some i_s) 
                            (Eaddrof (Evar i_sumlist (Tfunction (Tcons t_listptr Tnil) t_int))
                                              (Tpointer  (Tfunction (Tcons t_listptr Tnil) t_int)  noattr))

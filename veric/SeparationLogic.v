@@ -316,16 +316,16 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
-      semax (func_tycontext f G)
+      semax (func_tycontext f V G)
           ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.
 
-Parameter semax_func: forall (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
+Parameter semax_func: forall (V: varspecs) (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
 Definition main_pre (prog: program) : unit -> assert :=
 (fun tt _ => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
@@ -334,14 +334,18 @@ Definition main_pre (prog: program) : unit -> assert :=
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt => TT).
 
+Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
+  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
+
 Definition semax_prog 
-     (prog: program) (G: funspecs) : Prop :=
+     (prog: program) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (map (@fst _ _) prog.(prog_funct)
                                        ++ map (@fst _ _) prog.(prog_vars)) = true /\
-  semax_func G (prog.(prog_funct)) G /\
+  semax_func V G (prog.(prog_funct)) G /\
+   match_globvars (prog.(prog_vars)) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
-Axiom semax_func_nil: forall G, semax_func G nil nil.
+Axiom semax_func_nil: forall V G, semax_func V G nil nil.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
@@ -350,13 +354,13 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
-Axiom semax_func_cons: forall fs id f A P Q (G G': funspecs),
+Axiom semax_func_cons: forall fs id f A P Q (V: varspecs)  (G G': funspecs),
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
-      semax_body G f (id, mk_funspec (fn_funsig f) A P Q ) ->
-      semax_func G fs G' ->
-      semax_func G ((id, Internal f)::fs) 
+      semax_body V G f (id, mk_funspec (fn_funsig f) A P Q ) ->
+      semax_func V G fs G' ->
+      semax_func V G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
@@ -370,12 +374,12 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
  end.
 
 Axiom semax_func_cons_ext: 
-   forall (G: funspecs) fs id ef fsig A P Q (G': funspecs),
+   forall (V: varspecs) (G: funspecs) fs id ef fsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       semax_external ef A P Q ->
-      semax_func G fs G' ->
-      semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
+      semax_func V G fs G' ->
+      semax_func V G ((id, External ef (fst fsig) (snd fsig))::fs) 
            ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
 
 Definition main_params (ge: genv) start : Prop :=

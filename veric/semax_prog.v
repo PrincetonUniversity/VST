@@ -25,6 +25,9 @@ Require Import veric.initial_world.
 
 Open Local Scope pred.
 
+Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
+  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
+
 Section semax_prog.
 Context {Z} (Hspec: juicy_ext_spec Z).
 
@@ -45,26 +48,20 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
 Definition semax_body
-       (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
-      semax Hspec (func_tycontext f G)
+      semax Hspec (func_tycontext f V G)
           (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.
 
-Definition nofunc_tycontext (G: funspecs) : tycontext :=
-(PTree.empty _, PTree.empty _, Tvoid,  
- fold_right
-  (fun var : ident * funspec => PTree.set (fst var) (Global_func (snd var)))
-  (PTree.empty global_spec) G).
-
 Definition semax_func
-        (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
+         (V: varspecs) (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
    match_fdecs fdecs G1 /\
   forall ge, prog_contains ge fdecs -> 
-          forall n, believe Hspec (nofunc_tycontext G) ge (nofunc_tycontext G1) n.
+          forall n, believe Hspec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
 (fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
@@ -76,15 +73,16 @@ Definition main_post (prog: program) : unit -> assert :=
   (fun tt _ => TT).
 
 Definition semax_prog 
-     (prog: program) (G: funspecs) : Prop :=
+     (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (map (@fst _ _) prog.(prog_funct)
                                        ++ map (@fst _ _) prog.(prog_vars)) = true  /\
-  semax_func G (prog.(prog_funct)) G /\
+  semax_func V G (prog.(prog_funct)) G /\
+   match_globvars (prog.(prog_vars)) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Lemma semax_func_nil: 
    forall
-     G, semax_func G nil nil.
+     V G, semax_func V G nil nil.
 Proof.
 intros; split; auto.
 hnf; auto.
@@ -92,8 +90,15 @@ intros.
 intros b fsig ty P Q w ? ?.
 hnf in H1.
 destruct H1 as [b' [? ?]].
-simpl in H1. rewrite PTree.gempty in H1.
- inv H1.
+simpl in H1. 
+elimtype False; clear - H1.
+revert H1; induction V; simpl; intros.
+rewrite PTree.gempty in H1. inv H1.
+destruct a.
+simpl in *.
+destruct (eq_dec i b'). subst. rewrite PTree.gss in H1. inv H1.
+rewrite PTree.gso in H1 by auto.
+apply IHV. auto.
 Qed.
 
 Program Definition HO_pred_eq {T}{agT: ageable T}
@@ -197,11 +202,11 @@ Qed.
 Require Import JMeq.
 
 Lemma semax_func_cons_aux:
-  forall (psi: genv) id fsig1 A1 P1 Q1 fsig2 A2 P2 Q2 (G': funspecs) b fs,
+  forall (psi: genv) id fsig1 A1 P1 Q1 fsig2 A2 P2 Q2 (V: varspecs) (G': funspecs) b fs,
   Genv.find_symbol psi id = Some b ->
   ~ In id (map (fst (A:=ident) (B:=fundef)) fs) ->
    match_fdecs fs G'  ->
-   claims  psi (nofunc_tycontext ((id, mk_funspec fsig1 A1 P1 Q1) :: G')) (Vptr b Int.zero) fsig2 A2 P2 Q2 ->
+   claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 A1 P1 Q1) :: G')) (Vptr b Int.zero) fsig2 A2 P2 Q2 ->
     fsig1=fsig2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
 Proof.
 intros until 1; intros (*Hok*) Hin (* Had *) Hmf; intros.
@@ -219,7 +224,10 @@ symmetry in H2; inv H2.
 assert (In id' (map (@fst _ _) G')).
 clear - H0.
 revert H0; induction G'; simpl; intros; auto.
+revert H0; induction  V; simpl; intros; auto.
 rewrite PTree.gempty in H0; inv H0.
+destruct (eq_dec id' (fst a)). subst. rewrite PTree.gss in H0 by auto. inv  H0.
+rewrite PTree.gso in H0 by auto. auto.
 destruct a; simpl in *.
 destruct (eq_dec i id'). subst. rewrite PTree.gss in H0. auto.
 rewrite PTree.gso in H0 by auto.
@@ -233,13 +241,13 @@ Qed.
 
 Lemma semax_func_cons: 
    forall 
-         fs id f A P Q (G G': funspecs),
+         fs id f A P Q (V: varspecs) (G G': funspecs),
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
-      semax_body G f (id, mk_funspec (fn_funsig f) A P Q) ->
-      semax_func G fs G' ->
-      semax_func G ((id, Internal f)::fs) 
+      semax_body V G f (id, mk_funspec (fn_funsig f) A P Q) ->
+      semax_func V G fs G' ->
+      semax_func V G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q)  :: G').
 Proof.
 intros until G'.
@@ -296,7 +304,7 @@ contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
 destruct H.
 intro x.
 simpl in H1.
-pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
+pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
 destruct H as [H4' [H4 [H4b H4c]]].
 subst A' fsig.
 apply JMeq_eq in H4b.
@@ -336,12 +344,12 @@ Qed.
 
 Lemma semax_func_cons_ext: 
    forall 
-         (G: funspecs) fs id ef fsig A P Q (G': funspecs),
+        V (G: funspecs) fs id ef fsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       (forall n, semax_ext Hspec ef A P Q n) ->
-      semax_func G fs G' ->
-      semax_func G ((id, External ef (fst fsig) (snd fsig))::fs) 
+      semax_func V G fs G' ->
+      semax_func V G ((id, External ef (fst fsig) (snd fsig))::fs) 
            ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
 Proof.
 intros until G'.
@@ -379,7 +387,7 @@ destruct (eq_dec  (Vptr b Int.zero) v') as [?H|?H].
 subst v'.
 left.
 specialize (H n).
-pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
+pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
 destruct H3 as [H4' [H4 [H4b H4c]]].
 subst A' fsig'.
 apply JMeq_eq in H4b.
@@ -441,10 +449,10 @@ Qed.
 *)
 
 Lemma funassert_initial_core:
-  forall prog ve te G n, 
+  forall prog ve te V G n, 
      no_dups (prog_funct prog) (prog_vars prog) ->
       match_fdecs (prog_funct prog) G ->
-      app_pred (funassert (nofunc_tycontext G) (mkEnviron (filter_genv (Genv.globalenv prog)) ve te))
+      app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (Genv.globalenv prog)) ve te))
                       (initial_core (Genv.globalenv prog) G n).
 Proof.
  intros; split.
@@ -457,7 +465,11 @@ Proof.
  forget (prog_funct prog) as g.
 clear - H1 H0.
 revert id G H1 H0; induction g; destruct G; intros; inv H0; simpl in *.
-rewrite PTree.gempty in H1; inv H1. 
+elimtype False.
+revert H1; induction V; simpl; intros.
+rewrite PTree.gempty in H1; inv H1.
+destruct (eq_dec (fst a) id). subst. rewrite PTree.gss in H1. inv H1.
+rewrite PTree.gso in H1 by auto; auto. 
 destruct a,p; simpl in *; subst.
 destruct (eq_dec i0 id). subst; eauto.
 rewrite PTree.gso in H1 by auto.
@@ -505,7 +517,10 @@ destruct H2 as [f ?].
     apply list_norepet_append_inv in H. destruct H as [H _].
     forget (prog_funct prog) as fs. clear - H H0 H1.
     revert G H0 H1; induction fs; destruct G; simpl; intros; inv H0.
-    rewrite PTree.gempty in H1; inv H1.
+   revert H1; induction V; simpl; intros.
+   rewrite PTree.gempty in H1; inv H1.
+   destruct (eq_dec (fst a) id). subst. rewrite PTree.gss in H1. inv H1.
+    rewrite PTree.gso in H1 by auto; auto. 
     destruct (eq_dec (fst p1) id). subst; rewrite PTree.gss in H1.
     destruct p1; inv H1; auto.
     rewrite PTree.gso in H1 by auto. right. apply IHfs; auto.
@@ -787,17 +802,12 @@ Proof.
  apply IHvl.
 Qed.
 
-
-Definition Delta1 G: tycontext := (PTree.set 1%positive (type_int32s, false) 
-                                 (PTree.empty (type * bool)),
-                                 PTree.empty type, Tvoid,
-                                  fold_right
-              (fun var : ident * funspec => PTree.set (fst var) (Global_func (snd var)))
-              (PTree.empty global_spec) G).
+Definition Delta1 V G: tycontext := 
+  make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
 
 Lemma semax_prog_rule :
-  forall z G prog m,
-     semax_prog prog G ->
+  forall z V G prog m,
+     semax_prog prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -809,7 +819,7 @@ Lemma semax_prog_rule :
 Proof.
  intros until m.
  pose proof I; intros.
- destruct H0 as [? [[? ?] ?]].
+ destruct H0 as [? [[? ?] [GV ?]]].
  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
  clear - H4 H2.
  forget (prog_main prog) as id.
@@ -841,14 +851,14 @@ econstructor.
 pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
 pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) (Map.empty (block * type)) 
                       (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
-eapply (semax_call_aux Hspec (Delta1 G) unit
+eapply (semax_call_aux Hspec (Delta1 V G) unit
                     _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
              None (nil,Tvoid) _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
                  (construct_rho (filter_genv (Genv.globalenv prog)) empty_env
   (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
                _ _ b (prog_main prog));
   try apply H3; try eassumption; auto.
-admit.  (* typechecking proof *)
+clear - GV H0.
 admit.  (* typechecking proof *)
 hnf; intros; intuition.
 hnf; intros; intuition.
@@ -861,7 +871,7 @@ rewrite (corable_funassert _ _).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
 destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
-replace (funassert (Delta1 G)) with (funassert (nofunc_tycontext G)).
+replace (funassert (Delta1 V G)) with (funassert (nofunc_tycontext V G)).
 unfold rho; apply funassert_initial_core; auto.
 apply same_glob_funassert.
 reflexivity.
