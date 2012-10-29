@@ -1830,6 +1830,14 @@ unfold store_juicy_mem. simpl.
 unfold inflate_store; simpl. rewrite level_make_rmap. auto.
 Qed.
 
+Lemma level_storebytes_juicy_mem:
+ forall jm m b i bytes H, level (storebytes_juicy_mem jm m b i bytes H) = level jm.
+Proof.
+intros.
+unfold storebytes_juicy_mem. simpl.
+unfold inflate_store; simpl. rewrite level_make_rmap. auto.
+Qed.
+
 Lemma inflate_store_resource_nodecay:
   forall (jm: juicy_mem) (m': mem)
           (ch: memory_chunk) (b: block) (ofs: Z) (v: val)
