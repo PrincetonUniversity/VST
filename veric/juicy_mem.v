@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import veric.rmaps.
@@ -722,11 +723,11 @@ Defined.
 
 End inflate.
 
-Lemma adr_inv: forall (b b': block) (ofs ofs': Z) ch, 
-  ~ adr_range (b, ofs) (size_chunk ch) (b', ofs') 
-  -> b <> b' \/ ~ ofs <= ofs' < ofs + size_chunk ch.
+Lemma adr_inv0: forall (b b': block) (ofs ofs': Z) (sz: Z),
+  ~ adr_range (b, ofs) sz (b', ofs') ->
+  b <> b' \/ ~ ofs <= ofs' < ofs + sz.
 Proof.
-intros until ch.
+intros until sz.
 intro H.
 destruct (zeq b b').
 right; intro Contra.
@@ -737,12 +738,23 @@ left; intro Contra.
 apply n; auto.
 Qed.
 
-Lemma range_inv: forall ofs ofs' ch, ~ ofs <= ofs' < ofs + size_chunk ch 
-  -> ofs' < ofs \/ ofs' >= ofs + size_chunk ch.
+Lemma adr_inv: forall (b b': block) (ofs ofs': Z) ch, 
+  ~ adr_range (b, ofs) (size_chunk ch) (b', ofs') ->
+  b <> b' \/ ~ ofs <= ofs' < ofs + size_chunk ch.
+Proof. intros until ch; intros H1; eapply adr_inv0; eauto. Qed.
+
+Lemma range_inv0: forall ofs ofs' sz, 
+  ~ ofs <= ofs' < ofs + sz ->
+  ofs' < ofs \/ ofs' >= ofs + sz.
 Proof.
-intros until ch; intro H.
-destruct (zle ofs ofs'); destruct (zlt ofs' (ofs + size_chunk ch)); omega.
+intros until sz; intro H.
+destruct (zle ofs ofs'); destruct (zlt ofs' (ofs + sz)); omega.
 Qed.
+
+Lemma range_inv: forall ofs ofs' ch, 
+  ~ ofs <= ofs' < ofs + size_chunk ch ->
+  ofs' < ofs \/ ofs' >= ofs + size_chunk ch.
+Proof. intros; eapply range_inv0; eauto. Qed.
 
 Lemma perm_of_sh_Freeable_top: forall rsh sh, perm_of_sh rsh sh = Some Freeable -> 
      (rsh, sh) = (Share.top, Share.top).
@@ -923,6 +935,17 @@ case_eq (core lev @ (b,ofs)); intros; auto.
 contradiction (core_not_YES H0).
 Qed.
 
+Lemma perm_mem_access: forall m b ofs p, 
+  perm m b ofs Cur p ->
+  exists p', (perm_order p' p /\ access_at m (b, ofs) = Some p').
+Proof.
+intros until p; intro H.
+unfold perm, perm_order' in H.
+unfold access_at. simpl.
+match type of H with match ?A with Some _ => _ | None => _ end => destruct A end.
+exists p0; split; auto.
+contradiction.
+Qed.
 
 Section store.
 Variables (jm: juicy_mem) (m': mem)
@@ -962,17 +985,6 @@ destruct (JMcontents _ _ _ _ _ H0) as [H1 _].
 apply H1.
 Qed.
 
-Lemma perm_mem_access: forall m b ofs p, perm m b ofs Cur p 
-  -> exists p', (perm_order p' p /\ access_at m (b, ofs) = Some p').
-Proof.
-intros until p; intro H.
-unfold perm, perm_order' in H.
-unfold access_at. simpl.
-match type of H with match ?A with Some _ => _ | None => _ end => destruct A end.
-exists p0; split; auto.
-contradiction.
-Qed.
-
 Definition store_juicy_mem: juicy_mem.
  refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
 (* contents_cohere *)
@@ -1003,9 +1015,78 @@ Defined.
 
 End store.
 
+Section storebytes.
+Variables (jm: juicy_mem) (m': mem) (b: block) (ofs: Z) (bytes: list memval)
+  (STOREBYTES: storebytes (m_dry jm) b ofs bytes = Some m').
+
+Lemma storebytes_phi_elsewhere_eq: forall rsh sh mv loc', 
+  ~ adr_range (b, ofs) (Zlength bytes) loc' -> 
+  (m_phi jm) @ loc' = YES rsh sh (VAL mv) NoneP -> 
+  contents_at m' loc' = mv.
+Proof.
+destruct jm. simpl in *. clear jm. 
+intros.
+unfold contents_at.
+rewrite storebytes_mem_contents with 
+  (m1 := m) (b := b) (ofs := ofs) (bytes := bytes); auto.
+destruct loc' as [b' ofs']. simpl.
+destruct (zeq b' b).
+(* b' = b *)
+destruct (adr_inv0 b b' ofs ofs' (Zlength bytes) H).
+symmetry in e.
+contradiction.
+(* b' = b /\ ~ ofs <= ofs' < ofs + size_chunk ch *)
+subst.
+rewrite ZMap.gss.
+rewrite setN_outside.
+destruct (JMcontents _ _ _ _ _ H0) as [H5 _].
+apply H5.
+destruct (range_inv0 _ _ _ H1) as [H1'|H1'].
+left; auto.
+right.
+rewrite <-Zlength_correct; auto.
+(* b' <> b *)
+rewrite ZMap.gso; auto.
+destruct (JMcontents _ _ _ _ _ H0) as [H1 _].
+apply H1.
+Qed.
+
+Definition storebytes_juicy_mem: juicy_mem.
+ refine (mkJuicyMem m' (inflate_store m' (m_phi jm)) _ _ _ _).
+(* contents_cohere *)
+intros rsh sh' v' loc' pp H2.
+unfold inflate_store in H2; rewrite resource_at_make_rmap in H2.
+destruct (m_phi jm @ loc'); try destruct k; try solve [inversion H2].
+inversion H2; auto.
+(* access_cohere *)
+intro loc; generalize (juicy_mem_access jm loc); intro H0.
+unfold inflate_store; rewrite resource_at_make_rmap.
+assert (H2: mem_access m' = mem_access (m_dry jm))
+ by (eapply storebytes_access; eauto).
+unfold access_at in H0|-*.
+rewrite H2.
+destruct (m_phi jm @ loc); try destruct k; auto.
+(* max_access_cohere *)
+intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
+assert (H2: mem_access m' = mem_access (m_dry jm)) 
+ by (eapply storebytes_access; eauto).
+unfold inflate_store; rewrite resource_at_make_rmap.
+unfold max_access_at in *; rewrite H2.
+destruct (m_phi jm @ loc); auto. destruct k; auto.
+(* alloc_cohere *)
+hnf; intros.
+unfold inflate_store. rewrite resource_at_make_rmap.
+generalize (juicy_mem_alloc jm loc); intro.
+rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES) in H.
+rewrite (H0 H). 
+auto.
+Defined.
+
+End storebytes.
+
 Lemma mem_access_perm: forall m b ofs p, 
-  access_at m (b, ofs) = Some p
-  -> perm m b ofs Cur p.
+  access_at m (b, ofs) = Some p -> 
+  perm m b ofs Cur p.
 Proof.
 intros m b ofs p H.
 unfold perm, perm_order'.

@@ -13,6 +13,9 @@ Module Type JUICY_MEM_OPS.
 Parameter juicy_mem_store
   : juicy_mem -> memory_chunk -> block -> Z -> val -> option juicy_mem.
 
+Parameter juicy_mem_storebytes
+  : juicy_mem -> block -> Z -> list memval -> option juicy_mem.
+
 Parameter juicy_mem_alloc
   : juicy_mem -> Z -> Z -> juicy_mem * block.
 
@@ -43,7 +46,6 @@ intros.
 apply (proj1_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 Next Obligation.
-intros.
 apply (proj2_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 
@@ -60,6 +62,34 @@ inversion H.
 simpl.
 unfold juicy_mem_store_obligation_1.
 destruct (valid_access_store (m_dry j) ch b ofs v H1).
+simpl. auto.
+inv H.
+Qed.
+
+Program Definition juicy_mem_storebytes j b ofs bytes: option juicy_mem := 
+  if range_perm_dec (m_dry j) b ofs (ofs + Z_of_nat (length bytes)) Cur Writable
+    then Some (storebytes_juicy_mem j _ b ofs bytes _)
+    else None.
+Next Obligation.
+apply (proj1_sig (range_perm_storebytes (m_dry j) b ofs bytes H)).
+Defined.
+Next Obligation.
+apply (proj2_sig (range_perm_storebytes (m_dry j) b ofs bytes H)).
+Qed.
+
+Lemma juicy_mem_storebytes_succeeds: forall j j' b ofs bytes,
+  juicy_mem_storebytes j b ofs bytes = Some j' ->
+  exists m', storebytes (m_dry j) b ofs bytes = Some m' /\ m' = m_dry j'.
+Proof.
+intros until bytes; intro H.
+unfold juicy_mem_storebytes in H.
+destruct (range_perm_dec (m_dry j) b ofs (ofs + Z_of_nat (length bytes)) Cur Writable).
+exists (m_dry j').
+split; auto.
+inversion H.
+simpl.
+unfold juicy_mem_storebytes_obligation_1.
+destruct (range_perm_storebytes (m_dry j) b ofs bytes r).
 simpl. auto.
 inv H.
 Qed.
