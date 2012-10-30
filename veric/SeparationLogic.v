@@ -250,8 +250,8 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ rho Delta = true.
 
-Definition tc_temp (Delta: tycontext) (id: ident) (t: type) : environ -> Prop := 
-     lift0 (typecheck_temp_id id t Delta = true).
+Definition tc_temp (Delta: tycontext) (id: ident) (t: type) : Prop := 
+      typecheck_temp_id id t Delta = true.
 
 Definition tc_expr (Delta: tycontext) (e: expr) : environ -> Prop := 
     denote_tc_assert (typecheck_expr Delta e).
@@ -418,19 +418,19 @@ Axiom seq_assoc:
         semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
 
 Axiom semax_for : 
-forall Delta Q Q' test incr body R
-     (TC: Q  |-- local (tc_expr Delta test))
-     (BT: bool_type (typeof test) = true) 
-     (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
+forall Delta Q Q' test incr body R,
+     bool_type (typeof test) = true ->
+     Q  |-- local (tc_expr Delta test) ->
+     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil) ->
      semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
      semax Delta Q' incr (for2_ret_assert Q R) ->
      semax Delta Q (Sfor' test incr body) R.
 
 Axiom semax_while : 
-forall Delta Q test body R
-     (TC: Q |-- local (tc_expr Delta test))
-     (BT: bool_type (typeof test) = true) 
-     (POST: local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil),
+forall Delta Q test body R,
+     bool_type (typeof test) = true ->
+     (Q |-- local (tc_expr Delta test)) ->
+     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil) ->
      semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
      semax Delta Q (Swhile test body) R.
 
@@ -477,15 +477,16 @@ Axiom semax_call_ext:
 
 Axiom semax_set : 
 forall (Delta: tycontext) (P: assert) id e,
+    tc_temp Delta id (typeof e) ->
     semax Delta 
-        (|> (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && 
-            subst id (eval_expr e) P))
+        (|> (local (tc_expr Delta e) && subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_set_forward : 
 forall (Delta: tycontext) (P: assert) id e,
+    tc_temp Delta id (typeof e) ->
     semax Delta 
-        (|> (local (tc_temp Delta id (typeof e)) && local (tc_expr Delta e) && P))
+        (|> (local (tc_expr Delta e) && P))
           (Sset id e) 
         (normal_ret_assert 
           (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
@@ -496,9 +497,9 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
 
 Axiom semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
+    tc_temp Delta id (typeof e1) ->
     semax Delta 
-       (|> (local (tc_temp Delta id (typeof e1))  && local (tc_lvalue Delta e1)  && 
-            (mapsto' sh e1 v2 * P)))
+       (|> (local (tc_lvalue Delta e1)  && (mapsto' sh e1 v2 * P)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
                                           (subst id (lift0 old) (mapsto' sh e1 v2 * P)))).

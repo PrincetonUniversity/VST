@@ -32,8 +32,7 @@ intros.
 subst t1.
 rename H2 into TE1.
 apply (semax_pre_post
-            (|> (local (tc_temp Delta id (typeof (Efield e1 fld t2))) &&
-             local (tc_lvalue Delta (Efield e1 fld t2)) &&
+            (|>(local (tc_lvalue Delta (Efield e1 fld t2)) &&
                (mapsto' sh (Efield e1 fld t2) v2 * 
                   (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&  P))))
             (normal_ret_assert 
@@ -42,10 +41,12 @@ apply (semax_pre_post
                 (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && P))))));
   [ | | apply semax_load].
 
+Focus 3. hnf. unfold typecheck_temp_id; rewrite TE1. apply eqb_type_refl.
+
 (* PRECONDITION *)
 intro rho.
 unfold tc_temp, typecheck_temp_id, local, lift1, lift0.
-simpl. rewrite TE1.
+simpl.
 normalize.
 apply later_derives.
 normalize.
@@ -266,7 +267,7 @@ Qed.
 
 Lemma forward_setx:
   forall Delta P id e,
-  typecheck_temp_id id (typeof e) Delta = true ->
+  tc_temp Delta id (typeof e)  ->
   (P |-- local (tc_expr Delta e)) ->
   semax Delta
              P
@@ -276,7 +277,7 @@ Lemma forward_setx:
                             subst id (lift0 old) P)).
 Proof.
 intros.
-eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e)].
+eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e); auto].
 eapply derives_trans ; [ | apply now_later].
 go_lower.
 apply andp_right; auto.

@@ -437,7 +437,7 @@ Qed.
 Ltac forward_while Inv Postcond :=
   apply semax_pre_PQR with Inv; 
   [ | apply semax_seq with Postcond;
-    [ apply semax_while ; [ | compute; auto | | ] | ]].
+    [ apply semax_while ; [ compute; auto | | | ] | ]].
 
 Ltac find_in_list A L :=
  match L with 

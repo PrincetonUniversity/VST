@@ -91,15 +91,12 @@ replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_ph
 apply Hsafe; auto.
 Qed.
 
-
- 
-
 Lemma semax_set_forward : 
 forall (Delta: tycontext) (P: assert) id e,
+    typecheck_temp_id id (typeof e) Delta = true ->
     semax Hspec Delta 
         (fun rho => 
-          |> (!!(typecheck_temp_id id (typeof e) Delta = true) &&
-                tc_expr Delta e rho  && P rho))
+          |> (tc_expr Delta e rho  && P rho))
           (Sset id e) 
         (normal_ret_assert 
           (fun rho => (EX old:val, 
@@ -107,17 +104,17 @@ forall (Delta: tycontext) (P: assert) id e,
                             subst id old P rho))).
 Proof.
 intros until e.
+intro TC2.
 replace (fun rho : environ =>
-   |>(!!(typecheck_temp_id id (typeof e) Delta = true) && tc_expr Delta e rho &&
+   |>(tc_expr Delta e rho &&
       P rho))
  with (fun rho : environ =>
-     (|> !!(typecheck_temp_id id (typeof e) Delta = true) && |> tc_expr Delta e rho &&
+     (|> tc_expr Delta e rho &&
       |> P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple.
-intro. apply boxy_andp; auto. apply extend_later'. apply boxy_prop; auto.
-intros jm jm' ge vx tx rho k F [TC2 TC3] TC' Hcl Hge ? ?.
-specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
+intro. apply extend_later'. apply boxy_prop; auto.
+intros jm jm' ge vx tx rho k F TC3 TC' Hcl Hge ? ?.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 exists jm', (PTree.set id (eval_expr e rho) (tx)).
 econstructor.
@@ -195,25 +192,21 @@ Qed.
 
 Lemma semax_set : 
 forall (Delta: tycontext) (P: assert) id e,
+    typecheck_temp_id id (typeof e) Delta = true ->
     semax Hspec Delta 
         (fun rho => 
-          |> (!!(typecheck_temp_id id (typeof e) Delta = true) &&
-                tc_expr Delta e rho  && 
-               subst id (eval_expr e rho) P rho))
+          |> (tc_expr Delta e rho  && subst id (eval_expr e rho) P rho))
           (Sset id e) (normal_ret_assert P).
 Proof.
-intros until e.
+intros until e. intro TC2.
 replace (fun rho : environ =>
-   |>(!!(typecheck_temp_id id (typeof e) Delta = true) && tc_expr Delta e rho &&
-      subst id (eval_expr e rho) P rho))
+   |>(tc_expr Delta e rho && subst id (eval_expr e rho) P rho))
  with (fun rho : environ =>
-     (|> !!(typecheck_temp_id id (typeof e) Delta = true) && |> tc_expr Delta e rho &&
-      |> subst id (eval_expr e rho) P rho))
+     (|> tc_expr Delta e rho && |> subst id (eval_expr e rho) P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple.
-intro. apply boxy_andp; auto. apply extend_later'. apply boxy_prop; auto.
-intros jm jm' ge ve te rho k F [TC2 TC3] TC' Hcl Hge ? ?.
-specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
+intro. apply extend_later'. apply boxy_prop; auto.
+intros jm jm' ge ve te rho k F TC3 TC' Hcl Hge ? ?.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 exists jm', (PTree.set id (eval_expr e rho) te).
 econstructor.
@@ -275,27 +268,24 @@ Qed.
 
 Lemma semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
+    typecheck_temp_id id (typeof e1) Delta = true ->
     semax Hspec Delta 
        (fun rho => |>
-        (!!(typecheck_temp_id id (typeof e1) Delta = true) && tc_lvalue Delta e1 rho  && 
+        (tc_lvalue Delta e1 rho  && 
           (mapsto' sh e1 v2 rho * P rho)))
        (Sset id e1)
        (normal_ret_assert (fun rho => 
         EX old:val, (!!(v2 = eval_id id rho) &&
                          (subst id old (fun rho => mapsto' sh e1 v2 rho * P rho) rho)))).
 Proof.
-intros until v2. 
-replace (fun rho : environ =>
-   |>(!!(typecheck_temp_id id (typeof e1) Delta = true) &&
-      tc_lvalue Delta e1 rho && (mapsto' sh e1 v2 rho * P rho)))
+intros until v2. intro TC1. 
+replace (fun rho : environ => |> (tc_lvalue Delta e1 rho && (mapsto' sh e1 v2 rho * P rho)))
  with (fun rho : environ => 
-   (|> !!(typecheck_temp_id id (typeof e1) Delta = true) &&
-      |> tc_lvalue Delta e1 rho && |> (mapsto' sh e1 v2 rho * P rho)))
+   ( |> tc_lvalue Delta e1 rho && |> (mapsto' sh e1 v2 rho * P rho)))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple.
-intro. apply boxy_andp; auto. apply extend_later'. apply boxy_prop; auto.
-intros jm jm1 ge ve te rho k F [TC1 TC2] TC' Hcl Hge ? ?.
-specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi H))).
+intro. apply extend_later'. apply boxy_prop; auto.
+intros jm jm1 ge ve te rho k F TC2 TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge TC') as [b [ofs [? ?]]]; auto.
 exists jm1.
@@ -307,7 +297,6 @@ split3.
 apply age_level; auto.
 rewrite <- map_ptree_rel.
 apply typecheck_environ_put_te'. unfold construct_rho in *. destruct rho; inv Hge; auto.
-hnf  in TC1.
 clear - TC1 TC2 TC' H2 Hge.
 unfold typecheck_temp_id in *. 
 intros. rewrite H in TC1. 
