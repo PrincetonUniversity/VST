@@ -1145,16 +1145,16 @@ intros; intro; intros.
 inv H; auto.
 Qed.
 
-Lemma unage_mapsto':
-  forall sh e v rho w, age1 w <> None -> (|> mapsto' sh e v rho) w -> mapsto' sh e v rho w.
+Lemma unage_mapsto:
+  forall sh t v1 v2 w, age1 w <> None -> (|> mapsto sh t v1 v2) w -> mapsto sh t v1 v2 w.
 Proof.
  intros.
  case_eq (age1 w); intros; try contradiction.
  clear H.
  specialize (H0 _ (age_laterR H1)).
- unfold mapsto' in *.
- revert H0; case_eq (access_mode (typeof e)); intros; auto.
- destruct (eval_lvalue e rho); try contradiction.
+ unfold mapsto in *.
+ revert H0; case_eq (access_mode t); intros; auto.
+ destruct v1; try contradiction.
  rename H into Hmode.
  destruct H0 as [bl [? ?]]; exists bl; split; auto.
  clear - H0 H1.

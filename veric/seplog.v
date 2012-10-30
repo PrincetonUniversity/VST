@@ -88,11 +88,11 @@ Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
-Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
- fun rho => 
-  match access_mode (Clight.typeof e1) with
+
+Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
+  match access_mode t with
   | By_value ch => 
-    match eval_lvalue e1 rho with
+    match v1 with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
@@ -332,7 +332,9 @@ Admitted.
 Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
-
+Definition writable_share (sh: share) := join_sub (Share.rel Share.Rsh Share.top) sh.
+Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
+Admitted.
 
 
 

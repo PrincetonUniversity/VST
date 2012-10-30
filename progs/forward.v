@@ -18,12 +18,12 @@ forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta 
        (|> (local (tc_lvalue Delta e1) &&
-          (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)))
+          (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) v2 * P)))
        (Sset id (Efield e1 fld t2))
        (normal_ret_assert (
-         EX old:val, local (lift1 (eq v2) (eval_id id)) &&
+         EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
                   (subst id (lift0 old) 
-                    (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) (lift0 v2) * P)))).
+                    (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) v2 * P)))).
 Proof with normalize.
 Transparent field_mapsto.
 pose proof I.
@@ -33,12 +33,12 @@ subst t1.
 rename H2 into TE1.
 apply (semax_pre_post
             (|>(local (tc_lvalue Delta (Efield e1 fld t2)) &&
-               (mapsto' sh (Efield e1 fld t2) v2 * 
-                  (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&  P))))
+               (lift2 (mapsto sh t2) (eval_lvalue (Efield e1 fld t2)) v2 * 
+                  (local (lift1 (tc_val t2) v2) && !!(type_is_volatile t2 = false) &&  P))))
             (normal_ret_assert 
-              (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
-              (subst id (lift0 old) (mapsto' sh (Efield e1 fld t2) v2  * 
-                (!! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && P))))));
+              (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
+              (subst id (lift0 old) (lift2 (mapsto sh t2) (eval_lvalue (Efield e1 fld t2)) v2  * 
+                (local (lift1 (tc_val t2) v2) && !!(type_is_volatile t2 = false) && P))))));
   [ | | apply semax_load].
 
 Focus 3. hnf. unfold typecheck_temp_id; rewrite TE1. apply eqb_type_refl.
@@ -51,12 +51,12 @@ normalize.
 apply later_derives.
 normalize.
 apply derives_trans with ((!!(eqb_type t2 t2 = true) && !!tc_lvalue Delta (Efield e1 fld t2) rho &&
-    (!!(typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) && 
-     (mapsto' sh (Efield e1 fld t2) v2 rho))) * P rho).
+    (!!(typecheck_val (v2 rho) t2 = true) && !!(type_is_volatile t2 = false) && 
+     (lift2 (mapsto sh t2) (eval_lvalue (Efield e1 fld t2)) v2 rho))) * P rho).
 apply sepcon_derives; auto.
 unfold lift2.
 rewrite eqb_type_refl. normalize.
-unfold mapsto'.
+unfold mapsto.
 unfold tc_lvalue; simpl. unfold lift2.
 unfold tc_lvalue in H3. rewrite H1.
 unfold field_mapsto.
@@ -72,12 +72,13 @@ normalize.
 
 (* POSTCONDITION *)
 intros ek vl. go_lower.
-intro old; apply exp_right with old; normalize.
+intros old ?.
+apply exp_right with old; normalize.
 unfold subst. normalize. apply sepcon_derives; auto.
-unfold mapsto', field_mapsto.
+unfold mapsto, field_mapsto.
 simpl typeof.
 case_eq (access_mode t2); intros; normalize.
-simpl. normalize.
+unfold eval_field.
 rewrite H1; simpl. 
 rewrite field_offset_unroll.
 destruct (field_offset fld fields); normalize.
@@ -85,9 +86,12 @@ unfold eval_struct_field.
 destruct (eval_lvalue e1 (env_set rho id old)); normalize.
 rewrite <- TC2.
 rewrite H4. rewrite H5.
-normalize.
+normalize. rewrite H6. normalize.
 Opaque field_mapsto.
 Qed.
+
+Lemma writable_share_top: writable_share Share.top.
+Admitted.
 
 Lemma semax_store_field: 
 forall (Delta: tycontext) e1 fld P v0 t2 e2 sid fields ,
@@ -108,6 +112,7 @@ pose proof I.
 intros.
 rename H0 into TE1.
 rename H2 into TCS.
+(*
 apply semax_pre with 
   (EX v':val, 
     (|>(local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
@@ -116,22 +121,24 @@ apply andp_left2.
 intro rho. simpl. apply exp_right with (v0 rho). auto.
 apply extract_exists_pre; intro v'.
 clear v0. rename v' into v0.
+*)
 
 pose proof (semax_store Delta (Efield e1 fld t2) e2 v0 Share.top 
                (local (lift1 (tc_val t2) (lift1 (eval_cast (typeof e2) t2) (eval_expr e2))) &&
                  !! (type_is_volatile t2 = false) &&   P)).
-simpl typeof in H0. rewrite splice_top_top in H0.
+simpl typeof in H0. (* rewrite splice_top_top in H0. *)
 eapply semax_pre_post ; [ | | apply H0; auto].
+3: apply writable_share_top.
 apply derives_trans with(|> (local (tc_environ Delta) &&
   (local (tc_lvalue Delta e1) &&
    local (tc_expr Delta (Ecast e2 t2)) &&
-   (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) (lift0 v0) * P)))).
+   (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))).
 rewrite (later_andp (local (tc_environ Delta))). apply andp_derives; auto.
 apply now_later.
 apply later_derives.
 intro rho; unfold local,lift0,lift1,lift2. simpl.
 normalize.
-unfold field_mapsto, mapsto'.
+unfold field_mapsto, mapsto.
 simpl.
 case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite TE1.
@@ -142,7 +149,7 @@ apply derives_trans with ((!!tc_lvalue Delta (Efield e1 fld t2) rho &&
     !!tc_expr Delta (Ecast e2 t2) rho &&
      (!!tc_val t2 (eval_cast (typeof e2) t2 (eval_expr e2 rho)) &&
       !!(type_is_volatile t2 = false)) &&
-     address_mapsto m v0 (Share.unrel Share.Lsh Share.top)
+     address_mapsto m (v0 rho) (Share.unrel Share.Lsh Share.top)
        (Share.unrel Share.Rsh Share.top)
        (b, Int.unsigned (Int.add i (Int.repr z)))) * P rho).
 apply sepcon_derives; auto. 
@@ -160,13 +167,11 @@ simpl in H4.
 destruct H4; auto.
 simpl; 
 normalize. rewrite H6; normalize. unfold eval_struct_field.
-rewrite H5.
-normalize.
 
 intros ek vl rho; unfold local, lift1, normal_ret_assert, lift2; simpl.
 normalize.
 apply sepcon_derives; auto.
-unfold mapsto', field_mapsto.
+unfold mapsto, field_mapsto.
 simpl. unfold lift1. rewrite TE1. simpl.
 case_eq (access_mode t2); intros; normalize.
 rewrite field_offset_unroll.
@@ -188,14 +193,14 @@ forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
            type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
     semax Delta 
-       (|> PROPx P (LOCALx (tc_expr Delta e1::Q) (SEPx (lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2)::R))))
+       (|> PROPx P (LOCALx (tc_expr Delta e1::Q) (SEPx (lift2 (field_mapsto sh t1 fld) (eval_expr e1) v2::R))))
        (Sset id (Efield (Ederef e1 t1) fld t2))
        (normal_ret_assert 
         (EX old:val,
-          PROPx P (LOCALx (lift1 (eq v2) (eval_id id) :: map (subst id (lift0 old)) Q)
+          PROPx P (LOCALx (lift2 eq (eval_id id) (subst id (lift0 old) v2) :: map (subst id (lift0 old)) Q)
                 (SEPx 
                   (map (subst id (lift0 old))
-                    (lift2 (field_mapsto sh t1 fld) (eval_expr e1) (lift0 v2) :: R)))))).
+                    (lift2 (field_mapsto sh t1 fld) (eval_expr e1) v2 :: R)))))).
 Proof.
 intros.
 eapply semax_pre_post;

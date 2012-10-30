@@ -224,12 +224,12 @@ simpl in H0.
 autorewrite with normalize in H0.
 rewrite H0.
 unfold partial_sum in *.
-simpl in H4. rewrite H4. clear H4. rewrite <- H1. clear H1.
+simpl in H4. rewrite H4. clear H4. rewrite H1. clear H1.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
 destruct (tc_val_extract_int _ _ _ _ H1) as [n ?].
 rewrite H4 in *.
 destruct x; inv H0.
-simpl. normalize. rewrite Int.add_assoc. normalizex.
+simpl. normalize. rewrite (Int.add_assoc i h). normalizex.
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 normalize.

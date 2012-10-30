@@ -59,17 +59,20 @@ Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A
    | None => P
    end.
 
-Definition mapsto' (sh: Share.t) (e1: Clight.expr) (v2 : val): assert :=
- fun rho => 
-  match access_mode (Clight.typeof e1) with
+Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
+  match access_mode t with
   | By_value ch => 
-    match eval_lvalue e1 rho with
+    match v1 with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
     end
   | _ => FF
   end. 
+
+Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+
+Definition writable_share: share -> Prop := seplog.writable_share. 
 
 Definition writable_block (id: ident) (n: Z): assert :=
         EX v: val*type,  EX a: address, EX rsh: Share.t,
@@ -499,19 +502,21 @@ Axiom semax_load :
 forall (Delta: tycontext) sh id P e1 v2,
     tc_temp Delta id (typeof e1) ->
     semax Delta 
-       (|> (local (tc_lvalue Delta e1)  && (mapsto' sh e1 v2 * P)))
+       (|> (local (tc_lvalue Delta e1)  && (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (lift1 (eq v2) (eval_id id)) &&
-                                          (subst id (lift0 old) (mapsto' sh e1 v2 * P)))).
+       (normal_ret_assert (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
+                                          (subst id (lift0 old) (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
 
 Axiom semax_store:
- forall Delta e1 e2 v3 rsh P 
-   (TC: typecheck_store e1), 
+ forall Delta e1 e2 v sh P,
+   typecheck_store e1 -> 
+   writable_share sh ->
    semax Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
-             (mapsto' (Share.splice rsh Share.top) e1 v3 * P)))
+             (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v * P)))
           (Sassign e1 e2) 
-          (normal_ret_assert ( (fun rho => mapsto' (Share.splice rsh Share.top) e1 ((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) rho) * P)).
+          (normal_ret_assert 
+               (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) (lift1 (eval_cast (typeof e2) (typeof e1)) (eval_expr e2)) * P)).
 
 (* THESE RULES FROM semax_lemmas *)
 
