@@ -8,8 +8,6 @@ Require Import msl.eq_dec.
 Require Import msl.sepalg.
 Require Import msl.sepalg_generators.
 
-Set Implicit Arguments.
-
 (* Other definitions and facts about psepalgs *)
 
 Lemma pjoin_unit {A} {JA: Join A}{PosA: Pos_alg A}: forall {a b : A},
@@ -57,15 +55,17 @@ Section DISCRETE.  (* Prevent these Instances from going global! *)
 
   Instance Join_discrete (A : Type): Join A := fun a1 a2 a3 : A => False.
 
-  Instance Perm_discrete (A: Type)  : @Perm_alg A (@Join_discrete A).
+  Instance Perm_discrete (A: Type)  : @Perm_alg A (Join_discrete A).
   Proof. constructor; intros; inv H.
   Qed.
   
-  Instance psa_discrete (A: Type) :  @Pos_alg A  (@Join_discrete A).
+  Instance psa_discrete (A: Type) :  @Pos_alg A  (Join_discrete A).
   Proof.
     repeat intro. inv H.
   Qed.  
 End DISCRETE.
+
+Set Implicit Arguments.
 
 (** We provide a way to lift any sepalg into a Pos_alg by removing all
     of the units. *)

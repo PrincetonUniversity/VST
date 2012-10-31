@@ -6,7 +6,7 @@ Definition world := ((var -> option adr)*(adr -> option adr))%type.
 Instance Join_world: Join world :=
    Join_prod
      (var -> option adr) (Join_equiv _)
-     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (@Join_discrete adr))).
+     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (Join_discrete adr))).
 
 Instance Perm_world : Perm_alg world := _.
 Instance Sep_world : Perm_alg world := _.

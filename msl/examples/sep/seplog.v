@@ -8,7 +8,7 @@ Instance Join_world: Join world :=
    _
    (Join_prod
      (var -> option adr) (Join_equiv _)
-     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (@Join_discrete adr)))).
+     (adr -> option adr) (Join_fun adr (option adr) (Join_lower (Join_discrete adr)))).
 
 Instance Perm_world : Perm_alg world := _.
 Instance Sep_world : Perm_alg world := _.
@@ -175,33 +175,35 @@ Lemma semax_store: forall x y z,
 Proof.
  intros; hnf; intros.
  destruct s as [stk hp].
- destruct H0 as [[stk1 hp1] [[stk2 hp2] [[[? ?] ?] [[[ay ?] [ax [? [az [? ?]]]]] ?]]]].
+ destruct H0 as [[n1 [stk1 hp1]] [[n2 [stk2 hp2]] [[[? ?] [[H2a H2b] H2]] [[[ay ?] [ax [? [az [? ?]]]]] ?]]]].
  simpl in *; subst.
  exists (stk, table_set ax ay hp).
  rewrite H4. simpl. rewrite H3. simpl. split; auto.
- exists (table_get stk, fun_set hp1 ax (Some ay)); exists (table_get stk, hp2).
+ exists (lev, (table_get stk, fun_set hp1 ax (Some ay))); exists (lev, (table_get stk, hp2)).
  simpl.
- split; auto.
-  split; auto. simpl.
+ repeat split; auto. simpl.
  intro i. unfold fun_set.
  specialize (H6 i). specialize (H2 i).
  change adr with nat in H6|-*.
  destruct (@eq_dec nat _ i ax). rewrite H6 in H2.
  inv H2. constructor.  inv H9.  rewrite H6 in *. auto.
- split; auto. 
  exists ax. split; auto. exists ay; split; auto.
  intro a; specialize (H6 a).
  unfold fun_set; change adr with nat in *;
  destruct (eq_dec a ax); auto.
+ eapply pred_hereditary; [ | apply H7].
+ constructor.
 Qed.
 
 Lemma semax_seq: forall P c1 Q c2 R,
   semax P c1 Q -> semax Q c2 R -> semax P (Seq c1 c2) R.
 Proof.
+(*  BROKEN
+Print semax.
  unfold semax; intros. 
- destruct (H F s) as [s1 [? ?]]; auto.
+ destruct (H lev F s) as [s1 [? ?]]; auto.
  intros ? ?. apply H1. constructor 3; auto.
- destruct (H0 F s1) as [s2 [? ?]]; auto.
+ destruct (H0 lev F s1) as [s2 [? ?]]; auto.
  intros ? ?. apply H1. constructor 4; auto.
  exists s2; split; auto.
  simpl. rewrite H3; simpl. auto.
@@ -223,8 +225,8 @@ Proof.
  exists (fun_set stk x v, hp1); exists (fun_set stk x v, hp2); split; auto.
   split; auto.
 Qed.
-
-
+*)
+Admitted.
 
 
 
