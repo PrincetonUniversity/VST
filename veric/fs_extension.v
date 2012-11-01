@@ -103,16 +103,11 @@ Section FSExtension.
 Variables 
   (Z cT D: Type) 
   (csem: CoreSemantics genv cT mem D)
-  (client_sig: ext_sig mem fs)
-
+  (init_world: Z)
   (after_at_external_excl: forall c ret c',
-    after_external csem ret c = Some c' -> at_external csem c' = None)
-  (at_external_handled: forall c ef args sig,
-    at_external csem c = Some (ef, sig, args) -> IN ef client_sig = true)
+    after_external csem ret c = Some c' -> at_external csem c' = None).
 
-  (init_world: Z).
-
-Definition cores := fun _:nat => Some csem.
+Definition cores := fun _:nat => Some (juicy_core_sem csem).
 
 Local Open Scope nat_scope.
 
@@ -134,9 +129,9 @@ Definition runnable := fun (ge: genv) (s: xT) =>
   | None, None => Some 1
   | _, _ => None
   end.
-Definition proj_zint := get_fs.
-Definition proj_zext := get_ext.
-Definition zmult := @prod Z fs. 
+Definition proj_zint (s: xT) := get_fs s.
+Definition proj_zext (z: fs*Z) := snd z.
+Definition zmult := @pair fs Z.
 
 (*SYS_READ/WRITE_SIG: fd, buf, count*)
 Notation SYS_READ_SIG := (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint)).
@@ -271,12 +266,16 @@ Definition handled: list AST.external_function := SYS_READ::SYS_WRITE::SYS_OPEN:
 
 Definition is_open (fsys: fs) (fname: int) := exists fd, get_fnames fsys fd = Some fname.
 
+Definition is_readable (fsys: fs) (fd: int) := 
+  exists md, exists cur, get_fdtable fsys fd = Some (md, cur).
+
+Definition is_writable (fsys: fs) (fd: int) := 
+  exists md, exists cur, get_fdtable fsys fd = Some (md, cur) /\ fwritable md=true.
+
 Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
-| os_corestep: forall ge s m s' m',
-  get_fs s=get_fs s' -> 
-  get_ext s=get_ext s' -> 
-  corestep csem ge (get_core s) m (get_core s') m' -> 
-  os_step ge s m s' m'
+| os_corestep: forall ge z c fs m c' m',
+  corestep csem ge c m c' m' -> 
+  os_step ge (mkxT z c fs) m (mkxT z c' fs) m'
 | os_open: forall ge z s m c md0 fname0 md fname unused_fd fs',
   let fs := get_fs s in 
   at_external csem (get_core s) = Some (SYS_OPEN, SYS_OPEN_SIG, fname0::md0::nil) ->
@@ -318,9 +317,9 @@ Definition os_make_initial_core (ge: genv) (v: val) (args: list val): option xT 
 
 Definition os_at_external (s: xT) :=
   match at_external csem (get_core s) with
-  | Some (SYS_READ, SYS_READ_SIG, args) => None
-  | Some (SYS_WRITE, SYS_WRITE_SIG, args) => None
-  | Some (SYS_OPEN, SYS_OPEN_SIG, args) => None
+  | Some (SYS_READ, sig, args) => None
+  | Some (SYS_WRITE, sig, args) => None
+  | Some (SYS_OPEN, sig, args) => None
   | Some (ef, sig, args) => Some (ef, sig, args)
   | None => None
   end.
@@ -347,15 +346,14 @@ case_eq (at_external csem (get_core q)).
 2: unfold os_at_external; intros H1; rewrite H1; auto.
 intros [[ef sig] args] H1.
 inv H.
-apply corestep_not_at_external in H3; congruence.
+apply corestep_not_at_external in H0; simpl in H1; congruence.
 unfold os_at_external; rewrite H0; auto.
 unfold os_at_external; rewrite H0; auto.
 unfold os_at_external; rewrite H0; auto.
 Qed.
 Next Obligation.
 inv H.
-apply corestep_not_halted in H2.
-unfold os_safely_halted; rewrite H2; auto.
+apply corestep_not_halted in H0; simpl; auto.
 edestruct (at_external_halted_excl csem); eauto. congruence.
 edestruct (at_external_halted_excl csem); eauto. congruence.
 edestruct (at_external_halted_excl csem); eauto. congruence.
@@ -371,25 +369,404 @@ Definition isSome {A: Type} (o: option A) :=
   match o with Some _ => true | None => false end.
 
 Definition Client_FSExtSpec :=
-  Build_external_specification juicy_mem AST.external_function (Z*fs)
-  (fun ef: AST.external_function => unit (*placeholder for now*))
-  (fun (ef: AST.external_function) u typs args zfs jm => 
-    match ef, zfs, args with
-      SYS_OPEN, (z, fs), mode::nil => 
-      nat_of_Z (Int.intval (get_nfiles_open fs)) < nat_of_Z Int.max_unsigned
-    | SYS_READ, (z, fs), fd::buf::nbytes => False (*TODO*)
-    | SYS_WRITE, (z, fs), fd::buf::nbytes => False (*TODO*)
+  Build_external_specification juicy_mem AST.external_function (fs*Z)
+  (fun ef: AST.external_function => unit) (*TODO*)
+  (fun (ef: AST.external_function) u typs args fsz jm => 
+    match ef, fsz, args with
+      SYS_OPEN, (fsys, z), md::nil => 
+        nat_of_Z (Int.intval (get_nfiles_open fsys)) < nat_of_Z Int.max_unsigned
+    | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
+        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+        | Some fd, Some adr, Some nbytes => 
+          is_readable fsys fd /\ 
+          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (Int.intval nbytes) Cur Writable
+        | _, _, _ => False
+        end
+    | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
+        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+        | Some fd, Some adr, Some nbytes => 
+          is_writable fsys fd /\ 
+          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (Int.intval nbytes) Cur Readable
+        | _, _, _ => False
+        end
     | _, _, _ => False
     end)
   (fun (ef: AST.external_function) u ty retval zfs jm => 
     match ef, zfs with
-    | SYS_OPEN, (z, fs) => True (*TODO*)
+    | SYS_OPEN, (fsys, z) => True (*TODO*)
     | _, (_, _) => True (*TODO*)
     end).
 
 Program Definition Client_JuicyFSExtSpec := 
-  Build_juicy_ext_spec (Z*fs) Client_FSExtSpec _ _.
+  Build_juicy_ext_spec (fs*Z) Client_FSExtSpec _ _.
+Next Obligation. 
+hnf; intros a a' H. 
+destruct e; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t0; auto.
+destruct args; auto.
+destruct args; auto.
+destruct args; auto.
+destruct args; auto.
+destruct (val2oint v); auto.
+destruct (val2oadr v0); auto.
+destruct (val2oint v1); auto.
+intros [? ?]; split; auto.
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct t0; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t0; auto.
+destruct args; auto.
+destruct args; auto.
+destruct args; auto.
+destruct args; auto.
+destruct (val2oint v); auto.
+destruct (val2oadr v0); auto.
+destruct (val2oint v1); auto.
+intros [? ?]; split; auto.
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
+Qed.
 Next Obligation. hnf; intros a a' H; destruct e; auto. Qed.
-Next Obligation. hnf; intros a a' H; destruct e; auto. Qed.
+
+Definition Client_JuicyFSExtSig: juicy_ext_sig (fs*Z) :=
+  mkjuicyextsig handled Client_JuicyFSExtSpec.
+
+Variable (at_external_handled: forall c ef args sig,
+    at_external csem c = Some (ef, sig, args) -> IN ef Client_JuicyFSExtSig = true).
+Variable JuicyFSExtSig: juicy_ext_sig Z.
+Variable JuicyFSExtSig_linkable: linkable proj_zext handled Client_JuicyFSExtSig JuicyFSExtSig.
+
+Program Definition FSExtension := 
+  Extension.Make 
+    JuicyFSCoreSem
+    cores
+    Client_JuicyFSExtSig 
+    JuicyFSExtSig 
+    handled
+    proj_core _
+    active _ _
+    runnable _ _
+    _ _ _ _
+    proj_zint
+    proj_zext
+    zmult _
+    _.
+Next Obligation.
+inv H.
+inv H1.
+unfold proj_core in H0.
+destruct (eq_nat_dec i 1); try congruence.
+subst.
+exists c.
+unfold proj_core.
+if_tac; auto.
+elimtype False; apply H1; auto.
+unfold proj_core in H0.
+destruct (eq_nat_dec i 1); try congruence.
+inv H0.
+exists (get_core s).
+unfold proj_core; auto.
+unfold proj_core in H0.
+destruct (eq_nat_dec i 1); try congruence.
+subst.
+exists (get_core s); auto.
+unfold proj_core in H0.
+destruct (eq_nat_dec i 1); try congruence.
+subst.
+exists (get_core s); auto.
+Qed.
+Next Obligation.
+exists (juicy_core_sem csem).
+unfold cores; auto.
+Qed.
+Next Obligation.
+exists (get_core s).
+unfold proj_core, active; auto.
+Qed.
+Next Obligation.
+unfold runnable in H.
+destruct (at_external csem (get_core s)); try congruence.
+destruct (safely_halted csem ge (get_core s)); try congruence.
+inv H.
+auto.
+Qed.
+Next Obligation.
+unfold runnable in H.
+case_eq (at_external csem (get_core s)); try congruence.
+intros [efsig vals] H1.
+rewrite H1 in H.
+right.
+exists efsig; exists vals.
+auto.
+intros H1; rewrite H1 in H.
+case_eq (safely_halted csem ge (get_core s)).
+intros rv H2.
+rewrite H2 in H.
+left; exists rv; auto.
+intros H2; rewrite H2 in H; congruence.
+Qed.
+Next Obligation.
+eapply after_at_external_excl; eauto.
+Qed.
+Next Obligation.
+apply at_external_handled in H1.
+unfold is_true; auto.
+Qed.
+Next Obligation.
+unfold juicy_core_sem in H1.
+simpl in H1.
+unfold proj_core in H0.
+destruct (eq_nat_dec i 1); try congruence.
+subst.
+unfold get_core in H0.
+destruct s; simpl in H0.
+inv H0.
+unfold os_at_external in H2.
+simpl in H2.
+rewrite H1 in H2.
+unfold is_true.
+if_tac; auto.
+if_tac; auto.
+if_tac; auto.
+destruct ef; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+Qed.
+Next Obligation. (*this proof should be automated*)
+if_tac; auto.
+rewrite H0 in H.
+unfold os_at_external in H.
+destruct (at_external csem (get_core s)).
+destruct p as [[ef' sig'] vals].
+destruct ef'; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sig'; try congruence.
+destruct sig_args; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res0; try congruence.
+destruct t; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res0; try congruence.
+destruct t; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct sig_res0; try congruence.
+destruct t0; try congruence.
+destruct sg; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_res0; try congruence.
+destruct sig_args0; try congruence.
+destruct t1; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+congruence.
+if_tac.
+unfold os_at_external in H.
+destruct (at_external csem (get_core s)).
+destruct p as [[ef' sig'] vals].
+destruct ef'; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+congruence.
+if_tac.
+unfold os_at_external in H.
+destruct (at_external csem (get_core s)).
+destruct p as [[ef' sig'] vals].
+destruct ef'; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sig'; try congruence.
+destruct sig_args; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res0; try congruence.
+destruct t; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res0; try congruence.
+destruct t; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct sig_res0; try congruence.
+destruct t0; try congruence.
+destruct sg; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_res0; try congruence.
+destruct sig_args0; try congruence.
+destruct t1; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+destruct t0; try congruence.
+destruct sig_args0; try congruence.
+congruence.
+unfold os_at_external in H.
+destruct (at_external csem (get_core s)).
+destruct p as [[ef' sig'] vals].
+destruct ef'; try congruence.
+congruence.
+Qed.
+Next Obligation.
+unfold os_after_external in H0.
+destruct (after_external csem ret (get_core s)); try congruence.
+inv H0; auto.
+Qed.
 
 End FSExtension.

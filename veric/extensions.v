@@ -97,16 +97,16 @@ Definition juicy_link (Z: Type) (jesig: juicy_ext_sig Z)
   mkjuicyextsig handled (link_juicy_ext_spec handled jesig).
 
 (*ef:{P}{Q} (ext_sig spec) is a subtype of ef:{P'}{Q'} (spec. assumed by client)*)
-Definition linkable (M Z: Type) 
+Definition linkable (M Z Zext: Type) (proj_zext: Z -> Zext)
       (handled: list AST.external_function) 
-      (client_sig: ext_sig M Z) (ext_sig: ext_sig M Z) := 
+      (client_sig: ext_sig M Z) (ext_sig: ext_sig M Zext) := 
   forall ef P Q P' Q', 
     IN ef (DIFF client_sig handled) -> 
     spec_of ef ext_sig = (P, Q) -> 
     spec_of ef client_sig = (P', Q') -> 
     forall x' tys args m z, P' x' tys args z m -> 
-      exists x, P x tys args z m /\
-      forall ty ret m' z', Q x ty ret z' m' -> Q' x' ty ret z' m'.
+      exists x, P x tys args (proj_zext z) m /\
+      forall ty ret m' z', Q x ty ret (proj_zext z') m' -> Q' x' ty ret z' m'.
 
 Module Extension. 
 Record Sig
@@ -121,7 +121,7 @@ Record Sig
   (csem: nat -> option (CoreSemantics G cT M D)) (*a set of core semantics*)
 
   (client_sig: ext_sig M Z) 
-  (esig: ext_sig M Z)
+  (esig: ext_sig M Zext)
   (handled: list AST.external_function) := Make {
 
     (*generalized projection of core i from state s*)
@@ -170,12 +170,14 @@ Record Sig
     proj_zext: Z -> Zext;
     zmult: Zint -> Zext -> Z;
     zmult_proj: forall zint zext, proj_zext (zmult zint zext) = zext;
-    ext_upd_at_external : forall ge s m s' m',
-      corestep esem ge s m s' m' -> 
+    (*implemented "external" state is unchanged after truly external calls*)
+    ext_upd_at_external : forall ef sig args ret s s',
+      at_external esem s = Some (ef, sig, args) -> 
+      after_external esem ret s = Some s' -> 
       proj_zint s = proj_zint s';
 
     (*csem and esem are signature linkable*)
-    esem_csem_linkable: linkable handled client_sig esig;
+    esem_csem_linkable: linkable proj_zext handled client_sig esig;
 
     (*a global invariant characterizing "safe" extensions*)
     all_safe (ge: G) (n: nat) (z: Z) (w: xT) (m: M) :=
@@ -192,14 +194,14 @@ Implicit Arguments Extension.Make [G xT cT M D Z Zint Zext].
 Section SafeExtension.
 Variables (G T C M D Z Zint Zext: Type)
   (esem: CoreSemantics G T M D) (csem: nat -> option (CoreSemantics G C M D))
-  (client_sig: ext_sig M Z) (esig: ext_sig M Z) (handled: list AST.external_function).
+  (client_sig: ext_sig M Z) (esig: ext_sig M Zext) (handled: list AST.external_function).
 
 Import Extension.
 
-Definition safe_extension (E: Extension.Sig Zint Zext esem csem client_sig esig handled) :=
+Definition safe_extension (E: Extension.Sig Zint esem csem client_sig esig handled) :=
   forall ge n s m z, 
     E.(all_safe) ge n (zmult E (proj_zint E s) z) s m -> 
-    safeN esem (link esig handled) ge n (zmult E (proj_zint E s) z) s m.
+    safeN esem (link esig handled) ge n z s m.
 
 End SafeExtension.
 
@@ -236,9 +238,9 @@ Variables
   (esem: CoreSemantics G xT M D) 
   (csem: nat -> option (CoreSemantics G cT M D))
   (client_sig: ext_sig M Z)
-  (esig: ext_sig M Z)
+  (esig: ext_sig M Zext)
   (handled: list AST.external_function)
-  (E: Extension.Sig Zint Zext esem csem client_sig esig handled).
+  (E: Extension.Sig Zint esem csem client_sig esig handled).
 
 Definition proj_zint := E.(Extension.proj_zint). 
 Local Coercion proj_zint : xT >-> Zint.
@@ -344,8 +346,8 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
 
   (*inject the results of an external call into the extended machine state*)
   (at_extern_ret: forall c z s m z' m' tys args ty ret c' CS ef sig x 
-      (P:ext_spec_type esig ef -> list typ -> list val -> Z -> M -> Prop) 
-      (Q: ext_spec_type esig ef -> option typ -> option val -> Z -> M -> Prop),
+      (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
+      (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
     let i := ACTIVE s in CORE i is (CS, c) in s -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
@@ -359,8 +361,8 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
   (*safety of other threads is preserved when returning from an external 
      function call*)
   (at_extern_rest: forall c z s m z' s' m' tys args ty ret c' CS ef x sig
-      (P:ext_spec_type esig ef -> list typ -> list val -> Z -> M -> Prop) 
-      (Q: ext_spec_type esig ef -> option typ -> option val -> Z -> M -> Prop),
+      (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
+      (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
     let i := ACTIVE s in CORE i is (CS, c) in s -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
@@ -372,7 +374,7 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
       (CORE j is (CS0, c0) in s' -> CORE j is (CS0, c0) in s) /\
       (forall ge n, CORE j is (CS0, c0) in s -> 
                     safeN CS0 client_sig ge (S n) (s \o z) c0 m -> 
-                    safeN CS0 client_sig ge n z' c0 m'))),
+                    safeN CS0 client_sig ge n (s' \o z') c0 m'))),
   safety_criteria.
 
 Lemma safety_criteria_safe : safety_criteria -> safe_extension E.
@@ -412,9 +414,12 @@ destruct Hlink with (x' := x)
 exists x'.
 erewrite at_external_not_handled; eauto.
 split; auto.
+rewrite Extension.zmult_proj in H17; auto.
 erewrite at_external_not_handled; eauto.
 intros ret m' z' POST.
-destruct (H8 ret m' z') as [c' [H10 H11]].
+destruct (H8 ret m' (s \o z')) as [c' [H10 H11]].
+specialize (H18 (sig_res sig) ret m' (s \o z')).
+rewrite Extension.zmult_proj in H18.
 eapply H18 in POST; eauto.
 specialize (at_extern_ret c z s m z' m' (sig_args sig) args (sig_res sig) ret c' CS
  ef sig x' (ext_spec_pre esig ef) (ext_spec_post esig ef)).
@@ -437,8 +442,10 @@ intros Heq _; rewrite Heq in *.
 rewrite CSEMJ in H14; inversion H14; rewrite H1 in *.
 rewrite PROJJ in H15; inversion H15; rewrite H6 in *.
 unfold proj_zint in H12.
+unfold proj_zint.
 rewrite <-H12.
-auto.
+eapply ext_upd_at_external in H13; eauto.
+rewrite <-H13; auto.
 (*i<>j*)
 intros Hneq _.
 specialize (at_extern_rest c z s m z' s' m' (sig_args sig) args (sig_res sig) ret c' CS
@@ -453,17 +460,16 @@ spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 destruct (at_extern_rest CSj cj j Hneq) as [H19 H20].
-unfold proj_zint in H12.
 rewrite <-H12.
 eapply H20; eauto.
 destruct H19 as [H21 H22]; auto.
 eapply H1'; eauto.
 
-(*CASE 2: at_external OUTER = None; i.e., handled function*)
+(*CASE 2: at_external OUTER = None; i.e., inner corestep or handled function*)
 intros H2.
 case_eq (safely_halted esem ge s); auto.
 case_eq (RUNNABLE ge s).
-(*active thread i*)
+(*active thread i is runnable*)
 intros i RUN.
 generalize (runnable_active _ _ RUN) as ACT; intro.
 rewrite <-ACT in *.
@@ -476,9 +482,8 @@ rewrite <-ACT; auto.
 destruct (core_pres ge n z s c m CS i s' c' m' H1 ACT)
  as [_ INV']; auto.
 rewrite <-ACT in *; auto.
+intros Hsafehalt.
 exists s'; exists m'; split; [auto|].
-apply ext_upd_at_external in CORESTEP_T.
-rewrite CORESTEP_T.
 eauto.
 
 (*no runnable thread*)
@@ -490,7 +495,7 @@ destruct (handled_prog ge n (s \o z) s m (all_safe_downward H1) RUN H2)
 2: intros CONTRA; rewrite CONTRA in SAFELY_HALTED; congruence.
 exists s'; exists m'.
 split; auto.
-erewrite ext_upd_at_external; eauto; eapply IHn.
+eapply IHn.
 destruct (runnable_none ge s RUN CSEM PROJECT) 
  as [SAFELY_HALTED|[ef [args AT_EXT]]].
 
@@ -626,9 +631,9 @@ Variables (G xT cT M D Z Zint Zext: Type)
   (esem: CoreSemantics G xT M D) 
   (csem: nat -> option (CoreSemantics G cT M D))
   (client_sig: ext_sig M Z)
-  (esig: ext_sig M Z)
+  (esig: ext_sig M Zext)
   (handled: list AST.external_function)
-  (E: Extension.Sig Zint Zext esem csem client_sig esig handled).
+  (E: Extension.Sig Zint esem csem client_sig esig handled).
 
 Import Extension.
 
@@ -764,7 +769,7 @@ Section LinkableExtension.
 Variables (fT: forall X:Type, Type) (cT dT D Z Zint Zext: Type)
   (esem: forall (T: Type) (CS: CompcertCoreSem genv T D), CompcertCoreSem genv (fT T) D) 
   (source: CompcertCoreSem genv cT D) (target: CompcertCoreSem genv dT D)
-  (client_sig: ext_sig mem Z) (esig: ext_sig mem Z) (handled: list AST.external_function).
+  (client_sig: ext_sig mem Z) (esig: ext_sig mem Zext) (handled: list AST.external_function).
 
 Notation ALL_SAFE := (Extension.all_safe).
 Notation PROJ_CORE := (Extension.proj_core).
@@ -790,8 +795,8 @@ Let yT := fT dT.
 Definition cores (aT:Type) (CS: CompcertCoreSem genv aT D) :=
   fun i:nat => Some (csem CS).
 
-Variable (E1: Extension.Sig Zint Zext (esem source) (cores source) client_sig esig handled).
-Variable (E2: Extension.Sig Zint Zext (esem target) (cores target) client_sig esig handled).
+Variable (E1: Extension.Sig Zint (esem source) (cores source) client_sig esig handled).
+Variable (E2: Extension.Sig Zint (esem target) (cores target) client_sig esig handled).
 Variables (ge: genv) (entry_points: list (val*val*signature)).
 
 Import Sim_inj.
