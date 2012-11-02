@@ -107,7 +107,7 @@ Variables
   (after_at_external_excl: forall c ret c',
     after_external csem ret c = Some c' -> at_external csem c' = None).
 
-Definition cores := fun _:nat => Some (juicy_core_sem csem).
+Definition cores := fun _:nat => Some csem.
 
 Local Open Scope nat_scope.
 
@@ -363,12 +363,36 @@ edestruct (at_external_halted_excl csem); eauto.
 left; unfold os_at_external; rewrite H; auto.
 Qed.
 
-Definition JuicyFSCoreSem := juicy_core_sem FSCoreSem.
-
-Definition isSome {A: Type} (o: option A) :=
-  match o with Some _ => true | None => false end.
-
 Definition Client_FSExtSpec :=
+  Build_external_specification Memory.mem AST.external_function (fs*Z)
+  (fun ef: AST.external_function => unit) (*TODO*)
+  (fun (ef: AST.external_function) u typs args fsz m => 
+    match ef, fsz, args with
+      SYS_OPEN, (fsys, z), md::nil => 
+        nat_of_Z (Int.intval (get_nfiles_open fsys)) < nat_of_Z Int.max_unsigned
+    | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
+        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+        | Some fd, Some adr, Some nbytes => 
+          is_readable fsys fd /\ 
+          Mem.range_perm m (fst adr) (snd adr) (Int.intval nbytes) Cur Writable
+        | _, _, _ => False
+        end
+    | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
+        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+        | Some fd, Some adr, Some nbytes => 
+          is_writable fsys fd /\ 
+          Mem.range_perm m (fst adr) (snd adr) (Int.intval nbytes) Cur Readable
+        | _, _, _ => False
+        end
+    | _, _, _ => False
+    end)
+  (fun (ef: AST.external_function) u ty retval zfs jm => 
+    match ef, zfs with
+    | SYS_OPEN, (fsys, z) => True (*TODO*)
+    | _, (_, _) => True (*TODO*)
+    end).
+
+Definition Client_FSExtSpec' :=
   Build_external_specification juicy_mem AST.external_function (fs*Z)
   (fun ef: AST.external_function => unit) (*TODO*)
   (fun (ef: AST.external_function) u typs args fsz jm => 
@@ -398,7 +422,7 @@ Definition Client_FSExtSpec :=
     end).
 
 Program Definition Client_JuicyFSExtSpec := 
-  Build_juicy_ext_spec (fs*Z) Client_FSExtSpec _ _.
+  Build_juicy_ext_spec (fs*Z) Client_FSExtSpec' _ _.
 Next Obligation. 
 hnf; intros a a' H. 
 destruct e; auto.
@@ -451,20 +475,110 @@ auto.
 Qed.
 Next Obligation. hnf; intros a a' H; destruct e; auto. Qed.
 
-Definition Client_JuicyFSExtSig: juicy_ext_sig (fs*Z) :=
-  mkjuicyextsig handled Client_JuicyFSExtSpec.
+Lemma empty_rmap_no (lev: nat) loc: 
+  compcert_rmaps.R.resource_at (compcert_rmaps.RML.empty_rmap lev) loc = 
+  compcert_rmaps.R.NO shares.Share.bot.
+Proof.
+unfold compcert_rmaps.RML.empty_rmap.
+unfold compcert_rmaps.RML.empty_rmap'.
+unfold compcert_rmaps.R.resource_at.
+rewrite compcert_rmaps.R.unsquash_squash; simpl.
+unfold compose; simpl; auto.
+Qed.
+
+Lemma exists_ok_rmap (lev: nat): 
+  exists phi, initial_rmap_ok phi /\ ageable.level phi=lev.
+Proof.
+exists (compcert_rmaps.RML.empty_rmap lev); split.
+unfold initial_rmap_ok.
+intros.
+rewrite <-compcert_rmaps.RML.core_resource_at.
+rewrite empty_rmap_no.
+rewrite compcert_rmaps.RML.core_NO; auto.
+apply compcert_rmaps.RML.empty_rmap_level.
+Qed.
+
+Lemma juicy_mem_exists (lev: nat) (m: mem): 
+  exists jm, m_dry jm=m /\ ageable.level jm=lev.
+Proof.
+destruct (exists_ok_rmap lev) as [phi [H1 H2]].
+exists (initial_mem m phi H1).
+split; auto.
+simpl.
+unfold inflate_initial_mem.
+rewrite level_make_rmap.
+auto.
+Qed.
+
+Lemma juicy_safeN_safeN ge n z c jm :
+  safeN (juicy_core_sem csem) Client_JuicyFSExtSpec ge n z c jm -> 
+  safeN csem Client_FSExtSpec ge n z c (m_dry jm).
+Proof.
+revert jm z c; induction n; auto.
+intros jm z c H1.
+hnf.
+hnf in H1.
+case_eq (at_external (juicy_core_sem csem) c).
+intros [[ef sig] args] H2.
+rewrite H2 in H1.
+inv H2.
+rewrite H0.
+case_eq (safely_halted (juicy_core_sem csem) ge c).
+intros rv H2.
+rewrite H2 in H1.
+elimtype False; auto.
+intros H2.
+rewrite H2 in H1.
+inv H2.
+unfold j_safely_halted in H3.
+rewrite H3.
+destruct H1 as [x [H1 H2]].
+exists x.
+split; auto.
+intros ret m' z' H4.
+destruct (juicy_mem_exists (ageable.level jm) m') as [jm' [H5 H6]].
+specialize (H2 ret jm' z').
+spec H2; auto.
+destruct H2 as [c' [H2 H7]].
+exists c'.
+split; auto.
+rewrite <-H5.
+eapply IHn; eauto.
+intros H2.
+rewrite H2 in H1.
+inv H2.
+rewrite H0.
+case_eq (safely_halted (juicy_core_sem csem) ge c).
+intros rv H2.
+rewrite H2 in H1.
+inv H2.
+unfold j_safely_halted in H3.
+rewrite H3; auto.
+intros H2.
+rewrite H2 in H1.
+inv H2.
+unfold j_safely_halted in H3.
+rewrite H3; auto.
+destruct H1 as [c' [jm' [H1 H2]]].
+exists c'; exists (m_dry jm').
+split; auto.
+inv H1.
+auto.
+Qed.
+
+Definition Client_FSExtSig: ext_sig mem (fs*Z) := mkextsig handled Client_FSExtSpec.
 
 Variable (at_external_handled: forall c ef args sig,
-    at_external csem c = Some (ef, sig, args) -> IN ef Client_JuicyFSExtSig = true).
-Variable JuicyFSExtSig: juicy_ext_sig Z.
-Variable JuicyFSExtSig_linkable: linkable proj_zext handled Client_JuicyFSExtSig JuicyFSExtSig.
+    at_external csem c = Some (ef, sig, args) -> IN ef Client_FSExtSig = true).
+Variable FSExtSig: ext_sig Memory.mem Z.
+Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
 
-Program Definition FSExtension := 
+Program Definition fs_extension := 
   Extension.Make 
-    JuicyFSCoreSem
+    FSCoreSem
     cores
-    Client_JuicyFSExtSig 
-    JuicyFSExtSig 
+    Client_FSExtSig 
+    FSExtSig 
     handled
     proj_core _
     active _ _
@@ -473,17 +587,17 @@ Program Definition FSExtension :=
     proj_zint
     proj_zext
     zmult _
-    _.
+    _ 
+   FSExtSig_linkable.
 Next Obligation.
 inv H.
-inv H1.
 unfold proj_core in H0.
 destruct (eq_nat_dec i 1); try congruence.
 subst.
 exists c.
 unfold proj_core.
 if_tac; auto.
-elimtype False; apply H1; auto.
+elimtype False; apply H; auto.
 unfold proj_core in H0.
 destruct (eq_nat_dec i 1); try congruence.
 inv H0.
@@ -498,14 +612,8 @@ destruct (eq_nat_dec i 1); try congruence.
 subst.
 exists (get_core s); auto.
 Qed.
-Next Obligation.
-exists (juicy_core_sem csem).
-unfold cores; auto.
-Qed.
-Next Obligation.
-exists (get_core s).
-unfold proj_core, active; auto.
-Qed.
+Next Obligation. exists csem; unfold cores; auto. Qed.
+Next Obligation. exists (get_core s); unfold proj_core, active; auto. Qed.
 Next Obligation.
 unfold runnable in H.
 destruct (at_external csem (get_core s)); try congruence.
@@ -768,5 +876,119 @@ unfold os_after_external in H0.
 destruct (after_external csem ret (get_core s)); try congruence.
 inv H0; auto.
 Qed.
+
+Lemma fs_extension_safe (csem_fun: corestep_fun csem): safe_extension fs_extension.
+Proof.
+apply safety_criteria_safe; constructor.
+
+(*1*)
+intros until m'; intros H1 H2 [H3 H4] H5 H6.
+unfold cores in H3; inversion H3; rewrite H0 in *; clear H3.
+assert (get_core s'=c').
+ clear -H0 H4 H5 H6 csem_fun.
+ inversion H6.
+ rewrite <-H2 in H4.
+ inversion H4.
+ unfold proj_core in H10.
+ if_tac in H10; try congruence.
+ inversion H10.
+ rewrite <-H12 in *.
+ rewrite <-H0 in *.
+ generalize (csem_fun _ _ _ _ _ _ _ H5 H); inversion 1.
+ rewrite <-H14; auto.
+ unfold get_core in H; destruct s; simpl in *.
+ apply corestep_not_at_external in H5.
+ rewrite H0 in *.
+ unfold proj_core in H4.
+ if_tac in H4; try congruence.
+ inversion H4.
+ rewrite <-H17 in *.
+ rewrite H5 in H.
+ congruence.
+ apply corestep_not_at_external in H5.
+ rewrite <-H0 in *.
+ inversion H4.
+ unfold proj_core in H16; if_tac in H16; try congruence.
+ apply corestep_not_at_external in H5.
+ rewrite <-H0 in *.
+ inversion H4.
+ unfold proj_core in H16.
+ if_tac in H16; try congruence.
+rewrite <-H in *.
+split; auto.
+split; auto.
+unfold cores; auto.
+simpl; unfold proj_core; if_tac; auto.
+elimtype False.
+inversion H4.
+unfold proj_core in H8.
+if_tac in H8; try congruence.
+hnf.
+intros i2 CS2 c2 H7 H8.
+specialize (H1 i CS c).
+spec H1; auto.
+unfold cores; auto.
+spec H1; auto.
+assert (c'=c2).
+ destruct s'.
+ simpl in H.
+ rewrite <-H.
+ rewrite <-H0 in *.
+ inversion H8.
+ unfold proj_core in H9.
+ if_tac in H9; try congruence.
+ inversion H9; auto.
+rewrite <-H3 in *.
+unfold cores in H7.
+inversion H7.
+rewrite <-H10 in *.
+rewrite <-H0 in *.
+rewrite <-H.
+eapply safe_corestep_forward; eauto.
+assert (Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
+        Extension.zmult fs_extension (extensions.proj_zint fs_extension s)).
+ clear - H4 H5 H6.
+ inversion H4.
+ unfold proj_core in H0.
+ if_tac in H0; try congruence.
+ inv H0.
+ inv H6; auto.
+ elimtype False.
+  apply corestep_not_at_external in H5.
+  rewrite H5 in H; congruence.
+ elimtype False.
+  apply corestep_not_at_external in H5.
+  rewrite H5 in H; congruence.
+rewrite H9; auto.
+
+(*2*)
+intros until CS; intros H1 H2 H3 [H4 H5].
+hnf in H1.
+specialize (H1 (active s) CS c).
+spec H1; auto.
+spec H1; auto.
+inversion H5.
+unfold proj_core in H0.
+if_tac in H0; auto.
+inv H3.
+inv H0.
+unfold runnable in H2.
+hnf in H1.
+unfold cores in H4.
+inversion H4.
+rewrite <-H0 in *.
+inversion H5.
+unfold get_core in H3.
+destruct s; simpl in H2, H3.
+rewrite <-H3 in *.
+destruct (at_external csem c0) as [[[ef sig] args]|]; try congruence.
+destruct (safely_halted csem ge c0); try congruence.
+destruct H1 as [c' [m' [H1 H6]]].
+exists c'; exists (mkxT z0 c' fs0); exists m'.
+split; auto.
+split; auto.
+eapply os_corestep; auto.
+
+Admitted. (*TODO*)
 
 End FSExtension.
