@@ -302,8 +302,8 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
   (*"handled" states satisfying the invariant can step or are safely halted;
      core states that stay "at_external" remain unchanged*)
 
-  (handled_prog: forall ge n z s m,
-    ALL_SAFE ge n z s m -> RUNNABLE ge s = None -> 
+  (handled_prog: forall ge n (z: Zext) (s: xT) m,
+    ALL_SAFE ge (S n) (s \o z) s m -> RUNNABLE ge s = None -> 
     at_external esem s = None -> 
     (exists s', exists m', corestep esem ge s m s' m' /\ 
       forall i c CS, CORE i is (CS, c) in s -> 
@@ -490,7 +490,7 @@ eauto.
 intros RUN.
 destruct (active_csem s) as [CS CSEM].
 destruct (active_proj_core s) as [c PROJECT].
-destruct (handled_prog ge n (s \o z) s m (all_safe_downward H1) RUN H2)
+destruct (handled_prog ge n z s m H1 RUN H2)
  as [[s' [m' [CORESTEP_T CORES_PRES]]]|[rv SAFELY_HALTED]].
 2: intros CONTRA; rewrite CONTRA in SAFELY_HALTED; congruence.
 exists s'; exists m'.

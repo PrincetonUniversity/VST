@@ -33,30 +33,31 @@ Definition fptr := nat.
   file_mode_t fperm_map[MAX_OPEN_FILES]; // maps FDs to file permissions
   uint8_t block_cache[CACHE_N_BLOCKS][BLOCK_SIZE]; // data block cache
   uint32_t cache_map[CACHE_N_BLOCKS]; // maps cache block # to data block #
-  uint32_t cache_last_access_map[CACHE_N_BLOCKS]; // maps cache block # to approximate time since last access
+  // maps cache block # to approximate time since last access
+  uint32_t cache_last_access_map[CACHE_N_BLOCKS]; 
 } fs_data;*)
 
 Inductive fs_data: Type := mkfsdata: forall 
   (fdtable: forall (fd: int), option (fmode*fptr)) (*None = fd unused*)
   (fcache: forall (fd: int), option file) (*models in-memory storage*)
-  (nfiles_open: int) (*number of files currently open*)
   (fnames: forall (fd: int), option int) (*map from file descriptors to file names*), 
   fs_data.
 
 Inductive fs: Type := mkfs: forall 
+  (MAX_FILE_DESCRIPTORS: int)
   (fsdata: fs_data)
   (fstore: forall (name: int), option file), (*models on-disk storage*)
   fs.
 
 Section selectors.
 Variable (fs: fs).
-Definition get_fsdata := match fs with mkfs fsdata _ => fsdata end.
-Definition get_fstore := match fs with mkfs _ fstore => fstore end.
+Definition get_max_fds := match fs with mkfs maxfds _ _ => maxfds end.
+Definition get_fsdata := match fs with mkfs _ fsdata _ => fsdata end.
+Definition get_fstore := match fs with mkfs _ _ fstore => fstore end.
 
-Definition get_fdtable := match get_fsdata with mkfsdata fdtable _ _ _ => fdtable end.
-Definition get_fcache := match get_fsdata with mkfsdata _ fcache _ _ => fcache end.
-Definition get_nfiles_open := match get_fsdata with mkfsdata _ _ nfiles_open _ => nfiles_open end.
-Definition get_fnames := match get_fsdata with mkfsdata _ _ _ fnames => fnames end.
+Definition get_fdtable := match get_fsdata with mkfsdata fdtable _ _ => fdtable end.
+Definition get_fcache := match get_fsdata with mkfsdata _ fcache _ => fcache end.
+Definition get_fnames := match get_fsdata with mkfsdata _ _ fnames => fnames end.
 
 Variable (fd: int).
 Definition get_file := get_fcache fd. 
@@ -75,13 +76,30 @@ Variable (f: file).
 Definition get_size := match f with mkfile sz _ => sz end.
 Definition get_contents := match f with mkfile _ contents => contents end.
 
+Definition isSome {A: Type} (a: option A) :=
+  match a with 
+  | None => false
+  | Some _ => true
+  end.
+
+Fixpoint get_nfiles_open_aux (n: nat) (fcache: int -> option (fmode*fptr)) :=
+  match n with
+  | O => O
+  | S n' => if isSome (fcache (Int.repr (Z_of_nat n))) 
+              then S (get_nfiles_open_aux n' fcache)
+              else get_nfiles_open_aux n' fcache
+  end.
+
+Definition get_nfiles_open :=
+  get_nfiles_open_aux (nat_of_Z (Int.intval get_max_fds)) get_fdtable.
+
 End selectors.
 
 (*return the highest unallocated file descriptor, or None if none available*)
 Section alloc_fd.
 Variable (fs: fs).
 
-Fixpoint find_unused_fd (n: nat) (fdtable: int -> option file) :=
+Fixpoint find_unused_fd (n: nat) (fdtable: int -> option (fmode*fptr)) :=
   match n with 
   | O => None
   | S n' => match fdtable (Int.repr (Z_of_nat n)) with 
@@ -90,14 +108,40 @@ Fixpoint find_unused_fd (n: nat) (fdtable: int -> option file) :=
             end
   end.
 
-Definition MAX_FILE_DESCRIPTORS := (*(nat_of_Z Int.modulus)*) 10%nat.
+Definition max_fds: nat := nat_of_Z (Int.intval (get_max_fds fs)).
 
-Definition alloc_fd := find_unused_fd MAX_FILE_DESCRIPTORS (get_fcache fs).
+Definition alloc_fd := find_unused_fd max_fds (get_fdtable fs).
+
+Lemma alloc_fd_success : 
+  (get_nfiles_open fs < max_fds)%nat -> exists unused_fd, alloc_fd = Some unused_fd.
+Proof.
+unfold alloc_fd, find_unused_fd, max_fds.
+unfold get_nfiles_open, get_max_fds.
+destruct fs; hnf.
+unfold get_fdtable.
+simpl.
+destruct fsdata; simpl.
+forget (nat_of_Z (Int.intval MAX_FILE_DESCRIPTORS)) as n.
+induction n.
+inversion 1.
+intros H1.
+case_eq (fdtable (Int.repr (Z_of_nat (S n)))).
+2: eexists; eauto.
+intros [fm fp] H2.
+simpl in H1.
+simpl in H2.
+rewrite H2 in H1.
+simpl in H1.
+eapply IHn.
+apply lt_S_n; auto.
+Qed.
 
 End alloc_fd.
 
+Definition MAX_FDS := Int.repr (Z_of_nat 1024).
+
 Definition mount_fs (fstore: forall (name: int), option file) := 
-  mkfs (mkfsdata (fun _:int => None) (fun _:int => None) Int.zero (fun _:int => None)) fstore.
+  mkfs MAX_FDS (mkfsdata (fun _:int => None) (fun _:int => None) (fun _:int => None)) fstore.
 
 Section FSExtension.
 Variables 
@@ -180,6 +224,17 @@ Fixpoint read_file_aux (nbytes sz cur: nat): list memval :=
                  else contents cur :: read_file_aux nbytes' sz (S cur)
   end.
 
+Lemma read_file_aux_length nbytes sz cur: length (read_file_aux nbytes sz cur) <= nbytes.
+Proof.
+revert cur; induction nbytes; auto.
+simpl; intros cur.
+if_tac.
+simpl; omega.
+simpl.
+spec IHnbytes (S cur).
+apply le_n_S; auto.
+Qed.
+
 Definition read_file (nbytes: nat): list memval := read_file_aux nbytes (get_size f) fptr.
 
 Fixpoint write_file_aux (bytes: list memval) (sz cur: nat): (nat -> memval)*nat :=
@@ -213,11 +268,11 @@ Definition fs_write (bytes: list memval): option (nat(*nbytes written*)*fs) :=
     if fwritable md then 
       match write_file file cur bytes with (new_file, nbytes_written) => 
         Some (nbytes_written, 
-              mkfs (mkfsdata (fun i => if Int.eq fd i then Some (md, cur + nbytes_written)
+              mkfs (get_max_fds fsys)
+                   (mkfsdata (fun i => if Int.eq fd i then Some (md, cur + nbytes_written)
                                        else get_fdtable fsys i)
                              (fun i => if Int.eq fd i then Some new_file
                                        else get_fcache fsys i)
-                             (get_nfiles_open fsys)
                              (get_fnames fsys))
                    (get_fstore fsys))
        end
@@ -233,21 +288,21 @@ Section fs_open.
 Variable (fsys: fs) (unused_fd: int).
 
 Definition fs_open_existing (fname: int) (f: file) (md: fmode): fs :=
-  mkfs (mkfsdata (fun i => if Int.eq i unused_fd then Some (md, O) 
+  mkfs (get_max_fds fsys)
+       (mkfsdata (fun i => if Int.eq i unused_fd then Some (md, O) 
                            else get_fdtable fsys i)
                  (fun i => if Int.eq i unused_fd then Some f
                            else get_fcache fsys i)
-                 (Int.add Int.one (get_nfiles_open fsys))
                  (fun i => if Int.eq i unused_fd then Some fname 
                            else get_fnames fsys i))
        (get_fstore fsys).
 
 Definition fs_open_new (fname: int) (md: fmode): fs := 
-  mkfs (mkfsdata (fun i => if Int.eq i unused_fd then Some (md, O) 
+  mkfs (get_max_fds fsys)
+       (mkfsdata (fun i => if Int.eq i unused_fd then Some (md, O) 
                            else get_fdtable fsys i)
                  (fun i => if Int.eq i unused_fd then Some new_file
                            else get_fcache fsys i)
-                 (Int.add Int.one (get_nfiles_open fsys))
                  (fun i => if Int.eq i unused_fd then Some fname 
                            else get_fnames fsys i))
        (get_fstore fsys).
@@ -267,18 +322,21 @@ Definition handled: list AST.external_function := SYS_READ::SYS_WRITE::SYS_OPEN:
 Definition is_open (fsys: fs) (fname: int) := exists fd, get_fnames fsys fd = Some fname.
 
 Definition is_readable (fsys: fs) (fd: int) := 
-  exists md, exists cur, get_fdtable fsys fd = Some (md, cur).
+  exists md, exists cur, exists f, 
+    get_fdtable fsys fd = Some (md, cur) /\ get_fcache fsys fd = Some f.
 
 Definition is_writable (fsys: fs) (fd: int) := 
-  exists md, exists cur, get_fdtable fsys fd = Some (md, cur) /\ fwritable md=true.
+  exists md, exists cur, exists f, 
+    get_fdtable fsys fd = Some (md, cur) /\ fwritable md=true /\
+    get_fcache fsys fd = Some f.
 
 Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
 | os_corestep: forall ge z c fs m c' m',
   corestep csem ge c m c' m' -> 
   os_step ge (mkxT z c fs) m (mkxT z c' fs) m'
-| os_open: forall ge z s m c md0 fname0 md fname unused_fd fs',
+| os_open: forall ge z s m c md0 fname0 md fname unused_fd fs' sig,
   let fs := get_fs s in 
-  at_external csem (get_core s) = Some (SYS_OPEN, SYS_OPEN_SIG, fname0::md0::nil) ->
+  at_external csem (get_core s) = Some (SYS_OPEN, sig, fname0::md0::nil) ->
   alloc_fd fs = Some unused_fd ->
   val2omode md0 = Some md -> 
   val2oint fname0 = Some fname -> 
@@ -286,9 +344,9 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   fs_open fs unused_fd fname md = Some fs' -> 
   after_external csem (Some (Vint unused_fd)) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs') m
-| os_read: forall ge z s m c fd0 fd buf adr nbytes0 nbytes bytes m',
+| os_read: forall ge z s m c fd0 fd buf adr nbytes0 nbytes bytes m' sig,
   let fs := get_fs s in
-  at_external csem (get_core s) = Some (SYS_READ, SYS_READ_SIG, fd0::buf::nbytes0::nil) ->
+  at_external csem (get_core s) = Some (SYS_READ, sig, fd0::buf::nbytes0::nil) ->
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
@@ -296,9 +354,9 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   Mem.storebytes m (fst adr) (snd adr) bytes = Some m' -> 
   after_external csem (Some (Vint (Int.repr (Zlength bytes)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs) m'
-| os_write: forall ge z s m c fd0 fd adr buf nbytes0 nbytes bytes fs' nbytes_written,
+| os_write: forall ge z s m c fd0 fd adr buf nbytes0 nbytes bytes fs' nbytes_written sig,
   let fs := get_fs s in
-  at_external csem (get_core s) = Some (SYS_WRITE, SYS_WRITE_SIG, fd0::buf::nbytes0::nil) ->
+  at_external csem (get_core s) = Some (SYS_WRITE, sig, fd0::buf::nbytes0::nil) ->
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
@@ -363,25 +421,36 @@ edestruct (at_external_halted_excl csem); eauto.
 left; unfold os_at_external; rewrite H; auto.
 Qed.
 
+Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
+
 Definition Client_FSExtSpec :=
   Build_external_specification Memory.mem AST.external_function (fs*Z)
   (fun ef: AST.external_function => unit) (*TODO*)
   (fun (ef: AST.external_function) u typs args fsz m => 
     match ef, fsz, args with
-      SYS_OPEN, (fsys, z), md::nil => 
-        nat_of_Z (Int.intval (get_nfiles_open fsys)) < nat_of_Z Int.max_unsigned
+      SYS_OPEN, (fsys, z), fname0::md0::nil => 
+        match val2oint fname0, val2omode md0 with
+        | Some fname, Some md => 
+          List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
+          get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
+          (~file_exists fsys fname=true -> fwritable md=true) /\
+          ~is_open fsys fname
+        | _, _ => False
+        end
     | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
           is_readable fsys fd /\ 
-          Mem.range_perm m (fst adr) (snd adr) (Int.intval nbytes) Cur Writable
+          Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
         | _, _, _ => False
         end
     | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
           is_writable fsys fd /\ 
-          Mem.range_perm m (fst adr) (snd adr) (Int.intval nbytes) Cur Readable
+          Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
         | _, _, _ => False
         end
     | _, _, _ => False
@@ -397,20 +466,29 @@ Definition Client_FSExtSpec' :=
   (fun ef: AST.external_function => unit) (*TODO*)
   (fun (ef: AST.external_function) u typs args fsz jm => 
     match ef, fsz, args with
-      SYS_OPEN, (fsys, z), md::nil => 
-        nat_of_Z (Int.intval (get_nfiles_open fsys)) < nat_of_Z Int.max_unsigned
+      SYS_OPEN, (fsys, z), fname0::md0::nil => 
+        match val2oint fname0, val2omode md0 with
+        | Some fname, Some md => 
+          List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
+          get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
+          (~file_exists fsys fname=true -> fwritable md=true) /\
+          ~is_open fsys fname
+        | _, _ => False
+        end
     | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
           is_readable fsys fd /\ 
-          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (Int.intval nbytes) Cur Writable
+          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
         | _, _, _ => False
         end
     | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
           is_writable fsys fd /\ 
-          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (Int.intval nbytes) Cur Readable
+          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
         | _, _, _ => False
         end
     | _, _, _ => False
@@ -570,6 +648,8 @@ Definition Client_FSExtSig: ext_sig mem (fs*Z) := mkextsig handled Client_FSExtS
 
 Variable (at_external_handled: forall c ef args sig,
     at_external csem c = Some (ef, sig, args) -> IN ef Client_FSExtSig = true).
+Variable (at_after_external_excl: forall rv c c',
+  after_external csem rv c = Some c' -> at_external csem c' = None).
 Variable FSExtSig: ext_sig Memory.mem Z.
 Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
 
@@ -877,11 +957,25 @@ destruct (after_external csem ret (get_core s)); try congruence.
 inv H0; auto.
 Qed.
 
+Lemma mem_range_perm_sub m b ofs sz sz' k p :
+  Mem.range_perm m b ofs sz' k p -> 
+  (sz <= sz')%Z -> 
+  Mem.range_perm m b ofs sz k p.
+Proof.
+unfold Mem.range_perm.
+intros H1 H2.
+intros ofs' H3.
+specialize (H1 ofs').
+spec H1.
+omega.
+auto.
+Qed.
+
 Lemma fs_extension_safe (csem_fun: corestep_fun csem): safe_extension fs_extension.
 Proof.
 apply safety_criteria_safe; constructor.
 
-(*1*)
+(*1: core preservation of all-safety invariant*)
 intros until m'; intros H1 H2 [H3 H4] H5 H6.
 unfold cores in H3; inversion H3; rewrite H0 in *; clear H3.
 assert (get_core s'=c').
@@ -961,7 +1055,7 @@ assert (Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
   rewrite H5 in H; congruence.
 rewrite H9; auto.
 
-(*2*)
+(*2: core progress*)
 intros until CS; intros H1 H2 H3 [H4 H5].
 hnf in H1.
 specialize (H1 (active s) CS c).
@@ -988,6 +1082,356 @@ exists c'; exists (mkxT z0 c' fs0); exists m'.
 split; auto.
 split; auto.
 eapply os_corestep; auto.
+
+(*3: handled steps respect function specs.*)
+intros until x.
+hnf; intros [H1 H2] H3 H4 H5 Hpre Hstep [H6 H7].
+inv H2.
+inversion H6.
+rewrite <-H0 in *.
+inversion H7.
+rewrite <-H2 in *.
+inversion Hstep.
+rewrite <-H8, <-H9, <-H10, <-H11, <-H12 in *.
+clear H8 H9 H10 H11 H12.
+(*corestep case; impossible*)
+elimtype False.
+apply corestep_not_at_external in H.
+simpl in H3.
+rewrite H in H3; congruence.
+(*SYS_OPEN case*)
+right.
+exists (Some (Vint unused_fd)).
+split; auto.
+simpl.
+unfold spec_of in H5.
+clear - H5.
+(*inversion H5 fails to terminate in a timely fashion; instead we 
+   use this ad hoc lemma*)
+assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
+ inversion 1; auto.
+apply H in H5.
+destruct H5 as [H5 H6].
+rewrite <-H6.
+simpl; destruct ef; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t; auto.
+(*SYS_READ case*)
+right.
+exists (Some (Vint (Int.repr (Zlength bytes)))).
+split; auto.
+simpl.
+unfold spec_of in H5.
+clear - H5.
+assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
+ inversion 1; auto.
+apply H in H5.
+destruct H5 as [H5 H6].
+rewrite <-H6.
+simpl; destruct ef; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t; auto.
+(*SYS_WRITE case*)
+right.
+exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
+split; auto.
+simpl.
+unfold spec_of in H5.
+clear - H5.
+assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
+ inversion 1; auto.
+apply H in H5.
+destruct H5 as [H5 H6].
+rewrite <-H6.
+simpl; destruct ef; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t; auto.
+
+(*4: handled progress*)
+intros until m; intros H1 H2 H3.
+inv H2.
+unfold safely_halted.
+simpl.
+unfold os_safely_halted.
+hnf in H1.
+specialize (H1 (active s) csem (get_core s)).
+spec H1; auto.
+spec H1; auto.
+hnf in H1.
+unfold runnable in H0.
+case_eq (at_external csem (get_core s)). 
+intros [[ef sig] args] Hat.
+(*at_external core = Some*)
+rewrite Hat in *.
+destruct (safely_halted csem ge (get_core s)).
+elimtype False; auto.
+destruct H1 as [x [H1 H2]].
+left.
+destruct ef; try solve[elimtype False; simpl in H1; auto].
+destruct name; try solve[elimtype False; simpl in H1; auto].
+destruct name; try solve[elimtype False; simpl in H1; auto].
+destruct sg; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct sig_res; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+simpl in H1.
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oint v); try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oadr v0); try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oint v1); try solve[elimtype False; simpl in H1; auto].
+intros.
+rewrite H, H4, H5 in H1.
+(*SYS_READ case*)
+destruct H1 as [H1 [H6 H7]].
+unfold proj_zint in H6.
+destruct H6 as [md [cur [f' [H6 H8]]]].
+apply mem_range_perm_sub with 
+ (sz := (snd a + Z_of_nat (length (read_file_aux f' (nat_of_Z (Int.intval i)) 
+                             (get_size f') cur)))%Z)
+ in H7.
+destruct a as [b ofs].
+simpl in H7.
+apply Mem.range_perm_storebytes in H7.
+destruct H7 as [m' H7].
+specialize (H2 
+  (Some (Vint
+    (Int.repr
+      (Zlength
+        (read_file_aux f' (nat_of_Z (Int.intval i)) 
+          (get_size f') cur)))))
+  m'
+  (get_fs s, z)).
+spec H2; simpl; auto.
+destruct H2 as [c' [H9 H10]].
+exists (mkxT z c' (get_fs s)); exists m'.
+split.
+eapply os_read; eauto.
+unfold fs_read.
+unfold get_file.
+rewrite H8.
+unfold get_fptr.
+rewrite H6.
+eauto.
+(*core stayed at_external: impossible*)
+intros.
+exists c'.
+split; auto.
+split; auto.
+destruct H2; auto.
+destruct H2.
+unfold proj_core in H11.
+if_tac in H11; try congruence.
+inv H11.
+auto.
+intros.
+elimtype False.
+destruct H2 as [H2 H13].
+unfold proj_core in H13.
+if_tac in H13; try congruence.
+apply at_after_external_excl in H9.
+unfold cores in H2.
+inv H2.
+rewrite H9 in H12.
+congruence.
+apply Zplus_le_compat_l.
+assert (H9: 
+ length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur) <=
+ nat_of_Z (Int.intval i)).
+ apply read_file_aux_length.
+assert (H10: (Z_of_nat (nat_of_Z (Int.intval i)) <= Int.intval i)%Z).
+ rewrite nat_of_Z_max.
+ rewrite Z.max_lub_iff.
+ split; auto.
+ apply Zle_refl.
+ apply Int.intrange.
+apply Zle_trans with (m := Z_of_nat (nat_of_Z (Int.intval i))); auto.
+apply inj_le; auto.
+(*degenerate cases*)
+intros H4; rewrite H4 in H1.
+intros ? H5; rewrite H5 in H1.
+intros ? H6; rewrite H6 in H1.
+elimtype False; auto.
+intros H4; rewrite H4 in H1.
+intros ? H5; rewrite H5 in H1.
+elimtype False; auto.
+intros H4; rewrite H4 in H1.
+elimtype False; auto.
+
+destruct name; try solve[elimtype False; simpl in H1; auto].
+destruct name; try solve[elimtype False; simpl in H1; auto].
+destruct name; try solve[elimtype False; simpl in H1; auto].
+destruct sg; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct sig_res; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+
+(*SYS_OPEN case*)
+hnf in H1.
+case_eq (val2oint v); try solve[elimtype False; simpl in H1; auto].
+case_eq (val2omode v0); try solve[elimtype False; simpl in H1; auto].
+intros md H4 fname H5.
+rewrite H4, H5 in H1.
+destruct H1 as [H1 [H6 H7]].
+apply alloc_fd_success in H6.
+destruct H6 as [unused_fd H6].
+case_eq (file_exists (proj_zint s) fname).
+(*file exists*)
+intros H8.
+generalize H8 as H8'; intro.
+generalize H8 as H8''; intro.
+unfold file_exists in H8'.
+case_eq (get_fstore (proj_zint s) fname).
+intros f H9.
+specialize (H2 (Some (Vint unused_fd)) m 
+ (fs_open_existing (proj_zint s) unused_fd fname f md, z)).
+spec H2; simpl; auto.
+destruct H2 as [c' [H2 H10]].
+exists (mkxT z c' (fs_open_existing (proj_zint s) unused_fd fname f md)).
+exists m.
+split.
+destruct H7 as [H7 H11].
+eapply os_open; eauto.
+unfold fs_open.
+unfold proj_zint in H9.
+rewrite H9; auto.
+if_tac; auto.
+(*core stayed at_external: impossible*)
+intros.
+exists c'.
+split; auto.
+split; auto.
+destruct H; auto.
+destruct H.
+unfold proj_core in H11.
+if_tac in H11; try congruence.
+inv H11.
+auto.
+intros.
+elimtype False.
+destruct H as [H13 H14].
+unfold proj_core in H14.
+if_tac in H14; try congruence.
+apply at_after_external_excl in H2.
+unfold cores in H13.
+inversion H13.
+rewrite <-H16 in *.
+rewrite H2 in H12.
+congruence.
+(*degenerate case*)
+intros H9.
+unfold file_exists in H8''.
+rewrite H9 in H8''.
+simpl in H8''; congruence.
+(*file doesn't yet exist*)
+intros H8.
+generalize H8 as H8'; intro.
+generalize H8 as H8''; intro.
+case_eq (get_fstore (proj_zint s) fname).
+intros f H9.
+elimtype False.
+unfold file_exists in H8.
+rewrite H9 in H8.
+simpl in H8; congruence.
+intros H9.
+specialize (H2 (Some (Vint unused_fd)) m 
+ (fs_open_new (proj_zint s) unused_fd fname md, z)).
+spec H2; simpl; auto.
+destruct H2 as [c' [H2 H10]].
+exists (mkxT z c' (fs_open_new (proj_zint s) unused_fd fname md)).
+exists m.
+split.
+destruct H7 as [H7 H11].
+eapply os_open; eauto.
+unfold fs_open.
+unfold proj_zint in H9.
+rewrite H9; auto.
+case_eq (fwritable md); auto.
+intros H12.
+rewrite H12 in H7.
+elimtype False.
+spec H7.
+unfold file_exists; intros H13.
+unfold extensions.proj_zint in H13.
+simpl in H13.
+unfold proj_zint in H13.
+rewrite H9 in H13.
+simpl in H13; congruence.
+congruence.
+(*core stayed at_external: impossible*)
+intros.
+exists c'.
+split; auto.
+split; auto.
+destruct H; auto.
+destruct H.
+unfold proj_core in H11.
+if_tac in H11; try congruence.
+inv H11.
+auto.
+intros.
+elimtype False.
+destruct H as [H13 H14].
+unfold proj_core in H14.
+if_tac in H14; try congruence.
+apply at_after_external_excl in H2.
+unfold cores in H13.
+inversion H13.
+rewrite <-H16 in *.
+rewrite H2 in H12.
+congruence.
+(*degenerate cases*)
+intros H9 i H4.
+rewrite H4, H9 in H1.
+elimtype False; auto.
+intros H4.
+rewrite H4 in H1.
+elimtype False; auto.
 
 Admitted. (*TODO*)
 
