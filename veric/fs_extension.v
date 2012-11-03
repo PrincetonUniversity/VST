@@ -246,6 +246,18 @@ Fixpoint write_file_aux (bytes: list memval) (sz cur: nat): (nat -> memval)*nat 
     end
   end.
 
+Lemma write_file_aux_length (bytes: list memval) (sz cur: nat):
+  snd (write_file_aux bytes sz cur)=length bytes.
+Proof.
+revert cur; induction bytes; auto.
+intros cur; simpl.
+spec IHbytes (S cur).
+destruct (write_file_aux bytes sz (S cur)).
+simpl.
+f_equal.
+auto.
+Qed.
+
 Definition write_file (bytes: list memval): file*nat :=
   match write_file_aux bytes (get_size f) fptr with (contents, nwritten) => 
     (mkfile (get_size f + (fptr + nwritten - get_size f)) (get_contents f), nwritten)
@@ -279,6 +291,26 @@ Definition fs_write (bytes: list memval): option (nat(*nbytes written*)*fs) :=
      else None
   | _, _, _ => None
   end.
+
+Lemma fs_write_length bytes n fs: fs_write bytes = Some (n, fs) -> n=length bytes.
+Proof.
+unfold fs_write.
+destruct (get_file fsys fd); try congruence.
+destruct (get_fptr fsys fd); try congruence.
+destruct (get_fmode fsys fd); try congruence.
+if_tac; try congruence.
+case_eq (write_file f f0 bytes); try congruence.
+intros f2 n0 H1 H2.
+inv H2.
+unfold write_file in H1.
+case_eq (write_file_aux f bytes (get_size f) f0); try congruence.
+intros m n0 H2.
+rewrite H2 in H1.
+inv H1.
+rewrite <-write_file_aux_length 
+ with (f := f) (sz := get_size f) (cur := f0), H2.
+auto.
+Qed.
 
 End fs_read_write.
 
@@ -1220,6 +1252,7 @@ case_eq (val2oadr v0); try solve[elimtype False; simpl in H1; auto].
 case_eq (val2oint v1); try solve[elimtype False; simpl in H1; auto].
 intros.
 rewrite H, H4, H5 in H1.
+
 (*SYS_READ case*)
 destruct H1 as [H1 [H6 H7]].
 unfold proj_zint in H6.
@@ -1432,6 +1465,116 @@ elimtype False; auto.
 intros H4.
 rewrite H4 in H1.
 elimtype False; auto.
+
+destruct sg; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct sig_args; try solve[elimtype False; simpl in H1; auto].
+destruct sig_res; try solve[elimtype False; simpl in H1; auto].
+destruct t; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+simpl in H1.
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+destruct args; try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oint v); try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oadr v0); try solve[elimtype False; simpl in H1; auto].
+case_eq (val2oint v1); try solve[elimtype False; simpl in H1; auto].
+intros.
+rewrite H, H4, H5 in H1.
+
+(*SYS_WRITE case*)
+destruct H1 as [H1 [H6 H7]].
+unfold proj_zint in H6.
+destruct H6 as [md [cur [f' [H6 [H8 H80]]]]].
+(*apply mem_range_perm_sub with 
+ (sz := (snd a + Z_of_nat (length (read_file_aux f' (nat_of_Z (Int.intval i)) 
+                             (get_size f') cur)))%Z)
+ in H7.*)
+destruct a as [b ofs].
+simpl in H7.
+apply Mem.range_perm_loadbytes in H7.
+destruct H7 as [bytes H7].
+assert (H9: exists nbytes_written, exists fsys', 
+  fs_write (get_fs s) i0 bytes = Some (nbytes_written, fsys')).
+  unfold fs_write, get_file, get_fptr, get_fmode.
+  rewrite H6, H8, H80.
+  case_eq (write_file f' cur bytes).
+  intros fsys' nbytes_written H9.
+  exists nbytes_written. 
+  eexists; eauto.
+destruct H9 as [nbytes_written [fsys' H90]].
+specialize (H2 (Some (Vint (Int.repr (Z_of_nat nbytes_written)))) m (fsys', z)).
+spec H2; simpl; auto.
+destruct H2 as [c' [H9 H10]].
+exists (mkxT z c' fsys'); exists m.
+split.
+eapply os_write 
+ with (nbytes := Int.repr (Z_of_nat nbytes_written)); eauto.
+rewrite H.
+f_equal.
+apply Mem.loadbytes_length in H7.
+apply fs_write_length in H90.
+rewrite H90.
+rewrite H7.
+rewrite nat_of_Z_eq.
+generalize (Int.repr_unsigned i).
+unfold Int.unsigned; auto.
+destruct (Int.intrange i).
+omega.
+simpl.
+generalize H7 as H7'.
+apply Mem.loadbytes_length in H7.
+apply fs_write_length in H90.
+rewrite H90.
+rewrite H7.
+rewrite nat_of_Z_eq.
+rewrite Zmod_small; auto.
+destruct (Int.intrange i).
+split; omega.
+destruct (Int.intrange i).
+omega.
+(*core stayed at_external: impossible*)
+intros.
+exists c'.
+split; auto.
+split; auto.
+destruct H2; auto.
+destruct H2.
+unfold proj_core in H11.
+if_tac in H11; try congruence.
+inv H11.
+auto.
+intros.
+elimtype False.
+destruct H2 as [H2 H13].
+unfold proj_core in H13.
+if_tac in H13; try congruence.
+apply at_after_external_excl in H9.
+unfold cores in H2.
+inv H2.
+rewrite H9 in H12.
+congruence.
+(*degenerate cases*)
+intros H4; rewrite H4 in H1.
+intros ? H5; rewrite H5 in H1.
+intros ? H6; rewrite H6 in H1.
+elimtype False; auto.
+intros H4; rewrite H4 in H1.
+intros ? H5; rewrite H5 in H1.
+elimtype False; auto.
+intros H4; rewrite H4 in H1.
+elimtype False; auto.
+intros H4; rewrite H4 in H0, H1.
+(*safely halted*)
+destruct (safely_halted csem ge (get_core s)); try congruence.
+right; exists i; auto.
+
+(*5: safely halted threads remain halted*)
 
 Admitted. (*TODO*)
 
