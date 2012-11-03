@@ -88,25 +88,28 @@ Hint Rewrite ilseg_nil_eq : normalize.
 
 Lemma lift2_ilseg_cons: 
  forall s p q, lift2 (ilseg_cons s)  p q =
-    local (lift2 ptr_neq p q) &&
-    EX h:int, EX r: list int, EX y: val,
-      !! (s = h::r) &&
-      lift2 (field_mapsto Share.top list_struct list_data) p (lift0 (Vint h)) *
-      lift2 (field_mapsto Share.top list_struct list_link) p (lift0 y) *
-      |> lift2 (ilseg r) (lift0 y) q.
+    EX hry:(int * list int * val),
+      match hry with (h,r,y) =>
+       !! (s = h::r) &&
+       (local (lift2 ptr_neq p q) &&
+       (lift2 (field_mapsto Share.top list_struct list_data) p (lift0 (Vint h)) *
+        lift2 (field_mapsto Share.top list_struct list_link) p (lift0 y) *
+        |> lift2 (ilseg r) (lift0 y) q))
+     end.
 Proof.
  intros.
  unfold ilseg_cons, lseg_cons, lift2. extensionality rho. simpl.
- unfold local, lift1. unfold ptr_neq. f_equal.
+ unfold local, lift1. unfold ptr_neq.
  unfold ilseg.
  apply pred_ext; normalize.
- intros. destruct s; inv H. apply exp_right with i. apply exp_right with s.
- apply exp_right with x1. normalize.
- intros. apply exp_right with (Vint x). apply exp_right with (map Vint x0).
- apply exp_right with x1. normalize.
- apply andp_right; auto.
- forget (field_mapsto Share.top list_struct P.i_h (p rho) (Vint x) ) as A.
- forget (|>lseg P.t_listptr (map Vint x0) x1 (q rho)) as B.
+ destruct s; symmetry in H0; inv H0.
+ apply exp_right with (i, s, y). normalize.
+ destruct h as [[h r] y]. normalize.
+ apply exp_right with (Vint h). normalize. apply exp_right with (map Vint r).
+ normalize. apply exp_right with y. normalize.
+ apply andp_right.
+ forget (field_mapsto Share.top list_struct P.i_h (p rho) (Vint h) ) as A.
+ forget (|>lseg P.t_listptr (map Vint r) y (q rho)) as B.
  erewrite (field_mapsto_typecheck_val); try reflexivity.
  normalize.
  apply prop_right.
@@ -116,7 +119,9 @@ Proof.
                (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)))
          P.i_t); auto.
  type_of_field_tac.
+ normalize.
 Qed.
+
 (* Hint Rewrite lift2_ilseg_cons : normalize. *)
 
 Definition sumlist_spec :=
@@ -131,7 +136,13 @@ Definition reverse_spec :=
   PRE  [ P.i_p : P.t_listptr ] lift2 (ilseg contents) (eval_id P.i_p) (lift0 nullval)
   POST [ P.t_listptr ] lift2 (ilseg (rev contents)) retval (lift0 nullval).
 
-Definition main_spec := (P.i_main, mk_funspec (nil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
+Definition main_spec :=
+ DECLARE P.i_main
+  WITH u : unit
+  PRE  [] main_pre P.prog u
+  POST [ P.t_int ] main_post P.prog u.
+
+Definition main_spec' := (P.i_main, mk_funspec (nil, P.t_int) _ (main_pre P.prog) (main_post P.prog)).
 
 Definition Vprog : varspecs := (P.i_three, Tarray P.t_list 3 noattr)::nil.
 
@@ -152,7 +163,7 @@ match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
 match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   match Pre with fun i => _ => intro i end;
   simpl fn_body; simpl fn_params; simpl fn_return;
-  normalize; canonicalize_pre
+  canonicalize_pre
  end.
 
 
@@ -160,25 +171,13 @@ Opaque sepcon.
 Opaque emp.
 Opaque andp.
 
-Lemma lower_PROP_LOCAL_SEP:
-  forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 
-     (!!fold_right and True P && (local (fold_right (lift2 and) (lift0 True) Q) && (fold_right sepcon emp R))) rho.
-Proof. reflexivity. Qed.
-Hint Rewrite lower_PROP_LOCAL_SEP : normalize.
 
 Ltac go_lower' := let rho := fresh "rho" in intro rho; normalize.
 
-Lemma lower_TT: forall rho, @TT assert Nassert rho = @TT mpred Nveric.
-Proof. reflexivity. Qed.
-Hint Rewrite lower_TT : normalize.
-
-Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
-Proof. reflexivity. Qed.
-Hint Rewrite lower_FF : normalize.
 
 Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
-start_function.     
+start_function.
 forward.
 forward.
 forward_while (sumlist_Inv contents)
@@ -192,7 +191,7 @@ rewrite Int.add_zero_l. normalize.
 rewrite sepcon_comm.
 apply sepcon_TT.
 (* Prove that loop invariant implies typechecking condition *)
-normalizex.
+intro; apply TT_right.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold sumlist_Inv.
 go_lower'. intros.
@@ -201,18 +200,16 @@ rewrite (typed_false_ptr H).
 normalize.
 (* Prove that loop body preserves invariant *)
 unfold sumlist_Inv at 1.
-normalize.
+autorewrite with normalize.
 apply extract_exists_pre; intro cts.
-normalize.
+autorewrite with normalize.
 replace_in_pre (ilseg cts) (ilseg_cons cts).
-rewrite ilseg_nonnull by auto. auto.
+rewrite ilseg_nonnull; auto.
 rewrite lift2_ilseg_cons.
-normalizex. intro h.
-normalizex. intro r.
-normalizex. intro y.
+normalizex. intros [[h r] y].
 normalizex. subst cts.
 simpl list_data; simpl list_link.
-forward.
+forward. normalize.
 forward.  intro old_t.
 forward.
 (* Prove postcondition of loop body implies loop invariant *)
@@ -229,7 +226,8 @@ assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
 destruct (tc_val_extract_int _ _ _ _ H1) as [n ?].
 rewrite H4 in *.
 destruct x; inv H0.
-simpl. normalize. rewrite (Int.add_assoc i h). normalizex.
+simpl. rewrite (Int.add_assoc i h). normalizex.
+rewrite <- (sepcon_comm TT).
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives; auto.
 normalize.
@@ -286,13 +284,11 @@ subst.
 replace_in_pre (ilseg cts2) (ilseg_cons cts2).
    rewrite (ilseg_nonnull cts2) by auto. auto.
 rewrite lift2_ilseg_cons.
-normalizex. intro h.
-normalizex; intro r.
-normalizex; intro y.
+normalizex. intros [[h r] y].
 normalizex; subst cts2.
 simpl list_data; simpl list_link.
-forward.
-forward.
+forward. normalize.
+forward. normalize.
 forward. intro old_w.
 forward.
 intros.
@@ -341,183 +337,37 @@ unfold retval; normalize.
 Qed.
 
 
-Definition fun_assert_emp fsig A P Q v := emp && fun_assert fsig A P Q v.
-
-Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
-Proof. reflexivity. Qed.
-Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
-Proof. reflexivity. Qed.
-Hint Rewrite @substopt_unfold @substopt_unfold_nil : normalize.
-
-
-Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
-Proof. reflexivity. Qed.
-Lemma get_result_None: get_result None = globals_only.
-Proof. reflexivity. Qed.
-Hint Rewrite get_result_unfold get_result_None : normalize.
-
-Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret fsig a bl P Q R,
-           match_fsig fsig bl ret = true ->
-  semax Delta
-         (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
-            (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
-                      lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
-          (Scall ret a bl)
-          (normal_ret_assert 
-            (EX old:val, 
-              PROPx P (LOCALx (map (substopt ret (lift0 old)) Q) 
-                (SEPx (lift1 (Post x) (get_result ret) :: map (substopt ret (lift0 old)) R))))).
-Proof.
-intros.
-eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H )].
-go_lower.
-unfold fun_assert_emp.
-repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
-normalize.
-rewrite corable_sepcon_andp1 by apply corable_fun_assert.
-apply andp_derives; auto.
-rewrite sepcon_comm; auto.
-intros.
-normalize.
-intro old.
-apply exp_right with old; normalizex.
-destruct ret; normalizex.
-go_lower.
-rewrite sepcon_comm; auto.
-go_lower.
-rewrite sepcon_comm; auto.
-unfold substopt.
-repeat rewrite list_map_identity.
-normalize.
-Qed.
-
-Lemma semax_call1: forall Delta A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
-           match_fsig fsig bl (Some id) = true ->
-  semax Delta
-         (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
-            (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist bl))) ::
-                      lift1 (fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
-          (Scall (Some id) a bl)
-          (normal_ret_assert 
-            (EX old:val, 
-              PROPx P (LOCALx (map (subst id (lift0 old)) Q) 
-                (SEPx (lift1 (Post x) (get_result1 id) :: map (subst id (lift0 old)) R))))).
-Proof.
-intros.
-apply semax_call'; auto.
-Qed.
-
-Lemma semax_fun_id':
-      forall id fsig (A : Type) (Pre Post : A -> assert)
-              Delta P Q R PostCond c
-            (GLBL: (var_types Delta) ! id = None),
-            (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
-       semax Delta 
-        (PROPx P (LOCALx Q (SEPx (lift1 (fun_assert_emp fsig A Pre Post)
-                         (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))))
-                                                       :: R))))
-                              c PostCond ->
-       semax Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
-Proof.
-intros. 
-apply (semax_fun_id id fsig A Pre Post Delta); auto.
-eapply semax_pre; [ | apply H0].
-forget (eval_lvalue
-                      (Evar id
-                         (Tfunction (type_of_params (fst fsig)) (snd fsig)))) as f.
-go_lower.
-rewrite andp_comm.
-unfold fun_assert_emp.
-rewrite corable_andp_sepcon2 by apply corable_fun_assert.
-rewrite emp_sepcon; auto.
-Qed.
-
-
-Ltac in_tac1 :=  ((left; reflexivity) || (right; in_tac1)).
-
-Ltac semax_call_tac1 :=
-match goal with 
- |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx 
-          (lift1 (fun_assert_emp ?fs ?A ?Pre ?Post) ?f :: ?R))))
-        (Ssequence (Scall (Some ?id) ?a ?bl) _)
-        _ =>
- let H := fresh in let x := fresh "x" in let F := fresh "F" in
-      evar (x:A); evar (F: list assert); 
-       let PR := fresh "Pre" in pose (PR := Pre);
-     assert (H: lift1 (PR x)  (make_args' fs (eval_exprlist bl)) * SEPx F |-- SEPx R);
-     [ | 
-            apply semax_pre with (PROPx P
-                (LOCALx (tc_expr Delta a :: tc_exprlist Delta bl :: Q)
-                 (SEPx (lift1 (PR x)  (make_args' fs (eval_exprlist bl)) ::
-                           lift1 (fun_assert_emp fs A Pre Post) f  :: F))));
-              unfold F in *; clear F H
-      ];
- idtac
- end.
-
-
-Ltac semax_call_id_tac :=
-  match goal with
-   | |- semax _ _ (Scall _ (Eaddrof (Evar ?fid _) _) _) _ =>  
-         eapply (semax_fun_id' fid) ; [ simpl; reflexivity | simpl; reflexivity | ]
-   | |- semax _ _ (Ssequence (Scall _ (Eaddrof (Evar ?fid _) _) _) _) _ =>  
-         eapply (semax_fun_id' fid) ; [ simpl; reflexivity | simpl; reflexivity | ]
-  end.
-
 Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
 Proof.
-intro u.
-simpl fn_body; simpl fn_params; simpl fn_return.
+start_function.
 replace (main_pre P.prog u) with 
    (lift2 (ilseg (map Int.repr (1::2::3::nil)))
        (eval_expr (Ecast
            (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
               (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)) (lift0 nullval))
  by admit. (* must improve global var specifications *)
-simpl fn_body; simpl fn_params; simpl fn_return.
 normalize.
-canonicalize_pre.
-semax_call_id_tac.
-semax_call_tac1.
-go_lower. 
-unfold Pre,x,F.
+forward.
+go_lower. unfold F,x.
 instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
+instantiate (1:=nil).
+normalize.
+go_lower. unfold x. apply andp_right.
+apply prop_right. hnf. simpl. repeat split; hnf; auto.
+simpl. normalize.
+unfold x,F in *; clear x F.
+apply extract_exists_pre; normalize.
+
+forward.
+go_lower. 
+unfold x,F.
+instantiate (2:= (Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)).
 instantiate (1:=nil).
 normalize.
 go_lower.
 repeat apply andp_right; try apply prop_right.
 repeat split; simpl; hnf; auto.
-compute; auto.
-unfold Pre. clear Pre.
-rewrite sepcon_comm.
-apply sepcon_derives; auto.
 normalize.
-eapply semax_seq; [ apply sequential' ; apply semax_call'| ].
-unfold match_fsig; simpl; rewrite if_true; auto.
-apply extract_exists_pre; normalize.
-clear Pre. unfold x; clear x.
-
-semax_call_id_tac.
-semax_call_tac1.
-unfold x; unfold F; apply sepcon_derives.
-instantiate (1:= Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
-unfold Pre.
-go_lower.
-instantiate (1:=nil); auto.
-normalize.
-apply andp_right; normalize.
-simpl; normalize.
-apply andp_right.
-intro rho; apply prop_right.
-repeat split; hnf; auto.
-normalize.
-unfold Pre, x.
-go_lower.
-rewrite sepcon_comm.
-apply sepcon_derives; auto.
-eapply semax_seq; [ apply sequential' ; apply semax_call' | ].
-unfold match_fsig; simpl; rewrite if_true; auto.
 apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.

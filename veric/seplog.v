@@ -182,10 +182,10 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
-Definition bind_ret (vl: list val) (t: type) (Q: assert) : assert :=
+Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | nil, Tvoid => fun rho => Q (make_args nil nil rho)
-     | v::nil, _ => fun rho => !! (typecheck_val v t = true) && 
+     | None, Tvoid => fun rho => Q (make_args nil nil rho)
+     | Some v, _ => fun rho => !! (typecheck_val v t = true) && 
                                Q (make_args (ret_temp::nil) (v::nil) rho)
      | _, _ => fun rho => FF
      end.
@@ -208,16 +208,16 @@ Definition funassert (Delta: tycontext): assert :=
   using different shares that don't have a common core, whereas address_mapsto
   requires the same share on all four bytes. *)
 
-Definition ret_assert := exitkind -> list val -> assert.
+Definition ret_assert := exitkind -> option val -> assert.
 
 Definition overridePost  (Q: assert)  (R: ret_assert) := 
-     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=nil) && Q rho) else R ek vl.
+     fun ek vl => if eq_dec ek EK_normal then (fun rho => !! (vl=None) && Q rho) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
   fun ek vl rho => EX x:A, R x ek vl rho.
 
 Definition normal_ret_assert (Q: assert) : ret_assert := 
-   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = nil) && Q rho).
+   fun ek vl rho => !!(ek = EK_normal) && (!! (vl = None) && Q rho).
 
 Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
@@ -257,7 +257,7 @@ Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
- | EK_break => R EK_normal nil
+ | EK_break => R EK_normal None
  | EK_continue => Inv
  | EK_return => R EK_return vl
  end.
@@ -308,7 +308,7 @@ Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) =>
+   fun (ek : exitkind) (vl : option val) =>
      match ek with
      | EK_return => bind_ret vl ret Q 
      | _ => fun rho => FF

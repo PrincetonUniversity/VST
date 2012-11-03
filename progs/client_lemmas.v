@@ -4,6 +4,17 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
+Lemma semax_ff:
+  forall Delta c R,  
+   semax Delta FF c R.
+Proof.
+intros.
+apply semax_pre_post with (FF && FF) R.
+apply andp_left2. apply andp_right; auto.
+intros; apply andp_left2; auto.
+apply semax_extract_prop. intros; contradiction.
+Qed.
+
 Lemma semax_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
@@ -22,6 +33,14 @@ intros; eapply semax_pre_post; try eassumption.
 apply andp_left2; auto.
 intros. apply andp_left2; auto.
 apply H.
+Qed.
+
+Lemma semax_post': forall R' Delta R P c,
+           R' |-- R ->
+      semax Delta P c (normal_ret_assert R') ->
+      semax Delta P c (normal_ret_assert R).
+Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
+  intro rho; apply normal_ret_assert_derives; auto.
 Qed.
 
 Lemma semax_pre:
@@ -51,7 +70,7 @@ Qed.
 
 Lemma sequential:
   forall Delta P c Q,
-        semax Delta P c (normal_ret_assert (Q EK_normal nil)) ->
+        semax Delta P c (normal_ret_assert (Q EK_normal None)) ->
           semax Delta P c Q.
 intros. eapply semax_post; eauto.
  intros. intro rho. unfold local,lift1; simpl.
@@ -383,6 +402,14 @@ Hint Resolve andp_later_derives sepcon_later_derives sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
+Notation "'WITH' x : tx 'PRE' '[]' P 'POST' '[]' Q" := 
+     (mk_funspec (nil, Tvoid) tx (fun x => P%logic) (fun x => Q%logic))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
+Notation "'WITH' x : tx 'PRE' '[]' P 'POST' [ tz ] Q" := 
+     (mk_funspec (nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
+            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
 Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
      (mk_funspec ((a, ta)::nil, tz) _ (fun x => P%logic) (fun x => Q%logic))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
@@ -390,6 +417,7 @@ Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ tz ] Q" :=
 Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
      (mk_funspec ((a, ta)::nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
             (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+
 
 
 Lemma exp_derives {A}{NA: NatDed A}{B}:
@@ -799,5 +827,31 @@ Qed.
 Hint Rewrite subst_PROP : normalize.
 
 
+Lemma subst_stackframe_of:
+  forall i v f, subst i v (stackframe_of f) = stackframe_of f.
+Proof.
+unfold stackframe_of; simpl; intros.
+unfold subst.
+extensionality rho.
+induction (fn_vars f). reflexivity.
+simpl map. repeat rewrite fold_right_cons.
+f_equal.
+apply IHl.
+Qed.
+Hint Rewrite subst_stackframe_of : normalize.
+
+Lemma lower_PROP_LOCAL_SEP:
+  forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 
+     (!!fold_right and True P && (local (fold_right (lift2 and) (lift0 True) Q) && (fold_right sepcon emp R))) rho.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_PROP_LOCAL_SEP : normalize.
+
+Lemma lower_TT: forall rho, @TT assert Nassert rho = @TT mpred Nveric.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_TT : normalize.
+
+Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
+Proof. reflexivity. Qed.
+Hint Rewrite lower_FF : normalize.
 
 

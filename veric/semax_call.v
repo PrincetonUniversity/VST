@@ -252,7 +252,7 @@ Lemma semax_call_aux:
     typecheck_environ rho Delta = true ->
     (snd fsig=Tvoid <-> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
-    R EK_normal nil = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * Q x (get_result ret rho0)) ->
+    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * Q x (get_result ret rho0)) ->
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
@@ -318,11 +318,9 @@ apply sepcon_subp'; auto.
 apply sepcon_subp'; auto.
 unfold bind_ret.
 destruct vl.
-destruct (fn_return f); auto.
-simpl make_args; simpl seplog.bind_ret.
-apply pred_eq_e1; apply (H11 _ _ LATER).
-destruct vl; auto.
 apply andp_subp'; auto.
+apply pred_eq_e1; apply (H11 _ _ LATER).
+destruct (fn_return f); auto.
 apply pred_eq_e1; apply (H11 _ _ LATER).
 clear Q' H11.
 pose proof I.
@@ -342,7 +340,7 @@ destruct FL as [m2 FL].
 pose (jm2 := free_list_juicy_mem _ _ _ FL).
 assert (FL2: free_list (m_dry jm') (Csem.blocks_of_env (ve)) = Some (m_dry jm2)) by admit.
 assert (FL3: level jm' = level jm2) by admit.
-pose (rval := match vl with v::_ => v | nil => Vundef end). 
+pose (rval := match vl with Some v => v | None => Vundef end). 
 pose (te2 := match ret with
             | None => tx
             | Some rid => PTree.set rid rval tx
@@ -351,7 +349,7 @@ pose (te2 := match ret with
                       | None => rho
                       | Some rid => mkEnviron (ge_of rho) (ve_of rho) (Map.set rid rval (te_of rho))
                       end).*)
-specialize (H1 EK_normal nil te2 vx).  
+specialize (H1 EK_normal None te2 vx).  
 rewrite HR in H1; clear R HR. simpl exit_cont in H1.
 specialize (H1 (m_phi jm2)).
 spec H1; [ admit | ]. (* easy *)
@@ -379,13 +377,14 @@ split.
 simpl.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl.
+Focus 2.
 assert (f.(fn_return)=Tvoid).
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
 unfold fn_funsig in H18. rewrite H28 in H18. rewrite H18 in TC5. simpl in TC5.
 destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite TC5 in *.
 apply step_return with f None Vundef (tx); simpl; auto. 
 assert (typecheck_val v (fn_return f) = true).
- clear - H22; unfold bind_ret in H22; destruct vl; normalize in H22; try contradiction; auto.
+ clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
  destruct H22. destruct H. apply H.
 destruct ret.
 simpl.
@@ -603,7 +602,7 @@ Admitted.
 Lemma  semax_return :
    forall Delta R ret,
       semax Hspec Delta 
-                (fun rho => R EK_return (eval_exprlist (opt2list ret) rho) rho)
+                (fun rho => R EK_return (eval_expropt ret rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
@@ -630,7 +629,7 @@ apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
 destruct H3 as [[[? H4] ?] ?]. 
 remember ((construct_rho (filter_genv psi) ve te)) as rho.
-specialize (H0 EK_return (eval_exprlist (opt2list ret) rho) te ve).
+specialize (H0 EK_return (eval_expropt ret rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 rewrite <- Heqrho.

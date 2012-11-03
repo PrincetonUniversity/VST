@@ -23,7 +23,7 @@ auto.
 Qed.
 
 Lemma overridePost_normal:
-  forall P R, overridePost P R EK_normal nil = P.
+  forall P R, overridePost P R EK_normal None = P.
 Proof.
  intros. unfold overridePost. rewrite if_true by auto.
  apply prop_true_andp. auto.
@@ -364,7 +364,7 @@ Proof. reflexivity. Qed.
 Hint Rewrite function_body_ret_assert_EK_return : normalize.
 
 Lemma bind_ret1_unfold:
-  forall v t Q, bind_ret (v::nil) t Q = !!tc_val t v && lift1 Q (make_args (ret_temp :: nil)(v::nil)).
+  forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && lift1 Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : normalize.
 
@@ -377,12 +377,12 @@ Qed.
 
 Lemma normal_ret_assert_eq:
   forall P ek vl, normal_ret_assert P ek vl =
-             (!! (ek=EK_normal) && (!! (vl=nil) && P)).
+             (!! (ek=EK_normal) && (!! (vl=None) && P)).
 Proof. reflexivity. Qed.
 Hint Rewrite normal_ret_assert_eq: normalize. 
 
 Lemma for1_ret_assert_normal:
-  forall P Q, for1_ret_assert P Q EK_normal nil = P.
+  forall P Q, for1_ret_assert P Q EK_normal None = P.
 Proof. reflexivity. Qed.
 Hint Rewrite for1_ret_assert_normal: normalize.
 
@@ -404,4 +404,20 @@ Proof. reflexivity. Qed.
 Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
+
+
+Definition fun_assert_emp fsig A P Q v := emp && fun_assert fsig A P Q v.
+
+Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
+Proof. reflexivity. Qed.
+Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
+Proof. reflexivity. Qed.
+Hint Rewrite @substopt_unfold @substopt_unfold_nil : normalize.
+
+
+Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
+Proof. reflexivity. Qed.
+Lemma get_result_None: get_result None = globals_only.
+Proof. reflexivity. Qed.
+Hint Rewrite get_result_unfold get_result_None : normalize.
 

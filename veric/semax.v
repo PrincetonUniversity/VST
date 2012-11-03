@@ -80,14 +80,14 @@ Definition guard  {Z} (Hspec : juicy_ext_spec Z)
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
 
-Definition exit_cont (ek: exitkind) (vl: list val) (k: cont) : cont :=
+Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   match ek with
   | EK_normal => k
   | EK_break => break_cont k
   | EK_continue => continue_cont k
   | EK_return => 
          match vl, call_cont k with 
-         | v::_, Kcall (Some x) f ve te :: k' => 
+         | Some v, Kcall (Some x) f ve te :: k' => 
                     Kseq (Sreturn None) :: Kcall None (zap_fn_return f) ve (PTree.set x v te) :: k'
          | _,_ => Kseq (Sreturn None) :: call_cont k
          end
@@ -107,7 +107,7 @@ end.
 
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: exitkind -> tycontext)  (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
-     ALL ek: exitkind, ALL vl: list val, ALL tx: Clight.temp_env, ALL vx : env,
+     ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! (typecheck_environ rho (Delta ek) = true /\ filter_genv gx = ge_of rho ) && 
          ((F rho * R ek vl rho) && funassert (Delta ek) rho) >=> 

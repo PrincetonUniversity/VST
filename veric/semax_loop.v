@@ -353,7 +353,7 @@ Lemma semax_for :
 forall Delta Q Q' test incr body R,
      bool_type (Clight.typeof test) = true ->
      (forall rho, Q rho |-- tc_expr Delta test rho) ->
-     (forall rho,  !! expr_false (test) rho && Q rho |-- R EK_normal nil rho) ->
+     (forall rho,  !! expr_false (test) rho && Q rho |-- R EK_normal None rho) ->
      semax Hspec Delta
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
      semax Hspec Delta Q' incr (for2_ret_assert Q R) ->
@@ -468,7 +468,7 @@ simpl exit_cont.
 simpl exit_tycon.
 unfold for1_ret_assert.
 intros tx3 vx3.
-eapply subp_trans'; [ | apply (H3' EK_normal nil tx3 vx3)].
+eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
 simpl exit_tycon.
 apply derives_subp.
 auto.
@@ -521,7 +521,7 @@ split; auto.
 rewrite prop_true_andp; auto.
 
 (* Case 2: expr evaluates to false *)
-apply (H3' EK_normal nil tx vx _ (le_refl _) _ (necR_refl _)); auto.
+apply (H3' EK_normal None tx vx _ (le_refl _) _ (necR_refl _)); auto.
 rewrite prop_true_andp by (subst; auto).
 apply pred_hereditary with (m_phi jm); auto.
 apply age_jm_phi; auto.
@@ -545,14 +545,14 @@ Lemma semax_while :
 forall Delta Q test body R,
      bool_type (Clight.typeof test) = true ->
     (forall rho, Q rho |-- tc_expr Delta test rho) ->
-     (forall rho,  !! (expr_false test rho) && Q rho |-- R EK_normal nil rho) ->
+     (forall rho,  !! (expr_false test rho) && Q rho |-- R EK_normal None rho) ->
      semax Hspec Delta 
                 (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
      semax Hspec Delta Q (Swhile test body) R.
 Proof.
 intros ? ? ? ? ? BT TC POST H.
 assert (semax Hspec Delta Q Sskip (for2_ret_assert Q R)).
-eapply semax_post; try apply semax_Sskip.
+eapply semax_post; [ | apply semax_skip].
 destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0; try discriminate.
 pose proof (semax_for Delta Q Q test Sskip body R BT TC POST H H0).
 clear H H0.

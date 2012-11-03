@@ -23,7 +23,7 @@ Instance SRveric: SepRec mpred := algSepRec veric.seplog.rmap.
 Hint Resolve any_environ : typeclass_instances.
 
 Definition assert := environ -> mpred.
-Definition ret_assert := exitkind -> list val -> assert.
+Definition ret_assert := exitkind -> option val -> assert.
 
 Definition VALspec_range: Z -> Share.t -> Share.t -> address -> mpred := res_predicates.VALspec_range.
 
@@ -98,7 +98,7 @@ Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
 
 Definition stackframe_of (f: Clight.function) : assert :=
-  fold_right sepcon emp (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
+  fold_right sepcon emp (map (var_block Share.top) (fn_vars f)).
 
 Lemma  subst_extens {A}{NA: NatDed A}: 
  forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.
@@ -108,6 +108,14 @@ simpl;
 auto.
 Qed.
 
+Definition type_of_funsig (fsig: funsig) := Tfunction (type_of_params (fst fsig)) (snd fsig).
+Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
+
+Definition bool_type (t: type) : bool :=
+  match t with
+  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | _ => false
+  end.
 
 Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
@@ -135,22 +143,22 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
-Definition bind_ret (vl: list val) (t: type) (Q: assert) : assert :=
+Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | nil, Tvoid => lift1 Q (make_args nil nil)
-     | v::nil, _ => !! (typecheck_val v t = true) && 
+     | None, Tvoid => lift1 Q (make_args nil nil)
+     | Some v, _ => !! (typecheck_val v t = true) && 
                               lift1 Q (make_args (ret_temp::nil) (v::nil))
      | _, _ => FF
      end.
 
 Definition overridePost  (Q: assert)  (R: ret_assert) := 
-     fun ek vl => if eq_dec ek EK_normal then (!! (vl=nil) && Q) else R ek vl.
+     fun ek vl => if eq_dec ek EK_normal then (!! (vl=None) && Q) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
   fun ek vl  => EX x:A, R x ek vl .
 
 Definition normal_ret_assert (Q: assert) : ret_assert := 
-   fun ek vl => !!(ek = EK_normal) && (!! (vl = nil) && Q).
+   fun ek vl => !!(ek = EK_normal) && (!! (vl = None) && Q).
 
 Definition with_ge (ge: genviron) (G: assert) : mpred :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
@@ -193,7 +201,7 @@ Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
- | EK_break => R EK_normal nil
+ | EK_break => R EK_normal None
  | EK_continue => Inv
  | EK_return => R EK_return vl
  end.
@@ -244,7 +252,7 @@ Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
-   fun (ek : exitkind) (vl : list val) =>
+   fun (ek : exitkind) (vl : option val) =>
      match ek with
      | EK_return => bind_ret vl ret Q
      | _ => FF
@@ -282,6 +290,34 @@ apply normalize.corable_andp_sepcon1.
 apply assert_lemmas.corable_fun_assert.
 Qed.
 
+Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
+ match tl with 
+  | Tnil => nil
+  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
+ end.
+
+Definition closed_wrt_modvars c (F: assert) : Prop :=
+    closed_wrt_vars (modifiedvars c) F.
+
+Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
+  match ek with 
+  | EK_normal => update_tycon Delta c 
+  | _ => Delta 
+  end.
+
+Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
+ match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
+
+Definition main_pre (prog: program) : unit -> assert :=
+(fun tt _ => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
+                             (empty_environ (Genv.globalenv prog))).
+
+Definition main_post (prog: program) : unit -> assert := 
+  (fun tt => TT).
+
+Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
+  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
+
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 (* Don't know why this next Hint doesn't work unless fully instantiated;
@@ -309,13 +345,6 @@ Axiom extract_exists:
   (forall x, semax Delta (P x) c (R x)) ->
    semax Delta (EX x:A, P x) c (existential_ret_assert R).
 
-(************** INITIAL WORLD *****************)
-
-Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
- match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
-
-(************ SEMAX_RULES *****************)
-
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
@@ -330,16 +359,6 @@ Definition semax_body
 
 Parameter semax_func: forall (V: varspecs) (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
-Definition main_pre (prog: program) : unit -> assert :=
-(fun tt _ => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
-                             (empty_environ (Genv.globalenv prog))).
-
-Definition main_post (prog: program) : unit -> assert := 
-  (fun tt => TT).
-
-Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
-  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
-
 Definition semax_prog 
      (prog: program) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (map (@fst _ _) prog.(prog_funct)
@@ -349,8 +368,6 @@ Definition semax_prog
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Axiom semax_func_nil: forall V G, semax_func V G nil nil.
-
-Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition semax_body_params_ok f : bool :=
    andb 
@@ -370,12 +387,6 @@ Parameter semax_external:
   forall (ef: external_function) (A: Type) (P Q: A -> assert),  Prop.
 
 
-Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
- match tl with 
-  | Tnil => nil
-  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
- end.
-
 Axiom semax_func_cons_ext: 
    forall (V: varspecs) (G: funspecs) fs id ef fsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
@@ -392,15 +403,6 @@ Definition main_params (ge: genv) start : Prop :=
         func.(fn_params) = nil.
 
 (* THESE RULES FROM semax_loop *)
-
-Definition Cnot (e: expr) : expr :=
-   Eunop Onotbool e type_bool.
-
-Definition bool_type (t: type) : bool :=
-  match t with
-  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
-  | _ => false
-  end.
 
 Axiom semax_ifthenelse : 
    forall Delta P (b: expr) c d R,
@@ -424,7 +426,7 @@ Axiom semax_for :
 forall Delta Q Q' test incr body R,
      bool_type (typeof test) = true ->
      Q  |-- local (tc_expr Delta test) ->
-     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil) ->
+     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
      semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
      semax Delta Q' incr (for2_ret_assert Q R) ->
      semax Delta Q (Sfor' test incr body) R.
@@ -433,7 +435,7 @@ Axiom semax_while :
 forall Delta Q test body R,
      bool_type (typeof test) = true ->
      (Q |-- local (tc_expr Delta test)) ->
-     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal nil) ->
+     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
      semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
      semax Delta Q (Swhile test body) R.
 
@@ -445,7 +447,7 @@ Axiom semax_call :
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
-          (F * fun rho => P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist bl rho) rho))))
+          (F * lift1 (P x) (make_args' fsig (eval_exprlist bl)))))
          (Scall ret a bl)
          (normal_ret_assert 
           (EX old:val, substopt ret (lift0 old) F * lift1 (Q x) (get_result ret))).
@@ -453,19 +455,16 @@ Axiom semax_call :
 Axiom  semax_return :
    forall Delta R ret ,
       semax Delta  
-                (lift2 (R EK_return) (eval_exprlist (opt2list ret)) id)
+                (lift2 (R EK_return) (eval_expropt ret) id)
                 (Sreturn ret)
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> assert)
-              Delta P Q c
-      (GLBL: (var_types Delta) ! id = None),
+      forall id fsig (A : Type) (P' Q' : A -> assert) Delta P Q c,
+    (var_types Delta) ! id = None ->
     (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
-       semax Delta (fun rho => P rho 
-                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
-                              c Q ->
-       semax Delta P c Q.
+    semax Delta (P && lift1 (fun_assert  fsig A P' Q') (eval_lvalue (Evar id (type_of_funsig fsig)))) c Q ->
+    semax Delta P c Q.
 
 Axiom semax_call_ext:
      forall Delta P Q ret a bl a' bl',
@@ -495,9 +494,6 @@ forall (Delta: tycontext) (P: assert) id e,
           (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
                             subst id (lift0 old) P)).
 
-Definition closed_wrt_modvars c (F: assert) : Prop :=
-    closed_wrt_vars (modifiedvars c) F.
-
 Axiom semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
     tc_temp Delta id (typeof e1) ->
@@ -520,14 +516,8 @@ Axiom semax_store:
 
 (* THESE RULES FROM semax_lemmas *)
 
-Axiom semax_Sskip:
+Axiom semax_skip:
    forall Delta P, semax Delta P Sskip (normal_ret_assert P).
-
-Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
-  match ek with 
-  | EK_normal => update_tycon Delta c 
-  | _ => Delta 
-  end.
 
 Axiom semax_pre_post:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
@@ -537,19 +527,10 @@ Axiom semax_pre_post:
 
 (**************** END OF stuff from semax_rules ***********)
 
-Axiom frame_left:  forall Delta P s R F,
+Axiom semax_frame:  forall Delta P s R F,
    closed_wrt_modvars s F ->
   semax Delta P s R ->
     semax Delta (P * F) s (frame_ret_assert R F).
-
-Axiom derives_skip:
-  forall p Delta (R: ret_assert),
-      (p |-- R EK_normal nil) -> 
-        semax Delta p Sskip R.
-
-Axiom semax_ff:
-  forall Delta c R,  
-   semax Delta FF c R.
 
 Axiom semax_extract_prop:
   forall Delta (PP: Prop) P c Q, 

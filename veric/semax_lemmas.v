@@ -158,7 +158,7 @@ Hint Resolve cl_corestep_fun'.
 
 Lemma derives_skip:
   forall p Delta (R: ret_assert),
-      (forall rho, p rho |-- R EK_normal nil rho) -> 
+      (forall rho, p rho |-- R EK_normal None rho) -> 
         semax Hspec Delta p Clight.Sskip R.
 Proof.
 intros ? ? ? ?; intros.
@@ -171,7 +171,7 @@ intros ?w _ ?.
 clear w. rename w0 into n.
 intros te ve w ?.
 destruct H0 as [H0' H0].
-specialize (H0 EK_normal nil te ve w H1).
+specialize (H0 EK_normal None te ve w H1).
 simpl exit_cont in H0.
 simpl in H0'. clear n H1. remember ((construct_rho (filter_genv psi) ve te)) as rho.
 revert w H0. 
@@ -225,18 +225,6 @@ specialize (H H7); clear PP H7.
 hnf in H. rewrite semax_fold_unfold in H.
 eapply H; try apply H1; try apply H3; try eassumption.
 split; auto. split; auto.
-Qed.
-
-Lemma semax_ff:
-  forall Delta c R,  
-   semax Hspec Delta (fun rho => FF) c R.
-Proof.
-intros.
-intro w.
-rewrite semax_fold_unfold.
-repeat intro.
-destruct H5 as [[_ [? [? [_ [_ ?]]]]] _].
-contradiction.
 Qed.
 
 Lemma semax_unfold:
@@ -295,7 +283,7 @@ eapply semax_pre; eauto.
 eapply semax_post; eauto.
 Qed.
 
-Lemma semax_Sskip:
+Lemma semax_skip:
    forall Delta P, semax Hspec Delta P Sskip (normal_ret_assert P).
 Proof.
 intros.
@@ -407,7 +395,7 @@ Qed.
 
 Lemma semax_extensionality1:
   forall Delta (P P': assert) c (R R': ret_assert) ,
-       ((ALL ek: exitkind, ALL  vl : list val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
       && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta P c R) |-- semax' Hspec Delta P' c R').
 Proof.
 intros.
@@ -447,7 +435,7 @@ apply andp_subp'; auto.
 apply sepcon_subp'; auto.
 Qed.
 
-Lemma frame_left:  forall Delta P s R F,
+Lemma semax_frame:  forall Delta P s R F,
    closed_wrt_modvars s F ->
   semax Hspec Delta P s R ->
     semax Hspec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).

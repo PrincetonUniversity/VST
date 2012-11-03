@@ -66,7 +66,7 @@ change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 rewrite H2 in Hsafe.
 eapply safe_step'_back2; [eassumption | ].
 unfold rguard in Hsafe.
-specialize (Hsafe EK_normal nil te' ve).
+specialize (Hsafe EK_normal None te' ve).
 simpl exit_cont in Hsafe.
 specialize (Hsafe (m_phi jm')).
 spec Hsafe.

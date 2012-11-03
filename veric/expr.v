@@ -182,6 +182,8 @@ Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
  | e::el' => lift2 cons (eval_expr e) (eval_exprlist el')
  end.
 
+Definition eval_expropt (e: option expr) : environ -> option val :=
+ match e with Some e' => lift1 Some (eval_expr e')  | None => lift0 None end.
 
 (* things related to function specifications and return assertions *)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -786,7 +788,7 @@ Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
 
 Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
  match bl, tl with
- | b::bl', (_,t'):: tl' => if eq_dec (typeof b) t' then match_fsig_aux bl' tl' else false
+ | b::bl', (_,t'):: tl' => if eqb_type (typeof b) t' then match_fsig_aux bl' tl' else false
  | nil, nil => true
  | nil, _::_ => false
  | _::_, nil => false
@@ -813,7 +815,9 @@ Proof.
  revert tl H; induction bl; destruct tl; intros; inv H.
   reflexivity.
  destruct p.
- if_tac in H1. simpl. f_equal; auto. inv H1.
+ revert H1; case_eq (eqb_type (typeof a) t); intros.
+ apply eqb_type_true in H. subst; simpl in *. f_equal; auto.
+ inv H1.
  clear H.
  destruct (snd fsig); destruct ret; intuition congruence.
 Qed.
