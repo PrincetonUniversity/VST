@@ -194,10 +194,11 @@ hnf. intros.
 decide equality.
 Qed.
 
+Definition mpred := pred rmap.
+Definition assert := environ -> mpred.
+
 Inductive funspec :=
-   mk_funspec: funsig -> 
-           forall A: Type, (A -> environ -> pred rmap) -> (A -> environ -> pred rmap) 
-                 -> funspec.
+   mk_funspec: funsig -> forall A: Type, (A -> assert) -> (A -> assert) -> funspec.
 
 Definition funspecs := list (ident * funspec).
 

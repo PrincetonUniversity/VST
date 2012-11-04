@@ -374,7 +374,8 @@ simpl update_tycon in H3.
 apply assert_safe_last; intros a2 LEVa2.
 assert (NEC2: necR w (level a2)).
   apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5. 
-  change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.  omega.
+  change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
+  change compcert_rmaps.R.rmap with rmap in *; omega.
 assert (LT: level a2 < level w).
   apply age_level in LEVa2. apply necR_nat in H5. 
  clear - H4 H5 LEVa2.

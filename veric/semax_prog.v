@@ -513,16 +513,16 @@ destruct H2 as [f ?].
  unfold initial_core'.
  simpl.
  rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
- assert (H9: In (id, mk_funspec f0 A p p0) G).
+ assert (H9: In (id, mk_funspec f0 A a a0) G).
     apply list_norepet_append_inv in H. destruct H as [H _].
     forget (prog_funct prog) as fs. clear - H H0 H1.
     revert G H0 H1; induction fs; destruct G; simpl; intros; inv H0.
    revert H1; induction V; simpl; intros.
    rewrite PTree.gempty in H1; inv H1.
-   destruct (eq_dec (fst a) id). subst. rewrite PTree.gss in H1. inv H1.
+   destruct (eq_dec (fst a1) id). subst. rewrite PTree.gss in H1. inv H1.
     rewrite PTree.gso in H1 by auto; auto. 
-    destruct (eq_dec (fst p1) id). subst; rewrite PTree.gss in H1.
-    destruct p1; inv H1; auto.
+    destruct (eq_dec (fst p) id). subst; rewrite PTree.gss in H1.
+    destruct p; inv H1; auto.
     rewrite PTree.gso in H1 by auto. right. apply IHfs; auto.
     inv H; auto.
  rewrite (find_id_i _ _ _ H9); auto.
@@ -571,8 +571,8 @@ unfold type_of_funspec. simpl.
  clear - H0 H5.
  forget (prog_funct prog) as g. unfold match_fdecs in H0.
  revert G H0 H5; induction g; destruct G; simpl; intros. inv H5. inv H0. inv H0.
- destruct p1. destruct a. simpl in *. inv H0.
- if_tac in H5. subst i0. inv H5. exists f0; split; auto.
+ destruct a1. destruct p. simpl in *. inv H0.
+ if_tac in H5. subst i1. inv H5. exists f; split; auto.
  destruct (IHg G) as [f3 [? ?]]; auto. exists f3; split; auto.
  destruct H4 as [f [H4 H4']].
  destruct (Genv.find_funct_ptr_exists prog i f) as [b [? ?]]; auto.

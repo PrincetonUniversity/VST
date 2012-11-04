@@ -8,17 +8,17 @@ Require Export msl.log_normalize.
 Require Export veric.expr.
 Require Import veric.juicy_extspec.
 Require veric.seplog.
+Require veric.compcert_rmaps.
 Require veric.assert_lemmas.
 Require msl.msl_standard.
 
-Definition mpred : Type := predicates_hered.pred veric.seplog.rmap.
-Instance Nveric: NatDed mpred := algNatDed veric.seplog.rmap.
-Instance Sveric: SepLog mpred := algSepLog veric.seplog.rmap.
-Instance Cveric: ClassicalSep mpred := algClassicalSep veric.seplog.rmap.
-Instance Iveric: Indir mpred := algIndir veric.seplog.rmap.
-Instance Rveric: RecIndir mpred := algRecIndir veric.seplog.rmap.
-Instance SIveric: SepIndir mpred := algSepIndir veric.seplog.rmap.
-Instance SRveric: SepRec mpred := algSepRec veric.seplog.rmap.
+Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
+Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
+Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
+Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
+Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
+Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
+Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
 Hint Resolve any_environ : typeclass_instances.
 
@@ -76,7 +76,7 @@ Definition writable_share: share -> Prop := seplog.writable_share.
 
 Definition writable_block (id: ident) (n: Z): assert :=
         EX v: val*type,  EX a: address, EX rsh: Share.t,
-          (local(fun rho => ge_of rho id = Some v /\ val2adr (fst v) a) && lift0 (VALspec_range n rsh Share.top a)).
+          (local(fun rho=> ge_of rho id = Some v /\ val2adr (fst v) a) && lift0 (VALspec_range n rsh Share.top a)).
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  match bl with

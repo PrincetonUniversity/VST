@@ -301,11 +301,12 @@ simpl.
 Qed.
 Hint Rewrite local_lift2_and : normalize.
 
-Lemma subst_TT: forall i v, subst i v TT = TT.
+Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
 Admitted.
-Lemma subst_FF: forall i v, subst i v FF = FF.
+Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
 Admitted.
-Hint Rewrite subst_TT subst_FF: normalize.
+Hint Rewrite @subst_TT @subst_FF: normalize.
+Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): normalize.
 
 
 Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = lift0 (Vint i).

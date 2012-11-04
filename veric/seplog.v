@@ -11,6 +11,7 @@ Require Import veric.expr.
   of separation logic soundness, but are necessary to have for the 
   client of the separation logic who wants to import the separation
    logic opaquely. *)
+(*
 Definition rmap := rmap.
 Instance Join_rmap: Join rmap := _.
 Instance Perm_rmap: @Perm_alg rmap Join_rmap := _.
@@ -21,17 +22,8 @@ Instance ag_rmap: ageable rmap := _.
 Instance Age_rmap: @Age_alg rmap Join_rmap ag_rmap := _.
 Instance Cross_rmap: Cross_alg rmap := _.
 Instance Trip_rmap: Trip_alg rmap := _.
-
-(* an experiment ... 
-Instance Join_environ : Join environ := Join_equiv _.
-Instance Perm_environ : Perm_alg environ := _.
-Instance Sep_environ : Sep_alg environ := _.
-Instance Canc_environ: Canc_alg environ := _.
-Instance Disj_environ: Disj_alg environ := _.
-
-Instance ag_environ_rmap : ageable (environ * rmap) := ag_prod' environ rmap _.
-Instance Age_environ_rmap : Age_alg (environ * rmap) := asa_prod' _ _ _ _ _ _.
 *)
+
 Definition core_load : memory_chunk -> address -> val -> pred rmap := core_load.
 
 Definition VALspec_range: Z -> Share.t -> Share.t -> address -> pred rmap := VALspec_range.
@@ -61,8 +53,7 @@ Definition func_at (f: funspec): address -> pred rmap :=
    | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig)
   end.
 
-
-Definition assert: Type := environ -> pred rmap.
+(* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
 Local Open Scope pred.

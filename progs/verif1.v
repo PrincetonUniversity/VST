@@ -175,6 +175,12 @@ Opaque andp.
 Ltac go_lower' := let rho := fresh "rho" in intro rho; normalize.
 
 
+Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = lift1 Some (eval_expr e).
+Proof. reflexivity. Qed.
+Lemma eval_expropt_None: eval_expropt None = lift0 None.
+Proof. reflexivity. Qed.
+Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
+
 Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -233,7 +239,7 @@ apply sepcon_derives; auto.
 normalize.
 (* After the loop *)
 forward.
-go_lower'. simpl opt2list. simpl eval_exprlist. normalize.
+go_lower'.
 apply andp_right; normalize.
 eapply tc_eval_id_i; eauto.
 rewrite H0.

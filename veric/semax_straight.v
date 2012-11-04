@@ -87,7 +87,7 @@ apply same_glob_funassert; simpl; auto. rewrite glob_types_update_tycon; auto.
 subst rho'. 
 hnf in Hsafe.
 change R.rmap with rmap in *.
-replace (@level rmap ag_rmap (m_phi jm) - 1)%nat with (@level rmap ag_rmap (m_phi jm'))%nat by omega.
+replace (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm) - 1)%nat with (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm'))%nat by omega.
 apply Hsafe; auto.
 Qed.
 
