@@ -1491,10 +1491,6 @@ rewrite H, H4, H5 in H1.
 destruct H1 as [H1 [H6 H7]].
 unfold proj_zint in H6.
 destruct H6 as [md [cur [f' [H6 [H8 H80]]]]].
-(*apply mem_range_perm_sub with 
- (sz := (snd a + Z_of_nat (length (read_file_aux f' (nat_of_Z (Int.intval i)) 
-                             (get_size f') cur)))%Z)
- in H7.*)
 destruct a as [b ofs].
 simpl in H7.
 apply Mem.range_perm_loadbytes in H7.
@@ -1575,7 +1571,141 @@ destruct (safely_halted csem ge (get_core s)); try congruence.
 right; exists i; auto.
 
 (*5: safely halted threads remain halted*)
+intros until rv; intros [H1 H2] H3 H4.
+split; auto.
+unfold cores in H1.
+simpl in H2.
+unfold proj_core in H2.
+if_tac in H2; try congruence.
+inversion H1.
+rewrite <-H5 in *; clear H5.
+inv H2.
+inv H4.
+apply corestep_not_halted in H.
+simpl in H3.
+rewrite H in H3; congruence.
+destruct (at_external_halted_excl csem ge (get_core s)).
+rewrite H4 in H; congruence.
+rewrite H4 in H3; congruence.
+destruct (at_external_halted_excl csem ge (get_core s)).
+rewrite H4 in H; congruence.
+rewrite H4 in H3; congruence.
+destruct (at_external_halted_excl csem ge (get_core s)).
+rewrite H4 in H; congruence.
+rewrite H4 in H3; congruence.
 
-Admitted. (*TODO*)
+(*6: safety of other cores preserved over handled steps*)
+intros until CS; hnf.
+intros [H1 H2].
+intros H3 H4 H5 CS2 c2 j H6.
+split.
+intros [H7 H8].
+simpl in H8.
+unfold proj_core in H8.
+if_tac in H8; try congruence.
+rewrite H in H6.
+simpl in H6.
+unfold active in H6.
+elimtype False; auto.
+intros n z z' [H7 H8] H9.
+simpl in H8.
+unfold proj_core in H8.
+if_tac in H8; try congruence.
+rewrite H in H6.
+simpl in H6.
+unfold active in H6.
+elimtype False; auto.
+
+(*7: extended machine doesn't introduce new external calls*)
+intros until args; intros H1.
+inv H1.
+case_eq (at_external csem (get_core s)).
+intros [[ef' sig'] args'] H1.
+exists csem.
+exists (get_core s).
+split; auto.
+unfold os_at_external in H0|-*.
+rewrite H1 in H0|-*.
+destruct ef'; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_args; try congruence.
+destruct sig_args; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct name; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+destruct sg; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct t; try congruence.
+destruct sig_args; try congruence.
+destruct sig_res; try congruence.
+destruct t; try congruence.
+intros H1.
+unfold os_at_external in H0.
+rewrite H1 in H0; congruence.
+
+(*8: *)
+intros.
+simpl.
+unfold os_after_external.
+destruct H as [H H5].
+unfold cores in H.
+inversion H.
+rewrite <-H7 in *.
+simpl in H5.
+unfold proj_core in H5.
+if_tac in H5; try congruence.
+inversion H5.
+rewrite <-H9 in *.
+rewrite H4.
+eexists; eauto.
+
+(*9: *)
+intros.
+split; auto.
+intros [H8 H9].
+simpl in H9.
+unfold proj_core in H9.
+if_tac in H9; auto.
+rewrite H10 in H7.
+destruct H6 as [H6 H11].
+simpl in H11.
+unfold proj_core in H11.
+if_tac in H11; try congruence.
+congruence.
+destruct H as [H H8].
+simpl in H8.
+unfold proj_core in H8.
+if_tac in H8; try congruence.
+inversion H8.
+rewrite <-H11 in *.
+rewrite H9 in *.
+intros ge n [H12 H13] H14.
+simpl in H13.
+unfold proj_core in H13.
+if_tac in H13; try congruence.
+Qed.
 
 End FSExtension.
