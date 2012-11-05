@@ -115,7 +115,9 @@ Record Sig
   (cT: Type) (*corestates of core semantics*)
   (M: Type) (*memories*)
   (D: Type) (*initialization data*)
-  (Z Zint Zext: Type) 
+  (Z: Type) (*external states*)
+  (Zint: Type) (*portion of Z implemented by extension*)
+  (Zext: Type) (*portion of Z external to extension*)
 
   (esem: CoreSemantics G xT M D) (*extended semantics*)
   (csem: nat -> option (CoreSemantics G cT M D)) (*a set of core semantics*)
@@ -135,16 +137,14 @@ Record Sig
     active_csem : forall s, exists CS, csem (active s) = Some CS;
     active_proj_core : forall s, exists c, proj_core s (active s) = Some c;
 
-    (*runnable = Some i when active s = i and i is runnable (i.e., not blocked
-      waiting on an external function call)*)
-    runnable : G -> xT -> option nat;
-    runnable_active : forall ge s i, 
-      runnable ge s = Some i -> active s = i;
-    runnable_none : forall ge s c CS,
-      runnable ge s = None -> 
+    (*runnable=true when active s is runnable (i.e., not blocked
+      waiting on an external function call and not safely halted)*)
+    runnable : G -> xT -> bool;
+    runnable_false : forall ge s c CS,
+      runnable ge s = false -> 
       csem (active s) = Some CS -> proj_core s (active s) = Some c -> 
       (exists rv, safely_halted CS ge c = Some rv) \/
-      (exists ef, exists args, at_external CS c = Some (ef, args));
+      (exists ef, exists sig, exists args, at_external CS c = Some (ef, sig, args));
 
     (*a core is no longer "at external" once the extension has returned 
       to it with the result of the call on which it was blocked*)
@@ -263,8 +263,7 @@ Notation after_at_external_excl := E.(Extension.after_at_external_excl).
 Notation notat_external_handled := E.(Extension.notat_external_handled).
 Notation at_external_not_handled := E.(Extension.at_external_not_handled).
 Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
-Notation runnable_active := E.(Extension.runnable_active).
-Notation runnable_none := E.(Extension.runnable_none).
+Notation runnable_false := E.(Extension.runnable_false).
 
 Lemma all_safe_downward ge n z s m :
   ALL_SAFE ge (S n) z s m -> ALL_SAFE ge n z s m.
@@ -272,19 +271,19 @@ Proof. intros INV i CS c H2 H3; eapply safe_downward1; eauto. Qed.
 
 Inductive safety_criteria: Type := SafetyCriteria: forall 
   (*coresteps preserve the invariant*)
-  (core_pres: forall ge n z (s: xT) c m CS i s' c' m', 
+  (core_pres: forall ge n z (s: xT) c m CS s' c' m', 
     ALL_SAFE ge (S n) (s \o z) s m -> 
-    ACTIVE s = i -> CORE i is (CS, c) in s -> 
+    CORE (ACTIVE s) is (CS, c) in s -> 
     corestep CS ge c m c' m' -> corestep esem ge s m s' m' -> 
-    CORE i is (CS, c') in s' /\ ALL_SAFE ge n (s' \o z) s' m')
+    ALL_SAFE ge n (s' \o z) s' m')
 
   (*corestates satisfying the invariant can corestep*)
-  (core_prog: forall ge n z s m i c CS, 
+  (core_prog: forall ge n z s m c CS, 
     ALL_SAFE ge (S n) z s m -> 
-    ACTIVE s = i -> RUNNABLE ge s = Some i -> CORE i is (CS, c) in s -> 
+    RUNNABLE ge s=true -> CORE (ACTIVE s) is (CS, c) in s -> 
     exists c', exists s', exists m', 
       corestep CS ge c m c' m' /\ corestep esem ge s m s' m' /\
-      CORE i is (CS, c') in s')
+      CORE (ACTIVE s) is (CS, c') in s')
 
   (*"handled" steps respect function specifications*)
   (handled_pres: forall ge s z m c s' m' c' CS ef sig args P Q x, 
@@ -300,10 +299,11 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
       (exists ret, after_external CS ret c = Some c' /\ Q x (sig_res sig) ret (s' \o z) m')))
 
   (*"handled" states satisfying the invariant can step or are safely halted;
-     core states that stay "at_external" remain unchanged*)
+     core states that remain "at_external" over handled steps are unchanged*)
 
   (handled_prog: forall ge n (z: Zext) (s: xT) m,
-    ALL_SAFE ge (S n) (s \o z) s m -> RUNNABLE ge s = None -> 
+    ALL_SAFE ge (S n) (s \o z) s m -> 
+    RUNNABLE ge s=false -> 
     at_external esem s = None -> 
     (exists s', exists m', corestep esem ge s m s' m' /\ 
       forall i c CS, CORE i is (CS, c) in s -> 
@@ -315,7 +315,8 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
 
   (*safely halted threads remain halted*)
   (safely_halted_halted: forall ge s m s' m' i CS c rv,
-    CORE i is (CS, c) in s -> safely_halted CS ge c = Some rv -> 
+    CORE i is (CS, c) in s -> 
+    safely_halted CS ge c = Some rv -> 
     corestep esem ge s m s' m' -> 
     CORE i is (CS, c) in s')
 
@@ -323,12 +324,12 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
      thread i*)
  
  (handled_rest: forall ge s m s' m' c CS,
-    let i := ACTIVE s in CORE i is (CS, c) in s -> 
-    ((exists ef, exists args, at_external CS c = Some (ef, args)) \/ 
+    CORE (ACTIVE s) is (CS, c) in s -> 
+    ((exists ef, exists sig, exists args, at_external CS c = Some (ef, sig, args)) \/ 
       exists rv, safely_halted CS ge c = Some rv) -> 
     at_external esem s = None -> 
     corestep esem ge s m s' m' -> 
-    (forall CS0 c0 j, i <> j ->  
+    (forall CS0 c0 j, ACTIVE s <> j ->  
       (CORE j is (CS0, c0) in s' -> CORE j is (CS0, c0) in s) /\
       (forall n z z', CORE j is (CS0, c0) in s -> 
                       safeN CS0 client_sig ge (S n) (s \o z) c0 m -> 
@@ -348,7 +349,7 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
   (at_extern_ret: forall c z s m z' m' tys args ty ret c' CS ef sig x 
       (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
       (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
-    let i := ACTIVE s in CORE i is (CS, c) in s -> 
+    CORE (ACTIVE s) is (CS, c) in s -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
     P x tys args (s \o z) m -> Q x ty ret z' m' -> 
@@ -356,21 +357,21 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
     exists s': xT, 
       z' = s' \o z' /\
       after_external esem ret s = Some s' /\ 
-      CORE i is (CS, c') in s')
+      CORE (ACTIVE s) is (CS, c') in s')
 
   (*safety of other threads is preserved when returning from an external 
      function call*)
   (at_extern_rest: forall c z s m z' s' m' tys args ty ret c' CS ef x sig
       (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
       (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
-    let i := ACTIVE s in CORE i is (CS, c) in s -> 
+    CORE (ACTIVE s) is (CS, c) in s -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
     P x tys args (s \o z) m -> Q x ty ret z' m' -> 
     after_external CS ret c = Some c' -> 
     after_external esem ret s = Some s' -> 
-    CORE i is (CS, c') in s' -> 
-    (forall CS0 c0 j, i <> j -> 
+    CORE (ACTIVE s) is (CS, c') in s' -> 
+    (forall CS0 c0 j, ACTIVE s <> j -> 
       (CORE j is (CS0, c0) in s' -> CORE j is (CS0, c0) in s) /\
       (forall ge n, CORE j is (CS0, c0) in s -> 
                     safeN CS0 client_sig ge (S n) (s \o z) c0 m -> 
@@ -470,23 +471,18 @@ intros H2.
 case_eq (safely_halted esem ge s); auto.
 case_eq (RUNNABLE ge s).
 (*active thread i is runnable*)
-intros i RUN.
-generalize (runnable_active _ _ RUN) as ACT; intro.
-rewrite <-ACT in *.
+intros RUN.
 destruct (active_csem s) as [CS CSEM].
 destruct (active_proj_core s) as [c PROJECT].
-destruct (core_prog ge n (s \o z) s m i c CS H1 ACT) 
- as [c' [s' [m' [CORESTEP_C [CORESTEP_T [CSEM' PROJECT']]]]]]; auto.
-rewrite <-ACT; auto.
-rewrite <-ACT; auto.
-destruct (core_pres ge n z s c m CS i s' c' m' H1 ACT)
- as [_ INV']; auto.
-rewrite <-ACT in *; auto.
+destruct (core_prog ge n (s \o z) s m c CS H1 RUN)
+ as [c' [s' [m' [CORESTEP_C [CORESTEP_T ?]]]]]; auto.
+generalize (core_pres ge n z s c m CS s' c' m' H1)
+ as INV'; auto.
 intros Hsafehalt.
 exists s'; exists m'; split; [auto|].
 eauto.
 
-(*no runnable thread*)
+(*active thread not runnable*)
 intros RUN.
 destruct (active_csem s) as [CS CSEM].
 destruct (active_proj_core s) as [c PROJECT].
@@ -496,8 +492,8 @@ destruct (handled_prog ge n z s m H1 RUN H2)
 exists s'; exists m'.
 split; auto.
 eapply IHn.
-destruct (runnable_none ge s RUN CSEM PROJECT) 
- as [SAFELY_HALTED|[ef [args AT_EXT]]].
+destruct (runnable_false ge s RUN CSEM PROJECT) 
+ as [SAFELY_HALTED|[ef [sig [args AT_EXT]]]].
 
 (*subcase A of no runnable thread: safely halted*)
 intros j CSj cj CSEMj PROJECTj.
@@ -555,7 +551,6 @@ rewrite AT_EXT in H1.
 remember (safely_halted CS ge c0) as SAFELY_HALTED.
 destruct SAFELY_HALTED. 
 solve[destruct ef; elimtype False; auto].
-destruct ef as [ef sig].
 destruct H1 as [x H1].
 destruct H1 as [PRE POST].
 specialize (handled_pres ge s z m c0 s' m' cj CS ef sig args
@@ -610,7 +605,7 @@ specialize (handled_rest ge s m s' m' c CS).
 hnf in handled_rest.
 spec handled_rest; auto.
 spec handled_rest; auto.
-left; exists ef; exists args; auto.
+left; exists ef; exists sig; exists args; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
 destruct (handled_rest CSj cj j Hneq) as [H6 H7].
@@ -639,7 +634,7 @@ Import Extension.
 
 Inductive core_compat: Type := CoreCompat: forall
   (runnable_corestep: forall ge s m s' m' c CS i,
-    runnable E ge s = Some i -> 
+    runnable E ge s=true -> 
     csem i = Some CS -> proj_core E s i = Some c -> 
     corestep esem ge s m s' m' -> 
     exists c', corestep CS ge c m c' m' /\ proj_core E s' i = Some c') 
@@ -786,8 +781,7 @@ Notation after_at_external_excl := (Extension.after_at_external_excl).
 Notation notat_external_handled := (Extension.notat_external_handled).
 Notation at_external_not_handled := (Extension.at_external_not_handled).
 Notation ext_upd_at_external := (Extension.ext_upd_at_external).
-Notation runnable_active := (Extension.runnable_active).
-Notation runnable_none := (Extension.runnable_none).
+Notation runnable_false := (Extension.runnable_false).
 
 Let xT := fT cT.
 Let yT := fT dT.
@@ -847,7 +841,7 @@ Inductive linkable_extension: Type := LinkableExtension: forall
       match_states cd' j' s1' m1' s2' m2')
   (extension_diagram: forall c1 s1 m1 s1' m1' c2 s2 m2 ef sig args1 args2 cd j,
     ACTIVE E1 s1 = ACTIVE E2 s2 -> 
-    RUNNABLE E1 ge s1 = None -> RUNNABLE E2 ge s2 = None -> 
+    RUNNABLE E1 ge s1=false -> RUNNABLE E2 ge s2=false -> 
     PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
     PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
     at_external source c1 = Some (ef, sig, args1) -> 
@@ -880,11 +874,9 @@ generalize H0 as H0'; intro.
 destruct H0 as [Xinj [X0 [X1 H0]]].
 case_eq (RUNNABLE E1 ge st1).
 (*Case 1: runnable thread, appeal to core diagram for cores*)
-intros n H1.
+intros H1.
 generalize H1 as H1'; intro.
-apply runnable_active in H1.
 destruct (active_proj_core E1 st1) as [c1 H2].
-rewrite H1 in H2.
 assert (exists c1', corestep source ge c1 m1 c1' m1').
  inv esig_linkable.
  inv core_compat1.
@@ -896,7 +888,7 @@ generalize (core_diagram core_simulation).
 intros DIAG.
 generalize H0 as H0''; intro.
 unfold match_states in H0.
-destruct (H0 n c1 H2) as [c2 [H4 H5]].
+destruct (H0 (ACTIVE E1 st1) c1 H2) as [c2 [H4 H5]].
 destruct (DIAG c1 m1 c1' m1' H3 cd c2 j m2 H5) 
  as [c2' [m2' [cd' [j' [H6 [H7 [H8 H9]]]]]]].
 destruct H9 as [H9|[H9 H10]].
@@ -918,7 +910,7 @@ inv esig_linkable.
 inv core_compat1.
 eapply corestep_pres in H3; eauto.
 destruct H3; eauto.
-rewrite <-H1; auto.
+rewrite <-H3; auto.
 split.
 destruct H11; auto.
 rewrite <-H11.
@@ -931,21 +923,22 @@ unfold cores; simpl; eauto.
 eauto.
 eapply H3.
 intros i c0 H12.
-assert (H13: PROJ_CORE E1 st1' n = Some c1'). 
+assert (H13: PROJ_CORE E1 st1' (ACTIVE E1 st1) = Some c1'). 
  inv esig_linkable.
  inv core_compat1.
  edestruct corestep_pres; eauto.
  unfold cores; auto.
- destruct H13; auto.
-case_eq (eq_nat_dec i n).
+ destruct H14; auto.
+case_eq (eq_nat_dec i (ACTIVE E1 st1)).
 (*i=n*)
 intros Heq _.
 subst.
-rewrite H13 in H12.
-inv H12.
+destruct H11.
 exists c2'.
-rewrite X0; split; auto.
-destruct H11; auto.
+rewrite X0.
+split; auto.
+rewrite H13 in H12.
+inv H12; auto.
 (*i<>n*)
 intros Hneq _.
 assert (PROJ_CORE E1 st1 i = Some c0). 
@@ -974,7 +967,7 @@ destruct (active_csem E1) with (s := st1) as [CS H2].
 generalize H2 as H2'; intro.
 inv H2'.
 intros H3.
-apply (runnable_none E1) with (c := c1) (CS := source) (ge := ge) in H2; auto.
+apply (runnable_false E1) with (c := c1) (CS := source) (ge := ge) in H2; auto.
 destruct H2 as [H2|H2].
 
 (*active thread is safely halted*)
@@ -996,14 +989,13 @@ eexists; eexists; split; eauto.
 simpl; auto.
 
 (*active thread is at_external*)
-destruct H2 as [[ef sig] [args H2]].
+destruct H2 as [ef [sig [args H2]]].
 unfold match_states in H0.
 destruct (H0 (ACTIVE E1 st1) c1 H1) as [c2 [H4 H5]].
 destruct (core_at_external core_simulation cd j c1 m1 c2 m2 ef args sig H5 H2)
  as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
 inv esig_linkable. 
 edestruct extension_diagram as [s2' H11]; eauto.
-rewrite <-X1; auto.
 rewrite <-X0; auto.
 destruct H11 as [m2' [cd' [j' [? [? [? ?]]]]]].
 exists s2'; exists m2'; exists cd'; exists j'.

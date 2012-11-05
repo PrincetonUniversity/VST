@@ -170,8 +170,8 @@ Definition proj_core (s: xT) (i: nat) := if eq_nat_dec i 1 then Some (get_core s
 Definition active := fun _: xT => 1.
 Definition runnable := fun (ge: genv) (s: xT) => 
   match at_external csem (get_core s), safely_halted csem ge (get_core s) with 
-  | None, None => Some 1
-  | _, _ => None
+  | None, None => true
+  | _, _ => false
   end.
 Definition proj_zint (s: xT) := get_fs s.
 Definition proj_zext (z: fs*Z) := snd z.
@@ -694,7 +694,7 @@ Program Definition fs_extension :=
     handled
     proj_core _
     active _ _
-    runnable _ _
+    runnable _ 
     _ _ _ _
     proj_zint
     proj_zext
@@ -729,24 +729,11 @@ Next Obligation. exists (get_core s); unfold proj_core, active; auto. Qed.
 Next Obligation.
 unfold runnable in H.
 destruct (at_external csem (get_core s)); try congruence.
+destruct p as [[? ?] ?].
+right; eexists; eexists; eexists; eauto.
 destruct (safely_halted csem ge (get_core s)); try congruence.
 inv H.
-auto.
-Qed.
-Next Obligation.
-unfold runnable in H.
-case_eq (at_external csem (get_core s)); try congruence.
-intros [efsig vals] H1.
-rewrite H1 in H.
-right.
-exists efsig; exists vals.
-auto.
-intros H1; rewrite H1 in H.
-case_eq (safely_halted csem ge (get_core s)).
-intros rv H2.
-rewrite H2 in H.
-left; exists rv; auto.
-intros H2; rewrite H2 in H; congruence.
+left; eexists; eauto.
 Qed.
 Next Obligation.
 eapply after_at_external_excl; eauto.
@@ -1008,20 +995,17 @@ Proof.
 apply safety_criteria_safe; constructor.
 
 (*1: core preservation of all-safety invariant*)
-intros until m'; intros H1 H2 [H3 H4] H5 H6.
+intros until m'; intros H1 (*H2*) [H3 H4] H5 H6.
 unfold cores in H3; inversion H3; rewrite H0 in *; clear H3.
 assert (get_core s'=c').
  clear -H0 H4 H5 H6 csem_fun.
  inversion H6.
  rewrite <-H2 in H4.
  inversion H4.
- unfold proj_core in H10.
- if_tac in H10; try congruence.
- inversion H10.
- rewrite <-H12 in *.
+ rewrite <-H10 in *.
  rewrite <-H0 in *.
  generalize (csem_fun _ _ _ _ _ _ _ H5 H); inversion 1.
- rewrite <-H14; auto.
+ rewrite <-H12; auto.
  unfold get_core in H; destruct s; simpl in *.
  apply corestep_not_at_external in H5.
  rewrite H0 in *.
@@ -1034,49 +1018,49 @@ assert (get_core s'=c').
  apply corestep_not_at_external in H5.
  rewrite <-H0 in *.
  inversion H4.
- unfold proj_core in H16; if_tac in H16; try congruence.
+ rewrite <-H16 in *.
+ rewrite H5 in H; congruence.
  apply corestep_not_at_external in H5.
  rewrite <-H0 in *.
  inversion H4.
- unfold proj_core in H16.
- if_tac in H16; try congruence.
+ rewrite <-H16 in *.
+ rewrite H5 in H; congruence.
 rewrite <-H in *.
-split; auto.
+(*split; auto.
 split; auto.
 unfold cores; auto.
 simpl; unfold proj_core; if_tac; auto.
 elimtype False.
 inversion H4.
 unfold proj_core in H8.
-if_tac in H8; try congruence.
+if_tac in H8; try congruence.*)
 hnf.
 intros i2 CS2 c2 H7 H8.
-specialize (H1 i CS c).
+hnf in H1.
+specialize (H1 (active s) CS c).
 spec H1; auto.
 unfold cores; auto.
 spec H1; auto.
-assert (c'=c2).
+assert (H3: c'=c2).
  destruct s'.
  simpl in H.
  rewrite <-H.
  rewrite <-H0 in *.
  inversion H8.
- unfold proj_core in H9.
- if_tac in H9; try congruence.
- inversion H9; auto.
+ unfold proj_core in H3.
+ if_tac in H3; try congruence.
+ inversion H3; auto.
 rewrite <-H3 in *.
 unfold cores in H7.
 inversion H7.
-rewrite <-H10 in *.
+rewrite <-H9 in *.
 rewrite <-H0 in *.
 rewrite <-H.
 eapply safe_corestep_forward; eauto.
-assert (Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
-        Extension.zmult fs_extension (extensions.proj_zint fs_extension s)).
+assert (H2: Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
+            Extension.zmult fs_extension (extensions.proj_zint fs_extension s)).
  clear - H4 H5 H6.
  inversion H4.
- unfold proj_core in H0.
- if_tac in H0; try congruence.
  inv H0.
  inv H6; auto.
  elimtype False.
@@ -1085,30 +1069,29 @@ assert (Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
  elimtype False.
   apply corestep_not_at_external in H5.
   rewrite H5 in H; congruence.
-rewrite H9; auto.
+rewrite H2; auto.
 
 (*2: core progress*)
-intros until CS; intros H1 H2 H3 [H4 H5].
+intros until CS; intros H1 H2 (*H3*) [H4 H5].
 hnf in H1.
 specialize (H1 (active s) CS c).
 spec H1; auto.
 spec H1; auto.
 inversion H5.
 unfold proj_core in H0.
-if_tac in H0; auto.
-inv H3.
+(*if_tac in H0; auto.*)
+(*inv H3.*)
 inv H0.
-unfold runnable in H2.
+simpl in H2; unfold runnable in H2.
 hnf in H1.
 unfold cores in H4.
 inversion H4.
 rewrite <-H0 in *.
-inversion H5.
-unfold get_core in H3.
-destruct s; simpl in H2, H3.
-rewrite <-H3 in *.
-destruct (at_external csem c0) as [[[ef sig] args]|]; try congruence.
-destruct (safely_halted csem ge c0); try congruence.
+simpl in H5.
+destruct s; simpl in H2.
+unfold get_core in H1.
+destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
+destruct (safely_halted csem ge c); try congruence.
 destruct H1 as [c' [m' [H1 H6]]].
 exists c'; exists (mkxT z0 c' fs0); exists m'.
 split; auto.
@@ -1694,6 +1677,8 @@ destruct H6 as [H6 H11].
 simpl in H11.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
+simpl in H7.
+congruence.
 congruence.
 destruct H as [H H8].
 simpl in H8.
@@ -1701,11 +1686,12 @@ unfold proj_core in H8.
 if_tac in H8; try congruence.
 inversion H8.
 rewrite <-H11 in *.
-rewrite H9 in *.
 intros ge n [H12 H13] H14.
 simpl in H13.
 unfold proj_core in H13.
 if_tac in H13; try congruence.
+simpl in H7.
+congruence.
 Qed.
 
 End FSExtension.

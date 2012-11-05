@@ -45,8 +45,8 @@ Definition proj_core (c: cT) (i: nat) := if eq_nat_dec i 1 then Some c else None
 Definition active := fun _: cT => 1.
 Definition runnable := fun (ge: G) (s: cT) => 
   match at_external csem s, safely_halted csem ge s with 
-  | None, None => Some 1
-  | _, _ => None
+  | None, None => true
+  | _, _ => false
   end.
 Definition proj_zint := fun _: cT => tt.
 Definition proj_zext := fun z: Z => z.
@@ -63,7 +63,7 @@ Program Definition null_extension := Extension.Make
   csem cores client_sig client_sig handled
   proj_core _
   active _ _
-  runnable _ _ _ _ _ _
+  runnable _ _ _ _ _
   proj_zint proj_zext zmult _ _ _.
 Next Obligation.
 revert H0; case_eq (eq_nat_dec i 1).
@@ -75,24 +75,12 @@ if_tac; exists s; auto.
 elimtype False; apply H; auto.
 Qed.
 Next Obligation. 
-destruct (at_external csem s); try solve[congruence]. 
-destruct (safely_halted csem ge s); try solve[congruence].
-Qed.
-Next Obligation. 
-case_eq (at_external csem s); try solve[congruence]. 
-intros [ef args] H2.
-rewrite H2 in H; right; exists ef; exists args.
-inversion H0; subst; auto.
-inversion H1; subst; auto.
-intros H2; rewrite H2 in H.
-case_eq (safely_halted csem ge s). 
-intros rv H3; left; exists rv.
-inversion H0; subst.
-inversion H1; subst.
-auto.
-intros H3.
-rewrite H3 in H.
-congruence.
+if_tac in H1; try congruence; inv H1; inv H0.
+destruct (at_external CS c); try solve[congruence].
+destruct p as [[? ?] ?]. 
+right; eexists; eexists; eexists; eauto.
+destruct (safely_halted CS ge c); try solve[congruence].
+left; eexists; eauto.
 Qed.
 Next Obligation. inversion H; subst; eapply after_at_external_excl; eauto. Qed.
 Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
@@ -104,50 +92,50 @@ Lemma null_extension_safe (csem_fun: corestep_fun csem) :
 Proof.
 apply safety_criteria_safe; constructor; autounfold with null_unfold in *.
 
-(*1*) intros until m'; intros H1 H2 [H3 H4] H5 H6. 
+(*1*) intros until m'; intros H1 [H3 H4] H5 H6. 
 inversion H3 as [H7]; rewrite <-H7 in *; clear H7 H3.
 unfold Extension.proj_core in H4; simpl in H4.
 generalize H4 as H4'; intro.
 unfold proj_core in H4; if_tac in H4; try solve[congruence].
 inversion H4 as [H7]; rewrite H7 in *; clear H7 H4.
 rewrite H in *; clear H.
-split; auto.
-split; auto.
 unfold Extension.proj_core; simpl; unfold proj_core.
-if_tac; try solve[congruence].
 f_equal; generalize (csem_fun _ _ _ _ _ _ _ H5 H6); inversion 1; auto.
 simpl in H1|-*.
 unfold proj_zint, Extension.all_safe in *.
-intros until c0; intros H H8.
-inversion H as [H7]; rewrite H7 in *; clear H.
+intros until c0; intros H0 H8.
+inversion H0 as [H7]; rewrite H7 in *; clear H0.
 unfold Extension.proj_core in H8; simpl in H8; unfold proj_core in H8.
 if_tac in H8; try solve[congruence].
-rewrite <-H in *; clear H; inversion H8 as [H].
+rewrite <-H0 in *; clear H; inversion H8 as [H].
 rewrite H in *; clear H8 H.
 eapply safe_corestep_forward; eauto.
 
-(*2*) intros until CS; intros H1 H2 H3 [H4 H5].
-spec H1 i CS c H4 H5.
-simpl in H3.
-unfold runnable in H3; simpl in H3.
+(*2*) intros until CS; intros H1 H3 [H4 H5].
+spec H1 (active s) CS c H4 H5.
+simpl in H5.
+simpl in H3; unfold runnable in H3; simpl in H3.
 case_eq (at_external csem s).
-intros [ef args] H6.
+intros [[ef sig] args] H6.
 rewrite H6 in H3.
 simpl in H5; unfold proj_core in H5; simpl in H5; inversion H5; subst.
 congruence.
 intros H6.
 rewrite H6 in H3.
-inversion H3; subst.
+unfold proj_core in H5.
+if_tac in H5; try congruence.
+inv H5.
+case_eq (safely_halted csem ge c); try congruence.
+intros rv Hsafe.
+rewrite Hsafe in H3.
+congruence.
 simpl in H1.
-inversion H6; subst.
-simpl in H5; unfold proj_core in H5; simpl in H5; inversion H5; subst.
-inversion H4; rewrite H7 in *.
-rewrite H2 in H1.
-rewrite <-H7 in H1.
-destruct (safely_halted csem ge c); try solve[congruence].
-destruct H1 as [c' [m' [H8 H9]]].
+inversion H4.
+rewrite <-H2 in *.
+rewrite H6 in H1.
+intros Hsafe; rewrite Hsafe in H1.
+destruct H1 as [c' [m' [H1 H7]]].
 exists c'; exists c'; exists m'; split; auto.
-rewrite <-H7; auto.
 
 (*3*) intros until x; intros [H1 H2] H3 H4 H5 H6 H7 H8.
 apply ListSet.set_mem_correct1 in H4.
