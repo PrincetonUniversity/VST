@@ -633,32 +633,37 @@ Variables (G xT cT M D Z Zint Zext: Type)
 Import Extension.
 
 Inductive core_compat: Type := CoreCompat: forall
-  (runnable_corestep: forall ge s m s' m' c CS i,
+  (*when the active thread is runnable, a step in the extended semantics can be tracked 
+     back to a corestep of the active thread*)
+  (runnable_corestep: forall ge s m s' m' c CS,
     runnable E ge s=true -> 
-    csem i = Some CS -> proj_core E s i = Some c -> 
+    csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
     corestep esem ge s m s' m' -> 
-    exists c', corestep CS ge c m c' m' /\ proj_core E s' i = Some c') 
+    exists c', corestep CS ge c m c' m' /\ proj_core E s' (active E s') = Some c') 
+
+  (*after a corestep of the active inner core, the active thread's new corestate
+     is appropriately injected into the extended state*)
   (corestep_pres: forall ge c s m c' s' m' CS,
-    csem (active E s) = Some CS -> 
-    proj_core E s (active E s) = Some c -> 
-    corestep CS ge c m c' m' -> 
-    corestep esem ge s m s' m' -> 
-    (active E s = active E s' /\ runnable E ge s = runnable E ge s' /\ 
-      proj_core E s' (active E s) = Some c'))
+    csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
+    corestep CS ge c m c' m' -> corestep esem ge s m s' m' -> 
+    (active E s = active E s' /\ proj_core E s' (active E s') = Some c'))
+
+  (*a corestep of the currently active core forces a corestep of the extended semantics*)
   (corestep_prog: forall ge c s m c' m' CS,
-    csem (active E s) = Some CS -> 
-    proj_core E s (active E s) = Some c -> 
+    csem (active E s) = Some CS ->  proj_core E s (active E s) = Some c -> 
     corestep CS ge c m c' m' -> 
     exists s', corestep esem ge s m s' m')
-  (corestep_others: forall ge i s c m s' c' m' CS,
-    csem i = Some CS -> proj_core E s' i = Some c' -> 
-    corestep CS ge c m c' m' -> 
-    corestep esem ge s m s' m' -> 
-    forall j, i<>j -> proj_core E s j = proj_core E s' j) 
-  (safely_halted_steps: forall ge s c rv m (CS: CoreSemantics G cT M D),
-    proj_core E s (active E s) = Some c -> 
-    safely_halted CS ge c = Some rv -> 
-    exists s', corestep esem ge s m s' m), 
+
+  (*other cores remain unchanged after coresteps of the active core*)
+  (corestep_others1: forall ge s c m s' c' m' CS,
+    csem (active E s') = Some CS -> proj_core E s' (active E s') = Some c' -> 
+    corestep CS ge c m c' m' -> corestep esem ge s m s' m' -> 
+    forall j, (active E s)<>j -> proj_core E s j = proj_core E s' j)
+
+  (corestep_others2: forall ge s c m s' c' m' CS n,
+    csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
+    corestepN CS ge n c m c' m' -> corestepN esem ge n s m s' m' -> 
+    forall j, (active E s)<>j -> proj_core E s j = proj_core E s' j),
   core_compat.
 
 Variable Hcore_compat: core_compat.
@@ -668,8 +673,7 @@ Lemma corestep_step: forall ge c s m c' m' CS,
   proj_core E s (active E s) = Some c -> 
   corestep CS ge c m c' m' -> 
   exists s', corestep esem ge s m s' m' /\
-    active E s = active E s' /\ runnable E ge s = runnable E ge s' /\
-    proj_core E s' (active E s) = Some c'.
+    active E s = active E s' /\ proj_core E s' (active E s') = Some c'.
 Proof.
 intros.
 inv Hcore_compat.
@@ -681,89 +685,78 @@ split; auto.
 eapply corestep_pres; eauto.
 Qed.
 
+Lemma corestep_stepN: 
+  forall n ge c s m c' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestepN CS ge n c m c' m' -> 
+  exists s', corestepN esem ge n s m s' m' /\ 
+    active E s = active E s' /\ proj_core E s' (active E s') = Some c'.
+Proof.
+inv Hcore_compat.
+generalize corestep_step; intro H1.
+intros until CS; intros H2 H3 H4.
+rename H4 into H5; revert c c' m m' s H2 H3 H5; induction n. 
+intros c c' m m' s H2 H3 H5.
+inv H5.
+exists s.
+split; try constructor; auto.
+intros c c' m m' s H2 H3 H5.
+simpl in H5.
+destruct H5 as [c2 [m2 [H5 H6]]].
+eapply H1 in H5; eauto.
+destruct H5 as [s2 [H5 [H7 H9]]].
+rewrite H7 in H2. 
+destruct (IHn c2 c' m2 m' s2 H2) as [s' [H10 [H11 H13]]]; auto.
+exists s'.
+split3.
+simpl.
+exists s2; exists m2; split; auto.
+rewrite H7; auto.
+auto.
+Qed.
+
+Lemma corestep_step_star: 
+  forall ge c s m c' m' CS,
+  csem (active E s) = Some CS -> 
+  proj_core E s (active E s) = Some c -> 
+  corestep_star CS ge c m c' m' -> 
+  exists s', corestep_star esem ge s m s' m' /\ 
+    active E s = active E s' /\ proj_core E s' (active E s') = Some c'.
+Proof.
+intros.
+destruct H1 as [n H1].
+eapply corestep_stepN in H1; eauto.
+destruct H1 as [s' [H1 [H2 H4]]].
+exists s'.
+split3; auto.
+exists n; auto.
+Qed.
+
 Lemma corestep_step_plus: 
   forall ge c s m c' m' CS,
   csem (active E s) = Some CS -> 
   proj_core E s (active E s) = Some c -> 
   corestep_plus CS ge c m c' m' -> 
   exists s', corestep_plus esem ge s m s' m' /\ 
-    active E s = active E s' /\ runnable E ge s = runnable E ge s' /\
-    proj_core E s' (active E s) = Some c'.
+    active E s = active E s' /\ proj_core E s' (active E s') = Some c'.
 Proof.
-inv Hcore_compat.
-generalize corestep_step; intro H1.
-intros until CS; intros H2 H3 H4.
-inversion H4 as [n H5]; clear H4; revert c c' m m' s H2 H3 H5; induction n. 
-intros c c' m m' s H2 H3 H5.
-inv H5.
-destruct H as [m2 [H H4]].
-inv H4.
-eapply H1 in H; eauto.
-destruct H as [s2 [H [H4 H5]]].
-exists s2; split; auto.
-exists 0%nat; simpl.
-exists s2; exists m'.
-split; auto.
-intros c c' m m' s H2 H3 H5.
-simpl in H5.
-destruct H5 as [c2 [m2 [H5 H6]]].
-eapply H1 in H5; eauto.
-destruct H5 as [s2 [H5 [H7 [H8 H9]]]].
-rewrite H7 in H2. 
-destruct (IHn c2 c' m2 m' s2 H2) as [s' [H10 [H11 [H12 H13]]]]; auto.
-rewrite <-H7; auto.
+intros.
+destruct H1 as [n H1].
+eapply corestep_stepN in H1; eauto.
+destruct H1 as [s' [H1 [H2 H4]]].
 exists s'.
-split3.
-inv H10.
-exists (S x).
-simpl.
-exists s2; exists m2; split; auto.
-rewrite H7; auto.
-rewrite H8, H12.
-rewrite H7; split; auto.
-Qed.
-
-Lemma corestep_step_star:
-  forall ge c s m c' m' CS,
-  csem (active E s) = Some CS -> 
-  proj_core E s (active E s) = Some c -> 
-  corestep_star CS ge c m c' m' -> 
-  exists s', corestep_star esem ge s m s' m' /\ 
-    active E s = active E s' /\ runnable E ge s = runnable E ge s' /\
-    proj_core E s' (active E s) = Some c'.
-Proof.
-generalize corestep_step; intro H1.
-intros until CS; intros H2 H3 H4.
-inversion H4 as [n H5]; clear H4; revert c c' m m' s H2 H3 H5; induction n. 
-intros c c' m m' s H2 H3 H5.
-inv H5.
-exists s; split; auto.
-exists 0%nat; simpl; auto.
-intros c c' m m' s H2 H3 H5.
-simpl in H5.
-destruct H5 as [c2 [m2 [H5 H6]]].
-eapply H1 in H5; eauto.
-destruct H5 as [s2 [H5 [H7 [H8 H9]]]].
-rewrite H7 in H2. 
-destruct (IHn c2 c' m2 m' s2 H2) as [s' [H10 [H11 [H12 H13]]]]; auto.
-rewrite <-H7; auto.
-exists s'.
-split3.
-inv H10.
-exists (S x).
-simpl.
-exists s2; exists m2; split; auto.
-rewrite H7; auto.
-rewrite H8, H12.
-rewrite H7; split; auto.
+split3; auto.
+exists n; auto.
 Qed.
 
 End CoreCompat.
     
-Section LinkableExtension.
-Variables (fT: forall X:Type, Type) (cT dT D Z Zint Zext: Type)
-  (esem: forall (T: Type) (CS: CompcertCoreSem genv T D), CompcertCoreSem genv (fT T) D) 
-  (source: CompcertCoreSem genv cT D) (target: CompcertCoreSem genv dT D)
+Section CompilableExtension.
+Variables (fT: forall X:Type, Type) (cT dT D1 D2 Z Zint Zext: Type)
+  (esem: forall (T: Type) (D: Type) (CS: CompcertCoreSem genv T D), 
+    CompcertCoreSem genv (fT T) D) 
+  (source: CompcertCoreSem genv cT D1) (target: CompcertCoreSem genv dT D2)
   (client_sig: ext_sig mem Z) (esig: ext_sig mem Zext) (handled: list AST.external_function).
 
 Notation ALL_SAFE := (Extension.all_safe).
@@ -786,7 +779,7 @@ Notation runnable_false := (Extension.runnable_false).
 Let xT := fT cT.
 Let yT := fT dT.
 
-Definition cores (aT:Type) (CS: CompcertCoreSem genv aT D) :=
+Definition cores (aT:Type) (D: Type) (CS: CompcertCoreSem genv aT D) :=
   fun i:nat => Some (csem CS).
 
 Variable (E1: Extension.Sig Zint (esem source) (cores source) client_sig esig handled).
@@ -795,38 +788,16 @@ Variables (ge: genv) (entry_points: list (val*val*signature)).
 
 Import Sim_inj.
 
-Variable (core_simulation: Forward_simulation_inject D D source target ge ge entry_points).
+Variable (core_simulation: Forward_simulation_inject D1 D2 source target ge ge entry_points).
 
 Definition match_states (cd: core_data core_simulation) (j: meminj) (s1: xT) m1 (s2: yT) m2 :=
-  Mem.inject j m1 m2 /\
-  ACTIVE E1 s1 = ACTIVE E2 s2 /\
-  RUNNABLE E1 ge s1 = RUNNABLE E2 ge s2 /\
+  ACTIVE E1 s1=ACTIVE E2 s2 /\
+  RUNNABLE E1 ge s1=RUNNABLE E2 ge s2 /\
   forall i c1, PROJ_CORE E1 s1 i = Some c1 -> 
     exists c2, PROJ_CORE E2 s2 i = Some c2 /\ 
       match_state core_simulation cd j c1 m1 c2 m2.
 
-Inductive linkable_extension: Type := LinkableExtension: forall 
-  (core_compat1: core_compat E1)
-  (core_compat2: core_compat E2)
-  (match_mem_inject: forall cd j c1 c2 m1 m2,
-    match_state core_simulation cd j c1 m1 c2 m2 -> 
-    Mem.inject j m1 m2)
-  (match_others: forall cd cd' j j' s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' d1 d2 i,
-    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
-    PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
-    PROJ_CORE E1 s1 i = Some d1 -> 
-    PROJ_CORE E2 s2 i = Some d2 -> 
-    ACTIVE E1 s1 <> i -> 
-    match_states cd j s1 m1 s2 m2 -> 
-    inject_incr j j' -> 
-    Mem.inject j' m1' m2' -> 
-    Events.inject_separated j j' m1 m2 -> 
-    corestep source ge c1 m1 c1' m1' -> 
-    corestep_plus target ge c2 m2 c2' m2' -> 
-    corestep (esem source) ge s1 m1 s1' m1' -> 
-    corestep_plus (esem target) ge s2 m2 s2' m2' -> 
-    match_state core_simulation cd' j' c1' m1' c2' m2' -> 
-    match_state core_simulation cd' j' d1 m1' d2 m2')
+Inductive compilable_extension: Type := CompilableExtension: forall 
   (safely_halted_match: forall cd j c1 c2 m1 m1' m2 rv s1 s2 s1',
     match_states cd j s1 m1 s2 m2 -> 
     PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
@@ -839,6 +810,31 @@ Inductive linkable_extension: Type := LinkableExtension: forall
       Events.inject_separated j j' m1 m2 /\
       corestep (esem target) ge s2 m2 s2' m2' /\
       match_states cd' j' s1' m1' s2' m2')
+
+  (match_others: forall cd cd' j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' d1 d2 i n,
+    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
+    PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
+    PROJ_CORE E1 s1 i = Some d1 -> 
+    PROJ_CORE E2 s2 i = Some d2 -> 
+    ACTIVE E1 s1 <> i -> 
+    match_states cd j s1 m1 s2 m2 -> 
+    inject_incr j j' -> 
+    Events.inject_separated j j' m1 m2 -> 
+    corestep source ge c1 m1 c1' m1' -> 
+    corestepN target ge n c2 m2 c2' m2' -> 
+    match_state core_simulation cd' j' c1' m1' c2' m2' -> 
+    match_state core_simulation cd' j' d1 m1' d2 m2')
+
+  (runnable_diagram: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n,
+    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
+    PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
+    RUNNABLE E1 ge s1=RUNNABLE E2 ge s2 -> 
+    corestep source ge c1 m1 c1' m1' -> 
+    corestepN target ge n c2 m2 c2' m2' -> 
+    corestep (esem source) ge s1 m1 s1' m1' -> 
+    corestepN (esem target) ge n s2 m2 s2' m2' -> 
+    RUNNABLE E1 ge s1'=RUNNABLE E2 ge s2')
+
   (extension_diagram: forall c1 s1 m1 s1' m1' c2 s2 m2 ef sig args1 args2 cd j,
     ACTIVE E1 s1 = ACTIVE E2 s2 -> 
     RUNNABLE E1 ge s1=false -> RUNNABLE E2 ge s2=false -> 
@@ -857,12 +853,14 @@ Inductive linkable_extension: Type := LinkableExtension: forall
       Events.inject_separated j j' m1 m2 /\
       match_states cd' j' s1' m1' s2' m2' /\
       corestep (esem target) ge s2 m2 s2' m2'),
-  linkable_extension.
+  compilable_extension.
 
-Variable (esig_linkable: linkable_extension).
+Variables (esig_compilable: compilable_extension)
+  (core_compat1: core_compat E1)
+  (core_compat2: core_compat E2).
 
 Program Definition extended_simulation: 
-  Forward_simulation_inject D D (esem source) (esem target) ge ge entry_points :=
+  Forward_simulation_inject D1 D2 (esem source) (esem target) ge ge entry_points :=
       Build_Forward_simulation_inject 
       (core_data core_simulation) 
       match_states 
@@ -870,146 +868,213 @@ Program Definition extended_simulation:
       _ _ _ _ _ _.
 Next Obligation. apply (core_ord_wf core_simulation). Qed.
 Next Obligation. 
-generalize H0 as H0'; intro.
-destruct H0 as [Xinj [X0 [X1 H0]]].
+rename H0 into MATCH.
+generalize MATCH as MATCH'; intro.
+destruct MATCH as [ACT [RUN MATCH_CORES]].
+rename H into STEP.
 case_eq (RUNNABLE E1 ge st1).
+
 (*Case 1: runnable thread, appeal to core diagram for cores*)
-intros H1.
-generalize H1 as H1'; intro.
-destruct (active_proj_core E1 st1) as [c1 H2].
-assert (exists c1', corestep source ge c1 m1 c1' m1').
- inv esig_linkable.
+intros RUN1.
+assert (RUN2: RUNNABLE E2 ge st2 = true) by (rewrite <-RUN; auto).
+destruct (active_proj_core E1 st1) as [c1 PROJ1].
+assert (exists c1', corestep source ge c1 m1 c1' m1') as [c1' STEP1].
+ inv esig_compilable.
  inv core_compat1.
- specialize (runnable_corestep ge st1 m1 st1' m1' c1 source (ACTIVE E1 st1)).
+ specialize (runnable_corestep ge st1 m1 st1' m1' c1 source).
  destruct runnable_corestep as [c1' [H3 H4]]; auto.
- exists c1'; auto.
-destruct H3 as [c1' H3].
-generalize (core_diagram core_simulation).
-intros DIAG.
-generalize H0 as H0''; intro.
-unfold match_states in H0.
-destruct (H0 (ACTIVE E1 st1) c1 H2) as [c2 [H4 H5]].
-destruct (DIAG c1 m1 c1' m1' H3 cd c2 j m2 H5) 
- as [c2' [m2' [cd' [j' [H6 [H7 [H8 H9]]]]]]].
-destruct H9 as [H9|[H9 H10]].
+ solve[exists c1'; auto].
+assert (PROJ1': PROJ_CORE E1 st1' (ACTIVE E1 st1') = Some c1').
+ inv core_compat1.
+ specialize (corestep_pres ge c1 st1 m1 c1' st1' m1' source).
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ solve[destruct corestep_pres; auto].
+assert (ACT1': ACTIVE E1 st1 = ACTIVE E1 st1').
+ inv core_compat1.
+ specialize (corestep_pres ge c1 st1 m1 c1' st1' m1' source).
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ spec corestep_pres; auto.
+ solve[destruct corestep_pres; auto].
+generalize (core_diagram core_simulation) as DIAG; intro.
+destruct (MATCH_CORES (ACTIVE E1 st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
+specialize (DIAG c1 m1 c1' m1' STEP1 cd c2 j m2 MATCH12).
+destruct DIAG as [c2' [m2' [cd' [j' [INJ_INCR [INJ_SEP [MATCH12' STEP2]]]]]]].
+destruct STEP2 as [STEP2|STEP2].
+
 (*corestep_plus case*)
-generalize H9 as H9'.
-eapply corestep_step_plus 
- with (esem := esem target) (csem := cores target) (client_sig := client_sig) 
-   (esig := esig) (E := E2) (s := st2) in H9; eauto.
-destruct H9 as [st2' [H9 [H10 H11]]].
+destruct STEP2 as [n STEP2].
+generalize (corestep_stepN core_compat2) as CSTEPN; intro.
+specialize (CSTEPN (S n) ge c2 st2 m2 c2' m2' target).
+spec CSTEPN; auto.
+spec CSTEPN; auto. rewrite <-ACT; auto.
+spec CSTEPN; auto.
+destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto.
 split; auto.
-unfold match_states.
-split3; auto.
-rewrite <-X0 in H10.
-inv esig_linkable; eauto.
-rewrite <-H10.
-inv esig_linkable.
-inv core_compat1.
-eapply corestep_pres in H3; eauto.
-destruct H3; eauto.
-rewrite <-H3; auto.
-split.
-destruct H11; auto.
-rewrite <-H11.
-rewrite <-X1.
-inv esig_linkable.
-inv core_compat1.
-eapply corestep_pres in H.
-destruct H as [? [? ?]]; auto.
-unfold cores; simpl; eauto.
-eauto.
-eapply H3.
-intros i c0 H12.
-assert (H13: PROJ_CORE E1 st1' (ACTIVE E1 st1) = Some c1'). 
- inv esig_linkable.
- inv core_compat1.
- edestruct corestep_pres; eauto.
- unfold cores; auto.
- destruct H14; auto.
-case_eq (eq_nat_dec i (ACTIVE E1 st1)).
-(*i=n*)
-intros Heq _.
-subst.
-destruct H11.
-exists c2'.
-rewrite X0.
-split; auto.
-rewrite H13 in H12.
-inv H12; auto.
-(*i<>n*)
-intros Hneq _.
-assert (PROJ_CORE E1 st1 i = Some c0). 
- inv esig_linkable.
- inv core_compat1.
- erewrite corestep_others; eauto.
- unfold cores; auto.
-unfold match_states in H0'.
-destruct (H0'' i c0 H14) as [c3 [H15 H16]].
-exists c3.
-split; auto.
- inv esig_linkable.
- admit. (*follows from plus closure of corestep_others and H9', H15*)
-inv esig_linkable.
-eapply match_others with (cd := cd) (j := j) (m1 := m1) (m2 := m2); eauto.
-rewrite <-X0, H4; eauto.
-inv esig_linkable; auto.
-inv esig_linkable.
-rewrite <-X0; auto.
-(*corestep_star case*)
-admit. (*should be similar to corestep_plus*)
+ (*Subgoal: match_states*)
+ hnf.
+ split.
+ rewrite <-ACT1', <-ACT2'; auto.
+ split.
+ inv esig_compilable.
+ specialize (runnable_diagram st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' (S n)).
+ spec runnable_diagram; auto.
+ spec runnable_diagram; auto. rewrite <-ACT; auto.
+ 
+  intros i _c _PROJ1'.
+  case_eq (eq_nat_dec (ACTIVE E1 st1) i).
+  
+  (*ACTIVE E1 st1 = i*)
+  intros EQ _. 
+  rewrite <-EQ in *; clear EQ.
+  exists c2'.
+  split; auto.
+  rewrite ACT, ACT2'; auto.
+  rewrite <-ACT1' in PROJ1'.
+  rewrite PROJ1' in _PROJ1'.
+  solve[inv _PROJ1'; auto].
 
-(*runnable = None*)
-destruct (active_proj_core E1) with (s := st1) as [c1 H1].
-destruct (active_csem E1) with (s := st1) as [CS H2].
-generalize H2 as H2'; intro.
-inv H2'.
-intros H3.
-apply (runnable_false E1) with (c := c1) (CS := source) (ge := ge) in H2; auto.
-destruct H2 as [H2|H2].
+  (*ACTIVE E1 st1 <> i*)
+  intros NEQ _.
+  assert (_PROJ1: PROJ_CORE E1 st1 i = Some _c). 
+   inv core_compat1.
+   specialize (corestep_others1 ge st1 c1 m1 st1' c1' m1' source).
+   spec corestep_others1; auto.
+   spec corestep_others1; auto. 
+   spec corestep_others1; auto.
+   spec corestep_others1; auto.
+   specialize (corestep_others1 i NEQ).
+   solve[rewrite corestep_others1; auto].
+  assert (exists _d, PROJ_CORE E2 st2 i = Some _d) as [_d _PROJ2].
+   destruct (MATCH_CORES i _c _PROJ1) as [_d [_PROJ2 _MATCH12]].
+   solve[exists _d; auto].
+  assert (_PROJ2': PROJ_CORE E2 st2' i = Some _d). 
+   inv core_compat2.
+   specialize (corestep_others2 ge st2 c2 m2 st2' c2' m2' target (S n)).
+   spec corestep_others2; auto.
+   spec corestep_others2; auto. rewrite <-ACT; auto.
+   spec corestep_others2; auto.
+   spec corestep_others2; auto.
+   rewrite ACT in NEQ.
+   specialize (corestep_others2 i NEQ).
+   solve[rewrite <-corestep_others2; auto].
+  exists _d; split; auto.
+  inv esig_compilable.
+  specialize (match_others cd cd' j j' st1 c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d i (S n)).
+  spec match_others; auto.
+  solve[spec match_others; auto; rewrite <-ACT; auto].
+  solve[left; exists n; auto].
+
+(*corestep_star case*)
+destruct STEP2 as [[n STEP2] ORD].
+generalize (corestep_stepN core_compat2) as CSTEPN; intro.
+specialize (CSTEPN n ge c2 st2 m2 c2' m2' target).
+spec CSTEPN; auto.
+spec CSTEPN; auto. rewrite <-ACT; auto.
+spec CSTEPN; auto.
+destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
+exists st2'; exists m2'; exists cd'; exists j'.
+split3; auto.
+split; auto.
+ (*Subgoal: match_states*)
+ hnf.
+ split.
+ rewrite <-ACT1', <-ACT2'; auto.
+ split.
+ inv esig_compilable.
+ specialize (runnable_diagram st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n).
+ spec runnable_diagram; auto.
+ spec runnable_diagram; auto. rewrite <-ACT; auto.
+ 
+  intros i _c _PROJ1'.
+  case_eq (eq_nat_dec (ACTIVE E1 st1) i).
+  
+  (*ACTIVE E1 st1 = i*)
+  intros EQ _. 
+  rewrite <-EQ in *; clear EQ.
+  exists c2'.
+  split; auto.
+  rewrite ACT, ACT2'; auto.
+  rewrite <-ACT1' in PROJ1'.
+  rewrite PROJ1' in _PROJ1'.
+  solve[inv _PROJ1'; auto].
+
+  (*ACTIVE E1 st1 <> i*)
+  intros NEQ _.
+  assert (_PROJ1: PROJ_CORE E1 st1 i = Some _c). 
+   inv core_compat1.
+   specialize (corestep_others1 ge st1 c1 m1 st1' c1' m1' source).
+   spec corestep_others1; auto.
+   spec corestep_others1; auto. 
+   spec corestep_others1; auto.
+   spec corestep_others1; auto.
+   specialize (corestep_others1 i NEQ).
+   solve[rewrite corestep_others1; auto].
+  assert (exists _d, PROJ_CORE E2 st2 i = Some _d) as [_d _PROJ2].
+   destruct (MATCH_CORES i _c _PROJ1) as [_d [_PROJ2 _MATCH12]].
+   solve[exists _d; auto].
+  assert (_PROJ2': PROJ_CORE E2 st2' i = Some _d). 
+   inv core_compat2.
+   specialize (corestep_others2 ge st2 c2 m2 st2' c2' m2' target n).
+   spec corestep_others2; auto.
+   spec corestep_others2; auto. rewrite <-ACT; auto.
+   spec corestep_others2; auto.
+   spec corestep_others2; auto.
+   rewrite ACT in NEQ.
+   specialize (corestep_others2 i NEQ).
+   solve[rewrite <-corestep_others2; auto].
+  exists _d; split; auto.
+  inv esig_compilable.
+  specialize (match_others cd cd' j j' st1 c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d i n).
+  spec match_others; auto.
+  solve[spec match_others; auto; rewrite <-ACT; auto].
+  solve[right; split; [exists n; auto|auto]].
+
+(*runnable = false*)
+intros RUN1.
+destruct (active_proj_core E1) with (s := st1) as [c1 PROJ1].
+generalize PROJ1 as _PROJ1; intro.
+destruct (active_csem E1) with (s := st1) as [CS ACT1]; inv ACT1.
+apply (runnable_false E1) with (c := c1) (CS := source) (ge := ge) in PROJ1; auto.
+destruct PROJ1 as [[rv HALT]|[ef [sig [args AT_EXT]]]].
 
 (*active thread is safely halted*)
-destruct H2 as [rv H2].
-unfold match_states in H0.
-specialize (H0 (ACTIVE E1 st1) c1 H1).
-destruct H0 as [c2 [H0 H4]].
-destruct (core_halted core_simulation cd j c1 m1 c2 m2 rv H4 H2) as [H5 H6].
-inv esig_linkable.
-eapply safely_halted_match with (m1' := m1') in H0'; eauto.
-2: rewrite <-X0, H0; eauto.
-destruct H0' as [H7 [st2' [m2' [cd' [j' [H8 [H9 [H10 H11]]]]]]]].
+specialize (MATCH_CORES (ACTIVE E1 st1) c1 _PROJ1).
+destruct MATCH_CORES as [c2 [PROJ2 MATCH12]].
+destruct (core_halted core_simulation cd j c1 m1 c2 m2 rv MATCH12 HALT) 
+ as [SAFE2 INJ].
+inv esig_compilable.
+eapply safely_halted_match with (m1' := m1') in MATCH'; eauto.
+2: rewrite <-ACT, PROJ2; eauto.
+destruct MATCH' as [H7 [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' MATCH12']]]]]]]].
 exists st2'; exists m2'; exists cd'; exists j'.
-split3; auto.
-split; auto.
-left.
-exists 0%nat.
-eexists; eexists; split; eauto.
-simpl; auto.
+split3; auto; split; auto.
+solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 
 (*active thread is at_external*)
-destruct H2 as [ef [sig [args H2]]].
-unfold match_states in H0.
-destruct (H0 (ACTIVE E1 st1) c1 H1) as [c2 [H4 H5]].
-destruct (core_at_external core_simulation cd j c1 m1 c2 m2 ef args sig H5 H2)
+destruct (MATCH_CORES (ACTIVE E1 st1) c1 _PROJ1) as [c2 [PROJ2 MATCH12]].
+destruct (core_at_external core_simulation cd j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
  as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
-inv esig_linkable. 
+inv esig_compilable. 
 edestruct extension_diagram as [s2' H11]; eauto.
-rewrite <-X0; auto.
+rewrite <-ACT; auto.
 destruct H11 as [m2' [cd' [j' [? [? [? ?]]]]]].
 exists s2'; exists m2'; exists cd'; exists j'.
-split3; auto.
-split; auto.
-left. 
-exists 0%nat; simpl. 
-eexists; eexists; split; eauto.
+split3; auto; split; auto.
+solve[left; exists 0%nat; simpl; eexists; eexists; split; simpl; eauto].
 Qed.
+
 Next Obligation. Admitted. (*TODO*)
 Next Obligation. Admitted. (*TODO*)
 Next Obligation. Admitted. (*TODO*)
 Next Obligation. Admitted. (*TODO*)
 
-End LinkableExtension.
+End CompilableExtension.
 
 
