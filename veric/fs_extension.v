@@ -694,12 +694,10 @@ Program Definition fs_extension :=
     handled
     proj_core _
     active _ _
-    runnable _ 
-    _ _ _ _
+    runnable _ _ _ _ _ 
     proj_zint
     proj_zext
-    zmult _
-    _ 
+    zmult _ _ 
    FSExtSig_linkable.
 Next Obligation.
 inv H.
@@ -735,9 +733,7 @@ destruct (safely_halted csem ge (get_core s)); try congruence.
 inv H.
 left; eexists; eauto.
 Qed.
-Next Obligation.
-eapply after_at_external_excl; eauto.
-Qed.
+Next Obligation. eapply after_at_external_excl; eauto. Qed.
 Next Obligation.
 apply at_external_handled in H1.
 unfold is_true; auto.

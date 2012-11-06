@@ -323,7 +323,7 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
   (*safety of other threads is preserved when handling one step of blocked
      thread i*)
  
- (handled_rest: forall ge s m s' m' c CS,
+  (handled_rest: forall ge s m s' m' c CS,
     CORE (ACTIVE s) is (CS, c) in s -> 
     ((exists ef, exists sig, exists args, at_external CS c = Some (ef, sig, args)) \/ 
       exists rv, safely_halted CS ge c = Some rv) -> 
@@ -338,7 +338,6 @@ Inductive safety_criteria: Type := SafetyCriteria: forall
   (*if the extended machine is at external, then the active thread is at
      external (an extension only implements external functions, it doesn't
      introduce them)*)
-
   (at_extern_call: forall s ef sig args,
     at_external esem s = Some (ef, sig, args) -> 
     exists CS, exists c, 
@@ -663,7 +662,34 @@ Inductive core_compat: Type := CoreCompat: forall
   (corestep_others2: forall ge s c m s' c' m' CS n,
     csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
     corestepN CS ge n c m c' m' -> corestepN esem ge n s m s' m' -> 
-    forall j, (active E s)<>j -> proj_core E s j = proj_core E s' j),
+    forall j, (active E s)<>j -> proj_core E s j = proj_core E s' j)
+
+  (after_ext_pres: forall c s c' s' CS retv,
+    csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
+    after_external CS retv c = Some c' -> 
+    after_external esem retv s = Some s' -> 
+    active E s=active E s')
+
+  (after_ext_prog: forall c s c' CS retv,
+    csem (active E s) = Some CS -> proj_core E s (active E s) = Some c -> 
+    after_external CS retv c = Some c' -> 
+    exists s', after_external esem retv s = Some s' /\
+      proj_core E s' (active E s') = Some c')
+
+  (after_ext_others: forall s s' retv,
+    after_external esem retv s = Some s' -> 
+    forall j, (active E s)<>j -> proj_core E s j = proj_core E s' j)
+
+  (* REPEATED HERE TO GET AROUND A BUG IN PROGRAM: 
+     HYP (1) NOT GENERATED WHEN PROVING OBLIGATION
+     if the extended machine is at external, then the active thread is at
+     external (an extension only implements external functions, it doesn't
+     introduce them)*)
+  (at_extern_call: forall s ef sig args,
+    (*1*)at_external esem s = Some (ef, sig, args) -> 
+    exists CS, exists c, 
+      csem (active E s) = Some CS /\ proj_core E s (active E s) = Some c /\
+      at_external CS c = Some (ef, sig, args)),
   core_compat.
 
 Variable Hcore_compat: core_compat.
@@ -825,7 +851,7 @@ Inductive compilable_extension: Type := CompilableExtension: forall
     match_state core_simulation cd' j' c1' m1' c2' m2' -> 
     match_state core_simulation cd' j' d1 m1' d2 m2')
 
-  (runnable_diagram: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n,
+  (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n,
     PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
     PROJ_CORE E2 s2 (ACTIVE E2 s2) = Some c2 -> 
     RUNNABLE E1 ge s1=RUNNABLE E2 ge s2 -> 
@@ -852,7 +878,50 @@ Inductive compilable_extension: Type := CompilableExtension: forall
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
       match_states cd' j' s1' m1' s2' m2' /\
-      corestep (esem target) ge s2 m2 s2' m2'),
+      corestep (esem target) ge s2 m2 s2' m2')
+
+  (at_external_diagram: forall c1 s1 m1 c2 s2 m2 ef sig args1 args2 cd j,
+    ACTIVE E1 s1=ACTIVE E2 s2 -> 
+    RUNNABLE E1 ge s1=RUNNABLE E2 ge s2 -> 
+    PROJ_CORE E1 s1 (ACTIVE E1 s1) = Some c1 -> 
+    PROJ_CORE E2 s2 (ACTIVE E1 s1) = Some c2 -> 
+    at_external (esem source) s1 = Some (ef, sig, args1) -> 
+    at_external source c1 = Some (ef, sig, args1) -> 
+    match_state core_simulation cd j c1 m1 c2 m2 -> 
+    Mem.inject j m1 m2 -> 
+    Events.meminj_preserves_globals ge j -> 
+    Forall2 (val_inject j) args1 args2 -> 
+    Forall2 Val.has_type args2 (sig_args sig) -> 
+    at_external target c2 = Some (ef, sig, args2) -> 
+    at_external (esem target) s2 = Some (ef, sig, args2))
+
+  (after_external_diagram: 
+    forall d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j cd' j' i,
+    match_state core_simulation cd j d1 m1 d2 m2 -> 
+    at_external (esem source) s1 = Some (ef, sig, args1) -> 
+    Events.meminj_preserves_globals ge j -> 
+    inject_incr j j' -> 
+    Events.inject_separated j j' m1 m2 -> 
+    Mem.inject j' m1' m2' -> 
+    val_inject j' retv1 retv2 -> 
+    mem_forward m1 m1' -> 
+    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+    mem_forward m2 m2' -> 
+    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
+    Val.has_type retv2 (proj_sig_res sig) -> 
+    after_external (esem source) (Some retv1) s1 = Some s1' -> 
+    after_external (esem target) (Some retv2) s2 = Some s2' -> 
+    PROJ_CORE E1 s1' i = Some d1 -> 
+    PROJ_CORE E2 s2' i = Some d2 -> 
+    ACTIVE E1 s1 <> i -> 
+    match_state core_simulation cd' j' d1 m1' d2 m2')
+
+  (after_external_runnable: forall ge s1 m1 s2 m2 retv1 retv2 s1' s2' cd j,
+    RUNNABLE E1 ge s1=RUNNABLE E2 ge s2 -> 
+    match_states cd j s1 m1 s2 m2 -> 
+    after_external (esem source) retv1 s1 = Some s1' -> 
+    after_external (esem target) retv2 s2 = Some s2' ->     
+    RUNNABLE E1 ge s1'=RUNNABLE E2 ge s2'),
   compilable_extension.
 
 Variables (esig_compilable: compilable_extension)
@@ -923,9 +992,9 @@ split; auto.
  rewrite <-ACT1', <-ACT2'; auto.
  split.
  inv esig_compilable.
- specialize (runnable_diagram st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' (S n)).
- spec runnable_diagram; auto.
- spec runnable_diagram; auto. rewrite <-ACT; auto.
+ specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' (S n)).
+ spec corestep_runnable; auto.
+ spec corestep_runnable; auto. rewrite <-ACT; auto.
  
   intros i _c _PROJ1'.
   case_eq (eq_nat_dec (ACTIVE E1 st1) i).
@@ -988,9 +1057,9 @@ split; auto.
  rewrite <-ACT1', <-ACT2'; auto.
  split.
  inv esig_compilable.
- specialize (runnable_diagram st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n).
- spec runnable_diagram; auto.
- spec runnable_diagram; auto. rewrite <-ACT; auto.
+ specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n).
+ spec corestep_runnable; auto.
+ spec corestep_runnable; auto. rewrite <-ACT; auto.
  
   intros i _c _PROJ1'.
   case_eq (eq_nat_dec (ACTIVE E1 st1) i).
@@ -1070,10 +1139,111 @@ split3; auto; split; auto.
 solve[left; exists 0%nat; simpl; eexists; eexists; split; simpl; eauto].
 Qed.
 
-Next Obligation. Admitted. (*TODO*)
-Next Obligation. Admitted. (*TODO*)
-Next Obligation. Admitted. (*TODO*)
-Next Obligation. Admitted. (*TODO*)
+Next Obligation. 
+rename H0 into INIT.
+rename H1 into INJ.
+rename H2 into VALINJ.
+rename H3 into TYPE.
+Admitted. (*TODO*)
+
+Next Obligation. 
+rename H into MATCH.
+hnf in MATCH.
+destruct MATCH as [ACT [RUN MATCH_CORES]].
+Admitted. (*TODO*)
+
+Next Obligation. 
+rename H into MATCH.
+hnf in MATCH.
+destruct MATCH as [ACT [RUN MATCH_CORES]].
+destruct (active_proj_core E1) with (s := st1) as [c1 PROJ1].
+assert (AT_EXT1: at_external source c1 = Some (e, ef_sig, vals1)).
+ inv core_compat1.
+ edestruct (at_extern_call) as [CS [c [CORES [PROJ AT_EXT]]]]; eauto.
+ rewrite PROJ in PROJ1; inv PROJ1.
+ solve[unfold cores in CORES; inv CORES; auto].
+destruct (MATCH_CORES (ACTIVE E1 st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
+destruct (core_at_external core_simulation cd j c1 m1 c2 m2 e vals1 ef_sig MATCH12 AT_EXT1)
+ as [INJ [GLOBS [vals2 [VALINJ [TYPE AT_EXT2]]]]].
+split3; auto.
+exists vals2.
+split3; auto.
+inv esig_compilable.
+specialize (at_external_diagram c1 st1 m1 c2 st2 m2 e ef_sig vals1 vals2 cd j).
+spec at_external_diagram; auto.
+Qed.
+
+Next Obligation. 
+rename H0 into MATCH.
+generalize MATCH as MATCH'; intro.
+hnf in MATCH.
+destruct MATCH as [ACT [RUN MATCH_CORES]].
+generalize MATCH_CORES as MATCH_CORES'; intro.
+destruct (active_proj_core E1) with (s := st1) as [c1 PROJ1].
+assert (AT_EXT1: at_external source c1 = Some (e, ef_sig, vals1)).
+ inv core_compat1.
+ edestruct (at_extern_call) as [CS [c [CORES [PROJ AT_EXT]]]]; eauto.
+ rewrite PROJ in PROJ1; inv PROJ1.
+ solve[unfold cores in CORES; inv CORES; auto].
+destruct (MATCH_CORES (ACTIVE E1 st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
+destruct (core_after_external core_simulation cd j j' c1 c2 m1 e 
+                vals1 ret1 m1' m2 m2' ret2 ef_sig)
+ as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
+exists cd'.
+assert (exists st1', after_external (esem source) (Some ret1) st1 = Some st1' /\
+         PROJ_CORE E1 st1' (ACTIVE E1 st1') = Some c1') as [st1' [? PROJ1']].
+ inv core_compat1.
+ eapply after_ext_prog; eauto.
+ solve[unfold cores; eauto].
+assert (exists st2', after_external (esem target) (Some ret2) st2 = Some st2' /\
+         PROJ_CORE E2 st2' (ACTIVE E2 st2') = Some c2') as [st2' [? PROJ2']].
+ inv core_compat2.
+ eapply after_ext_prog; eauto.
+ unfold cores; eauto.
+ solve[rewrite ACT in PROJ2; auto].
+exists st1'; exists st2'.
+split3; auto.
+
+hnf.
+assert (ACTIVE E1 st1=ACTIVE E1 st1') as <-.
+ inv core_compat1.
+ eapply after_ext_pres; eauto.
+ solve[unfold cores; eauto].
+assert (ACTIVE E2 st2=ACTIVE E2 st2') as <-.
+ inv core_compat2.
+ eapply after_ext_pres; eauto.
+ unfold cores; eauto.
+ solve[rewrite <-ACT; auto].
+split3; auto.
+inv esig_compilable.
+eapply after_external_runnable; eauto.
+
+intros i _c _PROJ1'.
+case_eq (eq_nat_dec (ACTIVE E1 st1) i).
+(*ACTIVE E1 st1 = i*)
+intros EQ _; rewrite <-EQ in *; clear EQ.
+exists c2'; split; auto.
+rewrite ACT; auto.
+rewrite _PROJ1' in PROJ1'.
+inv PROJ1'; auto.
+
+(*ACTIVE E1 st1 <> i*)
+intros NEQ _.
+specialize (MATCH_CORES' i _c).
+spec MATCH_CORES'.
+ inv core_compat1.
+ solve[erewrite after_ext_others; eauto].
+destruct MATCH_CORES' as [_d [_PROJ2 _MATCH12]].
+exists _d; split; auto.
+ inv core_compat2.
+ erewrite <-after_ext_others; eauto.
+ solve[rewrite <-ACT; auto].
+inv esig_compilable.
+eapply after_external_diagram; eauto.
+inv core_compat2.
+erewrite <-after_ext_others; eauto.
+solve[rewrite <-ACT; auto].
+Qed.
 
 End CompilableExtension.
 

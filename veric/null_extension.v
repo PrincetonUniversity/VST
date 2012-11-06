@@ -63,7 +63,7 @@ Program Definition null_extension := Extension.Make
   csem cores client_sig client_sig handled
   proj_core _
   active _ _
-  runnable _ _ _ _ _
+  runnable _ _ _ _ _ 
   proj_zint proj_zext zmult _ _ _.
 Next Obligation.
 revert H0; case_eq (eq_nat_dec i 1).
@@ -177,8 +177,7 @@ inversion H8; subst.
 exfalso; apply H6; auto.
 congruence.
 
-(*7*) intros until args; intros H1.
-exists csem; exists s; split; auto.
+(*7*) exists csem; exists s; split; auto. 
 
 (*8*) intros until Q.
 intros [H1 H2] H3 H4 H5 H6.
