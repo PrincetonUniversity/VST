@@ -41,7 +41,7 @@ Definition cores := fun _:nat => Some csem.
 
 Local Open Scope nat_scope.
 
-Definition proj_core (c: cT) (i: nat) := if eq_nat_dec i 1 then Some c else None.
+Definition proj_core (i: nat) (c: cT) := if eq_nat_dec i 1 then Some c else None.
 Definition active := fun _: cT => 1.
 Definition runnable := fun (ge: G) (s: cT) => 
   match at_external csem s, safely_halted csem ge s with 
@@ -168,13 +168,14 @@ split; auto.
 simpl in H8; unfold proj_core in H8; simpl in H8; inversion H8; subst.
 simpl; unfold proj_core; simpl.
 simpl in H6; unfold active in H6.
-if_tac; auto; exfalso; apply H6; auto.
+if_tac; auto.
+exfalso; apply H3; auto.
 intros n z z' [H7 H8].
 simpl in H8; unfold proj_core in H8; simpl in H8.
 simpl in H6; unfold active in H6; simpl in H6.
 if_tac in H8; auto.
 inversion H8; subst.
-exfalso; apply H6; auto.
+exfalso; apply H3; auto.
 congruence.
 
 (*7*) exists csem; exists s; split; auto. 
@@ -185,20 +186,20 @@ intros H12; simpl; exists c'; split3; auto.
 simpl in H2; unfold proj_core in H2.
 if_tac in H2; try solve[congruence].
 
-(*9*) intros until Q; intros [H1 H2] H3 H4 H5 H6 H7 [H8 H9]; 
+(*9*) intros until Q; intros [H1 H2] H3 H4 H5 H6 H7 H70 [H8 H9]; 
  intros until j; intros H10; split.
 intros [H11 H12].
 simpl in H12; unfold proj_core in H12; simpl in H12.
 if_tac in H12; auto.
 simpl in H9; unfold proj_core in H9; simpl in H9.
 simpl in H10; unfold active in H10; simpl in H10.
-exfalso; apply H10; auto.
+exfalso; apply H; auto.
 congruence.
 intros ge n [H11 H12].
 simpl in H10, H12.
 unfold active in H10; unfold proj_core in H12.
 if_tac in H12.
-rewrite H in H10; exfalso; auto.
+exfalso; auto.
 congruence.
 Qed.
 

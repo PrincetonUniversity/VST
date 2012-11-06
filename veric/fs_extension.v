@@ -166,7 +166,7 @@ Definition get_fs := match s with mkxT _ _ fs => fs end.
 
 End selectors.
 
-Definition proj_core (s: xT) (i: nat) := if eq_nat_dec i 1 then Some (get_core s) else None.
+Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 1 then Some (get_core s) else None.
 Definition active := fun _: xT => 1.
 Definition runnable := fun (ge: genv) (s: xT) => 
   match at_external csem (get_core s), safely_halted csem ge (get_core s) with 

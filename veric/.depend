@@ -13,6 +13,7 @@ step_lemmas.vo step_lemmas.glob: step_lemmas.v base.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo
 extensions.vo extensions.glob: extensions.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo
 null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extensions.vo extspec.vo
+fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extensions.vo extspec.vo null_extension.vo juicy_mem.vo juicy_extspec.vo Address.vo
 Clight_lemmas.vo Clight_lemmas.glob: Clight_lemmas.v base.vo
 Clight_new.vo Clight_new.glob: Clight_new.v ./loadpath.v base.vo Clight_lemmas.vo sim.vo
 Clight_sim.vo Clight_sim.glob: Clight_sim.v ./loadpath.v base.vo Clight_lemmas.vo forward_simulations.vo forward_simulations_proofs.vo Clight_new.vo
@@ -20,7 +21,7 @@ slice.vo slice.glob: slice.v base.vo compcert_rmaps.vo Address.vo
 res_predicates.vo res_predicates.glob: res_predicates.v base.vo Address.vo compcert_rmaps.vo slice.vo
 seplog.vo seplog.glob: seplog.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo
 assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo expr_lemmas.vo seplog.vo Clight_lemmas.vo
-juicy_mem.vo juicy_mem.glob: juicy_mem.v base.vo Address.vo rmaps.vo rmaps_lemmas.vo compcert_rmaps.vo
+juicy_mem.vo juicy_mem.glob: juicy_mem.v ./loadpath.v base.vo Address.vo rmaps.vo rmaps_lemmas.vo compcert_rmaps.vo
 juicy_mem_lemmas.vo juicy_mem_lemmas.glob: juicy_mem_lemmas.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo seplog.vo res_predicates.vo
 local.vo local.glob: local.v base.vo
 juicy_mem_ops.vo juicy_mem_ops.glob: juicy_mem_ops.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo local.vo
@@ -32,13 +33,7 @@ semax_straight.vo semax_straight.glob: semax_straight.v base.vo Address.vo compc
 semax_loop.vo semax_loop.glob: semax_loop.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo extspec.vo step_lemmas.vo juicy_extspec.vo expr.vo expr_lemmas.vo semax.vo semax_lemmas.vo Clight_lemmas.vo
 initial_world.vo initial_world.glob: initial_world.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo expr.vo expr_lemmas.vo Clight_lemmas.vo
 semax_prog.vo semax_prog.glob: semax_prog.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo extspec.vo step_lemmas.vo juicy_extspec.vo expr.vo expr_lemmas.vo semax.vo semax_lemmas.vo Clight_lemmas.vo initial_world.vo semax_call.vo
-SeparationLogic.vo SeparationLogic.glob: SeparationLogic.v base.vo Address.vo expr.vo juicy_extspec.vo seplog.vo assert_lemmas.vo
+SeparationLogic.vo SeparationLogic.glob: SeparationLogic.v base.vo Address.vo expr.vo juicy_extspec.vo seplog.vo compcert_rmaps.vo assert_lemmas.vo
 SeparationLogicSoundness.vo SeparationLogicSoundness.glob: SeparationLogicSoundness.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo extspec.vo step_lemmas.vo juicy_extspec.vo expr.vo semax.vo semax_lemmas.vo Clight_lemmas.vo initial_world.vo semax_call.vo semax_straight.vo semax_loop.vo semax_prog.vo SeparationLogic.vo sim.vo
 NullExtension.vo NullExtension.glob: NullExtension.v ./loadpath.v base.vo Clight_new.vo Clight_lemmas.vo step_lemmas.vo SeparationLogic.vo juicy_extspec.vo juicy_mem.vo extspec.vo
 SequentialClight.vo SequentialClight.glob: SequentialClight.v ./loadpath.v base.vo Clight_new.vo Clight_lemmas.vo step_lemmas.vo SeparationLogic.vo juicy_extspec.vo juicy_mem.vo NullExtension.vo Clight_sim.vo SeparationLogicSoundness.vo sim.vo extspec.vo
-sim.vo sim.glob: sim.v ./loadpath.v base.vo
-Sim_starplus.vo Sim_starplus.glob: Sim_starplus.v base.vo sim.vo
-CC_implies_FW.vo CC_implies_FW.glob: CC_implies_FW.v base.vo sim.vo
-Cminor_CompcertSemantics.vo Cminor_CompcertSemantics.glob: Cminor_CompcertSemantics.v sim.vo
-CSharpminor_CompcertSemantics.vo CSharpminor_CompcertSemantics.glob: CSharpminor_CompcertSemantics.v sim.vo
-CminorgenproofSIM.vo CminorgenproofSIM.glob: CminorgenproofSIM.v base.vo Cminor_CompcertSemantics.vo CSharpminor_CompcertSemantics.vo sim.vo Sim_starplus.vo
