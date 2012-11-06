@@ -921,7 +921,16 @@ Inductive compilable_extension: Type := CompilableExtension: forall
     match_states cd j s1 m1 s2 m2 -> 
     after_external (esem source) retv1 s1 = Some s1' -> 
     after_external (esem target) retv2 s2 = Some s2' ->     
-    RUNNABLE E1 ge s1'=RUNNABLE E2 ge s2'),
+    RUNNABLE E1 ge s1'=RUNNABLE E2 ge s2')
+
+  (make_initial_core_diagram: forall ge v1 vals1 s1 m1 v2 vals2 m2 j sig,
+    make_initial_core (esem source) ge v1 vals1 = Some s1 -> 
+    Mem.inject j m1 m2 -> 
+    Forall2 (val_inject j) vals1 vals2 -> 
+    Forall2 Val.has_type vals2 (sig_args sig) -> 
+    exists cd, exists s2, 
+      make_initial_core (esem target) ge v2 vals2 = Some s2 /\
+      match_states cd j s1 m1 s2 m2),
   compilable_extension.
 
 Variables (esig_compilable: compilable_extension)
@@ -1139,16 +1148,43 @@ split3; auto; split; auto.
 solve[left; exists 0%nat; simpl; eexists; eexists; split; simpl; eauto].
 Qed.
 
+(*we punt in the make_initial_core case of the simulation proof; to do more requires 
+   assuming too much about the structure of the extension w/r/t its inner cores*)
 Next Obligation. 
-rename H0 into INIT.
+inv esig_compilable.
+eapply make_initial_core_diagram; eauto.
+(*rename H0 into INIT.
 rename H1 into INJ.
 rename H2 into VALINJ.
 rename H3 into TYPE.
-Admitted. (*TODO*)
+inv core_compat1.
+destruct (Extension.active_csem E1 c1) as [CS CORES].
+destruct (Extension.active_proj_core E1 c1) as [_c1 PROJ1].
+destruct (make_init1 ge c1 v1 vals1 (ACTIVE E1 c1) CS CORES INIT)
+ as [_c1' [INIT' PROJ1']].
+rewrite PROJ1' in PROJ1.
+inv PROJ1.
+unfold cores in CORES.
+inv CORES.
+generalize (core_initial core_simulation v1 v2 sig H vals1 _c1 m1 j vals2 m2 INIT');
+ intro MATCH.
+spec MATCH; auto.
+spec MATCH; auto.
+spec MATCH; auto.
+destruct MATCH  as [cd [_c2 [? ?]]].
+exists cd.
+clear make_init2.
+inv core_compat2.
+specialize (make_init2 ge _c2 v2 vals2 O target).
+spec make_init2; auto.
+spec make_init2; auto.
+destruct make_init2 as [c2 [INIT2 MATCH2]].
+exists c2.
+split; auto.*)
+Qed.
 
 Next Obligation. 
-rename H into MATCH.
-hnf in MATCH.
+rename H into MATCH; hnf in MATCH.
 destruct MATCH as [ACT [RUN MATCH_CORES]].
 Admitted. (*TODO*)
 
