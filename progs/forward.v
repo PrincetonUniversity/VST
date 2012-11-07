@@ -12,10 +12,9 @@ Lemma semax_load_field:
 forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
     (temp_types Delta) ! id = Some (t2,i2) ->
-  forall (TC0: t1 = typeof e1) 
-          (TC2: t2 =
-           type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
+   t1 = typeof e1 ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     semax Delta 
        (|> (local (tc_lvalue Delta e1) &&
           (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) v2 * P)))
@@ -29,6 +28,7 @@ Transparent field_mapsto.
 pose proof I.
 pose proof I.
 intros.
+rename H3 into TC0; rename H4 into TC2.
 subst t1.
 rename H2 into TE1.
 apply (semax_pre_post
@@ -178,10 +178,8 @@ forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
         (temp_types Delta) ! id = Some (t2,i2) ->
-  forall 
-          (TC2: t2 =
-           type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld),
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     semax Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::Q) (SEPx (lift2 (field_mapsto sh t1 fld) (eval_expr e1) v2::R))))
        (Sset id (Efield (Ederef e1 t1) fld t2))
@@ -208,7 +206,7 @@ simpl denote_tc_assert.
 rewrite H0. rewrite H.
 simpl.
 normalize.
-destruct (eval_expr e1 rho); inv H6; normalize.
+destruct (eval_expr e1 rho); inv H7; normalize.
 
 normalize.
 intro x; apply exp_right with x.

@@ -422,3 +422,9 @@ Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite get_result_unfold get_result_None : normalize.
 
+Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = lift1 Some (eval_expr e).
+Proof. reflexivity. Qed.
+Lemma eval_expropt_None: eval_expropt None = lift0 None.
+Proof. reflexivity. Qed.
+Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
+

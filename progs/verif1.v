@@ -154,8 +154,7 @@ Definition partial_sum (contents cts: list int) (v: val) :=
 
 Definition sumlist_Inv (contents: list int) : assert :=
           (EX cts: list int, 
-            PROP () LOCAL ((* lift1 (tc_val P.t_int) (eval_id P.i_s); *)
-                                     lift1 (partial_sum contents cts) (eval_id P.i_s)) 
+            PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P.i_s)) 
             SEP (TT * lift2 (ilseg cts) (eval_id P.i_t) (lift0 nullval))).
 
 Ltac start_function :=
@@ -172,14 +171,15 @@ Opaque emp.
 Opaque andp.
 
 
-Ltac go_lower' := let rho := fresh "rho" in intro rho; normalize.
-
-
-Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = lift1 Some (eval_expr e).
+Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
+          lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
 Proof. reflexivity. Qed.
-Lemma eval_expropt_None: eval_expropt None = lift0 None.
+Hint Rewrite eval_expr_binop : normalize.
+
+Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) = 
+          lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
+Hint Rewrite eval_expr_unop : normalize.
 
 Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
@@ -189,19 +189,18 @@ forward.
 forward_while (sumlist_Inv contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P.i_s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
-unfold sumlist_Inv.
+unfold sumlist_Inv, partial_sum.
 apply exp_right with contents.
-go_lower'.
-rewrite H0. rewrite H1. unfold partial_sum.
+go_lower.
+rewrite H0. rewrite H1.
 rewrite Int.add_zero_l. normalize.
 rewrite sepcon_comm.
 apply sepcon_TT.
 (* Prove that loop invariant implies typechecking condition *)
 intro; apply TT_right.
 (* Prove that invariant && not loop-cond implies postcondition *)
-unfold sumlist_Inv.
-go_lower'. intros.
-unfold partial_sum in H0;  rewrite H0.
+unfold sumlist_Inv, partial_sum.
+go_lower. intros.  rewrite H0.
 rewrite (typed_false_ptr H).
 normalize.
 (* Prove that loop body preserves invariant *)
@@ -219,17 +218,13 @@ forward. normalize.
 forward.  intro old_t.
 forward.
 (* Prove postcondition of loop body implies loop invariant *)
-normalize.
-intro x; unfold sumlist_Inv.
- apply exp_right with r.
-go_lower'.
-simpl in H0.
+intro x; unfold sumlist_Inv, partial_sum.
+apply exp_right with r.
+go_lower.
 autorewrite with normalize in H0.
-rewrite H0.
-unfold partial_sum in *.
-simpl in H4. rewrite H4. clear H4. rewrite H1. clear H1.
-assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
-destruct (tc_val_extract_int _ _ _ _ H1) as [n ?].
+rewrite H0. rewrite H4. clear H4. rewrite H1. clear H1.
+assert (H1: tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
+destruct (tc_val_extract_int _ _ _ _ H1) as [n H4].
 rewrite H4 in *.
 destruct x; inv H0.
 simpl. rewrite (Int.add_assoc i h). normalizex.
@@ -239,7 +234,7 @@ apply sepcon_derives; auto.
 normalize.
 (* After the loop *)
 forward.
-go_lower'.
+go_lower.
 apply andp_right; normalize.
 eapply tc_eval_id_i; eauto.
 rewrite H0.
@@ -259,16 +254,15 @@ Lemma body_reverse: semax_body Vprog Gprog P.f_reverse reverse_spec.
 Proof.
 start_function.
 forward.
-go_lower'. simpl. normalize.
+go_lower.
 forward.
 forward_while (reverse_Inv contents)
          (PROP() LOCAL () SEP( lift2 (ilseg (rev contents)) (eval_id P.i_w) (lift0 nullval))).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 go_lower.
-apply exp_right with nil.
-apply exp_right with contents.
-normalize.
+apply exp_right with nil. normalize.
+apply exp_right with contents. normalize.
 rewrite H0. rewrite H1.
 simpl; normalize. 
 (* loop invariant implies typechecking of loop condition *)
@@ -285,10 +279,9 @@ normalize.
 apply extract_exists_pre; intro cts.
 normalize.
 apply extract_exists_pre; intro cts2.
-normalizex.
-subst.
+normalizex. subst contents.
 replace_in_pre (ilseg cts2) (ilseg_cons cts2).
-   rewrite (ilseg_nonnull cts2) by auto. auto.
+rewrite (ilseg_nonnull cts2) by auto. auto.
 rewrite lift2_ilseg_cons.
 normalizex. intros [[h r] y].
 normalizex; subst cts2.
@@ -302,7 +295,7 @@ unfold reverse_Inv.
 go_lower.
 apply exp_right with (h::cts).
 apply exp_right with r.
-normalize.
+normalize. 
 simpl. rewrite app_ass.
 simpl.
 normalize.
@@ -335,7 +328,6 @@ apply orp_right2; auto.
 (* after the loop *)
 forward.
 go_lower.
-simpl.
 apply andp_right; normalize.
 apply prop_right.
 eapply tc_eval_id_i; eauto.
