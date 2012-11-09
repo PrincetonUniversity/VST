@@ -11,9 +11,11 @@ forward_simulations.vo forward_simulations.glob: forward_simulations.v base.vo
 forward_simulations_proofs.vo forward_simulations_proofs.glob: forward_simulations_proofs.v base.vo forward_simulations.vo
 step_lemmas.vo step_lemmas.glob: step_lemmas.v base.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo
-extensions.vo extensions.glob: extensions.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo
-null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extensions.vo extspec.vo
-fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extensions.vo extspec.vo null_extension.vo juicy_mem.vo juicy_extspec.vo Address.vo
+extension.vo extension.glob: extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo
+extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo extension.vo
+seplog_extension.vo seplog_extension.glob: seplog_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo juicy_extspec.vo compcert_rmaps.vo semax.vo SeparationLogic.vo SeparationLogicSoundness.vo
+null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo extension_proof.vo
+fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo juicy_mem.vo juicy_extspec.vo Address.vo
 Clight_lemmas.vo Clight_lemmas.glob: Clight_lemmas.v base.vo
 Clight_new.vo Clight_new.glob: Clight_new.v ./loadpath.v base.vo Clight_lemmas.vo sim.vo
 Clight_sim.vo Clight_sim.glob: Clight_sim.v ./loadpath.v base.vo Clight_lemmas.vo forward_simulations.vo forward_simulations_proofs.vo Clight_new.vo

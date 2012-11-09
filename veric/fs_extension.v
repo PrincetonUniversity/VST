@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import msl.base 
                veric.sim veric.step_lemmas veric.base veric.expr
-               veric.extensions veric.extspec veric.null_extension
+               veric.extension veric.extension_proof veric.extspec
                veric.juicy_mem veric.juicy_extspec veric.Address.
 
 Set Implicit Arguments.
@@ -685,6 +685,8 @@ Variable (at_after_external_excl: forall rv c c',
 Variable FSExtSig: ext_sig Memory.mem Z.
 Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
 
+Import TruePropCoercion.
+
 Program Definition fs_extension := 
   Extension.Make 
     FSCoreSem
@@ -986,9 +988,11 @@ omega.
 auto.
 Qed.
 
+Import ExtensionSoundness.
+
 Lemma fs_extension_safe (csem_fun: corestep_fun csem): safe_extension fs_extension.
 Proof.
-apply safety_criteria_safe; constructor.
+apply (ExtSound fs_extension); constructor.
 
 (*1: core preservation of all-safety invariant*)
 intros until m'; intros H1 (*H2*) [H3 H4] H5 H6.
@@ -1053,8 +1057,8 @@ rewrite <-H9 in *.
 rewrite <-H0 in *.
 rewrite <-H.
 eapply safe_corestep_forward; eauto.
-assert (H2: Extension.zmult fs_extension (extensions.proj_zint fs_extension s') =
-            Extension.zmult fs_extension (extensions.proj_zint fs_extension s)).
+assert (H2: Extension.zmult fs_extension (Extension.proj_zint fs_extension s') =
+            Extension.zmult fs_extension (Extension.proj_zint fs_extension s)).
  clear - H4 H5 H6.
  inversion H4.
  inv H0.
@@ -1064,8 +1068,9 @@ assert (H2: Extension.zmult fs_extension (extensions.proj_zint fs_extension s') 
   rewrite H5 in H; congruence.
  elimtype False.
   apply corestep_not_at_external in H5.
-  rewrite H5 in H; congruence.
-rewrite H2; auto.
+  solve[rewrite H5 in H; congruence].
+unfold SafetyInterpolant.proj_zint.
+solve[rewrite H2; auto].
 
 (*2: core progress*)
 intros until CS; intros H1 H2 (*H3*) [H4 H5].
@@ -1259,6 +1264,7 @@ split.
 eapply os_read; eauto.
 unfold fs_read.
 unfold get_file.
+unfold FSExtension.proj_zint in H6, H8.
 rewrite H8.
 unfold get_fptr.
 rewrite H6.
@@ -1332,25 +1338,28 @@ rewrite H4, H5 in H1.
 destruct H1 as [H1 [H6 H7]].
 apply alloc_fd_success in H6.
 destruct H6 as [unused_fd H6].
-case_eq (file_exists (proj_zint s) fname).
+case_eq (file_exists (proj_zint fs_extension s) fname).
 (*file exists*)
 intros H8.
 generalize H8 as H8'; intro.
 generalize H8 as H8''; intro.
 unfold file_exists in H8'.
-case_eq (get_fstore (proj_zint s) fname).
+case_eq (get_fstore (proj_zint fs_extension s) fname).
 intros f H9.
 specialize (H2 (Some (Vint unused_fd)) m 
- (fs_open_existing (proj_zint s) unused_fd fname f md, z)).
+ (fs_open_existing (proj_zint fs_extension s) unused_fd fname f md, z)).
 spec H2; simpl; auto.
 destruct H2 as [c' [H2 H10]].
-exists (mkxT z c' (fs_open_existing (proj_zint s) unused_fd fname f md)).
+exists (mkxT z c' (fs_open_existing (proj_zint fs_extension s) unused_fd fname f md)).
 exists m.
 split.
 destruct H7 as [H7 H11].
 eapply os_open; eauto.
 unfold fs_open.
 unfold proj_zint in H9.
+unfold SafetyInterpolant.proj_zint in H9.
+simpl in H9.
+unfold FSExtension.proj_zint in H9.
 rewrite H9; auto.
 if_tac; auto.
 (*core stayed at_external: impossible*)
@@ -1384,7 +1393,7 @@ simpl in H8''; congruence.
 intros H8.
 generalize H8 as H8'; intro.
 generalize H8 as H8''; intro.
-case_eq (get_fstore (proj_zint s) fname).
+case_eq (get_fstore (proj_zint fs_extension s) fname).
 intros f H9.
 elimtype False.
 unfold file_exists in H8.
@@ -1392,16 +1401,19 @@ rewrite H9 in H8.
 simpl in H8; congruence.
 intros H9.
 specialize (H2 (Some (Vint unused_fd)) m 
- (fs_open_new (proj_zint s) unused_fd fname md, z)).
+ (fs_open_new (proj_zint fs_extension s) unused_fd fname md, z)).
 spec H2; simpl; auto.
 destruct H2 as [c' [H2 H10]].
-exists (mkxT z c' (fs_open_new (proj_zint s) unused_fd fname md)).
+exists (mkxT z c' (fs_open_new (proj_zint fs_extension s) unused_fd fname md)).
 exists m.
 split.
 destruct H7 as [H7 H11].
 eapply os_open; eauto.
 unfold fs_open.
 unfold proj_zint in H9.
+unfold SafetyInterpolant.proj_zint in H9.
+simpl in H9.
+unfold FSExtension.proj_zint in H9.
 rewrite H9; auto.
 case_eq (fwritable md); auto.
 intros H12.
@@ -1409,9 +1421,9 @@ rewrite H12 in H7.
 elimtype False.
 spec H7.
 unfold file_exists; intros H13.
-unfold extensions.proj_zint in H13.
+unfold SafetyInterpolant.proj_zint in H13.
 simpl in H13.
-unfold proj_zint in H13.
+unfold FSExtension.proj_zint in H13.
 rewrite H9 in H13.
 simpl in H13; congruence.
 congruence.
@@ -1477,6 +1489,7 @@ destruct H7 as [bytes H7].
 assert (H9: exists nbytes_written, exists fsys', 
   fs_write (get_fs s) i0 bytes = Some (nbytes_written, fsys')).
   unfold fs_write, get_file, get_fptr, get_fmode.
+  unfold FSExtension.proj_zint in H6, H80.
   rewrite H6, H8, H80.
   case_eq (write_file f' cur bytes).
   intros fsys' nbytes_written H9.

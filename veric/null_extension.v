@@ -1,41 +1,21 @@
 Load loadpath.
 Require Import msl.base
-               veric.sim veric.step_lemmas veric.base veric.expr
-               veric.extensions veric.extspec.
+               veric.sim veric.step_lemmas veric.base veric.expr veric.extspec
+               veric.extension veric.extension_proof.
 
 Set Implicit Arguments.
 
-Section NullExtSpec.
-Variables (M Z: Type) (ext_spec_type: AST.external_function -> Type).
-
-Definition null_extspec := Build_external_specification 
-  M AST.external_function Z
-  ext_spec_type
-  (fun (ef: AST.external_function) (_:ext_spec_type ef) 
-       (tys: list typ) (args: list val) (z: Z) (m: M) => False)
-  (fun (ef: AST.external_function) (_:ext_spec_type ef) 
-       (ty: option typ) (ret: option val) (z: Z) (m: M) => True).
-
-End NullExtSpec.
-
-Section NullExtsig.
-Variable (M Z: Type) (ext_spec_type: AST.external_function -> Type).
-
-Definition null_extsig := mkextsig nil (null_extspec M Z ext_spec_type).
-
-End NullExtsig.
-
 Section NullExtension.
-Variables 
+ Variables 
   (G cT M D Z: Type) 
   (csem: CoreSemantics G cT M D)
-  (client_sig: ext_sig M Z)
+  (csig: ext_sig M Z)
   (init_world: Z)
 
   (after_at_external_excl: forall c ret c',
     after_external csem ret c = Some c' -> at_external csem c' = None)
   (at_external_handled: forall c ef args sig,
-    at_external csem c = Some (ef, sig, args) -> IN ef client_sig = true).
+    at_external csem c = Some (ef, sig, args) -> IN ef csig = true).
 
 Definition cores := fun _:nat => Some csem.
 
@@ -60,7 +40,7 @@ Obligation Tactic :=
   intros; try solve [eexists; eauto|congruence].
 
 Program Definition null_extension := Extension.Make 
-  csem cores client_sig client_sig handled
+  csem cores csig csig handled
   proj_core _
   active _ _
   runnable _ _ _ _ _ 
@@ -87,10 +67,11 @@ Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
 Next Obligation. inversion H; subst; if_tac in H0; try congruence. Qed.
 Next Obligation. unfold linkable; intros; inv H0; inv H1; exists x'; auto. Qed.
 
-Lemma null_extension_safe (csem_fun: corestep_fun csem) : 
-  safe_extension null_extension.
+Import ExtensionSoundness.
+
+Lemma null_extension_safe (csem_fun: corestep_fun csem): safe_extension null_extension.
 Proof.
-apply safety_criteria_safe; constructor; autounfold with null_unfold in *.
+apply (ExtSound null_extension); constructor; autounfold with null_unfold in *.
 
 (*1*) intros until m'; intros H1 [H3 H4] H5 H6. 
 inversion H3 as [H7]; rewrite <-H7 in *; clear H7 H3.
@@ -102,7 +83,7 @@ rewrite H in *; clear H.
 unfold Extension.proj_core; simpl; unfold proj_core.
 f_equal; generalize (csem_fun _ _ _ _ _ _ _ H5 H6); inversion 1; auto.
 simpl in H1|-*.
-unfold proj_zint, Extension.all_safe in *.
+unfold proj_zint, all_safe in *.
 intros until c0; intros H0 H8.
 inversion H0 as [H7]; rewrite H7 in *; clear H0.
 unfold Extension.proj_core in H8; simpl in H8; unfold proj_core in H8.
