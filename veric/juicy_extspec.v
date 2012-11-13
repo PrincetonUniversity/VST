@@ -28,7 +28,7 @@ Definition jstep {G C D} (csem: CoreSemantics G C mem D)
  level jm = S (level jm').
 
 Definition j_safely_halted {G C D} (csem: CoreSemantics G C mem D)
-       (ge: G) (c: C) : option int :=
+       (ge: G) (c: C) : option val :=
      safely_halted csem ge c.
 
 Lemma jstep_not_at_external {G C D} (csem: CoreSemantics G C mem D):

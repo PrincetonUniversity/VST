@@ -130,7 +130,7 @@ unfold compose in H0;  simpl in H0.
 rewrite H0 in H2.
 case_eq (safely_halted csem ge s); intros; try solve[congruence].
 rewrite H in H2.
-right; exists i; auto.
+right; exists v; auto.
 rewrite H in H2; congruence.
 
 (*5*) intros until rv; intros [H1 H2] H3 H4.

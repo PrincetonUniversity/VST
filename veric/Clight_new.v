@@ -244,7 +244,7 @@ Definition vret2v (vret: list val) : val :=
 
 Definition exit_syscall_number : ident := 1%positive.
 
-Definition cl_safely_halted (ge: genv) (c: corestate) : option int := None.
+Definition cl_safely_halted (ge: genv) (c: corestate) : option val := None.
 
 Definition empty_function : function := mkfunction Tvoid nil nil nil Sskip.
 

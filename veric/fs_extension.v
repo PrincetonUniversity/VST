@@ -420,7 +420,7 @@ Definition os_after_external (ov: option val) (s: xT): option xT :=
   | None => None
   end.
 
-Definition os_safely_halted (ge: genv) (s: xT): option int :=
+Definition os_safely_halted (ge: genv) (s: xT): option val :=
   safely_halted csem ge (get_core s).
 
 Program Definition FSCoreSem := Build_CoreSemantics genv xT mem D
@@ -1560,7 +1560,7 @@ elimtype False; auto.
 intros H4; rewrite H4 in H0, H1.
 (*safely halted*)
 destruct (safely_halted csem ge (get_core s)); try congruence.
-right; exists i; auto.
+right; exists v; auto.
 
 (*5: safely halted threads remain halted*)
 intros until rv; intros [H1 H2] H3 H4.
