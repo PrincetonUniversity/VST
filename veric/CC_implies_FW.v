@@ -40,8 +40,9 @@ Section CoreSem_to_semantics.
         make_initial_core Sem (Genv.globalenv prog) (Vptr b Int.zero) vals = Some (fst st) /\
         Genv.init_mem prog = Some (snd st). 
 
+   (*Require that return values are int here - that's what we need below for mk_semantics*)
     Definition final_state (st:state) (i:int) : Prop :=
-      safely_halted Sem (Genv.globalenv prog) (fst st) = Some i.
+      safely_halted Sem (Genv.globalenv prog) (fst st) = Some (Vint i).
 
    Definition mk_semantics: semantics :=
            Semantics  step initial_state final_state (Genv.globalenv prog).
@@ -99,7 +100,8 @@ Module CompilerCorrectness_implies_forward_simulation.
 
 (*LENB: INSTEAD OF USING THIS (INCORRECT) LEMMA IN THE PROOF BELOW
 I added the hypothesis meminj_preserves_globals ge1 j in Sim_inj.at_external and after_external.
-Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
+*)
+Goal (*Lemma meminj_preserves_globals_inject_incr:*) forall {F V} (ge: Genv.t F V) j j'
               (MPj: meminj_preserves_globals ge j) (InjJ : inject_incr j j'),
               meminj_preserves_globals ge j'.
   Proof. intros.
@@ -108,7 +110,6 @@ Lemma meminj_preserves_globals_inject_incr: forall {F V} (ge: Genv.t F V) j j'
        split. clear MP1 MP3. intros. apply InjJ. eapply MP2. apply H.
        intros. admit. (*does not hold*)
   Qed.
-*)
 
 Theorem CoreCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
@@ -220,7 +221,8 @@ Proof.
            (*finalstate*)
                  clear GenvInit1 GenvInit2.
                  simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
-                    apply (Sim_ext.core_halted R _ _ _ _ _ _ H1 H2).
+                    destruct (Sim_ext.core_halted R _ _ _ _ _ _ H1 H2) as [r2 [LessDefR [SH2 Ext]]].
+                    inv LessDefR. simpl in *. assumption.
                     (*apply (@Sim_ext.core_halted _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ H1 H2).*)
            (*diagram*)
                  clear GenvInit1 GenvInit2.
@@ -300,7 +302,8 @@ Proof.
                  clear GenvInit1 GenvInit2.
                  simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
                       destruct H1 as [j [InjJ MCJ]]; simpl in *.
-                      apply (Sim_inj.core_halted R _ _ _ _ _ _ _ MCJ H2).
+                      destruct (Sim_inj.core_halted R _ _ _ _ _ _ _ MCJ H2) as [r2 [InjR [SH2 InjM]]].
+                      inv InjR. assumption.
            (*diagram*) 
                  clear GenvInit1 GenvInit2.
                  simpl. subst fsim_match_states. simpl. intros.
@@ -354,6 +357,8 @@ Proof.
                          exists j'; simpl.  split;eauto. eapply inject_incr_trans. apply InjJ. apply InjJ'.
          (* fsim_symbols_preserved*) simpl. apply HypGenv. (*SAME HERE*)
 Qed.
+
+(*We may lift the result to CompcertCoreSem's*)
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
         (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
@@ -373,6 +378,8 @@ Proof.
          eapply CompilerCorrectness.corec_inj; eassumption.
          eapply CompilerCorrectness.corec_trans; eassumption. 
 Qed.
+
+(*The result of Theorem CompilerCorrectness_implies_CompcertForwardSimulation as a direct proof*)
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation_explicit_proof:
      forall F1 C1 V1 F2 C2 V2
         (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
@@ -481,7 +488,8 @@ Proof.
            (*finalstate*)
                  clear GenvInit1 GenvInit2.
                  simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
-                    apply (Sim_ext.core_halted R _ _ _ _ _ _ H1 H2).
+                    destruct (Sim_ext.core_halted R _ _ _ _ _ _ H1 H2) as [r2 [ExtR [SH2 ExtM]]].
+                    inv ExtR. simpl in *. assumption.
                     (*apply (@Sim_ext.core_halted _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ _ _ _ H1 H2).*)
            (*diagram*)
                  clear GenvInit1 GenvInit2.
@@ -561,7 +569,8 @@ Proof.
                  clear GenvInit1 GenvInit2.
                  simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
                       destruct H1 as [j [InjJ MCJ]]; simpl in *.
-                      apply (Sim_inj.core_halted R _ _ _ _ _ _ _ MCJ H2).
+                      destruct (Sim_inj.core_halted R _ _ _ _ _ _ _ MCJ H2) as [v2 [InjV [SH2 InjM]]].
+                      inv InjV. assumption.
            (*diagram*) 
                  clear GenvInit1 GenvInit2.
                  simpl. subst fsim_match_states. simpl. intros.

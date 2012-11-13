@@ -20,13 +20,16 @@ Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m
    give a way to inject the extension call results back into
    the sequential state so execution can continue.
    
+  Lenb: the type parameter [D] stands for the type of initialization data, 
+       eg list (ident * globvar V).
+
    [make_initial_core] produces the core state corresponding
-   to an entry point of the program.  The arguments are the
+   to an entry point of the program/module.  The arguments are the
    program's genv, a pointer to the function to run, and
    the arguments for that function.
 
    The [safely_halted] predicate indicates when a program state
-   has reached a halted state, and what it's exit code is
+   has reached a halted state, and what it's exit code/return value is
    when it has reached such a state.
 
    [corestep] is the fundamental small-step relation for
@@ -42,13 +45,15 @@ Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m
 
 Record CoreSemantics {G C M D:Type}: Type :=
   { initial_mem: G -> M -> D -> Prop;
-    (*characterizes initial memories; 
-       type D stands for the type of initialization data, 
-       eg list (ident * globvar V)*)
+    (*characterizes initial memories*)
   make_initial_core : G -> val -> list val -> option C;
   at_external : C -> option (external_function * signature * list val);
   after_external : option val -> C -> option C;
-  safely_halted : G -> C -> option int; (*maybe delete this, too?*)
+  safely_halted : G -> C -> option val; 
+  (*Lenb: return type used to be option int, so that only the exit code of eg main can be returned.
+    As out envisioned linker will, however use safely_halted to detect that an external call has 
+   finished execution, we need to allow arbitrary reutrn values*)
+
   corestep : G -> C -> M -> C -> M -> Prop;
 
   corestep_not_at_external: forall ge m q m' q', 
@@ -165,18 +170,22 @@ Section corestepN.
 
 End corestepN.
 
-(* A minimal preservation property we sometimes require.
- 
- Commented out when moving to forward_simulation eq/inj/ext *)
-(*Definition mem_forward (m1 m2:mem) :=
-  (forall b, Mem.valid_block m1 b ->
-      Mem.valid_block m2 b /\ 
-       forall ofs, Mem.perm m1 b ofs Max = Mem.perm m2 b ofs Max).
-*)
+(* A minimal preservation property we sometimes require.*)
 Definition mem_forward (m1 m2:mem) :=
   (forall b, Mem.valid_block m1 b ->
       Mem.valid_block m2 b /\ 
        forall ofs p, Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p).
+       (*was: forall ofs, Mem.perm m1 b ofs Max = Mem.perm m2 b ofs Max*)
+
+Lemma mem_forward_refl: forall m, mem_forward m m.
+  Proof. intros m b H. split; eauto. Qed. 
+
+Lemma mem_forward_trans: forall m1 m2 m3, 
+  mem_forward m1 m2 -> mem_forward m2 m3 -> mem_forward m1 m3.
+  Proof. intros. intros  b Hb.
+    destruct (H _ Hb). 
+    destruct (H0 _ H1).
+    split; eauto. Qed. 
 
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
@@ -259,25 +268,92 @@ Inductive entry_points_compose:
 (*
 Module Type SIMULATIONS.
 *)
-Axiom allowed_core_modification_refl : forall m,
+Lemma allowed_core_modification_refl : forall m,
   allowed_core_modification m m.
+Proof. unfold allowed_core_modification. intros.
+  split; intros. apply mem_forward_refl.
+  split; intros. eauto.
+  split; intros; eauto.
+Qed.
 
-Axiom allowed_core_modification_trans : forall m1 m2 m3,
+Lemma allowed_core_modification_trans : forall m1 m2 m3,
   allowed_core_modification m1 m2 ->
   allowed_core_modification m2 m3 ->
   allowed_core_modification m1 m3.
+Proof. intros m1 m2 m3 [X1 [X2 [X3 X4]] [Y1 [Y2 [Y3 Y4]]]].
+  split; intros.
+     eapply mem_forward_trans; eauto.
+  split; intros. 
+    destruct (X2 _ _ _ H).
+        destruct (Y2 _ _ _ H0). left; assumption.
+        destruct H1. right.
+           split. eapply X3. eapply Mem.perm_valid_block; eauto. assumption.
+           assumption.
+     destruct H0. right.
+       split. assumption.
+       intros. intros N. eapply H1. eapply Y3. apply X1. eapply  Mem.perm_valid_block; eauto. apply N.
+  split; intros.
+     eapply X3. apply H. eapply Y3. apply X1. apply H. apply H0.
+   destruct (X4 _ _  _ _ H).
+      destruct (Y4 _ _ _ _ H0). left; assumption.
+         destruct H1 as [ofs1 [HH KK]].
+         apply X3 in KK. right. exists ofs1. split; assumption.
+      apply Mem.loadbytes_range_perm in H. apply H in HH. eapply  Mem.perm_valid_block; eauto.
+  right. assumption.
+Qed.
 
-Axiom free_allowed_core_mod : forall m1 b lo hi m2,
+Lemma free_allowed_core_mod : forall m1 b lo hi m2,
   Mem.free m1 b lo hi = Some m2 ->
   allowed_core_modification m1 m2.
+Proof. unfold allowed_core_modification. intros.
+  split. intros bb; intros.
+      split. eapply Mem.valid_block_free_1; eauto.
+      intros. eapply Mem.perm_free_3; eauto.
+  split; intros.
+      destruct (Mem.perm_free_inv _ _ _ _ _ H _ _ _ _ H0) as [[? ?] | ?]; subst.
+         right. split; intros. 
+                     apply Mem.free_range_perm in H. apply H. assumption.
+                     eapply Mem.perm_free_2; eauto.
+     left; assumption.
+  split; intros.
+       eapply Mem.perm_free_3; eauto.
+       assert (A1:= Mem.loadbytes_length _ _ _ _ _ H0).
+       assert (ZZ:= Mem.loadbytes_range_perm _ _ _ _ _ H0). unfold Mem.range_perm in ZZ. 
+       assert (Q1:= Mem.perm_free_inv _ _ _ _ _ H).
+admit. (*what about the case where n=0 ie vs=nil?*)
+Qed.
 
-Axiom alloc_allowed_core_mod : forall m1 lo hi m2 b,
+Lemma alloc_allowed_core_mod : forall m1 lo hi m2 b,
   Mem.alloc m1 lo hi = (m2,b) ->
   allowed_core_modification m1 m2.
-
-Axiom store_allowed_core_mod : forall m1 chunk v b ofs m2,
+Proof. intros.
+   split. intros bb. intros.
+      split. eapply Mem.valid_block_alloc; eauto.
+      intros. assert (Z1:= Mem.perm_alloc_inv _ _ _ _ _ H _ _ _ _ H1).
+          destruct (zeq bb b); subst. apply (Mem.fresh_block_alloc _ _ _ _ _ H) in H0. contradiction.
+          assumption.
+  split; intros.
+    left. eapply Mem.perm_alloc_1; eauto.
+  split; intros.
+      assert (Z1:= Mem.perm_alloc_inv _ _ _ _ _ H _ _ _ _ H1).
+      destruct (zeq b0 b); subst. apply (Mem.fresh_block_alloc _ _ _ _ _ H) in H0. contradiction.
+          assumption.
+  admit. (*To be completed...*)
+Qed.
+      
+Lemma store_allowed_core_mod : forall m1 chunk v b ofs m2,
   Mem.store chunk m1 b ofs v = Some m2 ->
   allowed_core_modification m1 m2.
+Proof. intros.
+   split. intros bb. intros.
+      split. eapply Mem.store_valid_block_1; eauto.
+      intros. eapply Mem.perm_store_2; eauto. 
+  split; intros. 
+    left. eapply Mem.perm_store_1; eauto. 
+  split; intros.
+     eapply Mem.perm_store_2; eauto. 
+  admit. (*To be completed...*)
+Qed.
 
 Hint Resolve 
   allowed_core_modification_refl
@@ -291,9 +367,6 @@ Hint Resolve
 Module Sim_eq.
 Section Forward_simulation_equals. 
   Context {M G1 C1 D1 G2 C2 D2:Type}
-(*          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}*)
-
           {Sem1 : CoreSemantics G1 C1 M D1}
           {Sem2 : CoreSemantics G2 C2 M D2}
 
@@ -330,7 +403,7 @@ Section Forward_simulation_equals.
             make_initial_core Sem2 ge2 v2 vals = Some c2 /\
             match_core cd c1 c2;
 
-    core_halted : forall cd c1 c2 (v:int),
+    core_halted : forall cd c1 c2 v,
       match_core cd c1 c2 ->
       safely_halted Sem1 ge1 c1 = Some v ->
       safely_halted Sem2 ge2 c2 = Some v;
@@ -364,8 +437,6 @@ Module Sim_ext.
 (* Next, an axiom for passes that allow the memory to undergo extension. *)
 Section Forward_simulation_extends. 
   Context {G1 C1 D1 G2 C2 D2:Type}
-(*          {Sem1 : CompcertCoreSem G1 C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}*)
           {Sem1 : CoreSemantics G1 C1 mem D1}
           {Sem2 : CoreSemantics  G2 C2 mem D2}
 
@@ -402,11 +473,12 @@ Section Forward_simulation_extends.
             match_state cd c1 m1 c2 m2;
 
     core_halted : 
-      forall cd st1 m1 st2 m2 (v:int),
+      forall cd st1 m1 st2 m2 v1,
         match_state cd st1 m1 st2 m2 ->
-        safely_halted Sem1 ge1 st1 = Some v ->
-          safely_halted Sem2 ge2 st2 = Some v /\
-          Mem.extends m1 m2;
+        safely_halted Sem1 ge1 st1 = Some v1 ->
+        exists v2, Val.lessdef v1 v2 /\
+            safely_halted Sem2 ge2 st2 = Some v2 /\
+            Mem.extends m1 m2;
 
     core_at_external : 
       forall cd st1 m1 st2 m2 e vals1 ef_sig,
@@ -445,12 +517,10 @@ End Forward_simulation_extends.
 Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
 End Sim_ext.
 
-Module Sim_inj.
 (* An axiom for passes that use memory injections. *)
+Module Sim_inj.
 Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-(*          {Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 D1}
-          {Sem2 : CompcertCoreSem G2 C2 D2}*)
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
           {Sem2 : CoreSemantics G2 C2 mem D2}
 
@@ -464,19 +534,6 @@ Record Forward_simulation_inject := {
 
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
-
-(*Maybe we need an axiom like this?
-    thread_axiom: forall cd j m1 c1 m2 c2, match_state cd j c1 m1 c2 m2 ->
-             (*we want maybe same sequence of memops to be applied in both forward_modifications*)
-               allowed_forward_modifications m1 m1' ->
-               allowed_forward_modifications m2 m2' ->
-           exists j', incject_incr j j' /\ inject_separated j j' m1 m2
-               match_state cd j' c1 m1' c2 m2';
-
-    match_state_siminj :
-      forall cd j st1 m1 st2 m2,
-        match_state cd j st1 m1 st2 m2 -> siminj (injlist_compose j) m1 m2;
-*)
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd st2 j m2,
@@ -498,43 +555,16 @@ Record Forward_simulation_inject := {
            Forall2 (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
-          exists cd, exists c2, (*exists vals2, exists m2, *)
+          exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
-(* Attempt to specify forking, parametric in some join relation. It'll be up to the concurrency machine 
-to decide hoe memory is split - here we just assume ther are splits for all num_passes memories.
-Also, we probably want to allow forking only at (exactly at?) at_external points, and also
-add fiuther hypotheses that allows us to carry on in both threads without waiting for after-external,
-ie we probably want to add mem_square and some toher hypotheses from after_external somewhere here*)
- (*
-    core_at_fork : forall (join:mem -> mem -> mem -> Prop) v1 v2 sig,
-      In (v1,v2,sig) entry_points ->
-        forall vals1 vals2 (m1:mem) js ms m1l m1r m2l m2r msl msr cd c1 c2 c1',
-          let m2 := last ms m1 in
-          let m2l := last msl m1l in
-          let m2r := last msr m1r in
-
-            match_state cd js c1 m1 c2 m2 ->
-            join m1l m1r m1 ->
-            Forall3 (lift_join join) msl msr ms ->
-           (*Lenb: the following two conditions appear to be needed for composition inj_inj*)
-           (*Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 ->
-           Forall2 (val_inject (Mem.flat_inj (Mem.nextblock m2))) vals' vals' ->*)
-
-          Forall2 (val_inject js) vals1 vals2 ->
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
-          make_initial_core Sem1 ge1 v1 vals1 = Some c1' ->
-          exists cd', exists c2', 
-            make_initial_core Sem2 ge2 v2 vals2 = Some c2' /\
-            match_state cd js c1 m1l c2 m2l /\
-            match_state cd' js c1' m1r c2' m2r;
-*)
-    core_halted : forall cd j c1 m1 c2 m2 (v1:int),
+    core_halted : forall cd j c1 m1 c2 m2 v1,
       match_state cd j c1 m1 c2 m2 ->
       safely_halted Sem1 ge1 c1 = Some v1 ->
-        (safely_halted Sem2 ge2 c2 = Some v1 /\
-         Mem.inject j m1 m2);
+     exists v2, val_inject j v1 v2 /\
+          safely_halted Sem2 ge2 c2 = Some v2 /\
+          Mem.inject j m1 m2;
 
     core_at_external : 
       forall cd j st1 m1 st2 m2 e vals1 ef_sig,
@@ -556,9 +586,9 @@ ie we probably want to add mem_square and some toher hypotheses from after_exter
 
 (* LENB: I added meminj_preserves_globals ge1 j as another asumption here,
       in order to get rid of the unprovable Lemma meminj_preserved_globals_inject_incr stated below. 
-     The introduction of meminj_preserves_globals ge1 require specializing G1 to (Genv.t F1 V1).
+     The introduction of meminj_preserves_globals ge1 required specializing G1 to (Genv.t F1 V1).
       In principle, we could also specialize G2 to (Genv.t F1 V1).
-      Note tha tthis specialization is only done for of CompCertCoreSem's, while
+      Note that this specialization is only done for of CompCertCoreSem's, while
        CoreSem's stay parametric in G1/G2*)
         meminj_preserves_globals ge1 j -> 
 
@@ -588,7 +618,7 @@ End Sim_inj.
 (*
 Section PRECISE_MATCH_PROGRAM.
 (*Adapted  from Compcert.AST.MATCH_PROGRAM - but we think we actually don't need this notion, 
-hence have commented the coresponding c;lauses below in cc_eq and cc_ext.*)
+hence have commented the corresponding clauses below in cc_eq and cc_ext.*)
 
 Variable F1 F2 V1 V2: Type.
 
