@@ -308,19 +308,25 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
 Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 
   fun rho => !! denote_tc_assert (typecheck_expr Delta e) rho.
 
-Definition tc_exprlist (Delta: tycontext) (e: list expr) : assert := 
-      fun rho => !! denote_tc_assert (typecheck_exprlist Delta e) rho.
+Definition tc_exprlist (Delta: tycontext) (t : list type) (e: list expr) : assert := 
+      fun rho => !! denote_tc_assert (typecheck_exprlist Delta t e) rho.
 
 Definition tc_lvalue (Delta: tycontext) (e: expr) : assert := 
      fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
 
+
+Definition tc_value (v:environ -> val) (t :type) : assert:=
+     fun rho => !! (typecheck_val (v rho) t = true).
+
 Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho).
 Admitted.
-Lemma extend_tc_exprlist: forall Delta e rho, boxy extendM (tc_exprlist Delta e rho).
+Lemma extend_tc_exprlist: forall Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
 Admitted.
 Lemma extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
 Admitted.
-Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue.
+Lemma extend_tc_value: forall v t rho, boxy extendM (tc_value v t rho). 
+Admitted. 
+Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue extend_tc_value.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
 Definition writable_share (sh: share) := join_sub (Share.rel Share.Rsh Share.top) sh.

@@ -1,3 +1,4 @@
+Load loadpath.  
 Require Export veric.base.
 Require Export veric.Address.
 Require Export msl.eq_dec.
@@ -267,11 +268,15 @@ Definition tc_temp (Delta: tycontext) (id: ident) (t: type) : Prop :=
 Definition tc_expr (Delta: tycontext) (e: expr) : environ -> Prop := 
     denote_tc_assert (typecheck_expr Delta e).
 
-Definition tc_exprlist (Delta: tycontext) (e: list expr)  : environ -> Prop := 
-      denote_tc_assert (typecheck_exprlist Delta e).
+Definition tc_exprlist (Delta: tycontext) (t: list type) (e: list expr)  : environ -> Prop := 
+      denote_tc_assert (typecheck_exprlist Delta t e).
 
 Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> Prop := 
      denote_tc_assert (typecheck_lvalue Delta e).
+
+Definition tc_value (v:environ -> val) (t :type) : environ -> Prop :=
+     fun rho => typecheck_val (v rho) t = true.
+
 
 Lemma extend_local: forall P, extensible (local P).
 Proof.
@@ -441,13 +446,16 @@ forall Delta Q test body R,
 
 (* THESE RULES FROM semax_call *)
 
+
 Axiom semax_call : 
     forall Delta A (P Q: A -> assert) x F ret fsig a bl,
+           classify_fun (typeof a) =
+           fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
            match_fsig fsig bl ret = true ->
   semax Delta
-          (local (tc_expr Delta a) && local (tc_exprlist Delta bl)  && 
+          (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split (fst fsig))) bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
-          (F * lift1 (P x) (make_args' fsig (eval_exprlist bl)))))
+          (F * lift1 (P x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)))))
          (Scall ret a bl)
          (normal_ret_assert 
           (EX old:val, substopt ret (lift0 old) F * lift1 (Q x) (get_result ret))).
@@ -467,11 +475,11 @@ Axiom semax_fun_id:
     semax Delta P c Q.
 
 Axiom semax_call_ext:
-     forall Delta P Q ret a bl a' bl',
+     forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
        local (tc_environ Delta) && P |-- 
                   local (lift2 eq (eval_expr a) (eval_expr a')) &&
-                  local (lift2 eq (eval_exprlist bl) (eval_exprlist bl')) ->
+                  local (lift2 eq (eval_exprlist tl bl) (eval_exprlist tl bl')) ->
   semax Delta P (Scall ret a bl) Q ->
   semax Delta P (Scall ret a' bl') Q.
 
@@ -498,7 +506,7 @@ Axiom semax_load :
 forall (Delta: tycontext) sh id P e1 v2,
     tc_temp Delta id (typeof e1) ->
     semax Delta 
-       (|> (local (tc_lvalue Delta e1)  && (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       (|> (local (tc_lvalue Delta e1) && local (tc_value v2 (typeof e1)) && (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
                                           (subst id (lift0 old) (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).

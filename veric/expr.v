@@ -176,10 +176,14 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | _  => lift0 Vundef
  end.
 
-Fixpoint eval_exprlist (el:list expr) : environ -> list val :=
- match el with
- | nil => lift0 nil
- | e::el' => lift2 cons (eval_expr e) (eval_exprlist el')
+
+Definition cast_exp e toty rho :=
+force_val (sem_cast (eval_expr e rho) (typeof e) toty). 
+
+Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
+ match et, el with
+ | t::et', e::el' => lift2 cons (cast_exp e t) (eval_exprlist et' el')
+ | _, _ => lift0 nil
  end.
 
 Definition eval_expropt (e: option expr) : environ -> option val :=
@@ -496,8 +500,14 @@ will always evaluate, may not be useful since tc_denote will just compute to tru
 on these assertions*)
 Definition typecheck_pure_b Delta e := tc_always_true (typecheck_expr Delta e). 
 
-Definition typecheck_exprlist (Delta: tycontext) (el: list expr) : tc_assert := 
- fold_right (fun e a => tc_andp (typecheck_expr Delta e) a) tc_TT el.
+Fixpoint typecheck_exprlist (Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
+match tl,el with
+| t::tl', e:: el' => tc_andp (typecheck_expr Delta (Ecast e t)) 
+                      (typecheck_exprlist Delta tl' el')
+| nil, nil => tc_TT
+| _, _ => tc_FF
+end.
+
 
 Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
@@ -569,7 +579,7 @@ end.
 Fixpoint same_env  (rho : environ) (Delta : tycontext) (ids : list positive) : bool :=
 match ids with
 | h::t => same_mode (ge_of rho) (ve_of rho) (glob_types Delta) (var_types Delta) h && same_env rho Delta t
-| nil => false
+| nil => true
 end. 
 
 Definition all_var_ids (Delta : tycontext) : list positive :=
@@ -895,13 +905,15 @@ Definition typecheck_store e1 :=
 (*Test function to typecheck expressions in a statement, is a start on a typechecker
 that is useful for all of compcert, not just one useful for the program logic*)
 
+
+
 Fixpoint typecheck_all_exprs' (body: statement) (Delta :tycontext) : tc_assert:=
 match body with
     Sskip | Sbreak | Scontinue => tc_TT
   | Sassign e1 e2 => tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta e2)
   | Sset _ e => typecheck_expr Delta e 
   | Svolread _ e => typecheck_expr Delta e
-  | Scall _ e el => tc_andp (typecheck_expr Delta e) (typecheck_exprlist Delta el)
+  | Scall _ e el => (typecheck_expr Delta e)
   | Ssequence s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta) 
        (typecheck_all_exprs' s2 (update_tycon Delta s1)) 
   | Sifthenelse b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
@@ -929,3 +941,26 @@ typecheck_all_exprs' func.(fn_body) (func_tycontext func V G).
 Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 
 
+Ltac tc_assert_ext := 
+repeat match goal with
+| [H : _ /\ _ |- _] => destruct H
+end.
+
+Ltac of_bool_destruct :=
+match goal with
+  | [ |- context[Val.of_bool ?X] ] => destruct X
+end.
+
+Lemma orb_if : forall {D} b c (d:D) (e:D), (if (b || c) then d else e) = if b then d else if c then d else e.
+intros.
+remember (b || c). destruct b0; auto. symmetry in Heqb0. rewrite orb_true_iff in Heqb0.
+intuition; subst; auto. destruct b; auto. symmetry in Heqb0; rewrite orb_false_iff in Heqb0.
+intuition; subst; auto.
+Qed.
+
+Lemma andb_if : forall {D} b c (d:D) (e:D), (if (b && c) then d else e) = if b then (if c then d else e) else e.
+Proof.
+intros.
+remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *; try rewrite andb_false_iff in *; if_tac; auto; intuition;
+destruct c; auto; intuition.
+Qed.

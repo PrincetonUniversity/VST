@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import msl.normalize.
 Require Import veric.Address.
@@ -18,7 +19,7 @@ Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
-
+ 
 Open Local Scope pred.
 
 Section extensions.
@@ -265,13 +266,13 @@ Proof.
 intros. apply @derives_trans with (|> P * |> Q).
 apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
-
+  
 Lemma semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
     typecheck_temp_id id (typeof e1) Delta = true ->
     semax Hspec Delta 
        (fun rho => |>
-        (tc_lvalue Delta e1 rho  && 
+        (tc_lvalue Delta e1 rho  && !!(typecheck_val (v2 rho) (typeof e1) = true)  &&
           (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id e1)
        (normal_ret_assert (fun rho => 
@@ -279,14 +280,17 @@ forall (Delta: tycontext) sh id P e1 v2,
                          (subst id old (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho) rho)))).
 Proof.
 intros until v2. intro TC1. 
-replace (fun rho : environ => |> (tc_lvalue Delta e1 rho && (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
+replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
+  !!(typecheck_val (v2 rho) (typeof e1) = true)) && 
+  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
  with (fun rho : environ => 
-   ( |> tc_lvalue Delta e1 rho && |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
+   ( |> tc_lvalue Delta e1 rho && |> !!(typecheck_val (v2 rho) (typeof e1) = true) && |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
   by (extensionality rho;  repeat rewrite later_andp; auto).
-apply semax_straight_simple.
-intro. apply extend_later'. apply boxy_prop; auto.
-intros jm jm1 ge ve te rho k F TC2 TC' Hcl Hge ? ?.
+apply semax_straight_simple. 
+intro. apply boxy_andp; auto. admit. 
+intros jm jm1 ge ve te rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
+specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge TC') as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (v2 rho) (te)).
@@ -294,15 +298,16 @@ econstructor.
 split.
 reflexivity.
 split3.
-apply age_level; auto.
+apply age_level; auto. simpl. 
 rewrite <- map_ptree_rel.
-apply typecheck_environ_put_te'. unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - TC1 TC2 TC' H2 Hge.
+apply typecheck_environ_put_te'. 
+unfold typecheck_temp_id in *. 
+unfold construct_rho in *. destruct rho; inv Hge; auto.
+clear - TC1 TC2 TC3 TC' H2 Hge H0.
 unfold typecheck_temp_id in *. 
 intros. rewrite H in TC1. 
 destruct t as [t x]. rewrite eqb_type_eq in TC1. apply type_eq_true in TC1. subst t.
-simpl.
-admit. (* typechecking proof, stuck, need to figure out how this works *)
+auto.  (* typechecking proof *)
 split.
 split3.
 simpl.
