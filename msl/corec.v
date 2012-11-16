@@ -33,6 +33,16 @@ apply H2; auto;
    extensionality z z'; auto).  (* compability with Coq 8.3 *)
 Qed.
 
+Lemma corec_least_fixpoint {B A}: 
+forall {F: (B -> pred A) -> (B -> pred A)}, forall {P : B -> pred A},
+  P = F P ->
+  forall b, corec F b |-- P b.
+Proof.
+  intros. do 2 intro.
+  apply H0 with (P := P). intros b' ? ?.
+  rewrite H. apply H1.
+Qed.
+
 Lemma covariant_sepcon {B}{A} {JA: Join A}{PA: Perm_alg A}:
    forall P Q : (B -> pred A) -> (B -> pred A),
     covariant P -> covariant Q -> 
