@@ -1168,3 +1168,25 @@ Proof.
   constructor.
 Qed.
 
+(** Composing two memory injections *)
+
+Definition compose_meminj (f f': meminj) : meminj :=
+  fun b =>
+    match f b with
+    | None => None
+    | Some(b', delta) =>
+        match f' b' with
+        | None => None
+        | Some(b'', delta') => Some(b'', delta + delta')
+        end
+    end.
+
+Lemma val_inject_compose:
+  forall f f' v1 v2 v3,
+  val_inject f v1 v2 -> val_inject f' v2 v3 ->
+  val_inject (compose_meminj f f') v1 v3.
+Proof.
+  intros. inv H; auto; inv H0; auto. econstructor.
+  unfold compose_meminj; rewrite H1; rewrite H3; eauto. 
+  rewrite Int.add_assoc. decEq. unfold Int.add. apply Int.eqm_samerepr. auto with ints.
+Qed. 

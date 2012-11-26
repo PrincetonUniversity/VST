@@ -80,7 +80,9 @@ Definition align_chunk (chunk: memory_chunk) : Z :=
   | Mint8unsigned => 1
   | Mint16signed => 2
   | Mint16unsigned => 2
-  | _ => 4
+  | Mint32 => 4
+  | Mfloat32 => 4
+  | Mfloat64 => 8
   end.
 
 Lemma align_chunk_pos:
@@ -92,15 +94,19 @@ Qed.
 Lemma align_size_chunk_divides:
   forall chunk, (align_chunk chunk | size_chunk chunk).
 Proof.
-  intros. destruct chunk; simpl; try apply Zdivide_refl. exists 2; auto. 
+  intros. destruct chunk; simpl; try apply Zdivide_refl. 
 Qed.
 
-Lemma align_chunk_compat:
+Lemma align_le_divides:
   forall chunk1 chunk2,
-  size_chunk chunk1 = size_chunk chunk2 -> align_chunk chunk1 = align_chunk chunk2.
+  align_chunk chunk1 <= align_chunk chunk2 -> (align_chunk chunk1 | align_chunk chunk2).
 Proof.
-  intros chunk1 chunk2. 
-  destruct chunk1; destruct chunk2; simpl; congruence.
+  intros. destruct chunk1; destruct chunk2; simpl in *;
+  solve [ omegaContradiction
+        | apply Zdivide_refl
+        | exists 2; reflexivity
+        | exists 4; reflexivity
+        | exists 8; reflexivity ].
 Qed.
 
 (** * Memory values *)
@@ -815,4 +821,19 @@ Proof.
   red. destruct mv; econstructor.
   unfold inject_id; reflexivity. rewrite Int.add_zero; auto. 
 Qed.
+
+(** [memval_inject] and compositions *)
+
+Lemma memval_inject_compose:
+  forall f f' v1 v2 v3,
+  memval_inject f v1 v2 -> memval_inject f' v2 v3 ->
+  memval_inject (compose_meminj f f') v1 v3.
+Proof.
+  intros. inv H.
+  inv H0. constructor.
+  inv H0. econstructor. 
+  unfold compose_meminj; rewrite H1; rewrite H5; eauto. 
+  rewrite Int.add_assoc. decEq. unfold Int.add. apply Int.eqm_samerepr. auto with ints.
+  constructor.
+Qed. 
 
