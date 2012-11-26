@@ -489,7 +489,14 @@ Definition Client_FSExtSpec :=
     end)
   (fun (ef: AST.external_function) u ty retval zfs jm => 
     match ef, zfs with
-    | SYS_OPEN, (fsys, z) => True (*TODO*)
+    | SYS_OPEN, (fsys, z) => 
+        match retval with
+        | Some retval' => match val2oint retval' with
+                          | Some fd => is_readable fsys fd
+                          | None => False
+                          end
+        | None => False
+        end
     | _, (_, _) => True (*TODO*)
     end).
 
@@ -527,7 +534,14 @@ Definition Client_FSExtSpec' :=
     end)
   (fun (ef: AST.external_function) u ty retval zfs jm => 
     match ef, zfs with
-    | SYS_OPEN, (fsys, z) => True (*TODO*)
+    | SYS_OPEN, (fsys, z) => 
+        match retval with
+        | Some retval' => match val2oint retval' with
+                          | Some fd => is_readable fsys fd
+                          | None => False
+                          end
+        | None => False
+        end
     | _, (_, _) => True (*TODO*)
     end).
 
@@ -1142,56 +1156,41 @@ destruct t; auto.
 destruct sig_args; auto.
 destruct sig_res; auto.
 destruct t; auto.
+admit. 
 (*SYS_READ case*)
 right.
 exists (Some (Vint (Int.repr (Zlength bytes)))).
 split; auto.
 simpl.
 unfold spec_of in H5.
-clear - H5.
+assert (Hef: ef = SYS_READ).
+ rewrite H in H3.
+ inversion H3; auto.
+clear - Hef H5.
+rewrite Hef in *.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
  inversion 1; auto.
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
-simpl; destruct ef; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct sg; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct sig_res; auto.
-destruct t; auto.
+simpl; auto.
 (*SYS_WRITE case*)
 right.
 exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
 split; auto.
 simpl.
 unfold spec_of in H5.
-clear - H5.
+assert (Hef: ef = SYS_WRITE).
+ rewrite H in H3.
+ inversion H3; auto.
+clear - Hef H5.
+rewrite Hef in *.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
  inversion 1; auto.
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
-simpl; destruct ef; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct sg; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct sig_res; auto.
-destruct t; auto.
+simpl; auto.
 
 (*4: handled progress*)
 intros until m; intros H1 H2 H3.
@@ -1349,6 +1348,14 @@ intros f H9.
 specialize (H2 (Some (Vint unused_fd)) m 
  (fs_open_existing (proj_zint fs_extension s) unused_fd fname f md, z)).
 spec H2; simpl; auto.
+unfold is_readable.
+exists md; exists 0; exists f; split.
+unfold get_fdtable, fs_open_existing; simpl.
+case_eq (Int.eq unused_fd unused_fd); auto.
+rewrite Int.eq_true; congruence.
+unfold get_fcache, fs_open_existing; simpl.
+case_eq (Int.eq unused_fd unused_fd); auto.
+rewrite Int.eq_true; congruence.
 destruct H2 as [c' [H2 H10]].
 exists (mkxT z c' (fs_open_existing (proj_zint fs_extension s) unused_fd fname f md)).
 exists m.
@@ -1403,6 +1410,12 @@ intros H9.
 specialize (H2 (Some (Vint unused_fd)) m 
  (fs_open_new (proj_zint fs_extension s) unused_fd fname md, z)).
 spec H2; simpl; auto.
+unfold is_readable.
+exists md; exists 0.
+unfold get_fdtable, get_fcache, fs_open_new; simpl.
+case_eq (Int.eq unused_fd unused_fd).
+intros; exists new_file; split; auto.
+rewrite Int.eq_true; congruence.
 destruct H2 as [c' [H2 H10]].
 exists (mkxT z c' (fs_open_new (proj_zint fs_extension s) unused_fd fname md)).
 exists m.
