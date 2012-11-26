@@ -107,14 +107,15 @@ intros ? ?.
 intros ? ? ? ? ?.
 specialize (H0 _ H1 _ H2).
 apply H0.
-destruct H3 as [[? ?] ?].
+destruct H3 as [? ?].
 split; auto.
 split; auto.
-destruct H5; split; auto.
+destruct H4; auto.
 specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
-destruct H5 as [w1 [w2 [? [? ?]]]].
+destruct H4 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split3; auto.
 apply H; split; auto.
+destruct H4; auto.
 Qed.
 
 Lemma semax'_pre:
@@ -132,10 +133,13 @@ apply imp_derives; auto.
 unfold guard.
 apply allp_derives; intro te.
 apply allp_derives; intro ve.
-apply subp_derives; auto.
-apply andp_derives; auto.
-apply prop_andp_left; intros [? ?].
-apply prop_andp_right; auto.
+intros ? ?.
+intros ? ? ? ? ?.
+eapply H0; eauto.
+destruct H3 as [[? ?] ?].
+split; auto.
+split; auto.
+eapply sepcon_derives; try apply H0; auto.
 Qed.
 
 Lemma semax'_pre_post:
@@ -180,12 +184,10 @@ rewrite andp_assoc.
 apply andp_derives; auto.
 repeat intro. simpl in *. 
 repeat intro.
-simpl in H0.
 specialize (H0 ora jm H1 H2).
 destruct (@level rmap _ a).
 simpl; auto. 
 apply convergent_controls_safe with (State ve te k); auto.
-
 simpl.
 
 intros. 

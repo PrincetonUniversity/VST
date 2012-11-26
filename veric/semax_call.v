@@ -153,8 +153,7 @@ specialize (H1 psi w Prog_OK k F H2 H3).
 intros te ve w' ? w'' ? ?.
 apply (H1 te ve w' H4 w'' H5); clear H1.
 destruct H6; split; auto.
-destruct H1 as [[H1 Hge] ?]; split; auto.
-split; auto.
+destruct H1 as [H1 ?]; split; auto.
 normalize.
 split; auto.
 assert (app_pred (believe Hspec Delta psi Delta) (level w'')).
@@ -163,15 +162,16 @@ apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
 apply nec_nat; auto.
 pose proof H1. unfold typecheck_environ in H9.
+hnf in H9.
 apply andb_true_iff in H9. destruct H9 as [_ SAME].
-apply typecheck_environ_sound in H1.
+hnf in H1. apply typecheck_environ_sound in H1.
 destruct H1 as [_ [_ H1]].
 rename GLBL into GL1.
 specialize (H1 _ _ H).
 apply typecheck_mode_eqv in SAME.
 specialize (SAME _ _ H).
 destruct SAME as [SAME | [t SAME]]; [ | congruence].
-clear - H6 H8 H SAME (*H9*) Hge H1.
+clear - H6 H8 H SAME (*H9*) H1.
 destruct H6 as [H6 H6'].
 specialize (H6 _ _  _(necR_refl _) H).
 destruct H6 as [v [loc [[? ?] ?]]].
@@ -179,7 +179,6 @@ simpl in H0, H1, H2.
 (*destruct H9; try congruence.*)
 specialize (H8 v fsig A P' Q' _ (necR_refl _)).
  
-rewrite Hge in H0.
 unfold filter_genv in H0. simpl in H0.
 invSome.
 assert (v = Vptr b Int.zero) by (destruct (type_of_global psi b); inv H6; auto).
@@ -193,12 +192,15 @@ exists b.
 split.
 unfold eval_lvalue, eval_var.
 simpl ve_of. unfold Map.get. rewrite SAME.
-rewrite <- Hge.
-destruct H1 as [b' [i' [? ?]]].
-destruct fsig. simpl @fst; simpl @snd.
-unfold filter_genv. rewrite H0.
+simpl. unfold filter_genv. rewrite H0.
 destruct (type_of_global psi b); inv H6; auto.
-rewrite eqb_type_refl. hnf; auto.
+rewrite eqb_type_refl.
+replace (eqb_typelist (type_of_params (fst fsig)) (type_of_params (fst fsig))) with true.
+simpl; auto.
+clear; induction (type_of_params (fst fsig)); simpl; auto.
+rewrite <- IHt; simpl; auto.
+rewrite eqb_type_refl; auto.
+hnf; auto.
 intro loc.
 hnf.
 if_tac; auto.
@@ -375,7 +377,7 @@ apply le_trans with (level wx); auto.
 clear wx H20 H21.
 intros ora' jm' VR ?.
 subst w'.
-destruct H15 as [H15 H20]. 
+pose (H20:=True).
 assert (FL: exists m2, free_list (m_dry jm')  (Csem.blocks_of_env vx) = Some m2).
 admit.  (* prove this from H22, stackframe_of *)
 destruct FL as [m2 FL].
@@ -393,7 +395,6 @@ specialize (H1 (m_phi jm2)).
 spec H1; [ admit | ]. (* easy *)
 specialize (H1 _ (necR_refl _)). simpl in H15. 
 spec H1; [clear H1 | ].
-split.
 split.
 simpl. unfold te2. destruct ret; unfold rval.
 destruct vl.   
@@ -544,7 +545,6 @@ eapply pred_nec_hereditary in H1; [ | apply H0'].
 eapply pred_nec_hereditary in Prog_OK; [ | apply H0'].
 clear w H0' H0 y H2.
 rename a' into w.
-destruct TC3 as [TC3 H0].
 intros ora jm _ ?.
 subst w.
 apply extend_sepcon_andp in H3; auto.
@@ -560,15 +560,18 @@ destruct H7 as [id [v [[H7 H8] H9]]].
 hnf in H9.
 simpl in H8. unfold val2adr in H8. destruct v; try contradiction.
 symmetry in H8; inv H8.
+rename H11 into H12.
 destruct H2 as [TC1 TC2].
 assert (H8: exists fs, (glob_types Delta)!id = Some (Global_func fs)).
 auto.
 destruct H8 as [fs H8].
 generalize H4; intros [H10 _].
 specialize (H10 id fs _ (necR_refl _) H8).
-destruct H10 as [v' [b' [[H10 H11] H13]]].
+destruct H10 as [v' [b' [[H10] H13]]].
+assert (H11: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)).
+reflexivity.
 simpl in H10. simpl in H7. inversion2 H7 H10.
-simpl in H11. subst b'.
+simpl in H0. subst b'.
 unfold func_at in H13.
 rewrite H12 in H13.
 destruct fs as [fsig' A' P' Q'].
@@ -581,19 +584,20 @@ rewrite H6  in H13.
 (*change (In (id, mk_funspec fsig A' P' Q') G) in H8. *)
 inversion H13; clear H13.
 subst A'.
-apply inj_pair2 in H11. rename H11 into H15.
+apply inj_pair2 in H10. rename H10 into H15.
 clear H6; pose (H6:=True).
 clear H9; pose (H9:=True).
-rewrite H0 in H7.
-unfold filter_genv in H7. simpl in H7.
+
+unfold filter_genv in H7.
 invSome.
-assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H11; auto).
-destruct H2; subst b0 i.
+assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H10; auto).
+destruct H0; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist (snd (split (fst fsig))) bl rho).
 fold args in H5.
+rename H10 into H10'.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
 clear H15.
@@ -609,11 +613,11 @@ apply pred_eq_e2 in H10.
 eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist (snd (split (fst fsig))) bl rho) rho)) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.
 eapply semax_call_aux; try eassumption.
+
 unfold normal_ret_assert.
 extensionality rho'.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
-
 auto.
 Qed.
 
@@ -635,7 +639,8 @@ intros tx vx; specialize (H2 tx vx).
 intros ? ? ? ? ?.
 specialize (H2 y H5 a'0 H6 H7).
 destruct H7 as [[? ?] _].
-destruct H7.
+hnf in H7.
+pose proof I.
 hnf in H2|-*; intros.
 specialize (H2 ora jm H10).
 eapply convergent_controls_safe; try apply H2.
@@ -695,13 +700,13 @@ apply necR_level in H2.
 apply le_trans with (level n); auto.
 apply (pred_nec_hereditary _ _ _ H4) in H0.
 clear w n H2 H1 H4.
-destruct H3 as [[[? H4] ?] ?]. 
+destruct H3 as [[H3 ?] ?].
+pose proof I. 
 remember ((construct_rho (filter_genv psi) ve te)) as rho.
 specialize (H0 EK_return (eval_expropt ret rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 rewrite <- Heqrho.
-split; auto.
 split; auto.
 split; auto.
 intros ? ? ? ?.

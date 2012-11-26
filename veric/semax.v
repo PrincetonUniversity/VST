@@ -73,7 +73,7 @@ Definition guard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
-          !! (typecheck_environ rho Delta = true /\ filter_genv gx = ge_of rho)
+          !! (typecheck_environ rho Delta = true)
                   && P rho && funassert Delta rho 
              >=> assert_safe Hspec gx vx tx ctl rho.
 
@@ -109,7 +109,7 @@ Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: exitkind -> tycontext)  (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
-           !! (typecheck_environ rho (Delta ek) = true /\ filter_genv gx = ge_of rho ) && 
+           !! (typecheck_environ rho (Delta ek) = true) && 
          ((F rho * R ek vl rho) && funassert (Delta ek) rho) >=> 
                assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
 

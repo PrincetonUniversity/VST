@@ -56,7 +56,7 @@ rename w0 into w.
 apply assert_safe_last'; intro Hage.
 intros ora jm _ H2. subst w.
 rewrite andp_assoc in Hglob.
-destruct Hglob as [[TC' Hge] Hglob].
+destruct Hglob as [TC'  Hglob].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
 destruct Hglob as [Hglob Hglob'].
 apply extend_sepcon_andp in Hglob; auto.
@@ -74,7 +74,6 @@ spec Hsafe.
 change R.rmap with rmap; omega.
 specialize (Hsafe _ (necR_refl _)).
 spec Hsafe.
-split; auto.
 split; auto.
 subst rho'; auto.
 destruct H4; split; auto.

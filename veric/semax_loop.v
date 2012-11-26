@@ -59,7 +59,8 @@ cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? [? ?]; split; auto.
+intros ? ?; auto.
+hnf in H|-*.
 apply typecheck_environ_join1; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
@@ -71,7 +72,7 @@ intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? [? ?]; split; auto.
+intros ? ?; hnf in H|-*; auto.
 apply typecheck_environ_join2; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
@@ -87,7 +88,7 @@ intros ? ?. clear w H0.
 revert a'.
 apply fash_derives.
 intros w [? ?].
-intros ?w ? [[[?TC Hge] ?] ?].
+intros ?w ? [[?TC  ?] ?].
 apply extend_sepcon_andp in H4; auto.
 destruct H4 as [TC2 H4].
 hnf in TC2.
@@ -95,7 +96,6 @@ destruct H4 as [w1 [w2 [? [? ?]]]].
 specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
-clear Hge.
 intros ora jm Hge Hphi.
 generalize (eval_expr_relate _ _ _ _ _ b (m_dry jm) Hge TC); intro.
 assert (exists b': bool, strict_bool_val (eval_expr b rho) (typeof b) = Some b').
@@ -127,27 +127,21 @@ destruct b'.
 eapply H0; auto.
 split; auto.
 split; auto.
-split; auto. subst; auto.
+subst; auto.
 rewrite andp_comm. rewrite prop_true_andp by auto.
 do 2 econstructor; split3; eauto.
 eapply H1; auto.
 split; auto.
 split; auto.
-split; auto. subst; auto.
+subst; auto.
 rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
-simpl. unfold lift1. unfold typed_true.   
-destruct (eval_expr b rho); try solve[inv H9].
-destruct (typeof b); 
-try apply H9;
-try solve [simpl in *; inv H9; rewrite TCS in *; simpl in *; try congruence; auto].
-
+simpl. unfold lift1. unfold typed_true. 
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;
 inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.
-apply H9.
 Qed.
 
 Lemma seq_assoc1:  
@@ -307,7 +301,7 @@ unfold guard in H0.
 rewrite <- andp_assoc.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
-  (!!(typecheck_environ rho (update_tycon Delta h) = true /\ filter_genv psi = ge_of rho) &&
+  (!!(typecheck_environ rho (update_tycon Delta h) = true) &&
    (F rho * (Q rho)) && funassert Delta rho >=>
    assert_safe Hspec psi vx tx (Kseq t :: k) rho) w).
 subst.
@@ -321,8 +315,7 @@ intros ek vl te ve; specialize (H2 ek vl te ve).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp. apply andp_derives; auto.
 simpl.
-intros ? [? ?].
-split; auto.
+intros ? ?; hnf in H|-*; auto.
 clear - H.
 destruct ek; simpl in *; auto; try solve [eapply typecheck_environ_update; eauto].
 cbv beta in H2.
@@ -333,8 +326,9 @@ rewrite funassert_update_tycon in H0.
 apply H0.
 eapply subp_trans'; [ | apply H].
 apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
-normalize.
-rewrite funassert_exit_tycon; auto.
+apply sepcon_derives; auto.
+apply andp_left2; auto.
+rewrite funassert_exit_tycon. auto.
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
   by (destruct ek; simpl; congruence).
 unfold rguard in H2.
@@ -382,20 +376,19 @@ assert (LT: level a2 < level w).
    change w with (level w) in H4.
   change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
   apply nec_nat in H5. omega.
-destruct H6 as [H6 Hge].
 assert (Prog_OK2: (believe Hspec Delta psi Delta) (level a2)) 
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (exists b, strict_bool_val (eval_expr test rho) (typeof test) = Some b).
-clear - H6 TC BT H7 Hge.
+clear - H6 TC BT H7.
 destruct H7 as [w1 [w2 [_ [_ ?]]]].
 apply TC in H. hnf in H.
 pose proof (typecheck_expr_sound Delta rho test H6 H).
 apply typecheck_bool_val; auto.
 destruct H9 as [b ?].
 intros ora jm RE H11.
-rename Hge into H10.
+pose (H10:=True).
 replace (level a') with (S (level a2)) 
  by (apply age_level in LEVa2;  rewrite LEVa2; apply minus_n_O).
 subst a'.
@@ -444,7 +437,8 @@ repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
 rewrite andp_assoc.
 rewrite funassert_update_tycon; 
 apply andp_derives; auto.
-intros ? [? ?]; split; auto.
+intros ? ?; auto.
+hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 simpl exit_cont.
  normalize. normalize.
@@ -463,7 +457,8 @@ rewrite andp_assoc.
 rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
-intros ? [? ?]; split; auto.
+intros ? ?.
+hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 simpl exit_cont.
 simpl exit_tycon.
@@ -495,7 +490,7 @@ rewrite andp_assoc.
 rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
-intros ? [? ?]; split; auto.
+intros ? ?.  hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 unfold exit_cont, for2_ret_assert; normalize.
 unfold exit_cont, for2_ret_assert; normalize.
@@ -518,7 +513,6 @@ apply age_jm_phi; auto.
 subst.
 split; auto.
 split; auto.
-split; auto. 
 rewrite prop_true_andp; auto.
 
 (* Case 2: expr evaluates to false *)
