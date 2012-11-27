@@ -79,9 +79,10 @@ subst rho'; auto.
 destruct H4; split; auto.
 subst rho'.
 unfold normal_ret_assert.
+unfold frame_ret_assert in *.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
-auto.
+rewrite sepcon_comm; auto.
 replace (funassert (exit_tycon c Delta EK_normal)) with (funassert Delta); auto.
 apply same_glob_funassert; simpl; auto. rewrite glob_types_update_tycon; auto.
 subst rho'. 

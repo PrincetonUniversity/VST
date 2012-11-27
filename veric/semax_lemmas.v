@@ -182,7 +182,10 @@ revert w H0.
 apply imp_derives; auto.
 rewrite andp_assoc.
 apply andp_derives; auto.
-repeat intro. simpl in *. 
+repeat intro. simpl exit_tycon.
+unfold frame_ret_assert.
+rewrite sepcon_comm.
+eapply andp_derives; try apply H0; auto.
 repeat intro.
 specialize (H0 ora jm H1 H2).
 destruct (@level rmap _ a).
@@ -233,7 +236,7 @@ Lemma semax_unfold:
   semax Hspec = fun Delta P c R =>
     forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec Delta psi Delta w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Hspec psi (exit_tycon c Delta) F R k w ->
+       rguard Hspec psi (exit_tycon c Delta) (frame_ret_assert R F) k w ->
        guard Hspec psi Delta (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
@@ -462,11 +465,9 @@ unfold F0F; clear - H1.
 intros ek vl tx vx; specialize (H1 ek vl tx vx).
 red in H1.
 remember ((construct_rho (filter_genv psi) vx tx)) as rho.
-replace (F0 rho * F rho * R ek vl rho) with (F0 rho * (frame_ret_assert R F) ek vl rho); auto.
-clear.
-unfold frame_ret_assert.
-rewrite sepcon_assoc; auto.
-f_equal. apply sepcon_comm.
+unfold frame_ret_assert in *.
+rewrite (sepcon_comm (F0 rho)).
+rewrite <- sepcon_assoc; auto.
 unfold F0F.
 extensionality rho.
 rewrite sepcon_assoc.
@@ -1098,9 +1099,9 @@ Proof.
 Qed.
 
 Lemma rguard_adj:
-  forall ge Delta F R k k',
+  forall ge Delta R k k',
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
-      rguard Hspec ge Delta F R k |-- rguard Hspec ge Delta F R k'.
+      rguard Hspec ge Delta R k |-- rguard Hspec ge Delta R k'.
 Proof.
  intros.
  intros n H0;  hnf in H0|-*.

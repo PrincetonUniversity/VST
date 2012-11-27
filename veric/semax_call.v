@@ -300,7 +300,7 @@ Lemma semax_call_aux:
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
     (funassert Delta rho) (m_phi jm) ->
-    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) F0 R k) (level (m_phi jm)) ->
+    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Hspec Delta psi Delta) (level (m_phi jm)) ->
     (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q')) ->
     Genv.find_symbol psi id = Some b ->
@@ -358,6 +358,7 @@ repeat rewrite andp_assoc.
 apply subp_trans' with
  (F0 rho * F rho * (stackframe_of f rho' * bind_ret vl (fn_return f) (Q x) rho') && funassert Delta rho').
 apply andp_subp'; auto.
+rewrite (sepcon_comm (F0 rho * F rho)).
 apply sepcon_subp'; auto.
 apply sepcon_subp'; auto.
 unfold bind_ret.
@@ -389,7 +390,8 @@ pose (te2 := match ret with
             | None => tx
             | Some rid => PTree.set rid rval tx
             end).
-specialize (H1 EK_normal None te2 vx).  
+specialize (H1 EK_normal None te2 vx).
+unfold frame_ret_assert in H1.  
 rewrite HR in H1; clear R HR. simpl exit_cont in H1.
 specialize (H1 (m_phi jm2)).
 spec H1; [ admit | ]. (* easy *)
@@ -414,7 +416,6 @@ destruct TC5 as [TC5 _]. specialize (TC5 (eq_refl _)); congruence.
 rewrite <- H0. auto.
 auto. 
 normalize. exists rval.
-rewrite <- sepcon_assoc.
 admit.  (* very plausible *)
 hnf in H1. 
 specialize (H1 ora' jm2).
@@ -707,8 +708,10 @@ specialize (H0 EK_return (eval_expropt ret rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 rewrite <- Heqrho.
+unfold frame_ret_assert.
 split; auto.
 split; auto.
+rewrite sepcon_comm; auto.
 intros ? ? ? ?.
 specialize (H0 ora jm (eq_refl _) H6).
 eapply convergent_controls_safe; try apply H0.

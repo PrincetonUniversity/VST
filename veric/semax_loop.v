@@ -52,7 +52,7 @@ spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); in
 spec H1. intros i te' ?.  apply H2; simpl; auto.
  clear - H4; intros i0; destruct (H4 i0); intuition. left; right; auto.
 assert (H3then: app_pred
-       (rguard Hspec psi (exit_tycon c Delta)  F R k) w).
+       (rguard Hspec psi (exit_tycon c Delta)  (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
@@ -66,7 +66,7 @@ repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
 repeat rewrite funassert_exit_tycon in *; auto.
 assert (H3else: app_pred
-       (rguard Hspec psi (exit_tycon d Delta) F R k) w).
+       (rguard Hspec psi (exit_tycon d Delta) (frame_ret_assert R F) k) w).
 clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
@@ -293,7 +293,7 @@ repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H3 i); intui
 clear - H0 H1 H2.
 intros ek vl.
 intros tx vx.
-unfold overridePost.
+unfold overridePost, frame_ret_assert.
 if_tac.
 subst.
 unfold exit_cont.
@@ -326,6 +326,7 @@ rewrite funassert_update_tycon in H0.
 apply H0.
 eapply subp_trans'; [ | apply H].
 apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
+rewrite sepcon_comm;
 apply sepcon_derives; auto.
 apply andp_left2; auto.
 rewrite funassert_exit_tycon. auto.
@@ -441,7 +442,11 @@ intros ? ?; auto.
 hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 simpl exit_cont.
- normalize. normalize.
+unfold frame_ret_assert. normalize.
+rewrite sepcon_comm. auto.
+unfold frame_ret_assert. normalize.
+unfold frame_ret_assert. normalize.
+unfold frame_ret_assert. 
 change (exit_cont EK_return vl2 (Kfor3 test incr body :: k))
   with (exit_cont EK_return vl2 k).
 eapply subp_trans'; [ | apply H3'].
@@ -454,6 +459,7 @@ intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
 eapply subp_trans'; try apply H0.
 apply derives_subp.
 rewrite andp_assoc.
+unfold frame_ret_assert.
 rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
@@ -462,19 +468,23 @@ hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 simpl exit_cont.
 simpl exit_tycon.
+rewrite sepcon_comm.
 unfold for1_ret_assert.
 intros tx3 vx3.
+auto.
+intros tx3 vx3.
+unfold for1_ret_assert, frame_ret_assert.
 eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
 simpl exit_tycon.
 apply derives_subp.
 auto.
 simpl exit_tycon. simpl exit_cont.
-unfold for1_ret_assert.
+unfold for1_ret_assert, frame_ret_assert.
 rewrite semax_unfold in H0.
 intros tx2 vx2.
 eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr)].
 apply derives_subp.
-rewrite andp_assoc.
+rewrite andp_assoc. rewrite sepcon_comm.
 apply andp_derives; auto.
 clear tx2 vx2.
 intros ek2 vl2 tx2 vx2.
@@ -503,10 +513,28 @@ unfold exit_cont, for2_ret_assert; normalize.
 change (exit_cont EK_return vl (Kseq Scontinue :: Kfor2 test incr body :: k))
     with (exit_cont EK_return vl k).
 intros tx4 vx4.
+unfold frame_ret_assert in H3', vx4.
+rewrite sepcon_comm; auto.
+intros tx4 vx4.
+unfold frame_ret_assert in H3', vx4|-*.
+unfold for2_ret_assert. normalize.
+repeat intro; normalize.
+unfold frame_ret_assert in H3'|-*.
+unfold for2_ret_assert. normalize.
+unfold frame_ret_assert in H3'|-*.
+unfold for2_ret_assert.
+ simpl exit_tycon.
+specialize (H3' EK_return vl2).
 eapply subp_trans'; [ | eapply H3'; eauto].
+auto.
+unfold frame_ret_assert, for1_ret_assert.
+
+intros tx4 vx4.
+eapply subp_trans'; [ | eapply (H3' EK_return) ; eauto].
  simpl exit_tycon.
 unfold for1_ret_assert.
 auto.
+
 apply (H' tx vx _ (le_refl _) (m_phi jm') (necR_refl _)); try solve[subst; auto].
 apply pred_hereditary with (m_phi jm); auto.
 apply age_jm_phi; auto.
@@ -517,6 +545,7 @@ rewrite prop_true_andp; auto.
 
 (* Case 2: expr evaluates to false *)
 apply (H3' EK_normal None tx vx _ (le_refl _) _ (necR_refl _)); auto.
+unfold frame_ret_assert. rewrite sepcon_comm.
 rewrite prop_true_andp by (subst; auto).
 apply pred_hereditary with (m_phi jm); auto.
 apply age_jm_phi; auto.

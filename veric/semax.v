@@ -106,11 +106,11 @@ match vl, id with
 end.
 
 Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
-    (gx: genv) (Delta: exitkind -> tycontext)  (F: assert) (R : ret_assert) (ctl: cont) : pred nat :=
+    (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! (typecheck_environ rho (Delta ek) = true) && 
-         ((F rho * R ek vl rho) && funassert (Delta ek) rho) >=> 
+         (R ek vl rho && funassert (Delta ek) rho) >=> 
                assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
@@ -220,7 +220,8 @@ Definition semax_  {Z} (Hspec: juicy_ext_spec Z)
  match a with SemaxArg Delta P c R =>
   ALL gx: genv, (believepred Hspec semax Delta gx Delta) --> 
      ALL k: cont, ALL F: assert, 
-       (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) F R k) -->
+       (!! (closed_wrt_modvars c F) && 
+              rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
         guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
@@ -254,7 +255,7 @@ Lemma semax_fold_unfold : forall
   ALL gx: genv,
        believe Hspec Delta gx Delta --> 
      ALL k: cont, ALL F: assert, 
-        (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) F R k) -->
+        (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
         guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ? ?.

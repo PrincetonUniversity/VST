@@ -876,7 +876,7 @@ unfold rho; apply funassert_initial_core; auto.
 apply same_glob_funassert.
 reflexivity.
 intros ek vl tx' vx'.
-unfold normal_ret_assert.
+unfold normal_ret_assert, frame_ret_assert.
 normalize.
 rewrite TT_sepcon_TT.
 normalize.
