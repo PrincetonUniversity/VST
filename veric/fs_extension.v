@@ -235,6 +235,104 @@ spec IHnbytes (S cur).
 apply le_n_S; auto.
 Qed.
 
+Lemma read_file_aux_end nbytes sz: read_file_aux nbytes sz sz = nil.
+Proof.
+induction nbytes; auto.
+simpl.
+if_tac; auto.
+exfalso; auto.
+Qed.
+
+Lemma read_file_aux_id nbytes sz cur:
+  read_file_aux nbytes sz cur = 
+  read_file_aux (length (read_file_aux nbytes sz cur)) sz cur.
+Proof.
+revert cur; induction nbytes; auto.
+simpl; intros cur.
+if_tac.
+spec IHnbytes sz.
+rewrite read_file_aux_end in IHnbytes; auto.
+simpl.
+if_tac; auto.
+exfalso; auto.
+simpl.
+rewrite <-IHnbytes; auto.
+Qed.
+
+Lemma read_file_aux_length2 nbytes sz cur:
+  length (read_file_aux nbytes sz cur) = 
+  length (read_file_aux (length (read_file_aux nbytes sz cur)) sz cur).
+Proof.
+revert cur; induction nbytes; auto.
+simpl; intros cur.
+if_tac.
+spec IHnbytes sz.
+rewrite read_file_aux_end in IHnbytes; auto.
+simpl.
+if_tac; auto.
+exfalso; auto.
+simpl.
+rewrite <-IHnbytes; auto.
+Qed.
+
+(* Lemma loadbytes_read_file_le m b ofs nbytes0 nbytes sz cur: *)
+(*   nbytes0 <= nbytes ->  *)
+(*   Mem.loadbytes m b ofs (Z_of_nat nbytes) = Some (read_file_aux nbytes sz cur) ->  *)
+(*   Mem.loadbytes m b ofs (Z_of_nat nbytes0) = Some (read_file_aux nbytes0 sz cur). *)
+(* Proof. *)
+(* revert ofs cur nbytes0; induction nbytes; simpl; auto. *)
+(* destruct nbytes0; try omega; auto. *)
+(* intros; omegaContradiction. *)
+(* intros ofs cur nbytes0 H1. *)
+(* destruct nbytes0. *)
+(* simpl; intros; apply Mem.loadbytes_empty; omega. *)
+(* if_tac. *)
+(* admit. *)
+(* simpl. *)
+(* if_tac. *)
+(* elimtype False; auto. *)
+(* intros H2. *)
+(* Transparent Mem.loadbytes. *)
+(* unfold Mem.loadbytes in H2. *)
+(* if_tac in H2; try congruence. *)
+(* simpl in H2. *)
+(* rewrite nat_of_P_o_P_of_succ_nat_eq_succ in H2. *)
+(* simpl in H2. *)
+(* inversion H2; subst. *)
+(* spec IHnbytes (ofs+1)%Z (S cur) nbytes0. *)
+(* spec IHnbytes.  *)
+(* omega. *)
+(* assert (H7: Mem.range_perm m b (ofs+1) (ofs+1 + Z_of_nat nbytes) Cur Readable). *)
+(*  unfold Mem.range_perm in H3|-*. *)
+(*  intros ofs'; spec H3 ofs'. *)
+(*  intros [H4 H7]; spec H3.  *)
+(*  split. omega. rewrite Zpos_P_of_succ_nat. omega. *)
+(*  auto. *)
+(* spec IHnbytes. *)
+(* unfold Mem.loadbytes. *)
+(* if_tac; try congruence. *)
+(* f_equal. *)
+(* rewrite nat_of_Z_of_nat. *)
+(* rewrite H6; auto. *)
+(* rewrite Zpos_P_of_succ_nat. *)
+(* unfold Mem.loadbytes in IHnbytes|-*. *)
+(* assert (H8: Mem.range_perm m b ofs (ofs + Zsucc (Z_of_nat nbytes0)) Cur Readable). *)
+(*  unfold Mem.range_perm in H3|-*. *)
+(*  intros ofs'; spec H3 ofs'. *)
+(*  intros [H4 H9]; spec H3.  *)
+(*  split. omega. rewrite Zpos_P_of_succ_nat. omega. *)
+(*  auto. *)
+(* if_tac in IHnbytes. *)
+(* inversion IHnbytes; subst. *)
+(* if_tac; try congruence. *)
+(* rewrite <-inj_S. *)
+(* do 2 rewrite nat_of_Z_of_nat. *)
+(* simpl. *)
+(* f_equal. *)
+(* f_equal; auto. *)
+(* congruence. *)
+(* Qed. *)
+
 Definition read_file (nbytes: nat): list memval := read_file_aux nbytes (get_size f) fptr.
 
 Fixpoint write_file_aux (bytes: list memval) (sz cur: nat): (nat -> memval)*nat :=
@@ -455,11 +553,8 @@ Qed.
 
 Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
 
-Definition Client_FSExtSpec :=
-  Build_external_specification Memory.mem AST.external_function (fs*Z)
-  (fun ef: AST.external_function => unit) (*TODO*)
-  (fun (ef: AST.external_function) u typs args fsz m => 
-    match ef, fsz, args with
+Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z) m :=
+  match ef, fsz, args with
       SYS_OPEN, (fsys, z), fname0::md0::nil => 
         match val2oint fname0, val2omode md0 with
         | Some fname, Some md => 
@@ -472,6 +567,7 @@ Definition Client_FSExtSpec :=
     | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          u=adr /\
           List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
           is_readable fsys fd /\ 
           Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
@@ -480,70 +576,48 @@ Definition Client_FSExtSpec :=
     | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
         match val2oint fd0, val2oadr buf, val2oint nbytes0 with
         | Some fd, Some adr, Some nbytes => 
+          u=adr /\
           List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
           is_writable fsys fd /\ 
           Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
         | _, _, _ => False
         end
     | _, _, _ => False
-    end)
-  (fun (ef: AST.external_function) u ty retval zfs jm => 
-    match ef, zfs with
+  end.
+
+Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ) retval0 (fsz: fs*Z) (m: mem) :=
+  match ef, fsz with
     | SYS_OPEN, (fsys, z) => 
-        match retval with
-        | Some retval' => match val2oint retval' with
+        match retval0 with
+        | Some retval => match val2oint retval with
                           | Some fd => is_readable fsys fd
                           | None => False
                           end
         | None => False
         end
+    | SYS_READ, (fsys, z) => 
+        match retval0 with
+        | Some retval => match val2oint retval with
+                          | Some nbytes => 
+                              exists bytes, 
+                                nbytes=Int.repr (Zlength bytes) /\
+                                Mem.loadbytes m (fst adr) (snd adr) (Int.intval nbytes) = Some bytes
+                          | None => False
+                          end
+        | None => False
+        end
     | _, (_, _) => True (*TODO*)
-    end).
+  end.
+
+Definition Client_FSExtSpec :=
+  Build_external_specification Memory.mem AST.external_function (fs*Z)
+  (fun ef: AST.external_function => address) fs_pre fs_post.
 
 Definition Client_FSExtSpec' :=
   Build_external_specification juicy_mem AST.external_function (fs*Z)
-  (fun ef: AST.external_function => unit) (*TODO*)
-  (fun (ef: AST.external_function) u typs args fsz jm => 
-    match ef, fsz, args with
-      SYS_OPEN, (fsys, z), fname0::md0::nil => 
-        match val2oint fname0, val2omode md0 with
-        | Some fname, Some md => 
-          List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
-          get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
-          (~file_exists fsys fname=true -> fwritable md=true) /\
-          ~is_open fsys fname
-        | _, _ => False
-        end
-    | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
-        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
-        | Some fd, Some adr, Some nbytes => 
-          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
-          is_readable fsys fd /\ 
-          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
-        | _, _, _ => False
-        end
-    | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
-        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
-        | Some fd, Some adr, Some nbytes => 
-          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
-          is_writable fsys fd /\ 
-          Mem.range_perm (m_dry jm) (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
-        | _, _, _ => False
-        end
-    | _, _, _ => False
-    end)
-  (fun (ef: AST.external_function) u ty retval zfs jm => 
-    match ef, zfs with
-    | SYS_OPEN, (fsys, z) => 
-        match retval with
-        | Some retval' => match val2oint retval' with
-                          | Some fd => is_readable fsys fd
-                          | None => False
-                          end
-        | None => False
-        end
-    | _, (_, _) => True (*TODO*)
-    end).
+  (fun ef: AST.external_function => address) 
+  (fun ef u typs args fsz jm => fs_pre ef u typs args fsz (m_dry jm)) 
+  (fun ef u ty retval0 fsz jm => fs_post ef u ty retval0 fsz (m_dry jm)).
 
 Program Definition Client_JuicyFSExtSpec := 
   Build_juicy_ext_spec (fs*Z) Client_FSExtSpec' _ _.
@@ -569,35 +643,28 @@ destruct args; auto.
 destruct (val2oint v); auto.
 destruct (val2oadr v0); auto.
 destruct (val2oint v1); auto.
-intros [? ?]; split; auto.
 apply age_jm_dry in H.
 rewrite <-H.
 auto.
-destruct name; auto.
-destruct name; auto.
-destruct sg; auto.
-destruct sig_args; auto.
-destruct t0; auto.
-destruct sig_args; auto.
-destruct t0; auto.
-destruct sig_args; auto.
-destruct t0; auto.
-destruct sig_args; auto.
-destruct sig_res; auto.
-destruct t0; auto.
-destruct args; auto.
-destruct args; auto.
-destruct args; auto.
-destruct args; auto.
-destruct (val2oint v); auto.
-destruct (val2oadr v0); auto.
-destruct (val2oint v1); auto.
-intros [? ?]; split; auto.
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
 apply age_jm_dry in H.
 rewrite <-H.
 auto.
 Qed.
-Next Obligation. hnf; intros a a' H; destruct e; auto. Qed.
+Next Obligation. 
+hnf; intros a a' H; destruct e; auto. 
+apply age_jm_dry in H.
+rewrite <-H.
+auto.
+Qed.
 
 Lemma empty_rmap_no (lev: nat) loc: 
   compcert_rmaps.R.resource_at (compcert_rmaps.RML.empty_rmap lev) loc = 
@@ -663,6 +730,8 @@ intros ret m' z' H4.
 destruct (juicy_mem_exists (ageable.level jm) m') as [jm' [H5 H6]].
 specialize (H2 ret jm' z').
 spec H2; auto.
+simpl in H4|-*.
+rewrite H5; auto.
 destruct H2 as [c' [H2 H7]].
 exists c'.
 split; auto.
@@ -1130,12 +1199,17 @@ apply corestep_not_at_external in H.
 simpl in H3.
 rewrite H in H3; congruence.
 (*SYS_OPEN case*)
+assert (Hef: ef = SYS_OPEN).
+ clear - H H3.
+ rewrite H in H3.
+ inversion H3; auto.
+rewrite Hef in *.
 right.
 exists (Some (Vint unused_fd)).
 split; auto.
 simpl.
 unfold spec_of in H5.
-clear - H5.
+clear - H5 H12.
 (*inversion H5 fails to terminate in a timely fashion; instead we 
    use this ad hoc lemma*)
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
@@ -1143,37 +1217,49 @@ assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q')
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
-simpl; destruct ef; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct name; auto.
-destruct sg; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct t; auto.
-destruct sig_args; auto.
-destruct sig_res; auto.
-destruct t; auto.
-admit. 
+hnf; unfold fs_post; simpl; auto.
+unfold fs_open in H12.
+if_tac in H12.
+case_eq (get_fstore fs0 fname).
+intros f H1; rewrite H1 in H12.
+inversion H12; subst.
+hnf.
+exists md; exists 0; exists f.
+unfold get_fdtable, get_fcache, fs_open_existing; simpl.
+case_eq (Int.eq unused_fd unused_fd); auto.
+rewrite Int.eq_true; congruence.
+intros H1; rewrite H1 in H12.
+inversion H12; subst.
+hnf.
+unfold get_fdtable, get_fcache, fs_open_existing; simpl.
+exists md; exists 0; exists new_file.
+case_eq (Int.eq unused_fd unused_fd); auto.
+rewrite Int.eq_true; congruence.
+hnf.
+destruct (get_fstore fs0 fname).
+inversion H12; subst.
+exists md; exists 0; exists f.
+unfold get_fdtable, get_fcache; simpl.
+case_eq (Int.eq unused_fd unused_fd); auto.
+rewrite Int.eq_true; congruence.
+congruence.
 (*SYS_READ case*)
+assert (Hef: ef = SYS_READ).
+ rewrite H in H3; inversion H3; auto.
 right.
 exists (Some (Vint (Int.repr (Zlength bytes)))).
 split; auto.
 simpl.
 unfold spec_of in H5.
-assert (Hef: ef = SYS_READ).
- rewrite H in H3.
- inversion H3; auto.
-clear - Hef H5.
 rewrite Hef in *.
+clear - Hef H5 H11 H12.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
  inversion 1; auto.
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
 simpl; auto.
+admit.
 (*SYS_WRITE case*)
 right.
 exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
@@ -1237,7 +1323,7 @@ intros.
 rewrite H, H4, H5 in H1.
 
 (*SYS_READ case*)
-destruct H1 as [H1 [H6 H7]].
+destruct H1 as [Heq [H1 [H6 H7]]].
 unfold proj_zint in H6.
 destruct H6 as [md [cur [f' [H6 H8]]]].
 apply mem_range_perm_sub with 
@@ -1257,6 +1343,58 @@ specialize (H2
   m'
   (get_fs s, z)).
 spec H2; simpl; auto.
+case_eq (eq_nat_dec
+ (length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))
+ (nat_of_Z (Int.intval i))).
+intros Heq'.
+exists (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur).
+split; auto.
+apply Mem.loadbytes_storebytes_same in H7.
+rewrite Zlength_correct.
+rewrite Heq' in H7|-*.
+destruct x; inv Heq; simpl.
+assert (H10: Z_of_nat (nat_of_Z (Int.intval i)) mod Int.modulus =
+             Z_of_nat (nat_of_Z (Int.intval i))).
+ destruct i as [i PF]; simpl.
+ rewrite nat_of_Z_eq.
+ apply Zdiv.Zmod_small; auto.
+ destruct PF as [Pf1 Pf2]; omega.
+solve[rewrite H10; auto].
+intros Hneq.
+assert (H11: 
+  length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur) <
+  nat_of_Z (Int.intval i)).
+ generalize (read_file_aux_length f' 
+             (nat_of_Z (Int.intval i)) (get_size f') cur); intro H12.
+ omega.
+intros _.
+exists (read_file_aux f' 
+ (length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur)) 
+ (get_size f') cur).
+apply Mem.loadbytes_storebytes_same in H7.
+rewrite Zlength_correct.
+destruct x; inv Heq; simpl.
+split; auto.
+rewrite Zlength_correct.
+rewrite <-read_file_aux_length2; auto.
+cut (Z_of_nat (length
+  (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))
+  mod Int.modulus =
+  Z_of_nat (length
+  (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))).
+intros Heq.
+rewrite Heq.
+rewrite H7.
+rewrite <-read_file_aux_id; auto.
+apply Zdiv.Zmod_small.
+destruct i as [i [Pf1 Pf2]].
+simpl in *.
+split; try omega.
+apply Zlt_le_trans with (m := i); try omega.
+apply Zlt_le_trans with (m := Z_of_nat (nat_of_Z i)); try omega.
+rewrite nat_of_Z_eq.
+omega.
+omega.
 destruct H2 as [c' [H9 H10]].
 exists (mkxT z c' (get_fs s)); exists m'.
 split.
@@ -1492,7 +1630,7 @@ intros.
 rewrite H, H4, H5 in H1.
 
 (*SYS_WRITE case*)
-destruct H1 as [H1 [H6 H7]].
+destruct H1 as [Heq [H1 [H6 H7]]].
 unfold proj_zint in H6.
 destruct H6 as [md [cur [f' [H6 [H8 H80]]]]].
 destruct a as [b ofs].
