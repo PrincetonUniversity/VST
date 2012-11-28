@@ -337,7 +337,7 @@ Lemma tc_eval_id_i:
 Proof.
 intros.
 unfold tc_environ in H.
-destruct rho; apply expr_lemmas.typecheck_environ_sound in H.
+destruct rho; apply environ_lemmas.typecheck_environ_sound in H.
 destruct H as [? _].
 destruct (H i t true H0) as [v [? ?]].
 unfold eval_id. simpl. rewrite H1. simpl; auto.
