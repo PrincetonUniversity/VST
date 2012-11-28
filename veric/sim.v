@@ -587,9 +587,7 @@ Record Forward_simulation_inject := {
 (* LENB: I added meminj_preserves_globals ge1 j as another asumption here,
       in order to get rid of the unprovable Lemma meminj_preserved_globals_inject_incr stated below. 
      The introduction of meminj_preserves_globals ge1 required specializing G1 to (Genv.t F1 V1).
-      In principle, we could also specialize G2 to (Genv.t F1 V1).
-      Note that this specialization is only done for of CompCertCoreSem's, while
-       CoreSem's stay parametric in G1/G2*)
+      In principle, we could also specialize G2 to (Genv.t F1 V1).*)
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
@@ -930,6 +928,71 @@ Lemma cc_Genv:forall {F1 C1 V1 F2 C2 V2}
        destruct IHX1.
        destruct IHX2.
         split; intros; eauto. rewrite H1. apply H. Qed.
+
+Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)))  (P : AST.program F V),Prop)
+        (ExternIdents: list (ident * external_description)) entrypoints:
+       forall (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2), Type :=
+   ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+ (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+                                        /\ m1 = m2))
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+               (R:Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               prog_main P1 = prog_main P2 -> 
+
+(*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+
+                I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
+               cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+ |  ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+(*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
+                                        /\ Mem.extends m1 m2))
+               (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+               (R:Sim_ext.Forward_simulation_extends _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
+               prog_main P1 = prog_main P2 -> 
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+
+                I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+               cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+ |  ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (P1 : AST.program F1 V1)
+               (P2 : AST.program F2 V2)
+                jInit
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+                                        /\ Mem.inject jInit m1 m2))
+               (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
+               (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               prog_main P1 = prog_main P2 ->
+
+               (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
+               GenvHyp P1 P2 ->
+                externvars_ok P1 ExternIdents ->
+
+                I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+               cc_sim I ExternIdents entrypoints  F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2.
+
 End CompilerCorrectness.
 
     
