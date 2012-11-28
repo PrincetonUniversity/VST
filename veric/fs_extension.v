@@ -1252,14 +1252,43 @@ split; auto.
 simpl.
 unfold spec_of in H5.
 rewrite Hef in *.
-clear - Hef H5 H11 H12.
+assert (Heq: x = adr).
+ rewrite H in H3.
+ inversion H3.
+ rewrite <-H21 in *.
+ inversion H5.
+ rewrite <-H22 in *.
+ simpl in Hpre.
+ rewrite H8, H9, H10 in Hpre.
+ solve[destruct Hpre; auto].
+clear - Heq Hef H5 H11 H12.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
  inversion 1; auto.
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
 simpl; auto.
-admit.
+exists bytes.
+split; auto.
+rewrite Heq.
+apply Mem.loadbytes_storebytes_same in H12.
+rewrite Zlength_correct.
+assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
+ split.
+ apply Zle_0_nat.
+ unfold fs_read in H11.
+ destruct (get_file fs0 fd); try congruence.
+ destruct (get_fptr fs0 fd); try congruence.
+ unfold read_file in H11.
+ inversion H11.
+ generalize (read_file_aux_length f (nat_of_Z (Int.intval nbytes)) (get_size f) f0);
+  intro H2.
+ apply Zle_lt_trans with (m := Int.intval nbytes).
+ apply inj_le in H2.
+ rewrite nat_of_Z_eq in H2; auto.
+ destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
+ destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
+rewrite Zdiv.Zmod_small; auto.
 (*SYS_WRITE case*)
 right.
 exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
