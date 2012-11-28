@@ -275,63 +275,70 @@ simpl.
 rewrite <-IHnbytes; auto.
 Qed.
 
-(* Lemma loadbytes_read_file_le m b ofs nbytes0 nbytes sz cur: *)
-(*   nbytes0 <= nbytes ->  *)
-(*   Mem.loadbytes m b ofs (Z_of_nat nbytes) = Some (read_file_aux nbytes sz cur) ->  *)
-(*   Mem.loadbytes m b ofs (Z_of_nat nbytes0) = Some (read_file_aux nbytes0 sz cur). *)
-(* Proof. *)
-(* revert ofs cur nbytes0; induction nbytes; simpl; auto. *)
-(* destruct nbytes0; try omega; auto. *)
-(* intros; omegaContradiction. *)
-(* intros ofs cur nbytes0 H1. *)
-(* destruct nbytes0. *)
-(* simpl; intros; apply Mem.loadbytes_empty; omega. *)
-(* if_tac. *)
-(* admit. *)
-(* simpl. *)
-(* if_tac. *)
-(* elimtype False; auto. *)
-(* intros H2. *)
-(* Transparent Mem.loadbytes. *)
-(* unfold Mem.loadbytes in H2. *)
-(* if_tac in H2; try congruence. *)
-(* simpl in H2. *)
-(* rewrite nat_of_P_o_P_of_succ_nat_eq_succ in H2. *)
-(* simpl in H2. *)
-(* inversion H2; subst. *)
-(* spec IHnbytes (ofs+1)%Z (S cur) nbytes0. *)
-(* spec IHnbytes.  *)
-(* omega. *)
-(* assert (H7: Mem.range_perm m b (ofs+1) (ofs+1 + Z_of_nat nbytes) Cur Readable). *)
-(*  unfold Mem.range_perm in H3|-*. *)
-(*  intros ofs'; spec H3 ofs'. *)
-(*  intros [H4 H7]; spec H3.  *)
-(*  split. omega. rewrite Zpos_P_of_succ_nat. omega. *)
-(*  auto. *)
-(* spec IHnbytes. *)
-(* unfold Mem.loadbytes. *)
-(* if_tac; try congruence. *)
-(* f_equal. *)
-(* rewrite nat_of_Z_of_nat. *)
-(* rewrite H6; auto. *)
-(* rewrite Zpos_P_of_succ_nat. *)
-(* unfold Mem.loadbytes in IHnbytes|-*. *)
-(* assert (H8: Mem.range_perm m b ofs (ofs + Zsucc (Z_of_nat nbytes0)) Cur Readable). *)
-(*  unfold Mem.range_perm in H3|-*. *)
-(*  intros ofs'; spec H3 ofs'. *)
-(*  intros [H4 H9]; spec H3.  *)
-(*  split. omega. rewrite Zpos_P_of_succ_nat. omega. *)
-(*  auto. *)
-(* if_tac in IHnbytes. *)
-(* inversion IHnbytes; subst. *)
-(* if_tac; try congruence. *)
-(* rewrite <-inj_S. *)
-(* do 2 rewrite nat_of_Z_of_nat. *)
-(* simpl. *)
-(* f_equal. *)
-(* f_equal; auto. *)
-(* congruence. *)
-(* Qed. *)
+Lemma loadbytes_read_file_le m b ofs nbytes0 nbytes sz cur:
+  nbytes0 <= nbytes ->
+  Mem.loadbytes m b ofs (Z_of_nat nbytes) = Some (read_file_aux nbytes sz cur) ->
+  Mem.loadbytes m b ofs (Z_of_nat nbytes0) = Some (read_file_aux nbytes0 sz cur).
+Proof.
+revert ofs cur nbytes0; induction nbytes; simpl; auto.
+destruct nbytes0; try omega; auto.
+intros; omegaContradiction.
+intros ofs cur nbytes0 H1.
+destruct nbytes0.
+simpl; intros; apply Mem.loadbytes_empty; omega.
+if_tac.
+rewrite H in *.
+Transparent Mem.loadbytes.
+unfold Mem.loadbytes.
+intros H2.
+if_tac in H2; try congruence.
+inv H2.
+rewrite nat_of_P_o_P_of_succ_nat_eq_succ in H4.
+simpl in H4.
+inv H4.
+simpl.
+if_tac.
+elimtype False; auto.
+intros H2.
+unfold Mem.loadbytes in H2.
+if_tac in H2; try congruence.
+simpl in H2.
+rewrite nat_of_P_o_P_of_succ_nat_eq_succ in H2.
+simpl in H2.
+inversion H2; subst.
+spec IHnbytes (ofs+1)%Z (S cur) nbytes0.
+spec IHnbytes.
+omega.
+assert (H7: Mem.range_perm m b (ofs+1) (ofs+1 + Z_of_nat nbytes) Cur Readable).
+ unfold Mem.range_perm in H3|-*.
+ intros ofs'; spec H3 ofs'.
+ intros [H4 H7]; spec H3.
+ split. omega. rewrite Zpos_P_of_succ_nat. omega.
+ auto.
+spec IHnbytes.
+unfold Mem.loadbytes.
+if_tac; try congruence.
+f_equal.
+rewrite nat_of_Z_of_nat.
+rewrite H6; auto.
+rewrite Zpos_P_of_succ_nat.
+unfold Mem.loadbytes in IHnbytes|-*.
+assert (H8: Mem.range_perm m b ofs (ofs + Zsucc (Z_of_nat nbytes0)) Cur Readable).
+ unfold Mem.range_perm in H3|-*.
+ intros ofs'; spec H3 ofs'.
+ intros [H4 H9]; spec H3.
+ split. omega. rewrite Zpos_P_of_succ_nat. omega.
+ auto.
+if_tac in IHnbytes.
+inversion IHnbytes; subst.
+if_tac; try congruence.
+rewrite <-inj_S.
+do 2 rewrite nat_of_Z_of_nat.
+simpl.
+f_equal.
+f_equal; auto.
+congruence.
+Qed.
 
 Definition read_file (nbytes: nat): list memval := read_file_aux nbytes (get_size f) fptr.
 
@@ -555,58 +562,53 @@ Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname)
 
 Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z) m :=
   match ef, fsz, args with
-      SYS_OPEN, (fsys, z), fname0::md0::nil => 
-        match val2oint fname0, val2omode md0 with
-        | Some fname, Some md => 
-          List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
-          get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
-          (~file_exists fsys fname=true -> fwritable md=true) /\
-          ~is_open fsys fname
-        | _, _ => False
-        end
-    | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
-        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
-        | Some fd, Some adr, Some nbytes => 
-          u=adr /\
-          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
-          is_readable fsys fd /\ 
-          Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
-        | _, _, _ => False
-        end
-    | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
-        match val2oint fd0, val2oadr buf, val2oint nbytes0 with
-        | Some fd, Some adr, Some nbytes => 
-          u=adr /\
-          List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
-          is_writable fsys fd /\ 
-          Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
-        | _, _, _ => False
-        end
+  | SYS_OPEN, (fsys, z), fname0::md0::nil => 
+    match val2oint fname0, val2omode md0 with
+    | Some fname, Some md => 
+        List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
+        get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
+        (~file_exists fsys fname=true -> fwritable md=true) /\
+        ~is_open fsys fname
+    | _, _ => False
+    end
+  | SYS_READ, (fsys, z), (fd0::buf::nbytes0::nil) => 
+    match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+    | Some fd, Some adr, Some nbytes => 
+        u=adr /\
+        List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
+        is_readable fsys fd /\ 
+        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
     | _, _, _ => False
+    end
+  | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
+    match val2oint fd0, val2oadr buf, val2oint nbytes0 with
+    | Some fd, Some adr, Some nbytes => 
+        u=adr /\
+        List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
+        is_writable fsys fd /\ 
+        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
+     | _, _, _ => False
+     end
+  | _, _, _ => False
   end.
 
-Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ) retval0 (fsz: fs*Z) (m: mem) :=
+Definition obind {A B: Type} (d: B) (o: option A) (f: A -> B) :=
+  match o with Some a => f a | None => d end.
+
+(*TODO: to make fs_post more precise, we'll have to add more information 
+   to the shared parameter x, i.e., the fd and fptr for file read/written*)
+Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ) 
+                   retval0 (fsz: fs*Z) (m: mem) :=
   match ef, fsz with
-    | SYS_OPEN, (fsys, z) => 
-        match retval0 with
-        | Some retval => match val2oint retval with
-                          | Some fd => is_readable fsys fd
-                          | None => False
-                          end
-        | None => False
-        end
-    | SYS_READ, (fsys, z) => 
-        match retval0 with
-        | Some retval => match val2oint retval with
-                          | Some nbytes => 
-                              exists bytes, 
-                                nbytes=Int.repr (Zlength bytes) /\
-                                Mem.loadbytes m (fst adr) (snd adr) (Int.intval nbytes) = Some bytes
-                          | None => False
-                          end
-        | None => False
-        end
-    | _, (_, _) => True (*TODO*)
+  | SYS_OPEN, (fsys, z) => obind False retval0 (fun retval => 
+      obind False (val2oint retval) (fun fd => is_readable fsys fd))
+  | SYS_READ, (fsys, z) => obind False retval0 (fun retval => 
+      obind False (val2oint retval) (fun nbytes => 
+        exists bytes, 
+          nbytes=Int.repr (Zlength bytes) /\
+          Mem.loadbytes m (fst adr) (snd adr) (Int.intval nbytes) = Some bytes))
+  | SYS_WRITE, (fsys, z) => True
+  | _, _ => True
   end.
 
 Definition Client_FSExtSpec :=
