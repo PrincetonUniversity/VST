@@ -34,8 +34,7 @@ apply set_diff_intro; auto.
 Qed.
 
 (** Linking external specification [Sigma] with an extension implementing
-   functions in [handled] comprises removing the functions in [handled] from
-   the external specification. *)
+   functions in [handled] *)
 
 Definition link_ext_spec (M Z: Type) (handled: list AST.external_function) 
   (Sigma: external_specification M AST.external_function Z) :=
@@ -122,7 +121,7 @@ Definition linkable (M Z Zext: Type) (proj_zext: Z -> Zext)
 
 Module Extension. Section Extension.
  Variables
-  (G: Type) (** global environments *)
+  (G: Type) (** global environments of extended semantics *)
   (xT: Type) (** corestates of extended semantics *)
   (cT: nat -> Type) (** corestates of core semantics *)
   (M: Type) (** memories *)
@@ -513,7 +512,6 @@ Module CompilableSem. Section CompilableSem.
        mem_unchanged_on (loc_out_of_reach f m1) m2 m2' /\
        inject_incr f f' /\
        inject_separated f f' m1 m2),
-   (*other conditions might be required here*)
    Sig.
 
 End CompilableSem.
@@ -606,3 +604,41 @@ Qed.
 End CompilableTrans.
 
 End CompilableSem.
+
+Definition genv2blocks {F V: Type} (g: Genv.t F V) := 
+  map snd (PTree.elements (Genv.genv_symb g)).
+
+Record CompilableCoreSem {F V C D} := {
+  coresem:> CoreSemantics (Genv.t F V) C mem D;
+  compilable: CompilableSem.Sig (fun bs m m' => exists ge, exists q, exists q',
+      genv2blocks ge=bs /\ corestep coresem ge q m q' m')
+}.
+
+Implicit Arguments CompilableCoreSem [].
+
+(** * Compilable Extensions *)
+
+Module CompilableExtension. Section CompilableExtension.
+ Variables
+  (F V: Type) (** global environments *)
+  (xT: Type) (** corestates of extended semantics *)
+  (cT: nat -> Type) (** corestates of core semantics *)
+  (D: Type) (** initialization data *)
+  (Z: Type) (** external states *)
+  (Zint: Type) (** portion of Z implemented by extension *)
+  (Zext: Type) (** portion of Z external to extension *)
+
+  (esem: CompilableCoreSem F V xT D) (** extended semantics *)
+  (csem: forall i:nat, option (CompilableCoreSem F V (cT i) D)) (** a set of core semantics *)
+
+  (csig: ext_sig mem Z) (** client signature *)
+  (esig: ext_sig mem Zext) (** extension signature *)
+  (handled: list AST.external_function). (** functions handled by this extension *)
+
+Definition cast_csem: forall i:nat, option (CoreSemantics (Genv.t F V) (cT i) mem D) :=
+  fun i => match csem i with Some CS => Some (coresem CS) | None => None end.
+
+Record Sig := Make { E:> Extension.Sig cT Zint esem cast_csem csig esig handled }.
+
+End CompilableExtension. End CompilableExtension.
+  

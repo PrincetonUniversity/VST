@@ -63,7 +63,10 @@ Record CoreSemantics {G C M D:Type}: Type :=
     corestep ge q m q' m' -> safely_halted ge q = None;
 
   at_external_halted_excl: forall ge q, 
-    at_external q = None \/ safely_halted ge q = None
+    at_external q = None \/ safely_halted ge q = None;
+
+   after_at_external_excl : forall retv q q',
+    after_external retv q = Some q' -> at_external q' = None
   }.
 Implicit Arguments CoreSemantics [].
 

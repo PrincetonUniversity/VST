@@ -147,9 +147,7 @@ Section FSExtension.
 Variables 
   (Z cT D: Type) 
   (csem: CoreSemantics genv cT mem D)
-  (init_world: Z)
-  (after_at_external_excl: forall c ret c',
-    after_external csem ret c = Some c' -> at_external csem c' = None).
+  (init_world: Z).
 
 Definition cores := fun _:nat => Some csem.
 
@@ -535,7 +533,7 @@ Program Definition FSCoreSem := Build_CoreSemantics genv xT mem D
   os_after_external
   os_safely_halted
   os_step
-  _ _ _.
+  _ _ _ _.
 Next Obligation.
 case_eq (at_external csem (get_core q)).
 2: unfold os_at_external; intros H1; rewrite H1; auto.
@@ -556,6 +554,17 @@ Qed.
 Next Obligation.
 edestruct (at_external_halted_excl csem); eauto.
 left; unfold os_at_external; rewrite H; auto.
+Qed.
+Next Obligation.
+unfold os_after_external in H|-*.
+case_eq (after_external csem retv (get_core q)).
+intros c H1.
+rewrite H1 in H.
+inv H.
+apply after_at_external_excl in H1.
+unfold os_at_external.
+simpl; rewrite H1; auto.
+intros H1; rewrite H1 in H; congruence.
 Qed.
 
 Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
@@ -765,8 +774,8 @@ Definition Client_FSExtSig: ext_sig mem (fs*Z) := mkextsig handled Client_FSExtS
 
 Variable (at_external_handled: forall c ef args sig,
     at_external csem c = Some (ef, sig, args) -> IN ef Client_FSExtSig = true).
-Variable (at_after_external_excl: forall rv c c',
-  after_external csem rv c = Some c' -> at_external csem c' = None).
+(*Variable (at_after_external_excl: forall rv c c',
+  after_external csem rv c = Some c' -> at_external csem c' = None).*)
 Variable FSExtSig: ext_sig Memory.mem Z.
 Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
 
@@ -1453,7 +1462,7 @@ elimtype False.
 destruct H2 as [H2 H13].
 unfold proj_core in H13.
 if_tac in H13; try congruence.
-apply at_after_external_excl in H9.
+apply (after_at_external_excl csem) in H9.
 unfold cores in H2.
 inv H2.
 rewrite H9 in H12.
@@ -1554,7 +1563,7 @@ elimtype False.
 destruct H as [H13 H14].
 unfold proj_core in H14.
 if_tac in H14; try congruence.
-apply at_after_external_excl in H2.
+apply after_at_external_excl in H2.
 unfold cores in H13.
 inversion H13.
 rewrite <-H16 in *.
@@ -1625,7 +1634,7 @@ elimtype False.
 destruct H as [H13 H14].
 unfold proj_core in H14.
 if_tac in H14; try congruence.
-apply at_after_external_excl in H2.
+apply after_at_external_excl in H2.
 unfold cores in H13.
 inversion H13.
 rewrite <-H16 in *.
@@ -1724,7 +1733,7 @@ elimtype False.
 destruct H2 as [H2 H13].
 unfold proj_core in H13.
 if_tac in H13; try congruence.
-apply at_after_external_excl in H9.
+apply after_at_external_excl in H9.
 unfold cores in H2.
 inv H2.
 rewrite H9 in H12.

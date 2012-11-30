@@ -288,6 +288,16 @@ Proof.
   simpl; auto.
 Qed.
 
+Lemma cl_after_at_external_excl : 
+  forall retv q q', cl_after_external retv q = Some q' -> cl_at_external q' = None.
+Proof.
+intros until q'; intros H.
+unfold cl_after_external in H.
+destruct retv; destruct q; try congruence.
+destruct lid; try congruence; inv H; auto.
+destruct lid; try congruence; inv H; auto.
+Qed.
+
 Program Definition cl_core_sem : 
   CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globvar type)) :=
   @Build_CoreSemantics _ _ _ _
@@ -298,7 +308,8 @@ Program Definition cl_core_sem :
     cl_safely_halted
     cl_step
     cl_corestep_not_at_external 
-    cl_corestep_not_halted _.
+    cl_corestep_not_halted _
+    cl_after_at_external_excl.
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2, 
     cl_step ge q m q1 m1 -> 
