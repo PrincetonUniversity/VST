@@ -179,11 +179,8 @@ Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (f
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
-(fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
- (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
-  (PTree.empty (type * bool)) func.(fn_temps)) func.(fn_params),
-fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
-   (PTree.empty type) func.(fn_vars) ,
+(make_tycontext_t (fn_params func) (fn_temps func),
+make_tycontext_v (fn_vars func) ,
 fn_return func,
  glob_types Delta).
 

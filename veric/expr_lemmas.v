@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
 Require Import veric.Address.
@@ -215,11 +216,13 @@ destruct Delta. destruct p. destruct p.
 unfold temp_types in *. simpl in *.
 remember (t2 ! i). destruct o.
   symmetry in Heqo.  
-  destruct p. specialize (H1 i _ b Heqo). simpl in *.
+  destruct p. specialize (H1 i b _  Heqo). simpl in *.
   rewrite eqb_type_eq in *. destruct H1 as [? [? ?]].
   rewrite H. if_tac in H0; simpl in *; try solve [inv H0].
-  destruct (type_eq t t4); try solve [inv H0]. subst; auto.
-  if_tac in H0; inv H0.
+  destruct (type_eq t t4); try solve [inv H0]. subst; auto. simpl in *. 
+  if_tac in H0; inv H0. destruct H1; simpl in *; try congruence. 
+  simpl in *. destruct H2. rewrite H in H0. inv H0. auto. 
+  if_tac in H0; intuition. 
 
 (*deref*)  
 simpl in *. unfold lift2 in *. intuition. specialize (H3 pt).
@@ -660,18 +663,19 @@ inv Heqo. destruct H3; auto. auto.
 apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 (t1, b1)).
 intuition. inv H2. congruence.
 Qed.
-
+ 
 Lemma temp_types_same_type : forall id i t b Delta,
 (temp_types Delta) ! id = Some (t, b) ->
 exists b0 : bool,
-  (temp_types (initialized i Delta)) ! id = Some (t, b0).
+  (temp_types (initialized i Delta)) ! id = Some (t, b || b0).
 Proof.
 intros.
 unfold initialized.
 remember ((temp_types Delta) ! i). destruct o.
 destruct p. unfold temp_types in *. simpl. rewrite PTree.gsspec.
-if_tac. subst. rewrite H in *. inv Heqo. eauto. eauto.
-eauto.
+if_tac. subst. rewrite H in *. inv Heqo. exists true.   rewrite orb_true_r. 
+eauto. exists false.   rewrite orb_false_r. eauto. exists false. rewrite orb_false_r. 
+auto. 
 Qed.
 
 Lemma temp_types_update_dist : forall d1 d2 ,
@@ -710,42 +714,49 @@ Lemma glob_types_update_tycon:
   forall c Delta, glob_types (update_tycon Delta c) = glob_types Delta.
 Admitted. 
 
-
+Ltac try_false :=
+try  solve[exists false; rewrite orb_false_r; eauto]. 
+ 
 Lemma update_tycon_te_same : forall c Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
-exists b, (temp_types (update_tycon Delta c)) ! id = Some (t, b)
+exists b2, (temp_types (update_tycon Delta c)) ! id = Some (t,b || b2)
 
 with update_labeled_te_same : forall ls Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
-exists b, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b) .
-destruct c; intros; simpl; eauto. simpl. eapply temp_types_same_type; eauto.
+exists b2, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b || b2) .
+destruct c; intros; simpl; try_false. 
+
+simpl. eapply temp_types_same_type; eauto.
 
 simpl. destruct o; eauto. simpl. eapply temp_types_same_type; eauto.
-
+try_false; eauto. 
 
 assert (forall (c : statement) (Delta : tycontext)
                          (id : positive) (t : type) (b : bool),
                        (temp_types Delta) ! id = Some (t, b) ->
-                       exists b0 : bool,
+                       exists b2 : bool,
                          (temp_types (update_tycon Delta c)) ! id =
-                         Some (t, b0)) by auto.
+                         Some (t, b || b2)) by auto.
 edestruct update_tycon_te_same. apply H.
-specialize (update_tycon_te_same c2 _ _ _ _ H1). eauto.
+specialize (update_tycon_te_same c2 _ _ _ _ H1).
+destruct (update_tycon_te_same). exists (x || x0). rewrite orb_assoc. eauto. 
+
 
 simpl. rewrite temp_types_update_dist.
 
 edestruct (update_tycon_te_same c1). apply H.
 edestruct (update_tycon_te_same c2). apply H. 
 erewrite join_te_eqv;
-eauto. 
+eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
+eauto. eauto. (*these are the problem if it won't qed*)
 
 intros. destruct ls. simpl. eauto.
 simpl. rewrite temp_types_update_dist.
 edestruct update_tycon_te_same. apply H.
 edestruct update_labeled_te_same. apply H.
-erewrite join_te_eqv. eauto.
-apply H0.
-apply H1.
+exists (x && x0).  
+erewrite join_te_eqv. rewrite <- orb_andb_distrib_r. auto. 
+eauto. eauto.
 Qed.
 
 
@@ -760,45 +771,53 @@ Proof.
 intros. unfold tc_te_denote in *.
 destruct c; intros; simpl in *; try solve[eapply H; apply H0].
 
-destruct (eq_dec id i). subst. eapply H; auto.
+destruct (eq_dec id i). subst.
+destruct (H i true ty). unfold initialized. rewrite H0. 
+unfold temp_types. simpl. rewrite PTree.gsspec. rewrite peq_true. 
+auto. destruct H1. destruct H2. inv H2. exists x. auto. 
+apply H. 
 unfold initialized.
-remember ((temp_types Delta) ! i). destruct o. destruct p.
-unfold temp_types. simpl. inv H0. 
-rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
-eapply H. unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto.
 
 destruct o.
-destruct (eq_dec id i). subst. eapply H; auto.
+destruct (eq_dec id i). subst. destruct (H i true ty).
 unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. inv H0. 
 rewrite PTree.gsspec. rewrite peq_true. eauto. congruence.
+destruct H1. destruct H2. inv H2. eauto. 
 eapply H. unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto. eauto.
 
+
 destruct (update_tycon_te_same c1 _ _ _ _ H0).
 destruct (update_tycon_te_same c2 _ _ _ _ H1).
-eapply H. apply H2. 
+edestruct H. apply H2. destruct H3. exists x1. 
+split. apply H3. destruct b. auto. auto. 
+
 
 destruct (update_tycon_te_same c1 _ _ _ _ H0).
 destruct (update_tycon_te_same c2 _ _ _ _ H0).
- eapply H. unfold join_tycon. remember (update_tycon Delta c1).
+specialize (H id ((b || x) && (b || x0)) ty ).  
+spec H.  
+ unfold join_tycon. remember (update_tycon Delta c1).
 destruct t. destruct p. destruct p. remember (update_tycon Delta c2).
 destruct t3. destruct p. destruct p. unfold temp_types in *.
-unfold update_tycon. simpl in *.
+unfold update_tycon. simpl in *. 
 
-apply join_te_eqv; eauto.    
+apply join_te_eqv; eauto.    destruct b; auto. simpl in *.
+destruct H. exists x1. split. destruct H. auto. left. auto. 
 
 destruct (update_tycon_te_same c _ _ _ _ H0). 
-eapply H. apply H1. 
- 
-edestruct update_labeled_te_same. apply H0.
-eapply H. apply H1.
+edestruct H. apply H1. exists x0. destruct H2. destruct b; auto.
+
+edestruct (update_labeled_te_same l Delta id).  apply H0. 
+edestruct H. apply H1.  
+destruct H2. exists x0. destruct b; auto. 
 
 intros. destruct l; simpl in *.
 destruct (update_tycon_te_same s _ _ _ _ H).
@@ -1059,4 +1078,166 @@ unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
 unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
 unfold lift1, denote_tc_iszero in H6; rewrite H99 in *; contradiction.
 Qed.
+
+
+Definition func_tycontext_t_denote :=
+forall p t id ty b,  list_norepet (map fst p ++ map fst t ) ->   
+((make_tycontext_t p t) ! id = Some (ty,b) <-> (In (id,ty) p /\ b=true) \/ (In (id,ty) t /\ b=false)). 
+
+Definition func_tycontext_v_denote :=
+forall v id ty, list_norepet (map fst v) ->
+((make_tycontext_v v) ! id = Some ty <-> In (id,ty) v). 
+
+Lemma func_tycontext_v_sound : func_tycontext_v_denote. 
+unfold func_tycontext_v_denote. intros. 
+split; intros; induction v. simpl in *. 
+rewrite PTree.gempty in *. congruence. 
+
+simpl in *. destruct a. inv H. rewrite PTree.gsspec in *. if_tac in H0. 
+inv H0. auto. intuition. 
+
+inv H0.
+
+simpl in *. destruct a. simpl in *. rewrite PTree.gsspec. destruct H0. 
+inv H0. if_tac. auto. intuition. inv H. if_tac. subst. 
+clear - H0 H3. rewrite in_map_iff in *. destruct H3. exists (i,ty). auto. 
+apply IHv; auto. 
+Qed. 
+ 
+
+Lemma set_inside : forall i0 t1 t p id, 
+list_disjoint (map fst p) (i0 :: map fst t) ->
+(fold_right
+          (fun param : ident * type =>
+           PTree.set (fst param) (snd param, true))
+          (PTree.set i0 (t1, false)
+             (fold_right
+                (fun (temp : ident * type) (tenv : PTree.t (type * bool)) =>
+                 let (id, ty) := temp in PTree.set id (ty, false) tenv)
+                (PTree.empty (type * bool)) t)) p) ! id = 
+(PTree.set i0 (t1, false) (
+(fold_right
+          (fun param : ident * type =>
+           PTree.set (fst param) (snd param, true))
+                (fold_right
+                (fun (temp : ident * type) (tenv : PTree.t (type * bool)) =>
+                 let (id, ty) := temp in PTree.set id (ty, false) tenv)
+                (PTree.empty (type * bool)) t)) p)) ! id       
+. 
+Proof.
+intros.
+induction t.  
+  simpl in *. rewrite PTree.gsspec. 
+  if_tac. 
+    subst. 
+    induction p. 
+      simpl in *. rewrite PTree.gsspec. rewrite peq_true. auto.
+
+      simpl in *. rewrite PTree.gsspec. if_tac. subst.
+      clear - H. unfold list_disjoint in *. specialize (H (fst a) (fst a)). 
+      intuition. apply IHp. unfold list_disjoint in *. intros. 
+      apply H; simpl in *; auto.
+
+    induction p. 
+       simpl in *. rewrite PTree.gsspec. if_tac. intuition.
+       auto. 
+
+       simpl in *.  repeat rewrite PTree.gsspec in *. destruct a.
+       simpl in *. if_tac. auto. rewrite IHp.  auto. unfold list_disjoint in *. 
+       intros. apply H; simpl in *; auto. 
+
+  simpl in *. rewrite PTree.gsspec in *. if_tac. 
+    subst. 
+    induction p. 
+      simpl in *. rewrite PTree.gsspec in *. rewrite peq_true in *.
+      auto.
+
+      simpl in *. rewrite PTree.gsspec in *. destruct a0. simpl in *. 
+      if_tac. subst. clear - H. specialize (H p0 p0). intuition.  apply IHp. 
+      unfold list_disjoint in *. intros. apply H; simpl in *; auto. 
+      intros. apply IHt. unfold list_disjoint in *. intros; simpl in *; apply H;      auto.
+      auto. auto. intuition.  
+
+    destruct a. simpl in *. induction p. 
+      simpl in *. rewrite PTree.gsspec. if_tac; subst. intuition.
+      repeat rewrite PTree.gsspec. auto.  
+
+      simpl in *. destruct a. simpl in *. 
+      spec IHt. unfold list_disjoint in *. intros; apply H; simpl in *; auto. 
+      intuition. 
+      repeat rewrite PTree.gsspec in *. if_tac.
+        subst.  auto. 
+
+        apply IHp. unfold list_disjoint in *.   intros. apply H. simpl in *. 
+        auto.  auto. intros. auto. 
+       
+Qed.   
+
+Lemma func_tycontext_t_sound : func_tycontext_t_denote. 
+unfold func_tycontext_t_denote.
+split; intros;
+  unfold make_tycontext_t in *; 
+  apply list_norepet_app in H; destruct H as [? [? ?]]. 
+  induction t; induction p; simpl in *. 
+
+    rewrite PTree.gempty in *; congruence. 
+
+    left. destruct a; simpl in *. rewrite PTree.gsspec in *. if_tac in H0. 
+    inv H0. auto.
+    inv H.  destruct IHp; auto. unfold list_disjoint.  intros. inv H4. 
+    destruct H. subst. auto. intuition.  
+
+    right. destruct a. simpl in *. rewrite PTree.gsspec in *. 
+    if_tac in H0. subst. inv H0. auto. destruct IHt. inv H1; auto. 
+    unfold list_disjoint in *. intros. inv H4. auto. intuition. intuition. 
+
+
+    simpl in *. rewrite PTree.gsspec in *. if_tac in H0. destruct a0. simpl in *.
+    subst. inv H0. intuition. destruct a0. simpl in *.  destruct a. simpl in *. 
+    destruct IHp. inv H; auto. intro; intros. apply H2; simpl in *; auto. 
+    auto. intros. destruct IHt. inv H1; auto. intro; intros; apply H2; simpl in *; auto.
+    auto. destruct H7. destruct H7. inv H7. intuition. auto. auto. left. 
+    split. right. apply H4. apply H4. right. auto. 
+
+
+  induction t; induction p; simpl in *. 
+    
+    intuition. 
+
+    rewrite PTree.gsspec. if_tac. subst. destruct a. simpl in *. 
+    destruct H0. destruct H0. destruct H0. inv H0. auto. subst. 
+    clear - H H0. inv H. rewrite in_map_iff in *. destruct H3.
+    exists (i,ty). auto. inv H0. inv H3. destruct H0. destruct H0. 
+    destruct a. destruct H0. subst. inv H0. intuition.
+
+    simpl in *. apply IHp. inv H; auto. intro. intros. inv H6. left.
+    subst. auto. destruct H0. inv H0. destruct H0. destruct H0. destruct H0. 
+    destruct H0. destruct H0. destruct a. simpl in *. inv H0; subst. 
+    rewrite PTree.gsspec. rewrite peq_true. auto. subst. 
+    destruct a. simpl in *. rewrite PTree.gsspec. if_tac. 
+    subst. clear -H0 H1. inv H1. rewrite in_map_iff in *. 
+    destruct H3. exists (i,ty); auto. apply IHt. inv H1; auto. 
+    intro; auto. right. auto. 
+   
+    spec IHt. inv H1; auto.  spec IHt. intro; intros; apply H2; simpl in *; auto.
+    spec IHp.  inv H; auto. spec IHp. intro; intros; apply H2; simpl in *; auto. 
+    destruct a. destruct a0. destruct H0. simpl in *.
+    destruct H0. destruct H0. inv H0.  
+    rewrite PTree.gsspec in *. rewrite peq_true. auto. subst. 
+    rewrite PTree.gsspec in *. if_tac. subst. inv H. rewrite in_map_iff in H5. 
+    destruct H5. exists (i0,ty); auto. spec IHp. auto. spec IHp; auto. 
+    
+    
+    simpl in *. rewrite PTree.gsspec. if_tac. subst. destruct H0. destruct H0.
+    inv H0. specialize (H2 i0 i0). destruct H2; simpl; auto. subst. 
+    spec IHt. auto. rewrite PTree.gsspec in *. rewrite peq_true in *. auto. 
+    
+    destruct H0. destruct H0. inv H0. spec IHp. auto. 
+    spec IHp; auto. intros; auto. destruct H5. destruct H5; congruence. destruct H5. 
+    clear - H5 H1. inv H1. destruct H2. apply in_map_iff. exists (id, ty). auto. subst.
+    spec IHp. auto. spec IHp; auto. spec IHt; auto. rewrite PTree.gsspec in *.
+    if_tac in IHt. intuition. intros. auto. 
+
+Qed. 
+
  

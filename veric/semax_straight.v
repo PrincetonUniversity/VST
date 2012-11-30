@@ -272,7 +272,7 @@ forall (Delta: tycontext) sh id P e1 v2,
     typecheck_temp_id id (typeof e1) Delta = true ->
     semax Hspec Delta 
        (fun rho => |>
-        (tc_lvalue Delta e1 rho  && !!(typecheck_val (v2 rho) (typeof e1) = true)  &&
+        (tc_lvalue Delta e1 rho  && !! (typecheck_val (v2 rho) (typeof e1) = true)  &&
           (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id e1)
        (normal_ret_assert (fun rho => 

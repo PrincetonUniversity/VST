@@ -28,7 +28,7 @@ Program Definition kind_at (k: kind) (l: address) : pred rmap :=
  Next Obligation.
    try intro; intros.
    destruct H0 as [rsh [sh [pp ?]]].
-   generalize (eq_sym _ _ _ (resource_at_approx a l)); intro.
+   generalize (@eq_sym _ _ _ (resource_at_approx a l)); intro.
    generalize (age1_resource_at a a'  H l (a@l) H1); intro.
    rewrite H0 in H2. simpl in H2. eauto.
  Qed.

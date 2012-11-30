@@ -1,3 +1,4 @@
+Load loadpath. 
 Require Import veric.base.
 Require Import msl.normalize.
 Require Import veric.Address.
@@ -281,6 +282,106 @@ simpl. destruct a0. remember (split l). destruct p. simpl.  unfold lift2 in *.
   simpl. rewrite <- Heqp. simpl. auto. eauto.  
 Qed. 
 
+Lemma pass_params_ni :
+  forall  l2
+     (te' : temp_env) (id : positive) te l,
+   bind_parameter_temps l2
+     l
+     (te) = 
+   Some te' ->
+   (In id (map fst l2) -> False) ->
+   Map.get (make_tenv te') id = te ! id.  
+Proof.
+intros. simpl in *.  generalize dependent l. revert te. 
+revert te'. 
+induction(l2); intros; simpl in *. 
+destruct l.  inv H. 
+unfold make_tenv.  unfold Map.get. auto.
+congruence.
+
+simpl in *. destruct a. 
+destruct l.
+congruence. 
+simpl in *. 
+remember (bind_parameter_temps l2 l te). destruct o. inv H.
+intuition. symmetry in Heqo. 
+specialize (H0 _ _ _ Heqo).  rewrite <- H0.  
+unfold Map.get. unfold make_tenv. rewrite PTree.gso; auto. 
+congruence.
+
+Qed. 
+
+Lemma smaller_temps_exists : forall l l1 l2 te id i,
+bind_parameter_temps l l1 (PTree.set id Vundef (create_undef_temps l2)) = Some te ->
+i <> id -> 
+exists te', (bind_parameter_temps l l1 (create_undef_temps l2) = Some te' /\ te' ! i = te ! i). 
+Proof. 
+intros. 
+generalize dependent l1. 
+revert l2 te.
+induction l; intros. 
+simpl in *. destruct l1; auto. inv H. eexists. split. auto. 
+rewrite PTree.gso; auto. congruence. 
+
+simpl in *. destruct a. destruct l1. congruence. simpl in *.
+remember (bind_parameter_temps l l1
+          (PTree.set id Vundef (create_undef_temps l2))). 
+destruct o. 
+edestruct IHl. eauto. destruct H1. rewrite H1. eexists. split. eauto. 
+inv H. 
+repeat rewrite PTree.gsspec. if_tac. auto. auto. congruence. 
+Qed.
+
+
+Lemma alloc_vars_lookup : 
+forall id m1 l ve m2 e ,
+list_norepet (map fst l) ->
+(forall i, In i (map fst l) -> e ! i = None) ->
+Csem.alloc_variables (e) m1 l ve m2 ->
+(exists v, e ! id = Some v) -> 
+ve ! id = e ! id. 
+Proof.
+intros. 
+generalize dependent e.  
+revert ve m1 m2.
+
+induction l; intros. 
+inv H1. auto. 
+
+inv H1. simpl in *. inv H. 
+destruct H2.  
+assert (id <> id0).  
+intro. subst.  specialize (H0 id0). spec H0. auto. congruence. 
+eapply IHl in H10.  
+rewrite PTree.gso in H10; auto. 
+auto. intros. rewrite PTree.gsspec. if_tac. subst. intuition.
+apply H0. auto. 
+rewrite PTree.gso; auto. eauto. 
+Qed. 
+
+Lemma alloc_vars_lemma : forall id l m1 m2 ve ve'
+(SD : forall i, In i (map fst l) -> ve ! i = None),
+list_norepet (map fst l) ->
+
+Csem.alloc_variables ve m1 l ve' m2 ->
+(In id (map fst l) ->
+exists v, ve' ! id = Some v).
+Proof.
+intros. 
+generalize dependent ve.
+revert m1 m2. 
+induction l; intros. inv H1. 
+simpl in *. destruct a; simpl in *.
+destruct H1. subst. inv H0. inv H.  apply alloc_vars_lookup with (id := id) in H9; auto. 
+rewrite H9. rewrite PTree.gss. eauto. intros. 
+destruct (eq_dec i id). subst. intuition. rewrite PTree.gso; auto. 
+rewrite PTree.gss; eauto. 
+
+inv H0. apply IHl in H10; auto. inv H; auto. 
+intros. rewrite PTree.gsspec. if_tac. subst. inv H. intuition.
+auto. 
+Qed. 
+
 Lemma semax_call_aux:
  forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
@@ -447,7 +548,7 @@ apply step_return with (zap_fn_return f) None v (PTree.set i v tx); simpl; auto.
 elimtype False.
 clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
 destruct TC5. rewrite H0 in H28 by auto.
-clear - H28. destruct v; simpl in *; congruence. (* typechecking proof, works when typecheck as void disabled*)
+clear - H28. destruct v; simpl in *; congruence. 
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -462,22 +563,10 @@ exists  jm'.
 split.
 split; auto.
 eapply step_call_internal with (vargs:=eval_exprlist (snd (split (fst fsig))) bl rho); eauto. 
-(*3: unfold type_of_function; reflexivity.*) 
-(* admit.*) (*I think this case (almost exactly, perhaps requiring H18) might need to be added
-to fun_assert*)
- (*
-unfold classify_fun. generalize dependent a. generalize dependent b.
-unfold type_of_params. simpl in TC1. apply typecheck_expr_sound in TC1; auto.
-rewrite H3 in TC1. simpl in TC1. remember (typeof a). destruct t; try congruence
-simpl. 
-generalize dependent a.
-remember(typeof a). destruct t; simpl in *; auto. 
-unfold classify_fun. Print fun_case_f.
-admit. (* typechecking proof *)*)
 rewrite <- H3.  
 eapply eval_expr_relate; try solve[rewrite H0; auto]; eauto. 
 destruct (fsig). unfold fn_funsig in *. inv H18. 
-eapply exprlist_eval; eauto.  (* typechecking proof, make a lemma for this one *)
+eapply exprlist_eval; eauto. 
 unfold type_of_function. destruct fsig; inv H18; auto. 
 
 assert (n >= level jm')%nat.
@@ -495,8 +584,150 @@ spec H19; [clear H19|].
 split; [split|]; auto. Focus 3. 
 unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
 simpl ge_of in H23. auto. 
-hnf. unfold func_tycontext.
-admit. (* typechecking proof *)
+hnf. unfold func_tycontext'.
+unfold construct_rho.  
+clear - H0 TC2 TC3 H18 H16 H21 H15 H23 H17 H17'. 
+unfold rho3 in *. simpl in *. destruct H23. 
+destruct rho. inv H0. simpl in *. 
+remember (split (fn_params f)). destruct p.
+assert (TE := TC3). 
+ apply typecheck_environ_sound in TC3.
+destruct TC3 as [TC3 [TC4 TC5]]. 
+simpl in *. if_tac in H16; try congruence. clear H0. 
+
+unfold typecheck_environ. repeat rewrite andb_true_iff. 
+repeat split. clear H H1 H15. rewrite typecheck_te_eqv. 
+unfold tc_te_denote. intros. simpl. 
+unfold func_tycontext' in *. 
+unfold temp_types in *. simpl in *.
+apply func_tycontext_t_sound in H; auto.
+ clear - H21 H TC2 TC3 Heqp H17 TE. 
+
+destruct H. (*in params*)
+destruct H. subst.
+generalize dependent (fn_temps f). 
+generalize dependent l. generalize dependent l0.
+generalize dependent bl. generalize dependent te'. 
+induction (fn_params f); intros.  inv H. simpl in *.
+destruct a. simpl in *. remember (split l). destruct p. 
+simpl in *. destruct H. clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.   
+inv H. inv Heqp. simpl in *. unfold lift2 in *. 
+destruct TC2 as [[? ?] ?]. 
+remember (bind_parameter_temps l
+         (eval_exprlist l4 bl
+            (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
+         (create_undef_temps l2)). 
+destruct o; try congruence. inv H21. 
+unfold Map.get, make_tenv. rewrite PTree.gss. unfold cast_exp.  
+exists (force_val
+          (sem_cast
+             (eval_expr e
+                (mkEnviron (filter_genv psi) (make_venv vx)
+                   (fun id0 : positive => tx ! id0))) 
+             (typeof e) ty)). 
+split.
+auto. right. eapply typecheck_val_eval_cast with (Delta := Delta). 
+apply TE. 
+auto. auto. inv Heqp. 
+destruct bl.  inv TC2. 
+inv H17.
+simpl in *.  unfold lift2 in *. destruct TC2 as [[? ?] ? ].
+remember (bind_parameter_temps l
+            (eval_exprlist l4 bl
+               (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
+            (create_undef_temps l2)). 
+destruct o. inv H21. unfold Map.get. unfold make_tenv at 1. 
+assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
+apply in_map with (f := fst) in H. apply H. rewrite PTree.gso; auto. 
+edestruct IHl; eauto. congruence. 
+
+(*In temps*)
+destruct H. subst.
+apply list_norepet_app in H17. destruct H17 as [? [? ?]]. 
+generalize dependent (fn_params f). generalize dependent bl.
+generalize dependent l0. generalize dependent l. generalize dependent te'.  
+
+induction (fn_temps f); intros.  
+inv H. 
+
+simpl in *. destruct H. destruct a. inv H. simpl in *. 
+clear IHl. exists Vundef. simpl in *. split; auto. inv H1.  
+assert (In id (map fst (l2)) -> False). 
+intros. 
+unfold list_disjoint in *. eapply H2. eauto. left. auto. auto.
+eapply pass_params_ni with (id := id) in H21; auto.  rewrite PTree.gss in *. auto. 
+
+
+destruct a. 
+destruct (eq_dec id i). subst. 
+apply pass_params_ni with (id := i) in H21. 
+rewrite PTree.gss in *. exists  Vundef. auto.
+intros. unfold list_disjoint in *. intuition. 
+eapply H2. eauto. left. auto. auto. 
+
+apply smaller_temps_exists with (i := id) in H21.
+destruct H21.  destruct H3. 
+eapply IHl in H3; auto. 
+destruct H3. destruct H3.
+exists x0. split. unfold Map.get in *. 
+unfold make_tenv in *. rewrite <- H4. auto. auto.
+inv H1; auto. unfold list_disjoint in *. intros.
+apply H2. auto. right. auto. apply Heqp. auto. 
+
+rewrite typecheck_ve_eqv. 
+unfold tc_ve_denote. intros. 
+
+
+
+clear TC3 TC5. 
+simpl in *. unfold tc_ve_denote in *.
+unfold func_tycontext' in *. unfold var_types in *. 
+simpl in *. apply func_tycontext_v_sound in H0; auto.  
+generalize dependent (m_dry jm).
+assert (forall id, In id (map fst (fn_vars f)) -> empty_env ! id = None). 
+intros. rewrite PTree.gempty; auto. 
+generalize dependent empty_env. 
+induction (fn_vars f); intros. inversion H15. subst.   
+inv H0. 
+
+simpl in H0. 
+destruct H0. destruct a. inv H0. 
+inv H15.  apply alloc_vars_lookup with (id := id) in H10. 
+unfold Map.get. unfold make_venv. rewrite H10. 
+rewrite PTree.gss. eauto. inv H17'; auto. 
+intros. inv H17'. rewrite PTree.gsspec. if_tac.
+subst. intuition.  
+apply H2. simpl in *. auto. 
+rewrite PTree.gss; eauto. 
+
+inv H17'; inv H15. 
+apply IHl1 in H12. destruct H12. 
+exists x. auto. auto. auto. intros. 
+simpl in *. rewrite PTree.gso. apply H2; auto. 
+intro. subst. intuition. 
+
+unfold ge_of in *. simpl in *. 
+rewrite <- typecheck_ge_eqv in TC5. auto.
+
+unfold all_var_ids. simpl in *. 
+unfold typecheck_environ in *. rewrite andb_true_iff in TE. 
+destruct TE as [_ TE]. 
+rewrite typecheck_mode_eqv in *. 
+unfold tc_mode_denote in *. intros. simpl in *. 
+specialize (TE id t H0). 
+unfold make_venv.
+unfold func_tycontext'. unfold var_types. simpl in *.
+assert (empty_env ! id = None). rewrite PTree.gempty. auto. 
+generalize dependent empty_env.  generalize dependent (m_dry jm). 
+induction (fn_vars f); intros. inversion H15.  subst. left. 
+auto.
+simpl in *. destruct a. inv H15. 
+rewrite PTree.gsspec. if_tac. eauto.
+
+apply IHl1 in H11. destruct H11. auto. right. 
+congruence. 
+inv H17'. auto. rewrite PTree.gso; auto. 
+
 normalize.
 split; auto. unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23. 
 simpl ge_of in H23. auto. 
@@ -748,8 +979,8 @@ econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
 exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
 split.
-
-admit.  (* typechecking proof *)
+apply eval_expr_relate with (Delta := Delta); auto.
+admit.  (* typechecking proof, only works if e (ret) typechecks*)
 admit.  (* typechecking proof, but this will be difficult because I think there's not enough
                  information to know that f is really the same as the function that Delta assumes *)
 inv H9.

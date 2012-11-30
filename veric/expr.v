@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
 Require Import veric.Address.
@@ -302,7 +303,7 @@ Inductive tc_assert :=
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
 | tc_nodivover: expr -> expr -> tc_assert
-| tc_initialized: PTree.elt -> tc_assert.
+| tc_initialized: PTree.elt -> type -> tc_assert.
 
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
@@ -432,7 +433,7 @@ match e with
  | Etempvar id ty => if negb (type_is_volatile ty) then
                        match (temp_types Delta)!id with 
                          | Some ty' => if eqb_type ty (fst ty') then 
-                                         if (snd ty') then tc_TT else (tc_initialized id)
+                                         if (snd ty') then tc_TT else (tc_initialized id ty)
                                        else tc_FF
 		         | None => tc_FF
                        end
@@ -537,7 +538,7 @@ end.
 Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : Map.t val) : bool :=
 match tty with 
  | (id,(ty, asn))::tl => match Map.get te id with
-                  | Some v => if typecheck_val v ty (*&& asn*) then typecheck_temp_environ tl te else false
+                  | Some v => if orb (negb asn) (typecheck_val v ty) then typecheck_temp_environ tl te else false
                   | None => false
                   end
  | nil => true
@@ -643,7 +644,8 @@ match v1, v2 with
                            | _ , _ => False
                           end.
 
-Definition denote_tc_initialized id rho := exists v, Map.get (te_of rho) id = Some v.
+Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id = Some v
+                                            /\ is_true (typecheck_val v ty).
 
 Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   match a with
@@ -658,7 +660,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_Zge e z => lift1 (denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => lift2 denote_tc_samebase (eval_expr e1) (eval_expr e2)
   | tc_nodivover e1 e2 => lift2 denote_tc_nodivover (eval_expr e1) (eval_expr e2)
-  | tc_initialized id => denote_tc_initialized id
+  | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero e => lift1 denote_tc_iszero (eval_expr e)
   end.
 
@@ -775,19 +777,26 @@ end.*)
 
 Definition varspecs : Type := list (ident * type).
 
+Definition make_tycontext_t (params: list (ident*type)) (temps : list(ident*type)) :=
+fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
+ (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
+  (PTree.empty (type * bool)) temps) params.
+
+Definition make_tycontext_v (vars : list (ident * type)) :=
+ fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
+   (PTree.empty type) vars. 
+
+Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
+(fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) 
+      (fold_right (fun (v: ident * type) => PTree.set (fst v) (Global_var (snd v)))
+         (PTree.empty _) V)
+            G). 
+
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
                        (V: varspecs) (G: funspecs) :  tycontext :=
-(fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
- (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
-  (PTree.empty (type * bool)) temps) params,
-fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
-   (PTree.empty type) vars ,
-   return_ty,
-  (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) 
-      (fold_right (fun (v: ident * type) => PTree.set (fst v) (Global_var (snd v)))
-         (PTree.empty _) V)
-            G)).
+(make_tycontext_t params temps, (make_tycontext_v vars), return_ty,
+   make_tycontext_g V G). 
 
 Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) : tycontext :=
   make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.

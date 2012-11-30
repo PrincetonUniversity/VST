@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
 Require Import veric.Address.
@@ -10,7 +11,7 @@ Require Import veric.expr.
 (*Environment typechecking soundness statements*)
 
 Definition tc_te_denote (te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id ty b, tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ typecheck_val v ty = true). 
+forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ (typecheck_val v ty) = true)). 
 
 Definition tc_ve_denote (ve: venviron) (tc: PTree.t type) :=
 forall id ty, tc ! id = Some (ty) ->
@@ -184,8 +185,9 @@ destruct H1.
 
 simpl in *. destruct a. destruct p0.
 remember (Map.get te p). destruct o; try solve [inv H].
-remember (typecheck_val v t0). destruct b1; try congruence.
-destruct H1; [ inv H1 | ]; eauto. 
+remember (typecheck_val v t0). destruct b0; 
+destruct b1; simpl in *; try congruence; 
+(destruct H1; [ inv H1 | ]; eauto).  
 
 intros. unfold tc_te_denote in *. 
 assert (forall t1 id, In (id,t1) (PTree.elements t) -> t ! id = Some t1).
@@ -196,11 +198,12 @@ simpl in *.
 assert (forall (t1 : type * bool) (id : positive),
      In (id, t1) (a :: l) -> t ! id = Some t1) by auto.
 destruct a. destruct p0.
-specialize (H0 (t0, b) p). spec H0; auto. 
-specialize (H p t0 b). spec H; auto. destruct H.
-destruct H. rewrite H. rewrite H2. apply IHl. intros.
-simpl in H1. specialize (H1 t1 id). intuition.
-
+specialize (H0 (t0, b) p). spec H0; auto.
+specialize (H p b t0). 
+destruct H. auto. 
+destruct H. rewrite H. destruct H2; rewrite H2. apply IHl. intros.
+simpl in H1. specialize (H1 t1 id). intuition. 
+destruct b; simpl in *; auto. 
 Qed.
 
 
@@ -223,8 +226,8 @@ Qed.
 
 
 Lemma join_te_denote : forall te1 te2 id b t1,
-(join_te te1 te2) ! id = Some (t1,b) ->
-(exists b1, te1 ! id = Some (t1, orb b b1)) /\ (exists b2, te2 ! id = Some (t1, orb b b2)).
+(join_te te1 te2) ! id = Some (t1, b) ->
+(exists b1, te1 ! id = Some (t1, b || b1)) /\ (exists b2, te2 ! id = Some (t1,b || b2)).
 Proof.
 intros.
  
@@ -242,23 +245,13 @@ rewrite PTree.gempty in *. congruence.
 simpl in *. destruct a. destruct p0. simpl in *.
 remember (te2 ! p). destruct o. destruct p0.
 destruct (eq_dec t t0). subst. rewrite PTree.gsspec in *.
-destruct (peq id p). subst. specialize (H0 (t0,b0)). inv H.
+if_tac in H. subst. specialize (H0 (t0,b0)). inv H. spec H0; auto. 
 
-remember (andb b0 b1). destruct b. symmetry in Heqb. 
-rewrite andb_true_iff in *. destruct Heqb; subst. 
-split; exists false; intuition; eauto.
-
-symmetry in Heqb.
-rewrite andb_false_iff in *. destruct Heqb; subst. intuition; eauto.
-
-intuition; eauto.
-
-apply IHl; eauto.
-
-apply IHl; eauto.
-apply IHl; eauto.
-Qed.
-
+remember (andb b0 b1). destruct b. symmetry in Heqb. rewrite andb_true_iff in *. 
+destruct Heqb. subst. split; exists false; auto. 
+ symmetry in Heqb. rewrite andb_false_iff in Heqb. 
+destruct Heqb; subst; eauto. auto. auto. auto. 
+Qed. 
 
 Lemma same_env_ignores_t_ret : forall e0 e1 e2 e3 e4 e5 rho,
 same_env rho (e1,e2,e3,e4) (all_var_ids (e1,e2,e3,e4)) =
@@ -289,8 +282,9 @@ rewrite  typecheck_te_eqv in *.
 unfold tc_te_denote in *. intros. unfold temp_types in *.
 destruct Delta2. destruct p. destruct p. simpl in *. destruct Delta1.
 destruct p. destruct p. simpl in *. apply join_te_denote in H2.
-destruct H2. destruct H2. destruct H3. 
-eapply H1. eauto.  
+destruct H2. destruct H2. destruct H3.
+edestruct H1. eauto. destruct H4. destruct H5. 
+destruct b; intuition. simpl in *. eauto. eauto. 
 unfold join_tycon. destruct Delta2. 
 destruct p. destruct p. destruct Delta1. destruct p. destruct p.
 unfold join_te. unfold var_types in *.  simpl in *. subst. auto. 
@@ -317,8 +311,8 @@ rewrite  typecheck_te_eqv in *. clear H4 H5.
 unfold tc_te_denote in *. intros. unfold temp_types in *.
 destruct Delta2. destruct p. destruct p. simpl in *. destruct Delta1.
 destruct p. destruct p. simpl in *. apply join_te_denote in H1.
-destruct H1. destruct H1. destruct H4. 
-eauto. 
+destruct H1. destruct H1. destruct H4.
+edestruct H2; eauto.  destruct H5. destruct H6; destruct b; eauto. 
 unfold join_tycon. destruct Delta2. 
 destruct p. destruct p. destruct Delta1. destruct p. destruct p.
 unfold join_te. unfold var_types in *.  simpl in *. subst. auto. 
@@ -332,17 +326,30 @@ simpl in *. subst.  erewrite same_env_ignores_t_ret. eauto.
 
 Qed.
 
+
+
 Lemma typecheck_val_ptr_lemma:
-   forall rho Delta id t a init,
+   forall rho Delta id t a,
    typecheck_environ rho Delta = true ->
-   (temp_types Delta) ! id =  Some (Tpointer t a, init) ->
+   denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho ->
+   (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
 Proof. 
-intros. unfold bool_val in *. unfold typecheck_val.
+intros. unfold strict_bool_val in *. unfold typecheck_val.
+simpl in H0. if_tac in H0; simpl in *; intuition.
+remember ((temp_types Delta) ! id). destruct o; simpl in *; intuition.
+destruct p. simpl in *.  destruct t0; intuition. 
 unfold eval_id. destruct rho.  apply typecheck_environ_sound in H.
 destruct H as [? _]. unfold tc_te_denote in *.
-edestruct H; eauto. destruct H2.  simpl.  rewrite H2. destruct x; simpl in *; congruence.
+edestruct H; eauto. destruct H2.  simpl.  rewrite H2.
+destruct H3.
+destruct b; simpl in *; try congruence.
+rewrite andb_if in H0. remember (eqb_type t t0). repeat (if_tac in H0; intuition). 
+simpl in H0. unfold denote_tc_initialized in *. destruct H0. 
+destruct H0. simpl in H0.  rewrite H0 in H2. inv H2. 
+destruct x; simpl in *; try congruence. 
+destruct x; simpl in *; try congruence. 
 Qed. 
 
 
@@ -357,7 +364,9 @@ intuition. clear H2 H3. destruct Delta. destruct p.
 destruct p. unfold temp_types in *; simpl in *.
 rewrite typecheck_te_eqv in *. unfold tc_te_denote in *.
 intros. edestruct H1; eauto. destruct H2. rewrite Map.gsspec.
-if_tac. subst. exists v; intuition. specialize (H0 (ty, b)). apply H0. auto. 
+if_tac. subst. exists v; intuition. specialize (H0 (ty,b)). 
+simpl in *. right. 
+apply H0. auto. 
 
 simpl in *. exists x. intuition.
 
@@ -386,7 +395,10 @@ destruct Delta. destruct p. destruct p.  unfold initialized. unfold temp_types i
 clear H2 H3 H4 H5 H6 H7. simpl in *. 
 rewrite typecheck_te_eqv in *. unfold tc_te_denote in *. intros. remember (t1 ! id).
 destruct o; try congruence; auto. destruct p. simpl in *. rewrite PTree.gsspec in *.
-if_tac in H2. inv H2. eauto. eauto. eauto.
+if_tac in H2. inv H2. edestruct H1; eauto. destruct H2. destruct H3; eauto. exists v.
+split. rewrite Map.gsspec in *. unfold ident_eq in *. rewrite peq_true in *. auto. 
+specialize (H0 (ty, b0)). right.  apply H0. auto. 
+eauto.
 
 
 unfold var_types in *. destruct Delta. destruct p. destruct p. simpl in *.
