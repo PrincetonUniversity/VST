@@ -2,6 +2,7 @@ Load loadpath.
 Require Import msl.predicates_hered.
 Require Import veric.sim veric.step_lemmas veric.base veric.expr veric.extspec 
                veric.juicy_extspec.
+Require Import compcert.Events2.
 Require Import ListSet.
 
 Set Implicit Arguments.
@@ -138,13 +139,13 @@ Module Extension. Section Extension.
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Record Sig := Make {
- (** generalized projection of core [i] from state [s] *)
+ (** Generalized projection of core [i] from state [s] *)
    proj_core : forall i:nat, xT -> option (cT i);
    core_exists : forall ge i s c' m s' m', 
      corestep esem ge s m s' m' -> proj_core i s' = Some c' -> 
      exists c, proj_core i s = Some c;
    
- (** the active (i.e., currently scheduled) core *)
+ (** The active (i.e., currently scheduled) core *)
    active : xT -> nat;
    active_csem : forall s, exists CS, csem (active s) = Some CS;
    active_proj_core : forall s, exists c, proj_core (active s) s = Some c;
@@ -410,3 +411,198 @@ Record Sig := Make {extension_sound: safety_interpolant E -> safe_extension E}.
 
 End EXTENSION_SOUNDNESS. End EXTENSION_SOUNDNESS.
 
+(* Here we begin to develop a notion of compilable extension *)
+
+Lemma mem_unchanged_on_trans: 
+  forall P m m'' m',
+  mem_unchanged_on P m m'' -> 
+  mem_unchanged_on P m'' m' -> 
+  mem_unchanged_on P m m'.
+Proof.
+intros until m'; intros [H1 H2] [H3 H4].
+split.
+intros b ofs k p H5 H6 H7.
+specialize (H1 _ _ _ _ H5 H6 H7).
+eapply H3; eauto.
+eapply Mem.perm_valid_block; eauto.
+intros until v; intros H5 H6 H7.
+specialize (H2 _ _ _ _ H5 H6 H7).
+eapply H4; eauto.
+apply Mem.load_valid_access in H2.
+apply Mem.valid_access_implies with (p2 := Nonempty) in H2.
+eapply Mem.valid_access_valid_block; eauto.
+econstructor; eauto.
+Qed.
+
+Lemma mem_unchanged_on_weaken:
+  forall (P P': block -> Z -> Prop) m m',
+  (forall b ofs, P' b ofs -> P b ofs) -> 
+  mem_unchanged_on P m m' -> 
+  mem_unchanged_on P' m m'.
+Proof.
+intros until m'; intros H1 [H2 H3].
+split.
+intros until p; intros H4 H5 H6.
+solve[apply (H2 _ _ _ _ H4 (H1 _ _ H5) H6)].
+intros until v; intros H4 H5 H6.
+eapply H3; eauto.
+Qed.
+
+(*This is an [F,V]-independent definition of meminj_preserves_globals*)
+Definition meminj_preserves_globals (globals: list block) f :=
+  (forall b, In b globals -> f b = Some (b, 0)) /\
+  (forall b1 b2 delta, In b2 globals -> f b1 = Some (b2, delta) -> b1=b2).
+
+Lemma meminj_preserves_globals_incr: 
+  forall globals f f' m1 m2,
+  inject_incr f f' -> 
+  inject_separated f f' m1 m2 -> 
+  Mem.inject f m1 m2 -> 
+  meminj_preserves_globals globals f -> 
+  meminj_preserves_globals globals f'.
+Proof.
+intros until m2; intros H1 SEP INJ [H2 H3].
+split.
+intros b H4.
+specialize (H2 _ H4).
+solve[eapply H1; eauto].
+intros until delta; intros H4 H5.
+specialize (H3 b1 b2 delta H4).
+case_eq (f b1).
+intros [b' ofs'] H6.
+specialize (H1 _ _ _ H6).
+rewrite H1 in H5; inv H5.
+apply H3; auto.
+intros H6.
+unfold inject_separated in SEP.
+destruct (SEP _ _ _ H6 H5) as [H7 H8].
+specialize (H2 _ H4).
+elimtype False.
+apply H8.
+apply (Mem.valid_block_inject_2 _ m1 _ _ _ _ H2); auto.
+Qed.
+
+Module CompilableSem. Section CompilableSem.
+ Variables (F V: Type).
+ Variable (sem: list block -> mem -> mem -> Prop).
+
+ Inductive Sig: Type := Make: forall 
+   (PERM: forall ge m1 m1' b ofs p,
+     sem ge m1 m1' ->      
+     Mem.valid_block m1 b -> 
+     Mem.perm m1' b ofs Max p -> Mem.perm m1 b ofs Max p)
+   (VALID: forall ge m1 m1' b, 
+     sem ge m1 m1' -> 
+     Mem.valid_block m1 b -> Mem.valid_block m1' b)
+   (EXTENSIBLE: forall ge m1 m1' f m2,
+     meminj_preserves_globals ge f ->
+     sem ge m1 m1' -> 
+     Mem.extends m1 m2 ->
+     exists m2',
+       sem ge m2 m2' /\
+       Mem.extends m1' m2' /\
+       mem_unchanged_on (loc_out_of_bounds m1) m2 m2')
+   (INJECTIBLE: forall ge m1 m1' f m2,
+     meminj_preserves_globals ge f ->
+     sem ge m1 m1' -> 
+     Mem.inject f m1 m2 ->
+     exists f', exists m2',
+       sem ge m2 m2' /\
+       Mem.inject f' m1' m2' /\
+       mem_unchanged_on (loc_unmapped f) m1 m1' /\
+       mem_unchanged_on (loc_out_of_reach f m1) m2 m2' /\
+       inject_incr f f' /\
+       inject_separated f f' m1 m2),
+   (*other conditions might be required here*)
+   Sig.
+
+End CompilableSem.
+
+Section CompilableTrans.
+Variables (sem1 sem2: list block -> mem -> mem -> Prop).
+
+Definition sem12 ge m1 m3 := exists m2, sem1 ge m1 m2 /\ sem2 ge m2 m3.
+
+Lemma compilable_trans: Sig sem1 -> Sig sem2 -> Sig sem12.
+Proof.
+intros H1 H2;
+destruct H1 as [PERM1 VALID1 EXT1 INJ1]; 
+destruct H2 as [PERM2 VALID2 EXT2 INJ2].
+constructor.
+(*PERM*)
+clear -VALID1 VALID2 PERM1 PERM2.
+intros until p; intros H1 H2.
+destruct H1 as [m1'' [SEM1 SEM2]]; eauto.
+(*VALID*)
+clear -VALID1 VALID2 PERM1 PERM2.
+intros until b; intros H1 H2.
+destruct H1 as [m1'' [SEM1 SEM2]]; eauto.
+(*EXTENSIBLE*)
+intros until m2; intros H1 H2 H3.
+destruct H2 as [m1'' [SEM1 SEM2]].
+exploit EXT1; eauto; intros [m2'' [H4 [H5 H6]]].
+exploit EXT2; eauto; intros [m2' [H7 [H8 H9]]].
+exists m2'; split. 
+exists m2''; split; auto.
+split; auto.
+generalize (@mem_unchanged_outofbounds_trans _ _ _ _ m2' 
+ H3 H5 H6); intro H10.
+spec H10; eauto.
+(*INJECTIBLE*)
+intros until m2; intros H1 H2 H3.
+destruct H2 as [m1'' [SEM1 SEM2]].
+exploit INJ1; eauto; intros [f'' [m2'' [H4 [H5 [H6 [H7 [H8 H9]]]]]]].
+exploit (INJ2 ge m1'' m1' f''); eauto.
+assert (GLOB_INCR: meminj_preserves_globals ge f'').
+ solve[eapply meminj_preserves_globals_incr; eauto].
+eapply GLOB_INCR; eauto.
+intros [f' [m2' [H10 [H11 [H12 [H13 [H14 H15]]]]]]].
+assert (MEMINJ_COMP: 
+ forall f f' m1 m2 m3,
+   Mem.inject f m1 m2 -> Mem.inject f' m2 m3 -> 
+   Mem.inject (compose_meminj f f') m1 m3).
+ solve[intros; eapply Mem.inject_compose; eauto].
+assert (TRANS: forall P m m'' m',
+  mem_unchanged_on P m m'' -> 
+  mem_unchanged_on P m'' m' -> 
+  mem_unchanged_on P m m').
+ intros; eapply mem_unchanged_on_trans; eauto.
+assert (WEAKEN: forall (P P': block -> Z -> Prop) m m',
+  (forall b ofs, P' b ofs -> P b ofs) -> 
+  mem_unchanged_on P m m' -> 
+  mem_unchanged_on P' m m').
+ intros; eapply mem_unchanged_on_weaken; eauto.
+exists f'; exists m2'; split.
+exists m2''; split; auto.
+split; auto.
+split; auto.
+eapply mem_unchanged_unmapped_trans; eauto.
+split; auto.
+apply mem_unchanged_outofreach_trans
+ with (m2 := m1'') (m2' := m2'') (f2 := f''); auto.
+intros; eapply VALID1; eauto.
+intros.
+eapply PERM1; eauto.
+split; auto.
+eapply inject_incr_trans; eauto.
+clear - SEM1 SEM2 H4 H10 H8 H9 H14 H15 VALID1 VALID2.
+unfold inject_separated in H9, H15|-*.
+intros until delta; intros H1 H2.
+case_eq (f'' b1).
+intros [b1' ofs1'] H3.
+rewrite (H14 _ _ _ H3) in H2.
+inv H2.
+eapply H9; eauto.
+intros H3.
+specialize (H15 _ _ _ H3 H2).
+destruct H15.
+split; intro.
+apply H.
+eapply VALID1; eauto.
+apply H0.
+eapply VALID1; eauto.
+Qed.
+
+End CompilableTrans.
+
+End CompilableSem.

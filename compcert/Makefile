@@ -9,7 +9,7 @@ COQDEP=coqdep -I .
 COQDOC=coqdoc
 
 FILES = \
-  AST.v Determinism.v Events.v Memdata.v Memtype.v Switch.v \
+  AST.v Determinism.v Events.v Events2.v Memdata.v Memtype.v Switch.v \
   Behaviors.v Errors.v Globalenvs.v Memory.v Smallstep.v Values.v \
   Integers.v Floats.v Fappli_IEEE.v Fappli_IEEE_bits.v  \
   Fcore.v Fcore_defs.v Fcore_digits.v Fcore_FIX.v Fcore_float_prop.v \
