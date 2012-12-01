@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.SeparationLogic.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
@@ -73,13 +74,13 @@ Qed.
 
 Lemma field_mapsto_nonnull:  forall t fld sh x y, 
      field_mapsto sh t fld x y = 
-               !! (bool_val x (Tpointer t noattr) = Some true) && field_mapsto sh t fld x y.
+               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_mapsto sh t fld x y.
 Proof.
 intros.
 apply pred_ext; normalize.
 apply andp_right; auto.
 unfold field_mapsto.
-unfold bool_val.
+unfold Cop.bool_val.
 destruct x; normalize.
 Qed.
 

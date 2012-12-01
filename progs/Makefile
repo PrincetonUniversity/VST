@@ -1,11 +1,11 @@
-COQFLAGS= -dont-load-proofs -I . -I ..  -R . progs
+COQFLAGS= -dont-load-proofs -R . progs
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES= \
-  list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward.v test1.v verif1.v
+  loadpath.v list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward.v test1.v verif1.v
 
 
 target: proof

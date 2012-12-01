@@ -1,7 +1,8 @@
-list.vo list.glob: list.v field_mapsto.vo
-client_lemmas.vo client_lemmas.glob: client_lemmas.v
-assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v
-field_mapsto.vo field_mapsto.glob: field_mapsto.v
-forward.vo forward.glob: forward.v client_lemmas.vo field_mapsto.vo assert_lemmas.vo
-test1.vo test1.glob: test1.v
-verif1.vo verif1.glob: verif1.v field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo list.vo test1.vo
+loadpath.vo loadpath.glob: loadpath.v
+list.vo list.glob: list.v loadpath.v field_mapsto.vo
+client_lemmas.vo client_lemmas.glob: client_lemmas.v loadpath.v
+assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v loadpath.v
+field_mapsto.vo field_mapsto.glob: field_mapsto.v loadpath.v
+forward.vo forward.glob: forward.v loadpath.v client_lemmas.vo field_mapsto.vo assert_lemmas.vo
+test1.vo test1.glob: test1.v loadpath.v
+verif1.vo verif1.glob: verif1.v loadpath.v field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo list.vo test1.vo

@@ -1,6 +1,7 @@
+Load loadpath.
 Require Import msl.Coqlib2.
 Require Import veric.SeparationLogic.
-Require Import compcert.Ctypes.
+Require Import Ctypes.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 Require Import progs.field_mapsto.
@@ -334,6 +335,14 @@ eapply tc_eval_id_i; eauto.
 unfold retval; normalize.
 Qed.
 
+Lemma cast_redundant:
+  forall e t, cast_exp (Ecast e t) t = cast_exp e t.
+Proof. intros. extensionality rho; unfold cast_exp; simpl.
+unfold lift1. unfold expr.eval_cast.
+f_equal.
+forget (eval_expr e rho) as v.
+forget (typeof e) as t0.
+Admitted.
 
 Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
 Proof.
@@ -344,28 +353,37 @@ replace (main_pre P.prog u) with
            (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
               (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)) (lift0 nullval))
  by admit. (* must improve global var specifications *)
-normalize.
+normalize.    
 forward.
 go_lower. unfold F,x.
 instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
 instantiate (1:=nil).
 normalize.
-go_lower. unfold x. apply andp_right.
-apply prop_right. hnf. simpl. repeat split; hnf; auto.
-simpl. normalize.
+match goal with |- ilseg _ ?A _ |-- ilseg _ ?B _ => assert (A=B) end.
+unfold cast_exp, eval_cast; simpl.
+unfold lift1.
+destruct  (eval_var P.i_three (Tarray P.t_list 3 noattr) rho); simpl; auto.
+rewrite H; auto.
+go_lower.
+rewrite cast_redundant.
+apply andp_right; auto.
+apply prop_right.
+compute; intuition.
 unfold x,F in *; clear x F.
 apply extract_exists_pre; normalize.
-
 forward.
 go_lower. 
 unfold x,F.
 instantiate (2:= (Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)).
 instantiate (1:=nil).
 normalize.
+admit.
 go_lower.
 repeat apply andp_right; try apply prop_right.
 repeat split; simpl; hnf; auto.
-normalize.
+match goal with |- ilseg _ ?A _ |-- ilseg _ ?B _ => assert (A=B) end.
+admit.
+rewrite <- H2; auto.
 apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.
@@ -377,6 +395,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct P.prog) Gprog.
 Proof.
 unfold Gprog, P.prog.
+unfold prog_funct; simpl prog_defs.
 apply semax_func_cons; [ reflexivity | apply body_sumlist | ].
 apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].

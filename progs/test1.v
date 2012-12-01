@@ -1,3 +1,4 @@
+Load loadpath.
 (* 
 #include <stddef.h>
 
@@ -40,7 +41,8 @@ int main (void) {
 }
 *)
 Require Import veric.base.
-Require Import compcert.Maps.
+Require Import Maps.
+Import Cop.
 
 Section idents.
 Local Open Scope positive_scope.
@@ -127,10 +129,11 @@ Definition f_main: function :=
                           (Etempvar i_r t_listptr::nil)) 
      (Sreturn (Some (Etempvar i_s t_int))))).
 
-Definition b_three : block := 1.
-Definition b_sumlist : block := -1.
-Definition b_reverse : block := -2.
-Definition b_main    : block := -3.
+
+Definition b_sumlist : block := 1.
+Definition b_reverse : block := 2.
+Definition b_main    : block := 3.
+Definition b_three : block := 4.
 
 Definition g_symb : PTree.t block :=
  set i_three b_three
@@ -158,49 +161,45 @@ Definition g_vars: ZMap.t (option (globvar type)) :=
  zet b_three gv_three 
    (ZMap.init None).
 
-Definition g_nextfun : block := -4.
-Definition g_nextvar : block := 2.
+Definition g_next : block := 5.
 
 Definition prog : program :=
-  mkprogram ((i_sumlist, Internal f_sumlist)::(i_reverse, Internal f_reverse)
-                            ::(i_main, Internal f_main)::nil)
-                      i_main 
-                      ((i_three, gv_three)::nil).
+  mkprogram ((i_sumlist, Gfun (Internal f_sumlist))::(i_reverse, Gfun (Internal f_reverse))
+                            ::(i_main, Gfun (Internal f_main))
+                            ::(i_three, Gvar gv_three)::nil)
+                      i_main.
 
 Definition ge : Genv.t fundef type.
- refine (@Genv.mkgenv _ _ g_symb g_funs g_vars g_nextfun g_nextvar
+ refine (@Genv.mkgenv _ _ g_symb g_funs g_vars g_next
                _ _ _ _ _ _).
-unfold g_nextfun; omega.
-unfold g_nextvar; omega.
-unfold g_nextfun, g_nextvar, g_symb, set; intros.
+unfold g_next; omega.
+unfold g_next, g_symb, set; intros.
 repeat rewrite PTree.gsspec in H.
 repeat if_tac in H; 
 try rewrite PTree.gempty in H;
-inv H; try match goal with |- ?A <> _ /\ _  =>
-          unfold A
-         end; split; try omega; congruence.
-unfold g_funs, zet,  g_nextfun; intros.
+inv H; split; match goal with |- ?A < ?B  =>
+          try unfold A; try unfold B; omega
+          end.
+unfold g_funs, zet,  g_next; intros.
 repeat rewrite ZMap.gsspec in H.
 repeat if_tac in H; 
 try rewrite ZMap.gi in H;
 inv H; try match goal with |- _ < ?A < _ =>
           unfold A
          end; omega.
-unfold g_vars, zet,  g_nextvar; intros.
+unfold g_vars, zet,  g_next; intros.
 repeat rewrite ZMap.gsspec in H.
 repeat if_tac in H; 
 try rewrite ZMap.gi in H;
 inv H; try match goal with |- _ < ?A < _ =>
           unfold A
          end; omega.
+unfold g_funs, g_vars, zet; intros; intro; subst b2.
+repeat rewrite ZMap.gsspec in *; repeat rewrite ZMap.gi in *; repeat if_tac in H; repeat if_tac in H0;
+  inv H; inv H0; match goal with H: _ = _ |- _ => inv H end.
 unfold g_symb, set; intros.
-repeat rewrite PTree.gsspec in H,H0.
-unfold i_three, i_sumlist, i_reverse, i_main in *.
-repeat if_tac in H; 
-try (rewrite PTree.gempty in H; inv H);
-repeat if_tac in H0; 
-try (rewrite PTree.gempty in H0; inv H0);
-inv H; inv H0; try congruence.
+repeat rewrite PTree.gsspec in *; repeat rewrite PTree.gempty in *;
+ repeat if_tac in H; repeat if_tac in H0; inv H; inv H0; auto.
 Defined.
 
 

@@ -1,6 +1,6 @@
+Load loadpath.
 Require Import msl.Coqlib2.
 Require Import veric.SeparationLogic.
-Require Import compcert.Ctypes.
 Require Import progs.field_mapsto.
 
 Local Open Scope logic.

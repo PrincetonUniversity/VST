@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.SeparationLogic.
 Require veric.SequentialClight.
 
@@ -41,13 +42,13 @@ Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B)
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho).
 Lemma bool_val_int_eq_e: 
-  forall i j, bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
+  forall i j, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
 Proof.
  intros.
- apply Clight_lemmas.of_bool_Int_eq_e'.
- forget (Val.of_bool (Int.eq i j)) as v.
- destruct v; simpl in *; try discriminate; auto.
- inv H. intro. subst. rewrite Int.eq_true in H1. inv H1.
+ revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
+ pose proof (Int.eq_spec i j).
+ revert H H0; case_eq (Int.eq i j); intros; auto.
+ simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
 Qed.
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
@@ -125,7 +126,6 @@ Fixpoint temp_free_in (id: ident) (e: expr) :=
  | Eunop _ e1 _ => temp_free_in id e1
  | Ebinop _ e1 e2 _ => orb (temp_free_in id e1) (temp_free_in id e2) 
  | Ecast e1 _ => temp_free_in id e1
- | Econdition e0 e1 e2 _ => orb (temp_free_in id e0) (orb (temp_free_in id e1) (temp_free_in id e2)) 
  | Efield e1 _ _ => temp_free_in id e1
 end.
 
@@ -190,7 +190,7 @@ Definition nullval : val := Vint Int.zero.
 Lemma bool_val_notbool_ptr:
     forall v t,
    match t with Tpointer _ _ => True | _ => False end ->
-   (bool_val (force_val (sem_notbool v t)) type_bool = Some true) = (v = nullval).
+   (Cop.bool_val (force_val (Cop.sem_notbool v t)) type_bool = Some true) = (v = nullval).
 Proof.
  intros.
  destruct t; try contradiction. clear H.
@@ -339,8 +339,9 @@ intros.
 unfold tc_environ in H.
 destruct rho; apply environ_lemmas.typecheck_environ_sound in H.
 destruct H as [? _].
-destruct (H i t true H0) as [v [? ?]].
+destruct (H i true t H0) as [v [? ?]].
 unfold eval_id. simpl. rewrite H1. simpl; auto.
+destruct H2. inv H2. auto.
 Qed.
 
 Lemma local_lift0_True:     local (lift0 True) = TT.

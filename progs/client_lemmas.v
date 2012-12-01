@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.SeparationLogic.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
