@@ -10,6 +10,7 @@ Require Import veric.expr.
 Require Export veric.environ_lemmas. 
 Require Import veric.binop_lemmas.
 Require Import veric.binop_lemmas2. 
+Import Cop.
 
 (*Definitions of some environments*)
 Definition mkEnviron' (ge: Clight.genv) (ve: venviron) (te: tenviron) :=
@@ -60,9 +61,7 @@ Qed.
 
 
 Lemma classify_add_int_cases_both : forall i1 s1 a1 i2 s2 a2,
-exists s3,
-classify_add (Tint i1 s1 a1) (Tint i2 s2 a2) 
-= add_case_ii s3.
+exists s3, classify_add (Tint i1 s1 a1) (Tint i2 s2 a2)  = add_case_ii s3.
 Proof.
 intros; destruct i1; destruct s1; destruct i2; destruct s2; eexists;  
 unfold classify_add; simpl; eauto.
@@ -284,10 +283,6 @@ unfold sem_cast, classify_cast, cast_float_int,
 simpl in H3; hnf in H3; simpl; rewrite <- Heqv in *; auto |
 destruct i0; destruct s; simpl in *; auto; hnf in H3; try rewrite <- Heqv in *; try contradiction]. 
 
-
-(*condition*)
-admit. (*condition not used*)
-
 (*EField*)
 simpl in *. unfold lift2,eval_field,eval_struct_field,lift1 in *; intuition. 
 specialize  (H3 pt). intuition. remember rho.
@@ -387,10 +382,10 @@ denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
 denote_tc_assert (typecheck_expr Delta e1) rho ->
 None =
 sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
-  (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
-Clight_sem.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
+  (typeof e2) Mem.empty ->
+Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
 Proof. 
 intros. assert (TC1 := typecheck_expr_sound _ _ _ H H1).
 assert (TC2 := typecheck_expr_sound _ _ _ H H3).
@@ -423,11 +418,11 @@ Lemma eval_both_relate:
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ rho Delta = true ->
            (denote_tc_assert (typecheck_expr Delta e) rho ->
-             Clight_sem.eval_expr ge ve te m e  (eval_expr e rho))
+             Clight.eval_expr ge ve te m e  (eval_expr e rho))
            /\
            (denote_tc_assert (typecheck_lvalue Delta e) rho ->
              exists b, exists ofs, 
-              Clight_sem.eval_lvalue ge ve te m e b ofs /\
+              Clight.eval_lvalue ge ve te m e b ofs /\
               eval_lvalue e rho = Vptr b ofs).
 Proof. 
 intros. generalize dependent ge. induction e; intros;
@@ -473,7 +468,7 @@ destruct H4. simpl in Heqo0. rewrite H4 in *. inv Heqo0. exists x. exists x0. sp
 unfold construct_rho in *. inv H. simpl in Heqo. clear H1. 
 remember (filter_genv ge). symmetry in Heqg0. 
 assert (ZO := filter_genv_zero_ofs _ _ _ _ _ Heqg0 _ H4).  subst.
-apply Clight_sem.eval_Evar_global. auto.  unfold filter_genv in H4.
+apply Clight.eval_Evar_global. auto.  unfold filter_genv in H4.
 destruct (Genv.find_symbol ge i). destruct (type_of_global ge b); inv H4; auto. 
 congruence.  
 
@@ -517,7 +512,7 @@ intuition. rewrite H8 in *. constructor. inv H1. auto.
 (*unop*)
 simpl in *. unfold lift1,lift2,eval_unop in *. intuition. unfold force_val. 
 remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
-destruct o. eapply Clight_sem.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
+destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
 destruct u. simpl in *. remember (typeof e); destruct t0; try inv H2;
 try destruct i;try destruct s; try inv H2; simpl in *; destruct t; intuition;
@@ -537,8 +532,8 @@ simpl in *; inv Heqo.
 (*binop*)
 simpl in *. unfold lift2,eval_binop in *; intuition. unfold force_val.
 remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
-(typeof e2) (fun (_ : block) (_ : Z) => false)).
-destruct o. eapply Clight_sem.eval_Ebinop. eapply IHe1; eauto.
+(typeof e2) Mem.empty).
+destruct o. eapply Clight.eval_Ebinop. eapply IHe1; eauto.
 eapply IHe2. apply H. apply H3. auto. apply typecheck_expr_sound in H3; auto.
 rewrite Heqo.
 
@@ -551,12 +546,10 @@ eapply eval_binop_relate_fail; eauto.
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 simpl in *; unfold lift2,lift1,eval_cast in *; intuition.
 unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
-destruct o. eapply Clight_sem.eval_Ecast. eapply IHe. auto. apply H2. auto.
+destruct o. eapply Clight.eval_Ecast. eapply IHe. auto. apply H2. auto.
 
 
 specialize (IHe ge). intuition.
-
-admit. (*no cond*)
 
 (*Field*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
@@ -569,16 +562,16 @@ remember (field_offset i f) as r.
 destruct r; intuition.
  destruct v; intuition. simpl in *. exists b. exists (Int.add ofs (Int.repr z)). 
 intuition. inv H8.
- eapply Clight_sem.eval_Efield_struct; auto.
-eapply Clight_sem.eval_Elvalue in H7. apply H7.
-rewrite <- Heqt0. auto. apply Csem.deref_loc_copy. rewrite <- Heqt0.  auto.
+ eapply Clight.eval_Efield_struct; auto.
+eapply Clight.eval_Elvalue in H7. apply H7.
+rewrite <- Heqt0. auto. apply Clight.deref_loc_copy. simpl; auto.
 rewrite <- Heqt0; reflexivity. auto.
 inv H8; auto.
 subst v.
 exists b, ofs. rewrite H8. simpl. split; auto.
-eapply Clight_sem.eval_Efield_union; eauto.
-eapply Clight_sem.eval_Elvalue; eauto.
-rewrite <- Heqt0. auto. rewrite <- Heqt0. apply Csem.deref_loc_copy.
+eapply Clight.eval_Efield_union; eauto.
+eapply Clight.eval_Elvalue; eauto.
+rewrite <- Heqt0. apply Clight.deref_loc_copy.
 auto. 
 Qed. 
 
@@ -587,7 +580,7 @@ Lemma eval_expr_relate:
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ rho Delta = true ->
            (denote_tc_assert (typecheck_expr Delta e) rho ->
-             Clight_sem.eval_expr ge ve te m e  (eval_expr e rho)).
+             Clight.eval_expr ge ve te m e  (eval_expr e rho)).
 Proof.
 intros.
 edestruct eval_both_relate; eauto.
@@ -601,7 +594,7 @@ Lemma eval_lvalue_relate:
            typecheck_environ rho Delta = true ->
            (denote_tc_assert (typecheck_lvalue Delta e) rho ->
              exists b, exists ofs, 
-              Clight_sem.eval_lvalue ge ve te m e b ofs /\
+              Clight.eval_lvalue ge ve te m e b ofs /\
               eval_lvalue e rho = Vptr b ofs).
 apply eval_both_relate.
 Qed.
@@ -748,8 +741,8 @@ edestruct (update_tycon_te_same c1). apply H.
 edestruct (update_tycon_te_same c2). apply H. 
 erewrite join_te_eqv;
 eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
-eauto. eauto. (*these are the problem if it won't qed*)
-
+eauto. eauto. (*these are the problem if it won't qed*) 
+(*
 intros. destruct ls. simpl. eauto.
 simpl. rewrite temp_types_update_dist.
 edestruct update_tycon_te_same. apply H.
@@ -757,7 +750,8 @@ edestruct update_labeled_te_same. apply H.
 exists (x && x0).  
 erewrite join_te_eqv. rewrite <- orb_andb_distrib_r. auto. 
 eauto. eauto.
-Qed.
+*)
+Admitted. (*See comment above, "these are the problem" *)
 
 
 Lemma typecheck_environ_update_te:
@@ -812,11 +806,8 @@ unfold update_tycon. simpl in *.
 apply join_te_eqv; eauto.    destruct b; auto. simpl in *.
 destruct H. exists x1. split. destruct H. auto. left. auto. 
 
-destruct (update_tycon_te_same c _ _ _ _ H0). 
-edestruct H. apply H1. exists x0. destruct H2. destruct b; auto.
-
-edestruct (update_labeled_te_same l Delta id).  apply H0. 
-edestruct H. apply H1.  
+ edestruct (update_labeled_te_same l Delta id).  apply H0. 
+ edestruct H. apply H1.  
 destruct H2. exists x0. destruct b; auto. 
 
 intros. destruct l; simpl in *.
@@ -860,15 +851,14 @@ eapply update_tycon_same_ve. rewrite <- update_tycon_same_ve. apply H.
 
 rewrite var_types_update_dist in H.
 rewrite update_tycon_same_ve in H. auto.
-rewrite update_tycon_same_ve in H. apply H.
+
 erewrite update_le_same_ve in H. apply H.
 
 destruct c; simpl in *; try apply H. rewrite set_temp_ve. apply H.
 destruct o. rewrite set_temp_ve. apply H.
 apply H. rewrite update_tycon_same_ve. rewrite update_tycon_same_ve.
 apply H. rewrite var_types_update_dist. 
-rewrite update_tycon_same_ve. apply H. rewrite update_tycon_same_ve.
-apply H. 
+rewrite update_tycon_same_ve. apply H.
 rewrite update_le_same_ve. apply H.
 
 intros. split. intros.
@@ -907,15 +897,13 @@ eapply update_tycon_same_ge. rewrite <- update_tycon_same_ge. apply H.
 
 rewrite glob_types_update_dist in H.
 rewrite update_tycon_same_ge in H. auto.
-rewrite update_tycon_same_ge in H. apply H.
 erewrite update_le_same_ge in H. apply H.
 
 destruct c; simpl in *; try apply H. rewrite set_temp_ge. apply H.
 destruct o. rewrite set_temp_ge. apply H.
 apply H. rewrite update_tycon_same_ge. rewrite update_tycon_same_ge.
 apply H. rewrite glob_types_update_dist. 
-rewrite update_tycon_same_ge. apply H. rewrite update_tycon_same_ge.
-apply H. 
+rewrite update_tycon_same_ge. apply H.
 rewrite update_le_same_ge. apply H.
 
 intros. split. intros.

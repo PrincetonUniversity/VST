@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
 Require Import veric.Address.
@@ -6,6 +7,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.expr.
+Import Cop.
 
 Lemma eval_binop_relate_fail_add :
  forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) 
@@ -18,11 +20,11 @@ Lemma eval_binop_relate_fail_add :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_add (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oadd e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oadd e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -54,11 +56,11 @@ Lemma eval_binop_relate_fail_sub :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_sub (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Osub e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Osub e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -94,11 +96,11 @@ Lemma eval_binop_relate_fail_mul :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_mul (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Omul e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Omul e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -133,11 +135,11 @@ Lemma eval_binop_relate_fail_div :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_div (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Odiv e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Odiv e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -172,11 +174,11 @@ Lemma eval_binop_relate_fail_mod :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_mod (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Omod e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Omod e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -211,11 +213,11 @@ Lemma eval_binop_relate_fail_shl :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_shl (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oshl e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oshl e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -250,11 +252,11 @@ Lemma eval_binop_relate_fail_shr :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_shr (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oshr e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oshr e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -289,11 +291,11 @@ Lemma eval_binop_relate_fail_and :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_and (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oand e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oand e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -328,11 +330,11 @@ Lemma eval_binop_relate_fail_or :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_or (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oor e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oor e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -367,11 +369,11 @@ Lemma eval_binop_relate_fail_xor :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_xor (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) (typeof e2) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oxor e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oxor e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -406,12 +408,12 @@ Lemma eval_binop_relate_fail_eq :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Ceq (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oeq e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oeq e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -446,12 +448,12 @@ Lemma eval_binop_relate_fail_ne :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Cne (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop One e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop One e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -486,12 +488,12 @@ Lemma eval_binop_relate_fail_lt :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Clt (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Olt e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Olt e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -526,12 +528,12 @@ Lemma eval_binop_relate_fail_gt :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Cgt (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Ogt e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Ogt e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -566,12 +568,12 @@ Lemma eval_binop_relate_fail_le :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Cle (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Ole e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Ole e1 e2 t) Vundef.
 Proof.
 intros. 
 
@@ -606,12 +608,12 @@ Lemma eval_binop_relate_fail_ge :
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    None =
    sem_cmp Cge (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho) 
-     (typeof e2) (fun (_ : block) (_ : Z) => false) ->
-   Clight_sem.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
-   Clight_sem.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
+     (typeof e2) Mem.empty ->
+   Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
+   Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   Clight_sem.eval_expr ge ve te m (Ebinop Oge e1 e2 t) Vundef.
+   Clight.eval_expr ge ve te m (Ebinop Oge e1 e2 t) Vundef.
 Proof.
 intros. 
 

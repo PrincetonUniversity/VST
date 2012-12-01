@@ -64,7 +64,7 @@ Definition semax_func
           forall n, believe Hspec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt vl => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
+(fun tt vl => writable_blocks (map (initblocksize type) (prog_vars prog) )
                              (empty_environ (Genv.globalenv prog))).
 
 Definition Tint32s := Tint I32 Signed noattr.
@@ -74,10 +74,9 @@ Definition main_post (prog: program) : unit -> assert :=
 
 Definition semax_prog 
      (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
-  compute_list_norepet (map (@fst _ _) prog.(prog_funct)
-                                       ++ map (@fst _ _) prog.(prog_vars)) = true  /\
-  semax_func V G (prog.(prog_funct)) G /\
-   match_globvars (prog.(prog_vars)) V /\
+  compute_list_norepet (prog_defs_names prog) = true  /\
+  semax_func V G (prog_funct prog) G /\
+   match_globvars (prog_vars prog) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Lemma semax_func_nil: 
@@ -415,42 +414,31 @@ Definition main_params (ge: genv) start : Prop :=
         Genv.find_funct ge (Vptr b Int.zero) = Some (Internal func) /\
         func.(fn_params) = nil.
 
-
-(*
-Definition funcptr G v A P Q : assert :=
-   (EX gm: env ident val, has_ge gm &&
-       !((G && has_ge gm) >=> (TT * ^m fun_assert v Share.top A P Q))).
-
-Lemma semax_prog_rule_aux3:
-  forall G1 id sh A P Q st1 st2, 
-          (fun_id id sh A P Q * G1)%pred st1 ->
-          w_ge st1 = w_ge st2 ->
-          exists v, (global_id id =# v) st2.
+Lemma in_prog_funct'_in {F V}:
+  forall i f (g: list (ident * globdef F V)), In (i,f) (prog_funct' g) -> In (i, Gfun f) g.
 Proof.
-intros.
-destruct H as [w1 [w2 [? [? ?]]]].
-destruct H1 as [v ?].
-exists v.
-unfold global_id.
-rewrite <- world_op_con in H1.
-rewrite sepcon_emp in H1.
-destruct H1 as [? [_ ?]].
-rewrite emp_sepcon in H3.
-destruct H3 as [bb [? _]]. hnf in H3.  subst v.
-destruct H as [? _].
-rewrite H0 in H.
-apply env_mapsto_get in H1; destruct H1.
-assert (join_sub (w_ge w1) (w_ge st2)) by eauto with typeclass_instances.
-destruct (env_get_join_sub _ _ _ _ _ H3 H1) as [? [? ?]].
-econstructor.
-eassumption.
-rewrite Int.add_zero. auto.
+induction g; intros. inv H. simpl in *. 
+destruct a; destruct g0. simpl in H. destruct H; auto. left; congruence.
+right; auto.
 Qed.
-*)
+
+Lemma in_prog_funct_in_prog_defs:
+  forall i f prog, In (i,f) (prog_funct prog) -> In (i, Gfun f) (prog_defs prog).
+Proof.
+ intros; apply in_prog_funct'_in; auto.
+Qed.
+
+Lemma in_prog_vars_in_prog_defs:
+  forall i v prog, In (i,v) (prog_vars prog) -> In (i, Gvar v) (prog_defs prog).
+Proof.
+unfold prog_vars. intros ? ? ?.
+induction (prog_defs prog); intros. inv H. simpl in *. 
+destruct a; destruct g. auto. simpl in H. destruct H; auto. left; congruence.
+Qed.
 
 Lemma funassert_initial_core:
   forall prog ve te V G n, 
-     no_dups (prog_funct prog) (prog_vars prog) ->
+      list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (Genv.globalenv prog)) ve te))
                       (initial_core (Genv.globalenv prog) G n).
@@ -477,33 +465,37 @@ destruct (IHg id G). eauto. auto.
 eauto.
 destruct H2 as [f ?].
  destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
- destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]]; auto.
- destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]]; auto.
+ apply in_prog_funct_in_prog_defs; auto.
  rewrite H3.
  exists (Vptr b Int.zero), (b,0).
  split.
  split.
  unfold type_of_global.
  case_eq (Genv.find_var_info (Genv.globalenv prog) b); intros.
- apply Genv.find_var_info_positive in H5.
- apply Genv.find_funct_ptr_negative in H4. omegaContradiction.
+ repeat f_equal.
+ elimtype False; clear - H H4 H5.
+ admit.
  rewrite H4.
  repeat f_equal.
  unfold no_dups in H.
- apply list_norepet_append_left in H.
- forget (prog_funct prog) as g.
+ unfold prog_funct, prog_defs_names in *.
+ forget (prog_defs prog) as g.
  clear - H H0 H1 H2.
  unfold match_fdecs in H0. 
  revert G H H0 H1 H2; induction g; simpl; intros. 
  contradiction.
- inv H. destruct G; inv H0.
- simpl in H1. destruct p as [i p]. destruct a as [i' a].
- simpl in H3; subst i'. simpl in *.
+ inv H. destruct a as [i' [a|a]]. destruct G; inv H0.
+ simpl in H1. destruct p as [i p]. simpl in *.
  destruct (eq_dec i id). subst. rewrite PTree.gss in H1. inv H1.
  destruct H2. inv H. auto.
- apply in_map_fst in H. contradiction.
+ apply in_map_fst in H.
+ elimtype False; clear - H H5.
+  apply in_map_iff in H. destruct H as [x [? ?]]. subst; destruct x; simpl in *.
+ apply in_prog_funct'_in in H0. apply H5. apply in_map_iff.
+ exists (i, Gfun f); auto.
  destruct H2. congruence.
  rewrite PTree.gso in H1 by auto.
+ apply (IHg G); auto.
  apply (IHg G); auto.
  simpl. rewrite Int.signed_zero; auto.
  unfold func_at. destruct fs.
@@ -514,27 +506,28 @@ destruct H2 as [f ?].
  simpl.
  rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
  assert (H9: In (id, mk_funspec f0 A a a0) G).
-    apply list_norepet_append_inv in H. destruct H as [H _].
-    forget (prog_funct prog) as fs. clear - H H0 H1.
-    revert G H0 H1; induction fs; destruct G; simpl; intros; inv H0.
-   revert H1; induction V; simpl; intros.
+     unfold prog_funct, prog_defs_names in *.
+    forget (prog_defs prog) as fs. clear - H H0 H1.
+    revert G H0 H1; induction fs; simpl; intros; inv H0. destruct G; inv H3.
+   elimtype False;    revert H1; induction V; simpl; intros.
    rewrite PTree.gempty in H1; inv H1.
    destruct (eq_dec (fst a1) id). subst. rewrite PTree.gss in H1. inv H1.
-    rewrite PTree.gso in H1 by auto; auto. 
-    destruct (eq_dec (fst p) id). subst; rewrite PTree.gss in H1.
-    destruct p; inv H1; auto.
+    rewrite PTree.gso in H1 by auto; auto.
+    destruct a1. destruct g. inv H3. inv H. destruct G; inv H2.
+    simpl in H1. destruct p. simpl in *. destruct (eq_dec i id). subst.
+    rewrite PTree.gss in H1. inv H1. auto.
     rewrite PTree.gso in H1 by auto. right. apply IHfs; auto.
-    inv H; auto.
+    inv H. apply IHfs; auto.  
  rewrite (find_id_i _ _ _ H9); auto.
- apply list_norepet_append_inv in H. destruct H as [H _].
- clear - H0 H.
- forget (prog_funct prog) as fs.
+ clear - H0 H. unfold prog_defs_names, prog_funct in *.
+ forget (prog_defs prog) as fs.
  unfold match_fdecs in H0.
- revert G H H0; induction fs; destruct G; intros. constructor. inv H0.
- constructor. inv H. simpl in H0. inv H0.
- simpl. rewrite <- H1. constructor.
- rewrite (fst_match_fdecs H5) in H3; auto.
- rewrite (fst_match_fdecs H5) in H4; auto.
+assert (list_norepet (map (@fst _ _) (prog_funct' fs))).
+clear - H. admit.  (* easy *)
+ revert G H1 H0; induction (prog_funct' fs); destruct G; intros. constructor. inv H0.
+ constructor. inv H1. simpl in H0. destruct a.  inv H0.
+ simpl; constructor; auto.
+ rewrite <- (fst_match_fdecs H6); auto. 
  intros loc'  [fsig' A' P' Q'].
  unfold func_at.
  intros w ? ?.
@@ -576,12 +569,10 @@ unfold type_of_funspec. simpl.
  destruct (IHg G) as [f3 [? ?]]; auto. exists f3; split; auto.
  destruct H4 as [f [H4 H4']].
  destruct (Genv.find_funct_ptr_exists prog i f) as [b [? ?]]; auto.
- apply list_norepet_append_inv in H; intuition.
- apply list_norepet_append_inv in H; intuition.
+ apply in_prog_funct_in_prog_defs; auto.
  inversion2 H3 H6.
  case_eq (Genv.find_var_info (Genv.globalenv prog) b'); intros.
- apply Genv.find_var_info_positive in H6.
- apply Genv.find_funct_ptr_negative in H7. omegaContradiction.
+ elimtype False; clear - H7 H6. admit.
  rewrite H7.
  repeat f_equal.
  auto.
@@ -597,19 +588,17 @@ unfold type_of_funspec. simpl.
 Qed.
 
 Lemma prog_contains_prog_funct: forall prog: program,  
-        no_dups (prog_funct prog) (prog_vars prog) ->
-          prog_contains (Genv.globalenv prog) prog.(prog_funct).
+      list_norepet (prog_defs_names prog) ->
+          prog_contains (Genv.globalenv prog) (prog_funct prog).
 Proof.
   intros; intro; intros.
-  assert (In id
-     (map (fst (A:=ident) (B:=fundef)) (prog_funct prog) ++
-      map (var_name _) (prog_vars prog))).
-  apply in_or_app. left.
-  replace id with (fst (id,f)) by (simpl; auto).
-  apply in_map; auto.
-  destruct (list_norepet_append_inv _ _ _ H) as [? [? ?]].
   apply (Genv.find_funct_ptr_exists prog id f); auto.
-Qed.
+  unfold prog_funct in H0.
+  induction (prog_defs prog). inv H0.
+   simpl in H0.  destruct a. 
+  destruct g. simpl in H0. destruct H0. inv H0.  left. auto.
+  right; auto.  right; auto.
+Qed. 
 
 (* there's a place this lemma should be applied, perhaps in proof of semax_call *)
 Lemma funassert_rho:
@@ -620,21 +609,23 @@ rewrite H; auto.
 Qed.
 
 Lemma core_inflate_initial_mem:
-  forall (m: mem) (prog: program) (G: funspecs) (n: nat), 
+  forall (m: mem) (prog: program) (G: funspecs) (n: nat)
+     (INIT: Genv.init_mem prog = Some m),
     match_fdecs (prog_funct prog) G ->
-    no_dups (prog_funct prog) (prog_vars prog) ->
+      list_norepet (prog_defs_names prog) ->
    core (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)) =
          initial_core (Genv.globalenv prog) G n.
 Proof.
 intros.
-unfold inflate_initial_mem, initial_core; simpl.
+assert (IOK := initial_core_ok _ _ n _ H0 H INIT).
 apply rmap_ext.
-rewrite level_core. do 2 rewrite level_make_rmap; auto.
-intro.
+  unfold inflate_initial_mem, initial_core; simpl.
+  rewrite level_core. do 2 rewrite level_make_rmap; auto.
+intro l.
+unfold inflate_initial_mem, initial_core; simpl.
 rewrite <- core_resource_at.
 repeat rewrite resource_at_make_rmap.
 unfold inflate_initial_mem'.
-rewrite <- core_resource_at.
 repeat rewrite resource_at_make_rmap.
 unfold initial_core'.
 case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst l)); intros; auto.
@@ -648,19 +639,18 @@ induction g; simpl in *. contradiction. destruct a; destruct H2; simpl in *; eau
 destruct (IHg H); eauto.
 destruct H3 as [f ?].
 apply Genv.invert_find_symbol in H1.
-destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
 destruct (Genv.find_funct_ptr_exists prog id f) as [b [? ?]]; auto.
-inversion2 H1 H7.
-assert (fst l < 0) by (eapply Genv.find_funct_ptr_negative; eauto).
-unfold access_at.
-rewrite nextblock_noaccess by omega.
-if_tac; auto.
-destruct fs; repeat rewrite core_PURE; auto.
-repeat rewrite core_NO; auto.
-if_tac; rewrite core_NO;
-destruct (access_at m l); intros; try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
-if_tac; rewrite core_NO;
-destruct (access_at m l); intros; try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+apply in_prog_funct_in_prog_defs; auto.
+inversion2 H1 H4.
+if_tac.
+ destruct (IOK l) as [_ ?].
+ unfold initial_core in H6. rewrite resource_at_make_rmap in H6.
+  unfold initial_core' in H6. rewrite if_true in H6 by auto.
+  apply Genv.find_invert_symbol in H1. rewrite H1 in H6. rewrite H2 in H6. destruct fs.
+  destruct H6 as [? [? ?]]. rewrite H7. rewrite core_PURE; auto.
+  destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+ if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
+ if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 Qed.
 
 Lemma writable_blocks_app:
@@ -684,31 +674,37 @@ rewrite sepcon_emp.
 apply sepcon_comm.
 Qed.
 
-
 Lemma add_variables_nextblock:
-  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (var_name V) (vl++(i,g)::ul)) ->
-   Genv.find_symbol (Genv.add_variables ge (vl++(i,g)::ul)) i = 
-          Some (Genv.genv_nextvar ge + Z_of_nat (length vl)).
+  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
+   Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
+          Some (Genv.genv_next ge + Z_of_nat (length vl)).
 Proof.
- induction vl; intros.
- simpl.
- rewrite Genv.add_variables_same_symb.
- unfold Genv.find_symbol, Genv.add_variable.
- simpl. rewrite PTree.gss. f_equal; unfold block; omega.
- simpl in H. inv H. apply H2.
- simpl length. rewrite inj_S. 
- transitivity (Some (Genv.genv_nextvar (Genv.add_variable ge a) + (Z_of_nat (length vl)))).
- rewrite <-  (IHvl (Genv.add_variable ge a) i g ul).
- f_equal.
- inv H; auto.
- f_equal.
- forget (Z_of_nat (length vl)) as n.
- simpl. omega.
+Admitted.
+
+Lemma rev_prog_vars': forall {F V} vl, rev (@prog_vars' F V vl) = prog_vars' (rev vl).
+Proof.
+   intros.
+   induction vl. simpl; auto.
+   destruct a. destruct g.
+   simpl. rewrite IHvl.
+   clear. induction (rev vl); simpl; intros; auto. destruct a; destruct g; simpl; auto.
+    rewrite IHl. auto.
+   simpl.
+   transitivity (prog_vars' (rev vl) ++ (@prog_vars' F V ((i,Gvar v)::nil))).
+    rewrite IHvl. f_equal.
+    simpl.
+    clear.
+    induction (rev vl); simpl; intros; auto.
+    destruct a. destruct g.
+    auto.
+    rewrite <- IHl.
+    simpl. auto.
 Qed.
+
 
 Lemma initial_writable_blocks:
   forall prog G m n,
-     no_dups (prog_funct prog) (prog_vars prog) ->
+     list_norepet (prog_defs_names prog) ->
     match_fdecs (prog_funct prog) G ->
     Genv.init_mem prog = Some m ->
      app_pred 
@@ -717,37 +713,35 @@ Lemma initial_writable_blocks:
   (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
 Proof.
  intros until n. intros ? SAME_IDS ?.
- assert (IOK: initial_rmap_ok  (initial_core (Genv.globalenv prog) G n))
-    by (apply initial_core_ok; auto).
+ assert (IOK: initial_rmap_ok m (initial_core (Genv.globalenv prog) G n))
+      by (apply initial_core_ok; auto).
   unfold Genv.init_mem in H0.
   unfold Genv.globalenv in *.
   destruct prog as [fl main vl].
   simpl in *.
-  assert (H9: Genv.genv_nextvar (Genv.add_functions (Genv.empty_genv fundef type) fl) = 1).
-  clear. rewrite Genv.add_functions_nextvar. reflexivity.
-  forget (Genv.add_functions (Genv.empty_genv fundef type) fl) as ge.
-  destruct (list_norepet_append_inv _ _ _ H) as [_ [H' _]].
-  clear H; rename H' into H.
-  clear - H H0 IOK H9.
-  remember (Genv.add_variables ge vl) as gev.
-  rewrite <- (rev_involutive vl) in *.
-  rewrite alloc_variables_rev_eq in H0.
-  forget (rev vl) as vl'. clear vl; rename vl' into vl.
+  remember (Genv.add_globals (Genv.empty_genv fundef type) fl) as gev.
+  rewrite <- (rev_involutive fl) in *.
+  rewrite alloc_globals_rev_eq in H0.
+  forget (rev fl) as vl'. clear fl; rename vl' into vl.
+  unfold prog_vars. simpl.
+  rewrite <- rev_prog_vars'.
   rewrite map_rev. rewrite <- writable_blocks_rev.
-  assert (exists ul, gev = Genv.add_variables ge (rev vl ++ ul) /\ 
-                                       list_norepet (map (var_name type) (rev vl ++ ul))).
+  assert (exists ul, gev = Genv.add_globals (Genv.empty_genv fundef type) (rev vl ++ ul) /\ 
+                                            list_norepet (map (@fst _ _) (rev vl ++ ul))).
   exists nil; rewrite <- app_nil_end; auto.
   clear Heqgev H.
-  revert m H0 H1; induction vl; simpl; intros.
+  revert m H0 H1 IOK SAME_IDS; induction vl; simpl; intros.
  apply resource_at_empty2.
  intro l.
  unfold inflate_initial_mem.
  rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.
   inv H0.
- unfold access_at, empty. simpl. rewrite ZMap.gi.
- rewrite <- core_resource_at. apply core_identity.
+ unfold access_at, empty. simpl. rewrite ZMap.gi. apply NO_identity.
+(*
  invSome.
+ destruct a; destruct g.
+ apply (H3 m0).
  case_eq (initblocksize type a); intros.
  specialize (IHvl _ H0).
  unfold writable_block.
@@ -800,7 +794,8 @@ Proof.
  apply (drop_perm_writable_lem _ _ _ _ _ H6 H7 _ IOK IOK) in IHvl.
  rewrite Zminus_0_r in IHvl.
  apply IHvl.
-Qed.
+Qed. *)
+Admitted.
 
 Definition Delta1 V G: tycontext := 
   make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
@@ -832,8 +827,7 @@ Proof.
  destruct H5 as [f ?].
  apply compute_list_norepet_e in H0.
 destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
- destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
- destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+apply in_prog_funct_in_prog_defs; auto.
  exists b.
  unfold sim.make_initial_core; simpl.
 econstructor.
@@ -870,7 +864,7 @@ apply pred_ext. apply exp_right with Vundef; auto. apply exp_left; auto.
 rewrite (corable_funassert _ _).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.
-destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+do 3 (pose proof I).
 replace (funassert (Delta1 V G)) with (funassert (nofunc_tycontext V G)).
 unfold rho; apply funassert_initial_core; auto.
 apply same_glob_funassert.
@@ -895,7 +889,8 @@ unfold glob_types, Delta1. simpl @snd.
 forget (prog_main prog) as main.
 instantiate (1:=main_post prog). 
 instantiate (1:=main_pre prog).
- destruct (list_norepet_append_inv _ _ _ H0) as [? [? ?]]; auto.
+assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))).
+clear - H0. admit.
 forget (prog_funct prog) as fs.
 clear - H4 H8 H2.
 forget (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)) as fd.

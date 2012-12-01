@@ -100,22 +100,24 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | _, _ => None
    end.
 
-Lemma strict_bool_val_sub : forall v t b, 
-strict_bool_val v t = Some b ->
+(*
+ Lemma strict_bool_val_sub : forall v t b, 
+ strict_bool_val v t = Some b ->
 bool_val v t = Some b.
 Proof.
 intros. destruct v; destruct t; simpl in *; auto; try if_tac in H; auto; try congruence.
 Qed.
+*)
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
-Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+Definition eval_cast (t t': type) (v: val) : val := force_val (Cop.sem_cast v t t').
 
-Definition eval_unop (op: unary_operation) (t1 : type) (v1 : val) :=
-       force_val (sem_unary_operation op v1 t1).
+Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
+       force_val (Cop.sem_unary_operation op v1 t1).
 
-Definition eval_binop (op: binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       force_val (sem_binary_operation op v1 t1 v2 t2 (fun _ _ => false)).
+Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
+       force_val (Cop.sem_binary_operation op v1 t1 v2 t2 Mem.empty).
 
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.
@@ -159,12 +161,6 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | Eunop op a ty =>  lift1 (eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
                   lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Econdition a1 a2 a3 ty =>  fun rho =>
-    match strict_bool_val (eval_expr a1 rho) (typeof a1) with
-    | Some true => force_val (sem_cast (eval_expr a2 rho) (typeof a2) ty)
-    | Some false => force_val (sem_cast (eval_expr a3 rho) (typeof a3) ty)
-    | None => Vundef
-    end
  | Ecast a ty => lift1 (eval_cast (typeof a) ty) (eval_expr a) 
  | _ => lift0 Vundef
  end
@@ -179,7 +175,7 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
 
 
 Definition cast_exp e toty rho :=
-force_val (sem_cast (eval_expr e rho) (typeof e) toty). 
+force_val (Cop.sem_cast (eval_expr e rho) (typeof e) toty). 
 
 Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
@@ -246,9 +242,9 @@ end.
 
 Definition unOp_result_type op a := 
 match op with 
-  | Onotbool => (Tint IBool Signed noattr) (*Bool, classify doesn't change *)
-  | Onotint => (Tint I32 Signed noattr) (*Int, classify doesn't change *)
-  | Oneg => (typeof a)
+  | Cop.Onotbool => (Tint IBool Signed noattr) (*Bool, classify doesn't change *)
+  | Cop.Onotint => (Tint I32 Signed noattr) (*Int, classify doesn't change *)
+  | Cop.Oneg => (typeof a)
 end.
 
 Definition is_int_type ty := 
@@ -273,18 +269,18 @@ end.
 
 Definition isUnOpResultType op a ty := 
 match op with 
-  | Onotbool => match classify_bool (typeof a) with
-                        | bool_default => false
+  | Cop.Onotbool => match Cop.classify_bool (typeof a) with
+                        | Cop.bool_default => false
                         | _ => is_int_type ty 
                         end
-  | Onotint => match classify_notint (typeof a) with
-                        | notint_default => false
+  | Cop.Onotint => match Cop.classify_notint (typeof a) with
+                        | Cop.notint_default => false
                         | _ => is_int_type ty 
                         end
-  | Oneg => match classify_neg (typeof a) with
-                    | neg_case_i sg => is_int_type ty
-                    | neg_case_f => is_float_type ty
-                    | neg_case_default => false
+  | Cop.Oneg => match Cop.classify_neg (typeof a) with
+                    | Cop.neg_case_i sg => is_int_type ty
+                    | Cop.neg_case_f => is_float_type ty
+                    | _ => false
                     end
 end.
 
@@ -336,70 +332,70 @@ end.
 
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
 match op with
-  | Oadd => match classify_add (typeof a1) (typeof a2) with 
-                    | add_default => tc_FF
-                    | add_case_ii _ => tc_bool (is_int_type ty) 
-                    | add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty)) 
-                    | add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty))
+  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
+                    | Cop.add_default => tc_FF
+                    | Cop.add_case_ii _ => tc_bool (is_int_type ty) 
+                    | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty)) 
+                    | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty))
                     | _ => tc_bool (is_float_type ty)
             end
-  | Osub => match classify_sub (typeof a1) (typeof a2) with 
-                    | sub_default => tc_FF
-                    | sub_case_ii _ => tc_bool (is_int_type ty) 
-                    | sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty))
-                    | sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
+  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
+                    | Cop.sub_default => tc_FF
+                    | Cop.sub_case_ii _ => tc_bool (is_int_type ty) 
+                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty))
+                    | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty)))
 			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)))
                     | _ => tc_bool (is_float_type ty)
             end 
-  | Omul => match classify_mul (typeof a1) (typeof a2) with 
-                    | mul_default => tc_FF
-                    | mul_case_ii _ => tc_bool (is_int_type ty)
+  | Cop.Omul => match Cop.classify_mul (typeof a1) (typeof a2) with 
+                    | Cop.mul_default => tc_FF
+                    | Cop.mul_case_ii _ => tc_bool (is_int_type ty)
                     | _ => tc_bool (is_float_type ty)
             end 
-  | Omod => match classify_binint (typeof a1) (typeof a2) with
-                    | binint_case_ii Unsigned => tc_andp (tc_nonzero a2) 
+  | Cop.Omod => match Cop.classify_binint (typeof a1) (typeof a2) with
+                    | Cop.binint_case_ii Unsigned => tc_andp (tc_nonzero a2) 
                                                      (tc_bool (is_int_type ty))
-                    | binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                    | Cop.binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
                                                      (tc_bool (is_int_type ty))
-                    | binint_default => tc_FF
+                    | Cop.binint_default => tc_FF
             end
-  | Odiv => match classify_div (typeof a1) (typeof a2) with
-                    | div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
-                    | div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int_type ty))
-                    | div_case_ff | div_case_if _ | div_case_fi _ =>
+  | Cop.Odiv => match Cop.classify_div (typeof a1) (typeof a2) with
+                    | Cop.div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
+                    | Cop.div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int_type ty))
+                    | Cop.div_case_ff | Cop.div_case_if _ | Cop.div_case_fi _ =>
                           tc_bool (is_float_type ty) 
-                    | div_default => tc_FF
+                    | Cop.div_default => tc_FF
             end
-  | Oshl | Oshr => match classify_shift (typeof a1) (typeof a2) with
-                    | shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty))
-                    | shift_case_default => tc_FF
+  | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty))
+                    | _ => tc_FF
                    end
-  | Oand | Oor | Oxor => 
-                   match classify_binint (typeof a1) (typeof a2) with
-                    | binint_case_ii _ =>tc_bool (is_int_type ty)
+  | Cop.Oand | Cop.Oor | Cop.Oxor => 
+                   match Cop.classify_binint (typeof a1) (typeof a2) with
+                    | Cop.binint_case_ii _ =>tc_bool (is_int_type ty)
                     | _ => tc_FF
                    end   
-  | Oeq | One | Olt | Ogt | Ole | Oge => 
-                   match classify_cmp (typeof a1) (typeof a2) with
-                    | cmp_default 
-		    | cmp_case_pp => tc_noproof
+  | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
+                   match Cop.classify_cmp (typeof a1) (typeof a2) with
+                    | Cop.cmp_default 
+		    | Cop.cmp_case_pp => tc_noproof
                     | _ => tc_bool (is_int_type ty)
                    end
   end.
 
 
 Definition isCastResultType tfrom tto ty a : tc_assert :=
-match classify_cast tfrom tto with
-| cast_case_default => tc_FF
-| cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
-| cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
+match Cop.classify_cast tfrom tto with
+| Cop.cast_case_default => tc_FF
+| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
+| Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
+| Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
                             (if andb (is_pointer_type ty) (is_pointer_type tfrom) then tc_TT
                                 else tc_iszero a)
-| cast_case_void => tc_noproof
+| Cop.cast_case_void => tc_noproof
 (*Disabling this for the program logic, the only time it is used is not for
   functionality, more as a noop that "uses" some expression*)
 | _ => match tto with 
@@ -441,9 +437,6 @@ match e with
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty)) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
- | Econdition a1 a2 a3 ty => tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tcr a1) (tcr a2)) (tcr a3)) 
-                              (tc_bool (is_scalar_type (typeof a1)))) (*int or float...*)
-                              (isCastResultType (typeof a2) ty ty a2)) (isCastResultType (typeof a3) ty ty a3)
  | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty a)
  | _ => tc_FF
 end
@@ -700,9 +693,7 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Ssequence s1 s2 => let Delta' := update_tycon Delta s1 in
                       update_tycon Delta' s2
  | Sifthenelse b s1 s2 => join_tycon (update_tycon Delta s1) (update_tycon Delta s2)
- | Swhile b s1  => Delta
- | Sdowhile b s1 => (update_tycon Delta s1) 
- | Sfor' b inc body => Delta
+ | Sloop _ _ => Delta
  | Sswitch e ls => join_tycon_labeled ls Delta
  | Scall (Some id) _ _ => (initialized id Delta)
  | _ => Delta  (* et cetera *)
@@ -921,15 +912,13 @@ match body with
     Sskip | Sbreak | Scontinue => tc_TT
   | Sassign e1 e2 => tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta e2)
   | Sset _ e => typecheck_expr Delta e 
-  | Svolread _ e => typecheck_expr Delta e
+  | Sbuiltin _ _ _ _ => tc_FF  (* FIXME *) 
   | Scall _ e el => (typecheck_expr Delta e)
   | Ssequence s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta) 
        (typecheck_all_exprs' s2 (update_tycon Delta s1)) 
   | Sifthenelse b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
                             (typecheck_all_exprs' s2 Delta)
-  | Swhile b s => (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s Delta))
-  | Sdowhile b s => (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s Delta))
-  | Sfor' b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
+  | Sloop s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta)
                             (typecheck_all_exprs' s2 (update_tycon Delta s1))
   | Sreturn (Some e) => typecheck_expr Delta e
   | Sreturn (None) => tc_TT

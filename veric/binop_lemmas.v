@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
 Require Import veric.Address.
@@ -6,7 +7,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.expr.
-
+Import Cop.
 
 Lemma typecheck_add_sound:
 forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type),

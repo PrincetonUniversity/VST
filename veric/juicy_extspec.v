@@ -65,13 +65,13 @@ Record jm_init_package: Type := {
   jminit_G: expr.funspecs;
   jminit_lev: nat;
   jminit_init_mem: Genv.init_mem jminit_prog = Some jminit_m;
-  jminit_vars_no_dups: Clight_lemmas.no_dups (prog_funct jminit_prog) (prog_vars jminit_prog);
+  jminit_defs_no_dups:   list_norepet (prog_defs_names jminit_prog);
   jminit_fdecs_match: match_fdecs (prog_funct jminit_prog) jminit_G
 }.
 
 Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
   jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d) 
-         (jminit_init_mem d) (jminit_vars_no_dups d) (jminit_fdecs_match d).
+         (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem  
   {G C D} (csem: CoreSemantics G C mem D) :

@@ -319,7 +319,7 @@ revert TC1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
 destruct p as [t b']. rewrite eqb_type_eq in TC1; apply type_eq_true in TC1. subst t.
 unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
 (* typechecking proof *)
-apply Clight_sem.eval_Elvalue with b ofs; auto.
+apply Clight.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
 assert ((|> (F rho * (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
        (m_phi jm)).
@@ -336,7 +336,7 @@ rewrite H2 in H5.
 assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
 apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 exists m1; exists m2; split3; auto.
-apply Csem.deref_loc_value with ch; auto.
+apply Clight.deref_loc_value with ch; auto.
 unfold loadv.
 rewrite (age_jm_dry H).
 apply core_load_load.
@@ -510,7 +510,7 @@ Lemma semax_store:
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
              (mapsto sh (typeof e1) (eval_lvalue e1 rho) (e3 rho) * P rho)))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) ((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) * P rho)).
+          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) ((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) * P rho)).
 Proof.
 intros until P. intros TC WS.
 replace (fun rho : environ =>
@@ -550,7 +550,7 @@ spec H2; [ eauto with typeclass_instances| ].
 spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
-apply address_mapsto_can_store with (v':=((force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
+apply address_mapsto_can_store with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
 Focus 2.
 
 clear - WS TC2 TC4 TC3 TC TC1 Hmode.
@@ -561,7 +561,7 @@ remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2).
 destruct v; try solve [simpl in *; congruence]; destruct t; destruct t0; intuition;
 try inv H; try inv Hmode; dec_enc. 
 clear DE.
-unfold sem_cast. simpl in *. unfold lift2,lift1 in *.
+unfold Cop.sem_cast. simpl in *. unfold lift2,lift1 in *.
 Transparent Float.intoffloat.
 unfold Float.intoffloat.
 destruct TC3. unfold_tc_denote. rewrite <- Heqv in *.
@@ -584,9 +584,9 @@ unfold tc_lvalue in TC1. simpl in TC1.
 apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
 instantiate (1:= eval_expr e2 rho).
 auto.
-instantiate (1:=(force_val (sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
+instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
 eapply cast_exists; eauto.
-eapply Csem.assign_loc_value.
+eapply Clight.assign_loc_value.
 apply Hmode.
 unfold tc_lvalue in TC1. simpl in TC1. 
 apply tc_lvalue_nonvol in TC1. auto. (* typechecking proof *)

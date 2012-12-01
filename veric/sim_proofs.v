@@ -1,8 +1,8 @@
 Require Import Wellfounded.
 Require Import veric.base.
 Require Import veric.sim.
-Require Import compcert.Events.
-(*Require Import compcert.Mem_inject.*)
+Require Import Events.
+(*Require Import Mem_inject.*)
 
 Lemma app_last: forall {A} l (a:A) m, last (l ++ a :: nil) m = a.
   Proof.

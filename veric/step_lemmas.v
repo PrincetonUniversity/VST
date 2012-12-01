@@ -1,4 +1,4 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import veric.base veric.sim veric.extspec.
 
 Section safety.

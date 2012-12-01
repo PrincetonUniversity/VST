@@ -1,51 +1,73 @@
-AST.vo AST.glob AST.v.beautified: AST.v Coqlib.vo Errors.vo Integers.vo Floats.vo
-Determinism.vo Determinism.glob Determinism.v.beautified: Determinism.v Coqlib.vo AST.vo Integers.vo Values.vo Events.vo Globalenvs.vo Smallstep.vo Behaviors.vo
-Events.vo Events.glob Events.v.beautified: Events.v Coqlib.vo Intv.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo Globalenvs.vo Errors.vo
-Memdata.vo Memdata.glob Memdata.v.beautified: Memdata.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo
-Memtype.vo Memtype.glob Memtype.v.beautified: Memtype.v Coqlib.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo
-Switch.vo Switch.glob Switch.v.beautified: Switch.v Coqlib.vo Integers.vo Ordered.vo
-Behaviors.vo Behaviors.glob Behaviors.v.beautified: Behaviors.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo Smallstep.vo
-Errors.vo Errors.glob Errors.v.beautified: Errors.v Coqlib.vo
-Globalenvs.vo Globalenvs.glob Globalenvs.v.beautified: Globalenvs.v Axioms.vo Coqlib.vo Errors.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memory.vo
-Memory.vo Memory.glob Memory.v.beautified: Memory.v Axioms.vo Coqlib.vo Maps.vo AST.vo Integers.vo Floats.vo Values.vo Memdata.vo Memtype.vo Intv.vo
-Smallstep.vo Smallstep.glob Smallstep.v.beautified: Smallstep.v Coqlib.vo AST.vo Events.vo Globalenvs.vo Integers.vo
-Values.vo Values.glob Values.v.beautified: Values.v Coqlib.vo AST.vo Integers.vo Floats.vo
-Integers.vo Integers.glob Integers.v.beautified: Integers.v Axioms.vo Coqlib.vo
-Floats.vo Floats.glob Floats.v.beautified: Floats.v Axioms.vo Coqlib.vo Integers.vo Fappli_IEEE.vo Fappli_IEEE_bits.vo Fcore.vo Fcalc_round.vo Fcalc_bracket.vo Fprop_Sterbenz.vo
-Fappli_IEEE.vo Fappli_IEEE.glob Fappli_IEEE.v.beautified: Fappli_IEEE.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fcalc_round.vo Fcalc_bracket.vo Fcalc_ops.vo Fcalc_div.vo Fcalc_sqrt.vo Fprop_relative.vo
-Fappli_IEEE_bits.vo Fappli_IEEE_bits.glob Fappli_IEEE_bits.v.beautified: Fappli_IEEE_bits.v Fcore.vo Fcore_digits.vo Fcalc_digits.vo Fappli_IEEE.vo
-Fcore.vo Fcore.glob Fcore.v.beautified: Fcore.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo Fcore_FIX.vo Fcore_FLX.vo Fcore_FLT.vo Fcore_ulp.vo
-Fcore_defs.vo Fcore_defs.glob Fcore_defs.v.beautified: Fcore_defs.v Fcore_Raux.vo
-Fcore_digits.vo Fcore_digits.glob Fcore_digits.v.beautified: Fcore_digits.v Fcore_Zaux.vo
-Fcore_FIX.vo Fcore_FIX.glob Fcore_FIX.v.beautified: Fcore_FIX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_rnd_ne.vo
-Fcore_float_prop.vo Fcore_float_prop.glob Fcore_float_prop.v.beautified: Fcore_float_prop.v Fcore_Raux.vo Fcore_defs.vo
-Fcore_FLT.vo Fcore_FLT.glob Fcore_FLT.v.beautified: Fcore_FLT.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo Fcore_FIX.vo Fcore_rnd_ne.vo
-Fcore_FLX.vo Fcore_FLX.glob Fcore_FLX.v.beautified: Fcore_FLX.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FIX.vo Fcore_rnd_ne.vo
-Fcore_FTZ.vo Fcore_FTZ.glob Fcore_FTZ.v.beautified: Fcore_FTZ.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_FLX.vo
-Fcore_generic_fmt.vo Fcore_generic_fmt.glob Fcore_generic_fmt.v.beautified: Fcore_generic_fmt.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_float_prop.vo
-Fcore_Raux.vo Fcore_Raux.glob Fcore_Raux.v.beautified: Fcore_Raux.v Fcore_Zaux.vo
-Fcore_rnd.vo Fcore_rnd.glob Fcore_rnd.v.beautified: Fcore_rnd.v Fcore_Raux.vo Fcore_defs.vo
-Fcore_rnd_ne.vo Fcore_rnd_ne.glob Fcore_rnd_ne.v.beautified: Fcore_rnd_ne.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo Fcore_ulp.vo
-Fcore_ulp.vo Fcore_ulp.glob Fcore_ulp.v.beautified: Fcore_ulp.v Fcore_Raux.vo Fcore_defs.vo Fcore_rnd.vo Fcore_generic_fmt.vo Fcore_float_prop.vo
-Fcore_Zaux.vo Fcore_Zaux.glob Fcore_Zaux.v.beautified: Fcore_Zaux.v
-Fcalc_bracket.vo Fcalc_bracket.glob Fcalc_bracket.v.beautified: Fcalc_bracket.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
-Fcalc_div.vo Fcalc_div.glob Fcalc_div.v.beautified: Fcalc_div.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fcalc_round.vo Fcalc_round.glob Fcalc_round.v.beautified: Fcalc_round.v Fcore.vo Fcore_digits.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fcalc_digits.vo Fcalc_digits.glob Fcalc_digits.v.beautified: Fcalc_digits.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_digits.vo
-Fcalc_ops.vo Fcalc_ops.glob Fcalc_ops.v.beautified: Fcalc_ops.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo
-Fcalc_sqrt.vo Fcalc_sqrt.glob Fcalc_sqrt.v.beautified: Fcalc_sqrt.v Fcore_Raux.vo Fcore_defs.vo Fcore_digits.vo Fcore_float_prop.vo Fcalc_bracket.vo Fcalc_digits.vo
-Fprop_div_sqrt_error.vo Fprop_div_sqrt_error.glob Fprop_div_sqrt_error.v.beautified: Fprop_div_sqrt_error.v Fcore.vo Fcalc_ops.vo Fprop_relative.vo
-Fprop_plus_error.vo Fprop_plus_error.glob Fprop_plus_error.v.beautified: Fprop_plus_error.v Fcore_Raux.vo Fcore_defs.vo Fcore_float_prop.vo Fcore_generic_fmt.vo Fcalc_ops.vo
-Fprop_Sterbenz.vo Fprop_Sterbenz.glob Fprop_Sterbenz.v.beautified: Fprop_Sterbenz.v Fcore_Raux.vo Fcore_defs.vo Fcore_generic_fmt.vo Fcalc_ops.vo
-Fprop_mult_error.vo Fprop_mult_error.glob Fprop_mult_error.v.beautified: Fprop_mult_error.v Fcore.vo Fcalc_ops.vo
-Fprop_relative.vo Fprop_relative.glob Fprop_relative.v.beautified: Fprop_relative.v Fcore.vo
-Coqlib.vo Coqlib.glob Coqlib.v.beautified: Coqlib.v
-Intv.vo Intv.glob Intv.v.beautified: Intv.v Coqlib.vo
-Ordered.vo Ordered.glob Ordered.v.beautified: Ordered.v Coqlib.vo Maps.vo Integers.vo
-Axioms.vo Axioms.glob Axioms.v.beautified: Axioms.v
-Maps.vo Maps.glob Maps.v.beautified: Maps.v Coqlib.vo
-Ctypes.vo Ctypes.glob Ctypes.v.beautified: Ctypes.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo
-Csyntax.vo Csyntax.glob Csyntax.v.beautified: Csyntax.v Coqlib.vo Errors.vo Integers.vo Floats.vo Values.vo AST.vo Ctypes.vo
-Csem.vo Csem.glob Csem.v.beautified: Csem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Ctypes.vo Csyntax.vo Smallstep.vo
-Clight.vo Clight.glob Clight.v.beautified: Clight.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Events.vo Globalenvs.vo Ctypes.vo
-Clight_sem.vo Clight_sem.glob Clight_sem.v.beautified: Clight_sem.v Coqlib.vo Errors.vo Maps.vo Integers.vo Floats.vo Values.vo AST.vo Memory.vo Events.vo Globalenvs.vo Smallstep.vo Ctypes.vo Csem.vo Clight.vo
+lib/Axioms.vo lib/Axioms.glob: lib/Axioms.v
+lib/Coqlib.vo lib/Coqlib.glob: lib/Coqlib.v
+lib/Intv.vo lib/Intv.glob: lib/Intv.v lib/Coqlib.vo
+lib/Maps.vo lib/Maps.glob: lib/Maps.v lib/Coqlib.vo
+lib/Heaps.vo lib/Heaps.glob: lib/Heaps.v lib/Coqlib.vo lib/Ordered.vo
+lib/Lattice.vo lib/Lattice.glob: lib/Lattice.v lib/Coqlib.vo lib/Maps.vo
+lib/Ordered.vo lib/Ordered.glob: lib/Ordered.v lib/Coqlib.vo lib/Maps.vo lib/Integers.vo
+lib/Iteration.vo lib/Iteration.glob: lib/Iteration.v lib/Axioms.vo lib/Coqlib.vo lib/Wfsimpl.vo
+lib/Integers.vo lib/Integers.glob: lib/Integers.v lib/Axioms.vo lib/Coqlib.vo
+lib/Floats.vo lib/Floats.glob: lib/Floats.v lib/Axioms.vo lib/Coqlib.vo lib/Integers.vo flocq/Appli/Fappli_IEEE.vo flocq/Appli/Fappli_IEEE_bits.vo flocq/Core/Fcore.vo flocq/Calc/Fcalc_round.vo flocq/Calc/Fcalc_bracket.vo flocq/Prop/Fprop_Sterbenz.vo
+lib/Parmov.vo lib/Parmov.glob: lib/Parmov.v lib/Axioms.vo lib/Coqlib.vo
+lib/UnionFind.vo lib/UnionFind.glob: lib/UnionFind.v lib/Coqlib.vo
+lib/Wfsimpl.vo lib/Wfsimpl.glob: lib/Wfsimpl.v lib/Axioms.vo
+lib/Postorder.vo lib/Postorder.glob: lib/Postorder.v lib/Coqlib.vo lib/Maps.vo lib/Iteration.vo
+common/Errors.vo common/Errors.glob: common/Errors.v lib/Coqlib.vo
+common/AST.vo common/AST.glob: common/AST.v lib/Coqlib.vo common/Errors.vo lib/Integers.vo lib/Floats.vo
+common/Events.vo common/Events.glob: common/Events.v lib/Coqlib.vo lib/Intv.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo common/Globalenvs.vo common/Errors.vo
+common/Globalenvs.vo common/Globalenvs.glob: common/Globalenvs.v lib/Axioms.vo lib/Coqlib.vo common/Errors.vo lib/Maps.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo
+common/Memdata.vo common/Memdata.glob: common/Memdata.v lib/Coqlib.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo
+common/Memtype.vo common/Memtype.glob: common/Memtype.v lib/Coqlib.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memdata.vo
+common/Memory.vo common/Memory.glob: common/Memory.v lib/Axioms.vo lib/Coqlib.vo lib/Maps.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memdata.vo common/Memtype.vo lib/Intv.vo
+common/Values.vo common/Values.glob: common/Values.v lib/Coqlib.vo common/AST.vo lib/Integers.vo lib/Floats.vo
+common/Smallstep.vo common/Smallstep.glob: common/Smallstep.v lib/Coqlib.vo common/AST.vo common/Events.vo common/Globalenvs.vo lib/Integers.vo
+common/Behaviors.vo common/Behaviors.glob: common/Behaviors.v lib/Coqlib.vo common/AST.vo common/Events.vo common/Globalenvs.vo lib/Integers.vo common/Smallstep.vo
+common/Switch.vo common/Switch.glob: common/Switch.v lib/Coqlib.vo lib/Integers.vo lib/Ordered.vo
+common/Determinism.vo common/Determinism.glob: common/Determinism.v lib/Coqlib.vo common/AST.vo lib/Integers.vo common/Values.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo common/Behaviors.vo
+cfrontend/Ctypes.vo cfrontend/Ctypes.glob: cfrontend/Ctypes.v lib/Coqlib.vo common/AST.vo common/Errors.vo
+cfrontend/Cop.vo cfrontend/Cop.glob: cfrontend/Cop.v lib/Coqlib.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo cfrontend/Ctypes.vo
+cfrontend/Csyntax.vo cfrontend/Csyntax.glob: cfrontend/Csyntax.v lib/Coqlib.vo common/Errors.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo cfrontend/Ctypes.vo cfrontend/Cop.vo
+cfrontend/Csem.vo cfrontend/Csem.glob: cfrontend/Csem.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Events.vo common/Globalenvs.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo common/Smallstep.vo
+cfrontend/Cstrategy.vo cfrontend/Cstrategy.glob: cfrontend/Cstrategy.v lib/Axioms.vo lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo
+cfrontend/Cexec.vo cfrontend/Cexec.glob: cfrontend/Cexec.v lib/Axioms.vo lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Determinism.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo cfrontend/Cstrategy.vo
+cfrontend/Initializers.vo cfrontend/Initializers.glob: cfrontend/Initializers.v lib/Coqlib.vo common/Errors.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo
+cfrontend/Initializersproof.vo cfrontend/Initializersproof.glob: cfrontend/Initializersproof.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Globalenvs.vo common/Events.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo cfrontend/Initializers.vo
+cfrontend/SimplExpr.vo cfrontend/SimplExpr.glob: cfrontend/SimplExpr.v lib/Coqlib.vo common/Errors.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo cfrontend/Cstrategy.vo cfrontend/Clight.vo
+cfrontend/SimplExprspec.vo cfrontend/SimplExprspec.glob: cfrontend/SimplExprspec.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo common/AST.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Cstrategy.vo cfrontend/Clight.vo cfrontend/SimplExpr.vo
+cfrontend/SimplExprproof.vo cfrontend/SimplExprproof.glob: cfrontend/SimplExprproof.v lib/Axioms.vo lib/Coqlib.vo lib/Maps.vo common/AST.vo common/Errors.vo lib/Integers.vo common/Values.vo common/Memory.vo common/Events.vo common/Smallstep.vo common/Globalenvs.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Csyntax.vo cfrontend/Csem.vo cfrontend/Cstrategy.vo cfrontend/Clight.vo cfrontend/SimplExpr.vo cfrontend/SimplExprspec.vo
+cfrontend/Clight.vo cfrontend/Clight.glob: cfrontend/Clight.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo
+cfrontend/ClightBigstep.vo cfrontend/ClightBigstep.glob: cfrontend/ClightBigstep.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/AST.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Clight.vo
+cfrontend/SimplLocals.vo cfrontend/SimplLocals.glob: cfrontend/SimplLocals.v lib/Coqlib.vo lib/Ordered.vo common/AST.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Clight.vo
+cfrontend/SimplLocalsproof.vo cfrontend/SimplLocalsproof.glob: cfrontend/SimplLocalsproof.v lib/Coqlib.vo common/Errors.vo lib/Ordered.vo common/AST.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo common/Globalenvs.vo common/Events.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Clight.vo cfrontend/SimplLocals.vo
+cfrontend/Cshmgen.vo cfrontend/Cshmgen.glob: cfrontend/Cshmgen.v lib/Coqlib.vo common/Errors.vo lib/Integers.vo lib/Floats.vo common/AST.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Clight.vo cfrontend/Csharpminor.vo
+cfrontend/Cshmgenproof.vo cfrontend/Cshmgenproof.glob: cfrontend/Cshmgenproof.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Integers.vo lib/Floats.vo common/AST.vo common/Values.vo common/Events.vo common/Memory.vo common/Globalenvs.vo common/Smallstep.vo cfrontend/Ctypes.vo cfrontend/Cop.vo cfrontend/Clight.vo cfrontend/Csharpminor.vo cfrontend/Cshmgen.vo
+cfrontend/Csharpminor.vo cfrontend/Csharpminor.glob: cfrontend/Csharpminor.v lib/Coqlib.vo lib/Maps.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo
+cfrontend/Cminorgen.vo cfrontend/Cminorgen.glob: cfrontend/Cminorgen.v lib/Coqlib.vo common/Errors.vo lib/Maps.vo lib/Ordered.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Memdata.vo cfrontend/Csharpminor.vo
+cfrontend/Cminorgenproof.vo cfrontend/Cminorgenproof.glob: cfrontend/Cminorgenproof.v lib/Coqlib.vo lib/Intv.vo common/Errors.vo lib/Maps.vo common/AST.vo lib/Integers.vo lib/Floats.vo common/Values.vo common/Memdata.vo common/Memory.vo common/Events.vo common/Globalenvs.vo common/Smallstep.vo common/Switch.vo cfrontend/Csharpminor.vo cfrontend/Cminorgen.vo
+flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_float_prop.glob: flocq/Core/Fcore_float_prop.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo
+flocq/Core/Fcore_Zaux.vo flocq/Core/Fcore_Zaux.glob: flocq/Core/Fcore_Zaux.v
+flocq/Core/Fcore_rnd_ne.vo flocq/Core/Fcore_rnd_ne.glob: flocq/Core/Fcore_rnd_ne.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_ulp.vo
+flocq/Core/Fcore_FTZ.vo flocq/Core/Fcore_FTZ.glob: flocq/Core/Fcore_FTZ.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_FLX.vo
+flocq/Core/Fcore_FLT.vo flocq/Core/Fcore_FLT.glob: flocq/Core/Fcore_FLT.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_FLX.vo flocq/Core/Fcore_FIX.vo flocq/Core/Fcore_rnd_ne.vo
+flocq/Core/Fcore_defs.vo flocq/Core/Fcore_defs.glob: flocq/Core/Fcore_defs.v flocq/Core/Fcore_Raux.vo
+flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_Raux.glob: flocq/Core/Fcore_Raux.v flocq/Core/Fcore_Zaux.vo
+flocq/Core/Fcore_ulp.vo flocq/Core/Fcore_ulp.glob: flocq/Core/Fcore_ulp.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_float_prop.vo
+flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_rnd.glob: flocq/Core/Fcore_rnd.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo
+flocq/Core/Fcore_FLX.vo flocq/Core/Fcore_FLX.glob: flocq/Core/Fcore_FLX.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_FIX.vo flocq/Core/Fcore_rnd_ne.vo
+flocq/Core/Fcore_FIX.vo flocq/Core/Fcore_FIX.glob: flocq/Core/Fcore_FIX.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_rnd_ne.vo
+flocq/Core/Fcore_digits.vo flocq/Core/Fcore_digits.glob: flocq/Core/Fcore_digits.v flocq/Core/Fcore_Zaux.vo
+flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_generic_fmt.glob: flocq/Core/Fcore_generic_fmt.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_float_prop.vo
+flocq/Core/Fcore.vo flocq/Core/Fcore.glob: flocq/Core/Fcore.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_rnd.vo flocq/Core/Fcore_generic_fmt.vo flocq/Core/Fcore_rnd_ne.vo flocq/Core/Fcore_FIX.vo flocq/Core/Fcore_FLX.vo flocq/Core/Fcore_FLT.vo flocq/Core/Fcore_ulp.vo
+flocq/Prop/Fprop_Sterbenz.vo flocq/Prop/Fprop_Sterbenz.glob: flocq/Prop/Fprop_Sterbenz.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_generic_fmt.vo flocq/Calc/Fcalc_ops.vo
+flocq/Prop/Fprop_mult_error.vo flocq/Prop/Fprop_mult_error.glob: flocq/Prop/Fprop_mult_error.v flocq/Core/Fcore.vo flocq/Calc/Fcalc_ops.vo
+flocq/Prop/Fprop_relative.vo flocq/Prop/Fprop_relative.glob: flocq/Prop/Fprop_relative.v flocq/Core/Fcore.vo
+flocq/Prop/Fprop_div_sqrt_error.vo flocq/Prop/Fprop_div_sqrt_error.glob: flocq/Prop/Fprop_div_sqrt_error.v flocq/Core/Fcore.vo flocq/Calc/Fcalc_ops.vo flocq/Prop/Fprop_relative.vo
+flocq/Prop/Fprop_plus_error.vo flocq/Prop/Fprop_plus_error.glob: flocq/Prop/Fprop_plus_error.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_generic_fmt.vo flocq/Calc/Fcalc_ops.vo
+flocq/Calc/Fcalc_ops.vo flocq/Calc/Fcalc_ops.glob: flocq/Calc/Fcalc_ops.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo
+flocq/Calc/Fcalc_bracket.vo flocq/Calc/Fcalc_bracket.glob: flocq/Calc/Fcalc_bracket.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo
+flocq/Calc/Fcalc_sqrt.vo flocq/Calc/Fcalc_sqrt.glob: flocq/Calc/Fcalc_sqrt.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_digits.vo flocq/Core/Fcore_float_prop.vo flocq/Calc/Fcalc_bracket.vo flocq/Calc/Fcalc_digits.vo
+flocq/Calc/Fcalc_div.vo flocq/Calc/Fcalc_div.glob: flocq/Calc/Fcalc_div.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_digits.vo flocq/Calc/Fcalc_bracket.vo flocq/Calc/Fcalc_digits.vo
+flocq/Calc/Fcalc_round.vo flocq/Calc/Fcalc_round.glob: flocq/Calc/Fcalc_round.v flocq/Core/Fcore.vo flocq/Core/Fcore_digits.vo flocq/Calc/Fcalc_bracket.vo flocq/Calc/Fcalc_digits.vo
+flocq/Calc/Fcalc_digits.vo flocq/Calc/Fcalc_digits.glob: flocq/Calc/Fcalc_digits.v flocq/Core/Fcore_Raux.vo flocq/Core/Fcore_defs.vo flocq/Core/Fcore_float_prop.vo flocq/Core/Fcore_digits.vo
+flocq/Appli/Fappli_IEEE_bits.vo flocq/Appli/Fappli_IEEE_bits.glob: flocq/Appli/Fappli_IEEE_bits.v flocq/Core/Fcore.vo flocq/Core/Fcore_digits.vo flocq/Calc/Fcalc_digits.vo flocq/Appli/Fappli_IEEE.vo
+flocq/Appli/Fappli_IEEE.vo flocq/Appli/Fappli_IEEE.glob: flocq/Appli/Fappli_IEEE.v flocq/Core/Fcore.vo flocq/Core/Fcore_digits.vo flocq/Calc/Fcalc_digits.vo flocq/Calc/Fcalc_round.vo flocq/Calc/Fcalc_bracket.vo flocq/Calc/Fcalc_ops.vo flocq/Calc/Fcalc_div.vo flocq/Calc/Fcalc_sqrt.vo flocq/Prop/Fprop_relative.vo

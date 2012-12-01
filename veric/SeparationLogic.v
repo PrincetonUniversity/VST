@@ -71,7 +71,7 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition eval_cast (t t': type) (v: val) : val := force_val (sem_cast v t t').
+Definition eval_cast (t t': type) (v: val) : val := force_val (Cop.sem_cast v t t').
 
 Definition writable_share: share -> Prop := seplog.writable_share. 
 
@@ -164,6 +164,20 @@ Definition normal_ret_assert (Q: assert) : ret_assert :=
 Definition with_ge (ge: genviron) (G: assert) : mpred :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
+
+Fixpoint prog_funct' {F V} (l: list (ident * globdef F V)) : list (ident * F) :=
+ match l with nil => nil | (i,Gfun f)::r => (i,f):: prog_funct' r | _::r => prog_funct' r
+ end.
+
+Definition prog_funct (p: program) := prog_funct' (prog_defs p).
+
+Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
+ match l with nil => nil | (i,Gvar v)::r => (i,v):: prog_vars' r | _::r => prog_vars' r
+ end.
+
+Definition prog_vars (p: program) := prog_vars' (prog_defs p).
+
+
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl => R ek vl * F.
 
@@ -207,7 +221,7 @@ Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  | EK_return => R EK_return vl
  end.
 
-Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -227,14 +241,14 @@ unfold frame_ret_assert, for1_ret_assert.
 destruct ek; normalize.
 Qed.
 
-Lemma frame_for2:
+Lemma frame_loop1:
   forall Q R F, 
-   frame_ret_assert (for2_ret_assert Q R) F = 
-   for2_ret_assert (Q * F) (frame_ret_assert R F).
+   frame_ret_assert (loop1_ret_assert Q R) F = 
+   loop1_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
 extensionality ek vl.
-unfold frame_ret_assert, for2_ret_assert.
+unfold frame_ret_assert, loop1_ret_assert.
 destruct ek; normalize.
 Qed.
 
@@ -249,7 +263,7 @@ apply pred_ext; normalize.
 apply pred_ext; normalize.
 Qed.
 
-Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
+Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
@@ -314,7 +328,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt _ => writable_blocks (map (initblocksize type) prog.(prog_vars)) 
+(fun tt _ => writable_blocks (map (initblocksize type) (prog_vars prog)) 
                              (empty_environ (Genv.globalenv prog))).
 
 Definition main_post (prog: program) : unit -> assert := 
@@ -366,10 +380,9 @@ Parameter semax_func: forall (V: varspecs) (G: funspecs) (fdecs: list (ident * f
 
 Definition semax_prog 
      (prog: program) (V: varspecs) (G: funspecs) : Prop :=
-  compute_list_norepet (map (@fst _ _) prog.(prog_funct)
-                                       ++ map (@fst _ _) prog.(prog_vars)) = true /\
-  semax_func V G (prog.(prog_funct)) G /\
-   match_globvars (prog.(prog_vars)) V /\
+  compute_list_norepet (prog_defs_names prog) = true /\
+  semax_func V G (prog_funct prog) G /\
+   match_globvars (prog_vars prog) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Axiom semax_func_nil: forall V G, semax_func V G nil nil.
@@ -427,14 +440,27 @@ Axiom seq_assoc:
         semax Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
         semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
 
+Axiom semax_break:
+   forall Delta Q,    semax Delta (Q EK_break None) Sbreak Q.
+
+Axiom semax_continue:
+   forall Delta Q,    semax Delta (Q EK_continue None) Scontinue Q.
+
+Axiom semax_loop : 
+forall Delta Q Q' incr body R,
+     semax Delta  (fun rho => Q rho) body (for1_ret_assert Q' R) ->
+     semax Delta Q' incr (loop1_ret_assert Q R) ->
+     semax Delta Q (Sloop body incr) R.
+(*
 Axiom semax_for : 
 forall Delta Q Q' test incr body R,
      bool_type (typeof test) = true ->
      Q  |-- local (tc_expr Delta test) ->
      (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
      semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
-     semax Delta Q' incr (for2_ret_assert Q R) ->
-     semax Delta Q (Sfor' test incr body) R.
+     semax Delta Q' incr (loop1_ret_assert Q R) ->
+     semax Delta Q (Sfor Sskip test incr body) R.
+*)
 
 Axiom semax_while : 
 forall Delta Q test body R,
@@ -449,8 +475,8 @@ forall Delta Q test body R,
 
 Axiom semax_call : 
     forall Delta A (P Q: A -> assert) x F ret fsig a bl,
-           classify_fun (typeof a) =
-           fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
+           Cop.classify_fun (typeof a) =
+           Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
            match_fsig fsig bl ret = true ->
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split (fst fsig))) bl)  && 

@@ -363,7 +363,7 @@ Qed.
 Definition G0: funspecs := nil.
 
 Definition empty_genv : Clight.genv :=
-  Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil ( 1%positive) nil).
+  Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil ( 1%positive)).
 
 Lemma empty_program_ok: forall Delta ge w, 
     glob_types Delta = PTree.empty _ -> 
@@ -670,19 +670,17 @@ Qed.
 Lemma safe_loop_skip:
   forall 
     ge ora ve te k m,
-    jsafeN Hspec ge (level m) ora (State ve te (Kseq (Swhile true_expr Clight.Sskip) :: k)) m.
+    jsafeN Hspec ge (level m) ora (State ve te (Kseq (Sloop Clight.Sskip Clight.Sskip) :: k)) m.
 Proof.
   intros.
   remember (level m)%nat as N.
   destruct N; simpl; auto.
   case_eq (age1 m); [intros m' ? |  intro; apply age1_level0 in H; omegaContradiction].
-  exists (State ve te (Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k)), m'.
+  exists (State ve te (Kseq Sskip :: Kseq Scontinue :: Kloop1 Sskip Sskip :: k)), m'.
   split.
   split3.
   repeat constructor.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
-  change (Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k)
-          with (if true then Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k else k).
   repeat econstructor.
  apply age1_resource_decay; auto. apply age_level; auto.
   assert (N = level m')%nat.
@@ -690,14 +688,11 @@ Proof.
   clear HeqN m H. rename m' into m.
   revert m H0; induction N; intros; simpl; auto.
   case_eq (age1 m); [intros m' ? |  intro; apply age1_level0 in H; omegaContradiction].
-  exists (State ve te (Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k)), m'.
+  exists (State ve te (Kseq Sskip :: Kseq Scontinue :: Kloop1 Sskip Sskip :: k)), m'.
   split.
   split3.
   replace (m_dry m') with (m_dry m) by (destruct (age1_juicy_mem_unpack _ _ H); auto).
   repeat constructor.
-  change (Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k)
-          with (if true then Kseq Sskip :: Kseq Scontinue :: Kfor2 true_expr Sskip Sskip :: k else k).
-  repeat econstructor.
  apply age1_resource_decay; auto. apply age_level; auto.
   eapply IHN; eauto. 
   apply age_level in H. omega.
@@ -750,16 +745,16 @@ Definition control_as_safe ge n ctl1 ctl2 :=
 
 Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
-  | Kfor2 e2 e3 s :: k' => k
+  | Kloop1 s e3 :: k' => k
   | Kseq s :: k' => prebreak_cont k'
-  | Kfor3 e2 e3 s :: _ => nil  (* stuck *)
+  | Kloop2 s e3 :: _ => nil  (* stuck *)
   | Kswitch :: k' => k
   | _ =>  nil (* stuck *)
   end.
 
 Lemma prebreak_cont_is: forall k,
   match (prebreak_cont k) with
-  | Kfor2 _ _ _ :: _ => True
+  | Kloop1 _ _ :: _ => True
   | Kswitch :: _ => True
   | nil => True
   | _ => False
@@ -933,49 +928,18 @@ Focus 1.
   split. split3; auto. rewrite <- Heqdm'. econstructor; eauto.
   rewrite cons_app. rewrite <- app_ass.
   apply H4; auto.
-  (* while *)
-  inv H.
-  exists (State ve te
-          (if b
-           then Kseq s :: Kseq Scontinue :: Kfor2 a Sskip s :: l ++ ctl2
-           else l ++ ctl2)), m'0.
-  split.
-  split3; auto. constructor. rewrite <- H12; econstructor; eauto.
-  destruct b.
- change (Kseq s :: Kseq Scontinue :: Kfor2 a Sskip s :: l ++ ctl2)
-    with ((Kseq s :: Kseq Scontinue :: Kfor2 a Sskip s :: l)  ++ ctl2).
- apply H4; auto. apply H4; auto.
- (* dowhile *)
-   destruct (IHcl_step (Kseq s) (Kseq Scontinue :: Kfor2 a Sskip s :: l) _ (eq_refl _) _ (eq_refl _) Hb Hc H1 (eq_refl _)) 
-             as [c2 [m2 [? ?]]]; clear IHcl_step.
-  exists c2,m2; split; auto. 
-   destruct H2 as [H2 [H2b H2c]].
-  split3; auto. constructor. auto.
-  (* for *)
-  assert (jsafeN Hspec ge n ora
-                 (State ve te ((if b then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: l else l) ++ ctl1)) m').
- destruct b; auto.
- apply H4 in H3; auto.
+  (* loop *)
+  change (Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: l ++ ctl1) with
+               ((Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: l) ++ ctl1) in H1.
+  eapply H4 in H1.
   do 2 eexists; split; eauto.
-  assert (jstep cl_core_sem ge (State ve te (Kseq (Sfor' a2 a3 s) :: l ++ ctl2)) m0
-  (State ve te
-     (if b then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: l ++ ctl2 else l ++
-      ctl2)) m').
    split3; auto. rewrite <- Heqdm'.
-  econstructor; eauto. destruct b; auto.
-  (* for3 *)
-  assert (jsafeN Hspec ge n ora
-       (State ve te
-          ((if b
-           then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: l else l) ++ ctl1)) m').
-  destruct b; auto.
- apply H4 in H3; auto.
-  do 2 eexists; split; eauto.
- assert (jstep cl_core_sem ge (State ve te (Kfor3 a2 a3 s :: l ++ ctl2)) m0
-  (State ve te
-     (if b then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: l++ctl2 else l ++ctl2)) m').
-  split3; auto. rewrite <- Heqdm'.  econstructor; eauto.
-  destruct b; auto.
+  econstructor; eauto. omega.
+  (* loop2 *)
+  change (Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: l ++ ctl1) with
+              ((Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: l) ++ ctl1) in H1.
+  apply H4 in H1; auto.
+  do 2 eexists; split; eauto.   split3; auto. rewrite <- Heqdm'.  econstructor; eauto.
  (* return *)
   case_eq (call_cont l); intros.
   rewrite call_cont_app_nil in * by auto.
@@ -1165,7 +1129,7 @@ End extensions.
 
 
 Definition Cnot (e: Clight.expr) : Clight.expr :=
-   Clight.Eunop Onotbool e type_bool.
+   Clight.Eunop Cop.Onotbool e type_bool.
 
 Lemma bool_val_Cnot:
   forall rho a b, 
@@ -1178,7 +1142,7 @@ Proof.
  unfold lift1, eval_unop; simpl.
  destruct (eval_expr a rho); simpl in *; try congruence.
  destruct (typeof a); simpl in *; try congruence.
- inv H0.  rewrite  negb_involutive. unfold sem_notbool, classify_bool, Val.of_bool.
+ inv H0.  rewrite  negb_involutive. unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
  destruct i0; simpl; auto; destruct (Int.eq i Int.zero); auto;
  destruct s; simpl; auto.
  

@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.

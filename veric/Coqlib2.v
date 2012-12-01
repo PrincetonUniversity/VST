@@ -1,5 +1,6 @@
+Load loadpath.
 Require Export msl.Extensionality.
-Require Import compcert.Coqlib.
+Require Import Coqlib.
 Require Export msl.Coqlib2.
 
 

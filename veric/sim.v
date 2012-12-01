@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import veric.base.
-Require Import compcert.Events.
+Require Import Events.
 
 Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m m'.
   Proof. intros j m m' b; intros. congruence. Qed.
@@ -664,6 +664,7 @@ Lemma val_listless_forall_lessdef: forall args args' (H:Val.lessdef_list args ar
 
 
 Module CompilerCorrectness.
+
 Definition globvar_eq {V1 V2: Type} (v1:globvar V1) (v2:globvar V2) :=
     match v1, v2 with mkglobvar _ init1 readonly1 volatile1, mkglobvar _ init2 readonly2 volatile2 =>
                         init1 = init2 /\ readonly1 =  readonly2 /\ volatile1 = volatile2
@@ -716,21 +717,21 @@ Definition GenvHyp {F1 V1 F2 V2}
                                           block_is_volatile (Genv.globalenv P2) b =
                                           block_is_volatile (Genv.globalenv P1) b).
 
-Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)))  (P : AST.program F V),Prop)
+Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)))  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)):
        forall (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2), Type :=
    corec_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
  (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ m1 = m2))
                entrypoints
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
@@ -743,13 +744,13 @@ Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C
                 I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
                core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  corec_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
 (*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
                                         /\ Mem.extends m1 m2))
                entrypoints
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
@@ -762,13 +763,13 @@ Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  corec_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                entrypoints jInit
-               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
@@ -782,9 +783,9 @@ Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | corec_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-               (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+               (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                (P3 : AST.program F3 V3),
@@ -793,8 +794,8 @@ Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C
                  core_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
  
 Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -802,8 +803,8 @@ Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
    Proof. intros. induction X; intuition. Qed.
 
 Lemma corec_main: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -812,8 +813,8 @@ Lemma corec_main: forall {F1 C1 V1 F2 C2 V2}
 
 (*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
 Lemma corec_Genv:forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -825,21 +826,21 @@ Lemma corec_Genv:forall {F1 C1 V1 F2 C2 V2}
 
 (*And here the variant for CompcertCoreSemantics*)
 
-Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C  (list (ident * globvar V)))  (P : AST.program F V),Prop)
+Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t F V) C  (list (ident * globdef F V)))  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)):
        forall (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2), Type :=
    cc_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
  (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ m1 = m2))
                entrypoints
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
@@ -852,13 +853,13 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
 (*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
                                         /\ Mem.extends m1 m2))
                entrypoints
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
@@ -871,13 +872,13 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  cc_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                entrypoints jInit
-               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
@@ -891,9 +892,9 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | cc_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
-               (Sem3 : CompcertCoreSem (Genv.t F3 V3) C3 (list (ident * globvar V3)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+               (Sem3 : CompcertCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                (P3 : AST.program F3 V3),
@@ -902,8 +903,8 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                  compiler_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
  
 Lemma cc_I: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -911,8 +912,8 @@ Lemma cc_I: forall {F1 C1 V1 F2 C2 V2}
    Proof. intros. induction X; intuition. Qed.
 
 Lemma cc_main: forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -921,8 +922,8 @@ Lemma cc_main: forall {F1 C1 V1 F2 C2 V2}
 
 (*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
 Lemma cc_Genv:forall {F1 C1 V1 F2 C2 V2}
-               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globvar V2)))
+               (Sem1 : CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : CompcertCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)  ExternIdents I,
                     compiler_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -932,21 +933,21 @@ Lemma cc_Genv:forall {F1 C1 V1 F2 C2 V2}
        destruct IHX2.
         split; intros; eauto. rewrite H1. apply H. Qed.
 
-Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)))  (P : AST.program F V),Prop)
+Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)))  (P : AST.program F V),Prop)
         (ExternIdents: list (ident * external_description)) entrypoints:
        forall (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2), Type :=
    ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
  (*              (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ m1 = m2))
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
@@ -958,13 +959,13 @@ Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list
                 I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
                cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
 (*               (match_prog:  precise_match_program F1 F2 V1 V2 P1 P2)*)
-               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars) 
+               (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
                                         /\ Mem.extends m1 m2))
                (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
                (R:Sim_ext.Forward_simulation_extends _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
@@ -976,13 +977,13 @@ Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list
                 I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  |  ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+               (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+               (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
                (P1 : AST.program F1 V1)
                (P2 : AST.program F2 V2)
                 jInit
-               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_vars)->
-                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_vars)
+               (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+                     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)

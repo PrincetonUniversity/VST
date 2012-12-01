@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import msl.eq_dec.
 
@@ -46,6 +47,7 @@ right; intros [? ?]; omega.
 right; intros [? ?]; unfold block in *; omega.
 Qed.
 
+(*
 Definition size_chunk (chunk: memory_chunk) : Z :=
   match chunk with
   | Mint8signed => 1
@@ -55,7 +57,9 @@ Definition size_chunk (chunk: memory_chunk) : Z :=
   | Mint32 => 4
   | Mfloat32 => 4
   | Mfloat64 => 8
+  | Mfloat64al32 => 4
   end.
+*)
 
 Remark size_chunk_pos:
   forall chunk1, size_chunk chunk1 > 0.

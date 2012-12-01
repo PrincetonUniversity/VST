@@ -1,3 +1,4 @@
+Load loadpath.
 Require Export veric.base.
 Require Export veric.Address.
 Require Import msl.rmaps.
@@ -160,11 +161,12 @@ intros st ?.
 split; auto.
 Qed. 
 
-Lemma assert_Val_is_true:
- forall {A} `{ageable A} (P: pred A), P |-- !!(Val.is_true Vtrue) && P.
-Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
+(*   Lemma assert_Val_is_true:
+   forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
+  Proof.  intros. apply assert_truth. apply Val_is_true_Vtrue. Qed.
 
 Hint Resolve Val_is_true_Vtrue  @assert_Val_is_true.
+*)
 
 (****************** stuff moved from semax_prog  *****************)
 

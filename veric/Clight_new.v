@@ -5,18 +5,14 @@ Require Import veric.sim.
 
 Inductive cont': Type :=
   | Kseq: statement -> cont'       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)
-  | Kfor2: expr -> statement -> statement -> cont'       (**r [Kfor2 e2 e3 s k] = after [s] in [for'(e2;e3) s] *)
-  | Kfor3: expr -> statement -> statement  -> cont'       (**r [Kfor3 e2 e3 s k] = after [e3] in [for'(e2;e3) s] *)
+  | Kloop1: statement -> statement -> cont'       
+  | Kloop2: statement -> statement  -> cont'      
   | Kswitch: cont'       (**r catches [break] statements arising out of [switch] *)
-(*  | Kfun: fundef -> list val -> forall (l: option ident), cont' *)
   | Kcall: forall (l: option ident),                  (**r where to store result *)
            function ->                      (**r called (not calling!) function *)
            env ->                           (**r local env of calling function *)
            temp_env ->                      (**r temporary env of calling function *)
            cont'.
-(*
-   | Kreturn: val -> cont'.
-*)
 
 Definition cont := list cont'.
 
@@ -25,8 +21,8 @@ Definition cont := list cont'.
 Fixpoint call_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k => call_cont k
-  | Kfor2 e2 e3 s :: k => call_cont k
-  | Kfor3 e2 e3 s :: k => call_cont k
+  | Kloop1 _ _ :: k => call_cont k
+  | Kloop2 _ _ :: k => call_cont k
   | Kswitch :: k => call_cont k
   | _ => k
   end.
@@ -34,8 +30,8 @@ Fixpoint call_cont (k: cont) : cont :=
 Fixpoint current_function (k: cont) : option function :=
  match k with
   | Kseq s :: k => current_function k
-  | Kfor2 e2 e3 s :: k => current_function k
-  | Kfor3 e2 e3 s :: k =>current_function k
+  | Kloop1 _ _ :: k => current_function k
+  | Kloop2 _ _:: k =>current_function k
   | Kswitch :: k => current_function k
   | Kcall _ f _ _ :: _ => Some f
   | _ => None
@@ -44,7 +40,7 @@ Fixpoint current_function (k: cont) : option function :=
 Fixpoint continue_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k' => continue_cont k'
-  | Kfor2 e2 e3 s :: k' => Kseq e3 :: Kfor3 e2 e3 s :: k'
+  | Kloop1 s1 s2 :: k' => Kseq s2 :: Kloop2 s1 s2 :: k'
   | Kswitch :: k' => continue_cont k'
   | _ => nil (* stuck *)
   end.
@@ -58,7 +54,7 @@ Lemma call_cont_nonnil: forall k f, current_function k = Some f -> call_cont k <
 Fixpoint precontinue_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k' => precontinue_cont k'
-  | Kfor2 _ _ _ :: _ => k
+  | Kloop1 _ _ :: _ => k
   | Kswitch :: k' => precontinue_cont k'
   | _ => nil (* stuck *)
   end.
@@ -66,8 +62,8 @@ Fixpoint precontinue_cont (k: cont) : cont :=
 Fixpoint break_cont (k: cont) : cont :=
   match k with
   | Kseq s :: k' => break_cont k'
-  | Kfor2 e2 e3 s :: k' => k'
-  | Kfor3 e2 e3 s :: _ => nil  (* stuck *)
+  | Kloop1 _ _ :: k' => k'
+  | Kloop2 _ _ :: _ => nil  (* stuck *)
   | Kswitch :: k' => k'
   | _ =>  nil (* stuck *)
   end.
@@ -110,14 +106,10 @@ Fixpoint find_label (lbl: label) (s: statement) (k: cont)
       | Some sk => Some sk
       | None => find_label lbl s2 k
       end
-  | Swhile a s1 =>
-      find_label lbl s1 (Kseq Scontinue :: Kfor2 a Sskip s1::  k)
-  | Sdowhile a s1 =>
-      find_label lbl s1 (Kseq Scontinue :: Kfor2 a Sskip s1 :: k)
-  | Sfor' a2 a3 s1 =>
-      match find_label lbl s1 (Kseq Scontinue :: Kfor2 a2 a3 s1 :: k) with
+  | Sloop s1 a3 =>
+      match find_label lbl s1 (Kseq Scontinue :: Kloop1 s1 a3 :: k) with
       | Some sk => Some sk
-      | None => find_label lbl a3 (Kfor3 a2 a3 s1 :: k)
+      | None => find_label lbl a3 (Kloop2 s1 a3 :: k)
       end
   | Sswitch e sl =>
       find_label_ls lbl sl (Kswitch :: k)
@@ -142,35 +134,36 @@ with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont)
 
 Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': corestate) (m': mem), Prop :=
 
-  | step_assign: forall ve te k m a1 a2 loc ofs v2 v t m',
+  | step_assign: forall ve te k m a1 a2 loc ofs v2 v m',
      type_is_volatile (typeof a1) = false ->
-      Clight_sem.eval_lvalue ge ve te m a1 loc ofs ->
-      Clight_sem.eval_expr ge ve te m a2 v2 ->
-      sem_cast v2 (typeof a2) (typeof a1) = Some v ->
-      Csem.assign_loc ge (typeof a1) m loc ofs v t m' ->
+      Clight.eval_lvalue ge ve te m a1 loc ofs ->
+      Clight.eval_expr ge ve te m a2 v2 ->
+      Cop.sem_cast v2 (typeof a2) (typeof a1) = Some v ->
+      Clight.assign_loc (typeof a1) m loc ofs v m' ->
       cl_step ge (State ve te (Kseq (Sassign a1 a2):: k)) m (State ve te k) m'
 
   | step_set:   forall ve te k m id a v,
-      Clight_sem.eval_expr ge ve te m a v ->
+      Clight.eval_expr ge ve te m a v ->
       cl_step ge (State ve te (Kseq (Sset id a) :: k)) m (State ve (PTree.set id v te) k) m
 
   | step_call_internal:   forall ve te k m optid a al tyargs tyres vf vargs f m1 ve' le',
-      classify_fun (typeof a) = fun_case_f tyargs tyres ->
-      Clight_sem.eval_expr ge ve te m a vf ->
-      Clight_sem.eval_exprlist ge ve te m al tyargs vargs ->
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres ->
+      Clight.eval_expr ge ve te m a vf ->
+      Clight.eval_exprlist ge ve te m al tyargs vargs ->
       Genv.find_funct ge vf = Some (Internal f) ->
       type_of_function f = Tfunction tyargs tyres ->
       list_norepet (var_names f.(fn_params) ++ var_names f.(fn_temps)) ->
-      Csem.alloc_variables empty_env m (f.(fn_vars)) ve' m1 ->
+      forall (NRV: list_norepet (var_names f.(fn_vars))),
+      Clight.alloc_variables empty_env m (f.(fn_vars)) ve' m1 ->
       bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some 
 le' ->
       cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m
                    (State ve' le' (Kseq f.(fn_body) :: Kseq (Sreturn None) :: Kcall optid f ve te :: k)) m1
 
   | step_call_external:   forall ve te k m optid a al tyargs tyres vf vargs ef,
-      classify_fun (typeof a) = fun_case_f tyargs tyres ->
-      Clight_sem.eval_expr ge ve te m a vf ->
-      Clight_sem.eval_exprlist ge ve te m al tyargs vargs ->
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres ->
+      Clight.eval_expr ge ve te m a vf ->
+      Clight.eval_exprlist ge ve te m al tyargs vargs ->
       Genv.find_funct ge vf = Some (External ef tyargs tyres) ->
       cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres) vargs optid ve te k) m
 
@@ -191,33 +184,23 @@ le' ->
                    cl_step ge (State ve te (Kseq Sbreak :: k)) m st' m'
 
   | step_ifthenelse:  forall ve te k m a s1 s2 v1 b,
-      Clight_sem.eval_expr ge ve te m a v1 ->
-      bool_val v1 (typeof a) = Some b ->
+      Clight.eval_expr ge ve te m a v1 ->
+      Cop.bool_val v1 (typeof a) = Some b ->
       cl_step ge (State ve te (Kseq (Sifthenelse a s1 s2) :: k)) m (State ve te  (Kseq (if b then s1 else s2) :: k)) m
 
-  | step_while: forall ve te k m a s st' m',
-      cl_step ge (State ve te (Kseq (Sfor' a Sskip s) :: k)) m st' m' ->
-      cl_step ge (State ve te (Kseq (Swhile a s) :: k)) m st' m'
+  | step_for: forall ve te k m s1 s2,
+      cl_step ge (State ve te (Kseq (Sloop s1 s2) :: k)) m 
+              (State ve te (Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: k)) m
 
-  | step_dowhile: forall ve te k m a s st' m',
-      cl_step ge (State ve te (Kseq s :: Kseq Scontinue :: Kfor2 a Sskip s :: k)) m st' m' ->
-      cl_step ge (State ve te (Kseq (Sdowhile a s) :: k)) m st' m'
-
-  | step_for: forall ve te k m a2 a3 s v2 b,
-      Clight_sem.eval_expr ge ve te m a2 v2 ->
-      bool_val v2 (typeof a2) = Some b ->
-      cl_step ge (State ve te (Kseq (Sfor' a2 a3 s) :: k)) m (State ve te (if b then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: k else k)) m
-
-  | step_for3: forall ve te k m a2 a3 s v2 b,
-      Clight_sem.eval_expr ge ve te m a2 v2 ->
-      bool_val v2 (typeof a2) = Some b ->
-      cl_step ge (State ve te (Kfor3 a2 a3 s :: k)) m (State ve te (if b then Kseq s :: Kseq Scontinue :: Kfor2 a2 a3 s :: k else k)) m
+  | step_loop2: forall ve te k m a3 s,
+      cl_step ge (State ve te (Kloop2 s a3 :: k)) m 
+             (State ve te (Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: k)) m
 
   | step_return: forall f ve te optexp optid k m v' m' ve' te' te'' k',
       call_cont k = Kcall optid f ve' te' :: k' ->
-      Mem.free_list m (Csem.blocks_of_env ve) = Some m' ->
+      Mem.free_list m (Clight.blocks_of_env ve) = Some m' ->
       match optexp with None => True
-                                  | Some a => exists v, Clight_sem.eval_expr ge ve te m a v /\ sem_cast v (typeof a) f.(fn_return) = Some v' 
+                                  | Some a => exists v, Clight.eval_expr ge ve te m a v /\ Cop.sem_cast v (typeof a) f.(fn_return) = Some v' 
                             end ->
       match optid with None => f.(fn_return) = Tvoid /\ te''=te'
                                 | Some id => optexp <> None /\ te'' = PTree.set id v' te'
@@ -225,7 +208,7 @@ le' ->
       cl_step ge (State ve te (Kseq (Sreturn optexp) :: k)) m (State ve' te'' k') m'
 
   | step_switch: forall ve te k m a sl n,
-      Clight_sem.eval_expr ge ve te m a (Vint n) ->
+      Clight.eval_expr ge ve te m a (Vint n) ->
       cl_step ge (State ve te (Kseq (Sswitch a sl) :: k)) m
               (State ve te (Kseq (seq_of_labeled_statement (select_switch n sl)) :: Kswitch :: k)) m
 
@@ -263,8 +246,8 @@ Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
  | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
  end.
 
-Definition cl_init_mem (ge:genv) (m:mem) d:  Prop:=
-   Genv.alloc_variables ge Mem.empty d = Some m.
+Definition cl_init_mem (ge:genv) (m:mem) (d: list (ident * globdef fundef type) ):  Prop.
+ Admitted. (*     Genv.alloc_variables ge Mem.empty d = Some m. *)
 
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
   let tl := typed_params 2%positive (length args)
@@ -272,7 +255,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
                   (Kseq (Scall None 
                                   (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid))
                                   (map (fun x => Etempvar (fst x) (snd x)) tl)) :: 
-                     Kseq (Swhile true_expr Sskip) :: nil)).
+                     Kseq (Sloop Sskip Sskip) :: nil)).
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
@@ -299,7 +282,7 @@ destruct lid; try congruence; inv H; auto.
 Qed.
 
 Program Definition cl_core_sem : 
-  CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globvar type)) :=
+  CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globdef fundef type)) :=
   @Build_CoreSemantics _ _ _ _
     cl_init_mem
     cl_initial_core
@@ -319,14 +302,15 @@ Proof.
 intros.
 rename H0 into STEP;
 revert q2 m2 STEP; induction H; intros; inv STEP; simpl; auto; repeat fun_tac; auto.
+f_equal; eapply assign_loc_fun; eauto.
 inversion2 H H13. repeat fun_tac; auto.
-inversion2 H H7.
 destruct optexp. destruct H1 as [v [? ?]]. destruct H12 as [v2 [? ?]].
 repeat fun_tac.
-destruct optid. subst. auto. destruct H13,H2; subst; auto.
-destruct H2,H13; subst; auto.
-destruct optid; subst; auto. destruct H2; congruence.
-destruct H2,H13; subst; auto.
+inversion2 H H7.
+ inversion2 H3 H5.
+destruct optid. destruct H2,H13. subst. auto. destruct H13,H2; subst; auto.
+ inversion2 H H7. 
+ destruct optid. destruct H2; congruence. destruct H2,H13. subst. auto.
 inv H; auto.
 Qed.
 
@@ -389,7 +373,7 @@ Lemma cl_allowed_modifications : forall ge c m c' m',
 Proof.
   intros.
   induction H; eauto with allowed_mod.
-  inv H3; eauto with allowed_mod. congruence.
+  inv H3; eauto with allowed_mod.
   (*eapply storebytes_allowed_core_modification; eauto. 
    LENB: storebytes_allowed_core_modification is now in allowed_mod hint database*)
   apply allowed_core_modification_trans with m1.
@@ -401,5 +385,5 @@ Proof.
 Qed.
 
 Definition cl_core_sem' : 
-  CompcertCoreSem (Genv.t fundef type) corestate (list (ident*globvar type)) :=
+  CompcertCoreSem (Genv.t fundef type) corestate (list (ident*globdef fundef type)) :=
   Build_CompcertCoreSem _ _ _ cl_core_sem cl_corestep_fun cl_allowed_modifications.

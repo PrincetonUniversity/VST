@@ -1,16 +1,17 @@
-Require Export compcert.Axioms.
-Require Export compcert.Coqlib.
-Require Export compcert.AST.
-Require Export compcert.Integers.
-Require Export compcert.Floats.
-Require Export compcert.Values.
-Require Export compcert.Maps.
-Require Export compcert.Memdata.
-Require Export compcert.Memtype.
-Require Export compcert.Memory.
-Require Export compcert.Globalenvs.
-Require Export compcert.Ctypes.
-Require Export compcert.Clight.
+Load loadpath.
+Require Export Axioms.
+Require Export Coqlib.
+Require Export AST.
+Require Export Integers.
+Require Export Floats.
+Require Export Values.
+Require Export Maps.
+Require Export Memdata.
+Require Export Memtype.
+Require Export Memory.
+Require Export Globalenvs.
+Require Export Ctypes.
+Require Export Clight.
 
 Require Export EqNat.
 Require Export veric.Coqlib2.
@@ -115,16 +116,15 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 Definition modified0 : ident -> Prop := fun _ => False.
 Definition modified1 id : ident -> Prop := fun i => i=id.
 Definition modified2 (s1 s2: ident -> Prop) := fun i => s1 i \/ s2 i.
-
+Print statement.
 Fixpoint modifiedvars (c: statement) : ident -> Prop :=
  match c with
  | Sset id e => modified1 id
  | Sifthenelse _ c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
  | Scall (Some id) _ _ => modified1 id
+ | Sbuiltin (Some id) _ _ _ => modified1 id
  | Ssequence c1 c2 =>  modified2 (modifiedvars c1) (modifiedvars c2)
- | Swhile e c => modifiedvars c
- | Sdowhile e c => modifiedvars c
- | Sfor' e c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
+ | Sloop c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
  | Sswitch e cs => modifiedvars_ls cs
  | Slabel _ c => modifiedvars c
  | _ => modified0

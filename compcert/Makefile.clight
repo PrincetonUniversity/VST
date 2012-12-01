@@ -1,0 +1,17 @@
+target: cfrontend/Clight.vo
+
+include Makefile
+
+DIRS=lib common  cfrontend flocq/Core flocq/Prop flocq/Calc flocq/Appli
+
+FILES=$(LIB) $(COMMON) $(CFRONTEND)  $(FLOCQ) 
+
+clight-depend: $(FILES)
+	$(COQDEP) $^ \
+        | sed -e 's|$(ARCH)/$(VARIANT)/|$$(ARCH)/$$(VARIANT)/|g' \
+              -e 's|$(ARCH)/|$$(ARCH)/|g' \
+        > .depend
+
+%.vo: %.v
+	@echo "COQC $*.v"
+	@$(COQC) $*.v

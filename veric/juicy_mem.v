@@ -8,26 +8,6 @@ Import Mem.
 Require Import msl.msl_standard.
 Import cjoins.
 
-Lemma unreserved_dec: forall b next, { b <> 0 /\ b < next } + { ~( b <> 0 /\ b < next ) }.
-Proof.
-intros.
-destruct (zeq b 0).
-right.
-intros [? ?].
-omegaContradiction. 
-destruct (zlt b next).
-left; auto.
-right.
-intros [? ?].
-omegaContradiction.
-Qed.
-
-Lemma pos_unreserved_dec: forall b next, { 0 < b < next } +  { ~( 0 < b < next ) }.
-Proof.
-intros.
-destruct (zlt 0 b); destruct (zlt b next); firstorder.
-Qed.
-
 Definition perm_of_sh (rsh sh: Share.t): option permission :=
   if eq_dec sh Share.top 
     then if eq_dec rsh Share.top 
@@ -57,7 +37,15 @@ Definition valshare (r: resource) : share :=
       | _ => Share.bot
     end.
 
-Definition perm_of_res (r: resource) := perm_of_sh (res_retain r) (valshare r).
+
+Definition res_retain' (r: resource) : Share.t :=
+ match r with
+  | NO sh => sh
+  | YES sh _ _ _ => sh
+  | PURE _ _ => Share.top
+ end.
+
+Definition perm_of_res (r: resource) := perm_of_sh (res_retain' r) (valshare r).
 
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc = perm_of_res (phi @ loc).
@@ -67,7 +55,7 @@ Definition max_access_cohere (m: mem) (phi: rmap)  :=
    match phi @ loc with
    | YES rsh sh _ _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
    | NO rsh => perm_order'' (max_access_at m loc) (perm_of_sh rsh Share.bot )
-   | PURE _ _ => fst loc < 0 
+   | PURE _ _ => fst loc < nextblock m
   end.
 
 Definition alloc_cohere (m: mem) (phi: rmap) :=
@@ -512,8 +500,9 @@ Definition inflate_initial_mem' (w: rmap) (loc: address) :=
            | Some Freeable => YES Share.top pfullshare (VAL (contents_at m loc)) NoneP
            | Some Writable => YES Share.bot pfullshare (VAL (contents_at m loc)) NoneP
            | Some Readable => YES Share.bot read_sh (VAL (contents_at m loc)) NoneP
-           | Some Nonempty => NO Share.top
-           | None => core w @ loc
+           | Some Nonempty => 
+                         match w @ loc with PURE _ _ => w @ loc | _ => NO Share.top end
+           | None =>  NO Share.bot 
          end.
 
 Lemma inflate_initial_mem'_fmap:
@@ -527,7 +516,8 @@ extensionality loc.
 destruct (access_at m loc); try destruct p; 
   try solve [unfold resource_fmap; f_equal; try apply preds_fmap_NoneP].
 rewrite <- level_core.
-apply resource_at_approx.
+  case_eq (w @ loc);intros; try reflexivity.
+  rewrite <- H. rewrite level_core. apply resource_at_approx.
 Qed.
 
 Lemma inflate_initial_mem'_valid:
@@ -536,11 +526,7 @@ Proof.
 unfold valid, CompCert_AV.valid, compose, inflate_initial_mem'.
 intros lev b ofs.
 destruct (access_at m (b, ofs)); try destruct p; simpl; auto.
-rewrite <- core_resource_at.
-case (lev @ (b,ofs)); simpl; intros; auto.
-rewrite core_NO; simpl; auto.
-rewrite core_YES; simpl; auto.
-rewrite core_PURE; simpl; auto.
+ case_eq (lev @ (b,ofs)); intros; simpl; auto.
 Qed.
 
 Definition inflate_initial_mem (w: rmap): rmap :=
@@ -564,11 +550,7 @@ Proof.
 unfold inflate_initial_mem, inflate_initial_mem', all_VALs.
 intros; rewrite resource_at_make_rmap.
 destruct (access_at m l); try destruct p; auto.
-rewrite <- core_resource_at.
-case (lev @ l); simpl; intros; auto.
-rewrite core_NO; simpl; auto.
-rewrite core_YES; simpl; auto.
-rewrite core_PURE; simpl; auto.
+ case (lev @ l); simpl; intros; auto.
 Qed.
 
 (* FIXME
@@ -783,7 +765,12 @@ Section initial_mem.
 Variables (m: mem) (w: rmap).
 
 Definition initial_rmap_ok := 
-   forall loc, fst loc >= 0 -> core w @ loc = NO Share.bot.
+   forall loc, (fst loc >= nextblock m -> core w @ loc = NO Share.bot) /\
+                   (match w @ loc with 
+                    | PURE _ _ => fst loc < nextblock m /\ 
+                                           access_at m loc = Some Nonempty /\  
+                                            max_access_at m loc = Some Nonempty 
+                    | _ => True end).
 Hypothesis IOK: initial_rmap_ok.
 End initial_mem.
 
@@ -823,21 +810,7 @@ rewrite if_true by auto. auto.
 intro; contradiction Share.nontrivial; auto.
 Qed.
 
-Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok lev) : juicy_mem.
- refine (mkJuicyMem m  (inflate_initial_mem m lev) _ _ _ _); 
-  unfold inflate_initial_mem, inflate_initial_mem';
-  hnf; intros;  try rewrite resource_at_make_rmap in *.
-(* contents_cohere *)
-revert H; case_eq (access_at m loc); intros; try destruct p; inv H0; auto.
-contradiction (core_not_YES H2).
-(* access_cohere *)
-symmetry.
-case_eq (access_at m loc); intros; try destruct p; auto; simpl.
-apply perm_of_freeable.
-apply perm_of_writable.
-intro; contradiction Share.nontrivial; auto.
-apply perm_of_readable.
-simpl.
+
 Lemma fst_split_fullshare_not_bot: fst (Share.split fullshare) <> Share.bot.
 Proof.
 intro.
@@ -846,8 +819,7 @@ rewrite H0 in H. simpl in H. subst.
 apply Share.split_nontrivial in H0; auto.
 apply Share.nontrivial in H0. contradiction.
 Qed.
-apply fst_split_fullshare_not_bot.
-simpl.
+
 Lemma fst_split_fullshare_not_top: fst (Share.split fullshare) <> Share.top.
 Proof.
 case_eq (Share.split fullshare); intros.
@@ -856,16 +828,33 @@ apply nonemp_split_neq1 in H.
 apply H; auto.
 apply top_share_nonidentity.
 Qed.
+
+Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.
+ refine (mkJuicyMem m  (inflate_initial_mem m lev) _ _ _ _); 
+  unfold inflate_initial_mem, inflate_initial_mem';
+  hnf; intros;  try rewrite resource_at_make_rmap in *.
+(* contents_cohere *)
+revert H; case_eq (access_at m loc); intros.
+ destruct p; inv H0; auto.
+ revert H2; case_eq (lev @ loc); intros; congruence.
+ destruct (max_access_at m loc); try destruct p; try congruence.
+(* access_cohere *)
+symmetry.
+case_eq (access_at m loc); intros; try destruct p; auto; simpl.
+apply perm_of_freeable.
+apply perm_of_writable.
+intro; contradiction Share.nontrivial; auto.
+apply perm_of_readable.
+simpl.
+apply fst_split_fullshare_not_bot.
+simpl.
 apply fst_split_fullshare_not_top.
-unfold perm_of_res. simpl. apply perm_of_nonempty. apply Share.nontrivial.
-unfold perm_of_res.
-replace (res_retain (core lev @ loc)) with Share.bot.
-replace (valshare (core lev @ loc)) with Share.bot.
+destruct (IOK loc).
+case_eq (lev @ loc); intros.
+apply perm_of_nonempty; apply Share.nontrivial.
+apply perm_of_nonempty; apply Share.nontrivial.
+apply perm_of_nonempty; apply Share.nontrivial.
 apply perm_of_empty.
-rewrite <- core_resource_at.
-destruct (lev @ loc); [ rewrite core_NO | rewrite core_YES | rewrite core_PURE]; simpl; auto.
-rewrite <- core_resource_at.
-destruct (lev @ loc); [ rewrite core_NO | rewrite core_YES | rewrite core_PURE]; simpl; auto.
 (* max_access_cohere *)
 generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
 case_eq (access_at m loc); try destruct p; intros.
@@ -887,25 +876,29 @@ clear; unfold read_sh.
 unfold split_pshare; simpl.
 apply fst_split_fullshare_not_bot.
 apply fst_split_fullshare_not_top.
+(*
 simpl. rewrite perm_of_nonempty by (intro; contradiction Share.nontrivial).
 unfold perm_order'', perm_order', max_access_at, access_at in *.
 rewrite H0 in *.
 apply H. constructor.
-destruct (zlt (fst loc) 0); auto.
 rewrite <- core_resource_at.
+*)
+destruct (IOK loc).
 destruct (lev @ loc).
-rewrite core_NO. rewrite perm_of_empty.
-unfold perm_order''.  destruct (max_access_at m loc); auto.
-rewrite core_YES. rewrite perm_of_empty.
-unfold perm_order''.  destruct (max_access_at m loc); auto.
-rewrite core_PURE. auto.
-rewrite (IOK loc); auto.
-rewrite perm_of_empty.
-unfold perm_order''.  destruct (max_access_at m loc); auto.
+rewrite perm_of_nonempty by apply Share.nontrivial.
+unfold max_access_at, access_at in *.
+rewrite H0 in H.
+specialize (H Nonempty). spec H. constructor.
+apply H.
+rewrite perm_of_nonempty by apply Share.nontrivial.
+unfold max_access_at, access_at in *.
+rewrite H0 in H.
+specialize (H Nonempty). spec H. constructor.
+apply H.
+destruct H2; auto.
+rewrite perm_of_empty. destruct (max_access_at m loc); try constructor.
 (* alloc_cohere *)
-assert (fst loc >= 0) by (pose proof (nextblock_pos m); omega).
-specialize (IOK _ H0).
-unfold access_at. 
+unfold access_at.
 unfold block; rewrite (nextblock_noaccess m (fst loc) (snd loc) Cur); auto.
 Defined.
 
@@ -931,8 +924,7 @@ destruct j; unfold initial_mem in H; inversion H; subst.
 simpl.
 unfold inflate_initial_mem, inflate_initial_mem'; rewrite resource_at_make_rmap.
 destruct (access_at m (b, ofs)); try destruct p; auto.
-case_eq (core lev @ (b,ofs)); intros; auto.
-contradiction (core_not_YES H0).
+case_eq (lev @ (b,ofs)); intros; auto.
 Qed.
 
 Lemma perm_mem_access: forall m b ofs p, 
@@ -979,6 +971,7 @@ right.
 rewrite encode_val_length.
 rewrite <- size_chunk_conv.
 auto.
+
 (* b' <> b *)
 rewrite ZMap.gso; auto.
 destruct (JMcontents _ _ _ _ _ H0) as [H1 _].
@@ -1005,6 +998,7 @@ assert (H2: mem_access m' = mem_access (m_dry jm)) by (eapply store_access; eaut
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *; rewrite H2.
 destruct (m_phi jm @ loc); auto. destruct k; auto.
+apply nextblock_store in STORE.  rewrite STORE; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1073,6 +1067,7 @@ assert (H2: mem_access m' = mem_access (m_dry jm))
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *; rewrite H2.
 destruct (m_phi jm @ loc); auto. destruct k; auto.
+rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES); auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1287,12 +1282,16 @@ unfold perm_of_res in H2; simpl in H2.
 elimtype False.
 unfold perm_order' in H2. revert H2; case_eq (perm_of_sh t Share.bot); intros; inv H2;
   apply perm_of_sh_Freeable_top in H; inv H; apply Share.nontrivial; auto.
-revert H1; case_eq (m_phi jm @ loc); intros; try destruct k; auto.
+ simpl; auto.
+ forget (m_dry jm) as m. subst m'. simpl. auto.
+revert H1; case_eq (m_phi jm @ loc); intros; auto.
 case_eq (access_at m' loc); intros; simpl; auto.
 forget (max_access_at (m_dry jm) loc) as x.
-clear - H3.
-rewrite perm_of_empty.
-destruct x; simpl; auto.
+destruct k; auto.
+destruct k; auto.
+rewrite perm_of_empty. 
+destruct (max_access_at (m_dry jm) loc); simpl; auto.
+ simpl; auto.  subst m'; simpl; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_free. rewrite resource_at_make_rmap.
@@ -1346,38 +1345,6 @@ rewrite ZMap.gso; auto.
 Qed.
 
 (* The empty juicy memory *)
-
-Lemma valshare_core: forall r, valshare (core r) = Share.bot.
-Proof.
-destruct r;  [rewrite core_NO | rewrite core_YES | rewrite core_PURE ]; auto.
-Qed.
-
-Definition empty_mem (phi: rmap) (IOK: initial_rmap_ok phi) : juicy_mem.
-rename IOK into H.
- refine (mkJuicyMem Mem.empty  (core phi) _ _ _ _).
- hnf; intros.
-contradiction (core_not_YES H0).
-intro.
-rewrite <- core_resource_at. unfold perm_of_res; rewrite valshare_core.
-unfold res_retain.
-unfold access_at, empty; simpl; rewrite ZMap.gi.
-symmetry.
-destruct (phi @ loc); [rewrite core_NO | rewrite core_YES | rewrite core_PURE ];
- apply perm_of_empty.
-intro loc.
-generalize (H loc).
-rewrite <- core_resource_at.
-unfold max_access_at,  empty. simpl. rewrite ZMap.gi.
-destruct (phi @ loc); intros; [rewrite core_NO | rewrite core_YES | rewrite core_PURE ].
-rewrite perm_of_empty.
-simpl; auto.
-rewrite perm_of_empty.
-simpl; auto.
-destruct (zlt (fst loc) 0) as [z|z]; auto.
-apply H0 in z. rewrite core_PURE in z. inv z.
-hnf; intros.
-apply H. generalize (nextblock_pos empty); omega.
-Defined.
 
 Definition after_alloc' 
   (lo hi: Z) (b: block) (phi: rmap)(H: forall ofs, phi @ (b,ofs) = NO Share.bot)
@@ -1617,8 +1584,7 @@ assert (forall ofs, m_phi jm @ (b,ofs) = NO Share.bot).
  destruct (eq_dec t Share.bot). subst; auto.
  rewrite perm_of_nonempty in H0 by auto. contradiction.
  destruct (perm_of_sh_pshare t p). rewrite H1 in H0. contradiction.
- generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction.
-  generalize (nextblock_pos (m_dry jm)); right; omega.
+ generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction. omega.
 refine (mkJuicyMem m'  (after_alloc lo hi b (m_phi jm) H0) _ _ _ _).
 unfold after_alloc; hnf; intros.
 rewrite resource_at_make_rmap in H1. unfold after_alloc' in H1.
@@ -1637,7 +1603,7 @@ unfold access_at in H3.
 rewrite nextblock_noaccess in H3.
 unfold perm_of_res, perm_of_sh in H3; simpl in H3.
 if_tac in H3; congruence.
-simpl; right; subst; omega.
+simpl. subst. omega.
 assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
 unfold contents_at. simpl.
 inv H. simpl. rewrite ZMap.gso; auto.
@@ -1699,7 +1665,7 @@ rewrite nextblock_noaccess in H3; auto.
 simpl in H3.
 revert H3; case_eq (perm_of_sh t Share.bot); intros; try contradiction.
 hnf. destruct (max_access_at m' (b, z)); auto.
-right; subst; omega.
+subst; omega.
 unfold max_access_at.
 inv H; simpl. 
 rewrite ZMap.gso; auto.
@@ -1711,6 +1677,9 @@ destruct loc; simpl in *; rewrite H0 in H2. inv H2.
 destruct loc as [b' z]. simpl in H4.
 clear - H H4.
 inv H. simpl. rewrite ZMap.gso; auto.
+pose proof (nextblock_alloc _ _ _ _ _ H).
+forget (m_dry jm) as m.
+clear - H4 H H3. rewrite H4. omega.
 (* alloc_cohere *)
 hnf; intros.
 unfold after_alloc.

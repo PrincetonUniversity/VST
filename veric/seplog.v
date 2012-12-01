@@ -1,3 +1,4 @@
+Load loadpath.
 Require Export veric.base.
 Require Export veric.Address.
 Require Import msl.rmaps.
@@ -253,7 +254,7 @@ Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  | EK_return => R EK_return vl
  end.
 
-Definition for2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -273,14 +274,14 @@ unfold frame_ret_assert, for1_ret_assert.
 destruct ek; normalize.
 Qed.
 
-Lemma frame_for2:
+Lemma frame_loop1:
   forall Q R F, 
-   frame_ret_assert (for2_ret_assert Q R) F = 
-   for2_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
+   frame_ret_assert (loop1_ret_assert Q R) F = 
+   loop1_ret_assert (fun rho => Q rho * F rho) (frame_ret_assert R F).
 Proof.
 intros.
 extensionality ek vl rho.
-unfold frame_ret_assert, for2_ret_assert.
+unfold frame_ret_assert, loop1_ret_assert.
 destruct ek; normalize.
 Qed.
 
@@ -295,7 +296,7 @@ apply pred_ext; normalize.
 apply pred_ext; normalize.
 Qed.
 
-Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_for2 
+Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
                  overridePost_normal: normalize.
 
 Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 

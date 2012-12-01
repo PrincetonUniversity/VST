@@ -1,3 +1,4 @@
+Load loadpath.
 Require Export veric.base.
 Require Export veric.Address.
 Require Import msl.rmaps.
@@ -28,7 +29,7 @@ Program Definition kind_at (k: kind) (l: address) : pred rmap :=
  Next Obligation.
    try intro; intros.
    destruct H0 as [rsh [sh [pp ?]]].
-   generalize (@eq_sym _ _ _ (resource_at_approx a l)); intro.
+   generalize (eq_sym (resource_at_approx a l)); intro.
    generalize (age1_resource_at a a'  H l (a@l) H1); intro.
    rewrite H0 in H2. simpl in H2. eauto.
  Qed.
@@ -594,7 +595,7 @@ Definition address_mapsto (ch: memory_chunk) (v: val) : spec :=
 Definition address_mapsto' ch v rsh sh loc bl :=
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd loc)) &&
   allp
-  (jam (adr_range_dec loc (Address.size_chunk ch))
+  (jam (adr_range_dec loc (size_chunk ch))
     (fun loc' : address =>
       yesat NoneP
       (VAL (nth (nat_of_Z (snd loc' - snd loc)) bl Undef)) rsh sh loc') noat).
@@ -1042,7 +1043,7 @@ Lemma address_mapsto_exists:
 Proof.
 intros. rename H into Halign.
 unfold address_mapsto.
-pose (f l' := if adr_range_dec loc (Address.size_chunk ch) l'
+pose (f l' := if adr_range_dec loc (size_chunk ch) l'
                      then YES rsh sh (VAL (nthbyte (snd l' - snd loc) (encode_val ch v))) NoneP
                      else core w0 @ l').
 assert (CompCert_AV.valid (res_option oo f)).
@@ -1483,7 +1484,7 @@ Qed.
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
   EX bl: list memval, 
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
-    allp (jam (adr_range_dec l (Address.size_chunk ch))
+    allp (jam (adr_range_dec l (size_chunk ch))
       (fun l' phi => exists rsh, exists sh, exists p, phi @ l' 
         = YES rsh (mk_lifted sh p) (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
@@ -1498,7 +1499,7 @@ Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap
 Program Definition core_load' (ch: memory_chunk) (l: address) (v: val) (bl: list memval)
   : pred rmap := 
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
-    allp (jam (adr_range_dec l (Address.size_chunk ch))
+    allp (jam (adr_range_dec l (size_chunk ch))
       (fun l' phi => exists rsh, exists sh, exists p, phi @ l' 
         = YES rsh (mk_lifted sh p) (VAL (nth (nat_of_Z (snd l' - snd l)) bl Undef)) NoneP)
       (fun _ _ => True)).
@@ -1704,7 +1705,7 @@ do 3 red in H1. simpl in H1.
 generalize (join_self H1); intro.
 rewrite <- H in H1.
 apply x in H1. contradiction.
-generalize (Address.size_chunk_pos ch2); intro;
+generalize (size_chunk_pos ch2); intro;
 destruct a2; split; auto; omega.
 auto.
 Qed.

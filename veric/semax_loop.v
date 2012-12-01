@@ -35,6 +35,18 @@ destruct ek; simpl; auto.
 apply glob_types_update_tycon.
 Qed.
 
+Lemma strict_bool_val_sub : forall v t b, 
+ strict_bool_val v t = Some b ->
+  Cop.bool_val v t = Some b.
+Proof.
+  intros. destruct v; destruct t; simpl in *; auto; try congruence; 
+   unfold Cop.bool_val, Cop.classify_bool; simpl.
+  destruct i0; auto. destruct s; auto.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+Qed.
+
 Lemma semax_ifthenelse : 
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
@@ -345,17 +357,13 @@ destruct ek; try congruence; auto.
 destruct ek; try congruence; auto.
 Qed.
 
-Lemma semax_for : 
-forall Delta Q Q' test incr body R,
-     bool_type (Clight.typeof test) = true ->
-     (forall rho, Q rho |-- tc_expr Delta test rho) ->
-     (forall rho,  !! expr_false (test) rho && Q rho |-- R EK_normal None rho) ->
-     semax Hspec Delta
-                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q' R) ->
-     semax Hspec Delta Q' incr (for2_ret_assert Q R) ->
-     semax Hspec Delta Q (Sfor' test incr body) R.
+Lemma semax_loop : 
+forall Delta Q Q' incr body R,
+     semax Hspec Delta  (fun rho => Q rho) body (for1_ret_assert Q' R) ->
+     semax Hspec Delta Q' incr (loop1_ret_assert Q R) ->
+     semax Hspec Delta Q (Sloop body incr) R.
 Proof.
-intros ? ? ? ? ? ? ? BT TC POST H H0.
+intros ? ? ? ? ?  POST H H0.
 rewrite semax_unfold.
 intros until 2.
 rename H1 into H2.
@@ -382,13 +390,7 @@ assert (Prog_OK2: (believe Hspec Delta psi Delta) (level a2))
   by (apply pred_nec_hereditary with w; auto).
 generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
-assert (exists b, strict_bool_val (eval_expr test rho) (typeof test) = Some b).
-clear - H6 TC BT H7.
-destruct H7 as [w1 [w2 [_ [_ ?]]]].
-apply TC in H. hnf in H.
-pose proof (typecheck_expr_sound Delta rho test H6 H).
-apply typecheck_bool_val; auto.
-destruct H9 as [b ?].
+pose proof I.
 intros ora jm RE H11.
 pose (H10:=True).
 replace (level a') with (S (level a2)) 
@@ -402,36 +404,29 @@ assert (a2 = m_phi jm').
 subst a2.
 clear LEVa2; rename LEVa2' into LEVa2.
 apply safe_corestep_backward
- with (State vx tx (if b then Kseq body :: Kseq Scontinue :: Kfor2 test incr body :: k else k))
+ with (State vx tx (Kseq body :: Kseq Scontinue :: Kloop1 body incr :: k))
         jm'.
 split3.
-rewrite (age_jm_dry LEVa2); econstructor; apply strict_bool_val_sub in H9; eauto.
-apply eval_expr_relate with (Delta:=Delta); auto. destruct H7. 
-destruct H7. destruct H7. destruct H11.
-specialize (TC rho). unfold tc_expr in TC. specialize (TC _ H12). 
-apply TC. 
+rewrite (age_jm_dry LEVa2); econstructor.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 assert (w >= level (m_phi jm)).
 apply necR_nat in H5. apply nec_nat in H5. 
  change R.rmap with rmap in *; omega. 
 clear y H5 H4. rename H11 into H5. pose (H4:=True).
-destruct b.
-(* Case 1: expr evaluates to true *)
-Focus 1.
 generalize H; rewrite semax_unfold; intros H'.
-specialize (H' psi (level jm') Prog_OK2 (Kseq Scontinue :: Kfor2 test incr body :: k) F CLO_body).
+specialize (H' psi (level jm') Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
 spec H'.
 intros ek vl.
 destruct ek.
 simpl exit_cont.
 rewrite semax_unfold in H0.
-specialize (H0 psi (level jm') Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr).
+specialize (H0 psi (level jm') Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
 spec H0.
-intros ek2 vl2 tx2 vx2; unfold for2_ret_assert.
+intros ek2 vl2 tx2 vx2; unfold loop1_ret_assert.
 destruct ek2; simpl exit_tycon in *.
 unfold exit_cont.
-apply (assert_safe_adj' Hspec) with (k:=Kseq (Sfor' test incr body) :: k); auto.
+apply (assert_safe_adj' Hspec) with (k:=Kseq (Sloop body incr) :: k); auto.
 repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
   intros q' m' [? [? ?]]; split3; auto. inv H13; econstructor; eauto.
  eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
@@ -448,12 +443,12 @@ rewrite sepcon_comm. auto.
 unfold frame_ret_assert. normalize.
 unfold frame_ret_assert. normalize.
 unfold frame_ret_assert. 
-change (exit_cont EK_return vl2 (Kfor3 test incr body :: k))
+change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
   with (exit_cont EK_return vl2 k).
 eapply subp_trans'; [ | apply H3'].
 auto.
 intros tx2 vx2.
-apply (assert_safe_adj' Hspec) with (k:= Kseq incr :: Kfor3 test incr body :: k); auto.
+apply (assert_safe_adj' Hspec) with (k:= Kseq incr :: Kloop2 body incr :: k); auto.
 intros ? ? ? ? ? ? ?.
 eapply convergent_controls_safe; simpl; eauto.
 intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
@@ -483,7 +478,7 @@ simpl exit_tycon. simpl exit_cont.
 unfold for1_ret_assert, frame_ret_assert.
 rewrite semax_unfold in H0.
 intros tx2 vx2.
-eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kfor3 test incr body :: k) F CLO_incr)].
+eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
 apply derives_subp.
 rewrite andp_assoc. rewrite sepcon_comm.
 apply andp_derives; auto.
@@ -491,7 +486,7 @@ clear tx2 vx2.
 intros ek2 vl2 tx2 vx2.
 destruct ek2.
 unfold exit_cont.
-apply (assert_safe_adj' Hspec) with (k:=Kseq (Sfor' test incr body) :: k); auto.
+apply (assert_safe_adj' Hspec) with (k:=Kseq (Sloop body incr) :: k); auto.
 intros ? ? ? ? ? ? ?.
 eapply convergent_controls_safe; simpl; eauto.
 intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
@@ -503,27 +498,27 @@ apply andp_derives; auto.
 simpl exit_tycon.
 intros ? ?.  hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
-unfold exit_cont, for2_ret_assert; normalize.
-unfold exit_cont, for2_ret_assert; normalize.
+unfold exit_cont, loop1_ret_assert; normalize.
+unfold exit_cont, loop1_ret_assert; normalize.
 
 
- change (exit_cont EK_return vl2 (Kfor3 test incr body :: k))
+ change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
   with (exit_cont EK_return vl2 k).
  specialize (H3' EK_return vl2 tx2 vx2). simpl exit_tycon in H3'.
  simpl exit_tycon. auto.
-change (exit_cont EK_return vl (Kseq Scontinue :: Kfor2 test incr body :: k))
+change (exit_cont EK_return vl (Kseq Scontinue :: Kloop1 body incr :: k))
     with (exit_cont EK_return vl k).
 intros tx4 vx4.
 unfold frame_ret_assert in H3', vx4.
 rewrite sepcon_comm; auto.
 intros tx4 vx4.
 unfold frame_ret_assert in H3', vx4|-*.
-unfold for2_ret_assert. normalize.
+unfold loop1_ret_assert. normalize.
 repeat intro; normalize.
 unfold frame_ret_assert in H3'|-*.
-unfold for2_ret_assert. normalize.
+unfold loop1_ret_assert. normalize.
 unfold frame_ret_assert in H3'|-*.
-unfold for2_ret_assert.
+unfold loop1_ret_assert.
  simpl exit_tycon.
 specialize (H3' EK_return vl2).
 eapply subp_trans'; [ | eapply H3'; eauto].
@@ -542,29 +537,75 @@ apply age_jm_phi; auto.
 subst.
 split; auto.
 split; auto.
-rewrite prop_true_andp; auto.
-
-(* Case 2: expr evaluates to false *)
-apply (H3' EK_normal None tx vx _ (le_refl _) _ (necR_refl _)); auto.
-unfold frame_ret_assert. rewrite sepcon_comm.
-rewrite prop_true_andp by (subst; auto).
-apply pred_hereditary with (m_phi jm); auto.
-apply age_jm_phi; auto.
-split; subst; auto.
-eapply sepcon_derives; try apply H7; auto.
-eapply derives_trans; try apply POST.
-apply andp_right; auto.
-intros ? ?.
-hnf.
-
-subst.
-clear - BT H9.
- simpl in *. 
- change true with (negb false).
- assert (x:=bool_val_Cnot (construct_rho (filter_genv psi) vx tx) test false). simpl in x.
- destruct (typeof test); simpl in *; try congruence; intuition.
 Qed.
 
+Lemma semax_break:
+   forall Delta Q,        semax Hspec Delta (Q EK_break None) Sbreak Q.
+Proof.
+ intros.
+ rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
+ intros te ve w ?.
+ specialize (H0 EK_break None te ve w H1).
+ simpl exit_cont in H0.
+ clear n H1.
+ remember ((construct_rho (filter_genv psi) ve te)) as rho.
+ revert w H0.
+apply imp_derives; auto.
+rewrite andp_assoc.
+apply andp_derives; auto.
+repeat intro. simpl exit_tycon.
+unfold frame_ret_assert.
+rewrite sepcon_comm.
+eapply andp_derives; try apply H0; auto.
+repeat intro.
+specialize (H0 ora jm H1 H2).
+destruct (@level rmap _ a).
+simpl; auto. 
+apply convergent_controls_safe with (State ve te (break_cont k)); auto.
+simpl.
+
+intros. 
+destruct H3 as [? [? ?]].
+split3; auto.
+
+econstructor; eauto.
+Qed.
+
+
+Lemma semax_continue:
+   forall Delta Q,        semax Hspec Delta (Q EK_continue None) Scontinue Q.
+Proof.
+ intros.
+ rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
+ intros te ve w ?.
+ specialize (H0 EK_continue None te ve w H1).
+ simpl exit_cont in H0.
+ clear n H1.
+ remember ((construct_rho (filter_genv psi) ve te)) as rho.
+ revert w H0.
+apply imp_derives; auto.
+rewrite andp_assoc.
+apply andp_derives; auto.
+repeat intro. simpl exit_tycon.
+unfold frame_ret_assert.
+rewrite sepcon_comm.
+eapply andp_derives; try apply H0; auto.
+repeat intro.
+specialize (H0 ora jm H1 H2).
+destruct (@level rmap _ a).
+simpl; auto. 
+apply convergent_controls_safe with (State ve te (continue_cont k)); auto.
+simpl.
+
+intros. 
+destruct H3 as [? [? ?]].
+split3; auto.
+
+econstructor; eauto.
+Qed.
+
+Lemma join_tycon_same: forall Delta, join_tycon Delta Delta = Delta.
+Admitted.
 
 Lemma semax_while : 
 forall Delta Q test body R,
@@ -576,29 +617,34 @@ forall Delta Q test body R,
      semax Hspec Delta Q (Swhile test body) R.
 Proof.
 intros ? ? ? ? ? BT TC POST H.
-assert (semax Hspec Delta Q Sskip (for2_ret_assert Q R)).
+unfold Swhile.
+apply (semax_loop Delta Q Q).
+Focus 2.
+ eapply semax_post; [ | apply semax_skip]; 
+ destruct ek; unfold normal_ret_assert, loop1_ret_assert; intros; normalize; inv H0; try discriminate.
+(* End Focus 2*)
+apply semax_seq with (fun rho : environ => !!expr_true test rho && Q rho).
+apply semax_pre with (fun rho => tc_expr Delta test rho && Q rho).
+intro.
+apply andp_right.
+apply andp_left2. apply TC.
+apply andp_left2; auto.
+apply semax_ifthenelse; auto.
 eapply semax_post; [ | apply semax_skip].
-destruct ek; unfold normal_ret_assert, for2_ret_assert; intros; normalize; inv H0; try discriminate.
-pose proof (semax_for Delta Q Q test Sskip body R BT TC POST H H0).
-clear H H0.
-rewrite semax_unfold in H1|-*.
-rename H1 into H0; pose (H:=True).
 intros.
-assert (closed_wrt_modvars (Sfor' test Sskip body) F).
-hnf; intros; apply H1.
-intro i; destruct (H3 i); [left | right]; auto.
-clear - H4.
-destruct H4; auto.
-contradiction H.
-specialize (H0 _ _ Prog_OK k F H3 H2).
-clear - H0.
-eapply guard_safe_adj; try eassumption.
-clear; intros.
-destruct n; simpl in *; auto.
-destruct H as [c' [m' [? ?]]]; exists c'; exists m'; split; auto.
-destruct H.
-split.
-constructor. auto.
+unfold normal_ret_assert.
+normalize.
+unfold overridePost.
+rewrite if_true by auto.
+normalize.
+eapply semax_pre; [ | apply semax_break].
+intros.
+unfold overridePost. rewrite if_false by congruence.
+simpl.
+apply andp_left2.
+rewrite andp_comm; auto.
+simpl update_tycon.
+rewrite join_tycon_same.
 auto.
 Qed.
 

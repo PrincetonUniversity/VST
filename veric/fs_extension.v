@@ -688,8 +688,8 @@ rewrite compcert_rmaps.R.unsquash_squash; simpl.
 unfold compose; simpl; auto.
 Qed.
 
-Lemma exists_ok_rmap (lev: nat): 
-  exists phi, initial_rmap_ok phi /\ ageable.level phi=lev.
+Lemma exists_ok_rmap (m: mem) (lev: nat): 
+  exists phi, initial_rmap_ok m phi /\ ageable.level phi=lev.
 Proof.
 exists (compcert_rmaps.RML.empty_rmap lev); split.
 unfold initial_rmap_ok.
@@ -703,7 +703,7 @@ Qed.
 Lemma juicy_mem_exists (lev: nat) (m: mem): 
   exists jm, m_dry jm=m /\ ageable.level jm=lev.
 Proof.
-destruct (exists_ok_rmap lev) as [phi [H1 H2]].
+destruct (exists_ok_rmap m lev) as [phi [H1 H2]].
 exists (initial_mem m phi H1).
 split; auto.
 simpl.

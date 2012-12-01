@@ -1,6 +1,6 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import veric.base.
-Require Import compcert.Events.
+Require Import Events.
 Require Import veric.sim. 
 
 (*Proofs that the individual cases of sim (sim_eq, sim_ext and sim_inj are closed under

@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -23,34 +24,12 @@ apply resource_at_empty2.
 intro l; rewrite H0.
 unfold inflate_initial_mem'.
 destruct l.
-unfold access_at, empty.
+unfold access_at; unfold empty at 1.
 simpl.
 rewrite ZMap.gi.
-rewrite <- core_resource_at.
-apply core_identity.
+destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
 Local Hint Resolve inflate_initial_mem_empty.
-
-Lemma initial_juicy_mem_empty:
-  forall lev IOK, initial_mem Mem.empty lev IOK = empty_mem lev IOK.
-Proof.
-intros.
-unfold initial_mem, empty_mem.
-simpl.
-apply juicy_mem_ext; simpl; auto;
-try match goal with |- proj1_sig ?A = _ => destruct A; simpl end.
-apply rmap_ext.
-rewrite level_core.
-apply inflate_initial_mem_level.
-intros [b ofs].
-unfold inflate_initial_mem.
-rewrite resource_at_make_rmap.
-unfold inflate_initial_mem'.
-unfold access_at, empty.
-simpl.
-rewrite ZMap.gi.
-auto.
-Qed.
 
 (* fancy initial mem *)
 
@@ -130,44 +109,6 @@ unfold perm_order' in *.
 eapply perm_order_trans; eauto.
 Qed.
 
-(*
-Lemma cohere_wk_cohere: forall jm,  wk_cohere (m_phi jm) (m_dry jm).
-Proof.
-intros. hnf; intros.
-split.
-eapply juicy_mem_contents; eauto.
-destruct (perm_of_sh_pshare sh); econstructor; split; eauto.
-generalize (juicy_mem_access jm loc); rewrite H; intros.
-rewrite <- H1.
-unfold perm_order'. rewrite H0. constructor.
-Qed.
-
-
-Lemma wk_cohere_join_sub: forall m phi phi',
-  wk_cohere phi m -> join_sub phi' phi -> wk_cohere phi' m.
-Proof.
-unfold wk_cohere.
-intros.
-generalize (contents_cohere_join_sub m phi phi').
-intros.
-apply (resource_at_join_sub _ _ loc) in H0.
-rewrite H1 in H0. destruct H0; inv H0.
-symmetry in H8;  destruct (H _ _ _ H8); auto.
-symmetry in H8;  destruct (H _ _ _ H8); auto.
-split; auto.
-destruct H3 as [p [? ?]].
-destruct (perm_of_sh_pshare sh).
-exists x; split; auto.
-destruct (access_at m loc).
-eapply perm_order'_trans; eauto.
-rewrite <- H3.
-eapply perm_of_sh_join_sub; eauto.
-econstructor; eauto.
-inv H4.
-Qed.
-
-*)
-
 Lemma rmap_unage_YES: forall phi phi' rsh sh k pp loc, 
   age phi phi' 
   -> phi' @ loc = YES rsh sh k pp 
@@ -211,17 +152,6 @@ extensionality.
 f_equal.
 intuition.
 Qed.
-
-(*
-
-Lemma age_phi_coheres: forall m phi phi', age phi phi' -> (cohere m phi <-> cohere m phi').
-Proof.
-intros.
-split; intros.
-eapply age1_mem_cohere; eauto.
-eapply unage1_mem_cohere; eauto.
-Qed.
-*)
 
 (* Admitted:  rename this to supplant unage_juicy_mem *)
 Lemma oracle_unage:
@@ -298,7 +228,7 @@ Qed.
 
 Lemma valid_access_None: forall m ch b b' ofs ofs' p,
   Mem.valid_access m ch b ofs p 
-  -> adr_range (b, ofs) (Address.size_chunk ch) (b', ofs') 
+  -> adr_range (b, ofs) (size_chunk ch) (b', ofs') 
   -> access_at m (b', ofs') = None 
   -> False.
 Proof.
@@ -325,9 +255,9 @@ rewrite <- H3.
 simpl in *.
 clear H4.
 revert ofs H H3.
-assert (H: size_chunk_nat ch = nat_of_Z (Address.size_chunk ch)) by auto.
+assert (H: size_chunk_nat ch = nat_of_Z (size_chunk ch)) by auto.
 rewrite H; clear H.
-generalize (Address.size_chunk ch) as z.
+generalize (size_chunk ch) as z.
 induction bl; intros; simpl; auto. 
 rewrite IHbl with (ofs := ofs + 1) (z := z - 1); auto.
 rewrite Mem.getN_length.
@@ -482,7 +412,7 @@ split.
 intros ofs' H4.
 spec H (b, ofs').
 hnf in H.
-destruct (adr_range_dec (b, ofs) (Address.size_chunk ch) (b, ofs')) as [H5|H5].
+destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
   2: elimtype False; apply H5; split; auto.
 destruct H as [rsh [sh [pf H]]].
@@ -658,7 +588,7 @@ spec H3 (b', ofs').
 unfold perm_of_res in *.
 assert (H99: valshare (m_phi m @ (b', ofs')) <> Share.bot).
 intro Hx; rewrite Hx in *.
-elimtype False; forget (res_retain (m_phi m @ (b',ofs'))) as r; clear - H H0 H3.
+elimtype False; forget (res_retain' (m_phi m @ (b',ofs'))) as r; clear - H H0 H3.
 destruct (eq_dec r Share.bot).
 subst r. rewrite perm_of_empty in H3.
 eapply valid_access_None; eauto.
@@ -682,7 +612,7 @@ subst.
 simpl.
 rewrite nth_getN with (ofs := ofs) (z := size_chunk ch); auto.
 unfold adr_range in H.
-replace (Address.size_chunk ch) with (size_chunk ch) in H.
+replace (size_chunk ch) with (size_chunk ch) in H.
 omega.
 auto.
 generalize (size_chunk_pos ch).
@@ -711,7 +641,7 @@ Lemma address_mapsto_exists':
 Proof.
 intros. rename H into Halign.
 unfold address_mapsto.
-pose (f l' := if adr_range_dec loc (Address.size_chunk ch) l'
+pose (f l' := if adr_range_dec loc (size_chunk ch) l'
                      then YES rsh sh (VAL (nthbyte (snd l' - snd loc) (Mem.getN (size_chunk_nat ch) (snd loc) (ZMap.get (fst loc) (Mem.mem_contents m))))) NoneP
                      else NO Share.bot).
 assert (CompCert_AV.valid (res_option oo f)).
@@ -766,7 +696,7 @@ hnf in H.
 intros ofs' H4.
 spec H (b, ofs').
 hnf in H.
-destruct (adr_range_dec (b, ofs) (Address.size_chunk ch) (b, ofs')) as [H5|H5].
+destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
   2: elimtype False; apply H5; split; auto.
 hnf in H.
@@ -808,7 +738,7 @@ hnf in H.
 intros ofs' H4.
 spec H (b, ofs').
 hnf in H.
-destruct (adr_range_dec (b, ofs) (Address.size_chunk ch) (b, ofs')) as [H5|H5].
+destruct (adr_range_dec (b, ofs) (size_chunk ch) (b, ofs')) as [H5|H5].
   2: unfold adr_range in H5.
   2: elimtype False; apply H5; split; auto.
 hnf in H.
@@ -879,8 +809,6 @@ rewrite <- size_chunk_conv in H0.
 destruct H0.
 destruct H1.
 omega.
-assert (size_chunk ch = Memdata.size_chunk ch) by auto.
-rewrite H3 in *.
 omega.
 right.
 unfold contents_at; rewrite H0; clear H0.
@@ -1038,20 +966,14 @@ repeat rewrite <- core_resource_at.
 unfold inflate_initial_mem.
 rewrite resource_at_make_rmap.
 unfold inflate_initial_mem'.
-specialize (IOK loc).
-generalize (nextblock_noaccess m (fst loc) (snd loc) Cur); intro.
-destruct (zlt (fst loc) 0).
-unfold access_at.
-rewrite H.
-rewrite <- core_resource_at.
-apply core_idem.
-omega.
-rewrite core_resource_at.
-repeat rewrite IOK by auto.
-destruct (access_at m loc).
-destruct p; try rewrite core_YES; auto.
-rewrite core_NO; auto.
-rewrite core_NO; auto.
+repeat rewrite <- core_resource_at.
+destruct (IOK loc). clear IOK.
+revert H0; case_eq (lev @ loc); intros.
+rewrite core_NO.
+destruct (access_at m loc); try destruct p; try rewrite core_NO; try rewrite core_YES; auto.
+destruct (access_at m loc); try destruct p1; try rewrite core_NO;  repeat rewrite core_YES; auto.
+destruct H1.
+destruct H2. rewrite H2. auto.
 Qed.
 
 Lemma writable_writable_after_alloc' : forall m1 m2 lo hi b lev loc IOK1 IOK2,

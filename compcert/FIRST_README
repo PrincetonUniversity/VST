@@ -1,0 +1,14 @@
+READ ME before you read the README.
+
+This file written by Andrew Appel, November 30, 2012.
+
+This directory tree is a subset of the CompCert source tree,
+initially taken from the "clightgen" branch at revision 2073.
+Basically, it is just enough to build Clight.vo and its dependencies.
+
+Every file in this directory tree is verbatim from CompCert EXCEPT: 
+  FIRST_README, Makefile.clight, make, Makefile.config
+
+To build, use ./make, which is just a shell script for
+   "make -f Makefile.clight"
+

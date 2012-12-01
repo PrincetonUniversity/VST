@@ -157,3 +157,16 @@ Proof.
  exists (fun_set stk x v, hp1); exists (fun_set stk x v, hp2); split; auto.
   split; auto.
 Qed.
+
+Lemma semax_pre_post:
+  forall P P' c Q' Q,
+    P |-- P' -> Q' |-- Q -> semax P' c Q' -> semax P c Q.
+Proof.
+ repeat intro.
+ assert ((P' * F)%pred (den s)).
+ eapply sepcon_derives; try apply H3; auto.
+ destruct (H1 F s H2 H4) as [s' [? ?]].
+ exists s'; split; auto.
+ eapply sepcon_derives; try apply H6; auto.
+Qed.
+

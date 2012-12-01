@@ -1,5 +1,6 @@
+Load loadpath.
 Require Import veric.base.
-Require compcert.Clight_sem.
+Require Import Clight.
 
 Definition val_to_bool (v: val) : option bool :=
   match v with 
@@ -15,36 +16,6 @@ match v with
   | Vptr _ _ => Some true
   | Vundef => None
 end.
-
-Theorem bool_of_true_valf_inv:
-  forall v, Val.is_true v -> bool_of_valf v = Some true.
-Proof.
-  intros. 
-destruct v; simpl in *; try contradiction.
-replace (Int.eq i Int.zero) with false. auto. 
-symmetry; apply Int.eq_false; auto.
-auto.
-Qed.
-
-Theorem bool_of_false_valf:
-  forall v, Val.is_false v -> bool_of_valf v = Some false.
-Proof.
-  destruct v; simpl; intros; try contradiction.
-  subst i;  constructor.
-Qed.
-
-Lemma bool_of_true_val2f: forall v,
-bool_of_valf v = Some true -> Val.is_true v.
-Proof.
-intros v Hv.
-destruct v; simpl in *; try inversion Hv.
-unfold not; intro.
-subst i.
-replace (Int.eq Int.zero Int.zero) with true in H0. simpl in H0.
-inversion H0.
-symmetry; apply Int.eq_true.
-auto.
-Qed.
 
 Definition var_name (V: Type) (bdec: ident * globvar V) : ident := 
    fst bdec.
@@ -69,53 +40,6 @@ intro; contradiction H2; apply in_or_app; auto.
 Qed.
 Implicit Arguments no_dups_inv.
  
-Lemma is_true_Vfalse_elim:
-  forall a: Prop, Val.is_true Vfalse -> a.
-intros.
-simpl in H.
-contradiction H; auto.
-Qed.
-
-Ltac discopt := 
- try (intros ;  (discriminate || 
-                       match goal with 
-                           | H : Val.is_true Vfalse |- _ => generalize H; apply is_true_Vfalse_elim end )).
-
-Lemma Val_is_true_Vtrue:
-  Val.is_true Vtrue.
-Proof.
-simpl.
-apply Int.one_not_zero.
-Qed.
-
-Lemma val_to_bool_is_true:
-  forall v, val_to_bool v = Some true -> Val.is_true v.
-Proof.
-induction v; simpl; discopt; intros.
-inversion H.
-intro.
-subst i.
-rewrite (Int.eq_true Int.zero) in H1.
-compute in H1.
-discriminate.
-trivial.
-Qed.
-
-Lemma val_to_bool_is_false:
-  forall v, val_to_bool v = Some false -> Val.is_false v.
-Proof.
-induction v; simpl; discopt; intros.
-inversion H; clear H.
-generalize H1; clear H1.
-caseEq (Int.eq i Int.zero).
-intros.
-assert (if Int.eq i Int.zero then i=Int.zero else i <> Int.zero).
-apply Int.eq_spec.
-rewrite H in H0.
-trivial.
-intros.
-compute in H1; discriminate.
-Qed.
 
 Lemma of_bool_Int_eq_e:
   forall i j, Val.of_bool (Int.eq i j) = Vtrue -> i = j.
@@ -127,20 +51,6 @@ apply Int.eq_spec.
 caseEq (Int.eq i j); intros.
 rewrite H0 in H ; trivial.
 inversion H1.
-Qed.
-
-Lemma of_bool_Int_eq_e':
-  forall i j, Val.is_true (Val.of_bool (Int.eq i j)) -> i = j.
-Proof.
-unfold Val.of_bool, Val.is_true.
-do 2 intro.
-assert (if Int.eq i j then i=j else i<>j).
-apply Int.eq_spec.
-caseEq (Int.eq i j); intros.
-rewrite H0 in H ; trivial.
-simpl in H1.
-contradiction H1.
-trivial.
 Qed.
 
 Lemma eq_block_lem: 
@@ -196,41 +106,30 @@ rewrite H; auto.
 Qed.
 Implicit Arguments equiv_e2.
 
-Lemma deref_loc_fun: forall {F V ge ty m b z t v v'},
-   @Csem.deref_loc F V ge ty m b z t v -> @Csem.deref_loc F V ge ty m b z t v' -> v=v'.
- Proof. intros.  inv H; inv H0; try congruence. inversion2 H1 H.
-      inv H3; inv H5; try congruence. inv H6; inv H15; try congruence.
+Lemma deref_loc_fun: forall {ty m b z v v'},
+   Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.
+ Proof. intros.  inv H; inv H0; try congruence.
 Qed.
 
 Lemma eval_expr_lvalue_fun:
   forall ge e le m,
-    (forall a v v', Clight_sem.eval_expr ge e le m a v -> Clight_sem.eval_expr ge e le m a v' -> v=v') /\
-    (forall a b b' i i', Clight_sem.eval_lvalue ge e le m a b i -> Clight_sem.eval_lvalue ge e le m a b' i' ->
+    (forall a v v', Clight.eval_expr ge e le m a v -> Clight.eval_expr ge e le m a v' -> v=v') /\
+    (forall a b b' i i', Clight.eval_lvalue ge e le m a b i -> Clight.eval_lvalue ge e le m a b' i' ->
                                (b,i)=(b',i')).
 Proof.
  intros.
- destruct (Clight_sem.eval_expr_lvalue_ind ge e le m
-   (fun a v =>  forall v', Clight_sem.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight_sem.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros.
+ destruct (Clight.eval_expr_lvalue_ind ge e le m
+   (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
+   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros.
   inv H; auto. inv H0; auto. inv H; auto. inv H0; auto. inv H0; auto.
   congruence. inv H1; auto. inv H1; auto. apply H0 in H5. inv H5; auto.
   inv H2; auto. inv H2; auto. apply H0 in H7.  subst; congruence.
   inv H3. inv H4. apply H0 in H10. apply H2 in H11. subst; congruence.
-  inv H7. inv H5. inv H5. inv H5. inv H5.
-  inv H5. apply H0 in H10. subst. inversion2 H1 H12. 
-  destruct b. apply H3 in H13. subst. congruence.
-  apply H3 in H13; subst; congruence.
-  inv H6. inv H2. apply H0 in H5; congruence. inv H3.
-  inv H; inv H3. apply H0 in H. inv H.
-  eapply deref_loc_fun; eauto.
-  apply H0 in H. inv H.
-  eapply deref_loc_fun; eauto.
-  apply H0 in H. inv H.
-  eapply deref_loc_fun; eauto.
-  apply H0 in H. inv H.
-  eapply deref_loc_fun; eauto.
-  apply H0 in H. inv H.
-  eapply deref_loc_fun; eauto.
+  inv H6. inv H5. inv H5. inv H5. inv H2.
+  apply H0 in H5. subst v1. congruence.
+
+  inv H3.
+  inv H; inv H2; try solve [  apply H0 in H; inv H;  eapply deref_loc_fun; eauto].
   inv H0; congruence.
   inv H2; congruence.
   inv H1. apply H0 in H6. congruence.
@@ -244,14 +143,14 @@ Proof.
 Qed.
 
 Lemma eval_expr_fun:   forall {ge e le m a v v'},
-    Clight_sem.eval_expr ge e le m a v -> Clight_sem.eval_expr ge e le m a v' -> v=v'.
+    Clight.eval_expr ge e le m a v -> Clight.eval_expr ge e le m a v' -> v=v'.
 Proof.
   intros. destruct (eval_expr_lvalue_fun ge e le m).
   eauto.
 Qed.
 
 Lemma eval_exprlist_fun:   forall {ge e le m a ty v v'},
-    Clight_sem.eval_exprlist ge e le m a ty v -> Clight_sem.eval_exprlist ge e le m a ty v' -> v=v'.
+    Clight.eval_exprlist ge e le m a ty v -> Clight.eval_exprlist ge e le m a ty v' -> v=v'.
 Proof.
   induction a; intros; inv H; inv H0; f_equal.
   apply (eval_expr_fun H3) in H6. subst. congruence.
@@ -260,7 +159,7 @@ Qed.
 
 
 Lemma eval_lvalue_fun:   forall {ge e le m a b b' z z'},
-    Clight_sem.eval_lvalue ge e le m a b z -> Clight_sem.eval_lvalue ge e le m a b' z' -> (b,z)=(b',z').
+    Clight.eval_lvalue ge e le m a b z -> Clight.eval_lvalue ge e le m a b' z' -> (b,z)=(b',z').
 Proof.
   intros. destruct (eval_expr_lvalue_fun ge e le m).
   eauto.
@@ -279,24 +178,19 @@ Proof.
 Qed.
 
 Lemma assign_loc_fun: 
-  forall {F V ge ty m b ofs v t1 t2 m1 m2},
-   @Csem.assign_loc F V ge ty m b ofs v t1 m1 ->
-   @Csem.assign_loc F V ge ty m b ofs v t2 m2 ->
-  (t1,m1)=(t2,m2).
+  forall {ty m b ofs v m1 m2},
+   assign_loc ty m b ofs v m1 ->
+   assign_loc ty m b ofs v m2 ->
+   m1=m2.
 Proof.
- intros. inv H; inv H0; try congruence. inversion2 H1 H. 
- inv H3; inv H5; try congruence.
- inv H6; inv H8; try congruence.
- apply (inv_find_symbol_fun H0) in H7; subst; auto.
- apply (inv_find_symbol_fun H0) in H7; subst; auto.
- apply (inv_find_symbol_fun H0) in H7; subst. auto.
- apply (inv_find_symbol_fun H10) in H12; subst. auto.
+ intros. inv H; inv H0; try congruence.
 Qed.
+
 
 Lemma alloc_variables_fun: 
   forall {e m vl e1 m1 e2 m2},
-     Csem.alloc_variables e m vl e1 m1 ->
-     Csem.alloc_variables e m vl e2 m2 ->
+     Clight.alloc_variables e m vl e1 m1 ->
+     Clight.alloc_variables e m vl e2 m2 ->
      (e1,m1)=(e2,m2).
 Proof.
  intros until vl; revert e m;
@@ -306,9 +200,9 @@ Proof.
 Qed.
 
 Lemma bind_parameters_fun:
-  forall {F V ge e m p v m1 m2}, 
-    @Csem.bind_parameters F V ge e m p v m1 ->
-    @Csem.bind_parameters F V ge e m p v m2 ->
+  forall {e m p v m1 m2}, 
+    Clight.bind_parameters e m p v m1 ->
+    Clight.bind_parameters e m p v m2 ->
     m1=m2.
 Proof.
 intros until p. revert e m; induction p; intros; inv H; inv H0; auto.
@@ -335,26 +229,26 @@ Qed.
 Ltac fun_tac :=
   match goal with
   | H: ?A = Some _, H': ?A = Some _ |- _ => inversion2 H H' 
-  | H: Clight_sem.eval_expr ?ge ?e ?le ?m ?A _,
-    H': Clight_sem.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
+  | H: Clight.eval_expr ?ge ?e ?le ?m ?A _,
+    H': Clight.eval_expr ?ge ?e ?le ?m ?A _ |- _ =>
         apply (eval_expr_fun H) in H'; subst
-  | H: Clight_sem.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
-    H': Clight_sem.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
+  | H: Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _,
+    H': Clight.eval_exprlist ?ge ?e ?le ?m ?A ?ty _ |- _ =>
         apply (eval_exprlist_fun H) in H'; subst
-  | H: Clight_sem.eval_lvalue ?ge ?e ?le ?m ?A _ _,
-    H': Clight_sem.eval_lvalue ?ge ?e ?le ?m ?A _ _ |- _ =>
+  | H: Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _,
+    H': Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ |- _ =>
         apply (eval_lvalue_fun H) in H'; inv H'
-  | H: Csem.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _,
-    H': Csem.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _ |- _ =>
+  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _,
+    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _ |- _ =>
         apply (assign_loc_fun H) in H'; inv H'
-  | H: Csem.deref_loc ?ge ?ty ?m ?b ?ofs ?t _,
-    H': Csem.deref_loc ?ge ?ty ?m ?b ?ofs ?t _ |- _ =>
+  | H: Clight.deref_loc ?ge ?ty ?m ?b ?ofs ?t _,
+    H': Clight.deref_loc ?ge ?ty ?m ?b ?ofs ?t _ |- _ =>
         apply (deref_loc_fun H) in H'; inv H'
-  | H: Csem.alloc_variables ?e ?m ?vl _ _,
-    H': Csem.alloc_variables ?e ?m ?vl _ _ |- _ =>
+  | H: Clight.alloc_variables ?e ?m ?vl _ _,
+    H': Clight.alloc_variables ?e ?m ?vl _ _ |- _ =>
         apply (alloc_variables_fun H) in H'; inv H'
-  | H: Csem.bind_parameters ?ge ?e ?m ?p ?vl _,
-    H': Csem.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
+  | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
+    H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
         apply (bind_parameters_fun H) in H'; inv H'
   | H: Genv.find_symbol ?ge _ = Some ?b,
     H': Genv.find_symbol ?ge _ = Some ?b |- _ => 
