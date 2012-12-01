@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import veric.base.
-Require Import compcert.Events.
+Require Import Events.
 
 Lemma mem_inj_id_trans: forall m1 m2 (Inj12: Mem.mem_inj inject_id m1 m2) m3 
           (Inj23: Mem.mem_inj inject_id m2 m3),Mem.mem_inj inject_id m1 m3.

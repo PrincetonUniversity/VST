@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import veric.base.
-Require Import compcert.Events.
+Require Import Events.
 Require Import veric.sim.
 Require Import veric.MemoryPushouts.
 Require Import Wellfounded.
@@ -267,10 +267,10 @@ Proof. intros.   destruct (core_diagram12 _ _ _ _ CS1 _ _ MC12) as [c2' [d12' [M
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)) -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
+       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -281,13 +281,13 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Eq_init12 : forall m1 : mem,
-            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
-            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\ m1 = m2)
-       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globvar V1))
-                                          (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
+            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
+            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+                                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimEq23 : Sim_eq.Forward_simulation_equals mem (list (ident * globvar V2))
-                                         (list (ident * globvar V3)) Sem2 Sem3 (Genv.globalenv P2)
+       (SimEq23 : Sim_eq.Forward_simulation_equals mem (list (ident * globdef F2 V2))
+                                         (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
                                          (Genv.globalenv P3) epts23) .
 (*
 Let D12:Type:= Sim_eq.core_data SimEq12.
@@ -361,8 +361,8 @@ Let D23:Type:= Sim_eq.core_data SimEq23.
   Qed.
 *)
 
-Lemma eqeq: Sim_eq.Forward_simulation_equals mem (list (ident * globvar V1))
-                                       (list (ident * globvar V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqeq: Sim_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+                                       (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
                                        (Genv.globalenv P3) entrypoints13.
 Proof.
          destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
@@ -535,10 +535,10 @@ Proof. intros.   destruct (core_diagram12 _ _ _ _ CS1 _ _ MC12) as [st2' [d12' [
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)) -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
+       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -549,17 +549,17 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Eq_init12 : forall m1 : mem,
-            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
-            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\ m1 = m2)
-       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globvar V1))
-                                          (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
+            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
+            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+                                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimExt23 : Sim_ext.Forward_simulation_extends (list (ident * globvar V2))
-                            (list (ident * globvar V3)) Sem2 Sem3 (Genv.globalenv P2)
+       (SimExt23 : Sim_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
+                            (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
                             (Genv.globalenv P3) epts23).
 
-Lemma eqext: Sim_ext.Forward_simulation_extends (list (ident * globvar V1))
-                                           (list (ident * globvar V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqext: Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
+                                           (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
                                            (Genv.globalenv P3) entrypoints13.
 Proof.
          destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
@@ -764,10 +764,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globvar V)) -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
+       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -778,17 +778,17 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Eq_init12 : forall m1 : mem,
-            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
-            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\ m1 = m2)
-       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globvar V1))
-                                          (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
-                                          (Genv.globalenv P2) epts12)  (SimInj23 : Sim_inj.Forward_simulation_inject (list (ident * globvar V2))
-             (list (ident * globvar V3)) Sem2 Sem3 (Genv.globalenv P2)
+            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
+            exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+       (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+                                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+                                          (Genv.globalenv P2) epts12)  (SimInj23 : Sim_inj.Forward_simulation_inject (list (ident * globdef F2 V2))
+             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
              (Genv.globalenv P3) epts23)
        (Fwd2: corestep_fwd Sem2) (Fwd3: corestep_fwd Sem3).
 
-Lemma eqinj: Sim_inj.Forward_simulation_inject (list (ident * globvar V1))
-                                        (list (ident * globvar V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqinj: Sim_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
+                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof.
           destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
@@ -835,20 +835,20 @@ Qed.
 End EQINJ.
 
 Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
      (e12 : prog_main P1 = prog_main P2)
      (g12: CompilerCorrectness.GenvHyp P1 P2)
      (Eq_init12 : forall m1 : mem,
-          initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
+          initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
           exists m2 : mem,
-            initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\ m1 = m2)
-     (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globvar V1))
-                                (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
+            initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+     (SimEq12 : Sim_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+                                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1)
@@ -932,21 +932,21 @@ induction SIM23; intros; subst.
 Qed.
       
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
      (e12 : prog_main P1 = prog_main P2)
      (g12: CompilerCorrectness.GenvHyp P1 P2)
      (Ext_init12 : forall m1 : mem,
-               initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
+               initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
                exists m2 : mem,
-                 initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\
+                 initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.extends m1 m2)
-     (SimExt12 :  Sim_ext.Forward_simulation_extends (list (ident * globvar V1))
-                                (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
+     (SimExt12 :  Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
+                                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                               (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1)
@@ -1238,9 +1238,9 @@ Axioms inj_incr_compose_split: forall j1 j2 j',
 (*Probably wrong - maybe we can enforce it together with pushout_II? (unlikely...)*)
 
 Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
-     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+     (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (e12 : prog_main P1 = prog_main P2)
@@ -1249,13 +1249,13 @@ Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
      (j12 : meminj)
      (ePts12_ok : CompilerCorrectness.entryPts_inject_ok P1 P2 j12 ExternIdents epts12)
      (Inj_init12 : forall m1 : mem,
-           initial_mem Sem1 (Genv.globalenv P1) m1 (prog_vars P1) ->
+           initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
            exists m2 : mem,
-             initial_mem Sem2 (Genv.globalenv P2) m2 (prog_vars P2) /\
+             initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
              Mem.inject j12 m1 m2)
      (PG1: meminj_preserves_globals (Genv.globalenv P1) j12)
-     (SimInj12: Sim_inj.Forward_simulation_inject (list (ident * globvar V1))
-                                 (list (ident * globvar V2)) Sem1 Sem2 (Genv.globalenv P1)
+     (SimInj12: Sim_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
+                                 (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                  (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -1543,12 +1543,12 @@ specialize (core_after_external12 cd12 j1 j1' st1 st2 m1 e vals1 ret1 m1' m2 m2'
 
 Theorem cc_trans:
      forall ExternIdents entrypoints12 I F1 C1 V1 F2 C2 V2
-        (Sem1: CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-        (Sem2: CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+        (Sem1: CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+        (Sem2: CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
         P1 P2 
         (SIM12: CompilerCorrectness.cc_sim I ExternIdents entrypoints12 F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2)
         F3 V3 C3
-        (Sem3: CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globvar V3)))
+        (Sem3: CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
         entrypoints23 P3 (SIM23:CompilerCorrectness.cc_sim I ExternIdents entrypoints23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
         (Fwd2: corestep_fwd Sem2) (Fwd3: corestep_fwd Sem3)
        entrypoints13 (EPC:entrypoints_compose entrypoints12 entrypoints23 entrypoints13),

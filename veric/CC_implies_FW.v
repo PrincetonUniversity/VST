@@ -1,8 +1,8 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import veric.base.
-Require Import compcert.Events.
+Require Import Events.
 Require Import veric.sim.
-Require Import compcert.Smallstep.
+Require Import Smallstep.
 (*
 Section CompcertCoreSem_to_semantics.*)
 Section CoreSem_to_semantics.
@@ -10,7 +10,7 @@ Section CoreSem_to_semantics.
     Let genv  := Genv.t F V.
 (*    Variable (Sem:CompcertCoreSem genv C (list (ident * globvar V))). (*HERE we specialize type D to program variables*)
 *)
-    Variable (Sem:CoreSemantics genv C mem (list (ident * globvar V))). (*HERE we specialize type D to program variables*)
+    Variable (Sem:CoreSemantics genv C mem (list (ident * globdef F V))). (*HERE we specialize type D to program variables*)
 
     Let state := (C * mem)%type.
 
@@ -113,15 +113,15 @@ Goal (*Lemma meminj_preserves_globals_inject_incr:*) forall {F V} (ge: Genv.t F 
 
 Theorem CoreCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
-(*        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globvar V2)))*)
-        (Sem1: CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globvar V1)))
-        (Sem2: CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globvar V2)))
+        (Sem1: CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+        (Sem2: CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
         P1 P2 ExternIdents,
-        In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
+        In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> 
+        P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.core_correctness
-             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x P.(prog_vars)))
-              ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> 
+                                            initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))
+             ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
   intros.
@@ -361,12 +361,13 @@ Qed.
 (*We may lift the result to CompcertCoreSem's*)
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation:
      forall F1 C1 V1 F2 C2 V2
-        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globvar V2)))
+        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globdef F2 V2)))
         P1 P2 ExternIdents,
         In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.compiler_correctness
-             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x P.(prog_vars)))
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> 
+                                            initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))
               ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
@@ -382,12 +383,13 @@ Qed.
 (*The result of Theorem CompilerCorrectness_implies_CompcertForwardSimulation as a direct proof*)
 Theorem CompilerCorrectness_implies_CompcertForwardSimulation_explicit_proof:
      forall F1 C1 V1 F2 C2 V2
-        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globvar V1)))
-        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globvar V2)))
+        (Sem1: CompcertCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+        (Sem2: CompcertCoreSem (Genv.t F2 V2) C2  (list (ident * globdef F2 V2)))
         P1 P2 ExternIdents,
         In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> P1.(prog_main) = P2.(prog_main) ->
         CompilerCorrectness.compiler_correctness
-             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x P.(prog_vars)))
+             (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <->
+                                            initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))
               ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
         forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
