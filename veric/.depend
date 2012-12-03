@@ -1,7 +1,7 @@
 Coqlib2.vo Coqlib2.glob: Coqlib2.v ./loadpath.v
 base.vo base.glob: base.v ./loadpath.v Coqlib2.vo
 Address.vo Address.glob: Address.v ./loadpath.v base.vo
-rmaps.vo rmaps.glob: rmaps.v
+rmaps.vo rmaps.glob: rmaps.v ./loadpath.v
 rmaps_lemmas.vo rmaps_lemmas.glob: rmaps_lemmas.v ./loadpath.v rmaps.vo
 compcert_rmaps.vo compcert_rmaps.glob: compcert_rmaps.v ./loadpath.v base.vo Address.vo rmaps.vo rmaps_lemmas.vo
 expr.vo expr.glob: expr.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo Clight_lemmas.vo
@@ -12,7 +12,7 @@ expr_lemmas.vo expr_lemmas.glob: expr_lemmas.v ./loadpath.v base.vo Address.vo c
 extspec.vo extspec.glob: extspec.v ./loadpath.v base.vo
 step_lemmas.vo step_lemmas.glob: step_lemmas.v ./loadpath.v base.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo
-extension.vo extension.glob: extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo
+extension.vo extension.glob: extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo Events2.vo
 extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo extension.vo
 seplog_extension.vo seplog_extension.glob: seplog_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo juicy_extspec.vo compcert_rmaps.vo semax.vo SeparationLogic.vo SeparationLogicSoundness.vo
 null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo extension_proof.vo
@@ -42,3 +42,4 @@ NullExtension.vo NullExtension.glob: NullExtension.v ./loadpath.v base.vo Clight
 SequentialClight.vo SequentialClight.glob: SequentialClight.v ./loadpath.v base.vo Clight_new.vo Clight_lemmas.vo step_lemmas.vo SeparationLogic.vo juicy_extspec.vo juicy_mem.vo NullExtension.vo Clight_sim.vo SeparationLogicSoundness.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo
 Sim_starplus.vo Sim_starplus.glob: Sim_starplus.v ./loadpath.v base.vo sim.vo
+Events2.vo Events2.glob: Events2.v

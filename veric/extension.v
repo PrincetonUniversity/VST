@@ -2,7 +2,7 @@ Load loadpath.
 Require Import msl.predicates_hered.
 Require Import veric.sim veric.step_lemmas veric.base veric.expr veric.extspec 
                veric.juicy_extspec.
-Require Import compcert.Events2.
+Require Import veric.Events2.
 Require Import ListSet.
 
 Set Implicit Arguments.
