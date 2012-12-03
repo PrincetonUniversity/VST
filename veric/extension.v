@@ -233,7 +233,7 @@ Definition safe_extension (E: Sig cT Zint esem csem csig esig handled) :=
 
 End AllSafety.
 
-Module SafetyInterpolant. Section SafetyInterpolant.
+Module SafetyInvariant. Section SafetyInvariant.
  Variables
   (G: Type) (** global environments *)
   (xT: Type) (** corestates of extended semantics *)
@@ -276,7 +276,7 @@ Notation at_external_not_handled := E.(Extension.at_external_not_handled).
 Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
 Notation runnable_false := E.(Extension.runnable_false).
 
-Inductive safety_interpolant: Type := SafetyInterpolant: forall 
+Inductive safety_invariant: Type := SafetyInvariant: forall 
   (** Coresteps preserve the all-safety invariant. *)
   (core_pres: forall ge n z (s: xT) c m CS s' c' m', 
     ALL_SAFE ge (S n) (s \o z) s m -> 
@@ -381,9 +381,9 @@ Inductive safety_interpolant: Type := SafetyInterpolant: forall
       (forall ge n, CORE j is (CS0, c0) in s -> 
                     safeN CS0 csig ge (S n) (s \o z) c0 m -> 
                     safeN CS0 csig ge n (s' \o z') c0 m'))),
-  safety_interpolant.
+  safety_invariant.
 
-End SafetyInterpolant. End SafetyInterpolant.
+End SafetyInvariant. End SafetyInvariant.
 
 Module EXTENSION_SOUNDNESS. Section EXTENSION_SOUNDNESS.
  Variables
@@ -404,9 +404,9 @@ Module EXTENSION_SOUNDNESS. Section EXTENSION_SOUNDNESS.
   (handled: list AST.external_function) (** functions handled by this extension *)
   (E: Extension.Sig cT Zint esem csem csig esig handled). 
 
-Import SafetyInterpolant.
+Import SafetyInvariant.
 
-Record Sig := Make {extension_sound: safety_interpolant E -> safe_extension E}.
+Record Sig := Make {extension_sound: safety_invariant E -> safe_extension E}.
 
 End EXTENSION_SOUNDNESS. End EXTENSION_SOUNDNESS.
 
@@ -627,8 +627,7 @@ Module CompilableExtension. Section CompilableExtension.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CompilableCoreSem F V xT D) (** extended semantics *)
+  (esem: CoreSemantics (Genv.t F V) xT mem D) (** extended semantics *)
   (csem: forall i:nat, option (CompilableCoreSem F V (cT i) D)) (** a set of core semantics *)
 
   (csig: ext_sig mem Z) (** client signature *)
@@ -641,4 +640,5 @@ Definition cast_csem: forall i:nat, option (CoreSemantics (Genv.t F V) (cT i) me
 Record Sig := Make { E:> Extension.Sig cT Zint esem cast_csem csig esig handled }.
 
 End CompilableExtension. End CompilableExtension.
+
   

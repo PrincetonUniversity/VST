@@ -1163,7 +1163,7 @@ assert (H2: Extension.zmult fs_extension (Extension.proj_zint fs_extension s') =
  elimtype False.
   apply corestep_not_at_external in H5.
   solve[rewrite H5 in H; congruence].
-unfold SafetyInterpolant.proj_zint.
+unfold SafetyInvariant.proj_zint.
 solve[rewrite H2; auto].
 
 (*2: core progress*)
@@ -1542,7 +1542,7 @@ destruct H7 as [H7 H11].
 eapply os_open; eauto.
 unfold fs_open.
 unfold proj_zint in H9.
-unfold SafetyInterpolant.proj_zint in H9.
+unfold SafetyInvariant.proj_zint in H9.
 simpl in H9.
 unfold FSExtension.proj_zint in H9.
 rewrite H9; auto.
@@ -1602,7 +1602,7 @@ destruct H7 as [H7 H11].
 eapply os_open; eauto.
 unfold fs_open.
 unfold proj_zint in H9.
-unfold SafetyInterpolant.proj_zint in H9.
+unfold SafetyInvariant.proj_zint in H9.
 simpl in H9.
 unfold FSExtension.proj_zint in H9.
 rewrite H9; auto.
@@ -1612,7 +1612,7 @@ rewrite H12 in H7.
 elimtype False.
 spec H7.
 unfold file_exists; intros H13.
-unfold SafetyInterpolant.proj_zint in H13.
+unfold SafetyInvariant.proj_zint in H13.
 simpl in H13.
 unfold FSExtension.proj_zint in H13.
 rewrite H9 in H13.
