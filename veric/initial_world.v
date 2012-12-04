@@ -10,9 +10,7 @@ Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
-Require Import veric.Clight_new.
 Require Import veric.expr veric.expr_lemmas.
-Require Import veric.Clight_lemmas.
 
 Open Local Scope pred.
 
@@ -414,7 +412,7 @@ Qed.
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
 
-Lemma initblocksize_name: forall V a id n, initblocksize V a = (id,n) -> var_name V a = id.
+Lemma initblocksize_name: forall V a id n, initblocksize V a = (id,n) -> fst a = id.
 Proof. destruct a; intros; simpl; inv H; auto.  Qed.
 
 Lemma list_norepet_rev:
@@ -618,233 +616,9 @@ Definition initial_jm (prog: program) m (G: funspecs) (n: nat)
 
 
 
-Lemma alloc_globals_app:
-   forall F V (ge: Genv.t F V) m m2 vs vs',
-  Genv.alloc_globals ge m (vs++vs') = Some m2 <->
-    exists m', Genv.alloc_globals ge m vs = Some m' /\
-                    Genv.alloc_globals ge m' vs' = Some m2.
-Proof.
-intros.
-revert vs' m m2; induction vs; intros.
-simpl.
-intuition. exists m; intuition. destruct H as [? [H ?]]; inv H; auto.
-simpl.
-case_eq (Genv.alloc_global ge m a); intros.
-specialize (IHvs vs' m0 m2).
-auto.
-intuition; try discriminate.
-destruct H0 as [? [? ?]]; discriminate.
-Qed.
-
-Fixpoint alloc_globals_rev {F V} (ge: Genv.t F V) (m: mem) (vl: list (ident * globdef F V))
-                         {struct vl} : option mem :=
-  match vl with
-  | nil => Some m
-  | v :: vl' =>
-     match alloc_globals_rev ge m vl' with
-     | Some m' => Genv.alloc_global ge m' v
-     | None => None
-     end
-  end.
-
-Lemma alloc_globals_rev_eq: 
-     forall F V (ge: Genv.t F V) m vl,
-     Genv.alloc_globals ge m (rev vl) = alloc_globals_rev ge m vl.
-Proof.
-intros.
-revert m; induction vl; intros; auto.
-simpl.
-rewrite <- IHvl.
-case_eq (Genv.alloc_globals ge m (rev vl)); intros.
-case_eq (Genv.alloc_global ge m0 a); intros.
-rewrite alloc_globals_app.
-exists m0; split; auto.
-simpl. rewrite H0; auto.
-case_eq (Genv.alloc_globals ge m (rev vl ++ a :: nil)); intros; auto.
-elimtype False.
-apply alloc_globals_app in H1.
-destruct H1 as [m' [? ?]].
-inversion2 H H1.
-simpl in H2.
-rewrite H0 in H2; inv H2.
-case_eq (Genv.alloc_globals ge m (rev vl ++ a :: nil)); intros; auto.
-elimtype False.
-apply alloc_globals_app in H0.
-destruct H0 as [m' [? ?]].
-inversion2 H H0.
-Qed.
-
-Definition bump_nextvar {F V} (ge: Genv.t F V)  : Genv.t F V.
-intros.
-apply (@Genv.mkgenv F V
-    ge.(Genv.genv_symb)
-    ge.(Genv.genv_funs)
-    ge.(Genv.genv_vars)
-    (ge.(Genv.genv_next) + 1)); intros; destruct ge; simpl in *; auto.
-unfold block in *. omega.
-destruct (genv_symb_range _ _ H); split; unfold block in*; omega.
-pose proof (genv_funs_range _ _ H); omega.
-pose proof (genv_vars_range _ _ H); omega.
-eapply genv_funs_vars; eauto.
-apply genv_vars_inj with b; auto.
-Defined.
-
-Lemma disj_no_fun:
-  forall (fs: list (AST.ident * globdef fundef type)) ids, 
-       list_disjoint (map (@fst _ _) fs) ids ->
-       forall i, In i ids ->
-      (Genv.genv_symb (Genv.add_globals (Genv.empty_genv _ _) fs)) ! i = None.
-Proof.
-intros. spec H i i.
-assert (~In i (map (@fst _ _) fs)). intro. contradiction H; auto.
-clear - H1; rename H1 into H0. unfold Genv.add_globals.
-rewrite fold_right_rev_left. rewrite <- (rev_involutive fs). rewrite In_rev in H0.
-rewrite <- map_rev in H0. remember (rev fs) as fs'; rewrite rev_involutive. clear - H0.
-revert H0; induction fs'; simpl; intros.
-rewrite Maps.PTree.gempty; auto. destruct a; simpl in *.
-rewrite Maps.PTree.gso; [ | intro; subst; intuition]. 
-apply IHfs'. contradict H0; auto.
-Qed.
-
-(*
-Lemma find_var_info_add_functions:
- forall F V b fs (ge: Genv.t F V), 
-   Genv.find_var_info (Genv.add_globals ge fs) b = Genv.find_var_info ge b.
-Proof. induction fs; intros. simpl. auto. simpl.
-rewrite IHfs. unfold Genv.add_global, Genv.find_var_info.
-destruct a; destruct g; simpl; auto.
-rewrite ZMap.gso; auto.
- not true..
-Qed.
-*)
-
-Definition upto_block' (b: block) (w: rmap) :=
-  fun loc => if zlt (fst loc) b then w @ loc else NO Share.bot.
-
-Definition upto_block (b: block) (w: rmap) : rmap.
- refine (proj1_sig (make_rmap (upto_block' b w) _ (level w) _)).
-Proof.
- intros b' z'.
- unfold compose, upto_block'.
- simpl. destruct (zlt b' b).
- apply rmap_valid.
-  simpl. auto.
- extensionality loc;  unfold compose.
-  unfold upto_block'.
- if_tac; [ | reflexivity ].
-apply resource_at_approx.
-Defined.
-
-Definition beyond_block' (b: block) (w: rmap) :=
-  fun loc => if zlt (fst loc) b then core (w @ loc) else w @ loc.
-
-Definition beyond_block (b: block) (w: rmap) : rmap.
- refine (proj1_sig (make_rmap (beyond_block' b w) _ (level w) _)).
-Proof.
- intros b' z'.
- unfold compose, beyond_block'.
- simpl. destruct (zlt b' b).
- pose proof (rmap_valid w b' z'). unfold compose in H.
- revert H;  case_eq (w @ (b',z')); intros;
-  repeat rewrite core_NO in *; 
-  repeat rewrite core_YES in *;
-  repeat rewrite core_PURE in *;
-   simpl; intros; auto.
- pose proof (rmap_valid w b' z'). unfold compose in H.
- revert H;  case_eq (w @ (b',z')); intros;
-  repeat rewrite core_NO in *; 
-  repeat rewrite core_YES in *;
-  repeat rewrite core_PURE in *;
-   simpl; intros; auto.
- extensionality loc;  unfold compose.
-  unfold beyond_block'.
- if_tac. repeat rewrite core_resource_at. rewrite <- level_core; apply resource_at_approx.
-apply resource_at_approx.
-Defined.
-
-
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=
  match l with nil => nil | (i,Gvar v)::r => (i,v):: prog_vars' r | _::r => prog_vars' r
  end.
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
-
-Lemma allocate_global_blocks:
-  forall (prog: AST.program fundef type)
-     (H:  list_norepet (prog_defs_names prog))
-     (w: rmap)
-     m   (Hm: Genv.init_mem prog = Some m)
-     (IOK: initial_rmap_ok m w),
-     forall rho,
-          app_pred (writable_blocks (map (initblocksize _) (prog_vars prog)) rho)
-            (m_phi (initial_mem m w IOK)).
-Proof.
-intros.
-destruct prog as [fs main vs].
-simpl.
-unfold Genv.init_mem, Genv.globalenv in Hm; simpl in Hm.
-remember (Genv.empty_genv fundef type) as g.
-assert (Genv.variables_initialized (Genv.add_globals g fs)   (Genv.add_globals g fs)  m).
-eapply Genv.alloc_globals_initialized; try eassumption.
-subst g. reflexivity.
-subst g.
-clear - H.
-hnf; intros.
-elimtype False; clear - H0.
-unfold Genv.find_var_info,Genv.empty_genv in H0; simpl in H0.
-rewrite ZMap.gi in H0. inv H0.
-subst g.
-clear.
-hnf; intros.
-unfold Genv.find_funct_ptr,Genv.empty_genv in H; simpl in H.
-rewrite ZMap.gi in H. inv H.
-pose proof I; pose proof I.
-assert (H4: nextblock m = 1 + Z_of_nat (length fs)).
-clear - Hm.
-admit.  (* easy enough *)
-remember fs as vtot.
-rewrite Heqvtot.
-remember (@nil (ident*globdef fundef type)) as vr.
-rename fs into vs.
-assert (vr++vs=vtot) by (subst; auto).
-replace (inflate_initial_mem m w)
-   with (beyond_block (1+ Z_of_nat (length vr)) (inflate_initial_mem m w)).
-Focus 2.
- apply rmap_ext.   unfold beyond_block. rewrite level_make_rmap. auto.
- intro loc. unfold beyond_block. rewrite resource_at_make_rmap.
- unfold beyond_block'. if_tac; auto.
- unfold inflate_initial_mem. rewrite resource_at_make_rmap.
- unfold inflate_initial_mem'.
- subst vr. simpl in H5.
- replace (access_at m loc) with (@None permission).
- rewrite core_NO; auto.
- destruct loc as [b z]. unfold access_at. symmetry; simpl. simpl in H5.
- clear - Hm H5.
- admit. (* easy *)
-clear Hm.
-subst g.
-clear Heqvr Heqvtot.
-revert vr H3; induction vs; intros.
-simpl writable_blocks.
-rewrite <- app_nil_end in H3. subst vr.
-apply resource_at_empty2.
-intros [b z].
-unfold beyond_block.
-rewrite resource_at_make_rmap.
-unfold beyond_block'.
-simpl fst.
-if_tac.
-apply core_identity.
-unfold inflate_initial_mem.
-rewrite resource_at_make_rmap.
-unfold inflate_initial_mem'.
-unfold access_at. rewrite nextblock_noaccess.
-apply NO_identity.
-rewrite H4. auto.
-specialize (IHvs (vr++ (a::nil))).
-rewrite app_ass in IHvs.
-specialize (IHvs H3).
-destruct  a as [i [d|d]].
-Admitted.  (* the rest of this is pretty straightforward, I hope *)
-
 

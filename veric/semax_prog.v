@@ -22,6 +22,7 @@ Require Import veric.initial_world.
 Require Import msl.normalize.
 Require Import veric.semax_call.
 Require Import veric.initial_world.
+Require Import veric.initialize.
 
 Open Local Scope pred.
 
@@ -653,150 +654,6 @@ if_tac.
  if_tac;   destruct (access_at m l); try destruct p; try rewrite core_YES; try rewrite core_NO; auto.
 Qed.
 
-Lemma writable_blocks_app:
- forall rho l1 l2, writable_blocks (l1++l2) rho = writable_blocks l1 rho * writable_blocks l2 rho. Proof.
-induction l1; intros; simpl.
-rewrite emp_sepcon; auto.
-destruct a.
-rewrite IHl1.
-rewrite sepcon_assoc; auto.
-Qed.
-
-Lemma writable_blocks_rev:
-  forall rho l, writable_blocks l rho = writable_blocks (rev l) rho.
-Proof.
-induction l; simpl; auto.
-destruct a.
-rewrite writable_blocks_app.
-rewrite <- IHl.
-simpl.
-rewrite sepcon_emp.
-apply sepcon_comm.
-Qed.
-
-Lemma add_variables_nextblock:
-  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
-   Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
-          Some (Genv.genv_next ge + Z_of_nat (length vl)).
-Proof.
-Admitted.
-
-Lemma rev_prog_vars': forall {F V} vl, rev (@prog_vars' F V vl) = prog_vars' (rev vl).
-Proof.
-   intros.
-   induction vl. simpl; auto.
-   destruct a. destruct g.
-   simpl. rewrite IHvl.
-   clear. induction (rev vl); simpl; intros; auto. destruct a; destruct g; simpl; auto.
-    rewrite IHl. auto.
-   simpl.
-   transitivity (prog_vars' (rev vl) ++ (@prog_vars' F V ((i,Gvar v)::nil))).
-    rewrite IHvl. f_equal.
-    simpl.
-    clear.
-    induction (rev vl); simpl; intros; auto.
-    destruct a. destruct g.
-    auto.
-    rewrite <- IHl.
-    simpl. auto.
-Qed.
-
-
-Lemma initial_writable_blocks:
-  forall prog G m n,
-     list_norepet (prog_defs_names prog) ->
-    match_fdecs (prog_funct prog) G ->
-    Genv.init_mem prog = Some m ->
-     app_pred 
-      (writable_blocks (map (initblocksize type) (prog_vars prog))
-          (empty_environ (Genv.globalenv prog)))
-  (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
-Proof.
- intros until n. intros ? SAME_IDS ?.
- assert (IOK: initial_rmap_ok m (initial_core (Genv.globalenv prog) G n))
-      by (apply initial_core_ok; auto).
-  unfold Genv.init_mem in H0.
-  unfold Genv.globalenv in *.
-  destruct prog as [fl main vl].
-  simpl in *.
-  remember (Genv.add_globals (Genv.empty_genv fundef type) fl) as gev.
-  rewrite <- (rev_involutive fl) in *.
-  rewrite alloc_globals_rev_eq in H0.
-  forget (rev fl) as vl'. clear fl; rename vl' into vl.
-  unfold prog_vars. simpl.
-  rewrite <- rev_prog_vars'.
-  rewrite map_rev. rewrite <- writable_blocks_rev.
-  assert (exists ul, gev = Genv.add_globals (Genv.empty_genv fundef type) (rev vl ++ ul) /\ 
-                                            list_norepet (map (@fst _ _) (rev vl ++ ul))).
-  exists nil; rewrite <- app_nil_end; auto.
-  clear Heqgev H.
-  revert m H0 H1 IOK SAME_IDS; induction vl; simpl; intros.
- apply resource_at_empty2.
- intro l.
- unfold inflate_initial_mem.
- rewrite resource_at_make_rmap.
- unfold inflate_initial_mem'.
-  inv H0.
- unfold access_at, empty. simpl. rewrite ZMap.gi. apply NO_identity.
-(*
- invSome.
- destruct a; destruct g.
- apply (H3 m0).
- case_eq (initblocksize type a); intros.
- specialize (IHvl _ H0).
- unfold writable_block.
- normalize.
- unfold initblocksize in H.
- destruct a. inv H.
- unfold Genv.alloc_variable in H3.
- simpl in H3.
- revert H3; case_eq (alloc m0 0 (Genv.init_data_list_size (gvar_init g))); intros.
- invSome. invSome.
- unfold empty_environ at 1. simpl ge_of. unfold filter_genv.
- destruct H1 as [ul [? ?]].
- spec IHvl.
-  exists ((i,g)::ul).
- rewrite app_ass in H1,H2; split; auto.
- assert (Genv.find_symbol gev i = Some b).
- clear - H0 H H1 H2 H9.
- apply alloc_result in H. subst.
- rewrite <- alloc_variables_rev_eq in H0. 
- apply Genv.alloc_variables_nextblock in H0.
- rewrite H0. clear - H2 H9.
- rewrite app_ass in *. simpl app in *.
- simpl nextblock. rewrite <- H9.
- apply add_variables_nextblock; auto. 
- rewrite H4.
- exists (Vptr b Int.zero, match type_of_global gev b with
-      | Some t => t
-      | None => Tvoid
-      end).
- normalize.
- exists (b, 0).
- normalize; exists Share.bot.
- normalize.
- split.
- simpl. split.
- destruct (type_of_global gev b); auto.
- f_equal; rewrite Int.signed_zero; auto.
- rewrite sepcon_comm.
- assert (b>0). apply alloc_result in H. subst; apply nextblock_pos.
- apply (mem_alloc_juicy _ _ _ _ _ H
-                    (initial_core gev G n)
-                   (writable_blocks (map (initblocksize type) vl) (empty_environ gev))
-                  IOK IOK) in IHvl.
- rewrite Zminus_0_r in IHvl.
- apply (store_zeros_lem _ _ _ _ H3 H7 _ IOK IOK) in IHvl.
- apply (store_init_data_list_lem _ _ _ _ _ _ _ _ H5 H7 _ IOK IOK) in IHvl.
- rewrite <- (Zminus_0_r  (Genv.init_data_list_size (gvar_init g))) in IHvl.
- assert (Genv.perm_globvar g = Writable) by admit. (* need to generalize this! *)
- rewrite H8 in *.
- apply (drop_perm_writable_lem _ _ _ _ _ H6 H7 _ IOK IOK) in IHvl.
- rewrite Zminus_0_r in IHvl.
- apply IHvl.
-Qed. *)
-Admitted.
-
 Definition Delta1 V G: tycontext := 
   make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
 
@@ -918,7 +775,7 @@ rewrite TT_sepcon_TT.
 rewrite sepcon_comm.
 apply sepcon_TT.
 simpl.
-apply initial_writable_blocks; auto.
+apply global_initializers; auto.
 simpl.
 rewrite inflate_initial_mem_level.
 unfold initial_core.
