@@ -641,7 +641,15 @@ Inductive compilability_invariant: Type := CompilableExtension: forall
     Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       make_initial_core (esem target) ge v2 vals2 = Some s2 /\
-      match_states cd j s1 m1 s2 m2),
+      match_states cd j s1 m1 s2 m2)
+
+  (safely_halted_diagram: forall cd j c1 m1 c2 m2 ge v1,
+    match_states cd j c1 m1 c2 m2 -> 
+    safely_halted (esem source) ge c1 = Some v1 -> 
+    exists v2,
+      val_inject j v1 v2 /\
+      safely_halted (esem target) ge c2 = Some v2 /\ 
+      Mem.inject j m1 m2),
   compilability_invariant.
 
 Variables (esig_compilable: compilability_invariant)
@@ -867,40 +875,12 @@ Qed.
 Next Obligation. 
 inv esig_compilable.
 eapply make_initial_core_diagram; eauto.
-(*rename H0 into INIT.
-rename H1 into INJ.
-rename H2 into VALINJ.
-rename H3 into TYPE.
-inv core_compat1.
-destruct (Extension.active_csem E1 c1) as [CS CORES].
-destruct (Extension.active_proj_core E1 c1) as [_c1 PROJ1].
-destruct (make_init1 ge c1 v1 vals1 (ACTIVE E1 c1) CS CORES INIT)
- as [_c1' [INIT' PROJ1']].
-rewrite PROJ1' in PROJ1.
-inv PROJ1.
-unfold cores in CORES.
-inv CORES.
-generalize (core_initial core_simulation v1 v2 sig H vals1 _c1 m1 j vals2 m2 INIT');
- intro MATCH.
-spec MATCH; auto.
-spec MATCH; auto.
-spec MATCH; auto.
-destruct MATCH  as [cd [_c2 [? ?]]].
-exists cd.
-clear make_init2.
-inv core_compat2.
-specialize (make_init2 ge _c2 v2 vals2 O target).
-spec make_init2; auto.
-spec make_init2; auto.
-destruct make_init2 as [c2 [INIT2 MATCH2]].
-exists c2.
-split; auto.*)
 Qed.
 
 Next Obligation. 
-rename H into MATCH; hnf in MATCH.
-destruct MATCH as [ACT [RUN MATCH_CORES]].
-Admitted. (*TODO*)
+inv esig_compilable.
+eapply safely_halted_diagram; eauto.
+Qed.
 
 Next Obligation. 
 rename H into MATCH.
@@ -1047,8 +1027,71 @@ Module ExtensionSimulations2. Section ExtensionSimulations2.
 
  Definition core_datas := forall i:nat, core_data (core_simulations i).
 
- Definition core_ords (cd1 cd2: core_datas) := forall (i:nat), 
-   core_ord (core_simulations i) (cd1 i) (cd2 i).
+ Definition core_datas_upd
+   i (cdi': core_data (core_simulations i)) (cd: core_datas): core_datas :=
+   fun j: nat => 
+     match eq_nat_dec i j as pf in sumbool _ _ return core_data (core_simulations j) with
+     | left pf => match pf with
+                  | eq_refl => cdi'
+                  end
+     | right pf => cd j
+     end.
+
+ Lemma core_datas_upd_same i cdi' cd: (core_datas_upd i cdi' cd) i = cdi'.
+ Proof.
+ unfold core_datas_upd.
+ destruct (eq_nat_dec i i).
+ rewrite (UIP_refl _ _ e); auto.
+ elimtype False; auto.
+ Qed.
+
+ Lemma core_datas_upd_other i j cdi' cd: i<>j -> (core_datas_upd i cdi' cd) j = cd j.
+ Proof.
+ unfold core_datas_upd.
+ destruct (eq_nat_dec i j).
+ intros; elimtype False; auto.
+ auto.
+ Qed.
+
+ Variable max_cores: nat. (*I don't think it's possible to build a well-founded order
+                             on infinite products; so we just bound the number of cores.*)
+
+ Definition core_ords_aux (i: nat) (cd1 cd2: core_datas): Prop := 
+   core_ord (core_simulations i) (cd1 i) (cd2 i) /\
+   (forall j, (j < i)%nat -> cd1 j=cd2 j).
+
+ Lemma core_ords_aux0: forall cd1 cd2,
+   core_ords_aux O cd1 cd2 <-> core_ord (core_simulations O) (cd1 O) (cd2 O). 
+ Proof.
+ intros cd1 cd2.
+ unfold core_ords_aux.
+ split.
+ intros [H1 H2]; auto.
+ intros H1.
+ split; auto.
+ intros j CONTRA.
+ elimtype False; omega.
+ Qed.
+
+ Definition core_ords cd1 cd2 := 
+   exists i, (i < max_cores)%nat /\ core_ords_aux i cd1 cd2.
+
+ Lemma core_ords_wf: well_founded core_ords.
+ Proof.
+ unfold core_ords.
+ induction max_cores.
+ constructor.
+ intros b [i [H1 H2]].
+ elimtype False; omega.
+ constructor.
+ intros b [i [H1 [H2 H3]]].
+ destruct (IHn a) as [H4].
+ specialize (H4 b).
+ generalize (core_ord_wf (core_simulations i)).
+ intros H5.
+ destruct (H5 (a i)) as [H6].
+ specialize (H6 (b i) H2).
+ Admitted. (*TODO*)
 
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
@@ -1179,7 +1222,15 @@ Module ExtensionSimulations2. Section ExtensionSimulations2.
     Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       make_initial_core esemT ge v2 vals2 = Some s2 /\
-      match_states cd j s1 m1 s2 m2),
+      match_states cd j s1 m1 s2 m2)
+
+  (safely_halted_diagram: forall cd j c1 m1 c2 m2 ge v1,
+    match_states cd j c1 m1 c2 m2 -> 
+    safely_halted esemS ge c1 = Some v1 -> 
+    exists v2,
+      val_inject j v1 v2 /\
+      safely_halted esemT ge c2 = Some v2 /\ 
+      Mem.inject j m1 m2),
   compilability_invariant.
 
  Variables 
@@ -1190,7 +1241,7 @@ Program Definition extended_simulation:
   Forward_simulation_inject dS dT esemS esemT ge ge entry_points :=
       Build_Forward_simulation_inject 
       core_datas match_states core_ords _ _ _ _ _ _.
-Next Obligation. unfold core_ords, core_datas. Admitted. (*TODO*)
+Next Obligation. apply core_ords_wf. Qed.
 Next Obligation. 
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
@@ -1241,7 +1292,9 @@ spec CSTEPN; auto.
 spec CSTEPN; auto. 
 spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
-exists st2'; exists m2'; exists cd; exists j'.
+exists st2'; exists m2'.
+exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
+exists j'.
 split3; auto.
 split; auto.
  (*Subgoal: match_states*)
@@ -1268,9 +1321,7 @@ split; auto.
   rewrite PROJ1' in _PROJ1'.
   inv _PROJ1'.
   split; auto.
-  assert (Hxx: cd' = cd i).
-   admit.
-  rewrite <-Hxx; auto.
+  solve[rewrite core_datas_upd_same; auto].
 
   (*ACTIVE E_S st1 <> i*)
   intros NEQ _.
@@ -1310,7 +1361,7 @@ split; auto.
   exists _d; split; auto.
   inv esig_compilable.
   specialize (match_others i cd j j' st1 cd' (cd i) c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d (S n)).
-  solve[spec match_others; auto; auto].
+  solve[rewrite core_datas_upd_other; auto].
   solve[left; exists n; auto].
 
 (*corestep_star case*)
@@ -1323,7 +1374,9 @@ spec CSTEPN; auto.
 spec CSTEPN; auto. 
 spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
-exists st2'; exists m2'; exists cd; exists j'.
+exists st2'; exists m2'. 
+exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
+exists j'.
 split3; auto.
 split; auto.
  (*Subgoal: match_states*)
@@ -1349,9 +1402,7 @@ split; auto.
   rewrite PROJ1' in _PROJ1'.
   inv _PROJ1'.
   split; auto.
-  assert (Hxx: cd' = cd i).
-   admit.
-  rewrite <-Hxx; auto.
+  solve[rewrite core_datas_upd_same; auto].
 
   (*ACTIVE E_S st1 <> i*)
   intros NEQ _.
@@ -1391,8 +1442,9 @@ split; auto.
   exists _d; split; auto.
   inv esig_compilable.
   specialize (match_others i cd j j' st1 cd' (cd i) c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d n).
-  solve[spec match_others; auto; auto].
-  right. split. exists n. auto. admit. (*fix core_ord*)
+  solve[rewrite core_datas_upd_other; auto].
+  right. split. exists n. auto. 
+   admit. (*should follow from ORD and definition of generalized lex_prod*)
 
 (*runnable = false*)
 intros RUN1.
@@ -1436,9 +1488,8 @@ inv esig_compilable; eapply make_initial_core_diagram; eauto.
 Qed.
 
 Next Obligation. 
-rename H into MATCH; hnf in MATCH.
-destruct MATCH as [ACT [RUN MATCH_CORES]].
-Admitted. (*TODO*)
+inv esig_compilable; eapply safely_halted_diagram; eauto.
+Qed.
 
 Next Obligation. 
 rename H into MATCH.
@@ -1480,7 +1531,8 @@ destruct (core_after_external (core_simulations (ACTIVE E_S st1))
                 (cd (ACTIVE E_S st1)) j j' c1 c2 m1 e 
                 vals1 ret1 m1' m2 m2' ret2 ef_sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
-exists cd. (*FIXME*)
+
+exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
          PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1') as [st1' [? PROJ1']].
  inv core_compat1.
@@ -1521,9 +1573,7 @@ intros EQ _; subst.
 exists c2'; split; auto.
 rewrite _PROJ1' in PROJ1'.
 inv PROJ1'; auto.
-assert (cd' = cd i) as <-.
- admit.
-auto.
+solve[rewrite core_datas_upd_same; auto].
 
 (*ACTIVE E_S st1 <> i*)
 intros NEQ _.
