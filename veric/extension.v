@@ -481,6 +481,70 @@ apply H8.
 apply (Mem.valid_block_inject_2 _ m1 _ _ _ _ H2); auto.
 Qed.
 
+Definition genv2blocks {F V: Type} (g: Genv.t F V) := 
+  map snd (PTree.elements (Genv.genv_symb g)).
+
+Import Sim_inj.
+
+Module RGSimulationInject. Section RGSimulationInject.
+ Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
+ Variables 
+  (sourceC: CoreSemantics (Genv.t F1 V1) C1 mem INIT1)
+  (targetC: CoreSemantics G2 C2 mem INIT2) 
+  (ge1: Genv.t F1 V1) (ge2: G2) 
+  (entry_points: list (val * val * signature)).
+ Variable (simC: Forward_simulation_inject _ _ sourceC targetC ge1 ge2 entry_points).
+
+ Inductive Sig: Type := Make: forall
+  (RELY: forall D1 D2 ge1 ge2 cdC m1 m1' f f' m2 m2' c1 c2 d1 d2 d1' d2' n
+    (sourceD: CoreSemantics (Genv.t F1 V1) D1 mem INIT1)
+    (targetD: CoreSemantics G2 D2 mem INIT2) 
+    (simD: Forward_simulation_inject _ _ sourceD targetD ge1 ge2 entry_points)
+    cdD cdD',
+
+    (*RELY*)
+    Mem.inject f m1 m2 -> 
+    meminj_preserves_globals (genv2blocks ge1) f -> 
+
+    (*OTHER CORE DIAGRAM*)
+    match_state simD cdD f d1 m1 d2 m2 -> 
+    corestep sourceD ge1 d1 m1 d1' m1' -> 
+    corestepN  targetD ge2 n d2 m2 d2' m2' -> 
+    match_state simD cdD' f' d1' m1' d2' m2' -> 
+
+    (*OTHER CORE GUARANTEE*)
+    Mem.inject f' m1' m2' -> 
+    mem_unchanged_on (loc_unmapped f) m1 m1' ->
+    mem_unchanged_on (loc_out_of_reach f m1) m2 m2' ->
+    inject_incr f f' -> 
+    inject_separated f f' m1 m2 -> 
+
+    (*THEN MATCH IS STABLE*)
+    match_state simC cdC f c1 m1 c2 m2 -> 
+    match_state simC cdC f' c1 m1' c2 m2')
+    
+  (GUARANTEE: forall ge1 ge2 cd cd' m1 m1' f f' m2 m2' c1 c2 c1' c2' n,
+    (*RELY*)
+    Mem.inject f m1 m2 -> 
+    meminj_preserves_globals (genv2blocks ge1) f -> 
+
+    (*DIAGRAM*)
+    match_state simC cd f c1 m1 c2 m2 -> 
+    corestep sourceC ge1 c1 m1 c1' m1' -> 
+    corestepN targetC ge2 n c2 m2 c2' m2' -> 
+    match_state simC cd' f' c1' m1' c2' m2' -> 
+
+    (*GUARANTEE*)
+    Mem.inject f' m1' m2' /\ 
+    mem_unchanged_on (loc_unmapped f) m1 m1' /\
+    mem_unchanged_on (loc_out_of_reach f m1) m2 m2' /\
+    inject_incr f f' /\
+    inject_separated f f' m1 m2),
+  Sig.
+
+End RGSimulationInject. End RGSimulationInject.
+
+(*STUFF AFTER THIS LINE CAN PROBABLY BE IGNORED*)
 Module CompilableSem. Section CompilableSem.
  Variables (F V: Type).
  Variable (sem: list block -> mem -> mem -> Prop).
@@ -605,9 +669,6 @@ End CompilableTrans.
 
 End CompilableSem.
 
-Definition genv2blocks {F V: Type} (g: Genv.t F V) := 
-  map snd (PTree.elements (Genv.genv_symb g)).
-
 Record CompilableCoreSem {F V C D} := {
   coresem:> CoreSemantics (Genv.t F V) C mem D;
   compilable: CompilableSem.Sig (fun bs m m' => exists ge, exists q, exists q',
@@ -640,5 +701,4 @@ Definition cast_csem: forall i:nat, option (CoreSemantics (Genv.t F V) (cT i) me
 Record Sig := Make { E:> Extension.Sig cT Zint esem cast_csem csig esig handled }.
 
 End CompilableExtension. End CompilableExtension.
-
   
