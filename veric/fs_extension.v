@@ -790,7 +790,7 @@ Program Definition fs_extension :=
     handled
     proj_core _
     active _ _
-    runnable _ _ _ _ _ 
+    runnable _ _ _ _  
     proj_zint
     proj_zext
     zmult _ _ 
@@ -829,7 +829,6 @@ destruct (safely_halted csem ge (get_core s)); try congruence.
 inv H.
 left; eexists; eauto.
 Qed.
-Next Obligation. eapply after_at_external_excl; eauto. Qed.
 Next Obligation.
 apply at_external_handled in H1.
 unfold is_true; auto.
@@ -1082,11 +1081,12 @@ omega.
 auto.
 Qed.
 
-Import ExtensionSoundness.
+Import ExtensionSafety.
 
 Lemma fs_extension_safe (csem_fun: corestep_fun csem): safe_extension fs_extension.
 Proof.
-apply (ExtSound fs_extension); constructor.
+destruct (ExtensionSafety fs_extension) as [PF00].
+apply PF00; constructor.
 
 (*1: core preservation of all-safety invariant*)
 intros until m'; intros H1 (*H2*) [H3 H4] H5 H6.
@@ -1464,7 +1464,9 @@ unfold proj_core in H13.
 if_tac in H13; try congruence.
 apply (after_at_external_excl csem) in H9.
 unfold cores in H2.
-inv H2.
+inversion H2.
+rewrite H16 in *.
+clear H16.
 rewrite H9 in H12.
 congruence.
 apply Zplus_le_compat_l.
@@ -1735,7 +1737,9 @@ unfold proj_core in H13.
 if_tac in H13; try congruence.
 apply after_at_external_excl in H9.
 unfold cores in H2.
-inv H2.
+inversion H2.
+rewrite H16 in *.
+clear H16.
 rewrite H9 in H12.
 congruence.
 (*degenerate cases*)

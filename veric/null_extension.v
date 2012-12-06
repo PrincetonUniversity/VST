@@ -11,9 +11,6 @@ Section NullExtension.
   (csem: CoreSemantics G cT M D)
   (csig: ext_sig M Z)
   (init_world: Z)
-
-  (after_at_external_excl: forall c ret c',
-    after_external csem ret c = Some c' -> at_external csem c' = None)
   (at_external_handled: forall c ef args sig,
     at_external csem c = Some (ef, sig, args) -> IN ef csig = true).
 
@@ -43,7 +40,7 @@ Program Definition null_extension := Extension.Make
   csem cores csig csig handled
   proj_core _
   active _ _
-  runnable _ _ _ _ _ 
+  runnable _ _ _ _  
   proj_zint proj_zext zmult _ _ _.
 Next Obligation.
 revert H0; case_eq (eq_nat_dec i 1).
@@ -62,16 +59,17 @@ right; eexists; eexists; eexists; eauto.
 destruct (safely_halted CS ge c); try solve[congruence].
 left; eexists; eauto.
 Qed.
-Next Obligation. inversion H; subst; eapply after_at_external_excl; eauto. Qed.
 Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
 Next Obligation. inversion H; subst; if_tac in H0; try congruence. Qed.
 Next Obligation. unfold linkable; intros; inv H0; inv H1; exists x'; auto. Qed.
 
-Import ExtensionSoundness.
+Import ExtensionSafety.
 
 Lemma null_extension_safe (csem_fun: corestep_fun csem): safe_extension null_extension.
 Proof.
-apply (ExtSound null_extension); constructor; autounfold with null_unfold in *.
+destruct (ExtensionSafety null_extension) as [PF].
+apply PF.
+constructor; autounfold with null_unfold in *.
 
 (*1*) intros until m'; intros H1 [H3 H4] H5 H6. 
 inversion H3 as [H7]; rewrite <-H7 in *; clear H7 H3.
