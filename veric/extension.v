@@ -496,21 +496,16 @@ Module RGSimulationInject. Section RGSimulationInject.
  Variable (simC: Forward_simulation_inject _ _ sourceC targetC ge1 ge2 entry_points).
 
  Inductive Sig: Type := Make: forall
-  (RELY: forall D1 D2 ge1 ge2 cdC m1 m1' f f' m2 m2' c1 c2 d1 d2 d1' d2' n
-    (sourceD: CoreSemantics (Genv.t F1 V1) D1 mem INIT1)
-    (targetD: CoreSemantics G2 D2 mem INIT2) 
-    (simD: Forward_simulation_inject _ _ sourceD targetD ge1 ge2 entry_points)
-    cdD cdD',
-
+  (RELY: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
     (*RELY*)
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals (genv2blocks ge1) f -> 
 
-    (*OTHER CORE DIAGRAM*)
-    match_state simD cdD f d1 m1 d2 m2 -> 
-    corestep sourceD ge1 d1 m1 d1' m1' -> 
-    corestepN  targetD ge2 n d2 m2 d2' m2' -> 
-    match_state simD cdD' f' d1' m1' d2' m2' -> 
+    (* (*OTHER CORE DIAGRAM*) *)
+    (* match_state simD cdD f d1 m1 d2 m2 ->  *)
+    (* corestep sourceD ge1 d1 m1 d1' m1' ->  *)
+    (* corestepN  targetD ge2 n d2 m2 d2' m2' ->  *)
+    (* match_state simD cdD' f' d1' m1' d2' m2' ->  *)
 
     (*OTHER CORE GUARANTEE*)
     Mem.inject f' m1' m2' -> 
