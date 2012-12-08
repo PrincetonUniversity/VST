@@ -166,8 +166,8 @@ End selectors.
 
 Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 1 then Some (get_core s) else None.
 Definition active := fun _: xT => 1.
-Definition runnable := fun (ge: genv) (s: xT) => 
-  match at_external csem (get_core s), safely_halted csem ge (get_core s) with 
+Definition runnable := fun (s: xT) => 
+  match at_external csem (get_core s), safely_halted csem (get_core s) with 
   | None, None => true
   | _, _ => false
   end.
@@ -523,8 +523,8 @@ Definition os_after_external (ov: option val) (s: xT): option xT :=
   | None => None
   end.
 
-Definition os_safely_halted (ge: genv) (s: xT): option val :=
-  safely_halted csem ge (get_core s).
+Definition os_safely_halted (s: xT): option val :=
+  safely_halted csem (get_core s).
 
 Program Definition FSCoreSem := Build_CoreSemantics genv xT mem D
   os_initial_mem
@@ -725,7 +725,7 @@ intros [[ef sig] args] H2.
 rewrite H2 in H1.
 inv H2.
 rewrite H0.
-case_eq (safely_halted (juicy_core_sem csem) ge c).
+case_eq (safely_halted (juicy_core_sem csem) c).
 intros rv H2.
 rewrite H2 in H1.
 elimtype False; auto.
@@ -752,7 +752,7 @@ intros H2.
 rewrite H2 in H1.
 inv H2.
 rewrite H0.
-case_eq (safely_halted (juicy_core_sem csem) ge c).
+case_eq (safely_halted (juicy_core_sem csem) c).
 intros rv H2.
 rewrite H2 in H1.
 inv H2.
@@ -778,16 +778,20 @@ Variable (at_external_handled: forall c ef args sig,
   after_external csem rv c = Some c' -> at_external csem c' = None).*)
 Variable FSExtSig: ext_sig Memory.mem Z.
 Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
+Variable ge: genv.
 
 Import TruePropCoercion.
 
 Program Definition fs_extension := 
   Extension.Make 
+    _
     FSCoreSem
     cores
     Client_FSExtSig 
     FSExtSig 
     handled
+    ge
+    (fun _:nat => ge)
     proj_core _
     active _ _
     runnable _ _ _ _  
@@ -825,7 +829,7 @@ unfold runnable in H.
 destruct (at_external csem (get_core s)); try congruence.
 destruct p as [[? ?] ?].
 right; eexists; eexists; eexists; eauto.
-destruct (safely_halted csem ge (get_core s)); try congruence.
+destruct (safely_halted csem (get_core s)); try congruence.
 inv H.
 left; eexists; eauto.
 Qed.
@@ -1186,7 +1190,7 @@ simpl in H5.
 destruct s; simpl in H2.
 unfold get_core in H1.
 destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
-destruct (safely_halted csem ge c); try congruence.
+destruct (safely_halted csem c); try congruence.
 destruct H1 as [c' [m' [H1 H6]]].
 exists c'; exists (mkxT z0 c' fs0); exists m'.
 split; auto.
@@ -1334,7 +1338,7 @@ case_eq (at_external csem (get_core s)).
 intros [[ef sig] args] Hat.
 (*at_external core = Some*)
 rewrite Hat in *.
-destruct (safely_halted csem ge (get_core s)).
+destruct (safely_halted csem (get_core s)).
 elimtype False; auto.
 destruct H1 as [x [H1 H2]].
 left.
@@ -1754,7 +1758,7 @@ intros H4; rewrite H4 in H1.
 elimtype False; auto.
 intros H4; rewrite H4 in H0, H1.
 (*safely halted*)
-destruct (safely_halted csem ge (get_core s)); try congruence.
+destruct (safely_halted csem (get_core s)); try congruence.
 right; exists v; auto.
 
 (*5: safely halted threads remain halted*)
@@ -1771,13 +1775,13 @@ inv H4.
 apply corestep_not_halted in H.
 simpl in H3.
 rewrite H in H3; congruence.
-destruct (at_external_halted_excl csem ge (get_core s)).
+destruct (at_external_halted_excl csem (get_core s)).
 rewrite H4 in H; congruence.
 rewrite H4 in H3; congruence.
-destruct (at_external_halted_excl csem ge (get_core s)).
+destruct (at_external_halted_excl csem (get_core s)).
 rewrite H4 in H; congruence.
 rewrite H4 in H3; congruence.
-destruct (at_external_halted_excl csem ge (get_core s)).
+destruct (at_external_halted_excl csem (get_core s)).
 rewrite H4 in H; congruence.
 rewrite H4 in H3; congruence.
 
@@ -1890,7 +1894,7 @@ unfold proj_core in H8.
 if_tac in H8; try congruence.
 inversion H8.
 rewrite <-H11 in *.
-intros ge n [H12 H13] H14.
+intros ge' n [H12 H13] H14.
 simpl in H13.
 unfold proj_core in H13.
 if_tac in H13; try congruence.

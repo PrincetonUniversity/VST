@@ -49,7 +49,7 @@ Record CoreSemantics {G C M D:Type}: Type :=
   make_initial_core : G -> val -> list val -> option C;
   at_external : C -> option (external_function * signature * list val);
   after_external : option val -> C -> option C;
-  safely_halted : G -> C -> option val; 
+  safely_halted : C -> option val; 
   (*Lenb: return type used to be option int, so that only the exit code of eg main can be returned.
     As out envisioned linker will, however use safely_halted to detect that an external call has 
    finished execution, we need to allow arbitrary reutrn values*)
@@ -60,10 +60,10 @@ Record CoreSemantics {G C M D:Type}: Type :=
     corestep ge q m q' m' -> at_external q = None;
 
   corestep_not_halted: forall ge m q m' q', 
-    corestep ge q m q' m' -> safely_halted ge q = None;
+    corestep ge q m q' m' -> safely_halted q = None;
 
-  at_external_halted_excl: forall ge q, 
-    at_external q = None \/ safely_halted ge q = None;
+  at_external_halted_excl: forall q, 
+    at_external q = None \/ safely_halted q = None;
 
    after_at_external_excl : forall retv q q',
     after_external retv q = Some q' -> at_external q' = None
@@ -408,8 +408,8 @@ Section Forward_simulation_equals.
 
     core_halted : forall cd c1 c2 v,
       match_core cd c1 c2 ->
-      safely_halted Sem1 ge1 c1 = Some v ->
-      safely_halted Sem2 ge2 c2 = Some v;
+      safely_halted Sem1 c1 = Some v ->
+      safely_halted Sem2 c2 = Some v;
 
     core_at_external : 
       forall d st1 st2 e args ef_sig,
@@ -478,9 +478,9 @@ Section Forward_simulation_extends.
     core_halted : 
       forall cd st1 m1 st2 m2 v1,
         match_state cd st1 m1 st2 m2 ->
-        safely_halted Sem1 ge1 st1 = Some v1 ->
+        safely_halted Sem1 st1 = Some v1 ->
         exists v2, Val.lessdef v1 v2 /\
-            safely_halted Sem2 ge2 st2 = Some v2 /\
+            safely_halted Sem2 st2 = Some v2 /\
             Mem.extends m1 m2;
 
     core_at_external : 
@@ -564,9 +564,9 @@ Record Forward_simulation_inject := {
 
     core_halted : forall cd j c1 m1 c2 m2 v1,
       match_state cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 ge1 c1 = Some v1 ->
+      safely_halted Sem1 c1 = Some v1 ->
      exists v2, val_inject j v1 v2 /\
-          safely_halted Sem2 ge2 c2 = Some v2 /\
+          safely_halted Sem2 c2 = Some v2 /\
           Mem.inject j m1 m2;
 
     core_at_external : 

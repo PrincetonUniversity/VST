@@ -28,7 +28,9 @@ Variable prog: program.
 Definition juicy_csig: juicy_ext_sig Z :=
   mkjuicyextsig (externals (prog_funct prog)) CSL.ExtSpec.Hspec.
 
-Definition initial_cores (i: nat) := 
+Definition initial_cores (i: nat): 
+  option (CoreSemantics (Genv.t fundef type) Clight_new.corestate juicy_mem
+    jm_init_package) :=
   if eq_nat_dec i 1 then Some (juicy_core_sem Clight_new.cl_core_sem)
   else None.
 
@@ -36,8 +38,10 @@ Definition initial_cores (i: nat) :=
   (esem: CoreSemantics (Genv.t fundef type) xT juicy_mem jm_init_package) (** extended semantics *)
   (juicy_esig: juicy_ext_sig Z)
   (handled: list AST.external_function) (** functions handled by this extension *)
-  (E: Extension.Sig (fun _:nat => Clight_new.corestate) Zint esem initial_cores 
-    juicy_csig juicy_esig (externals (prog_funct prog)))
+  (E: Extension.Sig (fun _: nat => Genv.t fundef type) (fun _:nat => Clight_new.corestate) 
+    Zint esem initial_cores juicy_csig juicy_esig (externals (prog_funct prog)))
+  (E_GE: Extension.ge E = Genv.globalenv prog)
+  (E_GMAP: Extension.genv_map E 1 = Genv.globalenv prog)
   (Hlinkable: linkable (Extension.proj_zext E) (externals (prog_funct prog)) 
     juicy_csig juicy_esig)
  (Hsafe: safe_extension E)
@@ -77,7 +81,9 @@ exists jm; split3; auto.
 unfold safe_extension in Hsafe.
 simpl.
 simpl in Hsafe.
-specialize (@Hsafe (Genv.globalenv prog) (@ageable.level _ ag_rmap (m_phi jm)) q jm).
+specialize (@Hsafe (@ageable.level _ ag_rmap (m_phi jm)) q jm).
+(*here we should be able to use a safety-mon lemma to apply Hsafe to larger genvs*)
+rewrite E_GE in Hsafe.
 eapply Hsafe.
 unfold all_safe.
 unfold initial_cores.
@@ -87,6 +93,8 @@ intros H8 H9.
 unfold jsafeN in H10; simpl in H10|-*.
 inv H8.
 unfold initial_cores in H7; rewrite H7 in H9; inv H9.
+(*here we should track that core 1's genv is "genv prog"*)
+rewrite <-E_GMAP in H10.
 apply H10.
 inversion 1.
 Qed.

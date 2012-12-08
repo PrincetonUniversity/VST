@@ -227,7 +227,7 @@ Definition vret2v (vret: list val) : val :=
 
 Definition exit_syscall_number : ident := 1%positive.
 
-Definition cl_safely_halted (ge: genv) (c: corestate) : option val := None.
+Definition cl_safely_halted (c: corestate) : option val := None.
 
 Definition empty_function : function := mkfunction Tvoid nil nil nil Sskip.
 
@@ -265,7 +265,7 @@ Proof.
 Qed.
 
 Lemma cl_corestep_not_halted :
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_safely_halted ge q = None.
+  forall ge m q m' q', cl_step ge q m q' m' -> cl_safely_halted q = None.
 Proof.
   intros.
   simpl; auto.

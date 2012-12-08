@@ -28,8 +28,8 @@ Definition jstep {G C D} (csem: CoreSemantics G C mem D)
  level jm = S (level jm').
 
 Definition j_safely_halted {G C D} (csem: CoreSemantics G C mem D)
-       (ge: G) (c: C) : option val :=
-     safely_halted csem ge c.
+       (c: C) : option val :=
+     safely_halted csem c.
 
 Lemma jstep_not_at_external {G C D} (csem: CoreSemantics G C mem D):
   forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
@@ -39,17 +39,17 @@ Proof.
 Qed.
 
 Lemma jstep_not_halted  {G C D} (csem: CoreSemantics G C mem D):
-  forall ge m q m' q', jstep csem ge q m q' m' -> j_safely_halted csem ge q = None.
+  forall ge m q m' q', jstep csem ge q m q' m' -> j_safely_halted csem q = None.
 Proof.
   intros. destruct H. eapply corestep_not_halted; eauto.
 Qed.
 
 Lemma j_at_external_halted_excl {G C D} (csem: CoreSemantics G C mem D):
-  forall (ge : G) (q : C),
-  at_external csem q = None \/ j_safely_halted csem ge q = None.
+  forall (q : C),
+  at_external csem q = None \/ j_safely_halted csem q = None.
 Proof.
  intros.
- destruct (at_external_halted_excl csem ge q); [left | right]; auto.
+ destruct (at_external_halted_excl csem q); [left | right]; auto.
 Qed.
 
 Lemma j_after_at_external_excl {G C D} (csem: CoreSemantics G C mem D): 
@@ -187,7 +187,7 @@ Proof.
    revert H0; case_eq (at_external csem c); intros.
    destruct p. destruct p. 
    unfold j_safely_halted in *.
-   destruct (safely_halted csem ge c); [contradiction | ].
+   destruct (safely_halted csem c); [contradiction | ].
   destruct H0 as [x ?]. exists x.
   destruct H0; split; auto.
   clear - H2 H0.
@@ -199,7 +199,7 @@ Proof.
    eapply safe_downward; try eassumption. 
   omega.
    unfold j_safely_halted in *.
-   destruct (safely_halted csem ge c); auto.
+   destruct (safely_halted csem c); auto.
    destruct H0 as [c' [jm' [[? [? ?]] ?]]].
    pose proof (age_level _ _ H2).
    assert (level jm' > 0) by omega.

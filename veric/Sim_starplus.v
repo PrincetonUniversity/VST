@@ -42,7 +42,7 @@ But the core_initial axiom in the record Sim_eq.Forward_simulation_equals curren
   Hypothesis eq_safely_halted:
       forall (cd : core_data) (c1 : C1) (c2 : C2) v ,
       match_cores cd c1 c2 ->
-      safely_halted Sem1 ge1 c1 = Some v -> safely_halted Sem2 ge2 c2 = Some v.
+      safely_halted Sem1 c1 = Some v -> safely_halted Sem2 c2 = Some v.
 
   Hypothesis eq_at_external: 
    forall (d : C1) (st1 : core_data) (st2 : C2) (e : external_function) (args : list val) (ef_sig : signature),
@@ -152,9 +152,9 @@ Section Sim_EXT_SIMU_DIAGRAMS.
 Hypothesis ext_safely_halted:
       forall cd st1 m1 st2 m2 v1,
         match_states cd st1 m1 st2 m2 ->
-        safely_halted Sem1 ge1 st1 = Some v1 ->
+        safely_halted Sem1 st1 = Some v1 ->
         exists v2, Val.lessdef v1 v2 /\
-            safely_halted Sem2 ge2 st2 = Some v2 /\
+            safely_halted Sem2 st2 = Some v2 /\
             Mem.extends m1 m2.
 
   Hypothesis ext_at_external: 
@@ -280,8 +280,8 @@ Section Sim_INJ_SIMU_DIAGRAMS.
 
   Hypothesis inj_safely_halted:forall cd j c1 m1 c2 m2 v1,
       match_states cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 ge1 c1 = Some v1 ->
-         exists v2, val_inject j v1 v2 /\ safely_halted Sem2 ge2 c2 = Some v2 /\
+      safely_halted Sem1 c1 = Some v1 ->
+         exists v2, val_inject j v1 v2 /\ safely_halted Sem2 c2 = Some v2 /\
                           Mem.inject j m1 m2.
 
   Hypothesis inj_at_external: 

@@ -1031,14 +1031,14 @@ Lemma CC_corestep_not_at_external: forall (ge : Genv.t fundef type) (m : mem) (q
        destruct f; trivial. contradiction.
   Qed.
 
-Definition CC_safely_halted (ge: Genv.t fundef type) (q:CC_core) : option val := None. (*Same cheat as in Clight_new/Clight_newSim*)
+Definition CC_safely_halted (q:CC_core) : option val := None. (*Same cheat as in Clight_new/Clight_newSim*)
 
 Lemma CC_corestep_not_halted :
-       forall ge m q m' q', CC_step ge q m q' m' -> CC_safely_halted ge q = None.
+       forall ge m q m' q', CC_step ge q m q' m' -> CC_safely_halted q = None.
   Proof. intros; trivial. Qed.
 
  Lemma CC_at_external_halted_excl :
-       forall ge q, CC_at_external q = None \/ CC_safely_halted ge q = None.
+       forall q, CC_at_external q = None \/ CC_safely_halted q = None.
    Proof. intros. right; trivial. Qed.
 
 Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem   (list (ident * globdef fundef type)).

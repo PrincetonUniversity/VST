@@ -7,9 +7,10 @@ Set Implicit Arguments.
 
 Section NullExtension.
  Variables 
-  (G cT M D Z: Type) 
-  (csem: CoreSemantics G cT M D)
-  (csig: ext_sig M Z)
+  (F V cT D Z: Type) 
+  (ge: Genv.t F V)
+  (csem: CoreSemantics (Genv.t F V) cT mem D)
+  (csig: ext_sig mem Z)
   (init_world: Z)
   (at_external_handled: forall c ef args sig,
     at_external csem c = Some (ef, sig, args) -> IN ef csig = true).
@@ -20,8 +21,8 @@ Local Open Scope nat_scope.
 
 Definition proj_core (i: nat) (c: cT) := if eq_nat_dec i 1 then Some c else None.
 Definition active := fun _: cT => 1.
-Definition runnable := fun (ge: G) (s: cT) => 
-  match at_external csem s, safely_halted csem ge s with 
+Definition runnable := fun (s: cT) => 
+  match at_external csem s, safely_halted csem s with 
   | None, None => true
   | _, _ => false
   end.
@@ -37,8 +38,9 @@ Obligation Tactic :=
   intros; try solve [eexists; eauto|congruence].
 
 Program Definition null_extension := Extension.Make 
-  csem cores csig csig handled
-  proj_core _
+  _
+  csem cores csig csig handled ge (fun _:nat => ge)
+  proj_core _  
   active _ _
   runnable _ _ _ _  
   proj_zint proj_zext zmult _ _ _.
@@ -56,18 +58,37 @@ if_tac in H1; try congruence; inv H1; inv H0.
 destruct (at_external CS c); try solve[congruence].
 destruct p as [[? ?] ?]. 
 right; eexists; eexists; eexists; eauto.
-destruct (safely_halted CS ge c); try solve[congruence].
+destruct (safely_halted CS c); try solve[congruence].
 left; eexists; eauto.
 Qed.
 Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
 Next Obligation. inversion H; subst; if_tac in H0; try congruence. Qed.
 Next Obligation. unfold linkable; intros; inv H0; inv H1; exists x'; auto. Qed.
 
+End NullExtension.
+
+Section NullExtensionSafe.
+ Variables 
+  (F V cT D Z: Type) 
+  (ge: Genv.t F V)
+  (csem: CoreSemantics (Genv.t F V) cT mem D)
+  (csig: ext_sig mem Z)
+  (init_world: Z)
+  (at_external_handled: forall c ef args sig,
+    at_external csem c = Some (ef, sig, args) -> IN ef csig = true).
+
 Import ExtensionSafety.
 
-Lemma null_extension_safe (csem_fun: corestep_fun csem): safe_extension null_extension.
+Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
+
+Obligation Tactic := 
+  autounfold with null_unfold;
+  intros; try solve [eexists; eauto|congruence].
+
+Lemma null_extension_safe (csem_fun: corestep_fun csem): 
+ safe_extension (null_extension ge csem csig at_external_handled).
 Proof.
-destruct (ExtensionSafety null_extension) as [PF].
+destruct (ExtensionSafety (null_extension ge csem csig at_external_handled)) as [PF].
 apply PF.
 constructor; autounfold with null_unfold in *.
 
@@ -79,6 +100,7 @@ unfold proj_core in H4; if_tac in H4; try solve[congruence].
 inversion H4 as [H7]; rewrite H7 in *; clear H7 H4.
 rewrite H in *; clear H.
 unfold Extension.proj_core; simpl; unfold proj_core.
+simpl in H5.
 f_equal; generalize (csem_fun _ _ _ _ _ _ _ H5 H6); inversion 1; auto.
 simpl in H1|-*.
 unfold proj_zint, all_safe in *.
@@ -89,6 +111,8 @@ if_tac in H8; try solve[congruence].
 rewrite <-H0 in *; clear H; inversion H8 as [H].
 rewrite H in *; clear H8 H.
 eapply safe_corestep_forward; eauto.
+simpl.
+solve[rewrite <-H2; auto].
 
 (*2*) intros until CS; intros H1 H3 [H4 H5].
 spec H1 (active s) CS c H4 H5.
@@ -104,7 +128,7 @@ rewrite H6 in H3.
 unfold proj_core in H5.
 if_tac in H5; try congruence.
 inv H5.
-case_eq (safely_halted csem ge c); try congruence.
+case_eq (safely_halted csem c); try congruence.
 intros rv Hsafe.
 rewrite Hsafe in H3.
 congruence.
@@ -126,7 +150,7 @@ simpl in H2; unfold runnable in H2.
 inversion H3; subst.
 unfold compose in H0;  simpl in H0.
 rewrite H0 in H2.
-case_eq (safely_halted csem ge s); intros; try solve[congruence].
+case_eq (safely_halted csem s); intros; try solve[congruence].
 rewrite H in H2.
 right; exists v; auto.
 rewrite H in H2; congruence.
@@ -174,7 +198,7 @@ simpl in H9; unfold proj_core in H9; simpl in H9.
 simpl in H10; unfold active in H10; simpl in H10.
 exfalso; apply H; auto.
 congruence.
-intros ge n [H11 H12].
+intros ge'  n [H11 H12].
 simpl in H10, H12.
 unfold active in H10; unfold proj_core in H12.
 if_tac in H12.
@@ -182,4 +206,18 @@ exfalso; auto.
 congruence.
 Qed.
 
-End NullExtension.
+End NullExtensionSafe.
+
+Section NullExtensionCompilable.
+ Variables 
+  (F_S V_S cS dS F_T V_T cT dT Z: Type) 
+  (csemS: CoreSemantics (Genv.t F_S V_S) cS mem dS)
+  (csemT: CoreSemantics (Genv.t F_T V_T) cT mem dT)
+  (csig: ext_sig mem Z)
+  (init_world: Z)
+  (at_external_handledS: forall c ef args sig,
+    at_external csemS c = Some (ef, sig, args) -> IN ef csig = true)
+  (at_external_handledT: forall c ef args sig,
+    at_external csemT c = Some (ef, sig, args) -> IN ef csig = true).
+
+End NullExtensionCompilable.

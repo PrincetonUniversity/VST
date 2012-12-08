@@ -12,7 +12,7 @@ Section safety.
     match n with
     | O => True
     | S n' => 
-       match at_external Hcore c, safely_halted Hcore ge c with
+       match at_external Hcore c, safely_halted Hcore c with
        | None, None =>
            exists c', exists m',
              corestep Hcore ge c m c' m' /\
@@ -65,7 +65,7 @@ Section safety.
   Proof.
     induction n; simpl; intros; auto.
     destruct (at_external Hcore c);
-      destruct (safely_halted Hcore ge c).
+      destruct (safely_halted Hcore c).
     destruct p; auto.
     destruct p. destruct p.
     destruct H as [x ?].
@@ -93,14 +93,14 @@ Section safety.
       (at_external Hcore q1 = at_external Hcore q2) ->
       (forall ret q', after_external Hcore ret q1 = Some q' ->
                       after_external Hcore ret q2 = Some q') ->
-      (safely_halted Hcore ge q1 = safely_halted Hcore ge q2) ->
+      (safely_halted Hcore q1 = safely_halted Hcore q2) ->
       (forall q' m', corestep Hcore ge q1 m q' m' -> corestep Hcore ge q2 m q' m') ->
       (forall n z, safeN n z q1 m -> safeN n z q2 m).
   Proof.
     intros. destruct n; simpl in *; auto.
     rewrite H in H3. rewrite H1 in H3.
     destruct (at_external Hcore q2);
-      destruct (safely_halted Hcore ge q2); auto.
+      destruct (safely_halted Hcore q2); auto.
     destruct p. destruct p.
     destruct H3 as [x ?].
     exists x. 
