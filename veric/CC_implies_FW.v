@@ -42,7 +42,7 @@ Section CoreSem_to_semantics.
 
    (*Require that return values are int here - that's what we need below for mk_semantics*)
     Definition final_state (st:state) (i:int) : Prop :=
-      safely_halted Sem (Genv.globalenv prog) (fst st) = Some (Vint i).
+      safely_halted Sem (*(Genv.globalenv prog)*) (fst st) = Some (Vint i).
 
    Definition mk_semantics: semantics :=
            Semantics  step initial_state final_state (Genv.globalenv prog).
