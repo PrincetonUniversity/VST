@@ -65,8 +65,7 @@ Definition semax_func
           forall n, believe Hspec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt vl => writable_blocks (map (initblocksize type) (prog_vars prog) )
-                             (empty_environ (Genv.globalenv prog))).
+(fun tt vl => (globvars2pred (Genv.globalenv prog) (prog_vars prog))).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
@@ -76,6 +75,7 @@ Definition main_post (prog: program) : unit -> assert :=
 Definition semax_prog 
      (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
+  all_initializers_aligned prog /\ 
   semax_func V G (prog_funct prog) G /\
    match_globvars (prog_vars prog) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
@@ -671,7 +671,7 @@ Lemma semax_prog_rule :
 Proof.
  intros until m.
  pose proof I; intros.
- destruct H0 as [? [[? ?] [GV ?]]].
+ destruct H0 as [? [AL [[? ?] [GV ?]]]].
  assert (exists f, In (prog_main prog, f) (prog_funct prog) ).
  clear - H4 H2.
  forget (prog_main prog) as id.

@@ -495,13 +495,18 @@ Proof. unfold valid; apply rmap_valid. Qed.
 
 Definition read_sh: pshare := fst (split_pshare pfullshare).
 
+(* ersh - "extern variable retainer share" is exactly half of a retainer share,
+     preventing this thread from freeing the extern, but assuring that nobody else
+     does so either. *)
+Definition extern_retainer : share := Share.Lsh.
+
 Definition inflate_initial_mem' (w: rmap) (loc: address) :=
    match access_at m loc with
            | Some Freeable => YES Share.top pfullshare (VAL (contents_at m loc)) NoneP
-           | Some Writable => YES Share.bot pfullshare (VAL (contents_at m loc)) NoneP
-           | Some Readable => YES Share.bot read_sh (VAL (contents_at m loc)) NoneP
+           | Some Writable => YES extern_retainer pfullshare (VAL (contents_at m loc)) NoneP
+           | Some Readable => YES extern_retainer read_sh (VAL (contents_at m loc)) NoneP
            | Some Nonempty => 
-                         match w @ loc with PURE _ _ => w @ loc | _ => NO Share.top end
+                         match w @ loc with PURE _ _ => w @ loc | _ => NO extern_retainer end
            | None =>  NO Share.bot 
          end.
 
@@ -829,6 +834,17 @@ apply H; auto.
 apply top_share_nonidentity.
 Qed.
 
+
+Lemma extern_retainer_neq_bot:
+  extern_retainer <> Share.bot.
+apply fst_split_fullshare_not_bot.
+Qed.
+
+Lemma extern_retainer_neq_top:
+  extern_retainer <> Share.top.
+apply fst_split_fullshare_not_top.
+Qed.
+
 Definition initial_mem (m: mem) lev (IOK: initial_rmap_ok m lev) : juicy_mem.
  refine (mkJuicyMem m  (inflate_initial_mem m lev) _ _ _ _); 
   unfold inflate_initial_mem, inflate_initial_mem';
@@ -843,16 +859,15 @@ symmetry.
 case_eq (access_at m loc); intros; try destruct p; auto; simpl.
 apply perm_of_freeable.
 apply perm_of_writable.
-intro; contradiction Share.nontrivial; auto.
+apply extern_retainer_neq_top.
 apply perm_of_readable.
+apply extern_retainer_neq_bot.
+apply extern_retainer_neq_top.
 simpl.
-apply fst_split_fullshare_not_bot.
-simpl.
-apply fst_split_fullshare_not_top.
 destruct (IOK loc).
 case_eq (lev @ loc); intros.
-apply perm_of_nonempty; apply Share.nontrivial.
-apply perm_of_nonempty; apply Share.nontrivial.
+simpl; apply perm_of_nonempty; apply extern_retainer_neq_bot.
+simpl; apply perm_of_nonempty; apply extern_retainer_neq_bot.
 apply perm_of_nonempty; apply Share.nontrivial.
 apply perm_of_empty.
 (* max_access_cohere *)
@@ -867,7 +882,7 @@ unfold perm_order'', perm_order', max_access_at, access_at in *.
 rewrite H0 in *.
 specialize (H Writable). spec H. constructor.
 apply H.
-intro; contradiction Share.nontrivial; auto.
+apply extern_retainer_neq_top.
 rewrite perm_of_readable.
 unfold perm_order'', perm_order', max_access_at, access_at in *.
 rewrite H0 in *.
@@ -876,21 +891,14 @@ clear; unfold read_sh.
 unfold split_pshare; simpl.
 apply fst_split_fullshare_not_bot.
 apply fst_split_fullshare_not_top.
-(*
-simpl. rewrite perm_of_nonempty by (intro; contradiction Share.nontrivial).
-unfold perm_order'', perm_order', max_access_at, access_at in *.
-rewrite H0 in *.
-apply H. constructor.
-rewrite <- core_resource_at.
-*)
 destruct (IOK loc).
 destruct (lev @ loc).
-rewrite perm_of_nonempty by apply Share.nontrivial.
+rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
 unfold max_access_at, access_at in *.
 rewrite H0 in H.
 specialize (H Nonempty). spec H. constructor.
 apply H.
-rewrite perm_of_nonempty by apply Share.nontrivial.
+rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
 unfold max_access_at, access_at in *.
 rewrite H0 in H.
 specialize (H Nonempty). spec H. constructor.

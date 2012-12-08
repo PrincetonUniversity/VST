@@ -550,6 +550,12 @@ rewrite sepcon_comm.
 apply sepcon_derives; auto.
 Qed.
 
+
+Lemma semax_call_id_aux1: forall P Q1 Q R S,
+     PROPx P (LOCALx (Q1::Q) R) |-- S -> local Q1 && PROPx P (LOCALx Q R) |-- S.
+Proof. intros. eapply derives_trans; try apply H. go_lower.
+Qed.
+
 Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
@@ -563,15 +569,18 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
   assert (SCI := semax_call_id1 Delta P Q F id f 
     (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
                       (eq_refl _) (eq_refl _) (eq_refl _) (eq_refl _) (eq_refl _));
-      assert (H: lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) * SEPx F |-- SEPx R);
+      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
+                                      (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
      |  apply semax_pre with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
                  (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
-       [ | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | ]) ||
+       [apply (semax_call_id_aux1 _ _ _ _ _ H)
+       | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | ]) ||
             (eapply semax_post; [ | unfold F in *; apply SCI ])) ]];
-  clear SCI VT GT;
+  clear SCI VT GT; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
 

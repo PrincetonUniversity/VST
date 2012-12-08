@@ -11,6 +11,7 @@ Require Import veric.juicy_extspec.
 Require veric.seplog.
 Require veric.compcert_rmaps.
 Require veric.assert_lemmas.
+Require veric.initialize.
 Require msl.msl_standard.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
@@ -74,6 +75,66 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
 Definition eval_cast (t t': type) (v: val) : val := force_val (Cop.sem_cast v t t').
 
 Definition writable_share: share -> Prop := seplog.writable_share. 
+
+Definition mapsto_zeros: forall (n: Z) (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
+  initialize.mapsto_zeros.
+
+Definition init_data2pred (ge: Genv.t fundef type) (d: init_data) : 
+          forall (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
+ match d with
+  | Init_int8 i => address_mapsto Mint8unsigned (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => address_mapsto Mint16unsigned (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => address_mapsto Mint32 (Vint i) 
+  | Init_float32 r =>  address_mapsto Mfloat32 (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  address_mapsto Mfloat64 (Vfloat r)
+  | Init_space n => mapsto_zeros n 
+  | Init_addrof symb ofs =>
+       match Genv.find_symbol ge symb with
+       | None => mapsto_zeros (Genv.init_data_size d)
+       | Some b' => address_mapsto Mint32 (Vptr b' ofs)
+       end
+ end.
+
+Definition extern_retainer : share := Share.Lsh.
+
+Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) (sh: share) (b: block) (ofs: Z) : mpred :=
+  match dl with
+  | d::dl' => 
+      sepcon (init_data2pred ge d extern_retainer sh (b, ofs)) 
+                  (init_data_list2pred ge dl' sh b (ofs + Genv.init_data_size d))
+  | nil => emp
+ end.
+
+Definition readonly2share (rdonly: bool) : share :=
+  if rdonly then Share.Lsh else Share.top.
+
+Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : mpred :=
+  match Genv.find_symbol ge (fst idv) with
+  | None => emp
+  | Some b => if (gvar_volatile (snd idv))
+                       then  TT
+                       else    init_data_list2pred ge (gvar_init (snd idv))
+                                   (readonly2share (gvar_readonly (snd idv))) b 0
+ end.
+
+Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : mpred :=
+  fold_right sepcon emp (map (globvar2pred ge) vl).
+
+Definition initializer_aligned (z: Z) (d: init_data) : bool :=
+  match d with
+  | Init_int16 n => Zeq_bool (z mod 2) 0
+  | Init_int32 n => Zeq_bool (z mod 4) 0
+  | Init_float32 n =>  Zeq_bool (z mod 4) 0
+  | Init_float64 n =>  Zeq_bool (z mod 8) 0
+  | Init_addrof symb ofs =>  Zeq_bool (z mod 4) 0
+  | _ => true
+  end.
+  
+Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
+  match dl with 
+  | nil => true 
+  | d::dl' => andb (initializer_aligned z d) (initializers_aligned (z + Genv.init_data_size d) dl')
+  end.
 
 Definition writable_block (id: ident) (n: Z): assert :=
         EX v: val*type,  EX a: address, EX rsh: Share.t,
@@ -176,6 +237,9 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
  end.
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
+
+Definition all_initializers_aligned (prog: AST.program fundef type) := 
+  forallb (fun idv => initializers_aligned 0 (gvar_init (snd idv))) (prog_vars prog) = true.
 
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
@@ -328,8 +392,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt _ => writable_blocks (map (initblocksize type) (prog_vars prog)) 
-                             (empty_environ (Genv.globalenv prog))).
+(fun tt vl => (globvars2pred (Genv.globalenv prog) (prog_vars prog))).
 
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt => TT).
@@ -381,6 +444,7 @@ Parameter semax_func: forall (V: varspecs) (G: funspecs) (fdecs: list (ident * f
 Definition semax_prog 
      (prog: program) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true /\
+  all_initializers_aligned prog /\ 
   semax_func V G (prog_funct prog) G /\
    match_globvars (prog_vars prog) V /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.

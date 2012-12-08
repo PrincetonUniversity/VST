@@ -123,8 +123,6 @@ Proof.
  normalize.
 Qed.
 
-(* Hint Rewrite lift2_ilseg_cons : normalize. *)
-
 Definition sumlist_spec :=
  DECLARE P.i_sumlist
   WITH contents 
@@ -344,31 +342,77 @@ forget (eval_expr e rho) as v.
 forget (typeof e) as t0.
 Admitted.
 
+Lemma cast_exp_pointer:
+  forall e t t', typeof e = Tpointer t noattr -> 
+                         t' = Tpointer t noattr ->
+                    cast_exp e t' = eval_expr e.
+Admitted.
+
+  Lemma eval_cast_pointer:
+   forall  t1 t v,
+       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
+       tc_val t1 v ->
+       eval_cast t1 t v = v.
+ Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
+  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
+  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
+Qed.
+
+Lemma tc_eval_gvar_i:
+  forall Delta t i rho, tc_environ Delta rho ->
+            (var_types Delta) ! i = None ->
+            (glob_types Delta) ! i = Some (Global_var t) ->
+             tc_val (Tpointer t noattr) (eval_var i t rho).
+Proof.
+ intros. unfold tc_val, eval_var; simpl.
+ hnf in H. unfold typecheck_environ in H.
+ repeat rewrite andb_true_iff in H.
+  destruct H as [[[_ ?] ?] ?].
+  apply environ_lemmas.typecheck_mode_eqv in H3.
+  apply environ_lemmas.typecheck_ge_eqv in H2.
+  apply environ_lemmas.typecheck_ve_eqv in H.
+  destruct (H3 _ _ H1).
+  unfold Map.get; rewrite H4.
+  destruct (H2 _ _ H1) as [b [i' [? ?]]].
+   rewrite H5. simpl. rewrite eqb_type_refl.
+   simpl globtype in H6. 
+   simpl in H6. 
+   admit.  (* PROBLEM!!! Discuss with Joey *)
+  destruct H4; congruence.
+Qed.
+
+Lemma setup_globals:
+  forall rho,  tc_environ (func_tycontext P.f_main Vprog Gprog) rho ->
+   main_pre P.prog tt rho
+   |-- ilseg (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
+      (cast_exp
+         (Ecast
+            (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
+               (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)
+         P.t_listptr rho) nullval * fold_right sepcon emp nil rho.
+Proof.
+ unfold main_pre.
+ go_lower. unfold P.prog, globvars2pred. simpl.
+   unfold globvar2pred; simpl.
+   unfold ilseg.
+  rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
+  rewrite prop_true_andp.
+Focus 2.
+  erewrite cast_exp_pointer by reflexivity.
+  normalize. simpl eval_cast.
+Admitted.  (* Needs work *)
+
+
 Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
 Proof.
 start_function.
-replace (main_pre P.prog u) with 
-   (lift2 (ilseg (map Int.repr (1::2::3::nil)))
-       (eval_expr (Ecast
-           (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
-              (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)) (lift0 nullval))
- by admit. (* must improve global var specifications *)
-normalize.    
-forward.
+normalize.
+forward. 
 go_lower. unfold F,x.
 instantiate (2:= (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
 instantiate (1:=nil).
-normalize.
-match goal with |- ilseg _ ?A _ |-- ilseg _ ?B _ => assert (A=B) end.
-unfold cast_exp, eval_cast; simpl.
-unfold lift1.
-destruct  (eval_var P.i_three (Tarray P.t_list 3 noattr) rho); simpl; auto.
-rewrite H; auto.
-go_lower.
-rewrite cast_redundant.
-apply andp_right; auto.
-apply prop_right.
-compute; intuition.
+rewrite prop_true_andp by (compute; intuition).
+destruct u; apply setup_globals; auto.
 unfold x,F in *; clear x F.
 apply extract_exists_pre; normalize.
 forward.
@@ -378,12 +422,6 @@ instantiate (2:= (Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)).
 instantiate (1:=nil).
 normalize.
 admit.
-go_lower.
-repeat apply andp_right; try apply prop_right.
-repeat split; simpl; hnf; auto.
-match goal with |- ilseg _ ?A _ |-- ilseg _ ?B _ => assert (A=B) end.
-admit.
-rewrite <- H2; auto.
 apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.
