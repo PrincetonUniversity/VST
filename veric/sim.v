@@ -201,6 +201,22 @@ Lemma external_call_mem_forward:
       eapply external_call_max_perm; eauto.
   Qed.
 
+Lemma inject_separated_incr_fwd: forall j j' m1 m2 j'' m2'
+                        (InjSep : inject_separated j j' m1 m2)
+                        (InjSep' : inject_separated j' j'' m1 m2')
+                        (InjIncr' : inject_incr j' j'')
+                       (Fwd: mem_forward m2 m2'),
+               inject_separated j j'' m1 m2.
+Proof.
+intros. intros b. intros. remember (j' b) as z. 
+destruct z; apply eq_sym in Heqz.
+        destruct p. specialize (InjIncr' _ _ _ Heqz). rewrite InjIncr' in H0. inv H0.
+        apply (InjSep _ _ _ H Heqz). 
+destruct (InjSep' _ _ _ Heqz H0).
+    split. trivial.
+    intros N. apply H2. eapply Fwd. apply N.
+Qed.
+
 (*
  This predicate restricts what coresteps are allowed
    to do.  Essentially, a corestep can only store, allocacte
