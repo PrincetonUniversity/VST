@@ -40,11 +40,9 @@ Definition initial_cores (i: nat):
   (handled: list AST.external_function) (** functions handled by this extension *)
   (E: Extension.Sig (fun _: nat => Genv.t fundef type) (fun _:nat => Clight_new.corestate) 
     Zint esem initial_cores juicy_csig juicy_esig (externals (prog_funct prog)))
-  (E_GE: Extension.ge E = Genv.globalenv prog)
-  (E_GMAP: Extension.genv_map E 1 = Genv.globalenv prog)
   (Hlinkable: linkable (Extension.proj_zext E) (externals (prog_funct prog)) 
     juicy_csig juicy_esig)
- (Hsafe: safe_extension E)
+ (Hsafe: safe_extension (Genv.globalenv prog) (fun _:nat => Genv.globalenv prog) E)
  (Hinit: forall b q0, 
   Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b -> 
   make_initial_core (juicy_core_sem Clight_new.cl_core_sem) (Genv.globalenv prog) 
@@ -82,8 +80,6 @@ unfold safe_extension in Hsafe.
 simpl.
 simpl in Hsafe.
 specialize (@Hsafe (@ageable.level _ ag_rmap (m_phi jm)) q jm).
-(*here we should be able to use a safety-mon lemma to apply Hsafe to larger genvs*)
-rewrite E_GE in Hsafe.
 eapply Hsafe.
 unfold all_safe.
 unfold initial_cores.
@@ -93,8 +89,6 @@ intros H8 H9.
 unfold jsafeN in H10; simpl in H10|-*.
 inv H8.
 unfold initial_cores in H7; rewrite H7 in H9; inv H9.
-(*here we should track that core 1's genv is "genv prog"*)
-rewrite <-E_GMAP in H10.
 apply H10.
 inversion 1.
 Qed.

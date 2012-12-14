@@ -790,8 +790,6 @@ Program Definition fs_extension :=
     Client_FSExtSig 
     FSExtSig 
     handled
-    ge
-    (fun _:nat => ge)
     proj_core _
     active _ _
     runnable _ _ _ _  
@@ -1087,9 +1085,10 @@ Qed.
 
 Import ExtensionSafety.
 
-Lemma fs_extension_safe (csem_fun: corestep_fun csem): safe_extension fs_extension.
+Lemma fs_extension_safe (csem_fun: corestep_fun csem): 
+ safe_extension ge (fun _:nat => ge) fs_extension.
 Proof.
-destruct (ExtensionSafety fs_extension) as [PF00].
+destruct (ExtensionSafety fs_extension ge (fun _:nat => ge)) as [PF00].
 apply PF00; constructor.
 
 (*1: core preservation of all-safety invariant*)
@@ -1195,7 +1194,7 @@ destruct H1 as [c' [m' [H1 H6]]].
 exists c'; exists (mkxT z0 c' fs0); exists m'.
 split; auto.
 split; auto.
-eapply os_corestep; auto.
+solve[eapply os_corestep; auto].
 
 (*3: handled steps respect function specs.*)
 intros until x.
@@ -1320,7 +1319,7 @@ assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q')
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
-simpl; auto.
+solve[simpl; auto].
 
 (*4: handled progress*)
 intros until m; intros H1 H2 H3.

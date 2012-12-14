@@ -55,6 +55,8 @@ Module ExtensionSafety. Section ExtensionSafety.
   (handled: list AST.external_function) (** functions handled by this extension *)
   (E: Extension.Sig gT cT Zint esem csem csig esig handled). 
 
+ Variables (ge: G) (genv_map : forall i:nat, gT i).
+
 Import SafetyInvariant.
 Import TruePropCoercion.
 
@@ -81,7 +83,7 @@ Notation at_external_not_handled := E.(Extension.at_external_not_handled).
 Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
 Notation runnable_false := E.(Extension.runnable_false).
 
-Program Definition ExtensionSafety: EXTENSION_SAFETY.Sig E.
+Program Definition ExtensionSafety: EXTENSION_SAFETY.Sig ge genv_map E.
 Proof.
 constructor.
 inversion 1; subst; intros n; induction n.
@@ -204,7 +206,7 @@ case_eq (eq_nat_dec i j).
 (*i=j*)
 intros Heq _.
 subst j.
-destruct (core_exists (Extension.ge E) i s m s' m' CORESTEP_T PROJECTj)
+destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
 rewrite CSEM in CSEMj; inversion CSEMj; rename H4 into H3; rewrite <-H3 in *.
@@ -230,7 +232,7 @@ spec handled_rest; auto.
 destruct (handled_rest j CSj cj Hneq) as [H6 H7].
 eapply H7 with (z:=z); eauto.
 eapply H1; eauto.
-destruct (core_exists (Extension.ge E) j s m s' m' CORESTEP_T PROJECTj)
+destruct (core_exists ge j s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 specialize (H1 j CSj c0 CSEMj PROJECT0).
 destruct H6 as [H8 H9].
@@ -244,7 +246,7 @@ case_eq (eq_nat_dec i j).
 (*i=j*)
 intros Heq _.
 subst j.
-destruct (core_exists (Extension.ge E) i s m s' m' CORESTEP_T PROJECTj)
+destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
 generalize CSEMj as CSEMj'; intro.
@@ -317,7 +319,7 @@ spec handled_rest; auto.
 destruct (handled_rest j CSj cj Hneq) as [H6 H7].
 eapply H7 with (z:=z); eauto.
 eapply H1; eauto.
-destruct (core_exists (Extension.ge E) j s m s' m' CORESTEP_T PROJECTj)
+destruct (core_exists ge j s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 specialize (H1 j CSj c0 CSEMj PROJECT0).
 destruct H6 as [H8 H9].
@@ -337,7 +339,9 @@ Variables
  (handled: list AST.external_function)
  (E: Extension.Sig gT cT Zint esem csem csig esig handled).
 
-Variable Hcore_compatible: core_compatible E.
+Variables (ge: G) (genv_map : forall i:nat, gT i).
+
+Variable Hcore_compatible: core_compatible ge genv_map E.
 
 Import Extension.
 
@@ -345,8 +349,8 @@ Lemma corestep_step:
   forall s (c: cT (active E s)) m c' m' CS,
   csem (active E s) = Some CS -> 
   proj_core E (active E s) s = Some c -> 
-  corestep CS (genv_map E (active E s)) c m c' m' -> 
-  exists s', corestep esem (Extension.ge E) s m s' m' /\
+  corestep CS (genv_map (active E s)) c m c' m' -> 
+  exists s', corestep esem ge s m s' m' /\
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
 intros.
@@ -362,8 +366,8 @@ Lemma corestep_stepN:
   forall n s (c: cT (active E s)) m c' m' CS,
   csem (active E s) = Some CS -> 
   proj_core E (active E s) s = Some c -> 
-  corestepN CS (genv_map E (active E s)) n c m c' m' -> 
-  exists s', corestepN esem (Extension.ge E) n s m s' m' /\ 
+  corestepN CS (genv_map (active E s)) n c m c' m' -> 
+  exists s', corestepN esem ge n s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
 inv Hcore_compatible.
@@ -395,8 +399,8 @@ Lemma corestep_step_star:
   forall s (c: cT (active E s)) m c' m' CS,
   csem (active E s) = Some CS -> 
   proj_core E (active E s) s = Some c -> 
-  corestep_star CS (genv_map E (active E s)) c m c' m' -> 
-  exists s', corestep_star esem (Extension.ge E) s m s' m' /\ 
+  corestep_star CS (genv_map (active E s)) c m c' m' -> 
+  exists s', corestep_star esem ge s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
 intros.
@@ -412,8 +416,8 @@ Lemma corestep_step_plus:
   forall s (c: cT (active E s)) m c' m' CS,
   csem (active E s) = Some CS -> 
   proj_core E (active E s) s = Some c -> 
-  corestep_plus CS (genv_map E (active E s)) c m c' m' -> 
-  exists s', corestep_plus esem (Extension.ge E) s m s' m' /\ 
+  corestep_plus CS (genv_map (active E s)) c m c' m' -> 
+  exists s', corestep_plus esem ge s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
 intros.
@@ -426,6 +430,84 @@ exists n; eauto.
 Qed.
 
 End CoreCompatibleLemmas.
+
+Lemma meminj_preserves_genv2blocks: 
+  forall {F V: Type} (ge: Genv.t F V) j,
+  meminj_preserves_globals (genv2blocks ge) j <->
+  Events.meminj_preserves_globals ge j.
+Proof.
+intros ge; split; intro H1.
+unfold meminj_preserves_globals in H1.
+unfold Events.meminj_preserves_globals.
+destruct H1 as [H1 [H2 H3]].
+split.
+intros.
+apply H1; auto.
+unfold genv2blocks.
+unfold Genv.find_symbol in H.
+simpl; exists id; auto.
+split.
+intros b gv H4.
+apply H2; auto.
+unfold genv2blocks.
+unfold Genv.find_var_info in H4.
+simpl; exists gv; auto.
+intros until gv; intros H4 H5.
+symmetry.
+eapply H3; eauto.
+unfold genv2blocks.
+unfold Genv.find_var_info in H4.
+simpl; exists gv; auto.
+unfold meminj_preserves_globals.
+destruct H1 as [H1 [H2 H3]].
+split. 
+intros b H4.
+unfold genv2blocks in H4.
+destruct H4; eapply H1; eauto.
+split.
+intros b H4.
+destruct H4; eapply H2; eauto.
+intros b1 b2 delta H4 H5.
+unfold genv2blocks in H4.
+destruct H4.
+eapply H3 in H; eauto.
+Qed.
+
+Lemma genvs_domain_eq_preserves:
+  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
+  genvs_domain_eq ge1 ge2 -> 
+  (meminj_preserves_globals (genv2blocks ge1) j <-> 
+   meminj_preserves_globals (genv2blocks ge2) j).
+Proof.
+intros until j; intros H1.
+unfold meminj_preserves_globals.
+destruct H1 as [DE1 DE2].
+split; intros [H2 [H3 H4]].
+split.
+intros b H5.
+cut (fst (genv2blocks ge1) b).
+ intros H6.
+apply (H2 b H6).
+apply (DE1 b); auto.
+split.
+intros b H5.
+apply H3; eauto.
+apply DE2; auto.
+intros b1 b2 delta H5 H6.
+eapply H4; eauto.
+apply DE2; auto.
+split.
+intros b H5.
+eapply H2; eauto.
+apply DE1; auto.
+split.
+intros b H5.
+apply H3; auto.
+apply DE2; auto.
+intros until delta; intros H5 H6.
+eapply H4; eauto.
+apply DE2; auto.
+Qed.
 
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
@@ -445,6 +527,11 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (esig: ext_sig mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
 
+ Variables 
+  (ge: Genv.t F V) 
+  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
+  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+
  Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS 
                   (fun i:nat => Some (csemS i)) csig esig handled).
  Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT 
@@ -452,7 +539,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
  Variable entry_points: list (val*val*signature).
 
- Notation GENV_MAP := (Extension.genv_map).
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
@@ -472,7 +558,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
  Variable core_simulations: forall i:nat, 
    Forward_simulation_inject dS dT (csemS i) (csemT i) 
-     (GENV_MAP E_S i) (GENV_MAP E_T i) entry_points.
+     (genv_mapS i) (genv_mapT i) entry_points.
 
  Variable threads_max: nat.
 
@@ -559,11 +645,11 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     ACTIVE E_S s1 <> i -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    meminj_preserves_globals (genv2blocks (Extension.ge E_S)) j -> 
+    meminj_preserves_globals (genv2blocks ge) j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
-    corestep (csemS (ACTIVE E_S s1)) (GENV_MAP E_S (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-    corestepN (csemT (ACTIVE E_S s1)) (GENV_MAP E_T (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
+    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
+    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' -> 
     match_state (core_simulations i) (cd i) j' d1 m1' d2 m2')
 
@@ -571,10 +657,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-    corestep (csemS (ACTIVE E_S s1)) (GENV_MAP E_S (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-    corestepN (csemT (ACTIVE E_S s1)) (GENV_MAP E_T (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-    corestep esemS (Extension.ge E_S) s1 m1 s1' m1' -> 
-    corestepN esemT (Extension.ge E_T) n s2 m2 s2' m2' -> 
+    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
+    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
+    corestep esemS ge s1 m1 s1' m1' -> 
+    corestepN esemT ge n s2 m2 s2' m2' -> 
     RUNNABLE E_S s1'=RUNNABLE E_T s2')     
 
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
@@ -585,15 +671,15 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals (Extension.ge E_S) j -> 
+    Events.meminj_preserves_globals ge j -> 
     Forall2 (val_inject j) args1 args2 -> 
     Forall2 Val.has_type args2 (sig_args sig) -> 
-    corestep esemS (Extension.ge E_S) s1 m1 s1' m1' -> 
+    corestep esemS ge s1 m1 s1' m1' -> 
     exists s2', exists m2', exists cd', exists j',
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
       match_states cd' j' s1' m1' s2' m2' /\
-      corestep esemT (Extension.ge E_T) s2 m2 s2' m2')
+      corestep esemT ge s2 m2 s2' m2')
 
   (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
     ACTIVE E_S s1=ACTIVE E_T s2 -> 
@@ -604,7 +690,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
     match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
     Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals (Extension.ge E_S) j -> 
+    Events.meminj_preserves_globals ge j -> 
     Forall2 (val_inject j) args1 args2 -> 
     Forall2 Val.has_type args2 (sig_args sig) -> 
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
@@ -621,7 +707,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
     match_state (core_simulations i) cd j d1 m1 d2 m2 -> 
     at_external esemS s1 = Some (ef, sig, args1) -> 
-    Events.meminj_preserves_globals (Extension.ge E_S) j -> 
+    Events.meminj_preserves_globals ge j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     Mem.inject j' m1' m2' -> 
@@ -639,12 +725,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state (core_simulations i) cd j' d1 m1' d2 m2')
 
   (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
-    make_initial_core esemS (Extension.ge E_S) v1 vals1 = Some s1 -> 
+    make_initial_core esemS ge v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
-      make_initial_core esemT (Extension.ge E_T) v2 vals2 = Some s2 /\
+      make_initial_core esemT ge v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
 
   (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
@@ -660,22 +746,25 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
-    corestep esemS (Extension.ge E_S) s1 m1 s1' m1' ->  
+    corestep esemS ge s1 m1 s1' m1' ->  
     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
     exists s2', exists m2', exists cd', exists j', 
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
-      corestep esemT (Extension.ge E_T) s2 m2 s2' m2' /\
+      corestep esemT ge s2 m2 s2' m2' /\
       match_states cd' j' s1' m1' s2' m2'),
   internal_compilability_invariant.
 
  Variables 
   (esig_compilable: internal_compilability_invariant)
-  (core_compatS: core_compatible E_S) (core_compatT: core_compatible E_T).
+  (genvs_domain_eqS: forall i: nat, genvs_domain_eq ge (genv_mapS i))
+  (genvs_domain_eqT: forall i: nat, genvs_domain_eq ge (genv_mapT i))
+  (core_compatS: core_compatible ge genv_mapS E_S) 
+  (core_compatT: core_compatible ge genv_mapT E_T).
 
 Program Definition extended_simulation: 
   Forward_simulation_inject dS dT esemS esemT 
-      (Extension.ge E_S) (Extension.ge E_T) entry_points :=
+      ge ge entry_points :=
      Build_Forward_simulation_inject 
       core_datas match_states core_ords _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
@@ -690,7 +779,7 @@ case_eq (RUNNABLE E_S st1).
 intros RUN1.
 assert (RUN2: RUNNABLE E_T st2 = true) by (rewrite <-RUN; auto).
 destruct (active_proj_core E_S st1) as [c1 PROJ1].
-assert (exists c1', corestep (csemS (ACTIVE E_S st1)) (GENV_MAP E_S (ACTIVE E_S st1)) 
+assert (exists c1', corestep (csemS (ACTIVE E_S st1)) (genv_mapS (ACTIVE E_S st1)) 
          c1 m1 c1' m1') as [c1' STEP1].
  inv esig_compilable.
  inv core_compatS.
@@ -919,7 +1008,9 @@ destruct (core_at_external (core_simulations (ACTIVE E_S st1)) (cd (ACTIVE E_S s
  as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
 inv esig_compilable. 
 edestruct extension_diagram as [s2' H11]; eauto.
-admit. (*TODO: Events.*)
+rewrite <-meminj_preserves_genv2blocks.
+rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS (ACTIVE E_S st1))); auto.
+rewrite meminj_preserves_genv2blocks; auto.
 destruct H11 as [m2' [cd' [j' [? [? [? ?]]]]]].
 exists s2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
@@ -953,12 +1044,16 @@ destruct (core_at_external (core_simulations (ACTIVE E_S st1))
             (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 ef_sig MATCH12 AT_EXT1)
  as [INJ [GLOBS [vals2 [VALINJ [TYPE AT_EXT2]]]]].
 split3; auto.
-admit. (*Events*)
+rewrite <-meminj_preserves_genv2blocks.
+rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS (ACTIVE E_S st1))); auto.
+rewrite meminj_preserves_genv2blocks; auto.
 exists vals2.
 split3; auto.
 inv esig_compilable.
 eapply at_external_match; eauto.
-admit. (*Events*)
+rewrite <-meminj_preserves_genv2blocks.
+rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS (ACTIVE E_S st1))); auto.
+rewrite meminj_preserves_genv2blocks; auto.
 Qed.
 
 Next Obligation. 
@@ -978,9 +1073,9 @@ destruct (core_after_external (core_simulations (ACTIVE E_S st1))
                 (cd (ACTIVE E_S st1)) j j' c1 c2 m1 e 
                 vals1 ret1 m1' m2 m2' ret2 ef_sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
-
-admit. (*Events*)
-
+rewrite <-meminj_preserves_genv2blocks.
+rewrite <-genvs_domain_eq_preserves with (ge1 := ge); auto.
+rewrite meminj_preserves_genv2blocks; auto.
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
          PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1') as [st1' [? PROJ1']].
@@ -1045,7 +1140,8 @@ Qed.
 
 Lemma RGsimulations_invariant: 
   (forall i:nat, RelyGuaranteeSimulation.Sig (core_simulations i)) -> 
-  CompilabilityInvariant.Sig fS fT vS vT csemS csemT E_S E_T core_simulations match_states -> 
+  CompilabilityInvariant.Sig fS fT vS vT csemS csemT ge genv_mapS genv_mapT 
+      E_S E_T core_simulations match_states -> 
   internal_compilability_invariant.
 Proof.
 intro core_simulations_RGinject.
@@ -1061,20 +1157,20 @@ destruct (MATCH_INNER i d1 PROJD1) as [_d2 [_PROJD2 MATCHD]].
 rewrite _PROJD2 in PROJD2; inv PROJD2.
 forget (Extension.active E_T s2) as k.
 destruct (core_simulations_RGinject k) as [_ GUARANTEE].
-specialize (GUARANTEE (Extension.genv_map E_S k) (Extension.genv_map E_T k) 
-            (cd k) m1 m1' j m2 m2' c1 c2 c1' c2' n).
+specialize (GUARANTEE (genv_mapS k) (genv_mapT k) 
+  (cd k) m1 m1' j m2 m2' c1 c2 c1' c2' n).
 intros HSTEP HMATCH.
 spec GUARANTEE; auto.
 spec GUARANTEE; auto.
-admit. (*Events: meminj_preserves_globals*)
+erewrite <-genvs_domain_eq_preserves; eauto.
 spec GUARANTEE; auto.
 spec GUARANTEE; auto.
 spec GUARANTEE; auto.
 destruct GUARANTEE as [H1 H2].
 destruct (core_simulations_RGinject i) as [RELY _].
-specialize (RELY (Extension.genv_map E_S i) (cd i) m1 m1' j j' m2 m2' d1 d2).
+specialize (RELY (genv_mapS i) (cd i) m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.
-admit. (*Events: meminj_preserves_globals*)
+erewrite <-genvs_domain_eq_preserves; eauto.
 admit. (*Mem.inject j' m1' m2'; either we don't assume or we guarantee*)
 
 (*2*)
@@ -1082,10 +1178,11 @@ intros until j'; intros MATCH EXT1 PRES INCR SEP INJ INJARGS FORW1 UNCH1 FORW2 U
 intros TYS AFTER1 AFTER2 PROJ1 PROJ2 NEQ.
 forget (Extension.active E_S s1) as k.
 destruct (core_simulations_RGinject i) as [RELY _].
-specialize (RELY (Extension.genv_map E_S i) cd m1 m1' j j' m2 m2' d1 d2).
+specialize (RELY (genv_mapS i) cd m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.
 admit. (*Mem.inject*)
-admit. (*Events vs. Events2*)
+erewrite <-genvs_domain_eq_preserves; eauto.
+erewrite meminj_preserves_genv2blocks; auto.
 admit. (*Events vs. Events2*)
 admit. (*Events vs. Events2*)
 Qed.
@@ -1110,15 +1207,18 @@ Module CompilableExtension. Section CompilableExtension.
   (esig: ext_sig mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
 
+ Variables 
+  (ge: Genv.t F V) 
+  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
+  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+
  Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS 
                   (fun i:nat => Some (csemS i)) csig esig handled).
  Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT 
                   (fun i:nat => Some (csemT i)) csig esig handled).
 
- Variable ge: Genv.t F V.
  Variable entry_points: list (val*val*signature).
 
- Notation GENV_MAP := (Extension.genv_map).
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
@@ -1140,18 +1240,24 @@ Module CompilableExtension. Section CompilableExtension.
 
  Variable core_simulations: forall i:nat, 
    Forward_simulation_inject dS dT (csemS i) (csemT i) 
-     (GENV_MAP E_S i) (GENV_MAP E_T i) entry_points.
+     (genv_mapS i) (genv_mapT i) entry_points.
 
  Lemma ExtensionCompilability: 
-   CompilableExtension.Sig fS fT vS vT csemS csemT E_S E_T core_simulations.
+   CompilableExtension.Sig fS fT vS vT csemS csemT 
+     ge genv_mapS genv_mapT E_S E_T core_simulations.
  Proof.
- eapply (CompilableExtension.Make 
-  (ExtendedSimulations.core_ords fS fT vS vT csemS csemT E_S E_T 
-    core_simulations max_threads)).
- intros H1 H2 H3 H4.
- eapply ExtendedSimulations.extended_simulation; eauto.
+ eapply (@CompilableExtension.Make 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
+ (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
+   core_simulations max_threads)
+ (@ExtendedSimulations.match_states 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  E_S E_T entry_points core_simulations)).
+ intros H1 H2 H3 H4 H5 H6.
+ eapply ExtendedSimulations.extended_simulation
+  with (core_simulations := core_simulations); eauto.
  eapply ExtendedSimulations.RGsimulations_invariant; eauto.
- Qed.
+Qed.
 
 End CompilableExtension. End CompilableExtension.
 

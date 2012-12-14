@@ -39,7 +39,7 @@ Obligation Tactic :=
 
 Program Definition null_extension := Extension.Make 
   _
-  csem cores csig csig handled ge (fun _:nat => ge)
+  csem cores csig csig handled
   proj_core _  
   active _ _
   runnable _ _ _ _  
@@ -86,9 +86,10 @@ Obligation Tactic :=
   intros; try solve [eexists; eauto|congruence].
 
 Lemma null_extension_safe (csem_fun: corestep_fun csem): 
- safe_extension (null_extension ge csem csig at_external_handled).
+ safe_extension ge (fun _:nat => ge) (null_extension csem csig at_external_handled).
 Proof.
-destruct (ExtensionSafety (null_extension ge csem csig at_external_handled)) as [PF].
+destruct (ExtensionSafety (null_extension csem csig at_external_handled) 
+  ge (fun _:nat => ge)) as [PF].
 apply PF.
 constructor; autounfold with null_unfold in *.
 
@@ -110,9 +111,7 @@ unfold Extension.proj_core in H8; simpl in H8; unfold proj_core in H8.
 if_tac in H8; try solve[congruence].
 rewrite <-H0 in *; clear H; inversion H8 as [H].
 rewrite H in *; clear H8 H.
-eapply safe_corestep_forward; eauto.
-simpl.
-solve[rewrite <-H2; auto].
+solve[eapply safe_corestep_forward; eauto].
 
 (*2*) intros until CS; intros H1 H3 [H4 H5].
 spec H1 (active s) CS c H4 H5.
@@ -138,12 +137,12 @@ rewrite <-H2 in *.
 rewrite H6 in H1.
 intros Hsafe; rewrite Hsafe in H1.
 destruct H1 as [c' [m' [H1 H7]]].
-exists c'; exists c'; exists m'; split; auto.
+solve[exists c'; exists c'; exists m'; split; auto].
 
 (*3*) intros until x; intros [H1 H2] H3 H4 H5 H6 H7 H8.
 apply ListSet.set_mem_correct1 in H4.
 unfold handled, ListSet.set_In in H4.
-inversion H4.
+solve[inversion H4].
 
 (*4*) intros until m; intros H1 H2 H3.
 simpl in H2; unfold runnable in H2.
@@ -153,7 +152,7 @@ rewrite H0 in H2.
 case_eq (safely_halted csem s); intros; try solve[congruence].
 rewrite H in H2.
 right; exists v; auto.
-rewrite H in H2; congruence.
+solve[rewrite H in H2; congruence].
 
 (*5*) intros until rv; intros [H1 H2] H3 H4.
 split; auto.
@@ -162,7 +161,7 @@ apply corestep_not_halted in H4.
 simpl in H2; inversion H2; subst.
 inversion H1; rewrite H5 in *.
 unfold proj_core in H0.
-if_tac in H0; try solve[congruence].
+solve[if_tac in H0; try solve[congruence]].
 
 (*6*) intros until CS; inversion 1; subst.
 intros H4 H5; intros until j; intros H6; split.
@@ -179,7 +178,7 @@ simpl in H6; unfold active in H6; simpl in H6.
 if_tac in H8; auto.
 inversion H8; subst.
 exfalso; apply H3; auto.
-congruence.
+solve[congruence].
 
 (*7*) exists csem; exists s; split; auto. 
 
