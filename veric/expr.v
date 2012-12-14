@@ -553,7 +553,7 @@ Fixpoint typecheck_glob_environ (gty:  list(positive * global_spec)) (ge: genvir
 match gty with
  | (id,gspec)::tl => match ge id with
                                 | Some (Vptr b i , ty') => if eqb_type (globtype gspec) ty' &&  
-                                                      typecheck_val (Vptr b i) ty' &&
+                                                      (*typecheck_val (Vptr b i) ty' && *)
                                                       is_pointer_type ty' then 
                                                    typecheck_glob_environ tl ge  else
                                                    false
