@@ -149,7 +149,7 @@ Variables
   (csem: CoreSemantics genv cT mem D)
   (init_world: Z).
 
-Definition cores := fun _:nat => Some csem.
+Definition cores := fun _:nat => csem.
 
 Local Open Scope nat_scope.
 
@@ -791,7 +791,7 @@ Program Definition fs_extension :=
     FSExtSig 
     handled
     proj_core _
-    active _ _
+    active _ 
     runnable _ _ _ _  
     proj_zint
     proj_zext
@@ -820,19 +820,23 @@ destruct (eq_nat_dec i 1); try congruence.
 subst.
 exists (get_core s); auto.
 Qed.
-Next Obligation. exists csem; unfold cores; auto. Qed.
-Next Obligation. exists (get_core s); unfold proj_core, active; auto. Qed.
+Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
 Next Obligation.
 unfold runnable in H.
-destruct (at_external csem (get_core s)); try congruence.
-destruct p as [[? ?] ?].
+case_eq (at_external csem (get_core s)). 
+intros [[? ?] ?] H1.
+rewrite H1 in H.
 right; eexists; eexists; eexists; eauto.
-destruct (safely_halted csem (get_core s)); try congruence.
-inv H.
+intros H1.
+rewrite H1 in H.
+case_eq (safely_halted csem (get_core s)).
+intros v H2.
+rewrite H2 in H.
 left; eexists; eauto.
+intros H2; rewrite H2 in H; congruence.
 Qed.
 Next Obligation.
-apply at_external_handled in H1.
+apply at_external_handled in H0.
 unfold is_true; auto.
 Qed.
 Next Obligation.
@@ -843,10 +847,11 @@ destruct (eq_nat_dec i 1); try congruence.
 subst.
 unfold get_core in H0.
 destruct s; simpl in H0.
-inv H0.
-unfold os_at_external in H2.
-simpl in H2.
-rewrite H1 in H2.
+inv H.
+unfold os_at_external in H1.
+simpl in H1.
+unfold cores in H0; simpl in H0.
+rewrite H0 in H1.
 unfold is_true.
 if_tac; auto.
 if_tac; auto.
@@ -885,6 +890,10 @@ destruct t; try congruence.
 destruct sig_args; try congruence.
 destruct sig_res; try congruence.
 destruct t; try congruence.
+unfold proj_core in H.
+if_tac in H; auto.
+elimtype False; auto.
+congruence.
 Qed.
 Next Obligation. (*this proof should be automated*)
 if_tac; auto.
@@ -1092,66 +1101,43 @@ destruct (ExtensionSafety fs_extension ge (fun _:nat => ge)) as [PF00].
 apply PF00; constructor.
 
 (*1: core preservation of all-safety invariant*)
-intros until m'; intros H1 (*H2*) [H3 H4] H5 H6.
-unfold cores in H3; inversion H3; rewrite H0 in *; clear H3.
+intros until m'; intros H1 (*H2*) H4 H5 H6.
+assert (H3:True) by auto.
 assert (get_core s'=c').
- clear -H0 H4 H5 H6 csem_fun.
- inversion H6.
- rewrite <-H2 in H4.
- inversion H4.
- rewrite <-H10 in *.
- rewrite <-H0 in *.
- generalize (csem_fun _ _ _ _ _ _ _ H5 H); inversion 1.
- rewrite <-H12; auto.
- unfold get_core in H; destruct s; simpl in *.
+ clear -H4 H5 H6 csem_fun.
+ unfold cores in H5.
+ simpl in H4.
+ inversion H6; subst; simpl in *.
+ unfold active, proj_core in H4; simpl in H4.
+ inv H4.
+ generalize (csem_fun _ _ _ _ _ _ _ H5 H); inversion 1; auto.
  apply corestep_not_at_external in H5.
- rewrite H0 in *.
- unfold proj_core in H4.
+ unfold active, proj_core in H4.
  if_tac in H4; try congruence.
- inversion H4.
- rewrite <-H17 in *.
- rewrite H5 in H.
- congruence.
  apply corestep_not_at_external in H5.
- rewrite <-H0 in *.
- inversion H4.
- rewrite <-H16 in *.
- rewrite H5 in H; congruence.
+ unfold active, proj_core in H4.
+ if_tac in H4; try congruence.
  apply corestep_not_at_external in H5.
- rewrite <-H0 in *.
- inversion H4.
- rewrite <-H16 in *.
- rewrite H5 in H; congruence.
+ unfold active, proj_core in H4.
+ solve[if_tac in H4; try congruence].
 rewrite <-H in *.
-(*split; auto.
-split; auto.
-unfold cores; auto.
-simpl; unfold proj_core; if_tac; auto.
-elimtype False.
-inversion H4.
-unfold proj_core in H8.
-if_tac in H8; try congruence.*)
 hnf.
-intros i2 CS2 c2 H7 H8.
+intros i2 c2 H8.
+assert (H7:True) by auto.
 hnf in H1.
-specialize (H1 (active s) CS c).
+specialize (H1 (active s) c).
 spec H1; auto.
-unfold cores; auto.
-spec H1; auto.
+unfold cores.
+clear H3.
 assert (H3: c'=c2).
  destruct s'.
  simpl in H.
  rewrite <-H.
- rewrite <-H0 in *.
  inversion H8.
- unfold proj_core in H3.
- if_tac in H3; try congruence.
- inversion H3; auto.
+ unfold proj_core in H2.
+ if_tac in H2; try congruence.
+ solve[inversion H2; auto].
 rewrite <-H3 in *.
-unfold cores in H7.
-inversion H7.
-rewrite <-H9 in *.
-rewrite <-H0 in *.
 rewrite <-H.
 eapply safe_corestep_forward; eauto.
 assert (H2: Extension.zmult fs_extension (Extension.proj_zint fs_extension s') =
@@ -1162,32 +1148,32 @@ assert (H2: Extension.zmult fs_extension (Extension.proj_zint fs_extension s') =
  inv H6; auto.
  elimtype False.
   apply corestep_not_at_external in H5.
-  rewrite H5 in H; congruence.
+  unfold cores, Extension.active in H5.
+  solve[rewrite H5 in H; congruence].
  elimtype False.
   apply corestep_not_at_external in H5.
+  unfold cores, Extension.active in H5.  
   solve[rewrite H5 in H; congruence].
 unfold SafetyInvariant.proj_zint.
+unfold cores in H2.
 solve[rewrite H2; auto].
 
 (*2: core progress*)
-intros until CS; intros H1 H2 (*H3*) [H4 H5].
+intros until c; intros H1 H2 (*H3*) H5.
+assert (H4:True).
 hnf in H1.
-specialize (H1 (active s) CS c).
-spec H1; auto.
+specialize (H1 (active s) c).
 spec H1; auto.
 inversion H5.
-unfold proj_core in H0.
-(*if_tac in H0; auto.*)
-(*inv H3.*)
 inv H0.
 simpl in H2; unfold runnable in H2.
 hnf in H1.
-unfold cores in H4.
-inversion H4.
-rewrite <-H0 in *.
 simpl in H5.
 destruct s; simpl in H2.
-unfold get_core in H1.
+specialize (H1 (active (mkxT z0 c fs0)) c).
+simpl in H1.
+unfold active, cores in H1.
+spec H1; auto.
 destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
 destruct (safely_halted csem c); try congruence.
 destruct H1 as [c' [m' [H1 H6]]].
@@ -1198,36 +1184,51 @@ solve[eapply os_corestep; auto].
 
 (*3: handled steps respect function specs.*)
 intros until x.
-hnf; intros [H1 H2] H3 H4 H5 Hpre Hstep [H6 H7].
+hnf; intros H2 H3 H4 H5 Hpre Hstep H7.
+assert (H1:True) by auto.
+assert (H6:True) by auto.
 inv H2.
-inversion H6.
-rewrite <-H0 in *.
-inversion H7.
-rewrite <-H2 in *.
 inversion Hstep.
-rewrite <-H8, <-H9, <-H10, <-H11, <-H12 in *.
-clear H8 H9 H10 H11 H12.
+rewrite <-H8, <-H9, <-H10 in *.
+clear H8 H9 H10.
 (*corestep case; impossible*)
 elimtype False.
 apply corestep_not_at_external in H.
 simpl in H3.
-rewrite H in H3; congruence.
+unfold cores, active, get_core in H3.
+destruct s; auto.
+inv H2.
+solve[rewrite H in H3; congruence].
 (*SYS_OPEN case*)
 assert (Hef: ef = SYS_OPEN).
  clear - H H3.
+ unfold cores, active, get_core in H3.
+ destruct s; auto.
+ simpl in H.
  rewrite H in H3.
- inversion H3; auto.
+ solve[inversion H3; auto].
 rewrite Hef in *.
 right.
 exists (Some (Vint unused_fd)).
+rewrite <-H15 in H7.
 split; auto.
 simpl.
+unfold cores, active; auto.
+rewrite H11.
+f_equal.
+simpl in H7.
+unfold proj_core, active in H7.
+if_tac in H7; try congruence.
+inversion H7; auto.
+simpl.
 unfold spec_of in H5.
+clear H12.
+rename H10 into H12.
 clear - H5 H12.
 (*inversion H5 fails to terminate in a timely fashion; instead we 
    use this ad hoc lemma*)
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
- inversion 1; auto.
+ solve[inversion 1; auto].
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
@@ -1259,42 +1260,52 @@ rewrite Int.eq_true; congruence.
 congruence.
 (*SYS_READ case*)
 assert (Hef: ef = SYS_READ).
- rewrite H in H3; inversion H3; auto.
+ unfold cores, Extension.active in H3.
+ solve[rewrite H in H3; inversion H3; auto].
 right.
 exists (Some (Vint (Int.repr (Zlength bytes)))).
 split; auto.
 simpl.
 unfold spec_of in H5.
 rewrite Hef in *.
+unfold cores, active.
+rewrite <-H15 in H7.
+simpl in H7.
+unfold proj_core, active in H7.
+if_tac in H7; try congruence.
+inversion H7.
+rewrite H11.
+solve[auto].
 assert (Heq: x = adr).
+ unfold cores, Extension.active in H3.
  rewrite H in H3.
  inversion H3.
- rewrite <-H21 in *.
- inversion H5.
- rewrite <-H22 in *.
+ rewrite <-H20 in *.
+ inversion H5; subst.
  simpl in Hpre.
- rewrite H8, H9, H10 in Hpre.
+ rewrite H0, H2, H8 in Hpre.
  solve[destruct Hpre; auto].
-clear - Heq Hef H5 H11 H12.
+clear -Heq Hef H5 H9 H10 H11.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
- inversion 1; auto.
+ solve[inversion 1; auto].
 apply H in H5.
 destruct H5 as [H5 H6].
 rewrite <-H6.
 simpl; auto.
+rewrite Hef.
+simpl.
 exists bytes.
 split; auto.
-rewrite Heq.
-apply Mem.loadbytes_storebytes_same in H12.
+apply Mem.loadbytes_storebytes_same in H10.
 rewrite Zlength_correct.
 assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
  split.
- apply Zle_0_nat.
- unfold fs_read in H11.
+ apply Zle_0_nat; auto.
+ unfold fs_read in H9.
  destruct (get_file fs0 fd); try congruence.
  destruct (get_fptr fs0 fd); try congruence.
- unfold read_file in H11.
- inversion H11.
+ unfold read_file in H9.
+ inversion H9.
  generalize (read_file_aux_length f (nat_of_Z (Int.intval nbytes)) (get_size f) f0);
   intro H2.
  apply Zle_lt_trans with (m := Int.intval nbytes).
@@ -1302,16 +1313,24 @@ assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
  rewrite nat_of_Z_eq in H2; auto.
  destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
  destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
-rewrite Zdiv.Zmod_small; auto.
+solve[rewrite Heq, Zdiv.Zmod_small; auto].
 (*SYS_WRITE case*)
 right.
 exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
 split; auto.
+rewrite <-H15 in H7.
+simpl in H7.
+unfold proj_core, active in H7.
+if_tac in H7; try congruence.
+inversion H7.
+unfold cores, active.
+solve[rewrite H11; auto].
 simpl.
 unfold spec_of in H5.
 assert (Hef: ef = SYS_WRITE).
+ unfold cores, Extension.active in H3.
  rewrite H in H3.
- inversion H3; auto.
+ solve[inversion H3; auto].
 clear - Hef H5.
 rewrite Hef in *.
 assert (forall {A B: Type} (P P': A) (Q Q': B), (P,Q) = (P',Q') -> P=P' /\ Q=Q').
@@ -1328,17 +1347,17 @@ unfold safely_halted.
 simpl.
 unfold os_safely_halted.
 hnf in H1.
-specialize (H1 (active s) csem (get_core s)).
-spec H1; auto.
+specialize (H1 (active s) (get_core s)).
 spec H1; auto.
 hnf in H1.
 unfold runnable in H0.
 case_eq (at_external csem (get_core s)). 
 intros [[ef sig] args] Hat.
 (*at_external core = Some*)
+unfold cores, active in H1.
 rewrite Hat in *.
 destruct (safely_halted csem (get_core s)).
-elimtype False; auto.
+solve[elimtype False; auto].
 destruct H1 as [x [H1 H2]].
 left.
 destruct ef; try solve[elimtype False; simpl in H1; auto].
@@ -1453,23 +1472,19 @@ eauto.
 intros.
 exists c'.
 split; auto.
-split; auto.
-destruct H2; auto.
-destruct H2.
-unfold proj_core in H11.
-if_tac in H11; try congruence.
-inv H11.
-auto.
+unfold proj_core in H2.
+if_tac in H2; try congruence.
+inv H2.
+solve[auto].
 intros.
 elimtype False.
-destruct H2 as [H2 H13].
-unfold proj_core in H13.
-if_tac in H13; try congruence.
+unfold proj_core in H2.
+if_tac in H2; try congruence.
 apply (after_at_external_excl csem) in H9.
-unfold cores in H2.
+unfold cores in *.
 inversion H2.
-rewrite H16 in *.
-clear H16.
+rewrite H15 in *.
+clear H15.
 rewrite H9 in H12.
 congruence.
 apply Zplus_le_compat_l.
@@ -1494,7 +1509,7 @@ intros H4; rewrite H4 in H1.
 intros ? H5; rewrite H5 in H1.
 elimtype False; auto.
 intros H4; rewrite H4 in H1.
-elimtype False; auto.
+solve[elimtype False; auto].
 
 destruct name; try solve[elimtype False; simpl in H1; auto].
 destruct name; try solve[elimtype False; simpl in H1; auto].
@@ -1556,22 +1571,20 @@ if_tac; auto.
 intros.
 exists c'.
 split; auto.
-split; auto.
-destruct H; auto.
-destruct H.
+rename H into H11.
+assert (H:True) by auto.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 inv H11.
 auto.
 intros.
 elimtype False.
-destruct H as [H13 H14].
+rename H into H14.
+assert (H:True) by auto.
 unfold proj_core in H14.
 if_tac in H14; try congruence.
 apply after_at_external_excl in H2.
-unfold cores in H13.
-inversion H13.
-rewrite <-H16 in *.
+unfold cores in *.
 rewrite H2 in H12.
 congruence.
 (*degenerate case*)
@@ -1627,22 +1640,23 @@ congruence.
 intros.
 exists c'.
 split; auto.
-split; auto.
-destruct H; auto.
-destruct H.
+rename H into H11.
+assert (H:True) by auto.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 inv H11.
 auto.
 intros.
 elimtype False.
-destruct H as [H13 H14].
+rename H into H14.
+assert (H:True) by auto.
 unfold proj_core in H14.
 if_tac in H14; try congruence.
 apply after_at_external_excl in H2.
 unfold cores in H13.
 inversion H13.
-rewrite <-H16 in *.
+inv H14.
+unfold cores in *.
 rewrite H2 in H12.
 congruence.
 (*degenerate cases*)
@@ -1651,7 +1665,7 @@ rewrite H4, H9 in H1.
 elimtype False; auto.
 intros H4.
 rewrite H4 in H1.
-elimtype False; auto.
+solve[elimtype False; auto].
 
 destruct sg; try solve[elimtype False; simpl in H1; auto].
 destruct sig_args; try solve[elimtype False; simpl in H1; auto].
@@ -1726,23 +1740,21 @@ omega.
 intros.
 exists c'.
 split; auto.
-split; auto.
-destruct H2; auto.
-destruct H2.
+rename H2 into H11.
+assert (H2:True) by auto.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 inv H11.
 auto.
 intros.
 elimtype False.
-destruct H2 as [H2 H13].
+rename H2 into H13.
+assert (H2:True) by auto.
 unfold proj_core in H13.
 if_tac in H13; try congruence.
 apply after_at_external_excl in H9.
 unfold cores in H2.
-inversion H2.
-rewrite H16 in *.
-clear H16.
+unfold cores in *.
 rewrite H9 in H12.
 congruence.
 (*degenerate cases*)
@@ -1755,21 +1767,22 @@ intros ? H5; rewrite H5 in H1.
 elimtype False; auto.
 intros H4; rewrite H4 in H1.
 elimtype False; auto.
-intros H4; rewrite H4 in H0, H1.
+intros H4.
+unfold cores, active in H1. 
+rewrite H4 in H0, H1.
 (*safely halted*)
 destruct (safely_halted csem (get_core s)); try congruence.
 right; exists v; auto.
 
 (*5: safely halted threads remain halted*)
-intros until rv; intros [H1 H2] H3 H4.
-split; auto.
+intros until rv; intros H2 H3 H4.
+assert (H1:True) by auto.
 unfold cores in H1.
 simpl in H2.
 unfold proj_core in H2.
 if_tac in H2; try congruence.
-inversion H1.
-rewrite <-H5 in *; clear H5.
 inv H2.
+unfold cores in *.
 inv H4.
 apply corestep_not_halted in H.
 simpl in H3.
@@ -1782,40 +1795,40 @@ rewrite H4 in H; congruence.
 rewrite H4 in H3; congruence.
 destruct (at_external_halted_excl csem (get_core s)).
 rewrite H4 in H; congruence.
-rewrite H4 in H3; congruence.
+solve[rewrite H4 in H3; congruence].
 
 (*6: safety of other cores preserved over handled steps*)
-intros until CS; hnf.
+intros until c; hnf.
 intros [H1 H2].
-intros H3 H4 H5 CS2 c2 j H6.
+intros H3 j c2 H6.
 split.
-intros [H7 H8].
+intros H8.
 simpl in H8.
 unfold proj_core in H8.
 if_tac in H8; try congruence.
 rewrite H in H6.
 simpl in H6.
 unfold active in H6.
-elimtype False; auto.
-intros n z z' [H7 H8] H9.
+solve[elimtype False; auto].
+intros n z z' H8 H9.
 simpl in H8.
 unfold proj_core in H8.
 if_tac in H8; try congruence.
 rewrite H in H6.
 simpl in H6.
 unfold active in H6.
-elimtype False; auto.
+solve[elimtype False; auto].
 
 (*7: extended machine doesn't introduce new external calls*)
 intros until args; intros H1.
 inv H1.
 case_eq (at_external csem (get_core s)).
 intros [[ef' sig'] args'] H1.
-exists csem.
 exists (get_core s).
 split; auto.
 unfold os_at_external in H0|-*.
 rewrite H1 in H0|-*.
+unfold cores in *.
 destruct ef'; try congruence.
 destruct name; try congruence.
 destruct name; try congruence.
@@ -1854,46 +1867,44 @@ destruct sig_res; try congruence.
 destruct t; try congruence.
 intros H1.
 unfold os_at_external in H0.
-rewrite H1 in H0; congruence.
+solve[rewrite H1 in H0; congruence].
 
 (*8: *)
 intros.
 simpl.
 unfold os_after_external.
-destruct H as [H H5].
-unfold cores in H.
+unfold cores in *.
 inversion H.
-rewrite <-H7 in *.
-simpl in H5.
-unfold proj_core in H5.
-if_tac in H5; try congruence.
-inversion H5.
-rewrite <-H9 in *.
+subst.
+simpl in *.
+unfold proj_core in *.
+if_tac in H; try congruence.
+inv H.
 rewrite H4.
-eexists; eauto.
+solve[eexists; eauto].
 
 (*9: *)
 intros.
 split; auto.
-intros [H8 H9].
+intros H9.
+assert (H8:True) by auto.
 simpl in H9.
 unfold proj_core in H9.
 if_tac in H9; auto.
 rewrite H10 in H7.
-destruct H6 as [H6 H11].
+rename H6 into H11.
 simpl in H11.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 simpl in H7.
 congruence.
 congruence.
-destruct H as [H H8].
+rename H into H8.
 simpl in H8.
 unfold proj_core in H8.
 if_tac in H8; try congruence.
-inversion H8.
-rewrite <-H11 in *.
-intros ge' n [H12 H13] H14.
+subst.
+intros ge' n H13 H14.
 simpl in H13.
 unfold proj_core in H13.
 if_tac in H13; try congruence.

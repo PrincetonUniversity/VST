@@ -29,10 +29,8 @@ Definition juicy_csig: juicy_ext_sig Z :=
   mkjuicyextsig (externals (prog_funct prog)) CSL.ExtSpec.Hspec.
 
 Definition initial_cores (i: nat): 
-  option (CoreSemantics (Genv.t fundef type) Clight_new.corestate juicy_mem
-    jm_init_package) :=
-  if eq_nat_dec i 1 then Some (juicy_core_sem Clight_new.cl_core_sem)
-  else None.
+  CoreSemantics (Genv.t fundef type) Clight_new.corestate juicy_mem
+     jm_init_package := juicy_core_sem Clight_new.cl_core_sem.
 
  Variables
   (esem: CoreSemantics (Genv.t fundef type) xT juicy_mem jm_init_package) (** extended semantics *)
@@ -43,13 +41,16 @@ Definition initial_cores (i: nat):
   (Hlinkable: linkable (Extension.proj_zext E) (externals (prog_funct prog)) 
     juicy_csig juicy_esig)
  (Hsafe: safe_extension (Genv.globalenv prog) (fun _:nat => Genv.globalenv prog) E)
+ (*This theorem will need to be generalized at some point; but this generalization may 
+    require an accordant generalization of the soundness theorem of the logic. *)
+ (Hsingleton: forall i q, (i > 0)%nat -> Extension.proj_core E i q = None)
  (Hinit: forall b q0, 
   Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b -> 
   make_initial_core (juicy_core_sem Clight_new.cl_core_sem) (Genv.globalenv prog) 
           (Vptr b Int.zero) nil = Some q0 -> 
   exists q, make_initial_core esem (Genv.globalenv prog) 
           (Vptr b Int.zero) nil = Some q /\
-    Extension.proj_core E 1 q = Some q0).
+    Extension.proj_core E 0 q = Some q0).
 
 Lemma semax_extension_rule (z: Z) (V: varspecs) (G: funspecs) (m: mem):
   CSL.semax_prog prog V G -> 
@@ -84,13 +85,17 @@ eapply Hsafe.
 unfold all_safe.
 unfold initial_cores.
 intros i ? ?.
-if_tac; subst.
-intros H8 H9.
+destruct E; simpl in *.
+assert (Heq: (i = 0)%nat).
+ specialize (@Hsingleton i q).
+ destruct i; auto.
+ rewrite Hsingleton in H.
+ congruence.
+ omega.
+rewrite Heq in *; clear Heq.
+rewrite H7 in H; inv H.
 unfold jsafeN in H10; simpl in H10|-*.
-inv H8.
-unfold initial_cores in H7; rewrite H7 in H9; inv H9.
-apply H10.
-inversion 1.
+solve[apply H10].
 Qed.
 
 End SeplogExtensionSoundness.

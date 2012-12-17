@@ -48,7 +48,7 @@ Module ExtensionSafety. Section ExtensionSafety.
   (Zext: Type) (** portion of Z external to extension *)
 
   (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, option (CoreSemantics (gT i) (cT i) M D)) (** a set of core semantics *)
+  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M D) (** a set of core semantics *)
 
   (csig: ext_sig M Z) (** client signature *)
   (esig: ext_sig M Zext) (** extension signature *)
@@ -72,11 +72,10 @@ Notation "zint \o zext" := (E.(Extension.zmult) zint zext)
   (at level 66, left associativity). 
 Notation ACTIVE := (E.(Extension.active)).
 Notation RUNNABLE := (E.(Extension.runnable)).
-Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
-  (csem i = Some CS /\ PROJ_CORE i s = Some c)
+Notation "'CORE' i 'is' c 'in' s" := 
+  (PROJ_CORE i s = Some c)
   (at level 66, no associativity).
 Notation core_exists := E.(Extension.core_exists).
-Notation active_csem := E.(Extension.active_csem).
 Notation active_proj_core := E.(Extension.active_proj_core).
 Notation notat_external_handled := E.(Extension.notat_external_handled).
 Notation at_external_not_handled := E.(Extension.at_external_not_handled).
@@ -96,12 +95,13 @@ intros [[ef sig] args] AT_EXT.
 destruct (at_external_halted_excl esem s) as [H2|H2].
 rewrite AT_EXT in H2; congruence.
 simpl; rewrite H2.
-destruct (at_extern_call s ef sig args AT_EXT) as [CS [c [[H3 H4] H5]]].
+destruct (at_extern_call s ef sig args AT_EXT) as [c [H4 H5]].
+assert (H3: True) by auto.
 generalize H1 as H1'; intro.
-specialize (H1 (ACTIVE s) CS c H3 H4).
+specialize (H1 (ACTIVE s) c H4).
 simpl in H1.
 rewrite H5 in H1.
-destruct (at_external_halted_excl CS c) as [H6|H6].
+destruct (at_external_halted_excl (csem (ACTIVE s)) c) as [H6|H6].
 rewrite H6 in H5; congruence.
 rewrite H6 in H1; clear H6.
 destruct H1 as [x H1].
@@ -126,7 +126,7 @@ destruct (H8 ret m' (s \o z')) as [c' [H10 H11]].
 specialize (H18 (sig_res sig) ret m' (s \o z')).
 rewrite Extension.zmult_proj in H18.
 eapply H18 in POST; eauto.
-specialize (at_extern_ret z s c m z' m' (sig_args sig) args (sig_res sig) ret c' CS
+specialize (at_extern_ret z s c m z' m' (sig_args sig) args (sig_res sig) ret c' 
  ef sig x' (ext_spec_pre esig ef) (ext_spec_post esig ef)).
 hnf in at_extern_ret.
 spec at_extern_ret; auto.
@@ -135,18 +135,18 @@ spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
-destruct at_extern_ret as [s' [H12 [H13 [H14 H15]]]].
+destruct at_extern_ret as [s' [H12 [H13 H14]]].
+assert (H15: True) by auto.
 exists s'.
 split; auto.
 rewrite H12.
 eapply IHn.
-intros j CSj cj CSEMJ PROJJ.
+intros j cj PROJJ.
 case_eq (eq_nat_dec (ACTIVE s) j).
 (*i=j*)
 intros Heq _. 
 subst j.
-rewrite CSEMJ in H14; inversion H14; rewrite H1 in *.
-rewrite PROJJ in H15; inversion H15; rewrite H6 in *.
+rewrite PROJJ in H14; inversion H14; rewrite H1 in *.
 unfold proj_zint in H12.
 unfold proj_zint.
 rewrite <-H12.
@@ -154,7 +154,7 @@ eapply ext_upd_at_external in H13; eauto.
 rewrite <-H13; auto.
 (*i<>j*)
 intros Hneq _.
-specialize (at_extern_rest z s c m z' s' m' (sig_args sig) args (sig_res sig) ret c' CS
+specialize (at_extern_rest z s c m z' s' m' (sig_args sig) args (sig_res sig) ret c' 
   ef x' sig (ext_spec_pre esig ef) (ext_spec_post esig ef)).
 hnf in at_extern_rest.
 spec at_extern_rest; auto.
@@ -165,10 +165,9 @@ spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 spec at_extern_rest; auto.
-destruct (at_extern_rest j CSj cj Hneq) as [H19 H20].
+destruct (at_extern_rest j (csem j) cj Hneq) as [H19 H20].
 rewrite <-H12.
-eapply H20; eauto.
-destruct H19 as [H21 H22]; auto.
+solve[eapply H20; eauto].
 
 (*CASE 2: at_external OUTER = None; i.e., inner corestep or handled function*)
 intros H2.
@@ -176,19 +175,17 @@ case_eq (safely_halted esem s); auto.
 case_eq (RUNNABLE s).
 (*active thread i is runnable*)
 intros RUN.
-destruct (active_csem s) as [CS CSEM].
 destruct (active_proj_core s) as [c PROJECT].
-destruct (core_prog n (s \o z) s m c CS H1 RUN)
+destruct (core_prog n (s \o z) s m c H1 RUN)
  as [c' [s' [m' [CORESTEP_C [CORESTEP_T ?]]]]]; auto.
-generalize (core_pres n z s c m CS s' c' m' H1)
+generalize (core_pres n z s c m s' c' m' H1)
  as INV'; auto.
 intros Hsafehalt.
 exists s'; exists m'; split; [auto|].
-eauto.
+solve[eauto].
 
 (*active thread not runnable*)
 intros RUN.
-destruct (active_csem s) as [CS CSEM].
 destruct (active_proj_core s) as [c PROJECT].
 destruct (handled_prog n z s m H1 RUN H2)
  as [[s' [m' [CORESTEP_T CORES_PRES]]]|[rv SAFELY_HALTED]].
@@ -196,11 +193,11 @@ destruct (handled_prog n z s m H1 RUN H2)
 exists s'; exists m'.
 split; auto.
 eapply IHn.
-destruct (runnable_false s RUN CSEM PROJECT) 
+destruct (runnable_false s RUN PROJECT) 
  as [SAFELY_HALTED|[ef [sig [args AT_EXT]]]].
 
 (*subcase A of no runnable thread: safely halted*)
-intros j CSj cj CSEMj PROJECTj.
+intros j cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
@@ -209,38 +206,38 @@ subst j.
 destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
-rewrite CSEM in CSEMj; inversion CSEMj; rename H4 into H3; rewrite <-H3 in *.
-specialize (H1 i CS c0 CSEM PROJECT).
+specialize (H1 i c0 PROJECT).
 simpl in H1. 
 destruct SAFELY_HALTED as [rv SAFELY_HALTED].
-destruct (@at_external_halted_excl (gT i) (cT i) M D CS c0) as [H4|H4]; 
+destruct (@at_external_halted_excl (gT i) (cT i) M D (csem i) c0) as [H4|H4]; 
  [|congruence].
 destruct n; simpl; auto.
-destruct (safely_halted_halted s m s' m' i CS c0 rv) as [H6 H7]; auto.
-rewrite H7 in PROJECTj; inversion PROJECTj; subst.
-rewrite H4, SAFELY_HALTED; auto.
+generalize (safely_halted_halted s m s' m' i c0 rv) as H7; auto. 
+intros.
+assert (H6:True) by auto.
+rewrite H7 in PROJECTj; inversion PROJECTj; subst; auto.
+solve[rewrite H4, SAFELY_HALTED; auto].
 (*i<>j*)
 intros Hneq _.
-destruct (CORES_PRES i c CS) as [c' [[_ PROJ'] H5]]. 
-split; auto.
-specialize (handled_rest s m s' m' c CS).
+destruct (CORES_PRES i c) as [c' [PROJ' H5]]; auto.
+specialize (handled_rest s m s' m' c).
 hnf in handled_rest.
 spec handled_rest; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
-destruct (handled_rest j CSj cj Hneq) as [H6 H7].
-eapply H7 with (z:=z); eauto.
-eapply H1; eauto.
+destruct (handled_rest j cj Hneq) as [H6 H7].
+solve[eapply H7 with (z:=z); eauto].
+(*eapply H1; eauto.
 destruct (core_exists ge j s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 specialize (H1 j CSj c0 CSEMj PROJECT0).
 destruct H6 as [H8 H9].
 split; auto.
-rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.
+rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.*)
 
 (*subcase B of no runnable thread: at external INNER*)
-intros j CSj cj CSEMj PROJECTj.
+intros j cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
@@ -249,17 +246,15 @@ subst j.
 destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
  as [c0 PROJECT0].
 rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
-generalize CSEMj as CSEMj'; intro.
-rewrite CSEM in CSEMj; inversion CSEMj; rename H4 into H3; rewrite <-H3 in *.
-specialize (H1 i CS c0 CSEM PROJECT).
+specialize (H1 i c0 PROJECT).
 simpl in H1. 
 rewrite AT_EXT in H1.
-remember (safely_halted CS c0) as SAFELY_HALTED.
+remember (safely_halted (csem i) c0) as SAFELY_HALTED.
 destruct SAFELY_HALTED. 
 solve[destruct ef; elimtype False; auto].
 destruct H1 as [x H1].
 destruct H1 as [PRE POST].
-specialize (handled_pres s z m c0 s' m' cj CS ef sig args
+specialize (handled_pres s z m c0 s' m' cj ef sig args
   (ext_spec_pre csig ef)
   (ext_spec_post csig ef) x).
 (*rewrite Heq in handled_pres.*)
@@ -272,13 +267,14 @@ spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
-destruct (CORES_PRES i c0 CS) as [c' H4]; [split; auto|].
+destruct (CORES_PRES i c0) as [c' H4]; auto.
 destruct handled_pres as [[AT_EXT' [PRE' ACT']] | POST'].
 (*pre-preserved case*)
-destruct H4 as [[H4 H5] H6].
+destruct H4 as [H5 H6].
+assert (H4:True) by auto.
 rewrite H5 in PROJECTj; inversion PROJECTj; subst.
 specialize (H6 (ef,sig) args (ef,sig) args AT_EXT AT_EXT'); subst.
-clear - PRE' POST AT_EXT' H4 H5 HeqSAFELY_HALTED H2 AT_EXT PROJECT CSEMj'.
+clear - PRE' POST AT_EXT' H4 H5 HeqSAFELY_HALTED H2 AT_EXT PROJECT.
 destruct n; simpl; auto.
 rewrite AT_EXT.
 rewrite <-HeqSAFELY_HALTED.
@@ -289,14 +285,15 @@ destruct (POST ret m'' s'' H8) as [c'' [H9 H10]].
 exists c''; split; auto.
 eapply safe_downward1; eauto.
 (*post case*)
-destruct H4 as [[H4 H5] H6].
-rewrite H5 in PROJECTj; inversion PROJECTj; rename H7 into H1; rewrite <-H1 in *.
+destruct H4 as [H5 H6].
+assert (H4:True) by auto.
+rewrite H5 in PROJECTj; inversion PROJECTj; rename H3 into H1; rewrite <-H1 in *.
 destruct POST' as [ret [AFTER_EXT POST']].
-generalize (after_at_external_excl CS ret c0 c' AFTER_EXT); intros AT_EXT'.
+generalize (after_at_external_excl (csem i) ret c0 c' AFTER_EXT); intros AT_EXT'.
 clear - PRE POST POST' AT_EXT' AFTER_EXT H4 H5 H6 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT'.
-case_eq (safely_halted CS c'); auto.
+case_eq (safely_halted (csem i) c'); auto.
 destruct (POST ret m' (s' \o z) POST') as [c'' [AFTER_EXT' SAFEN]].
 unfold i in AFTER_EXT'.
 rewrite AFTER_EXT in AFTER_EXT'; inversion AFTER_EXT'; subst.
@@ -307,24 +304,17 @@ destruct SAFEN as [c3 [m'' [H7 H8]]].
 exists c3; exists m''; split; auto.
 (*i<>j: i.e., nonactive thread*)
 intros Hneq _.
-destruct (CORES_PRES i c CS) as [c' [[_ PROJ'] H5]]. 
-split; auto.
-specialize (handled_rest s m s' m' c CS).
+destruct (CORES_PRES i c) as [c' [PROJ' H5]]. 
+auto.
+specialize (handled_rest s m s' m' c).
 hnf in handled_rest.
 spec handled_rest; auto.
 spec handled_rest; auto.
 left; exists ef; exists sig; exists args; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
-destruct (handled_rest j CSj cj Hneq) as [H6 H7].
-eapply H7 with (z:=z); eauto.
-eapply H1; eauto.
-destruct (core_exists ge j s m s' m' CORESTEP_T PROJECTj)
- as [c0 PROJECT0].
-specialize (H1 j CSj c0 CSEMj PROJECT0).
-destruct H6 as [H8 H9].
-split; auto.
-rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.
+destruct (handled_rest j cj Hneq) as [H6 H7].
+solve[eapply H7 with (z:=z); eauto].
 Qed.
 
 End ExtensionSafety. End ExtensionSafety.
@@ -333,7 +323,7 @@ Section CoreCompatibleLemmas.
 Variables 
  (G xT M D Z Zint Zext: Type) (gT: nat -> Type) (cT: nat -> Type)
  (esem: CoreSemantics G xT M D) 
- (csem: forall i:nat, option (CoreSemantics (gT i) (cT i) M D))
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M D)
  (csig: ext_sig M Z)
  (esig: ext_sig M Zext)
  (handled: list AST.external_function)
@@ -346,27 +336,25 @@ Variable Hcore_compatible: core_compatible ge genv_map E.
 Import Extension.
 
 Lemma corestep_step: 
-  forall s (c: cT (active E s)) m c' m' CS,
-  csem (active E s) = Some CS -> 
+  forall s (c: cT (active E s)) m c' m',
   proj_core E (active E s) s = Some c -> 
-  corestep CS (genv_map (active E s)) c m c' m' -> 
+  corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
   exists s', corestep esem ge s m s' m' /\
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
-intros.
+intros until m'; intros H0 H1.
 inv Hcore_compatible.
 generalize H1 as H1'; intro.
 eapply corestep_prog in H1; eauto.
 destruct H1 as [s' H1].
 exists s'.
-split; eauto. 
+solve[split; eauto]. 
 Qed.
 
 Lemma corestep_stepN: 
-  forall n s (c: cT (active E s)) m c' m' CS,
-  csem (active E s) = Some CS -> 
+  forall n s (c: cT (active E s)) m c' m',
   proj_core E (active E s) s = Some c -> 
-  corestepN CS (genv_map (active E s)) n c m c' m' -> 
+  corestepN (csem (active E s)) (genv_map (active E s)) n c m c' m' -> 
   exists s', corestepN esem ge n s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
@@ -374,19 +362,20 @@ inv Hcore_compatible.
 generalize corestep_step; intro H1.
 intros n.
 induction n; auto.
-intros.
+intros until m'.
+intros H0 H2.
 inv H2.
 simpl.
 exists s.
 split; auto.
 intros.
-simpl in H2.
-destruct H2 as [c2 [m2 [H5 H6]]].
+simpl in H0.
+destruct H0 as [c2 [m2 [H5 H6]]].
 eapply H1 in H5; eauto.
 destruct H5 as [s2 [H5 [H7 H9]]].
 forget (active E s) as i.
 subst i.
-destruct (IHn s2 c2 m2 c' m' CS) as [s' [H10 [H11 H13]]]; auto.
+destruct (IHn s2 c2 m2 c' m') as [s' [H10 [H11 H13]]]; auto.
 exists s'.
 split3.
 simpl.
@@ -396,37 +385,35 @@ auto.
 Qed.
 
 Lemma corestep_step_star: 
-  forall s (c: cT (active E s)) m c' m' CS,
-  csem (active E s) = Some CS -> 
+  forall s (c: cT (active E s)) m c' m',
   proj_core E (active E s) s = Some c -> 
-  corestep_star CS (genv_map (active E s)) c m c' m' -> 
+  corestep_star (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
   exists s', corestep_star esem ge s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
-intros.
+intros until m'; intros H0 H1.
 destruct H1 as [n H1].
 eapply corestep_stepN in H1; eauto.
 destruct H1 as [s' [H1 [H2 H4]]].
 exists s'.
 split3; auto.
-exists n; eauto.
+solve[exists n; eauto].
 Qed.
 
 Lemma corestep_step_plus: 
-  forall s (c: cT (active E s)) m c' m' CS,
-  csem (active E s) = Some CS -> 
+  forall s (c: cT (active E s)) m c' m',
   proj_core E (active E s) s = Some c -> 
-  corestep_plus CS (genv_map (active E s)) c m c' m' -> 
+  corestep_plus (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
   exists s', corestep_plus esem ge s m s' m' /\ 
     active E s = active E s' /\ proj_core E (active E s) s' = Some c'.
 Proof.
-intros.
+intros until m'; intros H0 H1.
 destruct H1 as [n H1].
 eapply corestep_stepN in H1; eauto.
 destruct H1 as [s' [H1 [H2 H4]]].
 exists s'.
 split3; auto.
-exists n; eauto.
+solve[exists n; eauto].
 Qed.
 
 End CoreCompatibleLemmas.
@@ -532,10 +519,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS 
-                  (fun i:nat => Some (csemS i)) csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT 
-                  (fun i:nat => Some (csemT i)) csig esig handled).
+ Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS csemS
+                  csig esig handled).
+ Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT csemT
+                  csig esig handled).
 
  Variable entry_points: list (val*val*signature).
 
@@ -547,7 +534,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    (csem i = Some CS /\ PROJ_CORE i s = Some c)
    (at level 66, no associativity, only parsing).
  Notation core_exists := (Extension.core_exists).
- Notation active_csem := (Extension.active_csem).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
@@ -783,21 +769,19 @@ assert (exists c1', corestep (csemS (ACTIVE E_S st1)) (genv_mapS (ACTIVE E_S st1
          c1 m1 c1' m1') as [c1' STEP1].
  inv esig_compilable.
  inv core_compatS.
- specialize (runnable_corestep st1 m1 st1' m1' c1 (csemS (ACTIVE E_S st1))).
+ specialize (runnable_corestep st1 m1 st1' m1' c1).
  destruct runnable_corestep as [c1' [H3 H4]]; auto.
  solve[exists c1'; auto].
 assert (PROJ1': PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1').
  inv core_compatS.
- specialize (corestep_pres st1 c1 m1 c1' st1' m1' (csemS (ACTIVE E_S st1))).
- spec corestep_pres; auto.
+ specialize (corestep_pres st1 c1 m1 c1' st1' m1').
  spec corestep_pres; auto.
  spec corestep_pres; auto.
  spec corestep_pres; auto.
  solve[destruct corestep_pres; auto].
 assert (ACT1': ACTIVE E_S st1 = ACTIVE E_S st1').
  inv core_compatS.
- specialize (corestep_pres st1 c1 m1 c1' st1' m1' (csemS (ACTIVE E_S st1))).
- spec corestep_pres; auto.
+ specialize (corestep_pres st1 c1 m1 c1' st1' m1').
  spec corestep_pres; auto.
  spec corestep_pres; auto.
  spec corestep_pres; auto.
@@ -814,10 +798,9 @@ destruct STEP2 as [n STEP2].
 generalize (corestep_stepN core_compatT) as CSTEPN; intro.
 specialize (CSTEPN (S n) st2). 
 rewrite <-ACT in *.
-specialize (CSTEPN c2 m2 c2' m2' (csemT (ACTIVE E_S st1))).
+specialize (CSTEPN c2 m2 c2' m2').
 spec CSTEPN; auto.
 spec CSTEPN; auto. 
-spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'.
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
@@ -860,10 +843,9 @@ split; auto.
    forget (ACTIVE E_S st1') as x'.
    forget (ACTIVE E_T st2') as y'.
    do 4 subst.
-   specialize (corestep_others_forward c1 m1 c1' m1' (csemS y')).
+   specialize (corestep_others_forward c1 m1 c1' m1').
    spec corestep_others_forward; auto.
    spec corestep_others_forward; auto. 
-   spec corestep_others_forward; auto.
    spec corestep_others_forward; auto.
    specialize (corestep_others_forward i NEQ).
    solve[rewrite corestep_others_forward; auto].
@@ -878,10 +860,9 @@ split; auto.
    forget (ACTIVE E_S st1') as x'.
    forget (ACTIVE E_T st2') as y'.
    do 4 subst.
-   specialize (corestep_others_backward c2 m2 st2' c2' m2' (csemT y') (S n)).
+   specialize (corestep_others_backward c2 m2 st2' c2' m2' (S n)).
    spec corestep_others_backward; auto.
    spec corestep_others_backward; auto. 
-   spec corestep_others_backward; auto.
    spec corestep_others_backward; auto.
    specialize (corestep_others_backward i NEQ).
    solve[rewrite <-corestep_others_backward; auto].
@@ -899,10 +880,9 @@ destruct STEP2 as [[n STEP2] ORD].
 generalize (corestep_stepN core_compatT) as CSTEPN; intro.
 specialize (CSTEPN n st2). 
 rewrite <-ACT in *.
-specialize (CSTEPN c2 m2 c2' m2' (csemT (ACTIVE E_S st1))).
+specialize (CSTEPN c2 m2 c2' m2').
 spec CSTEPN; auto.
 spec CSTEPN; auto. 
-spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'. 
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
@@ -944,10 +924,9 @@ split; auto.
    forget (ACTIVE E_S st1') as x'.
    forget (ACTIVE E_T st2') as y'.
    do 4 subst.
-   specialize (corestep_others_forward c1 m1 c1' m1' (csemS y')).
+   specialize (corestep_others_forward c1 m1 c1' m1').
    spec corestep_others_forward; auto.
    spec corestep_others_forward; auto. 
-   spec corestep_others_forward; auto.
    spec corestep_others_forward; auto.
    specialize (corestep_others_forward i NEQ).
    solve[rewrite corestep_others_forward; auto].
@@ -962,10 +941,9 @@ split; auto.
    forget (ACTIVE E_S st1') as x'.
    forget (ACTIVE E_T st2') as y'.
    do 4 subst.
-   specialize (corestep_others_backward c2 m2 st2' c2' m2' (csemT y') n).
+   specialize (corestep_others_backward c2 m2 st2' c2' m2' n).
    spec corestep_others_backward; auto.
    spec corestep_others_backward; auto. 
-   spec corestep_others_backward; auto.
    spec corestep_others_backward; auto.
    specialize (corestep_others_backward i NEQ).
    solve[rewrite <-corestep_others_backward; auto].
@@ -983,9 +961,8 @@ split; auto.
 intros RUN1.
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 generalize PROJ1 as _PROJ1; intro.
-destruct (active_csem E_S) with (s := st1) as [CS ACT1]; inv ACT1.
 apply (runnable_false E_S) with 
- (c := c1) (CS := (csemS (ACTIVE E_S st1))) in PROJ1; auto.
+ (c := c1) in PROJ1; auto.
 destruct PROJ1 as [[rv HALT]|[ef [sig [args AT_EXT]]]].
 
 (*active thread is safely halted*)
@@ -1036,9 +1013,9 @@ destruct MATCH as [ACT [RUN MATCH_CORES]].
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
  inv core_compatS.
- edestruct (at_extern_call) as [CS [c [CORES [PROJ AT_EXT]]]]; eauto.
+ edestruct (at_extern_call) as [c [PROJ AT_EXT]]; eauto.
  rewrite PROJ in PROJ1; inv PROJ1.
- inv CORES; auto.
+ solve[inv PROJ; auto].
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) 
             (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 ef_sig MATCH12 AT_EXT1)
@@ -1065,9 +1042,9 @@ generalize MATCH_CORES as MATCH_CORES'; intro.
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
  inv core_compatS.
- edestruct (at_extern_call) as [CS [c [CORES [PROJ AT_EXT]]]]; eauto.
+ edestruct (at_extern_call) as [c [PROJ AT_EXT]]; eauto.
  rewrite PROJ in PROJ1; inv PROJ1.
- solve[inv CORES; auto].
+ solve[inv PROJ; auto].
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_after_external (core_simulations (ACTIVE E_S st1)) 
                 (cd (ACTIVE E_S st1)) j j' c1 c2 m1 e 
@@ -1080,14 +1057,14 @@ exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
          PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1') as [st1' [? PROJ1']].
  inv core_compatS.
- specialize (after_ext_prog st1 c1 c1' (csemS (ACTIVE E_S st1)) (Some ret1)).
+ specialize (after_ext_prog st1 c1 c1' (Some ret1)).
  solve[spec after_ext_prog; auto].
 assert (exists st2', after_external esemT (Some ret2) st2 = Some st2' /\
          PROJ_CORE E_T (ACTIVE E_S st1) st2' = Some c2') as [st2' [? PROJ2']].
  inv core_compatT.
  specialize (after_ext_prog st2). 
  rewrite <-ACT in after_ext_prog.
- specialize (after_ext_prog c2 c2' (csemT (ACTIVE E_S st1)) (Some ret2)).
+ specialize (after_ext_prog c2 c2' (Some ret2)).
  solve[spec after_ext_prog; auto].
 exists st1'; exists st2'.
 split3; auto.
@@ -1103,7 +1080,7 @@ assert (ACTIVE E_T st2=ACTIVE E_T st2') as <-.
  auto.
 split3; auto.
 inv esig_compilable.
-eapply after_external_runnable; eauto.
+solve[eapply after_external_runnable; eauto].
 
 intros i _c _PROJ1'.
 case_eq (eq_nat_dec (ACTIVE E_S st1) i).
@@ -1140,8 +1117,8 @@ Qed.
 
 Lemma RGsimulations_invariant: 
   (forall i:nat, RelyGuaranteeSimulation.Sig (core_simulations i)) -> 
-  CompilabilityInvariant.Sig fS fT vS vT csemS csemT ge genv_mapS genv_mapT 
-      E_S E_T core_simulations match_states -> 
+  CompilabilityInvariant.Sig fS fT vS vT ge genv_mapS genv_mapT 
+             E_S E_T core_simulations match_states -> 
   internal_compilability_invariant.
 Proof.
 intro core_simulations_RGinject.
@@ -1212,10 +1189,10 @@ Module CompilableExtension. Section CompilableExtension.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS 
-                  (fun i:nat => Some (csemS i)) csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT 
-                  (fun i:nat => Some (csemT i)) csig esig handled).
+ Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS csemS
+                  csig esig handled).
+ Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT csemT
+                  csig esig handled).
 
  Variable entry_points: list (val*val*signature).
 
@@ -1227,7 +1204,6 @@ Module CompilableExtension. Section CompilableExtension.
    (csem i = Some CS /\ PROJ_CORE i s = Some c)
    (at level 66, no associativity, only parsing).
  Notation core_exists := (Extension.core_exists).
- Notation active_csem := (Extension.active_csem).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
@@ -1243,8 +1219,8 @@ Module CompilableExtension. Section CompilableExtension.
      (genv_mapS i) (genv_mapT i) entry_points.
 
  Lemma ExtensionCompilability: 
-   CompilableExtension.Sig fS fT vS vT csemS csemT 
-     ge genv_mapS genv_mapT E_S E_T core_simulations.
+   CompilableExtension.Sig fS fT vS vT ge genv_mapS genv_mapT 
+               E_S E_T core_simulations.
  Proof.
  eapply (@CompilableExtension.Make 
   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
@@ -1260,4 +1236,64 @@ Module CompilableExtension. Section CompilableExtension.
 Qed.
 
 End CompilableExtension. End CompilableExtension.
+
+(** A specialization of the CompilableExtension theorem to single-core systems *)
+
+Module CompilableExtension2. Section CompilableExtension2. 
+ Variables
+  (F V fS fT vS vT: Type) (** global environments *)
+  (cS cT: Type) (** corestates of source and target core semantics *)
+  (dS dT: Type) (** initialization data *)
+  (Z: Type) (** external states *)
+  (Zint: Type) (** portion of Z implemented by extension *)
+  (Zext: Type) (** portion of Z external to extension *)
+  (esemS: CoreSemantics (Genv.t F V) cS mem dS) (** extended source semantics *)
+  (esemT: CoreSemantics (Genv.t F V) cT mem dT) (** extended target semantics *)
+  (csemS: CoreSemantics (Genv.t fS vS) cS mem dS) 
+  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
+  (csig: ext_sig mem Z) (** client signature *)
+  (esig: ext_sig mem Zext) (** extension signature *)
+  (handled: list AST.external_function). (** functions handled by this extension *)
+
+ Variables 
+  (ge: Genv.t F V) (geS: Genv.t fS vS) (geT: Genv.t fT vT).
+
+ Variable (E_S: Extension.Sig (fun i => Genv.t ((fun _ => fS) i) ((fun _ => vS) i)) 
+                  (fun _ => cS) Zint esemS (fun i:nat => csemS) csig esig handled).
+ Variable (E_T: Extension.Sig (fun i => Genv.t ((fun _ => fT) i) ((fun _ => vT) i)) 
+                  (fun _ => cT) Zint esemT (fun i:nat => csemT) csig esig handled).
+
+ Variable entry_points: list (val*val*signature).
+
+ Import Sim_inj.
+
+ Variable max_threads: nat.
+
+ Variable core_simulations: forall i:nat, 
+   Forward_simulation_inject dS dT csemS csemT geS geT entry_points.
+
+ Definition genv_mapS := fun i:nat => geS.
+ Definition genv_mapT := fun i:nat => geT.
+    
+ Lemma ExtensionCompilability: 
+   CompilableExtension.Sig 
+    (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) 
+    ge genv_mapS genv_mapT E_S E_T core_simulations.
+ Proof.
+ eapply (@CompilableExtension.Make 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
+ (ExtendedSimulations.core_ords 
+    (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) (fun _ => cS) (fun _ => cT)
+    (fun _ => csemS) (fun _ => csemT) genv_mapS genv_mapT
+   core_simulations max_threads)
+ (@ExtendedSimulations.match_states 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  E_S E_T entry_points core_simulations)).
+ intros H1 H2 H3 H4 H5 H6.
+ eapply ExtendedSimulations.extended_simulation
+  with (core_simulations := core_simulations); eauto.
+ eapply ExtendedSimulations.RGsimulations_invariant; eauto.
+Qed.
+
+End CompilableExtension2. End CompilableExtension2.
 
