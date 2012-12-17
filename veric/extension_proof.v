@@ -498,7 +498,7 @@ Qed.
 
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
-  (F V: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** global environments *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
   (cS cT: nat -> Type) (** corestates of source and target core semantics *)
@@ -506,8 +506,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F V) xS mem dS) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F V) xT mem dT) (** extended target semantics *)
+  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem dS) (** extended source semantics *)
+  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem dT) (** extended target semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem dS) (** a set of core semantics *)
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem dT) (** a set of core semantics *)
   (csig: ext_sig mem Z) (** client signature *)
@@ -515,7 +515,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 
-  (ge: Genv.t F V) 
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
@@ -631,7 +631,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     ACTIVE E_S s1 <> i -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    meminj_preserves_globals (genv2blocks ge) j -> 
+    meminj_preserves_globals (genv2blocks ge_S) j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
@@ -645,8 +645,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-    corestep esemS ge s1 m1 s1' m1' -> 
-    corestepN esemT ge n s2 m2 s2' m2' -> 
+    corestep esemS ge_S s1 m1 s1' m1' -> 
+    corestepN esemT ge_T n s2 m2 s2' m2' -> 
     RUNNABLE E_S s1'=RUNNABLE E_T s2')     
 
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
@@ -657,15 +657,15 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals ge j -> 
+    Events.meminj_preserves_globals ge_S j -> 
     Forall2 (val_inject j) args1 args2 -> 
     Forall2 Val.has_type args2 (sig_args sig) -> 
-    corestep esemS ge s1 m1 s1' m1' -> 
+    corestep esemS ge_S s1 m1 s1' m1' -> 
     exists s2', exists m2', exists cd', exists j',
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
       match_states cd' j' s1' m1' s2' m2' /\
-      corestep esemT ge s2 m2 s2' m2')
+      corestep esemT ge_T s2 m2 s2' m2')
 
   (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
     ACTIVE E_S s1=ACTIVE E_T s2 -> 
@@ -676,7 +676,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
     match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
     Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals ge j -> 
+    Events.meminj_preserves_globals ge_S j -> 
     Forall2 (val_inject j) args1 args2 -> 
     Forall2 Val.has_type args2 (sig_args sig) -> 
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
@@ -693,7 +693,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
     match_state (core_simulations i) cd j d1 m1 d2 m2 -> 
     at_external esemS s1 = Some (ef, sig, args1) -> 
-    Events.meminj_preserves_globals ge j -> 
+    Events.meminj_preserves_globals ge_S j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     Mem.inject j' m1' m2' -> 
@@ -711,12 +711,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state (core_simulations i) cd j' d1 m1' d2 m2')
 
   (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
-    make_initial_core esemS ge v1 vals1 = Some s1 -> 
+    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
-      make_initial_core esemT ge v2 vals2 = Some s2 /\
+      make_initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
 
   (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
@@ -732,25 +732,25 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
-    corestep esemS ge s1 m1 s1' m1' ->  
+    corestep esemS ge_S s1 m1 s1' m1' ->  
     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
     exists s2', exists m2', exists cd', exists j', 
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
-      corestep esemT ge s2 m2 s2' m2' /\
+      corestep esemT ge_T s2 m2 s2' m2' /\
       match_states cd' j' s1' m1' s2' m2'),
   internal_compilability_invariant.
 
  Variables 
   (esig_compilable: internal_compilability_invariant)
-  (genvs_domain_eqS: forall i: nat, genvs_domain_eq ge (genv_mapS i))
-  (genvs_domain_eqT: forall i: nat, genvs_domain_eq ge (genv_mapT i))
-  (core_compatS: core_compatible ge genv_mapS E_S) 
-  (core_compatT: core_compatible ge genv_mapT E_T).
+  (genvs_domain_eqS: forall i: nat, genvs_domain_eq ge_S (genv_mapS i))
+  (genvs_domain_eqT: forall i: nat, genvs_domain_eq ge_T (genv_mapT i))
+  (core_compatS: core_compatible ge_S genv_mapS E_S) 
+  (core_compatT: core_compatible ge_T genv_mapT E_T).
 
 Program Definition extended_simulation: 
   Forward_simulation_inject dS dT esemS esemT 
-      ge ge entry_points :=
+      ge_S ge_T entry_points :=
      Build_Forward_simulation_inject 
       core_datas match_states core_ords _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
@@ -1051,7 +1051,7 @@ destruct (core_after_external (core_simulations (ACTIVE E_S st1))
                 vals1 ret1 m1' m2 m2' ret2 ef_sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
 rewrite <-meminj_preserves_genv2blocks.
-rewrite <-genvs_domain_eq_preserves with (ge1 := ge); auto.
+rewrite <-genvs_domain_eq_preserves with (ge1 := ge_S); auto.
 rewrite meminj_preserves_genv2blocks; auto.
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
@@ -1117,7 +1117,7 @@ Qed.
 
 Lemma RGsimulations_invariant: 
   (forall i:nat, RelyGuaranteeSimulation.Sig (core_simulations i)) -> 
-  CompilabilityInvariant.Sig fS fT vS vT ge genv_mapS genv_mapT 
+  CompilabilityInvariant.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
              E_S E_T core_simulations match_states -> 
   internal_compilability_invariant.
 Proof.
@@ -1168,7 +1168,7 @@ End ExtendedSimulations. End ExtendedSimulations.
 
 Module CompilableExtension. Section CompilableExtension. 
  Variables
-  (F V: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** global environments *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
   (cS cT: nat -> Type) (** corestates of source and target core semantics *)
@@ -1176,8 +1176,8 @@ Module CompilableExtension. Section CompilableExtension.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F V) xS mem dS) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F V) xT mem dT) (** extended target semantics *)
+  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem dS) (** extended source semantics *)
+  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem dT) (** extended target semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem dS) (** a set of core semantics *)
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem dT) (** a set of core semantics *)
   (csig: ext_sig mem Z) (** client signature *)
@@ -1185,7 +1185,7 @@ Module CompilableExtension. Section CompilableExtension.
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 
-  (ge: Genv.t F V) 
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
@@ -1219,17 +1219,17 @@ Module CompilableExtension. Section CompilableExtension.
      (genv_mapS i) (genv_mapT i) entry_points.
 
  Lemma ExtensionCompilability: 
-   CompilableExtension.Sig fS fT vS vT ge genv_mapS genv_mapT 
+   CompilableExtension.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
                E_S E_T core_simulations.
  Proof.
  eapply (@CompilableExtension.Make 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
  (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
    core_simulations max_threads)
  (@ExtendedSimulations.match_states 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
   E_S E_T entry_points core_simulations)).
- intros H1 H2 H3 H4 H5 H6.
+ intros H1 H2 H3 H4 H5 H6 H7.
  eapply ExtendedSimulations.extended_simulation
   with (core_simulations := core_simulations); eauto.
  eapply ExtendedSimulations.RGsimulations_invariant; eauto.
@@ -1241,14 +1241,14 @@ End CompilableExtension. End CompilableExtension.
 
 Module CompilableExtension2. Section CompilableExtension2. 
  Variables
-  (F V fS fT vS vT: Type) (** global environments *)
+  (F_S V_S F_T V_T fS fT vS vT: Type) (** global environments *)
   (cS cT: Type) (** corestates of source and target core semantics *)
   (dS dT: Type) (** initialization data *)
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F V) cS mem dS) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F V) cT mem dT) (** extended target semantics *)
+  (esemS: CoreSemantics (Genv.t F_S V_S) cS mem dS) (** extended source semantics *)
+  (esemT: CoreSemantics (Genv.t F_T V_T) cT mem dT) (** extended target semantics *)
   (csemS: CoreSemantics (Genv.t fS vS) cS mem dS) 
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
   (csig: ext_sig mem Z) (** client signature *)
@@ -1256,7 +1256,7 @@ Module CompilableExtension2. Section CompilableExtension2.
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 
-  (ge: Genv.t F V) (geS: Genv.t fS vS) (geT: Genv.t fT vT).
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
  Variable (E_S: Extension.Sig (fun i => Genv.t ((fun _ => fS) i) ((fun _ => vS) i)) 
                   (fun _ => cS) Zint esemS (fun i:nat => csemS) csig esig handled).
@@ -1278,18 +1278,18 @@ Module CompilableExtension2. Section CompilableExtension2.
  Lemma ExtensionCompilability: 
    CompilableExtension.Sig 
     (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) 
-    ge genv_mapS genv_mapT E_S E_T core_simulations.
+    ge_S ge_T genv_mapS genv_mapT E_S E_T core_simulations.
  Proof.
  eapply (@CompilableExtension.Make 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
  (ExtendedSimulations.core_ords 
     (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) (fun _ => cS) (fun _ => cT)
     (fun _ => csemS) (fun _ => csemT) genv_mapS genv_mapT
    core_simulations max_threads)
  (@ExtendedSimulations.match_states 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
   E_S E_T entry_points core_simulations)).
- intros H1 H2 H3 H4 H5 H6.
+ intros H1 H2 H3 H4 H5 H6 H7.
  eapply ExtendedSimulations.extended_simulation
   with (core_simulations := core_simulations); eauto.
  eapply ExtendedSimulations.RGsimulations_invariant; eauto.
