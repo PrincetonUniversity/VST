@@ -621,16 +621,19 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Variable match_states: core_data -> meminj -> xS -> mem -> xT -> mem -> Prop.
 
  Inductive Sig: Type := Make: forall  
-     (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n,
+     (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
        PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
        PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
        RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
+       match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
        corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
        corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
        corestep esemS ge_S s1 m1 s1' m1' -> 
        corestepN esemT ge_T n s2 m2 s2' m2' -> 
+       match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' ->        
        RUNNABLE E_S s1'=RUNNABLE E_T s2')
      
+     (*allow CORE_ORD-CORESTEP_STAR, CORESTEP_PLUS*)
      (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
        RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
        PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
@@ -664,14 +667,16 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
        at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
        at_external esemT s2 = Some (ef, sig, args2))
 
+     (*match_state ==> runnables match*)
      (after_external_runnable: forall s1 m1 s2 m2 retv1 retv2 s1' s2' cd j,
        RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
        match_states cd j s1 m1 s2 m2 -> 
        after_external esemS retv1 s1 = Some s1' -> 
        after_external esemT retv2 s2 = Some s2' ->     
        RUNNABLE E_S s1'=RUNNABLE E_T s2')
-     
+
      (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+       In (v1, v2, sig) entry_points -> 
        make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
        Mem.inject j m1 m2 -> 
        Forall2 (val_inject j) vals1 vals2 -> 
@@ -748,17 +753,63 @@ Module CompilableExtension. Section CompilableExtension.
    core_data: Type;
    core_ord: core_data -> core_data -> Prop;
    match_states: core_data -> meminj -> xS -> mem -> xT -> mem -> Prop;
+   _ : Forward_simulation_inject dS dT esemS esemT ge_S ge_T entry_points
+ }.
+
+End CompilableExtension. End CompilableExtension.
+
+Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
+ Variables
+  (F_S V_S F_T V_T: Type) (** global environments *)
+  (xS xT: Type) (** corestates of source and target extended semantics *)
+  (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
+  (cS cT: nat -> Type) (** corestates of source and target core semantics *)
+  (dS dT: Type) (** initialization data *)
+  (Z: Type) (** external states *)
+  (Zint: Type) (** portion of Z implemented by extension *)
+  (Zext: Type) (** portion of Z external to extension *)
+  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem dS) (** extended source semantics *)
+  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem dT) (** extended target semantics *)
+  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem dS) (** a set of core semantics *)
+  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem dT) (** a set of core semantics *)
+  (csig: ext_sig mem Z) (** client signature *)
+  (esig: ext_sig mem Zext) (** extension signature *)
+  (handled: list AST.external_function). (** functions handled by this extension *)
+
+ Variables 
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
+  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
+  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+ 
+ Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS Zint esemS csemS
+                  csig esig handled).
+ Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT Zint esemT csemT
+                  csig esig handled).
+
+ Variable entry_points: list (val*val*signature).
+
+ Import Sim_inj.
+
+ Variable core_simulations: forall i:nat, 
+   Forward_simulation_inject dS dT (csemS i) (csemT i) 
+     (genv_mapS i) (genv_mapT i) entry_points.
+
+ Record Sig: Type := Make {
+   core_data: Type;
+   match_states: core_data -> meminj -> xS -> mem -> xT -> mem -> Prop;
    _ : (forall i: nat, RelyGuaranteeSimulation.Sig (core_simulations i)) -> 
        genvs_domain_eq ge_S ge_T -> 
        (forall i: nat, genvs_domain_eq ge_S (genv_mapS i)) -> 
        (forall i: nat, genvs_domain_eq ge_T (genv_mapT i)) -> 
        core_compatible ge_S genv_mapS E_S -> 
        core_compatible ge_T genv_mapT E_T -> 
-       CompilabilityInvariant.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
-                  E_S E_T core_simulations match_states -> 
-       Forward_simulation_inject dS dT esemS esemT 
-                  ge_S ge_T entry_points
+       @CompilabilityInvariant.Sig F_S V_S F_T V_T xS xT 
+                  fS fT vS vT cS cT dS dT Z Zint Zext 
+                  esemS esemT csemS csemT csig esig handled
+                  ge_S ge_T genv_mapS genv_mapT 
+                  E_S E_T entry_points core_simulations core_data match_states -> 
+       CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.
 
-End CompilableExtension. End CompilableExtension.
+End EXTENSION_COMPILABILITY. End EXTENSION_COMPILABILITY. 
 

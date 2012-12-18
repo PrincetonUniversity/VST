@@ -623,7 +623,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  
  Inductive internal_compilability_invariant: Type := 
    InternalCompilabilityInvariant: forall 
-  (match_others: forall i cd j j' s1 cd' c1 m1 c1' m1' s2 c2 m2 c2' m2' d1 d2 n,
+  (match_others: forall i cd j j' s1 cd' c1 m1 c1' m1' s2 c2 m2 c2' m2' d1 d2 n, 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     PROJ_CORE E_S i s1 = Some d1 -> 
@@ -639,15 +639,17 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' -> 
     match_state (core_simulations i) (cd i) j' d1 m1' d2 m2')
 
-  (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n,
+  (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
+    match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
-    RUNNABLE E_S s1'=RUNNABLE E_T s2')     
+    match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' ->        
+    RUNNABLE E_S s1'=RUNNABLE E_T s2')
 
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
     RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
@@ -711,6 +713,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state (core_simulations i) cd j' d1 m1' d2 m2')
 
   (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+    In (v1, v2, sig) entry_points -> 
     make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
@@ -814,7 +817,7 @@ split; auto.
  split.
  inv esig_compilable.
  specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2).
- specialize (corestep_runnable c2 m2 c2' m2' st2' (S n)).
+ specialize (corestep_runnable c2 m2 c2' m2' st2' (S n) (cd (ACTIVE E_S st1)) cd' j j').
  spec corestep_runnable; auto.
  
   intros i _c _PROJ1'.
@@ -895,7 +898,8 @@ split; auto.
  rewrite <-ACT2'; auto.
  split.
  inv esig_compilable.
- specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n).
+ specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n
+   (cd (ACTIVE E_S st1)) cd' j j').
  spec corestep_runnable; auto.
 
   intros i _c _PROJ1'.
@@ -1166,7 +1170,7 @@ Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.
 
-Module CompilableExtension. Section CompilableExtension. 
+Module ExtensionCompilability. Section ExtensionCompilability. 
  Variables
   (F_S V_S F_T V_T: Type) (** global environments *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
@@ -1219,27 +1223,28 @@ Module CompilableExtension. Section CompilableExtension.
      (genv_mapS i) (genv_mapT i) entry_points.
 
  Lemma ExtensionCompilability: 
-   CompilableExtension.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
+   EXTENSION_COMPILABILITY.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
                E_S E_T core_simulations.
  Proof.
- eapply (@CompilableExtension.Make 
+ eapply (@EXTENSION_COMPILABILITY.Make 
   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
- (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
-   core_simulations max_threads)
+(* (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
+   core_simulations max_threads)*)
  (@ExtendedSimulations.match_states 
   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
   E_S E_T entry_points core_simulations)).
  intros H1 H2 H3 H4 H5 H6 H7.
+ econstructor; eauto.
  eapply ExtendedSimulations.extended_simulation
   with (core_simulations := core_simulations); eauto.
  eapply ExtendedSimulations.RGsimulations_invariant; eauto.
 Qed.
 
-End CompilableExtension. End CompilableExtension.
+End ExtensionCompilability. End ExtensionCompilability.
 
 (** A specialization of the CompilableExtension theorem to single-core systems *)
 
-Module CompilableExtension2. Section CompilableExtension2. 
+Module ExtensionCompilability2. Section ExtensionCompilability2. 
  Variables
   (F_S V_S F_T V_T fS fT vS vT: Type) (** global environments *)
   (cS cT: Type) (** corestates of source and target core semantics *)
@@ -1274,26 +1279,23 @@ Module CompilableExtension2. Section CompilableExtension2.
 
  Definition genv_mapS := fun i:nat => geS.
  Definition genv_mapT := fun i:nat => geT.
-    
+
  Lemma ExtensionCompilability: 
-   CompilableExtension.Sig 
-    (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) 
-    ge_S ge_T genv_mapS genv_mapT E_S E_T core_simulations.
+   EXTENSION_COMPILABILITY.Sig 
+     (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) 
+     ge_S ge_T genv_mapS genv_mapT E_S E_T core_simulations.
  Proof.
- eapply (@CompilableExtension.Make 
+ eapply (@EXTENSION_COMPILABILITY.Make 
   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
- (ExtendedSimulations.core_ords 
-    (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) (fun _ => cS) (fun _ => cT)
-    (fun _ => csemS) (fun _ => csemT) genv_mapS genv_mapT
-   core_simulations max_threads)
  (@ExtendedSimulations.match_states 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
   E_S E_T entry_points core_simulations)).
  intros H1 H2 H3 H4 H5 H6 H7.
+ econstructor; eauto.
  eapply ExtendedSimulations.extended_simulation
   with (core_simulations := core_simulations); eauto.
  eapply ExtendedSimulations.RGsimulations_invariant; eauto.
 Qed.
 
-End CompilableExtension2. End CompilableExtension2.
+End ExtensionCompilability2. End ExtensionCompilability2.
 
