@@ -277,8 +277,279 @@ Proof. intros.
   intros; split. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj23). apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj23).
 Qed.
 
-Section INJINJ.
+Definition AccessMap_EE_Property  (m1' m2 m3':Mem.mem) 
+           (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=
+  forall b ofs k, 
+            (Mem.valid_block m2 b -> 
+                      match ZMap.get b m1'.(Mem.mem_access) ofs k, ZMap.get b m2.(Mem.mem_access) ofs k,
+                                  ZMap.get b AM ofs k, ZMap.get b m3'.(Mem.mem_access) ofs k 
+                      with Some p1', Some p2, Some p2', Some p3' => True
+                             | _ , _ , _, _ => False
+                       end)
+     /\ (~ Mem.valid_block m2 b -> ZMap.get b AM ofs k = ZMap.get b m3'.(Mem.mem_access) ofs k).
 
+Parameter mkAccessMap_EE_exists: forall (m1' m2 m3':Mem.mem), ZMap.t (Z -> perm_kind -> option permission).
+Axiom mkAccessMap_EE_ok: forall m1' m2 m3', AccessMap_EE_Property m1' m2 m3' (mkAccessMap_EE_exists m1' m2 m3').
+
+Definition mkEE (m1' m2 m3':Mem.mem) (NB: forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b): Mem.mem'.
+eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))(mem_access:=mkAccessMap_EE_exists m1' m2 m3').
+  apply m3'.(Mem.mem_contents).
+  apply m3'.
+  intros. admit.
+  intros. assert (Pr:= mkAccessMap_EE_ok m1' m2 m3').
+         destruct (Pr b ofs k) as [_ X].
+         rewrite X. apply m3'. apply H. 
+         clear - H NB. intros X. apply NB in X. unfold Mem.valid_block in X.  omega. 
+Defined.
+
+Lemma pushout_EE_new: forall m1 m2 (Ext12: Mem.extends m1 m2) m1' (Fwd1: mem_forward m1 m1')
+                           m3 (Ext23: Mem.extends m2 m3) m3' (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
+                                          (UnchOn3: mem_unchanged_on (loc_out_of_bounds m1) m3 m3'),
+       exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\ Mem.extends m2' m3' /\
+                          mem_unchanged_on (loc_out_of_bounds m1) m2 m2'.
+Proof. intros.
+   assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
+      intros. apply Fwd3. destruct Ext23. unfold Mem.valid_block. rewrite <- mext_next. apply H.
+   exists (mkEE m1' m2 m3' NB).
+   split. (*mem_forward2*) intros b; intros.
+Admitted.
+
+Section EXTEXT.
+Lemma  diagram_extext: forall
+(G1 C1 D1 : Type)
+(G2 C2 D2 : Type)
+(G3 C3 D3 : Type)
+(Sem1 : CoreSemantics G1 C1 mem D1)
+(Sem2 : CoreSemantics G2 C2 mem D2)
+(Sem3 : CoreSemantics G3 C3 mem D3)
+(core_data12 : Type)
+(match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
+(core_ord12 : core_data12 -> core_data12 -> Prop)
+(Genv2 : G2)
+(Genv1 : G1)
+(core_diagram12 : forall (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
+                 corestep Sem1 Genv1 st1 m1 st1' m1' ->
+                 forall (cd : core_data12) (st2 : C2) (m2 : mem),
+                 match_core12 cd st1 m1 st2 m2 ->
+                 exists st2' : C2,
+                   exists m2' : mem,
+                     exists cd' : core_data12,
+                       match_core12 cd' st1' m1' st2' m2' /\
+                       (corestep_plus Sem2 Genv2 st2 m2 st2'
+                          m2' \/
+                        corestep_star Sem2 Genv2 st2 m2 st2'
+                          m2' /\ core_ord12 cd' cd))
+(core_data23 : Type)
+(match_core23 : core_data23 -> C2 -> mem -> C3 -> mem -> Prop)
+(core_ord23 : core_data23 -> core_data23 -> Prop)
+(Genv3 : G3)
+(core_diagram23 : forall (st1 : C2) (m1 : mem) (st1' : C2) (m1' : mem),
+                 corestep Sem2 Genv2 st1 m1 st1' m1' ->
+                 forall (cd : core_data23) (st2 : C3) (m2 : mem),
+                 match_core23 cd st1 m1 st2 m2 ->
+                 exists st2' : C3,
+                   exists m2' : mem,
+                     exists cd' : core_data23,
+                       match_core23 cd' st1' m1' st2' m2' /\
+                       (corestep_plus Sem3 Genv3 st2 m2 st2'
+                          m2' \/
+                        corestep_star Sem3 Genv3 st2 m2 st2'
+                          m2' /\ core_ord23 cd' cd))
+(st1 : C1)
+(m1 : mem)
+(st1' : C1)
+(m1' : mem)
+(CS1 : corestep Sem1 Genv1 st1 m1 st1' m1')
+(d12 : core_data12)
+(d23 : core_data23)
+(st3 : C3)
+(m3 : mem)
+(st2 : C2)
+(m2 : mem)
+(MC12 : match_core12 d12 st1 m1 st2 m2)
+(MC23 : match_core23 d23 st2 m2 st3 m3),
+exists st3' : C3,
+  exists m3' : mem,
+    exists cd' : core_data12 * option C2 * core_data23,
+      (let (y, d2) := cd' in
+       let (d1, X) := y in
+       exists c2 : C2,
+         exists m2 : mem,
+           X = Some c2 /\
+           match_core12 d1 st1' m1' c2 m2 /\ match_core23 d2 c2 m2 st3' m3') /\
+      (corestep_plus Sem3 Genv3 st3 m3 st3' m3' \/
+       corestep_star Sem3 Genv3 st3 m3 st3' m3' /\
+       clos_trans (core_data12 * option C2 * core_data23)
+         (sem_compose_ord_eq_eq core_ord12 core_ord23 C2) cd'
+         (d12, Some st2, d23)).
+Proof. intros.
+    destruct (core_diagram12 _ _ _ _ CS1 _ _ _ MC12) as [st2' [m2' [d12' [MC12' Y]]]]. clear core_diagram12.
+    assert (ZZ: corestep_plus Sem2 Genv2 st2 m2 st2' m2' \/  (st2,m2) = (st2',m2') /\ core_ord12 d12' d12).
+       destruct Y. auto.
+       destruct H.
+       destruct H. destruct x.
+       right. split; auto.
+       left. exists x; auto.
+    clear Y. destruct ZZ as [CS2 | CS2 ord12'].
+     (*case1*) 
+    destruct CS2.
+    clear MC12 CS1.
+    revert d23 st2 st2' m2' m2 st3 m3 MC23 MC12' H.
+    induction x; intros. 
+      (*base case*) simpl in H.
+          destruct H as [c2 [m2'' [? ?]]].
+          inv H0.
+          destruct (core_diagram23 _ _ _ _ H _ _ _ MC23) as [st3' [m3' [d23' [? ?]]]].
+          exists st3'. exists m3'. exists (d12',Some st2',d23').
+          split. exists st2'. exists m2'. split. trivial. split; assumption. 
+          destruct H1. left; assumption.
+          destruct H1. right. split; trivial.
+          apply t_step. constructor 2. apply H2.
+     (*inductive case*)
+           remember (S x) as x'. simpl in H.
+           destruct H as [st2'' [m2'' [? ?]]]. subst x'.
+           destruct (core_diagram23 _ _ _ _  H _ _ _ MC23) as [c3' [m3' [d'' [? ?]]]].
+           specialize (IHx _ _ _ _ _ _ _ H1 MC12' H0).
+           destruct IHx as [c3'' [m3'' [[[d12''' cc2''] d23'']   [[c2'' [m2'''' [X [MC12'' MC23'']]]] ?]]]]; subst.
+           exists c3''. exists m3''. exists (d12''', Some c2'',d23'').
+           split. exists c2''. exists m2''''. auto.
+           (*inv H8. constructor. auto.
+           split. auto.*)
+           destruct H2; destruct H3.
+           (*1/4*)
+              left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                      exists (n1 + S n2)%nat.
+                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
+                      rewrite corestepN_add. eauto.
+           (*2/4*)
+               destruct H3.
+               left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                       exists (n1 + n2)%nat.
+                       change (S (n1 + n2)) with (S n1 + n2)%nat.
+                       rewrite corestepN_add. eauto.
+           (*3/4*)
+               left. destruct H2.
+                       destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                       exists (n1 + n2)%nat.
+                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
+                       rewrite corestepN_add. eauto.
+           (*3/4*)
+               right. destruct H2. destruct H3.
+               split. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                         exists (n1 + n2)%nat.
+                         rewrite corestepN_add. eauto.
+              eapply t_trans; eauto.
+          (*4/4*)
+              apply t_step.
+              constructor 2. apply H4.
+  (*case 2*)
+    destruct CS2. inv H.
+    exists st3. exists m3. exists (d12',Some st2',d23).
+    split. exists st2'. exists m2'. split. trivial. split; assumption.
+(*    apply extends_refl.
+    inv H4.*)
+(*    split. constructor; auto.*)
+    right. split. exists O. simpl; auto.
+                       apply t_step. constructor 1; auto.
+Qed.
+
+Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
+(I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
+(Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
+(Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+(Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
+       ExternIdents epts12  epts23 entrypoints13
+       (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
+       (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
+       (e12 : prog_main P1 = prog_main P2)
+       (g12: CompilerCorrectness.GenvHyp P1 P2)       
+       (EPC: entrypoints_compose epts12 epts23 entrypoints13)
+       (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig) ExternIdents)
+       (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
+       (i1: I F1 C1 V1 Sem1 P1)
+(Ext_init12 : forall m1 : mem,
+             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
+             exists m2 : mem,
+               initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
+               Mem.extends m1 m2)
+(SimExt12 : Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
+             (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+             (Genv.globalenv P2) epts12)
+(SimExt23 : Sim_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
+             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+             (Genv.globalenv P3) epts23).
+
+Lemma extext: Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
+                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+                                       (Genv.globalenv P3) entrypoints13. 
+Proof. intros.
+      destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
+      destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+       eapply Sim_ext.Build_Forward_simulation_extends with
+                 (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
+                 (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\ 
+                                                  match_core12 d1 c1 m1 c2 m2 /\ match_core23 d2 c2 m2 c3 m3 end).
+            (*well_founded*)
+                 eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
+            (*core_diagram*)
+                 clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
+                          i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Ext_init12 SimExt12 SimExt23.
+                 intros. rename st2 into st3. rename m2 into m3.
+                 destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
+                 eapply (diagram_extext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
+             (*initial_core*)
+                  intros. rename m2 into m3. rename vals' into args3. rename vals into args1. rename v2 into v3.
+                  rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
+                  assert (HT: Forall2 Val.has_type args1 (sig_args sig)). eapply forall_lessdef_hastype; eassumption.
+                  destruct (core_initial12 _ _ _ EP12 _ _ m1 _ (forall_lessdef_refl args1) HT (extends_refl _)) as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
+                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ H0 H1 H2) as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
+                  rewrite Ini22 in Ini2. inv Ini2.
+                  exists (d12,Some c2, d23). exists c1. exists c3. split; trivial. split; trivial.
+                  exists c2. exists m1. split; trivial. split; trivial.
+             (*safely_halted*)
+                    intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    apply (core_halted12 _ _ _ _ _ _ MC12) in H0. destruct H0 as [v2 [V12 [SH2 Ext12]]].
+                    apply (core_halted23 _ _ _ _ _ _ MC23) in SH2. destruct SH2 as [v3 [V23 [SH3 Ext23]]].
+                    exists v3. split. eapply Val.lessdef_trans; eassumption.
+                       split; trivial. eapply extends_trans; eassumption.
+             (*atexternal*)
+                    intros. rename st2 into st3. rename m2 into m3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0. destruct H0 as [vals2 [Ext12 [LD12 [HT2 AtExt2]]]].
+                    apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2. destruct AtExt2 as [vals3 [Ext23 [LS23 [HT3 AtExt3]]]]. 
+                    exists vals3. split.  eapply extends_trans; eassumption.
+                       split. eapply forall_lessdef_trans; eassumption.
+                        split; assumption.
+             (*after_external*)
+                    intros. rename st2 into st3. rename m2 into m3. rename m2' into m3'.  rename vals2 into vals3. rename ret2 into ret3. 
+                    destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H0)  as [vals2 [Ext12 [ValsLD12 [HTVals2 AtExt2]]]].
+                    destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2)  as [vals33 [Ext23 [ValsLD23 [HTVals3 AtExt3]]]].
+                    rewrite AtExt3 in H1. inv H1.
+                    assert (HTR1: Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eassumption.
+                    assert (UnchOn3 :  mem_unchanged_on (loc_out_of_bounds m2) m3 m3').
+                        split; intros; eapply H6; trivial.
+                                 eapply extends_loc_out_of_bounds; eassumption.
+                                 intros. apply H in H10. eapply extends_loc_out_of_bounds; eassumption.
+(*                    destruct (PUSHOUTS.pushout_EE _ _ _ Ext12 H4) as [m2' [Fwd2 [Ext12' [UnchOn2 Ext23']]]].
+                    destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H0 AtExt2 
+                            ValsLD12 HTVals2 H4 Fwd2 UnchOn2 (Val.lessdef_refl _) Ext12' HTR1) as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]].
+                    specialize (Ext23' _ Ext23 _ H5 H6).
+                    destruct (core_after_external23 _ _ _ _ _ _ _ _ ret1 ret3 _ _ _ MC23  AtExt2 AtExt3
+                            ValsLD23 HTVals3 Fwd2 H5 UnchOn3 H7 Ext23' H9) as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]].
+*)
+                    destruct  (pushout_EE_new _ _ Ext12 _ H4 _ Ext23 _ H5 H8 H6) as [m2' [Fwd2 [Ext12' [Ext23' UnchOn2]]]].
+                    destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H0 AtExt2 
+                            ValsLD12 HTVals2 H4 Fwd2 UnchOn2 (Val.lessdef_refl _) Ext12' HTR1) as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]].
+                    destruct (core_after_external23 _ _ _ _ _ _ _ _ ret1 ret3 _ _ _ MC23  AtExt2 AtExt3
+                            ValsLD23 HTVals3 Fwd2 H5 UnchOn3 H7 Ext23' H9) as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]].
+
+                    rewrite AftExt22 in AftExt2. inv AftExt2.
+                    exists c1'. exists c3'. exists (d12',Some c2', d23'). split; trivial. split; trivial.
+                    exists c2'. exists m2'. split; trivial. split; trivial.
+Qed.
+End EXTEXT.
+
+Section INJINJ.
 Lemma diagram_injinj: forall
 (G1 C1 D1 : Type)
 (G2 C2 D2 : Type)
@@ -559,8 +830,8 @@ Proof.
 (*assert (WD1: MEM_WD.mem_wd m1). admit.*)
                   assert (X: Mem.inject (Mem.flat_inj (Mem.nextblock m1)) m1 m1 /\ 
                              j = compose_meminj (Mem.flat_inj (Mem.nextblock m1)) j ).
-                      split. apply MEM_WD.mem_wd_E.  admit. (*need  MEM_WD.mem_wd m1*) 
-                             eapply (MEM_WD.meminj_split_flatinjL _ _ _ H1).  admit. (*need  MEM_WD.mem_wd m1*) 
+                      split. apply mem_wd_E.  admit. (*need  MEM_WD.mem_wd m1*) 
+                             eapply (meminj_split_flatinjL _ _ _ H1).  admit. (*need  MEM_WD.mem_wd m1*) 
                   destruct X as [Flat1 XX]. rewrite XX.
                   assert (ValInjFlat1 := forall_val_inject_flat _ _ _ H1 _ _ H2).
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 Flat1 ValInjFlat1 HT) as [d12 [c2 [Ini2 MC12]]].
@@ -1626,234 +1897,6 @@ Proof.
                     exists c1'. exists c3'. exists (d12',Some c2', d23'). split; trivial. split; trivial. exists c2'. split; trivial. split; trivial.
 Qed.       
 End EXTEQ.
-
-Section EXTEXT.
-Lemma  diagram_extext: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
-(core_data12 : Type)
-(match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
-(core_ord12 : core_data12 -> core_data12 -> Prop)
-(Genv2 : G2)
-(Genv1 : G1)
-(core_diagram12 : forall (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
-                 corestep Sem1 Genv1 st1 m1 st1' m1' ->
-                 forall (cd : core_data12) (st2 : C2) (m2 : mem),
-                 match_core12 cd st1 m1 st2 m2 ->
-                 exists st2' : C2,
-                   exists m2' : mem,
-                     exists cd' : core_data12,
-                       match_core12 cd' st1' m1' st2' m2' /\
-                       (corestep_plus Sem2 Genv2 st2 m2 st2'
-                          m2' \/
-                        corestep_star Sem2 Genv2 st2 m2 st2'
-                          m2' /\ core_ord12 cd' cd))
-(core_data23 : Type)
-(match_core23 : core_data23 -> C2 -> mem -> C3 -> mem -> Prop)
-(core_ord23 : core_data23 -> core_data23 -> Prop)
-(Genv3 : G3)
-(core_diagram23 : forall (st1 : C2) (m1 : mem) (st1' : C2) (m1' : mem),
-                 corestep Sem2 Genv2 st1 m1 st1' m1' ->
-                 forall (cd : core_data23) (st2 : C3) (m2 : mem),
-                 match_core23 cd st1 m1 st2 m2 ->
-                 exists st2' : C3,
-                   exists m2' : mem,
-                     exists cd' : core_data23,
-                       match_core23 cd' st1' m1' st2' m2' /\
-                       (corestep_plus Sem3 Genv3 st2 m2 st2'
-                          m2' \/
-                        corestep_star Sem3 Genv3 st2 m2 st2'
-                          m2' /\ core_ord23 cd' cd))
-(st1 : C1)
-(m1 : mem)
-(st1' : C1)
-(m1' : mem)
-(CS1 : corestep Sem1 Genv1 st1 m1 st1' m1')
-(d12 : core_data12)
-(d23 : core_data23)
-(st3 : C3)
-(m3 : mem)
-(st2 : C2)
-(m2 : mem)
-(MC12 : match_core12 d12 st1 m1 st2 m2)
-(MC23 : match_core23 d23 st2 m2 st3 m3),
-exists st3' : C3,
-  exists m3' : mem,
-    exists cd' : core_data12 * option C2 * core_data23,
-      (let (y, d2) := cd' in
-       let (d1, X) := y in
-       exists c2 : C2,
-         exists m2 : mem,
-           X = Some c2 /\
-           match_core12 d1 st1' m1' c2 m2 /\ match_core23 d2 c2 m2 st3' m3') /\
-      (corestep_plus Sem3 Genv3 st3 m3 st3' m3' \/
-       corestep_star Sem3 Genv3 st3 m3 st3' m3' /\
-       clos_trans (core_data12 * option C2 * core_data23)
-         (sem_compose_ord_eq_eq core_ord12 core_ord23 C2) cd'
-         (d12, Some st2, d23)).
-Proof. intros.
-    destruct (core_diagram12 _ _ _ _ CS1 _ _ _ MC12) as [st2' [m2' [d12' [MC12' Y]]]]. clear core_diagram12.
-    assert (ZZ: corestep_plus Sem2 Genv2 st2 m2 st2' m2' \/  (st2,m2) = (st2',m2') /\ core_ord12 d12' d12).
-       destruct Y. auto.
-       destruct H.
-       destruct H. destruct x.
-       right. split; auto.
-       left. exists x; auto.
-    clear Y. destruct ZZ as [CS2 | CS2 ord12'].
-     (*case1*) 
-    destruct CS2.
-    clear MC12 CS1.
-    revert d23 st2 st2' m2' m2 st3 m3 MC23 MC12' H.
-    induction x; intros. 
-      (*base case*) simpl in H.
-          destruct H as [c2 [m2'' [? ?]]].
-          inv H0.
-          destruct (core_diagram23 _ _ _ _ H _ _ _ MC23) as [st3' [m3' [d23' [? ?]]]].
-          exists st3'. exists m3'. exists (d12',Some st2',d23').
-          split. exists st2'. exists m2'. split. trivial. split; assumption. 
-          destruct H1. left; assumption.
-          destruct H1. right. split; trivial.
-          apply t_step. constructor 2. apply H2.
-     (*inductive case*)
-           remember (S x) as x'. simpl in H.
-           destruct H as [st2'' [m2'' [? ?]]]. subst x'.
-           destruct (core_diagram23 _ _ _ _  H _ _ _ MC23) as [c3' [m3' [d'' [? ?]]]].
-           specialize (IHx _ _ _ _ _ _ _ H1 MC12' H0).
-           destruct IHx as [c3'' [m3'' [[[d12''' cc2''] d23'']   [[c2'' [m2'''' [X [MC12'' MC23'']]]] ?]]]]; subst.
-           exists c3''. exists m3''. exists (d12''', Some c2'',d23'').
-           split. exists c2''. exists m2''''. auto.
-           (*inv H8. constructor. auto.
-           split. auto.*)
-           destruct H2; destruct H3.
-           (*1/4*)
-              left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
-                      exists (n1 + S n2)%nat.
-                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
-                      rewrite corestepN_add. eauto.
-           (*2/4*)
-               destruct H3.
-               left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
-                       exists (n1 + n2)%nat.
-                       change (S (n1 + n2)) with (S n1 + n2)%nat.
-                       rewrite corestepN_add. eauto.
-           (*3/4*)
-               left. destruct H2.
-                       destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
-                       exists (n1 + n2)%nat.
-                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
-                       rewrite corestepN_add. eauto.
-           (*3/4*)
-               right. destruct H2. destruct H3.
-               split. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
-                         exists (n1 + n2)%nat.
-                         rewrite corestepN_add. eauto.
-              eapply t_trans; eauto.
-          (*4/4*)
-              apply t_step.
-              constructor 2. apply H4.
-  (*case 2*)
-    destruct CS2. inv H.
-    exists st3. exists m3. exists (d12',Some st2',d23).
-    split. exists st2'. exists m2'. split. trivial. split; assumption.
-(*    apply extends_refl.
-    inv H4.*)
-(*    split. constructor; auto.*)
-    right. split. exists O. simpl; auto.
-                       apply t_step. constructor 1; auto.
-Qed.
-
-Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
-(I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-(Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-(Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
-(Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
-       ExternIdents epts12  epts23 entrypoints13
-       (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
-       (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
-       (e12 : prog_main P1 = prog_main P2)
-       (g12: CompilerCorrectness.GenvHyp P1 P2)       
-       (EPC: entrypoints_compose epts12 epts23 entrypoints13)
-       (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig) ExternIdents)
-       (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
-       (i1: I F1 C1 V1 Sem1 P1)
-(Ext_init12 : forall m1 : mem,
-             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
-             exists m2 : mem,
-               initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
-               Mem.extends m1 m2)
-(SimExt12 : Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-             (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
-             (Genv.globalenv P2) epts12)
-(SimExt23 : Sim_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
-             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
-             (Genv.globalenv P3) epts23).
-
-Lemma extext: Sim_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
-                                       (Genv.globalenv P3) entrypoints13. 
-Proof. intros.
-      destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-      destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-       eapply Sim_ext.Build_Forward_simulation_extends with
-                 (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
-                 (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\ 
-                                                  match_core12 d1 c1 m1 c2 m2 /\ match_core23 d2 c2 m2 c3 m3 end).
-            (*well_founded*)
-                 eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
-            (*core_diagram*)
-                 clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
-                          i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Ext_init12 SimExt12 SimExt23.
-                 intros. rename st2 into st3. rename m2 into m3.
-                 destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
-                 eapply (diagram_extext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
-             (*initial_core*)
-                  intros. rename m2 into m3. rename vals' into args3. rename vals into args1. rename v2 into v3.
-                  rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-                  assert (HT: Forall2 Val.has_type args1 (sig_args sig)). eapply forall_lessdef_hastype; eassumption.
-                  destruct (core_initial12 _ _ _ EP12 _ _ m1 _ (forall_lessdef_refl args1) HT (extends_refl _)) as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
-                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ H0 H1 H2) as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-                  rewrite Ini22 in Ini2. inv Ini2.
-                  exists (d12,Some c2, d23). exists c1. exists c3. split; trivial. split; trivial.
-                  exists c2. exists m1. split; trivial. split; trivial.
-             (*safely_halted*)
-                    intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-                    apply (core_halted12 _ _ _ _ _ _ MC12) in H0. destruct H0 as [v2 [V12 [SH2 Ext12]]].
-                    apply (core_halted23 _ _ _ _ _ _ MC23) in SH2. destruct SH2 as [v3 [V23 [SH3 Ext23]]].
-                    exists v3. split. eapply Val.lessdef_trans; eassumption.
-                       split; trivial. eapply extends_trans; eassumption.
-             (*atexternal*)
-                    intros. rename st2 into st3. rename m2 into m3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-                    apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0. destruct H0 as [vals2 [Ext12 [LD12 [HT2 AtExt2]]]].
-                    apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2. destruct AtExt2 as [vals3 [Ext23 [LS23 [HT3 AtExt3]]]]. 
-                    exists vals3. split.  eapply extends_trans; eassumption.
-                       split. eapply forall_lessdef_trans; eassumption.
-                        split; assumption.
-             (*after_external*)
-                    intros. rename st2 into st3. rename m2 into m3. rename m2' into m3'.  rename vals2 into vals3. rename ret2 into ret3. 
-                    destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-                    destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H0)  as [vals2 [Ext12 [ValsLD12 [HTVals2 AtExt2]]]].
-                    destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2)  as [vals33 [Ext23 [ValsLD23 [HTVals3 AtExt3]]]].
-                    rewrite AtExt3 in H1. inv H1.
-                   assert (HTR1: Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eassumption.
-                    destruct (PUSHOUTS.pushout_EE _ _ _ Ext12 H4) as [m2' [Fwd2 [Ext12' [UnchOn2 Ext23']]]].
-                    destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H0 AtExt2 
-                            ValsLD12 HTVals2 H4 Fwd2 UnchOn2 (Val.lessdef_refl _) Ext12' HTR1) as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]].
-                    assert (UnchOn3 :  mem_unchanged_on (loc_out_of_bounds m2) m3 m3').
-                        split; intros; eapply H6; trivial.
-                                 eapply extends_loc_out_of_bounds; eassumption.
-                                 intros. apply H in H10. eapply extends_loc_out_of_bounds; eassumption.
-                    specialize (Ext23' _ Ext23 _ H5 H6).
-                    destruct (core_after_external23 _ _ _ _ _ _ _ _ ret1 ret3 _ _ _ MC23  AtExt2 AtExt3
-                            ValsLD23 HTVals3 Fwd2 H5 UnchOn3 H7 Ext23' H9) as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]].
-                    rewrite AftExt22 in AftExt2. inv AftExt2.
-                    exists c1'. exists c3'. exists (d12',Some c2', d23'). split; trivial. split; trivial.
-                    exists c2'. exists m2'.  split; trivial. split; trivial.
-Qed.
-End EXTEXT.
 
 Section EXTINJ.
 Lemma  diagram_extinj: forall

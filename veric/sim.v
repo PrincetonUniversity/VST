@@ -1,6 +1,7 @@
 Load loadpath.
 Require Import veric.base.
 Require Import Events.
+Require Export veric.MemEvolve.
 
 Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m m'.
   Proof. intros j m m' b; intros. congruence. Qed.
@@ -173,34 +174,6 @@ Section corestepN.
 
 End corestepN.
 
-(* A minimal preservation property we sometimes require.*)
-Definition mem_forward (m1 m2:mem) :=
-  (forall b, Mem.valid_block m1 b ->
-      Mem.valid_block m2 b /\ 
-       forall ofs p, Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p).
-       (*was: forall ofs, Mem.perm m1 b ofs Max = Mem.perm m2 b ofs Max*)
-
-Lemma mem_forward_refl: forall m, mem_forward m m.
-  Proof. intros m b H. split; eauto. Qed. 
-
-Lemma mem_forward_trans: forall m1 m2 m3, 
-  mem_forward m1 m2 -> mem_forward m2 m3 -> mem_forward m1 m3.
-  Proof. intros. intros  b Hb.
-    destruct (H _ Hb). 
-    destruct (H0 _ H1).
-    split; eauto. Qed. 
-
-Lemma external_call_mem_forward:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-  external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
-  Proof.
-    intros.
-    intros b Hb.
-    split; intros. eapply external_call_valid_block; eauto.
-      eapply external_call_max_perm; eauto.
-  Qed.
-
 Lemma inject_separated_incr_fwd: forall j j' m1 m2 j'' m2'
                         (InjSep : inject_separated j j' m1 m2)
                         (InjSep' : inject_separated j' j'' m1 m2')
@@ -216,6 +189,17 @@ destruct (InjSep' _ _ _ Heqz H0).
     split. trivial.
     intros N. apply H2. eapply Fwd. apply N.
 Qed.
+
+Lemma external_call_mem_forward:
+  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
+  external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
+  Proof.
+    intros.
+    intros b Hb.
+    split; intros. eapply external_call_valid_block; eauto.
+      eapply external_call_max_perm; eauto.
+  Qed.
 
 (*
  This predicate restricts what coresteps are allowed
