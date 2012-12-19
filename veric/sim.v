@@ -526,7 +526,6 @@ Section Forward_simulation_inject.
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
           {Sem2 : CoreSemantics G2 C2 mem D2}
-
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
@@ -534,7 +533,6 @@ Section Forward_simulation_inject.
 Record Forward_simulation_inject := {
     core_data : Type;
     match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
-
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
     core_diagram : 
@@ -615,6 +613,121 @@ End Forward_simulation_inject.
 (*Implicit Arguments Forward_simulation_inject [[G1] [C1] [G2] [C2]].*)
 Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 End Sim_inj.
+
+(* An axiom for passes that use memory injections 
+   -- exposes core_data and match_state *)
+Module Sim_inj_exposed.
+Section Forward_simulation_inject. 
+  Context {F1 V1 C1 D1 G2 C2 D2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
+          {Sem2 : CoreSemantics G2 C2 mem D2}
+
+          {ge1: Genv.t F1 V1}
+          {ge2:G2}
+          {entry_points : list (val * val * signature)}
+          {core_data : Type}
+          {match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop}.
+
+Record Forward_simulation_inject := {
+    core_ord : core_data -> core_data -> Prop;
+    core_ord_wf : well_founded core_ord;
+    core_diagram : 
+      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
+      forall cd st2 j m2,
+        match_state cd j st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists j',
+          inject_incr j j' /\
+          inject_separated j j' m1 m2 /\
+          match_state cd' j' st1' m1' st2' m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            core_ord cd' cd);
+
+    core_initial : forall v1 v2 sig,
+       In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 j vals2 m2,
+          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          Mem.inject j m1 m2 -> 
+           Forall2 (val_inject j) vals1 vals2 ->
+          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          exists cd, exists c2, 
+            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            match_state cd j c1 m1 c2 m2;
+
+    core_halted : forall cd j c1 m1 c2 m2 v1,
+      match_state cd j c1 m1 c2 m2 ->
+      safely_halted Sem1 c1 = Some v1 ->
+     exists v2, val_inject j v1 v2 /\
+          safely_halted Sem2 c2 = Some v2 /\
+          Mem.inject j m1 m2;
+
+    core_at_external : 
+      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
+        match_state cd j st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        ( Mem.inject j m1 m2 /\
+          meminj_preserves_globals ge1 j /\ 
+          exists vals2, Forall2 (val_inject j) vals1 vals2 /\
+          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+          at_external Sem2 st2 = Some (e,ef_sig,vals2));
+
+    core_after_external :
+      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 ef_sig,
+        Mem.inject j m1 m2->
+        match_state cd j st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        meminj_preserves_globals ge1 j -> 
+
+        inject_incr j j' ->
+        inject_separated j j' m1 m2 ->
+        Mem.inject j' m1' m2' ->
+        val_inject j' ret1 ret2 ->
+
+         mem_forward m1 m1'  -> 
+         mem_unchanged_on (loc_unmapped j) m1 m1' ->
+         mem_forward m2 m2' -> 
+         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+
+        exists cd', exists st1', exists st2',
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          match_state cd' j' st1' m1' st2' m2'
+    }.
+
+End Forward_simulation_inject. 
+
+Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
+End Sim_inj_exposed.
+
+Lemma Sim_inj_exposed_hidden: 
+  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
+   (csemS: CoreSemantics (Genv.t F1 V1) C1 mem D1)
+   (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 
+   entry_points core_data match_state,
+  Sim_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+    entry_points core_data match_state -> 
+  Sim_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points.
+Proof.
+intros until match_state; intros []; intros.
+solve[eapply @Sim_inj.Build_Forward_simulation_inject 
+ with (core_data := core_data) (match_state := match_state); eauto].
+Qed.
+
+Lemma Sim_inj_hidden_exposed:
+  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
+   (csemS: CoreSemantics (Genv.t F1 V1) C1 mem D1)
+   (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 entry_points,
+  Sim_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
+  {core_data: Type & 
+    {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop & 
+      Sim_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+      entry_points core_data match_state}}.
+Proof.
+intros until entry_points; intros []; intros.
+solve[eexists; eexists; 
+ eapply @Sim_inj_exposed.Build_Forward_simulation_inject; eauto].
+Qed.
 
 (*
 Section PRECISE_MATCH_PROGRAM.
@@ -773,7 +886,8 @@ Inductive core_correctness (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+                 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
                prog_main P1 = prog_main P2 ->
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -882,7 +996,8 @@ Inductive compiler_correctness (I: forall F C V  (Sem : CompcertCoreSem (Genv.t 
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+                 (Genv.globalenv P1) (Genv.globalenv P2) entrypoints), 
                prog_main P1 = prog_main P2 ->
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -987,7 +1102,8 @@ Inductive cc_sim (I: forall F C V  (Sem : CoreSemantics (Genv.t F V) C mem (list
                                         /\ Mem.inject jInit m1 m2))
                (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
                (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+               (R:Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+                 (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
                prog_main P1 = prog_main P2 ->
 
                (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)

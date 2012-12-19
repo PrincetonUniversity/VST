@@ -224,41 +224,6 @@ Section NullExtensionSafe.
 
 End NullExtensionSafe.
 
-(*
-  (F V fS fT vS vT: Type) (** global environments *)
-  (cS cT: Type) (** corestates of source and target core semantics *)
-  (dS dT: Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F V) cS mem dS) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F V) cT mem dT) (** extended target semantics *)
-  (csemS: CoreSemantics (Genv.t fS vS) cS mem dS) 
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ext_sig mem Z) (** client signature *)
-  (esig: ext_sig mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
-
- Variables 
-  (ge: Genv.t F V) (geS: Genv.t fS vS) (geT: Genv.t fT vT).
-
- Variable (E_S: Extension.Sig (fun i => Genv.t ((fun _ => fS) i) ((fun _ => vS) i)) 
-                  (fun _ => cS) Zint esemS (fun i:nat => Some ((fun _ => csemS) i)) 
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t ((fun _ => fT) i) ((fun _ => vT) i)) 
-                  (fun _ => cT) Zint esemT (fun i:nat => Some ((fun _ => csemT) i)) 
-                  csig esig handled).
-
- Variable entry_points: list (val*val*signature).
-
- Import Sim_inj.
-
- Variable max_threads: nat.
-
- Variable core_simulations: forall i:nat, 
-   Forward_simulation_inject dS dT csemS csemT geS geT entry_points.
-*)
-
  Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
          (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ext_sig mem Z) PF
          (csem_fun: corestep_fun csem),
@@ -345,20 +310,16 @@ Section NullExtensionCompilable.
    (fun _ : nat => cT) unit csemT (fun _:nat => csemT) csig csig handled := 
   null_extension csemT csig at_external_handledT.
 
- Import Sim_inj.
-
- Variable core_simulations: forall i:nat,
-  Forward_simulation_inject dS dT csemS csemT geS geT entry_points.
-
- Variable core_simulationsRG: forall i:nat, 
-   RelyGuaranteeSimulation.Sig (core_simulations i).
-
- Definition genv_mapS := fun i:nat => geS.
- Definition genv_mapT := fun i:nat => geT.
-
- Variable max_threads: nat.
-
+ Import Sim_inj_exposed.
  Import ExtensionCompilability2.
+
+ Variable core_data: Type.
+ Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
+ Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
+   geS geT entry_points core_data match_state.
+ Variable core_simulationsRG: forall i:nat, 
+   RelyGuaranteeSimulation.Sig csemS csemT match_state.
+ Variable max_threads: nat.
 
  (*MOVE ELSEWHERE*)
  Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
@@ -367,9 +328,7 @@ Section NullExtensionCompilable.
  Qed.
 
  Lemma null_extension_compilable: 
-   corestep_fun csemS ->
-   corestep_fun csemT ->
-   genvs_domain_eq geS geT -> 
+   corestep_fun csemS -> corestep_fun csemT -> genvs_domain_eq geS geT -> 
    CompilableExtension.Sig csemS csemT geS geT entry_points.
  Proof.
  (*SOLVED BY econstructor; eauto.  WE'LL USE THE PROVIDED LEMMAS INSTEAD.*)
@@ -377,52 +336,86 @@ Section NullExtensionCompilable.
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
    csemS csemT csemS csemT csig csig handled 
-   geS geT geS geT E_S E_T entry_points max_threads
-   core_simulations) as [core_datas match_states LEM].
+   geS geT geS geT E_S E_T entry_points core_data match_state max_threads) 
+  as [LEM].
  apply LEM; auto.
- solve[intros i; unfold genv_mapS; apply genvs_domain_eq_refl; auto].
- solve[intros i; unfold genv_mapS; apply genvs_domain_eq_refl; auto].
- unfold E_S; unfold genv_mapS. 
+ solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
+ solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
+ unfold E_S, const.
  solve[apply (null_core_compatible geS csig at_external_handledS H1)].
- unfold E_T; unfold genv_mapT. 
+ unfold E_T, const.
  solve[apply (null_core_compatible geT csig at_external_handledT H2)].
 
  constructor.
- intros until n; intros H4 H5 H6 H7 H8 H9 H10.
+ intros until j'; intros H4 H5 H6 H7 H8 H9 H10 H11 PROJ1' PROJ2' MATCH12'.
  unfold E_S, E_T; simpl; unfold runnable.
- admit. (*match_states*)
+ destruct core_simulation.
+ case_eq (at_external csemS s1').
+ intros [[ef sig] vals] H12.
+ apply core_at_external0 
+  with (st2 := s2') (cd := cd') (j := j') (m1 := m1') (m2 := m2') in H12; auto.
+ destruct H12 as [_ [_ [vals2 [_ [_ H12]]]]].
+ rewrite H12; auto.
+ clear - PROJ1' PROJ2' MATCH12'.
+ simpl in *; unfold proj_core, active in *; simpl in *.
+ solve[inv PROJ1'; inv PROJ2'; auto].
+ intro H. cut (at_external csemT s2' = None). intros H'.
+ rewrite H'.
+ case_eq (safely_halted csemS s1').
+ intros v Hsafe.
+ apply core_halted0 
+  with (c2 := s2') (cd := cd') (j := j') (m1 := m1') (m2 := m2') in Hsafe; auto.
+ solve[destruct Hsafe as [v2 [Hinj [-> ?]]]; auto].
+ solve[inv PROJ1'; inv PROJ2'; auto].
+ intros Hsafe.
+ admit.
+ admit.
 
  intros until j; intros H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15.
- destruct (core_simulations O). 
+ destruct core_simulation.
  admit. (*allow core_ord in extension_diagram*)
 
- intros.
- simpl in H5.
- unfold proj_core, active in H5.
- solve[if_tac in H5; try congruence].
+ intros; simpl in H5; unfold proj_core, active in H5.
+ if_tac in H5; try congruence.
+ solve[inv H5; auto].
 
- intros.
- unfold E_S, E_T in *.
- simpl in *.
- unfold runnable.
- admit. (*match_state==>runnable_eq*)
-
- intros.
- destruct (core_simulations O).
+ intros; unfold E_S, E_T in *; simpl in *.
+ generalize H4 as H4'; generalize H5 as H5'; intros.
+ apply after_at_external_excl in H4.
+ apply after_at_external_excl in H5.
+ unfold runnable; rewrite H4, H5; auto.
+ destruct core_simulation.
+ (* match_state -> safely_halted_eq *)
+ admit.
+ 
+ intros; destruct core_simulation.
  destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 m2 H0 H4 H5 H6) 
-  as [cd' [c2 [H7 H8]]].
- admit. (*need to add In (v1, v2) entry_points to make_initial_core_diagram*) 
+  as [cd [s2 [H7 H8]]].
+ unfold EXTENSION_COMPILABILITY.core_datas in *.
+ exists (fun _ => cd); exists s2; split; auto.
+ unfold CompilabilityInvariant.match_states; simpl.
+ unfold active; split; auto.
+ split. 
+ admit. (*match_state -> runnable eq*)
+ intros i c1 H9; exists s2.
+ unfold proj_core in H9|-*; if_tac in H9; try congruence.
+ solve[inv H9; split; auto].
 
- intros.
- destruct (core_simulations O). 
- admit. (*need to know match_states==>match_state; core_datas==>core_data*)
+ intros until v1; intros MATCH12 HALT.
+ unfold CompilabilityInvariant.match_states, const in MATCH12.
+ destruct MATCH12 as [? [? MATCH12]].
+ specialize (MATCH12 O c1).
+ spec MATCH12; auto.
+ destruct MATCH12 as [c2' [PROJ MATCH12]].
+ simpl in PROJ; unfold proj_core in PROJ; inv PROJ.
+ destruct core_simulation.
+ solve[eapply core_halted0 in HALT; eauto].
 
- intros.
- destruct (core_simulations O).
+ intros; destruct core_simulation.
  apply corestep_not_halted in H6.
- simpl in H0.
- unfold proj_core, active in H0.
+ simpl in H0; unfold proj_core, active in H0.
  if_tac in H0; try congruence.
+ solve[inv H0; simpl in H5; unfold const in H5; rewrite H5 in H6; congruence].
  Qed.
 
 End NullExtensionCompilable.

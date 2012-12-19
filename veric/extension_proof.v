@@ -540,25 +540,31 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Notation ext_upd_at_external := (Extension.ext_upd_at_external).
  Notation runnable_false := (Extension.runnable_false).
 
- Import Sim_inj.
+ Variable core_data: forall i: nat, Type.
+ Variable match_state: forall i: nat, 
+   core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Implicit Arguments match_state [].
+
+ Import Sim_inj_exposed.
 
  Variable core_simulations: forall i:nat, 
    Forward_simulation_inject dS dT (csemS i) (csemT i) 
-     (genv_mapS i) (genv_mapT i) entry_points.
+   (genv_mapS i) (genv_mapT i) entry_points (core_data i) (match_state i).
 
  Variable threads_max: nat.
 
- Definition core_datas := forall i:nat, core_data (core_simulations i).
+ Definition core_datas := forall i:nat, core_data i.
 
  Definition core_datas_upd
-  i (cdi': core_data (core_simulations i)) (cd: forall i:nat, core_data (core_simulations i)): 
-  forall i:nat, core_data (core_simulations i) := fun j: nat => 
-     match eq_nat_dec i j as pf in sumbool _ _ return core_data (core_simulations j) with
+  i (cdi': core_data i) (cd: forall i:nat, core_data i): 
+  forall i:nat, core_data i := fun j: nat => 
+     match eq_nat_dec i j as pf in sumbool _ _ return core_data j with
      | left pf => match pf with
                   | eq_refl => cdi'
                   end
      | right pf => cd j
      end.
+ Implicit Arguments core_datas_upd [].
 
  Lemma core_datas_upd_same i cdi' cd: (core_datas_upd i cdi' cd) i = cdi'.
  Proof.
@@ -619,8 +625,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    RUNNABLE E_S s1=RUNNABLE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
-       match_state (core_simulations i) (cd i) j c1 m1 c2 m2.
- 
+       match_state i (cd i) j c1 m1 c2 m2.
+
  Inductive internal_compilability_invariant: Type := 
    InternalCompilabilityInvariant: forall 
   (match_others: forall i cd j j' s1 cd' c1 m1 c1' m1' s2 c2 m2 c2' m2' d1 d2 n, 
@@ -636,19 +642,21 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     Events.inject_separated j j' m1 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-    match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' -> 
-    match_state (core_simulations i) (cd i) j' d1 m1' d2 m2')
+    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
+    match_state i (cd i) j' d1 m1' d2 m2')
 
   (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-    match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
+    match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
-    match_state (core_simulations (ACTIVE E_S s1)) cd' j' c1' m1' c2' m2' ->        
+    PROJ_CORE E_S (ACTIVE E_S s1) s1' = Some c1' -> 
+    PROJ_CORE E_T (ACTIVE E_S s1) s2' = Some c2' -> 
+    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' ->        
     RUNNABLE E_S s1'=RUNNABLE E_T s2')
 
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
@@ -676,7 +684,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     at_external esemS s1 = Some (ef, sig, args1) -> 
     at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-    match_state (core_simulations (ACTIVE E_S s1)) cd j c1 m1 c2 m2 -> 
+    match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
     Mem.inject j m1 m2 -> 
     Events.meminj_preserves_globals ge_S j -> 
     Forall2 (val_inject j) args1 args2 -> 
@@ -693,7 +701,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
   (after_external_diagram: 
     forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
-    match_state (core_simulations i) cd j d1 m1 d2 m2 -> 
+    match_state i cd j d1 m1 d2 m2 -> 
     at_external esemS s1 = Some (ef, sig, args1) -> 
     Events.meminj_preserves_globals ge_S j -> 
     inject_incr j j' -> 
@@ -710,7 +718,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_S i s1' = Some d1 -> 
     PROJ_CORE E_T i s2' = Some d2 -> 
     ACTIVE E_S s1 <> i -> 
-    match_state (core_simulations i) cd j' d1 m1' d2 m2')
+    match_state i cd j' d1 m1' d2 m2')
 
   (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
@@ -752,10 +760,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (core_compatT: core_compatible ge_T genv_mapT E_T).
 
 Program Definition extended_simulation: 
-  Forward_simulation_inject dS dT esemS esemT 
-      ge_S ge_T entry_points :=
-     Build_Forward_simulation_inject 
-      core_datas match_states core_ords _ _ _ _ _ _.
+  Forward_simulation_inject dS dT esemS esemT ge_S ge_T entry_points core_datas match_states :=
+  @Build_Forward_simulation_inject _ _ _ _ _ _ _ 
+   esemS esemT ge_S ge_T entry_points core_datas match_states core_ords _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
 Next Obligation. 
 rename H0 into MATCH.
@@ -1080,11 +1087,10 @@ assert (ACTIVE E_S st1=ACTIVE E_S st1') as <-.
 assert (ACTIVE E_T st2=ACTIVE E_T st2') as <-.
  forget (ACTIVE E_S st1) as x.
  inv core_compatT.
- eapply after_ext_pres; eauto.
- auto.
+ solve[eapply after_ext_pres; eauto].
 split3; auto.
 inv esig_compilable.
-solve[eapply after_external_runnable; eauto].
+eapply after_external_runnable; eauto.
 
 intros i _c _PROJ1'.
 case_eq (eq_nat_dec (ACTIVE E_S st1) i).
@@ -1120,9 +1126,14 @@ solve[rewrite <-ACT; auto].
 Qed.
 
 Lemma RGsimulations_invariant: 
-  (forall i:nat, RelyGuaranteeSimulation.Sig (core_simulations i)) -> 
-  CompilabilityInvariant.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
-             E_S E_T core_simulations match_states -> 
+  (forall i:nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) (match_state i)) ->
+  @CompilabilityInvariant.Sig F_S V_S F_T V_T xS xT 
+       fS fT vS vT cS cT dS dT Z Zint Zext 
+       esemS esemT csemS csemT csig esig handled
+       ge_S ge_T genv_mapS genv_mapT 
+       E_S E_T entry_points core_data match_state -> 
+(*  CompilabilityInvariant.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
+             E_S E_T core_simulations match_states -> *)
   internal_compilability_invariant.
 Proof.
 intro core_simulations_RGinject.
@@ -1199,50 +1210,35 @@ Module ExtensionCompilability. Section ExtensionCompilability.
                   csig esig handled).
 
  Variable entry_points: list (val*val*signature).
-
- Notation PROJ_CORE := (Extension.proj_core).
- Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
- Notation ACTIVE := (Extension.active).
- Notation RUNNABLE := (Extension.runnable).
- Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
-   (csem i = Some CS /\ PROJ_CORE i s = Some c)
-   (at level 66, no associativity, only parsing).
- Notation core_exists := (Extension.core_exists).
- Notation active_proj_core := (Extension.active_proj_core).
- Notation notat_external_handled := (Extension.notat_external_handled).
- Notation at_external_not_handled := (Extension.at_external_not_handled).
- Notation ext_upd_at_external := (Extension.ext_upd_at_external).
- Notation runnable_false := (Extension.runnable_false).
-
- Import Sim_inj.
-
+ Variable core_data: forall i: nat, Type.
+ Variable match_state: forall i: nat, 
+   core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Implicit Arguments match_state [].
  Variable max_threads: nat.
 
- Variable core_simulations: forall i:nat, 
-   Forward_simulation_inject dS dT (csemS i) (csemT i) 
-     (genv_mapS i) (genv_mapT i) entry_points.
+ Import Sim_inj_exposed.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
-               E_S E_T core_simulations.
+       E_S E_T entry_points core_data match_state.
  Proof.
- eapply (@EXTENSION_COMPILABILITY.Make 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
-(* (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
-   core_simulations max_threads)*)
- (@ExtendedSimulations.match_states 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-  E_S E_T entry_points core_simulations)).
- intros H1 H2 H3 H4 H5 H6 H7.
- econstructor; eauto.
- eapply ExtendedSimulations.extended_simulation
-  with (core_simulations := core_simulations); eauto.
- eapply ExtendedSimulations.RGsimulations_invariant; eauto.
+ eapply @EXTENSION_COMPILABILITY.Make.
+ intros H1 H2 H3 H4 H5 H6 core_simulations H8.
+ apply CompilableExtension.Make 
+  with (core_datas := ExtendedSimulations.core_datas core_data)
+       (match_states := 
+  ExtendedSimulations.match_states fS fT vS vT E_S E_T match_state).
+ refine (ExtendedSimulations.core_ords fS fT vS vT cS cT csemS csemT genv_mapS genv_mapT 
+            core_data match_state core_simulations max_threads).
+ eapply ExtendedSimulations.extended_simulation; eauto.
+ solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
 Qed.
 
 End ExtensionCompilability. End ExtensionCompilability.
 
 (** A specialization of the CompilableExtension theorem to single-core systems *)
+
+Definition const (A B: Type) (x: B) := fun _: A => x.
 
 Module ExtensionCompilability2. Section ExtensionCompilability2. 
  Variables
@@ -1269,33 +1265,31 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
                   (fun _ => cT) Zint esemT (fun i:nat => csemT) csig esig handled).
 
  Variable entry_points: list (val*val*signature).
-
- Import Sim_inj.
-
+ Variable core_data: Type.
+ Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
+ Implicit Arguments match_state [].
  Variable max_threads: nat.
 
- Variable core_simulations: forall i:nat, 
-   Forward_simulation_inject dS dT csemS csemT geS geT entry_points.
-
- Definition genv_mapS := fun i:nat => geS.
- Definition genv_mapT := fun i:nat => geT.
+ Import Sim_inj_exposed.
 
  Lemma ExtensionCompilability: 
-   EXTENSION_COMPILABILITY.Sig 
-     (fun _ => fS) (fun _ => fT) (fun _ => vS) (fun _ => vT) 
-     ge_S ge_T genv_mapS genv_mapT E_S E_T core_simulations.
+   EXTENSION_COMPILABILITY.Sig (const fS) (const fT) (const vS) (const vT)
+    ge_S ge_T (const geS) (const geT) E_S E_T entry_points 
+    (const core_data) (const match_state).
  Proof.
- eapply (@EXTENSION_COMPILABILITY.Make 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ core_simulations _
- (@ExtendedSimulations.match_states 
-  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-  E_S E_T entry_points core_simulations)).
- intros H1 H2 H3 H4 H5 H6 H7.
- econstructor; eauto.
- eapply ExtendedSimulations.extended_simulation
-  with (core_simulations := core_simulations); eauto.
- eapply ExtendedSimulations.RGsimulations_invariant; eauto.
+ eapply @EXTENSION_COMPILABILITY.Make.
+ intros H1 H2 H3 H4 H5 H6 core_simulations H8.
+ apply CompilableExtension.Make 
+  with (core_datas := ExtendedSimulations.core_datas (fun _ => core_data))
+       (match_states := 
+  ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) E_S E_T 
+  (const match_state)).
+ refine (ExtendedSimulations.core_ords 
+   (const fS) (const fT) (const vS) (const vT) (const cS) (const cT) 
+   (const csemS) (const csemT) (const geS) (const geT)
+   (const core_data) (const match_state) core_simulations max_threads).
+ eapply ExtendedSimulations.extended_simulation; eauto.
+ solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
 Qed.
 
 End ExtensionCompilability2. End ExtensionCompilability2.
-
