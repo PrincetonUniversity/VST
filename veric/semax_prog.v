@@ -65,7 +65,7 @@ Definition semax_func
           forall n, believe Hspec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt vl => (globvars2pred (Genv.globalenv prog) (prog_vars prog))).
+(fun tt => globvars2pred (Genv.globalenv prog) (prog_vars prog)).
 
 Definition Tint32s := Tint I32 Signed noattr.
 

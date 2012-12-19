@@ -79,7 +79,7 @@ Definition writable_share: share -> Prop := seplog.writable_share.
 Definition mapsto_zeros: forall (n: Z) (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
   initialize.mapsto_zeros.
 
-Definition init_data2pred (ge: Genv.t fundef type) (d: init_data) : 
+Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (rho: genviron): 
           forall (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
  match d with
   | Init_int8 i => address_mapsto Mint8unsigned (Vint (Int.zero_ext 8 i))
@@ -89,35 +89,38 @@ Definition init_data2pred (ge: Genv.t fundef type) (d: init_data) :
   | Init_float64 r =>  address_mapsto Mfloat64 (Vfloat r)
   | Init_space n => mapsto_zeros n 
   | Init_addrof symb ofs =>
-       match Genv.find_symbol ge symb with
-       | None => mapsto_zeros (Genv.init_data_size d)
-       | Some b' => address_mapsto Mint32 (Vptr b' ofs)
+       match rho symb with
+       | Some (Vptr b z, t) => address_mapsto Mint32 (Vptr b (Int.add z ofs))
+       | _ => mapsto_zeros (Genv.init_data_size d)
        end
  end.
 
 Definition extern_retainer : share := Share.Lsh.
 
-Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) (sh: share) (b: block) (ofs: Z) : mpred :=
+Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data)
+          (sh: share) (b: block) (ofs: Z)  (rho: genviron) : mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred ge d extern_retainer sh (b, ofs)) 
-                  (init_data_list2pred ge dl' sh b (ofs + Genv.init_data_size d))
+      sepcon (init_data2pred ge d rho extern_retainer sh (b, ofs)) 
+                  (init_data_list2pred ge dl'  sh b (ofs + Genv.init_data_size d) rho)
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Share.Lsh else Share.top.
 
-Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : mpred :=
-  match Genv.find_symbol ge (fst idv) with
+Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : assert :=
+ fun rho =>
+  match ge_of rho (fst idv) with
   | None => emp
-  | Some b => if (gvar_volatile (snd idv))
+  | Some (Vptr b z, t) => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred ge (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) b 0
+                                   (readonly2share (gvar_readonly (snd idv))) b (Int.unsigned z) (ge_of rho)
+  | Some _ => TT
  end.
 
-Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : mpred :=
+Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : assert :=
   fold_right sepcon emp (map (globvar2pred ge) vl).
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
@@ -392,7 +395,7 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
 
 Definition main_pre (prog: program) : unit -> assert :=
-(fun tt vl => (globvars2pred (Genv.globalenv prog) (prog_vars prog))).
+(fun tt => globvars2pred (Genv.globalenv prog) (prog_vars prog)).
 
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt => TT).

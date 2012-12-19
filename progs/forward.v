@@ -97,35 +97,35 @@ Lemma writable_share_top: writable_share Share.top.
 Admitted.
 
 Lemma semax_store_field: 
-forall (Delta: tycontext) e1 fld P v0 t2 e2 sid fields ,
+forall (Delta: tycontext) sh e1 fld P v0 t2 e2 sid fields ,
+    writable_share sh ->
     typeof e1 = Tstruct sid fields noattr ->
     t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield e1 fld t2) ->
    semax Delta 
        (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))
+          (lift2 (field_mapsto sh (typeof e1) fld) (eval_lvalue e1) v0 * P)))
        (Sassign (Efield e1 fld t2) e2) 
        (normal_ret_assert 
-          (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) 
+          (lift2 (field_mapsto sh (typeof e1) fld) (eval_lvalue e1) 
                   (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) * P)).
 Proof.
 Transparent field_mapsto.
-pose proof I.
+pose proof I. intros until fields. intro WS.
 intros.
 rename H0 into TE1.
 rename H2 into TCS.
 
-pose proof (semax_store Delta (Efield e1 fld t2) e2 v0 Share.top 
+pose proof (semax_store Delta (Efield e1 fld t2) e2 v0 sh 
                (local (lift1 (tc_val t2) (lift1 (eval_cast (typeof e2) t2) (eval_expr e2))) &&
                  !! (type_is_volatile t2 = false) &&   P)).
 simpl typeof in H0. 
 eapply semax_pre_post ; [ | | apply H0; auto].
-3: apply writable_share_top.
 apply derives_trans with(|> (local (tc_environ Delta) &&
   (local (tc_lvalue Delta e1) &&
    local (tc_expr Delta (Ecast e2 t2)) &&
-   (lift2 (field_mapsto Share.top (typeof e1) fld) (eval_lvalue e1) v0 * P)))).
+   (lift2 (field_mapsto sh (typeof e1) fld) (eval_lvalue e1) v0 * P)))).
 rewrite (later_andp (local (tc_environ Delta))). apply andp_derives; auto.
 apply now_later.
 apply later_derives.
@@ -142,8 +142,8 @@ apply derives_trans with ((!!tc_lvalue Delta (Efield e1 fld t2) rho &&
     !!tc_expr Delta (Ecast e2 t2) rho &&
      (!!tc_val t2 (eval_cast (typeof e2) t2 (eval_expr e2 rho)) &&
       !!(type_is_volatile t2 = false)) &&
-     address_mapsto m (v0 rho) (Share.unrel Share.Lsh Share.top)
-       (Share.unrel Share.Rsh Share.top)
+     address_mapsto m (v0 rho) (Share.unrel Share.Lsh sh)
+       (Share.unrel Share.Rsh sh)
        (b, Int.unsigned (Int.add i (Int.repr z)))) * P rho).
 apply sepcon_derives; auto. 
 apply andp_right; normalize.
@@ -218,25 +218,23 @@ Qed.
 
 
 Lemma semax_store_field':
-forall (Delta: tycontext) t1 fld P Q R e1 e2 v0 t2 sid fields ,
+forall (Delta: tycontext) sh t1 fld P Q R e1 e2 v0 t2 sid fields
+    (WS: writable_share sh) ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield (Ederef e1 t1) fld t2) ->
     semax Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t2)::Q)
-                             (SEPx (lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) v0::R))))
+                             (SEPx (lift2 (field_mapsto sh t1 fld) (eval_expr e1) v0::R))))
        (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
        (normal_ret_assert
           (PROPx P (LOCALx Q
-              (SEPx  (lift2 (field_mapsto Share.top t1 fld) (eval_expr e1) 
+              (SEPx  (lift2 (field_mapsto sh t1 fld) (eval_expr e1) 
                   (lift1 (eval_cast (typeof e2) t2) (eval_expr e2)) :: R))))).
 Proof.
 intros.
-eapply semax_pre_post; [ | | eapply (semax_store_field)].
-3: subst t1; reflexivity.
-3: assumption.
-3: assumption.
+eapply semax_pre_post; [ | | eapply (semax_store_field)]; try eassumption.
 instantiate (2:=v0).
 instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
 go_lower. apply later_derives.
@@ -386,7 +384,7 @@ match goal with
 end.
 
 Ltac store_field_tac1 := 
-  eapply semax_store_field'; [ reflexivity | reflexivity | type_of_field_tac |
+  eapply semax_store_field'; [ auto | reflexivity | reflexivity | type_of_field_tac |
                try solve [hnf; intuition] ].
 
 Ltac store_field_tac :=
@@ -663,4 +661,3 @@ Ltac forward :=
                               (Scall (Some ?id) (Eaddrof (Evar ?f _) _) ?bl)  _ =>
                                          semax_call_id_tac_aux Delta P Q R id f bl
   end.
-

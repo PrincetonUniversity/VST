@@ -150,9 +150,9 @@ Definition g_funs: ZMap.t (option fundef) :=
 
 Definition gv_three : globvar type :=
   mkglobvar (Tarray t_list 3 noattr)
-       (Init_int32 (Int.repr 1) :: Init_addrof i_three (Int.repr 4) ::
-        Init_int32 (Int.repr 2) :: Init_addrof i_three (Int.repr 8) ::
-        Init_int32 (Int.repr 3) :: Init_addrof i_three (Int.repr 0) ::
+       (Init_int32 (Int.repr 1) :: Init_addrof i_three (Int.repr 8) ::
+        Init_int32 (Int.repr 2) :: Init_addrof i_three (Int.repr 16) ::
+        Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) ::
         nil)
         false
         false.

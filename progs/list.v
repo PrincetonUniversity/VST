@@ -93,16 +93,16 @@ Definition lseg' (T: type) {ls: listspec T} (sh: share) :=
                  !! (ptr_eq first last) && emp
         end).
 
-Definition lseg (T: type) {ls: listspec T} (contents: list val) (x y: val) : mpred :=
-   lseg'  T Share.top (contents, (x,y)).
+Definition lseg (T: type) {ls: listspec T} (sh: share) (contents: list val) (x y: val) : mpred :=
+   lseg'  T sh (contents, (x,y)).
 
-Lemma lseg_unfold (T: type) {ls: listspec T}: forall contents v1 v2,
-    lseg T contents v1 v2 = 
+Lemma lseg_unfold (T: type) {ls: listspec T}: forall sh contents v1 v2,
+    lseg T sh contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
-                       field_mapsto Share.top list_struct list_data v1 h 
-                      * field_mapsto Share.top list_struct list_link v1 tail
-                      * |> lseg T t tail v2
+                       field_mapsto sh list_struct list_data v1 h 
+                      * field_mapsto sh list_struct list_link v1 tail
+                      * |> lseg T sh t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
      end.
 Proof.
@@ -117,12 +117,12 @@ Proof.
 Qed.
 
 Lemma lseg_eq T {ls: listspec T}:
-  forall l v , 
+  forall sh l v , 
   typecheck_val v T = true ->
-    lseg T l v v = !!(l=nil) && emp.
+    lseg T sh l v v = !!(l=nil) && emp.
 Proof.
 intros.
-rewrite (lseg_unfold T l v v).
+rewrite (lseg_unfold T sh l v v).
 destruct l.
 f_equal. f_equal.
 apply prop_ext; split; intro; auto.
@@ -148,22 +148,22 @@ unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 Qed.
 
-Definition lseg_cons T {ls: listspec T} (l: list val) (x z: val) : mpred :=
+Definition lseg_cons T {ls: listspec T} sh (l: list val) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:val, EX r:list val, EX y:val, 
              !!(l=h::r 
                 /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
-             field_mapsto Share.top list_struct list_data x h * 
-             field_mapsto Share.top list_struct list_link x y * 
-             |> lseg T r y z.
+             field_mapsto sh list_struct list_data x h * 
+             field_mapsto sh list_struct list_link x y * 
+             |> lseg T sh r y z.
 
 
 Lemma lseg_neq:
-  forall T {ls: listspec T} l x z , 
+  forall T {ls: listspec T} sh l x z , 
   typecheck_val x T = true ->
   typecheck_val z T = true ->
   ptr_neq x z -> 
-    lseg T l x z = lseg_cons T l x z.
+    lseg T sh l x z = lseg_cons T sh l x z.
 Proof.
 unfold lseg_cons, ptr_neq; intros.
 rewrite lseg_unfold at 1; auto.
@@ -176,7 +176,7 @@ apply exp_right with v; normalize.
 apply exp_right with l; normalize.
 apply exp_right with tail; normalize.
 apply andp_right; auto.
-rewrite (field_mapsto_typecheck_val list_struct list_data Share.top x v 
+rewrite (field_mapsto_typecheck_val list_struct list_data sh x v 
                         list_structid 
                     (Fcons list_data list_dtype
                         (Fcons list_link (Tcomp_ptr list_structid noattr)
@@ -196,7 +196,7 @@ rewrite UNROLL.
 simpl type_of_field. rewrite if_true by auto.
 normalize.
 forget (field_mapsto Share.top list_struct list_data x v) as foo.
-rewrite (field_mapsto_typecheck_val list_struct list_link Share.top x tail
+rewrite (field_mapsto_typecheck_val list_struct list_link sh x tail
                         list_structid 
                     (Fcons list_data list_dtype
                         (Fcons list_link (Tcomp_ptr list_structid noattr)
@@ -214,8 +214,8 @@ inv H3.
 auto.
 Qed.
 
-Lemma lseg_unroll: forall T {ls: listspec T} l x z , 
-    lseg T l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons T l x z.
+Lemma lseg_unroll: forall T {ls: listspec T} sh l x z , 
+    lseg T sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons T sh l x z.
 Proof.
 intros.
 rewrite lseg_unfold at 1.
@@ -231,10 +231,10 @@ apply exp_right with l.
 normalize.
 apply exp_right with tail.
 normalize.
-pattern (field_mapsto Share.top list_struct list_data x v) at 1;
-  erewrite (field_mapsto_typecheck_val list_struct list_data Share.top x v); try reflexivity.
-pattern (field_mapsto Share.top list_struct list_link x tail) at 1;
- erewrite (field_mapsto_typecheck_val list_struct list_link Share.top x tail); try reflexivity.
+pattern (field_mapsto sh list_struct list_data x v) at 1;
+  erewrite (field_mapsto_typecheck_val list_struct list_data sh x v); try reflexivity.
+pattern (field_mapsto sh list_struct list_link x tail) at 1;
+ erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
 normalize.
 apply andp_right; auto.
 apply prop_right; split3; auto.
@@ -295,7 +295,7 @@ Defined.
 Parameters v v' : val.
 Parameters x y : val.
 Parameter whatever : mpred.
-Goal  lseg mylist (x::y::nil) v v' |-- whatever.
+Goal  lseg mylist Share.top (x::y::nil) v v' |-- whatever.
 rewrite lseg_unfold by auto.
 normalize.
 intros.
