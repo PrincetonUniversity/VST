@@ -691,10 +691,22 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     Forall2 Val.has_type args2 (sig_args sig) -> 
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
     at_external esemT s2 = Some (ef, sig, args2))
-  
-  (after_external_runnable: forall s1 m1 s2 m2 retv1 retv2 s1' s2' cd j,
+
+  (after_external_runnable: forall s1 m1 m1' s2 m2 m2' retv1 retv2 s1' s2' cd j j' ef sig args1,
     RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
     match_states cd j s1 m1 s2 m2 -> 
+    Mem.inject j m1 m2 -> 
+    Events.meminj_preserves_globals ge_S j -> 
+    inject_incr j j' -> 
+    Events.inject_separated j j' m1 m2 -> 
+    Mem.inject j' m1' m2' -> 
+    val_inject_opt j' retv1 retv2 -> 
+    mem_forward m1 m1' -> 
+    mem_forward m2 m2' -> 
+    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
+(*   Val.has_type retv2 (proj_sig_res sig) -> *)
+    at_external esemS s1 = Some (ef, sig, args1) -> 
     after_external esemS retv1 s1 = Some s1' -> 
     after_external esemT retv2 s2 = Some s2' ->     
     RUNNABLE E_S s1'=RUNNABLE E_T s2')
@@ -1090,7 +1102,11 @@ assert (ACTIVE E_T st2=ACTIVE E_T st2') as <-.
  solve[eapply after_ext_pres; eauto].
 split3; auto.
 inv esig_compilable.
-eapply after_external_runnable; eauto.
+eapply after_external_runnable
+ with (s1 := st1) (m1 := m1) (s2 := st2) (m2 := m2) (retv1 := Some ret1) (retv2 := Some ret2)
+      (cd := cd) (j := j) (ef := e) (sig := ef_sig) (args1 := vals1); eauto.
+SearchAbout inject_incr.
+simpl.
 
 intros i _c _PROJ1'.
 case_eq (eq_nat_dec (ACTIVE E_S st1) i).

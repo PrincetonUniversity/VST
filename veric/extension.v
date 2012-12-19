@@ -566,6 +566,12 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
 
 End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
 
+Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
+  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
+  | None, None => True
+  | _, _ => False
+  end.
+
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -624,92 +630,104 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
        match_state i (cd i) j c1 m1 c2 m2.
 
  Inductive Sig: Type := Make: forall  
-     (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
-       PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-       PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-       RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-       match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
-       corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-       corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-       corestep esemS ge_S s1 m1 s1' m1' -> 
-       corestepN esemT ge_T n s2 m2 s2' m2' -> 
-       PROJ_CORE E_S (ACTIVE E_S s1) s1' = Some c1' -> 
-       PROJ_CORE E_T (ACTIVE E_S s1) s2' = Some c2' -> 
-       match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' ->        
-       RUNNABLE E_S s1'=RUNNABLE E_T s2')
+ (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
+   match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
+   corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
+   corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
+   corestep esemS ge_S s1 m1 s1' m1' -> 
+   corestepN esemT ge_T n s2 m2 s2' m2' -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1' = Some c1' -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2' = Some c2' -> 
+   match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' ->        
+   RUNNABLE E_S s1'=RUNNABLE E_T s2')
+ 
+ (*allow CORE_ORD-CORESTEP_STAR, CORESTEP_PLUS*)
+ (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
+   RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
+   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+   match_states cd j s1 m1 s2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   Forall2 (val_inject j) args1 args2 -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
+   corestep esemS ge_S s1 m1 s1' m1' -> 
+   exists s2', exists m2', exists cd', exists j',
+     inject_incr j j' /\
+     Events.inject_separated j j' m1 m2 /\
+     match_states cd' j' s1' m1' s2' m2' /\
+     corestep esemT ge_T s2 m2 s2' m2')
      
-     (*allow CORE_ORD-CORESTEP_STAR, CORESTEP_PLUS*)
-     (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
-       RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
-       PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-       PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-       at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-       at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
-       match_states cd j s1 m1 s2 m2 -> 
-       Mem.inject j m1 m2 -> 
-       Events.meminj_preserves_globals ge_S j -> 
-       Forall2 (val_inject j) args1 args2 -> 
-       Forall2 Val.has_type args2 (sig_args sig) -> 
-       corestep esemS ge_S s1 m1 s1' m1' -> 
-       exists s2', exists m2', exists cd', exists j',
-         inject_incr j j' /\
-         Events.inject_separated j j' m1 m2 /\
-         match_states cd' j' s1' m1' s2' m2' /\
-         corestep esemT ge_T s2 m2 s2' m2')
-     
-     (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
-       ACTIVE E_S s1=ACTIVE E_T s2 -> 
-       RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-       PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-       PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-       at_external esemS s1 = Some (ef, sig, args1) -> 
-       at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-       match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
-       Mem.inject j m1 m2 -> 
-       Events.meminj_preserves_globals ge_S j -> 
-       Forall2 (val_inject j) args1 args2 -> 
-       Forall2 Val.has_type args2 (sig_args sig) -> 
-       at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
-       at_external esemT s2 = Some (ef, sig, args2))
+ (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
+   ACTIVE E_S s1=ACTIVE E_T s2 -> 
+   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
+   match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   Forall2 (val_inject j) args1 args2 -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
+   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+   at_external esemT s2 = Some (ef, sig, args2))
 
-     (after_external_runnable: forall s1 m1 s2 m2 retv1 retv2 s1' s2' cd j,
-       RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-       match_states cd j s1 m1 s2 m2 -> 
-       after_external esemS retv1 s1 = Some s1' -> 
-       after_external esemT retv2 s2 = Some s2' ->     
-       RUNNABLE E_S s1'=RUNNABLE E_T s2')
+ (after_external_runnable: forall s1 m1 m1' s2 m2 m2' retv1 retv2 s1' s2' cd j j' ef sig args1,
+   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
+   match_states cd j s1 m1 s2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   Mem.inject j' m1' m2' -> 
+   val_inject_opt j' retv1 retv2 -> 
+   mem_forward m1 m1' -> 
+   mem_forward m2 m2' -> 
+   Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
+(*   Val.has_type retv2 (proj_sig_res sig) -> *)
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   after_external esemS retv1 s1 = Some s1' -> 
+   after_external esemT retv2 s2 = Some s2' ->     
+   RUNNABLE E_S s1'=RUNNABLE E_T s2')
 
-     (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
-       In (v1, v2, sig) entry_points -> 
-       make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
-       Mem.inject j m1 m2 -> 
-       Forall2 (val_inject j) vals1 vals2 -> 
-       Forall2 Val.has_type vals2 (sig_args sig) -> 
-       exists cd, exists s2, 
-         make_initial_core esemT ge_T v2 vals2 = Some s2 /\
-         match_states cd j s1 m1 s2 m2)
+ (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+   In (v1, v2, sig) entry_points -> 
+   make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
+   Mem.inject j m1 m2 -> 
+   Forall2 (val_inject j) vals1 vals2 -> 
+   Forall2 Val.has_type vals2 (sig_args sig) -> 
+   exists cd, exists s2, 
+     make_initial_core esemT ge_T v2 vals2 = Some s2 /\
+     match_states cd j s1 m1 s2 m2)
+ 
+ (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
+   match_states cd j c1 m1 c2 m2 -> 
+   safely_halted esemS c1 = Some v1 -> 
+   exists v2,
+     val_inject j v1 v2 /\
+     safely_halted esemT c2 = Some v2 /\ 
+     Mem.inject j m1 m2)
      
-     (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
-       match_states cd j c1 m1 c2 m2 -> 
-       safely_halted esemS c1 = Some v1 -> 
-       exists v2,
-         val_inject j v1 v2 /\
-         safely_halted esemT c2 = Some v2 /\ 
-         Mem.inject j m1 m2)
-     
-     (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
-       match_states cd j s1 m1 s2 m2 -> 
-       PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-       PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-       safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
-       corestep esemS ge_S s1 m1 s1' m1' ->  
-       safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
-       exists s2', exists m2', exists cd', exists j', 
-         inject_incr j j' /\
-         Events.inject_separated j j' m1 m2 /\
-         corestep esemT ge_T s2 m2 s2' m2' /\
-         match_states cd' j' s1' m1' s2' m2'),
-     Sig.
+ (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
+   match_states cd j s1 m1 s2 m2 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
+   corestep esemS ge_S s1 m1 s1' m1' ->  
+   safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
+   exists s2', exists m2', exists cd', exists j', 
+     inject_incr j j' /\
+     Events.inject_separated j j' m1 m2 /\
+     corestep esemT ge_T s2 m2 s2' m2' /\
+     match_states cd' j' s1' m1' s2' m2'),
+ Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
 

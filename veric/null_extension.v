@@ -321,6 +321,11 @@ Section NullExtensionCompilable.
    RelyGuaranteeSimulation.Sig csemS csemT match_state.
  Variable max_threads: nat.
 
+ Variable match_state_runnable: 
+   forall cd j s1 m1 s2 m2,
+   match_state cd j s1 m1 s2 m2 -> 
+   Extension.runnable E_S s1=Extension.runnable E_T s2.
+
  (*MOVE ELSEWHERE*)
  Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
  Proof.
@@ -348,28 +353,9 @@ Section NullExtensionCompilable.
 
  constructor.
  intros until j'; intros H4 H5 H6 H7 H8 H9 H10 H11 PROJ1' PROJ2' MATCH12'.
- unfold E_S, E_T; simpl; unfold runnable.
- destruct core_simulation.
- case_eq (at_external csemS s1').
- intros [[ef sig] vals] H12.
- apply core_at_external0 
-  with (st2 := s2') (cd := cd') (j := j') (m1 := m1') (m2 := m2') in H12; auto.
- destruct H12 as [_ [_ [vals2 [_ [_ H12]]]]].
- rewrite H12; auto.
- clear - PROJ1' PROJ2' MATCH12'.
- simpl in *; unfold proj_core, active in *; simpl in *.
- solve[inv PROJ1'; inv PROJ2'; auto].
- intro H. cut (at_external csemT s2' = None). intros H'.
- rewrite H'.
- case_eq (safely_halted csemS s1').
- intros v Hsafe.
- apply core_halted0 
-  with (c2 := s2') (cd := cd') (j := j') (m1 := m1') (m2 := m2') in Hsafe; auto.
- solve[destruct Hsafe as [v2 [Hinj [-> ?]]]; auto].
- solve[inv PROJ1'; inv PROJ2'; auto].
- intros Hsafe.
- admit.
- admit.
+ unfold const in MATCH12'.
+ inv PROJ1'; inv PROJ2'.
+ solve[eapply match_state_runnable; eauto].
 
  intros until j; intros H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15.
  destruct core_simulation.
@@ -380,26 +366,41 @@ Section NullExtensionCompilable.
  solve[inv H5; auto].
 
  intros; unfold E_S, E_T in *; simpl in *.
- generalize H4 as H4'; generalize H5 as H5'; intros.
- apply after_at_external_excl in H4.
- apply after_at_external_excl in H5.
- unfold runnable; rewrite H4, H5; auto.
+ unfold CompilabilityInvariant.match_states in H0.
+ destruct H0 as [_ [_ MATCH]].
+ specialize (MATCH O s1).
+ spec MATCH; auto.
+ destruct MATCH as [c2 [PROJ MATCH]].
+ inv PROJ.
+ unfold const in MATCH.
  destruct core_simulation.
- (* match_state -> safely_halted_eq *)
- admit.
+ generalize MATCH as MATCH'; intro.
+ eapply core_at_external0 in MATCH; eauto.
+ destruct MATCH as [INJ [PRES [vals2 [? [? EXT]]]]].
+ assert (Hrv1: exists retv1', retv1 = Some retv1'). admit. (*Update sim.v to allow retv=None*)
+ assert (Hrv2: exists retv2', retv2 = Some retv2'). admit. (*Update sim.v to allow retv=None*)
+ destruct Hrv1 as [retv1' XX]; rewrite XX in *.
+ destruct Hrv2 as [retv2' YY]; rewrite YY in *.
+ apply core_after_external0 
+  with (j' := j') (e := ef) (ret1 := retv1') (m1' := m1') (m2' := m2') (ret2 := retv2')
+       (vals1 := args1) (ef_sig := sig) in MATCH'; auto.
+ destruct MATCH' as [? [? [? [? [? ?]]]]].
+ rewrite H15 in H18; inv H18.
+ rewrite H16 in H19; inv H19.
+ solve[eapply match_state_runnable; eauto].
+ admit. (*Update sim.v to allow retv=None; add commented line in extension:after_external_runnable*)
  
  intros; destruct core_simulation.
  destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 m2 H0 H4 H5 H6) 
   as [cd [s2 [H7 H8]]].
- unfold EXTENSION_COMPILABILITY.core_datas in *.
- exists (fun _ => cd); exists s2; split; auto.
- unfold CompilabilityInvariant.match_states; simpl.
- unfold active; split; auto.
- split. 
- admit. (*match_state -> runnable eq*)
- intros i c1 H9; exists s2.
- unfold proj_core in H9|-*; if_tac in H9; try congruence.
+ exists (fun _ => cd); exists s2; split; auto. split; auto.
+ split; [solve[eapply match_state_runnable; eauto]|].
+ intros i c1 H9; exists s2; split; auto.
+ simpl in H9; unfold proj_core in H9|-*; if_tac in H9; try congruence.
  solve[inv H9; split; auto].
+ simpl in H9; unfold proj_core in H9.
+ if_tac in H9; try congruence.
+ solve[inv H9; auto].
 
  intros until v1; intros MATCH12 HALT.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
