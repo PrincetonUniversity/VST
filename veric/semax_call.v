@@ -448,7 +448,7 @@ simpl in *. destruct H. clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.
 inv H. inv Heqp. simpl in *. unfold lift2 in *. 
 destruct TC2 as [[? ?] ?].
 rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
-rewrite PTree.gss. unfold cast_exp.  
+rewrite PTree.gss.
 exists (force_val
           (Cop.sem_cast
              (eval_expr e

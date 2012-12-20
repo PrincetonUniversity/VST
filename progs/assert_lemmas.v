@@ -37,6 +37,16 @@ Proof. reflexivity.
 Qed.
 Hint Rewrite eval_expr_Etempvar : normalize.
 
+Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
+          lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
+Proof. reflexivity. Qed.
+Hint Rewrite eval_expr_binop : normalize.
+
+Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) = 
+          lift1 (eval_unop op (typeof a1)) (eval_expr a1).
+Proof. reflexivity. Qed.
+Hint Rewrite eval_expr_unop : normalize.
+
 Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
@@ -293,6 +303,29 @@ Qed.
 
 Hint Rewrite tc_formals_cons tc_formals_nil: normalize.
 
+
+Lemma tc_eval_gvar_i:
+  forall Delta t i rho, tc_environ Delta rho ->
+            (var_types Delta) ! i = None ->
+            (glob_types Delta) ! i = Some (Global_var t) ->
+             tc_val (Tpointer t noattr) (eval_var i t rho).
+Proof.
+ intros. unfold tc_val, eval_var; simpl.
+ hnf in H. unfold typecheck_environ in H.
+ repeat rewrite andb_true_iff in H.
+  destruct H as [[[_ ?] ?] ?].
+  apply environ_lemmas.typecheck_mode_eqv in H3.
+  apply environ_lemmas.typecheck_ge_eqv in H2.
+  apply environ_lemmas.typecheck_ve_eqv in H.
+  destruct (H3 _ _ H1).
+  unfold Map.get; rewrite H4.
+  destruct (H2 _ _ H1) as [b [i' [? ?]]].
+   rewrite H5. simpl. rewrite eqb_type_refl.
+   simpl globtype in H6.
+   auto. 
+  destruct H4; congruence.
+Qed.
+
 Lemma local_lift2_and: forall P Q, local (lift2 and P Q) = 
         local P && local Q.
 Proof. intros; extensionality rho. unfold local, lift1,lift2.   
@@ -429,3 +462,129 @@ Lemma eval_expropt_None: eval_expropt None = lift0 None.
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
 
+
+Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
+
+Lemma globvar_eval_var:
+  forall (ge: Genv.t fundef type) Delta rho id t,
+      tc_environ Delta rho ->
+     (var_types Delta) ! id = None ->
+     (glob_types Delta) ! id = Some  (Global_var t) ->
+     exists b, exists z,  eval_var id t rho = Vptr b z /\ ge_of rho id = Some (Vptr b z, t).
+Proof.
+intros.
+unfold tc_environ, typecheck_environ in H.
+repeat rewrite andb_true_iff in H. destruct H as [[[Ha Hb] Hc] Hd].
+apply environ_lemmas.typecheck_ge_eqv in Hc. 
+hnf in Hc.
+specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
+exists b; exists i.
+unfold eval_var; simpl.
+apply environ_lemmas.typecheck_mode_eqv in Hd.
+apply Hd in H1. 
+destruct H1 as [? | [? ?]]; [ | congruence].
+unfold Map.get; rewrite H. rewrite Hc.
+rewrite eqb_type_refl; auto.
+Qed.
+
+Lemma globvars2pred_unfold: forall ge vl rho, 
+    globvars2pred ge vl rho = 
+    fold_right sepcon emp (map (fun idv => globvar2pred ge idv rho) vl).
+Proof. intros. unfold globvars2pred.
+   induction vl; simpl; auto. normalize; f_equal; auto.
+Qed.
+Hint Rewrite globvars2pred_unfold : normalize.
+
+Lemma writable_Ews: writable_share Ews.
+Admitted.
+Hint Resolve writable_Ews.
+
+
+ Lemma offset_offset_val:
+  forall v i j, offset_val (offset_val v i) j = offset_val v (Int.add i j).
+Proof. intros; unfold offset_val.
+ destruct v; auto. rewrite Int.add_assoc; auto.
+Qed.
+Hint Rewrite offset_offset_val: normalize.
+
+Lemma add_repr: forall i j, Int.add (Int.repr i) (Int.repr j) = Int.repr (i+j).
+Proof. intros.
+  rewrite Int.add_unsigned.
+ apply Int.eqm_samerepr.
+ unfold Int.eqm.
+ apply Int.eqm_add; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
+Qed.
+Hint Rewrite add_repr : normalize.
+
+Lemma int_add_assoc1:
+  forall z i j, Int.add (Int.add z (Int.repr i)) (Int.repr j) = Int.add z (Int.repr (i+j)).
+Admitted.
+Hint Rewrite int_add_assoc1 : normalize.
+
+Lemma align_0: forall z, 
+    z > 0 -> align 0 z = 0.
+Proof. unfold align; intros. rewrite Zdiv_small; omega.
+Qed.
+Hint Rewrite align_0 using omega : normalize.
+
+Lemma eval_cast_pointer2: 
+  forall v t1 t2 t3 t1' t2',
+   t1' = Tpointer t1 noattr ->
+   t2' = Tpointer t2 noattr ->
+   tc_val (Tpointer t3 noattr) v ->
+   eval_cast t1' t2' v = v.
+Proof.
+intros.
+subst.
+hnf in H1. destruct v; inv H1; reflexivity.
+Qed.
+
+Lemma eval_cast_var:
+  forall Delta rho,
+      tc_environ Delta rho ->
+  forall t1 t2 t3 id,
+  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
+  tc_lvalue Delta (Evar id t2) rho ->
+  eval_cast t1 t3 (eval_var id t2 rho) = eval_var id t2 rho.
+Proof.
+intros.
+ pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H1 (Tpointer t2 noattr) (eq_refl _)).
+ unfold typecheck_val in H2. simpl in H2.
+ destruct (eval_var id t2 rho); inv H2.
+ pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+Qed.
+
+Lemma eval_cast_id:
+  forall Delta rho,
+      tc_environ Delta rho ->
+  forall t1 t3 id,
+  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
+  match (temp_types Delta)!id with Some (Tpointer _ _, true) => true | _ => false end = true ->
+  eval_cast t1 t3 (eval_id id rho) = eval_id id rho.
+Proof.
+intros.
+ revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
+ destruct p as [t2 ?].
+ destruct t2; inv H2.
+ destruct b; inv H4.
+ pose proof (tc_eval_id_i _ _ _ _ H H1).
+ hnf in H2.
+ unfold typecheck_val in H2.
+ destruct (eval_id id  rho); inv H2.
+ pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+Qed.
+
+Ltac eval_cast_simpl :=
+     match goal with H: tc_environ ?Delta ?rho |- _ =>
+       first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
+               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
+               ]
+     end.

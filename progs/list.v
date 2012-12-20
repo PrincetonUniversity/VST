@@ -272,6 +272,27 @@ subst. destruct (Int.eq i i0); auto. right; intros [? ?]; auto. inv H0.
 right; intros [? ?]. contradiction.
 Qed.
 
+
+Lemma lseg_unroll_nonempty1 {T} {ls: listspec T}:
+   forall p P sh h tail v1 v2,
+    ~ ptr_eq v1 v2 ->
+    typecheck_val h list_dtype = true ->
+    typecheck_val p T = true ->
+    P |-- field_mapsto sh list_struct list_data v1 h *
+             (field_mapsto sh list_struct list_link v1 p *
+               lseg T sh tail p v2) ->
+    P |-- lseg T sh (h::tail) v1 v2.
+Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
+  rewrite prop_true_andp by auto.
+  apply exp_right with h. apply exp_right with tail. apply exp_right with p.
+    rewrite prop_true_andp by auto.
+ rewrite sepcon_assoc.
+ eapply derives_trans; [ apply H2 | ].
+ apply sepcon_derives; auto.
+ apply sepcon_derives; auto.
+ apply now_later.
+Qed.
+
 Module TestCase.
 Definition myid : ident := 3%positive.
 Definition data_id : ident := 4%positive.

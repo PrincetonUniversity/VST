@@ -173,13 +173,9 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | _  => lift0 Vundef
  end.
 
-
-Definition cast_exp e toty rho :=
-force_val (Cop.sem_cast (eval_expr e rho) (typeof e) toty). 
-
 Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
- | t::et', e::el' => lift2 cons (cast_exp e t) (eval_exprlist et' el')
+ | t::et', e::el' => lift2 cons (lift1 (eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
  | _, _ => lift0 nil
  end.
 

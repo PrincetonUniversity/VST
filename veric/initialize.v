@@ -94,33 +94,28 @@ Proof.
 Qed.
 
 
-Definition mapsto_zeros (n: Z) : spec :=
-     fun (rsh sh: Share.t) (l: address) =>
-          allp (jam (adr_range_dec l (Zmax n 0))
-                                  (fun l' => yesat NoneP (VAL (Byte Byte.zero)) rsh sh l')
-                                  noat).
-
-Definition init_data2pred (ge: Genv.t fundef type) (d: init_data) (rho: genviron): spec :=
+ 
+Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => address_mapsto Mint8unsigned (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => address_mapsto Mint16unsigned (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => address_mapsto Mint32 (Vint i) 
-  | Init_float32 r =>  address_mapsto Mfloat32 (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  address_mapsto Mfloat64 (Vfloat r)
-  | Init_space n => mapsto_zeros n 
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-       match rho symb with
-       | Some (Vptr b z, t) => address_mapsto Mint32 (Vptr b (Int.add z ofs))
-       | _ => mapsto_zeros (Genv.init_data_size d)
+       match ge_of rho symb with
+       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val v ofs)
+       | _ => TT
        end
  end.
 
 Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) 
-                           (sh: share) (b: block) (ofs: Z)  (rho: genviron) : pred rmap :=
+                           (sh: share) (v: val)  (rho: environ) : pred rmap :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred ge d rho extern_retainer sh (b, ofs)) 
-                  (init_data_list2pred ge dl' sh b (ofs + Genv.init_data_size d) rho)
+      sepcon (init_data2pred ge d (Share.splice extern_retainer sh) v rho) 
+                  (init_data_list2pred ge dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
   | nil => emp
  end.
 
@@ -131,11 +126,10 @@ Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : a
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
-  | Some (Vptr b z, t) => if (gvar_volatile (snd idv))
+  | Some (v, t) => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred ge (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) b (Int.unsigned z) (ge_of rho)
-  | Some _ => TT
+                                   (readonly2share (gvar_readonly (snd idv))) v rho
  end.
 
 Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : assert :=
@@ -559,7 +553,7 @@ Qed.
 
 Lemma init_data_lem:
 forall (ge : Genv.t fundef type) (v : globvar type) (b : block) (m1 : mem')
-  (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z)
+  (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: environ)
   (w1 wf : rmap),
    load_store_init_data1 ge m3 b z a ->
    contents_at m4 = contents_at m3 ->
@@ -568,11 +562,14 @@ forall (ge : Genv.t fundef type) (v : globvar type) (b : block) (m1 : mem')
      if adr_range_dec (b, z) (Genv.init_data_size a) loc
      then identity (wf @ loc) /\ access_at m4 loc = Some (Genv.perm_globvar v)
      else identity (w1 @ loc)) ->
-     gvar_volatile v = false ->
-   initializer_aligned z a = true ->
-  (init_data2pred ge a (filter_genv ge) extern_retainer (readonly2share (gvar_readonly v)) (b, z)) w1.
+   forall (VOL:  gvar_volatile v = false)
+          (AL: initializer_aligned z a = true)
+           (LO:   0 <= z) (HI: z + Genv.init_data_size a < Int.modulus)
+         (RHO: ge_of rho = filter_genv ge),
+  (init_data2pred ge a  (Share.splice extern_retainer (readonly2share (gvar_readonly v)))
+       (Vptr b (Int.repr z))) rho w1.
 Proof.
-  intros. rename H4 into AL; rename H3 into VOL.
+  intros.
   assert (NU: nonunit (readonly2share (gvar_readonly v))).
   destruct (gvar_readonly v); simpl.
     clear.  unfold Share.Lsh. repeat intro.
@@ -580,12 +577,17 @@ Proof.
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
     clear. repeat intro. pose proof (Share.nontrivial). 
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
-  Transparent load. 
-  destruct a; unfold init_data2pred; simpl in H; unfold load in H;
+  assert (APOS:= Genv.init_data_size_pos a).
+  Transparent load.
+  unfold init_data2pred, mapsto; simpl.
+  rewrite Zmod_small by omega.
+  repeat rewrite Share.unrel_splice_R.
+  repeat rewrite Share.unrel_splice_L.
+  destruct a; simpl in H; unfold load in H;
   try (if_tac in H; [ | discriminate H]);
   try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
             exists B; replace V with (decode_val ch B) by (inversion H; auto)
-       end.
+       end. 
 (* Int8 *)
   repeat split; auto; clear H.
   apply Zone_divide.
@@ -610,7 +612,7 @@ Proof.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
-  
+(* Int16 *)
   repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
@@ -634,6 +636,7 @@ Proof.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.  
+(* Int32 *)
   repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
@@ -657,7 +660,7 @@ Proof.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
-
+(* Float32 *)
   repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
@@ -681,7 +684,7 @@ Proof.
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
-
+(* Float64 *)
  repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
@@ -740,16 +743,21 @@ Proof.
    apply zero_ext_inj. forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H7; auto.
   destruct (gvar_readonly v);  repeat f_equal; auto.
   apply read_sh_readonly.
-  unfold filter_genv.
+
+(* symbol case *)
+ rewrite RHO.
+  case_eq (filter_genv ge i); try destruct p; try destruct t; intros; auto.
+  unfold filter_genv in H4.
+  revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
+  revert H5; case_eq (type_of_global ge b0); intros; try discriminate.
+  inv H6. 
+  rewrite H4 in H.
   match type of H with Some (decode_val ?ch ?A) = Some ?B => 
-       assert (decode_val ch A=B) by (inv H; auto); clear H; 
-        destruct (Genv.find_symbol ge i); pose (AA:=A)
+       assert (decode_val ch A=B) by (inv H; auto); clear H
   end.
-  assert ((address_mapsto Mint32 (Vptr b0 (Int.add Int.zero i0)) extern_retainer
-   (readonly2share (gvar_readonly v)) (b, z)) w1); 
-    [ | destruct (type_of_global ge b0); auto].
- rewrite Int.add_zero_l.
- exists AA; unfold AA; clear AA.
+ replace (offset_val (Vptr b0 Int.zero) i0) with (Vptr b0 i0)   
+    by (unfold offset_val; rewrite Int.add_zero_l; auto).
+ exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
@@ -764,7 +772,7 @@ Proof.
   unfold beyond_block'.
   rewrite if_false by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H5.
+  unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
   apply read_sh_readonly.
@@ -774,36 +782,6 @@ Proof.
   rewrite H0.
   destruct loc; destruct H; subst b1.
   apply nth_getN; simpl; omega.
-  apply H2.
-  intro loc.
-  specialize (H2 loc). simpl in H2.
-  hnf. simpl Genv.init_data_size. rewrite Zmax_left by omega.
-  if_tac. exists NU.
-  destruct H2.
-  apply join_comm in H1.
-  apply (resource_at_join _ _ _ loc) in H1.
-  apply H2 in H1. hnf; rewrite H1.
-  unfold beyond_block. rewrite resource_at_make_rmap.
-  unfold beyond_block'.
-  rewrite if_false by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
-  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H5.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  assert (contents_at m4 loc = Byte Byte.zero).
-    rewrite H0.
-    destruct loc; destruct H; subst b0.
-    rewrite (nth_getN m3 b z z0 4); auto.
-    unfold size_chunk_nat in H4.
-    forget (ZMap.get b (mem_contents m3)) as byt.
-    clear - H4 H6.
-    simpl size_chunk in *. simpl nat_of_Z in *.
-    unfold nat_of_P in *. simpl Pmult_nat in *.
-    assert (0 <= z0-z < 4) by omega.
-    clear - H H4.
-   apply decode_val_getN_lem1; auto.
-    omega.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
   apply H2.
 Qed.
 
@@ -820,18 +798,21 @@ Proof.
 Qed.
 
 Lemma init_data_list_lem:
-  forall ge m0 (v: globvar type) m1 b m2 m3 m4  phi0,
+  forall ge m0 (v: globvar type) m1 b m2 m3 m4  phi0 rho,
      alloc m0 0 (Genv.init_data_list_size (gvar_init v)) = (m1,b) ->
      Genv.store_zeros m1 b 0 (Genv.init_data_list_size (gvar_init v)) = Some m2 ->
      Genv.store_init_data_list ge m2 b 0 (gvar_init v) = Some m3 ->
      drop_perm m3 b 0 (Genv.init_data_list_size (gvar_init v)) 
                (Genv.perm_globvar v) = Some m4 ->
-     gvar_volatile v = false ->
-   initializers_aligned 0 (gvar_init v) = true ->
-     init_data_list2pred ge (gvar_init v) (readonly2share (gvar_readonly v)) b 0 
-            (filter_genv ge) (beyond_block b (inflate_initial_mem m4 phi0)).
+  forall
+   (SANITY: Genv.init_data_list_size (gvar_init v) < Int.modulus)
+   (VOL:  gvar_volatile v = false)
+   (AL: initializers_aligned 0 (gvar_init v) = true)
+   (RHO: ge_of rho = filter_genv ge),
+     init_data_list2pred ge (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Int.zero) 
+            rho (beyond_block b (inflate_initial_mem m4 phi0)).
 Proof.
-intros. rename H3 into VOL. rename H4 into AL.
+intros.
 set (phi := beyond_block b (inflate_initial_mem m4 phi0)).
 assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   unfold phi; intros.
@@ -899,6 +880,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    remember (core phi) as w'.
    remember phi as w.
    assert (join w' w phi). subst. apply core_unit.
+   unfold Int.zero.
    remember 0 as z. rewrite Heqz in H,H0,H1.
    replace z with (Genv.init_data_list_size dl') in AL,H4|-* by (subst; auto).
    clear z Heqz.
@@ -911,6 +893,9 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
    apply all_resource_at_identity; intro loc.
    specialize (H6 loc); if_tac in H6; auto. destruct loc; destruct H7.
   omegaContradiction.
+  assert (SANITY': Genv.init_data_list_size dl' + Genv.init_data_size a + Genv.init_data_list_size dl < Int.modulus).
+  clear - H2 SANITY.
+  admit.  (* easy *)
   destruct (split_range w (b,Genv.init_data_list_size dl') (Genv.init_data_size a)) as [w1 [w2 [? ?]]].
   intros. apply (resource_at_join _ _ _ loc) in H5.
   specialize (H6 loc). rewrite if_true in H6. apply H6 in H5.
@@ -945,11 +930,19 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   unfold phi in *; clear phi.
   eapply init_data_lem; try eassumption.
   clear - AL. apply andb_true_iff in AL. destruct AL; auto.
-
+  pose proof (init_data_list_size_pos dl'); omega.
+  pose proof (init_data_list_size_pos dl); omega.
   destruct (join_assoc (join_comm H7) (join_comm H5)) as [wg [? ?]].
   specialize (IHdl  (dl' ++ (a::nil))  wg w2).
   replace (Genv.init_data_list_size (dl' ++ a :: nil)) with
              (Genv.init_data_list_size dl' + Genv.init_data_size a) in IHdl.
+  rewrite Int.add_unsigned.
+Lemma max_unsigned_modulus:
+  Int.max_unsigned + 1 = Int.modulus.
+Admitted.
+  repeat rewrite Int.unsigned_repr
+       by (pose proof (init_data_list_size_pos dl'); pose proof (init_data_list_size_pos dl); 
+      pose proof (Genv.init_data_size_pos a); pose proof max_unsigned_modulus; omega).
   apply IHdl; auto.
   apply andb_true_iff in AL; destruct AL; auto.
   rewrite app_ass; auto.
@@ -993,7 +986,9 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
 Qed.
 
 Definition all_initializers_aligned (prog: AST.program fundef type) := 
-  forallb (fun idv => initializers_aligned 0 (gvar_init (snd idv))) (prog_vars prog) = true.
+  forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
+                                 (Zlt_bool (Genv.init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                      (prog_vars prog) = true.
 
 Lemma forallb_rev: forall {A} f (vl: list A), forallb f (rev vl) = forallb f vl.
 Proof. induction vl; simpl; auto.
@@ -1293,6 +1288,9 @@ Proof.
   replace (nextblock m0) with b.
  eapply init_data_list_lem; try eassumption.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
+ apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.
+ clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
+ apply andb_true_iff in H. destruct H; auto.
   apply alloc_result in H3; auto.
   change (fold_right (lift2 sepcon) (lift0 emp) (map (globvar2pred gev) (prog_vars' vl)))
       with  (globvars2pred gev (prog_vars' vl)).

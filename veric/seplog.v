@@ -103,6 +103,26 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
   | (b,n)::bl' =>  fun rho => writable_block b n rho * writable_blocks bl' rho
  end.
 
+Definition address_mapsto_zeros (n: Z) : spec :=
+     fun (rsh sh: Share.t) (l: address) =>
+          allp (jam (adr_range_dec l (Zmax n 0))
+                                  (fun l' => yesat NoneP (VAL (Byte Byte.zero)) rsh sh l')
+                                  noat).
+
+Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
+ match a with
+  | Vptr b z => address_mapsto_zeros n 
+                          (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) 
+                          (b, Int.unsigned z)
+  | _ => TT
+  end.
+
+Definition offset_val (v: val) (ofs: int) : val :=
+  match v with
+  | Vptr b z => Vptr b (Int.add z ofs)
+  | _ => Vundef
+ end.
+
 Definition fun_assert: 
   forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.

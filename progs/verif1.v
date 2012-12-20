@@ -170,17 +170,6 @@ Opaque sepcon.
 Opaque emp.
 Opaque andp.
 
-
-Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
-          lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
-Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_binop : normalize.
-
-Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) = 
-          lift1 (eval_unop op (typeof a1)) (eval_expr a1).
-Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_unop : normalize.
-
 Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -337,272 +326,37 @@ eapply tc_eval_id_i; eauto.
 unfold retval; normalize.
 Qed.
 
-Lemma cast_redundant:
-  forall e t, cast_exp (Ecast e t) t = cast_exp e t.
-Proof. intros. extensionality rho; unfold cast_exp; simpl.
-unfold lift1. unfold expr.eval_cast.
-f_equal.
-forget (eval_expr e rho) as v.
-forget (typeof e) as t0.
-Admitted.
-
-Lemma cast_exp_pointer:
-  forall e t t', typeof e = Tpointer t noattr -> 
-                         t' = Tpointer t noattr ->
-                    cast_exp e t' = eval_expr e.
-Admitted.
-
-  Lemma eval_cast_pointer:
-   forall  t1 t v,
-       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
-       tc_val t1 v ->
-       eval_cast t1 t v = v.
- Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
-  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
-  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
-Qed.
-
-Lemma tc_eval_gvar_i:
-  forall Delta t i rho, tc_environ Delta rho ->
-            (var_types Delta) ! i = None ->
-            (glob_types Delta) ! i = Some (Global_var t) ->
-             tc_val (Tpointer t noattr) (eval_var i t rho).
-Proof.
- intros. unfold tc_val, eval_var; simpl.
- hnf in H. unfold typecheck_environ in H.
- repeat rewrite andb_true_iff in H.
-  destruct H as [[[_ ?] ?] ?].
-  apply environ_lemmas.typecheck_mode_eqv in H3.
-  apply environ_lemmas.typecheck_ge_eqv in H2.
-  apply environ_lemmas.typecheck_ve_eqv in H.
-  destruct (H3 _ _ H1).
-  unfold Map.get; rewrite H4.
-  destruct (H2 _ _ H1) as [b [i' [? ?]]].
-   rewrite H5. simpl. rewrite eqb_type_refl.
-   simpl globtype in H6.
-   auto. 
-  destruct H4; congruence.
-Qed.
-
-Lemma tc_eval_var_nonnull:
-  forall Delta t i rho z, tc_environ Delta rho ->
-      match (var_types Delta) ! i with Some _ => True | None =>
-               match   (glob_types Delta) ! i with Some _ => True | None => False end
-      end ->
-      ~ptr_eq (eval_var i t rho) (Vint z).
-Admitted.
-
-Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
-
-Lemma cast_exp_pointer2:
-  forall e t1 t2 t', typeof e = Tpointer t1 noattr -> 
-                         t' = Tpointer t2 noattr ->
-                    cast_exp e t' = eval_expr e.
-Admitted.
-
-Lemma globvar_lem1:
-  forall (ge: Genv.t fundef type) Delta rho id t,
-      tc_environ Delta rho ->
-     (var_types Delta) ! id = None ->
-     (glob_types Delta) ! id = Some  (Global_var t) ->
-     exists b, exists z,  ve_of rho id = None /\ ge_of rho id = Some (Vptr b z, t).
-Proof.
-intros.
-unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H. destruct H as [[[Ha Hb] Hc] Hd].
-apply environ_lemmas.typecheck_ge_eqv in Hc. 
-hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
-exists b; exists i; rewrite Hc.
-split; auto.
-apply environ_lemmas.typecheck_mode_eqv in Hd.
-apply Hd in H1. 
-destruct H1; auto. destruct H; simpl in H. congruence.
-Qed.
-
-Lemma globvar2pred_lem1:
-  forall (ge: Genv.t fundef type) Delta rho id gv t,
-      tc_environ Delta rho ->
-     (glob_types Delta) ! id = Some  (Global_var t) ->
-     gvar_info gv = t ->
-     gvar_volatile gv = false ->
-      globvar2pred ge (id,gv) rho |--
-        EX b:_, EX z:_,  init_data_list2pred ge (gvar_init gv)
-                           (readonly2share (gvar_readonly gv)) b (Int.unsigned z)
-                 (ge_of rho).
-Proof.
-intros.
-unfold globvar2pred.
-simpl @fst; simpl @snd. subst t.
-unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H. destruct H as [[[Ha Hb] Hc] Hd].
-apply environ_lemmas.typecheck_ge_eqv in Hc. 
-hnf in Hc.
-specialize (Hc _ _ H0). destruct Hc as [b [i [Hc Hc']]]. rewrite Hc.
-rewrite H2.
-apply exp_right with b; apply exp_right with i; auto.
-Qed.
-Lemma address_field_mapsto:
-  forall ch v rsh sh b z' z ofs structid fld fields,
-  access_mode
-        (type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) = By_value ch ->
-  z' =  (Int.unsigned z + ofs)  mod Int.modulus ->
-  field_offset fld fields = Errors.OK ofs ->
-  (typecheck_val v
-         (type_of_field
-            (unroll_composite_fields structid
-               (Tstruct structid fields noattr) fields) fld) = true)  ->
-  (type_is_volatile
-         (type_of_field
-            (unroll_composite_fields structid
-               (Tstruct structid fields noattr) fields) fld) = false) ->
-  address_mapsto ch v rsh sh (b, z') |--
-  field_mapsto (Share.splice rsh sh) (Tstruct structid fields noattr) fld (Vptr b z) v.
-Proof.
- intros.
- Transparent field_mapsto. unfold field_mapsto.
-  simpl. rewrite field_offset_unroll. rewrite H1. rewrite H.
-  normalize.
-  subst.
- rewrite Zplus_mod_idemp_r. 
- rewrite Share.unrel_splice_L. rewrite Share.unrel_splice_R.
- auto. Opaque field_mapsto.
-Qed.
 
 Lemma setup_globals:
   forall rho,  tc_environ (func_tycontext P.f_main Vprog Gprog) rho ->
    main_pre P.prog tt rho
    |-- ilseg Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
-      (cast_exp
-         (Ecast
-            (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr))
-               (Tpointer (Tarray P.t_list 3 noattr) noattr)) P.t_listptr)
-         P.t_listptr rho) nullval * fold_right sepcon emp nil rho.
+             (eval_var P.i_three (Tarray P.t_list 3 noattr) rho)
+      nullval.
 Proof.
  unfold main_pre.
  go_lower.
- destruct (globvar_lem1 (Genv.globalenv P.prog) _ _ P.i_three _ H (eq_refl _) (eq_refl _)) 
-    as [b [z [H98 H99]]]. simpl in H99.
- assert (H97: eval_var P.i_three (Tarray P.t_list 3 noattr) rho = Vptr b z).
-  unfold eval_var. unfold Map.get. rewrite H98; rewrite H99. rewrite eqb_type_refl; auto.
- unfold P.prog, globvars2pred. simpl.
-  unfold globvar2pred.
- normalize. simpl. rewrite H99.
-   unfold ilseg.
-  rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
-  rewrite prop_true_andp.
-Focus 2.
-  erewrite cast_exp_pointer by reflexivity.
-  normalize. simpl eval_cast.
- rewrite eval_cast_pointer; simpl; auto; try solve [eapply tc_eval_gvar_i; eauto].
- eapply tc_eval_var_nonnull; eauto.  compute; auto.
-  (* End Focus 2 *)
-  apply exp_right with (Vint (Int.repr 1)).
-  apply exp_right with (Vint (Int.repr 2)::Vint (Int.repr 3)::nil).
-  apply exp_right with (eval_expr (Ebinop Cop.Oadd 
-                                    (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr)) P.t_listptr)
-                                    (Econst_int (Int.repr 1) P.t_int)  P.t_listptr) rho).
- simpl. normalize.
- rewrite prop_true_andp.
-2:   admit.  (* typechecking proof *)
-  rewrite sepcon_assoc.
-  apply sepcon_derives.
- erewrite cast_exp_pointer2; [ | reflexivity | reflexivity].
- normalize. 
- erewrite eval_cast_pointer; [ | compute; auto| eapply tc_eval_gvar_i; eauto ].
- simpl eval_expr. rewrite H97.
- unfold list_struct.
- apply address_field_mapsto with 0; simpl; try solve [rewrite if_true; auto].
- admit.  (* easy *)
- unfold field_offset. simpl. rewrite if_true; auto.
- apply sepcon_derives.
- erewrite cast_exp_pointer2; [ | reflexivity | reflexivity].
- normalize. 
- erewrite eval_cast_pointer; [ | compute; auto| eapply tc_eval_gvar_i; eauto ].
- simpl eval_expr.  rewrite H97.
- apply address_field_mapsto with 4; simpl;
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit.  (* perhaps provable from structure of initializers *)
- unfold field_offset. simpl.
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
-
-  eapply derives_trans; [ | apply now_later].
-  rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
-  rewrite prop_true_andp.
-  2: admit.  (* like the one above *)
-  apply exp_right with (Vint (Int.repr 2)).
-  apply exp_right with (Vint (Int.repr 3)::nil).
-  apply exp_right with (eval_expr (Ebinop Cop.Oadd 
-                                    (Eaddrof (Evar P.i_three (Tarray P.t_list 3 noattr)) P.t_listptr)
-                                    (Econst_int (Int.repr 2) P.t_int)  P.t_listptr) rho).
- simpl. normalize.
- rewrite prop_true_andp.
-2:   admit.  (* typechecking proof *)
-  rewrite sepcon_assoc.
-  apply sepcon_derives.  rewrite H97.
- unfold eval_binop. simpl. repeat rewrite Zmax_spec; simpl.
- unfold align. simpl.
-  rewrite Int.mul_signed. repeat rewrite Int.signed_repr. simpl.
- apply address_field_mapsto with 0; simpl; try solve [rewrite if_true; auto].
-  admit.  (* perhaps provable from structure of initializers *)
- unfold field_offset. simpl.
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit.  (* easy *)
- admit.  (* easy *)
-  apply sepcon_derives.  rewrite H97.
- unfold eval_binop. simpl. repeat rewrite Zmax_spec; simpl.
- unfold align. simpl.
-  rewrite Int.mul_signed. repeat rewrite Int.signed_repr. simpl.
- apply address_field_mapsto with 4; simpl;
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit. 
- unfold field_offset. simpl.
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit.  (* easy *)
- admit.  (* easy *)
-  eapply derives_trans; [ | apply now_later].
-  rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
-  rewrite prop_true_andp.
-  2: admit.  (* like the one above *)
-  apply exp_right with (Vint (Int.repr 3)).
-  apply exp_right with (nil).
-  apply exp_right with nullval.
- simpl. normalize.
- match goal with |- ?A |-- sepcon ?B ?C => apply derives_trans with (B*emp) end.
- rewrite sepcon_emp.
-  apply sepcon_derives. rewrite H97.
- unfold eval_binop. simpl. repeat rewrite Zmax_spec; simpl.
- unfold align. simpl.
-  rewrite Int.mul_signed. repeat rewrite Int.signed_repr. simpl.
- apply address_field_mapsto with 0; simpl; try solve [rewrite if_true; auto].
-  admit.  (* perhaps provable from structure of initializers *)
- unfold field_offset. simpl.
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit.  (* easy *)
- admit.  (* easy *)
+ simpl.
+ destruct (globvar_eval_var (Genv.globalenv P.prog) _ _ P.i_three _ H (eq_refl _) (eq_refl _))
+  as [b [z [H97 H99]]]. simpl in *.
  rewrite H97.
- unfold eval_binop. simpl. repeat rewrite Zmax_spec; simpl.
- unfold align. simpl.
-  rewrite Int.mul_signed. repeat rewrite Int.signed_repr. simpl.
- apply address_field_mapsto with 4; simpl;
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit. 
- unfold field_offset. simpl.
-   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; auto.
- admit.  (* easy *)
- admit.  (* easy *)
-  apply sepcon_derives; auto.
-  eapply derives_trans; [ | apply now_later].
+ unfold globvar2pred. simpl. rewrite H99. simpl.
+ clear.
+ unfold ilseg;  normalize. simpl.
+ apply  lseg_unroll_nonempty1 with (Vptr b (Int.add z (Int.repr 8))); simpl; auto.
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
+ apply  lseg_unroll_nonempty1 with (Vptr b (Int.add z (Int.repr 16))); simpl; auto.
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
+ apply  lseg_unroll_nonempty1 with nullval; simpl; auto.
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
+ match goal with |- ?A |-- _ => rewrite <- (sepcon_emp A) end.
+ apply sepcon_derives; [mapsto_field_mapsto_tac | ].
   rewrite lseg_unroll. apply orp_right1.
   rewrite prop_true_andp. normalize.
-  unfold ptr_eq. simpl. rewrite Int.eq_true; auto.
+  unfold ptr_eq. simpl. normalize.
 Qed.
-
-Lemma writable_Ews: writable_share Ews.
-Admitted.
-Hint Resolve writable_Ews.
 
 Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
 Proof.
@@ -614,7 +368,9 @@ instantiate (2:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
 instantiate (1:=nil).
 rewrite prop_true_andp by (compute; intuition).
 rewrite prop_true_andp by auto.
-destruct u; apply setup_globals; auto.
+destruct u; simpl. normalize.
+repeat eval_cast_simpl.
+apply setup_globals; auto.
 unfold x,F in *; clear x F.
 apply extract_exists_pre; normalize.
 forward.
@@ -624,7 +380,7 @@ instantiate (2:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)).
 instantiate (1:=nil).
 normalize.
 rewrite prop_true_andp by (compute; auto).
-erewrite cast_exp_pointer by reflexivity.
+eval_cast_simpl.
 normalize.
 apply extract_exists_pre; intro old.
 normalize. clear old.

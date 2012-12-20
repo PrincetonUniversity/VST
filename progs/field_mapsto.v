@@ -157,6 +157,42 @@ rewrite H0.
 auto.
 Qed.
 
+Lemma mapsto_field_mapsto:
+  forall ch v1 v1' v2 sh ofs t structid fld fields,
+  access_mode
+        (type_of_field
+           (unroll_composite_fields structid (Tstruct structid fields noattr)
+              fields) fld) = By_value ch ->
+  access_mode t = By_value ch ->
+  field_offset fld fields = Errors.OK ofs ->
+  v1' = offset_val v1 (Int.repr ofs) ->
+  (typecheck_val v2
+         (type_of_field
+            (unroll_composite_fields structid
+               (Tstruct structid fields noattr) fields) fld) = true)  ->
+  (type_is_volatile
+         (type_of_field
+            (unroll_composite_fields structid
+               (Tstruct structid fields noattr) fields) fld) = false) ->
+  mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
+Proof.
+intros.
+unfold field_mapsto, mapsto.
+rewrite H0.
+subst v1'.
+destruct v1; simpl; normalize.          
+rewrite field_offset_unroll. rewrite H1. rewrite H.
+normalize.
+Qed.
+
+
+Ltac mapsto_field_mapsto_tac :=  
+ eapply mapsto_field_mapsto; 
+  try unfold field_offset;  simpl;  
+  repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; 
+  try reflexivity; try solve [normalize].
+
+
 Global Opaque field_mapsto.
 
 Lemma field_mapsto_force_ptr: 

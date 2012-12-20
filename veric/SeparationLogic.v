@@ -72,37 +72,47 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition eval_cast (t t': type) (v: val) : val := force_val (Cop.sem_cast v t t').
-
 Definition writable_share: share -> Prop := seplog.writable_share. 
+Definition address_mapsto_zeros: 
+   forall (n: Z) (rsh sh: Share.t) (l: address), mpred := seplog.address_mapsto_zeros.
 
-Definition mapsto_zeros: forall (n: Z) (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
-  initialize.mapsto_zeros.
+Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
+ match a with
+  | Vptr b z => address_mapsto_zeros n 
+                          (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) 
+                          (b, Int.unsigned z)
+  | _ => TT
+  end.
 
-Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (rho: genviron): 
-          forall (rsh: Share.t) (sh: Share.t) (l: address), mpred :=
+Definition offset_val (v: val) (ofs: int) : val :=
+  match v with
+  | Vptr b z => Vptr b (Int.add z ofs)
+  | _ => Vundef
+ end.
+ 
+Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => address_mapsto Mint8unsigned (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => address_mapsto Mint16unsigned (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => address_mapsto Mint32 (Vint i) 
-  | Init_float32 r =>  address_mapsto Mfloat32 (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  address_mapsto Mfloat64 (Vfloat r)
-  | Init_space n => mapsto_zeros n 
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
-       match rho symb with
-       | Some (Vptr b z, t) => address_mapsto Mint32 (Vptr b (Int.add z ofs))
-       | _ => mapsto_zeros (Genv.init_data_size d)
+       match ge_of rho symb with
+       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val v ofs)
+       | _ => TT
        end
  end.
 
 Definition extern_retainer : share := Share.Lsh.
 
-Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data)
-          (sh: share) (b: block) (ofs: Z)  (rho: genviron) : mpred :=
+Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) 
+                           (sh: share) (v: val)  (rho: environ) : mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred ge d rho extern_retainer sh (b, ofs)) 
-                  (init_data_list2pred ge dl'  sh b (ofs + Genv.init_data_size d) rho)
+      sepcon (init_data2pred ge d (Share.splice extern_retainer sh) v rho) 
+                  (init_data_list2pred ge dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
   | nil => emp
  end.
 
@@ -113,11 +123,10 @@ Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : a
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
-  | Some (Vptr b z, t) => if (gvar_volatile (snd idv))
+  | Some (v, t) => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred ge (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) b (Int.unsigned z) (ge_of rho)
-  | Some _ => TT
+                                   (readonly2share (gvar_readonly (snd idv))) v rho
  end.
 
 Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : assert :=
@@ -242,8 +251,9 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition all_initializers_aligned (prog: AST.program fundef type) := 
-  forallb (fun idv => initializers_aligned 0 (gvar_init (snd idv))) (prog_vars prog) = true.
-
+  forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
+                                 (Zlt_bool (Genv.init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                      (prog_vars prog) = true.
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl => R ek vl * F.
