@@ -588,7 +588,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem dT) (** a set of core semantics *)
   (csig: ext_sig mem Z) (** client signature *)
   (esig: ext_sig mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+  (handled: list AST.external_function) (** functions handled by this extension *)
+  (threads_max: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
@@ -604,7 +605,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
    core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Variable core_ord: forall i: nat, (core_data i) -> (core_data i) -> Prop.
  Implicit Arguments match_state [].
+ Implicit Arguments core_ord [].
 
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
@@ -621,6 +624,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Notation runnable_false := (Extension.runnable_false).
 
  Definition core_datas := forall i:nat, core_data i.
+
+ Definition core_ords cd1 cd2 := 
+  exists i, (i < threads_max)%nat /\
+   (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    ACTIVE E_S s1=ACTIVE E_T s2 /\
@@ -661,8 +668,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
-     corestep esemT ge_T s2 m2 s2' m2')
-     
+     ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
+      corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
+
  (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
    ACTIVE E_S s1=ACTIVE E_T s2 -> 
    RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
@@ -790,7 +798,7 @@ Module CompilableExtension. Section CompilableExtension.
    core_ords: core_datas -> core_datas -> Prop;
    match_states: core_datas -> meminj -> xS -> mem -> xT -> mem -> Prop;
    _ : Forward_simulation_inject dS dT esemS esemT ge_S ge_T 
-          entry_points core_datas match_states
+          entry_points core_datas match_states core_ords
  }.
 
 End CompilableExtension. End CompilableExtension.
@@ -811,7 +819,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem dT) (** a set of core semantics *)
   (csig: ext_sig mem Z) (** client signature *)
   (esig: ext_sig mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+  (handled: list AST.external_function) (** functions handled by this extension *)
+  (threads_max: nat).  
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
@@ -827,6 +836,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
    core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
 
  Import Sim_inj_exposed.
@@ -848,13 +858,12 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        (forall i: nat, genvs_domain_eq ge_T (genv_mapT i)) -> 
        core_compatible ge_S genv_mapS E_S -> 
        core_compatible ge_T genv_mapT E_T -> 
-       (forall i:nat, 
-         Forward_simulation_inject dS dT (csemS i) (csemT i) 
-         (genv_mapS i) (genv_mapT i) entry_points (core_data i) (@match_state i)) -> 
-       CompilabilityInvariant.Sig fS fT vS vT ge_S ge_T genv_mapS genv_mapT 
-         E_S E_T entry_points core_data match_state -> 
+       (forall i:nat, Forward_simulation_inject dS dT (csemS i) (csemT i) 
+         (genv_mapS i) (genv_mapT i) entry_points 
+         (core_data i) (@match_state i) (@core_ord i)) -> 
+       CompilabilityInvariant.Sig fS fT vS vT threads_max ge_S ge_T genv_mapS genv_mapT 
+         E_S E_T entry_points core_data match_state core_ord -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.
 
 End EXTENSION_COMPILABILITY. End EXTENSION_COMPILABILITY. 
-

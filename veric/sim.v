@@ -626,10 +626,10 @@ Section Forward_simulation_inject.
           {ge2:G2}
           {entry_points : list (val * val * signature)}
           {core_data : Type}
-          {match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop}.
+          {match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop}
+          {core_ord : core_data -> core_data -> Prop}.
 
 Record Forward_simulation_inject := {
-    core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -704,12 +704,12 @@ Lemma Sim_inj_exposed_hidden:
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
    (csemS: CoreSemantics (Genv.t F1 V1) C1 mem D1)
    (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 
-   entry_points core_data match_state,
+   entry_points core_data match_state core_ord,
   Sim_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
-    entry_points core_data match_state -> 
+    entry_points core_data match_state core_ord -> 
   Sim_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points.
 Proof.
-intros until match_state; intros []; intros.
+intros until core_ord; intros []; intros.
 solve[eapply @Sim_inj.Build_Forward_simulation_inject 
  with (core_data := core_data) (match_state := match_state); eauto].
 Qed.
@@ -720,12 +720,13 @@ Lemma Sim_inj_hidden_exposed:
    (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 entry_points,
   Sim_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
   {core_data: Type & 
-    {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop & 
-      Sim_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
-      entry_points core_data match_state}}.
+  {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
+  {core_ord: core_data -> core_data -> Prop & 
+    Sim_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+    entry_points core_data match_state core_ord}}}.
 Proof.
 intros until entry_points; intros []; intros.
-solve[eexists; eexists; 
+solve[eexists; eexists; eexists;
  eapply @Sim_inj_exposed.Build_Forward_simulation_inject; eauto].
 Qed.
 

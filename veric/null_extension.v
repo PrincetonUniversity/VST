@@ -1,7 +1,7 @@
 Load loadpath.
-Require Import msl.base
-               veric.sim veric.step_lemmas veric.base veric.expr veric.extspec
-               veric.extension veric.extension_proof.
+Require Import 
+ msl.base veric.sim veric.step_lemmas veric.base veric.expr veric.extspec
+ veric.extension veric.extension_proof.
 
 Set Implicit Arguments.
 
@@ -11,7 +11,6 @@ Section NullExtension.
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
   (csig: ext_sig mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT)
-  (init_world: Z)
   (at_external_handled: forall c ef args sig,
     at_external csemT c = Some (ef, sig, args) -> IN ef csig = true).
 
@@ -34,42 +33,35 @@ Section NullExtension.
 
  Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
 
- Obligation Tactic := 
-   autounfold with null_unfold;
-   intros; try solve [eexists; eauto|congruence].
-
- Definition fT' := fun i:nat => fT.
- Definition vT' := fun i:nat => vT.
+ Obligation Tactic := autounfold with null_unfold; 
+  intros; try solve [eexists; eauto|congruence].
  
  Program Definition null_extension := Extension.Make 
-  (fun i:nat => Genv.t (fT' i) (vT' i))
+  (fun i:nat => Genv.t (const fT i) (const vT i))
   csemT cores csig csig handled
   proj_core _  
   active _ 
   runnable _ _ _ _  
   proj_zint proj_zext zmult _ _ _.
  Next Obligation.
-   revert H0; case_eq (eq_nat_dec i 0).
-   intros -> _; exists s; auto.
-   congruence.
+  revert H0; case_eq (eq_nat_dec i 0).
+  intros -> _; exists s; auto.
+  congruence.
  Qed.
- Next Obligation.
-   if_tac; exists s; auto.
-   elimtype False; apply H; auto.
- Qed.
+ Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
  Next Obligation. 
-   if_tac in H0; try congruence; inv H0; inv H.
-   unfold fT', vT' in *.
-   destruct (at_external csemT c); try solve[congruence].
-   destruct p as [[? ?] ?]. 
-   right; eexists; eexists; eexists; eauto.
-   destruct (safely_halted csemT c); try solve[congruence].
-   solve[left; eexists; eauto].
+  if_tac in H0; try congruence; inv H0; inv H.
+  unfold const in *.
+  destruct (at_external csemT c); try solve[congruence].
+  destruct p as [[? ?] ?]. 
+  right; eexists; eexists; eexists; eauto.
+  destruct (safely_halted csemT c); try solve[congruence].
+  solve[left; eexists; eauto].
  Qed.
  Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
  Next Obligation. 
   inversion H; subst; if_tac in H; try congruence. 
-  unfold fT', vT' in *.
+  unfold const in *.
   inversion H3; subst.
   solve[rewrite H0 in H1; congruence].
  Qed.
@@ -83,7 +75,6 @@ Section NullExtensionSafe.
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
   (csig: ext_sig mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT)
-  (init_world: Z)
   (at_external_handled: forall c ef args sig,
     at_external csemT c = Some (ef, sig, args) -> IN ef csig = true)
   (ge: Genv.t fT vT).
@@ -92,9 +83,8 @@ Section NullExtensionSafe.
 
  Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
 
- Obligation Tactic := 
-   autounfold with null_unfold;
-   intros; try solve [eexists; eauto|congruence].
+ Obligation Tactic := autounfold with null_unfold;
+  intros; try solve [eexists; eauto|congruence].
 
  Lemma null_extension_safe (csem_fun: corestep_fun csemT): 
   safe_extension ge (fun _:nat => ge) (null_extension csemT csig at_external_handled).
@@ -144,7 +134,7 @@ Section NullExtensionSafe.
  intros rv Hsafe.
  rewrite Hsafe in H3.
  congruence.
- unfold fT', vT' in *.
+ unfold const in *. 
  simpl in H1.
  rewrite H6 in H1.
  intros Hsafe; rewrite Hsafe in H1.
@@ -168,7 +158,7 @@ Section NullExtensionSafe.
  solve[rewrite H in H2; congruence].
 
  (*5*) intros until rv; intros H2 H3 H4.
- unfold fT', vT' in *.
+ unfold const in *.
  simpl.
  apply corestep_not_halted in H4.
  simpl in H2; inversion H2; subst.
@@ -197,7 +187,7 @@ Section NullExtensionSafe.
  solve[exists s; split; auto].
 
  (*8*) intros until Q.
- unfold fT', vT' in *.
+ unfold const in *.
  intros H2 H3 H4 H5 H6.
  assert (H1:True) by auto.
  intros H12; simpl; exists c'; split3; auto.
@@ -286,6 +276,10 @@ End NullExtensionSafe.
  solve[split; auto].
  Qed.
 
+ (*MOVE ELSEWHERE*)
+ Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
+ Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
+
 Section NullExtensionCompilable.
  Variables 
   (fS vS fT vT cS cT dS dT Z: Type) 
@@ -315,22 +309,18 @@ Section NullExtensionCompilable.
 
  Variable core_data: Type.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
+ Variable core_ord: core_data -> core_data -> Prop.
  Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
-   geS geT entry_points core_data match_state.
+   geS geT entry_points core_data match_state core_ord.
  Variable core_simulationsRG: forall i:nat, 
    RelyGuaranteeSimulation.Sig csemS csemT match_state.
- Variable max_threads: nat.
+ Variable threads_max: nat.
+ Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
 
  Variable match_state_runnable: 
-   forall cd j s1 m1 s2 m2,
-   match_state cd j s1 m1 s2 m2 -> 
-   Extension.runnable E_S s1=Extension.runnable E_T s2.
-
- (*MOVE ELSEWHERE*)
- Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
- Proof.
- solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto].
- Qed.
+  forall cd j s1 m1 s2 m2,
+  match_state cd j s1 m1 s2 m2 -> 
+  Extension.runnable E_S s1=Extension.runnable E_T s2.
 
  Lemma null_extension_compilable: 
    corestep_fun csemS -> corestep_fun csemT -> genvs_domain_eq geS geT -> 
@@ -341,7 +331,7 @@ Section NullExtensionCompilable.
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
    csemS csemT csemS csemT csig csig handled 
-   geS geT geS geT E_S E_T entry_points core_data match_state max_threads) 
+   geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max)
   as [LEM].
  apply LEM; auto.
  solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
@@ -358,8 +348,33 @@ Section NullExtensionCompilable.
  solve[eapply match_state_runnable; eauto].
 
  intros until j; intros H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15.
- destruct core_simulation.
- admit. (*allow core_ord in extension_diagram*)
+ destruct core_simulation; unfold const; simpl.
+ destruct H10 as [? [? MATCH]].
+ specialize (MATCH O s1).
+ spec MATCH; auto.
+ destruct MATCH as [_s2 [PROJ MATCH]].
+ inv PROJ.
+ specialize (core_diagram0 s1 m1 s1' m1' H15 (cd O) _s2 j m2). 
+ spec core_diagram0; auto.
+ destruct core_diagram0 as [s2' [m2' [cd' [j' [? [? [? ?]]]]]]].
+ exists s2'; exists m2'; exists (fun _ => cd'); exists j'.
+ split3; auto.
+ split; auto.
+ split3; auto.
+ solve[eapply match_state_runnable; eauto].
+ intros i _s1'; simpl; unfold proj_core; intros PROJ.
+ if_tac in PROJ; try congruence.
+ inv PROJ.
+ solve[exists s2'; auto].
+ destruct H18.
+ solve[left; auto].
+ destruct H18 as [A B].
+ right; split; auto.
+ unfold CompilabilityInvariant.core_ords.
+ exists O. 
+ split; auto.
+ split; auto.
+ solve[intros k; inversion 1].
 
  intros; simpl in H5; unfold proj_core, active in H5.
  if_tac in H5; try congruence.
