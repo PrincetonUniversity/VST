@@ -144,9 +144,13 @@ Module Extension. Section Extension.
 
   (handled: list AST.external_function). (** functions handled by this extension *)
 
+ Local Open Scope nat_scope.
+
  Record Sig := Make {
  (** Generalized projection of genv, core [i] from state [s] *)
+  threads_max: nat;
   proj_core: forall i:nat, xT -> option (cT i); 
+  proj_threads_max: forall i s, i >= threads_max -> proj_core i s = None;
   active : xT -> nat; (** The active (i.e., currently scheduled) core *)
   active_proj_core : forall s, exists c, proj_core (active s) s = Some c;
   proj_zint: xT -> Zint; (** Type [xT] embeds [Zint]. *)
@@ -515,6 +519,14 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
  Import Sim_inj_exposed.
 
  Inductive Sig: Type := Make: forall
+  (match_state_runnable: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> runnable sourceC c1=runnable targetC c2)
+  (match_state_inj: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> 
+    Events.meminj_preserves_globals ge1 j)
+
   (rely: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
     (** Rely *)
     Mem.inject f m1 m2 -> 
@@ -600,15 +612,41 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   exists i, (i < threads_max)%nat /\
    (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
 
+ Variable (R: meminj -> xS -> mem -> xT -> mem -> Prop).
+
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   ACTIVE E_S s1=ACTIVE E_T s2 /\
+   R j s1 m1 s2 m2 /\ ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
 
  Inductive Sig: Type := Make: forall  
- (match_state_runnable: forall i cd j c1 m1 c2 m2,
-   match_state i cd j c1 m1 c2 m2 -> runnable (csemS i) c1=runnable (csemT i) c2)
+ (corestep_rel: forall cd j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n, 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   match_states cd j s1 m1 s2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   meminj_preserves_globals (genv2blocks ge_S) j -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
+   corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
+   corestep esemS ge_S s1 m1 s1' m1' -> 
+   corestepN esemT ge_T n s2 m2 s2' m2' -> 
+   R j' s1' m1' s2' m2')
+
+ (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2,
+   match_states cd j s1 m1 s2 m2 -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   Mem.inject j' m1' m2' -> 
+   mem_forward m1 m1'-> 
+   Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+   mem_forward m2 m2' -> 
+   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
+   after_external esemS ret1 s1 = Some s1' -> 
+   after_external esemT ret2 s2 = Some s2' -> 
+   R j' s1' m1' s2' m2')   
  
  (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
@@ -776,14 +814,17 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
 
  Definition core_datas := forall i:nat, core_data i.
 
+ Variable (R: meminj -> xS -> mem -> xT -> mem -> Prop).
+
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   active E_S s1=active E_T s2 /\
+   R j s1 m1 s2 m2 /\ active E_S s1=active E_T s2 /\
    forall i c1, proj_core E_S i s1 = Some c1 -> 
      exists c2, proj_core E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
 
  Record Sig: Type := Make {
-   _ : (forall i: nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) (match_state i)) -> 
+   _ : (forall i: nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
+         (genv_mapS i) (match_state i)) -> 
        genvs_domain_eq ge_S ge_T -> 
        (forall i: nat, genvs_domain_eq ge_S (genv_mapS i)) -> 
        (forall i: nat, genvs_domain_eq ge_T (genv_mapT i)) -> 
@@ -793,7 +834,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT threads_max ge_S ge_T 
-         E_S E_T entry_points core_data match_state core_ord -> 
+         genv_mapS genv_mapT E_S E_T entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.
 

@@ -164,8 +164,8 @@ Definition get_fs := match s with mkxT _ _ fs => fs end.
 
 End selectors.
 
-Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 1 then Some (get_core s) else None.
-Definition active := fun _: xT => 1.
+Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 0 then Some (get_core s) else None.
+Definition active := fun _: xT => 0.
 Definition runnable := fun (s: xT) => 
   match at_external csem (get_core s), safely_halted csem (get_core s) with 
   | None, None => true
@@ -774,8 +774,6 @@ Definition Client_FSExtSig: ext_sig mem (fs*Z) := mkextsig handled Client_FSExtS
 
 Variable (at_external_handled: forall c ef args sig,
     at_external csem c = Some (ef, sig, args) -> IN ef Client_FSExtSig = true).
-(*Variable (at_after_external_excl: forall rv c c',
-  after_external csem rv c = Some c' -> at_external csem c' = None).*)
 Variable FSExtSig: ext_sig Memory.mem Z.
 Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
 Variable ge: genv.
@@ -790,12 +788,14 @@ Program Definition fs_extension :=
     Client_FSExtSig 
     FSExtSig 
     handled
-    proj_core 
+    1
+    proj_core _
     active _ 
     proj_zint
     proj_zext
     zmult _ _ _ _ _ 
    FSExtSig_linkable.
+Next Obligation. unfold proj_core. if_tac; auto. rewrite H0 in H; elimtype False; omega. Qed.
 Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
 Next Obligation.
 apply at_external_handled in H0.
@@ -805,7 +805,7 @@ Next Obligation.
 unfold juicy_core_sem in H1.
 simpl in H1.
 unfold proj_core in H0.
-destruct (eq_nat_dec i 1); try congruence.
+destruct (eq_nat_dec i 0); try congruence.
 subst.
 unfold get_core in H0.
 destruct s; simpl in H0.
