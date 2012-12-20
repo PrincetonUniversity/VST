@@ -9,8 +9,7 @@ Set Implicit Arguments.
 
 (** External function specifications and linking *)
 
-Lemma extfunct_eqdec : forall ef1 ef2 : AST.external_function, 
-  {ef1=ef2} + {~ef1=ef2}.
+Lemma extfunct_eqdec : forall ef1 ef2: external_function, {ef1=ef2} + {~ef1=ef2}.
 Proof. intros ef1 ef2; repeat decide equality; apply Address.EqDec_int. Qed.
 
 Module TruePropCoercion.
@@ -117,6 +116,12 @@ Definition linkable (M Z Zext: Type) (proj_zext: Z -> Zext)
       exists x, P x tys args (proj_zext z) m /\
       forall ty ret m' z', Q x ty ret (proj_zext z') m' -> Q' x' ty ret z' m'.
 
+Definition runnable {G C M D} (csem: CoreSemantics G C M D) (c: C) :=
+  match at_external csem c, safely_halted csem c with 
+  | None, None => true
+  | _, _ => false
+  end.
+
 (** * Extensions *)
 
 Module Extension. Section Extension.
@@ -136,69 +141,45 @@ Module Extension. Section Extension.
 
   (csig: ext_sig M Z) (** client signature *)
   (esig: ext_sig M Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
 
- Variables (ge: G) (genv_map : forall i:nat, gT i).
+  (handled: list AST.external_function). (** functions handled by this extension *)
 
  Record Sig := Make {
  (** Generalized projection of genv, core [i] from state [s] *)
-   proj_core : forall i:nat, xT -> option (cT i);
-   core_exists : forall ge i s c' m s' m', 
-     corestep esem ge s m s' m' -> proj_core i s' = Some c' -> 
-     exists c, proj_core i s = Some c;
-   
- (** The active (i.e., currently scheduled) core *)
-   active : xT -> nat;
-   active_proj_core : forall s, exists c, proj_core (active s) s = Some c;
-   
- (** Runnable=[true] when [active s] is runnable (i.e., not blocked
-    waiting on an external function call and not safely halted). *)
-   runnable : xT -> bool;
-   runnable_false : forall s c,
-     runnable s = false -> 
-     proj_core (active s) s = Some c -> 
-     (exists rv, safely_halted (csem (active s)) c = Some rv) \/
-     (exists ef, exists sig, exists args, 
-       at_external (csem (active s)) c = Some (ef, sig, args));
+  proj_core: forall i:nat, xT -> option (cT i); 
+  active : xT -> nat; (** The active (i.e., currently scheduled) core *)
+  active_proj_core : forall s, exists c, proj_core (active s) s = Some c;
+  proj_zint: xT -> Zint; (** Type [xT] embeds [Zint]. *)
+  proj_zext: Z -> Zext;
+  zmult: Zint -> Zext -> Z;
+  zmult_proj: forall zint zext, proj_zext (zmult zint zext)=zext;
 
  (** AtExternal cores are blocked on external functions specified by their
     external function signatures. *)
-   at_external_csig: forall s i c ef args sig,
-     proj_core i s = Some c -> 
-     at_external (csem i) c = Some (ef, sig, args) -> 
-     IN ef csig;
+  at_external_csig: forall s i c ef args sig,
+   proj_core i s = Some c -> 
+   at_external (csem i) c = Some (ef, sig, args) -> IN ef csig;
 
  (** When a core is AtExternal but the extension is not, the function on which 
     the core is blocked is handled by the extension. *)
-   notat_external_handled: forall s i c ef args sig,
-     proj_core i s = Some c -> 
-     at_external (csem i) c = Some (ef, sig, args) -> 
-     at_external esem s = None -> 
-     IN ef handled;
+  notat_external_handled: forall s i c ef args sig,
+   proj_core i s = Some c -> at_external (csem i) c = Some (ef, sig, args) -> 
+   at_external esem s = None -> IN ef handled;
 
  (** Functions on which the extension is blocked are not handled. *)
-   at_external_not_handled: forall s ef args sig,
-     at_external esem s = Some (ef, sig, args) -> 
-     NOTIN ef handled;
-
- (** Type [xT] embeds [Zint]. *)
-   proj_zint: xT -> Zint;
-   proj_zext: Z -> Zext;
-   zmult: Zint -> Zext -> Z;
-   zmult_proj: forall zint zext, proj_zext (zmult zint zext) = zext;
+  at_external_not_handled: forall s ef args sig,
+   at_external esem s = Some (ef, sig, args) -> NOTIN ef handled;
 
  (** Implemented "external" state is unchanged after truly external calls. *)
-   ext_upd_at_external : forall ef sig args ret s s',
-     at_external esem s = Some (ef, sig, args) -> 
-     after_external esem ret s = Some s' -> 
-     proj_zint s = proj_zint s';
+  ext_upd_at_external : forall ef sig args ret s s',
+   at_external esem s = Some (ef, sig, args) -> 
+   after_external esem ret s = Some s' -> proj_zint s=proj_zint s';
    
  (** [esem] and [csem] are signature linkable *)
-   esem_csem_linkable: linkable proj_zext handled csig esig
+  esem_csem_linkable: linkable proj_zext handled csig esig
  }.
 
 End Extension. End Extension.
-
 Implicit Arguments Extension.Make [G xT cT M D Z Zint Zext].
 
 (** * Safe Extensions *)
@@ -224,16 +205,16 @@ Section SafeExtension.
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
 
-Import Extension.
+ Import Extension.
 
-(** a global invariant characterizing "safe" extensions *)
-Definition all_safe (E: Sig gT cT Zint esem csem csig esig handled)
+ (** a global invariant characterizing "safe" extensions *)
+ Definition all_safe (E: Sig gT cT Zint esem csem csig esig handled)
   (n: nat) (z: Z) (w: xT) (m: M) :=
      forall i c, proj_core E i w = Some c -> 
        safeN (csem i) csig (genv_map i) n z c m.
 
-(** All-safety implies safeN. *)
-Definition safe_extension (E: Sig gT cT Zint esem csem csig esig handled) :=
+ (** All-safety implies safeN. *)
+ Definition safe_extension (E: Sig gT cT Zint esem csem csig esig handled) :=
   forall n s m z, 
     all_safe E n (zmult E (proj_zint E s) z) s m -> 
     safeN esem (link esig handled) ge n z s m.
@@ -273,57 +254,56 @@ Notation PROJ_CORE := E.(Extension.proj_core).
 Notation "zint \o zext" := (E.(Extension.zmult) zint zext) 
   (at level 66, left associativity). 
 Notation ACTIVE := (E.(Extension.active)).
-Notation RUNNABLE := (E.(Extension.runnable)).
-Notation "'CORE' i 'is' c 'in' s" := 
-  (PROJ_CORE i s = Some c)
-  (at level 66, no associativity).
-Notation core_exists := E.(Extension.core_exists).
 Notation active_proj_core := E.(Extension.active_proj_core).
 Notation notat_external_handled := E.(Extension.notat_external_handled).
 Notation at_external_not_handled := E.(Extension.at_external_not_handled).
 Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
-Notation runnable_false := E.(Extension.runnable_false).
 
 Inductive safety_invariant: Type := SafetyInvariant: forall 
   (** Coresteps preserve the all-safety invariant. *)
   (core_pres: forall n z (s: xT) c m s' c' m', 
     ALL_SAFE (S n) (s \o z) s m -> 
-    CORE (ACTIVE s) is c in s -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
     corestep (csem (ACTIVE s)) (genv_map (ACTIVE s)) c m c' m' -> 
     corestep esem ge s m s' m' -> 
     ALL_SAFE n (s' \o z) s' m')
 
   (** Corestates satisfying the invariant can corestep. *)
-  (core_prog: forall n z s m c, 
+  (core_prog: forall n z s m (c: cT (ACTIVE s)),
     ALL_SAFE (S n) z s m -> 
-    RUNNABLE s=true -> CORE (ACTIVE s) is c in s -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
+    runnable (csem (ACTIVE s)) c=true -> 
     exists c', exists s', exists m', 
       corestep (csem (ACTIVE s)) (genv_map (ACTIVE s)) c m c' m' /\ 
       corestep esem ge s m s' m' /\
-      CORE (ACTIVE s) is c' in s')
+      PROJ_CORE (ACTIVE s) s' = Some c')
 
   (** "Handled" steps respect function specifications. *)
-  (handled_pres: forall s z m (c: cT (ACTIVE s)) s' m' (c': cT (ACTIVE s)) ef sig args P Q x, 
-    let i := ACTIVE s in CORE i is c in s -> 
+  (handled_pres: forall s z m (c: cT (ACTIVE s)) s' m' 
+        (c': cT (ACTIVE s)) ef sig args P Q x, 
+    let i := ACTIVE s in PROJ_CORE i s = Some c -> 
     at_external (csem i) c = Some (ef, sig, args) -> 
     ListSet.set_mem extfunct_eqdec ef handled = true -> 
     spec_of ef csig = (P, Q) -> 
     P x (sig_args sig) args (s \o z) m -> 
     corestep esem ge s m s' m' -> 
-    CORE i is c' in s' -> 
-      ((at_external (csem i) c' = Some (ef, sig, args) /\ P x (sig_args sig) args (s' \o z) m' /\
+    PROJ_CORE i s' = Some c' -> 
+      ((at_external (csem i) c' = Some (ef, sig, args) /\ 
+        P x (sig_args sig) args (s' \o z) m' /\
         (forall j, ACTIVE s' = j -> i <> j)) \/
-      (exists ret, after_external (csem i) ret c = Some c' /\ Q x (sig_res sig) ret (s' \o z) m')))
+      (exists ret, after_external (csem i) ret c = Some c' /\ 
+        Q x (sig_res sig) ret (s' \o z) m')))
 
   (** "Handled" states satisfying the invariant can step or are safely halted;
      core states that remain "at_external" over handled steps are unchanged. *)
-  (handled_prog: forall n (z: Zext) (s: xT) m,
+  (handled_prog: forall n (z: Zext) (s: xT) m c,
     ALL_SAFE (S n) (s \o z) s m -> 
-    RUNNABLE s=false -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
+    runnable (csem (ACTIVE s)) c=false -> 
     at_external esem s = None -> 
     (exists s', exists m', corestep esem ge s m s' m' /\ 
-      forall i c, CORE i is c in s -> 
-        exists c', CORE i is c' in s' /\ 
+      forall i c, PROJ_CORE i s = Some c -> 
+        exists c', PROJ_CORE i s' = Some c' /\
           (forall ef args ef' args', 
             at_external (csem i) c = Some (ef, args) -> 
             at_external (csem i) c' = Some (ef', args') -> c=c')) \/
@@ -331,39 +311,38 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
 
   (** Safely halted threads remain halted. *)
   (safely_halted_halted: forall s m s' m' i c rv,
-    CORE i is c in s -> 
+    PROJ_CORE i s = Some c -> 
     safely_halted (csem i) c = Some rv -> 
-    corestep esem ge s m s' m' -> 
-    CORE i is c in s')
+    corestep esem ge s m s' m' -> PROJ_CORE i s' = Some c)
 
   (** Safety of other threads is preserved when handling one step of blocked
      thread [i]. *)
   (handled_rest: forall s m s' m' c,
-    CORE (ACTIVE s) is c in s -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
     ((exists ef, exists sig, exists args, 
         at_external (csem (ACTIVE s)) c = Some (ef, sig, args)) \/ 
       exists rv, safely_halted (csem (ACTIVE s)) c = Some rv) -> 
     at_external esem s = None -> 
     corestep esem ge s m s' m' -> 
     (forall j c0, ACTIVE s <> j ->  
-      (CORE j is c0 in s' -> CORE j is c0 in s) /\
-      (forall n z z', CORE j is c0 in s -> 
-                      safeN (csem j) csig (genv_map j) (S n) (s \o z) c0 m -> 
-                      safeN (csem j) csig (genv_map j) n (s' \o z') c0 m')))
+      (PROJ_CORE j s' = Some c0 -> PROJ_CORE j s = Some c0) /\
+      (forall n z z', PROJ_CORE j s = Some c0 -> 
+        safeN (csem j) csig (genv_map j) (S n) (s \o z) c0 m -> 
+        safeN (csem j) csig (genv_map j) n (s' \o z') c0 m')))
 
   (** If the extended machine is at external, then the active thread is at
      external (an extension only implements external functions, it doesn't
      introduce them). *)
   (at_extern_call: forall s ef sig args,
     at_external esem s = Some (ef, sig, args) -> 
-    exists c, CORE (ACTIVE s) is c in s /\ 
+    exists c, PROJ_CORE (ACTIVE s) s = Some c /\
       at_external (csem (ACTIVE s)) c = Some (ef, sig, args))
 
   (** Inject the results of an external call into the extended machine state. *)
   (at_extern_ret: forall z s (c: cT (ACTIVE s)) m z' m' tys args ty ret c' ef sig x 
       (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
       (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
-    CORE (ACTIVE s) is c in s -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
     P x tys args (s \o z) m -> Q x ty ret z' m' -> 
@@ -371,25 +350,25 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
     exists s': xT, 
       z' = s' \o z' /\
       after_external esem ret s = Some s' /\ 
-      CORE (ACTIVE s) is c' in s')
+      PROJ_CORE (ACTIVE s) s' = Some c')
 
   (** Safety of other threads is preserved when returning from an external 
      function call. *)
   (at_extern_rest: forall z s (c: cT (ACTIVE s)) m z' s' m' tys args ty ret c' ef x sig
       (P: ext_spec_type esig ef -> list typ -> list val -> Zext -> M -> Prop) 
       (Q: ext_spec_type esig ef -> option typ -> option val -> Zext -> M -> Prop),
-    CORE (ACTIVE s) is c in s -> 
+    PROJ_CORE (ACTIVE s) s = Some c -> 
     at_external esem s = Some (ef, sig, args) -> 
     spec_of ef esig = (P, Q) -> 
     P x tys args (s \o z) m -> Q x ty ret z' m' -> 
     after_external (csem (ACTIVE s)) ret c = Some c' -> 
     after_external esem ret s = Some s' -> 
-    CORE (ACTIVE s) is c' in s' -> 
+    PROJ_CORE (ACTIVE s) s' = Some c' ->  
     (forall j (CS0: CoreSemantics (gT j) (cT j) M D) c0, ACTIVE s <> j -> 
-      (CORE j is c0 in s' -> CORE j is c0 in s) /\
-      (forall ge n, CORE j is c0 in s -> 
-                    safeN CS0 csig ge (S n) (s \o z) c0 m -> 
-                    safeN CS0 csig ge n (s' \o z') c0 m'))),
+      (PROJ_CORE j s' = Some c0 -> PROJ_CORE j s = Some c0) /\
+      (forall ge n, PROJ_CORE j s = Some c0 -> 
+        safeN CS0 csig ge (S n) (s \o z) c0 m -> 
+        safeN CS0 csig ge n (s' \o z') c0 m'))),
   safety_invariant.
 
 End SafetyInvariant. End SafetyInvariant.
@@ -457,12 +436,11 @@ Inductive core_compatible: Type := CoreCompatible: forall
      semantics can be tracked back to a corestep of the active
      thread. *)
   (runnable_corestep: forall s m s' m' c,
-    runnable E s=true -> 
+    runnable (csem (active E s)) c=true -> 
     proj_core E (active E s) s = Some c -> 
     corestep esem ge s m s' m' -> 
-    exists c', 
-      corestep (csem (active E s)) (genv_map (active E s)) c m c' m' /\ 
-      proj_core E (active E s) s' = Some c') 
+    exists c', corestep (csem (active E s)) (genv_map (active E s)) c m c' m' /\ 
+     proj_core E (active E s) s' = Some c') 
 
   (** After a corestep of the active inner core, the active thread's new
      corestate is appropriately injected into the extended state. *)
@@ -503,22 +481,21 @@ Inductive core_compatible: Type := CoreCompatible: forall
     proj_core E (active E s) s = Some c -> 
     after_external (csem (active E s)) retv c = Some c' -> 
     exists s', after_external esem retv s = Some s' /\
-      proj_core E (active E s) s' = Some c')
+     proj_core E (active E s) s' = Some c')
 
   (** AfterExternal on extension cores leaves all but the active
      corestate unchanged. *)
   (after_ext_others: forall s s' retv,
     after_external esem retv s = Some s' -> 
     forall j, (active E s)<>j -> 
-      proj_core E j s = proj_core E j s')
+     proj_core E j s = proj_core E j s')
 
   (** REPEATED HERE TO GET AROUND A BUG IN PROGRAM: 
      HYP (1) NOT GENERATED WHEN PROVING OBLIGATION *)
   (at_extern_call: forall s ef sig args,
     at_external esem s = Some (ef, sig, args) -> 
-    exists c, 
-      proj_core E (active E s) s = Some c /\
-      at_external (csem (active E s)) c = Some (ef, sig, args)),
+    exists c, proj_core E (active E s) s = Some c /\
+     at_external (csem (active E s)) c = Some (ef, sig, args)),
   core_compatible.
 
 End CoreCompatible.
@@ -612,16 +589,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
- Notation RUNNABLE := (Extension.runnable).
- Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
-   (csem i = Some CS /\ PROJ_CORE i s = Some c)
-   (at level 66, no associativity, only parsing).
- Notation core_exists := (Extension.core_exists).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
  Notation ext_upd_at_external := (Extension.ext_upd_at_external).
- Notation runnable_false := (Extension.runnable_false).
 
  Definition core_datas := forall i:nat, core_data i.
 
@@ -631,31 +602,19 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    ACTIVE E_S s1=ACTIVE E_T s2 /\
-   RUNNABLE E_S s1=RUNNABLE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
 
  Inductive Sig: Type := Make: forall  
- (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-   match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
-   corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-   corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-   corestep esemS ge_S s1 m1 s1' m1' -> 
-   corestepN esemT ge_T n s2 m2 s2' m2' -> 
-   PROJ_CORE E_S (ACTIVE E_S s1) s1' = Some c1' -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2' = Some c2' -> 
-   match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' ->        
-   RUNNABLE E_S s1'=RUNNABLE E_T s2')
+ (match_state_runnable: forall i cd j c1 m1 c2 m2,
+   match_state i cd j c1 m1 c2 m2 -> runnable (csemS i) c1=runnable (csemT i) c2)
  
- (*allow CORE_ORD-CORESTEP_STAR, CORESTEP_PLUS*)
  (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
-   RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   runnable (csemS (ACTIVE E_S s1)) c1=false -> 
+   runnable (csemT (ACTIVE E_S s1)) c2=false -> 
    at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    match_states cd j s1 m1 s2 m2 -> 
@@ -673,9 +632,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
 
  (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
    ACTIVE E_S s1=ACTIVE E_T s2 -> 
-   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   runnable (csemS (ACTIVE E_S s1)) c1=runnable (csemT (ACTIVE E_S s1)) c2 -> 
    at_external esemS s1 = Some (ef, sig, args1) -> 
    at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
    match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
@@ -685,25 +644,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
-
- (after_external_runnable: forall s1 m1 m1' s2 m2 m2' retv1 retv2 s1' s2' cd j j' ef sig args1,
-   RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-   match_states cd j s1 m1 s2 m2 -> 
-   Mem.inject j m1 m2 -> 
-   Events.meminj_preserves_globals ge_S j -> 
-   inject_incr j j' -> 
-   Events.inject_separated j j' m1 m2 -> 
-   Mem.inject j' m1' m2' -> 
-   val_inject_opt j' retv1 retv2 -> 
-   mem_forward m1 m1' -> 
-   mem_forward m2 m2' -> 
-   Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
-   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
-(*   Val.has_type retv2 (proj_sig_res sig) -> *)
-   at_external esemS s1 = Some (ef, sig, args1) -> 
-   after_external esemS retv1 s1 = Some s1' -> 
-   after_external esemT retv2 s2 = Some s2' ->     
-   RUNNABLE E_S s1'=RUNNABLE E_T s2')
 
  (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
    In (v1, v2, sig) entry_points -> 
@@ -718,10 +658,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    safely_halted esemS c1 = Some v1 -> 
-   exists v2,
-     val_inject j v1 v2 /\
-     safely_halted esemT c2 = Some v2 /\ 
-     Mem.inject j m1 m2)
+   exists v2, val_inject j v1 v2 /\
+     safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
      
  (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
@@ -780,16 +718,10 @@ Module CompilableExtension. Section CompilableExtension.
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
- Notation RUNNABLE := (Extension.runnable).
- Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
-   (csem i = Some CS /\ PROJ_CORE i s = Some c)
-   (at level 66, no associativity, only parsing).
- Notation core_exists := (Extension.core_exists).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
  Notation ext_upd_at_external := (Extension.ext_upd_at_external).
- Notation runnable_false := (Extension.runnable_false).
 
  Import Sim_inj_exposed.
 
@@ -846,7 +778,6 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    active E_S s1=active E_T s2 /\
-   runnable E_S s1=runnable E_T s2 /\
    forall i c1, proj_core E_S i s1 = Some c1 -> 
      exists c2, proj_core E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
@@ -861,7 +792,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        (forall i:nat, Forward_simulation_inject dS dT (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
-       CompilabilityInvariant.Sig fS fT vS vT threads_max ge_S ge_T genv_mapS genv_mapT 
+       CompilabilityInvariant.Sig fS fT vS vT threads_max ge_S ge_T 
          E_S E_T entry_points core_data match_state core_ord -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.

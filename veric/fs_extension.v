@@ -790,51 +790,13 @@ Program Definition fs_extension :=
     Client_FSExtSig 
     FSExtSig 
     handled
-    proj_core _
+    proj_core 
     active _ 
-    runnable _ _ _ _  
     proj_zint
     proj_zext
-    zmult _ _ 
+    zmult _ _ _ _ _ 
    FSExtSig_linkable.
-Next Obligation.
-inv H.
-unfold proj_core in H0.
-destruct (eq_nat_dec i 1); try congruence.
-subst.
-exists c.
-unfold proj_core.
-if_tac; auto.
-elimtype False; apply H; auto.
-unfold proj_core in H0.
-destruct (eq_nat_dec i 1); try congruence.
-inv H0.
-exists (get_core s).
-unfold proj_core; auto.
-unfold proj_core in H0.
-destruct (eq_nat_dec i 1); try congruence.
-subst.
-exists (get_core s); auto.
-unfold proj_core in H0.
-destruct (eq_nat_dec i 1); try congruence.
-subst.
-exists (get_core s); auto.
-Qed.
 Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
-Next Obligation.
-unfold runnable in H.
-case_eq (at_external csem (get_core s)). 
-intros [[? ?] ?] H1.
-rewrite H1 in H.
-right; eexists; eexists; eexists; eauto.
-intros H1.
-rewrite H1 in H.
-case_eq (safely_halted csem (get_core s)).
-intros v H2.
-rewrite H2 in H.
-left; eexists; eauto.
-intros H2; rewrite H2 in H; congruence.
-Qed.
 Next Obligation.
 apply at_external_handled in H0.
 unfold is_true; auto.
@@ -1172,7 +1134,8 @@ simpl in H5.
 destruct s; simpl in H2.
 specialize (H1 (active (mkxT z0 c fs0)) c).
 simpl in H1.
-unfold active, cores in H1.
+unfold extension.runnable in H3.
+unfold active, cores in *.
 spec H1; auto.
 destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
 destruct (safely_halted csem c); try congruence.
@@ -1180,7 +1143,11 @@ destruct H1 as [c' [m' [H1 H6]]].
 exists c'; exists (mkxT z0 c' fs0); exists m'.
 split; auto.
 split; auto.
-solve[eapply os_corestep; auto].
+unfold proj_core in H2.
+if_tac in H2; try congruence.
+simpl in H2.
+inv H2.
+solve[apply os_corestep; auto].
 
 (*3: handled steps respect function specs.*)
 intros until x.
@@ -1341,7 +1308,7 @@ rewrite <-H6.
 solve[simpl; auto].
 
 (*4: handled progress*)
-intros until m; intros H1 H2 H3.
+intros until c; intros H1 H2 H3.
 inv H2.
 unfold safely_halted.
 simpl.
@@ -1350,7 +1317,8 @@ hnf in H1.
 specialize (H1 (active s) (get_core s)).
 spec H1; auto.
 hnf in H1.
-unfold runnable in H0.
+rename H3 into H0.
+unfold extension.runnable in H0.
 case_eq (at_external csem (get_core s)). 
 intros [[ef sig] args] Hat.
 (*at_external core = Some*)
@@ -1382,7 +1350,7 @@ case_eq (val2oint v); try solve[elimtype False; simpl in H1; auto].
 case_eq (val2oadr v0); try solve[elimtype False; simpl in H1; auto].
 case_eq (val2oint v1); try solve[elimtype False; simpl in H1; auto].
 intros.
-rewrite H, H4, H5 in H1.
+rewrite H3, H4, H5 in H1.
 
 (*SYS_READ case*)
 destruct H1 as [Heq [H1 [H6 H7]]].
@@ -1571,16 +1539,16 @@ if_tac; auto.
 intros.
 exists c'.
 split; auto.
-rename H into H11.
-assert (H:True) by auto.
+rename H3 into H11.
+assert (H3:True) by auto.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 inv H11.
 auto.
 intros.
 elimtype False.
-rename H into H14.
-assert (H:True) by auto.
+rename H3 into H14.
+assert (H3:True) by auto.
 unfold proj_core in H14.
 if_tac in H14; try congruence.
 apply after_at_external_excl in H2.
@@ -1640,16 +1608,16 @@ congruence.
 intros.
 exists c'.
 split; auto.
-rename H into H11.
-assert (H:True) by auto.
+rename H3 into H11.
+assert (H3:True) by auto.
 unfold proj_core in H11.
 if_tac in H11; try congruence.
 inv H11.
 auto.
 intros.
 elimtype False.
-rename H into H14.
-assert (H:True) by auto.
+rename H3 into H14.
+assert (H3:True) by auto.
 unfold proj_core in H14.
 if_tac in H14; try congruence.
 apply after_at_external_excl in H2.
@@ -1686,7 +1654,7 @@ case_eq (val2oint v); try solve[elimtype False; simpl in H1; auto].
 case_eq (val2oadr v0); try solve[elimtype False; simpl in H1; auto].
 case_eq (val2oint v1); try solve[elimtype False; simpl in H1; auto].
 intros.
-rewrite H, H4, H5 in H1.
+rewrite H3, H4, H5 in H1.
 
 (*SYS_WRITE case*)
 destruct H1 as [Heq [H1 [H6 H7]]].
@@ -1713,7 +1681,7 @@ exists (mkxT z c' fsys'); exists m.
 split.
 eapply os_write 
  with (nbytes := Int.repr (Z_of_nat nbytes_written)); eauto.
-rewrite H.
+rewrite H3.
 f_equal.
 apply Mem.loadbytes_length in H7.
 apply fs_write_length in H90.
@@ -1769,10 +1737,11 @@ intros H4; rewrite H4 in H1.
 elimtype False; auto.
 intros H4.
 unfold cores, active in H1. 
+unfold cores, Extension.active in H0.
 rewrite H4 in H0, H1.
 (*safely halted*)
 destruct (safely_halted csem (get_core s)); try congruence.
-right; exists v; auto.
+solve[right; exists v; auto].
 
 (*5: safely halted threads remain halted*)
 intros until rv; intros H2 H3 H4.

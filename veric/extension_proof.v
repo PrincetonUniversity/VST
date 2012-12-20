@@ -38,6 +38,21 @@ Qed.
 
 End SafetyMonotonicity.
 
+Lemma runnable_false (G C M D: Type) (csem: CoreSemantics G C M D): 
+ forall c, runnable csem c=false -> 
+ (exists rv, safely_halted csem c = Some rv) \/
+ (exists ef, exists sig, exists args, 
+   at_external csem c = Some (ef, sig, args)).
+Proof.
+intros c; unfold runnable.
+destruct (at_external csem c).
+destruct p as [[ef sig] vals].
+intros; right; do 3 eexists; eauto.
+destruct (safely_halted csem c).
+intros; left; eexists; eauto.
+congruence.
+Qed.
+
 Module ExtensionSafety. Section ExtensionSafety.
  Variables
   (G: Type) (** global environments *)
@@ -74,16 +89,10 @@ Notation PROJ_CORE := E.(Extension.proj_core).
 Notation "zint \o zext" := (E.(Extension.zmult) zint zext) 
   (at level 66, left associativity). 
 Notation ACTIVE := (E.(Extension.active)).
-Notation RUNNABLE := (E.(Extension.runnable)).
-Notation "'CORE' i 'is' c 'in' s" := 
-  (PROJ_CORE i s = Some c)
-  (at level 66, no associativity).
-Notation core_exists := E.(Extension.core_exists).
 Notation active_proj_core := E.(Extension.active_proj_core).
 Notation notat_external_handled := E.(Extension.notat_external_handled).
 Notation at_external_not_handled := E.(Extension.at_external_not_handled).
 Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
-Notation runnable_false := E.(Extension.runnable_false).
 
 Program Definition ExtensionSafety: EXTENSION_SAFETY.Sig ge genv_map E.
 Proof.
@@ -175,11 +184,11 @@ solve[eapply H20; eauto].
 (*CASE 2: at_external OUTER = None; i.e., inner corestep or handled function*)
 intros H2.
 case_eq (safely_halted esem s); auto.
-case_eq (RUNNABLE s).
+destruct (active_proj_core s) as [c PROJECT].
+case_eq (runnable (csem (ACTIVE s)) c).
 (*active thread i is runnable*)
 intros RUN.
-destruct (active_proj_core s) as [c PROJECT].
-destruct (core_prog n (s \o z) s m c H1 RUN)
+destruct (core_prog n (s \o z) s m c H1 PROJECT)
  as [c' [s' [m' [CORESTEP_C [CORESTEP_T ?]]]]]; auto.
 generalize (core_pres n z s c m s' c' m' H1)
  as INV'; auto.
@@ -189,14 +198,13 @@ solve[eauto].
 
 (*active thread not runnable*)
 intros RUN.
-destruct (active_proj_core s) as [c PROJECT].
-destruct (handled_prog n z s m H1 RUN H2)
+destruct (handled_prog n z s m c H1 PROJECT RUN H2)
  as [[s' [m' [CORESTEP_T CORES_PRES]]]|[rv SAFELY_HALTED]].
 2: intros CONTRA; rewrite CONTRA in SAFELY_HALTED; congruence.
 exists s'; exists m'.
 split; auto.
 eapply IHn.
-destruct (runnable_false s RUN PROJECT) 
+destruct (runnable_false (csem (ACTIVE s)) c RUN) 
  as [SAFELY_HALTED|[ef [sig [args AT_EXT]]]].
 
 (*subcase A of no runnable thread: safely halted*)
@@ -204,18 +212,14 @@ intros j cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
-intros Heq _.
-subst j.
-destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
- as [c0 PROJECT0].
-rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
-specialize (H1 i c0 PROJECT).
+intros Heq _; subst j.
+specialize (H1 i c PROJECT).
 simpl in H1. 
 destruct SAFELY_HALTED as [rv SAFELY_HALTED].
-destruct (@at_external_halted_excl (gT i) (cT i) M D (csem i) c0) as [H4|H4]; 
+destruct (@at_external_halted_excl (gT i) (cT i) M D (csem i) c) as [H4|H4]; 
  [|congruence].
 destruct n; simpl; auto.
-generalize (safely_halted_halted s m s' m' i c0 rv) as H7; auto. 
+generalize (safely_halted_halted s m s' m' i c rv) as H7; auto. 
 intros.
 assert (H6:True) by auto.
 rewrite H7 in PROJECTj; inversion PROJECTj; subst; auto.
@@ -231,46 +235,34 @@ spec handled_rest; auto.
 spec handled_rest; auto.
 destruct (handled_rest j cj Hneq) as [H6 H7].
 solve[eapply H7 with (z:=z); eauto].
-(*eapply H1; eauto.
-destruct (core_exists ge j s m s' m' CORESTEP_T PROJECTj)
- as [c0 PROJECT0].
-specialize (H1 j CSj c0 CSEMj PROJECT0).
-destruct H6 as [H8 H9].
-split; auto.
-rewrite H9 in PROJECT0; inversion PROJECT0; subst; auto.*)
 
 (*subcase B of no runnable thread: at external INNER*)
 intros j cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
-intros Heq _.
-subst j.
-destruct (core_exists ge i s m s' m' CORESTEP_T PROJECTj)
- as [c0 PROJECT0].
-rewrite PROJECT in PROJECT0; inversion PROJECT0; subst.
-specialize (H1 i c0 PROJECT).
+intros Heq _; subst j.
+specialize (H1 i c PROJECT).
 simpl in H1. 
 rewrite AT_EXT in H1.
-remember (safely_halted (csem i) c0) as SAFELY_HALTED.
+remember (safely_halted (csem i) c) as SAFELY_HALTED.
 destruct SAFELY_HALTED. 
 solve[destruct ef; elimtype False; auto].
 destruct H1 as [x H1].
 destruct H1 as [PRE POST].
-specialize (handled_pres s z m c0 s' m' cj ef sig args
+specialize (handled_pres s z m c s' m' cj ef sig args
   (ext_spec_pre csig ef)
   (ext_spec_post csig ef) x).
-(*rewrite Heq in handled_pres.*)
 hnf in handled_pres.
 spec handled_pres; auto.
 spec handled_pres; auto.
-spec handled_pres; auto. 
- eapply notat_external_handled; eauto.
+spec handled_pres; auto.
+ solve[eapply notat_external_handled in AT_EXT; eauto].
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
-destruct (CORES_PRES i c0) as [c' H4]; auto.
+destruct (CORES_PRES i c) as [c' H4]; auto.
 destruct handled_pres as [[AT_EXT' [PRE' ACT']] | POST'].
 (*pre-preserved case*)
 destruct H4 as [H5 H6].
@@ -292,7 +284,7 @@ destruct H4 as [H5 H6].
 assert (H4:True) by auto.
 rewrite H5 in PROJECTj; inversion PROJECTj; rename H3 into H1; rewrite <-H1 in *.
 destruct POST' as [ret [AFTER_EXT POST']].
-generalize (after_at_external_excl (csem i) ret c0 c' AFTER_EXT); intros AT_EXT'.
+generalize (after_at_external_excl (csem i) ret c c' AFTER_EXT); intros AT_EXT'.
 clear - PRE POST POST' AT_EXT' AFTER_EXT H4 H5 H6 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT'.
@@ -533,16 +525,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
- Notation RUNNABLE := (Extension.runnable).
- Notation "'CORE' i 'is' ( CS , c ) 'in' s" := 
-   (csem i = Some CS /\ PROJ_CORE i s = Some c)
-   (at level 66, no associativity, only parsing).
- Notation core_exists := (Extension.core_exists).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
  Notation ext_upd_at_external := (Extension.ext_upd_at_external).
- Notation runnable_false := (Extension.runnable_false).
 
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
@@ -625,13 +611,15 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    ACTIVE E_S s1=ACTIVE E_T s2 /\
-   RUNNABLE E_S s1=RUNNABLE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
 
  Inductive internal_compilability_invariant: Type := 
    InternalCompilabilityInvariant: forall 
+  (match_state_runnable: forall i cd j c1 m1 c2 m2,
+    match_state i cd j c1 m1 c2 m2 -> runnable (csemS i) c1=runnable (csemT i) c2)
+
   (match_others: forall i cd j j' s1 cd' c1 m1 c1' m1' s2 c2 m2 c2' m2' d1 d2 n, 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
@@ -648,24 +636,11 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
     match_state i (cd i) j' d1 m1' d2 m2')
 
-  (corestep_runnable: forall s1 c1 m1 c1' m1' s1' s2 c2 m2 c2' m2' s2' n cd cd' j j',
-    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-    RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-    match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
-    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
-    corestep esemS ge_S s1 m1 s1' m1' -> 
-    corestepN esemT ge_T n s2 m2 s2' m2' -> 
-    PROJ_CORE E_S (ACTIVE E_S s1) s1' = Some c1' -> 
-    PROJ_CORE E_T (ACTIVE E_S s1) s2' = Some c2' -> 
-    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' ->        
-    RUNNABLE E_S s1'=RUNNABLE E_T s2')
-
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
-    RUNNABLE E_S s1=false -> RUNNABLE E_T s2=false -> 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+    runnable (csemS (ACTIVE E_S s1)) c1=false -> 
+    runnable (csemT (ACTIVE E_S s1)) c2=false -> 
     at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
     match_states cd j s1 m1 s2 m2 -> 
@@ -683,9 +658,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
   (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
     ACTIVE E_S s1=ACTIVE E_T s2 -> 
-    RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+    runnable (csemS (ACTIVE E_S s1)) c1=runnable (csemT (ACTIVE E_S s1)) c2 -> 
     at_external esemS s1 = Some (ef, sig, args1) -> 
     at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
     match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
@@ -695,25 +670,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     Forall2 Val.has_type args2 (sig_args sig) -> 
     at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
     at_external esemT s2 = Some (ef, sig, args2))
-
-  (after_external_runnable: forall s1 m1 m1' s2 m2 m2' retv1 retv2 s1' s2' cd j j' ef sig args1,
-    RUNNABLE E_S s1=RUNNABLE E_T s2 -> 
-    match_states cd j s1 m1 s2 m2 -> 
-    Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals ge_S j -> 
-    inject_incr j j' -> 
-    Events.inject_separated j j' m1 m2 -> 
-    Mem.inject j' m1' m2' -> 
-    val_inject_opt j' retv1 retv2 -> 
-    mem_forward m1 m1' -> 
-    mem_forward m2 m2' -> 
-    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
-    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
-(*   Val.has_type retv2 (proj_sig_res sig) -> *)
-    at_external esemS s1 = Some (ef, sig, args1) -> 
-    after_external esemS retv1 s1 = Some s1' -> 
-    after_external esemT retv2 s2 = Some s2' ->     
-    RUNNABLE E_S s1'=RUNNABLE E_T s2')
 
   (after_external_diagram: 
     forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
@@ -749,10 +705,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
     match_states cd j c1 m1 c2 m2 -> 
     safely_halted esemS c1 = Some v1 -> 
-    exists v2,
-      val_inject j v1 v2 /\
-      safely_halted esemT c2 = Some v2 /\ 
-      Mem.inject j m1 m2)
+    exists v2, val_inject j v1 v2 /\
+      safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
 
   (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
     match_states cd j s1 m1 s2 m2 -> 
@@ -784,14 +738,33 @@ Next Obligation. apply core_ords_wf. Qed.
 Next Obligation. 
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
-destruct MATCH as [ACT [RUN MATCH_CORES]].
+destruct MATCH as [ACT MATCH_CORES].
 rename H into STEP.
-case_eq (RUNNABLE E_S st1).
+destruct (active_proj_core E_S st1) as [c1 PROJ1].
+destruct (active_proj_core E_T st2) as [c2 PROJ2].
+assert (exists c2':cT (ACTIVE E_S st1), PROJ_CORE E_T (ACTIVE E_S st1) st2 = Some c2').
+ clear - ACT c2 PROJ2.
+ forget (ACTIVE E_S st1) as xx.
+ forget (ACTIVE E_T st2) as yy.
+ subst.
+ solve[eexists; eauto].
+clear c2 PROJ2.
+destruct H as [c2 PROJ2].
+case_eq (runnable (csemS (ACTIVE E_S st1)) c1).
 
 (*Case 1: runnable thread, appeal to core diagram for cores*)
 intros RUN1.
-assert (RUN2: RUNNABLE E_T st2 = true) by (rewrite <-RUN; auto).
-destruct (active_proj_core E_S st1) as [c1 PROJ1].
+assert (RUN2: runnable (csemT (ACTIVE E_S st1)) c2=true).
+ inv esig_compilable.
+ rewrite match_state_runnable 
+  with (cd := cd (ACTIVE E_S st1)) (j := j) (m1 := m1) (c2 := c2) (m2 := m2) in RUN1.
+ auto.
+ specialize (MATCH_CORES (ACTIVE E_S st1) c1).
+ spec MATCH_CORES; auto.
+ destruct MATCH_CORES as [c2' [PROJ2' MTCH]].
+ rewrite PROJ2' in PROJ2.
+ inv PROJ2.
+ solve[auto].
 assert (exists c1', corestep (csemS (ACTIVE E_S st1)) (genv_mapS (ACTIVE E_S st1)) 
          c1 m1 c1' m1') as [c1' STEP1].
  inv esig_compilable.
@@ -814,6 +787,7 @@ assert (ACT1': ACTIVE E_S st1 = ACTIVE E_S st1').
  spec corestep_pres; auto.
  solve[destruct corestep_pres; auto].
 generalize (core_diagram (core_simulations (ACTIVE E_S st1))) as DIAG; intro.
+clear c2 PROJ2 RUN2.
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 unfold core_datas in cd.
 specialize (DIAG c1 m1 c1' m1' STEP1 (cd _) c2 j m2 MATCH12).
@@ -837,12 +811,7 @@ split; auto.
  (*Subgoal: match_states*)
  hnf.
  split.
- rewrite <-ACT1', <-ACT2'; auto.
- split.
- inv esig_compilable.
- specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2).
- specialize (corestep_runnable c2 m2 c2' m2' st2' (S n) (cd (ACTIVE E_S st1)) cd' j j').
- spec corestep_runnable; auto.
+ solve[rewrite <-ACT1', <-ACT2'; auto].
  
   intros i _c _PROJ1'.
   case_eq (eq_nat_dec (ACTIVE E_S st1) i).
@@ -919,12 +888,7 @@ split; auto.
  (*Subgoal: match_states*)
  hnf.
  split.
- rewrite <-ACT2'; auto.
- split.
- inv esig_compilable.
- specialize (corestep_runnable st1 c1 m1 c1' m1' st1' st2 c2 m2 c2' m2' st2' n
-   (cd (ACTIVE E_S st1)) cd' j j').
- spec corestep_runnable; auto.
+ solve[rewrite <-ACT2'; auto].
 
   intros i _c _PROJ1'.
   case_eq (eq_nat_dec (ACTIVE E_S st1) i).
@@ -987,14 +951,14 @@ split; auto.
 
 (*runnable = false*)
 intros RUN1.
-destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 generalize PROJ1 as _PROJ1; intro.
-apply (runnable_false E_S) with 
- (c := c1) in PROJ1; auto.
-destruct PROJ1 as [[rv HALT]|[ef [sig [args AT_EXT]]]].
+generalize RUN1 as RUN1'; intro.
+apply runnable_false in RUN1.
+destruct RUN1 as [[rv HALT]|[ef [sig [args AT_EXT]]]].
 
 (*active thread is safely halted*)
 specialize (MATCH_CORES (ACTIVE E_S st1) c1 _PROJ1).
+clear c2 PROJ2.
 destruct MATCH_CORES as [c2 [PROJ2 MATCH12]].
 destruct (core_halted (core_simulations (ACTIVE E_S st1)) 
   (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv MATCH12 HALT) 
@@ -1007,19 +971,17 @@ split3; auto; split; auto.
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 
 (*active thread is at_external*)
+clear c2 PROJ2.
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 _PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) (cd (ACTIVE E_S st1)) 
             j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
  as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
 inv esig_compilable. 
 edestruct extension_diagram as [s2' H11]; eauto.
+solve[erewrite <-match_state_runnable; eauto].
 rewrite <-meminj_preserves_genv2blocks.
 rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS (ACTIVE E_S st1))); auto.
-rewrite meminj_preserves_genv2blocks; auto.
-(*destruct H11 as [m2' [cd' [j' [? [? [? ?]]]]]].
-exists s2'; exists m2'; exists cd'; exists j'.
-split3; auto; split; auto.
-solve[left; exists 0%nat; simpl; eexists; eexists; split; simpl; eauto].*)
+solve[rewrite meminj_preserves_genv2blocks; auto].
 Qed.
 
 (*we punt in the make_initial_core case of the simulation proof; to do more requires 
@@ -1037,7 +999,7 @@ Qed.
 Next Obligation. 
 rename H into MATCH.
 hnf in MATCH.
-destruct MATCH as [ACT [RUN MATCH_CORES]].
+destruct MATCH as [ACT MATCH_CORES].
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
  inv core_compatS.
@@ -1065,7 +1027,7 @@ Next Obligation.
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
 hnf in MATCH.
-destruct MATCH as [ACT [RUN MATCH_CORES]].
+destruct MATCH as [ACT MATCH_CORES].
 generalize MATCH_CORES as MATCH_CORES'; intro.
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
@@ -1105,12 +1067,8 @@ assert (ACTIVE E_T st2=ACTIVE E_T st2') as <-.
  forget (ACTIVE E_S st1) as x.
  inv core_compatT.
  solve[eapply after_ext_pres; eauto].
-split3; auto.
+split; auto.
 inv esig_compilable.
-eapply after_external_runnable
- with (s1 := st1) (m1 := m1) (s2 := st2) (m2 := m2) (retv1 := Some ret1) (retv2 := Some ret2)
-      (cd := cd) (j := j) (ef := e) (sig := ef_sig) (args1 := vals1); eauto.
-simpl.
 
 intros i _c _PROJ1'.
 case_eq (eq_nat_dec (ACTIVE E_S st1) i).
@@ -1137,7 +1095,6 @@ exists _d; split; auto.
  inv core_compatT.
  erewrite <-after_ext_others; eauto.
  solve[rewrite <-ACT; auto].
-inv esig_compilable.
 rewrite core_datas_upd_other; auto.
 eapply after_external_diagram; eauto.
 inv core_compatT.
@@ -1150,8 +1107,7 @@ Lemma RGsimulations_invariant:
   @CompilabilityInvariant.Sig F_S V_S F_T V_T xS xT 
        fS fT vS vT cS cT dS dT Z Zint Zext 
        esemS esemT csemS csemT csig esig handled threads_max
-       ge_S ge_T genv_mapS genv_mapT 
-       E_S E_T entry_points core_data match_state core_ord -> 
+       ge_S ge_T E_S E_T entry_points core_data match_state core_ord -> 
   internal_compilability_invariant.
 Proof.
 intro core_simulations_RGinject.
@@ -1159,7 +1115,7 @@ constructor; try solve[inv H; auto].
   
 (*1*)
 intros until n; intros PROJC1 PROJC2 PROJD1 PROJD2 ACT MATCH INCR SEP STEP1 STEP2 MATCHC'.
-destruct MATCH as [ACTEQ [RUN MATCH_INNER]].
+destruct MATCH as [ACTEQ MATCH_INNER].
 forget (Extension.active E_S s1) as k.
 destruct (MATCH_INNER k c1 PROJC1) as [_c2 [_PROJC2 MATCHC]].
 rewrite _PROJC2 in PROJC2; inv PROJC2.
