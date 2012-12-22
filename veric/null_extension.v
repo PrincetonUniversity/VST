@@ -9,10 +9,8 @@ Section NullExtension.
  Variables
   (fT vT cT dT Z: Type) (** external states *)
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ext_sig mem Z) (** client signature *)
-  (genv_mapT: forall i:nat, Genv.t fT vT)
-  (at_external_handled: forall c ef args sig,
-    at_external csemT c = Some (ef, sig, args) -> IN ef csig = true).
+  (csig: ext_spec mem Z) (** client signature *)
+  (genv_mapT: forall i:nat, Genv.t fT vT).
 
  Definition cores := fun _:nat => csemT.
 
@@ -32,24 +30,27 @@ Section NullExtension.
  Definition handled: list AST.external_function := nil.
 
  Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
-
  Obligation Tactic := autounfold with null_unfold; 
   intros; try solve [eexists; eauto|congruence].
  
  Program Definition null_extension := Extension.Make 
-  (fun i:nat => Genv.t (const fT i) (const vT i))
+  (fun i:nat => Genv.t (const fT i) (const vT i)) (fun _ => dT)
   csemT cores csig csig handled 1 proj_core _ active _ proj_zint proj_zext zmult 
-  _ _ _ _ _ _.
+  _ _ _ _ _.
  Next Obligation. if_tac; auto. rewrite H0 in H. elimtype False; omega. Qed.
  Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
- Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.
+(* Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.*)
  Next Obligation. 
   inversion H; subst; if_tac in H; try congruence. 
   unfold const in *.
   inversion H3; subst.
   solve[rewrite H0 in H1; congruence].
  Qed.
- Next Obligation. unfold linkable; intros; inv H0; inv H1; exists x'; auto. Qed.
+ Next Obligation. 
+  unfold linkable; intros; inv H0. 
+  unfold spec_of in H; inv H.
+  solve[exists x'; split; auto]. 
+ Qed.
 
 End NullExtension.
 
@@ -57,10 +58,8 @@ Section NullExtensionSafe.
  Variables
   (fT vT cT dT Z: Type) (** external states *)
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ext_sig mem Z) (** client signature *)
+  (csig: ext_spec mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT)
-  (at_external_handled: forall c ef args sig,
-    at_external csemT c = Some (ef, sig, args) -> IN ef csig = true)
   (ge: Genv.t fT vT).
 
  Import ExtensionSafety.
@@ -71,9 +70,9 @@ Section NullExtensionSafe.
   intros; try solve [eexists; eauto|congruence].
 
  Lemma null_extension_safe (csem_fun: corestep_fun csemT): 
-  safe_extension ge (fun _:nat => ge) (null_extension csemT csig at_external_handled).
+  safe_extension ge (fun _:nat => ge) (null_extension csemT csig).
  Proof.
- destruct (ExtensionSafety (null_extension csemT csig at_external_handled) 
+ destruct (ExtensionSafety (null_extension csemT csig)
   ge (fun _:nat => ge)) as [PF].
  apply PF.
  constructor; autounfold with null_unfold in *.
@@ -191,11 +190,11 @@ Section NullExtensionSafe.
 End NullExtensionSafe.
 
  Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
-         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ext_sig mem Z) PF
+         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ext_spec mem Z)
          (csem_fun: corestep_fun csem),
-   core_compatible ge (fun _:nat => ge) (null_extension csem csig PF).
+   core_compatible ge (fun _:nat => ge) (null_extension csem csig).
  Proof.
- intros until PF.
+ intros until csig.
  intros CSEM_FUN.
  constructor; simpl; auto.
  intros until c; intros H1 H2 H3.
@@ -255,26 +254,22 @@ End NullExtensionSafe.
 Section NullExtensionCompilable.
  Variables 
   (fS vS fT vT cS cT dS dT Z: Type) 
-  (csig: ext_sig mem Z)
+  (csig: ext_spec mem Z)
   (init_world: Z)
   (entry_points: list (val*val*signature))
   (csemS: CoreSemantics (Genv.t fS vS) cS mem dS)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT)
-  (at_external_handledS: forall c ef args sig,
-    at_external csemS c = Some (ef, sig, args) -> IN ef csig = true)
-  (at_external_handledT: forall c ef args sig,
-    at_external csemT c = Some (ef, sig, args) -> IN ef csig = true).
+  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT).
 
  Variables (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
  Definition E_S: 
   Extension.Sig (fun i : nat => Genv.t ((fun _ => fS) i) ((fun _ => vS) i))
-   (fun _ : nat => cS) unit csemS (fun _:nat => csemS) csig csig handled := 
-  null_extension csemS csig at_external_handledS.
+   (fun _ => cS) (fun _ => dS) unit csemS (fun _:nat => csemS) csig csig handled := 
+  null_extension csemS csig.
  Definition E_T: 
   Extension.Sig (fun i : nat => Genv.t ((fun _ => fT) i) ((fun _ => vT) i))
-   (fun _ : nat => cT) unit csemT (fun _:nat => csemT) csig csig handled := 
-  null_extension csemT csig at_external_handledT.
+   (fun _ => cT) (fun _ => dT) unit csemT (fun _:nat => csemT) csig csig handled := 
+  null_extension csemT csig.
 
  Import Sim_inj_exposed.
  Import ExtensionCompilability2.
@@ -302,7 +297,7 @@ Section NullExtensionCompilable.
  intros H1 H2 H3.
  set (R := fun (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
-   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig handled 
    geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max R)
   as [LEM].
@@ -310,12 +305,11 @@ Section NullExtensionCompilable.
  solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
  solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
  unfold E_S, const.
- solve[apply (null_core_compatible geS csig at_external_handledS H1)].
+ solve[apply (null_core_compatible geS csig H1)].
  unfold E_T, const.
- solve[apply (null_core_compatible geT csig at_external_handledT H2)].
+ solve[apply (null_core_compatible geT csig H2)].
 
  constructor; try solve[intros; unfold R; auto].
-(* solve[intros; eapply match_state_runnable; eauto].*)
 
  intros until j; intros H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15.
  destruct core_simulation; unfold const; simpl.
@@ -359,10 +353,11 @@ Section NullExtensionCompilable.
  split; auto.
  intros i c1 H9; exists s2; split; auto.
  simpl in H9; unfold proj_core in H9|-*; if_tac in H9; try congruence.
- solve[inv H9; split; auto].
+ simpl; unfold proj_core; rewrite H10; if_tac; auto.
+ solve[elimtype False; auto].
  simpl in H9; unfold proj_core in H9.
  if_tac in H9; try congruence.
- solve[inv H9; auto].
+ solve[unfold const; inversion H9; rewrite H12 in *; auto].
 
  intros until v1; intros MATCH12 HALT.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
@@ -378,7 +373,8 @@ Section NullExtensionCompilable.
  apply corestep_not_halted in H6.
  simpl in H0; unfold proj_core, active in H0.
  if_tac in H0; try congruence.
- solve[inv H0; simpl in H5; unfold const in H5; rewrite H5 in H6; congruence].
+ inversion H0; rewrite H9 in *. 
+ solve[simpl in H5; unfold const in H5; rewrite H5 in H6; congruence].
  Qed.
 
 End NullExtensionCompilable.

@@ -770,12 +770,8 @@ inv H1.
 auto.
 Qed.
 
-Definition Client_FSExtSig: ext_sig mem (fs*Z) := mkextsig handled Client_FSExtSpec.
-
-Variable (at_external_handled: forall c ef args sig,
-    at_external csem c = Some (ef, sig, args) -> IN ef Client_FSExtSig = true).
-Variable FSExtSig: ext_sig Memory.mem Z.
-Variable FSExtSig_linkable: linkable proj_zext handled Client_FSExtSig FSExtSig.
+Variable FSExtSpec: ext_spec Z.
+Variable FSExtSpec_linkable: linkable proj_zext handled Client_FSExtSpec FSExtSpec.
 Variable ge: genv.
 
 Import TruePropCoercion.
@@ -783,24 +779,25 @@ Import TruePropCoercion.
 Program Definition fs_extension := 
   Extension.Make 
     _
+    (fun _ => D)
     FSCoreSem
     cores
-    Client_FSExtSig 
-    FSExtSig 
+    Client_FSExtSpec
+    FSExtSpec 
     handled
     1
     proj_core _
     active _ 
     proj_zint
     proj_zext
-    zmult _ _ _ _ _ 
-   FSExtSig_linkable.
+    zmult _ _ _ _  
+   FSExtSpec_linkable.
 Next Obligation. unfold proj_core. if_tac; auto. rewrite H0 in H; elimtype False; omega. Qed.
 Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
-Next Obligation.
+(*Next Obligation.
 apply at_external_handled in H0.
 unfold is_true; auto.
-Qed.
+Qed.*)
 Next Obligation.
 unfold juicy_core_sem in H1.
 simpl in H1.

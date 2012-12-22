@@ -25,8 +25,7 @@ Variable prog: program.
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type). (** portion of Z external to extension *)
 
-Definition juicy_csig: juicy_ext_sig Z :=
-  mkjuicyextsig (externals (prog_funct prog)) CSL.ExtSpec.Hspec.
+Definition juicy_csig: juicy_ext_spec Z := CSL.ExtSpec.Hspec.
 
 Definition initial_cores (i: nat): 
   CoreSemantics (Genv.t fundef type) Clight_new.corestate juicy_mem
@@ -34,10 +33,11 @@ Definition initial_cores (i: nat):
 
  Variables
   (esem: CoreSemantics (Genv.t fundef type) xT juicy_mem jm_init_package) (** extended semantics *)
-  (juicy_esig: juicy_ext_sig Z)
+  (juicy_esig: juicy_ext_spec Z)
   (handled: list AST.external_function) (** functions handled by this extension *)
   (E: Extension.Sig (fun _: nat => Genv.t fundef type) (fun _:nat => Clight_new.corestate) 
-    Zint esem initial_cores juicy_csig juicy_esig (externals (prog_funct prog)))
+    (fun _ => jm_init_package) Zint esem initial_cores juicy_csig juicy_esig 
+    (externals (prog_funct prog)))
   (Hlinkable: linkable (Extension.proj_zext E) (externals (prog_funct prog)) 
     juicy_csig juicy_esig)
  (Hsafe: safe_extension (Genv.globalenv prog) (fun _:nat => Genv.globalenv prog) E)
@@ -62,7 +62,7 @@ Lemma semax_extension_rule (z: Z) (V: varspecs) (G: funspecs) (m: mem):
       exists jm : juicy_mem.juicy_mem,
         juicy_mem.m_dry jm = m /\
         ageable.level jm = n /\
-        safeN esem (juicy_link juicy_esig (externals (prog_funct prog))) 
+        safeN esem (link_ext_spec (externals (prog_funct prog)) juicy_esig) 
             (Genv.globalenv prog) n (Extension.proj_zext E z) q jm).
 Proof.
 intros H1 H2.
