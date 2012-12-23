@@ -221,11 +221,11 @@ End NullExtensionSafe.
  unfold proj_core in H1.
  solve[if_tac in H1; try congruence].
 
- intros until m'; intros H1 H2 H3; intros j; intros H4.
+ intros until m'; intros H1 H2 H3; intros j; intros q H4.
  unfold cores, active in *.
  unfold proj_core.
  if_tac; auto.
- solve[elimtype False; auto].
+ solve[elimtype False; omega].
 
  intros until n; intros H1 H2 H3 j H4.
  unfold active, cores in *.

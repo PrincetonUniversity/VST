@@ -70,7 +70,8 @@ Inductive linker_corestep:
 
 (** 'link' steps *)
 | link_call: forall ge stack i j args id sig b (c: cT i) m (pf_i: i < num_modules) c' 
-   (LOOKUP: procedure_linkage_table id = Some j)
+   (LOOKUP: procedure_linkage_table id = Some j) 
+   (NEQ_IJ: i<>j) (** 'external' functions cannot be defined within this module *)
    (AT_EXT: at_external (get_module_csem (modules pf_i)) c = 
      Some (EF_external id sig, sig, args)) pf,
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
@@ -116,15 +117,12 @@ Definition linker_after_external (retv: option val) (s: linker_corestate) :=
   match s with
   | mkLinkerCoreState nil _ => None
   | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ =>
-     match at_external (get_module_csem (modules pf_i)) c with
-     | None => None
-     | Some _ => match after_external (get_module_csem (modules pf_i)) retv c with
-                 | None => None
-                 | Some c' => Some (mkLinkerCoreState 
-                                     (mkFrame i pf_i c' :: call_stack) (length_cons _ _))
-                 end
-     end
-   end.
+    match after_external (get_module_csem (modules pf_i)) retv c with
+    | None => None
+    | Some c' => Some (mkLinkerCoreState 
+      (mkFrame i pf_i c' :: call_stack) (length_cons _ _))
+    end
+  end.
 
 Definition linker_safely_halted (s: linker_corestate) :=
   match s with
@@ -248,9 +246,9 @@ Next Obligation.
 destruct q; simpl in H|-*.
 destruct stack; try solve[inversion H].
 destruct f; try solve[inversion H].
-case_eq (at_external (get_module_csem (modules PF)) c). 
+(*case_eq (at_external (get_module_csem (modules PF)) c). 
 intros [[ef sig] args] H1.
-rewrite H1 in H.
+rewrite H1 in H.*)
 case_eq (after_external (get_module_csem (modules PF)) retv c).
 intros c' H2; rewrite H2 in H.
 inv H; apply after_at_external_excl in H2.
@@ -259,7 +257,6 @@ case_eq (after_external (get_module_csem (modules PF)) retv c).
 solve[intros c' H2; rewrite H2 in H; intro; congruence].
 intros H2 H3.
 solve[rewrite H2 in H; congruence].
-solve[intros H1; rewrite H1 in H; congruence].
 Qed.
 
 End LinkerCoreSemantics.
@@ -310,6 +307,21 @@ Definition csem_map: forall i: nat,
  fun i: nat => match lt_dec i num_modules with
                | left pf => get_module_csem (modules pf)
                | right _ => trivial_core_semantics i
+               end.
+
+Program Definition trivial_genv (i: nat): Genv.t (fT i) (vT i) :=
+ Genv.mkgenv (PTree.empty block) (ZMap.init None) (ZMap.init None) (Zgt_pos_0 1) 
+ _ _ _ _ _.
+Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
+Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
+Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
+Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
+Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
+
+Definition genvs: forall i: nat, Genv.t (fT i) (vT i) :=
+ fun i: nat => match lt_dec i num_modules with
+               | left pf => get_module_genv (modules pf)
+               | right _ => trivial_genv i
                end.
 
 Import TruePropCoercion.
@@ -393,6 +405,213 @@ subst. unfold genv_map in H0.
 solve[rewrite H0 in H2; inv H2].
 Qed.
 Next Obligation. solve[eapply at_external_not_handled; eauto]. Qed.
-  
+
+Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
+ eq_rect i (fun x => cT x) c i (eq_sym e) = c.
+Proof. Admitted.
+
+Lemma linker_core_compatible: forall (ge: Genv.t F V) 
+   (agree: forall (k : nat) (pf_k : k < num_modules),
+   genvs_agree ge (get_module_genv (modules pf_k)))
+   (domain_eq: forall (k : nat) (pf_k : k < num_modules),
+     genvs_domain_eq ge (get_module_genv (modules pf_k)))
+  (csem_fun: forall i: nat, corestep_fun (csem_map i)),
+ @core_compatible (Genv.t F V) (linker_corestate num_modules cT) mem 
+        (list (ident*globdef F V)) Z unit Z
+        (fun i => Genv.t (fT i) (vT i)) cT init_data 
+        (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules) 
+        csem_map csig esig handled 
+ ge genvs linking_extension.
+Proof.
+intros; constructor.
+
+intros until c; simpl; intros H1 H2 H3.
+inv H3; simpl in H2|-*.
+destruct (eq_nat_dec i i); try solve[elimtype False; auto].
+inv H2.
+simpl in H1.
+exists c'.
+unfold csem_map, genvs.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+split.
+assert (l = pf_i) by apply proof_irr.
+rewrite H2.
+solve[rewrite dependent_types_nonsense; auto].
+solve[rewrite dependent_types_nonsense; auto].
+unfold runnable, csem_map in H1.
+simpl in H1.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+destruct (eq_nat_dec i i); try solve[elimtype False; auto].
+inv H2.
+rewrite dependent_types_nonsense in H1.
+assert (H2: l = pf_i) by apply proof_irr. 
+rewrite H2 in H1.
+solve[unfold init_data in H1; rewrite AT_EXT in H1; congruence].
+destruct (eq_nat_dec j j); try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H2.
+inversion H2. 
+rewrite H5 in *; clear H5 H2 e.
+unfold runnable in H1; simpl in H1.
+unfold init_data in H1.
+destruct (@at_external (Genv.t (fT j) (vT j)) (cT j) Mem.mem
+             (list (prod ident (globdef (fT j) (vT j)))) 
+             (csem_map j) c).
+congruence.
+unfold csem_map in H1.
+generalize LOOKUP as LOOKUP'; intro.
+apply plt_ok in LOOKUP'.
+destruct (lt_dec j num_modules); try solve[elimtype False; omega].
+assert (H2: l = plt_ok LOOKUP) by apply proof_irr.
+rewrite H2 in H1.
+rewrite HALTED in H1.
+congruence.
+
+intros until m'; simpl; intros H1 H2 H3.
+inv H3; simpl in *.
+assert (Heq: c0 = c). 
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ solve[rewrite dependent_types_nonsense in H1; inv H1; auto].
+subst c0.
+clear H1.
+split; auto.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite dependent_types_nonsense.
+generalize (csem_fun i).
+unfold csem_map, genvs in H2|-*.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (H3: l = pf_i) by apply proof_irr.
+rewrite H3 in H2|-*.
+clear H3 e.
+intros csem_fun'.
+f_equal.
+eapply csem_fun' in H2.
+spec H2; eauto.
+inv H2; auto.
+assert (Heq: c0 = c). 
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ solve[rewrite dependent_types_nonsense in H1; inv H1; auto].
+subst c0.
+clear H1.
+unfold csem_map in H2.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+apply corestep_not_at_external in H2.
+assert (H3: l = pf_i) by apply proof_irr.
+rewrite H3 in H2; clear H3.
+unfold init_data in *; rewrite H2 in AT_EXT.
+congruence.
+assert (Heq: c'0 = c). 
+ destruct (eq_nat_dec j j); try solve[elimtype False; omega].
+ solve[rewrite dependent_types_nonsense in H1; inv H1; auto].
+subst c'0.
+clear H1.
+unfold csem_map in H2.
+generalize LOOKUP as LOOKUP'; intro.
+apply plt_ok in LOOKUP'.
+destruct (lt_dec j num_modules); try solve[elimtype False; omega].
+apply corestep_not_halted in H2.
+assert (H3: l = plt_ok LOOKUP) by apply proof_irr.
+rewrite H3 in H2; clear H3.
+unfold init_data in *; rewrite H2 in HALTED.
+congruence.
+
+intros until m'; intros H1 H2.
+simpl in *.
+destruct s.
+destruct stack; simpl in *.
+congruence.
+destruct f.
+destruct (eq_nat_dec i i); try solve[congruence].
+rewrite dependent_types_nonsense in H1.
+inv H1.
+clear e.
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty).
+constructor; auto.
+unfold csem_map, genvs in H2.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (H3: l = PF) by apply proof_irr.
+rewrite H3 in H2.
+solve[apply H2].
+
+intros until m'; intros H1 H2 H3 H4 j H5.
+inv H4; simpl in *.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega|auto].
+destruct (eq_nat_dec j i); try solve[elimtype False; omega|auto].
+subst; destruct (eq_nat_dec j j0); try solve[elimtype False; omega].
+subst; destruct (eq_nat_dec j i); try solve[elimtype False; omega].
+solve[auto].
+
+intros until n; intros H1 H2 H3 j H4.
+admit. (*tedious*)
+
+intros until retv; intros H1 H2 H3.
+destruct s; destruct s'; simpl in H3.
+destruct stack; try solve[inv H3].
+destruct f.
+unfold csem_map in H2; simpl in H2.
+destruct (lt_dec i num_modules); try solve[elimtype False; congruence].
+assert (H4: l = PF) by apply proof_irr; auto.
+rewrite H4 in H2.
+unfold init_data in *.
+assert (H: c0 = c).
+ simpl in H1.
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ rewrite dependent_types_nonsense in H1.
+ solve[inversion H1; auto].
+rewrite H in *.
+rewrite H2 in H3.
+inversion H3.
+solve[subst stack0; auto].
+
+intros until retv; intros H1 H2.
+destruct s; simpl in *.
+destruct stack; try solve[congruence].
+destruct f.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H1.
+inv H1.
+clear e.
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty).
+unfold csem_map in H2.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (H: l = PF) by apply proof_irr; auto.
+rewrite H in H2.
+unfold init_data in *; rewrite H2.
+simpl.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+split; auto.
+repeat f_equal; auto.
+solve[rewrite dependent_types_nonsense; auto].
+
+intros until retv; intros H1 j H2.
+destruct s; destruct s'; simpl in *.
+destruct stack; try solve[inv H1].
+destruct f.
+destruct (eq_nat_dec j i); try solve[elimtype False; omega].
+destruct (after_external (get_module_csem (modules PF)) retv c).
+inv H1.
+destruct (eq_nat_dec j i); try solve[elimtype False; omega].
+auto.
+congruence.
+
+intros until args; intros H1.
+destruct s; simpl in *|-.
+destruct stack; try solve[congruence].
+destruct f.
+exists c; simpl.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+split.
+rewrite dependent_types_nonsense; auto.
+unfold csem_map.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = PF) as -> by apply proof_irr; auto.
+unfold init_data.
+destruct (at_external (get_module_csem (modules PF)) c).
+destruct p as [[ef' sig'] args'].
+destruct ef'; auto.
+destruct (procedure_linkage_table name); try solve[congruence].
+congruence.
+Qed.
+
 End LinkingExtension.  
+
   

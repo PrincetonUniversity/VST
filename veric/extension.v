@@ -430,6 +430,7 @@ Inductive core_compatible: Type := CoreCompatible: forall
 
   (** Other cores remain unchanged after coresteps of the active core. *)
   (corestep_others_forward: forall s s' (c: cT (active E s')) m c' m',
+    active E s=active E s' -> 
     proj_core E (active E s') s' = Some c' -> 
     corestep (csem (active E s')) (genv_map (active E s')) c m c' m' -> 
     corestep esem ge s m s' m' -> 

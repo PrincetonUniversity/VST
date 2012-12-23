@@ -896,6 +896,7 @@ split; auto.
    spec corestep_others_forward; auto.
    spec corestep_others_forward; auto. 
    spec corestep_others_forward; auto.
+   spec corestep_others_forward; auto.
    specialize (corestep_others_forward i NEQ).
    solve[rewrite corestep_others_forward; auto].
   assert (exists _d, PROJ_CORE E_T i st2 = Some _d) as [_d _PROJ2].
@@ -982,6 +983,7 @@ split; auto.
    specialize (corestep_others_forward c1 m1 c1' m1').
    spec corestep_others_forward; auto.
    spec corestep_others_forward; auto. 
+   spec corestep_others_forward; auto.
    spec corestep_others_forward; auto.
    specialize (corestep_others_forward i NEQ).
    solve[rewrite corestep_others_forward; auto].
