@@ -1353,77 +1353,6 @@ Qed.
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
   Exists (fun id => match ge_of rho id with Some (Vptr b' _, _) => b'=b | _ => False end) il.
 
-(*
-Lemma blockslice_prog_vars:
-   forall rho prog,
-     ge_of rho = filter_genv ge ->
-    blockslice_mpred (prog_var_block rho (prog_vars' vl)) 
-              (globvars2pred ge (prog_vars' vl))
-
-Lemma global_init_Gfun_case:
-  forall n rho f vl (ge: Genv.t fundef type) m i fs G m0,
-   app_pred (globvars2pred ge (@prog_vars' fundef type vl) rho)
-      (inflate_initial_mem m0 (initial_core ge G n)) -> 
-   Genv.alloc_global ge m0 (i, Gfun f) = Some m -> 
-   Genv.find_symbol ge i = Some (nextblock m0) ->
-   ~ In i (map fst G) ->
-   (forall id, In id (map fst (prog_vars' vl)) -> 
-                   match ge_of rho id with 
-                   | Some (v, _) => v <> Vptr (nextblock m0) Int.zero
-                   | None => True
-                   end) ->
-  app_pred (globvars2pred ge (prog_vars' vl) rho)
-     (inflate_initial_mem m (initial_core ge ((i, fs) :: G) n)).
-Proof. 
- intros.
- assert (forall loc,
-    if eq_dec (nextblock m0, 0) loc
-    then access_at m0 loc = None /\ access_at m loc = Some Nonempty
-    else access_at m0 loc = access_at m loc /\ contents_at m0 loc = contents_at m loc).
- clear - H0; admit.
- assert  (forall loc,
-    if eq_dec (nextblock m0, 0) loc
-    then initial_core ge G n @ loc = NO Share.bot /\
-            exists k, exists pp, initial_core ge ((i,fs)::G) n @ loc = PURE k pp            
-    else initial_core ge ((i,fs)::G) n @ loc = initial_core ge G n @ loc).
-  admit.
- forget (nextblock m0) as b. clear H0.
- assert (level (initial_core ge G n) = level (initial_core ge ((i,fs)::G) n)).
-  admit.
- forget (initial_core ge G n) as w.
- forget (initial_core ge ((i,fs)::G) n) as w'.
- assert (forall loc,
-    if eq_dec (b, 0) loc
-    then inflate_initial_mem m0 w @ loc = NO Share.bot /\
-            exists k, exists pp, inflate_initial_mem m w' @ loc = PURE k pp      
-    else inflate_initial_mem m0 w @ loc = inflate_initial_mem m w' @ loc).
- intros. specialize (H4 loc); specialize (H5 loc); if_tac.
- destruct H4. destruct H5 as [? [k [pp ?]]].
-  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H4. rewrite H7. rewrite H8. eauto.
-  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H5. destruct H4; rewrite H4. 
-  rewrite H7. auto.
-  forget (inflate_initial_mem m0 w) as phi. 
-  forget (inflate_initial_mem m w') as phi'.
-  clear - H6 H0 H3 H.
-  forget (prog_vars' vl) as fl; clear vl; rename fl into vl.
-  pose (S (il: list ident) (b: block) :=
-              Exists (fun id => match ge_of rho id with Some (Vptr b' _, _) => b'=b | _ => False end) il) .
- assert (S_dec: forall il b, {S il b}+{~S il b}).
-   clear.
-  intros. 
-  apply Exists_dec. intro x. destruct (ge_of rho x). destruct p. destruct v; auto.
-  destruct (eq_dec b0 b); auto. auto.
-  (* end assert S_dec *)
- move S before H. move S_dec before H. move H after S_dec.
-  pose proof (join_only_blocks (S_dec (map fst vl)) phi').
-  pose proof (join_only_blocks (S_dec (map fst vl)) phi).
-  rewrite <- sepcon_emp in H.
-
-Admitted.
-*)
-
 Lemma match_fdecs_rev:
   forall vl G, match_fdecs (rev vl) (rev G) = match_fdecs vl G.
 Proof.
@@ -1585,6 +1514,253 @@ Focus 2. rewrite map_rev; rewrite nth_error_rev.
   apply H0 in H1. auto.
 Qed.
 
+Definition hackfun phi0 phi :=
+  level phi0 = level phi /\
+  forall loc, (identity (phi0 @ loc) <-> identity (phi @ loc)) /\
+                  (~identity (phi0 @ loc) -> (phi0 @ loc = phi @ loc)).
+
+Lemma alloc_Gfun_inflate:
+  forall n rho i f fs vl gev m0 m G0 G,
+   Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+   (forall phi : rmap,
+    hackfun (inflate_initial_mem m0 (initial_core gev (G0 ++ (i, fs) :: G) n))
+      phi -> 
+  (globvars2pred gev vl rho) phi) ->
+  Genv.find_symbol gev i = Some (nextblock m0) ->
+  ~ In i (map fst vl) ->
+  forall phi : rmap,
+  hackfun (inflate_initial_mem m (initial_core gev (G0 ++ (i, fs) :: G) n)) phi ->
+      (globvars2pred gev vl rho) phi.
+Proof.
+ intros.
+ apply H0.
+ destruct H3 as [H3' H3]; split. rewrite inflate_initial_mem_level in H3'|-*; auto.
+ intro loc; specialize (H3 loc).
+ clear - H3 H2 H1 H.
+ assert (exists fs', find_id i (G0 ++ (i,fs)::G) = Some fs').
+ clear. induction G0; simpl. exists fs; rewrite if_true; eauto.
+ destruct IHG0 as [fs' ?]. destruct a. if_tac. subst i0; exists f; auto.
+ eauto.
+ forget (G0++(i,fs)::G) as GG.  clear G0 fs G.
+ destruct H0 as [fs H0].
+ destruct H3.
+ destruct (eq_dec loc (nextblock m0, 0)).
+ subst loc.
+ unfold inflate_initial_mem in *.
+ rewrite resource_at_make_rmap in *.
+ unfold inflate_initial_mem' in *.
+ replace (access_at m0 (nextblock m0, 0)) with (@None permission) in *.
+ replace (access_at m (nextblock m0, 0)) with (Some Nonempty) in *.
+ unfold initial_core in *. rewrite resource_at_make_rmap in *.
+ unfold initial_core' in *.
+ simpl in *.
+ rewrite (Genv.find_invert_symbol gev i H1) in H3,H4. rewrite H0 in *. destruct fs.
+ rewrite <- H3.
+ split.
+ split; intro. apply PURE_identity. apply NO_identity. intro. contradiction H5.
+ apply NO_identity.
+ symmetry. clear - H.
+  unfold Genv.alloc_global in H.
+  revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
+  destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0. 
+  unfold access_at; simpl. apply alloc_result in H; subst b. rewrite ZMap.gss.
+ destruct (zle 0 0); try omegaContradiction. destruct (zlt 0 1); try omegaContradiction; simpl. auto.
+ symmetry. apply nextblock_noaccess. simpl; unfold block; clear; omega.
+ replace (inflate_initial_mem m0 (initial_core gev GG n) @ loc)
+   with (inflate_initial_mem m (initial_core gev GG n) @ loc); auto.
+ clear - n0 H.
+ unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
+ unfold inflate_initial_mem'.
+ assert (H8: access_at m0 loc = access_at m loc); [ | rewrite H8; auto].
+  unfold Genv.alloc_global in H.
+  revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
+  destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0. 
+  unfold alloc; inv H. unfold access_at; simpl.
+  destruct loc as [b z]; simpl in *.
+  destruct (eq_dec b (nextblock m0)).
+  subst. repeat rewrite ZMap.gss. assert (z<>0) by congruence.
+  destruct (zle 0 z). simpl. destruct (zlt z 1); try omegaContradiction. simpl.
+  apply nextblock_noaccess. omega.
+   destruct (zlt z 1); try omegaContradiction. simpl.
+  apply nextblock_noaccess. omega.
+ rewrite ZMap.gss. rewrite ZMap.gso by auto. rewrite ZMap.gso by auto. auto.
+ case_eq (access_at m loc); auto.
+  unfold Genv.alloc_global in H.
+  revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
+  destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0.
+  unfold contents_at; simpl. unfold access_at in H1; simpl in H1.
+  destruct (eq_dec b (fst loc)). subst. rewrite ZMap.gss in H1.
+  destruct (zle 0 (snd loc)); simpl in H1; auto.
+  destruct (zlt (snd loc) 1); simpl in H1; auto. assert (snd loc = 0) by omega. 
+  destruct loc; apply alloc_result in H; simpl in *; congruence.
+ clear r H8. inv H. simpl in *. rewrite H3 in *; rewrite ZMap.gss in *.
+  destruct (zle 0 (snd loc)); try omegaContradiction.
+  destruct (zlt (snd loc) 1); try omegaContradiction. inv H1; auto.
+  clear H8 r. inv H. simpl in H1; rewrite <- H3 in H1; rewrite ZMap.gss in H1.
+  destruct (zle 0 (snd loc)); try omegaContradiction.
+  destruct (zlt (snd loc) 1); try omegaContradiction. inv H1; auto.
+  rewrite ZMap.gso in H1 by auto.
+  replace (ZMap.get (fst loc) (mem_contents m1)) with (ZMap.get (fst loc) (mem_contents m0)); auto.
+  inv H; simpl. rewrite ZMap.gso; auto.
+Qed.
+
+Lemma resource_identity_dec:
+ forall (r: resource), {identity r}+{~identity r}.
+Proof.
+intros. destruct r.
+destruct (eq_dec t Share.bot).
+subst; left; apply NO_identity.
+right; contradict n. apply identity_NO in n. destruct n. inv H; auto. destruct H as [? [? ?]]; inv H.
+ right; apply YES_not_identity.
+left; apply PURE_identity.
+Qed.
+
+Lemma hackfun_sep:
+ forall w1 w2 w w', hackfun w w' -> join w1 w2 w ->
+   exists w1', exists w2', join w1' w2' w' /\ hackfun w1 w1' /\ hackfun w2 w2'.
+Proof.
+intros.
+assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w1 @ loc) then core (w' @ loc) else w1 @ loc))).
+intros b ofs. unfold compose.
+destruct H. destruct (H1 (b,ofs)). 
+ pose proof  (resource_at_join _ _ _ (b,ofs) H0).
+if_tac. apply H5 in H4.  
+ case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
+ assert (~identity (w @ (b,ofs))). contradict H5. apply split_identity in H4; auto.
+ specialize (H3 H6). clear H2.
+ case_eq (w1 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
+ destruct k; auto. intros. 
+ assert (H9:= rmap_valid w1 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
+ specialize (H9 _ H5). destruct (w1 @ (b,ofs+i)); inv H9. rewrite if_false; auto. apply YES_not_identity.
+ assert (H10:= rmap_valid w1 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
+ destruct H10 as [n [? ?]]; exists n; split; auto.
+ destruct (w1 @ (b,ofs-z)); inv H6; rewrite if_false; auto. apply YES_not_identity.
+destruct (make_rmap _ H1 (level w))  as [w1' [? ?]]; clear H1.
+ extensionality loc.
+ unfold compose. if_tac. rewrite core_resource_at.
+ replace (level w) with (level w') by (destruct H; auto).
+ rewrite <- level_core. apply resource_at_approx.
+ replace (level w) with (level w1) by (apply join_level in H0; destruct H0; auto).
+ apply resource_at_approx.
+
+assert (AV.valid (res_option oo (fun loc => if resource_identity_dec (w2 @ loc) then core (w' @ loc) else w2 @ loc))).
+ apply join_comm in H0. clear H2 H3.
+intros b ofs. unfold compose.
+destruct H. destruct (H1 (b,ofs)). 
+ pose proof  (resource_at_join _ _ _ (b,ofs) H0).
+if_tac. apply H5 in H4.  
+ case_eq (w' @ (b,ofs));  simpl; intros; auto. rewrite core_NO. simpl; auto. rewrite core_YES; simpl; auto. rewrite core_PURE; simpl; auto.
+ assert (~identity (w @ (b,ofs))). contradict H5. apply split_identity in H4; auto.
+ specialize (H3 H6). clear H2.
+ case_eq (w2 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
+ destruct k; auto. intros. 
+ assert (H9:= rmap_valid w2 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
+ specialize (H9 _ H5). destruct (w2 @ (b,ofs+i)); inv H9. rewrite if_false; auto. apply YES_not_identity.
+ assert (H10:= rmap_valid w2 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
+ destruct H10 as [n [? ?]]; exists n; split; auto.
+ destruct (w2 @ (b,ofs-z)); inv H6; rewrite if_false; auto. apply YES_not_identity.
+destruct (make_rmap _ H1 (level w))  as [w2' [? ?]]; clear H1.
+ extensionality loc.
+ unfold compose. if_tac. rewrite core_resource_at.
+ replace (level w) with (level w') by (destruct H; auto).
+ rewrite <- level_core. apply resource_at_approx.
+ replace (level w) with (level w2) by (apply join_level in H0; destruct H0; auto).
+ apply resource_at_approx.
+ exists w1'; exists w2'; split3.
+ apply resource_at_join2. destruct H; congruence. destruct H; congruence.
+ intro loc; apply (resource_at_join _ _ _ loc) in H0. rewrite H3,H5.
+ destruct H. destruct (H1 loc).
+ if_tac. apply H8 in H0. rewrite H0.
+ if_tac.  apply H6 in H9. apply identity_unit_equiv in H9. apply unit_core in H9.
+ rewrite <- H9 at 2. apply core_unit.
+ rewrite H7 by auto. apply core_unit.
+ spec H7. contradict H8; apply split_identity in H0; auto. rewrite <- H7.
+ if_tac. apply join_comm in H0. apply H9 in H0. rewrite H0. apply join_comm; apply core_unit.
+ auto.
+ destruct H; split. apply join_level in H0; destruct H0; congruence.
+ intro loc. rewrite H3. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
+ intuition.
+ destruct H; split. apply join_level in H0; destruct H0; congruence.
+ intro loc. rewrite H5. clear - H1. if_tac. pose (core_identity (w' @ loc)). intuition.
+ intuition.
+Qed.
+
+Lemma init_datalist_hack:
+  forall gev b sh rho dl phi0 z,
+   (init_data_list2pred gev dl sh (Vptr b z) rho) phi0 ->
+  forall phi,
+     hackfun phi0 phi ->
+   (init_data_list2pred gev dl sh (Vptr b z) rho) phi.
+Proof.
+induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
+   apply all_resource_at_identity; intro loc. destruct (H0 loc).
+  apply (resource_at_identity _ loc) in H. apply H1; auto.
+ simpl init_data_list2pred in H|-*.
+ destruct H as [w1 [w2 [? [? ?]]]].
+ destruct (hackfun_sep _ _ _ _ H0 H) as [w1' [w2' [? [? ?]]]].
+ exists w1'; exists w2'; split3; auto.
+ 2: eapply IHdl; eauto.
+ clear - H1 H4. destruct H4 as [H4' H4].
+ destruct a; simpl in *;
+ try solve [
+ destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
+ if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
+             rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
+          | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]].
+ intro loc; specialize (H1 loc);
+ if_tac; [destruct H1 as [p H1]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]
+          | destruct (H4 loc) as [HH _]; intuition].
+ rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
+ destruct (ge_of rho i); try destruct p; try destruct t; auto.
+ hnf in H1|-*.
+ destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
+ do 3 red in H8|-*. apply H0; auto.
+Qed.
+
+Lemma another_hackfun_lemma:
+ forall n i v gev m G phi m0,
+    hackfun (inflate_initial_mem m (initial_core gev G n)) phi ->
+    Genv.alloc_global gev m0 (i, Gvar v) = Some m ->
+    hackfun (inflate_initial_mem m0 (initial_core gev G n))
+      (upto_block (nextblock m0) phi).
+Proof.
+ intros. destruct H; split.
+ rewrite inflate_initial_mem_level in H|-*.
+ unfold upto_block. rewrite level_only_blocks. auto.
+ clear H; rename H1 into H.
+ intro loc; specialize (H loc).
+ destruct (zlt (fst loc) (nextblock m0)).
+ unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
+ replace (inflate_initial_mem m0 (initial_core gev G n) @ loc)
+   with (inflate_initial_mem m (initial_core gev G n) @ loc); auto.
+ clear - z H0.
+ unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
+ unfold inflate_initial_mem'.
+ destruct (alloc_global_old _ _ _ _ H0 _ z). rewrite H; rewrite H1; auto. 
+ unfold upto_block. rewrite only_blocks_at. rewrite if_false by auto.
+ unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap;
+   unfold inflate_initial_mem'.
+ replace (access_at m0 loc) with (@None permission).
+ clear.
+ pose proof (core_identity (phi @ loc)).
+ assert (identity (NO Share.bot)) by apply NO_identity.
+ intuition.
+ symmetry; apply nextblock_noaccess. auto.
+Qed.
+
+Lemma hackfun_beyond_block:
+  forall b w w', hackfun w w' -> hackfun (beyond_block b w) (beyond_block b w').
+Proof.
+ intros. destruct H.
+ split. unfold beyond_block. repeat rewrite level_only_blocks. auto.
+ clear H. intro loc; specialize (H0 loc).
+ unfold beyond_block. repeat  rewrite only_blocks_at. if_tac. auto.
+ clear. pose proof (core_identity (w @ loc)); pose proof (core_identity (w' @ loc)); intuition.
+Qed.
+
 Lemma global_initializers:
   forall prog G m n rho,
      list_norepet (prog_defs_names prog) ->
@@ -1616,32 +1792,34 @@ Proof.
    rewrite map_rev in H. rewrite list_norepet_rev in H.
    forget (rev G) as G'; clear G; rename G' into G.
    pose proof (add_globals_hack _ _ H Heqgev).
-  assert (exists ul, 
-                 (forall (id : ident) (b : Z),   0 <= b-1 < Zlength vl ->
-                  (Genv.find_symbol gev id = Some b <-> 
-                        nth_error (map fst vl) (length vl - nat_of_Z b) = Some id)) /\
-                map fst (prog_funct' (vl ++ ul )) = map fst G /\
-                list_norepet (map (@fst _ _) (vl ++ ul))).
-  exists nil; rewrite <- app_nil_end; auto.
-  split; auto. split; auto.
+  rename H into H2. rename H1 into H.
+ assert (H1: map fst (prog_funct' vl) = map fst G).
      clear - SAME_IDS. forget (prog_funct' vl) as fl.
      revert fl SAME_IDS; induction G; destruct fl; simpl; intros; inv SAME_IDS; auto.
      f_equal; auto.
-  clear SAME_IDS H Heqgev H1.
-  destruct H2 as [ul [? [? ?]]].
-
-  revert H m G H0 H1; induction vl; simpl; intros.
+ clear SAME_IDS Heqgev.
+ change (map fst vl) with (map fst (@nil (ident*funspec)) ++ map fst vl) in H2.
+ change G with (nil++G).
+ forget (@nil (ident*funspec)) as G0.
+ move H2 after H. move H1 after H. 
+ assert (forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
+          (globvars2pred gev (prog_vars' vl) rho) phi).
+Focus 2. apply H3. clear. 
+ split. auto.
+ intro loc. intuition.
+intros. rename H3 into HACK; revert phi HACK.
+  revert H m G0 G H2 H0 H1; induction vl; simpl; intros.
  apply resource_at_empty2.
- intro l.
- unfold inflate_initial_mem.
- rewrite resource_at_make_rmap.
- unfold inflate_initial_mem'.
+ intro l. apply proj2 in HACK; specialize (HACK l).
+ unfold inflate_initial_mem in HACK|-*.
+ rewrite resource_at_make_rmap in *.
+ unfold inflate_initial_mem' in HACK|-*.
  inversion H0; clear H0; subst m.
- unfold access_at, empty. simpl. rewrite ZMap.gi. apply NO_identity.
+ unfold access_at, empty in HACK; simpl in HACK; rewrite ZMap.gi in HACK. 
+   destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
  revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
  spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
    apply andb_true_iff in AL; destruct AL; auto.
- spec IHvl. simpl in H2. inv H2; auto.
   spec IHvl; [ intros | ].
  assert (H4': (0 < nat_of_Z b <= length vl)%nat).
  clear - H4. destruct H4. split. apply inj_lt_rev. rewrite nat_of_Z_max.
@@ -1652,10 +1830,8 @@ Proof.
  replace (nat_of_Z b) with (S (nat_of_Z b - 1)) by omega.
  replace (length vl - (nat_of_Z b - 1))%nat with (S (length vl - S (nat_of_Z b - 1)))%nat by omega.
  apply iff_refl. rewrite Zlength_cons; omega.
-  destruct a; destruct g.
-  destruct G; inv H1.
-  specialize (IHvl m0 G H0 H6).
-  destruct p. simpl @fst in *; simpl @snd in *.
+ destruct a.
+ assert (FS: Genv.find_symbol gev i = Some (nextblock m0)).
   assert (Genv.find_symbol gev i = Some (nextblock m0)).
     apply H. apply alloc_globals_rev_nextblock in H0. rewrite H0 .
       rewrite Zlength_cons. rewrite Zlength_correct. omega.
@@ -1665,17 +1841,55 @@ Proof.
    rewrite Zlength_correct. unfold Zsucc. 
    rewrite nat_of_Z_plus by omega. rewrite nat_of_Z_of_nat. 
     change (nat_of_Z 1) with 1%nat. omega.
-    admit. (* quite possibly true, because the only difference
-    between (inflate_initial_mem m0 ...) and (inflate_initial_mem m ...)
-    is a PURE at a location where globvars2pred will yield emp *)
+  auto.
+  destruct g.
+ (* Gfun case *)
+  destruct G; inv H1.
+  specialize (IHvl m0 (G0++(p::nil)) G).
+  spec IHvl. clear - H2. simpl in H2.  rewrite map_app.  simpl.  rewrite app_ass. apply H2.
+  specialize (IHvl H0 H6).
+  destruct p. simpl @fst in *; simpl @snd in *.
+ pose proof I.
+   rewrite app_ass in IHvl. simpl in IHvl.
+ assert (H88: ~In i (map fst (prog_vars' vl))).
+   clear - H2.
+ apply list_norepet_app in H2. destruct H2 as [_ [? _]]. inv H.
+ clear - H2; contradict H2; induction vl; simpl in *; auto. destruct a; destruct g; auto. simpl in H2. destruct H2; auto.
+ eapply  alloc_Gfun_inflate; eauto.
 (* Gvar case *)
-  specialize (IHvl m0 G H0 H1).
+  specialize (IHvl m0 G0 G). 
+  spec IHvl. clear - H2. apply list_norepet_app.  apply list_norepet_app in H2.
+      destruct H2 as [? [? ?]].  inv H0.  split3; auto. simpl in H1.
+    apply list_disjoint_cons_right in H1; auto.
+  specialize (IHvl H0 H1).
+  assert (FI: find_id i (G0++G) = None).
+  change (list_norepet (map fst G0 ++ (i::nil) ++ (map fst vl))) in H2.
+  apply list_norepet_append_commut in H2. rewrite app_ass in H2.
+ inv H2.
+ case_eq (find_id i (G0++G)); intros; auto. apply find_id_e in H2.
+ contradiction H6. apply in_app. apply in_app_or in H2. 
+ destruct H2; [right|left].  change i with (fst (i,f)); apply in_map; auto.
+ assert (In i (map fst (prog_funct' vl))).
+  change i with (fst (i,f)); rewrite H1; apply in_map; auto.
+ clear - H4; induction vl; simpl in *; auto. destruct a; destruct g; simpl in *; auto. destruct H4; auto.
   unfold globvars2pred.
   simpl map.  simpl fold_right.
-  pose proof (join_comm (join_upto_beyond_block (nextblock m0)
-     (inflate_initial_mem m (initial_core gev G n)))).
+  pose proof (join_comm (join_upto_beyond_block (nextblock m0) phi)).
   do 2 econstructor; split3; [ eassumption | |].
   unfold globvar2pred. rewrite RHO. unfold filter_genv. simpl @fst; simpl @snd.
+  assert (JJ:= alloc_global_inflate_same n i v _ _ (G0++G) _ H3).
+ spec JJ.
+ intro. unfold initial_core. rewrite resource_at_make_rmap. unfold initial_core'.
+  simpl. if_tac; auto. 
+ rewrite (Genv.find_invert_symbol gev i FS). rewrite FI; auto.
+ rewrite FS.
+ assert (H99: exists t, match type_of_global gev (nextblock m0) with
+  | Some t => Some (Vptr (nextblock m0) Int.zero, t)
+  | None => Some (Vptr (nextblock m0) Int.zero, Tvoid)
+  end = Some (Vptr (nextblock m0) Int.zero, t)) by (destruct (type_of_global gev (nextblock m0)); eauto).
+ destruct H99 as [t H99]; rewrite H99; clear t H99.
+ case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
+
   unfold Genv.alloc_global in H3.
   revert H3; case_eq (alloc m0 0 (Genv.init_data_list_size (gvar_init v))); intros.
   invSome. invSome.
@@ -1691,45 +1905,19 @@ Proof.
   spec H7. replace (nat_of_Z b) with (S (length vl)). rewrite minus_diag. reflexivity.
   clear - H6. rewrite Zlength_correct in H6. apply inj_eq_rev.
   rewrite Coqlib.nat_of_Z_eq by omega. rewrite inj_S. omega.
- rewrite H7.
- assert (H99: exists t, match type_of_global gev b with
-  | Some t => Some (Vptr b Int.zero, t)
-  | None => Some (Vptr b Int.zero, Tvoid)
-  end = Some (Vptr b Int.zero, t)) by (destruct (type_of_global gev b); eauto).
- destruct H99 as [t H99]; rewrite H99; clear t H99.
- case_eq (gvar_volatile v); intros; auto.
-  replace (nextblock m0) with b.
- eapply init_data_list_lem; try eassumption.
+pose proof (init_data_list_lem gev m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
+     H3 H5 H8 H9) .
+ spec H11.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H. apply Zlt_is_lt_bool; auto.
+ specialize (H11 H10).
+ spec H11.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.
  apply andb_true_iff in H. destruct H; auto.
-  apply alloc_result in H3; auto.
-  change (fold_right (lift2 sepcon) (lift0 emp) (map (globvar2pred gev) (prog_vars' vl)))
-      with  (globvars2pred gev (prog_vars' vl)).
- replace (upto_block (nextblock m0) (inflate_initial_mem m (initial_core gev G n)))
-        with (inflate_initial_mem m0 (initial_core gev G n)); auto.
- assert (forall z, initial_core gev G n @ (nextblock m0,z) = NO Share.bot).
- intros; unfold initial_core; rewrite resource_at_make_rmap.
-   unfold initial_core'. simpl. if_tac; auto. subst z.
- rewrite (Genv.find_invert_symbol gev i).
-  replace (find_id i G) with (@None funspec); auto.
-  clear - H2 H1.
-  simpl in H2. inv H2.
-  case_eq (find_id i G); intros; auto.
-  apply find_id_e in H. contradiction H3.
-  assert (In (fst (i,f)) (map fst G)) by (apply in_map; auto).
-  rewrite <- H1 in H0. clear - H0. simpl in H0.
-  induction (vl++ul); simpl in *; auto. destruct a; destruct g; simpl in *; intuition.
-  destruct (H i (nextblock m0)) as [_ ?]. 
-  clear - H0. apply alloc_globals_rev_nextblock in H0. rewrite H0.
-  rewrite Zlength_cons. 
-  repeat rewrite Zlength_correct. omega.
-  apply H5.
-  replace (nat_of_Z (nextblock m0)) with (S (length vl)). rewrite minus_diag; reflexivity. 
-  clear - H0. apply alloc_globals_rev_nextblock in H0. rewrite H0.
-   rewrite Zlength_correct. rewrite <- inj_S. rewrite nat_of_Z_of_nat; auto. 
- clear - H3 H5.
- eapply alloc_global_inflate_same; eauto.
+ specialize (H11 RHO). replace (nextblock m0) with b by congruence.
+ eapply init_datalist_hack; eauto.
+ apply hackfun_beyond_block; auto.
+ apply IHvl; auto.
+ eapply another_hackfun_lemma; eauto.
 Qed.
 
