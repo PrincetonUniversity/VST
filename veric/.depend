@@ -25,7 +25,7 @@ res_predicates.vo res_predicates.glob: res_predicates.v ./loadpath.v base.vo Add
 seplog.vo seplog.glob: seplog.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo
 assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo expr_lemmas.vo seplog.vo Clight_lemmas.vo
 juicy_mem.vo juicy_mem.glob: juicy_mem.v ./loadpath.v base.vo Address.vo rmaps.vo rmaps_lemmas.vo compcert_rmaps.vo
-juicy_mem_lemmas.vo juicy_mem_lemmas.glob: juicy_mem_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo seplog.vo res_predicates.vo
+juicy_mem_lemmas.vo juicy_mem_lemmas.glob: juicy_mem_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo res_predicates.vo
 local.vo local.glob: local.v ./loadpath.v base.vo
 juicy_mem_ops.vo juicy_mem_ops.glob: juicy_mem_ops.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo local.vo
 juicy_extspec.vo juicy_extspec.glob: juicy_extspec.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo extspec.vo step_lemmas.vo initial_world.vo sim.vo
@@ -45,3 +45,4 @@ sim.vo sim.glob: sim.v ./loadpath.v base.vo MemEvolve.vo
 Sim_starplus.vo Sim_starplus.glob: Sim_starplus.v ./loadpath.v base.vo sim.vo
 Events2.vo Events2.glob: Events2.v ./loadpath.v
 MemEvolve.vo MemEvolve.glob: MemEvolve.v ./loadpath.v base.vo
+linking_extension.vo linking_extension.glob: linking_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo

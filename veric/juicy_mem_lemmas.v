@@ -7,7 +7,6 @@ Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem.
-Require Import veric.seplog.
 Require Import veric.res_predicates.
 
 Definition juicy_mem_core (j: juicy_mem) : rmap := core (m_phi j).

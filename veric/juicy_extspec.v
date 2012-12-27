@@ -111,7 +111,6 @@ Proof.
  destruct H as [H' H].
  split. clear H.
  apply age_level in H0; apply age_level in H1.
-(* unfold seplog.rmap, seplog.ag_rmap in *;  *)
   rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
   clear. forget (level jm2') as n. omega.
   intro l. 
@@ -134,11 +133,11 @@ Proof.
  rewrite approx_oo_approx'.
   auto.
  apply age_level in H0; apply age_level in H1.
-unfold rmap (*, seplog.ag_rmap*)  in *;
+unfold rmap  in *;
  forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
  subst.  omega.
  apply age_level in H0; apply age_level in H1.
-unfold rmap (* , seplog.ag_rmap *) in *.
+unfold rmap in *.
  forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
  subst. omega.
  right.
@@ -146,7 +145,7 @@ unfold rmap (* , seplog.ag_rmap *) in *.
   left; exists rsh, v,v'.
   split.
   apply age_level in H1.
-  unfold rmap (*, seplog.rmap, seplog.ag_rmap *) in *.
+  unfold rmap in *.
   forget (@level R.rmap R.ag_rmap jm2) as j2.
   forget (@level R.rmap R.ag_rmap jm2') as j2'. subst j2.
   clear - H2 H0 LEV.
