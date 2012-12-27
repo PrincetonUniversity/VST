@@ -2314,29 +2314,6 @@ induction SIM23; intros; subst.
        (*externvars*) admit. (*preservation of externvars by extension phases even if V1->V2 etc*)
 Qed.
 
-(*
-Lemma val_inject_split: forall v1 v3 j1 j2 (V:val_inject (compose_meminj j1 j2) v1 v3),
-         exists v2, val_inject j1 v1 v2 /\ val_inject j2 v2 v3.
-Proof. intros.
-    inv V; unfold compose_meminj in *.
-      exists (Vint i). split; constructor.
-      exists (Vfloat f). split; constructor.
-      remember (j1 b1) as s. destruct s; inv H. destruct p.
-           remember (j2 b) as ss. destruct ss; inv H1. destruct p. inv H0.
-           exists (Vptr b (Int.add ofs1 (Int.repr z))).
-               split. econstructor. rewrite <- Heqs. trivial. trivial.
-                         econstructor. rewrite <- Heqss. trivial. rewrite Int.add_assoc. rewrite Int.add_unsigned.  rewrite Int.add_unsigned.   rewrite Int.add_unsigned.  
-(*I think in order to ensure that the addresses are good we have to require that function return values
-never return pointers that are not in the domain of the returned memory.
-Then we can pull in Mem.inject j1' m1' m2' and use mi_representable*)
-Admitted. 
-
-Axioms inj_incr_compose_split: forall j1 j2 j',
-             inject_incr (compose_meminj j1 j2) j' ->
-             exists j1', exists j2',  inject_incr j1 j1' /\ inject_incr j2 j2' /\ j'=compose_meminj j1' j2'.
-(*Probably wrong - maybe we can enforce it together with pushout_II? (unlikely...)*)
-*)
-
 Section INJEQ.
 Lemma  diagram_injeq: forall
 (G1 C1 D1 : Type)
