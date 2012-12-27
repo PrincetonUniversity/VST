@@ -48,7 +48,7 @@ Definition link_ext_spec (M Z: Type) (handled: list AST.external_function)
              if ListSet.set_mem extfunct_eqdec ef handled then True
              else ext_spec_post Sigma ef x ty ret z m).
 
-Program Definition link_juicy_ext_spec (Z: Type) (handled: list AST.external_function)
+(*Program Definition link_juicy_ext_spec (Z: Type) (handled: list AST.external_function)
   (Sigma: juicy_ext_spec Z) :=
   Build_juicy_ext_spec Z (link_ext_spec handled Sigma) _ _.
 Next Obligation.
@@ -58,7 +58,7 @@ Qed.
 Next Obligation.
 if_tac; [unfold hereditary; auto|].
 generalize JE_post_hered; unfold hereditary; intros; eapply H; eauto.
-Qed.
+Qed.*)
 
 (** A client signature is linkable with an extension signature when each
    extension function specification ef:{P}{Q} is a subtype of the
@@ -122,16 +122,11 @@ Module Extension. Section Extension.
   zmult: Zint -> Zext -> Z;
   zmult_proj: forall zint zext, proj_zext (zmult zint zext)=zext;
 
-(* (** AtExternal cores are blocked on external functions specified by their
-    external function signatures. *)
-  at_external_csig: forall s i c ef args sig,
-   proj_core i s = Some c -> 
-   at_external (csem i) c = Some (ef, sig, args) -> IN ef csig;*)
-
  (** When a core is AtExternal but the extension is not, the function on which 
     the core is blocked is handled by the extension. *)
-  notat_external_handled: forall s i c ef args sig,
-   proj_core i s = Some c -> at_external (csem i) c = Some (ef, sig, args) -> 
+  notat_external_handled: forall s c ef args sig,
+   proj_core (active s) s = Some c -> 
+   at_external (csem (active s)) c = Some (ef, sig, args) -> 
    at_external esem s = None -> IN ef handled;
 
  (** Functions on which the extension is blocked are not handled. *)

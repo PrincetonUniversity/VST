@@ -794,20 +794,12 @@ Program Definition fs_extension :=
    FSExtSpec_linkable.
 Next Obligation. unfold proj_core. if_tac; auto. rewrite H0 in H; elimtype False; omega. Qed.
 Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
+Next Obligation. 
+unfold os_at_external in H1.
 (*Next Obligation.
 apply at_external_handled in H0.
 unfold is_true; auto.
 Qed.*)
-Next Obligation.
-unfold juicy_core_sem in H1.
-simpl in H1.
-unfold proj_core in H0.
-destruct (eq_nat_dec i 0); try congruence.
-subst.
-unfold get_core in H0.
-destruct s; simpl in H0.
-inv H.
-unfold os_at_external in H1.
 simpl in H1.
 unfold cores in H0; simpl in H0.
 rewrite H0 in H1.
@@ -849,10 +841,6 @@ destruct t; try congruence.
 destruct sig_args; try congruence.
 destruct sig_res; try congruence.
 destruct t; try congruence.
-unfold proj_core in H.
-if_tac in H; auto.
-elimtype False; auto.
-congruence.
 Qed.
 Next Obligation. (*this proof should be automated*)
 if_tac; auto.

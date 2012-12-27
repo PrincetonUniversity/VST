@@ -70,6 +70,15 @@ unfold all_at_external; intros; simpl.
 solve[apply Forall_nil].
 Qed.
 
+Lemma all_at_external_cons: forall f l, all_at_external (f::l) -> all_at_external l.
+Proof.
+intros f l; revert f; destruct l; simpl; auto.
+solve[intros f H1; constructor].
+intros f' H1.
+unfold all_at_external in H1.
+inversion H1; subst; auto.
+Qed.
+
 Inductive linker_corestep: 
   Genv.t F V -> linker_corestate -> mem -> linker_corestate -> mem -> Prop :=
 (** coresteps of the 'top' core *)                    
@@ -342,21 +351,36 @@ Definition init_data := fun i: nat => list (ident * globdef (fT i) (vT i)).
 
 Implicit Arguments linker_corestate [fT vT].
 
+Fixpoint find_core (i: nat) (l: call_stack cT num_modules) :=
+ match l with
+ | nil => None
+ | mkFrame j pf_j c :: l' => 
+    match eq_nat_dec i j with
+    | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
+    | right _ => find_core i l'
+    end
+ end.
+
 Definition linker_proj_core (i: nat) (s: linker_corestate num_modules cT modules): option (cT i) :=
-  match s with
-  | mkLinkerCoreState nil _ _ => None
+  match s with mkLinkerCoreState l _ _ => find_core i l end.
+(*
   | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ _ =>
      match eq_nat_dec i j with 
      | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
      | right _ => None
      end
   end.
+*)
 
 Definition linker_active (s: linker_corestate num_modules cT modules): nat :=
   match s with
   | mkLinkerCoreState nil _ _ => 0
   | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => i
   end.
+
+Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
+ eq_rect i (fun x => cT x) c i (eq_sym e) = c.
+Proof. Admitted.
 
 Program Definition linking_extension: 
  @Extension.Sig (Genv.t F V) (list (ident * globdef F V)) 
@@ -371,10 +395,17 @@ Program Definition linking_extension:
   (fun _ => tt) (fun z: Z => z) (fun (_:unit) (z: Z) => z)
   _ _ _ _ _.
 Next Obligation.
-unfold linker_proj_core.
-destruct s. destruct stack; auto. destruct f; auto.
+unfold linker_proj_core, find_core.
+destruct s. revert H. induction stack; auto. destruct a; auto.
 destruct (eq_nat_dec i i0); auto. subst.
+intros.
 solve[elimtype False; omega].
+intros.
+destruct stack; auto.
+eapply IHstack; auto.
+simpl; omega.
+simpl; simpl in callers_at_external.
+solve[inv callers_at_external; auto].
 Qed.
 Next Obligation.
 unfold linker_proj_core, linker_active.
@@ -389,14 +420,16 @@ Admitted. (*dependent types*)
 Next Obligation.
 unfold linker_proj_core in H.
 destruct s.
-destruct stack; try solve[congruence].
-destruct f; try solve[congruence].
-destruct (eq_nat_dec i i0); try solve[congruence].
-unfold eq_rect, eq_sym in H.
-destruct e. 
-inv H.
-simpl in H1.
-case_eq (at_external (get_module_csem (modules PF)) c); 
+revert H H1.
+induction stack.
+solve[simpl; intros; congruence].
+simpl; destruct a; try solve[congruence].
+destruct (eq_nat_dec i i); try solve[congruence].
+intros H H1.
+rewrite dependent_types_nonsense in H.
+inversion H.
+subst c.
+case_eq (at_external (get_module_csem (modules PF)) c0); 
  try solve[congruence].
 destruct p as [[ef' sig'] args'].
 destruct ef'; try solve[congruence
@@ -405,24 +438,23 @@ case_eq (procedure_linkage_table name); try solve[congruence].
 intros n H2 H3.
 rewrite H3 in H1.
 unfold csem_map in H0.
+simpl in H0.
 destruct (lt_dec i num_modules).
 assert (PF = l) by apply proof_irr.
-subst. unfold genv_map in H0. rewrite H0 in H3; inv H3.
+subst. unfold genv_map in H0. 
+rewrite H0 in H3; inv H3.
 solve[apply ListSet.set_mem_correct2; eapply plt_in_handled; eauto].
 elimtype False; auto.
 solve[intros H2 H3; rewrite H3, H2 in H1; congruence].
 intros H2; rewrite H2 in H1.
 unfold csem_map in H0.
+simpl in H0.
 destruct (lt_dec i num_modules); [|solve[elimtype False; auto]].
 assert (PF = l) by apply proof_irr.
 subst. unfold genv_map in H0. 
 solve[rewrite H0 in H2; inv H2].
 Qed.
 Next Obligation. solve[eapply at_external_not_handled; eauto]. Qed.
-
-Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
- eq_rect i (fun x => cT x) c i (eq_sym e) = c.
-Proof. Admitted.
 
 Lemma linker_stepN s c m c' m' n ge 
  (genvs_agree: forall (k : nat) (pf_k : k < num_modules),
@@ -442,6 +474,7 @@ intros s c m c' m' H1 H2; inv H2.
 solve[exists s; split; auto].
 intros s c m c' m' H1 [c2 [m2 [STEP12 STEP23]]].
 destruct s; simpl in *.
+unfold find_core in *.
 destruct stack; try solve[congruence].
 destruct f.
 specialize (IHn 
@@ -619,6 +652,7 @@ solve[subst stack0; auto].
 
 intros until retv; intros H1 H2.
 destruct s; simpl in *.
+unfold find_core in *.
 destruct stack; try solve[congruence].
 destruct f.
 destruct (eq_nat_dec i i); try solve[elimtype False; omega].
@@ -644,6 +678,7 @@ destruct f.
 destruct (eq_nat_dec j i); try solve[elimtype False; omega].
 destruct (after_external (get_module_csem (modules PF)) retv c).
 inv H1.
+simpl.
 destruct (eq_nat_dec j i); try solve[elimtype False; omega].
 auto.
 congruence.
@@ -858,9 +893,10 @@ spec core_initial0; auto.
 spec core_initial0; auto.
 spec core_initial0; auto.
 destruct core_initial0 as [cd' [c'' [INIT MATCH]]].
-destruct s2; simpl in H2; destruct stack0.
+destruct s2; simpl in H2; induction stack0.
 solve[simpl in stack_nonempty; elimtype False; omega].
-destruct f.
+destruct a.
+unfold find_core in H2.
 destruct (eq_nat_dec i i); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H2.
 inversion H2; rewrite H7 in *; clear H7.
@@ -900,7 +936,29 @@ inv H1.
 exists c''.
 split; auto.
 solve[rewrite ExtendedSimulations.core_datas_upd_same; auto].
-congruence.
+
+(*'callers' subcase*)
+specialize (H8 i0 c0).
+generalize H8.
+destruct (eq_nat_dec i0 i); try solve[congruence].
+subst i0.
+intros H8'.
+exists c2.
+split.
+solve[rewrite dependent_types_nonsense; auto].
+rewrite ExtendedSimulations.core_datas_upd_other; auto.
+spec H8'; auto.
+destruct H8' as [c3 [H8' H8'']].
+rewrite dependent_types_nonsense in H8'.
+inv H8'.
+solve[auto].
+intros H16.
+spec H16; auto.
+destruct H16 as [c3 [H16 H16']].
+exists c3.
+split; auto.
+solve[rewrite ExtendedSimulations.core_datas_upd_other; auto].
+
 left.
 exists O; simpl.
 exists (mkLinkerCoreState 
@@ -979,6 +1037,7 @@ congruence.
 (*4: at_external_match*)
 intros until j; intros H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12.
 destruct s1; destruct s2; simpl in *.
+unfold find_core in *.
 destruct stack; try solve[congruence].
 destruct stack0; try solve[congruence].
 destruct f; destruct f0.
@@ -1079,9 +1138,6 @@ simpl; split; auto.
 destruct stack.
 simpl in stack_nonempty; elimtype False; omega.
 destruct f; auto.
-(*assert (Heq': plt_ok PLT = plt_ok (eq_sym e)) by apply proof_irr; auto.
-rewrite Heq' in Heq.
-rewrite Heq in H2.*)
 revert H2.
 generalize (refl_equal (procedure_linkage_table main_id)).
 generalize PLT.
@@ -1092,48 +1148,27 @@ destruct (make_initial_core
            (get_module_csem (modules_S (plt_ok (eq_sym e))))
            (get_module_genv (modules_S (plt_ok (eq_sym e)))) 
            (Vptr b' i) vals1); try solve[congruence].
-intros.
-destruct stack; try solve[congruence].
-destruct f.
-destruct (eq_nat_dec i0 i1); try solve[elimtype False; omega].
-subst; rewrite dependent_types_nonsense in H; inv H.
-assert (i1 = n) as <-.
- revert H2.
- generalize (refl_equal (procedure_linkage_table main_id)).
- generalize PLT.
- pattern (procedure_linkage_table main_id) at 0 2 4.
- rewrite PLT.
- unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
- generalize (plt_ok PLT); intro.
- destruct (lt_dec n num_modules); try solve[elimtype False; omega].
- intros _ e.
- solve[destruct (make_initial_core
-           (get_module_csem (modules_S (plt_ok (eq_sym e))))
-           (get_module_genv (modules_S (plt_ok (eq_sym e)))) 
-           (Vptr b' i) vals1); try solve[congruence]].
-subst i1.
 revert H2.
 generalize (refl_equal (procedure_linkage_table main_id)).
 generalize PLT.
 pattern (procedure_linkage_table main_id) at 0 2 4.
-rewrite PLT.
-intros _ e.
+rewrite PLT in *.
+intros _ e H2.
 generalize H7.
-assert (PLT = eq_sym e) as -> by apply proof_irr; auto.
-destruct (make_initial_core
-          (get_module_csem (modules_S (plt_ok (eq_sym e))))
-          (get_module_genv (modules_S (plt_ok (eq_sym e)))) 
-          (Vptr b' i) vals1); try solve[congruence].
-intros H7' H2.
-inv H7'; inv H2.
-apply Eqdep_dec.inj_pair2_eq_dec in H0; subst.
-destruct (eq_nat_dec n n); try solve[elimtype False; omega].
-rewrite dependent_types_nonsense.
+assert (plt_ok PLT = plt_ok (eq_sym e)) as -> by apply proof_irr; auto.
+intros H7'; rewrite H7' in H2.
+inv H2.
+simpl.
+intros i0 c1.
+destruct (eq_nat_dec i0 n); try solve[intros; congruence].
+intros H16.
+subst i0.
+rewrite dependent_types_nonsense in H16.
+inv H16.
 exists c2.
 split; auto.
-rewrite ExtendedSimulations.core_datas_upd_same; auto.
-solve[apply eq_nat_dec].
-congruence.
+solve[rewrite ExtendedSimulations.core_datas_upd_same; auto].
+
 intros.
 revert H2.
 generalize (refl_equal (procedure_linkage_table main_id)).
@@ -1170,6 +1205,7 @@ destruct H1 as [RR [H1 H3]].
 simpl in *. 
 specialize (H3 (linker_active c2)).
 rewrite Hstack in H1, H3.
+unfold find_core in *.
 subst i.
 destruct (eq_nat_dec (linker_active c2) (linker_active c2)); try solve[elimtype False; omega].
 specialize (H3 c).
@@ -1253,6 +1289,7 @@ destruct (eq_nat_dec j0 j0); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H2; inversion H2; subst c1.
 destruct s2.
 simpl in *.
+unfold find_core in *.
 destruct stack0; try solve[congruence].
 destruct f.
 destruct (eq_nat_dec j0 i0); try solve[elimtype False; omega]; subst.
@@ -1265,7 +1302,8 @@ inv RR.
 destruct f.
 admit. (*will need to update R_inv to ensure caller state remains invariant
           (and matches across compilation) over calls*)
-congruence.
+
+admit. (*match_others...*)
 Qed.
 
 End LinkerCompilable.

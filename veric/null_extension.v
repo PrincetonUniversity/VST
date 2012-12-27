@@ -43,7 +43,6 @@ Section NullExtension.
  Next Obligation. 
   inversion H; subst; if_tac in H; try congruence. 
   unfold const in *.
-  inversion H3; subst.
   solve[rewrite H0 in H1; congruence].
  Qed.
  Next Obligation. 
