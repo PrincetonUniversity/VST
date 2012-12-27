@@ -41,9 +41,16 @@ Variables (cT fT vT: nat -> Type)
 
 Implicit Arguments plt_ok [].
 
+Definition all_at_external (l: call_stack cT num_modules) :=
+ List.Forall (fun f => match f with mkFrame i pf_i c => 
+  exists ef, exists sig, exists args,
+   at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)
+  end) l.
+
 Inductive linker_corestate: Type := mkLinkerCoreState: forall
  (stack: call_stack cT num_modules)
- (stack_nonempty: length stack >= 1),
+ (stack_nonempty: length stack >= 1)
+ (callers_at_external: all_at_external (List.tail stack)),
  linker_corestate.
 
 Implicit Arguments mkLinkerCoreState [].
@@ -57,24 +64,30 @@ Definition genvs_agree (F1 F2 V1 V2: Type) (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V
 Lemma length_cons {A: Type}: forall (a: A) (l: list A), length (a :: l) >= 1.
 Proof. solve[intros; simpl; omega]. Qed.
 
+Lemma all_at_external_consnil: forall f, all_at_external (List.tail (f::nil)).
+Proof.
+unfold all_at_external; intros; simpl.
+solve[apply Forall_nil].
+Qed.
+
 Inductive linker_corestep: 
   Genv.t F V -> linker_corestate -> mem -> linker_corestate -> mem -> Prop :=
 (** coresteps of the 'top' core *)                    
 | link_step: forall ge (stack: call_stack cT num_modules) 
-                    i c m (pf_i: i < num_modules) c' m' pf,
+                    i c m (pf_i: i < num_modules) c' m' pf ext_pf,
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
   corestep (get_module_csem (modules pf_i)) (get_module_genv (modules pf_i)) c m c' m' ->
   linker_corestep ge
-   (mkLinkerCoreState (mkFrame i pf_i c :: stack) pf) m
-   (mkLinkerCoreState (mkFrame i pf_i c' :: stack) pf) m'
+   (mkLinkerCoreState (mkFrame i pf_i c :: stack) pf ext_pf) m
+   (mkLinkerCoreState (mkFrame i pf_i c' :: stack) pf ext_pf) m'
 
 (** 'link' steps *)
 | link_call: forall ge stack i j args id sig b (c: cT i) m (pf_i: i < num_modules) c' 
    (LOOKUP: procedure_linkage_table id = Some j) 
    (NEQ_IJ: i<>j) (** 'external' functions cannot be defined within this module *)
    (AT_EXT: at_external (get_module_csem (modules pf_i)) c = 
-     Some (EF_external id sig, sig, args)) pf,
+     Some (EF_external id sig, sig, args)) pf ext_pf ext_pf',
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
   Genv.find_symbol ge id = Some b -> 
@@ -84,26 +97,27 @@ Inductive linker_corestep:
    (get_module_genv (modules (plt_ok id j LOOKUP))) (Vptr b (Int.repr 0)) args = Some c' -> 
 
   linker_corestep ge
-   (mkLinkerCoreState (mkFrame i pf_i c :: stack) pf) m
+   (mkLinkerCoreState (mkFrame i pf_i c :: stack) pf ext_pf) m
    (mkLinkerCoreState 
-     (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) (length_cons _ _)) m
+     (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) (length_cons _ _) ext_pf') m
 
 (** 'return' steps *)
 | link_return: forall ge stack i j id c m (pf_i: i < num_modules) c' c'' retv
    (LOOKUP: procedure_linkage_table id = Some j)
-   (HALTED: safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c' = Some retv) pf,
+   (HALTED: safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c' = Some retv) 
+   pf ext_pf ext_pf',
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
   after_external (get_module_csem (modules pf_i)) (Some retv) c = Some c'' -> 
   linker_corestep ge
    (mkLinkerCoreState 
-     (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) pf) m
-   (mkLinkerCoreState (mkFrame i pf_i c'' :: stack) (length_cons _ _)) m.
+     (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) pf ext_pf) m
+   (mkLinkerCoreState (mkFrame i pf_i c'' :: stack) (length_cons _ _) ext_pf') m.
 
 Definition linker_at_external (s: linker_corestate) := 
   match s with
-  | mkLinkerCoreState nil _ => None
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ =>
+  | mkLinkerCoreState nil _ _ => None
+  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ =>
      match at_external (get_module_csem (modules pf_i)) c with
      | Some (EF_external id sig, ef_sig, args) => 
        match procedure_linkage_table id with 
@@ -114,24 +128,25 @@ Definition linker_at_external (s: linker_corestate) :=
      | None => None
      end
   end.
+Implicit Arguments linker_at_external [].
 
 Definition linker_after_external (retv: option val) (s: linker_corestate) :=
   match s with
-  | mkLinkerCoreState nil _ => None
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ =>
+  | mkLinkerCoreState nil _ _ => None
+  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ ext_pf =>
     match after_external (get_module_csem (modules pf_i)) retv c with
     | None => None
-    | Some c' => Some (mkLinkerCoreState 
-      (mkFrame i pf_i c' :: call_stack) (length_cons _ _))
+    | Some c' => Some (mkLinkerCoreState (mkFrame i pf_i c' :: call_stack) 
+       (length_cons _ _) ext_pf)
     end
   end.
 
 Definition linker_safely_halted (s: linker_corestate) :=
   match s with
-  | mkLinkerCoreState nil _ => None
-  | mkLinkerCoreState (mkFrame i pf_i c :: nil) _ =>
+  | mkLinkerCoreState nil _ _ => None
+  | mkLinkerCoreState (mkFrame i pf_i c :: nil) _ _ =>
      safely_halted (get_module_csem (modules pf_i)) c
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ => None
+  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => None
   end.
 
 Definition main_id := 1%positive. (*hardcoded*)
@@ -151,7 +166,7 @@ Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :
                  (get_module_genv (modules (@plt_ok main_id i (eq_sym pf)))) f args with
          | None => None
          | Some c => Some (mkLinkerCoreState (mkFrame i (plt_ok main_id i (eq_sym pf)) c :: nil) 
-                             (length_cons _ _))
+                             (length_cons _ _) (all_at_external_consnil _))
          end 
        end) (refl_equal _)
      else None
@@ -249,9 +264,6 @@ Next Obligation.
 destruct q; simpl in H|-*.
 destruct stack; try solve[inversion H].
 destruct f; try solve[inversion H].
-(*case_eq (at_external (get_module_csem (modules PF)) c). 
-intros [[ef sig] args] H1.
-rewrite H1 in H.*)
 case_eq (after_external (get_module_csem (modules PF)) retv c).
 intros c' H2; rewrite H2 in H.
 inv H; apply after_at_external_excl in H2.
@@ -284,6 +296,8 @@ Variable plt_in_handled:
  forall i j (pf: i < num_modules) c sig sig2 args id,
  at_external (get_module_csem (modules pf)) c = Some (EF_external id sig, sig2, args) ->
  procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
+
+Implicit Arguments linker_at_external [num_modules cT].
 
 Variable at_external_not_handled:
  forall ef sig args s,
@@ -326,27 +340,29 @@ Import TruePropCoercion.
 
 Definition init_data := fun i: nat => list (ident * globdef (fT i) (vT i)).
 
-Definition linker_proj_core (i: nat) (s: linker_corestate num_modules cT): option (cT i) :=
+Implicit Arguments linker_corestate [fT vT].
+
+Definition linker_proj_core (i: nat) (s: linker_corestate num_modules cT modules): option (cT i) :=
   match s with
-  | mkLinkerCoreState nil _ => None
-  | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ =>
+  | mkLinkerCoreState nil _ _ => None
+  | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ _ =>
      match eq_nat_dec i j with 
      | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
      | right _ => None
      end
   end.
 
-Definition linker_active (s: linker_corestate num_modules cT): nat :=
+Definition linker_active (s: linker_corestate num_modules cT modules): nat :=
   match s with
-  | mkLinkerCoreState nil _ => 0
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ => i
+  | mkLinkerCoreState nil _ _ => 0
+  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => i
   end.
 
 Program Definition linking_extension: 
  @Extension.Sig (Genv.t F V) (list (ident * globdef F V)) 
-        (linker_corestate num_modules cT) genv_map cT mem init_data Z unit Z
-        (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-        csem_map csig esig handled :=
+     (linker_corestate num_modules cT modules) genv_map cT mem init_data Z unit Z
+     (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+     csem_map csig esig handled :=
  Extension.Make genv_map (fun i: nat => list (ident * globdef (fT i) (vT i)))
   (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
   csem_map csig esig handled num_modules
@@ -429,7 +445,7 @@ destruct s; simpl in *.
 destruct stack; try solve[congruence].
 destruct f.
 specialize (IHn 
- (mkLinkerCoreState (mkFrame i PF c2 :: stack) stack_nonempty)
+ (mkLinkerCoreState (mkFrame i PF c2 :: stack) stack_nonempty callers_at_external)
  c2 m2 c' m'
 ).
 simpl in IHn; spec IHn.
@@ -440,7 +456,7 @@ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H1.
 inversion H1; rewrite H0 in *; clear H0 H1.
 exists s'; split; auto.
-exists (mkLinkerCoreState (mkFrame i PF c2 :: stack) stack_nonempty).
+exists (mkLinkerCoreState (mkFrame i PF c2 :: stack) stack_nonempty callers_at_external).
 exists m2.
 split; auto.
 constructor; auto.
@@ -455,7 +471,7 @@ Lemma linker_core_compatible: forall (ge: Genv.t F V)
    (domain_eq: forall (k : nat) (pf_k : k < num_modules),
      genvs_domain_eq ge (get_module_genv (modules pf_k)))
    (csem_fun: forall i: nat, corestep_fun (csem_map i)),
- @core_compatible (Genv.t F V) (linker_corestate num_modules cT) mem 
+ @core_compatible (Genv.t F V) (linker_corestate num_modules cT modules) mem 
         (list (ident*globdef F V)) Z unit Z
         (fun i => Genv.t (fT i) (vT i)) cT init_data 
         (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
@@ -563,7 +579,7 @@ destruct (eq_nat_dec i i); try solve[congruence].
 rewrite dependent_types_nonsense in H1.
 inv H1.
 clear e.
-exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty).
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty callers_at_external).
 constructor; auto.
 unfold csem_map, genvs in H2.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
@@ -609,7 +625,7 @@ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H1.
 inv H1.
 clear e.
-exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty).
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) stack_nonempty callers_at_external).
 unfold csem_map in H2.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (H: l = PF) by apply proof_irr; auto.
@@ -682,6 +698,8 @@ Variable plt_in_handled_T:
  at_external (get_module_csem (modules_T pf)) c = Some (EF_external id sig, sig2, args) ->
  procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
 
+Implicit Arguments linker_at_external [num_modules cT].
+
 Variable at_external_not_handled_S:
  forall ef sig args s,
  linker_at_external fS vS procedure_linkage_table modules_S s = Some (ef, sig, args) ->
@@ -735,10 +753,13 @@ Variable core_simulations: forall i: nat,
   (csem_map_T i) (genv_mapS i) (genv_mapT i) entry_points 
   (core_data i) (@match_state i) (@core_ord i).
 
-Definition R_inv (_:meminj) (x:linker_corestate num_modules cS) (_:mem) 
-                            (y:linker_corestate num_modules cT) (_:mem) := 
+Implicit Arguments linker_corestate [fT vT].
+
+Definition R_inv (_:meminj) (x:linker_corestate num_modules cS modules_S) (_:mem) 
+                            (y:linker_corestate num_modules cT modules_T) (_:mem) := 
  match x, y with
- | mkLinkerCoreState stack1 _, mkLinkerCoreState stack2 _ => length stack1=length stack2
+ | mkLinkerCoreState stack1 _ _, mkLinkerCoreState stack2 _ _ => 
+    length stack1=length stack2
  end.
 
 Lemma linking_extension_compilable:
@@ -844,8 +865,19 @@ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H2.
 inversion H2; rewrite H7 in *; clear H7.
 simpl in *.
+assert (CALLERS: 
+ all_at_external fT vT modules_T (List.tail (mkFrame k (plt_ok LOOKUP) c'' :: 
+  mkFrame i pf_i c2 :: stack0))).
+ simpl.
+ apply List.Forall_cons.
+ exists ef; exists sig; exists args2.
+ generalize H6.
+ unfold csem_map_T, csem_map.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ solve[assert (l = pf_i) as -> by apply proof_irr; auto].
+ solve[apply callers_at_external].
 exists (mkLinkerCoreState (mkFrame k (plt_ok LOOKUP) c'' :: 
-  mkFrame i pf_i c2 :: stack0) (length_cons _ _)).
+  mkFrame i pf_i c2 :: stack0) (length_cons _ _) CALLERS).
 exists m2.
 exists (@ExtendedSimulations.core_datas_upd _ k cd' cd).
 exists j.
@@ -872,10 +904,11 @@ congruence.
 left.
 exists O; simpl.
 exists (mkLinkerCoreState 
- (mkFrame k (plt_ok LOOKUP) c'' :: mkFrame i PF c2 :: stack0) (length_cons _ _)).
+ (mkFrame k (plt_ok LOOKUP) c'' :: mkFrame i pf_i c2 :: stack0) (length_cons _ _) CALLERS).
 exists m2.
 split; auto.
-2: solve[assert (PF = pf_i) as -> by apply proof_irr; auto].
+assert (Heq: pf_i = PF) by apply proof_irr; auto.
+subst pf_i.
 apply link_call 
  with (args := args2) (sig := sig) (b := b); auto.
 specialize (H8 i c1).
@@ -893,7 +926,7 @@ assert (l = PF) as -> by apply proof_irr; auto.
 clear - H5 AT_EXT H6. 
 unfold csem_map_S, csem_map in H5.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (l = pf_i) by apply proof_irr; auto; subst.
+assert (l = PF) by apply proof_irr; auto; subst.
 solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
 clear - domain_eq_T.
 unfold genv_mapT, genvs in domain_eq_T.
@@ -916,7 +949,7 @@ assert (sig = sig0) as ->.
  clear - H5 AT_EXT.
  unfold csem_map_S, csem_map in H5.
  destruct (lt_dec i num_modules); try solve[elimtype False; omega].
- assert (Heq: l = pf_i) by apply proof_irr; auto; subst.
+ assert (Heq: l = PF) by apply proof_irr; auto; subst.
  solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
 solve[auto].
 unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
@@ -1002,7 +1035,8 @@ destruct core_initial0 as [cd' [c2 [INIT MATCH]]].
 assert (exists cd: CompilabilityInvariant.core_datas core_data, True) as [cd _].
  admit. (*need to know cd exists for each core*)
 exists (ExtendedSimulations.core_datas_upd _ n cd' cd).
-exists (mkLinkerCoreState (mkFrame n (plt_ok PLT) c2 :: nil) (length_cons _ _)).
+exists (mkLinkerCoreState (mkFrame n (plt_ok PLT) c2 :: nil) (length_cons _ _)
+ (all_at_external_consnil _ _ _ _)).
 simpl; split; auto.
 unfold linker_make_initial_core.
 case_eq v2.
