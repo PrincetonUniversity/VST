@@ -678,16 +678,28 @@ eapply age_later_nec; eauto.
 exists (core w), w.
 split; [|split].
 apply core_unit.
-hnf; intros. 
-admit. (* easy *)
-admit. (* easy *)
+hnf; intros.
+assert (age1 (core w) = None).
+apply age1_None_joins with w; auto.
+exists w; apply join_comm; apply core_unit.
+unfold laterM in H1. simpl in H1.
+unfold laterR in H1.
+apply clos_trans_t1n in H1. inv H1; rewrite H3 in H2; inv H2.
+intros w' ?.
+hnf in H1. apply clos_trans_t1n in H1.
+inv H1; rewrite H2 in H0; inv H0.
 
 intros w [w1 [w2 [? [? ?]]]].
 intros w' ?.
-assert (exists w1', exists w2', join w1' w' w2' /\ laterR w1 w1' /\ laterR w2 w2').
-admit.  (* not difficult *)
-destruct H3 as [w1' [w2' [? [? ?]]]].
-exists w1',w2'; split; [|split]; auto.
+hnf in H2. apply clos_trans_t1n in H2.
+revert w1 w2 H H0 H1; induction H2; intros.
+destruct (age1_join _ (join_comm H0) H) as [w1' [w2' [? [? ?]]]].
+exists w1'; exists w2'; split; auto.
+split.
+eapply H1. hnf; apply clos_t1n_trans. constructor 1; auto.
+eapply H2. hnf; apply clos_t1n_trans. constructor 1; auto.
+destruct (age1_join _ (join_comm H0) H) as [w1' [w2' [? [? ?]]]].
+apply (IHclos_trans_1n _ _ (join_comm H4)); auto; eapply pred_hereditary; eauto.
 Qed.
 
 (* Notation "P '-o' Q" := (ewand P Q) (at level 60, right associativity). *)

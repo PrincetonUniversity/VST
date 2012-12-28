@@ -297,7 +297,18 @@ Proof. constructor.
   apply combineJ_eq.
   apply combineJ_assoc.
   apply combineJ_com.
-  admit.  (* positivity *)
+   (* positivity *)
+  intros.
+  hnf in H, H0.
+  destruct a, a'; try contradiction; destruct b,b'; try contradiction; auto;
+  try solve [destruct H; destruct H0; congruence].
+  destruct H; destruct H0. 
+  f_equal.
+  destruct sh as [sh i]; destruct sh0 as [sh0 i0]; 
+  destruct sh1 as [sh1 i1]; destruct sh2 as [sh2 i2].
+  apply existT_ext. unfold ijoin in H,H0.
+  eapply join_positivity; eauto. 
+  eapply join_positivity; eauto. 
 Qed.
 
 Instance Sep_combiner: Sep_alg combiner.
@@ -383,7 +394,7 @@ Proof.
   spec H0 ( sh' v0) (DFull .
   
   
-  admit.
+  ad mit.
   exists v. trivial.
 Qed.
 *)
