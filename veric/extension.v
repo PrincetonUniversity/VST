@@ -663,13 +663,15 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    exists v2, val_inject j v1 v2 /\
      safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
      
- (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
+ (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
+   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
    corestep esemS ge_S s1 m1 s1' m1' ->  
-   safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
+   exists rv2, 
+     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+     val_inject j rv1 rv2 /\
    exists s2', exists m2', exists cd', exists j', 
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\

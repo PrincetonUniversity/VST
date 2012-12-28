@@ -754,13 +754,15 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     exists v2, val_inject j v1 v2 /\
       safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
 
-  (safely_halted_diagram: forall cd j m1 m1' m2 rv s1 s2 s1' c1 c2,
+  (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
     match_states cd j s1 m1 s2 m2 -> 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-    safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv -> 
+    safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
     corestep esemS ge_S s1 m1 s1' m1' ->  
-    safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv /\
+    exists rv2, 
+      safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+      val_inject j rv1 rv2 /\
     exists s2', exists m2', exists cd', exists j', 
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
@@ -1022,18 +1024,19 @@ intros RUN1.
 generalize PROJ1 as _PROJ1; intro.
 generalize RUN1 as RUN1'; intro.
 apply runnable_false in RUN1.
-destruct RUN1 as [[rv HALT]|[ef [sig [args AT_EXT]]]].
+destruct RUN1 as [[rv1 HALT]|[ef [sig [args AT_EXT]]]].
 
 (*active thread is safely halted*)
 specialize (MATCH_CORES (ACTIVE E_S st1) c1 _PROJ1).
 clear c2 PROJ2.
 destruct MATCH_CORES as [c2 [PROJ2 MATCH12]].
 destruct (core_halted (core_simulations (ACTIVE E_S st1)) 
-  (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv MATCH12 HALT) 
- as [SAFE_T INJ].
+  (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv1 MATCH12 HALT) 
+ as [rv2 [VAL_INJ [SAFE_T INJ]]].
 inv esig_compilable.
 eapply safely_halted_diagram with (m1' := m1') in MATCH'; eauto.
-destruct MATCH' as [H7 [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' MATCH12']]]]]]]].
+destruct MATCH' as [rv2' [H7 [VAL_INJ' 
+ [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' MATCH12']]]]]]]]]].
 exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].

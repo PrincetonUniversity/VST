@@ -369,7 +369,10 @@ Definition linker_active (s: linker_corestate num_modules cT modules): nat :=
 
 Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
  eq_rect i (fun x => cT x) c i (eq_sym e) = c.
-Proof. Admitted.
+Proof.
+intros; rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
+apply eq_nat_dec.
+Qed.
 
 Program Definition linking_extension: 
  @Extension.Sig (Genv.t F V) (list (ident * globdef F V)) 
@@ -397,8 +400,8 @@ solve[simpl in stack_nonempty; elimtype False; omega].
 destruct f; simpl.
 destruct (eq_nat_dec i i); try solve[elimtype False; auto].
 exists c; f_equal.
-unfold eq_rect, eq_sym.
-Admitted. (*dependent types*)
+solve[rewrite dependent_types_nonsense; auto].
+Qed.
 Next Obligation.
 unfold linker_proj_core in H.
 destruct s.
@@ -805,7 +808,16 @@ Definition R_inv (j:meminj) (x:linker_corestate num_modules cS modules_S) (m1:me
     stack_inv j m1 m2 stack1 stack2
  end.
 
-Lemma linking_extension_compilable:
+(*Remember: globals aren't injected; we should be able to show that entry points 
+  remain equal across compilation phases.*)
+
+Variable entry_points_eq: 
+ forall v1 v2 sig,
+ List.In (v1, v2, sig) entry_points -> 
+ exists b, exists ofs, v1 = Vptr b ofs /\ v2 = Vptr b ofs.
+
+Lemma linking_extension_compilable 
+  (cd_init: CompilabilityInvariant.core_datas core_data):
  CompilableExtension.Sig 
  (@linker_core_semantics F_S V_S num_modules cS fS vS 
    procedure_linkage_table plt_ok modules_S entry_points)
@@ -1087,20 +1099,43 @@ spec core_initial0; auto.
 spec core_initial0; auto.
 destruct core_initial0 as [cd' [c2 [INIT MATCH]]].
 assert (exists cd: CompilabilityInvariant.core_datas core_data, True) as [cd _].
- admit. (*need to know cd exists for each core*)
+ solve[eexists; eauto].
 exists (ExtendedSimulations.core_datas_upd _ n cd' cd).
 exists (mkLinkerCoreState (mkFrame n (plt_ok PLT) c2 :: nil) (length_cons _ _)
  (all_at_external_consnil _ _ _ _)).
 simpl; split; auto.
 unfold linker_make_initial_core.
 case_eq v2.
-admit. (*v2: bad case*)
-admit. (*v2: bad case*)
-admit. (*v2: bad case*)
+clear - entry_points_eq H1.
+specialize (entry_points_eq (Vptr b' i) v2 sig H1).
+destruct entry_points_eq as [b [ofs [VPTR1 VPTR2]]].
+solve[rewrite VPTR2; intros; congruence].
+specialize (entry_points_eq (Vptr b' i) v2 sig H1).
+destruct entry_points_eq as [b [ofs [VPTR1 VPTR2]]].
+solve[rewrite VPTR2; intros; congruence].
+specialize (entry_points_eq (Vptr b' i) v2 sig H1).
+destruct entry_points_eq as [b [ofs [VPTR1 VPTR2]]].
+solve[rewrite VPTR2; intros; congruence].
 intros b ofs V.
 rewrite V in *.
 assert (Genv.find_symbol geT main_id = Some b) as ->.
- admit. (*follows from genvs_agree facts*)
+ cut (b' = b).
+ intros <-.
+ clear - H6 agree_S agree_ST agree_T PLT plt_ok.
+ specialize (agree_S (plt_ok PLT)).
+ unfold genvs_agree in *.
+ destruct agree_S as [H1 H2].
+ rewrite H1 in H6.
+ specialize (agree_ST (plt_ok PLT)).
+ destruct agree_ST as [H3 H4].
+ rewrite H3 in H6.
+ specialize (agree_T (plt_ok PLT)).
+ destruct agree_T as [H5 H7].
+ solve[rewrite <-H5 in H6; auto].
+ clear - H6 H1 entry_points_eq.  
+ specialize (entry_points_eq (Vptr b' i) (Vptr b ofs) sig H1). 
+ destruct entry_points_eq as [b0 [ofs0 [EQ1 EQ2]]].
+ solve[inv EQ1; inv EQ2; auto].
 if_tac; try solve[elimtype False; omega].
 generalize (refl_equal (procedure_linkage_table main_id)).
 generalize PLT.
@@ -1219,11 +1254,10 @@ solve[intros [? [? FALSE]]; elimtype False; auto].
 
 (*7: safely_halted_diagram*)
 intros until c2; intros H1 H2 H3 H4 H5.
-split.
 destruct (core_simulations (linker_active s1)).
 generalize core_halted0.
 intro core_halted1.
-specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv).
+specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv1).
 spec core_halted1; auto.
 destruct H1 as [RR [H6 H7]].
 simpl in *.
@@ -1232,11 +1266,15 @@ rewrite H3 in H8.
 solve[inv H8; auto].
 spec core_halted1; auto.
 destruct core_halted1 as [v2 [INJ [HALT INJ']]].
-admit. (*need to generalize safely_halted_diagram to injected rv'*)
+exists v2.
+split; auto.
+split; auto.
+clear INJ'.
 inv H5.
 elimtype False; clear - H2 H4 H6.
 apply corestep_not_halted in H6.
 generalize H4; unfold csem_map_S, csem_map; simpl.
+simpl in *.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (l = pf_i) as -> by apply proof_irr; auto.
 simpl in H2.
@@ -1267,6 +1305,7 @@ destruct (eq_nat_dec j0 i0); try solve[congruence]; subst.
 rewrite dependent_types_nonsense in H3; inversion H3; subst c0.
 destruct H1 as [RR [H1 H7]].
 simpl in *.
+unfold R, R_inv in *.
 destruct RR as [RR1 [RR2 RR3]].
 destruct stack0; try solve[elimtype False; auto].
 destruct f.
@@ -1285,10 +1324,11 @@ generalize ext_pf.
 unfold all_at_external.
 inversion 1; subst.
 destruct H3 as [ef [sig [args AT_EXT]]].
+clear core_after_external0.
 destruct (core_simulations i).
 clear core_ord_wf0 core_diagram0 core_initial0 core_halted0 core_at_external0.
 specialize (core_after_external0 
- cd'' j j c c0 m1' ef args retv m1' m2 m2 retv sig).
+ cd'' j j c c0 m1' ef args rv1 m1' m2 m2 v2 sig).
 specialize (RGsim i); destruct RGsim.
 spec core_after_external0.
 solve[eapply match_state_inj; eauto].
@@ -1303,7 +1343,7 @@ spec core_after_external0; auto.
 spec core_after_external0; auto.
 solve[apply inject_separated_same_meminj].
 spec core_after_external0; eauto.
-spec core_after_external0. admit. (*need to generalize safely_halted_diagram to injected rv'*)
+spec core_after_external0; auto.
 spec core_after_external0; auto.
 solve[unfold mem_forward; intros; split; auto].
 spec core_after_external0.
@@ -1329,12 +1369,30 @@ solve[apply inject_separated_same_meminj].
 split.
 assert (pf_i = PF0) as -> by apply proof_irr.
 assert (PF = plt_ok LOOKUP) as -> by apply proof_irr.
-apply link_return with (retv := retv); auto.
-admit. (*from core_simulations at i*)
-admit. (*genvs_domain_eq*)
+
+destruct (core_simulations i0).
+clear core_ord_wf0 core_diagram0 core_initial0 core_at_external0 core_after_external0.
+specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1).
+spec core_halted0; auto.
+spec core_halted0; auto.
+destruct core_halted0 as [v2' [? [? ?]]].
+apply link_return with (retv := v2'); auto.
+unfold csem_map_T, csem_map in H7.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (plt_ok LOOKUP = l) as -> by apply proof_irr; auto].
+intros k pf_k.
+unfold genv_mapT, genvs in domain_eq_T.
+specialize (domain_eq_T k).
+destruct (lt_dec k num_modules); try solve[elimtype False; omega].
+solve[assert (pf_k = l) as -> by apply proof_irr; auto].
 unfold csem_map_T, csem_map in AFTER2.
+cut (v2' = v2).
+intros ->.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 solve[assert (PF0 = l) as -> by apply proof_irr; auto].
+clear - H7 HALT.
+rewrite H7 in HALT.
+solve[inv HALT; auto].
 split.
 simpl.
 exists (@refl_equal _ i).
@@ -1342,6 +1400,8 @@ split; auto.
 cut (c'' = _c).
 intros ->.
 solve[exists cd2; auto].
+cut (retv = rv1).
+intros ->.
 clear - AFTER1 H6 PF0.
 unfold csem_map_S, csem_map in AFTER1.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
@@ -1349,6 +1409,11 @@ assert (Heq: l = pf_i) by apply proof_irr.
 subst l.
 rewrite AFTER1 in H6.
 solve[inv H6; auto].
+clear - HALTED H4 PF.
+unfold csem_map_S, csem_map in H4.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
+solve[rewrite H4 in HALTED; inv HALTED; auto].
 split; auto.
 simpl.
 intros i1 c1 H1.
@@ -1361,6 +1426,8 @@ split; auto.
 rewrite ExtendedSimulations.core_datas_upd_same.
 cut (c1 = _c).
 solve[intros ->; auto].
+cut (rv1 = retv).
+intros ->.
 clear - AFTER1 H6 PF0.
 unfold csem_map_S, csem_map in AFTER1.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
@@ -1368,6 +1435,11 @@ assert (Heq: l = pf_i) by apply proof_irr.
 subst l.
 rewrite AFTER1 in H6.
 solve[inv H6; auto].
+clear - HALTED H4 PF.
+unfold csem_map_S, csem_map in H4.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
+solve[rewrite H4 in HALTED; inv HALTED; auto].
 Qed.
 
 End LinkerCompilable.
