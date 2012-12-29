@@ -669,7 +669,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
     R j' s1' m1' s2' m2')
 
-  (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2,
+  (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
     match_states cd j s1 m1 s2 m2 -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
@@ -678,6 +678,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
     mem_forward m2 m2' -> 
     Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
+    at_external esemS s1 = Some (ef, sig, args1) -> 
     after_external esemS ret1 s1 = Some s1' -> 
     after_external esemT ret2 s2 = Some s2' -> 
     R j' s1' m1' s2' m2')   

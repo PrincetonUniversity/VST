@@ -865,7 +865,121 @@ clear LEM; constructor; simpl.
 admit. (*TODO*)
 
 (*2*)
-admit. (*TODO*)
+intros until args1; intros [RR [H1 H2]]; simpl in *.
+intros H3 H4 H5 H6 H7 H8 H9 AT_EXT H10 H11.
+unfold R, R_inv in *.
+destruct s1; destruct s2; simpl in *.
+destruct stack.
+simpl in stack_nonempty; elimtype False; omega.
+destruct f; simpl in *.
+destruct stack0.
+simpl in stack_nonempty0; elimtype False; omega.
+destruct f; simpl in *.
+subst.
+case_eq (after_external (get_module_csem (modules_S PF)) ret1 c).
+2: solve[intros Heq; rewrite Heq in H10; congruence].
+intros c1 Heq1.
+rewrite Heq1 in H10.
+inv H10.
+case_eq (after_external (get_module_csem (modules_T PF0)) ret2 c0).
+2: solve[intros Heq; rewrite Heq in H11; congruence].
+intros c2 Heq2.
+rewrite Heq2 in H11.
+inv H11.
+simpl in *.
+destruct RR as [RR1 [[cd' MATCH] RR2]].
+exists RR1.
+split; auto.
+destruct (core_simulations i0).
+clear core_ord_wf0 core_diagram0 core_initial0 core_halted0 core_at_external0.
+cut (match_state cd' j' c m1' c0 m2').
+intros MATCH'.
+case_eq (at_external (get_module_csem (modules_S PF)) c).
+2: solve[intros AT_EXT'; rewrite AT_EXT' in AT_EXT; congruence].
+intros [[ef' sig'] args'] AT_EXT'.
+rewrite AT_EXT' in AT_EXT.
+assert (exists ret1', ret1 = Some ret1') as [ret1' RET1] by admit. (*fix after_external to allow None retval*)
+assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] by admit. (*fix after_external to allow None retval*)
+assert (val_inject j' ret1' ret2') by admit. (*add val_inject precondition to after_external_rel*)
+specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
+specialize (RGsim i0); destruct RGsim.
+spec core_after_external0.
+solve[eapply match_state_inj; eauto].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+unfold csem_map_S, csem_map.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (l = PF) as -> by apply proof_irr; auto].
+spec core_after_external0; auto.
+solve[eapply match_state_preserves_globals; eauto].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+solve[apply inject_separated_same_meminj].
+spec core_after_external0; eauto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+solve[unfold mem_forward; intros; split; auto].
+spec core_after_external0.
+solve[unfold Events.mem_unchanged_on; split; auto].
+spec core_after_external0.
+solve[unfold mem_forward; intros; split; auto].
+spec core_after_external0.
+solve[unfold Events.mem_unchanged_on; split; auto].
+spec core_after_external0.
+admit. (*typing precondition*)
+destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
+exists cd''; auto.
+rewrite <-RET1, <-RET2 in *.
+clear - Heq1 Heq2 EQ1 EQ2 PF MATCH2.
+unfold csem_map_S, csem_map_T, csem_map in *|-.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (l = PF) as -> by apply proof_irr.
+assert (PF0 = PF) as -> by apply proof_irr.
+rewrite Heq1 in EQ1; inv EQ1.
+unfold genv_map in EQ2.
+rewrite Heq2 in EQ2; inv EQ2.
+rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
+solve[apply eq_nat_dec].
+destruct (RGsim i0).
+apply rely with (ge1 := get_module_genv (modules_S PF)) (m1 := m1) (f := j) (m2 := m2); auto.
+solve[eapply match_state_inj; eauto].
+rewrite meminj_preserves_genv2blocks.
+generalize match_state_preserves_globals.
+unfold genv_mapS, genvs.
+intros GENVS.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (PF = l) as -> by apply proof_irr.
+solve[eapply GENVS; eauto].
+admit. (*Events2 vs Events*)
+admit. (*Events2 vs Events*)
+rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
+solve[apply eq_nat_dec].
+clear H2 AT_EXT.
+clear - RR2 H3 H4 H5 H6 H7 H8 H9 PF RGsim.
+revert stack0 RR2; induction stack; auto.
+intros stack0 RR2; destruct stack0; simpl in RR2. 
+solve[destruct a; elimtype False; auto].
+destruct a; destruct f.
+destruct RR2 as [PF' [[cd' MATCH] INV]].
+subst.
+simpl.
+exists (@refl_equal _ i).
+split; auto.
+exists cd'.
+rewrite <-Eqdep_dec.eq_rect_eq_dec in *; auto; 
+ try solve[apply eq_nat_dec].
+destruct (RGsim i).
+apply rely with (ge1 := get_module_genv (modules_S PF0)) (m1 := m1) (f := j) (m2 := m2); auto.
+solve[eapply match_state_inj; eauto].
+rewrite meminj_preserves_genv2blocks.
+generalize match_state_preserves_globals.
+unfold genv_mapS, genvs.
+intros GENVS.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (PF0 = l) as -> by apply proof_irr.
+solve[eapply GENVS; eauto].
+admit. (*Events2 vs Events*)
+admit. (*Events2 vs Events*)
 
 (*3: extension_diagram*)
 unfold CompilabilityInvariant.match_states; simpl. 
