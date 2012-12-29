@@ -287,7 +287,7 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
    ( |> tc_lvalue Delta e1 rho && |> !!(typecheck_val (v2 rho) (typeof e1) = true) && |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple. 
-intro. apply boxy_andp; auto. admit. 
+intro. apply boxy_andp; auto.
 intros jm jm1 ge ve te rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).

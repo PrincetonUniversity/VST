@@ -116,7 +116,7 @@ Definition funsig := (list (ident*type) * type)%type. (* argument and result sig
 Definition modified0 : ident -> Prop := fun _ => False.
 Definition modified1 id : ident -> Prop := fun i => i=id.
 Definition modified2 (s1 s2: ident -> Prop) := fun i => s1 i \/ s2 i.
-Print statement.
+
 Fixpoint modifiedvars (c: statement) : ident -> Prop :=
  match c with
  | Sset id e => modified1 id

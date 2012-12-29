@@ -8,22 +8,16 @@ Require Import veric.slice.
 Require Import veric.res_predicates.
 Require Import veric.expr.
 
-(* THESE NEXT DEFINITIONS are inconvenient to have inside the proof
-  of separation logic soundness, but are necessary to have for the 
-  client of the separation logic who wants to import the separation
-   logic opaquely. *)
-(*
-Definition rmap := rmap.
-Instance Join_rmap: Join rmap := _.
-Instance Perm_rmap: @Perm_alg rmap Join_rmap := _.
-Instance Sep_rmap: @Sep_alg rmap Join_rmap := _.
-Instance Canc_rmap: @Canc_alg rmap Join_rmap := _.
-Instance Disj_rmap: @Disj_alg rmap Join_rmap := _.
-Instance ag_rmap: ageable rmap := _.
-Instance Age_rmap: @Age_alg rmap Join_rmap ag_rmap := _.
-Instance Cross_rmap: Cross_alg rmap := _.
-Instance Trip_rmap: Trip_alg rmap := _.
-*)
+Definition writable_share (sh: share) := join_sub Share.Rsh sh.
+
+Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
+Proof.
+ intros.
+ destruct H.
+  destruct H.
+  subst. 
+  admit.  (* Aquinas, please take a look at this *)
+Qed.
 
 Definition core_load : memory_chunk -> address -> val -> pred rmap := core_load.
 
@@ -339,20 +333,46 @@ Definition tc_lvalue (Delta: tycontext) (e: expr) : assert :=
 Definition tc_value (v:environ -> val) (t :type) : assert:=
      fun rho => !! (typecheck_val (v rho) t = true).
 
+Lemma extend_prop: forall P, boxy extendM (prop P).
+Proof.
+intros.
+hnf.
+apply pred_ext. intros ? ?. apply H; auto. apply extendM_refl.
+repeat intro. apply H.
+Qed.
+
+Hint Resolve extend_prop.
+
 Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho).
-Admitted.
+Proof.
+ intros.
+unfold tc_expr.
+  induction e; simpl;
+  destruct t; simpl; auto.
+Qed.
+
 Lemma extend_tc_exprlist: forall Delta t e rho, boxy extendM (tc_exprlist Delta t e rho).
-Admitted.
+Proof.
+ intros. unfold tc_exprlist.
+  induction e; simpl; auto.
+Qed.
+
 Lemma extend_tc_lvalue: forall Delta e rho, boxy extendM (tc_lvalue Delta e rho).
-Admitted.
-Lemma extend_tc_value: forall v t rho, boxy extendM (tc_value v t rho). 
-Admitted. 
+Proof.
+ intros.
+unfold tc_lvalue.
+  induction e; simpl;
+  destruct t; simpl; auto.
+Qed.
+
+Lemma extend_tc_value: forall v t rho, boxy extendM (tc_value v t rho).
+Proof.
+intros. unfold tc_value. auto.
+Qed.
+
 Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue extend_tc_value.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
-Definition writable_share (sh: share) := join_sub (Share.rel Share.Rsh Share.top) sh.
-Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Admitted.
 
 
 

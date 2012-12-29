@@ -779,7 +779,8 @@ Transparent Mem.store. unfold store.
 rewrite if_true by auto. auto.
 Qed.
 
-Lemma store_outside':
+(* Admitted: the lemma initial_world.store_outside' generalizes this *)
+Lemma store_outside'x:
    forall ch m b z v m',
           Mem.store ch m b z v = Some m' ->
   (forall b' ofs,
