@@ -475,7 +475,7 @@ destruct H2 as [f ?].
  case_eq (Genv.find_var_info (Genv.globalenv prog) b); intros.
  repeat f_equal.
  elimtype False; clear - H H4 H5.
- admit.
+ contradiction (Genv.genv_funs_vars _ H4 H5); auto.
  rewrite H4.
  repeat f_equal.
  unfold no_dups in H.
@@ -524,7 +524,11 @@ destruct H2 as [f ?].
  forget (prog_defs prog) as fs.
  unfold match_fdecs in H0.
 assert (list_norepet (map (@fst _ _) (prog_funct' fs))).
-clear - H. admit.  (* easy *)
+clear - H. 
+ induction fs; simpl in *; auto. inv H. destruct a; destruct g; auto.
+ simpl. constructor; auto. contradict H2. clear - H2.
+ simpl. induction fs; simpl in *; auto. destruct a; destruct g; auto. simpl in H2|-*.
+ destruct H2; auto.
  revert G H1 H0; induction (prog_funct' fs); destruct G; intros. constructor. inv H0.
  constructor. inv H1. simpl in H0. destruct a.  inv H0.
  simpl; constructor; auto.
@@ -573,7 +577,8 @@ unfold type_of_funspec. simpl.
  apply in_prog_funct_in_prog_defs; auto.
  inversion2 H3 H6.
  case_eq (Genv.find_var_info (Genv.globalenv prog) b'); intros.
- elimtype False; clear - H7 H6. admit.
+ elimtype False; clear - H7 H6. 
+ contradiction (Genv.genv_funs_vars _ H7 H6); auto.
  rewrite H7.
  repeat f_equal.
  auto.
@@ -657,6 +662,130 @@ Qed.
 Definition Delta1 V G: tycontext := 
   make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
 
+(* Admitted:  this lemma is duplicated from initialize.v *)
+Lemma rev_prog_vars': forall {F V} vl, rev (@prog_vars' F V vl) = prog_vars' (rev vl).
+Proof.
+   intros.
+   induction vl. simpl; auto.
+   destruct a. destruct g.
+   simpl. rewrite IHvl.
+   clear. induction (rev vl); simpl; intros; auto. destruct a; destruct g; simpl; auto.
+    rewrite IHl. auto.
+   simpl.
+   transitivity (prog_vars' (rev vl) ++ (@prog_vars' F V ((i,Gvar v)::nil))).
+    rewrite IHvl. f_equal.
+    simpl.
+    clear.
+    induction (rev vl); simpl; intros; auto.
+    destruct a. destruct g.
+    auto.
+    rewrite <- IHl.
+    simpl. auto.
+Qed.
+
+
+Lemma make_tycontext_g_denote:
+  forall id t l vs G,
+    list_norepet (map fst l) ->
+    match_globvars (prog_vars' l) vs ->
+    match_fdecs (prog_funct' l) G ->
+   ((make_tycontext_g vs G) ! id = Some t <->
+    ((exists f, In (id,f) G /\ t = Global_func f) \/ (exists v, In (id,v) vs /\ t = Global_var v))).
+Proof.
+ unfold match_globvars, make_tycontext_g; induction l; intros.
+ destruct G; inv H1.
+ destruct vs; simpl in *.
+ rewrite PTree.gempty. split; intro. inv H1.
+ destruct H1 as [[? [? ?]]|[? [? ?]]]; contradiction.
+ destruct p. destruct (H0 i t0); auto. destruct H1; contradiction.
+ inv H. destruct a; destruct g.
+ simpl in H4. destruct G; inv H1.
+ specialize (IHl _ _ H5 H0 H6).
+ destruct p. simpl in *.
+ destruct (eq_dec i id). subst id.
+ rewrite PTree.gss.
+ split; intro. inv H. left; exists f0; split; auto.
+ destruct H as [[f' [? ?]]|[v [? ?]]]. subst t.
+ destruct H. inv H. auto.
+ contradiction H4.
+ clear - H H6. revert G H H6; induction l; simpl; intros. destruct G; inv H6; apply H.
+ destruct a; destruct g; simpl in *. destruct G; inv H6. destruct p; destruct H.
+ inv H. auto.
+ right; eauto.
+ right; eauto. 
+ destruct (H0 _ _ H) as [g [? ?]].
+ contradiction H4. clear - H7. induction l; simpl in *; try contradiction.
+ destruct a; destruct g0; auto. destruct H7. inv H. auto.
+ auto.
+ rewrite PTree.gso by auto. rewrite IHl.
+ clear - n.
+ split; intros [[f [? ?]]|[v [? ?]]]; subst.
+ left; exists f; auto. right; exists v; auto. destruct H. inv H; congruence.
+ left; exists f; auto. right; exists v; auto.
+ simpl in *.
+ specialize (IHl (filter (fun iv' => negb (eqb_ident i (fst iv'))) vs) G H5).
+ spec IHl.
+ intros. destruct (H0 id0 t0) as [g [? ?]].
+ rewrite filter_In in H. destruct H; auto.
+ destruct H3. symmetry in H3; inv H3.
+ rewrite filter_In in H. destruct H as [_ ?]. simpl in H.
+ unfold eqb_ident in H. rewrite Peqb_refl in H. inv H.
+ exists g; split; auto.
+ specialize (IHl H1).
+ destruct (eq_dec id i).
+ subst id.
+ split; intro.
+Admitted.  (* Certainly true, but a royal pain to prove. *)
+
+
+Lemma tc_ge_denote_initial:
+  forall vs G (prog: program),
+list_norepet (prog_defs_names prog) ->
+match_globvars (prog_vars prog) vs ->
+match_fdecs (prog_funct prog) G ->
+tc_ge_denote (filter_genv (Genv.globalenv prog)) (make_tycontext_g vs G).
+Proof.
+Admitted.  (* Very likely true, but a royal pain to prove. *)
+
+Lemma semax_prog_typecheck_aux:
+  forall vs G prog b,
+   list_norepet (prog_defs_names prog) ->
+   match_globvars (prog_vars prog) vs ->
+   match_fdecs (prog_funct prog) G ->
+   typecheck_environ
+     (construct_rho (filter_genv (Genv.globalenv prog)) empty_env
+        (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))) (Delta1 vs G) = true.
+Proof.
+unfold Delta1; intros.
+unfold construct_rho.
+unfold make_tycontext.
+unfold  typecheck_environ.
+unfold ve_of, ge_of, te_of.
+repeat rewrite andb_true_iff.
+split; [split; [split | ] | ].
+unfold temp_types. unfold fst.
+unfold make_tycontext_t.
+unfold fold_right. unfold snd, fst.
+unfold PTree.elements.
+simpl PTree.xelements.
+unfold typecheck_temp_environ.
+unfold make_tenv.
+unfold Map.get.
+rewrite PTree.gss.
+simpl. auto.
+unfold var_types.
+unfold fst,snd.
+reflexivity.
+unfold glob_types. unfold make_tycontext_t, snd.
+apply typecheck_ge_eqv.
+eapply tc_ge_denote_initial; eauto.
+
+apply typecheck_mode_eqv.
+hnf; intros.
+simpl.
+left. unfold make_venv. unfold empty_env. apply PTree.gempty.
+Qed.
+
 Lemma semax_prog_rule :
   forall z V G prog m,
      semax_prog prog V G ->
@@ -709,8 +838,8 @@ eapply (semax_call_aux Hspec (Delta1 V G) unit
   (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
                _ _ b (prog_main prog));
   try apply H3; try eassumption; auto.
-clear - GV H0.
-admit.  (* typechecking proof *)
+clear - GV H2 H0.
+eapply semax_prog_typecheck_aux; eauto.
 hnf; intros; intuition.
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.
@@ -747,7 +876,12 @@ forget (prog_main prog) as main.
 instantiate (1:=main_post prog). 
 instantiate (1:=main_pre prog).
 assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))).
-clear - H0. admit.
+clear - H0.
+unfold prog_defs_names in H0. unfold prog_funct.
+induction (prog_defs prog); auto. inv H0.
+destruct a; destruct g; simpl; auto. constructor; auto.
+clear - H2; simpl in H2; contradict H2; induction l; simpl in *; auto.
+destruct a; destruct g; simpl in *; auto. destruct H2; auto.
 forget (prog_funct prog) as fs.
 clear - H4 H8 H2.
 forget (mk_funspec (nil, Tvoid) unit (main_pre prog) (main_post prog)) as fd.

@@ -200,20 +200,6 @@ split3; auto.
 econstructor; eauto.
 Qed.
 
-Lemma safe_strip:
-   forall psi n ora ve te k k' m,
-        strip_skip k = strip_skip k' ->
-         jsafeN Hspec psi n ora (State ve te k) m ->
-         jsafeN Hspec psi n ora (State ve te k') m.
-Proof.
- intros.
- apply convergent_controls_safe with (State ve te k); simpl in *; auto.
- intros.
- clear - H H1.
- remember (State ve te k) as q.
- revert ve te k Heqq k' H; induction H1; intros; inv Heqq; simpl in *.
-Admitted.  (* undoubtedly true, tedious to prove, maybe not needed *)
-
 Lemma semax_extract_prop:
   forall Delta (PP: Prop) P c Q, 
            (PP -> semax Hspec Delta P c Q) -> 
@@ -764,6 +750,128 @@ induction k; simpl; auto.
 destruct (prebreak_cont k); try contradiction; destruct a; auto.
 Qed.
 
+Lemma find_label_prefix:
+  forall lbl s ctl k, find_label lbl s ctl = Some k -> exists j, k = j++ctl
+with
+  find_label_ls_prefix:
+  forall lbl s ctl k, find_label_ls lbl s ctl = Some k -> exists j, k = j++ctl.
+Proof. 
+ intros.
+  clear find_label_prefix.
+  revert ctl k H; induction s; simpl; intros; try congruence.
+  revert H; case_eq (find_label lbl s1 (Kseq s2 :: ctl)); intros; [inv H0 | auto ].
+  destruct (IHs1 _ _ H) as [j ?]. exists (j++ (Kseq s2::nil)); rewrite app_ass; auto.
+  revert H; case_eq (find_label lbl s1 ctl); intros; [inv H0 | auto ]; auto.
+  revert H; case_eq (find_label lbl s1 (Kseq Scontinue :: Kloop1 s1 s2 :: ctl)); intros; [inv H0 | auto ].
+  destruct (IHs1 _ _ H) as [j ?]. exists (j++ (Kseq Scontinue :: Kloop1 s1 s2::nil)); rewrite app_ass; auto.
+  destruct (IHs2 _ _ H0) as [j ?]. exists (j++ (Kloop2 s1 s2::nil)); rewrite app_ass; auto.
+  destruct (find_label_ls_prefix _ _ _ _ H) as [j ?]. exists (j++(Kswitch :: nil)); rewrite app_ass; auto.
+  if_tac in H. subst l. inv H.
+  exists (Kseq s :: nil); auto.
+  apply IHs; auto.
+
+ induction s; simpl; intros.
+ destruct (find_label_prefix _ _ _ _ H) as [j ?]. exists j; auto. 
+ revert H; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement s0) :: ctl)); intros.
+ inv H0.
+ destruct (find_label_prefix _ _ _ _ H) as [j ?]; exists (j++Kseq (seq_of_labeled_statement s0) ::nil); rewrite app_ass; auto.
+ auto.
+Qed.
+
+
+Lemma find_label_None:
+  forall lbl s ctl, find_label lbl s ctl = None -> forall ctl', find_label lbl s ctl' = None
+with
+  find_label_ls_None:
+  forall lbl s ctl, find_label_ls lbl s ctl = None ->  forall ctl', find_label_ls lbl s ctl' = None.
+Proof.
+clear find_label_None; induction s; simpl; intros; try congruence;
+ try match type of H with match ?A with Some _ => _| None => _ end = _
+                => revert H; case_eq A; intros; [inv H0 | ]
+       end;
+ try (rewrite (IHs1 _ H); eauto).
+ eauto.
+ destruct (ident_eq lbl l). inv H. eapply IHs; eauto.
+
+clear find_label_ls_None; induction s; simpl; intros; try congruence;
+ try match type of H with match ?A with Some _ => _| None => _ end = _
+                => revert H; case_eq A; intros; [inv H0 | ]
+       end;
+ try (rewrite (IHs1 _ H); eauto).
+ eauto.
+ rewrite (find_label_None _ _ _ H). eauto.
+Qed.
+
+Lemma find_label_prefix2':
+ forall lbl s k1 pre, find_label lbl s k1 = Some (pre++k1) -> 
+               forall k2, find_label lbl s k2 = Some (pre++k2) 
+with find_label_ls_prefix2':
+ forall lbl s k1 pre, find_label_ls lbl s k1 = Some (pre++k1) -> 
+               forall k2, find_label_ls lbl s k2 = Some (pre++k2) .
+Proof.
+intros. clear find_label_prefix2'.
+revert pre k1 H k2; induction s; simpl; intros; try congruence;
+ try match type of H with match ?A with Some _ => _| None => _ end = _
+                => revert H; case_eq A; intros; [inv H0 | ]
+       end;
+ try 
+ (destruct (find_label_prefix _ _ _ _ H) as [j Hj];
+ rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre;
+  erewrite app_ass in H; simpl in H;
+  rewrite (IHs1 _ _ H); rewrite app_ass; reflexivity);
+ try solve [erewrite (find_label_None); eauto].
+ rewrite (IHs1 _ _ H); auto.
+ change (Kseq Scontinue :: Kloop1 s1 s2 :: k1) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k1)
+   in H.
+ change (Kseq Scontinue :: Kloop1 s1 s2 :: k2) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k2).
+destruct (find_label_prefix _ _ _ _ H) as [j Hj];
+ rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
+  erewrite app_ass in H; simpl in H;
+  rewrite (IHs1 _ _ H); rewrite app_ass; reflexivity.
+ change (Kseq Scontinue :: Kloop1 s1 s2 :: k1) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k1)
+   in H.
+ change (Kseq Scontinue :: Kloop1 s1 s2 :: k2) with ((Kseq Scontinue :: Kloop1 s1 s2 :: nil) ++ k2).
+ erewrite (find_label_None); eauto.
+ destruct (find_label_prefix _ _ _ _ H0) as [j Hj];
+  rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
+  erewrite app_ass in H0; simpl in H0;
+  rewrite (IHs2 _ _ H0); rewrite app_ass; reflexivity.
+destruct (find_label_ls_prefix _ _ _ _ H) as [j Hj];
+ rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre.
+  erewrite app_ass in H; simpl in H.
+  rewrite (find_label_ls_prefix2' _ _ _ _ H); rewrite app_ass; reflexivity.
+  if_tac. inv H. rewrite cons_app in H2. apply app_inv_tail in H2; subst. reflexivity.
+  eauto.
+
+intros. clear find_label_ls_prefix2'.
+revert pre k1 H k2; induction s; simpl; intros; try congruence;
+ try match type of H with match ?A with Some _ => _| None => _ end = _
+                => revert H; case_eq A; intros; [inv H0 | ]
+       end;
+ eauto.
+ (destruct (find_label_prefix _ _ _ _ H) as [j Hj];
+ rewrite cons_app in Hj; rewrite <- app_ass in Hj; apply app_inv_tail in Hj; subst pre;
+  erewrite app_ass in H; simpl in H).
+  rewrite (find_label_prefix2' _ _ _ _ H); rewrite app_ass; reflexivity;
+ try solve [erewrite (find_label_ls_None); eauto].
+  erewrite (find_label_None); eauto.
+Qed.
+ 
+Lemma find_label_prefix2:
+  forall lbl s pre j ctl1 ctl2, 
+   find_label lbl s (pre++ctl1) = Some (j++ctl1) ->
+   find_label lbl s (pre++ctl2) = Some (j++ctl2).
+Proof.
+intros.
+ destruct (find_label_prefix _ _ _ _ H).
+ rewrite <- app_ass in H0.
+ apply  app_inv_tail in H0. subst j.
+ rewrite app_ass in *.
+ forget (pre++ctl1) as k1. forget (pre++ctl2) as k2.
+ clear - H. rename x into pre.
+ eapply find_label_prefix2'; eauto.
+Qed.
+
 Lemma corestep_preservation_lemma:
    forall ge ctl1 ctl2 ora ve te m n c l c' m',
        filter_seq ctl1 = filter_seq ctl2 ->
@@ -977,17 +1085,33 @@ Focus 1.
   rewrite (call_cont_app_cons _ _ _ H2) in H.
   assert (exists j, k' = j ++ ctl1).
   clear - H2 H.
-  admit. (* true and provable *)
+  assert (exists id, exists f, exists ve, exists te, c =  Kcall id f ve te).
+  clear - H2; induction l; [inv H2 | ].
+  destruct a; simpl in H2; auto. inv H2; do 4 eexists; reflexivity.
+  destruct H0 as [id [ff [ve [te ?]]]]. clear H2; subst c.
+  change (find_label lbl (fn_body f)
+      ((Kseq (Sreturn None) :: Kcall id ff ve te :: l0) ++ ctl1) = Some k') in H.
+  forget (Kseq (Sreturn None) :: Kcall id ff ve te :: l0) as pre.
+  assert (exists j, k' = j++ (pre++ctl1)); 
+   [ | destruct H0 as [j H0]; exists (j++pre); rewrite app_ass; auto ].
+  forget (pre++ctl1) as ctl. forget (fn_body f) as s;  clear - H.
+ eapply find_label_prefix; eauto.
   destruct H3 as [j ?].
   subst k'.
   exists (State ve te (j++ctl2)), m'; split; [ | apply H4; auto].
   split3; auto.
   rewrite <- Heqdm'; econstructor. 
   instantiate (1:=f).
-  admit.  (* easy *)
+  clear - CUR H2.
+  revert f c l0 CUR H2; induction l; simpl; intros. inv H2.
+  destruct a; simpl in *; eauto.
   rewrite (call_cont_app_cons _ _ _ H2).
   clear - H2 H.
-  admit.  (* true and provable *)
+  change (Kseq (Sreturn None) :: c :: l0 ++ ctl1) with ((Kseq (Sreturn None) :: c :: l0) ++ ctl1) in H.
+  change (Kseq (Sreturn None) :: c :: l0 ++ ctl2) with ((Kseq (Sreturn None) :: c :: l0) ++ ctl2).
+  forget (Kseq (Sreturn None) :: c :: l0)  as pre.
+clear - H.
+ eapply find_label_prefix2; eauto.
 Qed.
 
 Lemma control_as_safe_le:

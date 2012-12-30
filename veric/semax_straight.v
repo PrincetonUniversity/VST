@@ -602,10 +602,21 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split.
 Focus 2.
 rewrite corable_funassert.
-replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm)).
-rewrite <- corable_funassert; auto.
+replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
+rewrite <- corable_funassert.
+eapply pred_hereditary; eauto. apply age_jm_phi; auto.
 symmetry.
-admit.  (* core_store_juicy_mem *) 
+forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
+apply rmap_ext.
+do 2 rewrite level_core.
+rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
+reflexivity.
+intro loc.
+unfold store_juicy_mem.
+simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
+rewrite resource_at_make_rmap. rewrite <- core_resource_at.
+ case_eq (m_phi jm1 @ loc); intros; auto.
+ destruct k0; simpl; repeat rewrite core_YES; auto.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
