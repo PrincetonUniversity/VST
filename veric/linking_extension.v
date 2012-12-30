@@ -816,6 +816,114 @@ Variable entry_points_eq:
  List.In (v1, v2, sig) entry_points -> 
  exists b, exists ofs, v1 = Vptr b ofs /\ v2 = Vptr b ofs.
 
+Lemma linker_step_lem1: 
+ forall i c2 m2 c2' m2' s2' pf_i stack pf1 pf2,
+ corestep (csem_map_S i) (genv_mapS i)  c2 m2 c2' m2' -> 
+ corestep (linker_core_semantics F_S V_S cS fS vS procedure_linkage_table
+             plt_ok modules_S entry_points) geS  
+           (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
+  s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
+Proof.
+intros until pf2; intros STEP12 STEP12'; simpl in *.
+inv STEP12'.
+assert (pf_i1 = pf_i) as -> by apply proof_irr.
+assert (c' = c2').
+ generalize (@csem_fun_S i).
+ unfold corestep_fun, csem_map_S, csem_map, genv_mapS, genvs in *.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ apply Eqdep_dec.inj_pair2_eq_dec in H0; [|solve[apply eq_nat_dec]]; subst c2.
+ assert (l = pf_i1) by apply proof_irr.
+ subst.
+ intros H10; specialize (H10 _ _ _ _ _ _ _ H8 STEP12).
+ solve[inv H10; auto].
+assert (pf0 = pf1) as -> by apply proof_irr; auto.
+assert (ext_pf0 = pf2) as -> by apply proof_irr; auto.
+solve[subst; auto].
+apply corestep_not_at_external in STEP12.
+unfold csem_map_S, csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i1) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - AT_EXT STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+apply corestep_not_halted in STEP12.
+unfold csem_map_S, csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP0) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - HALTED STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+Qed.
+
+Lemma linker_step_lem2: 
+ forall n i c2 m2 c2' m2' s2' pf_i stack pf1 pf2,
+ corestepN (csem_map_T i) (genv_mapT i) n c2 m2 c2' m2' -> 
+ corestepN (linker_core_semantics F_T V_T cT fT vT procedure_linkage_table
+             plt_ok modules_T entry_points) geT n 
+           (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
+  s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
+Proof.
+intros until pf2; intros H1 H2.
+revert c2 m2 pf1 pf2 H1 H2.
+induction n; intros.
+solve[inv H1; inv H2; auto].
+simpl in *.
+destruct H1 as [c3 [m3 [STEP12 STEP23]]].
+destruct H2 as [s3 [m3' [STEP12' STEP23']]].
+specialize (IHn c3 m3 pf1 pf2 STEP23).
+inv STEP12'.
+assert (c' = c3).
+ generalize (@csem_fun_T i).
+ unfold corestep_fun, csem_map_T, csem_map, genv_mapT, genvs in *.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ apply Eqdep_dec.inj_pair2_eq_dec in H0; [|solve[apply eq_nat_dec]]; subst c2.
+ assert (l = pf_i1) by apply proof_irr.
+ subst.
+ intros H10; specialize (H10 _ _ _ _ _ _ _ H8 STEP12).
+ solve[inv H10; auto].
+assert (m3' = m3). 
+ generalize (@csem_fun_T i).
+ unfold corestep_fun, csem_map_T, csem_map, genv_mapT, genvs in *.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ apply Eqdep_dec.inj_pair2_eq_dec in H0; [|solve[apply eq_nat_dec]]; subst c2.
+ assert (l = pf_i1) by apply proof_irr.
+ subst.
+ intros H10; specialize (H10 _ _ _ _ _ _ _ H8 STEP12).
+ solve[inv H10; auto].
+subst.
+spec IHn; eauto.
+assert (pf1 = pf0) as -> by apply proof_irr.
+assert (pf2 = ext_pf0) as -> by apply proof_irr.
+assert (pf_i = pf_i1) as -> by apply proof_irr.
+solve[apply STEP23'].
+apply corestep_not_at_external in STEP12.
+unfold csem_map_T, csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i1) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - AT_EXT STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+apply corestep_not_halted in STEP12.
+unfold csem_map_T, csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP0) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - HALTED STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+Qed.
+
 Lemma linking_extension_compilable 
   (cd_init: CompilabilityInvariant.core_datas core_data):
  CompilableExtension.Sig 
@@ -862,7 +970,77 @@ apply linker_core_compatible; auto.
 clear LEM; constructor; simpl.
 
 (*1*)
-admit. (*TODO*)
+intros until cd'; intros H1 H2 [RR [H3 H4]] H5 H6 H7 H8 STEP1 STEP2 ESTEP1 ESTEP2 MATCH'.
+simpl in *.
+unfold R, R_inv.
+destruct s1; destruct s2; simpl in *.
+destruct stack.
+solve[congruence].
+intros; destruct f; simpl in *.
+destruct stack0; simpl in RR.
+solve[elimtype False; auto].
+destruct f; simpl in *.
+subst.
+destruct (eq_nat_dec i0 i0); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1, H2;
+ try solve[apply eq_nat_dec].
+inv H1; inv H2.
+destruct RR as [? [[cd'' MATCH] STACK]]. 
+rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH;
+ try solve[apply eq_nat_dec].
+generalize STEP2 as STEP2'; intro.
+apply linker_step_lem2 
+ with (s2' := s2') (stack := stack0) (pf_i := PF0) (pf1 := stack_nonempty0)
+  (pf2 := callers_at_external0) in STEP2; auto.
+subst.
+generalize STEP1 as STEP1'; intro.
+eapply linker_step_lem1 
+ with (stack := stack) (pf_i := PF) (pf1 := stack_nonempty)
+  (pf2 := callers_at_external) in STEP1; eauto.
+subst.
+simpl.
+destruct (RGsim i0).
+exists (@refl_equal _ i0).
+split.
+assert
+ (Events2.mem_unchanged_on (Events2.loc_unmapped j) m1 m1' /\
+  Events2.mem_unchanged_on (Events2.loc_out_of_reach j m1) m2 m2') as [MEM1 MEM2].
+eapply guarantee with (c1' := c1'); eauto.
+rewrite meminj_preserves_genv2blocks.
+generalize match_state_preserves_globals.
+unfold genv_mapS, genvs.
+intros GENVS.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (PF = l) as -> by apply proof_irr.
+solve[eapply GENVS; eauto].
+rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
+solve[exists cd'; auto].
+
+clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim.
+revert stack0 STACK; induction stack.
+intros stack0; destruct stack0; simpl; auto.
+intros stack0; destruct stack0; simpl; auto.
+destruct a; destruct f.
+intros [PF' [[cd MATCH''] STACK']].
+subst.
+rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH''; try solve[apply eq_nat_dec].
+exists (@refl_equal _ i).
+split; auto.
+destruct (RGsim i).
+rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
+exists cd.
+eapply rely; eauto.
+rewrite meminj_preserves_genv2blocks.
+generalize match_state_preserves_globals.
+unfold genv_mapS, genvs.
+intros GENVS.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = PF1) by apply proof_irr; subst.
+solve[eapply GENVS; eauto].
+destruct (RGsim i0).
+apply match_state_inj0 with (cd := cd') (c1 := c1') (c2 := c2'); auto.
+admit. (*Events2 vs. Events*)
+admit. (*Events2 vs. Events*)
 
 (*2*)
 intros until args1; intros [RR [H1 H2]]; simpl in *.

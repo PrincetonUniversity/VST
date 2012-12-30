@@ -655,7 +655,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     match_state i cd j c1 m1 c2 m2 -> 
     Events.meminj_preserves_globals (genv_mapS i) j)
 
-  (corestep_rel: forall cd j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n, 
+  (corestep_rel: forall cd j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     match_states cd j s1 m1 s2 m2 -> 
@@ -667,6 +667,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
+    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
     R j' s1' m1' s2' m2')
 
   (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
@@ -861,7 +862,10 @@ split; auto.
  hnf.
  split.
  inv esig_compilable. 
+ (*match_state (ACTIVE E_S st1) cd' j' c1' m1' c2' m2'*)
  eapply corestep_rel with (s1 := st1) (s2 := st2); eauto.
+ (* apply corestep_rel with (s1 := st1) (s2 := st2) (c1' := c1') (c2' := c2') *)
+ (*  (cd := cd) (cd' := cd') (j := j) (c1 := c1) (m1 := m1) (c2 := c2) (m2 := m2) (n := n); eauto. *)
  erewrite <-genvs_domain_eq_preserves.
  erewrite meminj_preserves_genv2blocks.
  eauto.
