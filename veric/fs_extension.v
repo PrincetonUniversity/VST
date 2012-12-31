@@ -1,10 +1,29 @@
 Load loadpath.
-Require Import msl.base 
-               veric.sim veric.step_lemmas veric.base veric.expr
-               veric.extension veric.extension_proof veric.extspec
-               veric.juicy_mem veric.juicy_extspec veric.Address.
+Require Import msl.base. (*for spec tac*)
+
+Require Import veric.sim.
+Require Import veric.step_lemmas.
+Require Import veric.extspec.
+Require Import veric.extension.
+Require Import veric.extension_sim.
+Require Import veric.extension_proof.
+Require Import veric.Address.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_extspec.
+Require Import veric.Coqlib2.
+
+Require Import Axioms.
+Require Import Coqlib.
+Require Import AST.
+Require Import Integers.
+Require Import Values.
+Require Import Memory.
+Require Import Globalenvs.
+Require Import Events.
 
 Set Implicit Arguments.
+
+Definition genv := Genv.t Clight.fundef Ctypes.type.
 
 Inductive fmode: Type := RDONLY | WRONLY | RDWR.
 
@@ -229,7 +248,7 @@ simpl; intros cur.
 if_tac.
 simpl; omega.
 simpl.
-spec IHnbytes (S cur).
+specialize (IHnbytes (S cur)).
 apply le_n_S; auto.
 Qed.
 
@@ -1119,7 +1138,7 @@ simpl in H5.
 destruct s; simpl in H2.
 specialize (H1 (active (mkxT z0 c fs0)) c).
 simpl in H1.
-unfold extension.runnable in H3.
+unfold rg_sim.runnable in H3.
 unfold active, cores in *.
 spec H1; auto.
 destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
@@ -1303,7 +1322,7 @@ specialize (H1 (active s) (get_core s)).
 spec H1; auto.
 hnf in H1.
 rename H3 into H0.
-unfold extension.runnable in H0.
+unfold rg_sim.runnable in H0.
 case_eq (at_external csem (get_core s)). 
 intros [[ef sig] args] Hat.
 (*at_external core = Some*)

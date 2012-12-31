@@ -1,8 +1,27 @@
 Load loadpath.
-Require Import 
- msl.base 
- veric.sim veric.step_lemmas veric.base veric.expr
- veric.extension veric.extension_proof veric.extspec.
+Require Import msl.base. (*for spec tac*)
+
+Require Import veric.sim.
+Require Import veric.rg_sim.
+Require Import veric.step_lemmas.
+Require Import veric.extspec.
+Require Import veric.extension.
+Require Import veric.extension_sim.
+Require Import veric.extension_proof.
+Require Import veric.Address.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_extspec.
+Require Import veric.Coqlib2.
+
+Require Import Axioms.
+Require Import Coqlib.
+Require Import AST.
+Require Import Integers.
+Require Import Values.
+Require Import Memory.
+Require Import Globalenvs.
+Require Import Events.
+Require Import Maps.
 
 Set Implicit Arguments.
 Local Open Scope nat_scope.
@@ -307,6 +326,10 @@ Variable plt_in_handled:
  procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
 
 Implicit Arguments linker_at_external [num_modules cT].
+
+Notation IN := (ListSet.set_mem extfunct_eqdec).
+Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
+Notation DIFF := (ListSet.set_diff extfunct_eqdec).
 
 Variable at_external_not_handled:
  forall ef sig args s,
@@ -715,6 +738,10 @@ Variable plt_in_handled_T:
 
 Implicit Arguments linker_at_external [num_modules cT].
 
+Notation IN := (ListSet.set_mem extfunct_eqdec).
+Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
+Notation DIFF := (ListSet.set_diff extfunct_eqdec).
+
 Variable at_external_not_handled_S:
  forall ef sig args s,
  linker_at_external fS vS procedure_linkage_table modules_S s = Some (ef, sig, args) ->
@@ -1003,8 +1030,8 @@ destruct (RGsim i0).
 exists (@refl_equal _ i0).
 split.
 assert
- (Events2.mem_unchanged_on (Events2.loc_unmapped j) m1 m1' /\
-  Events2.mem_unchanged_on (Events2.loc_out_of_reach j m1) m2 m2') as [MEM1 MEM2].
+ (Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
+  Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2') as [MEM1 MEM2].
 eapply guarantee with (c1' := c1'); eauto.
 rewrite meminj_preserves_genv2blocks.
 generalize match_state_preserves_globals.
@@ -1016,7 +1043,15 @@ solve[eapply GENVS; eauto].
 rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
 solve[exists cd'; auto].
 
-clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim.
+exploit guarantee; eauto.
+rewrite meminj_preserves_genv2blocks.
+generalize match_state_preserves_globals.
+unfold genv_mapS, genvs.
+intros GENVS.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[eapply GENVS; eauto].
+intros [Hunch1 Hunch2].
+clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim Hunch1 Hunch2.
 revert stack0 STACK; induction stack.
 intros stack0; destruct stack0; simpl; auto.
 intros stack0; destruct stack0; simpl; auto.
@@ -1038,9 +1073,7 @@ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (l = PF1) by apply proof_irr; subst.
 solve[eapply GENVS; eauto].
 destruct (RGsim i0).
-apply match_state_inj0 with (cd := cd') (c1 := c1') (c2 := c2'); auto.
-admit. (*Events2 vs. Events*)
-admit. (*Events2 vs. Events*)
+solve[apply match_state_inj0 with (cd := cd') (c1 := c1') (c2 := c2'); auto].
 
 (*2*)
 intros until args1; intros [RR [H1 H2]]; simpl in *.
@@ -1128,8 +1161,6 @@ intros GENVS.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 assert (PF = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
-admit. (*Events2 vs Events*)
-admit. (*Events2 vs Events*)
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
 solve[apply eq_nat_dec].
 clear H2 AT_EXT.
@@ -1156,8 +1187,6 @@ intros GENVS.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (PF0 = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
-admit. (*Events2 vs Events*)
-admit. (*Events2 vs Events*)
 
 (*3: extension_diagram*)
 unfold CompilabilityInvariant.match_states; simpl. 

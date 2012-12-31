@@ -1,0 +1,81 @@
+Load loadpath.
+Require Import ListSet.
+
+Require Import veric.sim.
+
+Require Import Values.
+Require Import Globalenvs.
+Require Import Memory.
+Require Import AST.
+Require Import Events.
+
+Set Implicit Arguments.
+
+Definition runnable {G C M D} (csem: CoreSemantics G C M D) (c: C) :=
+  match at_external csem c, safely_halted csem c with 
+  | None, None => true
+  | _, _ => false
+  end.
+
+Local Open Scope Z_scope.
+
+(*This is an [F,V]-independent definition of meminj_preserves_globals*)
+Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
+  (forall b, fst globals b -> f b = Some (b, 0)) /\
+  (forall b, snd globals b -> f b = Some (b, 0)) /\
+  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
+
+Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
+  (fun b => exists id, Genv.find_symbol ge id = Some b,
+   fun b => exists gv, Genv.find_var_info ge b = Some gv).
+
+(** RelyGuarantee Simulations *)
+
+Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
+ Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
+ Variables 
+  (sourceC: CoreSemantics (Genv.t F1 V1) C1 mem INIT1)
+  (targetC: CoreSemantics G2 C2 mem INIT2) 
+  (ge1: Genv.t F1 V1) (ge2: G2) 
+  (entry_points: list (val * val * signature))
+  (core_data: Type)
+  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+
+ Import Sim_inj_exposed.
+
+ Inductive Sig: Type := Make: forall
+  (match_state_runnable: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> runnable sourceC c1=runnable targetC c2)
+  (match_state_inj: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> 
+    meminj_preserves_globals ge1 j)
+
+  (rely: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
+    (** Rely *)
+    Mem.inject f m1 m2 -> 
+    meminj_preserves_globals_ind (genv2blocks ge1) f -> 
+    Mem.inject f' m1' m2' -> 
+    mem_unchanged_on (loc_unmapped f) m1 m1' ->
+    mem_unchanged_on (loc_out_of_reach f m1) m2 m2' ->
+    inject_incr f f' -> 
+    inject_separated f f' m1 m2 -> 
+
+    (** Match is stable *)
+    match_state cdC f c1 m1 c2 m2 -> 
+    match_state cdC f' c1 m1' c2 m2')
+    
+  (guarantee: forall ge1 ge2 cd m1 m1' f m2 m2' c1 c2 c1' c2' n,
+    Mem.inject f m1 m2 -> 
+    meminj_preserves_globals_ind (genv2blocks ge1) f -> 
+    match_state cd f c1 m1 c2 m2 -> 
+    corestep sourceC ge1 c1 m1 c1' m1' -> 
+    corestepN targetC ge2 n c2 m2 c2' m2' -> 
+
+    (** Guarantee *)
+    mem_unchanged_on (loc_unmapped f) m1 m1' /\
+    mem_unchanged_on (loc_out_of_reach f m1) m2 m2'),
+  Sig.
+
+End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.

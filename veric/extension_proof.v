@@ -1,7 +1,18 @@
 Load loadpath.
-Require Import msl.predicates_hered.
-Require Import veric.sim veric.step_lemmas veric.base veric.expr 
-               veric.extspec veric.juicy_extspec veric.extension.
+Require Import veric.sim. 
+Require Import veric.rg_sim. 
+Require Import veric.step_lemmas. 
+Require Import veric.extspec. 
+Require Import veric.extension.
+Require Import veric.extension_sim.
+Require Import veric.Coqlib2.
+
+Require Import AST.
+Require Import Values.
+Require Import Globalenvs.
+Require Import Events.
+Require Import Memory.
+Require Import Coqlib.
 
 Set Implicit Arguments.
 
@@ -10,8 +21,8 @@ Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]
 
 Section SafetyMonotonicity. 
  Variables 
-  (G cT M D Zext: Type) (CS: CoreSemantics G cT M D)
-  (csig: ext_spec M Z) (handled: list AST.external_function).
+  (G cT M D Z Zext: Type) (CS: CoreSemantics G cT M D)
+  (csig: ef_ext_spec M Z) (handled: list AST.external_function).
 
 Lemma safety_monotonicity : forall ge n z c m,
   safeN CS (link_ext_spec handled csig) ge n z c m -> 
@@ -67,8 +78,8 @@ Module ExtensionSafety. Section ExtensionSafety.
   (esem: CoreSemantics G xT M D) (** extended semantics *)
   (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
 
-  (csig: ext_spec M Z) (** client signature *)
-  (esig: ext_spec M Zext) (** extension signature *)
+  (csig: ef_ext_spec M Z) (** client signature *)
+  (esig: ef_ext_spec M Zext) (** extension signature *)
   (handled: list AST.external_function) (** functions handled by this extension *)
   (E: Extension.Sig gT cT dT Zint esem csem csig esig handled). 
 
@@ -318,8 +329,8 @@ Variables
  (G xT M D Z Zint Zext: Type) (gT: nat -> Type) (cT: nat -> Type) (dT: nat -> Type)
  (esem: CoreSemantics G xT M D) 
  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i))
- (csig: ext_spec M Z)
- (esig: ext_spec M Zext)
+ (csig: ef_ext_spec M Z)
+ (esig: ef_ext_spec M Zext)
  (handled: list AST.external_function)
  (E: Extension.Sig gT cT dT Zint esem csem csig esig handled).
 
@@ -414,7 +425,7 @@ End CoreCompatibleLemmas.
 
 Lemma meminj_preserves_genv2blocks: 
   forall {F V: Type} (ge: Genv.t F V) j,
-  meminj_preserves_globals (genv2blocks ge) j <->
+  meminj_preserves_globals_ind (genv2blocks ge) j <->
   Events.meminj_preserves_globals ge j.
 Proof.
 intros ge; split; intro H1.
@@ -457,8 +468,8 @@ Qed.
 Lemma genvs_domain_eq_preserves:
   forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
   genvs_domain_eq ge1 ge2 -> 
-  (meminj_preserves_globals (genv2blocks ge1) j <-> 
-   meminj_preserves_globals (genv2blocks ge2) j).
+  (meminj_preserves_globals_ind (genv2blocks ge1) j <-> 
+   meminj_preserves_globals_ind (genv2blocks ge2) j).
 Proof.
 intros until j; intros H1.
 unfold meminj_preserves_globals.
@@ -515,8 +526,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
-  (csig: ext_spec mem Z) (** client signature *)
-  (esig: ext_spec mem Zext) (** extension signature *)
+  (csig: ef_ext_spec mem Z) (** client signature *)
+  (esig: ef_ext_spec mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 
@@ -637,7 +648,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     ACTIVE E_S s1 <> i -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    meminj_preserves_globals (genv2blocks ge_S) j -> 
+    meminj_preserves_globals_ind (genv2blocks ge_S) j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
@@ -660,7 +671,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
     match_states cd j s1 m1 s2 m2 -> 
     Mem.inject j m1 m2 -> 
-    meminj_preserves_globals (genv2blocks ge_S) j -> 
+    meminj_preserves_globals_ind (genv2blocks ge_S) j -> 
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
@@ -1237,8 +1248,6 @@ erewrite genvs_domain_eq_preserves.
 erewrite meminj_preserves_genv2blocks.
 eauto.
 solve[apply genvs_domain_eq_sym; auto].
-admit. (*Events vs. Events2*)
-admit. (*Events vs. Events2*)
 Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.
@@ -1258,8 +1267,8 @@ Module ExtensionCompilability. Section ExtensionCompilability.
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
-  (csig: ext_spec mem Z) (** client signature *)
-  (esig: ext_spec mem Zext) (** extension signature *)
+  (csig: ef_ext_spec mem Z) (** client signature *)
+  (esig: ef_ext_spec mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 
@@ -1322,8 +1331,8 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
   (esemT: CoreSemantics (Genv.t F_T V_T) cT mem D_T) (** extended target semantics *)
   (csemS: CoreSemantics (Genv.t fS vS) cS mem dS)
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT)
-  (csig: ext_spec mem Z) (** client signature *)
-  (esig: ext_spec mem Zext) (** extension signature *)
+  (csig: ef_ext_spec mem Z) (** client signature *)
+  (esig: ef_ext_spec mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
 
  Variables 

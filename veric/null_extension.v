@@ -1,7 +1,21 @@
 Load loadpath.
-Require Import 
- msl.base veric.sim veric.step_lemmas veric.base veric.expr veric.extspec
- veric.extension veric.extension_proof.
+Require Import veric.sim.
+Require Import veric.step_lemmas.
+Require Import veric.extspec.
+Require Import veric.extension.
+Require Import veric.extension_sim.
+Require Import veric.extension_proof.
+Require Import veric.Coqlib2.
+
+Require Import Axioms.
+Require Import Coqlib.
+Require Import AST.
+Require Import Integers.
+Require Import Values.
+Require Import Memory.
+Require Import Globalenvs.
+Require Import Events.
+Require Import Coqlib.
 
 Set Implicit Arguments.
 
@@ -9,7 +23,7 @@ Section NullExtension.
  Variables
   (fT vT cT dT Z: Type) (** external states *)
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ext_spec mem Z) (** client signature *)
+  (csig: ef_ext_spec mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT).
 
  Definition cores := fun _:nat => csemT.
@@ -57,7 +71,7 @@ Section NullExtensionSafe.
  Variables
   (fT vT cT dT Z: Type) (** external states *)
   (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ext_spec mem Z) (** client signature *)
+  (csig: ef_ext_spec mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT)
   (ge: Genv.t fT vT).
 
@@ -99,8 +113,8 @@ Section NullExtensionSafe.
 
  (*2*) intros until c; intros H1 H3 H5.
  assert (H4:True) by auto.
- spec H1 (active s) c H3.
- simpl in H3; unfold extension.runnable, runnable in H5; simpl in H5.
+ specialize (H1 (active s) c H3).
+ simpl in H3; unfold rg_sim.runnable, runnable in H5; simpl in H5.
  case_eq (at_external csemT s).
  intros [[ef sig] args] H6.
  unfold proj_core in H3; if_tac in H3; try congruence. inv H3.
@@ -123,7 +137,7 @@ Section NullExtensionSafe.
  solve[inversion H4].
 
  (*4*) intros until c; intros H1 H2 H3.
- simpl in H3; unfold extension.runnable, runnable in H3.
+ simpl in H3; unfold rg_sim.runnable, runnable in H3.
  simpl in H2; unfold proj_core in H2; if_tac in H2; try congruence. inv H2.
  intros H4; unfold const in *; rewrite H4 in H3.
  case_eq (safely_halted csemT c); intros; try solve[congruence].
@@ -189,7 +203,7 @@ Section NullExtensionSafe.
 End NullExtensionSafe.
 
  Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
-         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ext_spec mem Z)
+         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ef_ext_spec mem Z)
          (csem_fun: corestep_fun csem),
    core_compatible ge (fun _:nat => ge) (null_extension csem csig).
  Proof.
@@ -253,7 +267,7 @@ End NullExtensionSafe.
 Section NullExtensionCompilable.
  Variables 
   (fS vS fT vT cS cT dS dT Z: Type) 
-  (csig: ext_spec mem Z)
+  (csig: ef_ext_spec mem Z)
   (init_world: Z)
   (entry_points: list (val*val*signature))
   (csemS: CoreSemantics (Genv.t fS vS) cS mem dS)
@@ -286,7 +300,7 @@ Section NullExtensionCompilable.
  Variable match_state_runnable: 
   forall cd j s1 m1 s2 m2,
   match_state cd j s1 m1 s2 m2 -> 
-  extension.runnable csemS s1=extension.runnable csemT s2.
+  rg_sim.runnable csemS s1=rg_sim.runnable csemT s2.
 
  Lemma null_extension_compilable: 
    corestep_fun csemS -> corestep_fun csemT -> genvs_domain_eq geS geT -> 

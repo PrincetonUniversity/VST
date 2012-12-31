@@ -1,5 +1,13 @@
 Load loadpath.
-Require Import veric.base.
+Require Import veric.Address.
+
+Require Import AST.
+Require Import Values.
+Require Import Memory.
+
+Require Import ListSet.
+
+(** External function specifications and linking *)
 
 Structure external_specification {M E Z:Type} := { 
   ext_spec_type: E -> Type;
@@ -11,3 +19,59 @@ Structure external_specification {M E Z:Type} := {
 Implicit Arguments external_specification [].
 
 Definition ext_spec := external_specification mem external_function.
+
+Lemma extfunct_eqdec : forall ef1 ef2: external_function, {ef1=ef2} + {~ef1=ef2}.
+Proof. intros ef1 ef2; repeat decide equality; apply Address.EqDec_int. Qed.
+
+Set Implicit Arguments.
+
+Section LinkExtSpec.
+Notation IN := (ListSet.set_mem extfunct_eqdec).
+Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
+Notation DIFF := (ListSet.set_diff extfunct_eqdec).
+
+Lemma in_diff (ef: AST.external_function) (l r: list AST.external_function): 
+ IN ef l=true -> NOTIN ef r -> IN ef (DIFF l r)=true.
+Proof.
+simpl; intros H1 H2; apply set_mem_correct2. 
+apply set_mem_correct1 in H1.
+apply set_mem_complete1 in H2.
+apply set_diff_intro; auto.
+Qed.
+
+(** Linking external specification [Sigma] with an extension implementing
+   functions in [handled] *)
+
+Definition link_ext_spec (M Z: Type) (handled: list AST.external_function) 
+  (Sigma: external_specification M AST.external_function Z) :=
+  Build_external_specification M AST.external_function Z
+    (ext_spec_type Sigma)
+    (fun (ef: AST.external_function) (x: ext_spec_type Sigma ef)
+         (tys: list typ) (args: list val) (z: Z) (m: M) => 
+             if ListSet.set_mem extfunct_eqdec ef handled then False 
+             else ext_spec_pre Sigma ef x tys args z m)
+    (fun (ef: AST.external_function) (x: ext_spec_type Sigma ef)
+         (ty: option typ) (ret: option val) (z: Z) (m: M) => 
+             if ListSet.set_mem extfunct_eqdec ef handled then True
+             else ext_spec_post Sigma ef x ty ret z m).
+
+(** A client signature is linkable with an extension signature when each
+   extension function specification ef:{P}{Q} is a subtype of the
+   specification ef:{P'}{Q'} assumed by client. *)
+
+Definition ef_ext_spec (M Z: Type) := external_specification M AST.external_function Z.
+
+Definition spec_of (M Z: Type) (ef: AST.external_function) (Sigma: ef_ext_spec M Z) :=
+  (ext_spec_pre Sigma ef, ext_spec_post Sigma ef).
+
+Definition linkable (M Z Zext: Type) (proj_zext: Z -> Zext)
+      (handled: list AST.external_function) 
+      (csig: ef_ext_spec M Z) (ext_sig: ef_ext_spec M Zext) := 
+  forall ef P Q P' Q', 
+    spec_of ef ext_sig = (P, Q) -> 
+    spec_of ef csig = (P', Q') -> 
+    forall x' tys args m z, P' x' tys args z m -> 
+      exists x, P x tys args (proj_zext z) m /\
+      forall ty ret m' z', Q x ty ret (proj_zext z') m' -> Q' x' ty ret z' m'.
+
+End LinkExtSpec.

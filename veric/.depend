@@ -9,11 +9,11 @@ environ_lemmas.vo environ_lemmas.glob: environ_lemmas.v ./loadpath.v base.vo Add
 binop_lemmas.vo binop_lemmas.glob: binop_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo Clight_lemmas.vo expr.vo
 binop_lemmas2.vo binop_lemmas2.glob: binop_lemmas2.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo Clight_lemmas.vo expr.vo
 expr_lemmas.vo expr_lemmas.glob: expr_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo Clight_lemmas.vo expr.vo environ_lemmas.vo binop_lemmas.vo binop_lemmas2.vo
-extspec.vo extspec.glob: extspec.v ./loadpath.v base.vo
+extspec.vo extspec.glob: extspec.v ./loadpath.v Address.vo
 step_lemmas.vo step_lemmas.glob: step_lemmas.v ./loadpath.v base.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo MemEvolve.vo
-extension.vo extension.glob: extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo Events2.vo
-extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo juicy_extspec.vo extension.vo
+extension.vo extension.glob: extension.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo Address.vo
+extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo
 seplog_extension.vo seplog_extension.glob: seplog_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo juicy_extspec.vo compcert_rmaps.vo semax.vo SeparationLogic.vo SeparationLogicSoundness.vo
 null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo extension_proof.vo
 fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo juicy_mem.vo juicy_extspec.vo Address.vo
@@ -46,3 +46,5 @@ Sim_starplus.vo Sim_starplus.glob: Sim_starplus.v ./loadpath.v base.vo sim.vo
 Events2.vo Events2.glob: Events2.v ./loadpath.v
 MemEvolve.vo MemEvolve.glob: MemEvolve.v ./loadpath.v base.vo
 linking_extension.vo linking_extension.glob: linking_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo
+rg_sim.vo rg_sim.glob: rg_sim.v ./loadpath.v sim.vo
+extension_sim.vo extension_sim.glob: extension_sim.v ./loadpath.v sim.vo extspec.vo rg_sim.vo extension.vo

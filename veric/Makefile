@@ -1,4 +1,3 @@
-# COQFLAGS= -dont-load-proofs -I .. -R . veric -I ../clightgen/lib -I ../clightgen/common -I ../clightgen/flocq/Appli -I ../clightgen/flocq/Calc -I ../clightgen/flocq/Core -I ../clightgen/flocq/Prop -I ../clightgen/cfrontend
 COQFLAGS= -dont-load-proofs -R . veric
 COQC=coqc
 COQTOP=coqtop
@@ -17,10 +16,8 @@ FILES= \
   initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v \
   NullExtension.v SequentialClight.v \
   sim.v Sim_starplus.v Events2.v \
-  MemEvolve.v linking_extension.v
-# CC_implies_FW.v Cminor_CompcertSemantics.v \
-#  CSharpminor_CompcertSemantics.v CminorgenproofSIM.v
-
+  MemEvolve.v linking_extension.v \
+  rg_sim.v extension_sim.v
 
 target: proof
 
