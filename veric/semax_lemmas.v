@@ -402,46 +402,291 @@ change (identity w) in H.
 rewrite identity_unit_equiv in H; auto.
 Qed.
 
-Lemma semax_extensionality1:
-  forall Delta (P P': assert) c (R R': ret_assert) ,
-       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta P c R) |-- semax' Hspec Delta P' c R').
+Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
+ (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id).
+                
+Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
+Proof.
+ intros.
+ destruct Delta as [[[? ?] ?] ?].
+ unfold join_tycon.
+ repeat split; auto.
+ intros. unfold temp_types. simpl.
+ unfold join_te.
+ rewrite PTree.fold_spec.
+ rewrite <- fold_left_rev_right.
+ case_eq (t ! id); intros.
+ pose proof (PTree.elements_correct _ _ H).
+ pose proof (PTree.elements_keys_norepet t).
+ rewrite in_rev in H0.
+ rewrite <- veric.initial_world.list_norepet_rev in H1. rewrite <- map_rev in H1.
+ change PTree.elt with positive in *.
+ revert H0 H1; induction (rev (PTree.elements t)); intros.
+ inv H0.
+ inv H1.
+ simpl in H0. destruct H0. subst a.
+ simpl. unfold join_te'. destruct p. rewrite H. rewrite if_true by auto. rewrite PTree.gss.
+ destruct b; simpl ;auto.
+ simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
+ case_eq (t ! p0);intros. destruct p1. if_tac. rewrite PTree.gso. auto.
+ intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
+ auto. auto.
+ assert (~ In id (map fst (PTree.elements t))).
+ intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
+ apply PTree.elements_complete in H1. congruence.
+ rewrite in_rev in H0. rewrite <- map_rev in H0.
+ revert H0; induction (rev (PTree.elements t)); intros. simpl. rewrite PTree.gempty; auto.
+ simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
+ destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
+ contradict H0; simpl; auto.
+ case_eq (t ! p); intros. destruct p0. if_tac; auto. rewrite PTree.gso.
+ apply IHl. contradict H0;simpl; auto.
+ intro; subst p; congruence.
+ apply IHl. contradict H0;simpl; auto.
+ apply IHl. contradict H0;simpl; auto.
+Qed.
+
+Lemma subp_derives' {A}{agA: ageable A}:
+  forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
 Proof.
 intros.
-intros ? ?.
-destruct H as [[H ?] ?].
-rewrite semax_fold_unfold; rewrite semax_fold_unfold in H1.
-intros gx ?w ?.
-specialize (H1 gx _  H2).
-apply (pred_nec_hereditary _ _ _ H2) in H.
-apply (pred_nec_hereditary _ _ _ H2) in H0.
-clear H2 a.
-intros.
-specialize (H1 H2).
-intros st F ? ? ?.
-specialize (H1 st F _ H3).
-spec H1.
-destruct H4; split; auto.
-intros ek vl tx vx. specialize (H5 ek vl tx vx).
-eapply subp_trans'; try apply H5.
-apply andp_subp'; auto.
-apply andp_subp'; auto.
-(* apply subp_later; auto with typeclass_instances. *)
-specialize (H ek vl).
-apply (pred_nec_hereditary _ _ _ H3) in H.
-clear - H.
-revert a' H.
-(* apply box_derives. *)
-intros w ?.
-apply sepcon_subp';  auto.
+intros n ?. eapply H; eauto.
+Qed.
 
-apply (pred_nec_hereditary _ _ _ H3) in H0.
-clear - H1 H0.
-intros tx vx; specialize (H1 tx vx).
-eapply subp_trans'; try apply H1. clear H1.
-apply andp_subp'; auto.
-apply andp_subp'; auto.
-apply sepcon_subp'; auto.
+(* Admitted: move this into msl to replace the one there *)
+Lemma loeb {A} `{ageable A} : forall (P:pred A),
+     |>P |-- P    ->     TT |-- P.
+Proof.
+  intros. apply goedel_loeb.
+  apply andp_left2. auto.
+Qed.
+
+
+Lemma func_tycontext'_eqv:
+  forall f Delta Delta', tycontext_eqv Delta Delta' ->
+        tycontext_eqv (func_tycontext' f Delta) (func_tycontext' f Delta').
+Admitted.
+
+Lemma tycontext_eqv_symm:
+  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
+Admitted.
+
+
+Lemma same_glob_funassert:
+  forall Delta1 Delta2,
+     (forall id, (glob_types Delta1) ! id = (glob_types Delta2) ! id) ->
+              funassert Delta1 = funassert Delta2.
+Proof.
+assert (forall Delta Delta' rho, 
+             (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id) ->
+             funassert Delta rho |-- funassert Delta' rho).
+intros.
+unfold funassert.
+intros w [? ?]; split.
+clear H1; intro id. rewrite <- (H id); auto.
+intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4)  as [id H3].
+exists id; rewrite <- (H id); auto.
+intros.
+extensionality rho.
+apply pred_ext; apply H; intros; auto.
+Qed.
+
+Lemma initialized_tycontext_eqv:
+  forall i Delta Delta',
+    tycontext_eqv Delta Delta' ->
+    tycontext_eqv (initialized i Delta) (initialized i Delta').
+Proof.
+intros. unfold tycontext_eqv, initialized in *.
+destruct H as [? [? [? ?]]].
+rewrite (H i).
+destruct ((temp_types Delta') ! i); auto.
+destruct p.
+repeat split; intros; auto.
+unfold temp_types at 1 3. simpl. destruct (eq_dec id i).
+subst; repeat rewrite PTree.gss; auto.
+repeat rewrite PTree.gso by auto; auto.
+Qed.
+
+Lemma join_tycontext_eqv:
+  forall Delta1 Delta1' Delta2 Delta2',
+     tycontext_eqv Delta1 Delta1' ->
+     tycontext_eqv Delta2 Delta2' ->
+    tycontext_eqv (join_tycon Delta1 Delta2)  (join_tycon Delta1' Delta2').
+Proof.
+intros.
+Admitted.
+
+Lemma update_tycontext_eqv:
+  forall c Delta Delta',
+    tycontext_eqv Delta Delta' ->
+    tycontext_eqv (update_tycon Delta c) (update_tycon Delta' c)
+with join_tycon_labeled_eqv:
+  forall l Delta Delta',
+    tycontext_eqv Delta Delta' ->
+  tycontext_eqv (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
+Proof.
+
+induction c; simpl; intros; auto.
+apply initialized_tycontext_eqv; auto.
+destruct o; auto; apply initialized_tycontext_eqv; auto.
+apply join_tycontext_eqv; auto.
+
+induction l; simpl; intros; auto.
+apply join_tycontext_eqv; auto.
+Qed.
+
+Lemma exit_tycontext_eqv: forall c Delta Delta' b,
+    tycontext_eqv Delta Delta' ->
+    tycontext_eqv (exit_tycon c Delta b) (exit_tycon c Delta' b).
+Proof.
+ unfold exit_tycon;  induction c; simpl; intros; destruct b; auto.
+ apply initialized_tycontext_eqv; auto.
+ destruct o; auto; apply initialized_tycontext_eqv; auto.
+ repeat apply update_tycontext_eqv; auto.
+ apply join_tycontext_eqv; apply update_tycontext_eqv; auto.
+ apply join_tycon_labeled_eqv; auto.
+Qed.
+
+Lemma guard_environ_eqv:
+  forall Delta Delta' f rho,
+  tycontext_eqv Delta Delta' ->
+  guard_environ Delta f rho -> guard_environ Delta' f rho.
+Proof.
+unfold guard_environ; intros.
+ destruct H0; split. 
+ clear H1.
+ unfold typecheck_environ in *.
+ repeat rewrite andb_true_iff in *.
+ destruct H0 as [[[? ?] ?] ?].
+ destruct H as [? [? [? ?]]].
+  unfold all_var_ids in *.
+ rewrite <- (PTree.elements_extensional (temp_types Delta) (temp_types Delta')); auto.
+ rewrite <- (PTree.elements_extensional (var_types Delta) (var_types Delta')); auto.
+ rewrite <- (PTree.elements_extensional (glob_types Delta) (glob_types Delta')); auto.
+ split; auto.
+rewrite <- H3. clear H0 H1 H2 H3.
+ induction (fst (split (PTree.elements (glob_types Delta)))); simpl; auto.
+ f_equal; auto.
+ unfold same_mode. rewrite <- H4. rewrite <- H6; auto.
+ destruct f; auto.
+ destruct H as [? [? [? ?]]].
+ rewrite <- H3. intuition.
+Qed.
+
+Lemma semax_extensionality0:
+       TT |-- 
+      ALL Delta:tycontext, ALL Delta':tycontext, 
+      ALL P:assert, ALL P':assert, 
+      ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
+       ((!! tycontext_eqv Delta Delta'
+       &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+      && (ALL rho:environ, P' rho >=> P rho)  && semax' Hspec Delta P c R) >=> semax' Hspec Delta' P' c R').
+Proof.
+apply loeb.
+intros w ? Delta Delta' P P' c R R'.
+intros w1 ? w2 ? [[[? ?] ?] ?].
+do 3 red in H2.
+rewrite semax_fold_unfold; rewrite semax_fold_unfold in H5.
+intros gx w3 ? ?. 
+assert (H7': (believe Hspec Delta gx Delta) w3).
+intros ? ? ? ? ? ? ? ?.
+assert (claims gx Delta' b b0 b1 b2 b3).
+clear - H9 H2.
+destruct H9 as [id [? [b' [? ?]]]].
+exists id; split; [ | exists b'; split]; auto.
+destruct H2 as [_ [_ [_ SUB]]]. rewrite <- (SUB id); auto.
+specialize (H7 _ _ _ _ _ _ H8 H10).
+destruct H7; [left; assumption | right].
+destruct H7 as [bx [fx [? ?]]]; exists bx; exists fx; split; auto.
+(* specialize (H5 gx w3 H6 H7). *)
+intro x; specialize (H11 x).
+cbv beta in H11.
+intros w7 Hw7.
+assert (laterM w w7) by (
+  do 3 red; apply necR_laterR with a'; auto;
+  eapply necR_trans; try eassumption;
+  eapply necR_trans; try eassumption;
+  eapply necR_trans; try eassumption;
+  apply nec_nat; auto).
+specialize (H _ H12).
+specialize (H11 _ Hw7).
+match goal with H11: app_pred (semax' _ ?D ?P ?c ?R) _ |- app_pred (semax' _ ?D' ?P' _ ?R') _ =>
+    specialize (H D D' P P' c R R')
+end.
+apply (H _ (le_refl _) _ (necR_refl _)).
+split.
+split.
+split.
+do 3 red. apply tycontext_eqv_symm.
+apply func_tycontext'_eqv; auto.
+intros ? ? ?; auto.
+intro rho. apply derives_subp. apply andp_derives; auto.
+clear - H2.
+destruct (func_tycontext'_eqv fx _ _ H2) as [_ [_ [_ EQ]]].
+rewrite (same_glob_funassert (func_tycontext' fx Delta) (func_tycontext' fx Delta')); auto.
+apply H11.
+specialize (H5 _ _ H6 H7').
+intros k F w4 Hw4 [? ?].
+specialize (H5 k F w4 Hw4).
+assert ((rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) w4).
+do 9 intro.
+apply (H9 b b0 b1 b2 y H10 a' H11).
+destruct H12; split.
+do 3 red in H12|-*.
+eapply guard_environ_eqv; eauto.
+apply exit_tycontext_eqv; auto.
+destruct H13; split.
+unfold frame_ret_assert in H13|-*.
+clear H12 H14.
+revert a' H11 H13.
+apply sepcon_subp' with (level w2).
+apply H3.
+auto.
+apply necR_level in H6.
+apply necR_level in Hw4.
+eapply le_trans; try eassumption.
+eapply le_trans; try eassumption.
+replace (funassert (exit_tycon c Delta' b))
+ with (funassert (exit_tycon c Delta b) ); auto.
+apply same_glob_funassert.
+destruct (exit_tycontext_eqv c _ _ b H2) as [? [? [? ?]]]; auto.
+
+specialize (H5 (conj H8 H10)). clear H8 H9 H10.
+do 7 intro.
+apply (H5 b b0 y H8 _ H9).
+destruct H10; split; auto.
+destruct H10; split; auto.
+hnf in H10|-*; eapply guard_environ_eqv; eauto.
+apply tycontext_eqv_symm; auto.
+clear H10 H11.
+revert a' H9 H12.
+apply sepcon_subp' with (level w2); auto.
+apply necR_level in H6.
+apply necR_level in Hw4.
+eapply le_trans; try eassumption.
+eapply le_trans; try eassumption.
+replace (funassert Delta) with (funassert Delta'); auto.
+apply same_glob_funassert.
+destruct H2 as [? [? [? ?]]]; auto.
+Qed.
+
+Lemma semax_extensionality1:
+  forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
+       tycontext_eqv Delta Delta' ->
+       ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
+      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta P c R) |-- semax' Hspec Delta' P' c R').
+Proof.
+intros.
+intros n ?.
+apply (semax_extensionality0 n I Delta Delta' P P' c R R' _ (le_refl _) _ (necR_refl _)).
+destruct H0; 
+split; auto.
+destruct H0; 
+split; auto.
+split; auto.
 Qed.
 
 Lemma semax_frame:  forall Delta P s R F,
@@ -1300,13 +1545,4 @@ Proof.
  destruct (typeof a); try congruence. simpl. destruct ((Float.cmp Ceq f Float.zero)); inv H0; auto.
 
  destruct (typeof a); inv H0; simpl; auto.
-Qed.
-
-Lemma same_glob_funassert:
-  forall Delta1 Delta2, glob_types Delta1 = glob_types Delta2 -> 
-              funassert Delta1 = funassert Delta2.
-Proof.
-intros.
-unfold funassert.
-rewrite H; auto.
 Qed.

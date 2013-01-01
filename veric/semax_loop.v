@@ -31,8 +31,9 @@ Lemma funassert_exit_tycon: forall c Delta ek,
 Proof.
 intros.
 apply same_glob_funassert.
-destruct ek; simpl; auto.
-apply glob_types_update_tycon.
+intro.
+unfold exit_tycon; simpl. destruct ek; auto.
+rewrite glob_types_update_tycon. auto.
 Qed.
 
 Lemma strict_bool_val_sub : forall v t b, 
@@ -639,14 +640,20 @@ split3; auto.
 econstructor; eauto.
 Qed.
 
-Lemma join_tycon_same: forall Delta, join_tycon Delta Delta = Delta.
+Lemma semax_extensionality_Delta:
+  forall Delta Delta' P c R,
+       tycontext_eqv Delta Delta' ->
+     semax Hspec Delta P c R -> semax Hspec Delta' P c R.
 Proof.
- intros.
- destruct Delta as [[[? ?] ?] ?].
- unfold join_tycon.
- repeat f_equal.
- unfold join_te.
-Admitted.  (* Not true.  You'll get something extensionally equivalent, but not necessarily equal. *)
+intros.
+unfold semax in *.
+intros.
+specialize (H0 n).
+apply (semax_extensionality1 Hspec Delta Delta' P P c R R); auto.
+split; auto.
+split; auto.
+intros ? ? ?; auto.
+Qed.
 
 Lemma semax_while : 
 forall Delta Q test body R,
@@ -685,8 +692,8 @@ simpl.
 apply andp_left2.
 rewrite andp_comm; auto.
 simpl update_tycon.
-rewrite join_tycon_same.
-auto.
+apply semax_extensionality_Delta with Delta; auto.
+apply tycontext_eqv_symm; apply join_tycon_same.
 Qed.
 
 End extensions.
