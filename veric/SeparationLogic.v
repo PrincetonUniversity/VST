@@ -61,6 +61,9 @@ Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A
    | None => P
    end.
 
+Definition cast_expropt (e: option expr) t : environ -> option val :=
+ match e with Some e' => lift1 Some (eval_expr (Ecast e' t))  | None => lift0 None end.
+
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
@@ -566,7 +569,7 @@ Axiom semax_call :
 Axiom  semax_return :
    forall Delta R ret ,
       semax Delta  
-                (lift2 (R EK_return) (eval_expropt ret) id)
+                (lift2 (R EK_return) (cast_expropt ret (ret_type Delta)) id)
                 (Sreturn ret)
                 R.
 

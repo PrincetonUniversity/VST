@@ -69,11 +69,25 @@ Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
  | (x,y)::rest => if eq_dec a x then Some y else assoc_list_get rest a
  end.   
 
+Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) : Prop :=
+   typecheck_environ rho Delta = true /\
+  match f with 
+  | Some f' => 
+      (forall id, ve_of rho id <> None -> In id (map fst (fn_vars f'))) 
+     /\ ret_type Delta = fn_return f'
+  | None => True
+  end.
+
+Lemma guard_environ_e1: 
+   forall Delta f rho, guard_environ Delta f rho ->
+     typecheck_environ rho Delta = true.
+Proof. intros. destruct H; auto. Qed.
+
 Definition guard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
-          !! (typecheck_environ rho Delta = true)
+          !! guard_environ Delta (current_function ctl) rho
                   && P rho && funassert Delta rho 
              >=> assert_safe Hspec gx vx tx ctl rho.
 
@@ -109,7 +123,7 @@ Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
     (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
-           !! (typecheck_environ rho (Delta ek) = true) && 
+           !! guard_environ (Delta ek) (current_function ctl) rho && 
          (R ek vl rho && funassert (Delta ek) rho) >=> 
                assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
 

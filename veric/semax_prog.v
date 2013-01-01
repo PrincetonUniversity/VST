@@ -839,7 +839,10 @@ eapply (semax_call_aux Hspec (Delta1 V G) unit
                _ _ b (prog_main prog));
   try apply H3; try eassumption; auto.
 clear - GV H2 H0.
+split.
 eapply semax_prog_typecheck_aux; eauto.
+simpl.
+ auto.
 hnf; intros; intuition.
 hnf; intros; intuition.
 unfold normal_ret_assert; simpl.

@@ -85,6 +85,22 @@ eapply H; eauto.
 intro b; apply H. 
 Qed.
 
+Lemma guard_environ_put_te':
+ forall ge te ve Delta id v k,
+ guard_environ Delta k (mkEnviron ge ve te)  ->
+    (forall t : type * bool,
+        (temp_types Delta) ! id = Some t -> typecheck_val v (fst t) = true) ->
+ guard_environ (initialized id Delta) k (mkEnviron ge ve (Map.set id v te)).
+Proof.
+ intros.
+ destruct H; split.
+ apply typecheck_environ_put_te'; auto.
+ destruct k; auto.
+ destruct H1; split.
+ intros. apply H1. apply H3.
+ unfold initialized. destruct ((temp_types Delta) ! id); try destruct p; auto.
+Qed.
+
 Lemma semax'_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
@@ -115,6 +131,7 @@ specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
 destruct H4 as [w1 [w2 [? [? ?]]]].
 exists w1; exists w2; split3; auto.
 apply H; split; auto.
+destruct H3 as [H3 _]; apply H3.
 destruct H4; auto.
 Qed.
 
@@ -139,7 +156,8 @@ eapply H0; eauto.
 destruct H3 as [[? ?] ?].
 split; auto.
 split; auto.
-eapply sepcon_derives; try apply H0; auto.
+eapply sepcon_derives; try apply H; auto.
+destruct H3; auto.
 Qed.
 
 Lemma semax'_pre_post:
@@ -1151,6 +1169,7 @@ Qed.
 Lemma guard_safe_adj:
  forall 
    psi Delta P k1 k2,
+   current_function k1 = current_function k2 ->
   (forall ora m ve te n,
      jsafeN Hspec psi n ora (State ve te k1) m -> 
      jsafeN Hspec psi n ora (State ve te k2) m) ->
@@ -1160,10 +1179,10 @@ intros.
 unfold guard.
 apply allp_derives. intros tx.
 apply allp_derives. intros vx.
-apply subp_derives; auto.
+rewrite H; apply subp_derives; auto.
 intros w ? ? ? ? ?.
-apply H.
-eapply H0; eauto.
+apply H0.
+eapply H1; eauto.
 Qed.
 
 Lemma assert_safe_adj:
@@ -1188,12 +1207,14 @@ Qed.
 
 Lemma rguard_adj:
   forall ge Delta R k k',
+      current_function k = current_function k' ->
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
       rguard Hspec ge Delta R k |-- rguard Hspec ge Delta R k'.
 Proof.
  intros.
- intros n H0;  hnf in H0|-*.
- intros ek vl te ve; specialize (H0 ek vl te ve).
+ intros n H1;  hnf in H1|-*.
+ intros ek vl te ve; specialize (H1 ek vl te ve).
+ rewrite <- H.
  eapply assert_safe_adj'; eauto.
 Qed.
 

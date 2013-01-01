@@ -47,6 +47,37 @@ Proof.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
 Qed.
 
+
+Lemma ret_type_join_tycon:
+  forall Delta Delta', ret_type (join_tycon Delta Delta') = ret_type Delta.
+Proof.
+ intros; destruct Delta as [[[?  ?] ? ] ?]; destruct Delta' as [[[?  ?] ? ] ?]; reflexivity.
+Qed.
+
+Lemma ret_type_update_tycon:
+  forall Delta c, ret_type (update_tycon Delta c) = ret_type Delta
+with ret_type_join_tycon_labeled: forall l Delta,
+  ret_type (join_tycon_labeled l Delta) = ret_type Delta.
+Proof.
+  intros. revert Delta; induction c; simpl; intros; try destruct o; auto;
+ try (unfold initialized;  destruct ((temp_types Delta)!i); try destruct p; auto).
+ rewrite IHc2; auto.
+ rewrite ret_type_join_tycon. auto.
+
+ induction l; simpl; intros; auto. rewrite ret_type_join_tycon. auto. 
+Qed.
+
+Lemma ret_type_exit_tycon:
+  forall c Delta ek, ret_type (exit_tycon c Delta ek) = ret_type Delta.
+Proof. 
+ destruct ek; try reflexivity. unfold exit_tycon. apply ret_type_update_tycon.
+Qed.
+
+Lemma funassert_update_tycon:
+  forall Delta h, funassert (update_tycon Delta h) = funassert Delta.
+intros; apply same_glob_funassert. rewrite glob_types_update_tycon. auto.
+Qed.
+
 Lemma semax_ifthenelse : 
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
@@ -72,11 +103,12 @@ cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? ?; auto.
-hnf in H|-*.
+intros ? [? ?]; split; auto.
 apply typecheck_environ_join1; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
+destruct (current_function k); destruct H0; split; auto.
+rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
 repeat rewrite funassert_exit_tycon in *; auto.
 assert (H3else: app_pred
        (rguard Hspec psi (exit_tycon d Delta) (frame_ret_assert R F) k) w).
@@ -84,11 +116,13 @@ clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
-unfold exit_tycon; simpl. destruct ek; simpl; auto.
-intros ? ?; hnf in H|-*; auto.
+unfold exit_tycon; simpl. destruct ek; simpl; auto. 
+intros ? [? ?]; split; auto.
 apply typecheck_environ_join2; auto.
 repeat rewrite var_types_update_tycon. auto.
 repeat rewrite glob_types_update_tycon. auto.
+destruct (current_function k); destruct H0; split; auto.
+rewrite ret_type_join_tycon; rewrite ret_type_update_tycon in H1|-*; auto.
 repeat rewrite funassert_exit_tycon in *; auto.
 specialize (H0 H3then).
 specialize (H1 H3else).
@@ -110,10 +144,10 @@ specialize (H0 w0 H3).
 specialize (H1 w0 H3).
 unfold expr_true, expr_false, Cnot in *.
 intros ora jm Hge Hphi.
-generalize (eval_expr_relate _ _ _ _ _ b (m_dry jm) Hge TC); intro.
+generalize (eval_expr_relate _ _ _ _ _ b (m_dry jm) Hge (guard_environ_e1 _ _ _ TC)); intro.
 assert (exists b': bool, strict_bool_val (eval_expr b rho) (typeof b) = Some b').
 clear - TC H TC2.
-assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2).
 remember (eval_expr b rho). destruct v;
 simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
 (* typechecking proof *)
@@ -150,7 +184,7 @@ subst; auto.
 rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
-assert (TCS := typecheck_expr_sound _ _ _ TC TC2).
+assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2).
 simpl. unfold lift1. unfold typed_true. 
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;
@@ -257,11 +291,6 @@ apply seq_assoc1; auto.
 apply seq_assoc2; auto.
 Qed.
 
-Lemma funassert_update_tycon:
-  forall Delta h, funassert (update_tycon Delta h) = funassert Delta.
-intros; apply same_glob_funassert. rewrite glob_types_update_tycon. auto.
-Qed.
-
 Lemma semax_seq:
 forall Delta (R: ret_assert) P Q h t, 
     semax Hspec Delta P h (overridePost Q R) -> 
@@ -293,7 +322,7 @@ rewrite glob_types_update_tycon; auto.
 assert ((guard Hspec psi Delta (fun rho : environ => F rho * P rho)%pred
    (Kseq h :: Kseq t :: k)) w).
 Focus 2.
-   eapply guard_safe_adj; try apply H3;
+   eapply guard_safe_adj; try apply H3; try reflexivity;
    intros until n; apply convergent_controls_safe; simpl; auto;
    intros; destruct q'.
    destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
@@ -314,7 +343,7 @@ unfold guard in H0.
 rewrite <- andp_assoc.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
-  (!!(typecheck_environ rho (update_tycon Delta h) = true) &&
+  (!!guard_environ (update_tycon Delta h) (current_function k) rho &&
    (F rho * (Q rho)) && funassert Delta rho >=>
    assert_safe Hspec psi vx tx (Kseq t :: k) rho) w).
 subst.
@@ -328,9 +357,11 @@ intros ek vl te ve; specialize (H2 ek vl te ve).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp. apply andp_derives; auto.
 simpl.
-intros ? ?; hnf in H|-*; auto.
+intros ? [? ?]; hnf in H,H0|-*; split; auto.
 clear - H.
 destruct ek; simpl in *; auto; try solve [eapply typecheck_environ_update; eauto].
+destruct (current_function k); destruct H0; split; auto.
+ rewrite ret_type_exit_tycon in H1|-*; rewrite ret_type_update_tycon in H1; auto.
 cbv beta in H2.
 repeat rewrite funassert_exit_tycon. 
 rewrite funassert_update_tycon; auto.
@@ -434,9 +465,10 @@ repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
 rewrite andp_assoc.
 rewrite funassert_update_tycon; 
 apply andp_derives; auto.
-intros ? ?; auto.
+intros ? [? ?]; split; auto.
 hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
+simpl in H12|-*. rewrite ret_type_update_tycon in H12; auto.
 simpl exit_cont.
 unfold frame_ret_assert. normalize.
 rewrite sepcon_comm. auto.
@@ -459,9 +491,10 @@ unfold frame_ret_assert.
 rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
-intros ? ?.
+intros ? [? ?]; split.
 hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
+simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
 simpl exit_cont.
 simpl exit_tycon.
 rewrite sepcon_comm.
@@ -496,8 +529,10 @@ rewrite andp_assoc.
 rewrite funassert_exit_tycon; 
 apply andp_derives; auto.
 simpl exit_tycon.
-intros ? ?.  hnf in H11|-*.
+intros ? [? ?]; split.
+hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
+simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
 unfold exit_cont, loop1_ret_assert; normalize.
 unfold exit_cont, loop1_ret_assert; normalize.
 
@@ -605,7 +640,13 @@ econstructor; eauto.
 Qed.
 
 Lemma join_tycon_same: forall Delta, join_tycon Delta Delta = Delta.
-Admitted.
+Proof.
+ intros.
+ destruct Delta as [[[? ?] ?] ?].
+ unfold join_tycon.
+ repeat f_equal.
+ unfold join_te.
+Admitted.  (* Not true.  You'll get something extensionally equivalent, but not necessarily equal. *)
 
 Lemma semax_while : 
 forall Delta Q test body R,

@@ -30,7 +30,7 @@ Lemma semax_straight_simple:
   (forall rho, boxy extendM (B rho)) ->
   (forall jm jm1 ge ve te rho k F, 
               app_pred (B rho) (m_phi jm) ->
-              typecheck_environ rho Delta = true ->
+              guard_environ Delta (current_function k) rho ->
               closed_wrt_modvars c F ->
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
@@ -38,7 +38,7 @@ Lemma semax_straight_simple:
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
-                typecheck_environ rho' (update_tycon Delta c) = true /\
+                guard_environ (update_tycon Delta c) (current_function k) rho'  /\
                 jstep cl_core_sem ge (State ve te (Kseq c :: k)) jm 
                                  (State ve te' k) jm' /\
               ((F rho' * Q rho') && funassert Delta rho) (m_phi jm')) ->
@@ -126,13 +126,13 @@ apply age_level; auto.
 normalize in H0.
 clear - TC' TC2 TC3 Hge.
 simpl in *. simpl. rewrite <- map_ptree_rel.
-apply typecheck_environ_put_te'; auto. subst; simpl in *.
+apply guard_environ_put_te'; auto. subst; simpl in *.
 unfold construct_rho in *; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite eqb_type_eq in TC2; apply type_eq_true in TC2. subst t.
-apply typecheck_expr_sound in TC3; auto.
+apply typecheck_expr_sound in TC3; auto. destruct TC'; auto.
 destruct H0.
 split; auto.
 simpl.
@@ -140,7 +140,7 @@ split3; auto.
 destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
 econstructor; eauto.
-eapply eval_expr_relate; eauto.
+eapply eval_expr_relate; auto. destruct TC'; eassumption. auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
 
@@ -174,8 +174,8 @@ assert (env_set
   unfold eval_id; simpl.
   rewrite Map.override.
   rewrite Map.override_same. subst; auto.
-  rewrite Hge in TC'.
-  apply typecheck_environ_sound in TC'.  
+  rewrite Hge in TC'. 
+  destruct TC' as [TC' _]; apply typecheck_environ_sound in TC'.  
   destruct TC' as [TC' _]. unfold tc_te_denote in *.
   simpl in TC2. unfold typecheck_temp_id in *. remember ((temp_types Delta) ! id).
   destruct o; [ | congruence]. symmetry in Heqo. destruct p.
@@ -220,12 +220,12 @@ clear - TC' TC2 TC3 Hge.
 unfold construct_rho in *.
 simpl in *. rewrite Hge. simpl. rewrite <- Hge.
 rewrite <- map_ptree_rel.  
-apply typecheck_environ_put_te'; try rewrite <- Hge; auto. 
+apply guard_environ_put_te'; try rewrite <- Hge; auto. 
 intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite eqb_type_eq in TC2; apply type_eq_true in TC2. subst t.
-apply typecheck_expr_sound in TC3; auto.
+apply typecheck_expr_sound in TC3; auto. destruct TC'; auto.
 destruct H0.
 split; auto.
 simpl.
@@ -233,7 +233,8 @@ split3; auto.
 destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
 econstructor; eauto. rewrite Hge in *. 
-eapply eval_expr_relate; eauto. 
+eapply eval_expr_relate; auto.
+destruct TC'; eauto. auto. 
 apply age1_resource_decay; auto.
 apply age_level; auto.
 
@@ -291,7 +292,7 @@ intro. apply boxy_andp; auto.
 intros jm jm1 ge ve te rho k F [TC2 TC3] TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge TC') as [b [ofs [? ?]]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (v2 rho) (te)).
 econstructor.
@@ -300,7 +301,7 @@ reflexivity.
 split3.
 apply age_level; auto. simpl. 
 rewrite <- map_ptree_rel.
-apply typecheck_environ_put_te'. 
+apply guard_environ_put_te'. 
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
 clear - TC1 TC2 TC3 TC' H2 Hge H0.
@@ -358,6 +359,7 @@ assert (env_set
 unfold env_set. simpl.
 rewrite Map.override. unfold eval_id. simpl in TC1. unfold typecheck_temp_id in TC1.
 remember ((temp_types Delta) ! id). destruct o ; [ | congruence]. destruct p.
+destruct TC' as [TC' _].
 unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [[TC' _] _].
 rewrite typecheck_te_eqv in TC'. unfold tc_te_denote in TC'.
 symmetry in Heqo.
@@ -532,7 +534,7 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge TC4) as [b0 [i [He1 He1']]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
@@ -555,6 +557,7 @@ Focus 2.
 
 clear - WS TC2 TC4 TC3 TC TC1 Hmode.
 unfold typecheck_store in *.
+destruct TC4 as [TC4 _].
 destruct TC as [IT FT].
 simpl in TC2. apply typecheck_expr_sound in TC2; auto.
 remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2). 
@@ -578,14 +581,14 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) Hge TC4); intro.
+generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)); intro.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
 instantiate (1:= eval_expr e2 rho).
 auto.
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
-eapply cast_exists; eauto.
+eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
 apply Hmode.
 unfold tc_lvalue in TC1. simpl in TC1. 
