@@ -79,7 +79,7 @@ Lemma juicy_mem_access: access_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
 Lemma juicy_mem_max_access: max_access_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
-Lemma juicy_mem_alloc: alloc_cohere m_dry m_phi.
+Lemma juicy_mem_alloc_cohere: alloc_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
 End selectors.
 
@@ -1010,7 +1010,7 @@ apply nextblock_store in STORE.  rewrite STORE; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
-generalize (juicy_mem_alloc jm loc); intro.
+generalize (juicy_mem_alloc_cohere jm loc); intro.
 rewrite (nextblock_store _ _ _ _ _ _ STORE) in H.
 rewrite (H0 H). auto.
 Defined.
@@ -1079,7 +1079,7 @@ rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES); auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
-generalize (juicy_mem_alloc jm loc); intro.
+generalize (juicy_mem_alloc_cohere jm loc); intro.
 rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES) in H.
 rewrite (H0 H). 
 auto.
@@ -1303,7 +1303,7 @@ destruct (max_access_at (m_dry jm) loc); simpl; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_free. rewrite resource_at_make_rmap.
-pose proof (juicy_mem_alloc jm loc).
+pose proof (juicy_mem_alloc_cohere jm loc).
 rewrite (nextblock_free _ _ _ _ _ FREE) in H2; auto.
 rewrite H3; auto.
 Defined.
@@ -1578,131 +1578,6 @@ rewrite ZMap.gss.
 apply ZMap.gi.
 Qed.
 
-Definition alloc_juicy_mem jm lo hi m' b 
-            (H: alloc (m_dry jm) lo hi = (m',b)): juicy_mem.
-assert (forall ofs, m_phi jm @ (b,ofs) = NO Share.bot).
- intro ofs.
- pose proof (juicy_mem_max_access jm (b,ofs)).
- unfold max_access_at in H0.
- simpl in H0. 
- pose proof (alloc_result _ _ _ _ _ H).
- subst b.
- rewrite nextblock_noaccess in H0.
- destruct (m_phi jm @ (nextblock (m_dry jm), ofs)); simpl in H0.
- destruct (eq_dec t Share.bot). subst; auto.
- rewrite perm_of_nonempty in H0 by auto. contradiction.
- destruct (perm_of_sh_pshare t p). rewrite H1 in H0. contradiction.
- generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction. omega.
-refine (mkJuicyMem m'  (after_alloc lo hi b (m_phi jm) H0) _ _ _ _).
-unfold after_alloc; hnf; intros.
-rewrite resource_at_make_rmap in H1. unfold after_alloc' in H1.
-if_tac in H1. inv H1; split; auto.
-destruct loc as [b' z]; destruct H2; subst b'.
-unfold contents_at. inv H; simpl. rewrite ZMap.gss.
-rewrite ZMap.gi; auto.
-destruct loc as [b' z].
-destruct (eq_dec b b').
-subst b'.
-elimtype False.
-generalize (juicy_mem_access jm (b,z)); intro.
-rewrite H1 in H3.
-apply alloc_result in H.
-unfold access_at in H3.
-rewrite nextblock_noaccess in H3.
-unfold perm_of_res, perm_of_sh in H3; simpl in H3.
-if_tac in H3; congruence.
-simpl. subst. omega.
-assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
-unfold contents_at. simpl.
-inv H. simpl. rewrite ZMap.gso; auto.
-rewrite H3.
-apply (juicy_mem_contents jm _ _ _ _ _ H1).
-(* access_cohere *) 
-hnf; intros.
-unfold after_alloc. rewrite resource_at_make_rmap.
-unfold after_alloc'.
-if_tac.
-unfold perm_of_res; simpl.   rewrite perm_of_freeable.
-inv H. unfold access_at; simpl. destruct loc as [b' z]; destruct H1; simpl in *; subst b'.
-rewrite ZMap.gss.
-destruct H1.
-destruct (zle lo z); try contradiction.
-simpl. 
-destruct (zlt z hi); try omegaContradiction.
-simpl. auto.
-destruct loc as [b' z].
-destruct (eq_dec b b').
-subst b'.
-rewrite H0.
-pose proof (juicy_mem_alloc jm (b,z)).
-unfold perm_of_res. simpl. rewrite perm_of_empty.
-unfold access_at.
-inv H. simpl.
-rewrite ZMap.gss.
-destruct (zle lo z); simpl; auto.
-destruct (zlt z hi); simpl; auto.
-contradict H1; split; auto. omega.
-replace (access_at m' (b',z)) with (access_at (m_dry jm) (b',z)).
-apply (juicy_mem_access jm (b',z)).
-unfold access_at.
-simpl.
-inv H. simpl. rewrite ZMap.gso; auto.
-(* max_access_cohere *)
-hnf; intros.
-unfold after_alloc. rewrite resource_at_make_rmap.
-unfold after_alloc'.
-if_tac. simpl; rewrite perm_of_freeable.
-destruct loc. destruct H1. subst b0.
-unfold max_access_at.
-simpl. inv H.
-simpl. rewrite ZMap.gss.
-destruct H2. 
-destruct (zle lo z); try contradiction.
-simpl. 
-destruct (zlt z hi); try omegaContradiction.
-simpl.
-constructor.
-generalize (juicy_mem_max_access jm loc); case_eq (m_phi jm @ loc); intros; auto.
-destruct loc as [b' z].
-destruct (eq_dec b b').
-subst b'.
-unfold max_access_at in H3.
-simpl in H3.
-apply alloc_result in H.
-rewrite nextblock_noaccess in H3; auto.
-simpl in H3.
-revert H3; case_eq (perm_of_sh t Share.bot); intros; try contradiction.
-hnf. destruct (max_access_at m' (b, z)); auto.
-subst; omega.
-unfold max_access_at.
-inv H; simpl. 
-rewrite ZMap.gso; auto.
-replace (max_access_at m' loc) with (max_access_at (m_dry jm) loc); auto.
-unfold max_access_at.
-assert (fst loc <> b).
-intro; subst.
-destruct loc; simpl in *; rewrite H0 in H2. inv H2.
-destruct loc as [b' z]. simpl in H4.
-clear - H H4.
-inv H. simpl. rewrite ZMap.gso; auto.
-pose proof (nextblock_alloc _ _ _ _ _ H).
-forget (m_dry jm) as m.
-clear - H4 H H3. rewrite H4. omega.
-(* alloc_cohere *)
-hnf; intros.
-unfold after_alloc.
-rewrite resource_at_make_rmap.
-unfold after_alloc'.
-destruct loc as [b' z]. simpl in *.
-destruct (eq_dec b' b). subst b'.
-inv H.
-simpl in *. omegaContradiction.
-rewrite if_false.
-apply (juicy_mem_alloc jm (b',z)).
-inv H. simpl in *. omega.
-intros [? ?]; subst. omega.
-Defined.
-
 Definition resource_decay (nextb: block) (phi1 phi2: rmap) := 
   (level phi1 >= level phi2)%nat /\
  forall l: address,
@@ -1827,7 +1702,7 @@ split.
 subst; unfold inflate_store; simpl. rewrite level_make_rmap. auto.
 intro l'.
 split.
-apply juicy_mem_alloc.
+apply juicy_mem_alloc_cohere.
 destruct (adr_range_dec (b, ofs) (size_chunk ch) l') as [HA | HA].
 (* adr_range *)
 right.
@@ -1899,7 +1774,7 @@ split.
 unfold inflate_free; rewrite level_make_rmap; auto.
 intros l.
 split.
-apply juicy_mem_alloc.
+apply juicy_mem_alloc_cohere.
 destruct (adr_range_dec (b, lo) (hi-lo) l) as [HA | HA].
 (* adr_range *)
 right. right.

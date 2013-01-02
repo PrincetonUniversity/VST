@@ -468,11 +468,19 @@ Qed.
 Lemma func_tycontext'_eqv:
   forall f Delta Delta', tycontext_eqv Delta Delta' ->
         tycontext_eqv (func_tycontext' f Delta) (func_tycontext' f Delta').
-Admitted.
+Proof.
+intros.
+unfold func_tycontext'.
+split; auto. split; auto. split; auto.
+simpl. destruct H as [? [? [? ?]]]; auto.
+Qed.
 
 Lemma tycontext_eqv_symm:
   forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
-Admitted.
+Proof.
+intros.
+destruct H as [? [? [? ?]]]; repeat split; auto.
+Qed.
 
 
 Lemma same_glob_funassert:
@@ -517,7 +525,32 @@ Lemma join_tycontext_eqv:
     tycontext_eqv (join_tycon Delta1 Delta2)  (join_tycon Delta1' Delta2').
 Proof.
 intros.
-Admitted.
+destruct H as [? [? [? ?]]].
+destruct H0 as [? [? [? ?]]].
+destruct Delta1 as [[[? ?] ?] ?].
+destruct Delta2 as [[[? ?] ?] ?].
+destruct Delta1' as [[[? ?] ?] ?].
+destruct Delta2' as [[[? ?] ?] ?].
+unfold join_tycon; simpl in *; repeat split; auto.
+unfold temp_types in *; simpl in *.
+clear - H H0.
+intro id.
+unfold join_te.
+repeat rewrite PTree.fold_spec.
+replace (PTree.elements t7) with (PTree.elements t) by (apply PTree.elements_extensional; auto).
+repeat rewrite <- fold_left_rev_right.
+induction (rev (PTree.elements t)); simpl; intros; auto.
+unfold join_te' at 1 3. destruct a. simpl.
+destruct p0.
+rewrite <- (H0 p).
+destruct (t3 ! p); auto.
+destruct p0.
+if_tac.
+subst t0.
+destruct (eq_dec p id). subst. repeat rewrite PTree.gss; auto.
+repeat rewrite (PTree.gso); auto.
+auto.
+Qed.
 
 Lemma update_tycontext_eqv:
   forall c Delta Delta',
@@ -528,7 +561,6 @@ with join_tycon_labeled_eqv:
     tycontext_eqv Delta Delta' ->
   tycontext_eqv (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
 Proof.
-
 induction c; simpl; intros; auto.
 apply initialized_tycontext_eqv; auto.
 destruct o; auto; apply initialized_tycontext_eqv; auto.
@@ -910,7 +942,7 @@ Proof.
  change (level (m_phi jm)) with (level jm).
  change (level (m_phi jm')) with (level jm').  
  omega.
- intro l. split. apply juicy_mem_alloc. left.
+ intro l. split. apply juicy_mem_alloc_cohere. left.
  symmetry; apply age1_resource_at with (m_phi jm); eauto.
   destruct (age1_juicy_mem_unpack _ _ H); auto.
  symmetry; apply resource_at_approx.

@@ -211,29 +211,214 @@ hnf. auto.
 hnf; auto.
 Qed.
 
+Import JuicyMemOps.
+
+Fixpoint alloc_juicy_variables (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
+ match vl with 
+ | nil => (rho,jm)
+ | (id,ty)::vars => match juicy_mem_alloc jm 0 (sizeof ty) with
+                              (m1,b1) => alloc_juicy_variables (PTree.set id (b1,ty) rho) m1 vars
+                           end
+ end.
+
+Lemma juicy_mem_alloc_core:
+  forall jm lo hi jm' b, juicy_mem_alloc jm lo hi = (jm', b) ->
+    core (m_phi jm) = core (m_phi jm').
+Proof.
+ unfold juicy_mem_alloc, after_alloc; intros.
+ inv H.
+ simpl.
+ apply rmap_ext.
+ repeat rewrite level_core. rewrite level_make_rmap. auto.
+ intro loc. 
+ repeat rewrite <- core_resource_at. 
+ rewrite resource_at_make_rmap.
+ unfold after_alloc'.
+ if_tac; auto.
+ destruct loc as [b z].
+ simpl in H.
+ rewrite core_YES.
+ rewrite juicy_mem_alloc_cohere. rewrite core_NO; auto.
+ simpl. destruct H.
+ revert H; case_eq (alloc (m_dry jm) lo hi); intros.
+ simpl in *. subst b0. apply alloc_result in H. subst b; omega.
+Qed. (* Admitted: move this to juicy_mem_ops *)
+
+
+Lemma alloc_juicy_variables_e:
+  forall rho jm vl rho' jm',
+    alloc_juicy_variables rho jm vl = (rho', jm') ->
+  Clight.alloc_variables rho (m_dry jm) vl rho' (m_dry jm')
+   /\ level jm = level jm'
+   /\ core (m_phi jm) = core (m_phi jm').
+Proof.
+ intros.
+ revert rho jm H; induction vl; intros.
+ inv H. split; auto. constructor.
+ unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
+ destruct a as [id ty].
+ revert H; case_eq (JuicyMemOps.juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
+ specialize (IHvl (PTree.set id (b1,ty) rho) jm1 H0).
+ destruct IHvl as [? [? ?]]; split3; auto.
+ apply alloc_variables_cons  with  (m_dry jm1) b1; auto.
+ apply JuicyMemOps.juicy_mem_alloc_succeeds in H. auto.
+ apply JuicyMemOps.juicy_mem_alloc_level in H.
+ congruence.
+ rewrite <- H3.
+ eapply  juicy_mem_alloc_core; eauto.
+Qed.
+
 
 Lemma can_alloc_variables:
   forall jm vl, exists ve', exists jm',
-          list_norepet (map (@fst _ _) vl) ->
+          Clight.alloc_variables empty_env (m_dry jm) vl ve' (m_dry jm')
+        /\ level jm = level jm'
+        /\ core (m_phi jm) = core (m_phi jm').
+Proof.
+ intros.
+ remember (alloc_juicy_variables empty_env jm vl) as x.
+ exists (fst x); exists (snd x).
+ destruct x as [rho' jm'].
+ symmetry in Heqx.
+ apply alloc_juicy_variables_e in Heqx; auto.
+Qed.
+
+Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, age x y -> age (core x) (core y).
+Proof.
+ intros. unfold age in *.
+ pose proof (core_unit x).
+ unfold unit_for in H0.
+ destruct (age1_join2 _ H0 H) as [a [b [? [? ?]]]].
+ unfold age in H3. inversion2 H H3.
+ pose proof (core_unit y).
+ pose proof (join_canc H1 H3). subst. apply H2.
+Qed. (* Admitted: move this to msl *)
+
+Lemma can_alloc_variables':
+  forall jm vl, 
+               (level jm > 0)%nat ->
+      exists ve', exists jm',
           Clight.alloc_variables empty_env (m_dry jm) vl ve' (m_dry jm') /\
-          (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\ level jm = S (level jm')).
-Admitted.
+          (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\ 
+          level jm = S (level jm') /\
+          age (core (m_phi jm)) (core (m_phi jm'))).
+Proof.
+ intros.
+ remember (alloc_juicy_variables empty_env jm vl) as x.
+ destruct x as [rho' jm'].
+ symmetry in Heqx.
+ destruct (alloc_juicy_variables_e _ _ _ _ _ Heqx).
+ case_eq (age1 jm'); intros; [ | rewrite age1_level0 in H2;  omegaContradiction].
+ clear H. rename H2 into H.
+ exists rho'; exists j.
+ split. apply age_jm_dry in H. rewrite <- H; auto.
+ assert (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+             nextblock (m_dry jm) <= nextblock (m_dry jm') /\
+             level jm = level jm' /\
+            core (m_phi jm) = core (m_phi jm') ).
+Focus 2.
+  destruct H2 as [? [? [? CORE]]]; split3.
+   eapply resource_decay_trans; try eassumption.  
+  apply age1_resource_decay. apply H.
+  rewrite H4. apply age_level. auto.
+  rewrite CORE.
+ clear - CORE H.
+ apply age_core. apply age_jm_phi; auto.
+ clear j H.
+ apply -> and_assoc.
+ split; auto.
+ forget empty_env as rho. clear H0.
+ revert rho jm Heqx H1; induction vl; intros.
+ inv Heqx. split. apply resource_decay_refl.
+   apply juicy_mem_alloc_cohere. apply Zle_refl.
+ destruct a as [id ty].
+ unfold alloc_juicy_variables in Heqx; fold alloc_juicy_variables in Heqx.
+ revert Heqx; case_eq (juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
+ pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H).
+  pose proof (juicy_mem_alloc_level _ _ _ _ _ H).
+  rewrite (juicy_mem_alloc_core _ _ _ _ _ H) in H1.
+  rewrite H2 in H1.
+ specialize (IHvl _ _ Heqx H1).
+ symmetry in H0; pose proof (nextblock_alloc _ _ _ _ _ H0).
+ destruct IHvl.
+ split; [ |  rewrite H3 in H5; omega].
+ eapply resource_decay_trans; try eassumption. 
+ rewrite H3; omega.
+ clear - H H2 H0.
+ change (level (m_phi jm) = level (m_phi jm1)) in H2.
+ unfold resource_decay.
+ split. rewrite H2; auto.
+ intro loc.
+ split.
+ apply juicy_mem_alloc_cohere.
+ rewrite (juicy_mem_alloc_at _ _ _ _ _ H).
+ replace (sizeof ty - 0) with (sizeof ty) by omega.
+ destruct loc as [b z]. simpl in *.
+ if_tac. destruct H1; subst b1.
+ right. right. left. split. apply alloc_result in H0; subst b; omega.
+ eauto.
+ rewrite <- H2. left. apply resource_at_approx.
+Qed.
 
 
 Lemma build_call_temp_env:
   forall f vl, 
-     list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)) ->
+     length (fn_params f) = length vl ->
   exists te,  bind_parameter_temps (fn_params f) vl
                      (create_undef_temps (fn_temps f)) = Some te.
-Admitted.
+Proof.
+ intros.
+ forget (create_undef_temps (fn_temps f)) as rho.
+ revert rho vl H; induction (fn_params f); destruct vl; intros; inv H; try congruence.
+ exists rho; reflexivity.
+ destruct a; simpl.
+ apply IHl. auto.
+Qed.
 
 Lemma resource_decay_funassert:
   forall G rho b w w',
+         necR (core w) (core w') ->
          resource_decay b w w' ->
          app_pred (funassert G rho) w ->
          app_pred (funassert G rho) w'.
-Admitted.
+Proof.
+unfold resource_decay, funassert; intros until w'; intro CORE; intros.
+destruct H.
+destruct H0.
+split; [clear H2 | clear H0].
+intros id fs w2 Hw2 H3.
+specialize (H0 id fs). cbv beta in H0.
+specialize (H0 _ (necR_refl _) H3).
+destruct H0 as [v [loc [[? ?] ?]]].
+ specialize (H1 loc).
+ destruct H1 as [? ?].
+exists v; exists loc; split; auto.
+split; auto.
+destruct fs.
+simpl in H4|-*.
+pose proof (necR_resource_at (core w) (core w') loc
+         (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) CORE).
+pose proof (necR_resource_at _ _ loc
+         (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) Hw2).
+apply H7.
+clear - H6 H4.
+repeat rewrite <- core_resource_at in *.
+spec H6. rewrite H4.  rewrite core_PURE.  simpl.  rewrite level_core; reflexivity.
+destruct (w' @ loc).
+ rewrite core_NO in H6; inv H6.
+ rewrite core_YES in H6; inv H6.
+ rewrite core_PURE in H6; inv H6. rewrite level_core; reflexivity.
 
+intros loc fs w2 Hw2 H6.
+specialize (H2 loc fs _ (necR_refl _)).
+spec H2.
+clear - Hw2 CORE H6.
+destruct fs; simpl in *.
+admit.  (* easy enough, except impossible *)
+destruct H2 as [id [v [[? ?] ?]]].
+exists id, v. split; auto. split; auto.
+Qed.
 
 Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : environ -> A :=
    match ret with
@@ -952,11 +1137,20 @@ clear - H28. destruct v; simpl in *; congruence.
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
-destruct (can_alloc_variables jm (fn_vars f)) as [ve' [jm' [? ?]]].
-auto.
+destruct (can_alloc_variables' jm (fn_vars f)) as [ve' [jm' [? ?]]].
+change (level jm) with (level (m_phi jm)). rewrite H2.
+clear; omega.
+rewrite <- and_assoc in H20.
+destruct H20 as [H20 CORE].
 rewrite <- Genv.find_funct_find_funct_ptr in H16.
 destruct (build_call_temp_env f (eval_exprlist (snd (split (fst fsig))) bl rho))
 as [te' ?]; auto.
+clear - H18 TC4.
+unfold fn_funsig in *; subst; simpl in *.
+revert bl TC4; induction (fn_params f); destruct bl; intros; inv TC4.
+reflexivity.
+destruct a. simpl.
+destruct (split l); simpl in *. f_equal; auto.
 exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
                                      :: Kcall ret f (vx) (tx) :: k)).
 exists  jm'.
@@ -970,15 +1164,16 @@ eapply exprlist_eval; eauto. destruct TC3; auto.
 unfold type_of_function. destruct fsig; inv H18; auto. 
 
 assert (n >= level jm')%nat.
-destruct H20. clear - H22 H2.
+clear - H2 H20. destruct H20 as [_ ?].
 change (level (m_phi jm)) with (level jm) in H2.
 omega.
 pose (rho3 := mkEnviron (ge_of rho) (make_venv ve') (make_tenv te')).
 assert (app_pred (funassert Delta rho3) (m_phi jm')).
-clear - H4 H20. destruct H20 as [? _].
-apply (resource_decay_funassert _ _ _ _ _ H) in H4.
+apply (resource_decay_funassert _ _ (nextblock (m_dry jm)) _ (m_phi jm')) in H4.
+2: apply laterR_necR; apply age_laterR; auto.
 unfold rho3; clear rho3.
 apply H4.
+destruct H20; auto.
 specialize (H19 te' ve' _ H22 _ (necR_refl _)).
 spec H19; [clear H19|].
 split; [split|]; auto. Focus 3. 

@@ -95,8 +95,212 @@ simpl. auto.
 inv H.
 Qed.
 
-Program Definition juicy_mem_alloc j lo hi: juicy_mem * block :=
-  (alloc_juicy_mem j lo hi (fst (alloc (m_dry j) lo hi)) (snd (alloc (m_dry j) lo hi)) _, snd (alloc (m_dry j) lo hi)).
+
+Lemma pshare_sh_bot: forall p, pshare_sh p = Share.bot -> False.
+Proof. destruct p; intros. simpl in H. subst x. apply nonunit_nonidentity in n.
+apply n. apply bot_identity.
+Qed.
+
+Lemma juicy_mem_alloc_aux1:
+  forall jm lo hi m' b, alloc (m_dry jm) lo hi = (m',b) ->
+        forall ofs, m_phi jm @ (b,ofs) = NO Share.bot.
+Proof.
+ intros.
+ pose proof (juicy_mem_max_access jm (b,ofs)).
+ unfold max_access_at in H0.
+ simpl in H0. 
+ pose proof (alloc_result _ _ _ _ _ H).
+ subst b.
+ rewrite nextblock_noaccess in H0.
+ destruct (m_phi jm @ (nextblock (m_dry jm), ofs)); simpl in H0.
+ destruct (eq_dec t Share.bot). subst; auto.
+ rewrite perm_of_nonempty in H0 by auto. contradiction.
+ destruct (perm_of_sh_pshare t p). rewrite H1 in H0. contradiction.
+ generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction. omega.
+Qed.
+
+Transparent alloc.
+Lemma after_alloc_contents_cohere:
+ forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
+  contents_cohere m'
+    (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
+Proof.
+intros. 
+unfold after_alloc; hnf; intros.
+rewrite resource_at_make_rmap in H0. unfold after_alloc' in H0.
+if_tac in H0.
+inv H0; split; auto.
+destruct loc as [b' z]; destruct H1; subst b'.
+unfold contents_at. inv H; simpl. 
+destruct (alloc (m_dry jm) lo hi).
+rewrite ZMap.gss.
+rewrite ZMap.gi; auto.
+destruct loc as [b' z].
+destruct (eq_dec b b').
+subst b'.
+elimtype False.
+generalize (juicy_mem_access jm (b,z)); intro.
+rewrite H0 in H2.
+apply alloc_result in H.
+unfold access_at in H2.
+rewrite nextblock_noaccess in H2.
+unfold perm_of_res, perm_of_sh in H2; simpl in H2.
+if_tac in H2. subst. if_tac in H2; inv H2.
+if_tac in H2; try congruence.
+eapply pshare_sh_bot; eauto.
+simpl. subst. omega.
+assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
+unfold contents_at. simpl.
+inv H. simpl. rewrite ZMap.gso; auto.
+rewrite H2.
+apply (juicy_mem_contents jm _ _ _ _ _ H0).
+Qed.
+
+Lemma after_alloc_access_cohere: 
+ forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
+ access_cohere m'
+  (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
+Proof.
+intros; hnf; intros.
+unfold after_alloc. rewrite resource_at_make_rmap.
+unfold after_alloc'.
+if_tac.
+unfold perm_of_res; simpl.   rewrite perm_of_freeable.
+inv H. unfold access_at; simpl. 
+   destruct loc as [b' z]; destruct H0; simpl in *; subst b'.
+rewrite ZMap.gss.
+destruct H0.
+destruct (zle lo z); try contradiction.
+simpl. 
+destruct (zlt z hi); try omegaContradiction.
+simpl. auto.
+destruct loc as [b' z].
+destruct (eq_dec b b').
+subst b'.
+pose proof (juicy_mem_alloc_cohere jm (b,z)).
+rewrite H1.
+simpl in *.
+unfold perm_of_res. simpl. rewrite perm_of_empty.
+unfold access_at.
+inv H. simpl.
+rewrite ZMap.gss.
+destruct (zle lo z); simpl; auto.
+destruct (zlt z hi); simpl; auto.
+contradict H0; split; auto. omega.
+apply alloc_result in H. subst; simpl; omega.
+replace (access_at m' (b',z)) with (access_at (m_dry jm) (b',z)).
+apply (juicy_mem_access jm (b',z)).
+unfold access_at.
+simpl.
+inv H. simpl. rewrite ZMap.gso; auto.
+Qed.
+
+Lemma after_alloc_max_access_cohere: 
+ forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
+ max_access_cohere m'
+  (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
+Proof.
+intros; pose proof I; hnf; intros.
+unfold after_alloc. rewrite resource_at_make_rmap.
+unfold after_alloc'.
+if_tac. simpl; rewrite perm_of_freeable.
+destruct loc. destruct H1. subst b0.
+unfold max_access_at.
+simpl. inv H.
+simpl. rewrite ZMap.gss.
+destruct H2. 
+destruct (zle lo z); try contradiction.
+simpl. 
+destruct (zlt z hi); try omegaContradiction.
+simpl.
+constructor.
+generalize (juicy_mem_max_access jm loc); case_eq (m_phi jm @ loc); intros; auto.
+destruct loc as [b' z].
+destruct (eq_dec b b').
+subst b'.
+unfold max_access_at in H3.
+simpl in H3.
+apply alloc_result in H.
+rewrite nextblock_noaccess in H3; auto.
+simpl in H3.
+revert H3; case_eq (perm_of_sh t Share.bot); intros; try contradiction.
+hnf. destruct (max_access_at m' (b, z)); auto.
+subst; omega.
+unfold max_access_at.
+inv H; simpl. 
+rewrite ZMap.gso; auto.
+replace (max_access_at m' loc) with (max_access_at (m_dry jm) loc); auto.
+inv H.
+unfold max_access_at. simpl.
+destruct (eq_dec (fst loc) (nextblock (m_dry jm))).
+rewrite e. rewrite ZMap.gss.
+destruct loc as [b z]. simpl in *.
+subst b.
+destruct (zle lo z).
+destruct (zlt z hi).
+contradiction H1; split; auto.
+omega.
+simpl.
+apply nextblock_noaccess; omega.
+simpl.
+apply nextblock_noaccess; omega.
+rewrite ZMap.gso by auto. auto.
+pose proof (nextblock_alloc _ _ _ _ _ H).
+forget (m_dry jm) as m.
+clear - H4 H H3. rewrite H4. omega.
+Qed.
+
+Lemma after_alloc_alloc_cohere:
+ forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
+ alloc_cohere m'
+  (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
+Proof.
+intros; hnf; intros.
+unfold after_alloc.
+rewrite resource_at_make_rmap.
+unfold after_alloc'.
+destruct loc as [b' z]. simpl in *.
+destruct (eq_dec b' b). subst b'.
+inv H.
+simpl in *. omegaContradiction.
+rewrite if_false.
+apply (juicy_mem_alloc_cohere jm (b',z)).
+inv H. simpl in *. omega.
+intros [? ?]; subst. omega.
+Qed.
+
+Definition juicy_mem_alloc (jm: juicy_mem) (lo hi: Z) : juicy_mem * block :=
+         (mkJuicyMem (fst (alloc (m_dry jm) lo hi))
+                     (after_alloc lo hi (snd (alloc (m_dry jm) lo hi)) (m_phi jm) 
+                            (juicy_mem_alloc_aux1 _ _ _ _ _ (eq_refl _)))
+                     (after_alloc_contents_cohere _ _ _ _ _ (eq_refl _))
+                     (after_alloc_access_cohere _ _ _ _ _ (eq_refl _))
+                     (after_alloc_max_access_cohere _ _ _ _ _ (eq_refl _))
+                     (after_alloc_alloc_cohere _ _ _ _ _ (eq_refl _)), 
+           snd (alloc (m_dry jm) lo hi)).
+
+Lemma juicy_mem_alloc_at:
+  forall jm lo hi jm' b,
+     juicy_mem_alloc jm lo hi = (jm',b) ->
+     forall loc, m_phi jm' @ loc = 
+       if adr_range_dec (b, lo) (hi - lo) loc
+       then YES Share.top pfullshare (VAL Undef) NoneP
+       else m_phi jm @ loc.
+Proof.
+ intros.
+ inv H. simpl.
+ unfold after_alloc; rewrite resource_at_make_rmap.
+ unfold after_alloc'. auto.
+Qed.  
+
+Lemma juicy_mem_alloc_level:
+ forall jm lo hi jm' b,
+   juicy_mem_alloc jm lo hi = (jm', b) -> level jm = level jm'.
+Proof.
+ unfold juicy_mem_alloc; intros.
+ inv H.
+ unfold after_alloc; simpl. rewrite level_make_rmap; auto.
+Qed.
 
 Lemma juicy_mem_alloc_succeeds: forall j j' b lo hi,
   juicy_mem_alloc j lo hi = (j', b) -> (m_dry j', b) = alloc (m_dry j) lo hi.
@@ -105,7 +309,7 @@ intros until hi; intro H.
 unfold juicy_mem_alloc in H.
 inv H.
 simpl.
-destruct (alloc (m_dry j) lo hi); simpl; auto.
+simpl; auto.
 Qed.
 
 Program Definition juicy_mem_free j b lo hi: option juicy_mem :=
