@@ -536,6 +536,7 @@ clear - H.
  intros loc'  [fsig' A' P' Q'].
  unfold func_at.
  intros w ? ?.
+ destruct H2 as [pp ?].
  hnf in H2.
  assert (exists pp, initial_core (Genv.globalenv prog) G n @ loc' = PURE (FUN fsig') pp).
 case_eq (initial_core (Genv.globalenv prog) G n @ loc'); intros.
@@ -546,7 +547,7 @@ eapply necR_YES in H1; try apply H3.
 rewrite H1 in H2; inv H2.
 eapply necR_PURE in H1; try apply H3.
 rewrite H1 in H2; inv H2; eauto.
-destruct H3 as [pp ?].
+destruct H3 as [pp' ?].
 unfold initial_core in H3.
 rewrite resource_at_make_rmap in H3.
 unfold initial_core' in H3.

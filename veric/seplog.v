@@ -48,6 +48,11 @@ Definition func_at (f: funspec): address -> pred rmap :=
    | mk_funspec fsig A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig)
   end.
 
+Definition func_at' (f: funspec) (loc: address) : pred rmap :=
+  match f with
+   | mk_funspec fsig _ _ _ => EX pp:_, pureat pp (FUN fsig) loc
+  end.
+
 (* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
@@ -203,7 +208,7 @@ Definition funassert (Delta: tycontext): assert :=
                    !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) && func_at fs loc)
    && 
-   (ALL  loc: address, ALL fs:funspec, func_at fs loc --> 
+   (ALL  loc: address, ALL fs:funspec, func_at' fs loc --> 
              EX id:ident,EX v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
                                  /\ val2adr v loc) 
                && !! exists fs, (glob_types Delta)!id = Some (Global_func fs)).

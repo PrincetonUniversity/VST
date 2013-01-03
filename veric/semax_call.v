@@ -295,6 +295,16 @@ Proof.
  pose proof (join_canc H1 H3). subst. apply H2.
 Qed. (* Admitted: move this to msl *)
 
+Lemma necR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, necR x y -> necR (core x) (core y).
+Proof.
+ induction 1.
+ constructor 1; apply age_core; auto.
+ constructor 2.
+ constructor 3 with (core y); auto.
+Qed. (* Admitted: move this to msl *)
+
+
 Lemma can_alloc_variables':
   forall jm vl, 
                (level jm > 0)%nat ->
@@ -415,7 +425,45 @@ specialize (H2 loc fs _ (necR_refl _)).
 spec H2.
 clear - Hw2 CORE H6.
 destruct fs; simpl in *.
-admit.  (* easy enough, except impossible *)
+destruct H6 as [pp H6].
+ rewrite <- resource_at_approx.
+case_eq (w @ loc); intros.
+assert (core w @ loc = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+ rewrite <- core_resource_at.
+simpl; erewrite <- core_NO; f_equal; eassumption.
+pose proof (necR_resource_at _ _ _ _ CORE H0).
+pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
+rewrite <- core_resource_at in H2; rewrite H6 in H2; 
+ rewrite core_PURE in H2; inv H2.
+assert (core w @ loc = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+ rewrite <- core_resource_at.
+simpl; erewrite <- core_YES; f_equal; eassumption.
+pose proof (necR_resource_at _ _ _ _ CORE H0).
+pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
+rewrite <- core_resource_at in H2; rewrite H6 in H2; 
+ rewrite core_PURE in H2; inv H2.
+pose proof (resource_at_approx w loc).
+pattern (w @ loc) at 1 in H0; rewrite H in H0.
+symmetry in H0.
+assert (core (w @ loc) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w))
+       (PURE k p))) by (f_equal; auto).
+rewrite core_resource_at in H1.
+assert (core w @ loc = 
+        compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) 
+         (PURE k p)). 
+ rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
+pose proof (necR_resource_at _ _ _ _ CORE H2).
+ assert (w' @ loc = compcert_rmaps.R.resource_fmap
+       (compcert_rmaps.R.approx (level w')) (PURE k p)).
+ rewrite <- core_resource_at in H3. rewrite level_core in H3.
+ destruct (w' @ loc).
+  rewrite core_NO in H3; inv H3.
+  rewrite core_YES in H3; inv H3.
+  rewrite core_PURE in H3; inv H3.
+ reflexivity.
+ pose proof (necR_resource_at _ _ _ _ Hw2 H4).
+ inversion2 H6 H5.
+ exists p. reflexivity.
 destruct H2 as [id [v [[? ?] ?]]].
 exists id, v. split; auto. split; auto.
 Qed.
@@ -426,42 +474,51 @@ Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : enviro
    | None => P
    end.
 
+Lemma fst_split {T1 T2}: forall vl: list (T1*T2), fst (split vl) = map fst vl.
+Proof. induction vl; try destruct a; simpl; auto.
+  rewrite <- IHvl; clear IHvl.
+ destruct (split vl); simpl in *; auto.
+Qed.
+
+Lemma snd_split {T1 T2}: forall vl: list (T1*T2), snd (split vl) = map snd vl.
+Proof. induction vl; try destruct a; simpl; auto.
+  rewrite <- IHvl; clear IHvl.
+ destruct (split vl); simpl in *; auto.
+Qed.
+
 Lemma exprlist_eval :
-  forall (Delta : tycontext) (fsig : funsig) (a : expr) 
+  forall (Delta : tycontext) (fsig : funsig) 
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env) 
-     (rho : environ) (jm : juicy_mem),
-   (tc_expr Delta a rho) (m_phi jm) ->
-   (tc_exprlist Delta (snd (split (fst fsig))) bl rho) (m_phi jm) ->
+     (rho : environ) m,
+   denote_tc_assert (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho ->
    map typeof bl = map snd (fst fsig) ->
    typecheck_environ rho Delta = true ->
    rho = construct_rho (filter_genv psi) vx tx ->
-   (funassert Delta rho) (m_phi jm) ->
    forall f : function,
    fsig = fn_funsig f ->
-   forall te' : temp_env,
-   bind_parameter_temps (fn_params f)
-     (eval_exprlist (snd (split (fst fsig))) bl rho)
-     (create_undef_temps (fn_temps f)) = Some te' ->
-   Clight.eval_exprlist psi vx tx (m_dry jm) bl
+   Clight.eval_exprlist psi vx tx m bl
      (type_of_params (fn_params f))
      (eval_exprlist (snd (split (fst fsig))) bl rho). 
 Proof.
-intros. 
-destruct fsig. unfold fn_funsig in *. inv H5. simpl. simpl in H6. 
-generalize dependent bl. generalize dependent te'. 
-induction (fn_params f); intros; destruct bl; try solve[constructor | simpl in *; congruence]. 
+ intros.
+destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl in *.
+ forget (fn_params f) as vl.
+ forget (fn_temps f) as tl.
+ clear f.
+ clear - H0 H1 H2 H.
 
-simpl. destruct a0. remember (split l). destruct p. simpl.  unfold lift2 in *.
-  simpl in H0. rewrite <- Heqp in H0. simpl in H0. unfold lift2 in *. 
-  destruct H0 as [[? ?] ?].
-  econstructor; eauto. eapply eval_expr_relate; eauto. 
-  eapply cast_exists; eauto.
- (*    simpl in H6. rewrite <- Heqp in H6. simpl in H6. 
-     eapply IHl; auto.  simpl in H1.  simpl. inv H1. auto. 
-   simpl. rewrite <- Heqp. simpl. auto.
-  simpl.
-*)
-  admit.  (* This should be provable with an extra hypothesis that the params are all distinct *)
+ rewrite snd_split. rewrite snd_split in H.
+ revert vl H H0; induction bl; destruct vl; intros; inv H0; simpl.
+ constructor.
+ destruct p. simpl in *; subst.
+ unfold lift2, lift1.
+ destruct H as [[? ?] ?].
+ pose proof (typecheck_expr_sound _ _ _ H1 H).
+ specialize (IHbl _ H2 H5).
+ clear - IHbl H1 H H0 H3.
+ constructor 2 with  (eval_expr  a (construct_rho (filter_genv psi) vx tx)); auto.
+ apply eval_expr_relate with Delta; auto.
+ apply (cast_exists Delta a (typeof a) _ H1 H H0).
 Qed.
 
 Lemma pass_params_ni :
@@ -587,7 +644,7 @@ Lemma semax_call_typecheck_environ:
         (func_at b0 b2) a')
    (H1 : forall (b : address) (b0 : funspec) (a' : rmap),
      necR (m_phi jm') a' ->
-     (func_at b0 b) a' ->
+     (func_at' b0 b) a' ->
      exists b1 : ident,
        exists b2 : val,
          (filter_genv psi b1 = Some (b2, type_of_funspec b0) /\ val2adr b2 b) /\
@@ -1159,8 +1216,9 @@ split; auto.
 eapply step_call_internal with (vargs:=eval_exprlist (snd (split (fst fsig))) bl rho); eauto. 
 rewrite <- H3.  
 eapply eval_expr_relate; try solve[rewrite H0; auto]; auto. destruct TC3; eassumption. auto.
-destruct (fsig). unfold fn_funsig in *. inv H18. 
-eapply exprlist_eval; eauto. destruct TC3; auto.
+destruct (fsig). unfold fn_funsig in *. inv H18.
+eapply exprlist_eval; try eassumption; auto.
+ apply TC2. destruct TC3 ; auto.
 unfold type_of_function. destruct fsig; inv H18; auto. 
 
 assert (n >= level jm')%nat.
@@ -1197,7 +1255,7 @@ destruct TC3 as [TC3 [TC4 TC5]].
 simpl in *. if_tac in H16; try congruence. clear H0. 
 
 eapply semax_call_typecheck_environ; try eassumption.
-destruct TE; auto.
+destruct TE; intros; auto.
 
 normalize.
 split; auto. unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23. 
@@ -1220,6 +1278,13 @@ destruct H20.
 change (level jm = S n) in H2. rewrite H2 in H24; inversion H24. subst n.
 auto.
 
+Qed.
+
+Lemma func_at_func_at':
+ forall fs loc, func_at fs loc |-- func_at' fs loc.
+Proof.
+unfold func_at, func_at'; destruct fs; intros. hnf; intros.
+eexists; eauto.
 Qed.
 
 Lemma semax_call: 
@@ -1258,7 +1323,9 @@ specialize (H6 (b,0)).
 rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b,0) (mk_funspec fsig A P Q) _ (necR_refl _) H6).
+specialize (H7 (b,0) (mk_funspec fsig A P Q) _ (necR_refl _)).
+spec H7.
+apply func_at_func_at'; apply H6.
 destruct H7 as [id [v [[H7 H8] H9]]].
 hnf in H9.
 simpl in H8. unfold val2adr in H8. destruct v; try contradiction.

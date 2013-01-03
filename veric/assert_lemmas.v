@@ -336,6 +336,8 @@ Proof.
  apply corable_allp; intro.
  apply corable_imp; auto.
  destruct b0.
+ simpl.
+ apply corable_exp; intro.
  apply corable_pureat.
 Qed.
 
