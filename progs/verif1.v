@@ -170,6 +170,16 @@ Opaque sepcon.
 Opaque emp.
 Opaque andp.
 
+Lemma eval_cast_int:
+  forall v sign, 
+         tc_val (Tint I32 sign noattr) v ->
+         eval_cast (Tint I32 sign noattr) (Tint I32 sign noattr) v = v.
+Proof.
+ intros.
+ unfold tc_val, eval_cast, Cop.sem_cast, force_val; simpl in *; 
+ destruct v; simpl; auto; inv H; auto.
+Qed.
+
 Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -226,6 +236,8 @@ normalize.
 forward.
 go_lower.
 apply andp_right; normalize.
+unfold P.t_int.
+rewrite eval_cast_int by (eapply tc_eval_id_i; eauto).
 eapply tc_eval_id_i; eauto.
 rewrite H0.
 assert (tc_val P.t_int (eval_id P.i_s rho)) by (eapply tc_eval_id_i; eauto).
@@ -322,8 +334,17 @@ forward.
 go_lower.
 apply andp_right; normalize.
 apply prop_right.
+erewrite eval_cast_pointer2; try reflexivity.
 eapply tc_eval_id_i; eauto.
+unfold ret_type; simpl. unfold ret_type; simpl.  unfold func_tycontext, P.f_reverse; simpl. 
+unfold make_tycontext, ret_type; simpl. reflexivity.
+eapply tc_eval_id_i; eauto.
+unfold temp_types; simpl. reflexivity.
 unfold retval; normalize.
+erewrite eval_cast_pointer2; try reflexivity; auto.
+repeat (unfold ret_type; simpl). reflexivity.
+eapply tc_eval_id_i; eauto.
+unfold temp_types; simpl. reflexivity.
 Qed.
 
 
@@ -386,6 +407,8 @@ apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.
 go_lower.
+unfold P.t_int.
+rewrite eval_cast_int by (eapply tc_eval_id_i; eauto).
 eapply tc_eval_id_i; eauto.
 Qed.
 
