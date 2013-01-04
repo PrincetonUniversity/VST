@@ -235,7 +235,8 @@ normalize.
 (* After the loop *)
 forward.
 go_lower.
-apply andp_right; normalize.
+repeat apply andp_right; normalize.
+hnf; split; simpl; hnf; auto.
 unfold P.t_int.
 rewrite eval_cast_int by (eapply tc_eval_id_i; eauto).
 eapply tc_eval_id_i; eauto.
@@ -332,7 +333,8 @@ apply orp_right2; auto.
 (* after the loop *)
 forward.
 go_lower.
-apply andp_right; normalize.
+repeat apply andp_right; normalize.
+apply prop_right; repeat split; hnf; auto.
 apply prop_right.
 erewrite eval_cast_pointer2; try reflexivity.
 eapply tc_eval_id_i; eauto.
@@ -407,6 +409,8 @@ apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.
 go_lower.
+apply andp_right; apply prop_right.
+repeat split; hnf; auto.
 unfold P.t_int.
 rewrite eval_cast_int by (eapply tc_eval_id_i; eauto).
 eapply tc_eval_id_i; eauto.

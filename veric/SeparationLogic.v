@@ -371,6 +371,10 @@ Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> Prop :=
 Definition tc_value (v:environ -> val) (t :type) : environ -> Prop :=
      fun rho => typecheck_val (v rho) t = true.
 
+Definition tc_expropt Delta (e: option expr) (t: type) : assert :=
+   match e with None => !! (t=Tvoid)
+                     | Some e' => local (tc_expr Delta (Ecast e' t))
+   end.
 
 Lemma extend_local: forall P, extensible (local P).
 Proof.
@@ -569,7 +573,8 @@ Axiom semax_call :
 Axiom  semax_return :
    forall Delta R ret ,
       semax Delta  
-                (lift2 (R EK_return) (cast_expropt ret (ret_type Delta)) id)
+                (tc_expropt Delta ret (ret_type Delta) &&
+                 lift2 (R EK_return) (cast_expropt ret (ret_type Delta)) id)
                 (Sreturn ret)
                 R.
 

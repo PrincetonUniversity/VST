@@ -1446,10 +1446,16 @@ Lemma call_cont_current_function:
 Proof. intros. induction k; try destruct a; simpl in *; inv H; auto.
 Qed.
 
+Definition tc_expropt Delta (e: option expr) (t: type) : assert :=
+   match e with None => lift0 (!! (t=Tvoid))
+                     | Some e' => tc_expr Delta (Ecast e' t)
+   end.
+ 
 Lemma  semax_return :
    forall Delta R ret,
       semax Hspec Delta 
-                (fun rho => R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
+                (fun rho => tc_expropt Delta ret (ret_type Delta) rho && 
+                             R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
@@ -1477,6 +1483,13 @@ clear w n H2 H1 H4.
 destruct H3 as [[H3 ?] ?].
 pose proof I. 
 remember ((construct_rho (filter_genv psi) ve te)) as rho.
+assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta) rho) rho))%pred w').
+eapply sepcon_derives; try apply H1; auto.
+apply andp_left2; auto.
+assert (TC: forall w, tc_expropt Delta ret (ret_type Delta) rho w).
+clear - H1. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros. 
+ destruct ret; apply H1.
+clear H1; rename H1' into H1.
 specialize (H0 EK_return (cast_expropt ret (ret_type Delta) rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
@@ -1497,7 +1510,8 @@ intros.
 simpl in H7.
 destruct H7; split; auto.
 revert H7; simpl.
-destruct ret. simpl.
+destruct ret; specialize (TC (m_phi jm)); unfold tc_expropt in TC; do 4 red in TC.
+simpl.
 case_eq (call_cont k); intros.
 inv H9.
 inv H14.
@@ -1521,7 +1535,7 @@ econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
 exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
 assert (TCe: denote_tc_assert (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
-admit.  (* typechecking proof, only works if e (ret) typechecks*)
+destruct TC; auto.
 split.
 apply eval_expr_relate with (Delta := Delta); auto.
 destruct H3; auto.
@@ -1531,7 +1545,10 @@ destruct H6 as [_ ?].
 rewrite H6.
 unfold eval_cast. unfold lift1.
 apply cast_exists with Delta; auto.
-admit. (* needs some work *)
+
+auto.
+rewrite <- H6.
+destruct TC; auto.
 
 inv H9.
 destruct optid.
@@ -1541,8 +1558,11 @@ destruct H20.
 elimtype False.
 destruct H3.
 simpl in H10. rewrite (call_cont_current_function H7) in H10.
-destruct H10 as [_ H10]. rewrite H6 in H10. 
-admit.  (* needs some work *)
+destruct H10 as [_ H10]. rewrite H6 in H10.
+rewrite H10 in TC.
+clear - TC.
+simpl in TC. destruct TC as [_ ?].
+apply H. 
 simpl.
 intro.
 inv H7.
