@@ -466,7 +466,7 @@ Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
 
 Lemma globvar_eval_var:
-  forall (ge: Genv.t fundef type) Delta rho id t,
+  forall Delta rho id t,
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  (Global_var t) ->
@@ -487,9 +487,9 @@ unfold Map.get; rewrite H. rewrite Hc.
 rewrite eqb_type_refl; auto.
 Qed.
 
-Lemma globvars2pred_unfold: forall ge vl rho, 
-    globvars2pred ge vl rho = 
-    fold_right sepcon emp (map (fun idv => globvar2pred ge idv rho) vl).
+Lemma globvars2pred_unfold: forall vl rho, 
+    globvars2pred vl rho = 
+    fold_right sepcon emp (map (fun idv => globvar2pred idv rho) vl).
 Proof. intros. unfold globvars2pred.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.

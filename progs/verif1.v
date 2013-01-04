@@ -360,7 +360,7 @@ Proof.
  unfold main_pre.
  go_lower.
  simpl.
- destruct (globvar_eval_var (Genv.globalenv P.prog) _ _ P.i_three _ H (eq_refl _) (eq_refl _))
+ destruct (globvar_eval_var _ _ P.i_three _ H (eq_refl _) (eq_refl _))
   as [b [z [H97 H99]]]. simpl in *.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.

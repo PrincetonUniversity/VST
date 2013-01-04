@@ -184,9 +184,7 @@ Proof.
     simpl. auto.
 Qed.
 
-
- 
-Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
+Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
   | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
@@ -201,33 +199,33 @@ Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (
        end
  end.
 
-Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) 
+Fixpoint init_data_list2pred  (dl: list init_data) 
                            (sh: share) (v: val)  (rho: environ) : pred rmap :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred ge d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred ge dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
+      sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
+                  (init_data_list2pred dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Share.Lsh else Share.top.
 
-Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : assert :=
+Definition globvar2pred (idv: ident * globvar type) : assert :=
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
   | Some (v, t) => if (gvar_volatile (snd idv))
                        then  TT
-                       else    init_data_list2pred ge (gvar_init (snd idv))
+                       else    init_data_list2pred (gvar_init (snd idv))
                                    (readonly2share (gvar_readonly (snd idv))) v rho
  end.
 
-Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : assert :=
-  fold_right (lift2 sepcon) (lift0 emp) (map (globvar2pred ge) vl).
+Definition globvars2pred (vl: list (ident * globvar type)) : assert :=
+  fold_right (lift2 sepcon) (lift0 emp) (map globvar2pred vl).
 
 Lemma globvars2pred_rev:
-  forall ge l, globvars2pred ge (rev l) = globvars2pred ge l.
+  forall l, globvars2pred (rev l) = globvars2pred l.
 Proof.
  intros. unfold globvars2pred. 
  rewrite map_rev.
@@ -535,19 +533,8 @@ if_tac in H1; inv H1.
  destruct H1 as [? | [?|[?|?]]]; rewrite H1; simpl; auto.
 Qed.
 
-(*Lemma if_not_dec:
- forall f F b (T: Type) (A B : T) , 
-    (if @not_dec f F b then A else B) = (if F b then B else A).
-Proof. intros. destruct (F b). rewrite if_false ;auto. rewrite if_true; auto.
-Qed.
-Ltac if_not := 
- match goal with |- context [if @not_dec ?A _ _ then _ else _] => 
-  rewrite (if_not_dec A)
- end.
-*)
-
 Lemma init_data_lem:
-forall (ge : Genv.t fundef type) (v : globvar type) (b : block) (m1 : mem')
+forall ge (v : globvar type) (b : block) (m1 : mem')
   (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: environ)
   (w1 wf : rmap),
    load_store_init_data1 ge m3 b z a ->
@@ -561,7 +548,7 @@ forall (ge : Genv.t fundef type) (v : globvar type) (b : block) (m1 : mem')
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + Genv.init_data_size a < Int.modulus)
          (RHO: ge_of rho = filter_genv ge),
-  (init_data2pred ge a  (Share.splice extern_retainer (readonly2share (gvar_readonly v)))
+  (init_data2pred a  (Share.splice extern_retainer (readonly2share (gvar_readonly v)))
        (Vptr b (Int.repr z))) rho w1.
 Proof.
   intros.
@@ -798,7 +785,7 @@ Lemma init_data_list_lem:
    (VOL:  gvar_volatile v = false)
    (AL: initializers_aligned 0 (gvar_init v) = true)
    (RHO: ge_of rho = filter_genv ge),
-     init_data_list2pred ge (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Int.zero) 
+     init_data_list2pred (gvar_init v) (readonly2share (gvar_readonly v)) (Vptr b Int.zero) 
             rho (beyond_block b (inflate_initial_mem m4 phi0)).
 Proof.
 intros.
@@ -1192,12 +1179,12 @@ Lemma alloc_Gfun_inflate:
    (forall phi : rmap,
     hackfun (inflate_initial_mem m0 (initial_core gev (G0 ++ (i, fs) :: G) n))
       phi -> 
-  (globvars2pred gev vl rho) phi) ->
+  (globvars2pred vl rho) phi) ->
   Genv.find_symbol gev i = Some (nextblock m0) ->
   ~ In i (map fst vl) ->
   forall phi : rmap,
   hackfun (inflate_initial_mem m (initial_core gev (G0 ++ (i, fs) :: G) n)) phi ->
-      (globvars2pred gev vl rho) phi.
+      (globvars2pred vl rho) phi.
 Proof.
  intros.
  apply H0.
@@ -1353,11 +1340,11 @@ destruct (make_rmap _ H1 (level w))  as [w2' [? ?]]; clear H1.
 Qed.
 
 Lemma init_datalist_hack:
-  forall gev b sh rho dl phi0 z,
-   (init_data_list2pred gev dl sh (Vptr b z) rho) phi0 ->
+  forall b sh rho dl phi0 z,
+   (init_data_list2pred dl sh (Vptr b z) rho) phi0 ->
   forall phi,
      hackfun phi0 phi ->
-   (init_data_list2pred gev dl sh (Vptr b z) rho) phi.
+   (init_data_list2pred dl sh (Vptr b z) rho) phi.
 Proof.
 induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
    apply all_resource_at_identity; intro loc. destruct (H0 loc).
@@ -1435,7 +1422,7 @@ Lemma global_initializers:
     match_fdecs (prog_funct prog) G ->
     ge_of rho = filter_genv (Genv.globalenv prog) ->
     Genv.init_mem prog = Some m ->
-     app_pred (globvars2pred (Genv.globalenv prog) (prog_vars prog) rho)
+     app_pred (globvars2pred (prog_vars prog) rho)
   (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
 Proof.
  intros until rho. intros ? AL SAME_IDS RHO ?. 
@@ -1470,7 +1457,7 @@ Proof.
  forget (@nil (ident*funspec)) as G0.
  move H2 after H. move H1 after H. 
  assert (forall phi, hackfun (inflate_initial_mem m (initial_core gev (G0++G) n)) phi ->
-          (globvars2pred gev (prog_vars' vl) rho) phi).
+          (globvars2pred (prog_vars' vl) rho) phi).
 Focus 2. apply H3. clear. 
  split. auto.
  intro loc. intuition.

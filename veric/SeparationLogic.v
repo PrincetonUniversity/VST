@@ -93,7 +93,7 @@ Definition offset_val (v: val) (ofs: int) : val :=
   | _ => Vundef
  end.
  
-Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
+Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
   | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
@@ -110,30 +110,30 @@ Definition init_data2pred (ge: Genv.t fundef type) (d: init_data)  (sh: share) (
 
 Definition extern_retainer : share := Share.Lsh.
 
-Fixpoint init_data_list2pred  (ge: Genv.t fundef type)  (dl: list init_data) 
+Fixpoint init_data_list2pred (dl: list init_data) 
                            (sh: share) (v: val)  (rho: environ) : mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred ge d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred ge dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
+      sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
+                  (init_data_list2pred dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Share.Lsh else Share.top.
 
-Definition globvar2pred (ge: Genv.t fundef type) (idv: ident * globvar type) : assert :=
+Definition globvar2pred (idv: ident * globvar type) : assert :=
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
   | Some (v, t) => if (gvar_volatile (snd idv))
                        then  TT
-                       else    init_data_list2pred ge (gvar_init (snd idv))
+                       else    init_data_list2pred (gvar_init (snd idv))
                                    (readonly2share (gvar_readonly (snd idv))) v rho
  end.
 
-Definition globvars2pred (ge: Genv.t fundef type) (vl: list (ident * globvar type)) : assert :=
-  fold_right sepcon emp (map (globvar2pred ge) vl).
+Definition globvars2pred (vl: list (ident * globvar type)) : assert :=
+  fold_right sepcon emp (map globvar2pred vl).
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
@@ -411,8 +411,8 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
 
-Definition main_pre (prog: program) : unit -> assert :=
-(fun tt => globvars2pred (Genv.globalenv prog) (prog_vars prog)).
+Definition main_pre (prog: program) : unit -> assert := 
+  (fun tt => globvars2pred (prog_vars prog)).
 
 Definition main_post (prog: program) : unit -> assert := 
   (fun tt => TT).
