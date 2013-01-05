@@ -17,13 +17,11 @@ Require Import Errors.
 Require Import Maps.
 Require Import Integers.
 Require Import Floats.
-Require Import Values.
 Require Import Memory.
 Require Import AST.
 Require Import Ctypes.
 Require Import Cop.
 Require Import Csyntax.
-Require Cstrategy.
 Require Import Clight.
 Require Import SimplExpr.
 
@@ -1062,7 +1060,7 @@ Theorem transl_function_spec:
   /\ fn_vars tf = C.fn_vars f.
 Proof.
   intros until tf. unfold transl_function.
-  case_eq (transl_stmt (C.fn_body f) initial_generator); intros; inv H0.
+  case_eq (transl_stmt (C.fn_body f) (initial_generator tt)); intros; inv H0.
   simpl. intuition. eapply transl_stmt_meets_spec; eauto.
 Qed.
 

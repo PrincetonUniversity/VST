@@ -1336,7 +1336,6 @@ Proof.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   econstructor; split.
   apply plus_one. apply step_skip_call. auto.
-  monadInv TRF. simpl. rewrite H0. auto.
   eapply match_env_free_blocks; eauto.
   constructor. eauto.
 

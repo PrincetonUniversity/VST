@@ -17,10 +17,14 @@ Require Import FSets.
 Require FSetAVL.
 Require Import Coqlib.
 Require Import Ordered.
+Require Import Errors.
 Require Import AST.
 Require Import Ctypes.
 Require Import Cop.
 Require Import Clight.
+
+Open Scope error_monad_scope.
+Open Scope string_scope.
 
 Module VSet := FSetAVL.Make(OrderedPositive).
 
@@ -29,12 +33,11 @@ Module VSet := FSetAVL.Make(OrderedPositive).
 
 Definition compilenv := VSet.t.
 
-(** Renaming variables and temporaries *)
-
-Definition for_var (id: ident) : ident := xO id.
-Definition for_temp (id: ident) : ident := xI id.
-Definition for_opttemp (optid: option ident) : option ident :=
-  match optid with None => None | Some id => Some (for_temp id) end.
+Definition is_liftable_var (cenv: compilenv) (a: expr) : option ident :=
+  match a with
+  | Evar id ty => if VSet.mem id cenv then Some id else None
+  | _ => None
+  end.
 
 (** Rewriting of expressions and statements. *)
 
@@ -42,8 +45,8 @@ Fixpoint simpl_expr (cenv: compilenv) (a: expr) : expr :=
   match a with
   | Econst_int _ _ => a
   | Econst_float _ _ => a
-  | Evar id ty => if VSet.mem id cenv then Etempvar (for_var id) ty else Evar id ty
-  | Etempvar id ty => Etempvar (for_temp id) ty
+  | Evar id ty => if VSet.mem id cenv then Etempvar id ty else Evar id ty
+  | Etempvar id ty => Etempvar id ty
   | Ederef a1 ty => Ederef (simpl_expr cenv a1) ty
   | Eaddrof a1 ty => Eaddrof (simpl_expr cenv a1) ty
   | Eunop op a1 ty => Eunop op (simpl_expr cenv a1) ty
@@ -55,48 +58,69 @@ Fixpoint simpl_expr (cenv: compilenv) (a: expr) : expr :=
 Definition simpl_exprlist (cenv: compilenv) (al: list expr) : list expr :=
   List.map (simpl_expr cenv) al.
 
-Definition is_liftable_var (cenv: compilenv) (a: expr) : option ident :=
-  match a with
-  | Evar id ty => if VSet.mem id cenv then Some id else None
-  | _ => None
+Definition check_temp (cenv: compilenv) (id: ident) : res unit :=
+  if VSet.mem id cenv
+  then Error (MSG "bad temporary " :: CTX id :: nil)
+  else OK tt.
+
+Definition check_opttemp (cenv: compilenv) (optid: option ident) : res unit :=
+  match optid with
+  | Some id => check_temp cenv id
+  | None => OK tt
   end.
 
-Fixpoint simpl_stmt (cenv: compilenv) (s: statement) : statement :=
+Fixpoint simpl_stmt (cenv: compilenv) (s: statement) : res statement :=
   match s with
-  | Sskip => Sskip
-  | Sassign a b =>
-      match is_liftable_var cenv a with
-      | Some id => Sset (for_var id) (Ecast (simpl_expr cenv b) (typeof a))
-      | None    => Sassign (simpl_expr cenv a) (simpl_expr cenv b)
+  | Sskip => OK Sskip
+  | Sassign a1 a2 =>
+      match is_liftable_var cenv a1 with
+      | Some id =>
+          OK (Sset id (Ecast (simpl_expr cenv a2) (typeof a1)))
+      | None =>
+          OK (Sassign (simpl_expr cenv a1) (simpl_expr cenv a2))
       end
   | Sset id a =>
-      Sset (for_temp id) (simpl_expr cenv a)
-  | Scall optid a bl =>
-      Scall (for_opttemp optid) (simpl_expr cenv a) (simpl_exprlist cenv bl)
-  | Sbuiltin optid ef tyargs bl =>
-      Sbuiltin (for_opttemp optid) ef tyargs (simpl_exprlist cenv bl)
+      do x <- check_temp cenv id;
+      OK (Sset id (simpl_expr cenv a))
+  | Scall optid a al =>
+      do x <- check_opttemp cenv optid;
+      OK (Scall optid (simpl_expr cenv a) (simpl_exprlist cenv al))
+  | Sbuiltin optid ef tyargs al =>
+      do x <- check_opttemp cenv optid;
+      OK (Sbuiltin optid ef tyargs (simpl_exprlist cenv al))
   | Ssequence s1 s2 =>
-      Ssequence (simpl_stmt cenv s1) (simpl_stmt cenv s2)
+      do s1' <- simpl_stmt cenv s1;
+      do s2' <- simpl_stmt cenv s2;
+      OK (Ssequence s1' s2')
   | Sifthenelse a s1 s2 =>
-      Sifthenelse (simpl_expr cenv a) (simpl_stmt cenv s1) (simpl_stmt cenv s2)
+      do s1' <- simpl_stmt cenv s1;
+      do s2' <- simpl_stmt cenv s2;
+      OK (Sifthenelse (simpl_expr cenv a) s1' s2')
   | Sloop s1 s2 =>
-      Sloop (simpl_stmt cenv s1) (simpl_stmt cenv s2)
-  | Sbreak => Sbreak
-  | Scontinue => Scontinue
-  | Sreturn opta => Sreturn (option_map (simpl_expr cenv) opta)
+      do s1' <- simpl_stmt cenv s1;
+      do s2' <- simpl_stmt cenv s2;
+      OK (Sloop s1' s2')
+  | Sbreak => OK Sbreak
+  | Scontinue => OK Scontinue
+  | Sreturn opta => OK (Sreturn (option_map (simpl_expr cenv) opta))
   | Sswitch a ls =>
-      Sswitch (simpl_expr cenv a) (simpl_lblstmt cenv ls)
+      do ls' <- simpl_lblstmt cenv ls;
+      OK (Sswitch (simpl_expr cenv a) ls')
   | Slabel lbl s =>
-      Slabel lbl (simpl_stmt cenv s)
-  | Sgoto lbl => Sgoto lbl
+      do s' <- simpl_stmt cenv s;
+      OK (Slabel lbl s')
+  | Sgoto lbl => OK (Sgoto lbl)
   end
 
-with simpl_lblstmt (cenv: compilenv) (ls: labeled_statements) : labeled_statements :=
+with simpl_lblstmt (cenv: compilenv) (ls: labeled_statements) : res labeled_statements :=
   match ls with
   | LSdefault s =>
-      LSdefault (simpl_stmt cenv s)
-  | LScase n s ls' =>
-      LScase n (simpl_stmt cenv s) (simpl_lblstmt cenv ls')
+      do s' <- simpl_stmt cenv s;
+      OK (LSdefault s')
+  | LScase n s ls1 =>
+      do s' <- simpl_stmt cenv s;
+      do ls1' <- simpl_lblstmt cenv ls1;
+      OK (LScase n s' ls1')
   end.
 
 (** Function parameters that are not lifted to temporaries must be
@@ -109,7 +133,7 @@ Fixpoint store_params (cenv: compilenv) (params: list (ident * type))
   | (id, ty) :: params' =>
       if VSet.mem id cenv
       then store_params cenv params' s
-      else Ssequence (Sassign (Evar id ty) (Etempvar (for_var id) ty))
+      else Ssequence (Sassign (Evar id ty) (Etempvar id ty))
                      (store_params cenv params' s)
   end.
 
@@ -179,33 +203,32 @@ Definition cenv_for (f: function) : compilenv :=
 
 (** Transform a function *)
 
-Definition rename_decl (rename: ident -> ident) (vars: list (ident * type)) :=
-  List.map (fun id_ty => (rename (fst id_ty), snd id_ty)) vars.
-
 Definition remove_lifted (cenv: compilenv) (vars: list (ident * type)) :=
   List.filter (fun id_ty => negb (VSet.mem (fst id_ty) cenv)) vars.
 
 Definition add_lifted (cenv: compilenv) (vars1 vars2: list (ident * type)) :=
-  rename_decl for_var (List.filter (fun id_ty => VSet.mem (fst id_ty) cenv) vars1)
-  ++ rename_decl for_temp vars2.
+  List.filter (fun id_ty => VSet.mem (fst id_ty) cenv) vars1 ++ vars2.
 
-Definition transf_function (f: function) : function :=
+Definition transf_function (f: function) : res function :=
   let cenv := cenv_for f in
-  {| fn_return := f.(fn_return);
-     fn_params := rename_decl for_var f.(fn_params);
-     fn_vars := remove_lifted cenv (f.(fn_params) ++ f.(fn_vars));
-     fn_temps := add_lifted cenv f.(fn_vars) f.(fn_temps);
-     fn_body := store_params cenv f.(fn_params) (simpl_stmt cenv f.(fn_body)) |}.
+  do x <- assertion (list_disjoint_dec ident_eq (var_names f.(fn_params))
+                                                (var_names f.(fn_temps)));
+  do body' <- simpl_stmt cenv f.(fn_body);
+  OK {| fn_return := f.(fn_return);
+        fn_params := f.(fn_params);
+        fn_vars := remove_lifted cenv (f.(fn_params) ++ f.(fn_vars));
+        fn_temps := add_lifted cenv f.(fn_vars) f.(fn_temps);
+        fn_body := store_params cenv f.(fn_params) body' |}.
 
 (** Whole-program transformation *)
 
-Definition transf_fundef (fd: fundef) : fundef :=
+Definition transf_fundef (fd: fundef) : res fundef :=
   match fd with
-  | Internal f => Internal (transf_function f)
-  | External ef targs tres => External ef targs tres
+  | Internal f => do tf <- transf_function f; OK (Internal tf)
+  | External ef targs tres => OK (External ef targs tres)
   end.
 
-Definition transf_program (p: program) : program :=
-  AST.transform_program transf_fundef p.
+Definition transf_program (p: program) : res program :=
+  AST.transform_partial_program transf_fundef p.
 
 

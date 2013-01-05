@@ -33,6 +33,9 @@ OCB_OPTIONS_CHECKLINK=\
   $(OCB_OPTIONS) \
   -I checklink \
   -use-ocamlfind
+OCB_OPTIONS_CLIGHTGEN=\
+  $(OCB_OPTIONS) \
+  -I exportclight
 
 VPATH=$(DIRS)
 GPATH=$(DIRS)
@@ -101,13 +104,9 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Cstrategy.v Cexec.v \
 
 DRIVER=Compiler.v Complements.v
 
-# Exporting Clight AST
-
-EXPORTCLIGHT=SimplLocals.v
-
 # All source files
 
-FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) $(EXPORTCLIGHT)
+FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ)
 
 # Symbolic links vs. copy
 
@@ -117,21 +116,33 @@ else
 SLN=ln -s
 endif
 
+all:
+	$(MAKE) proof
+	$(MAKE) extraction
+	$(MAKE) ccomp
+	$(MAKE) runtime
+ifeq ($(CCHECKLINK),true)
+	$(MAKE) cchecklink
+endif
+
 proof: $(FILES:.v=.vo)
 
-extraction:
+extraction: extraction/STAMP
+
+extraction/STAMP: $(FILES:.v=.vo) extraction/extraction.v
 	rm -f extraction/*.ml extraction/*.mli
 	$(COQEXEC) extraction/extraction.v
+	touch extraction/STAMP
 
-ccomp: driver/Configuration.ml
+ccomp: extraction/STAMP driver/Configuration.ml
 	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.native \
         && rm -f ccomp && $(SLN) _build/driver/Driver.native ccomp
 
-ccomp.prof: driver/Configuration.ml
+ccomp.prof: extraction/STAMP driver/Configuration.ml
 	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.p.native \
         && rm -f ccomp.prof && $(SLN) _build/driver/Driver.p.native ccomp.prof
 
-ccomp.byte: driver/Configuration.ml
+ccomp.byte: extraction/STAMP driver/Configuration.ml
 	$(OCAMLBUILD) $(OCB_OPTIONS) Driver.d.byte \
         && rm -f ccomp.byte && $(SLN) _build/driver/Driver.d.byte ccomp.byte
 
@@ -146,24 +157,15 @@ cchecklink.byte: driver/Configuration.ml
 	$(OCAMLBUILD) $(OCB_OPTIONS_CHECKLINK) Validator.d.byte \
         && rm -f cchecklink.byte && $(SLN) _build/checklink/Validator.d.byte cchecklink.byte
 
-clightgen: driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS_CHECKLINK) Clightgen.native \
+clightgen: extraction/STAMP driver/Configuration.ml exportclight/Clightdefs.vo
+	$(OCAMLBUILD) $(OCB_OPTIONS_CLIGHTGEN) Clightgen.native \
         && rm -f clightgen && $(SLN) _build/exportclight/Clightgen.native clightgen
 
-clightgen.byte: driver/Configuration.ml
-	$(OCAMLBUILD) $(OCB_OPTIONS_CHECKLINK) Clightgen.d.byte \
+clightgen.byte: extraction/STAMP driver/Configuration.ml exportclight/Clightdefs.vo
+	$(OCAMLBUILD) $(OCB_OPTIONS_CLIGHTGEN) Clightgen.d.byte \
         && rm -f clightgen.byte && $(SLN) _build/exportclight/Clightgen.d.byte clightgen.byte
 
-.PHONY: proof extraction cil ccomp ccomp.prof ccomp.byte runtime cchecklink cchecklink.byte clightgen clightgen.byte
-
-all:
-	$(MAKE) proof
-	$(MAKE) extraction
-	$(MAKE) ccomp
-	$(MAKE) runtime
-ifeq ($(CCHECKLINK),true)
-	$(MAKE) cchecklink
-endif
+.PHONY: proof extraction ccomp ccomp.prof ccomp.byte runtime cchecklink cchecklink.byte clightgen clightgen.byte
 
 documentation: doc/coq2html $(FILES)
 	mkdir -p doc/html
@@ -223,13 +225,13 @@ endif
 	$(MAKE) -C runtime install
 
 clean:
-	rm -f $(patsubst %, %/*.vo, $(DIRS))
-	rm -f ccomp ccomp.byte cchecklink cchecklink.byte
+	rm -f $(patsubst %, %/*.vo, $(DIRS) exportclight)
+	rm -f ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
 	rm -rf _build
 	rm -rf doc/html doc/*.glob
 	rm -f doc/coq2html.ml doc/coq2html
 	rm -f driver/Configuration.ml
-	rm -f extraction/*.ml extraction/*.mli
+	rm -f extraction/STAMP extraction/*.ml extraction/*.mli
 	rm -f tools/ndfun
 	$(MAKE) -C runtime clean
 	$(MAKE) -C test/cminor clean
@@ -242,11 +244,13 @@ distclean:
 check-admitted: $(FILES)
 	@grep -w 'admit\|Admitted\|ADMITTED' $^ || echo "Nothing admitted."
 
-# Problems with coqchk:
+# Problems with coqchk (coq 8.3pl3):
 #   Integers.one_bits_range takes forever to check
 #   Mach#<>#instruction causes a failure
+#   Asm#<>#instruction causes a failure
+#   UnionFind.UF.elt causes an Anomaly (!)
 check-proof: $(FILES)
-	$(COQCHK) -admit Integers Complements
+	$(COQCHK) -admit Integers -admit Mach -admit Asm -admit UnionFind Complements
 
 include .depend
 

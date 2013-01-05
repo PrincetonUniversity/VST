@@ -14,6 +14,7 @@
 
 Require Import Coq.Program.Equality.
 Require Import FSets.
+Require Import Permutation.
 Require Import Coqlib.
 Require Intv.
 Require Import Errors.
@@ -22,7 +23,6 @@ Require Import AST.
 Require Import Integers.
 Require Import Floats.
 Require Import Values.
-Require Import Memdata.
 Require Import Memory.
 Require Import Events.
 Require Import Globalenvs.
@@ -150,70 +150,46 @@ Proof.
   eapply Mem.nextblock_store; eauto.
 Qed.
 
-(** * Correspondence between Csharpminor's and Cminor's environments and memory states *)
+(** * Correspondence between C#minor's and Cminor's environments and memory states *)
 
-(** In Csharpminor, every variable is stored in a separate memory block.
-  In the corresponding Cminor code, some of these variables reside in
-  the local variable environment; others are sub-blocks of the stack data 
-  block.  We capture these changes in memory via a memory injection [f]:
-- [f b = None] means that the Csharpminor block [b] no longer exist
-  in the execution of the generated Cminor code.  This corresponds to
-  a Csharpminor local variable translated to a Cminor local variable.
-- [f b = Some(b', ofs)] means that Csharpminor block [b] corresponds
+(** In C#minor, every variable is stored in a separate memory block.
+  In the corresponding Cminor code, these variables become sub-blocks
+  of the stack data block.  We capture these changes in memory via a
+  memory injection [f]: 
+  [f b = Some(b', ofs)] means that C#minor block [b] corresponds
   to a sub-block of Cminor block [b] at offset [ofs].
 
   A memory injection [f] defines a relation [val_inject f] between
-  values and a relation [Mem.inject f] between memory states.
-  These relations will be used intensively
-  in our proof of simulation between Csharpminor and Cminor executions.
+  values and a relation [Mem.inject f] between memory states.  These
+  relations will be used intensively in our proof of simulation
+  between C#minor and Cminor executions. *)
 
-  In this section, we define the relation between
-  Csharpminor and Cminor environments. *)
+(** ** Matching between Cshaprminor's temporaries and Cminor's variables *)
 
-(******
-(** Matching for a Csharpminor variable [id].
-- If this variable is mapped to a Cminor local variable, the
-  corresponding Csharpminor memory block [b] must no longer exist in
-  Cminor ([f b = None]).  Moreover, the content of block [b] must
-  match the value of [id] found in the Cminor local environment [te].
-- If this variable is mapped to a sub-block of the Cminor stack data
-  at offset [ofs], the address of this variable in Csharpminor [Vptr b
-  Int.zero] must match the address of the sub-block [Vptr sp (Int.repr
-  ofs)].
-*)
+Definition match_temps (f: meminj) (le: Csharpminor.temp_env) (te: env) : Prop :=
+  forall id v, le!id = Some v -> exists v', te!(id) = Some v' /\ val_inject f v v'.
 
-Inductive match_var (f: meminj) (id: ident)
-                    (e: Csharpminor.env) (m: mem) (te: env) (sp: block) : 
-                    var_info -> Prop :=
-  | match_var_local:
-      forall chunk b v v',
-      PTree.get id e = Some (b, Vscalar chunk) ->
-      Mem.load chunk m b 0 = Some v ->
-      f b = None ->
-      PTree.get (for_var id) te = Some v' ->
-      val_inject f v v' ->
-      match_var f id e m te sp (Var_local chunk)
-  | match_var_stack_scalar:
-      forall chunk ofs b,
-      PTree.get id e = Some (b, Vscalar chunk) ->
-      val_inject f (Vptr b Int.zero) (Vptr sp (Int.repr ofs)) ->
-      match_var f id e m te sp (Var_stack_scalar chunk ofs)
-  | match_var_stack_array:
-      forall ofs sz al b,
-      PTree.get id e = Some (b, Varray sz al) ->
-      val_inject f (Vptr b Int.zero) (Vptr sp (Int.repr ofs)) ->
-      match_var f id e m te sp (Var_stack_array ofs sz al)
-  | match_var_global_scalar:
-      forall chunk,
-      PTree.get id e = None ->
-      (forall b gv, Genv.find_symbol ge id = Some b ->
-                    Genv.find_var_info ge b = Some gv ->
-                    gvar_info gv = Vscalar chunk) ->
-      match_var f id e m te sp (Var_global_scalar chunk)
-  | match_var_global_array:
-      PTree.get id e = None ->
-      match_var f id e m te sp (Var_global_array).
-*******)
+Lemma match_temps_invariant:
+  forall f f' le te,
+  match_temps f le te ->
+  inject_incr f f' ->
+  match_temps f' le te.
+Proof.
+  intros; red; intros. destruct (H _ _ H1) as [v' [A B]]. exists v'; eauto.
+Qed.
+
+Lemma match_temps_assign:
+  forall f le te id v tv,
+  match_temps f le te ->
+  val_inject f v tv ->
+  match_temps f (PTree.set id v le) (PTree.set id tv te).
+Proof.
+  intros; red; intros. rewrite PTree.gsspec in *. destruct (peq id0 id).
+  inv H1. exists tv; auto.
+  eauto.
+Qed.
+
+(** ** Matching between C#minor's variable environment and Cminor's stack pointer *)
 
 Inductive match_var (f: meminj) (sp: block): option (block * Z) -> option Z -> Prop :=
   | match_var_local: forall b sz ofs,
@@ -222,192 +198,61 @@ Inductive match_var (f: meminj) (sp: block): option (block * Z) -> option Z -> P
   | match_var_global:
       match_var f sp None None.
 
-(** Matching between a Csharpminor environment [e] and a Cminor
-  environment [te].  The [lo] and [hi] parameters delimit the range
+(** Matching between a C#minor environment [e] and a Cminor
+  stack pointer [sp]. The [lo] and [hi] parameters delimit the range
   of addresses for the blocks referenced from [te]. *)
 
 Record match_env (f: meminj) (cenv: compilenv)
-                 (e: Csharpminor.env) (le: Csharpminor.temp_env) (m: mem)
-                 (te: env) (sp: block)
+                 (e: Csharpminor.env) (sp: block)
                  (lo hi: Z) : Prop :=
   mk_match_env {
 
-(** Csharpminor local variables match sub-blocks of the Cminor stack data block. *)
+(** C#minor local variables match sub-blocks of the Cminor stack data block. *)
     me_vars:
       forall id, match_var f sp (e!id) (cenv!id);
-
-(** Temporaries match *)
-    me_temps:
-      forall id v, le!id = Some v ->
-      exists v', te!(id) = Some v' /\ val_inject f v v';
 
 (** [lo, hi] is a proper interval. *)
     me_low_high:
       lo <= hi;
 
-(** Every block appearing in the Csharpminor environment [e] must be
+(** Every block appearing in the C#minor environment [e] must be
   in the range [lo, hi]. *)
     me_bounded:
       forall id b sz, PTree.get id e = Some(b, sz) -> lo <= b < hi;
 
-(****
-(** Distinct Csharpminor local variables must be mapped to distinct blocks. *)
-    me_inj:
-      forall id1 b1 lv1 id2 b2 lv2,
-      PTree.get id1 e = Some(b1, lv1) ->
-      PTree.get id2 e = Some(b2, lv2) ->
-      id1 <> id2 -> b1 <> b2;
-****)
-
 (** All blocks mapped to sub-blocks of the Cminor stack data must be
-    images of variables from the Csharpminor environment [e] *)
+    images of variables from the C#minor environment [e] *)
     me_inv:
       forall b delta,
       f b = Some(sp, delta) ->
       exists id, exists sz, PTree.get id e = Some(b, sz);
 
-(** All Csharpminor blocks below [lo] (i.e. allocated before the blocks
+(** All C#minor blocks below [lo] (i.e. allocated before the blocks
   referenced from [e]) must map to blocks that are below [sp]
   (i.e. allocated before the stack data for the current Cminor function). *)
     me_incr:
       forall b tb delta,
-      f b = Some(tb, delta) -> b < lo -> tb < sp;
-
-(** The sizes of blocks appearing in [e] are respected *)
-    me_bounds:
-      forall id b sz ofs p,
-      PTree.get id e = Some(b, sz) -> Mem.perm m b ofs Max p -> 0 <= ofs < sz
+      f b = Some(tb, delta) -> b < lo -> tb < sp
   }.
-
-Hint Resolve me_low_high.
-
-(** The remainder of this section is devoted to showing preservation
-  of the [match_en] invariant under various assignments and memory
-  stores.  First: invariance by changes of memory and injections. *)
 
 Ltac geninv x := 
   let H := fresh in (generalize x; intro H; inv H).
 
 Lemma match_env_invariant:
-  forall f1 cenv e le m1 te sp lo hi f2 m2,
-  match_env f1 cenv e le m1 te sp lo hi ->
-  (forall b ofs p, 
-   lo <= b < hi -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
+  forall f1 cenv e sp lo hi f2,
+  match_env f1 cenv e sp lo hi ->
   inject_incr f1 f2 ->
   (forall b delta, f2 b = Some(sp, delta) -> f1 b = Some(sp, delta)) ->
   (forall b, b < lo -> f2 b = f1 b) ->
-  match_env f2 cenv e le m2 te sp lo hi.
+  match_env f2 cenv e sp lo hi.
 Proof.
   intros. destruct H. constructor; auto.
 (* vars *)
   intros. geninv (me_vars0 id); econstructor; eauto.
-(* temps *)
-  intros. exploit me_temps0; eauto. intros [v' [A B]]. exists v'; eauto.
 (* bounded *)
   intros. eauto. 
 (* below *)
-  intros. rewrite H3 in H; eauto.
-(* bounds *)
-  intros. eauto.
-Qed.
-
-(** Preservation by assignment to a Csharpminor temporary and the
-  corresponding Cminor local variable. *)
-
-Lemma match_env_set_temp:
-  forall f cenv e le m te sp lo hi id v tv,
-  val_inject f v tv ->
-  match_env f cenv e le m te sp lo hi ->
-  match_env f cenv e (PTree.set id v le) m (PTree.set id tv te) sp lo hi.
-Proof.
-  intros. destruct H0. constructor; auto.
-  intros until v0. repeat rewrite PTree.gsspec. destruct (peq id0 id); intros.
-  inv H0. exists tv; auto. eauto.
-Qed.
-
-(** [match_env] and allocations *)
-
-Lemma match_env_alloc_same:
-  forall f1 cenv e le m1 te sp lo m2 b f2 id ofs sz,
-  match_env f1 cenv e le m1 te sp lo (Mem.nextblock m1) ->
-  Mem.alloc m1 0 sz = (m2, b) ->
-  inject_incr f1 f2 ->
-  f2 b = Some(sp, ofs) ->
-  (forall b', b' <> b -> f2 b' = f1 b') ->
-  e!id = None ->
-  match_env f2 (PTree.set id ofs cenv) (PTree.set id (b, sz) e) le m2 te sp lo (Mem.nextblock m2).
-Proof.
-  intros until sz. intros ME ALLOC INCR SAME OTHER ENV.
-  inv ME; constructor.
-(* vars *)
-  intros. repeat rewrite PTree.gsspec. destruct (peq id0 id).
-  (* the new var *)
-  constructor. econstructor. eauto. rewrite Int.add_commut; rewrite Int.add_zero; auto.
-  (* the other vars *)
-  geninv (me_vars0 id0); constructor; eauto.
-(* temps *)
-  intros. exploit me_temps0; eauto. intros [v' [A B]]. 
-  exists v'; split; auto. eapply val_inject_incr; eauto.
-(* low high *)
-  exploit Mem.nextblock_alloc; eauto. unfold block in *; omega.
-(* bounded *)
-  exploit Mem.alloc_result; eauto. intro RES.
-  exploit Mem.nextblock_alloc; eauto. intro NEXT.
-  intros until sz0. rewrite PTree.gsspec. destruct (peq id0 id); intro EQ.
-  inv EQ. unfold block in *; omega.
-  exploit me_bounded0; eauto. unfold block in *; omega.
-(* inv *)
-  intros. destruct (zeq b0 b). 
-  subst. exists id; exists sz. apply PTree.gss.
-  exploit me_inv0; eauto. rewrite <- OTHER; eauto.
-  intros [id' [lv' A]]. exists id'; exists lv'.
-  rewrite PTree.gso; auto. congruence.
-(* incr *)
-  intros. eapply me_incr0; eauto. rewrite <- OTHER; eauto.
-  exploit Mem.alloc_result; eauto. unfold block; omega.
-(* bounds *)
-  intros. rewrite PTree.gsspec in H.
-  exploit Mem.perm_alloc_inv. eexact ALLOC. eauto. 
-  destruct (peq id0 id). 
-  inv H. rewrite zeq_true. auto. 
-  rewrite zeq_false. eauto. 
-  apply Mem.valid_not_valid_diff with m1.
-  exploit me_bounded0; eauto. intros [A B]. auto. 
-  eauto with mem.
-Qed.
-
-(*
-Lemma match_env_alloc_other:
-  forall f1 cenv e le m1 te sp lo hi sz m2 b f2,
-  match_env f1 cenv e le m1 te sp lo hi ->
-  Mem.alloc m1 0 sz = (m2, b) ->
-  inject_incr f1 f2 ->
-  (forall b', b' <> b -> f2 b' = f1 b') ->
-  hi <= b ->
-  match f2 b with None => True | Some(b',ofs) => sp < b' end ->
-  match_env f2 cenv e le m2 te sp lo hi.
-Proof.
-  intros until f2; intros ME ALLOC INCR OTHER BOUND TBOUND.
-  inv ME.
-  assert (BELOW: forall id b' lv, e!id = Some(b', lv) -> b' <> b).
-    intros. exploit me_bounded0; eauto. exploit Mem.alloc_result; eauto.
-    unfold block in *; omega.
-  econstructor; eauto.
-(* vars *)
-  intros. geninv (me_vars0 id); econstructor; eauto.
-(* temps *)
-  intros. exploit me_temps0; eauto. intros [v' [A B]]. 
-  exists v'; split; auto. eapply val_inject_incr; eauto.
-(* inv *)
-  intros. rewrite OTHER in H. eauto. 
-  red; intro; subst b0. rewrite H in TBOUND. omegaContradiction.
-(* incr *)
-  intros. eapply me_incr0; eauto. rewrite <- OTHER; eauto. 
-  exploit Mem.alloc_result; eauto. unfold block in *; omega.
-(* bounds *)
-  intros. exploit Mem.perm_alloc_inv. eexact ALLOC. eauto. 
-  rewrite zeq_false. eauto. 
-  exploit me_bounded0; eauto.
+  intros. rewrite H2 in H; eauto.
 Qed.
 
 (** [match_env] and external calls *)
@@ -436,54 +281,145 @@ Proof.
 Qed.
 
 Lemma match_env_external_call:
-  forall f1 cenv e le m1 te sp lo hi m2 f2 m1',
-  match_env f1 cenv e le m1 te sp lo hi ->
-  mem_unchanged_on (loc_unmapped f1) m1 m2 ->
+  forall f1 cenv e sp lo hi f2 m1 m1',
+  match_env f1 cenv e sp lo hi ->
   inject_incr f1 f2 ->
   inject_separated f1 f2 m1 m1' ->
-  (forall b ofs p, Mem.valid_block m1 b -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
   hi <= Mem.nextblock m1 -> sp < Mem.nextblock m1' ->
-  match_env f2 cenv e le m2 te sp lo hi.
+  match_env f2 cenv e sp lo hi.
 Proof.
-  intros until m1'. intros ME UNCHANGED INCR SEPARATED BOUNDS VALID VALID'.
-  destruct UNCHANGED as [UNCHANGED1 UNCHANGED2].
-  inversion ME. constructor; auto.
-(* vars *)
-  intros. geninv (me_vars0 id); econstructor; eauto.
-(* temps *)
-  intros. exploit me_temps0; eauto. intros [v' [A B]]. 
-  exists v'; split; auto. eapply val_inject_incr; eauto.
-(* inv *)
-  intros. apply me_inv0 with delta. eapply inject_incr_separated_same'; eauto.
-(* incr *)
-  intros.
-  exploit inject_incr_separated_same; eauto. 
-  instantiate (1 := b). red; omega. intros. 
-  apply me_incr0 with b delta. congruence. auto.
-(* bounds *)
-  intros. eapply me_bounds0; eauto. eapply BOUNDS; eauto. 
-  red. exploit me_bounded0; eauto. omega.
+  intros. apply match_env_invariant with f1; auto.
+  intros. eapply inject_incr_separated_same'; eauto.
+  intros. eapply inject_incr_separated_same; eauto. red. destruct H. omega. 
 Qed.
-*)
 
-(** * Invariant on abstract call stacks  *)
+(** [match_env] and allocations *)
 
-(** Call stacks represent abstractly the execution state of the current
-  Csharpminor and Cminor functions, as well as the states of the
-  calling functions.  A call stack is a list of frames, each frame
-  collecting information on the current execution state of a Csharpminor
-  function and its Cminor translation. *)
+Lemma match_env_alloc:
+  forall f1 id cenv e sp lo m1 sz m2 b ofs f2,
+  match_env f1 (PTree.remove id cenv) e sp lo (Mem.nextblock m1) ->
+  Mem.alloc m1 0 sz = (m2, b) ->
+  cenv!id = Some ofs ->
+  inject_incr f1 f2 ->
+  f2 b = Some(sp, ofs) ->
+  (forall b', b' <> b -> f2 b' = f1 b') ->
+  e!id = None ->
+  match_env f2 cenv (PTree.set id (b, sz) e) sp lo (Mem.nextblock m2).
+Proof.
+  intros until f2; intros ME ALLOC CENV INCR SAME OTHER ENV.
+  exploit Mem.nextblock_alloc; eauto. intros NEXTBLOCK.
+  exploit Mem.alloc_result; eauto. intros RES.
+  inv ME; constructor.
+(* vars *)
+  intros. rewrite PTree.gsspec. destruct (peq id0 id).
+  (* the new var *)
+  subst id0. rewrite CENV. constructor. econstructor. eauto. 
+  rewrite Int.add_commut; rewrite Int.add_zero; auto.
+  (* old vars *)
+  generalize (me_vars0 id0). rewrite PTree.gro; auto. intros M; inv M.
+  constructor; eauto.
+  constructor.
+(* low-high *)
+  rewrite NEXTBLOCK; omega.
+(* bounded *)
+  intros. rewrite PTree.gsspec in H. destruct (peq id0 id).
+  inv H. rewrite NEXTBLOCK; omega.
+  exploit me_bounded0; eauto. rewrite NEXTBLOCK; omega.
+(* inv *)
+  intros. destruct (zeq b (Mem.nextblock m1)).
+  subst b. rewrite SAME in H; inv H. exists id; exists sz. apply PTree.gss. 
+  rewrite OTHER in H; auto. exploit me_inv0; eauto. 
+  intros [id1 [sz1 EQ]]. exists id1; exists sz1. rewrite PTree.gso; auto. congruence.
+(* incr *)
+  intros. rewrite OTHER in H. eauto. unfold block in *; omega.
+Qed.
 
-Inductive frame : Type :=
-  Frame(cenv: compilenv)
-       (tf: Cminor.function)
-       (e: Csharpminor.env)
-       (le: Csharpminor.temp_env)
-       (te: Cminor.env)
-       (sp: block)
-       (lo hi: Z).
+(** The sizes of blocks appearing in [e] are respected. *)
 
-Definition callstack : Type := list frame.
+Definition match_bounds (e: Csharpminor.env) (m: mem) : Prop :=
+  forall id b sz ofs p,
+  PTree.get id e = Some(b, sz) -> Mem.perm m b ofs Max p -> 0 <= ofs < sz.
+
+Lemma match_bounds_invariant:
+  forall e m1 m2,
+  match_bounds e m1 ->
+  (forall id b sz ofs p,
+   PTree.get id e = Some(b, sz) -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
+  match_bounds e m2.
+Proof.
+  intros; red; intros. eapply H; eauto. 
+Qed.
+
+(** ** Permissions on the Cminor stack block *)
+
+(** The parts of the Cminor stack data block that are not images of
+    C#minor local variable blocks remain freeable at all times. *)
+
+Inductive is_reachable_from_env (f: meminj) (e: Csharpminor.env) (sp: block) (ofs: Z) : Prop :=
+  | is_reachable_intro: forall id b sz delta,
+      e!id = Some(b, sz) ->
+      f b = Some(sp, delta) ->
+      delta <= ofs < delta + sz ->
+      is_reachable_from_env f e sp ofs.
+
+Definition padding_freeable (f: meminj) (e: Csharpminor.env) (tm: mem) (sp: block) (sz: Z) : Prop :=
+  forall ofs, 
+  0 <= ofs < sz -> Mem.perm tm sp ofs Cur Freeable \/ is_reachable_from_env f e sp ofs.
+
+Lemma padding_freeable_invariant:
+  forall f1 e tm1 sp sz cenv lo hi f2 tm2,
+  padding_freeable f1 e tm1 sp sz ->
+  match_env f1 cenv e sp lo hi ->
+  (forall ofs, Mem.perm tm1 sp ofs Cur Freeable -> Mem.perm tm2 sp ofs Cur Freeable) ->
+  (forall b, b < hi -> f2 b = f1 b) ->
+  padding_freeable f2 e tm2 sp sz.
+Proof.
+  intros; red; intros.
+  exploit H; eauto. intros [A | A].
+  left; auto.
+  right. inv A. exploit me_bounded; eauto. intros [D E].
+  econstructor; eauto. rewrite H2; auto. 
+Qed.
+
+(** Decidability of the [is_reachable_from_env] predicate. *)
+
+Lemma is_reachable_from_env_dec:
+  forall f e sp ofs, is_reachable_from_env f e sp ofs \/ ~is_reachable_from_env f e sp ofs.
+Proof.
+  intros. 
+  set (pred := fun id_b_sz : ident * (block * Z) =>
+                 match id_b_sz with
+                 | (id, (b, sz)) =>
+                      match f b with
+                           | None => false
+                           | Some(sp', delta) =>
+                               if eq_block sp sp'
+                               then zle delta ofs && zlt ofs (delta + sz)
+                               else false
+                      end
+                 end).
+  destruct (List.existsb pred (PTree.elements e)) as []_eqn.
+  (* yes *)
+  rewrite List.existsb_exists in Heqb. 
+  destruct Heqb as [[id [b sz]] [A B]].
+  simpl in B. destruct (f b) as [[sp' delta] |]_eqn; try discriminate.
+  destruct (eq_block sp sp'); try discriminate.
+  destruct (andb_prop _ _ B).
+  left. apply is_reachable_intro with id b sz delta.
+  apply PTree.elements_complete; auto. 
+  congruence.
+  split; eapply proj_sumbool_true; eauto.
+  (* no *)
+  right; red; intro NE; inv NE. 
+  assert (existsb pred (PTree.elements e) = true).
+  rewrite List.existsb_exists. exists (id, (b, sz)); split.
+  apply PTree.elements_correct; auto. 
+  simpl. rewrite H0. rewrite dec_eq_true.
+  unfold proj_sumbool. destruct H1. rewrite zle_true; auto. rewrite zlt_true; auto. 
+  congruence.
+Qed.
+
+(** * Correspondence between global environments *)
 
 (** Global environments match if the memory injection [f] leaves unchanged
   the references to global symbols and functions. *)
@@ -497,6 +433,36 @@ Inductive match_globalenvs (f: meminj) (bound: Z): Prop :=
       (FUNCTIONS: forall b fd, Genv.find_funct_ptr ge b = Some fd -> b < bound)
       (VARINFOS: forall b gv, Genv.find_var_info ge b = Some gv -> b < bound).
 
+Remark inj_preserves_globals:
+  forall f hi,
+  match_globalenvs f hi ->
+  meminj_preserves_globals ge f.
+Proof.
+  intros. inv H.
+  split. intros. apply DOMAIN. eapply SYMBOLS. eauto.
+  split. intros. apply DOMAIN. eapply VARINFOS. eauto. 
+  intros. symmetry. eapply IMAGE; eauto. 
+Qed.
+
+(** * Invariant on abstract call stacks  *)
+
+(** Call stacks represent abstractly the execution state of the current
+  C#minor and Cminor functions, as well as the states of the
+  calling functions.  A call stack is a list of frames, each frame
+  collecting information on the current execution state of a C#minor
+  function and its Cminor translation. *)
+
+Inductive frame : Type :=
+  Frame(cenv: compilenv)
+       (tf: Cminor.function)
+       (e: Csharpminor.env)
+       (le: Csharpminor.temp_env)
+       (te: Cminor.env)
+       (sp: block)
+       (lo hi: Z).
+
+Definition callstack : Type := list frame.
+
 (** Matching of call stacks imply:
 - matching of environments for each of the frames
 - matching of the global environments
@@ -505,13 +471,6 @@ Inductive match_globalenvs (f: meminj) (bound: Z): Prop :=
 - freeable permissions on the parts of the Cminor stack data blocks
   that are not images of C#minor local variable blocks.
 *)
-
-Definition padding_freeable (f: meminj) (e: Csharpminor.env) (tm: mem) (sp: block) (sz: Z) : Prop :=
-  forall ofs, 
-  0 <= ofs < sz ->
-  Mem.perm tm sp ofs Cur Freeable
-  \/ exists id, exists b, exists sz, exists delta,
-     e!id = Some(b, sz) /\ f b = Some(sp, delta) /\ delta <= ofs < delta + sz.
 
 Inductive match_callstack (f: meminj) (m: mem) (tm: mem):
                           callstack -> Z -> Z -> Prop :=
@@ -524,7 +483,9 @@ Inductive match_callstack (f: meminj) (m: mem) (tm: mem):
       forall cenv tf e le te sp lo hi cs bound tbound
         (BOUND: hi <= bound)
         (TBOUND: sp < tbound)
-        (MENV: match_env f cenv e le m te sp lo hi)
+        (MTMP: match_temps f le te)
+        (MENV: match_env f cenv e sp lo hi)
+        (BOUND: match_bounds e m)
         (PERM: padding_freeable f e tm sp tf.(fn_stackspace))
         (MCS: match_callstack f m tm cs lo sp),
       match_callstack f m tm (Frame cenv tf e le te sp lo hi :: cs) bound tbound.
@@ -539,25 +500,7 @@ Proof.
   induction 1; eauto.
 Qed.
 
-(** We now show invariance properties for [match_callstack] that
-    generalize those for [match_env]. *)
-
-Lemma padding_freeable_invariant:
-  forall f1 m1 tm1 sp sz cenv e le te lo hi f2 tm2,
-  padding_freeable f1 e tm1 sp sz ->
-  match_env f1 cenv e le m1 te sp lo hi ->
-  (forall ofs, Mem.perm tm1 sp ofs Cur Freeable -> Mem.perm tm2 sp ofs Cur Freeable) ->
-  (forall b, b < hi -> f2 b = f1 b) ->
-  padding_freeable f2 e tm2 sp sz.
-Proof.
-  intros; red; intros.
-  exploit H; eauto. intros [A | [id [b [lv [delta [A [B C]]]]]]].
-  left; auto. 
-  exploit me_bounded; eauto. intros [D E].
-  right; exists id; exists b; exists lv; exists delta; split.
-  auto.
-  rewrite H2; auto. 
-Qed.
+(** Invariance properties for [match_callstack]. *)
 
 Lemma match_callstack_invariant:
   forall f1 m1 tm1 f2 m2 tm2 cs bound tbound,
@@ -575,11 +518,14 @@ Proof.
   inv H. constructor; intros; eauto.
   eapply IMAGE; eauto. eapply H6; eauto. omega.
   (* inductive case *)
-  assert (lo <= hi) by eauto.
+  assert (lo <= hi) by (eapply me_low_high; eauto).
   econstructor; eauto.
+  eapply match_temps_invariant; eauto.
   eapply match_env_invariant; eauto. 
-    intros. eapply H1; eauto. omega.
-    intros. apply H3. omega. 
+    intros. apply H3. omega.
+  eapply match_bounds_invariant; eauto.
+    intros. eapply H1; eauto. 
+    exploit me_bounded; eauto. omega. 
   eapply padding_freeable_invariant; eauto. 
     intros. apply H3. omega. 
   eapply IHmatch_callstack; eauto. 
@@ -587,16 +533,6 @@ Proof.
     intros. eapply H2; eauto. omega. 
     intros. eapply H3; eauto. omega.
     intros. eapply H4; eauto. omega.
-Qed.
-
-Lemma match_callstack_set_temp:
-  forall f cenv e le te sp lo hi cs bound tbound m tm tf id v tv,
-  val_inject f v tv ->
-  match_callstack f m tm (Frame cenv tf e le te sp lo hi :: cs) bound tbound ->
-  match_callstack f m tm (Frame cenv tf e (PTree.set id v le) (PTree.set id tv te) sp lo hi :: cs) bound tbound.
-Proof.
-  intros. inv H0. constructor; auto.
-  eapply match_env_set_temp; eauto. 
 Qed.
 
 Lemma match_callstack_incr_bound:
@@ -610,8 +546,20 @@ Proof.
   constructor; auto. omega. omega.
 Qed.
 
+(** Assigning a temporary variable. *)
+
+Lemma match_callstack_set_temp:
+  forall f cenv e le te sp lo hi cs bound tbound m tm tf id v tv,
+  val_inject f v tv ->
+  match_callstack f m tm (Frame cenv tf e le te sp lo hi :: cs) bound tbound ->
+  match_callstack f m tm (Frame cenv tf e (PTree.set id v le) (PTree.set id tv te) sp lo hi :: cs) bound tbound.
+Proof.
+  intros. inv H0. constructor; auto.
+  eapply match_temps_assign; eauto. 
+Qed.
+
 (** Preservation of [match_callstack] by freeing all blocks allocated
-  for local variables at function entry (on the Csharpminor side)
+  for local variables at function entry (on the C#minor side)
   and simultaneously freeing the Cminor stack data block. *)
 
 Lemma in_blocks_of_env:
@@ -648,12 +596,12 @@ Proof.
   assert ({tm' | Mem.free tm sp 0 (fn_stackspace tf) = Some tm'}).
   apply Mem.range_perm_free.
   red; intros.
-  exploit PERM; eauto. intros [A | [id [b [sz [delta [A [B C]]]]]]]. 
+  exploit PERM; eauto. intros [A | A].
   auto.
-  assert (Mem.range_perm m b 0 sz Cur Freeable). 
+  inv A. assert (Mem.range_perm m b 0 sz Cur Freeable). 
   eapply free_list_freeable; eauto. eapply in_blocks_of_env; eauto.
   replace ofs with ((ofs - delta) + delta) by omega. 
-  eapply Mem.perm_inject; eauto. apply H0. omega. 
+  eapply Mem.perm_inject; eauto. apply H3. omega. 
   destruct X as  [tm' FREE].
   exploit nextblock_freelist; eauto. intro NEXT.
   exploit Mem.nextblock_free; eauto. intro NEXT'.
@@ -667,125 +615,7 @@ Proof.
   intros. exploit me_inv0; eauto. intros [id [sz A]]. 
   exists 0; exists sz; split.
   eapply in_blocks_of_env; eauto.
-  eapply me_bounds0; eauto. eapply Mem.perm_max. eauto. 
-Qed.
-
-(** Preservation of [match_callstack] by allocations. *)
-
-Lemma match_callstack_alloc_left:
-  forall f1 m1 tm cenv tf e le te sp lo cs sz m2 b f2 ofs id,
-  match_callstack f1 m1 tm
-    (Frame cenv tf e le te sp lo (Mem.nextblock m1) :: cs)
-    (Mem.nextblock m1) (Mem.nextblock tm) ->
-  Mem.alloc m1 0 sz = (m2, b) ->
-  inject_incr f1 f2 ->
-  f2 b = Some(sp, ofs) ->
-  (forall b', b' <> b -> f2 b' = f1 b') ->
-  e!id = None ->
-  match_callstack f2 m2 tm
-    (Frame (PTree.set id ofs cenv) tf (PTree.set id (b, sz) e) le te sp lo (Mem.nextblock m2) :: cs)
-    (Mem.nextblock m2) (Mem.nextblock tm).
-Proof.
-  intros until id; intros MCS ALLOC INCR SAME OTHER ENV.
-  inv MCS. 
-  exploit Mem.alloc_result; eauto. intro RESULT.
-  exploit Mem.nextblock_alloc; eauto. intro NEXT.
-  constructor.
-  omega. auto. 
-  eapply match_env_alloc_same; eauto.
-  red; intros. exploit PERM; eauto. intros [A | [id' [b' [sz' [delta' [A [B C]]]]]]].
-  left; auto.
-  right; exists id'; exists b'; exists sz'; exists delta'.
-  split. rewrite PTree.gso; auto. congruence. 
-  split. apply INCR; auto. auto.
-  assert (lo <= Mem.nextblock m1) by eauto.
-  eapply match_callstack_invariant; eauto.
-  intros. eapply Mem.perm_alloc_4; eauto. unfold block in *; omega.
-  intros. apply OTHER. unfold block in *; omega.
-  intros. destruct (zeq b0 b).
-    subst b0. rewrite SAME in H0; inv H0. omegaContradiction.
-    rewrite OTHER in H0; auto.
-Qed.
-
-Lemma match_callstack_alloc_right:
-  forall f le m tm cs tf sp tm' te,
-  match_callstack f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
-  Mem.inject f m tm ->
-  (forall id v, le!id = Some v -> exists v', te!(id) = Some v' /\ val_inject f v v') ->
-  match_callstack f m tm'
-    (Frame (PTree.empty Z) tf empty_env le te sp (Mem.nextblock m) (Mem.nextblock m) :: cs)
-    (Mem.nextblock m) (Mem.nextblock tm').
-Proof.
-  intros.
-  exploit Mem.alloc_result; eauto. intro RES.
-  exploit Mem.nextblock_alloc; eauto. intro NEXT.
-  constructor. omega. unfold block in *; omega.
-(* match env *) 
-  constructor.
-(* vars *)
-  intros. repeat rewrite PTree.gempty. constructor.
-(* temps *)
-  assumption.
-(* low high *)
-  omega.
-(* bounded *)
-  intros. rewrite PTree.gempty in H3. congruence.
-(* inv *)
-  intros. 
-  assert (sp <> sp). apply Mem.valid_not_valid_diff with tm.
-  eapply Mem.valid_block_inject_2; eauto. eauto with mem. 
-  tauto.
-(* incr *)
-  intros. rewrite RES. change (Mem.valid_block tm tb).
-  eapply Mem.valid_block_inject_2; eauto.
-(* bounds *)
-  unfold empty_env; intros. rewrite PTree.gempty in H3. congruence.
-(* padding freeable *)
-  red; intros. left. eapply Mem.perm_alloc_2; eauto. 
-(* previous call stack *)
-  rewrite RES. apply match_callstack_invariant with f m tm; auto.
-  intros. eapply Mem.perm_alloc_1; eauto. 
-Qed.
-
-(** Decidability of the predicate "this is not a padding location" *)
-
-Definition is_reachable (f: meminj) (e: Csharpminor.env) (sp: block) (ofs: Z) : Prop :=
-  exists id, exists b, exists sz, exists delta,
-  e!id = Some(b, sz) /\ f b = Some(sp, delta) /\ delta <= ofs < delta + sz.
-
-Lemma is_reachable_dec:
-  forall f e sp ofs, is_reachable f e sp ofs \/ ~is_reachable f e sp ofs.
-Proof.
-  intros. 
-  set (pred := fun id_b_sz : ident * (block * Z) =>
-                 match id_b_sz with
-                 | (id, (b, sz)) =>
-                      match f b with
-                           | None => false
-                           | Some(sp', delta) =>
-                               if eq_block sp sp'
-                               then zle delta ofs && zlt ofs (delta + sz)
-                               else false
-                      end
-                 end).
-  destruct (List.existsb pred (PTree.elements e)) as []_eqn.
-  rewrite List.existsb_exists in Heqb. 
-  destruct Heqb as [[id [b sz]] [A B]].
-  simpl in B. destruct (f b) as [[sp' delta] |]_eqn; try discriminate.
-  destruct (eq_block sp sp'); try discriminate.
-  destruct (andb_prop _ _ B). 
-  left; red. exists id; exists b; exists sz; exists delta.
-  split. apply PTree.elements_complete; auto. 
-  split. congruence.
-  split; eapply proj_sumbool_true; eauto.
-  right; red. intros [id [b [sz [delta [A [B C]]]]]].
-  assert (existsb pred (PTree.elements e) = true).
-  rewrite List.existsb_exists. exists (id, (b, sz)); split.
-  apply PTree.elements_correct; auto. 
-  simpl. rewrite B. rewrite dec_eq_true.
-  unfold proj_sumbool. destruct C. rewrite zle_true; auto. rewrite zlt_true; auto. 
-  congruence.
+  eapply BOUND0; eauto. eapply Mem.perm_max. eauto. 
 Qed.
 
 (** Preservation of [match_callstack] by external calls. *)
@@ -814,40 +644,613 @@ Proof.
   intro EQ. exploit SEPARATED; eauto. intros [A B]. elim B. red. omega. 
 (* inductive case *)
   constructor. auto. auto. 
+  eapply match_temps_invariant; eauto.
   eapply match_env_invariant; eauto. 
-  intros. apply MAXPERMS; auto. red; omega.
   red in SEPARATED. intros. destruct (f1 b) as [[b' delta']|]_eqn. 
   exploit INCR; eauto. congruence.
   exploit SEPARATED; eauto. intros [A B]. elim B. red. omega. 
-  intros. assert (lo <= hi) by eauto. destruct (f1 b) as [[b' delta']|]_eqn. 
+  intros. assert (lo <= hi) by (eapply me_low_high; eauto).
+  destruct (f1 b) as [[b' delta']|]_eqn. 
   apply INCR; auto. 
   destruct (f2 b) as [[b' delta']|]_eqn; auto.
-  exploit SEPARATED; eauto. intros [A B]. elim A. red. omega. 
+  exploit SEPARATED; eauto. intros [A B]. elim A. red. omega.
+  eapply match_bounds_invariant; eauto. 
+  intros. eapply MAXPERMS; eauto. red. exploit me_bounded; eauto. omega. 
   (* padding-freeable *)
   red; intros.
-  destruct (is_reachable_dec f1 e sp ofs).
-  destruct H3 as [id [b [sz [delta [A [B C]]]]]].
-  right; exists id; exists b; exists sz; exists delta.
-  split. auto. split. apply INCR; auto. auto.
-  exploit PERM; eauto. intros [A|A]; try contradiction. left.
-  apply OUTOFREACH1; auto. red; intros.
+  destruct (is_reachable_from_env_dec f1 e sp ofs).
+  inv H3. right. apply is_reachable_intro with id b sz delta; auto. 
+  exploit PERM; eauto. intros [A|A]; try contradiction.
+  left. apply OUTOFREACH1; auto. red; intros.
   red; intros; elim H3.
   exploit me_inv; eauto. intros [id [lv B]].
-  exploit me_bounds; eauto. intros C.
-  red. exists id; exists b0; exists lv; exists delta. intuition omega. 
+  exploit BOUND0; eauto. intros C.
+  apply is_reachable_intro with id b0 lv delta; auto; omega.
   (* induction *)
   eapply IHmatch_callstack; eauto. inv MENV; omega. omega.
 Qed.
 
-Remark inj_preserves_globals:
-  forall f hi,
-  match_globalenvs f hi ->
-  meminj_preserves_globals ge f.
+(** [match_callstack] and allocations *)
+
+Lemma match_callstack_alloc_right:
+  forall f m tm cs tf tm' sp le te cenv,
+  match_callstack f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
+  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
+  Mem.inject f m tm ->
+  match_temps f le te ->
+  (forall id, cenv!id = None) ->
+  match_callstack f m tm'
+      (Frame cenv tf empty_env le te sp (Mem.nextblock m) (Mem.nextblock m) :: cs)
+      (Mem.nextblock m) (Mem.nextblock tm').
 Proof.
-  intros. inv H.
-  split. intros. apply DOMAIN. eapply SYMBOLS. eauto.
-  split. intros. apply DOMAIN. eapply VARINFOS. eauto. 
-  intros. symmetry. eapply IMAGE; eauto. 
+  intros.
+  exploit Mem.nextblock_alloc; eauto. intros NEXTBLOCK.
+  exploit Mem.alloc_result; eauto. intros RES.
+  constructor.
+  omega.
+  unfold block in *; omega.
+  auto.
+  constructor; intros.
+    rewrite H3. rewrite PTree.gempty. constructor.
+    omega.
+    rewrite PTree.gempty in H4; discriminate.
+    eelim Mem.fresh_block_alloc; eauto. eapply Mem.valid_block_inject_2; eauto.
+    rewrite RES. change (Mem.valid_block tm tb). eapply Mem.valid_block_inject_2; eauto. 
+  red; intros. rewrite PTree.gempty in H4. discriminate.
+  red; intros. left. eapply Mem.perm_alloc_2; eauto. 
+  eapply match_callstack_invariant with (tm1 := tm); eauto. 
+  rewrite RES; auto.
+  intros. eapply Mem.perm_alloc_1; eauto.
+Qed.
+
+Lemma match_callstack_alloc_left:
+  forall f1 m1 tm id cenv tf e le te sp lo cs sz m2 b f2 ofs,
+  match_callstack f1 m1 tm
+    (Frame (PTree.remove id cenv) tf e le te sp lo (Mem.nextblock m1) :: cs)
+    (Mem.nextblock m1) (Mem.nextblock tm) ->
+  Mem.alloc m1 0 sz = (m2, b) ->
+  cenv!id = Some ofs ->
+  inject_incr f1 f2 ->
+  f2 b = Some(sp, ofs) ->
+  (forall b', b' <> b -> f2 b' = f1 b') ->
+  e!id = None ->
+  match_callstack f2 m2 tm
+    (Frame cenv tf (PTree.set id (b, sz) e) le te sp lo (Mem.nextblock m2) :: cs)
+    (Mem.nextblock m2) (Mem.nextblock tm).
+Proof.
+  intros. inv H. 
+  exploit Mem.nextblock_alloc; eauto. intros NEXTBLOCK.
+  exploit Mem.alloc_result; eauto. intros RES.
+  assert (LO: lo <= Mem.nextblock m1) by (eapply me_low_high; eauto). 
+  constructor.
+  omega.
+  auto.
+  eapply match_temps_invariant; eauto.
+  eapply match_env_alloc; eauto.
+  red; intros. rewrite PTree.gsspec in H. destruct (peq id0 id).
+  inversion H. subst b0 sz0 id0. eapply Mem.perm_alloc_3; eauto.
+  eapply BOUND0; eauto. eapply Mem.perm_alloc_4; eauto. 
+  exploit me_bounded; eauto. unfold block in *; omega.
+  red; intros. exploit PERM; eauto. intros [A|A]. auto. right. 
+  inv A. apply is_reachable_intro with id0 b0 sz0 delta; auto.
+  rewrite PTree.gso. auto. congruence.
+  eapply match_callstack_invariant with (m1 := m1); eauto. 
+  intros. eapply Mem.perm_alloc_4; eauto.
+  unfold block in *; omega.
+  intros. apply H4. unfold block in *; omega.
+  intros. destruct (zeq b0 b). 
+  subst b0. rewrite H3 in H. inv H. omegaContradiction. 
+  rewrite H4 in H; auto.
+Qed.
+
+(** * Correctness of stack allocation of local variables *)
+
+(** This section shows the correctness of the translation of Csharpminor
+  local variables as sub-blocks of the Cminor stack data.  This is the most difficult part of the proof. *)
+
+Definition cenv_remove (cenv: compilenv) (vars: list (ident * Z)) : compilenv :=
+  fold_right (fun id_lv ce => PTree.remove (fst id_lv) ce) cenv vars.
+
+Remark cenv_remove_gso:
+  forall id vars cenv,
+  ~In id (map fst vars) ->
+  PTree.get id (cenv_remove cenv vars) = PTree.get id cenv.
+Proof.
+  induction vars; simpl; intros.
+  auto.
+  rewrite PTree.gro. apply IHvars. intuition. intuition. 
+Qed. 
+
+Remark cenv_remove_gss:
+  forall id vars cenv,
+  In id (map fst vars) ->
+  PTree.get id (cenv_remove cenv vars) = None.
+Proof.
+  induction vars; simpl; intros.
+  contradiction.
+  rewrite PTree.grspec. destruct (PTree.elt_eq id (fst a)). auto.
+  destruct H. intuition. eauto.
+Qed.
+
+Definition cenv_compat (cenv: compilenv) (vars: list (ident * Z)) (tsz: Z) : Prop :=
+  forall id sz,
+  In (id, sz) vars ->
+  exists ofs, 
+      PTree.get id cenv = Some ofs 
+   /\ Mem.inj_offset_aligned ofs sz
+   /\ 0 <= ofs
+   /\ ofs + Zmax 0 sz <= tsz.
+
+Definition cenv_separated (cenv: compilenv) (vars: list (ident * Z)) : Prop :=
+  forall id1 sz1 ofs1 id2 sz2 ofs2,
+  In (id1, sz1) vars -> In (id2, sz2) vars ->
+  PTree.get id1 cenv = Some ofs1 -> PTree.get id2 cenv = Some ofs2 ->
+  id1 <> id2 ->
+  ofs1 + sz1 <= ofs2 \/ ofs2 + sz2 <= ofs1.
+
+Definition cenv_mem_separated (cenv: compilenv) (vars: list (ident * Z)) (f: meminj) (sp: block) (m: mem) : Prop :=
+  forall id sz ofs b delta ofs' k p,
+  In (id, sz) vars -> PTree.get id cenv = Some ofs ->
+  f b = Some (sp, delta) -> 
+  Mem.perm m b ofs' k p ->
+  ofs <= ofs' + delta < sz + ofs -> False.
+
+Lemma match_callstack_alloc_variables_rec:
+  forall tm sp tf cenv le te lo cs,
+  Mem.valid_block tm sp ->
+  fn_stackspace tf <= Int.max_unsigned ->
+  (forall ofs k p, Mem.perm tm sp ofs k p -> 0 <= ofs < fn_stackspace tf) ->
+  (forall ofs k p, 0 <= ofs < fn_stackspace tf -> Mem.perm tm sp ofs k p) ->
+  forall e1 m1 vars e2 m2,
+  alloc_variables e1 m1 vars e2 m2 ->
+  forall f1,
+  list_norepet (map fst vars) ->
+  cenv_compat cenv vars (fn_stackspace tf) ->
+  cenv_separated cenv vars ->
+  cenv_mem_separated cenv vars f1 sp m1 ->
+  (forall id sz, In (id, sz) vars -> e1!id = None) ->
+  match_callstack f1 m1 tm
+    (Frame (cenv_remove cenv vars) tf e1 le te sp lo (Mem.nextblock m1) :: cs)
+    (Mem.nextblock m1) (Mem.nextblock tm) ->
+  Mem.inject f1 m1 tm ->
+  exists f2,
+    match_callstack f2 m2 tm
+      (Frame cenv tf e2 le te sp lo (Mem.nextblock m2) :: cs)
+      (Mem.nextblock m2) (Mem.nextblock tm)
+  /\ Mem.inject f2 m2 tm.
+Proof.
+  intros until cs; intros VALID REPRES STKSIZE STKPERMS.
+  induction 1; intros f1 NOREPET COMPAT SEP1 SEP2 UNBOUND MCS MINJ.
+  (* base case *)
+  simpl in MCS. exists f1; auto. 
+  (* inductive case *)
+  simpl in NOREPET. inv NOREPET.
+(* exploit Mem.alloc_result; eauto. intros RES.
+  exploit Mem.nextblock_alloc; eauto. intros NB.*)
+  exploit (COMPAT id sz). auto with coqlib. intros [ofs [CENV [ALIGNED [LOB HIB]]]].
+  exploit Mem.alloc_left_mapped_inject. 
+    eexact MINJ.
+    eexact H.
+    eexact VALID.
+    instantiate (1 := ofs). zify. omega. 
+    intros. exploit STKSIZE; eauto. omega. 
+    intros. apply STKPERMS. zify. omega.
+    replace (sz - 0) with sz by omega. auto.
+    intros. eapply SEP2. eauto with coqlib. eexact CENV. eauto. eauto. omega. 
+  intros [f2 [A [B [C D]]]].
+  exploit (IHalloc_variables f2); eauto.
+    red; intros. eapply COMPAT. auto with coqlib.
+    red; intros. eapply SEP1; eauto with coqlib.
+    red; intros. exploit Mem.perm_alloc_inv; eauto. destruct (zeq b b1); intros P.
+    subst b. rewrite C in H5; inv H5. 
+    exploit SEP1. eapply in_eq. eapply in_cons; eauto. eauto. eauto. 
+    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto. 
+    omega.
+    eapply SEP2. apply in_cons; eauto. eauto. 
+    rewrite D in H5; eauto. eauto. auto. 
+    intros. rewrite PTree.gso. eapply UNBOUND; eauto with coqlib. 
+    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto.
+    eapply match_callstack_alloc_left; eauto. 
+    rewrite cenv_remove_gso; auto. 
+    apply UNBOUND with sz; auto with coqlib.
+Qed.
+
+Lemma match_callstack_alloc_variables:
+  forall tm1 sp tm2 m1 vars e m2 cenv f1 cs fn le te,
+  Mem.alloc tm1 0 (fn_stackspace fn) = (tm2, sp) ->
+  fn_stackspace fn <= Int.max_unsigned ->
+  alloc_variables empty_env m1 vars e m2 ->
+  list_norepet (map fst vars) ->
+  cenv_compat cenv vars (fn_stackspace fn) ->
+  cenv_separated cenv vars ->
+  (forall id ofs, cenv!id = Some ofs -> In id (map fst vars)) ->
+  Mem.inject f1 m1 tm1 ->
+  match_callstack f1 m1 tm1 cs (Mem.nextblock m1) (Mem.nextblock tm1) ->
+  match_temps f1 le te ->
+  exists f2,
+    match_callstack f2 m2 tm2 (Frame cenv fn e le te sp (Mem.nextblock m1) (Mem.nextblock m2) :: cs)
+                    (Mem.nextblock m2) (Mem.nextblock tm2)
+  /\ Mem.inject f2 m2 tm2.
+Proof.
+  intros.
+  eapply match_callstack_alloc_variables_rec; eauto.
+  eapply Mem.valid_new_block; eauto.
+  intros. eapply Mem.perm_alloc_3; eauto.
+  intros. apply Mem.perm_implies with Freeable; auto with mem. eapply Mem.perm_alloc_2; eauto.
+  instantiate (1 := f1). red; intros. eelim Mem.fresh_block_alloc; eauto.
+  eapply Mem.valid_block_inject_2; eauto. 
+  intros. apply PTree.gempty.
+  eapply match_callstack_alloc_right; eauto. 
+  intros. destruct (In_dec peq id (map fst vars)).
+  apply cenv_remove_gss; auto.
+  rewrite cenv_remove_gso; auto.
+  destruct (cenv!id) as [ofs|]_eqn; auto. elim n; eauto. 
+  eapply Mem.alloc_right_inject; eauto. 
+Qed.
+
+(** Properties of the compilation environment produced by [build_compilenv] *)
+
+Remark block_alignment_pos:
+  forall sz, block_alignment sz > 0.
+Proof.
+  unfold block_alignment; intros. 
+  destruct (zlt sz 2). omega. 
+  destruct (zlt sz 4). omega.
+  destruct (zlt sz 8); omega.
+Qed.
+
+Remark assign_variable_incr:
+  forall id sz cenv stksz cenv' stksz',
+  assign_variable (cenv, stksz) (id, sz) = (cenv', stksz') -> stksz <= stksz'.
+Proof.
+  simpl; intros. inv H. 
+  generalize (align_le stksz (block_alignment sz) (block_alignment_pos sz)).
+  assert (0 <= Zmax 0 sz). apply Zmax_bound_l. omega.
+  omega.
+Qed.
+
+Remark assign_variables_incr:
+  forall vars cenv sz cenv' sz',
+  assign_variables (cenv, sz) vars = (cenv', sz') -> sz <= sz'.
+Proof.
+  induction vars; intros until sz'.
+  simpl; intros. inv H. omega.
+Opaque assign_variable.
+  destruct a as [id s]. simpl. intros.
+  destruct (assign_variable (cenv, sz) (id, s)) as [cenv1 sz1]_eqn. 
+  apply Zle_trans with sz1. eapply assign_variable_incr; eauto. eauto.
+Transparent assign_variable.
+Qed.
+
+Remark inj_offset_aligned_block:
+  forall stacksize sz,
+  Mem.inj_offset_aligned (align stacksize (block_alignment sz)) sz.
+Proof.
+  intros; red; intros.
+  apply Zdivides_trans with (block_alignment sz).
+  unfold align_chunk.  unfold block_alignment.
+  generalize Zone_divide; intro.
+  generalize Zdivide_refl; intro.
+  assert (2 | 4). exists 2; auto.
+  assert (2 | 8). exists 4; auto.
+  assert (4 | 8). exists 2; auto.
+  destruct (zlt sz 2).
+  destruct chunk; simpl in *; auto; omegaContradiction.
+  destruct (zlt sz 4).
+  destruct chunk; simpl in *; auto; omegaContradiction.
+  destruct (zlt sz 8).
+  destruct chunk; simpl in *; auto; omegaContradiction.
+  destruct chunk; simpl; auto.
+  apply align_divides. apply block_alignment_pos.
+Qed.
+
+Remark inj_offset_aligned_block':
+  forall stacksize sz,
+  Mem.inj_offset_aligned (align stacksize (block_alignment sz)) (Zmax 0 sz).
+Proof.
+  intros. 
+  replace (block_alignment sz) with (block_alignment (Zmax 0 sz)).
+  apply inj_offset_aligned_block. 
+  rewrite Zmax_spec. destruct (zlt sz 0); auto.
+  transitivity 1. reflexivity. unfold block_alignment. rewrite zlt_true. auto. omega.
+Qed.
+
+Lemma assign_variable_sound:
+  forall cenv1 sz1 id sz cenv2 sz2 vars,
+  assign_variable (cenv1, sz1) (id, sz) = (cenv2, sz2) ->
+  ~In id (map fst vars) ->
+  0 <= sz1 ->
+  cenv_compat cenv1 vars sz1 ->
+  cenv_separated cenv1 vars ->
+  cenv_compat cenv2 (vars ++ (id, sz) :: nil) sz2
+  /\ cenv_separated cenv2 (vars ++ (id, sz) :: nil).
+Proof.
+  unfold assign_variable; intros until vars; intros ASV NOREPET POS COMPAT SEP.
+  inv ASV.
+  assert (LE: sz1 <= align sz1 (block_alignment sz)). apply align_le. apply block_alignment_pos.
+  assert (EITHER: forall id' sz',
+             In (id', sz') (vars ++ (id, sz) :: nil) ->
+             In (id', sz') vars /\ id' <> id \/ (id', sz') = (id, sz)).
+    intros. rewrite in_app in H. destruct H. 
+    left; split; auto. red; intros; subst id'. elim NOREPET. 
+    change id with (fst (id, sz')). apply in_map; auto.
+    simpl in H. destruct H. auto. contradiction.
+  split; red; intros.
+  apply EITHER in H. destruct H as [[P Q] | P].
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
+  exists ofs.
+  split. rewrite PTree.gso; auto.
+  split. auto. split. auto. zify; omega. 
+  inv P. exists (align sz1 (block_alignment sz)).
+  split. apply PTree.gss.
+  split. apply inj_offset_aligned_block.
+  split. omega. 
+  omega.
+  apply EITHER in H; apply EITHER in H0.
+  destruct H as [[P Q] | P]; destruct H0 as [[R S] | R].
+  rewrite PTree.gso in *; auto. eapply SEP; eauto. 
+  inv R. rewrite PTree.gso in H1; auto. rewrite PTree.gss in H2; inv H2.
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
+  assert (ofs = ofs1) by congruence. subst ofs. 
+  left. zify; omega. 
+  inv P. rewrite PTree.gso in H2; auto. rewrite PTree.gss in H1; inv H1.
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
+  assert (ofs = ofs2) by congruence. subst ofs. 
+  right. zify; omega.
+  congruence.
+Qed.
+
+Lemma assign_variables_sound:
+  forall vars' cenv1 sz1 cenv2 sz2 vars,
+  assign_variables (cenv1, sz1) vars' = (cenv2, sz2) ->
+  list_norepet (map fst vars' ++ map fst vars) ->
+  0 <= sz1 ->
+  cenv_compat cenv1 vars sz1 ->
+  cenv_separated cenv1 vars ->
+  cenv_compat cenv2 (vars ++ vars') sz2 /\ cenv_separated cenv2 (vars ++ vars').
+Proof.
+  induction vars'; simpl; intros.
+  rewrite app_nil_r. inv H; auto.
+  destruct a as [id sz].
+  simpl in H0. inv H0. rewrite in_app in H6.
+  rewrite list_norepet_app in H7. destruct H7 as [P [Q R]].
+  destruct (assign_variable (cenv1, sz1) (id, sz)) as [cenv' sz']_eqn.
+  exploit assign_variable_sound.
+    eauto.
+    instantiate (1 := vars). tauto.
+    auto. auto. auto.
+  intros [A B].
+  exploit IHvars'.
+    eauto.
+    instantiate (1 := vars ++ ((id, sz) :: nil)).
+    rewrite list_norepet_app. split. auto. 
+    split. rewrite map_app. apply list_norepet_append_commut. simpl. constructor; auto. 
+    rewrite map_app. simpl. red; intros. rewrite in_app in H4. destruct H4. 
+    eauto. simpl in H4. destruct H4. subst y. red; intros; subst x. tauto. tauto.
+    generalize (assign_variable_incr _ _ _ _ _ _ Heqp). omega.
+    auto. auto.
+  rewrite app_ass. auto. 
+Qed.
+
+Remark permutation_norepet:
+  forall (A: Type) (l l': list A), Permutation l l' -> list_norepet l -> list_norepet l'.
+Proof.
+  induction 1; intros.
+  constructor.
+  inv H0. constructor; auto. red; intros; elim H3. apply Permutation_in with l'; auto. apply Permutation_sym; auto.
+  inv H. simpl in H2. inv H3. constructor. simpl; intuition. constructor. intuition. auto.
+  eauto.
+Qed.
+
+Lemma build_compilenv_sound:
+  forall f cenv sz,
+  build_compilenv f = (cenv, sz) ->
+  list_norepet (map fst (Csharpminor.fn_vars f)) ->
+  cenv_compat cenv (Csharpminor.fn_vars f) sz /\ cenv_separated cenv (Csharpminor.fn_vars f).
+Proof.
+  unfold build_compilenv; intros. 
+  set (vars1 := Csharpminor.fn_vars f) in *.
+  generalize (VarSort.Permuted_sort vars1). intros P.
+  set (vars2 := VarSort.sort vars1) in *.
+  assert (cenv_compat cenv vars2 sz /\ cenv_separated cenv vars2).
+    change vars2 with (nil ++ vars2).
+    eapply assign_variables_sound.
+    eexact H.
+    simpl. rewrite app_nil_r. apply permutation_norepet with (map fst vars1); auto.
+    apply Permutation_map. auto.
+    omega. 
+    red; intros. contradiction.
+    red; intros. contradiction.
+  destruct H1 as [A B]. split.
+  red; intros. apply A. apply Permutation_in with vars1; auto. 
+  red; intros. eapply B; eauto; apply Permutation_in with vars1; auto.
+Qed.
+
+Lemma assign_variables_domain:
+  forall id vars cesz,
+  (fst (assign_variables cesz vars))!id <> None ->
+  (fst cesz)!id <> None \/ In id (map fst vars).
+Proof.
+  induction vars; simpl; intros.
+  auto.
+  exploit IHvars; eauto. unfold assign_variable. destruct a as [id1 sz1].
+  destruct cesz as [cenv stksz]. simpl. 
+  rewrite PTree.gsspec. destruct (peq id id1). auto. tauto.
+Qed.
+
+Lemma build_compilenv_domain:
+  forall f cenv sz id ofs,
+  build_compilenv f = (cenv, sz) ->
+  cenv!id = Some ofs -> In id (map fst (Csharpminor.fn_vars f)).
+Proof.
+  unfold build_compilenv; intros. 
+  set (vars1 := Csharpminor.fn_vars f) in *.
+  generalize (VarSort.Permuted_sort vars1). intros P.
+  set (vars2 := VarSort.sort vars1) in *.
+  generalize (assign_variables_domain id vars2 (PTree.empty Z, 0)).
+  rewrite H. simpl. intros. destruct H1. congruence. 
+  rewrite PTree.gempty in H1. congruence.
+  apply Permutation_in with (map fst vars2); auto.
+  apply Permutation_map. apply Permutation_sym; auto.
+Qed.
+
+(** Initialization of C#minor temporaries and Cminor local variables. *)
+
+Lemma create_undef_temps_val:
+  forall id v temps, (create_undef_temps temps)!id = Some v -> In id temps /\ v = Vundef.
+Proof.
+  induction temps; simpl; intros.
+  rewrite PTree.gempty in H. congruence.
+  rewrite PTree.gsspec in H. destruct (peq id a).
+  split. auto. congruence.
+  exploit IHtemps; eauto. tauto. 
+Qed.
+
+Fixpoint set_params' (vl: list val) (il: list ident) (te: Cminor.env) : Cminor.env :=
+  match il, vl with
+  | i1 :: is, v1 :: vs => set_params' vs is (PTree.set i1 v1 te)
+  | i1 :: is, nil => set_params' nil is (PTree.set i1 Vundef te)
+  | _, _ => te
+  end.
+
+Lemma bind_parameters_agree_rec:
+  forall f vars vals tvals le1 le2 te,
+  bind_parameters vars vals le1 = Some le2 ->
+  val_list_inject f vals tvals ->
+  match_temps f le1 te ->
+  match_temps f le2 (set_params' tvals vars te).
+Proof.
+Opaque PTree.set.
+  induction vars; simpl; intros.
+  destruct vals; try discriminate. inv H. auto. 
+  destruct vals; try discriminate. inv H0.
+  simpl. eapply IHvars; eauto.
+  red; intros. rewrite PTree.gsspec in *. destruct (peq id a). 
+  inv H0. exists v'; auto.
+  apply H1; auto.
+Qed.
+
+Lemma set_params'_outside:
+  forall id il vl te, ~In id il -> (set_params' vl il te)!id = te!id.
+Proof.
+  induction il; simpl; intros. auto. 
+  destruct vl; rewrite IHil.
+  apply PTree.gso. intuition. intuition.
+  apply PTree.gso. intuition. intuition.
+Qed.
+
+Lemma set_params'_inside:
+  forall id il vl te1 te2,
+  In id il ->
+  (set_params' vl il te1)!id = (set_params' vl il te2)!id.
+Proof.
+  induction il; simpl; intros.
+  contradiction.
+  destruct vl; destruct (List.in_dec peq id il); auto;
+  repeat rewrite set_params'_outside; auto;
+  assert (a = id) by intuition; subst a; repeat rewrite PTree.gss; auto.
+Qed.
+
+Lemma set_params_set_params':
+  forall il vl id,
+  list_norepet il ->
+  (set_params vl il)!id = (set_params' vl il (PTree.empty val))!id.
+Proof.
+  induction il; simpl; intros.
+  auto.
+  inv H. destruct vl. 
+  rewrite PTree.gsspec. destruct (peq id a). 
+  subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
+  rewrite IHil; auto.
+  destruct (List.in_dec peq id il). apply set_params'_inside; auto.
+  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
+  rewrite PTree.gsspec. destruct (peq id a). 
+  subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
+  rewrite IHil; auto.
+  destruct (List.in_dec peq id il). apply set_params'_inside; auto.
+  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
+Qed.
+
+Lemma set_locals_outside:
+  forall e id il,
+  ~In id il -> (set_locals il e)!id = e!id.
+Proof.
+  induction il; simpl; intros.
+  auto.
+  rewrite PTree.gso. apply IHil. tauto. intuition. 
+Qed.
+
+Lemma set_locals_inside:
+  forall e id il,
+  In id il -> (set_locals il e)!id = Some Vundef.
+Proof.
+  induction il; simpl; intros.
+  contradiction.
+  destruct H. subst a. apply PTree.gss. 
+  rewrite PTree.gsspec. destruct (peq id a). auto. auto. 
+Qed.
+
+Lemma set_locals_set_params':
+  forall vars vals params id,
+  list_norepet params ->
+  list_disjoint params vars ->
+  (set_locals vars (set_params vals params)) ! id =
+  (set_params' vals params (set_locals vars (PTree.empty val))) ! id.
+Proof.
+  intros. destruct (in_dec peq id vars).
+  assert (~In id params). apply list_disjoint_notin with vars; auto. apply list_disjoint_sym; auto.
+  rewrite set_locals_inside; auto. rewrite set_params'_outside; auto. rewrite set_locals_inside; auto.
+  rewrite set_locals_outside; auto. rewrite set_params_set_params'; auto. 
+  destruct (in_dec peq id params). 
+  apply set_params'_inside; auto.
+  repeat rewrite set_params'_outside; auto. 
+  rewrite set_locals_outside; auto. 
+Qed.
+
+Lemma bind_parameters_agree:
+  forall f params temps vals tvals le,
+  bind_parameters params vals (create_undef_temps temps) = Some le ->
+  val_list_inject f vals tvals ->
+  list_norepet params ->
+  list_disjoint params temps ->
+  match_temps f le (set_locals temps (set_params tvals params)).
+Proof.
+  intros; red; intros.
+  exploit bind_parameters_agree_rec; eauto.
+  instantiate (1 := set_locals temps (PTree.empty val)).
+  red; intros. exploit create_undef_temps_val; eauto. intros [A B]. subst v0.
+  exists Vundef; split. apply set_locals_inside; auto. auto.
+  intros [v' [A B]]. exists v'; split; auto.
+  rewrite <- A. apply set_locals_set_params'; auto.
+Qed.
+
+(** The main result in this section. *)
+
+Theorem match_callstack_function_entry:
+  forall fn cenv tf m e m' tm tm' sp f cs args targs le,
+  build_compilenv fn = (cenv, tf.(fn_stackspace)) ->
+  tf.(fn_stackspace) <= Int.max_unsigned ->
+  list_norepet (map fst (Csharpminor.fn_vars fn)) ->
+  list_norepet (Csharpminor.fn_params fn) ->
+  list_disjoint (Csharpminor.fn_params fn) (Csharpminor.fn_temps fn) ->
+  alloc_variables Csharpminor.empty_env m (Csharpminor.fn_vars fn) e m' ->
+  bind_parameters (Csharpminor.fn_params fn) args (create_undef_temps fn.(fn_temps)) = Some le ->
+  val_list_inject f args targs ->
+  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
+  match_callstack f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
+  Mem.inject f m tm ->
+  let te := set_locals (Csharpminor.fn_temps fn) (set_params targs (Csharpminor.fn_params fn)) in
+  exists f',
+     match_callstack f' m' tm'
+                     (Frame cenv tf e le te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
+                     (Mem.nextblock m') (Mem.nextblock tm')
+  /\ Mem.inject f' m' tm'.
+Proof.
+  intros.
+  exploit build_compilenv_sound; eauto. intros [C1 C2].
+  eapply match_callstack_alloc_variables; eauto.
+  intros. eapply build_compilenv_domain; eauto.
+  eapply bind_parameters_agree; eauto. 
 Qed.
 
 (** * Properties of compile-time approximations of values *)
@@ -1573,398 +1976,6 @@ Proof.
   econstructor; eauto.
 Qed.
 
-(** * Correctness of stack allocation of local variables *)
-
-(** This section shows the correctness of the translation of Csharpminor
-  local variables as sub-blocks of the Cminor stack data.  This is the most difficult part of the proof. *)
-
-Remark block_alignment_pos:
-  forall sz, block_alignment sz > 0.
-Proof.
-  unfold block_alignment; intros. 
-  destruct (zlt sz 2). omega. 
-  destruct (zlt sz 4). omega.
-  destruct (zlt sz 8); omega.
-Qed.
-
-Remark assign_variable_incr:
-  forall id sz cenv stksz cenv' stksz',
-  assign_variable (cenv, stksz) (id, sz) = (cenv', stksz') -> stksz <= stksz'.
-Proof.
-  simpl; intros. inv H. 
-  generalize (align_le stksz (block_alignment sz) (block_alignment_pos sz)).
-  assert (0 <= Zmax 0 sz). apply Zmax_bound_l. omega.
-  omega.
-Qed.
-
-Remark assign_variables_incr:
-  forall vars cenv sz cenv' sz',
-  assign_variables (cenv, sz) vars = (cenv', sz') -> sz <= sz'.
-Proof.
-  induction vars; intros until sz'.
-  simpl; intros. inv H. omega.
-Opaque assign_variable.
-  destruct a as [id s]. simpl. intros.
-  destruct (assign_variable (cenv, sz) (id, s)) as [cenv1 sz1]_eqn. 
-  apply Zle_trans with sz1. eapply assign_variable_incr; eauto. eauto.
-Transparent assign_variable.
-Qed.
-
-Remark inj_offset_aligned_block:
-  forall stacksize sz,
-  Mem.inj_offset_aligned (align stacksize (block_alignment sz)) sz.
-Proof.
-  intros; red; intros.
-  apply Zdivides_trans with (block_alignment sz).
-  unfold align_chunk.  unfold block_alignment.
-  generalize Zone_divide; intro.
-  generalize Zdivide_refl; intro.
-  assert (2 | 4). exists 2; auto.
-  assert (2 | 8). exists 4; auto.
-  assert (4 | 8). exists 2; auto.
-  destruct (zlt sz 2).
-  destruct chunk; simpl in *; auto; omegaContradiction.
-  destruct (zlt sz 4).
-  destruct chunk; simpl in *; auto; omegaContradiction.
-  destruct (zlt sz 8).
-  destruct chunk; simpl in *; auto; omegaContradiction.
-  destruct chunk; simpl; auto.
-  apply align_divides. apply block_alignment_pos.
-Qed.
-
-Remark inj_offset_aligned_block':
-  forall stacksize sz,
-  Mem.inj_offset_aligned (align stacksize (block_alignment sz)) (Zmax 0 sz).
-Proof.
-  intros. 
-  replace (block_alignment sz) with (block_alignment (Zmax 0 sz)).
-  apply inj_offset_aligned_block. 
-  rewrite Zmax_spec. destruct (zlt sz 0); auto.
-  transitivity 1. reflexivity. unfold block_alignment. rewrite zlt_true. auto. omega.
-Qed.
-
-Lemma match_callstack_alloc_variable:
-  forall id lv cenv sz cenv' sz' tm sp e tf m m' b te le lo cs f,
-  assign_variable (cenv, sz) (id, lv) = (cenv', sz') ->
-  Mem.valid_block tm sp ->
-  (forall ofs k p,
-    Mem.perm tm sp ofs k p -> 0 <= ofs < tf.(fn_stackspace)) ->
-  Mem.range_perm tm sp 0 tf.(fn_stackspace) Cur Freeable ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  Mem.alloc m 0 lv = (m', b) ->
-  match_callstack f m tm 
-                  (Frame cenv tf e le te sp lo (Mem.nextblock m) :: cs)
-                  (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  0 <= sz -> sz' <= tf.(fn_stackspace) ->
-  (forall b delta ofs k p,
-     f b = Some(sp, delta) -> Mem.perm m b ofs k p -> ofs + delta < sz) ->
-  e!id = None ->
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm
-  /\ match_callstack f' m' tm
-                     (Frame cenv' tf (PTree.set id (b, lv) e) le te sp lo (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm)
-  /\ (forall b delta ofs k p,
-      f' b = Some(sp, delta) -> Mem.perm m' b ofs k p -> ofs + delta < sz').
-Proof.
-  intros until f. intros ASV VALID BOUNDS PERMS NOOV ALLOC MCS INJ LO HI RANGE E.
-  unfold assign_variable in ASV. inv ASV.
-  assert (0 <= Zmax 0 lv). apply Zmax1.
-  assert (lv <= Zmax 0 lv). apply Zmax2.
-  generalize (align_le sz (block_alignment lv) (block_alignment_pos lv)). intro.
-  set (ofs := align sz (block_alignment lv)) in *.
-  exploit Mem.alloc_left_mapped_inject. eauto. eauto. eauto. 
-    instantiate (1 := ofs).
-    omega.
-    intros. exploit BOUNDS; eauto. omega.
-    intros. apply Mem.perm_implies with Freeable; auto with mem. apply Mem.perm_cur.
-    apply PERMS. omega.
-    rewrite Zminus_0_r. unfold ofs. apply inj_offset_aligned_block.
-    intros. generalize (RANGE _ _ _ _ _ H2 H3). omega. 
-  intros [f1 [MINJ1 [INCR1 [SAME OTHER]]]].
-  exists f1; split. auto. split. auto. split. 
-  eapply match_callstack_alloc_left; eauto.
-  intros. exploit Mem.perm_alloc_inv; eauto. destruct (zeq b0 b).
-  subst b0. assert (delta = ofs) by congruence. subst delta. omega.
-  intro. rewrite OTHER in H2; eauto. generalize (RANGE _ _ _ _ _ H2 H4). omega. 
-Qed.
-
-Lemma match_callstack_alloc_variables_rec:
-  forall tm sp cenv' tf le te lo cs,
-  Mem.valid_block tm sp ->
-  (forall ofs k p,
-    Mem.perm tm sp ofs k p -> 0 <= ofs < tf.(fn_stackspace)) ->
-  Mem.range_perm tm sp 0 tf.(fn_stackspace) Cur Freeable ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  forall e m vars e' m',
-  alloc_variables e m vars e' m' ->
-  forall f cenv sz,
-  assign_variables (cenv, sz) vars = (cenv', tf.(fn_stackspace)) ->
-  match_callstack f m tm 
-                  (Frame cenv tf e le te sp lo (Mem.nextblock m) :: cs)
-                  (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  0 <= sz ->
-  (forall b delta ofs k p,
-     f b = Some(sp, delta) -> Mem.perm m b ofs k p -> ofs + delta < sz) ->
-  list_norepet (map fst vars) ->
-  (forall id lv, In (id, lv) vars -> e!id = None) ->
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm
-  /\ match_callstack f' m' tm
-                     (Frame cenv' tf e' le te sp lo (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm).
-Proof.
-  intros until cs. intros VALID BOUNDS PERM NOOV.
-  induction 1.
-  (* base case *)
-  intros. simpl in H. inversion H; subst cenv sz.
-  exists f. split. apply inject_incr_refl. split. auto. auto.
-  (* inductive case *)
-  intros until sz0. 
-Opaque assign_variable.
-  simpl.  caseEq (assign_variable (cenv, sz0) (id, sz)).
-  intros cenv1 sz1 ASV1 ASVS MATCH MINJ SZPOS BOUND NOREPET UNDEFINED.
-  assert (sz1 <= fn_stackspace tf). eapply assign_variables_incr; eauto. 
-  exploit match_callstack_alloc_variable; eauto with coqlib.
-  intros [f1 [INCR1 [INJ1 [MCS1 BOUND1]]]].
-  exploit IHalloc_variables; eauto. 
-  apply Zle_trans with sz0; auto. eapply assign_variable_incr; eauto.
-  inv NOREPET; auto.
-  intros. rewrite PTree.gso. eapply UNDEFINED; eauto with coqlib.
-  inv NOREPET. red; intro; subst id0.
-  elim H5. change id with (fst (id, lv)). apply List.in_map. auto.
-  intros [f2 [INCR2 [INJ2 MCS2]]].
-  exists f2; intuition. eapply inject_incr_trans; eauto. 
-Qed.
-
-Lemma create_undef_temps_val:
-  forall id v temps, (create_undef_temps temps)!id = Some v -> In id temps /\ v = Vundef.
-Proof.
-  induction temps; simpl; intros.
-  rewrite PTree.gempty in H. congruence.
-  rewrite PTree.gsspec in H. destruct (peq id a).
-  split. auto. congruence.
-  exploit IHtemps; eauto. tauto. 
-Qed.
-
-Section BIND_PARAMETER_TEMPS.
-
-Variable f: meminj.
-
-Definition le_te_agree (le: Csharpminor.temp_env) (te: Cminor.env) : Prop :=
-  forall id v, le!id = Some v -> exists v', te!(id) = Some v' /\ val_inject f v v'.
-
-Fixpoint set_params' (vl: list val) (il: list ident) (te: Cminor.env) : Cminor.env :=
-  match il, vl with
-  | i1 :: is, v1 :: vs => set_params' vs is (PTree.set i1 v1 te)
-  | i1 :: is, nil => set_params' nil is (PTree.set i1 Vundef te)
-  | _, _ => te
-  end.
-
-Lemma bind_parameters_agree_rec:
-  forall vars vals tvals le1 le2 te,
-  bind_parameters vars vals le1 = Some le2 ->
-  val_list_inject f vals tvals ->
-  le_te_agree le1 te ->
-  le_te_agree le2 (set_params' tvals vars te).
-Proof.
-Opaque PTree.set.
-  induction vars; simpl; intros.
-  destruct vals; try discriminate. inv H. auto. 
-  destruct vals; try discriminate. inv H0.
-  simpl. eapply IHvars; eauto.
-  red; intros. rewrite PTree.gsspec in *. destruct (peq id a). 
-  inv H0. exists v'; auto.
-  apply H1; auto.
-Qed.
-
-Lemma set_params'_outside:
-  forall id il vl te, ~In id il -> (set_params' vl il te)!id = te!id.
-Proof.
-  induction il; simpl; intros. auto. 
-  destruct vl; rewrite IHil.
-  apply PTree.gso. intuition. intuition.
-  apply PTree.gso. intuition. intuition.
-Qed.
-
-Lemma set_params'_inside:
-  forall id il vl te1 te2,
-  In id il ->
-  (set_params' vl il te1)!id = (set_params' vl il te2)!id.
-Proof.
-  induction il; simpl; intros.
-  contradiction.
-  destruct vl; destruct (List.in_dec peq id il); auto;
-  repeat rewrite set_params'_outside; auto;
-  assert (a = id) by intuition; subst a; repeat rewrite PTree.gss; auto.
-Qed.
-
-Lemma set_params_set_params':
-  forall il vl id,
-  list_norepet il ->
-  (set_params vl il)!id = (set_params' vl il (PTree.empty val))!id.
-Proof.
-  induction il; simpl; intros.
-  auto.
-  inv H. destruct vl. 
-  rewrite PTree.gsspec. destruct (peq id a). 
-  subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
-  rewrite IHil; auto.
-  destruct (List.in_dec peq id il). apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
-  rewrite PTree.gsspec. destruct (peq id a). 
-  subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
-  rewrite IHil; auto.
-  destruct (List.in_dec peq id il). apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
-Qed.
-
-Lemma set_locals_outside:
-  forall e id il,
-  ~In id il -> (set_locals il e)!id = e!id.
-Proof.
-  induction il; simpl; intros.
-  auto.
-  rewrite PTree.gso. apply IHil. tauto. intuition. 
-Qed.
-
-Lemma set_locals_inside:
-  forall e id il,
-  In id il -> (set_locals il e)!id = Some Vundef.
-Proof.
-  induction il; simpl; intros.
-  contradiction.
-  destruct H. subst a. apply PTree.gss. 
-  rewrite PTree.gsspec. destruct (peq id a). auto. auto. 
-Qed.
-
-Lemma set_locals_set_params':
-  forall vars vals params id,
-  list_norepet params ->
-  list_disjoint params vars ->
-  (set_locals vars (set_params vals params)) ! id =
-  (set_params' vals params (set_locals vars (PTree.empty val))) ! id.
-Proof.
-  intros. destruct (in_dec peq id vars).
-  assert (~In id params). apply list_disjoint_notin with vars; auto. apply list_disjoint_sym; auto.
-  rewrite set_locals_inside; auto. rewrite set_params'_outside; auto. rewrite set_locals_inside; auto.
-  rewrite set_locals_outside; auto. rewrite set_params_set_params'; auto. 
-  destruct (in_dec peq id params). 
-  apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. 
-  rewrite set_locals_outside; auto. 
-Qed.
-
-Lemma bind_parameters_agree:
-  forall params temps vals tvals le,
-  bind_parameters params vals (create_undef_temps temps) = Some le ->
-  val_list_inject f vals tvals ->
-  list_norepet params ->
-  list_disjoint params temps ->
-  le_te_agree le (set_locals temps (set_params tvals params)).
-Proof.
-  intros; red; intros.
-  exploit bind_parameters_agree_rec; eauto.
-  instantiate (1 := set_locals temps (PTree.empty val)).
-  red; intros. exploit create_undef_temps_val; eauto. intros [A B]. subst v0.
-  exists Vundef; split. apply set_locals_inside; auto. auto.
-  intros [v' [A B]]. exists v'; split; auto.
-  rewrite <- A. apply set_locals_set_params'; auto.
-Qed.
-
-End BIND_PARAMETER_TEMPS.
-
-(** Preservation of [match_callstack] by simultaneous allocation
-  of Csharpminor local variables and of the Cminor stack data block. *)
-
-Lemma match_callstack_alloc_variables:
-  forall fn cenv tf m e m' tm tm' sp f cs args targs le,
-  build_compilenv fn = (cenv, tf.(fn_stackspace)) ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  list_norepet (map fst (Csharpminor.fn_vars fn)) ->
-  list_norepet (Csharpminor.fn_params fn) ->
-  list_disjoint (Csharpminor.fn_params fn) (Csharpminor.fn_temps fn) ->
-  alloc_variables Csharpminor.empty_env m (Csharpminor.fn_vars fn) e m' ->
-  bind_parameters (Csharpminor.fn_params fn) args (create_undef_temps fn.(fn_temps)) = Some le ->
-  val_list_inject f args targs ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
-  match_callstack f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  let te := set_locals (Csharpminor.fn_temps fn) (set_params targs (Csharpminor.fn_params fn)) in
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm'
-  /\ match_callstack f' m' tm'
-                     (Frame cenv tf e le te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm').
-Proof.
-  intros. 
-  unfold build_compilenv in H. 
-  eapply match_callstack_alloc_variables_rec; eauto with mem.
-  red; intros. eapply Mem.perm_alloc_2; eauto. 
-  eapply match_callstack_alloc_right; eauto.
-  change (le_te_agree f le te). eapply bind_parameters_agree; eauto.
-  eapply Mem.alloc_right_inject; eauto. omega. 
-  intros. elim (Mem.valid_not_valid_diff tm sp sp); eauto with mem.
-  eapply Mem.valid_block_inject_2; eauto.
-  intros. apply PTree.gempty. 
-Qed.
-
-(*
-(** The main result in this section: the behaviour of function entry
-  in the generated Cminor code (allocate stack data block and store
-  parameters whose address is taken) simulates what happens at function
-  entry in the original Csharpminor (allocate one block per local variable
-  and initialize the blocks corresponding to function parameters). *)
-
-Lemma function_entry_ok:
-  forall fn m e m1 vargs m2 f cs tm cenv tf tm1 sp tvargs s fn' k,
-  list_norepet (fn_params_names fn ++ fn_vars_names fn) ->
-  alloc_variables empty_env m (fn_variables fn) e m1 ->
-  bind_parameters ge e m1 fn.(Csharpminor.fn_params) vargs m2 ->
-  match_callstack f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  build_compilenv gce fn = (cenv, tf.(fn_stackspace)) ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm1, sp) ->
-  let tparams := List.map for_var (fn_params_names fn) in
-  let tvars := List.map for_var (fn_vars_names fn) in
-  let ttemps := List.map for_temp (Csharpminor.fn_temps fn) in
-  let te := set_locals (tvars ++ ttemps) (set_params tvargs tparams) in
-  val_list_inject f vargs tvargs ->
-  Mem.inject f m tm ->
-  store_parameters cenv fn.(Csharpminor.fn_params) = OK s ->
-  exists f2, exists tm2,
-     star step tge (State fn' s k (Vptr sp Int.zero) te tm1)
-                E0 (State fn' Sskip k (Vptr sp Int.zero) te tm2)
-  /\ Mem.inject f2 m2 tm2
-  /\ inject_incr f f2
-  /\ match_callstack f2 m2 tm2
-       (Frame cenv tf e (create_undef_temps (Csharpminor.fn_temps fn)) te sp (Mem.nextblock m) (Mem.nextblock m1) :: cs)
-       (Mem.nextblock m2) (Mem.nextblock tm2).
-Proof.
-  intros.
-  exploit match_callstack_alloc_variables; eauto.
-  intros [f1 [INCR1 [MINJ1 MATCH1]]].
-  exploit vars_vals_match_holds.
-    eexact H. 
-    apply val_list_inject_incr with f. eauto. eauto.
-    eapply bind_parameters_normalized; eauto.
-  instantiate (1 := Csharpminor.fn_temps fn). 
-  fold tvars. fold ttemps. fold (fn_params_names fn). fold tparams. fold te.   
-  intro VVM.
-  exploit store_parameters_correct.
-    eauto. eauto. eapply list_norepet_append_left; eauto.
-    eexact MINJ1. eexact MATCH1. eauto.
-  intros [f2 [tm2 [EXEC [MINJ2 [MATCH2 INCR2]]]]].
-  exists f2; exists tm2. 
-  split; eauto. split; auto. split; auto. eapply inject_incr_trans; eauto. 
-Qed.
-*)
-
 (** * Semantic preservation for the translation *)
 
 (** The proof of semantic preservation uses simulation diagrams of the
@@ -1977,8 +1988,8 @@ Qed.
        e, m2, out --------------- sp, te2, tm2, tout
 >>
   where [ts] is the Cminor statement obtained by translating the
-  Csharpminor statement [s].  The left vertical arrow is an execution
-  of a Csharpminor statement.  The right vertical arrow is an execution
+  C#minor statement [s].  The left vertical arrow is an execution
+  of a C#minor statement.  The right vertical arrow is an execution
   of a Cminor statement.  The precondition (top vertical bar)
   includes a [mem_inject] relation between the memory states [m1] and [tm1],
   and a [match_callstack] relation for any callstack having
@@ -2029,7 +2040,7 @@ Lemma transl_expr_correct:
 Proof.
   induction 3; intros; simpl in TR; try (monadInv TR).
   (* Etempvar *)
-  inv MATCH. inv MENV. exploit me_temps0; eauto. intros [tv [A B]]. 
+  inv MATCH. exploit MTMP; eauto. intros [tv [A B]]. 
   exists tv; split. constructor; auto. split. auto. exact I.
   (* Eaddrof *)
   exploit var_addr_correct; eauto. intros [tv [A B]].
@@ -2472,8 +2483,7 @@ Proof.
   exploit match_is_call_cont; eauto. intros [tk' [A [B C]]]. 
   exploit match_callstack_freelist; eauto. intros [tm' [P [Q R]]].
   econstructor; split.
-  eapply plus_right. eexact A. apply step_skip_call. auto.
-  rewrite (sig_preserved_body _ _ _ _ TRF). auto. eauto. traceEq.
+  eapply plus_right. eexact A. apply step_skip_call. auto. eauto. traceEq.
   econstructor; eauto.
 
 (* set *)
@@ -2666,8 +2676,8 @@ Opaque PTree.set.
                         sz
                         x0) in *.
   caseEq (Mem.alloc tm 0 (fn_stackspace tf)). intros tm' sp ALLOC'.
-  exploit match_callstack_alloc_variables; eauto. simpl; eauto. simpl; auto.
-  intros [f2 [IINCR [MINJ2 MCS2]]].
+  exploit match_callstack_function_entry; eauto. simpl; eauto. simpl; auto.
+  intros [f2 [MCS2 MINJ2]].
   left; econstructor; split.
   apply plus_one. constructor; simpl; eauto. 
   econstructor. eexact TRBODY. eauto. eexact MINJ2. eexact MCS2.

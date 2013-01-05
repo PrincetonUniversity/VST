@@ -561,8 +561,11 @@ Proof.
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
   assert (APOS:= Genv.init_data_size_pos a).
   Transparent load.
-  unfold init_data2pred, mapsto; simpl.
-  rewrite Zmod_small by omega.
+  unfold init_data2pred, mapsto.
+  unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
+    fst,snd.
+  rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+  simpl.
   repeat rewrite Share.unrel_splice_R.
   repeat rewrite Share.unrel_splice_L.
   destruct a; simpl in H; unfold load in H;

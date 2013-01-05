@@ -14,6 +14,8 @@
 
 Require Import FSets.
 Require FSetAVL.
+Require Import Orders.
+Require Mergesort.
 Require Import Coqlib.
 Require Import Errors.
 Require Import Maps.
@@ -21,7 +23,6 @@ Require Import Ordered.
 Require Import AST.
 Require Import Integers.
 Require Import Floats.
-Require Import Memdata.
 Require Import Csharpminor.
 Require Import Cminor.
 
@@ -406,10 +407,24 @@ Definition assign_variable
 Definition assign_variables (cenv_stacksize: compilenv * Z) (vars: list (ident * Z)) : compilenv * Z :=
   List.fold_left assign_variable vars cenv_stacksize.
 
-Definition build_compilenv (f: Csharpminor.function) : compilenv * Z :=
-  assign_variables (PTree.empty Z, 0) (Csharpminor.fn_vars f).
+(** Before allocating stack slots, we sort variables by increasing size 
+  so as to minimize padding. *)
 
-(* TODO: consider sorting variables by sizes to minimize padding *)
+Module VarOrder <: TotalLeBool.
+  Definition t := (ident * Z)%type.
+  Definition leb (v1 v2: t) : bool := zle (snd v1) (snd v2).
+  Theorem leb_total: forall v1 v2, leb v1 v2 = true \/ leb v2 v1 = true.
+  Proof.
+    unfold leb; intros. 
+    assert (snd v1 <= snd v2 \/ snd v2 <= snd v1) by omega.
+    unfold proj_sumbool. destruct H; [left|right]; apply zle_true; auto.
+  Qed.
+End VarOrder.
+
+Module VarSort := Mergesort.Sort(VarOrder).
+
+Definition build_compilenv (f: Csharpminor.function) : compilenv * Z :=
+  assign_variables (PTree.empty Z, 0) (VarSort.sort (Csharpminor.fn_vars f)).
 
 (** * Translation of functions *)
 

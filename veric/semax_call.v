@@ -980,7 +980,7 @@ Proof.
  unfold Map.get. rewrite H. rewrite eqb_type_refl.
  case_eq (type_is_volatile ty); intros; simpl; auto.
  replace (sizeof ty - 0) with (sizeof ty) by omega.
- rewrite Zmod_0_l. auto.
+ auto.
 
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.

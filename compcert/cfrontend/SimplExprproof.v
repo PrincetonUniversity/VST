@@ -12,8 +12,6 @@
 
 (** Correctness proof for expression simplification. *)
 
-Require Import Coq.Program.Equality.
-Require Import Axioms.
 Require Import Coqlib.
 Require Import Maps.
 Require Import AST.
@@ -91,7 +89,7 @@ Lemma function_return_preserved:
   fn_return tf = C.fn_return f.
 Proof.
   intros. unfold transl_function in H.
-  destruct (transl_stmt (C.fn_body f) initial_generator); inv H.
+  destruct (transl_stmt (C.fn_body f) (initial_generator tt)); inv H.
   auto.
 Qed.
 
@@ -2094,11 +2092,10 @@ Proof.
   eauto. traceEq.
   constructor. apply match_cont_call; auto.
 (* skip return *)
-  inv H9. 
-  assert (is_call_cont tk). inv H10; simpl in *; auto.
+  inv H8. 
+  assert (is_call_cont tk). inv H9; simpl in *; auto.
   econstructor; split.
   left. apply plus_one. apply step_skip_call; eauto.
-  rewrite <- H0. apply function_return_preserved; auto.
   constructor. auto.
 
 (* switch *)

@@ -506,6 +506,7 @@ Definition do_external (ef: external_function):
   | EF_memcpy sz al => do_ef_memcpy sz al
   | EF_annot text targs => do_ef_annot text targs
   | EF_annot_val text targ => do_ef_annot_val text targ
+  | EF_inline_asm text => do_ef_annot text nil
   end.
 
 Lemma do_ef_external_sound:
@@ -575,6 +576,10 @@ Proof with try congruence.
   unfold do_ef_annot_val. destruct vargs... destruct vargs... mydestr. 
   split. constructor. apply eventval_of_val_sound; auto.
   econstructor. constructor; eauto. constructor.
+(* EF_inline_asm *)
+  unfold do_ef_annot. destruct vargs; simpl... mydestr. 
+  split. constructor. constructor. 
+  econstructor. constructor; eauto. constructor.
 Qed.
 
 Lemma do_ef_external_complete:
@@ -633,6 +638,8 @@ Proof.
 (* EF_annot_val *)
   inv H; unfold do_ef_annot_val. inv H0. inv H6. inv H4. 
   rewrite (eventval_of_val_complete _ _ _ H1). auto.
+(* EF_inline_asm *)
+  inv H; unfold do_ef_annot. inv H0. inv H6. inv H4. inv H1. simpl. auto.
 Qed.
 
 (** * Reduction of expressions *)
@@ -2008,7 +2015,6 @@ Definition do_step (w: world) (s: state) : list (trace * state) :=
       ret (Returnstate Vundef (call_cont k) m')
   | State f (Sreturn (Some x)) k e m => ret (ExprState f x (Kreturn k) e m)
   | State f Sskip ((Kstop | Kcall _ _ _ _ _) as k) e m => 
-      check type_eq (f.(fn_return)) Tvoid;
       do m' <- Mem.free_list m (blocks_of_env e);
       ret (Returnstate Vundef k m')
 
@@ -2176,7 +2182,7 @@ Proof with (unfold ret; auto with coqlib).
   destruct H0; subst x...
   rewrite H0...
   rewrite H0; rewrite H1...
-  rewrite H1. rewrite dec_eq_true. rewrite H2. red in H0. destruct k; try contradiction...
+  rewrite H1. red in H0. destruct k; try contradiction...
   destruct H0; subst x...
   rewrite H0...
 
