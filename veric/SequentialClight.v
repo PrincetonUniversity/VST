@@ -29,7 +29,6 @@ Definition dryspec : ext_spec unit :=
  Lemma hoare_safe:
    forall prog V G m,
      semax_prog prog V G ->
-     main_params (Genv.globalenv prog) prog.(prog_main) ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -38,6 +37,7 @@ Definition dryspec : ext_spec unit :=
        forall n, 
         safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.
 Proof.
+  assert (H0:=True).
   intros.
   destruct (semax_prog_rule tt _ _ _ _ H H1) as [b [q [? [? ?]]]].
   exists b, q.

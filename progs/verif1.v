@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import msl.Coqlib2.
+Require Import Coqlib msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import Ctypes.
 Require veric.SequentialClight.

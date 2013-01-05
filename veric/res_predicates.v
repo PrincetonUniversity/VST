@@ -5,6 +5,7 @@ Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
+Require Import veric.expr.
 
 Import RML. Import R. 
 Open Local Scope pred.

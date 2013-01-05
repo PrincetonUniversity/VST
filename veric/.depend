@@ -13,15 +13,15 @@ extspec.vo extspec.glob: extspec.v ./loadpath.v Address.vo
 step_lemmas.vo step_lemmas.glob: step_lemmas.v ./loadpath.v base.vo sim.vo extspec.vo
 sim.vo sim.glob: sim.v ./loadpath.v base.vo MemEvolve.vo
 extension.vo extension.glob: extension.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo Address.vo
-extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo
+extension_proof.vo extension_proof.glob: extension_proof.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo Coqlib2.vo
 seplog_extension.vo seplog_extension.glob: seplog_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo juicy_extspec.vo compcert_rmaps.vo semax.vo SeparationLogic.vo SeparationLogicSoundness.vo
-null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extspec.vo extension.vo extension_proof.vo
-fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo juicy_mem.vo juicy_extspec.vo Address.vo
+null_extension.vo null_extension.glob: null_extension.v ./loadpath.v sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo extension_proof.vo Coqlib2.vo
+fs_extension.vo fs_extension.glob: fs_extension.v ./loadpath.v sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo extension_proof.vo Address.vo juicy_mem.vo juicy_extspec.vo Coqlib2.vo
 Clight_lemmas.vo Clight_lemmas.glob: Clight_lemmas.v ./loadpath.v base.vo
 Clight_new.vo Clight_new.glob: Clight_new.v ./loadpath.v base.vo Clight_lemmas.vo sim.vo
 Clight_sim.vo Clight_sim.glob: Clight_sim.v ./loadpath.v base.vo Clight_lemmas.vo sim.vo Clight_new.vo Sim_starplus.vo
 slice.vo slice.glob: slice.v ./loadpath.v base.vo compcert_rmaps.vo Address.vo
-res_predicates.vo res_predicates.glob: res_predicates.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo
+res_predicates.vo res_predicates.glob: res_predicates.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo expr.vo
 seplog.vo seplog.glob: seplog.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo
 assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo slice.vo res_predicates.vo expr.vo expr_lemmas.vo seplog.vo Clight_lemmas.vo
 juicy_mem.vo juicy_mem.glob: juicy_mem.v ./loadpath.v base.vo Address.vo rmaps.vo rmaps_lemmas.vo compcert_rmaps.vo
@@ -37,7 +37,7 @@ semax_loop.vo semax_loop.glob: semax_loop.v ./loadpath.v base.vo Address.vo comp
 initial_world.vo initial_world.glob: initial_world.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo expr.vo expr_lemmas.vo
 initialize.vo initialize.glob: initialize.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo expr.vo expr_lemmas.vo Clight_lemmas.vo initial_world.vo
 semax_prog.vo semax_prog.glob: semax_prog.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo extspec.vo step_lemmas.vo juicy_extspec.vo expr.vo expr_lemmas.vo semax.vo semax_lemmas.vo Clight_lemmas.vo initial_world.vo semax_call.vo initialize.vo
-SeparationLogic.vo SeparationLogic.glob: SeparationLogic.v ./loadpath.v base.vo Address.vo expr.vo juicy_extspec.vo seplog.vo compcert_rmaps.vo assert_lemmas.vo initialize.vo
+SeparationLogic.vo SeparationLogic.glob: SeparationLogic.v ./loadpath.v Address.vo expr.vo juicy_extspec.vo seplog.vo compcert_rmaps.vo assert_lemmas.vo initialize.vo
 SeparationLogicSoundness.vo SeparationLogicSoundness.glob: SeparationLogicSoundness.v ./loadpath.v base.vo Address.vo compcert_rmaps.vo juicy_mem.vo juicy_mem_lemmas.vo juicy_mem_ops.vo res_predicates.vo seplog.vo assert_lemmas.vo Clight_new.vo extspec.vo step_lemmas.vo juicy_extspec.vo expr.vo semax.vo semax_lemmas.vo Clight_lemmas.vo initial_world.vo semax_call.vo semax_straight.vo semax_loop.vo semax_prog.vo SeparationLogic.vo sim.vo
 NullExtension.vo NullExtension.glob: NullExtension.v ./loadpath.v base.vo Clight_new.vo Clight_lemmas.vo step_lemmas.vo SeparationLogic.vo juicy_extspec.vo juicy_mem.vo extspec.vo
 SequentialClight.vo SequentialClight.glob: SequentialClight.v ./loadpath.v base.vo Clight_new.vo Clight_lemmas.vo step_lemmas.vo SeparationLogic.vo juicy_extspec.vo juicy_mem.vo NullExtension.vo Clight_sim.vo SeparationLogicSoundness.vo sim.vo extspec.vo
@@ -45,6 +45,6 @@ sim.vo sim.glob: sim.v ./loadpath.v base.vo MemEvolve.vo
 Sim_starplus.vo Sim_starplus.glob: Sim_starplus.v ./loadpath.v base.vo sim.vo
 Events2.vo Events2.glob: Events2.v ./loadpath.v
 MemEvolve.vo MemEvolve.glob: MemEvolve.v ./loadpath.v base.vo
-linking_extension.vo linking_extension.glob: linking_extension.v ./loadpath.v sim.vo step_lemmas.vo base.vo expr.vo extension.vo extension_proof.vo extspec.vo
+linking_extension.vo linking_extension.glob: linking_extension.v ./loadpath.v sim.vo rg_sim.vo step_lemmas.vo extspec.vo extension.vo extension_sim.vo extension_proof.vo Address.vo juicy_mem.vo juicy_extspec.vo Coqlib2.vo
 rg_sim.vo rg_sim.glob: rg_sim.v ./loadpath.v sim.vo
 extension_sim.vo extension_sim.glob: extension_sim.v ./loadpath.v sim.vo extspec.vo rg_sim.vo extension.vo

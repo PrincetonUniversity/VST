@@ -1,5 +1,14 @@
 Load loadpath.  
-Require Export veric.base.
+
+Require Export Axioms.
+Require Import Coqlib.
+Require Export AST.
+Require Export Integers.
+Require Export Floats.
+Require Export Values.
+Require Export Maps.
+Require Export Ctypes.
+Require Export Clight.
 Require Export veric.Address.
 Require Export msl.eq_dec.
 Require Export msl.shares.
@@ -9,10 +18,8 @@ Require Export msl.log_normalize.
 Require Export veric.expr.
 Require Import veric.juicy_extspec.
 Require veric.seplog.
-Require veric.compcert_rmaps.
-Require veric.assert_lemmas.
-Require veric.initialize.
 Require msl.msl_standard.
+Require Import veric.Coqlib2.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -110,12 +117,29 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
 
 Definition extern_retainer : share := Share.Lsh.
 
+Definition init_data_size (i: init_data) : Z :=
+  match i with
+  | Init_int8 _ => 1
+  | Init_int16 _ => 2
+  | Init_int32 _ => 4
+  | Init_float32 _ => 4
+  | Init_float64 _ => 8
+  | Init_addrof _ _ => 4
+  | Init_space n => Zmax n 0
+  end.
+
+Fixpoint init_data_list_size (il: list init_data) {struct il} : Z :=
+  match il with
+  | nil => 0
+  | i :: il' => init_data_size i + init_data_list_size il'
+  end.
+
 Fixpoint init_data_list2pred (dl: list init_data) 
                            (sh: share) (v: val)  (rho: environ) : mpred :=
   match dl with
   | d::dl' => 
       sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
+                  (init_data_list2pred dl' sh (offset_val v (Int.repr (init_data_size d))) rho)
   | nil => emp
  end.
 
@@ -148,7 +172,7 @@ Definition initializer_aligned (z: Z) (d: init_data) : bool :=
 Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
   match dl with 
   | nil => true 
-  | d::dl' => andb (initializer_aligned z d) (initializers_aligned (z + Genv.init_data_size d) dl')
+  | d::dl' => andb (initializer_aligned z d) (initializers_aligned (z + init_data_size d) dl')
   end.
 
 Definition writable_block (id: ident) (n: Z): assert :=
@@ -160,6 +184,8 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
   | nil => emp 
   | (b,n)::bl' => writable_block b n * writable_blocks bl'
  end.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
 Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> assert) (v: val) : mpred :=
   res_predicates.fun_assert fml A P Q v.
@@ -255,7 +281,7 @@ Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
 Definition all_initializers_aligned (prog: AST.program fundef type) := 
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
-                                 (Zlt_bool (Genv.init_data_list_size (gvar_init (snd idv))) Int.modulus))
+                                 (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
                       (prog_vars prog) = true.
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
@@ -409,7 +435,7 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
   end.
 
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
- match a with (id,l) => (id , Genv.init_data_list_size (gvar_init l)) end.
+ match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
 Definition main_pre (prog: program) : unit -> assert := 
   (fun tt => globvars2pred (prog_vars prog)).
@@ -497,12 +523,6 @@ Axiom semax_func_cons_ext:
       semax_func V G fs G' ->
       semax_func V G ((id, External ef (fst fsig) (snd fsig))::fs) 
            ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
-
-Definition main_params (ge: genv) start : Prop :=
-  exists b, exists func,
-    Genv.find_symbol ge start = Some b /\
-        Genv.find_funct ge (Vptr b Int.zero) = Some (Internal func) /\
-        func.(fn_params) = nil.
 
 (* THESE RULES FROM semax_loop *)
 

@@ -5,6 +5,8 @@ Require Import veric.Address.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
+
 Inductive kind : Type := VAL : memval -> kind 
                                    | LK : Z -> kind 
                                    | CT: Z -> kind 

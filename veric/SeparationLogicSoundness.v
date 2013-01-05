@@ -66,7 +66,6 @@ Definition semax_prog := semax_prog Hspec.
 Definition semax_func_nil := semax_func_nil Hspec.
 Definition semax_func_cons := semax_func_cons Hspec.
 Definition semax_func_cons_ext := semax_func_cons_ext Hspec.
-Definition main_params := main_params.
 Definition semax_seq := semax_seq Hspec.
 Definition semax_break := semax_break Hspec.
 Definition semax_continue := semax_continue Hspec.
