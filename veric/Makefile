@@ -15,7 +15,7 @@ FILES= \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
   initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v \
   NullExtension.v SequentialClight.v \
-  sim.v Sim_starplus.v Events2.v \
+  sim.v Sim_starplus.v \
   MemEvolve.v linking_extension.v \
   rg_sim.v extension_sim.v
 

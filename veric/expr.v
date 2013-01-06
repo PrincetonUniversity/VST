@@ -286,6 +286,12 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                             end
                         end.
 
+Definition deref_noload (ty: type) (v: val) : val :=
+ match access_mode ty with
+ | By_reference => v
+ | _ => Vundef
+ end.
+
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => lift0 (Vint i)
@@ -296,7 +302,9 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | Ebinop op a1 a2 ty =>  
                   lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
  | Ecast a ty => lift1 (eval_cast (typeof a) ty) (eval_expr a) 
- | _ => lift0 Vundef
+ | Evar id ty => lift1 (deref_noload ty) (eval_var id ty)
+ | Ederef a ty => lift1 (deref_noload ty) (lift1 force_ptr (eval_expr a))
+ | Efield a i ty => lift1 (deref_noload ty) (lift1 (eval_field (typeof a) i) (eval_lvalue a))
  end
 
  with eval_lvalue (e: expr) : environ -> val := 
@@ -568,6 +576,28 @@ match e with
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty)) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
  | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty a)
+ | Evar id ty => match access_mode ty with
+                         | By_reference => 
+                            match get_var_type Delta id with 
+                            | Some ty' => tc_andp (if eqb_type ty ty' then tc_TT else tc_FF) 
+                                (tc_bool (negb (type_is_volatile ty)))
+                            | None => tc_FF
+                            end 
+                         | _ => tc_FF
+                        end
+ | Efield a i ty => match access_mode ty with
+                         | By_reference => 
+                            tc_andp (tc_andp (typecheck_lvalue Delta a) (match typeof a with
+                            | Tstruct id fList att =>
+                                  match field_offset i fList with 
+                                  | Errors.OK delta => tc_TT
+                                  | _ => tc_FF
+                                  end
+                            | Tunion id fList att => tc_TT
+                            | _ => tc_FF
+                            end)) (tc_bool (negb (type_is_volatile ty)))
+                         | _ => tc_FF
+                        end
  | _ => tc_FF
 end
 

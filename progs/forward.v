@@ -500,7 +500,58 @@ apply andb_true_iff.
 split; auto.
 apply eqb_type_refl.
 Qed.
+
+
 Lemma semax_call_id1:
+ forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+   match_fsig fsig bl (Some id) = true ->
+   argtys = type_of_params (fst fsig) ->
+   retty = snd fsig ->
+  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
+    (Scall (Some ret)
+             (Evar id (Tfunction argtys retty))
+             bl)
+    (normal_ret_assert 
+       (EX old:val, 
+          PROPx P (LOCALx (map (subst ret (lift0 old)) Q) 
+             (SEPx (lift1 (Post x) (get_result1 ret) :: map (subst ret (lift0 old)) R))))).
+Proof.
+intros.
+assert (Cop.classify_fun (typeof (Evar id (Tfunction argtys retty)))=
+               Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig)).
+subst; reflexivity.
+apply semax_fun_id' with id fsig A Pre Post; auto.
+subst. 
+eapply semax_pre; [ | apply (semax_call1 Delta A Pre Post x ret fsig  _ bl P Q R H3 H0)].
+apply andp_left2.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; simpl.
+subst.
+autorewrite with normalize.
+apply andp_right.
+apply prop_right. hnf.
+simpl.
+unfold get_var_type. rewrite GLBL. rewrite H.
+simpl.
+rewrite eqb_typelist_refl.
+rewrite eqb_type_refl.
+simpl. split; hnf; auto.
+auto.
+simpl.
+intro rho.
+rewrite sepcon_comm.
+rewrite sepcon_assoc.
+autorewrite with normalize.
+apply sepcon_derives; auto.
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+Qed.
+
+
+Lemma semax_call_id1_Eaddrof:
  forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
@@ -587,12 +638,12 @@ Ltac semax_call_id_tac :=
 match goal with 
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx 
           (?R))))
-         (Ssequence (Scall (Some ?id) (Eaddrof (Evar ?f _) _) ?bl) _)
+         (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _)
         _ =>
       semax_call_id_tac_aux Delta P Q R id f bl
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx 
           (?R))))
-         (Scall (Some ?id) (Eaddrof (Evar ?f _) _) ?bl)
+         (Scall (Some ?id) (Evar ?f _) ?bl)
         _ =>
       semax_call_id_tac_aux Delta P Q R id f bl
 end.
@@ -656,9 +707,9 @@ Ltac forward :=
                                 | apply semax_ff]
   | |- semax _ _ (Sreturn _) _ => eapply semax_pre; [ | apply semax_return ]
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-            (Ssequence (Scall (Some ?id) (Eaddrof (Evar ?f _) _) ?bl) _) _ =>
+            (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
                                           semax_call_id_tac_aux Delta P Q R id f bl
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                              (Scall (Some ?id) (Eaddrof (Evar ?f _) _) ?bl)  _ =>
+                              (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
                                          semax_call_id_tac_aux Delta P Q R id f bl
   end.
