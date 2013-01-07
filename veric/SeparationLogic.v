@@ -16,8 +16,9 @@ Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
 Require Export veric.expr.
-Require Import veric.juicy_extspec.
+(*Require Import veric.juicy_extspec.*)
 Require veric.seplog.
+Require veric.assert_lemmas.
 Require msl.msl_standard.
 Require Import veric.Coqlib2.
 
@@ -410,6 +411,7 @@ unfold local in *.
 apply H0.
 Qed.
 
+
 Lemma corable_fun_assert: forall fsig A Pre Post v, corable (fun_assert fsig A Pre Post v).
 Proof.
 intros. unfold corable.
@@ -453,16 +455,9 @@ Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
    Hint databases if this next line is not added. *)
 Hint Resolve (@subp_sepcon mpred Nveric Iveric Sveric SIveric Rveric SRveric): contractive.
 
-Module Type EXTERNAL_SPEC.
-  Parameter Z:Type.
-  Parameter Hspec : juicy_ext_spec Z.
-End EXTERNAL_SPEC.
-
 Module Type  CLIGHT_SEPARATION_LOGIC.
 
 Local Open Scope pred.
-
-Declare Module ExtSpec: EXTERNAL_SPEC.
 
 Parameter semax:  tycontext -> assert -> statement -> ret_assert -> Prop.
 

@@ -29,6 +29,7 @@ Require Import veric.sim.
 
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
+Declare Module ExtSpec: EXTERNAL_SPEC.
 Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
 
 Import CSL.
@@ -47,14 +48,13 @@ Axiom semax_prog_rule :
 
 End SEPARATION_LOGIC_SOUNDNESS.
 
-Module MakeSeparationLogic (EXT_SPEC: EXTERNAL_SPEC) :
-  SEPARATION_LOGIC_SOUNDNESS with Module CSL.ExtSpec := EXT_SPEC.
+Module MakeSeparationLogic (ExtSpec: EXTERNAL_SPEC) :
+  SEPARATION_LOGIC_SOUNDNESS with Module ExtSpec := ExtSpec.
 
-Module EXT_SPEC := EXT_SPEC.
-Import EXT_SPEC.
+Module ExtSpec := ExtSpec.
+Import ExtSpec.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
-Module ExtSpec := EXT_SPEC.
 
 Definition semax := semax Hspec.
 Definition extract_exists := extract_exists Hspec.

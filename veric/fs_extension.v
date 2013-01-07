@@ -110,7 +110,7 @@ Fixpoint get_nfiles_open_aux (n: nat) (fcache: int -> option (fmode*fptr)) :=
   end.
 
 Definition get_nfiles_open :=
-  get_nfiles_open_aux (nat_of_Z (Int.intval get_max_fds)) get_fdtable.
+  get_nfiles_open_aux (nat_of_Z (Int.unsigned get_max_fds)) get_fdtable.
 
 End selectors.
 
@@ -127,7 +127,7 @@ Fixpoint find_unused_fd (n: nat) (fdtable: int -> option (fmode*fptr)) :=
             end
   end.
 
-Definition max_fds: nat := nat_of_Z (Int.intval (get_max_fds fs)).
+Definition max_fds: nat := nat_of_Z (Int.unsigned (get_max_fds fs)).
 
 Definition alloc_fd := find_unused_fd max_fds (get_fdtable fs).
 
@@ -140,7 +140,7 @@ destruct fs; hnf.
 unfold get_fdtable.
 simpl.
 destruct fsdata; simpl.
-forget (nat_of_Z (Int.intval MAX_FILE_DESCRIPTORS)) as n.
+forget (nat_of_Z (Int.unsigned MAX_FILE_DESCRIPTORS)) as n.
 induction n.
 inversion 1.
 intros H1.
@@ -223,7 +223,7 @@ Definition val2oadr (v: val): option address :=
   | Vundef => None
   | Vint i => None
   | Vfloat _ => None
-  | Vptr b ofs => Some (b, Int.intval ofs)
+  | Vptr b ofs => Some (b, Int.unsigned ofs)
   end.
 
 Definition val2omode (mode: val): option fmode :=
@@ -504,7 +504,7 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
-  fs_read fs fd (nat_of_Z (Int.intval nbytes)) = Some bytes -> 
+  fs_read fs fd (nat_of_Z (Int.unsigned nbytes)) = Some bytes -> 
   Mem.storebytes m (fst adr) (snd adr) bytes = Some m' -> 
   after_external csem (Some (Vint (Int.repr (Zlength bytes)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs) m'
@@ -514,7 +514,7 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
-  Mem.loadbytes m (fst adr) (snd adr) (Int.intval nbytes) = Some bytes -> 
+  Mem.loadbytes m (fst adr) (snd adr) (Int.unsigned nbytes) = Some bytes -> 
   fs_write fs fd bytes = Some (nbytes_written, fs') -> 
   after_external csem (Some (Vint (Int.repr (Z_of_nat nbytes_written)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs') m.
@@ -594,7 +594,7 @@ Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z
     match val2oint fname0, val2omode md0 with
     | Some fname, Some md => 
         List.Forall2 Val.has_type (md0::nil) (sig_args SYS_OPEN_SIG) /\
-        get_nfiles_open fsys < nat_of_Z (Int.intval (get_max_fds fsys)) /\
+        get_nfiles_open fsys < nat_of_Z (Int.unsigned (get_max_fds fsys)) /\
         (~file_exists fsys fname=true -> fwritable md=true) /\
         ~is_open fsys fname
     | _, _ => False
@@ -605,7 +605,7 @@ Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z
         u=adr /\
         List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
         is_readable fsys fd /\ 
-        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Writable
+        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.unsigned nbytes) Cur Writable
     | _, _, _ => False
     end
   | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
@@ -614,7 +614,7 @@ Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z
         u=adr /\
         List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
         is_writable fsys fd /\ 
-        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.intval nbytes) Cur Readable
+        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.unsigned nbytes) Cur Readable
      | _, _, _ => False
      end
   | _, _, _ => False
@@ -634,7 +634,7 @@ Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ)
       obind False (val2oint retval) (fun nbytes => 
         exists bytes, 
           nbytes=Int.repr (Zlength bytes) /\
-          Mem.loadbytes m (fst adr) (snd adr) (Int.intval nbytes) = Some bytes))
+          Mem.loadbytes m (fst adr) (snd adr) (Int.unsigned nbytes) = Some bytes))
   | SYS_WRITE, (fsys, z) => True
   | _, _ => True
   end.
@@ -1264,11 +1264,12 @@ destruct H5 as [H5 H6].
 rewrite <-H6.
 simpl; auto.
 rewrite Hef.
+remember (Int.repr (Zlength bytes)) as N.
 simpl.
 exists bytes.
 split; auto.
 apply Mem.loadbytes_storebytes_same in H10.
-rewrite Zlength_correct.
+rewrite Zlength_correct in HeqN.
 assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
  split.
  apply Zle_0_nat; auto.
@@ -1277,14 +1278,16 @@ assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
  destruct (get_fptr fs0 fd); try congruence.
  unfold read_file in H9.
  inversion H9.
- generalize (read_file_aux_length f (nat_of_Z (Int.intval nbytes)) (get_size f) f0);
+ generalize (read_file_aux_length f (nat_of_Z (Int.unsigned nbytes)) (get_size f) f0);
   intro H2.
- apply Zle_lt_trans with (m := Int.intval nbytes).
+ apply Zle_lt_trans with (m := Int.unsigned nbytes).
  apply inj_le in H2.
  rewrite nat_of_Z_eq in H2; auto.
  destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
  destruct nbytes as [? [Pf1 Pf2]]; simpl in *; omega.
-solve[rewrite Heq, Zdiv.Zmod_small; auto].
+ change (Int.unsigned N) with (Int.unsigned N).
+ subst N x; rewrite Int.unsigned_repr; auto.
+ unfold Int.max_unsigned; omega.
 (*SYS_WRITE case*)
 right.
 exists (Some (Vint (Int.repr (Z_of_nat nbytes_written)))).
@@ -1361,7 +1364,7 @@ destruct H1 as [Heq [H1 [H6 H7]]].
 unfold proj_zint in H6.
 destruct H6 as [md [cur [f' [H6 H8]]]].
 apply mem_range_perm_sub with 
- (sz := (snd a + Z_of_nat (length (read_file_aux f' (nat_of_Z (Int.intval i)) 
+ (sz := (snd a + Z_of_nat (length (read_file_aux f' (nat_of_Z (Int.unsigned i)) 
                              (get_size f') cur)))%Z)
  in H7.
 destruct a as [b ofs].
@@ -1372,63 +1375,51 @@ specialize (H2
   (Some (Vint
     (Int.repr
       (Zlength
-        (read_file_aux f' (nat_of_Z (Int.intval i)) 
+        (read_file_aux f' (nat_of_Z (Int.unsigned i)) 
           (get_size f') cur)))))
   m'
   (get_fs s, z)).
-spec H2; simpl; auto.
-case_eq (eq_nat_dec
- (length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))
- (nat_of_Z (Int.intval i))).
+spec H2.
+ case_eq (eq_nat_dec
+ (length (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur))
+ (nat_of_Z (Int.unsigned i))).
 intros Heq'.
-exists (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur).
+exists (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur).
 split; auto.
 apply Mem.loadbytes_storebytes_same in H7.
 rewrite Zlength_correct.
 rewrite Heq' in H7|-*.
-destruct x; inv Heq; simpl.
-assert (H10: Z_of_nat (nat_of_Z (Int.intval i)) mod Int.modulus =
-             Z_of_nat (nat_of_Z (Int.intval i))).
- destruct i as [i PF]; simpl.
- rewrite nat_of_Z_eq.
- apply Zdiv.Zmod_small; auto.
- destruct PF as [Pf1 Pf2]; omega.
-solve[rewrite H10; auto].
+destruct x; inv Heq.
+rewrite Int.unsigned_repr. unfold fst, snd; auto.
+rewrite nat_of_Z_eq.
+ apply Int.unsigned_range_2.
+ destruct (Int.unsigned_range_2 i); omega.
 intros Hneq.
 assert (H11: 
-  length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur) <
-  nat_of_Z (Int.intval i)).
+  length (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur) <
+  nat_of_Z (Int.unsigned i)).
  generalize (read_file_aux_length f' 
-             (nat_of_Z (Int.intval i)) (get_size f') cur); intro H12.
+             (nat_of_Z (Int.unsigned i)) (get_size f') cur); intro H12.
  omega.
 intros _.
 exists (read_file_aux f' 
- (length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur)) 
+ (length (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur)) 
  (get_size f') cur).
 apply Mem.loadbytes_storebytes_same in H7.
-rewrite Zlength_correct.
-destruct x; inv Heq; simpl.
-split; auto.
-rewrite Zlength_correct.
+repeat rewrite Zlength_correct.
+destruct x; inv Heq.
 rewrite <-read_file_aux_length2; auto.
-cut (Z_of_nat (length
-  (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))
-  mod Int.modulus =
-  Z_of_nat (length
-  (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur))).
-intros Heq.
-rewrite Heq.
-rewrite H7.
-rewrite <-read_file_aux_id; auto.
-apply Zdiv.Zmod_small.
-destruct i as [i [Pf1 Pf2]].
-simpl in *.
-split; try omega.
-apply Zlt_le_trans with (m := i); try omega.
-apply Zlt_le_trans with (m := Z_of_nat (nat_of_Z i)); try omega.
-rewrite nat_of_Z_eq.
-omega.
-omega.
+split; auto.
+rewrite Int.unsigned_repr. unfold fst, snd.
+rewrite <- read_file_aux_id.
+auto.
+split. omega.
+clear - H11.
+forget (length (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur)) as N.
+apply inj_lt_iff in H11.
+ destruct (Int.unsigned_range_2 i).
+rewrite nat_of_Z_eq in H11; omega.
+
 destruct H2 as [c' [H9 H10]].
 exists (mkxT z c' (get_fs s)); exists m'.
 split.
@@ -1461,16 +1452,16 @@ rewrite H9 in H12.
 congruence.
 apply Zplus_le_compat_l.
 assert (H9: 
- length (read_file_aux f' (nat_of_Z (Int.intval i)) (get_size f') cur) <=
- nat_of_Z (Int.intval i)).
+ length (read_file_aux f' (nat_of_Z (Int.unsigned i)) (get_size f') cur) <=
+ nat_of_Z (Int.unsigned i)).
  apply read_file_aux_length.
-assert (H10: (Z_of_nat (nat_of_Z (Int.intval i)) <= Int.intval i)%Z).
+assert (H10: (Z_of_nat (nat_of_Z (Int.unsigned i)) <= Int.unsigned i)%Z).
  rewrite nat_of_Z_max.
  rewrite Z.max_lub_iff.
  split; auto.
  apply Zle_refl.
  apply Int.intrange.
-apply Zle_trans with (m := Z_of_nat (nat_of_Z (Int.intval i))); auto.
+apply Zle_trans with (m := Z_of_nat (nat_of_Z (Int.unsigned i))); auto.
 apply inj_le; auto.
 (*degenerate cases*)
 intros H4; rewrite H4 in H1.
@@ -1694,20 +1685,16 @@ rewrite H7.
 rewrite nat_of_Z_eq.
 generalize (Int.repr_unsigned i).
 unfold Int.unsigned; auto.
-destruct (Int.intrange i).
-omega.
-simpl.
+destruct (Int.intrange i). destruct (Int.unsigned_range_2 i); omega.
+unfold fst, snd.
 generalize H7 as H7'.
 apply Mem.loadbytes_length in H7.
 apply fs_write_length in H90.
 rewrite H90.
 rewrite H7.
 rewrite nat_of_Z_eq.
-rewrite Zmod_small; auto.
-destruct (Int.intrange i).
-split; omega.
-destruct (Int.intrange i).
-omega.
+rewrite Int.repr_unsigned; auto.
+destruct (Int.unsigned_range_2 i); omega.
 (*core stayed at_external: impossible*)
 intros.
 exists c'.

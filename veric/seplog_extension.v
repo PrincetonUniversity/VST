@@ -14,9 +14,9 @@ Fixpoint externals (fs: list (ident*fundef)) :=
   | _::fs' => externals fs'
   end.
 
-Module SEPLOG_EXTENSION_SOUNDNESS (EXT_SPEC: EXTERNAL_SPEC). Import EXT_SPEC.
-
-Module SepLog := MakeSeparationLogic(EXT_SPEC). Import SepLog.
+Module SEPLOG_EXTENSION_SOUNDNESS (ExtSpec: EXTERNAL_SPEC). Import ExtSpec.
+Module ExtSpec := ExtSpec.
+Module SepLog := MakeSeparationLogic(ExtSpec). Import SepLog.
 
 Section SeplogExtensionSoundness. 
 Variable prog: program.
@@ -25,7 +25,7 @@ Variable prog: program.
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type). (** portion of Z external to extension *)
 
-Definition juicy_csig: juicy_ext_spec Z := CSL.ExtSpec.Hspec.
+Definition juicy_csig: juicy_ext_spec Z := ExtSpec.Hspec.
 
 Definition initial_cores (i: nat): 
   CoreSemantics (Genv.t fundef type) Clight_new.corestate juicy_mem

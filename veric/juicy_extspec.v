@@ -222,3 +222,8 @@ Proof.
    eapply IHN; try eassumption.
   apply age_level in H7;   omega.
 Qed.
+
+Module Type EXTERNAL_SPEC.
+  Parameter Z:Type.
+  Parameter Hspec : juicy_ext_spec Z.
+End EXTERNAL_SPEC.
