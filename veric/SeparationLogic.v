@@ -576,7 +576,7 @@ Axiom semax_call :
     forall Delta A (P Q: A -> assert) x F ret fsig a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
-           match_fsig fsig bl ret = true ->
+           (snd fsig = Tvoid <-> ret = None) ->
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split (fst fsig))) bl)  && 
          (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 

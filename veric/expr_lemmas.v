@@ -1329,4 +1329,107 @@ split; intros;
 
 Qed. 
 
+ Definition cast_no_val_change (from: type)(to:type) : bool :=
+match from, to with
+| Tint _ _ _, Tint I32 _ _ => true
+| Tpointer _ _, Tpointer _ _ => true
+| Tfloat _ _ , Tfloat F64 _ => true
+| _, _ => false
+end. 
+
+Lemma cast_no_change : forall v from to,
+is_true (typecheck_val v from)  ->
+is_true (cast_no_val_change from to) ->
+Cop.sem_cast v from to = Some v. 
+Proof. 
+intros. destruct v; destruct from; simpl in *; try congruence; destruct to; simpl in *; try congruence; auto; 
+try destruct i1; try destruct f1; simpl in *; try congruence; auto.
+Qed. 
+(*
+Lemma cast_redundant:
+  forall e t,
+typeof e <> Tvoid ->
+ cast_exp (Ecast e t) t = cast_exp e t.
+Proof. intros. extensionality rho; unfold cast_exp; simpl.
+unfold lift1. unfold expr.eval_cast.
+f_equal.
+forget (eval_expr e rho) as v.
+forget (typeof e) as t0.
+destruct t; destruct t0; auto; try congruence;  
+
+try solve[
+destruct v; auto
+
+|destruct i; simpl; auto
  
+|destruct i0; destruct i; destruct v; auto; destruct s; unfold sem_cast; simpl; 
+ try solve [try rewrite Int.sign_ext_idem; try rewrite Int.zero_ext_idem; auto; simpl; omega]; 
+ destruct (Int.eq i Int.zero); try rewrite Int.eq_true; auto
+
+|destruct f; try destruct i; try destruct f0; destruct v; auto; unfold sem_cast; simpl; 
+ (try (destruct s; simpl; [try destruct (Float.intoffloat f) | 
+                      try destruct (Float.intuoffloat f)])); 
+ simpl; 
+ try solve [try rewrite Int.sign_ext_idem; try rewrite Int.zero_ext_idem; 
+ try rewrite Float.singleoffloat_idem;
+ auto; simpl; omega]; 
+ destruct (Float.cmp Ceq f Float.zero); try rewrite Int.eq_true; auto
+
+|destruct i; simpl; destruct v; auto; simpl; unfold sem_cast; simpl;
+  destruct (Int.eq i Int.zero); auto]. 
+
+unfold sem_cast. simpl. 
+
+SearchAbout sem_cast. 
+
+Lemma cast_redundant:
+  forall e t, cast_exp (Ecast e t) t = cast_exp e t.
+Proof. intros. extensionality rho; unfold cast_exp; simpl.
+unfold lift1. unfold expr.eval_cast.
+f_equal.
+forget (eval_expr e rho) as v.
+forget (typeof e) as t0.
+Admitted.
+
+Lemma cast_exp_pointer:
+  forall e t t', typeof e = Tpointer t noattr -> 
+                         t' = Tpointer t noattr ->
+                    cast_exp e t' = eval_expr e.
+Admitted.
+
+  Lemma eval_cast_pointer:
+   forall  t1 t v,
+       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
+       tc_val t1 v ->
+       eval_cast t1 t v = v.
+ Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
+  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
+  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
+Qed.
+Admitted.
+
+Lemma cast_exp_pointer:
+  forall e t t', typeof e = Tpointer t noattr -> 
+                         t' = Tpointer t noattr ->
+                    cast_exp e t' = eval_expr e.
+Admitted.
+
+  Lemma eval_cast_pointer:
+   forall  t1 t v,
+       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
+       tc_val t1 v ->
+       eval_cast t1 t v = v.
+ Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
+  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
+  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
+Qed.
+*)
+
+Lemma tc_exprlist_length : forall Delta tl el rho, 
+denote_tc_assert (typecheck_exprlist Delta tl el) rho ->
+length tl = length el. 
+Proof. 
+intros. generalize dependent el. induction tl; intros. simpl in *. destruct el. inv H. auto. 
+inv H. simpl in H. destruct el; try solve [inv H]. simpl in *. unfold lift2 in *.  
+intuition.
+Qed. 
