@@ -509,15 +509,17 @@ Axiom semax_func_cons: forall fs id f A P Q (V: varspecs)  (G G': funspecs),
 Parameter semax_external:
   forall (ef: external_function) (A: Type) (P Q: A -> assert),  Prop.
 
+Axiom semax_external_FF:
+  forall ef A Q, semax_external ef A FF Q.
 
 Axiom semax_func_cons_ext: 
-   forall (V: varspecs) (G: funspecs) fs id ef fsig A P Q (G': funspecs),
+   forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       semax_external ef A P Q ->
       semax_func V G fs G' ->
-      semax_func V G ((id, External ef (fst fsig) (snd fsig))::fs) 
-           ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
+      semax_func V G ((id, External ef argsig retsig)::fs) 
+           ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
 
 (* THESE RULES FROM semax_loop *)
 

@@ -420,7 +420,12 @@ Qed.
 
 Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret fsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
-   match_fsig fsig bl ret = true ->
+   match fsig, ret with
+   | (_, Tvoid), None => True
+   | (_, Tvoid), Some _ => False
+   | _, Some _ => True
+   | _, _ => False
+   end ->
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
             (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl))) ::
@@ -431,9 +436,12 @@ Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret fsig a bl P
               PROPx P (LOCALx (map (substopt ret (lift0 old)) Q) 
                 (SEPx (lift1 (Post x) (get_result ret) :: map (substopt ret (lift0 old)) R))))).
 Proof.
-intros.
+ intros.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H H0)].
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret fsig a bl H)].
+ Focus 3.
+ clear - H0.
+ destruct fsig. destruct t; destruct ret; simpl in *; try contradiction; split; intros; congruence.
 go_lower.
 unfold fun_assert_emp.
 repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
@@ -456,7 +464,10 @@ Qed.
 
 Lemma semax_call1: forall Delta A (Pre Post: A -> assert) (x: A) id fsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
-   match_fsig fsig bl (Some id) = true ->
+   match fsig with
+   | (_, Tvoid) => False
+   | _ => True
+   end ->
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
             (SEPx (lift1 (Pre x) ( (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl))) ::
@@ -506,7 +517,10 @@ Lemma semax_call_id1:
  forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
-   match_fsig fsig bl (Some id) = true ->
+   match fsig with
+   | (_, Tvoid) => False
+   | _ => True
+   end ->
    argtys = type_of_params (fst fsig) ->
    retty = snd fsig ->
   semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
@@ -555,7 +569,10 @@ Lemma semax_call_id1_Eaddrof:
  forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
-   match_fsig fsig bl (Some id) = true ->
+   match fsig with
+   | (_, Tvoid) => False
+   | _ => True
+   end ->
    argtys = type_of_params (fst fsig) ->
    retty = snd fsig ->
   semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
@@ -618,7 +635,7 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
       evar (x:A); evar (F: list assert); 
   assert (SCI := semax_call_id1 Delta P Q F id f 
     (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
-                      (eq_refl _) (eq_refl _) (eq_refl _) (eq_refl _) (eq_refl _));
+                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));

@@ -55,13 +55,11 @@ Module ExtSpec := ExtSpec.
 Import ExtSpec.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
-
 Definition semax := semax Hspec.
 Definition extract_exists := extract_exists Hspec.
 Definition semax_body_params_ok := semax_body_params_ok.
 Definition semax_body := semax_body Hspec.
 Definition semax_func := semax_func Hspec.
-Definition semax_ext := semax_ext Hspec.
 Definition semax_prog := semax_prog Hspec.
 Definition semax_func_nil := semax_func_nil Hspec.
 Definition semax_func_cons := semax_func_cons Hspec.
@@ -85,7 +83,16 @@ Definition semax_skip := semax_skip Hspec.
 Definition semax_frame := semax_frame Hspec.
 Definition semax_pre_post := semax_pre_post Hspec.
 Definition semax_extract_prop := semax_extract_prop Hspec.
-Definition semax_external ef A P Q := forall n, semax_ext ef A P Q n.
+
+Definition semax_external ef A P Q := forall n, semax_ext Hspec ef A P Q n.
+
+Lemma semax_external_FF:
+  forall ef A Q n,
+     semax_ext Hspec ef A (fun _ _ => FF) Q n.
+Proof.
+repeat intro.  destruct H2 as [? [? [? [? ?]]]]. contradiction.
+Qed.
+
 End CSL.
 
 Definition semax_prog_rule := semax_prog_rule Hspec.

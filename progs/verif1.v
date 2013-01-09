@@ -150,7 +150,9 @@ Definition main_spec' := (P._main, mk_funspec (nil, tint) _ (main_pre P.prog) (m
 Definition Vprog : varspecs := (P._three, Tarray P.t_struct_list 3 noattr)::nil.
 
 Definition Gprog : funspecs := 
-   sumlist_spec :: reverse_spec :: main_spec::nil.
+    sumlist_spec :: reverse_spec :: main_spec::nil.
+
+Definition Gtot := do_builtins (prog_defs P.prog) ++ Gprog.
 
 Definition partial_sum (contents cts: list int) (v: val) := 
      fold_right Int.add Int.zero contents = Int.add (force_int  v) (fold_right Int.add Int.zero cts).
@@ -183,6 +185,7 @@ Proof.
  destruct v; simpl; auto; inv H; auto.
 Qed.
 
+(*
 Lemma Sset_cast:
   forall Delta P id e t Q,
   classify_cast (typeof e) t = cast_case_neutral ->
@@ -197,13 +200,13 @@ Lemma Sset_cast':
   semax Delta P (Ssequence (Sset id e) c) Q ->
   semax Delta P (Ssequence (Sset id (Ecast e t)) c) Q.
 Admitted.
-
-Ltac forward := 
+ Ltac forward := 
    (apply Sset_cast' ; [reflexivity | forward.forward])
   || (apply Sset_cast ; [reflexivity | forward.forward])
   || forward.forward.
- 
-Lemma body_sumlist: semax_body Vprog Gprog P.f_sumlist sumlist_spec.
+ *)
+
+Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
 destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
@@ -276,12 +279,30 @@ Definition reverse_Inv (sh: share) (contents: list int) : assert :=
             SEP (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval) *
                    lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))).
 
-Lemma body_reverse: semax_body Vprog Gprog P.f_reverse reverse_spec.
+Lemma body_reverse: semax_body Vprog Gtot P.f_reverse reverse_spec.
 Proof.
 start_function.
 destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
 normalizex. rename H into WS.
-
+(*
+ eapply semax_seq.
+apply sequential'.
+ apply forward_setx.
+unfold tc_temp. Print typecheck_temp_id.
+ hnf. simpl.
+ unfold typecheck_temp_id.
+ 
+ unfold P.f_reverse, func_tycontext, fn_params, fn_vars, fn_temps, make_tycontext.
+ simpl.
+ unfold tc_expr.
+ compute.
+  first [eapply semax_seq; 
+            [ apply sequential' ; apply forward_setx; [reflexivity | (apply @TT_right || normalizex)]
+              | apply extract_exists_pre;
+            let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x) ]
+        
+        ].
+*)
 forward.
 go_lower.
 forward.
@@ -372,10 +393,10 @@ repeat (unfold ret_type; simpl). reflexivity.
 eapply tc_eval_id_i; eauto.
 unfold temp_types; simpl. reflexivity.
 Qed.
-
+*) Admitted.
 
 Lemma setup_globals:
-  forall rho,  tc_environ (func_tycontext P.f_main Vprog Gprog) rho ->
+  forall rho,  tc_environ (func_tycontext P.f_main Vprog Gtot) rho ->
    main_pre P.prog tt rho
    |-- ilseg Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
              (eval_var P._three (Tarray P.t_struct_list 3 noattr) rho)
@@ -407,16 +428,10 @@ Qed.
 
 
 
-Lemma body_main:  semax_body Vprog Gprog P.f_main main_spec.
+Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
 Proof.
 start_function.
 normalize.
-replace  (Evar P._three (tarray P.t_struct_list 3))
- with (Ecast (Eaddrof (Evar P._three (tarray P.t_struct_list 3))
-                        (Tpointer (tarray P.t_struct_list 3) noattr))
-                      (tptr P.t_struct_list))
- by admit.  (*Temporary hack until match_fsig_aux is adjusted to permit
-                    by-reference lvalues to serve as rvalues *)
 forward.
 go_lower. unfold F,x.
 instantiate (2:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
@@ -424,7 +439,8 @@ instantiate (1:=nil).
 rewrite prop_true_andp by (compute; intuition).
 rewrite prop_true_andp by auto.
 destruct u; simpl. normalize.
-repeat eval_cast_simpl.
+unfold deref_noload. simpl.
+eval_cast_simpl.
 apply setup_globals; auto.
 unfold x,F in *; clear x F.
 apply extract_exists_pre; normalize.
@@ -449,10 +465,12 @@ eapply tc_eval_id_i; eauto.
 Qed.
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct P.prog) Gprog.
+  semax_func Vprog Gtot (prog_funct P.prog) Gtot.
 Proof.
-unfold Gprog, P.prog.
-unfold prog_funct; simpl prog_defs.
+unfold Gtot, Gprog, P.prog, prog_funct; simpl.
+apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
+apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
+apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
 apply semax_func_cons; [ reflexivity | apply body_sumlist | ].
 apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].

@@ -344,13 +344,13 @@ Qed.
 
 Lemma semax_func_cons_ext: 
    forall 
-        V (G: funspecs) fs id ef fsig A P Q (G': funspecs),
+        V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       (forall n, semax_ext Hspec ef A P Q n) ->
       semax_func V G fs G' ->
-      semax_func V G ((id, External ef (fst fsig) (snd fsig))::fs) 
-           ((id, mk_funspec (arglist 1%positive (fst fsig), (snd fsig)) A P Q)  :: G').
+      semax_func V G ((id, External ef argsig retsig)::fs) 
+           ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
 Proof.
 intros until G'.
 intros H' H [Hf' Hf].
@@ -359,10 +359,10 @@ destruct H' as [Hin Hni].
 apply id_in_list_true in Hin.
 apply negb_true_iff in Hni; apply id_in_list_false in Hni.
 split.
-destruct fsig; hnf; simpl; f_equal; auto.
+hnf; simpl; f_equal; auto.
 f_equal. f_equal.
 clear; forget 1%positive as n.
-revert n; induction t; simpl;intros; auto.
+revert n; induction argsig; simpl;intros; auto.
 f_equal; auto.
 intros ge; intros.
 assert (prog_contains ge fs).
@@ -379,7 +379,7 @@ apply derives_imp.
 clear n.
 intros n ?.
 unfold prog_contains in H0.
-generalize (H0 id (External ef (fst fsig) (snd fsig))); clear H0; intro H0.
+generalize (H0 id (External ef argsig retsig)); clear H0; intro H0.
 destruct H0 as [b [? ?]].
 left; auto.
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
