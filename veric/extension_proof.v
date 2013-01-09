@@ -654,6 +654,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
+    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
     match_state i (cd i) j' d1 m1' d2 m2')
 
   (match_state_runnable: forall i cd j c1 m1 c2 m2,
@@ -679,6 +681,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
+    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
     R j' s1' m1' s2' m2')
 
   (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
@@ -712,6 +716,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
       match_states cd' j' s1' m1' s2' m2' /\
+      Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
+      Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' /\
       ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
         corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
 
@@ -780,7 +786,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
       inject_incr j j' /\
       Events.inject_separated j j' m1 m2 /\
       corestep esemT ge_T s2 m2 s2' m2' /\
-      match_states cd' j' s1' m1' s2' m2'),
+      match_states cd' j' s1' m1' s2' m2' /\ 
+      Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
+      Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2'),
   internal_compilability_invariant.
 
  Variables 
@@ -852,7 +860,7 @@ clear c2 PROJ2 RUN2.
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 unfold core_datas in cd.
 specialize (DIAG c1 m1 c1' m1' STEP1 (cd _) c2 j m2 MATCH12).
-destruct DIAG as [c2' [m2' [cd' [j' [INJ_INCR [INJ_SEP [MATCH12' STEP2]]]]]]].
+destruct DIAG as [c2' [m2' [cd' [j' [INJ_INCR [INJ_SEP [MATCH12' [UNCH1 [UNCH2 STEP2]]]]]]]]].
 destruct STEP2 as [STEP2|STEP2].
 
 (*corestep_plus case*)
@@ -873,10 +881,7 @@ split; auto.
  hnf.
  split.
  inv esig_compilable. 
- (*match_state (ACTIVE E_S st1) cd' j' c1' m1' c2' m2'*)
  eapply corestep_rel with (s1 := st1) (s2 := st2); eauto.
- (* apply corestep_rel with (s1 := st1) (s2 := st2) (c1' := c1') (c2' := c2') *)
- (*  (cd := cd) (cd' := cd') (j := j) (c1 := c1) (m1 := m1) (c2 := c2) (m2 := m2) (n := n); eauto. *)
  erewrite <-genvs_domain_eq_preserves.
  erewrite meminj_preserves_genv2blocks.
  eauto.
@@ -944,6 +949,8 @@ split; auto.
    erewrite meminj_preserves_genv2blocks.
    eauto.
    solve[apply genvs_domain_eq_sym; auto].
+  split; auto.
+  split; auto.
   solve[left; exists n; auto].
 
 (*corestep_star case*)
@@ -1032,6 +1039,8 @@ split; auto.
   erewrite meminj_preserves_genv2blocks.
   eauto.
   solve[apply genvs_domain_eq_sym; auto].
+  split; auto.
+  split; auto.
   right. split. exists n. auto. 
   admit. (*should follow from ORD and definition of generalized lex_prod*)
 
@@ -1052,9 +1061,10 @@ destruct (core_halted (core_simulations (ACTIVE E_S st1))
 inv esig_compilable.
 eapply safely_halted_diagram with (m1' := m1') in MATCH'; eauto.
 destruct MATCH' as [rv2' [H7 [VAL_INJ' 
- [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' MATCH12']]]]]]]]]].
+ [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' [MATCH12' [UNCH1 UNCH2]]]]]]]]]]]].
 exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
+split3; auto.
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 
 (*active thread is at_external*)
@@ -1199,7 +1209,8 @@ intro core_simulations_RGinject.
 constructor; try solve[inv H; auto].
   
 (*1*)
-intros until n; intros PROJC1 PROJC2 PROJD1 PROJD2 ACT MATCH INCR SEP STEP1 STEP2 MATCHC'.
+intros until n; intros PROJC1 PROJC2 PROJD1 PROJD2 ACT MATCH INJ PRES INCR 
+ SEP STEP1 STEP2 MATCHC' UNCH1 UNCH2.
 destruct MATCH as [RR [ACTEQ MATCH_INNER]].
 forget (Extension.active E_S s1) as k.
 destruct (MATCH_INNER k c1 PROJC1) as [_c2 [_PROJC2 MATCHC]].
@@ -1207,8 +1218,8 @@ rewrite _PROJC2 in PROJC2; inv PROJC2.
 destruct (MATCH_INNER i d1 PROJD1) as [_d2 [_PROJD2 MATCHD]].
 rewrite _PROJD2 in PROJD2; inv PROJD2.
 forget (Extension.active E_T s2) as k.
-destruct (core_simulations_RGinject k) as [_ ? ? _ GUARANTEE].
-specialize (GUARANTEE (genv_mapS k) (genv_mapT k)
+destruct (core_simulations_RGinject k) as [_ ? ? _ _].
+(*specialize (GUARANTEE (genv_mapS k) (genv_mapT k)
   (cd k) m1 m1' j m2 m2' c1 c2 c1' c2' n).
 intros HSTEP HMATCH.
 spec GUARANTEE; auto.
@@ -1217,7 +1228,7 @@ erewrite <-genvs_domain_eq_preserves; eauto.
 spec GUARANTEE; auto.
 spec GUARANTEE; auto.
 spec GUARANTEE; auto.
-destruct GUARANTEE as [H1 H2].
+destruct GUARANTEE as [H1 H2].*)
 destruct (core_simulations_RGinject i) as [_ _ _ RELY _].
 specialize (RELY (genv_mapS i) (cd i) m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.

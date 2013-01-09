@@ -286,7 +286,6 @@ intros H1; destruct (at_external_halted_excl (get_module_csem (modules PF)) c)
  as [H3|H3].
 solve[rewrite H1 in H3; congruence].
 solve[destruct stack; auto].
-admit.  
 solve[left; auto].
 Qed.
 Next Obligation.
@@ -1064,6 +1063,7 @@ exists (@refl_equal _ i).
 split; auto.
 destruct (RGsim i).
 rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
+clear guarantee.
 exists cd.
 eapply rely; eauto.
 rewrite meminj_preserves_genv2blocks.
@@ -1115,6 +1115,7 @@ assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] by admit. (*fix after_e
 assert (val_inject j' ret1' ret2') by admit. (*add val_inject precondition to after_external_rel*)
 specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
 specialize (RGsim i0); destruct RGsim.
+clear guarantee.
 spec core_after_external0.
 solve[eapply match_state_inj; eauto].
 spec core_after_external0; auto.
@@ -1289,6 +1290,9 @@ destruct (eq_nat_dec k k); try solve[elimtype False; omega].
 solve[rewrite dependent_types_nonsense; auto].
 solve[rewrite ExtendedSimulations.core_datas_upd_same; auto].
 congruence.
+
+split. solve[unfold mem_unchanged_on; split; auto].
+split. solve[unfold mem_unchanged_on; split; auto].
 
 left.
 exists O; simpl.
@@ -1716,6 +1720,7 @@ clear - H7 HALT.
 rewrite H7 in HALT.
 solve[inv HALT; auto].
 split.
+split.
 simpl.
 exists (@refl_equal _ i).
 split; auto.
@@ -1762,6 +1767,8 @@ unfold csem_map_S, csem_map in H4.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
 solve[rewrite H4 in HALTED; inv HALTED; auto].
+
+solve[split; split; auto].
 Qed.
 
 End LinkerCompilable.

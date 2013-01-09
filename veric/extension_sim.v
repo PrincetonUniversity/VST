@@ -248,6 +248,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    corestep esemS ge_S s1 m1 s1' m1' -> 
    corestepN esemT ge_T n s2 m2 s2' m2' -> 
    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
+   Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
+   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
    R j' s1' m1' s2' m2')
 
  (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
@@ -281,6 +283,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
+     Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
+     Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
 
@@ -328,7 +332,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      corestep esemT ge_T s2 m2 s2' m2' /\
-     match_states cd' j' s1' m1' s2' m2'),
+     match_states cd' j' s1' m1' s2' m2' /\
+     Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
+     Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2'
+),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.

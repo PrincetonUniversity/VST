@@ -650,6 +650,8 @@ Record Forward_simulation_inject := {
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
+          mem_unchanged_on (loc_unmapped j) m1 m1' /\
+          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -857,6 +859,8 @@ Record Forward_simulation_inject := {
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
+          mem_unchanged_on (loc_unmapped j) m1 m1' /\
+          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);

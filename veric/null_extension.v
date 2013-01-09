@@ -333,7 +333,7 @@ Section NullExtensionCompilable.
  inv PROJ.
  specialize (core_diagram0 s1 m1 s1' m1' H15 (cd O) _s2 j m2). 
  spec core_diagram0; auto.
- destruct core_diagram0 as [s2' [m2' [cd' [j' [? [? [? ?]]]]]]].
+ destruct core_diagram0 as [s2' [m2' [cd' [j' [? [? [? [? [? ?]]]]]]]]].
  exists s2'; exists m2'; exists (fun _ => cd'); exists j'.
  split3; auto.
  split; auto.
@@ -343,9 +343,10 @@ Section NullExtensionCompilable.
  if_tac in PROJ; try congruence.
  inv PROJ.
  solve[exists s2'; auto].
- destruct H18.
+ split3; auto.
+ destruct H20.
  solve[left; auto].
- destruct H18 as [A B].
+ destruct H20 as [A B].
  right; split; auto.
  unfold CompilabilityInvariant.core_ords.
  exists O. 

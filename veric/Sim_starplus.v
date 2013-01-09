@@ -336,6 +336,8 @@ Hypothesis order_wf: well_founded order.
                   inject_incr j j' /\
                   inject_separated j j' m1 m2 /\
                   match_states c1' j' c1' m1' c2' m2' /\
+                  mem_unchanged_on (loc_unmapped j) m1 m1' /\
+                  mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
                   (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
 Lemma  inj_simulation_star_wf: Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
@@ -345,8 +347,8 @@ Proof.
         (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
    apply order_wf.
    intros. destruct H0; subst.
-              destruct (inj_simulation _ _ _ _ H _ _ _ H1) as [c2' [m2' [j' [INC [SEP [MC' Step]]]]]].
-              exists c2'. exists m2'. exists st1'. exists j'.  split; eauto.
+              destruct (inj_simulation _ _ _ _ H _ _ _ H1) as [c2' [m2' [j' [INC [SEP [MC' [UNCH1 [UNCH2 Step]]]]]]]].
+              exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
    intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as [c2' [MIC MC]].
                  exists c1.  exists c2'. split; eauto.
    intros. destruct H; subst. eapply inj_safely_halted; eauto.
@@ -367,20 +369,22 @@ Section INJ_SIMULATION_STAR.
       (exists c2', exists m2', exists j', 
                   inject_incr j j' /\
                   inject_separated j j' m1 m2 /\ 
-                  corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ (*apparently not needed: Mem.inject j' m1' m2' /\ *) match_states c1' j' c1' m1' c2' m2')
-     \/ (measure c1' < measure c1 /\ (*apparently not needed: Mem.inject j m1' m2 /\ *) match_states c1' j c1' m1' c2 m2)%nat.
+                  mem_unchanged_on (loc_unmapped j) m1 m1' /\
+                  mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+                  match_states c1' j' c1' m1' c2' m2' /\
+                  (corestep_plus Sem2 ge2 c2 m2 c2' m2' 
+                  \/ ((measure c1' < measure c1)%nat /\ corestep_star Sem2 ge2 c2 m2 c2' m2'))).
 
 Lemma  inj_simulation_star: Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply inj_simulation_star_wf.
         apply  (well_founded_ltof _ measure).
-        intros. destruct (inj_star_simulation _ _ _ _ H _ _ _ H0).
-             destruct H1 as [c2' [m2' [j' [INC [ SEP [CSP MC']]]]]]. exists c2'. exists m2'. exists j'. split; trivial. split; trivial. split; trivial. left; trivial.
-             destruct H1 as [X1 X3]; subst. exists c2. exists m2. exists j.
-                   split. apply inject_incr_refl.
-                   split. apply inject_separated_same_meminj. 
-                   split; trivial. right. split; trivial.
-             eapply corestep_star_zero. 
+        intros. destruct (inj_star_simulation _ _ _ _ H _ _ _ H0) as [c2' H1].
+             destruct H1 as [m2' [j' [INC [SEP [UNCH1 [UNCH2 [MC' STEP]]]]]]]. 
+             exists c2'. exists m2'. exists j'. split; trivial. split; trivial. split; trivial. 
+             split; auto. split; auto.
+             destruct STEP as [X1|X1]; subst. left; auto. 
+             right. destruct X1. split; auto.
 Qed.
 End INJ_SIMULATION_STAR.
 
@@ -391,13 +395,17 @@ Section INJ_SIMULATION_PLUS.
     forall c2 m2 j, match_states c1 j c1 m1 c2 m2 ->
             exists c2', exists m2',  exists j', 
                   inject_incr j j' /\
-                  inject_separated j j' m1 m2 /\ corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ match_states c1' j' c1' m1' c2' m2'.
+                  inject_separated j j' m1 m2 /\ 
+                  corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
+                  match_states c1' j' c1' m1' c2' m2' /\ 
+                  mem_unchanged_on (loc_unmapped j) m1 m1' /\
+                  mem_unchanged_on (loc_out_of_reach j m1) m2 m2'.
 
 Lemma  inj_simulation_plus: Sim_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply inj_simulation_star with (measure:=measure).
-        intros. destruct (inj_plus_simulation _ _ _ _ H _ _ _ H0).
-             left. eexists; eauto.
+        intros. destruct (inj_plus_simulation _ _ _ _ H _ _ _ H0) as [? [? [? [? [? [? [? [? ?]]]]]]]].
+        do 3 eexists; split3; eauto.
 Qed.
 End INJ_SIMULATION_PLUS.
 End Sim_INJ_SIMU_DIAGRAMS.

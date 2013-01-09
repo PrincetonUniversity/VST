@@ -46,8 +46,10 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
  Inductive Sig: Type := Make: forall
   (match_state_runnable: forall cd j c1 m1 c2 m2,
     match_state cd j c1 m1 c2 m2 -> runnable sourceC c1=runnable targetC c2)
+
   (match_state_inj: forall cd j c1 m1 c2 m2,
     match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+
   (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
     match_state cd j c1 m1 c2 m2 -> 
     meminj_preserves_globals ge1 j)
@@ -64,18 +66,7 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
 
     (** Match is stable *)
     match_state cdC f c1 m1 c2 m2 -> 
-    match_state cdC f' c1 m1' c2 m2')
-    
-  (guarantee: forall ge1 ge2 cd m1 m1' f m2 m2' c1 c2 c1' c2' n,
-    Mem.inject f m1 m2 -> 
-    meminj_preserves_globals_ind (genv2blocks ge1) f -> 
-    match_state cd f c1 m1 c2 m2 -> 
-    corestep sourceC ge1 c1 m1 c1' m1' -> 
-    corestepN targetC ge2 n c2 m2 c2' m2' -> 
-
-    (** Guarantee *)
-    mem_unchanged_on (loc_unmapped f) m1 m1' /\
-    mem_unchanged_on (loc_out_of_reach f m1) m2 m2'),
+    match_state cdC f' c1 m1' c2 m2'),
   Sig.
 
 End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
