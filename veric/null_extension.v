@@ -1,5 +1,6 @@
 Load loadpath.
 Require Import veric.sim.
+Require Import veric.rg_sim.
 Require Import veric.step_lemmas.
 Require Import veric.extspec.
 Require Import veric.extension.
@@ -49,9 +50,9 @@ Section NullExtension.
  
  Program Definition null_extension := Extension.Make 
   (fun i:nat => Genv.t (const fT i) (const vT i)) (fun _ => dT)
-  csemT cores csig csig handled 1 proj_core _ active _ proj_zint proj_zext zmult 
+  csemT cores csig csig handled (const 1) proj_core _ active _ proj_zint proj_zext zmult 
   _ _ _ _ _.
- Next Obligation. if_tac; auto. rewrite H0 in H. elimtype False; omega. Qed.
+ Next Obligation. if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. Qed.
  Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
 (* Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.*)
  Next Obligation. 

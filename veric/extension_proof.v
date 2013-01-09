@@ -129,10 +129,6 @@ rewrite H6 in H1; clear H6.
 destruct H1 as [x H1].
 destruct H1 as [H7 H8].
 generalize (Extension.esem_csem_linkable E); intros Hlink.
-(*assert (H16: IN ef (DIFF csig handled)).
- apply in_diff.
- eapply Extension.at_external_csig; eauto.
- solve[eapply Extension.at_external_not_handled with (esem := esem); eauto].*)
 specialize (Hlink ef 
   (ext_spec_pre esig ef) (ext_spec_post esig ef) 
   (ext_spec_pre csig ef) (ext_spec_post csig ef)).
@@ -541,11 +537,11 @@ Module ExtendedSimulations. Section ExtendedSimulations.
                   csig esig handled).
 
  Variable entry_points: list (val*val*signature).
- Variable threads_max: nat.
 
  Notation PROJ_CORE := (Extension.proj_core).
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
+ Notation MAX_CORES := (Extension.proj_max_cores).
  Notation active_proj_core := (Extension.active_proj_core).
  Notation notat_external_handled := (Extension.notat_external_handled).
  Notation at_external_not_handled := (Extension.at_external_not_handled).
@@ -595,25 +591,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  auto.
  Qed.
 
- Definition core_ords cd1 cd2 := 
-  exists i, (i < threads_max)%nat /\
+ Definition core_ords (max_cores: nat) cd1 cd2 := 
+  exists i, (i < max_cores)%nat /\
    (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
 
- Lemma core_ords_wf: well_founded core_ords.
- Proof.
- unfold core_ords.
- induction threads_max.
- constructor.
- intros b [i [H _]].
- elimtype False; omega.
- constructor.
- intros b [i [H1 [H2 H3]]].
- case_eq (eq_nat_dec i n).
-  intros EQ _; subst.
-  clear H1.
-  destruct (IHn a) as [H4].
-  specialize (H4 b).
- Admitted. (*TODO*)
+ Lemma core_ords_wf: forall max_cores, well_founded (core_ords max_cores).
+ Proof. Admitted. (*TODO*)
 
  Definition core_ords_aux (i: nat) (cd1 cd2: core_datas): Prop := 
    core_ord i (cd1 i) (cd2 i) /\
@@ -637,6 +620,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
+
+ Variable max_cores: nat. (*TODO: fixme*)
 
  Inductive internal_compilability_invariant: Type := 
    InternalCompilabilityInvariant: forall 
@@ -719,7 +704,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
       Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
       Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' /\
       ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
-        corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
+        corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
   (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
     ACTIVE E_S s1=ACTIVE E_T s2 -> 
@@ -800,9 +785,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
 Program Definition extended_simulation: 
   Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 
-           entry_points core_datas match_states core_ords :=
+           entry_points core_datas match_states (core_ords max_cores) :=
   @Build_Forward_simulation_inject _ _ _ _ _ _ _ 
-  esemS esemT ge_S ge_T entry_points core_datas match_states core_ords _ _ _ _ _ _.
+  esemS esemT ge_S ge_T entry_points core_datas match_states (core_ords max_cores) 
+  _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
 Next Obligation. 
 rename H0 into MATCH.
@@ -1200,7 +1186,7 @@ Lemma RGsimulations_invariant:
        (genv_mapS i) (match_state i)) ->
   @CompilabilityInvariant.Sig F_S V_S F_T V_T D_S D_T xS xT 
        fS fT vS vT cS cT dS dT Z Zint Zext 
-       esemS esemT csemS csemT csig esig handled threads_max
+       esemS esemT csemS csemT csig esig handled max_cores
        ge_S ge_T genv_mapS genv_mapT E_S E_T 
        entry_points core_data match_state core_ord R -> 
   internal_compilability_invariant.
@@ -1219,16 +1205,6 @@ destruct (MATCH_INNER i d1 PROJD1) as [_d2 [_PROJD2 MATCHD]].
 rewrite _PROJD2 in PROJD2; inv PROJD2.
 forget (Extension.active E_T s2) as k.
 destruct (core_simulations_RGinject k) as [_ ? ? _ _].
-(*specialize (GUARANTEE (genv_mapS k) (genv_mapT k)
-  (cd k) m1 m1' j m2 m2' c1 c2 c1' c2' n).
-intros HSTEP HMATCH.
-spec GUARANTEE; auto.
-spec GUARANTEE; auto.
-erewrite <-genvs_domain_eq_preserves; eauto.
-spec GUARANTEE; auto.
-spec GUARANTEE; auto.
-spec GUARANTEE; auto.
-destruct GUARANTEE as [H1 H2].*)
 destruct (core_simulations_RGinject i) as [_ _ _ RELY _].
 specialize (RELY (genv_mapS i) (cd i) m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.
@@ -1251,7 +1227,7 @@ solve[eapply match_state_preserves_globals; eauto].
 intros until j'; intros MATCH EXT1 PRES INCR SEP INJ INJARGS FORW1 UNCH1 FORW2 UNCH2.
 intros TYS AFTER1 AFTER2 PROJ1 PROJ2 NEQ.
 forget (Extension.active E_S s1) as k.
-destruct (core_simulations_RGinject i) as [? ? ? RELY _].
+destruct (core_simulations_RGinject i) as [? ? ? RELY].
 specialize (RELY (genv_mapS i) cd m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.
 solve[eapply match_state_inj; eauto].
@@ -1299,7 +1275,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
- Variable threads_max: nat.
+ Variable max_cores: nat. (*TODO: fixme*)
 
  Definition core_datas := forall i: nat, core_data i. 
 
@@ -1308,7 +1284,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Import Sim_inj_exposed.
 
  Lemma ExtensionCompilability: 
-   EXTENSION_COMPILABILITY.Sig fS fT vS vT threads_max ge_S ge_T genv_mapS genv_mapT 
+   EXTENSION_COMPILABILITY.Sig fS fT vS vT max_cores ge_S ge_T genv_mapS genv_mapT 
        E_S E_T entry_points core_data match_state core_ord R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
@@ -1318,7 +1294,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
        (match_states := 
   ExtendedSimulations.match_states fS fT vS vT E_S E_T match_state R)
        (core_ords := 
-  ExtendedSimulations.core_ords threads_max core_data core_ord).
+  ExtendedSimulations.core_ords core_data core_ord max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.
  solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
 Qed.
@@ -1360,7 +1336,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
  Variable core_ord: core_data -> core_data -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
- Variable threads_max: nat.
+ Variable max_cores: nat.
 
  Definition core_datas := nat -> core_data.
 
@@ -1370,7 +1346,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig (const fS) (const fT) (const vS) (const vT)
-    threads_max ge_S ge_T (const geS) (const geT) E_S E_T entry_points 
+    max_cores ge_S ge_T (const geS) (const geT) E_S E_T entry_points 
     (const core_data) (const match_state) (const core_ord) R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
@@ -1381,7 +1357,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
   ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) E_S E_T 
                                    (const match_state) R)
        (core_ords := 
-  ExtendedSimulations.core_ords threads_max (const core_data) (const core_ord)).
+  ExtendedSimulations.core_ords (const core_data) (const core_ord) max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.
  solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
 Qed.

@@ -404,7 +404,7 @@ Program Definition linking_extension:
      csem_map csig esig handled :=
  Extension.Make genv_map (fun i: nat => list (ident * globdef (fT i) (vT i)))
   (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-  csem_map csig esig handled num_modules
+  csem_map csig esig handled (const num_modules)
   linker_proj_core _  
   linker_active _ 
   (fun _ => tt) (fun z: Z => z) (fun (_:unit) (z: Z) => z)
@@ -413,6 +413,7 @@ Next Obligation.
 unfold linker_proj_core.
 destruct s. destruct stack; auto. destruct f; auto.
 destruct (eq_nat_dec i i0); auto. subst.
+unfold const in *.
 solve[elimtype False; omega].
 Qed.
 Next Obligation.
@@ -509,9 +510,9 @@ Lemma linker_core_compatible: forall (ge: Genv.t F V)
    (domain_eq: forall (k : nat) (pf_k : k < num_modules),
      genvs_domain_eq ge (get_module_genv (modules pf_k)))
    (csem_fun: forall i: nat, corestep_fun (csem_map i)),
- @core_compatible (Genv.t F V) (linker_corestate num_modules cT modules) mem 
-        (list (ident*globdef F V)) Z unit Z
-        (fun i => Genv.t (fT i) (vT i)) cT init_data 
+ @core_compatible (Genv.t F V) (list (ident*globdef F V)) 
+        (linker_corestate num_modules cT modules) 
+        (fun i => Genv.t (fT i) (vT i)) cT mem init_data Z unit Z 
         (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
         csem_map csig esig handled 
  ge genvs linking_extension.
@@ -1032,26 +1033,10 @@ split.
 assert
  (Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2') as [MEM1 MEM2].
-eapply guarantee with (c1' := c1'); eauto.
-rewrite meminj_preserves_genv2blocks.
-generalize match_state_preserves_globals.
-unfold genv_mapS, genvs.
-intros GENVS.
-destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-assert (PF = l) as -> by apply proof_irr.
-solve[eapply GENVS; eauto].
-rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
+solve[split; auto].
 solve[exists cd'; auto].
 
-exploit guarantee; eauto.
-rewrite meminj_preserves_genv2blocks.
-generalize match_state_preserves_globals.
-unfold genv_mapS, genvs.
-intros GENVS.
-destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-solve[eapply GENVS; eauto].
-intros [Hunch1 Hunch2].
-clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim Hunch1 Hunch2.
+clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim H H0.
 revert stack0 STACK; induction stack.
 intros stack0; destruct stack0; simpl; auto.
 intros stack0; destruct stack0; simpl; auto.
@@ -1063,7 +1048,6 @@ exists (@refl_equal _ i).
 split; auto.
 destruct (RGsim i).
 rewrite <-Eqdep_dec.eq_rect_eq_dec; try solve[apply eq_nat_dec].
-clear guarantee.
 exists cd.
 eapply rely; eauto.
 rewrite meminj_preserves_genv2blocks.
@@ -1115,7 +1099,6 @@ assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] by admit. (*fix after_e
 assert (val_inject j' ret1' ret2') by admit. (*add val_inject precondition to after_external_rel*)
 specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
 specialize (RGsim i0); destruct RGsim.
-clear guarantee.
 spec core_after_external0.
 solve[eapply match_state_inj; eauto].
 spec core_after_external0; auto.

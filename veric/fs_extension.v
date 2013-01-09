@@ -804,14 +804,15 @@ Program Definition fs_extension :=
     Client_FSExtSpec
     FSExtSpec 
     handled
-    1
+    (const 1)
     proj_core _
     active _ 
     proj_zint
     proj_zext
     zmult _ _ _ _  
    FSExtSpec_linkable.
-Next Obligation. unfold proj_core. if_tac; auto. rewrite H0 in H; elimtype False; omega. Qed.
+Next Obligation. unfold proj_core. if_tac; auto. unfold const in *. 
+ rewrite H0 in H; elimtype False; omega. Qed.
 Next Obligation. unfold proj_core, active; if_tac; try congruence; eauto. Qed.
 Next Obligation. 
 unfold os_at_external in H1.
