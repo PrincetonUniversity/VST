@@ -1,10 +1,10 @@
-target: cfrontend/Clight.vo
+target: cfrontend/Clight.vo exportclight/Clightdefs.vo
 
 include Makefile
 
-DIRS=lib common  cfrontend flocq/Core flocq/Prop flocq/Calc flocq/Appli
+DIRS=lib common  cfrontend flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight
 
-FILES=$(LIB) $(COMMON) $(CFRONTEND)  $(FLOCQ) 
+FILES=$(LIB) $(COMMON) $(CFRONTEND)  $(FLOCQ) exportclight/Clightdefs.v
 
 clight-depend: $(FILES)
 	$(COQDEP) $^ \

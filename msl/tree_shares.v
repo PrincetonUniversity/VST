@@ -7,6 +7,10 @@ Require Import msl.base.
 Require Import msl.eq_dec.
 Require Import msl.sepalg.
 Require Import msl.boolean_alg.
+Require Import Recdef.
+Require Import NPeano.
+Require Import Omega.
+Require Import Coq.Arith.Max.
 
 (** This module implements a share model
     via binary trees with boolean-labeled leaves.
@@ -2427,32 +2431,218 @@ Module Share : SHARE_MODEL.
 
     Instance EqDec_share : EqDec t := EqDec_canonTree.
 
+(* Credits for the next part of this file:
+  Specification of "unrel" operator by Andrew W. Appel and Robert Dockins
+  Definition of "unrel", and all the proofs about it, by Le Xuan Bach
+*)
+  
+   Definition decompose (t : canonTree) :(canonTree * canonTree) :=
+     let (x, c) := t in
+      match x as s return (canonicalTree s -> (canonTree * canonTree)) with
+      | Leaf b =>
+          fun c0 : canonicalTree (Leaf b) =>
+         (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) c0,
+          exist (fun t0 : ShareTree => canonicalTree t0) (Leaf b) c0)
+      | Node x1 x2 =>
+       fun c0 : canonicalTree (Node x1 x2) =>
+         match c0 with
+         | conj _ (conj _ (conj c1 c2)) =>
+             (exist (fun t0 : ShareTree => canonicalTree t0) x1 c1,
+              exist (fun t0 : ShareTree => canonicalTree t0) x2 c2)
+         end
+      end c.
 
-Definition unrel: t -> t -> t.  
-Admitted.  (* Aquinas promised to prove this *)
+  Fixpoint tree_heightP (t : ShareTree) : nat :=
+   match t with 
+   | Leaf b  => 0
+   | Node l r => (max (tree_heightP l) (tree_heightP r)) + 1
+  end.
 
-Lemma rel_unrel: forall x sh, rel x (unrel x sh) = glb x sh.
-Admitted.  (* Aquinas promised to prove this *)
+  Definition tree_height (t : canonTree) := tree_heightP (proj1_sig t).
+
+  Function unrel (t1 : t) (t2 : t) {measure tree_height t1} : t :=
+   match t1 with
+    | exist (Leaf b) _ => t2
+    | _ => let (ltr1, rtr1) := decompose t1 in
+           let (ltr2, rtr2) := decompose t2 in
+              match ltr1 with  
+               | exist (Leaf true) _ => ltr2
+               | exist (Leaf false) _ => unrel rtr1 rtr2
+               | _ => unrel ltr1 ltr2
+              end
+   end.
+ intros.
+ clear -teq1.
+ inv teq1.
+ destruct c.
+ destruct a.
+ destruct a.
+ inv H0.
+ unfold tree_height.
+ simpl.
+ omega.
+ 
+ intros.
+ clear -teq1.
+ inv teq1.
+ destruct c as [? [? [? ?]]].
+ inv H0.
+ unfold tree_height.
+ simpl.
+ remember (max (tree_heightP s1) (tree_heightP s2) + 1).
+ assert (n1 <= max n1 (tree_heightP s0)).
+   apply le_max_l.
+ omega.
+ Defined.
+
+Lemma canonTree_Leaf : forall b, canonicalTree (Leaf b).
+Proof.
+  intros.
+  constructor.
+Qed.
+
+Lemma mkCanon_identity : forall t, canonicalTree t -> mkCanon t = t.
+Proof.
+  induction t0;intros.
+  compute;trivial.
+  simpl.
+  simpl in H.
+  destruct H as [? [? [? ?]]].
+  spec IHt0_1 H1.
+  spec IHt0_2 H2.
+  rewrite IHt0_1.
+  rewrite IHt0_2.
+  icase t0_1;icase t0_2.
+  icase (bool_dec b b0).
+  subst.
+  elimtype False.
+  icase b0;compute in  H;compute in H0; firstorder.
+Qed.
+
+Lemma identity_tree: identity (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _)).
+Proof.
+  unfold identity,join,BAF.Join_ba.
+  intros.
+  destruct H.
+  unfold BAF.lub in H0.
+  inv H0.
+  destruct a.
+  apply exist_ext.
+  simpl.
+  symmetry.
+  apply mkCanon_identity.
+  trivial.
+Qed.
+
+Lemma nonEmpty_nonidentity: forall x c,nonEmptyTree x -> nonidentity (exist _ x c).
+Proof.
+  intros.
+  icase x.
+  icase b.
+  intro.
+  spec H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
+          (exist (fun t0 => canonicalTree t0) (Leaf true) (canonTree_Leaf _)).
+  detach H0.
+  inv H0.
+  unfold join,BAF.Join_ba.
+  split;apply exist_ext;compute;trivial.
+  intro.
+  unfold identity in H0.
+  spec H0 (exist (fun t0 => canonicalTree t0) (Leaf false) (canonTree_Leaf _))
+          (exist (fun t : ShareTree => canonicalTree t) (Node x1 x2) c).
+  detach H0.
+  inv H0.
+  apply join_comm.
+  unfold join.
+  unfold BAF.Join_ba,BAF.glb,BAF.lub.
+  split;apply exist_ext;simpl;trivial.
+  generalize (mkCanon_identity _ c);intro.
+  simpl in H0.
+  trivial.
+Qed.  
 
 Lemma unrel_rel: forall x sh, 
     nonidentity x -> unrel x (rel x sh) = sh.
 Proof.
-intros.
-pose proof (rel_unrel x (rel x sh)).
-pattern x at 4 in H0; rewrite <- rel_top1 in H0.
-rewrite <- rel_preserves_glb in H0.
-rewrite glb_commute in H0.
-rewrite glb_top in H0.
-apply rel_inj_l in H0.
-auto.
-intro; subst x.
-contradiction H; auto.
-clear.
-  hnf; intros.
-  destruct H.
-  rewrite lub_commute in H0.
-  rewrite lub_bot in H0.
-  auto.
+  intro.
+  destruct x.
+  induction x;intros.
+  rewrite unrel_equation.
+  icase b.
+  assert (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf true) c = top).
+   unfold top.
+   apply exist_ext.
+   trivial.
+  rewrite H0.
+  apply rel_top2.
+
+  elimtype False.
+  apply H.
+  assert (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c = 
+                 core (exist (fun t0 : ShareTree => canonicalTree t0) (Leaf false) c)).
+  simpl.
+  unfold BAF.bot.
+  apply exist_ext;trivial.
+  rewrite H0.
+  apply core_identity.
+
+  rewrite unrel_equation.
+  destruct c as [? [? [? ?]]].
+  assert (decompose (exist _ (Node x1 x2)
+          (conj n (conj n0 (conj c c0)))) = 
+          (exist (fun t0 : ShareTree => canonicalTree t0) x1 c, 
+           exist (fun t0 : ShareTree => canonicalTree t0) x2 c0)).
+    simpl;trivial.
+  rewrite H0;clear H0.
+  assert (decompose (rel (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+         (conj n (conj n0 (conj c c0)))) sh) = 
+         (rel (exist _ x1 c) sh, rel (exist _ x2 c0) sh)).
+   generalize (rel_classification);intro.
+   spec X (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+          (conj n (conj n0 (conj c c0)))) sh.
+   icase X.
+   destruct a;subst sh.
+   clear.
+   simpl.
+   apply injective_projections;simpl;symmetry;
+   apply rel_bot1.
+   
+   destruct a.
+   destruct H1.
+   unfold decompose.
+   remember (rel (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+            (conj n (conj n0 (conj c c0)))) sh).
+   destruct t0.
+   simpl in H1.
+   icase x.
+   destruct c1 as [? [? [? ?]]].
+   inv H1.
+   apply injective_projections;simpl;
+   destruct sh;
+   icase x;unfold rel;simpl;try apply exist_ext;trivial.
+   icase b.
+   apply exist_ext.
+   icase x1.
+   icase b.
+   apply exist_ext.
+   icase x2.
+  rewrite H0;clear H0.
+  icase x1.
+  icase b.
+   assert (exist _ (Leaf true) c = top).
+   unfold top.
+   apply exist_ext.
+   trivial.
+  rewrite H0.
+  apply rel_top2.
+  apply IHx2.
+  apply nonEmpty_nonidentity.
+  icase n0.
+  apply IHx1.
+  apply nonEmpty_nonidentity.
+  clear - c.
+  destruct c as [_ [? _]].
+  trivial.
 Qed.
 
 Definition Lsh  : Share.t := fst (Share.split Share.top).
@@ -2460,15 +2650,454 @@ Definition Rsh  : Share.t := snd (Share.split Share.top).
 
 Definition splice (a b: t) : t := Share.lub (rel Lsh a) (rel Rsh b). 
 
+Lemma mkCanon_Leaf : forall b , mkCanon (Leaf b) = Leaf b.
+Proof.
+  intros.
+  icase b.
+Qed.
+
+Lemma mkCanon_double : forall t, mkCanon (mkCanon t) = mkCanon t.
+Proof.
+    intros.
+    generalize (mkCanon_correct t0);intro.
+    generalize (mkCanon_identity _ H);intro.
+    trivial.
+Qed.
+
+Lemma mkCanon_split : forall t1 t2 t1' t2', mkCanon (Node t1 t2) = Node t1' t2' -> 
+                                            mkCanon t1 = t1' /\ mkCanon t2 = t2'.
+Proof.
+    intros.
+    inv H.
+    icase (mkCanon t1);icase (mkCanon t2);
+    try icase (bool_dec b b0);inversion H1;auto.
+Qed.
+
+Lemma mkCanon_Leaf_split : forall t1 t2 b, Leaf b = mkCanon (Node t1 t2) -> 
+                                           mkCanon t1 = Leaf b /\ mkCanon t2 = Leaf b.
+  Proof.
+    intros.
+    inv H.
+    icase (mkCanon t1);icase (mkCanon t2).
+    icase (bool_dec b0 b1);inversion H1;subst.
+    tauto.
+  Qed.
+
+Lemma mkCanon_union : forall t1 t2, mkCanon (union_tree (mkCanon t1) (mkCanon t2)) =
+                                      mkCanon (union_tree t1 t2).
+Proof.
+    intros.
+    assert (exists n, n >= max (tree_heightP t1) (tree_heightP t2)).
+      exists (max (tree_heightP t1) (tree_heightP t2));omega.
+    destruct H.
+    revert H.
+    revert t2 t1.
+    induction x;intros.
+      icase t1;icase t2.
+      remember (tree_heightP (Node t2_1 t2_2)).
+      icase n.
+      inversion Heqn.
+      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));elimtype False ;omega.
+      inversion H.
+      inversion H.
+      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));inversion H1.
+      inversion H.
+      destruct (max (tree_heightP t1_1) (tree_heightP t1_2));
+      destruct (max (tree_heightP t2_1) (tree_heightP t2_2));
+      inversion H1.
+    icase t1;icase t2.
+    replace (mkCanon (Leaf b)) with (Leaf b) by apply mkCanon_Leaf.
+    icase b.
+    unfold union_tree.
+    apply mkCanon_double.
+    replace (mkCanon (Leaf b)) with (Leaf b) by apply mkCanon_Leaf.
+    replace (union_tree (mkCanon (Node t1_1 t1_2)) (Leaf b))
+    with (union_tree(Leaf b)(mkCanon (Node t1_1 t1_2)))
+    by apply union_commute.
+    replace (union_tree ( (Node t1_1 t1_2)) (Leaf b))
+    with (union_tree(Leaf b)(Node t1_1 t1_2))
+    by apply union_commute.
+    icase b.
+    unfold union_tree.
+    apply mkCanon_double.
+
+    assert (x >= max (tree_heightP t1_1) (tree_heightP t2_1)).
+      simpl in H.
+      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      in H by omega.
+      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      in H by omega.
+      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      rewrite<- H0 in H;clear H0.
+      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
+       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply le_max_l.
+      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
+       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply le_max_r.
+      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_1).
+       apply le_max_l.
+      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_1).
+       apply le_max_l.
+      apply max_lub;omega.
+    assert (x >= max (tree_heightP t1_2) (tree_heightP t2_2)).
+      simpl in H.
+      replace (max (tree_heightP t1_1) (tree_heightP t1_2) + 1)
+      with (S (max (tree_heightP t1_1) (tree_heightP t1_2)))
+      in H by omega.
+      replace (max (tree_heightP t2_1) (tree_heightP t2_2) + 1)
+      with (S (max (tree_heightP t2_1) (tree_heightP t2_2)))
+      in H by omega.
+      generalize (succ_max_distr ((max (tree_heightP t1_1) (tree_heightP t1_2)))
+      ((max (tree_heightP t2_1) (tree_heightP t2_2))));intro.
+      rewrite<- H1 in H;clear H1.
+      assert (x >= max (max (tree_heightP t1_1) (tree_heightP t1_2))
+         (max (tree_heightP t2_1) (tree_heightP t2_2))) by omega.
+      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
+       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t1_1) (tree_heightP t1_2)).
+       apply le_max_l.
+      assert (max (max (tree_heightP t1_1) (tree_heightP t1_2))
+       (max (tree_heightP t2_1) (tree_heightP t2_2)) >= max (tree_heightP t2_1) (tree_heightP t2_2)).
+       apply le_max_r.
+      assert (max (tree_heightP t1_1) (tree_heightP t1_2) >= tree_heightP t1_2).
+       apply le_max_r.
+      assert (max (tree_heightP t2_1) (tree_heightP t2_2) >= tree_heightP t2_2).
+       apply le_max_r.
+      apply max_lub;omega.
+    generalize (IHx _ _ H0);intro.
+    generalize (IHx _ _ H1);intro.
+    remember (mkCanon (Node t1_1 t1_2));
+    remember (mkCanon (Node t2_1 t2_2)).
+    icase s;icase s0.
+    generalize (mkCanon_Leaf_split _ _ _ Heqs);intro.
+    generalize (mkCanon_Leaf_split _ _ _ Heqs0);intro.
+    destruct H4 as [H41 H42].
+    destruct H5 as [H51 H52].
+    rewrite H41 in *.
+    rewrite H51 in *.
+    rewrite H42 in *.
+    rewrite H52 in *.
+    simpl.
+    rewrite<-  H2.
+    rewrite<- H3.
+    simpl.
+    icase b.
+    generalize (mkCanon_Leaf b0);intro.
+    rewrite H4.
+    icase (bool_dec b0 b0);trivial.
+    firstorder.
+
+
+    generalize (mkCanon_Leaf_split _ _ _ Heqs);intro.
+    symmetry in Heqs0.
+    generalize (mkCanon_split _ _ _ _ Heqs0);intro.
+    destruct H4 as [H41 H42].
+    destruct H5 as [H51 H52].
+    rewrite H41 in *.
+    rewrite H42 in *.
+    rewrite<- H51 in *.
+    rewrite<- H52 in *.
+    simpl.
+    rewrite<-H2.
+    rewrite<-H3.
+    icase b.
+    
+    generalize (mkCanon_Leaf_split _ _ _ Heqs0);intro.
+    symmetry in Heqs.
+    generalize (mkCanon_split _ _ _ _ Heqs);intro.
+    destruct H4 as [H41 H42].
+    destruct H5 as [H51 H52].
+    rewrite H41 in *.
+    rewrite H42 in *.
+    rewrite<- H51 in *.
+    rewrite<- H52 in *.
+    replace (union_tree (Node (mkCanon t1_1) (mkCanon t1_2)) (Leaf b)) 
+    with (union_tree (Leaf b) (Node (mkCanon t1_1) (mkCanon t1_2)))
+    by apply union_commute.
+    replace (union_tree (mkCanon t1_1) (Leaf b))
+    with (union_tree (Leaf b)(mkCanon t1_1)) in H2
+    by apply union_commute.
+    replace (union_tree (mkCanon t1_2) (Leaf b))
+    with (union_tree (Leaf b)(mkCanon t1_2)) in H3
+    by apply union_commute.
+    simpl.
+    rewrite<-H2.
+    rewrite<-H3.
+    icase b.
+
+    symmetry in Heqs, Heqs0.
+    generalize (mkCanon_split _ _ _ _ Heqs);intro.
+    generalize (mkCanon_split _ _ _ _ Heqs0);intro.
+    destruct H4 as [H41 H42].
+    destruct H5 as [H51 H52].
+    rewrite<-H41 in *.
+    rewrite<- H42 in *.
+    rewrite<-H51 in *.
+    rewrite<-H52 in *.
+    simpl.
+    rewrite H2.
+    rewrite H3.
+    trivial.
+Qed.
+
+Lemma splice_rewrite: forall a b, splice a b = 
+      exist (fun t0 => canonicalTree t0) (mkCanon (Node (proj1_sig a) (proj1_sig b))) (mkCanon_correct _).
+Proof.
+  intros.
+  unfold splice.
+  unfold lub,Lsh,Rsh.
+  unfold split,fst,snd.
+  assert (rel top leftTree = leftTree) by apply rel_top2.
+  rewrite H;clear H.
+  assert (rel top rightTree = rightTree) by apply rel_top2.
+  rewrite H;clear H.
+  assert (proj1_sig (rel leftTree a) = mkCanon (Node (proj1_sig a) (Leaf false))).
+    destruct a;
+    unfold leftTree.
+    simpl.
+    generalize (rel_classification);intro.
+    spec X (exist (fun t0 : ShareTree => canonicalTree t0)
+        (Node (Leaf true) (Leaf false))  
+          (conj (or_intror (true = false) (Logic.eq_refl false))
+           (conj (or_introl (false = true) (Logic.eq_refl true)) (conj I I))))
+     (exist (fun t0 : ShareTree => canonicalTree t0) x c).
+    icase X.
+    destruct a.
+    inv H.
+    rewrite H0.
+    compute;trivial.
+    destruct a.
+    destruct H0.
+    rewrite H0.
+    simpl.
+    generalize (mkCanon_identity _ c);intro.
+    rewrite H2.
+    icase x.
+    icase b0.
+  rewrite H.
+  assert (proj1_sig (rel rightTree b) = mkCanon (Node (Leaf false) (proj1_sig b))).
+    destruct b;
+    unfold rightTree.
+    simpl.
+    generalize (rel_classification);intro.
+    spec X (exist (fun t0 : ShareTree => canonicalTree t0)
+        (Node (Leaf false) (Leaf true))
+         (conj (or_introl (true = false) (Logic.eq_refl false))
+           (conj (or_intror (false = true) (Logic.eq_refl true)) (conj I I))))
+     (exist (fun t0 : ShareTree => canonicalTree t0) x c).
+    icase X.
+    destruct a0.
+    inv H0.
+    rewrite H1.
+    compute;trivial.
+    destruct a0.
+    destruct H1.
+    rewrite H1.
+    simpl.
+    generalize (mkCanon_identity _ c);intro.
+    rewrite H3.
+    icase x.
+    icase b.
+  rewrite H0.
+  apply exist_ext.
+  rewrite mkCanon_union.
+  f_equal.
+  rewrite union_commute.
+  simpl.
+  rewrite union_commute.
+  simpl.
+  trivial.
+Qed.
+
+Lemma canonTree_check: forall x y, canonicalTree x -> canonicalTree y -> 
+                       (exists b, x = Leaf b /\ y = Leaf b) \/ (canonicalTree (Node x y)).
+Proof.
+  intros.
+  icase x.
+  icase y.
+  icase b;icase b0.
+  left;exists true;auto.
+  right;compute;tauto.
+  right;compute;tauto.
+  left;exists false;auto.
+  right.
+  firstorder.
+  right.
+  firstorder.
+Qed.
+
 Lemma unrel_splice_L:
   forall a b, unrel Lsh (splice a b) = a.
 Proof.
-Admitted.  (* Aquinas promised to prove this *)
+  intros.
+  generalize (splice_rewrite a b);intro.
+  rewrite H;clear H.
+  unfold Lsh,fst,split.
+  assert (rel top leftTree = leftTree) by apply rel_top2.
+  rewrite H;clear H.
+  unfold leftTree.
+  rewrite unrel_equation.
+  assert  (decompose
+          (exist (fun t0 : ShareTree => canonicalTree t0)
+          (Node (Leaf true) (Leaf false))
+          (conj (or_intror (true = false) (Logic.eq_refl false))
+             (conj (or_introl (false = true) (Logic.eq_refl true)) (conj I I))))=
+          (top,bot)).
+   compute;apply injective_projections;apply exist_ext;trivial.
+  rewrite H;clear H.
+  assert  (decompose ((exist (fun t0 : ShareTree => canonicalTree t0)
+          (mkCanon (Node (proj1_sig a) (proj1_sig b)))
+          (mkCanon_correct (Node (proj1_sig a) (proj1_sig b))))) = (a,b)).
+    destruct a,b.
+    unfold proj1_sig.
+    generalize (canonTree_check _ _ c c0);intro.
+    icase H.
+    destruct H as [? [? ?]];subst.
+    icase x1;unfold decompose;apply injective_projections;
+     simpl;  apply exist_ext;simpl;trivial.
+    assert ((exist (fun t0 : ShareTree => canonicalTree t0) (mkCanon (Node x x0))
+           (mkCanon_correct (Node x x0))) = exist (fun t0 => canonicalTree t0) (Node x x0) H).
+      apply exist_ext.
+      apply mkCanon_identity.
+      trivial.
+    rewrite H0.
+    unfold decompose.
+    destruct H as [? [? [? ?]]].
+    apply injective_projections;simpl;apply exist_ext;trivial.
+    rewrite H.
+    unfold top;simpl.
+    trivial.
+Qed.
 
 Lemma unrel_splice_R:
   forall a b, unrel Rsh (splice a b) = b.
 Proof.
-Admitted.  (* Aquinas promised to prove this *)
+  intros.
+  generalize (splice_rewrite a b);intro.
+  rewrite H;clear H.
+  unfold Rsh,snd,split.
+  assert (rel top rightTree = rightTree) by apply rel_top2.
+  rewrite H;clear H.
+  unfold rightTree.
+  rewrite unrel_equation.
+  assert  (decompose
+          (exist (fun t0 : ShareTree => canonicalTree t0)
+          (Node (Leaf false) (Leaf true))
+           (conj (or_introl (true = false) (Logic.eq_refl false))
+             (conj (or_intror (false = true) (Logic.eq_refl true)) (conj I I)))) =
+          (bot,top)).
+   compute;apply injective_projections;apply exist_ext;trivial.
+  rewrite H;clear H.
+  assert  (decompose ((exist (fun t0 : ShareTree => canonicalTree t0)
+          (mkCanon (Node (proj1_sig a) (proj1_sig b)))
+          (mkCanon_correct (Node (proj1_sig a) (proj1_sig b))))) = (a,b)).
+    destruct a,b.
+    unfold proj1_sig.
+    generalize (canonTree_check _ _ c c0);intro.
+    icase H.
+    destruct H as [? [? ?]];subst.
+    icase x1;unfold decompose;apply injective_projections;
+    simpl; apply exist_ext;simpl;trivial.
+    assert ((exist (fun t0 : ShareTree => canonicalTree t0) (mkCanon (Node x x0))
+           (mkCanon_correct (Node x x0))) = exist (fun t0 => canonicalTree t0) (Node x x0) H).
+      apply exist_ext.
+      apply mkCanon_identity.
+      trivial.
+    rewrite H0.
+    unfold decompose.
+    destruct H as [? [? [? ?]]].
+    apply injective_projections;simpl;apply exist_ext;trivial.
+  rewrite H.
+  unfold bot;simpl.
+  reflexivity.
+Qed.
+
+Lemma contains_Rsh_e: forall sh,
+      join_sub Rsh sh ->
+      unrel Rsh sh = top.
+Proof.
+ intros.
+ destruct H.
+ destruct H.
+ subst.
+ unfold Rsh,snd in *.
+ simpl in *.
+ assert (rel top rightTree = rightTree) by apply rel_top2.
+ rewrite H0 in *;clear H0.
+ unfold rightTree in *.
+ rewrite unrel_equation.
+ assert (decompose
+        (exist (fun t0 : ShareTree => canonicalTree t0)
+        (Node (Leaf false) (Leaf true))
+         (conj (or_introl (true = false) (Logic.eq_refl false))
+            (conj (or_intror (false = true) (Logic.eq_refl true)) (conj I I))))
+         = (bot,top)).
+   compute;apply injective_projections;apply exist_ext;trivial.
+ rewrite H0;clear H0.
+ destruct x.
+ icase x.
+ icase b.
+ simpl.
+ destruct (mkCanon_correct (Node (Leaf false) (Leaf true))) as [? [? [? ?]]].
+ rewrite unrel_equation.
+ unfold top.
+ apply exist_ext;trivial.
+ destruct c as [? [? [? ?]]].
+ assert (decompose
+        (BAF.lub
+        (exist (fun t0 : ShareTree => canonicalTree t0)
+        (Node (Leaf false) (Leaf true))
+       (conj (or_introl (true = false) (Logic.eq_refl false))
+                (conj (or_intror (false = true) (Logic.eq_refl true))
+                   (conj I I))))
+        (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+        (conj n (conj n0 (conj c c0))))) = 
+        (exist (fun t0 : ShareTree => canonicalTree t0) x1 c, top)).
+   unfold BAF.lub.
+   unfold proj1_sig.
+   assert (union_tree (Node (Leaf false) (Leaf true)) (Node x1 x2) = Node x1 (Leaf true)).
+     unfold union_tree;trivial.
+   rewrite H0;clear H0.
+   icase x1.
+   icase b;
+   simpl.
+   apply injective_projections;apply exist_ext;trivial.
+   destruct (mkCanon_correct (Node (Leaf false) (Leaf true))) as [? [? [? ?]]].
+   apply injective_projections;apply exist_ext;trivial.
+   assert (canonicalTree (Node (Node x1_1 x1_2) (Leaf true))).
+    destruct c as [? [? [? ?]]];
+    firstorder.
+   assert (exist (fun t0 : ShareTree => canonicalTree t0)
+          (mkCanon (Node (Node x1_1 x1_2) (Leaf true)))
+          (mkCanon_correct (Node (Node x1_1 x1_2) (Leaf true))) =
+          (exist (fun t0 : ShareTree => canonicalTree t0) (Node (Node x1_1 x1_2) (Leaf true)) H0)).
+    apply exist_ext.
+    simpl.
+    destruct c as [? [? [? ?]]].
+    generalize (mkCanon_identity x1_1 c);intro.
+    generalize (mkCanon_identity x1_2 c1);intro.
+    rewrite H1;rewrite H2.
+    icase x1_1;icase x1_2.
+    icase b;icase b0;
+    simpl;
+    elimtype False;firstorder.
+  rewrite H1.
+  simpl.
+  destruct H0 as [? [? [? ?]]].
+  apply injective_projections;apply exist_ext;trivial.
+ rewrite H0.
+ unfold bot.
+ rewrite unrel_equation.
+ unfold top.
+ trivial.
+Qed.
+
+(*  END of the Le Xuan Bach contribution: definition and proofs about unrel *)
 
 End Share.
 

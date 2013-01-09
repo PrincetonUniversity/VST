@@ -11,13 +11,7 @@ Require Import veric.expr.
 Definition writable_share (sh: share) := join_sub Share.Rsh sh.
 
 Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Proof.
- intros.
- destruct H.
-  destruct H.
-  subst. 
-  admit.  (* Aquinas, please take a look at this *)
-Qed.
+Proof. apply Share.contains_Rsh_e. Qed.
 
 Definition core_load : memory_chunk -> address -> val -> pred rmap := core_load.
 

@@ -1234,7 +1234,7 @@ eapply step_call_internal with (vargs:=eval_exprlist (snd (split (fst fsig))) bl
 rewrite <- H3.  
 eapply eval_expr_relate; try solve[rewrite H0; auto]; auto. destruct TC3; eassumption. auto.
 destruct (fsig). unfold fn_funsig in *. inv H18.
-eapply exprlist_eval; try eassumption; auto. Check exprlist_eval. 
+eapply exprlist_eval; try eassumption; auto.
  apply TC2. destruct TC3 ; auto.
 unfold type_of_function. destruct fsig; inv H18; auto. 
 
