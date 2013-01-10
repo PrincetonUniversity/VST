@@ -383,8 +383,12 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
    fun rho => typecheck_environ rho Delta = true.
 
-Definition tc_temp (Delta: tycontext) (id: ident) (t: type) : Prop := 
-      typecheck_temp_id id t Delta = true.
+Definition tc_temp_id  (id: ident)  (ty: type) (Delta: tycontext) 
+                       (e:expr): environ -> Prop := 
+      denote_tc_assert (typecheck_temp_id id ty Delta e).
+
+Definition tc_temp_id_load id tfrom Delta v : environ -> Prop  :=
+fun rho => (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) /\ (allowedValCast (v rho) (tfrom) tto)= true).
 
 Definition tc_expr (Delta: tycontext) (e: expr) : environ -> Prop := 
     denote_tc_assert (typecheck_expr Delta e).
@@ -615,16 +619,18 @@ Axiom semax_call_ext:
 
 Axiom semax_set : 
 forall (Delta: tycontext) (P: assert) id e,
-    tc_temp Delta id (typeof e) ->
     semax Delta 
-        (|> (local (tc_expr Delta e) && subst id (eval_expr e) P))
+        (|> (local (tc_expr Delta e) && 
+            local (tc_temp_id id (typeof e) Delta e) &&
+             subst id (eval_expr e) P))
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_set_forward : 
 forall (Delta: tycontext) (P: assert) id e,
-    tc_temp Delta id (typeof e) ->
     semax Delta 
-        (|> (local (tc_expr Delta e) && P))
+        (|> (local (tc_expr Delta e) && 
+            local (tc_temp_id id (typeof e) Delta e) && 
+          P))
           (Sset id e) 
         (normal_ret_assert 
           (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
@@ -632,9 +638,11 @@ forall (Delta: tycontext) (P: assert) id e,
 
 Axiom semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
-    tc_temp Delta id (typeof e1) ->
     semax Delta 
-       (|> (local (tc_lvalue Delta e1) && local (tc_value v2 (typeof e1)) && (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       (|> (local (tc_lvalue Delta e1) && 
+       local (tc_temp_id_load id (typeof e1) Delta v2) && 
+        local (tc_value v2 (typeof e1)) &&
+       (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
                                           (subst id (lift0 old) (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).

@@ -331,6 +331,14 @@ Definition tc_lvalue (Delta: tycontext) (e: expr) : assert :=
 
 Definition tc_value (v:environ -> val) (t :type) : assert:=
      fun rho => !! (typecheck_val (v rho) t = true).
+ 
+
+Definition tc_temp_id (id : positive) (ty : type) 
+  (Delta : tycontext) (e : expr) : assert  :=
+     fun rho => !! denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
+
+Definition tc_temp_id_load id tfrom Delta v : assert  :=
+fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) /\ (allowedValCast (v rho) (tfrom) tto)= true).
 
 Lemma extend_prop: forall P, boxy extendM (prop P).
 Proof.
@@ -341,6 +349,16 @@ repeat intro. apply H.
 Qed.
 
 Hint Resolve extend_prop.
+
+Lemma extend_tc_temp_id_load :  forall id tfrom Delta v rho, boxy extendM (tc_temp_id_load id tfrom Delta v rho).
+Proof. 
+intros. unfold tc_temp_id_load. auto.
+Qed. 
+
+Lemma extend_tc_temp_id: forall id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
+Proof. 
+intros. unfold tc_temp_id. induction e; simpl; destruct t; simpl; auto. 
+Qed. 
 
 Lemma extend_tc_expr: forall Delta e rho, boxy extendM (tc_expr Delta e rho).
 Proof.
@@ -369,7 +387,9 @@ Proof.
 intros. unfold tc_value. auto.
 Qed.
 
-Hint Resolve extend_tc_expr extend_tc_exprlist extend_tc_lvalue extend_tc_value.
+
+
+Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue extend_tc_value.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
 

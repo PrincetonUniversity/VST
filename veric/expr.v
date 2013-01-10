@@ -543,6 +543,22 @@ match Cop.classify_cast tfrom tto with
       end
 end.
 
+
+Definition allowedValCast v tfrom tto :=
+match Cop.classify_cast tfrom tto with 
+| Cop.cast_case_neutral => if (is_int_type tfrom) && 
+                          (is_pointer_type tto) 
+                          then 
+                            match v with 
+                              | Vint i => (Int.eq i Int.zero)
+                              | _ => false 
+                            end
+                          else if eqb (is_int_type tfrom) 
+                                      (is_int_type tto)
+                               then true else false
+| _ => false
+end. 
+
 Definition globtype (g: global_spec) : type :=
 match g with 
  | Global_func fs => type_of_funspec fs
@@ -623,10 +639,18 @@ match e with
  | _  => tc_FF
 end.
 
-Definition typecheck_temp_id id ty Delta : bool :=
+
+Definition is_neutral_cast tfrom tto : bool :=
+match Cop.classify_cast tfrom tto with
+| Cop.cast_case_neutral => true
+| _ => false
+end. 
+
+Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) => eqb_type t ty 
-  | None => false
+  | Some (t,_) => tc_andp (tc_bool (is_neutral_cast ty t)) 
+                  (isCastResultType ty t t a)
+  | None => tc_FF
  end.
 
 Fixpoint tc_might_be_true (asn : tc_assert) :=
@@ -1122,3 +1146,4 @@ intros.
 remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *; try rewrite andb_false_iff in *; if_tac; auto; intuition;
 destruct c; auto; intuition.
 Qed.
+

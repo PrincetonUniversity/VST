@@ -1433,3 +1433,31 @@ intros. generalize dependent el. induction tl; intros. simpl in *. destruct el. 
 inv H. simpl in H. destruct el; try solve [inv H]. simpl in *. unfold lift2 in *.  
 intuition.
 Qed. 
+
+Lemma neutral_cast_typecheck_val : forall e t rho Delta,
+true = is_neutral_cast (typeof e) t ->
+denote_tc_assert (isCastResultType (typeof e) t t e) rho ->
+denote_tc_assert (typecheck_expr Delta e) rho ->
+typecheck_environ rho Delta = true ->
+typecheck_val (eval_expr e rho) t = true. 
+Proof.
+intros.
+apply typecheck_expr_sound in H1; auto. 
+destruct (typeof e); destruct t; simpl in H; simpl in H0;
+try congruence; remember (eval_expr e rho); destruct v;
+simpl in H0; try congruence; auto; 
+destruct i; destruct s; try destruct i0; try destruct s0;
+unfold is_neutral_cast in *;
+simpl in *; try congruence; unfold lift1 in *; 
+try rewrite <- Heqv in *;  unfold denote_tc_iszero in *;
+try apply H0; try contradiction.
+Qed. 
+
+Lemma allowed_val_cast_sound : forall v tfrom tto,
+allowedValCast v tfrom tto = true -> 
+typecheck_val v tfrom = true ->
+typecheck_val v tto = true. 
+Proof. 
+intros. 
+destruct v; destruct tfrom; destruct tto; try solve [simpl in *; try congruence]; auto;  first  [destruct i1 | destruct i0 | destruct i]; try destruct s; unfold allowedValCast in *; try solve [simpl in *; try congruence].
+Qed. 
