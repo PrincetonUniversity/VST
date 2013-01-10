@@ -33,8 +33,12 @@ intros.
 rename H3 into TC0; rename H4 into TC2.
 subst t1.
 rename H2 into TE1.
+(*(Delta : tycontext) (sh : Share.t) (id : positive)
+         (P : environ -> mpred) (e1 : expr) (v2 : environ -> val),*)
 apply (semax_pre_post
-            (|>(local (tc_lvalue Delta (Efield e1 fld t2)) && local (lift1 (tc_val t2) v2) && 
+            (|>(local (tc_lvalue Delta (Efield e1 fld t2)) &&
+                 local (tc_temp_id_load id (typeof (Efield e1 fld t2)) Delta v2) && 
+                 local (lift1 (tc_val t2) v2) &&
                (lift2 (mapsto sh t2) (eval_lvalue (Efield e1 fld t2)) v2 * 
                         (local (lift1 (tc_val t2) v2) &&  !!(type_is_volatile t2 = false) &&  P))))
             (normal_ret_assert 
@@ -43,11 +47,9 @@ apply (semax_pre_post
                 ( local (lift1 (tc_val t2) v2) && !!(type_is_volatile t2 = false) && P))))));
   [ | | apply semax_load].
 
-Focus 3. hnf. unfold typecheck_temp_id; rewrite TE1. apply eqb_type_refl.
-
 (* PRECONDITION *)
 intro rho.
-unfold tc_temp, typecheck_temp_id, local, lift1, lift0.
+unfold tc_temp_id_load, local, lift1, lift0.
 simpl.
 normalize.
 apply later_derives.
@@ -70,7 +72,15 @@ case_eq (access_mode t2); intros; normalize.
 rewrite H8. 
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
-simpl. rewrite H5. rewrite H4. simpl. auto.
+simpl eval_field. rewrite H5. rewrite H4.
+simpl eval_struct_field.
+forget (Int.add i (Int.repr z)) as N.
+ simpl. auto.
+normalize.
+apply andp_right.
+apply andp_right; apply prop_right; auto.
+exists t2; exists i2; split; auto.
+admit.  (* consult with Joey *)
 normalize.
 
 (* POSTCONDITION *)
@@ -260,8 +270,7 @@ Qed.
 
 Lemma forward_setx:
   forall Delta P id e,
-  tc_temp Delta id (typeof e)  ->
-  (P |-- local (tc_expr Delta e)) ->
+  (P |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
   semax Delta
              P
              (Sset id e)
@@ -274,7 +283,8 @@ eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e); auto].
 eapply derives_trans ; [ | apply now_later].
 go_lower.
 apply andp_right; auto.
-apply H0.
+eapply derives_trans; [apply H | ].
+normalize.
 intros ek vl rho; unfold normal_ret_assert. simpl; normalize.
 apply exp_right with x.
 normalize.
@@ -319,15 +329,30 @@ Lemma after_set_special1:
 Proof. intros. normalize.
 Qed.
 
+Ltac forward_setx_aux1 :=
+      apply forward_setx; 
+      try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
+                            repeat split ].
+
+Lemma semax_post_flipped:
+  forall (R' : ret_assert) (Delta : tycontext) (R : ret_assert)
+         (P : assert) (c : statement),
+        semax Delta P c R' -> 
+       (forall (ek : exitkind) (vl : option val),
+        local (tc_environ (exit_tycon c Delta ek)) && R' ek vl |-- R ek vl) ->
+       semax Delta P c R.
+Proof. intros; eapply semax_post; eassumption. Qed.
+
+Ltac forward_setx_aux2 :=
+            let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x).
+
 Ltac forward_setx := 
   first [eapply semax_seq; 
-            [ apply sequential' ; apply forward_setx; [reflexivity | (apply @TT_right || normalizex)]
-              | apply extract_exists_pre;
-            let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x) ]
-         | eapply semax_post;  [ | apply forward_setx; [reflexivity | (apply @TT_right || normalizex)]];
-            intros ?ek ?vl; apply after_set_special1; intros ? ?; subst ek vl;
-            let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x)
-        ].
+             [apply sequential'; forward_setx_aux1 | apply extract_exists_pre; forward_setx_aux2]
+         | eapply semax_post_flipped;  
+             [forward_setx_aux1
+             | intros ?ek ?vl; apply after_set_special1; intros ? ?; subst ek vl;
+               forward_setx_aux2 ]].
 
 Ltac semax_field_tac1 := 
    eapply semax_load_field'; 

@@ -185,33 +185,12 @@ Proof.
  destruct v; simpl; auto; inv H; auto.
 Qed.
 
-(*
-Lemma Sset_cast:
-  forall Delta P id e t Q,
-  classify_cast (typeof e) t = cast_case_neutral ->
-  semax Delta P (Sset id e) Q ->
-  semax Delta P (Sset id (Ecast e t)) Q.
-Admitted.
-
-
-Lemma Sset_cast':
-  forall Delta P id e t c Q,
-  classify_cast (typeof e) t = cast_case_neutral ->
-  semax Delta P (Ssequence (Sset id e) c) Q ->
-  semax Delta P (Ssequence (Sset id (Ecast e t)) c) Q.
-Admitted.
- Ltac forward := 
-   (apply Sset_cast' ; [reflexivity | forward.forward])
-  || (apply Sset_cast ; [reflexivity | forward.forward])
-  || forward.forward.
- *)
-
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
 destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
-forward.
-forward.
+forward_setx.
+forward_setx.
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P._s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
@@ -242,7 +221,7 @@ normalizex. subst cts.
 simpl list_data; simpl list_link.
 forward. normalize.
 forward.  intro old_t.
-forward.
+forward_setx.
 (* Prove postcondition of loop body implies loop invariant *)
 intro x; unfold sumlist_Inv, partial_sum.
 apply exp_right with r.
@@ -284,28 +263,8 @@ Proof.
 start_function.
 destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
 normalizex. rename H into WS.
-(*
- eapply semax_seq.
-apply sequential'.
- apply forward_setx.
-unfold tc_temp. Print typecheck_temp_id.
- hnf. simpl.
- unfold typecheck_temp_id.
- 
- unfold P.f_reverse, func_tycontext, fn_params, fn_vars, fn_temps, make_tycontext.
- simpl.
- unfold tc_expr.
- compute.
-  first [eapply semax_seq; 
-            [ apply sequential' ; apply forward_setx; [reflexivity | (apply @TT_right || normalizex)]
-              | apply extract_exists_pre;
-            let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x) ]
-        
-        ].
-*)
-forward.
-go_lower.
-forward.
+forward_setx.
+forward_setx.
 forward_while (reverse_Inv sh contents)
          (PROP() LOCAL () SEP( lift2 (ilseg sh (rev contents)) (eval_id P._w) (lift0 nullval))).
 (* precondition implies loop invariant *)
@@ -338,8 +297,8 @@ normalizex; subst cts2.
 simpl list_data; simpl list_link.
 forward. normalize.
 forward. normalize.
-forward. intro old_w.
-forward.
+forward_setx. intro old_w.
+forward_setx.
 intros.
 unfold reverse_Inv.
 go_lower.
@@ -393,7 +352,6 @@ repeat (unfold ret_type; simpl). reflexivity.
 eapply tc_eval_id_i; eauto.
 unfold temp_types; simpl. reflexivity.
 Qed.
-*) Admitted.
 
 Lemma setup_globals:
   forall rho,  tc_environ (func_tycontext P.f_main Vprog Gtot) rho ->
@@ -468,9 +426,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gtot (prog_funct P.prog) Gtot.
 Proof.
 unfold Gtot, Gprog, P.prog, prog_funct; simpl.
-apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
-apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
-apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ].
+repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
 apply semax_func_cons; [ reflexivity | apply body_sumlist | ].
 apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].

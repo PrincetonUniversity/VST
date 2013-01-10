@@ -856,4 +856,17 @@ Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
 Proof. reflexivity. Qed.
 Hint Rewrite lower_FF : normalize.
 
+Fixpoint iota_formals (i: ident) (tl: typelist) := 
+ match tl with
+ | Tcons t tl' => (i,t) :: iota_formals (i+1)%positive tl'
+ | Tnil => nil
+ end.
+
+Fixpoint do_builtins (defs : list (ident * globdef fundef type)) : funspecs :=
+ match defs with
+  | (id, Gfun (External (EF_builtin _ sig) argtys resty))::defs' => 
+     (id, mk_funspec (iota_formals 1%positive argtys, resty) unit FF FF) 
+      :: do_builtins defs'
+  | _ => nil
+ end.
 
