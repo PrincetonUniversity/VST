@@ -9,6 +9,64 @@ Require Import progs.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma forward_setx_closed_now':
+  forall Delta (Q: list (environ -> Prop)) (R: list assert) id e,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+  closed_wrt_vars (eq id) (eval_expr e) ->
+  PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  semax Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) 
+        (normal_ret_assert (PROPx nil (LOCALx (lift2 eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
+Proof.
+intros.
+eapply semax_pre; [ | apply semax_set].
+eapply derives_trans; [ | apply now_later].
+apply andp_left2.
+apply andp_right; auto.
+apply andp_right; auto.
+autorewrite with normalize.
+apply andp_derives; auto.
+apply andp_derives; auto.
+normalize.
+apply andp_right; auto.
+intro rho; normalize.
+Qed.
+
+Lemma forward_setx_closed_now:
+  forall Delta (Q: list (environ -> Prop)) (R: list assert) id e PQR,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+  closed_wrt_vars (eq id) (eval_expr e) ->
+  PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  normal_ret_assert (PROPx nil (LOCALx (lift2 eq (eval_id id) (eval_expr e)::Q) (SEPx R))) |-- PQR ->
+  semax Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
+Proof.
+intros.
+eapply semax_post.
+intros ek vl. apply andp_left2. apply H4.
+apply forward_setx_closed_now'; auto.
+Qed.
+
+Lemma forward_setx_closed_now_seq:
+  forall Delta (Q: list (environ -> Prop)) (R: list assert) id e c PQR,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+  closed_wrt_vars (eq id) (eval_expr e) ->
+  PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  semax (update_tycon Delta (Sset id e))
+           (PROPx nil (LOCALx (lift2 eq (eval_id id) (eval_expr e)::Q) (SEPx R))) c PQR ->
+  semax Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
+Proof.
+ intros.
+ eapply semax_seq.
+ apply sequential'.
+ apply forward_setx_closed_now; auto.
+ apply H4.
+Qed.
+
 
 Lemma semax_load_field:
 forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
@@ -84,23 +142,23 @@ admit.  (* consult with Joey *)
 normalize.
 
 (* POSTCONDITION *)
-intros ek vl. go_lower.
-intros old ?.
+intros ek vl. normalize.
+intros old rho. normalize.
 apply exp_right with old; normalize.
 unfold subst. normalize. apply sepcon_derives; auto.
 unfold mapsto, field_mapsto.
 simpl typeof.
 case_eq (access_mode t2); intros; normalize.
-unfold eval_field.
-rewrite H1; simpl. 
+simpl eval_lvalue.
+rewrite H1. unfold eval_field.
 rewrite field_offset_unroll.
 destruct (field_offset fld fields); normalize.
 unfold eval_struct_field.
 destruct (eval_lvalue e1 (env_set rho id old)); normalize.
 rewrite <- TC2.
-rewrite H5.  rewrite H4.
+rewrite H6.  rewrite H5.
 change ((Int.unsigned i + z mod Int.modulus) mod Int.modulus)
-    with (Int.unsigned (Int.add i (Int.repr z))). rewrite H6. normalize.
+    with (Int.unsigned (Int.add i (Int.repr z))). normalize.
 Opaque field_mapsto.
 Qed.
 
@@ -212,7 +270,7 @@ match goal with |- ?P |-- _ =>
  let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
 end.
 apply later_derives.
-go_lower.
+normalize. go_lower. 
 rewrite field_mapsto_nonnull.
 unfold tc_expr, tc_lvalue.
 simpl typecheck_lvalue.
@@ -224,7 +282,7 @@ destruct (eval_expr e1 rho); inv H7; normalize.
 
 normalize.
 intro x; apply exp_right with x.
-go_lower.
+intro rho; normalize.
 Qed.
 
 
@@ -248,8 +306,8 @@ intros.
 eapply semax_pre_post; [ | | eapply (semax_store_field)]; try eassumption.
 instantiate (2:=v0).
 instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
-go_lower. apply later_derives.
-normalize.
+apply andp_left2. apply later_derives.
+intro rho; normalize. 
 subst t1.
 unfold tc_lvalue.
 rewrite field_mapsto_nonnull.
@@ -281,7 +339,7 @@ Proof.
 intros.
 eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e); auto].
 eapply derives_trans ; [ | apply now_later].
-go_lower.
+intro rho; normalize.
 apply andp_right; auto.
 eapply derives_trans; [apply H | ].
 normalize.
@@ -347,7 +405,17 @@ Ltac forward_setx_aux2 :=
             let x:= fresh"x" in intro; autorewrite with normalize; (clear x || revert x).
 
 Ltac forward_setx := 
-  first [eapply semax_seq; 
+  first [apply forward_setx_closed_now_seq;
+            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
+            | try solve [intro rho; apply prop_right; repeat split]
+            | try solve [intro rho; apply prop_right; repeat split]
+            | ]
+         | apply forward_setx_closed_now;
+            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
+            | try solve [intro rho; apply prop_right; repeat split]
+            | try solve [intro rho; apply prop_right; repeat split]
+            | ]
+         | eapply semax_seq; 
              [apply sequential'; forward_setx_aux1 | apply extract_exists_pre; forward_setx_aux2]
          | eapply semax_post_flipped;  
              [forward_setx_aux1
@@ -383,7 +451,7 @@ Lemma semax_load_assist1:
   forall B P Q1 Q R,
   (forall rho, Q1 rho = True) ->
   B && PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (Q1::Q) (SEPx R)).
-Proof. intros; go_lower.
+Proof. intros; intro rho;  normalize.
  apply andp_left2.
   apply andp_right; auto. apply andp_right; apply prop_right; auto.
  rewrite H; auto.
@@ -420,7 +488,7 @@ Ltac store_field_tac :=
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ unfold tc_expr; go_lower 
+   [ normalize; go_lower; normalize
    | isolate_field_tac e fld R; hoist_later_in_pre;
       eapply semax_seq; [ apply sequential'; store_field_tac1   |  ]
    ]
@@ -429,7 +497,7 @@ Ltac store_field_tac :=
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ unfold tc_expr; go_lower 
+   [ normalize; go_lower; normalize
    | isolate_field_tac e fld R; hoist_later_in_pre;
        eapply semax_post; [ | store_field_tac1]
    ]
@@ -467,7 +535,7 @@ eapply semax_pre_post ; [ | |
  Focus 3.
  clear - H0.
  destruct fsig. destruct t; destruct ret; simpl in *; try contradiction; split; intros; congruence.
-go_lower.
+ intro rho; normalize.
 unfold fun_assert_emp.
 repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
 normalize.
@@ -478,9 +546,9 @@ normalize.
 intro old.
 apply exp_right with old; normalizex.
 destruct ret; normalizex.
-go_lower.
+intro rho; normalize.
 rewrite sepcon_comm; auto.
-go_lower.
+intro rho; normalize.
 rewrite sepcon_comm; auto.
 unfold substopt.
 repeat rewrite list_map_identity.
@@ -522,7 +590,7 @@ intros.
 apply (semax_fun_id id fsig A Pre Post Delta); auto.
 eapply semax_pre; [ | apply H0].
 forget (eval_lvalue (Evar id (type_of_funsig fsig))) as f.
-go_lower.
+intro rho; normalize.
 rewrite andp_comm.
 unfold fun_assert_emp.
 rewrite corable_andp_sepcon2 by apply corable_fun_assert.
@@ -645,7 +713,15 @@ Qed.
 
 Lemma semax_call_id_aux1: forall P Q1 Q R S,
      PROPx P (LOCALx (Q1::Q) R) |-- S -> local Q1 && PROPx P (LOCALx Q R) |-- S.
-Proof. intros. eapply derives_trans; try apply H. go_lower.
+Proof. intros. eapply derives_trans; try apply H.
+  intro rho; normalize.
+ unfold PROPx. simpl.
+ apply andp_derives; auto.
+ unfold LOCALx. simpl.
+ unfold local,lift2,lift1.
+ apply derives_extract_prop; intro.
+ apply andp_right; auto.
+ apply prop_right; split; auto.
 Qed.
 
 Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
@@ -755,3 +831,15 @@ Ltac forward :=
                               (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
                                          semax_call_id_tac_aux Delta P Q R id f bl
   end.
+
+Ltac start_function :=
+match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
+match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
+  match Pre with fun i => _ => intro i end;
+  simpl fn_body; simpl fn_params; simpl fn_return;
+  canonicalize_pre
+ end;
+ match goal with |- semax (func_tycontext ?F ?V ?G) _ _ _ => 
+   set (Delta := func_tycontext F V G)
+(*  unfold func_tycontext,make_tycontext,F,V,G in Delta; simpl in Delta *)
+ end.

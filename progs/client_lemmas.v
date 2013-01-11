@@ -117,8 +117,285 @@ Notation " 'SEP' ( x * .. * y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
-Ltac go_lower := 
+Definition nullval : val := Vint Int.zero.
+
+Lemma bool_val_int_eq_e: 
+  forall i j, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
+Proof.
+ intros.
+ revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
+ pose proof (Int.eq_spec i j).
+ revert H H0; case_eq (Int.eq i j); intros; auto.
+ simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
+Qed.
+
+Lemma bool_val_notbool_ptr:
+    forall v t,
+   match t with Tpointer _ _ => True | _ => False end ->
+   (Cop.bool_val (force_val (Cop.sem_notbool v t)) type_bool = Some true) = (v = nullval).
+Proof.
+ intros.
+ destruct t; try contradiction. clear H.
+ apply prop_ext; split; intros.
+ destruct v; simpl in H; try discriminate.
+ apply bool_val_int_eq_e in H. subst; auto.
+ subst. simpl. auto.
+Qed.
+
+Lemma typed_false_ptr: 
+  forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
+Proof.
+unfold typed_false, strict_bool_val, nullval; simpl; intros.
+destruct v; try discriminate.
+pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
+inv H.
+Qed.
+
+Definition retval : environ -> val := eval_id ret_temp.
+
+Lemma retval_get_result1: 
+   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
+Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
+Hint Rewrite retval_get_result1 : normalize.
+
+Lemma retval_lemma1:
+  forall rho v,     retval (env_set rho ret_temp v) = v.
+Proof.
+ intros. unfold retval. unfold eval_id. simpl. rewrite Map.gss. auto.
+Qed.
+Hint Rewrite retval_lemma1 : normalize.
+
+Lemma ret_type_initialized:
+  forall i Delta, ret_type (initialized i Delta) = ret_type Delta.
+Proof.
+intros.
+unfold ret_type; simpl.
+unfold initialized; simpl.
+destruct ((temp_types Delta) ! i); try destruct p; reflexivity.
+Qed.
+Hint Rewrite ret_type_initialized : normalize.
+
+Hint Rewrite bool_val_notbool_ptr using (solve [simpl; auto]) : normalize.
+Instance Nassert: NatDed assert := _.
+Instance Sassert: SepLog assert := _.
+Instance Cassert: ClassicalSep assert := _. 
+Instance Iassert: Indir assert := _.
+Instance SIassert: SepIndir assert := _.
+
+Lemma go_lower_lem1:
+  forall (P1 P: Prop) (QR PQR: mpred),
+      (P1 -> prop P && QR |-- PQR) ->
+      (prop (P1 /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ apply H; auto.
+Qed.
+
+Lemma go_lower_lem2:
+  forall  (QR PQR: mpred),
+      (QR |-- PQR) ->
+      (prop True && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intro; auto.
+Qed.
+
+Lemma go_lower_lem3:
+  forall t a v (P: Prop) (QR PQR: mpred),
+      (v=nullval -> prop P && QR |-- PQR) ->
+      (prop (typed_false (Tpointer t a) v /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ apply H; auto.
+ eapply typed_false_ptr; eauto.
+Qed.
+
+Lemma go_lower_lem4:
+  forall t id F rho (P: Prop) (QR PQR: mpred),
+      (tc_val t (eval_id id rho) -> prop (tc_formals F rho /\ P) && QR |-- PQR) ->
+      (prop (tc_formals ((id,t)::F) rho /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!(tc_formals F rho /\ P) && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ split; auto.
+ unfold tc_formals in H0. simpl in H0.
+ apply andb_true_iff in H0.
+ destruct H0.
+ apply H2.
+ apply H.
+ unfold tc_formals in H0. simpl in H0.
+ apply andb_true_iff in H0.
+ destruct H0.
+ auto.
+Qed.
+
+
+Lemma go_lower_lem5:
+  forall rho (P: Prop) (QR PQR: mpred),
+      (prop P && QR |-- PQR) ->
+      (prop (tc_formals nil rho /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ auto.
+Qed.
+
+
+Ltac go_lower :=
+  match goal with
+  | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
+             idtac
+  | |- _ => fail 1 "go_lower: not in PROP/LOCAL/SEP form"
+  end;
+  let rho := fresh "rho" in 
+  unfold PROPx, LOCALx, SEPx, frame_ret_assert,
+      tc_expropt, tc_expr, tc_lvalue, local, lift2,lift1,lift0,assert, 
+     Nassert, Sassert, stackframe_of; 
+   intro rho; 
+    change (@andp (environ -> mpred) (@LiftNatDed environ mpred Nveric)) 
+   with (fun (P Q: environ -> mpred) (rho: environ) => andp (P rho) (Q rho));
+ change (@sepcon (environ -> mpred) (@LiftNatDed environ mpred Nveric) (@LiftSepLog environ mpred Nveric Sveric))
+    with (fun (P Q: environ -> mpred) (rho: environ) => sepcon (P rho) (Q rho));
+ change (@emp (environ -> mpred) (@LiftNatDed environ mpred Nveric)
+              (@LiftSepLog environ mpred Nveric Sveric))
+        with (fun (rho: environ) => @emp mpred Nveric Sveric);
+ repeat (unfold ret_type; simpl); unfold lift2,lift1,lift0;
+ repeat (apply go_lower_lem1; [intro]);
+ try apply go_lower_lem2;
+ repeat first [ apply go_lower_lem5
+                    | apply go_lower_lem4; intro
+                    | apply go_lower_lem3; intro 
+                    | apply go_lower_lem1; intro
+                    ];
+ try apply go_lower_lem2;
+ repeat rewrite retval_lemma1.
+ 
+(* Ltac go_lower := 
  let rho := fresh "rho" in intro rho; unfold PROPx, LOCALx, SEPx; simpl; normalize.
+*)
+
+Lemma tc_eval_id_i:
+  forall Delta t i rho, 
+               tc_environ Delta rho -> 
+              (temp_types Delta)!i = Some (t,true) ->
+              tc_val t (eval_id i rho).
+Proof.
+intros.
+unfold tc_environ in H.
+destruct rho; apply environ_lemmas.typecheck_environ_sound in H.
+destruct H as [? _].
+destruct (H i true t H0) as [v [? ?]].
+unfold eval_id. simpl. rewrite H1. simpl; auto.
+destruct H2. inv H2. auto.
+Qed.
+
+Definition name (id: ident) (s: True) := True.
+Tactic Notation "varname" constr(id) ident(s) := 
+    assert (s: True) by apply I;
+    assert (name id s) by (apply I).
+
+Ltac grabvar J RHO :=
+  match goal with
+  | H: name J ?Name |- _ =>
+      clear Name H;
+      let t := fresh "t" in
+         evar (t: type);
+         assert (tc_val t (eval_id J RHO)) 
+             by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
+         unfold t in *; clear t;
+   let x := fresh Name in forget (eval_id J RHO) as x
+  end.
+
+Ltac findvars :=
+ repeat match goal with
+             | |- context [eval_id ?J ?RHO] => grabvar J RHO
+             | H' : context [eval_id ?J ?RHO] |- _ =>  grabvar J RHO
+           end;
+  try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
+
+
+Lemma eval_cast_id:
+  forall Delta rho,
+      tc_environ Delta rho ->
+  forall t1 t3 id,
+  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
+  match (temp_types Delta)!id with Some (Tpointer _ _, true) => true | _ => false end = true ->
+  eval_cast t1 t3 (eval_id id rho) = eval_id id rho.
+Proof.
+intros.
+ revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
+ destruct p as [t2 ?].
+ destruct t2; inv H2.
+ destruct b; inv H4.
+ pose proof (tc_eval_id_i _ _ _ _ H H1).
+ hnf in H2.
+ unfold typecheck_val in H2.
+ destruct (eval_id id  rho); inv H2.
+ pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+Qed.
+
+
+Lemma eval_cast_var:
+  forall Delta rho,
+      tc_environ Delta rho ->
+  forall t1 t2 t3 id,
+  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
+  tc_lvalue Delta (Evar id t2) rho ->
+  eval_cast t1 t3 (eval_var id t2 rho) = eval_var id t2 rho.
+Proof.
+intros.
+ pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H1 (Tpointer t2 noattr) (eq_refl _)).
+ unfold typecheck_val in H2. simpl in H2.
+ destruct (eval_var id t2 rho); inv H2.
+ pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
+ destruct t1; destruct t3; inv H0; 
+  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
+Qed.
+
+Ltac eval_cast_simpl :=
+     match goal with H: tc_environ ?Delta ?rho |- _ =>
+       first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
+               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
+               ]
+     end.
+
+Lemma eval_cast_int:
+  forall v sign, 
+         tc_val (Tint I32 sign noattr) v ->
+         eval_cast (Tint I32 sign noattr) (Tint I32 sign noattr) v = v.
+Proof.
+ intros.
+ unfold tc_val, eval_cast, Cop.sem_cast, force_val; simpl in *; 
+ destruct v; simpl; auto; inv H; auto.
+Qed.
+
+Lemma eval_cast_pointer2: 
+  forall v t1 t2 t3 t1' t2',
+   t1' = Tpointer t1 noattr ->
+   t2' = Tpointer t2 noattr ->
+   tc_val (Tpointer t3 noattr) v ->
+   eval_cast t1' t2' v = v.
+Proof.
+intros.
+subst.
+hnf in H1. destruct v; inv H1; reflexivity.
+Qed.
 
 Definition do_canon (x y : assert) := (sepcon x y).
 
@@ -156,12 +433,6 @@ Lemma lift1_unfold: forall {A1 B} (f: A1 -> B) a1 rho,
         lift1 f a1 rho = f (a1 rho).
 Proof. reflexivity. Qed.
 Hint Rewrite @lift2_unfold @lift1_unfold : normalize.
-
-Instance Nassert: NatDed assert := _.
-Instance Sassert: SepLog assert := _.
-Instance Cassert: ClassicalSep assert := _. 
-Instance Iassert: Indir assert := _.
-Instance SIassert: SepIndir assert := _.
 
 
 Lemma lower_sepcon:

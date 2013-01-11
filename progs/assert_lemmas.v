@@ -51,15 +51,7 @@ Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho).
-Lemma bool_val_int_eq_e: 
-  forall i j, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
-Proof.
- intros.
- revert H; case_eq (Val.of_bool (Int.eq i j)); simpl; intros; inv H0.
- pose proof (Int.eq_spec i j).
- revert H H0; case_eq (Int.eq i j); intros; auto.
- simpl in H0; unfold Vfalse in H0. inv H0. rewrite Int.eq_true in H2. inv H2.
-Qed.
+
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
@@ -120,7 +112,7 @@ Lemma closed_wrt_andp: forall S (P Q: assert),
   closed_wrt_vars S (P && Q).
 Admitted.
 
-Lemma closed_wrt_sepcon: forall S P Q,
+Lemma closed_wrt_sepcon: forall S (P Q: assert),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P * Q).
 Admitted.
@@ -195,22 +187,64 @@ Hint Resolve expr_closed_tempvar : closed.
 
 Hint Extern 1 (not (@eq ident _ _)) => (let Hx := fresh in intro Hx; inversion Hx) : closed.
 
-Definition nullval : val := Vint Int.zero.
-
-Lemma bool_val_notbool_ptr:
-    forall v t,
-   match t with Tpointer _ _ => True | _ => False end ->
-   (Cop.bool_val (force_val (Cop.sem_notbool v t)) type_bool = Some true) = (v = nullval).
+Lemma expr_closed_const_int:
+  forall S i t, expr_closed_wrt_vars S (Econst_int i t).
 Proof.
- intros.
- destruct t; try contradiction. clear H.
- apply prop_ext; split; intros.
- destruct v; simpl in H; try discriminate.
- apply bool_val_int_eq_e in H. subst; auto.
- subst. simpl. auto.
+intros. unfold expr_closed_wrt_vars. simpl; intros.
+unfold lift0. auto.
 Qed.
+Hint Resolve expr_closed_const_int : closed.
 
-Hint Rewrite bool_val_notbool_ptr using (solve [simpl; auto]) : normalize.
+Lemma expr_closed_cast: forall S e t, 
+     expr_closed_wrt_vars S e -> 
+     expr_closed_wrt_vars S (Ecast e t).
+Proof.
+ unfold expr_closed_wrt_vars; intros.
+ simpl.
+ unfold lift1.
+ destruct (H rho te' H0); auto.
+Qed.
+Hint Resolve expr_closed_cast : closed.
+
+
+Lemma expr_closed_binop: forall S op e1 e2 t, 
+     expr_closed_wrt_vars S e1 -> 
+     expr_closed_wrt_vars S e2 -> 
+     expr_closed_wrt_vars S (Ebinop op e1 e2 t).
+Proof.
+ unfold expr_closed_wrt_vars; intros.
+ simpl.
+ unfold lift2. f_equal; auto.
+Qed.
+Hint Resolve expr_closed_binop : closed.
+
+
+Lemma expr_closed_unop: forall S op e t, 
+     expr_closed_wrt_vars S e -> 
+     expr_closed_wrt_vars S (Eunop op e t).
+Proof.
+ unfold expr_closed_wrt_vars; intros.
+ simpl.
+ unfold lift1. f_equal; auto.
+Qed.
+Hint Resolve expr_closed_unop : closed.
+
+Lemma closed_wrt_tc_formals_cons:
+  forall S id t rest,
+    ~ S id ->
+    closed_wrt_vars S (tc_formals rest) ->
+    closed_wrt_vars S (tc_formals ((id,t)::rest)).
+Admitted.
+Lemma closed_wrt_tc_formals_nil:
+  forall S, closed_wrt_vars S (tc_formals nil).
+Admitted.
+Hint Resolve closed_wrt_tc_formals_cons closed_wrt_tc_formals_nil : closed.
+
+Lemma closed_wrt_stackframe_of:
+  forall S f, closed_wrt_vars S (stackframe_of f).
+Admitted.
+Hint Resolve closed_wrt_stackframe_of : closed.
+
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : normalize.
 
 
@@ -228,6 +262,19 @@ right.
 rewrite Map.gso; auto.
 Qed.
 
+Lemma closed_wrt_map_subst:
+   forall {A: Type} id e (Q: list (environ -> A)),
+         Forall (closed_wrt_vars (eq id)) Q ->
+         map (subst id e) Q = Q.
+Proof.
+induction Q; intros.
+simpl; auto.
+inv H.
+simpl; f_equal; auto.
+apply closed_wrt_subst; auto.
+Qed.
+Hint Rewrite @closed_wrt_map_subst using solve [auto] : normalize.
+Hint Rewrite @closed_wrt_subst using solve [auto] : normalize.
 
 Lemma lvalue_closed_tempvar:
  forall S i t, ~ S i -> lvalue_closed_wrt_vars S (Etempvar i t).
@@ -259,15 +306,6 @@ Qed.
 Hint Rewrite subst_eval_id_eq : normalize.
 Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : normalize.
 
-
-Lemma typed_false_ptr: 
-  forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
-Proof.
-unfold typed_false, strict_bool_val, nullval; simpl; intros.
-destruct v; try discriminate.
-pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
-inv H.
-Qed.
 
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).
@@ -362,21 +400,6 @@ Proof. reflexivity. Qed.
 Hint Rewrite eval_lvalue_Ederef : normalize.
 
 
-Lemma tc_eval_id_i:
-  forall Delta t i rho, 
-               tc_environ Delta rho -> 
-              (temp_types Delta)!i = Some (t,true) ->
-              tc_val t (eval_id i rho).
-Proof.
-intros.
-unfold tc_environ in H.
-destruct rho; apply environ_lemmas.typecheck_environ_sound in H.
-destruct H as [? _].
-destruct (H i true t H0) as [v [? ?]].
-unfold eval_id. simpl. rewrite H1. simpl; auto.
-destruct H2. inv H2. auto.
-Qed.
-
 Lemma local_lift0_True:     local (lift0 True) = TT.
 Proof. reflexivity. Qed.
 Hint Rewrite local_lift0_True : normalize.
@@ -420,14 +443,6 @@ Lemma for1_ret_assert_normal:
   forall P Q, for1_ret_assert P Q EK_normal None = P.
 Proof. reflexivity. Qed.
 Hint Rewrite for1_ret_assert_normal: normalize.
-
-Definition retval : environ -> val := eval_id ret_temp.
-
-Lemma retval_get_result1: 
-   forall i rho, retval (get_result1 i rho) = (eval_id i rho).
-Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
-Hint Rewrite retval_get_result1 : normalize.
-
 
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
@@ -526,65 +541,3 @@ Lemma align_0: forall z,
 Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.
 Hint Rewrite align_0 using omega : normalize.
-
-Lemma eval_cast_pointer2: 
-  forall v t1 t2 t3 t1' t2',
-   t1' = Tpointer t1 noattr ->
-   t2' = Tpointer t2 noattr ->
-   tc_val (Tpointer t3 noattr) v ->
-   eval_cast t1' t2' v = v.
-Proof.
-intros.
-subst.
-hnf in H1. destruct v; inv H1; reflexivity.
-Qed.
-
-Lemma eval_cast_var:
-  forall Delta rho,
-      tc_environ Delta rho ->
-  forall t1 t2 t3 id,
-  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  tc_lvalue Delta (Evar id t2) rho ->
-  eval_cast t1 t3 (eval_var id t2 rho) = eval_var id t2 rho.
-Proof.
-intros.
- pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H1 (Tpointer t2 noattr) (eq_refl _)).
- unfold typecheck_val in H2. simpl in H2.
- destruct (eval_var id t2 rho); inv H2.
- pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
-Qed.
-
-Lemma eval_cast_id:
-  forall Delta rho,
-      tc_environ Delta rho ->
-  forall t1 t3 id,
-  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  match (temp_types Delta)!id with Some (Tpointer _ _, true) => true | _ => false end = true ->
-  eval_cast t1 t3 (eval_id id rho) = eval_id id rho.
-Proof.
-intros.
- revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
- destruct p as [t2 ?].
- destruct t2; inv H2.
- destruct b; inv H4.
- pose proof (tc_eval_id_i _ _ _ _ H H1).
- hnf in H2.
- unfold typecheck_val in H2.
- destruct (eval_id id  rho); inv H2.
- pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
-Qed.
-
-Ltac eval_cast_simpl :=
-     match goal with H: tc_environ ?Delta ?rho |- _ =>
-       first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
-               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               ]
-     end.
