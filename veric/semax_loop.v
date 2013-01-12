@@ -607,7 +607,6 @@ split3; auto.
 econstructor; eauto.
 Qed.
 
-
 Lemma semax_continue:
    forall Delta Q,        semax Hspec Delta (Q EK_continue None) Scontinue Q.
 Proof.
@@ -638,62 +637,6 @@ destruct H3 as [? [? ?]].
 split3; auto.
 
 econstructor; eauto.
-Qed.
-
-Lemma semax_extensionality_Delta:
-  forall Delta Delta' P c R,
-       tycontext_eqv Delta Delta' ->
-     semax Hspec Delta P c R -> semax Hspec Delta' P c R.
-Proof.
-intros.
-unfold semax in *.
-intros.
-specialize (H0 n).
-apply (semax_extensionality1 Hspec Delta Delta' P P c R R); auto.
-split; auto.
-split; auto.
-intros ? ? ?; auto.
-Qed.
-
-Lemma semax_while : 
-forall Delta Q test body R,
-     bool_type (Clight.typeof test) = true ->
-    (forall rho, Q rho |-- tc_expr Delta test rho) ->
-     (forall rho,  !! (expr_false test rho) && Q rho |-- R EK_normal None rho) ->
-     semax Hspec Delta 
-                (fun rho => !! expr_true test rho && Q rho) body (for1_ret_assert Q R) ->
-     semax Hspec Delta Q (Swhile test body) R.
-Proof.
-intros ? ? ? ? ? BT TC POST H.
-unfold Swhile.
-apply (semax_loop Delta Q Q).
-Focus 2.
- eapply semax_post; [ | apply semax_skip]; 
- destruct ek; unfold normal_ret_assert, loop1_ret_assert; intros; normalize; inv H0; try discriminate.
-(* End Focus 2*)
-apply semax_seq with (fun rho : environ => !!expr_true test rho && Q rho).
-apply semax_pre with (fun rho => tc_expr Delta test rho && Q rho).
-intro.
-apply andp_right.
-apply andp_left2. apply TC.
-apply andp_left2; auto.
-apply semax_ifthenelse; auto.
-eapply semax_post; [ | apply semax_skip].
-intros.
-unfold normal_ret_assert.
-normalize.
-unfold overridePost.
-rewrite if_true by auto.
-normalize.
-eapply semax_pre; [ | apply semax_break].
-intros.
-unfold overridePost. rewrite if_false by congruence.
-simpl.
-apply andp_left2.
-rewrite andp_comm; auto.
-simpl update_tycon.
-apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_eqv_symm; apply join_tycon_same.
 Qed.
 
 End extensions.

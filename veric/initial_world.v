@@ -391,33 +391,6 @@ Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
 Lemma initblocksize_name: forall V a id n, initblocksize V a = (id,n) -> fst a = id.
 Proof. destruct a; intros; simpl; inv H; auto.  Qed.
 
-Lemma list_norepet_rev:
-  forall A (l: list A), list_norepet (rev l) = list_norepet l.
-Proof.
-induction l; simpl; auto.
-apply prop_ext; split; intros.
-apply list_norepet_app in H.
-destruct H as [? [? ?]].
-rewrite IHl in H.
-constructor; auto.
-eapply list_disjoint_notin with (a::nil).
-apply list_disjoint_sym; auto.
-intros x y ? ? ?; subst.
-contradiction (H1 y y); auto.
-rewrite <- In_rev; auto.
-simpl; auto.
-rewrite list_norepet_app.
-inv H.
-split3; auto.
-rewrite IHl; auto.
-repeat constructor.
-intro Hx. inv Hx.
-intros x y ? ? ?; subst.
-inv H0.
-rewrite <- In_rev in H; contradiction.
-auto.
-Qed.
-
 Fixpoint find_id (id: ident) (G: funspecs) : option funspec  :=
  match G with 
  | (id', f)::G' => if eq_dec id id' then Some f else find_id id G'

@@ -1147,3 +1147,83 @@ remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *;
 destruct c; auto; intuition.
 Qed.
 
+Lemma list_norepet_rev:
+  forall A (l: list A), list_norepet (rev l) = list_norepet l.
+Proof.
+induction l; simpl; auto.
+apply prop_ext; split; intros.
+apply list_norepet_app in H.
+destruct H as [? [? ?]].
+rewrite IHl in H.
+constructor; auto.
+eapply list_disjoint_notin with (a::nil).
+apply list_disjoint_sym; auto.
+intros x y ? ? ?; subst.
+contradiction (H1 y y); auto.
+rewrite <- In_rev; auto.
+simpl; auto.
+rewrite list_norepet_app.
+inv H.
+split3; auto.
+rewrite IHl; auto.
+repeat constructor.
+intro Hx. inv Hx.
+intros x y ? ? ?; subst.
+inv H0.
+rewrite <- In_rev in H; contradiction.
+auto.
+Qed.
+
+Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
+ (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id).
+                
+Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
+Proof.
+ intros.
+ destruct Delta as [[[? ?] ?] ?].
+ unfold join_tycon.
+ repeat split; auto.
+ intros. unfold temp_types. simpl.
+ unfold join_te.
+ rewrite PTree.fold_spec.
+ rewrite <- fold_left_rev_right.
+ case_eq (t ! id); intros.
+ pose proof (PTree.elements_correct _ _ H).
+ pose proof (PTree.elements_keys_norepet t).
+ rewrite in_rev in H0.
+ rewrite <- list_norepet_rev in H1. rewrite <- map_rev in H1.
+ change PTree.elt with positive in *.
+ revert H0 H1; induction (rev (PTree.elements t)); intros.
+ inv H0.
+ inv H1.
+ simpl in H0. destruct H0. subst a.
+ simpl. unfold join_te'. destruct p. rewrite H. rewrite if_true by auto. rewrite PTree.gss.
+ destruct b; simpl ;auto.
+ simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
+ case_eq (t ! p0);intros. destruct p1. if_tac. rewrite PTree.gso. auto.
+ intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
+ auto. auto.
+ assert (~ In id (map fst (PTree.elements t))).
+ intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
+ apply PTree.elements_complete in H1. congruence.
+ rewrite in_rev in H0. rewrite <- map_rev in H0.
+ revert H0; induction (rev (PTree.elements t)); intros. simpl. rewrite PTree.gempty; auto.
+ simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
+ destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
+ contradict H0; simpl; auto.
+ case_eq (t ! p); intros. destruct p0. if_tac; auto. rewrite PTree.gso.
+ apply IHl. contradict H0;simpl; auto.
+ intro; subst p; congruence.
+ apply IHl. contradict H0;simpl; auto.
+ apply IHl. contradict H0;simpl; auto.
+Qed.
+
+Lemma tycontext_eqv_symm:
+  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
+Proof.
+intros.
+destruct H as [? [? [? ?]]]; repeat split; auto.
+Qed.

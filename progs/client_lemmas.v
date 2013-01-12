@@ -93,15 +93,55 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
+Lemma semax_while : 
+ forall Delta Q test body R,
+     bool_type (typeof test) = true ->
+     (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
+     (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
+     semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
+     semax Delta Q (Swhile test body) R.
+Proof.
+intros ? ? ? ? ? BT TC Post H.
+unfold Swhile.
+apply (semax_loop Delta Q Q).
+Focus 2.
+ clear; eapply semax_post; [ | apply semax_skip];
+ destruct ek; unfold normal_ret_assert, loop1_ret_assert; intros; 
+    normalize; try solve [inv H]; apply andp_left2; auto.
+(* End Focus 2*)
+apply semax_seq with 
+ (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q).
+apply semax_pre with (local (tc_expr Delta test) && Q).
+apply andp_right. apply TC.
+apply andp_left2.
+intro; auto.
+apply semax_ifthenelse; auto.
+eapply semax_post; [ | apply semax_skip].
+intros.
+intro rho; unfold normal_ret_assert, overridePost; simpl.
+normalize. rewrite if_true by auto.
+apply andp_right. apply TT_right.
+apply andp_left2. rewrite andp_comm; auto.
+eapply semax_pre; [ | apply semax_break].
+unfold overridePost. rewrite if_false by congruence.
+unfold for1_ret_assert.
+eapply derives_trans; try apply Post.
+rewrite andp_assoc. apply andp_derives; auto.
+rewrite andp_comm; auto.
+simpl update_tycon.
+apply semax_extensionality_Delta with Delta; auto.
+apply tycontext_eqv_symm; apply join_tycon_same.
+Qed.
 
-Definition PROPx (P: list Prop) (Q: assert) := andp (prop (fold_right and True P)) Q.
+Definition PROPx (P: list Prop): forall (Q: assert), assert := 
+     andp (prop (fold_right and True P)).
 
 Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10) : logic.
 Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10) : logic.
 Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10) : logic.
 
-Definition LOCALx (Q: list (environ -> Prop)) (R: assert) := 
-                 andp (local (fold_right (lift2 and) (lift0 True) Q)) R.
+Definition LOCALx (Q: list (environ -> Prop)) : forall (R: assert), assert := 
+                 andp (local (fold_right (lift2 and) (lift0 True) Q)).
 
 Notation " 'LOCAL' ( )   z" := (LOCALx nil z)  (at level 9) : logic.
 Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
@@ -109,7 +149,9 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
          (at level 9) : logic.
 
-Definition SEPx (R: list assert) : assert := fold_right sepcon emp R.
+(* Definition SEPx (R: list assert) : assert := fold_right sepcon emp R. *)
+
+Definition SEPx: forall (R: list assert), assert := fold_right sepcon emp.
 
 Notation " 'SEP' ( x * .. * y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8) : logic.
@@ -250,8 +292,51 @@ Proof.
  auto.
 Qed.
 
+Lemma go_lower_lem6:
+  forall {A} P (Q: A -> assert) PQR,
+    (forall x, P && Q x |-- PQR) ->
+    P && exp Q |-- PQR.
+Proof.
+ intros. normalize.
+Qed.
+
+Lemma go_lower_lem7:
+  forall (R1: assert) (Q1: environ -> Prop) P Q R PQR,
+      R1 && (PROPx P (LOCALx (Q1::Q) R)) |-- PQR ->
+      (R1 && local Q1) && (PROPx P (LOCALx Q R)) |-- PQR.
+Admitted.
+
+Lemma go_lower_lem8:
+  forall (R1 R2 R3: assert) PQR PQR',
+      ((R1 && R2) && R3) && PQR |-- PQR' ->
+      (R1 && (R2 && R3)) && PQR |-- PQR'.
+Proof.
+ intros. rewrite <- andp_assoc; auto.
+Qed.
+
+Lemma go_lower_lem9:
+  forall (Q1: environ -> Prop) P Q R PQR,
+      PROPx P (LOCALx (Q1::Q) R) |-- PQR ->
+      local Q1 && (PROPx P (LOCALx Q R)) |-- PQR.
+Admitted.
+
+Ltac go_lower1 :=
+ repeat match goal with 
+   | |- andp _ (exp (fun y => _)) |-- _ => 
+          (* Note: matching in this special way uses the user's name 'y'
+                 as a hypothesis; thats we use a "match goal" 
+                 rather than just trying to apply the various lemmas *)
+             apply go_lower_lem6; intro y
+   | |- (_ && local _) && (PROPx _ (LOCALx _ _)) |-- _ =>
+                     apply go_lower_lem7
+   | |- (_ && (_ && _)) && (PROPx _ _) |-- _ =>
+               apply go_lower_lem8
+   | |- local _ && (PROPx _ (LOCALx _ _)) |-- _ =>
+                     apply go_lower_lem9
+   end.
 
 Ltac go_lower :=
+  go_lower1;
   match goal with
   | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
              idtac
@@ -299,30 +384,24 @@ unfold eval_id. simpl. rewrite H1. simpl; auto.
 destruct H2. inv H2. auto.
 Qed.
 
-Definition name (id: ident) (s: True) := True.
-Tactic Notation "varname" constr(id) ident(s) := 
-    assert (s: True) by apply I;
-    assert (name id s) by (apply I).
 
-Ltac grabvar J RHO :=
-  match goal with
-  | H: name J ?Name |- _ =>
-      clear Name H;
+Definition name (id: ident) := True.
+
+Tactic Notation "name" ident(s) constr(id) := 
+    assert (s: name id) by apply I.
+
+Ltac findvars := 
+ repeat match goal with
+             | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
+                clear Name;
       let t := fresh "t" in
          evar (t: type);
          assert (tc_val t (eval_id J RHO)) 
              by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
          unfold t in *; clear t;
-   let x := fresh Name in forget (eval_id J RHO) as x
-  end.
-
-Ltac findvars :=
- repeat match goal with
-             | |- context [eval_id ?J ?RHO] => grabvar J RHO
-             | H' : context [eval_id ?J ?RHO] |- _ =>  grabvar J RHO
-           end;
+         forget (eval_id J RHO) as Name
+      end;
   try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
-
 
 Lemma eval_cast_id:
   forall Delta rho,
@@ -825,10 +904,10 @@ Hint Rewrite exp_do_canon: normalize.
 Ltac replace_in_pre S S' :=
  match goal with |- semax _ ?P _ _ =>
   match P with context C[S] =>
-     let P' := context C[S'] in apply semax_pre with P'; [go_lower | ]
+     let P' := context C[S'] in 
+      apply semax_pre with P'; [ | ]
   end
  end.
-
 
 Lemma semax_extract_PROP_True:
   forall Delta (PP: Prop) P QR c Post,

@@ -68,7 +68,6 @@ Definition semax_seq := semax_seq Hspec.
 Definition semax_break := semax_break Hspec.
 Definition semax_continue := semax_continue Hspec.
 Definition semax_loop := semax_loop Hspec.
-Definition semax_while := semax_while Hspec.
 Definition seq_assoc := seq_assoc Hspec.
 Definition semax_call := semax_call Hspec.
 Definition semax_fun_id := semax_fun_id Hspec.
@@ -82,6 +81,7 @@ Definition semax_load := semax_load Hspec.
 Definition semax_skip := semax_skip Hspec.
 Definition semax_frame := semax_frame Hspec.
 Definition semax_pre_post := semax_pre_post Hspec.
+Definition semax_extensionality_Delta := semax_extensionality_Delta Hspec.
 Definition semax_extract_prop := semax_extract_prop Hspec.
 
 Definition semax_external ef A P Q := forall n, semax_ext Hspec ef A P Q n.

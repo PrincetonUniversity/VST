@@ -472,6 +472,11 @@ Axiom extract_exists:
   (forall x, semax Delta (P x) c (R x)) ->
    semax Delta (EX x:A, P x) c (existential_ret_assert R).
 
+Axiom semax_extensionality_Delta:
+  forall Delta Delta' P c R,
+       tycontext_eqv Delta Delta' ->
+     semax Delta P c R -> semax Delta' P c R.
+
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
@@ -556,27 +561,8 @@ forall Delta Q Q' incr body R,
      semax Delta  (fun rho => Q rho) body (for1_ret_assert Q' R) ->
      semax Delta Q' incr (loop1_ret_assert Q R) ->
      semax Delta Q (Sloop body incr) R.
-(*
-Axiom semax_for : 
-forall Delta Q Q' test incr body R,
-     bool_type (typeof test) = true ->
-     Q  |-- local (tc_expr Delta test) ->
-     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
-     semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q) body (for1_ret_assert Q' R) ->
-     semax Delta Q' incr (loop1_ret_assert Q R) ->
-     semax Delta Q (Sfor Sskip test incr body) R.
-*)
-
-Axiom semax_while : 
-forall Delta Q test body R,
-     bool_type (typeof test) = true ->
-     (Q |-- local (tc_expr Delta test)) ->
-     (local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
-     semax Delta (local (lift1 (typed_true (typeof test)) (eval_expr test)) && Q)  body (for1_ret_assert Q R) ->
-     semax Delta Q (Swhile test body) R.
 
 (* THESE RULES FROM semax_call *)
-
 
 Axiom semax_call : 
     forall Delta A (P Q: A -> assert) x F ret fsig a bl,

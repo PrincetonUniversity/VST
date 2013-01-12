@@ -117,6 +117,11 @@ Lemma closed_wrt_sepcon: forall S (P Q: assert),
   closed_wrt_vars S (P * Q).
 Admitted.
 
+Lemma closed_wrt_emp:
+  forall S, closed_wrt_vars S emp.
+Proof. repeat intro. reflexivity. Qed.
+Hint Resolve closed_wrt_emp : closed.
+
 Fixpoint temp_free_in (id: ident) (e: expr) := 
  match e with
  | Econst_int _ _ => false

@@ -402,53 +402,6 @@ change (identity w) in H.
 rewrite identity_unit_equiv in H; auto.
 Qed.
 
-Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
- (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id).
-                
-Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
-Proof.
- intros.
- destruct Delta as [[[? ?] ?] ?].
- unfold join_tycon.
- repeat split; auto.
- intros. unfold temp_types. simpl.
- unfold join_te.
- rewrite PTree.fold_spec.
- rewrite <- fold_left_rev_right.
- case_eq (t ! id); intros.
- pose proof (PTree.elements_correct _ _ H).
- pose proof (PTree.elements_keys_norepet t).
- rewrite in_rev in H0.
- rewrite <- veric.initial_world.list_norepet_rev in H1. rewrite <- map_rev in H1.
- change PTree.elt with positive in *.
- revert H0 H1; induction (rev (PTree.elements t)); intros.
- inv H0.
- inv H1.
- simpl in H0. destruct H0. subst a.
- simpl. unfold join_te'. destruct p. rewrite H. rewrite if_true by auto. rewrite PTree.gss.
- destruct b; simpl ;auto.
- simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
- case_eq (t ! p0);intros. destruct p1. if_tac. rewrite PTree.gso. auto.
- intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
- auto. auto.
- assert (~ In id (map fst (PTree.elements t))).
- intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
- apply PTree.elements_complete in H1. congruence.
- rewrite in_rev in H0. rewrite <- map_rev in H0.
- revert H0; induction (rev (PTree.elements t)); intros. simpl. rewrite PTree.gempty; auto.
- simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
- destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
- contradict H0; simpl; auto.
- case_eq (t ! p); intros. destruct p0. if_tac; auto. rewrite PTree.gso.
- apply IHl. contradict H0;simpl; auto.
- intro; subst p; congruence.
- apply IHl. contradict H0;simpl; auto.
- apply IHl. contradict H0;simpl; auto.
-Qed.
-
 Lemma subp_derives' {A}{agA: ageable A}:
   forall P Q: pred A, (forall n, (P >=> Q) n) -> P |-- Q.
 Proof.
@@ -473,13 +426,6 @@ intros.
 unfold func_tycontext'.
 split; auto. split; auto. split; auto.
 simpl. destruct H as [? [? [? ?]]]; auto.
-Qed.
-
-Lemma tycontext_eqv_symm:
-  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
-Proof.
-intros.
-destruct H as [? [? [? ?]]]; repeat split; auto.
 Qed.
 
 
@@ -1546,9 +1492,22 @@ Proof.
  apply <- (age1_resource_at_identity _ _ loc' H1); auto.
 Qed.
 
+Lemma semax_extensionality_Delta:
+  forall Delta Delta' P c R,
+       tycontext_eqv Delta Delta' ->
+     semax Hspec Delta P c R -> semax Hspec Delta' P c R.
+Proof.
+intros.
+unfold semax in *.
+intros.
+specialize (H0 n).
+apply (semax_extensionality1 Hspec Delta Delta' P P c R R); auto.
+split; auto.
+split; auto.
+intros ? ? ?; auto.
+Qed.
+
 End extensions.
-
-
 
 Definition Cnot (e: Clight.expr) : Clight.expr :=
    Clight.Eunop Cop.Onotbool e type_bool.
