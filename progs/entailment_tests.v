@@ -330,15 +330,18 @@ findvars.
 subst. simpl; normalize.
 Qed.
 
-Lemma et_8: forall (sh: share) (contents: list int),
+Lemma et_8: forall (sh: share) (contents: list int) cts1 cts2,
     let Delta := func_tycontext P.f_reverse Vprog Gtot in
-EX  cts1 : list int,
-(EX  cts2 : list int,
- PROP  (contents = rev cts1 ++ cts2)
- LOCAL ()
- SEP 
- (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval) *
-  lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval)))
+PROP  (contents = rev cts1 ++ cts2)
+LOCAL 
+(tc_environ
+   (update_tycon
+      (update_tycon Delta
+         (Sset P._w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
+      (Sset P._v (Etempvar P._p (tptr P.t_struct_list)))))
+SEP 
+(lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval) *
+ lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))
 |-- local
       (tc_expr
          (update_tycon
@@ -359,7 +362,12 @@ Lemma et_9: forall (sh: share) (contents: list int),
 PROP  (contents = rev cts1 ++ cts2)
 LOCAL 
 (lift1 (typed_false (typeof (Etempvar P._v (tptr P.t_struct_list))))
-   (eval_id P._v))
+   (eval_id P._v);
+tc_environ
+  (update_tycon
+     (update_tycon Delta
+        (Sset P._w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
+     (Sset P._v (Etempvar P._p (tptr P.t_struct_list)))))
 SEP 
 (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval) *
  lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))

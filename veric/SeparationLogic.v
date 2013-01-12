@@ -484,7 +484,7 @@ Definition semax_body
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
       semax (func_tycontext f V G)
-          ((local (tc_formals (fn_params f)) && P x) *  stackframe_of f)
+          (P x *  stackframe_of f)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.

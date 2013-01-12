@@ -53,7 +53,7 @@ Definition semax_body
   match spec with (_, mk_funspec _ A P Q) =>
     forall x,
       semax Hspec (func_tycontext f V G)
-          (fun rho => bind_args (fn_params f) (P x) rho *  stackframe_of f rho)
+          (fun rho => P x rho *  stackframe_of f rho)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.
@@ -328,9 +328,14 @@ apply allp_derives; intro tx.
 eapply allp_derives; intro vx.
 eapply subp_derives; auto.
 apply andp_derives; auto.
-apply andp_derives; auto.
+apply andp_right.
+apply andp_left1; auto.
+apply derives_extract_prop; intros [? _].
 apply sepcon_derives; auto.
 apply andp_left1; auto.
+apply sepcon_derives; auto.
+unfold bind_args.
+apply andp_left2; auto.
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].

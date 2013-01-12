@@ -282,8 +282,8 @@ normalize.
 apply extract_exists_pre; intro old.
 normalize. clear old.
 forward.
-normalize; go_lower.  normalize.
-rewrite <- H1; reflexivity.
+go_lower;  normalize; findvars.
+subst; reflexivity.
 Qed.
 
 Lemma all_funcs_correct:
