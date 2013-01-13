@@ -147,13 +147,13 @@ apply andp_right; auto.
 apply andp_left1; auto.
 apply andp_left2; auto.
 clear H.
-go_lower.
-normalize.  (* delete me after fixing go_lower to make findvars optional? *)
+go_lower1; go_lower.
+normalize.
 rewrite ilseg_nonnull by auto.
 auto.
 rewrite lift2_ilseg_cons.
 clear.
-go_lower.
+go_lower1; go_lower.
 apply exp_derives.
 intros [[h r] y].
 normalize.

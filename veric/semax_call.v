@@ -1465,15 +1465,15 @@ Lemma call_cont_current_function:
 Proof. intros. induction k; try destruct a; simpl in *; inv H; auto.
 Qed.
 
-Definition tc_expropt Delta (e: option expr) (t: type) : assert :=
-   match e with None => lift0 (!! (t=Tvoid))
-                     | Some e' => tc_expr Delta (Ecast e' t)
+Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
+   match e with None => lift0 (t=Tvoid)
+                     | Some e' => denote_tc_assert (typecheck_expr Delta (Ecast e' t))
    end.
  
 Lemma  semax_return :
    forall Delta R ret,
       semax Hspec Delta 
-                (fun rho => tc_expropt Delta ret (ret_type Delta) rho && 
+                (fun rho => !! tc_expropt Delta ret (ret_type Delta) rho && 
                              R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
                 (Sreturn ret)
                 R.
@@ -1505,7 +1505,7 @@ remember ((construct_rho (filter_genv psi) ve te)) as rho.
 assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta) rho) rho))%pred w').
 eapply sepcon_derives; try apply H1; auto.
 apply andp_left2; auto.
-assert (TC: forall w, tc_expropt Delta ret (ret_type Delta) rho w).
+assert (TC: forall w, (!! tc_expropt Delta ret (ret_type Delta) rho) w).
 clear - H1. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros. 
  destruct ret; apply H1.
 clear H1; rename H1' into H1.

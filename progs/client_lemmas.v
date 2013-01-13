@@ -94,7 +94,7 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Lemma semax_while : 
+Lemma semax_while' : 
  forall Delta Q test body R,
      bool_type (typeof test) = true ->
      (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
@@ -259,40 +259,6 @@ Proof.
  eapply typed_false_ptr; eauto.
 Qed.
 
-Lemma go_lower_lem4:
-  forall t id F rho (P: Prop) (QR PQR: mpred),
-      (tc_val t (eval_id id rho) -> prop (tc_formals F rho /\ P) && QR |-- PQR) ->
-      (prop (tc_formals ((id,t)::F) rho /\ P ) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!(tc_formals F rho /\ P) && QR).
- apply andp_right; auto. apply prop_right; auto.
- split; auto.
- unfold tc_formals in H0. simpl in H0.
- apply andb_true_iff in H0.
- destruct H0.
- apply H2.
- apply H.
- unfold tc_formals in H0. simpl in H0.
- apply andb_true_iff in H0.
- destruct H0.
- auto.
-Qed.
-
-
-Lemma go_lower_lem5:
-  forall rho (P: Prop) (QR PQR: mpred),
-      (prop P && QR |-- PQR) ->
-      (prop (tc_formals nil rho /\ P ) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- auto.
-Qed.
-
 Lemma go_lower_lem6:
   forall {A} P (Q: A -> assert) PQR,
     (forall x, P && Q x |-- PQR) ->
@@ -327,6 +293,50 @@ Lemma go_lower_lem10:
       (R1 && (R2 && R3)) |-- PQR'.
 Proof.
  intros. rewrite <- andp_assoc; auto.
+Qed.
+
+Lemma go_lower_lem4:
+  forall (P1 P: Prop) (QR PQR: mpred),
+      prop P && QR |-- PQR ->
+      prop (True /\ P ) && QR |-- PQR.
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ apply H; auto.
+Qed.
+
+Lemma go_lower_lem5:
+  forall (P1 P: Prop) (QR PQR: mpred),
+      prop P && QR |-- PQR ->
+      prop (true=true /\ P ) && QR |-- PQR.
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ apply H; auto.
+Qed.
+
+
+Lemma go_lower_lem3b:
+  forall t a v (QR PQR: mpred),
+      (v=nullval -> QR |-- PQR) ->
+      (prop (typed_false (Tpointer t a) v) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intro.
+ apply H.
+ eapply typed_false_ptr; eauto.
+Qed.
+
+Lemma go_lower_lem11:
+ forall P R,
+   P |-- R ->
+   P |-- prop True && R.
+Proof.
+ intros. normalize.
 Qed.
 
 Ltac go_lower1 :=
@@ -365,16 +375,16 @@ Ltac go_lower2 :=
               (@LiftSepLog environ mpred Nveric Sveric))
         with (fun (rho: environ) => @emp mpred Nveric Sveric);
  repeat (unfold ret_type; simpl); unfold lift2,lift1,lift0;
- repeat (apply go_lower_lem1; [intro]);
- try apply go_lower_lem2;
- repeat first [ apply go_lower_lem5
-                    | apply go_lower_lem4; intro
+ repeat first [ apply go_lower_lem4
+                    | apply go_lower_lem5
                     | apply go_lower_lem3; intro 
+                    | apply go_lower_lem3b; intro 
                     | apply go_lower_lem1; intro
+                    | apply go_lower_lem2
+                    | apply go_lower_lem11
                     ];
- try apply go_lower_lem2;
  repeat rewrite retval_lemma1.
- 
+
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
                tc_environ Delta rho -> 
@@ -436,7 +446,7 @@ Ltac go_lower3 :=
                            autorewrite with normalize.
 
 
-Ltac go_lower := go_lower1; go_lower2; go_lower3.
+Ltac go_lower := go_lower2; go_lower3.
 
 Lemma eval_cast_id:
   forall Delta rho,
@@ -849,7 +859,122 @@ eapply semax_pre; try apply H0.
  rewrite insert_local. auto.
 Qed.
 
+Lemma semax_while : 
+ forall Delta P Q R test body Post,
+     bool_type (typeof test) = true ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
+     PROPx P (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
+     semax Delta (PROPx P (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (for1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
+     semax Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
+Proof.
+intros.
+apply semax_while'; auto.
+eapply derives_trans; [ | apply H0].
+normalize.
+eapply derives_trans; [ | apply H1].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+eapply semax_pre; [ | apply H2].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+Qed.
+
+Lemma semax_whilex : 
+ forall Delta A P Q R test body Post,
+     bool_type (typeof test) = true ->
+     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: (Q x)) (SEPx (R x))) |-- 
+                               local (tc_expr Delta test)) ->
+     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: (Q x)) (SEPx (R x))) 
+                    |-- Post EK_normal None) ->
+     (forall x:A, semax Delta (PROPx (P x) (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
+                           body 
+                            (for1_ret_assert (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) Post))->
+     semax Delta (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x) ))) (Swhile test body) Post.
+Proof.
+intros.
+apply semax_while'; auto.
+rewrite exp_andp2.
+apply exp_left. intro x; eapply derives_trans; [ | apply (H0 x)].
+normalize.
+rewrite exp_andp2.
+apply exp_left. intro x; eapply derives_trans; [ | apply (H1 x)].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+normalize.
+apply extract_exists_pre; intro x.
+eapply semax_pre; [ | apply (H2 x)].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+Qed.
+
+
+Lemma semax_whilex2 : 
+ forall Delta A1 A2 P Q R test body Post,
+     bool_type (typeof test) = true ->
+     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: (Q x1 x2)) (SEPx (R x1 x2))) |-- 
+                               local (tc_expr Delta test)) ->
+     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: (Q x1 x2)) (SEPx (R x1 x2))) 
+                    |-- Post EK_normal None) ->
+     (forall (x1:A1) (x2: A2), 
+               semax Delta (PROPx (P x1 x2) (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
+                           body 
+                            (for1_ret_assert (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2)))) Post))->
+     semax Delta (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2) ))) (Swhile test body) Post.
+Proof.
+intros.
+apply semax_while'; auto.
+rewrite exp_andp2. apply exp_left. intro x1.
+rewrite exp_andp2. apply exp_left. intro x2.
+ eapply derives_trans; [ | apply (H0 x1 x2)].
+normalize.
+rewrite exp_andp2. apply exp_left. intro x1.
+rewrite exp_andp2. apply exp_left. intro x2.
+ eapply derives_trans; [ | apply (H1 x1 x2)].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+normalize. apply extract_exists_pre; intro x1.
+normalize. apply extract_exists_pre; intro x2.
+eapply semax_pre; [ | apply (H2 x1 x2)].
+intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+Qed.
+
 Ltac forward_while Inv Postcond :=
+  apply semax_pre_PQR with Inv;
+    [ | (apply semax_seq with Postcond;
+            [ apply semax_while ; [ compute; auto | | | ] 
+            | simpl update_tycon ])
+        || (repeat match goal with 
+         | |- semax _ (?X _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _) _ _ => unfold X
+         | |- semax _ (?X _) _ _ => unfold X
+         | |- semax _ ?X _ _ => unfold X
+        end;
+          match goal with
+          | |- semax _  (exp (fun y => _)) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex;
+                  [ compute; auto 
+                  | intro y | intro y 
+                  | intro y ; 
+                     match goal with |- semax _ _ _ (for1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                  ]
+               | simpl update_tycon ]
+          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex2; 
+                 [ compute; auto
+                 | intros y1 y2 
+                 | intros y1 y2 
+                 | intros y1 y2; 
+                     match goal with |- semax _ _ _ (for1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                 ]
+               | simpl update_tycon ]
+        end)
+
+   ].
+
+Ltac forward_while_oldversion Inv Postcond :=
   apply semax_pre_PQR with Inv; 
   [ | apply semax_seq with Postcond;
     [ apply semax_while ; [ compute; auto | | | ] | ]].

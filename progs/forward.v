@@ -399,11 +399,12 @@ Ltac normalizex :=
          | extract_exists_in_SEP
          ]; cbv beta; normalize).
 
-
 Lemma after_set_special1:
-  forall A P (Q: A -> assert) ek vl R,
-  (ek = EK_normal -> vl=None -> forall x, P && Q x |-- R) ->
-    P && normal_ret_assert (exp Q) ek vl |-- R.
+  forall A P Q1 Q R ek vl Post,
+  (ek = EK_normal -> vl=None -> 
+       forall x, PROPx (P x) (LOCALx (Q1 :: Q x) (SEPx (R x))) |-- Post) ->
+    local Q1 && normal_ret_assert (EX x: A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) ek vl
+          |-- Post.
 Proof. intros. normalize.
 Qed.
 
@@ -855,9 +856,9 @@ Ltac forward :=
   | |- semax _ _ (Ssequence (Sset ?id ?e) _) _ =>  forward_setx id
   | |- semax _ _ (Sset ?id ?e) _ => forward_setx id
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
-          apply semax_seq with FF; [eapply semax_pre; [ | apply semax_return ]
+          apply semax_seq with FF; [eapply semax_pre; [ go_lower1 | apply semax_return ]
                                 | apply semax_ff]
-  | |- semax _ _ (Sreturn _) _ => eapply semax_pre; [ | apply semax_return ]
+  | |- semax _ _ (Sreturn _) _ => eapply semax_pre; [ go_lower1 | apply semax_return ]
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
             (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
                                           semax_call_id_tac_aux Delta P Q R id f bl
@@ -882,3 +883,6 @@ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
             rewrite frame_ret_assert_emp
          end.
 
+Opaque sepcon.
+Opaque emp.
+Opaque andp.

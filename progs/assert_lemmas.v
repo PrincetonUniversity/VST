@@ -54,7 +54,6 @@ Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) =
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_unop : normalize.
 
-Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
 Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho).

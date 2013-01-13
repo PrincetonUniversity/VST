@@ -89,19 +89,16 @@ Qed.
 Lemma et_3: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_sumlist Vprog Gtot  in
   forall (_t : name P._t) (_p : name P._p) (_s : name P._s) (_h : name P._h),
-local
-  (tc_environ (initialized P._t (initialized P._s Delta))) &&
-local
-  (lift1 (typed_false (typeof (Etempvar P._t (tptr P.t_struct_list))))
-     (eval_expr (Etempvar P._t (tptr P.t_struct_list)))) &&
-(EX  cts : list int,
- PROP  ()
- LOCAL 
- (lift1
-    (fun v : val =>
-     fold_right Int.add Int.zero contents =
-     Int.add (force_int v) (fold_right Int.add Int.zero cts)) (eval_id P._s))
-   SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval)))
+ forall cts : list int,
+PROP  ()
+LOCAL  (tc_environ (initialized P._t (initialized P._s Delta));
+lift1 (typed_false (typeof (Etempvar P._t (tptr P.t_struct_list))))
+  (eval_expr (Etempvar P._t (tptr P.t_struct_list)));
+lift1
+  (fun v : val =>
+   fold_right Int.add Int.zero contents =
+   Int.add (force_int v) (fold_right Int.add Int.zero cts)) (eval_id P._s))
+SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))
 |-- overridePost
       (PROP  ()
        LOCAL 
@@ -173,14 +170,14 @@ Qed.
 Lemma et_6: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_sumlist Vprog Gtot  in
   forall (_t : name P._t) (_p : name P._p) (_s : name P._s) (_h : name P._h),
-local (tc_environ (initialized P._t (initialized P._s Delta))) &&
 PROP  ()
-LOCAL 
-(lift1 (fun v : val => fold_right Int.add Int.zero contents = force_int v)
-   (eval_id P._s))  SEP  (TT)
-|-- tc_expropt (initialized P._t (initialized P._s Delta))
-      (Some (Etempvar P._s tint))
-      (ret_type (initialized P._t (initialized P._s Delta))) &&
+LOCAL  (tc_environ (initialized P._t (initialized P._s Delta));
+lift1 (fun v : val => fold_right Int.add Int.zero contents = force_int v)
+  (eval_id P._s))  SEP  (TT)
+|-- local
+      (tc_expropt (initialized P._t (initialized P._s Delta))
+         (Some (Etempvar P._s tint))
+         (ret_type (initialized P._t (initialized P._s Delta)))) &&
     lift2
       (function_body_ret_assert tint
          (local
@@ -213,15 +210,13 @@ Qed.
 Lemma et_8: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_reverse Vprog Gtot in
   forall (_p : name P._p) (_v : name P._v) (_w : name P._w) (_t : name P._t),
-  forall (WS: writable_share sh),
-local (tc_environ (initialized P._v (initialized P._w Delta))) &&
-(EX  cts1 : list int,
- (EX  cts2 : list int,
-  PROP  (contents = rev cts1 ++ cts2)
-  LOCAL ()
-  SEP  (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval);
-  lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))))
-|-- local (tc_expr (initialized P._v (initialized P._w Delta))
+  forall (WS: writable_share sh) (cts1 cts2 : list int),
+PROP  (contents = rev cts1 ++ cts2)
+LOCAL  (tc_environ (initialized P._v (initialized P._w Delta)))
+SEP  (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval);
+lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))
+|-- local
+      (tc_expr (initialized P._v (initialized P._w Delta))
          (Etempvar P._v (tptr P.t_struct_list))).
 Proof. intros.
 go_lower.
@@ -230,17 +225,13 @@ Qed.
 Lemma et_9: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_reverse Vprog Gtot in
   forall (_p : name P._p) (_v : name P._v) (_w : name P._w) (_t : name P._t),
-  forall (WS: writable_share sh),
-local (tc_environ (initialized P._v (initialized P._w Delta))) &&
-local
-  (lift1 (typed_false (typeof (Etempvar P._v (tptr P.t_struct_list))))
-     (eval_expr (Etempvar P._v (tptr P.t_struct_list)))) &&
-(EX  cts1 : list int,
- (EX  cts2 : list int,
-  PROP  (contents = rev cts1 ++ cts2)
-  LOCAL ()
-  SEP  (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval);
-  lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))))
+  forall (WS: writable_share sh)  (cts1 cts2 : list int),
+PROP  (contents = rev cts1 ++ cts2)
+LOCAL  (tc_environ (initialized P._v (initialized P._w Delta));
+lift1 (typed_false (typeof (Etempvar P._v (tptr P.t_struct_list))))
+  (eval_expr (Etempvar P._v (tptr P.t_struct_list))))
+SEP  (lift2 (ilseg sh cts1) (eval_id P._w) (lift0 nullval);
+lift2 (ilseg sh cts2) (eval_id P._v) (lift0 nullval))
 |-- overridePost
       (PROP  ()
        LOCAL ()
@@ -319,13 +310,13 @@ Lemma et_11: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_reverse Vprog Gtot in
   forall (_p : name P._p) (_v : name P._v) (_w : name P._w) (_t : name P._t),
   forall (WS: writable_share sh),
-local (tc_environ (initialized P._v (initialized P._w Delta))) &&
 PROP  ()
-LOCAL ()
+LOCAL  (tc_environ (initialized P._v (initialized P._w Delta)))
 SEP  (lift2 (ilseg sh (rev contents)) (eval_id P._w) (lift0 nullval))
-|-- tc_expropt (initialized P._v (initialized P._w Delta))
-      (Some (Etempvar P._w (tptr P.t_struct_list)))
-      (ret_type (initialized P._v (initialized P._w Delta))) &&
+|-- local
+      (tc_expropt (initialized P._v (initialized P._w Delta))
+         (Some (Etempvar P._w (tptr P.t_struct_list)))
+         (ret_type (initialized P._v (initialized P._w Delta)))) &&
     lift2
       (function_body_ret_assert (tptr P.t_struct_list)
          (lift2 (ilseg sh (rev contents)) retval (lift0 nullval)) EK_return)

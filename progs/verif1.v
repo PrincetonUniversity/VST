@@ -10,8 +10,9 @@ Require Import progs.assert_lemmas.
 Require Import progs.forward.
 Require Import progs.list.
 Require Import Clightdefs.
-Require progs.test1.  Module P := progs.test1.
 Require Import progs.ilseg.
+Require progs.test1.  Module P := progs.test1.
+
 
 Local Open Scope logic.
 
@@ -51,10 +52,6 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
 
-Opaque sepcon.
-Opaque emp.
-Opaque andp.
-
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -70,27 +67,23 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv, partial_sum.
 apply exp_right with contents.
-(* entailment_tests  et_1 *) 
+(* entailment_tests  et_1 *)           
 go_lower. subst; normalize. 
 rewrite sepcon_comm; apply sepcon_TT.
 (* Prove that loop invariant implies typechecking condition *)
 (* entailment_tests  et_2 *) 
  intro; apply prop_right; repeat split.
 (* Prove that invariant && not loop-cond implies postcondition *)
-unfold sumlist_Inv, partial_sum.
+unfold partial_sum.
 (* entailment_tests  et_3 *) 
 go_lower. subst; rewrite H1; normalize.
 (* Prove that loop body preserves invariant *)
-unfold sumlist_Inv at 1.
-autorewrite with normalize.
-apply extract_exists_pre; intro cts.
-autorewrite with normalize.
 focus_SEP 1.
 apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
 (* entailment_tests  et_4 *) 
 go_lower. 
 forward.
-forward. 
+forward.
 forward.
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv, partial_sum.
@@ -145,11 +138,6 @@ unfold reverse_Inv.
 go_lower.
 subst _v. normalize. subst. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-unfold reverse_Inv at 1.
-normalize.
-apply extract_exists_pre; intro cts.
-normalize.
-apply extract_exists_pre; intro cts2.
 normalizex. subst contents.
 focus_SEP 1.
 apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
@@ -159,13 +147,13 @@ forward.
 forward.
 forward.
 unfold reverse_Inv.
-apply exp_right with (h::cts).
+apply exp_right with (h::cts1).
 apply exp_right with r.
 (* entailment_tests et_10 *)
 go_lower.
 subst _v0 y _t. rewrite app_ass. normalize.
-rewrite (ilseg_unroll sh (h::cts)).
-apply derives_trans with (ilseg_cons sh (h :: cts) _w nullval *
+rewrite (ilseg_unroll sh (h::cts1)).
+apply derives_trans with (ilseg_cons sh (h :: cts1) _w nullval *
     ilseg sh r _v nullval).
 repeat rewrite <- sepcon_assoc.
 repeat pull_right (ilseg sh r _v nullval).
@@ -176,7 +164,7 @@ apply prop_right.
 clear - H3.
 destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
 apply exp_right with (Vint h).
-apply exp_right with (map Vint cts).
+apply exp_right with (map Vint cts1).
 apply exp_right with _w0.
 normalize. 
 simpl list_data; simpl list_link.
