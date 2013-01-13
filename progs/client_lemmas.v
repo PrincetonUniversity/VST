@@ -3,6 +3,7 @@ Require Import veric.SeparationLogic.
 Require Import Coqlib veric.Coqlib2.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
+Require Import Clightdefs.
 
 Local Open Scope logic.
 
@@ -153,7 +154,7 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
 
 Definition SEPx: forall (R: list assert), assert := fold_right sepcon emp.
 
-Notation " 'SEP' ( x * .. * y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
+Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8) : logic.
 
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
@@ -320,6 +321,14 @@ Lemma go_lower_lem9:
       local Q1 && (PROPx P (LOCALx Q R)) |-- PQR.
 Admitted.
 
+Lemma go_lower_lem10:
+  forall (R1 R2 R3: assert) PQR',
+      (R1 && R2) && R3 |-- PQR' ->
+      (R1 && (R2 && R3)) |-- PQR'.
+Proof.
+ intros. rewrite <- andp_assoc; auto.
+Qed.
+
 Ltac go_lower1 :=
  repeat match goal with 
    | |- andp _ (exp (fun y => _)) |-- _ => 
@@ -333,10 +342,11 @@ Ltac go_lower1 :=
                apply go_lower_lem8
    | |- local _ && (PROPx _ (LOCALx _ _)) |-- _ =>
                      apply go_lower_lem9
+   | |- _ && (_ && _) |-- _ => 
+                    apply go_lower_lem10
    end.
 
-Ltac go_lower :=
-  go_lower1;
+Ltac go_lower2 :=
   match goal with
   | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
              idtac
@@ -365,10 +375,6 @@ Ltac go_lower :=
  try apply go_lower_lem2;
  repeat rewrite retval_lemma1.
  
-(* Ltac go_lower := 
- let rho := fresh "rho" in intro rho; unfold PROPx, LOCALx, SEPx; simpl; normalize.
-*)
-
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
                tc_environ Delta rho -> 
@@ -384,24 +390,53 @@ unfold eval_id. simpl. rewrite H1. simpl; auto.
 destruct H2. inv H2. auto.
 Qed.
 
+Lemma tc_val_extract_int:
+ forall v sign ch attr, tc_val (Tint ch sign attr) v -> exists n, v = Vint n.
+Proof.
+intros. destruct v; inv H; eauto.
+Qed.
 
 Definition name (id: ident) := True.
 
 Tactic Notation "name" ident(s) constr(id) := 
     assert (s: name id) by apply I.
 
-Ltac findvars := 
- repeat match goal with
+Ltac findvars :=
+repeat 
+match goal with
              | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
                 clear Name;
-      let t := fresh "t" in
+    first [
+       let Hty := fresh in 
+         assert (Hty: (temp_types Delta) ! J = Some (tint, true)) by (simpl; reflexivity);
+       let Htc := fresh in let Htc' := fresh in
+       assert (Htc: tc_val tint (eval_id J RHO))
+                        by (apply (tc_eval_id_i Delta _ _ _ H Hty));
+       destruct (tc_val_extract_int _ _ _ _ Htc) as [Name Htc'];
+       rewrite Htc' in *; clear Hty Htc Htc'
+    | let t := fresh "t" in
          evar (t: type);
          assert (tc_val t (eval_id J RHO)) 
              by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
          unfold t in *; clear t;
          forget (eval_id J RHO) as Name
-      end;
-  try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
+    ]
+  end.
+
+Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
+Proof. congruence. Qed.
+
+Ltac go_lower3 :=
+                           autorewrite with normalize; 
+                           auto with typeclass_instances;
+                           findvars; 
+                           repeat match goal with H: Vint _ = Vint _ |- _ =>
+                                                  apply Vint_inj in H
+                                      end;
+                           autorewrite with normalize.
+
+
+Ltac go_lower := go_lower1; go_lower2; go_lower3.
 
 Lemma eval_cast_id:
   forall Delta rho,
@@ -889,6 +924,9 @@ f_equal.
 apply sepcon_comm.
 Qed.
 
+Ltac focus_SEP n := 
+   rewrite (grab_nth_SEP 1); unfold nth, delete_nth.
+
 Lemma restart_canon: forall P Q R, (PROPx P (LOCALx Q (SEPx R))) = do_canon emp (PROPx P (LOCALx Q (SEPx R))).
 Proof.
 intros.
@@ -1107,6 +1145,7 @@ Proof.
 intros; reflexivity.
 Qed.
 Hint Rewrite @subst_andp subst_prop : normalize.
+Hint Rewrite @subst_andp subst_prop : subst.
 
 Lemma subst_lift1:
   forall {A1 B} id v (f: A1 -> B) a, 
@@ -1129,30 +1168,32 @@ intros. extensionality rho; reflexivity.
 Qed.
 
 Hint Rewrite @subst_lift0 @subst_lift1 @subst_lift2 : normalize.
-
+Hint Rewrite @subst_lift0 @subst_lift1 @subst_lift2 : subst.
 
 Lemma map_cons: forall {A B} (f: A -> B) x y,
    map f (x::y) = f x :: map f y.
 Proof. reflexivity. Qed.
 
 Hint Rewrite @map_cons : normalize.
+Hint Rewrite @map_cons : subst.
 
 Lemma map_nil: forall {A B} (f: A -> B), map f nil = nil.
 Proof. reflexivity. Qed.
 
 Hint Rewrite @map_nil : normalize.
-
+Hint Rewrite @map_nil : subst.
 
 Lemma fold_right_cons: forall {A B} (f: A -> B -> B) (z: B) x y,
    fold_right f z (x::y) = f x (fold_right f z y).
 Proof. reflexivity. Qed.
 Hint Rewrite @fold_right_cons : normalize.
-
+Hint Rewrite @fold_right_cons : subst.
 
 Lemma subst_sepcon: forall i v (P Q: assert),
   subst i v (P * Q) = (subst i v P * subst i v Q).
 Proof. reflexivity. Qed.
 Hint Rewrite subst_sepcon : normalize.
+Hint Rewrite subst_sepcon : subst.
 
 Lemma subst_PROP: forall i v P Q R,
      subst i v (PROPx P (LOCALx Q (SEPx R))) =
@@ -1177,7 +1218,7 @@ normalize.
 f_equal; auto.
 Qed.
 Hint Rewrite subst_PROP : normalize.
-
+Hint Rewrite subst_PROP : subst.
 
 Lemma subst_stackframe_of:
   forall i v f, subst i v (stackframe_of f) = stackframe_of f.
@@ -1191,6 +1232,7 @@ f_equal.
 apply IHl.
 Qed.
 Hint Rewrite subst_stackframe_of : normalize.
+Hint Rewrite subst_stackframe_of : subst.
 
 Lemma lower_PROP_LOCAL_SEP:
   forall P Q R rho, PROPx P (LOCALx Q (SEPx R)) rho = 

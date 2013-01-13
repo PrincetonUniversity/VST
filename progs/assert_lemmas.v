@@ -8,12 +8,19 @@ Require Import Coqlib veric.Coqlib2.
 
 Local Open Scope logic.
 
+Hint Resolve @TT_right.
+
+Hint Rewrite Int.add_zero_l Int.add_zero : normalize.
 Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
 
 Definition force_int (v: val) := 
  match v with
  | Vint i => i | _ => Int.zero 
  end.
+
+Lemma force_Vint:  forall i, force_int (Vint i) = i.
+Proof.  reflexivity. Qed.
+Hint Rewrite force_Vint : normalize.
 
 Lemma type_eq_refl:
  forall t, proj_sumbool (type_eq t t) = true.
@@ -117,10 +124,10 @@ Lemma closed_wrt_sepcon: forall S (P Q: assert),
   closed_wrt_vars S (P * Q).
 Admitted.
 
-Lemma closed_wrt_emp:
+Lemma closed_wrt_emp {A} {ND: NatDed A} {SL: SepLog A}:
   forall S, closed_wrt_vars S emp.
 Proof. repeat intro. reflexivity. Qed.
-Hint Resolve closed_wrt_emp : closed.
+Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) : closed.
 
 Fixpoint temp_free_in (id: ident) (e: expr) := 
  match e with
@@ -278,8 +285,10 @@ inv H.
 simpl; f_equal; auto.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_map_subst using solve [auto] : normalize.
-Hint Rewrite @closed_wrt_subst using solve [auto] : normalize.
+Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : normalize.
+Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : subst.
+Hint Rewrite @closed_wrt_subst using solve [auto with closed] : normalize.
+Hint Rewrite @closed_wrt_subst using solve [auto with closed] : subst.
 
 Lemma lvalue_closed_tempvar:
  forall S i t, ~ S i -> lvalue_closed_wrt_vars S (Etempvar i t).
@@ -309,8 +318,9 @@ Proof.
 Qed.
 
 Hint Rewrite subst_eval_id_eq : normalize.
+Hint Rewrite subst_eval_id_eq : subst.
 Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : normalize.
-
+Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : subst.
 
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).
@@ -318,14 +328,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @lift1_lift0 : normalize.
-(*
-Lemma subst_eval_expr_const:
-  forall i v n t, subst i v (eval_expr (Econst_int n t)) = eval_expr (Econst_int n t).
-Proof.
-intros. reflexivity.
-Qed.
-Hint Rewrite subst_eval_expr_const : normalize.
-*)
+
 Lemma tc_formals_cons:
   forall i t rest, tc_formals ((i,t) :: rest) =
          lift2 and (lift1 (tc_val t) (eval_id i)) (tc_formals rest).
@@ -382,8 +385,9 @@ Admitted.
 Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
 Admitted.
 Hint Rewrite @subst_TT @subst_FF: normalize.
+Hint Rewrite @subst_TT @subst_FF: subst.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): normalize.
-
+Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
 Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = lift0 (Vint i).
 Proof. reflexivity. Qed.
@@ -399,6 +403,7 @@ Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
 Hint Rewrite subst_local : normalize.
+Hint Rewrite subst_local : subst.
 Lemma eval_lvalue_Ederef:
   forall e t, eval_lvalue (Ederef e t) = lift1 force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
@@ -416,6 +421,16 @@ Proof. unfold overridePost; intros.
 Qed.
 Hint Rewrite overridePost_EK_return : normalize.
 
+Lemma frame_ret_assert_emp:
+  forall P, frame_ret_assert P emp = P.
+Proof. intros.
+ extensionality ek. extensionality vl. extensionality rho.
+ unfold frame_ret_assert.
+ rewrite sepcon_emp. auto.
+Qed.
+
+Hint Rewrite frame_ret_assert_emp : normalize.
+
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.
 Proof. reflexivity. Qed.
@@ -431,11 +446,6 @@ Lemma bind_ret1_unfold:
 Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : normalize.
 
-Lemma tc_val_extract_int:
- forall v sign ch attr, tc_val (Tint ch sign attr) v -> exists n, v = Vint n.
-Proof.
-intros. destruct v; inv H; eauto.
-Qed.
 
 
 Lemma normal_ret_assert_eq:
@@ -468,7 +478,7 @@ Proof. reflexivity. Qed.
 Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
 Proof. reflexivity. Qed.
 Hint Rewrite @substopt_unfold @substopt_unfold_nil : normalize.
-
+Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
 
 Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
 Proof. reflexivity. Qed.

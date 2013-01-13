@@ -119,3 +119,66 @@ Proof.
  type_of_field_tac.
  normalize.
 Qed.
+
+Lemma unfold_ilseg_cons:
+   forall P Q1 Q R e sh s,
+      local Q1 &&
+      PROPx P (LOCALx Q (SEPx (lift2 (ilseg sh s) e (lift0 nullval) :: R))) |-- 
+                        local (lift1 (typed_true (tptr P.t_struct_list)) e) ->
+      local Q1 && PROPx P (LOCALx Q (SEPx (lift2 (ilseg sh s) e (lift0 nullval) :: R))) |--
+     EX hry: int * list int * val,
+      match hry with (h,r,y) => 
+       !! (s=h::r) &&
+      PROPx P (LOCALx Q 
+        (SEPx (lift2 (field_mapsto sh list_struct P._h) e (lift0 (Vint h)) ::
+                  lift2 (field_mapsto sh list_struct P._t) e (lift0 y) ::
+                  |> lift2 (ilseg sh r) (lift0 y) (lift0 nullval) ::
+                  R)))
+        end.
+Proof.
+intros.
+apply derives_trans with
+(local Q1 && PROPx P (LOCALx Q (SEPx (lift2 (ilseg_cons sh s) e (lift0 nullval) :: R)))).
+apply derives_trans with
+(local Q1 && local (lift1 (typed_true (tptr P.t_struct_list)) e) &&
+ PROPx P (LOCALx Q (SEPx (lift2 (ilseg sh s) e (lift0 nullval) :: R)))).
+apply andp_right; auto.
+apply andp_right; auto.
+apply andp_left1; auto.
+apply andp_left2; auto.
+clear H.
+go_lower.
+normalize.  (* delete me after fixing go_lower to make findvars optional? *)
+rewrite ilseg_nonnull by auto.
+auto.
+rewrite lift2_ilseg_cons.
+clear.
+go_lower.
+apply exp_derives.
+intros [[h r] y].
+normalize.
+repeat rewrite sepcon_assoc.
+apply sepcon_derives; auto.
+Qed.
+
+Lemma semax_ilseg_nonnull:
+  forall Delta P Q sh s e R c Post,
+   PROPx P (LOCALx (tc_environ Delta :: Q)
+            (SEPx (lift2 (ilseg sh s) e (lift0 nullval) :: R))) |-- 
+                        local (lift1 (typed_true (tptr P.t_struct_list)) e)  ->
+  (forall (h: int) (r: list int) (y: val), s=h::r ->
+    semax Delta 
+        (PROPx P (LOCALx Q 
+        (SEPx (lift2 (field_mapsto sh list_struct P._h) e (lift0 (Vint h)) ::
+                  lift2 (field_mapsto sh list_struct P._t) e (lift0 y) ::
+                  |> lift2 (ilseg sh r) (lift0 y) (lift0 nullval) ::
+                  R)))) c Post) ->
+  semax Delta (PROPx P (LOCALx Q (SEPx (lift2 (ilseg sh s) e (lift0 nullval) :: R)))) c Post.
+Proof.
+intros.
+eapply semax_pre;  [apply unfold_ilseg_cons | ].
+eapply derives_trans; [ | apply H].
+normalize.
+apply extract_exists_pre; intros [[h r] y].
+apply semax_extract_prop; intro; auto.
+Qed.
