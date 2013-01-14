@@ -68,11 +68,10 @@ forward_while (sumlist_Inv sh contents)
 unfold sumlist_Inv, partial_sum.
 apply exp_right with contents.
 (* entailment_tests  et_1 *)           
-go_lower. subst; normalize. 
-rewrite sepcon_comm; apply sepcon_TT.
+go_lower. subst; normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 (* entailment_tests  et_2 *) 
- intro; apply prop_right; repeat split.
+ go_lower; cancel.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold partial_sum.
 (* entailment_tests  et_3 *) 
@@ -93,10 +92,7 @@ go_lower.
 subst. rewrite H4; clear H4 contents.
 destruct _s0; inv H0.
 normalize.
-rewrite (Int.add_assoc i h). normalize.
-rewrite <- (sepcon_comm TT).
-repeat rewrite <- sepcon_assoc.
-apply sepcon_derives; auto.
+rewrite (Int.add_assoc i h). normalize. cancel.
 (* After the loop *)
 forward.
 (* entailment_tests et_6 *)
@@ -155,11 +151,8 @@ subst _v0 y _t. rewrite app_ass. normalize.
 rewrite (ilseg_unroll sh (h::cts1)).
 apply derives_trans with (ilseg_cons sh (h :: cts1) _w nullval *
     ilseg sh r _v nullval).
-repeat rewrite <- sepcon_assoc.
 repeat pull_right (ilseg sh r _v nullval).
-apply sepcon_derives; auto.
-unfold ilseg_cons, lseg_cons.
-apply andp_right.
+cancel.
 apply prop_right.
 clear - H3.
 destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
@@ -174,13 +167,9 @@ normalize.
 assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
   by (destruct _w0 ; inv H0; simpl; auto).
 rewrite H1 in *.
-normalize.
-repeat pull_right (field_mapsto sh list_struct P._t _w _w0).
-apply sepcon_derives; auto.
-repeat pull_right (field_mapsto sh list_struct P._h _w (Vint h)).
-apply sepcon_derives; auto.
-apply now_later.
-apply sepcon_derives; auto.
+cancel.
+apply prop_right; auto.
+cancel.
 apply orp_right2; auto.
 (* after the loop *)
 forward.

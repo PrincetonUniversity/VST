@@ -555,3 +555,38 @@ Lemma align_0: forall z,
 Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.
 Hint Rewrite align_0 using omega : normalize.
+
+
+Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
+   forall (P: A), P |-- (TT * P).
+Proof. intros. rewrite sepcon_comm; apply sepcon_TT.
+Qed.
+
+Ltac find_change P Q :=
+ match Q with
+  | ?Q1 * ?Q2 => first [change Q2 with P | find_change P Q1]
+  | _ => change Q with P
+ end.
+
+Ltac find_change_later P Q :=
+ match Q with
+  | ?Q1 * later ?Q2 => first [change Q2 with P | find_change_later P Q1]
+  | later ?Q2 => change Q2 with P
+ end.
+
+Ltac cancel := 
+repeat rewrite <- sepcon_assoc;
+pull_left (@TT mpred _);
+repeat 
+ (apply derives_refl
+  || apply TT_right || apply sepcon_TT || apply TT_sepcon
+  || apply andp_right
+ || (match goal with |- derives _ (sepcon _ _) => idtac end; 
+    match goal with |- sepcon ?P ?P' |-- ?Q =>
+      first [find_change P' Q; pull_right P'; 
+               apply sepcon_derives; [  | apply derives_refl ]
+             | find_change_later P' Q; pull_right (later P'); 
+               apply sepcon_derives; [  | apply now_later ]
+             ]
+ end)).
+

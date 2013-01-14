@@ -61,8 +61,7 @@ SEP  (lift2 (ilseg sh contents) (eval_id P._p) (lift0 nullval))
        (eval_id P._s))
     SEP  (TT; lift2 (ilseg sh contents) (eval_id P._t) (lift0 nullval)).
 Proof.  intros.
- go_lower. subst; normalize. 
- rewrite sepcon_comm; apply sepcon_TT.
+ go_lower. subst; normalize. cancel. 
 Qed.
 
 Definition partial_sum (contents cts: list int) (v: val) := 
@@ -71,19 +70,16 @@ Definition partial_sum (contents cts: list int) (v: val) :=
 Lemma et_2: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_sumlist Vprog Gtot  in
   forall (_t : name P._t) (_p : name P._p) (_s : name P._s) (_h : name P._h),
-local (tc_environ (initialized P._t (initialized P._s Delta))) &&
-(EX  cts : list int,
- PROP  ()
- LOCAL  (lift1 (partial_sum contents cts) (eval_id P._s))
- SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval)))
+   forall (cts : list int),
+PROP  ()
+LOCAL  (tc_environ (initialized P._t (initialized P._s Delta));
+lift1 (partial_sum contents cts) (eval_id P._s))
+SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))
 |-- local
-      (tc_expr
-         (update_tycon
-            (update_tycon Delta (Sset P._s (Econst_int (Int.repr 0) tint)))
-            (Sset P._t (Etempvar P._p (tptr P.t_struct_list))))
+      (tc_expr (initialized P._t (initialized P._s Delta))
          (Etempvar P._t (tptr P.t_struct_list))).
 Proof. intros.
- intro; apply TT_right.
+ go_lower; cancel.
 Qed.
 
 Lemma et_3: forall (sh: share) (contents: list int),
@@ -110,7 +106,7 @@ SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))
             (lift1 (eq (Vint (fold_right Int.add Int.zero contents))) retval)))
       EK_normal None.
 Proof. intros.
- go_lower. subst; rewrite H1; normalize.
+ go_lower. subst; rewrite H1. normalize.
 Qed.
 
 Lemma et_4: forall (sh: share) (contents: list int),
@@ -162,9 +158,7 @@ subst. rewrite H4; clear H4 contents.
 destruct x; inv H0.
 normalize.
 rewrite (Int.add_assoc i h). normalize.
-rewrite <- (sepcon_comm TT).
-repeat rewrite <- sepcon_assoc.
-apply sepcon_derives; auto.
+cancel.
 Qed.
 
 Lemma et_6: forall (sh: share) (contents: list int),
@@ -277,11 +271,8 @@ subst _v0 y _t. rewrite app_ass. normalize.
 rewrite (ilseg_unroll sh (h::cts)).
 apply derives_trans with (ilseg_cons sh (h :: cts) _w nullval *
     ilseg sh r _v nullval).
-repeat rewrite <- sepcon_assoc.
-repeat pull_right (ilseg sh r _v nullval).
-apply sepcon_derives; auto.
-unfold ilseg_cons, lseg_cons.
-apply andp_right.
+pull_right (ilseg sh r _v nullval);
+cancel.
 apply prop_right.
 clear - H3.
 destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
@@ -296,13 +287,9 @@ normalize.
 assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
   by (destruct _w0 ; inv H0; simpl; auto).
 rewrite H1 in *.
-normalize.
-repeat pull_right (field_mapsto sh list_struct P._t _w _w0).
-apply sepcon_derives; auto.
-repeat pull_right (field_mapsto sh list_struct P._h _w (Vint h)).
-apply sepcon_derives; auto.
-apply now_later.
-apply sepcon_derives; auto.
+cancel.
+apply prop_right; auto.
+cancel.
 apply orp_right2; auto.
 Qed.
 
