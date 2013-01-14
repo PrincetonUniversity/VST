@@ -133,6 +133,7 @@ unfold construct_rho in *; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
+rewrite tc_andp_sound in *; simpl in *. 
 unfold lift2 in *. destruct TC2. 
 unfold tc_bool in *. remember (is_neutral_cast (typeof e) t). 
 destruct b0; inv H0. 
@@ -232,6 +233,7 @@ apply guard_environ_put_te'; try rewrite <- Hge; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
+rewrite tc_andp_sound in *; simpl in *. 
 unfold lift2 in *. destruct TC2; simpl in *. 
 unfold tc_bool in *. remember (is_neutral_cast (typeof e) t).
 destruct b0; inv H0. 
@@ -542,7 +544,9 @@ apply semax_straight_simple; auto.
 intros jm jm1 ge ve te rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-simpl in TC2. destruct TC2 as [TC2 TC3].
+simpl in TC2. 
+rewrite tc_andp_sound in *; simpl in TC2; unfold lift2 in *. 
+destruct TC2 as [TC2 TC3].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.

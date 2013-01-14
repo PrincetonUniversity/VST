@@ -486,14 +486,7 @@ Proof. induction vl; try destruct a; simpl; auto.
  destruct (split vl); simpl in *; auto.
 Qed.
 
-Lemma tc_exprlist_length : forall Delta tl el rho, 
-denote_tc_assert (typecheck_exprlist Delta tl el) rho ->
-length tl = length el. 
-Proof. 
-intros. generalize dependent el. induction tl; intros. simpl in *. destruct el. inv H. auto. 
-inv H. simpl in H. destruct el; try solve [inv H]. simpl in *. unfold lift2 in *.  
-intuition.
-Qed. 
+
 
 Lemma exprlist_eval :
   forall (Delta : tycontext) (fsig : funsig) 
@@ -521,7 +514,8 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  revert vl H H0; induction bl; destruct vl; intros; inv H0; simpl.
  constructor.
  destruct p. simpl in *; subst.
- unfold lift2, lift1.
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
  destruct H as [[? ?] ?].
  pose proof (typecheck_expr_sound _ _ _ H1 H).
  specialize (IHbl _ H2 H4).
@@ -695,7 +689,9 @@ generalize dependent bl. generalize dependent te'.
 induction (fn_params f); intros.  inv H. simpl in *.
 destruct a. simpl in *. remember (split l). destruct p. 
 simpl in *. destruct H. clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.   
-inv H. inv Heqp. simpl in *. unfold lift2 in *. 
+inv H. inv Heqp. simpl in *. 
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
 destruct TC2 as [[? ?] ?].
 rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
 rewrite PTree.gss.
@@ -711,7 +707,10 @@ apply TE.
 auto. auto. inv Heqp. 
 destruct bl.  inv TC2. 
 inv H17.
-simpl in *.  unfold lift2 in *. destruct TC2 as [[? ?] ? ].
+simpl in *.  
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
+unfold lift2 in *. destruct TC2 as [[? ?] ? ].
 assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
 apply in_map with (f := fst) in H. apply H.
 
@@ -1554,6 +1553,9 @@ econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
 exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
 assert (TCe: denote_tc_assert (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
+simpl in *. 
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
 destruct TC; auto.
 split.
 apply eval_expr_relate with (Delta := Delta); auto.
@@ -1567,6 +1569,9 @@ apply cast_exists with Delta; auto.
 
 auto.
 rewrite <- H6.
+simpl in TC. 
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
 destruct TC; auto.
 
 inv H9.
@@ -1580,7 +1585,10 @@ simpl in H10. rewrite (call_cont_current_function H7) in H10.
 destruct H10 as [_ H10]. rewrite H6 in H10.
 rewrite H10 in TC.
 clear - TC.
-simpl in TC. destruct TC as [_ ?].
+simpl in TC.
+ repeat (rewrite tc_andp_sound in *; simpl in *;
+ unfold lift2, lift1 in *).
+destruct TC as [_ ?].
 apply H. 
 simpl.
 intro.
@@ -1588,5 +1596,5 @@ inv H7.
 econstructor; try eassumption.
 rewrite call_cont_idem in H13; auto.
 Qed.
-
+ 
 End extensions.

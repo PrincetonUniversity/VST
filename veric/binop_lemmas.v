@@ -25,11 +25,12 @@ unfold sem_add in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+try solve [simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
 tc_assert_ext; auto;
+ destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+unfold lift0 in *;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto. 
+simpl in *; tc_assert_ext; auto].
 Qed. 
 
 Lemma typecheck_sub_sound:
@@ -49,10 +50,14 @@ destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
 simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
-tc_assert_ext; auto;
-destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (if_tac; auto). 
+try solve[
+destruct t; simpl in *; auto;
+try (remember (negb (Int.eq (Int.repr (sizeof t0)) Int.zero)); 
+unfold tc_bool in *; try if_tac in H0); simpl in *;
+unfold lift2 in *; unfold lift1 in *;
+unfold lift0 in *; tc_assert_ext; auto; 
+try solve [destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
+simpl in *; tc_assert_ext; auto; repeat (if_tac; auto)]].
 Qed. 
  
 Lemma typecheck_mul_sound:
@@ -95,9 +100,10 @@ destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
 simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+ destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *;
 unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
@@ -119,9 +125,10 @@ destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
 simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *; 
 unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
@@ -215,9 +222,10 @@ destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
 simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+ destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *;
 unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
@@ -240,9 +248,10 @@ destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
 simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+ destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *;
 unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
@@ -404,8 +413,10 @@ denote_tc_assert (typecheck_expr Delta (Ebinop b e1 e2 t)) rho ->
 typecheck_val (eval_expr (Ebinop b e1 e2 t) rho) (typeof (Ebinop b e1 e2 t)) =
 true.
 Proof. 
-intros. simpl in *. intuition. unfold lift2 in *.
-intuition. destruct b.
+intros. simpl in *.  rewrite tc_andp_sound in H. 
+simpl in *. unfold lift2 in *. rewrite tc_andp_sound in H. 
+simpl in *. unfold lift2 in *. intuition.  
+destruct b. 
 eapply typecheck_add_sound; eauto.  
 eapply typecheck_sub_sound; eauto.
 eapply typecheck_mul_sound; eauto.

@@ -424,11 +424,9 @@ end.
 
 Inductive tc_assert :=
 | tc_FF: tc_assert
-| tc_noproof : tc_assert (*I want to use this for things that should still typecheck in
-                           C, but that we can't really prove correct. Right now this is
-                           only for valid pointers in pp compare*)
+| tc_noproof : tc_assert
 | tc_TT : tc_assert
-| tc_andp: tc_assert -> tc_assert -> tc_assert
+| tc_andp': tc_assert -> tc_assert -> tc_assert
 | tc_nonzero: expr -> tc_assert
 | tc_iszero: expr -> tc_assert
 | tc_isptr: expr -> tc_assert
@@ -439,12 +437,25 @@ Inductive tc_assert :=
 | tc_nodivover: expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
+
+Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
+match a1 with
+| tc_TT => a2
+| tc_FF => tc_FF
+| _ => match a2 with
+      | tc_TT => a1 
+      | tc_FF => tc_FF
+      | _ => tc_andp' a1 a2
+      end
+end. 
+
+
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
 
 Fixpoint tc_assert_simpl asn :=
 match asn with
-| tc_andp a1 a2 =>
+| tc_andp' a1 a2 =>
       match (tc_assert_simpl a1), (tc_assert_simpl a2) with
             | tc_FF, _ => tc_FF
             | _ , tc_FF => tc_TT
@@ -656,14 +667,14 @@ Definition typecheck_temp_id id ty Delta a : tc_assert :=
 Fixpoint tc_might_be_true (asn : tc_assert) :=
 match asn with
  | tc_FF => false
- | tc_andp a1 a2 => tc_might_be_true a1 && tc_might_be_true a2
+ | tc_andp' a1 a2 => tc_might_be_true a1 && tc_might_be_true a2
  | _ => true
 end.
 
 Fixpoint tc_always_true (asn : tc_assert) := 
 match asn with
  | tc_TT => true
- | tc_andp a1 a2 => tc_always_true a1 && tc_always_true a2
+ | tc_andp' a1 a2 => tc_always_true a1 && tc_always_true a2
  | _ => false
 end.
 
@@ -829,7 +840,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_FF => lift0 False
   | tc_noproof => lift0 False
   | tc_TT => lift0 True
-  | tc_andp b c => lift2 and (denote_tc_assert b) (denote_tc_assert c)
+  | tc_andp' b c => lift2 and (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero e => lift1 denote_tc_nonzero (eval_expr e)
   | tc_isptr e => lift1 denote_tc_isptr (eval_expr e)
   | tc_ilt e i => lift1 (denote_tc_igt i) (eval_expr e)
@@ -840,6 +851,11 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero e => lift1 denote_tc_iszero (eval_expr e)
   end.
+
+Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
+Proof.
+intros. destruct a1; destruct a2; simpl in *; unfold lift2; unfold lift1; unfold lift0; intuition. 
+Qed. 
 
 (*Functions that modify type environments*)
 Definition initialized id (Delta: tycontext) :=

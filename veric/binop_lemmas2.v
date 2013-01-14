@@ -9,6 +9,9 @@ Require Import veric.Clight_lemmas.
 Require Import veric.expr.
 Import Cop.
 
+Ltac rem_bool :=
+match goal with [ H :context [tc_bool ?X] |- _ ] => remember X end. 
+
 Lemma eval_binop_relate_fail_add :
  forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) 
      (t : type) (m : mem),
@@ -37,12 +40,13 @@ destruct v0; simpl in *; try congruence; destruct v;
 simpl in *; try congruence; 
 
 try destruct i; try destruct s; simpl in *; try congruence;
-try destruct i0; try destruct s0; simpl in *; try congruence;
+try destruct i0; try destruct s0; simpl in *; try congruence; 
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
-simpl in *; try congruence. 
+simpl in *; try congruence.  
 Qed.
 
 Lemma eval_binop_relate_fail_sub :
@@ -74,6 +78,8 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try rewrite tc_andp_sound in *;
+try solve [try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -81,7 +87,8 @@ tc_assert_ext; try contradiction;
 simpl in *; try congruence; 
 repeat rewrite andb_if in H4; 
 repeat rewrite orb_if in H4;
-repeat if_tac in H4; simpl in *; try congruence; try contradiction.
+repeat if_tac in H4; simpl in *; try congruence; try contradiction].
+
 Qed.
 
 
@@ -111,7 +118,7 @@ remember (eval_expr e2 rho). remember (eval_expr e1 rho).
 destruct (typeof e1); destruct (typeof e2); simpl in *; try congruence;
 destruct v0; simpl in *; try congruence; destruct v;
 simpl in *; try congruence; 
-
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
@@ -150,7 +157,7 @@ remember (eval_expr e2 rho). remember (eval_expr e1 rho).
 destruct (typeof e1); destruct (typeof e2); simpl in *; try congruence;
 destruct v0; simpl in *; try congruence; destruct v;
 simpl in *; try congruence; 
-
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
@@ -188,10 +195,10 @@ unfold sem_mod in *.
 remember (eval_expr e2 rho). remember (eval_expr e1 rho).
 destruct (typeof e1); destruct (typeof e2); simpl in *; try congruence;
 destruct v0; simpl in *; try congruence; destruct v;
-simpl in *; try congruence; 
-
+simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -228,9 +235,9 @@ remember (eval_expr e2 rho). remember (eval_expr e1 rho).
 destruct (typeof e1); destruct (typeof e2); simpl in *; try congruence;
 destruct v0; simpl in *; try congruence; destruct v;
 simpl in *; try congruence; 
-
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -270,6 +277,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -309,6 +317,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -348,6 +357,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -387,6 +397,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -427,6 +438,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -467,6 +479,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -507,6 +520,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -547,6 +561,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -587,6 +602,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
@@ -627,6 +643,7 @@ simpl in *; try congruence;
 
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
+try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
