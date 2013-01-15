@@ -286,6 +286,10 @@ intros H1; destruct (at_external_halted_excl (get_module_csem (modules PF)) c)
  as [H3|H3].
 solve[rewrite H1 in H3; congruence].
 solve[destruct stack; auto].
+intros H1; destruct (at_external_halted_excl (get_module_csem (modules PF)) c) 
+ as [H3|H3].
+solve[rewrite H1 in H3; congruence].
+solve[destruct stack; auto].
 solve[left; auto].
 Qed.
 Next Obligation.
