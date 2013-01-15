@@ -149,13 +149,12 @@ apply exp_right with r.
 go_lower.
 subst _v0 y _t. rewrite app_ass. normalize.
 rewrite (ilseg_unroll sh (h::cts1)).
-apply derives_trans with (ilseg_cons sh (h :: cts1) _w nullval *
-    ilseg sh r _v nullval).
-repeat pull_right (ilseg sh r _v nullval).
 cancel.
+apply orp_right2.
+unfold ilseg_cons, lseg_cons.
+apply andp_right.
 apply prop_right.
-clear - H3.
-destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
+destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
 apply exp_right with (Vint h).
 apply exp_right with (map Vint cts1).
 apply exp_right with _w0.
@@ -167,18 +166,15 @@ normalize.
 assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
   by (destruct _w0 ; inv H0; simpl; auto).
 rewrite H1 in *.
-cancel.
+apply andp_right.
 apply prop_right; auto.
 cancel.
-apply orp_right2; auto.
 (* after the loop *)
 forward.
 (* entailment_tests et_11 *)
 go_lower.
-apply andp_right.
-apply prop_right; repeat split.
-erewrite eval_cast_pointer2; try eassumption; simpl; reflexivity.
-erewrite eval_cast_pointer2; try eassumption; simpl; auto; reflexivity.
+eval_cast_simpl.
+normalize.
 Qed.
 
 Lemma setup_globals:
@@ -212,34 +208,26 @@ Proof.
   unfold ptr_eq. simpl. normalize.
 Qed.
 
+
 Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
 Proof.
 start_function.
 name _r P._r.
 name _s P._s.
 forward.
-go_lower. unfold F,x.
-instantiate (2:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
-instantiate (1:=nil).
-rewrite prop_true_andp by (compute; intuition).
-rewrite prop_true_andp by auto.
-destruct u; simpl. normalize.
-unfold deref_noload. simpl.
+instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of x).
+go_lower.
+destruct u.
 eval_cast_simpl.
-apply setup_globals; auto.
-unfold x,F in *; clear x F.
+eapply derives_trans; [apply setup_globals; auto | ].
+cancel.
 apply extract_exists_pre; normalize.
 forward.
+instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
-unfold x,F.
-instantiate (2:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)).
-instantiate (1:=nil).
-normalize.
-rewrite prop_true_andp by (compute; auto).
 eval_cast_simpl.
-normalize.
-apply extract_exists_pre; intro old.
-normalize. clear old.
+cancel.
+apply extract_exists_pre; normalize.
 forward.
 go_lower.
 normalize.

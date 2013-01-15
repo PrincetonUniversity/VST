@@ -268,11 +268,11 @@ lift2 (ilseg sh cts) (lift0 _w0) (lift0 nullval))
 Proof. intros.
 go_lower.
 subst _v0 y _t. rewrite app_ass. normalize.
-rewrite (ilseg_unroll sh (h::cts)).
-apply derives_trans with (ilseg_cons sh (h :: cts) _w nullval *
-    ilseg sh r _v nullval).
-pull_right (ilseg sh r _v nullval);
 cancel.
+rewrite (ilseg_unroll sh (h::cts)).
+apply orp_right2.
+unfold ilseg_cons, lseg_cons.
+apply andp_right.
 apply prop_right.
 clear - H3.
 destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
@@ -287,10 +287,9 @@ normalize.
 assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
   by (destruct _w0 ; inv H0; simpl; auto).
 rewrite H1 in *.
-cancel.
+apply andp_right.
 apply prop_right; auto.
 cancel.
-apply orp_right2; auto.
 Qed.
 
 Lemma et_11: forall (sh: share) (contents: list int),
@@ -313,6 +312,6 @@ Proof. intros.
 go_lower.
 apply andp_right.
 apply prop_right; repeat split.
-erewrite eval_cast_pointer2; try eassumption; simpl; reflexivity.
-erewrite eval_cast_pointer2; try eassumption; simpl; auto; reflexivity.
+eval_cast_simpl; auto.
+eval_cast_simpl; auto.
 Qed.

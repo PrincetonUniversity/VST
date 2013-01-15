@@ -364,7 +364,7 @@ Ltac go_lower2 :=
   end;
   let rho := fresh "rho" in 
   unfold PROPx, LOCALx, SEPx, frame_ret_assert,
-      tc_expropt, tc_expr, tc_lvalue, local, lift2,lift1,lift0,assert, 
+      tc_expropt, tc_expr, tc_lvalue, tc_andp, local, lift2,lift1,lift0,assert, 
      Nassert, Sassert, stackframe_of; 
    intro rho; 
     change (@andp (environ -> mpred) (@LiftNatDed environ mpred Nveric)) 
@@ -492,13 +492,6 @@ intros.
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
 
-Ltac eval_cast_simpl :=
-     match goal with H: tc_environ ?Delta ?rho |- _ =>
-       first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
-               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               ]
-     end.
-
 Lemma eval_cast_int:
   forall v sign, 
          tc_val (Tint I32 sign noattr) v ->
@@ -520,6 +513,15 @@ intros.
 subst.
 hnf in H1. destruct v; inv H1; reflexivity.
 Qed.
+
+Ltac eval_cast_simpl :=
+     match goal with H: tc_environ ?Delta ?rho |- _ =>
+       first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
+               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
+               | rewrite eval_cast_int; [ | assumption]
+               | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
+               ]
+     end.
 
 Definition do_canon (x y : assert) := (sepcon x y).
 

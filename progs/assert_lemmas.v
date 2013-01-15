@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import veric.SeparationLogic.
 Require Import Coqlib veric.Coqlib2.
-
+Require Import Clightdefs.
 (* no "semax" in this file, just assertions.
  Thus, no need to import SequentialClight.SeqC.CSL.
 *)
@@ -556,6 +556,20 @@ Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.
 Hint Rewrite align_0 using omega : normalize.
 
+Lemma deref_noload_tarray:
+  forall ty n, deref_noload (tarray ty n) = (fun v => v).
+Proof. 
+ intros. extensionality v. reflexivity.
+Qed.
+Hint Rewrite deref_noload_tarray : normalize.
+
+Lemma deref_noload_Tarray:
+  forall ty n a, deref_noload (Tarray ty n a) = (fun v => v).
+Proof. 
+ intros. extensionality v. reflexivity.
+Qed.
+Hint Rewrite deref_noload_Tarray : normalize.
+
 
 Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (TT * P).
@@ -574,19 +588,108 @@ Ltac find_change_later P Q :=
   | later ?Q2 => change Q2 with P
  end.
 
-Ltac cancel := 
+Ltac lift1 a e1 rho  :=
+ match e1 with
+ | lift0 rho => constr:(a)
+ | lift0 ?a1 => constr: (lift0 (a a1))
+ | _ => constr:(lift1 a e1)
+ end.
+
+
+Ltac lift2 a e1 e2 rho :=
+ match e1 with
+ |  lift0 ?a1 => lift1 (a a1) e2 rho
+ | _ => constr:(lift2 a e1 e2)
+ end.
+
+Ltac lift3 a e1 e2 e3 rho :=
+ match e1 with
+ |  lift0 ?a1 => lift2 (a a1) e2 e3 rho
+ | _ => constr:(lift3 a e1 e2 e3)
+ end.
+
+Ltac abstract_env rho P :=
+  match P with
+   | @emp mpred _ _ => constr:(@emp assert _ _)
+   | @sepcon mpred _ _ ?e1 ?e2 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
+       in constr:(@sepcon assert _ _ e1' e2')
+   | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 => 
+      let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
+      in lift3 (a0 a1 a2) e1' e2' e3' rho
+   | ?a0 ?a1 ?e1 ?e2 ?e3 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
+      in lift3 (a0 a1) e1' e2' e3' rho
+   | ?a0 ?e1 ?e2 ?e3 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
+      in lift3 a0 e1' e2' e3' rho
+   | ?a0 ?e1 ?e2 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
+      in lift2 a0 e1' e2' rho
+   | ?a0 ?e1 => let e1' := abstract_env rho e1 in lift1 a0 e1' rho
+   | rho => constr: (lift1)
+   | ?a => constr:(lift0 a)
+   end.
+
+Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
+  forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
+Proof. intro; apply derives_refl. Qed.
+
+Lemma cancel_frame2: forall (P Q: assert) F (rho: environ),
+     Q rho |-- 	fold_right sepcon emp F rho ->
+    (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
+Proof. intros. simpl. apply sepcon_derives; auto.
+Qed.
+
+Lemma cancel_frame1: forall P (rho: environ), 
+         P rho |-- fold_right sepcon emp (P::nil) rho.
+Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
+Qed.
+
+Ltac cancel_frame := 
+match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
+     let P' := abstract_env rho P in  
+       change ( P' rho |-- fold_right sepcon emp F rho);
+    repeat rewrite sepcon_assoc;
+    repeat apply cancel_frame2; 
+    try apply cancel_frame1;
+    try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
+ end.
+
+Ltac cancel :=
+repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+match goal with |- ?P |-- ?Q =>
+  (* The "emp" is a marker to notice when one complete pass has been made *)
+   apply derives_trans with (emp * P) ; [ rewrite (emp_sepcon P); apply derives_refl | ]
+ end;
 repeat rewrite <- sepcon_assoc;
-pull_left (@TT mpred _);
-repeat 
- (apply derives_refl
-  || apply TT_right || apply sepcon_TT || apply TT_sepcon
-  || apply andp_right
- || (match goal with |- derives _ (sepcon _ _) => idtac end; 
-    match goal with |- sepcon ?P ?P' |-- ?Q =>
+repeat
+match goal with 
+   | |- sepcon _ emp |-- _ => fail 1
+   | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
+   | |- sepcon ?P ?P' |-- ?Q =>
       first [find_change P' Q; pull_right P'; 
                apply sepcon_derives; [  | apply derives_refl ]
              | find_change_later P' Q; pull_right (later P'); 
                apply sepcon_derives; [  | apply now_later ]
+             | pull_left P'
              ]
- end)).
+ end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  pull_left (@TT mpred _);
+  first [apply derives_refl
+          | apply TT_right
+          | apply sepcon_TT 
+          | apply TT_sepcon
+          | cancel_frame
+          | idtac
+          ].
 
+Lemma exp_trivial {A}{NA: NatDed A}:
+  forall {T: Type} (any: T) (P: A), exp (fun x:T => P) = P.
+Proof.
+ intros. apply pred_ext. apply exp_left; auto.
+ apply exp_right with any; auto.
+Qed.
+
+Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : normalize.

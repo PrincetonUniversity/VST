@@ -67,6 +67,13 @@ Proof.
  apply H4.
 Qed.
 
+(* Admitted: move these next two to assert_lemmas *)
+Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
+Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
+ 
+Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e. 
+Proof. intros; unfold tc_andp; reflexivity. Qed.
+Hint Rewrite tc_andp_TT1 tc_andp_TT2 : normalize.
 
 Lemma semax_load_field:
 forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
@@ -127,9 +134,8 @@ rewrite <- TC2.
 rewrite field_offset_unroll.
 case_eq (field_offset fld fields); intros; normalize.
 case_eq (access_mode t2); intros; normalize.
-rewrite H8. 
-rewrite prop_true_andp by auto.
-rewrite prop_true_andp by auto.
+rewrite H8.
+normalize.
 simpl eval_field. rewrite H5. rewrite H4.
 simpl eval_struct_field.
 forget (Int.add i (Int.repr z)) as N.
@@ -164,6 +170,16 @@ Qed.
 
 Lemma writable_share_top: writable_share Share.top.
 Admitted.
+
+
+Lemma denote_tc_assert_andp:
+  forall a b rho, denote_tc_assert (tc_andp a b) rho =
+             (denote_tc_assert a rho /\ denote_tc_assert b rho).
+Proof.
+ intros. apply prop_ext.
+ unfold denote_tc_assert, tc_andp, lift2,lift1,lift0.
+ destruct a,b; simpl; intuition; try contradiction.
+Qed.
 
 Lemma semax_store_field: 
 forall (Delta: tycontext) sh e1 fld P v0 t2 e2 sid fields ,
@@ -201,7 +217,6 @@ apply later_derives.
 intro rho; unfold local,lift0,lift1,lift2. simpl.
 normalize.
 unfold field_mapsto, mapsto.
-simpl.
 case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite TE1.
 rewrite field_offset_unroll.
@@ -216,26 +231,33 @@ apply derives_trans with ((!!tc_lvalue Delta (Efield e1 fld t2) rho &&
        (b, Int.unsigned (Int.add i (Int.repr z)))) * P rho).
 apply sepcon_derives; auto. 
 apply andp_right; normalize.
-unfold tc_lvalue; simpl.
-unfold lift2. rewrite TE1.
-repeat apply andp_right; apply prop_right; auto.
-split; auto. split; auto. rewrite H6; auto.
-rewrite H8; simpl; auto.
+unfold tc_lvalue, tc_expr, tc_andp in *; simpl typecheck_lvalue in *.
+rewrite TE1.
+rewrite H6; auto.
+rewrite H8.
+simpl tc_bool.
+normalize.
+apply andp_right; apply prop_right; auto.
 eapply expr_lemmas.typecheck_val_eval_cast; eauto.
-hnf in H4.
-destruct H4; auto.
-unfold tc_expr in H4.
 simpl in H4.
+clear - H4.
+
+rewrite denote_tc_assert_andp in H4.
 destruct H4; auto.
-simpl; 
-normalize. rewrite H6; normalize. unfold eval_struct_field.
+simpl in H4.
+rewrite denote_tc_assert_andp in H4.
+destruct H4; auto.
+normalize. 
+unfold eval_field.
+rewrite H6; normalize.
 
 intros ek vl rho; unfold local, lift1, normal_ret_assert, lift2; simpl.
 normalize.
 apply sepcon_derives; auto.
 unfold mapsto, field_mapsto.
-simpl. unfold lift1. rewrite TE1. simpl.
+rewrite TE1.
 case_eq (access_mode t2); intros; normalize.
+unfold eval_field.
 rewrite field_offset_unroll.
 unfold eval_struct_field.
 case_eq (field_offset fld fields); intros; normalize.
@@ -270,21 +292,18 @@ match goal with |- ?P |-- _ =>
  let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
 end.
 apply later_derives.
-normalize. go_lower. 
+normalize. go_lower.
+repeat rewrite denote_tc_assert_andp.
 rewrite field_mapsto_nonnull.
-unfold tc_expr, tc_lvalue.
-simpl typecheck_lvalue.
-simpl denote_tc_assert.
-rewrite H0. rewrite H.
-simpl.
-normalize.
+rewrite H0. rewrite H. simpl. normalize.
+rewrite H7. apply andp_right; [ | normalize].
 destruct (eval_expr e1 rho); inv H7; normalize.
+apply prop_right; simpl. auto.
 
+intros ek vl rho; normalize.
+intros x ?; apply exp_right with x.
 normalize.
-intro x; apply exp_right with x.
-intro rho; normalize.
 Qed.
-
 
 Lemma semax_store_field':
 forall (Delta: tycontext) sh t1 fld P Q R e1 e2 v0 t2 sid fields
@@ -309,18 +328,20 @@ instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
 apply andp_left2. apply later_derives.
 intro rho; normalize. 
 subst t1.
-unfold tc_lvalue.
+unfold tc_lvalue. simpl typecheck_lvalue.
+repeat rewrite denote_tc_assert_andp.
+rewrite H0. simpl is_pointer_type. simpl tc_bool.
 rewrite field_mapsto_nonnull.
+repeat apply andp_right.
 normalize.
 unfold Cop.bool_val in H.
+simpl in H.
 revert H; case_eq (eval_expr e1 rho); intros; try discriminate; normalize.
-repeat apply andp_right; normalize.
-simpl.
-unfold lift1, denote_tc_isptr.
-unfold lift2.
-rewrite H.
+apply prop_right; hnf. rewrite H; auto.
+apply prop_right; auto.
+apply prop_right; auto.
+apply prop_right; auto.
 normalize.
-rewrite H0; simpl; normalize.
 
 intros ek vl rho; unfold normal_ret_assert, local, lift1, lift2; simpl.
 normalize.
@@ -727,22 +748,16 @@ subst.
 autorewrite with normalize.
 apply andp_right.
 apply prop_right. hnf.
-split; [ | apply I].
-simpl typecheck_lvalue.
+simpl.
 unfold get_var_type. rewrite GLBL. rewrite H.
 simpl.
 rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
-simpl. split; hnf; auto.
+simpl. apply I.
 auto.
 simpl.
 intro rho.
-rewrite sepcon_comm.
-rewrite sepcon_assoc.
-autorewrite with normalize.
-apply sepcon_derives; auto.
-rewrite sepcon_comm.
-apply sepcon_derives; auto.
+cancel.
 Qed.
 
 
@@ -781,11 +796,10 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
                  (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | ]) ||
+       | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | unfold x,F in *; clear x F ]) ||
             (eapply semax_post; [ | unfold F in *; apply SCI ])) ]];
   clear SCI VT GT; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
-
 
 Ltac semax_call_id_tac :=
 match goal with 
@@ -861,7 +875,7 @@ Ltac forward :=
   | |- semax _ _ (Sreturn _) _ => eapply semax_pre; [ go_lower1 | apply semax_return ]
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
             (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
-                                          semax_call_id_tac_aux Delta P Q R id f bl
+                 semax_call_id_tac_aux Delta P Q R id f bl
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                               (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
                                          semax_call_id_tac_aux Delta P Q R id f bl
