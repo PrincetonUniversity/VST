@@ -208,7 +208,6 @@ Proof.
   unfold ptr_eq. simpl. normalize.
 Qed.
 
-
 Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
 Proof.
 start_function.
@@ -221,13 +220,11 @@ destruct u.
 eval_cast_simpl.
 eapply derives_trans; [apply setup_globals; auto | ].
 cancel.
-apply extract_exists_pre; normalize.
 forward.
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
 eval_cast_simpl.
 cancel.
-apply extract_exists_pre; normalize.
 forward.
 go_lower.
 normalize.
@@ -243,4 +240,5 @@ apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].
 apply semax_func_nil.
 Qed.
+
 

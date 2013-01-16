@@ -113,6 +113,17 @@ rewrite H1; auto.
 Qed.
 Hint Resolve closed_wrt_eval_id : closed.
 
+Lemma closed_wrt_get_result1 :
+  forall (S: ident -> Prop) i , ~ S i -> closed_wrt_vars S (get_result1 i).
+Proof.
+intros. unfold get_result1. simpl.
+ hnf; intros.
+ simpl. f_equal.
+apply (closed_wrt_eval_id _ _ H); auto.
+Qed.
+Hint Resolve closed_wrt_get_result1 : closed.
+
+
 Lemma closed_wrt_andp: forall S (P Q: assert),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P && Q).
@@ -127,6 +138,16 @@ Lemma closed_wrt_emp {A} {ND: NatDed A} {SL: SepLog A}:
   forall S, closed_wrt_vars S emp.
 Proof. repeat intro. reflexivity. Qed.
 Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) : closed.
+
+
+Lemma closed_wrt_main_pre:
+  forall prog u S, closed_wrt_vars S (main_pre prog u).
+Admitted.
+Lemma closed_wrt_globvars:
+  forall S v, closed_wrt_vars S (globvars2pred v).
+Admitted.
+Hint Resolve closed_wrt_main_pre closed_wrt_globvars: closed.
+
 
 Fixpoint temp_free_in (id: ident) (e: expr) := 
  match e with

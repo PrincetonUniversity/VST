@@ -714,6 +714,59 @@ apply sepcon_derives; auto.
 Qed.
 
 
+Lemma semax_call_id1':
+ forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+   match fsig with
+   | (_, Tvoid) => False
+   | _ => True
+   end ->
+   argtys = type_of_params (fst fsig) ->
+   retty = snd fsig ->
+  forall 
+   (CLOSQ: Forall (closed_wrt_vars (eq ret)) Q)
+   (CLOSR: Forall (closed_wrt_vars (eq ret)) R),
+  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
+    (Scall (Some ret)
+             (Evar id (Tfunction argtys retty))
+             bl)
+    (normal_ret_assert 
+       (PROPx P (LOCALx Q   (SEPx (lift1 (Post x) (get_result1 ret) ::  R))))).
+Proof.
+intros.
+eapply semax_post;
+  [ | apply (semax_call_id1 Delta P Q R ret id argtys retty bl fsig A x Pre Post 
+     GLBL H H0 H1 H2)].
+intros ek vl.
+apply andp_left2.
+unfold normal_ret_assert.
+apply andp_derives; auto.
+apply andp_derives; auto.
+apply exp_left; intro v.
+apply andp_derives; auto.
+apply andp_derives.
+unfold local, lift1 ;intro rho.
+clear - CLOSQ.
+apply prop_left. intro.
+apply prop_right.
+induction Q; simpl; auto.
+inv CLOSQ.
+destruct H.
+split.
+rewrite closed_wrt_subst in H; auto.
+auto.
+clear - CLOSR.
+unfold SEPx. intro rho.
+simpl.
+apply sepcon_derives; auto.
+induction R; simpl; auto.
+inv CLOSR.
+apply sepcon_derives.
+rewrite closed_wrt_subst; auto.
+apply IHR; auto.
+Qed.
+
 Lemma semax_call_id1_Eaddrof:
  forall Delta P Q R ret id argtys retty bl fsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
@@ -774,8 +827,17 @@ Proof. intros. eapply derives_trans; try apply H.
  apply prop_right; split; auto.
 Qed.
 
+
+Ltac intro_old_name id := 
+   apply extract_exists_pre;
+   match goal with 
+           | Name: name id |- _ => 
+                let x:= fresh Name in intro x; autorewrite with subst; try clear x
+           | |- _ => let x:= fresh in intro x; autorewrite with subst; try clear x
+           end.
+
 Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
-   let VT := fresh "VT" in let GT := fresh "GT" in 
+   (let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
       assert (VT: (var_types Delta) ! f = None) by reflexivity;
@@ -784,8 +846,8 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
  let SCI := fresh "SCI" in
     let H := fresh in let x := fresh "x" in let F := fresh "F" in
       evar (x:A); evar (F: list assert); 
-  assert (SCI := semax_call_id1 Delta P Q F id f 
-    (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
+      assert (SCI := semax_call_id1 Delta P Q F id f 
+                (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
                       (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
@@ -799,7 +861,8 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
        | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | unfold x,F in *; clear x F ]) ||
             (eapply semax_post; [ | unfold F in *; apply SCI ])) ]];
   clear SCI VT GT; try clear H;
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post);
+  [ | intro_old_name id].
 
 Ltac semax_call_id_tac :=
 match goal with 
