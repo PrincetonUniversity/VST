@@ -9,6 +9,12 @@ Require Import progs.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma prop_derives {A}{ND: NatDed A}: 
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros; apply prop_left; intro; apply prop_right; auto.
+Qed.
+
 Lemma forward_setx_closed_now':
   forall Delta (Q: list (environ -> Prop)) (R: list assert) id e,
   Forall (closed_wrt_vars (eq id)) Q ->
@@ -25,12 +31,12 @@ eapply derives_trans; [ | apply now_later].
 apply andp_left2.
 apply andp_right; auto.
 apply andp_right; auto.
-autorewrite with normalize.
+autorewrite with subst.
 apply andp_derives; auto.
 apply andp_derives; auto.
-normalize.
-apply andp_right; auto.
-intro rho; normalize.
+intro rho; unfold local,lift1; simpl.
+apply prop_derives; simpl; intro; split; auto.
+hnf; auto.
 Qed.
 
 Lemma forward_setx_closed_now:
@@ -90,7 +96,7 @@ forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
          EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
                   (subst id (lift0 old) 
                     (lift2 (field_mapsto sh t1 fld) (eval_lvalue e1) v2 * P)))).
-Proof with normalize.
+Proof.
 Transparent field_mapsto.
 pose proof I.
 pose proof I.
@@ -116,56 +122,58 @@ apply (semax_pre_post
 intro rho.
 unfold tc_temp_id_load, local, lift1, lift0.
 simpl.
-normalize.
+apply derives_extract_prop; intro.
 apply later_derives.
+apply derives_extract_prop; intro.
+unfold field_mapsto, lift2. 
+case_eq (eval_lvalue e1 rho); intros; 
+ try (rewrite FF_sepcon; apply FF_left).
+rewrite H1.
+rewrite field_offset_unroll. rewrite <- TC2.
+case_eq (field_offset fld fields); intros; 
+ try (rewrite FF_sepcon; apply FF_left).
+case_eq (access_mode t2); intros; 
+ try (rewrite FF_sepcon; apply FF_left).
 normalize.
-apply derives_trans with ((!!(eqb_type t2 t2 = true) && !!tc_lvalue Delta (Efield e1 fld t2) rho &&
-    (!!(typecheck_val (v2 rho) t2 = true) && !!(type_is_volatile t2 = false) && 
-     (lift2 (mapsto sh t2) (eval_lvalue (Efield e1 fld t2)) v2 rho))) * P rho).
-apply sepcon_derives; auto.
-unfold lift2.
-rewrite eqb_type_refl. normalize.
-unfold mapsto.
-unfold tc_lvalue; simpl. unfold lift2.
-unfold tc_lvalue in H3. rewrite H1.
-unfold field_mapsto.
-case_eq (eval_lvalue e1 rho); intros; normalize.
-rewrite <- TC2.
-rewrite field_offset_unroll.
-case_eq (field_offset fld fields); intros; normalize.
-case_eq (access_mode t2); intros; normalize.
-rewrite H8.
-normalize.
-simpl eval_field. rewrite H5. rewrite H4.
-simpl eval_struct_field.
-forget (Int.add i (Int.repr z)) as N.
- simpl. auto.
-normalize.
-apply andp_right.
-apply andp_right; apply prop_right; auto.
+repeat apply andp_right; try apply prop_right.
+unfold tc_lvalue. 
+unfold typecheck_lvalue; fold typecheck_lvalue. rewrite H1.
+rewrite H8; simpl tc_bool.
+rewrite H5. repeat rewrite tc_andp_TT2.
+apply H3.
 exists t2; exists i2; split; auto.
-admit.  (* consult with Joey *)
+admit. (* typechecking proof; check with Joey *)
+apply H7.
+unfold mapsto.
+rewrite H6.
+unfold eval_field. rewrite H5. unfold eval_struct_field. rewrite H4.
+ rewrite H8.
+unfold tc_val; rewrite H7.
 normalize.
 
 (* POSTCONDITION *)
-intros ek vl. normalize.
-intros old rho. normalize.
-apply exp_right with old; normalize.
-unfold subst. normalize. apply sepcon_derives; auto.
+intros ek vl.
+apply andp_left2.
+intro rho. apply normal_ret_assert_derives.
+simpl.
+apply exp_derives. intro old.
+apply andp_derives; auto.
+unfold subst.
+unfold lift2.
 unfold mapsto, field_mapsto.
-simpl typeof.
-case_eq (access_mode t2); intros; normalize.
-simpl eval_lvalue.
-rewrite H1. unfold eval_field.
+case_eq (access_mode t2); intros; 
+ try (rewrite FF_sepcon; apply FF_left).
+unfold lift1.
+rewrite H1.
+simpl eval_field.
 rewrite field_offset_unroll.
-destruct (field_offset fld fields); normalize.
+destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
 unfold eval_struct_field.
-destruct (eval_lvalue e1 (env_set rho id old)); normalize.
-rewrite <- TC2.
-rewrite H6.  rewrite H5.
-change ((Int.unsigned i + z mod Int.modulus) mod Int.modulus)
-    with (Int.unsigned (Int.add i (Int.repr z))). normalize.
-Opaque field_mapsto.
+unfold lift0.
+destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
+rewrite <- TC2; rewrite H2.
+unfold local, lift1.
+normalize.
 Qed.
 
 Lemma writable_share_top: writable_share Share.top.
@@ -832,8 +840,8 @@ Ltac intro_old_name id :=
    apply extract_exists_pre;
    match goal with 
            | Name: name id |- _ => 
-                let x:= fresh Name in intro x; autorewrite with subst; try clear x
-           | |- _ => let x:= fresh in intro x; autorewrite with subst; try clear x
+                let x:= fresh Name in intro x
+           | |- _ => let x:= fresh in intro x
            end.
 
 Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
@@ -858,11 +866,11 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
                  (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI | unfold x,F in *; clear x F ]) ||
+       | ((eapply semax_seq; [apply sequential'; unfold F in *; apply SCI 
+                                          | unfold x,F in *; clear x F; intro_old_name id ]) ||
             (eapply semax_post; [ | unfold F in *; apply SCI ])) ]];
   clear SCI VT GT; try clear H;
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post);
-  [ | intro_old_name id].
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post).
 
 Ltac semax_call_id_tac :=
 match goal with 

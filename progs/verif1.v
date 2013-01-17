@@ -13,7 +13,6 @@ Require Import Clightdefs.
 Require Import progs.ilseg.
 Require progs.test1.  Module P := progs.test1.
 
-
 Local Open Scope logic.
 
 Definition sumlist_spec :=
@@ -52,6 +51,10 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
 
+Ltac go_lower := client_lemmas.go_lower; 
+      match goal with |- TT |-- prop _ => apply prop_right; auto | _ => idtac end.
+     
+
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -67,36 +70,27 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv, partial_sum.
 apply exp_right with contents.
-(* entailment_tests  et_1 *)           
-go_lower. subst; normalize. cancel.
+(* et_1 *)  go_lower. subst; normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
-(* entailment_tests  et_2 *) 
- go_lower; cancel.
+(* et_2 *)  go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 unfold partial_sum.
-(* entailment_tests  et_3 *) 
-go_lower. subst; rewrite H1; normalize.
+(* et_3 *) go_lower. subst; rewrite H1; normalize.
 (* Prove that loop body preserves invariant *)
-focus_SEP 1.
-apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
-(* entailment_tests  et_4 *) 
-go_lower. 
+focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
+(* et_4 *) go_lower. 
 forward.
 forward.
 forward.
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv, partial_sum.
 apply exp_right with r.
-(* entailment_tests  et_5 *) 
-go_lower.
-subst. rewrite H4; clear H4 contents.
-destruct _s0; inv H0.
-normalize.
-rewrite (Int.add_assoc i h). normalize. cancel.
+(* et_5 *) go_lower. subst. rewrite H4; clear H4 contents.
+               destruct _s0; inv H0. normalize.
+               rewrite (Int.add_assoc i h). normalize. cancel.
 (* After the loop *)
 forward.
-(* entailment_tests et_6 *)
-go_lower. apply prop_right; rewrite H0; reflexivity.
+(* et_6 *) go_lower. rewrite H0; reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=
@@ -123,20 +117,15 @@ forward_while (reverse_Inv sh contents)
 unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
-(* entailment_tests et_7 *)
-go_lower. subst. simpl; normalize.
+(* et_7 *) go_lower. subst. simpl; normalize.
 (* loop invariant implies typechecking of loop condition *)
-(* entailment_tests et_8 *)
-intro; apply prop_right; repeat split.
+(* et_8 *) intro; apply prop_right; repeat split.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-(* entailment_tests et_9 *)
-go_lower.
-subst _v. normalize. subst. rewrite <- app_nil_end, rev_involutive. auto.
+(*  et_9 *) go_lower. subst _v. normalize. subst. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
-focus_SEP 1.
-apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
+focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
 go_lower.
 forward.
 forward.
@@ -145,36 +134,33 @@ forward.
 unfold reverse_Inv.
 apply exp_right with (h::cts1).
 apply exp_right with r.
-(* entailment_tests et_10 *)
-go_lower.
-subst _v0 y _t. rewrite app_ass. normalize.
-rewrite (ilseg_unroll sh (h::cts1)).
-cancel.
-apply orp_right2.
-unfold ilseg_cons, lseg_cons.
-apply andp_right.
-apply prop_right.
-destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
-apply exp_right with (Vint h).
-apply exp_right with (map Vint cts1).
-apply exp_right with _w0.
-normalize. 
-simpl list_data; simpl list_link.
-erewrite (field_mapsto_typecheck_val _ _ _ _ _ P._struct_list _  noattr); [ | reflexivity].
-type_of_field_tac.
-normalize.
-assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
-  by (destruct _w0 ; inv H0; simpl; auto).
-rewrite H1 in *.
-apply andp_right.
-apply prop_right; auto.
-cancel.
+(* et_10 *)
+  go_lower.
+  subst _v0 y _t. rewrite app_ass. normalize.
+  rewrite (ilseg_unroll sh (h::cts1)).
+  cancel.
+  apply orp_right2.
+  unfold ilseg_cons, lseg_cons.
+  apply andp_right.
+  apply prop_right.
+  destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
+  apply exp_right with (Vint h).
+  apply exp_right with (map Vint cts1).
+  apply exp_right with _w0.
+  normalize. 
+  simpl list_data; simpl list_link.
+  erewrite (field_mapsto_typecheck_val _ _ _ _ _ P._struct_list _  noattr); [ | reflexivity].
+  type_of_field_tac.
+  normalize.
+  assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
+     by (destruct _w0 ; inv H0; simpl; auto).
+  rewrite H1 in *.
+  apply andp_right.
+  apply prop_right; auto.
+  cancel. (* end et_10 *)
 (* after the loop *)
 forward.
-(* entailment_tests et_11 *)
-go_lower.
-eval_cast_simpl.
-normalize.
+(* et_11 *) go_lower. eval_cast_simpl. normalize.
 Qed.
 
 Lemma setup_globals:
@@ -192,20 +178,15 @@ Proof.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  clear.
- unfold ilseg;  normalize. simpl.
- apply  lseg_unroll_nonempty1 with (Vptr b (Int.add z (Int.repr 8))); simpl; auto.
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
- apply  lseg_unroll_nonempty1 with (Vptr b (Int.add z (Int.repr 16))); simpl; auto.
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
- apply  lseg_unroll_nonempty1 with nullval; simpl; auto.
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
- match goal with |- ?A |-- _ => rewrite <- (sepcon_emp A) end.
- apply sepcon_derives; [mapsto_field_mapsto_tac | ].
-  rewrite lseg_unroll. apply orp_right1.
-  rewrite prop_true_andp. normalize.
-  unfold ptr_eq. simpl. normalize.
+ unfold ilseg; simpl.
+ rewrite sepcon_emp.
+ repeat  match goal with |- _ * (mapsto _ _ _ ?v * _) |-- _ =>
+                apply lseg_unroll_nonempty1 with v; simpl; auto; 
+                apply sepcon_derives; [mapsto_field_mapsto_tac | ];
+                apply sepcon_derives; [mapsto_field_mapsto_tac | ] 
+           end.
+ rewrite lseg_unroll. apply orp_right1.
+ unfold ptr_eq;simpl; normalize.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
@@ -213,6 +194,7 @@ Proof.
 start_function.
 name _r P._r.
 name _s P._s.
+(* first function call: r = reverse(three); *)
 forward.
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of x).
 go_lower.
@@ -220,11 +202,15 @@ destruct u.
 eval_cast_simpl.
 eapply derives_trans; [apply setup_globals; auto | ].
 cancel.
+autorewrite with subst; clear _r0.
+(* second function call: s = sumlist(r); *)
 forward.
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
 eval_cast_simpl.
 cancel.
+autorewrite with subst; clear _s0.
+(* return s; *)
 forward.
 go_lower.
 normalize.
