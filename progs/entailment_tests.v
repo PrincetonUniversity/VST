@@ -180,7 +180,7 @@ lift1 (fun v : val => fold_right Int.add Int.zero contents = force_int v)
       (cast_expropt (Some (Etempvar P._s tint))
          (ret_type (initialized P._t (initialized P._s Delta)))) id.
 Proof. intros.
-go_lower. apply prop_right; rewrite H0; reflexivity.
+go_lower. rewrite H0; reflexivity.
 Qed.
 
 Lemma et_7: forall (sh: share) (contents: list int),

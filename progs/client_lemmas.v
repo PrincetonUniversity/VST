@@ -443,7 +443,9 @@ Ltac go_lower3 :=
                            repeat match goal with H: Vint _ = Vint _ |- _ =>
                                                   apply Vint_inj in H
                                       end;
-                           autorewrite with normalize.
+                           autorewrite with normalize;
+                            match goal with |- TT |-- prop _ => apply prop_right; auto | _ => idtac 
+                            end.
 
 
 Ltac go_lower := go_lower2; go_lower3.
@@ -1388,4 +1390,27 @@ Fixpoint do_builtins (defs : list (ident * globdef fundef type)) : funspecs :=
       :: do_builtins defs'
   | _ => nil
  end.
+
+Lemma semax_seq': 
+ forall Delta P c1 P' c2 Q, 
+         semax Delta P c1 (normal_ret_assert P') ->
+         semax (update_tycon Delta c1) P' c2 Q ->
+         semax Delta P (Ssequence c1 c2) Q.
+Proof.
+ intros. apply semax_seq with P'; auto.
+ apply sequential'. auto. 
+Qed.
+
+Lemma semax_post_flipped' : 
+   forall (R': assert) (Delta: tycontext) (R P: assert) c,
+       semax Delta P c (normal_ret_assert R') ->
+       R' |-- R ->
+       semax Delta P c (normal_ret_assert R).
+ Proof. intros; eapply semax_post'; eauto. Qed.
+
+Ltac make_sequential :=
+  match goal with
+  | |- semax _ _ _ (normal_ret_assert _) => idtac
+  | |- _ => apply sequential
+  end.
 

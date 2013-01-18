@@ -51,9 +51,6 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
 
-Ltac go_lower := client_lemmas.go_lower; 
-      match goal with |- TT |-- prop _ => apply prop_right; auto | _ => idtac end.
-     
 
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
@@ -63,8 +60,8 @@ name _p P._p.
 name _s P._s.
 name _h P._h.
 destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
-forward.
-forward.
+forward.  (* s = 0; *)
+forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P._s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
@@ -79,9 +76,9 @@ unfold partial_sum.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
 (* et_4 *) go_lower. 
-forward.
-forward.
-forward.
+forward.  (* h = t->h; *)
+forward.  (*  t = t->t; *)
+forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv, partial_sum.
 apply exp_right with r.
@@ -89,7 +86,7 @@ apply exp_right with r.
                destruct _s0; inv H0. normalize.
                rewrite (Int.add_assoc i h). normalize. cancel.
 (* After the loop *)
-forward.
+forward.  (* return s; *)
 (* et_6 *) go_lower. rewrite H0; reflexivity.
 Qed.
 
@@ -109,8 +106,8 @@ name _w P._w.
 name _t P._t.
 destruct sh_contents as [sh contents].
 normalizex. rename H into WS.
-forward.
-forward.
+forward.  (* w = NULL; *)
+forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
          (PROP() LOCAL () SEP( lift2 (ilseg sh (rev contents)) (eval_id P._w) (lift0 nullval))).
 (* precondition implies loop invariant *)
@@ -127,10 +124,10 @@ unfold reverse_Inv.
 normalizex. subst contents.
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
 go_lower.
-forward.
-forward.
-forward.
-forward.
+forward.  (* t = v->t; *)
+forward.  (*  v->t = w; *)
+forward.  (*  w = v; *)
+forward.  (* v = t; *)
 unfold reverse_Inv.
 apply exp_right with (h::cts1).
 apply exp_right with r.
@@ -159,7 +156,7 @@ apply exp_right with r.
   apply prop_right; auto.
   cancel. (* end et_10 *)
 (* after the loop *)
-forward.
+forward.  (* return w; *)
 (* et_11 *) go_lower. eval_cast_simpl. normalize.
 Qed.
 
@@ -194,24 +191,19 @@ Proof.
 start_function.
 name _r P._r.
 name _s P._s.
-(* first function call: r = reverse(three); *)
-forward.
+forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of x).
 go_lower.
 destruct u.
 eval_cast_simpl.
 eapply derives_trans; [apply setup_globals; auto | ].
 cancel.
-autorewrite with subst; clear _r0.
-(* second function call: s = sumlist(r); *)
-forward.
+forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
 eval_cast_simpl.
 cancel.
-autorewrite with subst; clear _s0.
-(* return s; *)
-forward.
+forward.  (* return s; *)
 go_lower.
 normalize.
 Qed.

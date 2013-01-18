@@ -466,7 +466,11 @@ Lemma bind_ret1_unfold:
 Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : normalize.
 
-
+Lemma normal_ret_assert_derives': 
+  forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.
+Proof. 
+  intros. intros ek vl rho. apply normal_ret_assert_derives. apply H.
+Qed.
 
 Lemma normal_ret_assert_eq:
   forall P ek vl, normal_ret_assert P ek vl =
