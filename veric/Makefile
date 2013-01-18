@@ -16,7 +16,7 @@ FILES= \
   initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v \
   NullExtension.v SequentialClight.v \
   sim.v Sim_starplus.v \
-  MemEvolve.v linking_extension.v \
+  MemEvolve.v linking_extension.v trace_extension.v \
   rg_sim.v extension_sim.v
 
 target: proof
