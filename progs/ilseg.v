@@ -147,18 +147,18 @@ apply andp_right; auto.
 apply andp_left1; auto.
 apply andp_left2; auto.
 clear H.
-go_lower1; go_lower.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
 normalize.
 rewrite ilseg_nonnull by auto.
 auto.
 rewrite lift2_ilseg_cons.
 clear.
-go_lower1; go_lower.
-apply exp_derives.
-intros [[h r] y].
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
 normalize.
-repeat rewrite sepcon_assoc.
-apply sepcon_derives; auto.
+apply exp_right with x;
+destruct x as [[h r] y].
+normalize.
+cancel.
 Qed.
 
 Lemma semax_ilseg_nonnull:

@@ -300,13 +300,15 @@ match goal with |- ?P |-- _ =>
  let P' := strip1_later P in apply derives_trans with (|>P' ); [auto 50 with derives | ]
 end.
 apply later_derives.
-normalize. go_lower.
+normalize.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+ rewrite field_mapsto_nonnull.
 repeat rewrite denote_tc_assert_andp.
-rewrite field_mapsto_nonnull.
+ normalize.
 rewrite H0. rewrite H. simpl. normalize.
-rewrite H7. apply andp_right; [ | normalize].
+apply andp_right; [ | cancel].
 destruct (eval_expr e1 rho); inv H7; normalize.
-apply prop_right; simpl. auto.
+apply prop_right; apply I.
 
 intros ek vl rho; normalize.
 intros x ?; apply exp_right with x.

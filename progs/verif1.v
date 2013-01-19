@@ -51,7 +51,6 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
 
-
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -87,7 +86,7 @@ apply exp_right with r.
                rewrite (Int.add_assoc i h). normalize. cancel.
 (* After the loop *)
 forward.  (* return s; *)
-(* et_6 *) go_lower. rewrite H0; reflexivity.
+(* et_6 *) go_lower. reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=
@@ -140,7 +139,7 @@ apply exp_right with r.
   unfold ilseg_cons, lseg_cons.
   apply andp_right.
   apply prop_right.
-  destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
+  destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
   apply exp_right with (Vint h).
   apply exp_right with (map Vint cts1).
   apply exp_right with _w0.
@@ -150,25 +149,25 @@ apply exp_right with r.
   type_of_field_tac.
   normalize.
   assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
-     by (destruct _w0 ; inv H0; simpl; auto).
-  rewrite H1 in *.
+     by (destruct _w0 ; inv H; simpl; auto).
+  rewrite H0 in *.
   apply andp_right.
   apply prop_right; auto.
   cancel. (* end et_10 *)
 (* after the loop *)
 forward.  (* return w; *)
-(* et_11 *) go_lower. eval_cast_simpl. normalize.
+(* et_11 *) go_lower.
 Qed.
 
 Lemma setup_globals:
-  forall rho,  tc_environ (func_tycontext P.f_main Vprog Gtot) rho ->
-   main_pre P.prog tt rho
+  forall u rho,  tc_environ (func_tycontext P.f_main Vprog Gtot) rho ->
+   main_pre P.prog u rho
    |-- ilseg Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
              (eval_var P._three (Tarray P.t_struct_list 3 noattr) rho)
       nullval.
 Proof.
  unfold main_pre.
- intro rho; normalize.
+ intros _ rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ P._three _ H (eq_refl _) (eq_refl _))
   as [b [z [H97 H99]]]. simpl in *.
@@ -186,6 +185,7 @@ Proof.
  unfold ptr_eq;simpl; normalize.
 Qed.
 
+
 Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
 Proof.
 start_function.
@@ -194,18 +194,16 @@ name _s P._s.
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of x).
 go_lower.
-destruct u.
-eval_cast_simpl.
 eapply derives_trans; [apply setup_globals; auto | ].
 cancel.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
-eval_cast_simpl.
 cancel.
 forward.  (* return s; *)
 go_lower.
 normalize.
+reflexivity.
 Qed.
 
 Lemma all_funcs_correct:

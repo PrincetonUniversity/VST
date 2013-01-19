@@ -478,10 +478,10 @@ Lemma normal_ret_assert_eq:
 Proof. reflexivity. Qed.
 Hint Rewrite normal_ret_assert_eq: normalize. 
 
-Lemma for1_ret_assert_normal:
-  forall P Q, for1_ret_assert P Q EK_normal None = P.
+Lemma loop1_ret_assert_normal:
+  forall P Q, loop1_ret_assert P Q EK_normal None = P.
 Proof. reflexivity. Qed.
-Hint Rewrite for1_ret_assert_normal: normalize.
+Hint Rewrite loop1_ret_assert_normal: normalize.
 
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
@@ -672,7 +672,7 @@ Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
 Ltac cancel_frame := 
-match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
+match goal with |- ?P |-- fold_right sepcon emp ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
     repeat rewrite sepcon_assoc;

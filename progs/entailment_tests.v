@@ -79,7 +79,7 @@ SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))
       (tc_expr (initialized P._t (initialized P._s Delta))
          (Etempvar P._t (tptr P.t_struct_list))).
 Proof. intros.
- go_lower; cancel.
+ go_lower.
 Qed.
 
 Lemma et_3: forall (sh: share) (contents: list int),
@@ -106,7 +106,7 @@ SEP  (TT; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))
             (lift1 (eq (Vint (fold_right Int.add Int.zero contents))) retval)))
       EK_normal None.
 Proof. intros.
- go_lower. subst; rewrite H1. normalize.
+ go_lower. subst. rewrite H1. normalize.
 Qed.
 
 Lemma et_4: forall (sh: share) (contents: list int),
@@ -161,6 +161,19 @@ rewrite (Int.add_assoc i h). normalize.
 cancel.
 Qed.
 
+(*
+real    2m18.884s
+user    0m0.031s
+sys     0m0.107s
+
+improved to
+
+real    1m52.441s
+user    0m0.015s
+sys     0m0.123s
+
+*)
+
 Lemma et_6: forall (sh: share) (contents: list int),
     let Delta := func_tycontext P.f_sumlist Vprog Gtot  in
   forall (_t : name P._t) (_p : name P._p) (_s : name P._s) (_h : name P._h),
@@ -180,7 +193,8 @@ lift1 (fun v : val => fold_right Int.add Int.zero contents = force_int v)
       (cast_expropt (Some (Etempvar P._s tint))
          (ret_type (initialized P._t (initialized P._s Delta)))) id.
 Proof. intros.
-go_lower. rewrite H0; reflexivity.
+go_lower.
+reflexivity.
 Qed.
 
 Lemma et_7: forall (sh: share) (contents: list int),
@@ -285,8 +299,8 @@ erewrite (field_mapsto_typecheck_val _ _ _ _ _ P._struct_list _  noattr); [ | re
 type_of_field_tac.
 normalize.
 assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
-  by (destruct _w0 ; inv H0; simpl; auto).
-rewrite H1 in *.
+  by (destruct _w0 ; inv H; simpl; auto).
+rewrite H0 in *.
 apply andp_right.
 apply prop_right; auto.
 cancel.
@@ -310,8 +324,4 @@ SEP  (lift2 (ilseg sh (rev contents)) (eval_id P._w) (lift0 nullval))
          (ret_type (initialized P._v (initialized P._w Delta)))) id.
 Proof. intros.
 go_lower.
-apply andp_right.
-apply prop_right; repeat split.
-eval_cast_simpl; auto.
-eval_cast_simpl; auto.
 Qed.
