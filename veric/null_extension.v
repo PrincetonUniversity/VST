@@ -47,24 +47,23 @@ Section NullExtension.
  Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
  Obligation Tactic := autounfold with null_unfold; 
   intros; try solve [eexists; eauto|congruence].
- 
- Program Definition null_extension := Extension.Make 
-  (fun i:nat => Genv.t (const fT i) (const vT i)) (fun _ => dT)
-  csemT cores csig csig handled (const 1) proj_core _ active _ proj_zint proj_zext zmult 
-  _ _ _ _ _.
+
+ Program Definition null_extension := @Extension.Make 
+  _ _ _ _ _ _ _ 
+  csemT csig (fun _ => Genv.t fT vT) (fun _ => dT) _ (fun _ => csemT) 
+  csig (const 1) proj_core _ active _ proj_zint proj_zext zmult _ _ _ _.
  Next Obligation. if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. Qed.
  Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
-(* Next Obligation. inversion H; subst; eapply at_external_handled; eauto. Qed.*)
  Next Obligation. 
-  inversion H; subst; if_tac in H; try congruence. 
-  unfold const in *.
-  solve[rewrite H0 in H1; congruence].
+  if_tac. 
+  2: solve[elimtype False; apply H; omega].
+  unfold linkable.
+  intros.
+  unfold proj_zext.
+  rewrite H1 in H2; inv H2.
+  solve[exists x'; split; auto].
  Qed.
- Next Obligation. 
-  unfold linkable; intros; inv H0. 
-  unfold spec_of in H; inv H.
-  solve[exists x'; split; auto]. 
- Qed.
+ Next Obligation. if_tac in H; try solve[congruence]. Qed.
 
 End NullExtension.
 
@@ -86,8 +85,7 @@ Section NullExtensionSafe.
  Lemma null_extension_safe (csem_fun: corestep_fun csemT): 
   safe_extension ge (fun _:nat => ge) (null_extension csemT csig).
  Proof.
- destruct (ExtensionSafety (null_extension csemT csig)
-  ge (fun _:nat => ge)) as [PF].
+ destruct (ExtensionSafety ge (fun _:nat => ge) (null_extension csemT csig)) as [PF].
  apply PF.
  constructor; autounfold with null_unfold in *.
 
@@ -133,9 +131,11 @@ Section NullExtensionSafe.
 
  (*3*) intros until x; intros H2 H3 H4 H5 H6 H7 H8.
  assert (H1:True) by auto.
- apply ListSet.set_mem_correct1 in H4.
- unfold handled, ListSet.set_In in H4.
- solve[inversion H4].
+ unfold Extension.handled in H4.
+ specialize (H4 s c sig args).
+ spec H4; auto.
+ spec H4; auto.
+ solve[simpl in H2; inv H2; rewrite H3 in H4; congruence].
 
  (*4*) intros until c; intros H1 H2 H3.
  simpl in H3; unfold rg_sim.runnable, runnable in H3.
@@ -276,13 +276,11 @@ Section NullExtensionCompilable.
 
  Variables (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
- Definition E_S: 
-  Extension.Sig (fun i : nat => Genv.t ((fun _ => fS) i) ((fun _ => vS) i))
-   (fun _ => cS) (fun _ => dS) unit csemS (fun _:nat => csemS) csig csig handled := 
+ Definition E_S: @Extension.Sig mem Z unit Z (Genv.t fS vS) dS cS csemS csig 
+   _ _ (const cS) (const csemS) csig :=
   null_extension csemS csig.
- Definition E_T: 
-  Extension.Sig (fun i : nat => Genv.t ((fun _ => fT) i) ((fun _ => vT) i))
-   (fun _ => cT) (fun _ => dT) unit csemT (fun _:nat => csemT) csig csig handled := 
+ Definition E_T: @Extension.Sig mem Z unit Z (Genv.t fT vT) dT cT csemT csig 
+   _ _ (const cT) (const csemT) csig :=
   null_extension csemT csig.
 
  Import Sim_inj_exposed.
@@ -312,7 +310,7 @@ Section NullExtensionCompilable.
  set (R := fun (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-   csemS csemT csemS csemT csig csig handled 
+   csemS csemT csemS csemT csig csig 
    geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max R)
   as [LEM].
  apply LEM; auto.

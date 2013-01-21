@@ -135,7 +135,12 @@ Section TraceExtension.
  Definition proj_zint := z_of.
  Definition proj_zext := fun z: Z => tt.
  Definition zmult := fun (z: Z) (_:unit) => z.
- Definition handled: list AST.external_function := nil.
+
+ Definition handled (ef: external_function) := 
+  forall s c sig args,
+  proj_core (active s) s = Some c -> 
+  at_external csemT c = Some (ef, sig, args) -> 
+  trace_at_external s = None.
 
  Variable empty_sig: ef_ext_spec mem unit. (*TODO*)
  Variable linkable_empty_csig: linkable proj_zext handled csig empty_sig.
@@ -146,11 +151,11 @@ Section TraceExtension.
   autounfold with null_unfold; intros; 
    try solve [eexists; eauto|congruence].
 
- Program Definition trace_extension := @Extension.Make _ _ _
-  (@const nat _ (Genv.t fT vT)) (@const nat _ cT) mem (@const nat _ dT) 
-  Z Z unit trace_core_semantics cores 
-  csig empty_sig handled (const 1) proj_core _ active _ proj_zint proj_zext zmult 
-  _ _ _ _ _.
+ Program Definition trace_extension := @Extension.Make _ _ _ _ _ _ _
+  trace_core_semantics empty_sig 
+  (@const nat _ (Genv.t fT vT)) (@const nat _ dT)  (@const nat _ cT)
+  cores csig (const 1) proj_core _ active _ proj_zint proj_zext zmult 
+  _ _ _ _.
  Next Obligation. 
   if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. 
  Qed.
@@ -159,21 +164,7 @@ Section TraceExtension.
   elimtype False; apply H; auto. 
  Qed.
  Next Obligation. destruct zext; auto. Qed.
- Next Obligation. 
-  if_tac in H; try solve[congruence].
-  inv H.
-  simpl in H1.
-  destruct s.
-  unfold trace_at_external in H1.
- Admitted. (*NOTE: need to change how "handled" list is handled: model as predicate 
-              on ef's instead of finite list.  Perhaps "handled" can be modeled
-              implicitly, as those situations in which at_external (active s) = Some 
-              by at_external s = None.*)
- Next Obligation.
-  simpl in H, H0.
-  unfold trace_at_external, trace_after_external in *|-.
-  congruence.
- Qed.
+ Next Obligation. simpl in *; unfold trace_after_external in *; congruence. Qed.
  Next Obligation.
   apply linkable_empty_csig.
  Qed.

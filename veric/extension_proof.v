@@ -22,7 +22,7 @@ Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]
 Section SafetyMonotonicity. 
  Variables 
   (G cT M D Z Zext: Type) (CS: CoreSemantics G cT M D)
-  (csig: ef_ext_spec M Z) (handled: list AST.external_function).
+  (csig: ef_ext_spec M Z) (handled: AST.external_function -> Prop).
 
 Lemma safety_monotonicity : forall ge n z c m,
   safeN CS (link_ext_spec handled csig) ge n z c m -> 
@@ -35,11 +35,13 @@ destruct p; destruct p.
 destruct (safely_halted CS c).
 auto.
 destruct H1 as [x [H1 H2]].
-if_tac in H1.
-elimtype False; apply H1.
+destruct H1 as [H1 H1'].
 exists x; split; auto.
-intros ret m' z' H3; destruct (H2 ret m' z' H3) as [c' [H4 H5]].
-exists c'; split; auto.
+intros ret m' z' H3. 
+destruct (H2 ret m' z').
+right; auto.
+destruct H as [H4 H5].
+exists x0; split; auto.
 destruct (safely_halted CS c); auto.
 destruct H1 as [c' [m' [H1 H2]]].
 exists c'; exists m'; split; auto.
@@ -62,31 +64,26 @@ intros; left; eexists; eauto.
 congruence.
 Qed.
 
-Module ExtensionSafety. Section ExtensionSafety.
- Variables
-  (G: Type) (** global environments *)
-  (D: Type) (** initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of the core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-  (handled: list AST.external_function) (** functions handled by this extension *)
-  (E: Extension.Sig gT cT dT Zint esem csem csig esig handled). 
+Module ExtensionSafety. Section ExtensionSafety. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Import SafetyInvariant.
-Import TruePropCoercion.
 
 Definition proj_zint := (proj_zint E). 
 Coercion proj_zint : xT >-> Zint.
@@ -100,9 +97,7 @@ Notation "zint \o zext" := (E.(Extension.zmult) zint zext)
   (at level 66, left associativity). 
 Notation ACTIVE := (E.(Extension.active)).
 Notation active_proj_core := E.(Extension.active_proj_core).
-Notation notat_external_handled := E.(Extension.notat_external_handled).
-Notation at_external_not_handled := E.(Extension.at_external_not_handled).
-Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
+Notation zint_invar_after_external := E.(Extension.zint_invar_after_external).
 
 Program Definition ExtensionSafety: EXTENSION_SAFETY.Sig ge genv_map E.
 Proof.
@@ -128,24 +123,43 @@ rewrite H6 in H5; congruence.
 rewrite H6 in H1; clear H6.
 destruct H1 as [x H1].
 destruct H1 as [H7 H8].
-generalize (Extension.esem_csem_linkable E); intros Hlink.
+generalize (Extension.linkable); intros Hlink.
+specialize (Hlink _ _ _ _ _ _ _ _ _ _ _ _ _ _ E). 
 specialize (Hlink ef 
   (ext_spec_pre esig ef) (ext_spec_post esig ef) 
   (ext_spec_pre csig ef) (ext_spec_post csig ef)).
 destruct Hlink with (x' := x) 
  (tys := sig_args sig) (args := args) (m := m) (z := (s \o z)) 
  as [x' [H17 H18]]; auto.
+unfold Extension.handled.
+intros CONTRA.
+specialize (CONTRA s c sig args H4 H5).
+solve[rewrite CONTRA in AT_EXT; congruence].
 exists x'.
-erewrite at_external_not_handled; eauto.
 split; auto.
 rewrite Extension.zmult_proj in H17; auto.
+split; auto.
+unfold Extension.handled.
+intros CONTRA.
+specialize (CONTRA s c sig args H4 H5).
+solve[rewrite CONTRA in AT_EXT; congruence].
 intros ret m' z' POST.
 destruct (H8 ret m' (s \o z')) as [c' [H10 H11]].
 specialize (H18 (sig_res sig) ret m' (s \o z')).
 rewrite Extension.zmult_proj in H18.
+destruct POST.
+unfold Extension.handled in H0.
+rename H0 into CONTRA.
+specialize (CONTRA s c sig args H4 H5).
+solve[rewrite CONTRA in AT_EXT; congruence].
+rename H0 into POST.
 eapply H18 in POST; eauto.
 specialize (at_extern_ret z s c m z' m' (sig_args sig) args (sig_res sig) ret c' 
  ef sig x' (ext_spec_pre esig ef) (ext_spec_post esig ef)).
+destruct POST as [H0|POST].
+rename H0 into CONTRA.
+specialize (CONTRA s c sig args H4 H5).
+solve[rewrite CONTRA in AT_EXT; congruence].
 hnf in at_extern_ret.
 spec at_extern_ret; auto.
 spec at_extern_ret; auto.
@@ -168,7 +182,7 @@ rewrite PROJJ in H14; inversion H14; rewrite H1 in *.
 unfold proj_zint in H12.
 unfold proj_zint.
 rewrite <-H12.
-eapply ext_upd_at_external in H13; eauto.
+eapply zint_invar_after_external in H13; eauto.
 rewrite <-H13; auto.
 (*i<>j*)
 intros Hneq _.
@@ -263,7 +277,8 @@ hnf in handled_pres.
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
- solve[eapply notat_external_handled in AT_EXT; eauto].
+ intros s'' c'' sig' args' H3 H4.
+solve[eapply (Extension.handled_invar E) with (s := s) (c := c); eauto].
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
@@ -320,17 +335,24 @@ Qed.
 
 End ExtensionSafety. End ExtensionSafety.
 
-Section CoreCompatibleLemmas.
-Variables 
- (G xT M D Z Zint Zext: Type) (gT: nat -> Type) (cT: nat -> Type) (dT: nat -> Type)
- (esem: CoreSemantics G xT M D) 
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i))
- (csig: ef_ext_spec M Z)
- (esig: ef_ext_spec M Zext)
- (handled: list AST.external_function)
- (E: Extension.Sig gT cT dT Zint esem csem csig esig handled).
+Section CoreCompatibleLemmas. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
-Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Variable Hcore_compatible: core_compatible ge genv_map E.
 
@@ -509,7 +531,7 @@ Qed.
 
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
-  (F_S V_S F_T V_T: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
   (D_S D_T: Type) (** source and target extension initialization data *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
@@ -524,17 +546,17 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+  (threads_max: nat).
 
  Variables 
-  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS dS Zint esemS csemS
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT dT Zint esemT csemT
-                  csig esig handled).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
+   _ _ cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
+   _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
 
@@ -543,9 +565,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Notation ACTIVE := (Extension.active).
  Notation MAX_CORES := (Extension.proj_max_cores).
  Notation active_proj_core := (Extension.active_proj_core).
- Notation notat_external_handled := (Extension.notat_external_handled).
- Notation at_external_not_handled := (Extension.at_external_not_handled).
- Notation ext_upd_at_external := (Extension.ext_upd_at_external).
+ Notation zint_invar_after_external := (Extension.zint_invar_after_external).
 
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
@@ -1186,7 +1206,7 @@ Lemma RGsimulations_invariant:
        (genv_mapS i) (match_state i)) ->
   @CompilabilityInvariant.Sig F_S V_S F_T V_T D_S D_T xS xT 
        fS fT vS vT cS cT dS dT Z Zint Zext 
-       esemS esemT csemS csemT csig esig handled max_cores
+       esemS esemT csemS csemT csig esig max_cores
        ge_S ge_T genv_mapS genv_mapT E_S E_T 
        entry_points core_data match_state core_ord R -> 
   internal_compilability_invariant.
@@ -1241,7 +1261,7 @@ End ExtendedSimulations. End ExtendedSimulations.
 
 Module ExtensionCompilability. Section ExtensionCompilability. 
  Variables
-  (F_S V_S F_T V_T: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
   (D_S D_T: Type) (** source and target extension initialization data *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
@@ -1256,17 +1276,17 @@ Module ExtensionCompilability. Section ExtensionCompilability.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+  (threads_max: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS dS Zint esemS csemS
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT dT Zint esemT csemT
-                  csig esig handled).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
+   _ _ cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
+   _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
@@ -1284,7 +1304,8 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Import Sim_inj_exposed.
 
  Lemma ExtensionCompilability: 
-   EXTENSION_COMPILABILITY.Sig fS fT vS vT max_cores ge_S ge_T genv_mapS genv_mapT 
+   EXTENSION_COMPILABILITY.Sig fS fT vS vT 
+       max_cores ge_S ge_T genv_mapS genv_mapT 
        E_S E_T entry_points core_data match_state core_ord R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
@@ -1325,11 +1346,10 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t ((const fS) i) ((const vS) i)) 
-                  (const cS) (const dS) Zint esemS (fun i:nat => csemS) csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t ((const fT) i) ((const vT) i)) 
-                  (const cT) (const dT) Zint esemT (fun i:nat => csemT) csig esig handled).
-
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S cS esemS esig 
+   _ _ (const cS) (const csemS) csig). 
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T cT esemT esig 
+   _ _ (const cT) (const csemT) csig). 
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
@@ -1346,16 +1366,17 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig (const fS) (const fT) (const vS) (const vT)
-    max_cores ge_S ge_T (const geS) (const geT) E_S E_T entry_points 
-    (const core_data) (const match_state) (const core_ord) R.
+    max_cores ge_S ge_T 
+    (const geS) (const geT) E_S E_T entry_points (const core_data) 
+    (const match_state) (const core_ord) R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
  intros H1 H2 H3 H4 H5 H6 core_simulations H8.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas (fun _ => core_data))
        (match_states := 
-  ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) E_S E_T 
-                                   (const match_state) R)
+  ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) 
+              E_S E_T (const match_state) R)
        (core_ords := 
   ExtendedSimulations.core_ords (const core_data) (const core_ord) max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.

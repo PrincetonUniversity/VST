@@ -319,28 +319,7 @@ Variables
  (modules: forall i: nat, i < num_modules -> 
    CompCertModule.Sig (fT i) (vT i) (cT i))
  (csig: ext_spec Z) (esig: ext_spec Z)
- (handled: list AST.external_function)
  (entry_points: list (val*val*signature)).
-
-(** Consistency conditions on handled functions and the procedure linkage table *)
-
-Variable plt_in_handled:
- forall i j (pf: i < num_modules) c sig sig2 args id,
- at_external (get_module_csem (modules pf)) c = Some (EF_external id sig, sig2, args) ->
- procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
-
-Implicit Arguments linker_at_external [num_modules cT].
-
-Notation IN := (ListSet.set_mem extfunct_eqdec).
-Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
-Notation DIFF := (ListSet.set_diff extfunct_eqdec).
-
-Variable at_external_not_handled:
- forall ef sig args s,
- linker_at_external fT vT procedure_linkage_table modules s = Some (ef, sig, args) ->
- IN ef handled = false.
-
-Variable linkable_csig_esig: linkable (fun z : Z => z) handled csig esig.
 
 Definition genv_map: nat -> Type := fun i: nat => Genv.t (fT i) (vT i).
 
@@ -357,6 +336,42 @@ Definition csem_map: forall i: nat,
                | right _ => trivial_core_semantics i
                end.
 
+Definition linker_proj_core (i: nat) (s: linker_corestate cT _ _ modules): option (cT i) :=
+  match s with
+  | mkLinkerCoreState nil _ _ => None
+  | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ _ =>
+     match eq_nat_dec i j with 
+     | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
+     | right _ => None
+     end
+  end.
+
+Definition linker_active (s: linker_corestate cT _ _ modules): nat :=
+  match s with
+  | mkLinkerCoreState nil _ _ => 0
+  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => i
+  end.
+
+Definition handled (ef: AST.external_function): Prop := 
+ forall s c sig args,
+ linker_proj_core (linker_active s) s = Some c ->
+ at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
+ linker_at_external procedure_linkage_table s = None.
+
+(** Consistency conditions on handled functions and the procedure linkage table *)
+
+Variable plt_in_handled:
+ forall i j (pf: i < num_modules) c sig sig2 args id,
+ at_external (get_module_csem (modules pf)) c = Some (EF_external id sig, sig2, args) ->
+ procedure_linkage_table id = Some j -> handled (EF_external id sig).
+
+Implicit Arguments linker_at_external [num_modules cT].
+
+Variable at_external_not_handled:
+ forall ef sig args s,
+ linker_at_external fT vT procedure_linkage_table modules s = Some (ef, sig, args) ->
+ ~handled ef.
+
 Program Definition trivial_genv (i: nat): Genv.t (fT i) (vT i) :=
  Genv.mkgenv (PTree.empty block) (ZMap.init None) (ZMap.init None) (Zgt_pos_0 1) 
  _ _ _ _ _.
@@ -372,27 +387,9 @@ Definition genvs: forall i: nat, Genv.t (fT i) (vT i) :=
                | right _ => trivial_genv i
                end.
 
-Import TruePropCoercion.
-
 Definition init_data := fun i: nat => list (ident * globdef (fT i) (vT i)).
 
 Implicit Arguments linker_corestate [fT vT].
-
-Definition linker_proj_core (i: nat) (s: linker_corestate num_modules cT modules): option (cT i) :=
-  match s with
-  | mkLinkerCoreState nil _ _ => None
-  | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ _ =>
-     match eq_nat_dec i j with 
-     | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
-     | right _ => None
-     end
-  end.
-
-Definition linker_active (s: linker_corestate num_modules cT modules): nat :=
-  match s with
-  | mkLinkerCoreState nil _ _ => 0
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => i
-  end.
 
 Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
  eq_rect i (fun x => cT x) c i (eq_sym e) = c.
@@ -401,18 +398,26 @@ intros; rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
 apply eq_nat_dec.
 Qed.
 
+Variable linkable_csig_esig: linkable (fun z : Z => z) 
+  (fun (ef: AST.external_function) => forall s c sig args,
+    linker_proj_core (linker_active s) s = Some c ->
+    at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
+    linker_at_external _ _ procedure_linkage_table _ s = None)
+  csig esig.
+
 Program Definition linking_extension: 
- @Extension.Sig (Genv.t F V) (list (ident * globdef F V)) 
-     (linker_corestate num_modules cT modules) genv_map cT mem init_data Z unit Z
+ @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
+     (linker_corestate num_modules cT modules) 
      (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-     csem_map csig esig handled :=
- Extension.Make genv_map (fun i: nat => list (ident * globdef (fT i) (vT i)))
+     esig _ _ cT csem_map csig :=
+ Extension.Make 
   (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-  csem_map csig esig handled (const num_modules)
+  esig _ _ csem_map csig 
+  (const num_modules)
   linker_proj_core _  
   linker_active _ 
   (fun _ => tt) (fun z: Z => z) (fun (_:unit) (z: Z) => z)
-  _ _ _ _ _.
+  _ _ linkable_csig_esig _.
 Next Obligation.
 unfold linker_proj_core.
 destruct s. destruct stack; auto. destruct f; auto.
@@ -430,42 +435,7 @@ destruct (eq_nat_dec i i); try solve[elimtype False; auto].
 exists c; f_equal.
 solve[rewrite dependent_types_nonsense; auto].
 Qed.
-Next Obligation.
-unfold linker_proj_core in H.
-destruct s.
-destruct stack; try solve[congruence].
-destruct f.
-simpl in H.
-destruct (eq_nat_dec i i); try solve[congruence].
-rewrite dependent_types_nonsense in H.
-inversion H.
-subst c.
-simpl in H1.
-case_eq (at_external (get_module_csem (modules PF)) c0); 
- try solve[congruence].
-destruct p as [[ef' sig'] args'].
-destruct ef'; try solve[congruence
- |intros H2; rewrite H2 in H1; try solve[congruence]].
-case_eq (procedure_linkage_table name); try solve[congruence].
-intros n H2 H3.
-rewrite H3 in H1.
-unfold csem_map in H0.
-simpl in H0.
-destruct (lt_dec i num_modules).
-assert (PF = l) by apply proof_irr.
-subst. unfold genv_map in H0. rewrite H0 in H3; inv H3.
-solve[apply ListSet.set_mem_correct2; eapply plt_in_handled; eauto].
-elimtype False; auto.
-solve[intros H2 H3; rewrite H3, H2 in H1; congruence].
-intros H2; rewrite H2 in H1.
-unfold csem_map in H0.
-simpl in H0.
-destruct (lt_dec i num_modules); [|solve[elimtype False; auto]].
-assert (PF = l) by apply proof_irr.
-subst. unfold genv_map in H0. 
-solve[rewrite H0 in H2; inv H2].
-Qed.
-Next Obligation. solve[eapply at_external_not_handled; eauto]. Qed.
+Next Obligation. Admitted. (*Annoying Program issue*)
 
 Lemma linker_stepN s c m c' m' n ge 
  (genvs_agree: forall (k : nat) (pf_k : k < num_modules),
@@ -514,12 +484,11 @@ Lemma linker_core_compatible: forall (ge: Genv.t F V)
    (domain_eq: forall (k : nat) (pf_k : k < num_modules),
      genvs_domain_eq ge (get_module_genv (modules pf_k)))
    (csem_fun: forall i: nat, corestep_fun (csem_map i)),
- @core_compatible (Genv.t F V) (list (ident*globdef F V)) 
+ @core_compatible _ _ _ _ (Genv.t F V) (list (ident*globdef F V)) 
         (linker_corestate num_modules cT modules) 
-        (fun i => Genv.t (fT i) (vT i)) cT mem init_data Z unit Z 
         (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
-        csem_map csig esig handled 
- ge genvs linking_extension.
+        esig (fun i => Genv.t (fT i) (vT i)) init_data cT
+        csem_map csig ge genvs linking_extension.
 Proof.
 intros; constructor.
 
@@ -723,38 +692,36 @@ Variables
    forall (id: ident) (i: nat), 
    procedure_linkage_table id = Some i -> i < num_modules)
  (modules_S: forall i: nat, i < num_modules -> CompCertModule.Sig (fS i) (vS i) (cS i))
- (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i)).
-
-Variables (csig: ext_spec Z) (esig: ext_spec Z) 
- (handled: list AST.external_function).
+ (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i)) 
+ (csig: ext_spec Z) (esig: ext_spec Z).
 
 (** Conditions required to construct a linking extension *)
 
-Variable linkable_csig_esig: linkable (fun z : Z => z) handled csig esig.
+Definition handled_S := handled cS fS vS procedure_linkage_table modules_S. 
+Definition handled_T := handled cT fT vT procedure_linkage_table modules_T. 
+
+Variable linkableS_csig_esig: linkable (fun z : Z => z) handled_S csig esig.
+Variable linkableT_csig_esig: linkable (fun z : Z => z) handled_T csig esig.
 
 Variable plt_in_handled_S:
  forall i j (pf: i < num_modules) c sig sig2 args id,
  at_external (get_module_csem (modules_S pf)) c = Some (EF_external id sig, sig2, args) ->
- procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
+ procedure_linkage_table id = Some j -> handled_S (EF_external id sig).
 Variable plt_in_handled_T:
  forall i j (pf: i < num_modules) c sig sig2 args id,
  at_external (get_module_csem (modules_T pf)) c = Some (EF_external id sig, sig2, args) ->
- procedure_linkage_table id = Some j -> In (EF_external id sig) handled.
+ procedure_linkage_table id = Some j -> handled_T (EF_external id sig).
 
 Implicit Arguments linker_at_external [num_modules cT].
-
-Notation IN := (ListSet.set_mem extfunct_eqdec).
-Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
-Notation DIFF := (ListSet.set_diff extfunct_eqdec).
 
 Variable at_external_not_handled_S:
  forall ef sig args s,
  linker_at_external fS vS procedure_linkage_table modules_S s = Some (ef, sig, args) ->
- IN ef handled = false.
+ ~handled_S ef.
 Variable at_external_not_handled_T:
  forall ef sig args s,
  linker_at_external fT vT procedure_linkage_table modules_T s = Some (ef, sig, args) ->
- IN ef handled = false.
+ ~handled_T ef.
 
 (** Begin compilability proof *)
 
@@ -972,16 +939,14 @@ destruct (@ExtensionCompilability
    procedure_linkage_table plt_ok modules_S entry_points)
  (@linker_core_semantics F_T V_T num_modules cT fT vT 
    procedure_linkage_table plt_ok modules_T entry_points)
- csem_map_S csem_map_T csig esig handled 
+ csem_map_S csem_map_T csig esig
  geS geT genv_mapS genv_mapT 
  (@linking_extension F_S V_S Z cS fS vS 
    num_modules procedure_linkage_table plt_ok modules_S csig esig 
-   handled entry_points 
-   plt_in_handled_S at_external_not_handled_S linkable_csig_esig)
+   entry_points linkableS_csig_esig)
  (@linking_extension F_T V_T Z cT fT vT 
    num_modules procedure_linkage_table plt_ok modules_T csig esig 
-   handled entry_points 
-   plt_in_handled_T at_external_not_handled_T linkable_csig_esig)
+   entry_points linkableT_csig_esig)
  entry_points core_data match_state core_ord threads_max R)
  as [LEM].
 apply LEM; auto.

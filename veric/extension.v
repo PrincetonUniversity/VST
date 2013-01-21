@@ -13,137 +13,113 @@ Require Import Integers.
 
 Set Implicit Arguments.
 
-Module TruePropCoercion.
-Definition is_true (b: bool) := b=true.
-Coercion is_true: bool >-> Sortclass.
-End TruePropCoercion.
-Import TruePropCoercion.
-
 (** * Extensions *)
 
-Module Extension. Section Extension.
- Variables
-  (G: Type) (** global environments of extended semantics *)
-  (D: Type) (** extension initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-
-  (handled: list AST.external_function). (** functions handled by this extension *)
-
- Local Open Scope nat_scope.
-
- Notation IN := (ListSet.set_mem extfunct_eqdec).
- Notation NOTIN := (fun ef l => ListSet.set_mem extfunct_eqdec ef l = false).
- Notation DIFF := (ListSet.set_diff extfunct_eqdec).
+Module Extension. Section Extension. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
  Record Sig := Make {
- (** Generalized projection of genv, core [i] from state [s] *)
   proj_max_cores: xT -> nat;
   proj_core: forall i:nat, xT -> option (cT i); 
-  proj_core_proj_max: forall i s, i >= proj_max_cores s -> proj_core i s = None;
-  active : xT -> nat; (** The active (i.e., currently scheduled) core *)
-  active_proj_core : forall s, exists c, proj_core (active s) s = Some c;
-  proj_zint: xT -> Zint; (** Type [xT] embeds [Zint]. *)
+  proj_core_max: forall i s, i>=proj_max_cores s -> proj_core i s=None;
+  active : xT -> nat; 
+  active_proj_core : forall s, exists c, proj_core (active s) s=Some c;
+  proj_zint: xT -> Zint; 
   proj_zext: Z -> Zext;
   zmult: Zint -> Zext -> Z;
   zmult_proj: forall zint zext, proj_zext (zmult zint zext)=zext;
-
- (** When a core is AtExternal but the extension is not, the function on which 
-    the core is blocked is handled by the extension. *)
-  notat_external_handled: forall s c ef args sig,
-   proj_core (active s) s = Some c -> 
-   at_external (csem (active s)) c = Some (ef, sig, args) -> 
-   at_external esem s = None -> IN ef handled;
-
- (** Functions on which the extension is blocked are not handled. *)
-  at_external_not_handled: forall s ef args sig,
-   at_external esem s = Some (ef, sig, args) -> NOTIN ef handled;
-
- (** Implemented "external" state is unchanged after truly external calls. *)
-  ext_upd_at_external : forall ef sig args ret s s',
+ 
+  zint_invar_after_external: forall ef sig args ret s s',
    at_external esem s = Some (ef, sig, args) -> 
    after_external esem ret s = Some s' -> proj_zint s=proj_zint s';
-   
- (** [esem] and [csem] are signature linkable *)
-  esem_csem_linkable: linkable proj_zext handled csig esig
+
+  handled (ef: AST.external_function) :=
+   forall (s: xT) (c: cT (active s)) sig args,
+    proj_core (active s) s = Some c ->
+    at_external (csem (active s)) c = Some (ef, sig, args) ->
+    at_external esem s = None;
+
+  linkable: linkable proj_zext handled csig esig;
+
+  handled_invar: 
+   forall s c s' c' ef sig args sig' args',
+    proj_core (active s) s = Some c ->
+    at_external (csem (active s)) c = Some (ef, sig, args) ->
+    at_external esem s = None -> 
+    proj_core (active s') s' = Some c' ->
+    at_external (csem (active s')) c' = Some (ef, sig', args') ->
+    at_external esem s' = None
  }.
 
 End Extension. End Extension.
+
+Implicit Arguments Extension.Sig [M G D xT].
 Implicit Arguments Extension.Make [G xT cT M D Z Zint Zext].
 
 (** * Safe Extensions *)
 
-Section SafeExtension.
- Variables
-  (G: Type) (** global environments *)
-  (D: Type) (** initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of the core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+Section SafeExtension. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
 
  Import Extension.
 
- Definition all_safe (E: Sig gT cT dT Zint esem csem csig esig handled)
-  (n: nat) (z: Z) (w: xT) (m: M) :=
-     forall i c, proj_core E i w = Some c -> 
-       safeN (csem i) csig (genv_map i) n z c m.
+ Definition all_safe (E: Sig Z Zint Zext esem esig gT dT cT csem csig)
+   (n: nat) (z: Z) (w: xT) (m: M) :=
+  forall i c, proj_core E i w = Some c -> 
+  safeN (csem i) csig (genv_map i) n z c m.
 
- (** All-safety implies safeN. *)
- Definition safe_extension (E: Sig gT cT dT Zint esem csem csig esig handled) :=
-  forall n s m z, 
-    all_safe E n (zmult E (proj_zint E s) z) s m -> 
-    safeN esem (link_ext_spec handled esig) ge n z s m.
+ Definition safe_extension (E: Sig Z Zint Zext esem esig gT dT cT csem csig) :=
+  forall n s m z, all_safe E n (zmult E (proj_zint E s) z) s m -> 
+  safeN esem (link_ext_spec (handled E) esig) ge n z s m.
 
 End SafeExtension.
 
-Module SafetyInvariant. Section SafetyInvariant.
- Variables
-  (G: Type) (** global environments *)
-  (D: Type) (** initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of the core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+Module SafetyInvariant. Section SafetyInvariant. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig gT cT dT Zint esem csem csig esig handled.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Definition proj_zint := E.(Extension.proj_zint). 
 Coercion proj_zint : xT >-> Zint.
@@ -157,9 +133,7 @@ Notation "zint \o zext" := (E.(Extension.zmult) zint zext)
   (at level 66, left associativity). 
 Notation ACTIVE := (E.(Extension.active)).
 Notation active_proj_core := E.(Extension.active_proj_core).
-Notation notat_external_handled := E.(Extension.notat_external_handled).
-Notation at_external_not_handled := E.(Extension.at_external_not_handled).
-Notation ext_upd_at_external := E.(Extension.ext_upd_at_external).
+Notation zint_invar_after_external := E.(Extension.zint_invar_after_external).
 
 Inductive safety_invariant: Type := SafetyInvariant: forall 
  (** Coresteps preserve the all-safety invariant. *)
@@ -185,14 +159,13 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
      (c': cT (ACTIVE s)) ef sig args P Q x, 
   let i := ACTIVE s in PROJ_CORE i s = Some c -> 
    at_external (csem i) c = Some (ef, sig, args) -> 
-   ListSet.set_mem extfunct_eqdec ef handled = true -> 
+   Extension.handled E ef -> 
    spec_of ef csig = (P, Q) -> 
    P x (sig_args sig) args (s \o z) m -> 
    corestep esem ge s m s' m' -> 
    PROJ_CORE i s' = Some c' -> 
     ((at_external (csem i) c' = Some (ef, sig, args) /\ 
-      P x (sig_args sig) args (s' \o z) m' /\
-      (forall j, ACTIVE s' = j -> i <> j)) \/
+      P x (sig_args sig) args (s' \o z) m' /\ i <> ACTIVE s') \/
     (exists ret, after_external (csem i) ret c = Some c' /\ 
       Q x (sig_res sig) ret (s' \o z) m')))
 
@@ -275,32 +248,29 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
 
 End SafetyInvariant. End SafetyInvariant.
 
-Module EXTENSION_SAFETY. Section EXTENSION_SAFETY.
- Variables
-  (G: Type) (** global environments *)
-  (D: Type) (** initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of the core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
-
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+Module EXTENSION_SAFETY. Section EXTENSION_SAFETY. Variables
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig gT cT dT Zint esem csem csig esig handled.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Import SafetyInvariant.
 
-Record Sig := Make {_: safety_invariant ge genv_map E -> safe_extension ge genv_map E}.
+Record Sig := Make {_: safety_invariant ge genv_map E -> 
+                       safe_extension ge genv_map E}.
 
 End EXTENSION_SAFETY. End EXTENSION_SAFETY.
 
@@ -308,28 +278,24 @@ End EXTENSION_SAFETY. End EXTENSION_SAFETY.
    inner cores. Perhaps some of these conditions could be merged with those for
    "safe" extensions. *)
 
-Section CoreCompatible.
- Variables
-  (G: Type) (** global environments *)
-  (D: Type) (** initialization data *)
-  (xT: Type) (** corestates of extended semantics *)
-  (gT: nat -> Type) (** global environments of the core semantics *)
-  (cT: nat -> Type) (** corestates of core semantics *)
-  (M: Type) (** memories *)
-  (dT: nat -> Type) (** initialization data *)
-  (Z: Type) (** external states *)
-  (Zint: Type) (** portion of Z implemented by extension *)
-  (Zext: Type) (** portion of Z external to extension *)
+Section CoreCompatible. Variables 
+ (M: Type) (** memories *)
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esig: ef_ext_spec M Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec M Z). (** client signature *)
 
-  (esem: CoreSemantics G xT M D) (** extended semantics *)
-  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
-
-  (csig: ef_ext_spec M Z) (** client signature *)
-  (esig: ef_ext_spec M Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
-
-Variables (ge: G) (genv_map : forall i:nat, gT i).
-Variable E: Extension.Sig gT cT dT Zint esem csem csig esig handled.
+ Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Import Extension.
 

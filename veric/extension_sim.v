@@ -52,7 +52,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (handled: list AST.external_function) (** functions handled by this extension *)
   (threads_max: nat).
 
  Variables 
@@ -60,10 +59,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS dS Zint esemS csemS
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT dT Zint esemT csemT 
-                  csig esig handled).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
+   _ _ cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
+   _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature). (*TODO: SHOULD PERHAPS BE GENERALIZED*)
  Variable core_data: forall i: nat, Type.
@@ -77,9 +76,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
  Notation ACTIVE := (Extension.active).
  Notation active_proj_core := (Extension.active_proj_core).
- Notation notat_external_handled := (Extension.notat_external_handled).
- Notation at_external_not_handled := (Extension.at_external_not_handled).
- Notation ext_upd_at_external := (Extension.ext_upd_at_external).
+ Notation zint_invar_after_external := (Extension.zint_invar_after_external).
 
  Definition core_datas := forall i:nat, core_data i.
 
@@ -206,7 +203,7 @@ Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t 
 
 Module CompilableExtension. Section CompilableExtension. 
  Variables
-  (F_S V_S F_T V_T: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
   (D_S D_T: Type) (** source and target extension initialization data *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
@@ -221,31 +218,23 @@ Module CompilableExtension. Section CompilableExtension.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (handled: list AST.external_function). (** functions handled by this extension *)
+  (threads_max: nat).
 
  Variables 
-  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
- 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS dS Zint esemS csemS
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT dT Zint esemT csemT
-                  csig esig handled).
+
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
+   _ _ cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
+   _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
    core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Implicit Arguments match_state [].
-
- Notation PROJ_CORE := (Extension.proj_core).
- Infix "\o" := (Extension.zmult) (at level 66, left associativity). 
- Notation ACTIVE := (Extension.active).
- Notation active_proj_core := (Extension.active_proj_core).
- Notation notat_external_handled := (Extension.notat_external_handled).
- Notation at_external_not_handled := (Extension.at_external_not_handled).
- Notation ext_upd_at_external := (Extension.ext_upd_at_external).
 
  Import Sim_inj_exposed.
 
@@ -261,7 +250,7 @@ End CompilableExtension. End CompilableExtension.
 
 Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variables
-  (F_S V_S F_T V_T: Type) (** global environments *)
+  (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
   (D_S D_T: Type) (** source and target extension initialization data *)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
@@ -276,18 +265,17 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (handled: list AST.external_function) (** functions handled by this extension *)
-  (threads_max: nat).  
+  (threads_max: nat).
 
  Variables 
-  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T)
+  (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
- 
- Variable (E_S: Extension.Sig (fun i => Genv.t (fS i) (vS i)) cS dS Zint esemS csemS
-                  csig esig handled).
- Variable (E_T: Extension.Sig (fun i => Genv.t (fT i) (vT i)) cT dT Zint esemT csemT
-                  csig esig handled).
+
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
+   _ _ cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
+   _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
@@ -320,8 +308,9 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
-       CompilabilityInvariant.Sig fS fT vS vT threads_max ge_S ge_T 
-         genv_mapS genv_mapT E_S E_T entry_points core_data match_state core_ord R -> 
+       CompilabilityInvariant.Sig fS fT vS vT 
+         threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
+         entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.
 

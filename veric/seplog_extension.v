@@ -7,13 +7,6 @@ Import juicy_mem.
 
 Set Implicit Arguments.
 
-Fixpoint externals (fs: list (ident*fundef)) :=
-  match fs with
-  | nil => nil
-  | (fid,External ef tys ty)::fs' => ef::externals fs'
-  | _::fs' => externals fs'
-  end.
-
 Module SEPLOG_EXTENSION_SOUNDNESS (ExtSpec: EXTERNAL_SPEC). Import ExtSpec.
 Module ExtSpec := ExtSpec.
 Module SepLog := MakeSeparationLogic(ExtSpec). Import SepLog.
@@ -33,20 +26,19 @@ Definition initial_cores (i: nat):
 
  Variables
   (esem: CoreSemantics (Genv.t fundef type) xT juicy_mem jm_init_package) (** extended semantics *)
-  (juicy_esig: juicy_ext_spec Z)
-  (handled: list AST.external_function) (** functions handled by this extension *)
-  (E: Extension.Sig (fun _: nat => Genv.t fundef type) (fun _:nat => Clight_new.corestate) 
-    (fun _ => jm_init_package) Zint esem initial_cores juicy_csig juicy_esig 
-    (externals (prog_funct prog)))
-  (Hlinkable: linkable (Extension.proj_zext E) (externals (prog_funct prog)) 
-    juicy_csig juicy_esig)
- (Hsafe: safe_extension (Genv.globalenv prog) (fun _:nat => Genv.globalenv prog) E)
- (*This theorem will need to be generalized at some point; but this generalization may 
-    require an accordant generalization of the soundness theorem of the logic. *)
- (Hsingleton: forall i q, (i > 0)%nat -> Extension.proj_core E i q = None)
- (Hinit: forall b q0, 
-  Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b -> 
-  make_initial_core (juicy_core_sem Clight_new.cl_core_sem) (Genv.globalenv prog) 
+  (juicy_esig: juicy_ext_spec Zext)
+  (E: @Extension.Sig juicy_mem Z Zint Zext (Genv.t fundef type) jm_init_package 
+         xT esem juicy_esig (fun _ => Genv.t fundef type) 
+         (fun _ => jm_init_package) (fun _ => Clight_new.corestate) 
+         (fun _ => juicy_core_sem Clight_new.cl_core_sem) juicy_csig)
+  (Hlinkable: linkable (Extension.proj_zext E) (Extension.handled E) juicy_csig juicy_esig)
+  (Hsafe: safe_extension (Genv.globalenv prog) (fun _:nat => Genv.globalenv prog) E)
+  (*This theorem will need to be generalized at some point; but the generalization may 
+    require a corresponding generalization of the soundness theorem of the logic. *)
+  (Hsingleton: forall i q, (i > 0)%nat -> Extension.proj_core E i q = None)
+  (Hinit: forall b q0, 
+   Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b -> 
+   make_initial_core (juicy_core_sem Clight_new.cl_core_sem) (Genv.globalenv prog) 
           (Vptr b Int.zero) nil = Some q0 -> 
   exists q, make_initial_core esem (Genv.globalenv prog) 
           (Vptr b Int.zero) nil = Some q /\
@@ -62,7 +54,7 @@ Lemma semax_extension_rule (z: Z) (V: varspecs) (G: funspecs) (m: mem):
       exists jm : juicy_mem.juicy_mem,
         juicy_mem.m_dry jm = m /\
         ageable.level jm = n /\
-        safeN esem (link_ext_spec (externals (prog_funct prog)) juicy_esig) 
+        safeN esem (link_ext_spec (Extension.handled E) juicy_esig) 
             (Genv.globalenv prog) n (Extension.proj_zext E z) q jm).
 Proof.
 intros H1 H2.
