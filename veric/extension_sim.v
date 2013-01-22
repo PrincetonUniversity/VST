@@ -35,6 +35,12 @@ Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
   | _, _ => False
   end.
 
+Definition val_has_type_opt (v: option val) (sig: signature) :=
+ match v with
+ | None => True
+ | Some v' => Val.has_type v' (proj_sig_res sig)
+ end.
+
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -122,6 +128,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external esemS s1 = Some (ef, sig, args1) -> 
    after_external esemS ret1 s1 = Some s1' -> 
    after_external esemT ret2 s2 = Some s2' -> 
+   val_has_type_opt ret1 (ef_sig ef) -> 
+   val_has_type_opt ret2 (ef_sig ef) -> 
+   val_inject_opt j' ret1 ret2 -> 
    R j' s1' m1' s2' m2')   
  
  (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
@@ -176,7 +185,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    safely_halted esemS c1 = Some v1 -> 
    exists v2, val_inject j v1 v2 /\
      safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
-     
+
  (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
@@ -185,7 +194,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    corestep esemS ge_S s1 m1 s1' m1' ->  
    exists rv2, 
      safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
-     val_inject j rv1 rv2 /\
+     val_inject j rv1 rv2 /\ 
    exists s2', exists m2', exists cd', exists j', 
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\

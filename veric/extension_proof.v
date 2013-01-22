@@ -702,6 +702,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     at_external esemS s1 = Some (ef, sig, args1) -> 
     after_external esemS ret1 s1 = Some s1' -> 
     after_external esemT ret2 s2 = Some s2' -> 
+    val_has_type_opt ret1 (ef_sig ef) -> 
+    val_has_type_opt ret2 (ef_sig ef) -> 
+    val_inject_opt j' ret1 ret2 -> 
     R j' s1' m1' s2' m2')   
 
   (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
@@ -1166,6 +1169,10 @@ assert (ACTIVE E_T st2=ACTIVE E_T st2') as <-.
 split; auto.
 inv esig_compilable.
 eapply after_external_rel; eauto.
+admit. (*in core_after_external: need precond: Val.has_type ret1 (proj_sig_res (ef_sig e))*)
+unfold val_has_type_opt.
+generalize H11.
+admit. (*get rid of "sig"; use "ef_sig ef" everywhere*)
 split; auto.
 
 intros i _c _PROJ1'.

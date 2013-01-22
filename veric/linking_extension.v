@@ -405,6 +405,67 @@ Variable linkable_csig_esig: linkable (fun z : Z => z)
     linker_at_external _ _ procedure_linkage_table _ s = None)
   csig esig.
 
+Lemma handled_lem: 
+ forall s c ef sig args,
+ linker_proj_core (linker_active s) s = Some c ->
+ at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
+ linker_at_external _ _ procedure_linkage_table _ s = None -> 
+ exists id, exists sig, 
+  ef = EF_external id sig /\
+  exists b, procedure_linkage_table id = Some b.
+Proof.
+intros.
+unfold linker_at_external in H1.
+destruct s; simpl in H1.
+destruct stack; try solve[congruence].
+simpl in H; congruence.
+destruct f.
+simpl in H0.
+unfold csem_map in H0.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (Heq: PF = l) by apply proof_irr.
+rewrite Heq in *.
+simpl in H.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H.
+inversion H; subst c; clear H.
+unfold genv_map in *; rewrite H0 in H1.
+destruct ef; try solve[congruence].
+exists name.
+destruct (procedure_linkage_table name); try solve[congruence].
+solve[eexists; split; eauto].
+Qed.
+
+Lemma handled_invar: 
+ forall s c s' c' ef sig args sig' args',
+ linker_proj_core (linker_active s) s = Some c ->
+ at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
+ linker_at_external _ _ procedure_linkage_table _ s = None -> 
+ linker_proj_core (linker_active s') s' = Some c' ->
+ at_external (csem_map (linker_active s')) c' = Some (ef, sig', args') ->
+ linker_at_external _ _ procedure_linkage_table _ s' = None.
+Proof.
+intros.
+unfold linker_at_external.
+destruct s'.
+destruct stack; auto.
+destruct f; auto.
+simpl in H3.
+unfold csem_map in H3.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (PF = l) as -> by apply proof_irr.
+simpl in H2.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H2.
+inversion H2; subst c'; clear H2.
+unfold genv_map in *; rewrite H3.
+assert (exists id, exists sig, 
+ ef = EF_external id sig /\
+ exists b, procedure_linkage_table id = Some b) as [id [sig'' [-> [b ->]]]].
+ solve[eapply handled_lem; eauto].
+auto.
+Qed. 
+
 Program Definition linking_extension: 
  @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
      (linker_corestate num_modules cT modules) 
@@ -417,7 +478,7 @@ Program Definition linking_extension:
   linker_proj_core _  
   linker_active _ 
   (fun _ => tt) (fun z: Z => z) (fun (_:unit) (z: Z) => z)
-  _ _ linkable_csig_esig _.
+  _ _ linkable_csig_esig handled_invar.
 Next Obligation.
 unfold linker_proj_core.
 destruct s. destruct stack; auto. destruct f; auto.
@@ -435,7 +496,6 @@ destruct (eq_nat_dec i i); try solve[elimtype False; auto].
 exists c; f_equal.
 solve[rewrite dependent_types_nonsense; auto].
 Qed.
-Next Obligation. Admitted. (*Annoying Program issue*)
 
 Lemma linker_stepN s c m c' m' n ge 
  (genvs_agree: forall (k : nat) (pf_k : k < num_modules),
@@ -1065,7 +1125,10 @@ intros [[ef' sig'] args'] AT_EXT'.
 rewrite AT_EXT' in AT_EXT.
 assert (exists ret1', ret1 = Some ret1') as [ret1' RET1] by admit. (*fix after_external to allow None retval*)
 assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] by admit. (*fix after_external to allow None retval*)
-assert (val_inject j' ret1' ret2') by admit. (*add val_inject precondition to after_external_rel*)
+assert (val_inject j' ret1' ret2'). 
+ unfold val_inject_opt in H1.
+ rewrite RET1, RET2 in H1.
+ solve[auto].
 specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
 specialize (RGsim i0); destruct RGsim.
 spec core_after_external0.
@@ -1091,7 +1154,9 @@ solve[unfold mem_forward; intros; split; auto].
 spec core_after_external0.
 solve[unfold Events.mem_unchanged_on; split; auto].
 spec core_after_external0.
-admit. (*typing precondition*)
+unfold val_has_type_opt in H0.
+rewrite RET2 in H0; auto.
+admit. (*typing precondition: use "ef_sig e" instead of sig' everywhere*)
 destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
 exists cd''; auto.
 rewrite <-RET1, <-RET2 in *.
