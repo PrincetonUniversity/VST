@@ -1,0 +1,4 @@
+#!/bin/csh
+awk '$1=="Lemma"||$1=="Definition"||$1=="Theorem"{A=$2} \
+   /admit\./ || /Admitted\./ {printf "%s [%s]: ", FILENAME,A; print;}' \
+  `(make -Bn |&  awk '$1=="coqc"{printf "%s ", $NF}')`
