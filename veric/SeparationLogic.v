@@ -319,7 +319,7 @@ unfold frame_ret_assert, normal_ret_assert.
 normalize.
 Qed.
 
-Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -328,7 +328,7 @@ Definition for1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  | EK_return => R EK_return vl
  end.
 
-Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -339,23 +339,23 @@ Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
 
 Lemma frame_for1:
   forall Q R F, 
-   frame_ret_assert (for1_ret_assert Q R) F = 
-   for1_ret_assert (Q * F) (frame_ret_assert R F).
-Proof.
-intros.
-extensionality ek vl.
-unfold frame_ret_assert, for1_ret_assert.
-destruct ek; normalize.
-Qed.
-
-Lemma frame_loop1:
-  forall Q R F, 
    frame_ret_assert (loop1_ret_assert Q R) F = 
    loop1_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
 extensionality ek vl.
 unfold frame_ret_assert, loop1_ret_assert.
+destruct ek; normalize.
+Qed.
+
+Lemma frame_loop1:
+  forall Q R F, 
+   frame_ret_assert (loop2_ret_assert Q R) F = 
+   loop2_ret_assert (Q * F) (frame_ret_assert R F).
+Proof.
+intros.
+extensionality ek vl.
+unfold frame_ret_assert, loop2_ret_assert.
 destruct ek; normalize.
 Qed.
 
@@ -558,8 +558,8 @@ Axiom semax_continue:
 
 Axiom semax_loop : 
 forall Delta Q Q' incr body R,
-     semax Delta  (fun rho => Q rho) body (for1_ret_assert Q' R) ->
-     semax Delta Q' incr (loop1_ret_assert Q R) ->
+     semax Delta  Q body (loop1_ret_assert Q' R) ->
+     semax Delta Q' incr (loop2_ret_assert Q R) ->
      semax Delta Q (Sloop body incr) R.
 
 (* THESE RULES FROM semax_call *)

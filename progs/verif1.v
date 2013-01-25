@@ -103,8 +103,7 @@ name _p P._p.
 name _v P._v.
 name _w P._w.
 name _t P._t.
-destruct sh_contents as [sh contents].
-normalizex. rename H into WS.
+destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
@@ -139,7 +138,7 @@ apply exp_right with r.
   unfold ilseg_cons, lseg_cons.
   apply andp_right.
   apply prop_right.
-  destruct _w; inv H3; simpl; auto. intro Hx; rewrite Hx in *; inv H0.
+  destruct _w; inv H4; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
   apply exp_right with (Vint h).
   apply exp_right with (map Vint cts1).
   apply exp_right with _w0.
@@ -149,8 +148,8 @@ apply exp_right with r.
   type_of_field_tac.
   normalize.
   assert (eval_cast (tptr P.t_struct_list)(tptr P.t_struct_list) _w0 = _w0)
-     by (destruct _w0 ; inv H; simpl; auto).
-  rewrite H0 in *.
+     by (destruct _w0 ; inv H0; simpl; auto).
+  rewrite H1 in *.
   apply andp_right.
   apply prop_right; auto.
   cancel. (* end et_10 *)

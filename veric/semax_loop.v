@@ -391,8 +391,8 @@ Qed.
 
 Lemma semax_loop : 
 forall Delta Q Q' incr body R,
-     semax Hspec Delta  (fun rho => Q rho) body (for1_ret_assert Q' R) ->
-     semax Hspec Delta Q' incr (loop1_ret_assert Q R) ->
+     semax Hspec Delta Q body (loop1_ret_assert Q' R) ->
+     semax Hspec Delta Q' incr (loop2_ret_assert Q R) ->
      semax Hspec Delta Q (Sloop body incr) R.
 Proof.
 intros ? ? ? ? ?  POST H H0.
@@ -455,7 +455,7 @@ simpl exit_cont.
 rewrite semax_unfold in H0.
 specialize (H0 psi (level jm') Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
 spec H0.
-intros ek2 vl2 tx2 vx2; unfold loop1_ret_assert.
+intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
 destruct ek2; simpl exit_tycon in *.
 unfold exit_cont.
 apply (assert_safe_adj' Hspec) with (k:=Kseq (Sloop body incr) :: k); auto.
@@ -499,17 +499,17 @@ simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
 simpl exit_cont.
 simpl exit_tycon.
 rewrite sepcon_comm.
-unfold for1_ret_assert.
+unfold loop1_ret_assert.
 intros tx3 vx3.
 auto.
 intros tx3 vx3.
-unfold for1_ret_assert, frame_ret_assert.
+unfold loop1_ret_assert, frame_ret_assert.
 eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
 simpl exit_tycon.
 apply derives_subp.
 auto.
 simpl exit_tycon. simpl exit_cont.
-unfold for1_ret_assert, frame_ret_assert.
+unfold loop1_ret_assert, frame_ret_assert.
 rewrite semax_unfold in H0.
 intros tx2 vx2.
 eapply subp_trans'; [ | apply (H0 _ _ Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
@@ -534,8 +534,8 @@ intros ? [? ?]; split.
 hnf in H11|-*.
 eapply typecheck_environ_update; eauto.
 simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
-unfold exit_cont, loop1_ret_assert; normalize.
-unfold exit_cont, loop1_ret_assert; normalize.
+unfold exit_cont, loop2_ret_assert; normalize.
+unfold exit_cont, loop2_ret_assert; normalize.
 
 
  change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
@@ -549,22 +549,22 @@ unfold frame_ret_assert in H3', vx4.
 rewrite sepcon_comm; auto.
 intros tx4 vx4.
 unfold frame_ret_assert in H3', vx4|-*.
-unfold loop1_ret_assert. normalize.
+unfold loop2_ret_assert. normalize.
 repeat intro; normalize.
 unfold frame_ret_assert in H3'|-*.
-unfold loop1_ret_assert. normalize.
+unfold loop2_ret_assert. normalize.
 unfold frame_ret_assert in H3'|-*.
-unfold loop1_ret_assert.
+unfold loop2_ret_assert.
  simpl exit_tycon.
 specialize (H3' EK_return vl2).
 eapply subp_trans'; [ | eapply H3'; eauto].
 auto.
-unfold frame_ret_assert, for1_ret_assert.
+unfold frame_ret_assert, loop1_ret_assert.
 
 intros tx4 vx4.
 eapply subp_trans'; [ | eapply (H3' EK_return) ; eauto].
  simpl exit_tycon.
-unfold for1_ret_assert.
+unfold loop1_ret_assert.
 auto.
 
 apply (H' tx vx _ (le_refl _) (m_phi jm') (necR_refl _)); try solve[subst; auto].

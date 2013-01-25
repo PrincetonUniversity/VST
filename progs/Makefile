@@ -19,6 +19,10 @@ proof: $(FILES:.v=.vo)
 test1.vo: test1.v
 	$(COQC) $(COQFLAGS)  $(CLIGHTGENFLAGS) $*.v
 
+test2.vo: test2.v
+	$(COQC) $(COQFLAGS)  $(CLIGHTGENFLAGS) $*.v
+
+
 .SUFFIXES: .v .vo
 
 .v.vo:

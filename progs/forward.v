@@ -1036,7 +1036,8 @@ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   try match goal with |- context [stackframe_of ?F] =>
             change (stackframe_of F) with emp;
             rewrite frame_ret_assert_emp
-         end.
+         end;
+  repeat (apply semax_extract_PROP; intro).
 
 Opaque sepcon.
 Opaque emp.
