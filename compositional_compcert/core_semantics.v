@@ -181,8 +181,9 @@ Section corestepN.
 
 End corestepN.
 
-(** "Cooperating" impose additional constraints; in particular, they require 
-   that the memories produced by coresteps contain no dangling pointers. *)
+(** "Cooperating" semantics impose additional constraints; in particular, 
+   they require that the memories produced by coresteps contain no dangling 
+   pointers. *)
 
 Record CoopCoreSem {G C D} :=
   { coopsem :> CoreSemantics G C mem D;
@@ -222,3 +223,87 @@ intros b Hb.
 split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
 Qed.
+
+(** Rely-Guarantee core semantics extend coop core semantics with a predicate 
+   tracking blocks "private" to this core.  Inuitively, private blocks are 
+   blocks allocated by coresteps of this semantics. *)
+
+Definition blockmap := block -> Prop.
+
+Section RelyGuaranteeSemantics.
+Context {G C D: Type}.
+Variable coopsem: CoopCoreSem G C D.
+
+Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
+  match x, x' with (f, c), (f', c') => 
+    corestep coopsem ge c m c' m' /\
+    (forall b, f' b <-> f b \/ Mem.nextblock m <= b < Mem.nextblock m')
+  end.
+
+Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
+  Build_CoreSemantics G (blockmap*C) mem D 
+    (*initial mem*)
+    (initial_mem coopsem)
+    (*make_initial_core*)
+    (fun ge v vs => match make_initial_core coopsem ge v vs with
+                    | Some c => Some (fun _ => False, c)
+                    | None => None
+                    end)
+    (*at_external*)
+    (fun x => at_external coopsem (snd x))
+    (*after_external*)
+    (fun retv x => match after_external coopsem retv (snd x) with
+                   | Some c => Some (fst x, c)
+                   | None => None
+                   end)
+    (*safely_halted*)
+    (fun x => safely_halted coopsem (snd x))
+    (*corestep*)
+    rg_step
+    _ _ _ _.
+Next Obligation.
+destruct H as [H1 H2]; apply corestep_not_at_external in H1; auto.
+Qed.
+Next Obligation.
+destruct H as [H1 H2]; apply corestep_not_halted in H1; auto.
+Qed.
+Next Obligation. apply (at_external_halted_excl coopsem c). Qed.
+Next Obligation. 
+simpl in H.
+case_eq (after_external coopsem retv c0); intros. 
+rewrite H0 in H; inv H.
+apply after_at_external_excl in H0; auto.
+rewrite H0 in H; congruence.
+Qed.
+  
+Program Definition RelyGuaranteeSemantics: CoopCoreSem G (blockmap*C) D :=
+  Build_CoopCoreSem G (blockmap*C) D RelyGuaranteeCoreSem _ _ _.
+Next Obligation.
+destruct CS as [H1 H2]; eapply corestep_fwd; eauto.
+Qed.
+Next Obligation.
+destruct CS as [H1 H2]; eapply corestep_wdmem; eauto.
+Qed.
+Next Obligation.
+eapply initmem_wd; eauto.
+Qed.
+
+Definition private (x: blockmap*C) b := (fst x) b.
+
+Lemma private_corestep: forall ge x m x' m' b,
+  private x b -> corestep RelyGuaranteeSemantics ge x m x' m' -> private x' b.
+Proof.
+intros until b; destruct x; destruct x'; intros H1 [H2 H3].
+solve[simpl; rewrite H3; left; auto].
+Qed.
+
+Lemma private_new: forall ge x m x' m' b,
+  ~private x b -> corestep RelyGuaranteeSemantics ge x m x' m' -> private x' b -> 
+  Mem.nextblock m <= b < Mem.nextblock m'.
+Proof.
+intros until b; destruct x; destruct x'; intros H1 [H2 H3] H4.
+simpl in H4; rewrite H3 in H4; destruct H4; auto.
+solve[elimtype False; apply H1; auto].
+Qed.
+
+End RelyGuaranteeSemantics.
