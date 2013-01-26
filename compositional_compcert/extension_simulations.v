@@ -56,8 +56,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
+  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (threads_max: nat).
@@ -272,8 +272,10 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
+  (csemS: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+  (csemT: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (threads_max: nat).
@@ -320,7 +322,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 
-         threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
+         csemS csemT threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
          entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.

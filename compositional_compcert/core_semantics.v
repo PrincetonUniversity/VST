@@ -228,36 +228,77 @@ Qed.
    tracking blocks "private" to this core.  Inuitively, private blocks are 
    blocks allocated by coresteps of this semantics. *)
 
+Record RelyGuaranteeSemantics {G C D} :=
+  { csem :> CoreSemantics G C mem D;
+    private_block: C -> block -> Prop;
+    private_step: forall ge c m c' m',
+      corestep csem ge c m c' m' -> 
+      (forall b, private_block c' b <-> 
+        private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m');
+    private_external: forall c c' ef sig args retv,
+      at_external csem c = Some (ef, sig, args) -> 
+      after_external csem retv c = Some c' -> 
+      (forall b, private_block c' b <-> private_block c b) }.
+
+Implicit Arguments RelyGuaranteeSemantics [].
+
+Section RelyGuaranteeSemanticsLemmas.
+Context {G C D: Type}.
+Variable rgsem: RelyGuaranteeSemantics G C D.
+
+Lemma private_corestep: forall ge c m c' m' b,
+  private_block rgsem c b -> 
+  corestep rgsem ge c m c' m' -> 
+  private_block rgsem c' b.
+Proof.
+intros until b; intros H1 H2.
+solve[erewrite private_step; eauto].
+Qed.
+
+Lemma private_new: forall ge c m c' m' b,
+  ~private_block rgsem c b -> 
+  corestep rgsem ge c m c' m' -> 
+  private_block rgsem c' b -> 
+  Mem.nextblock m <= b < Mem.nextblock m'.
+Proof.
+intros until b; intros H1 H2 H3.
+rewrite private_step in H3; eauto.
+destruct H3; auto.
+elimtype False; auto.
+Qed.
+
+End RelyGuaranteeSemanticsLemmas.
+
 Definition blockmap := block -> Prop.
 
-Section RelyGuaranteeSemantics.
+Section RelyGuaranteeSemanticsFunctor.
 Context {G C D: Type}.
-Variable coopsem: CoopCoreSem G C D.
+Variable csem: CoreSemantics G C mem D.
 
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
-    corestep coopsem ge c m c' m' /\
+    corestep csem ge c m c' m' /\
     (forall b, f' b <-> f b \/ Mem.nextblock m <= b < Mem.nextblock m')
   end.
 
 Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
   Build_CoreSemantics G (blockmap*C) mem D 
     (*initial mem*)
-    (initial_mem coopsem)
+    (initial_mem csem)
     (*make_initial_core*)
-    (fun ge v vs => match make_initial_core coopsem ge v vs with
+    (fun ge v vs => match make_initial_core csem ge v vs with
                     | Some c => Some (fun _ => False, c)
                     | None => None
                     end)
     (*at_external*)
-    (fun x => at_external coopsem (snd x))
+    (fun x => at_external csem (snd x))
     (*after_external*)
-    (fun retv x => match after_external coopsem retv (snd x) with
+    (fun retv x => match after_external csem retv (snd x) with
                    | Some c => Some (fst x, c)
                    | None => None
                    end)
     (*safely_halted*)
-    (fun x => safely_halted coopsem (snd x))
+    (fun x => safely_halted csem (snd x))
     (*corestep*)
     rg_step
     _ _ _ _.
@@ -267,43 +308,23 @@ Qed.
 Next Obligation.
 destruct H as [H1 H2]; apply corestep_not_halted in H1; auto.
 Qed.
-Next Obligation. apply (at_external_halted_excl coopsem c). Qed.
+Next Obligation. apply (at_external_halted_excl csem c). Qed.
 Next Obligation. 
 simpl in H.
-case_eq (after_external coopsem retv c0); intros. 
+case_eq (after_external csem retv c0); intros. 
 rewrite H0 in H; inv H.
 apply after_at_external_excl in H0; auto.
 rewrite H0 in H; congruence.
 Qed.
-  
-Program Definition RelyGuaranteeSemantics: CoopCoreSem G (blockmap*C) D :=
-  Build_CoopCoreSem G (blockmap*C) D RelyGuaranteeCoreSem _ _ _.
-Next Obligation.
-destruct CS as [H1 H2]; eapply corestep_fwd; eauto.
-Qed.
-Next Obligation.
-destruct CS as [H1 H2]; eapply corestep_wdmem; eauto.
-Qed.
-Next Obligation.
-eapply initmem_wd; eauto.
+
+Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
+  Build_RelyGuaranteeSemantics G (blockmap*C) D
+   RelyGuaranteeCoreSem
+   (@fst _ _) _ _.
+Next Obligation. destruct H; auto. Qed.
+Next Obligation. 
+simpl in *|-*; destruct (after_external csem retv c); try solve[congruence].
+solve[inv H0; split; auto].
 Qed.
 
-Definition private (x: blockmap*C) b := (fst x) b.
-
-Lemma private_corestep: forall ge x m x' m' b,
-  private x b -> corestep RelyGuaranteeSemantics ge x m x' m' -> private x' b.
-Proof.
-intros until b; destruct x; destruct x'; intros H1 [H2 H3].
-solve[simpl; rewrite H3; left; auto].
-Qed.
-
-Lemma private_new: forall ge x m x' m' b,
-  ~private x b -> corestep RelyGuaranteeSemantics ge x m x' m' -> private x' b -> 
-  Mem.nextblock m <= b < Mem.nextblock m'.
-Proof.
-intros until b; destruct x; destruct x'; intros H1 [H2 H3] H4.
-simpl in H4; rewrite H3 in H4; destruct H4; auto.
-solve[elimtype False; apply H1; auto].
-Qed.
-
-End RelyGuaranteeSemantics.
+End RelyGuaranteeSemanticsFunctor.

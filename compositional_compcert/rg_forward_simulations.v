@@ -35,8 +35,8 @@ Definition genv2blocks {F V: Type} (ge: Genv.t F V) :=
 Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
  Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
  Variables 
-  (sourceC: CoreSemantics (Genv.t F1 V1) C1 mem INIT1)
-  (targetC: CoreSemantics G2 C2 mem INIT2) 
+  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
+  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
@@ -46,7 +46,8 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
 
  Inductive Sig: Type := Make: forall
   (match_state_runnable: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> runnable sourceC c1=runnable targetC c2)
+    match_state cd j c1 m1 c2 m2 -> 
+    runnable sourceC c1 = runnable targetC c2)
 
   (match_state_inj: forall cd j c1 m1 c2 m2,
     match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
@@ -60,8 +61,10 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
-    mem_unchanged_on (loc_unmapped f) m1 m1' ->
-    mem_unchanged_on (loc_out_of_reach f m1) m2 m2' ->
+    mem_unchanged_on (fun b ofs => 
+      loc_unmapped f b ofs /\ private_block sourceC c1 b) m1 m1' ->
+    mem_unchanged_on (fun b ofs => 
+      loc_out_of_reach f m1 b ofs /\ private_block targetC c2 b) m2 m2' ->
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
 

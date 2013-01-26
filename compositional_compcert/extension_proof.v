@@ -544,8 +544,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
+  (csemS: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+  (csemT: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (threads_max: nat).
@@ -1239,10 +1241,22 @@ specialize (RELY (genv_mapS i) (cd i) m1 m1' j j' m2 m2' d1 d2).
 apply RELY; auto.
 erewrite <-genvs_domain_eq_preserves; eauto.
 solve[eapply match_state_inj; eauto].
+destruct UNCH1 as [X Y].
+split; intros.
+eapply X; eauto.
+solve[destruct H0; auto].
+apply Y; auto.
+solve[intros i0 H2; destruct (H0 i0); auto].
+destruct UNCH2 as [X Y].
+split; intros.
+eapply X; eauto.
+solve[destruct H0; auto].
+apply Y; auto.
+solve[intros i0 H2; destruct (H0 i0); auto].
 
 (*2*)
 intros; destruct (core_simulations_RGinject i) as [? _ _ _ _].
-solve[eapply match_state_runnable; eauto].
+eapply match_state_runnable; eauto.
 
 (*3*)
 intros; destruct (core_simulations_RGinject i) as [_ ? _ _ _].
@@ -1252,7 +1266,7 @@ solve[eapply match_state_inj; eauto].
 intros; destruct (core_simulations_RGinject i) as [_ _ ? _ _].
 solve[eapply match_state_preserves_globals; eauto].
 
-(*2*)
+(*5*)
 intros until j'; intros MATCH EXT1 PRES INCR SEP INJ INJARGS FORW1 UNCH1 FORW2 UNCH2.
 intros TYS AFTER1 AFTER2 PROJ1 PROJ2 NEQ.
 forget (Extension.active E_S s1) as k.
@@ -1264,6 +1278,20 @@ erewrite genvs_domain_eq_preserves.
 erewrite meminj_preserves_genv2blocks.
 eauto.
 solve[apply genvs_domain_eq_sym; auto].
+
+destruct UNCH1 as [X Y].
+split; intros.
+eapply X; eauto.
+solve[destruct H0; auto].
+apply Y; auto.
+solve[intros i0 H2; destruct (H0 i0); auto].
+destruct UNCH2 as [X Y].
+split; intros.
+eapply X; eauto.
+solve[destruct H0; auto].
+apply Y; auto.
+solve[intros i0 H2; destruct (H0 i0); auto].
+
 Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.
@@ -1281,8 +1309,10 @@ Module ExtensionCompilability. Section ExtensionCompilability.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
   (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
+  (csemS: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+  (csemT: forall i:nat, 
+    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (threads_max: nat).
@@ -1314,7 +1344,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig fS fT vS vT 
-       max_cores ge_S ge_T genv_mapS genv_mapT 
+       csemS csemT max_cores ge_S ge_T genv_mapS genv_mapT 
        E_S E_T entry_points core_data match_state core_ord R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
@@ -1322,7 +1352,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas core_data)
        (match_states := 
-  ExtendedSimulations.match_states fS fT vS vT E_S E_T match_state R)
+  ExtendedSimulations.match_states fS fT vS vT csemS csemT E_S E_T match_state R)
        (core_ords := 
   ExtendedSimulations.core_ords core_data core_ord max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.
@@ -1346,8 +1376,8 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: CoreSemantics (Genv.t F_S V_S) cS mem D_S) (** extended source semantics *)
   (esemT: CoreSemantics (Genv.t F_T V_T) cT mem D_T) (** extended target semantics *)
-  (csemS: CoreSemantics (Genv.t fS vS) cS mem dS)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT)
+  (csemS: RelyGuaranteeSemantics (Genv.t fS vS) cS dS)
+  (csemT: RelyGuaranteeSemantics (Genv.t fT vT) cT dT)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (handled: list AST.external_function). (** functions handled by this extension *)
@@ -1375,7 +1405,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig (const fS) (const fT) (const vS) (const vT)
-    max_cores ge_S ge_T 
+    (const csemS) (const csemT) max_cores ge_S ge_T 
     (const geS) (const geT) E_S E_T entry_points (const core_data) 
     (const match_state) (const core_ord) R.
  Proof.
@@ -1385,7 +1415,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
   with (core_datas := ExtendedSimulations.core_datas (fun _ => core_data))
        (match_states := 
   ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) 
-              E_S E_T (const match_state) R)
+              (const csemS) (const csemT) E_S E_T (const match_state) R)
        (core_ords := 
   ExtendedSimulations.core_ords (const core_data) (const core_ord) max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.

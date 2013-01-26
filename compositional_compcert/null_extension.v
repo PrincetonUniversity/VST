@@ -272,8 +272,8 @@ Section NullExtensionCompilable.
   (csig: ef_ext_spec mem Z)
   (init_world: Z)
   (entry_points: list (val*val*signature))
-  (csemS: CoreSemantics (Genv.t fS vS) cS mem dS)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT).
+  (csemS: RelyGuaranteeSemantics (Genv.t fS vS) cS dS)
+  (csemT: RelyGuaranteeSemantics (Genv.t fT vT) cT dT).
 
  Variables (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
