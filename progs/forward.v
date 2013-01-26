@@ -897,6 +897,188 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
   clear SCI VT GT; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
+(* BEGIN HORRIBLE.
+  The following lemma and tactic are needed because CompCert clightgen
+ produces the following AST for function call:
+  (Ssequence (Scall (Some id') ... ) (Sset id (Etempvar id' _)))
+instead of the more natural
+   (Scall id ...)
+Our general tactics are powerful enough to reason about the sequence,
+one statement at a time, but it is not nice to burden the user with knowing
+about id'.  So we handle it all in one gulp.
+*)
+
+
+Lemma semax_call_id1_x:
+ forall Delta P Q R ret ret' id argtys retty bl fsig A x Pre Post
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+   match fsig with
+   | (_, Tvoid) => False
+   | _ => True
+   end ->
+   argtys = type_of_params (fst fsig) ->
+   retty = snd fsig ->
+  forall
+   (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
+   (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
+   type_is_volatile retty = false -> 
+   (temp_types Delta) ! ret' = Some (retty, false) ->
+   is_neutral_cast retty retty = true ->
+   match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
+  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
+    (Ssequence (Scall (Some ret')
+             (Evar id (Tfunction argtys retty))
+             bl)
+      (Sset ret (Etempvar ret' retty)))
+    (normal_ret_assert 
+       (EX old:val, 
+          PROPx P (LOCALx (map (subst ret (lift0 old)) Q) 
+             (SEPx (lift1 (Post x) (get_result1 ret) :: map (subst ret (lift0 old)) R))))).
+Proof.
+ intros. rename H3 into NONVOL.
+ eapply semax_seq'.
+ apply (semax_call_id1' _ P Q R ret' _ _ _ bl _ _ x _ _ GLBL H H0 H1 H2 CLOSQ CLOSR).
+match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
+   assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
+ end.
+Focus 2.
+ clear - H3.
+ unfold PROPx. 
+ unfold PROPx at 1 in H3.
+ normalize in H3.
+ apply semax_extract_prop. apply H3.
+ (* End Focus 2 *)
+ intro.
+ apply semax_post_flipped
+ with (normal_ret_assert (EX  x0 : val,
+PROP  ()
+(LOCALx
+   (tc_environ
+      (initialized ret
+         (update_tycon Delta
+            (Scall (Some ret') (Evar id (Tfunction argtys retty)) bl)))
+    :: lift2 eq (eval_id ret)
+         (subst ret (lift0 x0) (eval_expr (Etempvar ret' retty)))
+       :: map (subst ret (lift0 x0)) Q)
+   (SEPx
+      (map (subst ret (lift0 x0)) (lift1 (Post x) (get_result1 ret') :: R)))))).
+forward_setx.
+ apply andp_right.
+ intro rho; unfold tc_expr; simpl.
+ rewrite NONVOL. simpl.
+ replace ( (temp_types (initialized ret' Delta)) ! ret' ) 
+     with (Some (retty, true)).
+Focus 2.
+ unfold initialized;  simpl. rewrite H4.
+ unfold temp_types; simpl.
+ rewrite PTree.gss. auto.
+ (* End Focus 2 *)
+ unfold local; apply prop_right.
+ simpl. rewrite eqb_type_refl. apply I.
+ intro rho; apply prop_right; unfold tc_temp_id; simpl.
+ unfold typecheck_temp_id.
+ destruct (eq_dec ret' ret).
+ subst ret'.
+ unfold temp_types. unfold initialized; simpl.
+ rewrite H4. simpl. rewrite PTree.gss.
+ rewrite H5.
+ simpl.
+ unfold isCastResultType. unfold is_neutral_cast in H5.
+ destruct (Cop.classify_cast retty retty); try discriminate.
+ rewrite eqb_type_refl. apply I.
+ unfold temp_types. unfold initialized; simpl.
+ rewrite H4. simpl. rewrite PTree.gso by auto. 
+ destruct ((temp_types Delta) ! ret); try discriminate.
+ destruct p. apply eqb_type_true in H6.
+ subst t. rewrite H5.
+ simpl.
+ unfold isCastResultType. unfold is_neutral_cast in H5.
+ destruct (Cop.classify_cast retty retty); try discriminate.
+ rewrite eqb_type_refl. apply I.
+ auto.
+ intros.
+ apply andp_left2. apply normal_ret_assert_derives'.
+ apply exp_derives; intro old.
+ apply andp_derives.
+ apply prop_right; auto.
+ intro rho; unfold LOCALx, local.
+ simpl. 
+  normalize.
+ apply sepcon_derives; auto.
+ replace (subst ret (lift0 old) (get_result1 ret') rho)
+   with (get_result1 ret rho); auto.
+ destruct (eq_dec ret ret').
+ subst.
+ unfold get_result1.
+ unfold subst. f_equal.
+ normalize in H8.
+ normalize. f_equal. auto.
+ clear - H6 H8 H7.
+ unfold tc_environ in H7.
+ unfold env_set. destruct rho; simpl in *; f_equal.
+ unfold eval_id in H8; simpl in H8. unfold subst in H8.
+ simpl in *. rewrite Map.gss in H8. simpl in H8.
+ unfold lift0 in *. subst.
+ unfold Map.set. extensionality i. 
+ destruct (ident_eq i ret'); auto.  subst i.
+ unfold typecheck_environ in H7.
+ repeat rewrite andb_true_iff in H7.
+ destruct H7 as [[[? _] _] _].
+ simpl te_of in H.
+ apply environ_lemmas.typecheck_te_eqv in H.
+ hnf in H.
+ specialize (H ret').
+ revert H6; case_eq ((temp_types Delta)!ret'); intros; try discriminate.
+ destruct p.
+ unfold temp_types, initialized in H; simpl in H.
+ rewrite H0 in H. unfold temp_types in *. simpl in H. rewrite PTree.gss in H.
+ simpl in H. rewrite PTree.gss in H.
+ specialize (H true t (eq_refl _)). 
+ destruct H as [v [? ?]]. rewrite H.
+ apply H.
+  rewrite closed_wrt_subst; auto with closed.
+ unfold get_result1.
+ f_equal. f_equal.
+ rewrite H8.
+  rewrite closed_wrt_subst; auto with closed.
+Qed.
+
+Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
+   let VT := fresh "VT" in let GT := fresh "GT" in 
+         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
+
+      assert (VT: (var_types Delta) ! f = None) by reflexivity;
+      assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
+                    by (unfold fsig, A, Pre, Post; simpl; reflexivity);
+
+ let SCI := fresh "SCI" in
+    let H := fresh in let x := fresh "x" in let F := fresh "F" in
+      evar (x:A); evar (F: list assert); 
+
+      assert (SCI := semax_call_id1_x Delta P Q F id id' f 
+                (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
+                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
+      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
+                                      (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+     [ unfold fsig, A, Pre, Post
+     |  apply semax_pre with (PROPx P
+                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
+                 (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                            F))));
+       [apply (semax_call_id_aux1 _ _ _ _ _ H)
+       | eapply semax_post'; [ unfold  x,F | unfold F in *; 
+              ( apply SCI ; [ solve[simpl; auto with closed] |solve[simpl; auto with closed] 
+                                 | reflexivity | reflexivity | reflexivity | reflexivity ] ) ]
+               ]];
+  clear SCI VT GT; try clear H;
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
+
+(* END HORRIBLE.  *)
+
+
 Ltac semax_call_id_tac :=
 match goal with 
 | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx 
@@ -982,8 +1164,23 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   end.
 *)
 
-Ltac forward := 
-  match goal with 
+Ltac forward :=
+match goal with
+ (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE, above)  *)
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+               (Ssequence (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
+                       (Sset ?id (Etempvar ?id' _))) _) _ =>
+       (* HACK ... need this extra clause, because trying to do it via the general case
+          of the next clause leads to unification difficulties; maybe the general case
+          will work in Coq 8.4 *)
+           eapply semax_seq';
+           [  semax_call_id_tac_aux_x Delta P Q R id id' f bl;
+        [ | apply derives_refl  ] 
+           |  try unfold exit_tycon; 
+                 simpl update_tycon;
+            try (apply extract_exists_pre; intro_old_var'' id)
+           ]
+ (* END HORRIBLE2 *)
   | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
           apply seq_assoc; forward
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>

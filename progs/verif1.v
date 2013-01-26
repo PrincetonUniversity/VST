@@ -198,7 +198,6 @@ cancel.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
 go_lower.
-cancel.
 forward.  (* return s; *)
 go_lower.
 normalize.

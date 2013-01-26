@@ -56,8 +56,6 @@ Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{
           intros ? [w1 [w2 [? [? [? ?]]]]];  split; auto. exists w1; exists w2; repeat split; auto.
           intros ? [? [w1 [w2 [? [? ?]]]]];  exists w1; exists w2; repeat split; auto.
  intros; intro; apply sepcon_derives; auto.
- intros. simpl. apply normalize.sepcon_pure_andp;simpl; auto.
- intros. simpl. apply normalize.pure_sepcon_TT_andp; auto.
  intros. simpl. apply distrib_orp_sepcon; auto.
  intros. simpl. apply distrib_sepcon_andp; auto.
  intros; simpl; apply ewand_sepcon; auto.

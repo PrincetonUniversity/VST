@@ -82,7 +82,6 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   sepcon: A -> A -> A;
   wand: A -> A -> A;
   ewand: A -> A -> A;
-  pure := fun (P:A) =>   P |-- emp;
   sepcon_assoc: forall P Q R, sepcon (sepcon P Q) R = sepcon P (sepcon Q R);
   sepcon_comm:  forall P Q, sepcon P Q = sepcon Q P;
   wand_sepcon_adjoint: forall (P Q R: A),  (sepcon P Q |-- R) = (P |-- wand Q R);
@@ -90,8 +89,6 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   exp_sepcon1:  forall T (P: T ->  A) Q,  sepcon (exp P) Q = exp (fun x => sepcon (P x) Q);
   sepcon_andp_prop: forall P Q R, sepcon P (!!Q && R) = !!Q && (sepcon P R);
   sepcon_derives: forall P P' Q Q' : A, P |-- P' -> Q |-- Q' -> sepcon P Q |-- sepcon P' Q';
-  sepcon_pure_andp: forall P Q, pure P -> pure Q -> (sepcon P Q = andp P Q);
-  pure_sepcon_TT_andp: forall P Q, pure P -> andp (sepcon P TT) Q = sepcon P Q;
   distrib_orp_sepcon:  forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R;
   distrib_sepcon_andp: forall P Q R, sepcon P (andp Q R) |-- andp (sepcon P Q) (sepcon P R);
   ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
@@ -119,8 +116,6 @@ Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
  simpl; intros. extensionality x. apply exp_sepcon1.
  simpl; intros. extensionality x. apply sepcon_andp_prop.
  simpl; intros; apply sepcon_derives; auto.
- simpl; intros; extensionality x; apply sepcon_pure_andp; unfold pure; auto.
- simpl; intros; extensionality x; apply pure_sepcon_TT_andp; unfold pure in *; auto.
  simpl; intros; extensionality x; apply distrib_orp_sepcon.
  simpl; intros; apply distrib_sepcon_andp.
  simpl; intros; extensionality x; apply ewand_sepcon.

@@ -88,7 +88,6 @@ Definition f_reverse := {|
       (Sreturn (Some (Etempvar _w (tptr t_struct_list)))))))
 |}.
 
-(*
 Definition f_main := {|
   fn_return := tint;
   fn_params := nil;
@@ -110,25 +109,6 @@ Definition f_main := {|
         (Evar _sumlist (Tfunction (Tcons (tptr t_struct_list) Tnil) tint))
         ((Etempvar _r (tptr t_struct_list)) :: nil))
       (Sset _s (Etempvar 17%positive tint)))
-    (Sreturn (Some (Etempvar _s tint)))))
-|}.
-*)
-
-Definition f_main := {|
-  fn_return := tint;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := ((_r, (tptr t_struct_list)) :: (_s, tint) :: nil);
-  fn_body :=
-(Ssequence
-    (Scall (Some _r)
-      (Evar _reverse (Tfunction (Tcons (tptr t_struct_list) Tnil)
-                       (tptr t_struct_list)))
-      ((Evar _three (tarray t_struct_list 3)) :: nil))
-  (Ssequence
-      (Scall (Some _s)
-        (Evar _sumlist (Tfunction (Tcons (tptr t_struct_list) Tnil) tint))
-        ((Etempvar _r (tptr t_struct_list)) :: nil))
     (Sreturn (Some (Etempvar _s tint)))))
 |}.
 

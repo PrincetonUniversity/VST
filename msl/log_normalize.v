@@ -126,47 +126,6 @@ apply derives_refl.
 rewrite andp_comm. apply modus_ponens.
 Qed.
 
-Lemma pure_sepcon {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-    forall (P : A), pure P -> P*P=P.
-Proof with norm.
- intros. pose proof (sepcon_pure_andp _ _ H H).
- rewrite H0. apply pred_ext. apply andp_left1... apply andp_right...
-Qed.
-
-Lemma pure_e  {A}{NA: NatDed A}{SA: SepLog A}: forall (P: A), pure P -> (P |-- emp).
-Proof.
-intros.
-apply H.
-Qed.
-
-Hint Resolve @pure_e : normalize.
-
-Lemma pure_emp {A}{NA: NatDed A}{SA: SepLog A}: pure emp.
-Proof with norm.
-intros. unfold pure...
-Qed.
-Hint Resolve @pure_emp.
-
-Lemma pure_sepcon1''  {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
-   forall P Q R: A, pure P -> Q |-- R -> P * Q |-- R.
-Proof with norm.
-intros.
-apply @derives_trans with (emp*Q).
-apply sepcon_derives...
-rewrite emp_sepcon...
-Qed.
-
-
-Lemma pure_existential {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-   forall B (P: B -> A),    (forall x: B , pure (P x)) -> pure (exp P).
-Proof.
-intros.
-unfold pure in *.
-apply exp_left; auto.
-Qed.
-
-Hint Resolve @pure_existential.
-
 Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
 Proof.
 intros.
@@ -191,31 +150,6 @@ intros. apply pred_ext...
 apply prop_right...
 Qed. 
 Hint Rewrite @true_eq using (solve [auto]) : normalize.
-
-Lemma pure_con' {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}: 
-      forall P Q: A, pure P -> pure Q -> pure (P*Q).
-Proof.
-intros.
-unfold pure in *.
-rewrite <- sepcon_emp.
-apply sepcon_derives; auto.
-Qed.
-Hint Resolve @pure_con'.
-
-Lemma pure_intersection1: forall {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}
-       (P Q: A), pure P -> pure (P && Q).
-Proof.
-unfold pure; intros; auto.
-apply andp_left1; auto.
-Qed.
-
-Lemma pure_intersection2: forall {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}
-     (P Q: A), pure Q -> pure (P && Q).
-Proof.
-unfold pure; intros; auto.
-apply andp_left2; auto.
-Qed.
-Hint Resolve @pure_intersection1 @pure_intersection2.
 
 Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
 Proof with norm.
@@ -339,24 +273,6 @@ eapply derives_trans; [eapply andp_derives; apply modus_ponens | ].
 rewrite andp_comm; apply modus_ponens.
 Qed.
 
-Lemma pure_sepcon_TT_andp'  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q : A, pure P -> Q && (P * TT) = (Q*P).
-Proof.
-intros. rewrite andp_comm.
-rewrite pure_sepcon_TT_andp; auto.
-apply sepcon_comm.
-Qed.
-
-Hint Rewrite @pure_sepcon_TT_andp @pure_sepcon_TT_andp' using (solve [auto]): normalize.
-
-Lemma pure_sepcon1'  {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q R : A, pure P -> P * Q |-- P * R -> P * Q |-- R.
-Proof with norm.
-intros.
-eapply derives_trans; try apply H0.
-apply pure_sepcon1''; auto.
-Qed.
-
 Lemma pull_right {A} {NA: NatDed A}{SA: SepLog A}:
  forall P Q R : A,
    (Q * P * R) = (Q * R * P).
@@ -373,13 +289,6 @@ Qed.
 Ltac pull_left A := repeat (rewrite <- (pull_right A) || rewrite <- (pull_right0 A)).
 
 Ltac pull_right A := repeat (rewrite (pull_right A) || rewrite (pull_right0 A)).
-
-Lemma pure_modus {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
-  forall P Q : A,  P |-- Q -> pure Q -> P |-- Q && P.
-Proof.
-intros.
-apply andp_right; auto.
-Qed.
 
 Lemma derives_extract_prop {A} {NA: NatDed A}:
   forall (P: Prop) (Q R: A), (P -> Q |-- R) ->  !!P && Q |-- R.
@@ -916,32 +825,6 @@ Proof.
   apply andp_left1; auto.
 Qed.
 
-(*
-Lemma Rec_contractive {A}  {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}  : forall
-  (F   : A -> A -> A)
-  (HF1 : forall X, contractive (F X))
-  (HF2 : forall R, contractive (fun X => F X R)),
-  contractive (fun X => Rec (F X)).
-
-Lemma Rec_nonexpansive {A} `{ageable A} : forall
-  (F   : pred A -> pred A -> pred A)
-  (HF1 : forall X, contractive (F X))
-  (HF2 : forall R, nonexpansive (fun X => F X R)),
-  nonexpansive (fun X => Rec (F X)).
-
-
-Lemma HORec_contractive {A} `{ageable A} : forall B
-  (F : pred A -> (B -> pred A) -> B -> pred A)
-  (HF1 : forall X, HOcontractive (F X))
-  (HF2 : forall R a, contractive (fun X => F X R a)),
-  forall a, contractive (fun X => HORec (F X) a).
-
-Lemma HORec_nonexpansive {A} `{ageable A} : forall B
-  (F : pred A -> (B -> pred A) -> B -> pred A)
-  (HF1 : forall X, HOcontractive (F X))
-  (HF2 : forall R a, nonexpansive (fun X => F X R a)),
-  forall a, nonexpansive (fun X => HORec (F X) a).
-*)
 
 (****** End contractiveness *****)
 
