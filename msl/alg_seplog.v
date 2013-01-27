@@ -35,12 +35,9 @@ Instance algNatDed (T: Type){agT: ageable T} : NatDed (pred T).
  intros ? ?; apply @allp_left.
  intros ? ?; apply @allp_right.
  apply imp_andp_adjoint.
- repeat intro. destruct H. apply H0; auto.
  repeat intro. eapply H; eauto. hnf; auto.
  repeat intro. hnf; auto.
  repeat intro. specialize (H H1 _ H0). hnf in H. auto.
- intros. apply exp_andp1.
- repeat intro; eapply distrib_orp_andp; auto.
 Defined.
 
 Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
@@ -49,15 +46,11 @@ Instance algSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{
             predicates_sl.wand predicates_sl.ewand).
  apply sepcon_assoc.
  apply sepcon_comm.
- apply @wand_sepcon_adjoint.
- intros. apply predicates_hered.pred_ext; intros ? ?; try destruct H as [? [? [? [? ?]]]]; contradiction.
- intros. simpl. apply exp_sepcon1.
+ intros. pose proof (wand_sepcon_adjoint P Q R). simpl. rewrite H; split; auto.
  intros; simpl. apply predicates_hered.pred_ext; simpl.
           intros ? [w1 [w2 [? [? [? ?]]]]];  split; auto. exists w1; exists w2; repeat split; auto.
           intros ? [? [w1 [w2 [? [? ?]]]]];  exists w1; exists w2; repeat split; auto.
  intros; intro; apply sepcon_derives; auto.
- intros. simpl. apply distrib_orp_sepcon; auto.
- intros. simpl. apply distrib_sepcon_andp; auto.
  intros; simpl; apply ewand_sepcon; auto.
  intros; simpl. apply ewand_TT_sepcon; auto.
  intros; simpl. intros w [w1 [w2 [? [? ?]]]]. exists w1,w2; repeat split; auto. exists w2; exists w; repeat split; auto.
@@ -84,12 +77,9 @@ Instance algIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{S
  apply (mkIndir _ _ (box laterM)); intros; simpl in *.
  apply @predicates_hered.now_later.
  apply @predicates_hered.axiomK.
- apply @predicates_hered.later_derives; auto.
- apply @predicates_hered.later_andp.
  apply @predicates_hered.later_allp.
  simpl. intros; apply @box_ex.
   simpl. intros; apply @later_ex; auto.
- apply @later_or.
  apply @predicates_hered.later_imp.
  apply @predicates_hered.loeb; auto.
 Defined.

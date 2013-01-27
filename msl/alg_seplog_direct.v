@@ -29,26 +29,24 @@ Instance algNatDed (T: Type) : NatDed (pred T).
  intros ? ?; apply @allp_left.
  intros ? ?; apply @allp_right.
  apply imp_andp_adjoint.
- repeat intro. destruct H. apply H0; auto.
- repeat intro. eapply H; eauto. hnf; auto.
+ repeat intro. eapply H; eauto.
  repeat intro. hnf; auto.
- intros.  apply exp_andp1.
+ intros. intro; intros. intro.  specialize (H H1 _ H0). apply H.
 Defined.
 
 Instance algSepLog (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T} :
       @SepLog (pred T) (algNatDed T).
- apply (mkSepLog _ (algNatDed T) identity predicates_sa.sepcon predicates_sa.wand).
+ apply (mkSepLog _ (algNatDed T) identity predicates_sa.sepcon predicates_sa.wand
+                             predicates_sa.ewand).
  apply sepcon_assoc.
  apply sepcon_comm.
- apply @wand_sepcon_adjoint; auto.
- intros. apply predicates_sa.pred_ext; intros ? ?; try destruct H as [? [? [? [? ?]]]]; contradiction.
- intros. simpl. apply exp_sepcon1.
- intros; simpl. apply predicates_sa.pred_ext; simpl.
-          intros ? [w1 [w2 [? [? [? ?]]]]];  split; auto. exists w1; exists w2; repeat split; auto.
-          intros ? [? [w1 [w2 [? [? ?]]]]];  exists w1; exists w2; repeat split; auto.
+ intros. pose proof (wand_sepcon_adjoint P Q R). simpl. rewrite H; split; auto.
+ intros. apply (predicates_sa.sepcon_andp_prop P Q R).
  intros; intro; apply sepcon_derives; auto.
- intros. simpl. apply sepcon_pure_andp;simpl; auto.
- intros. simpl. apply pure_sepcon_TT_andp; auto.
+ intros; apply predicates_sa.ewand_sepcon.
+ admit. 
+ admit.
+ admit.
 Defined.
 
 Instance algClassicalSep (T: Type) {JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{CancT: Canc_alg T}:

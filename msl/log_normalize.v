@@ -1,10 +1,152 @@
 Require Import msl.seplog.
-Require Import msl.alg_seplog.
+(* Require Import msl.alg_seplog. *)
 Require Import msl.Extensionality.
 
 Local Open Scope logic.
 
 Hint Resolve @derives_refl.
+
+Lemma andp_is_allp {A}{ND: NatDed A}:
+   forall P Q, andp P Q = allp (fun x : bool => if x then P else Q).
+Proof.
+ intros. apply pred_ext.
+ apply allp_right. intro b; destruct b.
+ apply andp_left1; apply derives_refl.
+ apply andp_left2; apply derives_refl. 
+ apply andp_right.
+ apply allp_left with true; apply derives_refl.
+ apply allp_left with false; apply derives_refl.
+Qed.
+
+Lemma orp_is_exp {A}{ND: NatDed A}:
+   forall P Q, orp P Q = exp (fun x : bool => if x then P else Q).
+Proof.
+ intros. apply pred_ext.
+ apply orp_left.
+ apply exp_right with true; apply derives_refl.
+ apply exp_right with false; apply derives_refl.
+ apply exp_left; intro b; destruct b.
+ apply orp_right1; apply derives_refl.
+ apply orp_right2; apply derives_refl.
+Qed.
+
+Lemma modus_ponens {A}{ND: NatDed A}: forall P Q: A, derives (andp P (imp P Q)) Q.
+Proof.
+intros. apply derives_trans with (andp (imp P Q) P). 
+  apply andp_right; [apply andp_left2 | apply andp_left1]; apply derives_refl.
+ apply imp_andp_adjoint. apply derives_refl.
+Qed.
+
+Lemma exp_andp1  {A}{ND: NatDed A}:  forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q)).
+Proof.
+ intros. apply pred_ext.
+ apply imp_andp_adjoint.
+ apply exp_left; intro x.
+ apply imp_andp_adjoint.
+ apply exp_right with x.
+ apply derives_refl.
+ apply exp_left; intro x.
+ apply andp_right; [apply andp_left1 | apply andp_left2].
+ apply exp_right with x; apply derives_refl.
+ apply derives_refl.
+Qed.
+
+Lemma distrib_orp_andp {A}{ND: NatDed A}:  
+   forall (P Q R : A), andp (orp P Q) R = orp (andp P R) (andp Q R).
+Proof.
+ intros.
+ apply pred_ext.
+ apply imp_andp_adjoint.
+ apply orp_left.
+ apply imp_andp_adjoint. apply orp_right1; apply derives_refl.
+ apply imp_andp_adjoint. apply orp_right2; apply derives_refl.
+ apply orp_left.
+ apply andp_right; [apply andp_left1 | apply andp_left2].
+ apply orp_right1; apply derives_refl.
+ apply derives_refl.
+ apply andp_right. apply orp_right2; apply andp_left1; apply derives_refl.
+ apply andp_left2; apply derives_refl.
+Qed.
+
+Lemma sepcon_FF {A}{ND: NatDed A}{SL: SepLog A} :
+           forall P: A, sepcon P FF = FF.
+Proof.
+ intros; apply pred_ext.
+  rewrite sepcon_comm.
+  apply wand_sepcon_adjoint.
+ apply prop_left; intro; contradiction.
+  apply prop_left; intro; contradiction.
+Qed.
+
+Lemma exp_sepcon1{A}{ND: NatDed A}{SL: SepLog A}:  
+       forall T (P: T ->  A) Q,  sepcon (exp P) Q = exp (fun x => sepcon (P x) Q).
+Proof.
+ intros. apply pred_ext.
+ apply wand_sepcon_adjoint.
+ apply exp_left; intro x.
+ apply wand_sepcon_adjoint.
+ apply exp_right with x.
+ apply derives_refl.
+ apply exp_left; intro x.
+ apply sepcon_derives.
+ apply exp_right with x; apply derives_refl.
+ apply derives_refl.
+Qed.
+
+Lemma  distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}: 
+      forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R.
+Proof.
+ intros. apply pred_ext.
+ apply wand_sepcon_adjoint.
+ apply orp_left.
+ apply wand_sepcon_adjoint. apply orp_right1; apply derives_refl.
+ apply wand_sepcon_adjoint. apply orp_right2; apply derives_refl.
+ apply orp_left; (apply sepcon_derives; [ | apply derives_refl]).
+ apply orp_right1; apply derives_refl.
+ apply orp_right2; apply derives_refl.
+Qed. 
+
+Lemma  distrib_sepcon_andp {A}{ND: NatDed A}{SL: SepLog A}: 
+     forall P Q R, sepcon P (andp Q R) |-- andp (sepcon P Q) (sepcon P R).
+Proof.
+ intros.
+ apply andp_right.
+ apply sepcon_derives; [ apply derives_refl | ].
+ apply andp_left1; apply derives_refl.
+ apply sepcon_derives; [ apply derives_refl | ].
+  apply andp_left2; apply derives_refl.
+Qed.
+
+Lemma later_derives {A}{ND: NatDed A}{IA: Indir A}:
+   forall P Q: A, P |-- Q -> later P |-- later Q.
+Proof.
+  intros.
+  apply derives_trans with (TT && later P).
+ apply andp_right. apply prop_right; auto. apply derives_refl.
+  apply imp_andp_adjoint.
+  eapply derives_trans; [ | apply later_K].
+  eapply derives_trans; [ | apply now_later].
+ apply imp_andp_adjoint.
+ apply andp_left2; auto.
+Qed.
+
+Lemma later_andp  {A}{ND: NatDed A}{IA: Indir A}:
+       forall P Q: A, later (P && Q) = later P && later Q.
+Proof.
+ intros. repeat rewrite andp_is_allp.
+ rewrite later_allp. 
+ f_equal. extensionality x.
+ destruct x; auto.
+Qed.
+
+Lemma later_orp  {A}{ND: NatDed A}{IA: Indir A}:
+       forall P Q: A, later (P || Q) = later P || later Q.
+Proof.
+ intros. repeat rewrite orp_is_exp.
+ repeat rewrite (later_exp' _ true).
+ f_equal. extensionality x.
+ destruct x; auto.
+Qed.
 
 
 Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
@@ -493,7 +635,8 @@ intros.
 prove_assoc_commut.
 Qed.
 
-(***** contractiveness ******)
+(***** subtyping and contractiveness -- should split this into a separate file ******)
+Require Import msl.alg_seplog.
 
 Lemma later_fash1 {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall P : A, |> # P |-- # |> P.
