@@ -718,3 +718,17 @@ Proof.
 Qed.
 
 Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : normalize.
+
+(* Admitted: move these next two to assert_lemmas *)
+Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
+Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
+ 
+Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e. 
+Proof. intros; unfold tc_andp; reflexivity. Qed.
+Hint Rewrite tc_andp_TT1 tc_andp_TT2 : normalize.
+
+Lemma prop_derives {A}{ND: NatDed A}: 
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros; apply prop_left; intro; apply prop_right; auto.
+Qed.

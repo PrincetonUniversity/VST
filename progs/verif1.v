@@ -50,7 +50,6 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
-
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -58,7 +57,7 @@ name _t P._t.
 name _p P._p.
 name _s P._s.
 name _h P._h.
-destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
+destruct sh_contents as [sh contents]; simpl @fst; simpl @snd.
 forward.  (* s = 0; *)
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
@@ -74,7 +73,7 @@ unfold partial_sum.
 (* et_3 *) go_lower. subst; rewrite H1; normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
-(* et_4 *) go_lower. 
+(* et_4 *) go_lower.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
@@ -103,7 +102,7 @@ name _p P._p.
 name _v P._v.
 name _w P._w.
 name _t P._t.
-destruct sh_contents as [sh contents]. simpl @fst; simpl @snd.
+destruct sh_contents as [sh contents]; simpl @fst; simpl @snd.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
@@ -114,10 +113,10 @@ apply exp_right with nil.
 apply exp_right with contents.
 (* et_7 *) go_lower. subst. simpl; normalize.
 (* loop invariant implies typechecking of loop condition *)
-(* et_8 *) intro; apply prop_right; repeat split.
+(* et_8 *) go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-(*  et_9 *) go_lower. subst _v. normalize. subst. rewrite <- app_nil_end, rev_involutive. auto.
+(*  et_9 *) go_lower. subst. normalize. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
@@ -183,7 +182,6 @@ Proof.
  rewrite lseg_unroll. apply orp_right1.
  unfold ptr_eq;simpl; normalize.
 Qed.
-
 
 Lemma body_main:  semax_body Vprog Gtot P.f_main main_spec.
 Proof.
