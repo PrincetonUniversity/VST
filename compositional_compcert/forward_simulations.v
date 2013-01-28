@@ -278,8 +278,8 @@ End Coop_forward_simulation_ext.
 
 Module Forward_simulation_inj. Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
-          {Sem2 : CoreSemantics G2 C2 mem D2}
+          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
+          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
@@ -297,8 +297,10 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (loc_unmapped j) m1 m1' /\
-          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+          mem_unchanged_on (fun b ofs => 
+            loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
+          mem_unchanged_on (fun b ofs => 
+            loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -317,7 +319,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     core_halted : forall cd j c1 m1 c2 m2 v1,
       match_state cd j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
-     exists v2, val_inject j v1 v2 /\
+      exists v2, val_inject j v1 v2 /\
           safely_halted Sem2 c2 = Some v2 /\
           Mem.inject j m1 m2;
 
@@ -467,8 +469,8 @@ End Coop_forward_simulation_inj.
 
 Module Forward_simulation_inj_exposed. Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
-          {Sem2 : CoreSemantics G2 C2 mem D2}
+          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
+          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
 
           {ge1: Genv.t F1 V1}
           {ge2:G2}
@@ -487,8 +489,10 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (loc_unmapped j) m1 m1' /\
-          mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+          mem_unchanged_on (fun b ofs => 
+            loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
+          mem_unchanged_on (fun b ofs => 
+            loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -553,8 +557,8 @@ End Forward_simulation_inj_exposed.
 
 Lemma Forward_simulation_inj_exposed_hidden: 
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: CoreSemantics (Genv.t F1 V1) C1 mem D1)
-   (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 
+   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
+   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 
    entry_points core_data match_state core_ord,
   Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
     entry_points core_data match_state core_ord -> 
@@ -567,8 +571,8 @@ Qed.
 
 Lemma Forward_simulation_inj_hidden_exposed:
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: CoreSemantics (Genv.t F1 V1) C1 mem D1)
-   (csemT: CoreSemantics G2 C2 mem D2) ge1 ge2 entry_points,
+   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
+   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 entry_points,
   Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
   {core_data: Type & 
   {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
@@ -724,8 +728,8 @@ Inductive core_correctness (I: forall F C V
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_inj : forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   entrypoints jInit

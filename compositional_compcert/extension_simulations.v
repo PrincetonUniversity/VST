@@ -43,6 +43,41 @@ Definition val_has_type_opt (v: option val) (sig: signature) :=
  | Some v' => Val.has_type v' (proj_sig_res sig)
  end.
 
+Section CoreCompatibleDefs. Variables
+ (Z: Type) (** external states *)
+ (Zint: Type) (** portion of Z implemented by extension *)
+ (Zext: Type) (** portion of Z external to extension *)
+ (G: Type) (** global environments of extended semantics *)
+ (D: Type) (** extension initialization data *)
+ (xT: Type) (** corestates of extended semantics *)
+ (esem: CoreSemantics G xT mem D) (** extended semantics *)
+ (esig: ef_ext_spec mem Zext) (** extension signature *)
+ (gT: nat -> Type) (** global environments of core semantics *)
+ (dT: nat -> Type) (** initialization data *)
+ (cT: nat -> Type) (** corestates of core semantics *)
+ (csem: forall i:nat, RelyGuaranteeSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
+ (csig: ef_ext_spec mem Z). (** client signature *)
+
+ Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+
+ Variable Hcore_compatible: core_compatible ge genv_map E.
+
+ Import Extension.
+
+ Definition private_valid s m := 
+  forall i c, proj_core E i s = Some c -> 
+  forall b, private_block (csem i) c b -> b < Mem.nextblock m.
+  
+ Definition private_disjoint s :=
+  forall i j (c: cT i) (d: cT j), 
+  i<>j -> 
+  proj_core E i s = Some c ->   
+  proj_core E j s = Some d ->   
+  forall b, private_block (csem i) c b -> ~private_block (csem j) d b.
+
+End CoreCompatibleDefs.
+
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -95,28 +130,33 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Variable (R: meminj -> xS -> mem -> xT -> mem -> Prop).
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   R j s1 m1 s2 m2 /\ ACTIVE E_S s1=ACTIVE E_T s2 /\
+   private_valid csemS E_S s1 m1 /\ private_disjoint csemS E_S s1 /\ 
+   private_valid csemT E_T s2 m2 /\ private_disjoint csemT E_T s2 /\
+   R j s1 m1 s2 m2 /\ 
+   ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
        match_state i (cd i) j c1 m1 c2 m2.
 
  Inductive Sig: Type := Make: forall  
- (corestep_rel: forall cd j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   match_states cd j s1 m1 s2 m2 -> 
-   Mem.inject j m1 m2 -> 
-   meminj_preserves_globals (genv2blocks ge_S) j -> 
-   inject_incr j j' -> 
-   Events.inject_separated j j' m1 m2 -> 
-   corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-   corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
-   corestep esemS ge_S s1 m1 s1' m1' -> 
-   corestepN esemT ge_T n s2 m2 s2' m2' -> 
-   match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
-   Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
-   Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
-   R j' s1' m1' s2' m2')
+  (corestep_rel: forall cd j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
+    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+    match_states cd j s1 m1 s2 m2 -> 
+    Mem.inject j m1 m2 -> 
+    meminj_preserves_globals_ind (genv2blocks ge_S) j -> 
+    inject_incr j j' -> 
+    Events.inject_separated j j' m1 m2 -> 
+    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
+    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
+    corestep esemS ge_S s1 m1 s1' m1' -> 
+    corestepN esemT ge_T n s2 m2 s2' m2' -> 
+    match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
+    Events.mem_unchanged_on (fun b ofs => 
+      Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' -> 
+    Events.mem_unchanged_on (fun b ofs => 
+      Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' -> 
+    R j' s1' m1' s2' m2')
 
  (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
    match_states cd j s1 m1 s2 m2 -> 
@@ -172,15 +212,15 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
- (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
-   In (v1, v2, sig) entry_points -> 
-   make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
-   Mem.inject j m1 m2 -> 
-   Forall2 (val_inject j) vals1 vals2 -> 
-   Forall2 Val.has_type vals2 (sig_args sig) -> 
-   exists cd, exists s2, 
-     make_initial_core esemT ge_T v2 vals2 = Some s2 /\
-     match_states cd j s1 m1 s2 m2)
+  (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+    In (v1, v2, sig) entry_points -> 
+    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
+    Mem.inject j m1 m2 -> 
+    Forall2 (val_inject j) vals1 vals2 -> 
+    Forall2 Val.has_type vals2 (sig_args sig) -> 
+    exists cd, exists s2, 
+      make_initial_core esemT ge_T v2 vals2 = Some s2 /\
+      match_states cd j s1 m1 s2 m2)
  
  (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
@@ -223,8 +263,8 @@ Module CompilableExtension. Section CompilableExtension.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
@@ -270,8 +310,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
   (csemS: forall i:nat, 
     RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, 

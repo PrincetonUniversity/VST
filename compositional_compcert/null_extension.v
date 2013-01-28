@@ -325,44 +325,57 @@ Section NullExtensionCompilable.
  constructor; try solve[intros; unfold R; auto].
 
  intros until j; intros H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15.
- destruct core_simulation; unfold const; simpl.
- destruct H10 as [? [? MATCH]].
- specialize (MATCH O s1).
- spec MATCH; auto.
- destruct MATCH as [_s2 [PROJ MATCH]].
- inv PROJ.
- specialize (core_diagram0 s1 m1 s1' m1' H15 (cd O) _s2 j m2). 
- spec core_diagram0; auto.
- destruct core_diagram0 as [s2' [m2' [cd' [j' [? [? [? [? [? ?]]]]]]]]].
- exists s2'; exists m2'; exists (fun _ => cd'); exists j'.
- split3; auto.
- split; auto.
- split; auto.
- split; auto.
- intros i _s1'; simpl; unfold proj_core; intros PROJ.
- if_tac in PROJ; try congruence.
- inv PROJ.
- solve[exists s2'; auto].
- split3; auto.
- destruct H20.
- solve[left; auto].
- destruct H20 as [A B].
- right; split; auto.
- unfold CompilabilityInvariant.core_ords.
- exists O. 
- split; auto.
- split; auto.
- solve[intros k; inversion 1].
+ inversion H4; subst.
+ inversion H5; subst.
+ apply corestep_not_at_external in H15.
+ unfold const in H8; simpl in H8.
+ rewrite H15 in H8.
+ congruence.
 
- intros; simpl in H4; unfold proj_core, active in H4.
- if_tac in H4; try congruence.
- solve[inv H4; auto].
+ intros until j; intros.
+ inversion H0; subst.
+ inversion H4; subst.
+ destruct core_simulation.
+ solve[eapply core_at_external0 in H6; eauto].
  
  intros; destruct core_simulation.
  destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 m2 H0 H4 H5 H6) 
   as [cd [s2 [H7 H8]]].
  exists (fun _ => cd); exists s2; split; auto. 
  split; auto.
+
+ intros i c PROJ b PRIV.
+ unfold const in PRIV.
+ elimtype False.
+ simpl in PROJ.
+ unfold proj_core in PROJ.
+ if_tac in PROJ; try solve[congruence].
+ inv PROJ.
+ solve[eapply (private_initial _ geS v1 vals1 c); eauto].
+
+ split.
+ intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
+ unfold proj_core in *.
+ if_tac in PROJ1; try solve[congruence]; inv PROJ1.
+ solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
+
+ split.
+ intros i c PROJ b PRIV.
+ unfold const in PRIV.
+ elimtype False.
+ simpl in PROJ.
+ unfold proj_core in PROJ.
+ if_tac in PROJ; try solve[congruence].
+ inv PROJ.
+ solve[eapply (private_initial _ geT v2 vals2 c); eauto].
+
+ split.
+ intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
+ unfold proj_core in *.
+ if_tac in PROJ1; try solve[congruence]; inv PROJ1.
+ solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
+
+ split.
  solve[unfold R; auto].
  split; auto.
  intros i c1 H9; exists s2; split; auto.
@@ -375,7 +388,7 @@ Section NullExtensionCompilable.
 
  intros until v1; intros MATCH12 HALT.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
- destruct MATCH12 as [? [? MATCH12]].
+ destruct MATCH12 as [? [? [? [? [? [? MATCH12]]]]]].
  specialize (MATCH12 O c1).
  spec MATCH12; auto.
  destruct MATCH12 as [c2' [PROJ MATCH12]].

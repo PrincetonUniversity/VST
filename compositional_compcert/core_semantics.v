@@ -231,12 +231,16 @@ Qed.
 Record RelyGuaranteeSemantics {G C D} :=
   { csem :> CoreSemantics G C mem D;
     private_block: C -> block -> Prop;
+    private_dec: forall c b, 
+      {private_block c b}+{~private_block c b};
+    private_initial: forall ge v vs c,
+      make_initial_core csem ge v vs = Some c -> 
+      forall b, ~private_block c b;
     private_step: forall ge c m c' m',
       corestep csem ge c m c' m' -> 
       (forall b, private_block c' b <-> 
         private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m');
-    private_external: forall c c' ef sig args retv,
-      at_external csem c = Some (ef, sig, args) -> 
+    private_external: forall c c' retv,
       after_external csem retv c = Some c' -> 
       (forall b, private_block c' b <-> private_block c b) }.
 
@@ -255,21 +259,54 @@ intros until b; intros H1 H2.
 solve[erewrite private_step; eauto].
 Qed.
 
+Lemma private_corestepN: forall ge n c m c' m' b,
+  private_block rgsem c b -> 
+  corestepN rgsem ge n c m c' m' -> 
+  private_block rgsem c' b.
+Proof.
+intros until b; revert c m; induction n; simpl.
+solve[intros ? ? ? X; inv X; auto].
+intros until m; intros H1 [c2 [m2 [H2 H3]]].
+eapply private_corestep in H2; eauto.
+Qed.
+
 Lemma private_new: forall ge c m c' m' b,
   ~private_block rgsem c b -> 
   corestep rgsem ge c m c' m' -> 
-  private_block rgsem c' b -> 
-  Mem.nextblock m <= b < Mem.nextblock m'.
+  (private_block rgsem c' b <-> Mem.nextblock m <= b < Mem.nextblock m').
 Proof.
-intros until b; intros H1 H2 H3.
+intros until b; intros H1 H2; split; intros H3.
 rewrite private_step in H3; eauto.
 destruct H3; auto.
 elimtype False; auto.
+rewrite private_step; eauto.
 Qed.
+
+Lemma private_newN: forall ge n c m c' m' b,
+  ~private_block rgsem c b -> 
+  corestepN rgsem ge n c m c' m' -> 
+  (private_block rgsem c' b <-> Mem.nextblock m <= b < Mem.nextblock m').
+Proof.
+intros until b; revert c m; induction n; auto.
+(*solve[intros ? ? ? X; inv X; intros; elimtype False; auto].
+simpl; intros until m; intros H1 [c2 [m2 [H2 H3]]] H4.
+destruct (Z_le_dec (Mem.nextblock m) b).
+destruct (Z_lt_dec b (Mem.nextblock m2)).
+assert (H5: private_block rgsem c2 b).
+ erewrite private_step.
+ right; split; eauto.
+ eapply H2.
+eapply private_new with (ge := ge) (c' := c2) (m' := m2) in H1; eauto.
+assert (Mem.nextblock m2 <= Mem.nextblock m').
+ admit. (*TODO: requires coopsem*)
+split; auto.
+omega.
+assert (Mem.nextblock m2 <= b) by omega.*)
+Admitted. (*TODO*)
 
 End RelyGuaranteeSemanticsLemmas.
 
-Definition blockmap := block -> Prop.
+Definition blockmap := block -> bool.
 
 Section RelyGuaranteeSemanticsFunctor.
 Context {G C D: Type}.
@@ -278,7 +315,7 @@ Variable csem: CoreSemantics G C mem D.
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
     corestep csem ge c m c' m' /\
-    (forall b, f' b <-> f b \/ Mem.nextblock m <= b < Mem.nextblock m')
+    (forall b, f' b=true <-> f b=true \/ Mem.nextblock m <= b < Mem.nextblock m')
   end.
 
 Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
@@ -287,7 +324,7 @@ Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
     (initial_mem csem)
     (*make_initial_core*)
     (fun ge v vs => match make_initial_core csem ge v vs with
-                    | Some c => Some (fun _ => False, c)
+                    | Some c => Some (fun _ => false, c)
                     | None => None
                     end)
     (*at_external*)
@@ -320,11 +357,23 @@ Qed.
 Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
   Build_RelyGuaranteeSemantics G (blockmap*C) D
    RelyGuaranteeCoreSem
-   (@fst _ _) _ _.
+   (fun x b => fst x b = true) _ _ _ _.
+Next Obligation.
+simpl.
+destruct (b0 b).
+left; auto.
+right; auto.
+Qed.
+Next Obligation. 
+simpl.
+destruct (make_initial_core csem ge v vs).
+inv H; auto.
+congruence.
+Qed.
 Next Obligation. destruct H; auto. Qed.
 Next Obligation. 
 simpl in *|-*; destruct (after_external csem retv c); try solve[congruence].
-solve[inv H0; split; auto].
+solve[inv H; split; auto].
 Qed.
 
 End RelyGuaranteeSemanticsFunctor.

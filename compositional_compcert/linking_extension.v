@@ -68,6 +68,13 @@ Definition all_at_external (l: call_stack cT num_modules) :=
    at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)
   end) l.
 
+Fixpoint private_blocks (stack: call_stack cT num_modules) b :=
+ match stack with 
+ | nil => False
+ | mkFrame i pf_i c_i :: stack' => 
+   private_block (get_module_csem (modules pf_i)) c_i b \/ private_blocks stack' b
+ end.
+
 Inductive linker_corestate: Type := mkLinkerCoreState: forall
  (stack: call_stack cT num_modules)
  (stack_nonempty: length stack >= 1)
@@ -308,6 +315,435 @@ intros H2 H3.
 solve[rewrite H2 in H; congruence].
 Qed.
 
+Program Definition rg_linker_core_semantics: 
+  RelyGuaranteeSemantics (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
+ Build_RelyGuaranteeSemantics _ _ _ 
+ linker_core_semantics
+ (fun c b => match c with mkLinkerCoreState stack _ _ => private_blocks stack b end)
+ _ _ _ _.
+Next Obligation.
+destruct c.
+clear stack_nonempty callers_at_external.
+induction stack.
+solve[right; auto].
+destruct a.
+simpl.
+destruct (private_dec (get_module_csem (modules PF)) c b).
+left.
+solve[left; auto].
+destruct IHstack.
+left; auto.
+right.
+intros CONTRA.
+solve[destruct CONTRA; auto].
+Qed.
+Next Obligation.
+destruct c.
+intros CONTRA.
+rename H into H2.
+unfold linker_make_initial_core in H2.
+case_eq v.
+rename V into V'.
+solve[intros V; rewrite V in *; try solve[congruence]].
+intros i V2.
+rewrite V2 in H2.
+congruence.
+intros f V2.
+rewrite V2 in H2.
+congruence.
+intros b' i V2.
+rewrite V2 in H2.
+case_eq (Genv.find_symbol ge0 main_id).
+2: solve[intros H6; rewrite H6 in H2; destruct v; congruence].
+intros b1 H6.
+rewrite H6 in H2.
+if_tac in H2; try solve[congruence].
+case_eq (procedure_linkage_table main_id); try solve[congruence].
+intros n PLT.
+revert H2.
+generalize (refl_equal (procedure_linkage_table main_id)).
+generalize PLT.
+pattern (procedure_linkage_table main_id) at 0 2 4.
+rewrite PLT.
+intros ? ?.
+subst.
+case_eq
+ (make_initial_core 
+   (get_module_csem (modules (plt_ok main_id n (eq_sym e))))
+   (get_module_genv (modules (plt_ok main_id n (eq_sym e))))
+   (Vptr b1 i) vs); try solve[congruence].
+intros c Heq; inv Heq.
+intros H1; inv H1.
+simpl in CONTRA.
+destruct CONTRA; auto.
+eapply private_initial in H0.
+apply H0; eauto.
+intros PLT.
+revert H2.
+generalize (refl_equal (procedure_linkage_table main_id)).
+generalize PLT.
+pattern (procedure_linkage_table main_id) at 0 2 4.
+rewrite PLT.
+intros ? ? ?; congruence.
+Qed.
+Next Obligation.
+destruct c'.
+destruct c.
+inv H.
+eapply private_step in H6.
+split; simpl; intros H7.
+destruct H7.
+rewrite H6 in H.
+solve[destruct H; auto].
+solve[left; right; auto].
+destruct H7.
+destruct H; auto.
+rewrite H6.
+solve[left; left; auto].
+rewrite H6.
+solve[left; right; auto].
+eapply private_initial in H8.
+split; simpl.
+intros.
+destruct H; auto.
+solve[elimtype False; apply H8; eauto].
+intros.
+destruct H; auto.
+destruct H.
+solve[elimtype False; omega].
+admit. (*TODO: we lose private blocks on function returns...*)
+Qed.
+Next Obligation.
+destruct c'.
+destruct c.
+simpl in H.
+destruct stack0.
+congruence.
+destruct f.
+case_eq (after_external (get_module_csem (modules PF)) retv c).
+intros c' AFT.
+rewrite AFT in H.
+inv H.
+eapply private_external in AFT.
+simpl.
+split; intros.
+solve[rewrite AFT in H; auto].
+solve[rewrite AFT; auto].
+intros AFT.
+rewrite AFT in H; congruence.
+Qed.
+
+(** Preservation of privacy invariants *)
+
+Fixpoint private_valid_inv m (stack: call_stack cT num_modules) :=
+ match stack with
+ | nil => True
+ | mkFrame i pf_i c_i :: stack' => 
+   (forall b, private_block (get_module_csem (modules pf_i)) c_i b -> 
+     (b < Mem.nextblock m)%Z) /\
+   private_valid_inv m stack'
+ end.
+
+Lemma private_valid_inv_fwd: 
+  forall m m' stack,
+  private_valid_inv m stack -> 
+  (Mem.nextblock m <= Mem.nextblock m')%Z -> 
+  private_valid_inv m' stack.
+Proof.
+induction stack; auto.
+simpl.
+destruct a.
+intros [H1 H2] H3.
+split; auto.
+intros b H4.
+assert (b < Mem.nextblock m)%Z.
+auto.
+omega.
+Qed.
+
+Fixpoint private_disjoint_inv' (i: nat) (pf_i: i < num_modules) 
+  c_i (stack: call_stack cT num_modules) := 
+ match stack with 
+ | nil => True
+ | mkFrame k pf_k c_k :: stack' => 
+   (forall b, private_block (get_module_csem (modules pf_i)) c_i b -> 
+     ~private_block (get_module_csem (modules pf_k)) c_k b) /\
+   private_disjoint_inv' pf_i c_i stack'
+ end.
+
+Fixpoint private_disjoint_inv (stack: call_stack cT num_modules) :=
+  match stack with
+  | nil => True
+  | mkFrame i pf_i c_i :: stack' => 
+    private_disjoint_inv' pf_i c_i stack' /\ private_disjoint_inv stack'
+  end.
+
+Lemma private_valid_invariant: 
+  forall stack m stack' m' n pf1 pf2 pf1' pf2',
+  corestepN rg_linker_core_semantics ge n 
+   (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
+  private_valid_inv m stack -> 
+  private_valid_inv m' stack'.
+Proof.
+intros.
+revert stack pf1 pf2 m H H0.
+induction n.
+simpl.
+solve[intros until m; intros H1; inv H1; auto].
+intros until m; simpl.
+intros [c2 [m2 [STEP STEPN]]].
+inv STEP.
+simpl.
+intros H4.
+apply IHn 
+ with (stack := mkFrame i pf_i c' :: stack0) (pf1 := pf) (pf2 := ext_pf) (m := m2); auto.
+simpl.
+destruct H4 as [H4 H5].
+split; auto.
+intros b H6.
+destruct (private_dec (get_module_csem (modules pf_i)) c b).
+cut (Mem.nextblock m <= Mem.nextblock m2)%Z. intro H7.
+cut (b < Mem.nextblock m)%Z. intro H8.
+omega.
+apply H4; auto.
+admit. (*TODO: coopsem memfwd*)
+eapply private_step in H3.
+rewrite H3 in H6.
+destruct H6.
+elimtype False; auto.
+solve[destruct H; auto].
+assert (Mem.nextblock m <= Mem.nextblock m2)%Z. 
+ admit. (*TODO: coopsem memfwd*)
+solve[eapply private_valid_inv_fwd; eauto].
+intros H6.
+apply IHn 
+ with (stack := mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack0)
+      (pf1 := length_cons (mkFrame j (plt_ok id j LOOKUP) c')
+                  (mkFrame i pf_i c :: stack0))
+      (pf2 := ext_pf')
+      (m := m2); auto.
+simpl.
+split.
+intros b' H7.
+elimtype False.
+solve[eapply private_initial in H5; eauto].
+split.
+intros b' H7.
+simpl in H6.
+destruct H6 as [H6 H8].
+solve[apply H6; auto].
+solve[destruct H6 as [H6 H8]; auto].
+intros H6.
+apply IHn 
+ with (stack := mkFrame i pf_i c'' :: stack0)
+      (pf1 := length_cons (mkFrame i pf_i c'') stack0)
+      (pf2 := ext_pf')
+      (m := m2); auto.
+simpl.
+split.
+intros b H7.
+eapply private_external in H3; eauto.
+rewrite H3 in H7.
+simpl in H6.
+destruct H6 as [_ [H6 H8]].
+apply H6; auto.
+solve[destruct H6 as [? [? ?]]; auto].
+Qed.
+
+Lemma private_valid_external: 
+  forall stack m stack' retv pf1 pf2 pf1' pf2',
+  linker_after_external retv (mkLinkerCoreState stack pf1 pf2) = 
+    Some (mkLinkerCoreState stack' pf1' pf2') -> 
+  private_valid_inv m stack -> 
+  private_valid_inv m stack'.
+Proof.
+intros until pf2'; intros H1 H2.
+unfold linker_after_external in H1.
+destruct stack.
+congruence.
+destruct f.
+case_eq (after_external (get_module_csem (modules PF)) retv c).
+intros c' AFT.
+rewrite AFT in H1.
+inv H1.
+simpl in H2.
+destruct H2 as [H2 H3].
+simpl; split; auto.
+intros b H4.
+eapply private_external in AFT.
+rewrite AFT in H4.
+solve[apply H2; auto].
+intros AFT.
+solve[rewrite AFT in H1; congruence].
+Qed.
+
+Lemma private_disjoint_inv'_eq: 
+  forall i (pf: i < num_modules) c c' stack, 
+  (forall b, private_block (get_module_csem (modules pf)) c' b <->
+             private_block (get_module_csem (modules pf)) c b) -> 
+  private_disjoint_inv' pf c stack -> 
+  private_disjoint_inv' pf c' stack.
+Proof.
+intros until stack.
+intros H1 H2.
+simpl.
+induction stack; auto.
+simpl.
+destruct a.
+split; auto.
+intros b H3.
+intros CONTRA.
+rewrite H1 in H3.
+simpl in H2.
+destruct H2 as [H2 H4].
+solve[apply (H2 b); auto].
+apply IHstack.
+solve[simpl in H2; destruct H2; auto].
+Qed.
+
+Lemma private_disjoint_inv_eq: 
+  forall i (pf: i < num_modules) c c' stack, 
+  (forall b, private_block (get_module_csem (modules pf)) c' b <->
+             private_block (get_module_csem (modules pf)) c b) -> 
+  private_disjoint_inv (mkFrame i pf c :: stack) -> 
+  private_disjoint_inv (mkFrame i pf c' :: stack).
+Proof.
+intros until stack.
+intros H1 H2.
+simpl.
+simpl in H2; destruct H2.
+split; auto.
+induction stack; auto.
+simpl.
+destruct a.
+simpl in H; destruct H.
+split; auto.
+intros b H3.
+intros CONTRA.
+rewrite H1 in H3.
+solve[apply (H b); auto].
+apply IHstack; auto.
+solve[simpl in H0; destruct H0; auto].
+Qed.
+
+Lemma private_disjoint_step: forall i (pf_i: i < num_modules) c m c' m' stack,
+  corestep (get_module_csem (modules pf_i)) (get_module_genv (modules pf_i)) c m c' m' ->
+  private_valid_inv m (mkFrame i pf_i c :: stack) -> 
+  private_disjoint_inv' pf_i c stack -> 
+  private_disjoint_inv' pf_i c' stack.
+Proof.
+intros.
+induction stack; auto.
+destruct a.
+simpl.
+split; auto.
+intros b H2.
+simpl in H1.
+destruct H1 as [H1 H3].
+destruct (private_dec (get_module_csem (modules pf_i)) c b).
+apply H1; auto.
+intros CONTRA.
+eapply private_step in H.
+rewrite H in H2.
+destruct H2; auto.
+destruct H2 as [H2 H4].
+assert (b < Mem.nextblock m)%Z.
+ clear - H0 CONTRA.
+ solve[destruct H0 as [H0 [H1 H2]]; auto].
+clear - H2 H5.
+omega.
+simpl in *.
+destruct H0 as [? [? ?]].
+destruct H1 as [? ?].
+solve[apply IHstack; auto].
+Qed.
+
+Lemma private_disjoint_invariant: 
+  forall stack stack' m m' n pf1 pf2 pf1' pf2',
+  corestepN rg_linker_core_semantics ge n 
+   (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
+  private_valid_inv m stack -> 
+  private_disjoint_inv stack -> 
+  private_disjoint_inv stack'.
+Proof.
+intros.
+revert stack pf1 pf2 m H H0 H1.
+induction n; intros.
+simpl in H.
+solve[inv H; auto].
+simpl in H.
+destruct H as [c2 [m2 [STEP STEPN]]].
+inv STEP.
+apply IHn 
+ with (stack := mkFrame i pf_i c' :: stack0) (pf1 := pf) (pf2 := ext_pf) (m := m2); auto.
+eapply private_valid_invariant with (n := S O); eauto.
+simpl.
+exists (mkLinkerCoreState (mkFrame i pf_i c' :: stack0) pf ext_pf).
+exists m2.
+split; eauto.
+solve[constructor; eauto].
+simpl.
+simpl in H1.
+destruct H1 as [H1 H6].
+split; auto.
+solve[eapply private_disjoint_step; eauto].
+apply IHn 
+ with (stack := mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack0)
+      (pf1 := length_cons (mkFrame j (plt_ok id j LOOKUP) c')
+                  (mkFrame i pf_i c :: stack0))
+      (pf2 := ext_pf')
+      (m := m2); auto.
+simpl.
+split; auto.
+intros b' H8.
+destruct (private_dec (get_module_csem (modules pf_i)) c b').
+simpl in H0.
+destruct H0 as [H0 H9].
+solve[apply H0; auto].
+elimtype False.
+solve[eapply private_initial in H7; eauto].
+simpl.
+split; auto.
+split; auto.
+intros b' H8 CONTRA.
+solve[eapply private_initial in H7; eauto].
+clear - H7.
+induction stack0; simpl; auto.
+destruct a.
+split; auto.
+intros b' H1 CONTRA.
+solve[eapply private_initial in H7; eauto].
+apply IHn 
+ with (stack := mkFrame i pf_i c'' :: stack0)
+      (pf1 := length_cons (mkFrame i pf_i c'') stack0)
+      (pf2 := ext_pf')
+      (m := m2); auto.
+simpl.
+split.
+intros b H7.
+eapply private_external in H5; eauto.
+rewrite H5 in H7.
+simpl in H0.
+destruct H0 as [_ [H6 H8]].
+solve[apply H6; auto].
+solve[destruct H0 as [? [? ?]]; auto].
+simpl.
+simpl in H1.
+destruct H1 as [? [? ?]].
+split; auto.
+clear - H5 H1.
+induction stack0; auto.
+simpl.
+destruct a.
+simpl in H1.
+destruct H1 as [H1 H2].
+split; auto.
+intros b H3 CONTRA.
+eapply private_external in H5; eauto.
+rewrite H5 in H3.
+apply (H1 b); auto.
+Qed.
+
 End LinkerCoreSemantics.
 
 Section LinkingExtension.
@@ -334,7 +770,8 @@ Program Definition trivial_core_semantics: forall i: nat,
 Program Definition trivial_rg_semantics: forall i: nat,
  RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
  fun i: nat => Build_RelyGuaranteeSemantics _ _ _ (trivial_core_semantics i)
-   (fun c b => False) _ _.
+   (fun c b => False) _ _ _ _.
+Next Obligation. right; auto. Qed.
 Next Obligation. elimtype False; auto. Qed.
 
 Definition csem_map: forall i: nat, 
@@ -477,7 +914,7 @@ Qed.
 Program Definition linking_extension: 
  @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
      (linker_corestate num_modules cT modules) 
-     (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
      esig _ _ cT csem_map csig :=
  Extension.Make 
   (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
@@ -874,6 +1311,10 @@ Definition R_inv (j:meminj) (x:linker_corestate num_modules cS modules_S) (m1:me
                             (y:linker_corestate num_modules cT modules_T) (m2:mem) := 
  match x, y with
  | mkLinkerCoreState stack1 _ _, mkLinkerCoreState stack2 _ _ => 
+    private_valid_inv fS vS modules_S m1 stack1 /\
+    private_disjoint_inv fS vS modules_S stack1 /\
+    private_valid_inv fT vT modules_T m2 stack2 /\
+    private_disjoint_inv fT vT modules_T stack2 /\
     stack_inv j m1 m2 stack1 stack2
  end.
 
@@ -996,18 +1437,18 @@ Qed.
 Lemma linking_extension_compilable 
   (cd_init: CompilabilityInvariant.core_datas core_data):
  CompilableExtension.Sig 
- (@linker_core_semantics F_S V_S num_modules cS fS vS 
+ (@rg_linker_core_semantics F_S V_S num_modules cS fS vS 
    procedure_linkage_table plt_ok modules_S entry_points)
- (@linker_core_semantics F_T V_T num_modules cT fT vT 
+ (@rg_linker_core_semantics F_T V_T num_modules cT fT vT 
    procedure_linkage_table plt_ok modules_T entry_points)
  geS geT entry_points.
 Proof.
 set (R := R_inv).
 destruct (@ExtensionCompilability 
  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
- (@linker_core_semantics F_S V_S num_modules cS fS vS 
+ (@rg_linker_core_semantics F_S V_S num_modules cS fS vS 
    procedure_linkage_table plt_ok modules_S entry_points)
- (@linker_core_semantics F_T V_T num_modules cT fT vT 
+ (@rg_linker_core_semantics F_T V_T num_modules cT fT vT 
    procedure_linkage_table plt_ok modules_T entry_points)
  csem_map_S csem_map_T csig esig
  geS geT genv_mapS genv_mapT 
@@ -1020,14 +1461,19 @@ destruct (@ExtensionCompilability
  entry_points core_data match_state core_ord threads_max R)
  as [LEM].
 apply LEM; auto.
-apply linker_core_compatible; auto. 
+unfold genv_mapS.
+apply (@linker_core_compatible F_S V_S Z cS fS vS
+  num_modules procedure_linkage_table plt_ok 
+  modules_S csig esig entry_points linkableS_csig_esig); auto.
  clear - domain_eq_S.
  unfold genv_mapS, genvs in domain_eq_S.
  intros k pf_k.
  specialize (domain_eq_S k).
  destruct (lt_dec k num_modules); try solve[elimtype False; omega].
  solve[assert (pf_k = l) as -> by apply proof_irr; auto]. 
-apply linker_core_compatible; auto. 
+apply (@linker_core_compatible F_T V_T Z cT fT vT
+  num_modules procedure_linkage_table plt_ok 
+  modules_T csig esig entry_points linkableT_csig_esig); auto.
  clear - domain_eq_T.
  unfold genv_mapT, genvs in domain_eq_T.
  intros k pf_k.
@@ -1037,16 +1483,19 @@ apply linker_core_compatible; auto.
 clear LEM; constructor; simpl.
 
 (*1*)
-intros until cd'; intros H1 H2 [RR [H3 H4]] H5 H6 H7 H8 STEP1 STEP2 ESTEP1 ESTEP2 MATCH'.
+intros until cd'; intros H1 H2. 
+intros [_ [_ [_ [_ [RR [H3 H4]]]]]].
+intros H5 H6 H7 H8 STEP1 STEP2 ESTEP1 ESTEP2 MATCH'.
 simpl in *.
-unfold R, R_inv.
+unfold R, R_inv in RR|-*.
 destruct s1; destruct s2; simpl in *.
+destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 RR]]]].
 destruct stack.
 solve[congruence].
-intros; destruct f; simpl in *.
+intros; destruct f.
 destruct stack0; simpl in RR.
 solve[elimtype False; auto].
-destruct f; simpl in *.
+destruct f.
 subst.
 destruct (eq_nat_dec i0 i0); try solve[elimtype False; omega].
 rewrite <-Eqdep_dec.eq_rect_eq_dec in H1, H2;
@@ -1065,18 +1514,76 @@ eapply linker_step_lem1
  with (stack := stack) (pf_i := PF) (pf1 := stack_nonempty)
   (pf2 := callers_at_external) in STEP1; eauto.
 subst.
+split; auto.
+
+simpl; split; auto.
+intros b H10.
+eapply private_valid_invariant 
+ with (stack' := mkFrame i0 PF c1' :: stack)
+      (m' := m1') 
+      (pf1' := stack_nonempty) 
+      (pf2' := callers_at_external) 
+      (procedure_linkage_table := procedure_linkage_table) 
+      (plt_ok := plt_ok) 
+      (n := S O)
+      in PRIV1; auto.
+simpl in PRIV1.
+destruct PRIV1 as [X Y].
+apply (X b); auto.
+exists (mkLinkerCoreState (mkFrame i0 PF c1' :: stack) 
+           stack_nonempty callers_at_external).
+exists m1'.
+solve[simpl; split; eauto].
+simpl in PRIV1.
+destruct PRIV1 as [X Y].
+apply private_valid_inv_fwd with (m := m1); auto.
+admit. (*coopsem memfwd*)
+split.
+eapply private_disjoint_invariant
+ with (n := S O).
 simpl.
-destruct (RGsim i0).
+exists (mkLinkerCoreState (mkFrame i0 PF c1' :: stack) 
+           stack_nonempty callers_at_external).
+exists m1'.
+solve[split; eauto].
+solve[auto].
+solve[auto].
+
+split.
+simpl; split. 
+intros b H10.
+eapply private_valid_invariant 
+ with (stack' := mkFrame i0 PF0 c2' :: stack0)
+      (m' := m2') 
+      (pf1' := stack_nonempty0) 
+      (pf2' := callers_at_external0) 
+      (procedure_linkage_table := procedure_linkage_table) 
+      (plt_ok := plt_ok) 
+      (n := n)
+      in PRIV2; auto.
+simpl in PRIV2.
+destruct PRIV2 as [X Y].
+apply (X b); auto.
+simpl.
+solve[eauto].
+simpl in PRIV2.
+destruct PRIV2 as [X Y].
+apply private_valid_inv_fwd with (m := m2); auto.
+admit. (*coopsem memfwd*)
+split.
+eapply private_disjoint_invariant
+ with (n := n).
+simpl.
+solve[eauto].
+solve[auto].
+solve[auto].
+
 exists (@refl_equal _ i0).
 split.
-assert
- (Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
-  Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2') as [MEM1 MEM2].
-solve[split; auto].
 solve[exists cd'; auto].
 
-clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim H H0.
-revert stack0 STACK; induction stack.
+clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim H H0 DISJ1 DISJ2.
+revert stack0 STACK DISJ2; induction stack.
 intros stack0; destruct stack0; simpl; auto.
 intros stack0; destruct stack0; simpl; auto.
 destruct a; destruct f.
@@ -1099,23 +1606,50 @@ solve[eapply GENVS; eauto].
 destruct (RGsim i0).
 solve[apply match_state_inj0 with (cd := cd') (c1 := c1') (c2 := c2'); auto].
 
-destruct H as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H; auto].
-apply Y; auto.
-solve[intros i0' H2; destruct (H i0'); auto].
-destruct H0 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H0; auto].
-apply Y; auto.
-solve[intros i0' H2; destruct (H0 i0'); auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\ ~private_block (csem_map_S i0) c1 b); auto.
+intros b ofs [? X]; split; auto.
+clear - DISJ1 X.
+destruct DISJ1 as [Y Z].
+simpl in Y, Z.
+destruct Y as [Y1 Y2].
+unfold csem_map_S, csem_map.
+destruct (lt_dec i0 num_modules); try solve[congruence].
+assert (l = PF) as -> by apply proof_irr.
+intros CONTRA.
+apply (Y1 b); auto.
+revert X.
+unfold csem_map_S, csem_map.
+destruct (lt_dec i num_modules); try solve[congruence].
+solve[assert (l0 = PF1) as -> by apply proof_irr; auto].
+
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\ ~private_block (csem_map_T i0) c2 b); auto.
+intros b ofs [? X]; split; auto.
+clear - DISJ2 X.
+destruct DISJ2 as [Y Z].
+simpl in Y, Z.
+destruct Y as [Y1 Y2].
+revert X; unfold csem_map_T, csem_map.
+destruct (lt_dec i num_modules); try solve[congruence].
+destruct (lt_dec i0 num_modules); try solve[congruence].
+assert (l = PF2) as -> by apply proof_irr.
+intros H1 CONTRA.
+apply (Y1 b); auto.
+solve[assert (l0 = PF0) as -> by apply proof_irr; auto].
+
+clear - DISJ1 DISJ2 IHstack STACK'.
+apply IHstack; auto.
+destruct DISJ1 as [[X Y] [Z W]].
+solve[split; auto].
+destruct DISJ2 as [[X Y] [Z W]].
+solve[split; auto].
 
 (*2*)
-intros until args1; intros [RR [H1 H2]]; simpl in *.
+intros until args1; intros [_ [_ [_ [_ [RR [H1 H2]]]]]]; simpl in *.
 intros H3 H4 H5 H6 H7 H8 H9 AT_EXT H10 H11.
 unfold R, R_inv in *.
+intros HAS_TY1 HAS_TY2 INJ.
 destruct s1; destruct s2; simpl in *.
 destruct stack.
 simpl in stack_nonempty; elimtype False; omega.
@@ -1134,8 +1668,49 @@ case_eq (after_external (get_module_csem (modules_T PF0)) ret2 c0).
 intros c2 Heq2.
 rewrite Heq2 in H11.
 inv H11.
-simpl in *.
-destruct RR as [RR1 [[cd' MATCH] RR2]].
+destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [[cd' MATCH] RR2]]]]]].
+
+split3; auto.
+
+assert (Hlt: (Mem.nextblock m1 <= Mem.nextblock m1')%Z).
+ admit. (*coopsem memfwd*)
+
+split; auto.
+intros b H10.
+assert (b < Mem.nextblock m1)%Z.
+ eapply private_external in Heq1.
+ rewrite Heq1 in H10.
+ destruct PRIV1 as [X Y].
+ solve[apply (X b); auto].
+omega.
+eapply private_valid_inv_fwd; eauto.
+solve[destruct PRIV1; auto].
+destruct DISJ1 as [X Y].
+simpl; split; auto.
+eapply private_disjoint_inv'_eq; eauto.
+solve[eapply private_external; eauto].
+
+split; auto.
+simpl; split; auto.
+intros b H10.
+assert (b < Mem.nextblock m2)%Z.
+ eapply private_external in Heq2.
+ rewrite Heq2 in H10.
+ destruct PRIV2 as [X Y].
+ solve[apply (X b); auto].
+admit. (*coopsem memfwd*)
+destruct PRIV2 as [X Y].
+eapply private_valid_inv_fwd; eauto.
+admit. (*coopsem memfwd*)
+split.
+
+simpl.
+destruct DISJ2.
+split; auto.
+eapply private_disjoint_inv'_eq; eauto.
+solve[eapply private_external; eauto].
+
+simpl.
 exists RR1.
 split; auto.
 destruct (core_simulations i0).
@@ -1146,11 +1721,13 @@ case_eq (at_external (get_module_csem (modules_S PF)) c).
 2: solve[intros AT_EXT'; rewrite AT_EXT' in AT_EXT; congruence].
 intros [[ef' sig'] args'] AT_EXT'.
 rewrite AT_EXT' in AT_EXT.
-assert (exists ret1', ret1 = Some ret1') as [ret1' RET1] by admit. (*fix after_external to allow None retval*)
-assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] by admit. (*fix after_external to allow None retval*)
+assert (exists ret1', ret1 = Some ret1') as [ret1' RET1] 
+ by admit. (*fix after_external to allow None retval*)
+assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] 
+ by admit. (*fix after_external to allow None retval*)
 assert (val_inject j' ret1' ret2'). 
- unfold val_inject_opt in H1.
- rewrite RET1, RET2 in H1.
+ unfold val_inject_opt in INJ.
+ rewrite RET1, RET2 in INJ.
  solve[auto].
 specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
 specialize (RGsim i0); destruct RGsim.
@@ -1177,9 +1754,9 @@ solve[unfold mem_forward; intros; split; auto].
 spec core_after_external0.
 solve[unfold Events.mem_unchanged_on; split; auto].
 spec core_after_external0.
-unfold val_has_type_opt in H0.
-rewrite RET2 in H0; auto.
-admit. (*typing precondition: use "ef_sig e" instead of sig' everywhere*)
+unfold val_has_type_opt in HAS_TY1.
+rewrite RET2 in HAS_TY2; auto.
+admit. (*typing precondition: use "ef_sig e" instead of sig' everywhere; and HAS_TY2*)
 destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
 exists cd''; auto.
 rewrite <-RET1, <-RET2 in *.
@@ -1204,26 +1781,16 @@ intros GENVS.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 assert (PF = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
-rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
 
 (*mem_unch_on*)
-destruct H7 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H7; auto].
-apply Y; auto.
-solve[intros i0' H11; destruct (H7 i0'); auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
+solve[intros b ofs [? X]; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := 
+  loc_out_of_reach j m1); auto.
+solve[intros b ofs [? X]; auto].
 
-solve[apply eq_nat_dec].
-
-destruct H9 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H9; auto].
-apply Y; auto.
-solve[intros i0' H11; destruct (H9 i0'); auto].
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
-solve[apply eq_nat_dec; auto].
+solve[apply eq_nat_dec].
 
 clear H2 AT_EXT.
 clear - RR2 H3 H4 H5 H6 H7 H8 H9 PF RGsim.
@@ -1251,22 +1818,16 @@ assert (PF0 = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
 
 (*mem_unch_on*)
-destruct H7 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H; auto].
-apply Y; auto.
-solve[intros i0' H11; destruct (H i0'); auto].
-destruct H9 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H; auto].
-apply Y; auto.
-solve[intros i0' H11; destruct (H i0'); auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
+solve[intros b ofs [? X]; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := 
+  loc_out_of_reach j m1); auto.
+solve[intros b ofs [? X]; auto].
 
 (*3: extension_diagram*)
 unfold CompilabilityInvariant.match_states; simpl. 
-intros until j; intros H1 H2 H3 H4 H5 H6; intros [RR [H7 H8]] H9 H10 H11 H12 STEP.
+intros until j; intros H1 H2 H3 H4 H5 H6; 
+ intros [_ [_ [_ [_ [RR [H7 H8]]]]]] H9 H10 H11 H12 STEP.
 inv STEP; simpl in *; subst.
 (*'run' case*)
 elimtype False.
@@ -1317,7 +1878,7 @@ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H2.
 inversion H2; rewrite H7 in *; clear H7.
 simpl in *.
-destruct RR as [RR1 [RR2 STACK_INV]].
+destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [RR2 STACK_INV]]]]]].
 generalize STACK_INV as STACK_INV'; intro.
 apply stack_inv_length_eq in STACK_INV. 
 assert (CALLERS: 
@@ -1343,6 +1904,24 @@ split.
 split.
 inv STACK_INV.
 rewrite H7 in *.
+
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+
 exists (@refl_equal _ k).
 destruct RR2 as [cd'' RR2].
 split.
@@ -1562,7 +2141,24 @@ assert (plt_ok (eq_sym e) = plt_ok PLT) as -> by apply proof_irr.
 rewrite H7.
 inversion 1; subst.
 split.
+
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+
 unfold R, R_inv; simpl.
+split.
+admit. (*priv_valid*)
+split; auto.
+split.
+admit. (*priv_valid*)
+split; auto.
+
 exists (@refl_equal _ n).
 split; auto.
 exists cd'; auto.
@@ -1611,7 +2207,7 @@ intros Hstack'; rewrite Hstack' in H2.
 2: solve[intros ? ? Hstack'; rewrite Hstack' in H2; congruence].
 destruct (core_simulations i).
 unfold CompilabilityInvariant.match_states in H1.
-destruct H1 as [RR [H1 H3]].
+destruct H1 as [_ [_ [_ [_ [RR [H1 H3]]]]]].
 simpl in *. 
 specialize (H3 (linker_active c2)).
 rewrite Hstack in H1, H3.
@@ -1652,7 +2248,7 @@ rewrite Hstack.
 simpl.
 rewrite Hstack'.
 simpl.
-solve[intros [? [? FALSE]]; elimtype False; auto].
+solve[intros [? [? [? [? [? [? FALSE]]]]]]; elimtype False; auto].
 
 (*7: safely_halted_diagram*)
 intros until c2; intros H1 H2 H3 H4 H5.
@@ -1661,7 +2257,7 @@ generalize core_halted0.
 intro core_halted1.
 specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv1).
 spec core_halted1; auto.
-destruct H1 as [RR [H6 H7]].
+destruct H1 as [_ [_ [_ [_ [RR [H6 H7]]]]]].
 simpl in *.
 destruct (H7 (linker_active s1) c1 H2) as [c1' [H8 H9]].
 rewrite H3 in H8.
@@ -1705,10 +2301,10 @@ destruct stack0; try solve[congruence].
 destruct f.
 destruct (eq_nat_dec j0 i0); try solve[congruence]; subst.
 rewrite dependent_types_nonsense in H3; inversion H3; subst c0.
-destruct H1 as [RR [H1 H7]].
+destruct H1 as [_ [_ [_ [_ [RR [H1 H7]]]]]].
 simpl in *.
 unfold R, R_inv in *.
-destruct RR as [RR1 [RR2 RR3]].
+destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [RR2 RR3]]]]]].
 destruct stack0; try solve[elimtype False; auto].
 destruct f.
 specialize (H7 i0 c').
@@ -1798,6 +2394,25 @@ solve[inv HALT; auto].
 split.
 split.
 simpl.
+
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+
+split.
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+split.
+admit. (*priv_valid*)
+split.
+admit. (*priv_disjoint*)
+
 exists (@refl_equal _ i).
 split; auto.
 cut (c'' = _c).
