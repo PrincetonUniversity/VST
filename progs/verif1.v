@@ -2,18 +2,34 @@ Load loadpath.
 Require Import Coqlib msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import Ctypes.
+Require Import Clightdefs.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
-Require Import progs.forward.
 Require Import progs.list.
-Require Import Clightdefs.
 Require Import progs.ilseg.
+Require Import progs.forward.
 Require progs.test1.  Module P := progs.test1.
 
 Local Open Scope logic.
+
+Definition t_listptr := tptr P.t_struct_list.
+
+Instance t_list_spec: listspec t_listptr.
+Proof.
+econstructor.
+reflexivity.
+intro Hx; inv Hx.
+intros.
+unfold unroll_composite; simpl.
+reflexivity.
+econstructor; simpl; reflexivity.
+Defined.
+
+Instance t_intlist_spec: intlistspec t_listptr _.
+Proof. reflexivity. Qed.
 
 Definition sumlist_spec :=
  DECLARE P._sumlist
@@ -50,6 +66,7 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
             PROP () LOCAL (lift1 (partial_sum contents cts) (eval_id P._s)) 
             SEP ( TT ; lift2 (ilseg sh cts) (eval_id P._t) (lift0 nullval))).
+
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -58,7 +75,7 @@ name _p P._p.
 name _s P._s.
 name _h P._h.
 destruct sh_contents as [sh contents]; simpl @fst; simpl @snd.
-forward.  (* s = 0; *)
+forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P._s))SEP(TT)).
@@ -74,6 +91,7 @@ unfold partial_sum.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts].
 (* et_4 *) go_lower.
+simpl list_data; simpl list_link; simpl list_struct.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
@@ -121,6 +139,7 @@ unfold reverse_Inv.
 normalizex. subst contents.
 focus_SEP 1; apply semax_ilseg_nonnull; [ | intros h r y ?; subst cts2].
 go_lower.
+simpl list_data; simpl list_link; simpl list_struct.
 forward.  (* t = v->t; *)
 forward.  (*  v->t = w; *)
 forward.  (*  w = v; *)

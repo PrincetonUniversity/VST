@@ -287,7 +287,8 @@ match goal with |- ?P |-- _ =>
 end.
 apply later_derives.
 normalize.
-intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+change SEPx with SEPx'.
+intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
  rewrite field_mapsto_nonnull.
 repeat rewrite denote_tc_assert_andp.
  normalize.
@@ -602,6 +603,7 @@ rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
 simpl. split; hnf; auto.
 auto.
+change SEPx with SEPx'.
 simpl.
 intro rho.
 rewrite sepcon_comm.
@@ -656,7 +658,8 @@ split.
 rewrite closed_wrt_subst in H; auto.
 auto.
 clear - CLOSR.
-unfold SEPx. intro rho.
+change SEPx with SEPx'.
+unfold SEPx'. intro rho.
 simpl.
 apply sepcon_derives; auto.
 induction R; simpl; auto.
@@ -707,6 +710,7 @@ rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
 simpl. apply I.
 auto.
+change SEPx with SEPx'.
 simpl.
 intro rho.
 cancel.
@@ -838,6 +842,7 @@ Focus 2.
  apply andp_derives.
  apply prop_right; auto.
  intro rho; unfold LOCALx, local.
+change SEPx with SEPx'.
  simpl. 
   normalize.
  apply sepcon_derives; auto.

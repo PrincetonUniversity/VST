@@ -153,6 +153,8 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
 (* Definition SEPx (R: list assert) : assert := fold_right sepcon emp R. *)
 
 Definition SEPx: forall (R: list assert), assert := fold_right sepcon emp.
+Definition SEPx': forall (R: list assert), assert := fold_right sepcon emp.
+Global Opaque SEPx.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8) : logic.
@@ -453,7 +455,7 @@ Lemma go_lower_lem26:
   fold_right_sepcon rho R |-- PQR'    ->
   SEPx R rho |-- PQR'.
 Proof.
- intros.
+ intros. change SEPx with SEPx'.
  eapply derives_trans with (fold_right_sepcon rho R).
  clear. induction R; simpl; auto.
  destruct R. apply derives_trans with (a rho * emp).
@@ -466,7 +468,7 @@ Lemma go_lower_lem27a:
   P |--  andp (prop (fold_right_andp rho Q'))  (fold_right_sepcon rho R') ->
   P |-- LOCALx Q' (SEPx R') rho.
 Proof.
- intros.
+ intros. change SEPx with SEPx'.
  eapply derives_trans; [ apply H |].
  clear.
  unfold LOCALx. unfold local. unfold lift1; simpl.
@@ -599,9 +601,9 @@ match goal with
                         by (apply (tc_eval_id_i Delta _ _ _ H Hty));
        destruct (tc_val_extract_int _ _ _ _ Htc) as [Name Htc'];
        rewrite Htc' in *; clear Hty Htc Htc'
-    | let t := fresh "t" in
+    | let t := fresh "t" in let TC := fresh "TC" in
          evar (t: type);
-         assert (tc_val t (eval_id J RHO)) 
+         assert (TC: tc_val t (eval_id J RHO)) 
              by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
          unfold t in *; clear t;
          forget (eval_id J RHO) as Name
@@ -782,7 +784,8 @@ Hint Rewrite exp_unfold: normalize.
 Lemma canon1: forall P1 B  P Q R,
    do_canon (prop P1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B  (PROPx (P1::P) (LOCALx Q (SEPx R))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -793,7 +796,8 @@ Qed.
 Lemma canon2: forall Q1 B P Q R,
     do_canon (local Q1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx (Q1::Q) (SEPx R))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -816,7 +820,8 @@ Lemma canon3: forall R1 B P Q R,
     nonlocal R1 ->
     do_canon (B * R1) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 clear H.
 extensionality rho.
 simpl.
@@ -831,7 +836,8 @@ Lemma canon3b: forall R1 B P Q R,
     nonlocal R1 ->
     do_canon (R1* B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 rewrite (sepcon_comm R1 B).
 apply canon3. auto.
 Qed.
@@ -845,7 +851,8 @@ Lemma canon7: forall R1 P Q R,
    nonlocal R1 -> 
    do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -858,7 +865,8 @@ Qed.
 
 Lemma start_canon: forall P, P  = do_canon P (PROPx nil (LOCALx nil (SEPx nil ))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho; simpl.
 normalize.
 Qed.
@@ -917,7 +925,8 @@ Hint Rewrite canon17 : canon.
 Lemma finish_canon: forall R1 P Q R, 
    do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
-unfold do_canon, PROPx, LOCALx, SEPx; intros.
+change SEPx with SEPx'.
+unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -1015,7 +1024,8 @@ Lemma insert_local: forall Q1 P Q R,
   local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
 Proof.
 intros. extensionality rho.
-unfold PROPx, LOCALx, SEPx, lift2.
+change SEPx with SEPx'.
+unfold PROPx, LOCALx, SEPx', lift2.
 normalize.
 unfold local, lift1. simpl.
 f_equal.
@@ -1214,7 +1224,8 @@ Lemma grab_nth_SEP:
 Proof.
 intros.
 f_equal. f_equal.
-extensionality rho; unfold SEPx.
+change SEPx with SEPx'.
+extensionality rho; unfold SEPx'.
 revert R; induction n; intros; destruct R.
 simpl. rewrite sepcon_emp; auto.
 simpl nth.
@@ -1315,10 +1326,11 @@ Lemma SEP_later_derives:
       SEPx Q |-- |> SEPx Q' ->
       SEPx (P::Q) |-- |> SEPx (P'::Q').
 Proof.
+change SEPx with SEPx'.
 intros.
 intro rho.
 specialize (H0 rho).
-unfold SEPx in *; intros; normalize.
+unfold SEPx' in *; intros; normalize.
 simpl.
 rewrite later_sepcon.
 apply sepcon_derives; auto.
@@ -1381,7 +1393,8 @@ Lemma extract_exists_in_SEP:
 Proof.
 intros.
 extensionality rho.
-unfold PROPx, LOCALx, SEPx; simpl.
+change SEPx with SEPx'.
+unfold PROPx, LOCALx, SEPx'; simpl.
 normalize.
 Qed.
 
@@ -1401,6 +1414,7 @@ Lemma flatten_sepcon_in_SEP:
 Proof.
 intros.
 f_equal. f_equal. extensionality rho.
+change SEPx with SEPx'.
 simpl. rewrite sepcon_assoc. auto.
 Qed.
 
@@ -1419,7 +1433,8 @@ Lemma move_prop_from_SEP:
 Proof.
  intros.
  extensionality rho.
- unfold PROPx, LOCALx, SEPx, local, lift0, lift1.
+change SEPx with SEPx'.
+ unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
  apply pred_ext; normalize.
 Qed.
@@ -1430,7 +1445,8 @@ Lemma move_local_from_SEP:
 Proof.
  intros.
  extensionality rho.
- unfold PROPx, LOCALx, SEPx, local, lift0, lift1.
+change SEPx with SEPx'.
+ unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
  apply pred_ext; normalize.
 Qed.
@@ -1519,7 +1535,8 @@ f_equal.
 induction Q; simpl; auto.
 normalize.
 f_equal; auto.
-unfold SEPx.
+change SEPx with SEPx'.
+unfold SEPx'.
 induction R; auto.
 normalize.
 f_equal; auto.
