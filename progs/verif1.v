@@ -29,19 +29,17 @@ Definition sum := fold_right Int.add Int.zero.
 
 Definition sumlist_spec :=
  DECLARE P._sumlist
-  WITH sh_contents 
-  PRE [ P._p : t_listptr]  lift2 (lseg (fst sh_contents) (map Vint (snd sh_contents))) 
+  WITH sh : share, contents : list int
+  PRE [ P._p OF t_listptr]  lift2 (lseg sh (map Vint contents)) 
                                        (eval_id P._p) (lift0 nullval)
-  POST [ tint ]  local (lift1 (eq (Vint (sum (snd sh_contents)))) retval).
+  POST [ tint ]  local (lift1 (eq (Vint (sum contents))) retval).
 
 Definition reverse_spec :=
  DECLARE P._reverse
-  WITH sh_contents : share * list int
-  PRE  [ P._p : t_listptr ] !! writable_share (fst sh_contents) &&
-              lift2 (lseg (fst sh_contents) (map Vint (snd sh_contents))) 
-                   (eval_id P._p) (lift0 nullval)
-  POST [ t_listptr ] lift2 (lseg (fst sh_contents) (rev (map Vint (snd sh_contents))))
-                              retval (lift0 nullval).
+  WITH sh : share, contents : list int
+  PRE  [ P._p OF t_listptr ] !! writable_share sh &&
+              lift2 (lseg sh (map Vint contents)) (eval_id P._p) (lift0 nullval)
+  POST [ t_listptr ] lift2 (lseg sh (rev (map Vint contents))) retval (lift0 nullval).
 
 Definition main_spec :=
  DECLARE P._main
@@ -72,7 +70,6 @@ name _t P._t.
 name _p P._p.
 name _s P._s.
 name _h P._h.
-destruct sh_contents as [sh contents]; simpl @fst; simpl @snd.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
@@ -117,7 +114,6 @@ name _p P._p.
 name _v P._v.
 name _w P._w.
 name _t P._t.
-destruct sh_contents as [sh contents]; simpl @fst; simpl @snd.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)

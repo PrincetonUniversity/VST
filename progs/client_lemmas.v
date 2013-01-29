@@ -995,23 +995,36 @@ Hint Resolve andp_later_derives sepcon_later_derives sepcon_derives
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
 
-Notation "'WITH' x : tx 'PRE' '[]' P 'POST' '[]' Q" := 
-     (mk_funspec (nil, Tvoid) tx (fun x => P%logic) (fun x => Q%logic))
-            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+Notation " a 'OF' ta " := (a%type,ta%type) (at level 100, only parsing): formals.
+Delimit Scope formals with formals.
 
-Notation "'WITH' x : tx 'PRE' '[]' P 'POST' [ tz ] Q" := 
+Notation "'WITH' x : tx 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) tx (fun x => P%logic) (fun x => Q%logic))
+            (at level 200, x at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH' x : tx 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
-            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+            (at level 200, x at level 0, P at level 100, Q at level 100).
 
-Notation "'WITH' x 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
-     (mk_funspec ((a, ta)::nil, tz) _ (fun x => P%logic) (fun x => Q%logic))
-            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+Notation "'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2)
+           (fun x => let (x1,x2):=x in P%logic) (fun x => let (x1,x2):=x in Q%logic))
+            (at level 200, x1 at level 0, x2 at level 0, P at level 100, Q at level 100).
 
-Notation "'WITH' x : tx 'PRE' [ a : ta ] P 'POST' [ tz ] Q" := 
-     (mk_funspec ((a, ta)::nil, tz) tx (fun x => P%logic) (fun x => Q%logic))
-            (at level 200, x at level 0, z at level 0, P at level 100, Q at level 100, a at level 0).
+Notation "'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) (t1*t2)
+           (fun x => let (x1,x2):=x in P%logic) (fun x => let (x1,x2):=x in Q%logic))
+            (at level 200, x1 at level 0, x2 at level 0, P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3)
+           (fun x => let (x1,x2,x3):=x in P%logic) (fun x => let (x1,x2,x3):=x in Q%logic))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) (t1*t2*t3)
+           (fun x => let (x1,x2,x3):=x in P%logic) (fun x => let (x1,x2,x3):=x in Q%logic))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
 Lemma exp_derives {A}{NA: NatDed A}{B}:
    forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.

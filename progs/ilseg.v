@@ -15,12 +15,12 @@ Local Open Scope logic.
 Class intlistspec (T: type ) {LS: listspec T} := dtype_is_int: list_dtype=tint.
 
 Definition ilseg {T: type}{LS: listspec T}{IS: intlistspec T}(sh: share) (s: list int) := 
-   lseg T sh (map Vint s).
+   lseg sh (map Vint s).
 
 Definition ilseg_nil  {T: type}{LS: listspec T}{IS: intlistspec T}
                   (l: list  int) x z : mpred := !! (ptr_eq x z) && !! (l=nil) && emp.
 Definition ilseg_cons  {T: type}{LS: listspec T}{IS: intlistspec T}
-                 (sh: share) (s: list int) := lseg_cons T sh (map Vint s).
+                 (sh: share) (s: list int) := lseg_cons sh (map Vint s).
 
 Lemma ilseg_unroll  {T: type}{LS: listspec T}{IS: intlistspec T}: forall sh l x z , 
     ilseg sh l x z = ilseg_nil l x z || ilseg_cons sh l x z.
@@ -93,7 +93,7 @@ Proof.
  normalize. apply exp_right with y. normalize.
  apply andp_right.
  forget (field_mapsto sh list_struct list_data (p rho) (Vint h) ) as A.
- forget (|>lseg T sh (map Vint r) y (q rho)) as B.
+ forget (|>lseg sh (map Vint r) y (q rho)) as B.
  erewrite (field_mapsto_typecheck_val); try reflexivity.
  rewrite IS in *.
  normalize.

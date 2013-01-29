@@ -331,7 +331,10 @@ match goal with
 Ltac start_function :=
 match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
 match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
-  match Pre with fun i => _ => intro i end;
+  match Pre with 
+  | (fun x => match x with (a,b) => _ end) => intros [a b] 
+  | (fun i => _) => intro i
+  end;
   simpl fn_body; simpl fn_params; simpl fn_return;
   canonicalize_pre
  end;

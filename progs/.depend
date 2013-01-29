@@ -1,11 +1,11 @@
 loadpath.vo loadpath.glob: loadpath.v
-list.vo list.glob: list.v loadpath.v field_mapsto.vo
+list.vo list.glob: list.v loadpath.v field_mapsto.vo client_lemmas.vo
 client_lemmas.vo client_lemmas.glob: client_lemmas.v loadpath.v
 assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v loadpath.v
 field_mapsto.vo field_mapsto.glob: field_mapsto.v loadpath.v
 forward_lemmas.vo forward_lemmas.glob: forward_lemmas.v loadpath.v client_lemmas.vo field_mapsto.vo assert_lemmas.vo
 forward.vo forward.glob: forward.v loadpath.v client_lemmas.vo field_mapsto.vo assert_lemmas.vo forward_lemmas.vo
 test1.vo test1.glob: test1.v
-ilseg.vo ilseg.glob: ilseg.v loadpath.v field_mapsto.vo assert_lemmas.vo client_lemmas.vo list.vo test1.vo
+ilseg.vo ilseg.glob: ilseg.v loadpath.v field_mapsto.vo assert_lemmas.vo client_lemmas.vo list.vo
 entailment_tests.vo entailment_tests.glob: entailment_tests.v loadpath.v field_mapsto.vo client_lemmas.vo assert_lemmas.vo list.vo test1.vo ilseg.vo
-verif1.vo verif1.glob: verif1.v loadpath.v field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo list.vo ilseg.vo test1.vo
+verif1.vo verif1.glob: verif1.v loadpath.v field_mapsto.vo client_lemmas.vo assert_lemmas.vo list.vo forward.vo test1.vo
