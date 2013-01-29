@@ -2,21 +2,21 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _p : ident := 8%positive.
-Definition _struct_list : ident := 5%positive.
-Definition _v : ident := 12%positive.
-Definition _sumlist : ident := 10%positive.
+Definition _main : ident := 15%positive.
+Definition _h : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 3%positive.
-Definition ___builtin_memcpy_aligned : ident := 2%positive.
 Definition ___builtin_fabs : ident := 1%positive.
 Definition _r : ident := 14%positive.
-Definition _t : ident := 6%positive.
-Definition _w : ident := 11%positive.
-Definition _three : ident := 4%positive.
-Definition _h : ident := 7%positive.
 Definition _s : ident := 9%positive.
+Definition _three : ident := 4%positive.
+Definition _p : ident := 8%positive.
 Definition _reverse : ident := 13%positive.
-Definition _main : ident := 15%positive.
+Definition _t : ident := 6%positive.
+Definition _v : ident := 12%positive.
+Definition _w : ident := 11%positive.
+Definition _struct_list : ident := 5%positive.
+Definition ___builtin_memcpy_aligned : ident := 2%positive.
+Definition _sumlist : ident := 10%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list
