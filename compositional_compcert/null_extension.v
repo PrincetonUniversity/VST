@@ -351,7 +351,7 @@ Section NullExtensionCompilable.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (private_initial _ geS v1 vals1 c); eauto].
+ solve[eapply (private_initial _ b geS v1 vals1 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
@@ -367,7 +367,7 @@ Section NullExtensionCompilable.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (private_initial _ geT v2 vals2 c); eauto].
+ solve[eapply (private_initial _ b geT v2 vals2 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.

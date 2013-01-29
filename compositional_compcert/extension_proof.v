@@ -337,19 +337,6 @@ Qed.
 
 End ExtensionSafety. End ExtensionSafety.
 
-Lemma forward_nextblock: forall m m',
-  mem_forward m m' -> 
-  (Mem.nextblock m <= Mem.nextblock m')%Z.
-Proof.
-intros m m' H1.
-unfold mem_forward in H1.
-unfold Mem.valid_block in H1.
-destruct (Z_le_dec (Mem.nextblock m) (Mem.nextblock m')); auto.
-assert (H2: (Mem.nextblock m' < Mem.nextblock m)%Z) by omega.
-destruct (H1 (Mem.nextblock m')); auto.
-omega.
-Qed.
-
 Section CoreCompatibleLemmas. Variables
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)
@@ -482,7 +469,7 @@ assert (H5: {private_block (csem (active E s)) x b}+
 destruct H5 as [H5|H5].
 specialize (H2 (active E s) x H1 b H5).
 omega.
-rewrite private_newN in PRIV; eauto.
+eapply private_newN in PRIV; eauto.
 solve[destruct PRIV; auto].
 
 cut (proj_core E i s = Some x''). intro H7.
@@ -518,10 +505,9 @@ cut (Mem.nextblock m <= Mem.nextblock m'). intro H2.
 omega.
 solve[apply forward_nextblock in FWD; auto].
 eapply PRIV; eauto.
-eapply private_external in AFTER; eauto.
 rewrite PROJC in PROJ'; inv PROJ'.
-rewrite AFTER in PRIVB.
-solve[elimtype False; auto].
+eapply private_external in AFTER; eauto.
+solve[elimtype False; eauto].
 assert (proj_core E i s = Some c).
  inv Hcore_compatible.
  rewrite after_ext_others with (retv := retv) (s' := s'); auto.
@@ -569,9 +555,8 @@ assert (Hneq: j<>active E s) by auto.
  solve[apply (H2 j (active E s) d x Hneq H9 H1); auto].
 generalize H3 as H3'; intro.
 eapply private_newN in H3; eauto.
-rewrite H3 in H7.
 specialize (VAL j d H9 b CONTRA).
-solve[destruct H7 as [X _]; clear - X VAL; omega].
+omega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
 destruct (eq_nat_dec j (active E s)). subst.
@@ -583,9 +568,8 @@ assert (Hneq: i<>active E s) by auto.
  solve[apply (H2 i (active E s) c x Hneq H9 H1); auto].
 generalize H3 as H3'; intro.
 eapply private_newN in H3; eauto.
-rewrite H3 in CONTRA.
 specialize (VAL i c H9 b H8).
-solve[destruct CONTRA as [X _]; clear - X VAL; omega].
+omega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
 eapply H2; eauto.

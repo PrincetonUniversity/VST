@@ -265,76 +265,74 @@ Record RelyGuaranteeSemantics {G C D} :=
     private_block: C -> block -> Prop;
     private_dec: forall c b, 
       {private_block c b}+{~private_block c b};
-    private_initial: forall ge v vs c,
+    private_initial: forall b ge v vs c,
       make_initial_core csem ge v vs = Some c -> 
-      forall b, ~private_block c b;
-    private_step: forall ge c m c' m',
+      ~private_block c b;
+    private_step: forall b ge c m c' m',
       corestep csem ge c m c' m' -> 
-      (forall b, private_block c' b <-> 
-        private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m');
-    private_external: forall c c' retv,
+      private_block c' b ->
+      private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m';
+    private_external: forall b c c' retv ef sig args,
+      at_external csem c = Some (ef, sig, args) -> 
       after_external csem retv c = Some c' -> 
-      (forall b, private_block c' b <-> private_block c b) }.
+      private_block c' b -> private_block c b }.
 
 Implicit Arguments RelyGuaranteeSemantics [].
+
+Lemma forward_nextblock: forall m m',
+  mem_forward m m' -> 
+  (Mem.nextblock m <= Mem.nextblock m')%Z.
+Proof.
+intros m m' H1.
+unfold mem_forward in H1.
+unfold Mem.valid_block in H1.
+destruct (Z_le_dec (Mem.nextblock m) (Mem.nextblock m')); auto.
+assert (H2: (Mem.nextblock m' < Mem.nextblock m)%Z) by omega.
+destruct (H1 (Mem.nextblock m')); auto.
+omega.
+Qed.
 
 Section RelyGuaranteeSemanticsLemmas.
 Context {G C D: Type}.
 Variable rgsem: RelyGuaranteeSemantics G C D.
 
-Lemma private_corestep: forall ge c m c' m' b,
-  private_block rgsem c b -> 
-  corestep rgsem ge c m c' m' -> 
-  private_block rgsem c' b.
-Proof.
-intros until b; intros H1 H2.
-solve[erewrite private_step; eauto].
-Qed.
-
-Lemma private_corestepN: forall ge n c m c' m' b,
-  private_block rgsem c b -> 
-  corestepN rgsem ge n c m c' m' -> 
-  private_block rgsem c' b.
-Proof.
-intros until b; revert c m; induction n; simpl.
-solve[intros ? ? ? X; inv X; auto].
-intros until m; intros H1 [c2 [m2 [H2 H3]]].
-eapply private_corestep in H2; eauto.
-Qed.
-
-Lemma private_new: forall ge c m c' m' b,
+Lemma private_new: forall b ge c m c' m',
   ~private_block rgsem c b -> 
   corestep rgsem ge c m c' m' -> 
-  (private_block rgsem c' b <-> Mem.nextblock m <= b < Mem.nextblock m').
+  private_block rgsem c' b -> 
+  Mem.nextblock m <= b < Mem.nextblock m'.
 Proof.
-intros until b; intros H1 H2; split; intros H3.
-rewrite private_step in H3; eauto.
-destruct H3; auto.
+intros until m'; intros H1 H2 H3.
+apply (private_step _ b) in H2; auto.
+destruct H2; auto.
 elimtype False; auto.
-rewrite private_step; eauto.
 Qed.
 
-Lemma private_newN: forall ge n c m c' m' b,
+Lemma private_newN: forall b ge n c m c' m',
   ~private_block rgsem c b -> 
   corestepN rgsem ge n c m c' m' -> 
-  (private_block rgsem c' b <-> Mem.nextblock m <= b < Mem.nextblock m').
+  private_block rgsem c' b -> 
+  Mem.nextblock m <= b < Mem.nextblock m'. 
 Proof.
-intros until b; revert c m; induction n; auto.
-(*solve[intros ? ? ? X; inv X; intros; elimtype False; auto].
-simpl; intros until m; intros H1 [c2 [m2 [H2 H3]]] H4.
-destruct (Z_le_dec (Mem.nextblock m) b).
-destruct (Z_lt_dec b (Mem.nextblock m2)).
-assert (H5: private_block rgsem c2 b).
- erewrite private_step.
- right; split; eauto.
- eapply H2.
-eapply private_new with (ge := ge) (c' := c2) (m' := m2) in H1; eauto.
-assert (Mem.nextblock m2 <= Mem.nextblock m').
- admit. (*TODO: requires coopsem*)
-split; auto.
+intros until m'; revert c m; induction n; auto.
+intros c m H1 H2 H3.
+simpl in H2.
+inv H2.
+solve[elimtype False; auto].
+intros c m H1 H2 H3.
+simpl in H2.
+destruct H2 as [c2 [m2 [STEP STEPN]]].
+destruct (private_dec rgsem c2 b).
+apply (private_new b) in STEP; auto.
+apply corestepN_fwd in STEPN.
+apply forward_nextblock in STEPN.
 omega.
-assert (Mem.nextblock m2 <= b) by omega.*)
-Admitted. (*TODO*)
+cut (Mem.nextblock m2 <= b < Mem.nextblock m'). intro H4.
+apply corestep_fwd in STEP.
+apply forward_nextblock in STEP.
+omega.
+solve[eapply IHn with (m := m2); eauto].
+Qed.
 
 End RelyGuaranteeSemanticsLemmas.
 
@@ -347,7 +345,7 @@ Variable csem: CoopCoreSem G C D.
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
     corestep csem ge c m c' m' /\
-    (forall b, f' b=true <-> f b=true \/ Mem.nextblock m <= b < Mem.nextblock m')
+    (forall b, f' b=true -> f b=true \/ Mem.nextblock m <= b < Mem.nextblock m')
   end.
 
 Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
@@ -418,10 +416,10 @@ destruct (make_initial_core csem ge v vs).
 inv H; auto.
 congruence.
 Qed.
-Next Obligation. destruct H; auto. Qed.
+Next Obligation. 
+destruct H; auto. Qed.
 Next Obligation. 
 simpl in *|-*; destruct (after_external csem retv c); try solve[congruence].
-solve[inv H; split; auto].
 Qed.
 
 End RelyGuaranteeSemanticsFunctor.
