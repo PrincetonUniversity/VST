@@ -195,6 +195,38 @@ Record CoopCoreSem {G C D} :=
 
 Implicit Arguments CoopCoreSem [].
 
+Section CoopCoreSemLemmas.
+Context {G C D: Type}.
+Variable coopsem: CoopCoreSem G C D.
+
+Lemma corestepN_fwd: forall ge c m c' m' n,
+  corestepN coopsem ge n c m c' m' -> 
+  mem_forward m m'.
+Proof.
+intros until n; revert c m.
+induction n; simpl; auto.
+inversion 1; apply mem_forward_refl; auto.
+intros c m [c2 [m2 [? ?]]].
+apply mem_forward_trans with (m2 := m2).
+apply corestep_fwd in H; auto.
+eapply IHn; eauto.
+Qed.
+
+Lemma corestepN_memwd: forall ge c m c' m' n,
+  corestepN coopsem ge n c m c' m' -> 
+  mem_wd m -> 
+  mem_wd m'.
+Proof.
+intros until n; revert c m.
+induction n; simpl; auto.
+inversion 1; auto.
+intros c m [c2 [m2 [? ?]]] H1.
+apply corestep_wdmem in H; auto.
+eapply IHn; eauto.
+Qed.
+
+End CoopCoreSemLemmas.
+
 Lemma inject_separated_incr_fwd: 
   forall j j' m1 m2 j'' m2'
     (InjSep : inject_separated j j' m1 m2)
@@ -229,7 +261,7 @@ Qed.
    blocks allocated by coresteps of this semantics. *)
 
 Record RelyGuaranteeSemantics {G C D} :=
-  { csem :> CoreSemantics G C mem D;
+  { csem :> CoopCoreSem G C D;
     private_block: C -> block -> Prop;
     private_dec: forall c b, 
       {private_block c b}+{~private_block c b};
@@ -310,7 +342,7 @@ Definition blockmap := block -> bool.
 
 Section RelyGuaranteeSemanticsFunctor.
 Context {G C D: Type}.
-Variable csem: CoreSemantics G C mem D.
+Variable csem: CoopCoreSem G C D.
 
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
@@ -354,9 +386,25 @@ apply after_at_external_excl in H0; auto.
 rewrite H0 in H; congruence.
 Qed.
 
+Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) D :=
+  Build_CoopCoreSem G (blockmap*C) D 
+    RelyGuaranteeCoreSem _ _ _.
+Next Obligation.
+inv CS.
+apply corestep_fwd in H; auto.
+Qed.
+Next Obligation.
+inv CS.
+apply corestep_wdmem in H0; auto.
+Qed.
+Next Obligation.
+apply initmem_wd in H.
+auto.
+Qed.
+
 Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
   Build_RelyGuaranteeSemantics G (blockmap*C) D
-   RelyGuaranteeCoreSem
+   RelyGuaranteeCoopSem
    (fun x b => fst x b = true) _ _ _ _.
 Next Obligation.
 simpl.

@@ -337,6 +337,19 @@ Qed.
 
 End ExtensionSafety. End ExtensionSafety.
 
+Lemma forward_nextblock: forall m m',
+  mem_forward m m' -> 
+  (Mem.nextblock m <= Mem.nextblock m')%Z.
+Proof.
+intros m m' H1.
+unfold mem_forward in H1.
+unfold Mem.valid_block in H1.
+destruct (Z_le_dec (Mem.nextblock m) (Mem.nextblock m')); auto.
+assert (H2: (Mem.nextblock m' < Mem.nextblock m)%Z) by omega.
+destruct (H1 (Mem.nextblock m')); auto.
+omega.
+Qed.
+
 Section CoreCompatibleLemmas. Variables
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)
@@ -459,7 +472,8 @@ Proof.
 intros until n; intros H1 H2 H3 H4 H5.
 intros i x'' PROJ b PRIV.
 assert (H6: Mem.nextblock m <= Mem.nextblock m').
- admit. (*TODO: require that csem is a coopsem; then follows by memfwd*)
+ apply corestepN_fwd in H3.
+ solve[apply forward_nextblock in H3; auto].
 destruct (eq_nat_dec i (active E s)). subst.
 rewrite PROJ in H5; inv H5.
 assert (H5: {private_block (csem (active E s)) x b}+
@@ -475,7 +489,8 @@ cut (proj_core E i s = Some x''). intro H7.
 unfold private_valid in H2.
 specialize (H2 i x'' H7 b PRIV).
 assert (H8: Mem.nextblock m <= Mem.nextblock m').
- admit. (*TODO: require that csem is a coopsem; then follows by memfwd*)
+ apply corestepN_fwd in H3.
+ solve[apply forward_nextblock in H3; auto].
 omega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
@@ -489,9 +504,10 @@ Lemma private_valid_after_ext:
   after_external (csem (active E s)) retv x = Some x' -> 
   after_external esem retv s = Some s' -> 
   proj_core E (active E s) s' = Some x' ->
+  mem_forward m m' -> 
   private_valid csem E s' m'.
 Proof.
-intros until retv; intros PROJ PRIV AT AFTER AFTER' PROJ'.
+intros until retv; intros PROJ PRIV AT AFTER AFTER' PROJ' FWD.
 intros i c PROJC b PRIVB.
 destruct (eq_nat_dec i (active E s)).
 subst.
@@ -500,7 +516,7 @@ unfold private_valid in PRIV.
 cut (b < Mem.nextblock m). intro H1.
 cut (Mem.nextblock m <= Mem.nextblock m'). intro H2.
 omega.
-admit. (*TODO: requires coopsem*)
+solve[apply forward_nextblock in FWD; auto].
 eapply PRIV; eauto.
 eapply private_external in AFTER; eauto.
 rewrite PROJC in PROJ'; inv PROJ'.
@@ -513,7 +529,7 @@ unfold private_valid in PRIV.
 cut (b < Mem.nextblock m). intro H1.
 cut (Mem.nextblock m <= Mem.nextblock m'). intro H2.
 omega.
-admit. (*TODO: requires coopsem*)
+solve[apply forward_nextblock in FWD; auto].
 solve[eapply PRIV; eauto].
 Qed.
 

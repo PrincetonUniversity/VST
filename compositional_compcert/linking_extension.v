@@ -315,10 +315,29 @@ intros H2 H3.
 solve[rewrite H2 in H; congruence].
 Qed.
 
+Program Definition linker_coop_core_semantics: 
+  CoopCoreSem (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
+ Build_CoopCoreSem _ _ _
+  linker_core_semantics _ _ _.
+Next Obligation.
+inv CS.
+apply corestep_fwd in H1; auto.
+apply mem_forward_refl.
+apply mem_forward_refl.
+Qed.
+Next Obligation.
+inv CS; auto.
+apply corestep_wdmem in H2; auto.
+Qed.
+Next Obligation. 
+unfold linker_initial_mem in H.
+admit. (*TODO: prove that Genv.alloc_globals Mem.empty produces wd mem*)
+Qed.
+
 Program Definition rg_linker_core_semantics: 
   RelyGuaranteeSemantics (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
  Build_RelyGuaranteeSemantics _ _ _ 
- linker_core_semantics
+ linker_coop_core_semantics
  (fun c b => match c with mkLinkerCoreState stack _ _ => private_blocks stack b end)
  _ _ _ _.
 Next Obligation.
@@ -506,14 +525,16 @@ cut (Mem.nextblock m <= Mem.nextblock m2)%Z. intro H7.
 cut (b < Mem.nextblock m)%Z. intro H8.
 omega.
 apply H4; auto.
-admit. (*TODO: coopsem memfwd*)
+apply corestep_fwd in H3.
+solve[apply forward_nextblock in H3; auto].
 eapply private_step in H3.
 rewrite H3 in H6.
 destruct H6.
 elimtype False; auto.
 solve[destruct H; auto].
 assert (Mem.nextblock m <= Mem.nextblock m2)%Z. 
- admit. (*TODO: coopsem memfwd*)
+ apply corestep_fwd in H3.
+ solve[apply forward_nextblock in H3; auto].
 solve[eapply private_valid_inv_fwd; eauto].
 intros H6.
 apply IHn 
@@ -767,9 +788,22 @@ Program Definition trivial_core_semantics: forall i: nat,
   (fun _ _ _ => False) (fun _ _ _ => None) (fun _ => None) 
   (fun _ _ => None) (fun _ => None) (fun _ _ _ _ _ => False) _ _ _ _.
 
+Program Definition trivial_coop_core_semantics: forall i: nat,
+ CoopCoreSem (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
+ fun i: nat => Build_CoopCoreSem _ _ _ (trivial_core_semantics i) _ _ _.
+Next Obligation.
+elimtype False; auto.
+Qed.
+Next Obligation.
+elimtype False; auto.
+Qed.
+Next Obligation.
+elimtype False; auto.
+Qed.
+
 Program Definition trivial_rg_semantics: forall i: nat,
  RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_RelyGuaranteeSemantics _ _ _ (trivial_core_semantics i)
+ fun i: nat => Build_RelyGuaranteeSemantics _ _ _ (trivial_coop_core_semantics i)
    (fun c b => False) _ _ _ _.
 Next Obligation. right; auto. Qed.
 Next Obligation. elimtype False; auto. Qed.
@@ -1579,7 +1613,8 @@ solve[simpl; split; eauto].
 simpl in PRIV1.
 destruct PRIV1 as [X Y].
 apply private_valid_inv_fwd with (m := m1); auto.
-admit. (*coopsem memfwd*)
+apply corestep_fwd in STEP1'.
+solve[apply forward_nextblock; auto].
 split.
 eapply private_disjoint_invariant
  with (n := S O).
@@ -1611,7 +1646,8 @@ solve[eauto].
 simpl in PRIV2.
 destruct PRIV2 as [X Y].
 apply private_valid_inv_fwd with (m := m2); auto.
-admit. (*coopsem memfwd*)
+apply corestepN_fwd in STEP2'.
+solve[apply forward_nextblock in STEP2'; auto].
 split.
 eapply private_disjoint_invariant
  with (n := n).
@@ -1715,7 +1751,7 @@ destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [[cd' MATCH] RR2]]]]]].
 split3; auto.
 
 assert (Hlt: (Mem.nextblock m1 <= Mem.nextblock m1')%Z).
- admit. (*coopsem memfwd*)
+ solve[apply forward_nextblock in H6; auto].
 
 split; auto.
 intros b H10.
@@ -1740,10 +1776,11 @@ assert (b < Mem.nextblock m2)%Z.
  rewrite Heq2 in H10.
  destruct PRIV2 as [X Y].
  solve[apply (X b); auto].
-admit. (*coopsem memfwd*)
+apply H8 in H.
+solve[destruct H; auto].
 destruct PRIV2 as [X Y].
 eapply private_valid_inv_fwd; eauto.
-admit. (*coopsem memfwd*)
+solve[apply forward_nextblock in H8; auto].
 split.
 
 simpl.
