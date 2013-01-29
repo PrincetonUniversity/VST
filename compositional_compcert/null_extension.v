@@ -266,6 +266,21 @@ End NullExtensionSafe.
  solve[split; auto].
  Qed.
 
+ Lemma null_private_conserving: forall F V C D Z
+         (csem: RelyGuaranteeSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
+   private_conserving _ (const csem) (null_extension csem csig).
+ Proof.
+ intros.
+ unfold private_conserving.
+ intros.
+ simpl in *.
+ unfold proj_core in H.
+ if_tac in H; try solve[congruence].
+ inv H.
+ unfold const in H0.
+ auto.
+ Qed.
+
 Section NullExtensionCompilable.
  Variables 
   (fS vS fT vT cS cT dS dT Z: Type) 
@@ -321,6 +336,8 @@ Section NullExtensionCompilable.
  solve[apply (null_core_compatible geS csig H1)].
  unfold E_T, const.
  solve[apply (null_core_compatible geT csig H2)].
+ solve[apply null_private_conserving].
+ solve[apply null_private_conserving].
 
  constructor; try solve[intros; unfold R; auto].
 

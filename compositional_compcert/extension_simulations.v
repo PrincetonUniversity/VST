@@ -50,7 +50,7 @@ Section CoreCompatibleDefs. Variables
  (G: Type) (** global environments of extended semantics *)
  (D: Type) (** extension initialization data *)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT mem D) (** extended semantics *)
+ (esem: RelyGuaranteeSemantics G xT D) (** extended semantics *)
  (esig: ef_ext_spec mem Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
@@ -60,8 +60,6 @@ Section CoreCompatibleDefs. Variables
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
  Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
-
- Variable Hcore_compatible: core_compatible ge genv_map E.
 
  Import Extension.
 
@@ -76,6 +74,11 @@ Section CoreCompatibleDefs. Variables
   proj_core E j s = Some d ->   
   forall b, private_block (csem i) c b -> ~private_block (csem j) d b.
 
+ Definition private_conserving := 
+   forall s i (c: cT i),
+   proj_core E i s = Some c -> 
+   forall b, private_block (csem i) c b -> private_block esem s b.
+
 End CoreCompatibleDefs.
 
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
@@ -89,8 +92,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: CoreSemantics (Genv.t F_S V_S) xS mem D_S) (** extended source semantics *)
-  (esemT: CoreSemantics (Genv.t F_T V_T) xT mem D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
   (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
@@ -130,8 +133,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Variable (R: meminj -> xS -> mem -> xT -> mem -> Prop).
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   private_valid csemS E_S s1 m1 /\ private_disjoint csemS E_S s1 /\ 
-   private_valid csemT E_T s2 m2 /\ private_disjoint csemT E_T s2 /\
+   private_valid esemS csemS E_S s1 m1 /\ private_disjoint esemS csemS E_S s1 /\ 
+   private_valid esemT csemT E_T s2 m2 /\ private_disjoint esemT csemT E_T s2 /\
    R j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
@@ -358,11 +361,13 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        (forall i: nat, genvs_domain_eq ge_T (genv_mapT i)) -> 
        core_compatible ge_S genv_mapS E_S -> 
        core_compatible ge_T genv_mapT E_T -> 
+       private_conserving esemS csemS E_S ->
+       private_conserving esemT csemT E_T ->
        (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 
-         csemS csemT threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
+         esemS esemT csemS csemT threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
          entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.

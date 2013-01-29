@@ -72,10 +72,7 @@ Fixpoint private_blocks (stack: call_stack cT num_modules) b :=
  match stack with 
  | nil => False
  | mkFrame i pf_i c_i :: stack' => 
-   match safely_halted (get_module_csem (modules pf_i)) c_i with
-   | Some retv => private_blocks stack' b
-   | None => private_block (get_module_csem (modules pf_i)) c_i b \/ private_blocks stack' b
-   end
+   private_block (get_module_csem (modules pf_i)) c_i b \/ private_blocks stack' b
  end.
 
 Inductive linker_corestate: Type := mkLinkerCoreState: forall
@@ -350,13 +347,10 @@ induction stack.
 solve[right; auto].
 destruct a.
 simpl.
-destruct (safely_halted (get_module_csem (modules PF)) c).
-solve[apply IHstack].
 destruct (private_dec (get_module_csem (modules PF)) c b).
-left.
 solve[left; auto].
 destruct IHstack.
-left; auto.
+solve[left; auto].
 right.
 intros CONTRA.
 solve[destruct CONTRA; auto].
@@ -399,11 +393,10 @@ case_eq
 intros c Heq; inv Heq.
 intros H1; inv H1.
 simpl in CONTRA.
-destruct (safely_halted (get_module_csem (modules (plt_ok main_id n (eq_sym e))))).
-congruence.
-destruct CONTRA; auto.
 eapply private_initial in H0.
-apply H0; eauto.
+elimtype False; apply H0.
+destruct CONTRA; try solve[elimtype False; auto].
+solve[eauto].
 intros PLT.
 revert H2.
 generalize (refl_equal (procedure_linkage_table main_id)).
@@ -417,63 +410,24 @@ destruct c'.
 destruct c.
 inv H.
 simpl in H0.
-destruct (safely_halted (get_module_csem (modules pf_i)) c').
-left; simpl.
-apply corestep_not_halted in H7.
-rewrite H7.
-solve[right; auto].
-destruct H0 as [H0|H0].
-generalize H7 as H7'; intro.
+simpl.
+destruct H0; auto.
 apply (private_step _ b) in H7; auto.
-destruct H7 as [H7|H7].
-left; simpl.
-apply corestep_not_halted in H7'.
-rewrite H7'.
-solve[left; auto].
-solve[right; auto].
-left; simpl.
-apply corestep_not_halted in H7.
-rewrite H7.
-solve[right; auto].
-eapply private_initial in H9.
-simpl.
-generalize (at_external_halted_excl (get_module_csem (modules pf_i)) c).
-rewrite AT_EXT.
-intros [H10|H10]; try solve[congruence].
-rewrite H10.
+solve[destruct H7; auto].
+apply (private_initial _ b) in H9.
 simpl in H0.
-destruct (safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c').
-rewrite H10 in H0.
-destruct H0.
-solve[left; left; auto].
-solve[left; right; auto].
-rewrite H10 in H0.
-destruct H0.
-solve[elimtype False; apply H9; eauto].
-solve[left; auto].
-simpl in H0.
-destruct (safely_halted (get_module_csem (modules pf_i)) c'').
-left.
-simpl.
-rewrite HALTED.
-solve[destruct (safely_halted (get_module_csem (modules pf_i)) c); auto].
-destruct H0.
+destruct H0; auto.
+solve[elimtype False; apply H9; auto].
 unfold all_at_external in callers_at_external0.
 simpl in callers_at_external0.
 inv callers_at_external0.
-destruct H2 as [ef [sig [args ATEXT]]].
-generalize (at_external_halted_excl (get_module_csem (modules pf_i)) c).
-rewrite ATEXT.
-intros [H6|H6]; try congruence.
-eapply private_external in H7; eauto.
-left; simpl.
-rewrite HALTED.
-rewrite H6.
-solve[left; eauto].
+clear H4.
+destruct H2 as [ef [sig [args AT_EXT]]].
+simpl in H0.
+destruct H0.
 simpl.
-destruct (safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c'); auto.
-destruct (safely_halted (get_module_csem (modules pf_i)) c); auto.
-destruct (safely_halted (get_module_csem (modules pf_i)) c); auto.
+solve[eapply (private_external _ b) in AT_EXT; eauto].
+solve[left; right; right; auto].
 Qed.
 Next Obligation.
 unfold linker_at_external in H.
@@ -482,35 +436,19 @@ destruct c.
 destruct stack.
 congruence.
 destruct f.
+case_eq (at_external (get_module_csem (modules PF)) c).
+intros [[ef' sig'] args'] AT_EXT.
+2: solve[intros AT_EXT; rewrite AT_EXT in H; congruence].
 case_eq (after_external (get_module_csem (modules PF)) retv c).
 intros c'' Heq.
 rewrite Heq in H0.
 inv H0.
-simpl.
-case_eq (safely_halted (get_module_csem (modules PF)) c).
-intros v Hhalt.
-generalize (at_external_halted_excl (get_module_csem (modules PF)) c).
-rewrite Hhalt.
-intros [H2|H2]; try solve[congruence].
-rewrite H2 in H.
-congruence.
-intros Hhalt.
-generalize (at_external_halted_excl (get_module_csem (modules PF)) c).
-rewrite Hhalt.
-intros [H2|H2]; try solve[congruence].
-rewrite H2 in H.
-congruence.
-simpl in H1.
-destruct (safely_halted (get_module_csem (modules PF)) c''); auto.
+simpl in H1|-*.
 destruct H1.
-case_eq (at_external (get_module_csem (modules PF)) c).
-intros [[ef' sig'] args'] ATEXT.
-eapply private_external in H0; eauto.
-intros ATEXT; rewrite ATEXT in H.
-congruence.
+eapply (private_external _ b) in Heq; eauto.
 right; auto.
-intros AFTEXT.
-rewrite AFTEXT in H0.
+intros H2.
+rewrite H2 in H0.
 congruence.
 Qed.
 
@@ -1056,6 +994,32 @@ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 solve[assert (PF=l) as -> by apply proof_irr; auto].
 Qed.
 
+Lemma linker_private_conserving: 
+ private_conserving 
+  (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
+   csem_map linking_extension.
+Proof.
+unfold private_conserving.
+intros s i c PROJ b PRIVB.
+destruct s.
+simpl in PROJ.
+destruct stack.
+congruence.
+destruct f.
+destruct (eq_nat_dec i i0); try solve[elimtype False; omega].
+subst.
+rewrite <-Eqdep_dec.eq_rect_eq_dec in PROJ.
+inv PROJ.
+simpl.
+left.
+unfold csem_map in PRIVB.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+assert (PF = l) as -> by apply proof_irr.
+auto.
+solve[apply eq_nat_dec].
+congruence.
+Qed.
+
 Lemma linker_core_compatible: forall (ge: Genv.t F V) 
    (agree: forall (k : nat) (pf_k : k < num_modules),
    genvs_agree ge (get_module_genv (modules pf_k)))
@@ -1595,6 +1559,8 @@ apply (@linker_core_compatible F_T V_T Z cT fT vT
  specialize (domain_eq_T k).
  destruct (lt_dec k num_modules); try solve[elimtype False; omega].
  solve[assert (pf_k = l) as -> by apply proof_irr; auto].
+solve[apply linker_private_conserving].
+solve[apply linker_private_conserving].
 clear LEM; constructor; simpl.
 
 (*1*)

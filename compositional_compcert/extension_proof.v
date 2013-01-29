@@ -344,7 +344,7 @@ Section CoreCompatibleLemmas. Variables
  (G: Type) (** global environments of extended semantics *)
  (D: Type) (** extension initialization data *)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT mem D) (** extended semantics *)
+ (esem: RelyGuaranteeSemantics G xT D) (** extended semantics *)
  (esig: ef_ext_spec mem Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
@@ -450,11 +450,11 @@ Qed.
 Lemma private_valid_inv:
   forall s s' (x x': cT (active E s)) m m' n,
   proj_core E (active E s) s = Some x -> 
-  private_valid csem E s m -> 
+  private_valid esem csem E s m -> 
   corestepN (csem (active E s)) (genv_map (active E s)) n x m x' m' -> 
   corestepN esem ge n s m s' m' -> 
   proj_core E (active E s) s' = Some x' ->
-  private_valid csem E s' m'.
+  private_valid esem csem E s' m'.
 Proof.
 intros until n; intros H1 H2 H3 H4 H5.
 intros i x'' PROJ b PRIV.
@@ -486,13 +486,13 @@ Qed.
 Lemma private_valid_after_ext: 
   forall s s' (x x': cT (active E s)) m m' ef sig args retv, 
   proj_core E (active E s) s = Some x -> 
-  private_valid csem E s m -> 
+  private_valid esem csem E s m -> 
   at_external (csem (active E s)) x = Some (ef, sig, args) -> 
   after_external (csem (active E s)) retv x = Some x' -> 
   after_external esem retv s = Some s' -> 
   proj_core E (active E s) s' = Some x' ->
   mem_forward m m' -> 
-  private_valid csem E s' m'.
+  private_valid esem csem E s' m'.
 Proof.
 intros until retv; intros PROJ PRIV AT AFTER AFTER' PROJ' FWD.
 intros i c PROJC b PRIVB.
@@ -522,12 +522,12 @@ Qed.
 Lemma private_disjoint_after_ext: 
   forall s s' (x x': cT (active E s)) ef sig args retv, 
   proj_core E (active E s) s = Some x -> 
-  private_disjoint csem E s -> 
+  private_disjoint esem csem E s -> 
   at_external (csem (active E s)) x = Some (ef, sig, args) -> 
   after_external (csem (active E s)) retv x = Some x' -> 
   after_external esem retv s = Some s' -> 
   proj_core E (active E s) s' = Some x' ->
-  private_disjoint csem E s'.
+  private_disjoint esem csem E s'.
 Proof.
 intros until retv; intros PROJ PRIV AT AFTER AFTER' PROJ'.
 unfold private_disjoint.
@@ -537,12 +537,12 @@ Admitted. (*TODO*)
 Lemma private_disjoint_inv:
   forall s s' (x x': cT (active E s)) m m' n,
   proj_core E (active E s) s = Some x -> 
-  private_valid csem E s m -> 
-  private_disjoint csem E s -> 
+  private_valid esem csem E s m -> 
+  private_disjoint esem csem E s -> 
   corestepN (csem (active E s)) (genv_map (active E s)) n x m x' m' -> 
   corestepN esem ge n s m s' m' -> 
   proj_core E (active E s) s' = Some x' ->
-  private_disjoint csem E s'.
+  private_disjoint esem csem E s'.
 Proof. 
 intros until n; intros H1 VAL H2 H3 H4 H5.
 intros i j c d H6 H7 H8.
@@ -778,8 +778,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Qed.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   private_valid csemS E_S s1 m1 /\ private_disjoint csemS E_S s1 /\ 
-   private_valid csemT E_T s2 m2 /\ private_disjoint csemT E_T s2 /\
+   private_valid esemS csemS E_S s1 m1 /\ private_disjoint esemS csemS E_S s1 /\ 
+   private_valid esemT csemT E_T s2 m2 /\ private_disjoint esemT csemT E_T s2 /\
    R j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
@@ -953,7 +953,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (genvs_domain_eqS: forall i: nat, genvs_domain_eq ge_S (genv_mapS i))
   (genvs_domain_eqT: forall i: nat, genvs_domain_eq ge_T (genv_mapT i))
   (core_compatS: core_compatible ge_S genv_mapS E_S) 
-  (core_compatT: core_compatible ge_T genv_mapT E_T).
+  (core_compatT: core_compatible ge_T genv_mapT E_T)
+  (private_conservS: private_conserving esemS csemS E_S)
+  (private_conservT: private_conserving esemT csemT E_T).
 
 Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
   mem_unchanged_on Q m m' -> 
@@ -1034,7 +1036,7 @@ destruct STEP2 as [STEP2|STEP2].
 
 (*corestep_plus case*)
 destruct STEP2 as [n STEP2].
-generalize (corestep_stepN _ core_compatT) as CSTEPN; intro.
+generalize (corestep_stepN _ _ core_compatT) as CSTEPN; intro.
 specialize (CSTEPN (S n) st2). 
 rewrite <-ACT in *.
 specialize (CSTEPN c2 m2 c2' m2').
@@ -1153,7 +1155,7 @@ split; auto.
    intros CONTRA; apply Y.
    assert (private_block (csemS (ACTIVE E_S st1)) c1 b -> 
            private_block esemS st1 b).
-     admit. (*consistency condition on extension*)
+    solve[apply private_conservS; auto].
    solve[auto].
    split.
    apply mem_unchanged_on_sub with (Q := fun b ofs => 
@@ -1162,14 +1164,14 @@ split; auto.
    intros CONTRA; apply Y.
    assert (private_block (csemT (ACTIVE E_S st1)) c2 b -> 
            private_block esemT st2 b).
-     admit. (*consistency condition on extension*)
+    solve[apply private_conservT; auto].
    solve[auto].
 
   solve[left; exists n; auto].
 
 (*corestep_star case*)
 destruct STEP2 as [[n STEP2] ORD].
-generalize (corestep_stepN _ core_compatT) as CSTEPN; intro.
+generalize (corestep_stepN _ _ core_compatT) as CSTEPN; intro.
 specialize (CSTEPN n st2). 
 rewrite <-ACT in *.
 specialize (CSTEPN c2 m2 c2' m2').
@@ -1277,7 +1279,7 @@ split; auto.
   solve[eapply match_state_inj; eauto].
   erewrite <-genvs_domain_eq_preserves.
   erewrite meminj_preserves_genv2blocks.
-  eauto.
+  solve[eapply match_state_preserves_globals; eauto].
   solve[apply genvs_domain_eq_sym; auto].
 
   split. 
@@ -1288,7 +1290,7 @@ split; auto.
   intros CONTRA; apply Y.
   assert (private_block (csemS (ACTIVE E_S st1)) c1 b -> 
           private_block esemS st1 b).
-    admit. (*consistency condition on extension*)
+   solve[apply private_conservS; auto].
   solve[auto].
   split.
   apply mem_unchanged_on_sub with (Q := fun b ofs => 
@@ -1297,7 +1299,7 @@ split; auto.
   intros CONTRA; apply Y.
   assert (private_block (csemT (ACTIVE E_S st1)) c2 b -> 
           private_block esemT st2 b).
-    admit. (*consistency condition on extension*)
+   solve[apply private_conservT; auto].
   solve[auto].
 
   right. split. exists n. auto. 
@@ -1648,7 +1650,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
        E_S E_T entry_points core_data match_state core_ord R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
- intros H1 H2 H3 H4 H5 H6 core_simulations H8.
+ intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas core_data)
        (match_states := 
@@ -1710,7 +1712,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
     (const match_state) (const core_ord) R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
- intros H1 H2 H3 H4 H5 H6 core_simulations H8.
+ intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas (fun _ => core_data))
        (match_states := 
