@@ -8,16 +8,15 @@ Import SequentialClight.SeqC.CSL.
 Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
-Require Import progs.list.
 Require Import progs.forward.
+Require Import progs.list.
 Require progs.test1.  Module P := progs.test1.
 
 Local Open Scope logic.
 
-Instance t_list_spec: listspec (tptr P.t_struct_list).
+Instance LS: listspec P._struct_list P._h tint P._t.
 Proof.
-econstructor.
-reflexivity.
+apply mk_listspec.
 intro Hx; inv Hx.
 reflexivity.
 econstructor; simpl; reflexivity.
@@ -28,7 +27,7 @@ Definition sum_int := fold_right Int.add Int.zero.
 Definition sumlist_spec :=
  DECLARE P._sumlist
   WITH sh : share, contents : list int
-  PRE [ P._p OF (tptr P.t_struct_list)]  lift2 (lseg sh (map Vint contents)) 
+  PRE [ P._p OF (tptr P.t_struct_list)]  lift2 (lseg LS sh (map Vint contents)) 
                                        (eval_id P._p) (lift0 nullval)
   POST [ tint ]  local (lift1 (eq (Vint (sum_int contents))) retval).
 
@@ -36,8 +35,8 @@ Definition reverse_spec :=
  DECLARE P._reverse
   WITH sh : share, contents : list int
   PRE  [ P._p OF (tptr P.t_struct_list) ] !! writable_share sh &&
-              lift2 (lseg sh (map Vint contents)) (eval_id P._p) (lift0 nullval)
-  POST [ (tptr P.t_struct_list) ] lift2 (lseg sh (rev (map Vint contents))) retval (lift0 nullval).
+              lift2 (lseg LS sh (map Vint contents)) (eval_id P._p) (lift0 nullval)
+  POST [ (tptr P.t_struct_list) ] lift2 (lseg LS sh (rev (map Vint contents))) retval (lift0 nullval).
 
 Definition main_spec :=
  DECLARE P._main
@@ -57,7 +56,9 @@ Definition Gtot := do_builtins (prog_defs P.prog) ++ Gprog.
 Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
             PROP () LOCAL (lift1 (eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id P._s)) 
-            SEP ( TT ; lift2 (lseg sh (map Vint cts)) (eval_id P._t) (lift0 nullval))).
+            SEP ( TT ; lift2 (lseg LS sh (map Vint cts)) (eval_id P._t) (lift0 nullval))).
+
+Hint Rewrite @lseg_eq using reflexivity: normalize.
 
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
@@ -77,11 +78,10 @@ go_lower. subst. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  subst. normalize. destruct cts; inv H. simpl. normalize.
+go_lower.  subst.  normalize. destruct cts; inv H. simpl. normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower. destruct cts; inv H.
-simpl list_data; simpl list_link; simpl list_struct.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
@@ -101,8 +101,8 @@ Definition reverse_Inv (sh: share) (contents: list int) : assert :=
           (EX cts1: list int, EX cts2 : list int,
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL ()
-            SEP (lift2 (lseg sh (map Vint cts1)) (eval_id P._w) (lift0 nullval);
-                   lift2 (lseg sh (map Vint cts2)) (eval_id P._v) (lift0 nullval))).
+            SEP (lift2 (lseg LS sh (map Vint cts1)) (eval_id P._w) (lift0 nullval);
+                   lift2 (lseg LS sh (map Vint cts2)) (eval_id P._v) (lift0 nullval))).
 
 Lemma body_reverse: semax_body Vprog Gtot P.f_reverse reverse_spec.
 Proof.
@@ -114,7 +114,7 @@ name _t P._t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
-         (PROP() LOCAL () SEP( lift2 (lseg sh (map Vint (rev contents))) (eval_id P._w) (lift0 nullval))).
+         (PROP() LOCAL () SEP( lift2 (lseg LS sh (map Vint (rev contents))) (eval_id P._w) (lift0 nullval))).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with nil.
@@ -131,7 +131,6 @@ normalizex. subst contents.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower.
 destruct cts2; inv H0.
-simpl list_data; simpl list_link; simpl list_struct.
 forward.  (* t = v->t; *)
 forward.  (*  v->t = w; *)
 forward.  (*  w = v; *)
@@ -141,7 +140,7 @@ apply exp_right with (i::cts1).
 apply exp_right with cts2.
   go_lower.
   subst _v0 y _t. rewrite app_ass. normalize.
-  rewrite (lseg_unroll sh (Vint i:: map Vint cts1)).
+  rewrite (lseg_unroll _ sh (Vint i:: map Vint cts1)).
   cancel.
   apply orp_right2.
   unfold lseg_cons.
@@ -152,7 +151,6 @@ apply exp_right with cts2.
   apply exp_right with (map Vint cts1).
   apply exp_right with _w0.
   normalize. 
-  simpl list_data; simpl list_link.
   erewrite (field_mapsto_typecheck_val _ _ _ _ _ P._struct_list _  noattr); [ | reflexivity].
   type_of_field_tac.
   normalize.
@@ -170,7 +168,7 @@ Qed.
 Lemma setup_globals:
   forall u rho,  tc_environ (func_tycontext P.f_main Vprog Gtot) rho ->
    main_pre P.prog u rho
-   |-- lseg Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+   |-- lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
              (eval_var P._three (Tarray P.t_struct_list 3 noattr) rho)
       nullval.
 Proof.

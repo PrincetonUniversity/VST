@@ -69,22 +69,21 @@ Definition mlist_type (ls: multilistspec) := Tpointer (mlist_struct ls) noattr.
 Definition mlist_data_fieldnames (ls: multilistspec) : list ident :=
      map (@fst _ _) (other_fields (mlist_structid ls) (mlist_fields ls)).
 
-Class listspec (t: type) := mk_listspec {
-   list_structid: ident;
-   list_data: ident;
-   list_dtype: type;
-   list_link: ident;
+Class listspec (list_structid: ident) (list_data: ident) (list_dtype: type) (list_link: ident) :=
+  mk_listspec {  
    list_struct: type := (Tstruct list_structid 
        (Fcons list_data list_dtype
         (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)) noattr);
-   list_type_is: t = Tpointer list_struct noattr;
    list_data_not_link: list_data<>list_link;
    list_unroll_dtype:
               forall T, unroll_composite list_structid T list_dtype = list_dtype;
    list_access_mode: exists ch, access_mode list_dtype = By_value ch
 }.
 
-Definition lseg' (T: type) {ls: listspec T} (sh: share) := 
+Section LIST.
+Context  {list_structid} {list_data} {list_dtype} {list_link} (ls: listspec list_structid list_data list_dtype list_link).
+
+Definition lseg' (sh: share) := 
   HORec (fun (R: (list val)*(val*val) -> mpred) (lp: (list val)*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
@@ -97,10 +96,10 @@ Definition lseg' (T: type) {ls: listspec T} (sh: share) :=
                  !! (ptr_eq first last) && emp
         end).
 
-Definition lseg {T: type} {ls: listspec T} (sh: share) (contents: list val) (x y: val) : mpred :=
-   lseg'  T sh (contents, (x,y)).
+Definition lseg  (sh: share) (contents: list val) (x y: val) : mpred :=
+   lseg' sh (contents, (x,y)).
 
-Lemma lseg_unfold {T: type} {ls: listspec T}: forall sh contents v1 v2,
+Lemma lseg_unfold: forall sh contents v1 v2,
     lseg sh contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
@@ -120,9 +119,9 @@ Proof.
  auto 50 with contractive.
 Qed.
 
-Lemma lseg_eq T {ls: listspec T}:
+Lemma lseg_eq:
   forall sh l v , 
-  typecheck_val v T = true ->
+  typecheck_val v (tptr list_struct) = true ->
     lseg sh l v v = !!(l=nil) && emp.
 Proof.
 intros.
@@ -132,7 +131,6 @@ f_equal. f_equal.
 apply prop_ext; split; intro; auto.
 unfold ptr_eq.
 unfold typecheck_val in H.
-rewrite list_type_is in H.
 destruct v; simpl in H; try discriminate.
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
@@ -143,7 +141,6 @@ normalize.
 replace (v0 :: l = nil) with False by (apply prop_ext; intuition; congruence).
 apply pred_ext; normalize.
 contradiction H0.
-rewrite list_type_is in H.
 unfold ptr_eq, typecheck_val in H|-*.
 destruct v; inv H; auto.
 unfold Int.cmpu.
@@ -152,20 +149,19 @@ unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 Qed.
 
-Definition lseg_cons {T} {ls: listspec T} sh (l: list val) (x z: val) : mpred :=
+Definition lseg_cons sh (l: list val) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:val, EX r:list val, EX y:val, 
              !!(l=h::r 
-                /\ typecheck_val h list_dtype  = true/\ typecheck_val y T = true) && 
+                /\ typecheck_val h list_dtype  = true/\ typecheck_val y (tptr list_struct) = true) && 
              field_mapsto sh list_struct list_data x h * 
              field_mapsto sh list_struct list_link x y * 
              |> lseg sh r y z.
 
 
-Lemma lseg_neq:
-  forall {T} {ls: listspec T} sh l x z , 
-  typecheck_val x T = true ->
-  typecheck_val z T = true ->
+Lemma lseg_neq:  forall sh l x z , 
+  typecheck_val x (tptr list_struct) = true ->
+  typecheck_val z (tptr list_struct) = true ->
   ptr_neq x z -> 
     lseg sh l x z = lseg_cons sh l x z.
 Proof.
@@ -188,14 +184,13 @@ rewrite (field_mapsto_typecheck_val list_struct list_data sh x v
 assert (UNROLL: unroll_composite_fields list_structid list_struct
        (Fcons list_data list_dtype
           (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)) =
-     Fcons list_data list_dtype  (Fcons list_link T Fnil)).
+     Fcons list_data list_dtype  (Fcons list_link (tptr list_struct) Fnil)).
 unfold unroll_composite_fields.
 f_equal.
 change (unroll_composite list_structid list_struct list_dtype = list_dtype).
 apply list_unroll_dtype.
 rewrite if_true by auto.
 f_equal.
-symmetry. apply list_type_is.
 rewrite UNROLL.
 simpl type_of_field. rewrite if_true by auto.
 normalize.
@@ -216,7 +211,7 @@ apply exp_right with y.
 normalize.
 Qed.
 
-Lemma lseg_unroll: forall {T} {ls: listspec T} sh l x z , 
+Lemma lseg_unroll: forall sh l x z , 
     lseg sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons sh l x z.
 Proof.
 intros.
@@ -244,7 +239,7 @@ rewrite <- (list_unroll_dtype list_struct).
 simpl in H0. rewrite if_true in H0 by auto. apply H0.
 simpl in H1. rewrite if_false in H1 by apply list_data_not_link.
 rewrite if_true in H1 by auto. rewrite if_true in H1 by auto.
-rewrite (@list_type_is _ ls); auto.
+apply H1.
 apply orp_left; normalize.
 unfold lseg_cons.
 normalize. intros. inv H0.
@@ -268,11 +263,11 @@ right; intros [? ?]. contradiction.
 Qed.
 
 
-Lemma lseg_unroll_nonempty1 {T} {ls: listspec T}:
+Lemma lseg_unroll_nonempty1:
    forall p P sh h tail v1 v2,
     ~ ptr_eq v1 v2 ->
     typecheck_val h list_dtype = true ->
-    typecheck_val p T = true ->
+    typecheck_val p (tptr list_struct) = true ->
     P |-- field_mapsto sh list_struct list_data v1 h *
              (field_mapsto sh list_struct list_link v1 p *
                lseg sh tail p v2) ->
@@ -288,43 +283,9 @@ Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
  apply now_later.
 Qed.
 
-(*
-Module TestCase.
-Definition myid : ident := 3%positive.
-Definition data_id : ident := 4%positive.
-Definition link_id : ident := 5%positive.
-Definition Tint32s := Tint I32 Signed noattr.
-
-Definition mylist : type := 
- Tpointer (Tstruct myid (Fcons data_id Tint32s (Fcons link_id (Tcomp_ptr myid noattr) Fnil)) noattr) noattr.
-
-Instance mylist_spec: listspec mylist.
-Proof.
-econstructor.
-reflexivity.
-intro Hx; inv Hx.
-intros.
-unfold unroll_composite; simpl.
-reflexivity.
-econstructor; simpl; reflexivity.
-Defined.
-
-Parameters v v' : val.
-Parameters x y : val.
-Parameter whatever : mpred.
-Goal  lseg Share.top (x::y::nil) v v' |-- whatever.
-rewrite lseg_unfold by auto.
-normalize.
-intros.
-simpl.
-
-Abort.
-End TestCase.
-*)
-
-Lemma lseg_nonnull {T: type}{LS: listspec T}:
+Lemma lseg_nonnull:
   forall sh s v,
-      typed_true T v ->
+      typed_true (tptr list_struct) v ->
      lseg sh s v nullval = lseg_cons sh s v nullval.
 Proof.
 intros. subst. 
@@ -333,11 +294,11 @@ apply pred_ext; normalize.
 apply orp_left; auto. normalize.
 unfold typed_true, strict_bool_val,ptr_eq in *.
 destruct v; simpl in *; try contradiction.
-destruct T; simpl in H; try rewrite H0 in H; try discriminate.
+rewrite H0 in H. inv H.
 apply orp_right2. auto.
 Qed.
 
-Lemma lift2_lseg_cons {T: type}{LS: listspec T}: 
+Lemma lift2_lseg_cons: 
  forall sh s p q, lift2 (lseg_cons sh s)  p q =
     EX hry:(val * list val * val),
       match hry with (h,r,y) =>
@@ -362,27 +323,27 @@ Proof.
   replace (type_of_field
          (unroll_composite_fields list_structid list_struct
             (Fcons list_data list_dtype
-               (Fcons (@list_link T LS) (Tcomp_ptr (@list_structid T LS) noattr) Fnil)))
-         (@list_data T LS)) with list_dtype.
+               (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)))
+         list_data) with list_dtype.
  forget (field_mapsto sh list_struct list_data (p rho) h ) as A.
  forget (|>lseg sh r y (q rho)) as B.
  erewrite (field_mapsto_typecheck_val); [ | reflexivity].
   replace (type_of_field
          (unroll_composite_fields list_structid list_struct
             (Fcons list_data list_dtype
-               (Fcons (@list_link T LS) (Tcomp_ptr (@list_structid T LS) noattr) Fnil)))
-         (@list_link T LS)) with T .
+               (Fcons list_link (Tcomp_ptr list_structid noattr) Fnil)))
+         list_link) with (tptr list_struct) .
  normalize.
  simpl.
  rewrite if_false by apply list_data_not_link. rewrite if_true by auto.
- rewrite if_true by auto.  apply list_type_is.
+ rewrite if_true by auto.  reflexivity.
  pose proof (list_unroll_dtype list_struct).
  simpl. rewrite if_true by auto.
  symmetry; apply H0.
  normalize.
 Qed.
 
-Lemma unfold_lseg_cons{T: type}{LS: listspec T}:
+Lemma unfold_lseg_cons:
    forall P Q1 Q R e sh s,
       local Q1 &&
       PROPx P (LOCALx Q (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R))) |-- 
@@ -412,7 +373,7 @@ clear H.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
 normalize.
-rewrite lseg_nonnull by (rewrite list_type_is; auto).
+rewrite lseg_nonnull by auto.
 auto.
 rewrite lift2_lseg_cons.
 clear.
@@ -426,7 +387,7 @@ normalize.
  auto.
 Qed.
 
-Lemma semax_lseg_nonnull {T: type}{LS: listspec T}:
+Lemma semax_lseg_nonnull:
   forall Delta P Q sh s e R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
             (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R))) |-- 
@@ -449,7 +410,7 @@ apply semax_extract_prop; intro; auto.
 Qed.
 
 
-Lemma lseg_nil_eq {T: type}{LS: listspec T}: 
+Lemma lseg_nil_eq: 
     forall sh p q, lseg sh nil p q = !! (ptr_eq p q) && emp.
 Proof. intros.
  rewrite lseg_unroll.
@@ -460,5 +421,7 @@ Proof. intros.
 Qed.
 Hint Rewrite @lseg_nil_eq : normalize.
 
-Hint Rewrite @lseg_eq : normalize.
+Hint Rewrite @lseg_eq using reflexivity: normalize.
+
+End LIST.
 
