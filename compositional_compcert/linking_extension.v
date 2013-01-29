@@ -1434,6 +1434,48 @@ solve[unfold genv_map in *; congruence].
 solve[apply eq_nat_dec].
 Qed.
 
+(*TODO: move to more general setting*)
+Lemma private_disjoint_inv'_initialS: 
+  forall stack k c pf,
+  (forall b, ~private_block (csem_map_S k) c b) -> 
+  private_disjoint_inv' fS vS modules_S pf c stack.
+Proof.
+intros.
+induction stack.
+simpl; auto.
+simpl.
+destruct a.
+split; auto.
+intros b H1 CONTRA.
+apply (H b).
+unfold csem_map_S, csem_map.
+destruct (lt_dec k num_modules).
+assert (l = pf) as -> by apply proof_irr.
+auto.
+elimtype False; auto.
+Qed.
+
+Lemma private_disjoint_inv'_initialT: 
+  forall stack k c pf,
+  (forall b, ~private_block (csem_map_T k) c b) -> 
+  private_disjoint_inv' fT vT modules_T pf c stack.
+Proof.
+intros.
+induction stack.
+simpl; auto.
+simpl.
+destruct a.
+split; auto.
+intros b H1 CONTRA.
+apply (H b).
+unfold csem_map_T, csem_map.
+destruct (lt_dec k num_modules).
+assert (l = pf) as -> by apply proof_irr.
+auto.
+elimtype False; auto.
+Qed.
+(*END move*)
+
 Lemma linking_extension_compilable 
   (cd_init: CompilabilityInvariant.core_datas core_data):
  CompilableExtension.Sig 
@@ -1905,22 +1947,119 @@ split.
 inv STACK_INV.
 rewrite H7 in *.
 
-admit. (*priv_valid*)
+(*BEGIN private lemmas*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i0 k); try solve[congruence].
+subst.
+elimtype False.
+eapply private_initial in H15.
+apply H15.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+unfold csem_map_S, csem_map in H16.
+destruct (lt_dec k num_modules); try solve[congruence].
+assert (plt_ok LOOKUP = l) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok LOOKUP); intro CONTRA.
+elimtype False.
+solve[apply n; auto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
+unfold private_disjoint.
+intros until d; intros NEQ; simpl; intros.
+destruct (eq_nat_dec i0 k); try solve[congruence].
+solve[destruct (eq_nat_dec j0 k); try solve[congruence]].
 split.
-admit. (*priv_valid*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i0 k); try solve[congruence].
+subst.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+eapply private_initial in INIT.
+elimtype False.
+solve[eauto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
+unfold private_disjoint.
+simpl.
+intros.
+destruct (eq_nat_dec i0 k); try solve[congruence].
+solve[destruct (eq_nat_dec j0 k); try solve[congruence]].
 split.
 split.
-admit. (*priv_valid*)
 split.
-admit. (*priv_disjoint*)
+intros b0 PRIV.
+eapply private_initial in H15.
+solve[elimtype False; apply H15; eauto].
+destruct PRIV1.
+solve[split; auto].
+split; auto.
+split; auto.
+destruct PRIV1.
+split; auto.
+intros b0 PRIV.
+eapply private_initial in H15.
+solve[elimtype False; apply H15; eauto].
+apply private_disjoint_inv'_initialS.
+intros b0 CONTRA.
+eapply private_initial in H15.
+apply H15.
+unfold csem_map_S, csem_map in CONTRA.
+destruct (lt_dec k num_modules).
+assert (plt_ok LOOKUP = l) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok LOOKUP).
+intros.
+solve[elimtype False; auto].
 split.
-admit. (*priv_valid*)
+simpl.
 split.
-admit. (*priv_disjoint*)
+intros b0 PRIV.
+eapply private_initial in INIT.
+elimtype False; apply INIT.
+unfold csem_map_T, csem_map.
+destruct (lt_dec k num_modules); try solve[congruence].
+assert (l = plt_ok LOOKUP) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok LOOKUP).
+solve[intros; elimtype False; auto].
+destruct PRIV2 as [X Y].
+split; auto.
+intros.
+apply X.
+assert (PF = pf_i) as -> by apply proof_irr.
+solve[auto].
+split.
+destruct PRIV2 as [X Y].
+simpl.
+split; auto.
+split; auto.
+intros.
+eapply private_initial in INIT.
+intros CONTRA.
+eapply INIT.
+unfold csem_map_T, csem_map.
+destruct (lt_dec k num_modules).
+assert (l = plt_ok LOOKUP) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok LOOKUP).
+solve[intros; elimtype False; auto].
+apply private_disjoint_inv'_initialT.
+intros b0 CONTRA.
+eapply private_initial in INIT.
+solve[apply INIT; eauto].
+split.
+destruct DISJ2 as [Z W].
+assert (pf_i = PF) as -> by apply proof_irr.
+solve[auto].
+destruct DISJ2 as [Z W].
+assert (pf_i = PF) as -> by apply proof_irr.
+solve[auto].
+(*END private lemmas*)
 
 exists (@refl_equal _ k).
 destruct RR2 as [cd'' RR2].
@@ -2142,22 +2281,68 @@ rewrite H7.
 inversion 1; subst.
 split.
 
-admit. (*priv_valid*)
+(*BEGIN private lemmas*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i0 n); try solve[congruence].
+subst.
+elimtype False.
+eapply private_initial in H7.
+apply H7.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H0.
+inv H0.
+unfold csem_map_S, csem_map in H8.
+destruct (lt_dec n num_modules); try solve[congruence].
+assert (plt_ok PLT = l) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok PLT); intro CONTRA.
+solve[elimtype False; eauto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
+unfold private_disjoint.
+intros until d; intros NEQ; simpl; intros.
+destruct (eq_nat_dec i0 n); try solve[congruence].
+solve[destruct (eq_nat_dec j0 n); try solve[congruence]].
 split.
-admit. (*priv_valid*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i0 n); try solve[congruence].
+subst.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H0.
+inv H0.
+eapply private_initial in INIT.
+elimtype False.
+solve[eauto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
+unfold private_disjoint.
+simpl.
+intros.
+destruct (eq_nat_dec i0 n); try solve[congruence].
+solve[destruct (eq_nat_dec j0 n); try solve[congruence]].
 split.
-
-unfold R, R_inv; simpl.
 split.
-admit. (*priv_valid*)
+split.
+intros b0 PRIV.
+eapply private_initial in H7.
+solve[elimtype False; apply H7; eauto].
+simpl; auto.
+split; simpl; auto.
 split; auto.
-split.
-admit. (*priv_valid*)
 split; auto.
+intros b0 PRIV.
+eapply private_initial in INIT.
+elimtype False; apply INIT.
+unfold csem_map_T, csem_map.
+destruct (lt_dec n num_modules); try solve[congruence].
+assert (l = plt_ok PLT0) as -> by apply proof_irr.
+solve[eauto].
+generalize (plt_ok PLT).
+solve[intros; elimtype False; auto].
+split; auto.
+(*END private lemmas*)
 
 exists (@refl_equal _ n).
 split; auto.
@@ -2395,23 +2580,99 @@ split.
 split.
 simpl.
 
-admit. (*priv_valid*)
+(*BEGIN private lemmas*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i1 i); try solve[congruence].
+subst.
+eapply private_external in H6.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+unfold csem_map_S, csem_map in H2.
+destruct (lt_dec i num_modules); try solve[congruence].
+assert (pf_i = l) by apply proof_irr.
+subst.
+rewrite H6 in H2.
+destruct PRIV1 as [X [Y Z]].
+solve[apply Y; auto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
+unfold private_disjoint.
+intros until d; intros NEQ; simpl; intros.
+destruct (eq_nat_dec i1 i); try solve[congruence].
+solve[destruct (eq_nat_dec j0 i); try solve[congruence]].
 split.
-admit. (*priv_valid*)
+unfold private_valid.
+simpl.
+intros.
+destruct (eq_nat_dec i1 i); try solve[congruence].
+subst.
+erewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+eapply private_external in AFTER2.
+rewrite AFTER2 in H2.
+destruct PRIV2 as [X [Y Z]].
+apply Y.
+unfold csem_map_T, csem_map in H2.
+destruct (lt_dec i num_modules).
+assert (PF0 = l) as -> by apply proof_irr.
+solve[auto].
+generalize (plt_ok LOOKUP); intros.
+solve[elimtype False; auto].
+solve[apply eq_nat_dec].
 split.
-admit. (*priv_disjoint*)
-
+unfold private_disjoint.
+simpl.
+intros.
+destruct (eq_nat_dec i1 i); try solve[congruence].
+solve[destruct (eq_nat_dec j0 i); try solve[congruence]].
 split.
 split.
-admit. (*priv_valid*)
 split.
-admit. (*priv_disjoint*)
+intros b0 PRIV.
+eapply private_external in H6.
+destruct PRIV1 as [X [Y Z]].
+apply Y.
+solve[rewrite <-H6; auto].
+destruct PRIV1 as [X [Y Z]].
+solve[auto].
 split.
-admit. (*priv_valid*)
+destruct DISJ1 as [X [Y Z]].
+eapply private_disjoint_inv_eq.
+eapply private_external; eauto.
+simpl.
+split; auto.
 split.
-admit. (*priv_disjoint*)
+simpl.
+split.
+intros.
+eapply private_external in AFTER2.
+destruct PRIV2 as [X [Y Z]].
+apply Y.
+unfold csem_map_T, csem_map in AFTER2.
+destruct (lt_dec i num_modules).
+assert (pf_i = l) by apply proof_irr.
+subst.
+rewrite AFTER2 in H1.
+assert (PF0 = l) as -> by apply proof_irr.
+solve[auto].
+solve[elimtype False; auto].
+solve[destruct PRIV2 as [? [? ?]]; auto].
+split.
+destruct DISJ2 as [X [Y Z]].
+eapply private_disjoint_inv_eq.
+eapply private_external; eauto.
+unfold csem_map_T, csem_map in AFTER2.
+destruct (lt_dec i num_modules).
+assert (pf_i = l) as -> by apply proof_irr.
+eauto.
+solve[elimtype False; eauto].
+simpl.
+split; auto.
+assert (pf_i = PF0) as -> by apply proof_irr.
+solve[auto].
+(*END private lemmas*)
 
 exists (@refl_equal _ i).
 split; auto.
