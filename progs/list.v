@@ -288,6 +288,7 @@ Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
  apply now_later.
 Qed.
 
+(*
 Module TestCase.
 Definition myid : ident := 3%positive.
 Definition data_id : ident := 4%positive.
@@ -319,6 +320,7 @@ simpl.
 
 Abort.
 End TestCase.
+*)
 
 Lemma lseg_nonnull {T: type}{LS: listspec T}:
   forall sh s v,

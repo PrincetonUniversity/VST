@@ -14,9 +14,7 @@ Require progs.test1.  Module P := progs.test1.
 
 Local Open Scope logic.
 
-Definition t_listptr := tptr P.t_struct_list.
-
-Instance t_list_spec: listspec t_listptr.
+Instance t_list_spec: listspec (tptr P.t_struct_list).
 Proof.
 econstructor.
 reflexivity.
@@ -25,21 +23,21 @@ reflexivity.
 econstructor; simpl; reflexivity.
 Defined.
 
-Definition sum := fold_right Int.add Int.zero.
+Definition sum_int := fold_right Int.add Int.zero.
 
 Definition sumlist_spec :=
  DECLARE P._sumlist
   WITH sh : share, contents : list int
-  PRE [ P._p OF t_listptr]  lift2 (lseg sh (map Vint contents)) 
+  PRE [ P._p OF (tptr P.t_struct_list)]  lift2 (lseg sh (map Vint contents)) 
                                        (eval_id P._p) (lift0 nullval)
-  POST [ tint ]  local (lift1 (eq (Vint (sum contents))) retval).
+  POST [ tint ]  local (lift1 (eq (Vint (sum_int contents))) retval).
 
 Definition reverse_spec :=
  DECLARE P._reverse
   WITH sh : share, contents : list int
-  PRE  [ P._p OF t_listptr ] !! writable_share sh &&
+  PRE  [ P._p OF (tptr P.t_struct_list) ] !! writable_share sh &&
               lift2 (lseg sh (map Vint contents)) (eval_id P._p) (lift0 nullval)
-  POST [ t_listptr ] lift2 (lseg sh (rev (map Vint contents))) retval (lift0 nullval).
+  POST [ (tptr P.t_struct_list) ] lift2 (lseg sh (rev (map Vint contents))) retval (lift0 nullval).
 
 Definition main_spec :=
  DECLARE P._main
@@ -58,10 +56,8 @@ Definition Gtot := do_builtins (prog_defs P.prog) ++ Gprog.
 
 Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
-            PROP () LOCAL (lift1 (eq (Vint (Int.sub (sum contents) (sum cts)))) (eval_id P._s)) 
+            PROP () LOCAL (lift1 (eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id P._s)) 
             SEP ( TT ; lift2 (lseg sh (map Vint cts)) (eval_id P._t) (lift0 nullval))).
-
-Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : normalize.
 
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
@@ -77,14 +73,14 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
-(* et_1 *)  go_lower. subst. cancel.
+go_lower. subst. cancel.
 (* Prove that loop invariant implies typechecking condition *)
-(* et_2 *)  go_lower.
+go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-(* et_3 *) go_lower.  subst. normalize. destruct cts; inv H. simpl. normalize.
+go_lower.  subst. normalize. destruct cts; inv H. simpl. normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
-(* et_4 *) go_lower. destruct cts; inv H.
+go_lower. destruct cts; inv H.
 simpl list_data; simpl list_link; simpl list_struct.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
@@ -92,12 +88,13 @@ forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with cts.
-(* et_5 *) go_lower. subst. inv H0. apply andp_right; [ apply prop_right| cancel].
+go_lower. subst. inv H0.
  rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg i)),
-             Int.add_neg_zero, Int.add_zero. auto. 
+             Int.add_neg_zero, Int.add_zero.
+normalize. cancel. 
 (* After the loop *)
 forward.  (* return s; *)
-(* et_6 *) go_lower. reflexivity.
+go_lower. reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=
@@ -122,12 +119,12 @@ forward_while (reverse_Inv sh contents)
 unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
-(* et_7 *) go_lower. subst. simpl; normalize.
+go_lower. subst. simpl; normalize.
 (* loop invariant implies typechecking of loop condition *)
-(* et_8 *) go_lower.
+go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-(*  et_9 *) go_lower. subst. normalize. 
+go_lower. subst. normalize. 
     destruct cts2; inv H0. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
@@ -142,7 +139,6 @@ forward.  (* v = t; *)
 unfold reverse_Inv.
 apply exp_right with (i::cts1).
 apply exp_right with cts2.
-(* et_10 *)
   go_lower.
   subst _v0 y _t. rewrite app_ass. normalize.
   rewrite (lseg_unroll sh (Vint i:: map Vint cts1)).
@@ -168,7 +164,7 @@ apply exp_right with cts2.
   cancel. (* end et_10 *)
 (* after the loop *)
 forward.  (* return w; *)
-(* et_11 *) go_lower. rewrite map_rev. cancel.
+go_lower. rewrite map_rev. cancel.
 Qed.
 
 Lemma setup_globals:

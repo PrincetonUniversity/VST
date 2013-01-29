@@ -10,8 +10,11 @@ Local Open Scope logic.
 
 Hint Resolve @TT_right.
 
+Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : normalize.
 Hint Rewrite Int.add_zero_l Int.add_zero : normalize.
 Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
+
+
 
 Definition force_int (v: val) := 
  match v with
