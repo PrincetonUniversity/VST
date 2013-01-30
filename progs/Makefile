@@ -3,7 +3,7 @@ COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
 COQDOC=coqdoc
-CLIGHTGENFLAGS = -I ../compcert/lib -I ../compcert/common -I ../compcert/cfrontend \
+CLIGHTGENFLAGS = -I ../compcert/lib -I ../compcert/common -I ../compcert/cfrontend  -I ../compcert/exportclight \
     -I ../compcert/flocq/Appli   -I ../compcert/flocq/Calc  -I ../compcert/flocq/Core  -I ../compcert/flocq/Prop
 
 FILES= \
