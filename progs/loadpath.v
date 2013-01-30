@@ -5,4 +5,5 @@ Add LoadPath "../compcert/flocq/Core".
 Add LoadPath "../compcert/flocq/Prop".
 Add LoadPath "../compcert/common".
 Add LoadPath "../compcert/cfrontend".
+Add LoadPath "../compcert/exportclight".
 Add LoadPath "..".
