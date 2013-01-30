@@ -10,6 +10,7 @@ Require Import Integers.
 
 Require Import compositional_compcert.core_semantics.
 Require Import compositional_compcert.forward_simulations.
+Require Import compositional_compcert.mem_lemmas.
 
 Require Import veric.Coqlib2. (*TODO: remove this dependency*)
 
@@ -268,7 +269,8 @@ Proof.
   destruct (ePts_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
   rewrite KK1 in K3. inv K3. inv K2. clear K1.
   destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply GenvInit1. apply K5.
-  assert (X := @Forward_simulation_inj.core_initial _ _ _ _ _ _ _ Sem1 Sem2  (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
+  assert (X := @Forward_simulation_inj.core_initial _ _ _ _ _ _ _ Sem1 Sem2  
+    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
   destruct X as [d' [c2 [iniCore2 Match]]].
   constructor.
   constructor. 
@@ -323,9 +325,11 @@ Proof.
   destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInj) 
     as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
   eapply external_call_mem_forward; eauto.
-  apply Munch1.
+  apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
+  solve[intros b ofs [? ?]; auto].
   eapply external_call_mem_forward; eauto.
-  apply Munch2.
+  apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
+  solve[intros b ofs [? ?]; auto].
   eapply external_call_well_typed. apply extCall2Genv2. 
   rewrite AftExt1 in H9. inv H9.
   exists d'. exists (c2', m2').

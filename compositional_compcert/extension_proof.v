@@ -839,80 +839,86 @@ Module ExtendedSimulations. Section ExtendedSimulations.
       Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' -> 
     R j' s1' m1' s2' m2')
 
-  (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
-    match_states cd j s1 m1 s2 m2 -> 
-    inject_incr j j' -> 
-    Events.inject_separated j j' m1 m2 -> 
-    Mem.inject j' m1' m2' -> 
-    mem_forward m1 m1'-> 
-    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
-    mem_forward m2 m2' -> 
-    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
-    at_external esemS s1 = Some (ef, sig, args1) -> 
-    after_external esemS ret1 s1 = Some s1' -> 
-    after_external esemT ret2 s2 = Some s2' -> 
-    val_has_type_opt ret1 (ef_sig ef) -> 
-    val_has_type_opt ret2 (ef_sig ef) -> 
-    val_inject_opt j' ret1 ret2 -> 
-    R j' s1' m1' s2' m2')   
+ (after_external_rel: forall cd j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
+   match_states cd j s1 m1 s2 m2 -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   Mem.inject j' m1' m2' -> 
+   mem_forward m1 m1'-> 
+   Events.mem_unchanged_on (fun b ofs => 
+     Events.loc_unmapped j b ofs /\ private_block esemS s1 b) m1 m1' -> 
+   mem_forward m2 m2' -> 
+   Events.mem_unchanged_on (fun b ofs => 
+     Events.loc_out_of_reach j m1 b ofs /\ private_block esemT s2 b) m2 m2' -> 
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   after_external esemS ret1 s1 = Some s1' -> 
+   after_external esemT ret2 s2 = Some s2' -> 
+   val_has_type_opt ret1 (ef_sig ef) -> 
+   val_has_type_opt ret2 (ef_sig ef) -> 
+   val_inject_opt j' ret1 ret2 -> 
+   R j' s1' m1' s2' m2')   
+ 
+ (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   runnable (csemS (ACTIVE E_S s1)) c1=false -> 
+   runnable (csemT (ACTIVE E_S s1)) c2=false -> 
+   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
+   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+   match_states cd j s1 m1 s2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   Forall2 (val_inject j) args1 args2 -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
+   corestep esemS ge_S s1 m1 s1' m1' -> 
+   exists s2', exists m2', exists cd', exists j',
+     inject_incr j j' /\
+     Events.inject_separated j j' m1 m2 /\
+     match_states cd' j' s1' m1' s2' m2' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       Events.loc_unmapped j b ofs /\ private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' /\
+     ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
+      corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
-  (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd j,
-    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-    runnable (csemS (ACTIVE E_S s1)) c1=false -> 
-    runnable (csemT (ACTIVE E_S s1)) c2=false -> 
-    at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
-    match_states cd j s1 m1 s2 m2 -> 
-    Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals ge_S j -> 
-    Forall2 (val_inject j) args1 args2 -> 
-    Forall2 Val.has_type args2 (sig_args sig) -> 
-    corestep esemS ge_S s1 m1 s1' m1' -> 
-    exists s2', exists m2', exists cd', exists j',
-      inject_incr j j' /\
-      Events.inject_separated j j' m1 m2 /\
-      match_states cd' j' s1' m1' s2' m2' /\
-      Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
-      Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' /\
-      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
-        corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
+ (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
+   ACTIVE E_S s1=ACTIVE E_T s2 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   runnable (csemS (ACTIVE E_S s1)) c1=runnable (csemT (ACTIVE E_S s1)) c2 -> 
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
+   match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
+   Mem.inject j m1 m2 -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   Forall2 (val_inject j) args1 args2 -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
+   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+   at_external esemT s2 = Some (ef, sig, args2))
 
-  (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
-    ACTIVE E_S s1=ACTIVE E_T s2 -> 
-    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-    runnable (csemS (ACTIVE E_S s1)) c1=runnable (csemT (ACTIVE E_S s1)) c2 -> 
-    at_external esemS s1 = Some (ef, sig, args1) -> 
-    at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-    match_state (ACTIVE E_S s1) cd j c1 m1 c2 m2 -> 
-    Mem.inject j m1 m2 -> 
-    Events.meminj_preserves_globals ge_S j -> 
-    Forall2 (val_inject j) args1 args2 -> 
-    Forall2 Val.has_type args2 (sig_args sig) -> 
-    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
-    at_external esemT s2 = Some (ef, sig, args2))
-
-  (after_external_diagram: 
-    forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
-    match_state i cd j d1 m1 d2 m2 -> 
-    at_external esemS s1 = Some (ef, sig, args1) -> 
-    Events.meminj_preserves_globals ge_S j -> 
-    inject_incr j j' -> 
-    Events.inject_separated j j' m1 m2 -> 
-    Mem.inject j' m1' m2' -> 
-    val_inject j' retv1 retv2 -> 
-    mem_forward m1 m1' -> 
-    Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' -> 
-    mem_forward m2 m2' -> 
-    Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' -> 
-    Val.has_type retv2 (proj_sig_res sig) -> 
-    after_external esemS (Some retv1) s1 = Some s1' -> 
-    after_external esemT (Some retv2) s2 = Some s2' -> 
-    PROJ_CORE E_S i s1' = Some d1 -> 
-    PROJ_CORE E_T i s2' = Some d2 -> 
-    ACTIVE E_S s1 <> i -> 
-    match_state i cd j' d1 m1' d2 m2')
+ (after_external_diagram: 
+   forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd j j',
+   match_state i cd j d1 m1 d2 m2 -> 
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   Mem.inject j' m1' m2' -> 
+   val_inject j' retv1 retv2 -> 
+   mem_forward m1 m1' -> 
+   Events.mem_unchanged_on (fun b ofs => 
+     Events.loc_unmapped j b ofs /\ private_block (csemS i) d1 b) m1 m1' -> 
+   mem_forward m2 m2' -> 
+   Events.mem_unchanged_on (fun b ofs => 
+     Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT i) d2 b) m2 m2' -> 
+   Val.has_type retv2 (proj_sig_res sig) -> 
+   after_external esemS (Some retv1) s1 = Some s1' -> 
+   after_external esemT (Some retv2) s2 = Some s2' -> 
+   PROJ_CORE E_S i s1' = Some d1 -> 
+   PROJ_CORE E_T i s2' = Some d2 -> 
+   ACTIVE E_S s1 <> i -> 
+   match_state i cd j' d1 m1' d2 m2')
 
   (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
@@ -923,29 +929,31 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     exists cd, exists s2, 
       make_initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
+ 
+ (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
+   match_states cd j c1 m1 c2 m2 -> 
+   safely_halted esemS c1 = Some v1 -> 
+   exists v2, val_inject j v1 v2 /\
+     safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
 
-  (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
-    match_states cd j c1 m1 c2 m2 -> 
-    safely_halted esemS c1 = Some v1 -> 
-    exists v2, val_inject j v1 v2 /\
-      safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
-
-  (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
-    match_states cd j s1 m1 s2 m2 -> 
-    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-    safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
-    corestep esemS ge_S s1 m1 s1' m1' ->  
-    exists rv2, 
-      safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
-      val_inject j rv1 rv2 /\
-    exists s2', exists m2', exists cd', exists j', 
-      inject_incr j j' /\
-      Events.inject_separated j j' m1 m2 /\
-      corestep esemT ge_T s2 m2 s2' m2' /\
-      match_states cd' j' s1' m1' s2' m2' /\ 
-      Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' /\
-      Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2'),
+ (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
+   match_states cd j s1 m1 s2 m2 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
+   corestep esemS ge_S s1 m1 s1' m1' ->  
+   exists rv2, 
+     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+     val_inject j rv1 rv2 /\ 
+   exists s2', exists m2', exists cd', exists j', 
+     inject_incr j j' /\
+     Events.inject_separated j j' m1 m2 /\
+     corestep esemT ge_T s2 m2 s2' m2' /\
+     match_states cd' j' s1' m1' s2' m2' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2'),
   internal_compilability_invariant.
 
  Variables 
@@ -1327,12 +1335,21 @@ exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
 split3; auto.
 
-(*mem_unch_on unmapped*)
-apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
-solve[intros b ofs [X Y]; auto].
-(*mem_unch_on out_of_reach*)
-apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
-solve[intros b ofs [X Y]; auto].
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\
+  ~private_block (csemS (ACTIVE E_S st1)) c1 b); auto.
+intros b ofs [? ?]; split; auto.
+intros CONTRA.
+apply H0.
+solve[eapply private_conservS in CONTRA; eauto].
+
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\
+  ~private_block (csemT (ACTIVE E_S st1)) c2 b); auto.
+intros b ofs [? ?]; split; auto.
+intros CONTRA.
+apply H0.
+solve[eapply private_conservT in CONTRA; eauto].
 
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 
@@ -1353,13 +1370,10 @@ destruct H11 as [m2' [cd' [j' [? [? [? [UNCH1 [UNCH2 ?]]]]]]]].
 exists s2'; exists m2'; exists cd'; exists j'.
 split3; auto.
 split3; auto.
-
-apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
-solve[intros ? ? [? ?]; auto].
-
-split; auto.
-apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
-solve[intros ? ? [? ?]; auto].
+admit. (*require that corestep of esem means unchanged_on ~private_to_esem*)
+split.
+admit. (*require that corestep of esem means unchanged_on ~private_to_esem*)
+solve[auto].
 Qed.
 
 (*we punt in the make_initial_core case of the simulation proof; to do more requires 
@@ -1414,6 +1428,18 @@ destruct (core_after_external (core_simulations (ACTIVE E_S st1))
 rewrite <-meminj_preserves_genv2blocks.
 rewrite <-genvs_domain_eq_preserves with (ge1 := ge_S); auto.
 rewrite meminj_preserves_genv2blocks; auto.
+
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\ private_block esemS st1 b); auto.
+intros b ofs [? ?].
+split; auto.
+solve[eapply private_conservS; eauto].
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\ private_block esemT st2 b); auto.
+intros b ofs [? ?].
+split; auto.
+solve[eapply private_conservT; eauto].
+
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
          PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1') as [st1' [? PROJ1']].
@@ -1480,6 +1506,7 @@ eapply after_external_rel; eauto.
 admit. (*in core_after_external: need precond: Val.has_type ret1 (proj_sig_res (ef_sig e))*)
 unfold val_has_type_opt.
 generalize H11.
+
 admit. (*get rid of "sig"; use "ef_sig ef" everywhere*)
 split; auto.
 
@@ -1511,6 +1538,21 @@ exists _d; split; auto.
 rewrite core_datas_upd_other; auto.
 inv esig_compilable.
 eapply after_external_diagram; eauto.
+inv core_compatS.
+erewrite <-after_ext_others in _PROJ1'; eauto.
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\ private_block esemS st1 b); auto.
+intros b ofs [? ?].
+split; auto.
+apply private_conservS in _PROJ1'.
+solve[eapply _PROJ1'; eauto].
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\ private_block esemT st2 b); auto.
+intros b ofs [? ?].
+split; auto.
+inv core_compatT.
+apply private_conservT in _PROJ2.
+solve[eapply _PROJ2; eauto].
 inv core_compatT.
 erewrite <-after_ext_others; eauto.
 solve[rewrite Heqx; auto].
@@ -1581,19 +1623,6 @@ erewrite genvs_domain_eq_preserves.
 erewrite meminj_preserves_genv2blocks.
 eauto.
 solve[apply genvs_domain_eq_sym; auto].
-
-destruct UNCH1 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H0; auto].
-apply Y; auto.
-solve[intros i0 H2; destruct (H0 i0); auto].
-destruct UNCH2 as [X Y].
-split; intros.
-eapply X; eauto.
-solve[destruct H0; auto].
-apply Y; auto.
-solve[intros i0 H2; destruct (H0 i0); auto].
 Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.

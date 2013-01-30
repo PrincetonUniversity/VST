@@ -1907,19 +1907,30 @@ assert (PF = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
 
 (*mem_unch_on*)
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
-solve[intros b ofs [? X]; auto].
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := 
-  loc_out_of_reach j m1); auto.
-solve[intros b ofs [? X]; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\
+  (private_block (get_module_csem (modules_S PF)) c b \/
+    private_blocks fS vS modules_S stack b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_S, csem_map in X.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (PF = l) as -> by apply proof_irr; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\
+  (private_block (get_module_csem (modules_T PF0)) c0 b \/
+    private_blocks fT vT modules_T stack0 b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_T, csem_map in X.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (PF0 = l) as -> by apply proof_irr; auto].
 
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
 solve[apply eq_nat_dec].
 
 clear H2 AT_EXT.
 clear - RR2 H3 H4 H5 H6 H7 H8 H9 PF RGsim.
-revert stack0 RR2; induction stack; auto.
-intros stack0 RR2; destruct stack0; simpl in RR2. 
+revert stack0 RR2 H9; induction stack; auto.
+intros stack0 RR2 H9; destruct stack0; simpl in RR2. 
 solve[destruct a; elimtype False; auto].
 destruct a; destruct f.
 destruct RR2 as [PF' [[cd' MATCH] INV]].
@@ -1931,22 +1942,53 @@ exists cd'.
 rewrite <-Eqdep_dec.eq_rect_eq_dec in *; auto; 
  try solve[apply eq_nat_dec].
 destruct (RGsim i).
-apply rely with (ge1 := get_module_genv (modules_S PF0)) (m1 := m1) (f := j) (m2 := m2); auto.
+apply rely with (ge1 := get_module_genv (modules_S PF1)) (m1 := m1) (f := j) (m2 := m2); auto.
 solve[eapply match_state_inj; eauto].
 rewrite meminj_preserves_genv2blocks.
 generalize match_state_preserves_globals.
 unfold genv_mapS, genvs.
 intros GENVS.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (PF0 = l) as -> by apply proof_irr.
+assert (PF1 = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
 
 (*mem_unch_on*)
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
-solve[intros b ofs [? X]; auto].
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := 
-  loc_out_of_reach j m1); auto.
-solve[intros b ofs [? X]; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\
+  (private_block (get_module_csem (modules_S PF)) c b \/
+    private_blocks fS vS modules_S (mkFrame i PF1 c1 :: stack) b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_S, csem_map in X.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+simpl.
+solve[assert (PF1 = l) as -> by apply proof_irr; right; left; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\
+  (private_block (get_module_csem (modules_T PF0)) c0 b \/
+    private_blocks fT vT modules_T (mkFrame i PF2 c2 :: stack0) b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_T, csem_map in X.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+solve[assert (PF2 = l) as -> by apply proof_irr; right; left; auto].
+apply IHstack; auto.
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\
+  (private_block (get_module_csem (modules_S PF)) c b \/
+    private_blocks fS vS modules_S (mkFrame i PF1 c1 :: stack) b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_S, csem_map in X.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+simpl.
+solve[destruct X; auto].
+apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\
+  (private_block (get_module_csem (modules_T PF0)) c0 b \/
+    private_blocks fT vT modules_T (mkFrame i PF2 c2 :: stack0) b)); auto.
+intros b ofs [? X]; split; auto.
+unfold csem_map_T, csem_map in X.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+simpl.
+solve[destruct X; auto].
 
 (*3: extension_diagram*)
 unfold CompilabilityInvariant.match_states; simpl. 

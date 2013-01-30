@@ -346,9 +346,11 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         val_inject j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (loc_unmapped j) m1 m1' ->
+         mem_unchanged_on (fun b ofs => 
+           loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+         mem_unchanged_on (fun b ofs => 
+           loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
          Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         exists cd', exists st1', exists st2',
@@ -538,9 +540,11 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         val_inject j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (loc_unmapped j) m1 m1' ->
+         mem_unchanged_on (fun b ofs => 
+           loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+         mem_unchanged_on (fun b ofs => 
+           loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
          Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         exists cd', exists st1', exists st2',

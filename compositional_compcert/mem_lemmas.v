@@ -10,6 +10,17 @@ Require Import Integers.
 
 Require Import msl.Axioms.
 
+Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
+  mem_unchanged_on Q m m' -> 
+  (forall b ofs, P b ofs -> Q b ofs) -> 
+  mem_unchanged_on P m m'.
+Proof.
+intros until m'; intros [H1 H2] H3.
+split; intros.
+solve[apply (H1 b ofs k p (H3 b ofs H)); auto].
+solve[apply (H2 chunk b ofs v); auto]. 
+Qed.
+
 Lemma inject_separated_same_meminj: forall j m m', 
   Events.inject_separated j j m m'.
 Proof. intros j m m' b; intros. congruence. Qed.
