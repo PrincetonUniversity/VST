@@ -328,24 +328,24 @@ match goal with
                   try (apply exp_left; intro_old_var c1)
   end.
 
-Ltac start_function :=
+Ltac start_function := 
 match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
 match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   match Pre with 
   | (fun x => match x with (a,b) => _ end) => intros [a b] 
   | (fun i => _) => intro i
   end;
-  simpl fn_body; simpl fn_params; simpl fn_return;
-  canonicalize_pre
+  simpl fn_body; simpl fn_params; simpl fn_return
  end;
  match goal with |- semax (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G)
  end;
-  try match goal with |- context [stackframe_of ?F] =>
+ try match goal with |- context [stackframe_of ?F] =>
             change (stackframe_of F) with emp;
-            rewrite frame_ret_assert_emp
+            rewrite frame_ret_assert_emp; rewrite sepcon_emp
          end;
-  repeat (apply semax_extract_PROP; intro).
+ canonicalize_pre;
+ repeat (apply semax_extract_PROP; intro).
 
 Opaque sepcon.
 Opaque emp.

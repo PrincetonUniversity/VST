@@ -58,8 +58,6 @@ Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
             PROP () LOCAL (lift1 (eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id P._s)) 
             SEP ( TT ; lift2 (lseg LS sh (map Vint cts)) (eval_id P._t) (lift0 nullval))).
 
-Hint Rewrite @lseg_eq using reflexivity: normalize.
-
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
 start_function.
@@ -70,7 +68,7 @@ name _h P._h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (lift1 (fun v => fold_right Int.add Int.zero contents = force_int v) (eval_id P._s))SEP(TT)).
+    (PROP() LOCAL (lift1 (fun v => sum_int contents = force_int v) (eval_id P._s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.

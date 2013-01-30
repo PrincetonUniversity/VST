@@ -419,9 +419,11 @@ Proof. intros.
  normalize. unfold lseg_cons. normalize. inv H0.
  apply orp_right1. normalize.
 Qed.
+End LIST.
+
 Hint Rewrite @lseg_nil_eq : normalize.
 
 Hint Rewrite @lseg_eq using reflexivity: normalize.
 
-End LIST.
+
 
