@@ -194,13 +194,16 @@ start_function.
 name _r P._r.
 name _s P._s.
 forward.  (*  r = reverse(three); *)
-instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of x).
+instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
 go_lower.
 eapply derives_trans; [apply setup_globals; auto | ].
 cancel.
+auto with closed.
 forward.  (* s = sumlist(r); *)
-instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of x).
+instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
 go_lower.
+cancel.
+auto with closed.
 forward.  (* return s; *)
 go_lower.
 normalize.

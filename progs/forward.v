@@ -6,7 +6,7 @@ Import SequentialClight.SeqC.CSL.
 Require Import progs.client_lemmas.
 Require Import progs.field_mapsto.
 Require Import progs.assert_lemmas.
-Require Import progs.forward_lemmas.
+Require Export progs.forward_lemmas.
 
 Local Open Scope logic.
 
@@ -146,21 +146,21 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
                     by (unfold fsig, A, Pre, Post; simpl; reflexivity);
  let SCI := fresh "SCI" in
-    let H := fresh in let x := fresh "x" in let F := fresh "F" in
-      evar (x:A); evar (F: list assert); 
+    let H := fresh in let witness := fresh "x" in let F := fresh "Frame" in
+      evar (witness:A); evar (F: list assert); 
       assert (SCI := semax_call_id1 Delta P Q F id f 
-                (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
+                (type_of_params (fst fsig)) (snd fsig) bl fsig A witness Pre Post 
                       (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+                                      (SEPx (lift1 (Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
      |  apply semax_pre with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                 (SEPx (lift1 (Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | eapply semax_post'; [ unfold  x,F | unfold F in *; apply SCI] 
+       | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
                ]];
   clear SCI VT GT; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
@@ -187,7 +187,7 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
                     by (unfold fsig, A, Pre, Post; simpl; reflexivity);
 
  let SCI := fresh "SCI" in
-    let H := fresh in let x := fresh "x" in let F := fresh "F" in
+    let H := fresh in let x := fresh "witness" in let F := fresh "Frame" in
       evar (x:A); evar (F: list assert); 
 
       assert (SCI := semax_call_id1_x Delta P Q F id id' f 
@@ -203,7 +203,8 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  x,F | unfold F in *; 
-              ( apply SCI ; [ solve[simpl; auto with closed] |solve[simpl; auto with closed] 
+              ( apply SCI ; [ solve[simpl; auto with closed] 
+                                 | (*solve[simpl; auto with closed] PREMATURELY INSTANTIATES FRAME *) 
                                  | reflexivity | reflexivity | reflexivity | reflexivity ] ) ]
                ]];
   clear SCI VT GT; try clear H;
@@ -281,8 +282,7 @@ match goal with
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
            eapply semax_seq';
-           [  semax_call_id_tac_aux_x Delta P Q R id id' f bl;
-        [ | apply derives_refl  ] 
+           [  semax_call_id_tac_aux_x Delta P Q R id id' f bl; [ | apply derives_refl | ] 
            |  try unfold exit_tycon; 
                  simpl update_tycon; simpl map;
             try (apply extract_exists_pre; intro_old_var'' id)
@@ -328,24 +328,24 @@ match goal with
                   try (apply exp_left; intro_old_var c1)
   end.
 
-Ltac start_function := 
+Ltac start_function :=
 match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
 match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
   match Pre with 
   | (fun x => match x with (a,b) => _ end) => intros [a b] 
   | (fun i => _) => intro i
   end;
-  simpl fn_body; simpl fn_params; simpl fn_return
+  simpl fn_body; simpl fn_params; simpl fn_return;
+  canonicalize_pre
  end;
  match goal with |- semax (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G)
  end;
- try match goal with |- context [stackframe_of ?F] =>
+  try match goal with |- context [stackframe_of ?F] =>
             change (stackframe_of F) with emp;
-            rewrite frame_ret_assert_emp; rewrite sepcon_emp
+            rewrite frame_ret_assert_emp
          end;
- canonicalize_pre;
- repeat (apply semax_extract_PROP; intro).
+  repeat (apply semax_extract_PROP; intro).
 
 Opaque sepcon.
 Opaque emp.
