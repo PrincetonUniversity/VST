@@ -27,15 +27,16 @@ Definition sum_int := fold_right Int.add Int.zero.
 Definition sumlist_spec :=
  DECLARE P._sumlist
   WITH sh : share, contents : list int
-  PRE [ P._p OF (tptr P.t_struct_list)]  `(lseg LS sh (map Vint contents)) (eval_id P._p) `nullval
-  POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
+  PRE [ P._p OF (tptr P.t_struct_list)]  lift2 (lseg LS sh (map Vint contents)) 
+                                       (eval_id P._p) (lift0 nullval)
+  POST [ tint ]  local (lift1 (eq (Vint (sum_int contents))) retval).
 
 Definition reverse_spec :=
  DECLARE P._reverse
   WITH sh : share, contents : list int
   PRE  [ P._p OF (tptr P.t_struct_list) ] !! writable_share sh &&
-              `(lseg LS sh (map Vint contents)) (eval_id P._p) `nullval
-  POST [ (tptr P.t_struct_list) ] `(lseg LS sh (rev (map Vint contents))) retval `nullval.
+              lift2 (lseg LS sh (map Vint contents)) (eval_id P._p) (lift0 nullval)
+  POST [ (tptr P.t_struct_list) ] lift2 (lseg LS sh (rev (map Vint contents))) retval (lift0 nullval).
 
 Definition main_spec :=
  DECLARE P._main
@@ -52,11 +53,10 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs P.prog) ++ Gprog.
 
-
 Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
-            PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id P._s)) 
-            SEP ( TT ; `(lseg LS sh (map Vint cts)) (eval_id P._t) `nullval)).
+            PROP () LOCAL (lift1 (eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id P._s)) 
+            SEP ( TT ; lift2 (lseg LS sh (map Vint cts)) (eval_id P._t) (lift0 nullval))).
 
 Lemma body_sumlist: semax_body Vprog Gtot P.f_sumlist sumlist_spec.
 Proof.
@@ -68,7 +68,7 @@ name _h P._h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (`(fun v => sum_int contents = force_int v) (eval_id P._s)) SEP(TT)).
+    (PROP() LOCAL (lift1 (fun v => sum_int contents = force_int v) (eval_id P._s))SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
@@ -99,8 +99,8 @@ Definition reverse_Inv (sh: share) (contents: list int) : assert :=
           (EX cts1: list int, EX cts2 : list int,
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL ()
-            SEP (`(lseg LS sh (map Vint cts1)) (eval_id P._w) `nullval;
-                   `(lseg LS sh (map Vint cts2)) (eval_id P._v) `nullval)).
+            SEP (lift2 (lseg LS sh (map Vint cts1)) (eval_id P._w) (lift0 nullval);
+                   lift2 (lseg LS sh (map Vint cts2)) (eval_id P._v) (lift0 nullval))).
 
 Lemma body_reverse: semax_body Vprog Gtot P.f_reverse reverse_spec.
 Proof.
@@ -112,7 +112,7 @@ name _t P._t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
-         (PROP() LOCAL () SEP( `(lseg LS sh (map Vint (rev contents))) (eval_id P._w) `nullval)).
+         (PROP() LOCAL () SEP( lift2 (lseg LS sh (map Vint (rev contents))) (eval_id P._w) (lift0 nullval))).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with nil.

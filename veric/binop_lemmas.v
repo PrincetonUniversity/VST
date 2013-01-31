@@ -25,10 +25,9 @@ unfold sem_add in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-try solve [simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+try solve [simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
- destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *;
+ destruct t; simpl in *; auto; unfold_coerce;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
 simpl in *; tc_assert_ext; auto].
 Qed. 
@@ -49,13 +48,11 @@ unfold sem_sub in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 try solve[
 destruct t; simpl in *; auto;
 try (remember (negb (Int.eq (Int.repr (sizeof t0)) Int.zero)); 
-unfold tc_bool in *; try if_tac in H0); simpl in *;
-unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; 
+unfold tc_bool in *; try if_tac in H0); simpl in *; unfold_coerce; tc_assert_ext; auto; 
 try solve [destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
 simpl in *; tc_assert_ext; auto; repeat (if_tac; auto)]].
 Qed. 
@@ -76,11 +73,10 @@ unfold sem_sub in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (if_tac; auto). 
+simpl in *; destruct t; simpl in *; auto; unfold_coerce; tc_assert_ext; auto; repeat (if_tac; auto). 
 Qed. 
 
 Lemma typecheck_div_sound:
@@ -99,12 +95,12 @@ unfold sem_div in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
- destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
+ destruct t; simpl in *; auto; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
 simpl in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+unfold_coerce; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -124,12 +120,11 @@ unfold sem_mod in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
-destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
+destruct t; simpl in *; auto; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; 
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; unfold_coerce; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -149,11 +144,11 @@ unfold sem_and in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -173,11 +168,11 @@ unfold sem_or in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -197,11 +192,11 @@ unfold sem_xor in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -221,12 +216,12 @@ unfold sem_shl in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
- destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
+ destruct t; simpl in *; auto; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
 simpl in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+unfold_coerce; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -247,12 +242,12 @@ unfold sem_shr in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
- destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
+ destruct t; simpl in *; auto; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
 simpl in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+unfold_coerce; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto). 
 Qed. 
 
@@ -273,11 +268,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+unfold_coerce; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -297,11 +292,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -321,11 +316,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -345,11 +340,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -369,11 +364,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -393,11 +388,11 @@ unfold sem_cmp in *.
 destruct (typeof e1); destruct (typeof e2); simpl in *; auto;
 
 try destruct i; try destruct s; try destruct i0; try destruct s0; 
-simpl in *; try solve[inv H0]; unfold lift2 in *; unfold lift1 in *; unfold lift0 in *;
+simpl in *; try solve[inv H0]; unfold_coerce;
 tc_assert_ext; auto;
 destruct (eval_expr e1 rho); destruct (eval_expr e2 rho); auto;
-simpl in *; destruct t; simpl in *; auto; unfold lift2 in *; unfold lift1 in *;
-unfold lift0 in *; tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
+simpl in *; destruct t; simpl in *; auto; unfold_coerce;
+ tc_assert_ext; auto; repeat (try rewrite orb_if; rewrite andb_if);
 repeat (if_tac; auto); of_bool_destruct; auto. 
 Qed. 
 
@@ -414,8 +409,8 @@ typecheck_val (eval_expr (Ebinop b e1 e2 t) rho) (typeof (Ebinop b e1 e2 t)) =
 true.
 Proof. 
 intros. simpl in *.  rewrite tc_andp_sound in H. 
-simpl in *. unfold lift2 in *. rewrite tc_andp_sound in H. 
-simpl in *. unfold lift2 in *. intuition.  
+simpl in *. unfold_coerce; rewrite tc_andp_sound in H. 
+simpl in *. unfold_coerce; intuition.  
 destruct b. 
 eapply typecheck_add_sound; eauto.  
 eapply typecheck_sub_sound; eauto.

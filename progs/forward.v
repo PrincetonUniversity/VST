@@ -59,11 +59,11 @@ Ltac semax_field_tac1 :=
 
 Ltac isolate_field_tac e fld R := 
   match R with 
-     | context [|> lift2 (field_mapsto ?sh ?struct fld) ?e' ?v :: ?R'] =>
+     | context [|> `(field_mapsto ?sh ?struct fld) ?e' ?v :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
                 replace e' with (eval_expr e) by auto
-     | context [ lift2 (field_mapsto ?sh ?struct fld) ?e' ?v  :: ?R'] =>
+     | context [ `(field_mapsto ?sh ?struct fld) ?e' ?v  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
                 replace e' with (eval_expr e) by auto
@@ -153,11 +153,11 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
                       (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (lift1 (Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+                                      (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
      |  apply semax_pre with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (lift1 (Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
@@ -195,11 +195,11 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
                       (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (lift1 (Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+                                      (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
      |  apply semax_pre with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (lift1 (Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                 (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  x,F | unfold F in *; 

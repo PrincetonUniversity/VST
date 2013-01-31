@@ -151,6 +151,16 @@ Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun r
 Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
    environ -> B := fun rho => P (f1 rho) (f2 rho).
 
+(**********************)
+Class Coercion A B := coerce: A -> B.
+Notation "'`' x" := (coerce x) (at level 9).
+Notation "'`(' x ')'" := (coerce x) (only parsing)  (* avoid clash with TC notation *).
+Global Instance lift0_C A: Coercion A _ := lift0.
+Global Instance lift1_C A B: Coercion (A->B) _ := lift1.
+Global Instance lift2_C A B C: Coercion (A->B->C) _ := lift2.
+
+(***************************)
+
 (* Make a completely computational version of type_eq *)
 
 Definition eqb_attr (a b: attr) : bool :=
@@ -294,35 +304,35 @@ Definition deref_noload (ty: type) (v: val) : val :=
 
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
- | Econst_int i ty => lift0 (Vint i)
- | Econst_float f ty => lift0 (Vfloat f)
+ | Econst_int i ty => `(Vint i)
+ | Econst_float f ty => `(Vfloat f)
  | Etempvar id ty => eval_id id 
  | Eaddrof a ty => eval_lvalue a 
- | Eunop op a ty =>  lift1 (eval_unop op (typeof a)) (eval_expr a) 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
-                  lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Ecast a ty => lift1 (eval_cast (typeof a) ty) (eval_expr a) 
- | Evar id ty => lift1 (deref_noload ty) (eval_var id ty)
- | Ederef a ty => lift1 (deref_noload ty) (lift1 force_ptr (eval_expr a))
- | Efield a i ty => lift1 (deref_noload ty) (lift1 (eval_field (typeof a) i) (eval_lvalue a))
+                  `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a) 
+ | Evar id ty => `(deref_noload ty) (eval_var id ty)
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
  end
 
  with eval_lvalue (e: expr) : environ -> val := 
  match e with 
  | Evar id ty => eval_var id ty
- | Ederef a ty => lift1 force_ptr (eval_expr a)
- | Efield a i ty => lift1 (eval_field (typeof a) i) (eval_lvalue a)
- | _  => lift0 Vundef
+ | Ederef a ty => `force_ptr (eval_expr a)
+ | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
+ | _  => `Vundef
  end.
 
 Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
- | t::et', e::el' => lift2 cons (lift1 (eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
- | _, _ => lift0 nil
+ | t::et', e::el' => `cons (`(eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
+ | _, _ => `nil
  end.
 
 Definition eval_expropt (e: option expr) : environ -> option val :=
- match e with Some e' => lift1 Some (eval_expr e')  | None => lift0 None end.
+ match e with Some e' => `Some (eval_expr e')  | None => `None end.
 
 (* things related to function specifications and return assertions *)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -837,24 +847,27 @@ Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id =
 
 Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   match a with
-  | tc_FF => lift0 False
-  | tc_noproof => lift0 False
-  | tc_TT => lift0 True
-  | tc_andp' b c => lift2 and (denote_tc_assert b) (denote_tc_assert c)
-  | tc_nonzero e => lift1 denote_tc_nonzero (eval_expr e)
-  | tc_isptr e => lift1 denote_tc_isptr (eval_expr e)
-  | tc_ilt e i => lift1 (denote_tc_igt i) (eval_expr e)
-  | tc_Zle e z => lift1 (denote_tc_Zge z) (eval_expr e)
-  | tc_Zge e z => lift1 (denote_tc_Zle z) (eval_expr e)
-  | tc_samebase e1 e2 => lift2 denote_tc_samebase (eval_expr e1) (eval_expr e2)
-  | tc_nodivover e1 e2 => lift2 denote_tc_nodivover (eval_expr e1) (eval_expr e2)
+  | tc_FF => `False
+  | tc_noproof => `False
+  | tc_TT => `True
+  | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)
+  | tc_nonzero e => `denote_tc_nonzero (eval_expr e)
+  | tc_isptr e => `denote_tc_isptr (eval_expr e)
+  | tc_ilt e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
+  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
+  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
+  | tc_nodivover e1 e2 => `denote_tc_nodivover (eval_expr e1) (eval_expr e2)
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero e => lift1 denote_tc_iszero (eval_expr e)
+  | tc_iszero e => `denote_tc_iszero (eval_expr e)
   end.
+
+Ltac unfold_coerce := unfold coerce, lift0_C, lift1_C, lift2_C, lift2, lift1, lift0 in *.
 
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
 Proof.
-intros. destruct a1; destruct a2; simpl in *; unfold lift2; unfold lift1; unfold lift0; intuition. 
+intros. destruct a1; destruct a2; simpl in *; 
+    unfold_coerce; intuition. 
 Qed. 
 
 (*Functions that modify type environments*)

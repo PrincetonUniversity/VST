@@ -299,19 +299,18 @@ apply orp_right2. auto.
 Qed.
 
 Lemma lift2_lseg_cons: 
- forall sh s p q, lift2 (lseg_cons sh s)  p q =
+ forall sh s p q, `(lseg_cons sh s)  p q =
     EX hry:(val * list val * val),
       match hry with (h,r,y) =>
        !! (s = h::r) &&
-       (local (lift2 ptr_neq p q) &&
-       (lift2 (field_mapsto sh list_struct list_data) p (lift0 h) *
-        lift2 (field_mapsto sh list_struct list_link) p (lift0 y) *
-        |> lift2 (lseg sh r) (lift0 y) q))
+       (local (`ptr_neq p q) &&
+       (`(field_mapsto sh list_struct list_data) p (`h) *
+        `(field_mapsto sh list_struct list_link) p (`y) *
+        |> `(lseg sh r) (`y) q))
      end.
 Proof.
  intros.
- unfold lseg_cons, lift2. extensionality rho. simpl.
- unfold local, lift1. unfold ptr_neq.
+ unfold lseg_cons, ptr_neq; unfold_coerce. extensionality rho. simpl.
  apply pred_ext; normalize.
 (* destruct s; symmetry in H0; inv H0. *)
  apply exp_right with (h, r, y). normalize.
@@ -346,32 +345,32 @@ Qed.
 Lemma unfold_lseg_cons:
    forall P Q1 Q R e sh s,
       local Q1 &&
-      PROPx P (LOCALx Q (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R))) |-- 
-                        local (lift1 (typed_true (tptr list_struct)) e) ->
-      local Q1 && PROPx P (LOCALx Q (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R))) |--
+      PROPx P (LOCALx Q (SEPx (`(lseg sh s) e (`nullval) :: R))) |-- 
+                        local (`(typed_true (tptr list_struct)) e) ->
+      local Q1 && PROPx P (LOCALx Q (SEPx (`(lseg sh s) e (`nullval) :: R))) |--
      EX hry: val * list val * val,
       match hry with (h,r,y) => 
        !! (s=h::r) &&
       PROPx P (LOCALx Q 
-        (SEPx (lift2 (field_mapsto sh list_struct list_data) e (lift0 h) ::
-                  lift2 (field_mapsto sh list_struct list_link) e (lift0 y) ::
-                  |> lift2 (lseg sh r) (lift0 y) (lift0 nullval) ::
+        (SEPx (`(field_mapsto sh list_struct list_data) e (`h) ::
+                  `(field_mapsto sh list_struct list_link) e (`y) ::
+                  |> `(lseg sh r) (`y) (`nullval) ::
                   R)))
         end.
 Proof.
 intros.
 apply derives_trans with
-(local Q1 && PROPx P (LOCALx Q (SEPx (lift2 (lseg_cons sh s) e (lift0 nullval) :: R)))).
+(local Q1 && PROPx P (LOCALx Q (SEPx (`(lseg_cons sh s) e (`nullval) :: R)))).
 apply derives_trans with
-(local Q1 && local (lift1 (typed_true (tptr list_struct)) e) &&
- PROPx P (LOCALx Q (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R)))).
+(local Q1 && local (`(typed_true (tptr list_struct)) e) &&
+ PROPx P (LOCALx Q (SEPx (`(lseg sh s) e (`nullval) :: R)))).
 apply andp_right; auto.
 apply andp_right; auto.
 apply andp_left1; auto.
 apply andp_left2; auto.
 clear H.
 change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_coerce; simpl.
 normalize.
 rewrite lseg_nonnull by auto.
 auto.
@@ -390,16 +389,16 @@ Qed.
 Lemma semax_lseg_nonnull:
   forall Delta P Q sh s e R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
-            (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R))) |-- 
-                        local (lift1 (typed_true (tptr list_struct)) e)  ->
+            (SEPx (`(lseg sh s) e (`nullval) :: R))) |-- 
+                        local (`(typed_true (tptr list_struct)) e)  ->
   (forall (h: val) (r: list val) (y: val), s=h::r ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (lift2 (field_mapsto sh list_struct list_data) e (lift0 h) ::
-                  lift2 (field_mapsto sh list_struct list_link) e (lift0 y) ::
-                  |> lift2 (lseg sh r) (lift0 y) (lift0 nullval) ::
+        (SEPx (`(field_mapsto sh list_struct list_data) e (`h) ::
+                  `(field_mapsto sh list_struct list_link) e (`y) ::
+                  |> `(lseg sh r) (`y) (`nullval) ::
                   R)))) c Post) ->
-  semax Delta (PROPx P (LOCALx Q (SEPx (lift2 (lseg sh s) e (lift0 nullval) :: R)))) c Post.
+  semax Delta (PROPx P (LOCALx Q (SEPx (`(lseg sh s) e (`nullval) :: R)))) c Post.
 Proof.
 intros.
 eapply semax_pre;  [apply unfold_lseg_cons | ].

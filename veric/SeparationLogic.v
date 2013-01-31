@@ -70,7 +70,7 @@ Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A
    end.
 
 Definition cast_expropt (e: option expr) t : environ -> option val :=
- match e with Some e' => lift1 Some (eval_expr (Ecast e' t))  | None => lift0 None end.
+ match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
 
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
@@ -178,7 +178,7 @@ Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
 
 Definition writable_block (id: ident) (n: Z): assert :=
         EX v: val*type,  EX a: address, EX rsh: Share.t,
-          (local(fun rho=> ge_of rho id = Some v /\ val2adr (fst v) a) && lift0 (VALspec_range n rsh Share.top a)).
+          (local(fun rho=> ge_of rho id = Some v /\ val2adr (fst v) a) && `(VALspec_range n rsh Share.top a)).
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  match bl with
@@ -249,9 +249,9 @@ Definition get_result (ret: option ident) : environ -> environ :=
 
 Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      match vl, t with
-     | None, Tvoid => lift1 Q (make_args nil nil)
+     | None, Tvoid => `Q (make_args nil nil)
      | Some v, _ => !! (typecheck_val v t = true) && 
-                              lift1 Q (make_args (ret_temp::nil) (v::nil))
+                             `Q (make_args (ret_temp::nil) (v::nil))
      | _, _ => FF
      end.
 
@@ -403,7 +403,7 @@ Definition tc_value (v:environ -> val) (t :type) : environ -> Prop :=
      fun rho => typecheck_val (v rho) t = true.
 
 Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
-   match e with None => lift0 (t=Tvoid)
+   match e with None => `(t=Tvoid)
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 
@@ -535,8 +535,8 @@ Axiom semax_func_cons_ext:
 Axiom semax_ifthenelse : 
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     semax Delta (P && local (lift1 (typed_true (typeof b)) (eval_expr b))) c R -> 
-     semax Delta (P && local (lift1 (typed_false (typeof b)) (eval_expr b))) d R -> 
+     semax Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R -> 
+     semax Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R -> 
      semax Delta (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
@@ -571,17 +571,17 @@ Axiom semax_call :
            (snd fsig = Tvoid <-> ret = None) ->
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split (fst fsig))) bl)  && 
-         (lift1 (fun_assert  fsig A P Q) (eval_expr a) && 
-          (F * lift1 (P x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)))))
+         (`(fun_assert  fsig A P Q) (eval_expr a) && 
+          (F * `(P x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (EX old:val, substopt ret (lift0 old) F * lift1 (Q x) (get_result ret))).
+          (EX old:val, substopt ret (`old) F * `(Q x) (get_result ret))).
 
 Axiom  semax_return :
    forall Delta R ret ,
       semax Delta  
                 (local (tc_expropt Delta ret (ret_type Delta)) &&
-                 lift2 (R EK_return) (cast_expropt ret (ret_type Delta)) id)
+                `(R EK_return) (cast_expropt ret (ret_type Delta)) id)
                 (Sreturn ret)
                 R.
 
@@ -589,15 +589,15 @@ Axiom semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> assert) Delta P Q c,
     (var_types Delta) ! id = None ->
     (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
-    semax Delta (P && lift1 (fun_assert  fsig A P' Q') (eval_lvalue (Evar id (type_of_funsig fsig)))) c Q ->
+    semax Delta (P && `(fun_assert  fsig A P' Q') (eval_lvalue (Evar id (type_of_funsig fsig)))) c Q ->
     semax Delta P c Q.
 
 Axiom semax_call_ext:
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
        local (tc_environ Delta) && P |-- 
-                  local (lift2 eq (eval_expr a) (eval_expr a')) &&
-                  local (lift2 eq (eval_exprlist tl bl) (eval_exprlist tl bl')) ->
+                  local (`eq (eval_expr a) (eval_expr a')) &&
+                  local (`eq (eval_exprlist tl bl) (eval_exprlist tl bl')) ->
   semax Delta P (Scall ret a bl) Q ->
   semax Delta P (Scall ret a' bl') Q.
 
@@ -619,8 +619,8 @@ forall (Delta: tycontext) (P: assert) id e,
           P))
           (Sset id e) 
         (normal_ret_assert 
-          (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) (eval_expr e))) &&
-                            subst id (lift0 old) P)).
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                            subst id (`old) P)).
 
 Axiom semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
@@ -628,10 +628,10 @@ forall (Delta: tycontext) sh id P e1 v2,
        (|> (local (tc_lvalue Delta e1) && 
        local (tc_temp_id_load id (typeof e1) Delta v2) && 
         local (tc_value v2 (typeof e1)) &&
-       (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (lift2 eq (eval_id id) (subst id (lift0 old) v2)) &&
-                                          (subst id (lift0 old) (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
+                                          (subst id (`old) (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
 
 Axiom semax_store:
  forall Delta e1 e2 v sh P,
@@ -639,10 +639,10 @@ Axiom semax_store:
    writable_share sh ->
    semax Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
-             (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) v * P)))
+             (`(mapsto sh (typeof e1)) (eval_lvalue e1) v * P)))
           (Sassign e1 e2) 
           (normal_ret_assert 
-               (lift2 (mapsto sh (typeof e1)) (eval_lvalue e1) (lift1 (eval_cast (typeof e2) (typeof e1)) (eval_expr e2)) * P)).
+               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`(eval_cast (typeof e2) (typeof e1)) (eval_expr e2)) * P)).
 
 (* THESE RULES FROM semax_lemmas *)
 

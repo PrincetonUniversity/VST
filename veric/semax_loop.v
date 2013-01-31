@@ -186,7 +186,7 @@ rewrite andp_comm; rewrite prop_true_andp.
 do 2 econstructor; split3; eauto.
 clear - H TC TC2 H9.
 assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2).
-simpl. unfold lift1. unfold typed_true. 
+simpl. unfold_coerce. unfold typed_true. 
 intuition; simpl in *;
 unfold sem_notbool; destruct i0; destruct s; auto; simpl;
 inv H9; rewrite negb_false_iff in H1; rewrite H1; auto.

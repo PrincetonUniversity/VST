@@ -48,7 +48,7 @@ Qed.
 Hint Rewrite eval_expr_Etempvar : normalize.
 
 Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
-          lift2 (eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
+          `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_binop : normalize.
 
@@ -67,7 +67,7 @@ Proof.
 intros.
 hnf in H|-*; intros.
 specialize (H _ _ H0).
-unfold local,lift1.
+unfold local, lift1.
 f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_local : closed.
@@ -82,6 +82,16 @@ unfold lift1; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift1 : closed.
 
+Lemma closed_wrt_lift1C: forall {A}{B} S (f: A -> B) P, 
+        closed_wrt_vars S P -> 
+        closed_wrt_vars S (@coerce (A -> B) ((environ -> A) -> environ -> B) (lift1_C A B) f P).
+Proof.
+intros.
+intros ? ? ?. specialize (H _ _ H0).
+unfold_coerce; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift1C : closed.
+
 Lemma closed_wrt_lift2: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
         closed_wrt_vars S P1 -> 
         closed_wrt_vars S P2 -> 
@@ -94,6 +104,21 @@ specialize (H0 _ _ H1).
 unfold lift2; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift2 : closed.
+
+Lemma closed_wrt_lift2C: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S (@coerce (A1 -> A2 -> B) ((environ -> A1) -> (environ -> A2) -> environ -> B)
+                  (lift2_C A1 A2 B) f P1 P2).
+Proof.
+intros.
+intros ? ? ?.
+specialize (H _ _ H1).
+specialize (H0 _ _ H1).
+unfold_coerce; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift2C : closed.
+
 
 Lemma closed_wrt_eval_expr: forall S e,
   expr_closed_wrt_vars S e -> 
@@ -188,6 +213,17 @@ unfold lift0; auto.
 Qed.
 Hint Resolve @closed_wrt_lift0: closed.
 
+Lemma closed_wrt_lift0C: forall {B} S (Q: B), 
+   closed_wrt_vars S (@coerce B (environ -> B) (lift0_C B)  Q).
+Proof.
+intros.
+intros ? ? ?.
+unfold_coerce; auto.
+Qed.
+Hint Resolve @closed_wrt_lift0C: closed.
+
+
+
 Lemma closed_wrt_tc_formals:
   forall (S: ident -> Prop) (L: list (ident*type)), 
     Forall (fun q => not (S q)) (map (@fst _ _) L) ->
@@ -226,7 +262,7 @@ Lemma expr_closed_const_int:
   forall S i t, expr_closed_wrt_vars S (Econst_int i t).
 Proof.
 intros. unfold expr_closed_wrt_vars. simpl; intros.
-unfold lift0. auto.
+unfold_coerce. auto.
 Qed.
 Hint Resolve expr_closed_const_int : closed.
 
@@ -236,7 +272,7 @@ Lemma expr_closed_cast: forall S e t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold lift1.
+ unfold_coerce.
  destruct (H rho te' H0); auto.
 Qed.
 Hint Resolve expr_closed_cast : closed.
@@ -249,7 +285,7 @@ Lemma expr_closed_binop: forall S op e1 e2 t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold lift2. f_equal; auto.
+ unfold_coerce. f_equal; auto.
 Qed.
 Hint Resolve expr_closed_binop : closed.
 
@@ -260,7 +296,7 @@ Lemma expr_closed_unop: forall S op e t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold lift1. f_equal; auto.
+ unfold_coerce. f_equal; auto.
 Qed.
 Hint Resolve expr_closed_unop : closed.
 
@@ -354,12 +390,12 @@ Hint Rewrite @lift1_lift0 : normalize.
 
 Lemma tc_formals_cons:
   forall i t rest, tc_formals ((i,t) :: rest) =
-         lift2 and (lift1 (tc_val t) (eval_id i)) (tc_formals rest).
+         `and (`(tc_val t) (eval_id i)) (tc_formals rest).
 Proof.
 intros.
 extensionality rho; simpl.
 unfold tc_formals; fold tc_formals.
-unfold lift2. simpl.
+unfold_coerce. simpl.
 apply prop_ext.
 rewrite andb_true_iff.
 intuition.
@@ -395,9 +431,9 @@ Proof.
   destruct H4; congruence.
 Qed.
 
-Lemma local_lift2_and: forall P Q, local (lift2 and P Q) = 
+Lemma local_lift2_and: forall P Q, local (`and P Q) = 
         local P && local Q.
-Proof. intros; extensionality rho. unfold local, lift1,lift2.   
+Proof. intros; extensionality rho. unfold local; unfold_coerce.   
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
@@ -412,15 +448,14 @@ Hint Rewrite @subst_TT @subst_FF: subst.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): normalize.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
-Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = lift0 (Vint i).
+Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_Econst_int : normalize.
 
 Lemma eval_expr_Ecast: 
-  forall e t, eval_expr (Ecast e t) = lift1 (eval_cast (typeof e) t) (eval_expr e).
+  forall e t, eval_expr (Ecast e t) = `(eval_cast (typeof e) t) (eval_expr e).
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_Ecast : normalize.
-
 
 Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
@@ -428,12 +463,11 @@ Proof. reflexivity. Qed.
 Hint Rewrite subst_local : normalize.
 Hint Rewrite subst_local : subst.
 Lemma eval_lvalue_Ederef:
-  forall e t, eval_lvalue (Ederef e t) = lift1 force_ptr (eval_expr e).
+  forall e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
 Hint Rewrite eval_lvalue_Ederef : normalize.
 
-
-Lemma local_lift0_True:     local (lift0 True) = TT.
+Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
 Hint Rewrite local_lift0_True : normalize.
 
@@ -465,7 +499,7 @@ Proof. reflexivity. Qed.
 Hint Rewrite function_body_ret_assert_EK_return : normalize.
 
 Lemma bind_ret1_unfold:
-  forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && lift1 Q (make_args (ret_temp :: nil)(v::nil)).
+  forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : normalize.
 
@@ -513,12 +547,11 @@ Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite get_result_unfold get_result_None : normalize.
 
-Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = lift1 Some (eval_expr e).
+Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
-Lemma eval_expropt_None: eval_expropt None = lift0 None.
+Lemma eval_expropt_None: eval_expropt None = `None.
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
-
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
 
@@ -622,7 +655,6 @@ Ltac lift1 a e1 rho  :=
  | lift0 ?a1 => constr: (lift0 (a a1))
  | _ => constr:(lift1 a e1)
  end.
-
 
 Ltac lift2 a e1 e2 rho :=
  match e1 with

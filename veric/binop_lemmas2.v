@@ -42,7 +42,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence; 
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -80,7 +80,7 @@ try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try rewrite tc_andp_sound in *;
 try solve [try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -121,7 +121,7 @@ simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -160,7 +160,7 @@ simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -199,7 +199,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -238,7 +238,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -278,7 +278,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -318,7 +318,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -358,7 +358,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -398,7 +398,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -439,7 +439,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -480,7 +480,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -521,7 +521,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -562,7 +562,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -603,7 +603,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  
@@ -644,7 +644,7 @@ simpl in *; try congruence;
 try destruct i; try destruct s; simpl in *; try congruence;
 try destruct i0; try destruct s0; simpl in *; try congruence;
 try (rem_bool; unfold tc_bool in *; if_tac in H2; simpl in *);  
-unfold lift2 in *; unfold lift1 in *; unfold lift0 in *; auto; 
+unfold_coerce; auto; 
 try rewrite <- Heqv in *; try rewrite <- Heqv0 in *;
 tc_assert_ext; try contradiction;
  

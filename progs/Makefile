@@ -8,7 +8,7 @@ CLIGHTGENFLAGS = -I ../compcert/lib -I ../compcert/common -I ../compcert/cfronte
 
 FILES= \
   loadpath.v list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
-  test1.v ilseg.v verif1.v
+  test1.v verif1.v
 
 
 target: proof

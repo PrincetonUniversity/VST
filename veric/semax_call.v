@@ -514,8 +514,7 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  revert vl H H0; induction bl; destruct vl; intros; inv H0; simpl.
  constructor.
  destruct p. simpl in *; subst.
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
  destruct H as [[? ?] ?].
  pose proof (typecheck_expr_sound _ _ _ H1 H).
  specialize (IHbl _ H2 H4).
@@ -690,8 +689,7 @@ induction (fn_params f); intros.  inv H. simpl in *.
 destruct a. simpl in *. remember (split l). destruct p. 
 simpl in *. destruct H. clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.   
 inv H. inv Heqp. simpl in *. 
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
 destruct TC2 as [[? ?] ?].
 rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
 rewrite PTree.gss.
@@ -708,9 +706,8 @@ auto. auto. inv Heqp.
 destruct bl.  inv TC2. 
 inv H17.
 simpl in *.  
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
-unfold lift2 in *. destruct TC2 as [[? ?] ? ].
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
+unfold_coerce. destruct TC2 as [[? ?] ? ].
 assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
 apply in_map with (f := fst) in H. apply H.
 
@@ -1457,7 +1454,7 @@ Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
 Admitted.
 
 Definition cast_expropt (e: option expr) t : environ -> option val :=
- match e with Some e' => lift1 Some (eval_expr (Ecast e' t))  | None => lift0 None end.
+ match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
 
 Lemma call_cont_current_function:
   forall {k i f e t l}, call_cont k = Kcall i f e t :: l -> current_function k = Some f.
@@ -1465,7 +1462,7 @@ Proof. intros. induction k; try destruct a; simpl in *; inv H; auto.
 Qed.
 
 Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
-   match e with None => lift0 (t=Tvoid)
+   match e with None => `(t=Tvoid)
                      | Some e' => denote_tc_assert (typecheck_expr Delta (Ecast e' t))
    end.
  
@@ -1554,8 +1551,7 @@ econstructor; try eassumption; simpl.
 exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
 assert (TCe: denote_tc_assert (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
 simpl in *. 
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
 destruct TC; auto.
 split.
 apply eval_expr_relate with (Delta := Delta); auto.
@@ -1564,14 +1560,13 @@ destruct H3.
 simpl in H6; rewrite (call_cont_current_function H7) in H6.
 destruct H6 as [_ ?].
 rewrite H6.
-unfold eval_cast. unfold lift1.
+unfold eval_cast. unfold_coerce.
 apply cast_exists with Delta; auto.
 
 auto.
 rewrite <- H6.
 simpl in TC. 
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
 destruct TC; auto.
 
 inv H9.
@@ -1586,8 +1581,7 @@ destruct H10 as [_ H10]. rewrite H6 in H10.
 rewrite H10 in TC.
 clear - TC.
 simpl in TC.
- repeat (rewrite tc_andp_sound in *; simpl in *;
- unfold lift2, lift1 in *).
+ repeat (rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
 destruct TC as [_ ?].
 apply H. 
 simpl.
