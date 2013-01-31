@@ -1,15 +1,17 @@
 License for the Verified Software Toolchain (VST)
 
-1.  The "msl" subdirectory is Copyright (c) 2009-2012 by Andrew W. Appel,
-Robert Dockins and Aquinas Hobor, and licensed according to the terms
-in "msl/LICENSE".
+1.  The "msl" subdirectory is Copyright (c) 2009-2013 by Andrew W. Appel, 
+Robert Dockins and Aquinas Hobor, and open-source licensed according to 
+the terms in "msl/LICENSE".
 
-2.  The "compcert" subdirectory is Copyright (c) 2004-2012 by INRIA,
+2.  The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
 and licensed according to the terms in "compcert/LICENSE".
+This is NOT AN OPEN-SOURCE LICENSE, it is published and
+free for certain noncommercial uses.
 
-3.  All other subdirectories are Copyright (c) 2007-2012 by Andrew
-W. Appel, Aquinas Hobor, Robert Dockins, Gordon Stewart, Josiah Dodds,
-and licensed as follows:
+3.  All other subdirectories are Copyright (c) 2007-2013 by Andrew W. Appel, 
+Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor, 
+and Gordon Stewart, and open-source licensed as follows:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
