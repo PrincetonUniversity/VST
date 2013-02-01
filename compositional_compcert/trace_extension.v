@@ -1,12 +1,13 @@
 Load loadpath.
-Require Import veric.sim.
-Require Import veric.rg_sim.
-Require Import veric.step_lemmas.
-Require Import veric.extspec.
-Require Import veric.extension.
-Require Import veric.extension_sim.
-Require Import veric.extension_proof.
-Require Import veric.Coqlib2.
+Require Import compositional_compcert.core_semantics.
+Require Import compositional_compcert.forward_simulations.
+Require Import compositional_compcert.rg_forward_simulations.
+Require Import compositional_compcert.step_lemmas.
+Require Import compositional_compcert.extspec.
+Require Import compositional_compcert.extension.
+Require Import compositional_compcert.extension_simulations.
+Require Import compositional_compcert.extension_proof.
+Require Import compositional_compcert.Coqlib2.
 
 Require Import Axioms.
 Require Import Coqlib.

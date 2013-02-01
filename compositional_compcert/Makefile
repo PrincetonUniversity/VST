@@ -1,10 +1,11 @@
-COQFLAGS= -dont-load-proofs -R . compositional_compcert
+COQFLAGS= -dont-load-proofs -I . -as compositional_compcert
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES= \
+  Coqlib2.v \
   Address.v step_lemmas.v \
   extspec.v \
   mem_lemmas.v \

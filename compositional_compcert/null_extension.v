@@ -7,7 +7,7 @@ Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.extension.
 Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.extension_proof.
-Require Import veric.Coqlib2. (*TODO: can we eliminate this dependency?*)
+Require Import compositional_compcert.Coqlib2. 
 
 Require Import Axioms.
 Require Import Coqlib.

@@ -1,3 +1,4 @@
+Coqlib2.vo Coqlib2.glob: Coqlib2.v .\loadpath.v
 Address.vo Address.glob: Address.v .\loadpath.v
 step_lemmas.vo step_lemmas.glob: step_lemmas.v .\loadpath.v extspec.vo core_semantics.vo forward_simulations.vo
 extspec.vo extspec.glob: extspec.v .\loadpath.v
@@ -5,13 +6,13 @@ mem_lemmas.vo mem_lemmas.glob: mem_lemmas.v .\loadpath.v
 core_semantics.vo core_semantics.glob: core_semantics.v .\loadpath.v mem_lemmas.vo
 forward_simulations.vo forward_simulations.glob: forward_simulations.v .\loadpath.v mem_lemmas.vo core_semantics.vo
 rg_forward_simulations.vo rg_forward_simulations.glob: rg_forward_simulations.v .\loadpath.v core_semantics.vo forward_simulations.vo
-compcert_compiler_correctness.vo compcert_compiler_correctness.glob: compcert_compiler_correctness.v .\loadpath.v core_semantics.vo forward_simulations.vo
 extension.vo extension.glob: extension.v .\loadpath.v extspec.vo Address.vo core_semantics.vo step_lemmas.vo forward_simulations.vo rg_forward_simulations.vo
 extension_simulations.vo extension_simulations.glob: extension_simulations.v .\loadpath.v extspec.vo mem_lemmas.vo core_semantics.vo forward_simulations.vo rg_forward_simulations.vo extension.vo
-extension_proof.vo extension_proof.glob: extension_proof.v .\loadpath.v mem_lemmas.vo core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo
-null_extension.vo null_extension.glob: null_extension.v .\loadpath.v core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo extension_proof.vo
+extension_proof.vo extension_proof.glob: extension_proof.v .\loadpath.v mem_lemmas.vo core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo Coqlib2.vo
+null_extension.vo null_extension.glob: null_extension.v .\loadpath.v core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo extension_proof.vo Coqlib2.vo
 fs_extension.vo fs_extension.glob: fs_extension.v .\loadpath.v
-linking_extension.vo linking_extension.glob: linking_extension.v .\loadpath.v core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo extension_proof.vo Address.vo mem_lemmas.vo
-trace_extension.vo trace_extension.glob: trace_extension.v .\loadpath.v
+linking_extension.vo linking_extension.glob: linking_extension.v .\loadpath.v core_semantics.vo forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo extension_proof.vo Address.vo mem_lemmas.vo Coqlib2.vo
+trace_extension.vo trace_extension.glob: trace_extension.v .\loadpath.v forward_simulations.vo rg_forward_simulations.vo step_lemmas.vo extspec.vo extension.vo extension_simulations.vo extension_proof.vo Coqlib2.vo
 mem_interpolants.vo mem_interpolants.glob: mem_interpolants.v .\loadpath.v mem_lemmas.vo
-compiler_correctness_trans.vo compiler_correctness_trans.glob: compiler_correctness_trans.v .\loadpath.v mem_lemmas.vo mem_interpolants.vo core_semantics.vo forward_simulations.vo
+compiler_correctness_trans.vo compiler_correctness_trans.glob: compiler_correctness_trans.v .\loadpath.v Coqlib2.vo mem_lemmas.vo mem_interpolants.vo core_semantics.vo forward_simulations.vo
+compcert_compiler_correctness.vo compcert_compiler_correctness.glob: compcert_compiler_correctness.v .\loadpath.v core_semantics.vo forward_simulations.vo mem_lemmas.vo Coqlib2.vo

@@ -7,8 +7,7 @@ Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
-
-Require Import msl.Axioms.
+Require Import Axioms.
 
 Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
   mem_unchanged_on Q m m' -> 

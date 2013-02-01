@@ -12,7 +12,7 @@ Require Import compositional_compcert.core_semantics.
 Require Import compositional_compcert.forward_simulations.
 Require Import compositional_compcert.mem_lemmas.
 
-Require Import veric.Coqlib2. (*TODO: remove this dependency*)
+Require Import compositional_compcert.Coqlib2. 
 
 Section CoreSem_to_semantics.
   Variables (F C V:Type).

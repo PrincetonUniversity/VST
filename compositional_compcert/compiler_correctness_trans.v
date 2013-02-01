@@ -10,7 +10,7 @@ Require Import Maps.
 Require Import Integers.
 Require Import Globalenvs.
 
-Require Import veric.Coqlib2. (*TODO: for spec tac; remove dependency*)
+Require Import compositional_compcert.Coqlib2. 
 
 Require Import compositional_compcert.mem_lemmas.
 Require Import compositional_compcert.mem_interpolants.

@@ -9,8 +9,8 @@ Require Import Maps.
 Require Import Integers.
 Require Import AST.
 Require Import Globalenvs.
+Require Import Axioms.
 
-Require Import msl.Axioms.
 Require Import compositional_compcert.mem_lemmas.
 
 (** A "core semantics represents" a fairly traditional, sequential,

@@ -11,9 +11,7 @@ Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.extension_proof.
 Require Import compositional_compcert.Address.
 Require Import compositional_compcert.mem_lemmas.
-Require Import veric.juicy_mem. (*TODO: need to eliminate this dependency*)
-Require Import veric.juicy_extspec. (*TODO: need to eliminate this dependency*)
-Require Import veric.Coqlib2. (*TODO: need to eliminate this dependency*)
+Require Import compositional_compcert.Coqlib2. 
 
 Require Import Axioms.
 Require Import Coqlib.
@@ -1689,7 +1687,7 @@ solve[eapply GENVS; eauto].
 destruct (RGsim i0).
 solve[apply match_state_inj0 with (cd := cd') (c1 := c1') (c2 := c2'); auto].
 
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_unmapped j b ofs /\ ~private_block (csem_map_S i0) c1 b); auto.
 intros b ofs [? X]; split; auto.
 clear - DISJ1 X.
@@ -1706,7 +1704,7 @@ unfold csem_map_S, csem_map.
 destruct (lt_dec i num_modules); try solve[congruence].
 solve[assert (l0 = PF1) as -> by apply proof_irr; auto].
 
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_out_of_reach j m1 b ofs /\ ~private_block (csem_map_T i0) c2 b); auto.
 intros b ofs [? X]; split; auto.
 clear - DISJ2 X.
@@ -1907,7 +1905,7 @@ assert (PF = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
 
 (*mem_unch_on*)
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_blocks fS vS modules_S stack b)); auto.
@@ -1915,7 +1913,7 @@ intros b ofs [? X]; split; auto.
 unfold csem_map_S, csem_map in X.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 solve[assert (PF = l) as -> by apply proof_irr; auto].
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_out_of_reach j m1 b ofs /\
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_blocks fT vT modules_T stack0 b)); auto.
@@ -1953,7 +1951,7 @@ assert (PF1 = l) as -> by apply proof_irr.
 solve[eapply GENVS; eauto].
 
 (*mem_unch_on*)
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_blocks fS vS modules_S (mkFrame i PF1 c1 :: stack) b)); auto.
@@ -1962,7 +1960,7 @@ unfold csem_map_S, csem_map in X.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 simpl.
 solve[assert (PF1 = l) as -> by apply proof_irr; right; left; auto].
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_out_of_reach j m1 b ofs /\
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_blocks fT vT modules_T (mkFrame i PF2 c2 :: stack0) b)); auto.
@@ -1971,7 +1969,7 @@ unfold csem_map_T, csem_map in X.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 solve[assert (PF2 = l) as -> by apply proof_irr; right; left; auto].
 apply IHstack; auto.
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_blocks fS vS modules_S (mkFrame i PF1 c1 :: stack) b)); auto.
@@ -1980,7 +1978,7 @@ unfold csem_map_S, csem_map in X.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 simpl.
 solve[destruct X; auto].
-apply ExtendedSimulations.mem_unchanged_on_sub with (Q := fun b ofs => 
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
   loc_out_of_reach j m1 b ofs /\
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_blocks fT vT modules_T (mkFrame i PF2 c2 :: stack0) b)); auto.

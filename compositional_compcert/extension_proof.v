@@ -7,7 +7,7 @@ Require Import compositional_compcert.step_lemmas.
 Require Import compositional_compcert.extspec. 
 Require Import compositional_compcert.extension.
 Require Import compositional_compcert.extension_simulations.
-Require Import veric.Coqlib2.
+Require Import compositional_compcert.Coqlib2.
 
 Require Import AST.
 Require Import Values.
@@ -964,17 +964,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (core_compatT: core_compatible ge_T genv_mapT E_T)
   (private_conservS: private_conserving esemS csemS E_S)
   (private_conservT: private_conserving esemT csemT E_T).
-
-Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
-  mem_unchanged_on Q m m' -> 
-  (forall b ofs, P b ofs -> Q b ofs) -> 
-  mem_unchanged_on P m m'.
-Proof.
-intros until m'; intros [H1 H2] H3.
-split; intros.
-solve[apply (H1 b ofs k p (H3 b ofs H)); auto].
-solve[apply (H2 chunk b ofs v); auto]. 
-Qed.
 
 Program Definition extended_simulation: 
   Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 

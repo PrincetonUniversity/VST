@@ -1,6 +1,11 @@
 Load loadpath.
-Require Import veric.base.
 Require Import msl.eq_dec.
+
+Require Import Coqlib.
+Require Import Values.
+Require Import Integers.
+Require Import Floats.
+Require Import Memory.
 
 Definition address : Type := (block * Z)%type.
 
