@@ -2,20 +2,21 @@ Verified Software Toolchain
 
 with contributions from
 
-Andrew W. Appel, Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor, Gordon Stewart, and others.
+Andrew W. Appel, Lennart Beringer, Robert Dockins, Josiah Dodds, 
+  Aquinas Hobor, Gordon Stewart, and others.
 
 The LICENSE file has information about copyright, licensing, and permissions.
 
 DOCUMENTATION:
 
-http://vst.princeton.edu    describes the goals of the project and has links to many related publications.
+   http://vst.princeton.edu    describes the goals of the project 
+                     and has links to many related publications.
 
-Program Logics for Certified Compilers, by Andrew W. Appel,
-is a prepublication draft of a (possibly) forthcoming book. 
-For access to this draft, send e-mail to Appel for a password
-to  vst.princeton.edu/private
+    Program Logics for Certified Compilers, by Andrew W. Appel,
+         is a prepublication draft of a forthcoming book (late 2013). 
+         For access to a draft, send e-mail to Appel.
 
-Revision 4668 builds both in Coq 8.3pl3 and Coq 8.4.
-However, there are several bugs in Coqide 8.4, so until those are
-fixed it's very possible that development will continue in 8.3,
-leading to minor incompatibilities with 8.4.
+BUILD:  See the file BUILD_ORGANIZATION for an explanation of how
+  the makefiles work.
+
+COQ VERSION:  This stuff all builds in Coq 8.3pl5.

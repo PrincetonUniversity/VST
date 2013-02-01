@@ -1,13 +1,15 @@
-COQFLAGS= -dont-load-proofs -R . progs
+# SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
+
+COQFLAGS= -I . -as progs 
+DEPFLAGS= -I ../msl -as msl -I ../veric -as veric  -R ../compcert -as compcert
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
 COQDOC=coqdoc
-CLIGHTGENFLAGS = -I ../compcert/lib -I ../compcert/common -I ../compcert/cfrontend  -I ../compcert/exportclight \
-    -I ../compcert/flocq/Appli   -I ../compcert/flocq/Calc  -I ../compcert/flocq/Core  -I ../compcert/flocq/Prop
+CLIGHTGENFLAGS = -l loadpath
 
 FILES= \
-  loadpath.v list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
+   list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
   test1.v verif1.v
 
 
@@ -17,19 +19,17 @@ proof: $(FILES:.v=.vo)
 
 
 test1.vo: test1.v
-	$(COQC) $(COQFLAGS)  $(CLIGHTGENFLAGS) $*.v
-
-test2.vo: test2.v
-	$(COQC) $(COQFLAGS)  $(CLIGHTGENFLAGS) $*.v
-
+	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 .SUFFIXES: .v .vo
 
+../%.vo: ../%.v
+	echo "ERROR: $@ not built!"
 .v.vo:
 	$(COQC) $(COQFLAGS) $*.v
 
 depend:
-	$(COQDEP) $(COQFLAGS) $(FILES) > .depend
+	$(COQDEP) $(COQFLAGS) $(DEPFLAGS) $(FILES) > .depend
 
 clean:
 	rm -f *.vo *.glob $(FILES:%.v=%.html) *~

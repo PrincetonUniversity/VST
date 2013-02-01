@@ -1,4 +1,6 @@
-COQFLAGS= -dont-load-proofs -R . veric
+# SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
+COQFLAGS= -I . -as veric
+DEPFLAGS= -I ../msl -as msl -R ../compcert -as compcert
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
@@ -25,11 +27,13 @@ proof: $(FILES:.v=.vo)
 
 .SUFFIXES: .v .vo
 
+../%.vo: ../%.v
+	echo "ERROR: $@ not built!"
 .v.vo:
 	$(COQC) $(COQFLAGS) $*.v
 
 depend:
-	$(COQDEP) $(COQFLAGS) $(FILES) > .depend
+	$(COQDEP) $(COQFLAGS) $(DEPFLAGS) $(FILES) > .depend
 
 clean:
 	rm -f *.vo *.glob $(FILES:%.v=%.html) *~
@@ -38,4 +42,3 @@ count:
 	wc $(FILES)
 
 include .depend
-

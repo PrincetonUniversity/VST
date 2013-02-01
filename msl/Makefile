@@ -1,10 +1,8 @@
-# NOTE: This Makefile is low-tech, but at least it's portable to cygwin.
-# We have the .depend file checked into the repository so that 
-# this file works even if coqdep cannot be run.  Do "make depend"
-# to rebuild the .depend file.
+# SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
 
-COQC=coqc -dont-load-proofs -R . msl
-COQDEP=coqdep  -R . msl
+COQFLAGS= -I . -as msl
+COQC=coqc
+COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES = \
@@ -33,7 +31,7 @@ lib: $(FILES:.v=.vo)
 
 .SUFFIXES: .v .vo
 .v.vo:
-	$(COQC) $*.v
+	$(COQC) $(COQFLAGS) $*.v
 
 clean:
 	rm -f *.vo *~
@@ -48,6 +46,6 @@ extract:
 	coqc -R . msl extract.v
 
 depend:
-	$(COQDEP) $(FILES) > .depend
+	$(COQDEP) $(COQFLAGS) $(FILES) > .depend
 include .depend
 
