@@ -1,4 +1,6 @@
 Load loadpath.
+Require Import compositional_compcert.core_semantics.
+
 Require Import veric.base.
 Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.
@@ -9,7 +11,6 @@ Require Import veric.juicy_mem.
 Require Import veric.NullExtension.
 Require Import veric.Clight_sim.
 Require Import veric.SeparationLogicSoundness.
-Require Import veric.sim.
 Require Import veric.extspec.
 Require Import msl.msl_standard.
 

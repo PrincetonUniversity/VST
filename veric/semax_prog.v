@@ -798,7 +798,7 @@ Lemma semax_prog_rule :
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       sim.make_initial_core (juicy_core_sem cl_core_sem)
+       core_semantics.make_initial_core (juicy_core_sem cl_core_sem)
                     (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 
@@ -821,7 +821,7 @@ Proof.
 destruct (Genv.find_funct_ptr_exists prog (prog_main prog) f) as [b [? ?]]; auto.
 apply in_prog_funct_in_prog_defs; auto.
  exists b.
- unfold sim.make_initial_core; simpl.
+ unfold core_semantics.make_initial_core; simpl.
 econstructor.
  split3; auto.
  reflexivity.

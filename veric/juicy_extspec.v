@@ -1,4 +1,6 @@
 Load loadpath.
+Require Import compositional_compcert.core_semantics.
+
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -13,7 +15,6 @@ Require Import veric.initial_world.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
-Require Import veric.sim.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;

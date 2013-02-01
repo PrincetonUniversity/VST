@@ -1,4 +1,6 @@
 Load loadpath.
+Require Import compositional_compcert.core_semantics.
+
 Require Import veric.base.
 Require Import veric.Address.
 Require Import msl.rmaps.
@@ -25,7 +27,6 @@ Require Import veric.semax_straight.
 Require Import veric.semax_loop.
 Require Import veric.semax_prog.
 Require Import veric.SeparationLogic.
-Require Import veric.sim.
 
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 

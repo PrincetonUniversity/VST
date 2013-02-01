@@ -1,9 +1,11 @@
 Load loadpath.
+Require Import compositional_compcert.core_semantics.
+Require Import compositional_compcert.forward_simulations.
+Require Import compositional_compcert.forward_simulations_lemmas.
+
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
-Require Import veric.sim. 
 Require Import veric.Clight_new.
-Require Import veric.Sim_starplus.
 Require Clight.
 Module CC := Clight.
 
@@ -510,7 +512,7 @@ Inductive match_states: forall (qm: corestate) (st: CC_core), Prop :=
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
 forall p (c1 : corestate) (m : mem) (c1' : corestate) (m' : mem),
-corestep cl_core_sem' (Genv.globalenv p) c1 m c1' m' ->
+corestep cl_core_sem (Genv.globalenv p) c1 m c1' m' ->
 forall (c2 : CC_core),
  match_states c1 c2 ->
 exists c2' : CC_core,
@@ -1118,30 +1120,6 @@ intros. apply CC_step_to_step in H.  apply CC_step_to_step in H0.
   destruct q1; destruct q2; inv Z; trivial.
 Qed.
 
-Lemma CC_allowed_modifications : forall 
-  (ge : Genv.t fundef type) (c : CC_core) (m : mem) (c' : CC_core) (m' : mem), 
-  CC_step ge c m c' m' -> allowed_core_modification m m'.
-  Proof. intros.
-     unfold CC_step in H.
-     destruct c; simpl in *.
-        remember  (CC.State f s c e t m) as st. remember  (CC_core_to_CC_state c' m') as st'.
-         generalize dependent f. generalize dependent s. generalize dependent c. generalize dependent e. 
-          generalize dependent t. generalize dependent m. generalize dependent c'. generalize dependent m'.
-        induction H; intros m'' c'' Heqst' mm tt ee cc ss ff Heqst;
-           inv Heqst; apply CC_core_CC_state_3 in Heqst';  simpl in Heqst';  inv Heqst';  eauto with allowed_mod. 
-               admit.  (* need allowed_mod theorems about loadbytes and storebytes *)
-               admit.
-  destruct f; try contradiction.
-         inv H. inv H1. apply CC_core_CC_state_3 in H5.  simpl in H5.  inv H5.
-         clear - H3.
-         induction H3; eauto with allowed_mod.
-  inv H;
-    apply CC_core_CC_state_3 in H4;  simpl in H4;  inv H4; apply allowed_core_modification_refl.
-Qed.
-
-Definition CompCertSem: CompcertCoreSem  (Genv.t fundef type) CC_core (list (ident * globdef fundef type)):=
-    Build_CompcertCoreSem _ _ _ CC_core_sem CC_step_fun CC_allowed_modifications.
-
 Lemma exec_skips_CC:
  forall {s0 k s k'} 
    (H1: match_cont (Kseq s0 :: k) (strip_skip' (CC.Kseq s k')))
@@ -1150,7 +1128,7 @@ Lemma exec_skips_CC:
             | Sifthenelse _ _ _ => False | Sreturn _ => False 
             | _ => True end ->
    exists k2, strip_skip' (CC.Kseq s k') = CC.Kseq s0 k2 /\
-     corestep_star CompCertSem ge  (CC_core_State f s k' ve te) m 
+     corestep_star CC_core_sem ge  (CC_core_State f s k' ve te) m 
               (CC_core_State f s0 k2 ve te) m.
 Proof.
  intros.
@@ -1184,7 +1162,7 @@ Qed.
 Lemma exec_skips'_CC:
   forall ge f s k' s0 k0' ve te m,
         strip_skip' (CC.Kseq s k') = CC.Kseq s0 k0' ->
-        corestep_star CompCertSem ge (CC_core_State f s k' ve te) m
+        corestep_star CC_core_sem ge (CC_core_State f s k' ve te) m
                                    (CC_core_State f s0 k0' ve te) m.
 Proof.
  intros.
@@ -1201,7 +1179,7 @@ Qed.
 
 Lemma strip_skip'_loop1_CC:
   forall ge f ve te m a3 s k1 k, CC.Kloop1 s a3 k1 = strip_skip' k ->
-  corestep_star CompCertSem ge (CC_core_State f Sskip k ve te) m
+  corestep_star CC_core_sem ge (CC_core_State f Sskip k ve te) m
                                                          (CC_core_State f Sskip (CC.Kloop1 s a3 k1) ve te) m.
 Proof.
  induction k; intros; try solve [inv H].
@@ -1215,7 +1193,7 @@ Qed.
 
 Lemma strip_skip'_call_CC:
   forall ge f ve te m lid f' ve' te' k1 k, CC.Kcall lid f' ve' te' k1 = strip_skip' k ->
-  corestep_star CompCertSem ge (CC_core_State f Sskip k ve te) m
+  corestep_star CC_core_sem ge (CC_core_State f Sskip k ve te) m
                                                           (CC_core_State f Sskip (CC.Kcall lid f' ve' te' k1) ve te) m.
 Proof.
  induction k; intros; try solve [inv H].
@@ -1229,7 +1207,7 @@ Qed.
 
 Lemma step_continue_strip_CC:
   forall ge f k ve te m, 
-           corestep_star CompCertSem ge (CC_core_State f Scontinue k ve te) m
+           corestep_star CC_core_sem ge (CC_core_State f Scontinue k ve te) m
                (CC_core_State f Scontinue (strip_skip' k) ve te) m.
 Proof.
 intros.
@@ -1247,7 +1225,7 @@ destruct s; try congruence; apply corestep_star_zero.
 Qed.
 
 Lemma step_continue_seq_CC: forall ge f s k e le m,
-       corestep CompCertSem ge (CC_core_State f Scontinue (CC.Kseq s k) e le) m
+       corestep CC_core_sem ge (CC_core_State f Scontinue (CC.Kseq s k) e le) m
                                                       (CC_core_State f Scontinue k e le) m.
   Proof. intros.
     assert (Z:CCstep ge (CC.State f Scontinue (CC.Kseq s k) e le m) Events.E0  (CC.State f Scontinue k e le m) ).
@@ -1260,7 +1238,7 @@ Lemma step_continue_seq_CC: forall ge f s k e le m,
   Qed. 
 
 Lemma step_continue_switch_CC: forall ge f k e le m,
-              corestep CompCertSem ge (CC_core_State f Scontinue (CC.Kswitch k) e le) m
+              corestep CC_core_sem ge (CC_core_State f Scontinue (CC.Kswitch k) e le) m
                                                              (CC_core_State f Scontinue k e le) m.
   Proof. intros.
     assert (Z:CCstep ge (CC.State f Scontinue (CC.Kswitch k) e le m) Events.E0  (CC.State f Scontinue k e le m) ).
@@ -1273,7 +1251,7 @@ Lemma step_continue_switch_CC: forall ge f k e le m,
   Qed. 
 
 Lemma break_strip_CC: forall ge f ve te m k,
-       corestep_star CompCertSem ge (CC_core_State f Sbreak k ve te) m
+       corestep_star CC_core_sem ge (CC_core_State f Sbreak k ve te) m
                                (CC_core_State f Sbreak (strip_skip' k) ve te) m.
  Proof. induction k; try solve [apply corestep_star_zero].
     destruct (dec_skip s).
@@ -1284,7 +1262,7 @@ Qed.
 
 Lemma strip_skip'_loop2_CC:
   forall ge f ve te m a3 s k1 k, CC.Kloop2 s a3 k1 = strip_skip' k ->
-  corestep_star CompCertSem  ge (CC_core_State f Sskip k ve te) m 
+  corestep_star CC_core_sem  ge (CC_core_State f Sskip k ve te) m 
                      (CC_core_State f Sskip (CC.Kloop2 s a3 k1) ve te) m.
 Proof. intros.
  induction k; intros; try solve [inv H].
@@ -1298,11 +1276,11 @@ Qed.
 
 Lemma Clightnew_Clight_sim_eq_noOrder:
 forall p (c1 : corestate) (m : mem) (c1' : corestate) (m' : mem),
-corestep cl_core_sem' (Genv.globalenv p) c1 m c1' m' ->
+corestep cl_core_sem (Genv.globalenv p) c1 m c1' m' ->
 forall (c2 : CC_core),
  match_states c1 c2 ->
 exists c2' : CC_core,
-    corestep_plus CompCertSem (Genv.globalenv p) c2 m c2' m' /\
+    corestep_plus CC_core_sem (Genv.globalenv p) c2 m c2' m' /\
     match_states c1' c2'.
 Proof.
 intros.
@@ -1448,7 +1426,7 @@ Focus 1. (* step_seq *)
  destruct c; try contradiction. destruct l; try contradiction. destruct c; try contradiction.
  subst s0.
 
- assert (X1: corestep_star CompCertSem ge (CC_core_State f s k' ve te) m
+ assert (X1: corestep_star CC_core_sem ge (CC_core_State f s k' ve te) m
                              (CC_core_State f Scontinue k'0 ve te) m).
      clear - H3.
      destruct (dec_skip s).
@@ -1456,7 +1434,7 @@ Focus 1. (* step_seq *)
            eapply exec_skips'_CC; auto.
      (*s<>skip*)
            rewrite strip_skip'_not in H3 by auto. inv H3. simpl. apply corestep_star_zero.
- assert (X2: corestep_star CompCertSem ge (CC_core_State f Scontinue k'0 ve te) m
+ assert (X2: corestep_star CC_core_sem ge (CC_core_State f Scontinue k'0 ve te) m
                                        (CC_core_State f Scontinue (strip_skip' k'0) ve te) m).
       clear.
       induction k'0; try solve [apply corestep_star_zero].
@@ -1472,7 +1450,7 @@ Focus 1. (* step_seq *)
  assert (precontinue_cont k = Kloop1 s1 s2 :: l).
  revert H0; clear; induction k; simpl; try congruence.  destruct a; try congruence; auto.
  assert (exists k1', 
-               corestep_star CompCertSem ge (CC_core_State f Scontinue k0' ve te) m
+               corestep_star CC_core_sem ge (CC_core_State f Scontinue k0' ve te) m
                     (CC_core_State f Scontinue k1' ve te) m /\
                match_cont (Kseq Scontinue :: Kloop1 s1 s2 :: l) k1').
      clear - H1 H0.
@@ -1525,7 +1503,7 @@ Focus 1.
  simpl in H.
  simpl in H1.
  simpl in *.
- assert (X1: corestep_star CompCertSem ge (CC_core_State f Sskip k' ve te) m
+ assert (X1: corestep_star CC_core_sem ge (CC_core_State f Sskip k' ve te) m
                    (CC_core_State f Sskip (CC.Kloop1 s0 e3 k'0) ve te) m).
      rewrite H1; clear.
      induction k'; intros; try solve [apply corestep_star_zero].
@@ -1535,7 +1513,7 @@ Focus 1.
     (*s <> skip*) rewrite strip_skip'_not; auto.  apply corestep_star_zero.  
  forget (CC_core_State f Sskip k' ve te) as st1.
  clear k' H1.
- assert (X2: corestep_star CompCertSem ge st1 
+ assert (X2: corestep_star CC_core_sem ge st1 
                   m (CC_core_State f e3 (CC.Kloop2 s0 e3 k'0) ve te) m).
      eapply corestep_star_trans; try apply X1.
      eapply corestep_star_one. constructor. auto.
@@ -1557,7 +1535,7 @@ Focus 1.
            revert k' Heqk0'; induction k0'; intros; try solve [inv H5].
            inv H5. eauto.
       destruct H0 as [k1' H0].
-      assert (X: corestep_star CompCertSem ge (CC_core_State f Sskip k' ve te) m
+      assert (X: corestep_star CC_core_sem ge (CC_core_State f Sskip k' ve te) m
                            (CC_core_State f Sbreak k1' ve te) m).
           revert k1' H0; clear; induction k'; intros; try solve [inv H0].
           destruct (dec_skip s).
@@ -1573,7 +1551,7 @@ Focus 1.
       rewrite <- break_cont_skip in *.
       simpl in CUR. rewrite <- current_function_strip in CUR.    
       forget (strip_skip k) as k0.
-      assert (Y: corestep_star  CompCertSem ge st1 m (CC_core_State f Sbreak (strip_skip' k1') ve te) m).
+      assert (Y: corestep_star  CC_core_sem ge st1 m (CC_core_State f Sbreak (strip_skip' k1') ve te) m).
           eapply corestep_star_trans; try apply X; auto.
           clear.
           induction k1'; try destruct s; try solve [apply corestep_star_zero].
@@ -1581,7 +1559,7 @@ Focus 1.
       forget (strip_skip' k1') as k0'. clear k1' X.
 
       assert (X: exists k1',
-             corestep_plus CompCertSem ge (CC_core_State f Sbreak k0' ve te) m
+             corestep_plus CC_core_sem ge (CC_core_State f Sbreak k0' ve te) m
                        (CC_core_State f Sskip k1' ve te) m
              /\ match_cont (strip_skip (break_cont k0)) (strip_skip' k1')).
           clear - H H1.
@@ -1618,7 +1596,7 @@ Focus 1.
  inv H1. simpl strip_skip in H6.
  inv H6. 
  change (CC.Kseq (Sifthenelse a s1 s2) k'0 = strip_skip' (CC.Kseq s k')) in H4.
- assert (X: corestep_star CompCertSem ge (CC_core_State f s k' ve te) m (CC_core_State f (Sifthenelse a s1 s2) k'0 ve te) m).
+ assert (X: corestep_star CC_core_sem ge (CC_core_State f s k' ve te) m (CC_core_State f (Sifthenelse a s1 s2) k'0 ve te) m).
      clear - H4.
      revert H4; induction k'; intros; try solve [ destruct s; inv H4; apply corestep_star_zero].
      destruct (dec_skip s).
@@ -1708,7 +1686,7 @@ Focus 1.
  destruct H2; subst te''.
  simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
  destruct s; inv H4.
- assert (corestep_star CompCertSem ge (CC_core_State f Sskip k'0 ve te) m
+ assert (corestep_star CC_core_sem ge (CC_core_State f Sskip k'0 ve te) m
                          (CC_core_State f Sskip (CC.Kcall None f1 ve' te' k'1) ve te) m).
      clear H1; rename H3 into H1.
      clear - H1.
@@ -1777,13 +1755,13 @@ Lemma Clightnew_Clight_sim_eq: forall p ExternIdents entrypoints
                (ext_ok : CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
 (*               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
                                            initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_vars))*),
-              Sim_eq.Forward_simulation_equals _ _ _ cl_core_sem' CompCertSem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
+              Forward_simulation_eq.Forward_simulation_equals _ _ _ cl_core_sem CC_core_sem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
 Proof.
   intros. 
   pose (bogus_measure := (fun x: corestate => O)).
   eapply eq_simulation_plus with (match_cores:=MS); try apply bogus_measure; unfold MS.
  (* initial states *)
-      intros. unfold cl_core_sem', CompCertSem; simpl. 
+      intros. unfold cl_core_sem, CC_core_sem; simpl. 
       unfold cl_initial_core, CC_initial_core; simpl.
      eexists. eexists. split. reflexivity. split. reflexivity.
        assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok. admit. (*again some Genv/entrypojnts/ext_ok stuff*)
@@ -1792,7 +1770,7 @@ Proof.
        simpl. assert (myStatement = Sskip). admit. 
           rewrite H1. econstructor. simpl. constructor. simpl. constructor.
  (* final states *)  
-      intros. unfold cl_core_sem' in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
+      intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
   (*at_external*)
      intros. inv H. simpl in *. inv H2. simpl in *. inv H0.
           split. unfold CC_at_external. destruct tyres;auto.
@@ -1808,15 +1786,17 @@ Proof.
 *)  admit.
   Qed.
 
+Require Import compositional_compcert.forward_simulations.
+
 Theorem Clightnew_Clight_sim: forall p ExternIdents entrypoints
          (ext_ok: CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
         (IniHyp: forall x, Genv.init_mem p = Some x <-> initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_defs)),
-        CompilerCorrectness.compiler_correctness
+        CompilerCorrectness.core_correctness
              (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))
-              ExternIdents _ _ _ _ _ _  cl_core_sem' CompCertSem p p.
+              ExternIdents _ _ _ _ _ _  cl_core_sem CC_core_sem p p.
 Proof.
 intros.
-eapply (CompilerCorrectness.cc_eq _ ExternIdents). (* with (entrypoints:=entrypoints). *)
+econstructor.
   simpl.  intros. exists m1; auto.
   apply ext_ok.
   eapply Clightnew_Clight_sim_eq; eauto.

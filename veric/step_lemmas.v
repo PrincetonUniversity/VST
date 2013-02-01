@@ -1,5 +1,7 @@
 Load loadpath.
-Require Import veric.base veric.sim veric.extspec.
+Require Import compositional_compcert.core_semantics.
+
+Require Import veric.base veric.extspec.
 
 Section safety.
   Context {G C M D Z:Type}.
