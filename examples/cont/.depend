@@ -1,0 +1,7 @@
+language.vo language.glob: language.v
+seplog.vo seplog.glob: seplog.v
+lift_seplog.vo lift_seplog.glob: lift_seplog.v
+model.vo model.glob: model.v
+lseg.vo lseg.glob: lseg.v
+client_lemmas.vo client_lemmas.glob: client_lemmas.v
+sample_prog.vo sample_prog.glob: sample_prog.v
