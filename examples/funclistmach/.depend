@@ -1,6 +1,6 @@
-Maps.vo: Maps.v
-FuncListMachine.vo: FuncListMachine.v Maps.vo
-lemmas.vo: lemmas.v Maps.vo FuncListMachine.vo
-hoare_total.vo: hoare_total.v Maps.vo FuncListMachine.vo
-wp.vo: wp.v Maps.vo FuncListMachine.vo hoare_total.vo
-programs.vo: programs.v Maps.vo FuncListMachine.vo hoare_total.vo wp.vo
+Maps.vo Maps.glob: Maps.v
+FuncListMachine.vo FuncListMachine.glob: FuncListMachine.v ../../msl/msl_standard.vo Maps.vo
+lemmas.vo lemmas.glob: lemmas.v ../../msl/msl_standard.vo Maps.vo FuncListMachine.vo
+hoare_total.vo hoare_total.glob: hoare_total.v ../../msl/msl_standard.vo Maps.vo FuncListMachine.vo lemmas.vo
+wp.vo wp.glob: wp.v ../../msl/msl_standard.vo Maps.vo FuncListMachine.vo lemmas.vo hoare_total.vo
+programs.vo programs.glob: programs.v ../../msl/msl_standard.vo Maps.vo FuncListMachine.vo lemmas.vo hoare_total.vo wp.vo

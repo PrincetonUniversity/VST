@@ -1,12 +1,12 @@
-Require Import msl.examples.cont.language.
+Require Import language.
 Require Import msl.base.
 Require Import msl.seplog.
 Require Import msl.alg_seplog.
-Require Import msl.examples.cont.seplog.
-Require Import msl.examples.cont.lseg.
+Require Import seplogic.
+Require Import lseg.
 Require Import msl.Coqlib2.
 Require Import msl.log_normalize.
-Require Import msl.examples.cont.client_lemmas.
+Require Import client_lemmas.
 
 Local Open Scope logic.
 

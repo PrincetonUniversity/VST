@@ -23,32 +23,32 @@ Section wp.
     | instr_getlabel l v =>  box (setM v (value_label l)) POST
 
     | instr_fetch_field v1 0 v2 =>
-        Ex x1:value, Ex x2:value,
+        EX x1:value, EX x2:value,
           store_op(fun r => r#v1 = Some (value_cons x1 x2)) && box (setM v2 x1) POST
 
     | instr_fetch_field v1 1 v2 =>
-        Ex x1:value, Ex x2:value,
+        EX x1:value, EX x2:value,
           store_op (fun r => r#v1 = Some (value_cons x1 x2)) && box (setM v2 x2) POST
 
     | instr_cons v1 v2 v3 => 
-      (Ex x1:value, Ex x2:value,
+      (EX x1:value, EX x2:value,
         store_op (fun r => r#v1 = Some x1 /\ r#v2 = Some x2) &&
           box (setM v3 (value_cons x1 x2)) POST)
      
     | instr_if_nil v s1 s2 => 
 
-    Ex val:value,
+    EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
 
       ((!!(val = value_label (L 0)) && wp x s1 POST))
       ||
-      ((Ex x1:value, (Ex x2:value,
+      ((EX x1:value, (EX x2:value,
         !!(val = (value_cons x1 x2)))) && wp x s2 POST)
     )
 
     | instr_call v =>
-      Ex l:label, Ex A:Type, Ex t:termMeas, Ex lP:(A->pred world), Ex lQ:(A -> pred world), Ex n':nat, Ex a:A,
+      EX l:label, EX A:Type, EX t:termMeas, EX lP:(A->pred world), EX lQ:(A -> pred world), EX n':nat, EX a:A,
         store_op (fun r => r#v = Some (value_label l) /\ proj1_sig t r n' /\ n' < x) &&
         (world_op (funptr l A t lP lQ) (fun _ => True)) &&
         lP a && (closed (lQ a --> POST))
@@ -56,7 +56,7 @@ Section wp.
     | instr_seq s1 s2 =>
         if is_basic s1 then wp 0 s1 (wp x s2 POST) else
         if is_basic s2 then wp x s1 (wp 0 s2 POST) else
-        Ex n:nat, Ex m:nat, 
+        EX n:nat, EX m:nat, 
            wp n s1 (wp m s2 POST) && !!(n+m = x)
 
     | _ => FF

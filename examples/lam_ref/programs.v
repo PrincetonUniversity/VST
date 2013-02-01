@@ -50,7 +50,7 @@ Proof.
   apply T_Var; auto.
 Qed.
 
-Definition ty_bool := All a:pred world, ty_lam a (ty_lam a a).
+Definition ty_bool := ALL a:pred world, ty_lam a (ty_lam a a).
 Definition e_true := Lam (Lam (Var 1)).
 Definition e_false := Lam (Lam (Var 0)).
 
@@ -96,7 +96,7 @@ Proof.
   apply T_Abs; auto.
   apply T_weaken_nil.
   apply T_sub with ty_nat.
-  apply sub_top.
+  apply subp_top.
   apply T_Nat.
 Qed.
 
@@ -121,14 +121,14 @@ Definition e_let (def body:expr) :=
   (App (Lam body) def).
 
 Definition option (a:pred world) :=
-  All b:pred world, ty_lam b (ty_lam (ty_lam a b) b).
+  ALL b:pred world, ty_lam b (ty_lam (ty_lam a b) b).
 
 Definition none : expr := Lam (Lam (Var 1)).
 Definition some : expr := Lam (Lam (Lam (App (Var 0) (Var 2)))).
 Definition out  : expr := Lam (Lam (App (App (Var 0) (Var 1)) (Lam (Var 0)))).
 
 Lemma out_typ :
-  Typ nil out (All tau:pred world, ty_lam tau (ty_lam (option tau) tau)).
+  Typ nil out (ALL tau:pred world, ty_lam tau (ty_lam (option tau) tau)).
 Proof.
   intros.
   unfold out.
@@ -148,7 +148,7 @@ Proof.
 Qed.
 
 Lemma none_typ :
-  Typ nil none (All tau:pred world, option tau).
+  Typ nil none (ALL tau:pred world, option tau).
 Proof.
   intros.
   unfold none.
@@ -166,7 +166,7 @@ Proof.
 Qed.
 
 Lemma some_typ :
-  Typ nil some (All tau:pred world, ty_lam tau (option tau)).
+  Typ nil some (ALL tau:pred world, ty_lam tau (option tau)).
 Proof.
   unfold some.
   apply T_UnivI; simpl; intros; auto.

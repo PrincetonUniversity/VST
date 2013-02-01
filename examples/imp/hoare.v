@@ -1,7 +1,7 @@
 Require Import Relations.
 Require Import msl.msl_standard.
 
-Require Import msl.examples.imp.imp.
+Require Import imp.
 
 (* Gives us a logic over nats *)
 Existing Instance ag_nat.
@@ -151,7 +151,7 @@ Coercion lift_mem : mempred >-> pred.
 
 (* Local i has some unspecified value *)
 Definition defined (i:ident) : pred world :=
-  Ex v:val, hasval i v.
+  EX v:val, hasval i v.
 
 (* P is a precondition for running control k in program p. *)
 Definition guards (pu:program_unit) (P:pred world) (k:ctl) : pred nat :=
@@ -159,7 +159,7 @@ Definition guards (pu:program_unit) (P:pred world) (k:ctl) : pred nat :=
 
 (* R is a precondition for returning into control k.  F is an additional frame.*)
 Definition rguards (pu:program_unit) (R:val -> pred world) (F:pred world) (k:ctl) : pred nat :=
-  All e:expr, guards pu ((Ex v:val, eval e v && R v) * F) (kseq (ret e) k).
+  All e:expr, guards pu ((EX v:val, eval e v && R v) * F) (kseq (ret e) k).
 
 (* The continuation-passing hoare tuple of partial correctness.  In short,
    the hoare tuple holds if, whenever the postconditions guard 
@@ -209,7 +209,7 @@ Definition func_start_locals (fd:fun_decl) (vs:list val) : pred world :=
    function specification precondition with the local variables
    avaliable at the start of the function. *)
 Definition func_pre (fd:fun_decl) (fs:fun_spec) (a:fs_A fs) : pred world :=
-  Ex vs:list val, fs_pre fs a vs * func_start_locals fd vs.
+  EX vs:list val, fs_pre fs a vs * func_start_locals fd vs.
 
 (* The return postcondition for verifying function bodies.  *)
 Definition func_post (fs:fun_spec) (a:fs_A fs) : val -> pred world :=
@@ -219,7 +219,7 @@ Definition func_post (fs:fun_spec) (a:fs_A fs) : val -> pred world :=
    the function has some declaration and that declaration (approximately) satifies 
    a hoare tuple describing the expected behavior of the function body. *)
 Definition satisfies_fun_spec (pu:program_unit) (i:ident) (fs:fun_spec) : pred nat :=
-  Ex fd:fun_decl, !!(pu i = Some fd) &&
+  EX fd:fun_decl, !!(pu i = Some fd) &&
     All a:(fs_A fs), |>hoare_ pu (func_post fs a) (func_pre fd fs a) (fnd_cmd fd) FF.
 
 (* A program satisfies a program spec if each claimed function spec is satisfied. *)
@@ -936,7 +936,7 @@ Qed.
 
 Lemma hoare_ret : forall ps R e Q n,
   hoare_ ps R
-     (Ex v:val, eval e v && R v)
+     (EX v:val, eval e v && R v)
      (ret e)
      Q n.
 Proof.
@@ -956,8 +956,8 @@ Qed.
 Lemma hoare_call : forall ps R i f es fs Q n,
   hoare_ ps R
      (lift_nat (satisfies_fun_spec ps f fs) *
-     (Ex vals:list val, list_eval es vals &&
-       Ex a:fs_A fs,
+     (EX vals:list val, list_eval es vals &&
+       EX a:fs_A fs,
          fs_pre fs a vals *
          defined i *
          All v:val,
@@ -1277,8 +1277,8 @@ Qed.
 Lemma hoare_call' : forall ps R i f es fs Q,
   satisfies_fun_spec ps f fs |--
   hoare_ ps R
-     (Ex vals:list val, list_eval es vals &&
-       Ex a:fs_A fs,
+     (EX vals:list val, list_eval es vals &&
+       EX a:fs_A fs,
          fs_pre fs a vals *
          defined i *
          All v:val,
@@ -1290,8 +1290,8 @@ Proof.
   cut (TT |--
   satisfies_fun_spec ps f fs -->
   hoare_ ps R
-     (Ex vals:list val, list_eval es vals &&
-       Ex a:fs_A fs,
+     (EX vals:list val, list_eval es vals &&
+       EX a:fs_A fs,
          fs_pre fs a vals *
          defined i *
          All v:val,
@@ -1307,11 +1307,11 @@ Proof.
 Qed.
 
 Lemma hoare_if : forall ps R e P c1 c2 Q n,
-  hoare_ ps R (Ex v:nat, eval e (int_val v) && !!(v <> 0) && P) c1 Q n ->
+  hoare_ ps R (EX v:nat, eval e (int_val v) && !!(v <> 0) && P) c1 Q n ->
   hoare_ ps R (eval e (int_val 0) && P) c2 Q n ->
 
   hoare_ ps R
-      (Ex v:nat, eval e (int_val v) && P)
+      (EX v:nat, eval e (int_val v) && P)
       (cif e c1 c2)
       Q n.
 Proof.
@@ -1369,7 +1369,7 @@ Qed.
 
 Lemma hoare_assign : forall ps R i e Q n,
    hoare_ ps R
-     (Ex v:val, eval e v && (defined i * (hasval i v -* Q)))
+     (EX v:val, eval e v && (defined i * (hasval i v -* Q)))
      (assign i e)
      Q n.
 Proof.
@@ -1397,10 +1397,10 @@ Qed.
 
 Lemma hoare_store : forall ps R e1 e2 Q n,
   hoare_ ps R
-     (Ex a:addr, Ex v:val,
+     (EX a:addr, EX v:val,
        eval e1 (ptr_val a) &&
        eval e2 v &&
-       ( (Ex vold:val, mapsto a Share.top vold) *
+       ( (EX vold:val, mapsto a Share.top vold) *
          (mapsto a Share.top v -* Q) ))
      (store e1 e2)
      Q n.
@@ -1438,7 +1438,7 @@ Qed.
 
 Lemma hoare_load : forall ps R i e Q n,
   hoare_ ps R
-     (Ex a:addr, Ex sh:Share.t, Ex v:val,
+     (EX a:addr, EX sh:Share.t, EX v:val,
                   eval e (ptr_val a) &&
                   ((mapsto a sh v * defined i) *
                    ((mapsto a sh v * hasval i v) -* Q)))
@@ -1509,12 +1509,12 @@ Qed.
 
 Lemma hoare_while : forall ps R e c I n,
   hoare_ ps R
-     (Ex v:nat, eval e (int_val v) && !!(v <> 0) && I)
+     (EX v:nat, eval e (int_val v) && !!(v <> 0) && I)
      c
-     (Ex v:nat, eval e (int_val v) && I) n ->
+     (EX v:nat, eval e (int_val v) && I) n ->
 
   hoare_ ps R 
-     (Ex v:nat, eval e (int_val v) && I)
+     (EX v:nat, eval e (int_val v) && I)
      (while e c)
      (eval e (int_val 0) && I) n.
 Proof.
@@ -1710,14 +1710,14 @@ Qed.
 
 Lemma hoare_while_wp : forall ps R e c Q,
   TT |-- hoare_ ps R 
-     (Ex I:pred world,
+     (EX I:pred world,
         (lift_nat
         (hoare_ ps R 
-             (Ex v:nat, eval e (int_val v) && !!(v <> 0) && I)
+             (EX v:nat, eval e (int_val v) && !!(v <> 0) && I)
              c
-             (Ex v:nat, eval e (int_val v) && I))) *
+             (EX v:nat, eval e (int_val v) && I))) *
          (lift_nat (lift (eval e (int_val 0) && I --> Q))) *
-        (Ex v:nat, eval e (int_val v) && I))
+        (EX v:nat, eval e (int_val v) && I))
      (while e c)
      Q.
 Proof.
@@ -1728,7 +1728,7 @@ Proof.
   rewrite hoare_fact.
   do 6 intro.
   apply hoare_consequence with R
-    (Ex  v : nat, eval e (int_val v) && I)
+    (EX  v : nat, eval e (int_val v) && I)
     (eval e (int_val 0) && I); auto.
   apply hoare_while.
   apply pred_nec_hereditary with a'; auto.

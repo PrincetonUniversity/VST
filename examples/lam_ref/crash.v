@@ -90,7 +90,7 @@ Proof.
   intros.
   unfold crash.
   unfold e_let at 1.
-  apply T_App with (All tau:pred world, ty_lam tau (ty_ref (option tau))).
+  apply T_App with (ALL tau:pred world, ty_lam tau (ty_ref (option tau))).
   apply T_Abs.
   unfold e_let at 1.
   apply T_App with (ty_ref (option (ty_lam ty_nat ty_nat))).
@@ -187,7 +187,7 @@ Proof.
   intros.
   unfold ok_program.
   unfold e_let at 1.
-  apply T_App with (All tau:pred world, ty_lam ty_nat (ty_lam tau (ty_ref (option tau)))).
+  apply T_App with (ALL tau:pred world, ty_lam ty_nat (ty_lam tau (ty_ref (option tau)))).
   apply T_Abs.
   unfold e_let at 1.
   apply T_App with (ty_ref (option (ty_lam ty_nat ty_nat))).

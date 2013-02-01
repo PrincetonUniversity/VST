@@ -16,7 +16,7 @@ Context {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: age
 
 Goal forall P Q R: nat -> pred A,
        (forall z, P z |-- Q (S z)) ->
-      (Ex z:nat, P z) * R 0 |-- (Ex y:nat, Q y) * TT.
+      (EX z:nat, P z) * R 0 |-- (EX y:nat, Q y) * TT.
 Proof.
 intros.
 (* don't do this:    intros ? [a1 [a2 [? [[z ?] ?]]]]. *)
@@ -38,7 +38,7 @@ eapply derives_trans; [ | apply H0].
 normalize.
 Qed.
 
-End Example.
+End EXample.
 
 
 

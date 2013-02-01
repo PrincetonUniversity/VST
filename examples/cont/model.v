@@ -2,8 +2,8 @@ Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
-Require Import msl.examples.cont.language.
-Require Import msl.examples.cont.seplog.
+Require Import language.
+Require Import seplogic.
 
 Hint Extern 3 (list_nodups _ = true) => (compute; reflexivity).
 Hint Extern 3 (typecheck _ _ = true) => (compute; reflexivity).

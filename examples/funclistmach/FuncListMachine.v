@@ -1,5 +1,5 @@
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach.Maps.
+Require Import Maps.
 
 (*** Machine specification ***)
 

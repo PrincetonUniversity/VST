@@ -1,5 +1,5 @@
 Require Import msl.msl_standard.
-Require Import msl.examples.sep.language.
+Require Import language.
 
 Definition world := (nat * ((var -> option adr)*(adr -> option adr)))%type.
 

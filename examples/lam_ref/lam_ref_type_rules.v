@@ -141,7 +141,7 @@ Proof.
   auto.
   eapply H; auto.
 
-  cut ( TT |-- %(All e:expr,
+  cut ( TT |-- %(ALL e:expr,
     (!!(closed e) && expr_type e tau) --> expr_type e tau')).
   intros.
   hnf; intros.
@@ -327,7 +327,7 @@ Proof.
   spec H1 env a H2.
   unfold prim.
   rewrite subst_env_Prim.
-  cut ( TT |-- %(All e:expr,
+  cut ( TT |-- %(ALL e:expr,
         !!(closed e) && expr_type e ty_nat --> expr_type (Prim (val_to_exp oo f) e) sigma)).
   intros; eapply H3; eauto.
   apply R_extends_refl.
@@ -401,7 +401,7 @@ Proof.
   assert (closed (subst_env env e)).
   eapply subst_env_valid_closed; eauto.
 
-  cut (TT |-- %(All e:expr, !!(closed e) && expr_type e tau --> expr_type (New e) (ty_ref tau))).
+  cut (TT |-- %(ALL e:expr, !!(closed e) && expr_type e tau --> expr_type (New e) (ty_ref tau))).
   intros.
   eapply H3; eauto.
   apply R_extends_refl.
@@ -452,7 +452,7 @@ Proof.
   rewrite subst_env_App.
   spec H1 env a H3.
   spec H2 env a H3.
-  cut (TT |-- %(All e1:expr, All e2:expr, (!!(closed e1 /\ closed e2)) && expr_type e1 (ty_lam sigma tau) && expr_type e2 sigma --> expr_type (App e1 e2) tau)).
+  cut (TT |-- %(ALL e1:expr, ALL e2:expr, (!!(closed e1 /\ closed e2)) && expr_type e1 (ty_lam sigma tau) && expr_type e2 sigma --> expr_type (App e1 e2) tau)).
   intros; eapply H4; eauto.
   apply R_extends_refl.
   hnf; auto.
@@ -530,7 +530,7 @@ Proof.
   spec H0 env a H1.
   
   rewrite subst_env_Deref.
-  cut ( TT |-- %(All e:expr, !!(closed e) && expr_type e (ty_ref tau) --> expr_type (Deref e) tau)).
+  cut ( TT |-- %(ALL e:expr, !!(closed e) && expr_type e (ty_ref tau) --> expr_type (Deref e) tau)).
   intros.
   eapply H2.
   2: apply R_extends_refl.
@@ -596,7 +596,7 @@ Proof.
   spec H5 env a H1.
   
   rewrite subst_env_Update.
-  cut ( TT |-- %(All e1:expr, All e2:expr, All e3:expr,
+  cut ( TT |-- %(ALL e1:expr, ALL e2:expr, ALL e3:expr,
                  !!(closed e1 /\ closed e2 /\ closed e3) &&
                  expr_type e1 (ty_ref tau) &&
                  expr_type e2 tau &&
@@ -685,7 +685,7 @@ Qed.
 (* Bounded Universal Quantification *)
 
 Definition AllBnd (T:pred world) (X:pred world -> pred world)
-  := All tau:pred world, !!(TT |-- tau >=> T) --> X tau.
+  := ALL tau:pred world, !!(TT |-- tau >=> T) --> X tau.
 
 Lemma sub_AllBnd : forall T1 T2 (X1 X2:pred world -> pred world),
   TT |-- T2 >=> T1 ->
@@ -694,7 +694,7 @@ Lemma sub_AllBnd : forall T1 T2 (X1 X2:pred world -> pred world),
 Proof.
   intros.
   unfold AllBnd.
-  apply sub_allp; intro tau.
+  apply subp_allp; intro tau.
   spec H0 tau.
   repeat intro.
   eapply H0; eauto.
@@ -704,11 +704,11 @@ Proof.
   eapply H6; eauto.
 Qed.
 
-Lemma AllBnd_All : forall (X:pred world -> pred world),
+Lemma AllBnd_ALL : forall (X:pred world -> pred world),
   allp X = AllBnd TT X.
 Proof.
   intros.
-  apply equiv_eq; simpl; repeat intro; intuition.
+  apply pred_ext; simpl; repeat intro; intuition.
   eapply pred_nec_hereditary; eauto.
   apply H; auto.
   simpl; split; auto.
@@ -722,7 +722,7 @@ Proof.
   intros.
   assert (Hcl:closed' (length G) e).
   destruct (H0 FF).
-  apply sub_bot.
+  apply subp_bot.
   auto.
   split; auto.
   repeat intro.
@@ -780,7 +780,7 @@ Lemma T_UnivI : forall G e (X:pred world -> pred world),
   (forall tau, Typ G e (X tau)) ->
   Typ G e (allp X).
 Proof.
-  intros; rewrite AllBnd_All.
+  intros; rewrite AllBnd_ALL.
   apply T_UnivBoundedI; auto.
 Qed.
 
@@ -788,12 +788,12 @@ Lemma T_UnivE : forall G e (X:pred world -> pred world) tau,
   Typ G e (allp X) ->
   Typ G e (X tau).
 Proof.
-  do 4 intro; apply T_sub; apply sub_allp_spec.
+  do 4 intro; apply T_sub; apply subp_allp_spec.
 Qed.
 
 
 Definition ty_ex (F:pred world -> pred world) : pred world :=
-  Ex tau:pred world, !!(boxy extendM tau) && F tau.
+  EX tau:pred world, !!(boxy extendM tau) && F tau.
 
 Lemma T_ExtI : forall G e (X:pred world -> pred world) tau
   (Hext : forall tau, boxy extendM tau -> boxy extendM (X tau)),
@@ -828,7 +828,7 @@ Proof.
   spec H2 env a H3.
   rewrite subst_env_App.
   replace (subst_env env (Lam f)) with (Lam (subst_env' 1 env f)).
-  cut (TT |-- %(All e:expr,
+  cut (TT |-- %(ALL e:expr,
         (!!(closed e /\ closed' 1 (subst_env' 1 env f)) && (etype_valid env G)) && expr_type e (ty_ex X) -->
         expr_type (App (Lam (subst_env' 1 env f)) e) sigma)).
   intros.

@@ -1,5 +1,5 @@
 Require Import msl.msl_direct.
-Require Import msl.examples.sep.language.
+Require Import language.
 
 Definition world := ((var -> option adr)*(adr -> option adr))%type.
 

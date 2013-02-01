@@ -1,9 +1,9 @@
 Require Import Min.
 
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach.Maps.
-Require Import msl.examples.funclistmach.FuncListMachine.
-Require Import msl.examples.funclistmach.lemmas.
+Require Import Maps.
+Require Import FuncListMachine.
+Require Import lemmas.
 
 Open Scope pred.
 
@@ -444,7 +444,7 @@ Qed.
 
 Lemma hoare_call : forall t x G R v Q,
   let wp := 
-    Ex l:label, Ex A:Type, Ex lP:(A->pred world), Ex lQ:(A -> pred world), Ex n':nat, Ex a:A,
+    EX l:label, EX A:Type, EX lP:(A->pred world), EX lQ:(A -> pred world), EX n':nat, EX a:A,
       store_op (fun r => r#v = Some (value_label l) /\ t l r = Some n' /\ n' < x) &&
       (G --> funptr l A lP lQ) &&
       lP a && (closed (lQ a --> Q))
@@ -614,7 +614,7 @@ Proof.
   apply K.expandM_refl.
   hnf; simpl; auto.
   apply goedel_loeb.
-  apply derives_cut with
+  apply derives_trans with
     (agedfrom (K.squash (n,psi),(r,t)) && |>(box K.expandM (closed G))); auto.
   intros a Ha; destruct Ha; split; auto.
   clear H1.

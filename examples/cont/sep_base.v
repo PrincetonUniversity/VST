@@ -1,4 +1,4 @@
-Require Import msl.examples.cont.language.
+Require Import language.
 Require Import msl.base.
 Require Import msl.msl_standard.
 Require Import msl.rmaps.

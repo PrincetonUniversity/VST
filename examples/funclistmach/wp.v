@@ -1,20 +1,20 @@
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach.Maps.
-Require Import msl.examples.funclistmach.FuncListMachine.
-Require Import msl.examples.funclistmach.lemmas.
-Require Import msl.examples.funclistmach.hoare_total.
+Require Import Maps.
+Require Import FuncListMachine.
+Require Import lemmas.
+Require Import hoare_total.
 
 
 (* rule for if in weakest precondition form *)
 Lemma wp_if : forall t x v s1 s2 P1 P2 G R Q,
   let wp := 
-    Ex val:value,
+    EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
 
       ((!!(val = value_label (L 0)) && P1))
       ||
-      ((Ex x1:value, (Ex x2:value,
+      ((EX x1:value, (EX x2:value,
         !!(val = (value_cons x1 x2)))) && P2)
     )
    in
@@ -84,39 +84,39 @@ Section wp.
     | instr_getlabel l v =>  box (setM v (value_label l)) POST
 
     | instr_fetch_field v1 0 v2 =>
-        Ex x1:value, Ex x2:value,
+        EX x1:value, EX x2:value,
           store_op (fun r => r#v1 = Some (value_cons x1 x2)) && box (setM v2 x1) POST
 
     | instr_fetch_field v1 1 v2 =>
-        Ex x1:value, Ex x2:value,
+        EX x1:value, EX x2:value,
           store_op (fun r => r#v1 = Some (value_cons x1 x2)) && box (setM v2 x2) POST
 
     | instr_cons v1 v2 v3 => 
-      (Ex x1:value, Ex x2:value,
+      (EX x1:value, EX x2:value,
         store_op (fun r => r#v1 = Some x1 /\ r#v2 = Some x2) &&
           box (setM v3 (value_cons x1 x2)) POST)
      
     | instr_if_nil v s1 s2 => 
 
-    Ex val:value,
+    EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
 
       ((!!(val = value_label (L 0)) && wp x s1 POST))
       ||
-      ((Ex x1:value, (Ex x2:value,
+      ((EX x1:value, (EX x2:value,
         !!(val = (value_cons x1 x2)))) && wp x s2 POST)
     )
 
     | instr_call v =>
-      Ex l:label, Ex A:Type, Ex lP:(A->pred world), Ex lQ:(A -> pred world), Ex n':nat, Ex a:A,
+      EX l:label, EX A:Type, EX lP:(A->pred world), EX lQ:(A -> pred world), EX n':nat, EX a:A,
         store_op (fun r => r#v = Some (value_label l) /\ t l r = Some n' /\ n' < x) &&
         (G --> funptr l A lP lQ) && lP a && (closed (lQ a --> POST))
 
     | instr_seq s1 s2 =>
         if is_basic s1 then wp 0 s1 (wp x s2 POST) else
         if is_basic s2 then wp x s1 (wp 0 s2 POST) else
-        Ex n:nat, Ex m:nat, 
+        EX n:nat, EX m:nat, 
            wp n s1 (wp m s2 POST) && !!(n+m = x)
 
     | _ => FF

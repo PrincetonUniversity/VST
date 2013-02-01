@@ -1,9 +1,9 @@
-Require Import Min.
+Import Require Min.
 
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach2.Maps.
-Require Import msl.examples.funclistmach2.FuncListMachine.
-Require Import msl.examples.funclistmach2.lemmas.
+Require Import Maps.
+Require Import FuncListMachine.
+Require Import lemmas.
 
 Open Scope pred.
 
@@ -191,23 +191,23 @@ Qed.
 
 (*
 Definition funptr' (l:label) (A:Type) (t:termMeas) (P Q: A -> pred world) : pred prog :=
-  Ex c : instruction, code l c &&
-    All stk : stack, All n : nat, All x : A,
+  EX c : instruction, code l c &&
+    ALL stk : stack, ALL n : nat, ALL x : A,
       |> ((embedWP (guardsn n (Q x) stk)) -->
-           (All n' : nat, embedWP (evalTM t n'   --> 
+           (ALL n' : nat, embedWP (evalTM t n'   --> 
                                     guardsn (n+n') (P x) ((c;;instr_assert FF)::stk) ))).
 *)
 
 Definition funptr' (l:label) (A:Type) (t:termMeas) (P Q: A -> pred world) : pred prog :=
-  Ex c : instruction, code l c &&
-  All stk : stack,  All x : A,
-      embedWP (P x --> Ex n:nat, evalTM t n &&
+  EX c : instruction, code l c &&
+  ALL stk : stack,  ALL x : A,
+      embedWP (P x --> EX n:nat, evalTM t n &&
                  |>getsn n ((c;;instr_assert FF)::stk) stk (Q x)).
 
 Definition funptr l A P Q : pred prog :=
-  Ex t:termMeas,
+  EX t:termMeas,
       funptr' l A t P Q && 
-      All x:A, (embedWP (P x --> Ex n:nat, evalTM t n)).
+      ALL x:A, (embedWP (P x --> EX n:nat, evalTM t n)).
 
 (*
 Lemma hoare_call : forall G R v Q l A lP lQ a,
@@ -355,13 +355,13 @@ Lemma verify_func_simple : forall psi l (G:pred prog) (A:Type) (P Q:A -> pred wo
   psi#l = Some i ->
 
   (forall a r, 
-    let Pr  := P a && Ex n:nat, store_op (fun r' => proj1_sig t r' n /\ (r' = r)) in
+    let Pr  := P a && EX n:nat, store_op (fun r' => proj1_sig t r' n /\ (r' = r)) in
     let Pr' a' := P a' && store_op (fun r' => forall n, proj1_sig t r n -> exists n', proj1_sig t r' n' /\ n' < n) in
     hoare (funptr' l A t Pr' Q && G) (Q a) Pr i FF) ->
 
   verify_prog psi G ->
   verify_prog psi (funptr' l A t P Q  &&
-                   (All a:A, embedWP (P a --> Ex x:nat, evalTM t x))
+                   (ALL a:A, embedWP (P a --> EX x:nat, evalTM t x))
                    && G).
 Proof.
   do 12 intro. induction n using (well_founded_induction lt_wf).
@@ -719,8 +719,8 @@ Proof.
 
 Lemma hoare_call' : forall x G R v Q,
   let wp := 
-    Ex l:label, Ex A:Type, Ex t:termMeas,
-    Ex lP:(A->pred world), Ex lQ:(A -> pred world), Ex a:A,
+    EX l:label, EX A:Type, EX t:termMeas,
+    EX lP:(A->pred world), EX lQ:(A -> pred world), EX a:A,
       store_op (fun r => r#v = Some (value_label l)) &&
       (evalTM t x) &&
       (prog_op (funptr l A t lP lQ)) &&
@@ -809,13 +809,13 @@ Qed.
 
 Lemma hoare_if : forall x v s1 s2 P1 P2 G R Q,
   let wp := 
-    Ex val:value,
+    EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
 
       ((!!(val = value_label (L 0)) && P1))
       ||
-      ((Ex x1:value, (Ex x2:value,
+      ((EX x1:value, (EX x2:value,
         !!(val = (value_cons x1 x2)))) && P2)
     )
    in
@@ -902,7 +902,7 @@ Proof.
   eapply H0.
   hnf; apply rt_refl.
   apply goedel_loeb.
-  apply derives_cut with
+  apply derives_trans with
     (agedfrom (K.squash (n,psi)) && |>G); auto.
   intros a Ha; destruct Ha; split; auto.
 Qed.
@@ -915,7 +915,7 @@ Record funspec (B:Type) :=
   }.
 
 Definition funspec_assumptions B b n (fss:list (label*funspec B) ) : pred prog :=
-  All l:_, All fs:_, !!(In (l,fs) fss) -->
+  ALL l:_, ALL fs:_, !!(In (l,fs) fss) -->
     let P' a := fs_P B fs b a &&
       store_op (fun r => exists n', proj1_sig (fs_t B fs b) r n' /\ n' < n)
     in funptr l (fs_A B fs b) (fs_t B fs b) P' (fs_Q B fs b).
@@ -940,7 +940,7 @@ Lemma verify_clique : forall psi G B (fss:list (label * funspec B)),
 
   verify_prog
       psi
-      ((All b:B, All l:_, All fs:_,
+      ((ALL b:B, ALL l:_, ALL fs:_,
         !!(In (l,fs) fss) -->
         funptr l (fs_A B fs b) (fs_t B fs b)
         (fs_P B fs b) (fs_Q B fs b)) && G).
@@ -1147,7 +1147,7 @@ Lemma verify_func : forall psi l (G:pred prog) (B:Type) (A:B->Type) (P Q:forall 
 
   verify_prog psi G ->
   verify_prog psi
-              ((All b:_, funptr l (A b) (t b) (P b) (Q b)) && G).
+              ((ALL b:_, funptr l (A b) (t b) (P b) (Q b)) && G).
 Proof.
   intros.
   generalize (verify_clique psi G B

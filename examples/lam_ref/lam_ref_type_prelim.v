@@ -39,29 +39,6 @@ Definition world_ag : ageable world :=
   ag_prod mtype value ag_knot.
 Existing Instance world_ag.
 
-Lemma natty_world : natty world.
-Proof.
-  hnf; intros.
-  destruct x'.
-  case_eq (unsquash m); intros.
-  exists (squash (S n, f), v).
-  hnf. simpl.
-  rewrite knot_age1.
-  rewrite unsquash_squash.
-  f_equal. f_equal.
-  generalize (unsquash_approx H); intros.
-  apply unsquash_inj.
-  rewrite unsquash_squash.
-  rewrite H.
-  f_equal.
-  rewrite fmap_app.
-  change (S n) with (1+n).
-  rewrite <- (approx_approx1 1 n).
-  auto.
-Qed.
-Existing Instance natty_world.
-
-
 Definition knot_extends (k1 k2 : knot) : Prop :=
   match (unsquash k1, unsquash k2) with
     ((n, psi), (n', psi')) => n = n' /\ forall a, (psi a = None) \/ (psi' a = psi a)

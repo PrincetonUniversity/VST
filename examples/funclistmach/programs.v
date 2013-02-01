@@ -1,9 +1,9 @@
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach.Maps.
-Require Import msl.examples.funclistmach.FuncListMachine.
-Require Import msl.examples.funclistmach.lemmas.
-Require Import msl.examples.funclistmach.hoare_total.
-Require Import msl.examples.funclistmach.wp.
+Require Import Maps.
+Require Import FuncListMachine.
+Require Import lemmas.
+Require Import hoare_total.
+Require Import wp.
 
 Fixpoint list_nat (n:nat) (x:value) {struct n} :=
   match n, x with
@@ -44,7 +44,7 @@ Definition add_Q (nm:nat*nat) := store_op (add_Q' (fst nm) (snd nm)).
  *)
 Program Definition add_phi : map instruction :=
   set _ (empty _) (L 0)
-    ( instr_assert (Ex nm:_, add_P nm) ;; 
+    ( instr_assert (EX nm:_, add_P nm) ;; 
       instr_if_nil (V 1)
         (*then *) (
           instr_return
@@ -110,7 +110,7 @@ Proof.
 
 Opaque get set funptr.
   apply hoare_wp.
-  rewrite andp_com.
+  rewrite andp_comm.
   rewrite TT_and.
   apply boxy_funptr.
 

@@ -1,4 +1,4 @@
-Require Import msl.examples.sep.language.
+Require Import language.
 Require Import msl.msl_direct.
 Require Import msl.env.
 

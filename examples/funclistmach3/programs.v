@@ -1,9 +1,9 @@
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach2.Maps.
-Require Import msl.examples.funclistmach2.FuncListMachine.
-Require Import msl.examples.funclistmach2.lemmas.
-Require Import msl.examples.funclistmach2.hoare_total.
-Require Import msl.examples.funclistmach2.wp.
+Require Import Maps.
+Require Import FuncListMachine.
+Require Import lemmas.
+Require Import hoare_total.
+Require Import wp.
 
 (* This is some tentative work-in-progress *)
 
@@ -85,7 +85,7 @@ Definition stdfun (l:label) (fs:{A:Type & stdFunspec A}) :=
          (fun avs =>
            match avs with
              (a,(v1,v2,v3,v4)) =>
-             Ex v0:_, 
+             EX v0:_, 
              world_op
                (sfs_P (projT2 fs) a v0)
                (fun s =>
@@ -98,7 +98,7 @@ Definition stdfun (l:label) (fs:{A:Type & stdFunspec A}) :=
          (fun avs => 
            match avs with
              (a,(v1,v2,v3,v4)) =>
-             Ex v0:_, 
+             EX v0:_, 
              world_op
                 (sfs_Q (projT2 fs) a v0)
                 (fun s =>
@@ -223,7 +223,7 @@ Program Definition phi : map instruction :=
 
   (* An addition function *)
   (L 0)
-    ( instr_assert (Ex nm:_, add_P nm) ;; 
+    ( instr_assert (EX nm:_, add_P nm) ;; 
       instr_if_nil (V 1)
         (*then *) (
           instr_return
@@ -349,7 +349,7 @@ End map_pre_post.
 Definition map_worker_pre (fs:{A:Type & stdFunspec A}) (x:value*label*list (projT1 fs)*value) :=
   match x with
     (v1,lab,l,v4) =>
-    Ex v3:_,
+    EX v3:_,
     world_op
       (stdfun lab fs &&
        list_val_match (projT1 fs) (sfs_P (projT2 fs)) l v3)
@@ -363,7 +363,7 @@ Definition map_worker_pre (fs:{A:Type & stdFunspec A}) (x:value*label*list (proj
 Definition map_worker_post (fs:{A:Type & stdFunspec A}) (x:value*label*list (projT1 fs)*value) :=
   match x with
     (v1,lab,l,v4) =>
-    Ex v0:_,
+    EX v0:_,
     world_op
       (stdfun lab fs &&
         list_val_match (projT1 fs) (sfs_Q (projT2 fs)) l v0)
@@ -399,7 +399,7 @@ Lemma map_worker_verify : forall G,
   verify_prog phi G ->
   verify_prog
     phi
-    ((All fs:{A:Type & stdFunspec A},
+    ((ALL fs:{A:Type & stdFunspec A},
          funptr (L 4) _ (map_worker_tm fs) (map_worker_pre fs) (map_worker_post fs)) && G).
 Proof.
   intros.
@@ -531,8 +531,8 @@ Lemma map_verify : forall G,
     verify_prog phi G ->
     verify_prog
     phi
-    ((All fs:{A:Type & stdFunspec A}, stdfun (L 5) (map_spec fs)) &&
-    ((All fs:{A:Type & stdFunspec A},
+    ((ALL fs:{A:Type & stdFunspec A}, stdfun (L 5) (map_spec fs)) &&
+    ((ALL fs:{A:Type & stdFunspec A},
          funptr (L 4) _ (map_worker_tm fs) (map_worker_pre fs) (map_worker_post fs))
         && G)).
 Proof.
@@ -614,7 +614,7 @@ Lemma apply_verify : forall G,
   verify_prog phi G ->
   verify_prog
     phi
-    ((All fs:{A:Type & stdFunspec A}, stdfun (L 1) (apply_fs fs)) && G).
+    ((ALL fs:{A:Type & stdFunspec A}, stdfun (L 1) (apply_fs fs)) && G).
 Proof.
   intros.
 Transparent get set.
@@ -754,7 +754,7 @@ Let PROG_G :=
                      (fun _ => TT)
                      (fun _ => store_op (fun r => exists v, r#(V 0) = Some v /\ list_nat 3 v))) &&
   ((stdfun (L 3) succ_fs') &&
-   ((All fs:{A:Type & stdFunspec A}, stdfun (L 1) (apply_fs fs)) &&
+   ((ALL fs:{A:Type & stdFunspec A}, stdfun (L 1) (apply_fs fs)) &&
     ((funptr (L 0) _ add_term_measure add_P add_Q) && TT))).
 
 Lemma main_verify :

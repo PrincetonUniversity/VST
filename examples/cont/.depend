@@ -1,7 +1,7 @@
-language.vo language.glob: language.v
-seplog.vo seplog.glob: seplog.v
-lift_seplog.vo lift_seplog.glob: lift_seplog.v
-model.vo model.glob: model.v
-lseg.vo lseg.glob: lseg.v
-client_lemmas.vo client_lemmas.glob: client_lemmas.v
-sample_prog.vo sample_prog.glob: sample_prog.v
+language.vo language.glob: language.v ../../msl/base.vo ../../msl/eq_dec.vo ../../msl/Coqlib2.vo
+seplogic.vo seplogic.glob: seplogic.v language.vo ../../msl/base.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo
+lift_seplogic.vo lift_seplogic.glob: lift_seplogic.v language.vo ../../msl/base.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo seplogic.vo
+model.vo model.glob: model.v ../../msl/msl_standard.vo ../../msl/Coqlib2.vo ../../msl/rmaps.vo ../../msl/rmaps_lemmas.vo language.vo seplogic.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo
+lseg.vo lseg.glob: lseg.v language.vo ../../msl/base.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo seplogic.vo ../../msl/Coqlib2.vo ../../msl/log_normalize.vo ../../msl/eq_dec.vo
+client_lemmas.vo client_lemmas.glob: client_lemmas.v language.vo ../../msl/base.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo seplogic.vo lseg.vo ../../msl/Coqlib2.vo ../../msl/log_normalize.vo
+sample_prog.vo sample_prog.glob: sample_prog.v language.vo ../../msl/base.vo ../../msl/seplog.vo ../../msl/alg_seplog.vo seplogic.vo lseg.vo ../../msl/Coqlib2.vo ../../msl/log_normalize.vo client_lemmas.vo

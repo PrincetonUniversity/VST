@@ -114,7 +114,7 @@ Next Obligation.
 Qed.
 
 Definition ty_ref (tau: pred world) : pred world :=
-  Ex a:addr, just (v_Loc a) && type_at a tau.
+  EX a:addr, just (v_Loc a) && type_at a tau.
 
 (* Section 5.1, equation 28 *)
 Program Definition mtype_valid (m : mem) : pred world :=
@@ -168,10 +168,10 @@ Next Obligation.
 Qed.
 
 Definition expr_typeF (tau:pred world) (F: expr -> pred world) (e : expr) : pred world :=
-  %All m:mem, mtype_valid m -->
-    (All m':mem, All e':expr, !!(step (m,e) (m',e')) -->
+  %ALL m:mem, mtype_valid m -->
+    (ALL m':mem, ALL e':expr, !!(step (m,e) (m',e')) -->
       |>(predicates_hered.diamond contractsM (mtype_valid m' && F e'))) &&
-    (!!(stopped m e) --> Ex H:isValue e,
+    (!!(stopped m e) --> EX H:isValue e,
          with_val (exp_to_val e H) (%tau)).
 
 Lemma sub_with_val : forall G P P' e,
@@ -179,7 +179,7 @@ Lemma sub_with_val : forall G P P' e,
   G |-- with_val e P >=> with_val e P'.
 Proof.
   intros.
-  apply derives_cut with (P >=> P'); auto.
+  apply derives_trans with (P >=> P'); auto.
   clear; repeat intro.
   rewrite <- fash_fash in H.
   spec H (level a').
@@ -245,30 +245,30 @@ Qed.
 
 Lemma expr_type_sub1 :
   forall tau P Q,
-    All e:expr, |>(P e >=> Q e)
-      |-- All e:expr, expr_typeF tau P e >=> expr_typeF tau Q e.
+    ALL e:expr, |>(P e >=> Q e)
+      |-- ALL e:expr, expr_typeF tau P e >=> expr_typeF tau Q e.
 Proof.
   intros.
   intros w H e.
   revert w H.
   unfold expr_typeF.
   apply sub_extend.
-  apply sub_allp. intro m.
-  apply sub_imp.
-  apply sub_refl.
-  apply sub_andp.
-  apply sub_allp. intro m'.
-  apply sub_allp. intro e'.
-  apply sub_imp.
-  apply sub_refl.
+  apply subp_allp. intro m.
+  apply subp_imp.
+  apply subp_refl.
+  apply subp_andp.
+  apply subp_allp. intro m'.
+  apply subp_allp. intro e'.
+  apply subp_imp.
+  apply subp_refl.
   rewrite <- box_all.
-  rewrite <- sub_later.
+  rewrite <- subp_later.
   apply box_positive.
   apply sub_contract.
-  apply sub_andp.
-  apply sub_refl.
+  apply subp_andp.
+  apply subp_refl.
   hnf; intuition.
-  apply sub_refl.
+  apply subp_refl.
 Qed.
 
 Lemma expr_type_cont : forall tau, HOcontractive (expr_typeF tau).
@@ -282,11 +282,11 @@ Definition expr_type e tau := HORec (expr_typeF tau) e.
 
 Lemma expr_type_eqn : forall tau e,
   expr_type e tau =
-  %All m:mem, mtype_valid m -->
-    (All m':mem, All e':expr, !!(step (m,e) (m',e')) -->
+  %ALL m:mem, mtype_valid m -->
+    (ALL m':mem, ALL e':expr, !!(step (m,e) (m',e')) -->
       |>(predicates_hered.diamond contractsM (mtype_valid m' && expr_type e' tau)))
     &&
-    (!!(stopped m e) --> Ex H:isValue e, with_val (exp_to_val e H) (%tau)).
+    (!!(stopped m e) --> EX H:isValue e, with_val (exp_to_val e H) (%tau)).
 Proof.
   intros.
   change (expr_type e tau = expr_typeF tau (fun e => expr_type e tau) e).
@@ -298,8 +298,8 @@ Proof.
 Qed.
 
 Definition ty_lam (tau1 tau2 : pred world) : pred world :=
-  Ex e:expr, Ex H:closed' 1 e, just (v_Lam e H) &&
-  |>%(All v':value, with_val v' (%tau1) --> expr_type (subst 0 v' e) tau2).
+  EX e:expr, EX H:closed' 1 e, just (v_Lam e H) &&
+  |>%(ALL v':value, with_val v' (%tau1) --> expr_type (subst 0 v' e) tau2).
 
 Definition etype : Type := list (pred world).
 
@@ -322,26 +322,26 @@ Proof.
   intros.
   unfold expr_typeF.
   apply sub_extend.
-  apply sub_allp. intro m.
-  apply sub_imp.
-  apply sub_refl.
-  apply sub_andp.
-  apply sub_allp. intro m'.
-  apply sub_allp. intro e'.
-  apply sub_imp.
-  apply sub_refl.
-  apply sub_refl.
-  apply sub_imp.
-  apply sub_refl.
-  apply sub_exp. intro H.
+  apply subp_allp. intro m.
+  apply subp_imp.
+  apply subp_refl.
+  apply subp_andp.
+  apply subp_allp. intro m'.
+  apply subp_allp. intro e'.
+  apply subp_imp.
+  apply subp_refl.
+  apply subp_refl.
+  apply subp_imp.
+  apply subp_refl.
+  apply subp_exp. intro H.
   apply sub_with_val.
   apply sub_extend.
   hnf; auto.
 Qed.
 
-Lemma sub_expr_type : forall G P P',
+Lemma subp_expr_type : forall G P P',
   G |-- P >=> P' ->
-  G |-- All e:expr, expr_type e P >=> expr_type e P'.
+  G |-- ALL e:expr, expr_type e P >=> expr_type e P'.
 Proof.
   intros.
   unfold expr_type.
@@ -357,31 +357,31 @@ Lemma ty_lam_sub : forall G P P' Q Q',
   G |-- (ty_lam P Q) >=> (ty_lam P' Q').
 Proof.
   unfold ty_lam; intros.
-  apply sub_exp; intro e.
-  apply sub_exp; intro He.
-  apply sub_andp.
-  apply sub_refl.
-  rewrite <- sub_later.
-  apply (derives_cut (|>( (P' >=> P) && (Q >=> Q')))).
+  apply subp_exp; intro e.
+  apply subp_exp; intro He.
+  apply subp_andp.
+  apply subp_refl.
+  rewrite <- subp_later.
+  apply derives_trans with (|>( (P' >=> P) && (Q >=> Q'))).
   rewrite box_and.
   do 2 intro; split; auto.
   apply box_positive.
   apply sub_extend.
-  apply sub_allp; intro v'.
-  apply sub_imp.
+  apply subp_allp; intro v'.
+  apply subp_imp.
   apply sub_with_val.
   apply sub_extend.
   intros a H1; destruct H1; auto.
   intros a H1; destruct H1; auto.
-  eapply sub_expr_type; eauto.
+  eapply subp_expr_type; eauto.
 Qed.
 
-Lemma sub_type_at : forall G P Q l,
+Lemma subp_type_at : forall G P Q l,
   G |-- |>(P <=> Q) ->
   G |-- type_at l P >=> type_at l Q.
 Proof.
   intros.
-  apply derives_cut with (|>(P <=> Q)); auto.
+  apply derives_trans with (|>(P <=> Q)); auto.
   clear; repeat intro; destruct a'.
   simpl in H2; simpl.
   case_eq (unsquash m); intros; rewrite H3 in H2.
@@ -414,10 +414,10 @@ Lemma ty_ref_sub : forall G P Q,
 Proof.
   intros.
   unfold ty_ref.
-  apply sub_exp; intro l.
-  apply sub_andp.
-  apply sub_refl.
-  apply sub_type_at.
+  apply subp_exp; intro l.
+  apply subp_andp.
+  apply subp_refl.
+  apply subp_type_at.
   auto.
 Qed.
 
@@ -428,12 +428,12 @@ Proof.
   intros. hnf; simpl.
   intros.
   spec H P Q.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_extend.
-  apply equ_sub.
+  apply eqp_subp.
   auto.
   apply sub_extend.
-  apply equ_sub2.
+  apply eqp_subp2.
   auto.
 Qed.
 
@@ -443,12 +443,12 @@ Lemma with_val_nonexpansive : forall F v,
 Proof.
   intros.
   hnf; intros; cbv beta.
-  apply sub_equ.
+  apply subp_eqp.
   apply sub_with_val.
-  apply equ_sub.
+  apply eqp_subp.
   apply H.
   apply sub_with_val.
-  apply equ_sub2.
+  apply eqp_subp2.
   apply H.
 Qed.
 
@@ -457,11 +457,11 @@ Lemma expr_type_nonexpansive : forall F e,
   nonexpansive (fun X => (expr_type e (F X))).
 Proof.
   intros; hnf; intros; cbv beta.
-  apply sub_equ.
-  do 2 intro; eapply sub_expr_type; eauto.
-  eapply equ_sub; eauto.
-  do 2 intro; eapply sub_expr_type; eauto.
-  eapply equ_sub2; eauto.
+  apply subp_eqp.
+  do 2 intro; eapply subp_expr_type; eauto.
+  eapply eqp_subp; eauto.
+  do 2 intro; eapply subp_expr_type; eauto.
+  eapply eqp_subp2; eauto.
 Qed.
 
 Lemma ty_lam_contractive : forall F G,
@@ -470,17 +470,17 @@ Lemma ty_lam_contractive : forall F G,
   contractive (fun X => ty_lam (F X) (G X)).
 Proof.
   intros; hnf; intros.
-  apply sub_equ.
+  apply subp_eqp.
   apply ty_lam_sub.
   apply box_positive.
-  apply equ_sub2; apply H.
+  apply eqp_subp2; apply H.
   apply box_positive.
-  apply equ_sub; apply H0.
+  apply eqp_subp; apply H0.
   apply ty_lam_sub.
   apply box_positive.
-  apply equ_sub; apply H.
+  apply eqp_subp; apply H.
   apply box_positive.
-  apply equ_sub2; apply H0.
+  apply eqp_subp2; apply H0.
 Qed.
 
 Lemma type_at_contractive : forall l F,
@@ -489,9 +489,9 @@ Lemma type_at_contractive : forall l F,
 Proof.
   intros; hnf; intros.
   cbv beta.
-  apply sub_equ; apply sub_type_at; apply box_positive.
+  apply subp_eqp; apply subp_type_at; apply box_positive.
   apply H.
-  apply sub_equ; [ apply equ_sub2 | apply equ_sub ]; apply H.
+  apply subp_eqp; [ apply eqp_subp2 | apply eqp_subp ]; apply H.
 Qed.  
 
 Lemma ty_ref_contractive : forall F,
@@ -548,7 +548,7 @@ Qed.
 Lemma with_val_extends : forall v P,
   %(with_val v P) = with_val v (%P).
 Proof.
-  intros; apply equiv_eq; repeat intro.
+  intros; apply pred_ext; repeat intro.
   destruct a; destruct a'.
   simpl in H0; destruct H0; subst.
   spec H (m0,v0).

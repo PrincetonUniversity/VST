@@ -8,8 +8,7 @@ COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES = \
-  language.v seplogic.v lift_seplogic.v model.v lseg.v \
-  client_lemmas.v sample_prog.v
+  hoare.v
 
 .PHONY : clean  all lib docs
 

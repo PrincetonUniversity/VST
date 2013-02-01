@@ -1,8 +1,8 @@
 Require Import Min.
 
 Require Import msl.msl_standard.
-Require Import msl.examples.funclistmach.Maps.
-Require Import msl.examples.funclistmach.FuncListMachine.
+Require Import Maps.
+Require Import FuncListMachine.
 
 
 Open Scope pred.

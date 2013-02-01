@@ -240,7 +240,7 @@ Proof.
 Qed.
 
 Lemma expr_type_val' : forall tau,
-  TT |-- All v:value, All e:expr, %(expr_type e tau --> with_val v (expr_type e tau)).
+  TT |-- ALL v:value, ALL e:expr, %(expr_type e tau --> with_val v (expr_type e tau)).
 Proof.
   intros; apply goedel_loeb.
   hnf; intros.

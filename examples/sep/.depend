@@ -1,5 +1,5 @@
-language.vo language.glob: language.v
-fo_seplog.vo fo_seplog.glob: fo_seplog.v
-seplog.vo seplog.glob: seplog.v
-frac_seplog.vo frac_seplog.glob: frac_seplog.v
-corec_example.vo corec_example.glob: corec_example.v
+language.vo language.glob: language.v ../../msl/eq_dec.vo
+fo_seplog.vo fo_seplog.glob: fo_seplog.v ../../msl/msl_direct.vo language.vo
+seplog.vo seplog.glob: seplog.v ../../msl/msl_standard.vo language.vo
+frac_seplog.vo frac_seplog.glob: frac_seplog.v language.vo ../../msl/msl_direct.vo ../../msl/env.vo
+corec_example.vo corec_example.glob: corec_example.v ../../msl/msl_direct.vo

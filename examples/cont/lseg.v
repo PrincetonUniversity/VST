@@ -1,8 +1,8 @@
-Require Import msl.examples.cont.language.
+Require Import language.
 Require Import msl.base.
 Require Import msl.seplog.
 Require Import msl.alg_seplog.
-Require Import msl.examples.cont.seplog.
+Require Import seplogic.
 Require Import msl.Coqlib2.
 Require Import msl.log_normalize.
 Require Import msl.eq_dec.

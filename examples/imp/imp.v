@@ -13,18 +13,9 @@ Inductive val : Set :=
   | int_val : nat -> val
   | ptr_val : addr -> val.
 
-(* Get an implemenation of share maps for the local environments*)
-Module LocalsMapInput <: ShareMapInput.
-  Definition A := ident.
-  Definition dec_eq_A := Dec_Eq eq_nat_dec.
-  Definition B := val.
-End LocalsMapInput.
-
-Module LocalsMap := ShareMap(LocalsMapInput).
-
-Definition locals := LocalsMap.map.
-Definition locals_sa := LocalsMap.sa_map.
-Existing Instance locals_sa.
+Definition locals := ShareMap.map ident val.
+Instance Join_locals: Join locals := ShareMap.Join_map _ _ (Join_equiv _).
+Instance locals_sa : Sep_alg locals := ShareMap.sa_map _ _ _.
 
 (* We characterize expressions as functions from local variable
    environments whcih are monotone with respect to increasing the
@@ -34,18 +25,9 @@ Definition expr :=
   { f: locals -> option val |
     forall l l' v, join_sub l l' -> f l = Some v -> f l' = Some v }.
 
-
-(* Get an implemenation of share maps for memories *)
-Module MemMapInput <: ShareMapInput.
-  Definition A := addr.
-  Definition dec_eq_A := Dec_Eq eq_nat_dec.
-  Definition B := val.
-End MemMapInput.
-
-Module MemMap := ShareMap(MemMapInput).
-
-Definition mem := MemMap.map.
-Definition mem_sa := MemMap.sa_map.
+Definition mem := ShareMap.map addr val.
+Instance Join_mem: Join mem := ShareMap.Join_map _ _ (Join_equiv _).
+Instance mem_sa : Sep_alg mem := ShareMap.sa_map _ _ _.
 
 (* The syntax of commands.  These are pretty basic
    imperative language constructs.
@@ -118,7 +100,7 @@ Section function_entry_locals.
 
   Let actuals := combine (fnd_formals fd) vals.
 
-  Definition make_locals := LocalsMap.build_map (actuals ++ fnd_locals fd).
+  Definition make_locals := ShareMap.build_map _ _ _ (actuals ++ fnd_locals fd).
 End function_entry_locals.
 
 (* unwind_return drops all the leading kseq constructions to finde
@@ -184,7 +166,7 @@ Inductive step (pu:program_unit) :
  | step_ret : forall k rho m e v i rho' k' rho'',
        proj1_sig e rho = Some v ->
        unwind_return k = (Some (i,rho',k')) ->
-       LocalsMap.map_upd i v rho' = Some rho'' ->
+       ShareMap.map_upd _ _ _ i v rho' = Some rho'' ->
        step pu k rho m
                (ret e)
                k' rho''  m
@@ -206,15 +188,15 @@ Inductive step (pu:program_unit) :
 
  | step_assign : forall k rho rho' m i e v,
        proj1_sig e rho = Some v ->
-       LocalsMap.map_upd i v rho = Some rho' ->
+       ShareMap.map_upd _ _ _ i v rho = Some rho' ->
        step pu k rho m
                (assign i e)
                k rho' m
 
  | step_load : forall k rho rho' m i e a v,
        proj1_sig e rho = Some (ptr_val a) ->
-       MemMap.map_val a m = Some v ->
-       LocalsMap.map_upd i v rho = Some rho' ->
+       ShareMap.map_val _ _ a m = Some v ->
+       ShareMap.map_upd _ _ _ i v rho = Some rho' ->
        step pu k rho m
                (load i e)
                k rho' m
@@ -223,7 +205,7 @@ Inductive step (pu:program_unit) :
        proj1_sig e1 rho = Some (ptr_val a) ->
        proj1_sig e2 rho = Some v ->
        
-       MemMap.map_upd a v m = Some m' ->
+       ShareMap.map_upd _ _ _ a v m = Some m' ->
 
        step pu k rho m
                (store e1 e2)

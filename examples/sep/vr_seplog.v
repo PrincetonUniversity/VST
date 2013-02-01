@@ -1,4 +1,4 @@
-Require Import msl.examples.sep.language.
+Require Import language.
 Require Import msl.msl_direct.
 Require Import msl.env.
 
@@ -41,11 +41,11 @@ Proof.
 Qed.
 
 Definition eval_var (x: var) (y: adr) : pred world :=
-   (Ex sh: share, (^stk env_mapsto x sh y) * TT)%pred.
+   (EX sh: share, (^stk env_mapsto x sh y) * TT)%pred.
 
 Notation "x '=#' v" := (eval_var x v) (at level 25, no associativity): pred.
 
-Definition defined (x: var) : pred world := (Ex v:adr, x =# v)%pred.
+Definition defined (x: var) : pred world := (EX v:adr, x =# v)%pred.
 
 Definition subst (x: var) (v: option (pshare * adr)) (P: pred world) : pred world :=
    fun w => P (env_set_sh x v (fst w), snd w).
