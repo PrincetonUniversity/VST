@@ -1,5 +1,7 @@
 Load loadpath.
 Require Import compositional_compcert.core_semantics.
+Require Import compositional_compcert.extspec.
+Require Import compositional_compcert.step_lemmas.
 
 Require Import veric.base.
 Require Import veric.Address.
@@ -9,8 +11,6 @@ Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
-Require Import veric.extspec.
-Require Import veric.step_lemmas.
 Require Import veric.initial_world.
 
 Local Open Scope nat_scope.

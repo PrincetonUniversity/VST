@@ -1,7 +1,15 @@
 Load loadpath.
-Require Import compositional_compcert.core_semantics.
+Require Import compositional_compcert.sim compositional_compcert.extspec.
 
-Require Import veric.base veric.extspec.
+Require Import Coqlib.
+Require Import Integers.
+Require Import Values.
+Require Import AST.
+Require Import Memory.
+Require Import Events.
+Require Import Globalenvs.
+Require Import msl.Coqlib2.
+
 
 Section safety.
   Context {G C M D Z:Type}.
@@ -14,16 +22,16 @@ Section safety.
     match n with
     | O => True
     | S n' => 
-       match at_external Hcore c, safely_halted Hcore c with
+       match at_external Hcore c, safely_halted Hcore ge c with
        | None, None =>
            exists c', exists m',
              corestep Hcore ge c m c' m' /\
              safeN n' z c' m'
-       | Some (e,sig,args), None =>
+       | Some (e,args), None =>
            exists x:ext_spec_type Hspec e,
-             ext_spec_pre Hspec e x (sig_args sig) args z m /\
+             ext_spec_pre Hspec e x (*(sig_res sig)*) args z m /\
              (forall ret m' z',
-               ext_spec_post Hspec e x (sig_res sig) ret z' m' ->
+               ext_spec_post Hspec e x (*(opt2list (sig_res sig))*) ret z' m' ->
                exists c',
                  after_external Hcore ret c = Some c' /\
                  safeN n' z' c' m')
@@ -67,9 +75,9 @@ Section safety.
   Proof.
     induction n; simpl; intros; auto.
     destruct (at_external Hcore c);
-      destruct (safely_halted Hcore c).
+      destruct (safely_halted Hcore ge c).
     destruct p; auto.
-    destruct p. destruct p.
+    destruct p. (*destruct p.*)
     destruct H as [x ?].
     exists x. 
     destruct H. split; auto.
@@ -95,15 +103,15 @@ Section safety.
       (at_external Hcore q1 = at_external Hcore q2) ->
       (forall ret q', after_external Hcore ret q1 = Some q' ->
                       after_external Hcore ret q2 = Some q') ->
-      (safely_halted Hcore q1 = safely_halted Hcore q2) ->
+      (safely_halted Hcore ge q1 = safely_halted Hcore ge q2) ->
       (forall q' m', corestep Hcore ge q1 m q' m' -> corestep Hcore ge q2 m q' m') ->
       (forall n z, safeN n z q1 m -> safeN n z q2 m).
   Proof.
     intros. destruct n; simpl in *; auto.
     rewrite H in H3. rewrite H1 in H3.
     destruct (at_external Hcore q2);
-      destruct (safely_halted Hcore q2); auto.
-    destruct p. destruct p.
+      destruct (safely_halted Hcore ge q2); auto.
+    destruct p. 
     destruct H3 as [x ?].
     exists x. 
     destruct H3; split; auto.

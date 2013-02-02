@@ -1044,7 +1044,6 @@ Lemma CC_corestep_not_halted :
    Proof. intros. right; trivial. Qed.
 
 Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem   (list (ident * globdef fundef type)).
-Print Build_CoreSemantics.
  apply (Build_CoreSemantics _ _ _ _ cl_init_mem
                 CC_initial_core CC_at_external CC_after_external CC_safely_halted CC_step).
        apply CC_corestep_not_at_external.

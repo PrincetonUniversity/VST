@@ -9,12 +9,12 @@ msl -   Mechanized Software Library
 examples - examples of how to use the msl
             [soon to be moved here from msl/examples]
 compcert -   front end of the CompCert compiler, specification of C light
-veric -  program logic (and soundness proof) for Verifiable C
-progs -  tactics for applying the separation logic, 
-             plus one or more sample programs.
 compositional_compcert - the theory and practice of how to specify 
     shared-memory interaction (for separation compilation and concurrency) 
     for CompCert
+veric -  program logic (and soundness proof) for Verifiable C
+progs -  tactics for applying the separation logic, 
+             plus one or more sample programs.
 veristar - decision procedure for entailments in separation logic,
            proved sound w.r.t. veric  (needs maintenance to bring it up to date)
 
@@ -22,11 +22,11 @@ The Makefile and naming structure is a bit unusual.
 The dependencies are:
 
 msl:   # no dependency on other directories
-compcert: # no dependency on other directories
 examples: msl
-veric:  msl compcert
-progs: msl compcert veric
+compcert: # no dependency on other directories
 compositional_compcert: compcert
+veric:  msl compcert compositional_compcert
+progs: msl compcert veric
 
 In general, we will Import using "-I" (nonrecursive) instead of "-R"
 (recursive).  This means modules need to be named using qualified names.

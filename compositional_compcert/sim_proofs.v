@@ -1,6 +1,17 @@
+Load loadpath.
 Require Import Wellfounded.
-Require Import veric.base.
-Require Import veric.sim.
+
+Require Import Coqlib.
+Require Import Integers.
+Require Import Values.
+Require Import AST.
+Require Import Memory.
+Require Import Events.
+Require Import Globalenvs.
+Require Import msl.Coqlib2.
+Require Export compositional_compcert.core_semantics.
+Require Export compositional_compcert.MemEvolve.
+Require Import compositional_compcert.sim.
 Require Import Events.
 (*Require Import Mem_inject.*)
 

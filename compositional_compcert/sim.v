@@ -1,75 +1,17 @@
 Load loadpath.
-Require Import veric.base.
+Require Import Coqlib.
+Require Import Integers.
+Require Import Values.
+Require Import AST.
+Require Import Memory.
 Require Import Events.
-Require Export veric.MemEvolve.
+Require Import Globalenvs.
+Require Import msl.Coqlib2.
+Require Export compositional_compcert.core_semantics.
+Require Export compositional_compcert.MemEvolve.
 
 Lemma inject_separated_same_meminj: forall j m m', Events.inject_separated j j m m'.
   Proof. intros j m m' b; intros. congruence. Qed.
-
-(* A "core semantics represents" a fairly traditional,
-   sequential, small step semantics of computation.  They
-   are designed to cooperate with "extensions"
-   which give semantics to primtive constructs not defined
-   by the extensible semantics (e.g., external function calls).
-
-   The [G] type parameter is the type of global environments,
-   the type [C] is the type of core states, and the type [E]
-   is the type of extension requests.  The [at_external]
-   function gives a way to determine when the sequential
-   execution is blocked on an extension call, and to extract
-   the data necessary to execute the call.  [after_external]
-   give a way to inject the extension call results back into
-   the sequential state so execution can continue.
-   
-  Lenb: the type parameter [D] stands for the type of initialization data, 
-       eg list (ident * globvar V).
-
-   [make_initial_core] produces the core state corresponding
-   to an entry point of the program/module.  The arguments are the
-   program's genv, a pointer to the function to run, and
-   the arguments for that function.
-
-   The [safely_halted] predicate indicates when a program state
-   has reached a halted state, and what it's exit code/return value is
-   when it has reached such a state.
-
-   [corestep] is the fundamental small-step relation for
-   the sequential semantics.
-
-   The remaining properties give basic sanity properties which constrain
-   the behavior of programs.
-    1) a state cannot be both blocked on an extension call
-        and also step,
-    2) a state cannot both step and be halted
-    3) a state cannot both be halted and blocked on an external call
- *)
-
-Record CoreSemantics {G C M D:Type}: Type :=
-  { initial_mem: G -> M -> D -> Prop;
-    (*characterizes initial memories*)
-  make_initial_core : G -> val -> list val -> option C;
-  at_external : C -> option (external_function * signature * list val);
-  after_external : option val -> C -> option C;
-  safely_halted : C -> option val; 
-  (*Lenb: return type used to be option int, so that only the exit code of eg main can be returned.
-    As out envisioned linker will, however use safely_halted to detect that an external call has 
-   finished execution, we need to allow arbitrary reutrn values*)
-
-  corestep : G -> C -> M -> C -> M -> Prop;
-
-  corestep_not_at_external: forall ge m q m' q', 
-    corestep ge q m q' m' -> at_external q = None;
-
-  corestep_not_halted: forall ge m q m' q', 
-    corestep ge q m q' m' -> safely_halted q = None;
-
-  at_external_halted_excl: forall q, 
-    at_external q = None \/ safely_halted q = None;
-
-   after_at_external_excl : forall retv q q',
-    after_external retv q = Some q' -> at_external q' = None
-  }.
-Implicit Arguments CoreSemantics [].
 
 (* Definition of multistepping. *)
 Section corestepN.

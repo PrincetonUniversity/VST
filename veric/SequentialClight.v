@@ -4,14 +4,14 @@ Require Import compositional_compcert.core_semantics.
 Require Import veric.base.
 Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.
-Require Import veric.step_lemmas.
+Require Import compositional_compcert.step_lemmas.
 Require Import veric.SeparationLogic.
 Require Import veric.juicy_extspec.
 Require Import veric.juicy_mem.
 Require Import veric.NullExtension.
 Require Import veric.Clight_sim.
 Require Import veric.SeparationLogicSoundness.
-Require Import veric.extspec.
+Require Import compositional_compcert.extspec.
 Require Import msl.msl_standard.
 
 Module SeqC := MakeSeparationLogic NullExtension.

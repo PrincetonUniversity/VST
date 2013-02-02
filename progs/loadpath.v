@@ -1,3 +1,4 @@
+Add LoadPath "../veric".
 Add LoadPath "../compcert/lib".
 Add LoadPath "../compcert/flocq/Appli".
 Add LoadPath "../compcert/flocq/Calc".

@@ -1,5 +1,13 @@
 Load loadpath.
-Require Import veric.base.
+Require Import Coqlib.
+Require Import Integers.
+Require Import Values.
+Require Import Maps.
+Require Import Memory.
+Require Import msl.Extensionality.
+Require Import msl.Coqlib2.
+
+
 
 Theorem drop_extends:
   forall m1 m2 lo hi b p m1',

@@ -11,8 +11,8 @@ Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
-Require Import veric.extspec.
-Require Import veric.step_lemmas.
+Require Import compositional_compcert.extspec.
+Require Import compositional_compcert.step_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.

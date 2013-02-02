@@ -1,5 +1,5 @@
 Add LoadPath "..".
-Require Import veric.sim veric.sim_step_lemmas.
+Require Import compositional_compcert.sim compositional_compcert.sim_step_lemmas.
 
 Set Implicit Arguments.
 

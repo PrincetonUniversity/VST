@@ -14,7 +14,7 @@ Require Export Ctypes.
 Require Export Clight.
 
 Require Export EqNat.
-Require Export veric.Coqlib2.
+Require Export compositional_compcert.Coqlib2.
 Require Export Relations.
 
 Set Implicit Arguments.

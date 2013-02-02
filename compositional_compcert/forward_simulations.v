@@ -10,7 +10,7 @@ Require Import Integers.
 Require Import AST.
 Require Import Globalenvs.
 
-Require Import msl.Axioms.
+Require Import Axioms.
 Require Import compositional_compcert.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import compositional_compcert.core_semantics.
 

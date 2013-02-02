@@ -2387,7 +2387,7 @@ intros ? ?.
 unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
 generalize (plt_ok PLT); intro.
 destruct (lt_dec n num_modules); try solve[elimtype False; omega].
-assert (plt_ok (eq_sym e) = l) as -> by apply proof_irr; auto.
+assert (plt_ok (Logic.eq_sym e) = l) as -> by apply proof_irr; auto.
 unfold genv_map in INIT.
 rewrite INIT.
 solve[assert (l = plt_ok PLT0) as -> by apply proof_irr; auto].
@@ -2398,7 +2398,7 @@ generalize PLT.
 pattern (procedure_linkage_table main_id) at 0 2 4.
 rewrite PLT in *.
 intros ? e.
-assert (plt_ok (eq_sym e) = plt_ok PLT) as -> by apply proof_irr.
+assert (plt_ok (Logic.eq_sym e) = plt_ok PLT) as -> by apply proof_irr.
 rewrite H7.
 inversion 1; subst.
 split.
@@ -2486,7 +2486,7 @@ generalize PLT.
 pattern (procedure_linkage_table main_id) at 0 2 4.
 rewrite PLT in *.
 intros ? e.
-assert (plt_ok (eq_sym e) = plt_ok PLT) as -> by apply proof_irr.
+assert (plt_ok (Logic.eq_sym e) = plt_ok PLT) as -> by apply proof_irr.
 rewrite H7.
 solve[intros; congruence].
 

@@ -20,7 +20,7 @@ Require Export veric.expr.
 Require veric.seplog.
 Require veric.assert_lemmas.
 Require msl.msl_standard.
-Require Import veric.Coqlib2.
+Require Import compositional_compcert.Coqlib2.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
