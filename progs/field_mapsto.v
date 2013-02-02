@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import veric.SeparationLogic.
-Require Import Coqlib veric.Coqlib2.
+Require Import Coqlib compositional_compcert.Coqlib2.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 

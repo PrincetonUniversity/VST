@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import veric.SeparationLogic.
-Require Import Coqlib veric.Coqlib2.
+Require Import Coqlib compositional_compcert.Coqlib2.
 Require Import Clightdefs.
 (* no "semax" in this file, just assertions.
  Thus, no need to import SequentialClight.SeqC.CSL.
