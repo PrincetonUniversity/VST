@@ -43,8 +43,6 @@ Definition main_spec :=
   PRE  [] main_pre P.prog u
   POST [ tint ] main_post P.prog u.
 
-Definition main_spec' := (P._main, mk_funspec (nil, tint) _ (main_pre P.prog) (main_post P.prog)).
-
 Definition Vprog : varspecs := (P._three, Tarray P.t_struct_list 3 noattr)::nil.
 
 Definition Gprog : funspecs := 

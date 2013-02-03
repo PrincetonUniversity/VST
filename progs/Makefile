@@ -9,8 +9,10 @@ COQDOC=coqdoc
 CLIGHTGENFLAGS = -l loadpath
 
 FILES= \
-   list.v client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
-  test1.v verif1.v
+   list.v list_dt.v \
+   client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
+  test1.v verif1.v \
+  queue.v verif_queue.v
 
 
 target: proof
@@ -19,6 +21,9 @@ proof: $(FILES:.v=.vo)
 
 
 test1.vo: test1.v
+	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
+
+queue.vo: queue.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 .SUFFIXES: .v .vo
