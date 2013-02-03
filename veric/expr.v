@@ -552,7 +552,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
-                            (if andb (is_pointer_type ty) (is_pointer_type tfrom) then tc_TT
+                            (if orb  (andb (is_pointer_type ty) (is_pointer_type tfrom)) (andb (is_int_type ty) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero a)
 | Cop.cast_case_void => tc_noproof
 (*Disabling this for the program logic, the only time it is used is not for

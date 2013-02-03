@@ -8,7 +8,7 @@ COQDOC=coqdoc
 
 FILES= \
   base.v Address.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
-  expr.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v expr_lemmas.v \
+  expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v \
   Clight_lemmas.v Clight_new.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \

@@ -8,8 +8,7 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.expr.
 Require Export veric.environ_lemmas. 
-Require Import veric.binop_lemmas.
-Require Import veric.binop_lemmas2. 
+Require Import veric.binop_lemmas. 
 Import Cop.
 
 (*Definitions of some environments*)
@@ -456,7 +455,27 @@ destruct (type_of_global ge b0); inv H0; auto.
 inv H0.
 Qed.
 
+Lemma typecheck_force_Some : forall ov t, typecheck_val (force_val ov) t = true
+-> exists v, ov = Some v. 
+Proof.
+intros. destruct ov; destruct t; eauto; simpl in *; congruence. 
+Qed. 
 
+
+Lemma typecheck_binop_sound2:
+ forall (Delta : tycontext) (rho : environ) (b : binary_operation)
+     (e1 e2 : expr) (t : type),
+   denote_tc_assert (typecheck_expr Delta e2) rho ->
+   denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
+   denote_tc_assert (typecheck_expr Delta e1) rho ->
+   typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
+   typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
+   typecheck_val
+     (eval_binop b (typeof e1) (typeof e2) (eval_expr e1 rho)
+        (eval_expr e2 rho)) t = true. 
+Proof. 
+intros. eapply typecheck_binop_sound; eauto.  simpl. repeat (try rewrite tc_andp_sound; try unfold_coerce; simpl in *). intuition; eauto. 
+Qed. 
 
 Lemma eval_binop_relate_fail :
 forall (Delta : tycontext) (rho : environ) (b : binary_operation)
@@ -474,30 +493,15 @@ Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
 Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
 Proof. 
-intros. assert (TC1 := typecheck_expr_sound _ _ _ H H1).
+intros. 
+assert (TC1 := typecheck_expr_sound _ _ _ H H1).
 assert (TC2 := typecheck_expr_sound _ _ _ H H3).
-simpl in *.  
-unfold sem_binary_operation in *.
 
-destruct b.
-
-eapply eval_binop_relate_fail_add; eauto.
-eapply eval_binop_relate_fail_sub; eauto.
-eapply eval_binop_relate_fail_mul; eauto.
-eapply eval_binop_relate_fail_div; eauto.
-eapply eval_binop_relate_fail_mod; eauto.
-eapply eval_binop_relate_fail_and; eauto.
-eapply eval_binop_relate_fail_or; eauto.
-eapply eval_binop_relate_fail_xor; eauto.
-eapply eval_binop_relate_fail_shl; eauto.
-eapply eval_binop_relate_fail_shr; eauto.
-eapply eval_binop_relate_fail_eq; eauto.
-eapply eval_binop_relate_fail_ne; eauto.
-eapply eval_binop_relate_fail_lt; eauto.
-eapply eval_binop_relate_fail_gt; eauto.
-eapply eval_binop_relate_fail_le; eauto.
-eapply eval_binop_relate_fail_ge; eauto.
-Qed.
+eapply typecheck_binop_sound2 in H2; eauto. 
+unfold eval_binop in *. apply typecheck_force_Some in H2. destruct H2.
+congruence. 
+Qed. 
+  
 
 
 Lemma eval_both_relate:
@@ -1508,4 +1512,4 @@ typecheck_val v tto = true.
 Proof. 
 intros. 
 destruct v; destruct tfrom; destruct tto; try solve [simpl in *; try congruence]; auto;  first  [destruct i1 | destruct i0 | destruct i]; try destruct s; unfold allowedValCast in *; try solve [simpl in *; try congruence].
-Qed. 
+Qed.  
