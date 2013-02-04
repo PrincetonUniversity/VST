@@ -206,14 +206,13 @@ Hint Rewrite retval_get_result1 : normalize.
 Lemma retval_lemma1:
   forall rho v,     retval (env_set rho ret_temp v) = v.
 Proof.
- intros. unfold retval. unfold eval_id. simpl. rewrite Map.gss. auto.
+ intros. unfold retval. unfold eval_id. simpl. auto.
 Qed.
 Hint Rewrite retval_lemma1 : normalize.
 
 Lemma retval_make_args:
   forall v rho, retval (make_args (ret_temp::nil) (v::nil) rho) = v.
-Proof. intros. unfold retval, eval_id; simpl.
-    rewrite Map.gss. reflexivity.
+Proof. intros. unfold retval, eval_id; simpl. reflexivity.
 Qed.
 Hint Rewrite retval_make_args: normalize.
 
@@ -1036,14 +1035,17 @@ Notation "'WITH'  x1 : t1 , x2 : t2 'PRE'  [ ] P 'POST' [ tz ] Q" :=
            (fun x => let (x1,x2):=x in P%logic) (fun x => let (x1,x2):=x in Q%logic))
             (at level 200, x1 at level 0, x2 at level 0, P at level 100, Q at level 100).
 
+
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3)
-           (fun x => let (x1,x2,x3):=x in P%logic) (fun x => let (x1,x2,x3):=x in Q%logic))
+           (fun x => match x with ((x1,x2),x3) => P%logic end)
+           (fun x => match x with ((x1,x2),x3) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
 Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
      (mk_funspec (nil, tz) (t1*t2*t3)
-           (fun x => let (x1,x2,x3):=x in P%logic) (fun x => let (x1,x2,x3):=x in Q%logic))
+           (fun x => match x with ((x1,x2),x3) => P%logic end)
+           (fun x => match x with ((x1,x2),x3) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
 Lemma exp_derives {A}{NA: NatDed A}{B}:

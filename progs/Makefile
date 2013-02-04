@@ -9,7 +9,7 @@ COQDOC=coqdoc
 CLIGHTGENFLAGS = -l loadpath
 
 FILES= \
-   list.v list_dt.v \
+   list.v list_dt.v malloc_lemmas.v \
    client_lemmas.v assert_lemmas.v field_mapsto.v forward_lemmas.v forward.v \
   test1.v verif1.v \
   queue.v verif_queue.v

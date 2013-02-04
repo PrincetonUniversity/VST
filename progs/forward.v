@@ -360,7 +360,7 @@ match goal with
               apply semax_seq' with Post;
                [ forward1; unfold Post; 
                  try apply normal_ret_assert_derives';
-                 apply derives_refl
+                 try apply derives_refl
                | try unfold exit_tycon; 
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
