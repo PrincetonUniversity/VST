@@ -72,6 +72,28 @@ f_equal; auto.
 Qed.
 Hint Resolve closed_wrt_local : closed.
 
+Lemma closed_wrt_lift0: forall {A} S (Q: A), closed_wrt_vars S (lift0 Q).
+Proof.
+intros.
+intros ? ? ?.
+unfold lift0; auto.
+Qed.
+Hint Resolve @closed_wrt_lift0: closed.
+
+Lemma closed_wrt_lift0C: forall {B} S (Q: B), 
+   closed_wrt_vars S (@coerce B (environ -> B) (lift0_C B)  Q).
+Proof.
+intros.
+intros ? ? ?.
+unfold_coerce; auto.
+Qed.
+Hint Resolve @closed_wrt_lift0C: closed.
+
+Lemma closed_wrt_lift0Cassert: forall  S (Q: mpred), 
+   closed_wrt_vars S (@coerce mpred assert (lift0_C mpred)  Q).
+Proof. apply closed_wrt_lift0C. Qed.
+Hint Resolve @closed_wrt_lift0Cassert: closed.
+
 Lemma closed_wrt_lift1: forall {A}{B} S (f: A -> B) P, 
         closed_wrt_vars S P -> 
         closed_wrt_vars S (lift1 f P).
@@ -91,6 +113,12 @@ intros ? ? ?. specialize (H _ _ H0).
 unfold_coerce; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift1C : closed.
+
+Lemma closed_wrt_lift1Cassert: forall {A} S (f: A -> mpred) P, 
+        closed_wrt_vars S P -> 
+        closed_wrt_vars S (@coerce (A -> mpred) ((environ -> A) -> assert) (lift1_C A mpred) f P).
+Proof. intro; apply closed_wrt_lift1C. Qed.
+Hint Resolve @closed_wrt_lift1Cassert : closed.
 
 Lemma closed_wrt_lift2: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
         closed_wrt_vars S P1 -> 
@@ -118,6 +146,16 @@ specialize (H0 _ _ H1).
 unfold_coerce; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift2C : closed.
+
+
+Lemma closed_wrt_lift2C_assert: forall {A1 A2} 
+                  S (f: A1 -> A2 -> mpred) P1 P2, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S (@coerce (A1 -> A2 -> mpred) ((environ -> A1) -> (environ -> A2) -> assert)
+                  (lift2_C A1 A2 mpred) f P1 P2).
+Proof. intros ? ?; apply closed_wrt_lift2C. Qed.
+Hint Resolve @closed_wrt_lift2C_assert : closed.
 
 
 Lemma closed_wrt_eval_expr: forall S e,
@@ -204,24 +242,6 @@ Hint Extern 2 (closed_wrt_vars (modified1 _) _) =>
       (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
 
 Hint Resolve @Forall_cons @Forall_nil : closed.
-
-Lemma closed_wrt_lift0: forall {A} S (Q: A), closed_wrt_vars S (lift0 Q).
-Proof.
-intros.
-intros ? ? ?.
-unfold lift0; auto.
-Qed.
-Hint Resolve @closed_wrt_lift0: closed.
-
-Lemma closed_wrt_lift0C: forall {B} S (Q: B), 
-   closed_wrt_vars S (@coerce B (environ -> B) (lift0_C B)  Q).
-Proof.
-intros.
-intros ? ? ?.
-unfold_coerce; auto.
-Qed.
-Hint Resolve @closed_wrt_lift0C: closed.
-
 
 
 Lemma closed_wrt_tc_formals:
@@ -502,6 +522,14 @@ Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : normalize.
+
+Lemma bind_ret1_unfold':
+  forall v t Q rho, 
+  bind_ret (Some v) t Q rho = !!(tc_val t v) && Q (make_args (ret_temp::nil)(v::nil) rho).
+Proof.
+ intros. reflexivity.
+Qed.
+Hint Rewrite bind_ret1_unfold' : normalize.  (* put this in AFTER the unprimed version, for higher priority *)
 
 Lemma normal_ret_assert_derives': 
   forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.

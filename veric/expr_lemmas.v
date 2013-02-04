@@ -1,7 +1,6 @@
 Load loadpath.
 Require Import msl.msl_standard.
 Require Import veric.base.
-Require Import veric.Address.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
@@ -1512,4 +1511,5 @@ typecheck_val v tto = true.
 Proof. 
 intros. 
 destruct v; destruct tfrom; destruct tto; try solve [simpl in *; try congruence]; auto;  first  [destruct i1 | destruct i0 | destruct i]; try destruct s; unfold allowedValCast in *; try solve [simpl in *; try congruence].
-Qed.  
+Qed.
+

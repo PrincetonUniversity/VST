@@ -9,7 +9,7 @@ Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
 Require Import progs.forward.
-Require Import progs.listc.
+Require Import progs.list_dt.
 
 Require Import progs.queue.
 
@@ -29,8 +29,8 @@ Parameter memory_block: share -> int -> val -> mpred.
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: int
-  PRE [ 1%positive OF tint]  !! (4 <= Int.signed n) &&
-                             local (`(eq (Vint n)) (eval_id 1%positive)) && emp
+  PRE [ 1%positive OF tint]  (!! (4 <= Int.signed n) &&
+                             local (`(eq (Vint n)) (eval_id 1%positive))) && emp
   POST [ tptr tvoid ]  `(memory_block Share.top n) retval.
 
 Definition freeN_spec :=
@@ -46,8 +46,8 @@ Definition fifo (contents: list elemtype) (p: val) : mpred:=
   EX ht: (val*val), EX last : val, 
       mapsto Share.top (tptr t_struct_elem) (snd ht) last *
       (mapsto Share.top (tptr t_struct_elem) (snd ht) last -*
-      (field_mapsto Share.top (tptr t_struct_elem) _head p (fst ht) *
-       field_mapsto Share.top (tptr (tptr t_struct_elem)) _tail p (snd ht) *
+      (field_mapsto Share.top t_struct_fifo _head p (fst ht) *
+       field_mapsto Share.top t_struct_fifo _tail p (snd ht) *
        lseg QS Share.top contents (fst ht) last)).
 
 Definition elemrep (rep: elemtype) (p: val) : mpred :=
@@ -99,13 +99,166 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
+
+Lemma andp_prop_gather {A}{NA: NatDed A}:
+  forall P Q: Prop, andp (prop P) (prop Q) = prop (P /\ Q).
+Proof.
+intros. apply pred_ext; normalize.
+Qed.
+
+Lemma memory_block_isptr:
+  forall sh n v, memory_block sh n v = !! denote_tc_isptr v && memory_block sh n v.
+Admitted.
+
+
+Lemma memory_block_fifo:
+ forall sh e, 
+ `(memory_block sh (Int.repr 8)) e =
+  `(field_storable sh t_struct_fifo queue._head) e *
+  `(field_storable sh t_struct_fifo queue._tail) e.
+Admitted.
+
+Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
+lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
+Proof. intros.  extensionality rho. 
+  unfold lift1.  f_equal.  unfold retval, get_result1. 
+  simpl.  unfold eval_id at 1.  simpl.  rewrite Map.gss. reflexivity.
+Qed.
+
+Lemma lift1_lift1_retvalC {A}: forall i (P: val -> A),
+`(`P retval) (get_result1 i) = @coerce _ _ (lift1_C _ _) P (eval_id i).
+Proof. intros.  extensionality rho.
+  unfold coerce, lift1_C, lift1. 
+  f_equal.  unfold retval, get_result1. 
+  simpl.  unfold eval_id at 1.  simpl.  rewrite Map.gss. reflexivity.
+Qed.
+
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
 name _Q _Q.
-(* forward. *) (* Q = (struct fifo * )mallocN(sizeof ( *Q)); *) 
+name _q 21%positive.
+forward. (* q = mallocN(sizeof ( *Q)); *) 
+instantiate (1:= Int.repr 8) in (Value of witness).
+go_lower. rewrite andp_prop_gather. normalize.
+repeat apply andp_right; try apply prop_right.
+compute; congruence.
+compute; congruence.
+cancel.
+forward. (* Q = (struct fifo * )q; *)
+apply semax_pre_PQR with
+  (PROP  ()
+   LOCAL  ()
+   SEP 
+   (`(memory_block Share.top (Int.repr 8)) (eval_id queue._Q))).
+go_lower. subst. destruct _q; inv TC; inv TC0. normalize.
+     unfold eval_cast; simpl; auto.
+rewrite memory_block_fifo.
+flatten_sepcon_in_SEP.
 
-Admitted.
+match goal with 
+  | |- semax _ _ (Ssequence ?c1 ?c2) _ => 
+           let Post := fresh "Post" in
+              evar (Post : assert);
+              apply semax_seq' with Post;
+
+               [ forward1; unfold Post; 
+                 try apply normal_ret_assert_derives';
+                 try apply derives_refl
+               | try unfold exit_tycon; 
+                   simpl update_tycon; simpl map;
+                   try (unfold Post; clear Post);
+                    try (apply extract_exists_pre; intro_old_var c1);
+                    try apply elim_redundant_Delta;
+                    redefine_Delta
+               ]
+end.
+
+go_lower. apply andp_right; auto. apply prop_right; hnf; auto.
+apply writable_share_top.
+
+
+match goal with 
+  | |- semax _ _ (Ssequence ?c1 ?c2) _ => 
+           let Post := fresh "Post" in
+              evar (Post : assert);
+              apply semax_seq' with Post;
+
+               [ forward1; unfold Post; 
+                 try apply normal_ret_assert_derives';
+                 try apply derives_refl
+               | try unfold exit_tycon; 
+                   simpl update_tycon; simpl map;
+                   try (unfold Post; clear Post);
+                    try (apply extract_exists_pre; intro_old_var c1);
+                    try apply elim_redundant_Delta;
+                    redefine_Delta
+               ]
+end.
+
+
+(* BEGIN: Consult with Joey about this one ... tc_isptr *)
+unfold tc_expr, tc_lvalue.
+unfold typecheck_expr, typecheck_lvalue.
+simpl negb. simpl PTree.get. cbv iota.
+simpl denote_tc_assert.
+unfold field_offset. simpl field_offset_rec.
+rewrite if_true by auto.
+simpl tc_andp.
+simpl denote_tc_assert.
+go_lower.
+rewrite field_mapsto_nonnull at 1.
+normalize.
+destruct _Q; inv H; inv TC0.
+rewrite H0 in H1; inv H1.
+simpl denote_tc_isptr.
+normalize.
+(* END: consult with Joey *)
+apply writable_share_top.
+
+forward. (* return Q; *)
+go_lower.
+unfold field_offset; simpl field_offset_rec.
+rewrite if_true by auto.
+apply andp_right.
+rewrite field_mapsto_nonnull.
+normalize.
+apply prop_right.
+destruct _Q; inv H; inv TC0; hnf; simpl; auto.
+unfold fifo.
+apply exp_right with (nullval,_Q).
+simpl.
+apply exp_right with nullval.
+rewrite field_mapsto_nonnull.
+normalize.
+destruct _Q; inv H; inv TC0; simpl; auto.
+rewrite H0 in H1; inv H1.
+unfold eval_cast; simpl.
+normalize.
+
+replace (mapsto Share.top (tptr t_struct_elem) (Vptr b i) nullval) 
+  with (field_mapsto Share.top t_struct_fifo _head (Vptr b i) nullval).
+Focus 2. symmetry. 
+eapply mapsto_field_mapsto.
+simpl. rewrite if_true by auto. 
+rewrite if_false by (intro Hx; inv Hx).
+simpl. reflexivity.
+reflexivity.
+unfold field_offset; simpl. rewrite if_true by auto. reflexivity.
+rewrite align_0 by (compute; auto). unfold offset_val.
+rewrite Int.add_zero. auto.
+simpl. rewrite if_true by auto.  apply Int.eq_true.
+simpl. rewrite if_true by auto.
+rewrite if_false by (intro Hx; inv Hx).
+unfold type_is_volatile; simpl.
+auto.
+
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+apply wand_sepcon_adjoint.
+rewrite sepcon_comm; auto.
+Qed.
+
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.

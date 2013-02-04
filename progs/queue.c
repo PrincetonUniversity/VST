@@ -15,6 +15,7 @@ struct fifo {
 
 struct fifo *fifo_new(void) {
   struct fifo *Q = (struct fifo *)mallocN(sizeof (*Q));
+  Q->head = NULL;
   Q->tail = &(Q->head);
   return Q;
 }

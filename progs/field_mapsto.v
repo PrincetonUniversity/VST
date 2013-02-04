@@ -57,6 +57,36 @@ Definition field_mapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpr
   | _, _  => FF
   end.
 
+Definition field_storable (sh: Share.t) (t1: type) (fld: ident) (v1: val) : mpred :=
+ match v1, t1 with
+  | Vptr l ofs, Tstruct id fList  att =>
+    let fList' := unroll_composite_fields id t1 fList in
+    let t2 := type_of_field fList' fld in
+     match field_offset fld fList',  access_mode t2 with
+     | Errors.OK delta, By_value ch => 
+          !!(type_is_volatile t2 = false) &&
+           EX v2:val,
+           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
+     | _, _ => FF
+     end
+  | _, _  => FF
+  end.
+
+Lemma field_mapsto_storable:
+  forall sh t1 fld v1 v2, field_mapsto sh t1 fld v1 v2 |-- field_storable sh t1 fld v1.
+Proof.
+intros.
+unfold field_mapsto, field_storable.
+destruct v1; auto.
+destruct t1; auto.
+destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f)); auto.
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); auto.
+normalize.
+apply exp_right with v2; normalize.
+Qed.
+
+
 Lemma field_mapsto_typecheck_val:
   forall t fld sh x y id fList att, 
      t = Tstruct id fList att ->
@@ -175,7 +205,7 @@ Lemma mapsto_field_mapsto:
          (type_of_field
             (unroll_composite_fields structid
                (Tstruct structid fields noattr) fields) fld) = false) ->
-  mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
+  mapsto sh t v1' v2 = field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
 Proof.
 intros.
 unfold field_mapsto, mapsto.
@@ -186,9 +216,32 @@ rewrite field_offset_unroll. rewrite H1. rewrite H.
 normalize.
 Qed.
 
+Lemma mapsto_field_mapsto':
+  forall ch v1 v1' v2 sh ofs t structid fld fields,
+  access_mode
+        (type_of_field
+           (unroll_composite_fields structid (Tstruct structid fields noattr)
+              fields) fld) = By_value ch ->
+  access_mode t = By_value ch ->
+  field_offset fld fields = Errors.OK ofs ->
+  v1' = offset_val v1 (Int.repr ofs) ->
+  (typecheck_val v2
+         (type_of_field
+            (unroll_composite_fields structid
+               (Tstruct structid fields noattr) fields) fld) = true)  ->
+  (type_is_volatile
+         (type_of_field
+            (unroll_composite_fields structid
+               (Tstruct structid fields noattr) fields) fld) = false) ->
+  mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
+Proof.
+intros.
+erewrite mapsto_field_mapsto; eauto.
+Qed.
+
 
 Ltac mapsto_field_mapsto_tac :=  
- eapply mapsto_field_mapsto; 
+ eapply mapsto_field_mapsto'; 
   try unfold field_offset;  simpl;  
   repeat rewrite if_false by (intro Hx; inv Hx); repeat rewrite if_true by auto; 
   try reflexivity; try solve [normalize].

@@ -1,7 +1,6 @@
 Load loadpath.
 Require Export msl.msl_standard.
 Require Import veric.base.
-Require Import veric.Address.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 

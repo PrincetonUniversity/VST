@@ -9,7 +9,7 @@ Require Export Values.
 Require Export Maps.
 Require Export Ctypes.
 Require Export Clight.
-Require Export veric.Address.
+Require Export compositional_compcert.Address.
 Require Export msl.eq_dec.
 Require Export msl.shares.
 Require Export msl.seplog.
@@ -32,7 +32,7 @@ Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
 Hint Resolve any_environ : typeclass_instances.
 
-Definition assert := environ -> mpred.
+(*Definition assert := environ -> mpred.    defined in expr.v *)
 Definition ret_assert := exitkind -> option val -> assert.
 
 Definition VALspec_range: Z -> Share.t -> Share.t -> address -> mpred := res_predicates.VALspec_range.

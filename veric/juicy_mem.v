@@ -1,6 +1,5 @@
 Load loadpath.
 Require Import veric.base.
-Require Import veric.Address.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 Require Import veric.compcert_rmaps.

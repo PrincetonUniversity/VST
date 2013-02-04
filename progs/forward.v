@@ -74,7 +74,6 @@ Ltac hoist_later_in_pre :=
        let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
      end.
 
-
 Ltac semax_field_tac :=
 match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e _) ?fld _)) _ =>
@@ -85,6 +84,62 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
      ]
 end.
 
+Lemma field_mapsto_storable_at1:
+  forall Delta P Q sh ty fld e v R c Post,
+    semax Delta (PROPx P (LOCALx Q (SEPx (`(field_storable sh ty fld) e :: R)))) c Post ->
+    semax Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) e v :: R)))) c Post.
+Proof.
+intros.
+ eapply semax_pre0; [ | apply H].
+ change SEPx with SEPx'.
+ intro rho; unfold PROPx, LOCALx, SEPx'.
+ simpl.
+ apply andp_derives; auto.
+ apply andp_derives; auto.
+ apply sepcon_derives; auto.
+ apply field_mapsto_storable.
+Qed.
+
+Lemma later_field_mapsto_storable_at1:
+  forall Delta P Q sh ty fld e v R c Post,
+    semax Delta (PROPx P (LOCALx Q (SEPx (|>`(field_storable sh ty fld) e :: R)))) c Post ->
+    semax Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) e v :: R)))) c Post.
+Proof.
+intros.
+ eapply semax_pre0; [ | apply H].
+ change SEPx with SEPx'.
+ intro rho; unfold PROPx, LOCALx, SEPx'.
+ simpl.
+ apply andp_derives; auto.
+ apply andp_derives; auto.
+ apply sepcon_derives; auto.
+ apply later_derives; auto.
+ apply field_mapsto_storable.
+Qed.
+
+
+Ltac isolate_storable_tac e fld R := 
+  match R with 
+     | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto;
+                apply later_field_mapsto_storable_at1
+     | context [ `(field_mapsto ?sh ?struct fld) ?e' _  :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto;
+                apply field_mapsto_storable_at1
+     | context [|> `(field_storable ?sh ?struct fld) ?e' :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto
+     | context [ `(field_storable ?sh ?struct fld) ?e'  :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto
+     end.
+
 Ltac store_field_tac1 := 
   eapply semax_store_field'; [ auto | reflexivity | reflexivity | type_of_field_tac |
                try solve [hnf; intuition] ].
@@ -92,21 +147,12 @@ Ltac store_field_tac1 :=
 Ltac store_field_tac :=
   match goal with
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Ssequence (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _) _ =>
-       apply (semax_pre (PROPx P 
-                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [ normalize; go_lower; normalize
-   | isolate_field_tac e fld R; hoist_later_in_pre;
-      eapply semax_seq; [ apply sequential'; store_field_tac1   |  ]
-   ]
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield (Ederef ?e _) ?fld ?t2) ?e2) _ =>
-       apply (semax_pre (PROPx P 
+       apply (semax_pre_PQR (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ normalize; go_lower; normalize
-   | isolate_field_tac e fld R; hoist_later_in_pre;
+   [ try solve [go_lower; normalize]
+   | isolate_storable_tac e fld R; hoist_later_in_pre;
        eapply semax_post'; [ | store_field_tac1]
    ]
   end.
@@ -146,7 +192,7 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
                     by (unfold fsig, A, Pre, Post; simpl; reflexivity);
  let SCI := fresh "SCI" in
-    let H := fresh in let witness := fresh "x" in let F := fresh "Frame" in
+    let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list assert); 
       assert (SCI := semax_call_id1 Delta P Q F id f 
                 (type_of_params (fst fsig)) (snd fsig) bl fsig A witness Pre Post 
@@ -289,7 +335,7 @@ match goal with
            ]
  (* END HORRIBLE2 *)
   | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
-          apply seq_assoc; forward
+          apply -> seq_assoc; forward
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case

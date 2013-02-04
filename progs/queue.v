@@ -59,12 +59,17 @@ Definition f_fifo_new := {|
       (Ecast (Etempvar 21%positive (tptr tvoid)) (tptr t_struct_fifo))))
   (Ssequence
     (Sassign
-      (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _tail
-        (tptr (tptr t_struct_elem)))
-      (Eaddrof
+      (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _head
+        (tptr t_struct_elem))
+      (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+    (Ssequence
+      (Sassign
         (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-          _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem))))
-    (Sreturn (Some (Etempvar _Q (tptr t_struct_fifo))))))
+          _tail (tptr (tptr t_struct_elem)))
+        (Eaddrof
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem))))
+      (Sreturn (Some (Etempvar _Q (tptr t_struct_fifo)))))))
 |}.
 
 Definition f_fifo_put := {|

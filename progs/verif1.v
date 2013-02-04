@@ -91,6 +91,7 @@ normalize. cancel.
 (* After the loop *)
 forward.  (* return s; *)
 go_lower.
+reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=
@@ -203,8 +204,7 @@ go_lower.
 cancel.
 auto with closed.
 forward.  (* return s; *)
-go_lower.
-normalize.
+go_lower. normalize. reflexivity.
 Qed.
 
 Lemma all_funcs_correct:

@@ -1,7 +1,6 @@
 Load loadpath.
 Require Import veric.base.
 Require Import msl.normalize.
-Require Import veric.Address.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.

@@ -210,6 +210,13 @@ Proof.
 Qed.
 Hint Rewrite retval_lemma1 : normalize.
 
+Lemma retval_make_args:
+  forall v rho, retval (make_args (ret_temp::nil) (v::nil) rho) = v.
+Proof. intros. unfold retval, eval_id; simpl.
+    rewrite Map.gss. reflexivity.
+Qed.
+Hint Rewrite retval_make_args: normalize.
+
 Lemma ret_type_initialized:
   forall i Delta, ret_type (initialized i Delta) = ret_type Delta.
 Proof.
@@ -1002,8 +1009,8 @@ Lemma sepcon_later_derives {A} {NA: NatDed A}{SL: SepLog A}{IA: Indir A}{SI: Sep
 Proof.
 intros. rewrite later_sepcon. apply sepcon_derives; auto. Qed.
 
-Hint Resolve andp_later_derives sepcon_later_derives sepcon_derives
-              andp_derives imp_derives now_later derives_refl: derives.
+Hint Resolve @andp_later_derives @sepcon_later_derives @sepcon_derives
+              @andp_derives @imp_derives @now_later @derives_refl: derives.
 
 Notation "'DECLARE' x s" := (x: ident, s: funspec)
    (at level 160, x at level 0, s at level 150, only parsing).
@@ -1379,7 +1386,7 @@ Lemma local_lift0: forall P, local (lift0 P) = prop P.
 Proof.
 intros. extensionality rho. reflexivity.
 Qed.
-Hint Resolve local_lift0: normalize.
+Hint Rewrite @local_lift0: normalize.
 
 Lemma move_prop_from_LOCAL:
   forall P1 P Q R, PROPx P (LOCALx (lift0 P1::Q) R) = PROPx (P1::P) (LOCALx Q R).

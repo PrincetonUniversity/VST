@@ -4,7 +4,6 @@ Require Import msl.msl_standard.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
-Require Import veric.Address.
 
 Open Local Scope pred.
 
