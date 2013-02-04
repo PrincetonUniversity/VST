@@ -96,7 +96,7 @@ Proof.
   intro. left. apply Pcompare_Eq_eq; auto.
   intro. right. red. intro. subst y. rewrite (Pcompare_refl x) in H. discriminate.
   intro. right. red. intro. subst y. rewrite (Pcompare_refl x) in H. discriminate.
-Qed.
+Defined.
 
 Lemma peq_true:
   forall (A: Type) (x: positive) (a b: A), (if peq x x then a else b) = a.
@@ -161,7 +161,7 @@ Qed.
 Definition plt (x y: positive) : {Plt x y} + {~ Plt x y}.
 Proof.
  intros. unfold Plt. apply Z_lt_dec.
-Qed.
+Defined.
 
 Definition Ple (p q: positive) := Zle (Zpos p) (Zpos q).
 
