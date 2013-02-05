@@ -245,6 +245,31 @@ split. trivial.
 intros N. apply H2. eapply Fwd. apply N.
 Qed.
 
+Lemma inject_separated_incr_fwd2: 
+  forall j0 j j' m10 m20 m1 m2,
+  inject_incr j j' -> 
+  inject_separated j j' m1 m2 -> 
+  inject_incr j0 j -> 
+  mem_forward m10 m1 -> 
+  inject_separated j0 j m10 m20 -> 
+  mem_forward m20 m2 -> 
+  inject_separated j0 j' m10 m20.
+Proof.
+intros until m2; intros H1 H2 H3 H4 H5 H6.
+apply (@inject_separated_incr_fwd j0 j m10 m20 j' m2); auto.
+unfold inject_separated.
+intros b1 b2 delta H7 H8.
+unfold inject_separated in H2, H5.
+specialize (H2 b1 b2 delta H7 H8).
+destruct H2 as [H21 H22].
+unfold mem_forward in H4, H6.
+specialize (H4 b1).
+specialize (H6 b2).
+split; intros CONTRA.
+solve[destruct (H4 CONTRA); auto].
+apply H22; auto.
+Qed.
+
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
@@ -334,6 +359,75 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
+Lemma mem_unchanged_unmapped_trans: 
+  forall m1 m1' m2 m3 f1 f2 c,
+  mem_unchanged_on (fun b ofs => 
+    loc_unmapped f1 b ofs /\ private_block rgsem c b) m1 m2 ->
+  inject_separated f1 f2 m1 m1' ->
+  mem_unchanged_on (fun b ofs => 
+    loc_unmapped f2 b ofs /\ private_block rgsem c b) m2 m3 ->
+  mem_unchanged_on (fun b ofs => 
+    loc_unmapped f1 b ofs /\ private_block rgsem c b) m1 m3.
+Proof.
+  intros until c; intros UNCH1 SEP UNCH2.
+  destruct UNCH1 as [PERMS1 LOADS1].
+  destruct UNCH2 as [PERMS2 LOADS2].
+  assert (UNMAPPED: forall b ofs,
+      loc_unmapped f1 b ofs -> Mem.valid_block m1 b -> loc_unmapped f2 b ofs).
+    unfold loc_unmapped; intros.
+    destruct (f2 b) as [[b' delta] |]_eqn; auto.
+    exploit SEP; eauto. tauto.
+  intros; split; intros.
+  (* perms *)
+  apply PERMS2. destruct H as [? ?]. split; auto. 
+  apply UNMAPPED; auto. eauto with mem.
+  apply PERMS1; auto.
+  (* loads *)
+  apply LOADS2. intros. specialize (H i H1).
+  destruct H as [? ?]. split; auto.
+  apply UNMAPPED; auto. eauto with mem.
+  apply LOADS1; auto.
+Qed.
+
+Lemma mem_unchanged_outofreach_trans: 
+  forall m1 m2 m1' m2' m3' f1 f2 c,
+  Mem.inject f1 m1 m1' ->
+  Mem.inject f2 m2 m2' ->
+  mem_unchanged_on (fun b ofs => 
+    loc_out_of_reach f1 m1 b ofs /\ private_block rgsem c b) m1' m2' ->
+  inject_separated f1 f2 m1 m1' ->
+  (forall b ofs p, Mem.valid_block m1 b -> Mem.perm m2 b ofs Max p ->
+    Mem.perm m1 b ofs Max p) ->
+  inject_incr f1 f2 ->
+  mem_unchanged_on (fun b ofs => 
+    loc_out_of_reach f2 m2 b ofs /\ private_block rgsem c b) m2' m3' ->
+  mem_unchanged_on (fun b ofs => 
+    loc_out_of_reach f1 m1 b ofs /\ private_block rgsem c b) m1' m3'.
+Proof.
+  intros until c; intros INJ1 INJ2 UNCH1 SEP MAXPERMS INCR UNCH2.
+  destruct UNCH1 as [PERMS1 LOADS1].
+  destruct UNCH2 as [PERMS2 LOADS2].
+  assert (OUTOFREACH: forall b ofs k p,
+      loc_out_of_reach f1 m1 b ofs ->
+      Mem.perm m1' b ofs k p ->
+      loc_out_of_reach f2 m2 b ofs).
+    unfold loc_out_of_reach; intros.
+    destruct (f1 b0) as [[b' delta'] |]_eqn.
+    exploit INCR; eauto. intros EQ; rewrite H1 in EQ; inv EQ.
+    red; intros. eelim H; eauto. eapply MAXPERMS; eauto.
+    eapply Mem.valid_block_inject_1 with (f := f1); eauto.
+    exploit SEP; eauto. intros [A B]. elim B; eauto with mem.
+  intros; split; intros.
+  (* perms *)
+  apply PERMS2. destruct H as [? ?]. split; auto. 
+  eapply OUTOFREACH; eauto. apply PERMS1; auto.
+  (* loads *)
+  exploit Mem.load_valid_access; eauto. intros [A B].
+  apply LOADS2. intros. specialize (H _ H1). destruct H as [? ?]. 
+  split; auto. eapply OUTOFREACH; eauto.
+  apply LOADS1; auto.
+Qed.
+
 End RelyGuaranteeSemanticsLemmas.
 
 Definition blockmap := block -> bool.
@@ -382,6 +476,41 @@ case_eq (after_external csem retv c0); intros.
 rewrite H0 in H; inv H.
 apply after_at_external_excl in H0; auto.
 rewrite H0 in H; congruence.
+Qed.
+
+Lemma csem_rg:
+  forall ge c f m c' m',
+  corestep csem ge c m c' m' -> 
+  corestep RelyGuaranteeCoreSem ge (f, c) m 
+    (fun b => f b || (zle (Mem.nextblock m) b &&  zlt b (Mem.nextblock m')), c') m'.
+Proof.
+intros until m'; intros H1.
+constructor; auto.
+intros b H2.
+apply orb_prop in H2.
+destruct H2; auto.
+apply andb_prop in H.
+destruct H.
+right.
+split.
+unfold zle in H.
+unfold Z_le_gt_dec in H.
+unfold sumbool_rec in H.
+unfold sumbool_rect in H.
+destruct (Z_le_dec (Mem.nextblock m) b); auto.
+simpl in H.
+congruence.
+admit.
+Qed.
+
+Lemma rg_csem:
+  forall ge c f m c' f' m',
+  corestep RelyGuaranteeCoreSem ge (f, c) m (f', c') m' -> 
+  corestep csem ge c m c' m'.
+Proof.
+intros until m'; intros H1.
+inv H1.
+auto.
 Qed.
 
 Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) D :=
