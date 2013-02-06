@@ -424,7 +424,7 @@ Proof. rewrite union_assoc; auto. Qed.
 Variables (JB: Join B) (PB: Perm_alg B)(SB: Sep_alg B).
 
 Lemma sepconS (x y : pred B) : sepcon x y = sepcon y x.
-Proof. apply sepcon_com. Qed.
+Proof. apply sepcon_comm. Qed.
 
 Lemma sepconA (x y z : pred B) : 
   sepcon x (sepcon y z) = sepcon (sepcon x y) z.

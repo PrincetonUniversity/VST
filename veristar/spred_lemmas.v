@@ -49,7 +49,7 @@ Lemma orpA : x || (y || z) = (x || y) || z.
 Proof. rewrite union_assoc; auto. Qed.
 
 Lemma sepconS : sepcon x y = sepcon y x.
-Proof. apply sepcon_com. Qed.
+Proof. apply sepcon_comm. Qed.
 
 Lemma sepconA : x * (y * z) = (x * y) * z.
 Proof. rewrite sepcon_assoc; auto. Qed.
@@ -264,7 +264,7 @@ Lemma list_denote_sepcon_sort :
 Proof.
 intros.
 rewrite (listd_sort). split; trivial.
-intros; rewrite sepcon_com; auto.
+intros; rewrite sepcon_comm; auto.
 intros; rewrite sepcon_assoc; auto.
 Qed.
 

@@ -4,8 +4,15 @@ Require Import veristar.variables.
 
 (** Separation Logic Interface 
 
-   -This module type axiomatizes the types and operators upon which our 
-    soundness proof depends. *)
+   This module type axiomatizes the types and operators upon which our 
+   soundness proof depends. 
+
+   NOTE: This module type will probably be made obsolete sometime in the future
+   (if we ever get back to working on this project).
+
+   We now believe it's better to axiomatize the separation logic directly 
+   (i.e., its proof theory) as opposed to axiomatizing the /models/ of the 
+   separation logic, which is what we do here. *)
 
 Module Type VERISTAR_LOGIC.
 
@@ -40,11 +47,15 @@ Parameter env : Type.
 Parameter env_get : env -> var -> val.
 Parameter env_set : var -> val -> env -> env.
 Axiom gss_env : forall (x : var) (v : val) (s : env), 
-  env_get (env_set x v s) x = v.
+  v<>empty_val -> env_get (env_set x v s) x = v.
 Axiom gso_env : forall (x y : var) (v : val) (s : env), 
   x<>y -> env_get (env_set x v s) y = env_get s y.
-Parameter empty_env : env.
-Axiom env_gempty : forall x, env_get empty_env x = empty_val.
+(* For now, we assume vars are defined locations (i.e., we don't yet model 
+   data fields or deal with undefined vars; that is future work).  
+   In general, our soundness proof doesn't require the user to exhibit an 
+   empty environment anyway. *)
+(*Parameter empty_env : env.*)
+(*Axiom env_gempty : forall x, env_get empty_env x = empty_val.*)
 Axiom env_reset : forall s x, env_set x (env_get s x) s = s.
 Axiom env_reset2 : forall s x z, env_set x (env_get s x) (env_set x z s) = s.
 
@@ -81,8 +92,6 @@ Axiom rawnext_unique : forall x z z' s s' t t' r,
   rawnext x z s -> rawnext x z' s' -> join s t r -> join s' t' r ->
   z' = z /\ s'=s.
 
-(* for now, we assume vars are defined locations (i.e., we don't yet model 
-   data fields or deal with undefined vars; that is future work) *)
 Axiom vars_defined_locs : forall z (e : env), 
   exists v, env_get e z = v /\ nil_or_loc v.
 

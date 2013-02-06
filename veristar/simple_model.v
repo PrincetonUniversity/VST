@@ -86,28 +86,41 @@ Qed.
 
 Definition var := Ident.t.
 
-Definition env := var -> val.
+Definition env := var -> nat.
 
-Definition env_get (rho: env) : var -> val := rho.
+Definition env_get (rho: env) : var -> val := fun x => Some (rho x).
 
 Definition env_set (x: var) (v: val) (rho: env) : env :=
-  fun y => if Ident.eq_dec x y then v else rho y.
+  match v with
+  | None (*empty_val*) => rho
+  | Some v' => fun y => if Ident.eq_dec x y then v' else rho y
+  end.
 
-Lemma gss_env (x: var) (v: val) (s: env) : env_get (env_set x v s) x = v.
-unfold env_get, env_set; intros; destruct (Ident.eq_dec x x); auto. 
-contradiction n; auto. 
+Lemma gss_env (x: var) (v: val) (s: env) : v<>empty_val -> env_get (env_set x v s) x = v.
+unfold env_get, env_set; intros. 
+destruct v.
+destruct (Ident.eq_dec x x); auto. 
+contradiction n0; auto.
+elimtype False; apply H; auto.
 Qed.
 
 Lemma gso_env (x y : var) (v: val) (s: env) :
   x<>y -> env_get (env_set x v s) y = env_get s y.
-unfold env_get, env_set; intros; destruct (Ident.eq_dec x y); auto. 
+unfold env_get, env_set; intros.
+destruct v; auto.
+destruct (Ident.eq_dec x y); auto. 
 contradiction. 
 Qed.
 
-Definition empty_env : env := fun x => None.
+(* For now, we assume vars are defined locations (i.e., we don't yet model 
+   data fields or deal with undefined vars; that is future work).  
+   In general, our soundness proof doesn't require the user to exhibit an 
+   empty environment anyway. *)
 
-Lemma env_gempty x : env_get empty_env x = empty_val.
-Proof. unfold env_get, empty_env, empty_val; intros; auto. Qed.
+(*Definition empty_env : env := fun x => None.*)
+
+(*Lemma env_gempty x : env_get empty_env x = empty_val.
+Proof. unfold env_get, empty_env, empty_val; intros; auto. Qed.*)
 
 Lemma env_reset s x : env_set x (env_get s x) s = s.
 unfold env_set, env_get; extensionality. 
@@ -117,6 +130,8 @@ Qed.
 Lemma env_reset2 s x z : env_set x (env_get s x) (env_set x z s) = s.
 unfold env_set, env_get; extensionality. 
 destruct (Ident.eq_dec x x0); auto. subst; auto.
+destruct z; auto.
+destruct (Ident.eq_dec x x0); auto. subst; elimtype False; auto.
 Qed.
 
 Definition heap := loc -> val.
@@ -254,9 +269,20 @@ destruct (loc_eq_dec x' x); [subst|]. rewrite <-Heqb' in H5... rewrite (H4 x' H)
 destruct (loc_eq_dec x' x); [subst|]. rewrite <-Heqb in H1... rewrite (H8 x' H) in Heqb'...
 Qed.
 
-(* for now, we assume vars are defined locations (i.e., we don't yet model 
-   data fields or deal with undefined vars; that is future work) *)
-Axiom vars_defined_locs : forall z (e:env), 
-  exists v, e z = v /\ nil_or_loc v.
+Lemma vars_defined_locs : forall z (e:env), 
+  exists v: val, env_get e z = v /\ nil_or_loc v.
+Proof.
+intros.
+unfold env_get.
+exists (Some (e z)).
+split; auto.
+unfold nil_or_loc.
+unfold nil_val.
+destruct (eq_nat_dec (e z) 0).
+subst; left; auto.
+right; exists (e z); simpl.
+destruct (e z); auto.
+elimtype False; omega.
+Qed.
 
 End BarebonesLogic.

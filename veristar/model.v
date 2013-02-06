@@ -2,8 +2,7 @@ Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List.
 Require Import msl.base msl.sepalg msl.sepalg_generators msl.Axioms 
                msl.predicates_sa.
-Require Import veristar.datatypes veristar.clauses veristar.list_denote
-               veristar.model_type.
+Require Import veristar.datatypes veristar.clauses veristar.model_type veristar.list_denote.
 
 (** The abstract separation logic model, parameterized by a separation logic 
    implementation, VeriStarLogic *)
@@ -39,8 +38,8 @@ Definition upd_stack (x : var) (v : val) (s : stack) : stack :=
 
 Axiom stack_nil : forall s : stack, stack_get s None = empty_val.
 
-Definition empstack : stack := empty_env.
-Axiom emp_stack : forall (x : option var), stack_get empstack x = empty_val.
+(*Definition empstack : stack := empty_env.
+Axiom emp_stack : forall (x : option var), stack_get empstack x = empty_val.*)
 
 Inductive state := State: forall (s: stack) (h: heap), state.
 
@@ -184,10 +183,10 @@ Definition upd_stack (x : var) (v : val) (s : stack) : stack :=
 Lemma stack_nil : forall s : stack, stack_get s None = empty_val.
 Proof. reflexivity. Qed.
 
-Definition empstack : stack := empty_env.
+(*Definition empstack : stack := empty_env.
 
 Lemma emp_stack : forall (x : option var), stack_get empstack x = empty_val.
-Proof. unfold stack_get; intros. destruct x; auto. apply env_gempty. Qed.
+Proof. unfold stack_get; intros. destruct x; auto. apply env_gempty. Qed.*)
 
 Inductive state := State: forall (s: stack) (h: heap), state.
 

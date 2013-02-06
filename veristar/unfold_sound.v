@@ -225,8 +225,8 @@ rewrite (@listd_unfold_inter _ state).
   assert (KK:= eq_space_atomlist_sound _ _ Heqb). clear Heqb.
   unfold space_denote in *. rewrite listd_sort in KK. rewrite listd_sort in KK.
    rewrite KK. assumption.
-  apply sepcon_com. apply sepconA.
-  apply sepcon_com. apply sepconA.
+  apply sepcon_comm. apply sepconA.
+  apply sepcon_comm. apply sepconA.
 Qed.
 *)  
 
@@ -789,7 +789,7 @@ destruct a.
   destruct H as [sig1 [y [HH1 HH2]]].
     right. exists (Next e e0 :: sig1). exists y.
       split. rewrite Space_denote_cons. rewrite <- sepcon_assoc.
-               rewrite <- (sepcon_com (space_atom_denote (Next e e0))). 
+               rewrite <- (sepcon_comm (space_atom_denote (Next e e0))). 
               rewrite sepcon_assoc.
               exists s1. exists s1'. split. assumption. split; assumption.
                 eapply perm_trans. apply perm_skip. apply HH2. apply perm_swap.
@@ -800,7 +800,7 @@ destruct e.
   destruct H as [sig1 [y [HH1 HH2]]].
     right. exists (Lseg Nil e0 :: sig1). exists y.
       split. rewrite Space_denote_cons. rewrite <- sepcon_assoc.
-               rewrite <- (sepcon_com (space_atom_denote (Lseg Nil e0))). 
+               rewrite <- (sepcon_comm (space_atom_denote (Lseg Nil e0))). 
               rewrite sepcon_assoc.
               exists s1. exists s1'. split. assumption. split; assumption.
                 eapply perm_trans. apply perm_skip. apply HH2. apply perm_swap.
@@ -818,7 +818,7 @@ destruct e.
        destruct H as [sig1 [y [HH1 HH2]]].
        right. exists (Lseg (Var v0) e0 :: sig1). exists y.
       split. rewrite Space_denote_cons. rewrite <- sepcon_assoc.
-               rewrite <- (sepcon_com (space_atom_denote (Lseg (Var v0) e0))). 
+               rewrite <- (sepcon_comm (space_atom_denote (Lseg (Var v0) e0))). 
               rewrite sepcon_assoc.
               exists s1. exists s1'. split. assumption. split; assumption.
                 eapply perm_trans. apply perm_skip. apply HH2. apply perm_swap.
@@ -828,7 +828,7 @@ destruct H as [s1 [s1' [J1 [K1 K1']]]].
        destruct H as [sig1 [y [HH1 HH2]]].
        right. exists (Lseg (Var v0) e0 :: sig1). exists y.
       split. rewrite Space_denote_cons. rewrite <- sepcon_assoc.
-               rewrite <- (sepcon_com (space_atom_denote (Lseg (Var v0) e0))). 
+               rewrite <- (sepcon_comm (space_atom_denote (Lseg (Var v0) e0))). 
               rewrite sepcon_assoc.
               exists s1. exists s1'. split. assumption. split; assumption.
                 eapply perm_trans. apply perm_skip. apply HH2. apply perm_swap.

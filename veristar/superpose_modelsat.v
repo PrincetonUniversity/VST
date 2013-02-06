@@ -1,6 +1,6 @@
 Load loadpath.
 Require Import ZArith List Bool Recdef.
-Require Import compcert.Coqlib.
+Require Import Coqlib.
 Require Import veristar.variables veristar.datatypes veristar.clauses 
                veristar.cclosure veristar.basic veristar.compare.
 

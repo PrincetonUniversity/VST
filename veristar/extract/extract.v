@@ -1,5 +1,4 @@
-Add LoadPath "../..". 
-Add LoadPath "../../..".
+Load loadpath.
 Require Import veristar.superpose veristar.veristar veristar.clauses
                veristar.variables.
 

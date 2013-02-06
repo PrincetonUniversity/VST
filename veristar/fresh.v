@@ -1,6 +1,7 @@
+Load loadpath.
 Require Import Coq.Lists.List.
 Require Import veristar.variables veristar.datatypes.
-Require Import compcert.Coqlib.
+Require Import Coqlib.
 Require Import msl.Coqlib2.
 Require Import ZArith.
 Require Import veristar.compare.

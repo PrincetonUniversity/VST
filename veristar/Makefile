@@ -1,11 +1,13 @@
-COQFLAGS= -I . -I .. -I ../.. -R . veristar
-COQTOPFLAGS= -batch -load-vernac-source
+# SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
+COQFLAGS= -I . -as veristar
+DEPFLAGS= -I ../msl -as msl -I ../compositional_compcert -as compositional_compcert -R ../compcert -as compcert
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep
 COQDOC=coqdoc
 OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
+COQTOPFLAGS= -batch -load-vernac-source
 
 FILES = LibTactics.v LibTactics2.v tactics.v basic.v \
 	redblack.v wellfounded.v compare.v variables.v datatypes.v fresh.v \
@@ -13,12 +15,12 @@ FILES = LibTactics.v LibTactics2.v tactics.v basic.v \
 	clause_lemmas.v cclosure.v superpose_sound.v superpose_modelsat_sound.v \
 	spred_lemmas.v clausify_sound.v clause_universe.v \
 	wellformed_sound.v unfold_sound.v norm_sound.v veristar_sound.v \
-	clauses.v list_denote.v isolate.v isolate_sound.v simple_model.v
+	clauses.v list_denote.v simple_model.v
 
 proof: $(FILES:.v=.vo)
 
 redblack.ml redblack.mli: redblack.vo rbtest.v
-	${COQC} $(COQFLAGS) rbtest.v
+	${COQC} $(COQFLAGS) $(DEPFLAGS) rbtest.v
 
 redblack.cmi: redblack.mli
 	ocamlc -c redblack.mli
@@ -65,10 +67,10 @@ all: extract
 .SUFFIXES: .v .vo
 
 .v.vo:
-	$(COQC) $(COQFLAGS) -dump-glob $*.glob $*.v
+	$(COQC) $(COQFLAGS) $(DEPFLAGS) -dump-glob $*.glob $*.v
 
 depend:
-	$(COQDEP) $(COQFLAGS) $(FILES) > .depend
+	$(COQDEP) $(COQFLAGS) $(DEPFLAGS) $(FILES) > .depend
 
 clean:
 	rm -f *.vo *.glob *.cmx *.cmi *~ 
