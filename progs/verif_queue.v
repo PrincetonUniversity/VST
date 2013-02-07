@@ -9,9 +9,8 @@ Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
 Require Import progs.forward.
-Require Import progs.list_dt.
 Require Import progs.malloc_lemmas.
-
+Require Import progs.list_dt.
 Require Import progs.queue.
 
 Local Open Scope logic.
@@ -121,6 +120,7 @@ Proof.
  change 8 with (sizeof t_struct_fifo).
  rewrite (malloc_assert t_struct_fifo).
  simpl_malloc_assertion.
+ reflexivity.
 Qed.
 
 Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
@@ -428,7 +428,12 @@ replace (mapsto Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8)) (Vp
 Focus 2. symmetry; eapply mapsto_field_mapsto; simpl; try reflexivity.
                unfold field_offset; simpl; reflexivity.
 cancel.
-admit.  (* provable, but typed_mapsto should really be improved to use field_mapsto for structure-fields *)
+
+unfold list_cell.
+apply -> (@wand_sepcon_adjoint mpred _ _).
+simpl_malloc_assertion.
+fold t_struct_elem.
+cancel.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.

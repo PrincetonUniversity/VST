@@ -4,142 +4,12 @@ Require Import veric.SeparationLogic.
 Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
+Require Import progs.malloc_lemmas.
 Require Import Clightdefs.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
-
-Fixpoint reptype (ty: type) : Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => int
-  | Tfloat _ _ => float
-  | Tpointer t1 a => unit
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
-  | Tstruct id fld a => reptype_list prod fld
-  | Tunion id fld a => reptype_list sum fld
-  | Tcomp_ptr id a => unit
-  end
-
-with reptype_list (f: Type -> Type -> Type) (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => f (reptype ty) (reptype_list f fld')
-  end.
-
-Fixpoint arrayof (t: Type) (f: forall (ofs: Z) (v2: t),  mpred)
-         (sh: Share.t) (t1: type) (b: block) (ofs: Z) (v2: list t) : mpred :=
-    match v2 with
-    | v::rest => f ofs v * arrayof t f sh t1 b (ofs+sizeof t1) rest
-    | nil => emp
-   end.
-
-Fixpoint typed_mapsto' (t1: type) (sh: Share.t) (b: block) (ofs: Z) (v2: reptype t1) : mpred :=
-match t1 as t return (t1 = t -> mpred) with
-| Tvoid => emp
-| Tint i s a =>
-    fun H : t1 = Tint i s a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tint i s a) =>
-         match i with
-         | I8 =>
-             match s with
-             | Signed =>
-                 address_mapsto Mint8signed (Vint v3)
-                   (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)
-                   (b, ofs)
-             | Unsigned =>
-                 address_mapsto Mint8unsigned (Vint v3)
-                   (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)
-                   (b, ofs)
-             end
-         | I16 =>
-             match s with
-             | Signed =>
-                 address_mapsto Mint16signed (Vint v3)
-                   (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)
-                   (b, ofs)
-             | Unsigned =>
-                 address_mapsto Mint16unsigned (Vint v3)
-                   (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)
-                   (b, ofs)
-             end
-         | I32 =>
-             address_mapsto Mint32 (Vint v3) (Share.unrel Share.Lsh sh)
-               (Share.unrel Share.Rsh sh) (b, ofs)
-         | IBool =>
-             address_mapsto Mint8unsigned (Vint v3)
-               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) 
-               (b, ofs)
-         end) H in
-    H0 v2
-| Tfloat f a =>
-    fun H : t1 = Tfloat f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tfloat f a) =>
-         match f with
-         | F32 =>
-             address_mapsto Mfloat32 (Vfloat v3) (Share.unrel Share.Lsh sh)
-               (Share.unrel Share.Rsh sh) (b, ofs)
-         | F64 =>
-             address_mapsto Mfloat64 (Vfloat v3) (Share.unrel Share.Lsh sh)
-               (Share.unrel Share.Rsh sh) (b, ofs)
-         end) H in
-    H0 v2
-| Tpointer t a => emp
-| Tarray t z a =>
-    fun H : t1 = Tarray t z a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tarray t z a) => arrayof _ (typed_mapsto' t sh b) sh t b z v3)
-        H in
-    H0 v2
-| Tfunction t t0 => emp
-| Tstruct i f a =>
-    fun H : t1 = Tstruct i f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tstruct i f a) =>
-         structfieldsof f sh b ofs v3) H in
-    H0 v2
-| Tunion i f a =>
-    fun H : t1 = Tunion i f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tunion i f a) =>
-         unionfieldsof f sh b ofs v3) H in
-    H0 v2
-| Tcomp_ptr i a => emp
-end eq_refl
- with
- structfieldsof (flds: fieldlist) (sh: Share.t) (b: block) (ofs: Z) (v2: reptype_list prod flds) : mpred :=
-match flds as f0 return (flds = f0 -> mpred) with
-| Fnil => fun _ : flds = Fnil => emp
-| Fcons i t f0 =>
-    fun H : flds = Fcons i t f0 =>
-    let H0 :=
-      eq_rect_r (fun flds0 : fieldlist => reptype_list prod flds0 -> mpred)
-        (fun v3 : reptype_list prod (Fcons i t f0) =>
-         let (v, vr) := v3 in
-         typed_mapsto' t sh b ofs v * structfieldsof f0 sh b (ofs + sizeof t) vr) H in
-    H0 v2
-end eq_refl
- with
-unionfieldsof (flds: fieldlist) (sh: Share.t) (b: block) (ofs: Z) (v2: reptype_list sum flds) : mpred :=
-match flds as f0 return (flds = f0 -> mpred) with
-| Fnil => fun _ : flds = Fnil => emp
-| Fcons i t f0 =>
-    fun H : flds = Fcons i t f0 =>
-    let H0 :=
-      eq_rect_r (fun flds0 : fieldlist => reptype_list sum flds0 -> mpred)
-        (fun v3 : reptype_list sum (Fcons i t f0) =>
-         match v3 with inl v => typed_mapsto' t sh b ofs v | inr vr =>  unionfieldsof f0 sh b (ofs + sizeof t) vr end) H
-    in H0 v2
-end eq_refl.
 
 Class listspec (list_structid: ident) (list_link: ident) :=
   mk_listspec {  
@@ -150,14 +20,11 @@ Class listspec (list_structid: ident) (list_link: ident) :=
           list_link) = tptr list_struct
 }.
 
-Definition typed_mapsto (t1: type) (sh: Share.t) (v1: val) (v2: reptype t1) : mpred :=
- match v1 with
- |  Vptr b ofs => typed_mapsto' t1 sh b (Int.unsigned ofs) v2 
- | _ => FF
- end.
-
 Section LIST.
 Context  {list_structid} {list_link} (ls: listspec list_structid list_link).
+
+Definition list_cell sh p v :=
+   field_storable sh list_struct list_link p -* typed_mapsto list_struct sh 0 p v.
 
 Definition lseg' (sh: share) := 
   HORec (fun (R: (list (reptype list_struct))*(val*val) -> mpred) (lp: (list (reptype list_struct))*(val*val)) =>
@@ -165,7 +32,7 @@ Definition lseg' (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           typed_mapsto list_struct sh first h
+                           list_cell sh first h
                            * field_mapsto sh list_struct list_link first tail
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
@@ -179,7 +46,7 @@ Lemma lseg_unfold: forall sh contents v1 v2,
     lseg sh contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
-                       typed_mapsto list_struct sh v1 h 
+                      list_cell sh v1 h
                       * field_mapsto sh list_struct list_link v1 tail
                       * |> lseg sh t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
@@ -231,7 +98,7 @@ Definition lseg_cons sh (l: list (reptype list_struct)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 
              !!(l=h::r  /\ typecheck_val y (tptr list_struct) = true) && 
-                       typed_mapsto list_struct sh x h *
+             list_cell sh x h *
              field_mapsto sh list_struct list_link x y * 
              |> lseg sh r y z.
 
@@ -244,22 +111,33 @@ Proof.
 unfold lseg_cons, ptr_neq; intros.
 rewrite lseg_unfold at 1; auto.
 destruct l.
-apply pred_ext; normalize.
-intros.
+apply pred_ext; apply derives_extract_prop; intro.
+contradiction. clear H2.
+apply exp_left; intro h.
+apply exp_left; intro r.
+apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
 inv H2.
-apply pred_ext; normalize.
-apply exp_right with r; normalize.
-apply exp_right with l; normalize.
-apply exp_right with tail; normalize.
-apply andp_right; auto.
+apply pred_ext; apply derives_extract_prop; intro.
+clear H2.
+apply exp_left; intro tail.
+apply andp_right; try apply prop_right; auto.
+apply exp_right with r.
+apply exp_right with l.
+apply exp_right with tail.
+repeat rewrite sepcon_andp_prop'; apply andp_right.
 rewrite (field_mapsto_typecheck_val list_struct list_link sh x tail list_structid list_fields noattr) by auto.
-normalize.
-rewrite list_link_type in H2.
+rewrite list_link_type.
+normalize. auto.
+apply exp_left; intro h.
+apply exp_left; intro r'.
+apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
+inv H3.
+apply andp_right.
 apply prop_right; auto.
-intros.
-inv H2.
-apply exp_right with x0.
-normalize.
+apply exp_right with y.
+ auto.
 Qed.
 
 Lemma lseg_unroll: forall sh l x z , 
@@ -280,8 +158,7 @@ normalize.
 apply exp_right with tail.
 normalize.
 apply andp_right.
-pattern (field_mapsto sh list_struct list_link x tail) at 1;
- erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
+erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
 rewrite list_link_type.
 normalize.
 auto.
@@ -312,7 +189,7 @@ Lemma lseg_unroll_nonempty1:
    forall p P sh h tail v1 v2,
     ~ ptr_eq v1 v2 ->
     typecheck_val p (tptr list_struct) = true ->
-    P |-- typed_mapsto list_struct sh v1 h *
+    P |-- list_cell sh v1 h *
              (field_mapsto sh list_struct list_link v1 p *
                lseg sh tail p v2) ->
     P |-- lseg sh (h::tail) v1 v2.
@@ -348,7 +225,7 @@ Lemma lift2_lseg_cons:
       match hry with (h,r,y) =>
        !! (s = h::r) &&
        (local (`ptr_neq p q) &&
-       (`(typed_mapsto list_struct sh) p (`h) *
+       (`(list_cell sh) p (`h) *
         `(field_mapsto sh list_struct list_link) p (`y) *
         |> `(lseg sh r) (`y) q))
      end.
@@ -358,8 +235,9 @@ Proof.
  apply pred_ext; normalize.
  apply exp_right with (h, r, y). normalize.
  destruct h as [[h r] y]. normalize.
- apply exp_right with h. normalize. apply exp_right with r.
- normalize. apply exp_right with y. normalize.
+ apply exp_right with h. apply andp_right; auto.
+ apply exp_right with r.
+ apply exp_right with y. normalize.
  apply andp_right.
  erewrite (field_mapsto_typecheck_val); [ | reflexivity].
  rewrite list_link_type. normalize. auto.
@@ -375,7 +253,7 @@ Lemma unfold_lseg_cons:
       match hry with (h,r,y) => 
        !! (s=h::r) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(typed_mapsto list_struct sh) e (`h) ::
+        (SEPx (`(list_cell sh) e (`h) ::
                   `(field_mapsto sh list_struct list_link) e (`y) ::
                   |> `(lseg sh r) (`y) (`nullval) ::
                   R)))
@@ -417,7 +295,7 @@ Lemma semax_lseg_nonnull:
   (forall (h: reptype list_struct) (r: list (reptype list_struct)) (y: val), s=h::r ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(typed_mapsto list_struct sh) e (`h) ::
+        (SEPx (`(list_cell sh) e (`h) ::
                   `(field_mapsto sh list_struct list_link) e (`y) ::
                   |> `(lseg sh r) (`y) (`nullval) ::
                   R)))) c Post) ->
@@ -445,7 +323,7 @@ Definition lseg_cons_right sh (l: list (reptype list_struct)) (x z: val) : mpred
         !! (~ ptr_eq x z) && 
        EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 
              !!(l=r++h::nil)  && 
-                       typed_mapsto list_struct sh y h *
+                       list_cell sh y h *
              field_mapsto sh list_struct list_link y z * 
              |> lseg sh r x y.
 
