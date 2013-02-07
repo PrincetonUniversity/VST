@@ -161,7 +161,7 @@ Qed.
 
 Lemma writable_share_top: writable_share Share.top.
 Admitted.
-
+Hint Resolve writable_share_top.
 
 Lemma denote_tc_assert_andp:
   forall a b rho, denote_tc_assert (tc_andp a b) rho =
@@ -609,6 +609,39 @@ intros.
 apply semax_call'; auto.
 Qed.
 
+Lemma semax_call0: forall Delta A (Pre Post: A -> assert) (x: A) fsig a bl P Q R,
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
+   match fsig with
+   | (_, Tvoid) => True
+   | _ => False
+   end ->
+  semax Delta
+         (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
+            (SEPx (`(Pre x) ( (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl))) ::
+                      `(fun_assert_emp fsig A Pre Post) (eval_expr a) :: R))))
+          (Scall None a bl)
+          (normal_ret_assert 
+            (PROPx P (LOCALx Q (SEPx (`(Post x) (make_args nil nil) :: R))))).
+Proof.
+intros.
+eapply semax_pre_post ; [ | | 
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) None fsig a bl H)].
+ Focus 3.
+ clear - H0.
+ destruct fsig. destruct t; simpl in *; try contradiction; split; intros; congruence.
+ intro rho; normalize.
+unfold fun_assert_emp.
+repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
+normalize.
+rewrite corable_sepcon_andp1 by apply corable_fun_assert.
+rewrite sepcon_comm; auto. 
+intros.
+normalize.
+intro rho; normalize.
+rewrite sepcon_comm; auto.
+Qed.
+
+
 Lemma semax_fun_id':
       forall id fsig (A : Type) (Pre Post : A -> assert)
               Delta P Q R PostCond c
@@ -639,6 +672,56 @@ split; auto.
 apply eqb_type_refl.
 Qed.
 
+
+Lemma semax_call_id0:
+ forall Delta P Q R id argtys bl fsig A x Pre Post
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+   match fsig with
+   | (_, Tvoid) => True
+   | _ => False
+   end ->
+   argtys = type_of_params (fst fsig) ->
+   Tvoid = snd fsig ->
+  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
+    (Scall None (Evar id (Tfunction argtys Tvoid)) bl)
+    (normal_ret_assert 
+       (PROPx P (LOCALx Q (SEPx (`(Post x) (make_args nil nil) :: R))))).
+Proof.
+intros.
+assert (Cop.classify_fun (typeof (Evar id (Tfunction argtys Tvoid)))=
+               Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig)).
+rewrite <- H2; subst; reflexivity.
+apply semax_fun_id' with id fsig A Pre Post; auto.
+subst. 
+
+eapply semax_pre; [ | apply (semax_call0 Delta A Pre Post x fsig  _ bl P Q R H3 H0)].
+apply andp_left2.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; simpl.
+subst.
+autorewrite with normalize.
+apply andp_right.
+apply prop_right. hnf.
+rewrite <- H2 in *.
+simpl.
+unfold get_var_type. rewrite GLBL. rewrite H.
+simpl.
+rewrite eqb_typelist_refl.
+simpl. rewrite <- H2. split; hnf; auto.
+auto.
+change SEPx with SEPx'.
+simpl.
+intro rho.
+rewrite H2.
+rewrite sepcon_comm.
+rewrite sepcon_assoc.
+autorewrite with normalize.
+apply sepcon_derives; auto.
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+Qed.
 
 Lemma semax_call_id1:
  forall Delta P Q R ret id argtys retty bl fsig A x Pre Post

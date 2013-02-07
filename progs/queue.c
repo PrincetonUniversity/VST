@@ -21,8 +21,11 @@ struct fifo *fifo_new(void) {
 }
 
 void fifo_put (struct fifo *Q, struct elem *p) {
-  *(Q->tail) = p;
+  struct elem **t;
+  t = Q->tail;
+  *t = p;
   Q->tail = &p->next;
+  return;
 }
 
 struct elem *fifo_get (struct fifo *Q) {
@@ -32,6 +35,7 @@ struct elem *fifo_get (struct fifo *Q) {
   else {
     p=Q->head;
     Q->head=p->next;
+    return p;
   }
 }
 
@@ -44,7 +48,7 @@ struct elem *make_elem(int a, int b) {
 }
 
 int main(void) {
-  int i;
+  int i, j;
   struct fifo *Q;
   struct elem *p;
   Q = fifo_new();
@@ -53,7 +57,8 @@ int main(void) {
   p = make_elem(2,20);
   fifo_put(Q,p);
   p = fifo_get(Q);
-  i = p->a+p->b;
+  i = p->a; 
+  j = p->b;
   freeN(p, sizeof(*p));
-  return i;
+  return i+j;
 }

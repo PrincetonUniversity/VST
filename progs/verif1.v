@@ -76,7 +76,7 @@ go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 go_lower.  subst.  normalize. destruct cts; inv H. simpl. normalize.
 (* Prove that loop body preserves invariant *)
-focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
+focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower. destruct cts; inv H.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
@@ -84,7 +84,11 @@ forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with cts.
-go_lower. subst. inv H0.
+go_lower.
+
+findvars.
+
+ subst. inv H0.
  rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg i)),
              Int.add_neg_zero, Int.add_zero.
 normalize. cancel. 
@@ -125,7 +129,7 @@ go_lower. subst. normalize.
     destruct cts2; inv H0. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
-focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
+focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower.
 destruct cts2; inv H0.
 forward.  (* t = v->t; *)

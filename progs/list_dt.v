@@ -3,6 +3,7 @@ Require Import Coqlib msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
+Require Import progs.assert_lemmas.
 Require Import Clightdefs.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
@@ -139,16 +140,6 @@ match flds as f0 return (flds = f0 -> mpred) with
          match v3 with inl v => typed_mapsto' t sh b ofs v | inr vr =>  unionfieldsof f0 sh b (ofs + sizeof t) vr end) H
     in H0 v2
 end eq_refl.
-
-Definition ptr_eq (v1 v2: val) : Prop :=
-      match v1,v2 with
-      | Vint n1, Vint n2 => Int.cmpu Ceq n1 n2 = true
-      | Vptr b1 ofs1,  Vptr b2 ofs2  =>
-            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
-      | _,_ => False
-      end.
-
-Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 
 Class listspec (list_structid: ident) (list_link: ident) :=
   mk_listspec {  
@@ -449,6 +440,20 @@ Proof. intros.
  normalize. unfold lseg_cons. normalize. inv H0.
  apply orp_right1. normalize.
 Qed.
+
+Definition lseg_cons_right sh (l: list (reptype list_struct)) (x z: val) : mpred :=
+        !! (~ ptr_eq x z) && 
+       EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 
+             !!(l=r++h::nil)  && 
+                       typed_mapsto list_struct sh y h *
+             field_mapsto sh list_struct list_link y z * 
+             |> lseg sh r x y.
+
+
+Lemma lseg_unroll_right: forall sh l x z , 
+    lseg sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons_right sh l x z.
+Admitted.
+
 End LIST.
 
 Hint Rewrite @lseg_nil_eq : normalize.

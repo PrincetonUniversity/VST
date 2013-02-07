@@ -86,6 +86,32 @@ normalize.
 apply exp_right with v2; normalize.
 Qed.
 
+Lemma mapsto_field_storable:
+  forall ch v1 v1' sh ofs t structid fld fields,
+  access_mode
+        (type_of_field
+           (unroll_composite_fields structid (Tstruct structid fields noattr)
+              fields) fld) = By_value ch ->
+  access_mode t = By_value ch ->
+  field_offset fld fields = Errors.OK ofs ->
+  v1' = offset_val v1 (Int.repr ofs) ->
+  (type_is_volatile
+         (type_of_field
+            (unroll_composite_fields structid
+               (Tstruct structid fields noattr) fields) fld) = false) ->
+  (EX v2:val, mapsto sh t v1' v2) = field_storable sh (Tstruct structid fields noattr) fld v1.
+Proof.
+intros.
+unfold field_storable, mapsto.
+rewrite H0.
+subst v1'.
+rewrite  H.
+rewrite field_offset_unroll. rewrite H1. rewrite H3.
+destruct v1;
+ try solve [apply pred_ext; [apply exp_left; auto | apply FF_left]].
+rewrite prop_true_andp by auto.
+f_equal.
+Qed.
 
 Lemma field_mapsto_typecheck_val:
   forall t fld sh x y id fList att, 
@@ -237,6 +263,14 @@ Lemma mapsto_field_mapsto':
 Proof.
 intros.
 erewrite mapsto_field_mapsto; eauto.
+Qed.
+
+
+Lemma field_mapsto_isptr: forall t fld sh x y,
+  field_mapsto sh t fld x y = !!(denote_tc_isptr x) && field_mapsto sh t fld x y.
+Proof.
+unfold field_mapsto; intros.
+destruct x; simpl; normalize.
 Qed.
 
 

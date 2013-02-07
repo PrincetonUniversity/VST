@@ -5,6 +5,7 @@ Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import Clightdefs.
 Require veric.SequentialClight.
+Require Import progs.assert_lemmas.
 Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
@@ -28,16 +29,6 @@ Definition struct_fields_mapto (sh: Share.t) (t1: type) (v1: val) (v2: list (val
          fields_mapto sh t1 (field_names fList) v1 v2
   | _  => FF
   end.
-
-Definition ptr_eq (v1 v2: val) : Prop :=
-      match v1,v2 with
-      | Vint n1, Vint n2 => Int.cmpu Ceq n1 n2 = true
-      | Vptr b1 ofs1,  Vptr b2 ofs2  =>
-            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
-      | _,_ => False
-      end.
-
-Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 
 Fixpoint fieldnames (f: fieldlist) : list ident :=
  match f with

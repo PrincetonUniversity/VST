@@ -795,3 +795,23 @@ Lemma prop_derives {A}{ND: NatDed A}:
 Proof.
 intros; apply prop_left; intro; apply prop_right; auto.
 Qed.
+
+Definition ptr_eq (v1 v2: val) : Prop :=
+      match v1,v2 with
+      | Vint n1, Vint n2 => Int.cmpu Ceq n1 n2 = true
+      | Vptr b1 ofs1,  Vptr b2 ofs2  =>
+            b1=b2 /\ Int.cmpu Ceq ofs1 ofs2 = true
+      | _,_ => False
+      end.
+
+Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
+
+Lemma ptr_eq_e: forall v1 v2, ptr_eq v1 v2 -> v1=v2.
+Proof.
+intros. destruct v1; destruct v2; simpl in H; try contradiction.
+pose proof (Int.eq_spec i i0). rewrite H in H0. subst; auto.
+destruct H; subst.
+f_equal.
+pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
+Qed.
+

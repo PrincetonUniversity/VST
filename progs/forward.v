@@ -118,6 +118,71 @@ intros.
 Qed.
 
 
+Ltac isolate_mapsto_tac e R := 
+  match R with 
+     | context [|> `(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto
+     | context [`(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+                replace e' with (eval_expr e) by auto
+     end.
+
+Lemma mapsto_isptr:
+  forall sh t v1 v2,
+   mapsto sh t v1 v2 = !! (denote_tc_isptr v1) && mapsto sh t v1 v2.
+Proof.
+intros; unfold mapsto.
+destruct (access_mode t); normalize.
+destruct v1; normalize.
+Qed.
+
+Lemma semax_store_PQR:
+forall (Delta: tycontext) sh t1 P Q R e1 e2 x
+    (WS: writable_share sh)
+    (NONVOL: type_is_volatile t1 = false)
+    (TC: typecheck_store (Ederef e1 t1)),
+    typeof e1 = Tpointer t1 noattr ->
+    semax Delta 
+       (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
+                             (SEPx (`(mapsto sh t1) (eval_expr e1) x::R))))
+       (Sassign (Ederef e1 t1) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx  (`(mapsto sh t1) (eval_expr e1) 
+                  (`(eval_cast (typeof e2) t1) (eval_expr e2)) :: R))))).
+Proof.
+intros.
+pose proof semax_store.
+unfold coerce, lift2_C, lift1_C in *.
+eapply semax_pre_post; [ | | eapply H0]; try eassumption.
+instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
+instantiate (1:= x (*lift1 (eval_cast (typeof e2) (typeof e1)) (eval_expr e2) *)).
+apply andp_left2. apply later_derives. change SEPx with SEPx'.
+intro rho; unfold PROPx, LOCALx, SEPx', local, lift1,lift2.
+simpl.
+normalize.
+unfold tc_lvalue. simpl typecheck_lvalue.
+rewrite H; simpl.
+rewrite mapsto_isptr at 1. normalize.
+repeat apply andp_right; try apply prop_right; auto.
+repeat rewrite denote_tc_assert_andp.
+repeat split; auto.
+rewrite NONVOL; hnf; auto.
+replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
+clear - H5; hnf in H5. destruct (eval_expr e1 rho); try contradiction; simpl; auto.
+
+intros ek vl rho; unfold normal_ret_assert, local; unfold_coerce; simpl.
+normalize.
+cancel.
+clear.
+rewrite mapsto_isptr at 1. normalize.
+replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
+destruct (eval_expr e1 rho); simpl in *; try contradiction; auto.
+Qed.
+
 Ltac isolate_storable_tac e fld R := 
   match R with 
      | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
@@ -154,6 +219,21 @@ Ltac store_field_tac :=
    [ try solve [go_lower; normalize]
    | isolate_storable_tac e fld R; hoist_later_in_pre;
        eapply semax_post'; [ | store_field_tac1]
+   ]
+  end.
+
+Ltac store_tac :=
+ match goal with
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
+       apply (semax_pre_PQR (PROPx P 
+                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
+                (SEPx R))));
+   [ try solve [go_lower; normalize]
+   |  isolate_mapsto_tac e R; hoist_later_in_pre;
+       eapply semax_post';  
+       [ | eapply semax_store_PQR; [ auto | reflexivity | hnf; intuition | reflexivity ]
+       ]
    ]
   end.
 
@@ -206,6 +286,35 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
                  (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
+       | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
+               ]];
+  clear SCI VT GT; try clear H;
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
+
+
+Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
+
+   let VT := fresh "VT" in let GT := fresh "GT" in 
+         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
+      assert (VT: (var_types Delta) ! f = None) by reflexivity;
+      assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
+                    by (unfold fsig, A, Pre, Post; simpl; reflexivity);
+ let SCI := fresh "SCI" in
+    let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
+      evar (witness:A); evar (F: list assert); 
+      assert (SCI := semax_call_id0 Delta P Q F f 
+                (type_of_params (fst fsig)) bl fsig A witness Pre Post 
+                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _) );
+      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
+                                      (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+     [ unfold fsig, A, Pre, Post
+     |  apply semax_pre with (PROPx P
+                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
+                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                            F))));
+       [ apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
                ]];
   clear SCI VT GT; try clear H;
@@ -296,6 +405,7 @@ Ltac forward1 :=
   end;
   match goal with 
   | |- semax _ _ (Sassign (Efield _ _ _) _) _ =>      store_field_tac
+  | |- semax _ _ (Sassign (Ederef _ _) _) _ =>      store_tac
   | |- semax _ _ (Sset _ (Efield _ _ _)) _ => semax_field_tac || fail 2
   | |- semax _ _ (Sset ?id ?e) _ => forward_setx
   | |- semax _ _ (Sreturn _) _ => 
@@ -354,6 +464,24 @@ match goal with
                [ semax_call_id_tac_aux Delta P Q R id f bl  ; [ | apply derives_refl ] 
                | try (apply exp_left; intro_old_var'' id)
                ]
+
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
+       (* HACK ... need this extra clause, because trying to do it via the general case
+          of the next clause leads to unification difficulties; maybe the general case
+          will work in Coq 8.4 *)
+           eapply semax_seq';
+           [ semax_call0_id_tac_aux Delta P Q R f bl ; [ | apply derives_refl  ] 
+           |  try unfold exit_tycon; 
+                 simpl update_tycon; simpl map
+            ]
+  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
+       (* HACK ... need this extra clause, because trying to do it via the general case
+          of the next clause leads to unification difficulties; maybe the general case
+          will work in Coq 8.4 *)
+           eapply semax_post_flipped';
+           [ semax_call0_id_tac_aux Delta P Q R f bl ; [ | apply derives_refl  ] 
+           | 
+            ]
   | |- semax _ _ (Ssequence ?c1 ?c2) _ => 
            let Post := fresh "Post" in
               evar (Post : assert);

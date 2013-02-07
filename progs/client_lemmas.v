@@ -1275,7 +1275,7 @@ apply sepcon_comm.
 Qed.
 
 Ltac focus_SEP n := 
-   rewrite (grab_nth_SEP 1); unfold nth, delete_nth.
+   rewrite (grab_nth_SEP n); unfold nth, delete_nth.
 
 Lemma restart_canon: forall P Q R, (PROPx P (LOCALx Q (SEPx R))) = do_canon emp (PROPx P (LOCALx Q (SEPx R))).
 Proof.
