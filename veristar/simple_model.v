@@ -1,4 +1,4 @@
-Add LoadPath "..".
+Load loadpath.
 Require Import msl.base msl.sepalg msl.psepalg msl.predicates_sl msl.functors 
                msl.sepalg_functors msl.sepalg_generators. 
 Require Import veristar.variables veristar.model_type.
@@ -286,3 +286,40 @@ elimtype False; omega.
 Qed.
 
 End BarebonesLogic.
+
+
+Require Import veristar.model.
+
+Module BarebonesModel := VeriStarModel BarebonesLogic.
+
+Require Import veristar.veristar_sound.
+
+Module BarebonesSound := VeriStarSound BarebonesModel.
+
+(*Print Assumptions BarebonesSound.check_entailment_sound.*)
+
+(*NOTE: 
+We assume prop. extensionality, functionality extensionality, and the 
+excluded middle. (Indeed, excluded middle is natural since we are proving 
+soundness of a refutation-style theorem prover.) 
+
+ prop_ext : ClassicalFacts.prop_extensionality
+ Classical_Prop.classic : forall P : Prop, P \/ ~ P
+ functional_extensionality_dep : forall (A : Type) (B : A -> Type)
+                                   (f g : forall x : A, B x),
+                                 (forall x : A, f x = g x) -> f = g
+
+The following axioms stem from the opaque module type in variables.v, which 
+we implement via extraction to OCaml integers.  Note that there are NO 
+axioms about the behavior of the functions Z2id and add_id.
+
+ Z2id : Z -> Ident.t
+ add_id : Ident.t -> Ident.t -> Ident.t
+ Ident.compare : Ident.t -> Ident.t -> comparison
+ Ident.compare_spec : forall s s' : Ident.t,
+                     CompSpec Ident.eq Ident.lt s s' (Ident.compare s s')
+ Ident.eq_dec : forall x y : Ident.t, {Ident.eq x y} + {~ Ident.eq x y}
+ Ident.lt : Ident.t -> Ident.t -> Prop
+ Ident.lt_strorder : RelationClasses.StrictOrder Ident.lt
+ Ident.t : Type
+*)
