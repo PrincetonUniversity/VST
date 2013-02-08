@@ -103,29 +103,31 @@ Definition f_fifo_get := {|
   fn_return := (tptr t_struct_elem);
   fn_params := ((_Q, (tptr t_struct_fifo)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr t_struct_elem)) :: nil);
+  fn_temps := ((_p, (tptr t_struct_elem)) ::
+               (_t, (tptr (tptr t_struct_elem))) :: nil);
   fn_body :=
-(Sifthenelse (Ebinop Oeq
-               (Efield
-                 (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-                 _tail (tptr (tptr t_struct_elem)))
-               (Eaddrof
-                 (Efield
-                   (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-                   _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem)))
-               tint)
-  (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
-  (Ssequence
-    (Sset _p
-      (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _head
-        (tptr t_struct_elem)))
+(Ssequence
+  (Sset _t
+    (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _tail
+      (tptr (tptr t_struct_elem))))
+  (Sifthenelse (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
+                 (Eaddrof
+                   (Efield
+                     (Ederef (Etempvar _Q (tptr t_struct_fifo))
+                       t_struct_fifo) _head (tptr t_struct_elem))
+                   (tptr (tptr t_struct_elem))) tint)
+    (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))
     (Ssequence
-      (Sassign
+      (Sset _p
         (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-          _head (tptr t_struct_elem))
-        (Efield (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem)
-          _next (tptr t_struct_elem)))
-      (Sreturn (Some (Etempvar _p (tptr t_struct_elem)))))))
+          _head (tptr t_struct_elem)))
+      (Ssequence
+        (Sassign
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _head (tptr t_struct_elem))
+          (Efield (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem)
+            _next (tptr t_struct_elem)))
+        (Sreturn (Some (Etempvar _p (tptr t_struct_elem))))))))
 |}.
 
 Definition f_make_elem := {|

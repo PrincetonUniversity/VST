@@ -9,9 +9,35 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
-Parameter memory_block: share -> int -> val -> mpred.
+Definition memory_byte (sh: share) (v: val) : mpred :=
+   (EX v':val, mapsto sh (Tint I8 Unsigned noattr) v v').
+
+Lemma memory_byte_offset_zero:
+  forall sh v, memory_byte sh (offset_val v Int.zero) = memory_byte sh v.
+Proof.
+intros.
+unfold memory_byte; f_equal; extensionality v'.
+unfold mapsto; destruct v; try solve [simpl; auto].
+destruct (access_mode (Tint I8 Unsigned noattr) ); auto.
+simpl offset_val. rewrite Int.add_zero. auto.
+Qed.
+
+Fixpoint memory_block' (sh: share) (n: nat) (v: val) : mpred :=
+  match n with
+  | O => emp
+  | S n' => memory_byte sh v * memory_block' sh n' (offset_val v Int.one)
+ end.
+
+Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+    memory_block' sh (nat_of_Z (Int.unsigned n)) v.
+
 Lemma memory_block_zero: forall sh v, memory_block sh (Int.repr 0) v = emp.
-Admitted.
+Proof.
+ intros. unfold memory_block. rewrite Int.unsigned_repr. simpl. auto.
+ pose proof Int.modulus_pos.
+ unfold Int.max_unsigned. omega.
+Qed.
+
 
 Lemma offset_val_assoc:
   forall v i j, offset_val (offset_val v i) j = offset_val v (Int.add i j).
@@ -23,7 +49,75 @@ rewrite Int.add_assoc; auto.
 Qed.
 Hint Rewrite offset_val_assoc: normalize.
 
+Lemma memory_block_offset_zero:
+  forall sh n v, memory_block sh n (offset_val v Int.zero) = memory_block sh n v.
+Proof.
+unfold memory_block; intros.
+revert v; induction (nat_of_Z (Int.unsigned n)); intros.
+simpl. auto.
+simpl.
+f_equal.
+apply memory_byte_offset_zero.
+rewrite offset_val_assoc.
+f_equal.
+Qed.
+
+Lemma memory_block_split:
+  forall sh v i j,
+   0 <= Int.unsigned i <= Int.unsigned j ->
+   memory_block sh j v = 
+      memory_block sh i v * memory_block sh (Int.sub j i) (offset_val v i).
+Proof.
+intros.
+unfold memory_block.
+remember (nat_of_Z (Int.unsigned i)) as n.
+assert (Nrange: Z_of_nat n <= Int.max_unsigned).
+destruct (Int.unsigned_range_2 i).
+subst n. rewrite nat_of_Z_eq by omega. auto.
+assert (i = Int.repr (Z_of_nat n)).
+clear - Heqn.
+admit.  (* tedious Integers proof *)
+subst i.
+clear Heqn.
+revert j v H; induction n; intros.
+unfold memory_block' at 2. fold memory_block'. rewrite emp_sepcon.
+simpl Z_of_nat. rewrite Int.sub_zero_l.
+symmetry.
+apply memory_block_offset_zero.
+replace (nat_of_Z (Int.unsigned j)) with (S (nat_of_Z (Int.unsigned (Int.sub j Int.one)))).
+unfold memory_block' at 1 2; fold memory_block'.
+repeat rewrite sepcon_assoc.
+f_equal; auto.
+rewrite IHn; clear IHn.
+f_equal.
+rewrite offset_val_assoc.
+f_equal.
+f_equal.
+f_equal.
+repeat rewrite Int.sub_add_opp.
+rewrite Int.add_assoc.
+f_equal.
+rewrite <- Int.neg_add_distr.
+f_equal.
+admit.  (* tedious Integers proof *)
+f_equal.
+rewrite inj_S.
+unfold Zsucc.
+rewrite Int.add_unsigned.
+f_equal.
+rewrite Zplus_comm.
+f_equal.
+rewrite Int.unsigned_repr; auto.
+rewrite inj_S in Nrange. unfold Zsucc in Nrange. split; omega.
+rewrite inj_S in Nrange. unfold Zsucc in Nrange. omega.
+rewrite inj_S in H. unfold Zsucc in H.
+admit.  (* tedious Integers proof *)
+admit.  (* tedious Integers proof *)
+Qed.
+
 Hint Rewrite memory_block_zero: normalize.
+
+Global Opaque memory_block.
 
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
@@ -41,7 +135,6 @@ Proof.
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
 Hint Rewrite field_storable_offset_zero: normalize.
-
 
 Definition spacer (pos: Z) (alignment: Z) (v: val) : mpred :=
    memory_block Share.top (Int.repr (align pos alignment - pos))
@@ -62,11 +155,24 @@ Proof.
  rewrite memory_block_zero, emp_sepcon; auto.
 Qed.
 
+Definition storable_mode (ty: type) : bool :=
+  match ty with
+  | Tarray _ _ _ => false
+  | Tfunction _ _ => false
+  | Tstruct _ _ _ => false
+  | Tunion _ _ _ => false
+  | Tvoid => false
+  | _ => true
+end.
+
 Fixpoint malloc_assertion (pos: Z) (ty: type)  (v: val) : mpred :=
   match ty with
   | Tstruct id fld a => withspacer pos (alignof ty) v
-                          (malloc_assertion_fields 0 ty fld 
-                                    (offset_val v (Int.repr (align pos (alignof ty)))))
+           match fld with 
+           | Fnil => memory_block Share.top Int.one (offset_val v (Int.repr (align pos (alignof ty))))
+           | _ => malloc_assertion_fields 0 ty fld 
+                                    (offset_val v (Int.repr (align pos (alignof ty))))
+           end
   | _ => withspacer pos (alignof ty) v
                          (memory_block Share.top (Int.repr (sizeof ty) )
                             (offset_val v (Int.repr (align pos (alignof ty)))))
@@ -75,12 +181,12 @@ Fixpoint malloc_assertion (pos: Z) (ty: type)  (v: val) : mpred :=
 with malloc_assertion_fields (pos:Z) (t0: type) (flds: fieldlist) (v: val) : mpred :=
  match flds with
  | Fnil => emp
- | Fcons id ty flds' => withspacer pos (alignof ty) v 
-                                     (field_storable Share.top t0 id 
-                                          (offset_val v (Int.repr (align pos (alignof ty))))) * 
-                                   malloc_assertion_fields pos t0 flds' v
+ | Fcons id ty flds' => 
+     (if storable_mode ty 
+     then withspacer pos (alignof ty) v (field_storable Share.top t0 id v)
+     else malloc_assertion pos ty v)
+     * malloc_assertion_fields pos t0 flds' v
   end.
-
 
 Fixpoint reptype (ty: type) : Type :=
   match ty with
@@ -254,14 +360,92 @@ destruct v2 as [i [j [[] []]]].
 simpl_malloc_assertion.
 
 *)
+Require Import progs.assert_lemmas.
 
-Lemma malloc_assert: forall ty, 
-   memory_block Share.top (Int.repr (sizeof ty)) =
-   malloc_assertion 0 ty.
+Lemma emp_wand {A}{NA: NatDed A}{SA: SepLog A}:
+   forall P, emp -* P = P.
+Proof.
 Admitted.
 
-Lemma memory_block_isptr:
-  forall sh n v, memory_block sh n v = !! denote_tc_isptr v && memory_block sh n v.
+Lemma malloc_assertion_fields_offset_zero:
+  forall t f v, malloc_assertion_fields 0 t f (offset_val v (Int.repr 0)) =
+                           malloc_assertion_fields 0 t f v.
+Proof.
+ intros. destruct f; simpl; auto.
 Admitted.
 
+Lemma malloc_assert': forall pos ty v, 
+   spacer pos (alignof ty) v *
+   memory_block Share.top (Int.repr (sizeof ty)) (offset_val v (Int.repr (align pos (alignof ty))))
+     = malloc_assertion pos ty v
+with malloc_assert_fields: forall pos t fld v,
+  spacer (sizeof_struct fld pos) (alignof_fields fld) v 
+  * memory_block Share.top (Int.repr (sizeof_struct fld pos)) v
+  =   memory_block Share.top (Int.repr pos) v * malloc_assertion_fields pos t fld v.
+Proof.
+ clear malloc_assert'.
+ intros.
+ induction ty; try solve [simpl; rewrite withspacer_spacer; auto].
+ unfold malloc_assertion; fold malloc_assertion_fields.
+ rewrite withspacer_spacer.
+ f_equal.
+ case_eq f; intros. simpl.
+ unfold Zmax, align; simpl. auto.
+ rewrite <- H.
+ assert (Zmax 1 (sizeof_struct f 0) = sizeof_struct f 0).
+  subst f. simpl. rewrite align_0 by (apply alignof_pos).
+   simpl. pose proof (sizeof_struct_incr f0 (sizeof t)).
+   rewrite Zmax_spec. rewrite zlt_false; auto. pose proof (sizeof_pos t). omega.
+ simpl sizeof. rewrite H0.
+ specialize (malloc_assert_fields 0 (Tstruct i f a) f 
+    (offset_val v (Int.repr (align pos (alignof (Tstruct i f a)))))).
+ rewrite memory_block_zero in malloc_assert_fields.
+ rewrite emp_sepcon in malloc_assert_fields.
+ rewrite <- malloc_assert_fields.
+ rewrite (memory_block_split Share.top _ 
+                    (Int.repr (sizeof_struct f 0))
+                    (Int.repr (align (sizeof_struct f 0) (alignof_fields f)))).
+ 2:  admit.  (* straightforward *)
+ rewrite sepcon_comm. f_equal.
+ admit. (* tedious *)
+ 
+ clear malloc_assert_fields.
+ intros. revert pos v; induction fld; simpl; intros.
+ rewrite sepcon_comm; f_equal.
+ unfold spacer.
+ replace (Zminus (align pos (Zpos xH)) pos) with 0.
+ apply memory_block_zero.
+ unfold align. replace (pos + 1 - 1) with pos by omega.
+ rewrite Zdiv_1_r. rewrite Zmult_1_r. omega.
+ rewrite withspacer_spacer.
+ pull_left (malloc_assertion_fields pos t fld v).
+ rewrite <- malloc_assert'. clear malloc_assert'.
+ replace (if storable_mode t0
+  then spacer pos (alignof t0) v * field_storable Share.top t i v
+  else spacer pos (alignof t0) v *
+      memory_block Share.top (Int.repr (sizeof t0))
+          (offset_val v (Int.repr (align pos (alignof t0)))))
+ with (spacer  pos (alignof t0) v * 
+          if storable_mode t0 then field_storable Share.top t i v
+               else memory_block Share.top (Int.repr (sizeof t0))
+               (offset_val v (Int.repr (align pos (alignof t0)))))
+   by ( destruct (storable_mode t0); auto).
+  do 2 rewrite <-sepcon_assoc.
+ rewrite <- IHfld. clear IHfld.
+ case_eq (storable_mode t0); intros.
+ admit. (* might be *)
+ admit.  (* might be *)
+Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
+                         Let's hope it goes faster in 8.4 *)
 
+Lemma malloc_assert: 
+ forall ty v, memory_block Share.top (Int.repr (sizeof ty)) v
+               = malloc_assertion 0 ty v.
+Proof.
+intros. rewrite <- malloc_assert'.
+unfold spacer.
+rewrite align_0 by (apply alignof_pos).
+rewrite memory_block_zero.
+rewrite memory_block_offset_zero.
+rewrite emp_sepcon; auto.
+Qed.

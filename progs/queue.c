@@ -30,7 +30,9 @@ void fifo_put (struct fifo *Q, struct elem *p) {
 
 struct elem *fifo_get (struct fifo *Q) {
   struct elem *p;
-  if (Q->tail== &(Q->head))
+  struct elem **t;
+  t = Q->tail;
+  if (t == &(Q->head))
     return NULL;
   else {
     p=Q->head;
