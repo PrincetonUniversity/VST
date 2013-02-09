@@ -70,32 +70,30 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
-go_lower. subst. cancel.
+go_lower. subst. normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 go_lower.  subst.  normalize. destruct cts; inv H. simpl. normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
-go_lower. destruct cts; inv H.
+go_lower. normalize.
+destruct cts; inv H.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with cts.
-go_lower.
-
-findvars.
-
- subst. inv H0.
+go_lower. subst. inv H0.
  rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg i)),
              Int.add_neg_zero, Int.add_zero.
 normalize. cancel. 
 (* After the loop *)
 forward.  (* return s; *)
-go_lower.
-reflexivity.
+go_lower. normalize.
+apply andp_right; apply prop_right; hnf; simpl; auto.
+f_equal; auto.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=
@@ -130,7 +128,7 @@ go_lower. subst. normalize.
 (* loop body preserves invariant *)
 normalizex. subst contents.
 focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
-go_lower.
+go_lower. normalize.
 destruct cts2; inv H0.
 forward.  (* t = v->t; *)
 forward.  (*  v->t = w; *)
@@ -163,7 +161,7 @@ apply exp_right with cts2.
   cancel. (* end et_10 *)
 (* after the loop *)
 forward.  (* return w; *)
-go_lower. rewrite map_rev. cancel.
+go_lower. normalize. rewrite map_rev. cancel.
 Qed.
 
 Lemma setup_globals:
@@ -198,17 +196,16 @@ name _r P._r.
 name _s P._s.
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
-go_lower.
-eapply derives_trans; [apply setup_globals; auto | ].
-cancel.
+ go_lower. normalize. eval_cast_simpl.
+  eapply derives_trans; [apply setup_globals; auto | ].
+ cancel.
 auto with closed.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
-go_lower.
-cancel.
+go_lower. normalize. cancel.
 auto with closed.
 forward.  (* return s; *)
-go_lower. normalize. reflexivity.
+go_lower. normalize.
 Qed.
 
 Lemma all_funcs_correct:

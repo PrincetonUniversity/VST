@@ -22,6 +22,13 @@ apply mk_listspec with  (Fcons _a tint
 simpl. reflexivity.
 Defined.
 
+Lemma wand_ponens {A}{NA: NatDed A}{SA: SepLog A}:
+  forall P Q, P * (P -* Q) |-- Q.
+Admitted.
+
+Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
+Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
+
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: int
@@ -43,9 +50,6 @@ Definition elemrep (rep: elemtype) (p: val) : mpred :=
   (field_mapsto Share.top t_struct_elem _b p (Vint (fst (snd rep))) *
    (field_storable Share.top t_struct_elem _next p)).
 
-Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
-Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
-
 Definition fifo (contents: list elemtype) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       field_mapsto Share.top t_struct_fifo _head p hd *
@@ -55,7 +59,8 @@ Definition fifo (contents: list elemtype) (p: val) : mpred:=
       else (EX prefix: list elemtype, EX ult:val, EX elem:elemtype,
               !!(tl=offset_val ult (Int.repr 8) 
                   /\ contents = prefix++(elem::nil))
-            &&  (lseg QS Share.top prefix hd ult * elemrep elem ult)).
+            &&  (lseg QS Share.top prefix hd ult * 
+                   elemrep elem ult)).
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -70,6 +75,14 @@ Definition fifo_put_spec :=
             local (`(eq q) (eval_id _Q)) && 
            `(fifo contents q) * `(elemrep elem) (eval_id _p)
   POST [ tvoid ] `(fifo (contents++(elem :: nil)) q).
+
+Definition fifo_empty_spec :=
+ DECLARE _fifo_empty
+  WITH q: val, contents: list elemtype
+  PRE  [ _Q OF (tptr t_struct_fifo) ]
+     local (`(eq q) (eval_id _Q)) &&`(fifo contents q)
+  POST [ tint ] local (`(eq (if isnil contents then Vtrue else Vfalse)) retval)
+                        && `(fifo (contents) q).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
@@ -96,11 +109,20 @@ Definition main_spec :=
 Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
-    mallocN_spec :: freeN_spec :: fifo_new_spec :: fifo_put_spec :: fifo_get_spec 
+    mallocN_spec :: freeN_spec :: fifo_new_spec :: fifo_put_spec 
+         :: fifo_empty_spec :: fifo_get_spec 
          :: make_elem_spec :: main_spec::nil.
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
+
+Definition storable (sh: share) (t: type) (v: val) :=
+ EX v':val, mapsto sh t v v'.
+
+Lemma mapsto_storable: forall sh t v v',
+   mapsto sh t v v' |-- storable sh t v.
+Proof. unfold storable; intros. apply exp_right with v'; auto.
+Qed.
 
 Lemma andp_prop_gather {A}{NA: NatDed A}:
   forall P Q: Prop, andp (prop P) (prop Q) = prop (P /\ Q).
@@ -170,13 +192,120 @@ intros. extensionality rho. reflexivity.
 Qed.
 Hint Rewrite @lift0C_andp @lift0C_prop @lift0C_sepcon : normalize.
 
+Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
+  forall P:A, 
+   @coerce A (environ -> A) (lift0_C A) (@later A NA IA P) =
+      @later (environ->A) (@LiftNatDed environ A NA) 
+                (@LiftIndir environ A NA IA)
+             (@coerce A (environ->A) _ P).
+Proof. intros. reflexivity. Qed.
+
 Lemma lift1C_lift0C:
   forall {A}{J: A}{K: environ -> environ},
      (@coerce (environ -> A) ((environ -> environ) -> (environ -> A))
             (lift1_C environ A)
                  (@coerce A (environ -> A) (lift0_C A)  J) K) = `J.
 Proof. intros. extensionality rho. reflexivity. Qed.
- (*
+
+Lemma list_cell_elemrep:
+  forall p elem, 
+  field_storable Share.top t_struct_elem _next p * list_cell QS Share.top p elem 
+    |-- elemrep elem p.
+  intros.
+  unfold list_cell, elemrep.
+  simpl in elem.
+  destruct elem as [a [b [[] []]]].
+  simpl @fst; simpl @snd.
+  SearchAbout wand.
+ eapply derives_trans; [apply wand_ponens | ].
+ simpl_malloc_assertion.
+ fold t_struct_elem.
+ cancel.
+Qed.
+
+Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
+Proof.
+start_function.
+name _Q _Q.
+name _t _t.
+unfold fifo.
+match goal with |- semax _ _ _ ?P => set (Post := P) end.
+normalize. rewrite extract_exists_in_SEP.
+apply extract_exists_pre; intros [hd tl].
+repeat rewrite lift0C_sepcon.
+apply semax_pre_PQR with
+  (PROP  ()
+   LOCAL  (`(eq q) (eval_id queue._Q))
+   SEP 
+   (`(field_mapsto Share.top t_struct_fifo _head)  (eval_id queue._Q) `hd;
+    `(field_mapsto Share.top t_struct_fifo _tail)  (eval_id queue._Q) `tl;
+    `(if isnil contents
+      then !!(tl = q) && emp
+      else
+       EX  prefix : list elemtype,
+       (EX  ult : val,
+        (EX  elem : elemtype,
+         !!(tl = offset_val ult (Int.repr 8) /\
+            contents = prefix ++ elem :: nil) &&
+         (lseg QS Share.top prefix hd ult * elemrep elem ult)))))).
+go_lower; subst. apply andp_right. apply prop_right; auto.
+ normalize.
+  cancel.
+unfold Post; clear Post.
+forward. (* t = Q->tail;*)
+forward. (* return (t == &(Q->head)); *)
+go_lower.
+subst _Q _t.
+forget False as NOPROOF.
+rewrite field_mapsto_isptr.
+repeat apply andp_right.
+normalize.
+apply andp_right; apply prop_right; auto.
+admit.  (* need to fix typechecking of pointer comparison *) 
+simpl.
+rewrite sepcon_emp.
+repeat apply andp_right.
+normalize.
+apply prop_right.
+destruct q; inv H0.
+simpl.
+destruct tl; inv TC; simpl.
+unfold eval_binop; simpl. unfold sem_cmp; simpl.
+rewrite H1. simpl. auto.
+admit.  (* need to fix typechecking of pointer comparison *) 
+normalize.
+destruct q; inv H0.
+destruct (isnil contents).
+normalize.
+simpl. rewrite Int.add_zero.
+admit.  (* need to fix typechecking of pointer comparison *) 
+normalize.
+clear n.
+unfold elemrep.
+unfold elemtype in elem.
+destruct elem as [a1 [b1 [[] []]]].
+simpl @fst; simpl @snd.
+apply derives_trans with
+  (field_storable Share.top t_struct_elem _next ult *
+   field_mapsto Share.top t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
+
+replace (field_storable Share.top t_struct_elem _next ult)
+  with (storable Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8))).
+Focus 2.
+eapply mapsto_field_storable; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
+eapply derives_trans. eapply sepcon_derives; [ | apply derives_refl].
+apply sepcon_derives. apply derives_refl. apply field_mapsto_storable.
+replace (field_storable Share.top t_struct_fifo _head (Vptr b i))
+  with (storable Share.top (tptr t_struct_elem) (Vptr b i)).
+Focus 2.
+eapply mapsto_field_storable; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
+unfold align, Zmax; simpl.  rewrite Int.add_zero. reflexivity.
+admit.  (* should be be provable, in principle *)
+apply exp_right with (hd,tl).
+normalize.
+cancel.
+Qed.
+
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
@@ -198,11 +327,13 @@ apply semax_pre_PQR with
    LOCAL ()
    SEP  (`(memory_block Share.top (Int.repr 8)) (eval_id queue._Q))).
 go_lower. subst. destruct _q; inv TC; simpl; normalize.
+  eval_cast_simpl. auto.
 clear _q.
 rewrite memory_block_fifo.
 flatten_sepcon_in_SEP.
 forward. (* Q->head = NULL; *)
 go_lower. apply andp_right; auto. apply prop_right; hnf; auto.
+split; hnf; auto.
 forward.  (*  Q->tail = &(Q->head); *)
 go_lower. apply andp_right; auto.
   rewrite field_mapsto_nonnull at 1. normalize.
@@ -335,7 +466,7 @@ go_lower. subst. rewrite elemrep_isptr at 1. normalize.
 forward. (* return *)
 go_lower. subst.
 unfold fifo.
-destruct (@isnil elemtype (elem::nil)); [inv e | clear n].
+destruct (@isnil elemtype (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
 unfold align. simpl.
 rewrite elemrep_isptr at 1.
 normalize.
@@ -345,6 +476,8 @@ unfold eval_cast; simpl.
 apply exp_right with (Vptr b i , Vptr b (Int.add i (Int.repr 8))).
 cancel.
 rewrite mapsto_isptr.
+apply andp_right; auto.
+rewrite sepcon_andp_prop.
 rewrite sepcon_andp_prop'.
 apply derives_extract_prop; intro.
 replace (field_mapsto Share.top t_struct_fifo _head _Q (Vptr b i))
@@ -396,7 +529,7 @@ apply semax_pre_PQR with
       (eval_id queue._t);
    `(field_mapsto Share.top t_struct_fifo _head) (eval_id queue._Q) `hd;
    `(elemrep elem) (eval_id queue._p))).
-go_lower. subst. auto.
+go_lower. subst. normalize.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
 clear Post; go_lower. subst.
@@ -415,6 +548,7 @@ unfold align; simpl.
  apply exp_right with (hd,  Vptr p (Int.add i0 (Int.repr 8))).
 match goal with |- context [isnil ?P] => destruct (isnil P) end.
 destruct prefix; inv e. clear n.
+apply andp_right; auto.
 cancel.
 apply exp_right with (prefix ++ (a, (b, (tt, tt))) :: nil).
 apply exp_right with (Vptr p i0).
@@ -489,11 +623,12 @@ name _p _p.
 name _p' 23%positive.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
-go_lower.
+go_lower. normalize.
 rewrite andp_prop_gather.
 rewrite sepcon_andp_prop'.
-apply andp_right. apply prop_right; split; compute; congruence.
-unfold stackframe_of; simpl.
+apply andp_right. apply prop_right; split; auto. 
+compute; congruence.
+normalize.
 instantiate (1:=nil) in (Value of Frame).
 unfold Frame; simpl; normalize.
 normalize.
@@ -505,7 +640,7 @@ apply semax_pre_PQR with
    SEP  (`(field_storable Share.top t_struct_elem queue._a) (eval_id queue._p);
            `(field_storable Share.top t_struct_elem queue._b) (eval_id queue._p);
            `(field_storable Share.top t_struct_elem queue._next) (eval_id queue._p))).
-go_lower; subst.
+go_lower; subst. normalize.
  change 12 with (sizeof t_struct_elem).
  rewrite malloc_assert.
  simpl_malloc_assertion.
@@ -536,13 +671,13 @@ name _Q _Q.
 name _p _p.
 forward. (* Q = fifo_new(); *)
 instantiate (1:= tt) in (Value of witness).
-go_lower. cancel.
+go_lower. normalize. cancel.
 auto with closed.
 forward. (*  p = make_elem(1,10); *)
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
 unfold assert; rewrite lift1_lift1_retvalC.
 instantiate (1:= `(fifo nil) (eval_id queue._Q)::nil) in (Value of Frame).
-go_lower.
+go_lower. normalize.
 auto with closed.
 simpl.
 unfold assert; rewrite lift1_lift1_retvalC.
@@ -569,7 +704,7 @@ forward. (* fifo_put(Q,p);*)
           `(fifo nil q) *
           `(elemrep (Int.repr 1, (Int.repr 10, (tt,tt)))) (eval_id queue._p)).
  normalize.
- go_lower. subst _p _Q.
+ go_lower. subst _p _Q. normalize.
  cancel.
 match goal with |- context [coerce ?A  (make_args nil nil)] =>
   remember A as foo
@@ -577,7 +712,7 @@ end.
 simpl in Heqfoo. subst foo.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
-go_lower. subst _Q _p.
+go_lower. subst _Q _p. normalize.
 instantiate (1:= `(fifo ((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil) q)::nil) in (Value of Frame).
 unfold Frame; simpl. cancel.
 auto with closed.
@@ -598,8 +733,7 @@ apply extract_exists_pre; intro p1.
 forward.  (* fifo_put(Q,p); *)
  instantiate (1:= ((q1,((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil)),(Int.repr 2, (Int.repr 20, (tt,tt))))) in (Value of witness).
  unfold witness.
- go_lower. subst _p _Q.
- cancel.
+ go_lower. subst _p _Q. normalize. cancel.
 match goal with |- context [coerce ?A  (make_args nil nil)] =>
   remember A as foo
 end.
@@ -608,7 +742,7 @@ unfold assert; rewrite @lift1C_lift0C.
 forward. (*   p = fifo_get(Q); *)
  instantiate (1:= ((q1,((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil)),(Int.repr 1, (Int.repr 10, (tt,tt))))) in (Value of witness).
 unfold witness.
-go_lower. cancel.
+go_lower. normalize. cancel.
 auto with closed.
 cbv iota beta.
 simpl map.
@@ -652,7 +786,7 @@ forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)
 instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
-go_lower.
+go_lower. normalize.
 eapply derives_trans.
 apply sepcon_derives.
 apply field_mapsto_storable.
@@ -670,52 +804,43 @@ instantiate (1:= `(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q1) :: ni
 simpl.
 cancel.
 forward. (* return i+j; *)
-go_lower.
+go_lower. normalize.
 Qed.
-*) 
 
-Lemma semax_ifthenelse_PQR : 
-   forall Delta P Q R (b: expr) c d Post,
-      bool_type (typeof b) = true ->
-     semax Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        c Post -> 
-     semax Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        d Post -> 
-     semax Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
-                         (Sifthenelse b c d) Post.
-Proof.
- intros.
- eapply semax_pre0; [ | apply semax_ifthenelse]; auto.
- instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
- unfold PROPx, LOCALx; intro rho; normalize.
- eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
- eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
-Qed.
+(*
+Notation "( e )" := (Etempvar e _) (at level 80) : C.
+Notation "a = p '->' f ;" := 
+   (Sset a (Efield (Ederef p _) f _)) (at level 100) : C.
+Notation "p '- >' f = e ;" := 
+   (Sassign (Efield (Ederef p _) f _) e) (at level 100) : C.
+Notation "& e" := (Eaddrof e _) (at level 80) : C.
+Notation "e - > f" := (Efield (Ederef e _) f _) (at level 82, left associativity): C.
+Delimit Scope C with C.
+*)
 
 Lemma body_fifo_get: semax_body Vprog Gtot f_fifo_get fifo_get_spec.
 Proof.
 start_function.
-name _Q _Q.
-name _p _p.
-name _t _t.
 destruct p as [q contents].
+name Q _Q.
+name p _p.
+name t _t.
+name n _n.
 rewrite move_local_from_SEP.
 unfold fifo at 1.
 normalizex.
 rewrite extract_exists_in_SEP.
 apply extract_exists_pre; intros [hd tl].
-destruct (isnil (elem::contents)); [inv e | clear n].
+destruct (isnil (elem::contents)) as [e3|n3]; [inv e3 | clear n3].
 apply semax_pre_PQR with
  (EX  prefix : list elemtype,
    EX  ult : val,
     EX  elem0 : elemtype,
      PROP (tl = offset_val ult (Int.repr 8);
             elem :: contents = prefix ++ elem0 :: nil)
-      LOCAL (`(eq q) (eval_id queue._Q))
-      SEP (`(field_mapsto Share.top t_struct_fifo _head) (eval_id queue._Q) `hd;
-           `(field_mapsto Share.top t_struct_fifo _tail) (eval_id queue._Q) `tl;
+      LOCAL (`(eq q) (eval_id _Q))
+      SEP (`(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd;
+           `(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl;
             `(lseg QS Share.top prefix hd ult);
              `(elemrep elem0 ult))).
  go_lower2. normalize. intro lastelem. intro.
@@ -727,18 +852,141 @@ apply semax_pre_PQR with
  apply extract_exists_pre; intro lastelem.
  normalizex.
  subst tl.
- forward. (*   t = Q->tail; *)
-match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
-                                 (Sifthenelse ?e _ _) _ =>
- apply semax_pre_PQR
-   with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
-  [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]]
- end.
- admit.  (* OOPS!  pointer comparison doesn't type-check *)
+ forward. (*   p = Q->head; *)
+ forward. (*   t=Q->tail; *)
+ apply semax_seq with
+    (`(fifo contents q) * `(elemrep elem) (eval_id _p)).
+ forward1.  (*   if (t == &(p->next)) *)
+ go_lower.
+ admit.  (* need to fix typechecking of pointer comparison *) 
+ apply sequential'.
+ forward.
+ go_lower. subst. rewrite field_mapsto_isptr.
+ normalize.
+ normalize. go_lower. subst.
+ simpl typeof in H1.
+ unfold align, Zmax; simpl.
+ assert (hd = ult).
+ clear - H1.
+ unfold typed_true, eval_binop, strict_bool_val, sem_cmp in H1.
+ simpl in H1. unfold align, Zmax in H1; simpl in H1.
+ unfold sem_cmp in H1.
+ unfold tptr, classify_cmp in H1.
+ simpl typeconv in H1. cbv beta iota in H1.
+ forget (Int.unsigned) as uns.
+ destruct ult; inv H1. 
+ destruct hd; inv H0.
+ destruct (Memory.Mem.valid_pointer Memory.Mem.empty b (uns (Int.add i (Int.repr 8))) &&
+              Memory.Mem.valid_pointer Memory.Mem.empty b0
+                (uns (Int.add i0 (Int.repr 8))))%bool; inv H1.
+ destruct (zeq b b0); inv H0.
+ f_equal.
+  pose proof (Int.eq_spec (Int.add i (Int.repr 8)) (Int.add i0 (Int.repr 8))).
+ destruct (Int.eq (Int.add i (Int.repr 8)) (Int.add i0 (Int.repr 8))).
+ clear - H.
+ admit.  (* straightforward *)
+ simpl in H1. inv H1.
+ subst ult.
+ rewrite lseg_eq. normalize. simpl in H0.
+ inv H0. 
+ cancel.
+ unfold fifo. apply exp_right with (hd,
+    (eval_cast (tptr (tptr t_struct_elem)) (tptr (tptr t_struct_elem))
+     (eval_struct_field 0 (force_ptr Q)))).
+ rewrite field_mapsto_isptr.
+ destruct (isnil (@nil elemtype)) as [e3|n3]; [clear e3 | contradiction n3; auto].
+ normalize.
+ apply andp_right; auto. apply prop_right.
+ destruct Q; inv H. simpl. rewrite Int.add_zero.
+ unfold eval_cast; reflexivity.
+ apply andp_right. apply prop_right; auto.
+ cancel.
+ apply TC0.
+(* else clause *)
+simpl typeof.
+destruct prefix.
+(* Case 1: prefix=nil -- contradiction *)
+simpl in H0. inv H0.
+rewrite lseg_nil_eq.
+focus_SEP 2%nat.
+rewrite @lift0C_andp.
+rewrite @lift0C_prop.
+rewrite move_prop_from_SEP.
+apply semax_extract_PROP.
+intro. apply ptr_eq_e in H. subst ult.
+simpl eval_expr.
+apply semax_pre_PQR with (PROP (False) (LOCAL () SEP ())).
+unfold elemrep.
+go_lower. subst. 
+rewrite field_mapsto_isptr with (fld:=_a).
+normalize.
+elimtype False.
+destruct hd; inv H.
+simpl in H0.
+unfold align, Zmax in H0; simpl in H0.
+forget (Int.add i (Int.repr 8)) as j.
+unfold typed_false, strict_bool_val in H0; simpl in H0.
+unfold eval_binop in H0; simpl in H0.
+unfold sem_cmp in H0; simpl in H0.
+rewrite zeq_true in H0.
+rewrite Int.eq_true in H0.
+destruct (Memory.Mem.valid_pointer Memory.Mem.empty b (Int.unsigned j) &&
+              Memory.Mem.valid_pointer Memory.Mem.empty b (Int.unsigned j))%bool;
+ inv H0.
+apply semax_extract_PROP. intro; contradiction.
+(* case 2: prefix <> nil *)
+simpl in H0. inversion H0; clear H0; subst e contents.
+ rewrite lseg_cons_eq.
+ normalize.
+ focus_SEP 2%nat.
+ rewrite extract_exists_in_SEP.
+ apply extract_exists_pre; intro h.
+ rewrite move_prop_from_SEP.
+ apply semax_extract_PROP; intro.
+ repeat rewrite lift0C_sepcon.
+ rewrite lift0C_andp.
+ rewrite lift0C_prop.
+ repeat flatten_sepcon_in_SEP.
+ rewrite move_prop_from_SEP.
+ apply semax_extract_PROP; intro.
+replace_in_pre 
+   (@coerce mpred (environ -> mpred) (lift0_C mpred)
+                    (field_mapsto Share.top
+                       (@list_struct _struct_elem _next QS) _next hd h))
+   (`(field_mapsto Share.top list_struct _next) (eval_id _p) `h).
+apply go_lower_lem9.
 
-Admitted.
+go_lower. subst. apply andp_right; auto. apply prop_right; split; auto.
+ rewrite lift0C_later.
+forward. (*  n=p->next; *)
+apply sequential'.
+forward. (*  Q->head=n; *)
 
-(*  return i+j; *)
+go_lower.
+subst.
+unfold fifo.
+destruct (isnil (prefix ++ lastelem::nil)) as [e3|n3].
+destruct prefix; inv e3.
+clear n3.
+rewrite exp_sepcon1. apply exp_right with (h, offset_val ult (Int.repr 8)).
+cancel.
+normalize. apply exp_right with prefix.
+normalize. apply exp_right with ult.
+normalize. apply exp_right with lastelem.
+normalize.
+cancel.
+ eapply derives_trans; [ | apply list_cell_elemrep].
+ cancel.
+ apply field_mapsto_storable.
+ unfold update_tycon.
+ canonicalize_pre.
+ forward.
+ set (Delta' := join_tycon Delta (initialized _n Delta)).
+ go_lower.
+ repeat apply andp_right.
+ apply prop_right. auto.
+ cancel.
+Qed.
 
 Parameter body_mallocN:
  semax_external
@@ -765,6 +1013,7 @@ apply semax_func_cons_ext; [ reflexivity | apply body_mallocN | ].
 apply semax_func_cons_ext; [ reflexivity | apply body_freeN | ].
 apply semax_func_cons; [ reflexivity | apply body_fifo_new | ].
 apply semax_func_cons; [ reflexivity | apply body_fifo_put | ].
+apply semax_func_cons; [ reflexivity | apply body_fifo_empty | ].
 apply semax_func_cons; [ reflexivity | apply body_fifo_get | ].
 apply semax_func_cons; [ reflexivity | apply body_make_elem | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].

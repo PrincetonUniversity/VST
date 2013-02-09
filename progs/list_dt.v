@@ -319,6 +319,39 @@ Proof. intros.
  apply orp_right1. normalize.
 Qed.
 
+Lemma lseg_cons_eq:
+     forall sh h r x z , 
+    lseg sh (h::r) x z = 
+        !!(~ ptr_eq x z) &&
+         (EX  y : val,
+          !!(typecheck_val y (tptr list_struct) = true) &&
+   list_cell sh x h * field_mapsto sh list_struct list_link x y *
+   |>lseg sh r y z).
+Proof.
+ intros. rewrite lseg_unroll.
+ apply pred_ext.
+ apply orp_left.
+ rewrite andp_assoc.
+ apply derives_extract_prop; intro.
+ apply derives_extract_prop; intro.
+ inv H0.
+ unfold lseg_cons.
+ apply andp_derives; auto.
+ apply exp_left; intro h0.
+ apply exp_left; intro r0.
+ apply exp_derives; intro y.
+ normalize. symmetry in H; inv H. auto.
+ apply orp_right2.
+ unfold lseg_cons.
+ apply andp_derives; auto.
+ apply exp_right with h. apply exp_right with r.
+ apply exp_derives; intro y.
+ apply sepcon_derives; auto.
+ apply sepcon_derives; auto.
+ apply andp_derives; auto.
+ apply prop_derives; intuition.
+Qed.
+
 Definition lseg_cons_right sh (l: list (reptype list_struct)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 

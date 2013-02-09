@@ -6,6 +6,15 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
+Lemma mapsto_isptr:
+  forall sh t v1 v2,
+   mapsto sh t v1 v2 = !! (denote_tc_isptr v1) && mapsto sh t v1 v2.
+Proof.
+intros; unfold mapsto.
+destruct (access_mode t); normalize.
+destruct v1; normalize.
+Qed.
+
 Lemma field_offset_rec_unroll:
   forall fields0 fld sid fields n,
     field_offset_rec fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) n =
@@ -127,6 +136,18 @@ destruct x; normalize.
 destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
 destruct (access_mode
     (type_of_field (unroll_composite_fields id (Tstruct id fList att) fList) fld)); normalize.
+Qed.
+
+Lemma field_storable_nonnull:  forall t fld sh x, 
+     field_storable sh t fld x = 
+               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_storable sh t fld x.
+Proof.
+intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold field_storable.
+unfold Cop.bool_val.
+destruct x; normalize.
 Qed.
 
 Lemma field_mapsto_nonnull:  forall t fld sh x y, 

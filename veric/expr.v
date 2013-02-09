@@ -880,7 +880,7 @@ end.
 Definition join_te' te2 (te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
    let (ty, assn) := val in
         match (te2 ! id) with
-        | Some (ty2, assn2) => if eq_dec ty ty2 then
+        | Some (ty2, assn2) => if eqb_type ty ty2 then
                                     PTree.set id (ty, assn && assn2) te
                                else
                                     te
@@ -1228,7 +1228,8 @@ Proof.
  inv H0.
  inv H1.
  simpl in H0. destruct H0. subst a.
- simpl. unfold join_te'. destruct p. rewrite H. rewrite if_true by auto. rewrite PTree.gss.
+ simpl. unfold join_te'. destruct p. rewrite H.
+ rewrite eqb_type_refl. rewrite PTree.gss.
  destruct b; simpl ;auto.
  simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
  case_eq (t ! p0);intros. destruct p1. if_tac. rewrite PTree.gso. auto.

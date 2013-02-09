@@ -28,17 +28,23 @@ void fifo_put (struct fifo *Q, struct elem *p) {
   return;
 }
 
-struct elem *fifo_get (struct fifo *Q) {
-  struct elem *p;
+int fifo_empty (struct fifo *Q) {
   struct elem **t;
   t = Q->tail;
-  if (t == &(Q->head))
-    return NULL;
+  return (t == &(Q->head));
+}
+
+struct elem *fifo_get (struct fifo *Q) {
+  struct elem *p, *n; struct elem **t;
+  p=Q->head;
+  t=Q->tail;
+  if (t == &(p->next)) 
+    Q->tail = &(Q->head);
   else {
-    p=Q->head;
-    Q->head=p->next;
-    return p;
+    n=p->next;
+    Q->head=n;
   }
+  return p;
 }
 
 struct elem *make_elem(int a, int b) {

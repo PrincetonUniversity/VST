@@ -224,6 +224,9 @@ apply typecheck_ge_eqv; auto.
 Qed.
 
 
+Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
+Admitted.
+
 Lemma join_te_denote : forall te1 te2 id b t1,
 (join_te te1 te2) ! id = Some (t1, b) ->
 (exists b1, te1 ! id = Some (t1, b || b1)) /\ (exists b2, te2 ! id = Some (t1,b || b2)).
@@ -243,13 +246,19 @@ rewrite PTree.gempty in *. congruence.
 
 simpl in *. destruct a. destruct p0. simpl in *.
 remember (te2 ! p). destruct o. destruct p0.
-destruct (eq_dec t t0). subst. rewrite PTree.gsspec in *.
+destruct (eq_dec t t0). subst. 
+rewrite eqb_type_refl in H.
+rewrite PTree.gsspec in *.
 if_tac in H. subst. specialize (H0 (t0,b0)). inv H. spec H0; auto. 
 
 remember (andb b0 b1). destruct b. symmetry in Heqb. rewrite andb_true_iff in *. 
 destruct Heqb. subst. split; exists false; auto. 
  symmetry in Heqb. rewrite andb_false_iff in Heqb. 
-destruct Heqb; subst; eauto. auto. auto. auto. 
+destruct Heqb; subst; eauto. auto.
+
+apply eqb_type_false in n. rewrite n in *.
+auto.
+auto.
 Qed. 
 
 Lemma same_env_ignores_t_ret : forall e0 e1 e2 e3 e4 e5 rho,

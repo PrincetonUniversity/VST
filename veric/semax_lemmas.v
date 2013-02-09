@@ -490,10 +490,10 @@ destruct p0.
 rewrite <- (H0 p).
 destruct (t3 ! p); auto.
 destruct p0.
-if_tac.
-subst t0.
+destruct (eq_dec t0 t1). subst. rewrite eqb_type_refl.
 destruct (eq_dec p id). subst. repeat rewrite PTree.gss; auto.
 repeat rewrite (PTree.gso); auto.
+apply eqb_type_false in n. rewrite n.
 auto.
 Qed.
 

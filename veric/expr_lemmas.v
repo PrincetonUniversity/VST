@@ -794,15 +794,19 @@ apply H2 in H. inv H.
 
 simpl in *. destruct a. simpl in *. destruct p0. simpl.
 remember (te2 ! p). destruct o. destruct p0.
-if_tac. subst. rewrite PTree.gsspec. if_tac. subst. specialize (H1 (t0,b)).
+destruct (eq_dec t t0).
+ subst. rewrite eqb_type_refl.
+rewrite PTree.gsspec. if_tac. subst. specialize (H1 (t0,b)).
 intuition. rewrite H1 in *. inv H.
  rewrite <- Heqo in *. inv H0. auto.
 apply IHl; auto. intros. specialize (H2 (t1,b1)). intuition. inv H2. destruct H3; auto. 
 specialize (H1 (t1,b1)). intuition.
 rewrite H1 in H4. inv H4. auto.
+apply eqb_type_false in n; rewrite n.
 apply IHl; auto.
-intros. rewrite H in H4. inv H4. edestruct H2. apply H. inv H4. rewrite H0 in *.
-inv Heqo. destruct H3; auto. auto.
+intros. (*rewrite H in H4. inv H4.*) edestruct H2. apply H. inv H4. rewrite H0 in *.
+inv Heqo. rewrite eqb_type_refl in n; inv n.
+rewrite H in H3; inv H3. auto.
 apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 (t1, b1)).
 intuition. inv H2. congruence.
 Qed.

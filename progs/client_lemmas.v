@@ -27,6 +27,16 @@ intros; eapply semax_pre_post; try eassumption.
 apply andp_left2; auto.
 Qed.
 
+Lemma semax_post_flipped:
+  forall (R' : ret_assert) (Delta : tycontext) (R : ret_assert)
+         (P : assert) (c : statement),
+        semax Delta P c R' -> 
+       (forall (ek : exitkind) (vl : option val),
+        local (tc_environ (exit_tycon c Delta ek)) && R' ek vl |-- R ek vl) ->
+       semax Delta P c R.
+Proof. intros; eapply semax_post; eassumption. Qed.
+
+
 Lemma semax_post0:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
    (R' |-- R) ->
@@ -694,23 +704,50 @@ Ltac eval_cast_simpl :=
      end.
 
 
+
+Lemma fold_right_nil: forall {A B} (f: A -> B -> B) (z: B),
+   fold_right f z nil = z.
+Proof. reflexivity. Qed.
+Hint Rewrite @fold_right_nil : normalize.
+Hint Rewrite @fold_right_nil : subst.
+
+Lemma fold_right_cons: forall {A B} (f: A -> B -> B) (z: B) x y,
+   fold_right f z (x::y) = f x (fold_right f z y).
+Proof. reflexivity. Qed.
+Hint Rewrite @fold_right_cons : normalize.
+Hint Rewrite @fold_right_cons : subst.
+
+ (* NOTE:  go_lower2 and go_lower3 do NOT call the "normalize" tactic.
+    This is important for 2 reasons:  normalize is very slow, and it does some
+      undesirable rewritings, especially expanding the scope of existentials *)
 Ltac go_lower3 :=
-                           autorewrite with normalize; 
-                           auto with typeclass_instances;
-                           findvars; 
-                           eval_cast_simpl;
-                           try match goal with H: tc_environ _ ?rho |- _ =>
-                                   clear H rho
-                           end;
-                           repeat match goal with H: context [eval_cast ?a ?b ?c] |- _ =>
-                                  try change (eval_cast a b c) with c in H
-                           end;
-                           repeat match goal with |- context [eval_cast ?a ?b ?c] =>
-                               try change (eval_cast a b c) with c
-                           end;
-                           repeat rewrite Vint_inj' in *;
-                           autorewrite with normalize;
-                           repeat apply TT_andp_right; try apply TT_prop_right; auto.
+        unfold tc_exprlist, tc_expr, tc_lvalue, 
+        typecheck_exprlist, typecheck_expr, typecheck_lvalue, 
+         stackframe_of, Datatypes.id,
+        frame_ret_assert, function_body_ret_assert,
+        get_result1, retval, make_args', bind_ret;
+        unfold_coerce;
+        simpl make_args; simpl access_mode;
+        simpl @fst; simpl @snd; simpl @map; 
+         (* in Coq 8.4, next line could use simpl, with directives *)
+         repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
+      simpl  tc_andp; simpl denote_tc_assert;
+        unfold_coerce;
+        repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
+        repeat rewrite eval_id_same;
+        findvars;
+        eval_cast_simpl;
+        try match goal with H: tc_environ _ ?rho |- _ =>
+                           clear H rho
+             end;
+       repeat match goal with H: context [eval_cast ?a ?b ?c] |- _ =>
+                        try change (eval_cast a b c) with c in H
+       end;
+       repeat match goal with |- context [eval_cast ?a ?b ?c] =>
+                     try change (eval_cast a b c) with c
+       end;
+       repeat rewrite Vint_inj' in *;
+       repeat apply TT_andp_right; try apply TT_prop_right; auto.
 
 Ltac go_lower := go_lower2; go_lower3.
 
@@ -799,6 +836,23 @@ Proof.
 intros. reflexivity. 
 Qed.
 Hint Rewrite exp_unfold: normalize.
+
+Lemma semax_post'': forall P Q R Delta Pre Post c,
+          PROPx P (LOCALx  (tc_environ (update_tycon Delta c) :: Q) (SEPx R)) |-- Post ->
+      semax Delta Pre c (normal_ret_assert (PROPx P (LOCALx Q (SEPx R)))) ->
+      semax Delta Pre c (normal_ret_assert Post).
+Proof. intros. eapply semax_post; eauto. intros.
+ intro rho. unfold local, lift1; simpl.
+ apply derives_extract_prop; intro.
+ unfold normal_ret_assert. normalize.
+ eapply derives_trans; [ | apply H].
+ unfold PROPx, LOCALx; simpl.
+ apply andp_derives; auto.
+ unfold local; unfold_coerce.
+ apply andp_derives; auto.
+ apply prop_left; intro; apply prop_right.
+ split; auto.
+Qed.
 
 Lemma canon1: forall P1 B  P Q R,
    do_canon (prop P1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B  (PROPx (P1::P) (LOCALx Q (SEPx R))).
@@ -1590,11 +1644,6 @@ Proof. reflexivity. Qed.
 Hint Rewrite @map_nil : normalize.
 Hint Rewrite @map_nil : subst.
 
-Lemma fold_right_cons: forall {A B} (f: A -> B -> B) (z: B) x y,
-   fold_right f z (x::y) = f x (fold_right f z y).
-Proof. reflexivity. Qed.
-Hint Rewrite @fold_right_cons : normalize.
-Hint Rewrite @fold_right_cons : subst.
 
 Lemma subst_sepcon: forall i v (P Q: assert),
   subst i v (P * Q) = (subst i v P * subst i v Q).
