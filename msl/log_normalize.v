@@ -37,6 +37,24 @@ intros. apply derives_trans with (andp (imp P Q) P).
  apply imp_andp_adjoint. apply derives_refl.
 Qed.
 
+Lemma modus_ponens_wand {A}{ND: NatDed A}{SL: SepLog A}: 
+                      forall P Q: A, derives (sepcon P (wand P Q)) Q.
+Proof.
+intros.
+  rewrite sepcon_comm.  apply wand_sepcon_adjoint. auto.
+Qed.
+
+Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
+    forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
+Proof.
+intros.
+ apply -> wand_sepcon_adjoint.
+ eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H] | ].
+ eapply derives_trans; [ | apply H0].
+ apply <- wand_sepcon_adjoint.
+ auto.
+Qed.
+
 Lemma exp_andp1  {A}{ND: NatDed A}:  forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q)).
 Proof.
  intros. apply pred_ext.
@@ -196,6 +214,17 @@ Lemma emp_sepcon  {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A} : forall (
    emp * P = P.
 Proof with norm.
  intros; rewrite sepcon_comm. apply sepcon_emp.
+Qed.
+
+Lemma emp_wand {A}{NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
+   forall P: A, emp -* P = P.
+Proof.
+intros.
+apply pred_ext.
+rewrite <- (emp_sepcon (emp -* P)).
+apply modus_ponens_wand.
+apply wand_sepcon_adjoint.
+rewrite sepcon_emp; auto.
 Qed.
 
 Lemma TT_andp {A}{NA: NatDed A}: forall P: A,  TT && P = P.

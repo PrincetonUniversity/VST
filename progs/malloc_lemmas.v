@@ -2,6 +2,7 @@ Load loadpath.
 Require Import Coqlib msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import progs.field_mapsto.
+Require Import progs.assert_lemmas.
 Require Import progs.client_lemmas.
 Require Import Clightdefs.
 Require veric.SequentialClight.
@@ -360,19 +361,84 @@ destruct v2 as [i [j [[] []]]].
 simpl_malloc_assertion.
 
 *)
-Require Import progs.assert_lemmas.
 
-Lemma emp_wand {A}{NA: NatDed A}{SA: SepLog A}:
-   forall P, emp -* P = P.
+Lemma spacer_offset_zero:
+  forall pos n v, spacer pos n (offset_val v (Int.repr 0)) = spacer pos n v.
 Proof.
-Admitted.
+ intros;
+ unfold spacer.
+ rewrite offset_val_assoc. rewrite Int.add_commut.
+ rewrite <- offset_val_assoc. apply memory_block_offset_zero.
+Qed.
+
+
+Fixpoint typecount (t: type) : nat :=
+ match t with
+ | Tstruct _ f _ => typecount_fields f
+ | _ => 1%nat
+ end
+with typecount_fields (f: fieldlist) : nat :=
+ match f with
+ | Fnil => 1%nat
+ | Fcons _ t f' => (typecount t + typecount_fields f')%nat
+ end.
+
+Lemma  typecount_fields_pos: forall f, (typecount_fields f > 0)%nat.
+Proof.
+ induction f; simpl; intros. auto.
+ omega.
+Qed.
+
+Lemma typecount_pos: forall t, (typecount t > 0)%nat.
+Proof.
+ destruct t; simpl; auto.
+ apply typecount_fields_pos.
+Qed.
+ 
+Lemma mafoz_aux:
+  forall n f, (typecount_fields f < n)%nat -> 
+     forall pos t v,
+       malloc_assertion_fields pos t f (offset_val v (Int.repr 0)) =
+       malloc_assertion_fields pos t f v.
+Proof.
+induction n; intros.
+ elimtype False. omega.
+
+ destruct f; simpl; auto.
+ simpl in H.
+ case_eq (storable_mode t0); intros.
+ repeat rewrite withspacer_spacer.
+ f_equal; [f_equal; [apply spacer_offset_zero |apply field_storable_offset_zero ] | ].
+ apply IHn.
+ pose proof (typecount_pos t0).
+ omega.
+ f_equal.
+ destruct t0; inv H0; simpl;
+ repeat rewrite withspacer_spacer;
+ try (rewrite offset_val_assoc; rewrite Int.add_commut;
+                 rewrite <- offset_val_assoc);
+ try (f_equal; [apply spacer_offset_zero |]);
+ try  apply memory_block_offset_zero.
+ destruct f0.
+ apply memory_block_offset_zero.
+ apply IHn.
+ simpl.
+ simpl in H.
+ pose proof (typecount_fields_pos f).
+ omega.
+ apply IHn.
+ pose proof (typecount_pos t0).
+ omega.
+Qed.
 
 Lemma malloc_assertion_fields_offset_zero:
-  forall t f v, malloc_assertion_fields 0 t f (offset_val v (Int.repr 0)) =
-                           malloc_assertion_fields 0 t f v.
+  forall pos t f v, malloc_assertion_fields pos t f (offset_val v (Int.repr 0)) =
+                           malloc_assertion_fields pos t f v.
 Proof.
- intros. destruct f; simpl; auto.
-Admitted.
+intros.
+apply (mafoz_aux (S (typecount_fields f))).
+omega.
+Qed.
 
 Lemma malloc_assert': forall pos ty v, 
    spacer pos (alignof ty) v *

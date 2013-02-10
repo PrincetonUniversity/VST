@@ -22,10 +22,6 @@ apply mk_listspec with  (Fcons _a tint
 simpl. reflexivity.
 Defined.
 
-Lemma wand_ponens {A}{NA: NatDed A}{SA: SepLog A}:
-  forall P Q, P * (P -* Q) |-- Q.
-Admitted.
-
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
@@ -145,10 +141,10 @@ Lemma list_cell_elemrep:
   simpl in elem.
   destruct elem as [a [b [[] []]]].
   simpl @fst; simpl @snd.
- eapply derives_trans; [apply wand_ponens | ].
+ rewrite sepcon_comm. apply wand_sepcon_adjoint.
+ apply wand_derives; auto.
  simpl_malloc_assertion.
- fold t_struct_elem.
- cancel.
+ fold t_struct_elem. auto.
 Qed.
 
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
