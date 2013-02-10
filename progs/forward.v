@@ -24,15 +24,10 @@ about id'.  So we handle it all in one gulp.
 
 
 Lemma semax_call_id1_x:
- forall Delta P Q R ret ret' id argtys retty bl fsig A x Pre Post
+ forall Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
-   match fsig with
-   | (_, Tvoid) => False
-   | _ => True
-   end ->
-   argtys = type_of_params (fst fsig) ->
-   retty = snd fsig ->
+   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
+   match retty with Tvoid => False | _ => True end ->
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
@@ -40,9 +35,9 @@ Lemma semax_call_id1_x:
    (temp_types Delta) ! ret' = Some (retty, false) ->
    is_neutral_cast retty retty = true ->
    match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q) (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: R))))
+  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction argtys retty))
+             (Evar id (Tfunction (type_of_params argsig) retty))
              bl)
       (Sset ret (Etempvar ret' retty)))
     (normal_ret_assert 
@@ -50,9 +45,11 @@ Lemma semax_call_id1_x:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
+ pose (H1:=True); pose (H2:=True).
+
  intros. rename H3 into NONVOL.
  eapply semax_seq'.
- apply (semax_call_id1' _ P Q R ret' _ _ _ bl _ _ x _ _ GLBL H H0 H1 H2 CLOSQ CLOSR).
+ apply (semax_call_id1' _ P Q R ret' _ _ bl _ _ x _ _ GLBL H H0 CLOSQ CLOSR).
 match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
    assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
  end.
@@ -71,7 +68,7 @@ PROP  ()
    (tc_environ
       (initialized ret
          (update_tycon Delta
-            (Scall (Some ret') (Evar id (Tfunction argtys retty)) bl)))
+            (Scall (Some ret') (Evar id (Tfunction (type_of_params argsig) retty)) bl)))
     :: `eq (eval_id ret)
          (subst ret (`x0) (eval_expr (Etempvar ret' retty)))
        :: map (subst ret (`x0)) Q)
@@ -397,8 +394,8 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list assert); 
       assert (SCI := semax_call_id1 Delta P Q F id f 
-                (type_of_params (fst fsig)) (snd fsig) bl fsig A witness Pre Post 
-                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
+                 (snd fsig) bl (fst fsig) A witness Pre Post 
+                      (eq_refl _) (eq_refl _) I);
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
@@ -415,7 +412,6 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
 
 
 Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
-
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
@@ -426,8 +422,8 @@ Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list assert); 
       assert (SCI := semax_call_id0 Delta P Q F f 
-                (type_of_params (fst fsig)) bl fsig A witness Pre Post 
-                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _) );
+                  bl (fst fsig) A witness Pre Post 
+                      (eq_refl _)  (eq_refl _) );
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
@@ -468,8 +464,8 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
       evar (x:A); evar (F: list assert); 
 
       assert (SCI := semax_call_id1_x Delta P Q F id id' f 
-                (type_of_params (fst fsig)) (snd fsig) bl fsig A x Pre Post 
-                      (eq_refl _) (eq_refl _) I (eq_refl _) (eq_refl _));
+                   (snd fsig) bl (fst fsig) A x Pre Post 
+                      (eq_refl _) (eq_refl _) I);
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));

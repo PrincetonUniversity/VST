@@ -1300,23 +1300,21 @@ eexists; eauto.
 Qed.
 
 
-
-
 Lemma semax_call: 
-    forall Delta A (P Q: A -> assert) x F ret fsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) -> 
-            (snd fsig = Tvoid <-> ret = None) ->
+           Cop.fun_case_f (type_of_params argsig) retsig -> 
+            (retsig = Tvoid <-> ret = None) ->
   semax Hspec Delta
-       (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split (fst fsig))) bl rho  && 
-           (fun_assert  fsig A P Q (eval_expr a rho) && 
-          (F rho * P x (make_args (map (@fst  _ _) (fst fsig))
-                (eval_exprlist (snd (split (fst fsig))) bl rho) rho ))))
+       (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
+           (fun_assert  (argsig,retsig) A P Q (eval_expr a rho) && 
+          (F rho * P x (make_args (map (@fst  _ _) argsig)
+                (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
           (fun rho => (EX old:val, substopt ret old F rho * Q x (get_result ret rho)))).
 Proof.
-rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? TCF TC5.
+rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5.
 intros.
 rename H0 into H1.
 intros tx vx.
@@ -1337,7 +1335,7 @@ specialize (H6 (b,0)).
 rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b,0) (mk_funspec fsig A P Q) _ (necR_refl _)).
+specialize (H7 (b,0) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
 spec H7.
 apply func_at_func_at'; apply H6.
 destruct H7 as [id [v [[H7 H8] H9]]].
@@ -1356,7 +1354,7 @@ simpl in H0. subst b'.
 unfold func_at in H13.
 rewrite H12 in H13.
 destruct fs as [fsig' A' P' Q'].
-assert (fsig' = fsig).
+assert (fsig' = (argsig,retsig)).
  clear - H6 H13.
  unfold pureat in *. simpl in *. inversion2 H6 H13. auto.
 clear H15; subst fsig'.
@@ -1375,24 +1373,25 @@ destruct H0; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
 remember (construct_rho (filter_genv psi) vx tx) as rho.
-set (args := eval_exprlist (snd (split (fst fsig))) bl rho).
+set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
 rename H10 into H10'.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
 clear H15.
-specialize (H10 x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist (snd (split (fst fsig)))bl rho) rho)).
+specialize (H10 x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
 specialize (H11 x).
 rewrite <- sepcon_assoc in H5.
-assert (H14: app_pred (|> (F0 rho * F rho * P' x (make_args (map (@fst  _ _) (fst fsig))
-  (eval_exprlist (snd (split (fst fsig))) bl rho) rho))) (m_phi jm)).
+assert (H14: app_pred (|> (F0 rho * F rho * P' x (make_args (map (@fst  _ _) argsig)
+  (eval_exprlist (snd (split argsig)) bl rho) rho))) (m_phi jm)).
 do 3 red in H10.
 apply eqp_later1 in H10.
 rewrite later_sepcon.
 apply pred_eq_e2 in H10.
-eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) (fst fsig)) (eval_exprlist (snd (split (fst fsig))) bl rho) rho)) _ (level (m_phi jm))); eauto.
+eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.  
-eapply semax_call_aux; try eassumption.
+eapply semax_call_aux; try eassumption; 
+ try solve [simpl; assumption].
 
 unfold normal_ret_assert.
 extensionality rho'.

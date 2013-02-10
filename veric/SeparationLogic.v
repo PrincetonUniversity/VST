@@ -565,14 +565,14 @@ forall Delta Q Q' incr body R,
 (* THESE RULES FROM semax_call *)
 
 Axiom semax_call : 
-    forall Delta A (P Q: A -> assert) x F ret fsig a bl,
+    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
-           (snd fsig = Tvoid <-> ret = None) ->
+           Cop.fun_case_f (type_of_params argsig) retsig ->
+           (retsig = Tvoid <-> ret = None) ->
   semax Delta
-          (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split (fst fsig))) bl)  && 
-         (`(fun_assert  fsig A P Q) (eval_expr a) && 
-          (F * `(P x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)))))
+          (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
+         (`(fun_assert  (argsig,retsig) A P Q) (eval_expr a) && 
+          (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert 
           (EX old:val, substopt ret (`old) F * `(Q x) (get_result ret))).
