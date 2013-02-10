@@ -219,12 +219,12 @@ Ltac isolate_field_tac e fld R :=
   match R with 
      | context [|> `(field_mapsto ?sh ?struct fld) ?e' ?v :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                change e' with (eval_expr e)
      | context [ `(field_mapsto ?sh ?struct fld) ?e' ?v  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                change e' with (eval_expr e)
      end.
 
 Ltac hoist_later_in_pre :=
@@ -242,16 +242,31 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
      ]
 end.
 
+Definition storable (sh: share) (t: type) (v: val) :=
+ EX v':val, mapsto sh t v v'.
+
+Lemma mapsto_storable: forall sh t v v',
+   mapsto sh t v v' |-- storable sh t v.
+Proof. unfold storable; intros. apply exp_right with v'; auto.
+Qed.
 
 Ltac isolate_mapsto_tac e R := 
   match R with 
      | context [|> `(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
      | context [`(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                replace e' with (eval_expr e) by auto
+     | context [|> `(storable ?sh ?ty) ?e' :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                replace e' with (eval_expr e) by auto
+     | context [`(storable ?sh ?ty) ?e' :: ?R'] =>
+          let n := length_of R in let n' := length_of R' 
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
      end.
 
@@ -259,27 +274,56 @@ Ltac isolate_storable_tac e fld R :=
   match R with 
      | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto;
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                change e' with (eval_expr e);
                 apply later_field_mapsto_storable_at1
      | context [ `(field_mapsto ?sh ?struct fld) ?e' _  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto;
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                change e' with (eval_expr e);
                 apply field_mapsto_storable_at1
      | context [|> `(field_storable ?sh ?struct fld) ?e' :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
+                change e' with (eval_expr e)
      | context [ `(field_storable ?sh ?struct fld) ?e'  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; normalize;
-                replace e' with (eval_expr e) by auto
+             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
+                change e' with (eval_expr e)
      end.
 
 Ltac store_field_tac1 := 
   eapply semax_store_field'; [ auto | reflexivity | reflexivity | type_of_field_tac |
                try solve [hnf; intuition] ].
+
+
+Lemma semax_store_PQR':
+forall (Delta: tycontext) sh t1 P Q R e1 e2
+    (WS: writable_share sh)
+    (NONVOL: type_is_volatile t1 = false)
+    (TC: typecheck_store (Ederef e1 t1)),
+    typeof e1 = Tpointer t1 noattr ->
+    semax Delta 
+       (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
+                             (SEPx (`(storable sh t1) (eval_expr e1)::R))))
+       (Sassign (Ederef e1 t1) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx  (`(mapsto sh t1) (eval_expr e1) 
+                  (`(eval_cast (typeof e2) t1) (eval_expr e2)) :: R))))).
+Proof.
+intros.
+apply semax_pre0 with
+   (EX v2:val, |> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
+                             (SEPx (`(mapsto sh t1) (eval_expr e1) `v2::R)))).
+change SEPx with SEPx'.
+unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
+rewrite <- later_exp' by apply Vundef.
+apply later_derives. unfold storable. unfold_coerce.
+normalize. apply exp_right with v'. normalize.
+apply extract_exists_pre; intro v2.
+apply semax_store_PQR; auto.
+Qed.
 
 Ltac store_field_tac :=
   match goal with
@@ -288,7 +332,8 @@ Ltac store_field_tac :=
        apply (semax_pre_PQR (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ try solve [go_lower; normalize]
+   [ try solve [go_lower2; apply andp_right;
+                    [apply prop_right; intuition | apply derives_refl]]
    | isolate_storable_tac e fld R; hoist_later_in_pre;
        eapply semax_post''; [ | store_field_tac1]
    ]
@@ -301,10 +346,15 @@ Ltac store_tac :=
        apply (semax_pre_PQR (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ try solve [go_lower; normalize]
+   [ try solve [go_lower2; apply andp_right;
+                    [apply prop_right; intuition | apply derives_refl]]
    |  isolate_mapsto_tac e R; hoist_later_in_pre;
        eapply semax_post'';  
-       [ | eapply semax_store_PQR; [ auto | reflexivity | hnf; intuition | reflexivity ]
+       [ | first [eapply semax_store_PQR; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   | eapply semax_store_PQR'; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   ]              
        ]
    ]
   end.

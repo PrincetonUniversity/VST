@@ -837,6 +837,99 @@ intros. reflexivity.
 Qed.
 Hint Rewrite exp_unfold: normalize.
 
+
+Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
+lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
+Proof. intros.  extensionality rho. 
+  unfold lift1.  f_equal. 
+Qed.
+
+Lemma lift1_lift1_retvalC {A}: forall i (P: val -> A),
+`(`P retval) (get_result1 i) = @coerce _ _ (lift1_C _ _) P (eval_id i).
+Proof. intros.  extensionality rho.
+  unfold coerce, lift1_C, lift1. 
+  f_equal.  
+Qed.
+
+Lemma lift0_exp {A}{NA: NatDed A}:
+  forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
+Proof. intros; extensionality rho; unfold lift0. simpl.
+f_equal. extensionality b; auto.
+Qed.
+
+Lemma lift0C_exp {A}{NA: NatDed A}:
+  forall (B: Type) (f: B -> A), `(exp f) = EX x:B, `(f x).
+Proof. apply lift0_exp. Qed. 
+Hint Rewrite @lift0_exp @lift0C_exp : normalize.
+
+Lemma lift0_andp {A}{NA: NatDed A}:
+ forall P Q, 
+   lift0 (@andp A NA P Q) = andp (lift0 P) (lift0 Q).
+Proof.
+intros. extensionality rho. reflexivity.
+Qed.
+
+Lemma lift0C_andp {A}{NA: NatDed A}:
+ forall P Q, 
+  (@coerce A (environ -> A) (lift0_C A) (@andp A NA P Q)) =
+  andp (`P) (`Q).
+Proof.
+intros. extensionality rho. reflexivity.
+Qed.
+
+Lemma lift0_prop {A}{NA: NatDed A}:
+ forall P, lift0 (!! P) = !!P.
+Proof. intros. extensionality rho; reflexivity. Qed.
+
+Lemma lift0C_prop {A}{NA: NatDed A}:
+ forall P, @coerce A (environ -> A) (lift0_C A) (!! P) = !!P.
+Proof. intros. extensionality rho; reflexivity. Qed.
+
+Lemma lift0_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
+ forall P Q, 
+  lift0 (@sepcon A NA SA P Q) = sepcon (lift0 P) (lift0 Q).
+Proof.
+intros. extensionality rho. reflexivity.
+Qed.
+
+Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
+ forall P Q, 
+  (@coerce A (environ -> A) (lift0_C A) (@sepcon A NA SA P Q)) =
+  sepcon (`P) (`Q).
+Proof.
+intros. extensionality rho. reflexivity.
+Qed.
+
+Lemma lift0_later {A}{NA: NatDed A}{IA: Indir A}:
+  forall P:A, 
+   lift0 (@later A NA IA P) = later  (lift0 P).
+Proof. intros. reflexivity. Qed.
+
+Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
+  forall P:A, 
+   @coerce A (environ -> A) (lift0_C A) (@later A NA IA P) =
+      @later (environ->A) (@LiftNatDed environ A NA) 
+                (@LiftIndir environ A NA IA)
+             (@coerce A (environ->A) _ P).
+Proof. intros. reflexivity. Qed.
+
+Lemma lift1C_lift0C:
+  forall {A}{J: A}{K: environ -> environ},
+     (@coerce (environ -> A) ((environ -> environ) -> (environ -> A))
+            (lift1_C environ A)
+                 (@coerce A (environ -> A) (lift0_C A)  J) K) = `J.
+Proof. intros. extensionality rho. reflexivity. Qed.
+
+Hint Rewrite @lift0C_andp @lift0C_prop @lift0C_sepcon
+    @lift1_lift1_retval @lift1_lift1_retvalC
+    @lift0_exp @lift0C_exp
+    @lift0_andp @lift0C_andp
+    @lift0_sepcon @lift0C_sepcon
+    @lift0_prop @lift0C_prop
+    @lift0_later @lift0C_later
+    @lift1C_lift0C
+    : normalize.
+
 Lemma semax_post'': forall P Q R Delta Pre Post c,
           PROPx P (LOCALx  (tc_environ (update_tycon Delta c) :: Q) (SEPx R)) |-- Post ->
       semax Delta Pre c (normal_ret_assert (PROPx P (LOCALx Q (SEPx R)))) ->

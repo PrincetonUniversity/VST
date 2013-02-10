@@ -115,15 +115,6 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
-
-Definition storable (sh: share) (t: type) (v: val) :=
- EX v':val, mapsto sh t v v'.
-
-Lemma mapsto_storable: forall sh t v v',
-   mapsto sh t v v' |-- storable sh t v.
-Proof. unfold storable; intros. apply exp_right with v'; auto.
-Qed.
-
 Lemma andp_prop_gather {A}{NA: NatDed A}:
   forall P Q: Prop, andp (prop P) (prop Q) = prop (P /\ Q).
 Proof.
@@ -145,68 +136,6 @@ Proof.
  reflexivity.
 Qed.
 
-Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
-lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
-Proof. intros.  extensionality rho. 
-  unfold lift1.  f_equal. 
-Qed.
-
-Lemma lift1_lift1_retvalC {A}: forall i (P: val -> A),
-`(`P retval) (get_result1 i) = @coerce _ _ (lift1_C _ _) P (eval_id i).
-Proof. intros.  extensionality rho.
-  unfold coerce, lift1_C, lift1. 
-  f_equal.  
-Qed.
-
-
-Lemma lift0_exp {A}{NA: NatDed A}:
-  forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
-Proof. intros; extensionality rho; unfold lift0. simpl.
-f_equal. extensionality b; auto.
-Qed.
-
-Lemma lift0C_exp {A}{NA: NatDed A}:
-  forall (B: Type) (f: B -> A), `(exp f) = EX x:B, `(f x).
-Proof. apply lift0_exp. Qed. 
-Hint Rewrite @lift0_exp @lift0C_exp : normalize.
-
-Lemma lift0C_andp {A}{NA: NatDed A}:
- forall P Q, 
-  (@coerce A (environ -> A) (lift0_C A) (@andp A NA P Q)) =
-  andp (`P) (`Q).
-Proof.
-intros. extensionality rho. reflexivity.
-Qed.
-
-
-Lemma lift0C_prop {A}{NA: NatDed A}:
- forall P, @coerce A (environ -> A) (lift0_C A) (!! P) = !!P.
-Proof. intros. extensionality rho; reflexivity. Qed.
-
-Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
- forall P Q, 
-  (@coerce A (environ -> A) (lift0_C A) (@sepcon A NA SA P Q)) =
-  sepcon (`P) (`Q).
-Proof.
-intros. extensionality rho. reflexivity.
-Qed.
-Hint Rewrite @lift0C_andp @lift0C_prop @lift0C_sepcon : normalize.
-
-Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
-  forall P:A, 
-   @coerce A (environ -> A) (lift0_C A) (@later A NA IA P) =
-      @later (environ->A) (@LiftNatDed environ A NA) 
-                (@LiftIndir environ A NA IA)
-             (@coerce A (environ->A) _ P).
-Proof. intros. reflexivity. Qed.
-
-Lemma lift1C_lift0C:
-  forall {A}{J: A}{K: environ -> environ},
-     (@coerce (environ -> A) ((environ -> environ) -> (environ -> A))
-            (lift1_C environ A)
-                 (@coerce A (environ -> A) (lift0_C A)  J) K) = `J.
-Proof. intros. extensionality rho. reflexivity. Qed.
-
 Lemma list_cell_elemrep:
   forall p elem, 
   field_storable Share.top t_struct_elem _next p * list_cell QS Share.top p elem 
@@ -216,7 +145,6 @@ Lemma list_cell_elemrep:
   simpl in elem.
   destruct elem as [a [b [[] []]]].
   simpl @fst; simpl @snd.
-  SearchAbout wand.
  eapply derives_trans; [apply wand_ponens | ].
  simpl_malloc_assertion.
  fold t_struct_elem.
@@ -232,7 +160,7 @@ unfold fifo.
 match goal with |- semax _ _ _ ?P => set (Post := P) end.
 normalize. rewrite extract_exists_in_SEP.
 apply extract_exists_pre; intros [hd tl].
-repeat rewrite lift0C_sepcon.
+normalize.
 apply semax_pre_PQR with
   (PROP  ()
    LOCAL  (`(eq q) (eval_id queue._Q))
@@ -310,7 +238,7 @@ Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
 name _Q _Q.
-name _q 23%positive.
+name _q 25%positive.
 forward. (* q = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
 go_lower. rewrite andp_prop_gather. normalize.
@@ -318,9 +246,8 @@ repeat apply andp_right; try apply prop_right.
 compute; congruence.
 compute; congruence.
 cancel.
-normalize.
 unfold assert.
-rewrite lift1_lift1_retvalC.
+normalize.
 forward. (* Q = (struct fifo * )q; *)  
 apply semax_pre_PQR with
    (PROP  ()
@@ -498,30 +425,25 @@ focus_SEP 2%nat.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro prefix.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro ult.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro elem'.
-rewrite lift0C_andp.  rewrite lift0C_prop.
-rewrite move_prop_from_SEP.
+normalize. 
+rewrite andp_assoc.
+do 2 rewrite move_prop_from_SEP.
+flatten_sepcon_in_SEP.
 normalizex.
-destruct H.
 subst. clear n.
 unfold elemrep at 1.
-repeat rewrite @lift0C_sepcon.
+normalize. repeat flatten_sepcon_in_SEP.
 destruct elem' as [a [b [u1 u2]]]; destruct u1; destruct u2.
 simpl @fst; simpl @snd.
-focus_SEP 1%nat.
-rewrite flatten_sepcon_in_SEP.
-focus_SEP 1%nat.
-rewrite flatten_sepcon_in_SEP.
 replace (field_storable Share.top t_struct_elem _next ult)
-     with (EX v2:val, mapsto Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8)) v2).
+      with  (storable Share.top (tptr t_struct_elem)  (offset_val ult (Int.repr 8))).
 2: eapply mapsto_field_storable; simpl; eauto; unfold field_offset; simpl; reflexivity.
-focus_SEP 1%nat.
-normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro v2.
 apply semax_pre_PQR with
   (PROP  ()
    LOCAL  (`eq (eval_id queue._t) `(offset_val ult (Int.repr 8));
    `(eq q) (eval_id queue._Q))
    SEP 
-   (`(mapsto Share.top (tptr t_struct_elem)) (eval_id queue._t) `v2;
+   (`(storable Share.top (tptr t_struct_elem)) (eval_id queue._t);
    `(field_mapsto Share.top t_struct_elem _b ult (Vint b));
    `(field_mapsto Share.top t_struct_elem _a ult (Vint a));
    `(lseg QS Share.top prefix hd ult);
@@ -529,7 +451,7 @@ apply semax_pre_PQR with
       (eval_id queue._t);
    `(field_mapsto Share.top t_struct_fifo _head) (eval_id queue._Q) `hd;
    `(elemrep elem) (eval_id queue._p))).
-go_lower. subst. normalize.
+go_lower. subst. normalize. cancel.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
 clear Post; go_lower. subst.
@@ -546,8 +468,9 @@ rename b0 into p.
 unfold eval_cast; simpl.
 unfold align; simpl.
  apply exp_right with (hd,  Vptr p (Int.add i0 (Int.repr 8))).
-match goal with |- context [isnil ?P] => destruct (isnil P) end.
-destruct prefix; inv e. clear n.
+match goal with |- context [isnil ?P] => 
+  destruct (isnil P) as [e3|n3] end.
+destruct prefix; inv e3. clear n3.
 apply andp_right; auto.
 cancel.
 apply exp_right with (prefix ++ (a, (b, (tt, tt))) :: nil).
@@ -616,11 +539,11 @@ Qed.
 
 Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.
 Proof.
-start_function.
-name _a _a.
-name _b _b.
-name _p _p.
-name _p' 23%positive.
+start_function. rename a into a0; rename b into b0.
+name a _a.
+name b _b.
+name p _p.
+name p' 23%positive.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
 go_lower. normalize.
@@ -630,157 +553,120 @@ apply andp_right. apply prop_right; split; auto.
 compute; congruence.
 normalize.
 instantiate (1:=nil) in (Value of Frame).
-unfold Frame; simpl; normalize.
+apply derives_refl.
+unfold assert.
 normalize.
-unfold assert; rewrite lift1_lift1_retvalC .
-forward.
+forward. (* finish the function call *)
 apply semax_pre_PQR with
   (PROP  ()
-   LOCAL (`(eq (Vint b)) (eval_id queue._b); `(eq (Vint a)) (eval_id queue._a))
-   SEP  (`(field_storable Share.top t_struct_elem queue._a) (eval_id queue._p);
-           `(field_storable Share.top t_struct_elem queue._b) (eval_id queue._p);
-           `(field_storable Share.top t_struct_elem queue._next) (eval_id queue._p))).
+   LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
+   SEP  (`(field_storable Share.top t_struct_elem _a) (eval_id _p);
+           `(field_storable Share.top t_struct_elem _b) (eval_id _p);
+           `(field_storable Share.top t_struct_elem _next) (eval_id _p))).
 go_lower; subst. normalize.
  change 12 with (sizeof t_struct_elem).
  rewrite malloc_assert.
  simpl_malloc_assertion.
  cancel.
-forward.
-forward.
-forward.
+forward.  (*  p->a=a; *)
+forward.  (*  p->b=b; *)
+forward.  (* return p; *)
 go_lower.
 subst.
 rewrite field_mapsto_isptr at 1.
-normalize. destruct _p; simpl in H; try contradiction.
+normalize. destruct p; simpl in H; try contradiction.
 apply andp_right.
 apply prop_right.
 simpl; auto.
 unfold elemrep.
-simpl @fst; simpl @snd.
-normalize.
-unfold eval_cast. simpl force_val.
 cancel.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
-name _i _i.
-name _j _j.
-name _Q _Q.
-name _p _p.
+name i _i.
+name j _j.
+name Q _Q.
+name p _p.
 forward. (* Q = fifo_new(); *)
 instantiate (1:= tt) in (Value of witness).
 go_lower. normalize. cancel.
 auto with closed.
 forward. (*  p = make_elem(1,10); *)
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
-unfold assert; rewrite lift1_lift1_retvalC.
-instantiate (1:= `(fifo nil) (eval_id queue._Q)::nil) in (Value of Frame).
+unfold assert; normalize.
+instantiate (1:= `(fifo nil) (eval_id _Q)::nil) in (Value of Frame).
 go_lower. normalize.
 auto with closed.
 simpl.
-unfold assert; rewrite lift1_lift1_retvalC.
-normalize.
+unfold assert; normalize.
 apply semax_pre_PQR with
   (EX q:val, EX p:val, 
  (PROP  ()
-   LOCAL (`(eq q) (eval_id queue._Q); `(eq p) (eval_id queue._p))
-   SEP  (`(elemrep (Int.repr 1, (Int.repr 10, (tt, tt)))) (eval_id queue._p);
-   subst queue._p `_p0 (`(fifo nil) (eval_id queue._Q))))).
-intro rho. normalize. apply exp_right with (eval_id queue._Q rho).
-normalize. apply exp_right with (eval_id queue._p rho).
-normalize.
+   LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
+   SEP  (`(elemrep (Int.repr 1, (Int.repr 10, (tt, tt)))) (eval_id _p);
+   subst _p `p0 (`(fifo nil) (eval_id _Q))))).
+intro rho.
+   normalize. apply exp_right with (eval_id _Q rho).
+   normalize. apply exp_right with (eval_id _p rho).
+   normalize.
 apply extract_exists_pre; intro q.
-apply extract_exists_pre; intro p.
+apply extract_exists_pre; intro p'.
 forward. (* fifo_put(Q,p);*)
  instantiate (1:= ((q,nil),(Int.repr 1, (Int.repr 10, (tt,tt))))) in (Value of witness).
  unfold witness.
  change (fun rho : environ =>
-          local (`(eq q) (eval_id queue._Q)) rho &&
+          local (`(eq q) (eval_id _Q)) rho &&
           `(fifo nil q) rho *
-          `(elemrep (Int.repr 1, (Int.repr 10, (tt,tt)))) (eval_id queue._p) rho)
-    with (local (`(eq q) (eval_id queue._Q)) &&
+          `(elemrep (Int.repr 1, (Int.repr 10, (tt,tt)))) (eval_id _p) rho)
+    with (local (`(eq q) (eval_id _Q)) &&
           `(fifo nil q) *
-          `(elemrep (Int.repr 1, (Int.repr 10, (tt,tt)))) (eval_id queue._p)).
+          `(elemrep (Int.repr 1, (Int.repr 10, (tt,tt)))) (eval_id _p)).
  normalize.
- go_lower. subst _p _Q. normalize.
- cancel.
-match goal with |- context [coerce ?A  (make_args nil nil)] =>
-  remember A as foo
-end.
-simpl in Heqfoo. subst foo.
+ go_lower. subst p Q. normalize. cancel.
+simpl.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
-go_lower. subst _Q _p. normalize.
+go_lower. subst Q p. normalize.
 instantiate (1:= `(fifo ((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil) q)::nil) in (Value of Frame).
 unfold Frame; simpl. cancel.
 auto with closed.
 simpl.
-unfold assert; rewrite lift1_lift1_retvalC.
-normalize.
+unfold assert; normalize.
 apply semax_pre_PQR with
   (EX q:val, EX p:val, 
  (PROP  ()
-   LOCAL (`(eq q) (eval_id queue._Q); `(eq p) (eval_id queue._p))
-   SEP  (`(elemrep (Int.repr 2, (Int.repr 20, (tt, tt)))) (eval_id queue._p);
-           `(fifo ((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil)) (eval_id queue._Q)))).
-intro rho. normalize. apply exp_right with (eval_id queue._Q rho).
-normalize. apply exp_right with (eval_id queue._p rho).
+   LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
+   SEP  (`(elemrep (Int.repr 2, (Int.repr 20, (tt, tt)))) (eval_id _p);
+           `(fifo ((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil)) (eval_id _Q)))).
+intro rho. normalize. apply exp_right with (eval_id _Q rho).
+normalize. apply exp_right with (eval_id _p rho).
 normalize.
-apply extract_exists_pre; intro q1.
-apply extract_exists_pre; intro p1.
+apply extract_exists_pre; intro q2.
+apply extract_exists_pre; intro p2.
 forward.  (* fifo_put(Q,p); *)
- instantiate (1:= ((q1,((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil)),(Int.repr 2, (Int.repr 20, (tt,tt))))) in (Value of witness).
+ instantiate (1:= ((q2,((Int.repr 1, (Int.repr 10, (tt, tt))) :: nil)),(Int.repr 2, (Int.repr 20, (tt,tt))))) in (Value of witness).
  unfold witness.
- go_lower. subst _p _Q. normalize. cancel.
-match goal with |- context [coerce ?A  (make_args nil nil)] =>
-  remember A as foo
-end.
-simpl in Heqfoo. subst foo.
-unfold assert; rewrite @lift1C_lift0C.
+ go_lower. subst p Q. normalize. cancel.
+simpl.
+unfold assert; normalize.
 forward. (*   p = fifo_get(Q); *)
- instantiate (1:= ((q1,((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil)),(Int.repr 1, (Int.repr 10, (tt,tt))))) in (Value of witness).
+ instantiate (1:= ((q2,((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil)),(Int.repr 1, (Int.repr 10, (tt,tt))))) in (Value of witness).
 unfold witness.
 go_lower. normalize. cancel.
 auto with closed.
-cbv iota beta.
-simpl map.
+simpl.
 normalize.
 change  (@coerce assert ((environ -> environ) -> environ -> mpred)
-                 (lift1_C environ mpred)
-                 (fun rho : environ =>
-                  @sepcon mpred Nveric Sveric
-                    (@coerce mpred assert (lift0_C mpred)
-                       (fifo
-                          (@cons
-                             (prod Int.int (prod Int.int (prod unit unit)))
-                             (@pair Int.int (prod Int.int (prod unit unit))
-                                (Int.repr (Zpos (xO xH)))
-                                (@pair Int.int (prod unit unit)
-                                   (Int.repr (Zpos (xO (xO (xI (xO xH))))))
-                                   (@pair unit unit tt tt)))
-                             (@nil
-                                (prod Int.int (prod Int.int (prod unit unit)))))
-                          q1) rho)
-                    (@coerce (val -> mpred) ((environ -> val) -> assert)
-                       (lift1_C val mpred)
-                       (elemrep
-                          (@pair Int.int (prod Int.int (prod unit unit))
-                             (Int.repr (Zpos xH))
-                             (@pair Int.int (prod unit unit)
-                                (Int.repr (Zpos (xO (xI (xO xH)))))
-                                (@pair unit unit tt tt)))) retval rho))
-                 (get_result1 queue._p))
-with  (`(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q1) *
-           @coerce assert _ (lift1_C environ mpred)
+                 (lift1_C environ mpred) _ _)
+with  (`(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q2) *
+           @coerce _ _ (lift1_C environ mpred)
               (`(elemrep (Int.repr 1, (Int.repr 10, (tt, tt)))) retval)
                  (get_result1 queue._p)).
-unfold assert; rewrite lift1_lift1_retvalC.
+normalize.
 rewrite lift_elemrep_unfold.
-flatten_sepcon_in_SEP.
-flatten_sepcon_in_SEP.
-flatten_sepcon_in_SEP.
+repeat flatten_sepcon_in_SEP.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)
@@ -800,7 +686,7 @@ rewrite malloc_assert.
 simpl_malloc_assertion.
 cancel.
 unfold Frame.
-instantiate (1:= `(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q1) :: nil).
+instantiate (1:= `(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q2) :: nil).
 simpl.
 cancel.
 forward. (* return i+j; *)
@@ -909,11 +795,9 @@ destruct prefix.
 simpl in H0. inv H0.
 rewrite lseg_nil_eq.
 focus_SEP 2%nat.
-rewrite @lift0C_andp.
-rewrite @lift0C_prop.
-rewrite move_prop_from_SEP.
-apply semax_extract_PROP.
-intro. apply ptr_eq_e in H. subst ult.
+normalize.
+apply semax_extract_PROP; intro.
+apply ptr_eq_e in H. subst ult.
 simpl eval_expr.
 apply semax_pre_PQR with (PROP (False) (LOCAL () SEP ())).
 unfold elemrep.
@@ -943,11 +827,8 @@ simpl in H0. inversion H0; clear H0; subst e contents.
  apply extract_exists_pre; intro h.
  rewrite move_prop_from_SEP.
  apply semax_extract_PROP; intro.
- repeat rewrite lift0C_sepcon.
- rewrite lift0C_andp.
- rewrite lift0C_prop.
+ normalize.
  repeat flatten_sepcon_in_SEP.
- rewrite move_prop_from_SEP.
  apply semax_extract_PROP; intro.
 replace_in_pre 
    (@coerce mpred (environ -> mpred) (lift0_C mpred)
@@ -955,24 +836,20 @@ replace_in_pre
                        (@list_struct _struct_elem _next QS) _next hd h))
    (`(field_mapsto Share.top list_struct _next) (eval_id _p) `h).
 apply go_lower_lem9.
-
 go_lower. subst. apply andp_right; auto. apply prop_right; split; auto.
- rewrite lift0C_later.
 forward. (*  n=p->next; *)
 apply sequential'.
 forward. (*  Q->head=n; *)
-
 go_lower.
 subst.
 unfold fifo.
-destruct (isnil (prefix ++ lastelem::nil)) as [e3|n3].
+destruct (isnil (prefix ++ lastelem::nil)) as [e3|n3]; [ | clear n3].
 destruct prefix; inv e3.
-clear n3.
-rewrite exp_sepcon1. apply exp_right with (h, offset_val ult (Int.repr 8)).
+normalize. apply exp_right with (h, offset_val ult (Int.repr 8)).
 cancel.
-normalize. apply exp_right with prefix.
-normalize. apply exp_right with ult.
-normalize. apply exp_right with lastelem.
+rewrite exp_sepcon1; apply exp_right with prefix.
+rewrite exp_sepcon1; apply exp_right with ult.
+rewrite exp_sepcon1; apply exp_right with lastelem.
 normalize.
 cancel.
  eapply derives_trans; [ | apply list_cell_elemrep].
@@ -982,10 +859,7 @@ cancel.
  canonicalize_pre.
  forward.
  set (Delta' := join_tycon Delta (initialized _n Delta)).
- go_lower.
- repeat apply andp_right.
- apply prop_right. auto.
- cancel.
+ go_lower. normalize. cancel.
 Qed.
 
 Parameter body_mallocN:
