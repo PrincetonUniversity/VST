@@ -198,9 +198,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
      Events.mem_unchanged_on (fun b ofs => 
-       Events.loc_unmapped j b ofs /\ private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
+       Events.loc_unmapped j b ofs /\ ~private_block esemS s1 b) m1 m1' /\
      Events.mem_unchanged_on (fun b ofs => 
-       Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' /\
+       Events.loc_out_of_reach j m1 b ofs /\ ~private_block esemT s2 b) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
 

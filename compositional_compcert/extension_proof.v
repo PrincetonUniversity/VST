@@ -918,9 +918,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
      Events.mem_unchanged_on (fun b ofs => 
-       Events.loc_unmapped j b ofs /\ private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
+       Events.loc_unmapped j b ofs /\ ~private_block esemS s1 b) m1 m1' /\
      Events.mem_unchanged_on (fun b ofs => 
-       Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' /\
+       Events.loc_out_of_reach j m1 b ofs /\ ~private_block esemT s2 b) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
@@ -1397,15 +1397,6 @@ solve[erewrite <-match_state_runnable; eauto].
 rewrite <-meminj_preserves_genv2blocks.
 rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS (ACTIVE E_S st1))); auto.
 solve[rewrite meminj_preserves_genv2blocks; auto].
-
-destruct H11 as [m2' [cd' [j' [? [? [? [UNCH1 [UNCH2 ?]]]]]]]].
-exists s2'; exists m2'; exists cd'; exists j'.
-split3; auto.
-split3; auto.
-admit. (*require that corestep of esem means unchanged_on ~private_to_esem*)
-split.
-admit. (*require that corestep of esem means unchanged_on ~private_to_esem*)
-solve[auto].
 Qed.
 
 (*we punt in the make_initial_core case of the simulation proof; to do more requires 
