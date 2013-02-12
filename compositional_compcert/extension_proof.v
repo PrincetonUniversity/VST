@@ -532,7 +532,33 @@ Proof.
 intros until retv; intros PROJ PRIV AT AFTER AFTER' PROJ'.
 unfold private_disjoint.
 intros until d; intros NEQ PROJC PROJD b PRIVATE CONTRA.
-Admitted. (*TODO*)
+destruct (eq_nat_dec i (active E s)).
+subst.
+rewrite PROJ' in PROJC.
+inv PROJC.
+eapply private_external in PRIVATE; eauto.
+inv Hcore_compatible.
+eapply after_ext_others in AFTER'; eauto.
+rewrite <-AFTER' in *; clear AFTER'.
+solve[eapply PRIV; eauto].
+destruct (eq_nat_dec j (active E s)).
+subst.
+rewrite PROJ' in PROJD.
+inv PROJD.
+eapply private_external in CONTRA; eauto.
+inv Hcore_compatible.
+apply after_ext_others with (j := i) in AFTER'; eauto.
+rewrite <-AFTER' in *; clear AFTER'.
+solve[eapply PRIV; eauto].
+generalize AFTER' as AFTER''; intro.
+inv Hcore_compatible.
+apply after_ext_others with (j := i) in AFTER'; eauto.
+apply after_ext_others with (j := j) in AFTER''; eauto.
+rewrite <-AFTER' in *; clear AFTER'.
+rewrite <-AFTER'' in *; clear AFTER''.
+specialize (PRIV i j c d NEQ PROJC PROJD b PRIVATE CONTRA).
+solve[auto].
+Qed.
 
 Lemma private_disjoint_inv:
   forall s s' (x x': cT (active E s)) m m' n,

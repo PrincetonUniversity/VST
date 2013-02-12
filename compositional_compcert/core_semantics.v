@@ -478,31 +478,6 @@ apply after_at_external_excl in H0; auto.
 rewrite H0 in H; congruence.
 Qed.
 
-Lemma csem_rg:
-  forall ge c f m c' m',
-  corestep csem ge c m c' m' -> 
-  corestep RelyGuaranteeCoreSem ge (f, c) m 
-    (fun b => f b || (zle (Mem.nextblock m) b &&  zlt b (Mem.nextblock m')), c') m'.
-Proof.
-intros until m'; intros H1.
-constructor; auto.
-intros b H2.
-apply orb_prop in H2.
-destruct H2; auto.
-apply andb_prop in H.
-destruct H.
-right.
-split.
-unfold zle in H.
-unfold Z_le_gt_dec in H.
-unfold sumbool_rec in H.
-unfold sumbool_rect in H.
-destruct (Z_le_dec (Mem.nextblock m) b); auto.
-simpl in H.
-congruence.
-admit.
-Qed.
-
 Lemma rg_csem:
   forall ge c f m c' f' m',
   corestep RelyGuaranteeCoreSem ge (f, c) m (f', c') m' -> 

@@ -1018,6 +1018,53 @@ solve[apply eq_nat_dec].
 congruence.
 Qed.
 
+Lemma linker_step_lem: 
+ forall i ge c2 m2 c2' m2' s2' pf_i stack pf1 pf2
+ (csem_fun: forall i: nat, corestep_fun (csem_map i)),
+ corestep (csem_map i) (genvs i) c2 m2 c2' m2' -> 
+ corestep (linker_core_semantics F V cT fT vT procedure_linkage_table
+             plt_ok modules entry_points) ge  
+           (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
+  s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
+Proof.
+intros until pf2; intros csem_fun; intros STEP12 STEP12'; simpl in *.
+inv STEP12'.
+assert (pf_i1 = pf_i) as -> by apply proof_irr.
+assert (c' = c2').
+ generalize (@csem_fun i).
+ unfold corestep_fun, csem_map, genvs in *.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ apply Eqdep_dec.inj_pair2_eq_dec in H0; [|solve[apply eq_nat_dec]]; subst c2.
+ assert (l = pf_i1) by apply proof_irr.
+ subst.
+ intros H10. 
+ specialize (H10 _ _ _ _ _ _ _ H8 STEP12).
+ solve[inv H10; auto].
+assert (pf0 = pf1) as -> by apply proof_irr; auto.
+assert (ext_pf0 = pf2) as -> by apply proof_irr; auto.
+solve[subst; auto].
+apply corestep_not_at_external in STEP12.
+unfold csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i1) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - AT_EXT STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+apply corestep_not_halted in STEP12.
+unfold csem_map in STEP12.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP0) by apply proof_irr.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H0.
+subst.
+clear - HALTED STEP12.
+solve[unfold genv_map in *; congruence].
+solve[apply eq_nat_dec].
+Qed.
+
 Lemma linker_core_compatible: forall (ge: Genv.t F V) 
    (agree: forall (k : nat) (pf_k : k < num_modules),
    genvs_agree ge (get_module_genv (modules pf_k)))
@@ -1149,7 +1196,165 @@ subst; destruct (eq_nat_dec j i); try solve[elimtype False; omega].
 solve[auto].
 
 intros until n; intros H1 H2 H3 j H4.
-admit. (*tedious*)
+simpl in *.
+clear - H1 H2 H3 H4 csem_fun.
+revert s m c c' H1 H2 H3 H4.
+induction n.
+solve[intros; simpl in H3; inv H3; auto].
+simpl; intros s m c c' H1 H2 H3 H4.
+destruct H2 as [c2 [m2 [STEP STEPN]]].
+destruct H3 as [s2 [m2' [STEP' STEPN']]].
+cut (linker_proj_core j s = linker_proj_core j s2).
+intro H5.
+rewrite H5.
+assert (Heq: linker_active s = linker_active s2).
+ inv STEP'.
+ simpl; auto.
+ simpl in *.
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+ inv H1.
+ apply corestep_not_at_external in STEP.
+ unfold csem_map in STEP.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ assert (l = pf_i) by apply proof_irr.
+ subst l.
+ unfold genv_map, init_data in STEP, AT_EXT.
+ rewrite STEP in AT_EXT.
+ congruence.
+ solve[apply eq_nat_dec].
+ simpl in *.
+ destruct (eq_nat_dec j0 j0); try solve[elimtype False; omega].
+ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+ inv H1.
+ apply corestep_not_halted in STEP.
+ unfold csem_map in STEP.
+ generalize (plt_ok LOOKUP); intro.
+ destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
+ assert (l = plt_ok LOOKUP) by apply proof_irr.
+ subst l.
+ unfold genv_map, init_data in *.
+ rewrite HALTED in STEP.
+ congruence.
+ solve[apply eq_nat_dec].
+specialize (IHn s2 m2').
+rewrite <-Heq in IHn.
+apply (IHn c2 c'); auto.
+clear - H1 STEP STEP' csem_fun.
+inv STEP'; simpl in *.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1|-*.
+inv H1.
+generalize (csem_fun i); intros H3.
+unfold corestep_fun in H3.
+unfold csem_map, genvs in *.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i) by apply proof_irr.
+subst l.
+eapply H3 with (q1 := c') in STEP; eauto.
+solve[inv STEP; eauto].
+solve[apply eq_nat_dec].
+solve[apply eq_nat_dec].
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+apply corestep_not_at_external in STEP.
+unfold csem_map in STEP.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i) by apply proof_irr.
+subst l.
+unfold genv_map, init_data in *.
+rewrite STEP in AT_EXT.
+congruence.
+solve[apply eq_nat_dec].
+destruct (eq_nat_dec j j); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+apply corestep_not_halted in STEP.
+unfold csem_map in STEP.
+generalize (plt_ok LOOKUP); intro.
+destruct (lt_dec j num_modules); try solve[elimtype False; omega].
+unfold genv_map, init_data in *.
+assert (l = plt_ok LOOKUP) by apply proof_irr.
+subst l.
+rewrite STEP in HALTED.
+congruence.
+solve[apply eq_nat_dec].
+assert (m2 = m2').
+ generalize (csem_fun (linker_active s)).
+ intro Hfun.
+ unfold corestep_fun in Hfun.
+ clear - H1 STEP STEP' H5 Hfun.
+ inv STEP'; simpl in *.
+ eapply Hfun with (q1 := c') (m1 := m2') in STEP; eauto.
+ solve[inv STEP; auto].
+ unfold csem_map, genvs in *.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ assert (l = pf_i) as -> by apply proof_irr.
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1. 
+ inv H1.
+ solve[auto].
+ solve[apply eq_nat_dec].
+ destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1. 
+ inv H1.
+ apply corestep_not_at_external in STEP.
+ unfold csem_map in STEP.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ assert (l = pf_i) as -> by apply proof_irr.
+ subst l.
+ unfold genv_map, init_data in *.
+ rewrite AT_EXT in STEP.
+ congruence.
+ solve[apply eq_nat_dec].
+ destruct (eq_nat_dec j0 j0); try solve[elimtype False; omega].
+ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1. 
+ inv H1.
+ apply corestep_not_halted in STEP.
+ unfold csem_map in STEP.
+ destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
+ unfold genv_map, init_data in *.
+ assert (l = plt_ok LOOKUP) as -> by apply proof_irr.
+ subst l.
+ rewrite HALTED in STEP.
+ congruence.
+ elimtype False; apply n.
+ solve[apply (plt_ok LOOKUP)].
+ solve[apply eq_nat_dec].
+subst m2.
+unfold genv_map, init_data in *.
+solve[apply STEPN].
+clear - H1 H4 STEP STEP'.
+inv STEP'; simpl in *.
+destruct (eq_nat_dec j i).
+solve[elimtype False; auto].
+solve[auto].
+apply corestep_not_at_external in STEP.
+unfold csem_map in STEP.
+destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+assert (l = pf_i) by apply proof_irr.
+subst l.
+unfold genv_map, init_data in *.
+destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+rewrite STEP in AT_EXT.
+congruence.
+solve[apply eq_nat_dec].
+destruct (eq_nat_dec j0 j0); try solve[elimtype False; omega].
+rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
+inv H1.
+apply corestep_not_halted in STEP.
+unfold csem_map in STEP.
+generalize (plt_ok LOOKUP); intro.
+destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP) by apply proof_irr.
+subst l.
+unfold genv_map, init_data in *.
+rewrite HALTED in STEP.
+congruence.
+solve[apply eq_nat_dec].
 
 intros until retv; intros H1 H2 H3.
 destruct s; destruct s'; simpl in H3.
