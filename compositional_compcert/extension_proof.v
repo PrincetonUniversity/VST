@@ -783,6 +783,22 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   exists i, (i < max_cores)%nat /\
    (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
 
+ Lemma core_datas_upd_ord (max_cores: nat) cd i (cdi': core_data i) :
+   (i < max_cores)%nat -> 
+   core_ord i cdi' (cd i) -> 
+   core_ords max_cores (core_datas_upd i cdi' cd) cd.
+ Proof.
+ intros H1 H2.
+ unfold core_ords.
+ exists i.
+ split; auto.
+ split; auto.
+ intros j Hlt.
+ rewrite core_datas_upd_other; auto.
+ omega.
+ solve[rewrite core_datas_upd_same; auto].
+ Qed.
+
  Lemma core_ords_wf: forall max_cores, well_founded (core_ords max_cores).
  Proof. Admitted. (*TODO*)
 
@@ -1326,7 +1342,8 @@ split; auto.
   solve[auto].
 
   right. split. exists n. auto. 
-  admit. (*should follow from ORD and definition of generalized lex_prod*)
+  apply core_datas_upd_ord; auto.
+  admit. (*fix max_cores*)
 
 (*runnable = false*)
 intros RUN1.
