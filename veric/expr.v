@@ -149,6 +149,12 @@ Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
 Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
 Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
    environ -> B := fun rho => P (f1 rho) (f2 rho).
+Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
+     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
+     fun rho => P (f1 rho) (f2 rho) (f3 rho).
+Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B) 
+     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B := 
+     fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
 (**********************)
 Class Coercion A B := coerce: A -> B.
@@ -157,6 +163,8 @@ Notation "'`(' x ')'" := (coerce x) (only parsing)  (* avoid clash with TC notat
 Global Instance lift0_C A: Coercion A _ := lift0.
 Global Instance lift1_C A B: Coercion (A->B) _ := lift1.
 Global Instance lift2_C A B C: Coercion (A->B->C) _ := lift2.
+Global Instance lift3_C A B C D: Coercion (A->B->C->D) _ := lift3.
+Global Instance lift4_C A B C D E: Coercion (A->B->C->D->E) _ := lift4.
 
 (***************************)
 
@@ -861,7 +869,8 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_iszero e => `denote_tc_iszero (eval_expr e)
   end.
 
-Ltac unfold_coerce := unfold coerce, lift0_C, lift1_C, lift2_C, lift2, lift1, lift0 in *.
+Ltac unfold_coerce := 
+ unfold coerce, lift0_C, lift1_C, lift2_C, lift3_C, lift4_C, lift4,lift3,lift2, lift1, lift0 in *.
 
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
 Proof.

@@ -72,7 +72,7 @@ Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A
 Definition cast_expropt (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
 
-Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
+Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
     match v1 with
@@ -82,6 +82,10 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
     end
   | _ => FF
   end. 
+
+Definition mapsto sh t v1 v2 :=  !! (tc_val t v2)  && umapsto sh t v1 v2.
+
+Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
 Definition writable_share: share -> Prop := seplog.writable_share. 
 Definition address_mapsto_zeros: 
@@ -103,15 +107,15 @@ Definition offset_val (v: val) (ofs: int) : val :=
  
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
        | _ => TT
        end
  end.
@@ -627,19 +631,18 @@ forall (Delta: tycontext) sh id P e1 v2,
     semax Delta 
        (|> (local (tc_lvalue Delta e1) && 
        local (tc_temp_id_load id (typeof e1) Delta v2) && 
-        local (tc_value v2 (typeof e1)) &&
        (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
                                           (subst id (`old) (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
 
 Axiom semax_store:
- forall Delta e1 e2 v sh P,
+ forall Delta e1 e2 sh P,
    typecheck_store e1 -> 
    writable_share sh ->
    semax Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
-             (`(mapsto sh (typeof e1)) (eval_lvalue e1) v * P)))
+             (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
           (Sassign e1 e2) 
           (normal_ret_assert 
                (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`(eval_cast (typeof e2) (typeof e1)) (eval_expr e2)) * P)).

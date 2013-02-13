@@ -24,7 +24,7 @@ Section LIST.
 Context  {list_structid} {list_link} (ls: listspec list_structid list_link).
 
 Definition list_cell sh p v :=
-   field_storable sh list_struct list_link p -* typed_mapsto list_struct sh 0 p v.
+   field_mapsto_ sh list_struct list_link p -* typed_mapsto list_struct sh 0 p v.
 
 Definition lseg' (sh: share) := 
   HORec (fun (R: (list (reptype list_struct))*(val*val) -> mpred) (lp: (list (reptype list_struct))*(val*val)) =>

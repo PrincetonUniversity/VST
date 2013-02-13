@@ -7,8 +7,54 @@ Require Import progs.client_lemmas.
 Require Import progs.field_mapsto.
 Require Import progs.assert_lemmas.
 Require Export progs.forward_lemmas progs.call_lemmas.
+Import Cop.
 
 Local Open Scope logic.
+
+Ltac forward_while Inv Postcond :=
+  apply semax_pre_PQR with Inv;
+    [ | (apply semax_seq with Postcond;
+            [ apply semax_while' ; [ compute; auto | | | ] 
+            | simpl update_tycon ])
+        || (repeat match goal with 
+         | |- semax _ (exp _) _ _ => fail 1
+         | |- semax _ (?X _ _ _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _) _ _ => unfold X
+         | |- semax _ (?X _) _ _ => unfold X
+         | |- semax _ ?X _ _ => unfold X
+        end;
+          match goal with
+          | |- semax _  (exp (fun y => _)) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex;
+                  [ compute; auto 
+                  | let y':=fresh y in intro y'
+                  | let y':=fresh y in intro y'
+                  | let y':=fresh y in intro y';
+                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                  ]
+               | simpl update_tycon ]
+          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex2; 
+                 [ compute; auto
+                 | intros y1 y2 
+                 | intros y1 y2 
+                 | intros y1 y2; 
+                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                 ]
+               | simpl update_tycon ]
+        end)
+
+   ].
 
 (* BEGIN HORRIBLE1.
   The following lemma is needed because CompCert clightgen
@@ -210,7 +256,8 @@ Ltac semax_field_tac1 :=
      [ reflexivity 
      | reflexivity 
      | simpl; reflexivity 
-     | type_of_field_tac ].
+     | reflexivity
+     | reflexivity ].
 
 Ltac isolate_field_tac e fld R := 
   match R with 
@@ -239,12 +286,10 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
      ]
 end.
 
-Definition storable (sh: share) (t: type) (v: val) :=
- EX v':val, mapsto sh t v v'.
-
-Lemma mapsto_storable: forall sh t v v',
-   mapsto sh t v v' |-- storable sh t v.
-Proof. unfold storable; intros. apply exp_right with v'; auto.
+Lemma mapsto_mapsto_: forall sh t v v',
+   mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto, mapsto_; intros.
+apply exp_right with v'. apply andp_left2; auto.
 Qed.
 
 Ltac isolate_mapsto_tac e R := 
@@ -257,33 +302,33 @@ Ltac isolate_mapsto_tac e R :=
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
-     | context [|> `(storable ?sh ?ty) ?e' :: ?R'] =>
+     | context [|> `(mapsto_ ?sh ?ty) ?e' :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
-     | context [`(storable ?sh ?ty) ?e' :: ?R'] =>
+     | context [`(mapsto_ ?sh ?ty) ?e' :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
      end.
 
-Ltac isolate_storable_tac e fld R := 
+Ltac isolate_mapsto__tac e fld R := 
   match R with 
      | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_expr e);
-                apply later_field_mapsto_storable_at1
+                apply later_field_mapsto_mapsto__at1
      | context [ `(field_mapsto ?sh ?struct fld) ?e' _  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_expr e);
-                apply field_mapsto_storable_at1
-     | context [|> `(field_storable ?sh ?struct fld) ?e' :: ?R'] =>
+                apply field_mapsto_mapsto__at1
+     | context [|> `(field_mapsto_ ?sh ?struct fld) ?e' :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_expr e)
-     | context [ `(field_storable ?sh ?struct fld) ?e'  :: ?R'] =>
+     | context [ `(field_mapsto_ ?sh ?struct fld) ?e'  :: ?R'] =>
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
                 change e' with (eval_expr e)
@@ -294,34 +339,6 @@ Ltac store_field_tac1 :=
                try solve [hnf; intuition] ].
 
 
-Lemma semax_store_PQR':
-forall (Delta: tycontext) sh t1 P Q R e1 e2
-    (WS: writable_share sh)
-    (NONVOL: type_is_volatile t1 = false)
-    (TC: typecheck_store (Ederef e1 t1)),
-    typeof e1 = Tpointer t1 noattr ->
-    semax Delta 
-       (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
-                             (SEPx (`(storable sh t1) (eval_expr e1)::R))))
-       (Sassign (Ederef e1 t1) e2) 
-       (normal_ret_assert
-          (PROPx P (LOCALx Q
-              (SEPx  (`(mapsto sh t1) (eval_expr e1) 
-                  (`(eval_cast (typeof e2) t1) (eval_expr e2)) :: R))))).
-Proof.
-intros.
-apply semax_pre0 with
-   (EX v2:val, |> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
-                             (SEPx (`(mapsto sh t1) (eval_expr e1) `v2::R)))).
-change SEPx with SEPx'.
-unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
-rewrite <- later_exp' by apply Vundef.
-apply later_derives. unfold storable. unfold_coerce.
-normalize. apply exp_right with v'. normalize.
-apply extract_exists_pre; intro v2.
-apply semax_store_PQR; auto.
-Qed.
-
 Ltac store_field_tac :=
   match goal with
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
@@ -331,7 +348,7 @@ Ltac store_field_tac :=
                 (SEPx R))));
    [ try solve [go_lower2; apply andp_right;
                     [apply prop_right; intuition | apply derives_refl]]
-   | isolate_storable_tac e fld R; hoist_later_in_pre;
+   | isolate_mapsto__tac e fld R; hoist_later_in_pre;
        eapply semax_post''; [ | store_field_tac1]
    ]
   end.
@@ -349,12 +366,41 @@ Ltac store_tac :=
        eapply semax_post'';  
        [ | first [eapply semax_store_PQR; 
                      [ auto | reflexivity | hnf; intuition | reflexivity ]
-                   | eapply semax_store_PQR'; 
+                   | eapply semax_store_PQR; 
                      [ auto | reflexivity | hnf; intuition | reflexivity ]
                    ]              
        ]
    ]
   end.
+
+Lemma semax_load_assist2:
+ forall P Q1 Q2 Q R,
+  PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- local Q2 ->
+  PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx (Q2::Q) (SEPx R)).
+Proof.
+intros.
+apply derives_trans with
+ (local Q2 && PROPx P (LOCALx Q (SEPx R))).
+apply andp_right; auto.
+apply andp_derives; auto.
+apply andp_derives; auto.
+unfold local; unfold_coerce; intro rho; simpl.
+apply prop_derives. intros [_ ?]; auto.
+normalize.
+Qed.
+
+
+Ltac load_array_tac :=
+match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
+     apply (semax_pre_PQR 
+              (PROPx P (LOCALx (tc_expr Delta (Ebinop Oadd e1 e2 t1) :: Q) (SEPx R))));
+     [ ((apply semax_load_assist1; [reflexivity])
+        || apply semax_load_assist2; try solve [go_lower; normalize] )
+     | isolate_mapsto_tac (Ebinop Oadd e1 e2 t1) R; hoist_later_in_pre;
+       eapply semax_post'; [ | eapply semax_load'; solve [simpl; reflexivity]]
+     ]
+end.
 
 
 Ltac intro_old_var' id :=
@@ -530,6 +576,7 @@ Ltac forward1 :=
   | |- semax _ _ (Sassign (Efield _ _ _) _) _ =>      store_field_tac
   | |- semax _ _ (Sassign (Ederef _ _) _) _ =>      store_tac
   | |- semax _ _ (Sset _ (Efield _ _ _)) _ => semax_field_tac || fail 2
+  | |- semax _ _ (Sset _ (Ederef _ _)) _ => load_array_tac || fail 2
   | |- semax _ _ (Sset ?id ?e) _ => forward_setx
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>

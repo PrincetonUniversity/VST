@@ -57,11 +57,6 @@ Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) =
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_unop : normalize.
 
-Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
-     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
-     fun rho => P (f1 rho) (f2 rho) (f3 rho).
-
-
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
 intros.
@@ -147,7 +142,6 @@ unfold_coerce; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift2C : closed.
 
-
 Lemma closed_wrt_lift2C_assert: forall {A1 A2} 
                   S (f: A1 -> A2 -> mpred) P1 P2, 
         closed_wrt_vars S P1 -> 
@@ -156,6 +150,95 @@ Lemma closed_wrt_lift2C_assert: forall {A1 A2}
                   (lift2_C A1 A2 mpred) f P1 P2).
 Proof. intros ? ?; apply closed_wrt_lift2C. Qed.
 Hint Resolve @closed_wrt_lift2C_assert : closed.
+
+Lemma closed_wrt_lift3: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S P3 -> 
+        closed_wrt_vars S (lift3 f P1 P2 P3).
+Proof.
+intros.
+intros ? ? ?.
+specialize (H _ _ H2).
+specialize (H0 _ _ H2).
+specialize (H1 _ _ H2).
+unfold lift3; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift3 : closed.
+
+Lemma closed_wrt_lift3C: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S P3 -> 
+        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> environ -> B)
+                  (lift3_C A1 A2 A3 B) f P1 P2 P3).
+Proof.
+intros.
+intros ? ? ?.
+specialize (H _ _ H2).
+specialize (H0 _ _ H2).
+specialize (H1 _ _ H2).
+unfold_coerce; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift3C : closed.
+
+Lemma closed_wrt_lift3C_assert: forall {A1 A2 A3} 
+                  S (f: A1 -> A2 -> A3 -> mpred) P1 P2 P3, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 ->
+         closed_wrt_vars S P3 -> 
+        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> mpred) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> assert)
+                  (lift3_C A1 A2 A3 mpred) f P1 P2 P3).
+Proof. intros ? ? ?; apply closed_wrt_lift3C. Qed.
+Hint Resolve @closed_wrt_lift3C_assert : closed.
+
+Lemma closed_wrt_lift4: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B)
+       P1 P2 P3 P4,  
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S P3 -> 
+        closed_wrt_vars S P4 -> 
+        closed_wrt_vars S (lift4 f P1 P2 P3 P4).
+Proof.
+intros.
+intros ? ? ?.
+specialize (H _ _ H3).
+specialize (H0 _ _ H3).
+specialize (H1 _ _ H3).
+specialize (H2 _ _ H3).
+unfold lift4; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift4 : closed.
+
+Lemma closed_wrt_lift4C: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B) P1 P2 P3 P4, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 -> 
+        closed_wrt_vars S P3 ->
+        closed_wrt_vars S P4 ->  
+        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> A4 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> environ -> B)
+                  (lift4_C A1 A2 A3 A4 B) f P1 P2 P3 P4).
+Proof.
+intros.
+intros ? ? ?.
+specialize (H _ _ H3).
+specialize (H0 _ _ H3).
+specialize (H1 _ _ H3).
+specialize (H2 _ _ H3).
+unfold_coerce; f_equal; auto.
+Qed.
+Hint Resolve @closed_wrt_lift4C : closed.
+
+Lemma closed_wrt_lift4C_assert: forall {A1 A2 A3 A4} 
+                  S (f: A1 -> A2 -> A3 -> A4 -> mpred) P1 P2 P3 P4, 
+        closed_wrt_vars S P1 -> 
+        closed_wrt_vars S P2 ->
+         closed_wrt_vars S P3 -> 
+        closed_wrt_vars S P4 ->  
+        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> A4 -> mpred) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> assert)
+                  (lift4_C A1 A2 A3 A4 mpred) f P1 P2 P3 P4).
+Proof. intros ? ? ? ?; apply closed_wrt_lift4C. Qed.
+Hint Resolve @closed_wrt_lift4C_assert : closed.
+
 
 
 Lemma closed_wrt_eval_expr: forall S e,
@@ -696,18 +779,27 @@ Ltac lift3 a e1 e2 e3 rho :=
  | _ => constr:(lift3 a e1 e2 e3)
  end.
 
+Ltac lift4 a e1 e2 e3 e4 rho :=
+ match e1 with
+ |  lift0 ?a1 => lift3 (a a1) e2 e3 e4 rho
+ | _ => constr:(lift4 a e1 e2 e3 e4)
+ end.
+
 Ltac abstract_env rho P :=
   match P with
    | @emp mpred _ _ => constr:(@emp assert _ _)
    | @sepcon mpred _ _ ?e1 ?e2 => 
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
        in constr:(@sepcon assert _ _ e1' e2')
-   | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 => 
-      let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
-      in lift3 (a0 a1 a2) e1' e2' e3' rho
-   | ?a0 ?a1 ?e1 ?e2 ?e3 => 
-      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
-      in lift3 (a0 a1) e1' e2' e3' rho
+   | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 => 
+      let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
+      in lift3 (a0 a1 a2) e1' e2' e3' e4' rho
+   | ?a0 ?a1 ?e1 ?e2 ?e3 ?e4 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
+      in lift3 (a0 a1) e1' e2' e3' e4' rho
+   | ?a0 ?e1 ?e2 ?e3 ?e4 => 
+      let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
+      in lift4 a0 e1' e2' e3' e4' rho
    | ?a0 ?e1 ?e2 ?e3 => 
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
       in lift3 a0 e1' e2' e3' rho
@@ -813,5 +905,37 @@ pose proof (Int.eq_spec i i0). rewrite H in H0. subst; auto.
 destruct H; subst.
 f_equal.
 pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
+Qed.
+
+Lemma eval_var_isptr:
+  forall Delta t i rho, 
+            tc_environ Delta rho ->
+            ((var_types Delta) ! i = Some t \/ 
+             (var_types Delta)!i = None /\
+            (glob_types Delta) ! i = Some (Global_var t)) ->
+            type_is_volatile t = false ->
+            denote_tc_isptr (eval_var i t rho).
+Proof.
+ intros. rename H1 into NONVOL.
+  unfold denote_tc_isptr, eval_var; simpl.
+ hnf in H. unfold typecheck_environ in H.
+ repeat rewrite andb_true_iff in H.
+  destruct H as [[[_ ?] ?] ?].
+  apply environ_lemmas.typecheck_mode_eqv in H2.
+  apply environ_lemmas.typecheck_ge_eqv in H1.
+  apply environ_lemmas.typecheck_ve_eqv in H.
+  unfold environ_lemmas.tc_mode_denote in H2.
+  hnf in H,H1.
+  destruct H0.
+  specialize (H _ _ H0). destruct H; rewrite H.
+  rewrite eqb_type_refl.
+  rewrite NONVOL. simpl. auto.
+  destruct H0. 
+  destruct (H1 _ _ H3) as [b [i' [? ?]]].
+  rewrite H4. simpl.
+ destruct (H2 _ _ H3).
+ unfold Map.get; rewrite H6.
+ rewrite eqb_type_refl. auto.
+ destruct H6. congruence.
 Qed.
 

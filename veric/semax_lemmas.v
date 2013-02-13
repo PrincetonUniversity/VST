@@ -352,7 +352,7 @@ Qed.
 Lemma extract_exists_pre:
       forall
         (A : Type) (P : A -> assert) (c : Clight.statement)
-         Delta (G : funspecs) (R : ret_assert),
+         Delta (R : ret_assert),
        (forall x : A, semax Hspec Delta (P x) c R) ->
        semax Hspec Delta (fun rho => exp (fun x => P x rho)) c R.
 Proof.
@@ -1467,14 +1467,14 @@ intros; intro; intros.
 inv H; auto.
 Qed.
 
-Lemma unage_mapsto:
-  forall sh t v1 v2 w, age1 w <> None -> (|> mapsto sh t v1 v2) w -> mapsto sh t v1 v2 w.
+Lemma unage_umapsto:
+  forall sh t v1 v2 w, age1 w <> None -> (|> umapsto sh t v1 v2) w -> umapsto sh t v1 v2 w.
 Proof.
  intros.
  case_eq (age1 w); intros; try contradiction.
  clear H.
  specialize (H0 _ (age_laterR H1)).
- unfold mapsto in *.
+ unfold umapsto in *.
  revert H0; case_eq (access_mode t); intros; auto.
  destruct v1; try contradiction.
  rename H into Hmode.

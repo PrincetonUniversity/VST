@@ -185,15 +185,15 @@ Qed.
 
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
        | _ => TT
        end
  end.
@@ -560,7 +560,7 @@ Proof.
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
   assert (APOS:= Genv.init_data_size_pos a).
   Transparent load.
-  unfold init_data2pred, mapsto.
+  unfold init_data2pred, umapsto.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
     fst,snd.
   rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).

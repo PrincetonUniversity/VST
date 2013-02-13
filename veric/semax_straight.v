@@ -285,7 +285,6 @@ forall (Delta: tycontext) sh id P e1 v2,
     semax Hspec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  && (tc_temp_id_load id (typeof e1) Delta v2 rho) &&
-         !! (typecheck_val (v2 rho) (typeof e1) = true)  &&
           (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id e1)
        (normal_ret_assert (fun rho => 
@@ -294,15 +293,19 @@ forall (Delta: tycontext) sh id P e1 v2,
 Proof.
 intros until v2.  
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
-  tc_temp_id_load id (typeof e1) Delta v2 rho &&
-  !!(typecheck_val (v2 rho) (typeof e1) = true)) && 
+  tc_temp_id_load id (typeof e1) Delta v2 rho ) && 
   (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
  with (fun rho : environ => 
    ( |> tc_lvalue Delta e1 rho && 
      |> tc_temp_id_load id (typeof e1) Delta v2 rho &&
      |> !!(typecheck_val (v2 rho) (typeof e1) = true) && 
-     |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
-  by (extensionality rho;  repeat rewrite later_andp; auto).
+     |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
+Focus 2.
+extensionality rho.
+repeat rewrite <- later_andp.
+f_equal.
+repeat rewrite andp_assoc. f_equal. f_equal.
+unfold mapsto, umapsto. normalize.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
 intros jm jm1 ge ve te rho k F [[TC2 TC1] TC3] TC' Hcl Hge ? ?.
@@ -339,7 +342,7 @@ unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
 (* typechecking proof *)
 apply Clight.eval_Elvalue with b ofs; auto.
 destruct H0 as [H0 _].
-assert ((|> (F rho * (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
+assert ((|> (F rho * (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
        (m_phi jm)).
 rewrite later_sepcon.
 eapply sepcon_derives; try apply H0; auto.
@@ -347,7 +350,7 @@ specialize (H3 _ (age_laterR (age_jm_phi H))).
 rewrite sepcon_comm in H3.
 rewrite sepcon_assoc in H3.
 destruct H3 as [m1 [m2 [? [? _]]]].
-unfold mapsto in H4.
+unfold umapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
 rewrite H2 in H5.
@@ -388,6 +391,9 @@ rewrite H4.
 apply andp_right; auto.
 intros ? ?; simpl.
 unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
+apply sepcon_derives; auto.
+unfold mapsto. apply andp_right; auto.
+intros ? ?; unfold prop; auto.
 
 intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
 subst. hnf. auto. subst. auto.
@@ -521,24 +527,26 @@ end.
 
 
 Lemma semax_store:
- forall Delta e1 e2 e3 sh P, 
+ forall Delta e1 e2 sh P, 
    typecheck_store e1 ->
    writable_share sh ->
    semax Hspec Delta 
           (fun rho =>
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
-             (mapsto sh (typeof e1) (eval_lvalue e1 rho) (e3 rho) * P rho)))
+             (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) ((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) * P rho)).
 Proof.
 intros until P. intros TC WS.
-replace (fun rho : environ =>
-   |>(tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      (mapsto sh (typeof e1) (eval_lvalue e1 rho) (e3 rho) * P rho)))
- with (fun rho : environ =>
+apply semax_pre with
+  (fun rho : environ =>
+   EX v3: val, 
       |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (e3 rho) * P rho))
-  by (extensionality rho;  repeat rewrite later_andp; auto).
+      |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
+intro. apply andp_left2. 
+unfold mapsto_. normalize. rewrite later_ex; [ | apply Vundef].
+apply exp_derives; intro v3. repeat rewrite later_andp; auto.
+apply extract_exists_pre; intro v3.
 apply semax_straight_simple; auto.
 intros jm jm1 ge ve te rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
@@ -550,21 +558,20 @@ apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.
 destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
-unfold mapsto in H4.
+unfold umapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
-(* rewrite Share.unrel_splice_R in H4. rewrite Share.unrel_splice_L in H4. *)
 
-assert (H11': (res_predicates.address_mapsto ch (e3 rho) (Share.unrel Share.Lsh sh) Share.top
+assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch (e3 rho)  (Share.unrel Share.Lsh sh) Share.top
+assert (H11: (res_predicates.address_mapsto ch v3  (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch (e3 rho) (Share.unrel Share.Lsh sh) Share.top (b0,Int.unsigned i)); unfold precise; intro.
+generalize (address_mapsto_precise ch v3 (Share.unrel Share.Lsh sh) Share.top (b0,Int.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].
@@ -642,7 +649,12 @@ rewrite resource_at_make_rmap. rewrite <- core_resource_at.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
-unfold mapsto.
+unfold mapsto, umapsto.
+apply andp_right. intros ? ?; unfold prop. simpl.
+destruct TC4 as [TC4 _].
+clear - Hmode TC3 TC2 TC4.
+eapply typecheck_val_eval_cast; eauto.
+
 rewrite Hmode.
 rewrite He1'.
 rewrite writable_share_right; auto.

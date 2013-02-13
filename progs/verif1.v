@@ -180,10 +180,10 @@ Proof.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  clear.
  rewrite sepcon_emp.
- repeat  match goal with |- _ * (mapsto _ _ _ ?v * _) |-- _ =>
+ repeat  match goal with |- _ * (umapsto _ _ _ ?v * _) |-- _ =>
                 apply lseg_unroll_nonempty1 with v; simpl; auto; 
-                apply sepcon_derives; [mapsto_field_mapsto_tac | ];
-                apply sepcon_derives; [mapsto_field_mapsto_tac | ] 
+                apply sepcon_derives; [umapsto_field_mapsto_tac | ];
+                apply sepcon_derives; [umapsto_field_mapsto_tac | ] 
            end.
  rewrite lseg_unroll. apply orp_right1.
  unfold ptr_eq;simpl; normalize.

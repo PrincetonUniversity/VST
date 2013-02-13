@@ -44,7 +44,7 @@ Definition elemtype := (int*(int*(unit*unit)))%type.
 Definition elemrep (rep: elemtype) (p: val) : mpred :=
   field_mapsto Share.top t_struct_elem _a p (Vint (fst rep)) * 
   (field_mapsto Share.top t_struct_elem _b p (Vint (fst (snd rep))) *
-   (field_storable Share.top t_struct_elem _next p)).
+   (field_mapsto_ Share.top t_struct_elem _next p)).
 
 Definition fifo (contents: list elemtype) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
@@ -120,21 +120,21 @@ Qed.
 Lemma memory_block_fifo:
  forall e, 
    `(memory_block Share.top (Int.repr 8)) e =
-  `(field_storable Share.top t_struct_fifo queue._head) e *
-  `(field_storable Share.top t_struct_fifo queue._tail) e.
+  `(field_mapsto_ Share.top t_struct_fifo queue._head) e *
+  `(field_mapsto_ Share.top t_struct_fifo queue._tail) e.
 Proof.
  intros.
  extensionality rho.
  unfold coerce at 1; unfold lift1_C, lift1.
  change 8 with (sizeof t_struct_fifo).
- rewrite (malloc_assert t_struct_fifo).
- simpl_malloc_assertion.
+ rewrite (memory_block_typed Share.top t_struct_fifo).
+ simpl_typed_mapsto.
  reflexivity.
 Qed.
 
 Lemma list_cell_elemrep:
   forall p elem, 
-  field_storable Share.top t_struct_elem _next p * list_cell QS Share.top p elem 
+  field_mapsto_ Share.top t_struct_elem _next p * list_cell QS Share.top p elem 
     |-- elemrep elem p.
   intros.
   unfold list_cell, elemrep.
@@ -143,7 +143,7 @@ Lemma list_cell_elemrep:
   simpl @fst; simpl @snd.
  rewrite sepcon_comm. apply wand_sepcon_adjoint.
  apply wand_derives; auto.
- simpl_malloc_assertion.
+ simpl_typed_mapsto.
  fold t_struct_elem. auto.
 Qed.
 
@@ -210,19 +210,19 @@ unfold elemtype in elem.
 destruct elem as [a1 [b1 [[] []]]].
 simpl @fst; simpl @snd.
 apply derives_trans with
-  (field_storable Share.top t_struct_elem _next ult *
+  (field_mapsto_ Share.top t_struct_elem _next ult *
    field_mapsto Share.top t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
 
-replace (field_storable Share.top t_struct_elem _next ult)
-  with (storable Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8))).
+replace (field_mapsto_ Share.top t_struct_elem _next ult)
+  with (mapsto_ Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8))).
 Focus 2.
-eapply mapsto_field_storable; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
+eapply mapsto_field_mapsto_; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
 eapply derives_trans. eapply sepcon_derives; [ | apply derives_refl].
-apply sepcon_derives. apply derives_refl. apply field_mapsto_storable.
-replace (field_storable Share.top t_struct_fifo _head (Vptr b i))
-  with (storable Share.top (tptr t_struct_elem) (Vptr b i)).
+apply sepcon_derives. apply derives_refl. apply field_mapsto_field_mapsto_.
+replace (field_mapsto_ Share.top t_struct_fifo _head (Vptr b i))
+  with (mapsto_ Share.top (tptr t_struct_elem) (Vptr b i)).
 Focus 2.
-eapply mapsto_field_storable; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
+eapply mapsto_field_mapsto_; try (simpl; reflexivity). unfold field_offset; simpl; reflexivity.
 unfold align, Zmax; simpl.  rewrite Int.add_zero. reflexivity.
 admit.  (* should be be provable, in principle *)
 apply exp_right with (hd,tl).
@@ -292,7 +292,7 @@ Lemma lift_elemrep_unfold:
         (@lift1_C val mpred) (elemrep rep) p = 
     (`(field_mapsto Share.top t_struct_elem _a))  p `(Vint (fst rep)) * 
      (`(field_mapsto Share.top t_struct_elem _b) p `(Vint (fst (snd rep))) *
-       `(field_storable Share.top t_struct_elem _next) p).
+       `(field_mapsto_ Share.top t_struct_elem _next) p).
 Proof. intros. reflexivity. Qed.
 
 Lemma address_mapsto_overlap:
@@ -305,13 +305,13 @@ Proof.
  auto.
 Qed.
 
-Lemma field_storable_conflict:
+Lemma field_mapsto__conflict:
   forall sh t fld v,
-        field_storable sh t fld v
-        * field_storable sh t fld v |-- FF.
+        field_mapsto_ sh t fld v
+        * field_mapsto_ sh t fld v |-- FF.
 Proof.
 intros.
-unfold field_storable.
+unfold field_mapsto_.
 destruct v; normalize.
 destruct t; normalize.
 destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
@@ -366,23 +366,20 @@ apply semax_pre_PQR
    LOCAL  (`eq (eval_id queue._t) `tl; `(eq q) (eval_id queue._Q))
    SEP 
    (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id queue._Q) `tl;
-    (EX x:val, `(mapsto Share.top (tptr t_struct_elem)) (eval_id queue._t) `x);
+    `(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t);
     `(elemrep elem) (eval_id queue._p))).
-go_lower. normalizex. subst. apply exp_right with hd.
-normalize. cancel.
-rewrite field_mapsto_nonnull. 
-erewrite field_mapsto_typecheck_val by reflexivity.
-normalize. simpl in H0.
-replace (field_mapsto Share.top t_struct_fifo _head _Q hd)
-  with (mapsto Share.top (tptr t_struct_elem) _Q hd);  auto.
-eapply mapsto_field_mapsto; try (simpl; reflexivity).
-unfold field_offset; simpl. reflexivity.
-rewrite align_0.
-destruct _Q; inv TC1; inv H.  rewrite H2 in H3; inv H3.
-simpl; normalize. 
-compute; intuition.
-assumption.
-normalizex.  subst tl. intro x.
+go_lower. normalizex. subst.
+cancel.
+rewrite field_mapsto_isptr.
+normalize.
+eapply derives_trans.
+apply field_mapsto_field_mapsto_.
+replace (field_mapsto_ Share.top t_struct_fifo _head _Q)
+   with (mapsto_ Share.top (tptr t_struct_elem) _Q); auto.
+eapply mapsto_field_mapsto_; try (unfold field_offset; simpl; reflexivity).
+rewrite align_0 by (compute; congruence).
+destruct _Q; inv H. simpl. rewrite Int.add_zero; auto.
+normalizex.  subst tl.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
 go_lower. subst. rewrite elemrep_isptr at 1. normalize.
@@ -431,15 +428,15 @@ unfold elemrep at 1.
 normalize. repeat flatten_sepcon_in_SEP.
 destruct elem' as [a [b [u1 u2]]]; destruct u1; destruct u2.
 simpl @fst; simpl @snd.
-replace (field_storable Share.top t_struct_elem _next ult)
-      with  (storable Share.top (tptr t_struct_elem)  (offset_val ult (Int.repr 8))).
-2: eapply mapsto_field_storable; simpl; eauto; unfold field_offset; simpl; reflexivity.
+replace (field_mapsto_ Share.top t_struct_elem _next ult)
+      with  (mapsto_ Share.top (tptr t_struct_elem)  (offset_val ult (Int.repr 8))).
+2: eapply mapsto_field_mapsto_; simpl; eauto; unfold field_offset; simpl; reflexivity.
 apply semax_pre_PQR with
   (PROP  ()
    LOCAL  (`eq (eval_id queue._t) `(offset_val ult (Int.repr 8));
    `(eq q) (eval_id queue._Q))
    SEP 
-   (`(storable Share.top (tptr t_struct_elem)) (eval_id queue._t);
+   (`(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t);
    `(field_mapsto Share.top t_struct_elem _b ult (Vint b));
    `(field_mapsto Share.top t_struct_elem _a ult (Vint a));
    `(lseg QS Share.top prefix hd ult);
@@ -494,8 +491,8 @@ cancel.
 eapply derives_trans.
 apply sepcon_derives.
 eapply derives_trans.
-apply sepcon_derives; apply field_mapsto_storable.
-apply field_storable_conflict.
+apply sepcon_derives; apply field_mapsto_field_mapsto_.
+apply field_mapsto__conflict.
 apply derives_refl.
 rewrite FF_sepcon. auto.
 normalize.
@@ -503,15 +500,15 @@ change list_struct with t_struct_elem.
 unfold elemrep.
 apply derives_trans with 
  (field_mapsto Share.top t_struct_elem _next (Vptr p i0) tail *
-  field_storable Share.top t_struct_elem _next (Vptr p i0) * TT).
+  field_mapsto_ Share.top t_struct_elem _next (Vptr p i0) * TT).
 cancel.
 apply derives_trans with (FF * TT).
 apply sepcon_derives; auto.
 eapply derives_trans.
 apply sepcon_derives.
-apply field_mapsto_storable.
+apply field_mapsto_field_mapsto_.
 apply derives_refl.
-apply field_storable_conflict.
+apply field_mapsto__conflict.
 rewrite FF_sepcon.
 apply derives_refl.
 cancel.
@@ -528,7 +525,7 @@ cancel.
 
 unfold list_cell.
 apply -> (@wand_sepcon_adjoint mpred _ _).
-simpl_malloc_assertion.
+simpl_typed_mapsto.
 fold t_struct_elem.
 cancel.
 Qed.
@@ -556,13 +553,13 @@ forward. (* finish the function call *)
 apply semax_pre_PQR with
   (PROP  ()
    LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
-   SEP  (`(field_storable Share.top t_struct_elem _a) (eval_id _p);
-           `(field_storable Share.top t_struct_elem _b) (eval_id _p);
-           `(field_storable Share.top t_struct_elem _next) (eval_id _p))).
+   SEP  (`(field_mapsto_ Share.top t_struct_elem _a) (eval_id _p);
+           `(field_mapsto_ Share.top t_struct_elem _b) (eval_id _p);
+           `(field_mapsto_ Share.top t_struct_elem _next) (eval_id _p))).
 go_lower; subst. normalize.
  change 12 with (sizeof t_struct_elem).
- rewrite malloc_assert.
- simpl_malloc_assertion.
+ rewrite memory_block_typed.
+ simpl_typed_mapsto.
  cancel.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
@@ -671,15 +668,15 @@ simpl @fst; simpl @snd.
 go_lower. normalize.
 eapply derives_trans.
 apply sepcon_derives.
-apply field_mapsto_storable.
+apply field_mapsto_field_mapsto_.
 apply sepcon_derives.
-apply field_mapsto_storable.
+apply field_mapsto_field_mapsto_.
 apply derives_refl.
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives.
 change 12 with (sizeof t_struct_elem).
-rewrite malloc_assert.
-simpl_malloc_assertion.
+rewrite memory_block_typed.
+simpl_typed_mapsto.
 cancel.
 unfold Frame.
 instantiate (1:= `(fifo ((Int.repr 2, (Int.repr 20, (tt, tt))) :: nil) q2) :: nil).
@@ -850,7 +847,7 @@ normalize.
 cancel.
  eapply derives_trans; [ | apply list_cell_elemrep].
  cancel.
- apply field_mapsto_storable.
+ apply field_mapsto_field_mapsto_.
  unfold update_tycon.
  canonicalize_pre.
  forward.

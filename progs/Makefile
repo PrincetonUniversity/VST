@@ -13,7 +13,8 @@ FILES= \
    client_lemmas.v assert_lemmas.v field_mapsto.v \
    call_lemmas.v forward_lemmas.v forward.v \
   test1.v verif1.v \
-  queue.v verif_queue.v
+  queue.v verif_queue.v \
+  sumarray.v verif_sumarray.v 
 
 
 target: proof
@@ -25,6 +26,9 @@ test1.vo: test1.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 queue.vo: queue.v
+	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
+
+sumarray.vo: sumarray.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 .SUFFIXES: .v .vo

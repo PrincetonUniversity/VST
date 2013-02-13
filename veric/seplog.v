@@ -72,8 +72,9 @@ Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
-
-Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
+(* "umapsto" stands for "untyped mapsto", i.e. it does not
+   enforce that v2 belongs to type t *)
+Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
   match access_mode t with
   | By_value ch => 
     match v1 with
@@ -83,6 +84,11 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
     end
   | _ => FF
   end. 
+
+Definition mapsto sh t v1 v2 := 
+             !! (typecheck_val v2 t = true)  && umapsto sh t v1 v2.
+
+Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 

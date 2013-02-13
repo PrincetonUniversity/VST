@@ -7,6 +7,175 @@ Require Import Clightdefs.
 
 Local Open Scope logic.
 
+Lemma lift0_unfold: forall {A} (f: A)  rho,  lift0 f rho = f.
+Proof. reflexivity. Qed.
+
+Lemma lift0_unfoldC: forall {A} (f: A) (rho: environ),  `f rho = f.
+Proof. reflexivity. Qed.
+
+Lemma lift1_unfold: forall {A1 B} (f: A1 -> B) a1 rho,
+        lift1 f a1 rho = f (a1 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift1_unfoldC: forall {A1 B} (f: A1 -> B) a1 (rho: environ),
+        `f a1 rho = f (a1 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift2_unfold: forall {A1 A2 B} (f: A1 -> A2 -> B) a1 a2 (rho: environ),
+        lift2 f a1 a2 rho = f (a1 rho) (a2 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift2_unfoldC: forall {A1 A2 B} (f: A1 -> A2 -> B) a1 a2 (rho: environ),
+        `f a1 a2 rho = f (a1 rho) (a2 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift3_unfold: forall {A1 A2 A3 B} (f: A1 -> A2 -> A3 -> B) a1 a2 a3 (rho: environ),
+        lift3 f a1 a2 a3 rho = f (a1 rho) (a2 rho) (a3 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift3_unfoldC: forall {A1 A2 A3 B} (f: A1 -> A2 -> A3 -> B) a1 a2 a3 (rho: environ),
+        `f a1 a2 a3 rho = f (a1 rho) (a2 rho) (a3 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift4_unfold: forall {A1 A2 A3 A4 B} (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4 (rho: environ),
+        lift4 f a1 a2 a3 a4 rho = f (a1 rho) (a2 rho) (a3 rho) (a4 rho).
+Proof. reflexivity. Qed.
+
+Lemma lift4_unfoldC: forall {A1 A2 A3 A4 B} (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4 (rho: environ),
+        `f a1 a2 a3 a4 rho = f (a1 rho) (a2 rho) (a3 rho) (a4 rho).
+Proof. reflexivity. Qed.
+
+Hint Rewrite @lift0_unfold @lift1_unfold @lift2_unfold @lift3_unfold @lift4_unfold : normalize.
+Hint Rewrite @lift0_unfoldC @lift1_unfoldC @lift2_unfoldC @lift3_unfoldC @lift4_unfoldC : normalize.
+
+Lemma subst_lift0: forall {A} id v (f: A),
+        subst id v (lift0 f) = lift0 f.
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift0': forall {A} id v (f: A),
+        subst id v (fun _ => f) = (fun _ => f).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift0C:
+  forall {B} id (v: environ -> val) (f: B) , 
+          subst id v (@coerce B (environ -> B) (lift0_C B) f) = `f.
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Hint Rewrite @subst_lift0 @subst_lift0' @subst_lift0C : normalize.
+Hint Rewrite @subst_lift0 @subst_lift0' @subst_lift0C : subst.
+
+Lemma subst_lift1:
+  forall {A1 B} id v (f: A1 -> B) a, 
+          subst id v (lift1 f a) = lift1 f (subst id v a).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift1':
+  forall {A1 B} id v (f: A1 -> B) a, 
+          subst id v (fun rho => f (a rho)) = fun rho => f (subst id v a rho).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift1C:
+  forall {A1 B} id (v: environ -> val) (f: A1 -> B) (a: environ -> A1), 
+          subst id v (@coerce (A1 -> B) ((environ -> A1) -> environ -> B) (lift1_C A1 B) f a) 
+               = `f (subst id v a).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C : normalize.
+Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C : subst.
+
+Lemma subst_lift2:
+  forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
+          subst id v (lift2 f a b) = lift2 f (subst id v a) (subst id v b).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift2':
+  forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
+          subst id v (fun rho => f (a rho) (b rho)) = fun rho => f (subst id v a rho) (subst id v b rho).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift2C:
+  forall {A1 A2 B} id (v: environ -> val) (f: A1 -> A2 -> B) (a: environ -> A1) (b: environ -> A2), 
+          subst id v (@coerce (A1 -> A2 -> B) ((environ -> A1) -> (environ -> A2) -> environ -> B)
+                  (lift2_C A1 A2 B) f a b) = `f (subst id v a) (subst id v b).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Hint Rewrite @subst_lift2 @subst_lift2' @subst_lift2C : normalize.
+Hint Rewrite @subst_lift2 @subst_lift2' @subst_lift2C : subst.
+
+Lemma subst_lift3:
+  forall {A1 A2 A3 B} id v (f: A1 -> A2 -> A3 -> B) a1 a2 a3, 
+          subst id v (lift3 f a1 a2 a3) = lift3 f (subst id v a1) (subst id v a2) (subst id v a3).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift3':
+  forall {A1 A2 A3 B} id v (f: A1 -> A2 -> A3 -> B) a1 a2 a3, 
+          subst id v (fun rho => f (a1 rho) (a2 rho) (a3 rho)) = 
+          fun rho => f (subst id v a1 rho) (subst id v a2 rho) (subst id v a3 rho).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift3C:
+  forall {A1 A2 A3 B} id (v: environ -> val) (f: A1 -> A2 -> A3 -> B) 
+                  (a1: environ -> A1) (a2: environ -> A2) (a3: environ -> A3), 
+          subst id v (@coerce (A1 -> A2 -> A3 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> environ -> B)
+                  (lift3_C A1 A2 A3 B) f a1 a2 a3) = `f (subst id v a1) (subst id v a2) (subst id v a3).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Hint Rewrite @subst_lift3 @subst_lift3' @subst_lift3C : normalize.
+Hint Rewrite @subst_lift3 @subst_lift3' @subst_lift3C : subst.
+
+Lemma subst_lift4:
+  forall {A1 A2 A3 A4 B} id v (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4, 
+          subst id v (lift4 f a1 a2 a3 a4) = lift4 f (subst id v a1) (subst id v a2) (subst id v a3) (subst id v a4).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift4':
+  forall {A1 A2 A3 A4 B} id v (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4, 
+          subst id v (fun rho => f (a1 rho) (a2 rho) (a3 rho) (a4 rho)) = 
+          fun rho => f (subst id v a1 rho) (subst id v a2 rho) (subst id v a3 rho) (subst id v a4 rho).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Lemma subst_lift4C:
+  forall {A1 A2 A3 A4 B} id (v: environ -> val) (f: A1 -> A2 -> A3 -> A4 -> B) 
+                  (a1: environ -> A1) (a2: environ -> A2) (a3: environ -> A3) (a4: environ -> A4), 
+          subst id v (@coerce (A1 -> A2 -> A3 -> A4 -> B) 
+               ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> environ -> B)
+                  (lift4_C A1 A2 A3 A4 B) f a1 a2 a3 a4) = `f (subst id v a1) (subst id v a2) (subst id v a3) (subst id v a4).
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
+Hint Rewrite @subst_lift4 @subst_lift4' @subst_lift4C : normalize.
+Hint Rewrite @subst_lift4 @subst_lift4' @subst_lift4C : subst.
+
+
 Lemma semax_ff:
   forall Delta c R,  
    semax Delta FF c R.
@@ -775,35 +944,9 @@ Hint Resolve closed_wrt_SEPx: closed.
 
 (* Hint Extern 1 (Forall _ (map (@fst ident type) _)) => simpl map. *)
 
-Lemma unfold_lift0: forall {A} (f: A)  rho,  lift0 f rho = f.
-Proof. reflexivity. Qed.
-Hint Rewrite @unfold_lift0 : normalize.
-
-Lemma unfold_lift0C: forall {A} (f: A) (rho: environ),  `f rho = f.
-Proof. reflexivity. Qed.
-Hint Rewrite @unfold_lift0C: normalize.
-
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
 Hint Rewrite local_unfold : normalize.
-
-Lemma lift2_unfold: forall {A1 A2 B} (f: A1 -> A2 -> B) a1 a2 (rho: environ),
-        lift2 f a1 a2 rho = f (a1 rho) (a2 rho).
-Proof. reflexivity. Qed.
-
-Lemma lift2_unfoldC: forall {A1 A2 B} (f: A1 -> A2 -> B) a1 a2 (rho: environ),
-        `f a1 a2 rho = f (a1 rho) (a2 rho).
-Proof. reflexivity. Qed.
-
-Lemma lift1_unfold: forall {A1 B} (f: A1 -> B) a1 rho,
-        lift1 f a1 rho = f (a1 rho).
-Proof. reflexivity. Qed.
-
-Lemma lift1_unfoldC: forall {A1 B} (f: A1 -> B) a1 (rho: environ),
-        `f a1 rho = f (a1 rho).
-Proof. reflexivity. Qed.
-Hint Rewrite @lift2_unfold @lift1_unfold : normalize.
-Hint Rewrite @lift2_unfoldC @lift1_unfoldC : normalize.
 
 Lemma lower_sepcon:
   forall P Q rho, @sepcon assert Nassert Sassert P Q rho = sepcon (P rho) (Q rho).
@@ -1195,6 +1338,20 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 'PRE'  [ ] P 'POST' [ tz ] Q" :=
            (fun x => match x with ((x1,x2),x3) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, P at level 100, Q at level 100).
 
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4)
+           (fun x => match x with (((x1,x2),x3),x4) => P%logic end)
+           (fun x => match x with (((x1,x2),x3),x4) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) (t1*t2*t3*t4)
+           (fun x => match x with (((x1,x2),x3),x4) => P%logic end)
+           (fun x => match x with (((x1,x2),x3),x4) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
+
+
 Lemma exp_derives {A}{NA: NatDed A}{B}:
    forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.
 Proof.
@@ -1311,47 +1468,6 @@ normalize. apply extract_exists_pre; intro x2.
 eapply semax_pre; [ | apply (H2 x1 x2)].
 intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
 Qed.
-
-Ltac forward_while Inv Postcond :=
-  apply semax_pre_PQR with Inv;
-    [ | (apply semax_seq with Postcond;
-            [ apply semax_while' ; [ compute; auto | | | ] 
-            | simpl update_tycon ])
-        || (repeat match goal with 
-         | |- semax _ (?X _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _) _ _ => unfold X
-         | |- semax _ (?X _) _ _ => unfold X
-         | |- semax _ ?X _ _ => unfold X
-        end;
-          match goal with
-          | |- semax _  (exp (fun y => _)) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex;
-                  [ compute; auto 
-                  | intro y | intro y 
-                  | intro y ; 
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                  ]
-               | simpl update_tycon ]
-          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex2; 
-                 [ compute; auto
-                 | intros y1 y2 
-                 | intros y1 y2 
-                 | intros y1 y2; 
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                 ]
-               | simpl update_tycon ]
-        end)
-
-   ].
 
 Ltac find_in_list A L :=
  match L with 
@@ -1649,81 +1765,6 @@ Qed.
 Hint Rewrite @subst_andp subst_prop : normalize.
 Hint Rewrite @subst_andp subst_prop : subst.
 
-Lemma subst_lift1:
-  forall {A1 B} id v (f: A1 -> B) a, 
-          subst id v (lift1 f a) = lift1 f (subst id v a).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Lemma subst_lift2:
-  forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
-          subst id v (lift2 f a b) = lift2 f (subst id v a) (subst id v b).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Lemma subst_lift0: forall {A} id v (f: A),
-        subst id v (lift0 f) = lift0 f.
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Hint Rewrite @subst_lift0 @subst_lift1 @subst_lift2 : normalize.
-Hint Rewrite @subst_lift0 @subst_lift1 @subst_lift2 : subst.
-
-Lemma subst_lift0': forall {A} id v (f: A),
-        subst id v (fun _ => f) = (fun _ => f).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Lemma subst_lift1':
-  forall {A1 B} id v (f: A1 -> B) a, 
-          subst id v (fun rho => f (a rho)) = fun rho => f (subst id v a rho).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Lemma subst_lift2':
-  forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
-          subst id v (fun rho => f (a rho) (b rho)) = fun rho => f (subst id v a rho) (subst id v b rho).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-
-Hint Rewrite @subst_lift0' @subst_lift1' @subst_lift2' : subst.
-Hint Rewrite @subst_lift0' @subst_lift1' @subst_lift2' : normalize.
-
-Lemma subst_lift0C:
-  forall {B} id (v: environ -> val) (f: B) , 
-          subst id v (@coerce B (environ -> B) (lift0_C B) f) = `f.
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-Hint Rewrite @subst_lift0C : normalize.
-Hint Rewrite @subst_lift0C : subst.
-
-Lemma subst_lift1C:
-  forall {A1 B} id (v: environ -> val) (f: A1 -> B) (a: environ -> A1), 
-          subst id v (@coerce (A1 -> B) ((environ -> A1) -> environ -> B) (lift1_C A1 B) f a) 
-               = `f (subst id v a).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-Hint Rewrite @subst_lift1C : normalize.
-Hint Rewrite @subst_lift1C : subst.
-
-Lemma subst_lift2C:
-  forall {A1 A2 B} id (v: environ -> val) (f: A1 -> A2 -> B) (a: environ -> A1) (b: environ -> A2), 
-          subst id v (@coerce (A1 -> A2 -> B) ((environ -> A1) -> (environ -> A2) -> environ -> B)
-                  (lift2_C A1 A2 B) f a b) = `f (subst id v a) (subst id v b).
-Proof.
-intros. extensionality rho; reflexivity.
-Qed.
-Hint Rewrite @subst_lift2C : normalize.
-Hint Rewrite @subst_lift2C : subst.
-
 Lemma map_cons: forall {A B} (f: A -> B) x y,
    map f (x::y) = f x :: map f y.
 Proof. reflexivity. Qed.
@@ -1834,4 +1875,20 @@ Ltac make_sequential :=
   | |- semax _ _ _ (normal_ret_assert _) => idtac
   | |- _ => apply sequential
   end.
+
+Lemma remember_value:
+  forall e Delta P Q R c Post,
+  (forall x:val, 
+   semax Delta (PROPx P (LOCALx (`(eq x) e:: Q) (SEPx R))) c Post) ->
+  semax Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+ intros.
+ apply semax_pre0 with (EX x:val, PROPx P (LOCALx (`(eq x) e::Q) (SEPx R))).
+ intro rho. simpl. apply exp_right with (e rho).
+ unfold PROPx, LOCALx; simpl; apply andp_derives; auto.
+ apply andp_derives; auto.
+ unfold local; unfold_coerce; simpl.
+ apply prop_left; intro. apply prop_right. split; auto.
+ apply extract_exists_pre.  apply H.
+Qed.
 
