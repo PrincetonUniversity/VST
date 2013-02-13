@@ -60,7 +60,7 @@ Proof.
 intros c; unfold runnable.
 destruct (at_external csem c).
 destruct p as [[ef sig] vals].
-intros; right; do 3 eexists; eauto.
+intros; right; do 2 eexists; eauto.
 destruct (safely_halted csem c).
 intros; left; eexists; eauto.
 congruence.
@@ -911,7 +911,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
+   Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -935,7 +935,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
+   Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
@@ -954,7 +954,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    mem_forward m2 m2' -> 
    Events.mem_unchanged_on (fun b ofs => 
      Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT i) d2 b) m2 m2' -> 
-   Val.has_type retv2 (proj_sig_res sig) -> 
+   Val.has_type retv2 (proj_sig_res (ef_sig ef)) -> 
    after_external esemS (Some retv1) s1 = Some s1' -> 
    after_external esemT (Some retv2) s2 = Some s2' -> 
    PROJ_CORE E_S i s1' = Some d1 -> 
@@ -1409,14 +1409,14 @@ rename H into MATCH.
 hnf in MATCH.
 destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR [ACT MATCH_CORES]]]]]].
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
-assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
+assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1)).
  inv core_compatS.
  edestruct (at_extern_call) as [c [PROJ AT_EXT]]; eauto.
  rewrite PROJ in PROJ1; inv PROJ1.
  solve[inv PROJ; auto].
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) 
-            (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 ef_sig MATCH12 AT_EXT1)
+            (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 sig MATCH12 AT_EXT1)
  as [INJ [GLOBS [vals2 [VALINJ [TYPE AT_EXT2]]]]].
 split3; auto.
 rewrite <-meminj_preserves_genv2blocks.
@@ -1438,7 +1438,7 @@ hnf in MATCH.
 destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR [ACT MATCH_CORES]]]]]].
 generalize MATCH_CORES as MATCH_CORES'; intro.
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
-assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals1)).
+assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1)).
  inv core_compatS.
  edestruct (at_extern_call) as [c [PROJ AT_EXT]]; eauto.
  rewrite PROJ in PROJ1; inv PROJ1.
@@ -1446,7 +1446,7 @@ assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, ef_sig, vals
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_after_external (core_simulations (ACTIVE E_S st1)) 
                 (cd (ACTIVE E_S st1)) j j' c1 c2 m1 e 
-                vals1 ret1 m1' m2 m2' ret2 ef_sig)
+                vals1 ret1 m1' m2 m2' ret2 sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
 rewrite <-meminj_preserves_genv2blocks.
 rewrite <-genvs_domain_eq_preserves with (ge1 := ge_S); auto.
@@ -1501,20 +1501,20 @@ remember (ACTIVE E_S st1') as x'.
 remember (ACTIVE E_T st2') as y'.
 subst.
 assert (AT_EXT2: exists vals2, 
- at_external (csemT (ACTIVE E_T st2)) c2 = Some (e, ef_sig, vals2)).
+ at_external (csemT (ACTIVE E_T st2)) c2 = Some (e, sig, vals2)).
  destruct (core_simulations (ACTIVE E_T st2)).
  eapply core_at_external0 in AT_EXT1; eauto.
  destruct AT_EXT1 as [_ [_ [vals2 [_ [_ AT_EXT2]]]]].
  exists vals2; eauto.
-destruct AT_EXT2 as [vals2 AT_EXT2].
-solve[eapply private_valid_after_ext; eauto].
+ destruct AT_EXT2 as [vals2 AT_EXT2].
+ solve[eapply private_valid_after_ext; eauto].
 (*private_disjoint*)
 remember (ACTIVE E_S st1) as x.
 remember (ACTIVE E_S st1') as x'.
 remember (ACTIVE E_T st2') as y'.
 subst.
 assert (AT_EXT2: exists vals2, 
- at_external (csemT (ACTIVE E_T st2)) c2 = Some (e, ef_sig, vals2)).
+ at_external (csemT (ACTIVE E_T st2)) c2 = Some (e, sig, vals2)).
  destruct (core_simulations (ACTIVE E_T st2)).
  eapply core_at_external0 in AT_EXT1; eauto.
  destruct AT_EXT1 as [_ [_ [vals2 [_ [_ AT_EXT2]]]]].
@@ -1526,11 +1526,6 @@ solve[eapply private_disjoint_after_ext; eauto].
 split.
 inv esig_compilable.
 eapply after_external_rel; eauto.
-admit. (*in core_after_external: need precond: Val.has_type ret1 (proj_sig_res (ef_sig e))*)
-unfold val_has_type_opt.
-generalize H11.
-
-admit. (*get rid of "sig"; use "ef_sig ef" everywhere*)
 split; auto.
 
 intros i _c _PROJ1'.
@@ -1576,6 +1571,7 @@ split; auto.
 inv core_compatT.
 apply private_conservT in _PROJ2.
 solve[eapply _PROJ2; eauto].
+auto.
 inv core_compatT.
 erewrite <-after_ext_others; eauto.
 solve[rewrite Heqx; auto].

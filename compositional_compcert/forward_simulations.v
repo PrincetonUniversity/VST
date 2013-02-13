@@ -324,20 +324,20 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           Mem.inject j m1 m2;
 
     core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
+      forall cd j st1 m1 st2 m2 e vals1 sig,
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
-          at_external Sem2 st2 = Some (e,ef_sig,vals2));
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          at_external Sem2 st2 = Some (e,sig,vals2));
 
     core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 ef_sig,
+      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        at_external Sem1 st1 = Some (e,sig,vals1) ->
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
@@ -351,7 +351,8 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
          mem_forward m2 m2' -> 
          mem_unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+         Val.has_type ret1 (proj_sig_res (ef_sig e)) -> 
+         Val.has_type ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -518,20 +519,20 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           Mem.inject j m1 m2;
 
     core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
+      forall cd j st1 m1 st2 m2 e vals1 sig,
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
-          at_external Sem2 st2 = Some (e,ef_sig,vals2));
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
+          at_external Sem2 st2 = Some (e,sig,vals2));
 
     core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 ef_sig,
+      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        at_external Sem1 st1 = Some (e,sig,vals1) ->
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
@@ -545,7 +546,8 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
          mem_forward m2 m2' -> 
          mem_unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+         Val.has_type ret1 (proj_sig_res (ef_sig e)) -> 
+         Val.has_type ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\

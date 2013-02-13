@@ -317,7 +317,7 @@ Proof.
   eapply external_call_symbols_preserved_gen. 
   apply HypGenv. (*HERE*) 
   apply HypVolatile. (*HERE*)
-  apply extCall2.
+  solve[apply extCall2].
   clear extCall2.
   assert (DD := @Forward_simulation_inj.core_after_external _ _ _ _ _ _ _ Sem1 Sem2 
     (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R i j).
@@ -330,7 +330,8 @@ Proof.
   eapply external_call_mem_forward; eauto.
   apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
   solve[intros b ofs [? ?]; auto].
-  eapply external_call_well_typed. apply extCall2Genv2. 
+  eapply external_call_well_typed; eauto. 
+  eapply external_call_well_typed; eauto. 
   rewrite AftExt1 in H9. inv H9.
   exists d'. exists (c2', m2').
   split. left. apply plus_one. eapply  step_ext_step. apply AtExt2. 

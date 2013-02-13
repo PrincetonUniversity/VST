@@ -303,7 +303,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args sig) /\
+          Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
           at_external Sem2 st2 = Some (e,sig,vals2)).
 
   Hypothesis inj_after_external:
@@ -332,7 +332,8 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          mem_forward m2 m2' -> 
          mem_unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 c2 b) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res sig) ->
+         Val.has_type ret1 (proj_sig_res (ef_sig e)) ->
+         Val.has_type ret2 (proj_sig_res (ef_sig e)) ->
 
       exists st1', exists st2', exists d',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -358,23 +359,24 @@ Hypothesis order_wf: well_founded order.
                     loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2' /\
                   (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
-Lemma  inj_simulation_star_wf: Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
+Lemma  inj_simulation_star_wf: 
+  Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply Forward_simulation_inj.Build_Forward_simulation_inject with
-        (core_ord := order)
-        (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
-   apply order_wf.
-   intros. destruct H0; subst.
-              destruct (inj_simulation _ _ _ _ H _ _ _ H1) as [c2' [m2' [j' [INC [SEP [MC' [UNCH1 [UNCH2 Step]]]]]]]].
-              exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
-   intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as [c2' [MIC MC]].
-                 exists c1.  exists c2'. split; eauto.
-   intros. destruct H; subst. eapply inj_safely_halted; eauto.
-   intros.  destruct H; subst. eapply inj_at_external; eauto.
-   intros.  (*destruct H0; subst.*) clear inj_simulation .
-         specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11).
-          destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
-           exists c1'. exists c1'. exists c2'. split; auto.
+    (core_ord := order)
+    (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
+  apply order_wf.
+  intros. destruct H0; subst.
+  destruct (inj_simulation _ _ _ _ H _ _ _ H1) as [c2' [m2' [j' [INC [SEP [MC' [UNCH1 [UNCH2 Step]]]]]]]].
+  exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
+  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as [c2' [MIC MC]].
+  exists c1.  exists c2'. split; eauto.
+  intros. destruct H; subst. eapply inj_safely_halted; eauto.
+  intros.  destruct H; subst. eapply inj_at_external; eauto.
+  intros.  (*destruct H0; subst.*) clear inj_simulation .
+  specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12).
+  destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
+  exists c1'. exists c1'. exists c2'. split; auto.
 Qed.
 End INJ_SIMULATION_STAR_WF.
 

@@ -2153,9 +2153,19 @@ spec core_after_external0.
 solve[unfold Events.mem_unchanged_on; split; auto].
 spec core_after_external0.
 unfold val_has_type_opt in HAS_TY1.
-rewrite RET2 in HAS_TY2; auto.
-admit. (*typing precondition: use "ef_sig e" instead of sig' everywhere; and HAS_TY2*)
+assert (Heq: ef = ef').
+ clear - AT_EXT.
+ destruct ef'; try solve[congruence].
+ destruct (procedure_linkage_table name); try solve[congruence].
+rewrite Heq in *.
+solve[rewrite RET1 in HAS_TY1; auto].
 destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
+assert (Heq: ef = ef').
+ clear - AT_EXT.
+ destruct ef'; try solve[congruence].
+ destruct (procedure_linkage_table name); try solve[congruence].
+rewrite Heq in *.
+solve[rewrite RET2 in HAS_TY2; auto].
 exists cd''; auto.
 rewrite <-RET1, <-RET2 in *.
 clear - Heq1 Heq2 EQ1 EQ2 PF MATCH2.
@@ -2285,19 +2295,34 @@ assert (Heq: l = pf_i) by apply proof_irr; auto.
 solve[subst; unfold init_data, genv_map in *; rewrite H5 in H13; congruence].
 
 (*'link' case*)
+assert (Hef: ef = EF_external id sig0).
+ clear - AT_EXT H5 H1 pf_i.
+ destruct (eq_nat_dec (linker_active s2) (linker_active s2)); 
+  try solve[elimtype False; omega].
+ rewrite<-Eqdep_dec.eq_rect_eq_dec in H1.
+ inv H1.
+ unfold csem_map_S, csem_map in H5.
+ destruct (lt_dec (linker_active s2) num_modules); try solve[elimtype False; omega].
+ assert (l = pf_i) by apply proof_irr.
+ subst l.
+ rewrite AT_EXT in H5.
+ solve[inv H5; auto].
+ solve[apply eq_nat_dec].
+rewrite Hef in *.
 destruct (eq_nat_dec (linker_active s2) (linker_active s2)); try solve[omega].
 rewrite dependent_types_nonsense in H1; inv H1.
 rename j0 into k.
 destruct (core_simulations k).
-specialize (core_initial0 (Vptr b (Int.repr 0)) (Vptr b (Int.repr 0)) sig).
+specialize (core_initial0 (Vptr b (Int.repr 0)) (Vptr b (Int.repr 0)) 
+  (ef_sig (EF_external id sig0))).
 spec core_initial0; auto.
-assert (sig = sig0) as ->.
+assert (sig = sig0) as Heq.
  clear - H5 AT_EXT.
  unfold csem_map_S, csem_map in H5.
  destruct (lt_dec (linker_active s2) num_modules); try solve[elimtype False; omega].
  assert (Heq: l = pf_i) by apply proof_irr; auto; subst.
  solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
-solve[auto].
+rewrite Heq in *; clear Heq.
 specialize (core_initial0 args1 c' m1' j args2 m2).
 spec core_initial0; auto.
 clear - H5 AT_EXT H15.
@@ -2313,6 +2338,7 @@ solve[subst; auto].
 spec core_initial0; auto.
 spec core_initial0; auto.
 spec core_initial0; auto.
+simpl.
 destruct core_initial0 as [cd' [c'' [INIT MATCH]]].
 destruct s2; simpl in H2; induction stack0.
 solve[simpl in stack_nonempty; elimtype False; omega].
@@ -2329,7 +2355,7 @@ assert (CALLERS:
   mkFrame i pf_i c2 :: stack0))).
  simpl.
  apply List.Forall_cons.
- exists ef; exists sig; exists args2.
+ exists (EF_external id sig0); exists sig0; exists args2.
  generalize H6.
  unfold csem_map_T, csem_map.
  destruct (lt_dec i num_modules); try solve[elimtype False; omega].
@@ -2508,7 +2534,7 @@ split; auto.
 assert (Heq: pf_i = PF) by apply proof_irr; auto.
 subst pf_i.
 apply link_call 
- with (args := args2) (sig := sig) (b := b); auto.
+ with (args := args2) (sig := sig0) (b := b); auto.
 specialize (H8 i c1).
 spec H8.
 destruct (eq_nat_dec i i); try solve[elimtype False; omega].
@@ -2520,12 +2546,12 @@ destruct H8 as [H8 H16].
 inv H8.
 unfold csem_map_T, csem_map in H6.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (l = PF) as -> by apply proof_irr; auto.
-clear - H5 AT_EXT H6. 
+solve[assert (l = PF) as -> by apply proof_irr; auto].
+(*clear - H5 AT_EXT H6. 
 unfold csem_map_S, csem_map in H5.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (l = PF) by apply proof_irr; auto; subst.
-solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
+solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].*)
 clear - domain_eq_T.
 unfold genv_mapT, genvs in domain_eq_T.
 intros k pf_k.
@@ -2543,13 +2569,12 @@ specialize (H2 id).
 rewrite H13 in H2.
 specialize (H3 id).
 solve[rewrite <-H2 in H3; auto].
-assert (sig = sig0) as ->.
+(*assert (sig = sig0) as ->.
  clear - H5 AT_EXT.
  unfold csem_map_S, csem_map in H5.
  destruct (lt_dec i num_modules); try solve[elimtype False; omega].
  assert (Heq: l = PF) by apply proof_irr; auto; subst.
- solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
-solve[auto].
+ solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].*)
 unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
 generalize (plt_ok LOOKUP) as plt_ok'; intro.
 destruct (lt_dec k num_modules); try solve[elimtype False; omega].
@@ -2958,6 +2983,7 @@ spec core_after_external0.
 admit. (*safely_halted_diagram: add typing precondition: Val.has_type retv (proj_sig_res sig) *)
 destruct core_after_external0 as 
  [cd2 [_c [_c0 [AFTER1 [AFTER2 MATCH12]]]]].
+admit. (*safely_halted_diagram: add typing precondition: Val.has_type retv (proj_sig_res sig) *)
 assert (CALLERS: all_at_external fT vT modules_T stack0).
  solve[eapply all_at_external_cons; eauto].
 exists 
