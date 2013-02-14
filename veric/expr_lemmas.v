@@ -10,7 +10,7 @@ Require Export veric.environ_lemmas.
 Require Import veric.binop_lemmas. 
 Import Cop.
 
-(*Definitions of some environments*)
+(** Definitions of some environments **)
 Definition mkEnviron' (ge: Clight.genv) (ve: venviron) (te: tenviron) :=
   mkEnviron (filter_genv ge) ve te.
 
@@ -85,7 +85,7 @@ end.
 
 
  
-(*Typechecking soundness*)
+(** Typechecking soundness **)
 
 Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho -> 
@@ -197,6 +197,7 @@ rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.
 inv H0. inv H0. 
 Qed.
 
+(** Main soundness result for the typechecker **)
 
 Lemma typecheck_both_sound: 
   forall Delta rho e , 
@@ -502,6 +503,7 @@ congruence.
 Qed. 
   
 
+(** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
 Lemma eval_both_relate:
   forall Delta ge te ve rho e m, 
@@ -555,12 +557,23 @@ apply Clight.eval_Elvalue with b ofs; [  | econstructor 2; apply MODE].
 assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H4).  subst.
 apply Clight.eval_Evar_global.
 symmetry in Heqo; apply Heqo.
-unfold filter_genv in H4. invSome. destruct (type_of_global ge b0); inv H9; auto.
-admit.  (* similar to what's below *)
+unfold filter_genv in H4. invSome. destruct (type_of_global ge b0); inv H9; auto. 
+
+unfold filter_genv in *.  
+remember (Genv.find_symbol ge i). 
+destruct o; try congruence. 
+assert (b = b0). clear - Heqo0 H4. 
+destruct (type_of_global ge b0); inv H4; auto. 
+subst. 
+remember (type_of_global ge b0). 
+destruct o; try congruence. inv H4. 
+remember (eqb_type t (globtype g)). destruct b.
+symmetry in Heqb. apply eqb_type_true in Heqb. auto. 
+destruct t; inv TC_Sound.  inv H4. rewrite <- H8 in H5; inv H5. 
 
 assert (TC_Sound:= typecheck_lvalue_sound).
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
-specialize (TC_Sound some_pt_type). simpl in TC_Sound.
+specialize (TC_Sound some_pt_type). simpl in TC_Sound. 
 specialize (TC_Sound (eq_refl _)). 
  
 simpl in *. unfold eval_var in *. 
@@ -691,10 +704,34 @@ destruct o. eapply Clight.eval_Ecast. eapply IHe. auto. apply H2. auto.
 specialize (IHe ge). intuition.
 
 (*Field*)
-admit.  (* has much similarity with what follows, the other Field case. *)
+
+specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
+simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. repeat rewrite tc_andp_sound in *. 
+simpl in H1. 
+repeat( try rewrite tc_andp_sound in *; simpl in *; unfold_coerce). 
+destruct H1. destruct H1.
+destruct IHe. specialize (H5 H1). destruct H5 as [b [ofs H5]]. 
+destruct H5. 
+ remember (typeof e). 
+destruct t0; try solve[inv H3]. remember (field_offset i f). destruct r; inv H3. simpl in *. rewrite <- Heqr in *.
+unfold deref_noload in *. rewrite <- Heqm0 in *. 
+eapply Clight.eval_Elvalue; eauto. 
+eapply Clight.eval_Efield_struct; eauto. 
+eapply Clight.eval_Elvalue; auto. apply H5.
+rewrite <- Heqt0.
+apply Clight.deref_loc_copy. auto. simpl. 
+rewrite H6. apply Clight.deref_loc_reference. auto. 
+
+unfold deref_noload. rewrite <- Heqm0. simpl. 
+eapply Clight.eval_Elvalue; eauto.
+eapply Clight.eval_Efield_union. 
+eapply Clight.eval_Elvalue; eauto.
+apply Clight.deref_loc_copy. 
+rewrite <- Heqt0. auto. eauto.
+simpl. rewrite H6. simpl. apply Clight.deref_loc_reference; auto. 
 
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
-specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. intuition.
+specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. 
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
  unfold eval_field,eval_struct_field in *; unfold_coerce; remember (eval_lvalue e rho).
@@ -841,25 +878,65 @@ Proof.
 intros.
 destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
 simpl. unfold var_types. simpl. auto.
-Qed.
+Qed. 
 
+Lemma glob_types_update_dist :
+forall d1 d2, 
+(glob_types (join_tycon (d1) (d2))) =
+(glob_types (d1)).
+Proof.
+intros. destruct d1. destruct d2. destruct p. destruct p0. 
+destruct p. destruct p0. simpl. auto.
+Qed. 
+ 
 
 Lemma var_types_update_tycon:
-  forall c Delta, var_types (update_tycon Delta c) = var_types Delta.
+  forall c Delta, var_types (update_tycon Delta c) = var_types Delta
+with
+var_types_join_labeled : forall l Delta,
+var_types (join_tycon_labeled l Delta) = var_types Delta.
 Proof.
 assert (forall i Delta, var_types (initialized i Delta) = var_types Delta).
 intros; unfold initialized.
-destruct ((temp_types Delta)!i); auto. destruct p; auto. 
-induction c; intros; simpl; auto.
-destruct o; auto.
-rewrite IHc2; auto.
-rewrite var_types_update_dist. auto.
-admit. 
+destruct ((temp_types Delta)!i); try destruct p; reflexivity. 
+destruct c; intros; simpl; try reflexivity. 
+apply H. 
+destruct o. apply H. auto. 
+rewrite var_types_update_tycon. apply var_types_update_tycon. 
+
+rewrite var_types_update_dist. apply var_types_update_tycon. 
+apply var_types_join_labeled. 
+
+intros. destruct l. simpl. apply var_types_update_tycon. 
+simpl. rewrite var_types_update_dist.  
+rewrite var_types_update_tycon. reflexivity.  
+ 
 Qed.
  
 Lemma glob_types_update_tycon:
-  forall c Delta, glob_types (update_tycon Delta c) = glob_types Delta.
-Admitted. 
+  forall c Delta, glob_types (update_tycon Delta c) = glob_types Delta
+ with
+glob_types_join_labeled : forall Delta e l,
+glob_types (update_tycon Delta (Sswitch e l)) = glob_types Delta. 
+Proof. 
+assert (forall i Delta, glob_types (initialized i Delta) = glob_types Delta).
+intros; unfold initialized.
+destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
+induction c; intros; try apply H; try reflexivity. 
+simpl. destruct o. apply H. auto. 
+simpl. 
+rewrite IHc2. 
+auto. 
+
+simpl.  rewrite glob_types_update_dist. auto. 
+
+auto. 
+
+intros. simpl. 
+destruct l. simpl. auto. 
+simpl in *. rewrite glob_types_update_dist. 
+auto. 
+Qed. 
 
 Ltac try_false :=
 try  solve[exists false; rewrite orb_false_r; eauto]. 
@@ -871,6 +948,7 @@ exists b2, (temp_types (update_tycon Delta c)) ! id = Some (t,b || b2)
 with update_labeled_te_same : forall ls Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
 exists b2, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b || b2) .
+Focus 1. 
 destruct c; intros; simpl; try_false. 
 
 simpl. eapply temp_types_same_type; eauto.
@@ -895,17 +973,16 @@ edestruct (update_tycon_te_same c1). apply H.
 edestruct (update_tycon_te_same c2). apply H. 
 erewrite join_te_eqv;
 eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
-eauto. eauto. (*these are the problem if it won't qed*) 
-(*
+
+apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*) 
+
 intros. destruct ls. simpl. eauto.
 simpl. rewrite temp_types_update_dist.
 edestruct update_tycon_te_same. apply H.
 edestruct update_labeled_te_same. apply H.
 exists (x && x0).  
 erewrite join_te_eqv. rewrite <- orb_andb_distrib_r. auto. 
-eauto. eauto.
-*)
-Admitted. (*See comment above, "these are the problem" *)
+eauto. eauto. Qed. 
 
 
 Lemma typecheck_environ_update_te:
@@ -1026,12 +1103,6 @@ rewrite var_types_update_dist.  rewrite update_tycon_same_ve.
 apply H.
 Qed.   
 
-
-Lemma glob_types_update_dist :
- forall d1 d2 : tycontext, glob_types (join_tycon d1 d2) = glob_types d1.
-destruct d1; destruct d2.  destruct p. destruct p. destruct p0. destruct p. 
-auto. 
-Qed.
 
 Lemma update_tycon_same_ge : forall Delta c id v,
 (glob_types (update_tycon Delta c)) ! id = Some v <->
@@ -1398,85 +1469,6 @@ Proof.
 intros. destruct v; destruct from; simpl in *; try congruence; destruct to; simpl in *; try congruence; auto; 
 try destruct i1; try destruct f1; simpl in *; try congruence; auto.
 Qed. 
-(*
-Lemma cast_redundant:
-  forall e t,
-typeof e <> Tvoid ->
- cast_exp (Ecast e t) t = cast_exp e t.
-Proof. intros. extensionality rho; unfold cast_exp; simpl.
-unfold_coerce. unfold expr.eval_cast.
-f_equal.
-forget (eval_expr e rho) as v.
-forget (typeof e) as t0.
-destruct t; destruct t0; auto; try congruence;  
-
-try solve[
-destruct v; auto
-
-|destruct i; simpl; auto
- 
-|destruct i0; destruct i; destruct v; auto; destruct s; unfold sem_cast; simpl; 
- try solve [try rewrite Int.sign_ext_idem; try rewrite Int.zero_ext_idem; auto; simpl; omega]; 
- destruct (Int.eq i Int.zero); try rewrite Int.eq_true; auto
-
-|destruct f; try destruct i; try destruct f0; destruct v; auto; unfold sem_cast; simpl; 
- (try (destruct s; simpl; [try destruct (Float.intoffloat f) | 
-                      try destruct (Float.intuoffloat f)])); 
- simpl; 
- try solve [try rewrite Int.sign_ext_idem; try rewrite Int.zero_ext_idem; 
- try rewrite Float.singleoffloat_idem;
- auto; simpl; omega]; 
- destruct (Float.cmp Ceq f Float.zero); try rewrite Int.eq_true; auto
-
-|destruct i; simpl; destruct v; auto; simpl; unfold sem_cast; simpl;
-  destruct (Int.eq i Int.zero); auto]. 
-
-unfold sem_cast. simpl. 
-
-SearchAbout sem_cast. 
-
-Lemma cast_redundant:
-  forall e t, cast_exp (Ecast e t) t = cast_exp e t.
-Proof. intros. extensionality rho; unfold cast_exp; simpl.
-unfold_coerce. unfold expr.eval_cast.
-f_equal.
-forget (eval_expr e rho) as v.
-forget (typeof e) as t0.
-Admitted.
-
-Lemma cast_exp_pointer:
-  forall e t t', typeof e = Tpointer t noattr -> 
-                         t' = Tpointer t noattr ->
-                    cast_exp e t' = eval_expr e.
-Admitted.
-
-  Lemma eval_cast_pointer:
-   forall  t1 t v,
-       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
-       tc_val t1 v ->
-       eval_cast t1 t v = v.
- Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
-  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
-  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
-Qed.
-Admitted.
-
-Lemma cast_exp_pointer:
-  forall e t t', typeof e = Tpointer t noattr -> 
-                         t' = Tpointer t noattr ->
-                    cast_exp e t' = eval_expr e.
-Admitted.
-
-  Lemma eval_cast_pointer:
-   forall  t1 t v,
-       match t1, t with (Tpointer _ _), (Tpointer _ _) => True | _,_ => False end ->
-       tc_val t1 v ->
-       eval_cast t1 t v = v.
- Proof. intros. destruct t1; try contradiction. destruct t; try contradiction.
-  unfold eval_cast. unfold Cop.sem_cast. simpl in *.
-  unfold tc_val, typecheck_val in H0. destruct v; auto; inv H0.
-Qed.
-*)
 
 Lemma tc_exprlist_length : forall Delta tl el rho, 
 denote_tc_assert (typecheck_exprlist Delta tl el) rho ->

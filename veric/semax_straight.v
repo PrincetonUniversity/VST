@@ -92,7 +92,140 @@ apply Hsafe; auto.
 Qed.
 
 
+Definition is_comparison op :=
+match op with 
+  | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => true              
+  | _ => false
+end. 
 
+
+(* work in progress... 
+Lemma semax_set_forward_ptr_compare : 
+forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty,
+    is_comparison cmp = true  ->
+    is_pointer_type (typeof e1) = true ->
+    is_pointer_type (typeof e2) = true -> 
+    semax Hspec Delta 
+        (fun rho => 
+          |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
+          (tc_temp_id id ty Delta (Ebinop cmp e1 e2 ty) rho) && P rho)) 
+          (Sset id (Ebinop cmp e1 e2 ty)) 
+        (normal_ret_assert 
+          (fun rho => (EX old:val, 
+                 !! (eval_id id rho =  subst id old (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
+                            subst id old P rho))).
+Proof. 
+intros until ty.
+replace (fun rho : environ =>
+   |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
+          (tc_temp_id id ty Delta (Ebinop cmp e1 e2 ty) rho) && P rho))
+ with (fun rho : environ =>
+     (|> tc_expr Delta e1 rho &&
+      |> tc_expr Delta e2 rho &&
+      |> tc_temp_id id ty Delta (Ebinop cmp e1 e2 ty) rho &&
+      |> P rho))
+  by (extensionality rho;  repeat rewrite later_andp; auto).
+intros CMP PT1 PT2. 
+apply semax_straight_simple; auto. 
+intros jm jm' ge vx tx rho k F [[TC3 TC1] TC2] TC' Hcl Hge ? ?.
+specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
+specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))). 
+specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))). 
+exists jm', (PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (tx)).
+econstructor.
+split.
+reflexivity.
+split3; auto.
+apply age_level; auto.
+normalize in H0.
+clear - TC' TC2 TC3 TC1 CMP PT1 PT2  Hge.
+simpl in *. simpl. rewrite <- map_ptree_rel.
+apply guard_environ_put_te'; auto. subst; simpl in *.
+unfold construct_rho in *; auto.
+intros. simpl in *. unfold typecheck_temp_id in *.
+rewrite H in TC2.
+destruct t as [t b]; simpl in *.
+rewrite tc_andp_sound in *; simpl in *. 
+unfold_coerce. destruct TC2. 
+unfold tc_bool in *. remember (is_neutral_cast (ty) t). 
+destruct b0; inv H0. unfold guard_environ in *. 
+destruct TC' as [TC' TC'']. 
+apply typecheck_both_sound in TC3; auto.
+apply typecheck_both_sound in TC1; auto. 
+
+unfold eval_binop. unfold Cop.sem_binary_operation.
+destruct cmp; simpl in *; try congruence. unfold Cop.sem_cmp. 
+
+remember(typeof e1); remember (typeof e2);   
+destruct t0; destruct t1; simpl in *; try congruence.  
+simpl in *;
+destruct (eval_expr e1 (construct_rho (filter_genv ge) vx            tx)); try solve [inv TC3]; 
+destruct (eval_expr e2 (construct_rho (filter_genv ge) vx tx)); try solve [inv TC1]. simpl.
+unfold Val.of_bool. destruct t; if_tac; simpl in *; try congruence; try solve [inv H1]; destruct ty; auto.  simpl in H1. unfold_coerce. 
+
+try destruct i; try destruct s; try destruct i0; try destruct s0; simpl in *; destruct t; auto. unfold Val.of_bool.
+
+apply neutral_cast_typecheck_val with (Delta := Delta); auto. 
+unfold guard_environ in *. destruct TC'; auto. 
+destruct H0.
+split; auto.
+simpl.
+split3; auto.
+destruct (age1_juicy_mem_unpack _ _ H).
+rewrite <- H3.
+econstructor; eauto.
+eapply eval_expr_relate; auto. destruct TC'; eassumption. auto.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+
+split.
+2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
+
+assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
+assert (laterR (m_phi jm) (m_phi jm')).
+constructor 1.
+destruct (age1_juicy_mem_unpack _ _ H); auto.
+specialize (H2 _ H3).
+eapply sepcon_derives; try  apply H2; auto.
+clear - Hcl Hge.
+rewrite <- map_ptree_rel. 
+specialize (Hcl rho (Map.set id (eval_expr e rho) (make_tenv tx))).
+rewrite <- Hcl; auto.
+intros.
+destruct (eq_dec id i).
+subst.
+left; hnf; auto.
+right.
+rewrite Map.gso; auto. subst; auto.
+apply exp_right with (eval_id id rho).
+rewrite <- map_ptree_rel.
+assert (env_set
+         (mkEnviron (ge_of rho) (ve_of rho)
+            (Map.set id (eval_expr e rho) (make_tenv tx))) id (eval_id id rho) = rho).
+  unfold env_set; 
+  f_equal.
+  unfold eval_id; simpl.
+  rewrite Map.override.
+  rewrite Map.override_same. subst; auto.
+  rewrite Hge in TC'. 
+  destruct TC' as [TC' _]; apply typecheck_environ_sound in TC'.  
+  destruct TC' as [TC' _]. unfold tc_te_denote in *.
+  simpl in TC2. unfold typecheck_temp_id in *. remember ((temp_types Delta) ! id).
+  destruct o; [ | inv TC2]. symmetry in Heqo. destruct p.
+  specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. rewrite H4. simpl.
+  f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
+apply andp_right.
+intros ? _. simpl.
+unfold subst.
+rewrite H4.
+unfold eval_id at 1. unfold force_val; simpl.
+rewrite Map.gss. auto.
+unfold subst; rewrite H4.
+auto.
+Qed.
+
+*)
 
 Lemma semax_set_forward : 
 forall (Delta: tycontext) (P: assert) id e,

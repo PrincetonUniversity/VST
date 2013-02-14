@@ -6,7 +6,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 
-(***** GENERAL KV-Maps *****)
+(** GENERAL KV-Maps **)
 
 Set Implicit Arguments.
 Module Map. Section map.
@@ -24,8 +24,7 @@ Definition remove (a: positive) (h: t) : t :=
 
 Definition empty : t := fun _ => None.
 
-(* MAP Axioms 
- *)
+(** MAP Axioms **)
 
 Lemma gss h x v : get (set x v h) x = Some v.
 unfold get, set; if_tac; intuition.
@@ -70,6 +69,8 @@ End map.
 
 End Map.
 Unset Implicit Arguments.
+
+(** Environment Definitions **)
 
 Definition genviron := Map.t (val*type).
 
@@ -142,7 +143,6 @@ Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.em
 
 Definition test := true.
 Definition any_environ : environ :=
- (* Mainly for use in demonstrating that the environ type is inhabited *)
   mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
 
 Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
@@ -156,6 +156,7 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
+(** Backtick notation for lifting **)
 (**********************)
 Class Coercion A B := coerce: A -> B.
 Notation "'`' x" := (coerce x) (at level 9).
@@ -168,7 +169,7 @@ Global Instance lift4_C A B C D E: Coercion (A->B->C->D->E) _ := lift4.
 
 (***************************)
 
-(* Make a completely computational version of type_eq *)
+(** Computational version of type_eq **)
 
 Definition eqb_attr (a b: attr) : bool :=
  match a, b with
@@ -238,8 +239,8 @@ Lemma eqb_type_refl: forall a, eqb_type a a = true.
 Proof.
 Admitted.
 
-(*Functions for evaluating expressions in environments, 
-these return vundef if something goes wrong, meaning they always return some value*)
+(** Functions for evaluating expressions in environments, 
+these return vundef if something goes wrong, meaning they always return some value **)
 
 Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with
@@ -250,15 +251,6 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
    | _, _ => None
    end.
-
-(*
- Lemma strict_bool_val_sub : forall v t b, 
- strict_bool_val v t = Some b ->
-bool_val v t = Some b.
-Proof.
-intros. destruct v; destruct t; simpl in *; auto; try if_tac in H; auto; try congruence.
-Qed.
-*)
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
@@ -341,7 +333,7 @@ Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
 Definition eval_expropt (e: option expr) : environ -> option val :=
  match e with Some e' => `Some (eval_expr e')  | None => `None end.
 
-(* things related to function specifications and return assertions *)
+(** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
 
 Instance EqDec_exitkind: EqDec exitkind.
@@ -365,7 +357,7 @@ Inductive global_spec :=
 | Global_func : forall fs: funspec, global_spec
 | Global_var:  forall gv: type, global_spec.
 
-(*Declaration of type context for typechecking *)
+(** Declaration of type context for typechecking **)
 
 (*Temps, vars, function return, list of variables that are not vars
  (meaning they can be looked up as globals)*)
@@ -379,7 +371,7 @@ Definition var_types (Delta: tycontext) : PTree.t type := snd (fst (fst Delta)).
 Definition ret_type (Delta: tycontext) : type := snd (fst Delta).
 Definition glob_types (Delta: tycontext) : PTree.t global_spec := snd Delta.
 
-(*Beginning of typechecking *)
+(** Beginning of typechecking **)
 
 Definition bool_type (t: type) : bool :=
   match t with
@@ -393,12 +385,11 @@ match ty with
 | Tfloat _ _ => true
 | _ => false
 end.
-(*Make sure I am using the above correctly!!!*)
 
 Definition unOp_result_type op a := 
 match op with 
-  | Cop.Onotbool => (Tint IBool Signed noattr) (*Bool, classify doesn't change *)
-  | Cop.Onotint => (Tint I32 Signed noattr) (*Int, classify doesn't change *)
+  | Cop.Onotbool => (Tint IBool Signed noattr) 
+  | Cop.Onotint => (Tint I32 Signed noattr) 
   | Cop.Oneg => (typeof a)
 end.
 
@@ -562,8 +553,6 @@ match Cop.classify_cast tfrom tto with
                             (if orb  (andb (is_pointer_type ty) (is_pointer_type tfrom)) (andb (is_int_type ty) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero a)
 | Cop.cast_case_void => tc_noproof
-(*Disabling this for the program logic, the only time it is used is not for
-  functionality, more as a noop that "uses" some expression*)
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type ty)
       | Tfloat _ _  => tc_bool (is_float_type ty)
@@ -601,8 +590,8 @@ match (var_types Delta) ! id with
            end
 end.
 
-(*Main typechecking function, with work will typecheck both pure
-and non-pure expressions, for now mostly just works with pure expressions*)
+(** Main typechecking function, with work will typecheck both pure
+and non-pure expressions, for now mostly just works with pure expressions **)
 Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
@@ -697,7 +686,7 @@ end.
 
 
 
-(*A more standard typechecker, should approximate the c typechecker,
+(* A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
 Definition typecheck_b Delta e :=  tc_might_be_true (typecheck_expr Delta e).
 
@@ -717,17 +706,14 @@ end.
 
 Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
- | Vint i, Tint _ _ _ => true  (* Maybe this needs to be adjusted to account for
-                                               the size of the int?  Maybe not? *)
- | Vfloat v, Tfloat _ _ => true (*  Maybe this needs to be adjusted, ditto *) 
+ | Vint i, Tint _ _ _ => true  
+ | Vfloat v, Tfloat _ _ => true  
  | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => 
                     (Int.eq i Int.zero) 
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
                    | Tfunction _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
  | Vundef, _ => false
-(* | _, Tvoid => true (* the only way this should occur is void cast which we have
-                          disabled *)*)
  | _, _ => false
  end.
 
@@ -738,7 +724,7 @@ Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
  | _, _ => false
 end.
 
-(*Environment typechecking functions *)
+(** Environment typechecking functions **)
 
 Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : Map.t val) : bool :=
 match tty with 
@@ -798,7 +784,7 @@ typecheck_glob_environ (PTree.elements (glob_types Delta)) (ge_of env)&&
 same_env env Delta (all_var_ids Delta).
  
 
-(*Denotation functions for each of the assertions that can be produced by the typechecker*)
+(** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
 Definition denote_tc_iszero v :=
          match v with Vint i => is_true (Int.eq i Int.zero) | _ => False end.
@@ -807,7 +793,6 @@ Definition denote_tc_nonzero v :=
          match v with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
 
-(*mostly used to make sure that a pointer isn't null *)
 Definition denote_tc_isptr v := 
    match v with | Vptr _ _ => True | _ => False end.
 
@@ -840,7 +825,7 @@ Definition denote_tc_samebase v1 v2 :=
                            | _, _ => False 
                          end.
 
-(*Case for division of int min by -1, which would cause overflow*)
+(** Case for division of int min by -1, which would cause overflow **)
 Definition denote_tc_nodivover v1 v2 :=
 match v1, v2 with
                            | Vint n1, Vint n2 => is_true (negb 
@@ -864,7 +849,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
-  | tc_nodivover e1 e2 => `denote_tc_nodivover (eval_expr e1) (eval_expr e2)
+  | tc_nodivover v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero e => `denote_tc_iszero (eval_expr e)
   end.
@@ -878,7 +863,7 @@ intros. destruct a1; destruct a2; simpl in *;
     unfold_coerce; intuition. 
 Qed. 
 
-(*Functions that modify type environments*)
+(** Functions that modify type environments **)
 Definition initialized id (Delta: tycontext) :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
@@ -905,7 +890,7 @@ match tycon2 with  (te2, _, _, _)  =>
   ((join_te te1 te2), ve1, r, vl1)
 end end.               
 
-(*Strictly for updating the type context... no typechecking here*)
+(** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
  match c with
  | Sskip | Scontinue | Sbreak => Delta
@@ -919,7 +904,6 @@ Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tyco
  | Scall (Some id) _ _ => (initialized id Delta)
  | _ => Delta  (* et cetera *)
 end
-(*Definition bool_expr Delta e := typecheck_expr Delta e && is_scalar_type (typeof e).*)
 
 with join_tycon_labeled ls Delta :=
 match ls with
@@ -928,63 +912,8 @@ match ls with
                       (join_tycon_labeled ls' Delta)
 end.
 
-(*change this to typechecking using typecheck_b, which should estimate the
-c typechecker*)
-(*Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : option tycontext :=
- match c with
- | Sskip | Scontinue | Sbreak => Some Delta
- | Sassign e1 e2 => if
-                          typecheck_expr Delta e1 &&
-                          typecheck_expr Delta e2 &&
-                          isCastResultType (typeof e2) (typeof e1) (typeof e1)
-                    then Some Delta else None
- | Sset id e2 => if
-                          (typecheck_expr Delta e2  (* this case for pure expressions  *)
-                          || typecheck_lvalue Delta e2)  (* this case for top-level loads *)
-                          &&   true (* also check t1 matches t2, will need two cases like above*)
-                 then Some (set_temp_assigned Delta id) else None
- | Ssequence s1 s2 =>match update_tycon Delta s1 with
-                    | Some Delta' => match update_tycon Delta' s2 with
-                                     | Some Delta'' => Some Delta''
-                                     | None => None
-                                     end
-                    | None => None
-                    end
- | Sifthenelse b s1 s2 =>if bool_expr Delta b then
-                            match update_tycon Delta s1 with
-                            | Some Delta1 => match update_tycon Delta s2 with
-                                             | Some Delta2 => Some (join_tycon Delta1 Delta2)
-                                             | None => None
-                                             end
-                            | None => None      
-                            end
-                            else None
- | Swhile b s1  => if bool_expr Delta b then option_map (fun _ => Delta) (update_tycon Delta s1) else None
- | Sdowhile b s1 => if bool_expr Delta b then (update_tycon Delta s1) else None 
- | Sfor' b inc body => if bool_expr Delta b then 
-                         match update_tycon Delta inc with
-                         | Some Delta' => match update_tycon Delta' body with
-                                          | Some Delta'' => Some Delta 
-                                          | None => None
-                                          end
-                         | None => None
-                         end 
-                       else None
- | Sswitch e ls => if typecheck_labeled_statements Delta ls && typecheck_expr Delta e 
-                   then Some Delta else None
- | _ => Some Delta  (* et cetera *)
-end*)
 
-(*with typecheck_labeled_statements Delta ls :=
-match ls with
-| LSdefault s => match update_tycon Delta s with Some _ => true | _ => false end
-| LScase int s ls => match update_tycon Delta s with 
-                     | Some _ => typecheck_labeled_statements Delta ls
-                     | None => false
-                     end
-end.*)                               
-
-(*Creates a typecontext from a function definition *)
+(** Creates a typecontext from a function definition **)
 (* NOTE:  params start out initialized, temps do not! *)
 
 Definition varspecs : Type := list (ident * type).
@@ -1121,44 +1050,8 @@ Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : normali
 Definition typecheck_store e1 := 
 (is_int_type (typeof e1) = true -> typeof e1 = Tint I32 Signed noattr) /\
 (is_float_type (typeof e1) = true -> typeof e1 = Tfloat F64 noattr).
+
 (*Typechecking facts to help semax_store go through until it gets generalized*)
-
-(*Test function to typecheck expressions in a statement, is a start on a typechecker
-that is useful for all of compcert, not just one useful for the program logic*)
-
-
-
-Fixpoint typecheck_all_exprs' (body: statement) (Delta :tycontext) : tc_assert:=
-match body with
-    Sskip | Sbreak | Scontinue => tc_TT
-  | Sassign e1 e2 => tc_andp (typecheck_lvalue Delta e1) (typecheck_expr Delta e2)
-  | Sset _ e => typecheck_expr Delta e 
-  | Sbuiltin _ _ _ _ => tc_FF  (* FIXME *) 
-  | Scall _ e el => (typecheck_expr Delta e)
-  | Ssequence s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta) 
-       (typecheck_all_exprs' s2 (update_tycon Delta s1)) 
-  | Sifthenelse b s1 s2 => tc_andp (tc_andp (typecheck_expr Delta b) (typecheck_all_exprs' s1 Delta))
-                            (typecheck_all_exprs' s2 Delta)
-  | Sloop s1 s2 => tc_andp (typecheck_all_exprs' s1 Delta)
-                            (typecheck_all_exprs' s2 (update_tycon Delta s1))
-  | Sreturn (Some e) => typecheck_expr Delta e
-  | Sreturn (None) => tc_TT
-  | Sswitch e ls => tc_andp (typecheck_expr Delta e) (typecheck_labeled_st_exprs Delta ls)
-  | Slabel _ st => typecheck_all_exprs' st Delta
-  | Sgoto _ => tc_TT
-end
-
-with typecheck_labeled_st_exprs Delta ls:= 
-match ls with 
-| LSdefault s => typecheck_all_exprs' s Delta
-| LScase int s ls2 => tc_andp (typecheck_all_exprs' s Delta) (typecheck_labeled_st_exprs Delta ls2) 
-end.
-
-Definition typecheck_all_exprs (func: function) (V: varspecs) (G: funspecs): tc_assert :=
-typecheck_all_exprs' func.(fn_body) (func_tycontext func V G).
-
-Definition tc_val (t: type) (v: val) : Prop := typecheck_val v t = true.
-
 
 Ltac tc_assert_ext := 
 repeat match goal with

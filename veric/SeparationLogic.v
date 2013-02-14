@@ -83,7 +83,10 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition mapsto sh t v1 v2 :=  !! (tc_val t v2)  && umapsto sh t v1 v2.
+
+Definition tc_val t v := typecheck_val v t = true.
+
+Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
