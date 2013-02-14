@@ -939,3 +939,157 @@ Proof.
  destruct H6. congruence.
 Qed.
 
+
+Definition repable_signed (z: Z) :=
+  Int.min_signed <= z <= Int.max_signed.
+
+Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
+Proof.
+ intros. unfold repable_signed.
+ destruct (zlt z Int.min_signed).
+ right; intros [? _]; unfold Int.min_signed; omega. 
+ destruct (zlt Int.max_signed z).
+ right; intros [_ ?]; unfold Int.max_signed; omega.
+ left; split; omega. 
+Defined.
+
+Definition add_ptr_int' (ty: type) (v: val) (i: Z) : val :=
+  if repable_signed_dec (sizeof ty * i)
+   then match v with
+      | Vptr b ofs => 
+           Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
+      | _ => Vundef
+      end
+  else Vundef.
+
+Definition add_ptr_int (ty: type) (v: val) (i: Z) : val :=
+           eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
+Lemma repable_signed_mult2:
+  forall i j, i<>0 -> repable_signed (i*j) -> repable_signed j.
+Admitted.
+Lemma repable_signed_mult1:
+  forall i j, j<>0 -> repable_signed (i*j) -> repable_signed i.
+Proof.
+intros.
+ rewrite Zmult_comm in H0.
+ apply repable_signed_mult2 in H0; auto.
+Qed.
+
+Lemma add_ptr_tint_eq:
+  forall ty v i, repable_signed (sizeof ty * i) ->
+       add_ptr_int' ty v i = add_ptr_int ty v i.
+Proof.
+ intros.
+ unfold add_ptr_int, add_ptr_int'.
+ rewrite if_true by auto.
+ destruct v; simpl; auto.
+ unfold eval_binop; simpl; auto.
+ f_equal. f_equal.
+ destruct (eq_dec i 0).
+    subst. rewrite Int.mul_zero. rewrite Zmult_0_r. auto.
+ assert (repable_signed (sizeof ty)). eapply repable_signed_mult1; eauto.
+ assert (repable_signed i). apply repable_signed_mult2 in H; auto.
+        pose proof (sizeof_pos ty); omega.
+ rewrite Int.mul_signed. 
+ rewrite <- (Int.signed_repr _ H).
+ repeat rewrite Int.repr_signed.
+ rewrite (Int.signed_repr _ H0).
+ rewrite (Int.signed_repr _ H1). auto.
+Qed.
+
+Lemma typed_false_cmp:
+  forall op i j m, 
+   typed_false tint (force_val (sem_cmp op (Vint i) tint (Vint j) tint m)) ->
+   Int.cmp (negate_comparison op) i j = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+rewrite Int.negate_cmp.
+destruct (Int.cmp op i j); auto. inv H.
+Qed.
+
+Lemma typed_true_cmp:
+  forall op i j m, 
+   typed_true tint (force_val (sem_cmp op (Vint i) tint (Vint j) tint m)) ->
+   Int.cmp op i j = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+destruct (Int.cmp op i j); auto. inv H.
+Qed.
+
+Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
+ match op with 
+ | Ceq => eq
+ | Cne => (fun i j => i<>j)
+ | Clt => Zlt
+ | Cle => Zle
+ | Cgt => Zgt 
+ | Cge => Zge
+ end.
+
+Lemma int_cmp_repr:
+ forall op i j, repable_signed i -> repable_signed j ->
+   Int.cmp op (Int.repr i) (Int.repr j) = true ->
+   Zcmp op i j.
+Proof.
+intros.
+unfold Int.cmp, Int.eq, Int.lt in H1.
+replace (if zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))
+             then true else false)
+ with (if zeq i j then true else false) in H1.
+Focus 2.
+destruct (zeq i j); destruct (zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))); 
+ auto.
+subst. contradiction n; auto.
+clear - H H0 e n.
+apply Int.signed_repr in H. rewrite Int.signed_repr_eq in H.
+apply Int.signed_repr in H0; rewrite Int.signed_repr_eq in H0.
+contradiction n; clear n.
+repeat rewrite Int.unsigned_repr_eq in e.
+ match type of H with
+           | context [if ?a then _ else _] => destruct a
+           end;
+ match type of H0 with
+           | context [if ?a then _ else _] => destruct a
+           end; omega.
+unfold Zcmp.
+rewrite (Int.signed_repr _ H) in H1; rewrite (Int.signed_repr _ H0) in H1.
+repeat match type of H1 with
+           | context [if ?a then _ else _] => destruct a
+           end; try omegaContradiction;
+ destruct op; auto; simpl in *; try discriminate; omega.
+Qed.
+
+
+Lemma typed_false_cmp_repr:
+  forall op i j m, 
+   repable_signed i -> repable_signed j -> 
+   typed_false tint (force_val (sem_cmp op 
+                              (Vint (Int.repr i)) tint
+                              (Vint (Int.repr j)) tint m)) ->
+   Zcmp (negate_comparison op) i j.
+Proof.
+ intros.
+ apply typed_false_cmp in H1.
+ apply int_cmp_repr; auto.
+Qed.
+
+Lemma typed_true_cmp_repr:
+  forall op i j m, 
+   repable_signed i -> repable_signed j -> 
+   typed_true tint (force_val (sem_cmp op 
+                              (Vint (Int.repr i)) tint
+                              (Vint (Int.repr j)) tint m)) ->
+   Zcmp op i j.
+Proof.
+ intros.
+ apply typed_true_cmp in H1.
+ apply int_cmp_repr; auto.
+Qed.
+
+Ltac intcompare H :=
+ (apply typed_false_cmp_repr in H || apply typed_true_cmp_repr in H);
+   [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; omega .. ].

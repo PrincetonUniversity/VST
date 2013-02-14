@@ -555,3 +555,29 @@ Proof.
  simpl_typed_mapsto.
  apply mapsto_offset_zero.
 Qed.
+
+Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
+  match n with
+  | O => emp
+  | S n' => P lo * rangespec' (Zsucc lo) n' P
+ end.
+
+Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
+  rangespec' lo (nat_of_Z (hi-lo)) P.
+
+Definition array_at (t: type) (sh: Share.t) (v: val) (i: Z) (e: reptype t) : mpred :=
+   typed_mapsto t sh 0 (add_ptr_int t v i) e.
+
+Definition array_at_range (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
+                                   (v: val) :=
+           rangespec lo hi (fun i => array_at t sh v i (f i)).
+
+Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
+ match n with
+  | O => zero
+  | S n' => f lo (fold_range' f  zero (Zsucc lo) n')
+ end.
+
+Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
+  fold_range' f zero lo (nat_of_Z (hi-lo)).
+

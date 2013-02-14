@@ -14,82 +14,6 @@ Require Import progs.sumarray.
 
 Local Open Scope logic.
 
-
-Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
-  match n with
-  | O => emp
-  | S n' => P lo * rangespec' (Zsucc lo) n' P
- end.
-
-Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
-  rangespec' lo (nat_of_Z (hi-lo)) P.
-
-Definition repable (z: Z) := Int.signed (Int.repr z)=z.
-Definition repable_dec (z: Z) : {repable z}+{~repable z}.
-Proof.
- intros. apply zeq.
-Defined.
-
-Definition add_ptr_int' (ty: type) (v: val) (i: Z) : val :=
-  if repable_dec (sizeof ty * i)
-   then match v with
-      | Vptr b ofs => 
-           Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
-      | _ => Vundef
-      end
-  else Vundef.
-
-Definition add_ptr_int (ty: type) (v: val) (i: Z) : val :=
-           eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
-Lemma repable_mult2:
-  forall i j, i<>0 -> repable (i*j) -> repable j.
-Admitted.
-Lemma repable_mult1:
-  forall i j, j<>0 -> repable (i*j) -> repable i.
-Proof.
-intros.
- rewrite Zmult_comm in H0.
- apply repable_mult2 in H0; auto.
-Qed.
-
-Lemma add_ptr_tint_eq:
-  forall ty v i, repable (sizeof ty * i) ->
-       add_ptr_int' ty v i = add_ptr_int ty v i.
-Proof.
- intros.
- unfold add_ptr_int, add_ptr_int'.
- rewrite if_true by auto.
- destruct v; simpl; auto.
- unfold eval_binop; simpl; auto.
- f_equal. f_equal.
- destruct (eq_dec i 0).
-    subst. rewrite Int.mul_zero. rewrite Zmult_0_r. auto.
- assert (repable (sizeof ty)). eapply repable_mult1; eauto.
- assert (repable i). apply repable_mult2 in H; auto.
-        pose proof (sizeof_pos ty); omega.
- unfold repable in *.
- rewrite Int.mul_signed. 
- rewrite <- H.
- repeat rewrite Int.repr_signed.
- rewrite H0. rewrite H1. auto.
-Qed.
-
-Definition array_at (t: type) (sh: Share.t) (v: val) (i: Z) (e: reptype t) : mpred :=
-   typed_mapsto t sh 0 (add_ptr_int t v i) e.
-
-Definition array_at_range (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
-                                   (v: val) :=
-           rangespec lo hi (fun i => array_at t sh v i (f i)).
-
-Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
- match n with
-  | O => zero
-  | S n' => f lo (fold_range' f  zero (Zsucc lo) n')
- end.
-
-Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
-  fold_range' f zero lo (nat_of_Z (hi-lo)).
-
 Definition add_elem (f: Z -> int) (i: Z) := Int.add (f i).
 
 Definition sumarray_spec :=
@@ -176,8 +100,8 @@ go_lower.
 go_lower.  subst.
  repeat apply andp_right; try apply prop_right; repeat split; auto.
  f_equal. simpl in H2.
- assert (~ (i0 < size)); [ | omega]. 
- admit.  (* arithmetic proof *)
+ intcompare H2.
+ omega.
 (* Prove that loop body preserves invariant *)
 apply semax_pre_PQR with
  (PROP (0 <= i0 < size) 
@@ -187,7 +111,7 @@ apply semax_pre_PQR with
    SEP  (`(array_at_range tint sh contents 0 size) (eval_id _a))).
 go_lower. subst. simpl in H2. apply andp_right; auto.
 apply prop_right; repeat split; auto; try omega.
- admit.  (* arithmetic proof *)
+ intcompare H2. auto.
 apply semax_extract_PROP; intro.
 apply semax_pre_PQR with
 (PROP  ()
@@ -217,7 +141,10 @@ go_lower. subst. simpl in H3.
  unfold eval_binop in H3; simpl in H3. inv H3.
  unfold eval_binop in H2; simpl in H2.  inv H2.
  apply andp_right. apply prop_right; repeat split; auto; try omega.
- admit.  (* arithmetic proof *)
+unfold Zsucc. rewrite Int.add_signed.
+repeat (rewrite Int.signed_repr 
+      by (unfold Int.min_signed, Int.max_signed in *; omega)).
+auto.
  admit.  (* need simple lemma fold_range_split *)
  rewrite split3_array_at_range with (i:=i0) (lo:=0)(hi:=size); auto.
  simpl_typed_mapsto.
