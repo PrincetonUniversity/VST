@@ -35,20 +35,22 @@ Definition freeN_spec :=
          `(memory_block Share.top) (`force_int (eval_id 2%positive)) (eval_id 1%positive)
   POST [ tvoid ]  emp.
 
+(*
 Definition elemtype := (int*int)%type.
+*)
 
-Definition elemrep (rep: elemtype) (p: val) : mpred :=
+Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   field_mapsto Share.top t_struct_elem _a p (Vint (fst rep)) * 
   (field_mapsto Share.top t_struct_elem _b p (Vint (snd rep)) *
    (field_mapsto_ Share.top t_struct_elem _next p)).
 
-Definition fifo (contents: list elemtype) (p: val) : mpred:=
+Definition fifo (contents: list (elemtype QS)) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       field_mapsto Share.top t_struct_fifo _head p hd *
       field_mapsto Share.top t_struct_fifo _tail p tl *
       if isnil contents
       then (!!(tl=p) && emp)
-      else (EX prefix: list elemtype, EX ult:val, EX elem:elemtype,
+      else (EX prefix: list (elemtype QS), EX ult:val, EX elem: elemtype QS,
               !!(tl=offset_val ult (Int.repr 8) 
                   /\ contents = prefix++(elem::nil))
             &&  (lseg QS Share.top prefix hd ult * 
@@ -62,7 +64,7 @@ Definition fifo_new_spec :=
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
-  WITH q: val, contents: list elemtype, elem: elemtype
+  WITH q: val, contents: list (elemtype QS), elem: elemtype QS
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
             local (`(eq q) (eval_id _Q)) && 
            `(fifo contents q) * `(elemrep elem) (eval_id _p)
@@ -70,7 +72,7 @@ Definition fifo_put_spec :=
 
 Definition fifo_empty_spec :=
  DECLARE _fifo_empty
-  WITH q: val, contents: list elemtype
+  WITH q: val, contents: list (elemtype QS)
   PRE  [ _Q OF (tptr t_struct_fifo) ]
      local (`(eq q) (eval_id _Q)) &&`(fifo contents q)
   POST [ tint ] local (`(eq (if isnil contents then Vtrue else Vfalse)) retval)
@@ -78,7 +80,7 @@ Definition fifo_empty_spec :=
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
-  WITH q: val, contents: list elemtype, elem: elemtype
+  WITH q: val, contents: list (elemtype QS), elem: elemtype QS
   PRE  [ _Q OF (tptr t_struct_fifo) ]
             local (`(eq q) (eval_id _Q)) && `(fifo (elem :: contents) q) 
   POST [ (tptr t_struct_elem) ] `(fifo contents q) * `(elemrep elem) retval.
@@ -128,23 +130,11 @@ Proof.
  reflexivity.
 Qed.
 
-Lemma list_cell_elemrep:
-  forall p elem, 
-  field_mapsto_ Share.top t_struct_elem _next p * list_cell QS Share.top p elem 
-    |-- elemrep elem p.
-  intros.
-  unfold list_cell, elemrep.
-  simpl in elem.
-  destruct elem as [a b].
-  simpl @fst; simpl @snd.
-   rewrite <- sepcon_assoc.
- rewrite (sepcon_comm (_ * _)). 
- apply sepcon_derives; auto.
- simpl.
- unfold withspacer, align, Zmax; simpl. 
- repeat rewrite field_mapsto_offset_zero.
- auto.
-Qed.
+Lemma list_cell_eq: forall sh p elem,
+  list_cell QS sh p elem = 
+   field_mapsto sh t_struct_elem _a p (Vint (fst elem)) * 
+   field_mapsto sh t_struct_elem _b p (Vint (snd elem)). 
+Proof. intros. simpl_list_cell. auto. Qed.
 
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
 Proof.
@@ -165,9 +155,9 @@ apply semax_pre_PQR with
     `(if isnil contents
       then !!(tl = q) && emp
       else
-       EX  prefix : list elemtype,
+       EX  prefix : list (elemtype QS),
        (EX  ult : val,
-        (EX  elem : elemtype,
+        (EX  elem : elemtype QS,
          !!(tl = offset_val ult (Int.repr 8) /\
             contents = prefix ++ elem :: nil) &&
          (lseg QS Share.top prefix hd ult * elemrep elem ult)))))).
@@ -269,7 +259,7 @@ apply andp_right.
   apply prop_right; destruct _Q; inv H; inv TC; hnf; simpl; auto.
   rewrite H0 in H1; inv H1.
   unfold fifo.
-   destruct (@isnil elemtype nil); [ | congruence].
+   destruct (@isnil (elemtype QS) nil); [ | congruence].
   apply exp_right with (nullval,_Q).
   rewrite field_mapsto_nonnull.  normalize.
   destruct _Q; inv H; inv TC; simpl; auto.
@@ -348,9 +338,9 @@ apply semax_pre_PQR with
       `(if isnil contents
        then !!(tl = q) && emp
        else
-        EX  prefix : list elemtype,
+        EX  prefix : list (elemtype QS),
         (EX  ult : val,
-         (EX  elem0 : elemtype,
+         (EX  elem0 : elemtype QS,
           !!(tl = offset_val ult (Int.repr 8) /\
              contents = prefix ++ elem0 :: nil) &&
           (lseg QS Share.top prefix hd ult * elemrep elem0 ult))));
@@ -359,7 +349,7 @@ go_lower. subst.
  apply andp_right. apply prop_right; auto.
  cancel.
 forward.
-destruct (@isnil elemtype contents).
+destruct (@isnil (elemtype QS) contents).
 (* CASE ONE:  isnil contents *)
 subst contents.
 apply semax_pre_PQR
@@ -387,7 +377,7 @@ go_lower. subst. rewrite elemrep_isptr at 1. normalize.
 forward. (* return *)
 go_lower. subst.
 unfold fifo.
-destruct (@isnil elemtype (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
+destruct (@isnil (elemtype QS) (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
 unfold align. simpl.
 rewrite elemrep_isptr at 1.
 normalize.
@@ -722,9 +712,9 @@ rewrite extract_exists_in_SEP.
 apply extract_exists_pre; intros [hd tl].
 destruct (isnil (elem::contents)) as [e3|n3]; [inv e3 | clear n3].
 apply semax_pre_PQR with
- (EX  prefix : list elemtype,
+ (EX  prefix : list (elemtype QS),
    EX  ult : val,
-    EX  elem0 : elemtype,
+    EX  elem0 : elemtype QS,
      PROP (tl = offset_val ult (Int.repr 8);
             elem :: contents = prefix ++ elem0 :: nil)
       LOCAL (`(eq q) (eval_id _Q))
@@ -783,7 +773,7 @@ apply semax_pre_PQR with
     (eval_cast (tptr (tptr t_struct_elem)) (tptr (tptr t_struct_elem))
      (eval_struct_field 0 (force_ptr Q)))).
  rewrite field_mapsto_isptr.
- destruct (isnil (@nil elemtype)) as [e3|n3]; [clear e3 | contradiction n3; auto].
+ destruct (isnil (@nil (elemtype QS))) as [e3|n3]; [clear e3 | contradiction n3; auto].
  normalize.
  apply andp_right; auto. apply prop_right.
  destruct Q; inv H. simpl. rewrite Int.add_zero.
@@ -854,8 +844,7 @@ rewrite exp_sepcon1; apply exp_right with ult.
 rewrite exp_sepcon1; apply exp_right with lastelem.
 normalize.
 cancel.
- eapply derives_trans; [ | apply list_cell_elemrep].
- cancel.
+ rewrite list_cell_eq. unfold elemrep. cancel.
  apply field_mapsto_field_mapsto_.
  unfold update_tycon.
  canonicalize_pre.

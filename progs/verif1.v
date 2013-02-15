@@ -51,6 +51,15 @@ Lemma list_cell_eq: forall sh v i,
 Proof. intros. simpl_list_cell; auto. Qed.
 Hint Rewrite list_cell_eq : normalize.
 
+Lemma lift_list_cell_eq:
+  forall sh e v,
+   @eq assert (`(list_cell LS sh) e v) 
+                  (`(field_mapsto sh t_struct_list _h) e (`Vint v)).
+Proof.
+  intros. extensionality rho; unfold_coerce. simpl_list_cell; auto.
+Qed.
+Hint Rewrite lift_list_cell_eq : normalize.
+
 Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
             PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
@@ -77,19 +86,15 @@ go_lower.
 go_lower.  subst.  normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h' r y ?].
-go_lower. normalize.
-destruct cts; inv H.
-match goal with |- context [SEPx (?A :: _)] =>
- replace A with (`(field_mapsto sh t_struct_list _h) (eval_id _t) `(Vint h'))
-   by (extensionality rho; unfold_coerce; normalize)
-end.
+    go_lower. normalize.
+normalize.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with r.
-go_lower. subst. inv H0.
+go_lower. subst. inv H1.
  rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
              Int.add_neg_zero, Int.add_zero.
 normalize. cancel. 
