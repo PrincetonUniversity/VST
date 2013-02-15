@@ -209,7 +209,7 @@ Fixpoint reptype (ty: type) : Type :=
   | Tfunction t1 t2 => unit
   | Tstruct id fld a => reptype_structlist fld
   | Tunion id fld a => reptype_unionlist fld
-  | Tcomp_ptr id a => unit
+  | Tcomp_ptr id a => val
   end
 
 with reptype_structlist (fld: fieldlist) : Type :=
@@ -368,8 +368,10 @@ Proof.
 Qed.
 Hint Rewrite field_mapsto_offset_zero: normalize.
 
+
 Ltac simpl_typed_mapsto' T H MA :=
-       unfold typed_mapsto_', typed_mapsto, eq_rect_r, withspacer, align, Zmax in H;
+       unfold typed_mapsto_', typed_mapsto, 
+        structfieldsof, eq_rect_r, withspacer, align, Zmax in H;
        simpl in H; try fold T in H;
        repeat rewrite emp_sepcon in H; repeat rewrite sepcon_emp in H;
        repeat rewrite field_mapsto__offset_zero in H;
@@ -391,6 +393,12 @@ Ltac simpl_typed_mapsto :=
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
   | |- context [typed_mapsto ?T ?SH ?N ?V] =>
          remember (typed_mapsto T SH N V) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+ | |- context [structfieldsof ?T ?F ?SH ?N ?V _] =>
+         remember (structfieldsof T F SH N V) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+ | |- context [structfieldsof ?T ?F ?SH ?N ?V] =>
+         remember (structfieldsof T F SH N V) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
   end.
 

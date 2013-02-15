@@ -24,11 +24,22 @@ Class listspec (list_struct: type) (list_link: ident) :=
 Section LIST.
 Context  {list_struct: type} {list_link: ident}.
 
+Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fieldlist :=
+ match f with
+ | Fnil => Fnil
+ | Fcons id t f' => if ident_eq id list_link
+                               then f' 
+                               else Fcons id t (all_but_link ls f')
+ end.  
+
+Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link ls list_fields).
+
+
 Definition list_cell (ls: listspec list_struct list_link) sh p v :=
-   field_mapsto_ sh list_struct list_link p -* typed_mapsto list_struct sh 0 p v.
+   structfieldsof list_struct (all_but_link ls list_fields) sh 0 p v.
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
-  HORec (fun (R: (list (reptype list_struct))*(val*val) -> mpred) (lp: (list (reptype list_struct))*(val*val)) =>
+  HORec (fun (R: (list (elemtype ls))*(val*val) -> mpred) (lp: (list (elemtype ls))*(val*val)) =>
         match lp with
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
@@ -40,7 +51,7 @@ Definition lseg' (ls: listspec list_struct list_link) (sh: share) :=
                  !! (ptr_eq first last) && emp
         end).
 
-Definition lseg (ls: listspec list_struct list_link) (sh: share) (contents: list (reptype list_struct)) (x y: val) : mpred :=
+Definition lseg (ls: listspec list_struct list_link) (sh: share) (contents: list (elemtype ls)) (x y: val) : mpred :=
    lseg' ls sh (contents, (x,y)).
 
 Lemma lseg_unfold (ls: listspec list_struct list_link): forall sh contents v1 v2,
@@ -82,7 +93,6 @@ split; auto.
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 normalize.
-replace (r :: l = nil) with False by (apply prop_ext; intuition; congruence).
 apply pred_ext; normalize.
 contradiction H0.
 unfold ptr_eq, typecheck_val in H|-*.
@@ -91,13 +101,12 @@ unfold Int.cmpu.
 rewrite Int.eq_true. auto.
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
+inv H0.
 Qed.
 
-
-
-Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (reptype list_struct)) (x z: val) : mpred :=
+Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (elemtype ls)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
-       EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 
+       EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
              !!(l=h::r  /\ typecheck_val y (tptr list_struct) = true) && 
              list_cell ls sh x h *
              field_mapsto sh list_struct list_link x y * 
@@ -123,7 +132,7 @@ apply pred_ext; apply derives_extract_prop; intro.
 clear H2.
 apply exp_left; intro tail.
 apply andp_right; try apply prop_right; auto.
-apply exp_right with r.
+apply exp_right with e.
 apply exp_right with l.
 apply exp_right with tail.
 repeat rewrite sepcon_andp_prop'; apply andp_right.
@@ -153,7 +162,7 @@ apply orp_right1; auto.
 apply orp_right2.
 unfold lseg_cons.
 normalize.
-apply exp_right with r.
+apply exp_right with e.
 normalize.
 apply exp_right with l.
 normalize.
@@ -173,7 +182,7 @@ normalize. inv H0.
 unfold lseg_cons.
 normalize.
 intros. symmetry in H0; inv H0.
-apply exp_right with x0.
+apply exp_right with y.
 normalize.
 Qed.
 
@@ -224,7 +233,7 @@ Qed.
 
 Lemma lift2_lseg_cons (ls: listspec list_struct list_link): 
  forall sh s p q, `(lseg_cons ls sh s)  p q =
-    EX hry:(reptype list_struct * list (reptype list_struct) * val),
+    EX hry:(elemtype ls * list (elemtype ls) * val),
       match hry with (h,r,y) =>
        !! (s = h::r) &&
        (local (`ptr_neq p q) &&
@@ -252,7 +261,7 @@ Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
       PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
                         local (`(typed_true (tptr list_struct)) e) ->
       local Q1 && PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
-     EX hry: reptype list_struct * list (reptype list_struct) * val,
+     EX hry: elemtype ls * list (elemtype ls) * val,
       match hry with (h,r,y) => 
        !! (s=h::r) &&
       PROPx P (LOCALx Q 
@@ -295,7 +304,7 @@ Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
    PROPx P (LOCALx (tc_environ Delta :: Q)
             (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
                         local (`(typed_true (tptr list_struct)) e)  ->
-  (forall (h: reptype list_struct) (r: list (reptype list_struct)) (y: val), s=h::r ->
+  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), s=h::r ->
     semax Delta 
         (PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh) e (`h) ::
@@ -355,9 +364,9 @@ Proof.
  apply prop_derives; intuition.
 Qed.
 
-Definition lseg_cons_right (ls: listspec list_struct list_link) sh (l: list (reptype list_struct)) (x z: val) : mpred :=
+Definition lseg_cons_right (ls: listspec list_struct list_link) sh (l: list (elemtype ls)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
-       EX h:(reptype list_struct), EX r:list (reptype list_struct), EX y:val, 
+       EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
              !!(l=r++h::nil)  && 
                        list_cell ls sh y h *
              field_mapsto sh list_struct list_link y z * 
@@ -373,3 +382,5 @@ End LIST.
 Hint Rewrite @lseg_nil_eq : normalize.
 
 Hint Rewrite @lseg_eq using reflexivity: normalize.
+
+Ltac simpl_list_cell := unfold list_cell; simpl_typed_mapsto.

@@ -9,33 +9,29 @@ Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
 Require Import progs.assert_lemmas.
 Require Import progs.forward.
-Require Import progs.list.
+Require Import progs.malloc_lemmas.
+Require Import progs.list_dt.
 Require Import progs.test1.
 
 Local Open Scope logic.
 
-Instance LS: listspec _struct_list _h tint _t.
-Proof.
-apply mk_listspec.
-intro Hx; inv Hx.
-reflexivity.
-econstructor; simpl; reflexivity.
-Defined.
+Instance LS: listspec t_struct_list _t.
+Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition sum_int := fold_right Int.add Int.zero.
 
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int
-  PRE [ _p OF (tptr t_struct_list)]  `(lseg LS sh (map Vint contents)) (eval_id _p) `nullval
+  PRE [ _p OF (tptr t_struct_list)]  `(lseg LS sh contents) (eval_id _p) `nullval
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
 
 Definition reverse_spec :=
  DECLARE _reverse
   WITH sh : share, contents : list int
   PRE  [ _p OF (tptr t_struct_list) ] !! writable_share sh &&
-              `(lseg LS sh (map Vint contents)) (eval_id _p) `nullval
-  POST [ (tptr t_struct_list) ] `(lseg LS sh (rev (map Vint contents))) retval `nullval.
+              `(lseg LS sh contents) (eval_id _p) `nullval
+  POST [ (tptr t_struct_list) ] `(lseg LS sh (rev contents)) retval `nullval.
 
 Definition main_spec :=
  DECLARE _main
@@ -50,11 +46,15 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
+Lemma list_cell_eq: forall sh v i,
+   list_cell LS sh v i = field_mapsto sh t_struct_list _h v (Vint i).
+Proof. intros. simpl_list_cell; auto. Qed.
+Hint Rewrite list_cell_eq : normalize.
 
 Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
           (EX cts: list int, 
             PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
-            SEP ( TT ; `(lseg LS sh (map Vint cts)) (eval_id _t) `nullval)).
+            SEP ( TT ; `(lseg LS sh cts) (eval_id _t) `nullval)).
 
 Lemma body_sumlist: semax_body Vprog Gtot f_sumlist sumlist_spec.
 Proof.
@@ -74,19 +74,23 @@ go_lower. subst. normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  subst.  normalize. destruct cts; inv H. simpl. normalize.
+go_lower.  subst.  normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h' r y ?].
 go_lower. normalize.
 destruct cts; inv H.
+match goal with |- context [SEPx (?A :: _)] =>
+ replace A with (`(field_mapsto sh t_struct_list _h) (eval_id _t) `(Vint h'))
+   by (extensionality rho; unfold_coerce; normalize)
+end.
 forward.  (* h = t->h; *)
 forward.  (*  t = t->t; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
-apply exp_right with cts.
+apply exp_right with r.
 go_lower. subst. inv H0.
- rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg i)),
+ rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
              Int.add_neg_zero, Int.add_zero.
 normalize. cancel. 
 (* After the loop *)
@@ -100,8 +104,8 @@ Definition reverse_Inv (sh: share) (contents: list int) : assert :=
           (EX cts1: list int, EX cts2 : list int,
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL ()
-            SEP (`(lseg LS sh (map Vint cts1)) (eval_id _w) `nullval;
-                   `(lseg LS sh (map Vint cts2)) (eval_id _v) `nullval)).
+            SEP (`(lseg LS sh cts1) (eval_id _w) `nullval;
+                   `(lseg LS sh cts2) (eval_id _v) `nullval)).
 
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
 Proof.
@@ -113,7 +117,7 @@ name t _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
-         (PROP() LOCAL () SEP( `(lseg LS sh (map Vint (rev contents))) (eval_id _w) `nullval)).
+         (PROP() LOCAL () SEP( `(lseg LS sh (rev contents)) (eval_id _w) `nullval)).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with nil.
@@ -124,7 +128,7 @@ go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
 go_lower. subst. normalize. 
-    destruct cts2; inv H0. rewrite <- app_nil_end, rev_involutive. auto.
+    rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
 focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
@@ -135,19 +139,19 @@ forward.  (*  v->t = w; *)
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 unfold reverse_Inv.
-apply exp_right with (i::cts1).
-apply exp_right with cts2.
+apply exp_right with (h::cts1).
+apply exp_right with r.
   go_lower.
   subst v0 y t. rewrite app_ass. normalize.
-  rewrite (lseg_unroll _ sh (Vint i:: map Vint cts1)).
+  rewrite (lseg_unroll _ sh (h::cts1)).
   cancel.
   apply orp_right2.
   unfold lseg_cons.
   apply andp_right.
   apply prop_right.
   destruct w; inv H4; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
-  apply exp_right with (Vint i).
-  apply exp_right with (map Vint cts1).
+  apply exp_right with h.
+  apply exp_right with cts1.
   apply exp_right with w0.
   normalize. 
   erewrite (field_mapsto_typecheck_val _ _ _ _ _ _struct_list _  noattr); [ | reflexivity].
@@ -161,13 +165,13 @@ apply exp_right with cts2.
   cancel. (* end et_10 *)
 (* after the loop *)
 forward.  (* return w; *)
-go_lower. normalize. rewrite map_rev. cancel.
+go_lower. normalize.
 Qed.
 
 Lemma setup_globals:
   forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
    main_pre prog u rho
-   |-- lseg LS Ews (map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+   |-- lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
              (eval_var _three (Tarray t_struct_list 3 noattr) rho)
       nullval.
 Proof.
@@ -180,10 +184,12 @@ Proof.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  clear.
  rewrite sepcon_emp.
- repeat  match goal with |- _ * (umapsto _ _ _ ?v * _) |-- _ =>
-                apply lseg_unroll_nonempty1 with v; simpl; auto; 
-                apply sepcon_derives; [umapsto_field_mapsto_tac | ];
-                apply sepcon_derives; [umapsto_field_mapsto_tac | ] 
+repeat match goal with |- _ * (umapsto _ _ _ ?v * _) |-- _ =>
+                apply @lseg_unroll_nonempty1 with v; simpl; auto; 
+                apply sepcon_derives; 
+                  [rewrite list_cell_eq; umapsto_field_mapsto_tac
+                  | ];
+                apply sepcon_derives; [umapsto_field_mapsto_tac | ]
            end.
  rewrite lseg_unroll. apply orp_right1.
  unfold ptr_eq;simpl; normalize.
