@@ -193,6 +193,12 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) (v: val) :
 Definition typed_mapsto_ (sh: Share.t) (ty: type) (v: val) : mpred :=
         typed_mapsto_' sh 0 ty v.
 
+Fixpoint is_Fnil (fld: fieldlist) : bool :=
+match fld with
+| Fnil => true
+| Fcons id ty fld' => false
+end.
+
 Fixpoint reptype (ty: type) : Type :=
   match ty with
   | Tvoid => unit
@@ -201,16 +207,25 @@ Fixpoint reptype (ty: type) : Type :=
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
   | Tfunction t1 t2 => unit
-  | Tstruct id fld a => reptype_list prod fld
-  | Tunion id fld a => reptype_list sum fld
+  | Tstruct id fld a => reptype_structlist fld
+  | Tunion id fld a => reptype_unionlist fld
   | Tcomp_ptr id a => unit
   end
 
-with reptype_list (f: Type -> Type -> Type) (fld: fieldlist) : Type :=
+with reptype_structlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
-  | Fcons id ty fld' => f (reptype ty) (reptype_list f fld')
+  | Fcons id ty fld' => 
+          if is_Fnil fld' 
+                      then reptype ty
+                      else prod (reptype ty) (reptype_structlist fld')
+  end
+with reptype_unionlist (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => sum (reptype ty) (reptype_unionlist fld')
   end.
+
 
 Fixpoint arrayof (t: Type) (f: forall (v1: val) (v2: t),  mpred)
          (t1: type) (ofs: Z) (v1: val) (v2: list t) : mpred :=
@@ -234,6 +249,11 @@ match t as t0 return ((reptype t0 -> mpred) -> reptype t0 -> mpred) with
     fun _ _ => field_mapsto_ sh t_str id (offset_val v (Int.repr pos))
 | t' => fun (alt1 : reptype t' -> mpred)  => alt1 
 end.
+
+(*
+Parameter structfieldsof: forall (t_str: type) (flds: fieldlist) (sh: Share.t) (pos: Z) (v: val),
+               reptype_structlist flds -> mpred.
+*)
 
 Fixpoint typed_mapsto (t1: type) (sh: Share.t) (pos: Z) (v: val):  reptype t1 -> mpred :=
 match t1 as t return (t1 = t -> reptype t1 -> mpred) with
@@ -295,29 +315,41 @@ match t1 as t return (t1 = t -> reptype t1 -> mpred) with
 end eq_refl
  with
  structfieldsof (t_str: type) (flds: fieldlist) (sh: Share.t) (pos: Z) (v: val) :
-               reptype_list prod flds -> mpred :=
-match flds as f0 return (flds = f0 -> reptype_list prod flds -> mpred) with
-| Fnil => fun _ : flds = Fnil => emp
-| Fcons i t f0 =>
-    fun H : flds = Fcons i t f0 =>
-    let H0 :=
-      eq_rect_r (fun flds0 : fieldlist => reptype_list prod flds0 -> mpred)
-        (fun v3 : reptype_list prod (Fcons i t f0) =>
-         let (v2', vr) := v3 in
-            withspacer pos (alignof t) v
-            (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v (typed_mapsto t sh (align pos (alignof t)) v) v2') *
-            structfieldsof t_str f0 sh pos v vr) H in
-    H0
-end eq_refl
+               reptype_structlist flds -> mpred :=
+match flds as f return (reptype_structlist f -> mpred) with
+| Fnil => fun _ : reptype_structlist Fnil => emp
+| Fcons i t flds0 =>
+    fun X0 : reptype_structlist (Fcons i t flds0) =>
+    let H :=
+      (if is_Fnil flds0 as b
+        return
+          (is_Fnil flds0 = b ->
+           (if b
+            then reptype t
+            else (reptype t * reptype_structlist flds0)%type) -> mpred)
+       then
+        fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
+        withspacer pos (alignof t) v
+          (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
+             (typed_mapsto t sh (align pos (alignof t)) v) X1)
+       else
+        fun (_ : is_Fnil flds0 = false)
+          (X1 : reptype t * reptype_structlist flds0) =>
+        withspacer pos (alignof t) v
+          (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
+             (typed_mapsto t sh (align pos (alignof t)) v) (fst X1)) *
+        structfieldsof t_str flds0 sh pos v (snd X1)) eq_refl in
+    H X0
+end
  with
-unionfieldsof (flds: fieldlist) (sh: Share.t)  (pos: Z) (v: val):  reptype_list sum flds -> mpred :=
-match flds as f0 return (flds = f0 -> reptype_list sum flds -> mpred) with
+unionfieldsof (flds: fieldlist) (sh: Share.t)  (pos: Z) (v: val):  reptype_unionlist flds -> mpred :=
+match flds as f0 return (flds = f0 -> reptype_unionlist flds -> mpred) with
 | Fnil => fun _ : flds = Fnil => emp
 | Fcons i t f0 =>
     fun H : flds = Fcons i t f0 =>
     let H0 :=
-      eq_rect_r (fun flds0 : fieldlist => reptype_list sum flds0 -> mpred)
-        (fun v3 : reptype_list sum (Fcons i t f0) =>
+      eq_rect_r (fun flds0 : fieldlist => reptype_unionlist flds0 -> mpred)
+        (fun v3 : reptype_unionlist (Fcons i t f0) =>
          match v3 with
          | inl v2' => typed_mapsto t sh pos v v2'
          | inr vr =>  unionfieldsof f0 sh pos v vr 
