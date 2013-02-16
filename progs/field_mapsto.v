@@ -8,7 +8,7 @@ Local Open Scope logic.
 
 Lemma mapsto_isptr:
   forall sh t v1 v2,
-   mapsto sh t v1 v2 = !! (denote_tc_isptr v1) && mapsto sh t v1 v2.
+   mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
 Proof.
 intros; unfold mapsto, umapsto.
 destruct (access_mode t); normalize.
@@ -313,7 +313,7 @@ erewrite mapsto_field_mapsto; eauto.
 Qed.
 
 Lemma field_mapsto_isptr: forall t fld sh x y,
-  field_mapsto sh t fld x y = !!(denote_tc_isptr x) && field_mapsto sh t fld x y.
+  field_mapsto sh t fld x y = !!(isptr x) && field_mapsto sh t fld x y.
 Proof.
 unfold field_mapsto; intros.
 destruct x; simpl; normalize.
@@ -330,3 +330,19 @@ destruct v; simpl; normalize.
 Qed.
 Hint Rewrite field_mapsto_force_ptr : normalize.
 
+Lemma field_mapsto__isptr: forall t fld sh x,
+  field_mapsto_ sh t fld x = !!(isptr x) && field_mapsto_ sh t fld x.
+Proof.
+intros.
+unfold field_mapsto_.
+destruct x; normalize.
+Qed.
+
+Lemma field_mapsto__force_ptr: forall t fld sh x,
+  field_mapsto_ sh t fld (force_ptr x) = field_mapsto_ sh t fld x.
+Proof.
+intros.
+symmetry; rewrite field_mapsto__isptr.
+destruct x; simpl; normalize.
+Qed.
+Hint Rewrite field_mapsto__force_ptr : normalize.

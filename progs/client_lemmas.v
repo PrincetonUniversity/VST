@@ -1351,6 +1351,23 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ ] P 'POST' [ tz
            (fun x => match x with (((x1,x2),x3),x4) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4)
+           (fun x => match x with (((x1,x2),x3),x4) => P%logic end)
+           (fun x => match x with (((x1,x2),x3),x4) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) (t1*t2*t3*t4*t5)
+           (fun x => match x with ((((x1,x2),x3),x4),x5) => P%logic end)
+           (fun x => match x with ((((x1,x2),x3),x4),x5) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5)
+           (fun x => match x with ((((x1,x2),x3),x4),x5) => P%logic end)
+           (fun x => match x with ((((x1,x2),x3),x4),x5) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, P at level 100, Q at level 100).
 
 Lemma exp_derives {A}{NA: NatDed A}{B}:
    forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.
@@ -1399,8 +1416,8 @@ Lemma semax_while' :
  forall Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     semax Delta (PROPx P (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
+     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
+     semax Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
      semax Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
 Proof.
 intros.
@@ -1408,9 +1425,9 @@ apply semax_while; auto.
 eapply derives_trans; [ | apply H0].
 normalize.
 eapply derives_trans; [ | apply H1].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 eapply semax_pre; [ | apply H2].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 Qed.
 
 Lemma semax_whilex : 
@@ -1418,9 +1435,9 @@ Lemma semax_whilex :
      bool_type (typeof test) = true ->
      (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: (Q x)) (SEPx (R x))) |-- 
                                local (tc_expr Delta test)) ->
-     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: (Q x)) (SEPx (R x))) 
+     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x)) (SEPx (R x))) 
                     |-- Post EK_normal None) ->
-     (forall x:A, semax Delta (PROPx (P x) (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
+     (forall x:A, semax Delta (PROPx (P x) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
                            body 
                             (loop1_ret_assert (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) Post))->
      semax Delta (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x) ))) (Swhile test body) Post.
@@ -1432,11 +1449,11 @@ apply exp_left. intro x; eapply derives_trans; [ | apply (H0 x)].
 normalize.
 rewrite exp_andp2.
 apply exp_left. intro x; eapply derives_trans; [ | apply (H1 x)].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 normalize.
 apply extract_exists_pre; intro x.
 eapply semax_pre; [ | apply (H2 x)].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 Qed.
 
 
@@ -1445,10 +1462,10 @@ Lemma semax_whilex2 :
      bool_type (typeof test) = true ->
      (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: (Q x1 x2)) (SEPx (R x1 x2))) |-- 
                                local (tc_expr Delta test)) ->
-     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: lift1 (typed_false (typeof test)) (eval_expr test) :: (Q x1 x2)) (SEPx (R x1 x2))) 
+     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x1 x2)) (SEPx (R x1 x2))) 
                     |-- Post EK_normal None) ->
      (forall (x1:A1) (x2: A2), 
-               semax Delta (PROPx (P x1 x2) (LOCALx (lift1 (typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
+               semax Delta (PROPx (P x1 x2) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
                            body 
                             (loop1_ret_assert (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2)))) Post))->
      semax Delta (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2) ))) (Swhile test body) Post.
@@ -1462,11 +1479,11 @@ normalize.
 rewrite exp_andp2. apply exp_left. intro x1.
 rewrite exp_andp2. apply exp_left. intro x2.
  eapply derives_trans; [ | apply (H1 x1 x2)].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 normalize. apply extract_exists_pre; intro x1.
 normalize. apply extract_exists_pre; intro x2.
 eapply semax_pre; [ | apply (H2 x1 x2)].
-intro rho; unfold PROPx,LOCALx,lift1,lift0; simpl; normalize.
+intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 Qed.
 
 Ltac find_in_list A L :=

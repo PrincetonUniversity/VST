@@ -255,7 +255,7 @@ Parameter structfieldsof: forall (t_str: type) (flds: fieldlist) (sh: Share.t) (
                reptype_structlist flds -> mpred.
 *)
 
-Fixpoint typed_mapsto (t1: type) (sh: Share.t) (pos: Z) (v: val):  reptype t1 -> mpred :=
+Fixpoint typed_mapsto' (t1: type) (sh: Share.t) (pos: Z) (v: val):  reptype t1 -> mpred :=
 match t1 as t return (t1 = t -> reptype t1 -> mpred) with
 | Tvoid => fun _ => emp
 | Tint i s a =>
@@ -288,7 +288,7 @@ match t1 as t return (t1 = t -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type => reptype t2 -> mpred)
         (fun v3 : reptype (Tarray t z a) => 
                  withspacer pos (alignof t) v
-                 (arrayof _ (typed_mapsto t sh (align pos (alignof t))) t 0 v v3))
+                 (arrayof _ (typed_mapsto' t sh (align pos (alignof t))) t 0 v v3))
         H in
     H0
 | Tfunction t t0 => emp
@@ -331,13 +331,13 @@ match flds as f return (reptype_structlist f -> mpred) with
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
         withspacer pos (alignof t) v
           (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
-             (typed_mapsto t sh (align pos (alignof t)) v) X1)
+             (typed_mapsto' t sh (align pos (alignof t)) v) X1)
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
         withspacer pos (alignof t) v
           (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
-             (typed_mapsto t sh (align pos (alignof t)) v) (fst X1)) *
+             (typed_mapsto' t sh (align pos (alignof t)) v) (fst X1)) *
         structfieldsof t_str flds0 sh pos v (snd X1)) eq_refl in
     H X0
 end
@@ -351,11 +351,13 @@ match flds as f0 return (flds = f0 -> reptype_unionlist flds -> mpred) with
       eq_rect_r (fun flds0 : fieldlist => reptype_unionlist flds0 -> mpred)
         (fun v3 : reptype_unionlist (Fcons i t f0) =>
          match v3 with
-         | inl v2' => typed_mapsto t sh pos v v2'
+         | inl v2' => typed_mapsto' t sh pos v v2'
          | inr vr =>  unionfieldsof f0 sh pos v vr 
          end) H
     in H0
 end eq_refl.
+
+Definition typed_mapsto (t1: type) (sh: Share.t) := typed_mapsto' t1 sh 0.
 
 Lemma field_mapsto_offset_zero:
   forall sh ty id v, 
@@ -370,7 +372,7 @@ Hint Rewrite field_mapsto_offset_zero: normalize.
 
 
 Ltac simpl_typed_mapsto' T H MA :=
-       unfold typed_mapsto_', typed_mapsto, 
+       unfold typed_mapsto_', typed_mapsto, typed_mapsto', 
         structfieldsof, eq_rect_r, withspacer, align, Zmax in H;
        simpl in H; try fold T in H;
        repeat rewrite emp_sepcon in H; repeat rewrite sepcon_emp in H;
@@ -388,11 +390,17 @@ Ltac simpl_typed_mapsto :=
   | |- context [typed_mapsto_' ?SH ?N ?T ?V] =>
          remember (typed_mapsto_'  SH N T V) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH ?N ?V _] =>
-         remember (typed_mapsto T SH N V) as MA;
+  | |- context [typed_mapsto' ?T ?SH ?N ?V _] =>
+         remember (typed_mapsto' T SH N V) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH ?N ?V] =>
-         remember (typed_mapsto T SH N V) as MA;
+  | |- context [typed_mapsto' ?T ?SH ?N ?V] =>
+         remember (typed_mapsto' T SH N V) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+  | |- context [typed_mapsto ?T ?SH ?V _] =>
+         remember (typed_mapsto T SH V) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+  | |- context [typed_mapsto ?T ?SH ?V] =>
+         remember (typed_mapsto' T SH V) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
  | |- context [structfieldsof ?T ?F ?SH ?N ?V _] =>
          remember (structfieldsof T F SH N V) as MA;
@@ -584,7 +592,7 @@ Lemma typed_mapsto_tint: forall sh v1 v2,
   (@coerce (val -> reptype tint -> mpred)
                     ((environ -> val) -> (environ -> reptype tint) -> assert)
                     (lift2_C val (reptype tint) mpred)
-                    (typed_mapsto tint sh Z0)) 
+                    (typed_mapsto tint sh)) 
        v1 v2 =
   (@coerce (val -> val -> mpred) _ (lift2_C val val mpred) (mapsto sh tint)) 
            v1  (`Vint v2).
@@ -606,7 +614,7 @@ Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
   rangespec' lo (nat_of_Z (hi-lo)) P.
 
 Definition array_at (t: type) (sh: Share.t) (v: val) (i: Z) (e: reptype t) : mpred :=
-   typed_mapsto t sh 0 (add_ptr_int t v i) e.
+   typed_mapsto t sh (add_ptr_int t v i) e.
 
 Definition array_at_range (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
                                    (v: val) :=

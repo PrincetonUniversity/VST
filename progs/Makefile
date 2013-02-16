@@ -14,7 +14,8 @@ FILES= \
    call_lemmas.v forward_lemmas.v forward.v \
   test1.v verif1.v \
   queue.v verif_queue.v \
-  sumarray.v verif_sumarray.v 
+  sumarray.v verif_sumarray.v \
+  message.v verif_message.v \
 
 
 target: proof
@@ -29,6 +30,9 @@ queue.vo: queue.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 sumarray.vo: sumarray.v
+	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
+
+message.vo: message.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 
 .SUFFIXES: .v .vo

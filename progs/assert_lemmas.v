@@ -914,10 +914,10 @@ Lemma eval_var_isptr:
              (var_types Delta)!i = None /\
             (glob_types Delta) ! i = Some (Global_var t)) ->
             type_is_volatile t = false ->
-            denote_tc_isptr (eval_var i t rho).
+            isptr (eval_var i t rho).
 Proof.
  intros. rename H1 into NONVOL.
-  unfold denote_tc_isptr, eval_var; simpl.
+  unfold isptr, eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
  repeat rewrite andb_true_iff in H.
   destruct H as [[[_ ?] ?] ?].
@@ -964,6 +964,7 @@ Definition add_ptr_int' (ty: type) (v: val) (i: Z) : val :=
 
 Definition add_ptr_int (ty: type) (v: val) (i: Z) : val :=
            eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
+
 Lemma repable_signed_mult2:
   forall i j, i<>0 -> repable_signed (i*j) -> repable_signed j.
 Admitted.
@@ -975,7 +976,7 @@ intros.
  apply repable_signed_mult2 in H0; auto.
 Qed.
 
-Lemma add_ptr_tint_eq:
+Lemma add_ptr_int_eq:
   forall ty v i, repable_signed (sizeof ty * i) ->
        add_ptr_int' ty v i = add_ptr_int ty v i.
 Proof.
@@ -996,6 +997,43 @@ Proof.
  rewrite (Int.signed_repr _ H0).
  rewrite (Int.signed_repr _ H1). auto.
 Qed.
+
+Lemma add_ptr_int_offset:
+  forall t v n, 
+  repable_signed (sizeof t) ->
+  repable_signed n ->
+  add_ptr_int t v n = offset_val v (Int.repr (sizeof t * n)).
+Proof.
+ unfold add_ptr_int; intros.
+ unfold eval_binop; destruct v; simpl; auto.
+ rewrite Int.mul_signed.
+ rewrite Int.signed_repr by auto.
+  rewrite Int.signed_repr by auto.
+ auto.
+Qed.
+
+Lemma add_ptr_int'_offset:
+  forall t v n, 
+  repable_signed (sizeof t * n) ->
+  add_ptr_int' t v n = offset_val v (Int.repr (sizeof t * n)).
+Proof.
+ intros.
+ destruct (eq_dec n 0).
+ subst.
+ unfold add_ptr_int'.
+ rewrite if_true. destruct v; simpl; auto. auto.
+ rewrite add_ptr_int_eq by auto.
+ unfold add_ptr_int; intros.
+ unfold eval_binop; destruct v; simpl; auto.
+ rewrite Int.mul_signed.
+ rewrite Int.signed_repr.
+  rewrite Int.signed_repr.
+ auto.
+ apply repable_signed_mult2 in H; auto.
+ pose proof (sizeof_pos t); omega.
+  apply repable_signed_mult1 in H; auto.
+Qed.
+
 
 Lemma typed_false_cmp:
   forall op i j m, 
@@ -1093,3 +1131,10 @@ Qed.
 Ltac intcompare H :=
  (apply typed_false_cmp_repr in H || apply typed_true_cmp_repr in H);
    [ simpl in H | auto; unfold repable_signed, Int.min_signed, Int.max_signed in *; omega .. ].
+
+
+Lemma derives_refl' {A}{NA: NatDed A}: forall P Q: A, P=Q -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
+Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.

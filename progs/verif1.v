@@ -100,9 +100,7 @@ go_lower. subst. inv H1.
 normalize. cancel. 
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. normalize.
-apply andp_right; apply prop_right; hnf; simpl; auto.
-f_equal; auto.
+go_lower. 
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : assert :=

@@ -677,24 +677,48 @@ match goal with
                   try (apply exp_left; intro_old_var c1)
   end.
 
-Ltac start_function :=
-match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
-match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
-  match Pre with 
-  | (fun x => match x with (a,b) => _ end) => intros [a b] 
-  | (fun i => _) => intro i
-  end;
-  simpl fn_body; simpl fn_params; simpl fn_return;
-  canonicalize_pre
+Lemma start_function_aux1:
+  forall R1 P Q R, 
+      (PROPx P (LOCALx Q (SEPx R))) * R1 = 
+      (PROPx P (LOCALx Q (SEPx (R1::R)))).
+Proof.
+intros.
+extensionality rho.
+change SEPx with SEPx'.
+unfold PROPx, LOCALx, SEPx'; normalize.
+f_equal. f_equal. rewrite sepcon_comm. auto.
+Qed. 
+
+Ltac start_function := 
+ match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
+   match Pre with 
+   | (fun x => match x with (a,b) => _ end) => intros [a b] 
+   | (fun i => _) => intro i
+   end;
+   simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ repeat match goal with |- semax _ (match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+           end;
  match goal with |- semax (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G)
  end;
-  try match goal with |- context [stackframe_of ?F] =>
-            change (stackframe_of F) with emp;
+  match goal with
+  | |- semax _ (?P * stackframe_of ?F) _ _ =>
+            change (stackframe_of F) with (@emp assert _ _);
+            rewrite sepcon_emp;
             rewrite frame_ret_assert_emp
-         end;
-  repeat (apply semax_extract_PROP; intro).
+  | |- semax _ ((PROPx ?P (LOCALx ?Q (SEPx ?R))) * stackframe_of ?F) _ _ =>
+        change (@LiftNatDed environ mpred Nveric) with Nassert;
+        change (@LiftSepLog environ mpred Nveric Sveric) with Sassert;
+        rewrite (start_function_aux1 (stackframe_of F) P Q R)
+  end;
+ match goal with
+  | |- semax _ (PROPx _ _) _ _ => idtac 
+  | _ => canonicalize_pre 
+ end;
+ repeat (apply semax_extract_PROP; intro).
 
 Opaque sepcon.
 Opaque emp.

@@ -149,7 +149,7 @@ Transparent Float.intuoffloat.
 
 Ltac unfold_tc_denote :=
 unfold denote_tc_nonzero in *;
-unfold denote_tc_isptr in *;
+unfold isptr in *;
 unfold denote_tc_igt in *;
 unfold denote_tc_Zle in *;
 unfold denote_tc_Zge in *;
@@ -378,7 +378,7 @@ rewrite Heqe0 in H0.
 assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H8).
 rewrite Heqe0 in *. clear Heqe0.
 intuition. 
-remember (eval_lvalue e rho). unfold denote_tc_isptr in *.
+remember (eval_lvalue e rho). unfold isptr in *.
 destruct v; intuition; try congruence.
 remember (eval_lvalue e rho). destruct H7. destruct H4.
 destruct v; intuition; try congruence.

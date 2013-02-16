@@ -19,15 +19,16 @@ Definition add_elem (f: Z -> int) (i: Z) := Int.add (f i).
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a0: val, sh : share, contents : Z -> int, size: Z
-  PRE [ _a OF (tptr tint), _n OF tint ] 
-          !! (0 <= size <= Int.max_signed) &&
-          local (`(eq a0) (eval_id _a)) &&
-          local (`(eq (Vint (Int.repr size))) (eval_id _n))   &&
-          local (`denote_tc_isptr (eval_id _a)) &&
-          `(array_at_range tint sh contents 0 size) (eval_id _a)
+  PRE [ _a OF (tptr tint), _n OF tint ]
+          PROP (0 <= size <= Int.max_signed)
+          LOCAL (`(eq a0) (eval_id _a);
+                      `(eq (Vint (Int.repr size))) (eval_id _n);
+                      `isptr (eval_id _a))
+          SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))
   POST [ tint ]  
-    local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval) &&
-            `(array_at_range tint sh contents 0 size a0).
+        PROP () 
+        LOCAL (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
+        SEP (`(array_at_range tint sh contents 0 size a0)).
 
 Definition main_spec :=
  DECLARE _main
@@ -47,7 +48,7 @@ Definition sumarray_Inv a0 sh contents size :=
   (PROP  (0 <= i <= size)
    LOCAL  (`(eq a0) (eval_id _a);   `(eq (Vint (Int.repr i))) (eval_id _i);
                 `(eq (Vint (Int.repr size))) (eval_id _n);
-           `denote_tc_isptr (eval_id _a); 
+           `isptr (eval_id _a); 
     `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s))
    SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))).
 
@@ -56,7 +57,7 @@ Lemma split3_array_at_range:
        lo <= i < hi ->
      array_at_range ty sh contents lo hi v =
      array_at_range ty sh contents lo i v *
-     typed_mapsto ty sh 0 (add_ptr_int ty v i) (contents i) *
+     typed_mapsto ty sh (add_ptr_int ty v i) (contents i) *
      array_at_range ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
@@ -67,7 +68,7 @@ Lemma lift_split3_array_at_range:
        lo <= i < hi ->
      array_at_range ty sh contents lo hi =
      array_at_range ty sh contents lo i *
-     (fun v => typed_mapsto ty sh 0 (add_ptr_int ty v i) (contents i)) *
+     (fun v => typed_mapsto ty sh (add_ptr_int ty v i) (contents i)) *
      array_at_range ty sh contents (Zsucc i) hi.
 Proof.
  intros. extensionality v. simpl. apply split3_array_at_range. auto.
@@ -75,7 +76,7 @@ Qed.
 
 Lemma body_sumarray: semax_body Vprog Gtot f_sumarray sumarray_spec.
 Proof.
-start_function. destruct p as [[a0 sh] contents].
+start_function.
 name a _a.
 name n _n.
 name i _i.
@@ -93,53 +94,40 @@ forward_while (sumarray_Inv a0 sh contents size)
 unfold sumarray_Inv.
 apply exp_right with 0.
 go_lower. subst. normalize.
- repeat apply andp_right; auto; apply prop_right; auto; omega.
+ repeat apply andp_right; auto; try (apply prop_right; auto; omega).
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 go_lower.  subst.
  repeat apply andp_right; try apply prop_right; repeat split; auto.
- f_equal. simpl in H2.
- intcompare H2.
- omega.
+ f_equal. intcompare H2. omega.
 (* Prove that loop body preserves invariant *)
+simpl.
 apply semax_pre_PQR with
- (PROP (0 <= i0 < size) 
-  LOCAL (`(eq a0) (eval_id _a); `(eq (Vint (Int.repr i0))) (eval_id _i);
-   `(eq (Vint (Int.repr size))) (eval_id _n); `denote_tc_isptr (eval_id _a);
-   `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i0))) (eval_id _s))
-   SEP  (`(array_at_range tint sh contents 0 size) (eval_id _a))).
-go_lower. subst. simpl in H2. apply andp_right; auto.
-apply prop_right; repeat split; auto; try omega.
- intcompare H2. auto.
-apply semax_extract_PROP; intro.
-apply semax_pre_PQR with
-(PROP  ()
+(PROP  (0 <= i0 < size)
    LOCAL  (`(eq a0) (eval_id _a); `(eq (Vint (Int.repr i0))) (eval_id _i);
-   `(eq (Vint (Int.repr size))) (eval_id _n); `denote_tc_isptr (eval_id _a);
+   `(eq (Vint (Int.repr size))) (eval_id _n); `isptr (eval_id _a);
    `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i0))) (eval_id _s))
    SEP 
    (`(array_at_range tint sh contents 0 i0) (eval_id _a);
-    `(typed_mapsto tint sh 0) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
+    `(typed_mapsto tint sh) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
     `(array_at_range tint sh contents (Zsucc i0) size) (eval_id _a))).
-rewrite typed_mapsto_tint.
-go_lower. subst.
-apply andp_right. apply prop_right; repeat split; auto.
-rewrite (split3_array_at_range i0) by omega.
-cancel.
-simpl_typed_mapsto.
-rewrite mapsto_offset_zero.
-auto.
-rewrite typed_mapsto_tint.
+  rewrite typed_mapsto_tint.
+  go_lower. subst. intcompare H2.
+  apply andp_right. apply prop_right; repeat split; auto; omega.
+  rewrite (split3_array_at_range i0) by omega.
+  cancel.
+  simpl_typed_mapsto.
+  rewrite mapsto_offset_zero.
+  auto.
+  rewrite typed_mapsto_tint.
 forward. (* x = a[i]; *)
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-go_lower. subst. simpl in H3.
- unfold eval_binop in H3; simpl in H3. inv H3.
- unfold eval_binop in H2; simpl in H2.  inv H2.
+go_lower. subst.  inv H3. inv H2.
  apply andp_right. apply prop_right; repeat split; auto; try omega.
 unfold Zsucc. rewrite Int.add_signed.
 repeat (rewrite Int.signed_repr 

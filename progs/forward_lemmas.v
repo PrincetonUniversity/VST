@@ -512,7 +512,7 @@ Qed.
 
 Lemma mapsto__isptr:
   forall sh t v1,
-   mapsto_ sh t v1 = !! (denote_tc_isptr v1) && mapsto_ sh t v1.
+   mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
 intros; unfold mapsto_, umapsto.
 normalize. f_equal. extensionality v2.

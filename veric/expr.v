@@ -793,7 +793,7 @@ Definition denote_tc_nonzero v :=
          match v with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
 
-Definition denote_tc_isptr v := 
+Definition isptr v := 
    match v with | Vptr _ _ => True | _ => False end.
 
 Definition denote_tc_igt i v :=
@@ -844,7 +844,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_TT => `True
   | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero e => `denote_tc_nonzero (eval_expr e)
-  | tc_isptr e => `denote_tc_isptr (eval_expr e)
+  | tc_isptr e => `isptr (eval_expr e)
   | tc_ilt e i => `(denote_tc_igt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
