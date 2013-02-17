@@ -666,6 +666,7 @@ change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed.
 simpl_typed_mapsto.
 eval_cast_simpl.
+simpl.
 cancel.
 unfold Frame.
 instantiate (1:= `(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) :: nil).

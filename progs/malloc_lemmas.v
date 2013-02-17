@@ -138,22 +138,36 @@ Proof.
 Qed.
 Hint Rewrite field_mapsto__offset_zero: normalize.
 
-Definition spacer (pos: Z) (alignment: Z) (v: val) : mpred :=
-   memory_block Share.top (Int.repr (align pos alignment - pos))
-                              (offset_val v (Int.repr pos)).
+Definition at_offset (P: val -> mpred) (z: Z)  : val -> mpred :=
+ match z with Z0 => P | _ => fun v => P (offset_val v (Int.repr z)) end.
 
-Definition withspacer (pos: Z) (alignment: Z) (v: val) (P: mpred) : mpred :=
+Lemma at_offset_eq: forall P z v,
+  P (offset_val v (Int.repr 0)) = P v ->
+  at_offset P z v = P (offset_val v (Int.repr z)).
+Proof.
+intros.
+unfold at_offset.
+destruct z; auto.
+Qed.
+
+Definition spacer (pos: Z) (alignment: Z) : val -> mpred :=
+   at_offset (memory_block Share.top (Int.repr (align pos alignment - pos))) pos.
+
+Definition withspacer (pos: Z) (alignment: Z) : (val -> mpred) -> val -> mpred :=
    match align pos alignment - pos with
-   | Z0 => P
-   | n => memory_block Share.top (Int.repr n) (offset_val v (Int.repr pos)) * P
+   | Z0 => fun P => P
+   | _ => fun P => spacer pos alignment * P
    end.
 
-Lemma withspacer_spacer: forall pos alignment v P,
-   withspacer pos alignment v P = spacer pos alignment v * P.
+Lemma withspacer_spacer: forall pos alignment P,
+   withspacer pos alignment P = spacer pos alignment * P.
 Proof.
   intros.
+ extensionality v.
  unfold withspacer, spacer.
  destruct (align pos alignment - pos); auto.
+ simpl.
+ unfold at_offset. destruct pos; simpl;
  rewrite memory_block_zero, emp_sepcon; auto.
 Qed.
 
@@ -167,31 +181,29 @@ Definition storable_mode (ty: type) : bool :=
   | _ => true
 end.
 
-Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type)  (v: val) : mpred :=
+Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
   match ty with
-  | Tstruct id fld a => withspacer pos (alignof ty) v
+  | Tstruct id fld a => withspacer pos (alignof ty)
            match fld with 
-           | Fnil => memory_block sh Int.one (offset_val v (Int.repr (align pos (alignof ty))))
-           | _ => fields_mapto_ sh 0 ty fld 
-                                    (offset_val v (Int.repr (align pos (alignof ty))))
+           | Fnil => at_offset (memory_block sh Int.one) (align pos (alignof ty))
+           | _ => at_offset (fields_mapto_ sh 0 ty fld) (align pos (alignof ty))
            end
-  | _ => withspacer pos (alignof ty) v
-                         (memory_block sh (Int.repr (sizeof ty) )
-                            (offset_val v (Int.repr (align pos (alignof ty)))))
+  | _ => withspacer pos (alignof ty)
+               (at_offset (memory_block sh (Int.repr (sizeof ty))) (align pos (alignof ty)))
   end
 
-with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) (v: val) : mpred :=
+with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  mpred :=
  match flds with
  | Fnil => emp
  | Fcons id ty flds' => 
      (if storable_mode ty 
-     then withspacer pos (alignof ty) v (field_mapsto_ sh t0 id v)
-     else typed_mapsto_' sh pos ty v)
-     * fields_mapto_ sh pos t0 flds' v
+     then withspacer pos (alignof ty) (field_mapsto_ sh t0 id)
+     else typed_mapsto_' sh pos ty)
+     * fields_mapto_ sh pos t0 flds'
   end.
 
-Definition typed_mapsto_ (sh: Share.t) (ty: type) (v: val) : mpred :=
-        typed_mapsto_' sh 0 ty v.
+Definition typed_mapsto_ (sh: Share.t) (ty: type) : val -> mpred :=
+        typed_mapsto_' sh 0 ty.
 
 Fixpoint is_Fnil (fld: fieldlist) : bool :=
 match fld with
@@ -239,14 +251,14 @@ Definition maybe_field_mapsto (t: type) (sh: Share.t) (t_str: type) (id: ident) 
 match t as t0 return ((reptype t0 -> mpred) -> reptype t0 -> mpred) with
 | Tint i s a =>
     fun (_ : reptype (Tint i s a) -> mpred) (v2'0 : reptype (Tint i s a)) =>
-    field_mapsto sh t_str id (offset_val v (Int.repr pos)) (Vint v2'0)
+    at_offset (fun v => field_mapsto sh t_str id v (Vint v2'0)) pos v
 | Tfloat f a =>
     fun (_ : reptype (Tfloat f a) -> mpred) (v2'0 : reptype (Tfloat f a)) =>
-    field_mapsto sh t_str id (offset_val v (Int.repr pos)) (Vfloat v2'0)
+    at_offset (fun v => field_mapsto sh t_str id v (Vfloat v2'0)) pos v
 | Tpointer t0 a =>
-    fun _ =>  field_mapsto sh t_str id (offset_val v (Int.repr pos))
+    fun _ v2 =>  at_offset (fun v => field_mapsto sh t_str id v v2) pos v
 | Tcomp_ptr _ _ =>
-    fun _ _ => field_mapsto_ sh t_str id (offset_val v (Int.repr pos))
+    fun _ _ => at_offset (field_mapsto_ sh t_str id) pos v
 | t' => fun (alt1 : reptype t' -> mpred)  => alt1 
 end.
 
@@ -255,72 +267,63 @@ Parameter structfieldsof: forall (t_str: type) (flds: fieldlist) (sh: Share.t) (
                reptype_structlist flds -> mpred.
 *)
 
-Fixpoint typed_mapsto' (t1: type) (sh: Share.t) (pos: Z) (v: val):  reptype t1 -> mpred :=
-match t1 as t return (t1 = t -> reptype t1 -> mpred) with
-| Tvoid => fun _ => emp
+
+Definition at_offset2 {T} (f: val -> T -> mpred) pos (v2: T) := 
+           at_offset (fun v => f v v2) pos.
+
+Fixpoint typed_mapsto' (t1: type) (sh: Share.t) (pos: Z) : val -> reptype t1 -> mpred :=
+match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
+| Tvoid => fun _ _ => emp
 | Tint i s a =>
     fun H : t1 = Tint i s a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tint i s a) =>
-                withspacer pos (alignof (Tint i s a)) v
-                (mapsto sh (Tint i s a) (offset_val v (Int.repr (align pos (alignof t1)))) (Vint v3))) H in
-    H0
+      eq_rect_r (fun t2 : type => val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tint i s a)) =>
+                withspacer pos (alignof (Tint i s a))
+                (at_offset2 (mapsto sh (Tint i s a)) (align pos (alignof t1)) (Vint v3)) v) H
 | Tfloat f a =>
     fun H : t1 = Tfloat f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tfloat f a) =>
-                withspacer pos (alignof (Tfloat f a)) v
-                (mapsto sh (Tfloat f a) (offset_val v (Int.repr (align pos (alignof t1)))) (Vfloat v3))) H in
-    H0
+      eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tfloat f a)) =>
+                withspacer pos (alignof (Tfloat f a))
+                (at_offset (fun v => mapsto sh (Tfloat f a) v (Vfloat v3)) (align pos (alignof t1))) v) H
 | Tpointer t a => 
     fun H : t1 = Tpointer t a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tpointer t a) =>
-                withspacer pos (alignof (Tpointer t a)) v
-                (mapsto sh (Tpointer t a) (offset_val v (Int.repr (align pos (alignof t1)))) v3)) H in
-    H0
+      eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tpointer t a)) =>
+                withspacer pos (alignof (Tpointer t a))
+                (at_offset (fun v => mapsto sh (Tpointer t a) v v3)  (align pos (alignof t1))) v) H
 | Tarray t z a =>
     fun H : t1 = Tarray t z a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tarray t z a) => 
-                 withspacer pos (alignof t) v
-                 (arrayof _ (typed_mapsto' t sh (align pos (alignof t))) t 0 v v3))
-        H in
-    H0
-| Tfunction t t0 => emp
+      eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tarray t z a)) => 
+                 withspacer pos (alignof t)
+                 (fun v => arrayof _ (typed_mapsto' t sh (align pos (alignof t))) t 0 v v3) v)
+        H
+| Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>
     fun H : t1 = Tstruct i f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tstruct i f a) =>
-                 withspacer pos (alignof (Tstruct i f a)) v
-                 (structfieldsof (Tstruct i f a) f sh (align pos (alignof t1)) v v3)) H in
-    H0
+      eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tstruct i f a)) =>
+                 withspacer pos (alignof (Tstruct i f a))
+                 (fun v => structfieldsof (Tstruct i f a) f sh (align pos (alignof t1)) v v3) v) H
 | Tunion i f a =>
     fun H : t1 = Tunion i f a =>
-    let H0 :=
-      eq_rect_r (fun t2 : type => reptype t2 -> mpred)
-        (fun v3 : reptype (Tunion i f a) =>
-                 withspacer pos (alignof (Tunion i f a)) v
-         (unionfieldsof f sh (align pos (alignof t1)) v v3)) H in
-    H0
+      eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tunion i f a)) =>
+                 withspacer pos (alignof (Tunion i f a))
+         (fun v => unionfieldsof f sh (align pos (alignof t1)) v v3) v) H
 | Tcomp_ptr i a => 
-        fun _ _ =>
-          withspacer pos (alignof (Tcomp_ptr i a)) v
-          (memory_block sh (Int.repr (sizeof (Tcomp_ptr i a))) (offset_val v (Int.repr pos)))
+        fun _ v _ =>
+          withspacer pos (alignof (Tcomp_ptr i a))
+          (at_offset (memory_block sh (Int.repr (sizeof (Tcomp_ptr i a))))pos) v
 end eq_refl
  with
- structfieldsof (t_str: type) (flds: fieldlist) (sh: Share.t) (pos: Z) (v: val) :
-               reptype_structlist flds -> mpred :=
-match flds as f return (reptype_structlist f -> mpred) with
-| Fnil => fun _ : reptype_structlist Fnil => emp
+ structfieldsof (t_str: type) (flds: fieldlist) (sh: Share.t) (pos: Z) :
+               val -> reptype_structlist flds -> mpred :=
+match flds as f return (val -> reptype_structlist f -> mpred) with
+| Fnil => fun _ (_ : reptype_structlist Fnil) => emp
 | Fcons i t flds0 =>
-    fun X0 : reptype_structlist (Fcons i t flds0) =>
-    let H :=
+    fun v (X0 : reptype_structlist (Fcons i t flds0)) =>
       (if is_Fnil flds0 as b
         return
           (is_Fnil flds0 = b ->
@@ -329,35 +332,67 @@ match flds as f return (reptype_structlist f -> mpred) with
             else (reptype t * reptype_structlist flds0)%type) -> mpred)
        then
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
-        withspacer pos (alignof t) v
-          (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
-             (typed_mapsto' t sh (align pos (alignof t)) v) X1)
+        withspacer pos (alignof t)
+          (fun v => maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
+             (typed_mapsto' t sh (align pos (alignof t)) v) X1) v
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
-        withspacer pos (alignof t) v
-          (maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
+        (withspacer pos (alignof t)
+          (fun v => maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
              (typed_mapsto' t sh (align pos (alignof t)) v) (fst X1)) *
-        structfieldsof t_str flds0 sh pos v (snd X1)) eq_refl in
-    H X0
+        (fun v => structfieldsof t_str flds0 sh pos v (snd X1))) v   ) eq_refl X0
 end
  with
-unionfieldsof (flds: fieldlist) (sh: Share.t)  (pos: Z) (v: val):  reptype_unionlist flds -> mpred :=
-match flds as f0 return (flds = f0 -> reptype_unionlist flds -> mpred) with
-| Fnil => fun _ : flds = Fnil => emp
+unionfieldsof (flds: fieldlist) (sh: Share.t)  (pos: Z) :  val ->reptype_unionlist flds -> mpred :=
+match flds as f0 return (flds = f0 -> val -> reptype_unionlist flds -> mpred) with
+| Fnil => fun (_ : flds = Fnil) _ => emp
 | Fcons i t f0 =>
-    fun H : flds = Fcons i t f0 =>
-    let H0 :=
-      eq_rect_r (fun flds0 : fieldlist => reptype_unionlist flds0 -> mpred)
-        (fun v3 : reptype_unionlist (Fcons i t f0) =>
+    fun (H : flds = Fcons i t f0) =>
+      eq_rect_r (fun flds0 : fieldlist => val -> reptype_unionlist flds0 -> mpred)
+        (fun v (v3 : reptype_unionlist (Fcons i t f0)) =>
          match v3 with
          | inl v2' => typed_mapsto' t sh pos v v2'
          | inr vr =>  unionfieldsof f0 sh pos v vr 
          end) H
-    in H0
 end eq_refl.
 
 Definition typed_mapsto (t1: type) (sh: Share.t) := typed_mapsto' t1 sh 0.
+
+(* TESTING...  
+Require Import progs.queue.
+Parameter sh : share.
+Goal lift1 (typed_mapsto t_struct_elem sh) = (fun _ _ => emp).
+
+       unfold t_struct_elem, typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto', 
+        structfieldsof, eq_rect_r, withspacer, at_offset, align, Zmax.
+simpl.
+ fold t_struct_elem.
+
+match goal with |- context [lift1 ?P] =>
+    match P with (fun _ => _) =>
+     let Q := fresh "Q" in let EQ := fresh "EQ" in
+      evar (Q: val -> mpred);
+      assert (EQ: P = Q); 
+      [  let rho := fresh "rho" in
+         extensionality rho
+     | ]
+ end 
+end.
+
+
+Ltac abstract_env T rho P :=
+  match P with
+   | @emp mpred _ _ => constr:(@emp (T -> mpred) _ _)
+   | @sepcon mpred _ _ ?e1 ?e2 => 
+      let e1' := abstract_env T rho e1 in let e2' := abstract_env T rho e2
+       in constr:(@sepcon (T->mpred) _ _ e1' e2')
+   | ?a ?b ?c ?d rho => 
+   | _ => constr:(@FF (T -> mpred) _)
+   end.
+
+*)
+
 
 Lemma field_mapsto_offset_zero:
   forall sh ty id v, 
@@ -370,67 +405,125 @@ Proof.
 Qed.
 Hint Rewrite field_mapsto_offset_zero: normalize.
 
+Lemma lift_sepcon_unfold:
+  forall T P Q,
+  (@coerce (T -> mpred) ((environ -> T) -> assert)
+                    (lift1_C T mpred)
+                    (@sepcon (T -> mpred) (@LiftNatDed T mpred Nveric)
+                       (@LiftSepLog T mpred Nveric Sveric) P Q)) =
+  (`P * `Q).
+Proof.
+ intros. extensionality f. extensionality rho.
+ unfold_coerce. reflexivity.
+Qed.
+
+Lemma lower_sepcon_val:
+  forall P Q v, 
+  (@sepcon ((environ -> val) -> assert)
+                    (@LiftNatDed (environ -> val) assert Nassert)
+                    (@LiftSepLog (environ -> val) assert Nassert Sassert)
+                    P Q v) =
+  (P v * Q v).
+Proof. reflexivity. Qed.
+
+
+Definition opaque_sepcon := @sepcon (val->mpred) _ _.
+Global Opaque opaque_sepcon.
 
 Ltac simpl_typed_mapsto' T H MA :=
-       unfold typed_mapsto_', typed_mapsto, typed_mapsto', 
-        structfieldsof, eq_rect_r, withspacer, align, Zmax in H;
-       simpl in H; try fold T in H;
-       repeat rewrite emp_sepcon in H; repeat rewrite sepcon_emp in H;
-       repeat rewrite field_mapsto__offset_zero in H;
-       repeat rewrite field_mapsto_offset_zero in H;
-     subst MA.
+       unfold T, typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto', 
+        structfieldsof, eq_rect_r, withspacer, at_offset, align, Zmax in H;
+     change (@sepcon (val->mpred) _ _) with opaque_sepcon in H;
+        simpl in H;
+     change opaque_sepcon with (@sepcon (val->mpred) _ _) in H;
+     change (fun (_: val) => @emp mpred _ _) with (@emp (val->mpred) _ _) in H;
+        try fold T in H;
+       repeat (rewrite sepcon_emp in H || rewrite emp_sepcon in H);
+       subst MA;
+       repeat rewrite @lift_sepcon_unfold; repeat rewrite lower_sepcon_val;
+       repeat flatten_sepcon_in_SEP.
 
 Ltac simpl_typed_mapsto :=
     let MA := fresh "MA" in
   match goal with 
-  | |- context [typed_mapsto_ ?SH ?T ?V] =>
-         remember (typed_mapsto_  SH T V) as MA;
-         match goal with H: MA = _ |- _ => 
-         unfold typed_mapsto_ in H; simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto_' ?SH ?N ?T ?V] =>
-         remember (typed_mapsto_'  SH N T V) as MA;
+  | |- context [typed_mapsto_ ?SH ?T _] =>
+         remember (typed_mapsto_  SH T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto' ?T ?SH ?N ?V _] =>
-         remember (typed_mapsto' T SH N V) as MA;
+  | |- context [typed_mapsto_ ?SH ?T] =>
+         remember (typed_mapsto_  SH T) as MA;
+         match goal with H: MA = _ |- _ =>  simpl_typed_mapsto' T H MA end
+  | |- context [typed_mapsto_' ?SH ?N ?T] =>
+         remember (typed_mapsto_'  SH N T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto' ?T ?SH ?N ?V] =>
-         remember (typed_mapsto' T SH N V) as MA;
+  | |- context [typed_mapsto_' ?SH ?N ?T _] =>
+         remember (typed_mapsto_'  SH N T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH ?V _] =>
-         remember (typed_mapsto T SH V) as MA;
+  | |- context [typed_mapsto' ?T ?SH ?N _ _] =>
+         remember (typed_mapsto' T SH N ) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH ?V] =>
-         remember (typed_mapsto' T SH V) as MA;
+  | |- context [typed_mapsto' ?T ?SH ?N _] =>
+         remember (typed_mapsto' T SH N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?T ?F ?SH ?N ?V _] =>
-         remember (structfieldsof T F SH N V) as MA;
+  | |- context [typed_mapsto' ?T ?SH ?N] =>
+         remember (typed_mapsto' T SH N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?T ?F ?SH ?N ?V] =>
-         remember (structfieldsof T F SH N V) as MA;
+  | |- context [typed_mapsto ?T ?SH _ _] =>
+         remember (typed_mapsto T SH) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+  | |- context [typed_mapsto ?T ?SH _] =>
+         remember (typed_mapsto T SH) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+  | |- context [typed_mapsto ?T ?SH] =>
+         remember (typed_mapsto T SH) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+ | |- context [structfieldsof ?T ?F ?SH ?N _ _] =>
+         remember (structfieldsof T F SH N) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+ | |- context [structfieldsof ?T ?F ?SH ?N _] =>
+         remember (structfieldsof T F SH N) as MA;
+         match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
+ | |- context [structfieldsof ?T ?F ?SH ?N] =>
+         remember (structfieldsof T F SH N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
   end.
 
-(* TESTING...
-Require Import progs.queue.
-Parameter sh: Share.t.
-Parameter v: val.
-Goal forall v2: reptype t_struct_elem, typed_mapsto t_struct_elem sh 0 v v2 =  emp.
-intros.
-simpl in v2.
-destruct v2 as [i [j [[] []]]].
-simpl_malloc_assertion.
 
-*)
+Lemma mapsto_offset_zero:
+  forall sh t v1 v2, 
+    mapsto sh t (offset_val v1 (Int.repr 0)) v2 =
+    mapsto sh t v1 v2.
+Proof.
+ unfold mapsto.
+ intros.
+ destruct v1; try solve [simpl; auto].
+ unfold offset_val.
+ rewrite Int.add_zero. auto.
+Qed.
+
+Lemma typed_mapsto_tint: forall sh v1 v2,
+  (@coerce (val -> reptype tint -> mpred)
+                    ((environ -> val) -> (environ -> reptype tint) -> assert)
+                    (lift2_C val (reptype tint) mpred)
+                    (typed_mapsto tint sh)) 
+       v1 v2 =
+  (@coerce (val -> val -> mpred) _ (lift2_C val val mpred) (mapsto sh tint)) 
+           v1  (`Vint v2).
+Proof.
+ intros.
+ extensionality rho.
+ unfold_coerce.
+ simpl_typed_mapsto. auto.
+Qed.
 
 Lemma spacer_offset_zero:
   forall pos n v, spacer pos n (offset_val v (Int.repr 0)) = spacer pos n v.
 Proof.
  intros;
  unfold spacer.
- rewrite offset_val_assoc. rewrite Int.add_commut.
- rewrite <- offset_val_assoc. apply memory_block_offset_zero.
+ repeat rewrite at_offset_eq; 
+ try rewrite offset_val_assoc; try  rewrite Int.add_zero_l; auto.
+ apply memory_block_offset_zero.
 Qed.
-
 
 Fixpoint typecount (t: type) : nat :=
  match t with
@@ -467,7 +560,7 @@ induction n; intros.
  destruct f; simpl; auto.
  simpl in H.
  case_eq (storable_mode t0); intros.
- repeat rewrite withspacer_spacer.
+ repeat rewrite withspacer_spacer. simpl.
  f_equal; [f_equal; [apply spacer_offset_zero |apply field_mapsto__offset_zero ] | ].
  apply IHn.
  pose proof (typecount_pos t0).
@@ -475,20 +568,24 @@ induction n; intros.
  f_equal.
  destruct t0; inv H0; simpl;
  repeat rewrite withspacer_spacer;
+ simpl; repeat rewrite at_offset_eq by apply memory_block_offset_zero;
  try (rewrite offset_val_assoc; rewrite Int.add_commut;
                  rewrite <- offset_val_assoc);
  try (f_equal; [apply spacer_offset_zero |]);
  try  apply memory_block_offset_zero.
  destruct f0.
- apply memory_block_offset_zero.
+ repeat rewrite at_offset_eq by apply memory_block_offset_zero.
+ f_equal. rewrite offset_val_assoc. f_equal. rewrite Int.add_commut; apply Int.add_zero.
+ repeat rewrite at_offset_eq.
+ f_equal. rewrite offset_val_assoc. f_equal. rewrite Int.add_commut; apply Int.add_zero.
  apply IHn.
+ simpl. simpl in H.
  simpl.
- simpl in H.
  pose proof (typecount_fields_pos f).
  omega.
+ f_equal. rewrite offset_val_assoc. f_equal.
  apply IHn.
- pose proof (typecount_pos t0).
- omega.
+ pose proof (typecount_pos t0). omega.
 Qed.
 
 Lemma fields_mapto__offset_zero:
@@ -511,12 +608,14 @@ with memory_block_fields: forall sh pos t fld v,
 Proof.
  clear memory_block_typed'.
  intros.
- induction ty; try solve [simpl; rewrite withspacer_spacer; auto].
+ induction ty;
+ try solve [simpl; rewrite withspacer_spacer; simpl;
+                rewrite at_offset_eq by (apply memory_block_offset_zero); auto].
  unfold typed_mapsto_'; fold fields_mapto_.
  rewrite withspacer_spacer.
  f_equal.
  case_eq f; intros. simpl.
- unfold Zmax, align; simpl. auto.
+ rewrite at_offset_eq by (apply memory_block_offset_zero); auto.
  rewrite <- H.
  assert (Zmax 1 (sizeof_struct f 0) = sizeof_struct f 0).
   subst f. simpl. rewrite align_0 by (apply alignof_pos).
@@ -527,35 +626,38 @@ Proof.
     (offset_val v (Int.repr (align pos (alignof (Tstruct i f a)))))).
  rewrite memory_block_zero in memory_block_fields.
  rewrite emp_sepcon in memory_block_fields.
+ simpl.
+ rewrite at_offset_eq by (apply fields_mapto__offset_zero).
+ simpl in memory_block_fields.
  rewrite <- memory_block_fields.
- rewrite (memory_block_split sh _ 
-                    (Int.repr (sizeof_struct f 0))
-                    (Int.repr (align (sizeof_struct f 0) (alignof_fields f)))).
- 2:  admit.  (* straightforward *)
- rewrite sepcon_comm. f_equal.
- admit. (* tedious *)
- 
+ f_equal.
+ unfold spacer.
+ rewrite sepcon_comm.
+ rewrite memory_block_split with (i:= Int.repr (sizeof_struct f 0)).
+ 2:  admit.  (* not quite straightforward, need to keep track that total size of 
+                        all fields is less than maxint  *)
+ f_equal. f_equal.
+ admit. (* need to parameterize spacer by share *)
+
  clear memory_block_fields.
  intros. revert pos v; induction fld; simpl; intros.
  rewrite sepcon_comm; f_equal.
  unfold spacer.
  replace (Zminus (align pos (Zpos xH)) pos) with 0.
- apply memory_block_zero.
+ unfold at_offset. destruct pos;  apply memory_block_zero.
  unfold align. replace (pos + 1 - 1) with pos by omega.
  rewrite Zdiv_1_r. rewrite Zmult_1_r. omega.
  rewrite withspacer_spacer.
  pull_left (fields_mapto_ sh pos t fld v).
- rewrite <- memory_block_typed'. clear memory_block_typed'.
- replace (if storable_mode t0
-  then spacer pos (alignof t0) v * field_mapsto_ sh t i v
-  else spacer pos (alignof t0) v *
-      memory_block sh (Int.repr (sizeof t0))
-          (offset_val v (Int.repr (align pos (alignof t0)))))
+ replace ((if storable_mode t0
+  then spacer pos (alignof t0) * field_mapsto_ sh t i
+  else typed_mapsto_' sh pos t0) v)
  with (spacer  pos (alignof t0) v * 
           if storable_mode t0 then field_mapsto_ sh t i v
                else memory_block sh (Int.repr (sizeof t0))
                (offset_val v (Int.repr (align pos (alignof t0)))))
-   by ( destruct (storable_mode t0); auto).
+   by (destruct (storable_mode t0); auto).
+clear memory_block_typed'.
   do 2 rewrite <-sepcon_assoc.
  rewrite <- IHfld. clear IHfld.
  case_eq (storable_mode t0); intros.
@@ -565,43 +667,15 @@ Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
                          Let's hope it goes faster in 8.4 *)
 
 Lemma memory_block_typed: 
- forall sh ty v, memory_block sh (Int.repr (sizeof ty)) v
-               = typed_mapsto_ sh ty v.
+ forall sh ty, memory_block sh (Int.repr (sizeof ty))
+               = typed_mapsto_ sh ty.
 Proof.
-intros. unfold typed_mapsto_; rewrite <- memory_block_typed'.
+intros. extensionality v; unfold typed_mapsto_; rewrite <- memory_block_typed'.
 unfold spacer.
 rewrite align_0 by (apply alignof_pos).
-rewrite memory_block_zero.
+unfold at_offset.  rewrite memory_block_zero.
 rewrite memory_block_offset_zero.
 rewrite emp_sepcon; auto.
-Qed.
-
-Lemma mapsto_offset_zero:
-  forall sh t v1 v2, 
-    mapsto sh t (offset_val v1 (Int.repr 0)) v2 =
-    mapsto sh t v1 v2.
-Proof.
- unfold mapsto.
- intros.
- destruct v1; try solve [simpl; auto].
- unfold offset_val.
- rewrite Int.add_zero. auto.
-Qed.
-
-Lemma typed_mapsto_tint: forall sh v1 v2,
-  (@coerce (val -> reptype tint -> mpred)
-                    ((environ -> val) -> (environ -> reptype tint) -> assert)
-                    (lift2_C val (reptype tint) mpred)
-                    (typed_mapsto tint sh)) 
-       v1 v2 =
-  (@coerce (val -> val -> mpred) _ (lift2_C val val mpred) (mapsto sh tint)) 
-           v1  (`Vint v2).
-Proof.
- intros.
- extensionality rho.
- unfold_coerce.
- simpl_typed_mapsto.
- apply mapsto_offset_zero.
 Qed.
 
 Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
@@ -629,3 +703,41 @@ Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (nat_of_Z (hi-lo)).
 
+
+Lemma memory_block_isptr: forall sh i v, 
+  i > 0 -> 
+  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
+Proof.
+Admitted.  (* not difficult *)
+
+Lemma typed_mapsto__isptr:
+  forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
+Proof.
+intros.
+rewrite <- memory_block_typed.
+apply memory_block_isptr.
+apply sizeof_pos.
+Qed.
+
+Lemma var_block_typed_mapsto_:
+  forall  sh id t, 
+ var_block sh (id, t) = `(typed_mapsto_ (Share.splice sh Share.top) t) (eval_var id t).
+Proof.
+intros; extensionality rho.
+unfold_coerce.
+rewrite <- memory_block_typed.
+unfold var_block, lvalue_block.
+rewrite memory_block_isptr by apply sizeof_pos.
+simpl.
+destruct (eval_var id t rho); simpl; normalize.
+Admitted.
+
+
+Lemma var_block_typed_mapsto__top:
+  forall id t, 
+ var_block Share.top (id, t) = `(typed_mapsto_ Share.top t) (eval_var id t).
+Proof.
+intros.
+rewrite var_block_typed_mapsto_.
+rewrite splice_top_top; auto.
+Qed.

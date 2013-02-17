@@ -117,9 +117,6 @@ apply semax_pre_PQR with
   apply andp_right. apply prop_right; repeat split; auto; omega.
   rewrite (split3_array_at_range i0) by omega.
   cancel.
-  simpl_typed_mapsto.
-  rewrite mapsto_offset_zero.
-  auto.
   rewrite typed_mapsto_tint.
 forward. (* x = a[i]; *)
 forward. (* s += x; *)
@@ -136,7 +133,6 @@ auto.
  admit.  (* need simple lemma fold_range_split *)
  rewrite split3_array_at_range with (i:=i0) (lo:=0)(hi:=size); auto.
  simpl_typed_mapsto.
- rewrite mapsto_offset_zero.
  cancel.
 (* After the loop *)
 forward.  (* return s; *)
@@ -168,14 +164,13 @@ Proof.
        with (umapsto Ews tint).
  replace (Vptr b z) with (Vptr b (Int.add z (Int.repr 0)))
     by (rewrite Int.add_zero; auto).
- repeat apply sepcon_derives; auto;
- (repeat  rewrite Int.add_assoc; unfold mapsto;
- apply andp_right; [apply prop_right; reflexivity | ];
- match goal with
-  |- (umapsto _ _ (Vptr _ (Int.add z ?a)) _) |-- 
-      (umapsto _ _ (Vptr _ (Int.add z ?b)) _) =>
-     replace b with a; [auto | ]
- end; compute; auto).
+repeat (apply sepcon_derives;
+ [unfold mapsto; apply andp_right; [apply prop_right; reflexivity | ];
+ unfold add_ptr_int, eval_binop; simpl;
+ repeat rewrite Int.add_assoc;
+ apply derives_refl
+ | ]).
+auto.
 Qed.
 
 
