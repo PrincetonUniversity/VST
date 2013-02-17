@@ -22,6 +22,7 @@ void intpair_deserialize(struct intpair *p, unsigned char *buf, int length) {
   int y = ((int *)buf)[1];
   p->x = x;
   p->y = y;
+  return;
 }
   
 struct message intpair_message = 

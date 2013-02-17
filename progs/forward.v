@@ -713,6 +713,7 @@ Ltac start_function :=
         change (@LiftNatDed environ mpred Nveric) with Nassert;
         change (@LiftSepLog environ mpred Nveric Sveric) with Sassert;
         rewrite (start_function_aux1 (stackframe_of F) P Q R)
+ | |- _ => idtac
   end;
  match goal with
   | |- semax _ (PROPx _ _) _ _ => idtac 
