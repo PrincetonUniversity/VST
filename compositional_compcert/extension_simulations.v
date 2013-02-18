@@ -3,6 +3,7 @@ Require Import ListSet.
 
 Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.mem_lemmas.
+Require Import compositional_compcert.wf_lemmas.
 Require Import compositional_compcert.core_semantics.
 Require Import compositional_compcert.forward_simulations.
 Require Import compositional_compcert.rg_forward_simulations.
@@ -98,7 +99,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (threads_max: nat).
+  (max_cores: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
@@ -126,9 +127,11 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
 
  Definition core_datas := forall i:nat, core_data i.
 
- Definition core_ords cd1 cd2 := 
-  exists i, (i < threads_max)%nat /\
-   (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
+ Definition core_ords (max_cores: nat) cd1 cd2 := 
+(*exists i, (i < max_cores)%nat /\
+  (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.*)
+  prod_ord' _ core_ord _ _ 
+   (data_prod' _ _ _ cd1) (data_prod' _ max_cores max_cores cd2).
 
  Variable (R: meminj -> xS -> mem -> xT -> mem -> Prop).
 
@@ -202,7 +205,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      Events.mem_unchanged_on (fun b ofs => 
        Events.loc_out_of_reach j m1 b ofs /\ ~private_block esemT s2 b) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
-      corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords cd' cd))
+      corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
  (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd j,
    ACTIVE E_S s1=ACTIVE E_T s2 -> 
@@ -278,7 +281,7 @@ Module CompilableExtension. Section CompilableExtension.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (threads_max: nat).
+  (max_cores: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 

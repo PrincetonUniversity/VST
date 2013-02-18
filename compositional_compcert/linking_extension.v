@@ -12,6 +12,7 @@ Require Import compositional_compcert.extension_proof.
 Require Import compositional_compcert.Address.
 Require Import compositional_compcert.mem_lemmas.
 Require Import compositional_compcert.Coqlib2. 
+Require Import compositional_compcert.wf_lemmas.
 
 Require Import Axioms.
 Require Import Coqlib.
@@ -2519,7 +2520,8 @@ split; auto.
 simpl.
 destruct (eq_nat_dec k k); try solve[elimtype False; omega].
 solve[rewrite dependent_types_nonsense; auto].
-solve[rewrite ExtendedSimulations.core_datas_upd_same; auto].
+unfold ExtendedSimulations.core_datas_upd.
+solve[rewrite data_upd_same; auto].
 congruence.
 
 split. solve[unfold mem_unchanged_on; split; auto].
@@ -2793,7 +2795,8 @@ rewrite dependent_types_nonsense in H10.
 inv H10.
 exists c2.
 split; auto.
-solve[rewrite ExtendedSimulations.core_datas_upd_same; auto].
+unfold ExtendedSimulations.core_datas_upd.
+solve[rewrite data_upd_same; auto].
 
 intros H7.
 revert H2.
@@ -3194,7 +3197,8 @@ rewrite dependent_types_nonsense in H1.
 inv H1.
 exists _c0.
 split; auto.
-rewrite ExtendedSimulations.core_datas_upd_same.
+unfold ExtendedSimulations.core_datas_upd.
+rewrite data_upd_same.
 cut (c1 = _c).
 solve[intros ->; auto].
 cut (rv1 = retv).

@@ -8,7 +8,7 @@ COQDOC=coqdoc
 FILES= \
   Address.v step_lemmas.v Coqlib2.v \
   extspec.v \
-  mem_lemmas.v \
+  wf_lemmas.v mem_lemmas.v \
   core_semantics.v forward_simulations.v rg_forward_simulations.v \
   forward_simulations_lemmas.v \
   extension.v extension_simulations.v extension_proof.v \

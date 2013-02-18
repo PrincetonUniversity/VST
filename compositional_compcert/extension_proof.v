@@ -8,6 +8,7 @@ Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.extension.
 Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.Coqlib2.
+Require Import compositional_compcert.wf_lemmas.
 
 Require Import AST.
 Require Import Values.
@@ -752,36 +753,15 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
  Variable R: meminj -> xS -> mem -> xT -> mem -> Prop.
 
- Definition core_datas_upd
-  i (cdi': core_data i) (cd: forall i:nat, core_data i): 
-  forall i:nat, core_data i := fun j: nat => 
-     match eq_nat_dec i j as pf in sumbool _ _ return core_data j with
-     | left pf => match pf with
-                  | eq_refl => cdi'
-                  end
-     | right pf => cd j
-     end.
- Implicit Arguments core_datas_upd [].
-
- Lemma core_datas_upd_same i cdi' cd: (core_datas_upd i cdi' cd) i = cdi'.
- Proof.
- unfold core_datas_upd.
- destruct (eq_nat_dec i i).
- rewrite (UIP_refl _ _ e); auto.
- elimtype False; auto.
- Qed.
-
- Lemma core_datas_upd_other i j cdi' cd: i<>j -> (core_datas_upd i cdi' cd) j = cd j.
- Proof.
- unfold core_datas_upd.
- destruct (eq_nat_dec i j).
- intros; elimtype False; auto.
- auto.
- Qed.
-
  Definition core_ords (max_cores: nat) cd1 cd2 := 
-  exists i, (i < max_cores)%nat /\
-   (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.
+(*exists i, (i < max_cores)%nat /\
+  (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.*)
+  prod_ord' _ core_ord _ _ 
+   (data_prod' _ _ _ cd1) (data_prod' _ max_cores max_cores cd2).
+
+ Definition core_datas_upd (i: nat) (cdi': core_data i) cd :=
+   data_upd _ i cdi' cd.
+ Implicit Arguments core_datas_upd [].
 
  Lemma core_datas_upd_ord (max_cores: nat) cd i (cdi': core_data i) :
    (i < max_cores)%nat -> 
@@ -790,33 +770,17 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Proof.
  intros H1 H2.
  unfold core_ords.
- exists i.
- split; auto.
- split; auto.
- intros j Hlt.
- rewrite core_datas_upd_other; auto.
- omega.
- solve[rewrite core_datas_upd_same; auto].
+ apply prod_ord_upd; auto.
+ solve[split; try solve[auto|omega]].
  Qed.
 
  Lemma core_ords_wf: forall max_cores, well_founded (core_ords max_cores).
- Proof. Admitted. (*TODO*)
-
- Definition core_ords_aux (i: nat) (cd1 cd2: core_datas): Prop := 
-   core_ord i (cd1 i) (cd2 i) /\
-   (forall j, (j < i)%nat -> cd1 j=cd2 j).
-
- Lemma core_ords_aux0: forall cd1 cd2,
-   core_ords_aux O cd1 cd2 <-> core_ord O (cd1 O) (cd2 O). 
- Proof.
- intros cd1 cd2.
- unfold core_ords_aux.
- split.
- intros [H1 H2]; auto.
- intros H1.
- split; auto.
- intros j CONTRA.
- elimtype False; omega.
+ Proof. 
+ intro max_cores.
+ unfold core_ords.
+ apply wf_funct.
+ apply wf_prod_ord.
+ solve[intros i; destruct (core_simulations i); auto].
  Qed.
 
  Definition match_states (cd: core_datas) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
@@ -1139,7 +1103,7 @@ split; auto.
   rewrite PROJ1' in _PROJ1'.
   inv _PROJ1'.
   split; auto.
-  solve[rewrite core_datas_upd_same; auto].
+  solve[unfold core_datas_upd; rewrite data_upd_same; auto].
 
   (*ACTIVE E_S st1 <> i*)
   intros NEQ _.
@@ -1178,7 +1142,7 @@ split; auto.
   exists _d; split; auto.
   inv esig_compilable.
   specialize (match_others i cd j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d (S n)).
-  rewrite core_datas_upd_other; auto.
+  unfold core_datas_upd; rewrite data_upd_other; auto.
   apply match_others; auto.
    solve[eapply match_state_inj; eauto].
    erewrite <-genvs_domain_eq_preserves.
@@ -1274,7 +1238,7 @@ split; auto.
   rewrite PROJ1' in _PROJ1'.
   inv _PROJ1'.
   split; auto.
-  solve[rewrite core_datas_upd_same; auto].
+  solve[unfold core_datas_upd; rewrite data_upd_same; auto].
 
   (*ACTIVE E_S st1 <> i*)
   intros NEQ _.
@@ -1313,7 +1277,7 @@ split; auto.
   exists _d; split; auto.
   inv esig_compilable.
   specialize (match_others i cd j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d n).
-  rewrite core_datas_upd_other; auto.
+  unfold core_datas_upd; rewrite data_upd_other; auto.
   apply match_others; auto.
   solve[eapply match_state_inj; eauto].
   erewrite <-genvs_domain_eq_preserves.
@@ -1540,7 +1504,7 @@ intros EQ _; subst.
 exists c2'; split; auto.
 rewrite _PROJ1' in PROJ1'.
 inv PROJ1'; auto.
-solve[rewrite core_datas_upd_same; auto].
+solve[unfold core_datas_upd; rewrite data_upd_same; auto].
 
 (*ACTIVE E_S st1 <> i*)
 intros NEQ _.
@@ -1553,7 +1517,7 @@ exists _d; split; auto.
  inv core_compatT.
  erewrite <-after_ext_others; eauto.
  solve[rewrite Heqx; auto].
-rewrite core_datas_upd_other; auto.
+unfold core_datas_upd; rewrite data_upd_other; auto.
 inv esig_compilable.
 eapply after_external_diagram; eauto.
 inv core_compatS.
