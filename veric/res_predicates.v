@@ -918,7 +918,7 @@ Definition val2address (v: val) : option AV.address :=
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
 Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap) (v: val)  : pred rmap :=
- (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml A P Q (b,0))%pred.
+ (EX b : block, EX i:int, !! (v = Vptr b i) && FUNspec fml A P Q (b, Int.unsigned i))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
 
@@ -1298,9 +1298,9 @@ assert (a >= level a')%nat.
  apply necR_level in H2. clear - H1 H2. apply le_trans with (level y); auto.
  clear y H1 H2. rename H3 into H2.
 hnf.
-destruct H7 as [loc H7].
+destruct H7 as [loc [i H7]].
 hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
-exists loc.
+exists loc, i.
 apply prop_andp_i; auto.
 split; auto.
 hnf in H3|-*.
@@ -1342,9 +1342,9 @@ assert (a >= level a')%nat.
  apply necR_level in H2. clear - H1 H2. apply le_trans with (level y); auto.
  clear y H1 H2. rename H3 into H2.
 unfold fun_assert.
-destruct H7 as [loc H7].
+destruct H7 as [loc [i H7]].
 hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
-exists loc.
+exists loc, i.
 apply prop_andp_i; auto.
 split; auto.
 hnf.

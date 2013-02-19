@@ -189,7 +189,7 @@ rewrite Int.signed_zero in H2.
 subst loc.
 spec H8. exists id. split; auto. exists b; auto.
 simpl in SAME.
-exists b.
+exists b. exists Int.zero.
 split.
 unfold eval_lvalue, eval_var.
 simpl ve_of. unfold Map.get. rewrite SAME.
@@ -208,6 +208,21 @@ if_tac; auto.
 subst.
 hnf. auto.
 hnf; auto.
+Qed.
+
+Definition func_ptr (f: funspec) : val -> mpred := 
+ match f with mk_funspec fsig A P Q => fun_assert fsig A P Q end.
+
+Lemma semax_fun_id_alt:
+      forall id f    Delta (P: assert) Q c
+      (GLBL: (var_types Delta) ! id = None),
+    (glob_types Delta) ! id = Some (Global_func f) ->
+       semax Hspec Delta (fun rho => P rho && 
+                    (func_ptr f (eval_var id (globtype (Global_func f)) rho)))
+                  c Q ->
+       semax Hspec Delta P c Q.
+Proof. 
+intros id [fsig A P' Q']. apply semax_fun_id.
 Qed.
 
 Import JuicyMemOps.
@@ -1330,12 +1345,12 @@ subst w.
 apply extend_sepcon_andp in H3; auto.
 destruct H3 as [H2 H3].
 normalize in H3. unfold fun_assert in *. unfold res_predicates.fun_assert in *. 
-destruct H3 as [[b [H3 H6]] H5].
-specialize (H6 (b,0)).
+destruct H3 as [[b [i [H3 H6]]] H5].
+specialize (H6 (b, Int.unsigned i)).
 rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b,0) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
+specialize (H7 (b, Int.unsigned i) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
 spec H7.
 apply func_at_func_at'; apply H6.
 destruct H7 as [id [v [[H7 H8] H9]]].
@@ -1368,7 +1383,10 @@ clear H9; pose (H9:=True).
 
 unfold filter_genv in H7.
 invSome.
-assert (b0=b/\ i=Int.zero) by (destruct (type_of_global psi b0); inv H10; auto).
+assert (b0=b/\ i=i0).
+ destruct (type_of_global psi b0); inv H10; split; auto.
+ rewrite Int.signed_zero in H12. 
+ pose proof (Int.repr_unsigned i). rewrite <- H12 in H0. subst; reflexivity.
 destruct H0; subst b0 i.
 clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
@@ -1398,7 +1416,42 @@ extensionality rho'.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 auto.
+rewrite H3; f_equal.
+clear - H10'. destruct (type_of_global psi b); inv H10'; auto.
 Qed.
+
+(*
+Definition funspec_checkargs (f: funspec) (ty: type) (ret: option ident) :=
+ match f, ty, ret with
+ | mk_funspec (argsig,retsig) _ _ _, Tpointer (Tfunction args Tvoid) _,  None =>
+         (args,Tvoid) = (type_of_params argsig, retsig)
+ | mk_funspec (argsig,retsig) _ _ _, Tpointer (Tfunction args res) _, (Some _) =>
+        (args,res) = (type_of_params argsig, retsig)
+ | mk_funspec (argsig,retsig) _ _ _, Tfunction args Tvoid, None =>
+         (args,Tvoid) = (type_of_params argsig, retsig)
+ | mk_funspec (argsig,retsig) _ _ _, Tfunction args res, (Some t) =>
+        (args,res) = (type_of_params argsig, retsig)
+ | _, _, _ => False
+ end.
+
+Definition funspec_paramtypes (f: funspec) := 
+ match f with mk_funspec (argsig,_) _ _ _ => type_of_params argsig end.
+*)
+
+Lemma semax_call_alt: 
+    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
+           Cop.classify_fun (typeof a) =
+           Cop.fun_case_f (type_of_params argsig) retsig -> 
+            (retsig = Tvoid <-> ret = None) ->
+  semax Hspec Delta
+       (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
+           (func_ptr (mk_funspec (argsig,retsig) A P Q) (eval_expr a rho) && 
+          (F rho * P x (make_args (map (@fst  _ _) argsig)
+                (eval_exprlist (snd (split argsig)) bl rho) rho ))))
+         (Scall ret a bl)
+         (normal_ret_assert 
+          (fun rho => (EX old:val, substopt ret old F rho * Q x (get_result ret rho)))).
+Proof. exact semax_call. Qed.
 
 Lemma semax_call_ext:
      forall Delta P Q ret a tl bl a' bl',

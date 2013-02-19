@@ -32,11 +32,15 @@ int main(void) {
   struct intpair p,q;
   unsigned char buf[8];
   int len, x,y;
+  int (*ser)(void *p, unsigned char *buf);
+  void(*des)(void *p, unsigned char *buf, int length);
 
   p.x = 1;
   p.y = 2;
-  len = intpair_message.serialize(&p, buf);
-  intpair_message.deserialize(&q, buf, 8);
+  ser = intpair_message.serialize;
+  len = ser(&p, buf);
+  des = intpair_message.deserialize;
+  des(&q, buf, 8);
   x = q.x;
   y = q.y;
   return x+y;

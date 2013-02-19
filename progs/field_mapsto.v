@@ -3,6 +3,7 @@ Require Import veric.SeparationLogic.
 Require Import Coqlib compositional_compcert.Coqlib2.
 Require veric.SequentialClight.
 Import SequentialClight.SeqC.CSL.
+Require Import progs.assert_lemmas.
 
 Local Open Scope logic.
 
@@ -346,3 +347,21 @@ symmetry; rewrite field_mapsto__isptr.
 destruct x; simpl; normalize.
 Qed.
 Hint Rewrite field_mapsto__force_ptr : normalize.
+
+
+Lemma field_mapsto__nonvolatile:
+  forall sh t fld v, field_mapsto_ sh t fld v = !!(type_is_volatile t = false) && field_mapsto_ sh t fld v.
+Proof.
+ intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold field_mapsto_.
+destruct v; try apply FF_left.
+ destruct t; try apply FF_left.
+destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f)); try apply FF_left.
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); try apply FF_left.
+apply andp_left1.
+apply prop_derives.
+induction fld; simpl; auto.
+Qed.

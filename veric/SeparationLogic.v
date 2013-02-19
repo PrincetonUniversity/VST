@@ -42,8 +42,6 @@ Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address 
 
 Local Open Scope logic.
 
-Definition func_at : funspec -> address -> mpred := veric.seplog.func_at.
-
 Bind Scope pred with assert.
 Local Open Scope pred.
 
@@ -119,6 +117,8 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tvoid) => TT
+       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val v ofs)
        | _ => TT
        end
  end.
@@ -195,8 +195,8 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
-Definition fun_assert (fml: funsig) (A: Type) (P Q: A -> assert) (v: val) : mpred :=
-  res_predicates.fun_assert fml A P Q v.
+Definition func_ptr (f: funspec) : val -> mpred := 
+ match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
   fun rho => 
@@ -423,9 +423,9 @@ apply H0.
 Qed.
 
 
-Lemma corable_fun_assert: forall fsig A Pre Post v, corable (fun_assert fsig A Pre Post v).
+Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
-intros. unfold corable.
+intros. destruct f;  unfold func_ptr, corable.
 intros.
 simpl.
 apply normalize.corable_andp_sepcon1.
@@ -578,7 +578,7 @@ Axiom semax_call :
            (retsig = Tvoid <-> ret = None) ->
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
-         (`(fun_assert  (argsig,retsig) A P Q) (eval_expr a) && 
+         (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) && 
           (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert 
@@ -593,10 +593,11 @@ Axiom  semax_return :
                 R.
 
 Axiom semax_fun_id:
-      forall id fsig (A : Type) (P' Q' : A -> assert) Delta P Q c,
+      forall id f Delta P Q c,
     (var_types Delta) ! id = None ->
-    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
-    semax Delta (P && `(fun_assert  fsig A P' Q') (eval_lvalue (Evar id (type_of_funsig fsig)))) c Q ->
+    (glob_types Delta) ! id = Some (Global_func f) ->
+    semax Delta (P && `(func_ptr f) (eval_var id (globtype (Global_func f))))
+                  c Q ->
     semax Delta P c Q.
 
 Axiom semax_call_ext:

@@ -362,6 +362,7 @@ Proof.
 intros.
 unfold fun_assert, res_predicates.fun_assert.
 apply corable_exp; intro.
+apply corable_exp; intro.
 apply corable_andp; auto.
 unfold FUNspec.
 apply corable_allp; intro.

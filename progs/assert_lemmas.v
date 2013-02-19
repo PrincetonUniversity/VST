@@ -643,7 +643,7 @@ Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
 
 
-Definition fun_assert_emp fsig A P Q v := emp && fun_assert fsig A P Q v.
+Definition func_ptr' f v := func_ptr f v && emp.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.

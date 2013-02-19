@@ -7,7 +7,7 @@ Definition _p : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 3%positive.
 Definition ___builtin_fabs : ident := 1%positive.
 Definition _serialize : ident := 14%positive.
-Definition _main : ident := 19%positive.
+Definition _ser : ident := 19%positive.
 Definition _intpair_serialize : ident := 9%positive.
 Definition _y : ident := 4%positive.
 Definition _q : ident := 17%positive.
@@ -20,7 +20,9 @@ Definition _intpair_message : ident := 12%positive.
 Definition _intpair_deserialize : ident := 11%positive.
 Definition _x : ident := 5%positive.
 Definition ___builtin_memcpy_aligned : ident := 2%positive.
+Definition _main : ident := 21%positive.
 Definition _length : ident := 10%positive.
+Definition _des : ident := 20%positive.
 
 Definition t_struct_intpair :=
    (Tstruct _struct_intpair (Fcons _x tint (Fcons _y tint Fnil)) noattr).
@@ -111,7 +113,14 @@ Definition f_main := {|
   fn_vars := ((_p, t_struct_intpair) :: (_q, t_struct_intpair) ::
               (_buf, (tarray tuchar 8)) :: nil);
   fn_temps := ((_len, tint) :: (_x, tint) :: (_y, tint) ::
-               (20%positive, tint) :: nil);
+               (_ser,
+                (tptr (Tfunction
+                        (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint))) ::
+               (_des,
+                (tptr (Tfunction
+                        (Tcons (tptr tvoid)
+                          (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid))) ::
+               (22%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sassign (Efield (Evar _p t_struct_intpair) _x tint)
@@ -120,29 +129,40 @@ Definition f_main := {|
     (Sassign (Efield (Evar _p t_struct_intpair) _y tint)
       (Econst_int (Int.repr 2) tint))
     (Ssequence
+      (Sset _ser
+        (Efield (Evar _intpair_message t_struct_message) _serialize
+          (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil))
+                  tint))))
       (Ssequence
-        (Scall (Some 20%positive)
-          (Efield (Evar _intpair_message t_struct_message) _serialize
-            (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil))
-                    tint)))
-          ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)) ::
-           (Evar _buf (tarray tuchar 8)) :: nil))
-        (Sset _len (Etempvar 20%positive tint)))
-      (Ssequence
-        (Scall None
-          (Efield (Evar _intpair_message t_struct_message) _deserialize
-            (tptr (Tfunction
-                    (Tcons (tptr tvoid)
-                      (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid)))
-          ((Eaddrof (Evar _q t_struct_intpair) (tptr t_struct_intpair)) ::
-           (Evar _buf (tarray tuchar 8)) :: (Econst_int (Int.repr 8) tint) ::
-           nil))
         (Ssequence
-          (Sset _x (Efield (Evar _q t_struct_intpair) _x tint))
+          (Scall (Some 22%positive)
+            (Etempvar _ser (tptr (Tfunction
+                                   (Tcons (tptr tvoid)
+                                     (Tcons (tptr tuchar) Tnil)) tint)))
+            ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)) ::
+             (Evar _buf (tarray tuchar 8)) :: nil))
+          (Sset _len (Etempvar 22%positive tint)))
+        (Ssequence
+          (Sset _des
+            (Efield (Evar _intpair_message t_struct_message) _deserialize
+              (tptr (Tfunction
+                      (Tcons (tptr tvoid)
+                        (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid))))
           (Ssequence
-            (Sset _y (Efield (Evar _q t_struct_intpair) _y tint))
-            (Sreturn (Some (Ebinop Oadd (Etempvar _x tint) (Etempvar _y tint)
-                             tint)))))))))
+            (Scall None
+              (Etempvar _des (tptr (Tfunction
+                                     (Tcons (tptr tvoid)
+                                       (Tcons (tptr tuchar)
+                                         (Tcons tint Tnil))) tvoid)))
+              ((Eaddrof (Evar _q t_struct_intpair) (tptr t_struct_intpair)) ::
+               (Evar _buf (tarray tuchar 8)) ::
+               (Econst_int (Int.repr 8) tint) :: nil))
+            (Ssequence
+              (Sset _x (Efield (Evar _q t_struct_intpair) _x tint))
+              (Ssequence
+                (Sset _y (Efield (Evar _q t_struct_intpair) _y tint))
+                (Sreturn (Some (Ebinop Oadd (Etempvar _x tint)
+                                 (Etempvar _y tint) tint)))))))))))
 |}.
 
 Definition prog : Clight.program := {|

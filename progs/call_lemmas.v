@@ -20,7 +20,7 @@ Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret argsig rets
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) ::
-                      `(fun_assert_emp (argsig,retsig) A Pre Post) (eval_expr a) :: R))))
+                      `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) :: R))))
           (Scall ret a bl)
           (normal_ret_assert 
             (EX old:val, 
@@ -34,11 +34,11 @@ eapply semax_pre_post ; [ | |
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; split; intros; congruence.
  intro rho; normalize.
-unfold fun_assert_emp.
-repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
-normalize.
-rewrite corable_sepcon_andp1 by apply corable_fun_assert.
-rewrite sepcon_comm; auto. 
+unfold func_ptr'.
+repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite sepcon_comm. rewrite emp_sepcon.
+repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+apply derives_refl.
 intros.
 normalize.
 intro old.
@@ -61,7 +61,7 @@ Lemma semax_call1: forall Delta A (Pre Post: A -> assert) (x: A) id argsig retsi
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) ::
-                      `(fun_assert_emp (argsig,retsig) A Pre Post) (eval_expr a) :: R))))
+                      `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) :: R))))
           (Scall (Some id) a bl)
           (normal_ret_assert 
             (EX old:val, 
@@ -77,7 +77,7 @@ Lemma semax_call0: forall Delta A (Pre Post: A -> assert) (x: A) argsig a bl P Q
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,Tvoid) (eval_exprlist (snd (split argsig)) bl))) ::
-                      `(fun_assert_emp (argsig,Tvoid) A Pre Post) (eval_expr a) :: R))))
+                      `(func_ptr' (mk_funspec (argsig,Tvoid) A Pre Post)) (eval_expr a) :: R))))
           (Scall None a bl)
           (normal_ret_assert 
             (PROPx P (LOCALx Q (SEPx (`(Post x) (make_args nil nil) :: R))))).
@@ -88,37 +88,36 @@ eapply semax_pre_post ; [ | |
  Focus 3.
  split; intros; congruence.
  intro rho; normalize.
-unfold fun_assert_emp.
-repeat rewrite corable_andp_sepcon2 by apply corable_fun_assert.
-normalize.
-rewrite corable_sepcon_andp1 by apply corable_fun_assert.
-rewrite sepcon_comm; auto. 
+unfold func_ptr'.
+repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+rewrite emp_sepcon, sepcon_comm. 
+repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
+apply derives_refl.
 intros.
 normalize.
 intro rho; normalize.
 rewrite sepcon_comm; auto.
 Qed.
 
-
 Lemma semax_fun_id':
-      forall id fsig (A : Type) (Pre Post : A -> assert)
+      forall id f
               Delta P Q R PostCond c
             (GLBL: (var_types Delta) ! id = None),
-            (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A Pre Post)) ->
+            (glob_types Delta) ! id = Some (Global_func f) ->
        semax Delta 
-        (PROPx P (LOCALx Q (SEPx (`(fun_assert_emp fsig A Pre Post)
-                         (eval_lvalue (Evar id (type_of_funsig fsig))) :: R))))
+        (PROPx P (LOCALx Q 
+        (SEPx (`(func_ptr' f) (eval_var id (globtype (Global_func f))) :: R))))
                               c PostCond ->
        semax Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
 Proof.
 intros. 
-apply (semax_fun_id id fsig A Pre Post Delta); auto.
-eapply semax_pre; [ | apply H0].
-forget (eval_lvalue (Evar id (type_of_funsig fsig))) as f.
+apply (semax_fun_id id f Delta); auto.
+eapply semax_pre0; [ | apply H0].
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce;
 intro rho; normalize.
 rewrite andp_comm.
-unfold fun_assert_emp.
-rewrite corable_andp_sepcon2 by apply corable_fun_assert.
+unfold func_ptr'.
+rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite emp_sepcon; auto.
 Qed.
 
@@ -145,7 +144,7 @@ intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) Tvoid)))=
                Cop.fun_case_f (type_of_params argsig) Tvoid).
 simpl. subst. reflexivity.
-apply semax_fun_id' with id (argsig,Tvoid) A Pre Post; auto.
+apply semax_fun_id' with id (mk_funspec (argsig,Tvoid) A Pre Post); auto.
 subst. 
 
 eapply semax_pre; [ | apply (semax_call0 Delta A Pre Post x argsig _ bl P Q R H0)].
@@ -196,7 +195,7 @@ intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
                Cop.fun_case_f (type_of_params argsig) retty).
 subst; reflexivity.
-apply semax_fun_id' with id (argsig,retty)  A Pre Post; auto.
+apply semax_fun_id' with id (mk_funspec (argsig,retty)  A Pre Post); auto.
 subst. 
 eapply semax_pre; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.
@@ -301,7 +300,7 @@ intros.
 assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty)) (Tpointer (Tfunction (type_of_params argsig) retty) noattr)))=
                Cop.fun_case_f (type_of_params argsig) retty).
 subst; reflexivity.
-apply semax_fun_id' with id (argsig,retty) A Pre Post; auto.
+apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
 eapply semax_pre; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.

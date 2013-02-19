@@ -194,6 +194,8 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_addrof symb ofs =>
        match ge_of rho symb with
        | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tvoid) => TT
+       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val v ofs)
        | _ => TT
        end
  end.
@@ -724,10 +726,12 @@ Proof.
 
 (* symbol case *)
  rewrite RHO.
-  case_eq (filter_genv ge i); try destruct p; try destruct t; intros; auto.
+  case_eq (filter_genv ge i); try destruct p; auto; intro.
   unfold filter_genv in H4.
   revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
-  revert H5; case_eq (type_of_global ge b0); intros; try discriminate.
+  destruct (eq_dec t Tvoid).
+  subst; auto.   rename n into NT.
+  revert H5; case_eq (type_of_global ge b0); intros; try congruence.
   inv H6. 
   rewrite H4 in H.
   match type of H with Some (decode_val ?ch ?A) = Some ?B => 
@@ -735,6 +739,10 @@ Proof.
   end.
  replace (offset_val (Vptr b0 Int.zero) i0) with (Vptr b0 i0)   
     by (unfold offset_val; rewrite Int.add_zero_l; auto).
+
+  case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
+ (* is an array *)
+ destruct t; inv HT.
  exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
@@ -760,6 +768,43 @@ Proof.
   destruct loc; destruct H; subst b1.
   apply nth_getN; simpl; omega.
   apply H2.
+ (* not an array *)
+assert ((EX  bl : list memval,
+ !!(length bl = size_chunk_nat Mint32 /\
+    decode_val Mint32 bl = Vptr b0 i0 /\ (4 | z)) &&
+ allp
+   (jam (adr_range_dec (b, z) 4)
+      (fun loc : address =>
+       yesat NoneP
+         (VAL (nth (nat_of_Z ((let (_, y) := loc in y) - z)) bl Undef))
+         extern_retainer (readonly2share (gvar_readonly v)) loc) noat))%pred
+  w1).
+ exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
+ repeat split; auto.
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
+   simpl size_chunk.
+ if_tac.
+  exists NU. hnf. 
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H7.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto.
+  apply read_sh_readonly.
+  rewrite H0.
+  destruct loc; destruct H.  subst b1.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b1.
+  apply nth_getN; simpl; omega.
+  apply H2.
+  destruct t; try apply H. auto.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1367,9 +1412,23 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  if_tac; [destruct H1 as [p H1]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]
           | destruct (H4 loc) as [HH _]; intuition].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
- destruct (ge_of rho i); try destruct p; try destruct t; auto.
+ destruct (ge_of rho i); try destruct p; auto. 
+ destruct (eq_dec t Tvoid). subst; auto. rename n into NT.
+ case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
+ destruct t; inv HT.
  hnf in H1|-*.
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
+ do 3 red in H8|-*. apply H0; auto.
+ assert (umapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
+      (offset_val v i0) w1'); [ | destruct t; auto].
+ hnf in H1|-*.
+ assert (H1': umapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
+                (Vptr b z) (offset_val v i0) w1) by (destruct t; auto; congruence).
+ clear H1.
+ destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
