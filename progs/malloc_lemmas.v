@@ -246,7 +246,7 @@ Fixpoint arrayof (t: Type) (f: forall (v1: val) (v2: t),  mpred)
     | nil => emp
    end.
 
-Definition maybe_field_mapsto (t: type) (sh: Share.t) (t_str: type) (id: ident) (pos: Z) (v: val) :
+Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) (pos: Z) (v: val) :
                      (reptype t -> mpred) -> reptype t -> mpred :=
 match t as t0 return ((reptype t0 -> mpred) -> reptype t0 -> mpred) with
 | Tint i s a =>
@@ -271,7 +271,7 @@ Parameter structfieldsof: forall (t_str: type) (flds: fieldlist) (sh: Share.t) (
 Definition at_offset2 {T} (f: val -> T -> mpred) pos (v2: T) := 
            at_offset (fun v => f v v2) pos.
 
-Fixpoint typed_mapsto' (t1: type) (sh: Share.t) (pos: Z) : val -> reptype t1 -> mpred :=
+Fixpoint typed_mapsto' (sh: Share.t) (t1: type) (pos: Z) : val -> reptype t1 -> mpred :=
 match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
 | Tvoid => fun _ _ => emp
 | Tint i s a =>
@@ -297,7 +297,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tarray t z a)) => 
                  withspacer pos (alignof t)
-                 (fun v => arrayof _ (typed_mapsto' t sh (align pos (alignof t))) t 0 v v3) v)
+                 (fun v => arrayof _ (typed_mapsto' sh t (align pos (alignof t))) t 0 v v3) v)
         H
 | Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>
@@ -305,20 +305,20 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tstruct i f a)) =>
                  withspacer pos (alignof (Tstruct i f a))
-                 (fun v => structfieldsof (Tstruct i f a) f sh (align pos (alignof t1)) v v3) v) H
+                 (fun v => structfieldsof sh (Tstruct i f a) f (align pos (alignof t1)) v v3) v) H
 | Tunion i f a =>
     fun H : t1 = Tunion i f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tunion i f a)) =>
                  withspacer pos (alignof (Tunion i f a))
-         (fun v => unionfieldsof f sh (align pos (alignof t1)) v v3) v) H
+         (fun v => unionfieldsof sh f (align pos (alignof t1)) v v3) v) H
 | Tcomp_ptr i a => 
         fun _ v _ =>
           withspacer pos (alignof (Tcomp_ptr i a))
           (at_offset (memory_block sh (Int.repr (sizeof (Tcomp_ptr i a))))pos) v
 end eq_refl
  with
- structfieldsof (t_str: type) (flds: fieldlist) (sh: Share.t) (pos: Z) :
+ structfieldsof (sh: Share.t) (t_str: type) (flds: fieldlist) (pos: Z) :
                val -> reptype_structlist flds -> mpred :=
 match flds as f return (val -> reptype_structlist f -> mpred) with
 | Fnil => fun _ (_ : reptype_structlist Fnil) => emp
@@ -333,18 +333,18 @@ match flds as f return (val -> reptype_structlist f -> mpred) with
        then
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
         withspacer pos (alignof t)
-          (fun v => maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
-             (typed_mapsto' t sh (align pos (alignof t)) v) X1) v
+          (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
+             (typed_mapsto' sh t (align pos (alignof t)) v) X1) v
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
         (withspacer pos (alignof t)
-          (fun v => maybe_field_mapsto t sh t_str i (align pos (alignof t)) v
-             (typed_mapsto' t sh (align pos (alignof t)) v) (fst X1)) *
-        (fun v => structfieldsof t_str flds0 sh pos v (snd X1))) v   ) eq_refl X0
+          (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
+             (typed_mapsto' sh t (align pos (alignof t)) v) (fst X1)) *
+        (fun v => structfieldsof sh t_str flds0 pos v (snd X1))) v   ) eq_refl X0
 end
  with
-unionfieldsof (flds: fieldlist) (sh: Share.t)  (pos: Z) :  val ->reptype_unionlist flds -> mpred :=
+unionfieldsof  (sh: Share.t) (flds: fieldlist) (pos: Z) :  val ->reptype_unionlist flds -> mpred :=
 match flds as f0 return (flds = f0 -> val -> reptype_unionlist flds -> mpred) with
 | Fnil => fun (_ : flds = Fnil) _ => emp
 | Fcons i t f0 =>
@@ -352,12 +352,12 @@ match flds as f0 return (flds = f0 -> val -> reptype_unionlist flds -> mpred) wi
       eq_rect_r (fun flds0 : fieldlist => val -> reptype_unionlist flds0 -> mpred)
         (fun v (v3 : reptype_unionlist (Fcons i t f0)) =>
          match v3 with
-         | inl v2' => typed_mapsto' t sh pos v v2'
-         | inr vr =>  unionfieldsof f0 sh pos v vr 
+         | inl v2' => typed_mapsto' sh t pos v v2'
+         | inr vr =>  unionfieldsof sh f0 pos v vr 
          end) H
 end eq_refl.
 
-Definition typed_mapsto (t1: type) (sh: Share.t) := typed_mapsto' t1 sh 0.
+Definition typed_mapsto (sh: Share.t) (t1: type)  := typed_mapsto' sh t1 0.
 
 (* TESTING...  
 Require Import progs.queue.
@@ -458,32 +458,32 @@ Ltac simpl_typed_mapsto :=
   | |- context [typed_mapsto_' ?SH ?N ?T _] =>
          remember (typed_mapsto_'  SH N T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto' ?T ?SH ?N _ _] =>
-         remember (typed_mapsto' T SH N ) as MA;
+  | |- context [typed_mapsto' ?SH ?T ?N _ _] =>
+         remember (typed_mapsto' SH T N ) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto' ?T ?SH ?N _] =>
-         remember (typed_mapsto' T SH N) as MA;
+  | |- context [typed_mapsto' ?SH ?T ?N _] =>
+         remember (typed_mapsto' SH T N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto' ?T ?SH ?N] =>
-         remember (typed_mapsto' T SH N) as MA;
+  | |- context [typed_mapsto' ?SH ?T ?N] =>
+         remember (typed_mapsto' SH T N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH _ _] =>
-         remember (typed_mapsto T SH) as MA;
+  | |- context [typed_mapsto ?SH ?T _ _] =>
+         remember (typed_mapsto SH T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH _] =>
-         remember (typed_mapsto T SH) as MA;
+  | |- context [typed_mapsto ?SH ?T _] =>
+         remember (typed_mapsto SH T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  | |- context [typed_mapsto ?T ?SH] =>
-         remember (typed_mapsto T SH) as MA;
+  | |- context [typed_mapsto ?SH ?T] =>
+         remember (typed_mapsto SH T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?T ?F ?SH ?N _ _] =>
-         remember (structfieldsof T F SH N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N _ _] =>
+         remember (structfieldsof SH T F N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?T ?F ?SH ?N _] =>
-         remember (structfieldsof T F SH N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N _] =>
+         remember (structfieldsof SH T F N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?T ?F ?SH ?N] =>
-         remember (structfieldsof T F SH N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N] =>
+         remember (structfieldsof SH T F N) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
   end.
 
@@ -504,7 +504,7 @@ Lemma typed_mapsto_tint: forall sh v1 v2,
   (@coerce (val -> reptype tint -> mpred)
                     ((environ -> val) -> (environ -> reptype tint) -> assert)
                     (lift2_C val (reptype tint) mpred)
-                    (typed_mapsto tint sh)) 
+                    (typed_mapsto sh tint)) 
        v1 v2 =
   (@coerce (val -> val -> mpred) _ (lift2_C val val mpred) (mapsto sh tint)) 
            v1  (`Vint v2).
@@ -688,7 +688,7 @@ Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
   rangespec' lo (nat_of_Z (hi-lo)) P.
 
 Definition array_at (t: type) (sh: Share.t) (v: val) (i: Z) (e: reptype t) : mpred :=
-   typed_mapsto t sh (add_ptr_int t v i) e.
+   typed_mapsto sh t (add_ptr_int t v i) e.
 
 Definition array_at_range (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
                                    (v: val) :=

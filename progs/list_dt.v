@@ -34,9 +34,8 @@ Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fiel
 
 Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link ls list_fields).
 
-
 Definition list_cell (ls: listspec list_struct list_link) sh p v :=
-   structfieldsof list_struct (all_but_link ls list_fields) sh 0 p v.
+   structfieldsof sh list_struct (all_but_link ls list_fields) 0 p v.
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
   HORec (fun (R: (list (elemtype ls))*(val*val) -> mpred) (lp: (list (elemtype ls))*(val*val)) =>
