@@ -69,7 +69,7 @@ Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
  end.   
 
 Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) : Prop :=
-   typecheck_environ rho Delta = true /\
+   typecheck_environ Delta rho /\
   match f with 
   | Some f' => 
       (forall id, ve_of rho id <> None -> In id (map fst (fn_vars f'))) 
@@ -79,7 +79,7 @@ Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) 
 
 Lemma guard_environ_e1: 
    forall Delta f rho, guard_environ Delta f rho ->
-     typecheck_environ rho Delta = true.
+     typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
 Definition guard  {Z} (Hspec : juicy_ext_spec Z)

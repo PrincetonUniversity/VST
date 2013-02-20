@@ -388,7 +388,7 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
      end.
 
 Definition tc_environ (Delta: tycontext) : environ -> Prop :=
-   fun rho => typecheck_environ rho Delta = true.
+   fun rho => typecheck_environ Delta rho.
 
 Definition tc_temp_id  (id: ident)  (ty: type) (Delta: tycontext) 
                        (e:expr): environ -> Prop := 

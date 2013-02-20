@@ -748,7 +748,7 @@ Lemma tc_ge_denote_initial:
 list_norepet (prog_defs_names prog) ->
 match_globvars (prog_vars prog) vs ->
 match_fdecs (prog_funct prog) G ->
-tc_ge_denote (filter_genv (Genv.globalenv prog)) (make_tycontext_g vs G).
+typecheck_glob_environ (filter_genv (Genv.globalenv prog)) (make_tycontext_g vs G).
 Proof.
 Admitted.  (* Very likely true, but a royal pain to prove. *)
 
@@ -758,34 +758,34 @@ Lemma semax_prog_typecheck_aux:
    match_globvars (prog_vars prog) vs ->
    match_fdecs (prog_funct prog) G ->
    typecheck_environ
-     (construct_rho (filter_genv (Genv.globalenv prog)) empty_env
-        (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))) (Delta1 vs G) = true.
+      (Delta1 vs G) (construct_rho (filter_genv (Genv.globalenv prog)) empty_env
+        (PTree.set 1 (Vptr b Int.zero) (PTree.empty val))) .
 Proof.
 unfold Delta1; intros.
 unfold construct_rho.
 unfold make_tycontext.
 unfold  typecheck_environ.
 unfold ve_of, ge_of, te_of.
-repeat rewrite andb_true_iff.
-split; [split; [split | ] | ].
+intuition. 
 unfold temp_types. unfold fst.
 unfold make_tycontext_t.
 unfold fold_right. unfold snd, fst.
-unfold PTree.elements.
-simpl PTree.xelements.
 unfold typecheck_temp_environ.
 unfold make_tenv.
 unfold Map.get.
-rewrite PTree.gss.
-simpl. auto.
+intros. 
+
+rewrite PTree.gsspec in *. if_tac. inv H2. eauto. 
+rewrite PTree.gempty in H2. congruence. 
+
 unfold var_types.
 unfold fst,snd.
-reflexivity.
+unfold typecheck_var_environ. intros. unfold make_tycontext_v in *. 
+simpl in H2. rewrite PTree.gempty in H2. congruence. 
+
 unfold glob_types. unfold make_tycontext_t, snd.
-apply typecheck_ge_eqv.
 eapply tc_ge_denote_initial; eauto.
 
-apply typecheck_mode_eqv.
 hnf; intros.
 simpl.
 left. unfold make_venv. unfold empty_env. apply PTree.gempty.

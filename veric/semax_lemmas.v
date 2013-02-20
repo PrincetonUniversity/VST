@@ -102,7 +102,7 @@ Qed.
 
 Lemma semax'_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) &&  R' ek vl rho |-- R ek vl rho) ->
    semax' Hspec Delta P c R' |-- semax' Hspec Delta P c R.
 Proof.
 intros.
@@ -136,7 +136,7 @@ Qed.
 
 Lemma semax'_pre:
  forall P' Delta R P c,
-  (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho)   
+  (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho)   
    ->   semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R.
 Proof.
 intros.
@@ -162,8 +162,8 @@ Qed.
 Lemma semax'_pre_post:
  forall 
       P' (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall rho, typecheck_environ rho Delta = true ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&   R ek vl rho |-- R' ek vl rho) ->
+   (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
+   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) &&   R ek vl rho |-- R' ek vl rho) ->
    semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R'.
 Proof.
 intros.
@@ -255,7 +255,7 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho
+   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho
                         |-- R ek vl rho) ->
    semax Hspec Delta P c R' ->  semax Hspec Delta P c R.
 Proof.
@@ -269,7 +269,7 @@ Qed.
 
 Lemma semax_pre:
  forall P' Delta P c R,
-   (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
+   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
      semax Hspec Delta P' c R  -> semax Hspec Delta P c R.
 Proof.
 unfold semax.
@@ -282,8 +282,8 @@ Qed.
 
 Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
-   (forall rho,  !!(typecheck_environ rho Delta = true) &&  P rho |-- P' rho )%pred ->
-   (forall ek vl rho , !!(typecheck_environ rho (exit_tycon c Delta ek) = true) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
+   (forall ek vl rho , !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho |-- R ek vl rho) ->
    semax Hspec Delta P' c R' ->  semax Hspec Delta P c R.
 Proof.
 intros.
@@ -536,21 +536,18 @@ unfold guard_environ; intros.
  destruct H0; split. 
  clear H1.
  unfold typecheck_environ in *.
- repeat rewrite andb_true_iff in *.
- destruct H0 as [[[? ?] ?] ?].
+unfold tycontext_eqv in *. 
+destruct H0 as [? [? [? ?]]].
  destruct H as [? [? [? ?]]].
-  unfold all_var_ids in *.
- rewrite <- (PTree.elements_extensional (temp_types Delta) (temp_types Delta')); auto.
- rewrite <- (PTree.elements_extensional (var_types Delta) (var_types Delta')); auto.
- rewrite <- (PTree.elements_extensional (glob_types Delta) (glob_types Delta')); auto.
- split; auto.
-rewrite <- H3. clear H0 H1 H2 H3.
- induction (fst (split (PTree.elements (glob_types Delta)))); simpl; auto.
- f_equal; auto.
- unfold same_mode. rewrite <- H4. rewrite <- H6; auto.
- destruct f; auto.
+intuition; auto. unfold typecheck_temp_environ in *. 
+intros. 
+rewrite <- H in *. eauto. 
+unfold typecheck_var_environ in *. intros. rewrite <- H4 in *; eauto. 
+unfold typecheck_glob_environ in *. intros. rewrite <- H6 in *; eauto. 
+unfold same_env in *. intros.  rewrite <- H6 in *.  edestruct H3; eauto. 
+destruct H8. right. exists x.  rewrite <- H4. auto. 
  destruct H as [? [? [? ?]]].
- rewrite <- H3. intuition.
+rewrite H3 in *. auto. 
 Qed.
 
 Lemma semax_extensionality0:

@@ -726,41 +726,27 @@ end.
 
 (** Environment typechecking functions **)
 
-Fixpoint typecheck_temp_environ (tty : list(positive * (type * bool))) (te : Map.t val) : bool :=
-match tty with 
- | (id,(ty, asn))::tl => match Map.get te id with
-                  | Some v => if orb (negb asn) (typecheck_val v ty) then typecheck_temp_environ tl te else false
-                  | None => false
-                  end
- | nil => true
-end.
+Definition typecheck_temp_environ
+(te: tenviron) (tc: PTree.t (type * bool)) :=
+forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ (typecheck_val v ty) = true)). 
+
+Definition typecheck_var_environ
+(ve: venviron) (tc: PTree.t type) :=
+forall id ty, tc ! id = Some (ty) ->
+exists v, Map.get ve id = Some(v,ty).
 
 
-Fixpoint typecheck_var_environ (vty : list(positive * type)) (ve: venviron)
- : bool :=
-match vty with
- | (id,ty)::tl => match Map.get ve id with
-                  | Some (_,ty') => eqb_type ty ty' && 
-                           typecheck_var_environ tl ve 
-                  | None => false
-                  end
- | nil => true
-end.
+Definition typecheck_glob_environ 
+(ge: genviron) (tc: PTree.t global_spec) :=
+forall id  t,  tc ! id = Some t -> 
+((exists b, exists i, 
+(ge id = Some (Vptr b i, globtype t) /\ typecheck_val (Vptr b i) (globtype t) = true))).
 
-Fixpoint typecheck_glob_environ (gty:  list(positive * global_spec)) (ge: genviron) : bool :=
-match gty with
- | (id,gspec)::tl => match ge id with
-                                | Some (Vptr b i , ty') => if eqb_type (globtype gspec) ty' &&  
-                                                      (*typecheck_val (Vptr b i) ty' && *)
-                                                      is_pointer_type ty' then 
-                                                   typecheck_glob_environ tl ge  else
-                                                   false
-                                | None => false
-                                | _ => false
-                                end
- | nil => true
-end.
+Definition same_env (rho:environ) (Delta:tycontext)  :=
+forall id t, (glob_types Delta) ! id = Some t ->
+(ve_of rho) id = None \/ exists t,  (var_types Delta) ! id = Some t. 
 
+(*
 Definition same_mode (ge: genviron) (ve:venviron) 
                      (gt : PTree.t global_spec) (vt : PTree.t type) id  :=
 match (vt ! id), (gt ! id), ve id  with
@@ -776,12 +762,13 @@ end.
 
 Definition all_var_ids (Delta : tycontext) : list positive :=
 (fst (split (PTree.elements (glob_types Delta)))). 
+*)
 
-Definition typecheck_environ (env : environ) (Delta: tycontext) : bool :=
-typecheck_temp_environ (PTree.elements (temp_types Delta)) (te_of env) &&
-typecheck_var_environ (PTree.elements (var_types Delta)) (ve_of env) &&
-typecheck_glob_environ (PTree.elements (glob_types Delta)) (ge_of env)&&
-same_env env Delta (all_var_ids Delta).
+Definition typecheck_environ (Delta: tycontext)  (rho : environ) :=
+typecheck_temp_environ (te_of rho) (temp_types Delta) /\
+typecheck_var_environ  (ve_of rho) (var_types Delta) /\
+typecheck_glob_environ (ge_of rho) (glob_types Delta) /\
+same_env rho Delta.
  
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)

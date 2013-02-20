@@ -161,15 +161,10 @@ apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
 apply nec_nat; auto.
-pose proof H1. unfold typecheck_environ in H9.
-hnf in H9.
-destruct H9 as [H9 _]. destruct H1 as [H1 _].
-apply andb_true_iff in H9. destruct H9 as [_ SAME].
-hnf in H1. apply typecheck_environ_sound in H1.
-destruct H1 as [_ [_ H1]].
+hnf in H1. destruct H1. 
+destruct H1 as [_ [_ [H1 SAME]]]. 
 rename GLBL into GL1.
 specialize (H1 _ _ H).
-apply typecheck_mode_eqv in SAME.
 specialize (SAME _ _ H).
 destruct SAME as [SAME | [t SAME]]; [ | congruence].
 clear - H6 H8 H SAME (*H9*) H1.
@@ -507,7 +502,7 @@ Lemma exprlist_eval :
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env) 
      (rho : environ) m,
    denote_tc_assert (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho ->
-   typecheck_environ rho Delta = true ->
+   typecheck_environ Delta rho ->
    rho = construct_rho (filter_genv psi) vx tx ->
    forall f : function,
    fsig = fn_funsig f ->
@@ -649,9 +644,9 @@ Lemma semax_call_typecheck_environ:
      (H16 : Genv.find_funct_ptr psi b = Some (Internal f))
      (ve' : env) (jm' : juicy_mem) (te' : temp_env) 
      (H15 : alloc_variables empty_env (m_dry jm) (fn_vars f) ve' (m_dry jm'))
-    (TC3 : tc_te_denote (make_tenv tx) (temp_types Delta))
-    (TC4 : tc_ve_denote (make_venv vx) (var_types Delta))
-    (TC5 : tc_ge_denote (filter_genv psi) (glob_types Delta))
+    (TC3 : typecheck_temp_environ (make_tenv tx) (temp_types Delta))
+    (TC4 : typecheck_var_environ (make_venv vx) (var_types Delta))
+    (TC5 : typecheck_glob_environ (filter_genv psi) (glob_types Delta))
    (H : forall (b : ident) (b0 : funspec) (a' : rmap),
     necR (m_phi jm') a' ->
     (glob_types Delta) ! b = Some (Global_func b0) ->
@@ -676,20 +671,17 @@ Lemma semax_call_typecheck_environ:
            (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
         (create_undef_temps (fn_temps f)) = Some te')
    (TE : typecheck_environ
-       (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)) Delta =
-     true),
+        Delta (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx))),
    typecheck_environ
-     (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te'))
      (make_tycontext_t (fn_params f) (fn_temps f), make_tycontext_v (fn_vars f),
-     fn_return f, glob_types Delta) = true.
+     fn_return f, glob_types Delta) (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 Proof.
  intros.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
   
 unfold typecheck_environ. repeat rewrite andb_true_iff. 
-repeat split. clear H H1 H15. rewrite typecheck_te_eqv. 
-unfold tc_te_denote. intros. simpl. 
-unfold func_tycontext' in *. 
+repeat split. clear H H1 H15.  
+unfold typecheck_temp_environ in *. intros. simpl. 
 unfold temp_types in *. simpl in *.
 apply func_tycontext_t_sound in H; auto.
  clear - H21 H TC2 TC3 Heqp H17 TE. 
@@ -770,13 +762,12 @@ unfold make_tenv in *. rewrite <- H4. auto. auto.
 inv H1; auto. unfold list_disjoint in *. intros.
 apply H2. auto. right. auto. apply Heqp. auto. 
 
-rewrite typecheck_ve_eqv. 
-unfold tc_ve_denote. intros. 
+unfold typecheck_var_environ in *. intros. 
 
 
 
 clear TC3 TC5. 
-simpl in *. unfold tc_ve_denote in *.
+simpl in *. unfold typecheck_var_environ in *.
 unfold func_tycontext' in *. unfold var_types in *. 
 simpl in *. apply func_tycontext_v_sound in H0; auto.  
 generalize dependent (m_dry jm).
@@ -802,14 +793,12 @@ exists x. auto. auto. auto. intros.
 simpl in *. rewrite PTree.gso. apply H2; auto. 
 intro. subst. intuition. 
 
-unfold ge_of in *. simpl in *. 
-rewrite <- typecheck_ge_eqv in TC5. auto.
+unfold ge_of in *. simpl in *. auto. 
 
-unfold all_var_ids. simpl in *. 
-unfold typecheck_environ in *. rewrite andb_true_iff in TE. 
-destruct TE as [_ TE]. 
-rewrite typecheck_mode_eqv in *. 
-unfold tc_mode_denote in *. intros. simpl in *. 
+simpl in *. 
+unfold typecheck_environ in *.  
+destruct TE as [_ [_ [_ TE]]]. 
+unfold same_env in *. intros. simpl in *. 
 specialize (TE id t H0). 
 unfold make_venv.
 unfold func_tycontext'. unfold var_types. simpl in *.
@@ -960,7 +949,7 @@ Proof.
  unfold stackframe_of.
  unfold func_tycontext' in H1.
  unfold typecheck_environ in H1.
- repeat rewrite andb_true_iff in H1. destruct H1 as [[[_ ?] _] _].
+ destruct H1 as [_ [?  [_ _]]].
  rewrite H0 in H1.
  unfold make_venv in H1.
  unfold var_types in H1.
@@ -983,7 +972,8 @@ Proof.
  destruct a as [id ty]. simpl in *.
  specialize (IHl H4 (PTree.remove id ve)).
  assert (exists b, ve ! id = Some (b,ty)).
-  apply typecheck_ve_eqv in H1. hnf in H1. specialize (H1 id ty).
+ unfold typecheck_var_environ in *. 
+  specialize (H1 id ty).
   rewrite PTree.gss in H1. destruct H1 as [b ?]; auto. exists b; apply H.
  destruct H as [b H].
  destruct (elements_remove id (b,ty) ve H) as [l1 [l2 [? ?]]].
@@ -1011,7 +1001,7 @@ Proof.
    with (Map.get (fun id0 : positive => ve ! id0) id'); auto.
  unfold Map.get.
  rewrite PTree.gro; auto.
- apply typecheck_ve_eqv in H1; apply typecheck_ve_eqv.
+ unfold typecheck_var_environ in *. 
  intros id' ty' ?.
  specialize (H1 id' ty').
  assert (id<>id').
@@ -1277,8 +1267,7 @@ destruct rho. inv H0. simpl in *.
 remember (split (fn_params f)). destruct p.
 assert (TE := TC3). 
  destruct TC3 as [TC3 TC3'].
- apply typecheck_environ_sound in TC3.
-destruct TC3 as [TC3 [TC4 TC5]]. 
+destruct TC3 as [TC3 [TC4 [TC5 TC6]]]. 
 simpl in *. if_tac in H16; try congruence. clear H0. 
 
 eapply semax_call_typecheck_environ; try eassumption.
@@ -1457,7 +1446,7 @@ Lemma semax_call_ext:
      forall Delta P Q ret a tl bl a' bl',
       typeof a = typeof a' ->
       (forall rho, 
-          !! (typecheck_environ rho Delta = true) && P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
+          !! (typecheck_environ Delta rho) && P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
                                            eval_exprlist tl bl rho = eval_exprlist tl bl'  rho )) ->
   semax Hspec Delta P (Scall ret a bl) Q ->
   semax Hspec  Delta P (Scall ret a' bl') Q.

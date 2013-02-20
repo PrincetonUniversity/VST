@@ -18,6 +18,7 @@ Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
+Require Import veric.binop_lemmas. 
  
 Open Local Scope pred.
 
@@ -88,8 +89,16 @@ subst rho'.
 hnf in Hsafe.
 change R.rmap with rmap in *.
 replace (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm) - 1)%nat with (@level rmap compcert_rmaps.R.ag_rmap (m_phi jm'))%nat by omega.
-apply Hsafe; auto.
+apply Hsafe; auto. 
 Qed.
+
+Definition force_valid_pointers m v1 v2 := 
+match v1, v2 with 
+| Vptr b1 ofs1, Vptr b2 ofs2 =>  
+    (valid_pointer m b1 (Int.unsigned ofs1) && 
+    valid_pointer m b2 (Int.unsigned ofs2))%bool
+| _, _ => false
+end. 
 
 
 Definition is_comparison op :=
@@ -98,8 +107,7 @@ match op with
   | _ => false
 end. 
 
-
-(* work in progress... 
+(* in progress 
 Lemma semax_set_forward_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty,
     is_comparison cmp = true  ->
@@ -151,29 +159,106 @@ unfold tc_bool in *. remember (is_neutral_cast (ty) t).
 destruct b0; inv H0. unfold guard_environ in *. 
 destruct TC' as [TC' TC'']. 
 apply typecheck_both_sound in TC3; auto.
-apply typecheck_both_sound in TC1; auto. 
+apply typecheck_both_sound in TC1; auto.
 
-unfold eval_binop. unfold Cop.sem_binary_operation.
-destruct cmp; simpl in *; try congruence. unfold Cop.sem_cmp. 
+remember (construct_rho (filter_genv ge) vx tx) as rho. 
 
-remember(typeof e1); remember (typeof e2);   
-destruct t0; destruct t1; simpl in *; try congruence.  
-simpl in *;
-destruct (eval_expr e1 (construct_rho (filter_genv ge) vx            tx)); try solve [inv TC3]; 
-destruct (eval_expr e2 (construct_rho (filter_genv ge) vx tx)); try solve [inv TC1]. simpl.
-unfold Val.of_bool. destruct t; if_tac; simpl in *; try congruence; try solve [inv H1]; destruct ty; auto.  simpl in H1. unfold_coerce. 
+assert (force_valid_pointers (m_dry jm') (eval_expr e1 rho) (eval_expr e2 rho) = true). 
+unfold force_valid_pointers. destruct (eval_expr e1 rho). 
+Focus 4. destruct (eval_expr e2 rho). Focus 4. 
+unfold valid_pointer.
+assert (X := juicy_mem_access jm'). 
+unfold access_cohere in X. specialize (X (b0, Int.unsigned i)). 
+unfold access_at in X. simpl in X. unfold perm_of_res in X. simpl in X.
 
-try destruct i; try destruct s; try destruct i0; try destruct s0; simpl in *; destruct t; auto. unfold Val.of_bool.
+rewrite andb_true_iff. split. 
+apply valid_pointer_nonempty_perm. unfold perm. unfold perm_order'.
+destruct (ZMap.get b0 (mem_access (m_dry jm')) (Int.unsigned i) Cur). 
+constructor. 
+Print writable_share. 
+Print res_predicates.address
+Locate Share.unrel.  
 
-apply neutral_cast_typecheck_val with (Delta := Delta); auto. 
-unfold guard_environ in *. destruct TC'; auto. 
+unfold perm_order. 
+destruct Cur. Locate perm_dec. 
+
+
+ Locate address.
+Locate Memtype. 
+unfold perm_dec. 
+
+
+destruct cmp; inv CMP. unfold eval_binop. 
+
+
+admit.  (*Typecheck proof. Do in binop_lemmas.v*)
+
+
 destruct H0.
 split; auto.
-simpl.
 split3; auto.
 destruct (age1_juicy_mem_unpack _ _ H).
 rewrite <- H3.
-econstructor; eauto.
+econstructor; eauto. 
+eapply eval_Ebinop. 
+eapply eval_expr_relate; auto. subst. destruct TC'; eassumption. 
+unfold tc_expr in TC3. simpl in TC3. subst; auto. 
+
+eapply eval_expr_relate; auto. subst. destruct TC'; eassumption. 
+unfold tc_expr in TC1. simpl in TC1; subst; auto. 
+
+simpl.
+
+destruct TC'.  
+
+rewrite  <- Hge in *. 
+clear - CMP PT1 PT2 jm TC3 TC1 H4. 
+revert_all. 
+
+
+
+Lemma pointer_cmp_relate : 
+   forall (Delta : tycontext) (cmp : Cop.binary_operation) (e1 e2 : expr),
+   is_comparison cmp = true ->
+   is_pointer_type (typeof e1) = true ->
+   is_pointer_type (typeof e2) = true ->
+   forall (jm jm' : juicy_mem) (rho : environ),
+   (tc_expr Delta e1 rho) (m_phi jm') ->
+   (tc_expr Delta e2 rho) (m_phi jm') ->
+   typecheck_environ rho Delta = true ->
+   force_valid_pointers (m_dry jm) (eval_expr e1 rho)
+                      (eval_expr e2 rho) = true ->
+   Cop.sem_binary_operation cmp (eval_expr e1 rho) 
+     (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
+   Some
+     (`(eval_binop cmp (typeof e1) (typeof e2)) (eval_expr e1) 
+        (eval_expr e2) rho). 
+Proof.
+intros.
+unfold_coerce. unfold eval_binop. 
+simpl in H2. simpl in H3. apply typecheck_expr_sound in H2; auto. 
+apply typecheck_expr_sound in H3; auto. 
+unfold force_valid_pointers in *. 
+
+ 
+destruct cmp; inv H; simpl; unfold Cop.sem_cmp. 
+destruct (typeof e1); simpl in H0; try congruence; destruct (typeof e2); simpl in H1; try congruence; simpl. 
+destruct ( eval_expr e1 rho); simpl in H2; try congruence;
+destruct (eval_expr e2 rho); simpl in H3; try congruence; auto;
+try solve [if_tac; try congruence; auto]. 
+if_tac; try congruence. if_tac. simpl. 
+
+
+
+
+
+
+
+clear - jm PT1 PT2 
+
+
+(*Do this *)
+apply TC3. 
 eapply eval_expr_relate; auto. destruct TC'; eassumption. auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
@@ -313,11 +398,13 @@ assert (env_set
   rewrite Map.override.
   rewrite Map.override_same. subst; auto.
   rewrite Hge in TC'. 
-  destruct TC' as [TC' _]; apply typecheck_environ_sound in TC'.  
-  destruct TC' as [TC' _]. unfold tc_te_denote in *.
+  destruct TC' as [TC' _].    
+  destruct TC' as [TC' _]. unfold typecheck_temp_environ in *.
   simpl in TC2. unfold typecheck_temp_id in *. remember ((temp_types Delta) ! id).
   destruct o; [ | inv TC2]. symmetry in Heqo. destruct p.
-  specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. rewrite H4. simpl.
+  specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. 
+simpl in H4. 
+rewrite H4. simpl.
   f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
 apply andp_right.
 intros ? _. simpl.
@@ -514,9 +601,8 @@ rewrite Map.override. unfold eval_id.
 unfold tc_temp_id_load in TC1.  simpl in TC1.
 destruct TC1 as [t0 [x0 [TC1 TC4]]].
 destruct TC' as [TC' _].
-unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [[TC' _] _].
-rewrite typecheck_te_eqv in TC'. unfold tc_te_denote in TC'.
-destruct TC' as [TC' TC''].
+unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [TC'[ _ _]].
+unfold typecheck_temp_environ in *. 
 specialize (TC' _ _ _ TC1). destruct TC'. destruct H4. rewrite H4. simpl.
 rewrite Map.override_same; subst; auto.
 unfold subst.

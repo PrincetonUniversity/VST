@@ -57,7 +57,7 @@ Lemma split3_array_at_range:
        lo <= i < hi ->
      array_at_range ty sh contents lo hi v =
      array_at_range ty sh contents lo i v *
-     typed_mapsto ty sh (add_ptr_int ty v i) (contents i) *
+     typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
      array_at_range ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
@@ -68,7 +68,7 @@ Lemma lift_split3_array_at_range:
        lo <= i < hi ->
      array_at_range ty sh contents lo hi =
      array_at_range ty sh contents lo i *
-     (fun v => typed_mapsto ty sh (add_ptr_int ty v i) (contents i)) *
+     (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
      array_at_range ty sh contents (Zsucc i) hi.
 Proof.
  intros. extensionality v. simpl. apply split3_array_at_range. auto.
@@ -110,7 +110,7 @@ apply semax_pre_PQR with
    `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i0))) (eval_id _s))
    SEP 
    (`(array_at_range tint sh contents 0 i0) (eval_id _a);
-    `(typed_mapsto tint sh) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
+    `(typed_mapsto sh tint) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
     `(array_at_range tint sh contents (Zsucc i0) size) (eval_id _a))).
   rewrite typed_mapsto_tint.
   go_lower. subst. intcompare H2.

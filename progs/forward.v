@@ -188,10 +188,8 @@ change SEPx with SEPx'.
  unfold Map.set. extensionality i. 
  destruct (ident_eq i ret'); auto.  subst i.
  unfold typecheck_environ in H7.
- repeat rewrite andb_true_iff in H7.
- destruct H7 as [[[? _] _] _].
+ destruct H7 as [? [_  [_ _]]].
  simpl te_of in H.
- apply environ_lemmas.typecheck_te_eqv in H.
  hnf in H.
  specialize (H ret').
  revert H6; case_eq ((temp_types Delta)!ret'); intros; try discriminate.

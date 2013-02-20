@@ -89,8 +89,8 @@ end.
 
 Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
 mkEnviron ge ve te = rho -> 
-tc_ve_denote ve (var_types Delta) -> 
-tc_ge_denote ge (glob_types Delta) ->
+typecheck_var_environ ve (var_types Delta) -> 
+typecheck_glob_environ ge (glob_types Delta) ->
 denote_tc_assert (typecheck_lvalue Delta e) rho ->
 eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr base ofs.
 Proof. 
@@ -105,7 +105,7 @@ remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
 destruct o; try rewrite eqb_type_eq; simpl; eauto.
 destruct p; try rewrite eqb_type_eq; simpl; eauto.
 if_tac; eauto.
-unfold tc_ve_denote in *. simpl in H2.
+unfold typecheck_var_environ in *. simpl in H2.
 unfold get_var_type in *. 
 remember ((var_types Delta) ! i).
 destruct o. subst. simpl in H2.
@@ -115,9 +115,10 @@ symmetry in Heqo1.
 specialize (H0 i t1 Heqo1).
 destruct H0. congruence.
 remember ((glob_types Delta) ! i). destruct o; simpl in *; try congruence. 
-unfold_coerce. right. unfold tc_ge_denote in H1.
+unfold_coerce. right. 
+ unfold typecheck_glob_environ in H1.
 symmetry in Heqo2. 
-specialize (H1 _ _ Heqo2). destruct H1 as [b [i0 [? ?]]].
+specialize (H1 _  _ Heqo2). destruct H1 as [b [i0 [? ?]]].
 rewrite <- H in *.  simpl ge_of in Heqo0. rewrite H1 in *.
 inv Heqo0. eauto. inv H2. 
 
@@ -159,7 +160,7 @@ unfold denote_tc_initialized in *.
 
 
 Lemma typecheck_lvalue_Evar:
-  forall i t pt Delta rho, typecheck_environ rho Delta = true ->
+  forall i t pt Delta rho, typecheck_environ Delta rho ->
            denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho ->
            is_pointer_type pt = true ->    
            typecheck_val (eval_lvalue (Evar i t) rho) pt = true.
@@ -167,11 +168,10 @@ Proof.
 intros.
 simpl in *. unfold eval_var.
 
-assert (tc_mode_denote rho Delta ) as SM. unfold typecheck_environ in H. 
-rewrite andb_true_iff in H; intuition. apply typecheck_mode_eqv in H3. auto.
+unfold typecheck_environ in H. 
+intuition. 
 destruct rho. 
-apply typecheck_environ_sound in H. destruct H as [_ [? ?]].
-unfold tc_ve_denote in *. unfold get_var_type in *. 
+unfold typecheck_var_environ in *. unfold get_var_type in *. 
 
 remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. 
@@ -189,10 +189,12 @@ remember ((glob_types Delta) ! i). destruct o; try congruence.
 rewrite tc_andp_sound in *.  simpl in *. 
 simpl in *. unfold_coerce. destruct H0. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
-subst. unfold tc_mode_denote in *. symmetry in Heqo0.  specialize (SM _ _ Heqo0). 
-destruct SM. simpl in H4. unfold Map.get. rewrite H4. 
-unfold tc_ge_denote in *. destruct (H2 i g); auto. destruct H5. destruct H5. 
-rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.  
+subst. 
+unfold same_env in *. 
+symmetry in Heqo0.  specialize (H5 _ _ Heqo0). 
+destruct H5. simpl in *. unfold Map.get. rewrite H5. 
+unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. destruct H6. 
+rewrite H6. rewrite eqb_type_refl. auto. destruct H5; congruence.  
 
 inv H0. inv H0. 
 Qed.
@@ -201,7 +203,7 @@ Qed.
 
 Lemma typecheck_both_sound: 
   forall Delta rho e , 
-             typecheck_environ rho Delta = true ->
+             typecheck_environ Delta rho ->
              (denote_tc_assert (typecheck_expr Delta e) rho ->
              typecheck_val (eval_expr e rho) (typeof e) = true) /\
              (forall pt, 
@@ -223,43 +225,47 @@ assert (MODE: access_mode t = By_reference)
  by (unfold typecheck_expr in H0; destruct (access_mode t); try (hnf in H0; contradiction); auto).
 simpl. unfold_coerce. unfold deref_noload. rewrite MODE.
 
-assert (tc_mode_denote rho Delta ) as SM. unfold typecheck_environ in H. 
-rewrite andb_true_iff in H; intuition. apply typecheck_mode_eqv in H2. auto.
+ unfold typecheck_environ in H. intuition. 
+rename H4 into SM. 
 destruct rho. 
-apply typecheck_environ_sound in H. destruct H as [_ [? ?]].
-unfold tc_ve_denote, eval_var in *. simpl.
+unfold typecheck_var_environ, same_env in *.
 simpl in H0. rewrite MODE in H0.
 unfold get_var_type in *.
 
 remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. 
-unfold_coerce.
 remember (type_eq t t0). destruct s; intuition. 
-subst. remember (negb(type_is_volatile t0)). destruct b; intuition. 
-simpl in *. clear H0. 
+subst. simpl in H0. 
+remember (negb(type_is_volatile t0)). destruct b; intuition. 
+clear H0. 
 symmetry in Heqo. 
-specialize (H i t0 Heqo). 
-destruct H. 
+specialize (H i t0 Heqo).
+destruct H. unfold eval_var. simpl. 
 rewrite H in *. rewrite <- Heqb. rewrite eqb_type_refl in *.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; auto.
 remember ((glob_types Delta) ! i). destruct o; try congruence. 
 simpl in *.
 rewrite tc_andp_sound in *. simpl in *. 
+unfold eval_var in *. 
  unfold_coerce. destruct H0. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
-subst. unfold tc_mode_denote in *. symmetry in Heqo0.  specialize (SM _ _ Heqo0). 
-destruct SM. simpl in H3. unfold Map.get. rewrite H3. 
-unfold tc_ge_denote in *. destruct (H1 i g); auto. destruct H4; destruct H4. 
-rewrite H4. rewrite eqb_type_refl. auto. destruct H3; congruence.
+subst. 
+symmetry in Heqo0.  specialize (SM _ _ Heqo0). 
+destruct SM. 
+unfold Map.get. rewrite H4. 
+unfold typecheck_glob_environ in *. 
+destruct (H2 i g); auto. destruct H5; destruct H5. 
+rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.
 inv H0. inv H0. 
 
 eapply typecheck_lvalue_Evar; eauto.
 
 (*Temp*)
 Focus 1.
-simpl in *. destruct rho. apply typecheck_environ_sound in H. intuition.
-clear H H3.  
-unfold tc_te_denote in *. 
+simpl in *. destruct rho. 
+unfold typecheck_environ in H. intuition.
+clear H H2 H4.  
+unfold typecheck_temp_environ in *.
 unfold eval_id in *. 
 
 simpl. unfold force_val.
@@ -356,14 +362,15 @@ simpl in H0.
 unfold_coerce. destruct H0 as [[?  ]?].
 revert H4; case_eq (type_is_volatile t); simpl; intros; try contradiction.
 clear H5.
-destruct (typecheck_environ_sound _ _ _ _ H) as [? [Hve Hge]].
+unfold typecheck_environ in H. 
+destruct H as [_ [Hve [Hge _]]]. 
 assert (PTR := eval_lvalue_ptr _ e Delta te ve ge (eq_refl _) Hve Hge H0).
 specialize (H2 t H0).
 spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
 destruct PTR.
-elimtype False; clear - H6 H2. rewrite H6 in H2; inv H2.
-destruct H6 as [b [ofs ?]]. 
-rewrite H6 in *.
+elimtype False; clear - H H2. rewrite H in H2; inv H2.
+destruct H as [b [ofs ?]]. 
+rewrite H in *.
 destruct (typeof e); intuition. 
 destruct (field_offset i f); intuition.
 
@@ -373,14 +380,14 @@ unfold_coerce.
  unfold eval_field,eval_struct_field in *; intuition. 
 specialize  (H3 pt). intuition. remember rho.
 destruct e0.
-apply typecheck_environ_sound in H. intuition. clear H4.
+unfold typecheck_environ in *. intuition. clear H4 H9.
 rewrite Heqe0 in H0.
-assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H8).
+assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H7).
 rewrite Heqe0 in *. clear Heqe0.
 intuition. 
 remember (eval_lvalue e rho). unfold isptr in *.
 destruct v; intuition; try congruence.
-remember (eval_lvalue e rho). destruct H7. destruct H4.
+remember (eval_lvalue e rho). destruct H8. destruct H4.
 destruct v; intuition; try congruence.
 inv H4.
 destruct (typeof e); intuition. 
@@ -395,7 +402,7 @@ end.
 
 
 Lemma typecheck_expr_sound : forall Delta rho e,
- typecheck_environ rho Delta = true -> 
+ typecheck_environ Delta rho -> 
               denote_tc_assert (typecheck_expr Delta e) rho ->
              typecheck_val (eval_expr e rho) (typeof e) = true.
 Proof. intros. 
@@ -403,7 +410,7 @@ assert (TC := typecheck_both_sound Delta rho e). intuition. Qed.
 
 
 Lemma typecheck_lvalue_sound : forall Delta rho e,
-  typecheck_environ rho Delta = true ->
+  typecheck_environ Delta rho ->
   denote_tc_assert (typecheck_lvalue Delta e) rho ->
   (forall pt, 
     is_pointer_type pt = true -> 
@@ -480,7 +487,7 @@ Qed.
 Lemma eval_binop_relate_fail :
 forall (Delta : tycontext) (rho : environ) (b : binary_operation)
   (e1 e2 : expr) (t : type) (m : mem),
-typecheck_environ rho Delta = true ->
+typecheck_environ  Delta rho ->
 forall (ge : genv) te ve,
 rho = construct_rho (filter_genv ge) ve te ->
 denote_tc_assert (typecheck_expr Delta e2) rho ->
@@ -508,7 +515,7 @@ Qed.
 Lemma eval_both_relate:
   forall Delta ge te ve rho e m, 
            rho = construct_rho (filter_genv ge) ve te ->
-           typecheck_environ rho Delta = true ->
+           typecheck_environ Delta rho ->
            (denote_tc_assert (typecheck_expr Delta e) rho ->
              Clight.eval_expr ge ve te m e  (eval_expr e rho))
            /\
@@ -541,35 +548,37 @@ apply Clight.eval_Elvalue with b Int.zero;
 apply eval_Evar_local.
 subst rho.
 simpl in Heqo. symmetry in Heqo; apply Heqo.
-subst rho; 
-destruct (typecheck_environ_sound _ _ _ _ H0) as [? [Hve Hge]].
+subst rho. 
+unfold typecheck_environ in *. 
+destruct H0 as [? [Hve [Hge _]]].
 hnf in Hve,Hge.
 revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
-destruct (Hve _ _ H1). simpl in Heqo; congruence.
-revert H2; case_eq ((glob_types Delta) ! i); intros; try contradiction.
-destruct (Hge _ _ H2) as [b [ofs [? ?]]].
-simpl. rewrite H4.
+destruct (Hve _ _ H0). simpl in *; congruence.
+revert H1; case_eq ((glob_types Delta) ! i); intros; try contradiction.
+destruct (Hge _ _ H1) as [b [ofs [? ?]]].
+simpl. simpl in H3. 
+rewrite H3.
 
 repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-simpl in H3. unfold_coerce. destruct H3.
-if_tac in H3; try contradiction.
+destruct H2.
+if_tac in H2; try contradiction.
 apply Clight.eval_Elvalue with b ofs; [  | econstructor 2; apply MODE].
-assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H4).  subst.
+assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.
 apply Clight.eval_Evar_global.
 symmetry in Heqo; apply Heqo.
-unfold filter_genv in H4. invSome. destruct (type_of_global ge b0); inv H9; auto. 
+unfold filter_genv in *. invSome. destruct (type_of_global ge b0); inv H8; auto. 
 
 unfold filter_genv in *.  
 remember (Genv.find_symbol ge i). 
 destruct o; try congruence. 
-assert (b = b0). clear - Heqo0 H4. 
+assert (b = b0). clear - Heqo0 H3. rename H3 into H4. 
 destruct (type_of_global ge b0); inv H4; auto. 
 subst. 
 remember (type_of_global ge b0). 
-destruct o; try congruence. inv H4. 
+destruct o; try congruence. inv H3. 
 remember (eqb_type t (globtype g)). destruct b.
 symmetry in Heqb. apply eqb_type_true in Heqb. auto. 
-destruct t; inv TC_Sound.  inv H4. rewrite <- H8 in H5; inv H5. 
+destruct t; inv TC_Sound.  inv H3. rewrite <- H7 in H4; inv H4. 
 
 assert (TC_Sound:= typecheck_lvalue_sound).
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
@@ -595,30 +604,32 @@ destruct o; try rewrite eqb_type_eq in *; simpl in *; unfold_coerce; intuition.
 destruct (type_eq t t0); simpl in *; [ | contradiction]. subst t0.
 symmetry in Heqo1.
 destruct rho.  
-apply typecheck_environ_sound in H0.
-intuition. unfold tc_ve_denote in *. 
-unfold tc_ge_denote in *. 
+unfold typecheck_environ in *. 
+intuition. clear H2 H5. 
+unfold typecheck_var_environ, typecheck_glob_environ in *. 
 specialize (H0 i t Heqo1). unfold ge_of in *. unfold Map.get in *. 
-destruct H0. simpl in Heqo. congruence.
+destruct H0. congruence.
 
 destruct rho. 
-apply typecheck_environ_sound in H0. intuition. unfold tc_ge_denote in *. 
+unfold typecheck_environ in *; intuition. clear H2 H0 H5. 
+unfold typecheck_glob_environ in *. 
 remember ((glob_types Delta) ! i). destruct o; simpl in H1; try congruence.
 repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
 unfold_coerce. destruct H1. 
-symmetry in Heqo2. specialize (H4 _ _ Heqo2).  destruct H4. destruct H4. 
-destruct H4. simpl in Heqo0. rewrite H4 in *. inv Heqo0. exists x. exists x0. split; auto. 
+rename H3 into H4. 
+symmetry in Heqo2. specialize (H4 _ _ Heqo2).  destruct H4. destruct H2. 
+destruct H2. simpl in Heqo0. rewrite H2 in *. inv Heqo0. exists x. exists x0. split; auto. 
 unfold construct_rho in *. inv H. simpl in Heqo. clear H1. 
 remember (filter_genv ge). symmetry in Heqg0. 
-assert (ZO := filter_genv_zero_ofs _ _ _ _ _ Heqg0 _ H4).  subst.
-apply Clight.eval_Evar_global. auto.  unfold filter_genv in H4.
-destruct (Genv.find_symbol ge i). destruct (type_of_global ge b); inv H4; auto. 
+assert (ZO := filter_genv_zero_ofs _ _ _ _ _ Heqg0 _ H2).  subst.
+apply Clight.eval_Evar_global. auto.  unfold filter_genv in H2.
+destruct (Genv.find_symbol ge i). destruct (type_of_global ge b); inv H2; auto. 
 congruence.  
 
-unfold filter_genv in H4.
+unfold filter_genv in H2.
 remember (Genv.find_symbol ge i).  destruct o; try congruence.  
-assert (x = b). destruct (type_of_global ge b); inv H4; auto. subst.
-destruct (type_of_global ge b). inv H4; auto. inv H4. rewrite <- H1 in *. simpl in *.
+assert (x = b). destruct (type_of_global ge b); inv H2; auto. subst.
+destruct (type_of_global ge b). inv H2; auto. inv H2. rewrite <- H1 in *. simpl in *.
 congruence. 
 intuition. congruence. 
 
@@ -649,11 +660,10 @@ unfold_coerce.
 assert (ISPTR := eval_lvalue_ptr rho e Delta (te_of rho) (ve_of rho) (ge_of rho)).
 specialize (IHe ge).
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
-destruct rho. 
-intuition; apply typecheck_environ_sound in H0. intuition. 
-simpl. destruct H7. destruct H7. intuition. congruence. 
-destruct H7. destruct H7. destruct H7. destruct H1. destruct H1.  simpl in *.
-intuition. rewrite H8 in *. constructor. inv H1. auto.
+destruct rho. unfold typecheck_environ in *. intuition. 
+simpl. destruct H10. destruct H9. intuition. congruence. 
+destruct H10. destruct H9. destruct H6. destruct H6. destruct H9.  simpl in *.
+intuition. rewrite H6 in *. constructor. inv H10. auto.
 
 (*unop*)
 simpl in *. 
@@ -758,7 +768,7 @@ Qed.
 Lemma eval_expr_relate:
   forall Delta ge te ve rho e m,
            rho = construct_rho (filter_genv ge) ve te ->
-           typecheck_environ rho Delta = true ->
+           typecheck_environ  Delta rho ->
            (denote_tc_assert (typecheck_expr Delta e) rho ->
              Clight.eval_expr ge ve te m e  (eval_expr e rho)).
 Proof.
@@ -771,7 +781,7 @@ Qed.
 Lemma eval_lvalue_relate:
   forall Delta ge te ve rho e m,
            rho = construct_rho (filter_genv ge) ve te->
-           typecheck_environ rho Delta = true ->
+           typecheck_environ  Delta rho ->
            (denote_tc_assert (typecheck_lvalue Delta e) rho ->
              exists b, exists ofs, 
               Clight.eval_lvalue ge ve te m e b ofs /\
@@ -986,14 +996,16 @@ eauto. eauto. Qed.
 
 
 Lemma typecheck_environ_update_te:
-  forall rho c Delta, tc_te_denote (te_of rho) (temp_types (update_tycon Delta c)) ->
-tc_te_denote (te_of rho) (temp_types Delta)
+  forall rho c Delta, typecheck_temp_environ (te_of rho) (temp_types (update_tycon Delta c)) 
+     ->
+typecheck_temp_environ  (te_of rho) (temp_types Delta)
 
 with typecheck_ls_update_te : forall Delta ty b id l,
 (temp_types Delta) ! id = Some (ty, b) -> 
 exists b2, (temp_types (join_tycon_labeled l Delta)) ! id = Some (ty, b2).
 Proof.
-intros. unfold tc_te_denote in *.
+intros. 
+unfold typecheck_temp_environ in H. unfold typecheck_temp_environ.  
 destruct c; intros; simpl in *; try solve[eapply H; apply H0].
 
 destruct (eq_dec id i). subst.
@@ -1143,12 +1155,14 @@ apply H.
 Qed.   
 
 Lemma typecheck_environ_update_ve : forall (rho : environ) (c : statement) (Delta : tycontext),
-tc_ve_denote (ve_of rho) (var_types (update_tycon Delta c)) ->
-tc_ve_denote (ve_of rho) (var_types Delta).
+typecheck_var_environ (ve_of rho) (var_types (update_tycon Delta c)) ->
+typecheck_var_environ (ve_of rho) (var_types Delta).
 Proof.
-intros. destruct c; simpl in *; try apply H;
+intros. 
+
+destruct c; simpl in *; try apply H;
 try destruct o; try rewrite set_temp_ve in *; try apply H;
-unfold tc_ve_denote in *; intros; apply H; try rewrite var_types_update_dist; 
+unfold typecheck_var_environ in *; intros; apply H; try rewrite var_types_update_dist; 
 try apply join_ve_eqv;
 repeat rewrite update_tycon_same_ve in *; try rewrite update_le_same_ve;
 auto.
@@ -1157,39 +1171,37 @@ Qed.
 
 
 Lemma typecheck_environ_update_ge : forall (rho : environ) (c : statement) (Delta : tycontext),
-tc_ge_denote (ge_of rho) (glob_types (update_tycon Delta c)) ->
-tc_ge_denote (ge_of rho) (glob_types Delta).
+typecheck_glob_environ (ge_of rho) (glob_types (update_tycon Delta c)) ->
+typecheck_glob_environ (ge_of rho) (glob_types Delta).
 Proof.
 intros. destruct c; simpl in *; try apply H;
 try destruct o; try rewrite set_temp_ge in *; try apply H;
-unfold tc_ge_denote in *; intros; apply H; try rewrite glob_types_update_dist; 
+unfold typecheck_glob_environ in *; intros; apply H; try rewrite glob_types_update_dist; 
 try apply join_ge_eqv;
 repeat rewrite update_tycon_same_ge in *; try rewrite update_le_same_ge;
 auto.
 Qed. 
 
 Lemma typecheck_environ_update:
-  forall rho c Delta, typecheck_environ rho (update_tycon Delta c) = true ->
-       typecheck_environ rho Delta = true.
+  forall rho c Delta, typecheck_environ (update_tycon Delta c) rho ->
+       typecheck_environ Delta rho.
 Proof.
-intros. unfold typecheck_environ in *. repeat rewrite andb_true_iff in *. 
-destruct H. destruct H. destruct H.  split. split. split. clear H0 H1 H2.
-rewrite typecheck_te_eqv in *.  intuition.  eapply typecheck_environ_update_te; eauto.
+intros. unfold typecheck_environ in *. intuition. 
+clear H H1 H3. unfold typecheck_temp_environ in *. 
+eapply typecheck_environ_update_te; eauto.
 
-clear H H0 H1. 
-rewrite typecheck_ve_eqv in *. eapply typecheck_environ_update_ve.
-eauto.
+clear -H. eapply typecheck_environ_update_ve; eauto. 
 
-clear H H0 H2. rewrite typecheck_ge_eqv in *. eapply typecheck_environ_update_ge.
+eapply typecheck_environ_update_ge.
 eauto.  
 
-clear -H0. rewrite typecheck_mode_eqv in *.  unfold tc_mode_denote in *. 
-intros.  
-specialize (H0 id t). edestruct H0. rewrite update_tycon_same_ge. auto. 
-auto. destruct H1. right. exists x. 
-rewrite update_tycon_same_ve in H1. auto. 
+clear - H3. 
+unfold same_env in *. intros. 
+specialize (H3 id t).
+repeat rewrite update_tycon_same_ge in *. specialize (H3 H). 
+destruct H3; auto. destruct H0. 
+rewrite update_tycon_same_ve in *. eauto. 
 Qed. 
-
 
 Lemma typecheck_bool_val:
   forall v t, typecheck_val v t = true -> bool_type t = true ->
@@ -1205,7 +1217,7 @@ intros. unfold Map.set. unfold make_tenv. extensionality. rewrite PTree.gsspec; 
 Qed.
 
 Lemma cast_exists : forall Delta e2 t rho 
-(TC: typecheck_environ rho Delta = true), 
+(TC: typecheck_environ Delta rho), 
 denote_tc_assert (typecheck_expr Delta e2) rho ->
 denote_tc_assert (isCastResultType (typeof e2) t t e2)
   rho ->
@@ -1262,7 +1274,7 @@ Qed.
 
 Lemma typecheck_val_eval_cast: 
   forall t2 e2 rho Delta,
-      typecheck_environ rho Delta = true ->
+      typecheck_environ Delta rho ->
       denote_tc_assert (typecheck_expr Delta e2) rho ->
       denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
       typecheck_val (eval_cast (typeof e2) t2 (eval_expr e2 rho)) t2 = true.
@@ -1485,7 +1497,7 @@ Lemma neutral_cast_typecheck_val : forall e t rho Delta,
 true = is_neutral_cast (typeof e) t ->
 denote_tc_assert (isCastResultType (typeof e) t t e) rho ->
 denote_tc_assert (typecheck_expr Delta e) rho ->
-typecheck_environ rho Delta = true ->
+typecheck_environ Delta rho ->
 typecheck_val (eval_expr e rho) t = true. 
 Proof.
 intros.

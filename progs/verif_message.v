@@ -238,13 +238,11 @@ Lemma globfun_eval_var:
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H. destruct H as [[[Ha Hb] Hc] Hd].
-apply environ_lemmas.typecheck_ge_eqv in Hc. 
+destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
 specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
 exists b; exists i.
 unfold eval_var; simpl.
-apply environ_lemmas.typecheck_mode_eqv in Hd.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
 unfold Map.get; rewrite H. rewrite Hc.

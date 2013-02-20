@@ -520,11 +520,10 @@ Lemma tc_eval_gvar_i:
 Proof.
  intros. unfold tc_val, eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
- repeat rewrite andb_true_iff in H.
-  destruct H as [[[_ ?] ?] ?].
-  apply environ_lemmas.typecheck_mode_eqv in H3.
-  apply environ_lemmas.typecheck_ge_eqv in H2.
-  apply environ_lemmas.typecheck_ve_eqv in H.
+  destruct H as [_ [? [? ?]]].
+  unfold typecheck_var_environ in  *. 
+  unfold typecheck_glob_environ in *. 
+  unfold same_env in *. 
   destruct (H3 _ _ H1).
   unfold Map.get; rewrite H4.
   destruct (H2 _ _ H1) as [b [i' [? ?]]].
@@ -675,13 +674,11 @@ Lemma globvar_eval_var:
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H. destruct H as [[[Ha Hb] Hc] Hd].
-apply environ_lemmas.typecheck_ge_eqv in Hc. 
+destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
 specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
 exists b; exists i.
 unfold eval_var; simpl.
-apply environ_lemmas.typecheck_mode_eqv in Hd.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
 unfold Map.get; rewrite H. rewrite Hc.
@@ -920,11 +917,7 @@ Proof.
   unfold isptr, eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
  repeat rewrite andb_true_iff in H.
-  destruct H as [[[_ ?] ?] ?].
-  apply environ_lemmas.typecheck_mode_eqv in H2.
-  apply environ_lemmas.typecheck_ge_eqv in H1.
-  apply environ_lemmas.typecheck_ve_eqv in H.
-  unfold environ_lemmas.tc_mode_denote in H2.
+  destruct H as [_ [? [? ?]]].
   hnf in H,H1.
   destruct H0.
   specialize (H _ _ H0). destruct H; rewrite H.
