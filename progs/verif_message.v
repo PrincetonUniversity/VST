@@ -32,6 +32,7 @@ Record message_format (t: type) : Type :=
 mf_build {
    mf_size: Z;
    mf_assert: forall (sh: share) (buf: val) (len: Z) (data: reptype t), mpred;
+   mf_size_range:  0 <= mf_size <= Int.max_signed;
    mf_bufprop: forall sh buf len data, 
            mf_assert sh buf len data |-- 
                  !!(0 <= len <= mf_size) && memory_block sh (Int.repr len) buf;
@@ -43,13 +44,17 @@ Implicit Arguments mf_build [[t]].
 Implicit Arguments mf_size [[t]].
 Implicit Arguments mf_assert [[t]].
 Implicit Arguments mf_bufprop [[t]].
+Implicit Arguments mf_size_range [[t]].
 Implicit Arguments mf_restbuf [[t]].
 (* need to add a proof to message_format, that the
      representation of a  buf implies the typed_mapsto_ of the bufsize array *)
 
  
 Program Definition intpair_message: message_format t_struct_intpair :=
-  mf_build 8 (fun sh buf len data => !!(len=8) && typed_mapsto sh t_struct_intpair buf data) _.
+  mf_build 8 (fun sh buf len data => !!(len=8) && typed_mapsto sh t_struct_intpair buf data) _ _.
+Next Obligation.
+compute; split; congruence.
+Qed.
 Next Obligation.
  normalize. repeat apply andp_right; try (apply prop_right; compute; congruence).
  change 8 with (sizeof t_struct_intpair). rewrite memory_block_typed. auto.
@@ -57,7 +62,7 @@ Qed.
 
 Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
-  PRE [ _p OF (tptr t), _buf OF (tptr tuchar) ] 
+  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ] 
           PROP (writable_share sh')
           LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf))
           SEP (`(typed_mapsto sh t p data); 
@@ -70,7 +75,7 @@ Definition serialize_spec {t: type} (format: message_format t) :=
 
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
-  PRE [ _p OF (tptr t), _buf OF (tptr tuchar), _length OF tint ] 
+  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
           PROP (writable_share (fst shs); 0 <= len <= mf_size format)
           LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
                         `(eq (Vint (Int.repr len))) (eval_id _length))
@@ -238,6 +243,7 @@ Lemma globfun_eval_var:
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
+repeat rewrite andb_true_iff in H.
 destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
 specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
@@ -382,6 +388,91 @@ match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?R1::_)))) _ _ =>
  let H := fresh in assert (H: R1 = R); [ | rewrite H; clear H]
 end.
 
+Definition serialize_A {t}  (msg: message_format t) : Type := 
+  match serialize_spec msg with mk_funspec _ A _ _ => A  end.
+
+Definition serialize_pre {t} (msg: message_format t)  :=
+match serialize_spec msg as f 
+     return match f with mk_funspec _ A _ _ => A -> assert end
+with mk_funspec f A P Q => P end.
+
+Definition serialize_post {t} (msg: message_format t)  :=
+match serialize_spec msg as f 
+     return match f with mk_funspec _ A _ _ => A -> assert end
+with mk_funspec f A P Q => Q end.
+
+Definition serialize_fsig {t} (msg: message_format t)  : funsig :=
+match serialize_spec msg with mk_funspec f A P Q => f end.
+
+Lemma subst_make_args':
+  forall id v (P: assert) fsig tl el,
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) =  (`P (make_args' fsig (eval_exprlist tl el))).
+Proof.
+intros. unfold_coerce. extensionality rho; unfold subst.
+f_equal. unfold make_args'.
+induction (fst fsig); simpl; intros.
+Admitted.
+Hint Rewrite subst_make_args': normalize.
+Hint Rewrite subst_make_args': subst.
+
+Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
+
+Lemma closed_wrt_subset:
+  forall (S S': ident -> Prop) (H: included S' S) B (f: environ -> B),
+       closed_wrt_vars S f -> closed_wrt_vars S' f.
+Proof.
+intros. hnf. intros. specialize (H0 rho te').
+apply H0.
+intro i; destruct (H1 i); auto.
+Qed.
+Hint Resolve closed_wrt_subset : closed.
+
+Lemma closed_wrt_Forall_subset:
+  forall S S' (H: included S' S) B (f: list (environ -> B)),
+ Forall (closed_wrt_vars S) f ->
+ Forall (closed_wrt_vars S') f.
+Proof.
+induction f; simpl; auto.
+intro.
+inv H0.
+constructor.
+apply (closed_wrt_subset _ _ H). auto.
+auto.
+Qed.
+
+Lemma forward_setx_closed_now':
+  forall Delta P (Q: list (environ -> Prop)) (R: list assert) id e,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+  closed_wrt_vars (eq id) (eval_expr e) ->
+  PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx P (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  semax Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
+        (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
+Proof.
+intros.
+eapply semax_pre; [ | apply semax_set].
+eapply derives_trans; [ | apply now_later].
+apply andp_left2.
+apply andp_right; auto.
+apply andp_right; auto.
+autorewrite with subst.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; unfold local,lift1; simpl.
+apply prop_derives; simpl; intro; split; auto.
+hnf; auto.
+Qed.
+
+Fixpoint list2ensemble  (l: list ident) : (ident -> Prop) :=
+ match l with nil => modified0 | x::l' => modified2 (eq x) (list2ensemble l') end.
+
+Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
+   match (temp_types Delta) ! id with 
+    Some (t',_) => t' = t
+   | _ => False
+  end.
+
 Lemma call_serialize:
  forall (Delta: tycontext) P Q R (ser id x: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
@@ -392,15 +483,20 @@ Lemma call_serialize:
  eval_lvalue e_obj = d_obj ->
  eval_expr e_p = d_p ->
  eval_lvalue e_buf = d_buf ->
+ typeof e_obj = t_struct_message ->
+ (temp_type_is Delta ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)) /\
+  temp_type_is Delta x tint /\ temp_type_is Delta id tint ) ->
  writable_share sh_buf ->
- closed_wrt_vars (modified2 (modified1 ser) (modified1 x)) 
-             (PROPx P (LOCALx Q
-     (SEPx (`(message sh_obj msg) d_obj :: 
-               `(typed_mapsto sh_p t) d_p `v::
-               `(typed_mapsto_ sh_buf (tarray tuchar (mf_size msg))) d_buf ::
-                R)))) ->
+ x <> ser /\ x <> id /\ id <> ser ->
+ forall
+  (CL_R: Forall (closed_wrt_vars (list2ensemble(ser::x::id::nil))) Q)
+  (CL_R: Forall (closed_wrt_vars (list2ensemble(ser::x::id::nil))) R)
+  (CL_obj: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_lvalue e_obj))
+  (CL_p: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_expr e_p))
+  (CL_buf: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_lvalue e_buf))
+  (H6: PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- local (tc_lvalue Delta e_obj)),
  semax Delta
-   (PROPx P (LOCALx Q
+   (PROPx P (LOCALx (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil) :: Q)
      (SEPx (`(message sh_obj msg) d_obj :: 
                `(typed_mapsto sh_p t) d_p `v::
                `(typed_mapsto_ sh_buf (tarray tuchar (mf_size msg))) d_buf ::
@@ -420,7 +516,197 @@ Lemma call_serialize:
                `(mf_assert msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id))) `v::
                `(mf_restbuf msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id))) ::
                 R))))).
-Admitted.
+Proof.
+intros.
+destruct H5 as [H5a [H5b H5c]].
+subst.
+assert (CLser: included (eq ser) (list2ensemble(ser::x::id::nil))) by (intros ? ?; left; auto).
+assert (CLx: included (eq x) (list2ensemble(ser::x::id::nil))) by (intros ? ?; right; left; auto).
+assert (CLid: included (eq id) (list2ensemble(ser::x::id::nil))) by (intros ? ?; do 2 right; left; auto).
+eapply semax_pre with
+ (PROPx P
+  (LOCALx (tc_lvalue Delta e_obj :: (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil) :: Q))
+     (SEPx
+        (`(message sh_obj msg) (eval_lvalue e_obj)
+         :: `(typed_mapsto sh_p t) (eval_expr e_p) `v
+            :: `(typed_mapsto_ sh_buf (tarray tuchar (mf_size msg)))
+                 (eval_lvalue e_buf) :: R))) ).
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce; intro rho; simpl.
+normalize.
+rewrite andp_assoc.
+apply andp_right.
+eapply derives_trans; [ |  apply H6].
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce; simpl.
+normalize.
+normalize.
+clear H6.
+unfold message at 1.
+normalize.
+change (`(fun m : val =>
+               EX  fg : val * val,
+               func_ptr (serialize_spec msg) (fst fg) &&
+               func_ptr (deserialize_spec msg) (snd fg) &&
+               typed_mapsto sh_obj t_struct_message m
+                 (Int.repr (mf_size msg), (fst fg, snd fg)))
+              (eval_lvalue e_obj))
+ with (EX fg: val*val,
+            `(func_ptr (serialize_spec msg) (fst fg)) &&
+            `(func_ptr (deserialize_spec msg) (snd fg)) &&
+            `(typed_mapsto sh_obj t_struct_message)
+                  (eval_lvalue e_obj)
+                 `((Int.repr (mf_size msg), (fst fg, snd fg))) : assert).
+extract_exists_in_SEP. intros [f g].
+simpl @fst; simpl @ snd.
+simpl_typed_mapsto.
+apply semax_pre with
+  (EX p:val, EX buf:val, |>(PROPx P
+     (LOCALx (tc_lvalue Delta e_obj :: `(eq p) (eval_expr e_p)
+                          :: `(eq buf) (eval_lvalue e_buf)  
+                        :: (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil) :: Q))
+        (SEPx
+  (`(field_mapsto sh_obj t_struct_message _serialize) (eval_lvalue e_obj) `f ::
+      `(func_ptr' (serialize_spec msg)) `f ::
+    `(field_mapsto sh_obj t_struct_message _bufsize) (eval_lvalue e_obj)
+                        `(Vint (Int.repr (mf_size msg))) :: 
+     `(serialize_pre msg (v,p,buf,sh_p,sh_buf))
+       (make_args' (serialize_fsig msg)
+         (eval_exprlist (snd (split (fst (serialize_fsig msg)))) (e_p :: e_buf :: nil))) ::
+      `(field_mapsto sh_obj t_struct_message _deserialize) (eval_lvalue e_obj) `g ::
+    (*  `(func_ptr' (deserialize_spec msg)) `g :: *)
+         R))))).
+admit.  (* might work *)
+apply extract_exists_pre; intro p.
+apply extract_exists_pre; intro buf.
+destruct H3 as [H3 [H3x H3id]]; unfold temp_type_is in H3;
+revert H3; case_eq ((temp_types Delta) ! ser); intros; try contradiction.
+destruct p0.
+subst t0.
+eapply semax_seq'.
+eapply semax_load_field'; try reflexivity. auto.
+apply H.
+apply extract_exists_pre; intro old.
+
+assert (CL_TC: closed_wrt_vars (list2ensemble(ser::x::id::nil))
+  (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil))).
+ admit.  (* should be fine *)
+assert (C1:=closed_wrt_subset _ _ CLser).
+assert (C2:=closed_wrt_Forall_subset _ _ CLser).
+autorewrite with subst.
+clear C1 C2.
+
+focus_SEP 1%nat; focus_SEP 3%nat.
+
+   apply semax_pre_PQR with 
+     (P':=PROPx P (LOCALx (tc_expr (initialized ser Delta)
+                (Etempvar ser
+                   (tptr
+                      (Tfunction
+                         (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
+              :: tc_exprlist  (initialized ser Delta) (snd (split (fst (serialize_fsig msg))))   (e_p :: e_buf :: nil) 
+              :: `eq (eval_id ser) `f
+         :: `(eq p) (eval_expr e_p) :: `(eq buf) (eval_lvalue e_buf) :: Q) 
+       (SEPx (`(serialize_pre msg (v, p, buf, sh_p, sh_buf))
+              (make_args'  (fst (serialize_fsig msg), snd (serialize_fsig msg))
+                 (eval_exprlist (snd (split (fst (serialize_fsig msg))))
+                    (e_p :: e_buf :: nil)))
+            :: `(func_ptr' (serialize_spec msg))
+                      (eval_expr
+                         (Etempvar ser
+                            (tptr
+                               (Tfunction
+                                  (Tcons (tptr tvoid)
+                                     (Tcons (tptr tuchar) Tnil)) tint))))
+                 :: `(field_mapsto sh_obj t_struct_message _serialize)
+                            (eval_lvalue e_obj)  (eval_id ser) 
+                  :: `(field_mapsto sh_obj t_struct_message _bufsize)
+                       (eval_lvalue e_obj) `(Vint (Int.repr (mf_size msg)))
+                 :: `(field_mapsto sh_obj t_struct_message _deserialize)
+                            (eval_lvalue e_obj)  `g
+                     :: R)))).
+
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce; intro rho.
+simpl. apply andp_derives; auto.
+apply derives_extract_prop; intros [? [? [? [? [? ?]]]]].
+apply andp_right. apply prop_right; repeat split; auto.
+clear - H0 H.
+admit.  (* should be fine *)
+clear - H0 H6 CL_p CL_buf.
+admit.  (* looks OK *)
+subst f. apply derives_refl.
+simpl update_tycon.
+eapply semax_seq'.
+apply (semax_call' (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
+   (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
+   (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
+   (e_p :: e_buf :: nil) P).
+reflexivity. simpl. auto.
+apply extract_exists_pre; intro old'.
+change (@substopt Prop (Some x)) with (@subst Prop x).
+change (@substopt mpred (Some x)) with (@subst mpred x).
+assert (C1:=closed_wrt_subset _ _ CLx).
+assert (C2:=closed_wrt_Forall_subset _ _ CLx).
+autorewrite with subst.
+clear C1 C2.
+simpl update_tycon.
+eapply semax_post_flipped.
+apply forward_setx.
+apply andp_right; intro rho; apply prop_right.
+hnf.
+clear - H3x.
+admit. (* straightforward *)
+clear - H3id.
+admit. (* straightforward *)
+intros.
+unfold normal_ret_assert.
+normalize. intro old''.
+assert (C1:=closed_wrt_subset _ _ CLid).
+assert (C2:=closed_wrt_Forall_subset _ _ CLid).
+unfold assert;
+autorewrite with subst.
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce; intro rho; simpl.
+apply derives_extract_prop; intro; unfold normal_ret_assert; simpl.
+repeat (apply derives_extract_prop; intro).
+subst.
+decompose [and] H1; clear H1.
+apply andp_right; try apply prop_right; auto.
+apply andp_right; try apply prop_right; auto.
+unfold serialize_post, serialize_spec.
+normalize. intro len.
+intro.
+subst.
+rewrite H6;
+rewrite <- H1.
+simpl force_int.
+cancel.
+apply derives_trans with
+((!!(0 <= len <= mf_size msg) && 
+  mf_assert msg sh_buf (eval_lvalue e_buf rho) len v ) *
+mf_restbuf msg sh_buf (eval_lvalue e_buf rho) len *
+field_mapsto sh_obj t_struct_message _serialize (eval_lvalue e_obj rho)
+  (eval_id ser rho) *
+field_mapsto sh_obj t_struct_message _bufsize (eval_lvalue e_obj rho)
+  (Vint (Int.repr (mf_size msg))) *
+field_mapsto sh_obj t_struct_message _deserialize (eval_lvalue e_obj rho) g).
+repeat apply sepcon_derives; auto.
+apply andp_right; auto.
+eapply derives_trans; [ apply mf_bufprop | ].
+apply andp_left1; auto.
+repeat rewrite sepcon_assoc.
+rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro.
+assert (MMM: mf_size msg <= Int.max_signed).
+apply mf_size_range.
+rewrite Int.signed_repr by (unfold Int.min_signed; simpl; omega).
+cancel.
+unfold message.
+apply exp_right with (eval_id ser rho, g).
+apply andp_right.
+admit.  (* need to preserve these from above *)
+simpl_typed_mapsto.
+simpl.
+cancel.
+Qed.
+
 
 Lemma call_deserialize:
  forall (Delta: tycontext) P Q R (ser: ident)
@@ -514,7 +800,14 @@ extensionality rho; unfold_coerce; simpl; rewrite sepcon_comm; reflexivity.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 focus_SEP 1%nat.
-apply call_serialize; auto 50 with closed.
+replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
+          ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
+            :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
+apply go_lower_lem9.
+go_lower.
+apply andp_right; try apply prop_right; auto.
+apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
+intro rho. apply prop_right. hnf. auto.
 simpl update_tycon.
 redefine_Delta.
 focus_SEP 2%nat.
