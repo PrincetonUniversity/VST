@@ -1554,8 +1554,157 @@ f_equal.
 apply sepcon_comm.
 Qed.
 
+Fixpoint insert {A} (n: nat) (x: A) (ys: list A) {struct n} : list A :=
+ match n with
+ | O => x::ys
+ | S n' => match ys with nil => x::ys | y::ys' => y::insert n' x ys' end
+end.
+
+(* Note: in the grab_indexes function,
+  it's important that the {struct} induction NOT be on xs, because
+  that list might not be concrete all the way to the end, where the ns list will be concrete.
+  Thus we do it this particular way.  *)
+Fixpoint  grab_indexes' {A} (ns: list (option nat)) (xs: list A) {struct ns} : list A * list A :=
+match ns, xs with
+| nil, xs => (nil, xs)
+| _, nil => (nil,nil)
+| Some n::ns', x::xs' => let (al,bl) := grab_indexes' ns' xs'
+                               in (insert n x al, bl)
+| None :: ns', x::xs' => let (al,bl) := grab_indexes' ns' xs'
+                                  in (al, x::bl)
+end.
+
+Fixpoint grab_calc' (k: Z) (z: nat) (ns: list (option nat)): list (option nat) :=
+match z, ns with
+| O, _::ns' => Some (nat_of_Z k) :: ns'
+| S z', None::ns' => None :: grab_calc' k z' ns'
+| S z', Some n :: ns => Some n :: grab_calc' (k-1) z' ns
+| O, nil => Some O :: nil
+| S z', nil => None :: grab_calc' k z' nil
+end.
+
+Fixpoint grab_calc (k: Z) (zs: list Z) (ns: list (option nat)) : list (option nat) :=
+match zs with
+| nil => ns
+| z::zs' => grab_calc (k+1) zs' (grab_calc' k (nat_of_Z z) ns)
+end.
+
+(* Eval compute in grab_calc 0 (3::1::5::nil) nil. *)
+
+(* Define app_alt, just like app, so we have better control
+  over which things get unfolded *)
+
+Definition app_alt {A: Type} :=
+fix app (l m : list A) : list A :=
+  match l with
+  | nil => m
+  | a :: l1 => a :: app l1 m
+  end.
+
+Definition grab_indexes {A} (ns: list Z) (xs: list A) : list A :=
+    let (al,bl) := grab_indexes' (grab_calc 0 ns nil) xs in app_alt al bl.
+
+(* TESTING 
+Variables (a b c d e f g h i j : assert).
+Eval compute in grab_indexes (1::4::6::nil) (a::b::c::d::e::f::g::h::i::j::nil).
+Eval compute in grab_indexes (1::6::4::nil) (a::b::c::d::e::f::g::h::i::j::nil).
+*) 
+
+(*
+Lemma revapp_sepcon:
+ forall al bl: list assert, 
+  fold_right sepcon emp (revapp al bl) =
+  fold_right sepcon emp al * fold_right sepcon emp bl.
+Proof.
+induction al; intro bl; extensionality rho; simpl.
+rewrite emp_sepcon; auto.
+rewrite IHal.
+simpl.
+rewrite sepcon_comm.
+do 2 rewrite sepcon_assoc.
+f_equal; auto. rewrite sepcon_comm; auto.
+Qed.
+*)
+
+Lemma grab_indexes_SEP : 
+  forall (ns: list Z) (xs: list assert),   SEPx xs = SEPx (grab_indexes ns xs).
+Proof.
+intros.
+change SEPx with SEPx'; unfold SEPx'; extensionality rho.
+unfold grab_indexes. change @app_alt with  @app.
+forget (grab_calc 0 ns nil) as ks.
+revert xs; induction ks; intro.
+unfold grab_indexes'. simpl app. auto.
+destruct a.
+destruct xs. reflexivity.
+unfold grab_indexes'.
+fold @grab_indexes'.
+rewrite fold_right_cons.
+specialize (IHks xs).
+case_eq (grab_indexes' ks xs); intros.
+rewrite H in IHks.
+rewrite fold_right_app.
+transitivity (a rho * fold_right sepcon emp xs rho); try reflexivity.
+fold Nassert in *. fold Sassert in *. rewrite IHks.
+rewrite fold_right_app.
+forget (fold_right sepcon emp l0) as P.
+transitivity (fold_right sepcon P (a::l) rho). reflexivity.
+clear.
+revert l; induction n; intro l. reflexivity.
+simpl. destruct l. simpl. auto.
+simpl. rewrite <- sepcon_assoc. rewrite (sepcon_comm (a rho)).
+rewrite sepcon_assoc. f_equal.
+specialize (IHn l). simpl in IHn.
+auto.
+destruct xs. reflexivity.
+unfold grab_indexes'.
+fold @grab_indexes'.
+rewrite fold_right_cons.
+specialize (IHks xs).
+case_eq (grab_indexes' ks xs); intros.
+rewrite H in IHks.
+simpl.
+simpl in IHks; rewrite IHks.
+clear.
+induction l; simpl; auto.
+rewrite <- IHl.
+clear IHl.
+repeat rewrite <- sepcon_assoc.
+f_equal.
+rewrite sepcon_comm; auto.
+Qed.
+
+Ltac grab_indexes_SEP ns :=
+  rewrite (grab_indexes_SEP ns); 
+    unfold grab_indexes; simpl grab_calc; 
+   unfold grab_indexes', insert; 
+   unfold nat_of_P; simpl Pmult_nat; cbv beta iota;
+   unfold app_alt; fold @app_alt.
+
+Tactic Notation "focus_SEP" constr(a) := grab_indexes_SEP (a::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) := grab_indexes_SEP (a::b::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) := 
+   grab_indexes_SEP (a::b::c::nil).
+Tactic Notation "focus_SEP" constr(a) constr(b) constr(c) constr(d) := 
+   grab_indexes_SEP (a::b::c::d::nil).
+
+(* TESTING 
+Variables (a b c d e f g h i j : assert).
+Goal (SEP (a;b;c;d;e;f;g;h;i;j) = SEP (b;d;a;c;e;f;g;h;i;j)).
+focus_SEP 1 3.
+auto.
+Qed.
+Goal (SEP (a;b;c;d;e;f;g;h;i;j) = SEP (d;b;a;c;e;f;g;h;i;j)).
+focus_SEP 3 1. 
+auto.
+Qed.
+
+*)
+
+(* OLD VERSION:
 Ltac focus_SEP n := 
    rewrite (grab_nth_SEP n); unfold nth, delete_nth.
+*) 
 
 Lemma restart_canon: forall P Q R, (PROPx P (LOCALx Q (SEPx R))) = do_canon emp (PROPx P (LOCALx Q (SEPx R))).
 Proof.
@@ -1909,3 +2058,29 @@ Proof.
  apply extract_exists_pre.  apply H.
 Qed.
 
+Lemma semax_frame_PQR:
+  forall Delta R1 R2 P Q P' Q' R1' c,
+     closed_wrt_modvars c (SEPx R2) ->
+     semax Delta (PROPx P (LOCALx Q (SEPx R1))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
+     semax Delta (PROPx P (LOCALx Q (SEPx (R1++R2)))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx (R1'++R2))))).
+Proof.
+intros.
+replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
+   with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
+eapply semax_post0; [ | apply semax_frame; eassumption].
+normalize.
+match goal with |- ?A |-- ?B => replace B with A; auto end.
+f_equal.
+change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+normalize.
+f_equal. f_equal.
+clear; induction R1'; simpl. apply emp_sepcon.
+rewrite sepcon_assoc. f_equal. auto.
+change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+normalize.
+f_equal. f_equal.
+clear; induction R1; simpl. apply emp_sepcon.
+rewrite sepcon_assoc. f_equal. auto.
+Qed.

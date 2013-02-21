@@ -397,7 +397,7 @@ apply exp_right with (Vptr b i).
 apply exp_right with elem.
 normalize.
 (* CASE TWO:  contents <> nil *)
-focus_SEP 2%nat.
+focus_SEP 2.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro prefix.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro ult.
 normalize. rewrite extract_exists_in_SEP. apply extract_exists_pre; intro elem'.
@@ -775,7 +775,7 @@ destruct prefix.
 (* Case 1: prefix=nil -- contradiction *)
 simpl in H0. inv H0.
 rewrite @lseg_nil_eq.
-focus_SEP 2%nat.
+focus_SEP 2.
 normalize.
 apply semax_extract_PROP; intro.
 apply ptr_eq_e in H. subst ult.
@@ -803,7 +803,7 @@ apply semax_extract_PROP. intro; contradiction.
 simpl in H0. inversion H0; clear H0; subst e contents.
  rewrite @lseg_cons_eq.
  normalize.
- focus_SEP 2%nat.
+ focus_SEP 2.
  rewrite extract_exists_in_SEP.
  apply extract_exists_pre; intro h.
  rewrite move_prop_from_SEP.

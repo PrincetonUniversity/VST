@@ -233,28 +233,6 @@ Ltac get_global_function' id :=
   eapply (semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
 
 
-Lemma globfun_eval_var:
-  forall Delta rho id f,
-      tc_environ Delta rho ->
-     (var_types Delta) ! id = None ->
-     (glob_types Delta) ! id = Some  (Global_func f) ->
-     exists b, exists z,  eval_var id (type_of_funspec f) rho = Vptr b z /\
-             ge_of rho id = Some (Vptr b z, type_of_funspec f).
-Proof.
-intros.
-unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H.
-destruct H as [Ha [Hb [Hc Hd]]].
-hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
-exists b; exists i.
-unfold eval_var; simpl.
-apply Hd in H1. 
-destruct H1 as [? | [? ?]]; [ | congruence].
-unfold Map.get; rewrite H. rewrite Hc.
-rewrite eqb_type_refl; auto.
-Qed.
-
 Lemma  setup_globals:
   forall u XX, 
         local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
@@ -307,41 +285,8 @@ repeat rewrite Int.add_zero.
  repeat apply sepcon_derives; umapsto_field_mapsto_tac.
 Qed.
 
-Lemma subst_eval_var:
-  forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
-Proof.
-intros. unfold subst, eval_var. extensionality rho.
-simpl. auto.
-Qed.
-Hint Rewrite subst_eval_var : normalize.
-Hint Rewrite subst_eval_var : subst.
 
 
-Lemma semax_frame_PQR:
-  forall Delta R1 R2 P Q P' Q' R1' c,
-     closed_wrt_modvars c (SEPx R2) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx R1))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx (R1++R2)))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx (R1'++R2))))).
-Proof.
-intros.
-replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
-   with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
-eapply semax_post0; [ | apply semax_frame; eassumption].
-normalize.
-apply derives_refl'. f_equal.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
-normalize.
-f_equal. f_equal.
-clear; induction R1'; simpl. apply emp_sepcon.
-rewrite sepcon_assoc. f_equal. auto.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
-normalize.
-f_equal. f_equal.
-clear; induction R1; simpl. apply emp_sepcon.
-rewrite sepcon_assoc. f_equal. auto.
-Qed.
 
 Lemma drop_local: forall  P Q1 Q R,
     (PROPx P (LOCALx (Q1::Q) R)) |-- (PROPx P (LOCALx Q R)).
@@ -404,17 +349,6 @@ with mk_funspec f A P Q => Q end.
 Definition serialize_fsig {t} (msg: message_format t)  : funsig :=
 match serialize_spec msg with mk_funspec f A P Q => f end.
 
-Lemma subst_make_args':
-  forall id v (P: assert) fsig tl el,
-  subst id v (`P (make_args' fsig (eval_exprlist tl el))) =  (`P (make_args' fsig (eval_exprlist tl el))).
-Proof.
-intros. unfold_coerce. extensionality rho; unfold subst.
-f_equal. unfold make_args'.
-induction (fst fsig); simpl; intros.
-Admitted.
-Hint Rewrite subst_make_args': normalize.
-Hint Rewrite subst_make_args': subst.
-
 Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
 
 Lemma closed_wrt_subset:
@@ -473,6 +407,54 @@ Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
    | _ => False
   end.
 
+
+(*
+Lemma subst_make_args':
+  forall id v (P: assert) fsig tl el,
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) =  (`P (make_args' fsig (eval_exprlist tl el))).
+Proof.
+intros. unfold_coerce. extensionality rho; unfold subst.
+f_equal. unfold make_args'.
+
+induction (fst fsig); simpl; intros.
+destruct tl; simpl.
+unfold globals_only; unfold env_set; simpl; auto.
+destruct el; simpl. reflexivity.
+
+
+Admitted.
+Hint Rewrite subst_make_args': normalize.
+Hint Rewrite subst_make_args': subst.
+*)
+
+Lemma subst_make_args':
+  forall id v (P: assert) fsig tl el,
+  length tl = length el ->
+  length (fst fsig) = length el ->
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
+           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
+Proof.
+intros. unfold_coerce. extensionality rho; unfold subst.
+f_equal. unfold make_args'.
+revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
+reflexivity.
+specialize (IHl _ _ H2 H1).
+rewrite IHl. auto.
+Qed.
+Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
+
+Lemma closed_wrt_lvalue: forall S e,
+  access_mode (typeof e) = By_reference ->
+  closed_wrt_vars S (eval_expr e) -> closed_wrt_vars S (eval_lvalue e).
+Proof.
+intros.
+destruct e; simpl in *; auto with closed;
+unfold closed_wrt_vars in *;
+intros; specialize (H0 _ _ H1); clear H1; unfold_coerce;
+unfold deref_noload in *; rewrite H in H0; auto.
+Qed.
+Hint Resolve closed_wrt_lvalue : closed.
+
 Lemma call_serialize:
  forall (Delta: tycontext) P Q R (ser id x: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
@@ -489,11 +471,12 @@ Lemma call_serialize:
  writable_share sh_buf ->
  x <> ser /\ x <> id /\ id <> ser ->
  forall
+  (AM_buf: access_mode (typeof e_buf) = By_reference)
   (CL_R: Forall (closed_wrt_vars (list2ensemble(ser::x::id::nil))) Q)
   (CL_R: Forall (closed_wrt_vars (list2ensemble(ser::x::id::nil))) R)
   (CL_obj: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_lvalue e_obj))
   (CL_p: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_expr e_p))
-  (CL_buf: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_lvalue e_buf))
+  (CL_buf: closed_wrt_vars (list2ensemble(ser::x::id::nil)) (eval_expr e_buf))
   (H6: PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- local (tc_lvalue Delta e_obj)),
  semax Delta
    (PROPx P (LOCALx (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil) :: Q)
@@ -592,10 +575,12 @@ assert (CL_TC: closed_wrt_vars (list2ensemble(ser::x::id::nil))
 assert (C1:=closed_wrt_subset _ _ CLser).
 assert (C2:=closed_wrt_Forall_subset _ _ CLser).
 autorewrite with subst.
+simpl eval_exprlist.
+autorewrite with subst.
 clear C1 C2.
 
-focus_SEP 1%nat; focus_SEP 3%nat.
-
+focus_SEP 3 1.
+ simpl.
    apply semax_pre_PQR with 
      (P':=PROPx P (LOCALx (tc_expr (initialized ser Delta)
                 (Etempvar ser
@@ -632,7 +617,7 @@ clear - H0 H.
 admit.  (* should be fine *)
 clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
-subst f. apply derives_refl.
+subst f.  simpl. apply derives_refl.
 simpl update_tycon.
 eapply semax_seq'.
 apply (semax_call' (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
@@ -775,13 +760,12 @@ name y _y.
 name ser _ser.
 name des _des.
 repeat flatten_sepcon_in_SEP.
-focus_SEP 1%nat.
-focus_SEP 3%nat.
+focus_SEP 3 1.
 get_global_function' _intpair_deserialize.
 get_global_function' _intpair_serialize.
 eapply semax_pre.
 apply setup_globals.
-focus_SEP 3%nat.
+focus_SEP 3.
 rewrite -> seq_assoc.
 
 frame_upto 1%nat.
@@ -799,7 +783,7 @@ extensionality rho; unfold_coerce; simpl; rewrite sepcon_comm; reflexivity.
 
 rewrite -> seq_assoc.
 eapply semax_seq'.
-focus_SEP 1%nat.
+focus_SEP 1.
 replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
           ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
             :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
@@ -810,16 +794,15 @@ apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
 intro rho. apply prop_right. hnf. auto.
 simpl update_tycon.
 redefine_Delta.
-focus_SEP 2%nat.
+focus_SEP 2.
 eapply semax_pre0; [apply intpair_message_length | ].
-focus_SEP 4%nat.
-focus_SEP 2%nat.
+focus_SEP 1 4.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 apply call_deserialize; auto 50 with closed.
 go_lower. apply andp_right; apply prop_right.
 simpl in H. omega. simpl in *. rewrite <- H.  reflexivity. 
-focus_SEP 1%nat.
+focus_SEP 1.
 replace_SEP 
   ((`(field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
    `(field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))

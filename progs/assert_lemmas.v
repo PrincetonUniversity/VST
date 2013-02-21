@@ -559,6 +559,15 @@ Lemma eval_expr_Ecast:
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_Ecast : normalize.
 
+Lemma subst_eval_var:
+  forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
+Proof.
+intros. unfold subst, eval_var. extensionality rho.
+simpl. auto.
+Qed.
+Hint Rewrite subst_eval_var : normalize.
+Hint Rewrite subst_eval_var : subst.
+
 Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
@@ -641,7 +650,6 @@ Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
 
-
 Definition func_ptr' f v := func_ptr f v && emp.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
@@ -664,6 +672,28 @@ Proof. reflexivity. Qed.
 Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
+
+Lemma globfun_eval_var:
+  forall Delta rho id f,
+      tc_environ Delta rho ->
+     (var_types Delta) ! id = None ->
+     (glob_types Delta) ! id = Some  (Global_func f) ->
+     exists b, exists z,  eval_var id (type_of_funspec f) rho = Vptr b z /\
+             ge_of rho id = Some (Vptr b z, type_of_funspec f).
+Proof.
+intros.
+unfold tc_environ, typecheck_environ in H.
+repeat rewrite andb_true_iff in H.
+destruct H as [Ha [Hb [Hc Hd]]].
+hnf in Hc.
+specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
+exists b; exists i.
+unfold eval_var; simpl.
+apply Hd in H1. 
+destruct H1 as [? | [? ?]]; [ | congruence].
+unfold Map.get; rewrite H. rewrite Hc.
+rewrite eqb_type_refl; auto.
+Qed.
 
 Lemma globvar_eval_var:
   forall Delta rho id t,

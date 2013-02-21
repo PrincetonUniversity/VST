@@ -85,7 +85,7 @@ go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 go_lower.  subst.  normalize.
 (* Prove that loop body preserves invariant *)
-focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h' r y ?].
+focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
 normalize.
 forward.  (* h = t->h; *)
@@ -134,7 +134,7 @@ go_lower. subst. normalize.
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.
-focus_SEP 1%nat; apply semax_lseg_nonnull; [ | intros h r y ?].
+focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower. normalize.
 destruct cts2; inv H0.
 forward.  (* t = v->t; *)
