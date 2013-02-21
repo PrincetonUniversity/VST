@@ -26,9 +26,8 @@ Definition sumarray_spec :=
                       `isptr (eval_id _a))
           SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))
   POST [ tint ]  
-        PROP () 
-        LOCAL (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
-        SEP (`(array_at_range tint sh contents 0 size a0)).
+        local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
+                 && `(array_at_range tint sh contents 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -189,7 +188,7 @@ unfold Frame.
  simpl.
  apply eval_var_isptr with Delta; simpl; auto.
  apply setup_globals; auto.
- forward.
+ auto with closed.
  forward. (* return s; *)
  go_lower. subst. normalize.
 Qed.

@@ -73,13 +73,19 @@ Definition serialize_spec {t: type} (format: message_format t) :=
          `(typed_mapsto sh t p data)  
             * `(mf_assert format sh' buf len data) * `(mf_restbuf format sh' buf len).
 
+Notation " '`0(' x )" := (@coerce _ _ (lift0_C _) x).
+Notation " '`1(' x )" := (@coerce _ _ (lift1_C _ _) x).
+Notation " '`2(' x )" := (@coerce _ _ (lift2_C _ _ _) x).
+Notation " '`3(' x )" := (@coerce _ _ (lift3_C _ _ _ _) x).
+Notation " '`4(' x )" := (@coerce _ _ (lift4_C _ _ _ _ _) x).
+
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
           PROP (writable_share (fst shs); 0 <= len <= mf_size format)
-          LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
+          LOCAL (`1(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
                         `(eq (Vint (Int.repr len))) (eval_id _length))
-          SEP (`(mf_assert format (snd shs) buf len data);
+          SEP (`0(mf_assert format (snd shs) buf len data);
                  `(memory_block (fst shs) (Int.repr (mf_size format)) p))
   POST [ tint ]
             `(mf_assert format (snd shs) buf len data) *
@@ -129,8 +135,8 @@ apply semax_pre_PQR with
    SEP 
    (`(field_mapsto sh t_struct_intpair _x) (eval_id _p) `(Vint x1);
     `(field_mapsto sh t_struct_intpair _y) (eval_id _p) `(Vint y1);
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `0);
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `1))).
+   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(0));
+   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1)))).
 go_lower; subst;  rewrite (field_mapsto__isptr). normalize. 
  cancel.
 apply sepcon_derives; apply derives_refl''; 
@@ -177,10 +183,10 @@ apply semax_pre_PQR with
    (`(field_mapsto_ sh t_struct_intpair _x) (eval_id _p);
     `(field_mapsto_ sh t_struct_intpair _y) (eval_id _p);
    `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `0)
+        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(0))
       `(Vint x1);
    `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `1)
+        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1))
         `(Vint y1))).
 go_lower; subst.
 simpl_typed_mapsto. simpl.
@@ -286,47 +292,9 @@ repeat rewrite Int.add_zero.
 Qed.
 
 
-
-
 Lemma drop_local: forall  P Q1 Q R,
     (PROPx P (LOCALx (Q1::Q) R)) |-- (PROPx P (LOCALx Q R)).
 Admitted.  (* temporary? *)
-
-Lemma closed_wrt_eval_var:
-  forall S id t, closed_wrt_vars S (eval_var id t).
-Proof.
-unfold closed_wrt_vars, eval_var; intros.
-simpl.
-auto.
-Qed.
-Hint Resolve closed_wrt_eval_var : closed.
-
-Ltac frame_upto N :=
- match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                                 (Ssequence _ _) ?Post =>
-  rewrite <- (firstn_skipn N R); simpl firstn; simpl skipn;
-  eapply semax_seq'; 
-  [apply semax_frame_PQR ; 
-      [ unfold closed_wrt_modvars;  auto 50 with closed | ]
-  | ]
-end.
-
-Lemma gather_SEP:
-  forall R1 R2, 
-    SEPx (R1 ++ R2) = SEPx (fold_right sepcon emp R1 :: R2).
-Proof. 
-intros. change SEPx with SEPx'.
-unfold SEPx'.
-extensionality rho.
-induction R1; simpl. rewrite emp_sepcon; auto.
-rewrite sepcon_assoc; f_equal; auto.
-Qed.
-
-Ltac gather_SEP N :=
- match goal with |- context [SEPx ?R] => 
-   rewrite <- (firstn_skipn N R); simpl firstn; simpl skipn; rewrite gather_SEP;
-   unfold fold_right; try  rewrite sepcon_emp
- end.
 
 Ltac replace_SEP R :=
 match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?R1::_)))) _ _ =>
@@ -349,55 +317,6 @@ with mk_funspec f A P Q => Q end.
 Definition serialize_fsig {t} (msg: message_format t)  : funsig :=
 match serialize_spec msg with mk_funspec f A P Q => f end.
 
-Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
-
-Lemma closed_wrt_subset:
-  forall (S S': ident -> Prop) (H: included S' S) B (f: environ -> B),
-       closed_wrt_vars S f -> closed_wrt_vars S' f.
-Proof.
-intros. hnf. intros. specialize (H0 rho te').
-apply H0.
-intro i; destruct (H1 i); auto.
-Qed.
-Hint Resolve closed_wrt_subset : closed.
-
-Lemma closed_wrt_Forall_subset:
-  forall S S' (H: included S' S) B (f: list (environ -> B)),
- Forall (closed_wrt_vars S) f ->
- Forall (closed_wrt_vars S') f.
-Proof.
-induction f; simpl; auto.
-intro.
-inv H0.
-constructor.
-apply (closed_wrt_subset _ _ H). auto.
-auto.
-Qed.
-
-Lemma forward_setx_closed_now':
-  forall Delta P (Q: list (environ -> Prop)) (R: list assert) id e,
-  Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
-  closed_wrt_vars (eq id) (eval_expr e) ->
-  PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx P (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
-  semax Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
-        (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
-Proof.
-intros.
-eapply semax_pre; [ | apply semax_set].
-eapply derives_trans; [ | apply now_later].
-apply andp_left2.
-apply andp_right; auto.
-apply andp_right; auto.
-autorewrite with subst.
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho; unfold local,lift1; simpl.
-apply prop_derives; simpl; intro; split; auto.
-hnf; auto.
-Qed.
-
 Fixpoint list2ensemble  (l: list ident) : (ident -> Prop) :=
  match l with nil => modified0 | x::l' => modified2 (eq x) (list2ensemble l') end.
 
@@ -406,26 +325,6 @@ Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
     Some (t',_) => t' = t
    | _ => False
   end.
-
-
-(*
-Lemma subst_make_args':
-  forall id v (P: assert) fsig tl el,
-  subst id v (`P (make_args' fsig (eval_exprlist tl el))) =  (`P (make_args' fsig (eval_exprlist tl el))).
-Proof.
-intros. unfold_coerce. extensionality rho; unfold subst.
-f_equal. unfold make_args'.
-
-induction (fst fsig); simpl; intros.
-destruct tl; simpl.
-unfold globals_only; unfold env_set; simpl; auto.
-destruct el; simpl. reflexivity.
-
-
-Admitted.
-Hint Rewrite subst_make_args': normalize.
-Hint Rewrite subst_make_args': subst.
-*)
 
 Lemma subst_make_args':
   forall id v (P: assert) fsig tl el,
@@ -442,18 +341,6 @@ specialize (IHl _ _ H2 H1).
 rewrite IHl. auto.
 Qed.
 Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
-
-Lemma closed_wrt_lvalue: forall S e,
-  access_mode (typeof e) = By_reference ->
-  closed_wrt_vars S (eval_expr e) -> closed_wrt_vars S (eval_lvalue e).
-Proof.
-intros.
-destruct e; simpl in *; auto with closed;
-unfold closed_wrt_vars in *;
-intros; specialize (H0 _ _ H1); clear H1; unfold_coerce;
-unfold deref_noload in *; rewrite H in H0; auto.
-Qed.
-Hint Resolve closed_wrt_lvalue : closed.
 
 Lemma call_serialize:
  forall (Delta: tycontext) P Q R (ser id x: ident)
@@ -537,7 +424,7 @@ change (`(fun m : val =>
             `(func_ptr (deserialize_spec msg) (snd fg)) &&
             `(typed_mapsto sh_obj t_struct_message)
                   (eval_lvalue e_obj)
-                 `((Int.repr (mf_size msg), (fst fg, snd fg))) : assert).
+                 `((Int.repr (mf_size msg), (fst fg, snd fg)))).
 extract_exists_in_SEP. intros [f g].
 simpl @fst; simpl @ snd.
 simpl_typed_mapsto.
@@ -765,19 +652,17 @@ get_global_function' _intpair_deserialize.
 get_global_function' _intpair_serialize.
 eapply semax_pre.
 apply setup_globals.
-focus_SEP 3.
 rewrite -> seq_assoc.
-
-frame_upto 1%nat.
+frame_SEP 3.
 simpl_typed_mapsto.
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 apply drop_local.  (* tempory, should fix store_field_tac *)
 simpl app.
 simpl update_tycon. (* should forward do this? *)
-gather_SEP 2%nat.
+gather_SEP 0 1.
 replace_SEP  (`(typed_mapsto Share.top t_struct_intpair)
-                      (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2)) : assert).
+                      (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2))).
 simpl_typed_mapsto.
 extensionality rho; unfold_coerce; simpl; rewrite sepcon_comm; reflexivity.
 
@@ -787,7 +672,6 @@ focus_SEP 1.
 replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
           ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
             :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
-apply go_lower_lem9.
 go_lower.
 apply andp_right; try apply prop_right; auto.
 apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
@@ -804,9 +688,9 @@ go_lower. apply andp_right; apply prop_right.
 simpl in H. omega. simpl in *. rewrite <- H.  reflexivity. 
 focus_SEP 1.
 replace_SEP 
-  ((`(field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
-   `(field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))
-    : assert).
+  ((`2( field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `0(Vint (Int.repr 1)) *
+   `2( field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `0(Vint (Int.repr 2)))
+    ).
 reflexivity.
 flatten_sepcon_in_SEP.
 forward. (* x = q.x; *)

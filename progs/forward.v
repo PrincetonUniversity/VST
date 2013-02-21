@@ -6,55 +6,10 @@ Import SequentialClight.SeqC.CSL.
 Require Import progs.client_lemmas.
 Require Import progs.field_mapsto.
 Require Import progs.assert_lemmas.
-Require Export progs.forward_lemmas progs.call_lemmas.
+Require Export progs.canonicalize progs.forward_lemmas progs.call_lemmas.
 Import Cop.
 
 Local Open Scope logic.
-
-Ltac forward_while Inv Postcond :=
-  apply semax_pre_PQR with Inv;
-    [ | (apply semax_seq with Postcond;
-            [ apply semax_while' ; [ compute; auto | | | ] 
-            | simpl update_tycon ])
-        || (repeat match goal with 
-         | |- semax _ (exp _) _ _ => fail 1
-         | |- semax _ (?X _ _ _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _) _ _ => unfold X
-         | |- semax _ (?X _) _ _ => unfold X
-         | |- semax _ ?X _ _ => unfold X
-        end;
-          match goal with
-          | |- semax _  (exp (fun y => _)) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex;
-                  [ compute; auto 
-                  | let y':=fresh y in intro y'
-                  | let y':=fresh y in intro y'
-                  | let y':=fresh y in intro y';
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                  ]
-               | simpl update_tycon ]
-          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex2; 
-                 [ compute; auto
-                 | intros y1 y2 
-                 | intros y1 y2 
-                 | intros y1 y2; 
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                 ]
-               | simpl update_tycon ]
-        end)
-
-   ].
 
 (* BEGIN HORRIBLE1.
   The following lemma is needed because CompCert clightgen
@@ -65,7 +20,10 @@ instead of the more natural
 Our general tactics are powerful enough to reason about the sequence,
 one statement at a time, but it is not nice to burden the user with knowing
 about id'.  So we handle it all in one gulp.
- See also BEGIN HORRIBLE1 in forward.v
+ 
+The lemma goes here, because it imports from both forward_lemmas and call_lemmas.
+
+ See also BEGIN HORRIBLE1 , later in this file
 *)
 
 
@@ -208,6 +166,52 @@ change SEPx with SEPx'.
 Qed.
 
 (* END HORRIBLE1 *)
+
+
+Ltac forward_while Inv Postcond :=
+  apply semax_pre_PQR with Inv;
+    [ | (apply semax_seq with Postcond;
+            [ apply semax_while' ; [ compute; auto | | | ] 
+            | simpl update_tycon ])
+        || (repeat match goal with 
+         | |- semax _ (exp _) _ _ => fail 1
+         | |- semax _ (?X _ _ _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _ _) _ _ => unfold X
+         | |- semax _ (?X _ _) _ _ => unfold X
+         | |- semax _ (?X _) _ _ => unfold X
+         | |- semax _ ?X _ _ => unfold X
+        end;
+          match goal with
+          | |- semax _  (exp (fun y => _)) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex;
+                  [ compute; auto 
+                  | let y':=fresh y in intro y'
+                  | let y':=fresh y in intro y'
+                  | let y':=fresh y in intro y';
+                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                  ]
+               | simpl update_tycon ]
+          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
+             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
+              apply semax_seq with Postcond ;
+               [apply semax_whilex2; 
+                 [ compute; auto
+                 | intros y1 y2 
+                 | intros y1 y2 
+                 | intros y1 y2; 
+                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
+                             change S with Inv
+                     end
+                 ]
+               | simpl update_tycon ]
+        end)
+
+   ].
 
 Ltac normalizex :=
   normalize;

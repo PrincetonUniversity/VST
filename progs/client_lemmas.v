@@ -273,46 +273,6 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Lemma semax_while : 
- forall Delta Q test body R,
-     bool_type (typeof test) = true ->
-     (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
-     (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
-     semax Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)  body (loop1_ret_assert Q R) ->
-     semax Delta Q (Swhile test body) R.
-Proof.
-intros ? ? ? ? ? BT TC Post H.
-unfold Swhile.
-apply (semax_loop Delta Q Q).
-Focus 2.
- clear; eapply semax_post; [ | apply semax_skip];
- destruct ek; unfold normal_ret_assert, loop2_ret_assert; intros; 
-    normalize; try solve [inv H]; apply andp_left2; auto.
-(* End Focus 2*)
-apply semax_seq with 
- (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
-apply semax_pre with (local (tc_expr Delta test) && Q).
-apply andp_right. apply TC.
-apply andp_left2.
-intro; auto.
-apply semax_ifthenelse; auto.
-eapply semax_post; [ | apply semax_skip].
-intros.
-intro rho; unfold normal_ret_assert, overridePost; simpl.
-normalize. rewrite if_true by auto.
-apply andp_right. apply TT_right.
-apply andp_left2. rewrite andp_comm; auto.
-eapply semax_pre; [ | apply semax_break].
-unfold overridePost. rewrite if_false by congruence.
-unfold loop1_ret_assert.
-eapply derives_trans; try apply Post.
-rewrite andp_assoc. apply andp_derives; auto.
-rewrite andp_comm; auto.
-simpl update_tycon.
-apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_eqv_symm; apply join_tycon_same.
-Qed.
-
 Definition PROPx (P: list Prop): forall (Q: assert), assert := 
      andp (prop (fold_right and True P)).
 
@@ -921,9 +881,6 @@ Ltac go_lower3 :=
 Ltac go_lower := go_lower2; go_lower3.
 
 
-
-Definition do_canon (x y : assert) := (sepcon x y).
-
 Lemma closed_wrt_PROPx:
  forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
 Proof.
@@ -1090,162 +1047,6 @@ Proof. intros. eapply semax_post; eauto. intros.
  split; auto.
 Qed.
 
-Lemma canon1: forall P1 B  P Q R,
-   do_canon (prop P1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B  (PROPx (P1::P) (LOCALx Q (SEPx R))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-extensionality rho.
-simpl.
-normalize.
-rewrite andp_assoc.
-f_equal.
-Qed.
-
-Lemma canon2: forall Q1 B P Q R,
-    do_canon (local Q1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx (Q1::Q) (SEPx R))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-extensionality rho.
-simpl.
-normalize.
-rewrite andp_assoc.
-f_equal.
-Qed.
-
-Definition nonlocal (Q: assert) := True.
-
-Ltac check_nonlocal :=
-  match goal with
-  |  |- nonlocal (local _) => fail 1 
-  |  |- nonlocal (prop _) => fail 1 
-  |  |- nonlocal (andp _ _) => fail 1
-  |  |- nonlocal (sepcon _ _) => fail 1
-  | |- _ => apply I
- end.
-
-Lemma canon3: forall R1 B P Q R,
-    nonlocal R1 ->
-    do_canon (B * R1) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-clear H.
-extensionality rho.
-simpl.
-rewrite sepcon_assoc.
-f_equal.
-rewrite sepcon_andp_prop.
-f_equal.
-normalize.
-Qed.
-
-Lemma canon3b: forall R1 B P Q R,
-    nonlocal R1 ->
-    do_canon (R1* B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-rewrite (sepcon_comm R1 B).
-apply canon3. auto.
-Qed.
-
-Lemma canon4: forall P, do_canon emp P = P. 
-Proof.
-apply emp_sepcon.
-Qed.
-
-Lemma canon7: forall R1 P Q R, 
-   nonlocal R1 -> 
-   do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-extensionality rho.
-simpl.
-normalize.
-Qed.
- 
-Lemma canon8: forall R1 R2 R3 PQR,
-    do_canon ((R1 && R2) && R3) PQR = do_canon (R1 && (R2 && R3)) PQR.
-Proof. intros; rewrite andp_assoc; auto. 
-Qed.
-
-Lemma start_canon: forall P, P  = do_canon P (PROPx nil (LOCALx nil (SEPx nil ))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-extensionality rho; simpl.
-normalize.
-Qed.
-
-Hint Rewrite canon1 canon2 canon4 canon8 : canon.
-Hint Rewrite canon3 using check_nonlocal : canon.
-Hint Rewrite canon3b using check_nonlocal : canon.
-Hint Rewrite canon7 using check_nonlocal : canon.
-Hint Rewrite <- (@sepcon_assoc assert _) : canon.
-
-Lemma canon5: forall Q R S, 
-       nonlocal Q ->
-       Q && (local R && S) = local R && (Q && S).
-Admitted.
-
-
-Lemma canon5b: forall Q R S, 
-       nonlocal Q ->
-       Q && (S && local R) = local R && (Q && S).
-Admitted.
-
-Lemma canon5c: forall Q R, 
-       nonlocal Q ->
-       (Q && local R) = local R && Q.
-Admitted.
-
-Lemma canon6: forall Q R S, 
-       nonlocal Q ->
-       Q && (prop R && S) = prop R && (Q && S).
-Admitted.
-
-Lemma canon6b: forall Q R S, 
-       nonlocal Q ->
-       Q && (S && prop R) = prop R && (Q && S).
-Admitted.
-
-Lemma canon6c: forall Q R, 
-       nonlocal Q ->
-       (Q && prop R) = prop R && Q.
-Admitted.
-
-Hint Rewrite canon5 using check_nonlocal : canon.
-Hint Rewrite canon5b using check_nonlocal : canon.
-Hint Rewrite canon5c using check_nonlocal : canon.
-Hint Rewrite canon6 using check_nonlocal : canon.
-Hint Rewrite canon6b using check_nonlocal : canon.
-Hint Rewrite canon6c using check_nonlocal : canon.
-
-Lemma canon17 : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
-Proof.
-intros. unfold PROPx. simpl. extensionality rho. apply pred_ext; normalize.
-Qed.
-Hint Rewrite canon17 : canon.
-
-
-Lemma finish_canon: forall R1 P Q R, 
-   do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
-Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
-extensionality rho.
-simpl.
-normalize.
-Qed.
-
-Ltac canonicalize_pre :=
-  match goal with |- semax _ ?P _ _ =>
-      rewrite (start_canon P); autorewrite with canon
-  end.    
-
 Lemma fst_unfold: forall {A B} (x: A) (y: B), fst (x,y) = x.
 Proof. reflexivity. Qed.
 Lemma snd_unfold: forall {A B} (x: A) (y: B), snd (x,y) = y.
@@ -1273,6 +1074,8 @@ extensionality rho; unfold local, lift1; simpl.
 apply pred_ext; normalize.
 Qed.
 Hint Rewrite local_sepcon_assoc1 local_sepcon_assoc2 : normalize.
+
+Definition do_canon (x y : assert) := (sepcon x y).
 
 Ltac strip1_later P :=
  match P with 
@@ -1389,6 +1192,15 @@ apply pred_ext; normalize.
 Qed.
 Hint Rewrite insert_local:  normalize.
 
+Lemma semax_seq': 
+ forall Delta P c1 P' c2 Q, 
+         semax Delta P c1 (normal_ret_assert P') ->
+         semax (update_tycon Delta c1) P' c2 Q ->
+         semax Delta P (Ssequence c1 c2) Q.
+Proof.
+ intros. apply semax_seq with P'; auto.
+ apply sequential'. auto. 
+Qed.
 
 Lemma semax_pre0:
  forall P' Delta P c R,
@@ -1410,80 +1222,6 @@ Proof.
 intros.
 eapply semax_pre; try apply H0.
  rewrite insert_local. auto.
-Qed.
-
-Lemma semax_while' : 
- forall Delta P Q R test body Post,
-     bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     semax Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
-Proof.
-intros.
-apply semax_while; auto.
-eapply derives_trans; [ | apply H0].
-normalize.
-eapply derives_trans; [ | apply H1].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
-eapply semax_pre; [ | apply H2].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
-Qed.
-
-Lemma semax_whilex : 
- forall Delta A P Q R test body Post,
-     bool_type (typeof test) = true ->
-     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: (Q x)) (SEPx (R x))) |-- 
-                               local (tc_expr Delta test)) ->
-     (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x)) (SEPx (R x))) 
-                    |-- Post EK_normal None) ->
-     (forall x:A, semax Delta (PROPx (P x) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
-                           body 
-                            (loop1_ret_assert (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) Post))->
-     semax Delta (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x) ))) (Swhile test body) Post.
-Proof.
-intros.
-apply semax_while; auto.
-rewrite exp_andp2.
-apply exp_left. intro x; eapply derives_trans; [ | apply (H0 x)].
-normalize.
-rewrite exp_andp2.
-apply exp_left. intro x; eapply derives_trans; [ | apply (H1 x)].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
-normalize.
-apply extract_exists_pre; intro x.
-eapply semax_pre; [ | apply (H2 x)].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
-Qed.
-
-
-Lemma semax_whilex2 : 
- forall Delta A1 A2 P Q R test body Post,
-     bool_type (typeof test) = true ->
-     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: (Q x1 x2)) (SEPx (R x1 x2))) |-- 
-                               local (tc_expr Delta test)) ->
-     (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x1 x2)) (SEPx (R x1 x2))) 
-                    |-- Post EK_normal None) ->
-     (forall (x1:A1) (x2: A2), 
-               semax Delta (PROPx (P x1 x2) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
-                           body 
-                            (loop1_ret_assert (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2)))) Post))->
-     semax Delta (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2) ))) (Swhile test body) Post.
-Proof.
-intros.
-apply semax_while; auto.
-rewrite exp_andp2. apply exp_left. intro x1.
-rewrite exp_andp2. apply exp_left. intro x2.
- eapply derives_trans; [ | apply (H0 x1 x2)].
-normalize.
-rewrite exp_andp2. apply exp_left. intro x1.
-rewrite exp_andp2. apply exp_left. intro x2.
- eapply derives_trans; [ | apply (H1 x1 x2)].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
-normalize. apply extract_exists_pre; intro x1.
-normalize. apply extract_exists_pre; intro x2.
-eapply semax_pre; [ | apply (H2 x1 x2)].
-intro rho; unfold PROPx,LOCALx; unfold_coerce; simpl; normalize.
 Qed.
 
 Ltac find_in_list A L :=
@@ -1706,23 +1444,82 @@ Ltac focus_SEP n :=
    rewrite (grab_nth_SEP n); unfold nth, delete_nth.
 *) 
 
-Lemma restart_canon: forall P Q R, (PROPx P (LOCALx Q (SEPx R))) = do_canon emp (PROPx P (LOCALx Q (SEPx R))).
+Lemma semax_frame_PQR:
+  forall Delta R1 R2 P Q P' Q' R1' c,
+     closed_wrt_modvars c (SEPx R2) ->
+     semax Delta (PROPx P (LOCALx Q (SEPx R1))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
+     semax Delta (PROPx P (LOCALx Q (SEPx (R1++R2)))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx (R1'++R2))))).
 Proof.
 intros.
-unfold do_canon. rewrite emp_sepcon. auto.
+replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
+   with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
+eapply semax_post0; [ | apply semax_frame; eassumption].
+normalize.
+match goal with |- ?A |-- ?B => replace B with A; auto end.
+f_equal.
+change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+normalize.
+f_equal. f_equal.
+clear; induction R1'; simpl. apply emp_sepcon.
+rewrite sepcon_assoc. f_equal. auto.
+change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+normalize.
+f_equal. f_equal.
+clear; induction R1; simpl. apply emp_sepcon.
+rewrite sepcon_assoc. f_equal. auto.
 Qed.
 
-Lemma exp_do_canon:
-   forall T (P: T -> assert) (Q: assert), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
-Proof. apply exp_sepcon1. Qed.
-Hint Rewrite exp_do_canon: canon.
-Hint Rewrite exp_do_canon: normalize.
+
+Ltac frame_SEP' L :=
+  grab_indexes_SEP L;
+ match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) 
+                                 (Ssequence _ _) _ =>
+  rewrite <- (firstn_skipn (length L) R); simpl firstn; simpl skipn;
+  eapply semax_seq'; 
+  [apply semax_frame_PQR ; 
+      [ unfold closed_wrt_modvars;  auto 50 with closed | ]
+  | ]
+end.
+
+Tactic Notation "frame_SEP" constr(a) := frame_SEP' (a::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) := frame_SEP' (a::b::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) := 
+   frame_SEP' (a::b::c::nil).
+Tactic Notation "frame_SEP" constr(a) constr(b) constr(c) constr(d) := 
+   frame_SEP' (a::b::c::d::nil).
+
+Lemma gather_SEP:
+  forall R1 R2, 
+    SEPx (R1 ++ R2) = SEPx (fold_right sepcon emp R1 :: R2).
+Proof. 
+intros. change SEPx with SEPx'.
+unfold SEPx'.
+extensionality rho.
+induction R1; simpl. rewrite emp_sepcon; auto.
+rewrite sepcon_assoc; f_equal; auto.
+Qed.
+
+Ltac gather_SEP' L :=
+   grab_indexes_SEP L;
+ match goal with |- context [SEPx ?R] => 
+   rewrite <- (firstn_skipn (length L) R); simpl firstn; simpl skipn; rewrite gather_SEP;
+   unfold fold_right; try  rewrite sepcon_emp
+ end.
+
+Tactic Notation "gather_SEP" constr(a) := gather_SEP' (a::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) := gather_SEP' (a::b::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) := 
+   gather_SEP' (a::b::c::nil).
+Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) := 
+   gather_SEP' (a::b::c::d::nil).
 
 Ltac replace_in_pre S S' :=
  match goal with |- semax _ ?P _ _ =>
   match P with context C[S] =>
      let P' := context C[S'] in 
-      apply semax_pre with P'; [ | ]
+      apply semax_pre_PQR with P'; [ | ]
   end
  end.
 
@@ -1748,20 +1545,6 @@ unfold PROPx in *; simpl. normalize.
 apply semax_extract_prop.
 auto.
 Qed.
-
-Lemma canon9: forall Q1 P Q R,
-       local Q1 && (PROPx P (LOCALx Q R)) = 
-         PROPx P (LOCALx (Q1::Q) R).
-Proof.
-intros; unfold PROPx, LOCALx; simpl.
-extensionality rho.
-normalize.
-Admitted.
-Hint Rewrite canon9: canon.
-(*
-Ltac focus_SEP n := 
- rewrite restart_canon; rewrite (grab_nth_SEP n); unfold nth, delete_nth; normalize.
-*)
 
 Lemma PROP_later_derives:
  forall P QR QR', QR |-- |>QR' ->
@@ -1914,13 +1697,6 @@ Qed.
 
 Hint Rewrite move_prop_from_SEP move_local_from_SEP : normalize.
 
-Lemma canon20: forall PQR, do_canon emp PQR = PQR.
-Proof.
-intros. apply emp_sepcon.
-Qed.
-Hint Rewrite canon20: canon.
-
-
 Lemma subst_andp:
   forall id v P Q, subst id v (P && Q) = subst id v P && subst id v Q.
 Admitted.
@@ -2019,16 +1795,6 @@ Fixpoint do_builtins (defs : list (ident * globdef fundef type)) : funspecs :=
   | _ => nil
  end.
 
-Lemma semax_seq': 
- forall Delta P c1 P' c2 Q, 
-         semax Delta P c1 (normal_ret_assert P') ->
-         semax (update_tycon Delta c1) P' c2 Q ->
-         semax Delta P (Ssequence c1 c2) Q.
-Proof.
- intros. apply semax_seq with P'; auto.
- apply sequential'. auto. 
-Qed.
-
 Lemma semax_post_flipped' : 
    forall (R': assert) (Delta: tycontext) (R P: assert) c,
        semax Delta P c (normal_ret_assert R') ->
@@ -2056,31 +1822,4 @@ Proof.
  unfold local; unfold_coerce; simpl.
  apply prop_left; intro. apply prop_right. split; auto.
  apply extract_exists_pre.  apply H.
-Qed.
-
-Lemma semax_frame_PQR:
-  forall Delta R1 R2 P Q P' Q' R1' c,
-     closed_wrt_modvars c (SEPx R2) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx R1))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx (R1++R2)))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx (R1'++R2))))).
-Proof.
-intros.
-replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
-   with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
-eapply semax_post0; [ | apply semax_frame; eassumption].
-normalize.
-match goal with |- ?A |-- ?B => replace B with A; auto end.
-f_equal.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
-normalize.
-f_equal. f_equal.
-clear; induction R1'; simpl. apply emp_sepcon.
-rewrite sepcon_assoc. f_equal. auto.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
-normalize.
-f_equal. f_equal.
-clear; induction R1; simpl. apply emp_sepcon.
-rewrite sepcon_assoc. f_equal. auto.
 Qed.

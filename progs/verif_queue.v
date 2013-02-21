@@ -815,7 +815,6 @@ replace_in_pre
    (@coerce mpred (environ -> mpred) (lift0_C mpred)
                     (field_mapsto Share.top t_struct_elem _next hd h))
    (`(field_mapsto Share.top t_struct_elem _next) (eval_id _p) `h).
-apply go_lower_lem9.
 go_lower. subst. apply andp_right; auto. apply prop_right; split; auto.
 forward. (*  n=p->next; *)
 apply sequential'.

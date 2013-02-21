@@ -240,6 +240,14 @@ Proof. intros ? ? ? ?; apply closed_wrt_lift4C. Qed.
 Hint Resolve @closed_wrt_lift4C_assert : closed.
 
 
+Lemma closed_wrt_eval_var:
+  forall S id t, closed_wrt_vars S (eval_var id t).
+Proof.
+unfold closed_wrt_vars, eval_var; intros.
+simpl.
+auto.
+Qed.
+Hint Resolve closed_wrt_eval_var : closed.
 
 Lemma closed_wrt_eval_expr: forall S e,
   expr_closed_wrt_vars S e -> 
@@ -418,6 +426,44 @@ Lemma closed_wrt_stackframe_of:
   forall S f, closed_wrt_vars S (stackframe_of f).
 Admitted.
 Hint Resolve closed_wrt_stackframe_of : closed.
+
+
+Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
+
+Lemma closed_wrt_subset:
+  forall (S S': ident -> Prop) (H: included S' S) B (f: environ -> B),
+       closed_wrt_vars S f -> closed_wrt_vars S' f.
+Proof.
+intros. hnf. intros. specialize (H0 rho te').
+apply H0.
+intro i; destruct (H1 i); auto.
+Qed.
+Hint Resolve closed_wrt_subset : closed.
+
+Lemma closed_wrt_Forall_subset:
+  forall S S' (H: included S' S) B (f: list (environ -> B)),
+ Forall (closed_wrt_vars S) f ->
+ Forall (closed_wrt_vars S') f.
+Proof.
+induction f; simpl; auto.
+intro.
+inv H0.
+constructor.
+apply (closed_wrt_subset _ _ H). auto.
+auto.
+Qed.
+
+Lemma closed_wrt_lvalue: forall S e,
+  access_mode (typeof e) = By_reference ->
+  closed_wrt_vars S (eval_expr e) -> closed_wrt_vars S (eval_lvalue e).
+Proof.
+intros.
+destruct e; simpl in *; auto with closed;
+unfold closed_wrt_vars in *;
+intros; specialize (H0 _ _ H1); clear H1; unfold_coerce;
+unfold deref_noload in *; rewrite H in H0; auto.
+Qed.
+Hint Resolve closed_wrt_lvalue : closed.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : normalize.
 
