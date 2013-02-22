@@ -741,3 +741,10 @@ intros.
 rewrite var_block_typed_mapsto_.
 rewrite splice_top_top; auto.
 Qed.
+
+Lemma typed_mapsto_typed_mapsto_ :
+  forall sh t v v', typed_mapsto sh t v v' |-- typed_mapsto_ sh t v.
+Admitted.
+Hint Resolve typed_mapsto_typed_mapsto_.
+Hint Resolve field_mapsto_field_mapsto_.
+

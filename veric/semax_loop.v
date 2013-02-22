@@ -92,9 +92,15 @@ rewrite semax_unfold in H0, H1 |- *.
 intros.
 specialize (H0 psi _ Prog_OK k F).
 specialize (H1 psi _ Prog_OK k F).
-spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition. left; left; auto.
+spec H0. intros i te' ?.  apply H2; simpl; auto. intros i0; destruct (H4 i0); intuition.
+left; clear - H5.
+unfold modifiedvars. simpl.
+ apply modifiedvars'_union. left; apply H5.
 spec H1. intros i te' ?.  apply H2; simpl; auto.
- clear - H4; intros i0; destruct (H4 i0); intuition. left; right; auto.
+ clear - H4; intros i0; destruct (H4 i0); intuition.
+ left.
+ unfold modifiedvars. simpl.
+ apply modifiedvars'_union. right; apply H.
 assert (H3then: app_pred
        (rguard Hspec psi (exit_tycon c Delta)  (frame_ret_assert R F) k) w).
 clear - H3.
@@ -202,7 +208,6 @@ specialize (H psi w Prog_OK k F).
 spec H.
 intros ? ? ?. apply H0.
 intro i; destruct (H2 i); intuition.
-clear - H3; left. simpl in *. unfold modified2 in *; intuition.
 spec H; [solve [auto] |].
 clear - H.
 intros te ve ? ? ? ? ?.
@@ -245,7 +250,6 @@ specialize (H psi w Prog_OK k F).
 spec H.
 intros ? ? ?. apply H0.
 intro i; destruct (H2 i); intuition.
-clear - H3; left. simpl in *. unfold modified2 in *; intuition.
 spec H; [solve [auto] |].
 clear - H.
 intros te ve ? ? ? ? ?.
@@ -330,8 +334,10 @@ Focus 2.
 (* End Focus 2 *)
 
 eapply H; eauto.
-repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H3 i); intuition.
-
+repeat intro; apply H1.
+clear - H3. intro i; destruct (H3 i); [left | right]; auto.
+ unfold modifiedvars in H|-*. simpl. apply modifiedvars'_union.
+ left; auto.
 clear - H0 H1 H2.
 intros ek vl.
 intros tx vx.
@@ -350,7 +356,10 @@ subst.
 specialize (H0 k F).
 spec H0.
 clear - H1;
-repeat intro; apply H1. simpl. unfold modified2. intro i; destruct (H i); intuition.
+repeat intro; apply H1. simpl.
+ intro i; destruct (H i); [left | right]; auto.
+  unfold modifiedvars in H0|-*. simpl. apply modifiedvars'_union.
+ auto.
 spec H0.
 clear - H2.
 intros ek vl te ve; specialize (H2 ek vl te ve).
@@ -399,9 +408,13 @@ rewrite semax_unfold.
 intros until 2.
 rename H1 into H2.
 assert (CLO_body: closed_wrt_modvars body F).
-  clear - H2. intros rho te ?. apply (H2 rho te). simpl.  unfold modified2; intro; destruct (H i); auto.
+  clear - H2. intros rho te ?. apply (H2 rho te). simpl.
+ intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
+   apply modifiedvars'_union; auto.
 assert (CLO_incr:  closed_wrt_modvars incr F).
-  clear - H2. intros rho te ?. apply (H2 rho te). simpl.  unfold modified2; intro; destruct (H i); auto.
+  clear - H2. intros rho te ?. apply (H2 rho te). simpl.
+ intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
+   apply modifiedvars'_union; auto.
 revert Prog_OK; induction w using (well_founded_induction lt_wf); intros.
 intros tx vx.
 intros ? ? ? ? [[? ?] ?]. hnf in H6.

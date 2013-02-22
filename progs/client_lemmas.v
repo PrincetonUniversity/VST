@@ -692,6 +692,33 @@ Ltac go_lower2 :=
  repeat (apply go_lower_lem22; intro);
  apply go_lower_lem20;
  try apply go_lower_lem21;
+ simpl eval_expr; simpl eval_lvalue;
+  let rho := fresh "rho" in intro rho;
+ repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
+                 let H := fresh in 
+                       (intro H; unfold_coerce));
+  apply go_lower_lem25;
+ apply go_lower_lem26; 
+ try apply go_lower_lem27a;  try apply go_lower_lem27c;
+ unfold fold_right_sepcon, fold_right_andp;
+ change (TT rho) with (@TT mpred _);
+ repeat (unfold ret_type; simpl); 
+ unfold local; unfold_coerce;
+ repeat rewrite retval_lemma1;
+ try rewrite refold_frame.
+
+(* old go_lower2:
+  match goal with
+  | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
+             idtac
+  | |- _ => fail 1 "go_lower: not in PROP/LOCAL/SEP form"
+  end;
+ unfold tc_expr, tc_lvalue;
+ try apply trivial_typecheck;
+ repeat apply overridePost_normal_right;
+ repeat (apply go_lower_lem22; intro);
+ apply go_lower_lem20;
+ try apply go_lower_lem21;
  unfold eval_expr,eval_lvalue;
   let rho := fresh "rho" in intro rho;
  repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
@@ -706,6 +733,7 @@ Ltac go_lower2 :=
  unfold local; unfold_coerce;
  repeat rewrite retval_lemma1;
  try rewrite refold_frame.
+*)
 
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
@@ -850,6 +878,35 @@ Hint Rewrite @fold_right_cons : subst.
     This is important for 2 reasons:  normalize is very slow, and it does some
       undesirable rewritings, especially expanding the scope of existentials *)
 Ltac go_lower3 :=
+     unfold tc_exprlist, tc_expr, tc_lvalue, 
+         stackframe_of, Datatypes.id,
+        frame_ret_assert, function_body_ret_assert,
+        get_result1, retval, make_args', bind_ret;
+        simpl typecheck_exprlist; simpl typecheck_expr; simpl typecheck_lvalue;
+        unfold_coerce;
+        simpl make_args; simpl access_mode;
+        simpl @fst; simpl @snd; simpl @map; 
+         (* in Coq 8.4, next line could use simpl, with directives *)
+         repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
+      simpl  tc_andp; simpl denote_tc_assert;
+        unfold_coerce;
+        repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
+        repeat rewrite eval_id_same;
+        findvars;
+        eval_cast_simpl;
+        try match goal with H: tc_environ _ ?rho |- _ =>
+                           clear H rho
+             end;
+       repeat match goal with H: context [eval_cast ?a ?b ?c] |- _ =>
+                        try change (eval_cast a b c) with c in H
+       end;
+       repeat match goal with |- context [eval_cast ?a ?b ?c] =>
+                     try change (eval_cast a b c) with c
+       end;
+       repeat rewrite Vint_inj' in *;
+       repeat apply TT_andp_right; try apply TT_prop_right; auto.
+
+(*old go_lower3: 
         unfold tc_exprlist, tc_expr, tc_lvalue, 
         typecheck_exprlist, typecheck_expr, typecheck_lvalue, 
          stackframe_of, Datatypes.id,
@@ -877,6 +934,7 @@ Ltac go_lower3 :=
        end;
        repeat rewrite Vint_inj' in *;
        repeat apply TT_andp_right; try apply TT_prop_right; auto.
+*)
 
 Ltac go_lower := go_lower2; go_lower3.
 
@@ -1472,15 +1530,49 @@ rewrite sepcon_assoc. f_equal. auto.
 Qed.
 
 
+Lemma fold_right_sepcon_app {A} {NA: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}:
+ forall P Q : list A, fold_right (@sepcon A NA SL) (@emp A NA SL) (P++Q) = 
+        fold_right sepcon emp P * fold_right sepcon emp Q.
+Proof.
+intros; induction P; simpl.
+rewrite emp_sepcon; auto.
+rewrite sepcon_assoc;
+f_equal; auto.
+Qed.
+
+Lemma derives_frame_PQR:
+  forall R1 R2 P Q P' Q' R1',
+  PROPx P (LOCALx Q (SEPx R1)) |-- PROPx P' (LOCALx Q' (SEPx R1')) ->
+  PROPx P (LOCALx Q (SEPx (R1++R2))) |-- PROPx P' (LOCALx Q' (SEPx (R1'++R2))).
+Proof.
+intros.
+eapply derives_trans; [ | eapply derives_trans].
+2: apply sepcon_derives; [ apply H | apply (derives_refl  (fold_right sepcon emp R2))].
+clear H.
+change SEPx with SEPx'; 
+unfold PROPx, LOCALx, SEPx', local; unfold_coerce; intros.
+rewrite fold_right_sepcon_app.
+intro rho; simpl; normalize.
+change SEPx with SEPx'; 
+unfold PROPx, LOCALx, SEPx', local; unfold_coerce; intros.
+rewrite fold_right_sepcon_app.
+intro rho; simpl; normalize.
+Qed.
+
+
 Ltac frame_SEP' L :=
   grab_indexes_SEP L;
- match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) 
-                                 (Ssequence _ _) _ =>
-  rewrite <- (firstn_skipn (length L) R); simpl firstn; simpl skipn;
-  eapply semax_seq'; 
-  [apply semax_frame_PQR ; 
-      [ unfold closed_wrt_modvars;  auto 50 with closed | ]
-  | ]
+ match goal with
+ | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
+  rewrite <- (firstn_skipn (length L) R); 
+    simpl length; unfold firstn, skipn;
+    eapply semax_frame_PQR;
+      [ unfold closed_wrt_modvars;  auto 50 with closed
+     | ]
+ | |- (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ => 
+  rewrite <- (firstn_skipn (length L) R); 
+    simpl length; unfold firstn, skipn;
+    apply derives_frame_PQR
 end.
 
 Tactic Notation "frame_SEP" constr(a) := frame_SEP' (a::nil).

@@ -15,6 +15,17 @@ Hint Rewrite Int.add_zero_l Int.add_zero : normalize.
 Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
 
 
+Lemma temp_types_init_same:
+ forall Delta id t b, (temp_types Delta)!id = Some (t,b) ->
+                         (temp_types (initialized id Delta)) ! id = Some (t,true).
+Proof.
+intros.
+destruct Delta; simpl in *.
+unfold initialized; simpl. rewrite H.
+unfold temp_types; simpl.
+rewrite PTree.gss; auto.
+Qed.
+
 
 Definition force_int (v: val) := 
  match v with
@@ -323,13 +334,13 @@ end.
 Lemma closed_wrt_ideq: forall a b e,
   a <> b ->
   temp_free_in a e = false ->
-  closed_wrt_vars (modified1 a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
+  closed_wrt_vars (eq a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
 Proof.
 Admitted.
 
 Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
 
-Hint Extern 2 (closed_wrt_vars (modified1 _) _) => 
+Hint Extern 2 (closed_wrt_vars (eq _) _) => 
       (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
 
 Hint Resolve @Forall_cons @Forall_nil : closed.
@@ -345,10 +356,10 @@ Hint Resolve closed_wrt_tc_formals.
 Lemma closed_wrt_not1:
   forall (i j: ident), 
    i<>j ->
-   not (modified1 i j).
+   not (eq i j).
 Proof.
 intros.
-hnf. unfold modified1.
+hnf.
 intros; subst; congruence.
 Qed.
 Hint Resolve closed_wrt_not1 : closed.

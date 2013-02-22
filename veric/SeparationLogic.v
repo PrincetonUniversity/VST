@@ -460,7 +460,7 @@ Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
   forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
 
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-
+Global Opaque func_ptr.
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
    Hint databases if this next line is not added. *)

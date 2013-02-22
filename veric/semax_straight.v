@@ -384,7 +384,8 @@ rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
 subst.
-left; hnf; auto.
+left. unfold modifiedvars. simpl.
+ unfold insert_idset; rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. subst; auto.
 apply exp_right with (eval_id id rho).
@@ -487,10 +488,10 @@ rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
 subst.
-left; hnf; auto.
+left. unfold modifiedvars. simpl.
+ unfold insert_idset; rewrite PTree.gss; hnf; auto.
 right.
 rewrite Map.gso; auto. rewrite Hge. simpl. auto.
-
 Qed.
 
 Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -615,7 +616,9 @@ unfold mapsto. apply andp_right; auto.
 intros ? ?; unfold prop; auto.
 
 intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
-subst. hnf. auto. subst. auto.
+subst; unfold modifiedvars. simpl.
+ unfold insert_idset; rewrite PTree.gss; hnf; auto.
+subst. auto.
 Qed.
 
 Lemma res_option_core: forall r, res_option (core r) = None.

@@ -100,29 +100,68 @@ Definition force_val (v: option val) : val :=
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
 
-Definition modified0 : ident -> Prop := fun _ => False.
-Definition modified1 id : ident -> Prop := fun i => i=id.
-Definition modified2 (s1 s2: ident -> Prop) := fun i => s1 i \/ s2 i.
+Definition idset := PTree.t unit.
 
-Fixpoint modifiedvars (c: statement) : ident -> Prop :=
+Definition idset0 : idset := PTree.empty _.
+Definition idset1 (id: ident) : idset := PTree.set id tt idset0.
+Definition insert_idset (id: ident) (S: idset) : idset :=
+         PTree.set id tt S.
+
+Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  match c with
- | Sset id e => modified1 id
- | Sifthenelse _ c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
- | Scall (Some id) _ _ => modified1 id
- | Sbuiltin (Some id) _ _ _ => modified1 id
- | Ssequence c1 c2 =>  modified2 (modifiedvars c1) (modifiedvars c2)
- | Sloop c1 c2 => modified2 (modifiedvars c1) (modifiedvars c2)
- | Sswitch e cs => modifiedvars_ls cs
- | Slabel _ c => modifiedvars c
- | _ => modified0
+ | Sset id e => insert_idset id S
+ | Sifthenelse _ c1 c2 => modifiedvars' c1 (modifiedvars' c2 S)
+ | Scall (Some id) _ _ => insert_idset id S
+ | Sbuiltin (Some id) _ _ _ => insert_idset id S
+ | Ssequence c1 c2 =>  modifiedvars' c1 (modifiedvars' c2 S)
+ | Sloop c1 c2 => modifiedvars' c1 (modifiedvars' c2 S)
+ | Sswitch e cs => modifiedvars_ls cs S
+ | Slabel _ c => modifiedvars' c S
+ | _ => S
  end
  with
- modifiedvars_ls (cs: labeled_statements) : ident -> Prop := 
+ modifiedvars_ls (cs: labeled_statements) (S: idset) : idset := 
  match cs with
- | LSdefault _ => modified0
- | LScase _ c ls => modified2 (modifiedvars c) (modifiedvars_ls ls)
+ | LSdefault _ => S
+ | LScase _ c ls => modifiedvars' c (modifiedvars_ls ls S)
  end.
 
+Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
+
+Lemma modifiedvars'_union:
+ forall id c S,
+  isSome ((modifiedvars' c S) ! id) <->
+  (isSome ((modifiedvars' c idset0) ! id ) \/ isSome (S ! id))
+with modifiedvars_ls_union:
+ forall id c S,
+  isSome ((modifiedvars_ls c S) ! id) <->
+  (isSome ((modifiedvars_ls c idset0) ! id ) \/ isSome (S ! id)).
+Proof.
+intro id.
+ assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
+ rewrite PTree.gempty; auto.
+ induction c; try destruct o; simpl; intros;
+ try solve [clear - IS0; intuition];
+ try solve [unfold insert_idset; destruct (eq_dec i id); 
+  [subst; repeat rewrite PTree.gss; simpl; clear; intuition 
+  |  repeat rewrite PTree.gso by auto; simpl; clear - IS0; intuition ]];
+ try solve [rewrite IHc1; rewrite IHc1 with (S := modifiedvars' c2 idset0);
+                rewrite IHc2; clear - IS0; intuition].
+ apply modifiedvars_ls_union.
+ apply IHc.
+
+intro id.
+ assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
+ rewrite PTree.gempty; auto.
+ induction c; simpl; intros.
+ clear - IS0; intuition.
+ rewrite modifiedvars'_union.
+ rewrite modifiedvars'_union with (S := modifiedvars_ls _ _).
+ rewrite IHc. clear; intuition.
+Qed.
+
+Definition modifiedvars (c: statement) (id: ident) :=
+   isSome ((modifiedvars' c idset0) ! id).
 
 Definition filter_genv (ge: Clight.genv) : genviron :=
   fun id => match Genv.find_symbol ge id with
