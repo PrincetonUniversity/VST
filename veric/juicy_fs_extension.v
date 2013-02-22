@@ -1,11 +1,12 @@
 Load loadpath.
 
 Require Import compositional_compcert.Coqlib2.
-Require Import compositional_compcert.sim.
+Require Import compositional_compcert.core_semantics.
+Require Import compositional_compcert.forward_simulations.
 Require Import compositional_compcert.step_lemmas.
 Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.extension.
-Require Import compositional_compcert.extension_sim.
+Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.extension_proof.
 Require Import compositional_compcert.fs_extension.
 
@@ -24,7 +25,6 @@ Require Ctypes.
 Require Clight.
 
 Set Implicit Arguments.
-
 
 Section FSExtension.
 Variables 
@@ -97,7 +97,7 @@ unfold compcert_rmaps.RML.empty_rmap.
 unfold compcert_rmaps.RML.empty_rmap'.
 unfold compcert_rmaps.R.resource_at.
 rewrite compcert_rmaps.R.unsquash_squash; simpl.
-unfold compose; simpl; auto.
+unfold base.compose; simpl; auto.
 Qed.
 
 Lemma exists_ok_rmap (m: mem) (lev: nat): 
@@ -126,7 +126,7 @@ Qed.
 
 Lemma juicy_safeN_safeN ge n z c jm :
   safeN (juicy_core_sem csem) Client_JuicyFSExtSpec ge n z c jm -> 
-  safeN csem Client_FSExtSpec ge n z c (m_dry jm).
+  safeN csem (Client_FSExtSpec _) ge n z c (m_dry jm).
 Proof.
 revert jm z c; induction n; auto.
 intros jm z c H1.
@@ -183,26 +183,26 @@ auto.
 Qed.
 
 Variable FSExtSpec: ext_spec Z.
-Variable FSExtSpec_linkable: linkable proj_zext 
-  (fun (ef: AST.external_function) => forall s c sig args,
+Variable FSExtSpec_linkable: linkable (@proj_zext Z)
+  (fun (ef: AST.external_function) => forall (s: @xT Z cT) c sig args,
     proj_core (active s) s = Some c -> 
     at_external csem c = Some (ef, sig, args) -> 
-    os_at_external s = None)
-  Client_FSExtSpec FSExtSpec.
+    @os_at_external Z cT D csem s = None)
+  (Client_FSExtSpec Z) FSExtSpec.
 Variable ge: genv.
 
 Program Definition fs_extension := 
   @Extension.Make 
     _ _ _ _ _ _ _
-    FSCoreSem FSExtSpec
+    (@FSCoreSem Z cT D csem init_world) FSExtSpec
     (fun _ => genv) (fun _ => D) (fun _ => cT) (fun _ => csem)
-    Client_FSExtSpec
+    (Client_FSExtSpec Z)
     (const 1)
-    proj_core _
-    active _ 
-    proj_zint
-    proj_zext
-    zmult _ _   
+    (@proj_core Z cT) _
+    (@active Z cT) _ 
+    (@proj_zint Z cT)
+    (@proj_zext Z)
+    (@zmult Z) _ _   
     FSExtSpec_linkable
     _.
 Next Obligation. unfold proj_core. if_tac; auto. unfold const in *. 
@@ -307,22 +307,33 @@ simpl in H2; unfold runnable in H2.
 hnf in H1.
 simpl in H5.
 destruct s; simpl in H2.
-specialize (H1 (active (mkxT z0 c fs0)) c).
+specialize (H1 (active (mkxT z0 c fs)) c).
 simpl in H1.
-unfold rg_sim.runnable in H3.
+unfold rg_forward_simulations.runnable in H3.
 unfold active, cores in *.
 spec H1; auto.
 destruct (at_external csem c) as [[[ef sig] args]|]; try congruence.
 destruct (safely_halted csem c); try congruence.
 destruct H1 as [c' [m' [H1 H6]]].
-exists c'; exists (mkxT z0 c' fs0); exists m'.
+exists c'; exists (mkxT z0 c' fs); exists m'.
 split; auto.
 split; auto.
 unfold proj_core in H2.
 if_tac in H2; try congruence.
 simpl in H2.
 inv H2.
+simpl.
 solve[apply os_corestep; auto].
+
+(*SYS_READ/WRITE_SIG: fd, buf, count*)
+Notation SYS_READ_SIG := (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint)).
+Notation SYS_WRITE_SIG := (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint)).
+(*SYS_OPEN_SIG: name*)
+Notation SYS_OPEN_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint)).
+
+Notation SYS_READ := (EF_external 3%positive SYS_READ_SIG).
+Notation SYS_WRITE :=  (EF_external 4%positive SYS_WRITE_SIG).
+Notation SYS_OPEN := (EF_external 8%positive SYS_OPEN_SIG).
 
 (*3: handled steps respect function specs.*)
 intros until x.
@@ -377,7 +388,7 @@ rewrite <-H6.
 hnf; unfold fs_post; simpl; auto.
 unfold fs_open in H12.
 if_tac in H12.
-case_eq (get_fstore fs0 fname).
+case_eq (get_fstore fs fname).
 intros f H1; rewrite H1 in H12.
 inversion H12; subst.
 hnf.
@@ -393,7 +404,7 @@ exists md; exists 0; exists new_file.
 case_eq (Int.eq unused_fd unused_fd); auto.
 rewrite Int.eq_true; congruence.
 hnf.
-destruct (get_fstore fs0 fname).
+destruct (get_fstore fs fname).
 inversion H12; subst.
 exists md; exists 0; exists f.
 unfold get_fdtable, get_fcache; simpl.
@@ -445,8 +456,8 @@ assert (Hlen: (0 <= Z_of_nat (length bytes) < Int.modulus)%Z).
  split.
  apply Zle_0_nat; auto.
  unfold fs_read in H9.
- destruct (get_file fs0 fd); try congruence.
- destruct (get_fptr fs0 fd); try congruence.
+ destruct (get_file fs fd); try congruence.
+ destruct (get_fptr fs fd); try congruence.
  unfold read_file in H9.
  inversion H9.
  generalize (read_file_aux_length f (nat_of_Z (Int.unsigned nbytes)) (get_size f) f0);
@@ -496,7 +507,7 @@ specialize (H1 (active s) (get_core s)).
 spec H1; auto.
 hnf in H1.
 rename H3 into H0.
-unfold rg_sim.runnable in H0.
+unfold rg_forward_simulations.runnable in H0.
 case_eq (at_external csem (get_core s)). 
 intros [[ef sig] args] Hat.
 (*at_external core = Some*)
@@ -597,7 +608,7 @@ split.
 eapply os_read; eauto.
 unfold fs_read.
 unfold get_file.
-unfold FSExtension.proj_zint in H6, H8.
+unfold fs_extension.proj_zint in H6, H8.
 rewrite H8.
 unfold get_fptr.
 rewrite H6.
@@ -698,7 +709,7 @@ unfold fs_open.
 unfold proj_zint in H9.
 unfold SafetyInvariant.proj_zint in H9.
 simpl in H9.
-unfold FSExtension.proj_zint in H9.
+unfold fs_extension.proj_zint in H9.
 rewrite H9; auto.
 if_tac; auto.
 (*core stayed at_external: impossible*)
@@ -756,7 +767,7 @@ unfold fs_open.
 unfold proj_zint in H9.
 unfold SafetyInvariant.proj_zint in H9.
 simpl in H9.
-unfold FSExtension.proj_zint in H9.
+unfold fs_extension.proj_zint in H9.
 rewrite H9; auto.
 case_eq (fwritable md); auto.
 intros H12.
@@ -766,7 +777,7 @@ spec H7.
 unfold file_exists; intros H13.
 unfold SafetyInvariant.proj_zint in H13.
 simpl in H13.
-unfold FSExtension.proj_zint in H13.
+unfold fs_extension.proj_zint in H13.
 rewrite H9 in H13.
 simpl in H13; congruence.
 congruence.
@@ -833,7 +844,7 @@ destruct H7 as [bytes H7].
 assert (H9: exists nbytes_written, exists fsys', 
   fs_write (get_fs s) i0 bytes = Some (nbytes_written, fsys')).
   unfold fs_write, get_file, get_fptr, get_fmode.
-  unfold FSExtension.proj_zint in H6, H80.
+  unfold fs_extension.proj_zint in H6, H80.
   rewrite H6, H8, H80.
   case_eq (write_file f' cur bytes).
   intros fsys' nbytes_written H9.
