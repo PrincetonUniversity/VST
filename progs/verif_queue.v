@@ -173,7 +173,6 @@ normalize.
 apply andp_right; apply prop_right; auto.
 admit.  (* need to fix typechecking of pointer comparison *) 
 simpl.
-repeat apply andp_right.
 normalize.
 apply prop_right.
 destruct q; inv H.
@@ -232,7 +231,6 @@ apply semax_pre_PQR with
    LOCAL ()
    SEP  (`(memory_block Share.top (Int.repr 8)) (eval_id queue._Q))).
 go_lower. subst. destruct _q; inv TC; simpl; normalize.
-  eval_cast_simpl. auto.
 clear _q.
 rewrite memory_block_fifo.
 flatten_sepcon_in_SEP.

@@ -226,41 +226,53 @@ Qed.
 Ltac get_global_function' id :=
   eapply (semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
 
-Lemma  setup_globals:
-  forall u, 
+Lemma  create_message_object:
+ forall t (msg: message_format t) objid serid desid
+ (Vobj: (var_types (func_tycontext f_main Vprog Gtot)) ! objid = None)
+ (Gobj: (glob_types (func_tycontext f_main Vprog Gtot)) ! objid = Some (Global_var t_struct_message))
+ (Vser: (var_types (func_tycontext f_main Vprog Gtot)) ! serid = None)
+ (Gser: (glob_types (func_tycontext f_main Vprog Gtot)) ! serid =
+                                   Some (Global_func (serialize_spec msg)))
+ (Vdes: (var_types (func_tycontext f_main Vprog Gtot)) ! desid = None)
+ (Gdes: (glob_types (func_tycontext f_main Vprog Gtot)) ! desid =
+                                   Some (Global_func (deserialize_spec msg))),
 PROP  ()
 LOCAL (tc_environ (func_tycontext f_main Vprog Gtot))
 SEP
-   (`(func_ptr (serialize_spec intpair_message))
-      (eval_var _intpair_serialize
-         (globtype (Global_func (serialize_spec intpair_message)))) &&
-    (`(func_ptr (deserialize_spec intpair_message))
-       (eval_var _intpair_deserialize
-          (globtype (Global_func (deserialize_spec intpair_message)))) &&
-     main_pre prog u))
-  |-- PROP()  LOCAL() SEP (`(message Ews intpair_message)  (eval_var _intpair_message t_struct_message)).
+   (`(func_ptr (serialize_spec msg))
+      (eval_var serid
+         (globtype (Global_func (serialize_spec msg)))) &&
+    (`(func_ptr (deserialize_spec msg))
+       (eval_var desid
+          (globtype (Global_func (deserialize_spec msg)))) &&
+     globvar2pred (objid,  
+         {|gvar_info := t_struct_message;
+           gvar_init := Init_int32 (Int.repr (mf_size msg))
+                 :: Init_addrof serid (Int.repr 0)
+                    :: Init_addrof desid (Int.repr 0) :: nil;
+           gvar_readonly := false;
+           gvar_volatile := false |})))
+  |-- PROP()  LOCAL() SEP (`(message Ews msg)  (eval_var objid t_struct_message)).
 Proof.
 intros.
 go_lower.
 normalize.
-unfold main_pre.
  unfold message.
  apply exp_right with
-   (eval_var _intpair_serialize (type_of_funspec (snd intpair_serialize_spec)) rho,
-    eval_var _intpair_deserialize (type_of_funspec (snd intpair_deserialize_spec)) rho).
-simpl @fst; simpl @snd.
- rewrite andp_assoc.
+ (eval_var serid
+     (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint) rho,
+ eval_var desid
+      (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil)))
+         tint) rho).
+rewrite andp_assoc.
 apply andp_derives; auto.
 apply andp_derives; auto.
- destruct (globvar_eval_var _ _ _intpair_message _ H (eq_refl _) (eq_refl _))
-  as [b [z [H97 H99]]].
- unfold globvars2pred,globvar2pred. simpl. rewrite H99.
+ destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b [z [H97 H99]]].
+  unfold globvars2pred,globvar2pred. simpl. rewrite H99.
  simpl gvar_volatile. cbv iota.
  simpl gvar_init. simpl readonly2share.
- destruct (globfun_eval_var _ _ _intpair_serialize _ H (eq_refl _) (eq_refl _))
-  as [b1 [z1 [EV1 GE1]]].
- destruct (globfun_eval_var _ _ _intpair_deserialize _ H (eq_refl _) (eq_refl _))
-  as [b2 [z2 [EV2 GE2]]].
+ destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b1 [z1 [EV1 GE1]]].
+ destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b2 [z2 [EV2 GE2]]].
  simpl in H97.
  simpl. rewrite H97, GE1, GE2. simpl.
  simpl in EV1; rewrite EV1.
@@ -613,7 +625,9 @@ get_global_function' _intpair_deserialize.
 get_global_function' _intpair_serialize.
 eapply semax_pre_PQR.
 frame_SEP' (0::nil).
-apply setup_globals.
+unfold main_pre, globvars2pred, prog_vars. simpl map.
+ rewrite fold_right_cons. rewrite fold_right_nil. rewrite sepcon_emp.
+apply create_message_object; reflexivity.
 unfold app.
 
 rewrite -> seq_assoc.
