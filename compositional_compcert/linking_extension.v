@@ -189,6 +189,7 @@ Definition linker_safely_halted (s: linker_corestate) :=
 Definition main_id := 1%positive. (*hardcoded*)
 
 Definition linker_initial_mem (ge: Genv.t F V) (m: mem) (init_data: list (ident * globdef F V)) := 
+  mem_wd m /\
   Genv.alloc_globals ge Mem.empty init_data = Some m.
 
 Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :=
@@ -331,7 +332,7 @@ apply corestep_wdmem in H2; auto.
 Qed.
 Next Obligation. 
 unfold linker_initial_mem in H.
-admit. (*TODO: prove that Genv.alloc_globals Mem.empty produces wd mem*)
+destruct H; auto.
 Qed.
 
 Program Definition rg_linker_core_semantics: 
