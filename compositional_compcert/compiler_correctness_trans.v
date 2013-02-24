@@ -20,6 +20,8 @@ Require Import compositional_compcert.forward_simulations.
 Require Import Wellfounded.
 Require Import Relations.
 
+Declare Module MEMAX : MemoryInterpolationAxioms.
+
 Lemma corestepN_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
   g N c m c' m' (CS:corestepN Sem g N c m c' m'), 
   mem_forward m m'.
@@ -44,16 +46,20 @@ Proof. intros. destruct CS.  eapply  corestepN_fwd. apply H. Qed.
 
 Definition main_sig : signature := mksignature nil (Some AST.Tint).
 
-Definition entrypoints_compose (ep12 ep23 ep13 : list (val * val * signature)): Prop :=
+Definition entrypoints_compose 
+  (ep12 ep23 ep13 : list (val * val * signature)): Prop :=
   forall v1 v3 sig, 
-    In (v1,v3,sig) ep13 = exists v2, In (v1,v2,sig) ep12 /\ In (v2,v3,sig) ep23.
+  In (v1,v3,sig) ep13 = exists v2, In (v1,v2,sig) ep12 /\ In (v2,v3,sig) ep23.
 
 Lemma ePts_compose1: forall {F1 V1 F2 V2 F3 V3} 
-     (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2)  (Prg3 : AST.program F3 V3)
+     (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2) 
+     (Prg3 : AST.program F3 V3)
      Epts12 Epts23 ExternIdents entrypoints13 
     (EPC : entrypoints_compose Epts12 Epts23 entrypoints13)
-    (ePts12_ok : @CompilerCorrectness.entryPts_ok F1 V1 F2 V2 Prg1 Prg2 ExternIdents Epts12)
-    (ePts23_ok : @CompilerCorrectness.entryPts_ok F2 V2 F3 V3 Prg2 Prg3 ExternIdents Epts23),
+    (ePts12_ok : @CompilerCorrectness.entryPts_ok F1 V1 F2 V2 Prg1 Prg2 
+                 ExternIdents Epts12)
+    (ePts23_ok : @CompilerCorrectness.entryPts_ok F2 V2 F3 V3 Prg2 Prg3
+                 ExternIdents Epts23),
 CompilerCorrectness.entryPts_ok Prg1 Prg3 ExternIdents entrypoints13.
 Proof. 
   intros.
@@ -81,12 +87,15 @@ Proof.
 Qed.
 
 Lemma ePts_compose2: forall {F1 V1 F2 V2 F3 V3} 
-     (P1 : AST.program F1 V1) (P2 : AST.program F2 V2)  (P3 : AST.program F3 V3)
+     (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) 
+     (P3 : AST.program F3 V3)
      Epts12 Epts23 ExternIdents entrypoints13 jInit
     (EPC : entrypoints_compose Epts12 Epts23 entrypoints13)
     (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents Epts12)
-    (ePts23_ok : CompilerCorrectness.entryPts_inject_ok P2 P3 jInit ExternIdents Epts23),
-    CompilerCorrectness.entryPts_inject_ok P1 P3 jInit ExternIdents entrypoints13.
+    (ePts23_ok : CompilerCorrectness.entryPts_inject_ok P2 P3 jInit
+                    ExternIdents Epts23),
+    CompilerCorrectness.entryPts_inject_ok P1 P3 jInit ExternIdents
+                     entrypoints13.
 Proof. 
   intros.
   unfold CompilerCorrectness.entryPts_inject_ok; intros e d EXT.
@@ -113,11 +122,14 @@ Proof.
 Qed.
 
 Lemma ePts_compose3: forall {F1 V1 F2 V2 F3 V3} 
-  (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2)  (Prg3 : AST.program F3 V3)
+  (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2) 
+  (Prg3 : AST.program F3 V3)
   Epts12 Epts23 ExternIdents entrypoints13 j12
   (EPC : entrypoints_compose Epts12 Epts23 entrypoints13)
-  (ePts12_ok : @CompilerCorrectness.entryPts_inject_ok F1 V1 F2 V2 Prg1 Prg2 j12 ExternIdents Epts12)
-  (ePts23_ok : @CompilerCorrectness.entryPts_ok F2 V2 F3 V3 Prg2 Prg3 ExternIdents Epts23),
+  (ePts12_ok : @CompilerCorrectness.entryPts_inject_ok F1 V1 F2 V2 Prg1 
+               Prg2 j12 ExternIdents Epts12)
+  (ePts23_ok : @CompilerCorrectness.entryPts_ok F2 V2 F3 V3 Prg2
+                Prg3 ExternIdents Epts23),
 CompilerCorrectness.entryPts_inject_ok Prg1 Prg3 j12 ExternIdents entrypoints13.
 Proof. 
   intros.
@@ -130,7 +142,8 @@ Proof.
   destruct d. destruct Hb1 as [X1 [f1 [f2 [Hf1 Hf2]]]].
   destruct Hb2 as [X2 [ff2 [f3 [Hff2 Hf3]]]].
   rewrite Hff2 in Hf2. inv Hf2.
-  split. rewrite (EPC (Vptr b1 Int.zero) (Vptr b2 Int.zero) s). exists  (Vptr b2 Int.zero). 
+  split. rewrite (EPC (Vptr b1 Int.zero) (Vptr b2 Int.zero) s). 
+  exists  (Vptr b2 Int.zero). 
   split; assumption.
   exists f1. exists f3. split; assumption.
   destruct Hb1 as [v1 [v2 [Hv1 [Hv2 GV12]]]].
@@ -145,13 +158,16 @@ Proof.
 Qed.
 
 Lemma ePts_compose4: forall {F1 V1 F2 V2 F3 V3} 
-  (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2)  (Prg3 : AST.program F3 V3)
+  (Prg1 : AST.program F1 V1) (Prg2 : AST.program F2 V2) 
+  (Prg3 : AST.program F3 V3)
   Epts12 Epts23 ExternIdents entrypoints13 j12 j23
   (EPC: entrypoints_compose Epts12 Epts23 entrypoints13)
-  (ePts12_ok: @CompilerCorrectness.entryPts_inject_ok F1 V1 F2 V2 Prg1 Prg2 j12 ExternIdents Epts12)
-  (ePts23_ok: @CompilerCorrectness.entryPts_inject_ok F2 V2 F3 V3 Prg2 Prg3 j23 ExternIdents Epts23),
+  (ePts12_ok: @CompilerCorrectness.entryPts_inject_ok F1 V1 F2 V2 Prg1
+              Prg2 j12 ExternIdents Epts12)
+  (ePts23_ok: @CompilerCorrectness.entryPts_inject_ok F2 V2 F3 V3 Prg2
+              Prg3 j23 ExternIdents Epts23),
   CompilerCorrectness.entryPts_inject_ok Prg1 Prg3 
-   (compose_meminj j12 j23) ExternIdents entrypoints13.
+     (compose_meminj j12 j23) ExternIdents entrypoints13.
 Proof. 
   intros.
   unfold CompilerCorrectness.entryPts_inject_ok; intros e d EXT.
@@ -164,7 +180,8 @@ Proof.
   destruct d. destruct Hb as [X1 [f1 [f2 [Hf1 Hf2]]]].
   destruct Hbb as [X2 [ff2 [f3 [Hff2 Hf3]]]].
   rewrite Hff2 in Hf2. inv Hf2.
-  split. rewrite (EPC (Vptr b1 Int.zero) (Vptr b3 Int.zero) s). exists  (Vptr b2 Int.zero). 
+  split. rewrite (EPC (Vptr b1 Int.zero) (Vptr b3 Int.zero) s). 
+  exists  (Vptr b2 Int.zero). 
   split; assumption.
   exists f1. exists f3. split; assumption.
   destruct Hb as [v1 [v2 [Hv1 [Hv2 GV12]]]].
@@ -210,7 +227,7 @@ Proof.
   apply H1. 
 Qed.
 
-Lemma compose_meminjD_None: forall j jj b, 
+(*Lemma compose_meminjD_None: forall j jj b, 
   (compose_meminj j jj) b = None -> 
   j b = None \/ 
   (exists b', exists ofs, j b = Some(b',ofs) /\ jj b' = None). 
@@ -222,9 +239,10 @@ Proof.
   exists b0. exists z. rewrite <- Heqzz. auto.
   left; trivial.
 Qed.
-
+*)
 Lemma matchOptE: forall {A} (a:option A) (P: A -> Prop),
-   match a with Some b => P b | None => False end -> exists b, a = Some b /\ P b.
+   match a with Some b => P b | None => False end -> 
+   exists b, a = Some b /\ P b.
 Proof. intros. destruct a; try contradiction. exists a; auto. Qed. 
 
 Section EXTEXT.
@@ -297,7 +315,8 @@ exists st3' : C3,
          (d12, Some st2, d23)).
 Proof. 
   intros.
-  destruct (core_diagram12 _ _ _ _ CS1 _ _ _ MC12) as [st2' [m2' [d12' [MC12' Y]]]]. 
+  destruct (core_diagram12 _ _ _ _ CS1 _ _ _ MC12) 
+           as [st2' [m2' [d12' [MC12' Y]]]]. 
   clear core_diagram12.
   assert (ZZ: corestep_plus Sem2 Genv2 st2 m2 st2' m2' \/  
                (st2,m2) = (st2',m2') /\ core_ord12 d12' d12).
@@ -315,7 +334,8 @@ Proof.
     (*base case*) simpl in H.
       destruct H as [c2 [m2'' [? ?]]].
       inv H0.
-      destruct (core_diagram23 _ _ _ _ H _ _ _ MC23) as [st3' [m3' [d23' [? ?]]]].
+      destruct (core_diagram23 _ _ _ _ H _ _ _ MC23)
+           as [st3' [m3' [d23' [? ?]]]].
       exists st3'. exists m3'. exists (d12',Some st2',d23').
       split. exists st2'. exists m2'. split. trivial. split; assumption. 
       destruct H1. left; assumption.
@@ -324,7 +344,8 @@ Proof.
     (*inductive case*)
       remember (S x) as x'. simpl in H.
       destruct H as [st2'' [m2'' [? ?]]]. subst x'.
-      destruct (core_diagram23 _ _ _ _  H _ _ _ MC23) as [c3' [m3' [d'' [? ?]]]].
+      destruct (core_diagram23 _ _ _ _  H _ _ _ MC23)
+           as [c3' [m3' [d'' [? ?]]]].
       specialize (IHx _ _ _ _ _ _ _ H1 MC12' H0).
       destruct IHx as [c3'' [m3'' [[[d12''' cc2''] d23'']  
         [[c2'' [m2'''' [X [MC12'' MC23'']]]] ?]]]]; subst.
@@ -366,40 +387,47 @@ Proof.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
-(I : forall F C V : Type, 
-  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
-  AST.program F V -> Prop)
-(Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-(Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
-       ExternIdents epts12  epts23 entrypoints13
-       (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
-       (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
-       (e12 : prog_main P1 = prog_main P2)
-       (g12: CompilerCorrectness.GenvHyp P1 P2)       
-       (EPC: entrypoints_compose epts12 epts23 entrypoints13)
-       (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig) ExternIdents)
-       (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
-       (i1: I F1 C1 V1 Sem1 P1)
-(Ext_init12 : forall m1 : mem,
+  (I : forall F C V : Type, 
+        CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
+        AST.program F V -> Prop)
+  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  ExternIdents epts12  epts23 entrypoints13
+  (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
+  (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
+  (e12 : prog_main P1 = prog_main P2)
+  (g12: CompilerCorrectness.GenvHyp P1 P2)       
+  (EPC: entrypoints_compose epts12 epts23 entrypoints13)
+  (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig)
+              ExternIdents)
+  (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig)
+            ExternIdents)
+  (i1: I F1 C1 V1 Sem1 P1)
+  (Ext_init12 : forall m1 : mem,
              initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)
-(SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-             (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
-             (Genv.globalenv P2) epts12)
-(SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
+  (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends
+               (list (ident * globdef F1 V1))
+               (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+               (Genv.globalenv P2) epts12)
+  (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends
+             (list (ident * globdef F2 V2))
              (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
              (Genv.globalenv P3) epts23).
 
-Lemma extext: Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
+Lemma extext: Coop_forward_simulation_ext.Forward_simulation_extends
+  (list (ident * globdef F1 V1))
   (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13. 
 Proof. 
   intros.
-  destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_wd12 match_vb12
-    core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
+  destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12
+                        match_wd12 match_vb12 core_diagram12 core_initial12
+                        core_halted12 core_at_external12 
+                        core_after_external12].  
   destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_wd23 match_vb23
     core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
   eapply Coop_forward_simulation_ext.Build_Forward_simulation_extends with
@@ -475,7 +503,7 @@ Proof.
   split; intros; eapply H7; trivial.
   eapply extends_loc_out_of_bounds; eassumption.
   intros. apply H in H15. eapply extends_loc_out_of_bounds; eassumption.
-  destruct  (interpolate_EE _ _ Ext12 _ H5 _ Ext23 _ H6 H9 H7 H12) 
+  destruct (MEMAX.interpolate_EE _ _ Ext12 _ H5 _ Ext23 _ H6 H9 H7 H12) 
     as [m2' [Fwd2 [Ext12' [Ext23' [UnchOn2 WD2]]]]].
   assert (WD2': mem_wd m2'). apply (extends_memwd _ _ Ext23' H12).
   assert (ValV2': val_valid ret1 m2'). eapply (extends_valvalid _ _ Ext12'). apply H13.
@@ -820,7 +848,7 @@ Proof.
   eapply valinject_hastype; eassumption.
   assert (mem_wd m1 /\ mem_wd m2). apply (match_memwd12 _ _ _ _ _ _ MC12). destruct H0 as [WD1 WD2].
   assert (WD3: mem_wd m3). apply (match_memwd23 _ _ _ _ _ _ MC23).
-  destruct (interpolate_II _ _ _ MInj12 _ H8 _ _ MInj23 _ H10 _ H6 H4 H5 H9 H11 WD1 H13 WD2 WD3 H14)
+  destruct (MEMAX.interpolate_II _ _ _ MInj12 _ H8 _ _ MInj23 _ H10 _ H6 H4 H5 H9 H11 WD1 H13 WD2 WD3 H14)
     as [m2' [j12' [j23' [X [Incr12 [Incr23 [MInj12' [Fwd2 
       [MInj23' [Unch22 [Sep12 [Sep23 [Unch222' [Unch2233' WD22']]]]]]]]]]]]]]. 
   subst.
@@ -2120,7 +2148,7 @@ Proof.
                          intros b. intros. destruct (H5 _ _ _ H0 H17). split; trivial. 
                          intros N. apply H18.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
                     assert (WD2: mem_wd m2). eapply match_memwd12. apply MC12. 
-                    destruct (interpolate_EI _ _ _ Ext12 H8 _ _ Inj23 _ H10 _ H6 H11 H4 H5 H9 WD2 H14)
+                    destruct (MEMAX.interpolate_EI _ _ _ Ext12 H8 _ _ Inj23 _ H10 _ H6 H11 H4 H5 H9 H13 WD2 H14)
                        as [m2' [Fwd2' [Ext12' [Inj23' [UnchOn2 [UnchOn2j WD22']]]]]].
                     assert (WD2': mem_wd m2'). apply WD22'. apply WD2. 
                     assert (ValV2': val_valid ret1 m2'). eapply (extends_valvalid _ _ Ext12'). apply H15. 
@@ -2766,8 +2794,8 @@ Proof.
                     assert (UnchLOOB23_3': mem_unchanged_on (loc_out_of_bounds m2) m3 m3'). 
                          eapply inject_LOOR_LOOB; eassumption.
                     assert (WD2: mem_wd m2). apply match_memwd23 in MC23. apply MC23. 
-                    destruct (interpolate_IE _ _ _ _ Minj12 H8 _ H4 Sep12 H9 _ _ MExt23 H10 H11 H6 UnchLOOB23_3' WD2 H13 H14)
-                          as [m2' [Minj12' [Fwd2' [MExt23' [UnchLOORj1_2 WD22']]]]].
+                    destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H8 _ H4 Sep12 H9 _ _ MExt23 H10 H11 H6 UnchLOOB23_3' WD2 H13 H14)
+                          as [m2' [Fwd2' [MExt23' [Minj12' [UnchLOORj1_2 WD22']]]]].
 
  (*                   destruct (PUSHOUTS.pushout_IE _ _ _ _ Minj12  H7 _ H3 Sep12 H8)
                            as [m2' [Minj12' [Fwd2' [UnchLOORj1_2 MExt23']]]].
