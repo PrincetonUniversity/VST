@@ -7,6 +7,7 @@ Require Import compositional_compcert.rg_forward_simulations.
 Require Import compositional_compcert.step_lemmas.
 Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.extension.
+Require Import compositional_compcert.extension_safety.
 Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.extension_proof.
 Require Import compositional_compcert.Address.
@@ -1428,6 +1429,65 @@ congruence.
 Qed.
 
 End LinkingExtension.
+
+(*Section LinkerSafe.
+Variables 
+ (F V: Type) 
+ (geT: Genv.t F V) (num_modules: nat).
+Variables 
+ (cT fT vT: nat -> Type)
+ (procedure_linkage_table: ident -> option nat)
+ (plt_ok: 
+   forall (id: ident) (i: nat), 
+   procedure_linkage_table id = Some i -> i < num_modules)
+ (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i)) 
+ (csig: ext_spec Z) (esig: ext_spec Z).
+
+Definition handled_T := handled cT fT vT procedure_linkage_table modules_T.
+
+Variable linkableT_csig_esig: linkable (fun z : Z => z) handled_T csig esig.
+
+Variable plt_in_handled_T:
+ forall i j (pf: i < num_modules) c sig sig2 args id,
+ at_external (get_module_csem (modules_T pf)) c = Some (EF_external id sig, sig2, args) ->
+ procedure_linkage_table id = Some j -> handled_T (EF_external id sig).
+
+Implicit Arguments linker_at_external [num_modules cT].
+
+Variable at_external_not_handled_T:
+ forall ef sig args s,
+ linker_at_external fT vT procedure_linkage_table modules_T s = Some (ef, sig, args) ->
+ ~handled_T ef.
+
+Definition csem_map_T := csem_map cT fT vT modules_T.
+
+Variable agree_T: forall (k : nat) (pf_k : k < num_modules),
+ genvs_agree geT (get_module_genv (modules_T pf_k)). 
+
+Definition genv_mapT := genvs cT fT vT modules_T. 
+
+Variable domain_eq_T: forall (i: nat), genvs_domain_eq geT (genv_mapT i).
+Variable csem_fun_T: forall i: nat, corestep_fun (csem_map_T i).
+
+Import ExtensionCompilability.
+Import Forward_simulation_inj_exposed.
+
+Variable core_data: nat -> Type.
+Variable match_state: forall i: nat,
+ core_data i ->  meminj -> cS i -> mem -> cT i -> mem -> Prop.
+Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
+Variable threads_max: nat. 
+Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
+
+Variable RGsim: forall i: nat,
+ RelyGuaranteeSimulation.Sig (csem_map_S i) (csem_map_T i) (genv_mapS i) (@match_state i).
+
+Variable entry_points: list (val*val*signature).
+
+Lemma linking_extension_safe (csem_fun: corestep_fun csem): 
+ safe_extension ge (fun _:nat => ge) fs_extension.
+
+End LinkerSafe.*)
 
 Section LinkerCompilable.
 Variables 

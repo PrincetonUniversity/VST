@@ -6,6 +6,7 @@ Require Import compositional_compcert.forward_simulations.
 Require Import compositional_compcert.step_lemmas.
 Require Import compositional_compcert.extspec.
 Require Import compositional_compcert.extension.
+Require Import compositional_compcert.extension_safety.
 Require Import compositional_compcert.extension_simulations.
 Require Import compositional_compcert.extension_proof.
 Require Import compositional_compcert.fs_extension.
