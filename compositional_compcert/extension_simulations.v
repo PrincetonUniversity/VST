@@ -32,18 +32,6 @@ Definition genv2blocks {F V: Type} (ge: Genv.t F V) :=
   (fun b => exists id, Genv.find_symbol ge id = Some b,
    fun b => exists gv, Genv.find_var_info ge b = Some gv).
 
-Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
-  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
-  | None, None => True
-  | _, _ => False
-  end.
-
-Definition val_has_type_opt (v: option val) (sig: signature) :=
- match v with
- | None => True
- | Some v' => Val.has_type v' (proj_sig_res sig)
- end.
-
 Section CoreCompatibleDefs. Variables
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)

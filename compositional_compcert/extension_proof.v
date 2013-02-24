@@ -912,16 +912,16 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
-   val_inject j' retv1 retv2 -> 
+   val_inject_opt j' retv1 retv2 -> 
    mem_forward m1 m1' -> 
    Events.mem_unchanged_on (fun b ofs => 
      Events.loc_unmapped j b ofs /\ private_block (csemS i) d1 b) m1 m1' -> 
    mem_forward m2 m2' -> 
    Events.mem_unchanged_on (fun b ofs => 
      Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT i) d2 b) m2 m2' -> 
-   Val.has_type retv2 (proj_sig_res (ef_sig ef)) -> 
-   after_external esemS (Some retv1) s1 = Some s1' -> 
-   after_external esemT (Some retv2) s2 = Some s2' -> 
+   val_has_type_opt' retv2 (proj_sig_res (ef_sig ef)) -> 
+   after_external esemS retv1 s1 = Some s1' -> 
+   after_external esemT retv2 s2 = Some s2' -> 
    PROJ_CORE E_S i s1' = Some d1 -> 
    PROJ_CORE E_T i s2' = Some d2 -> 
    ACTIVE E_S s1 <> i -> 
@@ -1429,17 +1429,17 @@ split; auto.
 solve[eapply private_conservT; eauto].
 
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
-assert (exists st1', after_external esemS (Some ret1) st1 = Some st1' /\
+assert (exists st1', after_external esemS ret1 st1 = Some st1' /\
          PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1') as [st1' [? PROJ1']].
  inv core_compatS.
- specialize (after_ext_prog st1 c1 c1' (Some ret1)).
+ specialize (after_ext_prog st1 c1 c1' ret1).
  solve[spec after_ext_prog; auto].
-assert (exists st2', after_external esemT (Some ret2) st2 = Some st2' /\
+assert (exists st2', after_external esemT ret2 st2 = Some st2' /\
          PROJ_CORE E_T (ACTIVE E_S st1) st2' = Some c2') as [st2' [? PROJ2']].
  inv core_compatT.
  specialize (after_ext_prog st2). 
  rewrite <-ACT in after_ext_prog.
- specialize (after_ext_prog c2 c2' (Some ret2)).
+ specialize (after_ext_prog c2 c2' ret2).
  solve[spec after_ext_prog; auto].
 exists st1'; exists st2'.
 split3; auto.

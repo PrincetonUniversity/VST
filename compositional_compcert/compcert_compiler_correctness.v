@@ -322,7 +322,8 @@ Proof.
   assert (DD := @Forward_simulation_inj.core_after_external _ _ _ _ _ _ _ Sem1 Sem2 
     (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R i j).
   assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
-  destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInj) 
+  assert (RetInjOpt: val_inject_opt j' (Some ret) (Some ret2)) by auto.
+  destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInjOpt) 
     as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
   eapply external_call_mem_forward; eauto.
   apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.

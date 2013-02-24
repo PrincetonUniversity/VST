@@ -14,6 +14,21 @@ Require Import Axioms.
 Require Import compositional_compcert.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import compositional_compcert.core_semantics.
 
+Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
+  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
+  | None, None => True
+  | _, _ => False
+  end.
+
+Definition val_has_type_opt' (v: option val) (ty: typ) :=
+ match v with
+ | None => True
+ | Some v' => Val.has_type v' ty
+ end.
+
+Definition val_has_type_opt (v: option val) (sig: signature) :=
+  val_has_type_opt' v (proj_sig_res sig).
+
 (** * Here we present a module type which expresses the sort of
    forward simulation lemmas we have available.  The idea is that
    these lemmas would be used in the individual compiler passes and
@@ -195,11 +210,11 @@ Module Coop_forward_simulation_ext. Section Forward_simulation_extends.
     (*Matching memories should be well-defined ie not contain values
         with invalid/"dangling" block numbers*)
     match_memwd: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
+      (mem_wd m1 /\ mem_wd m2);
 
     (*The following axiom could be strengthened to extends m1 m2*)
     match_validblocks: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
-          forall b, Mem.valid_block m1 b <-> Mem.valid_block m2 b;
+      forall b, Mem.valid_block m1 b <-> Mem.valid_block m2 b;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -343,7 +358,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
-        val_inject j' ret1 ret2 ->
+        val_inject_opt j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
          mem_unchanged_on (fun b ofs => 
@@ -351,12 +366,12 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
          mem_forward m2 m2' -> 
          mem_unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         Val.has_type ret1 (proj_sig_res (ef_sig e)) -> 
-         Val.has_type ret2 (proj_sig_res (ef_sig e)) -> 
+         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
+         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ret1 st1 = Some st1' /\
+          after_external Sem2 ret2 st2 = Some st2' /\
           match_state cd' j' st1' m1' st2' m2' }.
 
 End Forward_simulation_inject. 
@@ -407,8 +422,9 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           mem_wd m1 -> mem_wd m2 ->
-          (*Is this line needed?? (forall w1 w2 sigg,  In (w1,w2,sigg) entry_points -> val_inject j w1 w2) ->*)
-           Forall2 (val_inject j) vals1 vals2 ->
+          (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
+           entry_points -> val_inject j w1 w2) ->*) Forall2
+           (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
@@ -538,7 +554,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
-        val_inject j' ret1 ret2 ->
+        val_inject_opt j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
          mem_unchanged_on (fun b ofs => 
@@ -546,12 +562,12 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
          mem_forward m2 m2' -> 
          mem_unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         Val.has_type ret1 (proj_sig_res (ef_sig e)) -> 
-         Val.has_type ret2 (proj_sig_res (ef_sig e)) -> 
+         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
+         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          after_external Sem1 ret1 st1 = Some st1' /\
+          after_external Sem2 ret2 st2 = Some st2' /\
           match_state cd' j' st1' m1' st2' m2'
     }.
 

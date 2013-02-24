@@ -2180,15 +2180,7 @@ case_eq (at_external (get_module_csem (modules_S PF)) c).
 2: solve[intros AT_EXT'; rewrite AT_EXT' in AT_EXT; congruence].
 intros [[ef' sig'] args'] AT_EXT'.
 rewrite AT_EXT' in AT_EXT.
-assert (exists ret1', ret1 = Some ret1') as [ret1' RET1] 
- by admit. (*fix after_external to allow None retval*)
-assert (exists ret2', ret2 = Some ret2') as [ret2' RET2] 
- by admit. (*fix after_external to allow None retval*)
-assert (val_inject j' ret1' ret2'). 
- unfold val_inject_opt in INJ.
- rewrite RET1, RET2 in INJ.
- solve[auto].
-specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1' m1' m2' m2' ret2' sig').
+specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1 m1' m2' m2' ret2 sig').
 specialize (RGsim i0); destruct RGsim.
 spec core_after_external0.
 solve[eapply match_state_inj; eauto].
@@ -2213,22 +2205,19 @@ solve[unfold mem_forward; intros; split; auto].
 spec core_after_external0.
 solve[unfold Events.mem_unchanged_on; split; auto].
 spec core_after_external0.
-unfold val_has_type_opt in HAS_TY1.
+unfold val_has_type_opt' in HAS_TY1.
 assert (Heq: ef = ef').
  clear - AT_EXT.
  destruct ef'; try solve[congruence].
  destruct (procedure_linkage_table name); try solve[congruence].
-rewrite Heq in *.
-solve[rewrite RET1 in HAS_TY1; auto].
+solve[rewrite Heq in *; auto].
 destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
 assert (Heq: ef = ef').
  clear - AT_EXT.
  destruct ef'; try solve[congruence].
  destruct (procedure_linkage_table name); try solve[congruence].
-rewrite Heq in *.
-solve[rewrite RET2 in HAS_TY2; auto].
+solve[rewrite Heq in *; auto].
 exists cd''; auto.
-rewrite <-RET1, <-RET2 in *.
 clear - Heq1 Heq2 EQ1 EQ2 PF MATCH2.
 unfold csem_map_S, csem_map_T, csem_map in *|-.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
@@ -3015,7 +3004,7 @@ simpl in ext_pf0.
 inv ext_pf0.
 destruct H3 as [ef0 [sig0 [args0 AT_EXT0]]].
 specialize (core_after_external0 
- cd0 j0 j c c0 m10 ef0 args0 rv1 m1' m20 m2 v2 sig0).
+ cd0 j0 j c c0 m10 ef0 args0 (Some rv1) m1' m20 m2 (Some v2) sig0).
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
