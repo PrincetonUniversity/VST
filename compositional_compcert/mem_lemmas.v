@@ -8,6 +8,7 @@ Require Import Values.
 Require Import Maps.
 Require Import Integers.
 Require Import Axioms.
+Require Import Globalenvs.
 
 Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
   mem_unchanged_on Q m m' -> 
@@ -683,10 +684,13 @@ Proof. intros. unfold mem_wd in *.
                 apply Mem.valid_access_valid_block in X. apply X.
             constructor.
       rewrite (Mem.nextblock_store _ _ _ _ _ _ ST). 
-          destruct v. constructor. constructor. constructor.  econstructor. eapply flatinj_I. apply V. rewrite Int.add_zero. trivial.
+          destruct v. constructor. constructor. constructor.
+            econstructor. eapply flatinj_I. apply V. 
+                          rewrite Int.add_zero. trivial.
 Qed.
 
-Lemma extends_memwd: forall m1 m2 (Ext: Mem.extends m1 m2), mem_wd m2 -> mem_wd m1.
+Lemma extends_memwd: 
+forall m1 m2 (Ext: Mem.extends m1 m2), mem_wd m2 -> mem_wd m1.
 Proof.
   intros. eapply mem_wdI. intros.
   assert (Mem.perm m2 b ofs Cur Readable).
@@ -696,12 +700,204 @@ Proof.
   destruct Ext. rewrite mext_next.
   assert (Mem.flat_inj (Mem.nextblock m2) b = Some (b,0)).
     apply flatinj_I. apply H1.
-  destruct mext_inj. specialize (mi_memval b ofs b 0 (eq_refl _) R). rewrite Zplus_0_r in mi_memval.
-  destruct H. specialize (mi_memval0 b ofs b 0 H2 H0). rewrite Zplus_0_r in mi_memval0. 
+  destruct mext_inj. specialize (mi_memval b ofs b 0 (eq_refl _) R). 
+  rewrite Zplus_0_r in mi_memval.
+  destruct H. specialize (mi_memval0 b ofs b 0 H2 H0). 
+  rewrite Zplus_0_r in mi_memval0. 
   remember (ZMap.get ofs (ZMap.get b (Mem.mem_contents m1))) as v.
   destruct v. constructor. constructor.
-    econstructor. eapply flatinj_I. inv mi_memval. inv H4. rewrite Int.add_zero in H6. 
+  econstructor.
+    eapply flatinj_I. inv mi_memval. inv H4. rewrite Int.add_zero in H6. 
       rewrite <- H6 in mi_memval0. simpl in mi_memval0. inversion mi_memval0.
       apply flatinj_E in H4. apply H4. 
    rewrite Int.add_zero. reflexivity.
 Qed. 
+
+Definition valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) :=
+  forall i b, Genv.find_symbol ge i = Some b -> val_valid (Vptr b Int.zero) m.
+
+Lemma valid_genv_alloc: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) lo hi b
+    (ALLOC: Mem.alloc m lo hi = (m1,b)) (G: valid_genv ge m), valid_genv ge m1.
+Proof. intros. intros x; intros.
+  apply (Mem.valid_block_alloc _ _ _ _ _ ALLOC).
+  apply (G _ _ H).
+Qed.
+
+Lemma valid_genv_store: forall {F V:Type} (ge:Genv.t F V) m m1 b ofs v chunk
+    (STORE: Mem.store chunk m b ofs v = Some m1) 
+     (G: valid_genv ge m), valid_genv ge m1.
+Proof. intros. intros x; intros.
+  apply (Mem.store_valid_block_1 _ _ _ _ _ _ STORE).
+  apply (G _ _ H).
+Qed.
+
+Lemma valid_genv_store_zeros: forall {F V:Type} (ge:Genv.t F V) m m1 b y z 
+    (STORE_ZERO: Genv.store_zeros m b y z = Some m1)
+    (G: valid_genv ge m), valid_genv ge m1.
+Proof. intros. intros x; intros.
+  apply Genv.store_zeros_nextblock in STORE_ZERO.
+  specialize (G _ _ H); simpl in *. unfold Mem.valid_block in *. 
+  rewrite STORE_ZERO. apply G.
+Qed.
+
+Lemma mem_wd_store_zeros: forall m b p n m1
+    (STORE_ZERO: Genv.store_zeros m b p n = Some m1) (WD: mem_wd m), mem_wd m1.
+Proof. intros until n. functional induction (Genv.store_zeros m b p n); intros.
+  inv STORE_ZERO; tauto.
+  apply (IHo _ STORE_ZERO); clear IHo.
+      eapply (mem_wd_store m). apply WD. apply e0. simpl; trivial.
+  inv STORE_ZERO.
+Qed.
+
+Lemma valid_genv_drop: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) b lo hi p
+    (DROP: Mem.drop_perm m b lo hi p = Some m1) (G: valid_genv ge m), 
+    valid_genv ge m1.
+Proof. intros. intros x; intros.
+  apply (Mem.drop_perm_valid_block_1 _ _ _ _ _ _ DROP).
+  apply (G _ _ H).
+Qed.
+
+Lemma mem_wd_store_init_data: forall {F V} (ge: Genv.t F V) a (b:block) (z:Z) 
+  m1 m2 (SID:Genv.store_init_data ge m1 b z a = Some m2),
+  valid_genv ge m1 -> mem_wd m1 -> mem_wd m2.
+Proof. intros F V ge a.
+  destruct a; simpl; intros;
+      try apply (mem_wd_store _ _ _ _ _ _ H0 SID); simpl; trivial.
+   inv SID; trivial.
+   remember (Genv.find_symbol ge i) as d.
+     destruct d; inv SID.
+     eapply (mem_wd_store _ _ _ _ _ _ H0 H2).
+    apply eq_sym in Heqd. apply (H _ _ Heqd). 
+Qed.
+
+Lemma valid_genv_store_init_data: 
+  forall {F V}  (ge: Genv.t F V) a (b:block) (z:Z) m1 m2
+  (SID: Genv.store_init_data ge m1 b z a = Some m2),
+  valid_genv ge m1 -> valid_genv ge m2.
+Proof. intros F V ge a.
+  destruct a; simpl; intros.
+    intros x bb; intros; simpl;
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+    intros x bb; intros; simpl;
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+    intros x bb; intros; simpl;
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+    intros x bb; intros; simpl;
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+    intros x bb; intros; simpl;
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+    inv SID; trivial.
+    remember ( Genv.find_symbol ge i) as d.
+      destruct d; inv SID. 
+      apply eq_sym in Heqd.
+      intros bb; intros; simpl. 
+      apply (Mem.store_valid_block_1 _ _ _ _ _ _ H1 _ (H _ _ H0)).
+Qed.
+
+Lemma mem_wd_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block) 
+  (z:Z) m1 m2 (SID: Genv.store_init_data_list ge m1 b z l = Some m2),
+  valid_genv ge m1 -> mem_wd m1 -> mem_wd m2.
+Proof. intros F V ge l.
+  induction l; simpl; intros. 
+    inv SID. trivial.
+  remember (Genv.store_init_data ge m1 b z a) as d.
+  destruct d; inv SID; apply eq_sym in Heqd.
+  apply (IHl _ _ _ _ H2); clear IHl H2.
+     eapply valid_genv_store_init_data. apply Heqd. apply H. 
+  eapply mem_wd_store_init_data. apply Heqd. apply H. apply H0.
+Qed. 
+
+Lemma valid_genv_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block)
+  (z:Z) m1 m2 (SID: Genv.store_init_data_list ge m1 b z l = Some m2),
+   valid_genv ge m1 -> valid_genv ge m2.
+Proof. intros F V ge l.
+  induction l; simpl; intros. 
+    inv SID. trivial.
+  remember (Genv.store_init_data ge m1 b z a) as d.
+  destruct d; inv SID; apply eq_sym in Heqd.
+  apply (IHl _ _ _ _ H1); clear IHl H1.
+     eapply valid_genv_store_init_data. apply Heqd. apply H. 
+Qed. 
+
+Lemma mem_wd_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
+   (GA: Genv.alloc_global ge m0 a = Some m1),
+   mem_wd m0 -> valid_genv ge m0 -> mem_wd m1.
+Proof. intros F V ge a.
+destruct a; simpl. intros.
+destruct g.
+  remember (Mem.alloc m0 0 1) as mm. destruct mm. 
+    apply eq_sym in Heqmm. 
+    specialize (mem_wd_alloc _ _ _ _ _ Heqmm). intros. 
+     eapply (mem_wd_drop _ _ _ _ _  _ GA).
+    apply (H1 H). 
+    apply (Mem.valid_new_block _ _ _ _ _ Heqmm).
+remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) ) as mm.
+  destruct mm. apply eq_sym in Heqmm.
+  remember (Genv.store_zeros m b 0 (Genv.init_data_list_size (AST.gvar_init v)))
+           as d. 
+  destruct d; inv GA; apply eq_sym in Heqd.
+  remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as dd.
+  destruct dd; inv H2; apply eq_sym in Heqdd.
+  eapply (mem_wd_drop _ _ _ _ _ _ H3); clear H3.
+    eapply (mem_wd_store_init_datalist _ _ _ _ _ _ Heqdd).
+    apply (valid_genv_store_zeros _ _ _ _ _ _ Heqd).
+    apply (valid_genv_alloc ge _ _ _ _ _ Heqmm H0).
+  apply (mem_wd_store_zeros _ _ _ _ _ Heqd).
+    apply (mem_wd_alloc _ _ _ _ _ Heqmm H).
+  unfold Mem.valid_block.
+     apply Genv.store_init_data_list_nextblock in Heqdd.
+           rewrite Heqdd. clear Heqdd.
+      apply Genv.store_zeros_nextblock in Heqd. rewrite Heqd; clear Heqd.
+      apply (Mem.valid_new_block _ _ _ _ _  Heqmm).
+Qed.
+
+Lemma valid_genv_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
+   (GA: Genv.alloc_global ge m0 a = Some m1),
+   valid_genv ge m0 -> valid_genv ge m1.
+Proof. intros F V ge a.
+destruct a; simpl. intros.
+destruct g.
+  remember (Mem.alloc m0 0 1) as d. destruct d. 
+    apply eq_sym in Heqd.
+    apply (valid_genv_drop _ _ _ _ _ _ _ GA).
+    apply (valid_genv_alloc _ _ _ _ _ _ Heqd H).
+remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) )
+         as Alloc.
+  destruct Alloc. apply eq_sym in HeqAlloc.
+  remember (Genv.store_zeros m b 0 
+           (Genv.init_data_list_size (AST.gvar_init v))) as SZ. 
+  destruct SZ; inv GA; apply eq_sym in HeqSZ.
+  remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as Drop.
+  destruct Drop; inv H1; apply eq_sym in HeqDrop.
+  eapply (valid_genv_drop _ _ _ _ _ _ _ H2); clear H2.
+  eapply (valid_genv_store_init_datalist _ _ _ _ _ _ HeqDrop). clear HeqDrop.
+  apply (valid_genv_store_zeros _ _ _ _ _ _ HeqSZ).
+    apply (valid_genv_alloc _ _ _ _ _ _ HeqAlloc H).
+Qed.
+
+Lemma valid_genv_alloc_globals:
+   forall F V (ge: Genv.t F V) init_list m0 m
+   (GA: Genv.alloc_globals ge m0 init_list = Some m),
+   valid_genv ge m0 -> valid_genv ge m.
+Proof. intros F V ge l.
+induction l; intros; simpl in *.
+  inv GA. assumption.
+remember (Genv.alloc_global ge m0 a) as d.
+  destruct d; inv GA. apply eq_sym in Heqd.
+  eapply (IHl  _ _  H1). clear H1.
+    apply (valid_genv_alloc_global _ _ _ _ Heqd H).
+Qed.
+
+Lemma mem_wd_alloc_globals:
+   forall F V (ge: Genv.t F V) init_list m0 m
+   (GA: Genv.alloc_globals ge m0 init_list = Some m),
+   mem_wd m0 -> valid_genv ge m0 -> mem_wd m.
+Proof. intros F V ge l.
+induction l; intros; simpl in *.
+  inv GA. assumption.
+remember (Genv.alloc_global ge m0 a) as d.
+  destruct d; inv GA. apply eq_sym in Heqd.
+eapply (IHl  _ _  H2).
+    apply (mem_wd_alloc_global ge _ _ _ Heqd H H0).
+    apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
+Qed.
