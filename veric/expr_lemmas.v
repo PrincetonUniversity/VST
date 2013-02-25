@@ -109,13 +109,13 @@ unfold typecheck_var_environ in *. simpl in H2.
 unfold get_var_type in *. 
 remember ((var_types Delta) ! i).
 destruct o. subst. simpl in H2.
-unfold_coerce.
+super_unfold_lift.
 try rewrite eqb_type_eq in *; simpl in *; intuition.
 symmetry in Heqo1.
 specialize (H0 i t1 Heqo1).
 destruct H0. congruence.
 remember ((glob_types Delta) ! i). destruct o; simpl in *; try congruence. 
-unfold_coerce. right. 
+super_unfold_lift. right. 
  unfold typecheck_glob_environ in H1.
 symmetry in Heqo2. 
 specialize (H1 _  _ Heqo2). destruct H1 as [b [i0 [? ?]]].
@@ -124,13 +124,13 @@ inv Heqo0. eauto. inv H2.
 
 
 
-simpl in *. intuition. unfold_coerce. unfold force_ptr in *. 
+simpl in *. intuition. super_unfold_lift. unfold force_ptr in *. 
 destruct (eval_expr e rho); eauto.
 
-simpl in *. unfold_coerce.
+simpl in *. super_unfold_lift.
 rewrite tc_andp_sound in *. simpl in *. 
-unfold_coerce. rewrite tc_andp_sound in *. 
-simpl in *. unfold_coerce.
+super_unfold_lift. rewrite tc_andp_sound in *. 
+simpl in *. super_unfold_lift.
 destruct H2 as [[? ?] ?]. 
 spec IHe; auto. destruct IHe. 
 unfold eval_field. unfold eval_struct_field.
@@ -175,10 +175,10 @@ unfold typecheck_var_environ in *. unfold get_var_type in *.
 
 remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. 
-unfold_coerce.
+super_unfold_lift.
 remember (type_eq t t0). destruct s; intuition. 
 subst. remember (negb(type_is_volatile t0)).
-rewrite tc_andp_sound in *. simpl in *. unfold_coerce.
+rewrite tc_andp_sound in *. simpl in *. super_unfold_lift.
  destruct b; intuition. 
 clear H3. symmetry in Heqo.
 specialize (H i t0 Heqo).
@@ -187,7 +187,7 @@ destruct H.
 rewrite H in *. rewrite <- Heqb. rewrite eqb_type_refl in *. destruct pt; auto.
 remember ((glob_types Delta) ! i). destruct o; try congruence.
 rewrite tc_andp_sound in *.  simpl in *. 
-simpl in *. unfold_coerce. destruct H0. remember (eqb_type t (globtype g)).
+simpl in *. super_unfold_lift. destruct H0. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
 subst. 
 unfold same_env in *. 
@@ -223,7 +223,7 @@ simpl in *. subst; destruct t; intuition.
 (*Var*)
 assert (MODE: access_mode t = By_reference)
  by (unfold typecheck_expr in H0; destruct (access_mode t); try (hnf in H0; contradiction); auto).
-simpl. unfold_coerce. unfold deref_noload. rewrite MODE.
+simpl. super_unfold_lift. unfold deref_noload. rewrite MODE.
 
  unfold typecheck_environ in H. intuition. 
 rename H4 into SM. 
@@ -247,7 +247,7 @@ remember ((glob_types Delta) ! i). destruct o; try congruence.
 simpl in *.
 rewrite tc_andp_sound in *. simpl in *. 
 unfold eval_var in *. 
- unfold_coerce. destruct H0. remember (eqb_type t (globtype g)).
+ super_unfold_lift. destruct H0. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
 subst. 
 symmetry in Heqo0.  specialize (SM _ _ Heqo0). 
@@ -282,26 +282,26 @@ remember (t2 ! i). destruct o.
   if_tac in H0; intuition. 
 
 (*deref*)  
-simpl in *. unfold_coerce. intuition. specialize (H3 pt).
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_tc_denote. unfold_coerce.
+simpl in *. super_unfold_lift. intuition. specialize (H3 pt).
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+unfold_tc_denote. super_unfold_lift.
 remember (eval_expr e rho); destruct v;
-simpl in *; unfold_coerce;
+simpl in *; super_unfold_lift;
 remember (typeof e); destruct t0; intuition; destruct pt; auto.
 
 (*addrof*)
 intuition.
 simpl in *. 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H0. 
 destruct t; auto.
 
 
 (*Unop*)
 intuition; simpl in *. 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H0. intuition.
-unfold_coerce.
+super_unfold_lift.
 unfold eval_unop. 
 destruct u; simpl in *. 
 
@@ -332,7 +332,7 @@ eapply typecheck_binop_sound; eauto.
 simpl in *.
 intuition.
 rewrite tc_andp_sound in *. 
-unfold_coerce.
+super_unfold_lift.
 unfold eval_cast.
 remember (eval_expr e rho). 
 remember (typeof e).
@@ -351,15 +351,15 @@ simpl in H3; hnf in H3; simpl; rewrite <- Heqv in *; auto |
 destruct i0; destruct s; simpl in *; auto; hnf in H3; try rewrite <- Heqv in *; try contradiction]. 
 
 (*EField*)
-simpl in *. unfold_coerce.
+simpl in *. super_unfold_lift.
  unfold eval_field,eval_struct_field, deref_noload in *.
 assert (MODE: access_mode t = By_reference) by (destruct (access_mode t); auto; hnf in H0; try contradiction).
 rewrite MODE in *.
 destruct IHe.
 destruct rho.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce). 
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
 simpl in H0.
-unfold_coerce. destruct H0 as [[?  ]?].
+super_unfold_lift. destruct H0 as [[?  ]?].
 revert H4; case_eq (type_is_volatile t); simpl; intros; try contradiction.
 clear H5.
 unfold typecheck_environ in H. 
@@ -375,8 +375,8 @@ destruct (typeof e); intuition.
 destruct (field_offset i f); intuition.
 
 simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift.
  unfold eval_field,eval_struct_field in *; intuition. 
 specialize  (H3 pt). intuition. remember rho.
 destruct e0.
@@ -481,7 +481,10 @@ Lemma typecheck_binop_sound2:
      (eval_binop b (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true. 
 Proof. 
-intros. eapply typecheck_binop_sound; eauto.  simpl. repeat (try rewrite tc_andp_sound; try unfold_coerce; simpl in *). intuition; eauto. 
+intros. 
+pose proof (typecheck_binop_sound).
+simpl in H4. unfold lift in H4. eapply H4; eauto.
+simpl. repeat (try rewrite tc_andp_sound; try super_unfold_lift; simpl in *). intuition; eauto. 
 Qed. 
 
 Lemma eval_binop_relate_fail :
@@ -532,7 +535,7 @@ try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 assert (TC_Sound:= typecheck_expr_sound).
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
 simpl in TC_Sound|-*.
-unfold_coerce.
+super_unfold_lift.
 unfold deref_noload in TC_Sound|-*.
 revert TC_Sound; case_eq (access_mode t); intros; try solve [inv TC_Sound].
 rename H2 into MODE.
@@ -559,7 +562,7 @@ destruct (Hge _ _ H1) as [b [ofs [? ?]]].
 simpl. simpl in H3. 
 rewrite H3.
 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H2.
 if_tac in H2; try contradiction.
 apply Clight.eval_Elvalue with b ofs; [  | econstructor 2; apply MODE].
@@ -600,7 +603,7 @@ destruct (type_eq t t0); simpl in *. subst t0.
 
 unfold get_var_type in *. 
 remember ((var_types Delta) ! i). 
-destruct o; try rewrite eqb_type_eq in *; simpl in *; unfold_coerce; intuition.
+destruct o; try rewrite eqb_type_eq in *; simpl in *; super_unfold_lift; intuition.
 destruct (type_eq t t0); simpl in *; [ | contradiction]. subst t0.
 symmetry in Heqo1.
 destruct rho.  
@@ -614,8 +617,8 @@ destruct rho.
 unfold typecheck_environ in *; intuition. clear H2 H0 H5. 
 unfold typecheck_glob_environ in *. 
 remember ((glob_types Delta) ! i). destruct o; simpl in H1; try congruence.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce. destruct H1. 
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift. destruct H1. 
 rename H3 into H4. 
 symmetry in Heqo2. specialize (H4 _ _ Heqo2).  destruct H4. destruct H2. 
 destruct H2. simpl in Heqo0. rewrite H2 in *. inv Heqo0. exists x. exists x0. split; auto. 
@@ -645,8 +648,8 @@ simpl in *. congruence.
 (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-intuition. simpl. unfold_coerce; unfold_tc_denote.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+intuition. simpl. super_unfold_lift; unfold_tc_denote.
  remember (eval_expr e rho); destruct v;
 intuition. 
 exists b. exists i. simpl in *. intuition. constructor.
@@ -655,8 +658,8 @@ auto.
 (*addrof*)
 
 simpl in H1. 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift.
 assert (ISPTR := eval_lvalue_ptr rho e Delta (te_of rho) (ve_of rho) (ge_of rho)).
 specialize (IHe ge).
 assert (mkEnviron (ge_of rho) (ve_of rho) (te_of rho) = rho). destruct rho; auto.
@@ -667,8 +670,8 @@ intuition. rewrite H6 in *. constructor. inv H10. auto.
 
 (*unop*)
 simpl in *. 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold eval_unop in *. unfold_coerce. intuition. unfold force_val. 
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+unfold eval_unop in *. super_unfold_lift. intuition. unfold force_val. 
 remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
 destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
@@ -689,8 +692,8 @@ simpl in *; inv Heqo.
 
 (*binop*)
 simpl in *. 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold eval_binop in *; unfold_coerce; intuition. unfold force_val.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val.
 remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
 (typeof e2) Mem.empty).
 destruct o. eapply Clight.eval_Ebinop. eapply IHe1; eauto.
@@ -705,8 +708,8 @@ eapply eval_binop_relate_fail; eauto.
 (*Cast*)
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 simpl in *; 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold eval_cast in *; unfold_coerce; intuition.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+unfold eval_cast in *; super_unfold_lift; intuition.
 unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
 destruct o. eapply Clight.eval_Ecast. eapply IHe. auto. apply H2. auto.
 
@@ -718,7 +721,7 @@ specialize (IHe ge). intuition.
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
-repeat( try rewrite tc_andp_sound in *; simpl in *; unfold_coerce). 
+repeat( try rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
 destruct H1. destruct H1.
 destruct IHe. specialize (H5 H1). destruct H5 as [b [ofs H5]]. 
 destruct H5. 
@@ -743,8 +746,8 @@ simpl. rewrite H6. simpl. apply Clight.deref_loc_reference; auto.
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. 
 simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
- unfold eval_field,eval_struct_field in *; unfold_coerce; remember (eval_lvalue e rho).
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+ unfold eval_field,eval_struct_field in *; super_unfold_lift; remember (eval_lvalue e rho).
 destruct H1. destruct H1. specialize (H4 H1).
 destruct H4 as [b [ofs H4]].
 remember (typeof e) as t0. destruct t0; intuition.
@@ -798,24 +801,24 @@ destruct e; intuition; simpl in *.
 unfold get_var_type in *. 
 
 destruct ((var_types Delta) ! i); intuition; simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
- unfold_coerce;
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+ super_unfold_lift;
 intuition. unfold tc_bool in *. rewrite if_negb in *.
-if_tac in H1; simpl in *; unfold_coerce; intuition.
+if_tac in H1; simpl in *; super_unfold_lift; intuition.
 
-unfold_coerce; intuition. unfold tc_bool in *. rewrite if_negb in *.
+super_unfold_lift; intuition. unfold tc_bool in *. rewrite if_negb in *.
 destruct ((glob_types Delta) ! i). simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
- unfold_coerce. 
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+ super_unfold_lift. 
 destruct H. if_tac in H0; auto; inv H0. inv H. 
 
 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce; intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift; intuition. clear - H1. unfold tc_bool in *. rewrite if_negb in *.
 if_tac in H1; intuition.
 
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce. intuition. unfold tc_bool in *.  rewrite if_negb in *. 
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift. intuition. unfold tc_bool in *.  rewrite if_negb in *. 
 if_tac in H1; auto. inv H1. 
 Qed.
 
@@ -1242,8 +1245,8 @@ simpl; eauto];
 try solve [
 try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
 
-destruct i; destruct s; unfold_coerce; try solve[simpl in *; 
-  unfold_coerce;  unfold_tc_denote; destruct H0; 
+destruct i; destruct s; super_unfold_lift; try solve[simpl in *; 
+  super_unfold_lift;  unfold_tc_denote; destruct H0; 
 try rewrite <- Heqv in *; 
 unfold Float.intoffloat; 
 destruct (Float.Zoffloat f0); try contradiction;
@@ -1254,8 +1257,8 @@ try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
 
 try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
 
-destruct i; destruct s; unfold_coerce;
-simpl in *; unfold_coerce;
+destruct i; destruct s; super_unfold_lift;
+simpl in *; super_unfold_lift;
 unfold Float.intoffloat, Float.intuoffloat;
 try (
 destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
@@ -1290,18 +1293,18 @@ hnf in H6; try contradiction; rewrite H99 in *;
 destruct (typeof e2); inv H2; inv H1; auto;
 try (unfold sem_cast in H0; simpl in H0;
       destruct i0; simpl in*; destruct s; inv H0; simpl; auto).
-simpl in *. unfold_coerce. rewrite H99 in *. inv H6. auto.
+simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
 simpl in *. unfold isCastResultType in H6. simpl in H6.
 unfold sem_cast in H0. 
 simpl in H0.
 destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
 invSome; simpl; auto.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-unfold_coerce; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
+super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
 Qed.
 
 
@@ -1488,8 +1491,8 @@ length tl = length el.
 Proof. 
 intros. generalize dependent el. induction tl; intros. simpl in *. destruct el. inv H. auto. 
 inv H. simpl in H. destruct el; try solve [inv H]. simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; unfold_coerce).
-unfold_coerce.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift.
 intuition.
 Qed. 
 
@@ -1507,7 +1510,7 @@ try congruence; remember (eval_expr e rho); destruct v;
 simpl in H0; try congruence; auto; 
 destruct i; destruct s; try destruct i0; try destruct s0;
 unfold is_neutral_cast in *;
-simpl in *; try congruence; unfold_coerce; 
+simpl in *; try congruence; super_unfold_lift; 
 try rewrite <- Heqv in *;  unfold denote_tc_iszero in *;
 try apply H0; try contradiction.
 Qed. 

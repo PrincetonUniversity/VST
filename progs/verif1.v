@@ -53,14 +53,14 @@ Hint Rewrite list_cell_eq : normalize.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
-   @eq assert (`(list_cell LS sh) e v) 
+   @eq (environ->mpred) (`(list_cell LS sh) e v) 
                   (`(field_mapsto sh t_struct_list _h) e (`Vint v)).
 Proof.
-  intros. extensionality rho; unfold_coerce. simpl_list_cell; auto.
+  intros. extensionality rho; unfold_lift. simpl_list_cell; auto.
 Qed.
 Hint Rewrite lift_list_cell_eq : normalize.
 
-Definition sumlist_Inv (sh: share) (contents: list int) : assert :=
+Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts: list int, 
             PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
             SEP ( TT ; `(lseg LS sh cts) (eval_id _t) `nullval)).
@@ -75,7 +75,7 @@ name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (`(fun v => sum_int contents = force_int v) (eval_id _s)) SEP(TT)).
+    (PROP() LOCAL (`((fun v => sum_int contents = force_int v) : val->Prop) (eval_id _s)) SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
@@ -83,7 +83,7 @@ go_lower. subst. normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  subst.  normalize.
+go_lower.  apply typed_false_ptr in H0. subst.  normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
@@ -103,7 +103,7 @@ forward.  (* return s; *)
 go_lower. 
 Qed.
 
-Definition reverse_Inv (sh: share) (contents: list int) : assert :=
+Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts1: list int, EX cts2 : list int,
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL ()
@@ -130,7 +130,7 @@ go_lower. subst. simpl; normalize.
 go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-go_lower. subst. normalize. 
+go_lower. apply typed_false_ptr in H2. subst. normalize. 
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalizex. subst contents.

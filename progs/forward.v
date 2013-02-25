@@ -122,14 +122,13 @@ Focus 2.
  apply exp_derives; intro old.
  apply andp_derives.
  apply prop_right; auto.
- intro rho; unfold LOCALx, local.
+ intro rho; unfold LOCALx, local,lift1.
 change SEPx with SEPx'.
  simpl. 
-  normalize.
- unfold coerce, lift1_C, lift0_C.
+  normalize. unfold_lift.
  apply sepcon_derives; auto.
  normalize.
- replace (subst ret (lift0 old) (get_result1 ret') rho)
+ replace (subst ret (fun _ => old) (get_result1 ret') rho)
    with (get_result1 ret rho); auto.
  destruct (eq_dec ret ret').
  subst.
@@ -142,7 +141,7 @@ change SEPx with SEPx'.
  unfold env_set. destruct rho; simpl in *; f_equal.
  unfold eval_id in H8; simpl in H8. unfold subst in H8.
  simpl in *. rewrite Map.gss in H8. simpl in H8.
- unfold_coerce. subst.
+ unfold lift in H8. 
  unfold Map.set. extensionality i. 
  destruct (ident_eq i ret'); auto.  subst i.
  unfold typecheck_environ in H7.
@@ -156,8 +155,8 @@ change SEPx with SEPx'.
  rewrite H0 in H. unfold temp_types in *. simpl in H. rewrite PTree.gss in H.
  simpl in H. rewrite PTree.gss in H.
  specialize (H true t (eq_refl _)). 
- destruct H as [v [? ?]]. rewrite H.
- apply H.
+ destruct H as [v [? ?]]. unfold Map.get in H,H8; rewrite H in *.
+ f_equal. destruct H1. inv H1.  destruct v; inv H8; inv H1; auto.
   rewrite closed_wrt_subst; auto with closed.
  unfold get_result1.
  f_equal. f_equal.
@@ -435,7 +434,7 @@ apply derives_trans with
 apply andp_right; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-unfold local; unfold_coerce; intro rho; simpl.
+unfold local,lift1; unfold_lift; intro rho; simpl.
 apply prop_derives. intros [_ ?]; auto.
 normalize.
 Qed.
@@ -483,13 +482,13 @@ Ltac intro_old_var'' id :=
 Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
       assert (VT: (var_types Delta) ! f = None) by reflexivity;
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
                     by (unfold fsig, A, Pre, Post; simpl; reflexivity);
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
-      evar (witness:A); evar (F: list assert); 
+      evar (witness:A); evar (F: list (environ->mpred)); 
       assert (SCI := semax_call_id1 Delta P Q F id f 
                  (snd fsig) bl (fst fsig) A witness Pre Post 
                       (eq_refl _) (eq_refl _) I);
@@ -511,13 +510,13 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
 Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
       assert (VT: (var_types Delta) ! f = None) by reflexivity;
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
                     by (unfold fsig, A, Pre, Post; simpl; reflexivity);
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
-      evar (witness:A); evar (F: list assert); 
+      evar (witness:A); evar (F: list (environ->mpred)); 
       assert (SCI := semax_call_id0 Delta P Q F f 
                   bl (fst fsig) A witness Pre Post 
                       (eq_refl _)  (eq_refl _) );
@@ -550,7 +549,7 @@ about id'.  So we handle it all in one gulp.
 Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> assert); evar (Post: A -> assert);
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
 
       assert (VT: (var_types Delta) ! f = None) by reflexivity;
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
@@ -558,7 +557,7 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
 
  let SCI := fresh "SCI" in
     let H := fresh in let x := fresh "witness" in let F := fresh "Frame" in
-      evar (x:A); evar (F: list assert); 
+      evar (x:A); evar (F: list (environ->mpred)); 
 
       assert (SCI := semax_call_id1_x Delta P Q F id id' f 
                    (snd fsig) bl (fst fsig) A x Pre Post 
@@ -573,7 +572,7 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
                             F))));
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  x,F | unfold F in *; 
-              ( apply SCI ; [ solve[simpl; auto with closed] 
+              ( apply SCI ; [ (solve[ simpl; auto with closed]  || solve [auto with closed]) (* FIXME!*)
                                  | (*solve[simpl; auto with closed] PREMATURELY INSTANTIATES FRAME *) 
                                  | reflexivity | reflexivity | reflexivity | reflexivity ] ) ]
                ]];
@@ -646,7 +645,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with 
   | |- semax _ ?PQR (Ssequence ?c1 ?c2) ?PQR' => 
            let Post := fresh "Post" in
-              evar (Post : assert);
+              evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [ 
                | unfold exit_tycon, update_tycon, Post; clear Post ]
@@ -708,7 +707,7 @@ match goal with
             ]
   | |- semax _ _ (Ssequence ?c1 ?c2) _ => 
            let Post := fresh "Post" in
-              evar (Post : assert);
+              evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [ forward1; unfold Post; 
                  try apply normal_ret_assert_derives';
@@ -756,12 +755,10 @@ Ltac start_function :=
  end;
   match goal with
   | |- semax _ (?P * stackframe_of ?F) _ _ =>
-            change (stackframe_of F) with (@emp assert _ _);
+            change (stackframe_of F) with (@emp (environ->mpred) _ _);
             rewrite sepcon_emp;
             rewrite frame_ret_assert_emp
   | |- semax _ ((PROPx ?P (LOCALx ?Q (SEPx ?R))) * stackframe_of ?F) _ _ =>
-        change (@LiftNatDed environ mpred Nveric) with Nassert;
-        change (@LiftSepLog environ mpred Nveric Sveric) with Sassert;
         rewrite (start_function_aux1 (stackframe_of F) P Q R)
  | |- _ => idtac
   end;

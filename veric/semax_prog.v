@@ -503,7 +503,7 @@ destruct H2 as [f ?].
  apply (IHg G); auto.
  apply (IHg G); auto.
  simpl. rewrite Int.signed_zero; auto.
- unfold func_at. destruct fs.
+ unfold func_at. destruct fs as [f0 A a a0].
  unfold initial_core.
  hnf. rewrite resource_at_make_rmap.
  rewrite level_make_rmap.
@@ -560,7 +560,7 @@ simpl.
 revert H3; case_eq (Genv.invert_symbol (Genv.globalenv prog) (fst loc')); intros;
   [ | congruence].
 revert H5; case_eq (find_id i G); intros; [| congruence].
-destruct f; inv H6.
+destruct f as [?f ?A ?a ?a]; inv H6.
 apply Genv.invert_find_symbol in H3.
 exists i.
 simpl ge_of. unfold filter_genv. rewrite H3.

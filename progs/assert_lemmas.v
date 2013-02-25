@@ -84,21 +84,17 @@ intros.
 intros ? ? ?.
 unfold lift0; auto.
 Qed.
-Hint Resolve @closed_wrt_lift0: closed.
+
+Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift0 : closed. (* match even if need some beta-eta conversion *)
 
 Lemma closed_wrt_lift0C: forall {B} S (Q: B), 
-   closed_wrt_vars S (@coerce B (environ -> B) (lift0_C B)  Q).
+   closed_wrt_vars S (@liftx (LiftEnviron B) Q).
 Proof.
 intros.
 intros ? ? ?.
-unfold_coerce; auto.
+unfold_lift; auto.
 Qed.
 Hint Resolve @closed_wrt_lift0C: closed.
-
-Lemma closed_wrt_lift0Cassert: forall  S (Q: mpred), 
-   closed_wrt_vars S (@coerce mpred assert (lift0_C mpred)  Q).
-Proof. apply closed_wrt_lift0C. Qed.
-Hint Resolve @closed_wrt_lift0Cassert: closed.
 
 Lemma closed_wrt_lift1: forall {A}{B} S (f: A -> B) P, 
         closed_wrt_vars S P -> 
@@ -108,23 +104,17 @@ intros.
 intros ? ? ?. specialize (H _ _ H0).
 unfold lift1; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift1 : closed.
+Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift1 : closed. (* match even if need some beta-eta conversion *)
 
 Lemma closed_wrt_lift1C: forall {A}{B} S (f: A -> B) P, 
         closed_wrt_vars S P -> 
-        closed_wrt_vars S (@coerce (A -> B) ((environ -> A) -> environ -> B) (lift1_C A B) f P).
+        closed_wrt_vars S (@liftx (Tarrow A (LiftEnviron B)) f P).
 Proof.
 intros.
 intros ? ? ?. specialize (H _ _ H0).
-unfold_coerce; f_equal; auto.
+unfold_lift; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift1C : closed.
-
-Lemma closed_wrt_lift1Cassert: forall {A} S (f: A -> mpred) P, 
-        closed_wrt_vars S P -> 
-        closed_wrt_vars S (@coerce (A -> mpred) ((environ -> A) -> assert) (lift1_C A mpred) f P).
-Proof. intro; apply closed_wrt_lift1C. Qed.
-Hint Resolve @closed_wrt_lift1Cassert : closed.
 
 Lemma closed_wrt_lift2: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
         closed_wrt_vars S P1 -> 
@@ -137,30 +127,20 @@ specialize (H _ _ H1).
 specialize (H0 _ _ H1).
 unfold lift2; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift2 : closed.
+Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift2 : closed. (* match even if need some beta-eta conversion *)
 
 Lemma closed_wrt_lift2C: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
         closed_wrt_vars S P1 -> 
         closed_wrt_vars S P2 -> 
-        closed_wrt_vars S (@coerce (A1 -> A2 -> B) ((environ -> A1) -> (environ -> A2) -> environ -> B)
-                  (lift2_C A1 A2 B) f P1 P2).
+        closed_wrt_vars S (@liftx (Tarrow A1 (Tarrow A2 (LiftEnviron B))) f P1 P2).
 Proof.
 intros.
 intros ? ? ?.
 specialize (H _ _ H1).
 specialize (H0 _ _ H1).
-unfold_coerce; f_equal; auto.
+unfold_lift; f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift2C : closed.
-
-Lemma closed_wrt_lift2C_assert: forall {A1 A2} 
-                  S (f: A1 -> A2 -> mpred) P1 P2, 
-        closed_wrt_vars S P1 -> 
-        closed_wrt_vars S P2 -> 
-        closed_wrt_vars S (@coerce (A1 -> A2 -> mpred) ((environ -> A1) -> (environ -> A2) -> assert)
-                  (lift2_C A1 A2 mpred) f P1 P2).
-Proof. intros ? ?; apply closed_wrt_lift2C. Qed.
-Hint Resolve @closed_wrt_lift2C_assert : closed.
 
 Lemma closed_wrt_lift3: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3, 
         closed_wrt_vars S P1 -> 
@@ -175,33 +155,22 @@ specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
 unfold lift3; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift3 : closed.
+Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift3 : closed. (* match even if need some beta-eta conversion *)
 
 Lemma closed_wrt_lift3C: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3, 
         closed_wrt_vars S P1 -> 
         closed_wrt_vars S P2 -> 
         closed_wrt_vars S P3 -> 
-        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> environ -> B)
-                  (lift3_C A1 A2 A3 B) f P1 P2 P3).
+        closed_wrt_vars S (@liftx (Tarrow A1 (Tarrow A2 (Tarrow A3 (LiftEnviron B)))) f P1 P2 P3).
 Proof.
 intros.
 intros ? ? ?.
 specialize (H _ _ H2).
 specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
-unfold_coerce; f_equal; auto.
+unfold liftx.  simpl. unfold lift. f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift3C : closed.
-
-Lemma closed_wrt_lift3C_assert: forall {A1 A2 A3} 
-                  S (f: A1 -> A2 -> A3 -> mpred) P1 P2 P3, 
-        closed_wrt_vars S P1 -> 
-        closed_wrt_vars S P2 ->
-         closed_wrt_vars S P3 -> 
-        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> mpred) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> assert)
-                  (lift3_C A1 A2 A3 mpred) f P1 P2 P3).
-Proof. intros ? ? ?; apply closed_wrt_lift3C. Qed.
-Hint Resolve @closed_wrt_lift3C_assert : closed.
 
 Lemma closed_wrt_lift4: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B)
        P1 P2 P3 P4,  
@@ -219,15 +188,14 @@ specialize (H1 _ _ H3).
 specialize (H2 _ _ H3).
 unfold lift4; f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift4 : closed.
+Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift4 : closed. (* match even if need some beta-eta conversion *)
 
 Lemma closed_wrt_lift4C: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B) P1 P2 P3 P4, 
         closed_wrt_vars S P1 -> 
         closed_wrt_vars S P2 -> 
-        closed_wrt_vars S P3 ->
-        closed_wrt_vars S P4 ->  
-        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> A4 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> environ -> B)
-                  (lift4_C A1 A2 A3 A4 B) f P1 P2 P3 P4).
+        closed_wrt_vars S P3 -> 
+        closed_wrt_vars S P4 -> 
+        closed_wrt_vars S (@liftx (Tarrow A1 (Tarrow A2 (Tarrow A3 (Tarrow A4 (LiftEnviron B))))) f P1 P2 P3 P4).
 Proof.
 intros.
 intros ? ? ?.
@@ -235,21 +203,9 @@ specialize (H _ _ H3).
 specialize (H0 _ _ H3).
 specialize (H1 _ _ H3).
 specialize (H2 _ _ H3).
-unfold_coerce; f_equal; auto.
+unfold liftx.  simpl. unfold lift. f_equal; auto.
 Qed.
-Hint Resolve @closed_wrt_lift4C : closed.
-
-Lemma closed_wrt_lift4C_assert: forall {A1 A2 A3 A4} 
-                  S (f: A1 -> A2 -> A3 -> A4 -> mpred) P1 P2 P3 P4, 
-        closed_wrt_vars S P1 -> 
-        closed_wrt_vars S P2 ->
-         closed_wrt_vars S P3 -> 
-        closed_wrt_vars S P4 ->  
-        closed_wrt_vars S (@coerce (A1 -> A2 -> A3 -> A4 -> mpred) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> assert)
-                  (lift4_C A1 A2 A3 A4 mpred) f P1 P2 P3 P4).
-Proof. intros ? ? ? ?; apply closed_wrt_lift4C. Qed.
-Hint Resolve @closed_wrt_lift4C_assert : closed.
-
+Hint Resolve @closed_wrt_lift3C : closed.
 
 Lemma closed_wrt_eval_var:
   forall S id t, closed_wrt_vars S (eval_var id t).
@@ -292,12 +248,12 @@ Qed.
 Hint Resolve closed_wrt_get_result1 : closed.
 
 
-Lemma closed_wrt_andp: forall S (P Q: assert),
+Lemma closed_wrt_andp: forall S (P Q: environ->mpred),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P && Q).
 Admitted.
 
-Lemma closed_wrt_sepcon: forall S (P Q: assert),
+Lemma closed_wrt_sepcon: forall S (P Q: environ->mpred),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P * Q).
 Admitted.
@@ -384,7 +340,7 @@ Lemma expr_closed_const_int:
   forall S i t, expr_closed_wrt_vars S (Econst_int i t).
 Proof.
 intros. unfold expr_closed_wrt_vars. simpl; intros.
-unfold_coerce. auto.
+super_unfold_lift. auto.
 Qed.
 Hint Resolve expr_closed_const_int : closed.
 
@@ -394,7 +350,7 @@ Lemma expr_closed_cast: forall S e t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold_coerce.
+ super_unfold_lift.
  destruct (H rho te' H0); auto.
 Qed.
 Hint Resolve expr_closed_cast : closed.
@@ -407,7 +363,7 @@ Lemma expr_closed_binop: forall S op e1 e2 t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold_coerce. f_equal; auto.
+ super_unfold_lift. f_equal; auto.
 Qed.
 Hint Resolve expr_closed_binop : closed.
 
@@ -418,7 +374,7 @@ Lemma expr_closed_unop: forall S op e t,
 Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
- unfold_coerce. f_equal; auto.
+ super_unfold_lift. f_equal; auto.
 Qed.
 Hint Resolve expr_closed_unop : closed.
 
@@ -471,8 +427,8 @@ Proof.
 intros.
 destruct e; simpl in *; auto with closed;
 unfold closed_wrt_vars in *;
-intros; specialize (H0 _ _ H1); clear H1; unfold_coerce;
-unfold deref_noload in *; rewrite H in H0; auto.
+intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
+unfold deref_noload in *; auto; rewrite H in H0; auto.
 Qed.
 Hint Resolve closed_wrt_lvalue : closed.
 
@@ -555,7 +511,7 @@ Proof.
 intros.
 extensionality rho; simpl.
 unfold tc_formals; fold tc_formals.
-unfold_coerce. simpl.
+super_unfold_lift. simpl.
 apply prop_ext.
 rewrite andb_true_iff.
 intuition.
@@ -592,7 +548,7 @@ Qed.
 
 Lemma local_lift2_and: forall P Q, local (`and P Q) = 
         local P && local Q.
-Proof. intros; extensionality rho. unfold local; unfold_coerce.   
+Proof. intros; extensionality rho. unfold local; super_unfold_lift.   
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
@@ -871,10 +827,10 @@ Ltac lift4 a e1 e2 e3 e4 rho :=
 
 Ltac abstract_env rho P :=
   match P with
-   | @emp mpred _ _ => constr:(@emp assert _ _)
+   | @emp mpred _ _ => constr:(@emp (environ->mpred) _ _)
    | @sepcon mpred _ _ ?e1 ?e2 => 
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
-       in constr:(@sepcon assert _ _ e1' e2')
+       in constr:(@sepcon (environ->mpred) _ _ e1' e2')
    | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 => 
       let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1 a2) e1' e2' e3' e4' rho
@@ -899,7 +855,7 @@ Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
   forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
 Proof. intro; apply derives_refl. Qed.
 
-Lemma cancel_frame2: forall (P Q: assert) F (rho: environ),
+Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
      Q rho |-- 	fold_right sepcon emp F rho ->
     (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
 Proof. intros. simpl. apply sepcon_derives; auto.

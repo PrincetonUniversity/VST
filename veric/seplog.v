@@ -7,6 +7,10 @@ Require Import veric.slice.
 Require Import veric.res_predicates.
 Require Import veric.expr.
 
+Definition assert := environ -> mpred.  (* Unfortunately
+   can't export this abbreviation through SeparationLogic.v because
+  it confuses the Lift system *)
+
 Definition writable_share (sh: share) := join_sub Share.Rsh sh.
 
 Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.

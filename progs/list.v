@@ -301,7 +301,7 @@ Lemma lift2_lseg_cons:
      end.
 Proof.
  intros.
- unfold lseg_cons, ptr_neq; unfold_coerce. extensionality rho. simpl.
+ unfold lseg_cons, ptr_neq; unfold_lift. extensionality rho. simpl.
  apply pred_ext; normalize.
 (* destruct s; symmetry in H0; inv H0. *)
  apply exp_right with (h, r, y). normalize.
@@ -361,7 +361,7 @@ apply andp_left1; auto.
 apply andp_left2; auto.
 clear H.
 change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_coerce; simpl.
+intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
 normalize.
 rewrite lseg_nonnull by auto.
 auto.

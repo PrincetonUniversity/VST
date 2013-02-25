@@ -1446,7 +1446,7 @@ Proof.
 Qed.
 
 Lemma pjoinable_emp_None {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall w: option (lifted JA), identity w ->  w=None.
+  forall w: option (psepalg.lifted JA), identity w ->  w=None.
 Proof.
 intros.
 destruct w; auto.
@@ -1458,7 +1458,7 @@ inversion H.
 Qed.
 
 Lemma pjoinable_None_emp {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-           identity (None: option (lifted JA)).
+           identity (None: option (psepalg.lifted JA)).
 Proof.
 intros; intro; intros.
 inv H; auto.
@@ -1516,7 +1516,7 @@ Lemma bool_val_Cnot:
 Proof.
  intros.
  unfold Cnot. simpl.
- unfold eval_unop; unfold_coerce; simpl.
+ unfold eval_unop; super_unfold_lift; simpl.
  destruct (eval_expr a rho); simpl in *; try congruence.
  destruct (typeof a); simpl in *; try congruence.
  inv H0.  rewrite  negb_involutive. unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.

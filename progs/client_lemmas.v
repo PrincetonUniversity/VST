@@ -62,7 +62,7 @@ Qed.
 
 Lemma subst_lift0C:
   forall {B} id (v: environ -> val) (f: B) , 
-          subst id v (@coerce B (environ -> B) (lift0_C B) f) = `f.
+          subst id v (`f) = `f.
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
@@ -86,14 +86,13 @@ Qed.
 
 Lemma subst_lift1C:
   forall {A1 B} id (v: environ -> val) (f: A1 -> B) (a: environ -> A1), 
-          subst id v (@coerce (A1 -> B) ((environ -> A1) -> environ -> B) (lift1_C A1 B) f a) 
-               = `f (subst id v a).
+          subst id v (`f a)  = `f (subst id v a).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C : normalize.
-Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C : subst.
+Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C  : normalize.
+Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C  : subst.
 
 Lemma subst_lift2:
   forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
@@ -111,8 +110,7 @@ Qed.
 
 Lemma subst_lift2C:
   forall {A1 A2 B} id (v: environ -> val) (f: A1 -> A2 -> B) (a: environ -> A1) (b: environ -> A2), 
-          subst id v (@coerce (A1 -> A2 -> B) ((environ -> A1) -> (environ -> A2) -> environ -> B)
-                  (lift2_C A1 A2 B) f a b) = `f (subst id v a) (subst id v b).
+          subst id v (`f a b) = `f (subst id v a) (subst id v b).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
@@ -138,8 +136,7 @@ Qed.
 Lemma subst_lift3C:
   forall {A1 A2 A3 B} id (v: environ -> val) (f: A1 -> A2 -> A3 -> B) 
                   (a1: environ -> A1) (a2: environ -> A2) (a3: environ -> A3), 
-          subst id v (@coerce (A1 -> A2 -> A3 -> B) ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> environ -> B)
-                  (lift3_C A1 A2 A3 B) f a1 a2 a3) = `f (subst id v a1) (subst id v a2) (subst id v a3).
+          subst id v (`f a1 a2 a3) = `f (subst id v a1) (subst id v a2) (subst id v a3).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
@@ -165,9 +162,7 @@ Qed.
 Lemma subst_lift4C:
   forall {A1 A2 A3 A4 B} id (v: environ -> val) (f: A1 -> A2 -> A3 -> A4 -> B) 
                   (a1: environ -> A1) (a2: environ -> A2) (a3: environ -> A3) (a4: environ -> A4), 
-          subst id v (@coerce (A1 -> A2 -> A3 -> A4 -> B) 
-               ((environ -> A1) -> (environ -> A2) -> (environ -> A3) -> (environ -> A4) -> environ -> B)
-                  (lift4_C A1 A2 A3 A4 B) f a1 a2 a3 a4) = `f (subst id v a1) (subst id v a2) (subst id v a3) (subst id v a4).
+          subst id v (`f a1 a2 a3 a4) = `f (subst id v a1) (subst id v a2) (subst id v a3) (subst id v a4).
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
@@ -198,7 +193,7 @@ Qed.
 
 Lemma semax_post_flipped:
   forall (R' : ret_assert) (Delta : tycontext) (R : ret_assert)
-         (P : assert) (c : statement),
+         (P : environ->mpred) (c : statement),
         semax Delta P c R' -> 
        (forall (ek : exitkind) (vl : option val),
         local (tc_environ (exit_tycon c Delta ek)) && R' ek vl |-- R ek vl) ->
@@ -236,7 +231,7 @@ Qed.
 
 Lemma extract_exists_pre:
       forall
-        (A : Type) (P : A -> assert) (c : Clight.statement)
+        (A : Type) (P : A -> environ->mpred) (c : Clight.statement)
          Delta  (R : ret_assert),
        (forall x : A, semax Delta (P x) c R) ->
        semax Delta (exp (fun x => P x)) c R.
@@ -273,14 +268,14 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Definition PROPx (P: list Prop): forall (Q: assert), assert := 
+Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred := 
      andp (prop (fold_right and True P)).
 
 Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10) : logic.
 Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10) : logic.
 Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10) : logic.
 
-Definition LOCALx (Q: list (environ -> Prop)) : forall (R: assert), assert := 
+Definition LOCALx (Q: list (environ -> Prop)) : forall (R: environ->mpred), environ->mpred := 
                  andp (local (fold_right (`and) (`True) Q)).
 
 Notation " 'LOCAL' ( )   z" := (LOCALx nil z)  (at level 9) : logic.
@@ -289,10 +284,8 @@ Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
 Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
          (at level 9) : logic.
 
-(* Definition SEPx (R: list assert) : assert := fold_right sepcon emp R. *)
-
-Definition SEPx: forall (R: list assert), assert := fold_right sepcon emp.
-Definition SEPx': forall (R: list assert), assert := fold_right sepcon emp.
+Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
+Definition SEPx': forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
 Global Opaque SEPx.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
@@ -366,11 +359,6 @@ Qed.
 Hint Rewrite ret_type_initialized : normalize.
 
 Hint Rewrite bool_val_notbool_ptr using (solve [simpl; auto]) : normalize.
-Instance Nassert: NatDed assert := _.
-Instance Sassert: SepLog assert := _.
-Instance Cassert: ClassicalSep assert := _. 
-Instance Iassert: Indir assert := _.
-Instance SIassert: SepIndir assert := _.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
@@ -407,7 +395,7 @@ Proof.
 Qed.
 
 Lemma go_lower_lem6:
-  forall {A} P (Q: A -> assert) PQR,
+  forall {A} P (Q: A -> environ->mpred) PQR,
     (forall x, P && Q x |-- PQR) ->
     P && exp Q |-- PQR.
 Proof.
@@ -415,13 +403,13 @@ Proof.
 Qed.
 
 Lemma go_lower_lem7:
-  forall (R1: assert) (Q1: environ -> Prop) P Q R PQR,
+  forall (R1: environ->mpred) (Q1: environ -> Prop) P Q R PQR,
       R1 && (PROPx P (LOCALx (Q1::Q) R)) |-- PQR ->
       (R1 && local Q1) && (PROPx P (LOCALx Q R)) |-- PQR.
 Admitted.
 
 Lemma go_lower_lem8:
-  forall (R1 R2 R3: assert) PQR PQR',
+  forall (R1 R2 R3: environ->mpred) PQR PQR',
       ((R1 && R2) && R3) && PQR |-- PQR' ->
       (R1 && (R2 && R3)) && PQR |-- PQR'.
 Proof.
@@ -435,7 +423,7 @@ Lemma go_lower_lem9:
 Admitted.
 
 Lemma go_lower_lem10:
-  forall (R1 R2 R3: assert) PQR',
+  forall (R1 R2 R3: environ->mpred) PQR',
       (R1 && R2) && R3 |-- PQR' ->
       (R1 && (R2 && R3)) |-- PQR'.
 Proof.
@@ -561,7 +549,7 @@ Lemma go_lower_lem24:
   (Q1 rho -> LOCALx Q R rho |-- PQR) ->
   LOCALx (Q1::Q) R rho |-- PQR.
 Proof.
-   unfold LOCALx,local; unfold_coerce; simpl; intros.
+   unfold LOCALx,local; super_unfold_lift; simpl; intros.
  normalize. 
  destruct H0.
  eapply derives_trans;  [ | apply (H H0)].
@@ -575,7 +563,7 @@ Lemma go_lower_lem25:
 Proof. unfold LOCALx; intros; normalize. Qed.
 
 
-Fixpoint fold_right_sepcon rho (l: list assert) : mpred :=
+Fixpoint fold_right_sepcon rho (l: list(environ->mpred)) : mpred :=
  match l with 
  | nil => emp
  | b::nil => b rho
@@ -616,7 +604,7 @@ Proof.
  intros. change SEPx with SEPx'.
  eapply derives_trans; [ apply H |].
  clear.
- unfold LOCALx. unfold local. unfold_coerce; simpl.
+ unfold LOCALx. unfold local. super_unfold_lift; simpl.
  apply andp_derives.
  apply prop_left; intro H;  apply prop_right; revert H.
  induction Q'; simpl; auto.
@@ -660,7 +648,7 @@ Lemma go_lower_lem24a:
   forall rho t a e  Q R PQR,
   (e rho = nullval -> LOCALx Q R rho |-- PQR) ->
   LOCALx (`(typed_false (Tpointer t a)) e ::Q) R rho |-- PQR.
-Proof. unfold LOCALx, local; unfold_coerce; intros.
+Proof. unfold LOCALx, local; super_unfold_lift; intros.
  simpl. normalize.
  destruct H0.
  apply typed_false_ptr in H0.
@@ -671,7 +659,7 @@ Proof. unfold LOCALx, local; unfold_coerce; intros.
 
 
 Lemma refold_frame:
- forall rho (F: list assert) A, 
+ forall rho (F: list(environ->mpred)) A, 
    match F with nil => A | _ :: _ => A * fold_right_sepcon rho F end =
              A * fold_right sepcon emp F rho.
 Proof. 
@@ -696,14 +684,14 @@ Ltac go_lower2 :=
   let rho := fresh "rho" in intro rho;
  repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
                  let H := fresh in 
-                       (intro H; unfold_coerce));
+                       (intro H; super_unfold_lift));
   apply go_lower_lem25;
  apply go_lower_lem26; 
  try apply go_lower_lem27a;  try apply go_lower_lem27c;
  unfold fold_right_sepcon, fold_right_andp;
  change (TT rho) with (@TT mpred _);
  repeat (unfold ret_type; simpl); 
- unfold local; unfold_coerce;
+ unfold local; super_unfold_lift;
  repeat rewrite retval_lemma1;
  try rewrite refold_frame.
 
@@ -883,13 +871,13 @@ Ltac go_lower3 :=
         frame_ret_assert, function_body_ret_assert,
         get_result1, retval, make_args', bind_ret;
         simpl typecheck_exprlist; simpl typecheck_expr; simpl typecheck_lvalue;
-        unfold_coerce;
+        super_unfold_lift;
         simpl make_args; simpl access_mode;
         simpl @fst; simpl @snd; simpl @map; 
          (* in Coq 8.4, next line could use simpl, with directives *)
          repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
       simpl  tc_andp; simpl denote_tc_assert;
-        unfold_coerce;
+        super_unfold_lift;
         repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
         repeat rewrite eval_id_same;
         findvars;
@@ -912,13 +900,13 @@ Ltac go_lower3 :=
          stackframe_of, Datatypes.id,
         frame_ret_assert, function_body_ret_assert,
         get_result1, retval, make_args', bind_ret;
-        unfold_coerce;
+        super_unfold_lift;
         simpl make_args; simpl access_mode;
         simpl @fst; simpl @snd; simpl @map; 
          (* in Coq 8.4, next line could use simpl, with directives *)
          repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
       simpl  tc_andp; simpl denote_tc_assert;
-        unfold_coerce;
+        super_unfold_lift;
         repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
         repeat rewrite eval_id_same;
         findvars;
@@ -964,20 +952,20 @@ Proof. reflexivity. Qed.
 Hint Rewrite local_unfold : normalize.
 
 Lemma lower_sepcon:
-  forall P Q rho, @sepcon assert Nassert Sassert P Q rho = sepcon (P rho) (Q rho).
+  forall P Q rho, @sepcon (environ->mpred) _ _ P Q rho = sepcon (P rho) (Q rho).
 Proof. reflexivity. Qed.
 Lemma lower_andp:
-  forall P Q rho, @andp assert Nassert P Q rho = andp (P rho) (Q rho).
+  forall P Q rho, @andp (environ->mpred) _ P Q rho = andp (P rho) (Q rho).
 Proof. reflexivity. Qed.
 Hint Rewrite lower_sepcon lower_andp : normalize.
 
 Lemma lift_prop_unfold: 
-   forall P z,  @prop assert Nassert P z = @prop mpred Nveric P.
+   forall P z,  @prop (environ->mpred) _ P z = @prop mpred Nveric P.
 Proof.  reflexivity. Qed.
 Hint Rewrite lift_prop_unfold: normalize.
 
-Lemma andp_unfold: forall P Q rho,
-  @andp assert Nassert P Q rho = @andp mpred Nveric (P rho) (Q rho).
+Lemma andp_unfold: forall (P Q: environ->mpred) rho,
+  @andp (environ->mpred) _ P Q rho = @andp mpred Nveric (P rho) (Q rho).
 Proof. reflexivity. Qed.
 Hint Rewrite andp_unfold: normalize.
 
@@ -989,7 +977,7 @@ Qed.
 Hint Rewrite @prop_and : normalize.
 
 Lemma exp_unfold : forall A P rho,
- @exp assert Nassert A P rho = @exp mpred Nveric A (fun x => P x rho).
+ @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
 Proof.
 intros. reflexivity. 
 Qed.
@@ -1002,12 +990,13 @@ Proof. intros.  extensionality rho.
   unfold lift1.  f_equal. 
 Qed.
 
-Lemma lift1_lift1_retvalC {A}: forall i (P: val -> A),
-`(`P retval) (get_result1 i) = @coerce _ _ (lift1_C _ _) P (eval_id i).
+(* Lemma lift1_lift1_retvalC : forall i (P: val -> environ -> mpred),
+`(@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
 Proof. intros.  extensionality rho.
   unfold coerce, lift1_C, lift1. 
   f_equal.  
 Qed.
+*)
 
 Lemma lift0_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
@@ -1017,7 +1006,9 @@ Qed.
 
 Lemma lift0C_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), `(exp f) = EX x:B, `(f x).
-Proof. apply lift0_exp. Qed. 
+Proof.
+intros. unfold_lift. simpl. extensionality rho. f_equal. extensionality x; auto.
+Qed.
 Hint Rewrite @lift0_exp @lift0C_exp : normalize.
 
 Lemma lift0_andp {A}{NA: NatDed A}:
@@ -1028,8 +1019,8 @@ intros. extensionality rho. reflexivity.
 Qed.
 
 Lemma lift0C_andp {A}{NA: NatDed A}:
- forall P Q, 
-  (@coerce A (environ -> A) (lift0_C A) (@andp A NA P Q)) =
+ forall P Q: A, 
+  `(@andp A NA P Q) =
   andp (`P) (`Q).
 Proof.
 intros. extensionality rho. reflexivity.
@@ -1040,8 +1031,20 @@ Lemma lift0_prop {A}{NA: NatDed A}:
 Proof. intros. extensionality rho; reflexivity. Qed.
 
 Lemma lift0C_prop {A}{NA: NatDed A}:
- forall P, @coerce A (environ -> A) (lift0_C A) (!! P) = !!P.
+ forall P, @liftx (LiftEnviron A) (@prop A NA P) = 
+                  @prop (environ -> A) _ P.
+Proof. reflexivity. Qed.
+
+(*Lemma lift0C_prop {A}{NA: NatDed A}:
+ forall P, @liftx (LiftEnviron A) (@id_for_lift A (@prop A NA P)) = 
+                  @prop (environ -> A) _ P.
+Proof. reflexivity. Qed.
+*)
+(*
+Lemma lift0C_prop {A}{NA: NatDed A}:
+ forall P, `(!! P) = !!P.
 Proof. intros. extensionality rho; reflexivity. Qed.
+*)
 
 Lemma lift0_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
  forall P Q, 
@@ -1050,13 +1053,30 @@ Proof.
 intros. extensionality rho. reflexivity.
 Qed.
 
+(*
 Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
  forall P Q, 
-  (@coerce A (environ -> A) (lift0_C A) (@sepcon A NA SA P Q)) =
-  sepcon (`P) (`Q).
+  `(P * Q) = (`P) * (`Q).
 Proof.
 intros. extensionality rho. reflexivity.
 Qed.
+
+Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
+ forall P Q N2 S2, 
+  (@liftx (LiftEnviron A) (@id_for_lift A (@sepcon A N2 S2 P Q))) = 
+  (@sepcon (environ->A) _ _ 
+     (@liftx (LiftEnviron A) (@id_for_lift A P))
+     (@liftx (LiftEnviron A) (@id_for_lift A Q))).
+Proof. reflexivity. Qed.
+*)
+
+Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
+ forall P Q N2 S2, 
+  (@liftx (LiftEnviron A) (@sepcon A N2 S2 P Q)) = 
+  (@sepcon (environ->A) _ _ 
+     (@liftx (LiftEnviron A) P)
+     (@liftx (LiftEnviron A) Q)).
+Proof. reflexivity. Qed.
 
 Lemma lift0_later {A}{NA: NatDed A}{IA: Indir A}:
   forall P:A, 
@@ -1065,27 +1085,26 @@ Proof. intros. reflexivity. Qed.
 
 Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
   forall P:A, 
-   @coerce A (environ -> A) (lift0_C A) (@later A NA IA P) =
-      @later (environ->A) (@LiftNatDed environ A NA) 
-                (@LiftIndir environ A NA IA)
-             (@coerce A (environ->A) _ P).
+   `(@later A NA IA P) = @later (environ->A) _ _ (`P).
 Proof. intros. reflexivity. Qed.
 
+(*
 Lemma lift1C_lift0C:
   forall {A}{J: A}{K: environ -> environ},
      (@coerce (environ -> A) ((environ -> environ) -> (environ -> A))
             (lift1_C environ A)
                  (@coerce A (environ -> A) (lift0_C A)  J) K) = `J.
 Proof. intros. extensionality rho. reflexivity. Qed.
+*)
 
 Hint Rewrite @lift0C_andp @lift0C_prop @lift0C_sepcon
-    @lift1_lift1_retval @lift1_lift1_retvalC
+    @lift1_lift1_retval (* @lift1_lift1_retvalC *)
     @lift0_exp @lift0C_exp
     @lift0_andp @lift0C_andp
     @lift0_sepcon @lift0C_sepcon
     @lift0_prop @lift0C_prop
     @lift0_later @lift0C_later
-    @lift1C_lift0C
+    (* @lift1C_lift0C *)
     : normalize.
 
 Lemma semax_post'': forall P Q R Delta Pre Post c,
@@ -1099,7 +1118,7 @@ Proof. intros. eapply semax_post; eauto. intros.
  eapply derives_trans; [ | apply H].
  unfold PROPx, LOCALx; simpl.
  apply andp_derives; auto.
- unfold local; unfold_coerce.
+ unfold local; super_unfold_lift.
  apply andp_derives; auto.
  apply prop_left; intro; apply prop_right.
  split; auto.
@@ -1133,7 +1152,7 @@ apply pred_ext; normalize.
 Qed.
 Hint Rewrite local_sepcon_assoc1 local_sepcon_assoc2 : normalize.
 
-Definition do_canon (x y : assert) := (sepcon x y).
+Definition do_canon (x y : environ->mpred) := (sepcon x y).
 
 Ltac strip1_later P :=
  match P with 
@@ -1244,8 +1263,7 @@ intros. extensionality rho.
 change SEPx with SEPx'.
 unfold PROPx, LOCALx, SEPx', lift2.
 normalize.
-unfold local, lift1. simpl.
-f_equal.
+unfold_lift. simpl.
 apply pred_ext; normalize.
 Qed.
 Hint Rewrite insert_local:  normalize.
@@ -1309,7 +1327,7 @@ Lemma grab_nth_LOCAL:
 Proof.
 intros n P Q R.
 f_equal.
-unfold LOCALx, local; unfold_coerce.
+unfold LOCALx, local; super_unfold_lift.
 f_equal.
 extensionality rho;  f_equal.
 revert Q; induction n; intros.
@@ -1341,8 +1359,8 @@ unfold delete_nth.
 auto.
 simpl.
 rewrite sepcon_emp; auto.
-change (fold_right sepcon emp (a :: R) rho)
-  with (a rho * fold_right sepcon emp R rho).
+change (fold_right sepcon emp (m :: R) rho)
+  with (m rho * fold_right sepcon emp R rho).
 rewrite IHn.
 simpl.
 repeat rewrite <- sepcon_assoc.
@@ -1408,7 +1426,7 @@ Eval compute in grab_indexes (1::6::4::nil) (a::b::c::d::e::f::g::h::i::j::nil).
 
 (*
 Lemma revapp_sepcon:
- forall al bl: list assert, 
+ forall al bl: list(environ->mpred), 
   fold_right sepcon emp (revapp al bl) =
   fold_right sepcon emp al * fold_right sepcon emp bl.
 Proof.
@@ -1423,7 +1441,7 @@ Qed.
 *)
 
 Lemma grab_indexes_SEP : 
-  forall (ns: list Z) (xs: list assert),   SEPx xs = SEPx (grab_indexes ns xs).
+  forall (ns: list Z) (xs: list(environ->mpred)),   SEPx xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
 change SEPx with SEPx'; unfold SEPx'; extensionality rho.
@@ -1440,15 +1458,15 @@ specialize (IHks xs).
 case_eq (grab_indexes' ks xs); intros.
 rewrite H in IHks.
 rewrite fold_right_app.
-transitivity (a rho * fold_right sepcon emp xs rho); try reflexivity.
-fold Nassert in *. fold Sassert in *. rewrite IHks.
+transitivity (m rho * fold_right sepcon emp xs rho); try reflexivity.
+rewrite IHks.
 rewrite fold_right_app.
 forget (fold_right sepcon emp l0) as P.
-transitivity (fold_right sepcon P (a::l) rho). reflexivity.
+transitivity (fold_right sepcon P (m::l) rho). reflexivity.
 clear.
 revert l; induction n; intro l. reflexivity.
 simpl. destruct l. simpl. auto.
-simpl. rewrite <- sepcon_assoc. rewrite (sepcon_comm (a rho)).
+simpl. rewrite <- sepcon_assoc. rewrite (sepcon_comm (m rho)).
 rewrite sepcon_assoc. f_equal.
 specialize (IHn l). simpl in IHn.
 auto.
@@ -1550,11 +1568,11 @@ eapply derives_trans; [ | eapply derives_trans].
 2: apply sepcon_derives; [ apply H | apply (derives_refl  (fold_right sepcon emp R2))].
 clear H.
 change SEPx with SEPx'; 
-unfold PROPx, LOCALx, SEPx', local; unfold_coerce; intros.
+unfold PROPx, LOCALx, SEPx', local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 change SEPx with SEPx'; 
-unfold PROPx, LOCALx, SEPx', local; unfold_coerce; intros.
+unfold PROPx, LOCALx, SEPx', local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 Qed.
@@ -1723,7 +1741,7 @@ Ltac repeat_extract_exists_pre :=
              
 
 Lemma extract_exists_in_SEP:
-  forall {A} (R1: A -> assert) P Q R,   
+  forall {A} (R1: A -> environ->mpred) P Q R,   
     PROPx P (LOCALx Q (SEPx (exp R1 :: R))) = 
     EX x:A, PROPx P (LOCALx Q (SEPx (R1 x::R))).
 Proof.
@@ -1789,10 +1807,16 @@ Qed.
 
 Hint Rewrite move_prop_from_SEP move_local_from_SEP : normalize.
 
-Lemma subst_andp:
-  forall id v P Q, subst id v (P && Q) = subst id v P && subst id v Q.
-Admitted.
-Lemma subst_prop: forall i v P, subst i v (prop P) = prop P.
+Lemma subst_andp {A}{NA: NatDed A}:
+  forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
+Proof.
+intros.
+extensionality rho; unfold subst; simpl.
+auto.
+Qed.
+
+Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
+    subst i v (prop P) = prop P.
 Proof.
 intros; reflexivity.
 Qed.
@@ -1813,7 +1837,7 @@ Hint Rewrite @map_nil : normalize.
 Hint Rewrite @map_nil : subst.
 
 
-Lemma subst_sepcon: forall i v (P Q: assert),
+Lemma subst_sepcon: forall i v (P Q: environ->mpred),
   subst i v (P * Q) = (subst i v P * subst i v Q).
 Proof. reflexivity. Qed.
 Hint Rewrite subst_sepcon : normalize.
@@ -1865,11 +1889,11 @@ Lemma lower_PROP_LOCAL_SEP:
 Proof. reflexivity. Qed.
 Hint Rewrite lower_PROP_LOCAL_SEP : normalize.
 
-Lemma lower_TT: forall rho, @TT assert Nassert rho = @TT mpred Nveric.
+Lemma lower_TT: forall rho, @TT (environ->mpred) _ rho = @TT mpred Nveric.
 Proof. reflexivity. Qed.
 Hint Rewrite lower_TT : normalize.
 
-Lemma lower_FF: forall rho, @FF assert Nassert rho = @FF mpred Nveric.
+Lemma lower_FF: forall rho, @FF (environ->mpred) _ rho = @FF mpred Nveric.
 Proof. reflexivity. Qed.
 Hint Rewrite lower_FF : normalize.
 
@@ -1888,7 +1912,7 @@ Fixpoint do_builtins (defs : list (ident * globdef fundef type)) : funspecs :=
  end.
 
 Lemma semax_post_flipped' : 
-   forall (R': assert) (Delta: tycontext) (R P: assert) c,
+   forall (R': environ->mpred) (Delta: tycontext) (R P: environ->mpred) c,
        semax Delta P c (normal_ret_assert R') ->
        R' |-- R ->
        semax Delta P c (normal_ret_assert R).
@@ -1911,7 +1935,7 @@ Proof.
  intro rho. simpl. apply exp_right with (e rho).
  unfold PROPx, LOCALx; simpl; apply andp_derives; auto.
  apply andp_derives; auto.
- unfold local; unfold_coerce; simpl.
+ unfold local; super_unfold_lift; simpl.
  apply prop_left; intro. apply prop_right. split; auto.
  apply extract_exists_pre.  apply H.
 Qed.

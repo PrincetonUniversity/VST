@@ -5,6 +5,7 @@ Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
+Require Export veric.lift.
 
 (** GENERAL KV-Maps **)
 
@@ -184,6 +185,8 @@ Definition test := true.
 Definition any_environ : environ :=
   mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
 
+(* TWO ALTERNATE WAYS OF DOING LIFTING *)
+(* LIFTING METHOD ONE: *)
 Definition lift0 {B} (P: B) : environ -> B := fun _ => P.
 Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun rho => P (f1 rho).
 Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
@@ -195,18 +198,15 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho) (f4 rho).
 
-(** Backtick notation for lifting **)
-(**********************)
-Class Coercion A B := coerce: A -> B.
-Notation "'`' x" := (coerce x) (at level 9).
-Notation "'`(' x ')'" := (coerce x) (only parsing)  (* avoid clash with TC notation *).
-Global Instance lift0_C A: Coercion A _ := lift0.
-Global Instance lift1_C A B: Coercion (A->B) _ := lift1.
-Global Instance lift2_C A B C: Coercion (A->B->C) _ := lift2.
-Global Instance lift3_C A B C D: Coercion (A->B->C->D) _ := lift3.
-Global Instance lift4_C A B C D E: Coercion (A->B->C->D->E) _ := lift4.
+(* LIFTING METHOD TWO: *)
+Canonical Structure LiftEnviron := Tend environ.
 
-(***************************)
+
+
+Ltac super_unfold_lift :=
+  change @liftx with @liftx' in *;  
+  unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T, lift_prod, 
+  lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,lift1,lift2,lift3 in *.
 
 (** Computational version of type_eq **)
 
@@ -365,12 +365,12 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
 
 Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
- | t::et', e::el' => `cons (`(eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
+ | t::et', e::el' => `(@cons val) (`(eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
  | _, _ => `nil
  end.
 
 Definition eval_expropt (e: option expr) : environ -> option val :=
- match e with Some e' => `Some (eval_expr e')  | None => `None end.
+ match e with Some e' => `(@Some val) (eval_expr e')  | None => `None end.
 
 (** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -382,10 +382,9 @@ decide equality.
 Qed.
 
 Definition mpred := pred rmap.
-Definition assert := environ -> mpred.
 
 Inductive funspec :=
-   mk_funspec: funsig -> forall A: Type, (A -> assert) -> (A -> assert) -> funspec.
+   mk_funspec: funsig -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
 
 Definition funspecs := list (ident * funspec).
 
@@ -880,13 +879,10 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_iszero e => `denote_tc_iszero (eval_expr e)
   end.
 
-Ltac unfold_coerce := 
- unfold coerce, lift0_C, lift1_C, lift2_C, lift3_C, lift4_C, lift4,lift3,lift2, lift1, lift0 in *.
-
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
 Proof.
-intros. destruct a1; destruct a2; simpl in *; 
-    unfold_coerce; intuition. 
+intros. destruct a1; destruct a2; simpl in *;
+  unfold_lift; intuition.
 Qed. 
 
 (** Functions that modify type environments **)

@@ -32,7 +32,7 @@ rewrite andp_assoc.
 f_equal.
 Qed.
 
-Definition nonlocal (Q: assert) := True.
+Definition nonlocal (Q: environ->mpred) := True.
 
 Ltac check_nonlocal :=
   match goal with
@@ -102,7 +102,7 @@ Hint Rewrite canon1 canon2 canon4 canon8 : canon.
 Hint Rewrite canon3 using check_nonlocal : canon.
 Hint Rewrite canon3b using check_nonlocal : canon.
 Hint Rewrite canon7 using check_nonlocal : canon.
-Hint Rewrite <- (@sepcon_assoc assert _) : canon.
+Hint Rewrite <- (@sepcon_assoc (environ->mpred) _) : canon.
 
 Lemma canon5: forall Q R S, 
        nonlocal Q ->
@@ -171,7 +171,7 @@ unfold do_canon. rewrite emp_sepcon. auto.
 Qed.
 
 Lemma exp_do_canon:
-   forall T (P: T -> assert) (Q: assert), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
+   forall T (P: T -> environ->mpred) (Q: environ->mpred), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
 Proof. apply exp_sepcon1. Qed.
 Hint Rewrite exp_do_canon: canon.
 Hint Rewrite exp_do_canon: normalize.

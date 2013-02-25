@@ -405,8 +405,9 @@ Proof.
 Qed.
 Hint Rewrite field_mapsto_offset_zero: normalize.
 
+(*
 Lemma lift_sepcon_unfold:
-  forall T P Q,
+  forall T (P Q: T -> mpred),
   (@coerce (T -> mpred) ((environ -> T) -> assert)
                     (lift1_C T mpred)
                     (@sepcon (T -> mpred) (@LiftNatDed T mpred Nveric)
@@ -416,16 +417,12 @@ Proof.
  intros. extensionality f. extensionality rho.
  unfold_coerce. reflexivity.
 Qed.
+*)
 
 Lemma lower_sepcon_val:
-  forall P Q v, 
-  (@sepcon ((environ -> val) -> assert)
-                    (@LiftNatDed (environ -> val) assert Nassert)
-                    (@LiftSepLog (environ -> val) assert Nassert Sassert)
-                    P Q v) =
-  (P v * Q v).
+  forall (P Q: val->environ->mpred) v, 
+  ((P*Q) v) = (P v * Q v).
 Proof. reflexivity. Qed.
-
 
 Definition opaque_sepcon := @sepcon (val->mpred) _ _.
 Global Opaque opaque_sepcon.
@@ -439,8 +436,24 @@ Ltac simpl_typed_mapsto' T H MA :=
      change (fun (_: val) => @emp mpred _ _) with (@emp (val->mpred) _ _) in H;
         try fold T in H;
        repeat (rewrite sepcon_emp in H || rewrite emp_sepcon in H);
+       repeat match type of H with context [@liftx (Tarrow val (LiftEnviron mpred))(fun v: val => @sepcon mpred _ _ 
+                                   (?A1 ?B1 ?C1 ?D1 v)  (?A2 ?B2 ?C2 ?D2 v)) ?V] =>
+          change (@liftx (Tarrow val (LiftEnviron mpred)) (fun v: val => @sepcon mpred _ _ 
+                                   (A1 B1 C1 D1 v)  (A2 B2 C2 D2 v)) V)
+         with (@liftx (Tarrow val (LiftEnviron mpred)) (A1 B1 C1 D1) V *
+                @liftx (Tarrow val (LiftEnviron mpred)) (A2 B2 C2 D2) V) in H
+       end;
+       repeat change (@sepcon (val -> mpred) _ _) with
+            (fun P Q (v: val) => @sepcon mpred _ _ (P v) (Q v)) in H;
        subst MA;
-       repeat rewrite @lift_sepcon_unfold; repeat rewrite lower_sepcon_val;
+      repeat match goal with |- context [@liftx (Tarrow val (LiftEnviron mpred))(fun v: val => @sepcon mpred _ _ 
+                                   (?A1 ?B1 ?C1 ?D1 v)  (?A2 ?B2 ?C2 ?D2 v)) ?V] =>
+          change (@liftx (Tarrow val (LiftEnviron mpred)) (fun v: val => @sepcon mpred _ _ 
+                                   (A1 B1 C1 D1 v)  (A2 B2 C2 D2 v)) V)
+         with (@liftx (Tarrow val (LiftEnviron mpred)) (A1 B1 C1 D1) V *
+                @liftx (Tarrow val (LiftEnviron mpred)) (A2 B2 C2 D2) V)
+       end;
+(*        repeat rewrite lower_sepcon_val; *)
        repeat flatten_sepcon_in_SEP.
 
 Ltac simpl_typed_mapsto :=
@@ -487,6 +500,14 @@ Ltac simpl_typed_mapsto :=
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
   end.
 
+(* TESTING 
+Require Import progs.queue.
+Parameter sh : share.
+Parameter p: environ->val.
+
+Goal `(typed_mapsto sh t_struct_elem) p = (fun v => emp).
+ simpl_typed_mapsto.
+*)
 
 Lemma mapsto_offset_zero:
   forall sh t v1 v2, 
@@ -501,18 +522,11 @@ Proof.
 Qed.
 
 Lemma typed_mapsto_tint: forall sh v1 v2,
-  (@coerce (val -> reptype tint -> mpred)
-                    ((environ -> val) -> (environ -> reptype tint) -> assert)
-                    (lift2_C val (reptype tint) mpred)
-                    (typed_mapsto sh tint)) 
-       v1 v2 =
-  (@coerce (val -> val -> mpred) _ (lift2_C val val mpred) (mapsto sh tint)) 
-           v1  (`Vint v2).
+  `(typed_mapsto sh tint) v1 v2 =
+  `(mapsto sh tint)  v1  (`Vint v2).
 Proof.
  intros.
- extensionality rho.
- unfold_coerce.
- simpl_typed_mapsto. auto.
+ extensionality rho. reflexivity.
 Qed.
 
 Lemma spacer_offset_zero:
@@ -724,7 +738,7 @@ Lemma var_block_typed_mapsto_:
  var_block sh (id, t) = `(typed_mapsto_ (Share.splice sh Share.top) t) (eval_var id t).
 Proof.
 intros; extensionality rho.
-unfold_coerce.
+unfold_lift.
 rewrite <- memory_block_typed.
 unfold var_block, lvalue_block.
 rewrite memory_block_isptr by apply sizeof_pos.

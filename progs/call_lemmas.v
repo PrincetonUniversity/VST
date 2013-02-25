@@ -9,7 +9,7 @@ Require Import progs.assert_lemmas.
 
 Local Open Scope logic.
 
-Lemma semax_call': forall Delta A (Pre Post: A -> assert) (x: A) ret argsig retsig a bl P Q R,
+Lemma semax_call': forall Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
    match retsig, ret with
    | Tvoid, None => True
@@ -33,7 +33,7 @@ eapply semax_pre_post ; [ | |
  Focus 3.
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; split; intros; congruence.
- intro rho; normalize.
+unfold_lift; unfold local, lift1. intro rho; simpl. normalize.
 unfold func_ptr'.
 repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 rewrite sepcon_comm. rewrite emp_sepcon.
@@ -52,7 +52,7 @@ repeat rewrite list_map_identity.
 normalize.
 Qed.
 
-Lemma semax_call1: forall Delta A (Pre Post: A -> assert) (x: A) id argsig retsig a bl P Q R,
+Lemma semax_call1: forall Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
    match retsig with
    | Tvoid => False
@@ -72,7 +72,7 @@ intros.
 apply semax_call'; auto.
 Qed.
 
-Lemma semax_call0: forall Delta A (Pre Post: A -> assert) (x: A) argsig a bl P Q R,
+Lemma semax_call0: forall Delta A (Pre Post: A -> environ->mpred) (x: A) argsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) Tvoid ->
   semax Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
@@ -113,7 +113,7 @@ Proof.
 intros. 
 apply (semax_fun_id id f Delta); auto.
 eapply semax_pre0; [ | apply H0].
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local; unfold_coerce;
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local, lift1; unfold_lift; simpl;
 intro rho; normalize.
 rewrite andp_comm.
 unfold func_ptr'.

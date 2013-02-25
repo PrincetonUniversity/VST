@@ -30,10 +30,44 @@ Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
+Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
+Instance LiftSepLog' T {ND: NatDed T}{SL: SepLog T}: SepLog (LiftEnviron T) := LiftSepLog _ _.
+Instance LiftClassicalSep' T {ND: NatDed T}{SL: SepLog T}{CS: ClassicalSep T} :
+           ClassicalSep (LiftEnviron T) := LiftClassicalSep _ _.
+Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
+           Indir (LiftEnviron T) := LiftIndir _ _.
+Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
+           SepIndir (LiftEnviron T) := LiftSepIndir _ _.
+
+Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
+
+Lemma extend_local: forall P, extensible (local P).
+Proof.
+intros. intro; intros.
+intros w [? [? [? [? ?]]]].
+unfold local in *.
+apply H0.
+Qed.
+
+Definition func_ptr (f: funspec) : val -> mpred := 
+ match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
+
+Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
+Proof.
+intros. destruct f;  unfold func_ptr, corable.
+intros.
+simpl.
+apply normalize.corable_andp_sepcon1.
+apply assert_lemmas.corable_fun_assert.
+Qed.
+
+Global Opaque func_ptr.
+
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+
 Hint Resolve any_environ : typeclass_instances.
 
-(*Definition assert := environ -> mpred.    defined in expr.v *)
-Definition ret_assert := exitkind -> option val -> assert.
+Definition ret_assert := exitkind -> option val -> environ -> mpred.
 
 Definition VALspec_range: Z -> Share.t -> Share.t -> address -> mpred := res_predicates.VALspec_range.
 
@@ -42,15 +76,13 @@ Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address 
 
 Local Open Scope logic.
 
-Bind Scope pred with assert.
+Bind Scope pred with mpred.
 Local Open Scope pred.
 
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
-
-Definition local:  (environ -> Prop) -> assert :=  lift1 prop.
 
 Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 = Some true.
@@ -154,7 +186,7 @@ Fixpoint init_data_list2pred (dl: list init_data)
 Definition readonly2share (rdonly: bool) : share :=
   if rdonly then Share.Lsh else Share.top.
 
-Definition globvar2pred (idv: ident * globvar type) : assert :=
+Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
@@ -164,7 +196,7 @@ Definition globvar2pred (idv: ident * globvar type) : assert :=
                                    (readonly2share (gvar_readonly (snd idv))) v rho
  end.
 
-Definition globvars2pred (vl: list (ident * globvar type)) : assert :=
+Definition globvars2pred (vl: list (ident * globvar type)) : environ->mpred :=
   fold_right sepcon emp (map globvar2pred vl).
 
 Definition initializer_aligned (z: Z) (d: init_data) : bool :=
@@ -183,11 +215,11 @@ Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
   | d::dl' => andb (initializer_aligned z d) (initializers_aligned (z + init_data_size d) dl')
   end.
 
-Definition writable_block (id: ident) (n: Z): assert :=
+Definition writable_block (id: ident) (n: Z): environ->mpred :=
         EX v: val*type,  EX a: address, EX rsh: Share.t,
           (local(fun rho=> ge_of rho id = Some v /\ val2adr (fst v) a) && `(VALspec_range n rsh Share.top a)).
 
-Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
+Fixpoint writable_blocks (bl : list (ident*Z)) : environ->mpred :=
  match bl with
   | nil => emp 
   | (b,n)::bl' => writable_block b n * writable_blocks bl'
@@ -195,20 +227,17 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
-Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
-
-Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
+Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : environ->mpred :=
   fun rho => 
      match eval_lvalue e rho with 
      | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
      | _ => FF
     end.
 
-Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
+Definition var_block (rsh: Share.t) (idt: ident * type) : environ->mpred :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
 
-Definition stackframe_of (f: Clight.function) : assert :=
+Definition stackframe_of (f: Clight.function) : environ->mpred :=
   fold_right sepcon emp (map (var_block Share.top) (fn_vars f)).
 
 Lemma  subst_extens {A}{NA: NatDed A}: 
@@ -254,24 +283,31 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
-Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
+(* experiment... 
+Canonical Structure Tassert  := 
+    mkLift environ assert environ mpred assert
+             (fun f x => f x)
+       (fun f => f (fun z: environ => z)).
+*)
+
+Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -> mpred :=
      match vl, t with
-     | None, Tvoid => `Q (make_args nil nil)
-     | Some v, _ => !! (typecheck_val v t = true) && 
-                             `Q (make_args (ret_temp::nil) (v::nil))
+     | None, Tvoid =>`Q (make_args nil nil)
+     | Some v, _ => @andp (environ->mpred) _ (!! (typecheck_val v t = true))
+                             (`Q (make_args (ret_temp::nil) (v::nil)))
      | _, _ => FF
      end.
 
-Definition overridePost  (Q: assert)  (R: ret_assert) := 
+Definition overridePost  (Q: environ->mpred)  (R: ret_assert) := 
      fun ek vl => if eq_dec ek EK_normal then (!! (vl=None) && Q) else R ek vl.
 
 Definition existential_ret_assert {A: Type} (R: A -> ret_assert) := 
   fun ek vl  => EX x:A, R x ek vl .
 
-Definition normal_ret_assert (Q: assert) : ret_assert := 
+Definition normal_ret_assert (Q: environ->mpred) : ret_assert := 
    fun ek vl => !!(ek = EK_normal) && (!! (vl = None) && Q).
 
-Definition with_ge (ge: genviron) (G: assert) : mpred :=
+Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
 
@@ -292,16 +328,16 @@ Definition all_initializers_aligned (prog: AST.program fundef type) :=
                                  (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
                       (prog_vars prog) = true.
 
-Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
+Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert := 
       fun ek vl => R ek vl * F.
-
 Lemma normal_ret_assert_derives:
- forall P Q rho,
+ forall (P Q: environ->mpred) rho,
   P rho |-- Q rho ->
   forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
 Proof.
  intros.
  unfold normal_ret_assert; intros; normalize.
+ simpl.
  apply andp_derives.
  apply derives_refl.
  apply andp_derives.
@@ -326,7 +362,7 @@ unfold frame_ret_assert, normal_ret_assert.
 normalize.
 Qed.
 
-Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -335,7 +371,7 @@ Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  | EK_return => R EK_return vl
  end.
 
-Definition loop2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
+Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
  | EK_normal => Inv
@@ -380,7 +416,7 @@ Qed.
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
                  overridePost_normal: normalize.
 
-Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert := 
+Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert := 
    fun (ek : exitkind) (vl : option val) =>
      match ek with
      | EK_return => bind_ret vl ret Q
@@ -414,31 +450,13 @@ Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
                      | Some e' => tc_expr Delta (Ecast e' t)
    end.
 
-Lemma extend_local: forall P, extensible (local P).
-Proof.
-intros. intro; intros.
-intros w [? [? [? [? ?]]]].
-unfold local in *.
-apply H0.
-Qed.
-
-
-Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
-Proof.
-intros. destruct f;  unfold func_ptr, corable.
-intros.
-simpl.
-apply normalize.corable_andp_sepcon1.
-apply assert_lemmas.corable_fun_assert.
-Qed.
-
 Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
  match tl with 
   | Tnil => nil
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
-Definition closed_wrt_modvars c (F: assert) : Prop :=
+Definition closed_wrt_modvars c (F: environ->mpred) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
@@ -450,17 +468,15 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre (prog: program) : unit -> assert := 
+Definition main_pre (prog: program) : unit -> environ->mpred := 
   (fun tt => globvars2pred (prog_vars prog)).
 
-Definition main_post (prog: program) : unit -> assert := 
+Definition main_post (prog: program) : unit -> environ->mpred := 
   (fun tt => TT).
 
 Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
   forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-Global Opaque func_ptr.
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
    Hint databases if this next line is not added. *)
@@ -470,12 +486,12 @@ Module Type  CLIGHT_SEPARATION_LOGIC.
 
 Local Open Scope pred.
 
-Parameter semax:  tycontext -> assert -> statement -> ret_assert -> Prop.
+Parameter semax:  tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
 
 (***************** SEMAX_LEMMAS ****************)
 
 Axiom extract_exists:
-  forall (A : Type)  (P : A -> assert) c (Delta: tycontext) (R: A -> ret_assert),
+  forall (A : Type)  (P : A -> environ->mpred) c (Delta: tycontext) (R: A -> ret_assert),
   (forall x, semax Delta (P x) c (R x)) ->
    semax Delta (EX x:A, P x) c (existential_ret_assert R).
 
@@ -523,7 +539,7 @@ Axiom semax_func_cons: forall fs id f A P Q (V: varspecs)  (G G': funspecs),
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
-  forall (ef: external_function) (A: Type) (P Q: A -> assert),  Prop.
+  forall (ef: external_function) (A: Type) (P Q: A -> environ->mpred),  Prop.
 
 Axiom semax_external_FF:
   forall ef A Q, semax_external ef A FF Q.
@@ -572,23 +588,23 @@ forall Delta Q Q' incr body R,
 (* THESE RULES FROM semax_call *)
 
 Axiom semax_call : 
-    forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
+    forall Delta A (P Q: A -> environ -> mpred) (x: A) (F: environ -> mpred) ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig ->
            (retsig = Tvoid <-> ret = None) ->
   semax Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
-         (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) && 
+         (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) &&   
           (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
-         (normal_ret_assert 
+         (normal_ret_assert  
           (EX old:val, substopt ret (`old) F * `(Q x) (get_result ret))).
 
 Axiom  semax_return :
-   forall Delta R ret ,
+   forall Delta (R: ret_assert) ret ,
       semax Delta  
                 (local (tc_expropt Delta ret (ret_type Delta)) &&
-                `(R EK_return) (cast_expropt ret (ret_type Delta)) id)
+                `(R EK_return : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R.
 
@@ -612,7 +628,7 @@ Axiom semax_call_ext:
 (* THESE RULES FROM semax_straight *)
 
 Axiom semax_set : 
-forall (Delta: tycontext) (P: assert) id e,
+forall (Delta: tycontext) (P: environ->mpred) id e,
     semax Delta 
         (|> (local (tc_expr Delta e) && 
             local (tc_temp_id id (typeof e) Delta e) &&
@@ -620,7 +636,7 @@ forall (Delta: tycontext) (P: assert) id e,
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_set_forward : 
-forall (Delta: tycontext) (P: assert) id e,
+forall (Delta: tycontext) (P: environ->mpred) id e,
     semax Delta 
         (|> (local (tc_expr Delta e) && 
             local (tc_temp_id id (typeof e) Delta e) && 

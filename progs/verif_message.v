@@ -61,19 +61,13 @@ Definition serialize_spec {t: type} (format: message_format t) :=
          `(typed_mapsto sh t p data)  
             * `(mf_assert format sh' buf len data) * `(mf_restbuf format sh' buf len).
 
-Notation " '`0(' x )" := (@coerce _ _ (lift0_C _) x).
-Notation " '`1(' x )" := (@coerce _ _ (lift1_C _ _) x).
-Notation " '`2(' x )" := (@coerce _ _ (lift2_C _ _ _) x).
-Notation " '`3(' x )" := (@coerce _ _ (lift3_C _ _ _ _) x).
-Notation " '`4(' x )" := (@coerce _ _ (lift4_C _ _ _ _ _) x).
-
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
           PROP (writable_share (fst shs); 0 <= len <= mf_size format)
-          LOCAL (`1(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
+          LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
                         `(eq (Vint (Int.repr len))) (eval_id _length))
-          SEP (`0(mf_assert format (snd shs) buf len data);
+          SEP (`(mf_assert format (snd shs) buf len data);
                  `(memory_block (fst shs) (Int.repr (mf_size format)) p))
   POST [ tint ]
             `(mf_assert format (snd shs) buf len data) *
@@ -213,7 +207,7 @@ Lemma slide_func_ptr:
   forall f e R1 R, 
   SEPx (`(func_ptr' f) e :: R1 :: R) = SEPx ((`(func_ptr f) e && R1)::R).
 Proof.
- intros. change SEPx with SEPx'; unfold SEPx'; unfold_coerce.
+ intros. change SEPx with SEPx'; unfold SEPx'; unfold_lift.
 extensionality rho.
 simpl. 
 rewrite <- sepcon_assoc.
@@ -299,12 +293,12 @@ Definition serialize_A {t}  (msg: message_format t) : Type :=
 
 Definition serialize_pre {t} (msg: message_format t)  :=
 match serialize_spec msg as f 
-     return match f with mk_funspec _ A _ _ => A -> assert end
+     return match f with mk_funspec _ A _ _ => A -> environ->mpred end
 with mk_funspec f A P Q => P end.
 
 Definition serialize_post {t} (msg: message_format t)  :=
 match serialize_spec msg as f 
-     return match f with mk_funspec _ A _ _ => A -> assert end
+     return match f with mk_funspec _ A _ _ => A -> environ->mpred end
 with mk_funspec f A P Q => Q end.
 
 Definition serialize_fsig {t} (msg: message_format t)  : funsig :=
@@ -323,13 +317,13 @@ Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
   end.
 
 Lemma subst_make_args':
-  forall id v (P: assert) fsig tl el,
+  forall id v (P: environ->mpred) fsig tl el,
   length tl = length el ->
   length (fst fsig) = length el ->
   subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
            (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
 Proof.
-intros. unfold_coerce. extensionality rho; unfold subst.
+intros. unfold_lift. extensionality rho; unfold subst.
 f_equal. unfold make_args'.
 revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
 reflexivity.
@@ -337,6 +331,24 @@ specialize (IHl _ _ H2 H1).
 rewrite IHl. auto.
 Qed.
 Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
+
+Lemma subst_make_args'x
+     : forall (id : ident) (v : environ -> val) 
+         (fsig : list (ident * type) * type) (tl : list type)
+         (el : list expr),
+       length tl = length el ->
+       length (fst fsig) = length el ->
+       subst id v (make_args' fsig (eval_exprlist tl el)) =
+        make_args' fsig (subst id v (eval_exprlist tl el)).
+Proof.
+intros. unfold_lift. extensionality rho; unfold subst.
+unfold make_args'.
+revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; unfold lift; intros; inv H; inv H0.
+reflexivity.
+specialize (IHl _ _ H2 H1).
+rewrite IHl. auto.
+Qed.
+Hint Rewrite subst_make_args'x using (solve[reflexivity]) : subst.
 
 Lemma call_serialize:
  forall (Delta: tycontext) (ser id x: ident)
@@ -445,11 +457,10 @@ assert (C1:=closed_wrt_subset _ _ CLser).
 assert (C2:=closed_wrt_Forall_subset _ _ CLser).
 autorewrite with subst.
 simpl eval_exprlist.
-autorewrite with subst.
+autorewrite with subst. 
 clear C1 C2.
 
 focus_SEP 3 1.
- simpl.
    apply semax_pre_PQR with 
      (P':=PROP () LOCAL (tc_expr (initialized ser Delta)
                 (Etempvar ser
@@ -482,8 +493,8 @@ apply andp_right; auto.
 apply prop_right.
 hnf in H6.  
 simpl in H6.
-split; auto. hnf; auto.
-split; auto.
+split; [solve [hnf; auto] | ].
+split; [ | solve[auto]].
 clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
 eapply semax_seq'.
@@ -513,7 +524,6 @@ unfold normal_ret_assert.
 normalize. intro old''.
 assert (C1:=closed_wrt_subset _ _ CLid).
 assert (C2:=closed_wrt_Forall_subset _ _ CLid).
-unfold assert;
 autorewrite with subst.
 go_lower. normalize.
 unfold serialize_post, serialize_spec.
@@ -567,7 +577,7 @@ Lemma call_deserialize:
      (SEPx (`(message sh_obj msg) d_obj :: 
                `(typed_mapsto_ sh_p t) d_p::
                `(mf_assert msg sh_buf) d_buf d_len `v ::
-                R)))) |-- local (`(fun n => 0 <= n <= mf_size msg) d_len) &&
+                R)))) |-- local (`((fun n => 0 <= n <= mf_size msg) : Z->Prop) d_len) &&
                              local (`eq d_len (`Int.signed (`force_int (eval_expr e_len)))) ->
  closed_wrt_vars (eq ser)
              (PROPx P (LOCALx Q
@@ -607,7 +617,7 @@ intros.
 change SEPx with SEPx'; 
 unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
 apply andp_derives; auto.
-unfold_coerce.
+unfold_lift.
 normalize.
 Qed.
 
@@ -634,15 +644,32 @@ rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
 simpl_typed_mapsto.
+(*
+replace_SEP
+   (`(field_mapsto_ Share.top t_struct_intpair _x) (eval_var _p t_struct_intpair) *
+    `(field_mapsto_ Share.top t_struct_intpair _y)(eval_var _p t_struct_intpair)).
+ reflexivity.
+flatten_sepcon_in_SEP.
+*)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 apply drop_local.  (* tempory, should fix store_field_tac *)
 simpl update_tycon. (* should forward do this? *)
-gather_SEP 0 1.
+
+
+Ltac gather_SEP' L :=
+   grab_indexes_SEP L;
+ match goal with |- context [SEPx ?R] => 
+   rewrite <- (firstn_skipn (length L) R); 
+   unfold firstn, skipn; simpl length; cbv beta iota; rewrite gather_SEP;
+   unfold app, fold_right; try  rewrite sepcon_emp
+ end.
+gather_SEP' (0::1::nil).
+(* gather_SEP 0 1. *)
 replace_SEP  (`(typed_mapsto Share.top t_struct_intpair)
                       (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2))).
 simpl_typed_mapsto.
-extensionality rho; unfold_coerce; simpl; rewrite sepcon_comm; reflexivity.
+extensionality rho; unfold_lift; simpl; rewrite sepcon_comm; reflexivity.
 
 rewrite -> seq_assoc.
 eapply semax_seq'.
@@ -666,8 +693,8 @@ go_lower. apply andp_right; apply prop_right.
 simpl in H. omega. simpl in *. rewrite <- H.  reflexivity. 
 focus_SEP 1.
 replace_SEP 
-  ((`2( field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `0(Vint (Int.repr 1)) *
-   `2( field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `0(Vint (Int.repr 2)))
+  ((`( field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
+   `( field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))
     ).
 reflexivity.
 flatten_sepcon_in_SEP.

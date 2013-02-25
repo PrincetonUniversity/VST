@@ -154,7 +154,7 @@ intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
-unfold_coerce. destruct TC2. 
+super_unfold_lift. destruct TC2. 
 unfold tc_bool in *. remember (is_neutral_cast (ty) t). 
 destruct b0; inv H0. unfold guard_environ in *. 
 destruct TC' as [TC' TC'']. 
@@ -235,7 +235,7 @@ Lemma pointer_cmp_relate :
         (eval_expr e2) rho). 
 Proof.
 intros.
-unfold_coerce. unfold eval_binop. 
+super_unfold_lift. unfold eval_binop. 
 simpl in H2. simpl in H3. apply typecheck_expr_sound in H2; auto. 
 apply typecheck_expr_sound in H3; auto. 
 unfold force_valid_pointers in *. 
@@ -351,7 +351,7 @@ intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
-unfold_coerce. destruct TC2. 
+super_unfold_lift. destruct TC2. 
 unfold tc_bool in *. remember (is_neutral_cast (typeof e) t). 
 destruct b0; inv H0. 
 apply neutral_cast_typecheck_val with (Delta := Delta); auto. 
@@ -454,7 +454,7 @@ intros. simpl in *. unfold typecheck_temp_id in *.
 rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
-unfold_coerce. destruct TC2; simpl in *. 
+super_unfold_lift. destruct TC2; simpl in *. 
 unfold tc_bool in *. remember (is_neutral_cast (typeof e) t).
 destruct b0; inv H0. 
 destruct TC'. 
@@ -774,7 +774,7 @@ intros jm jm1 ge ve te rho k F [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 simpl in TC2. 
-rewrite tc_andp_sound in *; simpl in TC2; unfold_coerce. 
+rewrite tc_andp_sound in *; simpl in TC2; super_unfold_lift. 
 destruct TC2 as [TC2 TC3].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
@@ -812,7 +812,7 @@ remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2).
 destruct v; try solve [simpl in *; congruence]; destruct t; destruct t0; intuition;
 try inv H; try inv Hmode; dec_enc. 
 clear DE.
-unfold Cop.sem_cast. simpl in *. unfold_coerce.
+unfold Cop.sem_cast. simpl in *. super_unfold_lift.
 Transparent Float.intoffloat.
 unfold Float.intoffloat.
 destruct TC3. unfold_tc_denote. rewrite <- Heqv in *.
