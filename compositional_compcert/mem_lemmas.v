@@ -105,37 +105,18 @@ Proof. intros.
      inv H.  rewrite Zplus_0_r. apply memval_inject_id_refl.
 Qed.
 
-Lemma meminj_split_idR: forall j, j = compose_meminj j inject_id.
+Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
 Proof. intros. unfold  compose_meminj, inject_id. 
    apply extensionality. intro b. 
    remember (j b). 
    destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
 Qed.
 
-Lemma meminj_split_idL: forall j, j = compose_meminj inject_id j.
+Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
 Proof. intros. unfold  compose_meminj, inject_id.
    apply extensionality. intro b.
    remember (j b). 
    destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
-Qed.
-
-Lemma compose_idL: forall f, compose_meminj inject_id f = f.
-Proof. 
-  intros. apply extensionality. intros b.
-  unfold compose_meminj.
-  remember (inject_id b).
-  destruct o; inv Heqo. remember (f b). destruct o. destruct  p. 
-  rewrite Zplus_0_l. trivial.
-  trivial.
-Qed.
- 
-Lemma compose_idR: forall f, compose_meminj f inject_id = f.
-Proof. intros. apply extensionality. intros b.
-   unfold compose_meminj.
-   remember (f b).
-   destruct o; trivial. destruct  p.
-   remember (inject_id b0).
-   destruct o; inv Heqo0. rewrite Zplus_0_r. trivial.
 Qed.
 
 Lemma extends_inject_compose:
@@ -154,7 +135,7 @@ Proof.
   apply  (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. rewrite Zplus_0_r in H0.
   assert (K2:= mi_memval0 _ _ _ _ H H0). rewrite Zplus_0_r in K1.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite compose_idL in K. apply K.
+  rewrite <- compose_meminj_idL in K. apply K.
   apply mi_freeblocks. unfold Mem.valid_block. rewrite <- mext_next. apply H.
   eapply mi_mappedblocks. apply H.
   intros b; intros.  
@@ -183,7 +164,7 @@ Proof. intros.
   apply  (mi_perm _ _ _ _ _ _ H) in H0. 
   assert (K2:= mi_memval0 _ _ _ _ (eq_refl _) H0). rewrite Zplus_0_r in K2.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite compose_idR in K. apply K.
+  rewrite <- compose_meminj_idR in K. apply K.
   apply mi_freeblocks. apply H.
   unfold Mem.valid_block. rewrite <- mext_next. eapply mi_mappedblocks. apply H.
   intros b; intros. apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
@@ -207,7 +188,7 @@ Proof. intros.
   apply  (mi_perm _ _ _ _ _ _ H) in H0. 
   assert (K2:= mi_memval0 _ _ _ _ (eq_refl _) H0). rewrite Zplus_0_r in K2.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite compose_idR in K. apply K.
+  rewrite <- compose_meminj_idR in K. apply K.
 Qed.
 
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)), 
@@ -402,7 +383,7 @@ Lemma val_lessdef_inject_compose: forall v1 v2 (LD12 : Val.lessdef v1 v2) j v3
 Proof. intros. 
   apply val_inject_id in LD12.
   apply (val_inject_compose _ _ _ _ _ LD12) in InjV23.
-  rewrite compose_idL in InjV23. assumption.
+  rewrite <- compose_meminj_idL in InjV23. assumption.
 Qed. 
 
 Lemma forall_val_lessdef_inject_compose: forall v1 v2 (LD12 : Forall2 Val.lessdef v1 v2) j v3
