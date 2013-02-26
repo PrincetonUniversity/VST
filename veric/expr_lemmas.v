@@ -10,10 +10,10 @@ Require Export veric.environ_lemmas.
 Require Import veric.binop_lemmas. 
 Import Cop.
 
-(** Definitions of some environments **)
-Definition mkEnviron' (ge: Clight.genv) (ve: venviron) (te: tenviron) :=
-  mkEnviron (filter_genv ge) ve te.
+Opaque tc_andp. (* This is needed otherwise certain Qeds take
+    forever in Coq 8.3.  *)
 
+(** Definitions of some environments **)
 Definition empty_genv := (Globalenvs.Genv.empty_genv fundef type).
 Definition empty_tenv := PTree.empty val.
 
@@ -24,12 +24,14 @@ Definition Delta1 : tycontext := (PTree.set 1%positive (type_int32s, false)
                                  (PTree.empty (type * bool)),
                                  PTree.empty type, Tvoid,PTree.empty _).
 
+(*
 Lemma Zlt_bool_rev: forall x y, Zlt_bool x y = Zgt_bool y x.
 Proof.
 intros. pose proof (Zlt_cases x y). pose proof (Zgt_cases y x).
 destruct (Zlt_bool x y); destruct (Zgt_bool y x); auto;
 elimtype False; omega.
 Qed.
+*)
 
 Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.
@@ -38,6 +40,7 @@ destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
 elimtype False; omega.
 Qed.
 
+(*
 Lemma Zlt_bool_opp: forall x y, Zlt_bool x y = negb (Zge_bool x y).
 Proof.
 intros. pose proof (Zlt_cases x y). pose proof (Zge_cases x y).
@@ -51,40 +54,12 @@ intros. pose proof (Zgt_cases x y). pose proof (Zle_cases x y).
 destruct (Zgt_bool x y); destruct (Zle_bool x y); auto.
 elimtype False; omega.
 Qed.
+*)
 
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
 Qed.
 
-
-
-Lemma classify_add_int_cases_both : forall i1 s1 a1 i2 s2 a2,
-exists s3, classify_add (Tint i1 s1 a1) (Tint i2 s2 a2)  = add_case_ii s3.
-Proof.
-intros; destruct i1; destruct s1; destruct i2; destruct s2; eexists;  
-unfold classify_add; simpl; eauto.
-Qed.
-
-Lemma undef_not_typecheck : forall t, typecheck_val Vundef t = false.
-intros.
-destruct t; auto.
-Qed.
-
-
-Lemma is_true_true : forall b, is_true b -> b = true.
-Proof.
-auto.
-Qed.
-
-
-
-Ltac revert_all := repeat match goal with
-| [H: _ |- _] => revert H
-end.
-
-
-
- 
 (** Typechecking soundness **)
 
 Lemma eval_lvalue_ptr : forall rho e (Delta: tycontext) te ve ge,
@@ -199,28 +174,83 @@ rewrite H6. rewrite eqb_type_refl. auto. destruct H5; congruence.
 inv H0. inv H0. 
 Qed.
 
-(** Main soundness result for the typechecker **)
-
-Lemma typecheck_both_sound: 
-  forall Delta rho e , 
-             typecheck_environ Delta rho ->
-             (denote_tc_assert (typecheck_expr Delta e) rho ->
-             typecheck_val (eval_expr e rho) (typeof e) = true) /\
-             (forall pt, 
-             denote_tc_assert (typecheck_lvalue Delta e) rho ->
-             is_pointer_type pt = true -> 
-             typecheck_val (eval_lvalue e rho) pt=true).
+Lemma typecheck_expr_sound_Efield:
+  forall Delta rho e i t
+  (H: typecheck_environ Delta rho)
+  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
+          (forall pt : type,
+          denote_tc_assert (typecheck_lvalue Delta e) rho ->
+          is_pointer_type pt = true -> 
+          typecheck_val (eval_lvalue e rho) pt = true))
+  (H0: denote_tc_assert (typecheck_expr Delta (Efield e i t)) rho),
+  typecheck_val (eval_expr (Efield e i t) rho) (typeof (Efield e i t)) = true.
 Proof.
+intros.
+simpl in *. super_unfold_lift.
+ unfold eval_field,eval_struct_field, deref_noload in *.
+assert (MODE: access_mode t = By_reference) by (destruct (access_mode t); auto; hnf in H0; try contradiction).
+rewrite MODE in *.
+destruct IHe.
+destruct rho.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
+simpl in H0.
+super_unfold_lift. destruct H0 as [[?  ]?].
+revert H4; case_eq (type_is_volatile t); simpl; intros; try contradiction.
+clear H5.
+unfold typecheck_environ in H. 
+destruct H as [_ [Hve [Hge _]]]. 
+assert (PTR := eval_lvalue_ptr _ e Delta te ve ge (eq_refl _) Hve Hge H0).
+specialize (H2 t H0).
+spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
+destruct PTR.
+elimtype False; clear - H H2. rewrite H in H2; inv H2.
+destruct H as [b [ofs ?]]. 
+rewrite H in *.
+destruct (typeof e); intuition. 
+destruct (field_offset i f); intuition.
+Qed.
 
-intros. induction e; split; intros; try solve[subst; auto].
+Lemma typecheck_lvalue_sound_Efield:
+ forall Delta rho e i t pt
+ (H: typecheck_environ Delta rho)
+ (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
+        (forall pt0 : type, denote_tc_assert (typecheck_lvalue Delta e) rho ->
+           is_pointer_type pt0 = true -> 
+         typecheck_val (eval_lvalue e rho) pt0 = true))
+  (H0: denote_tc_assert (typecheck_lvalue Delta (Efield e i t)) rho)
+  (H1: is_pointer_type pt = true),
+  typecheck_val (eval_lvalue (Efield e i t) rho) pt = true.
+Proof.
+intros.
+simpl in *.
+repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+super_unfold_lift.
+ unfold eval_field,eval_struct_field in *; intuition. 
+specialize  (H3 pt). intuition. remember rho.
+destruct e0.
+unfold typecheck_environ in *. intuition. clear H4 H9.
+rewrite Heqe0 in H0.
+assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H7).
+rewrite Heqe0 in *. clear Heqe0.
+intuition. 
+remember (eval_lvalue e rho). unfold isptr in *.
+destruct v; intuition; try congruence.
+remember (eval_lvalue e rho). destruct H8. destruct H4.
+destruct v; intuition; try congruence.
+inv H4.
+destruct (typeof e); intuition. 
+destruct (field_offset i f); intuition.
+Qed.
 
-(*Const int*)
-simpl. subst; destruct t; auto; simpl in H0; inv H0; intuition.
-
-(*Const float*)
-simpl in *. subst; destruct t; intuition. 
-
-(*Var*)
+Lemma typecheck_expr_sound_Evar:
+  forall Delta rho i t,
+  typecheck_environ Delta rho ->
+  denote_tc_assert (typecheck_expr Delta (Evar i t)) rho ->
+  typecheck_val (eval_expr (Evar i t) rho) (typeof (Evar i t)) = true.
+Proof.
+intros.
 assert (MODE: access_mode t = By_reference)
  by (unfold typecheck_expr in H0; destruct (access_mode t); try (hnf in H0; contradiction); auto).
 simpl. super_unfold_lift. unfold deref_noload. rewrite MODE.
@@ -257,38 +287,211 @@ unfold typecheck_glob_environ in *.
 destruct (H2 i g); auto. destruct H5; destruct H5. 
 rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.
 inv H0. inv H0. 
+Qed.
 
+
+Lemma typecheck_unop_sound:
+ forall Delta rho u e t
+ (H: typecheck_environ Delta rho)
+ (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ->
+          typecheck_val (eval_expr e rho) (typeof e) = true) /\
+          (forall pt : type,
+           denote_tc_assert (typecheck_lvalue Delta e) rho ->
+           is_pointer_type pt = true -> 
+           typecheck_val (eval_lvalue e rho) pt = true))
+  (H0: denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho),
+  typecheck_val (eval_expr (Eunop u e t) rho) (typeof (Eunop u e t)) = true.
+Proof.
+intros.
+simpl in H0. rewrite denote_tc_assert_andp in H0. destruct H0.
+destruct IHe as [? _].
+specialize (H2 H1).
+simpl eval_expr.
+unfold lift.
+clear - H2 H0.
+revert H0; case_eq (isUnOpResultType u e t); intros; [ | inv H0].
+clear H0.
+simpl.
+forget (eval_expr e rho) as v.
+clear - H2 H.
+assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
+  by (destruct b; reflexivity).
+unfold isUnOpResultType in H.
+unfold eval_unop, sem_unary_operation.
+unfold classify_bool in H.
+destruct u; try solve [inv H]; simpl.
+(* notbool case *)
+assert (is_int_type t = true) 
+  by (destruct (typeof e); try destruct i,s; inv H; auto).
+destruct t;  inv H0.
+unfold sem_notbool.
+destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
+(* notint case *)
+assert (is_int_type t = true) 
+  by (destruct (typeof e); try destruct i,s; inv H; auto).
+destruct t;  inv H0.
+unfold sem_notint.
+destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
+(* neg case *)
+unfold sem_neg; simpl.
+destruct (typeof e); inv H.
+destruct v; inv H2.
+destruct i,s; inv H1; simpl; destruct t; try inv H0; auto.
+destruct v; inv H2.
+destruct f; inv H1; simpl; destruct t; try inv H0; auto.
+Qed.
+
+Lemma typecheck_cast_sound: 
+ forall Delta rho e t,
+ typecheck_environ Delta rho ->
+(denote_tc_assert (typecheck_expr Delta e) rho ->
+ typecheck_val (eval_expr e rho) (typeof e) = true) /\
+(forall pt : type,
+ denote_tc_assert (typecheck_lvalue Delta e) rho ->
+ is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
+denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho ->
+typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
+Proof.
+intros until t; intros H IHe H0.
+simpl in *. unfold lift.
+destruct IHe as [? _].
+rewrite denote_tc_assert_andp in H0.
+destruct H0.
+specialize (H1 H0).
+unfold eval_cast, sem_cast.
+unfold isCastResultType in H2.
+revert H2; case_eq (classify_cast (typeof e) t); intros;
+try solve [destruct t; try contradiction;
+    destruct (eval_expr e rho), (typeof e); inv H2; inv  H1; simpl; auto; destruct i; inv H5].
+remember (eval_expr e rho) as v.
+destruct (typeof e), v, t; inv H1; inv H2; auto;
+simpl in H3; unfold lift in H3; try reflexivity;
+try solve [hnf in H3; rewrite <- Heqv in H3;  apply H3];
+try solve [destruct i,s; inv H4];
+try solve [destruct i0; inv H4];
+solve [rewrite <- Heqv in H3; inv H3].
+destruct si2.
+rewrite denote_tc_assert_andp in H3. destruct H3.
+hnf in H3,H4.
+destruct (eval_expr e rho); try contradiction.
+simpl. unfold Float.intoffloat. destruct (Float.Zoffloat f); try contradiction.
+hnf in H3,H4. rewrite H3.
+simpl. rewrite Zle_bool_rev. rewrite H4. simpl.
+destruct (typeof e); inv H1.
+ destruct t; inv H2; auto.
+rewrite denote_tc_assert_andp in H3. destruct H3.
+hnf in H3,H4.
+destruct (eval_expr e rho); try contradiction.
+simpl. unfold Float.intuoffloat. destruct (Float.Zoffloat f); try contradiction.
+hnf in H3,H4. rewrite H3.
+simpl. rewrite Zle_bool_rev. rewrite H4. simpl.
+destruct (typeof e); inv H1.
+ destruct t; inv H2; auto.
+Qed.
+
+
+Lemma typecheck_temp_sound:
+  forall Delta rho i t,
+  typecheck_environ Delta rho ->
+  denote_tc_assert (typecheck_expr Delta (Etempvar i t)) rho ->
+  typecheck_val (eval_expr (Etempvar i t) rho) (typeof (Etempvar i t)) = true.
+Proof.
+intros.
+simpl in *. destruct rho. 
+destruct H as [H1 _].
+unfold typecheck_temp_environ in *.
+unfold eval_id, force_val in *. 
+
+simpl.
+destruct Delta as [[[? ?] ?] ?]. simpl in *.
+unfold temp_types in *. simpl in *.
+specialize (H1 i).
+destruct (type_is_volatile t); simpl in H0; unfold lift in H0; try contradiction.
+destruct (t0 ! i); try (contradiction H0).
+destruct p. destruct (H1 _ _ (eq_refl _)) as [v [? ?]]. clear H1.
+rewrite H.
+simpl in H0.
+rewrite eqb_type_eq in *.
+destruct (type_eq t t4); try solve [inv H0].
+simpl in H0. subst.
+destruct H2; auto.
+destruct b; inv H1.
+destruct H0 as [v' [? ?]]. simpl in H0. inversion2 H H0. auto.
+Qed.
+
+(*
+Lemma typecheck_deref_invert:
+  forall Delta e t rho,
+  denote_tc_assert (typecheck_lvalue Delta (Ederef e t)) rho ->
+  denote_tc_assert
+       (tc_andp
+          (tc_andp
+             (tc_andp (typecheck_expr Delta e)
+                (tc_bool (is_pointer_type (typeof e)))) (tc_isptr e))
+          (tc_bool (negb (type_is_volatile t)))) rho.
+Proof.
+intros.
+simpl in H.
+apply H.
+Qed.
+
+*)
+
+Lemma typecheck_deref_sound:
+  forall Delta rho e t pt,
+   typecheck_environ Delta rho ->
+   (denote_tc_assert (typecheck_expr Delta e) rho ->
+    typecheck_val (eval_expr e rho) (typeof e) = true) /\
+    (forall pt0 : type,
+     denote_tc_assert (typecheck_lvalue Delta e) rho ->
+     is_pointer_type pt0 = true -> typecheck_val (eval_lvalue e rho) pt0 = true) ->
+     denote_tc_assert (typecheck_lvalue Delta (Ederef e t)) rho ->
+    is_pointer_type pt = true ->
+    typecheck_val (eval_lvalue (Ederef e t) rho) pt = true.
+Proof.
+intros until pt. intros H IHe H0 H1.
+simpl. unfold lift.
+simpl in H0.
+repeat rewrite denote_tc_assert_andp in H0.
+destruct H0 as [[[? ?] ?] ?].
+destruct IHe as[ ? _].
+specialize (H5 H0).
+revert H2; case_eq (is_pointer_type (typeof e)); intros; hnf in H2; try contradiction.
+clear H H6 H4.
+hnf in H3.
+destruct (eval_expr e rho); try contradiction.
+apply H1.
+Qed.
+
+(** Main soundness result for the typechecker **)
+
+Lemma typecheck_both_sound: 
+  forall Delta rho e , 
+             typecheck_environ Delta rho ->
+             (denote_tc_assert (typecheck_expr Delta e) rho ->
+             typecheck_val (eval_expr e rho) (typeof e) = true) /\
+             (forall pt, 
+             denote_tc_assert (typecheck_lvalue Delta e) rho ->
+             is_pointer_type pt = true -> 
+             typecheck_val (eval_lvalue e rho) pt=true).
+Proof.
+intros. induction e; split; intros; try solve[subst; auto].
+
+(*Const int*)
+simpl. subst; destruct t; auto; simpl in H0; inv H0; intuition.
+
+(*Const float*)
+simpl in *. subst; destruct t; intuition. 
+
+(*Var*)
+eapply typecheck_expr_sound_Evar; eauto.
 eapply typecheck_lvalue_Evar; eauto.
 
 (*Temp*)
-Focus 1.
-simpl in *. destruct rho. 
-unfold typecheck_environ in H. intuition.
-clear H H2 H4.  
-unfold typecheck_temp_environ in *.
-unfold eval_id in *. 
-
-simpl. unfold force_val.
-destruct Delta. destruct p. destruct p. 
-unfold temp_types in *. simpl in *.
-remember (t2 ! i). destruct o.
-  symmetry in Heqo.  
-  destruct p. specialize (H1 i b _  Heqo). simpl in *.
-  rewrite eqb_type_eq in *. destruct H1 as [? [? ?]].
-  rewrite H. if_tac in H0; simpl in *; try solve [inv H0].
-  destruct (type_eq t t4); try solve [inv H0]. subst; auto. simpl in *. 
-  if_tac in H0; inv H0. destruct H1; simpl in *; try congruence. 
-  simpl in *. destruct H2. rewrite H in H0. inv H0. auto. 
-  if_tac in H0; intuition. 
+eapply typecheck_temp_sound; eauto.
 
 (*deref*)  
-simpl in *. super_unfold_lift. intuition. specialize (H3 pt).
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-unfold_tc_denote. super_unfold_lift.
-remember (eval_expr e rho); destruct v;
-simpl in *; super_unfold_lift;
-remember (typeof e); destruct t0; intuition; destruct pt; auto.
-
+eapply typecheck_deref_sound; eauto.
 (*addrof*)
 intuition.
 simpl in *. 
@@ -296,110 +499,20 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H0. 
 destruct t; auto.
 
-
 (*Unop*)
-intuition; simpl in *. 
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct H0. intuition.
-super_unfold_lift.
-unfold eval_unop. 
-destruct u; simpl in *. 
-
-unfold sem_notbool in *.
-remember (typeof e). destruct t0; simpl in *; intuition;
-try destruct i; try destruct s; simpl in *; destruct (eval_expr e rho); intuition;
-try of_bool_destruct; try destruct t; intuition.
-
-unfold sem_notint.
-
-remember (typeof e). destruct t0; simpl in *; intuition;
-try destruct i; try destruct s; simpl in *; destruct (eval_expr e rho); intuition;
-try of_bool_destruct; try destruct t; intuition.
-
-
-unfold sem_neg.
-
-remember (typeof e). destruct t0; simpl in *; intuition;
-try destruct i; try destruct s; simpl in *; destruct (eval_expr e rho); intuition;
-try of_bool_destruct; try destruct t; intuition.
-
+eapply typecheck_unop_sound; eauto.
 (*binop*)
 repeat rewrite andb_true_iff in *; intuition.
 clear H4. clear H2. clear H. 
 eapply typecheck_binop_sound; eauto.
 
 (* cast *)
-simpl in *.
-intuition.
-rewrite tc_andp_sound in *. 
-super_unfold_lift.
-unfold eval_cast.
-remember (eval_expr e rho). 
-remember (typeof e).
-destruct H0.
-destruct v; destruct t0; intuition; destruct t; try solve [ intuition;
-try destruct i; try destruct i0; try destruct i1; intuition;
-unfold sem_cast, classify_cast, cast_float_int, 
-    Float.intoffloat, Float.intuoffloat;
- destruct s; auto; try (destruct H3 as [H3a H3b]; hnf in H3a,H3b);
- try rewrite <- Heqv in *; repeat invSome;
- inversion2 H3b H3a;
- hnf in H3b0, H3a0;
- rewrite H3a0; rewrite Zle_bool_rev; rewrite H3b0; auto |
-
-simpl in H3; hnf in H3; simpl; rewrite <- Heqv in *; auto |
-destruct i0; destruct s; simpl in *; auto; hnf in H3; try rewrite <- Heqv in *; try contradiction]. 
+eapply typecheck_cast_sound; eauto.
 
 (*EField*)
-simpl in *. super_unfold_lift.
- unfold eval_field,eval_struct_field, deref_noload in *.
-assert (MODE: access_mode t = By_reference) by (destruct (access_mode t); auto; hnf in H0; try contradiction).
-rewrite MODE in *.
-destruct IHe.
-destruct rho.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
-simpl in H0.
-super_unfold_lift. destruct H0 as [[?  ]?].
-revert H4; case_eq (type_is_volatile t); simpl; intros; try contradiction.
-clear H5.
-unfold typecheck_environ in H. 
-destruct H as [_ [Hve [Hge _]]]. 
-assert (PTR := eval_lvalue_ptr _ e Delta te ve ge (eq_refl _) Hve Hge H0).
-specialize (H2 t H0).
-spec H2. clear - MODE; destruct t; try destruct i; try destruct s; try destruct f; inv MODE; simpl; auto.
-destruct PTR.
-elimtype False; clear - H H2. rewrite H in H2; inv H2.
-destruct H as [b [ofs ?]]. 
-rewrite H in *.
-destruct (typeof e); intuition. 
-destruct (field_offset i f); intuition.
-
-simpl in *.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-super_unfold_lift.
- unfold eval_field,eval_struct_field in *; intuition. 
-specialize  (H3 pt). intuition. remember rho.
-destruct e0.
-unfold typecheck_environ in *. intuition. clear H4 H9.
-rewrite Heqe0 in H0.
-assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H7).
-rewrite Heqe0 in *. clear Heqe0.
-intuition. 
-remember (eval_lvalue e rho). unfold isptr in *.
-destruct v; intuition; try congruence.
-remember (eval_lvalue e rho). destruct H8. destruct H4.
-destruct v; intuition; try congruence.
-inv H4.
-destruct (typeof e); intuition. 
-destruct (field_offset i f); intuition.
+eapply typecheck_expr_sound_Efield; eauto.
+eapply typecheck_lvalue_sound_Efield; eauto.
 Qed. 
-
-Definition defined_val v :=
-match v with
-Vundef => False
-| _ => True
-end.
-
 
 Lemma typecheck_expr_sound : forall Delta rho e,
  typecheck_environ Delta rho -> 
@@ -512,7 +625,7 @@ unfold eval_binop in *. apply typecheck_force_Some in H2. destruct H2.
 congruence. 
 Qed. 
   
-
+Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
 Lemma eval_both_relate:

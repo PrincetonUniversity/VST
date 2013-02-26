@@ -123,16 +123,6 @@ eapply semax_pre; [ | apply (H2 x1 x2)].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 Qed.
 
-Lemma denote_tc_assert_andp:
-  forall a b rho, denote_tc_assert (tc_andp a b) rho =
-             (denote_tc_assert a rho /\ denote_tc_assert b rho).
-Proof.
- intros. apply prop_ext.
- unfold denote_tc_assert, tc_andp. simpl.
- unfold_lift.
- destruct a,b; simpl; intuition; try contradiction.
-Qed.
-
 Lemma semax_load':
   forall  (Delta : tycontext) (sh : Share.t) (id : positive) 
          P Q R (e1 : expr) t1 i2 (v2 : environ -> val),

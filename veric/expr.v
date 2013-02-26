@@ -495,7 +495,6 @@ match a1 with
       end
 end. 
 
-
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
 
@@ -899,6 +898,16 @@ Proof.
 intros. destruct a1; destruct a2; simpl in *;
   unfold_lift; intuition.
 Qed. 
+
+Lemma denote_tc_assert_andp: 
+  forall a b rho, denote_tc_assert (tc_andp a b) rho =
+             (denote_tc_assert a rho /\ denote_tc_assert b rho).
+Proof.
+ intros. apply prop_ext.
+ unfold denote_tc_assert, tc_andp. simpl.
+ unfold_lift.
+ destruct a,b; simpl; intuition; try contradiction.
+Qed.
 
 (** Functions that modify type environments **)
 Definition initialized id (Delta: tycontext) :=

@@ -108,6 +108,13 @@ match op with
 end. 
 
 (* in progress 
+
+
+Ltac revert_all := repeat match goal with
+| [H: _ |- _] => revert H
+end.
+
+
 Lemma semax_set_forward_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty,
     is_comparison cmp = true  ->
