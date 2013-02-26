@@ -9,8 +9,6 @@ Require Import progs.assert_lemmas.
 Import Cop.
 Local Open Scope logic.
 
-(* Require Import progs.canonicalize. *)
-
 Lemma semax_while : 
  forall Delta Q test body R,
      bool_type (typeof test) = true ->
@@ -38,9 +36,7 @@ eapply semax_post; [ | apply semax_skip].
 intros.
 intro rho; unfold normal_ret_assert, overridePost; simpl.
 normalize. rewrite if_true by auto.
-apply andp_right. apply TT_right.
-apply andp_right; auto.
-apply prop_right. hnf; auto.
+normalize.
 eapply semax_pre; [ | apply semax_break].
 unfold overridePost. rewrite if_false by congruence.
 unfold loop1_ret_assert.
@@ -66,6 +62,7 @@ eapply derives_trans; [ | apply H0].
 normalize.
 eapply derives_trans; [ | apply H1].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
+repeat rewrite prop_true_andp by auto. auto.
 eapply semax_pre; [ | apply H2].
 intro rho; unfold PROPx,LOCALx, lift1; unfold_lift; simpl; normalize.
 Qed.

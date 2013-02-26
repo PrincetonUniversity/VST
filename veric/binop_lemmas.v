@@ -28,12 +28,7 @@ extensionality a rho.
 destruct a; reflexivity.
 Qed.
 
-Ltac typecheck_sound_solver Delta rho e1 e2 t :=
- match goal with
- | H: denote_tc_assert (typecheck_expr Delta e2) rho,
-   H0: denote_tc_assert (isBinOpResultType _ e1 e2 t) rho,
-   H1: typecheck_val (eval_expr e2 rho) (typeof e2) = true,
-   H2: typecheck_val (eval_expr e1 rho) (typeof e1) = true |- _ =>
+Ltac typecheck_sound_solver1 H0 e1 e2 t :=
 rewrite <- denote_tc_assert'_eq in *;
 simpl in *;
  destruct (typeof e1) as [ | [ | | | ] [ | ]  | [ | ]  | | | | | | ]; 
@@ -41,13 +36,7 @@ simpl in *;
  destruct (typeof e2) as [ | [ | | | ] [ | ]  | [ | ]  | | | | | | ]; 
       try (contradiction H0);
  destruct t; try (contradiction H0);
-simpl in *;
-try solve [destruct (eval_expr e1 rho); inv H2;
-               destruct (eval_expr e2 rho); inv H1;
-               try (contradiction H0);
-               simpl; auto]
-end.
-
+simpl in *.
 
 Lemma typecheck_sub_sound:
 forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type),
@@ -59,7 +48,7 @@ forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type),
      (eval_binop Osub (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof. 
-intros; typecheck_sound_solver Delta rho e1 e2 t;
+intros; typecheck_sound_solver1 H0 e1 e2 t;
 unfold tc_bool, eval_binop in *; simpl in *; unfold sem_sub; simpl;
 try (remember (Int.eq (Int.repr (sizeof t0)) Int.zero) as ez; destruct ez; simpl in *; auto);
 destruct (eval_expr e1 rho); inv H2; destruct (eval_expr e2 rho); inv H1; 
@@ -81,7 +70,7 @@ forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
 Proof. 
 intros.
 destruct op; try contradiction;
-abstract (typecheck_sound_solver Delta rho e1 e2 t;
+abstract (typecheck_sound_solver1 H0 e1 e2 t;
 (( destruct H0 as  [H0 H0']; hnf in H0,H0') ||
 (hnf in H0));
 destruct (eval_expr e1 rho); try contradiction;
@@ -107,7 +96,7 @@ forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
 Proof. 
 destruct op; try contradiction;
 abstract (
-intros; typecheck_sound_solver Delta rho e1 e2 t;
+intros; typecheck_sound_solver1 H0 e1 e2 t;
 unfold eval_binop; unfold sem_binary_operation, sem_shl, sem_shr; simpl;
 destruct (eval_expr e1 rho); inv H3;
 destruct (eval_expr e2 rho); inv H2;
@@ -132,12 +121,25 @@ forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
 Proof.
 intros.
 destruct op; try (contradiction CMP);
-abstract (intros; typecheck_sound_solver Delta rho e1 e2 t;
+abstract (intros; typecheck_sound_solver1 H0 e1 e2 t;
 unfold eval_binop; unfold sem_binary_operation, sem_cmp; simpl;
 destruct (eval_expr e1 rho); inv H3;
 destruct (eval_expr e2 rho); inv H2;
 apply cmp_sound_aux).
 Qed.
+
+Ltac typecheck_sound_solver Delta rho e1 e2 t :=
+ match goal with
+ | H: denote_tc_assert (typecheck_expr Delta e2) rho,
+   H0: denote_tc_assert (isBinOpResultType _ e1 e2 t) rho,
+   H1: typecheck_val (eval_expr e2 rho) (typeof e2) = true,
+   H2: typecheck_val (eval_expr e1 rho) (typeof e1) = true |- _ =>
+ typecheck_sound_solver1 H0 e1 e2 t;
+try solve [destruct (eval_expr e1 rho); inv H2;
+               destruct (eval_expr e2 rho); inv H1;
+               try (contradiction H0);
+               simpl; auto]
+end.
 
 Lemma typecheck_binop_sound:
 forall (Delta : tycontext) (rho : environ) (b : binary_operation)
@@ -158,7 +160,7 @@ try (eapply typecheck_sub_sound; eauto);
 try solve [eapply typecheck_divmod_sound; simpl; eauto];
 try solve [eapply typecheck_shift_sound; simpl; eauto];
 try solve [eapply typecheck_cmp_sound; simpl; eauto];
-try solve [abstract (typecheck_sound_solver Delta rho e1 e2 t)].
+clear H4; abstract (typecheck_sound_solver Delta rho e1 e2 t).
 Qed.
 
 

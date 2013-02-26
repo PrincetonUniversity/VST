@@ -619,6 +619,8 @@ unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
 apply andp_derives; auto.
 unfold_lift.
 normalize.
+repeat rewrite prop_true_andp by auto.
+auto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.

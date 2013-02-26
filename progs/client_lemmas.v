@@ -1097,14 +1097,18 @@ Lemma lift1C_lift0C:
 Proof. intros. extensionality rho. reflexivity. Qed.
 *)
 
-Hint Rewrite @lift0C_andp @lift0C_prop @lift0C_sepcon
-    @lift1_lift1_retval (* @lift1_lift1_retvalC *)
-    @lift0_exp @lift0C_exp
-    @lift0_andp @lift0C_andp
-    @lift0_sepcon @lift0C_sepcon
-    @lift0_prop @lift0C_prop
-    @lift0_later @lift0C_later
-    (* @lift1C_lift0C *)
+Hint Rewrite (@lift0C_sepcon mpred _ _) : normalize.
+Hint Rewrite (@lift0C_andp mpred _) : normalize.
+Hint Rewrite (@lift0C_exp mpred _) : normalize.
+Hint Rewrite (@lift0C_later mpred _ _) : normalize.
+Hint Rewrite (@lift0C_prop mpred _) : normalize.
+
+Hint Rewrite
+    @lift1_lift1_retval
+    @lift0_exp
+    @lift0_sepcon
+    @lift0_prop
+    @lift0_later
     : normalize.
 
 Lemma semax_post'': forall P Q R Delta Pre Post c,
@@ -1264,7 +1268,7 @@ change SEPx with SEPx'.
 unfold PROPx, LOCALx, SEPx', lift2.
 normalize.
 unfold_lift. simpl.
-apply pred_ext; normalize.
+apply pred_ext; normalize; repeat rewrite prop_true_andp; auto.
 Qed.
 Hint Rewrite insert_local:  normalize.
 
@@ -1720,7 +1724,8 @@ Proof.
  unfold PROPx, LOCALx, local, lift0, lift1.
  simpl.
  normalize.
- apply pred_ext; normalize.
+ apply pred_ext; normalize;
+ repeat rewrite prop_true_andp; auto.
 Qed.
 
 Ltac extract_prop_in_LOCAL :=

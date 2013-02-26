@@ -207,6 +207,7 @@ forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
  go_lower. normalize. eval_cast_simpl.
   eapply derives_trans; [apply setup_globals; auto | ].
+ rewrite prop_true_andp by auto.
  cancel.
 auto with closed.
 forward.  (* s = sumlist(r); *)

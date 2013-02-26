@@ -409,7 +409,8 @@ intros; unfold overridePost, normal_ret_assert.
 extensionality ek vl.
 if_tac; normalize.
 subst ek.
-apply pred_ext; normalize.
+rewrite (prop_true_andp (EK_normal = _)) by auto.
+auto.
 apply pred_ext; normalize.
 Qed.
 

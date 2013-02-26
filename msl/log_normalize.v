@@ -313,14 +313,16 @@ apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
 Qed.
 
-Hint Rewrite @prop_true_andp using (solve [auto]) : normalize.
+Ltac immediate := (assumption || reflexivity).
+
+Hint Rewrite @prop_true_andp using (solve [immediate]) : normalize.
 
 Lemma true_eq {A} {NA: NatDed A}:  forall P: Prop, P -> (!! P) = (TT: A).
 Proof with norm.
 intros. apply pred_ext...
 apply prop_right...
 Qed. 
-Hint Rewrite @true_eq using (solve [auto]) : normalize.
+Hint Rewrite @true_eq using (solve [immediate]) : normalize.
 
 Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
 Proof with norm.
@@ -523,8 +525,9 @@ Qed.
 Hint Resolve @prop_corable : normalize.
 
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
-Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
+(*Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
                     @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances].
+*)
 
 Ltac normalize1 := 
          match goal with

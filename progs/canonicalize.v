@@ -183,7 +183,9 @@ Proof.
 intros; unfold PROPx, LOCALx; simpl.
 extensionality rho.
 normalize.
-Admitted.
+apply pred_ext; normalize;
+repeat (rewrite prop_true_andp; auto).
+Qed.
 Hint Rewrite canon9: canon.
 
 
