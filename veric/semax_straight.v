@@ -19,7 +19,7 @@ Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.binop_lemmas. 
- 
+
 Open Local Scope pred.
 
 Section extensions.
@@ -546,11 +546,11 @@ apply guard_environ_put_te'.
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
 clear - TC1 TC2 TC3 TC' H2 Hge H0.
-intros. simpl in TC1. unfold typecheck_temp_id in TC1.
+intros. simpl in TC1.
 rewrite H in TC1. 
 destruct t as [t x].
 destruct TC1 as [t0 [x0 [TC1 TC4]]].
-inv TC1. 
+inv TC1. simpl.  simpl in TC3.  
 eapply allowed_val_cast_sound; eauto. 
 (* typechecking proof *)
 split.
@@ -561,7 +561,7 @@ assert (NONVOL: type_is_volatile (typeof e1) = false).
 unfold typecheck_temp_id in *.
 unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
 (* typechecking proof *)
-apply Clight.eval_Elvalue with b ofs; auto.
+apply Clight.eval_Elvalue with b ofs; auto. 
 destruct H0 as [H0 _].
 assert ((|> (F rho * (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
        (m_phi jm)).
@@ -748,9 +748,32 @@ match goal with
 end.
 
 
+Lemma load_cast : 
+ forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
+   typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
+   denote_tc_assert (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2)
+     rho ->
+   access_mode (typeof e1) = By_value ch ->
+   Val.load_result ch
+     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) =
+   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)). 
+Proof.
+intros. 
+destruct ch; destruct (typeof  e1); try solve [inv H1]; 
+simpl in *; try destruct i; try destruct s; try destruct f; try solve [inv H1]; clear H1; destruct (eval_expr e2 rho); destruct (typeof e2); try solve [inv H]; 
+unfold Cop.sem_cast; simpl;
+try destruct (Float.intoffloat f); 
+try destruct (Float.intuoffloat f); auto; simpl;
+try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
+try rewrite Int.zero_ext_idem; auto; simpl; try omega;
+try solve [if_tac; auto];
+rewrite Float.singleoffloat_idem; auto. 
+Qed. 
+
+
+
 Lemma semax_store:
  forall Delta e1 e2 sh P, 
-   typecheck_store e1 ->
    writable_share sh ->
    semax Hspec Delta 
           (fun rho =>
@@ -759,7 +782,7 @@ Lemma semax_store:
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) ((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) * P rho)).
 Proof.
-intros until P. intros TC WS.
+intros until P. intros WS.
 apply semax_pre with
   (fun rho : environ =>
    EX v3: val, 
@@ -803,23 +826,14 @@ exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
 Focus 2.
 
-clear - WS TC2 TC4 TC3 TC TC1 Hmode.
+clear - WS TC2 TC4 TC3 TC1 Hmode.
 unfold typecheck_store in *.
 destruct TC4 as [TC4 _].
-destruct TC as [IT FT].
 simpl in TC2. apply typecheck_expr_sound in TC2; auto.
-remember (eval_expr e2 rho). remember (typeof e1). remember (typeof e2). 
-destruct v; try solve [simpl in *; congruence]; destruct t; destruct t0; intuition;
-try inv H; try inv Hmode; dec_enc. 
-clear DE.
-unfold Cop.sem_cast. simpl in *. super_unfold_lift.
-Transparent Float.intoffloat.
-unfold Float.intoffloat.
-destruct TC3. unfold_tc_denote. rewrite <- Heqv in *.
-destruct (Float.Zoffloat f); try contradiction.
-rewrite H. rewrite Zle_bool_rev. rewrite H0. simpl in *.
-dec_enc.
-Opaque Float.intoffloat.
+remember (eval_expr e2 rho).
+dec_enc. rewrite DE. clear DE. subst. 
+apply load_cast; auto. 
+
 
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).

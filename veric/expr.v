@@ -192,7 +192,7 @@ Definition lift1 {A1 B} (P: A1 -> B) (f1: environ -> A1) : environ -> B := fun r
 Definition lift2 {A1 A2 B} (P: A1 -> A2 -> B) (f1: environ -> A1) (f2: environ -> A2): 
    environ -> B := fun rho => P (f1 rho) (f2 rho).
 Definition lift3 {A1 A2 A3 B} (P: A1 -> A2 -> A3 -> B) 
-     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3):  environ -> B := 
+     (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3) :  environ -> B := 
      fun rho => P (f1 rho) (f2 rho) (f3 rho).
 Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B) 
      (f1: environ -> A1) (f2: environ -> A2) (f3: environ -> A3)(f4: environ -> A4):  environ -> B := 
@@ -598,7 +598,6 @@ match Cop.classify_cast tfrom tto with
       end
 end.
 
-
 Definition allowedValCast v tfrom tto :=
 match Cop.classify_cast tfrom tto with 
 | Cop.cast_case_neutral => if (is_int_type tfrom) && 
@@ -611,8 +610,12 @@ match Cop.classify_cast tfrom tto with
                           else if eqb (is_int_type tfrom) 
                                       (is_int_type tto)
                                then true else false
-| _ => false
+| Cop.cast_case_i2i _ _ => true
+| Cop.cast_case_f2f _ => true
+| _  => false
 end. 
+
+
 
 Definition globtype (g: global_spec) : type :=
 match g with 
@@ -762,6 +765,18 @@ Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
  | _, _ => false
 end.
 
+(*Belongs in expr_lemmas.v*)
+Lemma allowed_val_cast_sound : forall v tfrom tto,
+allowedValCast v tfrom tto = true -> 
+typecheck_val v tfrom = true ->
+typecheck_val v tto = true. 
+Proof. 
+intros. destruct tfrom; destruct tto; destruct v; intuition; 
+try solve [try destruct i; try destruct i0; destruct s; inv H]. 
+Qed. 
+
+
+
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
@@ -877,7 +892,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_nodivover v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero e => `denote_tc_iszero (eval_expr e)
-  end.
+ end.
 
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
 Proof.
@@ -910,7 +925,8 @@ Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
 match tycon1 with  (te1, ve1, r, vl1)  =>
 match tycon2 with  (te2, _, _, _)  =>
   ((join_te te1 te2), ve1, r, vl1)
-end end.               
+end end.              
+
 
 (** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=

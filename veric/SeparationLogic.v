@@ -658,7 +658,6 @@ forall (Delta: tycontext) sh id P e1 v2,
 
 Axiom semax_store:
  forall Delta e1 e2 sh P,
-   typecheck_store e1 -> 
    writable_share sh ->
    semax Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
