@@ -404,7 +404,7 @@ Section NullExtensionCompilable.
  if_tac in H9; try congruence.
  solve[unfold const; inversion H9; rewrite H12 in *; auto].
 
- intros until v1; intros MATCH12 HALT.
+ intros until v1; intros ty MATCH12 HALT HASTY.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
  destruct MATCH12 as [? [? [? [? [? [? MATCH12]]]]]].
  specialize (MATCH12 O c1).

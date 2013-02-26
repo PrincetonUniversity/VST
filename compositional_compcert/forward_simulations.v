@@ -331,11 +331,13 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
-    core_halted : forall cd j c1 m1 c2 m2 v1,
+    core_halted : forall cd j c1 m1 c2 m2 v1 rty,
       match_state cd j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
+      Val.has_type v1 rty -> 
       exists v2, val_inject j v1 v2 /\
           safely_halted Sem2 c2 = Some v2 /\
+          Val.has_type v2 rty /\
           Mem.inject j m1 m2;
 
     core_at_external : 
@@ -435,9 +437,9 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
       match_state cd j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
       val_valid v1 m1 ->
-     exists v2, val_inject j v1 v2 /\
-          safely_halted Sem2 c2 = Some v2 /\
-          Mem.inject j m1 m2 /\ val_valid v2 m2;
+      exists v2, val_inject j v1 v2 /\
+        safely_halted Sem2 c2 = Some v2 /\
+        Mem.inject j m1 m2 /\ val_valid v2 m2;
 
     core_at_external : 
       forall cd j st1 m1 st2 m2 e vals1 ef_sig,
@@ -527,12 +529,14 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
-    core_halted : forall cd j c1 m1 c2 m2 v1,
+    core_halted : forall cd j c1 m1 c2 m2 v1 rty,
       match_state cd j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
-     exists v2, val_inject j v1 v2 /\
-          safely_halted Sem2 c2 = Some v2 /\
-          Mem.inject j m1 m2;
+      Val.has_type v1 rty -> 
+      exists v2, val_inject j v1 v2 /\
+        safely_halted Sem2 c2 = Some v2 /\
+        Val.has_type v2 rty /\
+        Mem.inject j m1 m2;
 
     core_at_external : 
       forall cd j st1 m1 st2 m2 e vals1 sig,

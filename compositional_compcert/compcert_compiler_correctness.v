@@ -285,7 +285,9 @@ Proof.
   clear GenvInit1 GenvInit2.
   simpl. unfold final_state. intros. destruct s1 as [c1 m1]. destruct s2 as [c2 m2]. simpl in *.
   destruct H1 as [j [InjJ MCJ]]; simpl in *.
-  destruct (Forward_simulation_inj.core_halted R _ _ _ _ _ _ _ MCJ H2) as [r2 [InjR [SH2 InjM]]].
+  destruct (Forward_simulation_inj.core_halted R _ _ _ _ _ _ _ Tint MCJ H2) 
+    as [r2 [InjR [SH2 InjM]]].
+  solve[simpl; auto].
   inv InjR. assumption.
   (*diagram*) 
   clear GenvInit1 GenvInit2.

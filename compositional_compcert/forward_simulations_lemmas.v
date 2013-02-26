@@ -316,11 +316,14 @@ Section Sim_INJ_SIMU_DIAGRAMS.
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 j c1 m1 c2 m2. 
 
-  Hypothesis inj_safely_halted:forall cd j c1 m1 c2 m2 v1,
+  Hypothesis inj_safely_halted:forall cd j c1 m1 c2 m2 v1 rty,
       match_states cd j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
-         exists v2, val_inject j v1 v2 /\ safely_halted Sem2 c2 = Some v2 /\
-                          Mem.inject j m1 m2.
+      Val.has_type v1 rty -> 
+      exists v2, val_inject j v1 v2 /\ 
+        safely_halted Sem2 c2 = Some v2 /\
+        Val.has_type v2 rty /\
+        Mem.inject j m1 m2.
 
   Hypothesis inj_at_external: 
       forall d j st1 m1 st2 m2 e vals1 sig,

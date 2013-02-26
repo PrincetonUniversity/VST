@@ -220,11 +220,14 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
       make_initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
  
- (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
+ (safely_halted_step: forall cd j c1 m1 c2 m2 v1 rty,
    match_states cd j c1 m1 c2 m2 -> 
    safely_halted esemS c1 = Some v1 -> 
+   Val.has_type v1 rty -> 
    exists v2, val_inject j v1 v2 /\
-     safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
+     safely_halted esemT c2 = Some v2 /\ 
+     Val.has_type v2 rty /\ 
+     Mem.inject j m1 m2)
 
  (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 

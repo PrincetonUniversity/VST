@@ -697,6 +697,16 @@ split; intro b; split; intro H3;
  solve[destruct (H1 b); auto|destruct (H2 b); auto].
 Qed.
 
+Lemma exists_ty: forall v, exists ty, Val.has_type v ty.
+Proof.
+intros v.
+destruct v.
+exists Tint; simpl; auto.
+exists Tint; simpl; auto.
+exists Tfloat; simpl; auto.
+exists Tint; simpl; auto.
+Qed.
+
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -937,11 +947,14 @@ Module ExtendedSimulations. Section ExtendedSimulations.
       make_initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
  
- (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
+ (safely_halted_step: forall cd j c1 m1 c2 m2 v1 rty,
    match_states cd j c1 m1 c2 m2 -> 
    safely_halted esemS c1 = Some v1 -> 
+   Val.has_type v1 rty -> 
    exists v2, val_inject j v1 v2 /\
-     safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
+     safely_halted esemT c2 = Some v2 /\ 
+     Val.has_type v2 rty /\ 
+     Mem.inject j m1 m2)
 
  (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
@@ -1321,9 +1334,11 @@ destruct RUN1 as [[rv1 HALT]|[ef [sig [args AT_EXT]]]].
 specialize (MATCH_CORES (ACTIVE E_S st1) c1 _PROJ1).
 clear c2 PROJ2.
 destruct MATCH_CORES as [c2 [PROJ2 MATCH12]].
+
+destruct (exists_ty rv1) as [ty1 HAS_TY].
 destruct (core_halted (core_simulations (ACTIVE E_S st1)) 
-  (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv1 MATCH12 HALT) 
- as [rv2 [VAL_INJ [SAFE_T INJ]]].
+  (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv1 ty1 MATCH12 HALT) 
+ as [rv2 [VAL_INJ [SAFE_T INJ]]]; auto.
 inv esig_compilable.
 eapply safely_halted_diagram with (m1' := m1') in MATCH'; eauto.
 destruct MATCH' as [rv2' [H7 [VAL_INJ' 

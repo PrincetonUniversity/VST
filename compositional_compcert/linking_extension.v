@@ -139,9 +139,11 @@ Inductive linker_corestep:
      (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) (length_cons _ _) ext_pf') m
 
 (** 'return' steps *)
-| link_return: forall ge stack i j id c m (pf_i: i < num_modules) c' c'' retv
+| link_return: forall ge stack i j id c m (pf_i: i < num_modules) c' c'' retv ef sig args
    (LOOKUP: procedure_linkage_table id = Some j)
+   (*NEW*) (AT_EXT: at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)) 
    (HALTED: safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c' = Some retv) 
+   (*NEW: FIXME: allow retv = None*) (TYCHECKS: val_has_type_opt (Some retv) (ef_sig ef))
    pf ext_pf ext_pf',
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
@@ -423,7 +425,7 @@ unfold all_at_external in callers_at_external0.
 simpl in callers_at_external0.
 inv callers_at_external0.
 clear H4.
-destruct H2 as [ef [sig [args AT_EXT]]].
+(*destruct H2 as [ef [ef_sig [args AT_EXT]]].*)
 simpl in H0.
 destruct H0.
 simpl.
@@ -566,7 +568,7 @@ intros b H7.
 simpl in pf2.
 unfold all_at_external in pf2.
 inv pf2.
-destruct H4 as [ef [sig [args ATEXT]]].
+(*destruct H4 as [ef [sig [args ATEXT]]].*)
 eapply private_external in H3; eauto.
 simpl in H6.
 destruct H6 as [_ [H6 H8]].
@@ -716,7 +718,8 @@ intros b H7.
 simpl in pf2.
 unfold all_at_external in pf2.
 inv pf2.
-destruct H6 as [ef [sig [args ATEXT]]].
+(*destruct H6 as [ef [sig [args ATEXT]]].*)
+clear H6.
 clear H8.
 eapply private_external in H5; eauto.
 simpl in H0.
@@ -2869,7 +2872,7 @@ intros ? e.
 solve[intros; congruence].
 
 (*6: safely_halted_step*)
-intros until v1.
+intros until rty.
 intros H1 H2.
 unfold linker_safely_halted in H2.
 destruct c1; try solve[congruence].
@@ -2894,13 +2897,14 @@ rewrite dependent_types_nonsense in H3.
 spec H3; auto.
 destruct H3 as [c3 [H3 H4]].
 generalize core_halted0; intro core_halted1.
-specialize (core_halted1 (cd (linker_active c2)) j c m1 c3 m2 v1 H4).
+specialize (core_halted1 (cd (linker_active c2)) j c m1 c3 m2 v1 rty H4).
 spec core_halted1; auto.
 generalize H2.
 unfold csem_map_S, csem_map.
 destruct (lt_dec (linker_active c2) num_modules); try solve[elimtype False; omega].
 solve[assert (PF = l) as -> by apply proof_irr; auto].
-destruct core_halted1 as [v2 [H5 [H6 H7]]].
+intros HAS_TY.
+destruct core_halted1 as [v2 [H5 [H6 H7]]]; auto.
 exists v2.
 split; auto.
 split; auto.
@@ -2929,9 +2933,11 @@ solve[intros [? [? [? [? [? [? FALSE]]]]]]; elimtype False; auto].
 (*7: safely_halted_diagram*)
 intros until c2; intros H1 H2 H3 H4 H5.
 destruct (core_simulations (linker_active s1)).
-generalize core_halted0.
+
+(*generalize core_halted0.
 intro core_halted1.
-specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv1).
+destruct (exists_ty rv1) as [ty1 HASTY1].
+specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv1 ty1).
 spec core_halted1; auto.
 destruct H1 as [_ [_ [_ [_ [RR [H6 H7]]]]]].
 simpl in *.
@@ -2939,11 +2945,12 @@ destruct (H7 (linker_active s1) c1 H2) as [c1' [H8 H9]].
 rewrite H3 in H8.
 solve[inv H8; auto].
 spec core_halted1; auto.
-destruct core_halted1 as [v2 [INJ [HALT INJ']]].
-exists v2.
+destruct core_halted1 as [v2 [INJ [HALT INJ']]]; auto.*)
+
+(*exists v2.
 split; auto.
 split; auto.
-clear INJ'.
+clear INJ'.*)
 inv H5.
 elimtype False; clear - H2 H4 H6.
 apply corestep_not_halted in H6.
@@ -2968,6 +2975,7 @@ assert (Heq: l = pf_i) by apply proof_irr; auto.
 rewrite Heq in *.
 rewrite AT_EXT in H5.
 solve[destruct H5; congruence].
+
 simpl in H2.
 destruct (eq_nat_dec j0 j0); try solve[elimtype False; omega].
 rewrite dependent_types_nonsense in H2; inversion H2; subst c1.
@@ -2997,15 +3005,35 @@ subst i1.
 generalize ext_pf.
 unfold all_at_external.
 inversion 1; subst.
-destruct H3 as [ef [sig [args AT_EXT]]].
+(*destruct H3 as [ef [sig [args AT_EXT]]].*)
 clear core_after_external0.
 destruct (core_simulations i).
 clear core_ord_wf0 core_diagram0 core_initial0 core_halted0 core_at_external0.
 simpl in ext_pf0.
 inv ext_pf0.
 destruct H3 as [ef0 [sig0 [args0 AT_EXT0]]].
+
+destruct (core_simulations i0).
+specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
+spec core_halted0; auto.
+spec core_halted0; auto.
+spec core_halted0; auto.
+assert (Heq: rv1 = retv).
+ clear - HALTED H4 PF.
+ unfold csem_map_S, csem_map in H4.
+ destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+ assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ subst l.
+ rewrite HALTED in H4.
+ solve[inv H4; auto].
+solve[subst rv1; auto].
+destruct core_halted0 as [rv2 [X1 [X2 [X3 X4]]]].
+
+exists rv2; split; auto.
+split; auto.
+
 specialize (core_after_external0 
- cd0 j0 j c c0 m10 ef0 args0 (Some rv1) m1' m20 m2 (Some v2) sig0).
+ cd0 j0 j c c0 m10 ef0 args0 (Some rv1) m1' m20 m2 (Some rv2) sig0).
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -3019,8 +3047,8 @@ spec core_after_external0; auto.
 spec core_after_external0; auto.
 destruct (RGsim i0).
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH.
-eapply match_state_inj; eauto.
-solve[apply eq_nat_dec].
+(*eapply match_state_inj; eauto.*)
+(*solve[apply eq_nat_dec].*)
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -3033,10 +3061,34 @@ unfold csem_map_T, csem_map.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 solve[assert (l = PF0) as -> by apply proof_irr; auto].
 spec core_after_external0.
-admit. (*safely_halted_diagram: add typing precondition: Val.has_type retv (proj_sig_res sig) *)
+assert (Heq: rv1 = retv).
+ clear - HALTED H4 PF.
+ unfold csem_map_S, csem_map in H4.
+ destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+ assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ subst l.
+ rewrite HALTED in H4.
+ solve[inv H4; auto].
+rewrite Heq in *.
+assert (Heq': sig = sig0).
+ clear - AT_EXT AT_EXT0.
+ rewrite AT_EXT in AT_EXT0.
+ solve[inv AT_EXT0; auto].
+subst sig.
+clear - AT_EXT AT_EXT0 TYCHECKS.
+simpl.
+cut (ef0 = ef).
+intros ->; auto.
+rewrite AT_EXT in AT_EXT0.
+solve[inv AT_EXT0; auto].
 destruct core_after_external0 as 
  [cd2 [_c [_c0 [AFTER1 [AFTER2 MATCH12]]]]].
-admit. (*safely_halted_diagram: add typing precondition: Val.has_type retv (proj_sig_res sig) *)
+simpl.
+cut (ef0 = ef).
+intros ->; auto.
+rewrite AT_EXT in AT_EXT0.
+solve[inv AT_EXT0; auto].
+
 assert (CALLERS: all_at_external fT vT modules_T stack0).
  solve[eapply all_at_external_cons; eauto].
 exists 
@@ -3053,27 +3105,73 @@ assert (PF = plt_ok LOOKUP) as -> by apply proof_irr.
 
 destruct (core_simulations i0).
 clear core_ord_wf0 core_diagram0 core_initial0 core_at_external0 core_after_external0.
-specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1).
+specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
 spec core_halted0; auto.
 spec core_halted0; auto.
-destruct core_halted0 as [v2' [? [? ?]]].
-apply link_return with (retv := v2'); auto.
-unfold csem_map_T, csem_map in H8.
+destruct core_halted0 as [v2' [? [? ?]]]; auto.
+assert (Heq: rv1 = retv).
+ clear - HALTED H4 PF.
+ unfold csem_map_S, csem_map in H4.
+ destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+ assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ subst l.
+ rewrite HALTED in H4.
+ solve[inv H4; auto].
+solve[subst rv1; auto].
+ 
+unfold all_at_external in callers_at_external.
+simpl in callers_at_external.
+inversion callers_at_external.
+subst x.
+destruct H13 as [ef00 [sig00 [args00 AT_EXT00]]].
+apply link_return with (retv := v2') (ef := ef00) (sig := sig00) (args := args00); auto.
+unfold csem_map_T, csem_map in H9.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-solve[assert (plt_ok LOOKUP = l) as -> by apply proof_irr; auto].
+solve[assert (plt_ok LOOKUP = l0) as -> by apply proof_irr; auto].
+
+simpl.
+destruct H10 as [HASTY2 H10].
+assert (Heq: rv1 = retv).
+ clear - HALTED H4 PF.
+ unfold csem_map_S, csem_map in H4.
+ destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+ assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ subst l.
+ solve[rewrite H4 in HALTED; inv HALTED; auto].
+subst rv1.
+
+assert (Heq2: ef = ef00).
+ specialize (core_at_external1 cd0 j0 c m10 c0 m20 ef args sig).
+ spec core_at_external1; auto.
+ spec core_at_external1; auto.
+ clear - AT_EXT PF.
+ unfold csem_map_S, csem_map. 
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ solve[assert (l = PF0) as -> by apply proof_irr; auto].
+ destruct core_at_external1 as [? [? [? [? [? AT_EXT00']]]]].
+ clear - PF0 AT_EXT00 AT_EXT00'.
+ unfold csem_map_T, csem_map in AT_EXT00'.
+ destruct (lt_dec i num_modules); try solve[elimtype False; omega].
+ assert (l = PF0) by apply proof_irr.
+ subst l.
+ unfold genv_map in *. 
+ rewrite AT_EXT00' in AT_EXT00.
+ solve[inv AT_EXT00; auto].
+solve[subst ef; auto].
+
 intros k pf_k.
 unfold genv_mapT, genvs in domain_eq_T.
 specialize (domain_eq_T k).
 destruct (lt_dec k num_modules); try solve[elimtype False; omega].
-solve[assert (pf_k = l) as -> by apply proof_irr; auto].
+solve[assert (pf_k = l0) as -> by apply proof_irr; auto].
 unfold csem_map_T, csem_map in AFTER2.
-cut (v2' = v2).
+cut (v2' = rv2).
 intros ->.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-solve[assert (PF0 = l) as -> by apply proof_irr; auto].
-clear - H8 HALT.
-rewrite H8 in HALT.
-solve[inv HALT; auto].
+solve[assert (PF0 = l0) as -> by apply proof_irr; auto].
+clear - H9 X2.
+rewrite H9 in X2.
+solve[inv X2; auto].
 split.
 split.
 simpl.
@@ -3268,6 +3366,7 @@ assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
 solve[rewrite H4 in HALTED; inv HALTED; auto].
 
 solve[split; split; auto].
+solve[apply eq_nat_dec].
 Qed.
 
 End LinkerCompilable.
