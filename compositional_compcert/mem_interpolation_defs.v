@@ -40,22 +40,6 @@ Definition my_mem_unchanged_on (P : block -> Z -> Prop) (m_before m_after : mem)
   ZMap.get ofs (ZMap.get b m_before.(Mem.mem_contents)) = v ->
   ZMap.get ofs (ZMap.get b m_after.(Mem.mem_contents)) = v).
 
-Definition my_mem_unchanged_onP (P : block -> Z -> Prop) (m_before m_after : mem) :=
-(forall (b : block) (ofs : Z) (k : perm_kind) (p : permission) (HP: P b ofs), 
-        Mem.valid_block m_before b -> Mem.perm m_before b ofs k p = Mem.perm m_after b ofs k p) /\
-(forall (b : block) (ofs : Z) (HP: P b ofs) 
-  (HMeperm: Mem.perm m_before b ofs Cur Readable)
-  (v : memval),
-  ZMap.get ofs (ZMap.get b m_before.(Mem.mem_contents)) = v ->
-  ZMap.get ofs (ZMap.get b m_after.(Mem.mem_contents)) = v).
-
-Goal forall P mbefore mafter, my_mem_unchanged_onP P mbefore mafter = my_mem_unchanged_on P mbefore mafter.
-Proof. intros. unfold my_mem_unchanged_onP, my_mem_unchanged_on. apply prop_ext.
-  split; intros; destruct H; split; trivial; clear H0.
-    intros. extensionality p. eauto.
-   intros. rewrite H; auto.
-Qed.
-
 Axiom unchAx: forall P m m', my_mem_unchanged_on P m m' = mem_unchanged_on P m m'. 
 
 Goal forall m b ofs p (H: ~ Mem.perm m b ofs p Nonempty),  ZMap.get b (Mem.mem_access m) ofs p = None.
@@ -64,11 +48,6 @@ remember (ZMap.get b (Mem.mem_access m) ofs p) as pp.
 destruct pp; simpl in *. exfalso. apply H. apply perm_any_N.
 trivial.
 Qed.
-
-Definition my_loc_out_of_bounds  (m : mem) (b : block) (ofs : Z):= 
-  Mem.valid_block m b /\ ~ Mem.perm m b ofs Max Nonempty.
-
-Axiom loobAx: forall m, my_loc_out_of_bounds m = loc_out_of_bounds m.
 
 Lemma Fwd_unchanged: forall m m' (F:mem_forward m m'),
   my_mem_unchanged_on (fun b ofs => ~Mem.perm m b ofs Max Nonempty) m m'.
@@ -326,7 +305,7 @@ Qed.
 
 Lemma mymemvalUnchOnR: forall m1 m2 m3 m3' b ofs 
   (n : ~ Mem.perm m1 b ofs Max Nonempty)
-  (UnchOn13 : my_mem_unchanged_on (my_loc_out_of_bounds m1) m3 m3')
+  (UnchOn13 : my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3')
   (MV : memval_inject inject_id
                 (ZMap.get ofs (ZMap.get b (Mem.mem_contents m2)))
                 (ZMap.get ofs (ZMap.get b (Mem.mem_contents m3))))
@@ -336,9 +315,7 @@ Lemma mymemvalUnchOnR: forall m1 m2 m3 m3' b ofs
      (ZMap.get ofs (ZMap.get b (Mem.mem_contents m3'))).
 Proof. intros.
   destruct UnchOn13 as [_ U].
-  assert (LOOB: my_loc_out_of_bounds m1 b ofs).
-         split; trivial.
-  specialize (U _ _ LOOB Rd).
+  specialize (U _ _ n Rd).
   inv MV. 
       apply eq_sym in H. rewrite (U _ H).  constructor. 
       apply eq_sym in H0. rewrite (U _ H0). econstructor. apply H1. trivial.

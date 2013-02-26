@@ -596,6 +596,7 @@ Proof. intros.
         apply H. apply H1.
 Qed.
         
+        
 Lemma mem_wd_E: forall m, mem_wd m ->  Mem.inject (Mem.flat_inj (Mem.nextblock m)) m m.
 Proof. intros. apply Mem.neutral_inject. apply H. Qed.
 

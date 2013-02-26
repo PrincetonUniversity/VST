@@ -1,11 +1,11 @@
 Load loadpath.
 
 (*CompCert imports*) 
+Require Import Events. (*is needed for some definitions (loc_unmapped etc, and
+  also at the very end of this file, in order to convert between the 
+  tweaked and the standard definitions of mem_unchanged_on etc, and for
+  being able to remove/add inject_permorder/extends_permorder etc*)
 
-(*Require Import Events is added at the very end of this file, in
-order to convert between the tweaked and the standard definitions of
-mem_unchanged_on etc, and for being able to remove/add
-inject_permorder/extends_permorder etc*)
 Require Import Memory.
 Require Import Coqlib.
 Require Import Maps.
@@ -45,7 +45,7 @@ Lemma EE_ok: forall (m1 m1' m2 m3 m3':Mem.mem)
              (Fwd3: mem_forward m3 m3')
              (Ext13' : Mem.extends m1' m3') 
              (EP13': extends_perm_nonempty m1' m3')
-             (UnchOn13 :  my_mem_unchanged_on (my_loc_out_of_bounds m1) m3 m3')
+             (UnchOn13 :  my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3')
              m2' (WD3': mem_wd m3')
              (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
              (CONT: Content_EE_Property  m1 m1' m2 (m2'.(Mem.mem_contents)))
@@ -53,7 +53,7 @@ Lemma EE_ok: forall (m1 m1' m2 m3 m3':Mem.mem)
          mem_forward m2 m2' /\ 
              Mem.extends m1' m2' /\ extends_perm_nonempty m1' m2' /\
              Mem.extends m2' m3' /\ extends_perm_nonempty m2' m3' /\
-             my_mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2' /\
+             my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
             (mem_wd m2 -> mem_wd m2').
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
@@ -171,8 +171,8 @@ assert (Ext23': Mem.extends m2' m3').
                    rewrite <- U.
                         rewrite EP23. apply H0. eapply Mem.perm_implies. 
                             eapply Mem.perm_max. apply H0. apply perm_any_N.
-                        split. apply (Mem.valid_block_extends _ _ _ Ext12).
-                                apply z. apply n.
+                        (*split. apply (Mem.valid_block_extends _ _ _ Ext12).
+                                apply z.*) apply n.
                    apply (Mem.valid_block_extends _ _ b2 Ext23) in z.  apply z.
               clear Val Heqz. unfold Mem.perm in H0. 
                  rewrite (Inval z k ofs) in H0; clear Inval.
@@ -199,8 +199,8 @@ assert (Ext23': Mem.extends m2' m3').
                    rewrite <- U.
                         rewrite EP23. apply H0. eapply Mem.perm_implies.
                            eapply Mem.perm_max. apply H0. apply perm_any_N.
-                        split. apply (Mem.valid_block_extends _ _ _ Ext12). 
-                                  apply z. apply n.
+                        (*split. apply (Mem.valid_block_extends _ _ _ Ext12). 
+                                  apply z.*) apply n.
                    apply (Mem.valid_block_extends _ _ b2 Ext23) in z.  apply z.
               clear Val Heqz. unfold Mem.perm in H0.
                  rewrite (Inval z Cur off) in H0; clear Inval.
@@ -263,9 +263,9 @@ assert (EP23': extends_perm_nonempty m2' m3').
                       rewrite Z2 in H; clear Z2 BB.
                       rewrite <- (EP23 _ _ _ H).
                       apply eq_sym. apply UnchOn13.
-                              split; try apply n.
-                              apply (Mem.valid_block_extends _ _ _ Ext12).
-                              apply z. 
+                              (*split; try*) apply n.
+                              (*apply (Mem.valid_block_extends _ _ _ Ext12).
+                              apply z.*) 
                       apply (Mem.valid_block_extends _ _ _ Ext23). apply z. 
               clear Val Heqz.
                     assert (Z2: Mem.perm m2' b ofs k=Mem.perm m1' b ofs k).
@@ -279,20 +279,20 @@ split; trivial.
 assert (WD2: mem_wd m2').
   intros. eapply (extends_memwd _ _ Ext23' WD3'). 
 split; intros; trivial. 
-(*mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2'*)
+(*mem_unchanged_on (loc_out_of_bounds m1) m2 m2'*)
      destruct UnchOn13 as [Unch1 Unch2].
      split; intros. clear Unch2. 
-        specialize (Unch1 _ _ k HP). destruct HP as [ValB NNE].
+        specialize (Unch1 _ _ k HP).
         destruct (ACCESS b) as [Val _]. 
         destruct (Val H k ofs) as [_ B]; clear Val.
-          unfold Mem.perm. rewrite (B NNE). reflexivity.
+          unfold Mem.perm. rewrite (B HP). reflexivity.
       clear Unch1. 
       assert (Hperm3 := Mem.perm_extends _ _ _ _ _ _ Ext23 HMeperm).
       assert (BV2:= Mem.perm_valid_block _ _ _ _ _ HMeperm). 
       specialize (Unch2 b ofs HP Hperm3 v).
       destruct (CONT b) as [Val _].
-      destruct (Val BV2 ofs) as [_ B]; clear Val. destruct HP as [ValB NNE]. 
-            rewrite (B NNE). assumption.
+      destruct (Val BV2 ofs) as [_ B]; clear Val.
+            rewrite (B HP). assumption.
 Qed. 
 
 Parameter mkAccessMap_EE_exists: forall (m1 m1' m2:Mem.mem), 
@@ -309,7 +309,7 @@ Definition mkEE (m1 m1' m2 m3 m3':Mem.mem) (Ext12: Mem.extends m1 m2)
                 (Fwd1: mem_forward m1 m1')
                 (Ext23: Mem.extends m2 m3) (Fwd3: mem_forward m3 m3')
                 (Ext13' : Mem.extends m1' m3')
-                (UnchOn3: my_mem_unchanged_on (my_loc_out_of_bounds m1) m3 m3')
+                (UnchOn3: my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3')
               : Mem.mem'.
 eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
                       (mem_access:=mkAccessMap_EE_exists m1 m1' m2).
@@ -354,27 +354,23 @@ Lemma my_interpolate_EE: forall m1 m2 m1' m3 m3'
            (Ext23: Mem.extends m2 m3) (EP23: extends_perm_nonempty m2 m3)
            (Fwd3: mem_forward m3 m3')
            (Ext13' : Mem.extends m1' m3') (EP13': extends_perm_nonempty m1' m3')
-           (UnchOn3: my_mem_unchanged_on (my_loc_out_of_bounds m1) m3 m3') 
+           (UnchOn3: my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3') 
            (WD3': mem_wd m3'),
       exists m2', mem_forward m2 m2' /\ 
                Mem.extends m1' m2' /\ extends_perm_nonempty m1' m2' /\
                Mem.extends m2' m3' /\ extends_perm_nonempty m2' m3' /\
-               my_mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2' /\
+               my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
                    (mem_wd m2 -> mem_wd m2').
-Proof. intros. (* 
-      rewrite <- unchAx in *. 
-       rewrite <- loobAx in *. *)
+Proof. intros. 
    assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
       intros. apply Fwd3. destruct Ext23. 
               unfold Mem.valid_block. rewrite <- mext_next. apply H.
    exists (mkEE m1 m1' m2 m3 m3' Ext12 Fwd1 Ext23 Fwd3 Ext13' UnchOn3).
-(*      rewrite <- unchAx in *.  *)
      eapply (EE_ok m1 m1' m2 m3 m3'); trivial.
      apply mkContentsMap_EE_ok.  
      apply mkAccessMap_EE_ok.  
 Qed.
 
-Require Import Events.
 Lemma interpolate_EE: forall m1 m2 (Ext12: Mem.extends m1 m2) m1' 
             (Fwd1: mem_forward m1 m1') m3 (Ext23: Mem.extends m2 m3) m3' 
             (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
@@ -384,13 +380,13 @@ Lemma interpolate_EE: forall m1 m2 (Ext12: Mem.extends m1 m2) m1'
                    Mem.extends m2' m3' /\
                    mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
                    (mem_wd m2 -> mem_wd m2').
-Proof. intros. rewrite <- unchAx in UnchOn3. rewrite <- loobAx in UnchOn3. 
+Proof. intros. rewrite <- unchAx in UnchOn3. 
    assert (EP12:= ext_implies_extends_perm_nonenempty _ _ Ext12).
    assert (EP23:= ext_implies_extends_perm_nonenempty _ _ Ext23).
    assert (EP13':= ext_implies_extends_perm_nonenempty _ _ Ext13').
    destruct (my_interpolate_EE _ _ _ _ _ Ext12 EP12 Fwd1 Ext23 
                                EP23 Fwd3 Ext13' EP13' UnchOn3 WD3')
     as [m2' [Fwd2 [Ext12' [_ [Ext23' [_ [MU WD2']]]]]]].
-   exists m2'. rewrite unchAx in MU. rewrite loobAx in MU.
+   exists m2'. rewrite unchAx in MU. 
                repeat (split; trivial). 
 Qed.

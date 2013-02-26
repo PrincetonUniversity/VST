@@ -66,7 +66,7 @@ Lemma EI_ok: forall (m1 m2 m1':mem)
         mem_forward m2 m2' /\ 
                Mem.extends m1' m2' /\ extends_perm_nonempty m1' m2' /\
                Mem.inject j' m2' m3' /\  inject_perm_nonempty j' m2' m3' /\
-               my_mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2' /\
+               my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
                my_mem_unchanged_on (loc_unmapped j) m2 m2' /\
                (mem_wd m2 -> mem_wd m2').
 Proof. intros.
@@ -122,16 +122,16 @@ assert (Fwd2: mem_forward m2 m2').
                                       apply H2.
            rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. apply H0. 
       exfalso. apply (H1 H).
-assert (MMU_LOOB: my_mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2'). 
-   split; intros; destruct HP as [VB1 NE1].
+assert (MMU_LOOB: my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2'). 
+   split; intros.
       apply (valid_split _ _ _ _  (ACCESS b)); clear ACCESS; intros.
            destruct (H1 k ofs) as [_ Inval]; clear H1.
-           rewrite (perm_subst _ _ _ _ _ _ _ (Inval NE1)). trivial.
+           rewrite (perm_subst _ _ _ _ _ _ _ (Inval HP)). trivial.
       exfalso. apply (H0 H).
   destruct (CONT b) as [Val _].
       destruct (Val (Mem.perm_valid_block _ _ _ _ _ HMeperm) ofs)
                as [_ NoPerm]; clear Val.
-      rewrite (NoPerm NE1). assumption.
+      rewrite (NoPerm HP). assumption.
 split; trivial.
 assert (Ext12':  Mem.extends m1' m2').
     split. 
@@ -624,7 +624,7 @@ Lemma my_interpolate_EI: forall (j j': meminj) (m1 m2 m1':mem)
     exists m2', mem_forward m2 m2' /\
                 Mem.extends m1' m2' /\  extends_perm_nonempty m1' m2' /\
                 Mem.inject j' m2' m3' /\  inject_perm_nonempty j' m2' m3' /\
-                my_mem_unchanged_on (my_loc_out_of_bounds m1) m2 m2' /\
+                my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
                 my_mem_unchanged_on (loc_unmapped j) m2 m2' /\
                 (mem_wd m2 -> mem_wd m2').
 Proof. intros. 
@@ -660,6 +660,6 @@ Proof. intros. rewrite <- unchAx in UnchOn3.  rewrite <- unchAx in UnchOn1.
   destruct (my_interpolate_EI _ _ _ _ _ Ext12 EP12 Fwd1 _ Inj23 IP23 _ 
               Fwd3 Inj13' IP13' UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3')
     as [m2' [Fwd2 [Ext12' [_ [Inj23' [_ [UnchLoob22 [UnchLU22 WD2']]]]]]]].
-  rewrite unchAx in *. rewrite loobAx in *.
+  rewrite unchAx in *. 
   exists m2'. repeat (split; trivial).
 Qed.

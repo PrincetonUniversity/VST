@@ -54,7 +54,7 @@ Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j
            (UnchLOORj1_3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
            (Inj13' : Mem.inject j' m1' m3')
            (IP13': inject_perm_nonempty j' m1' m3')
-           (UnchLOOB23_3': my_mem_unchanged_on (my_loc_out_of_bounds m2) m3 m3')
+           (UnchLOOB23_3': my_mem_unchanged_on (loc_out_of_bounds m2) m3 m3')
            (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
            m2'
            (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
@@ -510,7 +510,7 @@ Lemma my_interpolate_IE: forall m1 m1' m2 j
               (Inj13' : Mem.inject j' m1' m3')
               (IP13': inject_perm_nonempty j' m1' m3')
               (UnchLOOB23_3' : my_mem_unchanged_on 
-                              (my_loc_out_of_bounds m2) m3 m3')
+                              (loc_out_of_bounds m2) m3 m3')
               (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
          exists m2', mem_forward m2 m2' /\ 
                      Mem.extends m2' m3' /\ extends_perm_nonempty m2' m3' /\ 
@@ -523,18 +523,6 @@ Proof. intros.
 eapply IE_ok with (m3:=m3); trivial.
         subst. apply mkContentsMap_IE_ok.  
         subst. apply mkAccessMap_IE_ok.  
-(*   assert (myUnch1: my_mem_unchanged_on (loc_unmapped j) m1 m1').
-          rewrite unchAx. assumption.  
-   assert (myUnch2: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3').
-          rewrite unchAx. assumption.   
-   assert (myUnch3: my_mem_unchanged_on (my_loc_out_of_bounds m2) m3 m3').
-          rewrite unchAx.  rewrite loobAx. assumption.  
-   remember ( (mkIE0 j j' m1 m1' m2 Minj12 Fwd1 InjInc Sep12 UnchLUj m3 m3' Ext23 Fwd3
-     UnchLOORj1_3 Inj13' UnchLOOB23_3' WD2 WD1' WD3') ) as m2'.
-   rewrite <- unchAx. eapply IE0_ok with (m3:=m3); trivial.
-        subst. reflexivity.
-        subst. apply mkContentsMap_IE_ok.  
-        subst. apply mkAccessMap_IE_ok.  *)
 Qed.
 
 Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
@@ -557,7 +545,6 @@ Proof. intros.
    assert (IP13':=  inj_implies_inject_perm_nonenempty _ _ _ Inj13').
    assert (EP23:=  ext_implies_extends_perm_nonenempty _ _ Ext23).
    rewrite <- unchAx in UnchLUj, UnchLOORj1_3, UnchLOOB23_3'.
-   rewrite <- loobAx in UnchLOOB23_3'.
    destruct (my_interpolate_IE _ _ _ _ Minj12 IP12 Fwd1
                              j' InjInc Sep12 
                              UnchLUj
