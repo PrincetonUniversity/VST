@@ -750,16 +750,20 @@ Qed.
 End LinkerCoreSemantics.
 
 Section LinkingExtension.
-Variables (F V: Type).
 Variables
- (Z: Type) (** external states *) (cT fT vT: nat -> Type)
- (num_modules: nat) (procedure_linkage_table: ident -> option nat)
+ (F V Z Zint Zext: Type) 
+ (proj_zext: Z -> Zext) 
+ (zmult: unit -> Zext -> Z)
+ (proj_zmult: forall t z, proj_zext (zmult t z) = z)
+ (cT fT vT: nat -> Type)
+ (num_modules: nat) 
+ (procedure_linkage_table: ident -> option nat)
  (plt_ok: 
    forall (id: ident) (i: nat), 
    procedure_linkage_table id = Some i -> i < num_modules)
  (modules: forall i: nat, i < num_modules -> 
    CompCertModule.Sig (fT i) (vT i) (cT i))
- (csig: ext_spec Z) (esig: ext_spec Z)
+ (csig: ext_spec Z) (esig: ext_spec Zext)
  (entry_points: list (val*val*signature)).
 
 Definition genv_map: nat -> Type := fun i: nat => Genv.t (fT i) (vT i).
@@ -858,7 +862,7 @@ intros; rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
 apply eq_nat_dec.
 Qed.
 
-Variable linkable_csig_esig: linkable (fun z : Z => z) 
+Variable linkable_csig_esig: linkable proj_zext
   (fun (ef: AST.external_function) => forall s c sig args,
     linker_proj_core (linker_active s) s = Some c ->
     at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
@@ -937,7 +941,7 @@ Program Definition linking_extension:
   (const num_modules)
   linker_proj_core _  
   linker_active _ 
-  (fun _ => tt) (fun z: Z => z) (fun (_:unit) (z: Z) => z)
+  (fun _ => tt) proj_zext zmult
   _ _ linkable_csig_esig handled_invar.
 Next Obligation.
 unfold linker_proj_core.
@@ -1434,86 +1438,30 @@ Qed.
 
 End LinkingExtension.
 
-(*Section LinkerSafe.
-Variables 
- (F V: Type) 
- (geT: Genv.t F V) (num_modules: nat).
-Variables 
- (cT fT vT: nat -> Type)
- (procedure_linkage_table: ident -> option nat)
- (plt_ok: 
-   forall (id: ident) (i: nat), 
-   procedure_linkage_table id = Some i -> i < num_modules)
- (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i)) 
- (csig: ext_spec Z) (esig: ext_spec Z).
-
-Definition handled_T := handled cT fT vT procedure_linkage_table modules_T.
-
-Variable linkableT_csig_esig: linkable (fun z : Z => z) handled_T csig esig.
-
-Variable plt_in_handled_T:
- forall i j (pf: i < num_modules) c sig sig2 args id,
- at_external (get_module_csem (modules_T pf)) c = Some (EF_external id sig, sig2, args) ->
- procedure_linkage_table id = Some j -> handled_T (EF_external id sig).
-
-Implicit Arguments linker_at_external [num_modules cT].
-
-Variable at_external_not_handled_T:
- forall ef sig args s,
- linker_at_external fT vT procedure_linkage_table modules_T s = Some (ef, sig, args) ->
- ~handled_T ef.
-
-Definition csem_map_T := csem_map cT fT vT modules_T.
-
-Variable agree_T: forall (k : nat) (pf_k : k < num_modules),
- genvs_agree geT (get_module_genv (modules_T pf_k)). 
-
-Definition genv_mapT := genvs cT fT vT modules_T. 
-
-Variable domain_eq_T: forall (i: nat), genvs_domain_eq geT (genv_mapT i).
-Variable csem_fun_T: forall i: nat, corestep_fun (csem_map_T i).
-
-Import ExtensionCompilability.
-Import Forward_simulation_inj_exposed.
-
-Variable core_data: nat -> Type.
-Variable match_state: forall i: nat,
- core_data i ->  meminj -> cS i -> mem -> cT i -> mem -> Prop.
-Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
-Variable threads_max: nat. 
-Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
-
-Variable RGsim: forall i: nat,
- RelyGuaranteeSimulation.Sig (csem_map_S i) (csem_map_T i) (genv_mapS i) (@match_state i).
-
-Variable entry_points: list (val*val*signature).
-
-Lemma linking_extension_safe (csem_fun: corestep_fun csem): 
- safe_extension ge (fun _:nat => ge) fs_extension.
-
-End LinkerSafe.*)
-
 Section LinkerCompilable.
 Variables 
- (F_S F_T V_S V_T: Type) 
- (geS: Genv.t F_S V_S) (geT: Genv.t F_T V_T) (num_modules: nat).
-Variables 
+ (Z Zext F_S F_T V_S V_T: Type) 
+ (proj_zext: Z -> Zext)
+ (zmult: unit -> Zext -> Z)
+ (proj_zmult: forall t z, proj_zext (zmult t z) = z)
+ (geS: Genv.t F_S V_S) (geT: Genv.t F_T V_T) 
+ (num_modules: nat)
  (cS cT fS fT vS vT: nat -> Type)
  (procedure_linkage_table: ident -> option nat)
  (plt_ok: 
    forall (id: ident) (i: nat), 
    procedure_linkage_table id = Some i -> i < num_modules)
  (modules_S: forall i: nat, i < num_modules -> CompCertModule.Sig (fS i) (vS i) (cS i))
- (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i)) 
- (csig: ext_spec Z) (esig: ext_spec Z).
+ (modules_T: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i))
+ (Hspec: ext_spec Z) (Hexternal_spec: ext_spec Zext).
 
 (** Conditions required to construct a linking extension *)
 
 Definition handled_S := handled cS fS vS procedure_linkage_table modules_S. 
 Definition handled_T := handled cT fT vT procedure_linkage_table modules_T. 
 
-Variable linkableS_csig_esig: linkable (fun z : Z => z) handled_S csig esig.
-Variable linkableT_csig_esig: linkable (fun z : Z => z) handled_T csig esig.
+Variable linkableS_csig_esig: linkable proj_zext handled_S Hspec Hexternal_spec.
+Variable linkableT_csig_esig: linkable proj_zext handled_T Hspec Hexternal_spec.
 
 Variable plt_in_handled_S:
  forall i j (pf: i < num_modules) c sig sig2 args id,
@@ -1866,30 +1814,30 @@ destruct (@ExtensionCompilability
    procedure_linkage_table plt_ok modules_S entry_points)
  (@rg_linker_core_semantics F_T V_T num_modules cT fT vT 
    procedure_linkage_table plt_ok modules_T entry_points)
- csem_map_S csem_map_T csig esig
+ csem_map_S csem_map_T Hspec Hexternal_spec
  geS geT genv_mapS genv_mapT 
- (@linking_extension F_S V_S Z cS fS vS 
-   num_modules procedure_linkage_table plt_ok modules_S csig esig 
+ (@linking_extension F_S V_S Z Zext proj_zext zmult proj_zmult cS fS vS 
+   num_modules procedure_linkage_table plt_ok modules_S Hspec Hexternal_spec 
    entry_points linkableS_csig_esig)
- (@linking_extension F_T V_T Z cT fT vT 
-   num_modules procedure_linkage_table plt_ok modules_T csig esig 
+ (@linking_extension F_T V_T Z Zext proj_zext zmult proj_zmult cT fT vT 
+   num_modules procedure_linkage_table plt_ok modules_T Hspec Hexternal_spec 
    entry_points linkableT_csig_esig)
  entry_points core_data match_state core_ord threads_max R)
  as [LEM].
 apply LEM; auto.
 unfold genv_mapS.
-apply (@linker_core_compatible F_S V_S Z cS fS vS
+apply (@linker_core_compatible F_S V_S Z Zext proj_zext zmult proj_zmult cS fS vS
   num_modules procedure_linkage_table plt_ok 
-  modules_S csig esig entry_points linkableS_csig_esig); auto.
+  modules_S Hspec Hexternal_spec entry_points linkableS_csig_esig); auto.
  clear - domain_eq_S.
  unfold genv_mapS, genvs in domain_eq_S.
  intros k pf_k.
  specialize (domain_eq_S k).
  destruct (lt_dec k num_modules); try solve[elimtype False; omega].
  solve[assert (pf_k = l) as -> by apply proof_irr; auto]. 
-apply (@linker_core_compatible F_T V_T Z cT fT vT
+apply (@linker_core_compatible F_T V_T Z Zext proj_zext zmult proj_zmult cT fT vT
   num_modules procedure_linkage_table plt_ok 
-  modules_T csig esig entry_points linkableT_csig_esig); auto.
+  modules_T Hspec Hexternal_spec entry_points linkableT_csig_esig); auto.
  clear - domain_eq_T.
  unfold genv_mapT, genvs in domain_eq_T.
  intros k pf_k.
@@ -2534,10 +2482,10 @@ intros b0 CONTRA.
 eapply private_initial in INIT.
 solve[apply INIT; eauto].
 split.
-destruct DISJ2 as [Z W].
+destruct DISJ2 as [Z0 W].
 assert (pf_i = PF) as -> by apply proof_irr.
 solve[auto].
-destruct DISJ2 as [Z W].
+destruct DISJ2 as [Z0 W].
 assert (pf_i = PF) as -> by apply proof_irr.
 solve[auto].
 (*END private lemmas*)
@@ -3189,7 +3137,7 @@ unfold csem_map_S, csem_map in H2.
 destruct (lt_dec i num_modules); try solve[congruence].
 assert (pf_i = l) by apply proof_irr.
 subst.
-destruct PRIV1 as [X [Y Z]].
+destruct PRIV1 as [X [Y Z0]].
 solve[apply Y; eauto].
 solve[apply eq_nat_dec].
 erewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
@@ -3218,7 +3166,7 @@ eapply core_at_external1 in QQmatch; eauto.
 destruct QQmatch as [_ [_ [vals2 [_ [_ ATEXT2]]]]].
 rewrite <-Eqdep_dec.eq_rect_eq_dec in ATEXT2.
 eapply private_external in AFTER2; eauto.
-destruct PRIV2 as [X [Y Z]].
+destruct PRIV2 as [X [Y Z0]].
 unfold csem_map_T, csem_map in AFTER2.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (PF0 = l) by apply proof_irr.
@@ -3244,12 +3192,12 @@ split.
 split.
 intros b0 PRIV.
 eapply private_external in H6; eauto.
-destruct PRIV1 as [X [Y Z]].
+destruct PRIV1 as [X [Y Z0]].
 solve[apply Y; auto].
-destruct PRIV1 as [X [Y Z]].
+destruct PRIV1 as [X [Y Z0]].
 solve[auto].
 split.
-destruct DISJ1 as [X [Y Z]].
+destruct DISJ1 as [X [Y Z0]].
 eapply private_disjoint_inv_eq.
 intros.
 eapply private_external; eauto.
@@ -3263,7 +3211,7 @@ eapply core_at_external1 in QQmatch; eauto.
 destruct QQmatch as [_ [_ [vals2 [_ [_ ATEXT2]]]]].
 rewrite <-Eqdep_dec.eq_rect_eq_dec in ATEXT2.
 eapply private_external in AFTER2; eauto.
-destruct PRIV2 as [X [Y Z]].
+destruct PRIV2 as [X [Y Z0]].
 apply Y.
 unfold csem_map_T, csem_map in AFTER2.
 destruct (lt_dec i num_modules).
@@ -3283,7 +3231,7 @@ assert (l = pf_i) as -> by apply proof_irr.
 solve[eauto].
 solve[destruct PRIV2 as [? [? ?]]; auto].
 split.
-destruct DISJ2 as [X [Y Z]].
+destruct DISJ2 as [X [Y Z0]].
 eapply private_disjoint_inv_eq.
 eapply core_at_external1 in QQmatch; eauto.
 unfold csem_map_S, csem_map.
