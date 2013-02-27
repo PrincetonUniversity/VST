@@ -16,10 +16,8 @@ Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
 Require Export veric.expr.
-(*Require Import veric.juicy_extspec.*)
 Require veric.seplog.
-Require veric.assert_lemmas.
-Require msl.msl_standard.
+Require veric.assert_lemmas. 
 Require Import compositional_compcert.Coqlib2.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
@@ -41,35 +39,11 @@ Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir 
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Lemma extend_local: forall P, extensible (local P).
-Proof.
-intros. intro; intros.
-intros w [? [? [? [? ?]]]].
-unfold local in *.
-apply H0.
-Qed.
-
-Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
-
-Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
-Proof.
-intros. destruct f;  unfold func_ptr, corable.
-intros.
-simpl.
-apply normalize.corable_andp_sepcon1.
-apply assert_lemmas.corable_fun_assert.
-Qed.
-
-Global Opaque func_ptr.
-
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Hint Resolve any_environ : typeclass_instances.
 
 Definition ret_assert := exitkind -> option val -> environ -> mpred.
-
-Definition VALspec_range: Z -> Share.t -> Share.t -> address -> mpred := res_predicates.VALspec_range.
 
 Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address -> mpred := 
        res_predicates.address_mapsto.
@@ -120,9 +94,11 @@ Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
-Definition writable_share: share -> Prop := seplog.writable_share. 
+Definition writable_share: share -> Prop := fun sh => Share.unrel Share.Rsh sh = Share.top.
+
 Definition address_mapsto_zeros: 
-   forall (n: Z) (rsh sh: Share.t) (l: address), mpred := seplog.address_mapsto_zeros.
+   forall (n: Z) (rsh sh: Share.t) (l: address), mpred
+           := seplog.address_mapsto_zeros.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
@@ -215,24 +191,20 @@ Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
   | d::dl' => andb (initializer_aligned z d) (initializers_aligned (z + init_data_size d) dl')
   end.
 
-Definition writable_block (id: ident) (n: Z): environ->mpred :=
-        EX v: val*type,  EX a: address, EX rsh: Share.t,
-          (local(fun rho=> ge_of rho id = Some v /\ val2adr (fst v) a) && `(VALspec_range n rsh Share.top a)).
-
-Fixpoint writable_blocks (bl : list (ident*Z)) : environ->mpred :=
- match bl with
-  | nil => emp 
-  | (b,n)::bl' => writable_block b n * writable_blocks bl'
- end.
-
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
+
+Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+ match v with 
+ | Vptr b ofs => res_predicates.VALspec_range (Int.unsigned n) 
+                         (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+ | _ => FF
+ end.
+
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : environ->mpred :=
-  fun rho => 
-     match eval_lvalue e rho with 
-     | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
-     | _ => FF
-    end.
+  !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
+  `(memory_block (Share.splice rsh Share.top) (Int.repr (sizeof (Clight.typeof e))))
+             (eval_lvalue e).
 
 Definition var_block (rsh: Share.t) (idt: ident * type) : environ->mpred :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
@@ -282,13 +254,6 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | None => make_args nil nil
  | Some x => get_result1 x
  end.
-
-(* experiment... 
-Canonical Structure Tassert  := 
-    mkLift environ assert environ mpred assert
-             (fun f x => f x)
-       (fun f => f (fun z: environ => z)).
-*)
 
 Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -> mpred :=
      match vl, t with
@@ -587,6 +552,8 @@ forall Delta Q Q' incr body R,
      semax Delta Q (Sloop body incr) R.
 
 (* THESE RULES FROM semax_call *)
+Parameter func_ptr : funspec -> val ->mpred.
+Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
 
 Axiom semax_call : 
     forall Delta A (P Q: A -> environ -> mpred) (x: A) (F: environ -> mpred) ret argsig retsig a bl,

@@ -663,8 +663,6 @@ Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
 
-Definition func_ptr' f v := func_ptr f v && emp.
-
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
 Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.

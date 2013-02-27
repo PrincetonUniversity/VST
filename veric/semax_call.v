@@ -988,9 +988,14 @@ Proof.
  simpl freeable_blocks. rewrite <- H2.
  apply sepcon_derives.
  unfold Map.get. rewrite H. rewrite eqb_type_refl.
- case_eq (type_is_volatile ty); intros; simpl; auto.
+ case_eq (type_is_volatile ty); intros; simpl negb; cbv iota;
+ unfold memory_block. normalize. 
+ rewrite Share.unrel_splice_L, Share.unrel_splice_R.
+ apply derives_extract_prop. intro.
+ rewrite Int.unsigned_zero.
  replace (sizeof ty - 0) with (sizeof ty) by omega.
- auto.
+ rewrite Int.unsigned_repr;  auto.
+ split; auto. pose proof (sizeof_pos ty); omega.
 
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.

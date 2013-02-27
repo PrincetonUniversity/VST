@@ -55,6 +55,23 @@ Module ExtSpec := ExtSpec.
 Import ExtSpec.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
+Definition func_ptr (f: funspec) : val -> mpred := 
+ match f with mk_funspec fsig A P Q => res_predicates.fun_assert fsig A P Q end.
+
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
+Proof.
+intros. destruct f;  unfold func_ptr, corable.
+intros.
+apply log_normalize.corable_andp_sepcon1.
+unfold corable.
+intros.
+simpl.
+apply normalize.corable_andp_sepcon1.
+apply corable_fun_assert.
+Qed.
+Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+
 Definition semax := semax Hspec.
 Definition extract_exists := extract_exists Hspec.
 Definition semax_body_params_ok := semax_body_params_ok.

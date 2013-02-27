@@ -10,6 +10,7 @@ Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 
+(*
 Definition memory_byte (sh: share) : val -> mpred :=
        mapsto_ sh (Tint I8 Unsigned noattr).
 
@@ -32,14 +33,14 @@ Fixpoint memory_block' (sh: share) (n: nat) (v: val) : mpred :=
 
 Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
     memory_block' sh (nat_of_Z (Int.unsigned n)) v.
+*)
 
-Lemma memory_block_zero: forall sh v, memory_block sh (Int.repr 0) v = emp.
+Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
- intros. unfold memory_block. rewrite Int.unsigned_repr. simpl. auto.
- pose proof Int.modulus_pos.
- unfold Int.max_unsigned. omega.
-Qed.
-
+ intros. unfold memory_block.
+ change (Int.repr 0) with Int.zero.
+ rewrite Int.unsigned_zero.
+Admitted.  (* pretty straightforward *)
 
 Lemma offset_val_assoc:
   forall v i j, offset_val (offset_val v i) j = offset_val v (Int.add i j).
@@ -55,13 +56,9 @@ Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val v Int.zero) = memory_block sh n v.
 Proof.
 unfold memory_block; intros.
-revert v; induction (nat_of_Z (Int.unsigned n)); intros.
-simpl. auto.
-simpl.
-f_equal.
-apply memory_byte_offset_zero.
-rewrite offset_val_assoc.
-f_equal.
+destruct v; auto.
+simpl offset_val. cbv beta iota.
+rewrite Int.add_zero. auto.
 Qed.
 
 Lemma memory_block_split:
@@ -72,49 +69,21 @@ Lemma memory_block_split:
 Proof.
 intros.
 unfold memory_block.
-remember (nat_of_Z (Int.unsigned i)) as n.
-assert (Nrange: Z_of_nat n <= Int.max_unsigned).
-destruct (Int.unsigned_range_2 i).
-subst n. rewrite nat_of_Z_eq by omega. auto.
-assert (i = Int.repr (Z_of_nat n)).
-clear - Heqn.
-admit.  (* tedious Integers proof *)
-subst i.
-clear Heqn.
-revert j v H; induction n; intros.
-unfold memory_block' at 2. fold memory_block'. rewrite emp_sepcon.
-simpl Z_of_nat. rewrite Int.sub_zero_l.
-symmetry.
-apply memory_block_offset_zero.
-replace (nat_of_Z (Int.unsigned j)) with (S (nat_of_Z (Int.unsigned (Int.sub j Int.one)))).
-unfold memory_block' at 1 2; fold memory_block'.
-repeat rewrite sepcon_assoc.
-f_equal; auto.
-rewrite IHn; clear IHn.
+destruct v; normalize.
+simpl offset_val. cbv beta iota.
+assert (Int.unsigned (Int.sub j i) = Int.unsigned j - Int.unsigned i).
+admit. (* tedious Integers proof *)
+rewrite H0.
+rewrite (res_predicates.VALspec_range_split2
+  (Int.unsigned i) (Int.unsigned j - Int.unsigned i)  (Int.unsigned j) ).
+change predicates_sl.sepcon with (@sepcon mpred _ _).
 f_equal.
-rewrite offset_val_assoc.
-f_equal.
-f_equal.
-f_equal.
-repeat rewrite Int.sub_add_opp.
-rewrite Int.add_assoc.
-f_equal.
-rewrite <- Int.neg_add_distr.
-f_equal.
-admit.  (* tedious Integers proof *)
-f_equal.
-rewrite inj_S.
-unfold Zsucc.
 rewrite Int.add_unsigned.
-f_equal.
-rewrite Zplus_comm.
-f_equal.
-rewrite Int.unsigned_repr; auto.
-rewrite inj_S in Nrange. unfold Zsucc in Nrange. split; omega.
-rewrite inj_S in Nrange. unfold Zsucc in Nrange. omega.
-rewrite inj_S in H. unfold Zsucc in H.
-admit.  (* tedious Integers proof *)
-admit.  (* tedious Integers proof *)
+rewrite Int.unsigned_repr. auto.
+admit.  (* not clear that this is true *)
+omega.
+omega.
+omega.
 Qed.
 
 Hint Rewrite memory_block_zero: normalize.
@@ -151,6 +120,9 @@ destruct z; auto.
 Qed.
 
 Definition spacer (pos: Z) (alignment: Z) : val -> mpred :=
+  if eq_dec  (align pos alignment - pos) 0
+  then fun _ => emp
+  else
    at_offset (memory_block Share.top (Int.repr (align pos alignment - pos))) pos.
 
 Definition withspacer (pos: Z) (alignment: Z) : (val -> mpred) -> val -> mpred :=
@@ -166,9 +138,8 @@ Proof.
  extensionality v.
  unfold withspacer, spacer.
  destruct (align pos alignment - pos); auto.
- simpl.
- unfold at_offset. destruct pos; simpl;
- rewrite memory_block_zero, emp_sepcon; auto.
+ rewrite if_true by auto.
+ simpl. rewrite emp_sepcon. auto.
 Qed.
 
 Definition storable_mode (ty: type) : bool :=
@@ -534,6 +505,7 @@ Lemma spacer_offset_zero:
 Proof.
  intros;
  unfold spacer.
+ destruct (eq_dec (align pos n - pos) 0);  auto.
  repeat rewrite at_offset_eq; 
  try rewrite offset_val_assoc; try  rewrite Int.add_zero_l; auto.
  apply memory_block_offset_zero.
@@ -611,14 +583,14 @@ apply (mafoz_aux (S (typecount_fields f))).
 omega.
 Qed.
 
-Lemma memory_block_typed': forall sh pos ty v, 
-   spacer pos (alignof ty) v *
-   memory_block sh (Int.repr (sizeof ty)) (offset_val v (Int.repr (align pos (alignof ty))))
-     = typed_mapsto_' sh pos ty v
-with memory_block_fields: forall sh pos t fld v,
-  spacer (sizeof_struct fld pos) (alignof_fields fld) v 
-  * memory_block sh (Int.repr (sizeof_struct fld pos)) v
-  =   memory_block sh (Int.repr pos) v * fields_mapto_ sh pos t fld v.
+Lemma memory_block_typed': forall sh pos ty b ofs, 
+   spacer pos (alignof ty) (Vptr b ofs) *
+   memory_block sh (Int.repr (sizeof ty)) (offset_val (Vptr b ofs) (Int.repr (align pos (alignof ty))))
+     = typed_mapsto_' sh pos ty (Vptr b ofs)
+with memory_block_fields: forall sh pos t fld b ofs,
+  spacer (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
+  * memory_block sh (Int.repr (sizeof_struct fld pos)) (Vptr b ofs)
+  =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
 Proof.
  clear memory_block_typed'.
  intros.
@@ -636,14 +608,16 @@ Proof.
    simpl. pose proof (sizeof_struct_incr f0 (sizeof t)).
    rewrite Zmax_spec. rewrite zlt_false; auto. pose proof (sizeof_pos t). omega.
  simpl sizeof. rewrite H0.
- specialize (memory_block_fields sh 0 (Tstruct i f a) f 
-    (offset_val v (Int.repr (align pos (alignof (Tstruct i f a)))))).
- rewrite memory_block_zero in memory_block_fields.
- rewrite emp_sepcon in memory_block_fields.
+ specialize (memory_block_fields sh 0 (Tstruct i f a) f b
+    (Int.add (Int.repr (align pos (alignof (Tstruct i f a)))) ofs)).
  simpl.
  rewrite at_offset_eq by (apply fields_mapto__offset_zero).
+  rewrite memory_block_zero in memory_block_fields.
  simpl in memory_block_fields.
+ rewrite emp_sepcon in memory_block_fields.
+ simpl. rewrite Int.add_commut.
  rewrite <- memory_block_fields.
+ rewrite Int.add_commut.
  f_equal.
  unfold spacer.
  rewrite sepcon_comm.
@@ -654,22 +628,23 @@ Proof.
  admit. (* need to parameterize spacer by share *)
 
  clear memory_block_fields.
- intros. revert pos v; induction fld; simpl; intros.
+ intros. revert pos ofs; induction fld; simpl; intros.
  rewrite sepcon_comm; f_equal.
  unfold spacer.
+ destruct (eq_dec (align pos 1 - pos) 0); auto.
  replace (Zminus (align pos (Zpos xH)) pos) with 0.
  unfold at_offset. destruct pos;  apply memory_block_zero.
  unfold align. replace (pos + 1 - 1) with pos by omega.
  rewrite Zdiv_1_r. rewrite Zmult_1_r. omega.
  rewrite withspacer_spacer.
- pull_left (fields_mapto_ sh pos t fld v).
+ pull_left (fields_mapto_ sh pos t fld (Vptr b ofs)).
  replace ((if storable_mode t0
   then spacer pos (alignof t0) * field_mapsto_ sh t i
-  else typed_mapsto_' sh pos t0) v)
- with (spacer  pos (alignof t0) v * 
-          if storable_mode t0 then field_mapsto_ sh t i v
+  else typed_mapsto_' sh pos t0) (Vptr b ofs))
+ with (spacer  pos (alignof t0) (Vptr b ofs) * 
+          if storable_mode t0 then field_mapsto_ sh t i (Vptr b ofs)
                else memory_block sh (Int.repr (sizeof t0))
-               (offset_val v (Int.repr (align pos (alignof t0)))))
+               (offset_val (Vptr b ofs) (Int.repr (align pos (alignof t0)))))
    by (destruct (storable_mode t0); auto).
 clear memory_block_typed'.
   do 2 rewrite <-sepcon_assoc.
@@ -680,16 +655,36 @@ clear memory_block_typed'.
 Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
                          Let's hope it goes faster in 8.4 *)
 
+
+Lemma memory_block_isptr: forall sh i v, 
+  i > 0 -> 
+  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
+Proof.
+Admitted.  (* not difficult *)
+
+Lemma typed_mapsto__isptr:
+  forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
+Proof.
+intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold typed_mapsto_.
+Admitted. (* straightforward *)
+
 Lemma memory_block_typed: 
  forall sh ty, memory_block sh (Int.repr (sizeof ty))
                = typed_mapsto_ sh ty.
 Proof.
-intros. extensionality v; unfold typed_mapsto_; rewrite <- memory_block_typed'.
+intros.
+extensionality v.
+rewrite memory_block_isptr by (apply sizeof_pos).
+rewrite typed_mapsto__isptr.
+destruct v; simpl; normalize.
+unfold typed_mapsto_; rewrite <- memory_block_typed'.
 unfold spacer.
 rewrite align_0 by (apply alignof_pos).
-unfold at_offset.  rewrite memory_block_zero.
-rewrite memory_block_offset_zero.
-rewrite emp_sepcon; auto.
+simpl. rewrite emp_sepcon.
+rewrite Int.add_zero. auto.
 Qed.
 
 Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
@@ -718,20 +713,6 @@ Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (nat_of_Z (hi-lo)).
 
 
-Lemma memory_block_isptr: forall sh i v, 
-  i > 0 -> 
-  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
-Proof.
-Admitted.  (* not difficult *)
-
-Lemma typed_mapsto__isptr:
-  forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
-Proof.
-intros.
-rewrite <- memory_block_typed.
-apply memory_block_isptr.
-apply sizeof_pos.
-Qed.
 
 Lemma var_block_typed_mapsto_:
   forall  sh id t, 

@@ -7,6 +7,8 @@ Require Import Clightdefs.
 
 Local Open Scope logic.
 
+Definition func_ptr' f v := func_ptr f v && emp.
+
 Lemma lift0_unfold: forall {A} (f: A)  rho,  lift0 f rho = f.
 Proof. reflexivity. Qed.
 

@@ -139,9 +139,11 @@ cancel.
 simpl_typed_mapsto.
 simpl.
 rewrite sepcon_comm.
+unfold mf_restbuf. simpl.
+destruct buf0; inv H0.
+simpl. rewrite memory_block_zero. rewrite sepcon_emp.
 apply sepcon_derives; apply derives_refl';
- eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
-destruct buf0; inv H0; unfold eval_binop; simpl; f_equal; rewrite Int.add_assoc; f_equal.
+ eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity).
 Qed.
 
 
@@ -705,7 +707,15 @@ forward. (* y = q.y; *)
 forward. (* return x+y; *)
 go_lower. subst. simpl. normalize. unfold main_post.
  simpl in H2. rewrite <- H2.
- unfold mf_restbuf; simpl. rewrite memory_block_zero. rewrite sepcon_emp.
+ unfold mf_restbuf; simpl.
+ assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
+ apply eval_var_isptr with Delta; auto.
+ replace (memory_block Share.top (Int.repr 0)
+      (offset_val (eval_var _buf (tarray tuchar 8) rho) (Int.repr 8)))
+  with (@emp mpred _ _).
+2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H0;
+ apply memory_block_zero.
+ rewrite sepcon_emp.
 
 repeat rewrite <- sepcon_assoc.
 apply derives_trans with

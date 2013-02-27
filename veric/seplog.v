@@ -11,10 +11,10 @@ Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
 
-Definition writable_share (sh: share) := join_sub Share.Rsh sh.
+Definition writable_share (sh: share) := Share.unrel Share.Rsh sh = Share.top.
 
 Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
-Proof. apply Share.contains_Rsh_e. Qed.
+Proof. (* apply Share.contains_Rsh_e.*) auto. Qed.
 
 Definition core_load : memory_chunk -> address -> val -> pred rmap := core_load.
 
@@ -129,12 +129,17 @@ Definition fun_assert:
   forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
-Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : assert :=
-  fun rho => 
-     match eval_lvalue e rho with 
-     | Vptr b i => VALspec_range (sizeof (Clight.typeof e)) rsh Share.top (b, Int.unsigned i)
-     | _ => FF
-    end.
+Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
+ match v with 
+ | Vptr b ofs => VALspec_range (Int.unsigned n) 
+                         (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+ | _ => FF
+ end.
+
+Definition lvalue_block (rsh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
+  !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
+  (memory_block (Share.splice rsh Share.top) (Int.repr (sizeof (Clight.typeof e))))
+             (eval_lvalue e rho).
 
 Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
