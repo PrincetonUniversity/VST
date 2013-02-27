@@ -789,22 +789,7 @@ Proof.
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
   eapply forall_valinject_hastype; eassumption.
- (*one of the reasons we need mem_wd is that here, decomposing j into 
-    j;inject-id (or inject-id;j) does not work: Mem.inject inject_id m1 m1 fails 
-   in clause mi_freeblocks:
-  assert (X: Mem.inject inject_id m1 m1 /\ 
-                    j = compose_meminj inject_id j ).
-  split.  split; intros. 
-               Focus 2. unfold inject_id. admit.*)
-
-  (*Thus, we split j into j;(flatinj m1) and use mem_wd m1 to dicharge 
-     both conditions*)
-  assert (X: Mem.inject (Mem.flat_inj (Mem.nextblock m1)) m1 m1 /\ 
-                   j = compose_meminj (Mem.flat_inj (Mem.nextblock m1)) j ).
-    split. apply mem_wd_E. apply H2.  
-    eapply (meminj_split_flatinjL _ _ _ H1). apply H2.
-
-  destruct X as [Flat1 XX]. rewrite XX.
+  destruct (mem_wd_inject_splitL _ _ _ H1 H2) as [Flat1 XX]; rewrite XX.
   assert (ValInjFlat1 := forall_val_inject_flat _ _ _ H1 _ _ H4).
   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 Flat1 H2 H2 ValInjFlat1 HT) 
     as [d12 [c2 [Ini2 MC12]]].

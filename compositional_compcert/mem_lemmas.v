@@ -605,6 +605,24 @@ Proof. intros. apply mem_wd_E in H.
   inv J. apply mi_freeblocks. apply z.
 Qed.
 
+Lemma mem_wd_inject_splitL: forall j m1 m2
+              (J:Mem.inject j m1 m2)  (WD: mem_wd m1),
+     Mem.inject (Mem.flat_inj (Mem.nextblock m1)) m1 m1 
+     /\ j = compose_meminj (Mem.flat_inj (Mem.nextblock m1)) j.
+Proof. intros.
+    split. apply mem_wd_E. apply WD.  
+    eapply (meminj_split_flatinjL _ _ _ J WD).
+Qed.
+
+Lemma mem_wd_inject_splitR: forall j m1 m2
+              (J:Mem.inject j m1 m2)  (WD: mem_wd m2),
+     Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 
+     /\ j = compose_meminj j (Mem.flat_inj (Mem.nextblock m2)).
+Proof. intros.
+    split. apply mem_wd_E. apply WD.  
+    eapply (meminj_split_flatinjR _ _ _ J WD).
+Qed.
+
 (*Preservation of mem_wd by memory operations*)
 Lemma mem_wd_empty: mem_wd Mem.empty.
 Proof.  apply Mem.empty_inject_neutral. Qed.
