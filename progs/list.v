@@ -1,12 +1,8 @@
 Load loadpath.
-Require Import Coqlib msl.Coqlib2.
-Require Import veric.SeparationLogic.
+Require Import progs.base.
 Require Import progs.field_mapsto.
 Require Import progs.client_lemmas.
-Require Import Clightdefs.
-Require veric.SequentialClight.
 Require Import progs.assert_lemmas.
-Import SequentialClight.SeqC.CSL.
 
 Local Open Scope logic.
 

@@ -20,6 +20,13 @@ Require Import Coqlib.
 
 Set Implicit Arguments.
 
+(* TEMPORARY HACK:
+  use this "remember" tactic instead of the standard library one *)
+Tactic Notation "remember" constr(a) "as" ident(x) :=
+   let x := fresh x in
+  let H := fresh "Heq" x in
+  (set (x:=a) in *; assert (H: x=a) by reflexivity; clearbody x).
+
 Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
 Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
 

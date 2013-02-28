@@ -4,8 +4,6 @@ Require Import veric.base.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 
-Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
-
 Inductive kind : Type := VAL : memval -> kind 
                                    | LK : Z -> kind 
                                    | CT: Z -> kind 
@@ -211,16 +209,6 @@ destruct H4 as [? H5]; inv H5.
 destruct H3 as [? H5]; inv H5.
 Qed.
 
-Instance EqDec_ident: EqDec ident := ident_eq.
-
-Instance EqDec_byte: EqDec byte := Byte.eq_dec.
-
-Instance EqDec_type: EqDec type := type_eq.
-Instance EqDec_memval: EqDec memval.
-Proof.
-  hnf. repeat decide equality; apply eq_dec.
-Qed.
-
 Instance EqDec_kind: EqDec kind.
 Proof.
   hnf. decide equality; try apply eq_dec.
@@ -384,7 +372,7 @@ Proof.
  destruct (a x). destruct p0. destruct p0. simpl.
  f_equal. f_equal. apply exist_ext; auto.
  clear - H4; inv H4; auto. destruct a2; inv H2; auto. simpl in *. destruct H0; subst; auto.
- contradiction n. simpl. auto.
+ contradiction n. rewrite H5; simpl. auto.
  generalize (H1 x); rewrite H3; intro.
  generalize (H2 x); intro.
  destruct (a x). destruct p0. destruct p0.

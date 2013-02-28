@@ -50,11 +50,13 @@ Set Implicit Arguments.
 
 (*  The built-in "remember" tactic is weaker than this one!
   The built-in one can lead to "Error: The correctness of the conclusion relies on the body of a"
-  where this one will succeed. *)
+  where this one will succeed. 
+  [this comment may be obsolete, perhaps from Coq 8.2 or before 
 Tactic Notation "remember" constr(a) "as" ident(x) :=
    let x := fresh x in
   let H := fresh "Heq" x in
   (set (x:=a) in *; assert (H: x=a) by reflexivity; clearbody x).
+*)
 
 Tactic Notation "if_tac" := match goal with |- context [if ?a then _ else _] => destruct a as [?H | ?H] end.
 Tactic Notation "if_tac" simple_intropattern(H) 

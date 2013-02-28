@@ -1,8 +1,5 @@
 Load loadpath.
-Require Import veric.SeparationLogic.
-Require Import Coqlib compositional_compcert.Coqlib2.
-Require veric.SequentialClight.
-Import SequentialClight.SeqC.CSL.
+Require Import progs.base.
 Require Import progs.assert_lemmas.
 
 Local Open Scope logic.

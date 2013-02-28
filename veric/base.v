@@ -19,3 +19,16 @@ Require Export compositional_compcert.Address.
 Require Export Relations.
 
 Set Implicit Arguments.
+
+Require Export msl.eq_dec.
+Instance EqDec_ident: EqDec ident := ident_eq.
+
+Instance EqDec_byte: EqDec byte := Byte.eq_dec.
+
+Instance EqDec_type: EqDec type := type_eq.
+Instance EqDec_memval: EqDec memval.
+Proof.
+  hnf. repeat decide equality; apply eq_dec.
+Qed.
+
+Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)

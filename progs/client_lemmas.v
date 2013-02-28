@@ -1,10 +1,5 @@
 Load loadpath.
-Require Import veric.SeparationLogic.
-Require Import Coqlib msl.Coqlib2.
-Require veric.SequentialClight.
-Import SequentialClight.SeqC.CSL.
-Require Import Clightdefs.
-
+Require Import progs.base.
 Local Open Scope logic.
 
 Definition func_ptr' f v := func_ptr f v && emp.
