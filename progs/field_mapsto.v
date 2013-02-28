@@ -326,7 +326,7 @@ intros.
 extensionality y. rewrite field_mapsto_nonnull.
 destruct v; simpl; normalize.
 Qed.
-Hint Rewrite field_mapsto_force_ptr : normalize.
+Hint Rewrite field_mapsto_force_ptr : norm.
 
 Lemma field_mapsto__isptr: forall t fld sh x,
   field_mapsto_ sh t fld x = !!(isptr x) && field_mapsto_ sh t fld x.
@@ -343,7 +343,7 @@ intros.
 symmetry; rewrite field_mapsto__isptr.
 destruct x; simpl; normalize.
 Qed.
-Hint Rewrite field_mapsto__force_ptr : normalize.
+Hint Rewrite field_mapsto__force_ptr : norm.
 
 
 Lemma field_mapsto__nonvolatile:

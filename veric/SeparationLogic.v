@@ -406,7 +406,7 @@ apply pred_ext; normalize.
 Qed.
 
 Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
-                 overridePost_normal: normalize.
+                 overridePost_normal: norm.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert := 
    fun (ek : exitkind) (vl : option val) =>

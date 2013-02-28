@@ -175,7 +175,7 @@ unfold_lift.
 apply exp_derives; intro x.
 apply derives_extract_prop; intro.
 autorewrite with subst.
-autorewrite with normalize. unfold_lift.
+autorewrite with norm. unfold_lift.
 apply andp_derives; auto.
 normalize.
 apply sepcon_derives; auto.
@@ -192,7 +192,7 @@ Proof.
 apply @closed_wrt_map_subst.
 Qed.
 
-Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : normalize.
+Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : subst.
 
 Lemma forward_setx_closed_now':

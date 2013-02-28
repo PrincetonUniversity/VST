@@ -374,8 +374,8 @@ Admitted.
 
 End LIST.
 
-Hint Rewrite @lseg_nil_eq : normalize.
+Hint Rewrite @lseg_nil_eq : norm.
 
-Hint Rewrite @lseg_eq using reflexivity: normalize.
+Hint Rewrite @lseg_eq using reflexivity: norm.
 
 Ltac simpl_list_cell := unfold list_cell; simpl_typed_mapsto.

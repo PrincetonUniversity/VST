@@ -46,7 +46,7 @@ unfold offset_val.
 destruct v; simpl; auto.
 rewrite Int.add_assoc; auto.
 Qed.
-Hint Rewrite offset_val_assoc: normalize.
+Hint Rewrite offset_val_assoc: norm.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val v Int.zero) = memory_block sh n v.
@@ -84,7 +84,7 @@ omega.
 Qed.
 *)
 
-Hint Rewrite memory_block_zero: normalize.
+Hint Rewrite memory_block_zero: norm.
 
 Global Opaque memory_block.
 
@@ -92,7 +92,7 @@ Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
 Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
-Hint Rewrite int_add_repr_0_l int_add_repr_0_r : normalize.
+Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
 Lemma field_mapsto__offset_zero:
   forall sh ty id v, 
@@ -103,7 +103,7 @@ Proof.
  destruct v; try solve [simpl; auto].
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
-Hint Rewrite field_mapsto__offset_zero: normalize.
+Hint Rewrite field_mapsto__offset_zero: norm.
 
 Definition at_offset (P: val -> mpred) (z: Z)  : val -> mpred :=
  match z with Z0 => P | _ => fun v => P (offset_val v (Int.repr z)) end.
@@ -372,7 +372,7 @@ Proof.
  destruct v; try solve [simpl; auto].
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
-Hint Rewrite field_mapsto_offset_zero: normalize.
+Hint Rewrite field_mapsto_offset_zero: norm.
 
 (*
 Lemma lift_sepcon_unfold:

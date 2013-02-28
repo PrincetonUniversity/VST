@@ -407,9 +407,9 @@ Proof. intros.
 Qed.
 End LIST.
 
-Hint Rewrite @lseg_nil_eq : normalize.
+Hint Rewrite @lseg_nil_eq : norm.
 
-Hint Rewrite @lseg_eq using reflexivity: normalize.
+Hint Rewrite @lseg_eq using reflexivity: norm.
 
 
 

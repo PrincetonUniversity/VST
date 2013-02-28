@@ -4,11 +4,14 @@ Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)
 
+Hint Rewrite eval_id_same : norm.
+Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
+
 Hint Resolve @TT_right.
 
-Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : normalize.
-Hint Rewrite Int.add_zero_l Int.add_zero : normalize.
-Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : normalize.
+Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
+Hint Rewrite Int.add_zero_l Int.add_zero : norm.
+Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : norm.
 
 
 Lemma temp_types_init_same:
@@ -30,7 +33,7 @@ Definition force_int (v: val) :=
 
 Lemma force_Vint:  forall i, force_int (Vint i) = i.
 Proof.  reflexivity. Qed.
-Hint Rewrite force_Vint : normalize.
+Hint Rewrite force_Vint : norm.
 
 Lemma type_eq_refl:
  forall t, proj_sumbool (type_eq t t) = true.
@@ -46,23 +49,23 @@ Proof.
  intros. unfold overridePost. rewrite if_true by auto.
  apply prop_true_andp. auto.
 Qed.
-Hint Rewrite overridePost_normal : normalize.
+Hint Rewrite overridePost_normal : norm.
 
 Lemma eval_expr_Etempvar: 
   forall i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
-Hint Rewrite eval_expr_Etempvar : normalize.
+Hint Rewrite eval_expr_Etempvar : norm.
 
 Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
           `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_binop : normalize.
+Hint Rewrite eval_expr_binop : norm.
 
 Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) = 
           lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_unop : normalize.
+Hint Rewrite eval_expr_unop : norm.
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
@@ -428,7 +431,7 @@ unfold deref_noload in *; auto; rewrite H in H0; auto.
 Qed.
 Hint Resolve closed_wrt_lvalue : closed.
 
-Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : normalize.
+Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 
 
 Lemma closed_wrt_subst:
@@ -456,9 +459,9 @@ inv H.
 simpl; f_equal; auto.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : normalize.
+Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : subst.
-Hint Rewrite @closed_wrt_subst using solve [auto with closed] : normalize.
+Hint Rewrite @closed_wrt_subst using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_subst using solve [auto with closed] : subst.
 
 Lemma lvalue_closed_tempvar:
@@ -488,9 +491,9 @@ Proof.
     unfold force_val, env_set; simpl. rewrite Map.gso; auto.
 Qed.
 
-Hint Rewrite subst_eval_id_eq : normalize.
+Hint Rewrite subst_eval_id_eq : norm.
 Hint Rewrite subst_eval_id_eq : subst.
-Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : normalize.
+Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : norm.
 Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : subst.
 
 Lemma lift1_lift0:
@@ -498,7 +501,7 @@ Lemma lift1_lift0:
 Proof.
 intros. extensionality rho; reflexivity.
 Qed.
-Hint Rewrite @lift1_lift0 : normalize.
+Hint Rewrite @lift1_lift0 : norm.
 
 Lemma tc_formals_cons:
   forall i t rest, tc_formals ((i,t) :: rest) =
@@ -518,7 +521,7 @@ Proof. intros; extensionality rho.  unfold tc_formals.  simpl.
 apply prop_ext; intuition.  hnf; auto. 
 Qed.
 
-Hint Rewrite tc_formals_cons tc_formals_nil: normalize.
+Hint Rewrite tc_formals_cons tc_formals_nil: norm.
 
 
 Lemma tc_eval_gvar_i:
@@ -548,25 +551,25 @@ Proof. intros; extensionality rho. unfold local; super_unfold_lift.
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
-Hint Rewrite local_lift2_and : normalize.
+Hint Rewrite local_lift2_and : norm.
 
 Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
 Admitted.
 Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
 Admitted.
-Hint Rewrite @subst_TT @subst_FF: normalize.
+Hint Rewrite @subst_TT @subst_FF: norm.
 Hint Rewrite @subst_TT @subst_FF: subst.
-Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): normalize.
+Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): norm.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
 Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Econst_int : normalize.
+Hint Rewrite eval_expr_Econst_int : norm.
 
 Lemma eval_expr_Ecast: 
   forall e t, eval_expr (Ecast e t) = `(eval_cast (typeof e) t) (eval_expr e).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Ecast : normalize.
+Hint Rewrite eval_expr_Ecast : norm.
 
 Lemma subst_eval_var:
   forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
@@ -574,29 +577,29 @@ Proof.
 intros. unfold subst, eval_var. extensionality rho.
 simpl. auto.
 Qed.
-Hint Rewrite subst_eval_var : normalize.
+Hint Rewrite subst_eval_var : norm.
 Hint Rewrite subst_eval_var : subst.
 
 Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_local : normalize.
+Hint Rewrite subst_local : norm.
 Hint Rewrite subst_local : subst.
 Lemma eval_lvalue_Ederef:
   forall e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_lvalue_Ederef : normalize.
+Hint Rewrite eval_lvalue_Ederef : norm.
 
 Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
-Hint Rewrite local_lift0_True : normalize.
+Hint Rewrite local_lift0_True : norm.
 
 Lemma overridePost_EK_return: 
   forall Q P, overridePost Q P EK_return = P EK_return.
 Proof. unfold overridePost; intros. 
   extensionality vl rho; rewrite if_false by congruence. auto.
 Qed.
-Hint Rewrite overridePost_EK_return : normalize.
+Hint Rewrite overridePost_EK_return : norm.
 
 Lemma frame_ret_assert_emp:
   forall P, frame_ret_assert P emp = P.
@@ -606,22 +609,22 @@ Proof. intros.
  rewrite sepcon_emp. auto.
 Qed.
 
-Hint Rewrite frame_ret_assert_emp : normalize.
+Hint Rewrite frame_ret_assert_emp : norm.
 
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.
 Proof. reflexivity. Qed.
-Hint Rewrite frame_ret_assert_EK_return : normalize.
+Hint Rewrite frame_ret_assert_EK_return : norm.
 
 Lemma function_body_ret_assert_EK_return:
   forall t P vl, function_body_ret_assert t P EK_return vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
-Hint Rewrite function_body_ret_assert_EK_return : normalize.
+Hint Rewrite function_body_ret_assert_EK_return : norm.
 
 Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
 Proof. reflexivity. Qed.
-Hint Rewrite bind_ret1_unfold : normalize.
+Hint Rewrite bind_ret1_unfold : norm.
 
 Lemma bind_ret1_unfold':
   forall v t Q rho, 
@@ -629,7 +632,7 @@ Lemma bind_ret1_unfold':
 Proof.
  intros. reflexivity.
 Qed.
-Hint Rewrite bind_ret1_unfold' : normalize.  (* put this in AFTER the unprimed version, for higher priority *)
+Hint Rewrite bind_ret1_unfold' : norm.  (* put this in AFTER the unprimed version, for higher priority *)
 
 Lemma normal_ret_assert_derives': 
   forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.
@@ -641,42 +644,42 @@ Lemma normal_ret_assert_eq:
   forall P ek vl, normal_ret_assert P ek vl =
              (!! (ek=EK_normal) && (!! (vl=None) && P)).
 Proof. reflexivity. Qed.
-Hint Rewrite normal_ret_assert_eq: normalize. 
+Hint Rewrite normal_ret_assert_eq: norm. 
 
 Lemma loop1_ret_assert_normal:
   forall P Q, loop1_ret_assert P Q EK_normal None = P.
 Proof. reflexivity. Qed.
-Hint Rewrite loop1_ret_assert_normal: normalize.
+Hint Rewrite loop1_ret_assert_normal: norm.
 
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
 Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args' : normalize.
+Hint Rewrite unfold_make_args' : norm.
 Lemma unfold_make_args_cons: forall i il v vl rho,
    make_args (i::il) (v::vl) rho = env_set (make_args il vl rho) i v.
 Proof. reflexivity. Qed.
 Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
-Hint Rewrite unfold_make_args_cons unfold_make_args_nil : normalize.
+Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
 Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
 Proof. reflexivity. Qed.
-Hint Rewrite @substopt_unfold @substopt_unfold_nil : normalize.
+Hint Rewrite @substopt_unfold @substopt_unfold_nil : norm.
 Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
 
 Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
 Proof. reflexivity. Qed.
 Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
-Hint Rewrite get_result_unfold get_result_None : normalize.
+Hint Rewrite get_result_unfold get_result_None : norm.
 
 Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
 Lemma eval_expropt_None: eval_expropt None = `None.
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expropt_Some eval_expropt_None : normalize.
+Hint Rewrite eval_expropt_Some eval_expropt_None : norm.
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
 
@@ -728,7 +731,7 @@ Lemma globvars2pred_unfold: forall vl rho,
 Proof. intros. unfold globvars2pred.
    induction vl; simpl; auto. normalize; f_equal; auto.
 Qed.
-Hint Rewrite globvars2pred_unfold : normalize.
+Hint Rewrite globvars2pred_unfold : norm.
 
 Lemma writable_Ews: writable_share Ews.
 Admitted.
@@ -740,7 +743,7 @@ Hint Resolve writable_Ews.
 Proof. intros; unfold offset_val.
  destruct v; auto. rewrite Int.add_assoc; auto.
 Qed.
-Hint Rewrite offset_offset_val: normalize.
+Hint Rewrite offset_offset_val: norm.
 
 Lemma add_repr: forall i j, Int.add (Int.repr i) (Int.repr j) = Int.repr (i+j).
 Proof. intros.
@@ -749,32 +752,32 @@ Proof. intros.
  unfold Int.eqm.
  apply Int.eqm_add; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
 Qed.
-Hint Rewrite add_repr : normalize.
+Hint Rewrite add_repr : norm.
 
 Lemma int_add_assoc1:
   forall z i j, Int.add (Int.add z (Int.repr i)) (Int.repr j) = Int.add z (Int.repr (i+j)).
 Admitted.
-Hint Rewrite int_add_assoc1 : normalize.
+Hint Rewrite int_add_assoc1 : norm.
 
 Lemma align_0: forall z, 
     z > 0 -> align 0 z = 0.
 Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.
-Hint Rewrite align_0 using omega : normalize.
+Hint Rewrite align_0 using omega : norm.
 
 Lemma deref_noload_tarray:
   forall ty n, deref_noload (tarray ty n) = (fun v => v).
 Proof. 
  intros. extensionality v. reflexivity.
 Qed.
-Hint Rewrite deref_noload_tarray : normalize.
+Hint Rewrite deref_noload_tarray : norm.
 
 Lemma deref_noload_Tarray:
   forall ty n a, deref_noload (Tarray ty n a) = (fun v => v).
 Proof. 
  intros. extensionality v. reflexivity.
 Qed.
-Hint Rewrite deref_noload_Tarray : normalize.
+Hint Rewrite deref_noload_Tarray : norm.
 
 
 Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
@@ -906,7 +909,7 @@ Proof.
  apply exp_right with any; auto.
 Qed.
 
-Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : normalize.
+Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : norm.
 
 (* Admitted: move these next two to assert_lemmas *)
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
@@ -914,7 +917,7 @@ Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
  
 Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e. 
 Proof. intros; unfold tc_andp; reflexivity. Qed.
-Hint Rewrite tc_andp_TT1 tc_andp_TT2 : normalize.
+Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
 
 Lemma prop_derives {A}{ND: NatDed A}: 
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.

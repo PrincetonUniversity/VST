@@ -39,7 +39,7 @@ Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 Lemma list_cell_eq: forall sh v i,
    list_cell LS sh v i = field_mapsto sh t_struct_list _h v (Vint i).
 Proof. intros. simpl_list_cell; auto. Qed.
-Hint Rewrite list_cell_eq : normalize.
+Hint Rewrite list_cell_eq : norm.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
@@ -48,7 +48,7 @@ Lemma lift_list_cell_eq:
 Proof.
   intros. extensionality rho; unfold_lift. simpl_list_cell; auto.
 Qed.
-Hint Rewrite lift_list_cell_eq : normalize.
+Hint Rewrite lift_list_cell_eq : norm.
 
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts: list int, 

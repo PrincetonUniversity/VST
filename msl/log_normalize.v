@@ -171,9 +171,9 @@ Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
 Proof. intros; apply prop_right; auto.
 Qed.
 
-Hint Resolve @TT_right: normalize.
+Hint Resolve @TT_right: norm.
 
-Ltac norm := auto with normalize.
+Ltac norm := auto with norm.
 
 Lemma andp_dup {A}{ND: NatDed A}: forall P: A, P && P = P.
 Proof. intros. apply pred_ext.
@@ -186,7 +186,7 @@ Lemma FF_left {A}{NA: NatDed A}: forall P, FF |-- P.
 Proof.
 intros; apply prop_left. intuition.
 Qed.
-Hint Resolve @FF_left : normalize.
+Hint Resolve @FF_left : norm.
 
 Lemma andp_TT {A}{NA: NatDed A}: forall (P: A), P && TT = P.
 Proof with norm.
@@ -271,7 +271,7 @@ Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'
-        : normalize.
+        : norm.
 
 
 Lemma andp_derives {A} {NA: NatDed A}:
@@ -303,7 +303,7 @@ intros.
 rewrite sepcon_comm. apply sepcon_FF.
 Qed.
 
-Hint Rewrite @FF_sepcon @sepcon_FF : normalize.
+Hint Rewrite @FF_sepcon @sepcon_FF : norm.
 
 Lemma prop_true_andp {A} {NA: NatDed A}:
   forall (P: Prop) (Q: A),  P -> (!! P && Q = Q).
@@ -315,14 +315,14 @@ Qed.
 
 Ltac immediate := (assumption || reflexivity).
 
-Hint Rewrite @prop_true_andp using (solve [immediate]) : normalize.
+Hint Rewrite @prop_true_andp using (solve [immediate]) : norm.
 
 Lemma true_eq {A} {NA: NatDed A}:  forall P: Prop, P -> (!! P) = (TT: A).
 Proof with norm.
 intros. apply pred_ext...
 apply prop_right...
 Qed. 
-Hint Rewrite @true_eq using (solve [immediate]) : normalize.
+Hint Rewrite @true_eq using (solve [immediate]) : norm.
 
 Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
 Proof with norm.
@@ -334,9 +334,9 @@ Lemma andp_FF {A}{NA: NatDed A}:  forall P: A, P && FF = FF.
 Proof.
 intros. rewrite andp_comm. apply FF_andp.
 Qed.
-Hint Rewrite @FF_andp @andp_FF : normalize.
+Hint Rewrite @FF_andp @andp_FF : norm.
 
-Hint Rewrite @andp_dup : normalize.
+Hint Rewrite @andp_dup : norm.
 
 Lemma sepcon_TT {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
    forall (P: A), P |-- (P * TT).
@@ -390,12 +390,12 @@ Proof.
 intros.
 apply andp_right.
  apply imp_andp_adjoint.
-autorewrite with normalize.
+autorewrite with norm.
 apply exp_left; intro x. apply exp_right with x.
  apply imp_andp_adjoint.
 apply allp_left with x. apply andp_left1; auto.
  apply imp_andp_adjoint.
-autorewrite with normalize.
+autorewrite with norm.
 apply exp_left; intro x. apply exp_right with x.
  apply imp_andp_adjoint.
 apply allp_left with x. apply andp_left2; auto.
@@ -522,7 +522,7 @@ Proof. unfold corable; intros.
 rewrite sepcon_andp_prop'.  auto.
 Qed.
 
-Hint Resolve @prop_corable : normalize.
+Hint Resolve @prop_corable : norm.
 
 (* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
 (*Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
@@ -541,27 +541,27 @@ Ltac normalize1 :=
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
                       with (@sepcon C D H (J L) (K L))
-            | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with normalize)
-            | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with normalize)
-            | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with normalize)
-            | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with normalize)
+            | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with norm)
+            | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with norm)
+            | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with norm)
+            | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with norm)
             (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                 preserves the name of the "y" variable *)
             | |- context [andp (exp (fun y => _)) _] => 
-                autorewrite with normalize; apply imp_extract_exp_left; intro y
+                autorewrite with norm; apply imp_extract_exp_left; intro y
             | |- context [andp _ (exp (fun y => _))] => 
-                autorewrite with normalize; apply imp_extract_exp_left; intro y
+                autorewrite with norm; apply imp_extract_exp_left; intro y
             | |- context [sepcon (exp (fun y => _)) _] => 
-               autorewrite with normalize; apply imp_extract_exp_left; intro y
+               autorewrite with norm; apply imp_extract_exp_left; intro y
             | |- context [sepcon _ (exp (fun y => _))] => 
-                autorewrite with normalize; apply imp_extract_exp_left; intro y
+                autorewrite with norm; apply imp_extract_exp_left; intro y
  
            | |-  derives ?A   _ => match A with 
                           | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
                           | context [ ?Q && (!! ?P && ?R)] =>
                                          match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end
                          end
-            | |- _ => progress  (autorewrite with normalize); auto with typeclass_instances
+            | |- _ => progress  (autorewrite with norm); auto with typeclass_instances
             | |- _ = ?x -> _ => intro; subst x
             | |- ?x = _ -> _ => intro; subst x
             |  |- ?ZZ -> _ => match type of ZZ with 
@@ -599,14 +599,14 @@ Ltac normalize1_in Hx :=
                                     rewrite (true_eq P) in Hx by auto with typeclass_instances
                 | context [ !! ?P && ?Q ] =>  
                                     rewrite (prop_true_andp P Q) in Hx by auto with typeclass_instances  
-                | context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) in Hx by (auto with normalize)
-                | context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) in Hx by (auto with normalize)
-                | context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) in Hx by (auto with normalize)
-                | context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) in Hx by (auto with normalize)
-                | _ => progress  (autorewrite with normalize in Hx); auto with typeclass_instances
+                | context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) in Hx by (auto with norm)
+                | context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) in Hx by (auto with norm)
+                | context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) in Hx by (auto with norm)
+                | context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) in Hx by (auto with norm)
+                | _ => progress  (autorewrite with norm in Hx); auto with typeclass_instances
                 end.
 
-Ltac normalize := repeat (auto with normalize; normalize1).
+Ltac normalize := repeat (auto with norm; normalize1).
 
 Tactic Notation "normalize" "in" hyp(H) := repeat (normalize1_in H).
 

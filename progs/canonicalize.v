@@ -170,7 +170,7 @@ Lemma exp_do_canon:
    forall T (P: T -> environ->mpred) (Q: environ->mpred), do_canon (exp P) Q = EX x:_, do_canon (P x) Q.
 Proof. apply exp_sepcon1. Qed.
 Hint Rewrite exp_do_canon: canon.
-Hint Rewrite exp_do_canon: normalize.
+Hint Rewrite exp_do_canon: norm.
 
 Lemma canon9: forall Q1 P Q R,
        local Q1 && (PROPx P (LOCALx Q R)) = 
