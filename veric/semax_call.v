@@ -990,12 +990,26 @@ Proof.
  unfold Map.get. rewrite H. rewrite eqb_type_refl.
  case_eq (type_is_volatile ty); intros; simpl negb; cbv iota;
  unfold memory_block. normalize. 
- rewrite Share.unrel_splice_L, Share.unrel_splice_R.
+ rewrite memory_block'_eq.
+ 2: rewrite Int.unsigned_zero; omega.
+ Focus 2.
+ rewrite Int.unsigned_zero. rewrite Zplus_0_r.
+ rewrite Int.unsigned_repr.
+ rewrite Coqlib.nat_of_Z_eq.
+ assert (sizeof ty <= Int.max_unsigned) by admit; auto.
+ pose proof (sizeof_pos ty); omega.
+ split.
+ pose proof (sizeof_pos ty); omega.
+ assert (sizeof ty <= Int.max_unsigned) by admit; auto.
  apply derives_extract_prop. intro.
  rewrite Int.unsigned_zero.
  replace (sizeof ty - 0) with (sizeof ty) by omega.
  rewrite Int.unsigned_repr;  auto.
- split; auto. pose proof (sizeof_pos ty); omega.
+ unfold memory_block'_alt.
+ rewrite Share.unrel_splice_L, Share.unrel_splice_R.
+ rewrite Coqlib.nat_of_Z_eq; auto. 
+ pose proof (sizeof_pos ty); omega.
+ split; auto.  pose proof (sizeof_pos ty); omega.
 
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.

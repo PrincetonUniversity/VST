@@ -690,9 +690,21 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
 
+ rewrite address_mapsto_zeros_eq.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
- if_tac; auto.
-    exists NU.
+Lemma Zmax_Z_of_nat:
+ forall n, Zmax (Z_of_nat n) 0 = Z_of_nat n.
+Admitted.
+rewrite Zmax_Z_of_nat.
+Lemma Zmax_of_nat: 
+  forall n, Z_of_nat (nat_of_Z n) = Zmax n 0.
+Admitted.
+rewrite Zmax_of_nat.
+if_tac; auto.
+
+ rewrite Share.unrel_splice_R.
+ rewrite Share.unrel_splice_L.
+  exists NU.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -1408,8 +1420,14 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
              rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
           | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]].
- intro loc; specialize (H1 loc);
- if_tac; [destruct H1 as [p H1]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]
+ rewrite address_mapsto_zeros_eq in H1|-*.
+ rewrite Zmax_of_nat in *.
+ rewrite Share.unrel_splice_L in *.
+ rewrite Share.unrel_splice_R in *.
+ intro loc; specialize (H1 loc).
+ replace  (Zmax (Zmax z0 0) 0) with (Zmax z0 0) in * by admit.
+ hnf in H1|-*.
+ if_tac; [destruct H1 as [p H1]; exists p; hnf in H1|-*; rewrite <- H4'; destruct (H4 loc) as [_ H5]
           | destruct (H4 loc) as [HH _]; intuition].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
  destruct (ge_of rho i); try destruct p; auto. 

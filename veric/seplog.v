@@ -16,13 +16,6 @@ Definition writable_share (sh: share) := Share.unrel Share.Rsh sh = Share.top.
 Lemma writable_share_right: forall sh, writable_share sh -> Share.unrel Share.Rsh sh = Share.top.
 Proof. (* apply Share.contains_Rsh_e.*) auto. Qed.
 
-Definition core_load : memory_chunk -> address -> val -> pred rmap := core_load.
-
-Definition VALspec_range: Z -> Share.t -> Share.t -> address -> pred rmap := VALspec_range.
-
-Definition address_mapsto: memory_chunk -> val -> Share.t -> Share.t -> address -> pred rmap := 
-       address_mapsto.
-
 Lemma address_mapsto_exists:
   forall ch v rsh (sh: pshare) loc w0
       (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot),
@@ -105,16 +98,129 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
   | (b,n)::bl' =>  fun rho => writable_block b n rho * writable_blocks bl' rho
  end.
 
-Definition address_mapsto_zeros (n: Z) : spec :=
+Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
+ match n with
+ | O => emp
+ | S n' => address_mapsto Mint8unsigned (Vint Int.zero)
+                (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) adr 
+               * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
+end.
+
+Definition address_mapsto_zeros' (n: Z) : spec :=
      fun (rsh sh: Share.t) (l: address) =>
           allp (jam (adr_range_dec l (Zmax n 0))
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) rsh sh l')
                                   noat).
 
+Lemma address_mapsto_zeros_eq:
+  forall sh n,
+   address_mapsto_zeros sh n =
+   address_mapsto_zeros' (Z_of_nat n) 
+            (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+Proof.
+induction n;
+extensionality adr; destruct adr as [b i].
+simpl.
+unfold address_mapsto_zeros'.
+apply pred_ext.
+intros w ?.
+intros [b' i'].
+hnf.
+rewrite if_false.
+simpl. apply resource_at_identity; auto.
+intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
+intros w ?.
+simpl.
+apply all_resource_at_identity.
+intros [b' i'].
+specialize (H (b',i')).
+hnf in H.
+rewrite if_false in H. apply H.
+clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+rewrite inj_S.
+simpl.
+rewrite IHn; clear IHn.
+apply pred_ext; intros w ?.
+destruct H as [w1 [w2 [? [? ?]]]].
+intros [b' i'].
+hnf.
+if_tac.
+destruct H0 as [bl [[? [? ?]] ?]].
+specialize (H5 (b',i')).
+hnf in H5.
+if_tac in H5.
+destruct H5 as [p ?]; exists p.
+hnf in H5.
+specialize (H1 (b',i')). hnf in H1. rewrite if_false in H1.
+assert (LEV := join_level _ _ _ H).
+apply (resource_at_join _ _ _ (b',i')) in H.
+apply join_comm in H; apply H1 in H.
+rewrite H in H5.
+hnf. rewrite H5. f_equal. f_equal.
+simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
+unfold size_chunk_nat in H0. simpl in H0. 
+unfold nat_of_P in H0. simpl in H0.
+destruct bl; try solve [inv H0].
+destruct bl; inv H0.
+simpl.
+clear - H3.
+admit. 
+f_equal. f_equal.
+destruct LEV; auto.
+destruct H2.
+intros [? ?].
+destruct H6.
+clear - H7 H9 H10. simpl in H10. omega.
+assert (LEV := join_level _ _ _ H).
+apply (resource_at_join _ _ _ (b',i')) in H.
+apply H5 in H.
+specialize (H1 (b',i')).
+hnf in H1.
+if_tac in H1.
+destruct H1 as [p ?]; exists p.
+hnf in H1|-*.
+rewrite H in H1; rewrite H1.
+f_equal. f_equal. f_equal. destruct LEV; auto.
+contradiction H6.
+destruct H2.
+split; auto.
+simpl.
+subst b'.
+clear - H7 H8.
+assert (~ (Zsucc i <= i' < (Zsucc i + Zmax (Z_of_nat n) 0))).
+contradict H7; split; auto.
+clear H7.
+replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
+replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
+omega.
+admit.  (* trivial *)
+admit.  (* trivial *)
+apply (resource_at_join _ _ _ (b',i')) in H.
+destruct H0 as [bl [[? [? ?]] ?]].
+specialize (H5 (b',i')); specialize (H1 (b',i')).
+hnf in H1,H5.
+rewrite if_false in H5.
+rewrite if_false in H1.
+apply H5 in H.
+simpl in H1|-*.
+rewrite <- H; auto.
+clear - H2; contradict H2.
+destruct H2; split; auto.
+admit.  (* easy *)
+clear - H2; contradict H2; simpl in H2.
+destruct H2; split; auto.
+admit.  (* easy *)
+
+(* backward direction.
+  This will work, but it might be better to prove the whole
+  lemma by equivalence to VALspec_range, with
+  VALspec_range_split.
+*)
+Admitted.
+
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => address_mapsto_zeros n 
-                          (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) 
+  | Vptr b z => address_mapsto_zeros sh (nat_of_Z n)
                           (b, Int.unsigned z)
   | _ => TT
   end.
@@ -129,10 +235,51 @@ Definition fun_assert:
   forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
+Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
+  match n with
+  | O => emp
+  | S n' => mapsto_ sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr i))
+         * memory_block' sh n' b (i+1)
+ end.
+
+Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
+ VALspec_range (Z_of_nat n)
+               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, ofs).
+
+Lemma memory_block'_eq: 
+ forall sh n b i,
+  0 <= i ->
+  Z_of_nat n + i <= Int.max_unsigned ->
+  memory_block' sh n b i = memory_block'_alt sh n b i.
+Proof.
+intros.
+unfold memory_block'_alt.
+revert i H H0; induction n; intros.
+simpl.
+symmetry; apply VALspec_range_0.
+unfold memory_block'; fold memory_block'.
+rewrite (IHn (i+1))
+ by (rewrite inj_S in H0; omega).
+symmetry.
+rewrite (VALspec_range_split2 1 (Z_of_nat n))
+ by (try rewrite inj_S; omega).
+f_equal.
+rewrite VALspec1.
+unfold mapsto_.
+unfold umapsto.
+simpl access_mode. cbv beta iota.
+rewrite Int.unsigned_repr.
+clear.
+forget (Share.unrel Share.Lsh sh) as rsh.
+forget (Share.unrel Share.Rsh sh) as sh'.
+clear.
+admit.  (* straightforward *)
+pose proof (Zle_0_nat (S n)); omega.
+Qed.
+
 Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => VALspec_range (Int.unsigned n) 
-                         (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+ | Vptr b ofs => memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
  | _ => FF
  end.
 

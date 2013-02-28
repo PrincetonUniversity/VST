@@ -96,14 +96,17 @@ Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
 Definition writable_share: share -> Prop := fun sh => Share.unrel Share.Rsh sh = Share.top.
 
-Definition address_mapsto_zeros: 
-   forall (n: Z) (rsh sh: Share.t) (l: address), mpred
-           := seplog.address_mapsto_zeros.
+Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
+ match n with
+ | O => emp
+ | S n' => address_mapsto Mint8unsigned (Vint Int.zero)
+                (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) adr 
+               * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
+end.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
-  | Vptr b z => address_mapsto_zeros n 
-                          (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) 
+  | Vptr b z => address_mapsto_zeros sh (nat_of_Z n)
                           (b, Int.unsigned z)
   | _ => TT
   end.
@@ -193,13 +196,36 @@ Fixpoint initializers_aligned (z: Z) (dl: list init_data) : bool :=
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)
 
+Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
+  match n with
+  | O => emp
+  | S n' => mapsto_ sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr i))
+         * memory_block' sh n' b (i+1)
+ end.
 
 Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => res_predicates.VALspec_range (Int.unsigned n) 
-                         (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+ | Vptr b ofs => memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
  | _ => FF
  end.
+
+Lemma memory_block'_split:
+  forall sh b ofs i j,
+   0 <= i <= j ->
+    j <= j+ofs <= Int.max_unsigned ->
+   memory_block' sh (nat_of_Z j) b ofs = 
+      memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
+Proof.
+intros.
+rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+rewrite seplog.memory_block'_eq; try rewrite nat_of_Z_eq; try omega.
+unfold seplog.memory_block'_alt.
+repeat (rewrite nat_of_Z_eq; try omega).
+etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
+reflexivity.
+omega. omega. omega.
+Qed.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : environ->mpred :=
   !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&

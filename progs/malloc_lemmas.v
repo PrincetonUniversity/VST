@@ -61,9 +61,11 @@ simpl offset_val. cbv beta iota.
 rewrite Int.add_zero. auto.
 Qed.
 
+(*
 Lemma memory_block_split:
   forall sh v i j,
    0 <= Int.unsigned i <= Int.unsigned j ->
+   Int.unsigned j <= Int.unsigned j +
    memory_block sh j v = 
       memory_block sh i v * memory_block sh (Int.sub j i) (offset_val v i).
 Proof.
@@ -74,17 +76,17 @@ simpl offset_val. cbv beta iota.
 assert (Int.unsigned (Int.sub j i) = Int.unsigned j - Int.unsigned i).
 admit. (* tedious Integers proof *)
 rewrite H0.
-rewrite (res_predicates.VALspec_range_split2
-  (Int.unsigned i) (Int.unsigned j - Int.unsigned i)  (Int.unsigned j) ).
-change predicates_sl.sepcon with (@sepcon mpred _ _).
-f_equal.
+rewrite (memory_block'_split sh b (Int.unsigned i0)
+ (Int.unsigned i) (Int.unsigned j)); auto.
+f_equal. f_equal.
 rewrite Int.add_unsigned.
-rewrite Int.unsigned_repr. auto.
-admit.  (* not clear that this is true *)
+rewrite Int.unsigned_repr; auto.
+
 omega.
-omega.
+admit.  (* not  quite true *)
 omega.
 Qed.
+*)
 
 Hint Rewrite memory_block_zero: normalize.
 
@@ -119,20 +121,20 @@ unfold at_offset.
 destruct z; auto.
 Qed.
 
-Definition spacer (pos: Z) (alignment: Z) : val -> mpred :=
+Definition spacer (sh: share) (pos: Z) (alignment: Z) : val -> mpred :=
   if eq_dec  (align pos alignment - pos) 0
   then fun _ => emp
   else
-   at_offset (memory_block Share.top (Int.repr (align pos alignment - pos))) pos.
+   at_offset (memory_block sh (Int.repr (align pos alignment - pos))) pos.
 
-Definition withspacer (pos: Z) (alignment: Z) : (val -> mpred) -> val -> mpred :=
+Definition withspacer sh (pos: Z) (alignment: Z) : (val -> mpred) -> val -> mpred :=
    match align pos alignment - pos with
    | Z0 => fun P => P
-   | _ => fun P => spacer pos alignment * P
+   | _ => fun P => spacer sh pos alignment * P
    end.
 
-Lemma withspacer_spacer: forall pos alignment P,
-   withspacer pos alignment P = spacer pos alignment * P.
+Lemma withspacer_spacer: forall sh pos alignment P,
+   withspacer sh pos alignment P = spacer sh pos alignment * P.
 Proof.
   intros.
  extensionality v.
@@ -154,12 +156,12 @@ end.
 
 Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
   match ty with
-  | Tstruct id fld a => withspacer pos (alignof ty)
+  | Tstruct id fld a => withspacer sh pos (alignof ty)
            match fld with 
            | Fnil => at_offset (memory_block sh Int.one) (align pos (alignof ty))
            | _ => at_offset (fields_mapto_ sh 0 ty fld) (align pos (alignof ty))
            end
-  | _ => withspacer pos (alignof ty)
+  | _ => withspacer sh pos (alignof ty)
                (at_offset (memory_block sh (Int.repr (sizeof ty))) (align pos (alignof ty)))
   end
 
@@ -168,7 +170,7 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  
  | Fnil => emp
  | Fcons id ty flds' => 
      (if storable_mode ty 
-     then withspacer pos (alignof ty) (field_mapsto_ sh t0 id)
+     then withspacer sh pos (alignof ty) (field_mapsto_ sh t0 id)
      else typed_mapsto_' sh pos ty)
      * fields_mapto_ sh pos t0 flds'
   end.
@@ -249,25 +251,25 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
     fun H : t1 = Tint i s a =>
       eq_rect_r (fun t2 : type => val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tint i s a)) =>
-                withspacer pos (alignof (Tint i s a))
+                withspacer sh pos (alignof (Tint i s a))
                 (at_offset2 (mapsto sh (Tint i s a)) (align pos (alignof t1)) (Vint v3)) v) H
 | Tfloat f a =>
     fun H : t1 = Tfloat f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tfloat f a)) =>
-                withspacer pos (alignof (Tfloat f a))
+                withspacer sh pos (alignof (Tfloat f a))
                 (at_offset (fun v => mapsto sh (Tfloat f a) v (Vfloat v3)) (align pos (alignof t1))) v) H
 | Tpointer t a => 
     fun H : t1 = Tpointer t a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tpointer t a)) =>
-                withspacer pos (alignof (Tpointer t a))
+                withspacer sh pos (alignof (Tpointer t a))
                 (at_offset (fun v => mapsto sh (Tpointer t a) v v3)  (align pos (alignof t1))) v) H
 | Tarray t z a =>
     fun H : t1 = Tarray t z a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tarray t z a)) => 
-                 withspacer pos (alignof t)
+                 withspacer sh pos (alignof t)
                  (fun v => arrayof _ (typed_mapsto' sh t (align pos (alignof t))) t 0 v v3) v)
         H
 | Tfunction t t0 => fun _ => emp
@@ -275,17 +277,17 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
     fun H : t1 = Tstruct i f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tstruct i f a)) =>
-                 withspacer pos (alignof (Tstruct i f a))
+                 withspacer sh pos (alignof (Tstruct i f a))
                  (fun v => structfieldsof sh (Tstruct i f a) f (align pos (alignof t1)) v v3) v) H
 | Tunion i f a =>
     fun H : t1 = Tunion i f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tunion i f a)) =>
-                 withspacer pos (alignof (Tunion i f a))
+                 withspacer sh pos (alignof (Tunion i f a))
          (fun v => unionfieldsof sh f (align pos (alignof t1)) v v3) v) H
 | Tcomp_ptr i a => 
         fun _ v _ =>
-          withspacer pos (alignof (Tcomp_ptr i a))
+          withspacer sh pos (alignof (Tcomp_ptr i a))
           (at_offset (memory_block sh (Int.repr (sizeof (Tcomp_ptr i a))))pos) v
 end eq_refl
  with
@@ -303,13 +305,13 @@ match flds as f return (val -> reptype_structlist f -> mpred) with
             else (reptype t * reptype_structlist flds0)%type) -> mpred)
        then
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
-        withspacer pos (alignof t)
+        withspacer sh pos (alignof t)
           (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
              (typed_mapsto' sh t (align pos (alignof t)) v) X1) v
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
-        (withspacer pos (alignof t)
+        (withspacer sh pos (alignof t)
           (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
              (typed_mapsto' sh t (align pos (alignof t)) v) (fst X1)) *
         (fun v => structfieldsof sh t_str flds0 pos v (snd X1))) v   ) eq_refl X0
@@ -501,7 +503,7 @@ Proof.
 Qed.
 
 Lemma spacer_offset_zero:
-  forall pos n v, spacer pos n (offset_val v (Int.repr 0)) = spacer pos n v.
+  forall sh pos n v, spacer sh pos n (offset_val v (Int.repr 0)) = spacer sh pos n v.
 Proof.
  intros;
  unfold spacer.
@@ -583,12 +585,27 @@ apply (mafoz_aux (S (typecount_fields f))).
 omega.
 Qed.
 
+Lemma spacer_memory_block:
+  forall sh pos a v,
+  isptr v -> 
+ spacer sh pos a v = memory_block sh (Int.repr (align pos a - pos)) (offset_val v (Int.repr pos)).
+Proof.
+intros.
+destruct v; inv H.
+unfold spacer.
+destruct (eq_dec (align pos a - pos) 0);
+try solve [rewrite e; simpl offset_val; rewrite memory_block_zero; auto].
+unfold at_offset.
+destruct pos; auto.
+unfold offset_val; rewrite Int.add_zero; auto.
+Qed.
+
 Lemma memory_block_typed': forall sh pos ty b ofs, 
-   spacer pos (alignof ty) (Vptr b ofs) *
+   spacer sh pos (alignof ty) (Vptr b ofs) *
    memory_block sh (Int.repr (sizeof ty)) (offset_val (Vptr b ofs) (Int.repr (align pos (alignof ty))))
      = typed_mapsto_' sh pos ty (Vptr b ofs)
 with memory_block_fields: forall sh pos t fld b ofs,
-  spacer (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
+  spacer sh (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
   * memory_block sh (Int.repr (sizeof_struct fld pos)) (Vptr b ofs)
   =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
 Proof.
@@ -599,7 +616,7 @@ Proof.
                 rewrite at_offset_eq by (apply memory_block_offset_zero); auto].
  unfold typed_mapsto_'; fold fields_mapto_.
  rewrite withspacer_spacer.
- f_equal.
+ simpl. f_equal.
  case_eq f; intros. simpl.
  rewrite at_offset_eq by (apply memory_block_offset_zero); auto.
  rewrite <- H.
@@ -616,16 +633,44 @@ Proof.
  simpl in memory_block_fields.
  rewrite emp_sepcon in memory_block_fields.
  simpl. rewrite Int.add_commut.
- rewrite <- memory_block_fields.
+ rewrite <- memory_block_fields; clear memory_block_fields.
  rewrite Int.add_commut.
- f_equal.
- unfold spacer.
+ rewrite spacer_memory_block by apply I.
+ unfold offset_val.
  rewrite sepcon_comm.
- rewrite memory_block_split with (i:= Int.repr (sizeof_struct f 0)).
- 2:  admit.  (* not quite straightforward, need to keep track that total size of 
-                        all fields is less than maxint  *)
- f_equal. f_equal.
- admit. (* need to parameterize spacer by share *)
+change memory_block with 
+  (fun (sh: share) (n: int) (v: val) =>
+ match v with 
+ | Vptr b ofs => memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
+ | _ => FF
+ end).
+cbv beta iota.
+evar (zz: Z).
+rewrite memory_block'_split with (i:=zz).
+f_equal. f_equal. unfold zz; reflexivity.
+unfold zz; clear zz.
+f_equal. f_equal.
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+auto.
+rewrite Int.add_unsigned.
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+rewrite Int.add_unsigned.
+rewrite (Int.unsigned_repr (sizeof_struct _ _)) by admit.  (*plausible, but may need work *)
+rewrite (Int.unsigned_repr (Int.unsigned ofs + _)) by admit.  (*plausible, but may need work *)
+rewrite Int.unsigned_repr by admit.  (*plausible, but may need work *)
+auto.
+unfold zz; clear zz.
+rewrite Int.unsigned_repr by admit.
+rewrite Int.unsigned_repr by admit.
+split.
+admit.  (* easy *)
+apply align_le.
+apply alignof_fields_pos.
+admit.  (* likely OK  *)
 
  clear memory_block_fields.
  intros. revert pos ofs; induction fld; simpl; intros.
@@ -639,9 +684,9 @@ Proof.
  rewrite withspacer_spacer.
  pull_left (fields_mapto_ sh pos t fld (Vptr b ofs)).
  replace ((if storable_mode t0
-  then spacer pos (alignof t0) * field_mapsto_ sh t i
+  then spacer sh pos (alignof t0) * field_mapsto_ sh t i
   else typed_mapsto_' sh pos t0) (Vptr b ofs))
- with (spacer  pos (alignof t0) (Vptr b ofs) * 
+ with (spacer  sh pos (alignof t0) (Vptr b ofs) * 
           if storable_mode t0 then field_mapsto_ sh t i (Vptr b ofs)
                else memory_block sh (Int.repr (sizeof t0))
                (offset_val (Vptr b ofs) (Int.repr (align pos (alignof t0)))))
