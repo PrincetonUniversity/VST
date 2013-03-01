@@ -1626,6 +1626,48 @@ Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) :=
 Tactic Notation "gather_SEP" constr(a) constr(b) constr(c) constr(d) := 
    gather_SEP' (a::b::c::d::nil).
 
+
+Fixpoint replace_nth {A} (n: nat) (al: list A) (x: A) {struct n}: list A :=
+ match n, al with
+ | O , a::al => x::al
+ | S n', a::al' => a :: replace_nth n' al' x
+ | _, nil => nil
+ end.
+
+Fixpoint my_nth{A} (n: nat) (al: list A) (default: A) {struct n} : A :=
+  (* just like nth; make a new copy, for better control of unfolding *)
+match n, al with
+| O, a::al' => a
+| S n', a::al' => my_nth n' al' default
+| _, nil => default
+end.
+
+Lemma replace_SEP':
+ forall n R' Delta P Q Rs c Post,
+ (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
+ semax Delta (PROPx P (LOCALx Q (SEPx (replace_nth n Rs R')))) c Post ->
+ semax Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
+Proof.
+intros.
+eapply semax_pre_PQR; [ | apply H0].
+clear - H.
+change SEPx with SEPx' in H|-*;
+unfold PROPx, LOCALx, SEPx' in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold lift in *.
+normalize.
+rewrite prop_true_andp in H by auto.
+rewrite prop_true_andp in H by auto.
+clear - H.
+rewrite sepcon_emp in H.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
+apply sepcon_derives; auto.
+Qed.
+
+Ltac replace_SEP n R :=
+  apply (replace_SEP' (nat_of_Z n) R);
+  unfold my_nth,replace_nth; simpl nat_of_Z; unfold nat_of_P; simpl Pmult_nat; cbv beta iota.
+
 Ltac replace_in_pre S S' :=
  match goal with |- semax _ ?P _ _ =>
   match P with context C[S] =>

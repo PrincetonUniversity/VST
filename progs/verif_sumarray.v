@@ -72,7 +72,7 @@ name i _i.
 name s _s.
 name x _x.
 repeat rewrite andp_assoc.
-normalizex.
+normalize.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)

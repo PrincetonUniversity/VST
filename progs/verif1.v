@@ -123,7 +123,7 @@ unfold reverse_Inv.
 go_lower. apply typed_false_ptr in H2. subst. normalize. 
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-normalizex. subst contents.
+normalize. subst contents.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
 go_lower. normalize.
 destruct cts2; inv H0.

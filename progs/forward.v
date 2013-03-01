@@ -209,8 +209,10 @@ Ltac forward_while Inv Postcond :=
 
    ].
 
-Ltac normalizex :=
-  normalize;
+Ltac normalize :=
+ match goal with 
+ | |- semax _ _ _ _ =>
+  msl.log_normalize.normalize;
   repeat 
   (first [ apply normal_ret_assert_derives
          | apply normal_ret_assert_derives'
@@ -221,7 +223,9 @@ Ltac normalizex :=
           | apply semax_extract_PROP; intro
          | extract_prop_in_LOCAL
          | extract_exists_in_SEP
-         ]; cbv beta; normalize).
+         ]; cbv beta; msl.log_normalize.normalize)
+  | |- _  => msl.log_normalize.normalize
+  end.
 
 Ltac forward_setx_aux1 :=
       apply forward_setx; 

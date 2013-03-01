@@ -113,35 +113,6 @@ Lemma list_cell_eq: forall sh p elem,
    field_mapsto sh t_struct_elem _b p (Vint (snd elem)). 
 Proof. intros. simpl_list_cell. auto. Qed.
 
-Ltac replace_SEP R :=
-match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?R1::_)))) _ _ =>
- let H := fresh in assert (H: R1 = R); [ | rewrite H; clear H]
-end.
-
-Lemma replace_SEP':
- forall R' Delta P Q R Rs c Post,
- (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R::nil)))) |-- R' ->
- semax Delta (PROPx P (LOCALx Q (SEPx (R'::Rs)))) c Post ->
- semax Delta (PROPx P (LOCALx Q (SEPx (R::Rs)))) c Post.
-Proof.
-intros until 1.
-apply semax_pre_PQR.
-change SEPx with SEPx';
-unfold PROPx,LOCALx,SEPx', local, lift1, lift; intro rho.
-simpl.
-apply derives_extract_prop; intro.
-apply derives_extract_prop; intro.
-unfold lift in H1.
-repeat apply andp_right; try apply prop_right; auto.
-apply H1.
-apply sepcon_derives; auto.
-eapply derives_trans; [ | apply H].
-unfold PROPx,LOCALx,SEPx', local, lift1, lift.
-simpl.
-repeat apply andp_right; try apply prop_right; auto.
-change SEPx with SEPx'; unfold SEPx'; simpl; rewrite sepcon_emp; auto.
-Qed.
-
 Lemma lift2more {A}{B}{T}:
   forall (v :A) (v': B) (F: A -> B -> T),
    @liftx (LiftEnviron T) (F v v') = 
@@ -161,34 +132,31 @@ name Q _Q.
 name t _t.
 unfold fifo.
 match goal with |- semax _ _ _ ?P => set (Post := P) end.
-normalizex. intros [hd tl].
+normalize. intros [hd tl].
 normalize.
-repeat flatten_sepcon_in_SEP.
 repeat rewrite (lift1more q).
 repeat rewrite (lift2more q).
-apply (replace_SEP' (`(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd)).
+replace_SEP 0 (`(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd).
 go_lower; subst; auto.
-focus_SEP 1.
-apply (replace_SEP' (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl)).
+replace_SEP 1 (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst; auto.
 forward. (* t = Q->tail;*)
 forward. (* return (t == &(Q->head)); *)
-go_lower.
-subst Q t.
-forget False as NOPROOF.
-rewrite field_mapsto_isptr.
-repeat apply andp_right.
-normalize.
-apply andp_right; apply prop_right; auto.
-admit.  (* need to fix typechecking of pointer comparison *) 
-normalize.
-apply prop_right.
-destruct q; inv H.
-simpl.
-destruct tl; inv TC; simpl.
-unfold eval_binop; simpl. unfold sem_cmp; simpl.
-rewrite H0. simpl. auto.
-admit.  (* need to fix typechecking of pointer comparison *) 
+go_lower. subst Q t.
+   forget False as NOPROOF.
+   rewrite field_mapsto_isptr.
+   repeat apply andp_right.
+   normalize.
+   apply andp_right; apply prop_right; auto.
+   admit.  (* need to fix typechecking of pointer comparison *) 
+   normalize.
+   apply prop_right.
+   destruct q; inv H.
+   simpl.
+   destruct tl; inv TC; simpl. 
+   unfold eval_binop; simpl. unfold sem_cmp; simpl.
+   rewrite H0. simpl. auto.
+   admit.  (* need to fix typechecking of pointer comparison *) 
 normalize.
 destruct q; inv H.
 destruct (isnil contents).
@@ -261,7 +229,7 @@ compute; congruence.
 cancel.
 normalize.
 forward. (* Q = (struct fifo * )q; *)  
-apply (replace_SEP' (`(memory_block Share.top (Int.repr 8)) (eval_id _Q))).
+replace_SEP 0 (`(memory_block Share.top (Int.repr 8)) (eval_id _Q)).
 go_lower. subst. destruct q; inv TC; simpl; normalize.
 apply replace_LOCAL' with (`eq (eval_id _Q) (eval_id 25%positive) :: nil).
 go_lower. destruct q; inv H0; inv TC0; auto.
@@ -334,12 +302,10 @@ name p _p.
 name t _t.
 normalize.
 unfold fifo at 1.
-normalizex. intros [hd tl].
+normalize. intros [hd tl].
 normalize.
 repeat flatten_sepcon_in_SEP.
-focus_SEP 1.
-apply replace_SEP' with
-  (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl).
+replace_SEP 1 (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst. auto.
 forward. (*   t = Q->tail; *)
 destruct (@isnil (elemtype QS) contents).
@@ -360,7 +326,7 @@ replace (field_mapsto_ Share.top t_struct_fifo _head Q)
    with (mapsto_ Share.top (tptr t_struct_elem) Q); auto.
 eapply mapsto_field_mapsto_; try (unfold field_offset; simpl; reflexivity).
 destruct Q; inv H. simpl. rewrite Int.add_zero; auto.
-normalizex.  subst tl.
+normalize.  subst tl.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
 go_lower. subst. rewrite elemrep_isptr at 1. normalize.
@@ -391,22 +357,21 @@ f_equal.
 rewrite int_add_repr_0_r. auto.
 (* CASE TWO:  contents <> nil *)
 focus_SEP 2.
-normalizex. intro prefix.
-normalizex. intro ult.
-normalizex. intro elem'.
+normalize. intro prefix.
+normalize. intro ult.
+normalize. intro elem'.
 repeat rewrite andp_assoc.
-normalizex.
+normalize.
 clear n. subst.
 unfold elemrep at 1.
-normalizex.
+normalize.
 unfold elemtype in elem'. simpl in elem'.
 destruct elem' as [a b].
 simpl @fst; simpl @snd.
 replace (field_mapsto_ Share.top t_struct_elem _next ult)
       with  (mapsto_ Share.top (tptr t_struct_elem)  (offset_val ult (Int.repr 8))).
 2: eapply mapsto_field_mapsto_; simpl; eauto; unfold field_offset; simpl; reflexivity.
-focus_SEP 1.
-apply replace_SEP' with (`(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t)).
+replace_SEP 1 (`(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t)).
 go_lower; subst; auto.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
@@ -522,6 +487,14 @@ unfold elemrep.
 cancel.
 Qed.
 
+Lemma lift_elemrep_unfold:
+  forall rep (p: environ -> val),
+   `(elemrep rep) p = 
+    (`(field_mapsto Share.top t_struct_elem _a))  p `(Vint (fst rep)) * 
+     (`(field_mapsto Share.top t_struct_elem _b) p `(Vint (snd rep)) *
+       `(field_mapsto_ Share.top t_struct_elem _next) p).
+Proof. intros. reflexivity. Qed.
+
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
@@ -595,21 +568,13 @@ unfold witness.
 unfold_lift; go_lower. normalize. cancel.
 auto with closed.
 autorewrite with subst.
-
-replace_SEP (`(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) *
+replace_SEP 0 (`(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) *
                    `(elemrep (Int.repr 1, Int.repr 10)) (eval_id queue._p)).
-reflexivity.
+go_lower.
 match goal with |- semax _ (PROP () LOCAL (?Q1; ?Q2) SEP (_)) _ _ =>
   change Q1 with (`(eq q2) (eval_id _Q)); 
   change Q2 with (`(eq p2 p3))
 end.
-Lemma lift_elemrep_unfold:
-  forall rep (p: environ -> val),
-   `(elemrep rep) p = 
-    (`(field_mapsto Share.top t_struct_elem _a))  p `(Vint (fst rep)) * 
-     (`(field_mapsto Share.top t_struct_elem _b) p `(Vint (snd rep)) *
-       `(field_mapsto_ Share.top t_struct_elem _next) p).
-Proof. intros. reflexivity. Qed.
 rewrite lift_elemrep_unfold.
 repeat flatten_sepcon_in_SEP.
 forward. (*   i = p->a;  *)
@@ -659,14 +624,14 @@ name p _p.
 name t _t.
 name n _n.
 unfold fifo at 1.
-normalizex.
+normalize.
 intros [hd tl].
 destruct (isnil (elem::contents)) as [e3|n3]; [inv e3 | clear n3].
-normalizex. intro prefix.
-normalizex. intro ult.
-normalizex. intro lastelem.
+normalize. intro prefix.
+normalize. intro ult.
+normalize. intro lastelem.
 rewrite andp_assoc.
-normalizex. subst tl.
+normalize. subst tl.
 apply semax_pre_PQR with (PROP  ()
    LOCAL  (`(eq q) (eval_id _Q))
    SEP (`(lseg QS Share.top prefix hd ult); `(elemrep lastelem ult);
@@ -676,8 +641,8 @@ go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  forward. (*   p = Q->head; *)
  forward. (*   t=Q->tail; *)
  apply semax_seq with
-    (`(fifo contents q) * `(elemrep elem) (eval_id _p)).
- forward1.  (*   if (t == &(p->next)) *)
+    (PROP() LOCAL() SEP (`(fifo contents q); `(elemrep elem) (eval_id _p))).
+ forward.  (*   if (t == &(p->next)) *)
  go_lower.
  admit.  (* need to fix typechecking of pointer comparison *) 
  apply sequential'.
@@ -731,7 +696,6 @@ simpl in H. inv H.
 rewrite @lseg_nil_eq.
 focus_SEP 2.
 normalize.
-apply semax_extract_PROP; intro.
 apply ptr_eq_e in H. subst ult.
 simpl eval_expr.
 apply semax_pre_PQR with (PROP (False) (LOCAL () SEP ())).
@@ -756,20 +720,11 @@ apply semax_extract_PROP. intro; contradiction.
 (* case 2: prefix <> nil *)
 simpl in H. inversion H; clear H; subst e contents.
  rewrite @lseg_cons_eq.
+ normalize. intro h.
  normalize.
- focus_SEP 2.
- rewrite extract_exists_in_SEP.
- apply extract_exists_pre; intro h.
- rewrite move_prop_from_SEP.
- apply semax_extract_PROP; intro.
- normalize.
- repeat flatten_sepcon_in_SEP.
- apply semax_extract_PROP; intro.
- normalize.
- replace_in_pre 
-   (`(field_mapsto Share.top t_struct_elem _next hd h))
+ replace_SEP 1
    (`(field_mapsto Share.top t_struct_elem _next) (eval_id _p) `h).
-go_lower. subst. apply andp_right; auto. apply prop_right; split; auto.
+go_lower. subst. auto.
 forward. (*  n=p->next; *)
 apply sequential'.
 forward. (*  Q->head=n; *)
@@ -789,10 +744,8 @@ cancel.
 
  apply field_mapsto_field_mapsto_.
  unfold update_tycon.
- canonicalize_pre.
  forward.
- set (Delta' := join_tycon Delta (initialized _n Delta)).
- go_lower. normalize. cancel.
+ go_lower. normalize.
 Qed.
 
 Parameter body_mallocN:

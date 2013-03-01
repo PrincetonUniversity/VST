@@ -170,7 +170,7 @@ apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
  apply add_ptr_int_offset;
  simpl; compute; intuition congruence.
-normalizex.
+normalize.
 forward. (* x = ((int * )buf)[0]; *)
 go_lower. subst buf0 p0. apply prop_right; auto. 
 forward. (* y = ((int * )buf)[1]; *)
