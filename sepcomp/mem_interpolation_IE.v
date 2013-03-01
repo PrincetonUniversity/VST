@@ -9,8 +9,8 @@ Require Import Integers.
 Require Import Values.
 Require Import Maps.
 
-Require Import compositional_compcert.mem_lemmas.
-Require Import compositional_compcert.mem_interpolation_defs.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.mem_interpolation_defs.
 
 Definition AccessMap_IE_Property  j12 j12' m1 m1' m2 m3' 
            (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=

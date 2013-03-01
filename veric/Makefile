@@ -1,6 +1,6 @@
 # SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
 COQFLAGS= -I . -as veric
-DEPFLAGS= -I ../msl -as msl -I ../compositional_compcert -as compositional_compcert -R ../compcert -as compcert
+DEPFLAGS= -I ../msl -as msl -I ../sepcomp -as sepcomp -R ../compcert -as compcert
 COQC=coqc
 COQTOP=coqtop
 COQDEP=coqdep

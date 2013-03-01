@@ -1,4 +1,4 @@
-COQFLAGS= -I . -as compositional_compcert
+COQFLAGS= -I . -as sepcomp
 DEPFLAGS= -I ../msl -as msl -R ../compcert -as compcert
 COQC=coqc
 COQTOP=coqtop

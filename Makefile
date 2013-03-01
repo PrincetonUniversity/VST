@@ -6,11 +6,11 @@ msl/msl_standard.vo:
 compcert/Clight_sem.vo:
 	(cd compcert; ./make)
 
-compositional_compcert/step_lemmas.vo: compcert/Clight_sem.vo 
-	(cd compositional_compcert; make )
+sepcomp/step_lemmas.vo: compcert/Clight_sem.vo 
+	(cd sepcomp; make )
 
 veric/SequentialClight.vo: compcert/Clight_sem.vo msl/msl_standard.vo \
-            compositional_compcert/step_lemmas.vo
+            sepcomp/step_lemmas.vo
 	(cd veric; make)
 
 floyd/proofauto.vo: veric/SequentialClight.vo

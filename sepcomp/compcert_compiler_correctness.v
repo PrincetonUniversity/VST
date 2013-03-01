@@ -8,11 +8,11 @@ Require Import Memory.
 Require Import Values.
 Require Import Integers.
 
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
-Require Import compositional_compcert.mem_lemmas.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
+Require Import sepcomp.mem_lemmas.
 
-Require Import compositional_compcert.Coqlib2. 
+Require Import sepcomp.Coqlib2. 
 
 Lemma init_mem_valid_genv: forall (F V : Type) (p : program F V) m,
   list_norepet (prog_defs_names p) ->

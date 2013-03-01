@@ -1,4 +1,4 @@
-Add LoadPath "../compositional_compcert".
+Add LoadPath "../sepcomp".
 Add LoadPath "../compcert/lib".
 Add LoadPath "../compcert/flocq/Appli".
 Add LoadPath "../compcert/flocq/Calc".

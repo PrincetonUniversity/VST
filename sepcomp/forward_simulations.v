@@ -11,8 +11,8 @@ Require Import AST.
 Require Import Globalenvs.
 
 Require Import Axioms.
-Require Import compositional_compcert.mem_lemmas. (*TODO: Is this import needed?*)
-Require Import compositional_compcert.core_semantics.
+Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
+Require Import sepcomp.core_semantics.
 
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
   match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'

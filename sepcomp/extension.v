@@ -1,12 +1,12 @@
 Load loadpath.
 Require Import ListSet.
 
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.Address.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.step_lemmas.
-Require Import compositional_compcert.forward_simulations.
-Require Import compositional_compcert.rg_forward_simulations.
+Require Import sepcomp.extspec.
+Require Import sepcomp.Address.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.step_lemmas.
+Require Import sepcomp.forward_simulations.
+Require Import sepcomp.rg_forward_simulations.
 
 Require Import AST. (*for typ*)
 Require Import Values. (*for val*)

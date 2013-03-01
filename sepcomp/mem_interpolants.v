@@ -10,7 +10,7 @@ Require Import Values.
 Require Import Maps.
 Require Import Integers.
 
-Require Import compositional_compcert.mem_lemmas.
+Require Import sepcomp.mem_lemmas.
 
 Module Type MemoryInterpolationAxioms.
 

@@ -9,7 +9,7 @@ Require Export Values.
 Require Export Maps.
 Require Export Ctypes.
 Require Export Clight.
-Require Export compositional_compcert.Address.
+Require Export sepcomp.Address.
 Require Export msl.eq_dec.
 Require Export msl.shares.
 Require Export msl.seplog.
@@ -18,7 +18,7 @@ Require Export msl.log_normalize.
 Require Export veric.expr.
 Require veric.seplog.
 Require veric.assert_lemmas. 
-Require Import compositional_compcert.Coqlib2.
+Require Import sepcomp.Coqlib2.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.

@@ -1,7 +1,7 @@
 Load loadpath.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.step_lemmas.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.extspec.
+Require Import sepcomp.step_lemmas.
 
 Require Import veric.base.
 Require Import msl.rmaps.

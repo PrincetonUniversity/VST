@@ -1,7 +1,7 @@
 Load loadpath.
 Require Import Coqlib.
 
-Require Import compositional_compcert.Coqlib2.
+Require Import sepcomp.Coqlib2.
 
 Require Import Coq.Wellfounded.Inclusion.
 Require Import Coq.Wellfounded.Inverse_Image.

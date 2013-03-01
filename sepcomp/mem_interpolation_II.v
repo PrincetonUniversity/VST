@@ -9,8 +9,8 @@ Require Import Integers.
 Require Import Values.
 Require Import Maps.
 
-Require Import compositional_compcert.mem_lemmas.
-Require Import compositional_compcert.mem_interpolation_defs.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.mem_interpolation_defs.
 
 Fixpoint mkInjectionsN (N:nat)(n1 n2:block)(j k l: meminj) 
                      :  meminj * meminj * Z * Z:= 

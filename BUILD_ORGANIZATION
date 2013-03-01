@@ -1,6 +1,6 @@
 HOW TO BUILD:
 (cd msl; make); (cd compcert; ./make); (cd veric; make); (cd progs; make); 
-   (cd compositional_compcert; make)
+   (cd sepcomp; make)
 
 The Verified Software Toolchain is organized into separate subprojects,
 each in a separate directory:
@@ -8,7 +8,7 @@ each in a separate directory:
 msl -   Mechanized Software Library
 examples - examples of how to use the msl
 compcert -   front end of the CompCert compiler, specification of C light
-compositional_compcert - the theory and practice of how to specify 
+sepcomp - the theory and practice of how to specify 
     shared-memory interaction (for separation compilation and concurrency) 
     for CompCert
 veric -  program logic (and soundness proof) for Verifiable C
@@ -23,10 +23,10 @@ The dependencies are:
 msl:   # no dependency on other directories
 examples: msl
 compcert: # no dependency on other directories
-compositional_compcert: compcert
-veric:  msl compcert compositional_compcert
-floyd: msl compositional_compcert compcert veric
-progs: msl compositional_compcert compcert veric floyd
+sepcomp: compcert
+veric:  msl compcert sepcomp
+floyd: msl sepcomp compcert veric
+progs: msl sepcomp compcert veric floyd
 
 In general, we will Import using "-I" (nonrecursive) instead of "-R"
 (recursive).  This means modules need to be named using qualified names.

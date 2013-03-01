@@ -2,9 +2,9 @@ Load loadpath.
 Require Import AST.
 Require Import Coqlib.
 
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
+Require Import sepcomp.extspec.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
 
 Section safety.
   Context {G C M D Z:Type}.

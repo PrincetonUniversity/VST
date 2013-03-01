@@ -1,6 +1,6 @@
 Load loadpath.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.step_lemmas.
+Require Import sepcomp.extspec.
+Require Import sepcomp.step_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.

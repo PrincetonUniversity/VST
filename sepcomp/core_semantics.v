@@ -11,7 +11,7 @@ Require Import AST.
 Require Import Globalenvs.
 Require Import Axioms.
 
-Require Import compositional_compcert.mem_lemmas.
+Require Import sepcomp.mem_lemmas.
 
 (** A "core semantics represents" a fairly traditional, sequential,
    small step semantics of computation.  They are designed to

@@ -1,15 +1,15 @@
 Load loadpath.
 
-Require Import compositional_compcert.Coqlib2.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
-Require Import compositional_compcert.step_lemmas.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.extension.
-Require Import compositional_compcert.extension_safety.
-Require Import compositional_compcert.extension_simulations.
-Require Import compositional_compcert.extension_proof.
-Require Import compositional_compcert.fs_extension.
+Require Import sepcomp.Coqlib2.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
+Require Import sepcomp.step_lemmas.
+Require Import sepcomp.extspec.
+Require Import sepcomp.extension.
+Require Import sepcomp.extension_safety.
+Require Import sepcomp.extension_simulations.
+Require Import sepcomp.extension_proof.
+Require Import sepcomp.fs_extension.
 
 Require Import veric.juicy_mem.
 Require Import veric.juicy_extspec.

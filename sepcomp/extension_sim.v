@@ -1,10 +1,10 @@
 Load loadpath.
 Require Import ListSet.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.sim.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.rg_sim.
-Require Import compositional_compcert.extension.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.sim.
+Require Import sepcomp.extspec.
+Require Import sepcomp.rg_sim.
+Require Import sepcomp.extension.
 
 Require Import Axioms.
 Require Import Coqlib.

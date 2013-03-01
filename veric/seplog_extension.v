@@ -1,9 +1,9 @@
 Load loadpath.
 Require Import msl.ageable msl.rmaps.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.extension.
-Require Import compositional_compcert.sim.
-Require Import compositional_compcert.step_lemmas.
+Require Import sepcomp.extspec.
+Require Import sepcomp.extension.
+Require Import sepcomp.sim.
+Require Import sepcomp.step_lemmas.
 Require Import veric.base veric.expr.
 Require Import veric.juicy_extspec veric.compcert_rmaps
                veric.semax veric.SeparationLogic veric.SeparationLogicSoundness.

@@ -1,6 +1,6 @@
 Load loadpath.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
 Require Import veric.base.
 Require Import veric.Clight_lemmas.
 

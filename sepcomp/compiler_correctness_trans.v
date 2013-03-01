@@ -10,12 +10,12 @@ Require Import Maps.
 Require Import Integers.
 Require Import Globalenvs.
 
-Require Import compositional_compcert.Coqlib2. 
+Require Import sepcomp.Coqlib2. 
 
-Require Import compositional_compcert.mem_lemmas.
-Require Import compositional_compcert.mem_interpolants.
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.mem_interpolants.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
 
 Require Import Wellfounded.
 Require Import Relations.

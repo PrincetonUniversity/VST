@@ -13,7 +13,7 @@ Require Import Integers.
 (*Require Import veric.base.
 Require Import Events.
 *)
-Require Import compositional_compcert.mem_lemmas.
+Require Import sepcomp.mem_lemmas.
 
 Axiom VALIDBLOCK: forall m b, Mem.valid_block m b -> 0 <= b < Mem.nextblock m.
 

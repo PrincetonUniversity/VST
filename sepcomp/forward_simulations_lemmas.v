@@ -11,9 +11,9 @@ Require Import AST.
 Require Import Globalenvs.
 
 Require Import msl.Axioms.
-Require Import compositional_compcert.mem_lemmas. (*TODO: Is this import needed?*)
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
+Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
 
 (*Proofs that the individual cases of sim (sim_eq, sim_ext and sim_inj are closed under
    star and plus. Then (presumably) lift this to compilercorrectness.*)

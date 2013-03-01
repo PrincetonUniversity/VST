@@ -1,8 +1,8 @@
 Load loadpath.
 Require Import ListSet.
 
-Require Import compositional_compcert.core_semantics.
-Require Import compositional_compcert.forward_simulations.
+Require Import sepcomp.core_semantics.
+Require Import sepcomp.forward_simulations.
 
 Require Import Values.
 Require Import Globalenvs.

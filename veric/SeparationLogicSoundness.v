@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import compositional_compcert.core_semantics.
+Require Import sepcomp.core_semantics.
 
 Require Import veric.base.
 Require Import msl.rmaps.
@@ -12,8 +12,8 @@ Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
-Require Import compositional_compcert.extspec.
-Require Import compositional_compcert.step_lemmas.
+Require Import sepcomp.extspec.
+Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.expr.
 Require Import veric.semax.
