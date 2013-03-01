@@ -1,20 +1,10 @@
-base.vo base.glob: base.v ../compositional_compcert/loadpath.v ../compcert/exportclight/Clightdefs.vo ../veric/SeparationLogic.vo ../msl/Extensionality.vo ../compcert/lib/Coqlib.vo ../compositional_compcert/Coqlib2.vo ../veric/SequentialClight.vo
-proofauto.vo proofauto.glob: proofauto.v ../compositional_compcert/loadpath.v base.vo field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo malloc_lemmas.vo
-list.vo list.glob: list.v ../compositional_compcert/loadpath.v base.vo field_mapsto.vo client_lemmas.vo assert_lemmas.vo
-list_dt.vo list_dt.glob: list_dt.v ../compositional_compcert/loadpath.v base.vo field_mapsto.vo client_lemmas.vo assert_lemmas.vo malloc_lemmas.vo
-malloc_lemmas.vo malloc_lemmas.glob: malloc_lemmas.v ../compositional_compcert/loadpath.v base.vo field_mapsto.vo assert_lemmas.vo client_lemmas.vo
-client_lemmas.vo client_lemmas.glob: client_lemmas.v ../compositional_compcert/loadpath.v base.vo
-canonicalize.vo canonicalize.glob: canonicalize.v ../compositional_compcert/loadpath.v base.vo client_lemmas.vo
-assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v ../compositional_compcert/loadpath.v base.vo
-field_mapsto.vo field_mapsto.glob: field_mapsto.v ../compositional_compcert/loadpath.v base.vo assert_lemmas.vo
-call_lemmas.vo call_lemmas.glob: call_lemmas.v ../compositional_compcert/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
-forward_lemmas.vo forward_lemmas.glob: forward_lemmas.v ../compositional_compcert/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
-forward.vo forward.glob: forward.v ../compositional_compcert/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo canonicalize.vo forward_lemmas.vo call_lemmas.vo
-test1.vo test1.glob: test1.v ../compcert/exportclight/Clightdefs.vo
-verif1.vo verif1.glob: verif1.v ../compositional_compcert/loadpath.v proofauto.vo list_dt.vo test1.vo
+list.vo list.glob: list.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo
+list_dt.vo list_dt.glob: list_dt.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo
+reverse.vo reverse.glob: reverse.v ../compcert/exportclight/Clightdefs.vo
+verif_reverse.vo verif_reverse.glob: verif_reverse.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo list_dt.vo reverse.vo
 queue.vo queue.glob: queue.v ../compcert/exportclight/Clightdefs.vo
-verif_queue.vo verif_queue.glob: verif_queue.v ../compositional_compcert/loadpath.v proofauto.vo list_dt.vo queue.vo
+verif_queue.vo verif_queue.glob: verif_queue.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo list_dt.vo queue.vo
 sumarray.vo sumarray.glob: sumarray.v ../compcert/exportclight/Clightdefs.vo
-verif_sumarray.vo verif_sumarray.glob: verif_sumarray.v ../compositional_compcert/loadpath.v proofauto.vo sumarray.vo
+verif_sumarray.vo verif_sumarray.glob: verif_sumarray.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo sumarray.vo
 message.vo message.glob: message.v ../compcert/exportclight/Clightdefs.vo
-verif_message.vo verif_message.glob: verif_message.v ../compositional_compcert/loadpath.v proofauto.vo message.vo
+verif_message.vo verif_message.glob: verif_message.v ../compositional_compcert/loadpath.v ../floyd/proofauto.vo message.vo

@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import progs.base.
+Require Import floyd.base.
 Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)

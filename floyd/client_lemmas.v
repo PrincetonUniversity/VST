@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import progs.base.
+Require Import floyd.base.
 Local Open Scope logic.
 
 Definition func_ptr' f v := func_ptr f v && emp.

@@ -1,6 +1,6 @@
 Load loadpath.
-Require Import progs.base.
-Require Import progs.client_lemmas.
+Require Import floyd.base.
+Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 

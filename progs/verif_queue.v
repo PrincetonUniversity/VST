@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import progs.proofauto.
+Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.queue.
 

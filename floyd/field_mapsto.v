@@ -1,6 +1,6 @@
 Load loadpath.
-Require Import progs.base.
-Require Import progs.assert_lemmas.
+Require Import floyd.base.
+Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 

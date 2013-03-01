@@ -1,5 +1,5 @@
 Load loadpath.
-Require Import progs.proofauto.
+Require Import floyd.proofauto.
 Require Import progs.sumarray.
 
 Local Open Scope logic.

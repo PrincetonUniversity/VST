@@ -1,7 +1,7 @@
 Load loadpath.
-Require Import progs.proofauto.
+Require Import floyd.proofauto.
 Require Import progs.list_dt.
-Require Import progs.test1.
+Require Import progs.reverse.
 
 Local Open Scope logic.
 

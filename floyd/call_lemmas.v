@@ -1,8 +1,8 @@
 Load loadpath.
-Require Import progs.base.
-Require Import progs.client_lemmas.
-Require Import progs.field_mapsto.
-Require Import progs.assert_lemmas.
+Require Import floyd.base.
+Require Import floyd.client_lemmas.
+Require Import floyd.field_mapsto.
+Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
 Lemma semax_call': forall Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
