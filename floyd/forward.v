@@ -124,13 +124,15 @@ change SEPx with SEPx'.
  simpl. 
   normalize. unfold_lift.
  apply sepcon_derives; auto.
- normalize.
+ autorewrite with subst.
+(*  normalize. *)
  replace (subst ret (fun _ => old) (get_result1 ret') rho)
    with (get_result1 ret rho); auto.
  destruct (eq_dec ret ret').
  subst.
  unfold get_result1.
  unfold subst. f_equal.
+ autorewrite with subst in H8.
  normalize in H8.
  normalize. f_equal. auto.
  clear - H6 H8 H7.
@@ -210,6 +212,8 @@ Ltac forward_while Inv Postcond :=
    ].
 
 Ltac normalize :=
+ try match goal with |- context[subst] =>  autorewrite with subst end;
+ try match goal with |- context[ret_assert] =>  autorewrite with ret_assert end;
  match goal with 
  | |- semax _ _ _ _ =>
   msl.log_normalize.normalize;

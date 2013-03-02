@@ -4,14 +4,82 @@ Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)
 
+Lemma overridePost_normal:
+  forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
+Proof.
+intros; unfold overridePost, normal_ret_assert.
+extensionality ek vl.
+if_tac; normalize.
+subst ek.
+rewrite (prop_true_andp (EK_normal = _)) by auto.
+auto.
+apply pred_ext; normalize.
+Qed.
+
+Lemma normal_ret_assert_derives:
+ forall (P Q: environ->mpred) rho,
+  P rho |-- Q rho ->
+  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
+Proof.
+ intros.
+ unfold normal_ret_assert; intros; normalize.
+ simpl.
+ apply andp_derives.
+ apply derives_refl.
+ apply andp_derives.
+ apply derives_refl.
+ auto.
+Qed.
+Hint Resolve normal_ret_assert_derives : norm.
+
+Lemma normal_ret_assert_FF:
+  forall ek vl, normal_ret_assert FF ek vl = FF.
+Proof.
+unfold normal_ret_assert. intros. normalize.
+Qed.
+
+Lemma frame_normal:
+  forall P F, 
+   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P * F).
+Proof.
+intros.
+extensionality ek vl.
+unfold frame_ret_assert, normal_ret_assert.
+normalize.
+Qed.
+
+Lemma frame_for1:
+  forall Q R F, 
+   frame_ret_assert (loop1_ret_assert Q R) F = 
+   loop1_ret_assert (Q * F) (frame_ret_assert R F).
+Proof.
+intros.
+extensionality ek vl.
+unfold frame_ret_assert, loop1_ret_assert.
+destruct ek; normalize.
+Qed.
+
+Lemma frame_loop1:
+  forall Q R F, 
+   frame_ret_assert (loop2_ret_assert Q R) F = 
+   loop2_ret_assert (Q * F) (frame_ret_assert R F).
+Proof.
+intros.
+extensionality ek vl.
+unfold frame_ret_assert, loop2_ret_assert.
+destruct ek; normalize.
+Qed.
+
+
+Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
+                 overridePost_normal: ret_assert.
+
 Hint Rewrite eval_id_same : norm.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
 
 Hint Resolve @TT_right.
 
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
-(*Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : norm.*)
-
 
 Lemma temp_types_init_same:
  forall Delta id t b, (temp_types Delta)!id = Some (t,b) ->
@@ -42,13 +110,13 @@ apply proj_sumbool_is_true.
 auto.
 Qed.
 
-Lemma overridePost_normal:
+Lemma overridePost_normal':
   forall P R, overridePost P R EK_normal None = P.
 Proof.
  intros. unfold overridePost. rewrite if_true by auto.
  apply prop_true_andp. auto.
 Qed.
-Hint Rewrite overridePost_normal : norm.
+Hint Rewrite overridePost_normal' : ret_assert.
 
 Lemma eval_expr_Etempvar: 
   forall i t, eval_expr (Etempvar i t) = eval_id i.
@@ -458,9 +526,7 @@ inv H.
 simpl; f_equal; auto.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : subst.
-Hint Rewrite @closed_wrt_subst using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_subst using solve [auto with closed] : subst.
 
 Lemma lvalue_closed_tempvar:
@@ -490,9 +556,7 @@ Proof.
     unfold force_val, env_set; simpl. rewrite Map.gso; auto.
 Qed.
 
-Hint Rewrite subst_eval_id_eq : norm.
 Hint Rewrite subst_eval_id_eq : subst.
-Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : norm.
 Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : subst.
 
 Lemma lift1_lift0:
@@ -556,9 +620,7 @@ Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
 Admitted.
 Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
 Admitted.
-Hint Rewrite @subst_TT @subst_FF: norm.
 Hint Rewrite @subst_TT @subst_FF: subst.
-Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): norm.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
 Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = `(Vint i).
@@ -576,14 +638,13 @@ Proof.
 intros. unfold subst, eval_var. extensionality rho.
 simpl. auto.
 Qed.
-Hint Rewrite subst_eval_var : norm.
 Hint Rewrite subst_eval_var : subst.
 
 Lemma subst_local: forall id v P,
   subst id v (local P) = local (subst id v P).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_local : norm.
 Hint Rewrite subst_local : subst.
+
 Lemma eval_lvalue_Ederef:
   forall e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
@@ -598,7 +659,7 @@ Lemma overridePost_EK_return:
 Proof. unfold overridePost; intros. 
   extensionality vl rho; rewrite if_false by congruence. auto.
 Qed.
-Hint Rewrite overridePost_EK_return : norm.
+Hint Rewrite overridePost_EK_return : ret_assert.
 
 Lemma frame_ret_assert_emp:
   forall P, frame_ret_assert P emp = P.
@@ -608,17 +669,17 @@ Proof. intros.
  rewrite sepcon_emp. auto.
 Qed.
 
-Hint Rewrite frame_ret_assert_emp : norm.
+Hint Rewrite frame_ret_assert_emp : ret_assert.
 
 Lemma frame_ret_assert_EK_return:
  forall P Q vl, frame_ret_assert P Q EK_return vl =  P EK_return vl * Q.
 Proof. reflexivity. Qed.
-Hint Rewrite frame_ret_assert_EK_return : norm.
+Hint Rewrite frame_ret_assert_EK_return : ret_assert.
 
 Lemma function_body_ret_assert_EK_return:
   forall t P vl, function_body_ret_assert t P EK_return vl = bind_ret vl t P.
 Proof. reflexivity. Qed.
-Hint Rewrite function_body_ret_assert_EK_return : norm.
+Hint Rewrite function_body_ret_assert_EK_return : ret_assert.
 
 Lemma bind_ret1_unfold:
   forall v t Q, bind_ret (Some v) t Q = !!tc_val t v && `Q (make_args (ret_temp :: nil)(v::nil)).
@@ -643,12 +704,12 @@ Lemma normal_ret_assert_eq:
   forall P ek vl, normal_ret_assert P ek vl =
              (!! (ek=EK_normal) && (!! (vl=None) && P)).
 Proof. reflexivity. Qed.
-Hint Rewrite normal_ret_assert_eq: norm. 
+Hint Rewrite normal_ret_assert_eq: ret_assert. 
 
 Lemma loop1_ret_assert_normal:
   forall P Q, loop1_ret_assert P Q EK_normal None = P.
 Proof. reflexivity. Qed.
-Hint Rewrite loop1_ret_assert_normal: norm.
+Hint Rewrite loop1_ret_assert_normal: ret_assert.
 
 Lemma unfold_make_args': forall fsig args rho,
     make_args' fsig args rho = make_args (map (@fst _ _) (fst fsig)) (args rho) rho.
@@ -665,7 +726,6 @@ Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.
 Lemma substopt_unfold_nil {A}: forall v (P:  environ -> A), substopt None v P = P.
 Proof. reflexivity. Qed.
-Hint Rewrite @substopt_unfold @substopt_unfold_nil : norm.
 Hint Rewrite @substopt_unfold @substopt_unfold_nil : subst.
 
 Lemma get_result_unfold: forall id, get_result (Some id) = get_result1 id.
@@ -908,7 +968,6 @@ Proof.
  apply exp_right with any; auto.
 Qed.
 
-(*Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : norm. *)
 Hint Rewrite @exp_trivial : norm.
 
 (* Admitted: move these next two to assert_lemmas *)

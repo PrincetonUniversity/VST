@@ -495,6 +495,8 @@ Lemma lift_elemrep_unfold:
        `(field_mapsto_ Share.top t_struct_elem _next) p).
 Proof. intros. reflexivity. Qed.
 
+
+
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
@@ -506,19 +508,20 @@ forward. (* Q = fifo_new(); *)
 instantiate (1:= tt) in (Value of witness).
 go_lower. normalize. cancel.
 auto with closed.
+autorewrite with subst. (* should have been done by forward *)
 forward. (*  p = make_elem(1,10); *)
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
 normalize.
 instantiate (1:= `(fifo nil) (eval_id _Q)::nil) in (Value of Frame).
 go_lower. normalize.
 auto with closed.
-simpl. normalize.
+ autorewrite with subst. (* should have been done by forward *)
 apply semax_pre_PQR with
   (EX q:val, EX p:val, 
  (PROP  ()
    LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
    SEP  (`(elemrep (Int.repr 1, Int.repr 10)) (eval_id _p);
-   subst _p `p0 (`(fifo nil) (eval_id _Q))))).
+   (*subst _p `p0 *) (`(fifo nil) (eval_id _Q))))).
 intro rho.
    normalize. apply exp_right with (eval_id _Q rho).
    normalize. apply exp_right with (eval_id _p rho).
@@ -535,7 +538,6 @@ forward. (* fifo_put(Q,p);*)
     with (local (`(eq q) (eval_id _Q)) &&
           `(fifo nil q) *
           `(elemrep (Int.repr 1, Int.repr 10)) (eval_id _p)).
- normalize.
  go_lower. subst p Q. normalize. cancel.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
@@ -543,6 +545,7 @@ go_lower. subst Q p. normalize.
 instantiate (1:= `(fifo ((Int.repr 1, Int.repr 10) :: nil) q)::nil) in (Value of Frame).
 unfold Frame; unfold_lift; simpl. cancel.
 auto with closed.
+ autorewrite with subst. (* should have been done by forward *)
 apply semax_pre_PQR with
   (EX q:val, EX p:val, 
  (PROP  ()
@@ -552,7 +555,6 @@ apply semax_pre_PQR with
 unfold_lift; intro rho. normalize. apply exp_right with (eval_id _Q rho).
 normalize. apply exp_right with (eval_id _p rho).
 normalize.
-
 
 apply extract_exists_pre; intro q2.
 apply extract_exists_pre; intro p2.
@@ -567,7 +569,7 @@ forward. (*   p = fifo_get(Q); *)
 unfold witness.
 unfold_lift; go_lower. normalize. cancel.
 auto with closed.
-autorewrite with subst.
+ autorewrite with subst. (* should have been done by forward *)
 replace_SEP 0 (`(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) *
                    `(elemrep (Int.repr 1, Int.repr 10)) (eval_id queue._p)).
 go_lower.
@@ -595,7 +597,6 @@ change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed.
 simpl_typed_mapsto.
 eval_cast_simpl.
-simpl.
 cancel.
 unfold Frame.
 instantiate (1:= `(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) :: nil).

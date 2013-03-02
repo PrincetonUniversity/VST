@@ -526,7 +526,7 @@ Proof.
 intros. rename H3 into CC.
 eapply semax_pre_post;
   [ | |  apply (semax_load_field Delta sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) e1
-   v2 t2 i2 sid fields)]; auto.
+   v2 t2 i2 sid fields)]; auto; try congruence.
 match goal with |- ?P |-- _ => 
  let P' := strip1_later P in apply derives_trans with (|>P' )
 end.
@@ -546,8 +546,7 @@ simpl.
 do 2 (apply derives_extract_prop; intro). subst.
 unfold normal_ret_assert. repeat rewrite prop_true_andp; auto.
 apply exp_derives; intro x.
-normalize.
-subst; auto.
+autorewrite with subst. normalize.
 Qed.
 
 
@@ -815,8 +814,10 @@ Proof.
  intros.
  eapply semax_post; [ | apply forward_setx'; auto].
  intros.
+ autorewrite with ret_assert subst.
  intro rho. simpl. normalize.
- intros old ?; apply exp_right with old. normalize.
+ apply exp_right with x.
+ autorewrite with  subst. normalize.
 Qed.
 
 Lemma normal_ret_assert_derives':

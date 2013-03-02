@@ -64,7 +64,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift0 @subst_lift0' @subst_lift0C : norm.
 Hint Rewrite @subst_lift0 @subst_lift0' @subst_lift0C : subst.
 
 Lemma subst_lift1:
@@ -88,7 +87,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C  : norm.
 Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C  : subst.
 
 Lemma subst_lift2:
@@ -112,7 +110,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift2 @subst_lift2' @subst_lift2C : norm.
 Hint Rewrite @subst_lift2 @subst_lift2' @subst_lift2C : subst.
 
 Lemma subst_lift3:
@@ -138,7 +135,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift3 @subst_lift3' @subst_lift3C : norm.
 Hint Rewrite @subst_lift3 @subst_lift3' @subst_lift3C : subst.
 
 Lemma subst_lift4:
@@ -164,7 +160,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift4 @subst_lift4' @subst_lift4C : norm.
 Hint Rewrite @subst_lift4 @subst_lift4' @subst_lift4C : subst.
 
 
@@ -214,7 +209,8 @@ Lemma semax_post': forall R' Delta R P c,
       semax Delta P c (normal_ret_assert R') ->
       semax Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
-  intro rho; apply normal_ret_assert_derives; auto.
+  intro rho; unfold normal_ret_assert; normalize. 
+ repeat apply andp_derives; auto.
 Qed.
 
 Lemma semax_pre:
@@ -1533,10 +1529,12 @@ intros.
 replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
    with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
 eapply semax_post0; [ | apply semax_frame; eassumption].
-normalize.
+intros ek vl rho.
+unfold frame_ret_assert, normal_ret_assert; 
+ destruct ek; simpl; normalize; try congruence.
 match goal with |- ?A |-- ?B => replace B with A; auto end.
 f_equal.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+change SEPx with SEPx'. unfold PROPx,LOCALx,SEPx'.
 normalize.
 f_equal. f_equal.
 clear; induction R1'; simpl. apply emp_sepcon.
@@ -1864,7 +1862,6 @@ Lemma subst_prop {A}{NA: NatDed A}: forall i v P,
 Proof.
 intros; reflexivity.
 Qed.
-Hint Rewrite @subst_andp subst_prop : norm.
 Hint Rewrite @subst_andp subst_prop : subst.
 
 Lemma map_cons: forall {A B} (f: A -> B) x y,
@@ -1884,7 +1881,6 @@ Hint Rewrite @map_nil : subst.
 Lemma subst_sepcon: forall i v (P Q: environ->mpred),
   subst i v (P * Q) = (subst i v P * subst i v Q).
 Proof. reflexivity. Qed.
-Hint Rewrite subst_sepcon : norm.
 Hint Rewrite subst_sepcon : subst.
 
 Lemma subst_PROP: forall i v P Q R,
@@ -1893,24 +1889,23 @@ Lemma subst_PROP: forall i v P Q R,
 Proof.
 intros.
 unfold PROPx.
-normalize.
+autorewrite with subst norm.
 f_equal.
 unfold LOCALx, local.
-normalize.
+autorewrite with subst norm.
 f_equal.
 extensionality rho.
 unfold lift1.
 f_equal.
 induction Q; simpl; auto.
-normalize.
-f_equal; auto.
+autorewrite with subst norm.
+f_equal. apply IHQ.
 change SEPx with SEPx'.
 unfold SEPx'.
 induction R; auto.
-normalize.
+autorewrite with subst norm.
 f_equal; auto.
 Qed.
-Hint Rewrite subst_PROP : norm.
 Hint Rewrite subst_PROP : subst.
 
 Lemma subst_stackframe_of:
@@ -1924,7 +1919,6 @@ simpl map. repeat rewrite fold_right_cons.
 f_equal.
 apply IHl.
 Qed.
-Hint Rewrite subst_stackframe_of : norm.
 Hint Rewrite subst_stackframe_of : subst.
 
 Lemma lower_PROP_LOCAL_SEP:

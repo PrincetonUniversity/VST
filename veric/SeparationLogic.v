@@ -321,37 +321,6 @@ Definition all_initializers_aligned (prog: AST.program fundef type) :=
 
 Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert := 
       fun ek vl => R ek vl * F.
-Lemma normal_ret_assert_derives:
- forall (P Q: environ->mpred) rho,
-  P rho |-- Q rho ->
-  forall ek vl, normal_ret_assert P ek vl rho |-- normal_ret_assert Q ek vl rho.
-Proof.
- intros.
- unfold normal_ret_assert; intros; normalize.
- simpl.
- apply andp_derives.
- apply derives_refl.
- apply andp_derives.
- apply derives_refl.
- auto.
-Qed.
-Hint Resolve normal_ret_assert_derives.
-
-Lemma normal_ret_assert_FF:
-  forall ek vl, normal_ret_assert FF ek vl = FF.
-Proof.
-unfold normal_ret_assert. intros. normalize.
-Qed.
-
-Lemma frame_normal:
-  forall P F, 
-   frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P * F).
-Proof.
-intros.
-extensionality ek vl.
-unfold frame_ret_assert, normal_ret_assert.
-normalize.
-Qed.
 
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  fun ek vl =>
@@ -370,43 +339,6 @@ Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :
  | EK_continue => fun _ => FF 
  | EK_return => R EK_return vl
  end.
-
-Lemma frame_for1:
-  forall Q R F, 
-   frame_ret_assert (loop1_ret_assert Q R) F = 
-   loop1_ret_assert (Q * F) (frame_ret_assert R F).
-Proof.
-intros.
-extensionality ek vl.
-unfold frame_ret_assert, loop1_ret_assert.
-destruct ek; normalize.
-Qed.
-
-Lemma frame_loop1:
-  forall Q R F, 
-   frame_ret_assert (loop2_ret_assert Q R) F = 
-   loop2_ret_assert (Q * F) (frame_ret_assert R F).
-Proof.
-intros.
-extensionality ek vl.
-unfold frame_ret_assert, loop2_ret_assert.
-destruct ek; normalize.
-Qed.
-
-Lemma overridePost_normal:
-  forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
-Proof.
-intros; unfold overridePost, normal_ret_assert.
-extensionality ek vl.
-if_tac; normalize.
-subst ek.
-rewrite (prop_true_andp (EK_normal = _)) by auto.
-auto.
-apply pred_ext; normalize.
-Qed.
-
-Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
-                 overridePost_normal: norm.
 
 Definition function_body_ret_assert (ret: type) (Q: environ->mpred) : ret_assert := 
    fun (ek : exitkind) (vl : option val) =>

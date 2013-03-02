@@ -36,9 +36,10 @@ rewrite sepcon_comm. rewrite emp_sepcon.
 repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
+autorewrite with ret_assert.
 normalize.
-intro old.
 apply exp_right with old; destruct ret; normalize.
+autorewrite with subst.
 intro rho; normalize.
 rewrite sepcon_comm; auto.
 intro rho; normalize.
@@ -90,8 +91,10 @@ rewrite emp_sepcon, sepcon_comm.
 repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
+autorewrite with subst norm ret_assert.
 normalize.
-intro rho; normalize.
+intro v.
+intro rho; autorewrite with subst norm. normalize.
 rewrite sepcon_comm; auto.
 Qed.
 
