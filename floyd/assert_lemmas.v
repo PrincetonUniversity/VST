@@ -10,8 +10,7 @@ Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
 Hint Resolve @TT_right.
 
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
-Hint Rewrite Int.add_zero_l Int.add_zero : norm.
-Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : norm.
+(*Hint Rewrite eval_id_other using solve [auto; clear; intro Hx; inversion Hx] : norm.*)
 
 
 Lemma temp_types_init_same:
@@ -909,7 +908,8 @@ Proof.
  apply exp_right with any; auto.
 Qed.
 
-Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : norm.
+(*Hint Rewrite (exp_trivial Vundef) (exp_trivial O) (exp_trivial 0%Z) (exp_trivial Int.zero) : norm. *)
+Hint Rewrite @exp_trivial : norm.
 
 (* Admitted: move these next two to assert_lemmas *)
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 

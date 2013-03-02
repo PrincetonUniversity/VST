@@ -38,16 +38,6 @@ Proof.
  rewrite Int.unsigned_zero.
 Admitted.  (* pretty straightforward *)
 
-Lemma offset_val_assoc:
-  forall v i j, offset_val (offset_val v i) j = offset_val v (Int.add i j).
-Proof.
-intros.
-unfold offset_val.
-destruct v; simpl; auto.
-rewrite Int.add_assoc; auto.
-Qed.
-Hint Rewrite offset_val_assoc: norm.
-
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val v Int.zero) = memory_block sh n v.
 Proof.
@@ -505,7 +495,7 @@ Proof.
  unfold spacer.
  destruct (eq_dec (align pos n - pos) 0);  auto.
  repeat rewrite at_offset_eq; 
- try rewrite offset_val_assoc; try  rewrite Int.add_zero_l; auto.
+ try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
  apply memory_block_offset_zero.
 Qed.
 
@@ -553,21 +543,21 @@ induction n; intros.
  destruct t0; inv H0; simpl;
  repeat rewrite withspacer_spacer;
  simpl; repeat rewrite at_offset_eq by apply memory_block_offset_zero;
- try (rewrite offset_val_assoc; rewrite Int.add_commut;
-                 rewrite <- offset_val_assoc);
+ try (rewrite offset_offset_val; rewrite Int.add_commut;
+                 rewrite <- offset_offset_val);
  try (f_equal; [apply spacer_offset_zero |]);
  try  apply memory_block_offset_zero.
  destruct f0.
  repeat rewrite at_offset_eq by apply memory_block_offset_zero.
- f_equal. rewrite offset_val_assoc. f_equal. rewrite Int.add_commut; apply Int.add_zero.
+ f_equal. rewrite offset_offset_val. f_equal. rewrite Int.add_commut; apply Int.add_zero.
  repeat rewrite at_offset_eq.
- f_equal. rewrite offset_val_assoc. f_equal. rewrite Int.add_commut; apply Int.add_zero.
+ f_equal. rewrite offset_offset_val. f_equal. rewrite Int.add_commut; apply Int.add_zero.
  apply IHn.
  simpl. simpl in H.
  simpl.
  pose proof (typecount_fields_pos f).
  omega.
- f_equal. rewrite offset_val_assoc. f_equal.
+ f_equal. rewrite offset_offset_val. f_equal.
  apply IHn.
  pose proof (typecount_pos t0). omega.
 Qed.
