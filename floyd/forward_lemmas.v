@@ -320,7 +320,7 @@ unfold mapsto.
 normalize.
 unfold umapsto.
 rewrite H6.
-unfold eval_field. rewrite H5. unfold eval_struct_field.
+unfold eval_field. rewrite H5. 
 auto.
 
 (* POSTCONDITION *)
@@ -336,10 +336,9 @@ rewrite H1. rewrite <- TC2.
 normalize.
 case_eq (access_mode t2); intros; 
  try (rewrite FF_sepcon; apply FF_left).
-simpl eval_field.
-rewrite field_offset_unroll.
+simpl eval_field. unfold always.
+rewrite field_offset_unroll. unfold offset_val.
 destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
-unfold eval_struct_field.
 destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
 normalize.
 Qed.
@@ -472,7 +471,7 @@ rewrite TE1.
 case_eq (access_mode t2); intros; normalize.
 unfold eval_field.
 rewrite field_offset_unroll.
-unfold eval_struct_field.
+unfold offset_val, always.
 case_eq (field_offset fld fields); intros; normalize.
 case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite <- H1. rewrite H4.

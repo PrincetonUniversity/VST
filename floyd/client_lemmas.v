@@ -673,7 +673,7 @@ Ltac go_lower2 :=
  repeat (apply go_lower_lem22; intro);
  apply go_lower_lem20;
  try apply go_lower_lem21;
- simpl eval_expr; simpl eval_lvalue;
+ simpl eval_expr; simpl eval_lvalue; simpl eval_cast;
   let rho := fresh "rho" in intro rho;
  repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
                  let H := fresh in 
@@ -790,6 +790,7 @@ intros.
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
 
+(*
 
 Lemma eval_cast_var:
   forall Delta rho,
@@ -809,7 +810,10 @@ intros.
  destruct t1; destruct t3; inv H0; 
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
+*)
 
+
+(*
 Lemma eval_cast_int:
   forall v sign, 
          tc_val (Tint I32 sign noattr) v ->
@@ -819,6 +823,7 @@ Proof.
  unfold tc_val, eval_cast, Cop.sem_cast, force_val; simpl in *; 
  destruct v; simpl; auto; inv H; auto.
 Qed.
+*)
 
 Lemma eval_cast_pointer2: 
   forall v t1 t2 t3 t1' t2',
@@ -832,6 +837,50 @@ subst.
 hnf in H1. destruct v; inv H1; reflexivity.
 Qed.
 
+Lemma eval_cast_neutral_var:
+ forall Delta rho, 
+  tc_environ Delta rho -> 
+  forall i t,
+   tc_lvalue Delta (Evar i t) rho ->
+  eval_cast_neutral (eval_var i t rho) = eval_var i t rho.
+Proof.
+intros.
+ pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H0).
+ simpl in H1.
+ unfold typecheck_val in H1.
+ simpl in H1.
+ revert H1; case_eq (eval_var i t rho); intros; try reflexivity.
+ specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
+Qed.
+
+Lemma eval_cast_neutral_tc_val:
+   forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
+       eval_cast_neutral v = v.
+Proof.
+intros. destruct H as [t [? ?]]; destruct t,v; inv H0; inv H; reflexivity.
+Qed.
+
+Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
+
+Lemma eval_cast_neutral_isptr:
+   forall v, isptr v -> eval_cast_neutral v = v.
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
+
+Ltac eval_cast_simpl :=
+    try (unfold eval_cast; simpl Cop.classify_cast; cbv iota);
+     try match goal with H: tc_environ ?Delta ?rho |- _ =>
+       repeat first [rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
+               | rewrite eval_cast_neutral_isptr by auto
+               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
+(*               | rewrite eval_cast_int; [ | assumption] *)
+               | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
+               ]
+     end.
+
+(*
 Ltac eval_cast_simpl :=
      try match goal with H: tc_environ ?Delta ?rho |- _ =>
        repeat first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
@@ -840,7 +889,7 @@ Ltac eval_cast_simpl :=
                | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
                ]
      end.
-
+*)
 
 
 Lemma fold_right_nil: forall {A B} (f: A -> B -> B) (z: B),

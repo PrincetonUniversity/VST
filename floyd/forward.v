@@ -133,12 +133,13 @@ change SEPx with SEPx'.
  unfold get_result1.
  unfold subst. f_equal.
  autorewrite with subst in H8.
- normalize in H8.
- normalize. f_equal. auto.
+ normalize in H8. rewrite H8.
+ f_equal. unfold eval_id.  simpl. rewrite Map.gss. reflexivity.
  clear - H6 H8 H7.
  unfold tc_environ in H7.
  unfold env_set. destruct rho; simpl in *; f_equal.
- unfold eval_id in H8; simpl in H8. unfold subst in H8.
+ unfold eval_id in H8; simpl in H8. 
+ unfold subst in H8.
  simpl in *. rewrite Map.gss in H8. simpl in H8.
  unfold lift in H8. 
  unfold Map.set. extensionality i. 

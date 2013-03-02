@@ -172,11 +172,10 @@ forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
 instantiate (1:=nil) in (Value of Frame).
 unfold Frame.
- go_lower. normalize. eval_cast_simpl.
+ go_lower. normalize.  eval_cast_simpl.
  repeat apply andp_right; try apply prop_right; simpl; auto. 
  compute; congruence.
- simpl.
- apply eval_var_isptr with Delta; simpl; auto.
+ eapply eval_var_isptr; eauto.
  apply setup_globals; auto.
  auto with closed.
  forward. (* return s; *)

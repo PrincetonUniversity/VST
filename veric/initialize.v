@@ -193,9 +193,9 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
-       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val v ofs)
+       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT
        end
  end.
@@ -205,7 +205,7 @@ Fixpoint init_data_list2pred  (dl: list init_data)
   match dl with
   | d::dl' => 
       sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val v (Int.repr (Genv.init_data_size d))) rho)
+                  (init_data_list2pred dl' sh (offset_val (Int.repr (Genv.init_data_size d)) v) rho)
   | nil => emp
  end.
 
@@ -749,7 +749,7 @@ if_tac; auto.
   match type of H with Some (decode_val ?ch ?A) = Some ?B => 
        assert (decode_val ch A=B) by (inv H; auto); clear H
   end.
- replace (offset_val (Vptr b0 Int.zero) i0) with (Vptr b0 i0)   
+ replace (offset_val i0 (Vptr b0 Int.zero)) with (Vptr b0 i0)   
     by (unfold offset_val; rewrite Int.add_zero_l; auto).
 
   case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
@@ -1441,10 +1441,10 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
  do 3 red in H8|-*. apply H0; auto.
  assert (umapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
-      (offset_val v i0) w1'); [ | destruct t; auto].
+      (offset_val i0 v) w1'); [ | destruct t; auto].
  hnf in H1|-*.
  assert (H1': umapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
-                (Vptr b z) (offset_val v i0) w1) by (destruct t; auto; congruence).
+                (Vptr b z) (offset_val i0 v) w1) by (destruct t; auto; congruence).
  clear H1.
  destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).

@@ -895,7 +895,8 @@ Lemma semax_store:
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
              (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) ((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))) * P rho)).
+          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) 
+                                           (eval_cast  (typeof e2) (typeof e1) (eval_expr e2 rho)) * P rho)).
 Proof.
 intros until P. intros WS.
 apply semax_pre with
@@ -1009,6 +1010,7 @@ eapply typecheck_val_eval_cast; eauto.
 rewrite Hmode.
 rewrite He1'.
 rewrite writable_share_right; auto.
+rewrite <- eval_cast_sem_cast. auto.
 clear - H6 H5 H1.
 intros ? ?.
 do 3 red in H.

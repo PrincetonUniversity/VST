@@ -90,7 +90,7 @@ go_lower. subst. inv H1.
 normalize. cancel. 
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. 
+go_lower. rewrite H0; reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -146,16 +146,13 @@ apply exp_right with r.
   apply exp_right with h.
   apply exp_right with cts1.
   apply exp_right with w0.
-  normalize. 
+  normalize.
   erewrite (field_mapsto_typecheck_val _ _ _ _ _ _struct_list _  noattr); [ | reflexivity].
   type_of_field_tac.
   normalize.
-  assert (eval_cast (tptr t_struct_list)(tptr t_struct_list) w0 = w0)
-     by (destruct w0 ; inv H0; simpl; auto).
-  rewrite H1 in *.
-  apply andp_right.
-  apply prop_right; auto.
-  cancel. (* end et_10 *)
+  replace (eval_cast_neutral w0) with w0 in * by (destruct w0; inv H0; auto).
+  normalize.
+  cancel. 
 (* after the loop *)
 forward.  (* return w; *)
 go_lower. normalize.

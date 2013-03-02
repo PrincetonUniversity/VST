@@ -37,7 +37,7 @@ Definition fifo (contents: list (elemtype QS)) (p: val) : mpred:=
       if isnil contents
       then (!!(tl=p) && emp)
       else (EX prefix: list (elemtype QS), EX ult:val, EX elem: elemtype QS,
-              !!(tl=offset_val ult (Int.repr 8) 
+              !!(tl=offset_val (Int.repr 8)  ult
                   /\ contents = prefix++(elem::nil))
             &&  (lseg QS Share.top prefix hd ult * 
                    elemrep elem ult)).
@@ -174,7 +174,7 @@ apply derives_trans with
   (field_mapsto_ Share.top t_struct_elem _next ult *
    field_mapsto Share.top t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
 replace (field_mapsto_ Share.top t_struct_elem _next ult)
-  with (mapsto_ Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8))).
+  with (mapsto_ Share.top (tptr t_struct_elem) (offset_val (Int.repr 8) ult)).
 2: eapply mapsto_field_mapsto_; try (simpl; reflexivity); unfold field_offset; simpl; reflexivity.
 replace (field_mapsto_ Share.top t_struct_fifo _head (Vptr b i))
   with (mapsto_ Share.top (tptr t_struct_elem) (Vptr b i)).
@@ -337,7 +337,7 @@ destruct (@isnil (elemtype QS) (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
 unfold align. simpl.
 rewrite elemrep_isptr at 1.
 normalize.
-apply exp_right with (p, offset_val p (Int.repr 8)).
+apply exp_right with (p, offset_val (Int.repr 8) p).
 normalize.
 apply exp_right with nil.
 normalize. apply exp_right with p.
@@ -369,7 +369,7 @@ unfold elemtype in elem'. simpl in elem'.
 destruct elem' as [a b].
 simpl @fst; simpl @snd.
 replace (field_mapsto_ Share.top t_struct_elem _next ult)
-      with  (mapsto_ Share.top (tptr t_struct_elem)  (offset_val ult (Int.repr 8))).
+      with  (mapsto_ Share.top (tptr t_struct_elem)  (offset_val (Int.repr 8) ult)).
 2: eapply mapsto_field_mapsto_; simpl; eauto; unfold field_offset; simpl; reflexivity.
 replace_SEP 1 (`(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t)).
 go_lower; subst; auto.
@@ -386,7 +386,7 @@ destruct prefix; inv e3. clear n3.
 rewrite prop_true_andp by auto.
 apply exp_right with (hd, 
      eval_cast (tptr (tptr t_struct_elem)) (tptr (tptr t_struct_elem))
-     (eval_struct_field (align 8 4) (force_ptr p))).
+     (offset_val (Int.repr (align 8 4)) (force_ptr p))).
 cancel.
 apply exp_right with (prefix ++ (a, b) :: nil).
 apply exp_right with p.
@@ -439,7 +439,7 @@ apply exp_right with ult.
 normalize.
 replace  (eval_cast (tptr t_struct_elem) (tptr t_struct_elem) p) with p
   by (destruct p; inv H; reflexivity).
-replace (mapsto Share.top (tptr t_struct_elem) (offset_val ult (Int.repr 8)) p)
+replace (mapsto Share.top (tptr t_struct_elem) (offset_val (Int.repr 8) ult) p)
   with (field_mapsto Share.top t_struct_elem _next ult p).
 Focus 2. symmetry; eapply mapsto_field_mapsto; simpl; try reflexivity.
                unfold field_offset; simpl; reflexivity.
@@ -594,9 +594,10 @@ apply derives_refl.
 repeat rewrite <- sepcon_assoc.
 apply sepcon_derives.
 change 12 with (sizeof t_struct_elem).
+rewrite (eval_cast_neutral_tc_val p); eauto.
+ unfold eval_cast_neutral, force_int. (* fixme *)
 rewrite memory_block_typed.
 simpl_typed_mapsto.
-eval_cast_simpl.
 cancel.
 unfold Frame.
 instantiate (1:= `(fifo ((Int.repr 2, Int.repr 20) :: nil) q2) :: nil).
@@ -637,7 +638,7 @@ apply semax_pre_PQR with (PROP  ()
    LOCAL  (`(eq q) (eval_id _Q))
    SEP (`(lseg QS Share.top prefix hd ult); `(elemrep lastelem ult);
    `(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd;
-   `(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `(offset_val ult (Int.repr 8)))).
+   `(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `(offset_val (Int.repr 8) ult))).
 go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  forward. (*   p = Q->head; *)
  forward. (*   t=Q->tail; *)
@@ -734,7 +735,7 @@ subst.
 unfold fifo.
 destruct (isnil (prefix ++ lastelem::nil)) as [e3|n3]; [ | clear n3].
 destruct prefix; inv e3.
-normalize. apply exp_right with (h, offset_val ult (Int.repr 8)).
+normalize. apply exp_right with (h, offset_val (Int.repr 8) ult).
 cancel.
 rewrite exp_sepcon1; apply exp_right with prefix.
 rewrite exp_sepcon1; apply exp_right with ult.

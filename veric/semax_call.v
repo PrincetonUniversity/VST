@@ -530,6 +530,8 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  clear - IHbl H1 H H0 H3.
  constructor 2 with  (eval_expr  a (construct_rho (filter_genv psi) vx tx)); auto.
  apply eval_expr_relate with Delta; auto.
+ pose proof  (cast_exists Delta a _ _ H1 H H0).
+ apply sem_cast_eval_cast in H2. rewrite H2.
  apply (cast_exists Delta a _ _ H1 H H0).
 Qed.
 
@@ -704,7 +706,8 @@ exists (force_val
              (eval_expr e
                 (mkEnviron (filter_genv psi) (make_venv vx)
                    (fun id0 : positive => tx ! id0))) 
-             (typeof e) ty)). 
+             (typeof e) ty)).
+rewrite <- eval_cast_sem_cast. 
 split.
 auto. right. eapply typecheck_val_eval_cast with (Delta := Delta). 
 apply TE. 
@@ -1619,7 +1622,8 @@ destruct H3.
 simpl in H6; rewrite (call_cont_current_function H7) in H6.
 destruct H6 as [_ ?].
 rewrite H6.
-unfold eval_cast. super_unfold_lift.
+super_unfold_lift.
+rewrite eval_cast_sem_cast.
 apply cast_exists with Delta; auto.
 
 auto.

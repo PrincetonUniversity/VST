@@ -225,12 +225,6 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
   | _ => TT
   end.
 
-Definition offset_val (v: val) (ofs: int) : val :=
-  match v with
-  | Vptr b z => Vptr b (Int.add z ofs)
-  | _ => Vundef
- end.
-
 Definition fun_assert: 
   forall (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
   res_predicates.fun_assert.

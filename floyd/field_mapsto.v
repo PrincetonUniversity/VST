@@ -101,7 +101,7 @@ Lemma mapsto_field_mapsto_:
               fields) fld) = By_value ch ->
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val v1 (Int.repr ofs) ->
+  v1' = offset_val (Int.repr ofs) v1 ->
   (type_is_volatile
          (type_of_field
             (unroll_composite_fields structid
@@ -240,7 +240,7 @@ Lemma mapsto_field_mapsto:
               fields) fld ->
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val v1 (Int.repr ofs) ->
+  v1' = offset_val (Int.repr ofs) v1 ->
   type_is_volatile t = false ->
   mapsto sh t v1' v2 = field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
 Proof.
@@ -263,7 +263,7 @@ Lemma umapsto_field_mapsto':
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val v1 (Int.repr ofs) ->
+  v1' = offset_val (Int.repr ofs) v1 ->
   typecheck_val v2 (type_of_field
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) = true  ->
@@ -301,7 +301,7 @@ Lemma mapsto_field_mapsto':
               fields) fld ->
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val v1 (Int.repr ofs) ->
+  v1' = offset_val (Int.repr ofs) v1 ->
   typecheck_val v2 t = true  ->
   type_is_volatile t = false ->
   mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.

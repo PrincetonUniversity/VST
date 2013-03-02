@@ -15,7 +15,7 @@ mf_build {
            mf_assert sh buf len data |-- 
                  !!(0 <= len <= mf_size) && memory_block sh (Int.repr len) buf;
    mf_restbuf := fun (sh: share) (buf: val) (len: Z) => 
-                              memory_block sh (Int.repr (mf_size-len)) (offset_val buf (Int.repr len))
+                              memory_block sh (Int.repr (mf_size-len)) (offset_val (Int.repr len) buf)
 }.
 
 Implicit Arguments mf_build [[t]].
@@ -118,11 +118,11 @@ apply sepcon_derives; apply derives_refl'';
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 forward. (*  ((int * )buf)[0]=x; *)
-go_lower. subst. apply andp_right; auto. apply prop_right; intuition.
+go_lower. subst. normalize. 
 forward. (*  ((int * )buf)[1]=y; *)
-go_lower. subst. apply andp_right; auto. apply prop_right; intuition.
+go_lower. subst. normalize.
 forward. (* return 8; *)
-go_lower. subst. apply andp_right; try apply prop_right; auto.
+go_lower. subst. normalize.
 apply exp_right with 8.
 normalize.
 cancel.
@@ -172,9 +172,9 @@ apply sepcon_derives; apply derives_refl'';
  simpl; compute; intuition congruence.
 normalize.
 forward. (* x = ((int * )buf)[0]; *)
-go_lower. subst buf0 p0. apply prop_right; auto. 
+go_lower. subst buf0 p0. normalize.
 forward. (* y = ((int * )buf)[1]; *)
-go_lower. subst buf0 p0. apply prop_right; auto. 
+go_lower. subst buf0 p0. normalize.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
@@ -701,7 +701,7 @@ go_lower. subst. simpl. normalize. unfold main_post.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
  replace (memory_block Share.top (Int.repr 0)
-      (offset_val (eval_var _buf (tarray tuchar 8) rho) (Int.repr 8)))
+      (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
   with (@emp mpred _ _).
 2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H0;
  apply memory_block_zero.

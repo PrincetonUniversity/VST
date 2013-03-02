@@ -111,12 +111,6 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
   | _ => TT
   end.
 
-Definition offset_val (v: val) (ofs: int) : val :=
-  match v with
-  | Vptr b z => Vptr b (Int.add z ofs)
-  | _ => Vundef
- end.
- 
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
   | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
@@ -127,9 +121,9 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val v ofs)
+       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
-       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val v ofs)
+       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT
        end
  end.
@@ -158,7 +152,7 @@ Fixpoint init_data_list2pred (dl: list init_data)
   match dl with
   | d::dl' => 
       sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
-                  (init_data_list2pred dl' sh (offset_val v (Int.repr (init_data_size d))) rho)
+                  (init_data_list2pred dl' sh (offset_val (Int.repr (init_data_size d)) v) rho)
   | nil => emp
  end.
 

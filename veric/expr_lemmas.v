@@ -108,15 +108,16 @@ super_unfold_lift. rewrite tc_andp_sound in *.
 simpl in *. super_unfold_lift.
 destruct H2 as [[? ?] ?]. 
 spec IHe; auto. destruct IHe. 
-unfold eval_field. unfold eval_struct_field.
+unfold eval_field.
 destruct (eval_lvalue e rho); eauto;
 destruct (typeof e); try congruence; auto.
 destruct (field_offset i f); eauto.
-unfold eval_field. unfold eval_struct_field.
+unfold eval_field.
 destruct (eval_lvalue e rho); eauto;
 destruct (typeof e); try congruence; auto;
 try destruct (field_offset i f); eauto.
-try destruct (field_offset i f0); eauto.
+destruct (field_offset i f0); eauto.
+unfold offset_val; right; eauto.
 Qed. 
  
 
@@ -188,7 +189,7 @@ Lemma typecheck_expr_sound_Efield:
 Proof.
 intros.
 simpl in *. super_unfold_lift.
- unfold eval_field,eval_struct_field, deref_noload in *.
+ unfold eval_field, offset_val, deref_noload in *.
 assert (MODE: access_mode t = By_reference) by (destruct (access_mode t); auto; hnf in H0; try contradiction).
 rewrite MODE in *.
 destruct IHe.
@@ -227,7 +228,7 @@ intros.
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 super_unfold_lift.
- unfold eval_field,eval_struct_field in *; intuition. 
+ unfold eval_field,offset_val in *; intuition. 
 specialize  (H3 pt). intuition. remember rho.
 destruct e0.
 unfold typecheck_environ in *. intuition. clear H4 H9.
@@ -823,14 +824,21 @@ assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_cast in *; super_unfold_lift; intuition.
-unfold force_val. remember (sem_cast (eval_expr e rho) (typeof e) t).
-destruct o. eapply Clight.eval_Ecast. eapply IHe. auto. apply H2. auto.
-
-
-specialize (IHe ge). intuition.
+eapply Clight.eval_Ecast.
+remember (classify_cast (typeof e) t) as o; destruct o; eapply IHe; auto.
+unfold sem_cast.
+destruct (classify_cast (typeof e) t); destruct (eval_expr e rho); inv TC; try reflexivity.
+simpl; destruct (cast_float_int si2 f); inv H4; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
+destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
 
 (*Field*)
-
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
@@ -860,7 +868,7 @@ assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. 
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
- unfold eval_field,eval_struct_field in *; super_unfold_lift; remember (eval_lvalue e rho).
+ unfold eval_field,offset_val in *; super_unfold_lift; remember (eval_lvalue e rho).
 destruct H1. destruct H1. specialize (H4 H1).
 destruct H4 as [b [ofs H4]].
 remember (typeof e) as t0. destruct t0; intuition.
@@ -1387,6 +1395,33 @@ Opaque Float.intuoffloat.
 destruct H1. rewrite H1. auto.
 Qed.
 
+Lemma eval_cast_sem_cast:
+  forall v t t', eval_cast t t' v = force_val (sem_cast v t t').
+Proof.
+unfold sem_cast, eval_cast, classify_cast.
+intros.
+destruct t,t'; simpl; try reflexivity;
+try solve[ destruct i; try reflexivity; try solve [destruct v; reflexivity]];
+try solve[ destruct i0; try reflexivity]; simpl.
+destruct i0, s0, v; reflexivity.
+destruct i,v; simpl; try reflexivity; destruct (cast_float_int s f0); reflexivity.
+unfold eval_cast_f2f.
+destruct v; try reflexivity.
+destruct v; try reflexivity.
+destruct v; try reflexivity.
+destruct v; try reflexivity.
+destruct (ident_eq i i0 && fieldlist_eq f f0); reflexivity.
+destruct (ident_eq i i0 && fieldlist_eq f f0); reflexivity.
+Qed.
+
+Lemma sem_cast_eval_cast:
+  forall v1 t1 t2 v,
+  sem_cast v1 t1 t2 = Some v -> eval_cast t1 t2 v1 = v.
+Proof.
+intros.
+rewrite eval_cast_sem_cast.
+rewrite H; reflexivity.
+Qed.
 
 Lemma typecheck_val_eval_cast: 
   forall t2 e2 rho Delta,
@@ -1398,8 +1433,9 @@ Proof. intros ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
 clear - H7 H6 H8.
+rewrite eval_cast_sem_cast. 
 revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
-unfold eval_cast. rewrite H. simpl.
+simpl.
 case_eq (eval_expr e2 rho); intros; rename H0 into H99;
  destruct t2; inv H8; inv H; simpl; auto;
 hnf in H6; try contradiction; rewrite H99 in *;

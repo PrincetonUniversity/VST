@@ -6,31 +6,6 @@ Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 
-(*
-Definition memory_byte (sh: share) : val -> mpred :=
-       mapsto_ sh (Tint I8 Unsigned noattr).
-
-Lemma memory_byte_offset_zero:
-  forall sh v, memory_byte sh (offset_val v Int.zero) = memory_byte sh v.
-Proof.
-intros.
-unfold memory_byte. unfold mapsto_.
-f_equal. extensionality v'.
-unfold umapsto; destruct v; try solve [simpl; auto].
-destruct (access_mode (Tint I8 Unsigned noattr) ); auto.
-simpl offset_val. rewrite Int.add_zero. auto.
-Qed.
-
-Fixpoint memory_block' (sh: share) (n: nat) (v: val) : mpred :=
-  match n with
-  | O => emp
-  | S n' => memory_byte sh v * memory_block' sh n' (offset_val v Int.one)
- end.
-
-Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
-    memory_block' sh (nat_of_Z (Int.unsigned n)) v.
-*)
-
 Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
  intros. unfold memory_block.
@@ -39,40 +14,13 @@ Proof.
 Admitted.  (* pretty straightforward *)
 
 Lemma memory_block_offset_zero:
-  forall sh n v, memory_block sh n (offset_val v Int.zero) = memory_block sh n v.
+  forall sh n v, memory_block sh n (offset_val Int.zero v) = memory_block sh n v.
 Proof.
 unfold memory_block; intros.
 destruct v; auto.
 simpl offset_val. cbv beta iota.
 rewrite Int.add_zero. auto.
 Qed.
-
-(*
-Lemma memory_block_split:
-  forall sh v i j,
-   0 <= Int.unsigned i <= Int.unsigned j ->
-   Int.unsigned j <= Int.unsigned j +
-   memory_block sh j v = 
-      memory_block sh i v * memory_block sh (Int.sub j i) (offset_val v i).
-Proof.
-intros.
-unfold memory_block.
-destruct v; normalize.
-simpl offset_val. cbv beta iota.
-assert (Int.unsigned (Int.sub j i) = Int.unsigned j - Int.unsigned i).
-admit. (* tedious Integers proof *)
-rewrite H0.
-rewrite (memory_block'_split sh b (Int.unsigned i0)
- (Int.unsigned i) (Int.unsigned j)); auto.
-f_equal. f_equal.
-rewrite Int.add_unsigned.
-rewrite Int.unsigned_repr; auto.
-
-omega.
-admit.  (* not  quite true *)
-omega.
-Qed.
-*)
 
 Hint Rewrite memory_block_zero: norm.
 
@@ -86,7 +34,7 @@ Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
 Lemma field_mapsto__offset_zero:
   forall sh ty id v, 
-   field_mapsto_ sh ty id (offset_val v (Int.repr 0)) =
+   field_mapsto_ sh ty id (offset_val (Int.repr 0) v) =
    field_mapsto_ sh ty id v.
 Proof.
  unfold field_mapsto_; intros.
@@ -96,11 +44,11 @@ Qed.
 Hint Rewrite field_mapsto__offset_zero: norm.
 
 Definition at_offset (P: val -> mpred) (z: Z)  : val -> mpred :=
- match z with Z0 => P | _ => fun v => P (offset_val v (Int.repr z)) end.
+ match z with Z0 => P | _ => fun v => P (offset_val (Int.repr z) v) end.
 
 Lemma at_offset_eq: forall P z v,
-  P (offset_val v (Int.repr 0)) = P v ->
-  at_offset P z v = P (offset_val v (Int.repr z)).
+  P (offset_val (Int.repr 0) v) = P v ->
+  at_offset P z v = P (offset_val (Int.repr z) v).
 Proof.
 intros.
 unfold at_offset.
@@ -201,7 +149,7 @@ with reptype_unionlist (fld: fieldlist) : Type :=
 Fixpoint arrayof (t: Type) (f: forall (v1: val) (v2: t),  mpred)
          (t1: type) (ofs: Z) (v1: val) (v2: list t) : mpred :=
     match v2 with
-    | v::rest => f (offset_val v1 (Int.repr ofs)) v * arrayof t f t1 (ofs + sizeof t1) v1 rest
+    | v::rest => f (offset_val (Int.repr ofs) v1) v * arrayof t f t1 (ofs + sizeof t1) v1 rest
     | nil => emp
    end.
 
@@ -355,7 +303,7 @@ Ltac abstract_env T rho P :=
 
 Lemma field_mapsto_offset_zero:
   forall sh ty id v, 
-   field_mapsto sh ty id (offset_val v (Int.repr 0)) =
+   field_mapsto sh ty id (offset_val (Int.repr 0) v) =
    field_mapsto sh ty id v.
 Proof.
  unfold field_mapsto_; intros. extensionality v2.
@@ -363,20 +311,6 @@ Proof.
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
 Hint Rewrite field_mapsto_offset_zero: norm.
-
-(*
-Lemma lift_sepcon_unfold:
-  forall T (P Q: T -> mpred),
-  (@coerce (T -> mpred) ((environ -> T) -> assert)
-                    (lift1_C T mpred)
-                    (@sepcon (T -> mpred) (@LiftNatDed T mpred Nveric)
-                       (@LiftSepLog T mpred Nveric Sveric) P Q)) =
-  (`P * `Q).
-Proof.
- intros. extensionality f. extensionality rho.
- unfold_coerce. reflexivity.
-Qed.
-*)
 
 Lemma lower_sepcon_val:
   forall (P Q: val->environ->mpred) v, 
@@ -470,7 +404,7 @@ Goal `(typed_mapsto sh t_struct_elem) p = (fun v => emp).
 
 Lemma mapsto_offset_zero:
   forall sh t v1 v2, 
-    mapsto sh t (offset_val v1 (Int.repr 0)) v2 =
+    mapsto sh t (offset_val (Int.repr 0) v1) v2 =
     mapsto sh t v1 v2.
 Proof.
  unfold mapsto.
@@ -489,7 +423,7 @@ Proof.
 Qed.
 
 Lemma spacer_offset_zero:
-  forall sh pos n v, spacer sh pos n (offset_val v (Int.repr 0)) = spacer sh pos n v.
+  forall sh pos n v, spacer sh pos n (offset_val (Int.repr 0) v) = spacer sh pos n v.
 Proof.
  intros;
  unfold spacer.
@@ -525,7 +459,7 @@ Qed.
 Lemma mafoz_aux:
   forall n f, (typecount_fields f < n)%nat -> 
      forall sh pos t v,
-       fields_mapto_ pos sh t f (offset_val v (Int.repr 0)) =
+       fields_mapto_ pos sh t f (offset_val (Int.repr 0) v) =
        fields_mapto_ pos sh t f v.
 Proof.
 induction n; intros.
@@ -563,7 +497,7 @@ induction n; intros.
 Qed.
 
 Lemma fields_mapto__offset_zero:
-  forall sh pos t f v, fields_mapto_ sh pos t f (offset_val v (Int.repr 0)) =
+  forall sh pos t f v, fields_mapto_ sh pos t f (offset_val (Int.repr 0) v) =
                            fields_mapto_ sh pos t f v.
 Proof.
 intros.
@@ -574,7 +508,7 @@ Qed.
 Lemma spacer_memory_block:
   forall sh pos a v,
   isptr v -> 
- spacer sh pos a v = memory_block sh (Int.repr (align pos a - pos)) (offset_val v (Int.repr pos)).
+ spacer sh pos a v = memory_block sh (Int.repr (align pos a - pos)) (offset_val (Int.repr pos) v).
 Proof.
 intros.
 destruct v; inv H.
@@ -588,7 +522,7 @@ Qed.
 
 Lemma memory_block_typed': forall sh pos ty b ofs, 
    spacer sh pos (alignof ty) (Vptr b ofs) *
-   memory_block sh (Int.repr (sizeof ty)) (offset_val (Vptr b ofs) (Int.repr (align pos (alignof ty))))
+   memory_block sh (Int.repr (sizeof ty)) (offset_val (Int.repr (align pos (alignof ty))) (Vptr b ofs) )
      = typed_mapsto_' sh pos ty (Vptr b ofs)
 with memory_block_fields: forall sh pos t fld b ofs,
   spacer sh (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
@@ -675,7 +609,7 @@ admit.  (* likely OK  *)
  with (spacer  sh pos (alignof t0) (Vptr b ofs) * 
           if storable_mode t0 then field_mapsto_ sh t i (Vptr b ofs)
                else memory_block sh (Int.repr (sizeof t0))
-               (offset_val (Vptr b ofs) (Int.repr (align pos (alignof t0)))))
+               (offset_val (Int.repr (align pos (alignof t0))) (Vptr b ofs)))
    by (destruct (storable_mode t0); auto).
 clear memory_block_typed'.
   do 2 rewrite <-sepcon_assoc.

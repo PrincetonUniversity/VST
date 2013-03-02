@@ -122,17 +122,17 @@ Lemma eval_expr_Etempvar:
   forall i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
-Hint Rewrite eval_expr_Etempvar : norm.
+Hint Rewrite eval_expr_Etempvar : eval.
 
 Lemma eval_expr_binop: forall op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
           `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1)  (eval_expr a2).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_binop : norm.
+Hint Rewrite eval_expr_binop : eval.
 
 Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) = 
           lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_unop : norm.
+Hint Rewrite eval_expr_unop : eval.
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
@@ -625,12 +625,12 @@ Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
 Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Econst_int : norm.
+Hint Rewrite eval_expr_Econst_int : eval.
 
 Lemma eval_expr_Ecast: 
   forall e t, eval_expr (Ecast e t) = `(eval_cast (typeof e) t) (eval_expr e).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Ecast : norm.
+Hint Rewrite eval_expr_Ecast : eval.
 
 Lemma subst_eval_var:
   forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
@@ -648,7 +648,7 @@ Hint Rewrite subst_local : subst.
 Lemma eval_lvalue_Ederef:
   forall e t, eval_lvalue (Ederef e t) = `force_ptr (eval_expr e).
 Proof. reflexivity. Qed.
-Hint Rewrite eval_lvalue_Ederef : norm.
+Hint Rewrite eval_lvalue_Ederef : eval.
 
 Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
@@ -738,7 +738,7 @@ Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
 Lemma eval_expropt_None: eval_expropt None = `None.
 Proof. reflexivity. Qed.
-Hint Rewrite eval_expropt_Some eval_expropt_None : norm.
+Hint Rewrite eval_expropt_Some eval_expropt_None : eval.
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
 
@@ -798,7 +798,7 @@ Hint Resolve writable_Ews.
 
 
  Lemma offset_offset_val:
-  forall v i j, offset_val (offset_val v i) j = offset_val v (Int.add i j).
+  forall v i j, offset_val j (offset_val i v) = offset_val (Int.add i j) v.
 Proof. intros; unfold offset_val.
  destruct v; auto. rewrite Int.add_assoc; auto.
 Qed.
@@ -1094,7 +1094,7 @@ Lemma add_ptr_int_offset:
   forall t v n, 
   repable_signed (sizeof t) ->
   repable_signed n ->
-  add_ptr_int t v n = offset_val v (Int.repr (sizeof t * n)).
+  add_ptr_int t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  unfold add_ptr_int; intros.
  unfold eval_binop; destruct v; simpl; auto.
@@ -1107,7 +1107,7 @@ Qed.
 Lemma add_ptr_int'_offset:
   forall t v n, 
   repable_signed (sizeof t * n) ->
-  add_ptr_int' t v n = offset_val v (Int.repr (sizeof t * n)).
+  add_ptr_int' t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  intros.
  destruct (eq_dec n 0).

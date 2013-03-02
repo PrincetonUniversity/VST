@@ -293,8 +293,6 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
-Definition eval_cast (t t': type) (v: val) : val := force_val (Cop.sem_cast v t t').
-
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
        force_val (Cop.sem_unary_operation op v1 t1).
 
@@ -304,21 +302,23 @@ Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.
 
-Definition eval_struct_field (delta: Z) (v: val) : val :=
-          match v with
-             | Vptr l ofs => Vptr l (Int.add ofs (Int.repr delta))
-             | _ => Vundef
-          end.
+Definition always {A B: Type} (b: B) (a: A) := b.
 
-Definition eval_field (ty: type) (fld: ident) (v: val) : val :=
+Definition offset_val (ofs: int) (v: val) : val :=
+  match v with
+  | Vptr b z => Vptr b (Int.add z ofs)
+  | _ => Vundef
+ end.
+
+Definition eval_field (ty: type) (fld: ident) : val -> val :=
           match ty with
              | Tstruct id fList att =>
                          match field_offset fld fList with 
-                         | Errors.OK delta => eval_struct_field delta v
-                         | _ => Vundef
+                         | Errors.OK delta => offset_val (Int.repr delta)
+                         | _ => always Vundef
                         end
-             | Tunion id fList att => force_ptr v
-             | _ => Vundef
+             | Tunion id fList att => force_ptr
+             | _ => always Vundef
           end.
 
 Definition eval_var (id:ident) (ty: type) (rho: environ) : val := 
@@ -334,11 +334,56 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                             end
                         end.
 
-Definition deref_noload (ty: type) (v: val) : val :=
+Definition deref_noload (ty: type) : val -> val :=
  match access_mode ty with
- | By_reference => v
- | _ => Vundef
+ | By_reference => Datatypes.id
+ | _ => always Vundef
  end.
+
+Definition eval_cast_neutral (v: val) : val :=
+   match v with Vint _ | Vptr _ _ => v | _ => Vundef end.
+
+Definition eval_cast_i2i f v := 
+  match v with Vint i => Vint (f i) | _ => Vundef end.
+
+Definition eval_cast_f2f f v :=
+  match v with Vfloat x => Vfloat (f x) | _ => Vundef end.
+
+Definition eval_cast_i2f (f: float->float) (g: int->float) v :=
+  match v with Vint i => Vfloat (f (g i)) | _ => Vundef end.
+
+Definition eval_cast_f2i (f: float->option int) (g: int->int) v :=
+ match v with Vfloat x => match f x with Some i => Vint (g i) | _ => Vundef end 
+                    | _ => Vundef 
+ end.
+
+Definition eval_cast_f2bool v :=
+ match v with Vfloat f => Vint(if Float.cmp Ceq f Float.zero then Int.zero else Int.one)
+   | _ => Vundef
+ end.
+
+Definition eval_cast_p2bool v :=
+ match v with Vint i => Vint (Cop.cast_int_int IBool Signed i)
+                    | Vptr _ _ => Vint Int.one
+                    | _ => Vundef
+  end.
+
+Definition eval_cast (t1 t2: type) : val->val := 
+  match Cop.classify_cast t1 t2 with
+  | Cop.cast_case_neutral => eval_cast_neutral
+  | Cop.cast_case_i2i sz2 si2 => eval_cast_i2i (Cop.cast_int_int sz2 si2)
+  | Cop.cast_case_f2f sz2 => eval_cast_f2f (Cop.cast_float_float sz2)
+  | Cop.cast_case_i2f si1 sz2 => eval_cast_i2f (Cop.cast_float_float sz2) (Cop.cast_int_float si1)
+  | Cop.cast_case_f2i sz2 si2 => eval_cast_f2i (Cop.cast_float_int si2) (Cop.cast_int_int sz2 si2)
+  | Cop.cast_case_f2bool => eval_cast_f2bool
+  | Cop.cast_case_p2bool => eval_cast_p2bool
+  | Cop.cast_case_struct id1 fld1 id2 fld2 =>
+      if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then Datatypes.id else always Vundef
+  | Cop.cast_case_union id1 fld1 id2 fld2 =>
+      if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then Datatypes.id else always Vundef
+  | Cop.cast_case_void => Datatypes.id
+  | Cop.cast_case_default => always Vundef
+  end.
 
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
