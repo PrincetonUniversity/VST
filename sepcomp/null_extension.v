@@ -7,6 +7,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.extension.
 Require Import sepcomp.extension_safety.
 Require Import sepcomp.extension_simulations.
+Require Import sepcomp.extension_proof_safety.
 Require Import sepcomp.extension_proof.
 Require Import sepcomp.Coqlib2. 
 
@@ -57,6 +58,7 @@ Section NullExtension.
  Next Obligation. if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. Qed.
  Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
  Next Obligation. 
+  split; auto.
   if_tac. 
   2: solve[elimtype False; apply H; omega].
   unfold linkable.

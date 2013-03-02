@@ -12,7 +12,8 @@ Structure external_specification {M E Z:Type} := {
   ext_spec_pre: forall e: E, 
     ext_spec_type e -> list typ -> list val -> Z -> M -> Prop;
   ext_spec_post: forall e: E, 
-    ext_spec_type e -> option typ -> option val -> Z -> M ->  Prop
+    ext_spec_type e -> option typ -> option val -> Z -> M ->  Prop;
+  ext_spec_exit: option val -> Z -> M ->  Prop
 }.
 Implicit Arguments external_specification [].
 
@@ -56,7 +57,8 @@ Definition link_ext_spec (M Z: Type) (handled: AST.external_function -> Prop)
              ~handled ef /\ ext_spec_pre Sigma ef x tys args z m)
     (fun (ef: AST.external_function) (x: ext_spec_type Sigma ef)
          (ty: option typ) (ret: option val) (z: Z) (m: M) => 
-             handled ef \/ ext_spec_post Sigma ef x ty ret z m).
+             handled ef \/ ext_spec_post Sigma ef x ty ret z m)
+    (ext_spec_exit Sigma).
 
 (** A client signature is linkable with an extension signature when each
    extension function specification ef:{P}{Q} is a subtype of the
@@ -65,13 +67,16 @@ Definition link_ext_spec (M Z: Type) (handled: AST.external_function -> Prop)
 Definition linkable (M Z Zext: Type) (proj_zext: Z -> Zext)
       (handled: AST.external_function -> Prop) 
       (csig: ef_ext_spec M Z) (ext_sig: ef_ext_spec M Zext) := 
-  forall ef P Q P' Q', 
+  (forall ef P Q P' Q', 
     ~handled ef -> 
     spec_of ef ext_sig = (P, Q) -> 
     spec_of ef csig = (P', Q') -> 
     forall x' tys args m z, P' x' tys args z m -> 
       exists x, P x tys args (proj_zext z) m /\
-      forall ty ret m' z', Q x ty ret (proj_zext z') m' -> Q' x' ty ret z' m'.
+      forall ty ret m' z', Q x ty ret (proj_zext z') m' -> Q' x' ty ret z' m') /\
+  (forall ret z m,
+    ext_spec_exit ext_sig ret (proj_zext z) m -> 
+    ext_spec_exit csig ret z m).
 
 End LinkExtSpec.
 

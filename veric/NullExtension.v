@@ -18,13 +18,16 @@ Definition dryspec : external_specification juicy_mem external_function unit
      (*ext_spec_pre*)
      (fun ef Hef tys vl m z => False) 
      (*ext_spec_post*)
-     (fun ef Hef ty vl m z => False).
+     (fun ef Hef ty vl m z => False)
+     (*ext_spec_exit*)
+     (fun rv m z => False).
 
-Definition Hspec : juicy_ext_spec unit .
- refine (Build_juicy_ext_spec _ dryspec _ _).
+Definition Hspec : juicy_ext_spec unit.
+ refine (Build_juicy_ext_spec _ dryspec _ _ _).
 Proof.
 simpl; intros; contradiction.
 simpl; intros; contradiction.
+simpl; intros; intros ? ? ? ?; contradiction.
 Defined.
 
 End NullExtension.

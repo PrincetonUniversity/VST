@@ -30,7 +30,7 @@ Section safety.
                exists c',
                  after_external Hcore ret c = Some c' /\
                  safeN n' z' c' m')
-       | None, Some i => True
+       | None, Some i => ext_spec_exit Hspec (Some i) z m
        | Some _, Some _ => False
        end
     end.
