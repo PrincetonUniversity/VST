@@ -149,7 +149,7 @@ Proof.
  repeat  simpl_typed_mapsto.
  rewrite sepcon_emp.
  unfold four_contents. simpl.
- change (umapsto  (Share.splice extern_retainer Share.top) (Tint I32 Unsigned noattr))
+ change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
        with (umapsto Ews tint).
  replace (Vptr b z) with (Vptr b (Int.add z (Int.repr 0)))
     by (rewrite Int.add_zero; auto).
@@ -172,7 +172,7 @@ forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
 instantiate (1:=nil) in (Value of Frame).
 unfold Frame.
- go_lower. normalize.  eval_cast_simpl.
+ go_lower. normalize.  (* eval_cast_simpl. *)
  repeat apply andp_right; try apply prop_right; simpl; auto. 
  compute; congruence.
  eapply eval_var_isptr; eauto.

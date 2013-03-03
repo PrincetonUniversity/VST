@@ -681,7 +681,7 @@ Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
 
 Lemma var_block_typed_mapsto_:
   forall  sh id t, 
- var_block sh (id, t) = `(typed_mapsto_ (Share.splice sh Share.top) t) (eval_var id t).
+ var_block sh (id, t) = `(typed_mapsto_ (Share.splice sh Tsh) t) (eval_var id t).
 Proof.
 intros; extensionality rho.
 unfold_lift.
@@ -695,7 +695,7 @@ Admitted.
 
 Lemma var_block_typed_mapsto__top:
   forall id t, 
- var_block Share.top (id, t) = `(typed_mapsto_ Share.top t) (eval_var id t).
+ var_block Tsh (id, t) = `(typed_mapsto_ Tsh t) (eval_var id t).
 Proof.
 intros.
 rewrite var_block_typed_mapsto_.

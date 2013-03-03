@@ -94,7 +94,9 @@ Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
 
-Definition writable_share: share -> Prop := fun sh => Share.unrel Share.Rsh sh = Share.top.
+Definition Tsh : share := Share.top.
+
+Definition writable_share: share -> Prop := fun sh => Share.unrel Share.Rsh sh = Tsh.
 
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with
@@ -157,7 +159,7 @@ Fixpoint init_data_list2pred (dl: list init_data)
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then Share.Lsh else Share.top.
+  if rdonly then Share.Lsh else Tsh.
 
 Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
  fun rho =>
@@ -223,14 +225,14 @@ Qed.
 
 Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : environ->mpred :=
   !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
-  `(memory_block (Share.splice rsh Share.top) (Int.repr (sizeof (Clight.typeof e))))
+  `(memory_block (Share.splice rsh Tsh) (Int.repr (sizeof (Clight.typeof e))))
              (eval_lvalue e).
 
 Definition var_block (rsh: Share.t) (idt: ident * type) : environ->mpred :=
          lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
 
 Definition stackframe_of (f: Clight.function) : environ->mpred :=
-  fold_right sepcon emp (map (var_block Share.top) (fn_vars f)).
+  fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
 
 Lemma  subst_extens {A}{NA: NatDed A}: 
  forall a v (P Q: environ -> A), P |-- Q -> subst a v P |-- subst a v Q.

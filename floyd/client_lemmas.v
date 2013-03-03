@@ -853,6 +853,20 @@ intros.
  specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
 Qed.
 
+  
+Lemma eval_cast_neutral_var':
+ forall i t rho,
+  (exists Delta,
+    tc_environ Delta rho /\  tc_lvalue Delta (Evar i t) rho) ->
+  eval_cast_neutral (eval_var i t rho) = eval_var i t rho.
+Proof.
+intros.
+ destruct H as [Delta [? ?]];
+ eapply eval_cast_neutral_var; eauto.
+Qed.
+
+Hint Rewrite eval_cast_neutral_var' using solve[eauto] : norm.
+
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
        eval_cast_neutral v = v.

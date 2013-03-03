@@ -4,7 +4,6 @@ Require Import sepcomp.step_lemmas.
 Require Import veric.base.
 Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.
-Require Import veric.SeparationLogic.
 Require Import veric.juicy_extspec.
 Require Import veric.juicy_mem.
 

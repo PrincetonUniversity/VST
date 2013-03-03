@@ -638,13 +638,6 @@ rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
 simpl_typed_mapsto.
-(*
-replace_SEP
-   (`(field_mapsto_ Share.top t_struct_intpair _x) (eval_var _p t_struct_intpair) *
-    `(field_mapsto_ Share.top t_struct_intpair _y)(eval_var _p t_struct_intpair)).
- reflexivity.
-flatten_sepcon_in_SEP.
-*)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 apply drop_local.  (* tempory, should fix store_field_tac *)
@@ -652,15 +645,14 @@ simpl update_tycon. (* should forward do this? *)
 
 
 Ltac gather_SEP' L :=
-   grab_indexes_SEP L;
+   grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)
  match goal with |- context [SEPx ?R] => 
    rewrite <- (firstn_skipn (length L) R); 
    unfold firstn, skipn; simpl length; cbv beta iota; rewrite gather_SEP;
    unfold app, fold_right; try  rewrite sepcon_emp
  end.
 gather_SEP' (0::1::nil).
-(* gather_SEP 0 1. *)
-replace_SEP  (`(typed_mapsto Share.top t_struct_intpair)
+replace_SEP  (`(typed_mapsto Tsh t_struct_intpair)
                       (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2))).
 simpl_typed_mapsto.
 extensionality rho; unfold_lift; simpl; rewrite sepcon_comm; reflexivity.
@@ -687,8 +679,8 @@ go_lower. apply andp_right; apply prop_right.
 simpl in H. omega. simpl in *. rewrite <- H.  reflexivity. 
 focus_SEP 1.
 replace_SEP 
-  ((`( field_mapsto Share.top t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
-   `( field_mapsto Share.top t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))
+  ((`( field_mapsto Tsh t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
+   `( field_mapsto Tsh t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))
     ).
 reflexivity.
 flatten_sepcon_in_SEP.
@@ -700,7 +692,7 @@ go_lower. subst. simpl. normalize. unfold main_post.
  unfold mf_restbuf; simpl.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
- replace (memory_block Share.top (Int.repr 0)
+ replace (memory_block Tsh (Int.repr 0)
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
   with (@emp mpred _ _).
 2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H0;
@@ -709,12 +701,12 @@ go_lower. subst. simpl. normalize. unfold main_post.
 
 repeat rewrite <- sepcon_assoc.
 apply derives_trans with
-( typed_mapsto_ Share.top t_struct_intpair
+( typed_mapsto_ Tsh t_struct_intpair
       (eval_var _q t_struct_intpair rho) 
  * TT 
- * typed_mapsto_ Share.top (tarray tuchar 8)
+ * typed_mapsto_ Tsh (tarray tuchar 8)
       (eval_var _buf (tarray tuchar 8) rho)
- *  typed_mapsto_ Share.top t_struct_intpair
+ *  typed_mapsto_ Tsh t_struct_intpair
       (eval_var _p t_struct_intpair rho)).
 repeat apply sepcon_derives; auto.
 simpl_typed_mapsto; simpl. rewrite sepcon_comm; apply sepcon_derives; auto.

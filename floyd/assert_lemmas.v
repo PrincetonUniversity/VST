@@ -740,7 +740,7 @@ Lemma eval_expropt_None: eval_expropt None = `None.
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expropt_Some eval_expropt_None : eval.
 
-Definition Ews (* extern_write_share *) := Share.splice extern_retainer Share.top.
+Definition Ews (* extern_write_share *) := Share.splice extern_retainer Tsh.
 
 Lemma globfun_eval_var:
   forall Delta rho id f,

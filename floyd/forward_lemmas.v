@@ -343,7 +343,7 @@ destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF
 normalize.
 Qed.
 
-Lemma writable_share_top: writable_share Share.top.
+Lemma writable_share_top: writable_share Tsh.
 Admitted.
 Hint Resolve writable_share_top.
 

@@ -199,11 +199,12 @@ Qed.
 Import SequentialClight.SeqC.CSL.
 
 
-Lemma splice_top_top: Share.splice Share.top Share.top = Share.top.
+Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
 Proof.
 unfold Share.splice.
 unfold Share.Lsh, Share.Rsh.
-case_eq (Share.split Share.top); intros L R ?.
+change Share.top with Tsh.
+case_eq (Share.split Tsh); intros L R ?.
 simpl.
 do 2 rewrite Share.rel_top1.
 erewrite Share.split_together; eauto.

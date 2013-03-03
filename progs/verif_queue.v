@@ -16,30 +16,30 @@ Definition mallocN_spec :=
   WITH n: int
   PRE [ 1%positive OF tint]
      PROP (4 <= Int.signed n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ()
-  POST [ tptr tvoid ] `(memory_block Share.top n) retval.
+  POST [ tptr tvoid ] `(memory_block Tsh n) retval.
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH u: unit
   PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
-      PROP() LOCAL () SEP (`(memory_block Share.top) (`force_int (eval_id 2%positive)) (eval_id 1%positive))
+      PROP() LOCAL () SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive))
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Share.top t_struct_elem _a p (Vint (fst rep)) * 
-  (field_mapsto Share.top t_struct_elem _b p (Vint (snd rep)) *
-   (field_mapsto_ Share.top t_struct_elem _next p)).
+  field_mapsto Tsh t_struct_elem _a p (Vint (fst rep)) * 
+  (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
+   (field_mapsto_ Tsh t_struct_elem _next p)).
 
 Definition fifo (contents: list (elemtype QS)) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
-      field_mapsto Share.top t_struct_fifo _head p hd *
-      field_mapsto Share.top t_struct_fifo _tail p tl *
+      field_mapsto Tsh t_struct_fifo _head p hd *
+      field_mapsto Tsh t_struct_fifo _tail p tl *
       if isnil contents
       then (!!(tl=p) && emp)
       else (EX prefix: list (elemtype QS), EX ult:val, EX elem: elemtype QS,
               !!(tl=offset_val (Int.repr 8)  ult
                   /\ contents = prefix++(elem::nil))
-            &&  (lseg QS Share.top prefix hd ult * 
+            &&  (lseg QS Tsh prefix hd ult * 
                    elemrep elem ult)).
 
 Definition fifo_new_spec :=
@@ -94,15 +94,15 @@ Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 Lemma memory_block_fifo:
  forall e, 
-   `(memory_block Share.top (Int.repr 8)) e =
-  `(field_mapsto_ Share.top t_struct_fifo queue._head) e *
-  `(field_mapsto_ Share.top t_struct_fifo queue._tail) e.
+   `(memory_block Tsh (Int.repr 8)) e =
+  `(field_mapsto_ Tsh t_struct_fifo queue._head) e *
+  `(field_mapsto_ Tsh t_struct_fifo queue._tail) e.
 Proof.
  intros.
  extensionality rho. unfold_lift.
  normalize.
  change 8 with (sizeof t_struct_fifo).
- rewrite (memory_block_typed Share.top t_struct_fifo).
+ rewrite (memory_block_typed Tsh t_struct_fifo).
  simpl_typed_mapsto.
  reflexivity.
 Qed.
@@ -136,9 +136,9 @@ normalize. intros [hd tl].
 normalize.
 repeat rewrite (lift1more q).
 repeat rewrite (lift2more q).
-replace_SEP 0 (`(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd).
+replace_SEP 0 (`(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd).
 go_lower; subst; auto.
-replace_SEP 1 (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl).
+replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst; auto.
 forward. (* t = Q->tail;*)
 forward. (* return (t == &(Q->head)); *)
@@ -171,13 +171,13 @@ destruct elem as [a1 b1].
 simpl @fst; simpl @snd.
 simpl. unfold align, Zmax; simpl. rewrite Int.add_zero.
 apply derives_trans with
-  (field_mapsto_ Share.top t_struct_elem _next ult *
-   field_mapsto Share.top t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
-replace (field_mapsto_ Share.top t_struct_elem _next ult)
-  with (mapsto_ Share.top (tptr t_struct_elem) (offset_val (Int.repr 8) ult)).
+  (field_mapsto_ Tsh t_struct_elem _next ult *
+   field_mapsto Tsh t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
+replace (field_mapsto_ Tsh t_struct_elem _next ult)
+  with (mapsto_ Tsh (tptr t_struct_elem) (offset_val (Int.repr 8) ult)).
 2: eapply mapsto_field_mapsto_; try (simpl; reflexivity); unfold field_offset; simpl; reflexivity.
-replace (field_mapsto_ Share.top t_struct_fifo _head (Vptr b i))
-  with (mapsto_ Share.top (tptr t_struct_elem) (Vptr b i)).
+replace (field_mapsto_ Tsh t_struct_fifo _head (Vptr b i))
+  with (mapsto_ Tsh (tptr t_struct_elem) (Vptr b i)).
 2: eapply mapsto_field_mapsto_; try (simpl; reflexivity); unfold field_offset; simpl; try reflexivity;
    unfold align, Zmax; simpl;  rewrite Int.add_zero; reflexivity.
 admit.  (* mapsto_ conflict *)
@@ -229,7 +229,7 @@ compute; congruence.
 cancel.
 normalize.
 forward. (* Q = (struct fifo * )q; *)  
-replace_SEP 0 (`(memory_block Share.top (Int.repr 8)) (eval_id _Q)).
+replace_SEP 0 (`(memory_block Tsh (Int.repr 8)) (eval_id _Q)).
 go_lower. subst. destruct q; inv TC; simpl; normalize.
 apply replace_LOCAL' with (`eq (eval_id _Q) (eval_id 25%positive) :: nil).
 go_lower. destruct q; inv H0; inv TC0; auto.
@@ -305,7 +305,7 @@ unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
 repeat flatten_sepcon_in_SEP.
-replace_SEP 1 (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl).
+replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst. auto.
 forward. (*   t = Q->tail; *)
 destruct (@isnil (elemtype QS) contents).
@@ -315,15 +315,15 @@ apply semax_pre_PQR
  with (PROP  (tl=q)
    LOCAL  (`eq (eval_id queue._t) `tl; `(eq q) (eval_id _Q))
    SEP 
-   (`(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `tl;
-    `(mapsto_ Share.top (tptr t_struct_elem)) (eval_id _t);
+   (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl;
+    `(mapsto_ Tsh (tptr t_struct_elem)) (eval_id _t);
     `(elemrep elem) (eval_id _p))).
 go_lower. normalize. subst. cancel.
 rewrite field_mapsto_isptr.
 normalize.
 eapply derives_trans; [apply field_mapsto_field_mapsto_  | ].
-replace (field_mapsto_ Share.top t_struct_fifo _head Q)
-   with (mapsto_ Share.top (tptr t_struct_elem) Q); auto.
+replace (field_mapsto_ Tsh t_struct_fifo _head Q)
+   with (mapsto_ Tsh (tptr t_struct_elem) Q); auto.
 eapply mapsto_field_mapsto_; try (unfold field_offset; simpl; reflexivity).
 destruct Q; inv H. simpl. rewrite Int.add_zero; auto.
 normalize.  subst tl.
@@ -368,10 +368,10 @@ normalize.
 unfold elemtype in elem'. simpl in elem'.
 destruct elem' as [a b].
 simpl @fst; simpl @snd.
-replace (field_mapsto_ Share.top t_struct_elem _next ult)
-      with  (mapsto_ Share.top (tptr t_struct_elem)  (offset_val (Int.repr 8) ult)).
+replace (field_mapsto_ Tsh t_struct_elem _next ult)
+      with  (mapsto_ Tsh (tptr t_struct_elem)  (offset_val (Int.repr 8) ult)).
 2: eapply mapsto_field_mapsto_; simpl; eauto; unfold field_offset; simpl; reflexivity.
-replace_SEP 1 (`(mapsto_ Share.top (tptr t_struct_elem)) (eval_id queue._t)).
+replace_SEP 1 (`(mapsto_ Tsh (tptr t_struct_elem)) (eval_id queue._t)).
 go_lower; subst; auto.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
@@ -407,8 +407,8 @@ destruct prefix.
 normalize. apply ptr_eq_e in H0; subst.
 unfold elemrep.
 apply derives_trans with 
-  (field_mapsto Share.top t_struct_elem _a ult (Vint a) *
-   field_mapsto Share.top t_struct_elem _a ult (Vint (fst elem)) * TT).
+  (field_mapsto Tsh t_struct_elem _a ult (Vint a) *
+   field_mapsto Tsh t_struct_elem _a ult (Vint (fst elem)) * TT).
 cancel.
 eapply derives_trans.
 apply sepcon_derives.
@@ -420,8 +420,8 @@ rewrite FF_sepcon. auto.
 normalize.
 unfold elemrep.
 apply derives_trans with 
- (field_mapsto Share.top t_struct_elem _next p tail *
-  field_mapsto_ Share.top t_struct_elem _next p * TT).
+ (field_mapsto Tsh t_struct_elem _next p tail *
+  field_mapsto_ Tsh t_struct_elem _next p * TT).
 cancel.
 apply derives_trans with (FF * TT).
 apply sepcon_derives; auto.
@@ -439,8 +439,8 @@ apply exp_right with ult.
 normalize.
 replace  (eval_cast (tptr t_struct_elem) (tptr t_struct_elem) p) with p
   by (destruct p; inv H; reflexivity).
-replace (mapsto Share.top (tptr t_struct_elem) (offset_val (Int.repr 8) ult) p)
-  with (field_mapsto Share.top t_struct_elem _next ult p).
+replace (mapsto Tsh (tptr t_struct_elem) (offset_val (Int.repr 8) ult) p)
+  with (field_mapsto Tsh t_struct_elem _next ult p).
 Focus 2. symmetry; eapply mapsto_field_mapsto; simpl; try reflexivity.
                unfold field_offset; simpl; reflexivity.
 rewrite list_cell_eq.
@@ -465,9 +465,9 @@ forward. (* finish the function call *)
 apply semax_pre_PQR with
   (PROP  ()
    LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
-   SEP  (`(field_mapsto_ Share.top t_struct_elem _a) (eval_id _p);
-           `(field_mapsto_ Share.top t_struct_elem _b) (eval_id _p);
-           `(field_mapsto_ Share.top t_struct_elem _next) (eval_id _p))).
+   SEP  (`(field_mapsto_ Tsh t_struct_elem _a) (eval_id _p);
+           `(field_mapsto_ Tsh t_struct_elem _b) (eval_id _p);
+           `(field_mapsto_ Tsh t_struct_elem _next) (eval_id _p))).
 go_lower; subst. normalize.
  change 12 with (sizeof t_struct_elem).
  rewrite memory_block_typed.
@@ -490,9 +490,9 @@ Qed.
 Lemma lift_elemrep_unfold:
   forall rep (p: environ -> val),
    `(elemrep rep) p = 
-    (`(field_mapsto Share.top t_struct_elem _a))  p `(Vint (fst rep)) * 
-     (`(field_mapsto Share.top t_struct_elem _b) p `(Vint (snd rep)) *
-       `(field_mapsto_ Share.top t_struct_elem _next) p).
+    (`(field_mapsto Tsh t_struct_elem _a))  p `(Vint (fst rep)) * 
+     (`(field_mapsto Tsh t_struct_elem _b) p `(Vint (snd rep)) *
+       `(field_mapsto_ Tsh t_struct_elem _next) p).
 Proof. intros. reflexivity. Qed.
 
 
@@ -636,9 +636,9 @@ rewrite andp_assoc.
 normalize. subst tl.
 apply semax_pre_PQR with (PROP  ()
    LOCAL  (`(eq q) (eval_id _Q))
-   SEP (`(lseg QS Share.top prefix hd ult); `(elemrep lastelem ult);
-   `(field_mapsto Share.top t_struct_fifo _head) (eval_id _Q) `hd;
-   `(field_mapsto Share.top t_struct_fifo _tail) (eval_id _Q) `(offset_val (Int.repr 8) ult))).
+   SEP (`(lseg QS Tsh prefix hd ult); `(elemrep lastelem ult);
+   `(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd;
+   `(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `(offset_val (Int.repr 8) ult))).
 go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  forward. (*   p = Q->head; *)
  forward. (*   t=Q->tail; *)
@@ -680,14 +680,13 @@ go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  cancel.
  unfold fifo. apply exp_right with (hd,
     (eval_cast (tptr (tptr t_struct_elem)) (tptr (tptr t_struct_elem))
-     (eval_struct_field 0 (force_ptr Q)))).
+     (offset_val (Int.repr 0) (force_ptr Q)))).
  rewrite field_mapsto_isptr.
  destruct (isnil (@nil (elemtype QS))) as [e3|n3]; [clear e3 | contradiction n3; auto].
  normalize.
  apply andp_right; auto. apply prop_right.
  destruct Q; inv H. simpl. rewrite Int.add_zero.
  unfold eval_cast; reflexivity.
- apply andp_right. apply prop_right; auto.
  cancel.
  apply TC0.
 (* else clause *)
@@ -725,7 +724,7 @@ simpl in H. inversion H; clear H; subst e contents.
  normalize. intro h.
  normalize.
  replace_SEP 1
-   (`(field_mapsto Share.top t_struct_elem _next) (eval_id _p) `h).
+   (`(field_mapsto Tsh t_struct_elem _next) (eval_id _p) `h).
 go_lower. subst. auto.
 forward. (*  n=p->next; *)
 apply sequential'.
@@ -755,14 +754,14 @@ Parameter body_mallocN:
   (EF_external _mallocN
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint |}) int
   (fun n : int => PROP (4 <= Int.signed n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
-  (fun n : int => `(memory_block Share.top n) retval).
+  (fun n : int => `(memory_block Tsh n) retval).
 
 Parameter body_freeN:
 semax_external
   (EF_external _freeN
      {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None |}) unit
   (fun _ : unit =>
-      PROP() LOCAL () SEP (`(memory_block Share.top) (`force_int (eval_id 2%positive)) (eval_id 1%positive)))
+      PROP() LOCAL () SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive)))
  (fun _ : unit => emp).
 
 Lemma all_funcs_correct:
