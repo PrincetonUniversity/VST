@@ -101,7 +101,7 @@ change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
-apply semax_pre_PQR with
+apply semax_pre with
  (PROP  (isptr buf)
    LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf))
    SEP 
@@ -150,7 +150,7 @@ change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
-apply semax_pre_PQR with
+apply semax_pre with
  (PROP  (isptr buf; len=8)
    LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf); `(eq (Vint (Int.repr len))) (eval_id _length))
    SEP 
@@ -390,7 +390,7 @@ subst.
 assert (CLser: included (eq ser) (list2idset(ser::x::id::nil))) by admit.
 assert (CLx: included (eq x) (list2idset(ser::x::id::nil))) by admit.
 assert (CLid: included (eq id) (list2idset(ser::x::id::nil))) by admit.
-eapply semax_pre_PQR with
+eapply semax_pre with
  (PROP() 
   LOCAL (tc_lvalue Delta e_obj ; tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil))
   SEP (`(message sh_obj msg) (eval_lvalue e_obj);
@@ -416,7 +416,7 @@ replace_SEP (EX fg: val*val,
 extract_exists_in_SEP. intros [f g].
 simpl @fst; simpl @ snd.
 simpl_typed_mapsto.
-apply semax_pre with
+eapply semax_pre with
   (EX p:val, EX buf:val, |>(PROP()
      LOCAL(tc_lvalue Delta e_obj; `(eq p) (eval_expr e_p);
                      `(eq buf) (eval_lvalue e_buf);
@@ -453,7 +453,7 @@ autorewrite with subst.
 clear C1 C2.
 
 focus_SEP 3 1.
-   apply semax_pre_PQR with 
+   apply semax_pre with 
      (P':=PROP () LOCAL (tc_expr (initialized ser Delta)
                 (Etempvar ser
                    (tptr
@@ -627,7 +627,7 @@ repeat flatten_sepcon_in_SEP.
 focus_SEP 3 1.
 get_global_function' _intpair_deserialize.
 get_global_function' _intpair_serialize.
-eapply semax_pre_PQR.
+eapply semax_pre.
 frame_SEP' (0::nil).
 unfold main_pre, globvars2pred, prog_vars. simpl map.
  rewrite fold_right_cons. rewrite fold_right_nil. rewrite sepcon_emp.

@@ -248,10 +248,9 @@ Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
    forall P Q1 Q R e sh s,
-      local Q1 &&
-      PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
                         local (`(typed_true (tptr list_struct)) e) ->
-      local Q1 && PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
      EX hry: elemtype ls * list (elemtype ls) * val,
       match hry with (h,r,y) => 
        !! (s=h::r) &&
@@ -264,27 +263,21 @@ Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
 Proof.
 intros.
 apply derives_trans with
-(local Q1 && PROPx P (LOCALx Q (SEPx (`(lseg_cons ls sh s) e (`nullval) :: R)))).
+(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls sh s) e (`nullval) :: R)))).
 apply derives_trans with
-(local Q1 && local (`(typed_true (tptr list_struct)) e) &&
- PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R)))).
+(local (`(typed_true (tptr list_struct)) e) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R)))).
 apply andp_right; auto.
-apply andp_right; auto.
-apply andp_left1; auto.
-apply andp_left2; auto.
-clear H.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_lift; simpl.
-normalize.
-rewrite lseg_nonnull by auto.
-auto.
-rewrite lift2_lseg_cons.
+unfold lift1; simpl; normalize.
+apply sepcon_derives; auto.
+rewrite lseg_nonnull; auto.
 clear.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+unfold lseg_cons.
 normalize.
-apply exp_right with x;
-destruct x as [[h r] y].
+apply exp_right with (h,r,y).
 normalize.
  repeat rewrite sepcon_assoc.
  auto.

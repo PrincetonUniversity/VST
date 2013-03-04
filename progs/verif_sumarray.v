@@ -92,7 +92,7 @@ go_lower.  subst.
  f_equal. intcompare H2. omega.
 (* Prove that loop body preserves invariant *)
 simpl.
-apply semax_pre_PQR with
+apply semax_pre with
 (PROP  (0 <= i0 < size)
    LOCAL  (`(eq a0) (eval_id _a); `(eq (Vint (Int.repr i0))) (eval_id _i);
    `(eq (Vint (Int.repr size))) (eval_id _n); `isptr (eval_id _a);

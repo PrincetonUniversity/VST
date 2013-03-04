@@ -193,7 +193,7 @@ Lemma replace_LOCAL':
  semax Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros until 1.
-apply semax_pre_PQR.
+apply semax_pre.
 unfold PROPx,LOCALx, local, lift1, lift; intro rho.
 simpl.
 apply derives_extract_prop; intro.
@@ -311,7 +311,7 @@ forward. (*   t = Q->tail; *)
 destruct (@isnil (elemtype QS) contents).
 (* CASE ONE:  isnil contents *)
 subst contents.
-apply semax_pre_PQR
+apply semax_pre
  with (PROP  (tl=q)
    LOCAL  (`eq (eval_id queue._t) `tl; `(eq q) (eval_id _Q))
    SEP 
@@ -462,7 +462,7 @@ compute; congruence. reflexivity.
 cancel.
 normalize.
 forward. (* finish the function call *)
-apply semax_pre_PQR with
+apply semax_pre with
   (PROP  ()
    LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
    SEP  (`(field_mapsto_ Tsh t_struct_elem _a) (eval_id _p);
@@ -516,7 +516,7 @@ instantiate (1:= `(fifo nil) (eval_id _Q)::nil) in (Value of Frame).
 go_lower. normalize.
 auto with closed.
  autorewrite with subst. (* should have been done by forward *)
-apply semax_pre_PQR with
+apply semax_pre with
   (EX q:val, EX p:val, 
  (PROP  ()
    LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
@@ -546,7 +546,7 @@ instantiate (1:= `(fifo ((Int.repr 1, Int.repr 10) :: nil) q)::nil) in (Value of
 unfold Frame; unfold_lift; simpl. cancel.
 auto with closed.
  autorewrite with subst. (* should have been done by forward *)
-apply semax_pre_PQR with
+apply semax_pre with
   (EX q:val, EX p:val, 
  (PROP  ()
    LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
@@ -634,7 +634,7 @@ normalize. intro ult.
 normalize. intro lastelem.
 rewrite andp_assoc.
 normalize. subst tl.
-apply semax_pre_PQR with (PROP  ()
+apply semax_pre with (PROP  ()
    LOCAL  (`(eq q) (eval_id _Q))
    SEP (`(lseg QS Tsh prefix hd ult); `(elemrep lastelem ult);
    `(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd;
@@ -699,7 +699,7 @@ focus_SEP 2.
 normalize.
 apply ptr_eq_e in H. subst ult.
 simpl eval_expr.
-apply semax_pre_PQR with (PROP (False) (LOCAL () SEP ())).
+apply semax_pre with (PROP (False) (LOCAL () SEP ())).
 unfold elemrep.
 go_lower. subst. 
 rewrite field_mapsto_isptr with (fld:=_a).

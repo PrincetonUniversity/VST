@@ -24,7 +24,7 @@ Focus 2.
 (* End Focus 2*)
 apply semax_seq with 
  (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
-apply semax_pre with (local (tc_expr Delta test) && Q).
+apply semax_pre_simple with (local (tc_expr Delta test) && Q).
 apply andp_right. apply TC.
 apply andp_left2.
 intro; auto.
@@ -34,7 +34,7 @@ intros.
 intro rho; unfold normal_ret_assert, overridePost; simpl.
 normalize. rewrite if_true by auto.
 normalize.
-eapply semax_pre; [ | apply semax_break].
+eapply semax_pre_simple; [ | apply semax_break].
 unfold overridePost. rewrite if_false by congruence.
 unfold loop1_ret_assert.
 eapply derives_trans; try apply Post.
@@ -60,7 +60,7 @@ normalize.
 eapply derives_trans; [ | apply H1].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 repeat rewrite prop_true_andp by auto. auto.
-eapply semax_pre; [ | apply H2].
+eapply semax_pre_simple; [ | apply H2].
 intro rho; unfold PROPx,LOCALx, lift1; unfold_lift; simpl; normalize.
 Qed.
 
@@ -86,7 +86,7 @@ apply exp_left. intro x; eapply derives_trans; [ | apply (H1 x)].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 normalize.
 apply extract_exists_pre; intro x.
-eapply semax_pre; [ | apply (H2 x)].
+eapply semax_pre_simple; [ | apply (H2 x)].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 Qed.
 
@@ -116,7 +116,7 @@ rewrite exp_andp2. apply exp_left. intro x2.
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 normalize. apply extract_exists_pre; intro x1.
 normalize. apply extract_exists_pre; intro x2.
-eapply semax_pre; [ | apply (H2 x1 x2)].
+eapply semax_pre_simple; [ | apply (H2 x1 x2)].
 intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 Qed.
 
@@ -206,7 +206,7 @@ Lemma forward_setx_closed_now':
         (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
 Proof.
 intros.
-eapply semax_pre; [ | apply semax_set].
+eapply semax_pre_simple; [ | apply semax_set].
 eapply derives_trans; [ | apply now_later].
 apply andp_left2.
 apply andp_right; auto.
@@ -866,7 +866,7 @@ Lemma elim_redundant_Delta:
   semax Delta (PROPx P (LOCALx (tc_environ Delta:: Q) R)) c Post.
 Proof.
  intros.
- eapply semax_pre; try apply H.
+ eapply semax_pre_simple; try apply H.
   apply andp_left2.
  intro rho; simpl.
  unfold PROPx; simpl; apply andp_derives; auto.

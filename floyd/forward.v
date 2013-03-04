@@ -168,7 +168,7 @@ Qed.
 
 
 Ltac forward_while Inv Postcond :=
-  apply semax_pre_PQR with Inv;
+  apply semax_pre with Inv;
     [ | (apply semax_seq with Postcond;
             [ apply semax_while' ; [ compute; auto | | | ] 
             | simpl update_tycon ])
@@ -291,7 +291,7 @@ Ltac semax_field_tac :=
 match goal with
  |  |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e _) ?fld _)) _ =>
-     apply (semax_pre (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+     apply (semax_pre_simple (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
      [ apply semax_load_assist1; [reflexivity]
      | isolate_field_tac_deref e fld R; hoist_later_in_pre;
        eapply semax_post'; [ | eapply semax_load_field_deref; 
@@ -300,7 +300,7 @@ match goal with
      ]
  |  |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield ?e ?fld _)) _ =>
-     apply (semax_pre (PROPx P (LOCALx (tc_lvalue Delta e :: Q) (SEPx R))));
+     apply (semax_pre_simple (PROPx P (LOCALx (tc_lvalue Delta e :: Q) (SEPx R))));
      [ apply semax_load_assist1; [reflexivity]
      | isolate_field_tac e fld R; hoist_later_in_pre;
        eapply semax_post'; [ | eapply semax_load_field'; 
@@ -385,7 +385,7 @@ Ltac store_field_tac :=
   match goal with
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield (Ederef ?e ?t3) ?fld ?t2) ?e2) _ =>
-       (apply (semax_pre_PQR (PROPx P 
+       (apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
    [ try solve [go_lower2; apply andp_right;
@@ -397,7 +397,7 @@ Ltac store_field_tac :=
     ]) || fail 1
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield ?e ?fld ?t2) ?e2) _ =>
-       apply (semax_pre_PQR (PROPx P 
+       apply (semax_pre (PROPx P 
                 (LOCALx (tc_lvalue Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
    [  try solve [go_lower2; apply andp_right;
@@ -413,7 +413,7 @@ Ltac store_tac :=
  match goal with
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Ederef ?e ?t2) ?e2) _ =>
-       apply (semax_pre_PQR (PROPx P 
+       apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
    [ try solve [go_lower2; apply andp_right;
@@ -449,7 +449,7 @@ Qed.
 Ltac load_array_tac :=
 match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
-     apply (semax_pre_PQR 
+     apply (semax_pre 
               (PROPx P (LOCALx (tc_expr Delta (Ebinop Oadd e1 e2 t1) :: Q) (SEPx R))));
      [ ((apply semax_load_assist1; [reflexivity])
         || apply semax_load_assist2; try solve [go_lower; normalize] )
@@ -502,7 +502,7 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
-     |  apply semax_pre with (PROPx P
+     |  apply semax_pre_simple with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
                  (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
@@ -530,7 +530,7 @@ Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
-     |  apply semax_pre with (PROPx P
+     |  apply semax_pre_simple with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
                  (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
@@ -572,7 +572,7 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
                       PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
                                       (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
      [ unfold fsig, A, Pre, Post
-     |  apply semax_pre with (PROPx P
+     |  apply semax_pre_simple with (PROPx P
                 (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
                  (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
                             F))));
@@ -636,11 +636,11 @@ Ltac forward1 :=
   | |- semax _ _ (Sset ?id ?e) _ => forward_setx
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>
-            apply semax_pre_PQR
+            apply semax_pre
                      with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
              [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]]
   | |- semax _ _ (Sreturn _) _ => 
-                    eapply semax_pre; [ go_lower1 | apply semax_return ]
+                    eapply semax_pre_simple; [ go_lower1 | apply semax_return ]
 (* see comment HACK below, in forward tactic...
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
                    semax_call_id_tac_aux Delta P Q R id f bl

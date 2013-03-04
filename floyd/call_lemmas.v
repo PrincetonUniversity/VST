@@ -146,7 +146,7 @@ simpl. subst. reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,Tvoid) A Pre Post); auto.
 subst. 
 
-eapply semax_pre; [ | apply (semax_call0 Delta A Pre Post x argsig _ bl P Q R H0)].
+eapply semax_pre_simple; [ | apply (semax_call0 Delta A Pre Post x argsig _ bl P Q R H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -196,7 +196,7 @@ assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) ret
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty)  A Pre Post); auto.
 subst. 
-eapply semax_pre; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -301,7 +301,7 @@ assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params ar
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
-eapply semax_pre; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.

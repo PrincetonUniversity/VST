@@ -9,7 +9,7 @@ COQDOC=coqdoc
 CLIGHTGENFLAGS = -l loadpath
 
 FILES= \
-   list.v list_dt.v \
+   list_dt.v \
   reverse.v verif_reverse.v \
   queue.v verif_queue.v \
   sumarray.v verif_sumarray.v \

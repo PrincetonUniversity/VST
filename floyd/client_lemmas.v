@@ -213,7 +213,7 @@ Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
  repeat apply andp_derives; auto.
 Qed.
 
-Lemma semax_pre:
+Lemma semax_pre_simple:
  forall P' Delta P c R,
      (local (tc_environ Delta) && P |-- P') ->
      semax Delta P' c R  -> semax Delta P c R.
@@ -1345,18 +1345,18 @@ Lemma semax_pre0:
      semax Delta P c R.
 Proof.
 intros.
-eapply semax_pre; try apply H0.
+eapply semax_pre_simple; try apply H0.
  apply andp_left2; auto.
 Qed.
 
-Lemma semax_pre_PQR:
+Lemma semax_pre:
  forall P' Delta P1 P2 P3 c R,
      (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
      semax Delta P' c R  -> 
      semax Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
 Proof.
 intros.
-eapply semax_pre; try apply H0.
+eapply semax_pre_simple; try apply H0.
  rewrite insert_local. auto.
 Qed.
 
@@ -1710,7 +1710,7 @@ Lemma replace_SEP':
  semax Delta (PROPx P (LOCALx Q (SEPx Rs))) c Post.
 Proof.
 intros.
-eapply semax_pre_PQR; [ | apply H0].
+eapply semax_pre; [ | apply H0].
 clear - H.
 change SEPx with SEPx' in H|-*;
 unfold PROPx, LOCALx, SEPx' in *; intro rho; specialize (H rho).
@@ -1733,7 +1733,7 @@ Ltac replace_in_pre S S' :=
  match goal with |- semax _ ?P _ _ =>
   match P with context C[S] =>
      let P' := context C[S'] in 
-      apply semax_pre_PQR with P'; [ | ]
+      apply semax_pre with P'; [ | ]
   end
  end.
 
@@ -1744,7 +1744,7 @@ Lemma semax_extract_PROP_True:
        semax Delta (PROPx (PP::P) QR) c Post.
 Proof.
 intros.
-apply semax_pre with (PROPx P QR).
+apply semax_pre_simple with (PROPx P QR).
 unfold PROPx in *; simpl. normalize. auto.
 Qed.
 
@@ -1754,7 +1754,7 @@ Lemma semax_extract_PROP:
        semax Delta (PROPx (PP::P) QR) c Post.
 Proof.
 intros.
-apply semax_pre with (!!PP && PROPx P QR).
+apply semax_pre_simple with (!!PP && PROPx P QR).
 unfold PROPx in *; simpl. normalize.
 apply semax_extract_prop.
 auto.
