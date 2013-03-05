@@ -299,7 +299,7 @@ Lemma loadbytes_read_file_le m b ofs nbytes0 nbytes sz cur:
 Proof.
 revert ofs cur nbytes0; induction nbytes; simpl; auto.
 destruct nbytes0; try omega; auto.
-intros; omegaContradiction.
+try (intros; omegaContradiction). (* Coq 8.3/8.4 compat *)
 intros ofs cur nbytes0 H1.
 destruct nbytes0.
 simpl; intros; apply Mem.loadbytes_empty; omega.

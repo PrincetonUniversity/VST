@@ -411,7 +411,8 @@ Proof. intros.
     apply val_inject_ptr with (delta:=0).
             unfold Mem.flat_inj. inv Inj.
             remember (zlt b1 (Mem.nextblock m1)).
-            destruct s. trivial. assert (j b1 = None). apply mi_freeblocks. apply z. rewrite H in H0. inv H0.
+            destruct s. trivial. assert (j b1 = None). 
+            apply mi_freeblocks. assumption. rewrite H in H0. inv H0.
             rewrite Int.add_zero. trivial.
 Qed.
 
@@ -602,7 +603,7 @@ Proof. intros. apply mem_wd_E in H.
    unfold Mem.flat_inj in *.
    remember (zlt b (Mem.nextblock m)).
   destruct s. remember (j b). destruct o. destruct p.  rewrite Zplus_0_l. trivial. trivial.
-  inv J. apply mi_freeblocks. apply z.
+  inv J. apply mi_freeblocks. assumption.
 Qed.
 
 Lemma mem_wd_inject_splitL: forall j m1 m2

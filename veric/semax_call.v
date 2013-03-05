@@ -1587,7 +1587,7 @@ intros.
 simpl in H7.
 destruct H7; split; auto.
 revert H7; simpl.
-destruct ret; specialize (TC (m_phi jm)); unfold tc_expropt in TC; do 4 red in TC.
+destruct ret; specialize (TC ((*m_phi*) jm)); unfold tc_expropt in TC; do 4 red in TC.
 simpl.
 case_eq (call_cont k); intros.
 inv H9.

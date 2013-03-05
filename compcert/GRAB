@@ -20,7 +20,8 @@ if [ -e "$1" -a ./GRAB ]; then
   cp $1/flocq/Calc/*.v flocq/Calc
   cp $1/flocq/Appli/*.v flocq/Appli
   cp $1/exportclight/*.v exportclight
-  cp $1/Makefile/*.v Makefile
+  cp $1/Makefile Makefile
+  cp $1/.depend .depend
 else
  echo "Usage:  ./GRAB ~/compcert"  
 fi

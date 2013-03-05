@@ -98,7 +98,8 @@ assert (Ext23': Mem.extends m2' m3').
          (*mi_perm*)
             destruct (ACCESS b2) as [Val2 Inval2].
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z; clear Heqz. clear Inval2. specialize (Val2 z k ofs).
+            destruct z as [z|z]; clear Heqz. clear Inval2.
+  specialize (Val2 z k ofs).
               remember (source j m1 b2 ofs) as src.
               destruct src.
                  apply source_SomeE in Heqsrc.
@@ -118,7 +119,8 @@ assert (Ext23': Mem.extends m2' m3').
                                          apply H0.
                     eapply sourceNone_LOOR. apply Heqsrc. eassumption.
                     apply (Mem.valid_block_extends _ _ _ Ext23). apply z. 
-            clear Val2. specialize (Inval2 z k ofs).
+            clear Val2.
+           specialize (Inval2 z k ofs).
                remember (source j' m1' b2 ofs) as src.
                destruct src.
                   apply source_SomeE in Heqsrc.
@@ -137,7 +139,7 @@ assert (Ext23': Mem.extends m2' m3').
                intros off; intros. specialize (H0 _ H). clear H.
                destruct (ACCESS b2) as [Val2 Inval2].
                remember (zlt b2 (Mem.nextblock m2)) as z.
-               destruct z; clear Heqz.
+               destruct z as [z|z]; clear Heqz.
                   clear Inval2. specialize (Val2 z Cur off).
                   remember (source j m1 b2 off) as src. 
                   destruct src.  
@@ -174,7 +176,7 @@ assert (Ext23': Mem.extends m2' m3').
             destruct (CONT b2) as [ValC InvalC].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z; clear Heqz.
+            destruct z as [z|z]; clear Heqz.
               clear InvalC InvalA.
                  specialize (ValC z ofs). specialize (ValA z Cur ofs).
                  remember (source j m1 b2 ofs) as src.
@@ -198,7 +200,7 @@ assert (Ext23': Mem.extends m2' m3').
                         apply eq_sym in H. rewrite (UV _ H). constructor.
                         apply eq_sym in H1. rewrite (UV _ H1). econstructor. 
                             apply H2. trivial.
-                        constructor. 
+                        constructor.
               clear ValA ValC. rewrite (InvalC z).
                   apply memval_inject_id_refl.
 split; trivial.
@@ -206,7 +208,7 @@ assert (EP23': extends_perm_nonempty m2' m3').
    intros b2; intros.
    destruct (ACCESS b2) as [Val2 Inval2].
    remember (zlt b2 (Mem.nextblock m2)) as z.
-   destruct z; clear Heqz.
+   destruct z as [z|z]; clear Heqz.
    (*valid_block b2 m2*)
       clear Inval2. 
       assert (ValMax := Val2 z Max ofs).
@@ -262,7 +264,7 @@ assert (Inj12': Mem.inject j' m1' m2').
        (*mi_perm*)
           destruct (ACCESS b2) as [Val2 Inval2].
           remember (zlt b2 (Mem.nextblock m2)) as z.
-          destruct z; clear Heqz. clear Inval2. 
+          destruct z as [z|z]; clear Heqz. clear Inval2.
             specialize  (Val2 z k (ofs + delta)).
             assert (HJ: j b1 = Some (b2, delta)).
               remember (j b1).
@@ -295,7 +297,7 @@ assert (Inj12': Mem.inject j' m1' m2').
               intros off; intros. 
               destruct (ACCESS b2) as [Val2 Inval2].
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z; clear Heqz. clear Inval2. 
+              destruct z as [z|z]; clear Heqz. clear Inval2. 
                  specialize (Val2 z Cur off).
                  assert (HJ: j b1 = Some (b2, delta)).
                     remember (j b1).
@@ -333,7 +335,7 @@ assert (Inj12': Mem.inject j' m1' m2').
             destruct (CONT b2) as [ValC InvalC].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z; clear Heqz.
+            destruct z as [z|z]; clear Heqz.
               clear InvalC InvalA. 
                 specialize (ValC z (ofs+delta)). 
                 specialize (ValA z Cur (ofs+delta)). 
@@ -351,7 +353,7 @@ assert (Inj12': Mem.inject j' m1' m2').
                 assert (OV1: Mem.meminj_no_overlap j m1). eapply Minj12.
                 rewrite (source_SomeI j m1 b2 b1 ofs delta OV1 HJ Hperm1) in *.
                 rewrite ValC.
-                eapply Inj13'. apply H. apply H0. 
+                eapply Inj13'. apply H. apply H0.
             clear ValC ValA. rewrite (InvalC z). clear InvalC. 
                 specialize ( InvalA z Cur (ofs+delta)).
                 eapply Inj13'.  apply H. apply H0.
@@ -366,7 +368,7 @@ assert (IP12': inject_perm_nonempty j' m1' m2').
       intros b1; intros.
       destruct (ACCESS b2) as [Val Inval]. 
       remember (zlt b2 (Mem.nextblock m2)) as z.
-      destruct z; clear Heqz.
+      destruct z as [z|z]; clear Heqz.
       (*valid_block b2 m2*)
          clear Inval. 
          specialize (Val z k (ofs+delta)).
@@ -458,7 +460,7 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
   (*access_max*)
   intros. destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [Val Inval].
     remember (zlt b m2.(Mem.nextblock)) as z. 
-    destruct z; clear Heqz.
+    destruct z as [z|z]; clear Heqz.
     (*Case valid*) clear Inval.
       assert (MaxP := Val z Max ofs).
       assert (CurP := Val z Cur ofs).

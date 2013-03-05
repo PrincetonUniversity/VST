@@ -590,7 +590,7 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly. (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -613,7 +613,7 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -636,7 +636,7 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -659,7 +659,7 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -682,7 +682,7 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -734,7 +734,7 @@ if_tac; auto.
     f_equal.
    apply zero_ext_inj. forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H7; auto.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
 
 (* symbol case *)
  rewrite RHO.
@@ -772,7 +772,7 @@ if_tac; auto.
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H.  subst b1.
   apply nth_getN; simpl; omega.
@@ -808,7 +808,7 @@ assert ((EX  bl : list memval,
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  apply read_sh_readonly.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H.  subst b1.
   apply nth_getN; simpl; omega.
@@ -1469,6 +1469,7 @@ Proof.
  unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
  replace (inflate_initial_mem m0 (initial_core gev G n) @ loc)
    with (inflate_initial_mem m (initial_core gev G n) @ loc); auto.
+ try rename l into z.   (* Coq 8.3/8.4 compatibility *)
  clear - z H0.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.

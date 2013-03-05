@@ -2582,7 +2582,7 @@ unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
 generalize (plt_ok LOOKUP) as plt_ok'; intro.
 destruct (lt_dec k num_modules); try solve[elimtype False; omega].
 solve[assert (plt_ok' = l) as -> by apply proof_irr; auto].
-congruence. 
+try congruence.   (* Coq 8.3/8.4 compatibility *)
 
 (*'return' case*)
 destruct (eq_nat_dec (linker_active s2) (linker_active s2)); try solve[omega].
@@ -2602,7 +2602,7 @@ destruct (lt_dec (linker_active s2) num_modules); try solve[omega].
 assert (Heq: l = plt_ok LOOKUP) by apply proof_irr; auto.
 unfold genv_map in *.
 solve[subst; congruence].
-congruence.
+try congruence.   (* Coq 8.3/8.4 compatibility *)
 
 (*4: at_external_match*)
 intros until j; intros H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12.

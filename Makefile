@@ -1,4 +1,4 @@
-target: veric/SeparationLogicSoundness.vo
+target: progs/verif_reverse.vo
 
 msl/msl_standard.vo:
 	(cd msl; make)
@@ -16,5 +16,10 @@ veric/SequentialClight.vo: compcert/Clight_sem.vo msl/msl_standard.vo \
 floyd/proofauto.vo: veric/SequentialClight.vo
 	(cd floyd; make)
 
-progs/reverse.vo: floyd/proofauto.vo
+progs/verif_reverse.vo: floyd/proofauto.vo
 	(cd progs; make)
+
+clean: 
+	(cd msl; make clean); (cd compcert; ./make clean); \
+        (cd sepcomp; make clean); (cd veric; make clean); \
+        (cd floyd; make clean); (cd progs; make clean)

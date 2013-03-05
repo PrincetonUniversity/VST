@@ -1053,6 +1053,7 @@ Lemma glob_types_update_tycon:
 glob_types_join_labeled : forall Delta e l,
 glob_types (update_tycon Delta (Sswitch e l)) = glob_types Delta. 
 Proof. 
+clear glob_types_update_tycon.
 assert (forall i Delta, glob_types (initialized i Delta) = glob_types Delta).
 intros; unfold initialized.
 destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
@@ -1064,8 +1065,9 @@ auto.
 
 simpl.  rewrite glob_types_update_dist. auto. 
 
-auto. 
+auto.
 
+clear glob_types_join_labeled.
 intros. simpl. 
 destruct l. simpl. auto. 
 simpl in *. rewrite glob_types_update_dist. 
