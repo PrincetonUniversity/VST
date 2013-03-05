@@ -139,18 +139,17 @@ Inductive linker_corestep:
      (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) (length_cons _ _) ext_pf') m
 
 (** 'return' steps *)
-| link_return: forall ge stack i j id c m (pf_i: i < num_modules) c' c'' retv ef sig args
-   (LOOKUP: procedure_linkage_table id = Some j)
-   (*NEW*) (AT_EXT: at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)) 
-   (HALTED: safely_halted (get_module_csem (modules (plt_ok id j LOOKUP))) c' = Some retv) 
-   (*NEW: FIXME: allow retv = None*) (TYCHECKS: val_has_type_opt (Some retv) (ef_sig ef))
+| link_return: forall ge stack i j c m (pf_i: i < num_modules) c' c'' retv ef sig args pfj
+   (AT_EXT: at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)) 
+   (HALTED: safely_halted (get_module_csem (modules pfj)) c' = Some retv) 
+   (TYCHECKS: val_has_type_opt (Some retv) (ef_sig ef)) (*FIXME: allow retv = None*) 
    pf ext_pf ext_pf',
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
   after_external (get_module_csem (modules pf_i)) (Some retv) c = Some c'' -> 
   linker_corestep ge
    (mkLinkerCoreState 
-     (mkFrame j (plt_ok id j LOOKUP) c' :: mkFrame i pf_i c :: stack) pf ext_pf) m
+     (mkFrame j pfj c' :: mkFrame i pf_i c :: stack) pf ext_pf) m
    (mkLinkerCoreState (mkFrame i pf_i c'' :: stack) (length_cons _ _) ext_pf') m.
 
 Definition linker_at_external (s: linker_corestate) := 
@@ -228,7 +227,7 @@ apply corestep_not_at_external in H2.
 solve[simpl; rewrite H2; auto].
 simpl; rewrite AT_EXT, LOOKUP; auto.
 simpl.
-destruct (at_external_halted_excl (get_module_csem (modules (plt_ok id j LOOKUP))) c')
+destruct (at_external_halted_excl (get_module_csem (modules pfj)) c')
  as [H3|H3].
 solve[rewrite H3; auto].
 solve[rewrite H3 in HALTED; congruence].
@@ -1066,7 +1065,7 @@ solve[apply eq_nat_dec].
 apply corestep_not_halted in STEP12.
 unfold csem_map in STEP12.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP0) by apply proof_irr.
+assert (l = pfj0) by apply proof_irr.
 subst.
 apply Eqdep_dec.inj_pair2_eq_dec in H0.
 subst.
@@ -1122,10 +1121,10 @@ destruct (@at_external (Genv.t (fT j) (vT j)) (cT j) Mem.mem
              (csem_map j) c).
 congruence.
 unfold csem_map in H1.
-generalize LOOKUP as LOOKUP'; intro.
-apply plt_ok in LOOKUP'.
+(*generalize LOOKUP as LOOKUP'; intro.
+apply plt_ok in LOOKUP'.*)
 destruct (lt_dec j num_modules); try solve[elimtype False; omega].
-assert (H2: l = plt_ok LOOKUP) by apply proof_irr.
+assert (H2: l = pfj) by apply proof_irr.
 rewrite H2 in H1.
 unfold genv_map in *.
 rewrite HALTED in H1.
@@ -1170,11 +1169,11 @@ assert (Heq: c'0 = c).
 subst c'0.
 clear H1.
 unfold csem_map in H2.
-generalize LOOKUP as LOOKUP'; intro.
-apply plt_ok in LOOKUP'.
+(*generalize LOOKUP as LOOKUP'; intro.
+apply plt_ok in LOOKUP'.*)
 destruct (lt_dec j num_modules); try solve[elimtype False; omega].
 apply corestep_not_halted in H2.
-assert (H3: l = plt_ok LOOKUP) by apply proof_irr.
+assert (H3: l = pfj) by apply proof_irr.
 rewrite H3 in H2; clear H3.
 unfold init_data, genv_map in *; rewrite H2 in HALTED.
 congruence.
@@ -1239,9 +1238,9 @@ assert (Heq: linker_active s = linker_active s2).
  inv H1.
  apply corestep_not_halted in STEP.
  unfold csem_map in STEP.
- generalize (plt_ok LOOKUP); intro.
+(* generalize (plt_ok LOOKUP); intro.*)
  destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
- assert (l = plt_ok LOOKUP) by apply proof_irr.
+ assert (l = pfj) by apply proof_irr.
  subst l.
  unfold genv_map, init_data in *.
  rewrite HALTED in STEP.
@@ -1282,10 +1281,10 @@ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
 inv H1.
 apply corestep_not_halted in STEP.
 unfold csem_map in STEP.
-generalize (plt_ok LOOKUP); intro.
+(*generalize (plt_ok LOOKUP); intro.*)
 destruct (lt_dec j num_modules); try solve[elimtype False; omega].
 unfold genv_map, init_data in *.
-assert (l = plt_ok LOOKUP) by apply proof_irr.
+assert (l = pfj) by apply proof_irr.
 subst l.
 rewrite STEP in HALTED.
 congruence.
@@ -1325,13 +1324,11 @@ assert (m2 = m2').
  unfold csem_map in STEP.
  destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
  unfold genv_map, init_data in *.
- assert (l = plt_ok LOOKUP) as -> by apply proof_irr.
+ assert (l = pfj) as -> by apply proof_irr.
  subst l.
  rewrite HALTED in STEP.
  congruence.
- elimtype False; apply n.
- solve[apply (plt_ok LOOKUP)].
- solve[apply eq_nat_dec].
+ solve[apply eq_nat_dec]. 
 subst m2.
 unfold genv_map, init_data in *.
 solve[apply STEPN].
@@ -1357,9 +1354,8 @@ rewrite <-Eqdep_dec.eq_rect_eq_dec in H1.
 inv H1.
 apply corestep_not_halted in STEP.
 unfold csem_map in STEP.
-generalize (plt_ok LOOKUP); intro.
 destruct (lt_dec j0 num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP) by apply proof_irr.
+assert (l = pfj) by apply proof_irr.
 subst l.
 unfold genv_map, init_data in *.
 rewrite HALTED in STEP.
@@ -1655,7 +1651,7 @@ solve[apply eq_nat_dec].
 apply corestep_not_halted in STEP12.
 unfold csem_map_S, csem_map in STEP12.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP0) by apply proof_irr.
+assert (l = pfj0) by apply proof_irr.
 subst.
 apply Eqdep_dec.inj_pair2_eq_dec in H0.
 subst.
@@ -1718,7 +1714,7 @@ solve[apply eq_nat_dec].
 apply corestep_not_halted in STEP12.
 unfold csem_map_T, csem_map in STEP12.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP0) by apply proof_irr.
+assert (l = pfj0) by apply proof_irr.
 subst.
 apply Eqdep_dec.inj_pair2_eq_dec in H0.
 subst.
@@ -2572,12 +2568,6 @@ specialize (H2 id).
 rewrite H13 in H2.
 specialize (H3 id).
 solve[rewrite <-H2 in H3; auto].
-(*assert (sig = sig0) as ->.
- clear - H5 AT_EXT.
- unfold csem_map_S, csem_map in H5.
- destruct (lt_dec i num_modules); try solve[elimtype False; omega].
- assert (Heq: l = PF) by apply proof_irr; auto; subst.
- solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].*)
 unfold csem_map_T, csem_map, genv_mapT, genvs in INIT.
 generalize (plt_ok LOOKUP) as plt_ok'; intro.
 destruct (lt_dec k num_modules); try solve[elimtype False; omega].
@@ -2595,11 +2585,10 @@ edestruct (@at_external_halted_excl
  (csem_map_S (linker_active s2)) c').
 unfold genv_map in *.
 congruence.
-elimtype False; clear - HALTED LOOKUP H1 plt_ok.
-generalize (plt_ok LOOKUP) as plt_ok'; intro.
+elimtype False; clear - HALTED H1 plt_ok.
 unfold csem_map_S, csem_map in H1.
 destruct (lt_dec (linker_active s2) num_modules); try solve[omega].
-assert (Heq: l = plt_ok LOOKUP) by apply proof_irr; auto.
+assert (Heq: l = pfj) by apply proof_irr; auto.
 unfold genv_map in *.
 solve[subst; congruence].
 try congruence.   (* Coq 8.3/8.4 compatibility *)
@@ -2882,23 +2871,6 @@ solve[intros [? [? [? [? [? [? FALSE]]]]]]; elimtype False; auto].
 intros until c2; intros H1 H2 H3 H4 H5.
 destruct (core_simulations (linker_active s1)).
 
-(*generalize core_halted0.
-intro core_halted1.
-destruct (exists_ty rv1) as [ty1 HASTY1].
-specialize (core_halted1 (cd (linker_active s1)) j c1 m1 c2 m2 rv1 ty1).
-spec core_halted1; auto.
-destruct H1 as [_ [_ [_ [_ [RR [H6 H7]]]]]].
-simpl in *.
-destruct (H7 (linker_active s1) c1 H2) as [c1' [H8 H9]].
-rewrite H3 in H8.
-solve[inv H8; auto].
-spec core_halted1; auto.
-destruct core_halted1 as [v2 [INJ [HALT INJ']]]; auto.*)
-
-(*exists v2.
-split; auto.
-split; auto.
-clear INJ'.*)
 inv H5.
 elimtype False; clear - H2 H4 H6.
 apply corestep_not_halted in H6.
@@ -2970,7 +2942,7 @@ assert (Heq: rv1 = retv).
  clear - HALTED H4 PF.
  unfold csem_map_S, csem_map in H4.
  destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
- assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ assert (l = pfj) by apply proof_irr; auto.
  subst l.
  rewrite HALTED in H4.
  solve[inv H4; auto].
@@ -3013,7 +2985,7 @@ assert (Heq: rv1 = retv).
  clear - HALTED H4 PF.
  unfold csem_map_S, csem_map in H4.
  destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
- assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ assert (l = pfj) by apply proof_irr; auto.
  subst l.
  rewrite HALTED in H4.
  solve[inv H4; auto].
@@ -3049,7 +3021,7 @@ split.
 solve[apply inject_separated_same_meminj].
 split.
 assert (pf_i = PF0) as -> by apply proof_irr.
-assert (PF = plt_ok LOOKUP) as -> by apply proof_irr.
+assert (PF = pfj) as -> by apply proof_irr.
 
 destruct (core_simulations i0).
 clear core_ord_wf0 core_diagram0 core_initial0 core_at_external0 core_after_external0.
@@ -3061,7 +3033,7 @@ assert (Heq: rv1 = retv).
  clear - HALTED H4 PF.
  unfold csem_map_S, csem_map in H4.
  destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
- assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ assert (l = pfj) by apply proof_irr; auto.
  subst l.
  rewrite HALTED in H4.
  solve[inv H4; auto].
@@ -3075,7 +3047,7 @@ destruct H13 as [ef00 [sig00 [args00 AT_EXT00]]].
 apply link_return with (retv := v2') (ef := ef00) (sig := sig00) (args := args00); auto.
 unfold csem_map_T, csem_map in H9.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-solve[assert (plt_ok LOOKUP = l0) as -> by apply proof_irr; auto].
+solve[assert (pfj = l0) as -> by apply proof_irr; auto].
 
 simpl.
 destruct H10 as [HASTY2 H10].
@@ -3083,7 +3055,7 @@ assert (Heq: rv1 = retv).
  clear - HALTED H4 PF.
  unfold csem_map_S, csem_map in H4.
  destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
- assert (l = plt_ok LOOKUP) by apply proof_irr; auto.
+ assert (l = pfj) by apply proof_irr; auto.
  subst l.
  solve[rewrite H4 in HALTED; inv HALTED; auto].
 subst rv1.
@@ -3282,7 +3254,7 @@ solve[inv H6; auto].
 clear - HALTED H4 PF.
 unfold csem_map_S, csem_map in H4.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
+assert (l = pfj) by apply proof_irr; subst.
 solve[rewrite H4 in HALTED; inv HALTED; auto].
 split; auto.
 simpl.
@@ -3310,7 +3282,7 @@ solve[inv H6; auto].
 clear - HALTED H4 PF.
 unfold csem_map_S, csem_map in H4.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
-assert (l = plt_ok LOOKUP) by apply proof_irr; subst.
+assert (l = pfj) by apply proof_irr; subst.
 solve[rewrite H4 in HALTED; inv HALTED; auto].
 
 solve[split; split; auto].

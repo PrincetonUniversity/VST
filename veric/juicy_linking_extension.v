@@ -17,8 +17,11 @@ Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.linking_extension.
 
 Require Import veric.juicy_extspec.
+Require Import veric.compcert_rmaps.
 
 Require Import msl.msl_standard.
+Require Import msl.rmaps.
+Require Import msl.rmaps_lemmas.
 
 Require Import Axioms.
 Require Import Coqlib.
@@ -126,6 +129,12 @@ Variable ef2id_ok:
   | _ => True
   end.
 
+Definition post_well_typed (ef: external_function) 
+      (Q: ext_spec_type Hspec ef -> option typ -> option val -> Z -> juicy_mem -> Prop) :=
+  forall x rv z m, 
+  Q x (sig_res (ef_sig ef)) rv z m -> 
+  forward_simulations.val_has_type_opt rv (ef_sig ef).    
+
 Variable modules_verified:
   forall i (pf: i < num_modules) ef,
   let csem := get_module_csem (modules pf) in
@@ -139,7 +148,25 @@ Variable modules_verified:
     P x tys args z jm -> 
     safeN (juicy_core_sem csem) 
       (j_upd_rguard Hspec (Q x (sig_res (ef_sig ef))) (JE_post_hered _ _ _ _ _)) 
-      ge n z c jm.
+      ge n z c jm /\
+    post_well_typed ef Q.
+
+(** This hypothesis may disappear after we clean up the CoreSemantics record. *)
+Variable mk_initial_core_succeeds: 
+  forall i (pf: i < num_modules) v vs,
+  exists c, make_initial_core 
+    (get_module_csem (modules pf)) 
+    (get_module_genv (modules pf)) v vs = Some c.
+
+(** Modules blocked on external calls are calling functions that aren't actually 
+   defined in the current module. *)
+Variable at_ext_plt_ok: 
+  forall i (pf: i < num_modules) c ef sig args,
+  at_external (get_module_csem (modules pf)) c = Some (ef, sig, args) -> 
+  (exists j, i<>j /\ 
+    procedure_linkage_table (ef2id ef) = Some j /\
+    exists b, Genv.find_symbol ge (ef2id ef) = Some b) \/
+  procedure_linkage_table (ef2id ef) = None.
 
 Definition juicy_linking_extension :=
   @linking_extension F V Z Zext proj_zext zmult proj_zmult 
@@ -193,144 +220,255 @@ exists c_i'; split; auto.
 solve[apply safe_downward1; auto].
 Qed.
 
+Lemma age_resource_decay': 
+  forall jm jm',
+  age jm jm' -> 
+  resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
+Proof.
+intros until jm'; intros AGE.
+hnf.
+split; auto.
+hnf in AGE.
+generalize AGE as AGE'; intro.
+apply age1_levelS in AGE.
+destruct AGE as [n LEV].
+rewrite level_juice_level_phi in LEV; rewrite LEV.
+apply age_level in AGE'.
+do 2 rewrite level_juice_level_phi in AGE'.
+rewrite LEV in AGE'.
+inv AGE'; omega.
+intros l; split.
+solve[destruct jm; apply JMalloc; auto].
+left.
+hnf in AGE.
+apply age1_juicy_mem_unpack in AGE.
+destruct AGE as [X Y].
+erewrite <-age1_resource_at; eauto.
+solve[rewrite resource_at_approx; auto].
+Qed.
+
 Lemma juicy_linker_safety_step_invariant:
-  forall n s jm z s' jm',
+  forall n s jm z,
   level jm = S n -> 
   linker_inv (S n) s z jm -> 
-  corestep juicy_linker_sem ge s jm s' jm' -> 
-  linker_inv n s' z jm'.
+  (exists s', exists jm', 
+    corestep juicy_linker_sem ge s jm s' jm' /\
+    linker_inv n s' z jm') \/
+  (exists rv, safely_halted juicy_linker_sem s = Some rv) \/
+  (exists ef, exists sig, exists args, 
+    at_external juicy_linker_sem s = Some (ef, sig, args)).
 Proof.
-intros until jm'; intros LEV INV [STEP DECAY].
-destruct s; destruct s'.
-inv STEP.
+intros until z; intros LEV INV.
+destruct s.
+hnf in INV.
+destruct stack.
+solve[simpl in stack_nonempty; elimtype False; omega].
+destruct f.
+hnf in INV.
+destruct INV as [rguard_out [Hhered [SAFE TL_INV]]].
+simpl in SAFE.
+case_eq (at_external (get_module_csem (modules PF)) c).
+intros [[ef sig] args] AT_EXT.
+rewrite AT_EXT in SAFE.
+unfold j_safely_halted in SAFE.
+case_eq (safely_halted (get_module_csem (modules PF)) c).
+intros rv HALT.
+rewrite HALT in SAFE.
+generalize (at_external_halted_excl (get_module_csem (modules PF)) c);
+ intros [X|X]; try solve[congruence].
+intros HALT.
+rewrite HALT in SAFE.
 
-(*STEP CASE*)
-unfold stack_inv in INV|-*.
-destruct INV as [rguard0 [Hhered INV]].
-generalize H5 as H5'; intro.
-generalize H5 as STEP; intro.
-apply corestep_not_at_external in H5.
-simpl in *|-.
-rewrite H5 in INV.
-apply corestep_not_halted in H5'.
-unfold j_safely_halted in INV.
-rewrite H5' in INV.
-destruct INV as [ [c1 [m1 [STEP1 SAFE]]] TLINV ].
-exists rguard0; exists Hhered.
-split; auto.
-destruct STEP1 as [STEP1 DECAY1].
-assert (Heq: (c1, m_dry m1)=(c', m_dry jm')).
- solve[eapply modules_fun; eauto].
-inv Heq; subst.
-assert (m1 = jm') by admit. (* must be exposed in jstep (but should be provable
-                               for all dry determ. core semantics which are 
-                               subsequently juicified)*)
-subst m1.
-solve[apply SAFE].
-solve[apply tl_inv_downward; auto].
+(*CALL*)
+destruct SAFE as [x [PRE POST]].
+destruct (at_ext_plt_ok PF c AT_EXT) as [X|X].
 
-(*CALL CASE*)
-simpl in callers_at_external0.
-hnf in callers_at_external0; inversion callers_at_external0; subst.
-destruct H4 as [ef0 [sig0 [args0 AT_EXT0]]].
-assert (Hsig: sig0 = sig).
- solve[rewrite AT_EXT0 in AT_EXT; inv AT_EXT; auto].
-assert (Hargs: args0 = args).
- solve[rewrite AT_EXT0 in AT_EXT; inv AT_EXT; auto].
-inv Hargs.
-simpl in INV.
-rewrite AT_EXT0 in INV.
-generalize (at_external_halted_excl (get_module_csem (modules pf_i)) c); 
- intros [H9|H9]; try solve[congruence].
-unfold j_safely_halted in INV.
-rewrite H9 in INV.
-destruct INV as [rguard_out [Hhered [[x [PRE POST]] TL_INV]]].
+Focus 2.
+(*LINKER_AT_EXTERNAL*)
+right; right.
+exists ef; exists sig; exists args.
+simpl.
+rewrite AT_EXT.
+destruct ef; auto.
+assert (Heq: forall sg, ef2id (EF_external name sg) = name).
+ intro sg0.
+ solve[generalize (ef2id_ok (EF_external name sg0)); hnf; auto].
+solve[rewrite Heq in X; rewrite X; auto].
+
+destruct  X as [j [NEQ [LOOKUP [b GENV]]]].
+generalize (plt_ok _ _ LOOKUP); intros PFJ.
+destruct (mk_initial_core_succeeds PFJ (Vptr b (Int.repr 0)) args) as [c' INIT].
+assert (CALLERS: all_at_external fT vT modules
+  (tl (mkFrame j PFJ c' :: mkFrame i PF c :: stack))).
+ unfold all_at_external; constructor; auto.
+ solve[exists ef; exists sig; exists args; auto].
+left.
+exists (mkLinkerCoreState (mkFrame j PFJ c' :: mkFrame i PF c :: stack) 
+ (length_cons _ _) CALLERS).
+assert (exists jm', age jm jm') as [jm' AGE].
+ apply levelS_age1 in LEV.
+ solve[apply LEV].
+exists jm'.
+split.
+unfold juicy_linker_sem; simpl; unfold jstep; simpl.
+split.
+assert (AT_EXT': 
+ at_external (get_module_csem (modules PF)) c = Some (EF_external (ef2id ef) sig, sig, args)).
+ rewrite AT_EXT.
+ repeat f_equal; auto.
+ admit. (*must require that handled external functions have form EF_external*)
+generalize (@link_call 
+ F V _ _ _ _ 
+ procedure_linkage_table plt_ok 
+ _ entry_points ge stack
+ _ _ _ _ _ b _ (m_dry jm) _ c' 
+ LOOKUP NEQ AT_EXT'); intro LINK.
+assert (m_dry jm'=m_dry jm) as ->.
+ solve[symmetry; apply age_jm_dry; auto].
+assert (PFJ=plt_ok (ef2id ef) j LOOKUP) as -> by apply proof_irr.
+apply LINK; auto.
+admit. (*entry_points; globals*)
+split.
+apply age_resource_decay'; auto.
+apply age_level in AGE.
+do 2 rewrite level_juice_level_phi in AGE.
+solve[apply AGE].
+(*INVARIANT*)
 hnf.
-exists (ext_spec_post Hspec ef0 x (sig_res sig)).
+exists (ext_spec_post Hspec ef x (sig_res (ef_sig ef))).
 assert (Hhered0: forall rv z0, 
- hereditary age (ext_spec_post Hspec ef0 x (sig_res sig) rv z0)).
+ hereditary age (ext_spec_post Hspec ef x (sig_res (ef_sig ef)) rv z0)).
  intros rv z0.
  solve[eapply JE_post_hered; eauto].
 exists Hhered0.
 split.
-assert (Heq: id = ef2id ef0).
- rewrite AT_EXT0 in AT_EXT; inv AT_EXT.
- solve[generalize (ef2id_ok (EF_external id sig)); intros ->; auto].
-inv Heq.
 assert (Hgenv: Genv.find_symbol 
- (get_module_genv (modules (plt_ok _ j LOOKUP))) (ef2id ef0) = Some b).
+ (get_module_genv (modules (plt_ok _ j LOOKUP))) (ef2id ef) = Some b).
  exploit ge_agree; eauto.
  unfold genvs_agree; intros [? ?].
  solve[erewrite <-H; auto].
 generalize (@modules_verified 
- j (plt_ok _ j LOOKUP) ef0
+ j (plt_ok _ j LOOKUP) ef
  b (sig_args sig) args x (S n) z c' jm LOOKUP Hgenv); intros VERIF.
 spec VERIF; auto.
+solve[assert (plt_ok (ef2id ef) j LOOKUP=PFJ) as -> by apply proof_irr; auto].
 spec VERIF; auto.
-assert (Hage: age jm jm'). 
- admit. (*update defn. of jstep to assert that m=m' -> age jm jm'*)
-assert (Hhered1: forall rv z0, 
- hereditary age (ext_spec_post Hspec ef0 x (sig_res (ef_sig ef0)) rv z0)).
- intros rv z0.
- solve[eapply JE_post_hered; eauto].
+destruct VERIF as [VERIF WELLTYPED].
 generalize (@age_safe
- _ _ _ (get_module_csem (modules (plt_ok (ef2id ef0) j LOOKUP))) _
+ _ _ _ (get_module_csem (modules (plt_ok (ef2id ef) j LOOKUP))) _
  (j_upd_rguard Hspec
-   (ext_spec_post Hspec ef0 x (sig_res (ef_sig ef0))) Hhered1) _ _ Hage
-   (get_module_genv (modules (plt_ok (ef2id ef0) j LOOKUP))) z c').
+   (ext_spec_post Hspec ef x (sig_res (ef_sig ef))) Hhered0) _ _ AGE
+   (get_module_genv (modules (plt_ok (ef2id ef) j LOOKUP))) z c').
 intros SAFE.
 rewrite LEV in SAFE.
 spec SAFE; auto.
 assert (n = level jm') as ->.
- destruct DECAY as [D1 D2].
- solve[rewrite LEV in D2; inv D2; auto].
-assert (Hsig: ef_sig ef0 = sig).
- rewrite AT_EXT0 in AT_EXT; inversion AT_EXT.
- solve[generalize (ef2id_ok ef0); rewrite H4; hnf; intros ->; simpl; auto].
-subst.
-assert (Hhered0 = Hhered1) as -> by apply proof_irr.
-solve[apply SAFE].
+ cut (S n = S (level jm')).
+ inversion 1; auto.
+ solve[rewrite <-LEV; apply age_level; auto].
+assert (plt_ok (ef2id ef) j LOOKUP=PFJ) as <- by apply proof_irr.
+solve[apply SAFE; auto].
 hnf.
 exists rguard_out.
 exists Hhered.
 split; simpl.
 intros ret jm0 z0 Hpost.
+assert (Hsig: ef_sig ef = sig).
+ admit. (*will go away after cleanup of CoreSemantics to get rid of sig*)
+rewrite Hsig in *.
 destruct (POST ret jm0 z0 Hpost) as [c'' [AFTER_EXT SAFE]].
 exists c''.
 split; auto.
 solve[apply tl_inv_downward; auto].
 
-(*RETURN STEP*)
-hnf in INV|-*.
-destruct INV as [rguard_out [Hhered [SAFE TL_INV]]].
-hnf in SAFE.
-generalize (@at_external_halted_excl _ _ _ _ 
- (get_module_csem (modules (plt_ok id j LOOKUP))) c'); intros [X|X].
-simpl in SAFE.
-rewrite X in SAFE.
+intros AT_EXT_NONE.
+rewrite AT_EXT_NONE in SAFE.
 unfold j_safely_halted in SAFE.
-rewrite HALTED in SAFE.
+case_eq (safely_halted (get_module_csem (modules PF)) c).
+intros rv HALT.
+rewrite HALT in SAFE.
+destruct stack.
+(*HALTED*)
+right.
+left.
+solve[exists rv; auto].
+
+(*RETURN*)
+destruct f as [j PFJ c'].
+left.
 hnf in TL_INV.
-destruct TL_INV as [rguard_out0 [Hhered0 [TL1 TL2]]].
-hnf in TL1.
+destruct TL_INV as [rguard_out0 [Hhered0 [T1 T2]]].
+hnf in T1.
+destruct (T1 (Some rv) jm z SAFE) as [c'' [AFTER_EXT SAFE'']].
+hnf in callers_at_external.
+inversion callers_at_external; subst.
+exists (mkLinkerCoreState (mkFrame j PFJ c'' :: stack) 
+  (length_cons _ _) H2).
+assert (exists jm', age jm jm') as [jm' AGE].
+ apply levelS_age1 in LEV.
+ destruct LEV as [jm' AGE].
+ solve[exists jm'; auto].
+exists jm'.
+split.
+hnf; simpl.
+split.
+destruct H1 as [ef [sig [args AT_EXT']]].
+generalize AT_EXT' as AT_EXT0; intro.
+generalize (@link_return F V num_modules cT fT vT
+ procedure_linkage_table plt_ok modules entry_points
+ ge stack j i c' (m_dry jm) PFJ c c'' rv ef sig args PF AT_EXT' HALT); 
+ intros RETURN.
+assert (m_dry jm'=m_dry jm) as ->.
+ solve[symmetry; apply age_jm_dry; auto].
+apply RETURN; auto.
+admit. (*return val has right type*)
+split; auto.
+solve[apply age_resource_decay'; auto].
+generalize AGE as AGE'; intro.
+apply age1_levelS in AGE.
+destruct AGE as [m LEV'].
+rewrite level_juice_level_phi in LEV; rewrite LEV.
+apply age_level in AGE'.
+do 2 rewrite level_juice_level_phi in AGE'.
+rewrite LEV in AGE'.
+solve[inv AGE'; omega].
+(*INVARIANT*)
+hnf.
 exists rguard_out0.
 exists Hhered0.
-split.
-2: solve[apply tl_inv_downward; auto].
-specialize (TL1 (Some retv) jm z SAFE).
-destruct TL1 as [c_i' [AFTER_EXT SAFE']].
-simpl in AFTER_EXT.
-rewrite H6 in AFTER_EXT; inv AFTER_EXT.
-rewrite <-LEV in SAFE'.
+split; auto.
+rewrite <-LEV in SAFE''.
 assert (n = level jm') as ->.
- destruct DECAY as [D1 D2].
- solve[rewrite LEV in D2; inv D2; auto].
-assert (Hage: age jm jm'). 
- admit. (*update defn. of jstep to assert that m=m' -> age jm jm'*)
-solve[eapply age_safe; eauto].
-elimtype False.
-clear - HALTED X.
-congruence.
+generalize AGE as AGE'; intro.
+apply age1_levelS in AGE.
+destruct AGE as [m LEV'].
+rewrite level_juice_level_phi in LEV.
+apply age_level in AGE'.
+do 2 rewrite level_juice_level_phi in AGE'.
+rewrite LEV in AGE'.
+solve[inv AGE'; auto].
+eapply age_safe; eauto.
+solve[apply tl_inv_downward; auto].
+
+(*CORESTEP*)
+intros HALT.
+rewrite HALT in SAFE.
+destruct SAFE as [c' [jm' [CORESTEP SAFE]]].
+left.
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) 
+ stack_nonempty callers_at_external).
+exists jm'.
+split; auto.
+hnf; simpl.
+destruct CORESTEP.
+split; auto.
+apply link_step; auto.
+(*INVARIANT*)
+hnf.
+exists rguard_out.
+exists Hhered.
+split; auto.
+solve[apply tl_inv_downward; auto].
 Qed.
 
 End JuicyLinkerSafe.  
