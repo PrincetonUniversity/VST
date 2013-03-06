@@ -320,7 +320,7 @@ f_equal. unfold make_args'.
 revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
 reflexivity.
 specialize (IHl _ _ H2 H1).
-rewrite IHl. auto.
+unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
 
@@ -338,7 +338,7 @@ unfold make_args'.
 revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; unfold lift; intros; inv H; inv H0.
 reflexivity.
 specialize (IHl _ _ H2 H1).
-rewrite IHl. auto.
+unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite subst_make_args'x using (solve[reflexivity]) : subst.
 
@@ -480,8 +480,8 @@ focus_SEP 3 1.
                `(field_mapsto sh_obj t_struct_message _deserialize)
                             (eval_lvalue e_obj)  `g))).
 go_lower. subst.
-rewrite (temp_types_init_same _ _ _ _ H). simpl.
-apply andp_right; auto.
+rewrite (temp_types_init_same _ _ _ _ H).
+apply andp_right.
 apply prop_right.
 hnf in H6.  
 simpl in H6.
@@ -489,6 +489,7 @@ split; [solve [hnf; auto] | ].
 split; [ | solve[auto]].
 clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
+apply derives_refl.
 eapply semax_seq'.
 apply (semax_call' (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))

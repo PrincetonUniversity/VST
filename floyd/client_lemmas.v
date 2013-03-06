@@ -64,7 +64,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift0 @subst_lift0' @subst_lift0C : subst.
+Hint Rewrite @subst_lift0 (*@subst_lift0'*) @subst_lift0C : subst.
 
 Lemma subst_lift1:
   forall {A1 B} id v (f: A1 -> B) a, 
@@ -87,7 +87,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift1 @subst_lift1' @subst_lift1C  : subst.
+Hint Rewrite @subst_lift1 (*@subst_lift1'*) @subst_lift1C  : subst.
 
 Lemma subst_lift2:
   forall {A1 A2 B} id v (f: A1 -> A2 -> B) a b, 
@@ -110,7 +110,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift2 @subst_lift2' @subst_lift2C : subst.
+Hint Rewrite @subst_lift2 (*@subst_lift2'*) @subst_lift2C : subst.
 
 Lemma subst_lift3:
   forall {A1 A2 A3 B} id v (f: A1 -> A2 -> A3 -> B) a1 a2 a3, 
@@ -135,7 +135,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift3 @subst_lift3' @subst_lift3C : subst.
+Hint Rewrite @subst_lift3 (*@subst_lift3'*) @subst_lift3C : subst.
 
 Lemma subst_lift4:
   forall {A1 A2 A3 A4 B} id v (f: A1 -> A2 -> A3 -> A4 -> B) a1 a2 a3 a4, 
@@ -160,7 +160,7 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
-Hint Rewrite @subst_lift4 @subst_lift4' @subst_lift4C : subst.
+Hint Rewrite @subst_lift4 (*@subst_lift4'*) @subst_lift4C : subst.
 
 
 Lemma semax_ff:
@@ -1715,7 +1715,7 @@ clear - H.
 change SEPx with SEPx' in H|-*;
 unfold PROPx, LOCALx, SEPx' in *; intro rho; specialize (H rho).
 unfold local, lift1 in *.
-simpl in *; unfold lift in *.
+simpl in *; unfold_lift; unfold_lift in H.
 normalize.
 rewrite prop_true_andp in H by auto.
 rewrite prop_true_andp in H by auto.
@@ -1962,7 +1962,7 @@ unfold lift1.
 f_equal.
 induction Q; simpl; auto.
 autorewrite with subst norm.
-f_equal. apply IHQ.
+f_equal. auto.
 change SEPx with SEPx'.
 unfold SEPx'.
 induction R; auto.

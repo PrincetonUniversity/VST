@@ -175,6 +175,8 @@ unfold_lift.
 apply exp_derives; intro x.
 apply derives_extract_prop; intro.
 autorewrite with subst.
+repeat (rewrite subst_lift3' || rewrite subst_lift2' || rewrite subst_lift1' || rewrite subst_lift0').
+autorewrite with subst.
 autorewrite with norm. unfold_lift.
 apply andp_derives; auto.
 normalize.
@@ -217,6 +219,7 @@ apply andp_derives; auto.
 intro rho; unfold local,lift1; simpl.
 apply prop_derives; simpl; intro; split; auto.
 hnf; auto.
+unfold_lift; reflexivity.
 Qed.
 
 Lemma forward_setx_closed_now:
@@ -501,7 +504,7 @@ apply andp_derives; auto.
 intro rho; simpl.
 apply sepcon_derives; auto.
 unfold lift.
-apply field_mapsto_field_mapsto_.
+unfold_lift. apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma semax_load_field':
@@ -545,7 +548,10 @@ simpl.
 do 2 (apply derives_extract_prop; intro). subst.
 unfold normal_ret_assert. repeat rewrite prop_true_andp; auto.
 apply exp_derives; intro x.
-autorewrite with subst. normalize.
+autorewrite with subst.
+repeat (rewrite subst_lift3' || rewrite subst_lift2' || rewrite subst_lift1' || rewrite subst_lift0').
+autorewrite with subst.
+ normalize.
 Qed.
 
 
@@ -625,7 +631,7 @@ intros.
  apply andp_derives; auto.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
- apply field_mapsto_field_mapsto_.
+ unfold_lift; apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma later_field_mapsto_mapsto__at1:
@@ -642,7 +648,7 @@ intros.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
  apply later_derives; auto.
- apply field_mapsto_field_mapsto_.
+ unfold_lift; apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma semax_store_field':
@@ -759,7 +765,7 @@ rewrite mapsto__isptr at 1. normalize.
 repeat apply andp_right; try apply prop_right; auto.
 repeat rewrite denote_tc_assert_andp.
 repeat split; auto.
-rewrite NONVOL; hnf; auto.
+rewrite NONVOL; hnf; unfold_lift; hnf; auto.
 replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
 clear - H5; hnf in H5. destruct (eval_expr e1 rho); try contradiction; simpl; auto.
 

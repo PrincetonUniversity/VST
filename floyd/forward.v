@@ -124,7 +124,7 @@ change SEPx with SEPx'.
  simpl. 
   normalize. unfold_lift.
  apply sepcon_derives; auto.
- autorewrite with subst.
+ repeat rewrite subst_lift1'.
 (*  normalize. *)
  replace (subst ret (fun _ => old) (get_result1 ret') rho)
    with (get_result1 ret rho); auto.
@@ -232,6 +232,9 @@ Ltac normalize :=
   | |- _  => msl.log_normalize.normalize
   end.
 
+Ltac unfold_fold_eval_expr :=
+  unfold eval_expr,eval_lvalue, eval_cast; fold eval_cast; fold eval_expr; fold eval_lvalue.
+
 Ltac forward_setx_aux1 :=
       apply forward_setx; 
       try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
@@ -240,8 +243,8 @@ Ltac forward_setx_aux1 :=
 Ltac forward_setx_aux2 id :=
            match goal with 
            | Name: name id |- _ => 
-                let x:= fresh Name in intro x; simpl eval_expr; autorewrite with subst; try clear x
-           | |- _ => let x:= fresh in intro x; simpl eval_expr; autorewrite with subst; try clear x
+                let x:= fresh Name in intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
+           | |- _ => let x:= fresh in intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
            end.
 
 Ltac forward_setx :=
@@ -458,21 +461,20 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
      ]
 end.
 
-
 Ltac intro_old_var' id :=
   match goal with 
   | Name: name id |- _ => 
         let x := fresh Name in
-        intro x; simpl eval_expr; autorewrite with subst; try clear x
+        intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
   | |- _ => let x := fresh "x" in 
-        intro x; simpl eval_expr; autorewrite with subst; try clear x  
+        intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x  
   end.
 
 Ltac intro_old_var c :=
   match c with 
   | Sset ?id _ => intro_old_var' id
   | Scall (Some ?id) _ _ => intro_old_var' id
-  | _ => intro x; simpl eval_expr; autorewrite with subst; try clear x
+  | _ => intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
   end.
 
 
@@ -669,7 +671,7 @@ match goal with
            eapply semax_seq';
            [  semax_call_id_tac_aux_x Delta P Q R id id' f bl; [ | apply derives_refl | ] 
            |  try unfold exit_tycon; 
-                 simpl update_tycon; simpl map;
+                 simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
            ]
  (* END HORRIBLE2 *)
@@ -682,7 +684,7 @@ match goal with
            eapply semax_seq';
            [ semax_call_id_tac_aux Delta P Q R id f bl  ; [ | apply derives_refl  ] 
            |  try unfold exit_tycon; 
-                 simpl update_tycon; simpl map;
+                 simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
             ]
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>

@@ -234,7 +234,7 @@ intros ? ? ?.
 specialize (H _ _ H2).
 specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
-unfold liftx.  simpl. unfold lift. f_equal; auto.
+unfold_lift. f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift3C : closed.
 
@@ -269,7 +269,8 @@ specialize (H _ _ H3).
 specialize (H0 _ _ H3).
 specialize (H1 _ _ H3).
 specialize (H2 _ _ H3).
-unfold liftx.  simpl. unfold lift. f_equal; auto.
+change @liftx with @liftx'. unfold liftx'; simpl.
+unfold lift. f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift3C : closed.
 

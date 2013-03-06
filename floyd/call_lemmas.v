@@ -128,6 +128,9 @@ split; auto.
 apply eqb_type_refl.
 Qed.
 
+Lemma liftTrue: forall rho, `True rho.
+Proof. intro. unfold_lift; apply I. Qed.
+Hint Resolve liftTrue.
 
 Lemma semax_call_id0:
  forall Delta P Q R id bl argsig A x Pre Post
@@ -159,8 +162,8 @@ simpl.
 unfold get_var_type. rewrite GLBL. rewrite H.
 simpl.
 rewrite eqb_typelist_refl.
-simpl. hnf; auto.
-auto.
+simpl. auto.
+unfold_lift; auto.
 change SEPx with SEPx'.
 simpl.
 intro rho.

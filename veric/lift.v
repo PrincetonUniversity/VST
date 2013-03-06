@@ -37,7 +37,7 @@ Definition liftx' {H: Lift} (f: lift_T H) : lifted H :=
   lift_uncurry_open H (lift (lift_curry H f)).
 
 Definition liftx {H: Lift} (f: lift_T H) : lifted H :=   @liftx' H f.
-Opaque liftx.
+Global Opaque liftx.
 
 (* NOTE: We want unfold_lift to unfold EVERYTHING related to lifting, but NOTHING else.
   Thus we have avoided using any library functions to implement lifting, so that

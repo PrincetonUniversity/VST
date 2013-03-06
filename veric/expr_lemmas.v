@@ -308,7 +308,7 @@ simpl in H0. rewrite denote_tc_assert_andp in H0. destruct H0.
 destruct IHe as [? _].
 specialize (H2 H1).
 simpl eval_expr.
-unfold lift.
+unfold_lift.
 clear - H2 H0.
 revert H0; case_eq (isUnOpResultType u e t); intros; [ | inv H0].
 clear H0.
@@ -354,7 +354,7 @@ denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho ->
 typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
 Proof.
 intros until t; intros H IHe H0.
-simpl in *. unfold lift.
+simpl in *. unfold_lift.
 destruct IHe as [? _].
 rewrite denote_tc_assert_andp in H0.
 destruct H0.
@@ -366,14 +366,14 @@ try solve [destruct t; try contradiction;
     destruct (eval_expr e rho), (typeof e); inv H2; inv  H1; simpl; auto; destruct i; inv H5].
 remember (eval_expr e rho) as v.
 destruct (typeof e), v, t; inv H1; inv H2; auto;
-simpl in H3; unfold lift in H3; try reflexivity;
+simpl in H3; unfold_lift in H3; try reflexivity;
 try solve [hnf in H3; rewrite <- Heqv in H3;  apply H3];
 try solve [destruct i,s; inv H4];
 try solve [destruct i0; inv H4];
-solve [rewrite <- Heqv in H3; inv H3].
+try solve [rewrite <- Heqv in H3; inv H3].
 destruct si2.
 rewrite denote_tc_assert_andp in H3. destruct H3.
-hnf in H3,H4.
+hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
 destruct (eval_expr e rho); try contradiction.
 simpl. unfold Float.intoffloat. destruct (Float.Zoffloat f); try contradiction.
 hnf in H3,H4. rewrite H3.
@@ -381,7 +381,7 @@ simpl. rewrite Zle_bool_rev. rewrite H4. simpl.
 destruct (typeof e); inv H1.
  destruct t; inv H2; auto.
 rewrite denote_tc_assert_andp in H3. destruct H3.
-hnf in H3,H4.
+hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
 destruct (eval_expr e rho); try contradiction.
 simpl. unfold Float.intuoffloat. destruct (Float.Zoffloat f); try contradiction.
 hnf in H3,H4. rewrite H3.
@@ -459,7 +459,8 @@ destruct IHe as[ ? _].
 specialize (H5 H0).
 revert H2; case_eq (is_pointer_type (typeof e)); intros; hnf in H2; try contradiction.
 clear H H6 H4.
-hnf in H3.
+hnf in H3. unfold_lift in H3; hnf in H3.
+unfold_lift.
 destruct (eval_expr e rho); try contradiction.
 apply H1.
 Qed.
@@ -597,7 +598,7 @@ Lemma typecheck_binop_sound2:
 Proof. 
 intros. 
 pose proof (typecheck_binop_sound).
-simpl in H4. unfold lift in H4. eapply H4; eauto.
+simpl in H4. unfold_lift in H4. eapply H4; eauto.
 simpl. repeat (try rewrite tc_andp_sound; try super_unfold_lift; simpl in *). intuition; eauto. 
 Qed. 
 
@@ -1359,6 +1360,7 @@ remember (typeof e2); remember (eval_expr e2 rho).
 unfold sem_cast. unfold classify_cast.
 Transparent Float.intoffloat.
 Transparent Float.intuoffloat.
+Transparent liftx.
 destruct t; destruct v; destruct t0; simpl in *;
 try congruence; try contradiction; eauto;
 try solve [
@@ -1393,7 +1395,7 @@ simpl; eauto.
 auto.
 Opaque Float.intoffloat.
 Opaque Float.intuoffloat.
-
+Opaque liftx.
 destruct H1. rewrite H1. auto.
 Qed.
 

@@ -142,19 +142,19 @@ replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst; auto.
 forward. (* t = Q->tail;*)
 forward. (* return (t == &(Q->head)); *)
-go_lower. subst Q t.
-   forget False as NOPROOF.
-   rewrite field_mapsto_isptr.
+go_lower.
+  forget False as NOPROOF.  (* need to fix typechecking of pointer comparison *) 
+  simpl. rewrite eval_id_same. clear H rho. (* shouldn't need this-- fix go_lower *)
+   subst Q t.
+   rewrite field_mapsto_isptr. 
    repeat apply andp_right.
-   normalize.
-   apply andp_right; apply prop_right; auto.
+  normalize. apply andp_right; apply prop_right; auto.
    admit.  (* need to fix typechecking of pointer comparison *) 
    normalize.
    apply prop_right.
    destruct q; inv H.
-   simpl.
-   destruct tl; inv TC; simpl. 
-   unfold eval_binop; simpl. unfold sem_cmp; simpl.
+   unfold eval_binop; simpl.
+   destruct tl; inv TC; simpl. unfold sem_cmp; simpl.
    rewrite H0. simpl. auto.
    admit.  (* need to fix typechecking of pointer comparison *) 
 normalize.
@@ -244,7 +244,8 @@ rewrite field_mapsto_isptr.
 normalize.
 forward. (* return Q; *)
 go_lower.
-apply andp_right.
+ simpl.  (* shouldn't need this; fix go_lower *)
+  apply andp_right.
   rewrite field_mapsto_isptr; normalize.
   apply prop_right; destruct Q; inv H1; inv TC; hnf; simpl; auto.
   unfold fifo.
@@ -331,7 +332,9 @@ forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
 go_lower. subst. rewrite elemrep_isptr at 1. normalize.
 forward. (* return *)
-go_lower. subst.
+go_lower.
+ simpl. clear rho H.  (* shouldn't need this; fix go_lower *)
+ subst.
 unfold fifo.
 destruct (@isnil (elemtype QS) (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
 unfold align. simpl.
@@ -378,7 +381,9 @@ forward.  (* *(Q->tail) = &p->next;  *)
 clear Post; go_lower. subst.
 rewrite elemrep_isptr at 1. normalize.
 forward. (* return; *)
-go_lower. subst.
+go_lower. 
+ simpl. clear rho H.  (* shouldn't need this; fix go_lower *)
+ subst.
 unfold fifo.
 match goal with |- context [isnil ?P] => 
   destruct (isnil P) as [e3|n3] end.

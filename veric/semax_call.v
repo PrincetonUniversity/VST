@@ -1246,7 +1246,7 @@ revert bl TC2; induction (fn_params f); destruct bl; intros; auto.
 simpl in TC2. destruct a. destruct (split l). inv TC2.
 simpl in *.  
 destruct a. simpl.
-destruct (split l); simpl in *. f_equal; auto.  
+destruct (split l); simpl in *. unfold_lift; simpl. f_equal; auto.  
 exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
                                      :: Kcall ret f (vx) (tx) :: k)).
 exists  jm'.
@@ -1587,8 +1587,11 @@ intros.
 simpl in H7.
 destruct H7; split; auto.
 revert H7; simpl.
-destruct ret; specialize (TC ((*m_phi*) jm)); unfold tc_expropt in TC; do 4 red in TC.
+destruct ret; (* next line has 8.3/8.4 compatibility hack *)
+  (specialize (TC ((*m_phi*) jm)) || specialize (TC (m_phi jm)));
+   unfold tc_expropt in TC; do 3 red in TC; unfold_lift in TC; red in TC.
 simpl.
+unfold_lift.
 case_eq (call_cont k); intros.
 inv H9.
 inv H14.
@@ -1648,6 +1651,7 @@ simpl in TC.
 destruct TC as [_ ?].
 apply H. 
 simpl.
+unfold_lift.
 intro.
 inv H7.
 econstructor; try eassumption.
