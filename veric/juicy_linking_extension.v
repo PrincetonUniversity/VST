@@ -247,7 +247,7 @@ erewrite <-age1_resource_at; eauto.
 solve[rewrite resource_at_approx; auto].
 Qed.
 
-Lemma juicy_linker_safety_step_invariant:
+Lemma inv_invariant_steps:
   forall n s jm z,
   level jm = S n -> 
   linker_inv (S n) s z jm -> 
@@ -469,6 +469,133 @@ exists rguard_out.
 exists Hhered.
 split; auto.
 solve[apply tl_inv_downward; auto].
+Qed.
+
+Definition main_sig : signature := mksignature nil (Some AST.Tint).
+
+Lemma initial_inv:
+  forall x b c jm z,
+  ext_spec_pre Hspec (EF_external main_id main_sig) x nil nil z jm -> 
+  Genv.find_symbol ge main_id = Some b -> 
+  make_initial_core juicy_linker_sem ge (Vptr b Int.zero) nil = Some c -> 
+  linker_inv (level jm) c z jm.
+Proof.
+intros until z.
+intros PRE FIND INIT.
+remember (level jm) as n.
+hnf.
+destruct c.
+hnf.
+destruct stack; auto.
+destruct f.
+hnf.
+exists (ext_spec_post Hspec (EF_external main_id main_sig) x (Some AST.Tint)).
+assert (Hhered: forall rv z, hereditary age
+  (ext_spec_post Hspec (EF_external main_id main_sig) x (Some Tint) rv z)).
+ solve[intros; apply JE_post_hered].
+exists Hhered.
+simpl.
+simpl in INIT.
+rewrite FIND in INIT.
+if_tac in INIT; try solve[elimtype False; omega].
+case_eq (procedure_linkage_table main_id).
+intros b0 PLT.
+revert INIT.
+generalize (refl_equal (procedure_linkage_table main_id)).
+generalize PLT.
+pattern (procedure_linkage_table main_id) at 0 2 4.
+rewrite PLT; intros _ ?.
+intros H1.
+case_eq (make_initial_core
+  (get_module_csem (modules (plt_ok main_id b0 (Logic.eq_sym e))))
+  (get_module_genv (modules (plt_ok main_id b0 (Logic.eq_sym e))))
+  (Vptr b Int.zero) nil).
+intros c' INIT.
+rewrite INIT in H1.
+inv H1.
+simpl; split; auto.
+
+Focus 2.
+intros INIT.
+rewrite INIT in H1; congruence.
+
+Focus 2.
+intros PLT.
+revert INIT.
+generalize (refl_equal (procedure_linkage_table main_id)).
+generalize PLT.
+pattern (procedure_linkage_table main_id) at 0 2 4.
+rewrite PLT; intros _ ? ?; congruence.
+
+assert (Heq: ef2id (EF_external main_id main_sig) = main_id).
+ solve[apply (ef2id_ok (EF_external main_id main_sig))].
+exploit modules_verified; eauto.
+solve[rewrite Heq; auto].
+generalize (ge_agree PF); intros [A1 A2].
+rewrite A1 in FIND.
+assert (plt_ok main_id i (Logic.eq_sym e) = PF) as -> by apply proof_irr.
+solve[rewrite Heq; auto].
+instantiate  (1 := level (m_phi jm)).
+intros [SAFE TY].
+simpl in SAFE.
+assert (PF = plt_ok main_id i (Logic.eq_sym e)) as -> by apply proof_irr.
+apply Eqdep.EqdepTheory.inj_pair2 in H3.
+inv H3.
+solve[apply SAFE].
+Qed.
+
+Lemma inv_safe: 
+  forall c z jm,
+  linker_inv (level jm) c z jm -> 
+  safeN juicy_linker_sem Hspec ge (level jm) z c jm.
+Proof.
+intros c z jm INV.
+remember (level jm) as n.
+revert c z jm INV Heqn.
+induction n.
+solve[simpl; auto].
+intros c z jm INV Heqn; hnf.
+apply inv_invariant_steps in INV; auto.
+destruct INV as [INV|[INV|INV]].
+destruct INV as [s' [jm' [STEP INV]]].
+generalize STEP as STEP0; intro.
+apply corestep_not_at_external in STEP0.
+rewrite STEP0.
+generalize STEP as STEP1; intro.
+apply corestep_not_halted in STEP1.
+rewrite STEP1.
+exists s'; exists jm'; split; auto.
+apply IHn; auto.
+hnf in STEP.
+destruct STEP as [? [? ?]].
+rewrite <-Heqn in H1.
+solve[inv H1; auto].
+destruct INV as [rv HALT].
+generalize (at_external_halted_excl juicy_linker_sem c); intros [X|X].
+rewrite X.
+rewrite HALT.
+admit. (*TODO: ext_spec_exit*)
+congruence.
+destruct INV as [ef [sig [args AT_EXT]]].
+rewrite AT_EXT.
+case_eq (safely_halted juicy_linker_sem c).
+intros rv HALT.
+generalize (at_external_halted_excl juicy_linker_sem c); intros [X|X];
+ congruence.
+intros HALT.
+admit. (*TODO: entire linker is at external; tracks back to running core safety*)
+Qed.
+
+Lemma linker_safety:
+  forall x b c jm z,
+  ext_spec_pre Hspec (EF_external main_id main_sig) x nil nil z jm -> 
+  Genv.find_symbol ge main_id = Some b -> 
+  make_initial_core juicy_linker_sem ge (Vptr b Int.zero) nil = Some c -> 
+  safeN juicy_linker_sem Hspec ge (level jm) z c jm.
+Proof.
+intros until z; intros GENV FIND INIT.
+exploit initial_inv; eauto; intro INV.
+solve[apply inv_safe; auto].
 Qed.
 
 End JuicyLinkerSafe.  
