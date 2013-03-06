@@ -1,35 +1,16 @@
 Load loadpath.
-(*CompCert imports*)
+
 Require Import Events. (*needed for standard definitions of 
                         mem_unchanged_on,loc_out-of_bounds etc etc*)
 Require Import Memory.
-Require Import AST. 
-Require Export Axioms.
 Require Import Coqlib.
+Require Import Integers.
 Require Import Values.
 Require Import Maps.
-Require Import Integers.
 
-(*Require Import veric.base.
-Require Import Events.
-*)
 Require Import sepcomp.mem_lemmas.
 
 Axiom VALIDBLOCK: forall m b, Mem.valid_block m b -> 0 <= b < Mem.nextblock m.
-
-Definition extends_perm_nonempty m1 m2:= forall b1 ofs k,
-      Mem.perm m1 b1 ofs Max Nonempty ->
-      Mem.perm m2 b1 ofs k = Mem.perm m1 b1 ofs k.
-
-Axiom ext_implies_extends_perm_nonenempty: 
-              forall m1 m2 (Ext12: Mem.extends m1 m2), extends_perm_nonempty m1 m2.
-
-Definition inject_perm_nonempty j m1 m2 := forall b1 ofs k (NP: Mem.perm m1 b1 ofs Max Nonempty)
-                   b2 delta (F: j b1 = Some (b2, delta)),
-      Mem.perm m2 b2 (ofs+delta) k = Mem.perm m1 b1 ofs k. 
-
-Axiom inj_implies_inject_perm_nonenempty: forall j m1 m2 (Inj12: Mem.inject j m1 m2),
-           inject_perm_nonempty j m1 m2.
 
 Definition my_mem_unchanged_on (P : block -> Z -> Prop) (m_before m_after : mem) :=
 (forall (b : block) (ofs : Z) (k : perm_kind) (HP: P b ofs), 
@@ -48,30 +29,6 @@ remember (ZMap.get b (Mem.mem_access m) ofs p) as pp.
 destruct pp; simpl in *. exfalso. apply H. apply perm_any_N.
 trivial.
 Qed.
-
-Lemma Fwd_unchanged: forall m m' (F:mem_forward m m'),
-  my_mem_unchanged_on (fun b ofs => ~Mem.perm m b ofs Max Nonempty) m m'.
-Proof. intros.
-  split; intros. rename H into VB. destruct (F _ VB) as [VB' X].
-      extensionality p. apply prop_ext.
-        split; intros; exfalso; apply Mem.perm_max in H; apply HP.
-             eapply Mem.perm_implies. apply H. apply perm_any_N.
-             apply X. eapply Mem.perm_implies. apply H. apply perm_any_N.
- exfalso; apply Mem.perm_max in HMeperm; apply HP.  
-                eapply Mem.perm_implies. apply HMeperm. apply perm_any_N.
-Qed. 
-
-Lemma Fwd_unchanged1: forall m m' (F:mem_forward m m'),
-  my_mem_unchanged_on (fun b ofs => Mem.valid_block m b /\ ~Mem.perm m b ofs Max Nonempty) m m'.
-Proof. intros.
-  split; intros. rename H into VB. destruct (F _ VB) as [VB' X]. destruct HP as [_ HP].
-      extensionality p. apply prop_ext.
-        split; intros; exfalso; apply Mem.perm_max in H; apply HP.
-             eapply Mem.perm_implies. apply H. apply perm_any_N.
-             apply X. eapply Mem.perm_implies. apply H. apply perm_any_N.
- exfalso; apply Mem.perm_max in HMeperm; apply HP.  
-                eapply Mem.perm_implies. apply HMeperm. apply perm_any_N.
-Qed. 
 
 Definition isSource j m1 (b2:block) (ofs2:Z) b : option Z :=
   match j b with None => None
@@ -253,56 +210,6 @@ Proof. intros. intros b1; intros.
      apply H.
 Qed.
 
-Lemma load_E: forall (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z),
-  Mem.load chunk m b ofs = 
-  if Mem.valid_access_dec m chunk b ofs Readable
-  then Some(decode_val chunk (Mem.getN (size_chunk_nat chunk) ofs ((ZMap.get b m.(Mem.mem_contents)))))
-  else None.
-Proof. intros. reflexivity. Qed.
-
-Lemma zplusminus: forall (a b:Z), a - b + b = a.
-Proof. intros. omega. Qed.
-
-(*Not needed but ttue
-Lemma Inj1: forall j m1 m2 (Inj: Mem.inject j m1 m2) b2 ofs2 k (P2:Mem.perm m2 b2 ofs2 k Nonempty)
-         b1 ofs1 delta1 (HJ1:j b1 = Some(b2,delta1)) (HO: ofs2 = ofs1 + delta1)  (HP1:Mem.perm m1 b1 ofs1 k Nonempty)
-         b1' ofs1' delta1' (HJ1':j b1' = Some(b2,delta1')) (HO': ofs2 = ofs1' + delta1')  (HP1':Mem.perm m1 b1' ofs1' k Nonempty),
-          b1=b1' /\ ofs1=ofs1'.
-Proof. intros.
-  inv Inj. unfold Mem.meminj_no_overlap in mi_no_overlap.
-  remember (eq_block b1 b1'). destruct s; subst.
-         rewrite HJ1 in HJ1'. inv HJ1'. split. trivial.
-             eapply (Zplus_reg_l delta1'). omega.
-  apply Mem.perm_max in HP1.
-  apply Mem.perm_max in HP1'.
-  destruct (mi_no_overlap _ _ _ _ _ _ _ _ n HJ1 HJ1' HP1 HP1').
-   exfalso. apply H. trivial.
-     exfalso. apply H. apply HO'.
-Qed.
-
-Lemma Inj2:  forall j m1 m2 (Inj: Mem.inject j m1 m2) b2 ofs2 k (P2: ~ Mem.perm m2 b2 ofs2 k Nonempty),
-                         (~ Mem.valid_block m2 b2) \/
-                         (Mem.valid_block m2 b2 /\ ZMap.get b2 m2.(Mem.mem_access) ofs2 k = None /\ 
-                             forall b1 ofs1 delta (Hj: j b1 = Some(b2,delta))(HO:ofs2 = ofs1+delta), 
-                                        Mem.valid_block m1 b1 /\  ~ Mem.perm m1 b1 ofs1 k Nonempty).
-Proof. intros.
-  remember (zlt b2 (Mem.nextblock m2)).
-  destruct s; clear Heqs.
-     right. assert (Mem.valid_block m2 b2). apply z. split; trivial.
-               assert (ZMap.get b2 (Mem.mem_access m2) ofs2 k = None).
-                   unfold Mem.perm in P2.
-                   remember (ZMap.get b2 (Mem.mem_access m2) ofs2 k) as d.
-                   destruct d. exfalso. apply P2. simpl. apply perm_any_N.
-                   trivial.
-              split; trivial.
-              intros.
-                  assert (Mem.valid_block m1 b1). eapply Mem.valid_block_inject_1. apply Hj. eassumption.
-                  split; trivial.
-                  eapply PermInjNotnonempty. eassumption. eassumption. subst. assumption.
-  left. apply z.
-Qed.
-*)
-
 Lemma mymemvalUnchOnR: forall m1 m2 m3 m3' b ofs 
   (n : ~ Mem.perm m1 b ofs Max Nonempty)
   (UnchOn13 : my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3')
@@ -320,44 +227,6 @@ Proof. intros.
       apply eq_sym in H. rewrite (U _ H).  constructor. 
       apply eq_sym in H0. rewrite (U _ H0). econstructor. apply H1. trivial.
       constructor. 
-Qed.
-(*
-Lemma oldmemvalUnchOnR: forall m1 m2 m3 m3' b ofs 
-  (n : ~ Mem.perm m1 b ofs Max Nonempty)
-  (UnchOn13 : my_mem_unchanged_on (loc_out_of_bounds m1) m3 m3')
-  (MV : memval_inject inject_id
-                (ZMap.get ofs (ZMap.get b (Mem.mem_contents m2)))
-                (ZMap.get ofs (ZMap.get b (Mem.mem_contents m3))))
-   (Rd: Mem.perm m3 b ofs Cur Readable),
-   memval_inject inject_id (ZMap.get ofs (ZMap.get b (Mem.mem_contents m2)))
-     (ZMap.get ofs (ZMap.get b (Mem.mem_contents m3'))).
-Proof. intros.
-  destruct UnchOn13 as [_ U].
-(*  assert (LOOB: my_loc_out_of_bounds m1 b ofs).
-         split. apply (Mem.perm_valid_block _ _ _ _ _ Rd).*)
-  specialize (U _ _ n).
-  inv MV. 
-      apply eq_sym in H. rewrite (U Rd _ H).  constructor. 
-      apply eq_sym in H0. rewrite (U Rd _ H0). econstructor. apply H1. trivial.
-      constructor. 
-Qed.
-*)
-Goal forall m2 m3
-(mi_perm : forall (b1 b2 : block) (delta ofs : Z) (k : perm_kind)
-            (p : permission),
-          inject_id b1 = Some (b2, delta) ->
-          (Mem.perm m2 b1 ofs k p <-> Mem.perm m3 b2 (ofs + delta) k p)),
-forall (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
-              (ofs : Z) (p : permission),
-            inject_id b1 = Some (b2, delta) ->
-            (Mem.valid_access m2 chunk b1 ofs p <->
-             Mem.valid_access m3 chunk b2 (ofs + delta) p).
-Proof. intros.  inv H; rewrite Zplus_0_r.
-split; intros [U V]; intros; split; trivial; intros off; intros.
-  specialize (U _ H). destruct (mi_perm b2 _ _ off Cur p (eq_refl _)).  rewrite Zplus_0_r in *.
-    apply (H0 U).  
-  specialize (U _ H). destruct (mi_perm b2 _ _ off Cur p (eq_refl _)).  rewrite Zplus_0_r in *.
-    apply (H1 U).
 Qed.
 
 Lemma perm_order_total: forall p1 p2, perm_order p1 p2 \/ perm_order p2 p1.
@@ -379,26 +248,25 @@ Proof. intros. inv H; trivial. Qed.
 
 Lemma  write_E: forall p, perm_order p Writable -> p=Freeable \/ p=Writable.
 Proof. intros. inv H. right; trivial. left; trivial. Qed.
-Lemma perm_split: forall m b ofs (A B: Prop)
-              (SPLIT: (Mem.perm m b ofs Max Nonempty -> A) /\ (~Mem.perm m b ofs Max Nonempty -> B)) 
+
+Lemma perm_split: forall m b ofs (A B: Prop) k p 
+              (SPLIT: (Mem.perm m b ofs k p -> A) /\ (~Mem.perm m b ofs k p -> B)) 
               (P:Prop)
-              (HA: Mem.perm m b ofs Max Nonempty -> A -> P)
-              (HB: ~Mem.perm m b ofs Max Nonempty -> B -> P), P.
+              (HA: Mem.perm m b ofs k p -> A -> P)
+              (HB: ~Mem.perm m b ofs k p -> B -> P), P.
 Proof. intros. destruct SPLIT.
-   remember (Mem.perm_dec m b ofs Max Nonempty ) as d.
-   destruct d; clear Heqd; auto.
+   destruct (Mem.perm_dec m b ofs k p); auto.
 Qed.
 
-Lemma perm_splitA: forall m b ofs m2' m2 m3' k b3 ofs3
-              (SPLIT: (Mem.perm m b ofs Max Nonempty -> ZMap.get b (Mem.mem_access m2') ofs k = ZMap.get b (Mem.mem_access m2) ofs k) /\
-                             (~Mem.perm m b ofs Max Nonempty -> ZMap.get b (Mem.mem_access m2') ofs k = ZMap.get b3 (Mem.mem_access m3') ofs3 k)) 
+Lemma perm_splitA: forall m b ofs k' p m2' m2 m3' k b3 ofs3
+              (SPLIT: (Mem.perm m b ofs k' p-> ZMap.get b (Mem.mem_access m2') ofs k = ZMap.get b (Mem.mem_access m2) ofs k) /\
+                             (~Mem.perm m b ofs k' p -> ZMap.get b (Mem.mem_access m2') ofs k = ZMap.get b3 (Mem.mem_access m3') ofs3 k)) 
               (P:Prop)
-              (HA: Mem.perm m b ofs Max Nonempty -> Mem.perm m2' b ofs k = Mem.perm m2 b ofs k -> P)
-              (HB: ~Mem.perm m b ofs Max Nonempty -> Mem.perm m2' b ofs k = Mem.perm m3' b3 ofs3 k  -> P), P.
+              (HA: Mem.perm m b ofs k' p -> Mem.perm m2' b ofs k = Mem.perm m2 b ofs k -> P)
+              (HB: ~Mem.perm m b ofs k' p -> Mem.perm m2' b ofs k = Mem.perm m3' b3 ofs3 k  -> P), P.
 Proof. intros. destruct SPLIT.
-   remember (Mem.perm_dec m b ofs Max Nonempty ) as d. clear Heqd. 
-   destruct d. 
-          apply (HA p). unfold Mem.perm. rewrite (H p). reflexivity . 
+   destruct (Mem.perm_dec m b ofs k' p).
+          apply (HA p0). unfold Mem.perm. rewrite (H p0). reflexivity . 
           apply (HB n). unfold Mem.perm. rewrite (H0 n). reflexivity . 
 Qed.
 

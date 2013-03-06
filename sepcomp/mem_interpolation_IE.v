@@ -1,8 +1,8 @@
 Load loadpath.
+
 Require Import Events. (*is needed for some definitions (loc_unmapped etc, and
   also at the very end of this file, in order to convert between the 
-  tweaked and the standard definitions of mem_unchanged_on etc, and for
-  being able to remove/add inject_permorder/extends_permorder etc*)
+  tweaked and the standard definitions of mem_unchanged_on etc*)
 Require Import Memory.
 Require Import Coqlib.
 Require Import Integers.
@@ -10,7 +10,7 @@ Require Import Values.
 Require Import Maps.
 
 Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.mem_interpolation_defs.
+Require Import sepcomp.i_defs.
 
 Definition AccessMap_IE_Property  j12 j12' m1 m1' m2 m3' 
            (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=
@@ -45,15 +45,14 @@ Definition Content_IE_Property j12 (m1 m1' m2 m3':Mem.mem)
           ZMap.get ofs2 (ZMap.get b2 m3'.(Mem.mem_contents))).
 
 Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j 
-           (Minj12 : Mem.inject j m1 m2) (IP12: inject_perm_nonempty j m1 m2)
+           (Minj12 : Mem.inject j m1 m2) 
            (Fwd1: mem_forward m1 m1') j'
            (InjInc: inject_incr j j')  (Sep12 : inject_separated j j' m1 m2) 
            (UnchLUj: my_mem_unchanged_on (loc_unmapped j) m1 m1')
-           (Ext23 : Mem.extends m2 m3) (EP23: extends_perm_nonempty m2 m3)
+           (Ext23 : Mem.extends m2 m3) 
            (Fwd3: mem_forward m3 m3') 
            (UnchLOORj1_3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
            (Inj13' : Mem.inject j' m1' m3')
-           (IP13': inject_perm_nonempty j' m1' m3')
            (UnchLOOB23_3': my_mem_unchanged_on (loc_out_of_bounds m2) m3 m3')
            (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
            m2'
@@ -62,8 +61,8 @@ Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j
            (ACCESS: AccessMap_IE_Property j j' m1 m1' m2 m3'
                     (m2'.(Mem.mem_access))),
        mem_forward m2 m2' /\  
-          Mem.extends m2' m3' /\ extends_perm_nonempty m2' m3' /\ 
-          Mem.inject j' m1' m2' /\ inject_perm_nonempty j' m1' m2' /\
+          Mem.extends m2' m3' /\ 
+          Mem.inject j' m1' m2' /\ 
           my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
           (mem_wd m2 -> mem_wd m2').    
 Proof. intros.
@@ -98,8 +97,7 @@ assert (Ext23': Mem.extends m2' m3').
          (*mi_perm*)
             destruct (ACCESS b2) as [Val2 Inval2].
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z as [z|z]; clear Heqz. clear Inval2.
-  specialize (Val2 z k ofs).
+            destruct z; clear Heqz. clear Inval2. specialize (Val2 z k ofs).
               remember (source j m1 b2 ofs) as src.
               destruct src.
                  apply source_SomeE in Heqsrc.
@@ -117,10 +115,9 @@ assert (Ext23': Mem.extends m2' m3').
                       unfold Mem.perm; rewrite po_oo in*. 
                         eapply po_trans. eapply (extends_permorder _ _ Ext23).
                                          apply H0.
-                    eapply sourceNone_LOOR. apply Heqsrc. eassumption.
-                    apply (Mem.valid_block_extends _ _ _ Ext23). apply z. 
-            clear Val2.
-           specialize (Inval2 z k ofs).
+                      eapply sourceNone_LOOR. apply Heqsrc. eassumption.
+                      rewrite <- (Mem.valid_block_extends _ _ _ Ext23). apply z.                      
+            clear Val2. specialize (Inval2 z k ofs).
                remember (source j' m1' b2 ofs) as src.
                destruct src.
                   apply source_SomeE in Heqsrc.
@@ -139,7 +136,7 @@ assert (Ext23': Mem.extends m2' m3').
                intros off; intros. specialize (H0 _ H). clear H.
                destruct (ACCESS b2) as [Val2 Inval2].
                remember (zlt b2 (Mem.nextblock m2)) as z.
-               destruct z as [z|z]; clear Heqz.
+               destruct z; clear Heqz.
                   clear Inval2. specialize (Val2 z Cur off).
                   remember (source j m1 b2 off) as src. 
                   destruct src.  
@@ -155,10 +152,10 @@ assert (Ext23': Mem.extends m2' m3').
                   unfold Mem.perm in H0. rewrite Val2 in H0. clear Val2.
                   destruct UnchLOORj1_3 as [U _]. 
                   rewrite <- U.
-                      rewrite EP23. apply H0. eapply Mem.perm_implies.
-                       eapply Mem.perm_max. apply H0. apply perm_any_N. 
+                       unfold Mem.perm. rewrite po_oo in *.
+                          eapply po_trans.  eapply (extends_permorder _ _ Ext23). apply H0.
                       eapply sourceNone_LOOR. apply Heqsrc. eassumption.
-                      apply (Mem.valid_block_extends _ _ _ Ext23). apply z.
+                      rewrite <- (Mem.valid_block_extends _ _ _ Ext23). apply z.   
                clear Val2. specialize (Inval2 z Cur off).
                   remember (source j' m1' b2 off) as src.
                   destruct src.
@@ -176,7 +173,7 @@ assert (Ext23': Mem.extends m2' m3').
             destruct (CONT b2) as [ValC InvalC].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z as [z|z]; clear Heqz.
+            destruct z; clear Heqz.
               clear InvalC InvalA.
                  specialize (ValC z ofs). specialize (ValA z Cur ofs).
                  remember (source j m1 b2 ofs) as src.
@@ -200,71 +197,17 @@ assert (Ext23': Mem.extends m2' m3').
                         apply eq_sym in H. rewrite (UV _ H). constructor.
                         apply eq_sym in H1. rewrite (UV _ H1). econstructor. 
                             apply H2. trivial.
-                        constructor.
+                        constructor. 
               clear ValA ValC. rewrite (InvalC z).
                   apply memval_inject_id_refl.
 split; trivial.
-assert (EP23': extends_perm_nonempty m2' m3').
-   intros b2; intros.
-   destruct (ACCESS b2) as [Val2 Inval2].
-   remember (zlt b2 (Mem.nextblock m2)) as z.
-   destruct z as [z|z]; clear Heqz.
-   (*valid_block b2 m2*)
-      clear Inval2. 
-      assert (ValMax := Val2 z Max ofs).
-      specialize (Val2 z k ofs).
-      remember (source j m1 b2 ofs) as src. 
-      destruct src.  
-        apply source_SomeE in Heqsrc.
-        destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
-        subst.
-        assert (ZZ: Mem.perm m2' b2 (ofs1 + delta) k = 
-                    Mem.perm m1' b1 ofs1 k).
-             unfold Mem.perm. rewrite Val2. reflexivity.
-        rewrite ZZ in *. clear Val2 ZZ.
-        assert (ZZ: Mem.perm m2' b2 (ofs1 + delta) Max = 
-                    Mem.perm m1' b1 ofs1 Max).
-                  unfold Mem.perm. rewrite ValMax. reflexivity.
-        rewrite ZZ in *. clear ValMax ZZ.
-        assert (J1' := InjInc _ _ _  J1).
-        eapply IP13'. apply H. apply J1'.
-      assert (ZZ: Mem.perm m2' b2 ofs k = Mem.perm m2 b2 ofs k).
-                        unfold Mem.perm. rewrite Val2. reflexivity.
-        rewrite ZZ in *. clear Val2 ZZ.
-        assert (ZZ: Mem.perm m2' b2 ofs Max = Mem.perm m2 b2 ofs Max).
-                   unfold Mem.perm. rewrite ValMax. reflexivity.
-        rewrite ZZ in *. clear ValMax ZZ.
-        destruct UnchLOORj1_3 as [U _]. 
-        rewrite <- U.
-            eapply EP23. apply H. 
-            eapply sourceNone_LOOR. apply Heqsrc. eassumption.
-            apply (Mem.valid_block_extends _ _ _ Ext23). apply z.
-   (*valid_block b2 m2*)
-      clear Val2. 
-      assert (InvalMax := Inval2 z Max ofs).
-      specialize (Inval2 z k ofs).
-      remember (source j' m1' b2 ofs) as src.
-      destruct src.
-        apply source_SomeE in Heqsrc.
-        destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1' [P1 Off2]]]]]]].
-        subst.
-        assert (ZZ: Mem.perm m2' b2 (ofs1 + delta) k = Mem.perm m1' b1 ofs1 k).
-                 unfold Mem.perm. rewrite Inval2. reflexivity.
-        rewrite ZZ in *. clear Inval2 ZZ.
-        assert (ZZ: Mem.perm m2' b2 (ofs1 + delta) Max =
-                    Mem.perm m1' b1 ofs1 Max).
-                unfold Mem.perm. rewrite InvalMax. reflexivity.
-        rewrite ZZ in *. clear InvalMax ZZ.
-        eapply IP13'. apply H. apply J1'.
-        unfold Mem.perm in *. rewrite Inval2 in *. reflexivity.
-split; trivial.    
 assert (Inj12': Mem.inject j' m1' m2'). 
     assert (MemInj': Mem.mem_inj j' m1' m2').
        split; intros.
        (*mi_perm*)
           destruct (ACCESS b2) as [Val2 Inval2].
           remember (zlt b2 (Mem.nextblock m2)) as z.
-          destruct z as [z|z]; clear Heqz. clear Inval2.
+          destruct z; clear Heqz. clear Inval2. 
             specialize  (Val2 z k (ofs + delta)).
             assert (HJ: j b1 = Some (b2, delta)).
               remember (j b1).
@@ -297,7 +240,7 @@ assert (Inj12': Mem.inject j' m1' m2').
               intros off; intros. 
               destruct (ACCESS b2) as [Val2 Inval2].
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]; clear Heqz. clear Inval2. 
+              destruct z; clear Heqz. clear Inval2. 
                  specialize (Val2 z Cur off).
                  assert (HJ: j b1 = Some (b2, delta)).
                     remember (j b1).
@@ -335,7 +278,7 @@ assert (Inj12': Mem.inject j' m1' m2').
             destruct (CONT b2) as [ValC InvalC].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z as [z|z]; clear Heqz.
+            destruct z; clear Heqz.
               clear InvalC InvalA. 
                 specialize (ValC z (ofs+delta)). 
                 specialize (ValA z Cur (ofs+delta)). 
@@ -353,7 +296,7 @@ assert (Inj12': Mem.inject j' m1' m2').
                 assert (OV1: Mem.meminj_no_overlap j m1). eapply Minj12.
                 rewrite (source_SomeI j m1 b2 b1 ofs delta OV1 HJ Hperm1) in *.
                 rewrite ValC.
-                eapply Inj13'. apply H. apply H0.
+                eapply Inj13'. apply H. apply H0. 
             clear ValC ValA. rewrite (InvalC z). clear InvalC. 
                 specialize ( InvalA z Cur (ofs+delta)).
                 eapply Inj13'.  apply H. apply H0.
@@ -363,34 +306,6 @@ assert (Inj12': Mem.inject j' m1' m2').
              eapply Inj13'. apply H.
     apply Inj13'.
     apply Inj13'.
-split; trivial.
-assert (IP12': inject_perm_nonempty j' m1' m2').
-      intros b1; intros.
-      destruct (ACCESS b2) as [Val Inval]. 
-      remember (zlt b2 (Mem.nextblock m2)) as z.
-      destruct z as [z|z]; clear Heqz.
-      (*valid_block b2 m2*)
-         clear Inval. 
-         specialize (Val z k (ofs+delta)).
-         assert (HJ: j b1 = Some (b2, delta)).
-           remember (j b1).
-           destruct o; apply eq_sym in Heqo.
-              destruct p. apply InjInc in Heqo. 
-              rewrite Heqo in F. inv F. reflexivity.
-           destruct (Sep12 _ _ _ Heqo F). exfalso. apply H0. apply z.
-         assert (Hperm1:Mem.perm m1 b1 ofs Max Nonempty). 
-            apply Fwd1. eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ HJ Minj12).
-                        eapply Mem.perm_max. apply NP.
-         assert (OV1: Mem.meminj_no_overlap j m1). eapply Minj12.
-         rewrite (source_SomeI j m1 b2 b1 ofs delta OV1 HJ Hperm1) in Val.
-                    unfold Mem.perm. rewrite Val. trivial.
-      (*~valid_block b2 m2*)
-         clear Val. 
-         specialize (Inval z k (ofs+delta)). 
-         specialize (source_SomeI j' m1' b2 b1 ofs delta). intros.
-         rewrite H in Inval. unfold Mem.perm. rewrite Inval. trivial.
-         apply Inj13'. apply F.
-         eapply Mem.perm_max. apply NP. 
 split; trivial.
 assert (MUO: my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2').
    destruct UnchLOORj1_3 as [UnchA UnchB].
@@ -442,15 +357,12 @@ Axiom mkContentsMap_IE_ok: forall j m1 m1' m2 m3',
 
 Definition mkIE (j j': meminj) (m1 m1' m2 :Mem.mem)
                  (Minj12 : Mem.inject j m1 m2) 
-                 (IP12: inject_perm_nonempty j m1 m2)
                  (Fwd1: mem_forward m1 m1') 
                  (InjInc: inject_incr j j')  
                  (Sep12 : inject_separated j j' m1 m2) 
                  m3 m3' (Ext23 : Mem.extends m2 m3)
-                 (IP23: extends_perm_nonempty m2 m3)
                  (Fwd3: mem_forward m3 m3') 
                  (Inj13' : Mem.inject j' m1' m3')
-                 (IP13': inject_perm_nonempty j' m1' m3')
                  (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
                : Mem.mem'.
 eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
@@ -460,7 +372,7 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
   (*access_max*)
   intros. destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [Val Inval].
     remember (zlt b m2.(Mem.nextblock)) as z. 
-    destruct z as [z|z]; clear Heqz.
+    destruct z; clear Heqz.
     (*Case valid*) clear Inval.
       assert (MaxP := Val z Max ofs).
       assert (CurP := Val z Cur ofs).
@@ -502,26 +414,24 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
 Defined.
 
 Lemma my_interpolate_IE: forall m1 m1' m2 j
-              (Minj12 : Mem.inject j m1 m2) (IP12: inject_perm_nonempty j m1 m2)
+              (Minj12 : Mem.inject j m1 m2) 
               (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
               (Sep12 : inject_separated j j' m1 m2) 
               (UnchLUj: my_mem_unchanged_on (loc_unmapped j) m1 m1')
-              m3 m3' (Ext23 : Mem.extends m2 m3)
-              (EP23: extends_perm_nonempty m2 m3) (Fwd3: mem_forward m3 m3') 
+              m3 m3' (Ext23 : Mem.extends m2 m3) (Fwd3: mem_forward m3 m3') 
               (UnchLOORj1_3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
               (Inj13' : Mem.inject j' m1' m3')
-              (IP13': inject_perm_nonempty j' m1' m3')
               (UnchLOOB23_3' : my_mem_unchanged_on 
                               (loc_out_of_bounds m2) m3 m3')
               (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
          exists m2', mem_forward m2 m2' /\ 
-                     Mem.extends m2' m3' /\ extends_perm_nonempty m2' m3' /\ 
-                     Mem.inject j' m1' m2' /\ inject_perm_nonempty j' m1' m2' /\
+                     Mem.extends m2' m3' /\ 
+                     Mem.inject j' m1' m2' /\ 
                      my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
                      (mem_wd m2 -> mem_wd m2').
 Proof. intros. 
-  exists (mkIE j j' m1 m1' m2 Minj12 IP12 Fwd1 InjInc Sep12 m3 m3' Ext23 
-               EP23 Fwd3 Inj13' IP13' WD2 WD1' WD3').
+  exists (mkIE j j' m1 m1' m2 Minj12 Fwd1 InjInc Sep12 m3 m3' Ext23 
+             Fwd3 Inj13' WD2 WD1' WD3').
 eapply IE_ok with (m3:=m3); trivial.
         subst. apply mkContentsMap_IE_ok.  
         subst. apply mkAccessMap_IE_ok.  
@@ -543,17 +453,14 @@ Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
                       mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
                       (mem_wd m2 -> mem_wd m2').    
 Proof. intros.
-   assert (IP12:=  inj_implies_inject_perm_nonenempty _ _ _ Minj12).  
-   assert (IP13':=  inj_implies_inject_perm_nonenempty _ _ _ Inj13').
-   assert (EP23:=  ext_implies_extends_perm_nonenempty _ _ Ext23).
    rewrite <- unchAx in UnchLUj, UnchLOORj1_3, UnchLOOB23_3'.
-   destruct (my_interpolate_IE _ _ _ _ Minj12 IP12 Fwd1
+   destruct (my_interpolate_IE _ _ _ _ Minj12  Fwd1
                              j' InjInc Sep12 
                              UnchLUj
-                             m3 m3' Ext23 EP23
+                             m3 m3' Ext23
                              Fwd3
                              UnchLOORj1_3
-                             Inj13'  IP13' UnchLOOB23_3' WD2 WD1' WD3')
-   as [m2' [Fwd2 [Ext23' [_ [Inj12' [_ [MU WD2']]]]]]].
+                             Inj13'  UnchLOOB23_3' WD2 WD1' WD3')
+   as [m2' [Fwd2 [Ext23' [Inj12' [MU WD2']]]]].
   exists m2'. rewrite unchAx in MU. repeat (split; trivial).
 Qed.     

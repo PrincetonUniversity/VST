@@ -63,7 +63,7 @@ Variables (cT fT vT: nat -> Type)
 Implicit Arguments plt_ok [].
 
 Definition all_at_external (l: call_stack cT num_modules) :=
- List.Forall (fun f => match f with mkFrame i pf_i c => 
+ List.Forall (fun (f:frame cT num_modules) => match f with mkFrame i pf_i c => 
   exists ef, exists sig, exists args,
    at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)
   end) l.
