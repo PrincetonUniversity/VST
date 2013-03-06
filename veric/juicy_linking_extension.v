@@ -152,6 +152,7 @@ Variable modules_verified:
     post_well_typed ef Q.
 
 (** This hypothesis may disappear after we clean up the CoreSemantics record. *)
+
 Variable mk_initial_core_succeeds: 
   forall i (pf: i < num_modules) v vs,
   exists c, make_initial_core 
@@ -160,13 +161,21 @@ Variable mk_initial_core_succeeds:
 
 (** Modules blocked on external calls are calling functions that aren't actually 
    defined in the current module. *)
+
 Variable at_ext_plt_ok: 
   forall i (pf: i < num_modules) c ef sig args,
   at_external (get_module_csem (modules pf)) c = Some (ef, sig, args) -> 
   (exists j, i<>j /\ 
     procedure_linkage_table (ef2id ef) = Some j /\
-    exists b, Genv.find_symbol ge (ef2id ef) = Some b) \/
+    exists b, Genv.find_symbol ge (ef2id ef) = Some b /\
+    ef = EF_external (ef2id ef) sig) \/
   procedure_linkage_table (ef2id ef) = None.
+
+Variable entry_pts_ok:
+  forall ef i b,
+  procedure_linkage_table (ef2id ef) = Some i -> 
+  Genv.find_symbol ge (ef2id ef) = Some b -> 
+  In (Vptr b Int.zero, Vptr b Int.zero, ef_sig ef) entry_points.
 
 Definition juicy_linking_extension :=
   @linking_extension F V Z Zext proj_zext zmult proj_zmult 
@@ -255,8 +264,13 @@ Lemma inv_invariant_steps:
     corestep juicy_linker_sem ge s jm s' jm' /\
     linker_inv n s' z jm') \/
   (exists rv, safely_halted juicy_linker_sem s = Some rv) \/
-  (exists ef, exists sig, exists args, 
-    at_external juicy_linker_sem s = Some (ef, sig, args)).
+  (exists ef, exists sig, exists args, exists x,
+    ext_spec_pre Hspec ef x (sig_args sig) args z jm /\
+    at_external juicy_linker_sem s = Some (ef, sig, args) /\
+    forall rv jm' z', 
+      ext_spec_post Hspec ef x (sig_res sig) rv z' jm' ->
+      exists s', after_external juicy_linker_sem rv s = Some s' /\
+      linker_inv n s' z' jm').
 Proof.
 intros until z; intros LEV INV.
 destruct s.
@@ -286,16 +300,32 @@ destruct (at_ext_plt_ok PF c AT_EXT) as [X|X].
 Focus 2.
 (*LINKER_AT_EXTERNAL*)
 right; right.
-exists ef; exists sig; exists args.
+exists ef; exists sig; exists args; exists x.
+split; auto.
+split.
 simpl.
 rewrite AT_EXT.
 destruct ef; auto.
-assert (Heq: forall sg, ef2id (EF_external name sg) = name).
+assert (forall sg, ef2id (EF_external name sg) = name) as ->.
  intro sg0.
  solve[generalize (ef2id_ok (EF_external name sg0)); hnf; auto].
-solve[rewrite Heq in X; rewrite X; auto].
+solve[rewrite X; auto].
+intros rv jm' z' Hpost.
+destruct (POST rv jm' z' Hpost) as [c' [AFTER_EXT SAFE']].
+exists (mkLinkerCoreState (mkFrame i PF c' :: stack) 
+  stack_nonempty callers_at_external).
+split; auto.
+simpl.
+rewrite AFTER_EXT; auto.
+assert (length_cons (mkFrame i PF c') stack = stack_nonempty) as -> 
+ by apply proof_irr.
+solve[auto].
+hnf.
+exists rguard_out; exists Hhered.
+split; auto.
+solve[apply tl_inv_downward; auto].
 
-destruct  X as [j [NEQ [LOOKUP [b GENV]]]].
+destruct  X as [j [NEQ [LOOKUP [b [GENV HEQ]]]]].
 generalize (plt_ok _ _ LOOKUP); intros PFJ.
 destruct (mk_initial_core_succeeds PFJ (Vptr b (Int.repr 0)) args) as [c' INIT].
 assert (CALLERS: all_at_external fT vT modules
@@ -313,10 +343,10 @@ split.
 unfold juicy_linker_sem; simpl; unfold jstep; simpl.
 split.
 assert (AT_EXT': 
- at_external (get_module_csem (modules PF)) c = Some (EF_external (ef2id ef) sig, sig, args)).
+   at_external (get_module_csem (modules PF)) c = 
+   Some (EF_external (ef2id ef) sig, sig, args)).
  rewrite AT_EXT.
  repeat f_equal; auto.
- admit. (*must require that handled external functions have form EF_external*)
 generalize (@link_call 
  F V _ _ _ _ 
  procedure_linkage_table plt_ok 
@@ -327,7 +357,10 @@ assert (m_dry jm'=m_dry jm) as ->.
  solve[symmetry; apply age_jm_dry; auto].
 assert (PFJ=plt_ok (ef2id ef) j LOOKUP) as -> by apply proof_irr.
 apply LINK; auto.
-admit. (*entry_points; globals*)
+assert (Hsig: ef_sig ef = sig).
+ admit. (*will go away after cleanup of CoreSemantics to get rid of sig*)
+rewrite <-Hsig.
+solve[fold Int.zero; eapply entry_pts_ok; eauto].
 split.
 apply age_resource_decay'; auto.
 apply age_level in AGE.
@@ -544,10 +577,17 @@ inv H3.
 solve[apply SAFE].
 Qed.
 
+Definition main_post: option val -> Z -> juicy_mem -> Prop := 
+  fun rv z jm => True.
+
+Lemma main_post_hered: forall rv z, hereditary age (main_post rv z).
+Proof. solve[intros rv z; unfold main_post, hereditary; auto]. Qed.
+
 Lemma inv_safe: 
   forall c z jm,
   linker_inv (level jm) c z jm -> 
-  safeN juicy_linker_sem Hspec ge (level jm) z c jm.
+  safeN juicy_linker_sem (j_upd_rguard Hspec main_post main_post_hered)
+    ge (level jm) z c jm.
 Proof.
 intros c z jm INV.
 remember (level jm) as n.
@@ -574,16 +614,32 @@ destruct INV as [rv HALT].
 generalize (at_external_halted_excl juicy_linker_sem c); intros [X|X].
 rewrite X.
 rewrite HALT.
-admit. (*TODO: ext_spec_exit*)
+destruct c.
+simpl in HALT.
+destruct stack; try solve[congruence].
+destruct f.
+destruct stack; try solve[congruence].
+solve[simpl; unfold main_post; auto].
 congruence.
-destruct INV as [ef [sig [args AT_EXT]]].
+destruct INV as [ef [sig [args [x [PRE [AT_EXT POST]]]]]].
 rewrite AT_EXT.
 case_eq (safely_halted juicy_linker_sem c).
 intros rv HALT.
 generalize (at_external_halted_excl juicy_linker_sem c); intros [X|X];
  congruence.
 intros HALT.
-admit. (*TODO: entire linker is at external; tracks back to running core safety*)
+
+(*AT_EXTERNAL*)
+exists x.
+split; auto.
+intros rv jm' z' Hpost.
+destruct (POST rv jm' z' Hpost) as [s' [AFTER INV]].
+exists s'.
+split; auto.
+assert (Heq: level jm' = n) by admit. (*not true in general; must do wf-induction on nat lt 
+                                         and expose somehow that level jm' < level jm*)
+rewrite <-Heq in *.
+apply IHn; auto.
 Qed.
 
 Lemma linker_safety:
@@ -591,7 +647,8 @@ Lemma linker_safety:
   ext_spec_pre Hspec (EF_external main_id main_sig) x nil nil z jm -> 
   Genv.find_symbol ge main_id = Some b -> 
   make_initial_core juicy_linker_sem ge (Vptr b Int.zero) nil = Some c -> 
-  safeN juicy_linker_sem Hspec ge (level jm) z c jm.
+  safeN juicy_linker_sem (j_upd_rguard Hspec main_post main_post_hered) 
+    ge (level jm) z c jm.
 Proof.
 intros until z; intros GENV FIND INIT.
 exploit initial_inv; eauto; intro INV.
