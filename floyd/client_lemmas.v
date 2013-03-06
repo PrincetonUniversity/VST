@@ -925,7 +925,7 @@ Ltac go_lower3 :=
      unfold tc_exprlist, tc_expr, tc_lvalue, 
          stackframe_of, Datatypes.id,
         frame_ret_assert, function_body_ret_assert,
-        get_result1, retval, make_args', bind_ret;
+        get_result1, retval, make_args', bind_ret,tvoid;
         simpl typecheck_exprlist; simpl typecheck_expr; simpl typecheck_lvalue;
         super_unfold_lift;
         simpl make_args; simpl access_mode;
@@ -934,6 +934,16 @@ Ltac go_lower3 :=
          repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
       simpl  tc_andp; simpl denote_tc_assert;
         super_unfold_lift;
+       repeat (match goal with
+        | |- context [@andp _ (@LiftNatDed _ _ ?ND) ?P ?Q ?rho] =>
+                  change (@andp _ (@LiftNatDed _ _ ND) P Q rho) with
+                          (@andp _ ND (P rho) (Q rho))
+        | |- context [@sepcon _ (@LiftNatDed _ _ ?ND) (@LiftSepLog _ _ _ ?SL) ?P ?Q ?rho] =>
+                  change (@sepcon _ (@LiftNatDed _ _ ND) (@LiftSepLog _ _ _ SL) P Q rho) with
+                          (@sepcon _ ND SL (P rho) (Q rho))
+        | |- context [@prop _ (@LiftNatDed _ _ ?ND) ?P ?rho] =>
+                 change (@prop _ (@LiftNatDed _ _ ND) P rho) with (@prop _ ND P)
+        end; cbv beta);
         repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
         repeat rewrite eval_id_same;
         findvars;

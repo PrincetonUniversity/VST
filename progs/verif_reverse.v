@@ -90,7 +90,7 @@ go_lower. subst. inv H1.
 normalize. cancel. 
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. simpl. rewrite H0; apply andp_right; apply prop_right; auto.
+go_lower. simpl. rewrite H0; reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=

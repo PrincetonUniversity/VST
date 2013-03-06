@@ -144,7 +144,6 @@ forward. (* t = Q->tail;*)
 forward. (* return (t == &(Q->head)); *)
 go_lower.
   forget False as NOPROOF.  (* need to fix typechecking of pointer comparison *) 
-  simpl. rewrite eval_id_same. clear H rho. (* shouldn't need this-- fix go_lower *)
    subst Q t.
    rewrite field_mapsto_isptr. 
    repeat apply andp_right.
@@ -244,7 +243,6 @@ rewrite field_mapsto_isptr.
 normalize.
 forward. (* return Q; *)
 go_lower.
- simpl.  (* shouldn't need this; fix go_lower *)
   apply andp_right.
   rewrite field_mapsto_isptr; normalize.
   apply prop_right; destruct Q; inv H1; inv TC; hnf; simpl; auto.
@@ -333,7 +331,6 @@ forward.  (* *(Q->tail) = &p->next;  *)
 go_lower. subst. rewrite elemrep_isptr at 1. normalize.
 forward. (* return *)
 go_lower.
- simpl. clear rho H.  (* shouldn't need this; fix go_lower *)
  subst.
 unfold fifo.
 destruct (@isnil (elemtype QS) (elem::nil)) as [e3|n3]; [inv e3 | clear n3].
@@ -381,9 +378,7 @@ forward.  (* *(Q->tail) = &p->next;  *)
 clear Post; go_lower. subst.
 rewrite elemrep_isptr at 1. normalize.
 forward. (* return; *)
-go_lower. 
- simpl. clear rho H.  (* shouldn't need this; fix go_lower *)
- subst.
+go_lower.  subst.
 unfold fifo.
 match goal with |- context [isnil ?P] => 
   destruct (isnil P) as [e3|n3] end.
