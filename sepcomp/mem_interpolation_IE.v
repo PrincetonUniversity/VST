@@ -10,7 +10,7 @@ Require Import Values.
 Require Import Maps.
 
 Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.i_defs.
+Require Import sepcomp.mem_interpolation_defs.
 
 Definition AccessMap_IE_Property  j12 j12' m1 m1' m2 m3' 
            (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=

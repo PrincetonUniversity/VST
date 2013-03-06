@@ -11,7 +11,7 @@ Require Import Maps.
 Require Import Axioms.
 
 Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.i_defs.
+Require Import sepcomp.mem_interpolation_defs.
 
 Fixpoint mkInjectionsN (N:nat)(n1 n2:block)(j k l: meminj) 
                      :  meminj * meminj * Z * Z:= 

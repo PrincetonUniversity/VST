@@ -8,7 +8,7 @@ Require Import Coqlib.
 Require Import Maps.
 
 Require Import  sepcomp.mem_lemmas.
-Require Import sepcomp.i_defs.
+Require Import sepcomp.mem_interpolation_defs.
 
 Definition AccessMap_EE_Property  (m1 m1' m2:Mem.mem) 
            (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=
