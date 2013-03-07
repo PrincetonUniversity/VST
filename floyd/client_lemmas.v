@@ -209,7 +209,8 @@ Lemma semax_post': forall R' Delta R P c,
       semax Delta P c (normal_ret_assert R') ->
       semax Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
-  intro rho; unfold normal_ret_assert; normalize. 
+  intro rho; unfold normal_ret_assert; normalize.
+ simpl. 
  repeat apply andp_derives; auto.
 Qed.
 
@@ -323,21 +324,26 @@ Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.
 
+Hint Rewrite eval_id_same : norm.
+Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
+
 Lemma retval_get_result1: 
    forall i rho, retval (get_result1 i rho) = (eval_id i rho).
-Proof. intros. unfold retval, get_result1. simpl. normalize. Qed.
+Proof. intros. unfold retval, get_result1. simpl.
+ normalize. 
+Qed.
 Hint Rewrite retval_get_result1 : norm.
 
 Lemma retval_lemma1:
   forall rho v,     retval (env_set rho ret_temp v) = v.
 Proof.
- intros. unfold retval. unfold eval_id. simpl. auto.
+ intros. unfold retval.  normalize.
 Qed.
 Hint Rewrite retval_lemma1 : norm.
 
 Lemma retval_make_args:
   forall v rho, retval (make_args (ret_temp::nil) (v::nil) rho) = v.
-Proof. intros. unfold retval, eval_id; simpl. reflexivity.
+Proof. intros.  unfold retval, eval_id; simpl. try rewrite Map.gss. reflexivity.
 Qed.
 Hint Rewrite retval_make_args: norm.
 
@@ -628,7 +634,7 @@ Proof.
  apply andp_right; auto. apply prop_right; auto.
  apply andp_right; auto.
  normalize.
- apply andp_left1. 
+ simpl. apply andp_left1. 
  apply derives_trans with (!!a && !! (fold_right and True P')).
  apply andp_right. apply prop_right; auto.
  apply derives_refl.
@@ -1053,7 +1059,7 @@ Hint Rewrite exp_unfold: norm.
 Lemma lift1_lift1_retval {A}: forall i (P: val -> A),
 lift1 (lift1 P retval) (get_result1 i) = lift1 P (eval_id i).
 Proof. intros.  extensionality rho. 
-  unfold lift1.  f_equal. 
+  unfold lift1.  f_equal; normalize.
 Qed.
 
 (* Lemma lift1_lift1_retvalC : forall i (P: val -> environ -> mpred),
@@ -1067,13 +1073,13 @@ Qed.
 Lemma lift0_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
 Proof. intros; extensionality rho; unfold lift0. simpl.
-f_equal. extensionality b; auto.
+f_equal; extensionality b; auto.
 Qed.
 
 Lemma lift0C_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), `(exp f) = EX x:B, `(f x).
 Proof.
-intros. unfold_lift. simpl. extensionality rho. f_equal. extensionality x; auto.
+intros. unfold_lift. simpl. extensionality rho. f_equal; extensionality x; auto.
 Qed.
 Hint Rewrite @lift0_exp @lift0C_exp : norm.
 
@@ -1969,10 +1975,11 @@ autorewrite with subst norm.
 f_equal.
 extensionality rho.
 unfold lift1.
+simpl.
 f_equal.
 induction Q; simpl; auto.
 autorewrite with subst norm.
-f_equal. auto.
+f_equal;  apply IHQ.
 change SEPx with SEPx'.
 unfold SEPx'.
 induction R; auto.

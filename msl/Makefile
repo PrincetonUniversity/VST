@@ -37,10 +37,6 @@ clean:
 	rm -f *.vo *~
 	rm -f $(FILES:%.v=%.html)
 	rm -f $(FILES:%.v=%.glob)
-	cd examples; make clean
-
-examples: lib
-	cd examples; make
 
 extract:
 	coqc -R . msl extract.v

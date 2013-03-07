@@ -168,17 +168,11 @@ apply sepcon_derives; auto.
 destruct (eval_expr e1 rho); inv H5; auto.
 
 intros ek vl rho.
-simpl.
-apply derives_extract_prop; intro.
-apply normal_ret_assert_derives.
-unfold_lift.
-apply exp_derives; intro x.
-apply derives_extract_prop; intro.
+unfold normal_ret_assert.
+normalize. apply exp_right with old.
+normalize. simpl typeof; unfold eval_lvalue; fold eval_expr.
 autorewrite with subst.
-repeat (rewrite subst_lift3' || rewrite subst_lift2' || rewrite subst_lift1' || rewrite subst_lift0').
-autorewrite with subst.
-autorewrite with norm. unfold_lift.
-apply andp_derives; auto.
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
 normalize.
 apply sepcon_derives; auto.
 match goal with |- mapsto _ _ (force_ptr ?E) _ |-- _ =>
@@ -541,17 +535,12 @@ intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift;
 normalize.
 repeat apply andp_right; try apply prop_right; auto.
 
-intros ek vl rho; simpl.
-apply derives_extract_prop; intro.
-rewrite normal_ret_assert_eq.
-simpl.
-do 2 (apply derives_extract_prop; intro). subst.
-unfold normal_ret_assert. repeat rewrite prop_true_andp; auto.
-apply exp_derives; intro x.
+intros ek vl rho.
+unfold normal_ret_assert.
+normalize.
 autorewrite with subst.
-repeat (rewrite subst_lift3' || rewrite subst_lift2' || rewrite subst_lift1' || rewrite subst_lift0').
-autorewrite with subst.
- normalize.
+apply exp_right with old.
+autorewrite with subst. normalize.
 Qed.
 
 

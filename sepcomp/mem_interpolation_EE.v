@@ -81,7 +81,7 @@ assert (Ext12':  Mem.extends m1' m2').
               destruct (ACCESS b2) as [Val Inval].
               inv H. rewrite Zplus_0_r.
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z. clear Inval. destruct (Val z k ofs); clear Val Heqz. 
+              destruct z as [z|z]. clear Inval. destruct (Val z k ofs); clear Val Heqz. 
                 remember (Mem.perm_dec m1 b2 ofs Max Nonempty) as d. 
                 destruct d; clear Heqd.  
                    clear H1. unfold Mem.perm. rewrite (H p0). apply H0. 
@@ -99,7 +99,7 @@ assert (Ext12':  Mem.extends m1' m2').
              intros off; intros. specialize (H0 _ H). 
               destruct (ACCESS b2) as [Val Inval].
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z. clear Inval.
+              destruct z as [z|z]. clear Inval.
                 destruct (Val z Cur off); clear Val Heqz. 
                 remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
                 destruct d; clear Heqd.  
@@ -115,7 +115,7 @@ assert (Ext12':  Mem.extends m1' m2').
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [Val Inval]; clear CONT.
             remember (zlt b2 (Mem.nextblock m2)) as d.
-            destruct d.
+            destruct d as [z|z].
               destruct (Val z ofs) as [A _]. clear Val Inval.
               rewrite A. 
                   apply memval_inject_id_refl.
@@ -137,7 +137,7 @@ assert (Ext23': Mem.extends m2' m3').
               destruct (ACCESS b2) as [Val Inval].
               inv H. rewrite Zplus_0_r.
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z. clear Inval. 
+              destruct z as [z|z]. clear Inval. 
                 destruct (Val z k ofs) as [A B]; clear Val Heqz. 
                 remember (Mem.perm_dec m1 b2 ofs Max Nonempty) as d. 
                 destruct d; clear Heqd.  
@@ -164,7 +164,7 @@ assert (Ext23': Mem.extends m2' m3').
              intros off; intros. specialize (H0 _ H). clear H.
               destruct (ACCESS b2) as [Val Inval].
               remember (zlt b2 (Mem.nextblock m2)) as z.
-              destruct z. clear Inval. 
+              destruct z as [z|z]. clear Inval. 
                 destruct (Val z Cur off) as [A B]; clear Val Heqz. 
                 remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
                 destruct d; clear Heqd.  
@@ -188,7 +188,7 @@ assert (Ext23': Mem.extends m2' m3').
             destruct (CONT b2) as [ValC InvalC].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (zlt b2 (Mem.nextblock m2)) as z.
-            destruct z.
+            destruct z as [z|z].
               clear InvalC InvalA. 
                  destruct (ValC z ofs) as [VA VB]; clear ValC Heqz. 
                  destruct (ValA z Cur ofs) as [AccA AccB]; clear ValA.
@@ -265,7 +265,7 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
   (*access_max*)
   intros. destruct (mkAccessMap_EE_ok m1 m1' m2 b) as [Val Inval].
     remember (zlt b m2.(Mem.nextblock)) as z. 
-    destruct z; clear Heqz.
+    destruct z as [z|z]; clear Heqz.
     (*Case valid*) clear Inval.
         specialize (Val z). 
         destruct (Val Max ofs) as [MaxA MaxB].

@@ -124,7 +124,7 @@ change SEPx with SEPx'.
  simpl. 
   normalize. unfold_lift.
  apply sepcon_derives; auto.
- repeat rewrite subst_lift1'.
+ rewrite subst_lift1'.
 (*  normalize. *)
  replace (subst ret (fun _ => old) (get_result1 ret') rho)
    with (get_result1 ret rho); auto.
