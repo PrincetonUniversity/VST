@@ -169,7 +169,9 @@ destruct (eval_expr e1 rho); inv H5; auto.
 
 intros ek vl rho.
 unfold normal_ret_assert.
-normalize. apply exp_right with old.
+normalize. 
+try (intros old ?).  (* Coq 8.3/8.4 compatibility *)
+apply exp_right with old.
 normalize. simpl typeof; unfold eval_lvalue; fold eval_expr.
 autorewrite with subst.
 change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
@@ -539,6 +541,7 @@ intros ek vl rho.
 unfold normal_ret_assert.
 normalize.
 autorewrite with subst.
+try intros old ?. (* Coq 8.3/8.4 compatibility *)
 apply exp_right with old.
 autorewrite with subst. normalize.
 Qed.
