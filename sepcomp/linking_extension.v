@@ -2122,17 +2122,20 @@ exists RR1.
 split; auto.
 destruct (core_simulations i0).
 clear core_ord_wf0 core_diagram0 core_initial0 core_halted0 core_at_external0.
-cut (match_state cd' j' c m1' c0 m2').
-intros MATCH'.
+(*cut (match_state cd' j' c m1' c0 m2').
+intros MATCH'.*)
 case_eq (at_external (get_module_csem (modules_S PF)) c).
 2: solve[intros AT_EXT'; rewrite AT_EXT' in AT_EXT; congruence].
 intros [[ef' sig'] args'] AT_EXT'.
 rewrite AT_EXT' in AT_EXT.
-specialize (core_after_external0 cd' j' j' c c0 m1' ef' args' ret1 m1' m2' m2' ret2 sig').
+specialize (core_after_external0 cd' j j' c c0 m1 ef' args' ret1 m1' m2 m2' ret2 sig').
 specialize (RGsim i0); destruct RGsim.
-spec core_after_external0.
+spec core_after_external0; auto.
 solve[eapply match_state_inj; eauto].
 spec core_after_external0; auto.
+rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH.
+solve[auto].
+solve[apply eq_nat_dec].
 spec core_after_external0; auto.
 unfold csem_map_S, csem_map.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
@@ -2141,17 +2144,30 @@ spec core_after_external0; auto.
 solve[eapply match_state_preserves_globals; eauto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
-solve[apply inject_separated_same_meminj].
 spec core_after_external0; eauto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
-solve[unfold mem_forward; intros; split; auto].
-spec core_after_external0.
-solve[unfold Events.mem_unchanged_on; split; auto].
-spec core_after_external0.
-solve[unfold mem_forward; intros; split; auto].
-spec core_after_external0.
-solve[unfold Events.mem_unchanged_on; split; auto].
+spec core_after_external0; auto.
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_unmapped j b ofs /\
+  (private_block (get_module_csem (modules_S PF)) c b \/
+    private_blocks fS vS modules_S stack b)); auto.
+intros b ofs [? ?]; split; auto.
+generalize H0.
+unfold csem_map_S, csem_map.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (l = PF) as -> by apply proof_irr; auto].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+apply mem_unchanged_on_sub with (Q := fun b ofs => 
+  loc_out_of_reach j m1 b ofs /\
+  (private_block (get_module_csem (modules_T PF0)) c0 b \/
+    private_blocks fT vT modules_T stack0 b)); auto.
+intros b ofs [? ?]; split; auto.
+generalize H0.
+unfold csem_map_T, csem_map.
+destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
+solve[assert (l = PF0) as -> by apply proof_irr; auto].
 spec core_after_external0.
 unfold val_has_type_opt' in HAS_TY1.
 assert (Heq: ef = ef').
@@ -2159,13 +2175,14 @@ assert (Heq: ef = ef').
  destruct ef'; try solve[congruence].
  destruct (procedure_linkage_table name); try solve[congruence].
 solve[rewrite Heq in *; auto].
-destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
+spec core_after_external0; auto.
+unfold val_has_type_opt' in HAS_TY2.
 assert (Heq: ef = ef').
  clear - AT_EXT.
  destruct ef'; try solve[congruence].
  destruct (procedure_linkage_table name); try solve[congruence].
 solve[rewrite Heq in *; auto].
-exists cd''; auto.
+destruct core_after_external0 as [cd'' [st1' [st2' [EQ1 [EQ2 MATCH2]]]]].
 clear - Heq1 Heq2 EQ1 EQ2 PF MATCH2.
 unfold csem_map_S, csem_map_T, csem_map in *|-.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
@@ -2176,7 +2193,9 @@ rewrite Heq1 in EQ1; inv EQ1.
 unfold genv_map in EQ2.
 rewrite Heq2 in EQ2; inv EQ2.
 rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
+solve[exists cd''; auto].
 solve[apply eq_nat_dec].
+(*
 destruct (RGsim i0).
 apply rely with (ge1 := get_module_genv (modules_S PF)) (m1 := m1) (f := j) (m2 := m2); auto.
 solve[eapply match_state_inj; eauto].
@@ -2208,7 +2227,9 @@ solve[assert (PF0 = l) as -> by apply proof_irr; auto].
 
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH; auto.
 solve[apply eq_nat_dec].
+*)
 
+(*BEGIN tl_inv PROOF*)
 clear H2 AT_EXT.
 assert (INJJ: Mem.inject j m1 m2).
  destruct (RGsim i0).
