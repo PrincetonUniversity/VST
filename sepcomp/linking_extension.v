@@ -1512,7 +1512,7 @@ Variable threads_max: nat.
 Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
 
 Variable RGsim: forall i: nat,
- RelyGuaranteeSimulation.Sig (csem_map_S i) (csem_map_T i) (genv_mapS i) (@match_state i).
+ StableRelyGuaranteeSimulation.Sig (csem_map_S i) (csem_map_T i) (genv_mapS i) (@match_state i).
 
 Variable entry_points: list (val*val*signature).
 

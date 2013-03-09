@@ -54,9 +54,36 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
 
   (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
     match_state cd j c1 m1 c2 m2 -> 
+    meminj_preserves_globals ge1 j),
+  Sig.
+
+End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
+
+Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
+ Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
+ Variables 
+  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
+  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
+  (ge1: Genv.t F1 V1) (ge2: G2) 
+  (entry_points: list (val * val * signature))
+  (core_data: Type)
+  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+
+ Import Forward_simulation_inj_exposed.
+
+ Inductive Sig: Type := Make: forall
+  (match_state_runnable: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> 
+    runnable sourceC c1 = runnable targetC c2)
+
+  (match_state_inj: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+
+  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> 
     meminj_preserves_globals ge1 j)
 
-  (rely: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
+  (stable: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
     (** Rely *)
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
@@ -73,4 +100,4 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
     match_state cdC f' c1 m1' c2 m2'),
   Sig.
 
-End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
+End StableRelyGuaranteeSimulation. End StableRelyGuaranteeSimulation.

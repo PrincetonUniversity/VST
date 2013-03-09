@@ -1265,7 +1265,7 @@ solve[rewrite Heqx; auto].
 Qed.
 
 Lemma RGsimulations_invariant: 
-  (forall i:nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
+  (forall i:nat, StableRelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
        (genv_mapS i) (match_state i)) ->
   @CompilabilityInvariant.Sig F_S V_S F_T V_T D_S D_T xS xT 
        fS fT vS vT cS cT dS dT Z Zint Zext 

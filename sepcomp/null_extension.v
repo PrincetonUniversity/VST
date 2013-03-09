@@ -311,7 +311,7 @@ Section NullExtensionCompilable.
  Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
    geS geT entry_points core_data match_state core_ord.
  Variable core_simulationsRG: forall i:nat, 
-   RelyGuaranteeSimulation.Sig csemS csemT geS match_state.
+   StableRelyGuaranteeSimulation.Sig csemS csemT geS match_state.
  Variable threads_max: nat.
  Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
 

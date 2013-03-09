@@ -354,7 +354,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        match_state i (cd i) j c1 m1 c2 m2.
 
  Record Sig: Type := Make {
-   _ : (forall i: nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
+   _ : (forall i: nat, StableRelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
          (genv_mapS i) (match_state i)) -> 
        genvs_domain_eq ge_S ge_T -> 
        (forall i: nat, genvs_domain_eq ge_S (genv_mapS i)) -> 
