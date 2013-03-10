@@ -233,7 +233,7 @@ Proof.
   (*corestep*)  
     assert (DD := @Forward_simulation_ext.core_diagram _ _ _ _ _ _ Sem1 Sem2 
        (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
-    destruct DD as [c2' [m2' [d'  [MC' myStep]]]].
+    destruct DD as [c2' [m2' [d'  [MC' [PB myStep]]]]].
     exists d'. exists (c2', m2'); simpl. split; auto.
     destruct myStep.
     (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.

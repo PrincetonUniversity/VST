@@ -149,8 +149,8 @@ End Sim_EQ_SIMU_DIAGRAMS.
 
 Section Sim_EXT_SIMU_DIAGRAMS.
   Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics G1 C1 mem D1}
-          {Sem2 : CoreSemantics G2 C2 mem D2}
+          {Sem1 : RelyGuaranteeSemantics G1 C1 D1}
+          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -171,7 +171,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
             make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
             match_states c1 c1 m1 c2 m2.
 
-Hypothesis ext_safely_halted:
+  Hypothesis ext_safely_halted:
       forall cd st1 m1 st2 m2 v1,
         match_states cd st1 m1 st2 m2 ->
         safely_halted Sem1 st1 = Some v1 ->
@@ -216,10 +216,13 @@ Section EXT_SIMULATION_STAR_WF.
 Variable order: C1 -> C1 -> Prop.
 Hypothesis order_wf: well_founded order.
 
-  Hypothesis ext_simulation:
-     forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
-     forall c2 m2, match_states c1 c1 m1 c2 m2 ->
-      exists c2', exists m2', match_states c1' c1' m1' c2' m2' /\
+Hypothesis ext_simulation:
+  forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
+    forall c2 m2, match_states c1 c1 m1 c2 m2 ->
+      exists c2', exists m2', 
+        match_states c1' c1' m1' c2' m2' /\
+        mem_unchanged_on (fun b ofs => 
+          loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 c1 b) m1 m1' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
@@ -247,24 +250,27 @@ Section EXT_SIMULATION_STAR.
   Variable measure: C1 -> nat.
   
   Hypothesis ext_star_simulation:
-    forall c1 m1 c1' m1', corestep Sem1 ge1 c1 m1 c1' m1'  -> 
-    forall c2 m2, match_states c1 c1 m1 c2 m2 ->
-      (exists c2', exists m2', corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' c1' m1' c2' m2')
-      \/ (measure c1' < measure c1 /\ 
-  (*apparently not needed: Mem.extends m1' m2 /\ *) match_states c1' c1' m1' c2 m2)%nat.
+    forall (c1 : C1) (m1 : mem) (c1' : C1) (m1' : mem),
+      corestep Sem1 ge1 c1 m1 c1' m1' ->
+      forall (c2 : C2) (m2 : mem),
+        match_states c1 c1 m1 c2 m2 ->
+        exists c2' : C2,
+          exists m2' : mem,
+            match_states c1' c1' m1' c2' m2' /\
+            mem_unchanged_on
+            (fun (b : block) (ofs : Z) =>
+              loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
+            (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
+             corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure c1' c1).
 
 Lemma ext_simulation_star: 
   Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply ext_simulation_star_wf.
   apply  (well_founded_ltof _ measure).
-  intros. destruct (ext_star_simulation _ _ _ _ H _ _ H0).
-  destruct H1 as [c2' [m2' [CSP MC']]]. exists c2'. exists m2'. 
-    split; trivial. left; trivial.
-  destruct H1 as [X1 X3]; subst. exists c2. exists m2. split; trivial. 
-    right. split; trivial.
-  eapply corestep_star_zero. 
+  intros.
+  destruct (ext_star_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [CSP [? MC']]]].
+  exists c2'; exists m2'; split; auto.
 Qed.
 
 End EXT_SIMULATION_STAR.
@@ -274,15 +280,19 @@ Section EXT_SIMULATION_PLUS.
   Hypothesis ext_plus_simulation:
     forall c1 m1 c1' m1', corestep Sem1 ge1 c1 m1 c1' m1'  -> 
     forall c2 m2, match_states c1 c1 m1 c2 m2 ->
-      exists c2', exists m2', corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' c1' m1' c2' m2'.
+      exists c2', exists m2', 
+        corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
+        match_states c1' c1' m1' c2' m2' /\
+        mem_unchanged_on
+        (fun (b : block) (ofs : Z) =>
+          loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m1 m1'.
 
 Lemma ext_simulation_plus: 
   Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply ext_simulation_star with (measure:=measure).
-  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ H0).
-  left. eexists; eauto.
+  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [MC [UNC STEP]]]].
+  eexists; eexists; split; eauto.
 Qed.
 
 End EXT_SIMULATION_PLUS.

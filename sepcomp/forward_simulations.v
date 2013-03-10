@@ -106,8 +106,8 @@ End Forward_simulation_eq.
 
 Module Forward_simulation_ext. Section Forward_simulation_extends. 
   Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics G1 C1 mem D1}
-          {Sem2 : CoreSemantics  G2 C2 mem D2}
+          {Sem1: RelyGuaranteeSemantics G1 C1 D1}
+          {Sem2: RelyGuaranteeSemantics  G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -126,6 +126,8 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         match_state cd st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd',
           match_state cd' st1' m1' st2' m2' /\
+          mem_unchanged_on (fun b ofs => 
+            loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -736,8 +738,8 @@ Inductive core_correctness (I: forall F C V
       I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
       core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 | corec_ext: forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -746,7 +748,7 @@ Inductive core_correctness (I: forall F C V
   entrypoints
   (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
   (R:Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
-    (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
+    (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
   prog_main P1 = prog_main P2 -> 
   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
   GenvHyp P1 P2 ->
