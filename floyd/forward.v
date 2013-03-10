@@ -213,8 +213,8 @@ Ltac forward_while Inv Postcond :=
    ].
 
 Ltac normalize :=
- try match goal with |- context[subst] =>  autorewrite with subst end;
- try match goal with |- context[ret_assert] =>  autorewrite with ret_assert end;
+ try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
+ try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
  match goal with 
  | |- semax _ _ _ _ =>
   msl.log_normalize.normalize;

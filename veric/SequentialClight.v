@@ -29,7 +29,7 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_exit*)
      (fun rv m z => False).
 
- Lemma hoare_safe:
+ Lemma whole_program_sequential_safety:
    forall prog V G m,
      semax_prog prog V G ->
      Genv.init_mem prog = Some m ->

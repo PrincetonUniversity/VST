@@ -177,6 +177,7 @@ unfold Frame.
  compute; congruence.
  eapply eval_var_isptr; eauto.
  apply setup_globals; auto.
+ try (apply LiftClassicalSep; auto with typeclass_instances). (* remove this line when it's no longer needed! *)
  auto with closed.
  forward. (* return s; *)
  go_lower. subst. normalize.

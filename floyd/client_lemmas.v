@@ -688,7 +688,7 @@ Ltac go_lower2 :=
  apply go_lower_lem26; 
  try apply go_lower_lem27a;  try apply go_lower_lem27c;
  unfold fold_right_sepcon, fold_right_andp;
- change (TT rho) with (@TT mpred _);
+ change (TT rho) with (@TT mpred Nveric);
  repeat (unfold ret_type; simpl); 
  unfold local; super_unfold_lift;
  repeat rewrite retval_lemma1;
