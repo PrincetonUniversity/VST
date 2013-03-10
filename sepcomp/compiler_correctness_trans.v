@@ -227,24 +227,6 @@ Proof.
   apply H1. 
 Qed.
 
-(*Lemma compose_meminjD_None: forall j jj b, 
-  (compose_meminj j jj) b = None -> 
-  j b = None \/ 
-  (exists b', exists ofs, j b = Some(b',ofs) /\ jj b' = None). 
-Proof. 
-  unfold compose_meminj; intros.
-  destruct (j b).
-  destruct p. right.
-  remember (jj b0) as zz; destruct zz. destruct p. inv H.
-  exists b0. exists z. rewrite <- Heqzz. auto.
-  left; trivial.
-Qed.
-*)
-Lemma matchOptE: forall {A} (a:option A) (P: A -> Prop),
-   match a with Some b => P b | None => False end -> 
-   exists b, a = Some b /\ P b.
-Proof. intros. destruct a; try contradiction. exists a; auto. Qed. 
-
 Section EXTEXT.
 Lemma  diagram_extext: forall
 (G1 C1 D1 : Type)
