@@ -304,6 +304,37 @@ Record RelyGuaranteeSemantics {G C D} :=
 
 Implicit Arguments RelyGuaranteeSemantics [].
 
+Record EqRelyGuaranteeSemantics {G C D} :=
+  { eq_csem :> CoopCoreSem G C D;
+    eq_private_block: C -> block -> Prop;
+    eq_private_dec: forall c b, 
+      {eq_private_block c b}+{~eq_private_block c b};
+    eq_private_initial: forall b ge v vs c,
+      make_initial_core eq_csem ge v vs = Some c -> 
+      ~eq_private_block c b;
+    eq_private_step: forall b ge c m c' m',
+      corestep eq_csem ge c m c' m' -> 
+      (eq_private_block c' b <->
+       eq_private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m');
+    eq_private_external: forall b c c' retv ef sig args,
+      at_external eq_csem c = Some (ef, sig, args) -> 
+      after_external eq_csem retv c = Some c' -> 
+      (eq_private_block c' b <-> eq_private_block c b) }.
+
+Implicit Arguments EqRelyGuaranteeSemantics [].
+
+Program Definition eq_rely2rely_sem G C D 
+  (eq_rgsem: EqRelyGuaranteeSemantics G C D): RelyGuaranteeSemantics G C D :=
+ {| csem := eq_csem eq_rgsem;
+    private_block := eq_private_block eq_rgsem;
+    private_dec := eq_private_dec eq_rgsem;
+    private_initial := _;
+    private_step := _;
+    private_external := _ |}.
+Next Obligation. eapply (eq_private_initial eq_rgsem) in H; eauto. Qed.
+Next Obligation. eapply (eq_private_step eq_rgsem); eauto. Qed.
+Next Obligation. erewrite <-(eq_private_external eq_rgsem); eauto. Qed.
+
 Lemma forward_nextblock: forall m m',
   mem_forward m m' -> 
   (Mem.nextblock m <= Mem.nextblock m')%Z.
