@@ -196,9 +196,6 @@ case_eq (access_mode
 apply prop_right; eauto.
 Qed.
 
-Import SequentialClight.SeqC.CSL.
-
-
 Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
 Proof.
 unfold Share.splice.

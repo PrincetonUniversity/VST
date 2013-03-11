@@ -29,14 +29,15 @@ Require Import veric.SeparationLogic.
 
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
-Declare Module ExtSpec: EXTERNAL_SPEC.
+(*Declare Module ExtSpec: EXTERNAL_SPEC. *)
 Declare Module CSL: CLIGHT_SEPARATION_LOGIC.
 
 Import CSL.
 
 Axiom semax_prog_rule :
+  forall {Espec: OracleKind},
   forall z V G prog m,
-     semax_prog prog V G ->
+     @semax_prog Espec prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -44,15 +45,11 @@ Axiom semax_prog_rule :
                     (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 
-       jsafeN ExtSpec.Hspec (Genv.globalenv prog) n z q jm.
+       jsafeN (@OK_spec Espec) (Genv.globalenv prog) n z q jm.
 
 End SEPARATION_LOGIC_SOUNDNESS.
 
-Module MakeSeparationLogic (ExtSpec: EXTERNAL_SPEC) :
-  SEPARATION_LOGIC_SOUNDNESS with Module ExtSpec := ExtSpec.
-
-Module ExtSpec := ExtSpec.
-Import ExtSpec.
+Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
 Definition func_ptr (f: funspec) : val -> mpred := 
@@ -72,46 +69,49 @@ apply corable_fun_assert.
 Qed.
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
-Definition semax := semax Hspec.
-Definition extract_exists := extract_exists Hspec.
+Definition semax := @semax.
+Definition extract_exists := @extract_exists.
 Definition semax_body_params_ok := semax_body_params_ok.
-Definition semax_body := semax_body Hspec.
-Definition semax_func := semax_func Hspec.
-Definition semax_prog := semax_prog Hspec.
-Definition semax_func_nil := semax_func_nil Hspec.
-Definition semax_func_cons := semax_func_cons Hspec.
-Definition semax_func_cons_ext := semax_func_cons_ext Hspec.
-Definition semax_seq := semax_seq Hspec.
-Definition semax_break := semax_break Hspec.
-Definition semax_continue := semax_continue Hspec.
-Definition semax_loop := semax_loop Hspec.
-Definition seq_assoc := seq_assoc Hspec.
-Definition semax_call := semax_call Hspec.
-Definition semax_fun_id := semax_fun_id_alt Hspec.
-Definition semax_call_ext := semax_call_ext Hspec.
-Definition semax_set := semax_set Hspec.
-Definition semax_set_forward := semax_set_forward Hspec.
-Definition semax_ifthenelse := semax_ifthenelse Hspec.
-Definition semax_return := semax_return Hspec.
-Definition semax_store := semax_store Hspec.
-Definition semax_load := semax_load Hspec.
-Definition semax_skip := semax_skip Hspec.
-Definition semax_frame := semax_frame Hspec.
-Definition semax_pre_post := semax_pre_post Hspec.
-Definition semax_extensionality_Delta := semax_extensionality_Delta Hspec.
-Definition semax_extract_prop := semax_extract_prop Hspec.
+Definition semax_body := @semax_body.
+Definition semax_func := @semax_func.
+Definition semax_prog := @semax_prog.
+Definition semax_func_nil := @semax_func_nil.
+Definition semax_func_cons := @semax_func_cons.
+Definition semax_func_cons_ext := @semax_func_cons_ext.
+Definition semax_seq := @semax_seq.
+Definition semax_break := @semax_break.
+Definition semax_continue := @semax_continue.
+Definition semax_loop := @semax_loop.
+Definition seq_assoc := @seq_assoc.
+Definition semax_call := @semax_call.
+Definition semax_fun_id := @semax_fun_id_alt.
+Definition semax_call_ext := @semax_call_ext.
+Definition semax_set := @semax_set.
+Definition semax_set_forward := @semax_set_forward.
+Definition semax_ifthenelse := @semax_ifthenelse.
+Definition semax_return := @semax_return.
+Definition semax_store := @semax_store.
+Definition semax_load := @semax_load.
+Definition semax_skip := @semax_skip.
+Definition semax_frame := @semax_frame.
+Definition semax_pre_post := @semax_pre_post.
+Definition semax_extensionality_Delta := @semax_extensionality_Delta.
+Definition semax_extract_prop := @semax_extract_prop.
 
-Definition semax_external ef A P Q := forall n, semax_ext Hspec ef A P Q n.
+Definition semax_external {Espec: OracleKind} ef A P Q := forall n, semax_external Espec ef A P Q n.
 
 Lemma semax_external_FF:
-  forall ef A Q n,
-     semax_ext Hspec ef A (fun _ _ => FF) Q n.
+forall (Espec: OracleKind),
+  forall ef A Q,
+     @semax_external Espec ef A (fun _ _ => FF) Q.
 Proof.
 repeat intro.  destruct H2 as [? [? [? [? ?]]]]. contradiction.
 Qed.
 
+Definition juicy_ext_spec := juicy_ext_spec.
+
 End CSL.
 
-Definition semax_prog_rule := semax_prog_rule Hspec.
+Definition semax_prog_rule := @semax_prog_rule.
 
-End MakeSeparationLogic.
+End SoundSeparationLogic.

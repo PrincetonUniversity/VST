@@ -186,10 +186,10 @@ cancel.
 Qed.
 
 Lemma replace_LOCAL':
- forall Q' Delta P Q R c Post,
+ forall Q' Espec Delta P Q R c Post,
  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT)))) |-- LOCALx Q' (SEP (TT)) ->
- semax Delta (PROPx P (LOCALx Q' (SEPx R))) c Post ->
- semax Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+ @semax Espec Delta (PROPx P (LOCALx Q' (SEPx R))) c Post ->
+ @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
 Proof.
 intros until 1.
 apply semax_pre.
@@ -218,7 +218,6 @@ Proof.
 start_function.
 name Q _Q.
 name q 25%positive.
-apply -> seq_assoc.
 forward. (* q = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
 go_lower. normalize.
@@ -748,6 +747,8 @@ cancel.
  forward.
  go_lower. normalize.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Parameter body_mallocN:
  semax_external

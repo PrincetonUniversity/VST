@@ -7,9 +7,6 @@ Require Import veric.Clight_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.juicy_mem.
 
-Module NullExtension <: EXTERNAL_SPEC.
-
-Definition Z := unit.
 Definition dryspec : external_specification juicy_mem external_function unit
   := Build_external_specification juicy_mem external_function unit
      (*ext_spec_type*)
@@ -21,12 +18,11 @@ Definition dryspec : external_specification juicy_mem external_function unit
      (*ext_spec_exit*)
      (fun rv m z => False).
 
-Definition Hspec : juicy_ext_spec unit.
- refine (Build_juicy_ext_spec _ dryspec _ _ _).
+Definition Espec : OracleKind.
+ refine (Build_OracleKind unit (Build_juicy_ext_spec _ dryspec _ _ _)).
 Proof.
 simpl; intros; contradiction.
 simpl; intros; contradiction.
 simpl; intros; intros ? ? ? ?; contradiction.
 Defined.
 
-End NullExtension.

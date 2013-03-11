@@ -7,16 +7,16 @@ Import Cop.
 Local Open Scope logic.
 
 Lemma semax_while : 
- forall Delta Q test body R,
+ forall Espec Delta Q test body R,
      bool_type (typeof test) = true ->
      (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
      (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
-     semax Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)  body (loop1_ret_assert Q R) ->
-     semax Delta Q (Swhile test body) R.
+     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)  body (loop1_ret_assert Q R) ->
+     @semax Espec Delta Q (Swhile test body) R.
 Proof.
-intros ? ? ? ? ? BT TC Post H.
+intros ? ? ? ? ? ? BT TC Post H.
 unfold Swhile.
-apply (semax_loop Delta Q Q).
+apply (@semax_loop Espec Delta Q Q).
 Focus 2.
  clear; eapply semax_post; [ | apply semax_skip];
  destruct ek; unfold normal_ret_assert, loop2_ret_assert; intros; 
@@ -46,12 +46,12 @@ apply tycontext_eqv_symm; apply join_tycon_same.
 Qed.
 
 Lemma semax_while' : 
- forall Delta P Q R test body Post,
+ forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
      PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     semax Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
-     semax Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
+     @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
 Proof.
 intros.
 apply semax_while; auto.
@@ -65,16 +65,16 @@ intro rho; unfold PROPx,LOCALx, lift1; unfold_lift; simpl; normalize.
 Qed.
 
 Lemma semax_whilex : 
- forall Delta A P Q R test body Post,
+ forall Espec Delta A P Q R test body Post,
      bool_type (typeof test) = true ->
      (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: (Q x)) (SEPx (R x))) |-- 
                                local (tc_expr Delta test)) ->
      (forall x, PROPx (P x) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x)) (SEPx (R x))) 
                     |-- Post EK_normal None) ->
-     (forall x:A, semax Delta (PROPx (P x) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
+     (forall x:A, @semax Espec Delta (PROPx (P x) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x) (SEPx (R x))))  
                            body 
                             (loop1_ret_assert (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) Post))->
-     semax Delta (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x) ))) (Swhile test body) Post.
+     @semax Espec Delta (EX x:A, PROPx (P x) (LOCALx (Q x) (SEPx (R x) ))) (Swhile test body) Post.
 Proof.
 intros.
 apply semax_while; auto.
@@ -92,17 +92,17 @@ Qed.
 
 
 Lemma semax_whilex2 : 
- forall Delta A1 A2 P Q R test body Post,
+ forall Espec Delta A1 A2 P Q R test body Post,
      bool_type (typeof test) = true ->
      (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: (Q x1 x2)) (SEPx (R x1 x2))) |-- 
                                local (tc_expr Delta test)) ->
      (forall x1 x2, PROPx (P x1 x2) (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q x1 x2)) (SEPx (R x1 x2))) 
                     |-- Post EK_normal None) ->
      (forall (x1:A1) (x2: A2), 
-               semax Delta (PROPx (P x1 x2) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
+               @semax Espec Delta (PROPx (P x1 x2) (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q x1 x2) (SEPx (R x1 x2))))  
                            body 
                             (loop1_ret_assert (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2)))) Post))->
-     semax Delta (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2) ))) (Swhile test body) Post.
+     @semax Espec Delta (EX x1:A1, EX x2:A2, PROPx (P x1 x2) (LOCALx (Q x1 x2) (SEPx (R x1 x2) ))) (Swhile test body) Post.
 Proof.
 intros.
 apply semax_while; auto.
@@ -121,13 +121,13 @@ intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
 Qed.
 
 Lemma semax_load':
-  forall  (Delta : tycontext) (sh : Share.t) (id : positive) 
+  forall Espec (Delta : tycontext) (sh : Share.t) (id : positive) 
          P Q R (e1 : expr) t1 i2 (v2 : environ -> val),
    typeof e1 = Tpointer t1 noattr ->
    (temp_types Delta) ! id = Some (t1,i2) ->
    type_is_volatile t1 = false ->
    classify_cast t1 t1 = cast_case_neutral ->
- semax Delta
+ @semax Espec Delta
      (|> PROPx P (LOCALx (tc_expr Delta e1 ::  Q)
             (SEPx (`(mapsto sh t1) (eval_expr e1) v2 :: R))))
     (Sset id (Ederef e1 t1))
@@ -194,13 +194,13 @@ Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : norm.
 Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : subst.
 
 Lemma forward_setx_closed_now':
-  forall Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
+  forall Espec Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
   PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
   PROPx P (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
-  semax Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
+  @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
         (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
 Proof.
 intros.
@@ -219,14 +219,14 @@ unfold_lift; reflexivity.
 Qed.
 
 Lemma forward_setx_closed_now:
-  forall Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e PQR,
+  forall Espec Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
   PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
   PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   normal_ret_assert (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) |-- PQR ->
-  semax Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
+  @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
 Proof.
 intros.
 eapply semax_post.
@@ -235,7 +235,7 @@ apply forward_setx_closed_now'; auto.
 Qed.
 
 Lemma forward_setx_closed_now_seq:
-  forall Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e c PQR,
+  forall Espec Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e c PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
@@ -243,7 +243,7 @@ Lemma forward_setx_closed_now_seq:
   PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   semax (update_tycon Delta (Sset id e))
            (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) c PQR ->
-  semax Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
+  @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
 Proof.
  intros.
  eapply semax_seq.
@@ -253,14 +253,14 @@ Proof.
 Qed.
 
 Lemma semax_load_field:
-forall (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
+forall Espec (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
     (temp_types Delta) ! id = Some (t2,i2) ->
    t1 = typeof e1 ->
    t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
    Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
-    semax Delta 
+    @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) &&
           (`(field_mapsto sh t1 fld) (eval_lvalue e1) v2 * P)))
        (Sset id (Efield e1 fld t2))
@@ -348,13 +348,13 @@ Hint Resolve writable_share_top.
 
 
 Lemma semax_store_field: 
-forall (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
+forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
     writable_share sh ->
     typeof e1 = Tstruct sid fields noattr ->
     t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield e1 fld t2) ->
-   semax Delta 
+   @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
           (`(field_mapsto_ sh (typeof e1) fld) (eval_lvalue e1) * P)))
        (Sassign (Efield e1 fld t2) e2) 
@@ -479,13 +479,13 @@ Opaque field_mapsto.
 Qed.
 
 Lemma semax_store_field_mapsto: 
-forall (Delta: tycontext) sh e1 fld P v0 t2 e2 sid fields ,
+forall Espec (Delta: tycontext) sh e1 fld P v0 t2 e2 sid fields ,
     writable_share sh ->
     typeof e1 = Tstruct sid fields noattr ->
     t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield e1 fld t2) ->
-   semax Delta 
+   @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
           (`(field_mapsto sh (typeof e1) fld) (eval_lvalue e1) v0 * P)))
        (Sassign (Efield e1 fld t2) e2) 
@@ -504,14 +504,14 @@ unfold_lift. apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma semax_load_field':
-forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
+forall Espec (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = t1 ->
         (temp_types Delta) ! id = Some (t2,i2) ->
    t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
      Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
-    semax Delta 
+    @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_lvalue Delta e1::Q) (SEPx (`(field_mapsto sh t1 fld) (eval_lvalue e1) v2::R))))
        (Sset id (Efield e1 fld t2))
        (normal_ret_assert 
@@ -523,7 +523,7 @@ forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
 Proof.
 intros. rename H3 into CC.
 eapply semax_pre_post;
-  [ | |  apply (semax_load_field Delta sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) e1
+  [ | |  apply (semax_load_field Espec Delta sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) e1
    v2 t2 i2 sid fields)]; auto; try congruence.
 match goal with |- ?P |-- _ => 
  let P' := strip1_later P in apply derives_trans with (|>P' )
@@ -558,14 +558,14 @@ rewrite field_mapsto__nonvolatile; normalize.
 Qed.  (* Admitted: move me to field_mapsto.v *)
 
 Lemma semax_load_field_deref:
-forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
+forall Espec (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
         (temp_types Delta) ! id = Some (t2,i2) ->
    t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
      Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
-    semax Delta 
+    @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::Q) (SEPx (`(field_mapsto sh t1 fld) (eval_expr e1) v2::R))))
        (Sset id (Efield (Ederef e1 t1) fld t2))
        (normal_ret_assert 
@@ -577,7 +577,7 @@ forall (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
 Proof.
 intros.
 eapply semax_pre_post; [ | | 
-    apply (semax_load_field' Delta sh id t1 fld P Q R (Ederef e1 t1) v2 t2 i2 sid fields); auto].
+    apply (semax_load_field' Espec Delta sh id t1 fld P Q R (Ederef e1 t1) v2 t2 i2 sid fields); auto].
 eapply derives_trans.
 apply andp_derives. apply now_later. apply derives_refl.
 rewrite <- later_andp. apply later_derives.
@@ -611,9 +611,9 @@ auto.
 Qed.
 
 Lemma field_mapsto_mapsto__at1:
-  forall Delta P Q sh ty fld e v R c Post,
-    semax Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    semax Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) e v :: R)))) c Post.
+  forall Espec Delta P Q sh ty fld e v R c Post,
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) e v :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
@@ -627,9 +627,9 @@ intros.
 Qed.
 
 Lemma later_field_mapsto_mapsto__at1:
-  forall Delta P Q sh ty fld e v R c Post,
-    semax Delta (PROPx P (LOCALx Q (SEPx (|>`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    semax Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) e v :: R)))) c Post.
+  forall Espec Delta P Q sh ty fld e v R c Post,
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) e v :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
@@ -644,13 +644,13 @@ intros.
 Qed.
 
 Lemma semax_store_field':
-forall (Delta: tycontext) sh t1 fld P Q R e1 e2 t2 sid fields
+forall Espec (Delta: tycontext) sh t1 fld P Q R e1 e2 t2 sid fields
     (WS: writable_share sh) ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = t1 ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield e1 fld t2) ->
-    semax Delta 
+    @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_lvalue Delta e1::tc_expr Delta (Ecast e2 t2)::Q)
                              (SEPx (`(field_mapsto_ sh t1 fld) (eval_lvalue e1)::R))))
        (Sassign (Efield e1 fld t2) e2) 
@@ -663,7 +663,7 @@ intros.
 pose proof semax_store_field. unfold_lift.
 unfold_lift in H3.
 subst t1.
-specialize (H3 Delta sh e1 fld (PROPx P (LOCALx Q (SEPx R)))
+specialize (H3 Espec Delta sh e1 fld (PROPx P (LOCALx Q (SEPx R)))
    t2 e2 sid fields WS H0 H1 H2).
 eapply semax_pre_post; [ | | eapply H3]; try eassumption.
 apply andp_left2. apply later_derives.
@@ -679,13 +679,13 @@ normalize.
 Qed.
 
 Lemma semax_store_field_deref:
-forall (Delta: tycontext) sh t1 fld P Q R e1 e2 t2 sid fields
+forall Espec (Delta: tycontext) sh t1 fld P Q R e1 e2 t2 sid fields
     (WS: writable_share sh) ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = Tpointer t1 noattr ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
     typecheck_store (Efield (Ederef e1 t1) fld t2) ->
-    semax Delta 
+    @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t2)::Q)
                              (SEPx (`(field_mapsto_ sh t1 fld) (eval_expr e1)::R))))
        (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
@@ -695,7 +695,7 @@ forall (Delta: tycontext) sh t1 fld P Q R e1 e2 t2 sid fields
                   (`(eval_cast (typeof e2) t2) (eval_expr e2)) :: R))))).
 Proof.
 intros.
-pose proof (semax_store_field' Delta sh t1 fld P Q R (Ederef e1 t1) e2 t2 sid fields WS H (eq_refl _) H1 H2).
+pose proof (semax_store_field' Espec Delta sh t1 fld P Q R (Ederef e1 t1) e2 t2 sid fields WS H (eq_refl _) H1 H2).
 unfold_lift. unfold_lift in H3.
 eapply semax_pre_post; [  | | eapply H3].
 apply andp_left2; apply later_derives.
@@ -727,12 +727,12 @@ Qed.
 
 
 Lemma semax_store_PQR:
-forall (Delta: tycontext) sh t1 P Q R e1 e2
+forall Espec (Delta: tycontext) sh t1 P Q R e1 e2
     (WS: writable_share sh)
     (NONVOL: type_is_volatile t1 = false)
     (TC: typecheck_store (Ederef e1 t1)),
     typeof e1 = Tpointer t1 noattr ->
-    semax Delta 
+    @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
                              (SEPx (`(mapsto_ sh t1) (eval_expr e1)::R))))
        (Sassign (Ederef e1 t1) e2) 
@@ -774,9 +774,9 @@ Qed.
 
 
 Lemma forward_setx':
-  forall Delta P id e,
+  forall Espec Delta P id e,
   (P |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
-  semax Delta
+  @semax Espec Delta
              P
              (Sset id e)
              (normal_ret_assert
@@ -796,9 +796,9 @@ normalize.
 Qed.
 
 Lemma forward_setx:
-  forall Delta P Q R id e,
+  forall Espec Delta P Q R id e,
   (PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
-  semax Delta
+  @semax Espec Delta
              (PROPx P (LOCALx Q (SEPx R)))
              (Sset id e)
              (normal_ret_assert
@@ -859,9 +859,9 @@ Qed.
 
 
 Lemma elim_redundant_Delta:
-  forall Delta P Q R c Post,
-  semax Delta (PROPx P (LOCALx Q R)) c Post ->
-  semax Delta (PROPx P (LOCALx (tc_environ Delta:: Q) R)) c Post.
+  forall Espec Delta P Q R c Post,
+  @semax Espec Delta (PROPx P (LOCALx Q R)) c Post ->
+  @semax Espec Delta (PROPx P (LOCALx (tc_environ Delta:: Q) R)) c Post.
 Proof.
  intros.
  eapply semax_pre_simple; try apply H.
@@ -891,13 +891,13 @@ destruct (split l); f_equal; auto.
 Qed.
 
 Lemma semax_ifthenelse_PQR : 
-   forall Delta P Q R (b: expr) c d Post,
+   forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
-     semax Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
                         c Post -> 
-     semax Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
                         d Post -> 
-     semax Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
                          (Sifthenelse b c d) Post.
 Proof.
  intros.

@@ -183,6 +183,8 @@ unfold Frame.
  go_lower. subst. normalize.
 Qed.
 
+Existing Instance NullExtension.Espec.
+
 Lemma all_funcs_correct:
   semax_func Vprog Gtot (prog_funct prog) Gtot.
 Proof.

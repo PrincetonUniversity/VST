@@ -22,6 +22,11 @@ Record juicy_ext_spec (Z: Type) := {
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z)
 }.
  
+Class OracleKind := {
+  OK_ty : Type;
+  OK_spec: juicy_ext_spec OK_ty
+}.
+
 Definition jstep {G C D} (csem: CoreSemantics G C mem D)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
@@ -225,7 +230,3 @@ Proof.
   apply age_level in H7;   omega.
 Qed.
 
-Module Type EXTERNAL_SPEC.
-  Parameter Z:Type.
-  Parameter Hspec : juicy_ext_spec Z.
-End EXTERNAL_SPEC.

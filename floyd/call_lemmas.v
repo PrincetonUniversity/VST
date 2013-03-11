@@ -5,7 +5,7 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
-Lemma semax_call': forall Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
+Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
    match retsig, ret with
    | Tvoid, None => True
@@ -13,7 +13,7 @@ Lemma semax_call': forall Delta A (Pre Post: A -> environ->mpred) (x: A) ret arg
    | _, Some _ => True
    | _, _ => False
    end ->
-  semax Delta
+  @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) ::
                       `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) :: R))))
@@ -49,13 +49,13 @@ repeat rewrite list_map_identity.
 normalize.
 Qed.
 
-Lemma semax_call1: forall Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
+Lemma semax_call1: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
    match retsig with
    | Tvoid => False
    | _ => True
    end ->
-  semax Delta
+  @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl))) ::
                       `(func_ptr' (mk_funspec (argsig,retsig) A Pre Post)) (eval_expr a) :: R))))
@@ -69,9 +69,9 @@ intros.
 apply semax_call'; auto.
 Qed.
 
-Lemma semax_call0: forall Delta A (Pre Post: A -> environ->mpred) (x: A) argsig a bl P Q R,
+Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) argsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) Tvoid ->
-  semax Delta
+  @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,Tvoid) (eval_exprlist (snd (split argsig)) bl))) ::
                       `(func_ptr' (mk_funspec (argsig,Tvoid) A Pre Post)) (eval_expr a) :: R))))
@@ -100,14 +100,14 @@ Qed.
 
 Lemma semax_fun_id':
       forall id f
-              Delta P Q R PostCond c
+              Espec Delta P Q R PostCond c
             (GLBL: (var_types Delta) ! id = None),
             (glob_types Delta) ! id = Some (Global_func f) ->
-       semax Delta 
+       @semax Espec Delta 
         (PROPx P (LOCALx Q 
         (SEPx (`(func_ptr' f) (eval_var id (globtype (Global_func f))) :: R))))
                               c PostCond ->
-       semax Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
+       @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
 Proof.
 intros. 
 apply (semax_fun_id id f Delta); auto.
@@ -133,10 +133,10 @@ Proof. intro. unfold_lift; apply I. Qed.
 Hint Resolve liftTrue.
 
 Lemma semax_call_id0:
- forall Delta P Q R id bl argsig A x Pre Post
+ forall Espec Delta P Q R id bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig, Tvoid) A Pre Post)) ->
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q)
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q)
                  (SEPx (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) Tvoid)) bl)
     (normal_ret_assert 
@@ -149,7 +149,7 @@ simpl. subst. reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,Tvoid) A Pre Post); auto.
 subst. 
 
-eapply semax_pre_simple; [ | apply (semax_call0 Delta A Pre Post x argsig _ bl P Q R H0)].
+eapply semax_pre_simple; [ | apply (@semax_call0 Espec Delta A Pre Post x argsig _ bl P Q R H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -176,14 +176,14 @@ apply sepcon_derives; auto.
 Qed.
 
 Lemma semax_call_id1:
- forall Delta P Q R ret id retty bl argsig A x Pre Post
+ forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
    end ->
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) 
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) 
                  (SEPx (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Scall (Some ret)
              (Evar id (Tfunction (type_of_params argsig) retty))
@@ -199,7 +199,7 @@ assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) ret
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty)  A Pre Post); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -228,7 +228,7 @@ Qed.
 
 
 Lemma semax_call_id1':
- forall Delta P Q R ret id retty bl argsig A x Pre Post
+ forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
    match retty with
@@ -238,7 +238,7 @@ Lemma semax_call_id1':
   forall 
    (CLOSQ: Forall (closed_wrt_vars (eq ret)) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret)) R),
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q)
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q)
             (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Scall (Some ret)
              (Evar id (Tfunction (type_of_params argsig) retty))
@@ -248,7 +248,7 @@ Lemma semax_call_id1':
 Proof.
 intros.
 eapply semax_post;
-  [ | apply (semax_call_id1 Delta P Q R ret id retty bl argsig A x Pre Post 
+  [ | apply (semax_call_id1 Espec Delta P Q R ret id retty bl argsig A x Pre Post 
      GLBL H H0)].
 intros ek vl.
 apply andp_left2.
@@ -281,14 +281,14 @@ apply IHR; auto.
 Qed.
 
 Lemma semax_call_id1_Eaddrof:
- forall Delta P Q R ret id retty bl argsig A x Pre Post
+ forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
    end ->
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) 
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) 
                (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Scall (Some ret)
              (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty)) (Tpointer (Tfunction (type_of_params argsig) retty) noattr))
@@ -304,7 +304,7 @@ assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params ar
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.

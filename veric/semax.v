@@ -39,13 +39,12 @@ Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
   safeN (juicy_core_sem cl_core_sem) Hspec.
 
 Program Definition assert_safe 
-     {Z}
-     (Hspec : juicy_ext_spec Z)
+     (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
   fun rho w => forall ora (jm:juicy_mem),
        rho = construct_rho (filter_genv ge) ve te ->  
        m_phi jm = w ->
-             jsafeN Hspec ge (level w) ora (State ve te ctl) jm.
+             jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm.
  Next Obligation.
   intro; intros.
   subst.
@@ -82,13 +81,13 @@ Lemma guard_environ_e1:
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
 
-Definition guard  {Z} (Hspec : juicy_ext_spec Z)
+Definition guard  (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
           !! guard_environ Delta (current_function ctl) rho
                   && P rho && funassert Delta rho 
-             >=> assert_safe Hspec gx vx tx ctl rho.
+             >=> assert_safe Espec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
  mkfunction Tvoid f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
@@ -118,13 +117,13 @@ match vl, id with
 | _,_ => tx
 end.
 
-Definition rguard  {Z} (Hspec : juicy_ext_spec Z)
+Definition rguard  (Espec : OracleKind)
     (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! guard_environ (Delta ek) (current_function ctl) rho && 
          (R ek vl rho && funassert (Delta ek) rho) >=> 
-               assert_safe Hspec gx vx tx (exit_cont ek vl ctl) rho.
+               assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
  sa_Delta: tycontext;
@@ -134,17 +133,17 @@ Record semaxArg :Type := SemaxArg {
 }.
 
 
-Definition ext_spec_pre' {Z} (Hspec: juicy_ext_spec Z) (ef: external_function) 
-   (x': ext_spec_type Hspec ef) (ts: list typ) (args: list val) (z: Z) : pred juicy_mem :=
+Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function) 
+   (x': ext_spec_type OK_spec ef) (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age) 
-     (ext_spec_pre Hspec ef x' ts args z)
+     (ext_spec_pre OK_spec ef x' ts args z)
      (JE_pre_hered _ _ _ _ _ _ _).
 
-Program Definition ext_spec_post' {Z} (Hspec: juicy_ext_spec Z)
-   (ef: external_function) (x': ext_spec_type Hspec ef) 
-   (tret: option typ) (ret: option val) (z: Z) : pred juicy_mem :=
+Program Definition ext_spec_post' (Espec: OracleKind)
+   (ef: external_function) (x': ext_spec_type OK_spec ef) 
+   (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age) 
-   (ext_spec_post Hspec ef x' tret ret z)
+   (ext_spec_post OK_spec ef x' tret ret z)
      (JE_post_hered _ _ _ _ _ _ _).
 
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
@@ -162,17 +161,16 @@ Definition make_ext_rval (n: positive) (v: option val) :=
   | None => any_environ
   end.
 
-Definition semax_ext  {Z} (Hspec: juicy_ext_spec Z) 
+Definition semax_external  (Hspec: OracleKind) 
                   ef (A: Type) (P Q: A -> environ -> pred rmap): 
         pred nat := 
  ALL x: A, 
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
    juicy_mem_op (P x (make_ext_args 1%positive args) * F) >=> 
-   EX x': ext_spec_type Hspec ef,
+   EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z':Z, 
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' tret ret z' >=>
-(*      !! (length ret = length (opt2list (sig_res (ef_sig ef)))) &&*)
           juicy_mem_op (|>(Q x (make_ext_rval 1 ret) * F)).
 
 Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
@@ -181,11 +179,11 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
-Definition believe_external {Z} (Hspec: juicy_ext_spec Z) (gx: genv) (v: val) (fsig: funsig)
+Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig)
    (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret) => 
-        !! (fsig = (arglist 1%positive sigargs,sigret)) && semax_ext Hspec ef A P Q 
+        !! (fsig = (arglist 1%positive sigargs,sigret)) && semax_external Hspec ef A P Q 
   | _ => FF 
   end.
 
@@ -217,61 +215,60 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig A P Q : Prop :=
   exists id, (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q)) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
-Definition believepred {Z} (Hspec: juicy_ext_spec Z) (semax: semaxArg -> pred nat)
+Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx Delta' v fsig A P Q  -->
-      (believe_external Hspec gx v fsig A P Q
+      (believe_external Espec gx v fsig A P Q
         || believe_internal_ semax gx Delta v fsig A P Q).
 
-Definition semax_  {Z} (Hspec: juicy_ext_spec Z)
+Definition semax_  (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
  match a with SemaxArg Delta P c R =>
-  ALL gx: genv, (believepred Hspec semax Delta gx Delta) --> 
+  ALL gx: genv, (believepred Espec semax Delta gx Delta) --> 
      ALL k: cont, ALL F: assert, 
        (!! (closed_wrt_modvars c F) && 
-              rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
-        guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k)
+              rguard Espec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
+        guard Espec gx Delta (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
-Definition semax'  {Z} (Hspec: juicy_ext_spec Z) Delta P c R : pred nat := 
-     HORec (semax_  Hspec) (SemaxArg Delta P c R).
+Definition semax'  (Espec: OracleKind) Delta P c R : pred nat := 
+     HORec (semax_  Espec) (SemaxArg Delta P c R).
 
-Definition believe_internal {Z} (Hspec:juicy_ext_spec Z)
+Definition believe_internal (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
-  && ALL x : A, |> semax' Hspec (func_tycontext' f Delta)
+  && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
 
-Definition believe {Z} (Hspec:juicy_ext_spec Z)
+Definition believe (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx Delta' v fsig A P Q  -->
-      (believe_external Hspec gx v fsig A P Q
-        || believe_internal Hspec gx Delta v fsig A P Q).
+      (believe_external Espec gx v fsig A P Q
+        || believe_internal Espec gx Delta v fsig A P Q).
 
-Lemma semax_fold_unfold : forall
-  {Z} (Hspec : juicy_ext_spec Z),
-  semax' Hspec = fun Delta P c R =>
+Lemma semax_fold_unfold : forall (Espec : OracleKind),
+  semax' Espec = fun Delta P c R =>
   ALL gx: genv,
-       believe Hspec Delta gx Delta --> 
+       believe Espec Delta gx Delta --> 
      ALL k: cont, ALL F: assert, 
-        (!! (closed_wrt_modvars c F) && rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
-        guard Hspec gx Delta (fun rho => F rho * P rho) (Kseq c :: k).
+        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
+        guard Espec gx Delta (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
-intros ? ?.
+intros ?.
 extensionality G P. extensionality c R.
 unfold semax'.
-pattern (HORec (semax_ Hspec)) at 1; rewrite HORec_fold_unfold.
+pattern (HORec (semax_ Espec)) at 1; rewrite HORec_fold_unfold.
 reflexivity.
 apply prove_HOcontractive.
 intros.
@@ -294,5 +291,5 @@ Qed.
 
 Opaque semax'.
 
-Definition semax {Z}(Hspec: juicy_ext_spec Z) (Delta: tycontext) P c Q :=
-  forall n, semax' Hspec Delta P c Q n.
+Definition semax (Espec: OracleKind) (Delta: tycontext) P c Q :=
+  forall n, semax' Espec Delta P c Q n.

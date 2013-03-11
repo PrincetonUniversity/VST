@@ -343,7 +343,7 @@ Qed.
 Hint Rewrite subst_make_args'x using (solve[reflexivity]) : subst.
 
 Lemma call_serialize:
- forall (Delta: tycontext) (ser id x: ident)
+ forall Espec (Delta: tycontext) (ser id x: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
            (sh_p: share) (e_p: expr) (d_p: environ -> val)
            (sh_buf: share) (e_buf: expr) (d_buf: environ -> val)
@@ -363,7 +363,7 @@ Lemma call_serialize:
   (CL_p: closed_wrt_vars (list2idset(ser::x::id::nil)) (eval_expr e_p))
   (CL_buf: closed_wrt_vars (list2idset(ser::x::id::nil)) (eval_expr e_buf))
   (H6: local (tc_environ Delta) |-- local (tc_lvalue Delta e_obj)),
- semax Delta
+ @semax Espec Delta
    (PROP ()
     (LOCAL (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil))
      SEP (`(message sh_obj msg) d_obj ;
@@ -491,7 +491,7 @@ clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
 apply derives_refl.
 eapply semax_seq'.
-apply (semax_call' (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
+apply (semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
    (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
    (e_p :: e_buf :: nil)).
@@ -557,7 +557,7 @@ cancel.
 Qed.
 
 Lemma call_deserialize:
- forall (Delta: tycontext) P Q R (ser: ident)
+ forall Espec (Delta: tycontext) P Q R (ser: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
            (sh_p: share) (e_p: expr) (d_p: environ -> val)
            (sh_buf: share) (e_buf: expr) (d_buf: environ -> val)
@@ -578,7 +578,7 @@ Lemma call_deserialize:
                `(typed_mapsto_ sh_p t) d_p::
                `(mf_assert msg sh_buf) d_buf d_len `v ::
                 R)))) ->
- semax Delta
+ @semax Espec Delta
    (PROPx P (LOCALx Q
      (SEPx (`(message sh_obj msg) d_obj :: 
                `(typed_mapsto_ sh_p t) d_p::

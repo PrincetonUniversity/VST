@@ -8,15 +8,14 @@ Require Import sepcomp.step_lemmas.
 Require Import veric.SeparationLogic.
 Require Import veric.juicy_extspec.
 Require Import veric.juicy_mem.
-Require Import veric.NullExtension.
+Require veric.NullExtension.
 Require Import veric.Clight_sim.
 Require Import veric.SeparationLogicSoundness.
 Require Import sepcomp.extspec.
 Require Import msl.msl_standard.
 
-Module SeqC := MakeSeparationLogic NullExtension.
-Import SeqC.
-Import CSL ExtSpec.
+Import SoundSeparationLogic.
+Import CSL.
 
 Definition dryspec : ext_spec unit :=
  Build_external_specification mem external_function unit
@@ -29,9 +28,10 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_exit*)
      (fun rv m z => False).
 
+
  Lemma whole_program_sequential_safety:
    forall prog V G m,
-     semax_prog prog V G ->
+     @semax_prog NullExtension.Espec prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
@@ -42,7 +42,7 @@ Definition dryspec : ext_spec unit :=
 Proof.
   assert (H0:=True).
   intros.
-  destruct (semax_prog_rule tt _ _ _ _ H H1) as [b [q [? [? ?]]]].
+  destruct (@semax_prog_rule NullExtension.Espec tt _ _ _ _ H H1) as [b [q [? [? ?]]]].
   exists b, q.
  split3; auto.
  intro n.

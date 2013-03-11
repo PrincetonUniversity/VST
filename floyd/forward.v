@@ -25,7 +25,7 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
 
 
 Lemma semax_call_id1_x:
- forall Delta P Q R ret ret' id retty bl argsig A x Pre Post
+ forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
    match retty with Tvoid => False | _ => True end ->
@@ -36,7 +36,7 @@ Lemma semax_call_id1_x:
    (temp_types Delta) ! ret' = Some (retty, false) ->
    is_neutral_cast retty retty = true ->
    match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
-  semax Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (snd (split argsig)) bl)) :: R))))
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (snd (split argsig)) bl :: Q) (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (snd (split argsig)) bl)) :: R))))
     (Ssequence (Scall (Some ret')
              (Evar id (Tfunction (type_of_params argsig) retty))
              bl)
@@ -50,7 +50,7 @@ Proof.
 
  intros. rename H3 into NONVOL.
  eapply semax_seq'.
- apply (semax_call_id1' _ P Q R ret' _ _ bl _ _ x _ _ GLBL H H0 CLOSQ CLOSR).
+ apply (semax_call_id1' _ _ P Q R ret' _ _ bl _ _ x _ _ GLBL H H0 CLOSQ CLOSR).
 match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
    assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
  end.
@@ -292,7 +292,7 @@ Ltac hoist_later_in_pre :=
 
 Ltac semax_field_tac :=
 match goal with
- |  |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+ |  |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e _) ?fld _)) _ =>
      apply (semax_pre_simple (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
      [ apply semax_load_assist1; [reflexivity]
@@ -301,7 +301,7 @@ match goal with
                                [ reflexivity | reflexivity | simpl; reflexivity 
                                | reflexivity | reflexivity ]]
      ]
- |  |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+ |  |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield ?e ?fld _)) _ =>
      apply (semax_pre_simple (PROPx P (LOCALx (tc_lvalue Delta e :: Q) (SEPx R))));
      [ apply semax_load_assist1; [reflexivity]
@@ -398,7 +398,7 @@ Ltac store_field_tac :=
                                              [ auto | reflexivity | reflexivity | reflexivity |
                                              try solve [hnf; intuition]] ]
     ]) || fail 1
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield ?e ?fld ?t2) ?e2) _ =>
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_lvalue Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
@@ -414,7 +414,7 @@ Ltac store_field_tac :=
 
 Ltac store_tac :=
  match goal with
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Ederef ?e ?t2) ?e2) _ =>
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
@@ -450,7 +450,7 @@ Qed.
 
 
 Ltac load_array_tac :=
-match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
+match goal with |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
      apply (semax_pre 
               (PROPx P (LOCALx (tc_expr Delta (Ebinop Oadd e1 e2 t1) :: Q) (SEPx R))));
@@ -487,7 +487,7 @@ Ltac intro_old_var'' id :=
         intro x
   end.
 
-Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
+Ltac semax_call_id_tac_aux Espec Delta P Q R id f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
@@ -497,7 +497,7 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
-      assert (SCI := semax_call_id1 Delta P Q F id f 
+      assert (SCI := semax_call_id1 Espec Delta P Q F id f 
                  (snd fsig) bl (fst fsig) A witness Pre Post 
                       (eq_refl _) (eq_refl _) I);
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -515,7 +515,7 @@ Ltac semax_call_id_tac_aux Delta P Q R id f bl :=
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
 
-Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
+Ltac semax_call0_id_tac_aux Espec Delta P Q R f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
@@ -525,7 +525,7 @@ Ltac semax_call0_id_tac_aux Delta P Q R f bl :=
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
-      assert (SCI := semax_call_id0 Delta P Q F f 
+      assert (SCI := semax_call_id0 Espec Delta P Q F f 
                   bl (fst fsig) A witness Pre Post 
                       (eq_refl _)  (eq_refl _) );
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -554,7 +554,7 @@ about id'.  So we handle it all in one gulp.
  See also BEGIN HORRIBLE1 in forward_lemmas.v
 *)
 
-Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
+Ltac semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl :=
    let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
@@ -567,7 +567,7 @@ Ltac semax_call_id_tac_aux_x Delta P Q R id id' f bl :=
     let H := fresh in let x := fresh "witness" in let F := fresh "Frame" in
       evar (x:A); evar (F: list (environ->mpred)); 
 
-      assert (SCI := semax_call_id1_x Delta P Q F id id' f 
+      assert (SCI := semax_call_id1_x Espec Delta P Q F id id' f 
                    (snd fsig) bl (fst fsig) A x Pre Post 
                       (eq_refl _) (eq_refl _) I);
       assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -601,20 +601,20 @@ Ltac check_sequential s :=
 
 Ltac sequential := 
  match goal with
- |  |- semax _ _ _ (normal_ret_assert _) => fail 2
- |  |- semax _ _ ?s _ =>  check_sequential s; apply sequential
+ |  |- @semax _ _ _ _ (normal_ret_assert _) => fail 2
+ |  |- @semax _ _ _ ?s _ =>  check_sequential s; apply sequential
  end.
 
 Ltac redefine_Delta := 
   match goal with 
-  | Delta:= _: tycontext |- semax (initialized _ _) _ _ _ =>
+  | Delta:= _: tycontext |- @semax _ (initialized _ _) _ _ _ =>
        unfold Delta in *; clear Delta;
-       match goal with |- semax (?D: tycontext) _ _ _ => 
+       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
            set (Delta:=D); change tycontext in (type of Delta)
        end
-  | Delta:= _: tycontext |- semax (join_tycon _ _) _ _ _ =>
+  | Delta:= _: tycontext |- @semax _ (join_tycon _ _) _ _ _ =>
        unfold Delta in *; clear Delta;
-       match goal with |- semax (?D: tycontext) _ _ _ => 
+       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
            set (Delta:=D); change tycontext in (type of Delta)
        end
   | |- _ => idtac
@@ -627,31 +627,31 @@ Ltac is_canonical P :=
  end.
 
 Ltac forward1 :=   
-   match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
+   match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
        | |- _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
   end;
   match goal with 
-  | |- semax _ _ (Sassign (Efield _ _ _) _) _ =>      store_field_tac
-  | |- semax _ _ (Sassign (Ederef _ _) _) _ =>      store_tac
-  | |- semax _ _ (Sset _ (Efield _ _ _)) _ => semax_field_tac || fail 2
-  | |- semax _ _ (Sset _ (Ederef _ _)) _ => load_array_tac || fail 2
-  | |- semax _ _ (Sset ?id ?e) _ => forward_setx
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
+  | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      store_field_tac
+  | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      store_tac
+  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => semax_field_tac || fail 2
+  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => load_array_tac || fail 2
+  | |- @semax _ _ _ (Sset ?id ?e) _ => forward_setx
+  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>
             apply semax_pre
                      with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
              [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]]
-  | |- semax _ _ (Sreturn _) _ => 
+  | |- @semax _ _ _ (Sreturn _) _ => 
                     eapply semax_pre_simple; [ go_lower1 | apply semax_return ]
 (* see comment HACK below, in forward tactic...
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
-                   semax_call_id_tac_aux Delta P Q R id f bl
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
+                   semax_call_id_tac_aux Espec Delta P Q R id f bl
 *)
   end.
 
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with 
-  | |- semax _ ?PQR (Ssequence ?c1 ?c2) ?PQR' => 
+  | |- @semax _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' => 
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
@@ -662,58 +662,58 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
 Ltac forward :=
 match goal with
  (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE1, above)  *)
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                (Ssequence (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
                        (Sset ?id (Etempvar ?id' _))) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
            eapply semax_seq';
-           [  semax_call_id_tac_aux_x Delta P Q R id id' f bl; [ | apply derives_refl | ] 
+           [  semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl; [ | apply derives_refl | ] 
            |  try unfold exit_tycon; 
                  simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
            ]
  (* END HORRIBLE2 *)
-  | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
+  | |- @semax _ _ _ (Ssequence (Ssequence _ _) _) _ =>
           apply -> seq_assoc; forward
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
            eapply semax_seq';
-           [ semax_call_id_tac_aux Delta P Q R id f bl  ; [ | apply derives_refl  ] 
+           [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl  ] 
            |  try unfold exit_tycon; 
                  simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
             ]
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
                eapply semax_post_flipped';
-               [ semax_call_id_tac_aux Delta P Q R id f bl  ; [ | apply derives_refl ] 
+               [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ] 
                | try (apply exp_left; intro_old_var'' id)
                ]
 
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
            eapply semax_seq';
-           [ semax_call0_id_tac_aux Delta P Q R f bl ; [ | apply derives_refl  ] 
+           [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
            |  try unfold exit_tycon; 
                  simpl update_tycon; simpl map
             ]
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
           will work in Coq 8.4 *)
            eapply semax_post_flipped';
-           [ semax_call0_id_tac_aux Delta P Q R f bl ; [ | apply derives_refl  ] 
+           [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
            | 
             ]
-  | |- semax _ _ (Ssequence ?c1 ?c2) _ => 
+  | |- @semax _ _ _ (Ssequence ?c1 ?c2) _ => 
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
@@ -727,7 +727,7 @@ match goal with
                     try apply elim_redundant_Delta;
                     redefine_Delta
                ]
-  | |- semax _ _ ?c1 _ => forward1;
+  | |- @semax _ _ _ ?c1 _ => forward1;
                   try unfold exit_tycon; 
                   simpl update_tycon;
                   try (apply exp_left; intro_old_var c1)
@@ -750,28 +750,28 @@ Ltac start_function :=
  match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
    match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros [a b] 
-   | (fun i => _) => intro i
+   | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
+   | (fun i => _) => intros Espec i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
- repeat match goal with |- semax _ (match ?p with (a,b) => _ end * _) _ _ =>
+ repeat match goal with |- @semax _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
            end;
- match goal with |- semax (func_tycontext ?F ?V ?G) _ _ _ => 
+ match goal with |- @semax _ (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G)
  end;
   match goal with
-  | |- semax _ (?P * stackframe_of ?F) _ _ =>
+  | |- @semax _ _ (?P * stackframe_of ?F) _ _ =>
             change (stackframe_of F) with (@emp (environ->mpred) _ _);
             rewrite sepcon_emp;
             rewrite frame_ret_assert_emp
-  | |- semax _ ((PROPx ?P (LOCALx ?Q (SEPx ?R))) * stackframe_of ?F) _ _ =>
+  | |- @semax _ _ ((PROPx ?P (LOCALx ?Q (SEPx ?R))) * stackframe_of ?F) _ _ =>
         rewrite (start_function_aux1 (stackframe_of F) P Q R)
  | |- _ => idtac
   end;
  match goal with
-  | |- semax _ (PROPx _ _) _ _ => idtac 
+  | |- @semax _ _ (PROPx _ _) _ _ => idtac 
   | _ => canonicalize_pre 
  end;
  repeat (apply semax_extract_PROP; intro).

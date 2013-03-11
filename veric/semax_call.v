@@ -22,7 +22,7 @@ Require Import veric.Clight_lemmas.
 Open Local Scope pred.
 
 Section extensions.
-Context {Z} (Hspec: juicy_ext_spec Z).
+Context (Espec: OracleKind).
 
    (* Scall *)
 
@@ -140,10 +140,10 @@ Lemma semax_fun_id:
               Delta P Q c
       (GLBL: (var_types Delta) ! id = None),
     (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
-       semax Hspec Delta (fun rho => P rho 
+       semax Espec Delta (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
                               c Q ->
-       semax Hspec Delta P c Q.
+       semax Espec Delta P c Q.
 Proof.
 intros.
 rewrite semax_unfold in H0|-*.
@@ -156,7 +156,7 @@ destruct H6; split; auto.
 destruct H1 as [H1 ?]; split; auto.
 normalize.
 split; auto.
-assert (app_pred (believe Hspec Delta psi Delta) (level w'')).
+assert (app_pred (believe Espec Delta psi Delta) (level w'')).
 apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
@@ -212,10 +212,10 @@ Lemma semax_fun_id_alt:
       forall id f    Delta (P: assert) Q c
       (GLBL: (var_types Delta) ! id = None),
     (glob_types Delta) ! id = Some (Global_func f) ->
-       semax Hspec Delta (fun rho => P rho && 
+       semax Espec Delta (fun rho => P rho && 
                     (func_ptr f (eval_var id (globtype (Global_func f)) rho)))
                   c Q ->
-       semax Hspec Delta P c Q.
+       semax Espec Delta P c Q.
 Proof. 
 intros id [fsig A P' Q']. apply semax_fun_id.
 Qed.
@@ -1049,7 +1049,7 @@ Lemma semax_call_aux:
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
   (F0 : assert) (ret : option ident) (fsig : funsig) (a : expr)
   (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
-  (ora : Z) (jm : juicy_mem) (b : block) (id : ident),
+  (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident),
    Cop.classify_fun (typeof a) =
    Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
    tc_expr Delta a rho (m_phi jm) ->
@@ -1063,8 +1063,8 @@ Lemma semax_call_aux:
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
     (funassert Delta rho) (m_phi jm) ->
-    (rguard Hspec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
-    (believe Hspec Delta psi Delta) (level (m_phi jm)) ->
+    (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
+    (believe Espec Delta psi Delta) (level (m_phi jm)) ->
     (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q')) ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : environ, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
@@ -1072,7 +1072,7 @@ Lemma semax_call_aux:
            P x (make_args (map (@fst  _ _) (fst fsig)) 
              (eval_exprlist (snd (split (fst fsig))) bl rho) rho)
             )) (m_phi jm) ->
-   jsafeN Hspec psi (level (m_phi jm)) ora
+   jsafeN (@OK_spec Espec) psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
 intros Delta A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
@@ -1331,7 +1331,7 @@ Lemma semax_call:
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
             (retsig = Tvoid <-> ret = None) ->
-  semax Hspec Delta
+  semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (fun_assert  (argsig,retsig) A P Q (eval_expr a rho) && 
           (F rho * P x (make_args (map (@fst  _ _) argsig)
@@ -1454,7 +1454,7 @@ Lemma semax_call_alt:
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
             (retsig = Tvoid <-> ret = None) ->
-  semax Hspec Delta
+  semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (func_ptr (mk_funspec (argsig,retsig) A P Q) (eval_expr a rho) && 
           (F rho * P x (make_args (map (@fst  _ _) argsig)
@@ -1470,8 +1470,8 @@ Lemma semax_call_ext:
       (forall rho, 
           !! (typecheck_environ Delta rho) && P rho |-- !! (eval_expr a rho = eval_expr a' rho /\
                                            eval_exprlist tl bl rho = eval_exprlist tl bl'  rho )) ->
-  semax Hspec Delta P (Scall ret a bl) Q ->
-  semax Hspec  Delta P (Scall ret a' bl') Q.
+  semax Espec Delta P (Scall ret a bl) Q ->
+  semax Espec  Delta P (Scall ret a' bl') Q.
 Proof.
 intros.
 rewrite semax_unfold in H1|-*.
@@ -1530,7 +1530,7 @@ Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
  
 Lemma  semax_return :
    forall Delta R ret,
-      semax Hspec Delta 
+      semax Espec Delta 
                 (fun rho => !! tc_expropt Delta ret (ret_type Delta) rho && 
                              R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
                 (Sreturn ret)

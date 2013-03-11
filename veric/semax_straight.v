@@ -23,7 +23,7 @@ Require Import veric.binop_lemmas.
 Open Local Scope pred.
 
 Section extensions.
-Context {Z} (Hspec: juicy_ext_spec Z).
+Context (Espec: OracleKind).
 
 Lemma semax_straight_simple:
  forall Delta (B: assert) P c Q,
@@ -42,7 +42,7 @@ Lemma semax_straight_simple:
                 jstep cl_core_sem ge (State ve te (Kseq c :: k)) jm 
                                  (State ve te' k) jm' /\
               ((F rho' * Q rho') && funassert Delta rho) (m_phi jm')) ->
-  semax Hspec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
+  semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
 rewrite semax_unfold. 
@@ -284,7 +284,7 @@ end.
 Lemma semax_set_forward_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
-    semax Hspec Delta 
+    semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
           !!(typecheck_tid_ptr_compare Delta id = true) &&  
@@ -434,7 +434,7 @@ Qed.
 
 Lemma semax_set_forward : 
 forall (Delta: tycontext) (P: assert) id e,
-    semax Hspec Delta 
+    semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e rho  && (tc_temp_id id (typeof e) Delta e rho) && P rho)) 
           (Sset id e) 
@@ -539,7 +539,7 @@ Qed.
 
 Lemma semax_set : 
 forall (Delta: tycontext) (P: assert) id e,
-    semax Hspec Delta 
+    semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e rho  && (tc_temp_id id (typeof e) Delta e rho) && 
               subst id (eval_expr e rho) P rho))
@@ -618,7 +618,7 @@ Qed.
   
 Lemma semax_load : 
 forall (Delta: tycontext) sh id P e1 v2,
-    semax Hspec Delta 
+    semax Espec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  && (tc_temp_id_load id (typeof e1) Delta v2 rho) &&
           (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
@@ -890,7 +890,7 @@ Qed.
 Lemma semax_store:
  forall Delta e1 e2 sh P, 
    writable_share sh ->
-   semax Hspec Delta 
+   semax Espec Delta 
           (fun rho =>
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
              (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))

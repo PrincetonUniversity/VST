@@ -284,18 +284,18 @@ normalize.
 Qed.
 
 Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
-  forall Delta P Q sh s e R c Post,
+  forall Espec Delta P Q sh s e R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
             (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
                         local (`(typed_true (tptr list_struct)) e)  ->
   (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), s=h::r ->
-    semax Delta 
+    @semax Espec Delta 
         (PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh) e (`h) ::
                   `(field_mapsto sh list_struct list_link) e (`y) ::
                   |> `(lseg ls sh r) (`y) (`nullval) ::
                   R)))) c Post) ->
-  semax Delta (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R)))) c Post.
+  @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e (`nullval) :: R)))) c Post.
 Proof.
 intros.
 eapply semax_pre;  [apply unfold_lseg_cons | ].

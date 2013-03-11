@@ -72,7 +72,7 @@ Proof.
 Qed.
 
 Section SemaxContext.
-Context {Z} (Hspec: juicy_ext_spec Z).
+Context (Espec: OracleKind).
 
 Lemma universal_imp_unfold {A} {agA: ageable A}:
    forall B (P Q: B -> pred A) w,
@@ -103,7 +103,7 @@ Qed.
 Lemma semax'_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) &&  R' ek vl rho |-- R ek vl rho) ->
-   semax' Hspec Delta P c R' |-- semax' Hspec Delta P c R.
+   semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
 Proof.
 intros.
 rewrite semax_fold_unfold.
@@ -137,7 +137,7 @@ Qed.
 Lemma semax'_pre:
  forall P' Delta R P c,
   (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho)   
-   ->   semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R.
+   ->   semax' Espec Delta P' c R |-- semax' Espec Delta P c R.
 Proof.
 intros.
 repeat rewrite semax_fold_unfold.
@@ -164,7 +164,7 @@ Lemma semax'_pre_post:
       P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
    (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) &&   R ek vl rho |-- R' ek vl rho) ->
-   semax' Hspec Delta P' c R |-- semax' Hspec Delta P c R'.
+   semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
 Proof.
 intros.
 eapply derives_trans.
@@ -180,7 +180,7 @@ Hint Resolve cl_corestep_fun'.
 Lemma derives_skip:
   forall p Delta (R: ret_assert),
       (forall rho, p rho |-- R EK_normal None rho) -> 
-        semax Hspec Delta p Clight.Sskip R.
+        semax Espec Delta p Clight.Sskip R.
 Proof.
 intros ? ? ? ?; intros.
 intros n.
@@ -219,8 +219,8 @@ Qed.
 
 Lemma semax_extract_prop:
   forall Delta (PP: Prop) P c Q, 
-           (PP -> semax Hspec Delta P c Q) -> 
-           semax Hspec Delta (fun rho => !!PP && P rho) c Q.
+           (PP -> semax Espec Delta P c Q) -> 
+           semax Espec Delta (fun rho => !!PP && P rho) c Q.
 Proof.
 intros.
 intro w.
@@ -236,11 +236,11 @@ split; auto. split; auto.
 Qed.
 
 Lemma semax_unfold:
-  semax Hspec = fun Delta P c R =>
-    forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Hspec Delta psi Delta w) (k: cont) (F: assert),
+  semax Espec = fun Delta P c R =>
+    forall (psi: Clight.genv) (w: nat) (Prog_OK: believe Espec Delta psi Delta w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Hspec psi (exit_tycon c Delta) (frame_ret_assert R F) k w ->
-       guard Hspec psi Delta (fun rho => F rho * P rho) (Kseq c :: k) w.
+       rguard Espec psi (exit_tycon c Delta) (frame_ret_assert R F) k w ->
+       guard Espec psi Delta (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
 extensionality Delta P; extensionality c R.
@@ -257,7 +257,7 @@ Lemma semax_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
    (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho
                         |-- R ek vl rho) ->
-   semax Hspec Delta P c R' ->  semax Hspec Delta P c R.
+   semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
 unfold semax.
 intros.
@@ -270,7 +270,7 @@ Qed.
 Lemma semax_pre:
  forall P' Delta P c R,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-     semax Hspec Delta P' c R  -> semax Hspec Delta P c R.
+     semax Espec Delta P' c R  -> semax Espec Delta P c R.
 Proof.
 unfold semax.
 intros.
@@ -284,7 +284,7 @@ Lemma semax_pre_post:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
    (forall ek vl rho , !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho |-- R ek vl rho) ->
-   semax Hspec Delta P' c R' ->  semax Hspec Delta P c R.
+   semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
 intros.
 eapply semax_pre; eauto.
@@ -292,7 +292,7 @@ eapply semax_post; eauto.
 Qed.
 
 Lemma semax_skip:
-   forall Delta P, semax Hspec Delta P Sskip (normal_ret_assert P).
+   forall Delta P, semax Espec Delta P Sskip (normal_ret_assert P).
 Proof.
 intros.
 apply derives_skip.
@@ -320,8 +320,8 @@ Qed.
 
 Lemma extract_exists:
   forall  (A : Type) (P : A -> assert) c Delta (R: A -> ret_assert),
-  (forall x, semax Hspec Delta (P x) c (R x)) ->
-   semax Hspec Delta (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
+  (forall x, semax Espec Delta (P x) c (R x)) ->
+   semax Espec Delta (fun rho => exp (fun x => P x rho)) c (existential_ret_assert R).
 Proof.
 rewrite semax_unfold in *.
 intros.
@@ -353,8 +353,8 @@ Lemma extract_exists_pre:
       forall
         (A : Type) (P : A -> assert) (c : Clight.statement)
          Delta (R : ret_assert),
-       (forall x : A, semax Hspec Delta (P x) c R) ->
-       semax Hspec Delta (fun rho => exp (fun x => P x rho)) c R.
+       (forall x : A, semax Espec Delta (P x) c R) ->
+       semax Espec Delta (fun rho => exp (fun x => P x rho)) c R.
 Proof.
 intros.
 apply semax_post with (existential_ret_assert (fun _:A => R)).
@@ -370,7 +370,7 @@ Definition empty_genv : Clight.genv :=
 
 Lemma empty_program_ok: forall Delta ge w, 
     glob_types Delta = PTree.empty _ -> 
-    believe Hspec Delta ge Delta w.
+    believe Espec Delta ge Delta w.
 Proof.
 intros Delta ge w ?. 
 intro b.
@@ -382,7 +382,7 @@ inv H1.
 Qed.
 
 Definition all_assertions_computable  :=
-  forall psi tx vx (Q: assert), exists k,  assert_safe Hspec psi tx vx k = Q.
+  forall psi tx vx (Q: assert), exists k,  assert_safe Espec psi tx vx k = Q.
 (* This is not generally true, but could be made true by adding an "assert" operator 
   to the programming language 
 *)
@@ -557,7 +557,7 @@ Lemma semax_extensionality0:
       ALL c: statement, ALL R:ret_assert, ALL R':ret_assert,
        ((!! tycontext_eqv Delta Delta'
        &&  (ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && semax' Hspec Delta P c R) >=> semax' Hspec Delta' P' c R').
+      && (ALL rho:environ, P' rho >=> P rho)  && semax' Espec Delta P c R) >=> semax' Espec Delta' P' c R').
 Proof.
 apply loeb.
 intros w ? Delta Delta' P P' c R R'.
@@ -565,7 +565,7 @@ intros w1 ? w2 ? [[[? ?] ?] ?].
 do 3 red in H2.
 rewrite semax_fold_unfold; rewrite semax_fold_unfold in H5.
 intros gx w3 ? ?. 
-assert (H7': (believe Hspec Delta gx Delta) w3).
+assert (H7': (believe Espec Delta gx Delta) w3).
 intros ? ? ? ? ? ? ? ?.
 assert (claims gx Delta' b b0 b1 b2 b3).
 clear - H9 H2.
@@ -605,7 +605,7 @@ apply H11.
 specialize (H5 _ _ H6 H7').
 intros k F w4 Hw4 [? ?].
 specialize (H5 k F w4 Hw4).
-assert ((rguard Hspec gx (exit_tycon c Delta) (frame_ret_assert R F) k) w4).
+assert ((rguard Espec gx (exit_tycon c Delta) (frame_ret_assert R F) k) w4).
 do 9 intro.
 apply (H9 b b0 b1 b2 y H10 a' H11).
 destruct H12; split.
@@ -651,7 +651,7 @@ Lemma semax_extensionality1:
   forall Delta Delta' (P P': assert) c (R R': ret_assert) ,
        tycontext_eqv Delta Delta' ->
        ((ALL ek: exitkind, ALL  vl : option val, ALL rho: environ,  (R ek vl rho >=> R' ek vl rho))
-      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Hspec Delta P c R) |-- semax' Hspec Delta' P' c R').
+      && (ALL rho:environ, P' rho >=> P rho)  && (semax' Espec Delta P c R) |-- semax' Espec Delta' P' c R').
 Proof.
 intros.
 intros n ?.
@@ -665,8 +665,8 @@ Qed.
 
 Lemma semax_frame:  forall Delta P s R F,
    closed_wrt_modvars s F ->
-  semax Hspec Delta P s R ->
-    semax Hspec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
+  semax Espec Delta P s R ->
+    semax Espec Delta (fun rho => P rho * F rho) s (frame_ret_assert R F).
 Proof.
 intros until F. intros CL H.
 rewrite semax_unfold.
@@ -699,8 +699,8 @@ Qed.
 
 Lemma assert_safe_last:
   forall ge ve te st rho w,
-   (forall w', age w w' -> assert_safe Hspec ge ve te st rho w) ->
-    assert_safe Hspec ge ve te st rho w.
+   (forall w', age w w' -> assert_safe Espec ge ve te st rho w) ->
+    assert_safe Espec ge ve te st rho w.
 Proof.
 intros.
 case_eq (age1 w). auto.
@@ -729,11 +729,11 @@ Qed.
 
 Lemma later_strengthen_safe1:  
   forall (P: pred rmap) ge ve te k rho,
-              ((|> P) >=> assert_safe Hspec ge ve te k rho) |--   |>  (P >=> assert_safe Hspec ge ve te k rho).
+              ((|> P) >=> assert_safe Espec ge ve te k rho) |--   |>  (P >=> assert_safe Espec ge ve te k rho).
 Proof.
 intros.
 intros w ?.
-apply (@pred_sub_later' _ _ P  (assert_safe Hspec ge ve te k rho)); auto.
+apply (@pred_sub_later' _ _ P  (assert_safe Espec ge ve te k rho)); auto.
 eapply subp_trans'; try apply H.
 apply derives_subp; clear.
 intros w0 ?.
@@ -874,7 +874,7 @@ Qed.
 
 Section extensions.
 
-Context {Z} (Hspec : juicy_ext_spec Z).
+Context (Espec : OracleKind).
 
 Lemma age1_resource_decay:
   forall jm jm', age jm jm' -> resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
@@ -893,7 +893,7 @@ Qed.
 Lemma safe_loop_skip:
   forall 
     ge ora ve te k m,
-    jsafeN Hspec ge (level m) ora (State ve te (Kseq (Sloop Clight.Sskip Clight.Sskip) :: k)) m.
+    jsafeN (@OK_spec Espec) ge (level m) ora (State ve te (Kseq (Sloop Clight.Sskip Clight.Sskip) :: k)) m.
 Proof.
   intros.
   remember (level m)%nat as N.
@@ -925,10 +925,10 @@ Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
    j_safely_halted cl_core_sem st  = None ->
-   jsafeN Hspec psi (S n) ora st m ->
+   jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
    jstep cl_core_sem psi st m st' m' /\
-   jsafeN Hspec psi n ora  st' m'.
+   jsafeN (@OK_spec Espec) psi n ora  st' m'.
 Proof.
  intros. simpl in H1. rewrite H in H1.
  destruct H1 as [c' [m' [? ?]]].
@@ -937,8 +937,8 @@ Qed.
 
 Lemma safeN_strip:
   forall ge n ora ve te k m,
-     jsafeN Hspec ge n ora (State ve te (strip_skip k)) m =
-     jsafeN Hspec ge n ora (State ve te k) m.
+     jsafeN (@OK_spec Espec) ge n ora (State ve te (strip_skip k)) m =
+     jsafeN (@OK_spec Espec) ge n ora (State ve te k) m.
 Proof.
  intros.
  destruct n. apply prop_ext; simpl; intuition.
@@ -961,10 +961,10 @@ Qed.
 Open Local Scope nat_scope.
 
 Definition control_as_safe ge n ctl1 ctl2 := 
- forall (ora : Z) (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
+ forall (ora : OK_ty) (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),
      n' <= n ->
-     jsafeN Hspec ge n' ora (State ve te ctl1) m ->
-     jsafeN Hspec ge n' ora (State ve te ctl2) m.
+     jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl1) m ->
+     jsafeN (@OK_spec Espec) ge n' ora (State ve te ctl2) m.
 
 Fixpoint prebreak_cont (k: cont) : cont :=
   match k with
@@ -1115,11 +1115,11 @@ Lemma corestep_preservation_lemma:
       (forall k : list cont', control_as_safe ge n (k ++ ctl1) (k ++ ctl2)) ->
       control_as_safe ge (S n) ctl1 ctl2 ->
       jstep cl_core_sem ge (State ve te (c :: l ++ ctl1)) m c' m' ->
-      jsafeN Hspec ge n ora c' m' ->
+      jsafeN (@OK_spec Espec) ge n ora c' m' ->
    exists c2 : corestate,
      exists m2 : juicy_mem,
        jstep cl_core_sem ge (State ve te (c :: l ++ ctl2)) m c2 m2 /\
-       jsafeN Hspec ge n ora c2 m2.
+       jsafeN (@OK_spec Espec) ge n ora c2 m2.
 Proof. intros until m'. intros H0 H4 CS0 H H1.
   remember (State ve te (c :: l ++ ctl1)) as q. rename c' into q'.
   destruct H as [H [Hb Hc]].
@@ -1163,7 +1163,7 @@ Focus 1.
   (* skip *)
   destruct l.
     simpl in H.
- assert (jsafeN Hspec ge (S n) ora (State ve te ctl1) m0).
+ assert (jsafeN (@OK_spec Espec) ge (S n) ora (State ve te ctl1) m0).
  eapply safe_corestep_backward; eauto; split3; eauto.
  apply CS0 in H2; auto.
   eapply safe_step_forward in H2; auto.
@@ -1241,7 +1241,7 @@ Focus 1.
   specialize (CS0 ora ve te m0 (S n)).
   assert (core_semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
+  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1259,7 +1259,7 @@ Focus 1.
   specialize (CS0 ora ve te m0 (S n)).
   assert (core_semantics.corestep (juicy_core_sem cl_core_sem) ge (State ve te ctl1) m0 st' m'0).
   split3; auto.
-  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) Hspec ge _ _ _ _ _ _ H5 H1).
+  pose proof (safe_corestep_backward (juicy_core_sem cl_core_sem) OK_spec ge _ _ _ _ _ _ H5 H1).
   apply CS0 in H6; auto.
   destruct (safe_step_forward ge n ora (State ve te ctl2) m0) as [c2 [m2 [? ?]]]; auto.
   exists c2; exists m2; split; auto.
@@ -1390,9 +1390,9 @@ Lemma guard_safe_adj:
    psi Delta P k1 k2,
    current_function k1 = current_function k2 ->
   (forall ora m ve te n,
-     jsafeN Hspec psi n ora (State ve te k1) m -> 
-     jsafeN Hspec psi n ora (State ve te k2) m) ->
-  guard Hspec psi Delta P k1 |-- guard Hspec psi Delta P k2.
+     jsafeN (@OK_spec Espec) psi n ora (State ve te k1) m -> 
+     jsafeN (@OK_spec Espec) psi n ora (State ve te k2) m) ->
+  guard Espec psi Delta P k1 |-- guard Espec psi Delta P k2.
 Proof.
 intros.
 unfold guard.
@@ -1407,7 +1407,7 @@ Qed.
 Lemma assert_safe_adj:
   forall ge ve te k k' rho, 
       (forall n, control_as_safe ge n k k') ->
-     assert_safe Hspec ge ve te k rho |-- assert_safe Hspec ge ve te k' rho.
+     assert_safe Espec ge ve te k rho |-- assert_safe Espec ge ve te k' rho.
 Proof.
  intros. intros w ? ? ? ? ?. specialize (H0 ora jm H1 H2).
  eapply H; try apply H0. apply le_refl.
@@ -1416,8 +1416,8 @@ Qed.
 Lemma assert_safe_adj':
   forall ge ve te k k' rho P w, 
       (forall n, control_as_safe ge n k k') ->
-     app_pred (P >=> assert_safe Hspec ge ve te k rho) w ->
-     app_pred (P >=> assert_safe Hspec ge ve te k' rho) w.
+     app_pred (P >=> assert_safe Espec ge ve te k rho) w ->
+     app_pred (P >=> assert_safe Espec ge ve te k' rho) w.
 Proof.
  intros.
  eapply subp_trans'; [ | apply derives_subp; eapply assert_safe_adj; try eassumption; eauto].
@@ -1428,7 +1428,7 @@ Lemma rguard_adj:
   forall ge Delta R k k',
       current_function k = current_function k' ->
       (forall ek vl n, control_as_safe ge n (exit_cont ek vl k) (exit_cont ek vl k')) ->
-      rguard Hspec ge Delta R k |-- rguard Hspec ge Delta R k'.
+      rguard Espec ge Delta R k |-- rguard Espec ge Delta R k'.
 Proof.
  intros.
  intros n H1;  hnf in H1|-*.
@@ -1438,9 +1438,9 @@ Proof.
 Qed.
 
 
-Lemma assert_safe_last': forall {Z} (Hspec: juicy_ext_spec Z) ge ve te ctl rho w,
-            (age1 w <> None -> assert_safe Hspec ge ve te ctl rho w) ->
-             assert_safe Hspec ge ve te ctl rho w.
+Lemma assert_safe_last': forall (Espec:OracleKind) ge ve te ctl rho w,
+            (age1 w <> None -> assert_safe Espec ge ve te ctl rho w) ->
+             assert_safe Espec ge ve te ctl rho w.
 Proof.
  intros. apply assert_safe_last; intros. apply H. rewrite H0. congruence.
 Qed.
@@ -1491,13 +1491,13 @@ Qed.
 Lemma semax_extensionality_Delta:
   forall Delta Delta' P c R,
        tycontext_eqv Delta Delta' ->
-     semax Hspec Delta P c R -> semax Hspec Delta' P c R.
+     semax Espec Delta P c R -> semax Espec Delta' P c R.
 Proof.
 intros.
 unfold semax in *.
 intros.
 specialize (H0 n).
-apply (semax_extensionality1 Hspec Delta Delta' P P c R R); auto.
+apply (semax_extensionality1 Espec Delta Delta' P P c R R); auto.
 split; auto.
 split; auto.
 intros ? ? ?; auto.

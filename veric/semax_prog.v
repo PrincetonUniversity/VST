@@ -29,7 +29,7 @@ Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
   forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
 
 Section semax_prog.
-Context {Z} (Hspec: juicy_ext_spec Z).
+Context (Espec: OracleKind).
 
 Definition prog_contains (ge: genv) (fdecs : list (ident * fundef)) : Prop :=
      forall id f, In (id,f) fdecs -> 
@@ -50,8 +50,8 @@ Definition semax_body_params_ok f : bool :=
 Definition semax_body
        (V: varspecs) (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
-    forall x,
-      semax Hspec (func_tycontext f V G)
+    forall Espec x,
+      semax Espec (func_tycontext f V G)
           (fun rho => P x rho *  stackframe_of f rho)
           f.(fn_body)
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
@@ -61,7 +61,7 @@ Definition semax_func
          (V: varspecs) (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs) : Prop :=
    match_fdecs fdecs G1 /\
   forall ge, prog_contains ge fdecs -> 
-          forall n, believe Hspec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
+          forall n, believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
 Definition main_pre (prog: program) : unit -> assert :=
 (fun tt => globvars2pred (prog_vars prog)).
@@ -309,7 +309,7 @@ subst A' fsig.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
-specialize (H3 x).
+specialize (H3 Espec x).
 rename H3 into H4.
 pose proof I.
 specialize (H4 n).
@@ -351,7 +351,7 @@ Lemma semax_func_cons_ext:
         V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
-      (forall n, semax_ext Hspec ef A P Q n) ->
+      (forall n, semax_external Espec ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig)::fs) 
            ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
@@ -801,7 +801,7 @@ Lemma semax_prog_rule :
                     (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, exists jm, 
        m_dry jm = m /\ level jm = n /\ 
-       jsafeN Hspec (Genv.globalenv prog) n z q jm.
+       jsafeN (@OK_spec Espec) (Genv.globalenv prog) n z q jm.
 Proof.
  intros until m.
  pose proof I; intros.
@@ -836,7 +836,7 @@ econstructor.
 pattern n at 1; replace n with (level (m_phi (initial_jm prog m G n H1 H0 H2))).
 pose (rho := mkEnviron (filter_genv (Genv.globalenv prog)) (Map.empty (block * type)) 
                       (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
-eapply (semax_call_aux Hspec (Delta1 V G) unit
+eapply (semax_call_aux Espec (Delta1 V G) unit
                     _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
              None (nil,Tvoid) _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
                  (construct_rho (filter_genv (Genv.globalenv prog)) empty_env

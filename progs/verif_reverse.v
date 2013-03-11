@@ -36,6 +36,8 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
+Existing Instance NullExtension.Espec.
+
 Lemma list_cell_eq: forall sh v i,
    list_cell LS sh v i = field_mapsto sh t_struct_list _h v (Vint i).
 Proof. intros. simpl_list_cell; auto. Qed.

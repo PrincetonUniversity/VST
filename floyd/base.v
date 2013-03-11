@@ -3,6 +3,9 @@ Require Export Clightdefs.
 Require Export veric.SeparationLogic.
 Require Export msl.Extensionality.
 Require Export Coqlib sepcomp.Coqlib2.
-Require veric.SequentialClight.
-Export SequentialClight.SeqC.CSL.
+Require Export veric.juicy_extspec.
+Require veric.SeparationLogicSoundness.
+Export SeparationLogicSoundness.SoundSeparationLogic.CSL.
+Require Import veric.NullExtension.
+
 
