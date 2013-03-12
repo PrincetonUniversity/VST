@@ -287,9 +287,26 @@ Lemma closed_wrt_eval_expr: forall S e,
   expr_closed_wrt_vars S e -> 
   closed_wrt_vars S (eval_expr e).
 Proof.
-intros. apply H.
+intros.
+apply H.
 Qed.
 Hint Resolve closed_wrt_eval_expr : closed.
+
+Lemma closed_wrt_cmp_ptr : forall S e1 e2 c,
+  expr_closed_wrt_vars S e1 ->
+  expr_closed_wrt_vars S e2 ->
+  closed_wrt_vars S (cmp_ptr_no_mem e1 e2 c).
+Proof.
+intros. 
+
+unfold closed_wrt_vars. intros. 
+unfold expr_closed_wrt_vars in *. 
+specialize (H rho te' H1). 
+specialize (H0 rho te' H1). 
+unfold cmp_ptr_no_mem. rewrite H0. rewrite H. 
+reflexivity. 
+Qed. 
+Hint Resolve closed_wrt_cmp_ptr : closed. 
 
 Lemma closed_wrt_eval_id: forall S i,
     ~ S i -> closed_wrt_vars S (eval_id i).

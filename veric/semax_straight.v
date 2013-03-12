@@ -107,13 +107,14 @@ match op with
   | _ => false
 end. 
 
-Definition bases_match op e1 e2 rho :=
-match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
+Definition blocks_match op e1 e2 :=
+match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
+  (fun rho => 
   match (eval_expr e1 rho), (eval_expr e2 rho) with
     Vptr b _, Vptr b2 _ => b=b2
     | _, _ => False
-  end
-| _ => True
+  end)
+| _ => fun rho => True
 end. 
 
 Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -122,48 +123,48 @@ Proof.
 intros. apply @derives_trans with (|> P * |> Q).
 apply sepcon_derives; auto. rewrite later_sepcon; auto.
 Qed.
-
+ 
 Lemma mapsto_valid_pointer : forall b o sh t jm,
-mapsto_ sh t (Vptr b o) (m_phi jm) ->
+(mapsto_ sh (t) (Vptr b o) * TT)%pred (m_phi jm) ->
 valid_pointer (m_dry jm) b (Int.unsigned o) = true. 
-intros. 
+intros.
+
+destruct H. destruct H. destruct H. destruct H0. 
+
+destruct H0. unfold umapsto in *. 
+destruct (access_mode t); try solve [ inv H0]. 
+
+pose proof mapsto_core_load m x1 (Share.unrel Share.Lsh sh)
+          (Share.unrel Share.Rsh sh) (b, Int.unsigned o) (m_phi jm). 
+
+destruct H2. simpl; eauto. 
+simpl in H2. 
+destruct H2.  
+specialize (H3 (b, Int.unsigned o)). 
+if_tac in H3.
+destruct H3.  destruct H3. destruct H3. 
+
+rewrite valid_pointer_nonempty_perm. 
+unfold perm. 
+
 assert (JMA := juicy_mem_access jm (b, Int.unsigned o)). 
 unfold access_at in *. simpl in JMA. 
 unfold perm_of_res in *.
-simpl in H. destruct H. 
-unfold umapsto in H. destruct (access_mode t). 
-simpl in H. 
-destruct H as [? [[? [? ?]]  ?]].  
-specialize (H2 (b, Int.unsigned o)).
-if_tac in H2.
-destruct H2. rewrite H2 in JMA. 
-simpl in JMA. 
-rewrite valid_pointer_nonempty_perm. 
+rewrite H3 in JMA. simpl in JMA. 
 unfold perm_of_sh in *.
-unfold perm.
-repeat if_tac in JMA;
-rewrite JMA; try constructor.
-unfold nonunit in x1.  
-unfold unit_for in x1. unfold join in x1. 
-unfold Share.Join_ba in x1. 
-copy x1. 
-specialize (x2 Share.bot).
-unfold not in x2. destruct x2.  
-split. 
-apply Share.glb_bot. 
-rewrite H5. 
-apply Share.lub_bot. 
+rewrite JMA.  
+repeat if_tac; try constructor. subst. 
+simpl in H3.
+unfold nonunit in x5. 
+destruct (x5 sh). auto. 
+destruct H4.  repeat split. omega. 
+destruct m; simpl; omega.  
 
-simpl in H3. unfold not in H3. 
-destruct H3. split. auto.  split. omega. 
-destruct m; simpl; omega. 
-inversion H. 
-inversion H. 
-inversion H. 
 Qed. 
 
-Lemma mapsto_is_pointer : forall sh t jm v,
-mapsto_ sh t (v) (m_phi jm) ->
+
+Lemma mapsto_is_pointer : forall sh t m v,
+mapsto_ sh t v m ->
 exists b, exists o, v = Vptr b o. 
 Proof.
 intros. destruct v; destruct H;
@@ -197,26 +198,31 @@ Lemma pointer_cmp_eval :
    forall (jm : juicy_mem) (rho : environ),
    (tc_expr Delta e1 rho) (m_phi jm) ->
    (tc_expr Delta e2 rho) (m_phi jm) ->
-   bases_match cmp e1 e2 rho ->
+   blocks_match cmp e1 e2 rho ->
    typecheck_environ Delta rho ->
-   (mapsto_ sh1 (typeof e1) (eval_expr e1 rho)) (m_phi jm) ->
-   (mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) (m_phi jm) ->
+   (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT)%pred (m_phi jm) ->
+   (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    Cop.sem_binary_operation cmp (eval_expr e1 rho) 
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
    Some (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho). 
 Proof.
 intros until rho. intros ? ? BM.  intros.
 unfold cmp_ptr_no_mem.  
-super_unfold_lift. unfold eval_binop. 
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto. 
 apply typecheck_expr_sound in H1; auto.
-assert (IP1 := mapsto_is_pointer _ _ _ _ H3). 
-assert (IP2 := mapsto_is_pointer _ _ _ _ H4). 
-destruct IP1. destruct H5. destruct IP2. destruct H6. 
- unfold bases_match in *. 
 
-rewrite H5 in *. clear H5. rewrite H6 in *. 
-clear H6. 
+copy H3. copy H4. rename H5 into MT_1.
+rename H6 into MT_2. 
+destruct H3 as [? [? [J1 [MT1 _]]]]. 
+destruct H4 as [? [? [J2 [MT2 _]]]]. 
+destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
+destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
+ 
+unfold blocks_match in *. 
+simpl in BM. 
+
+rewrite H3 in *. rewrite H4 in *. 
+
 
 destruct (typeof e1); 
 try solve [simpl in *; congruence]; 
@@ -225,17 +231,21 @@ destruct (typeof e2);
 try solve [simpl in *; congruence];
 
 try solve[
-  destruct H3; inv H3 
-| destruct H4; inv H4
-].  
+  destruct MT1; inv H5 
+| destruct MT2; inv H5
+]. 
 
-apply mapsto_valid_pointer in H3. 
-apply mapsto_valid_pointer in H4. 
+apply mapsto_valid_pointer in MT_1. 
+apply mapsto_valid_pointer in MT_2.
+ 
 
 unfold Cop.sem_binary_operation. 
-destruct cmp; inv H; 
-unfold Cop.sem_cmp; simpl; try rewrite H3; try rewrite H4; simpl;
+destruct cmp; inv H; simpl in BM; try rewrite H3 in *; 
+try rewrite H4 in *; subst;
+unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto. 
+
+
 Qed. 
 
 Lemma pointer_cmp_no_mem_bool_type : 
@@ -245,7 +255,7 @@ Lemma pointer_cmp_no_mem_bool_type :
    forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
    eval_expr e2 rho = Vptr b2 o2 ->
-   bases_match cmp e1 e2 rho ->
+   blocks_match cmp e1 e2 rho ->
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    denote_tc_assert (typecheck_expr Delta e2) rho ->
    typecheck_environ Delta rho ->
@@ -255,12 +265,13 @@ intros.
 apply typecheck_both_sound in H4; auto. 
 apply typecheck_both_sound in H5; auto. 
 unfold cmp_ptr_no_mem. 
-unfold bases_match in *. 
+unfold blocks_match in *. 
 rewrite H1 in *. 
 rewrite H2 in *. 
 if_tac; auto.
  destruct ty; inv H; of_bool_destruct; auto.
- destruct cmp; inv H0; destruct ty; inv H; auto. 
+ destruct cmp; try rewrite H1 in *; try rewrite H2 in *; subst;
+inv H0; destruct ty; inv H; auto. 
 Qed. 
 
 
@@ -274,23 +285,16 @@ match (temp_types Delta) ! id with
 end. 
 
 
-
-
-Ltac revert_all := repeat match goal with
-| [H: _ |- _] => revert H
-end.
-
-
-Lemma semax_set_forward_ptr_compare : 
+Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
     semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
           !!(typecheck_tid_ptr_compare Delta id = true) &&  
-          !!(bases_match cmp e1 e2 rho) &&
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho)) && 
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) && 
+          !!(blocks_match cmp e1 e2 rho) &&
+          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
+          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
           P rho)) 
           (Sset id (Ebinop cmp e1 e2 ty)) 
         (normal_ret_assert 
@@ -303,17 +307,17 @@ intros until sh2.
 replace (fun rho : environ =>
    |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
           !!(typecheck_tid_ptr_compare Delta id = true) && 
-           !!bases_match cmp e1 e2 rho &&
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho)) && 
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) && 
+           !!blocks_match cmp e1 e2 rho &&
+          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
+          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
           P rho)) 
  with (fun rho : environ =>
      (|> tc_expr Delta e1 rho &&
       |> tc_expr Delta e2 rho &&
       |> !!(typecheck_tid_ptr_compare Delta id = true) &&
-      |> !!bases_match cmp e1 e2 rho &&
-      |> (mapsto_ sh1 (typeof e1) (eval_expr e1 rho)) && 
-      |> (mapsto_ sh2 (typeof e2) (eval_expr e2 rho)) && 
+      |> !!blocks_match cmp e1 e2 rho &&
+      |> (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
+      |> (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
       |> P rho)) 
   by (extensionality rho;  repeat rewrite later_andp; auto).
 intros CMP. 
@@ -325,6 +329,7 @@ specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))). 
 specialize (MT1 (m_phi jm') (age_laterR (age_jm_phi H))). 
 specialize (MT2 (m_phi jm') (age_laterR (age_jm_phi H))). 
+
 
 exists jm', (PTree.set id (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho) (tx)).
 econstructor.
@@ -348,6 +353,9 @@ destruct t as [t b].
 unfold guard_environ in *. 
 destruct TC' as [TC' TC''].
 
+
+destruct MT1 as [? [? [J1 [MT1 _]]]]. 
+destruct MT2 as [? [? [J2 [MT2 _]]]]. 
 destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
 destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
 

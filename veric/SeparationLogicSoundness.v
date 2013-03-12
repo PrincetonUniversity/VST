@@ -97,6 +97,7 @@ Definition semax_frame := @semax_frame.
 Definition semax_pre_post := @semax_pre_post.
 Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
+Definition semax_ptr_compare := @semax_ptr_compare.
 
 Definition semax_external {Espec: OracleKind} ef A P Q := forall n, semax_external Espec ef A P Q n.
 
