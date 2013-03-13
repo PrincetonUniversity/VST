@@ -92,7 +92,7 @@ Focus 2.
  rewrite PTree.gss. auto.
  (* End Focus 2 *)
  unfold local; apply prop_right.
- simpl. rewrite eqb_type_refl. apply I.
+ simpl.  destruct retty; simpl; inv H5; apply I.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.
  destruct (eq_dec ret' ret).
