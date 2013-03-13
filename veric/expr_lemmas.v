@@ -390,6 +390,12 @@ destruct (typeof e); inv H1.
  destruct t; inv H2; auto.
 Qed.
 
+Lemma same_base_tc_val : forall v t1 t2,
+same_base_type t1 t2 = true ->
+typecheck_val v t1 = typecheck_val v t2.
+Proof.
+intros. destruct v; destruct t1; destruct t2; try solve [inv H]; auto.
+Qed.
 
 Lemma typecheck_temp_sound:
   forall Delta rho i t,
@@ -412,31 +418,16 @@ destruct (t0 ! i); try (contradiction H0).
 destruct p. destruct (H1 _ _ (eq_refl _)) as [v [? ?]]. clear H1.
 rewrite H.
 simpl in H0.
-rewrite eqb_type_eq in *.
-destruct (type_eq t t4); try solve [inv H0].
-simpl in H0. subst.
-destruct H2; auto.
-destruct b; inv H1.
-destruct H0 as [v' [? ?]]. simpl in H0. inversion2 H H0. auto.
-Qed.
+remember (same_base_type t t4).
+destruct b0; [ | inv H0].
 
-(*
-Lemma typecheck_deref_invert:
-  forall Delta e t rho,
-  denote_tc_assert (typecheck_lvalue Delta (Ederef e t)) rho ->
-  denote_tc_assert
-       (tc_andp
-          (tc_andp
-             (tc_andp (typecheck_expr Delta e)
-                (tc_bool (is_pointer_type (typeof e)))) (tc_isptr e))
-          (tc_bool (negb (type_is_volatile t)))) rho.
-Proof.
-intros.
-simpl in H.
-apply H.
+simpl in H0.
+destruct b; inv H0;
+intuition;
+erewrite same_base_tc_val; eauto.
+simpl in H0. rewrite H in H0. inv H0.
+erewrite <- same_base_tc_val; eauto.
 Qed.
-
-*)
 
 Lemma typecheck_deref_sound:
   forall Delta rho e t pt,

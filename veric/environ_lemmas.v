@@ -140,17 +140,20 @@ Proof.
 intros. unfold strict_bool_val in *. unfold typecheck_val.
 simpl in H0. if_tac in H0; simpl in *; intuition.
 remember ((temp_types Delta) ! id). destruct o; simpl in *; intuition.
-destruct p. simpl in *.  destruct t0; intuition. 
+destruct p. simpl in *.  
 unfold eval_id. destruct rho.  
 destruct H as [? _]. unfold typecheck_temp_environ in *.
 edestruct H; eauto. destruct H2.  simpl.  simpl in H2. rewrite H2.
+simpl.
 destruct H3.
 destruct b; simpl in *; try congruence.
-rewrite andb_if in H0. remember (eqb_type t t0). repeat (if_tac in H0; intuition). 
+remember (is_pointer_type t0). repeat (if_tac in H0; intuition). 
 simpl in H0. unfold denote_tc_initialized in *. destruct H0. 
 destruct H0. simpl in H0.  rewrite H0 in H2. inv H2. 
 destruct x; simpl in *; try congruence. 
 destruct x; simpl in *; try congruence. 
+destruct t0; simpl in *; try congruence; intuition.
+destruct t0; simpl in *; try congruence; intuition.
 Qed. 
 
 

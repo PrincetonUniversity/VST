@@ -675,6 +675,24 @@ match (var_types Delta) ! id with
            end
 end.
 
+Definition is_neutral_cast tfrom tto : bool :=
+match Cop.classify_cast tfrom tto with
+| Cop.cast_case_neutral => true
+| _ => false
+end. 
+
+
+Definition same_base_type t1 t2 : bool :=
+match t1, t2 with
+  Tint _ _ _, Tint _ _ _ 
+| Tfloat _ _, Tfloat _ _  => true
+| (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _), 
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => true
+| (Tstruct _ _ _ | Tunion _ _ _), (Tstruct _ _ _ | Tunion _ _ _ ) => true
+| _, _ => false
+end.
+
+
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
@@ -684,7 +702,7 @@ match e with
  | Econst_float _ (Tfloat _ _) => tc_TT
  | Etempvar id ty => if negb (type_is_volatile ty) then
                        match (temp_types Delta)!id with 
-                         | Some ty' => if eqb_type ty (fst ty') then 
+                         | Some ty' => if(* eqb_type*)same_base_type ty (fst ty') then 
                                          if (snd ty') then tc_TT else (tc_initialized id ty)
                                        else tc_FF
 		         | None => tc_FF
@@ -742,11 +760,7 @@ match e with
 end.
 
 
-Definition is_neutral_cast tfrom tto : bool :=
-match Cop.classify_cast tfrom tto with
-| Cop.cast_case_neutral => true
-| _ => false
-end. 
+
 
 Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
