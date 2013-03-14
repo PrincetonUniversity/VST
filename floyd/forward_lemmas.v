@@ -243,15 +243,15 @@ Lemma forward_setx_closed_now':
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
-  PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx P (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
         (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
 Proof.
 intros.
 eapply semax_pre_simple; [ | apply semax_set].
+rewrite insert_local.
 eapply derives_trans; [ | apply now_later].
-apply andp_left2.
 apply andp_right; auto.
 apply andp_right; auto.
 autorewrite with subst.
@@ -259,17 +259,18 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; unfold local,lift1; simpl.
 apply prop_derives; simpl; intro; split; auto.
-hnf; auto.
 unfold_lift; reflexivity.
+unfold_lift; unfold_lift in H4. destruct H4; auto.
 Qed.
+
 
 Lemma forward_setx_closed_now:
   forall Espec Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
-  PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   normal_ret_assert (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) |-- PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
 Proof.
@@ -284,8 +285,8 @@ Lemma forward_setx_closed_now_seq:
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
   closed_wrt_vars (eq id) (eval_expr e) ->
-  PROPx nil (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e)  ->
-  PROPx nil (LOCALx Q (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   semax (update_tycon Delta (Sset id e))
            (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) c PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.

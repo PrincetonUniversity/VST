@@ -624,6 +624,7 @@ name Q _Q.
 name p _p.
 name t _t.
 name n _n.
+name b _b.
 unfold fifo at 1.
 normalize.
 intros [hd tl].
@@ -641,22 +642,29 @@ apply semax_pre with (PROP  ()
 go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  forward. (*   p = Q->head; *)
  forward. (*   t=Q->tail; *)
- apply semax_seq with
+ forward.  (*   b= t == &(p->next); *)
+ go_lower. subst Q p t.
+ admit.  (* To prove the first conjunct, need the rule for
+               pointer-comparison (which should have been applied by
+              the forward tactic, above, instead of forward_setx_closed_now.
+             The prove the second conjunct (isptr hd), either prefix=nil or not,
+             if it's nil, then hd=ult and isptr(ult); otherwise isptr(hd). *)
+apply semax_seq with
     (PROP() LOCAL() SEP (`(fifo contents q); `(elemrep elem) (eval_id _p))).
  forward.  (*   if (t == &(p->next)) *)
  go_lower.
- admit.  (* need to fix typechecking of pointer comparison *) 
+ subst p Q t. apply andp_right; auto.
+ apply prop_right; repeat split; auto.
  apply sequential'.
  forward.
  go_lower. subst. rewrite field_mapsto_isptr.
- normalize.
- normalize. go_lower. subst.
+ normalize. go_lower. subst. rewrite H2 in H1; clear b H2.
  simpl typeof in H1.
- unfold align, Zmax; simpl.
+ unfold align, Zmax in H1; simpl in H1.
  assert (hd = ult).
  clear - H1.
  unfold typed_true, eval_binop, strict_bool_val, sem_cmp in H1.
- simpl in H1. unfold align, Zmax in H1; simpl in H1.
+ simpl in H1.
  unfold sem_cmp in H1.
  unfold tptr, classify_cmp in H1.
  simpl typeconv in H1. cbv beta iota in H1.
@@ -700,7 +708,7 @@ apply ptr_eq_e in H. subst ult.
 simpl eval_expr.
 apply semax_pre with (PROP (False) (LOCAL () SEP ())).
 unfold elemrep.
-go_lower. subst. 
+go_lower. subst. rewrite H1 in H0; clear b H1. 
 rewrite field_mapsto_isptr with (fld:=_a).
 normalize.
 elimtype False.

@@ -124,7 +124,7 @@ Definition f_fifo_get := {|
   fn_params := ((_Q, (tptr t_struct_fifo)) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr t_struct_elem)) :: (_n, (tptr t_struct_elem)) ::
-               (_t, (tptr (tptr t_struct_elem))) :: nil);
+               (_t, (tptr (tptr t_struct_elem))) :: (_b, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p
@@ -135,26 +135,31 @@ Definition f_fifo_get := {|
       (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _tail
         (tptr (tptr t_struct_elem))))
     (Ssequence
-      (Sifthenelse (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
-                     (Eaddrof
-                       (Efield
-                         (Ederef (Etempvar _p (tptr t_struct_elem))
-                           t_struct_elem) _next (tptr t_struct_elem))
-                       (tptr (tptr t_struct_elem))) tint)
-        (Sassign
-          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-            _tail (tptr (tptr t_struct_elem)))
+      (Sset _b
+        (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
           (Eaddrof
-            (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-              _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem))))
-        (Ssequence
-          (Sset _n
             (Efield (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem)
-              _next (tptr t_struct_elem)))
+              _next (tptr t_struct_elem)) (tptr (tptr t_struct_elem))) tint))
+      (Ssequence
+        (Sifthenelse (Etempvar _b tint)
           (Sassign
             (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-              _head (tptr t_struct_elem)) (Etempvar _n (tptr t_struct_elem)))))
-      (Sreturn (Some (Etempvar _p (tptr t_struct_elem)))))))
+              _tail (tptr (tptr t_struct_elem)))
+            (Eaddrof
+              (Efield
+                (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+                _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem))))
+          (Ssequence
+            (Sset _n
+              (Efield
+                (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem)
+                _next (tptr t_struct_elem)))
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+                _head (tptr t_struct_elem))
+              (Etempvar _n (tptr t_struct_elem)))))
+        (Sreturn (Some (Etempvar _p (tptr t_struct_elem))))))))
 |}.
 
 Definition f_make_elem := {|

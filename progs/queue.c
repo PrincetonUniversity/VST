@@ -35,10 +35,11 @@ int fifo_empty (struct fifo *Q) {
 }
 
 struct elem *fifo_get (struct fifo *Q) {
-  struct elem *p, *n; struct elem **t;
+  struct elem *p, *n; struct elem **t; int b;
   p=Q->head;
   t=Q->tail;
-  if (t == &(p->next)) 
+  b= t == &(p->next);
+  if (b)
     Q->tail = &(Q->head);
   else {
     n=p->next;

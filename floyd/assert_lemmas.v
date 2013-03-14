@@ -553,6 +553,36 @@ Admitted.
 Hint Resolve lvalue_closed_tempvar : closed.
 
 
+Lemma expr_closed_addrof: forall S e t, 
+     lvalue_closed_wrt_vars S e -> 
+     expr_closed_wrt_vars S (Eaddrof e t).
+Proof.
+ unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
+ simpl.
+ super_unfold_lift. apply H.  auto.
+Qed.
+Hint Resolve expr_closed_addrof : closed.
+
+Lemma lvalue_closed_field: forall S e f t,
+  lvalue_closed_wrt_vars S e ->
+  lvalue_closed_wrt_vars S (Efield e f t).
+Proof.
+ unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
+ simpl.
+ super_unfold_lift. f_equal; apply H.  auto.
+Qed.
+Hint Resolve lvalue_closed_field : closed.
+
+Lemma lvalue_closed_deref: forall S e t,
+  expr_closed_wrt_vars S e ->
+  lvalue_closed_wrt_vars S (Ederef e t).
+Proof.
+ unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
+ simpl.
+ super_unfold_lift. f_equal; apply H.  auto.
+Qed.
+Hint Resolve lvalue_closed_deref : closed.
+
 Hint Resolve  eval_expr_Etempvar.
 
 Lemma eval_expr_Etempvar' : forall i t, eval_id i = eval_expr (Etempvar i t).
