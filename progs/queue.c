@@ -29,9 +29,10 @@ void fifo_put (struct fifo *Q, struct elem *p) {
 }
 
 int fifo_empty (struct fifo *Q) {
-  struct elem **t;
+  struct elem **t; int b;
   t = Q->tail;
-  return (t == &(Q->head));
+  b = t == &(Q->head);
+  return b;
 }
 
 struct elem *fifo_get (struct fifo *Q) {

@@ -125,11 +125,92 @@ Lemma lift1more {A}{T}:
      @liftx (Tarrow A (LiftEnviron T)) F `v.
 Proof. reflexivity. Qed.
 
+Definition blocks_match op v1 v2  :=
+match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
+  match v1, v2 with
+    Vptr b _, Vptr b2 _ => b=b2
+    | _, _ => False
+  end
+| _ => True
+end. 
+
+Definition cmp_ptr_no_mem c v1 v2 :=
+match v1,v2 with
+Vptr b o, Vptr b1 o1 => 
+  if zeq b b1 then
+    Val.of_bool (Int.cmpu c o o1)
+  else
+    force_val (Cop.sem_cmp_mismatch c)
+| _, _ => Vundef
+end. 
+
+Lemma semax_ptr_compare' : 
+forall {Espec: OracleKind},
+forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2,
+    is_comparison cmp = true  ->
+    typecheck_tid_ptr_compare Delta id = true ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+         |-- local (tc_expr Delta e1) &&
+             local (tc_expr Delta e2)  && 
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) ->
+   @semax Espec Delta 
+         (PROPx P (LOCALx Q (SEPx R)))
+          (Sset id (Ebinop cmp e1 e2 ty)) 
+        (normal_ret_assert 
+          (EX old:val, 
+           PROPx P
+           (LOCALx (`eq (eval_id id)  (subst id `old 
+                     (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1) (eval_expr e2))) ::
+                       map (subst id `old) Q)
+           (SEPx (map (subst id `old) R))))).
+Admitted.
+
+Lemma elemrep_isptr:
+  forall elem v, elemrep elem v = !! (isptr v) && elemrep elem v.
+Proof.
+unfold elemrep; intros.
+rewrite field_mapsto_isptr at 1.
+normalize.
+Qed.
+
+Lemma address_mapsto_overlap:
+  forall rsh sh ch1 v1 ch2 v2 a1 a2,
+     adr_range a1 (Memdata.size_chunk ch1) a2 ->
+     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
+Proof.
+ intros.
+ apply res_predicates.address_mapsto_overlap.
+ auto.
+Qed.
+
+Lemma field_mapsto__conflict:
+  forall sh t fld v,
+        field_mapsto_ sh t fld v
+        * field_mapsto_ sh t fld v |-- FF.
+Proof.
+intros.
+unfold field_mapsto_.
+destruct v; normalize.
+destruct t; normalize.
+destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
+  normalize.
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
+  normalize.
+intros.
+apply address_mapsto_overlap.
+split; auto.
+pose proof (size_chunk_pos m); omega.
+Qed.
+
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
 name Q _Q.
 name t _t.
+name b _b.
 unfold fifo.
 match goal with |- semax _ _ _ ?P => set (Post := P) end.
 normalize. intros [hd tl].
@@ -141,47 +222,67 @@ go_lower; subst; auto.
 replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst; auto.
 forward. (* t = Q->tail;*)
-forward. (* return (t == &(Q->head)); *)
-go_lower.
-  forget False as NOPROOF.  (* need to fix typechecking of pointer comparison *) 
-   subst Q t.
-   rewrite field_mapsto_isptr. 
+forward0.
+make_sequential;
+          eapply semax_post_flipped.
+apply semax_ptr_compare' with Tsh Tsh; try reflexivity.
+go_lower. subst.
+ rewrite field_mapsto_isptr; normalize.
+ repeat apply andp_right; try apply prop_right; auto.
+ destruct (isnil contents). 
+ normalize. 
+ rewrite sepcon_comm. apply sepcon_derives; auto.
+ eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
+ apply derives_refl''.
+ eapply mapsto_field_mapsto_; simpl; try reflexivity.
+ unfold field_offset;  simpl; reflexivity.
+ rewrite align_0 by omega.
+ destruct tl; inversion H. simpl. rewrite Int.add_zero. auto.
+ normalize.
+ unfold elemrep.
+ repeat rewrite <- sepcon_assoc.
+ rewrite sepcon_comm.
+ apply sepcon_derives; auto.
+ apply derives_refl''.
+ eapply mapsto_field_mapsto_; simpl; try reflexivity.
+ unfold field_offset;  simpl; reflexivity.
+ apply derives_trans with (field_mapsto Tsh t_struct_fifo _head Q hd * TT).
+ cancel.
+ apply sepcon_derives; auto.
+ eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
+ apply derives_refl''.
+ eapply mapsto_field_mapsto_; simpl; try reflexivity.
+ unfold field_offset;  simpl; reflexivity.
+ rewrite align_0 by omega. 
+ destruct Q; inversion H; auto.
+ intros. apply andp_left2. unfold Post0; apply derives_refl.
+ apply extract_exists_pre; intro old.
+ unfold_fold_eval_expr.
+ autorewrite with subst.
+ unfold Post; clear Post.
+ forward. (* return b; *)
+ go_lower.
+  subst Q t.
+   rewrite field_mapsto_isptr.
+ simpl.
    repeat apply andp_right.
-  normalize. apply andp_right; apply prop_right; auto.
-   admit.  (* need to fix typechecking of pointer comparison *) 
-   normalize.
-   apply prop_right.
-   destruct q; inv H.
-   unfold eval_binop; simpl.
-   destruct tl; inv TC; simpl. unfold sem_cmp; simpl.
-   rewrite H0. simpl. auto.
-   admit.  (* need to fix typechecking of pointer comparison *) 
-normalize.
-destruct q; inv H.
-destruct (isnil contents).
-normalize.
-simpl. rewrite Int.add_zero.
-admit.  (* need to fix typechecking of pointer comparison *) 
-normalize.
-clear n.
-unfold elemrep.
-unfold elemtype in elem.
-destruct elem as [a1 b1].
-simpl @fst; simpl @snd.
-simpl. unfold align, Zmax; simpl. rewrite Int.add_zero.
-apply derives_trans with
-  (field_mapsto_ Tsh t_struct_elem _next ult *
-   field_mapsto Tsh t_struct_fifo _head (Vptr b i) hd * TT); [cancel | ].
-replace (field_mapsto_ Tsh t_struct_elem _next ult)
-  with (mapsto_ Tsh (tptr t_struct_elem) (offset_val (Int.repr 8) ult)).
-2: eapply mapsto_field_mapsto_; try (simpl; reflexivity); unfold field_offset; simpl; reflexivity.
-replace (field_mapsto_ Tsh t_struct_fifo _head (Vptr b i))
-  with (mapsto_ Tsh (tptr t_struct_elem) (Vptr b i)).
-2: eapply mapsto_field_mapsto_; try (simpl; reflexivity); unfold field_offset; simpl; try reflexivity;
-   unfold align, Zmax; simpl;  rewrite Int.add_zero; reflexivity.
-admit.  (* mapsto_ conflict *)
-normalize.
+ apply prop_right; auto.
+  normalize. simpl in H0. rewrite align_0 in H0 by omega.
+ destruct (isnil contents).
+ normalize. 
+ destruct tl; inversion H.
+ simpl in H0. rewrite zeq_true in H0. rewrite Int.add_zero in H0.
+ rewrite Int.eq_true in H0. inv  H0. apply prop_right; auto.
+ normalize.
+ unfold elemrep.
+ apply derives_trans with 
+  (field_mapsto_ Tsh t_struct_elem _next ult * 
+   field_mapsto Tsh t_struct_fifo _head q hd * TT); [cancel |].
+ admit.  (* This is definitely provable, using lemmas similar to
+                address_mapsto_overlap, but we need better lemmas
+                for it. *)
 apply exp_right with (hd, tl).
+normalize.
 cancel.
 Qed.
 
@@ -252,44 +353,6 @@ go_lower.
   destruct Q; inv H1; inv TC; simpl; auto.
   unfold eval_cast; simpl. normalize.
  cancel.
-Qed.
-
-Lemma elemrep_isptr:
-  forall elem v, elemrep elem v = !! (isptr v) && elemrep elem v.
-Proof.
-unfold elemrep; intros.
-rewrite field_mapsto_isptr at 1.
-normalize.
-Qed.
-
-Lemma address_mapsto_overlap:
-  forall rsh sh ch1 v1 ch2 v2 a1 a2,
-     adr_range a1 (Memdata.size_chunk ch1) a2 ->
-     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
-Proof.
- intros.
- apply res_predicates.address_mapsto_overlap.
- auto.
-Qed.
-
-Lemma field_mapsto__conflict:
-  forall sh t fld v,
-        field_mapsto_ sh t fld v
-        * field_mapsto_ sh t fld v |-- FF.
-Proof.
-intros.
-unfold field_mapsto_.
-destruct v; normalize.
-destruct t; normalize.
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
-  normalize.
-destruct (access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
-  normalize.
-intros.
-apply address_mapsto_overlap.
-split; auto.
-pose proof (size_chunk_pos m); omega.
 Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.

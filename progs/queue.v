@@ -105,18 +105,19 @@ Definition f_fifo_empty := {|
   fn_return := tint;
   fn_params := ((_Q, (tptr t_struct_fifo)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t, (tptr (tptr t_struct_elem))) :: nil);
+  fn_temps := ((_t, (tptr (tptr t_struct_elem))) :: (_b, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _t
     (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _tail
       (tptr (tptr t_struct_elem))))
-  (Sreturn (Some (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
-                   (Eaddrof
-                     (Efield
-                       (Ederef (Etempvar _Q (tptr t_struct_fifo))
-                         t_struct_fifo) _head (tptr t_struct_elem))
-                     (tptr (tptr t_struct_elem))) tint))))
+  (Ssequence
+    (Sset _b
+      (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
+        (Eaddrof
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _head (tptr t_struct_elem)) (tptr (tptr t_struct_elem))) tint))
+    (Sreturn (Some (Etempvar _b tint)))))
 |}.
 
 Definition f_fifo_get := {|
