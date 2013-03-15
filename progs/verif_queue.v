@@ -165,7 +165,9 @@ forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2,
                      (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1) (eval_expr e2))) ::
                        map (subst id `old) Q)
            (SEPx (map (subst id `old) R))))).
+Proof.
 Admitted.
+
 
 Lemma elemrep_isptr:
   forall elem v, elemrep elem v = !! (isptr v) && elemrep elem v.

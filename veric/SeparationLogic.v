@@ -385,19 +385,18 @@ match op with
   | _ => false
 end. 
 
-Definition blocks_match op e1 e2  :=
+Definition blocks_match op v1 v2  :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
-  (fun rho =>
-  match (eval_expr e1 rho), (eval_expr e2 rho) with
+  match v1, v2 with
     Vptr b _, Vptr b2 _ => b=b2
     | _, _ => False
-  end)
-| _ => fun rho => True
+  end
+| _ => True
 end. 
 
 
-Definition cmp_ptr_no_mem e1 e2 c rho :=
-match eval_expr e1 rho, eval_expr e2 rho with
+Definition cmp_ptr_no_mem c v1 v2  :=
+match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
   if zeq b b1 then
     Val.of_bool (Int.cmpu c o o1)
@@ -454,6 +453,7 @@ Parameter semax: forall {Espec: OracleKind},
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
 
 (***************** SEMAX_LEMMAS ****************)
+
 
 Axiom extract_exists:
   forall  {Espec: OracleKind},
@@ -639,12 +639,13 @@ forall (Delta: tycontext) (P: environ->mpred) id e,
 Axiom semax_ptr_compare : 
 forall {Espec: OracleKind},
 forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
-    is_comparison cmp = true  ->
+   is_comparison cmp = true  ->
+   typecheck_tid_ptr_compare Delta id = true ->
    @semax Espec Delta 
         ( |> (local (tc_expr Delta e1) &&
              local (tc_expr Delta e2)  && 
-          local `(typecheck_tid_ptr_compare Delta id = true) &&  
-          local (blocks_match cmp e1 e2) &&
+           
+          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
           (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
           (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) && 
           P))
@@ -652,7 +653,8 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
         (normal_ret_assert 
           (EX old:val, 
                  local (`eq (eval_id id)  (subst id `old 
-                     (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp)))) &&
+                     (`(cmp_ptr_no_mem (op_to_cmp cmp))
+                            (eval_expr e1) (eval_expr e2)))) &&
                             subst id `old P)).
 
 Axiom semax_load : 

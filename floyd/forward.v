@@ -24,6 +24,103 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
 *)
 
 
+Definition logical_and tid e1 e2 :=
+(Sifthenelse e1
+            (Ssequence
+              (Sset tid (Ecast e2 tbool))
+              (Sset tid (Ecast (Etempvar tid tbool) tint)))
+            (Sset tid (Econst_int (Int.repr 0) tint))).
+
+(*
+Lemma semax_pre_flipped : 
+ forall (P' : environ -> mpred) (Espec : OracleKind)
+         (Delta : tycontext) (P1 : list Prop) (P2 : list (environ -> Prop))
+         (P3 : list (environ -> mpred)) (c : statement) 
+         (R : ret_assert),
+       semax Delta P' c R ->
+       PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3)) |-- P' ->
+        semax Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
+Proof. intros. 
+eapply semax_pre. apply H0. auto.
+Qed.
+
+Lemma semax_logical_and:
+ forall Espec Delta P Q R tid e1 e2 b
+   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
+   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
+   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
+   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+ bool_type (typeof e1) = true ->
+ bool_type (typeof e2) = true ->
+ (temp_types Delta) ! tid = Some (tint, b) ->
+  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::
+   Q) (SEPx (R))))
+    (logical_and tid e1 e2)
+  (normal_ret_assert (PROPx P (LOCALx Q (SEPx (R)))))
+  . 
+Proof.
+intros.
+eapply semax_post_flipped.
+apply semax_ifthenelse_PQR. 
+auto. 
+eapply semax_post_flipped.
+eapply semax_seq'.
+eapply semax_pre_flipped.
+apply forward_setx_closed_now.
+Focus 6. apply derives_refl.
+Focus 6. instantiate (1:=R). 
+intro rho. 
+instantiate (1:= 
+        (`(typed_true (typeof e1)) (eval_expr e1)
+            :: tc_expr Delta e2 :: Q)).
+normalize.
+auto 50 with closed. 
+auto 50 with closed.
+auto with closed.
+intro rho. normalize. 
+apply prop_right.
+clear H4. 
+unfold tc_expr in *. simpl. 
+rewrite tc_andp_sound. simpl. 
+super_unfold_lift. split.
+auto. destruct (typeof e2); try inv H0; simpl; auto. 
+
+intro rho. normalize. apply prop_right.
+simpl. unfold tc_temp_id. 
+unfold typecheck_temp_id. 
+rewrite H1. simpl; auto. 
+
+apply temp_types_init_same in H1.
+apply forward_setx.
+intro rho. normalize. apply andp_right;
+apply prop_right. 
+simpl. 
+unfold tc_expr in *. simpl. 
+rewrite tc_andp_sound. simpl.
+clear H5.  
+super_unfold_lift. split; auto. 
+ rewrite H1.
+compute; auto. 
+
+simpl. unfold tc_temp_id. unfold typecheck_temp_id.
+rewrite H1. simpl. auto.
+
+Focus 2. 
+eapply semax_post_flipped.
+
+eapply semax_pre_flipped.
+apply forward_setx_closed_now.
+Focus 7. 
+instantiate (1:=R).
+instantiate (1:=`(typed_false (typeof e1)) (eval_expr e1)
+            :: tc_expr Delta e2 :: Q).
+intro rho. 
+normalize. 
+intros.  
+
+Focus *)
+
+
 Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),

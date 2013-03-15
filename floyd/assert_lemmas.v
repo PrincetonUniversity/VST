@@ -295,11 +295,12 @@ Hint Resolve closed_wrt_eval_expr : closed.
 Lemma closed_wrt_cmp_ptr : forall S e1 e2 c,
   expr_closed_wrt_vars S e1 ->
   expr_closed_wrt_vars S e2 ->
-  closed_wrt_vars S (cmp_ptr_no_mem e1 e2 c).
+  closed_wrt_vars S (`(cmp_ptr_no_mem c) (eval_expr e1) (eval_expr e2)).
 Proof.
 intros. 
 
-unfold closed_wrt_vars. intros. 
+unfold closed_wrt_vars. intros.
+super_unfold_lift. 
 unfold expr_closed_wrt_vars in *. 
 specialize (H rho te' H1). 
 specialize (H0 rho te' H1). 

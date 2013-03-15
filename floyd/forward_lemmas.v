@@ -195,14 +195,14 @@ Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : subst.
 
 
 Lemma forward_ptr_compare_closed_now :
-forall Espec Delta P Q R id e1 e2 cmp ty sh1 sh2, 
+forall Espec Delta P Q R id e1 e2 cmp ty sh1 sh2
+(TID : typecheck_tid_ptr_compare Delta id = true), 
 Forall (closed_wrt_vars (eq id)) Q ->
 Forall (closed_wrt_vars (eq id)) R ->
-closed_wrt_vars (eq id) ((cmp_ptr_no_mem e1 e2 
-                                    (op_to_cmp cmp))) ->
+closed_wrt_vars (eq id) (`(cmp_ptr_no_mem (op_to_cmp cmp)) 
+         (eval_expr e1) (eval_expr e2)) ->
 PROPx P (LOCALx Q (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local `(typecheck_tid_ptr_compare Delta id = true) &&
-      local (blocks_match cmp e1 e2) &&
+      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
 is_comparison cmp = true ->
@@ -212,8 +212,8 @@ is_comparison cmp = true ->
   ((normal_ret_assert
      (EX  old : val,
        PROPx P (LOCALx (`eq (eval_id id) 
-                     (cmp_ptr_no_mem e1 e2 
-                                    (op_to_cmp cmp)) :: Q)
+                     (`(cmp_ptr_no_mem (op_to_cmp cmp))
+                       (eval_expr e1) (eval_expr e2)) :: Q)
           (SEPx  R))))). 
 Proof. 
 intros. 
@@ -235,7 +235,7 @@ apply exp_right. apply Vundef.
 normalize. 
 
 autorewrite with subst in *. normalize. 
-auto. 
+auto. auto.
 Qed. 
 
 Lemma forward_setx_closed_now':
@@ -819,21 +819,21 @@ destruct (eval_expr e1 rho); simpl in *; try contradiction; auto.
 Qed.
 
 
-Lemma forward_ptr_compare': 
+Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
 P |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local `(typecheck_tid_ptr_compare Delta id = true) &&
-      local (blocks_match cmp e1 e2) &&
+      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
 is_comparison cmp = true ->
+typecheck_tid_ptr_compare Delta id = true ->
 @semax Espec Delta
   P
     (Sset id (Ebinop cmp e1 e2 ty))
   ((normal_ret_assert
      (EX  old : val,
-       (local (`eq (eval_id id) (subst id `old (cmp_ptr_no_mem e1 e2 
-                               (op_to_cmp cmp))))) &&
+       (local (`eq (eval_id id) (subst id `old (`(cmp_ptr_no_mem 
+                (op_to_cmp cmp)) (eval_expr e1) (eval_expr e2))))) &&
        (subst id (`old)) P))).
 Proof. 
 intros.
@@ -845,17 +845,51 @@ eapply derives_trans. apply H. normalize.
 intros ek vl rho. unfold normal_ret_assert. simpl. 
 normalize. 
 apply exp_right with x. normalize. 
-auto. 
+auto. auto. 
 Qed. 
+
+
+Lemma forward_ptr_compare' : 
+forall {Espec: OracleKind},
+forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2,
+    is_comparison cmp = true  ->
+    typecheck_tid_ptr_compare Delta id = true ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+         |-- local (tc_expr Delta e1) &&
+             local (tc_expr Delta e2)  && 
+          local (`(SeparationLogic.blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) ->
+   @semax Espec Delta 
+         (PROPx P (LOCALx Q (SEPx R)))
+          (Sset id (Ebinop cmp e1 e2 ty)) 
+        (normal_ret_assert 
+          (EX old:val, 
+           PROPx P
+           (LOCALx (`eq (eval_id id)  (subst id `old 
+                     (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1) (eval_expr e2))) ::
+                       map (subst id `old) Q)
+           (SEPx (map (subst id `old) R))))).
+Proof.
+intros.
+eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) _ _ _ _ _ sh1 sh2)].
+eapply derives_trans; [ | apply now_later].
+apply andp_right; normalize.
+intros ek vl rho. unfold normal_ret_assert. simpl.
+normalize. apply exp_right with x. normalize.
+autorewrite with subst. normalize. 
+auto. auto. 
+Qed.
+
 
 Lemma forward_ptr_compare:
 forall Espec Delta P Q R id e1 e2 sh1 sh2 cmp ty, 
 PROPx P (LOCALx Q (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local `(typecheck_tid_ptr_compare Delta id = true) &&
-      local (blocks_match cmp e1 e2) &&
+      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
       (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
       (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
 is_comparison cmp = true ->
+typecheck_tid_ptr_compare Delta id = true ->
 @semax Espec Delta
   (PROPx P (LOCALx Q (SEPx R)))
     (Sset id (Ebinop cmp e1 e2 ty))
@@ -863,13 +897,13 @@ is_comparison cmp = true ->
      (EX  old : val,
        PROPx P 
         (LOCALx (`eq (eval_id id) 
-                     (subst id `old (cmp_ptr_no_mem e1 e2 
-                                    (op_to_cmp cmp))) ::
+                     (subst id `old (`(cmp_ptr_no_mem (op_to_cmp cmp))
+                              (eval_expr e1) (eval_expr e2))) ::
                      map (subst id (`old)) Q)
           (SEPx (map (subst id (`old)) R)))))). 
 Proof. 
  intros.
- eapply semax_post; [ | apply forward_ptr_compare' with (sh1 := sh1) (sh2 := sh2); auto].
+ eapply semax_post; [ | apply forward_ptr_compare'' with (sh1 := sh1) (sh2 := sh2); auto].
  intros.
  autorewrite with ret_assert subst.
  intro rho. simpl. normalize.

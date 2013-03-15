@@ -107,14 +107,13 @@ match op with
   | _ => false
 end. 
 
-Definition blocks_match op e1 e2 :=
+Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
-  (fun rho => 
-  match (eval_expr e1 rho), (eval_expr e2 rho) with
+  match v1, v2 with
     Vptr b _, Vptr b2 _ => b=b2
     | _, _ => False
-  end)
-| _ => fun rho => True
+  end
+| _ => True
 end. 
 
 Lemma later_sepcon2  {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A}{XA: Age_alg A}:
@@ -173,8 +172,8 @@ destruct (access_mode t); inv H.
 eauto. 
 Qed. 
 
-Definition cmp_ptr_no_mem e1 e2 c rho :=
-match eval_expr e1 rho, eval_expr e2 rho with
+Definition cmp_ptr_no_mem c v1 v2 :=
+match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
   if zeq b b1 then
     Val.of_bool (Int.cmpu c o o1)
@@ -198,13 +197,13 @@ Lemma pointer_cmp_eval :
    forall (jm : juicy_mem) (rho : environ),
    (tc_expr Delta e1 rho) (m_phi jm) ->
    (tc_expr Delta e2 rho) (m_phi jm) ->
-   blocks_match cmp e1 e2 rho ->
+   blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
    typecheck_environ Delta rho ->
    (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT)%pred (m_phi jm) ->
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    Cop.sem_binary_operation cmp (eval_expr e1 rho) 
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
-   Some (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho). 
+   Some (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)). 
 Proof.
 intros until rho. intros ? ? BM.  intros.
 unfold cmp_ptr_no_mem.  
@@ -240,12 +239,10 @@ apply mapsto_valid_pointer in MT_2.
  
 
 unfold Cop.sem_binary_operation. 
-destruct cmp; inv H; simpl in BM; try rewrite H3 in *; 
+destruct cmp; inv H; try rewrite H3 in *; 
 try rewrite H4 in *; subst;
 unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto. 
-
-
 Qed. 
 
 Lemma pointer_cmp_no_mem_bool_type : 
@@ -255,11 +252,11 @@ Lemma pointer_cmp_no_mem_bool_type :
    forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
    eval_expr e2 rho = Vptr b2 o2 ->
-   blocks_match cmp e1 e2 rho ->
+   blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    denote_tc_assert (typecheck_expr Delta e2) rho ->
    typecheck_environ Delta rho ->
-   typecheck_val (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho) ty = true. 
+   typecheck_val (cmp_ptr_no_mem  (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) ty = true. 
 Proof.
 intros. 
 apply typecheck_both_sound in H4; auto. 
@@ -288,11 +285,12 @@ end.
 Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
+    (typecheck_tid_ptr_compare Delta id = true) ->
     semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
-          !!(typecheck_tid_ptr_compare Delta id = true) &&  
-          !!(blocks_match cmp e1 e2 rho) &&
+          
+          !!(blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) &&
           (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
           (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
           P rho)) 
@@ -300,38 +298,35 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
         (normal_ret_assert 
           (fun rho => (EX old:val, 
                  !!(eval_id id rho =  subst id old 
-                     (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp)) rho) &&
+                     (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1 ) (eval_expr e2)) rho) &&
                             subst id old P rho))).
 Proof. 
 intros until sh2.
 replace (fun rho : environ =>
    |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
-          !!(typecheck_tid_ptr_compare Delta id = true) && 
-           !!blocks_match cmp e1 e2 rho &&
+           !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
           (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
           (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
           P rho)) 
  with (fun rho : environ =>
      (|> tc_expr Delta e1 rho &&
       |> tc_expr Delta e2 rho &&
-      |> !!(typecheck_tid_ptr_compare Delta id = true) &&
-      |> !!blocks_match cmp e1 e2 rho &&
+      |> !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
       |> (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
       |> (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
       |> P rho)) 
   by (extensionality rho;  repeat rewrite later_andp; auto).
-intros CMP. 
+intros CMP TC2. 
 apply semax_straight_simple; auto. admit. 
-intros jm jm' ge vx tx rho k F [[[[[TC3 TC1] TC2] TC4] MT1] MT2] TC' Hcl Hge ? ?.
+intros jm jm' ge vx tx rho k F [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ?.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))). 
 specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))). 
 specialize (MT1 (m_phi jm') (age_laterR (age_jm_phi H))). 
 specialize (MT2 (m_phi jm') (age_laterR (age_jm_phi H))). 
 
 
-exists jm', (PTree.set id (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho) (tx)).
+exists jm', (PTree.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho) ) (tx)).
 econstructor.
 split.
 reflexivity.
@@ -400,7 +395,7 @@ specialize (H2 _ H3).
 eapply sepcon_derives; try  apply H2; auto.
 clear - Hcl Hge.
 rewrite <- map_ptree_rel. 
-specialize (Hcl rho (Map.set id (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho) (make_tenv tx))).
+specialize (Hcl rho (Map.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
@@ -413,7 +408,7 @@ apply exp_right with (eval_id id rho).
 rewrite <- map_ptree_rel.
 assert (env_set
          (mkEnviron (ge_of rho) (ve_of rho)
-            (Map.set id (cmp_ptr_no_mem e1 e2 (op_to_cmp cmp) rho) (make_tenv tx))) id (eval_id id rho) = rho).
+            (Map.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) (make_tenv tx))) id (eval_id id rho) = rho).
   unfold env_set; 
   f_equal.
   unfold eval_id; simpl.
