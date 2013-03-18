@@ -258,7 +258,8 @@ Proof.
     destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]].
     eapply external_call_mem_forward; eauto.
     eapply external_call_mem_forward; eauto.
-    assumption.
+    eapply mem_unchanged_on_sub; eauto.
+    solve[intros b ofs [? ?]; auto].
     assumption.
     assumption.
     apply (external_call_well_typed _ _ _ _ _ _ _ extCall2Genv2). 

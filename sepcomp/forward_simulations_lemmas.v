@@ -200,7 +200,8 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (loc_out_of_bounds m1) m2 m2' -> 
+        mem_unchanged_on (fun b ofs => 
+          loc_out_of_bounds m1 b ofs /\ private_block Sem1 st1 b) m2 m2' -> 
        (*ie spill-locations didn't change*)        
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
@@ -222,7 +223,7 @@ Hypothesis ext_simulation:
       exists c2', exists m2', 
         match_states c1' c1' m1' c2' m2' /\
         mem_unchanged_on (fun b ofs => 
-          loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 c1 b) m1 m1' /\
+          loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 c1 b) m2 m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
@@ -259,7 +260,7 @@ Section EXT_SIMULATION_STAR.
             match_states c1' c1' m1' c2' m2' /\
             mem_unchanged_on
             (fun (b : block) (ofs : Z) =>
-              loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
+              loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m2 m2' /\
             (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
              corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure c1' c1).
 
@@ -285,7 +286,7 @@ Section EXT_SIMULATION_PLUS.
         match_states c1' c1' m1' c2' m2' /\
         mem_unchanged_on
         (fun (b : block) (ofs : Z) =>
-          loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m1 m1'.
+          loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m2 m2'.
 
 Lemma ext_simulation_plus: 
   Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 ge1 ge2 entry_points.

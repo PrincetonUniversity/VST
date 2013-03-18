@@ -127,7 +127,10 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         exists st2', exists m2', exists cd',
           match_state cd' st1' m1' st2' m2' /\
           mem_unchanged_on (fun b ofs => 
-            loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
+            (*I'm not sure whether this should be ~private_block st1 or
+               ~private_block st2.  Perhaps it doesn't matter if we know that 
+               private_block st2 -> private_block st1 over extension passes. *)
+            loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 st1 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -172,7 +175,8 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (loc_out_of_bounds m1) m2 m2' -> 
+        mem_unchanged_on (fun b ofs => 
+          loc_out_of_bounds m1 b ofs /\ private_block Sem1 st1 b) m2 m2' -> 
        (*i.e., spill-locations didn't change*)
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
@@ -196,7 +200,7 @@ End Forward_simulation_ext.
 Module Coop_forward_simulation_ext. Section Forward_simulation_extends. 
   Context {G1 C1 D1 G2 C2 D2:Type}
           {Sem1 : CoopCoreSem G1 C1 D1}
-          {Sem2 : CoopCoreSem  G2 C2 D2}
+          {Sem2 : CoopCoreSem G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -820,17 +824,17 @@ Proof.
 Qed.
 
 Inductive cc_sim (I: forall F C V 
-                     (Sem : CoopCoreSem (Genv.t F V) C (list (ident * globdef F V)))
-                     (P : AST.program F V),Prop)
+          (Sem : RelyGuaranteeSemantics (Genv.t F V) C (list (ident * globdef F V)))
+          (P : AST.program F V), Prop)
 (ExternIdents: list (ident * external_description)) entrypoints:
 forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2), Type :=
   ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-    (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+    (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+    (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
     (P1 : AST.program F1 V1)
     (P2 : AST.program F2 V2)
     (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -844,8 +848,8 @@ forall (F1 C1 V1 F2 C2 V2:Type)
     I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
     cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -860,8 +864,8 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    jInit

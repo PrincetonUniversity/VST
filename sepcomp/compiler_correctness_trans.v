@@ -1515,9 +1515,9 @@ Qed.
 End EQINJ.
 
 Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2156,9 +2156,9 @@ Qed.
 End EXTINJ.
 
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2793,9 +2793,9 @@ Qed.
 End INJEXT.
 
 Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (e12 : prog_main P1 = prog_main P2)
@@ -2896,12 +2896,12 @@ Qed.
 
 Theorem cc_trans:
      forall ExternIdents entrypoints12 I F1 C1 V1 F2 C2 V2
-        (Sem1: CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-        (Sem2: CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+        (Sem1: RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+        (Sem2: RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
         P1 P2 
         (SIM12: CompilerCorrectness.cc_sim I ExternIdents entrypoints12 F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2)
         F3 V3 C3
-        (Sem3: CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+        (Sem3: RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
         entrypoints23 P3 
         (SIM23:CompilerCorrectness.cc_sim I ExternIdents entrypoints23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
         entrypoints13 (EPC:entrypoints_compose entrypoints12 entrypoints23 entrypoints13),
