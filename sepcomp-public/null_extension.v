@@ -208,13 +208,24 @@ Section NullExtensionSafe.
 End NullExtensionSafe.
 
  Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
-         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ef_ext_spec mem Z)
+         (csem: RelyGuaranteeSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z)
          (csem_fun: corestep_fun csem),
-   core_compatible ge (fun _:nat => ge) (null_extension csem csig).
+   core_compatible csem (const csem) ge (fun _:nat => ge) (null_extension csem csig).
  Proof.
  intros until csig.
  intros CSEM_FUN.
  constructor; simpl; auto.
+
+ intros until m'; intros H1 H2 H3 b H4.
+ hnf; unfold const; hnf.
+ unfold proj_core in H1.
+ simpl in H1; inv H1.
+ assert (c' = s'). 
+  eapply CSEM_FUN in H2; eauto.
+  specialize (H2 H3).
+  solve[inv H2; auto].
+ solve[subst c'; auto].
+
  intros until c; intros H1 H2 H3.
  exists s'.
  simpl; unfold cores, active; simpl; split; auto.
@@ -236,8 +247,7 @@ End NullExtensionSafe.
  intros until m'; intros H1 H2.
  exists c'.
  unfold cores, active in H2.
- unfold proj_core in H1.
- solve[if_tac in H1; try congruence].
+ solve[unfold proj_core in H1; simpl in H1; inv H1; auto].
 
  intros until m'; intros H1 H2 H3; intros j; intros q H4.
  unfold cores, active in *.
@@ -306,7 +316,7 @@ Section NullExtensionCompilable.
  Import ExtensionCompilability2.
 
  Variable core_data: Type.
- Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
+ Variable match_state: core_data -> kpair -> meminj -> cS -> mem -> cT -> mem -> Prop. 
  Variable core_ord: core_data -> core_data -> Prop.
  Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
    geS geT entry_points core_data match_state core_ord.
@@ -316,8 +326,8 @@ Section NullExtensionCompilable.
  Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
 
  Variable match_state_runnable: 
-  forall cd j s1 m1 s2 m2,
-  match_state cd j s1 m1 s2 m2 -> 
+  forall cd k1 k2 j s1 m1 s2 m2,
+  match_state cd (k1, k2) j s1 m1 s2 m2 -> 
   rg_forward_simulations.runnable csemS s1=rg_forward_simulations.runnable csemT s2.
 
  Lemma null_extension_compilable: 
@@ -326,7 +336,7 @@ Section NullExtensionCompilable.
  Proof.
  (*SOLVED BY econstructor; eauto.  WE'LL USE THE PROVIDED LEMMAS INSTEAD.*)
  intros H1 H2 H3.
- set (R := fun (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
+ set (R := fun (_:kpair) (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig 
@@ -336,9 +346,9 @@ Section NullExtensionCompilable.
  solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
  solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
  unfold E_S, const.
- solve[apply (null_core_compatible geS csig H1)].
+ solve[apply (null_core_compatible geS csemS csig H1)].
  unfold E_T, const.
- solve[apply (null_core_compatible geT csig H2)].
+ solve[apply (null_core_compatible geT csemT csig H2)].
  solve[apply null_private_conserving].
  solve[apply null_private_conserving].
 
@@ -359,10 +369,32 @@ Section NullExtensionCompilable.
  solve[eapply core_at_external0 in H6; eauto].
  
  intros; destruct core_simulation.
- destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 m2 H0 H4 H5 H6) 
+
+ destruct (core_initial0 v1 v2 sig H vals1 s1 m1 (k1,k2) j vals2 m2 H0 H4 H5 H6) 
   as [cd [s2 [H7 H8]]].
  exists (fun _ => cd); exists s2; split; auto. 
+ hnf.
+
+ exploit knowledge_disjoint0; eauto.
+ solve[intros [? ?]; auto].
+ split.
+ exploit knowledge_disjoint0; eauto.
+ solve[intros [? ?]; auto].
  split; auto.
+ hnf.
+ split; auto.
+ exploit knowledge_disjoint0; eauto.
+ solve[intros [? ?]; auto].
+ split.
+ exploit knowledge_disjoint0; eauto.
+ solve[intros [? ?]; auto].
+ split; auto.
+ intros.
+ solve[exploit knowledge_injects0; eauto].
+
+ split.
+ split; auto.
+ admit.
 
  intros i c PROJ b PRIV.
  unfold const in PRIV.
@@ -408,7 +440,7 @@ Section NullExtensionCompilable.
 
  intros until v1; intros ty MATCH12 HALT HASTY.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
- destruct MATCH12 as [? [? [? [? [? [? MATCH12]]]]]].
+ destruct MATCH12 as [? [? [? [? [? [? [? [? [? MATCH12]]]]]]]]].
  specialize (MATCH12 O c1).
  spec MATCH12; auto.
  destruct MATCH12 as [c2' [PROJ MATCH12]].

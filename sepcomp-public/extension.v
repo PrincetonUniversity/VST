@@ -11,6 +11,7 @@ Require Import sepcomp.rg_forward_simulations.
 Require Import AST. (*for typ*)
 Require Import Values. (*for val*)
 Require Import Integers.
+Require Import Memory.
 
 Set Implicit Arguments.
 
@@ -74,21 +75,22 @@ Implicit Arguments Extension.Make [G xT cT M D Z Zint Zext].
    inner cores. Perhaps some of these conditions could be merged with those for
    "safe" extensions. *)
 
+Require Import Coqlib.
+
 Section CoreCompatible. Variables 
- (M: Type) (** memories *)
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
  (D: Type) (** extension initialization data *)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
- (esig: ef_ext_spec M Zext) (** extension signature *)
+ (esem: RelyGuaranteeSemantics G xT D) (** extended semantics *)
+ (esig: ext_spec Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
- (csig: ef_ext_spec M Z). (** client signature *)
+ (csem: forall i:nat, RelyGuaranteeSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
+ (csig: ext_spec Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
  Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
@@ -96,6 +98,14 @@ Section CoreCompatible. Variables
  Import Extension.
 
  Inductive core_compatible: Type := CoreCompatible: forall
+ (** Private blocks over coresteps *)
+ (private_corestep: forall s c m s' c' m',
+   proj_core E (active E s) s = Some c -> 
+   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+   corestep esem ge s m s' m' -> 
+   forall b: block, b >= Mem.nextblock m -> 
+     (private_block esem s' b <-> private_block (csem (active E s)) c' b))
+
  (** When the active thread is runnable, a step in the extended semantics can be
     tracked back to a corestep of the active thread. *)
  (runnable_corestep: forall s m s' m' c,

@@ -58,7 +58,8 @@ Variables (cT fT vT: nat -> Type)
    forall (id: ident) (i: nat), 
    procedure_linkage_table id = Some i -> i < num_modules)
  (modules: forall i: nat, i < num_modules -> CompCertModule.Sig (fT i) (vT i) (cT i))
- (entry_points: list (val*val*signature)).
+ (entry_points: list (val*val*signature))
+ (main_id: ident).
 
 Implicit Arguments plt_ok [].
 
@@ -186,8 +187,6 @@ Definition linker_safely_halted (s: linker_corestate) :=
      safely_halted (get_module_csem (modules pf_i)) c
   | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => None
   end.
-
-Definition main_id := 1%positive. (*hardcoded*)
 
 Definition linker_initial_mem (ge: Genv.t F V) (m: mem) (init_data: list (ident * globdef F V)) := 
   mem_wd m /\
@@ -763,7 +762,8 @@ Variables
  (modules: forall i: nat, i < num_modules -> 
    CompCertModule.Sig (fT i) (vT i) (cT i))
  (csig: ext_spec Z) (esig: ext_spec Zext)
- (entry_points: list (val*val*signature)).
+ (entry_points: list (val*val*signature))
+ (main_id: ident).
 
 Definition genv_map: nat -> Type := fun i: nat => Genv.t (fT i) (vT i).
 
@@ -932,10 +932,10 @@ Qed.
 Program Definition linking_extension: 
  @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
      (linker_corestate num_modules cT modules) 
-     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points main_id)
      esig _ _ cT csem_map csig :=
  Extension.Make 
-  (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+  (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points main_id)
   esig _ _ csem_map csig 
   (const num_modules)
   linker_proj_core _  
@@ -968,7 +968,7 @@ Lemma linker_stepN s c m c' m' n ge
  linker_proj_core (linker_active s) s = Some c -> 
  corestepN (csem_map (linker_active s)) (genvs (linker_active s)) n c m c' m' ->
  exists s', corestepN 
-  (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
+  (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points main_id) 
   ge n s m s' m' /\ linker_active s=linker_active s /\
   linker_proj_core (linker_active s) s' = Some c'.
 Proof.
@@ -1003,7 +1003,7 @@ Qed.
 
 Lemma linker_private_conserving: 
  private_conserving 
-  (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
+  (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points main_id) 
    csem_map linking_extension.
 Proof.
 unfold private_conserving.
@@ -1032,7 +1032,7 @@ Lemma linker_step_lem:
  (csem_fun: forall i: nat, corestep_fun (csem_map i)),
  corestep (csem_map i) (genvs i) c2 m2 c2' m2' -> 
  corestep (linker_core_semantics F V cT fT vT procedure_linkage_table
-             plt_ok modules entry_points) ge  
+             plt_ok modules entry_points main_id) ge  
            (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
   s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
 Proof.
@@ -1082,7 +1082,7 @@ Lemma linker_core_compatible: forall (ge: Genv.t F V)
    (csem_fun: forall i: nat, corestep_fun (csem_map i)),
  @core_compatible _ _ _ _ (Genv.t F V) (list (ident*globdef F V)) 
         (linker_corestate num_modules cT modules) 
-        (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
+        (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points main_id) 
         esig (fun i => Genv.t (fT i) (vT i)) init_data cT
         csem_map csig ge genvs linking_extension.
 Proof.
@@ -1506,7 +1506,7 @@ Import Forward_simulation_inj_exposed.
 
 Variable core_data: nat -> Type.
 Variable match_state: forall i: nat,
- core_data i ->  meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ core_data i ->  kpair -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
 Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
 Variable threads_max: nat. 
 Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
@@ -1525,42 +1525,42 @@ Variable core_simulations: forall i: nat,
 
 Implicit Arguments linker_corestate [fT vT].
 
-Fixpoint tl_inv j m1 m2 
+Fixpoint tl_inv j kp m1 m2 
     (stack1: call_stack cS num_modules) (stack2: call_stack cT num_modules) := 
  match stack1, stack2 with
  | nil, nil => True
  | mkFrame i pf_i c_i :: stack1', mkFrame k pf_k c_k :: stack2' => 
-   (exists pf: k=i, exists cd0, exists j0, exists m10, exists m20,
-     @match_state i cd0 j0 c_i m10 (eq_rect k (fun x => cT x) c_k i pf) m20 /\
+   (exists pf: k=i, exists cd0, exists kp0, exists j0, exists m10, exists m20,
+     @match_state i cd0 kp0 j0 c_i m10 (eq_rect k (fun x => cT x) c_k i pf) m20 /\
      Mem.inject j0 m10 m20 /\
+     knowledge_incr2 kp0 kp /\
+     knowledge_separated2 kp0 kp m10 m20 /\
      inject_incr j0 j /\
      inject_separated j0 j m10 m20 /\
      mem_forward m10 m1 /\
      mem_unchanged_on (fun b ofs => 
-       loc_unmapped j0 b ofs /\ 
        private_block (get_module_csem (modules_S pf_i)) c_i b) m10 m1 /\
      mem_forward m20 m2 /\
      mem_unchanged_on (fun b ofs => 
-       loc_out_of_reach j0 m10 b ofs /\ 
        private_block (get_module_csem (modules_T pf_k)) c_k b) m20 m2) /\
-   tl_inv j m1 m2 stack1' stack2'
+   tl_inv j kp m1 m2 stack1' stack2'
  | _, _ => False
  end.
 
-Definition stack_inv j m1 m2 
+Definition stack_inv k1 k2 j m1 m2 
     (stack1: call_stack cS num_modules) (stack2: call_stack cT num_modules) := 
  match stack1, stack2 with
  | nil, nil => True
  | mkFrame i pf_i c_i :: stack1', mkFrame k pf_k c_k :: stack2' => 
    exists pf: k=i,
-   (exists cd, @match_state i cd j c_i m1 (eq_rect k (fun x => cT x) c_k i pf) m2) /\
-   tl_inv j m1 m2 stack1' stack2'
+   (exists cd, @match_state i cd (k1, k2) j c_i m1 (eq_rect k (fun x => cT x) c_k i pf) m2) /\
+   tl_inv j (k1, k2) m1 m2 stack1' stack2'
  | _, _ => False
  end.
 
 Lemma tl_inv_length_eq: 
- forall j m1 m2 stack1 stack2,
- tl_inv j m1 m2 stack1 stack2 -> length stack1=length stack2.
+ forall j kp m1 m2 stack1 stack2,
+ tl_inv j kp m1 m2 stack1 stack2 -> length stack1=length stack2.
 Proof.
 intros until stack2.
 revert stack2; induction stack1; simpl; auto.
@@ -1580,8 +1580,8 @@ solve[destruct H as [? [? [? H]]]; auto].
 Qed.
 
 Lemma stack_inv_length_eq: 
- forall j m1 m2 stack1 stack2,
- stack_inv j m1 m2 stack1 stack2 -> length stack1=length stack2.
+ forall k1 k2 j m1 m2 stack1 stack2,
+ stack_inv k1 k2 j m1 m2 stack1 stack2 -> length stack1=length stack2.
 Proof.
 intros until stack2.
 destruct stack1; destruct stack2; simpl; auto.
@@ -1596,16 +1596,18 @@ destruct H as [? [? H]].
 solve[f_equal; eapply tl_inv_length_eq; eauto].
 Qed.
 
-Definition R_inv (j:meminj) (x:linker_corestate num_modules cS modules_S) (m1:mem) 
-                            (y:linker_corestate num_modules cT modules_T) (m2:mem) := 
+Definition R_inv (kp: kpair) (j:meminj) 
+     (x:linker_corestate num_modules cS modules_S) (m1:mem) 
+     (y:linker_corestate num_modules cT modules_T) (m2:mem) := 
+ match kp with (k1, k2) => 
  match x, y with
  | mkLinkerCoreState stack1 _ _, mkLinkerCoreState stack2 _ _ => 
     private_valid_inv fS vS modules_S m1 stack1 /\
     private_disjoint_inv fS vS modules_S stack1 /\
     private_valid_inv fT vT modules_T m2 stack2 /\
     private_disjoint_inv fT vT modules_T stack2 /\
-    stack_inv j m1 m2 stack1 stack2
- end.
+    stack_inv k1 k2 j m1 m2 stack1 stack2
+ end end.
 
 (*Remember: globals aren't injected; we should be able to show that entry points 
   remain equal across compilation phases.*)
@@ -1615,11 +1617,13 @@ Variable entry_points_eq:
  List.In (v1, v2, sig) entry_points -> 
  exists b, exists ofs, v1 = Vptr b ofs /\ v2 = Vptr b ofs.
 
+Variable main_id: ident.
+
 Lemma linker_step_lem1: 
  forall i c2 m2 c2' m2' s2' pf_i stack pf1 pf2,
  corestep (csem_map_S i) (genv_mapS i)  c2 m2 c2' m2' -> 
  corestep (linker_core_semantics F_S V_S cS fS vS procedure_linkage_table
-             plt_ok modules_S entry_points) geS  
+             plt_ok modules_S entry_points main_id) geS  
            (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
   s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
 Proof.
@@ -1664,7 +1668,7 @@ Lemma linker_step_lem2:
  forall n i c2 m2 c2' m2' s2' pf_i stack pf1 pf2,
  corestepN (csem_map_T i) (genv_mapT i) n c2 m2 c2' m2' -> 
  corestepN (linker_core_semantics F_T V_T cT fT vT procedure_linkage_table
-             plt_ok modules_T entry_points) geT n 
+             plt_ok modules_T entry_points main_id) geT n 
            (mkLinkerCoreState (mkFrame i pf_i c2::stack) pf1 pf2) m2 s2' m2' ->
   s2' = mkLinkerCoreState (mkFrame i pf_i c2'::stack) pf1 pf2.
 Proof.
@@ -1798,33 +1802,33 @@ Lemma linking_extension_compilable
   (cd_init: CompilabilityInvariant.core_datas core_data):
  CompilableExtension.Sig 
  (@rg_linker_core_semantics F_S V_S num_modules cS fS vS 
-   procedure_linkage_table plt_ok modules_S entry_points)
+   procedure_linkage_table plt_ok modules_S entry_points main_id)
  (@rg_linker_core_semantics F_T V_T num_modules cT fT vT 
-   procedure_linkage_table plt_ok modules_T entry_points)
+   procedure_linkage_table plt_ok modules_T entry_points main_id)
  geS geT entry_points.
 Proof.
 set (R := R_inv).
 destruct (@ExtensionCompilability 
  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  (@rg_linker_core_semantics F_S V_S num_modules cS fS vS 
-   procedure_linkage_table plt_ok modules_S entry_points)
+   procedure_linkage_table plt_ok modules_S entry_points main_id)
  (@rg_linker_core_semantics F_T V_T num_modules cT fT vT 
-   procedure_linkage_table plt_ok modules_T entry_points)
+   procedure_linkage_table plt_ok modules_T entry_points main_id)
  csem_map_S csem_map_T Hspec Hexternal_spec
  geS geT genv_mapS genv_mapT 
  (@linking_extension F_S V_S Z Zext proj_zext zmult proj_zmult cS fS vS 
    num_modules procedure_linkage_table plt_ok modules_S Hspec Hexternal_spec 
-   entry_points linkableS_csig_esig)
+   entry_points main_id linkableS_csig_esig)
  (@linking_extension F_T V_T Z Zext proj_zext zmult proj_zmult cT fT vT 
    num_modules procedure_linkage_table plt_ok modules_T Hspec Hexternal_spec 
-   entry_points linkableT_csig_esig)
+   entry_points main_id linkableT_csig_esig)
  entry_points core_data match_state core_ord threads_max R)
  as [LEM].
 apply LEM; auto.
 unfold genv_mapS.
 apply (@linker_core_compatible F_S V_S Z Zext proj_zext zmult proj_zmult cS fS vS
   num_modules procedure_linkage_table plt_ok 
-  modules_S Hspec Hexternal_spec entry_points linkableS_csig_esig); auto.
+  modules_S Hspec Hexternal_spec entry_points main_id linkableS_csig_esig); auto.
  clear - domain_eq_S.
  unfold genv_mapS, genvs in domain_eq_S.
  intros k pf_k.
@@ -1833,7 +1837,7 @@ apply (@linker_core_compatible F_S V_S Z Zext proj_zext zmult proj_zmult cS fS v
  solve[assert (pf_k = l) as -> by apply proof_irr; auto]. 
 apply (@linker_core_compatible F_T V_T Z Zext proj_zext zmult proj_zmult cT fT vT
   num_modules procedure_linkage_table plt_ok 
-  modules_T Hspec Hexternal_spec entry_points linkableT_csig_esig); auto.
+  modules_T Hspec Hexternal_spec entry_points main_id linkableT_csig_esig); auto.
  clear - domain_eq_T.
  unfold genv_mapT, genvs in domain_eq_T.
  intros k pf_k.
@@ -1846,8 +1850,8 @@ clear LEM; constructor; simpl.
 
 (*1*)
 intros until cd'; intros H1 H2. 
-intros [_ [_ [_ [_ [RR [H3 H4]]]]]].
-intros H5 H6 H7 H8 STEP1 STEP2 ESTEP1 ESTEP2 MATCH'.
+intros [KDISJ1 [KDISJ2 [KINJ [_ [_ [_ [_ [RR [H3 H4]]]]]]]]].
+intros H5 H6 KINCR KSEP H7 H8 STEP1 STEP2 ESTEP1 ESTEP2 MATCH'.
 simpl in *.
 unfold R, R_inv in RR|-*.
 destruct s1; destruct s2; simpl in *.
@@ -1880,7 +1884,7 @@ split; auto.
 
 simpl; split; auto.
 intros b H10.
-eapply private_valid_invariant 
+apply private_valid_invariant 
  with (stack' := mkFrame i0 PF c1' :: stack)
       (m' := m1') 
       (pf1' := stack_nonempty) 
@@ -1888,6 +1892,13 @@ eapply private_valid_invariant
       (procedure_linkage_table := procedure_linkage_table) 
       (plt_ok := plt_ok) 
       (n := S O)
+      (main_id := main_id)
+      (F := F_S)
+      (V := V_S)
+      (ge0 := geS)
+      (entry_points := entry_points)
+      (pf1 := stack_nonempty)
+      (pf2 := callers_at_external)
       in PRIV1; auto.
 simpl in PRIV1.
 destruct PRIV1 as [X Y].
@@ -1895,6 +1906,7 @@ apply (X b); auto.
 exists (mkLinkerCoreState (mkFrame i0 PF c1' :: stack) 
            stack_nonempty callers_at_external).
 exists m1'.
+simpl.
 solve[simpl; split; eauto].
 simpl in PRIV1.
 destruct PRIV1 as [X Y].
@@ -1903,7 +1915,7 @@ apply corestep_fwd in STEP1'.
 solve[apply forward_nextblock; auto].
 split.
 eapply private_disjoint_invariant
- with (n := S O).
+ with (n := S O) (main_id := main_id).
 simpl.
 exists (mkLinkerCoreState (mkFrame i0 PF c1' :: stack) 
            stack_nonempty callers_at_external).
@@ -1911,7 +1923,6 @@ exists m1'.
 solve[split; eauto].
 solve[auto].
 solve[auto].
-
 split.
 simpl; split. 
 intros b H10.
@@ -1946,22 +1957,73 @@ exists (@refl_equal _ i0).
 split.
 solve[exists cd'; auto].
 
-(*tl_inv PROOF*)
+(*BEGIN tl_inv PROOF*)
 apply corestep_fwd in STEP1'.
 apply corestepN_fwd in STEP2'.
-clear - H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim H H0 DISJ1 DISJ2 STEP1' STEP2'.
-revert stack0 STACK DISJ2; induction stack.
-intros stack0; destruct stack0; simpl; auto.
-intros stack0; destruct stack0; simpl; auto.
+clear - KDISJ1 KDISJ2 KINCR KSEP
+ H5 H6 H7 H8 PF MATCH' MATCH STACK RGsim H H0 DISJ1 DISJ2 STEP1' STEP2'.
+generalize dependent stack0. induction stack.
+solve[intros stack0 stack_nonempty0 callers_at_external0; destruct stack0; simpl; auto].
+intros stack0 stack_nonempty0 callers_at_external0; destruct stack0; simpl; auto.
 destruct a; destruct f.
-intros [[PF' [cd0 [j0 [m10 [m20 [QQ1 [QQINJ [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 MATCH'']]]]]]]]]]]] STACK'].
+intros KDISJ2 DISJ2.
+intros [[PF' [cd0 [kp0 [j0 [m10 [m20 
+  [QQ1 [QQINJ [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 [QQ7 [QQ8 MATCH'']]]]]]]]]]]]]]]
+  STACK'].
 subst.
 rewrite <-Eqdep_dec.eq_rect_eq_dec in QQ1; try solve[apply eq_nat_dec].
 split; auto.
-exists (@refl_equal _ i); exists cd0; exists j0; exists m10; exists m20.
+exists (@refl_equal _ i); exists cd0; exists kp0; exists j0; exists m10; exists m20.
 split; auto.
 split; auto.
 split; auto.
+
+Lemma knowledge_incr2_trans: 
+  forall kp1 kp2 kp3,
+  knowledge_incr2 kp1 kp2 -> 
+  knowledge_incr2 kp2 kp3 -> 
+  knowledge_incr2 kp1 kp3.
+Proof.
+intros ? ? ?; destruct kp1; destruct kp2; destruct kp3; simpl.
+unfold knowledge_incr in *.
+intros [H1 H2][H3 H4]; split; auto.
+Qed.
+
+Lemma knowledge_sep2_trans:
+  forall kp1 kp2 kp3 m1 m2 m1' m2',
+  knowledge_separated2 kp1 kp2 m1 m2 -> 
+  knowledge_separated2 kp2 kp3 m1' m2' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' -> 
+  knowledge_separated2 kp1 kp3 m1 m2.
+Proof.
+intros until m2'; intros H1 H2 H3 H4.
+destruct kp1; destruct kp2; destruct kp3; simpl in *.
+split.
+unfold knowledge_separated in *.
+intros b H5 H6 H7.
+destruct (H3 b H7) as [H8 _].
+destruct H1 as [H1 _].
+destruct H2 as [H2 _].
+eapply H2; eauto.
+intros H9.
+solve[eapply H1; eauto].
+unfold knowledge_separated in *.
+intros b H5 H6 H7.
+destruct (H4 b H7) as [H8 _].
+destruct H1 as [_ H1].
+destruct H2 as [_ H2].
+eapply H2; eauto.
+intros H9.
+solve[eapply H1; eauto].
+Qed.
+  
+solve[apply knowledge_incr2_trans with (kp2 := (k1,k2)); auto].
+split; auto.
+destruct KSEP as [KSEP1 KSEP2].
+eapply knowledge_sep2_trans with (kp2 := (k1,k2)) (m1' := m1) (m2' := m2); eauto.
+solve[split; auto].
+split.
 solve[eapply inject_incr_trans; eauto].
 split; auto.
 solve[eapply inject_separated_incr_fwd2; eauto].
@@ -1969,13 +2031,24 @@ split; auto.
 eapply mem_forward_trans; eauto.
 split; auto.
 
-eapply mem_unchanged_unmapped_trans; eauto.
+cut (mem_unchanged_on
+  (fun (b : block) (_ : BinInt.Z) =>
+    private_block (get_module_csem (modules_S PF1)) c b) m1 m1').
+ admit. (*eapply mem_unchanged_unmapped_trans; eauto.*) 
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\
+  ~k1 b /\
   ~private_block (csem_map_S i0) c1 b); auto.
-intros b ofs [? ?]; split; auto.
+intros b ofs ?; split; auto.
 intros CONTRA.
-clear - DISJ1 CONTRA H2.
+clear - KDISJ1 CONTRA H1.
+ hnf in KDISJ1.
+ eapply KDISJ1; eauto.
+ hnf.
+ right.
+ hnf.
+ solve[left; auto].
+intro CONTRA.
+clear - DISJ1 CONTRA H1.
 simpl in DISJ1.
 destruct DISJ1 as [[X _] _].
 apply (X b); auto.
@@ -1987,15 +2060,25 @@ solve[assert (l = PF) as -> by apply proof_irr; auto].
 split; auto.
 solve[eapply mem_forward_trans; eauto].
 
-apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
-intros b ofs p H1 H2.
-solve[destruct (QQ4 b H1); auto].
+cut (
+   mem_unchanged_on
+     (fun (b : block) (_ : BinInt.Z) =>
+      private_block (get_module_csem (modules_T PF2)) c0 b) m2 m2').
+ admit. (*apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.*)
+(*intros b ofs p H1 H2.
+solve[destruct (QQ4 b H1); auto].*)
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\
+  ~k2 b /\
   ~private_block (csem_map_T i0) c2 b); auto.
-intros b ofs [? ?]; split; auto.
+intros b ofs ?; split; auto.
 intros CONTRA.
-clear - DISJ2 CONTRA H2.
+clear - KDISJ2 CONTRA H1.
+eapply KDISJ2; eauto.
+hnf.
+right.
+solve[left; auto].
+intros CONTRA.
+clear - DISJ2 CONTRA H1.
 destruct DISJ2 as [[X _] _].
 apply (X b); auto.
 revert CONTRA.
@@ -2003,17 +2086,32 @@ unfold csem_map_T, csem_map.
 destruct (lt_dec i0 num_modules); try solve[congruence].
 solve[assert (l = PF0) as -> by apply proof_irr; auto].
 
-clear - DISJ1 DISJ2 IHstack STACK'.
-apply IHstack; auto.
+clear - KDISJ1 KDISJ2 DISJ1 DISJ2 IHstack STACK' 
+ stack_nonempty0 callers_at_external0 callers_at_external.
+eapply IHstack; eauto.
+hnf in KDISJ1|-*.
+intros.
+intros CONTRA.
+eapply KDISJ1; eauto.
+hnf in CONTRA|-*.
+destruct CONTRA; auto.
+solve[right; hnf; auto].
 destruct DISJ1 as [[X Y] [Z W]].
 solve[split; auto].
+hnf in KDISJ2|-*.
+intros.
+intros CONTRA.
+eapply KDISJ2; eauto.
+hnf in CONTRA|-*.
+destruct CONTRA; auto.
+solve[right; hnf; auto].
 destruct DISJ2 as [[X Y] [Z W]].
 solve[split; auto].
 (*END tl_inv PROOF*)
 
 (*2*)
-intros until args1; intros [_ [_ [_ [_ [RR [H1 H2]]]]]]; simpl in *.
-intros H3 H4 H5 H6 H7 H8 H9 AT_EXT H10 H11.
+intros until args1; intros [KDISJ1 [KDISJ2 [KINJ [_ [_ [_ [_ [RR [H1 H2]]]]]]]]]; simpl in *.
+intros KINC KSEP H3 H4 H5 H6 H7 H8 H9 AT_EXT H10 H11.
 unfold R, R_inv in *.
 intros HAS_TY1 HAS_TY2 INJ.
 destruct s1; destruct s2; simpl in *.
@@ -2128,7 +2226,7 @@ case_eq (at_external (get_module_csem (modules_S PF)) c).
 2: solve[intros AT_EXT'; rewrite AT_EXT' in AT_EXT; congruence].
 intros [[ef' sig'] args'] AT_EXT'.
 rewrite AT_EXT' in AT_EXT.
-specialize (core_after_external0 cd' j j' c c0 m1 ef' args' ret1 m1' m2 m2' ret2 sig').
+specialize (core_after_external0 cd' k1 k2 k1' k2' j j' c c0 m1 ef' args' ret1 m1' m2 m2' ret2 sig').
 specialize (RGsim i0); destruct RGsim.
 spec core_after_external0; auto.
 solve[eapply match_state_inj; eauto].
@@ -2148,23 +2246,23 @@ spec core_after_external0; eauto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_blocks fS vS modules_S stack b)); auto.
-intros b ofs [? ?]; split; auto.
-generalize H0.
+intros b ofs ?; left; auto.
+generalize H.
 unfold csem_map_S, csem_map.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 solve[assert (l = PF) as -> by apply proof_irr; auto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_blocks fT vT modules_T stack0 b)); auto.
-intros b ofs [? ?]; split; auto.
-generalize H0.
+intros b ofs ?; left; auto.
+generalize H.
 unfold csem_map_T, csem_map.
 destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 solve[assert (l = PF0) as -> by apply proof_irr; auto].
@@ -2234,72 +2332,93 @@ clear H2 AT_EXT.
 assert (INJJ: Mem.inject j m1 m2).
  destruct (RGsim i0).
  solve[eapply match_state_inj; eauto].
-clear - RR2 H3 H4 H5 H6 H7 H8 H9 PF RGsim INJJ.
-revert stack0 RR2 H9; induction stack; auto.
-intros stack0 RR2 H9; destruct stack0; simpl in RR2. 
+clear - KDISJ1 KDISJ2 KINC KSEP
+  RR2 H3 H4 H5 H6 H7 H8 H9 PF RGsim INJJ.
+generalize dependent stack0; induction stack; auto.
+intros stack0 stack_nonempty0 callers_at_external0 KDISJ2 UNCH2 RR2; 
+ destruct stack0; simpl in RR2. 
 solve[destruct a; elimtype False; auto].
 destruct a; destruct f.
 destruct RR2 
- as [[PF' [cd0 [j0 [m10 [m20 [QQ1 [QQINJ [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 MATCH'']]]]]]]]]]]] STACK'].
+ as [[PF' [cd0 [kp0 [j0 [m10 [m20 
+   [QQ1 [QQINJ [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 [QQ7 [QQ8 MATCH'']]]]]]]]]]]]]]] 
+ STACK'].
 subst.
 rewrite <-Eqdep_dec.eq_rect_eq_dec in QQ1; try solve[apply eq_nat_dec].
 simpl.
 split; auto.
-exists (@refl_equal _ i); exists cd0; exists j0; exists m10; exists m20.
+exists (@refl_equal _ i); exists cd0; exists kp0; exists j0; exists m10; exists m20.
 split; auto.
 split; auto.
+split; auto.
+apply knowledge_incr2_trans with (kp2 := (k1, k2)); auto.
+split; auto.
+eapply knowledge_sep2_trans with (kp2 := (k1,k2)) (m1' := m1) (m2' := m2); eauto.
 split; auto.
 solve[eapply inject_incr_trans; eauto].
 split; auto.
 solve[eapply inject_separated_incr_fwd2; eauto].
 split; auto.
-eapply mem_forward_trans; eauto.
+solve[eapply mem_forward_trans; eauto].
 split; auto.
 
-eapply mem_unchanged_unmapped_trans; eauto.
+cut(   mem_unchanged_on
+     (fun (b : block) (_ : BinInt.Z) =>
+      private_block (get_module_csem (modules_S PF1)) c1 b) m1 m1').
+ admit. (*eapply mem_unchanged_unmapped_trans; eauto.*)
 simpl in H7.
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_block (get_module_csem (modules_S PF1)) c1 b \/
     private_blocks fS vS modules_S stack b)); auto.
-solve[intros b ofs [? ?]; split; auto].
-
 split; auto.
 solve[eapply mem_forward_trans; eauto].
 
-apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
+cut(   mem_unchanged_on
+     (fun (b : block) (_ : BinInt.Z) =>
+      private_block (get_module_csem (modules_T PF2)) c2 b) m2 m2').
+admit. (*apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
 intros b ofs p H1 H2.
 solve[destruct (QQ4 b H1); auto].
-simpl in H9.
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\
+simpl in H9.*)
+solve[apply mem_unchanged_on_sub with (Q := fun b ofs => 
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_block (get_module_csem (modules_T PF2)) c2 b \/
-    private_blocks fT vT modules_T stack0 b)); auto.
-solve[intros b ofs [? ?]; split; auto].
+    private_blocks fT vT modules_T stack0 b)); auto].
 
-apply IHstack; auto.
+eapply IHstack; eauto.
+hnf in KDISJ1|-*.
+intros.
+intros CONTRA.
+eapply KDISJ1; eauto.
+hnf in CONTRA|-*.
+destruct CONTRA; auto.
+solve[right; hnf; auto].
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\
   (private_block (get_module_csem (modules_S PF)) c b \/
     private_block (get_module_csem (modules_S PF1)) c1 b \/
     private_blocks fS vS modules_S stack b)); auto.
-intros b ofs [? ?]; split; auto.
-solve[destruct H0; auto].
+intros b ofs ?; auto.
+solve[destruct H; auto].
+hnf in KDISJ2|-*.
+intros.
+intros CONTRA.
+eapply KDISJ2; eauto.
+hnf in CONTRA|-*.
+destruct CONTRA; auto.
+solve[right; hnf; auto].
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\
   (private_block (get_module_csem (modules_T PF0)) c0 b \/
     private_block (get_module_csem (modules_T PF2)) c2 b \/
     private_blocks fT vT modules_T stack0 b)); auto.
-intros b ofs [? ?]; split; auto.
-solve[destruct H0; auto].
+intros b ofs ?; auto.
+solve[destruct H; auto].
 (*END tl_inv PROOF*)
 
 (*3: extension_diagram*)
 unfold CompilabilityInvariant.match_states; simpl. 
-intros until j; intros H1 H2 H3 H4 H5 H6; 
- intros [_ [_ [_ [_ [RR [H7 H8]]]]]] H9 H10 H11 H12 STEP.
+intros until j; intros H1 H2 H3 H4 H5 H6;
+ intros [KDISJ1 [KDISJ2 [KINJ [_ [_ [_ [_ [RR [H7 H8]]]]]]]]] H9 H10 H11 H12 STEP.
 inv STEP; simpl in *; subst.
 (*'run' case*)
 elimtype False.
@@ -2342,7 +2461,7 @@ assert (sig = sig0) as Heq.
  assert (Heq: l = pf_i) by apply proof_irr; auto; subst.
  solve[rewrite H5 in AT_EXT; inv AT_EXT; auto].
 rewrite Heq in *; clear Heq.
-specialize (core_initial0 args1 c' m1' j args2 m2).
+specialize (core_initial0 args1 c' m1' (k1, k2) j args2 m2).
 spec core_initial0; auto.
 clear - H5 AT_EXT H15.
 unfold csem_map_S, csem_map in H5.
@@ -2380,6 +2499,7 @@ assert (CALLERS:
  destruct (lt_dec i num_modules); try solve[elimtype False; omega].
  solve[assert (l = pf_i) as -> by apply proof_irr; auto].
  solve[apply callers_at_external].
+exists k1; exists k2.
 exists (mkLinkerCoreState (mkFrame k (plt_ok LOOKUP) c'' :: 
   mkFrame i pf_i c2 :: stack0) (length_cons _ _) CALLERS).
 exists m2.
@@ -2387,13 +2507,51 @@ exists (@ExtendedSimulations.core_datas_upd _ k cd' cd).
 exists j.
 split; auto.
 split; auto.
+solve[unfold knowledge_incr; auto]. 
+solve[unfold knowledge_incr; auto]. 
+split.
+split.
+solve[unfold knowledge_separated; auto].
+solve[unfold knowledge_separated; auto].
+split.
+auto.
+split.
 solve[apply inject_separated_same_meminj].
 split.
 split.
+hnf in KDISJ1|-*.
+intros; intros CONTRA.
+hnf in CONTRA.
+eapply KDISJ1; eauto.
+hnf.
+destruct CONTRA.
+elimtype False.
+solve[eapply private_initial in H7; eauto].
+solve[hnf in H7; auto].
+split.
+hnf in KDISJ2|-*.
+intros; intros CONTRA.
+hnf in CONTRA.
+eapply KDISJ2; eauto.
+hnf.
+destruct CONTRA.
+elimtype False.
+eapply private_initial in H7; eauto.
+generalize INIT.
+unfold csem_map_T, csem_map.
+destruct (lt_dec k num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok LOOKUP) as -> by apply proof_irr.
+solve[eauto].
+solve[generalize (plt_ok LOOKUP); intro; elimtype False; auto].
+hnf in H7.
+solve[assert (PF = pf_i) as -> by apply proof_irr; auto].
+
+split; auto.
+
 inv STACK_INV.
-rewrite H7 in *.
 
 (*BEGIN private lemmas*)
+split.
 unfold private_valid.
 simpl.
 intros.
@@ -2511,13 +2669,22 @@ exists (@refl_equal _ k).
 destruct RR2 as [cd'' RR2].
 split.
 solve[eexists; eauto].
+
 split; auto.
 exists RR1.
-exists cd''; exists j; exists m1'; exists m2.
+exists cd''; exists (k1, k2); exists j; exists m1'; exists m2.
 split; auto.
 split; auto.
 split; auto.
 split; auto.
+solve[unfold knowledge_incr; auto].
+solve[unfold knowledge_incr; auto].
+split; auto.
+split.
+solve[unfold knowledge_separated; intros; auto].
+solve[unfold knowledge_separated; intros; auto].
+split; auto.
+split.
 solve[apply inject_separated_same_meminj].
 split; auto.
 solve[apply mem_forward_refl].
@@ -2659,7 +2826,7 @@ case_eq
    (Vptr b i) vals1); try solve[congruence].
 intros c Heq; inv Heq.
 destruct (core_simulations n).
-specialize (core_initial0 (Vptr b' i) v2 sig H1 vals1 c m1 j vals2 m2).
+specialize (core_initial0 (Vptr b' i) v2 sig H1 vals1 c m1 (k1,k2) j vals2 m2).
 spec core_initial0; auto.
 unfold csem_map_S, csem_map, genv_mapS, genvs.
 generalize (plt_ok PLT); intro.
@@ -2675,6 +2842,17 @@ exists (ExtendedSimulations.core_datas_upd _ n cd' cd).
 exists (mkLinkerCoreState (mkFrame n (plt_ok PLT) c2 :: nil) (length_cons _ _)
  (all_at_external_consnil _ _ _ _)).
 simpl; split; auto.
+
+hnf.
+exploit knowledge_disjoint0; eauto.
+intros [? ?] ? ? CONTRA.
+eapply H; eauto.
+hnf in CONTRA.
+admit. (*by H2, etc.*)
+split.
+admit. (*knowl_disjoint*)
+split.
+
 unfold linker_make_initial_core.
 case_eq v2.
 clear - entry_points_eq H1.
@@ -2732,7 +2910,28 @@ rewrite H7.
 inversion 1; subst.
 split.
 
+hnf.
+intros ? ? CONTRA.
+hnf in CONTRA.
+destruct CONTRA; auto.
+solve[eapply private_initial in H8; eauto].
+split.
+hnf.
+intros ? ? CONTRA.
+hnf in CONTRA.
+destruct CONTRA; auto.
+eapply private_initial; eauto.
+unfold csem_map_T, csem_map.
+destruct (lt_dec n num_modules); try solve[elimtype False; omega].
+assert (l = plt_ok PLT0) as -> by apply proof_irr.
+eauto.
+solve[generalize (plt_ok PLT0); intros; apply n0; auto].
+split.
+intros ? ?.
+solve[eapply knowledge_injects0; eauto].
+
 (*BEGIN private lemmas*)
+split.
 unfold private_valid.
 simpl.
 intros.
@@ -2844,7 +3043,7 @@ intros Hstack'; rewrite Hstack' in H2.
 2: solve[intros ? ? Hstack'; rewrite Hstack' in H2; congruence].
 destruct (core_simulations i).
 unfold CompilabilityInvariant.match_states in H1.
-destruct H1 as [_ [_ [_ [_ [RR [H1 H3]]]]]].
+destruct H1 as [_ [_ [_ [_ [_ [_ [_ [RR [H1 H3]]]]]]]]].
 simpl in *. 
 specialize (H3 (linker_active c2)).
 rewrite Hstack in H1, H3.
@@ -2855,7 +3054,7 @@ rewrite dependent_types_nonsense in H3.
 spec H3; auto.
 destruct H3 as [c3 [H3 H4]].
 generalize core_halted0; intro core_halted1.
-specialize (core_halted1 (cd (linker_active c2)) j c m1 c3 m2 v1 rty H4).
+specialize (core_halted1 (cd (linker_active c2)) k1 k2 j c m1 c3 m2 v1 rty H4).
 spec core_halted1; auto.
 generalize H2.
 unfold csem_map_S, csem_map.
@@ -2926,7 +3125,7 @@ destruct stack0; try solve[congruence].
 destruct f.
 destruct (eq_nat_dec j0 i0); try solve[congruence]; subst.
 rewrite dependent_types_nonsense in H3; inversion H3; subst c0.
-destruct H1 as [_ [_ [_ [_ [RR [H1 H7]]]]]].
+destruct H1 as [_ [_ [_ [_ [_ [_ [_ [RR [H1 H7]]]]]]]]].
 simpl in *.
 unfold R, R_inv in *.
 destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [RR2 RR3]]]]]].
@@ -2941,7 +3140,8 @@ rewrite dependent_types_nonsense in H7.
 inv H7.
 destruct RR2 as [cd' MATCH].
 clear e H2 H1 e0 H3.
-destruct RR3 as [[PF' [cd0 [j0 [m10 [m20 [QQmatch [QQ1 [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 QQ7]]]]]]]]]]]] TL].
+destruct RR3 as [[PF' [cd0 [kp0 [j0 [m10 [m20 
+ [QQmatch [QQ1 [QQ2 [QQ3 [QQ4 [QQ5 [QQ6 [QQ7 [QQ8 QQ9]]]]]]]]]]]]]]] TL].
 subst i1.
 generalize ext_pf.
 unfold all_at_external.
@@ -2955,7 +3155,7 @@ inv ext_pf0.
 destruct H3 as [ef0 [sig0 [args0 AT_EXT0]]].
 
 destruct (core_simulations i0).
-specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
+specialize (core_halted0 (cd i0) k1 k2 j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
 spec core_halted0; auto.
 spec core_halted0; auto.
 spec core_halted0; auto.
@@ -2973,8 +3173,9 @@ destruct core_halted0 as [rv2 [X1 [X2 [X3 X4]]]].
 exists rv2; split; auto.
 split; auto.
 
+destruct kp0 as [k10 k20].
 specialize (core_after_external0 
- cd0 j0 j c c0 m10 ef0 args0 (Some rv1) m1' m20 m2 (Some rv2) sig0).
+ cd0 k10 k20 k1 k2 j0 j c c0 m10 ef0 args0 (Some rv1) m1' m20 m2 (Some rv2) sig0).
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -2990,6 +3191,8 @@ destruct (RGsim i0).
 rewrite <-Eqdep_dec.eq_rect_eq_dec in MATCH.
 (*eapply match_state_inj; eauto.*)
 (*solve[apply eq_nat_dec].*)
+spec core_after_external0; auto.
+spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -3036,7 +3239,14 @@ exists
  (mkLinkerCoreState (mkFrame i pf_i _c0 :: stack0) (length_cons _ _) CALLERS).
 exists m2.
 exists (ExtendedSimulations.core_datas_upd _ i cd2 cd).
+exists k1; exists k2.
 exists j.
+split; auto.
+split.
+solve[unfold knowledge_incr; auto].
+solve[unfold knowledge_incr; auto].
+split.
+solve[unfold knowledge_separated; split; auto].
 split; auto.
 split.
 solve[apply inject_separated_same_meminj].
@@ -3046,7 +3256,7 @@ assert (PF = pfj) as -> by apply proof_irr.
 
 destruct (core_simulations i0).
 clear core_ord_wf0 core_diagram0 core_initial0 core_at_external0 core_after_external0.
-specialize (core_halted0 (cd i0) j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
+specialize (core_halted0 (cd i0) k1 k2 j c' m1' c3 m2 rv1 (proj_sig_res (ef_sig ef))).
 spec core_halted0; auto.
 spec core_halted0; auto.
 destruct core_halted0 as [v2' [? [? ?]]]; auto.
@@ -3082,7 +3292,7 @@ assert (Heq: rv1 = retv).
 subst rv1.
 
 assert (Heq2: ef = ef00).
- specialize (core_at_external1 cd0 j0 c m10 c0 m20 ef args sig).
+ specialize (core_at_external1 cd0 k10 k20 j0 c m10 c0 m20 ef args sig).
  spec core_at_external1; auto.
  spec core_at_external1; auto.
  clear - AT_EXT PF.
@@ -3117,7 +3327,19 @@ split.
 split.
 simpl.
 
+hnf.
+intros.
+intros CONTRA.
+hnf in CONTRA.
+admit. (*should follow from private_external in CONTRA, induction on stack*)
+split.
+admit. (*should follow from private_external in CONTRA, induction on stack*)
+split.
+intros.
+solve[exploit knowledge_injects0; eauto].
+
 (*BEGIN private lemmas*)
+split.
 unfold private_valid.
 simpl.
 intros.

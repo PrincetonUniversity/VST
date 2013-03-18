@@ -291,6 +291,30 @@ Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
 
 End Coop_forward_simulation_ext.
 
+(** Pairs of global knowledge maps *)
+
+Definition kpair := ((block -> Prop)*(block -> Prop))%type.
+
+Definition knowledge_incr (k k': block -> Prop) :=
+  forall b, k b -> k' b.
+
+Definition knowledge_incr2 (k12 k12': kpair) :=
+  match k12, k12' with
+  | (k1, k2), (k1', k2') => 
+    knowledge_incr k1 k1' /\ knowledge_incr k2 k2'
+  end.
+
+Definition knowledge_separated (k k': block -> Prop) m :=
+  forall b, ~k b -> k' b -> ~Mem.valid_block m b.
+
+Definition knowledge_separated2 (k12 k12': kpair) m1 m2 :=
+  match k12, k12' with
+  | (k1, k2), (k1', k2') => 
+    knowledge_separated k1 k1' m1 /\ knowledge_separated k2 k2' m2
+  end.
+
+Definition empty_knowledge := (fun _: block => False, fun _: block => False).
+
 (** An axiom for passes that use memory injections. *)
 
 Module Forward_simulation_inj. Section Forward_simulation_inject. 
@@ -303,38 +327,55 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
   Record Forward_simulation_inject := 
   { core_data : Type;
-    match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
+    match_state : core_data -> kpair -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
+
+    knowledge_disjoint : 
+      forall cd k1 k2 j c1 m1 c2 m2,
+        match_state cd (k1, k2) j c1 m1 c2 m2 -> 
+        (forall b, k1 b -> ~private_block Sem1 c1 b) /\
+        (forall b, k2 b -> ~private_block Sem2 c2 b);
+
+    knowledge_injects :
+      forall cd k1 k2 j c1 m1 c2 m2,
+        match_state cd (k1, k2) j c1 m1 c2 m2 -> 
+        forall b, k1 b -> 
+          exists b', exists ofs, j b = Some (b', ofs) /\ k2 b';
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd st2 j m2,
-        match_state cd j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists j',
+      forall cd k1 k2 st2 j m2,
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
+        exists k1', exists k2', exists st2', exists m2', exists cd', exists j',
+          (*START guarantee*)
+          knowledge_incr2 (k1, k2) (k1', k2') /\ 
+          knowledge_separated2 (k1, k2) (k1', k2') m1 m2 /\ 
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
-          match_state cd' j' st1' m1' st2' m2' /\
+          match_state cd' (k1', k2') j' st1' m1' st2' m2' /\
           mem_unchanged_on (fun b ofs => 
-            loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
+            ~k1 b /\ ~private_block Sem1 st1 b) m1 m1' /\
           mem_unchanged_on (fun b ofs => 
-            loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
+            ~k2 b /\ ~private_block Sem2 st2 b) m2 m2' /\
+          (*END guarantee*)
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
 
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2,
+       forall vals1 c1 m1 kp j vals2 m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            match_state cd j c1 m1 c2 m2;
+            match_state cd kp j c1 m1 c2 m2;
 
-    core_halted : forall cd j c1 m1 c2 m2 v1 rty,
-      match_state cd j c1 m1 c2 m2 ->
+    core_halted : forall cd k1 k2 j c1 m1 c2 m2 v1 rty,
+      match_state cd (k1, k2) j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
       Val.has_type v1 rty -> 
       exists v2, val_inject j v1 v2 /\
@@ -343,8 +384,8 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           Mem.inject j m1 m2;
 
     core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1 sig,
-        match_state cd j st1 m1 st2 m2 ->
+      forall cd k1 k2 j st1 m1 st2 m2 e vals1 sig,
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ 
@@ -353,30 +394,31 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           at_external Sem2 st2 = Some (e,sig,vals2));
 
     core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
-        Mem.inject j m1 m2->
-        match_state cd j st1 m1 st2 m2 ->
+      forall cd k1 k2 k1' k2' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+        Mem.inject j m1 m2 ->
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         meminj_preserves_globals ge1 j -> 
 
+        (*rely*)
+        knowledge_incr2 (k1, k2) (k1', k2') -> 
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 -> 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
 
-         mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
-         mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
-         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
-
+        mem_forward m1 m1'  -> 
+        mem_unchanged_on (fun b ofs => private_block Sem1 st1 b) m1 m1' ->
+        mem_forward m2 m2' -> 
+        mem_unchanged_on (fun b ofs => private_block Sem2 st2 b) m2 m2' ->
+        val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
+        val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
+        
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' j' st1' m1' st2' m2' }.
+          match_state cd' (k1', k2') j' st1' m1' st2' m2' }.
 
 End Forward_simulation_inject. 
 
@@ -468,11 +510,11 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
         Mem.inject j' m1' m2' ->
         val_inject j' ret1 ret2 ->
 
-         mem_forward m1 m1'  -> 
-         mem_unchanged_on (loc_unmapped j) m1 m1' ->
-         mem_forward m2 m2' -> 
-         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+        mem_forward m1 m1'  -> 
+        mem_unchanged_on (loc_unmapped j) m1 m1' ->
+        mem_forward m2 m2' -> 
+        mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+        Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
 
@@ -499,50 +541,65 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           {ge2:G2}
           {entry_points : list (val * val * signature)}
           {core_data : Type}
-          {match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop}
+          {match_state : core_data -> kpair -> meminj -> C1 -> mem -> C2 -> mem -> Prop}
           {core_ord : core_data -> core_data -> Prop}.
 
   Record Forward_simulation_inject := 
   { core_ord_wf : well_founded core_ord;
+
+    knowledge_disjoint : 
+      forall cd k1 k2 j c1 m1 c2 m2,
+        match_state cd (k1, k2) j c1 m1 c2 m2 -> 
+        (forall b, k1 b -> ~private_block Sem1 c1 b) /\
+        (forall b, k2 b -> ~private_block Sem2 c2 b);
+
+    knowledge_injects :
+      forall cd k1 k2 j c1 m1 c2 m2,
+        match_state cd (k1, k2) j c1 m1 c2 m2 -> 
+        forall b, k1 b -> 
+          exists b', exists ofs, j b = Some (b', ofs) /\ k2 b';
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd st2 j m2,
-        match_state cd j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists j',
+      forall cd k1 k2 st2 j m2,
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
+        exists k1', exists k2', exists st2', exists m2', exists cd', exists j',
+          knowledge_incr2 (k1, k2) (k1', k2') /\ 
+          knowledge_separated2 (k1, k2) (k1', k2') m1 m2 /\ 
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
-          match_state cd' j' st1' m1' st2' m2' /\
+          match_state cd' (k1', k2') j' st1' m1' st2' m2' /\
           mem_unchanged_on (fun b ofs => 
-            loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
+            ~k1 b /\ ~private_block Sem1 st1 b) m1 m1' /\
           mem_unchanged_on (fun b ofs => 
-            loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
+            ~k2 b /\ ~private_block Sem2 st2 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
 
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2,
+       forall vals1 c1 m1 kp j vals2 m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-           Forall2 (val_inject j) vals1 vals2 ->
+          Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            match_state cd j c1 m1 c2 m2;
+            match_state cd kp j c1 m1 c2 m2;
 
-    core_halted : forall cd j c1 m1 c2 m2 v1 rty,
-      match_state cd j c1 m1 c2 m2 ->
+    core_halted : forall cd k1 k2 j c1 m1 c2 m2 v1 rty,
+      match_state cd (k1, k2) j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
       Val.has_type v1 rty -> 
       exists v2, val_inject j v1 v2 /\
-        safely_halted Sem2 c2 = Some v2 /\
-        Val.has_type v2 rty /\
-        Mem.inject j m1 m2;
+          safely_halted Sem2 c2 = Some v2 /\
+          Val.has_type v2 rty /\
+          Mem.inject j m1 m2;
 
     core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1 sig,
-        match_state cd j st1 m1 st2 m2 ->
+      forall cd k1 k2 j st1 m1 st2 m2 e vals1 sig,
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ 
@@ -551,31 +608,30 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           at_external Sem2 st2 = Some (e,sig,vals2));
 
     core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+      forall cd k1 k2 k1' k2' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         Mem.inject j m1 m2->
-        match_state cd j st1 m1 st2 m2 ->
+        match_state cd (k1, k2) j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         meminj_preserves_globals ge1 j -> 
 
+        knowledge_incr2 (k1, k2) (k1', k2') -> 
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 -> 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
 
-         mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
-         mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
-         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
-         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
-
+        mem_forward m1 m1'  -> 
+        mem_unchanged_on (fun b ofs => private_block Sem1 st1 b) m1 m1' ->
+        mem_forward m2 m2' -> 
+        mem_unchanged_on (fun b ofs => private_block Sem2 st2 b) m2 m2' ->
+        val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
+        val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
+        
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' j' st1' m1' st2' m2'
-    }.
+          match_state cd' (k1', k2') j' st1' m1' st2' m2' }.
 
 End Forward_simulation_inject. 
 
@@ -602,8 +658,8 @@ Lemma Forward_simulation_inj_hidden_exposed:
    (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
    (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 entry_points,
   Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
-  {core_data: Type & 
-  {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
+  {core_data: Type &
+  {match_state: core_data -> kpair -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
   {core_ord: core_data -> core_data -> Prop & 
     Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
     entry_points core_data match_state core_ord}}}.

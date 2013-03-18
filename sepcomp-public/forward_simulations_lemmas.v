@@ -310,92 +310,95 @@ Section Sim_INJ_SIMU_DIAGRAMS.
 
   Let core_data := C1.
 
-  Variable match_states: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop.
+  Variable match_states: core_data -> kpair -> meminj -> C1 -> mem -> C2 -> mem -> Prop.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
-        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2,
+       In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 kp j vals2 m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          (*Is this line needed?? 
-             (forall w1 w2 sigg,  In (w1,w2,sigg) entry_points -> val_inject j w1 w2) ->*)
           Forall2 (val_inject j) vals1 vals2 ->
-
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            match_states c1 j c1 m1 c2 m2. 
+            match_states c1 kp j c1 m1 c2 m2.
 
-  Hypothesis inj_safely_halted:forall cd j c1 m1 c2 m2 v1 rty,
-      match_states cd j c1 m1 c2 m2 ->
+  Hypothesis inj_safely_halted: forall cd k1 k2 j c1 m1 c2 m2 v1 rty,
+      match_states cd (k1, k2) j c1 m1 c2 m2 ->
       safely_halted Sem1 c1 = Some v1 ->
       Val.has_type v1 rty -> 
-      exists v2, val_inject j v1 v2 /\ 
-        safely_halted Sem2 c2 = Some v2 /\
-        Val.has_type v2 rty /\
-        Mem.inject j m1 m2.
+      exists v2, val_inject j v1 v2 /\
+          safely_halted Sem2 c2 = Some v2 /\
+          Val.has_type v2 rty /\
+          Mem.inject j m1 m2.
 
   Hypothesis inj_at_external: 
-      forall d j st1 m1 st2 m2 e vals1 sig,
-        d = st1 /\ match_states d j st1 m1 st2 m2 ->
+      forall cd k1 k2 j st1 m1 st2 m2 e vals1 sig,
+        cd = st1 /\ match_states cd (k1, k2) j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
-          meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
+          meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
           at_external Sem2 st2 = Some (e,sig,vals2)).
 
   Hypothesis inj_after_external:
-      forall d j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2 sig c1 c2,
-        (d=st1 /\ match_states d j st1 m1 st2 m2) ->
+      forall cd k1 k2 k1' k2' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+        Mem.inject j m1 m2->
+        (cd = st1 /\ match_states cd (k1, k2) j st1 m1 st2 m2) ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
-
-    (* LENB: we may want to add meminj_preserves_globals ge1 j as another
-      asumption here, to get rid of
-      meminj_preserved_globals_inject_incr below. But this would
-      require spaeicaliing G1 to Genv.t....  Maybe we can specialize
-      G1 and G2 of CompCertCoreSem's to Genv F1 V1/Genv F2 V2, but not
-      specialize CoreSem's?*)
-
         meminj_preserves_globals ge1 j -> 
 
+        (*rely*)
+        knowledge_incr2 (k1, k2) (k1', k2') -> 
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 -> 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
 
-         mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_unmapped j b ofs /\ private_block Sem1 c1 b) m1 m1' ->
-         mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
-           loc_out_of_reach j m1 b ofs /\ private_block Sem2 c2 b) m2 m2' ->
-         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) ->
-         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) ->
-
-      exists st1', exists st2', exists d',
+        mem_forward m1 m1'  -> 
+        mem_unchanged_on (fun b ofs => private_block Sem1 st1 b) m1 m1' ->
+        mem_forward m2 m2' -> 
+        mem_unchanged_on (fun b ofs => private_block Sem2 st2 b) m2 m2' ->
+        val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
+        val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
+        
+        exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          d' = st1' /\ match_states d' j' st1' m1' st2' m2'. 
+          cd' = st1' /\ match_states cd' (k1', k2') j' st1' m1' st2' m2'.
+
+  Hypothesis knowledge_disjoint: 
+    forall cd k1 k2 j c1 m1 c2 m2,
+      match_states cd (k1, k2) j c1 m1 c2 m2 -> 
+      (forall b, k1 b -> ~private_block Sem1 c1 b) /\
+      (forall b, k2 b -> ~private_block Sem2 c2 b).
+
+  Hypothesis knowledge_injects:
+    forall cd k1 k2 j c1 m1 c2 m2,
+      match_states cd (k1, k2) j c1 m1 c2 m2 -> 
+      forall b, k1 b -> 
+        exists b', exists ofs, j b = Some (b', ofs) /\ k2 b'.
 
 Section INJ_SIMULATION_STAR_WF.
 Variable order: C1 -> C1 -> Prop.
 Hypothesis order_wf: well_founded order.
-
+          
   Hypothesis inj_simulation:
      forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
-     forall j c2 m2, match_states c1 j c1 m1 c2 m2 ->
-      exists c2', exists m2', exists j', 
+     forall k1 k2 j c2 m2, match_states c1 (k1, k2) j c1 m1 c2 m2 ->
+      exists k1', exists k2', exists c2', exists m2', exists j', 
+        knowledge_incr2 (k1, k2) (k1', k2') /\
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 /\
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\
-        match_states c1' j' c1' m1' c2' m2' /\
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2' /\
-        (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
+        match_states c1' (k1', k2') j' c1' m1' c2' m2' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k1 b /\ ~private_block Sem1 c1 b) m1 m1' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k2 b /\ ~private_block Sem2 c2 b) m2 m2' /\
+        (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
 Lemma  inj_simulation_star_wf: 
@@ -403,22 +406,27 @@ Lemma  inj_simulation_star_wf:
 Proof.
   eapply Forward_simulation_inj.Build_Forward_simulation_inject with
     (core_ord := order)
-    (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
+    (match_state := fun d k1k2 j c1 m1 c2 m2 => d = c1 /\ match_states d k1k2 j c1 m1 c2 m2).
   apply order_wf.
-  intros. destruct H0; subst.
-  destruct (inj_simulation _ _ _ _ H _ _ _ H1) as 
-    [c2' [m2' [j' [INC [SEP [MC' [UNCH1 [UNCH2 Step]]]]]]]].
-  exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
-  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as 
-    [c2' [MIC MC]].
-  exists c1.  exists c2'. split; eauto.
+  intros. destruct H; subst; eauto.
+  intros; eapply knowledge_injects; eauto.
+  solve[destruct H; eauto].
+  intros. destruct H0.
+  subst cd; exploit inj_simulation; eauto.
+   intros [k1' [k2' [c2' [m2' [j' [INC [SEP [MC' [UNCH1 [UNCH2 Step]]]]]]]]]].
+  exists k1'; exists k2'; exists c2'. 
+  exists m2'; exists st1'; exists j'; split; auto.
+  split; auto.
+  intros. 
+  exploit match_initial_cores; eauto.
+  intros [c2' [MIC MC]].
+  exists c1; exists c2'; split; auto.
+  intros. split; eauto.
   intros. destruct H; subst. eapply inj_safely_halted; eauto.
-  intros.  destruct H; subst. eapply inj_at_external; eauto.
-  intros.  (*destruct H0; subst.*) clear inj_simulation .
-  specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-    H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12).
-  destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
-  exists c1'. exists c1'. exists c2'. split; auto.
+  intros. destruct H; subst. eapply inj_at_external; eauto.
+  intros. clear inj_simulation.
+  solve[eapply inj_after_external 
+   with (cd := cd) (k1 := k1) (k2 := k2) (j := j) (m1 := m1) (e := e); eauto].
 Qed.
 
 End INJ_SIMULATION_STAR_WF.
@@ -427,30 +435,38 @@ Section INJ_SIMULATION_STAR.
   Variable measure: C1 -> nat.
   
   Hypothesis inj_star_simulation:
-    forall c1 m1 c1' m1', corestep Sem1 ge1 c1 m1 c1' m1'  -> 
-    forall c2 m2 j, match_states c1 j c1 m1 c2 m2 ->
-      (exists c2', exists m2', exists j', 
+     forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
+     forall k1 k2 j c2 m2, match_states c1 (k1, k2) j c1 m1 c2 m2 ->
+      exists k1', exists k2', exists c2', exists m2', exists j', 
+        knowledge_incr2 (k1, k2) (k1', k2') /\
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 /\
         inject_incr j j' /\
-        inject_separated j j' m1 m2 /\ 
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2' /\
-        match_states c1' j' c1' m1' c2' m2' /\
+        inject_separated j j' m1 m2 /\
+        match_states c1' (k1', k2') j' c1' m1' c2' m2' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k1 b /\ ~private_block Sem1 c1 b) m1 m1' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k2 b /\ ~private_block Sem2 c2 b) m2 m2' /\
         (corestep_plus Sem2 ge2 c2 m2 c2' m2' 
-          \/ ((measure c1' < measure c1)%nat /\ corestep_star Sem2 ge2 c2 m2 c2' m2'))).
+          \/ ((measure c1' < measure c1)%nat /\ corestep_star Sem2 ge2 c2 m2 c2' m2')).
 
 Lemma inj_simulation_star: 
   Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply inj_simulation_star_wf.
   apply  (well_founded_ltof _ measure).
-  intros. destruct (inj_star_simulation _ _ _ _ H _ _ _ H0) as [c2' H1].
-  destruct H1 as [m2' [j' [INC [SEP [UNCH1 [UNCH2 [MC' STEP]]]]]]]. 
-  exists c2'. exists m2'. exists j'. split; trivial. split; trivial. split; trivial. 
-  split; auto. split; auto.
+  intros. 
+  exploit inj_star_simulation; eauto.
+  intros [k1' [k2' [c2' [m2' [j' [KINC [KSEP [INC [SEP [UNCH1 [UNCH2 [MC' STEP]]]]]]]]]]]]. 
+  exists k1'; exists k2'; exists c2'; exists m2'; exists j'; split; auto.
+  destruct KINC; destruct KSEP.
+  split; auto.
+  split; auto.
+  split; auto.
+  split; auto.
+  split; auto.
+  split; auto.
+  split; auto.
   destruct STEP as [X1|X1]; subst. left; auto. 
   right. destruct X1. split; auto.
 Qed.
@@ -460,27 +476,31 @@ End INJ_SIMULATION_STAR.
 Section INJ_SIMULATION_PLUS.
   Variable measure: C1 -> nat. 
   Hypothesis inj_plus_simulation:
-    forall c1 m1 c1' m1', corestep Sem1 ge1 c1 m1 c1' m1'  -> 
-    forall c2 m2 j, match_states c1 j c1 m1 c2 m2 ->
-      exists c2', exists m2',  exists j', 
+     forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
+     forall k1 k2 j c2 m2, match_states c1 (k1, k2) j c1 m1 c2 m2 ->
+      exists k1', exists k2', exists c2', exists m2', exists j', 
+        knowledge_incr2 (k1, k2) (k1', k2') /\
+        knowledge_separated2 (k1, k2) (k1', k2') m1 m2 /\
         inject_incr j j' /\
-        inject_separated j j' m1 m2 /\ 
-        corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' j' c1' m1' c2' m2' /\ 
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
-        (fun (b : block) (ofs : Z) =>
-          loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2'.
+        inject_separated j j' m1 m2 /\
+        match_states c1' (k1', k2') j' c1' m1' c2' m2' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k1 b /\ ~private_block Sem1 c1 b) m1 m1' /\
+        mem_unchanged_on (fun b ofs => 
+          ~k2 b /\ ~private_block Sem2 c2 b) m2 m2' /\
+        corestep_plus Sem2 ge2 c2 m2 c2' m2'.
   
 Lemma inj_simulation_plus: 
   Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
-  apply inj_simulation_star with (measure:=measure).
-  intros. destruct (inj_plus_simulation _ _ _ _ H _ _ _ H0) 
-    as [? [? [? [? [? [? [? [? ?]]]]]]]].
-  do 3 eexists. split; eauto. split; eauto.
+  eapply inj_simulation_star with (measure:=measure); eauto.
+  intros. exploit inj_plus_simulation; eauto.
+  intros [? [? [? [? [? [? [? [? [? [? [? [? ?]]]]]]]]]]]].
+  do 5 eexists. 
+  split; eauto.
+  split; eauto.
+  split; eauto.
+  split; eauto.
 Qed.
 
 End INJ_SIMULATION_PLUS.
