@@ -13,9 +13,13 @@ FILES= \
    client_lemmas.v canonicalize.v assert_lemmas.v field_mapsto.v \
    call_lemmas.v forward_lemmas.v forward.v 
 
-target: proof
+target: proof floyd.coq
 
 proof: $(FILES:.v=.vo)
+
+
+floyd.coq: proofauto.vo
+	coqtop -load-vernac-source proofauto -outputstate floyd -batch
 
 
 .SUFFIXES: .v .vo

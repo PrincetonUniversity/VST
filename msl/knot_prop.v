@@ -3,6 +3,7 @@
  *
  *)
 
+Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.knot.
 Require Import msl.ageable.

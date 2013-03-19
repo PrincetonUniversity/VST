@@ -2,6 +2,10 @@ Load loadpath.
 Require Import floyd.base.
 Local Open Scope logic.
 
+(* The following line should not be needed, and was not needed
+ in Coq 8.3, but in Coq 8.4 it seems to be necessary. *)
+Hint Resolve (@LiftClassicalSep environ) : typeclass_instances.
+
 Definition func_ptr' f v := func_ptr f v && emp.
 
 Lemma lift0_unfold: forall {A} (f: A)  rho,  lift0 f rho = f.
@@ -681,12 +685,12 @@ Ltac go_lower2 :=
  try apply go_lower_lem21;
  simpl eval_expr; simpl eval_lvalue; simpl eval_cast;
   let rho := fresh "rho" in intro rho;
- repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
+ repeat  (first [simple apply go_lower_lem24a | apply go_lower_lem24];
                  let H := fresh in 
                        (intro H; super_unfold_lift));
   apply go_lower_lem25;
  apply go_lower_lem26; 
- try apply go_lower_lem27a;  try apply go_lower_lem27c;
+ try simple apply go_lower_lem27a;  try simple apply go_lower_lem27c;
  unfold fold_right_sepcon, fold_right_andp;
  change (TT rho) with (@TT mpred Nveric);
  repeat (unfold ret_type; simpl); 
@@ -941,14 +945,22 @@ Ltac go_lower3 :=
       simpl  tc_andp; simpl denote_tc_assert;
         super_unfold_lift;
        repeat (match goal with
+        | |- context [@andp _ (@LiftNatDed' _ ?ND) ?P ?Q ?rho] =>
+                  change (@andp _ (@LiftNatDed' _ ND) P Q rho) with
+                          (@andp _ ND (P rho) (Q rho))
         | |- context [@andp _ (@LiftNatDed _ _ ?ND) ?P ?Q ?rho] =>
                   change (@andp _ (@LiftNatDed _ _ ND) P Q rho) with
                           (@andp _ ND (P rho) (Q rho))
+        | |- context [@sepcon _ (@LiftNatDed' _ ?ND) (@LiftSepLog' _ _ ?SL) ?P ?Q ?rho] =>
+                  change (@sepcon _ (@LiftNatDed' _ ND) (@LiftSepLog' _ _ SL) P Q rho) with
+                          (@sepcon _ ND SL (P rho) (Q rho))
         | |- context [@sepcon _ (@LiftNatDed _ _ ?ND) (@LiftSepLog _ _ _ ?SL) ?P ?Q ?rho] =>
                   change (@sepcon _ (@LiftNatDed _ _ ND) (@LiftSepLog _ _ _ SL) P Q rho) with
                           (@sepcon _ ND SL (P rho) (Q rho))
         | |- context [@prop _ (@LiftNatDed _ _ ?ND) ?P ?rho] =>
                  change (@prop _ (@LiftNatDed _ _ ND) P rho) with (@prop _ ND P)
+        | |- context [@prop _ (@LiftNatDed' _ ?ND) ?P ?rho] =>
+                 change (@prop _ (@LiftNatDed' _ ND) P rho) with (@prop _ ND P)
         end; cbv beta);
         repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
         repeat rewrite eval_id_same;
@@ -1564,11 +1576,24 @@ f_equal.
 rewrite sepcon_comm; auto.
 Qed.
 
+(* The simpl_nat_of_P tactic is a complete hack,
+  needed for compatibility between Coq 8.3/8.4,
+  because the name of the thing to unfold varies
+  between the two versions *)
+Ltac simpl_nat_of_P :=
+match goal with |- context [nat_of_P ?n] =>
+  match n with xI _ => idtac | xO _ => idtac | xH => idtac | _ => fail end;
+  let N := fresh "N" in
+  set (N:= nat_of_P n);
+  compute in N;
+  unfold N; clear N
+end.
+
 Ltac grab_indexes_SEP ns :=
   rewrite (grab_indexes_SEP ns); 
     unfold grab_indexes; simpl grab_calc; 
    unfold grab_indexes', insert; 
-   unfold nat_of_P; simpl Pmult_nat; cbv beta iota;
+   repeat simpl_nat_of_P; cbv beta iota;
    unfold app_alt; fold @app_alt.
 
 Tactic Notation "focus_SEP" constr(a) := grab_indexes_SEP (a::nil).
@@ -1743,7 +1768,8 @@ Qed.
 
 Ltac replace_SEP n R :=
   apply (replace_SEP' (nat_of_Z n) R);
-  unfold my_nth,replace_nth; simpl nat_of_Z; unfold nat_of_P; simpl Pmult_nat; cbv beta iota.
+  unfold my_nth,replace_nth; simpl nat_of_Z;
+   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 
 Ltac replace_in_pre S S' :=
  match goal with |- @semax _ _ ?P _ _ =>

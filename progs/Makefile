@@ -1,5 +1,6 @@
 # SEE ../BUILD_ORGANIZATION for explanations of why this is the way it is
 
+ISFLAGS= -inputstate ../floyd/floyd.coq  # set this to empty if it causes trouble
 COQFLAGS= -I . -as progs 
 DEPFLAGS= -I ../msl -as msl -I ../veric -as veric -I ../floyd -as floyd -I ../sepcomp -as sepcomp  -R ../compcert -as compcert
 COQC=coqc
@@ -30,7 +31,7 @@ message.v: message.c
 	clightgen message.c
 ptrcmp.v: ptrcmp.c
 	clightgen ptrcmp.c
-	
+
 reverse.vo: reverse.v
 	$(COQC) $(COQFLAGS) $(CLIGHTGENFLAGS) $*.v
 

@@ -236,8 +236,8 @@ go_lower. subst.
  rewrite sepcon_comm. apply sepcon_derives; auto.
  eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
  apply derives_refl''.
- eapply mapsto_field_mapsto_; simpl; try reflexivity.
- unfold field_offset;  simpl; reflexivity.
+ (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
+ eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
  rewrite align_0 by omega.
  destruct tl; inversion H. simpl. rewrite Int.add_zero. auto.
  normalize.
@@ -246,15 +246,15 @@ go_lower. subst.
  rewrite sepcon_comm.
  apply sepcon_derives; auto.
  apply derives_refl''.
- eapply mapsto_field_mapsto_; simpl; try reflexivity.
- unfold field_offset;  simpl; reflexivity.
+ (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
+ eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
  apply derives_trans with (field_mapsto Tsh t_struct_fifo _head Q hd * TT).
  cancel.
  apply sepcon_derives; auto.
  eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
  apply derives_refl''.
- eapply mapsto_field_mapsto_; simpl; try reflexivity.
- unfold field_offset;  simpl; reflexivity.
+ (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
+ eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
  rewrite align_0 by omega. 
  destruct Q; inversion H; auto.
  intros. apply andp_left2. unfold Post0; apply derives_refl.
@@ -272,7 +272,7 @@ go_lower. subst.
   normalize. simpl in H0. rewrite align_0 in H0 by omega.
  destruct (isnil contents).
  normalize. 
- destruct tl; inversion H.
+ destruct tl; match goal with H: Vint _ = _ |- _ => inversion H end.
  simpl in H0. rewrite zeq_true in H0. rewrite Int.add_zero in H0.
  rewrite Int.eq_true in H0. inv  H0. apply prop_right; auto.
  normalize.
@@ -505,8 +505,9 @@ replace  (eval_cast (tptr t_struct_elem) (tptr t_struct_elem) p) with p
   by (destruct p; inv H; reflexivity).
 replace (mapsto Tsh (tptr t_struct_elem) (offset_val (Int.repr 8) ult) p)
   with (field_mapsto Tsh t_struct_elem _next ult p).
-Focus 2. symmetry; eapply mapsto_field_mapsto; simpl; try reflexivity.
-               unfold field_offset; simpl; reflexivity.
+Focus 2. symmetry.
+ (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
+ eapply mapsto_field_mapsto; unfold field_offset; simpl; try reflexivity.
 rewrite list_cell_eq.
 cancel.
 Qed.
@@ -559,8 +560,6 @@ Lemma lift_elemrep_unfold:
        `(field_mapsto_ Tsh t_struct_elem _next) p).
 Proof. intros. reflexivity. Qed.
 
-
-
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
@@ -595,6 +594,7 @@ apply extract_exists_pre; intro p'.
 forward. (* fifo_put(Q,p);*)
  instantiate (1:= ((q,nil),(Int.repr 1, Int.repr 10))) in (Value of witness).
  unfold witness.
+(*
  change (fun rho : environ =>
           local (`(eq q) (eval_id _Q)) rho &&
           `(fifo nil q) rho *
@@ -602,6 +602,7 @@ forward. (* fifo_put(Q,p);*)
     with (local (`(eq q) (eval_id _Q)) &&
           `(fifo nil q) *
           `(elemrep (Int.repr 1, Int.repr 10)) (eval_id _p)).
+*)
  go_lower. subst p Q. normalize. cancel.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
@@ -661,6 +662,7 @@ change 12 with (sizeof t_struct_elem).
 rewrite (eval_cast_neutral_tc_val p); eauto.
  unfold eval_cast_neutral, force_int. (* fixme *)
 rewrite memory_block_typed.
+clear. (* This "clear" is only needed to work around bug 2997 in Coq 8.4 *)
 simpl_typed_mapsto.
 cancel.
 unfold Frame.

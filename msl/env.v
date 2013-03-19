@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.boolean_alg.
 Require Import msl.sepalg.

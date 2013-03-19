@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import msl.Extensionality.
 Require Import msl.base.
 

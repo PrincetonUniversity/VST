@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import msl.seplog.
 Require Import msl.base.
 Require Import msl.ageable.

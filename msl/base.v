@@ -6,7 +6,7 @@
 (** This library reexports portions of the Coq standard libraries used
     throughtout the proof.  It also defines some convenience tactics.
  *)
-
+Add LoadPath "..".
 Require Export Extensionality.
 Require Export List.
 Require Export Bool.

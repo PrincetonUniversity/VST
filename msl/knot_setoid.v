@@ -3,6 +3,7 @@
  *
  *)
 
+Add LoadPath "..".
 Require Import Relations.
 Require Import Compare_dec.
 Require Import Peano_dec.

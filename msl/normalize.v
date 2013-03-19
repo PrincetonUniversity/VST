@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import msl.msl_standard.
 
 Local Open Scope pred.

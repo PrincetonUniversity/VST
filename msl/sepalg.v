@@ -4,6 +4,7 @@
  * includes ideas from a discussion with Jonas Jensen and also from
  * a paper by Francois Pottier.
  *)
+Add LoadPath "..".
 Require Import msl.Extensionality.
 
 Set Implicit Arguments.

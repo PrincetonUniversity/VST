@@ -9,6 +9,7 @@
     the trivial unit and void separation algrbras.
 *)
 
+Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.sepalg.
 

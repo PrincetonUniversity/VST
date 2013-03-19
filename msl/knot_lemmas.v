@@ -3,6 +3,7 @@
  *
  *)
 
+Add LoadPath "..".
 Require Import base.
 Require Import ageable.
 Require Import knot.

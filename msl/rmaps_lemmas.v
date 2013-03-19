@@ -1,3 +1,4 @@
+Add LoadPath "..".
 Require Import msl.msl_standard.
 Require Import msl.cjoins.
 Require Import msl.rmaps.

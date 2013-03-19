@@ -638,7 +638,14 @@ unfold app.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
-simpl_typed_mapsto.
+(* HACK: the following "replace" should be just
+    "simpl_typed_mapsto", but that does not work in Coq 8.4
+    until bug 2997 is fixed *)
+replace (`(typed_mapsto_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
+ with (`(field_mapsto_ Tsh t_struct_intpair _x) (eval_var _p t_struct_intpair) *
+    `(field_mapsto_ Tsh t_struct_intpair _y) (eval_var _p t_struct_intpair))
+ by (clear; simpl_typed_mapsto; reflexivity).
+flatten_sepcon_in_SEP. (* only need this with HACK? *)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 apply drop_local.  (* tempory, should fix store_field_tac *)
@@ -709,8 +716,11 @@ apply derives_trans with
       (eval_var _buf (tarray tuchar 8) rho)
  *  typed_mapsto_ Tsh t_struct_intpair
       (eval_var _p t_struct_intpair rho)).
-repeat apply sepcon_derives; auto.
-simpl_typed_mapsto; simpl. rewrite sepcon_comm; apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+apply sepcon_derives; auto.
+simpl_typed_mapsto.
+rewrite sepcon_comm; apply sepcon_derives; auto. 
 rewrite <- memory_block_typed.
 change (sizeof (tarray tuchar 8)) with (sizeof t_struct_intpair).
 rewrite memory_block_typed. auto.

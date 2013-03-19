@@ -6,6 +6,7 @@
 (* This file contains the class of decidable equality and associated theory
     of updateable functions. *)
 
+Add LoadPath "..".
 Require Import msl.base.
 
 (* Class of decidable equality *)
