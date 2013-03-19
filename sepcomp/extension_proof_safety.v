@@ -216,7 +216,7 @@ solve[eapply H20; eauto].
 intros H2.
 case_eq (safely_halted esem s); auto.
 intros.
-admit. (*safely_halted, need to update invariant*)
+admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*)
 destruct (active_proj_core s) as [c PROJECT].
 case_eq (runnable (csem (ACTIVE s)) c).
 (*active thread i is runnable*)
@@ -260,7 +260,7 @@ rewrite H4.
 rewrite SAFELY_HALTED.
 rewrite H4 in H1.
 rewrite SAFELY_HALTED in H1.
-admit. (*safely_halted, need to update invariant*) 
+admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*) 
 (*i<>j*)
 intros Hneq _.
 destruct (CORES_PRES i c) as [c' [PROJ' H5]]; auto.
@@ -327,7 +327,7 @@ clear - PRE POST POST' AT_EXT' AFTER_EXT H4 H5 H6 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT'.
 case_eq (safely_halted (csem i) c'); auto.
-admit. (*safely_halted, need to update invariant*) 
+admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*) 
 destruct (POST ret m' (s' \o z) POST') as [c'' [AFTER_EXT' SAFEN]].
 unfold i in AFTER_EXT'.
 rewrite AFTER_EXT in AFTER_EXT'; inversion AFTER_EXT'; subst.

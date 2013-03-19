@@ -83,8 +83,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
   (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
-  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
+ (** a set of core semantics *)
+  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) 
+ (** a set of core semantics *)
+  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -268,8 +270,10 @@ Module CompilableExtension. Section CompilableExtension.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
   (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) (** a set of core semantics *)
+ (** a set of core semantics *)
+  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) 
+ (** a set of core semantics *)
+  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -321,7 +325,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
     RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (threads_max: nat).
+  (max_cores: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
@@ -363,11 +367,13 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        core_compatible ge_T genv_mapT E_T -> 
        private_conserving esemS csemS E_S ->
        private_conserving esemT csemT E_T ->
+       (forall x, active E_S x < max_cores)%nat ->  
+       (forall x, active E_T x < max_cores)%nat ->  
        (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 
-         esemS esemT csemS csemT threads_max ge_S ge_T genv_mapS genv_mapT E_S E_T 
+         esemS esemT csemS csemT max_cores ge_S ge_T genv_mapS genv_mapT E_S E_T 
          entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.

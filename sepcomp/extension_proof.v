@@ -426,10 +426,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (Zext: Type) (** portion of Z external to extension *)
   (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
   (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+ (** a set of core semantics *)
   (csemS: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) 
+ (** a set of core semantics *)
   (csemT: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
+    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (threads_max: nat).
@@ -689,7 +691,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (core_compatS: core_compatible ge_S genv_mapS E_S) 
   (core_compatT: core_compatible ge_T genv_mapT E_T)
   (private_conservS: private_conserving esemS csemS E_S)
-  (private_conservT: private_conserving esemT csemT E_T).
+  (private_conservT: private_conserving esemT csemT E_T)
+  (active_okS: (forall x_s, ACTIVE E_S x_s < max_cores)%nat)
+  (active_okT: (forall x_t, ACTIVE E_T x_t < max_cores)%nat).
 
 Program Definition extended_simulation: 
   Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 
@@ -1026,8 +1030,7 @@ split; auto.
   solve[auto].
 
   right. split. exists n. auto. 
-  apply core_datas_upd_ord; auto.
-  admit. (*fix max_cores*)
+  solve[apply core_datas_upd_ord; auto].
 
 (*runnable = false*)
 intros RUN1.
@@ -1384,7 +1387,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
        E_S E_T entry_points core_data match_state core_ord R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
- intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8.
+ intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8 H9 H10.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas core_data)
        (match_states := 
@@ -1446,7 +1449,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
     (const match_state) (const core_ord) R.
  Proof.
  eapply @EXTENSION_COMPILABILITY.Make.
- intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8.
+ intros H1 H2 H3 H4 H5 H6 PRIV1 PRIV2 core_simulations H8 H9 H10.
  apply CompilableExtension.Make 
   with (core_datas := ExtendedSimulations.core_datas (fun _ => core_data))
        (match_states := 

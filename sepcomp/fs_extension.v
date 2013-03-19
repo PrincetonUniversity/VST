@@ -643,7 +643,7 @@ Definition os_at_external (s: xT) :=
   os_at_external s = Some (ef, sig, args) -> 
   ef<>SYS_OPEN /\ ef<>SYS_READ /\ ef<>SYS_WRITE.
  Proof.
- Admitted.
+ Admitted. (*NOT NEEDED FOR PAPER 1*)
 
 Definition os_after_external (ov: option val) (s: xT): option xT :=
   match after_external csem ov (get_core s) with

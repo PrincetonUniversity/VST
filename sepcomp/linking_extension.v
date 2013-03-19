@@ -1508,8 +1508,7 @@ Variable core_data: nat -> Type.
 Variable match_state: forall i: nat,
  core_data i ->  meminj -> cS i -> mem -> cT i -> mem -> Prop.
 Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
-Variable threads_max: nat. 
-Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
+Variable num_modules_nonzero: (O < num_modules)%nat. (*Required by defn. of core_ords*)
 
 Variable RGsim: forall i: nat,
  StableRelyGuaranteeSimulation.Sig (csem_map_S i) (csem_map_T i) (genv_mapS i) (@match_state i).
@@ -1818,7 +1817,7 @@ destruct (@ExtensionCompilability
  (@linking_extension F_T V_T Z Zext proj_zext zmult proj_zmult cT fT vT 
    num_modules procedure_linkage_table plt_ok modules_T Hspec Hexternal_spec 
    entry_points linkableT_csig_esig)
- entry_points core_data match_state core_ord threads_max R)
+ entry_points core_data match_state core_ord num_modules R)
  as [LEM].
 apply LEM; auto.
 unfold genv_mapS.
@@ -1842,6 +1841,16 @@ apply (@linker_core_compatible F_T V_T Z Zext proj_zext zmult proj_zmult cT fT v
  solve[assert (pf_k = l) as -> by apply proof_irr; auto].
 solve[apply linker_private_conserving].
 solve[apply linker_private_conserving].
+intros; simpl.
+destruct x; simpl.
+destruct stack.
+simpl in stack_nonempty; omega.
+solve[destruct f; auto].
+intros; simpl.
+destruct x; simpl.
+destruct stack.
+simpl in stack_nonempty; omega.
+solve[destruct f; auto].
 clear LEM; constructor; simpl.
 
 (*1*)
