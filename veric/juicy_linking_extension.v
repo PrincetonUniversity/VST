@@ -129,7 +129,7 @@ Variable ef2id_ok:
   | _ => True
   end.
 
-Definition post_well_typed (ef: external_function) 
+Definition post_typing (ef: external_function) 
       (Q: ext_spec_type Hspec ef -> option typ -> option val -> Z -> juicy_mem -> Prop) :=
   forall x rv z m, 
   Q x (sig_res (ef_sig ef)) rv z m -> 
@@ -148,8 +148,7 @@ Variable modules_verified:
     P x tys args z jm -> 
     safeN (juicy_core_sem csem) 
       (j_upd_rguard Hspec (Q x (sig_res (ef_sig ef))) (JE_post_hered _ _ _ _ _)) 
-      ge n z c jm /\
-    post_well_typed ef Q.
+      ge n z c jm.
 
 (** This hypothesis may disappear after we clean up the CoreSemantics record. *)
 
@@ -180,7 +179,8 @@ Variable entry_pts_ok:
 Definition juicy_linking_extension :=
   @linking_extension F V Z Zext proj_zext zmult proj_zmult 
     cT fT vT num_modules procedure_linkage_table plt_ok modules
-    (dryout_juicy_extspec Hspec) Hexternal_spec entry_points specs_linkable.
+    (dryout_juicy_extspec Hspec) Hexternal_spec entry_points
+    specs_linkable.
 
 Fixpoint tl_inv (n: nat) (stack: call_stack cT num_modules) 
    (rguard_in: option val -> Z -> juicy_mem -> Prop) :=
@@ -386,7 +386,6 @@ generalize (@modules_verified
 spec VERIF; auto.
 solve[assert (plt_ok (ef2id ef) j LOOKUP=PFJ) as -> by apply proof_irr; auto].
 spec VERIF; auto.
-destruct VERIF as [VERIF WELLTYPED].
 generalize (@age_safe
  _ _ _ (get_module_csem (modules (plt_ok (ef2id ef) j LOOKUP))) _
  (j_upd_rguard Hspec
@@ -509,7 +508,7 @@ Definition main_sig : signature := mksignature nil (Some AST.Tint).
 Lemma initial_inv:
   forall x b c jm z,
   ext_spec_pre Hspec (EF_external main_id main_sig) x nil nil z jm -> 
-  Genv.find_symbol ge main_id = Some b -> 
+  Genv.find_symbol ge linking_extension.main_id = Some b -> 
   make_initial_core juicy_linker_sem ge (Vptr b Int.zero) nil = Some c -> 
   linker_inv (level jm) c z jm.
 Proof.
@@ -569,11 +568,11 @@ rewrite A1 in FIND.
 assert (plt_ok main_id i (Logic.eq_sym e) = PF) as -> by apply proof_irr.
 solve[rewrite Heq; auto].
 instantiate  (1 := level (m_phi jm)).
-intros [SAFE TY].
+intros SAFE.
 simpl in SAFE.
 assert (PF = plt_ok main_id i (Logic.eq_sym e)) as -> by apply proof_irr.
 apply Eqdep.EqdepTheory.inj_pair2 in H3.
-inv H3.
+subst c'.
 solve[apply SAFE].
 Qed.
 

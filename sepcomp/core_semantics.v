@@ -406,7 +406,7 @@ Proof.
   assert (UNMAPPED: forall b ofs,
       loc_unmapped f1 b ofs -> Mem.valid_block m1 b -> loc_unmapped f2 b ofs).
     unfold loc_unmapped; intros.
-    destruct (f2 b) as [[b' delta] |]_eqn; auto.
+    destruct (f2 b) as [[b' delta] |]eqn:?; auto.
     exploit SEP; eauto. tauto.
   intros; split; intros.
   (* perms *)
@@ -443,7 +443,7 @@ Proof.
       Mem.perm m1' b ofs k p ->
       loc_out_of_reach f2 m2 b ofs).
     unfold loc_out_of_reach; intros.
-    destruct (f1 b0) as [[b' delta'] |]_eqn.
+    destruct (f1 b0) as [[b' delta'] |]eqn:?.
     exploit INCR; eauto. intros EQ; rewrite H1 in EQ; inv EQ.
     red; intros. eelim H; eauto. eapply MAXPERMS; eauto.
     eapply Mem.valid_block_inject_1 with (f := f1); eauto.
