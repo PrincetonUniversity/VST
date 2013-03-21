@@ -368,7 +368,8 @@ Ltac isolate_field_tac_deref e fld R :=
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_expr e)
-     end.
+     end
+  || fail 3 "Could not isolate `(field_mapsto _ _ " fld ") " e ", or equivalent, in precondition".
 
 Ltac isolate_field_tac e fld R := 
   match R with 
@@ -380,7 +381,8 @@ Ltac isolate_field_tac e fld R :=
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_lvalue e)
-     end.
+     end
+  || fail 3 "Could not isolate `(field_mapsto _ _ " fld ") " e ", or equivalent, in precondition".
 
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
@@ -433,7 +435,9 @@ Ltac isolate_mapsto_tac e R :=
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
-     end.
+     end
+  || fail 3 "Could not isolate `(mapsto _ _) " e ", or equivalent, in precondition".
+
 
 Ltac isolate_mapsto__tac_deref e fld R := 
   match R with 
@@ -457,7 +461,6 @@ Ltac isolate_mapsto__tac_deref e fld R :=
                 change (lift1 force_ptr e') with (eval_lvalue e)
      end.
 
-
 Ltac isolate_mapsto__tac e fld R := 
   match R with 
      | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
@@ -478,7 +481,8 @@ Ltac isolate_mapsto__tac e fld R :=
           let n := length_of R in let n' := length_of R' 
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
                 change e' with (eval_lvalue e)
-     end.
+     end
+  || fail 3 "Could not isolate `(field_mapsto_ _ " fld ") " e ", or equivalent, in precondition".
 
 
 Ltac store_field_tac :=
@@ -723,23 +727,43 @@ Ltac is_canonical P :=
  | _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
  end.
 
+Lemma is_ptr_type: forall t, (tptr t = tptr t).
+Proof. reflexivity. Qed.
+
+Ltac is_ptr_type t := let H:=fresh in assert (H:t=t) by apply is_ptr_type; clear H.
+
+Ltac ptr_compare_tac := fail 2 "ptr_compare_tac not implemented".
+  
 Ltac forward1 :=   
    match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
        | |- _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
   end;
   match goal with 
-  | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      store_field_tac
-  | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      store_tac
-  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => semax_field_tac || fail 2
-  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => load_array_tac || fail 2
-  | |- @semax _ _ _ (Sset ?id ?e) _ => forward_setx
+  | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      
+         store_field_tac || fail 2 "store_field_tac failed"
+  | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
+         store_tac || fail 2 "store_tac failed"
+  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
+         semax_field_tac || fail 2 "semax_field_tac failed"
+  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
+         load_array_tac || fail 2 "load_array_tac failed"
+  | |- @semax _ _ _ (Sset _ (Ebinop _ ?e1 _ _)) _ => 
+                is_ptr_type (typeof e1); 
+                first [ptr_compare_tac | fail 2 "ptr_compare_tac failed"]
+  | |- @semax _ _ _ (Sset ?id ?e) _ => 
+          forward_setx || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>
-            apply semax_pre
+            (apply semax_pre
                      with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
-             [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]]
+             [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]])
+            || fail 2 "semax_ifthenelse_PQR did not match"
   | |- @semax _ _ _ (Sreturn _) _ => 
-                    eapply semax_pre_simple; [ go_lower1 | apply semax_return ]
+         (eapply semax_pre_simple; [ go_lower1 | apply semax_return ])
+          || fail 2 "forward1 Sreturn failed"
+  | |-  @semax _ _ _ (Swhile _ _) _ => 
+           fail 2 "Use this tactic:  forward_while INV POST
+    where INV is the loop invariant and POST is the postcondition."
 (* see comment HACK below, in forward tactic...
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
                    semax_call_id_tac_aux Espec Delta P Q R id f bl

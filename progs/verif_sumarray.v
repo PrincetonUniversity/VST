@@ -63,6 +63,53 @@ Proof.
  intros. extensionality v. simpl. apply split3_array_at_range. auto.
 Qed.
 
+Lemma typed_false_cmp':
+  forall op i j m, 
+   typed_false tint (force_val (sem_cmp op i tint j tint m)) ->
+   Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+rewrite Int.negate_cmp.
+destruct i; inv H. destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+Qed.
+
+
+Lemma typed_true_cmp':
+  forall op i j m, 
+   typed_true tint (force_val (sem_cmp op i tint j tint m)) ->
+   Int.cmp op (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+destruct i; inv H. destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+Qed.
+
+Lemma typed_true_ptr: 
+  forall {t a v},  typed_true (Tpointer t a) v -> isptr v.
+Proof.
+unfold typed_true, strict_bool_val; simpl; intros.
+destruct v; try discriminate.
+if_tac in H; inv H. simpl. auto.
+Qed.
+
+Ltac simpl_compare H :=
+         first [apply typed_false_ptr in H
+                 | apply typed_true_ptr in H
+                 | apply typed_false_cmp' in H
+                 | apply typed_true_cmp' in H
+                 | idtac ].
+
+Ltac super_unfold_lift_in H :=
+   change @liftx with @liftx' in H;
+   unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T,
+    lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,
+    lift1, lift2, lift3 in H.
+
 Lemma body_sumarray: semax_body Vprog Gtot f_sumarray sumarray_spec.
 Proof.
 start_function.
@@ -71,10 +118,17 @@ name n _n.
 name i _i.
 name s _s.
 name x _x.
-repeat rewrite andp_assoc.
-normalize.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
+
+(*
+match goal with 
+| |-  @semax _ _ _ (Swhile _ _) _ => 
+  fail 2 "Use this tactic:  forward_while INV POST
+   where INV is the loop invariant and POST is the postcondition."
+end.
+*)
+
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP() LOCAL (`(eq a0) (eval_id _a);   
      `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))
@@ -87,9 +141,9 @@ go_lower. subst. normalize.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  subst.
+go_lower. subst.
  repeat apply andp_right; try apply prop_right; repeat split; auto.
- f_equal. intcompare H2. omega.
+ f_equal. omega.
 (* Prove that loop body preserves invariant *)
 simpl.
 apply semax_pre with
@@ -102,7 +156,7 @@ apply semax_pre with
     `(typed_mapsto sh tint) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
     `(array_at_range tint sh contents (Zsucc i0) size) (eval_id _a))).
   rewrite typed_mapsto_tint.
-  go_lower. subst. intcompare H2.
+  go_lower. subst.
   apply andp_right. apply prop_right; repeat split; auto; omega.
   rewrite (split3_array_at_range i0) by omega.
   cancel.

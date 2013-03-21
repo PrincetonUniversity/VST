@@ -1,10 +1,10 @@
-base.vo base.glob: base.v ../sepcomp\loadpath.v ../compcert\exportclight\Clightdefs.vo ../veric\SeparationLogic.vo ../msl\Extensionality.vo ../compcert\lib\Coqlib.vo ../sepcomp\Coqlib2.vo ../veric\SequentialClight.vo
-proofauto.vo proofauto.glob: proofauto.v ../sepcomp\loadpath.v base.vo field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo malloc_lemmas.vo
-malloc_lemmas.vo malloc_lemmas.glob: malloc_lemmas.v ../sepcomp\loadpath.v base.vo field_mapsto.vo assert_lemmas.vo client_lemmas.vo
-client_lemmas.vo client_lemmas.glob: client_lemmas.v ../sepcomp\loadpath.v base.vo
-canonicalize.vo canonicalize.glob: canonicalize.v ../sepcomp\loadpath.v base.vo client_lemmas.vo
-assert_lemmas.vo assert_lemmas.glob: assert_lemmas.v ../sepcomp\loadpath.v base.vo
-field_mapsto.vo field_mapsto.glob: field_mapsto.v ../sepcomp\loadpath.v base.vo assert_lemmas.vo
-call_lemmas.vo call_lemmas.glob: call_lemmas.v ../sepcomp\loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
-forward_lemmas.vo forward_lemmas.glob: forward_lemmas.v ../sepcomp\loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
-forward.vo forward.glob: forward.v ../sepcomp\loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo canonicalize.vo forward_lemmas.vo call_lemmas.vo
+base.vo base.glob base.v.beautified: base.v ../sepcomp/loadpath.v ../compcert/exportclight/Clightdefs.vo ../veric/SeparationLogic.vo ../msl/Extensionality.vo ../compcert/lib/Coqlib.vo ../sepcomp/Coqlib2.vo ../veric/juicy_extspec.vo ../veric/SeparationLogicSoundness.vo ../veric/NullExtension.vo
+proofauto.vo proofauto.glob proofauto.v.beautified: proofauto.v ../sepcomp/loadpath.v base.vo field_mapsto.vo client_lemmas.vo assert_lemmas.vo forward.vo malloc_lemmas.vo
+malloc_lemmas.vo malloc_lemmas.glob malloc_lemmas.v.beautified: malloc_lemmas.v ../sepcomp/loadpath.v base.vo field_mapsto.vo assert_lemmas.vo client_lemmas.vo
+client_lemmas.vo client_lemmas.glob client_lemmas.v.beautified: client_lemmas.v ../sepcomp/loadpath.v base.vo assert_lemmas.vo
+canonicalize.vo canonicalize.glob canonicalize.v.beautified: canonicalize.v ../sepcomp/loadpath.v base.vo client_lemmas.vo
+assert_lemmas.vo assert_lemmas.glob assert_lemmas.v.beautified: assert_lemmas.v ../sepcomp/loadpath.v base.vo
+field_mapsto.vo field_mapsto.glob field_mapsto.v.beautified: field_mapsto.v ../sepcomp/loadpath.v base.vo assert_lemmas.vo
+call_lemmas.vo call_lemmas.glob call_lemmas.v.beautified: call_lemmas.v ../sepcomp/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
+forward_lemmas.vo forward_lemmas.glob forward_lemmas.v.beautified: forward_lemmas.v ../sepcomp/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo
+forward.vo forward.glob forward.v.beautified: forward.v ../sepcomp/loadpath.v base.vo client_lemmas.vo field_mapsto.vo assert_lemmas.vo canonicalize.vo forward_lemmas.vo call_lemmas.vo

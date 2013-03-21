@@ -271,8 +271,7 @@ change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl; normalize.
 apply sepcon_derives; auto.
-rewrite lseg_nonnull; auto.
-clear.
+rewrite lseg_nonnull; auto. normalize.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
 unfold lseg_cons.

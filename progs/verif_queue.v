@@ -709,13 +709,31 @@ apply semax_pre with (PROP  ()
 go_lower; subst; auto. apply andp_right; auto. apply prop_right; auto.
  forward. (*   p = Q->head; *)
  forward. (*   t=Q->tail; *)
- forward.  (*   b= t == &(p->next); *)
+(* forward.  (*   b= t == &(p->next); *) *)
+apply semax_seq with
+  (PROP  ()
+   LOCAL  (`eq (eval_id _b) (eval_expr (Ebinop Oeq (Etempvar _t (tptr (tptr t_struct_elem)))
+           (Eaddrof
+              (Efield
+                 (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem)
+                 _next (tptr t_struct_elem)) (tptr (tptr t_struct_elem)))
+           tint));
+`eq (eval_id _t) `(offset_val (Int.repr 8) ult);
+   `eq (eval_id _p) `hd; `(eq q) (eval_id _Q))
+   SEP 
+   (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q)
+      `(offset_val (Int.repr 8) ult);
+   `(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd;
+   `(lseg QS Tsh prefix hd ult); `(elemrep lastelem ult))).
+ admit.  (*   b= t == &(p->next); *) 
+(*
  go_lower. subst Q p t.
  admit.  (* To prove the first conjunct, need the rule for
                pointer-comparison (which should have been applied by
               the forward tactic, above, instead of forward_setx_closed_now.
              The prove the second conjunct (isptr hd), either prefix=nil or not,
              if it's nil, then hd=ult and isptr(ult); otherwise isptr(hd). *)
+*)
 apply semax_seq with
     (PROP() LOCAL() SEP (`(fifo contents q); `(elemrep elem) (eval_id _p))).
  forward.  (*   if (t == &(p->next)) *)

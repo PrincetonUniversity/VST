@@ -75,7 +75,7 @@ go_lower. subst. normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
 go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  apply typed_false_ptr in H0. subst.  normalize.
+go_lower.  subst.  normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
@@ -122,7 +122,7 @@ go_lower. subst. simpl; normalize.
 go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 unfold reverse_Inv.
-go_lower. apply typed_false_ptr in H2. subst. normalize. 
+go_lower. subst. normalize. 
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalize. subst contents.
@@ -144,7 +144,7 @@ apply exp_right with r.
   unfold lseg_cons.
   apply andp_right.
   apply prop_right.
-  destruct w; inv H4; simpl; auto. intro Hx; rewrite Hx in *; inv H1.
+  destruct w; inv H4; simpl; auto.
   apply exp_right with h.
   apply exp_right with cts1.
   apply exp_right with w0.

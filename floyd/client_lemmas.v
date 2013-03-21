@@ -1,5 +1,6 @@
 Load loadpath.
 Require Import floyd.base.
+Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
 (* The following line should not be needed, and was not needed
@@ -671,6 +672,131 @@ Proof.
  f_equal; auto.
 Qed.
 
+Lemma typed_true_isptr:
+ forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ => True | _ => False end ->
+          typed_true t = isptr.
+Proof.
+intros. extensionality x; apply prop_ext.
+destruct t; try contradiction; unfold typed_true, strict_bool_val;
+destruct x; intuition; try congruence;
+destruct (Int.eq i Int.zero); inv H0.
+Qed.
+
+Hint Rewrite typed_true_isptr using apply I : norm.
+
+Lemma typed_false_cmp':
+  forall op i j m, 
+   typed_false tint (force_val (sem_cmp op i tint j tint m)) ->
+   Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+rewrite Int.negate_cmp.
+destruct i; inv H. destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+Qed.
+
+
+Lemma typed_true_cmp':
+  forall op i j m, 
+   typed_true tint (force_val (sem_cmp op i tint j tint m)) ->
+   Int.cmp op (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+destruct i; inv H. destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+Qed.
+
+Lemma typed_true_ptr: 
+  forall {t a v},  typed_true (Tpointer t a) v -> isptr v.
+Proof.
+unfold typed_true, strict_bool_val; simpl; intros.
+destruct v; try discriminate.
+if_tac in H; inv H. simpl. auto.
+Qed.
+
+Ltac super_unfold_lift_in H :=
+   try change @liftx with @liftx' in H;
+   unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T,
+    lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,
+    lift1, lift2, lift3 in H.
+
+Ltac super_unfold_lift' :=
+   try change @liftx with @liftx';
+   unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T,
+    lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,
+    lift1, lift2, lift3.
+
+Lemma typed_false_cmp'':
+  forall i j op e1 e2,
+   typed_false tint (force_val (sem_cmp op e1 tint e2 tint Memory.Mem.empty)) ->
+   Vint (Int.repr i) = e1 ->
+   Vint (Int.repr j) = e2 ->
+   repable_signed i -> 
+   repable_signed j -> 
+   Zcmp (negate_comparison op) i j.
+Proof.
+intros. subst.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+eapply int_cmp_repr; auto.
+unfold typed_false in H; simpl in H.
+destruct op; simpl in *;
+match goal with |- negb ?A = true => destruct A; inv H; auto
+                        | |- ?A = true => destruct A; inv H; auto
+ end.
+Qed.
+
+Lemma typed_true_cmp'':
+  forall i j op e1 e2,
+   typed_true tint (force_val (sem_cmp op e1 tint e2 tint Memory.Mem.empty)) ->
+   Vint (Int.repr i) = e1 ->
+   Vint (Int.repr j) = e2 ->
+   repable_signed i -> 
+   repable_signed j -> 
+   Zcmp op i j.
+Proof.
+intros. subst.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+eapply int_cmp_repr; auto.
+unfold typed_true in H; simpl in H.
+destruct (Int.cmp op (Int.repr i) (Int.repr j)); inv H; auto.
+Qed.
+
+Ltac repable_signed := 
+  unfold  repable_signed, Int.min_signed, Int.max_signed in *; omega.
+
+Ltac simpl_compare H :=
+ first [eapply typed_false_cmp'' in H;
+            [ | eassumption | eassumption | repable_signed | repable_signed ];
+            simpl in H
+         | eapply typed_true_cmp'' in H;
+            [ | eassumption | eassumption | repable_signed | repable_signed ];
+            simpl in H
+         |apply typed_false_ptr in H
+         | apply typed_true_ptr in H
+         | apply typed_false_cmp in H
+         | apply typed_true_cmp in H
+         | apply typed_false_cmp' in H
+         | apply typed_true_cmp' in H 
+         |idtac].
+
+Ltac intro_locals rho :=
+       (apply go_lower_lem24;
+        let H := fresh in intro H; super_unfold_lift_in H;
+        match type of H with
+        | typed_false _ _ => 
+               unfold eval_binop in H; simpl in H; intro_locals rho; simpl_compare H
+        | typed_true _ _ => 
+               unfold eval_binop in H; simpl in H; intro_locals rho; simpl_compare H
+        | _ => intro_locals rho
+        end) ||
+       apply go_lower_lem25.
+
 Ltac go_lower2 :=
   match goal with
   | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
@@ -685,46 +811,16 @@ Ltac go_lower2 :=
  try apply go_lower_lem21;
  simpl eval_expr; simpl eval_lvalue; simpl eval_cast;
   let rho := fresh "rho" in intro rho;
- repeat  (first [simple apply go_lower_lem24a | apply go_lower_lem24];
-                 let H := fresh in 
-                       (intro H; super_unfold_lift));
-  apply go_lower_lem25;
- apply go_lower_lem26; 
+ intro_locals rho;
+ apply go_lower_lem26;
  try simple apply go_lower_lem27a;  try simple apply go_lower_lem27c;
  unfold fold_right_sepcon, fold_right_andp;
+ super_unfold_lift';
  change (TT rho) with (@TT mpred Nveric);
  repeat (unfold ret_type; simpl); 
- unfold local; super_unfold_lift;
+ unfold local; super_unfold_lift';
  repeat rewrite retval_lemma1;
  try rewrite refold_frame.
-
-(* old go_lower2:
-  match goal with
-  | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
-             idtac
-  | |- _ => fail 1 "go_lower: not in PROP/LOCAL/SEP form"
-  end;
- unfold tc_expr, tc_lvalue;
- try apply trivial_typecheck;
- repeat apply overridePost_normal_right;
- repeat (apply go_lower_lem22; intro);
- apply go_lower_lem20;
- try apply go_lower_lem21;
- unfold eval_expr,eval_lvalue;
-  let rho := fresh "rho" in intro rho;
- repeat  (first [apply go_lower_lem24a | apply go_lower_lem24];
-                 let H := fresh in 
-                       (intro H; unfold_coerce));
-  apply go_lower_lem25;
- apply go_lower_lem26; 
- try apply go_lower_lem27a;  try apply go_lower_lem27c;
- unfold fold_right_sepcon, fold_right_andp;
- change (TT rho) with (@TT mpred _);
- repeat (unfold ret_type; simpl); 
- unfold local; unfold_coerce;
- repeat rewrite retval_lemma1;
- try rewrite refold_frame.
-*)
 
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
@@ -931,19 +1027,20 @@ Hint Rewrite @fold_right_cons : subst.
  (* NOTE:  go_lower2 and go_lower3 do NOT call the "normalize" tactic.
     This is important for 2 reasons:  normalize is very slow, and it does some
       undesirable rewritings, especially expanding the scope of existentials *)
+
 Ltac go_lower3 :=
      unfold tc_exprlist, tc_expr, tc_lvalue, 
          stackframe_of, Datatypes.id,
         frame_ret_assert, function_body_ret_assert,
         get_result1, retval, make_args', bind_ret,tvoid;
         simpl typecheck_exprlist; simpl typecheck_expr; simpl typecheck_lvalue;
-        super_unfold_lift;
+        super_unfold_lift';
         simpl make_args; simpl access_mode;
         simpl @fst; simpl @snd; simpl @map; 
          (* in Coq 8.4, next line could use simpl, with directives *)
          repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
       simpl  tc_andp; simpl denote_tc_assert;
-        super_unfold_lift;
+        super_unfold_lift';
        repeat (match goal with
         | |- context [@andp _ (@LiftNatDed' _ ?ND) ?P ?Q ?rho] =>
                   change (@andp _ (@LiftNatDed' _ ND) P Q rho) with
@@ -977,36 +1074,6 @@ Ltac go_lower3 :=
        end;
        repeat rewrite Vint_inj' in *;
        repeat apply TT_andp_right; try apply TT_prop_right; auto.
-
-(*old go_lower3: 
-        unfold tc_exprlist, tc_expr, tc_lvalue, 
-        typecheck_exprlist, typecheck_expr, typecheck_lvalue, 
-         stackframe_of, Datatypes.id,
-        frame_ret_assert, function_body_ret_assert,
-        get_result1, retval, make_args', bind_ret;
-        super_unfold_lift;
-        simpl make_args; simpl access_mode;
-        simpl @fst; simpl @snd; simpl @map; 
-         (* in Coq 8.4, next line could use simpl, with directives *)
-         repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
-      simpl  tc_andp; simpl denote_tc_assert;
-        super_unfold_lift;
-        repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
-        repeat rewrite eval_id_same;
-        findvars;
-        eval_cast_simpl;
-        try match goal with H: tc_environ _ ?rho |- _ =>
-                           clear H rho
-             end;
-       repeat match goal with H: context [eval_cast ?a ?b ?c] |- _ =>
-                        try change (eval_cast a b c) with c in H
-       end;
-       repeat match goal with |- context [eval_cast ?a ?b ?c] =>
-                     try change (eval_cast a b c) with c
-       end;
-       repeat rewrite Vint_inj' in *;
-       repeat apply TT_andp_right; try apply TT_prop_right; auto.
-*)
 
 Ltac go_lower := go_lower2; go_lower3.
 

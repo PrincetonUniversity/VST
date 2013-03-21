@@ -227,14 +227,15 @@ normalize in H2.
 normalize.
  
 intros ex vl rho.
-unfold normal_ret_assert. simpl. 
+unfold normal_ret_assert. simpl.
+super_unfold_lift. 
 repeat apply andp_right. 
 normalize. 
 normalize. 
 apply exp_right. apply Vundef. 
 normalize. 
 
-autorewrite with subst in *. normalize. 
+autorewrite with subst in *. normalize.
 auto. auto.
 Qed. 
 
