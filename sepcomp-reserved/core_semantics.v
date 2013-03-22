@@ -281,59 +281,62 @@ split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
 Qed.
 
-(** Rely-Guarantee core semantics extend coop core semantics with a predicate 
-   tracking blocks "private" to this core.  Inuitively, private blocks are 
-   blocks allocated by coresteps of this semantics. *)
+(** Rely-Guarantee core semantics extend coop core semantics with a
+   predicate tracking locations "reserved" by compilation of this core.
+   Inuitively, reserved locations are the locations "above" and "below"
+   at-least-Nonempty locations allocated by this core. *)
 
 Record RelyGuaranteeSemantics {G C D} :=
   { csem :> CoopCoreSem G C D;
-    private_block: C -> block -> Prop;
-    private_dec: forall c b, 
-      {private_block c b}+{~private_block c b};
-    private_initial: forall b ge v vs c,
+    reserved: C -> block -> Z -> Prop;
+    reserved_dec: forall c b ofs, 
+      {reserved c b ofs}+{~reserved c b ofs};
+    reserved_initial: forall b ofs ge v vs c,
       make_initial_core csem ge v vs = Some c -> 
-      ~private_block c b;
-    private_step: forall b ge c m c' m',
+      ~reserved c b ofs;
+    reserved_step: forall b ofs ge c m c' m',
       corestep csem ge c m c' m' -> 
-      private_block c' b ->
-      private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m';
-    private_external: forall b c c' retv ef sig args,
+      reserved c' b ofs ->
+      reserved c b ofs \/ 
+      Mem.nextblock m <= b < Mem.nextblock m';
+    reserved_external: forall b ofs c c' retv ef sig args,
       at_external csem c = Some (ef, sig, args) -> 
       after_external csem retv c = Some c' -> 
-      private_block c' b -> private_block c b }.
+      reserved c' b ofs -> reserved c b ofs}.
 
 Implicit Arguments RelyGuaranteeSemantics [].
 
 Record EqRelyGuaranteeSemantics {G C D} :=
   { eq_csem :> CoopCoreSem G C D;
-    eq_private_block: C -> block -> Prop;
-    eq_private_dec: forall c b, 
-      {eq_private_block c b}+{~eq_private_block c b};
-    eq_private_initial: forall b ge v vs c,
+    eq_reserved: C -> block -> Z -> Prop;
+    eq_reserved_dec: forall c b ofs, 
+      {eq_reserved c b ofs}+{~eq_reserved c b ofs};
+    eq_reserved_initial: forall b ofs ge v vs c,
       make_initial_core eq_csem ge v vs = Some c -> 
-      ~eq_private_block c b;
-    eq_private_step: forall b ge c m c' m',
+      ~eq_reserved c b ofs;
+    eq_reserved_step: forall b ofs ge c m c' m',
       corestep eq_csem ge c m c' m' -> 
-      (eq_private_block c' b <->
-       eq_private_block c b \/ Mem.nextblock m <= b < Mem.nextblock m');
-    eq_private_external: forall b c c' retv ef sig args,
+      (eq_reserved c' b ofs <->
+       eq_reserved c b ofs \/ 
+       Mem.nextblock m <= b < Mem.nextblock m');
+    eq_reserved_external: forall b ofs c c' retv ef sig args,
       at_external eq_csem c = Some (ef, sig, args) -> 
       after_external eq_csem retv c = Some c' -> 
-      (eq_private_block c' b <-> eq_private_block c b) }.
+      (eq_reserved c' b ofs <-> eq_reserved c b ofs) }.
 
 Implicit Arguments EqRelyGuaranteeSemantics [].
 
 Program Definition eq_rely2rely_sem G C D 
   (eq_rgsem: EqRelyGuaranteeSemantics G C D): RelyGuaranteeSemantics G C D :=
  {| csem := eq_csem eq_rgsem;
-    private_block := eq_private_block eq_rgsem;
-    private_dec := eq_private_dec eq_rgsem;
-    private_initial := _;
-    private_step := _;
-    private_external := _ |}.
-Next Obligation. eapply (eq_private_initial eq_rgsem) in H; eauto. Qed.
-Next Obligation. eapply (eq_private_step eq_rgsem); eauto. Qed.
-Next Obligation. erewrite <-(eq_private_external eq_rgsem); eauto. Qed.
+    reserved := eq_reserved eq_rgsem;
+    reserved_dec := eq_reserved_dec eq_rgsem;
+    reserved_initial := _;
+    reserved_step := _;
+    reserved_external := _ |}.
+Next Obligation. eapply (eq_reserved_initial eq_rgsem) in H; eauto. Qed.
+Next Obligation. eapply (eq_reserved_step eq_rgsem); eauto. Qed.
+Next Obligation. erewrite <-(eq_reserved_external eq_rgsem); eauto. Qed.
 
 Lemma forward_nextblock: forall m m',
   mem_forward m m' -> 
@@ -352,23 +355,23 @@ Section RelyGuaranteeSemanticsLemmas.
 Context {G C D: Type}.
 Variable rgsem: RelyGuaranteeSemantics G C D.
 
-Lemma private_new: forall b ge c m c' m',
-  ~private_block rgsem c b -> 
+Lemma reserved_new: forall b ofs ge c m c' m',
+  ~reserved rgsem c b ofs -> 
   corestep rgsem ge c m c' m' -> 
-  private_block rgsem c' b -> 
+  reserved rgsem c' b ofs -> 
   Mem.nextblock m <= b < Mem.nextblock m'.
 Proof.
 intros until m'; intros H1 H2 H3.
-apply (private_step _ b) in H2; auto.
+apply (reserved_step _ b ofs) in H2; auto.
 destruct H2; auto.
 elimtype False; auto.
 Qed.
 
-Lemma private_newN: forall b ge n c m c' m',
-  ~private_block rgsem c b -> 
+Lemma reserved_newN: forall b ofs ge n c m c' m',
+  ~reserved rgsem c b ofs -> 
   corestepN rgsem ge n c m c' m' -> 
-  private_block rgsem c' b -> 
-  Mem.nextblock m <= b < Mem.nextblock m'. 
+  reserved rgsem c' b ofs -> 
+  Mem.nextblock m <= b < Mem.nextblock m'.
 Proof.
 intros until m'; revert c m; induction n; auto.
 intros c m H1 H2 H3.
@@ -378,8 +381,8 @@ solve[elimtype False; auto].
 intros c m H1 H2 H3.
 simpl in H2.
 destruct H2 as [c2 [m2 [STEP STEPN]]].
-destruct (private_dec rgsem c2 b).
-apply (private_new b) in STEP; auto.
+destruct (reserved_dec rgsem c2 b ofs).
+apply (reserved_new b ofs) in STEP; auto.
 apply corestepN_fwd in STEPN.
 apply forward_nextblock in STEPN.
 omega.
@@ -390,78 +393,115 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
+(*intros until m'; revert c m; induction n; auto.
+intros c m H1 H2 H3.
+simpl in H2.
+inv H2.
+solve[elimtype False; auto].
+intros c m H1 H2 H3.
+simpl in H2.
+destruct H2 as [c2 [m2 [STEP STEPN]]].
+destruct (reserved_dec rgsem c2 b ofs).
+apply (reserved_new b ofs) in STEP; auto.
+destruct STEP as [STEP1 STEP2].
+apply corestepN_fwd in STEPN.
+generalize STEPN as STEPN'; intro.
+apply forward_nextblock in STEPN.
+split; auto.
+omega.
+intros CONTRA.
+apply STEP2.
+destruct (STEPN' b) as [? ?]; auto.
+apply forward_nextblock in STEPN'.
+unfold Mem.valid_block.
+solve[destruct STEP1; auto].
+cut (Mem.nextblock m2 <= b < Mem.nextblock m'). intro H4.
+apply corestep_fwd in STEP.
+apply forward_nextblock in STEP.
+split.
+omega.
+2: solve[eapply IHn with (m := m2); eauto].
+intros CONTRA.
+solve[destruct (IHn c2 m2); eauto].
+Qed.*)
+
+Definition reserve_map := block -> Z -> Prop.
+
+Record rinject (f: meminj) (r: reserve_map) (m1 m2: mem): Prop := mk_rinject {
+  rinject_inj: Mem.inject f m1 m2
+}.
+
+Definition guarantee_left (r: reserve_map) (c: C) :=
+  fun b ofs => r b ofs /\ ~reserved rgsem c b ofs.
+
+Definition guarantee_right (f: meminj) (r: reserve_map) (c: C) :=
+  fun b ofs => exists b0 delta, 
+    f b0 = Some (b, delta) /\ guarantee_left r c b0 (ofs-delta). 
+
 Lemma mem_unchanged_unmapped_trans: 
-  forall m1 m1' m2 m3 f1 f2 c,
+  forall m1 m1' m2 m2' r1 r2 c1 c2,
+  mem_unchanged_on (guarantee_left r1 c1) m1 m1' -> 
+  mem_unchanged_on (guarantee_left r2 c2) m2 m2' -> 
   mem_unchanged_on (fun b ofs => 
-    loc_unmapped f1 b ofs /\ private_block rgsem c b) m1 m2 ->
-  inject_separated f1 f2 m1 m1' ->
-  mem_unchanged_on (fun b ofs => 
-    loc_unmapped f2 b ofs /\ private_block rgsem c b) m2 m3 ->
-  mem_unchanged_on (fun b ofs => 
-    loc_unmapped f1 b ofs /\ private_block rgsem c b) m1 m3.
+    guarantee_left r1 c1 b ofs /\ guarantee_left r2 c2 b ofs) m1 m1'.
 Proof.
-  intros until c; intros UNCH1 SEP UNCH2.
-  destruct UNCH1 as [PERMS1 LOADS1].
-  destruct UNCH2 as [PERMS2 LOADS2].
-  assert (UNMAPPED: forall b ofs,
-      loc_unmapped f1 b ofs -> Mem.valid_block m1 b -> loc_unmapped f2 b ofs).
-    unfold loc_unmapped; intros.
-    destruct (f2 b) as [[b' delta] |]eqn:?; auto.
-    exploit SEP; eauto. tauto.
-  intros; split; intros.
-  (* perms *)
-  apply PERMS2. destruct H as [? ?]. split; auto. 
-  apply UNMAPPED; auto. eauto with mem.
-  apply PERMS1; auto.
-  (* loads *)
-  apply LOADS2. intros. specialize (H i H1).
-  destruct H as [? ?]. split; auto.
-  apply UNMAPPED; auto. eauto with mem.
-  apply LOADS1; auto.
+intros until c2; intros H1 H2.
+apply mem_unchanged_on_sub with (Q := guarantee_left r1 c1); auto.
+solve[intros b ofs [? ?]; auto].
 Qed.
 
-Lemma mem_unchanged_outofreach_trans: 
-  forall m1 m2 m1' m2' m3' f1 f2 c,
-  Mem.inject f1 m1 m1' ->
-  Mem.inject f2 m2 m2' ->
-  mem_unchanged_on (fun b ofs => 
-    loc_out_of_reach f1 m1 b ofs /\ private_block rgsem c b) m1' m2' ->
-  inject_separated f1 f2 m1 m1' ->
-  (forall b ofs p, Mem.valid_block m1 b -> Mem.perm m2 b ofs Max p ->
-    Mem.perm m1 b ofs Max p) ->
-  inject_incr f1 f2 ->
-  mem_unchanged_on (fun b ofs => 
-    loc_out_of_reach f2 m2 b ofs /\ private_block rgsem c b) m2' m3' ->
-  mem_unchanged_on (fun b ofs => 
-    loc_out_of_reach f1 m1 b ofs /\ private_block rgsem c b) m1' m3'.
+Lemma guarantee_left_mono: 
+  forall f1 (r1: reserve_map) (r2: reserve_map) c1 c2 b0 b delta ofs0
+  (RES_CO: forall b0 delta ofs0, 
+     r1 b0 ofs0 -> f1 b0 = Some (b, delta) -> r2 b (ofs0 + delta))
+  (MOD_RES_CONTRA: forall b0 delta ofs0, 
+     reserved rgsem c2 b (ofs0 + delta) -> f1 b0 = Some (b, delta) -> 
+     reserved rgsem c1 b0 ofs0),
+  guarantee_left r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
+  guarantee_left r2 c2 b (ofs0 + delta).
 Proof.
-  intros until c; intros INJ1 INJ2 UNCH1 SEP MAXPERMS INCR UNCH2.
-  destruct UNCH1 as [PERMS1 LOADS1].
-  destruct UNCH2 as [PERMS2 LOADS2].
-  assert (OUTOFREACH: forall b ofs k p,
-      loc_out_of_reach f1 m1 b ofs ->
-      Mem.perm m1' b ofs k p ->
-      loc_out_of_reach f2 m2 b ofs).
-    unfold loc_out_of_reach; intros.
-    destruct (f1 b0) as [[b' delta'] |]eqn:?.
-    exploit INCR; eauto. intros EQ; rewrite H1 in EQ; inv EQ.
-    red; intros. eelim H; eauto. eapply MAXPERMS; eauto.
-    eapply Mem.valid_block_inject_1 with (f := f1); eauto.
-    exploit SEP; eauto. intros [A B]. elim B; eauto with mem.
-  intros; split; intros.
-  (* perms *)
-  apply PERMS2. destruct H as [? ?]. split; auto. 
-  eapply OUTOFREACH; eauto. apply PERMS1; auto.
-  (* loads *)
-  exploit Mem.load_valid_access; eauto. intros [A B].
-  apply LOADS2. intros. specialize (H _ H1). destruct H as [? ?]. 
-  split; auto. eapply OUTOFREACH; eauto.
-  apply LOADS1; auto.
+intros until ofs0; intros RES_CO MOD_RES_CONTRA; intros [H1 H2] H3.
+unfold guarantee_left.
+split; auto.
+solve[eapply RES_CO; eauto].
+intros CONTRA; apply H2.
+solve[eapply MOD_RES_CONTRA; eauto].
+Qed.
+
+Lemma mem_unchanged_unreachable_trans:
+  forall m2 m2' m3 m3' f1 (r1: reserve_map) f2 (r2: reserve_map) c1 c2,
+  (forall b0 b delta ofs0, 
+     guarantee_left r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
+     guarantee_left r2 c2 b (ofs0 + delta)) -> 
+  mem_unchanged_on (guarantee_right f1 r1 c1) m2 m2' -> 
+  mem_unchanged_on (guarantee_right f2 r2 c2) m3 m3' -> 
+  mem_unchanged_on (guarantee_right (compose_meminj f1 f2) r1 c1) m3 m3'.
+Proof.
+intros until c2; intros H0 H1 H2.
+apply mem_unchanged_on_sub with (Q := guarantee_right f2 r2 c2); auto.
+intros b ofs H4.
+unfold guarantee_right in H4|-*.
+destruct H4 as [b0 [delta [H4 H5]]].
+unfold compose_meminj in H4.
+case_eq (f1 b0).
+intros [b1 delta1] Heq1.
+rewrite Heq1 in H4.
+exists b1.
+case_eq (f2 b1).
+intros [b2 delta2] Heq2.
+rewrite Heq2 in H4.
+inv H4.
+exists delta2.
+split; auto.
+specialize (H0 _ _ _ _ H5 Heq1).
+solve[assert (ofs - (delta1+delta2) + delta1 = ofs - delta2) as <- by omega; auto].
+intros Heq; rewrite Heq in H4; congruence.
+intros Heq; rewrite Heq in H4; congruence.
 Qed.
 
 End RelyGuaranteeSemanticsLemmas.
 
-Definition blockmap := block -> bool.
+Definition blockmap := block -> Z -> bool.
 
 Section RelyGuaranteeSemanticsFunctor.
 Context {G C D: Type}.
@@ -470,7 +510,7 @@ Variable csem: CoopCoreSem G C D.
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
     corestep csem ge c m c' m' /\
-    (forall b, f' b=true -> f b=true \/ Mem.nextblock m <= b < Mem.nextblock m')
+    (forall b ofs, f' b ofs=true -> f b ofs=true \/ Mem.nextblock m <= b < Mem.nextblock m')
   end.
 
 Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
@@ -479,7 +519,7 @@ Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
     (initial_mem csem)
     (*make_initial_core*)
     (fun ge v vs => match make_initial_core csem ge v vs with
-                    | Some c => Some (fun _ => false, c)
+                    | Some c => Some (fun _ _ => false, c)
                     | None => None
                     end)
     (*at_external*)
@@ -538,7 +578,7 @@ Qed.
 Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
   Build_RelyGuaranteeSemantics G (blockmap*C) D
    RelyGuaranteeCoopSem
-   (fun x b => fst x b = true) _ _ _ _.
+   (fun x b ofs => fst x b ofs = true) _ _ _ _.
 Next Obligation.
 simpl.
 destruct (b0 b).
