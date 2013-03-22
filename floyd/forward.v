@@ -369,7 +369,7 @@ Ltac isolate_field_tac_deref e fld R :=
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_expr e)
      end
-  || fail 3 "Could not isolate `(field_mapsto _ _ " fld ") " e ", or equivalent, in precondition".
+  || fail 4 "Could not isolate `(field_mapsto _ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
 
 Ltac isolate_field_tac e fld R := 
   match R with 
@@ -382,7 +382,7 @@ Ltac isolate_field_tac e fld R :=
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 change e' with (eval_lvalue e)
      end
-  || fail 3 "Could not isolate `(field_mapsto _ _ " fld ") " e ", or equivalent, in precondition".
+  || fail 4 "Could not isolate `(field_mapsto _ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
 
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
@@ -436,7 +436,7 @@ Ltac isolate_mapsto_tac e R :=
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
                 replace e' with (eval_expr e) by auto
      end
-  || fail 3 "Could not isolate `(mapsto _ _) " e ", or equivalent, in precondition".
+  || fail 4 "Could not isolate `(mapsto _ _) (eval_expr " e "), or equivalent, in precondition".
 
 
 Ltac isolate_mapsto__tac_deref e fld R := 
@@ -482,7 +482,7 @@ Ltac isolate_mapsto__tac e fld R :=
              in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
                 change e' with (eval_lvalue e)
      end
-  || fail 3 "Could not isolate `(field_mapsto_ _ " fld ") " e ", or equivalent, in precondition".
+  || fail 4 "Could not isolate `(field_mapsto_ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
 
 
 Ltac store_field_tac :=

@@ -93,6 +93,13 @@ normalize.
 apply exp_right with v2; normalize.
 Qed.
 
+
+Lemma offset_val_force_ptr:
+  offset_val Int.zero = force_ptr.
+Proof. extensionality v. destruct v; try reflexivity.
+simpl. rewrite Int.add_zero; auto.
+Qed.
+
 Lemma mapsto_field_mapsto_:
   forall ch v1 v1' sh ofs t structid fld fields,
   access_mode
@@ -101,7 +108,7 @@ Lemma mapsto_field_mapsto_:
               fields) fld) = By_value ch ->
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val (Int.repr ofs) v1 ->
+  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   (type_is_volatile
          (type_of_field
             (unroll_composite_fields structid
@@ -109,14 +116,16 @@ Lemma mapsto_field_mapsto_:
   mapsto_ sh t v1'  = field_mapsto_ sh (Tstruct structid fields noattr) fld v1.
 Proof.
 intros.
+rewrite offset_val_force_ptr in H2.
 unfold field_mapsto_, mapsto_, umapsto.
 rewrite H0.
-subst v1'.
 rewrite  H.
 rewrite field_offset_unroll. rewrite H1. rewrite H3.
 destruct v1;
- try solve [apply pred_ext; [apply exp_left; auto | apply FF_left]].
+ try solve [apply pred_ext; [apply exp_left; auto | apply FF_left]];
+try solve [destruct v1'; inv H2; simpl; normalize; try apply Vundef].
 rewrite prop_true_andp by auto.
+destruct v1'; inv H2.
 f_equal.
 Qed.
 
@@ -231,6 +240,32 @@ rewrite H0.
 auto.
 Qed.
 
+
+Lemma mapsto_field_mapsto:
+  forall ch v1 v1' v2 sh ofs t structid fld fields,
+   t = type_of_field
+           (unroll_composite_fields structid (Tstruct structid fields noattr)
+              fields) fld ->
+  access_mode t = By_value ch ->
+  field_offset fld fields = Errors.OK ofs ->
+  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
+  type_is_volatile t = false ->
+  mapsto sh t v1' v2 = field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
+Proof.
+intros.
+unfold field_mapsto, mapsto, umapsto.
+rewrite <- H.
+rewrite H0.
+rewrite offset_val_force_ptr in H2.
+destruct v1; try solve [simpl; normalize];
+destruct v1'; inv H2; normalize.
+rewrite field_offset_unroll. rewrite H1.
+rewrite H3.
+rewrite andp_assoc. f_equal.
+normalize.
+Qed.
+
+(*
 Lemma mapsto_field_mapsto:
   forall ch v1 v1' v2 sh ofs t structid fld fields,
    t = type_of_field
@@ -253,6 +288,7 @@ rewrite H3.
 rewrite andp_assoc. f_equal.
 normalize.
 Qed.
+*)
 
 Lemma umapsto_field_mapsto':
   forall v1 v1' v2 sh ofs t structid fld fields,
@@ -261,7 +297,7 @@ Lemma umapsto_field_mapsto':
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val (Int.repr ofs) v1 ->
+  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   typecheck_val v2 (type_of_field
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) = true  ->
@@ -271,17 +307,16 @@ Lemma umapsto_field_mapsto':
   umapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
 Proof.
 intros.
+rewrite offset_val_force_ptr in H1.
 unfold umapsto, field_mapsto.
 rewrite <- H.
 case_eq (access_mode t); intros; try apply FF_left.
-subst v1'.
-destruct v1; simpl offset_val; try solve [simpl; apply FF_left].
-cbv iota.
+destruct v1'; normalize.
+simpl in H1.
+destruct v1; inv H1.
 rewrite field_offset_unroll. rewrite H0.
-rewrite H3. rewrite H2.
 repeat apply andp_right; try apply prop_right; auto.
 Qed.
-
 
 Ltac umapsto_field_mapsto_tac :=  
  eapply umapsto_field_mapsto';
@@ -299,7 +334,7 @@ Lemma mapsto_field_mapsto':
               fields) fld ->
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val (Int.repr ofs) v1 ->
+  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   typecheck_val v2 t = true  ->
   type_is_volatile t = false ->
   mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.

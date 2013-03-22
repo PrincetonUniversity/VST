@@ -217,7 +217,6 @@ unfold fifo.
 match goal with |- semax _ _ _ ?P => set (Post := P) end.
 normalize. intros [hd tl].
 normalize.
-repeat rewrite (lift1more q).
 repeat rewrite (lift2more q).
 replace_SEP 0 (`(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd).
 go_lower; subst; auto.
@@ -236,27 +235,23 @@ go_lower. subst.
  rewrite sepcon_comm. apply sepcon_derives; auto.
  eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
  apply derives_refl''.
- (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
- eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
- rewrite align_0 by omega.
- destruct tl; inversion H. simpl. rewrite Int.add_zero. auto.
+ eapply mapsto_field_mapsto_;  reflexivity.
  normalize.
  unfold elemrep.
  repeat rewrite <- sepcon_assoc.
  rewrite sepcon_comm.
  apply sepcon_derives; auto.
  apply derives_refl''.
- (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
- eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
+ eapply mapsto_field_mapsto_;  simpl; try reflexivity.
+ rewrite offset_offset_val; reflexivity.
  apply derives_trans with (field_mapsto Tsh t_struct_fifo _head Q hd * TT).
  cancel.
  apply sepcon_derives; auto.
  eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
  apply derives_refl''.
- (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
- eapply mapsto_field_mapsto_; unfold field_offset; simpl; try reflexivity.
- rewrite align_0 by omega. 
- destruct Q; inversion H; auto.
+ eapply mapsto_field_mapsto_; simpl; try reflexivity.
+ simpl. rewrite <- offset_val_force_ptr.
+ repeat  rewrite offset_offset_val; reflexivity.
  intros. apply andp_left2. unfold Post0; apply derives_refl.
  apply extract_exists_pre; intro old.
  unfold_fold_eval_expr.
@@ -363,7 +358,6 @@ start_function.
 name Q _Q.
 name p _p.
 name t _t.
-normalize.
 unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
@@ -382,13 +376,8 @@ apply semax_pre
     `(mapsto_ Tsh (tptr t_struct_elem)) (eval_id _t);
     `(elemrep elem) (eval_id _p))).
 go_lower. normalize. subst. cancel.
-rewrite field_mapsto_isptr.
-normalize.
 eapply derives_trans; [apply field_mapsto_field_mapsto_  | ].
-replace (field_mapsto_ Tsh t_struct_fifo _head Q)
-   with (mapsto_ Tsh (tptr t_struct_elem) Q); auto.
-eapply mapsto_field_mapsto_; try (unfold field_offset; simpl; reflexivity).
-destruct Q; inv H. simpl. rewrite Int.add_zero; auto.
+apply derives_refl''; eapply mapsto_field_mapsto_; reflexivity.
 normalize.  subst tl.
 forward.  (* *t = p *)
 forward.  (* *(Q->tail) = &p->next;  *) 
@@ -412,13 +401,8 @@ apply prop_right. destruct p; inv H; split; auto.
 apply Int.eq_true.
 cancel.
 destruct p; inv H; simpl. cancel.
-rewrite mapsto_isptr. normalize.
 apply derives_refl'.
-eapply mapsto_field_mapsto; simpl; eauto.
-unfold field_offset; simpl; reflexivity.
-destruct Q; simpl in TC1; try contradiction; simpl.
-f_equal. 
-rewrite int_add_repr_0_r. auto.
+eapply mapsto_field_mapsto; reflexivity; simpl; eauto.
 (* CASE TWO:  contents <> nil *)
 focus_SEP 2.
 normalize. intro prefix.
@@ -434,7 +418,7 @@ destruct elem' as [a b].
 simpl @fst; simpl @snd.
 replace (field_mapsto_ Tsh t_struct_elem _next ult)
       with  (mapsto_ Tsh (tptr t_struct_elem)  (offset_val (Int.repr 8) ult)).
-2: eapply mapsto_field_mapsto_; simpl; eauto; unfold field_offset; simpl; reflexivity.
+2: eapply mapsto_field_mapsto_;  simpl; try rewrite offset_offset_val; reflexivity.
 replace_SEP 1 (`(mapsto_ Tsh (tptr t_struct_elem)) (eval_id queue._t)).
 go_lower; subst; auto.
 forward.  (* *t = p *)
@@ -506,8 +490,7 @@ replace  (eval_cast (tptr t_struct_elem) (tptr t_struct_elem) p) with p
 replace (mapsto Tsh (tptr t_struct_elem) (offset_val (Int.repr 8) ult) p)
   with (field_mapsto Tsh t_struct_elem _next ult p).
 Focus 2. symmetry.
- (* NOTE: In Coq 8.4, it is no longer necessary to unfold field_offset *)
- eapply mapsto_field_mapsto; unfold field_offset; simpl; try reflexivity.
+eapply mapsto_field_mapsto; simpl; try rewrite offset_offset_val; reflexivity.
 rewrite list_cell_eq.
 cancel.
 Qed.

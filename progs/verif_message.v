@@ -111,10 +111,11 @@ apply semax_pre with
    `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1)))).
 go_lower; subst;  rewrite (field_mapsto__isptr). normalize. 
  cancel.
-apply sepcon_derives; apply derives_refl''; 
- eapply mapsto_field_mapsto_; unfold field_offset; try (simpl; reflexivity);
- apply add_ptr_int_offset;
- simpl; compute; intuition congruence.
+repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
+ simpl.
+apply sepcon_derives; apply derives_refl'';
+ eapply mapsto_field_mapsto_; try reflexivity; simpl;
+ rewrite offset_offset_val; simpl; f_equal; compute; auto.
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 forward. (*  ((int * )buf)[0]=x; *)
@@ -133,7 +134,8 @@ unfold mf_restbuf. simpl.
 destruct buf0; inv H0.
 simpl. rewrite memory_block_zero. rewrite sepcon_emp.
 apply sepcon_derives; apply derives_refl';
- eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity).
+ eapply mapsto_field_mapsto; simpl; try reflexivity;
+ rewrite Int.add_assoc; reflexivity.
 Qed.
 
 
@@ -166,10 +168,10 @@ go_lower; subst.
 simpl_typed_mapsto. simpl.
  rewrite field_mapsto_isptr. normalize.
  cancel.
+repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
- apply add_ptr_int_offset;
- simpl; compute; intuition congruence.
+ rewrite offset_offset_val; reflexivity.
 normalize.
 forward. (* x = ((int * )buf)[0]; *)
 go_lower. subst buf0 p0. normalize.
@@ -184,8 +186,8 @@ simpl.
 cancel.
 rewrite sepcon_comm.
 apply sepcon_derives;
-apply derives_refl'; eapply mapsto_field_mapsto;  unfold field_offset; try (simpl; reflexivity);
- destruct buf0; inv H1; unfold eval_binop; simpl; reflexivity.
+apply derives_refl'; eapply mapsto_field_mapsto;  try (simpl; reflexivity);
+ destruct buf0; inv H1; unfold eval_binop; simpl; rewrite Int.add_assoc; reflexivity. 
 Qed.
 
 Ltac simpl_stackframe_of := 
