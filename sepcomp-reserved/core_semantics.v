@@ -282,61 +282,60 @@ eapply external_call_max_perm; eauto.
 Qed.
 
 (** Rely-Guarantee core semantics extend coop core semantics with a
-   predicate tracking locations "reserved" by compilation of this core.
-   Inuitively, reserved locations are the locations "above" and "below"
-   at-least-Nonempty locations allocated by this core. *)
+   predicate tracking locations "owned" by this core.
+   Inuitively, owned locations are those in blocks allocated by this core. *)
 
 Record RelyGuaranteeSemantics {G C D} :=
   { csem :> CoopCoreSem G C D;
-    reserved: C -> block -> Z -> Prop;
-    reserved_dec: forall c b ofs, 
-      {reserved c b ofs}+{~reserved c b ofs};
-    reserved_initial: forall b ofs ge v vs c,
+    owned: C -> block -> Z -> Prop;
+    owned_dec: forall c b ofs, 
+      {owned c b ofs}+{~owned c b ofs};
+    owned_initial: forall b ofs ge v vs c,
       make_initial_core csem ge v vs = Some c -> 
-      ~reserved c b ofs;
-    reserved_step: forall b ofs ge c m c' m',
+      ~owned c b ofs;
+    owned_step: forall b ofs ge c m c' m',
       corestep csem ge c m c' m' -> 
-      reserved c' b ofs ->
-      reserved c b ofs \/ 
+      owned c' b ofs ->
+      owned c b ofs \/ 
       Mem.nextblock m <= b < Mem.nextblock m';
-    reserved_external: forall b ofs c c' retv ef sig args,
+    owned_external: forall b ofs c c' retv ef sig args,
       at_external csem c = Some (ef, sig, args) -> 
       after_external csem retv c = Some c' -> 
-      reserved c' b ofs -> reserved c b ofs}.
+      owned c' b ofs -> owned c b ofs}.
 
 Implicit Arguments RelyGuaranteeSemantics [].
 
 Record EqRelyGuaranteeSemantics {G C D} :=
   { eq_csem :> CoopCoreSem G C D;
-    eq_reserved: C -> block -> Z -> Prop;
-    eq_reserved_dec: forall c b ofs, 
-      {eq_reserved c b ofs}+{~eq_reserved c b ofs};
-    eq_reserved_initial: forall b ofs ge v vs c,
+    eq_owned: C -> block -> Z -> Prop;
+    eq_owned_dec: forall c b ofs, 
+      {eq_owned c b ofs}+{~eq_owned c b ofs};
+    eq_owned_initial: forall b ofs ge v vs c,
       make_initial_core eq_csem ge v vs = Some c -> 
-      ~eq_reserved c b ofs;
-    eq_reserved_step: forall b ofs ge c m c' m',
+      ~eq_owned c b ofs;
+    eq_owned_step: forall b ofs ge c m c' m',
       corestep eq_csem ge c m c' m' -> 
-      (eq_reserved c' b ofs <->
-       eq_reserved c b ofs \/ 
+      (eq_owned c' b ofs <->
+       eq_owned c b ofs \/ 
        Mem.nextblock m <= b < Mem.nextblock m');
-    eq_reserved_external: forall b ofs c c' retv ef sig args,
+    eq_owned_external: forall b ofs c c' retv ef sig args,
       at_external eq_csem c = Some (ef, sig, args) -> 
       after_external eq_csem retv c = Some c' -> 
-      (eq_reserved c' b ofs <-> eq_reserved c b ofs) }.
+      (eq_owned c' b ofs <-> eq_owned c b ofs) }.
 
 Implicit Arguments EqRelyGuaranteeSemantics [].
 
 Program Definition eq_rely2rely_sem G C D 
   (eq_rgsem: EqRelyGuaranteeSemantics G C D): RelyGuaranteeSemantics G C D :=
  {| csem := eq_csem eq_rgsem;
-    reserved := eq_reserved eq_rgsem;
-    reserved_dec := eq_reserved_dec eq_rgsem;
-    reserved_initial := _;
-    reserved_step := _;
-    reserved_external := _ |}.
-Next Obligation. eapply (eq_reserved_initial eq_rgsem) in H; eauto. Qed.
-Next Obligation. eapply (eq_reserved_step eq_rgsem); eauto. Qed.
-Next Obligation. erewrite <-(eq_reserved_external eq_rgsem); eauto. Qed.
+    owned := eq_owned eq_rgsem;
+    owned_dec := eq_owned_dec eq_rgsem;
+    owned_initial := _;
+    owned_step := _;
+    owned_external := _ |}.
+Next Obligation. eapply (eq_owned_initial eq_rgsem) in H; eauto. Qed.
+Next Obligation. eapply (eq_owned_step eq_rgsem); eauto. Qed.
+Next Obligation. erewrite <-(eq_owned_external eq_rgsem); eauto. Qed.
 
 Lemma forward_nextblock: forall m m',
   mem_forward m m' -> 
@@ -355,22 +354,22 @@ Section RelyGuaranteeSemanticsLemmas.
 Context {G C D: Type}.
 Variable rgsem: RelyGuaranteeSemantics G C D.
 
-Lemma reserved_new: forall b ofs ge c m c' m',
-  ~reserved rgsem c b ofs -> 
+Lemma owned_new: forall b ofs ge c m c' m',
+  ~owned rgsem c b ofs -> 
   corestep rgsem ge c m c' m' -> 
-  reserved rgsem c' b ofs -> 
+  owned rgsem c' b ofs -> 
   Mem.nextblock m <= b < Mem.nextblock m'.
 Proof.
 intros until m'; intros H1 H2 H3.
-apply (reserved_step _ b ofs) in H2; auto.
+apply (owned_step _ b ofs) in H2; auto.
 destruct H2; auto.
 elimtype False; auto.
 Qed.
 
-Lemma reserved_newN: forall b ofs ge n c m c' m',
-  ~reserved rgsem c b ofs -> 
+Lemma owned_newN: forall b ofs ge n c m c' m',
+  ~owned rgsem c b ofs -> 
   corestepN rgsem ge n c m c' m' -> 
-  reserved rgsem c' b ofs -> 
+  owned rgsem c' b ofs -> 
   Mem.nextblock m <= b < Mem.nextblock m'.
 Proof.
 intros until m'; revert c m; induction n; auto.
@@ -381,8 +380,8 @@ solve[elimtype False; auto].
 intros c m H1 H2 H3.
 simpl in H2.
 destruct H2 as [c2 [m2 [STEP STEPN]]].
-destruct (reserved_dec rgsem c2 b ofs).
-apply (reserved_new b ofs) in STEP; auto.
+destruct (owned_dec rgsem c2 b ofs).
+apply (owned_new b ofs) in STEP; auto.
 apply corestepN_fwd in STEPN.
 apply forward_nextblock in STEPN.
 omega.
@@ -393,82 +392,68 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
-(*intros until m'; revert c m; induction n; auto.
-intros c m H1 H2 H3.
-simpl in H2.
-inv H2.
-solve[elimtype False; auto].
-intros c m H1 H2 H3.
-simpl in H2.
-destruct H2 as [c2 [m2 [STEP STEPN]]].
-destruct (reserved_dec rgsem c2 b ofs).
-apply (reserved_new b ofs) in STEP; auto.
-destruct STEP as [STEP1 STEP2].
-apply corestepN_fwd in STEPN.
-generalize STEPN as STEPN'; intro.
-apply forward_nextblock in STEPN.
-split; auto.
-omega.
-intros CONTRA.
-apply STEP2.
-destruct (STEPN' b) as [? ?]; auto.
-apply forward_nextblock in STEPN'.
-unfold Mem.valid_block.
-solve[destruct STEP1; auto].
-cut (Mem.nextblock m2 <= b < Mem.nextblock m'). intro H4.
-apply corestep_fwd in STEP.
-apply forward_nextblock in STEP.
-split.
-omega.
-2: solve[eapply IHn with (m := m2); eauto].
-intros CONTRA.
-solve[destruct (IHn c2 m2); eauto].
-Qed.*)
-
 Definition reserve_map := block -> Z -> Prop.
+
+Definition reserve_map_incr (r1 r2: reserve_map) :=
+  forall b ofs, r1 b ofs -> r2 b ofs.
+
+Definition reserve_map_valid (r: reserve_map) (m: mem) :=
+  forall b ofs, r b ofs -> Mem.valid_block m b.
+
+Definition reserve_map_separated (r r': reserve_map) (m1 m2: mem) :=
+  forall b ofs, ~r b ofs -> r' b ofs -> 
+                ~Mem.valid_block m1 b /\ ~Mem.valid_block m2 b.
 
 Record rinject (f: meminj) (r: reserve_map) (m1 m2: mem): Prop := mk_rinject {
   rinject_inj: Mem.inject f m1 m2
 }.
 
+(** A core "guarantees" not to touch, on the LHS of a compilation phase, 
+ those locations that are globally reserved and not owned by this core. *)
+
 Definition guarantee_left (r: reserve_map) (c: C) :=
-  fun b ofs => r b ofs /\ ~reserved rgsem c b ofs.
+  fun b ofs => r b ofs /\ ~owned rgsem c b ofs.
+
+(** A core guarantees not to touch, on the RHS of a compilation phase f, 
+ those locations which are the image of a reserved location on the LHS. *)
 
 Definition guarantee_right (f: meminj) (r: reserve_map) (c: C) :=
-  fun b ofs => exists b0 delta, 
-    f b0 = Some (b, delta) /\ guarantee_left r c b0 (ofs-delta). 
+  fun b ofs => exists b0 delta, f b0 = Some (b, delta) /\ 
+                                guarantee_left r c b0 (ofs-delta).
 
-Lemma mem_unchanged_unmapped_trans: 
-  forall m1 m1' m2 m2' r1 r2 c1 c2,
-  mem_unchanged_on (guarantee_left r1 c1) m1 m1' -> 
-  mem_unchanged_on (guarantee_left r2 c2) m2 m2' -> 
-  mem_unchanged_on (fun b ofs => 
-    guarantee_left r1 c1 b ofs /\ guarantee_left r2 c2 b ofs) m1 m1'.
-Proof.
-intros until c2; intros H1 H2.
-apply mem_unchanged_on_sub with (Q := guarantee_left r1 c1); auto.
-solve[intros b ofs [? ?]; auto].
-Qed.
+(** A core "relies" on the environment to leave unchanged those locations, 
+ on the LHS of a compilation phase, that are globally reserved and 
+ owned by this core. *)
 
+Definition rely_left (r: reserve_map) (c: C) :=
+  fun b ofs => r b ofs /\ owned rgsem c b ofs.
+
+Definition rely_right (f: meminj) (r: reserve_map) (c: C) :=
+  fun b ofs => exists b0 delta, f b0 = Some (b, delta) /\
+                                rely_left r c b0 (ofs-delta).
+
+(*This is slightly weird.*)
 Lemma guarantee_left_mono: 
   forall f1 (r1: reserve_map) (r2: reserve_map) c1 c2 b0 b delta ofs0
-  (RES_CO: forall b0 delta ofs0, 
+  (RESERVED_COVAR: forall b0 delta ofs0, 
      r1 b0 ofs0 -> f1 b0 = Some (b, delta) -> r2 b (ofs0 + delta))
-  (MOD_RES_CONTRA: forall b0 delta ofs0, 
-     reserved rgsem c2 b (ofs0 + delta) -> f1 b0 = Some (b, delta) -> 
-     reserved rgsem c1 b0 ofs0),
+  (OWNED_CONTRAVAR: forall b0 delta ofs0, 
+     owned rgsem c2 b (ofs0 + delta) -> f1 b0 = Some (b, delta) -> 
+     owned rgsem c1 b0 ofs0),
   guarantee_left r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
   guarantee_left r2 c2 b (ofs0 + delta).
 Proof.
-intros until ofs0; intros RES_CO MOD_RES_CONTRA; intros [H1 H2] H3.
+intros until ofs0; intros CO CONTRA; intros [H1 H2] H3.
 unfold guarantee_left.
 split; auto.
-solve[eapply RES_CO; eauto].
-intros CONTRA; apply H2.
-solve[eapply MOD_RES_CONTRA; eauto].
+solve[eapply CO; eauto].
+intros H0; apply H2.
+solve[eapply CONTRA; eauto].
 Qed.
 
-Lemma mem_unchanged_unreachable_trans:
+(** Guarantee transitivity theorems *)
+
+Lemma guarantee_right_trans:
   forall m2 m2' m3 m3' f1 (r1: reserve_map) f2 (r2: reserve_map) c1 c2,
   (forall b0 b delta ofs0, 
      guarantee_left r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
@@ -497,6 +482,68 @@ specialize (H0 _ _ _ _ H5 Heq1).
 solve[assert (ofs - (delta1+delta2) + delta1 = ofs - delta2) as <- by omega; auto].
 intros Heq; rewrite Heq in H4; congruence.
 intros Heq; rewrite Heq in H4; congruence.
+Qed.
+
+Lemma guarantee_right_trans_EI:
+  forall m2 m2' m3 m3' (r1: reserve_map) f2 (r2: reserve_map) c1 c2,
+  (forall b0 ofs0, guarantee_left r1 c1 b0 ofs0 -> guarantee_left r2 c2 b0 ofs0) -> 
+  mem_unchanged_on (guarantee_right inject_id r1 c1) m2 m2' -> 
+  mem_unchanged_on (guarantee_right f2 r2 c2) m3 m3' -> 
+  mem_unchanged_on (guarantee_right f2 r1 c1) m3 m3'.
+Proof.
+intros.
+specialize (guarantee_right_trans m2 m2' m3 m3' inject_id r1 f2 r2 c1 c2); intros H2.
+destruct H2; auto.
+intros until ofs0; intros H2 H3.
+unfold inject_id in H3; inv H3.
+solve[assert (ofs0+0 = ofs0) as -> by omega; auto].
+assert (f2 = compose_meminj inject_id f2) as Heq.
+ unfold inject_id, compose_meminj; hnf.
+ extensionality b.
+ destruct (f2 b); auto.
+ solve[destruct p; auto].
+solve[rewrite Heq; split; intros; auto].
+Qed.
+
+Lemma guarantee_right_trans_IE:
+  forall m2 m2' m3 m3' f1 (r1: reserve_map) (r2: reserve_map) c1 c2,
+  (forall b0 b delta ofs0, 
+     guarantee_left r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
+     guarantee_left r2 c2 b (ofs0 + delta)) -> 
+  mem_unchanged_on (guarantee_right f1 r1 c1) m2 m2' -> 
+  mem_unchanged_on (guarantee_right inject_id r2 c2) m3 m3' -> 
+  mem_unchanged_on (guarantee_right f1 r1 c1) m3 m3'.
+Proof.
+intros.
+specialize (guarantee_right_trans m2 m2' m3 m3' f1 r1 inject_id r2 c1 c2); intros H2.
+destruct H2; auto.
+assert (f1 = compose_meminj f1 inject_id) as Heq.
+ unfold inject_id, compose_meminj; hnf.
+ extensionality b.
+ destruct (f1 b); auto.
+ destruct p; auto.
+ solve[do 2 f_equal; auto; omega].
+solve[rewrite Heq; split; intros; auto].
+Qed.
+
+Lemma guarantee_right_trans_EE:
+  forall m2 m2' m3 m3' (r1: reserve_map) (r2: reserve_map) c1 c2,
+  (forall b0 ofs0, guarantee_left r1 c1 b0 ofs0 -> guarantee_left r2 c2 b0 ofs0) -> 
+  mem_unchanged_on (guarantee_right inject_id r1 c1) m2 m2' -> 
+  mem_unchanged_on (guarantee_right inject_id r2 c2) m3 m3' -> 
+  mem_unchanged_on (guarantee_right inject_id r1 c1) m3 m3'.
+Proof.
+intros.
+specialize (guarantee_right_trans m2 m2' m3 m3' inject_id r1 inject_id r2 c1 c2); intros H2.
+destruct H2; auto.
+intros until ofs0; intros H2 H3.
+unfold inject_id in H3; inv H3.
+solve[assert (ofs0+0 = ofs0) as -> by omega; auto].
+assert (inject_id = compose_meminj inject_id inject_id) as Heq.
+ unfold inject_id, compose_meminj; hnf.
+ extensionality b.
+ solve[f_equal; auto; omega].
+solve[rewrite Heq; split; intros; auto].
 Qed.
 
 End RelyGuaranteeSemanticsLemmas.
