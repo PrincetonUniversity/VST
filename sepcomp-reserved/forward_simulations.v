@@ -385,7 +385,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         mem_forward m1 m1'  -> 
         mem_forward m2 m2' -> 
         mem_unchanged_on (rely_left Sem1 r st1) m1 m1' -> 
-        mem_unchanged_on (rely_right Sem2 j r st2) m2 m2' -> 
+        mem_unchanged_on (rely_right Sem1 j r st1) m2 m2' -> 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 
@@ -588,7 +588,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         mem_forward m1 m1'  -> 
         mem_forward m2 m2' -> 
         mem_unchanged_on (rely_left Sem1 r st1) m1 m1' -> 
-        mem_unchanged_on (rely_right Sem2 j r st2) m2 m2' -> 
+        mem_unchanged_on (rely_right Sem1 j r st1) m2 m2' -> 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 

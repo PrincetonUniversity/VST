@@ -428,6 +428,8 @@ Definition guarantee_right (f: meminj) (r: reserve_map) (c: C) :=
 Definition rely_left (r: reserve_map) (c: C) :=
   fun b ofs => r b ofs /\ owned rgsem c b ofs.
 
+(** Ditto for the images, on the RHS, of rely_left locations. *)
+
 Definition rely_right (f: meminj) (r: reserve_map) (c: C) :=
   fun b ofs => exists b0 delta, f b0 = Some (b, delta) /\
                                 rely_left r c b0 (ofs-delta).

@@ -67,37 +67,37 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
-  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+  (match_state: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
 
  Import Forward_simulation_inj_exposed.
 
  Inductive Sig: Type := Make: forall
-  (match_state_runnable: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> 
+  (match_state_runnable: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> 
     runnable sourceC c1 = runnable targetC c2)
 
-  (match_state_inj: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+  (match_state_inj: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> Mem.inject j m1 m2)
 
-  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> 
+  (match_state_preserves_globals: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> 
     meminj_preserves_globals ge1 j)
 
-  (stable: forall (ge1: Genv.t F1 V1) cdC m1 m1' f f' m2 m2' c1 c2,
+  (stable: forall (ge1: Genv.t F1 V1) cdC m1 m1' r r' f f' m2 m2' c1 c2,
     (** Rely *)
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
-    mem_unchanged_on (fun b ofs => 
-      loc_unmapped f b ofs /\ private_block sourceC c1 b) m1 m1' ->
-    mem_unchanged_on (fun b ofs => 
-      loc_out_of_reach f m1 b ofs /\ private_block targetC c2 b) m2 m2' ->
+    mem_unchanged_on (rely_left sourceC r c1) m1 m1' -> 
+    mem_unchanged_on (rely_right targetC f r c2) m2 m2' -> 
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
+    reserve_map_incr r r' -> 
+    reserve_map_separated r r' m1 m2 -> 
 
     (** Match is stable *)
-    match_state cdC f c1 m1 c2 m2 -> 
-    match_state cdC f' c1 m1' c2 m2'),
+    match_state cdC r f c1 m1 c2 m2 -> 
+    match_state cdC r' f' c1 m1' c2 m2'),
   Sig.
 
 End StableRelyGuaranteeSimulation. End StableRelyGuaranteeSimulation.
