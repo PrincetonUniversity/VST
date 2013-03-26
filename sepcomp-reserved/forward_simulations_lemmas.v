@@ -202,7 +202,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         reserve_map_incr r r' -> 
-        reserve_map_separated r r' m1 m2 -> 
+        reserve_map_separated r r' inject_id m1 m2 -> 
 
         Val.has_type ret2 (proj_sig_res ef_sig) ->
 
@@ -220,7 +220,7 @@ Hypothesis ext_simulation:
     forall c2 m2, match_states c1 r c1 m1 c2 m2 ->
       exists c2', exists r', exists m2', 
         reserve_map_incr r r' /\
-        reserve_map_separated r r' m1 m2 /\
+        reserve_map_separated r r' inject_id m1 m2 /\
         match_states c1' r' c1' m1' c2' m2' /\
         mem_unchanged_on (guarantee_right Sem1 inject_id r c1) m2 m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
@@ -265,7 +265,7 @@ Section EXT_SIMULATION_STAR.
         match_states c1 r c1 m1 c2 m2 ->
         exists c2' r' m2', 
           reserve_map_incr r r' /\
-          reserve_map_separated r r' m1 m2 /\
+          reserve_map_separated r r' inject_id m1 m2 /\
           match_states c1' r' c1' m1' c2' m2' /\
           mem_unchanged_on (guarantee_right Sem1 inject_id r c1) m2 m2' /\
           (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
@@ -288,7 +288,7 @@ Section EXT_SIMULATION_PLUS.
     forall c2 m2, match_states c1 r c1 m1 c2 m2 ->
       exists c2' r' m2',
         reserve_map_incr r r' /\
-        reserve_map_separated r r' m1 m2 /\
+        reserve_map_separated r r' inject_id m1 m2 /\
         match_states c1' r' c1' m1' c2' m2' /\
         mem_unchanged_on (guarantee_right Sem1 inject_id r c1) m2 m2' /\
         corestep_plus Sem2 ge2 c2 m2 c2' m2'.
@@ -318,6 +318,11 @@ Section Sim_INJ_SIMU_DIAGRAMS.
   Let core_data := C1.
 
   Variable match_states: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop.
+
+  Hypothesis reserve_valid: 
+    forall cd r j c1 m1 c2 m2,
+      match_states cd r j c1 m1 c2 m2 -> 
+      reserve_map_valid r m1 /\ reserve_map_valid r m2.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
         In (v1,v2,sig) entry_points -> 
@@ -361,7 +366,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         inject_separated j j' m1 m2 ->
 
         reserve_map_incr r r' -> 
-        reserve_map_separated r r' m1 m2 -> 
+        reserve_map_separated r r' j' m1 m2 -> 
 
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
@@ -391,7 +396,7 @@ Hypothesis order_wf: well_founded order.
         inject_separated j j' m1 m2 /\
         match_states c1' r' j' c1' m1' c2' m2' /\
         reserve_map_incr r r' /\
-        reserve_map_separated r r' m1 m2 /\ 
+        reserve_map_separated r r' j' m1 m2 /\ 
         mem_unchanged_on (guarantee_left Sem1 r c1) m1 m1' /\
         mem_unchanged_on (guarantee_right Sem1 j r c1) m2 m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
@@ -404,6 +409,8 @@ Proof.
     (core_ord := order)
     (match_state := fun d r j c1 m1 c2 m2 => d = c1 /\ match_states d r j c1 m1 c2 m2).
   apply order_wf.
+  intros. destruct H; subst.
+  solve[exploit reserve_valid; eauto].
   intros. destruct H0; subst.
   exploit inj_simulation; eauto.
   intros [c2' [m2' [r' [j' [? [? [? [? [? [? [? ?]]]]]]]]]]].
@@ -433,7 +440,7 @@ Section INJ_SIMULATION_STAR.
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\ 
         reserve_map_incr r r' /\
-        reserve_map_separated r r' m1 m2 /\ 
+        reserve_map_separated r r' j' m1 m2 /\ 
         mem_unchanged_on (guarantee_left Sem1 r c1) m1 m1' /\
         mem_unchanged_on (guarantee_right Sem1 j r c1) m2 m2' /\
         match_states c1' r' j' c1' m1' c2' m2' /\
@@ -465,7 +472,7 @@ Section INJ_SIMULATION_PLUS.
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\ 
         reserve_map_incr r r' /\
-        reserve_map_separated r r' m1 m2 /\ 
+        reserve_map_separated r r' j' m1 m2 /\ 
         mem_unchanged_on (guarantee_left Sem1 r c1) m1 m1' /\
         mem_unchanged_on (guarantee_right Sem1 j r c1) m2 m2' /\
         match_states c1' r' j' c1' m1' c2' m2' /\

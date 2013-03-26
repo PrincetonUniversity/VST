@@ -400,9 +400,11 @@ Definition reserve_map_incr (r1 r2: reserve_map) :=
 Definition reserve_map_valid (r: reserve_map) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
 
-Definition reserve_map_separated (r r': reserve_map) (m1 m2: mem) :=
-  forall b ofs, ~r b ofs -> r' b ofs -> 
-                ~Mem.valid_block m1 b /\ ~Mem.valid_block m2 b.
+Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :=
+  forall b1 b2 delta ofs, 
+    ~r b1 ofs -> r b1 ofs -> 
+    f' b1 = Some (b2, delta) -> 
+    ~Mem.valid_block m1 b1 /\ ~Mem.valid_block m2 b2.
 
 Record rinject (f: meminj) (r: reserve_map) (m1 m2: mem): Prop := mk_rinject {
   rinject_inj: Mem.inject f m1 m2

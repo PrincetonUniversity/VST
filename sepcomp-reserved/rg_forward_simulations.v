@@ -93,7 +93,7 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
     reserve_map_incr r r' -> 
-    reserve_map_separated r r' m1 m2 -> 
+    reserve_map_separated r r' f' m1 m2 -> 
 
     (** Match is stable *)
     match_state cdC r f c1 m1 c2 m2 -> 

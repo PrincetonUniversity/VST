@@ -131,7 +131,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         match_state cd r st1 m1 st2 m2 ->
         exists st2', exists r', exists m2', exists cd',
           reserve_map_incr r r' /\ 
-          reserve_map_separated r r' m1 m2 /\
+          reserve_map_separated r r' inject_id m1 m2 /\
           match_state cd' r' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_right Sem1 inject_id r st1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
@@ -187,7 +187,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         reserve_map_incr r r' -> 
-        reserve_map_separated r r' m1 m2 -> 
+        reserve_map_separated r r' inject_id m1 m2 -> 
 
         exists st1', exists st2', exists cd',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -318,6 +318,11 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
+    reserve_valid :
+      forall cd r j c1 m1 c2 m2,
+        match_state cd r j c1 m1 c2 m2 -> 
+        reserve_map_valid r m1 /\ reserve_map_valid r m2;
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd r st2 j m2,
@@ -326,7 +331,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
-          reserve_map_separated r r' m1 m2 /\ 
+          reserve_map_separated r r' j' m1 m2 /\ 
           match_state cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -377,7 +382,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         inject_separated j j' m1 m2 ->
 
         reserve_map_incr r r' -> 
-        reserve_map_separated r r' m1 m2 -> 
+        reserve_map_separated r r' j' m1 m2 -> 
 
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
@@ -521,6 +526,11 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
   Record Forward_simulation_inject := 
   { core_ord_wf : well_founded core_ord;
 
+    reserve_valid :
+      forall cd r j c1 m1 c2 m2,
+        match_state cd r j c1 m1 c2 m2 -> 
+        reserve_map_valid r m1 /\ reserve_map_valid r m2;
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd r st2 j m2,
@@ -529,7 +539,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
-          reserve_map_separated r r' m1 m2 /\ 
+          reserve_map_separated r r' j' m1 m2 /\ 
           match_state cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -580,7 +590,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         inject_separated j j' m1 m2 ->
 
         reserve_map_incr r r' -> 
-        reserve_map_separated r r' m1 m2 -> 
+        reserve_map_separated r r' j' m1 m2 -> 
 
         Mem.inject j' m1' m2' ->
         val_inject_opt j' ret1 ret2 ->
