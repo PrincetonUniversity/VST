@@ -1,3 +1,4 @@
+Add LoadPath "../..".
 Require Import msl.msl_standard.
 Require Import language.
 
@@ -104,109 +105,111 @@ Definition nonfreevars (P: pred world) (x: var) : Prop :=
 Definition subset (S1 S2: var -> Prop) := 
   forall x, S1 x -> S2 x.
 
+Inductive safeN: nat -> (list command * state) -> Prop :=
+| safe0: forall cs, safeN 0 cs
+| safe_step: forall n cs1 cs2, step' cs1 cs2 -> safeN n cs2 -> safeN (S n) cs1
+| safe_halt: forall n s, safeN (S n) (nil, s).
+
+Definition guards (P: pred world) (k: list command) : Prop :=
+  forall lev s, P (den lev s) -> safeN lev (k,s).
+
+
 Definition semax (P: pred world) (c: command) (Q: pred world) : Prop :=
-  forall lev F s, subset (modvars c) (nonfreevars F) ->
-    (P*F)%pred (den (S lev) s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den lev s').
+  forall F, subset (modvars c) (nonfreevars F) ->
+  forall k, guards (Q*F) k -> guards (P*F) (c :: k).
 
 Lemma semax_assign: forall P x y,
       semax (defined y && subst x y P) (Assign x y) P.
 Proof.
-  intros.  intros lev F s DISJ H.
-  destruct H as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [? [[[v ?] ?] ?]]]].
-  exists (table_set x v (fst s), snd s).
-  destruct s as [stk hp].
-  destruct H. destruct H3. simpl fst in *. simpl snd in *. destruct H; subst.
-  destruct H3; subst. 
-  split. simpl. rewrite H0. simpl. auto.
-  do 3 red in H1. simpl fst in H1; simpl snd in H1.
-  exists (lev, (fun_set (table_get stk) x (table_get stk y), hp1)).
-  exists (lev, (fun_set (table_get stk) x (table_get stk y), hp2)).
-  simpl. split; auto. split; simpl; auto.  split; simpl; auto.
-  split; simpl; auto. unfold fun_set.
-  extensionality i.
-  simpl.
-  change var with nat; destruct (eq_dec i x); auto. 
-  split;  auto.
-  specialize (DISJ x).
-  unfold nonfreevars in DISJ.
-  eapply pred_hereditary; eauto.
- reflexivity.
- 
-
-  apply DISJ; auto.
+  intros P x y F H k H0 lev [stk hp] H1.
+  destruct H1 as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [? [[[v ?] ?] ?]]]].
+  simpl in *.
+  destruct lev; [apply safe0 | ].
+  destruct H1 as [[? ?] [[? ?] ?]]; simpl in *; subst; auto.
+  eapply safe_step.
+  econstructor; eauto.
+  apply H0.
+  exists (lev,  (fun_set (table_get stk) x (table_get stk y), hp1)).
+  exists (lev,  (fun_set (table_get stk) x (table_get stk y), hp2)).
+  split; [|split].
+  split; auto. split; auto.
+  simpl. split; auto. extensionality i.
+  unfold var, fun_set.
+  destruct (eq_dec i x); auto.
+  eapply pred_hereditary; [| eassumption ]; constructor.
+  apply (H x).
   constructor.
-  eapply pred_hereditary; eauto.
- reflexivity.
+  eapply pred_hereditary; [| eassumption ]; constructor.
 Qed.
 
 Lemma semax_load: forall x y z, x <> y -> x <> z ->
        semax (mapsto y z)  (Load x y) (mapsto y z && equal x z).
 Proof.
- intros ? ? ? Hxy Hxz; hnf; intros.
-destruct s as [stk hp].
-destruct H0 as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [[? ?] [[ax [? [ay [? ?]]]] ?]]]].
+  intros x y z Hxy Hxz F H k H0 lev [stk hp] H1.
+ destruct H1 as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [? [[ax [? [ay [? ?]]]] ?]]]].
  simpl in *.
- destruct H0; subst. destruct H1; subst.
- destruct H0; simpl in*; subst.
- rewrite H2. simpl.
- exists (table_set x ay stk, hp).
+ destruct H1 as [[? ?] [[? ?] ?]]; simpl in *; subst.
+ destruct lev; [apply safe0 | ].
+ eapply safe_step with  (k, (table_set x ay stk, hp)).
+ econstructor; eauto.
  generalize (H4 ax); intros. 
  destruct (eq_dec ax ax); [ | contradiction n; auto].
-  generalize (H1 ax); rewrite H0; intro. inv H6. simpl.
-  split; auto.
+ generalize (H9 ax).  rewrite H1; intro. inv H6; auto.  destruct H11.
+ apply H0.
  exists (lev, (table_get (table_set x ay stk), hp1)).
  exists (lev, (table_get (table_set x ay stk), hp2)).
-  simpl.
- split; split; simpl; auto. split; simpl; auto.
+ split.
+ split; split; simpl; auto.
+ split; simpl.
  destruct (eq_dec x x);  [ | contradiction n; auto].
  destruct (eq_dec y x); [ contradiction Hxy; auto |].
  destruct (eq_dec z x); [ contradiction Hxz; auto |].
  split; auto.
  exists ax; split; auto.
-  exists ay; split; auto. 
+  exists ay; split; auto.
  apply H. constructor.
- eapply pred_hereditary; eauto. reflexivity.
- destruct H10.
+  eapply pred_hereditary; [| eassumption ]; constructor.
 Qed.
 
 Lemma semax_store: forall x y z,
          semax (defined y && mapsto x z) (Store x y) (mapsto x y).
-(* Not done:  adjust the rest of this file for the "level" field of states *)
 Proof.
- intros; hnf; intros.
- destruct s as [stk hp].
- destruct H0 as [[n1 [stk1 hp1]] [[n2 [stk2 hp2]] [[[? ?] [[H2a H2b] H2]] [[[ay ?] [ax [? [az [? ?]]]]] ?]]]].
+ intros x y z F H k H0 lev [stk hp] H1.
+ destruct lev; [apply safe0 | ].
+ destruct H1 as [[n1 [stk1 hp1]] [[n2 [stk2 hp2]] [[[? ?] [[H2a H2b] H2]] [[[ay ?] [ax [? [az [? ?]]]]] ?]]]].
  simpl in *; subst.
- exists (stk, table_set ax ay hp).
- rewrite H4. simpl. rewrite H3. simpl. split; auto.
+ apply safe_step with (k, (stk, table_set ax ay hp)).
+ econstructor; eauto.
+ apply H0.
  exists (lev, (table_get stk, fun_set hp1 ax (Some ay))); exists (lev, (table_get stk, hp2)).
+ split.
+ split; auto. split; auto.
+ unfold den.
  simpl.
- repeat split; auto. simpl.
  intro i. unfold fun_set.
- specialize (H6 i). specialize (H2 i).
- change adr with nat in H6|-*.
- destruct (@eq_dec nat _ i ax). rewrite H6 in H2.
- inv H2. constructor.  inv H9.  rewrite H6 in *. auto.
+ specialize (H7 i). specialize (H2 i).
+ change adr with nat in H7|-*.
+ destruct (@eq_dec nat _ i ax). rewrite H7 in H2.
+ inv H2. constructor.  inv H10.  rewrite H7 in *. auto.
+ split.
  exists ax. split; auto. exists ay; split; auto.
- intro a; specialize (H6 a).
- unfold fun_set; change adr with nat in *;
- destruct (eq_dec a ax); auto.
- eapply pred_hereditary; [ | apply H7].
- constructor.
+ intro a; specialize (H7 a).
+ unfold fun_set; change adr with nat in *. simpl.
+ destruct (eq_dec a ax); simpl; auto.
+  eapply pred_hereditary; [| eassumption ]; constructor.
 Qed.
 
 Lemma semax_seq: forall P c1 Q c2 R,
   semax P c1 Q -> semax Q c2 R -> semax P (Seq c1 c2) R.
 Proof.
-(*  BROKEN
-Print semax.
- unfold semax; intros. 
- destruct (H lev F s) as [s1 [? ?]]; auto.
- intros ? ?. apply H1. constructor 3; auto.
- destruct (H0 lev F s1) as [s2 [? ?]]; auto.
- intros ? ?. apply H1. constructor 4; auto.
- exists s2; split; auto.
- simpl. rewrite H3; simpl. auto.
+ intros P c1 Q c2 R C1 C2 F H k H0 lev s H1.
+ assert (safeN lev (c1::c2::k,s)).
+2:  destruct lev; [apply safe0 | ];
+       inv H2; eapply safe_step; [constructor | eauto]; auto.
+ apply (C1 F); auto.
+ intros ? ?; apply H; apply mod_seq1; auto.
+ apply C2; auto.
+ intros ? ?; apply H; apply mod_seq2; auto.
 Qed.
 
 Lemma frame: forall F P c Q,
@@ -214,21 +217,31 @@ Lemma frame: forall F P c Q,
     semax P c Q -> semax (P * F) c (Q * F).
 Proof.
  repeat intro.
- rewrite sepcon_assoc in H2|-*.
- apply H0 in H2. auto.
+ rewrite sepcon_assoc in H2,H3.
+ assert (guards (P * (F * F0)) (c::k)).
+ apply H0; auto.
  intros ? ?.
- specialize (H _ H3); specialize (H1 _ H3).
+ specialize (H _ H4); specialize (H1 _ H4).
  clear - H H1.
  repeat intro.
- destruct H0 as [[stk1 hp1] [[stk2 hp2] [[[? ?] ?] [? ?]]]].
+ destruct H0 as [[lev1 [stk1 hp1]] [[lev2 [stk2 hp2]] [[[? ?] [[? ?] ?]] [? ?]]]].
  simpl in *; subst.
- exists (fun_set stk x v, hp1); exists (fun_set stk x v, hp2); split; auto.
-  split; auto.
+ exists (lev, (fun_set stk x v, hp1)); exists (lev, (fun_set stk x v, hp2)); split; auto.
+ split; auto.
+ split; auto.
+ apply H4;  auto.
 Qed.
-*)
-Admitted.
 
-
+Lemma semax_pre_post:
+  forall P P' c Q' Q,
+    P |-- P' -> Q' |-- Q -> semax P' c Q' -> semax P c Q.
+Proof.
+ repeat intro.
+ apply (H1 F); auto.
+ intros ? ? ?. apply H3.
+ eapply sepcon_derives; try apply H5; auto.
+ eapply sepcon_derives; try apply H4; auto.
+Qed.
 
 
 
