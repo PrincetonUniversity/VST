@@ -397,12 +397,19 @@ Definition reserve_map := block -> Z -> Prop.
 Definition reserve_map_incr (r1 r2: reserve_map) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
 
+Lemma reserve_map_incr_trans: forall r1 r2 r3,
+   reserve_map_incr r1 r2 -> reserve_map_incr r2 r3 -> reserve_map_incr r1 r3.
+Proof. intros.
+   intros b. intros. apply H0. apply H. apply H1.
+Qed.
+
 Definition reserve_map_valid (r: reserve_map) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
 
 Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :=
   forall b1 b2 delta ofs, 
-    ~r b1 ofs -> r b1 ofs -> 
+(*WAS:    ~r b1 ofs -> r b1 ofs -> *)
+    ~r b1 ofs -> r' b1 ofs -> 
     f' b1 = Some (b2, delta) -> 
     ~Mem.valid_block m1 b1 /\ ~Mem.valid_block m2 b2.
 
