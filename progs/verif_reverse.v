@@ -13,7 +13,8 @@ Definition sum_int := fold_right Int.add Int.zero.
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int
-  PRE [ _p OF (tptr t_struct_list)]  `(lseg LS sh contents) (eval_id _p) `nullval
+  PRE [ _p OF (tptr t_struct_list)] 
+                       `(lseg LS sh contents) (eval_id _p) `nullval
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
 
 Definition reverse_spec :=
@@ -21,7 +22,8 @@ Definition reverse_spec :=
   WITH sh : share, contents : list int
   PRE  [ _p OF (tptr t_struct_list) ] !! writable_share sh &&
               `(lseg LS sh contents) (eval_id _p) `nullval
-  POST [ (tptr t_struct_list) ] `(lseg LS sh (rev contents)) retval `nullval.
+  POST [ (tptr t_struct_list) ]
+            `(lseg LS sh (rev contents)) retval `nullval.
 
 Definition main_spec :=
  DECLARE _main
@@ -29,14 +31,13 @@ Definition main_spec :=
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
 
-Definition Vprog : varspecs := (_three, Tarray t_struct_list 3 noattr)::nil.
+Definition Vprog : varspecs := 
+          (_three, Tarray t_struct_list 3 noattr)::nil.
 
 Definition Gprog : funspecs := 
     sumlist_spec :: reverse_spec :: main_spec::nil.
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
-Existing Instance NullExtension.Espec.
 
 Lemma list_cell_eq: forall sh v i,
    list_cell LS sh v i = field_mapsto sh t_struct_list _h v (Vint i).
@@ -112,7 +113,8 @@ name t _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
-         (PROP() LOCAL () SEP( `(lseg LS sh (rev contents)) (eval_id _w) `nullval)).
+     (PROP() LOCAL () 
+      SEP( `(lseg LS sh (rev contents)) (eval_id _w) `nullval)).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with nil.
@@ -121,19 +123,19 @@ go_lower. subst. simpl; normalize.
 (* loop invariant implies typechecking of loop condition *)
 go_lower.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-unfold reverse_Inv.
 go_lower. subst. normalize. 
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalize. subst contents.
-focus_SEP 1; apply semax_lseg_nonnull; [ | intros h r y ?].
+focus_SEP 1; apply semax_lseg_nonnull;
+        [ | intros h r y ?].
 go_lower. normalize.
-destruct cts2; inv H0.
+subst cts2.
 forward.  (* t = v->t; *)
 forward.  (*  v->t = w; *)
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
-unfold reverse_Inv.
+(* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1).
 apply exp_right with r.
   go_lower.
@@ -206,6 +208,8 @@ auto with closed.
 forward.  (* return s; *)
 go_lower. normalize.
 Qed.
+
+Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
   semax_func Vprog Gtot (prog_funct prog) Gtot.

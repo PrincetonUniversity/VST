@@ -264,12 +264,13 @@ go_lower. subst.
  simpl.
    repeat apply andp_right.
  apply prop_right; auto.
+ apply prop_right; auto.
   normalize. simpl in H0. rewrite align_0 in H0 by omega.
  destruct (isnil contents).
- normalize. 
+ normalize.
  destruct tl; match goal with H: Vint _ = _ |- _ => inversion H end.
- simpl in H0. rewrite zeq_true in H0. rewrite Int.add_zero in H0.
- rewrite Int.eq_true in H0. inv  H0. apply prop_right; auto.
+ rewrite zeq_true in H2. rewrite Int.add_zero in H2.
+ rewrite Int.eq_true in H2. inv  H2. apply prop_right; auto.
  normalize.
  unfold elemrep.
  apply derives_trans with 
@@ -340,8 +341,9 @@ rewrite field_mapsto_isptr.
 normalize.
 forward. (* return Q; *)
 go_lower.
-  apply andp_right.
+  apply andp_right. apply prop_right; auto.
   rewrite field_mapsto_isptr; normalize.
+  apply andp_right.
   apply prop_right; destruct Q; inv H1; inv TC; hnf; simpl; auto.
   unfold fifo.
    destruct (@isnil (elemtype QS) nil); [ | congruence].

@@ -150,8 +150,9 @@ intros.
 intros ? ? ?.
 unfold lift0; auto.
 Qed.
-
+Hint Resolve closed_wrt_lift0 : closed. (*
 Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift0 : closed. (* match even if need some beta-eta conversion *)
+*)
 
 Lemma closed_wrt_lift0C: forall {B} S (Q: B), 
    closed_wrt_vars S (@liftx (LiftEnviron B) Q).
@@ -170,7 +171,9 @@ intros.
 intros ? ? ?. specialize (H _ _ H0).
 unfold lift1; f_equal; auto.
 Qed.
+Hint Resolve closed_wrt_lift1 : closed. (*
 Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift1 : closed. (* match even if need some beta-eta conversion *)
+*)
 
 Lemma closed_wrt_lift1C: forall {A}{B} S (f: A -> B) P, 
         closed_wrt_vars S P -> 
@@ -193,7 +196,9 @@ specialize (H _ _ H1).
 specialize (H0 _ _ H1).
 unfold lift2; f_equal; auto.
 Qed.
+Hint Resolve closed_wrt_lift2 : closed. (*
 Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift2 : closed. (* match even if need some beta-eta conversion *)
+*)
 
 Lemma closed_wrt_lift2C: forall {A1 A2}{B} S (f: A1 -> A2 -> B) P1 P2, 
         closed_wrt_vars S P1 -> 
@@ -221,7 +226,9 @@ specialize (H0 _ _ H2).
 specialize (H1 _ _ H2).
 unfold lift3; f_equal; auto.
 Qed.
+Hint Resolve closed_wrt_lift3 : closed. (*
 Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift3 : closed. (* match even if need some beta-eta conversion *)
+*)
 
 Lemma closed_wrt_lift3C: forall {A1 A2 A3}{B} S (f: A1 -> A2 -> A3 -> B) P1 P2 P3, 
         closed_wrt_vars S P1 -> 
@@ -254,7 +261,9 @@ specialize (H1 _ _ H3).
 specialize (H2 _ _ H3).
 unfold lift4; f_equal; auto.
 Qed.
+Hint Resolve closed_wrt_lift4 : closed. (*
 Hint Extern 2 (@closed_wrt_vars _ _ _) => apply closed_wrt_lift4 : closed. (* match even if need some beta-eta conversion *)
+*)
 
 Lemma closed_wrt_lift4C: forall {A1 A2 A3 A4}{B} S (f: A1 -> A2 -> A3 -> A4 -> B) P1 P2 P3 P4, 
         closed_wrt_vars S P1 -> 
@@ -384,7 +393,7 @@ Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
 Hint Extern 2 (closed_wrt_vars (eq _) _) => 
       (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
 
-Hint Resolve @Forall_cons @Forall_nil : closed.
+(* Hint Resolve @Forall_cons @Forall_nil : closed.   don't add these, already in core HintDb *)
 
 
 Lemma closed_wrt_tc_formals:

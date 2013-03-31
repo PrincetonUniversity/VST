@@ -786,7 +786,7 @@ Ltac simpl_compare H :=
          |idtac].
 
 Ltac intro_locals rho :=
-       (apply go_lower_lem24;
+       (simple apply go_lower_lem24;
         let H := fresh in intro H; super_unfold_lift_in H;
         match type of H with
         | typed_false _ _ => 
@@ -795,7 +795,7 @@ Ltac intro_locals rho :=
                unfold eval_binop in H; simpl in H; intro_locals rho; simpl_compare H
         | _ => intro_locals rho
         end) ||
-       apply go_lower_lem25.
+       simple apply go_lower_lem25.
 
 Ltac go_lower2 :=
   match goal with
@@ -805,14 +805,14 @@ Ltac go_lower2 :=
   end;
  unfold tc_expr, tc_lvalue;
  try apply trivial_typecheck;
- repeat apply overridePost_normal_right;
- repeat (apply go_lower_lem22; intro);
- apply go_lower_lem20;
- try apply go_lower_lem21;
+ repeat simple apply overridePost_normal_right;
+ repeat (simple apply go_lower_lem22; intro);
+ simple apply go_lower_lem20;
+ try simple apply go_lower_lem21;
  simpl eval_expr; simpl eval_lvalue; simpl eval_cast;
   let rho := fresh "rho" in intro rho;
  intro_locals rho;
- apply go_lower_lem26;
+ simple apply go_lower_lem26;
  try simple apply go_lower_lem27a;  try simple apply go_lower_lem27c;
  unfold fold_right_sepcon, fold_right_andp;
  super_unfold_lift';

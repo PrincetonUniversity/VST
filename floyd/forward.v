@@ -839,13 +839,13 @@ match goal with
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [ forward1; unfold Post; 
-                 try apply normal_ret_assert_derives';
+                 try simple apply normal_ret_assert_derives';
                  try apply derives_refl
                | try unfold exit_tycon; 
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
                     try (apply extract_exists_pre; intro_old_var c1);
-                    try apply elim_redundant_Delta;
+                    try simple apply elim_redundant_Delta;
                     redefine_Delta
                ]
   | |- @semax _ _ _ ?c1 _ => forward1;
