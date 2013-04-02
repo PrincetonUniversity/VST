@@ -149,7 +149,13 @@ intros.
 rewrite semax_unfold in H0|-*.
 rename H0 into H1; pose proof I.
 intros.
-specialize (H1 psi w Prog_OK k F H2 H3).
+specialize (H1 psi Delta' w TS Prog_OK k F H2 H3).
+replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
+  by (destruct TS as [_ [? _]]; symmetry; auto).
+assert (H': (glob_types Delta') ! id = Some (Global_func (mk_funspec fsig A P' Q'))).
+clear - H TS.
+destruct TS as [_ [_ [_ SUB]]]; specialize (SUB id); hnf in SUB; rewrite H in SUB; auto.
+clear H Delta TS. rename H' into H. rename Delta' into Delta.
 intros te ve w' ? w'' ? ?.
 apply (H1 te ve w' H4 w'' H5); clear H1.
 destruct H6; split; auto.
@@ -1103,7 +1109,7 @@ specialize (H19 x n LATER).
 rewrite semax_fold_unfold in H19.
 apply (pred_nec_hereditary _ _ n (laterR_necR LATER)) in Prog_OK.
 pose (F0F := fun _: environ => F0 rho * F rho).
-specialize (H19 _ _ (necR_refl _) (Prog_OK)  
+specialize (H19 _ _ _ (necR_refl _) (tycontext_sub_refl _)  _ (necR_refl _) (Prog_OK)  
                       (Kseq (Sreturn None) :: Kcall ret f (vx) (tx) :: k)
                        F0F _ (necR_refl _)).
 unfold F0F in *; clear F0F.
@@ -1419,6 +1425,9 @@ rewrite later_sepcon.
 apply pred_eq_e2 in H10.
 eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level (m_phi jm))); eauto.
 rewrite <- later_sepcon. apply now_later; auto.  
+apply (tc_exprlist_sub _ _ TS) in TC2.
+apply (tc_expr_sub _ _ TS) in TC1.
+clear Delta TS. rename Delta' into Delta.
 eapply semax_call_aux; try eassumption; 
  try solve [simpl; assumption].
 
@@ -1477,7 +1486,7 @@ intros.
 rewrite semax_unfold in H1|-*.
 rename H1 into H2. pose proof I.
 intros.
-specialize (H2 psi w Prog_OK k F H3 H4).
+specialize (H2 psi Delta' w TS Prog_OK k F H3 H4).
 intros tx vx; specialize (H2 tx vx).
 intros ? ? ? ? ?.
 specialize (H2 y H5 a'0 H6 H7).
@@ -1493,7 +1502,9 @@ reflexivity.
 intros.
 destruct H8 as [w1 [w2 [_ [_ ?]]]].
 remember (construct_rho (filter_genv psi) vx tx) as rho.
-specialize (H0 rho w2 (conj (proj1 H7) H8)).
+assert (H7': typecheck_environ Delta rho).
+destruct H7; eapply typecheck_environ_sub; eauto.
+specialize (H0 rho w2 (conj H7' H8)).
 destruct H0.
 assert (forall vf, Clight.eval_expr psi vx tx (m_dry jm) a vf
                -> Clight.eval_expr psi vx tx (m_dry jm) a' vf).
@@ -1539,7 +1550,10 @@ Proof.
 intros.
 hnf; intros.
 rewrite semax_fold_unfold.
-intros psi.
+intros psi Delta'.
+apply prop_imp_i. intro TS.
+replace (ret_type Delta) with (ret_type Delta') 
+ by (destruct TS as [_ [_ [? _]]]; auto).
 apply derives_imp.
 clear n.
 intros w ? k F.
@@ -1560,14 +1574,14 @@ clear w n H2 H1 H4.
 destruct H3 as [[H3 ?] ?].
 pose proof I. 
 remember ((construct_rho (filter_genv psi) ve te)) as rho.
-assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta) rho) rho))%pred w').
+assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta') rho) rho))%pred w').
 eapply sepcon_derives; try apply H1; auto.
 apply andp_left2; auto.
-assert (TC: forall w, (!! tc_expropt Delta ret (ret_type Delta) rho) w).
+assert (TC: forall w, (!! tc_expropt Delta ret (ret_type Delta') rho) w).
 clear - H1. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros. 
  destruct ret; apply H1.
 clear H1; rename H1' into H1.
-specialize (H0 EK_return (cast_expropt ret (ret_type Delta) rho) te ve).
+specialize (H0 EK_return (cast_expropt ret (ret_type Delta') rho) te ve).
 specialize (H0 _ (le_refl _) _ (necR_refl _)).
 spec H0.
 rewrite <- Heqrho.
@@ -1614,12 +1628,14 @@ destruct H17.
 econstructor; try eassumption; simpl.
 2: split; [congruence | eassumption].
 exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
-assert (TCe: denote_tc_assert (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
+assert (TCe: denote_tc_assert (typecheck_expr Delta' e)  (construct_rho (filter_genv psi) ve te)).
+eapply tc_expr_sub; try apply TS. instantiate (1:=m_phi jm).
+hnf.
 simpl in *. 
  repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct TC; auto.
 split.
-apply eval_expr_relate with (Delta := Delta); auto.
+apply eval_expr_relate with (Delta := Delta'); auto.
 destruct H3; auto.
 destruct H3.
 simpl in H6; rewrite (call_cont_current_function H7) in H6.
@@ -1627,7 +1643,7 @@ destruct H6 as [_ ?].
 rewrite H6.
 super_unfold_lift.
 rewrite eval_cast_sem_cast.
-apply cast_exists with Delta; auto.
+apply cast_exists with Delta'; auto.
 
 auto.
 rewrite <- H6.

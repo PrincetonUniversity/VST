@@ -373,4 +373,51 @@ Qed.
 
 Hint Resolve corable_fun_assert : normalize.
 
+Lemma tc_expr_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall e rho, tc_expr Delta e rho |-- tc_expr Delta' e rho.
+Proof.
+Admitted.
+
+Lemma tc_temp_id_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall id t e rho, 
+   tc_temp_id id t Delta e rho |-- tc_temp_id id t Delta' e rho.
+Proof.
+unfold tc_temp_id; intros.
+unfold typecheck_temp_id.
+intros w ?.  hnf in H0|-*.
+destruct H as [? _]. specialize (H id). hnf in H.
+destruct ((temp_types Delta)! id); try contradiction.
+destruct p.
+rewrite H. auto.
+Qed.
+
+Lemma tc_lvalue_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+Proof.
+Admitted.
+  
+Lemma tc_temp_id_load_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall id t v rho, 
+   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
+Proof.
+unfold tc_temp_id_load; simpl; intros.
+intros w [tto [x [? ?]]]; exists tto; exists x; split; auto.
+destruct H as [H _].
+specialize (H id); hnf in H. rewrite H0 in H; auto.
+Qed.
+
+Lemma tc_exprlist_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall e t rho, tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
+Proof.
+Admitted.
 

@@ -216,21 +216,32 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig A P Q : Prop :=
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
-              (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
+              (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx Delta' v fsig A P Q  -->
       (believe_external Espec gx v fsig A P Q
         || believe_internal_ semax gx Delta v fsig A P Q).
 
+Definition sub_option {A} (x y: option A) :=
+ match x with Some x' => y = Some x' | None => True end.
+
+Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+ (forall id, sub_option ((temp_types Delta) ! id) ((temp_types Delta') ! id))
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id)).               
+
 Definition semax_  (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
  match a with SemaxArg Delta P c R =>
-  ALL gx: genv, (believepred Espec semax Delta gx Delta) --> 
+  ALL gx: genv, ALL Delta': tycontext,
+       !! tycontext_sub Delta Delta' -->
+      (believepred Espec semax Delta' gx Delta') --> 
      ALL k: cont, ALL F: assert, 
        (!! (closed_wrt_modvars c F) && 
-              rguard Espec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
-        guard Espec gx Delta (fun rho => F rho * P rho) (Kseq c :: k)
+              rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
 Definition semax'  (Espec: OracleKind) Delta P c R : pred nat := 
@@ -250,7 +261,7 @@ Definition believe_internal (Espec:  OracleKind)
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
 
 Definition believe (Espec:OracleKind)
-              (Delta: tycontext) (gx: genv) (Delta': tycontext) : pred nat :=
+              (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
   ALL v:val, ALL fsig: funsig,
          ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
        !! claims gx Delta' v fsig A P Q  -->
@@ -259,11 +270,12 @@ Definition believe (Espec:OracleKind)
 
 Lemma semax_fold_unfold : forall (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
-  ALL gx: genv,
-       believe Espec Delta gx Delta --> 
+  ALL gx: genv, ALL Delta': tycontext,
+       !! tycontext_sub Delta Delta' -->
+       believe Espec Delta' gx Delta' --> 
      ALL k: cont, ALL F: assert, 
-        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta) (frame_ret_assert R F) k) -->
-        guard Espec gx Delta (fun rho => F rho * P rho) (Kseq c :: k).
+        (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
+        guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.
 intros ?.
 extensionality G P. extensionality c R.
@@ -275,7 +287,8 @@ intros.
 unfold semax_.
 clear.
 sub_unfold.
-do 1 (apply subp_allp; intros). 
+do 2 (apply subp_allp; intros).
+apply subp_imp; [auto with contractive | ].
 apply subp_imp; [ | auto 50 with contractive].
 apply subp_allp; intros.
 apply subp_allp; intros.

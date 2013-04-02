@@ -1668,3 +1668,38 @@ intros.
 destruct v; destruct tfrom; destruct tto; try solve [simpl in *; try congruence]; auto;  first  [destruct i1 | destruct i0 | destruct i]; try destruct s; unfold allowedValCast in *; try solve [simpl in *; try congruence].
 Qed.
 
+Definition typecheck_tid_ptr_compare
+Delta id := 
+match (temp_types Delta) ! id with
+| Some (t, _) =>
+   is_int_type t 
+| None => false
+end. 
+
+Lemma typecheck_tid_ptr_compare_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall id, typecheck_tid_ptr_compare Delta id = true ->
+                typecheck_tid_ptr_compare Delta' id = true.
+Proof.
+unfold typecheck_tid_ptr_compare;
+intros.
+destruct H as [? _].
+specialize (H id).
+destruct ((temp_types Delta) ! id); try discriminate.
+destruct p. simpl in H. rewrite H. auto.
+Qed.
+
+
+Lemma tycontext_sub_refl:
+ forall Delta, tycontext_sub Delta Delta.
+Proof.
+Admitted.
+
+Lemma update_tycon_sub:
+  forall Delta Delta', tycontext_sub Delta Delta' ->
+   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h).
+Proof.
+Admitted.
+
+

@@ -6,6 +6,11 @@ Require Import floyd.assert_lemmas.
 Import Cop.
 Local Open Scope logic.
 
+Lemma tycontext_eqv_sub:
+  forall Delta Delta', tycontext_eqv Delta Delta' ->
+         tycontext_sub Delta Delta'.
+Admitted.
+
 Lemma semax_while : 
  forall Espec Delta Q test body R,
      bool_type (typeof test) = true ->
@@ -42,6 +47,7 @@ rewrite andp_assoc. apply andp_derives; auto.
 rewrite andp_comm; auto.
 simpl update_tycon.
 apply semax_extensionality_Delta with Delta; auto.
+apply tycontext_eqv_sub. 
 apply tycontext_eqv_symm; apply join_tycon_same.
 Qed.
 

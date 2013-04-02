@@ -464,7 +464,7 @@ Axiom extract_exists:
 Axiom semax_extensionality_Delta:
   forall {Espec: OracleKind},
   forall Delta Delta' P c R,
-       tycontext_eqv Delta Delta' ->
+       tycontext_sub Delta Delta' ->
      @semax Espec Delta P c R -> @semax Espec Delta' P c R.
 
 (** THESE RULES FROM semax_prog **)

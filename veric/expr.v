@@ -1210,6 +1210,15 @@ rewrite <- In_rev in H; contradiction.
 auto.
 Qed.
 
+Definition sub_option {A} (x y: option A) :=
+ match x with Some x' => y = Some x' | None => True end.
+
+Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
+ (forall id, sub_option ((temp_types Delta) ! id) ((temp_types Delta') ! id))
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id)).               
+
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)

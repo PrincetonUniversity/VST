@@ -318,6 +318,8 @@ clear - H4.
 rewrite semax_fold_unfold in H4|-*.
 revert n H4.
 apply allp_derives; intro gx.
+apply allp_derives; intro Delta'.
+apply imp_derives; auto.
 apply imp_derives; auto.
 apply allp_derives; intro k.
 apply allp_derives; intro F.
