@@ -322,7 +322,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
   Hypothesis reserve_valid: 
     forall cd r j c1 m1 c2 m2,
       match_states cd r j c1 m1 c2 m2 -> 
-      reserve_map_valid r m1 /\ reserve_map_valid r m2.
+      reserve_map_valid r m1 /\ reserve_map_valid_right r j m2.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
         In (v1,v2,sig) entry_points -> 
@@ -332,7 +332,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_map_valid r m1 -> 
-          reserve_map_valid r m2 -> 
+          reserve_map_valid_right r j m2 -> 
           exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 r j c1 m1 c2 m2. 

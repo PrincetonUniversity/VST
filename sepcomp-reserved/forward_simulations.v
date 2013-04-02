@@ -321,7 +321,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     reserve_valid :
       forall cd r j c1 m1 c2 m2,
         match_state cd r j c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid r m2;
+        reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -347,7 +347,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_map_valid r m1 -> 
-          reserve_map_valid r m2 -> 
+          reserve_map_valid_right r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;
@@ -629,7 +629,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
     reserve_valid :
       forall cd r j c1 m1 c2 m2,
         match_state cd r j c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid r m2;
+        reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -655,7 +655,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_map_valid r m1 -> 
-          reserve_map_valid r m2 -> 
+          reserve_map_valid_right r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;

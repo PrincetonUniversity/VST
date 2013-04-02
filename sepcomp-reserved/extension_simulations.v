@@ -128,7 +128,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Definition match_states (cd: core_datas) (r: reserve_map) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    owned_valid esemS csemS E_S s1 m1 /\ owned_disjoint esemS csemS E_S s1 /\ 
    owned_valid esemT csemT E_T s2 m2 /\ owned_disjoint esemT csemT E_T s2 /\
-   reserve_map_valid r m1 /\ reserve_map_valid r m2 /\
+   reserve_map_valid r m1 /\ reserve_map_valid_right r j m2 /\
    R r j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
@@ -190,6 +190,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    exists s2', exists m2', exists cd', exists r', exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
+     reserve_map_incr r r' /\
+     reserve_map_separated r r' j' m1 m2 /\
      match_states cd' r' j' s1' m1' s2' m2' /\
      Events.mem_unchanged_on (guarantee_left esemS r s1) m1 m1' /\
      Events.mem_unchanged_on (guarantee_right esemS j r s1) m2 m2' /\
@@ -216,7 +218,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
    Mem.inject j m1 m2 -> 
    reserve_map_valid r m1 -> 
-   reserve_map_valid r m2 -> 
+   reserve_map_valid_right r j m2 -> 
    Forall2 (val_inject j) vals1 vals2 -> 
    Forall2 Val.has_type vals2 (sig_args sig) -> 
    exists cd, exists s2, 

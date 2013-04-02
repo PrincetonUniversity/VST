@@ -505,7 +505,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Definition match_states (cd: core_datas) (r: reserve_map) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    owned_valid esemS csemS E_S s1 m1 /\ owned_disjoint esemS csemS E_S s1 /\ 
    owned_valid esemT csemT E_T s2 m2 /\ owned_disjoint esemT csemT E_T s2 /\
-   reserve_map_valid r m1 /\ reserve_map_valid r m2 /\
+   reserve_map_valid r m1 /\ reserve_map_valid_right r j m2 /\
    R r j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
@@ -528,7 +528,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     inject_incr j j' -> 
     Events.inject_separated j j' m1 m2 -> 
     reserve_map_incr r r' -> 
-    reserve_map_separated r r' m1 m2 -> 
+    reserve_map_separated r r' j' m1 m2 -> 
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     match_state (ACTIVE E_S s1) cd' r' j' c1' m1' c2' m2' -> 
@@ -555,7 +555,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
    reserve_map_incr r r' -> 
-   reserve_map_separated r r' m1 m2 -> 
+   reserve_map_separated r r' j' m1 m2 -> 
    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
    corestep esemS ge_S s1 m1 s1' m1' -> 
@@ -570,7 +570,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
    reserve_map_incr r r' -> 
-   reserve_map_separated r r' m1 m2 -> 
+   reserve_map_separated r r' j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
    mem_forward m1 m1'-> 
    mem_forward m2 m2' -> 
@@ -600,6 +600,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    exists s2', exists m2', exists cd', exists r', exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
+     reserve_map_incr r r' /\
+     reserve_map_separated r r' j' m1 m2 /\
      match_states cd' r' j' s1' m1' s2' m2' /\
      Events.mem_unchanged_on (guarantee_left esemS r s1) m1 m1' /\
      Events.mem_unchanged_on (guarantee_right esemS j r s1) m2 m2' /\
@@ -629,7 +631,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
    reserve_map_incr r r' -> 
-   reserve_map_separated r r' m1 m2 -> 
+   reserve_map_separated r r' j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
    val_inject_opt j' retv1 retv2 -> 
    mem_forward m1 m1' -> 
@@ -650,7 +652,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
    Mem.inject j m1 m2 -> 
    reserve_map_valid r m1 -> 
-   reserve_map_valid r m2 -> 
+   reserve_map_valid_right r j m2 -> 
    Forall2 (val_inject j) vals1 vals2 -> 
    Forall2 Val.has_type vals2 (sig_args sig) -> 
    exists cd, exists s2, 
@@ -679,7 +681,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      reserve_map_incr r r' /\
-     reserve_map_separated r r' m1 m2 /\
+     reserve_map_separated r r' j' m1 m2 /\
      corestep esemT ge_T s2 m2 s2' m2' /\
      match_states cd' r' j' s1' m1' s2' m2' /\
      Events.mem_unchanged_on (guarantee_left (csemS (ACTIVE E_S s1)) r c1) m1 m1' /\
@@ -705,7 +707,10 @@ Program Definition extended_simulation:
   _ _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
 Next Obligation.
-split; auto.
+unfold match_states in H.
+destruct H as [? [? [? [? [RMV1 [RMV2 ?]]]]]].
+solve[split; auto].
+Qed.
 Next Obligation. 
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
@@ -812,7 +817,12 @@ split; auto.
 
  split.
  destruct (core_simulations (ACTIVE E_S st1)).
- eapply reserve_valid0.
+ eapply reserve_valid0 in MATCH12'.
+ solve[destruct MATCH12'; auto].
+ split.
+ destruct (core_simulations (ACTIVE E_S st1)).
+ eapply reserve_valid0 in MATCH12'.
+ solve[destruct MATCH12'; auto].
 
  split.
  inv esig_compilable. 
@@ -877,7 +887,7 @@ split; auto.
    solve[rewrite <-corestep_others_backward; auto].
   exists _d; split; auto.
   inv esig_compilable.
-  specialize (match_others i cd j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d (S n)).
+  specialize (match_others i cd r r' j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d (S n)).
   unfold core_datas_upd; rewrite data_upd_other; auto.
   apply match_others; auto.
    solve[eapply match_state_inj; eauto].
@@ -888,22 +898,26 @@ split; auto.
 
    split.
    (*mem_unch_on unmapped*)
-   apply mem_unchanged_on_sub with (Q := fun b ofs => 
-     loc_unmapped j b ofs /\ ~owned (csemS (ACTIVE E_S st1)) c1 b); auto.
+   apply mem_unchanged_on_sub with (Q := 
+    guarantee_left (csemS (ACTIVE E_S st1)) r c1); auto.
    intros b ofs [X Y]; split; auto.
    intros CONTRA; apply Y.
-   assert (owned (csemS (ACTIVE E_S st1)) c1 b -> 
-           owned esemS st1 b).
+   assert (owned (csemS (ACTIVE E_S st1)) c1 b ofs -> 
+           owned esemS st1 b ofs).
     solve[apply owned_conservS; auto].
    solve[auto].
    split.
-   apply mem_unchanged_on_sub with (Q := fun b ofs => 
-     loc_out_of_reach j m1 b ofs /\ ~owned (csemT (ACTIVE E_S st1)) c2 b); auto.
-   intros b ofs [X Y]; split; auto.
-   intros CONTRA; apply Y.
-   assert (owned (csemT (ACTIVE E_S st1)) c2 b -> 
-           owned esemT st2 b).
-    solve[apply owned_conservT; auto].
+   apply mem_unchanged_on_sub with (Q := 
+     guarantee_right (csemS (ACTIVE E_S st1)) j r c1); auto.
+   intros b ofs [b' [delta [X [Y W]]]].
+   unfold guarantee_right.
+   exists b'; exists delta.
+   split; auto.
+   split; auto.
+   intros CONTRA; apply W.
+   assert (owned (csemS (ACTIVE E_S st1)) c1 b' (ofs-delta) -> 
+           owned esemS st1 b' (ofs-delta)).
+    solve[apply owned_conservS; auto].
    solve[auto].
 
   solve[left; exists n; auto].
@@ -919,6 +933,7 @@ spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'. 
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
+exists r'.
 exists j'.
 split3; auto.
 split; auto.
@@ -926,6 +941,11 @@ split; auto.
  hnf.
  split.
 
+ (*reserve_map_separated*)
+ solve[auto].
+
+ split.
+ split.
  (*owned_valid*)
  eapply owned_valid_inv with (n := S O); eauto.
  solve[simpl; exists c1'; exists m1'; eauto].
@@ -948,6 +968,15 @@ split; auto.
  forget (ACTIVE E_T st2') as k2.
  subst.
  solve[eapply owned_disjoint_inv; eauto].
+
+ split.
+ destruct (core_simulations (ACTIVE E_S st1)).
+ eapply reserve_valid0 in MATCH12'.
+ solve[destruct MATCH12'; auto].
+ split.
+ destruct (core_simulations (ACTIVE E_S st1)).
+ eapply reserve_valid0 in MATCH12'.
+ solve[destruct MATCH12'; auto].
 
  split.
  inv esig_compilable. 
@@ -1012,7 +1041,7 @@ split; auto.
    solve[rewrite <-corestep_others_backward; auto].
   exists _d; split; auto.
   inv esig_compilable.
-  specialize (match_others i cd j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d n).
+  specialize (match_others i cd r r' j j' st1 cd' c1 m1 c1' m1' st2 c2 m2 c2' m2' _c _d n).
   unfold core_datas_upd; rewrite data_upd_other; auto.
   apply match_others; auto.
   solve[eapply match_state_inj; eauto].
@@ -1023,23 +1052,27 @@ split; auto.
 
   split. 
   (*mem_unch_on unmapped*)
-  apply mem_unchanged_on_sub with (Q := fun b ofs => 
-    loc_unmapped j b ofs /\ ~owned (csemS (ACTIVE E_S st1)) c1 b); auto.
-  intros b ofs [X Y]; split; auto.
-  intros CONTRA; apply Y.
-  assert (owned (csemS (ACTIVE E_S st1)) c1 b -> 
-          owned esemS st1 b).
-   solve[apply owned_conservS; auto].
-  solve[auto].
-  split.
-  apply mem_unchanged_on_sub with (Q := fun b ofs => 
-    loc_out_of_reach j m1 b ofs /\ ~owned (csemT (ACTIVE E_S st1)) c2 b); auto.
-  intros b ofs [X Y]; split; auto.
-  intros CONTRA; apply Y.
-  assert (owned (csemT (ACTIVE E_S st1)) c2 b -> 
-          owned esemT st2 b).
-   solve[apply owned_conservT; auto].
-  solve[auto].
+   apply mem_unchanged_on_sub with (Q := 
+    guarantee_left (csemS (ACTIVE E_S st1)) r c1); auto.
+   intros b ofs [X Y]; split; auto.
+   intros CONTRA; apply Y.
+   assert (owned (csemS (ACTIVE E_S st1)) c1 b ofs -> 
+           owned esemS st1 b ofs).
+    solve[apply owned_conservS; auto].
+   solve[auto].
+   split.
+   apply mem_unchanged_on_sub with (Q := 
+     guarantee_right (csemS (ACTIVE E_S st1)) j r c1); auto.
+   intros b ofs [b' [delta [X [Y W]]]].
+   unfold guarantee_right.
+   exists b'; exists delta.
+   split; auto.
+   split; auto.
+   intros CONTRA; apply W.
+   assert (owned (csemS (ACTIVE E_S st1)) c1 b' (ofs-delta) -> 
+           owned esemS st1 b' (ofs-delta)).
+    solve[apply owned_conservS; auto].
+   solve[auto].
 
   right. split. exists n. auto. 
   solve[apply core_datas_upd_ord; auto].
@@ -1058,31 +1091,34 @@ destruct MATCH_CORES as [c2 [PROJ2 MATCH12]].
 
 destruct (exists_ty rv1) as [ty1 HAS_TY].
 destruct (core_halted (core_simulations (ACTIVE E_S st1)) 
-  (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 rv1 ty1 MATCH12 HALT) 
+  (cd (ACTIVE E_S st1)) r j c1 m1 c2 m2 rv1 ty1 MATCH12 HALT) 
  as [rv2 [VAL_INJ [SAFE_T INJ]]]; auto.
 inv esig_compilable.
 eapply safely_halted_diagram with (m1' := m1') in MATCH'; eauto.
 destruct MATCH' as [rv2' [H7 [VAL_INJ' 
- [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' [MATCH12' [UNCH1 UNCH2]]]]]]]]]]]].
-exists st2'; exists m2'; exists cd'; exists j'.
+ [st2' [m2' [cd' [r' [j' [INJ_INCR [SEP [STEP2' 
+ [RM_INCR [RM_SEP [MATCH12' [UNCH1 UNCH2]]]]]]]]]]]]]]].
+exists st2'; exists m2'; exists cd'; exists r'; exists j'.
 split3; auto; split; auto.
 split3; auto.
 
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\
-  ~owned (csemS (ACTIVE E_S st1)) c1 b); auto.
+split.
+apply mem_unchanged_on_sub with (Q := 
+  guarantee_left (csemS (ACTIVE E_S st1)) r c1); auto.
 intros b ofs [? ?]; split; auto.
 intros CONTRA.
 apply H0.
 solve[eapply owned_conservS in CONTRA; eauto].
 
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\
-  ~owned (csemT (ACTIVE E_S st1)) c2 b); auto.
-intros b ofs [? ?]; split; auto.
+split.
+apply mem_unchanged_on_sub with (Q := 
+  guarantee_right (csemS (ACTIVE E_S st1)) j r c1); auto.
+intros b ofs [? [? [? [? ?]]]].
+exists x; exists x0; split; auto.
+split; auto.
 intros CONTRA.
-apply H0.
-solve[eapply owned_conservT in CONTRA; eauto].
+apply H1.
+solve[eapply owned_conservS in CONTRA; eauto].
 
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 
@@ -1090,7 +1126,7 @@ solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
 clear c2 PROJ2.
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 _PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) (cd (ACTIVE E_S st1)) 
-            j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
+            r j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
  as [H6 [H7 [vals2 [H8 [H9 H10]]]]].
 inv esig_compilable. 
 edestruct extension_diagram as [s2' H11]; eauto.
@@ -1108,7 +1144,7 @@ Next Obligation. inv esig_compilable. eapply safely_halted_step; eauto. Qed.
 Next Obligation. 
 rename H into MATCH.
 hnf in MATCH.
-destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR [ACT MATCH_CORES]]]]]].
+destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RMV1 [RMV2 [RR [ACT MATCH_CORES]]]]]]]].
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1)).
  inv core_compatS.
@@ -1117,7 +1153,7 @@ assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1))
  solve[inv PROJ; auto].
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) 
-            (cd (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 sig MATCH12 AT_EXT1)
+            (cd (ACTIVE E_S st1)) r j c1 m1 c2 m2 e vals1 sig MATCH12 AT_EXT1)
  as [INJ [GLOBS [vals2 [VALINJ [TYPE AT_EXT2]]]]].
 split3; auto.
 rewrite <-meminj_preserves_genv2blocks.
@@ -1136,7 +1172,7 @@ Next Obligation.
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
 hnf in MATCH.
-destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR [ACT MATCH_CORES]]]]]].
+destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RMV1 [RMV2 [RR [ACT MATCH_CORES]]]]]]]].
 generalize MATCH_CORES as MATCH_CORES'; intro.
 destruct (active_proj_core E_S) with (s := st1) as [c1 PROJ1].
 assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1)).
@@ -1146,23 +1182,23 @@ assert (AT_EXT1: at_external (csemS (ACTIVE E_S st1)) c1 = Some (e, sig, vals1))
  solve[inv PROJ; auto].
 destruct (MATCH_CORES (ACTIVE E_S st1) c1 PROJ1) as [c2 [PROJ2 MATCH12]].
 destruct (core_after_external (core_simulations (ACTIVE E_S st1)) 
-                (cd (ACTIVE E_S st1)) j j' c1 c2 m1 e 
+                (cd (ACTIVE E_S st1)) r r' j j' c1 c2 m1 e 
                 vals1 ret1 m1' m2 m2' ret2 sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
 rewrite <-meminj_preserves_genv2blocks.
 rewrite <-genvs_domain_eq_preserves with (ge1 := ge_S); auto.
 rewrite meminj_preserves_genv2blocks; auto.
 
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\ owned esemS st1 b); auto.
+apply mem_unchanged_on_sub with (Q := rely_left esemS r st1); auto.
 intros b ofs [? ?].
 split; auto.
 solve[eapply owned_conservS; eauto].
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\ owned esemT st2 b); auto.
-intros b ofs [? ?].
+apply mem_unchanged_on_sub with (Q := rely_right esemS j r st1); auto.
+intros b ofs [? [? [? [? ?]]]].
+exists x, x0.
 split; auto.
-solve[eapply owned_conservT; eauto].
+split; auto.
+solve[eapply owned_conservS; eauto].
 
 exists (core_datas_upd (ACTIVE E_S st1) cd' cd).
 assert (exists st1', after_external esemS ret1 st1 = Some st1' /\
@@ -1225,6 +1261,15 @@ split.
 solve[eapply owned_disjoint_after_ext; eauto].
 
 split.
+destruct (core_simulations (ACTIVE E_T st2)).
+eapply reserve_valid0 in MATCH12'.
+solve[destruct MATCH12'; auto].
+split.
+destruct (core_simulations (ACTIVE E_T st2)).
+eapply reserve_valid0 in MATCH12'.
+solve[destruct MATCH12'; auto].
+
+split.
 inv esig_compilable.
 eapply after_external_rel; eauto.
 split; auto.
@@ -1259,20 +1304,19 @@ inv esig_compilable.
 eapply after_external_diagram; eauto.
 inv core_compatS.
 erewrite <-after_ext_others in _PROJ1'; eauto.
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\ owned esemS st1 b); auto.
+apply mem_unchanged_on_sub with (Q := rely_left esemS r st1); auto.
 intros b ofs [? ?].
 split; auto.
 apply owned_conservS in _PROJ1'.
 solve[eapply _PROJ1'; eauto].
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\ owned esemT st2 b); auto.
-intros b ofs [? ?].
+apply mem_unchanged_on_sub with (Q := rely_right esemS j r st1); auto.
+intros b ofs [? [? [? [? ?]]]].
+exists x; exists x0; split; auto.
 split; auto.
-inv core_compatT.
-apply owned_conservT in _PROJ2.
-solve[eapply _PROJ2; eauto].
-auto.
+assert (PROJ_CORE E_S i st1 = Some _c).
+ inv core_compatS.
+ solve[erewrite after_ext_others; eauto].
+solve[eapply owned_conservS in H18; eauto].
 inv core_compatT.
 erewrite <-after_ext_others; eauto.
 solve[rewrite Heqx; auto].
@@ -1294,8 +1338,8 @@ constructor; try solve[inv H; auto].
   
 (*1*)
 intros until n; intros PROJC1 PROJC2 PROJD1 PROJD2 ACT MATCH INJ PRES INCR 
- SEP STEP1 STEP2 MATCHC' UNCH1 UNCH2.
-destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR [ACTEQ MATCH_INNER]]]]]].
+ SEP RMI1 RMSEP2 STEP1 STEP2 MATCHC' UNCH1 UNCH2.
+destruct MATCH as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RM1 [RM2 [RR [ACTEQ MATCH_INNER]]]]]]]].
 forget (Extension.active E_S s1) as k.
 destruct (MATCH_INNER k c1 PROJC1) as [_c2 [_PROJC2 MATCHC]].
 rewrite _PROJC2 in PROJC2; inv PROJC2.
@@ -1304,20 +1348,20 @@ rewrite _PROJD2 in PROJD2; inv PROJD2.
 forget (Extension.active E_T s2) as k.
 destruct (core_simulations_RGinject k) as [_ ? ? _ _].
 destruct (core_simulations_RGinject i) as [_ _ _ RELY _].
-specialize (RELY (genv_mapS i) (cd i) m1 m1' j j' m2 m2' d1 d2).
+specialize (RELY (genv_mapS i) (cd i) m1 m1' r r' j j' m2 m2' d1 d2).
 apply RELY; auto.
 erewrite <-genvs_domain_eq_preserves; eauto.
 solve[eapply match_state_inj; eauto].
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_unmapped j b ofs /\ ~owned (csemS k) c1 b); auto.
+apply mem_unchanged_on_sub with (Q := guarantee_left (csemS k) r c1); auto.
 intros b ofs [X Y].
 split; auto.
 solve[unfold owned_disjoint in DISJ1; eapply DISJ1; eauto].
-apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  loc_out_of_reach j m1 b ofs /\ ~owned (csemT k) c2 b); auto.
-intros b ofs [X Y].
+apply mem_unchanged_on_sub with (Q := guarantee_right (csemS k) j r c1); auto.
+intros b ofs [b' [delta [X [Y W]]]].
+exists b'; exists delta; split; auto.
 split; auto.
-solve[unfold owned_disjoint in DISJ2; eapply DISJ2; eauto].
+intros CONTRA.
+solve[unfold owned_disjoint in DISJ1; eapply DISJ1; eauto].
 
 (*2*)
 intros; destruct (core_simulations_RGinject i) as [? _ _ _ _].
@@ -1332,11 +1376,12 @@ intros; destruct (core_simulations_RGinject i) as [_ _ ? _ _].
 solve[eapply match_state_preserves_globals; eauto].
 
 (*5*)
-intros until j'; intros MATCH EXT1 PRES INCR SEP INJ INJARGS FORW1 UNCH1 FORW2 UNCH2.
+intros until j'; intros MATCH EXT1 PRES INCR SEP RM RMSEP 
+ INJ INJARGS FORW1 UNCH1 FORW2 UNCH2.
 intros TYS AFTER1 AFTER2 PROJ1 PROJ2 NEQ.
 forget (Extension.active E_S s1) as k.
 destruct (core_simulations_RGinject i) as [? ? ? RELY].
-specialize (RELY (genv_mapS i) cd m1 m1' j j' m2 m2' d1 d2).
+specialize (RELY (genv_mapS i) cd m1 m1' r r' j j' m2 m2' d1 d2).
 apply RELY; auto.
 solve[eapply match_state_inj; eauto].
 erewrite genvs_domain_eq_preserves.
@@ -1381,7 +1426,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
-   core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+   core_data i -> reserve_map -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
@@ -1389,7 +1434,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
 
  Definition core_datas := forall i: nat, core_data i. 
 
- Variable R: meminj -> xS -> mem -> xT -> mem -> Prop.
+ Variable R: reserve_map -> meminj -> xS -> mem -> xT -> mem -> Prop.
 
  Import Forward_simulation_inj_exposed.
 
@@ -1442,7 +1487,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
    _ _ (const cT) (const csemT) csig). 
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.
- Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
+ Variable match_state: core_data -> reserve_map -> meminj -> cS -> mem -> cT -> mem -> Prop.
  Variable core_ord: core_data -> core_data -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
@@ -1450,7 +1495,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Definition core_datas := nat -> core_data.
 
- Variable R: meminj -> cS -> mem -> cT -> mem -> Prop.
+ Variable R: reserve_map -> meminj -> cS -> mem -> cT -> mem -> Prop.
 
  Import Forward_simulation_inj_exposed.
 

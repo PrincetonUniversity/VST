@@ -89,7 +89,7 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
     mem_unchanged_on (rely_left sourceC r c1) m1 m1' -> 
-    mem_unchanged_on (rely_right targetC f r c2) m2 m2' -> 
+    mem_unchanged_on (rely_right sourceC f r c1) m2 m2' -> 
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
     reserve_map_incr r r' -> 

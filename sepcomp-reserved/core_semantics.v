@@ -406,9 +406,11 @@ Qed.
 Definition reserve_map_valid (r: reserve_map) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
 
+Definition reserve_map_valid_right (r: reserve_map) (f: meminj) (m: mem) :=
+  forall b1 b2 delta, f b1 = Some (b2, delta) -> Mem.valid_block m b2.
+
 Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :=
   forall b1 b2 delta ofs, 
-(*WAS:    ~r b1 ofs -> r b1 ofs -> *)
     ~r b1 ofs -> r' b1 ofs -> 
     f' b1 = Some (b2, delta) -> 
     ~Mem.valid_block m1 b1 /\ ~Mem.valid_block m2 b2.
