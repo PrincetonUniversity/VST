@@ -270,9 +270,42 @@ Proof. intros f n.
     destruct (IHn _ _ _ _ CS _ _ _ _ MC') as [st2'' [r'' [m2'' [d'' [Rinc' [Rsep' [MC'' [Unch2' X'']]]]]]]].
       exists st2''. exists r''. exists m2''.  exists d''.
       split. eapply reserve_map_incr_trans; eassumption.
-      split. admit. (*ToDo*)
+      split. intros b; intros. 
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                destruct rm_dec as [R | NR].
+                   (*r' b ofs*) eapply Rsep. apply H. apply R. apply H2.
+                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
+                              split; intros N. 
+                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS1 _ N).
+                                apply H4.
+                                destruct X' as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
       split. assumption.
-      split. admit. (*ToDo*)
+      split. split; intros b2; intros.
+                  eapply Unch2'.
+                      destruct H as [b1 [delta [ID GL]]].
+                        exists b1. exists delta. split. assumption.
+                        destruct GL. split. apply Rinc. assumption.
+                         intros N. apply H2. clear H2.
+                         apply (owned_step Sem1 b1 (ofs - delta)) in CS1.
+                         destruct CS1; trivial.
+                         destruct (reserve_valid _ _ _ _ _  _ _ H0).
+                         specialize (H3 _ _ H).
+                         exfalso. unfold Mem.valid_block in H3. omega.
+                        apply N.
+                  eapply Unch2; trivial.
+             eapply Unch2'.
+                      intros. destruct (H _ H2) as [b1 [delta [ID GL]]].
+                        exists b1. exists delta. split. assumption.
+                        destruct GL. split. apply Rinc. assumption.
+                         intros N. apply H4. clear H4.
+                         apply (owned_step Sem1 b1 (i - delta)) in CS1.
+                         destruct CS1. trivial.
+                         destruct (reserve_valid _ _ _ _ _  _ _ H0).
+                         specialize (H5 _ _ H3).
+                         exfalso. unfold Mem.valid_block in H5. omega.
+                        apply N.
+                  eapply Unch2; trivial.
       destruct X' as [X' | [ X' CD']].
          destruct X'' as [X'' | [X'' CD'']].
            left. eapply corestep_plus_trans; eassumption.
@@ -574,54 +607,67 @@ Proof. intros f n.
                    destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
    split. eapply reserve_map_incr_trans; eassumption.
    split. intros b; intros.
-        assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
-        destruct rm_dec. apply (Rsep _ b2 delta _ H H3).
-           admit. admit. (*TODO*)
-   split. assumption. 
-   assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
-      split; intros. apply Unch1'.
-                              destruct H.    
-                              split. apply Rinc. apply H.
-                              intros N. apply H2; clear H2. 
-                                  destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                  assert (VB: Mem.valid_block m1 b).
-                                     apply (Mem.perm_valid_block _ _ _ _ _  H1). 
-                                  exfalso. unfold Mem.valid_block in  VB.  omega.
-                           apply Unch1. apply H. apply H1.
-            apply Unch1'.
-                intros. destruct (H _ H2). clear H.    
-                            split. apply Rinc. apply H3.
-                            intros N. apply H4; clear H4. 
-                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                assert (VB: Mem.valid_block m1 b). 
-                                     apply Mem.load_valid_access in H1.
-                                     eapply Mem.valid_access_valid_block.
-                                     eapply Mem.valid_access_implies. apply H1. constructor.
-                               exfalso. unfold Mem.valid_block in  VB.  omega.
-                       apply Unch1. apply H. apply H1.
-   split. assumption.
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                destruct rm_dec as [R | NR].
+                   (*r' b ofs*) eapply Rsep. apply H. apply R.
+                        remember (j' b) as q.
+                        destruct q; apply eq_sym in Heqq.
+                             destruct p. rewrite (Inj' _ _ _ Heqq) in H2. apply H2.
+                         destruct (Sep' _ _ _ Heqq H2).
+                             exfalso. apply H3. clear H3 H4 H2 Heqq. 
+                             eapply (reserve_valid _ _ _ _ _ _ _ _ MC'). apply R.
+                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
+                              split; intros N. 
+                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS _ N).
+                                apply H4.
+                                destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
+      split. assumption.
+      split. split; intros b1; intros.
+                  eapply Unch1'.
+                      destruct H as [HO HP].
+                      split. apply Rinc. assumption.
+                         intros N. apply HP; clear HP.
+                         apply (owned_step Sem1 b1 ofs) in CS.
+                         destruct CS; trivial.
+                         apply Mem.perm_valid_block in H1.
+                         exfalso. unfold Mem.valid_block in H1. omega.
+                        apply N.
+                  eapply Unch1; trivial.
+             eapply Unch1'.
+                      intros. destruct (H _ H2) as [HO HP].
+                      split. apply Rinc. assumption.
+                         intros N. apply HP. clear HP.
+                         apply (owned_step Sem1 b i) in CS.
+                         destruct CS. trivial.
+                         assert (VB: Mem.valid_block m1 b).
+                                apply Mem.load_valid_access in H1.
+                                eapply Mem.valid_access_valid_block.
+                                eapply (Mem.valid_access_implies _ _ _ _ _ _ H1).
+                                constructor.
+                         exfalso. unfold Mem.valid_block in VB. omega.
+                        apply N.
+                  eapply Unch1; trivial.
    split. split; intros. apply Unch2'.
-                                      destruct H as [bb [delta [J GL]]].
+                                      destruct H as [bb [delta [J [HO HP]]]]. 
                                        exists bb. exists delta.
                                        split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply GL.
-                                       intros N. eapply GL. 
+                                       split; intros. apply Rinc. apply HO.
+                                       intros N. eapply HP; clear HP. 
                                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
                                                assert (VB: Mem.valid_block m1 bb).
-                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
-                                                      or the stronger version that matchstate implies Mem.inject*)
+                                                    eapply (reserve_valid _ _ _ _ _ _ _ _ H0). apply HO.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
             apply Unch2'.
-                intros. destruct (H _ H2) as [bb [delta [J GL]]]. clear H.
+                intros. destruct (H _ H2) as [bb [delta [J [HO HP]]]]. clear H.
                                        exists bb. exists delta.
                                        split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply GL.
-                                       intros N. eapply GL. 
+                                       split; intros. apply Rinc. apply HO.
+                                       intros N. eapply HP; clear HP. 
                                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
                                                assert (VB: Mem.valid_block m1 bb).
-                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
-                                                      or the stronger version that matchstate implies Mem.inject*)
+                                                    eapply (reserve_valid _ _ _ _ _ _ _ _ H0). apply HO.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
  destruct X as [X | [ X CD]].
@@ -937,10 +983,24 @@ Proof. intros f n.
                    destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
    split. eapply reserve_map_incr_trans; eassumption.
    split. intros b; intros.
-        assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
-        destruct rm_dec. apply (Rsep _ b2 delta _ H H3).
-           admit. admit. (*TODO*)
-   split. assumption. 
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                destruct rm_dec as [R | NR].
+                   (*r' b ofs*) 
+                        remember (j' b) as q.
+                        destruct q; apply eq_sym in Heqq.
+                             destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
+                             apply (Rsep b b2 delta ofs H R Heqq).
+                         destruct (Sep' _ _ _ Heqq H2).
+                             exfalso. apply H3. clear H3 H4 H2 Heqq. 
+                             destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
+                             eapply RML. apply R.
+                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
+                              split; intros N. 
+                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS _ N).
+                                apply H4.
+                                destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
+   split. assumption.
    assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
       split; intros. apply Unch1'.
                               destruct H.    
@@ -964,27 +1024,27 @@ Proof. intros f n.
                        apply Unch1. apply H. apply H1.
    split. assumption.
    split. split; intros. apply Unch2'.
-                                      destruct H as [bb [delta [J GL]]].
+                                      destruct H as [bb [delta [J [HR HO]]]].
                                        exists bb. exists delta.
                                        split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply GL.
-                                       intros N. eapply GL. 
+                                       split; intros. apply Rinc. apply HR.
+                                       intros N. eapply HO; clear HO. 
                                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
                                                assert (VB: Mem.valid_block m1 bb).
-                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
-                                                      or the stronger version that matchstate implies Mem.inject*)
+                                                    destruct (reserve_valid f _ _ _ _ _ _ _ H0) as [RML RMR].
+                                                    eapply RML. apply HR.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
             apply Unch2'.
-                intros. destruct (H _ H2) as [bb [delta [J GL]]]. clear H.
+                intros. destruct (H _ H2) as [bb [delta [J [HR HO]]]]. clear H.
                                        exists bb. exists delta.
                                        split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply GL.
-                                       intros N. eapply GL. 
+                                       split; intros. apply Rinc. apply HR.
+                                       intros N. eapply HO; clear HO. 
                                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
                                                assert (VB: Mem.valid_block m1 bb).
-                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
-                                                      or the stronger version that matchstate implies Mem.inject*)
+                                                    destruct (reserve_valid f _ _ _ _ _ _ _ H0) as [RML RMR].
+                                                    eapply RML. apply HR.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
  destruct X as [X | [ X CD]].
