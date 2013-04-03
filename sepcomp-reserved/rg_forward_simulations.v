@@ -40,20 +40,23 @@ Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
-  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+  (match_state: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+
+(*  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+*)
 
  Import Forward_simulation_inj_exposed.
 
  Inductive Sig: Type := Make: forall
-  (match_state_runnable: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> 
+  (match_state_runnable: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> 
     runnable sourceC c1 = runnable targetC c2)
 
-  (match_state_inj: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+  (match_state_inj: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> Mem.inject j m1 m2)
 
-  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
-    match_state cd j c1 m1 c2 m2 -> 
+  (match_state_preserves_globals: forall cd r j c1 m1 c2 m2,
+    match_state cd r j c1 m1 c2 m2 -> 
     meminj_preserves_globals ge1 j),
   Sig.
 
