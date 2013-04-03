@@ -14,6 +14,10 @@ Require Import Axioms.
 Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
 
+(*for core_diagramN lemmas*)
+Require Import Wellfounded.
+Require Import Relations.
+
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
   match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
   | None, None => True
@@ -95,6 +99,44 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
           after_external Sem2 (Some ret) st2 = Some st2' /\
           match_core d' st1' st2' }.
 
+Lemma  core_diagramN : forall (f: Forward_simulation_equals) n
+     st1 m st1' m', corestepN Sem1 ge1 (S n) st1 m st1' m' ->
+      forall d st2, match_core f d st1 st2 ->
+        exists st2', exists d',
+          match_core f d' st1' st2' /\
+          ((corestep_plus Sem2 ge2 st2 m st2' m') \/
+            corestep_star Sem2 ge2 st2 m st2' m' /\
+            clos_trans _ (core_ord f) d' d).
+Proof. intros f n.
+  induction n; intros; simpl in *.
+    destruct H as [c1'' [m1'' [CS1 X]]].
+    inv X.
+    destruct (core_diagram f _ _ _ _ CS1 _ _ H0) as [st2' [d' [MC' X']]].
+    exists st2'. exists d'. split; trivial.
+    destruct X' as [X' | [X' ORD]].
+    left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
+  rename st1' into st1'''. rename m' into m1'''.
+  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
+    destruct (core_diagram f _ _ _ _ CS1 _ _ H0) 
+        as [st2' [d' [MC' X']]].
+    assert (CS: exists (st2 : C1) (m2 : M),
+         corestep Sem1 ge1 st1' m1' st2 m2 /\
+         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+        exists st1''. exists m1''. split; eassumption.
+    destruct (IHn _ _ _ _ CS _ _ MC') as [st2'' [d'' [MC'' X'']]].
+      exists st2''. exists d''.
+      split. assumption.
+      destruct X' as [X' | [ X' CD']].
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_plus_trans; eassumption.
+           left. eapply corestep_plus_star_trans; eassumption.
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_star_plus_trans; eassumption.
+           right. split. eapply corestep_star_trans; eassumption.
+            clear - d' d d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+Qed.
+
 End Forward_simulation_equals. 
 
 (*Question: Does this declaration take effect after module import?*)
@@ -123,7 +165,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
     reserve_valid :
       forall cd r c1 m1 c2 m2,
         match_state cd r c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid r m2;
+        reserve_map_valid r m1 /\ reserve_map_valid_right r inject_id m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -145,7 +187,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
           reserve_map_valid r m1 -> 
-          reserve_map_valid r m2 -> 
+          reserve_map_valid_right r inject_id m2 -> 
           exists cd, exists c1, exists c2,
             make_initial_core Sem1 ge1 v1 vals = Some c1 /\
             make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
@@ -193,6 +235,53 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' r' st1' m1' st2' m2' }.
+
+Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
+    st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+      forall cd r st2 m2,
+        match_state f cd r st1 m1 st2 m2 ->
+        exists st2', exists r', exists m2', exists cd',
+          reserve_map_incr r r' /\ 
+          reserve_map_separated r r' inject_id m1 m2 /\
+          match_state f cd' r' st1' m1' st2' m2' /\
+          mem_unchanged_on (guarantee_right Sem1 inject_id r st1) m2 m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            clos_trans _ (core_ord f) cd' cd).
+Proof. intros f n.
+  induction n; intros; simpl in *.
+    destruct H as [c1'' [m1'' [CS1 X]]].
+    inv X.
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0)
+         as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]].
+    exists st2'. exists r'. exists m2'. exists d'.
+    repeat (split; trivial).
+    destruct X' as [X' | [X' ORD]].
+    left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
+  rename st1' into st1'''. rename m1' into m1'''.
+  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0) 
+         as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]].
+    assert (CS: exists (st2 : C1) m2 ,
+         corestep Sem1 ge1 st1' m1' st2 m2 /\
+         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+        exists st1''. exists m1''. split; eassumption.
+    destruct (IHn _ _ _ _ CS _ _ _ _ MC') as [st2'' [r'' [m2'' [d'' [Rinc' [Rsep' [MC'' [Unch2' X'']]]]]]]].
+      exists st2''. exists r''. exists m2''.  exists d''.
+      split. eapply reserve_map_incr_trans; eassumption.
+      split. admit. (*ToDo*)
+      split. assumption.
+      split. admit. (*ToDo*)
+      destruct X' as [X' | [ X' CD']].
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_plus_trans; eassumption.
+           left. eapply corestep_plus_star_trans; eassumption.
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_star_plus_trans; eassumption.
+           right. split. eapply corestep_star_trans; eassumption.
+            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+Qed.
 
 End Forward_simulation_extends.
 
@@ -295,6 +384,47 @@ Module Coop_forward_simulation_ext. Section Forward_simulation_extends.
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' st1' m1' st2' m2' }.
+
+Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
+      st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+      forall cd st2 m2,
+        match_state f cd st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd',
+          match_state f cd' st1' m1' st2' m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            clos_trans _ (core_ord f) cd' cd).
+Proof. intros f n.
+  induction n; intros; simpl in *.
+    destruct H as [c1'' [m1'' [CS1 X]]].
+    inv X.
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ H0)
+         as [st2' [m2' [d' [MC' X']]]].
+    exists st2'. exists m2'. exists d'.
+    repeat (split; trivial).
+    destruct X' as [X' | [X' ORD]].
+    left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
+  rename st1' into st1'''. rename m1' into m1'''.
+  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ H0) 
+         as [st2' [m2' [d' [MC' X']]]].
+    assert (CS: exists (st2 : C1) m2 ,
+         corestep Sem1 ge1 st1' m1' st2 m2 /\
+         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+        exists st1''. exists m1''. split; eassumption.
+    destruct (IHn _ _ _ _ CS _ _ _ MC') as [st2'' [m2'' [d'' [MC'' X'']]]].
+      exists st2''. exists m2''.  exists d''.
+      split. assumption.
+      destruct X' as [X' | [ X' CD']].
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_plus_trans; eassumption.
+           left. eapply corestep_plus_star_trans; eassumption.
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_star_plus_trans; eassumption.
+           right. split. eapply corestep_star_trans; eassumption.
+            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+Qed.
 
 End Forward_simulation_extends.
 
@@ -399,7 +529,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           after_external Sem2 ret2 st2 = Some st2' /\
           match_state cd' r' j' st1' m1' st2' m2' }.
 
-
 Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
        n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
       forall cd r st2 j m2,
@@ -414,22 +543,28 @@ Lemma  core_diagramN : forall (f: Forward_simulation_inject)
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord f cd' cd).
+            clos_trans _ (core_ord f) cd' cd).
 Proof. intros f n.
   induction n; intros; simpl in *. 
      destruct H as [? [? [H X]]]. inv X.
-     apply (core_diagram f _ _ _ _ H _ _ _ _ _ H0).
+     destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
+           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+     exists st2'. exists m2'. exists d'. exists r'. exists j'.
+     repeat (split; trivial).
+     destruct X as [X | [X ORD]].
+     left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
      destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
-        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [MS [Unch1 [Unch2 X]]]]]]]]]]]].
+        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
     specialize (IHn st1' m1' st1''' m1''').
     assert (CSa: exists (c2 : C1) (m2 : mem),
          corestep Sem1 ge1 st1' m1' c2 m2 /\
          corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
     specialize (IHn CSa). clear CS' CS'' CSa.
-    destruct (IHn _ _ _ _ _ MS)
-        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [MS' [Unch1' [Unch2' X']]]]]]]]]]]].
+    destruct (IHn _ _ _ _ _ MC')
+        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [MC'' [Unch1' [Unch2' X']]]]]]]]]]]].
     exists st2''. exists m2''. exists cd''. exists r''. exists j''.
     split. eapply inject_incr_trans. apply Inj. apply Inj'.
     split. eapply inject_separated_incr_fwd2; try eassumption.
@@ -496,7 +631,7 @@ Proof. intros f n.
    destruct X' as [X' | [X' CD']].
        left. eapply corestep_star_plus_trans; eassumption.
        right. split. eapply corestep_star_trans; eassumption.
- admit. (*core_ord is transitive - need to find appropriate lemma*)
+            clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.
 Qed.
 
 End Forward_simulation_inject. 
@@ -507,8 +642,8 @@ End Forward_simulation_inj.
 
 Module Coop_forward_simulation_inj. Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
-          {Sem2 : CoreSemantics G2 C2 mem D2}
+          {Sem1 : CoopCoreSem (Genv.t F1 V1) C1 D1}
+          {Sem2 : CoopCoreSem G2 C2 D2}
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
@@ -602,6 +737,56 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' j' st1' m1' st2' m2'
     }.
+
+Lemma  core_diagramN : forall (f: Forward_simulation_inject) n
+      st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+      forall cd st2 j m2,
+        match_state f cd j st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists j',
+          inject_incr j j' /\
+          inject_separated j j' m1 m2 /\
+          match_state f cd' j' st1' m1' st2' m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            clos_trans _ (core_ord f) cd' cd).
+Proof. intros f n.
+  induction n; intros; simpl in *.
+    destruct H as [c1'' [m1'' [CS1 X]]].
+    inv X.
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0)
+         as [st2' [m2' [d' [j' [Inj [Sep [MC' X']]]]]]].
+    exists st2'. exists m2'. exists d'. exists j'.
+    repeat (split; trivial).
+    destruct X' as [X' | [X' ORD]].
+    left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
+  rename st1' into st1'''. rename m1' into m1'''.
+  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
+    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0) 
+         as [st2' [m2' [d' [j' [Inj [Sep [MC' X']]]]]]].
+    assert (CS: exists (st2 : C1) m2 ,
+         corestep Sem1 ge1 st1' m1' st2 m2 /\
+         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+        exists st1''. exists m1''. split; eassumption.
+    destruct (IHn _ _ _ _ CS _ _ _ _ MC') as
+         [st2'' [m2'' [d'' [j'' [Inj' [Sep' [MC'' X'']]]]]]].
+      exists st2''. exists m2''.  exists d''. exists j''.
+      split. eapply inject_incr_trans; eassumption.
+      split. apply corestep_fwd in CS1.
+                eapply inject_separated_incr_fwd2; try eassumption.
+               destruct X' as [X | [X _]].
+                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+      split. trivial.
+      destruct X' as [X' | [ X' CD']].
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_plus_trans; eassumption.
+           left. eapply corestep_plus_star_trans; eassumption.
+         destruct X'' as [X'' | [X'' CD'']].
+           left. eapply corestep_star_plus_trans; eassumption.
+           right. split. eapply corestep_star_trans; eassumption.
+            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+Qed.
 
 End Forward_simulation_inject. 
 
@@ -706,6 +891,111 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
           match_state cd' r' j' st1' m1' st2' m2' }.
+
+Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
+       n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+      forall cd r st2 j m2,
+        match_state cd r j st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists r', exists j',
+          inject_incr j j' /\
+          inject_separated j j' m1 m2 /\
+          reserve_map_incr r r' /\
+          reserve_map_separated r r' j' m1 m2 /\ 
+          match_state cd' r' j' st1' m1' st2' m2' /\
+          mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
+          mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            clos_trans _ core_ord cd' cd).
+Proof. intros f n.
+  induction n; intros; simpl in *. 
+     destruct H as [? [? [H X]]]. inv X.
+     destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
+           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+     exists st2'. exists m2'. exists d'. exists r'. exists j'.
+     repeat (split; trivial).
+     destruct X as [X | [X ORD]].
+     left; trivial.
+     right. split; trivial. apply incl_clos_trans. apply ORD.
+  rename st1' into st1'''. rename m1' into m1'''.
+  destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
+     destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
+        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+    specialize (IHn st1' m1' st1''' m1''').
+    assert (CSa: exists (c2 : C1) (m2 : mem),
+         corestep Sem1 ge1 st1' m1' c2 m2 /\
+         corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
+    specialize (IHn CSa). clear CS' CS'' CSa.
+    destruct (IHn _ _ _ _ _ MC')
+        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [MC'' [Unch1' [Unch2' X']]]]]]]]]]]].
+    exists st2''. exists m2''. exists cd''. exists r''. exists j''.
+    split. eapply inject_incr_trans. apply Inj. apply Inj'.
+    split. eapply inject_separated_incr_fwd2; try eassumption.
+               eapply corestep_fwd. apply CS.
+               destruct X as [X | [X _]].
+                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+   split. eapply reserve_map_incr_trans; eassumption.
+   split. intros b; intros.
+        assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+        destruct rm_dec. apply (Rsep _ b2 delta _ H H3).
+           admit. admit. (*TODO*)
+   split. assumption. 
+   assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
+      split; intros. apply Unch1'.
+                              destruct H.    
+                              split. apply Rinc. apply H.
+                              intros N. apply H2; clear H2. 
+                                  destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
+                                  assert (VB: Mem.valid_block m1 b).
+                                     apply (Mem.perm_valid_block _ _ _ _ _  H1). 
+                                  exfalso. unfold Mem.valid_block in  VB.  omega.
+                           apply Unch1. apply H. apply H1.
+            apply Unch1'.
+                intros. destruct (H _ H2). clear H.    
+                            split. apply Rinc. apply H3.
+                            intros N. apply H4; clear H4. 
+                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
+                                assert (VB: Mem.valid_block m1 b). 
+                                     apply Mem.load_valid_access in H1.
+                                     eapply Mem.valid_access_valid_block.
+                                     eapply Mem.valid_access_implies. apply H1. constructor.
+                               exfalso. unfold Mem.valid_block in  VB.  omega.
+                       apply Unch1. apply H. apply H1.
+   split. assumption.
+   split. split; intros. apply Unch2'.
+                                      destruct H as [bb [delta [J GL]]].
+                                       exists bb. exists delta.
+                                       split. apply (Inj _ _ _ J).
+                                       split; intros. apply Rinc. apply GL.
+                                       intros N. eapply GL. 
+                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
+                                               assert (VB: Mem.valid_block m1 bb).
+                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
+                                                      or the stronger version that matchstate implies Mem.inject*)
+                                               exfalso. unfold Mem.valid_block in VB. omega.
+                                     apply Unch2. apply H. apply H1.
+            apply Unch2'.
+                intros. destruct (H _ H2) as [bb [delta [J GL]]]. clear H.
+                                       exists bb. exists delta.
+                                       split. apply (Inj _ _ _ J).
+                                       split; intros. apply Rinc. apply GL.
+                                       intros N. eapply GL. 
+                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
+                                               assert (VB: Mem.valid_block m1 bb).
+                                                  admit. (*needs axiom match_validblocks from CoopForwardsimulation.inject below,
+                                                      or the stronger version that matchstate implies Mem.inject*)
+                                               exfalso. unfold Mem.valid_block in VB. omega.
+                                     apply Unch2. apply H. apply H1.
+ destruct X as [X | [ X CD]].
+   destruct X' as [X' | [X' CD']].
+       left. eapply corestep_plus_trans; eassumption.
+       left. eapply corestep_plus_star_trans; eassumption.
+   destruct X' as [X' | [X' CD']].
+       left. eapply corestep_star_plus_trans; eassumption.
+       right. split. eapply corestep_star_trans; eassumption.
+            clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.
+Qed.
 
 End Forward_simulation_inject. 
 
