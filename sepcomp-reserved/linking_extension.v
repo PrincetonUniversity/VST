@@ -1979,7 +1979,6 @@ split; auto.
 solve[eapply reserve_map_incr_trans; eauto].
 split.
 eapply reserve_map_separated_trans; eauto.
-admit. (*reserve_map_dec*)
 
 split.
 eapply mem_forward_trans; eauto.
@@ -2266,7 +2265,7 @@ split; auto.
 solve[eapply reserve_map_incr_trans; eauto].
 split.
 eapply reserve_map_separated_trans; eauto.
-admit. (*reserve_map_dec*)
+
 split.
 solve[eapply mem_forward_trans; eauto].
 split.
@@ -2384,8 +2383,24 @@ solve[subst; auto].
 spec core_initial0; auto.
 spec core_initial0; auto.
 spec core_initial0; auto.
-spec core_initial0; auto. admit. (*reserve_map_valid*)
-spec core_initial0; auto. admit. (*reserve_map_valid*)
+spec core_initial0; auto. 
+
+specialize (H8 (linker_active s2) c1).
+destruct (eq_nat_dec (linker_active s2) (linker_active s2)); 
+ try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H8.
+destruct H8 as [? [? MATCH]]; auto.
+eapply reserve_valid in MATCH; eauto.
+solve[destruct MATCH; auto].
+spec core_initial0; auto. 
+specialize (H8 (linker_active s2) c1).
+destruct (eq_nat_dec (linker_active s2) (linker_active s2)); 
+ try solve[elimtype False; omega].
+rewrite dependent_types_nonsense in H8.
+destruct H8 as [? [? MATCH]]; auto.
+eapply reserve_valid in MATCH; eauto.
+solve[destruct MATCH; auto].
+
 simpl.
 destruct core_initial0 as [cd' [c'' [INIT MATCH]]]; auto.
 
@@ -2719,8 +2734,8 @@ spec core_initial0; auto.
 spec core_initial0; auto.
 spec core_initial0; auto.
 destruct core_initial0 as [cd' [c2 [INIT MATCH]]].
-admit. (*reserve_map_valid*)
-admit. (*reserve_map_valid_right*)
+solve[auto].
+solve[auto].
 assert (exists cd: CompilabilityInvariant.core_datas core_data, True) as [cd _].
  solve[eexists; eauto].
 exists (ExtendedSimulations.core_datas_upd _ n cd' cd).

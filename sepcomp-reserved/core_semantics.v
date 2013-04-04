@@ -392,7 +392,13 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
-Definition reserve_map := block -> Z -> Prop.
+Record reserve_map := {sort :> block -> Z -> Prop; 
+                       _ : forall b ofs, {sort b ofs}+{~sort b ofs}}.
+
+Lemma reserve_map_dec: 
+  forall r: reserve_map, 
+  forall b ofs, {r b ofs}+{~r b ofs}.
+Proof. destruct r; auto. Qed.
 
 Definition reserve_map_incr (r1 r2: reserve_map) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
@@ -417,8 +423,7 @@ Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :
 
 (*requires decidability of r?*)
 Lemma reserve_map_separated_trans: 
-  forall r0 r r' j j' m1 m2 m1' m2'
-  (DEC: forall b ofs, {r b ofs}+{~r b ofs}),
+  forall r0 r r' j j' m1 m2 m1' m2',
   inject_incr j j' -> 
   inject_separated j j' m1' m2' -> 
   mem_forward m1 m1' -> 
@@ -428,16 +433,16 @@ Lemma reserve_map_separated_trans:
   reserve_map_separated r0 r' j' m1 m2.
 Proof.
 intros until m2'; unfold reserve_map_separated; 
- intros DEC INCR SEP F1 F2 H1 H2.
+ intros INCR SEP F1 F2 H1 H2.
 intros until ofs; intros H3 H4.
 split; [intros CONTRA|intros delta b2 J CONTRA].
-destruct (DEC b1 ofs) as [X|X].
+destruct (reserve_map_dec r b1 ofs) as [X|X].
 specialize (H1 _ _ H3 X).
 solve[destruct H1; auto].
 specialize (H2 _ _ X H4).
 destruct H2 as [H2 ?].
 solve[apply H2; apply F1; auto].
-destruct (DEC b1 ofs) as [X|X].
+destruct (reserve_map_dec r b1 ofs) as [X|X].
 unfold inject_separated in SEP.
 specialize (H1 _ _ H3 X).
 destruct H1 as [A B].
