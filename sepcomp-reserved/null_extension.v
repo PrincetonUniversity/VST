@@ -269,12 +269,12 @@ End NullExtensionSafe.
  solve[split; auto].
  Qed.
 
- Lemma null_private_conserving: forall F V C D Z
+ Lemma null_owned_conserving: forall F V C D Z
          (csem: RelyGuaranteeSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
-   private_conserving _ (const csem) (null_extension csem csig).
+   owned_conserving _ (const csem) (null_extension csem csig).
  Proof.
  intros.
- unfold private_conserving.
+ unfold owned_conserving.
  intros.
  simpl in *.
  unfold proj_core in H.
@@ -306,7 +306,7 @@ Section NullExtensionCompilable.
  Import ExtensionCompilability2.
 
  Variable core_data: Type.
- Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
+ Variable match_state: core_data -> reserve_map -> meminj -> cS -> mem -> cT -> mem -> Prop. 
  Variable core_ord: core_data -> core_data -> Prop.
  Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
    geS geT entry_points core_data match_state core_ord.
@@ -316,8 +316,8 @@ Section NullExtensionCompilable.
  Variable threads_max_nonzero: (O < threads_max)%nat. (*Required by defn. of core_ords*)
 
  Variable match_state_runnable: 
-  forall cd j s1 m1 s2 m2,
-  match_state cd j s1 m1 s2 m2 -> 
+  forall cd r j s1 m1 s2 m2,
+  match_state cd r j s1 m1 s2 m2 -> 
   rg_forward_simulations.runnable csemS s1=rg_forward_simulations.runnable csemT s2.
 
  Lemma null_extension_compilable: 
@@ -326,7 +326,7 @@ Section NullExtensionCompilable.
  Proof.
  (*SOLVED BY econstructor; eauto.  WE'LL USE THE PROVIDED LEMMAS INSTEAD.*)
  intros H1 H2 H3.
- set (R := fun (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
+ set (R := fun (_:reserve_map) (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig 
@@ -339,8 +339,8 @@ Section NullExtensionCompilable.
  solve[apply (null_core_compatible geS csig H1)].
  unfold E_T, const.
  solve[apply (null_core_compatible geT csig H2)].
- solve[apply null_private_conserving].
- solve[apply null_private_conserving].
+ solve[apply null_owned_conserving].
+ solve[apply null_owned_conserving].
 
  constructor; try solve[intros; unfold R; auto].
 
@@ -359,19 +359,19 @@ Section NullExtensionCompilable.
  solve[eapply core_at_external0 in H6; eauto].
  
  intros; destruct core_simulation.
- destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 m2 H0 H4 H5 H6) 
-  as [cd [s2 [H7 H8]]].
+ destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 r m2 H0 H4 H7 H8) 
+  as [cd [s2 [H9 H10]]]; auto.
  exists (fun _ => cd); exists s2; split; auto. 
  split; auto.
 
- intros i c PROJ b PRIV.
+ intros i c PROJ b ofs PRIV.
  unfold const in PRIV.
  elimtype False.
  simpl in PROJ.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (private_initial _ b geS v1 vals1 c); eauto].
+ solve[eapply (owned_initial _ b _ geS v1 vals1 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
@@ -380,14 +380,14 @@ Section NullExtensionCompilable.
  solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
 
  split.
- intros i c PROJ b PRIV.
+ intros i c PROJ b ofs PRIV.
  unfold const in PRIV.
  elimtype False.
  simpl in PROJ.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (private_initial _ b geT v2 vals2 c); eauto].
+ solve[eapply (owned_initial _ b _ geT v2 vals2 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
@@ -395,20 +395,22 @@ Section NullExtensionCompilable.
  if_tac in PROJ1; try solve[congruence]; inv PROJ1.
  solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
 
+ split; auto.
+ split; auto.
  split.
  solve[unfold R; auto].
  split; auto.
- intros i c1 H9; exists s2; split; auto.
- simpl in H9; unfold proj_core in H9|-*; if_tac in H9; try congruence.
- simpl; unfold proj_core; rewrite H10; if_tac; auto.
+ intros i c1 H9'; exists s2; split; auto.
+ simpl in H9'; unfold proj_core in H9'|-*; if_tac in H9'; try congruence.
+ simpl; unfold proj_core; rewrite H11; if_tac; auto.
  solve[elimtype False; auto].
- simpl in H9; unfold proj_core in H9.
- if_tac in H9; try congruence.
- solve[unfold const; inversion H9; rewrite H12 in *; auto].
+ simpl in H9'; unfold proj_core in H9'.
+ if_tac in H9'; try congruence.
+ solve[unfold const; inversion H9'; rewrite H13 in *; auto].
 
  intros until v1; intros ty MATCH12 HALT HASTY.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
- destruct MATCH12 as [? [? [? [? [? [? MATCH12]]]]]].
+ destruct MATCH12 as [? [? [? [? [? [? [? [? MATCH12]]]]]]]].
  specialize (MATCH12 O c1).
  spec MATCH12; auto.
  destruct MATCH12 as [c2' [PROJ MATCH12]].

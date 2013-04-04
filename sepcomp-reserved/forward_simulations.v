@@ -273,13 +273,14 @@ Proof. intros f n.
       split. intros b; intros. 
                 assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
                 destruct rm_dec as [R | NR].
-                   (*r' b ofs*) eapply Rsep. apply H. apply R. apply H2.
-                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
+                   (*r' b ofs*) eapply Rsep. apply H. solve[apply R].
+                   (*~r' b ofs*) destruct (Rsep' b ofs NR H1).
                               split; intros N. 
-                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS1 _ N).
-                                apply H4.
-                                destruct X' as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
+                                apply H2. apply (corestep_fwd _ _ _ _ _ _ CS1 _ N).
+                                intros; intros CONTRA.
+                                eapply H3; eauto.
+                                solve[destruct X' as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
       split. assumption.
       split. split; intros b2; intros.
                   eapply Unch2'.
@@ -609,19 +610,26 @@ Proof. intros f n.
    split. intros b; intros.
                 assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
                 destruct rm_dec as [R | NR].
-                   (*r' b ofs*) eapply Rsep. apply H. apply R.
-                        remember (j' b) as q.
-                        destruct q; apply eq_sym in Heqq.
-                             destruct p. rewrite (Inj' _ _ _ Heqq) in H2. apply H2.
-                         destruct (Sep' _ _ _ Heqq H2).
-                             exfalso. apply H3. clear H3 H4 H2 Heqq. 
-                             eapply (reserve_valid _ _ _ _ _ _ _ _ MC'). apply R.
-                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
-                              split; intros N. 
-                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS _ N).
-                                apply H4.
-                                destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
+                   (*r' b ofs*)
+                      split; [solve[eapply Rsep; eauto]|].
+                      intros.
+                      remember (j' b) as q.
+                      destruct q; apply eq_sym in Heqq.
+                      destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
+                      destruct (Rsep b ofs H R).
+                      solve[specialize (H3 delta b2 Heqq); auto].
+                      destruct (Sep' _ _ _ Heqq H2).
+                      exfalso. apply H3. clear H3 H4 H2 Heqq. 
+                      destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
+                      solve[eapply RML; apply R].
+                   (*~r' b ofs*) 
+                      destruct (Rsep' b ofs NR H1).
+                      split; intros N. 
+                      apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
+                      intros; intros CONTRA.
+                      eapply H3; eauto.
+                      solve[destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                            apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
       split. assumption.
       split. split; intros b1; intros.
                   eapply Unch1'.
@@ -985,21 +993,26 @@ Proof. intros f n.
    split. intros b; intros.
                 assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
                 destruct rm_dec as [R | NR].
-                   (*r' b ofs*) 
-                        remember (j' b) as q.
-                        destruct q; apply eq_sym in Heqq.
-                             destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
-                             apply (Rsep b b2 delta ofs H R Heqq).
-                         destruct (Sep' _ _ _ Heqq H2).
-                             exfalso. apply H3. clear H3 H4 H2 Heqq. 
-                             destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
-                             eapply RML. apply R.
-                   (*~r' b ofs*) destruct (Rsep' b b2 delta ofs NR H1 H2).
-                              split; intros N. 
-                                apply H3. apply (corestep_fwd _ _ _ _ _ _ CS _ N).
-                                apply H4.
-                                destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); apply N.
+                   (*r' b ofs*)
+                      split; [solve[eapply Rsep; eauto]|].
+                      intros.
+                      remember (j' b) as q.
+                      destruct q; apply eq_sym in Heqq.
+                      destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
+                      destruct (Rsep b ofs H R).
+                      solve[specialize (H3 delta b2 Heqq); auto].
+                      destruct (Sep' _ _ _ Heqq H2).
+                      exfalso. apply H3. clear H3 H4 H2 Heqq. 
+                      destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
+                      solve[eapply RML; apply R].
+                   (*~r' b ofs*) 
+                      destruct (Rsep' b ofs NR H1).
+                      split; intros N. 
+                      apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
+                      intros; intros CONTRA.
+                      eapply H3; eauto.
+                      solve[destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                            apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
    split. assumption.
    assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
       split; intros. apply Unch1'.

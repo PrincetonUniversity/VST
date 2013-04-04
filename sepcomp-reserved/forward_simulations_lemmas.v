@@ -234,7 +234,17 @@ Proof.
         (match_state := fun d r c1 m1 c2 m2 => d = c1 /\ match_states d r c1 m1 c2 m2).
   apply order_wf.
   intros; destruct H; subst.
-  eapply reserve_valid; eauto.
+  split; auto.
+  exploit reserve_valid; eauto.
+  solve[intros [? ?]; auto].
+  exploit reserve_valid; eauto.
+  intros [? ?].
+  unfold reserve_map_valid_right.
+  intros b b2 delta ofs H2.
+  unfold inject_id; intros H3.
+  inv H3.
+  unfold reserve_map_valid in H1.
+  solve[apply (H1 b2 ofs); auto].
   intros; destruct H0 as [? ?]; subst.
   exploit ext_simulation; eauto.  
   intros [c2' [r' [m2' [? [? [? [? Step]]]]]]].
@@ -242,6 +252,10 @@ Proof.
   solve[split; auto].
   intros.
   exploit match_initial_cores; eauto.
+  unfold reserve_map_valid_right, inject_id in H4.
+  intros b ofs H5.
+  specialize (H4 b b 0 ofs).
+  solve[apply H4; auto].
   intros [c1' [c2' [? [? ?]]]].
   solve[do 3 eexists; eauto].
   intros.

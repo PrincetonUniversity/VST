@@ -410,10 +410,53 @@ Definition reserve_map_valid_right (r: reserve_map) (f: meminj) (m: mem) :=
   forall b b2 delta ofs, r b ofs -> f b = Some (b2, delta) -> Mem.valid_block m b2.
 
 Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :=
-  forall b1 b2 delta ofs, 
+  forall b1 ofs, 
     ~r b1 ofs -> r' b1 ofs -> 
-    f' b1 = Some (b2, delta) -> 
-    ~Mem.valid_block m1 b1 /\ ~Mem.valid_block m2 b2.
+    ~Mem.valid_block m1 b1 /\ 
+    (forall delta b2, f' b1 = Some (b2, delta) -> ~Mem.valid_block m2 b2).
+
+(*requires decidability of r?*)
+Lemma reserve_map_separated_trans: 
+  forall r0 r r' j j' m1 m2 m1' m2'
+  (DEC: forall b ofs, {r b ofs}+{~r b ofs}),
+  inject_incr j j' -> 
+  inject_separated j j' m1' m2' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' -> 
+  reserve_map_separated r0 r j m1 m2 -> 
+  reserve_map_separated r r' j' m1' m2' -> 
+  reserve_map_separated r0 r' j' m1 m2.
+Proof.
+intros until m2'; unfold reserve_map_separated; 
+ intros DEC INCR SEP F1 F2 H1 H2.
+intros until ofs; intros H3 H4.
+split; [intros CONTRA|intros delta b2 J CONTRA].
+destruct (DEC b1 ofs) as [X|X].
+specialize (H1 _ _ H3 X).
+solve[destruct H1; auto].
+specialize (H2 _ _ X H4).
+destruct H2 as [H2 ?].
+solve[apply H2; apply F1; auto].
+destruct (DEC b1 ofs) as [X|X].
+unfold inject_separated in SEP.
+specialize (H1 _ _ H3 X).
+destruct H1 as [A B].
+case_eq (j b1).
+intros [? ? Y].
+generalize Y as Y'; intro.
+apply INCR in Y.
+rewrite Y in J; inv J.
+solve[specialize (B _ _ Y'); auto].
+intros Y.
+eapply SEP in Y; eauto.
+destruct Y as [_ Y].
+apply Y.
+solve[apply F2; auto].
+specialize (H2 _ _ X H4).
+destruct H2 as [_ H2].
+apply H2 in J; apply J.
+solve[apply F2; auto].
+Qed.
 
 Record rinject (f: meminj) (r: reserve_map) (m1 m2: mem): Prop := mk_rinject {
   rinject_inj: Mem.inject f m1 m2
