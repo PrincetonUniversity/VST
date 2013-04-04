@@ -271,7 +271,8 @@ Proof. intros f n.
       exists st2''. exists r''. exists m2''.  exists d''.
       split. eapply reserve_map_incr_trans; eassumption.
       split. intros b; intros. 
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+                  solve[destruct (reserve_map_dec r' b ofs); auto].
                 destruct rm_dec as [R | NR].
                    (*r' b ofs*) eapply Rsep. apply H. solve[apply R].
                    (*~r' b ofs*) destruct (Rsep' b ofs NR H1).
@@ -608,7 +609,8 @@ Proof. intros f n.
                    destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
    split. eapply reserve_map_incr_trans; eassumption.
    split. intros b; intros.
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+                  solve[destruct (reserve_map_dec r' b ofs); auto].
                 destruct rm_dec as [R | NR].
                    (*r' b ofs*)
                       split; [solve[eapply Rsep; eauto]|].
@@ -991,7 +993,8 @@ Proof. intros f n.
                    destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
    split. eapply reserve_map_incr_trans; eassumption.
    split. intros b; intros.
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). admit. (*TODO*)
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+                  solve[destruct (reserve_map_dec r' b ofs); auto].
                 destruct rm_dec as [R | NR].
                    (*r' b ofs*)
                       split; [solve[eapply Rsep; eauto]|].
