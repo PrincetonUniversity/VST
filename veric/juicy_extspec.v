@@ -171,7 +171,14 @@ unfold rmap in *.
   destruct H2 as [? [v ?]]; right; right; left.
   split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.
   right; right; right.
-  erewrite <- necR_NO; try eassumption. constructor; auto.
+ destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto. 
+ pose proof (age1_resource_at _ _ H0 l (YES Share.top pfullshare (VAL v) pp)).
+ rewrite H4.
+ simpl. reflexivity.
+ rewrite <- (resource_at_approx jm1 l). 
+ rewrite H2. reflexivity.
+ assert (necR jm2 jm2'). apply laterR_necR. constructor. auto.
+ apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
 Lemma age_safe {G C D}

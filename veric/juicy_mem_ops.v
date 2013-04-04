@@ -114,8 +114,9 @@ Proof.
  destruct (m_phi jm @ (nextblock (m_dry jm), ofs)); simpl in H0.
  destruct (eq_dec t Share.bot). subst; auto.
  rewrite perm_of_nonempty in H0 by auto. contradiction.
- destruct (perm_of_sh_pshare t p). rewrite H1 in H0. contradiction.
- generalize (nextblock_pos (m_dry jm)). intro; omegaContradiction. omega.
+ destruct (perm_of_sh_pshare t p). rewrite H1 in H0.
+ destruct k; try contradiction; omega.
+ omega. omega.
 Qed.
 
 Transparent alloc.
@@ -231,6 +232,10 @@ rewrite ZMap.gso; auto.
 replace (max_access_at m' loc) with (max_access_at (m_dry jm) loc); auto.
 inv H.
 unfold max_access_at. simpl.
+destruct k; simpl; try omega.
+apply H3.
+unfold max_access_at.
+inv H; simpl.
 destruct (eq_dec (fst loc) (nextblock (m_dry jm))).
 rewrite e. rewrite ZMap.gss.
 destruct loc as [b z]. simpl in *.

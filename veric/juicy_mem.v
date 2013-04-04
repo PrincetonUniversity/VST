@@ -52,7 +52,8 @@ Definition access_cohere (m: mem)  (phi: rmap) :=
 Definition max_access_cohere (m: mem) (phi: rmap)  :=
  forall loc,
    match phi @ loc with
-   | YES rsh sh _ _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
+   | YES rsh sh (VAL _) _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
+   | YES rsh sh _ _ => fst loc < nextblock m
    | NO rsh => perm_order'' (max_access_at m loc) (perm_of_sh rsh Share.bot )
    | PURE _ _ => fst loc < nextblock m
   end.
@@ -1004,8 +1005,9 @@ intro loc; generalize (juicy_mem_max_access jm loc); intro H1.
 assert (H2: mem_access m' = mem_access (m_dry jm)) by (eapply store_access; eauto).
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *; rewrite H2.
-destruct (m_phi jm @ loc); auto. destruct k; auto.
-apply nextblock_store in STORE.  rewrite STORE; auto.
+apply nextblock_store in STORE. 
+destruct (m_phi jm @ loc); auto.
+destruct k; simpl; try congruence.  rewrite STORE; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1073,8 +1075,9 @@ assert (H2: mem_access m' = mem_access (m_dry jm))
  by (eapply storebytes_access; eauto).
 unfold inflate_store; rewrite resource_at_make_rmap.
 unfold max_access_at in *; rewrite H2.
-destruct (m_phi jm @ loc); auto. destruct k; auto.
-rewrite (nextblock_storebytes _ _ _ _ _ STOREBYTES); auto.
+assert (H88:=nextblock_storebytes _ _ _ _ _ STOREBYTES).
+destruct (m_phi jm @ loc); try rewrite H88; auto.
+destruct k; simpl; try rewrite H88; auto.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1291,11 +1294,13 @@ unfold perm_order' in H2. revert H2; case_eq (perm_of_sh t Share.bot); intros; i
   apply perm_of_sh_Freeable_top in H; inv H; apply Share.nontrivial; auto.
  simpl; auto.
  forget (m_dry jm) as m. subst m'. simpl. auto.
+assert (NEXT: nextblock (m_dry jm) = nextblock m').
+clear - FREE. subst. unfold unchecked_free; simpl. auto.
 revert H1; case_eq (m_phi jm @ loc); intros; auto.
 case_eq (access_at m' loc); intros; simpl; auto.
 forget (max_access_at (m_dry jm) loc) as x.
-destruct k; auto.
-destruct k; auto.
+destruct k; simpl; try rewrite <- NEXT; auto.
+destruct k; simpl; try rewrite <- NEXT; auto.
 rewrite perm_of_empty. 
 destruct (max_access_at (m_dry jm) loc); simpl; auto.
  simpl; auto.  subst m'; simpl; auto.
@@ -1577,6 +1582,7 @@ rewrite ZMap.gss.
 apply ZMap.gi.
 Qed.
 
+
 Definition resource_decay (nextb: block) (phi1 phi2: rmap) := 
   (level phi1 >= level phi2)%nat /\
  forall l: address,
@@ -1586,7 +1592,7 @@ Definition resource_decay (nextb: block) (phi1 phi2: rmap) :=
        resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
        phi2 @ l = YES rsh pfullshare (VAL v') NoneP)
   \/ (fst l >= nextb /\ exists v, phi2 @ l = YES Share.top pfullshare (VAL v) NoneP)
-  \/ phi2 @ l = NO Share.bot).
+  \/ (exists v, exists pp, phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot)).
 
 
 Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) := 
@@ -1595,7 +1601,8 @@ Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
   (fst l >= nextb -> phi1 @ l = NO Share.bot) /\
   (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
   (exists rsh, exists v, exists v',
-       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ phi2 @ l = YES rsh pfullshare (VAL v') NoneP)).
+       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP
+      /\ phi2 @ l = YES rsh pfullshare (VAL v') NoneP)).
 
 Lemma resource_nodecay_decay: 
    forall b phi1 phi2, resource_nodecay b phi1 phi2 -> resource_decay b phi1 phi2.
@@ -1641,36 +1648,45 @@ rewrite H1. auto.
  assumption.
  right; left. split. omega. exists v; auto.
  right; right; auto.
- right.
+ destruct H2 as [v [pp [? ?]]].
+ rewrite H2 in H1. destruct (m1 @ l); inv H1. eauto.
  destruct H2.
  destruct H1 as [[rsh [v [v' [? ?]]]]|[[? [v ?]] |?]].
- left; exists rsh,v,v'; split. 
+ right; left; exists rsh,v,v'; split. 
  rewrite <- (approx_oo_approx' (level m3) (level m2)) by auto.
  rewrite <- resource_fmap_fmap. rewrite H1.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
  rewrite H3 in H2. rewrite <- H2.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- right; left; split; auto. exists v. rewrite <- H2; rewrite <- H3.
+ right; right; left; split; auto. exists v. rewrite <- H2; rewrite <- H3.
  rewrite H3. 
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
- right; right. rewrite H1 in H2; simpl in H2; auto.
+ right; right; right.
+ destruct H1 as [v [pp [? ?]]].
+ rewrite H3 in H2. simpl in H2. eauto.
  destruct H1 as [[rsh [v [v' [? ?]]]]|[[? [v ?]] |?]].
  destruct H2 as [[rsh2 [v2 [v2' [? ?]]]]|[[? [v2 ?]] |?]].
- left; exists rsh,v,v2'; split.
+ right; left; exists rsh,v,v2'; split.
  rewrite <- (approx_oo_approx' (level m3) (level m2)) by auto.
  rewrite <- resource_fmap_fmap. rewrite H1.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
  rewrite H3 in H2. rewrite H4. simpl in H2. inv H2; auto.
- right; left. split. omega. exists v2; auto.
- right; right; auto.
+ right; right; left. split. omega. exists v2; auto.
+ right; right; right.
+ destruct (m1 @ l); inv H1.
+ destruct H2 as [vx [pp [? ?]]]. inversion2 H3 H1. eauto. 
  destruct H2 as [[rsh2 [v2 [v2' [? ?]]]]|[[? [v2 ?]] |?]].
- right; left; split; auto. exists v2'. rewrite H3 in H2; inv H2; auto.
- right; left; split; auto; exists v2; auto.
- right; right; auto.
+ right; right; left; split; auto. exists v2'. rewrite H3 in H2; inv H2; auto.
+ right; right; left; split; auto; exists v2; auto.
+ left. destruct H2 as [v' [pp [? ?]]]. rewrite H4; rewrite H; auto.
  destruct H2 as [[rsh2 [v2 [v2' [? ?]]]]|[[? [v2 ?]] |?]].
- rewrite H1 in H2; inv H2.
- right; left; split. omega. eauto.
- right; right; auto.
+ destruct H1 as [v' [pp [? ?]]].
+ rewrite H4 in H2; inv H2.
+ right; right; left; split. omega. eauto.
+ right; right; right.
+ destruct H1 as [v1 [pp1 [? ?]]].
+ destruct H2 as [v2 [pp2 [? ?]]].
+ inversion2 H3 H2. 
 Qed.
 
 Lemma level_store_juicy_mem:
@@ -1802,7 +1818,10 @@ unfold perm_of_res in *.
 apply perm_of_sh_Freeable_top in H0.
 injection H0; intros.
 destruct (m_phi jm @ (b,z)); simpl in H4; try destruct k; try solve [contradiction Share.nontrivial; auto].
-auto.
+exists m; econstructor. split.
+simpl in H5. subst. simpl. f_equal. destruct p. unfold pfullshare.
+ apply exist_ext; auto.
+ simpl. auto.
 destruct (zle lo z); destruct (zlt z hi); simpl; auto; try congruence.
 
 (* ~adr_range *)
