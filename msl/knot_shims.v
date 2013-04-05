@@ -4,9 +4,9 @@
  *)
 
 Add LoadPath "..".
-Require Import base.
-Require knot.
-Require knot_full.
+Require Import msl.base.
+Require msl.knot.
+Require msl.knot_full.
 
 Require Import ageable.
 Require Import predicates_hered.

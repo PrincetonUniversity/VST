@@ -7,7 +7,7 @@
     throughtout the proof.  It also defines some convenience tactics.
  *)
 Add LoadPath "..".
-Require Export Extensionality.
+Require Export msl.Extensionality.
 Require Export List.
 Require Export Bool.
 Require Export Omega.

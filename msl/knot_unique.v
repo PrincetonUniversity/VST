@@ -4,11 +4,11 @@
  *)
 
 Add LoadPath "..".
-Require Import base.
-Require Import ageable.
-Require Import knot.
-Require Import knot_lemmas.
-Require Import functors.
+Require Import msl.base.
+Require Import msl.ageable.
+Require Import msl.knot.
+Require Import msl.knot_lemmas.
+Require Import msl.functors.
 
 Local Open Scope nat_scope.
 

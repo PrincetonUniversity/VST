@@ -4,11 +4,11 @@
  *)
 
 Add LoadPath "..".
-Require Import base.
-Require Import ageable.
-Require Import knot.
-Require Import knot_hered.
-Require Import functors.
+Require Import msl.base.
+Require Import msl.ageable.
+Require Import msl.knot.
+Require Import msl.knot_hered.
+Require Import msl.functors.
 
 Module Knot_Lemmas (K : KNOT).
   Import K.TF.
