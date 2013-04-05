@@ -6,7 +6,7 @@ COQDEP=coqdep
 COQDOC=coqdoc
 
 FILES= \
-  Address.v step_lemmas.v Coqlib2.v \
+  Address.v step_lemmas.v compile_safe.v Coqlib2.v \
   extspec.v \
   wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v \
