@@ -15,6 +15,7 @@ if [ -e "$1" -a ./GRAB ]; then
   cp $1/lib/*.v lib
   cp $1/common/*.v common
   cp $1/cfrontend/*.v cfrontend
+  cp $1/flocq/*.v flocq
   cp $1/flocq/Core/*.v flocq/Core
   cp $1/flocq/Prop/*.v flocq/Prop
   cp $1/flocq/Calc/*.v flocq/Calc

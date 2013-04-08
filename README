@@ -19,8 +19,6 @@ DOCUMENTATION:
 BUILD:  See the file BUILD_ORGANIZATION for an explanation of how
   the makefiles work.
 
-COQ VERSION:  This stuff all builds in Coq 8.4-r16324
- (Revision 16324 is a trunk version between Coq 8.4pl1 and 8.4pl2.
-  The VST files will likely build in 8.4pl1, and in 8.4pl2 when that arrives.)
+COQ VERSION:  This stuff all builds in Coq 8.4pl2.
 
 
