@@ -302,6 +302,8 @@ apply prop_right; unfold lift; simpl.
 split; auto.
 Qed.
 
+Transparent Int.repr.
+
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
@@ -731,8 +733,8 @@ apply semax_seq with
  forget (Int.unsigned) as uns.
  destruct ult; inv H1. 
  destruct hd; inv H0.
- destruct (Memory.Mem.valid_pointer Memory.Mem.empty b (uns (Int.add i (Int.repr 8))) &&
-              Memory.Mem.valid_pointer Memory.Mem.empty b0
+ destruct (Memory.Mem.weak_valid_pointer Memory.Mem.empty b (uns (Int.add i (Int.repr 8))) &&
+              Memory.Mem.weak_valid_pointer Memory.Mem.empty b0
                 (uns (Int.add i0 (Int.repr 8))))%bool; inv H1.
  destruct (zeq b b0); inv H0.
  f_equal.
@@ -741,6 +743,16 @@ apply semax_seq with
  clear - H.
  admit.  (* straightforward *)
  simpl in H1. inv H1.
+ destruct (Memory.Mem.valid_pointer Memory.Mem.empty b
+                (uns (Int.add i (Int.repr 8))) &&
+              Memory.Mem.valid_pointer Memory.Mem.empty b0
+                (uns (Int.add i0 (Int.repr 8))))%bool.
+ simpl in H1. inv H1. inv H1.
+ destruct (zeq b b0); inv H0.
+ destruct (Memory.Mem.valid_pointer Memory.Mem.empty b
+                (uns (Int.add i (Int.repr 8))) &&
+              Memory.Mem.valid_pointer Memory.Mem.empty b0
+                (uns (Int.add i0 (Int.repr 8))))%bool; inv H1.
  subst ult.
  rewrite lseg_eq. normalize.
  simpl in H; inv H. 
@@ -781,8 +793,8 @@ unfold eval_binop in H0; simpl in H0.
 unfold sem_cmp in H0; simpl in H0.
 rewrite zeq_true in H0.
 rewrite Int.eq_true in H0.
-destruct (Memory.Mem.valid_pointer Memory.Mem.empty b (Int.unsigned j) &&
-              Memory.Mem.valid_pointer Memory.Mem.empty b (Int.unsigned j))%bool;
+destruct (Memory.Mem.weak_valid_pointer Memory.Mem.empty b (Int.unsigned j) &&
+              Memory.Mem.weak_valid_pointer Memory.Mem.empty b (Int.unsigned j))%bool;
  inv H0.
 apply semax_extract_PROP. intro; contradiction.
 (* case 2: prefix <> nil *)
