@@ -1147,7 +1147,7 @@ destruct (Z_eq_dec b b'); subst.
 rewrite ZMap.gss.
 case_eq (zle lo ofs' && zlt ofs' hi); intros.
 rewrite andb_true_iff in H. destruct H.
-unfold zlt in H2. destruct (Z_lt_ge_dec ofs' hi); auto. omegaContradiction. inv H2.
+unfold zlt in H2. destruct (Z_lt_dec ofs' hi); try omega. inv H2.
 auto.
 rewrite ZMap.gso; auto.
 auto.
@@ -1350,7 +1350,7 @@ assert (zle lo ofs' && zlt ofs' hi = false).
   unfold zle. case_eq (Z_le_gt_dec lo ofs'); intros; auto.
   inv H; auto. omegaContradiction.
   apply andb_false_intro2.
-  unfold zlt. case_eq (Z_lt_ge_dec ofs' hi); intros; auto.
+  unfold zlt. case_eq (Z_lt_dec ofs' hi); intros; auto.
   inv H; auto. omegaContradiction.
 rewrite H; auto.
 rewrite ZMap.gso; auto.

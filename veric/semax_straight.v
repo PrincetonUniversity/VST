@@ -174,13 +174,16 @@ destruct (access_mode t); inv H.
 eauto. 
 Qed. 
 
-Definition cmp_ptr_no_mem c v1 v2 :=
+Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
   if zeq b b1 then
     Val.of_bool (Int.cmpu c o o1)
   else
-    force_val (Cop.sem_cmp_mismatch c)
+    match Val.cmp_different_blocks c with
+    | Some b => Val.of_bool b
+    | None => Vundef
+    end
 | _, _ => Vundef
 end. 
 
@@ -244,7 +247,13 @@ unfold Cop.sem_binary_operation.
 destruct cmp; inv H; try rewrite H3 in *; 
 try rewrite H4 in *; subst;
 unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
-try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto. 
+try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto.
+if_tac; auto; subst; unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
+if_tac; auto; subst; unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
+unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
+unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
+unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
+unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
 Qed. 
 
 Lemma pointer_cmp_no_mem_bool_type : 

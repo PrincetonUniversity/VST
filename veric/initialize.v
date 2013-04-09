@@ -322,15 +322,14 @@ Qed.
 
 
 Lemma load_store_zeros:
-  forall m b z N m', Genv.store_zeros m b z N = Some m' ->
+  forall m b z N m', store_zeros m b z N = Some m' ->
          forall z', z <= z' < z + N -> load Mint8unsigned m' b z' = Some (Vint Int.zero).
 Proof.
  intros.
- symmetry in H; apply Genv.R_store_zeros_correct in H.
+ symmetry in H; apply R_store_zeros_correct in H.
   remember (Some m') as m1.
   revert z'  m' Heqm1 H0; induction H; intros. omegaContradiction.
   subst res.
- unfold n' in *; clear n'.
  destruct (eq_dec z' p). 
  Focus 2. apply IHR_store_zeros; auto. 
    clear - H0 n0.  destruct H0. omega.
@@ -341,7 +340,7 @@ Proof.
  simpl in H2. subst x.
   replace (Int.zero_ext 8 Int.zero) with (Int.zero) in H1 by reflexivity.
   rewrite <- H1.
-  clear - H. apply Genv.R_store_zeros_complete in H.
+  clear - H. apply R_store_zeros_complete in H.
  symmetry.
  symmetry in H; symmetry; eapply Genv.store_zeros_outside; eauto.
   right. simpl; omega.
@@ -350,7 +349,7 @@ Qed.
 
 Lemma load_store_init_data_lem1:
   forall {ge m1 b D m2 m3},
-   Genv.store_zeros m1 b 0 (Genv.init_data_list_size D) = Some m2 ->
+   store_zeros m1 b 0 (Genv.init_data_list_size D) = Some m2 ->
    Genv.store_init_data_list ge m2 b 0 D = Some m3 ->
    forall dl' a dl, dl' ++ a :: dl = D ->
    load_store_init_data1 ge m3 b (Genv.init_data_list_size dl') a.
@@ -428,11 +427,12 @@ assert (MU: 256 < Int.max_unsigned).
  unfold Int.max_unsigned, Int.modulus, Int.wordsize, Wordsize_32.wordsize in *.
   unfold two_power_nat, shift_nat in *; simpl in *. 
  replace (Zpos (4294967296 - 1)) with (4294967295). omega. reflexivity.
-rewrite Int.zero_ext_and in H
- by (unfold Int.wordsize, Wordsize_32.wordsize; split; simpl in *; omega).
+rewrite Int.zero_ext_and in H by omega.
+(* 
+ by (unfold Int.wordsize, Wordsize_32.wordsize; split; simpl in *; omega). *)
 pose proof (Int.modu_and (Int.repr (Byte.unsigned i)) (Int.repr (two_p 8)) (Int.repr 8)).
  spec H0.
- apply Int.is_power2_two_p; simpl; omega.
+ apply Int.is_power2_two_p; simpl.  unfold Int.zwordsize; simpl. omega.
  replace (Int.sub (Int.repr (two_p 8)) Int.one) with (Int.repr (two_p 8 - 1)) in H0.
  rewrite <- H0 in H. clear H0.
  rewrite Int.modu_divu in H.
@@ -835,7 +835,7 @@ Qed.
 Lemma init_data_list_lem:
   forall ge m0 (v: globvar type) m1 b m2 m3 m4  phi0 rho,
      alloc m0 0 (Genv.init_data_list_size (gvar_init v)) = (m1,b) ->
-     Genv.store_zeros m1 b 0 (Genv.init_data_list_size (gvar_init v)) = Some m2 ->
+     store_zeros m1 b 0 (Genv.init_data_list_size (gvar_init v)) = Some m2 ->
      Genv.store_init_data_list ge m2 b 0 (gvar_init v) = Some m3 ->
      drop_perm m3 b 0 (Genv.init_data_list_size (gvar_init v)) 
                (Genv.perm_globvar v) = Some m4 ->

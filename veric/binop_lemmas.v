@@ -51,9 +51,10 @@ Proof.
 intros; typecheck_sound_solver1 H0 e1 e2 t;
 unfold tc_bool, eval_binop in *; simpl in *; unfold sem_sub; simpl;
 try (remember (Int.eq (Int.repr (sizeof t0)) Int.zero) as ez; destruct ez; simpl in *; auto);
-destruct (eval_expr e1 rho); inv H2; destruct (eval_expr e2 rho); inv H1; 
+ try (rewrite (Int.eq_false (Int.repr 1) Int.zero) in H0 by (intro Hx; inv Hx); simpl in H0);
+destruct (eval_expr e1 rho); inv H2; destruct (eval_expr e2 rho); inv H1;
  simpl in *; decompose [and] H0; try contradiction; auto;
- destruct (zeq b b0); inv H3; simpl; auto.
+ try (destruct (zeq b b0); inv H3; simpl; auto).
 Qed.
 
 Lemma typecheck_divmod_sound:

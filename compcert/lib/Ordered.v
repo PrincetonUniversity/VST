@@ -38,13 +38,11 @@ Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
 Proof Plt_ne.
 Lemma compare : forall x y : t, Compare lt eq x y.
 Proof.
-  intros. case (plt x y); intro.
-  apply LT. auto.
-  case (peq x y); intro.
-  apply EQ. auto.
-  apply GT. red; unfold Plt in *. 
-  assert (Zpos x <> Zpos y). congruence. omega.
-Qed.
+  intros. destruct (Pos.compare x y) as [] eqn:E.
+  apply EQ. red. apply Pos.compare_eq_iff. assumption.
+  apply LT. assumption.
+  apply GT. apply Pos.compare_gt_iff. assumption.
+Defined.
 
 Definition eq_dec : forall x y, { eq x y } + { ~ eq x y } := peq.
 
@@ -82,7 +80,7 @@ Proof.
   assert (Int.unsigned x <> Int.unsigned y).
     red; intros. rewrite <- (Int.repr_unsigned x) in n. rewrite <- (Int.repr_unsigned y) in n. congruence.
   red. omega.
-Qed.
+Defined.
 
 Definition eq_dec : forall x y, { eq x y } + { ~ eq x y } := Int.eq_dec.
 
@@ -120,14 +118,14 @@ Proof.
   apply LT. exact l. 
   apply EQ. red; red in e. apply A.index_inj; auto.
   apply GT. exact l.
-Qed.
+Defined.
 
 Lemma eq_dec : forall x y, { eq x y } + { ~ eq x y }.
 Proof.
   intros. case (peq (A.index x) (A.index y)); intros.
   left. apply A.index_inj; auto.
   right; red; unfold eq; intros; subst. congruence. 
-Qed.
+Defined.
 
 End OrderedIndexed.
 
@@ -210,7 +208,7 @@ Proof.
   apply EQ. red. tauto.
   apply GT. red. right. split. apply A.eq_sym. auto. auto.
   apply GT. red. left. auto.
-Qed.
+Defined.
 
 Lemma eq_dec : forall x y, { eq x y } + { ~ eq x y }.
 Proof.
@@ -220,7 +218,7 @@ Proof.
   left; auto.
   right; intuition.
   right; intuition.
-Qed.
+Defined.
 
 End OrderedPair.
 

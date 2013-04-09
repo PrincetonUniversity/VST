@@ -134,16 +134,6 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 | _ => True
 end. 
 
-Definition cmp_ptr_no_mem c v1 v2 :=
-match v1,v2 with
-Vptr b o, Vptr b1 o1 => 
-  if zeq b b1 then
-    Val.of_bool (Int.cmpu c o o1)
-  else
-    force_val (Cop.sem_cmp_mismatch c)
-| _, _ => Vundef
-end. 
-
 Lemma semax_ptr_compare' : 
 forall {Espec: OracleKind},
 forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2,

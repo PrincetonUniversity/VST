@@ -412,26 +412,28 @@ assert (Inj23': Mem.inject j' m2' m3').
            (*case valid*)
              assert (J: j b = Some (b', delta)).
                remember (j b) as d. destruct d; apply eq_sym in Heqd. 
-                 destruct p0. rewrite (InjInc _ _ _ Heqd) in H.  apply H.   
+                 destruct p. rewrite (InjInc _ _ _ Heqd) in H.  apply H.   
                  destruct (injSep _ _ _ Heqd H). exfalso. 
                  apply (Mem.valid_block_extends _ _ _ Ext12) in H1. apply (H3 H1).
+admit.  (* weak_valid_pointer...
              specialize (H2 k (Int.unsigned ofs)).
              rewrite J in H2.
              apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
                    rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
                    eapply Inj13'. apply H. apply H0.
              rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
-                       eapply Inj23. apply J. apply H0.
+                       eapply Inj23. apply J. apply H0. *)
            (*case invalid*)
              assert (J: j b = None).
                remember (j b) as d. destruct d; apply eq_sym in Heqd; trivial. 
-                  destruct p0. exfalso. apply H1.
+                  destruct p. exfalso. apply H1.
                   apply (Mem.valid_block_inject_1 _ _ _ _ _ _ Heqd Inj23).
+admit.  (* weak_valid_pointer...
              specialize (H2 k (Int.unsigned ofs)).
              apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
                  rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
                      eapply Inj13'. apply H. apply H0.
-             unfold Mem.perm in H0. rewrite H3 in H0. inv H0.
+             unfold Mem.perm in H0. rewrite H3 in H0. inv H0. *)
 split; trivial.
 split; trivial.
 split; trivial.

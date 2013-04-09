@@ -863,9 +863,9 @@ Qed.
 
 
 Lemma store_zeros_max_access:  forall m b z N m',
-      Genv.store_zeros m b z N = Some m' -> max_access_at m' = max_access_at m.
+      store_zeros m b z N = Some m' -> max_access_at m' = max_access_at m.
 Proof.
- intros. symmetry in H; apply Genv.R_store_zeros_correct in H.
+ intros. symmetry in H; apply R_store_zeros_correct in H.
  remember (Some m') as m1. revert m' Heqm1; induction H; intros; inv Heqm1.
  auto.
  rewrite (IHR_store_zeros m'0 (eq_refl _)).
@@ -876,9 +876,9 @@ Qed.
 
 
 Lemma store_zeros_access:  forall m b z N m',
-      Genv.store_zeros m b z N = Some m' -> access_at m' = access_at m.
+      store_zeros m b z N = Some m' -> access_at m' = access_at m.
 Proof.
- intros. symmetry in H; apply Genv.R_store_zeros_correct in H.
+ intros. symmetry in H; apply R_store_zeros_correct in H.
  remember (Some m') as m1. revert m' Heqm1; induction H; intros; inv Heqm1.
  auto.
  rewrite (IHR_store_zeros m'0 (eq_refl _)).
@@ -889,10 +889,10 @@ Qed.
 
 Lemma store_zeros_contents1: forall m b z N m' loc,
       fst loc <> b ->
-      Genv.store_zeros m b z N = Some m' -> 
+      store_zeros m b z N = Some m' -> 
       contents_at m loc = contents_at m' loc.
 Proof.
- intros. symmetry in H0; apply Genv.R_store_zeros_correct in H0.
+ intros. symmetry in H0; apply R_store_zeros_correct in H0.
  remember (Some m') as m1. revert m' Heqm1; induction H0; intros; inv Heqm1.
  auto.
  transitivity (contents_at m' loc). 

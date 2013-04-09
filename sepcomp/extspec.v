@@ -21,8 +21,9 @@ Definition ext_spec := external_specification mem external_function.
 
 Lemma extfunct_eqdec : forall ef1 ef2: external_function, {ef1=ef2} + {~ef1=ef2}.
 Proof. intros ef1 ef2; repeat decide equality; 
-  apply Integers.Int.eq_dec.
-Qed.
+  try apply Integers.Int.eq_dec.
+apply Floats.Float.eq_dec.
+Defined.
 
 Set Implicit Arguments.
 
