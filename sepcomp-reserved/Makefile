@@ -13,7 +13,7 @@ FILES= \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v \
   core_semantics.v forward_simulations.v rg_forward_simulations.v \
-  forward_simulations_lemmas.v \
+  RG_interpolants.v rgsim.v forward_simulations_lemmas.v \
   extension.v extension_safety.v extension_simulations.v \
   extension_proof_safety.v extension_proof.v \
   null_extension.v fs_extension.v linking_extension.v trace_extension.v \

@@ -488,6 +488,30 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         match_state cd r j c1 m1 c2 m2 -> 
         reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
 
+    own_valid:  forall d r j st m st' m',
+                 match_state d r j st m st' m' ->
+                 forall b ofs, owned Sem1 st b ofs -> 
+                                     Mem.valid_block m b;
+          (*maybe also add here: forall b ofs,
+               owned Sem2 st' b ofs -> Mem.valid_block m' b?*)
+
+   match_own: forall d r j st1 m1 st2 m2, 
+                match_state d r j st1 m1 st2 m2 ->
+                forall b2 ofs2, owned Sem2 st2 b2 ofs2 ->
+                forall b1 delta, j b1 = Some(b2,delta) ->
+                          owned Sem1 st1 b1 (ofs2 - delta);
+
+    match_antimono: forall d r j st m st' m' rr, 
+                match_state d r j st m st' m' ->
+                reserve_map_incr rr r -> match_state d rr j st m st' m';
+
+    match_memwd: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
+               (mem_wd m1 /\ mem_wd m2);
+
+    match_validblocks: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
+          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd r st2 j m2,
@@ -497,6 +521,10 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
           reserve_map_separated r r' j' m1 m2 /\ 
+
+          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
+          reserve_map_own Sem1 r r' st1' /\
+
           match_state cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -509,6 +537,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
        forall vals1 c1 m1 j vals2 r m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
+          mem_wd m1 -> mem_wd m2 ->
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_map_valid r m1 -> 
@@ -549,7 +578,13 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         reserve_map_incr r r' -> 
         reserve_map_separated r r' j' m1 m2 -> 
 
+        (*NEW condition: newly reserved locations must NOT be owned by THIS module*)
+        (forall b ofs, ~ r b ofs -> r' b ofs -> ~owned Sem1 st1 b ofs) ->
+        (*Maybe this already follows from the reserve_map_separated-condition and some
+          axioms on owned??*)
+
         Mem.inject j' m1' m2' ->
+        mem_wd m1' -> mem_wd m2' ->
         val_inject_opt j' ret1 ret2 ->
 
         mem_forward m1 m1'  -> 
@@ -562,7 +597,13 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' r' j' st1' m1' st2' m2' }.
+          match_state cd' r' j' st1' m1' st2' m2' /\
+
+          (*NEW CONDITIONS: external calls do not increase ownership of THIS module*)
+          (owned Sem1 st1' = owned Sem1 st1) /\
+          (owned Sem2 st2' = owned Sem2 st2) 
+          (*Dutch constructivists will probably prefer pointwise bi-implications here...*)
+      }.
 
 Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
        n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
@@ -573,6 +614,10 @@ Lemma  core_diagramN : forall (f: Forward_simulation_inject)
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
           reserve_map_separated r r' j' m1 m2 /\ 
+
+          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
+          reserve_map_own Sem1 r r' st1' /\
+
           match_state f cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -583,7 +628,7 @@ Proof. intros f n.
   induction n; intros; simpl in *. 
      destruct H as [? [? [H X]]]. inv X.
      destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
-           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X]]]]]]]]]]]]].
      exists st2'. exists m2'. exists d'. exists r'. exists j'.
      repeat (split; trivial).
      destruct X as [X | [X ORD]].
@@ -592,23 +637,23 @@ Proof. intros f n.
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
      destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
-        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
     specialize (IHn st1' m1' st1''' m1''').
     assert (CSa: exists (c2 : C1) (m2 : mem),
          corestep Sem1 ge1 st1' m1' c2 m2 /\
          corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
-    specialize (IHn CSa). clear CS' CS'' CSa.
+    specialize (IHn CSa). 
     destruct (IHn _ _ _ _ _ MC')
-        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [MC'' [Unch1' [Unch2' X']]]]]]]]]]]].
+        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Rown' [MC'' [Unch1' [Unch2' X2']]]]]]]]]]]]].
     exists st2''. exists m2''. exists cd''. exists r''. exists j''.
     split. eapply inject_incr_trans. apply Inj. apply Inj'.
     split. eapply inject_separated_incr_fwd2; try eassumption.
                eapply corestep_fwd. apply CS.
-               destruct X as [X | [X _]].
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+               destruct X2 as [X2 | [X2 _]].
+                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
+                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
    split. eapply reserve_map_incr_trans; eassumption.
-   split. intros b; intros.
+   split. clear X2'. intros b; intros.
                 assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
                   solve[destruct (reserve_map_dec r' b ofs); auto].
                 destruct rm_dec as [R | NR].
@@ -630,8 +675,17 @@ Proof. intros f n.
                       apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
                       intros; intros CONTRA.
                       eapply H3; eauto.
-                      solve[destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                      solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
                             apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
+      split. clear X2 X2'. intros b ofs; intros. 
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+                  solve[destruct (reserve_map_dec r' b ofs); auto].
+                destruct rm_dec as [R | NR].
+                   (*r' b ofs*) specialize (Rown _ _ H R).
+                          apply (owned_stepforward Sem1 _ _ _ _ _ _ _ CS') in Rown.
+                          apply (owned_stepforwardN Sem1 _ _ _ _ _ _ _ _ CS'' Rown).
+                   (*~r' b ofs*)
+                      apply Rown'. apply NR. apply H1. 
       split. assumption.
       split. split; intros b1; intros.
                   eapply Unch1'.
@@ -680,11 +734,11 @@ Proof. intros f n.
                                                     eapply (reserve_valid _ _ _ _ _ _ _ _ H0). apply HO.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
- destruct X as [X | [ X CD]].
-   destruct X' as [X' | [X' CD']].
+ destruct X2 as [X2 | [ X2 CD]].
+   destruct X2' as [X2' | [X2' CD']].
        left. eapply corestep_plus_trans; eassumption.
        left. eapply corestep_plus_star_trans; eassumption.
-   destruct X' as [X' | [X' CD']].
+   destruct X2' as [X2' | [X2' CD']].
        left. eapply corestep_star_plus_trans; eassumption.
        right. split. eapply corestep_star_trans; eassumption.
             clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.
@@ -867,10 +921,34 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
   Record Forward_simulation_inject := 
   { core_ord_wf : well_founded core_ord;
 
-    reserve_valid :
-      forall cd r j c1 m1 c2 m2,
-        match_state cd r j c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
+     reserve_valid :
+        forall cd r j c1 m1 c2 m2,
+          match_state cd r j c1 m1 c2 m2 -> 
+          reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
+
+     own_valid:  forall d r j st m st' m',
+                 match_state d r j st m st' m' ->
+                 forall b ofs, owned Sem1 st b ofs -> 
+                                     Mem.valid_block m b;
+          (*maybe also add here: forall b ofs,
+               owned Sem2 st' b ofs -> Mem.valid_block m' b?*)
+
+    match_own: forall d r j st1 m1 st2 m2, 
+                match_state d r j st1 m1 st2 m2 ->
+                forall b2 ofs2, owned Sem2 st2 b2 ofs2 ->
+                forall b1 delta, j b1 = Some(b2,delta) ->
+                          owned Sem1 st1 b1 (ofs2 - delta);
+
+    match_antimono: forall d r j st m st' m' rr, 
+                match_state d r j st m st' m' ->
+                reserve_map_incr rr r -> match_state d rr j st m st' m';
+
+    match_memwd: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
+               (mem_wd m1 /\ mem_wd m2);
+
+    match_validblocks: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
+          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -881,6 +959,10 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
           reserve_map_separated r r' j' m1 m2 /\ 
+
+          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
+          reserve_map_own Sem1 r r' st1' /\
+
           match_state cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -893,6 +975,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
        forall vals1 c1 m1 j vals2 r m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
+          mem_wd m1 -> mem_wd m2 ->
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_map_valid r m1 -> 
@@ -933,7 +1016,13 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         reserve_map_incr r r' -> 
         reserve_map_separated r r' j' m1 m2 -> 
 
+        (*NEW condition: newly reserved locations must NOT be owned by THIS module*)
+        (forall b ofs, ~ r b ofs -> r' b ofs -> ~owned Sem1 st1 b ofs) ->
+        (*Maybe this already follows from the reserve_map_separated-condition and some
+          axioms on owned??*)
+
         Mem.inject j' m1' m2' ->
+        mem_wd m1' -> mem_wd m2' ->
         val_inject_opt j' ret1 ret2 ->
 
         mem_forward m1 m1'  -> 
@@ -946,7 +1035,13 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' r' j' st1' m1' st2' m2' }.
+          match_state cd' r' j' st1' m1' st2' m2'  /\
+
+          (*NEW CONDITIONS: external calls do not increase ownership of THIS module*)
+          (owned Sem1 st1' = owned Sem1 st1) /\
+          (owned Sem2 st2' = owned Sem2 st2) 
+          (*Dutch constructivists will probably prefer pointwise bi-implications here...*)
+     }.
 
 Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
        n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
@@ -957,6 +1052,10 @@ Lemma  core_diagramN : forall (f: Forward_simulation_inject)
           inject_separated j j' m1 m2 /\
           reserve_map_incr r r' /\
           reserve_map_separated r r' j' m1 m2 /\ 
+
+          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
+          reserve_map_own Sem1 r r' st1' /\
+
           match_state cd' r' j' st1' m1' st2' m2' /\
           mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
           mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
@@ -967,30 +1066,30 @@ Proof. intros f n.
   induction n; intros; simpl in *. 
      destruct H as [? [? [H X]]]. inv X.
      destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
-           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
      exists st2'. exists m2'. exists d'. exists r'. exists j'.
      repeat (split; trivial).
-     destruct X as [X | [X ORD]].
+     destruct X2 as [X2 | [X2 ORD]].
      left; trivial.
      right. split; trivial. apply incl_clos_trans. apply ORD.
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
      destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
-        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [MC' [Unch1 [Unch2 X]]]]]]]]]]]].
+        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
     specialize (IHn st1' m1' st1''' m1''').
     assert (CSa: exists (c2 : C1) (m2 : mem),
          corestep Sem1 ge1 st1' m1' c2 m2 /\
          corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
-    specialize (IHn CSa). clear CS' CS'' CSa.
+    specialize (IHn CSa). 
     destruct (IHn _ _ _ _ _ MC')
-        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [MC'' [Unch1' [Unch2' X']]]]]]]]]]]].
+        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Rown' [MC'' [Unch1' [Unch2' X2']]]]]]]]]]]]].
     exists st2''. exists m2''. exists cd''. exists r''. exists j''.
     split. eapply inject_incr_trans. apply Inj. apply Inj'.
     split. eapply inject_separated_incr_fwd2; try eassumption.
                eapply corestep_fwd. apply CS.
-               destruct X as [X | [X _]].
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
+               destruct X2 as [X2 | [X2 _]].
+                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
+                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
    split. eapply reserve_map_incr_trans; eassumption.
    split. intros b; intros.
                 assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
@@ -1014,8 +1113,18 @@ Proof. intros f n.
                       apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
                       intros; intros CONTRA.
                       eapply H3; eauto.
-                      solve[destruct X as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+                      solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
                             apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
+      split. clear X2 X2'. intros b ofs; intros. 
+                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+                  solve[destruct (reserve_map_dec r' b ofs); auto].
+                destruct rm_dec as [R | NR].
+                   (*r' b ofs*) 
+                   (*r' b ofs*) specialize (Rown _ _ H R).
+                          apply (owned_stepforward Sem1 _ _ _ _ _ _ _ CS') in Rown.
+                          apply (owned_stepforwardN Sem1 _ _ _ _ _ _ _ _ CS'' Rown).
+                   (*~r' b ofs*)
+                      apply Rown'. apply NR. apply H1. 
    split. assumption.
    assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
       split; intros. apply Unch1'.
@@ -1063,11 +1172,11 @@ Proof. intros f n.
                                                     eapply RML. apply HR.
                                                exfalso. unfold Mem.valid_block in VB. omega.
                                      apply Unch2. apply H. apply H1.
- destruct X as [X | [ X CD]].
-   destruct X' as [X' | [X' CD']].
+ destruct X2 as [X2 | [ X2 CD]].
+   destruct X2' as [X2' | [X2' CD']].
        left. eapply corestep_plus_trans; eassumption.
        left. eapply corestep_plus_star_trans; eassumption.
-   destruct X' as [X' | [X' CD']].
+   destruct X2' as [X2' | [X2' CD']].
        left. eapply corestep_star_plus_trans; eassumption.
        right. split. eapply corestep_star_trans; eassumption.
             clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.

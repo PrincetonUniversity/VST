@@ -298,6 +298,10 @@ Record RelyGuaranteeSemantics {G C D} :=
       owned c' b ofs ->
       owned c b ofs \/ 
       Mem.nextblock m <= b < Mem.nextblock m';
+    owned_stepforward: forall b ofs ge c m c' m',
+      corestep csem ge c m c' m' -> 
+      owned c b ofs ->
+      owned c' b ofs;
     owned_external: forall b ofs c c' retv ef sig args,
       at_external csem c = Some (ef, sig, args) -> 
       after_external csem retv c = Some c' -> 
@@ -334,6 +338,7 @@ Program Definition eq_rely2rely_sem G C D
     owned_step := _;
     owned_external := _ |}.
 Next Obligation. eapply (eq_owned_initial eq_rgsem) in H; eauto. Qed.
+Next Obligation. eapply (eq_owned_step eq_rgsem); eauto. Qed.
 Next Obligation. eapply (eq_owned_step eq_rgsem); eauto. Qed.
 Next Obligation. erewrite <-(eq_owned_external eq_rgsem); eauto. Qed.
 
@@ -392,6 +397,18 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
+Lemma owned_stepforwardN: forall N b ofs ge c m c' m',
+      corestepN rgsem ge N c m c' m' -> 
+      owned rgsem c b ofs ->
+      owned rgsem c' b ofs.
+Proof. intros N.
+  induction N; intros; simpl in *.
+     inv H. trivial.
+  destruct H as [c'' [m'' [CS CSN]]].
+     apply (IHN _ _ _ _ _ _ _ CSN).
+     apply (owned_stepforward _ _ _ _ _ _ _ _ CS H0).
+Qed.
+
 Record reserve_map := {sort :> block -> Z -> Prop; 
                        _ : forall b ofs, {sort b ofs}+{~sort b ofs}}.
 
@@ -402,6 +419,9 @@ Proof. destruct r; auto. Qed.
 
 Definition reserve_map_incr (r1 r2: reserve_map) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
+
+Lemma reserve_map_incr_refl: forall r, reserve_map_incr r r.
+Proof. intros r b; intros. trivial. Qed.
 
 Lemma reserve_map_incr_trans: forall r1 r2 r3,
    reserve_map_incr r1 r2 -> reserve_map_incr r2 r3 -> reserve_map_incr r1 r3.
@@ -420,6 +440,10 @@ Definition reserve_map_separated (r r': reserve_map) (f': meminj) (m1 m2: mem) :
     ~r b1 ofs -> r' b1 ofs -> 
     ~Mem.valid_block m1 b1 /\ 
     (forall delta b2, f' b1 = Some (b2, delta) -> ~Mem.valid_block m2 b2).
+
+Lemma reserve_map_separated_same: forall r j m1 m2, 
+               reserve_map_separated r r j m1 m2.
+Proof. intros. intros b; intros. exfalso. apply (H H0). Qed.
 
 (*requires decidability of r?*)
 Lemma reserve_map_separated_trans: 
@@ -466,6 +490,9 @@ Qed.
 Record rinject (f: meminj) (r: reserve_map) (m1 m2: mem): Prop := mk_rinject {
   rinject_inj: Mem.inject f m1 m2
 }.
+
+Definition reserve_map_own (r r':reserve_map) (c:C) :=
+  forall b ofs, ~r b ofs -> r' b ofs -> owned rgsem c b ofs.
 
 (** A core "guarantees" not to touch, on the LHS of a compilation phase, 
  those locations that are globally reserved and not owned by this core. *)
@@ -609,6 +636,48 @@ Qed.
 
 End RelyGuaranteeSemanticsLemmas.
 
+Lemma guarantee_right_trans_TwoSem:
+   forall {F1 C1 V1 F2 C2 V2:Type}
+               (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+               (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+     m2 m2' m3 m3' f1 (r1: reserve_map) f2 (r2: reserve_map) c1 c2
+  (U2: mem_unchanged_on (guarantee_right Sem1 f1 r1 c1) m2 m2')
+  (U3: mem_unchanged_on (guarantee_right Sem2 f2 r2 c2) m3 m3')
+  (G12: forall b0 b delta ofs0, 
+         guarantee_left Sem1 r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
+         guarantee_left Sem2 r2 c2 b (ofs0 + delta)),
+  mem_unchanged_on (guarantee_right Sem1 (compose_meminj f1 f2) r1 c1) m3 m3'.
+Proof. intros.
+apply mem_unchanged_on_sub with (Q := guarantee_right Sem2 f2 r2 c2); auto.
+intros b3 ofs GL1.
+unfold guarantee_right in GL1|-*.
+destruct GL1 as [b1 [delta [Comp GL1]]].
+destruct (compose_meminjD_Some _ _ _ _ _ Comp)
+  as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
+subst; clear Comp.
+specialize (G12 _ _ _ _ GL1 J1).
+exists b2. exists delta3. split; trivial.
+assert (Arith: ofs - (delta2+delta3) + delta2 = ofs - delta3). omega.
+rewrite Arith in G12. apply G12. 
+Qed.
+
+Lemma owned_stepN: forall {G C D} (sem : RelyGuaranteeSemantics G C D) 
+      N b ofs ge c m c' m',
+      corestepN sem ge N c m c' m' -> 
+      owned sem c' b ofs ->
+      owned sem c b ofs \/ 
+      Mem.nextblock m <= b < Mem.nextblock m'.
+Proof. intros G C D sem N.
+  induction N; simpl; intros.
+      inv H. left; assumption.
+  destruct H as [c2 [m2 [CS CSN]]].
+    destruct (IHN _ _ _ _ _ _ _ CSN H0).
+        destruct (owned_step sem _ _ _ _ _ _ _ CS H).
+           left; assumption.
+           right. apply corestepN_fwd in CSN. apply forward_nextblock in CSN. omega.
+       right. apply corestep_fwd in CS. apply forward_nextblock in CS. omega.
+Qed.
+
 Definition blockmap := block -> Z -> bool.
 
 Section RelyGuaranteeSemanticsFunctor.
@@ -618,7 +687,8 @@ Variable csem: CoopCoreSem G C D.
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
     corestep csem ge c m c' m' /\
-    (forall b ofs, f' b ofs=true -> f b ofs=true \/ Mem.nextblock m <= b < Mem.nextblock m')
+    (forall b ofs, f' b ofs=true -> f b ofs=true \/ Mem.nextblock m <= b < Mem.nextblock m') /\
+    (forall b ofs, f b ofs=true -> f' b ofs=true)
   end.
 
 Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
@@ -686,7 +756,7 @@ Qed.
 Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
   Build_RelyGuaranteeSemantics G (blockmap*C) D
    RelyGuaranteeCoopSem
-   (fun x b ofs => fst x b ofs = true) _ _ _ _.
+   (fun x b ofs => fst x b ofs = true) _ _ _ _ _.
 Next Obligation.
 simpl.
 destruct (b0 b).
@@ -700,7 +770,9 @@ inv H; auto.
 congruence.
 Qed.
 Next Obligation. 
-destruct H; auto. Qed.
+destruct H as [? [? ?]]; auto. Qed.
+Next Obligation. 
+destruct H as [? [? ?]]; auto. Qed.
 Next Obligation. 
 simpl in *|-*; destruct (after_external csem retv c); try solve[congruence].
 Qed.

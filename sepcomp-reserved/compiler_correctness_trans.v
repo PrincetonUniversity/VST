@@ -21,7 +21,7 @@ Require Import Wellfounded.
 Require Import Relations.
 
 Declare Module MEMAX : MemoryInterpolationAxioms.
-
+(*
 Lemma corestepN_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
   g N c m c' m' (CS:corestepN Sem g N c m c' m'), 
   mem_forward m m'.
@@ -43,7 +43,7 @@ Lemma corestep_plus_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
   g c m c' m' (CS:corestep_plus Sem g c m c' m'), 
   mem_forward m m'.
 Proof. intros. destruct CS.  eapply  corestepN_fwd. apply H. Qed.
-
+*)
 Definition main_sig : signature := mksignature nil (Some AST.Tint).
 
 Definition entrypoints_compose 
