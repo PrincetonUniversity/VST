@@ -2,7 +2,7 @@
 # explanations of why this is the way it is
 
 COMPCERT=compcert
-include CONFIGURE
+-include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
 #   COMPCERT=../compcert
 # if, for example, you want to build from a compcert distribution
