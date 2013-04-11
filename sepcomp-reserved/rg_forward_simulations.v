@@ -35,15 +35,12 @@ Definition genv2blocks {F V: Type} (ge: Genv.t F V) :=
 Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
  Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
  Variables 
-  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
-  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
+  (sourceC: EffectfulSemantics (Genv.t F1 V1) C1 INIT1)
+  (targetC: EffectfulSemantics G2 C2 INIT2) 
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
-  (match_state: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
-
-(*  (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
-*)
+  (match_state: core_data -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
 
  Import Forward_simulation_inj_exposed.
 
@@ -65,12 +62,12 @@ End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
 Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
  Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
  Variables 
-  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
-  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
+  (sourceC: EffectfulSemantics (Genv.t F1 V1) C1 INIT1)
+  (targetC: EffectfulSemantics G2 C2 INIT2) 
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
-  (match_state: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
+  (match_state: core_data -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop).
 
  Import Forward_simulation_inj_exposed.
 
@@ -91,12 +88,12 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
-    mem_unchanged_on (rely_left sourceC r c1) m1 m1' -> 
-    mem_unchanged_on (rely_right sourceC f r c1) m2 m2' -> 
+    rely sourceC r c1 m1 m1' -> 
+    rely sourceC (inject_reserve f r) c1 m2 m2' -> 
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
-    reserve_map_incr r r' -> 
-    reserve_map_separated r r' f' m1 m2 -> 
+    reserve_incr r r' -> 
+    reserve_separated r r' f' m1 m2 -> 
 
     (** Match is stable *)
     match_state cdC r f c1 m1 c2 m2 -> 

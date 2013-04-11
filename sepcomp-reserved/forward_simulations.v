@@ -18,6 +18,8 @@ Require Import sepcomp.core_semantics.
 Require Import Wellfounded.
 Require Import Relations.
 
+Require Import msl.base. (*for spec tac*)
+
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
   match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
   | None, None => True
@@ -107,49 +109,51 @@ Lemma  core_diagramN : forall (f: Forward_simulation_equals) n
           ((corestep_plus Sem2 ge2 st2 m st2' m') \/
             corestep_star Sem2 ge2 st2 m st2' m' /\
             clos_trans _ (core_ord f) d' d).
-Proof. intros f n.
+Proof. 
+  intros f n.
   induction n; intros; simpl in *.
-    destruct H as [c1'' [m1'' [CS1 X]]].
-    inv X.
-    destruct (core_diagram f _ _ _ _ CS1 _ _ H0) as [st2' [d' [MC' X']]].
-    exists st2'. exists d'. split; trivial.
-    destruct X' as [X' | [X' ORD]].
-    left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
+  destruct H as [c1'' [m1'' [CS1 X]]].
+  inv X.
+  destruct (core_diagram f _ _ _ _ CS1 _ _ H0) as [st2' [d' [MC' X']]].
+  exists st2'. exists d'. split; trivial.
+  destruct X' as [X' | [X' ORD]].
+  left; trivial.
+  right. split; trivial. apply incl_clos_trans. apply ORD.
   rename st1' into st1'''. rename m' into m1'''.
   destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
-    destruct (core_diagram f _ _ _ _ CS1 _ _ H0) 
-        as [st2' [d' [MC' X']]].
-    assert (CS: exists (st2 : C1) (m2 : M),
-         corestep Sem1 ge1 st1' m1' st2 m2 /\
-         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
-        exists st1''. exists m1''. split; eassumption.
-    destruct (IHn _ _ _ _ CS _ _ MC') as [st2'' [d'' [MC'' X'']]].
-      exists st2''. exists d''.
-      split. assumption.
-      destruct X' as [X' | [ X' CD']].
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_plus_trans; eassumption.
-           left. eapply corestep_plus_star_trans; eassumption.
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_star_plus_trans; eassumption.
-           right. split. eapply corestep_star_trans; eassumption.
-            clear - d' d d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+  destruct (core_diagram f _ _ _ _ CS1 _ _ H0) 
+    as [st2' [d' [MC' X']]].
+  assert (CS: exists (st2 : C1) (m2 : M),
+    corestep Sem1 ge1 st1' m1' st2 m2 /\
+    corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+  exists st1''. exists m1''. split; eassumption.
+  destruct (IHn _ _ _ _ CS _ _ MC') as [st2'' [d'' [MC'' X'']]].
+  exists st2''. exists d''.
+  split. assumption.
+  destruct X' as [X' | [ X' CD']].
+  destruct X'' as [X'' | [X'' CD'']].
+  left. eapply corestep_plus_trans; eassumption.
+  left. eapply corestep_plus_star_trans; eassumption.
+  destruct X'' as [X'' | [X'' CD'']].
+  left. eapply corestep_star_plus_trans; eassumption.
+  right. split. eapply corestep_star_trans; eassumption.
+  clear - d' d d'' CD' CD''. eapply t_trans. apply CD''. 
+    apply incl_clos_trans. apply CD'.
 Qed.
 
 End Forward_simulation_equals. 
 
-(*Question: Does this declaration take effect after module import?*)
 Implicit Arguments Forward_simulation_equals [[G1] [C1] [G2] [C2]]. 
 
 End Forward_simulation_eq.
 
-(** * Next, an axiom for passes that allow the memory to undergo extension. *)
+(** * Next, an axiom for passes that extend memory, including the "cooperative" 
+   clauses necessary for transitivity. *)
 
 Module Forward_simulation_ext. Section Forward_simulation_extends. 
   Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1: RelyGuaranteeSemantics G1 C1 D1}
-          {Sem2: RelyGuaranteeSemantics  G2 C2 D2}
+          {Sem1: EffectfulSemantics G1 C1 D1}
+          {Sem2: EffectfulSemantics  G2 C2 D2}
 
           {ge1:G1}
           {ge2:G2}
@@ -157,25 +161,34 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
 
   Record Forward_simulation_extends := 
   { core_data : Type;
-
-    match_state : core_data -> reserve_map -> C1 -> mem -> C2 -> mem -> Prop;
+    match_state : core_data -> reserve -> C1 -> mem -> C2 -> mem -> Prop;
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
-    reserve_valid :
+    match_memwd : 
+      forall cd r c1 m1 c2 m2, 
+      match_state cd r c1 m1 c2 m2 -> mem_wd m1 /\ mem_wd m2;
+
+    match_valid :
+      forall cd r c1 m1 c2 m2,
+      match_state cd r c1 m1 c2 m2 -> 
+        forall b, Mem.valid_block m1 b <-> Mem.valid_block m2 b;
+
+    reserved_locs_valid :
       forall cd r c1 m1 c2 m2,
         match_state cd r c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid_right r inject_id m2;
+        reserve_valid r m1 /\ reserve_valid_right r inject_id m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd r st2 m2,
         match_state cd r st1 m1 st2 m2 ->
-        exists st2', exists r', exists m2', exists cd',
-          reserve_map_incr r r' /\ 
-          reserve_map_separated r r' inject_id m1 m2 /\
+        guarantee Sem1 r st1' m1' -> 
+        exists st2', exists r': reserve', exists m2', exists cd',
+          reserve_incr r r' /\ 
+          reserve_separated r r' inject_id m1 m2 /\
           match_state cd' r' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_right Sem1 inject_id r st1) m2 m2' /\
+          guarantee Sem2 r st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -186,8 +199,8 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           Forall2 Val.lessdef vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
-          reserve_map_valid r m1 -> 
-          reserve_map_valid_right r inject_id m2 -> 
+          reserve_valid r m1 -> reserve_valid r m2 -> 
+          mem_wd m1 -> mem_wd m2 ->
           exists cd, exists c1, exists c2,
             make_initial_core Sem1 ge1 v1 vals = Some c1 /\
             make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
@@ -205,16 +218,18 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
       forall cd r st1 m1 st2 m2 e vals1 ef_sig,
         match_state cd r st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
         exists vals2,
-          Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
-          at_external Sem2 st2 = Some (e,ef_sig,vals2);
+          at_external Sem2 st2 = Some (e,ef_sig,vals2) /\
+          (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd r st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
+      forall cd (r: reserve') st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
         match_state cd r st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
         at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
 
         Forall2 Val.lessdef vals1 vals2 ->
@@ -222,14 +237,16 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (fun b ofs => ~r b ofs /\ owned Sem2 st2 b ofs) m2 m2' -> 
+        rely Sem2 r st2 m2 m2' -> 
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
 
         Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
-        reserve_map_incr r r' -> 
-        reserve_map_separated r r' inject_id m1 m2 -> 
+        reserve_incr r r' -> 
+        reserve_separated r r' inject_id m1 m2 -> 
+        mem_wd m1' -> mem_wd m2' -> 
+        val_valid ret1 m1' -> val_valid ret2 m2' ->
 
         exists st1', exists st2', exists cd',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -237,297 +254,157 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           match_state cd' r' st1' m1' st2' m2' }.
 
 Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
-    st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd r st2 m2,
-        match_state f cd r st1 m1 st2 m2 ->
-        exists st2', exists r', exists m2', exists cd',
-          reserve_map_incr r r' /\ 
-          reserve_map_separated r r' inject_id m1 m2 /\
-          match_state f cd' r' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_right Sem1 inject_id r st1) m2 m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ (core_ord f) cd' cd).
-Proof. intros f n.
+  st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+  forall cd (r: reserve') st2 m2,
+    match_state f cd r st1 m1 st2 m2 ->
+    guarantee Sem1 r st1' m1' -> 
+    exists st2', exists r': reserve', exists m2', exists cd',
+      reserve_incr r r' /\ 
+      reserve_separated r r' inject_id m1 m2 /\
+      match_state f cd' r' st1' m1' st2' m2' /\
+      guarantee Sem2 r st2' m2' /\
+      ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+        corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+        clos_trans _ (core_ord f) cd' cd).
+Proof. 
+  intros f n.
   induction n; intros; simpl in *.
-    destruct H as [c1'' [m1'' [CS1 X]]].
-    inv X.
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0)
-         as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]].
-    exists st2'. exists r'. exists m2'. exists d'.
-    repeat (split; trivial).
-    destruct X' as [X' | [X' ORD]].
-    left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
+  destruct H as [c1'' [m1'' [CS1 X]]].
+  inv X.
+  destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0)
+    as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]]; auto.
+  exists st2'. exists r'. exists m2'. exists d'.
+  repeat (split; trivial).
+  destruct X' as [X' | [X' ORD]].
+  left; trivial.
+  right. split; trivial. apply incl_clos_trans. solve[apply ORD].
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0) 
-         as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]].
-    assert (CS: exists (st2 : C1) m2 ,
-         corestep Sem1 ge1 st1' m1' st2 m2 /\
-         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
-        exists st1''. exists m1''. split; eassumption.
-    destruct (IHn _ _ _ _ CS _ _ _ _ MC') as [st2'' [r'' [m2'' [d'' [Rinc' [Rsep' [MC'' [Unch2' X'']]]]]]]].
-      exists st2''. exists r''. exists m2''.  exists d''.
-      split. eapply reserve_map_incr_trans; eassumption.
-      split. intros b; intros. 
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
-                  solve[destruct (reserve_map_dec r' b ofs); auto].
-                destruct rm_dec as [R | NR].
-                   (*r' b ofs*) eapply Rsep. apply H. solve[apply R].
-                   (*~r' b ofs*) destruct (Rsep' b ofs NR H1).
-                              split; intros N. 
-                                apply H2. apply (corestep_fwd _ _ _ _ _ _ CS1 _ N).
-                                intros; intros CONTRA.
-                                eapply H3; eauto.
-                                solve[destruct X' as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                                        apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
-      split. assumption.
-      split. split; intros b2; intros.
-                  eapply Unch2'.
-                      destruct H as [b1 [delta [ID GL]]].
-                        exists b1. exists delta. split. assumption.
-                        destruct GL. split. apply Rinc. assumption.
-                         intros N. apply H2. clear H2.
-                         apply (owned_step Sem1 b1 (ofs - delta)) in CS1.
-                         destruct CS1; trivial.
-                         destruct (reserve_valid _ _ _ _ _  _ _ H0).
-                         specialize (H3 _ _ H).
-                         exfalso. unfold Mem.valid_block in H3. omega.
-                        apply N.
-                  eapply Unch2; trivial.
-             eapply Unch2'.
-                      intros. destruct (H _ H2) as [b1 [delta [ID GL]]].
-                        exists b1. exists delta. split. assumption.
-                        destruct GL. split. apply Rinc. assumption.
-                         intros N. apply H4. clear H4.
-                         apply (owned_step Sem1 b1 (i - delta)) in CS1.
-                         destruct CS1. trivial.
-                         destruct (reserve_valid _ _ _ _ _  _ _ H0).
-                         specialize (H5 _ _ H3).
-                         exfalso. unfold Mem.valid_block in H5. omega.
-                        apply N.
-                  eapply Unch2; trivial.
-      destruct X' as [X' | [ X' CD']].
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_plus_trans; eassumption.
-           left. eapply corestep_plus_star_trans; eassumption.
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_star_plus_trans; eassumption.
-           right. split. eapply corestep_star_trans; eassumption.
-            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
+  destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0) 
+    as [st2' [r' [m2' [d' [Rinc [Rsep [MC' [Unch2 X']]]]]]]].
+  eapply guarantee_backward_stepN; eauto.
+  instantiate (1 := S n); hnf.
+  solve[exists st1'', m1''; split; eauto].
+  generalize MC' as MC''; intro.
+  apply reserved_locs_valid in MC''.
+  destruct MC'' as [A B].
+  assert (reserve_separated1 r r' m1).
+  intros b0 ofs0; intros ? ?.
+  exploit (Rsep b0 ofs0); auto.
+  solve[intros [? ?]; auto].
+  assert (corestepN Sem1 ge1 (S n) st1' m1' st1''' m1''').
+  solve[hnf; exists st1'', m1''; split; auto].
+  assert (guarantee Sem1 r' st1''' m1''').
+  eapply guarantee_incr_alloc; eauto.
+  assert (CS: exists (st2 : C1) m2 ,
+    corestep Sem1 ge1 st1' m1' st2 m2 /\
+    corestepN Sem1 ge1 n st2 m2 st1''' m1''').
+  solve[exists st1'', m1''; split; auto].
+  destruct (IHn _ _ _ _ CS _ _ _ _ MC') 
+    as [st2'' [r'' [m2'' [d'' [Rinc' [Rsep' [MC'' [Unch2' X'']]]]]]]]; auto.
+  exists st2''. exists r''. exists m2''.  exists d''.
+  split. eapply reserve_incr_trans; eassumption.
+  split. intros b; intros. 
+  assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+  solve[destruct (reserve_dec r' b ofs); auto].
+  destruct rm_dec as [R | NR].
+  eapply Rsep. apply H4. solve[apply R].
+  destruct (Rsep' b ofs NR H5).
+  split; intros N. 
+  apply H6; apply (corestep_fwd _ _ _ _ _ _ CS1 _ N).
+  intros; intros CONTRA.
+  specialize (H7 _ _ H8).
+  assert (mem_forward m2 m2').
+  unfold corestep_plus, corestep_star in X'.
+  destruct X' as [[? X']|[[? X'] _]];
+    solve[apply corestepN_fwd in X'; auto].
+  apply H7.
+  solve[apply H9; auto].
+  split. assumption.
+  split. solve[eapply guarantee_decr; eauto].
+  destruct X' as [X' | [ X' CD']].
+  destruct X'' as [X'' | [X'' CD'']].
+  left. eapply corestep_plus_trans; eassumption.
+  left. eapply corestep_plus_star_trans; eassumption.
+  destruct X'' as [X'' | [X'' CD'']].
+  left. eapply corestep_star_plus_trans; eassumption.
+  right. split. eapply corestep_star_trans; eassumption.
+  clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. 
+    apply incl_clos_trans. apply CD'.
 Qed.
 
 End Forward_simulation_extends.
 
-Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
+Implicit Arguments Forward_simulation_extends [G1 C1 G2 C2].
 
 End Forward_simulation_ext.
-
-(** Perhaps the "Coop" versions of each record should become the
-   standard versions everywhere? *)
-
-Module Coop_forward_simulation_ext. Section Forward_simulation_extends. 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoopCoreSem G1 C1 D1}
-          {Sem2 : CoopCoreSem G2 C2 D2}
-
-          {ge1:G1}
-          {ge2:G2}
-          {entry_points : list (val * val * signature)}.
-
-  Record Forward_simulation_extends :=
-  { core_data : Type;
-
-    match_state : core_data -> C1 -> mem -> C2 -> mem -> Prop;
-    core_ord : core_data -> core_data -> Prop;
-    core_ord_wf : well_founded core_ord;
-
-    (*Matching memories should be well-defined ie not contain values
-        with invalid/"dangling" block numbers*)
-    match_memwd: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
-      (mem_wd m1 /\ mem_wd m2);
-
-    (*The following axiom could be strengthened to extends m1 m2*)
-    match_validblocks: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
-      forall b, Mem.valid_block m1 b <-> Mem.valid_block m2 b;
-
-    core_diagram : 
-      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd st2 m2,
-        match_state cd st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd',
-          match_state cd' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord cd' cd);
-
-    core_initial : forall v1 v2 sig,
-      In (v1,v2,sig) entry_points ->
-        forall vals vals' m1 m2,
-          Forall2 Val.lessdef vals vals' ->
-          Forall2 (Val.has_type) vals' (sig_args sig) ->
-          Mem.extends m1 m2 ->
-          mem_wd m1 -> mem_wd m2 ->
-          exists cd, exists c1, exists c2,
-            make_initial_core Sem1 ge1 v1 vals = Some c1 /\
-            make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
-            match_state cd c1 m1 c2 m2;
-
-    core_halted : 
-      forall cd st1 m1 st2 m2 v1,
-        match_state cd st1 m1 st2 m2 ->
-        safely_halted Sem1 st1 = Some v1 -> val_valid v1 m1 ->
-        exists v2, Val.lessdef v1 v2 /\
-            safely_halted Sem2 st2 = Some v2 /\
-            Mem.extends m1 m2 /\ val_valid v2 m2;
-
-    core_at_external : 
-      forall cd st1 m1 st2 m2 e vals1 ef_sig,
-        match_state cd st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
-        exists vals2,
-          Mem.extends m1 m2 /\
-          Forall2 Val.lessdef vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
-          at_external Sem2 st2 = Some (e,ef_sig,vals2) /\
-          (forall v2, In v2 vals2 -> val_valid v2 m2);
-
-    core_after_external :
-      forall cd st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2' ef_sig,
-        match_state cd st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
-        at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
-
-        Forall2 Val.lessdef vals1 vals2 ->
-        Forall2 (Val.has_type) vals2 (sig_args ef_sig) ->
-        mem_forward m1 m1' ->
-        mem_forward m2 m2' ->
-
-        mem_unchanged_on (loc_out_of_bounds m1) m2 m2' -> 
-        (*i.e., spill-locations didn't change*)
-        Val.lessdef ret1 ret2 ->
-        Mem.extends m1' m2' ->
-
-        Val.has_type ret2 (proj_sig_res ef_sig) -> 
-
-        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
-
-        exists st1', exists st2', exists cd',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
-          match_state cd' st1' m1' st2' m2' }.
-
-Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
-      st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd st2 m2,
-        match_state f cd st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd',
-          match_state f cd' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ (core_ord f) cd' cd).
-Proof. intros f n.
-  induction n; intros; simpl in *.
-    destruct H as [c1'' [m1'' [CS1 X]]].
-    inv X.
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ H0)
-         as [st2' [m2' [d' [MC' X']]]].
-    exists st2'. exists m2'. exists d'.
-    repeat (split; trivial).
-    destruct X' as [X' | [X' ORD]].
-    left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
-  rename st1' into st1'''. rename m1' into m1'''.
-  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ H0) 
-         as [st2' [m2' [d' [MC' X']]]].
-    assert (CS: exists (st2 : C1) m2 ,
-         corestep Sem1 ge1 st1' m1' st2 m2 /\
-         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
-        exists st1''. exists m1''. split; eassumption.
-    destruct (IHn _ _ _ _ CS _ _ _ MC') as [st2'' [m2'' [d'' [MC'' X'']]]].
-      exists st2''. exists m2''.  exists d''.
-      split. assumption.
-      destruct X' as [X' | [ X' CD']].
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_plus_trans; eassumption.
-           left. eapply corestep_plus_star_trans; eassumption.
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_star_plus_trans; eassumption.
-           right. split. eapply corestep_star_trans; eassumption.
-            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
-Qed.
-
-End Forward_simulation_extends.
-
-Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
-
-End Coop_forward_simulation_ext.
 
 (** An axiom for passes that use memory injections. *)
 
 Module Forward_simulation_inj. Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
-          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
+          {Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 D1}
+          {Sem2 : EffectfulSemantics G2 C2 D2}
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
 
   Record Forward_simulation_inject := 
   { core_data : Type;
-    match_state : core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
+    match_state : core_data -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
-    reserve_valid :
+    match_memwd : 
+      forall cd r j c1 m1 c2 m2, 
+      match_state cd r j c1 m1 c2 m2 -> mem_wd m1 /\ mem_wd m2; 
+
+    match_valid :
+      forall cd r j c1 m1 c2 m2,
+      match_state cd r j c1 m1 c2 m2 -> 
+      forall b1 b2 delta, j b1 = Some (b2, delta) -> 
+        Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
+
+    reserved_locs_valid :
       forall cd r j c1 m1 c2 m2,
         match_state cd r j c1 m1 c2 m2 -> 
-        reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
+        reserve_valid r m1 /\ reserve_valid_right r j m2;
 
-    own_valid:  forall d r j st m st' m',
-                 match_state d r j st m st' m' ->
-                 forall b ofs, owned Sem1 st b ofs -> 
-                                     Mem.valid_block m b;
-          (*maybe also add here: forall b ofs,
-               owned Sem2 st' b ofs -> Mem.valid_block m' b?*)
+    effects_valid : forall cd r j c1 m1 c2 m2,
+      match_state cd r j c1 m1 c2 m2 -> 
+      effects_valid Sem1 c1 m1 /\ effects_valid Sem2 c2 m2;
 
-   match_own: forall d r j st1 m1 st2 m2, 
-                match_state d r j st1 m1 st2 m2 ->
-                forall b2 ofs2, owned Sem2 st2 b2 ofs2 ->
-                forall b1 delta, j b1 = Some(b2,delta) ->
-                          owned Sem1 st1 b1 (ofs2 - delta);
+    allocs_only_shrink: forall cd r j st1 m1 st2 m2, 
+      match_state cd r j st1 m1 st2 m2 ->
+      forall b2 ofs2, effects Sem2 st2 AllocEffect b2 ofs2 ->
+      forall b1 delta, 
+        j b1 = Some (b2, delta) ->
+        effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
-    match_antimono: forall d r j st m st' m' rr, 
-                match_state d r j st m st' m' ->
-                reserve_map_incr rr r -> match_state d rr j st m st' m';
-
-    match_memwd: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
-
-    match_validblocks: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
-          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
-               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
+    match_antimono : 
+      forall d r0 r j st m st' m',
+      match_state d r j st m st' m' ->
+      reserve_incr r0 r -> 
+      match_state d r0 j st m st' m';
+    
+    match_validblocks : 
+      forall d r j c1 m1 c2 m2, 
+      match_state d r j c1 m1 c2 m2 -> 
+      forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+        Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd r st2 j m2,
+      forall cd (r: reserve) st2 j m2,
+        guarantee Sem1 r st1' m1' -> 
         match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r', exists j',
+        exists st2', exists m2', exists cd', exists r': reserve', exists j',
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
-          reserve_map_incr r r' /\
-          reserve_map_separated r r' j' m1 m2 /\ 
-
-          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
-          reserve_map_own Sem1 r r' st1' /\
-
+          reserve_incr r r' /\
+          reserve_separated r r' j' m1 m2 /\ 
+          guarantee Sem2 (inject_reserve j r) st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
-          mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -540,8 +417,8 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           mem_wd m1 -> mem_wd m2 ->
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
-          reserve_map_valid r m1 -> 
-          reserve_map_valid_right r j m2 -> 
+          reserve_valid r m1 -> 
+          reserve_valid_right r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;
@@ -559,29 +436,26 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
       forall cd r j st1 m1 st2 m2 e vals1 sig,
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
-        Mem.inject j m1 m2 /\
+        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
         meminj_preserves_globals ge1 j /\ 
         exists vals2, Forall2 (val_inject j) vals1 vals2 /\
                       Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-                      at_external Sem2 st2 = Some (e,sig,vals2);
+                      at_external Sem2 st2 = Some (e,sig,vals2) /\
+                      (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd r r' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
-        Mem.inject j m1 m2->
+      forall cd (r r': reserve') j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+        Mem.inject j m1 m2 ->
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
 
-        reserve_map_incr r r' -> 
-        reserve_map_separated r r' j' m1 m2 -> 
-
-        (*NEW condition: newly reserved locations must NOT be owned by THIS module*)
-        (forall b ofs, ~ r b ofs -> r' b ofs -> ~owned Sem1 st1 b ofs) ->
-        (*Maybe this already follows from the reserve_map_separated-condition and some
-          axioms on owned??*)
+        reserve_incr r r' -> 
+        reserve_separated r r' j' m1 m2 -> 
 
         Mem.inject j' m1' m2' ->
         mem_wd m1' -> mem_wd m2' ->
@@ -589,159 +463,115 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
         mem_forward m1 m1'  -> 
         mem_forward m2 m2' -> 
-        mem_unchanged_on (rely_left Sem1 r st1) m1 m1' -> 
-        mem_unchanged_on (rely_right Sem1 j r st1) m2 m2' -> 
+        rely Sem1 r st1 m1 m1' -> 
+        rely Sem1 (inject_reserve j r) st1 m2 m2' -> 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' r' j' st1' m1' st2' m2' /\
+          match_state cd' r' j' st1' m1' st2' m2'
+  }.
 
-          (*NEW CONDITIONS: external calls do not increase ownership of THIS module*)
-          (owned Sem1 st1' = owned Sem1 st1) /\
-          (owned Sem2 st2' = owned Sem2 st2) 
-          (*Dutch constructivists will probably prefer pointwise bi-implications here...*)
-      }.
-
-Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
-       n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd r st2 j m2,
-        match_state f cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          reserve_map_incr r r' /\
-          reserve_map_separated r r' j' m1 m2 /\ 
-
-          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
-          reserve_map_own Sem1 r r' st1' /\
-
-          match_state f cd' r' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
-          mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ (core_ord f) cd' cd).
-Proof. intros f n.
+Lemma core_diagramN: 
+  forall (f: Forward_simulation_inject) n st1 m1 st1' m1', 
+    corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+    forall cd (r: reserve') st2 j m2,
+      guarantee Sem1 r st1' m1' -> 
+      match_state f cd r j st1 m1 st2 m2 ->
+      exists st2', exists m2', exists cd', exists r': reserve', exists j',
+        inject_incr j j' /\
+        inject_separated j j' m1 m2 /\
+        reserve_incr r r' /\
+        reserve_separated r r' j' m1 m2 /\ 
+        guarantee Sem2 (inject_reserve j r) st2' m2' /\ 
+        match_state f cd' r' j' st1' m1' st2' m2' /\
+        ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+          corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+          clos_trans _ (core_ord f) cd' cd).
+Proof. 
+  intros f n.
   induction n; intros; simpl in *. 
-     destruct H as [? [? [H X]]]. inv X.
-     destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
-           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X]]]]]]]]]]]]].
-     exists st2'. exists m2'. exists d'. exists r'. exists j'.
-     repeat (split; trivial).
-     destruct X as [X | [X ORD]].
-     left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
+  destruct H as [? [? [H X]]]. inv X.
+  destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0 H1) as 
+    [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Guar [MC' X]]]]]]]]]]].
+  exists st2'. exists m2'. exists d'. exists r'. exists j'.
+  repeat (split; trivial).
+  destruct X as [X | [X ORD]].
+  left; trivial.
+  right. split; trivial. apply incl_clos_trans. apply ORD.
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
-     destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
-        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
-    specialize (IHn st1' m1' st1''' m1''').
-    assert (CSa: exists (c2 : C1) (m2 : mem),
-         corestep Sem1 ge1 st1' m1' c2 m2 /\
-         corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
-    specialize (IHn CSa). 
-    destruct (IHn _ _ _ _ _ MC')
-        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Rown' [MC'' [Unch1' [Unch2' X2']]]]]]]]]]]]].
-    exists st2''. exists m2''. exists cd''. exists r''. exists j''.
-    split. eapply inject_incr_trans. apply Inj. apply Inj'.
-    split. eapply inject_separated_incr_fwd2; try eassumption.
-               eapply corestep_fwd. apply CS.
-               destruct X2 as [X2 | [X2 _]].
-                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
-                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
-   split. eapply reserve_map_incr_trans; eassumption.
-   split. clear X2'. intros b; intros.
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
-                  solve[destruct (reserve_map_dec r' b ofs); auto].
-                destruct rm_dec as [R | NR].
-                   (*r' b ofs*)
-                      split; [solve[eapply Rsep; eauto]|].
-                      intros.
-                      remember (j' b) as q.
-                      destruct q; apply eq_sym in Heqq.
-                      destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
-                      destruct (Rsep b ofs H R).
-                      solve[specialize (H3 delta b2 Heqq); auto].
-                      destruct (Sep' _ _ _ Heqq H2).
-                      exfalso. apply H3. clear H3 H4 H2 Heqq. 
-                      destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
-                      solve[eapply RML; apply R].
-                   (*~r' b ofs*) 
-                      destruct (Rsep' b ofs NR H1).
-                      split; intros N. 
-                      apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
-                      intros; intros CONTRA.
-                      eapply H3; eauto.
-                      solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                            apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
-      split. clear X2 X2'. intros b ofs; intros. 
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
-                  solve[destruct (reserve_map_dec r' b ofs); auto].
-                destruct rm_dec as [R | NR].
-                   (*r' b ofs*) specialize (Rown _ _ H R).
-                          apply (owned_stepforward Sem1 _ _ _ _ _ _ _ CS') in Rown.
-                          apply (owned_stepforwardN Sem1 _ _ _ _ _ _ _ _ CS'' Rown).
-                   (*~r' b ofs*)
-                      apply Rown'. apply NR. apply H1. 
-      split. assumption.
-      split. split; intros b1; intros.
-                  eapply Unch1'.
-                      destruct H as [HO HP].
-                      split. apply Rinc. assumption.
-                         intros N. apply HP; clear HP.
-                         apply (owned_step Sem1 b1 ofs) in CS.
-                         destruct CS; trivial.
-                         apply Mem.perm_valid_block in H1.
-                         exfalso. unfold Mem.valid_block in H1. omega.
-                        apply N.
-                  eapply Unch1; trivial.
-             eapply Unch1'.
-                      intros. destruct (H _ H2) as [HO HP].
-                      split. apply Rinc. assumption.
-                         intros N. apply HP. clear HP.
-                         apply (owned_step Sem1 b i) in CS.
-                         destruct CS. trivial.
-                         assert (VB: Mem.valid_block m1 b).
-                                apply Mem.load_valid_access in H1.
-                                eapply Mem.valid_access_valid_block.
-                                eapply (Mem.valid_access_implies _ _ _ _ _ _ H1).
-                                constructor.
-                         exfalso. unfold Mem.valid_block in VB. omega.
-                        apply N.
-                  eapply Unch1; trivial.
-   split. split; intros. apply Unch2'.
-                                      destruct H as [bb [delta [J [HO HP]]]]. 
-                                       exists bb. exists delta.
-                                       split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply HO.
-                                       intros N. eapply HP; clear HP. 
-                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                               assert (VB: Mem.valid_block m1 bb).
-                                                    eapply (reserve_valid _ _ _ _ _ _ _ _ H0). apply HO.
-                                               exfalso. unfold Mem.valid_block in VB. omega.
-                                     apply Unch2. apply H. apply H1.
-            apply Unch2'.
-                intros. destruct (H _ H2) as [bb [delta [J [HO HP]]]]. clear H.
-                                       exists bb. exists delta.
-                                       split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply HO.
-                                       intros N. eapply HP; clear HP. 
-                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                               assert (VB: Mem.valid_block m1 bb).
-                                                    eapply (reserve_valid _ _ _ _ _ _ _ _ H0). apply HO.
-                                               exfalso. unfold Mem.valid_block in VB. omega.
-                                     apply Unch2. apply H. apply H1.
- destruct X2 as [X2 | [ X2 CD]].
-   destruct X2' as [X2' | [X2' CD']].
-       left. eapply corestep_plus_trans; eassumption.
-       left. eapply corestep_plus_star_trans; eassumption.
-   destruct X2' as [X2' | [X2' CD']].
-       left. eapply corestep_star_plus_trans; eassumption.
-       right. split. eapply corestep_star_trans; eassumption.
-            clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.
+  assert (Guar1: guarantee Sem1 r st1' m1'). 
+  eapply guarantee_backward_stepN; eauto.
+  instantiate (1 := S n); hnf.
+  solve[exists st1'', m1''; split; eauto].
+  destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ Guar1 H1)
+    as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [Guar2 [MC' X]]]]]]]]]]].
+  specialize (IHn st1' m1' st1''' m1''').
+  assert (CSa: exists (c2 : C1) (m2 : mem),
+    corestep Sem1 ge1 st1' m1' c2 m2 /\
+    corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''. 
+  solve[split; assumption].
+  specialize (IHn CSa). 
+  assert (reserve_separated1 r r' m1).
+  intros b0 ofs0; intros ? ?.
+  exploit (Rsep b0 ofs0); auto.
+  solve[intros [? ?]; auto].
+  assert (corestepN Sem1 ge1 (S n) st1' m1' st1''' m1''').
+  solve[hnf; exists st1'', m1''; split; auto].
+  assert (Guar3: guarantee Sem1 r' st1''' m1''').
+  eapply guarantee_incr_alloc; eauto.
+  apply reserved_locs_valid in MC'.
+  solve[destruct MC'; auto].
+  destruct (IHn _ _ _ _ _ Guar3 MC')
+    as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Guar4 [MC'' X2']]]]]]]]]]].
+  exists st2''. exists m2''. exists cd''. exists r''. exists j''.
+  split. eapply inject_incr_trans. apply Inj. apply Inj'.
+  split. eapply inject_separated_incr_fwd2; try eassumption.
+  eapply corestep_fwd. apply CS.
+  rename X into X2.
+  destruct X2 as [X2 | [X2 _]].
+  destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
+  destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
+  split. eapply reserve_incr_trans; eassumption.
+  split. clear X2'. intros b; intros.
+  assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
+  destruct (reserve_dec r' b ofs); auto.
+  destruct rm_dec as [R | NR].
+  split; [solve[eapply Rsep; eauto]|].
+  intros.
+  remember (j' b) as q.
+  destruct q; apply eq_sym in Heqq.
+  destruct p. specialize (Inj' _ _ _ Heqq). 
+  rewrite Inj' in H5. inv H5.
+  destruct (Rsep b ofs H3 R).
+  solve[specialize (H6 delta b2 Heqq); auto].
+  destruct (Sep' _ _ _ Heqq H5).
+  exfalso. apply H6. clear H6 H7 H5 Heqq. 
+  destruct (reserved_locs_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
+  solve[eapply RML; apply R].
+  destruct (Rsep' b ofs NR H4).
+  split; intros N. 
+  apply H5. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
+  intros; intros CONTRA.
+  eapply H6; eauto.
+  rename X into X2.
+  solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
+    apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
+  split. clear X X2'. 
+  solve[eapply guarantee_decr2; eauto].
+  split. assumption.
+  destruct X as [X2 | [ X2 CD]].
+  destruct X2' as [X2' | [X2' CD']].
+  left. eapply corestep_plus_trans; eassumption.
+  left. eapply corestep_plus_star_trans; eassumption.
+  destruct X2' as [X2' | [X2' CD']].
+  left. eapply corestep_star_plus_trans; eassumption.
+  right. split. eapply corestep_star_trans; eassumption.
+  clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. 
+  apply incl_clos_trans. apply CD.
 Qed.
 
 End Forward_simulation_inject. 
@@ -750,222 +580,73 @@ Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 
 End Forward_simulation_inj.
 
-Module Coop_forward_simulation_inj. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoopCoreSem (Genv.t F1 V1) C1 D1}
-          {Sem2 : CoopCoreSem G2 C2 D2}
-          {ge1: Genv.t F1 V1}
-          {ge2:G2}
-          {entry_points : list (val * val * signature)}.
-
-  Record Forward_simulation_inject := 
-  { core_data : Type;
-    match_state : core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop;
-    core_ord : core_data -> core_data -> Prop;
-    core_ord_wf : well_founded core_ord;
-
-    (*Matching memories should be well-defined ie not contain values
-        with invalid/"dangling" block numbers*)
-    match_memwd: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
-
-    (*The following axiom could be strengthened to inject j m1 m2*)
-    match_validblocks: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
-          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
-               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
-
-    core_diagram : 
-      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd st2 j m2,
-        match_state cd j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          match_state cd' j' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord cd' cd);
-
-    core_initial : forall v1 v2 sig,
-       In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2,
-          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
-          Mem.inject j m1 m2 -> 
-          mem_wd m1 -> mem_wd m2 ->
-          (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
-           entry_points -> val_inject j w1 w2) ->*) Forall2
-           (val_inject j) vals1 vals2 ->
-
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
-          exists cd, exists c2, 
-            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            match_state cd j c1 m1 c2 m2;
-
-    core_halted : forall cd j c1 m1 c2 m2 v1,
-      match_state cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 c1 = Some v1 ->
-      val_valid v1 m1 ->
-      exists v2, val_inject j v1 v2 /\
-        safely_halted Sem2 c2 = Some v2 /\
-        Mem.inject j m1 m2 /\ val_valid v2 m2;
-
-    core_at_external : 
-      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
-        match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
-        ( Mem.inject j m1 m2 /\
-          meminj_preserves_globals ge1 j /\ 
-          exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
-          at_external Sem2 st2 = Some (e,ef_sig,vals2) /\
-          (forall v2, In v2 vals2 -> val_valid v2 m2));
-
-    core_after_external :
-      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 ef_sig,
-        Mem.inject j m1 m2->
-        match_state cd j st1 m1 st2 m2 ->
-        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
-        meminj_preserves_globals ge1 j -> 
-
-        inject_incr j j' ->
-        inject_separated j j' m1 m2 ->
-        Mem.inject j' m1' m2' ->
-        val_inject j' ret1 ret2 ->
-
-         mem_forward m1 m1'  -> 
-         mem_unchanged_on (loc_unmapped j) m1 m1' ->
-         mem_forward m2 m2' -> 
-         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
-
-        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
-
-        exists cd', exists st1', exists st2',
-          after_external Sem1 (Some ret1) st1 = Some st1' /\
-          after_external Sem2 (Some ret2) st2 = Some st2' /\
-          match_state cd' j' st1' m1' st2' m2'
-    }.
-
-Lemma  core_diagramN : forall (f: Forward_simulation_inject) n
-      st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd st2 j m2,
-        match_state f cd j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          match_state f cd' j' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ (core_ord f) cd' cd).
-Proof. intros f n.
-  induction n; intros; simpl in *.
-    destruct H as [c1'' [m1'' [CS1 X]]].
-    inv X.
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0)
-         as [st2' [m2' [d' [j' [Inj [Sep [MC' X']]]]]]].
-    exists st2'. exists m2'. exists d'. exists j'.
-    repeat (split; trivial).
-    destruct X' as [X' | [X' ORD]].
-    left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
-  rename st1' into st1'''. rename m1' into m1'''.
-  destruct H as [st1' [m1' [CS1 [st1'' [m1'' [CS1' CS1'']]]]]].
-    destruct (core_diagram f _ _ _ _ CS1 _ _ _ _ H0) 
-         as [st2' [m2' [d' [j' [Inj [Sep [MC' X']]]]]]].
-    assert (CS: exists (st2 : C1) m2 ,
-         corestep Sem1 ge1 st1' m1' st2 m2 /\
-         corestepN Sem1 ge1 n st2 m2 st1''' m1''').
-        exists st1''. exists m1''. split; eassumption.
-    destruct (IHn _ _ _ _ CS _ _ _ _ MC') as
-         [st2'' [m2'' [d'' [j'' [Inj' [Sep' [MC'' X'']]]]]]].
-      exists st2''. exists m2''.  exists d''. exists j''.
-      split. eapply inject_incr_trans; eassumption.
-      split. apply corestep_fwd in CS1.
-                eapply inject_separated_incr_fwd2; try eassumption.
-               destruct X' as [X | [X _]].
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
-                   destruct X as [k X]. apply (corestepN_fwd _ _ _ _ _  _ _ X).
-      split. trivial.
-      destruct X' as [X' | [ X' CD']].
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_plus_trans; eassumption.
-           left. eapply corestep_plus_star_trans; eassumption.
-         destruct X'' as [X'' | [X'' CD'']].
-           left. eapply corestep_star_plus_trans; eassumption.
-           right. split. eapply corestep_star_trans; eassumption.
-            clear - d' cd d'' CD' CD''. eapply t_trans. apply CD''. apply incl_clos_trans. apply CD'.
-Qed.
-
-End Forward_simulation_inject. 
-
-Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
-
-End Coop_forward_simulation_inj.
-
 (* A variation of Forward_simulation_inj that exposes core_data and match_state *)
 
 Module Forward_simulation_inj_exposed. Section Forward_simulation_inject. 
   Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
-          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
+          {Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 D1}
+          {Sem2 : EffectfulSemantics G2 C2 D2}
 
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}
           {core_data : Type}
-          {match_state : core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop}
+          {match_state : core_data -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop}
           {core_ord : core_data -> core_data -> Prop}.
 
   Record Forward_simulation_inject := 
   { core_ord_wf : well_founded core_ord;
 
-     reserve_valid :
-        forall cd r j c1 m1 c2 m2,
-          match_state cd r j c1 m1 c2 m2 -> 
-          reserve_map_valid r m1 /\ reserve_map_valid_right r j m2;
+    match_memwd : 
+      forall cd r j c1 m1 c2 m2, 
+      match_state cd r j c1 m1 c2 m2 -> mem_wd m1 /\ mem_wd m2; 
 
-     own_valid:  forall d r j st m st' m',
-                 match_state d r j st m st' m' ->
-                 forall b ofs, owned Sem1 st b ofs -> 
-                                     Mem.valid_block m b;
-          (*maybe also add here: forall b ofs,
-               owned Sem2 st' b ofs -> Mem.valid_block m' b?*)
+    match_valid :
+      forall cd r j c1 m1 c2 m2,
+      match_state cd r j c1 m1 c2 m2 -> 
+      forall b1 b2 delta, j b1 = Some (b2, delta) -> 
+        Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
 
-    match_own: forall d r j st1 m1 st2 m2, 
-                match_state d r j st1 m1 st2 m2 ->
-                forall b2 ofs2, owned Sem2 st2 b2 ofs2 ->
-                forall b1 delta, j b1 = Some(b2,delta) ->
-                          owned Sem1 st1 b1 (ofs2 - delta);
+    reserved_locs_valid :
+      forall cd r j c1 m1 c2 m2,
+        match_state cd r j c1 m1 c2 m2 -> 
+        reserve_valid r m1 /\ reserve_valid_right r j m2;
 
-    match_antimono: forall d r j st m st' m' rr, 
-                match_state d r j st m st' m' ->
-                reserve_map_incr rr r -> match_state d rr j st m st' m';
+    effects_valid : forall cd r j c1 m1 c2 m2,
+      match_state cd r j c1 m1 c2 m2 -> 
+      effects_valid Sem1 c1 m1 /\ effects_valid Sem2 c2 m2;
 
-    match_memwd: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
+    allocs_only_shrink: forall cd r j st1 m1 st2 m2, 
+      match_state cd r j st1 m1 st2 m2 ->
+      forall b2 ofs2, effects Sem2 st2 AllocEffect b2 ofs2 ->
+      forall b1 delta, 
+        j b1 = Some (b2, delta) ->
+        effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
-    match_validblocks: forall d r j c1 m1 c2 m2,  match_state d r j c1 m1 c2 m2 -> 
-          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
-               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
+    match_antimono : 
+      forall d r0 r j st m st' m',
+      match_state d r j st m st' m' ->
+      reserve_incr r0 r -> 
+      match_state d r0 j st m st' m';
+    
+    match_validblocks : 
+      forall d r j c1 m1 c2 m2, 
+      match_state d r j c1 m1 c2 m2 -> 
+      forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+        Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd r st2 j m2,
+      forall cd (r: reserve) st2 j m2,
+        guarantee Sem1 r st1' m1' -> 
         match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r', exists j',
+        exists st2', exists m2', exists cd', exists r': reserve', exists j',
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
-          reserve_map_incr r r' /\
-          reserve_map_separated r r' j' m1 m2 /\ 
-
-          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
-          reserve_map_own Sem1 r r' st1' /\
-
+          reserve_incr r r' /\
+          reserve_separated r r' j' m1 m2 /\ 
+          guarantee Sem2 (inject_reserve j r) st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
-          mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
@@ -978,8 +659,8 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           mem_wd m1 -> mem_wd m2 ->
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
-          reserve_map_valid r m1 -> 
-          reserve_map_valid_right r j m2 -> 
+          reserve_valid r m1 -> 
+          reserve_valid_right r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;
@@ -997,29 +678,26 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
       forall cd r j st1 m1 st2 m2 e vals1 sig,
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
-        Mem.inject j m1 m2 /\
+        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
         meminj_preserves_globals ge1 j /\ 
         exists vals2, Forall2 (val_inject j) vals1 vals2 /\
                       Forall2 (Val.has_type) vals2 (sig_args (ef_sig e)) /\
-                      at_external Sem2 st2 = Some (e,sig,vals2);
+                      at_external Sem2 st2 = Some (e,sig,vals2) /\
+                      (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd r r' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
-        Mem.inject j m1 m2->
+      forall cd (r r': reserve') j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+        Mem.inject j m1 m2 ->
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
         meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
 
-        reserve_map_incr r r' -> 
-        reserve_map_separated r r' j' m1 m2 -> 
-
-        (*NEW condition: newly reserved locations must NOT be owned by THIS module*)
-        (forall b ofs, ~ r b ofs -> r' b ofs -> ~owned Sem1 st1 b ofs) ->
-        (*Maybe this already follows from the reserve_map_separated-condition and some
-          axioms on owned??*)
+        reserve_incr r r' -> 
+        reserve_separated r r' j' m1 m2 -> 
 
         Mem.inject j' m1' m2' ->
         mem_wd m1' -> mem_wd m2' ->
@@ -1027,160 +705,16 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
 
         mem_forward m1 m1'  -> 
         mem_forward m2 m2' -> 
-        mem_unchanged_on (rely_left Sem1 r st1) m1 m1' -> 
-        mem_unchanged_on (rely_right Sem1 j r st1) m2 m2' -> 
+        rely Sem1 r st1 m1 m1' -> 
+        rely Sem1 (inject_reserve j r) st1 m2 m2' -> 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
 
         exists cd', exists st1', exists st2',
           after_external Sem1 ret1 st1 = Some st1' /\
           after_external Sem2 ret2 st2 = Some st2' /\
-          match_state cd' r' j' st1' m1' st2' m2'  /\
-
-          (*NEW CONDITIONS: external calls do not increase ownership of THIS module*)
-          (owned Sem1 st1' = owned Sem1 st1) /\
-          (owned Sem2 st2' = owned Sem2 st2) 
-          (*Dutch constructivists will probably prefer pointwise bi-implications here...*)
-     }.
-
-Lemma  core_diagramN : forall (f: Forward_simulation_inject) 
-       n st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd r st2 j m2,
-        match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          reserve_map_incr r r' /\
-          reserve_map_separated r r' j' m1 m2 /\ 
-
-          (*NEW CONDITION: any newly reserved location must be owned by THIS module:*)
-          reserve_map_own Sem1 r r' st1' /\
-
-          match_state cd' r' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1' /\
-          mem_unchanged_on (guarantee_right Sem1 j r st1) m2 m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ core_ord cd' cd).
-Proof. intros f n.
-  induction n; intros; simpl in *. 
-     destruct H as [? [? [H X]]]. inv X.
-     destruct (core_diagram f _ _ _ _ H _ _ _ _ _ H0) as 
-           [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
-     exists st2'. exists m2'. exists d'. exists r'. exists j'.
-     repeat (split; trivial).
-     destruct X2 as [X2 | [X2 ORD]].
-     left; trivial.
-     right. split; trivial. apply incl_clos_trans. apply ORD.
-  rename st1' into st1'''. rename m1' into m1'''.
-  destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
-     destruct (core_diagram f _ _ _ _ CS _ _ _ _ _ H0)
-        as [st2' [m2' [cd' [r' [j' [Inj [Sep [Rinc [Rsep [Rown [MC' [Unch1 [Unch2 X2]]]]]]]]]]]]].
-    specialize (IHn st1' m1' st1''' m1''').
-    assert (CSa: exists (c2 : C1) (m2 : mem),
-         corestep Sem1 ge1 st1' m1' c2 m2 /\
-         corestepN Sem1 ge1 n c2 m2 st1''' m1'''). exists st1''. exists m1''.  split; assumption.
-    specialize (IHn CSa). 
-    destruct (IHn _ _ _ _ _ MC')
-        as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Rown' [MC'' [Unch1' [Unch2' X2']]]]]]]]]]]]].
-    exists st2''. exists m2''. exists cd''. exists r''. exists j''.
-    split. eapply inject_incr_trans. apply Inj. apply Inj'.
-    split. eapply inject_separated_incr_fwd2; try eassumption.
-               eapply corestep_fwd. apply CS.
-               destruct X2 as [X2 | [X2 _]].
-                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
-                   destruct X2 as [k X2]. apply (corestepN_fwd _ _ _ _ _  _ _ X2).
-   split. eapply reserve_map_incr_trans; eassumption.
-   split. intros b; intros.
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
-                  solve[destruct (reserve_map_dec r' b ofs); auto].
-                destruct rm_dec as [R | NR].
-                   (*r' b ofs*)
-                      split; [solve[eapply Rsep; eauto]|].
-                      intros.
-                      remember (j' b) as q.
-                      destruct q; apply eq_sym in Heqq.
-                      destruct p. specialize (Inj' _ _ _ Heqq). rewrite Inj' in H2. inv H2.
-                      destruct (Rsep b ofs H R).
-                      solve[specialize (H3 delta b2 Heqq); auto].
-                      destruct (Sep' _ _ _ Heqq H2).
-                      exfalso. apply H3. clear H3 H4 H2 Heqq. 
-                      destruct (reserve_valid f _ _ _ _ _ _ _ MC') as [RML RMR].
-                      solve[eapply RML; apply R].
-                   (*~r' b ofs*) 
-                      destruct (Rsep' b ofs NR H1).
-                      split; intros N. 
-                      apply H2. solve[apply (corestep_fwd _ _ _ _ _ _ CS _ N)].
-                      intros; intros CONTRA.
-                      eapply H3; eauto.
-                      solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
-                            apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
-      split. clear X2 X2'. intros b ofs; intros. 
-                assert (rm_dec: r' b ofs \/ ~ r' b ofs). 
-                  solve[destruct (reserve_map_dec r' b ofs); auto].
-                destruct rm_dec as [R | NR].
-                   (*r' b ofs*) 
-                   (*r' b ofs*) specialize (Rown _ _ H R).
-                          apply (owned_stepforward Sem1 _ _ _ _ _ _ _ CS') in Rown.
-                          apply (owned_stepforwardN Sem1 _ _ _ _ _ _ _ _ CS'' Rown).
-                   (*~r' b ofs*)
-                      apply Rown'. apply NR. apply H1. 
-   split. assumption.
-   assert (Unch1'': mem_unchanged_on (guarantee_left Sem1 r st1) m1 m1''').
-      split; intros. apply Unch1'.
-                              destruct H.    
-                              split. apply Rinc. apply H.
-                              intros N. apply H2; clear H2. 
-                                  destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                  assert (VB: Mem.valid_block m1 b).
-                                     apply (Mem.perm_valid_block _ _ _ _ _  H1). 
-                                  exfalso. unfold Mem.valid_block in  VB.  omega.
-                           apply Unch1. apply H. apply H1.
-            apply Unch1'.
-                intros. destruct (H _ H2). clear H.    
-                            split. apply Rinc. apply H3.
-                            intros N. apply H4; clear H4. 
-                                destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                assert (VB: Mem.valid_block m1 b). 
-                                     apply Mem.load_valid_access in H1.
-                                     eapply Mem.valid_access_valid_block.
-                                     eapply Mem.valid_access_implies. apply H1. constructor.
-                               exfalso. unfold Mem.valid_block in  VB.  omega.
-                       apply Unch1. apply H. apply H1.
-   split. assumption.
-   split. split; intros. apply Unch2'.
-                                      destruct H as [bb [delta [J [HR HO]]]].
-                                       exists bb. exists delta.
-                                       split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply HR.
-                                       intros N. eapply HO; clear HO. 
-                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                               assert (VB: Mem.valid_block m1 bb).
-                                                    destruct (reserve_valid f _ _ _ _ _ _ _ H0) as [RML RMR].
-                                                    eapply RML. apply HR.
-                                               exfalso. unfold Mem.valid_block in VB. omega.
-                                     apply Unch2. apply H. apply H1.
-            apply Unch2'.
-                intros. destruct (H _ H2) as [bb [delta [J [HR HO]]]]. clear H.
-                                       exists bb. exists delta.
-                                       split. apply (Inj _ _ _ J).
-                                       split; intros. apply Rinc. apply HR.
-                                       intros N. eapply HO; clear HO. 
-                                               destruct (owned_step _ _ _ _ _ _ _ _ CS N). trivial.
-                                               assert (VB: Mem.valid_block m1 bb).
-                                                    destruct (reserve_valid f _ _ _ _ _ _ _ H0) as [RML RMR].
-                                                    eapply RML. apply HR.
-                                               exfalso. unfold Mem.valid_block in VB. omega.
-                                     apply Unch2. apply H. apply H1.
- destruct X2 as [X2 | [ X2 CD]].
-   destruct X2' as [X2' | [X2' CD']].
-       left. eapply corestep_plus_trans; eassumption.
-       left. eapply corestep_plus_star_trans; eassumption.
-   destruct X2' as [X2' | [X2' CD']].
-       left. eapply corestep_star_plus_trans; eassumption.
-       right. split. eapply corestep_star_trans; eassumption.
-            clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. apply incl_clos_trans. apply CD.
-Qed.
+          match_state cd' r' j' st1' m1' st2' m2'
+  }.
 
 End Forward_simulation_inject. 
 
@@ -1190,8 +724,8 @@ End Forward_simulation_inj_exposed.
 
 Lemma Forward_simulation_inj_exposed_hidden: 
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
-   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 
+   (csemS: EffectfulSemantics (Genv.t F1 V1) C1 D1)
+   (csemT: EffectfulSemantics G2 C2 D2) ge1 ge2 
    entry_points core_data match_state core_ord,
   Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
     entry_points core_data match_state core_ord -> 
@@ -1204,11 +738,11 @@ Qed.
 
 Lemma Forward_simulation_inj_hidden_exposed:
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
-   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 entry_points,
+   (csemS: EffectfulSemantics (Genv.t F1 V1) C1 D1)
+   (csemT: EffectfulSemantics G2 C2 D2) ge1 ge2 entry_points,
   Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
   {core_data: Type & 
-  {match_state: core_data -> reserve_map -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
+  {match_state: core_data -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
   {core_ord: core_data -> core_data -> Prop & 
     Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
     entry_points core_data match_state core_ord}}}.
@@ -1219,7 +753,7 @@ solve[eexists; eexists; eexists;
 Qed.
 
 Lemma forall_inject_val_list_inject: 
-  forall j args args' (H:Forall2 (val_inject j) args args' ), 
+  forall j args args' (H:Forall2 (val_inject j) args args'), 
     val_list_inject j args args'.
 Proof.
 intros j args.
@@ -1343,8 +877,8 @@ Inductive core_correctness (I: forall F C V
       I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
       core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 | corec_ext: forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -1361,8 +895,8 @@ Inductive core_correctness (I: forall F C V
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_inj : forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   entrypoints jInit
@@ -1425,17 +959,17 @@ Proof.
 Qed.
 
 Inductive cc_sim (I: forall F C V 
-          (Sem : RelyGuaranteeSemantics (Genv.t F V) C (list (ident * globdef F V)))
+          (Sem : EffectfulSemantics (Genv.t F V) C (list (ident * globdef F V)))
           (P : AST.program F V), Prop)
 (ExternIdents: list (ident * external_description)) entrypoints:
 forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2), Type :=
   ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-    (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+    (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+    (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
     (P1 : AST.program F1 V1)
     (P2 : AST.program F2 V2)
     (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -1449,15 +983,15 @@ forall (F1 C1 V1 F2 C2 V2:Type)
     I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
     cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+   (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) /\
        Mem.extends m1 m2))
    (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-   (R:Coop_forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
+   (R:Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
    prog_main P1 = prog_main P2 -> 
   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -1465,8 +999,8 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+   (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    jInit
@@ -1475,7 +1009,7 @@ forall (F1 C1 V1 F2 C2 V2:Type)
        /\ Mem.inject jInit m1 m2))
    (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
    (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-   (R:Coop_forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+   (R:Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
    prog_main P1 = prog_main P2 ->
    (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
