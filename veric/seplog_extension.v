@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import msl.ageable msl.rmaps.
 Require Import sepcomp.extspec.
 Require Import sepcomp.extension.

@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import sepcomp.core_semantics.
 
 Require Import veric.base.

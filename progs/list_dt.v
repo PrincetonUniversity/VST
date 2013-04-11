@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.proofauto.
 
 Local Open Scope logic.

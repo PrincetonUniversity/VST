@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import Coqlib msl.Coqlib2.
 Require Import veric.SeparationLogic.
 Require Import Ctypes.

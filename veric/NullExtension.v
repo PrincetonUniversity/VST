@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.base.

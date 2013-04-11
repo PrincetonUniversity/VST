@@ -1,5 +1,3 @@
-Load loadpath.
-
 (*CompCert imports*)
 Require Import Events.
 Require Import Memory.

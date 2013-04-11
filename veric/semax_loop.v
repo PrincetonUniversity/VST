@@ -1,4 +1,3 @@
-Load loadpath. 
 Require Import veric.base.
 Require Import msl.normalize.
 Require Import msl.rmaps.

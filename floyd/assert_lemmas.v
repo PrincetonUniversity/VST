@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.base.
 Local Open Scope logic.
 

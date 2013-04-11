@@ -2,9 +2,19 @@ target: cfrontend/Clight.vo exportclight/Clightdefs.vo
 
 include Makefile
 
-DIRS=lib common  cfrontend flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight
+DIRS=lib common cfrontend flocq exportclight
 
-FILES=$(LIB) $(COMMON) $(CFRONTEND)  $(FLOCQ) exportclight/Clightdefs.v
+FILES=$(LIB:%=lib/%) $(COMMON:%=common/%) \
+     $(CFRONTEND:%=cfrontend/%) $(FLOCQ:%=flocq/%)  \
+     exportclight/Clightdefs.v
+
+INCLUDES= $(foreach a,$(DIRS),-R $(a) -as compcert.$(a))
+
+COQC=coqc -q $(INCLUDES)
+COQDEP= coqdep $(INCLUDES)
+COQDOC=coqdoc
+COQEXEC=coqtop $(INCLUDES) -batch -load-vernac-source
+COQCHK=coqchk $(INCLUDES)
 
 clight-depend: $(FILES)
 	$(COQDEP) $^ \
@@ -14,4 +24,4 @@ clight-depend: $(FILES)
 
 %.vo: %.v
 	@echo "COQC $*.v"
-	@$(COQC) $*.v
+	$(COQC) $*.v

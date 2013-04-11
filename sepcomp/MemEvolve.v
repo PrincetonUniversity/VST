@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import Coqlib.
 Require Import Integers.
 Require Import Values.

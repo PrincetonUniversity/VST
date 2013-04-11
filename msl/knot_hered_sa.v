@@ -3,7 +3,6 @@
  *
  *)
 
-Add LoadPath "..".
 Require Import msl.base.
 Open Local Scope nat_scope.
 

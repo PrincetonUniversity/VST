@@ -1,4 +1,3 @@
-Load loadpath.
 
 Require Import sepcomp.Coqlib2.
 Require Import sepcomp.core_semantics.

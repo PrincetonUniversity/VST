@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import msl.Extensionality.
 
 Class NatDed (A: Type) := mkNatDed {

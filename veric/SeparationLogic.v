@@ -1,4 +1,3 @@
-Load loadpath.  
 
 Require Export Axioms.
 Require Import Coqlib.

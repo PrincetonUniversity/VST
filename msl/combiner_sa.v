@@ -5,7 +5,6 @@
 
 (* A portion of this file was developed by Le Xuan Bach *)
 
-Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.sepalg.
 Require Import msl.functors.

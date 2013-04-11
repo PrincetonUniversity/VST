@@ -2,7 +2,6 @@
  * Copyright (c) 2009-2010, Andrew Appel, Robert Dockins and Aquinas Hobor.
  *
  *)
-Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.ageable.
 Require Import msl.sepalg.

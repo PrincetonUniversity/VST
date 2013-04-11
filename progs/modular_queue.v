@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.queue.

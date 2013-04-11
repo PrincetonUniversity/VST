@@ -3,7 +3,6 @@
  *
  *)
 
-Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.functors.
 Require Import msl.sepalg.

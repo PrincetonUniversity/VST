@@ -1,9 +1,0 @@
-list_dt.vo list_dt.glob: list_dt.v ../sepcomp\loadpath.v ../floyd\proofauto.vo
-reverse.vo reverse.glob: reverse.v ../compcert\exportclight\Clightdefs.vo
-verif_reverse.vo verif_reverse.glob: verif_reverse.v ../sepcomp\loadpath.v ../floyd\proofauto.vo list_dt.vo reverse.vo
-queue.vo queue.glob: queue.v ../compcert\exportclight\Clightdefs.vo
-verif_queue.vo verif_queue.glob: verif_queue.v ../sepcomp\loadpath.v ../floyd\proofauto.vo list_dt.vo queue.vo
-sumarray.vo sumarray.glob: sumarray.v ../compcert\exportclight\Clightdefs.vo
-verif_sumarray.vo verif_sumarray.glob: verif_sumarray.v ../sepcomp\loadpath.v ../floyd\proofauto.vo sumarray.vo
-message.vo message.glob: message.v ../compcert\exportclight\Clightdefs.vo
-verif_message.vo verif_message.glob: verif_message.v ../sepcomp\loadpath.v ../floyd\proofauto.vo message.vo

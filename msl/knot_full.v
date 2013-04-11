@@ -5,7 +5,6 @@
 
 (* Knots with all the bells and whistles *)
 
-Add LoadPath "..".
 Require Import msl.base.
 Require Import msl.ageable.
 

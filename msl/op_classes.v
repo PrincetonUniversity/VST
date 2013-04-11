@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import msl.Extensionality.
 Require Import msl.sepalg.
 Require Import msl.ageable.

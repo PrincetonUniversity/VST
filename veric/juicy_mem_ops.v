@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.

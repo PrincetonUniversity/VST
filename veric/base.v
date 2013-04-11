@@ -1,4 +1,3 @@
-Load loadpath.
 Require Export Axioms.
 Require Export Coqlib.
 Require Export AST.

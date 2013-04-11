@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 

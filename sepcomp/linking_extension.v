@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import msl.base. (*for spec tac*)
 
 Require Import sepcomp.core_semantics.

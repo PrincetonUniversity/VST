@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.

@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import msl.ageable msl.rmaps. 
 Require Import veric.base sepcomp.sim sepcomp.step_lemmas veric.juicy_extspec
                sepcomp.extspec sepcomp.extensions veric.juicy_mem veric.compcert_rmaps 

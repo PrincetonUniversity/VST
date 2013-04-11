@@ -13,7 +13,6 @@
 (*                                                                     *)
 (* *********************************************************************)
 
-Load loadpath.
 
 (** Observable events, execution traces, and semantics of external calls. *)
 

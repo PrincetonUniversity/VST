@@ -1,4 +1,3 @@
-Load loadpath.
 Require Export Clightdefs.
 Require Export veric.SeparationLogic.
 Require Export msl.Extensionality.

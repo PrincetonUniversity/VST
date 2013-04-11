@@ -12,13 +12,25 @@
 
 include Makefile.config
 
-DIRS=lib common $(ARCH)/$(VARIANT) $(ARCH) backend cfrontend driver \
-  flocq/Core flocq/Prop flocq/Calc flocq/Appli
+DIRS=lib common backend cfrontend driver flocq exportclight
 
-INCLUDES=$(patsubst %,-I %, $(DIRS))
+DIRS_LONG= $(DIRS) flocq/Core flocq/Prop flocq/Calc flocq/Appli \
+  $(ARCH)/$(VARIANT) $(ARCH)
+
+# This section uses the -exclude-dir feature of coqc,
+# which does not work in Coq 8.3 or Coq 8.4pl2. 
+# See Coq bug report 3025.  Until it's fixed, we do something uglier.
+# Also, even when 3025 is fixed, coqdep might still not respect
+# -exclude-dir, so be careful.
+# EXCLUDES= $(filter-out $(ARCH), ia32 arm powerpc)
+# 
+# INCLUDES= $(EXCLUDES:%=-exclude-dir %) -R . -as compcert 
+
+# Until -exclude-dir is fixed, we have to do it this way:
+INCLUDES= $(foreach a,$(DIRS),-R $(a) -as compcert.$(a)) -I $(ARCH) -as $(ARCH) -I $(ARCH)/$(VARIANT) -as $(ARCH).$(VARIANT)
 
 COQC=coqc -q $(INCLUDES)
-COQDEP=coqdep $(INCLUDES)
+COQDEP= coqdep $(INCLUDES)
 COQDOC=coqdoc
 COQEXEC=coqtop $(INCLUDES) -batch -load-vernac-source
 COQCHK=coqchk $(INCLUDES)
@@ -28,7 +40,8 @@ OCB_OPTIONS=\
   -j 2 \
   -no-hygiene \
   -no-links \
-  -I extraction -I cparser $(INCLUDES)
+  -I extraction -I cparser $(DIRS_LONG:%=-I %)
+# $(INCLUDES)
 OCB_OPTIONS_CHECKLINK=\
   $(OCB_OPTIONS) \
   -I checklink \
@@ -37,8 +50,8 @@ OCB_OPTIONS_CLIGHTGEN=\
   $(OCB_OPTIONS) \
   -I exportclight
 
-VPATH=$(DIRS)
-GPATH=$(DIRS)
+# VPATH=$(DIRS)
+# GPATH=$(DIRS)
 
 # Flocq
 FLOCQ_CORE=Fcore_float_prop.v Fcore_Zaux.v Fcore_rnd_ne.v Fcore_FTZ.v \
@@ -49,7 +62,7 @@ FLOCQ_PROP=Fprop_Sterbenz.v Fprop_mult_error.v Fprop_relative.v \
 FLOCQ_CALC=Fcalc_ops.v Fcalc_bracket.v Fcalc_sqrt.v Fcalc_div.v Fcalc_round.v \
   Fcalc_digits.v
 FLOCQ_APPLI=Fappli_IEEE_bits.v Fappli_IEEE.v
-FLOCQ=$(FLOCQ_CORE) $(FLOCQ_PROP) $(FLOCQ_CALC) $(FLOCQ_APPLI)
+FLOCQ=$(FLOCQ_CORE:%=Core/%) $(FLOCQ_PROP:%=Prop/%) $(FLOCQ_CALC:%=Calc/%) $(FLOCQ_APPLI:%=Appli/%)
 
 # General-purpose libraries (in lib/)
 
@@ -62,11 +75,11 @@ LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
 COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
   Values.v Smallstep.v Behaviors.v Switch.v Determinism.v
 
-# Back-end modules (in backend/, $(ARCH)/, $(ARCH)/$(VARIANT))
+# Back-end modules (in backend/)
 
 BACKEND=\
-  Cminor.v Op.v CminorSel.v \
-  SelectOp.v Selection.v SelectOpproof.v Selectionproof.v \
+  Cminor.v CminorSel.v \
+  Selection.v Selectionproof.v \
   Registers.v RTL.v \
   RTLgen.v RTLgenspec.v RTLgenproof.v \
   Tailcall.v Tailcallproof.v \
@@ -74,9 +87,9 @@ BACKEND=\
   Renumber.v Renumberproof.v \
   RTLtyping.v \
   Kildall.v \
-  ConstpropOp.v Constprop.v ConstpropOpproof.v Constpropproof.v \
-  CombineOp.v CSE.v CombineOpproof.v CSEproof.v \
-  Machregs.v Locations.v Conventions1.v Conventions.v LTL.v LTLtyping.v \
+  Constprop.v Constpropproof.v \
+  CSE.v CSEproof.v \
+  Locations.v Conventions.v LTL.v LTLtyping.v \
   InterfGraph.v Coloring.v Coloringproof.v \
   Allocation.v Allocproof.v Alloctyping.v \
   Tunneling.v Tunnelingproof.v Tunnelingtyping.v \
@@ -86,9 +99,18 @@ BACKEND=\
   Linear.v Lineartyping.v \
   Parallelmove.v Reload.v Reloadproof.v Reloadtyping.v \
   RRE.v RREproof.v RREtyping.v \
-  Mach.v \
-  Bounds.v Stacklayout.v Stacking.v Stackingproof.v \
-  Asm.v Asmgen.v Asmgenproof0.v Asmgenproof1.v Asmgenproof.v
+  Mach.v Asmgenproof0.v \
+  Bounds.v Stacking.v Stackingproof.v
+
+# Architecture-specific files  (in $(ARCH)/  )
+ARCHFILES= Op.v CombineOp.v CombineOpproof.v \
+  ConstpropOp.v ConstpropOpproof.v Machregs.v \
+  SelectOp.v SelectOpproof.v \
+  Asm.v Asmgen.v Asmgenproof1.v Asmgenproof.v
+
+# Arch-variant-specific files  (in $(ARCH)/$(VARIANT)/  )
+VARIANTFILES= Stacklayout.v Conventions1.v  
+
 
 # C front-end modules (in cfrontend/)
 
@@ -105,7 +127,10 @@ DRIVER=Compiler.v Complements.v
 
 # All source files
 
-FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ)
+FILES=$(LIB:%=lib/%) $(COMMON:%=common/%) $(BACKEND:%=backend/%) \
+     $(CFRONTEND:%=cfrontend/%) $(DRIVER:%=driver/%) \
+     $(FLOCQ:%=flocq/%) $(ARCHFILES:%=$(ARCH)/%) \
+     $(VARIANTFILES:%=$(ARCH)/$(VARIANT)/%)
 
 # Symbolic links vs. copy
 
@@ -188,7 +213,7 @@ latexdoc:
 %.vo: %.v
 	@rm -f doc/glob/$(*F).glob
 	@echo "COQC $*.v"
-	@$(COQC) -dump-glob doc/$(*F).glob $*.v
+	$(COQC) -dump-glob doc/$(*F).glob $*.v
 
 %.v: %.vp tools/ndfun
 	@rm -f $*.v
@@ -224,7 +249,7 @@ endif
 	$(MAKE) -C runtime install
 
 clean:
-	rm -f $(patsubst %, %/*.vo, $(DIRS))
+	rm -f $(patsubst %, %/*.vo, $(DIRS_LONG))
 	rm -f ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
 	rm -rf _build
 	rm -rf doc/html doc/*.glob

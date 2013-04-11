@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import veric.base.
 Require Import Events.
 Require Import veric.MemEvolve.

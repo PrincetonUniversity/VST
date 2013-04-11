@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import compcert.AST.
 Require Import veric.base.
 Require Import veric.sim. 

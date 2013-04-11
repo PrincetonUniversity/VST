@@ -1,6 +1,6 @@
 HOW TO BUILD:
-(cd msl; make); (cd compcert; ./make); (cd veric; make); (cd progs; make); 
-   (cd sepcomp; make)
+ (cd compcert; ./make)   # or, see EXTERNAL COMPCERT below
+ make  # build the VST
 
 The Verified Software Toolchain is organized into separate subprojects,
 each in a separate directory:
@@ -17,7 +17,6 @@ progs -  sample programs, with their verifications
 veristar - decision procedure for entailments in separation logic,
            proved sound w.r.t. veric  (needs maintenance to bring it up to date)
 
-The Makefile and naming structure is a bit unusual.
 The dependencies are:
 
 msl:   # no dependency on other directories
@@ -28,41 +27,36 @@ veric:  msl compcert sepcomp
 floyd: msl sepcomp compcert veric
 progs: msl sepcomp compcert veric floyd
 
-In general, we will Import using "-I" (nonrecursive) instead of "-R"
+In general, we Import using "-I" (nonrecursive) instead of "-R"
 (recursive).  This means modules need to be named using qualified names.
-Thus, in "veric/expr.v" we write "Require Import msl.msl_standard."
-instead of "Require Import msl_standard."  To make this work, the loadpaths
-need to be set up properly:  in msl/Makefile we write,
-    COQFLAGS= -I . -as msl
-and that ensures that the .vo files expect to be imported with qualified paths.
-In veric/Makefile, progs/Makefile, etc. we do the corresponding thing.
+Thus, in "veric/expr.v" we write "Require Import msl.msl_standard"
+instead of "Require Import msl_standard".  To make this work, the loadpaths
+need to be set up properly; the file ".loadpath" (built by "make .loadpath")
+shows what -I includes to use.
 
-Inside veric (and progs, etc.), to get access to other directories (i.e.,
-when veric/expr.v gets access to msl/msl_standard.v), we need to
-set up the loadpath.  Should this be done via the "Add LoadPath" command,
-or should it be done via the -I option to coqtop? 
- Answer 1:  It MUST be done via "Add LoadPath", otherwise 
-            the IDEs (Proof General and CoqIde) will not see it.
- Answer 2:  It MUST be done via the -I option, otherwise coqdep will not see it.
-Thus we do BOTH, as you can see in the makefiles.
+USING PROOF GENERAL AND COQIDE:
+To use either of these interactive development environments you will
+need to have the right load path.  This can be done by command-line
+arguments to coqide or coqtop.  The precise command-line arguments
+to use are in the file .loadpath, which is constructed automatically
+when you do "make".  For example:    coqide `cat .loadpath` veric/base.v
+will run coqide with the right options.
 
-Note that we don't need this "loadpath" complexity for the msl directory
-itself, because it does not import from other directories.  This makes
-it easier to use msl as a self-contained library, importable into other
-projects.
-
-
-THE EXCEPTION to all these rules is the compcert directory.
-Since this is a verbatim copy of the front-end portions of compcert itself,
-and it uses quite a different naming/access convention, we must import
-compcert on its own terms.  You can see evidence of this in veric/loadpath.v,
-in veric/Makefile, and in the fact that all the Require commands that
-mention compcert components do not (and cannot) say "Require compcert.AST."
-but must instead say "Require AST."
-
-NOTE ABOUT .depends FILE:
-We have the .depends file checked into the repository, so that
-one can build the whole system even if (for some reason) coqdep
-is not installed.   
-In each directory, do "make depend" to rebuild the .depend file.
+EXTERNAL COMPCERT: 
+The VST imports from the CompCert verified C compiler, the definition
+of C light syntax and operational semantics.  For the convenience of
+VST users, the vst/compcert directory is a copy (with permission) of
+the front-end portions of compcert.  We use compcert's own Makefile to
+build it.  However, our "Makefile.clight" modifies CompCert's
+makefile, so as to build only the front end.
+  You may choose to ignore the vst/compcert directory and have
+the VST import from a build of compcert that you have installed in
+another directory, for example,  ../compcert.
+To do this, create a file CONFIGURE containing a definition such as,
+  COMPCERT=../compcert
+Make sure that you have the right version of CompCert!  Check
+the file vst/compcert/VERSION to be sure.
+Warning:  On cygwin, the definition  COMPCERT=../compcert
+works fine, but an absolute pathname such as  COMPCERT=/home/user/compcert
+does not work, as coqdep breaks for some reason.
 
