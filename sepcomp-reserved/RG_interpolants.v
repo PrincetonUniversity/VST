@@ -13,7 +13,7 @@ Require Import Globalenvs.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
-
+(*
 Definition reserve_image (*{F1 V1 C1:Type} 
       (Sem: RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))*)
       (j:meminj) (r:reserve'):reserve'.
@@ -21,6 +21,7 @@ Definition reserve_image (*{F1 V1 C1:Type}
      (sort :=fun b2 => fun ofs => exists b1, exists delta2, j b1 = Some(b2, delta2) /\ r b1 (ofs - delta2)).
    admit. (*TODO -maybe use source-construction?*)
 Defined.
+*)
 
 Module Type RGInterpolationAxioms.
 (*
@@ -85,7 +86,7 @@ Parameter interpolate_II: forall {F1 V1 C1 F2 V2 C2:Type}
                              rely Sem2 r23 st2 m2 m2' /\ 
 (*WAS:                             mem_unchanged_on (loc_unmapped j23) m2 m2' /\ *)
                              rely Sem2 (inject_reserve j23 r23) st2 m3 m3' /\
-                             r23 = reserve_image j12 r.
+                             r23 = inject_reserve j12 r.
 (*WAS:                             mem_unchanged_on (loc_out_of_reach j23 m2) m3 m3' /\*)                                
 
 End RGInterpolationAxioms.
