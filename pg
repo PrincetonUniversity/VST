@@ -1,0 +1,30 @@
+#!/bin/bash
+# This file adapts to the VST the 'pg' script distributed with CompCert. -Gordon
+# Purpose: start Proof General with the right -I options
+# Usage: ./pg [desired-proofgeneral-start-directory]
+
+LOADPATH=`cat .loadpath`
+PWD=`pwd`
+I=0
+
+pad () {
+    if [ $I -eq 1 ]
+    then echo -n "\"$PWD/$1\" "; I=0
+    else 
+	if [[ $1 == -I ]] || [[ $1 == -R ]]
+	then echo -n "\"$1\" "; I=1
+	else echo -n "\"$1\" "
+	fi
+    fi 
+}    
+
+COQPROGNAME="coqtop"
+COQPROGARGS=`for w in $LOADPATH; do pad $w; done`
+
+if [ $1 ]
+then cd $1
+fi
+
+emacs --eval "(setq coq-prog-name \"$COQPROGNAME\")" \
+ --eval "(setq coq-prog-args '($COQPROGARGS))" $1 
+
