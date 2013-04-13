@@ -1,13 +1,10 @@
-Load loadpath.
 Require Export msl.Extensionality.
 Require Import Coqlib.
 Require Export msl.Coqlib2.
 
-
 Ltac spec H :=
   match type of H with ?a -> _ => 
     let H1 := fresh in (assert (H1: a); [|generalize (H H1); clear H H1; intro H]) end.
-
 
 Lemma f_equal_Some: forall A (x y: A), x=y -> Some x = Some y.
 Proof.

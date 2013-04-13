@@ -1,5 +1,3 @@
-Load loadpath.
-
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.step_lemmas.

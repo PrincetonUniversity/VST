@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import sepcomp.mem_interpolants.
 Require Import sepcomp.mem_interpolation_EE.
 Require Import sepcomp.mem_interpolation_EI.

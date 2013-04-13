@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import AST.
 Require Import Coqlib.
 Require Import Memory.

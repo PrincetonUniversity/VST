@@ -1,4 +1,4 @@
-Load loadpath.
+
 
 (*CompCert imports*)
 Require Import Events. (*needed for standard definitions of 

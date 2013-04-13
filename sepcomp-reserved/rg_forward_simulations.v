@@ -1,4 +1,4 @@
-Load loadpath.
+
 Require Import ListSet.
 
 Require Import sepcomp.core_semantics.

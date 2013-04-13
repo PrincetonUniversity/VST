@@ -1,5 +1,3 @@
-Load loadpath.
-
 (*CompCert imports*)
 Require Import Events.
 Require Import Memory.
@@ -143,8 +141,15 @@ Proof.
   rewrite Zplus_0_r in H2. apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H3. 
   rewrite Zplus_0_r in H3.
   apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
-  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. rewrite Zplus_0_r in H0.
-  eapply mi_representable. apply H. apply H0.
+  eapply mi_representable. apply H.
+  unfold Mem.weak_valid_pointer in H0|-*.
+ apply orb_true_iff in H0; apply orb_true_iff.
+ destruct H0; [left | right].
+(* 
+  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. 
+  rewrite Zplus_0_r in H0.
+*)
+admit. admit. 
 Qed.
 
 Lemma inject_extends_compose:
@@ -751,7 +756,7 @@ Proof. intros. intros x; intros.
 Qed.
 
 Lemma valid_genv_store_zeros: forall {F V:Type} (ge:Genv.t F V) m m1 b y z 
-    (STORE_ZERO: Genv.store_zeros m b y z = Some m1)
+    (STORE_ZERO: store_zeros m b y z = Some m1)
     (G: valid_genv ge m), valid_genv ge m1.
 Proof. intros. intros x; intros.
   apply Genv.store_zeros_nextblock in STORE_ZERO.
@@ -760,8 +765,8 @@ Proof. intros. intros x; intros.
 Qed.
 
 Lemma mem_wd_store_zeros: forall m b p n m1
-    (STORE_ZERO: Genv.store_zeros m b p n = Some m1) (WD: mem_wd m), mem_wd m1.
-Proof. intros until n. functional induction (Genv.store_zeros m b p n); intros.
+    (STORE_ZERO: store_zeros m b p n = Some m1) (WD: mem_wd m), mem_wd m1.
+Proof. intros until n. functional induction (store_zeros m b p n); intros.
   inv STORE_ZERO; tauto.
   apply (IHo _ STORE_ZERO); clear IHo.
       eapply (mem_wd_store m). apply WD. apply e0. simpl; trivial.
@@ -852,7 +857,7 @@ destruct g.
     apply (Mem.valid_new_block _ _ _ _ _ Heqmm).
 remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) ) as mm.
   destruct mm. apply eq_sym in Heqmm.
-  remember (Genv.store_zeros m b 0 (Genv.init_data_list_size (AST.gvar_init v)))
+  remember (store_zeros m b 0 (Genv.init_data_list_size (AST.gvar_init v)))
            as d. 
   destruct d; inv GA; apply eq_sym in Heqd.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as dd.
@@ -883,7 +888,7 @@ destruct g.
 remember (Mem.alloc m0 0 (Genv.init_data_list_size (AST.gvar_init v)) )
          as Alloc.
   destruct Alloc. apply eq_sym in HeqAlloc.
-  remember (Genv.store_zeros m b 0 
+  remember (store_zeros m b 0 
            (Genv.init_data_list_size (AST.gvar_init v))) as SZ. 
   destruct SZ; inv GA; apply eq_sym in HeqSZ.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as Drop.

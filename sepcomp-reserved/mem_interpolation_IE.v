@@ -1,5 +1,3 @@
-Load loadpath.
-
 Require Import Events. (*is needed for some definitions (loc_unmapped etc, and
   also at the very end of this file, in order to convert between the 
   tweaked and the standard definitions of mem_unchanged_on etc*)

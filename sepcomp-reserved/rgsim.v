@@ -1,5 +1,3 @@
-Load loadpath.
-
 Require Import Events.
 Require Import Memory.
 Require Import Coqlib.

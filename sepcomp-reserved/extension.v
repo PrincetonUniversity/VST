@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import ListSet.
 
 Require Import sepcomp.extspec.

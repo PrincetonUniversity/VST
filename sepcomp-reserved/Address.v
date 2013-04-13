@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import msl.eq_dec.
 
 Require Import Coqlib.

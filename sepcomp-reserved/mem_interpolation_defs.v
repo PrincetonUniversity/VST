@@ -1,5 +1,3 @@
-Load loadpath.
-
 Require Import Events. (*needed for standard definitions of 
                         mem_unchanged_on,loc_out-of_bounds etc etc*)
 Require Import Memory.
