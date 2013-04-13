@@ -381,25 +381,19 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
-Definition reserve := block -> Z -> Prop.
+Notation reserve_type := (block -> Z -> Prop).
 
-Record reserve' := {sort :> block -> Z -> Prop;
-                    _ : forall b ofs, {sort b ofs}+{~sort b ofs}}.
+Record reserve := {sort :> reserve_type;
+                   _ : forall b ofs, {sort b ofs}+{~sort b ofs}}.
 
 Lemma reserve_dec: 
-  forall r: reserve', 
+  forall r: reserve, 
   forall b ofs, {r b ofs}+{~r b ofs}.
 Proof. destruct r; auto. Qed.
 
-Definition inject_reserve (f: meminj) (r: reserve): reserve :=
+Definition inject_reserve (f: meminj) (r: reserve_type): reserve_type :=
   fun b ofs => exists b0 delta, 
     f b0 = Some (b, delta) /\ r b0 (ofs-delta).
-
-Definition inject_reserve' (f: meminj) (r: reserve'): reserve'.
-  destruct r as [res Hres]. 
-  apply (Build_reserve' (inject_reserve f res)).
-  intros. 
-Admitted. (*TODO*) 
 
 Definition reserve_incr (r1 r2: reserve) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
@@ -411,22 +405,11 @@ Proof. intros. intros b. intros. apply H0. apply H. apply H1. Qed.
 Definition reserve_valid (r: reserve) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
 
-Definition reserve_valid_right (r: reserve) (f: meminj) (m: mem) :=
-  reserve_valid (inject_reserve f r) m.
-
-Lemma reserve_valid_right_unpack: 
-  forall r f m,
-  reserve_valid_right r f m -> 
-  forall b b2 delta ofs, r b ofs -> f b = Some (b2, delta) -> Mem.valid_block m b2.
-Proof.
-unfold reserve_valid_right, inject_reserve, reserve_valid.
-intros r f m H1 b b2 delta ofs R F.
-specialize (H1 b2 (ofs+delta)).
-apply H1.
-exists b, delta.
-split; auto.
-assert (ofs + delta - delta = ofs) as -> by omega; auto.
-Qed.
+Definition reserve_valid' (r: reserve) (f: meminj) (m: mem) :=
+  forall b ofs b0 delta,
+  r b0 (ofs-delta) -> 
+  f b0 = Some (b, delta) -> 
+  Mem.valid_block m b.
 
 Definition reserve_separated1 (r r': reserve) m := 
   forall b ofs, ~r b ofs -> r' b ofs -> ~Mem.valid_block m b.
@@ -439,7 +422,7 @@ Definition reserve_separated (r r': reserve) (f': meminj) (m1 m2: mem) :=
 
 (*requires decidability of r?*)
 Lemma reserve_separated_trans: 
-  forall r0 (r r': reserve') j j' m1 m2 m1' m2',
+  forall r0 (r r': reserve) j j' m1 m2 m1' m2',
   inject_incr j j' -> 
   inject_separated j j' m1' m2' -> 
   mem_forward m1 m1' -> 
@@ -482,19 +465,24 @@ Qed.
 (** A core "relies" on the environment to leave unchanged those
  locations that are globally reserved and alloc'd by this core. *)
 
-Definition rely (r: reserve) (c: C) (m m': mem) := 
+Definition rely (r: reserve_type) (c: C) (m m': mem) := 
   mem_unchanged_on (fun b ofs => 
     r b ofs /\ effects efsem c AllocEffect b ofs) m m'.
+
+Definition rely' (f: meminj) (r: reserve_type) := rely (inject_reserve f r).
 
 (** A core "guarantees" not to touch those locations that are globally
  reserved and not alloc'd by this core. *)
 
-Definition guarantee (r: reserve) (c: C) (m: mem) :=
+Definition guarantee (r: reserve_type) (c: C) (m: mem) :=
   forall b ofs, 
   Mem.valid_block m b -> 
   r b ofs -> 
   effects efsem c ModifyEffect b ofs -> 
   effects efsem c AllocEffect b ofs.
+
+Definition guarantee' (f: meminj) (r: reserve_type) := 
+  guarantee (inject_reserve f r).
 
 Lemma guarantee_backward_step: 
   forall ge r c m c' m',
@@ -536,7 +524,7 @@ solve[eapply guarantee_backward_step in IHn; eauto].
 Qed.
 
 Lemma guarantee_incr: 
-  forall (r r': reserve') c m,
+  forall (r r': reserve) c m,
   guarantee r c m -> 
   reserve_incr r r' -> 
   reserve_separated1 r r' m -> 
@@ -549,14 +537,14 @@ solve[specialize (SEP _ _ NRES R2); congruence].
 Qed.
 
 Lemma guarantee_decr:
-  forall r r' c m,
+  forall (r r': reserve) c m,
   guarantee r' c m -> 
   reserve_incr r r' -> 
   guarantee r c m.
 Proof. intros until m; intros G1 R1 b ofs VAL R2 EFM; auto. Qed.
 
 Lemma guarantee_decr2:
-  forall r r' j j' c m,
+  forall (r r': reserve) j j' c m,
   guarantee (inject_reserve j' r') c m -> 
   reserve_incr r r' -> 
   inject_incr j j' -> 
@@ -571,7 +559,7 @@ apply (G1 _ _ VAL R2' EFM).
 Qed.
 
 Lemma guarantee_incr_alloc: 
-  forall ge (r r2: reserve') c m c2 m2 c' m' n,
+  forall ge (r r2: reserve) c m c2 m2 c' m' n,
   guarantee r c' m' -> 
   reserve_valid r2 m2 -> 
   reserve_separated1 r r2 m -> 

@@ -38,12 +38,12 @@ Section CoreCompatibleDefs. Variables
  (G: Type) (** global environments of extended semantics *)
  (D: Type) (** extension initialization data *)
  (xT: Type) (** corestates of extended semantics *)
- (esem: RelyGuaranteeSemantics G xT D) (** extended semantics *)
+ (esem: EffectfulSemantics G xT D) (** extended semantics *)
  (esig: ef_ext_spec mem Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, RelyGuaranteeSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, EffectfulSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
  (csig: ef_ext_spec mem Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
@@ -53,19 +53,22 @@ Section CoreCompatibleDefs. Variables
 
  Definition owned_valid s m := 
   forall i c, proj_core E i s = Some c -> 
-  forall b ofs, owned (csem i) c b ofs -> b < Mem.nextblock m.
+  forall b ofs, effects (csem i) c AllocEffect b ofs -> 
+    b < Mem.nextblock m.
   
  Definition owned_disjoint s :=
   forall i j (c: cT i) (d: cT j), 
   i<>j -> 
   proj_core E i s = Some c ->   
   proj_core E j s = Some d ->   
-  forall b ofs, owned (csem i) c b ofs -> ~owned (csem j) d b ofs.
+  forall b ofs, effects (csem i) c AllocEffect b ofs -> 
+    ~effects (csem j) d AllocEffect b ofs.
 
  Definition owned_conserving := 
    forall s i (c: cT i),
    proj_core E i s = Some c -> 
-   forall b ofs, owned (csem i) c b ofs -> owned esem s b ofs.
+   forall b ofs, effects (csem i) c AllocEffect b ofs -> 
+     effects esem s AllocEffect b ofs.
 
 End CoreCompatibleDefs.
 
@@ -80,12 +83,12 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: EffectfulSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: EffectfulSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
  (** a set of core semantics *)
-  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) 
+  (csemS: forall i:nat, EffectfulSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) 
  (** a set of core semantics *)
-  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
+  (csemT: forall i:nat, EffectfulSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -103,7 +106,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Variable entry_points: list (val*val*signature). (*TODO: SHOULD PERHAPS BE GENERALIZED*)
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
-   core_data i -> reserve_map -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Variable core_ord: forall i: nat, (core_data i) -> (core_data i) -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
@@ -122,12 +125,12 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   prod_ord' _ core_ord _ _ 
    (data_prod' _ _ _ cd1) (data_prod' _ max_cores max_cores cd2).
 
- Variable (R: reserve_map -> meminj -> xS -> mem -> xT -> mem -> Prop).
+ Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
- Definition match_states (cd: core_datas) (r: reserve_map) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
+ Definition match_states (cd: core_datas) (r: reserve) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    owned_valid esemS csemS E_S s1 m1 /\ owned_disjoint esemS csemS E_S s1 /\ 
    owned_valid esemT csemT E_T s2 m2 /\ owned_disjoint esemT csemT E_T s2 /\
-   reserve_map_valid r m1 /\ reserve_map_valid_right r j m2 /\
+   reserve_valid r m1 /\ reserve_valid' r j m2 /\
    R r j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
@@ -143,28 +146,30 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    meminj_preserves_globals_ind (genv2blocks ge_S) j -> 
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
-   reserve_map_incr r r' -> 
-   reserve_map_separated r r' j' m1 m2 -> 
+   reserve_incr r r' -> 
+   reserve_separated r r' j' m1 m2 -> 
    corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
    corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
    corestep esemS ge_S s1 m1 s1' m1' -> 
    corestepN esemT ge_T n s2 m2 s2' m2' -> 
    match_state (ACTIVE E_S s1) cd' r' j' c1' m1' c2' m2' -> 
-   Events.mem_unchanged_on (guarantee_left (csemS (ACTIVE E_S s1)) r c1) m1 m1' -> 
-   Events.mem_unchanged_on (guarantee_right (csemS (ACTIVE E_S s1)) j r c1) m2 m2' -> 
+   Events.mem_unchanged_on (fun b ofs => 
+     ~effects (csemS (ACTIVE E_S s1)) c1' ModifyEffect b ofs) m1 m1' -> 
+   Events.mem_unchanged_on (fun b ofs => 
+     ~effects (csemT (ACTIVE E_S s1)) c2' ModifyEffect b ofs) m2 m2' -> 
    R r' j' s1' m1' s2' m2')
 
  (after_external_rel: forall cd r r' j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
    match_states cd r j s1 m1 s2 m2 -> 
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
-   reserve_map_incr r r' -> 
-   reserve_map_separated r r' j' m1 m2 -> 
+   reserve_incr r r' -> 
+   reserve_separated r r' j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
    mem_forward m1 m1'-> 
    mem_forward m2 m2' -> 
-   Events.mem_unchanged_on (rely_left esemS r s1) m1 m1' -> 
-   Events.mem_unchanged_on (rely_right esemS j r s1) m2 m2' -> 
+   rely esemS r s1' m1 m1' -> 
+   rely' esemT j r s2' m2 m2' -> 
    at_external esemS s1 = Some (ef, sig, args1) -> 
    after_external esemS ret1 s1 = Some s1' -> 
    after_external esemT ret2 s2 = Some s2' -> 
@@ -189,11 +194,13 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    exists s2', exists m2', exists cd', exists r', exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
-     reserve_map_incr r r' /\
-     reserve_map_separated r r' j' m1 m2 /\
+     reserve_incr r r' /\
+     reserve_separated r r' j' m1 m2 /\
      match_states cd' r' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (guarantee_left esemS r s1) m1 m1' /\
-     Events.mem_unchanged_on (guarantee_right esemS j r s1) m2 m2' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       ~effects esemS s1' ModifyEffect b ofs) m1 m1' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       ~effects esemT s2' ModifyEffect b ofs) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
@@ -216,8 +223,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    In (v1, v2, sig) entry_points -> 
    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
    Mem.inject j m1 m2 -> 
-   reserve_map_valid r m1 -> 
-   reserve_map_valid_right r j m2 -> 
+   reserve_valid r m1 -> 
+   reserve_valid' r j m2 -> 
    Forall2 (val_inject j) vals1 vals2 -> 
    Forall2 Val.has_type vals2 (sig_args sig) -> 
    exists cd, exists s2, 
@@ -245,12 +252,14 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    exists s2', exists m2', exists cd', exists r', exists j', 
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
-     reserve_map_incr r r' /\
-     reserve_map_separated r r' j' m1 m2 /\
+     reserve_incr r r' /\
+     reserve_separated r r' j' m1 m2 /\
      corestep esemT ge_T s2 m2 s2' m2' /\
      match_states cd' r' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (guarantee_left (csemS (ACTIVE E_S s1)) r c1) m1 m1' /\
-     Events.mem_unchanged_on (guarantee_right (csemS (ACTIVE E_S s1)) j r c1) m2 m2'),
+     Events.mem_unchanged_on (fun b ofs => 
+       ~effects (csemS (ACTIVE E_S s1)) c1 ModifyEffect b ofs) m1 m1' /\
+     Events.mem_unchanged_on (fun b ofs => 
+       ~effects (csemT (ACTIVE E_S s1)) c2 ModifyEffect b ofs) m2 m2'),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
@@ -270,8 +279,8 @@ Module CompilableExtension. Section CompilableExtension.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: EffectfulSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: EffectfulSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
  (** a set of core semantics *)
   (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) 
  (** a set of core semantics *)
@@ -293,7 +302,7 @@ Module CompilableExtension. Section CompilableExtension.
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
-   core_data i -> reserve_map -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Implicit Arguments match_state [].
 
  Import Forward_simulation_inj_exposed.
@@ -301,7 +310,7 @@ Module CompilableExtension. Section CompilableExtension.
  Record Sig: Type := Make {
    core_datas: Type;
    core_ords: core_datas -> core_datas -> Prop;
-   match_states: core_datas -> reserve_map -> meminj -> xS -> mem -> xT -> mem -> Prop;
+   match_states: core_datas -> reserve -> meminj -> xS -> mem -> xT -> mem -> Prop;
    _ : Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 
           entry_points core_datas match_states core_ords
  }.
@@ -319,12 +328,12 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: EffectfulSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
+  (esemT: EffectfulSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
   (csemS: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+    EffectfulSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
   (csemT: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
+    EffectfulSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -342,7 +351,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
-   core_data i -> reserve_map -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
 
@@ -351,9 +360,9 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
 
  Definition core_datas := forall i:nat, core_data i.
 
- Variable (R: reserve_map -> meminj -> xS -> mem -> xT -> mem -> Prop).
+ Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
- Definition match_states (cd: core_datas) (r: reserve_map) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
+ Definition match_states (cd: core_datas) (r: reserve) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
    R r j s1 m1 s2 m2 /\ active E_S s1=active E_T s2 /\
    forall i c1, proj_core E_S i s1 = Some c1 -> 
      exists c2, proj_core E_T i s2 = Some c2 /\ 

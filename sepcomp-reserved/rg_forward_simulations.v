@@ -83,7 +83,7 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     match_state cd r j c1 m1 c2 m2 -> 
     meminj_preserves_globals ge1 j)
 
-  (stable: forall (ge1: Genv.t F1 V1) cdC m1 m1' r r' f f' m2 m2' c1 c2,
+  (stable: forall (ge1: Genv.t F1 V1) cdC m1 m1' (r r': reserve) f f' m2 m2' c1 c2,
     (** Rely *)
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 

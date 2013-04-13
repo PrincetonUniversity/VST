@@ -175,14 +175,14 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
     reserved_locs_valid :
       forall cd r c1 m1 c2 m2,
         match_state cd r c1 m1 c2 m2 -> 
-        reserve_valid r m1 /\ reserve_valid_right r inject_id m2;
+        reserve_valid r m1 /\ reserve_valid' r inject_id m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd r st2 m2,
         match_state cd r st1 m1 st2 m2 ->
         guarantee Sem1 r st1' m1' -> 
-        exists st2', exists r': reserve', exists m2', exists cd',
+        exists st2', exists r': reserve, exists m2', exists cd',
           reserve_incr r r' /\ 
           reserve_separated r r' inject_id m1 m2 /\
           match_state cd' r' st1' m1' st2' m2' /\
@@ -225,7 +225,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd (r: reserve') st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
+      forall cd (r: reserve) st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
         match_state cd r st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
@@ -254,10 +254,10 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
 
 Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
   st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-  forall cd (r: reserve') st2 m2,
+  forall cd (r: reserve) st2 m2,
     match_state f cd r st1 m1 st2 m2 ->
     guarantee Sem1 r st1' m1' -> 
-    exists st2', exists r': reserve', exists m2', exists cd',
+    exists st2', exists r': reserve, exists m2', exists cd',
       reserve_incr r r' /\ 
       reserve_separated r r' inject_id m1 m2 /\
       match_state f cd' r' st1' m1' st2' m2' /\
@@ -361,7 +361,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     reserved_locs_valid :
       forall cd r j c1 m1 c2 m2,
         match_state cd r j c1 m1 c2 m2 -> 
-        reserve_valid r m1 /\ reserve_valid_right r j m2;
+        reserve_valid r m1 /\ reserve_valid' r j m2;
 
     effects_valid : forall cd r j c1 m1 c2 m2,
       match_state cd r j c1 m1 c2 m2 -> 
@@ -388,15 +388,15 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd (r: reserve') st2 j m2,
+      forall cd (r: reserve) st2 j m2,
         guarantee Sem1 r st1' m1' -> 
         match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r': reserve', exists j',
+        exists st2', exists m2', exists cd', exists r': reserve, exists j',
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee Sem2 (inject_reserve j r) st2' m2' /\
+          guarantee' Sem2 j r st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -411,7 +411,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_valid r m1 -> 
-          reserve_valid_right r j m2 -> 
+          reserve_valid' r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;
@@ -438,7 +438,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
                       (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd (r r': reserve') j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+      forall cd (r r': reserve) j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
@@ -458,8 +458,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         mem_forward m2 m2' -> 
         rely Sem1 r st1 m1 m1' -> 
 
-(*WAS:        rely Sem1 (inject_reserve j r) st1 m2 m2' -> *)
-        rely Sem2 (inject_reserve j r) st2 m2 m2' -> 
+        rely' Sem2 j r st2 m2 m2' -> 
 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
@@ -473,15 +472,15 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 Lemma core_diagramN: 
   forall (f: Forward_simulation_inject) n st1 m1 st1' m1', 
     corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-    forall cd (r: reserve') st2 j m2,
+    forall cd (r: reserve) st2 j m2,
       guarantee Sem1 r st1' m1' -> 
       match_state f cd r j st1 m1 st2 m2 ->
-      exists st2', exists m2', exists cd', exists r': reserve', exists j',
+      exists st2', exists m2', exists cd', exists r': reserve, exists j',
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\
         reserve_incr r r' /\
         reserve_separated r r' j' m1 m2 /\ 
-        guarantee Sem2 (inject_reserve j r) st2' m2' /\ 
+        guarantee' Sem2 j r st2' m2' /\ 
         match_state f cd' r' j' st1' m1' st2' m2' /\
         ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
           corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -600,7 +599,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
     reserved_locs_valid :
       forall cd r j c1 m1 c2 m2,
         match_state cd r j c1 m1 c2 m2 -> 
-        reserve_valid r m1 /\ reserve_valid_right r j m2;
+        reserve_valid r m1 /\ reserve_valid' r j m2;
 
     effects_valid : forall cd r j c1 m1 c2 m2,
       match_state cd r j c1 m1 c2 m2 -> 
@@ -627,15 +626,15 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
-      forall cd (r: reserve') st2 j m2,
+      forall cd (r: reserve) st2 j m2,
         guarantee Sem1 r st1' m1' -> 
         match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r': reserve', exists j',
+        exists st2', exists m2', exists cd', exists r': reserve, exists j',
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee Sem2 (inject_reserve j r) st2' m2' /\
+          guarantee' Sem2 j r st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -650,7 +649,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           reserve_valid r m1 -> 
-          reserve_valid_right r j m2 -> 
+          reserve_valid' r j m2 -> 
           exists cd, exists c2, 
             make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd r j c1 m1 c2 m2;
@@ -677,7 +676,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
                       (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd (r r': reserve') j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+      forall cd (r r': reserve) j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         match_state cd r j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
@@ -697,8 +696,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         mem_forward m2 m2' -> 
         rely Sem1 r st1 m1 m1' -> 
 
-(*WAS:        rely Sem1 (inject_reserve j r) st1 m2 m2' -> *)
-        rely Sem2 (inject_reserve j r) st2 m2 m2' -> 
+        rely' Sem2 j r st2 m2 m2' -> 
 
         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
@@ -709,23 +707,33 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           match_state cd' r' j' st1' m1' st2' m2'
   }.
 
-Lemma core_diagramN: forall (f: Forward_simulation_inject) n 
-      st1 m1 st1' m1', corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
-      forall cd (r: reserve') st2 j m2,
-        guarantee Sem1 r st1' m1' -> 
-        match_state cd r j st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists r': reserve', exists j',
-          inject_incr j j' /\
-          inject_separated j j' m1 m2 /\
-          reserve_incr r r' /\
-          reserve_separated r r' j' m1 m2 /\ 
-          guarantee Sem2 (inject_reserve j r) st2' m2' /\
-          match_state cd' r' j' st1' m1' st2' m2' /\
-          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            clos_trans _ core_ord cd' cd).
+Program Definition packed_simulation
+  (f: Forward_simulation_inject):
+  Forward_simulation_inj.Forward_simulation_inject D1 D2 Sem1 Sem2 ge1 ge2 entry_points :=
+  _.
+Next Obligation.
+intros; destruct f.
+eapply @Forward_simulation_inj.Build_Forward_simulation_inject 
+ with (core_data := core_data) (match_state := match_state); eauto.
+Defined.
+
+Lemma core_diagramN: 
+  forall (f: Forward_simulation_inject) n st1 m1 st1' m1',
+    corestepN Sem1 ge1 (S n) st1 m1 st1' m1' ->
+    forall cd (r: reserve) st2 j m2,
+      guarantee Sem1 r st1' m1' -> 
+      match_state cd r j st1 m1 st2 m2 ->
+      exists st2', exists m2', exists cd', exists r': reserve, exists j',
+        inject_incr j j' /\
+        inject_separated j j' m1 m2 /\
+        reserve_incr r r' /\
+        reserve_separated r r' j' m1 m2 /\ 
+        guarantee' Sem2 j r st2' m2' /\
+        match_state cd' r' j' st1' m1' st2' m2' /\
+        ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+          corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+          clos_trans _ core_ord cd' cd).
 Proof.
-Admitted. (*
   intros f n.
   induction n; intros; simpl in *. 
   destruct H as [? [? [H X]]]. inv X.
@@ -733,10 +741,9 @@ Admitted. (*
     [st2' [m2' [d' [r' [j' [Inj [Sep [Rinc [Rsep [Guar [MC' X]]]]]]]]]]].
   exists st2'. exists m2'. exists d'. exists r'. exists j'.
   repeat (split; trivial).
-(*  destruct X as [X | [X ORD]].
+  destruct X as [X | [X ORD]].
   left; trivial.
-  right. split; trivial. apply incl_clos_trans. apply ORD.*)
-
+  right. split; trivial. apply incl_clos_trans. apply ORD.
   rename st1' into st1'''. rename m1' into m1'''.
   destruct H as [st1' [m1' [CS [st1'' [m1'' [CS' CS'']]]]]].
   assert (Guar1: guarantee Sem1 r st1' m1'). 
@@ -758,9 +765,10 @@ Admitted. (*
   assert (corestepN Sem1 ge1 (S n) st1' m1' st1''' m1''').
   solve[hnf; exists st1'', m1''; split; auto].
   assert (Guar3: guarantee Sem1 r' st1''' m1''').
-             admit. (*eapply guarantee_incr_alloc. apply H0. eauto. apply H0. differeince reserve- reserve'*)
+  eapply guarantee_incr_alloc; eauto.
   apply reserved_locs_valid in MC'.
   solve[destruct MC'; auto].
+  solve[eapply f].
   destruct (IHn _ _ _ _ _ Guar3 MC')
     as [st2'' [m2'' [cd'' [r'' [j'' [Inj' [Sep' [Rinc' [Rsep' [Guar4 [MC'' X2']]]]]]]]]]].
   exists st2''. exists m2''. exists cd''. exists r''. exists j''.
@@ -808,27 +816,13 @@ Admitted. (*
   right. split. eapply corestep_star_trans; eassumption.
   clear - cd' cd cd'' CD' CD. eapply t_trans. apply CD'. 
   apply incl_clos_trans. apply CD.
-*)
+Qed.
 
 End Forward_simulation_inject. 
 
 Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 
 End Forward_simulation_inj_exposed.
-
-Lemma Forward_simulation_inj_exposed_hidden: 
-  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: EffectfulSemantics (Genv.t F1 V1) C1 D1)
-   (csemT: EffectfulSemantics G2 C2 D2) ge1 ge2 
-   entry_points core_data match_state core_ord,
-  Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
-    entry_points core_data match_state core_ord -> 
-  Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points.
-Proof.
-intros until core_ord; intros []; intros.
-solve[eapply @Forward_simulation_inj.Build_Forward_simulation_inject 
- with (core_data := core_data) (match_state := match_state); eauto].
-Qed.
 
 Lemma Forward_simulation_inj_hidden_exposed:
   forall (F1 V1 C1 D1 G2 C2 D2: Type) 
@@ -844,6 +838,20 @@ Proof.
 intros until entry_points; intros []; intros.
 solve[eexists; eexists; eexists;
  eapply @Forward_simulation_inj_exposed.Build_Forward_simulation_inject; eauto].
+Qed.
+
+Lemma Forward_simulation_inj_exposed_hidden: 
+  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
+   (csemS: EffectfulSemantics (Genv.t F1 V1) C1 D1)
+   (csemT: EffectfulSemantics G2 C2 D2) ge1 ge2 
+   entry_points core_data match_state core_ord,
+  Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+    entry_points core_data match_state core_ord -> 
+  Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points.
+Proof.
+intros until core_ord; intros []; intros.
+solve[eapply @Forward_simulation_inj.Build_Forward_simulation_inject 
+ with (core_data := core_data) (match_state := match_state); eauto].
 Qed.
 
 Lemma forall_inject_val_list_inject: 
