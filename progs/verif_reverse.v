@@ -4,7 +4,7 @@ Require Import progs.reverse.
 
 Local Open Scope logic.
 
-Instance LS: listspec t_struct_list _t.
+Instance LS: listspec t_struct_list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition sum_int := fold_right Int.add Int.zero.
@@ -39,14 +39,14 @@ Definition Gprog : funspecs :=
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 Lemma list_cell_eq: forall sh v i,
-   list_cell LS sh v i = field_mapsto sh t_struct_list _h v (Vint i).
+   list_cell LS sh v i = field_mapsto sh t_struct_list _head v (Vint i).
 Proof. intros. simpl_list_cell; auto. Qed.
 Hint Rewrite list_cell_eq : norm.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
    @eq (environ->mpred) (`(list_cell LS sh) e v) 
-                  (`(field_mapsto sh t_struct_list _h) e (`Vint v)).
+                  (`(field_mapsto sh t_struct_list _head) e (`Vint v)).
 Proof.
   intros. extensionality rho; unfold_lift. simpl_list_cell; auto.
 Qed.

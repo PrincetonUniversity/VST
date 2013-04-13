@@ -394,14 +394,6 @@ Hint Extern 2 (closed_wrt_vars (eq _) _) =>
 
 (* Hint Resolve @Forall_cons @Forall_nil : closed.   don't add these, already in core HintDb *)
 
-
-Lemma closed_wrt_tc_formals:
-  forall (S: ident -> Prop) (L: list (ident*type)), 
-    Forall (fun q => not (S q)) (map (@fst _ _) L) ->
-    closed_wrt_vars S (tc_formals L).
-Admitted.
-Hint Resolve closed_wrt_tc_formals.
-
 Lemma closed_wrt_not1:
   forall (i j: ident), 
    i<>j ->
@@ -470,17 +462,6 @@ Proof.
  super_unfold_lift. f_equal; auto.
 Qed.
 Hint Resolve expr_closed_unop : closed.
-
-Lemma closed_wrt_tc_formals_cons:
-  forall S id t rest,
-    ~ S id ->
-    closed_wrt_vars S (tc_formals rest) ->
-    closed_wrt_vars S (tc_formals ((id,t)::rest)).
-Admitted.
-Lemma closed_wrt_tc_formals_nil:
-  forall S, closed_wrt_vars S (tc_formals nil).
-Admitted.
-Hint Resolve closed_wrt_tc_formals_cons closed_wrt_tc_formals_nil : closed.
 
 Lemma closed_wrt_stackframe_of:
   forall S f, closed_wrt_vars S (stackframe_of f).
@@ -622,27 +603,6 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @lift1_lift0 : norm.
-
-Lemma tc_formals_cons:
-  forall i t rest, tc_formals ((i,t) :: rest) =
-         `and (`(tc_val t) (eval_id i)) (tc_formals rest).
-Proof.
-intros.
-extensionality rho; simpl.
-unfold tc_formals; fold tc_formals.
-super_unfold_lift. simpl.
-apply prop_ext.
-rewrite andb_true_iff.
-intuition.
-Qed.
-
-Lemma tc_formals_nil : tc_formals nil = lift0 True.
-Proof. intros; extensionality rho.  unfold tc_formals.  simpl. 
-apply prop_ext; intuition.  hnf; auto. 
-Qed.
-
-Hint Rewrite tc_formals_cons tc_formals_nil: norm.
-
 
 Lemma tc_eval_gvar_i:
   forall Delta t i rho, tc_environ Delta rho ->

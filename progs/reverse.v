@@ -2,25 +2,28 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _main : ident := 15%positive.
-Definition _h : ident := 7%positive.
+Definition _reverse : ident := 15%positive.
+Definition _head : ident := 7%positive.
 Definition ___builtin_annot_intval : ident := 3%positive.
 Definition ___builtin_fabs : ident := 1%positive.
-Definition _r : ident := 14%positive.
+Definition _v : ident := 14%positive.
 Definition _s : ident := 9%positive.
 Definition _three : ident := 4%positive.
+Definition _main : ident := 17%positive.
 Definition _p : ident := 8%positive.
-Definition _reverse : ident := 13%positive.
-Definition _t : ident := 6%positive.
-Definition _v : ident := 12%positive.
-Definition _w : ident := 11%positive.
+Definition _r : ident := 16%positive.
+Definition _w : ident := 13%positive.
+Definition _tail : ident := 6%positive.
+Definition _sumlist : ident := 12%positive.
+Definition _h : ident := 11%positive.
 Definition _struct_list : ident := 5%positive.
 Definition ___builtin_memcpy_aligned : ident := 2%positive.
-Definition _sumlist : ident := 10%positive.
+Definition _t : ident := 10%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list
-     (Fcons _h tint (Fcons _t (Tcomp_ptr _struct_list noattr) Fnil)) noattr).
+     (Fcons _head tint (Fcons _tail (Tcomp_ptr _struct_list noattr) Fnil))
+     noattr).
 
 Definition v_three := {|
   gvar_info := (tarray t_struct_list 3);
@@ -48,12 +51,12 @@ Definition f_sumlist := {|
         (Ssequence
           (Sset _h
             (Efield (Ederef (Etempvar _t (tptr t_struct_list)) t_struct_list)
-              _h tint))
+              _head tint))
           (Ssequence
             (Sset _t
               (Efield
-                (Ederef (Etempvar _t (tptr t_struct_list)) t_struct_list) _t
-                (tptr t_struct_list)))
+                (Ederef (Etempvar _t (tptr t_struct_list)) t_struct_list)
+                _tail (tptr t_struct_list)))
             (Sset _s
               (Ebinop Oadd (Etempvar _s tint) (Etempvar _h tint) tint)))))
       (Sreturn (Some (Etempvar _s tint))))))
@@ -76,12 +79,13 @@ Definition f_reverse := {|
         (Ssequence
           (Sset _t
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-              _t (tptr t_struct_list)))
+              _tail (tptr t_struct_list)))
           (Ssequence
             (Sassign
               (Efield
-                (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list) _t
-                (tptr t_struct_list)) (Etempvar _w (tptr t_struct_list)))
+                (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+                _tail (tptr t_struct_list))
+              (Etempvar _w (tptr t_struct_list)))
             (Ssequence
               (Sset _w (Etempvar _v (tptr t_struct_list)))
               (Sset _v (Etempvar _t (tptr t_struct_list)))))))
@@ -93,22 +97,22 @@ Definition f_main := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_r, (tptr t_struct_list)) :: (_s, tint) ::
-               (17%positive, tint) :: (16%positive, (tptr t_struct_list)) ::
+               (19%positive, tint) :: (18%positive, (tptr t_struct_list)) ::
                nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 16%positive)
+    (Scall (Some 18%positive)
       (Evar _reverse (Tfunction (Tcons (tptr t_struct_list) Tnil)
                        (tptr t_struct_list)))
       ((Evar _three (tarray t_struct_list 3)) :: nil))
-    (Sset _r (Etempvar 16%positive (tptr t_struct_list))))
+    (Sset _r (Etempvar 18%positive (tptr t_struct_list))))
   (Ssequence
     (Ssequence
-      (Scall (Some 17%positive)
+      (Scall (Some 19%positive)
         (Evar _sumlist (Tfunction (Tcons (tptr t_struct_list) Tnil) tint))
         ((Etempvar _r (tptr t_struct_list)) :: nil))
-      (Sset _s (Etempvar 17%positive tint)))
+      (Sset _s (Etempvar 19%positive tint)))
     (Sreturn (Some (Etempvar _s tint)))))
 |}.
 

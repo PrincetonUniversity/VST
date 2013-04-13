@@ -1,6 +1,6 @@
 #include <stddef.h>
 
-struct list {int h; struct list *t;};
+struct list {int head; struct list *tail;};
 
 struct list three[] = {
     {1, three+1}, {2, three+2}, {3, NULL}
@@ -11,8 +11,8 @@ int sumlist (struct list *p) {
   struct list *t = p;
   int h;
   while (t) {
-     h = t->h;
-     t = t->t;
+     h = t->head;
+     t = t->tail;
      s = s + h;
   }
   return s;
@@ -23,8 +23,8 @@ struct list *reverse (struct list *p) {
   w = NULL; 
   v = p;
   while (v) {
-    t = v->t;
-    v->t = w;
+    t = v->tail;
+    v->tail = w;
     w = v;
     v = t;
   }

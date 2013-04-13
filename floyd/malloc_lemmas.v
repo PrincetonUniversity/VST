@@ -680,25 +680,17 @@ Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
 
 Lemma var_block_typed_mapsto_:
   forall  sh id t, 
- var_block sh (id, t) = `(typed_mapsto_ (Share.splice sh Tsh) t) (eval_var id t).
+ var_block sh (id, t) = 
+   !!(sizeof t <= Int.max_unsigned) &&
+            `(typed_mapsto_ sh t) (eval_var id t).
 Proof.
 intros; extensionality rho.
 unfold_lift.
 rewrite <- memory_block_typed.
-unfold var_block, lvalue_block.
+unfold var_block.
+simpl. unfold_lift.
 rewrite memory_block_isptr by apply sizeof_pos.
-simpl.
 destruct (eval_var id t rho); simpl; normalize.
-Admitted.
-
-
-Lemma var_block_typed_mapsto__top:
-  forall id t, 
- var_block Tsh (id, t) = `(typed_mapsto_ Tsh t) (eval_var id t).
-Proof.
-intros.
-rewrite var_block_typed_mapsto_.
-rewrite splice_top_top; auto.
 Qed.
 
 Lemma typed_mapsto_typed_mapsto_ :

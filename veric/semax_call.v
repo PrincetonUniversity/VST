@@ -945,6 +945,11 @@ Lemma elements_remove:
 Proof.
 Admitted.
 
+Lemma contains_Lsh_e:
+   forall sh : Share.t,
+       join_sub Share.Lsh sh -> Share.unrel Share.Lsh sh = Share.top.
+Admitted.  (* Move this to msl/tree_shares.v, and prove it *)
+
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ve,
       list_norepet (map fst (fn_vars f)) ->
@@ -1014,7 +1019,8 @@ Proof.
  replace (sizeof ty - 0) with (sizeof ty) by omega.
  rewrite Int.unsigned_repr;  auto.
  unfold memory_block'_alt.
- rewrite Share.unrel_splice_L, Share.unrel_splice_R.
+rewrite Share.contains_Rsh_e by apply top_correct'.
+rewrite contains_Lsh_e by apply top_correct'.
  rewrite Coqlib.nat_of_Z_eq; auto. 
  pose proof (sizeof_pos ty); omega.
  split; auto.  pose proof (sizeof_pos ty); omega.

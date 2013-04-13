@@ -276,9 +276,9 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  | _ => FF
  end.
 
-Definition lvalue_block (rsh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
+Definition lvalue_block (sh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
   !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
-  (memory_block (Share.splice rsh Share.top) (Int.repr (sizeof (Clight.typeof e))))
+  (memory_block sh (Int.repr (sizeof (Clight.typeof e))))
              (eval_lvalue e rho).
 
 Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=

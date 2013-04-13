@@ -191,7 +191,7 @@ Qed.
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_typed_mapsto__top. 
+  repeat rewrite var_block_typed_mapsto_. 
 
 Ltac get_global_function id :=
   eapply (semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
@@ -625,6 +625,7 @@ name x _x.
 name y _y.
 name ser _ser.
 name des _des.
+normalize.
 repeat flatten_sepcon_in_SEP.
 focus_SEP 3 1.
 get_global_function' _intpair_deserialize.
@@ -685,7 +686,8 @@ rewrite -> seq_assoc.
 eapply semax_seq'.
 apply call_deserialize; auto 50 with closed.
 go_lower. apply andp_right; apply prop_right.
-simpl in H. omega. simpl in *. rewrite <- H.  reflexivity. 
+rewrite <- H0. simpl. omega.
+rewrite <- H0. simpl. reflexivity.
 focus_SEP 1.
 replace_SEP 
   ((`( field_mapsto Tsh t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
@@ -697,16 +699,18 @@ forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)
 go_lower. subst. simpl. normalize. unfold main_post.
- simpl in H2. rewrite <- H2.
- unfold mf_restbuf; simpl.
+ unfold mf_restbuf.
+ change (mf_size intpair_message) with 8.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
+ simpl in H3. rewrite <- H3. clear len H3. 
+ simpl.
  replace (memory_block Tsh (Int.repr 0)
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
   with (@emp mpred _ _).
-2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H0;
- apply memory_block_zero.
  rewrite sepcon_emp.
+2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H1;
+ apply memory_block_zero.
 
 repeat rewrite <- sepcon_assoc.
 apply derives_trans with

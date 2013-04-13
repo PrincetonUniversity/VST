@@ -231,13 +231,10 @@ reflexivity.
 omega. omega. omega.
 Qed.
 
-Definition lvalue_block (rsh: Share.t) (e: Clight.expr) : environ->mpred :=
-  !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
-  `(memory_block (Share.splice rsh Tsh) (Int.repr (sizeof (Clight.typeof e))))
-             (eval_lvalue e).
-
-Definition var_block (rsh: Share.t) (idt: ident * type) : environ->mpred :=
-         lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
+Definition var_block (sh: Share.t) (idt: ident * type) : environ->mpred :=
+      !! (sizeof  (snd idt) <= Int.max_unsigned) &&
+ `(memory_block sh (Int.repr (sizeof (snd idt))))
+             (eval_var (fst idt) (snd idt)).
 
 Definition stackframe_of (f: Clight.function) : environ->mpred :=
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
@@ -258,9 +255,6 @@ Definition bool_type (t: type) : bool :=
   | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
   | _ => false
   end.
-
-Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
-     fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
 
 Definition globals_only (rho: environ) : environ :=
     mkEnviron (ge_of rho) (Map.empty _) (Map.empty _).
