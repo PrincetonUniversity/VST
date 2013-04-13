@@ -71,7 +71,8 @@ Parameter interpolate_II: forall {F1 V1 C1 F2 V2 C2:Type}
                              (Rinc: reserve_incr r r')
                              (Rsep13: reserve_separated r r' j' m1 m3)
                              (Unch11': rely Sem1 r st1 m1 m1' )
-                             (Unch33': rely Sem1 (inject_reserve (compose_meminj j12 j23) r) st1 m3 m3')
+(*                             (Unch33': rely Sem1 (inject_reserve (compose_meminj j12 j23) r) st1 m3 m3')*)
+                             (Unch33': rely Sem3 (inject_reserve (compose_meminj j12 j23) r) st3 m3 m3')
 (*                             (Unch11': mem_unchanged_on (loc_unmapped (compose_meminj j12 j23)) m1 m1')
                              (Unch33': mem_unchanged_on (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3')*),
                  exists m2', exists j12', exists j23', j'=compose_meminj j12' j23' /\
@@ -85,7 +86,8 @@ Parameter interpolate_II: forall {F1 V1 C1 F2 V2 C2:Type}
 (*                             mem_unchanged_on (loc_out_of_reach j12 m1) m2 m2' /\*)
                              rely Sem2 r23 st2 m2 m2' /\ 
 (*WAS:                             mem_unchanged_on (loc_unmapped j23) m2 m2' /\ *)
-                             rely Sem2 (inject_reserve j23 r23) st2 m3 m3' /\
+(*WAS:                             rely Sem2 (inject_reserve j23 r23) st2 m3 m3' /\*)
+                             rely Sem3 (inject_reserve j23 r23) st3 m3 m3' /\
                              r23 = inject_reserve j12 r.
 (*WAS:                             mem_unchanged_on (loc_out_of_reach j23 m2) m3 m3' /\*)                                
 

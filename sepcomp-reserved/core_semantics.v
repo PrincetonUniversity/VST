@@ -393,9 +393,15 @@ Lemma reserve_dec:
   forall b ofs, {r b ofs}+{~r b ofs}.
 Proof. destruct r; auto. Qed.
 
-Definition inject_reserve (f: meminj) (r: reserve) :=
+Definition inject_reserve (f: meminj) (r: reserve): reserve :=
   fun b ofs => exists b0 delta, 
     f b0 = Some (b, delta) /\ r b0 (ofs-delta).
+
+Definition inject_reserve' (f: meminj) (r: reserve'): reserve'.
+  destruct r as [res Hres]. 
+  apply (Build_reserve' (inject_reserve f res)).
+  intros. 
+Admitted. (*TODO*) 
 
 Definition reserve_incr (r1 r2: reserve) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
