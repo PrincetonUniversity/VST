@@ -1,14 +1,22 @@
 (*CompCert imports*)
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Add LoadPath "../compcert/lib".
+Add LoadPath "../compcert/flocq/Appli".
+Add LoadPath "../compcert/flocq/Calc".
+Add LoadPath "../compcert/flocq/Core".
+Add LoadPath "../compcert/flocq/Prop".
+Add LoadPath "../compcert/common".
+Add LoadPath "../compcert/cfrontend".
+Add LoadPath "..".
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Values.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Axioms.
 
-Require Import Axioms.
 Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
 
@@ -885,6 +893,26 @@ Proof.
 intros args.
 induction args; intros;  inv H; constructor; eauto.
 Qed. 
+
+Lemma val_inject_opt_split: forall (v1 v3 : option val) (j12 j23 : meminj),
+       val_inject_opt (compose_meminj j12 j23) v1 v3 ->
+       exists v2 : option val, val_inject_opt j12 v1 v2 /\ val_inject_opt j23 v2 v3.
+Proof. intros.
+  unfold val_inject_opt in *.
+  destruct v1; destruct v3; try contradiction.
+       destruct (val_inject_split _ _ _ _  H) as [v2 [A B]].
+       exists (Some v2). split; trivial.
+  exists None; split; trivial.
+Qed.
+
+Lemma val_inject_opt_hastype: forall (j : meminj) (v v' : option val),
+       val_inject_opt j v v' -> 
+       forall T : typ, val_has_type_opt' v' T -> val_has_type_opt' v T.
+Proof. intros.
+  destruct v; destruct v'; try contradiction; simpl in *.
+     eapply valinject_hastype; eassumption.
+  trivial.
+Qed.
 
 Module CompilerCorrectness.
 

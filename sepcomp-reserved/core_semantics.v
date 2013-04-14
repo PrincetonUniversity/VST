@@ -1,13 +1,21 @@
 (*CompCert imports*)
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
-Require Import Axioms.
+Add LoadPath "../compcert/lib".
+Add LoadPath "../compcert/flocq/Appli".
+Add LoadPath "../compcert/flocq/Calc".
+Add LoadPath "../compcert/flocq/Core".
+Add LoadPath "../compcert/flocq/Prop".
+Add LoadPath "../compcert/common".
+Add LoadPath "../compcert/cfrontend".
+Add LoadPath "..".
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Values.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.lib.Axioms.
 
 Require Import sepcomp.mem_lemmas.
 
@@ -395,8 +403,17 @@ Definition inject_reserve (f: meminj) (r: reserve_type): reserve_type :=
   fun b ofs => exists b0 delta, 
     f b0 = Some (b, delta) /\ r b0 (ofs-delta).
 
-Definition reserve_incr (r1 r2: reserve) :=
+Axiom inject_reserve_exists : forall  (f: meminj) (r: reserve), exists (rr:reserve),  
+    sort rr = inject_reserve f r.
+
+Definition reserve_incr_tp (r1 r2: reserve_type) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
+
+Definition reserve_incr (r1 r2: reserve) := reserve_incr_tp r1 r2.
+(*  forall b ofs, r1 b ofs -> r2 b ofs.*)
+
+Lemma reserve_incr_refl: forall r, reserve_incr r r.
+Proof. intros r b; auto. Qed.
 
 Lemma reserve_incr_trans: forall r1 r2 r3,
    reserve_incr r1 r2 -> reserve_incr r2 r3 -> reserve_incr r1 r3.
@@ -404,6 +421,30 @@ Proof. intros. intros b. intros. apply H0. apply H. apply H1. Qed.
 
 Definition reserve_valid (r: reserve) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
+
+Lemma reserve_incr_mono: forall j j'
+              (Inc : inject_incr j j') m1 m2
+              (Sep : inject_separated j j' m1 m2) r
+              (RV : reserve_valid r m1) r'
+              (Rinc : reserve_incr_tp (inject_reserve j r) r'),
+       reserve_incr_tp (inject_reserve j' r) r'.
+Proof. intros. intros b; intros. apply Rinc. 
+                  destruct H as [b1 [delta [HJ HR]]].
+                  exists b1. exists delta. split; trivial. 
+                  remember (j b1) as q.
+                  destruct q; apply eq_sym in Heqq. 
+                          destruct p. rewrite (Inc _ _ _ Heqq) in HJ. apply HJ.
+                  exfalso. specialize (RV _ _ HR). 
+                               destruct (Sep _ _ _ Heqq HJ). apply (H RV).
+Qed.
+
+Lemma inject_reserve_incr: forall r rr (R: reserve_incr r rr) j,
+             reserve_incr_tp (inject_reserve j r) (inject_reserve j rr).
+Proof. intros. intros b; intros. 
+   destruct H as [b1 [delta [J H]]].
+   exists b1. exists delta. specialize (R _ _ H).
+   auto.
+Qed.
 
 Definition reserve_valid' (r: reserve) (f: meminj) (m: mem) :=
   forall b ofs b0 delta,
@@ -419,6 +460,10 @@ Definition reserve_separated (r r': reserve) (f': meminj) (m1 m2: mem) :=
     ~r b1 ofs -> r' b1 ofs -> 
     ~Mem.valid_block m1 b1 /\ 
     (forall delta b2, f' b1 = Some (b2, delta) -> ~Mem.valid_block m2 b2).
+
+Lemma reserve_separated_same: forall r j m1 m2,
+    reserve_separated r r j m1 m2.
+Proof. intros r j m1 m2 b; intros. contradiction. Qed.
 
 (*requires decidability of r?*)
 Lemma reserve_separated_trans: 

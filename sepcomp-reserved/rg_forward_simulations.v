@@ -1,14 +1,22 @@
+Add LoadPath "../compcert/lib".
+Add LoadPath "../compcert/flocq/Appli".
+Add LoadPath "../compcert/flocq/Calc".
+Add LoadPath "../compcert/flocq/Core".
+Add LoadPath "../compcert/flocq/Prop".
+Add LoadPath "../compcert/common".
+Add LoadPath "../compcert/cfrontend".
+Add LoadPath "..".
 
 Require Import ListSet.
+Require Import compcert.common.Values.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Memory.
+Require Import compcert.common.AST.
+Require Import compcert.common.Events.
 
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 
-Require Import Values.
-Require Import Globalenvs.
-Require Import Memory.
-Require Import AST.
-Require Import Events.
 
 Set Implicit Arguments.
 

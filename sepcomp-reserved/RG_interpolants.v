@@ -1,15 +1,23 @@
 
 
 (*CompCert imports*)
-Require Import Events. (*needed for standard definitions of 
+Add LoadPath "../compcert/lib".
+Add LoadPath "../compcert/flocq/Appli".
+Add LoadPath "../compcert/flocq/Calc".
+Add LoadPath "../compcert/flocq/Core".
+Add LoadPath "../compcert/flocq/Prop".
+Add LoadPath "../compcert/common".
+Add LoadPath "../compcert/cfrontend".
+Add LoadPath "..".
+Require Import compcert.common.Events. (*needed for standard definitions of 
                         mem_unchanged_on,loc_out-of_bounds etc etc*)
-Require Import Memory.
-Require Import AST.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import Globalenvs.
+Require Import compcert.common.Memory.
+Require Import compcert.common.AST.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Values.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.Globalenvs.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
@@ -67,7 +75,7 @@ Parameter interpolate_II: forall {F1 V1 C1 F2 V2 C2:Type}
                              (InjIncr: inject_incr (compose_meminj j12 j23) j')
                              (InjSep: inject_separated (compose_meminj j12 j23) j' m1 m3)
                              (WD1: mem_wd m1) (WD1': mem_wd m1') (WD2: mem_wd m2) (WD3: mem_wd m3) (WD3' : mem_wd m3')
-                             st1 (r r': reserve') st2
+                             st1 (r r': reserve) st2
                              (Rinc: reserve_incr r r')
                              (Rsep13: reserve_separated r r' j' m1 m3)
                              (Unch11': rely Sem1 r st1 m1 m1' )
