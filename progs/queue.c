@@ -10,43 +10,44 @@ struct elem {
 
 struct fifo {
   struct elem *head;
-  struct elem **tail;
+  struct elem *tail;
 };
 
 struct fifo *fifo_new(void) {
   struct fifo *Q = (struct fifo *)mallocN(sizeof (*Q));
   Q->head = NULL;
-  Q->tail = &(Q->head);
+  Q->tail = NULL;
   return Q;
 }
 
 void fifo_put (struct fifo *Q, struct elem *p) {
-  struct elem **t;
-  t = Q->tail;
-  *t = p;
-  Q->tail = &p->next;
+  struct elem *h, *t;
+  p->next=NULL;
+  h = Q->head;
+  if (h==NULL) {
+    Q->head=p;
+    Q->tail=p;
+  }
+  else {
+    t = Q->tail;
+    t->next=p;
+    Q->tail=p;
+  }
   return;
 }
 
 int fifo_empty (struct fifo *Q) {
-  struct elem **t; int b;
-  t = Q->tail;
-  b = t == &(Q->head);
-  return b;
+  struct elem *h;
+  h = Q->head;
+  return (h == NULL);
 }
 
 struct elem *fifo_get (struct fifo *Q) {
-  struct elem *p, *n; struct elem **t; int b;
-  p=Q->head;
-  t=Q->tail;
-  b= t == &(p->next);
-  if (b)
-    Q->tail = &(Q->head);
-  else {
-    n=p->next;
-    Q->head=n;
-  }
-  return p;
+  struct elem *h, *n;
+  h=Q->head;
+  n=h->next;
+  Q->head=n;
+  return h;
 }
 
 struct elem *make_elem(int a, int b) {
