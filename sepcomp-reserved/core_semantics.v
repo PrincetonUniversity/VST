@@ -449,8 +449,12 @@ Definition inject_reserve (f: meminj) (r: reserve_type): reserve_type :=
   fun b ofs => exists b0 delta, 
     f b0 = Some (b, delta) /\ r b0 (ofs-delta).
 
+Parameter inject_reserve_ : meminj -> reserve -> reserve.
+Axiom inject_reserve_AX : forall f r, sort (inject_reserve_ f r) = inject_reserve f r.
+(*
 Axiom inject_reserve_exists : forall  (f: meminj) (r: reserve), exists (rr:reserve),  
     sort rr = inject_reserve f r.
+*)
 
 Definition reserve_incr_tp (r1 r2: reserve_type) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
@@ -464,6 +468,11 @@ Proof. intros r b; auto. Qed.
 Lemma reserve_incr_trans: forall r1 r2 r3,
    reserve_incr r1 r2 -> reserve_incr r2 r3 -> reserve_incr r1 r3.
 Proof. intros. intros b. intros. apply H0. apply H. apply H1. Qed.
+
+Definition uniform (r:reserve_type) (j: meminj) := 
+  forall b b2 delta b' delta',
+    j b = Some (b2,delta) -> j b' = Some(b2, delta') ->
+    forall ofs, r b ofs = r b' (ofs + delta - delta').
 
 Definition reserve_valid (r: reserve_type) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.

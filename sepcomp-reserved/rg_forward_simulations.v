@@ -1,9 +1,9 @@
 Require Import ListSet.
-Require Import compcert.common.Values.
-Require Import compcert.common.Globalenvs.
-Require Import compcert.common.Memory.
-Require Import compcert.common.AST.
-Require Import compcert.common.Events.
+Require Import Values.
+Require Import Globalenvs.
+Require Import Memory.
+Require Import AST.
+Require Import Events.
 
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.

@@ -18,7 +18,7 @@ FILES= \
   extension_proof_safety.v extension_proof.v \
   null_extension.v fs_extension.v linking_extension.v trace_extension.v \
   mem_interpolants.v compiler_correctness_trans.v \
-  compcert_compiler_correctness.v
+  compcert_compiler_correctness.v RG_interpolants.v rgsim.v
 
 target: proof
 
