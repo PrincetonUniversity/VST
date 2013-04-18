@@ -82,7 +82,12 @@ generalize H1 as H1'; intro.
 eapply corestep_prog in H1; eauto.
 destruct H1 as [s' H1].
 exists s'.
-solve[split; eauto]. 
+split; auto.
+split; auto.
+exploit corestep_pres; eauto.
+solve[intros [? [? ?]]; auto].
+exploit corestep_pres; eauto.
+solve[intros [? [? ?]]; auto].
 Qed.
 
 Lemma corestep_stepN: 
@@ -773,7 +778,7 @@ solve[eapply guarantee_decr; eauto].
 destruct H6 as [H6 [H7' H8]].
 specialize (H7' _ H7).
 destruct H7' as [? [[z ?]]].
-exists z; auto.
+exists z.
 admit. (*compile_safe_decr*)
 destruct H6 as [H6 [H7' H8]].
 destruct (H7' _ H7) as [? [? [c2 [? [? ?]]]]].
@@ -839,14 +844,14 @@ assert (exists c1', corestep (csemS (ACTIVE E_S st1)) (genv_mapS (ACTIVE E_S st1
  solve[exists c1'; auto].
 assert (PROJ1': PROJ_CORE E_S (ACTIVE E_S st1) st1' = Some c1').
  inv core_compatS.
- specialize (corestep_pres st1 c1 m1 c1' st1' m1').
+ specialize (corestep_pres st1 c1 m1 c1' st1' m1' m1').
  spec corestep_pres; auto.
  spec corestep_pres; auto.
  spec corestep_pres; auto.
- solve[destruct corestep_pres; auto].
+ solve[destruct corestep_pres as [? [? ?]]; auto].
 assert (ACT1': ACTIVE E_S st1 = ACTIVE E_S st1').
  inv core_compatS.
- specialize (corestep_pres st1 c1 m1 c1' st1' m1').
+ specialize (corestep_pres st1 c1 m1 c1' st1' m1' m1').
  spec corestep_pres; auto.
  spec corestep_pres; auto.
  spec corestep_pres; auto.
@@ -857,18 +862,12 @@ destruct (MATCH_CORES1 c1 PROJ1) as [GRc1 [SAFE [c2 [PROJ2 [GRc2 MATCH12]]]]].
 unfold core_datas in cd.
 assert (G_INNER: guarantee (csemS (ACTIVE E_S st1)) r c1' m1').
  destruct SAFE as [z SAFE].
- apply compile_safe_safe' in SAFE.
- specialize (SAFE (S O)).
- hnf in SAFE.
  assert (AT_EXT: at_external (csemS (ACTIVE E_S st1)) c1 = None).
   solve[eapply corestep_not_at_external; eauto].
- rewrite AT_EXT in SAFE.
  assert (HALT: safely_halted (csemS (ACTIVE E_S st1)) c1 = None).
   solve[eapply corestep_not_halted; eauto].
- rewrite HALT in SAFE.
- destruct (SAFE _ _ STEP1) as [r' [INCR [SEP [GR _]]]].
- solve[eapply guarantee_decr; eauto].
- admit. (*corestep_fun*)
+ inv SAFE; try solve[congruence].
+ solve[destruct (H0 c1' m1' GRc1 STEP1); auto].
 specialize (DIAG c1 m1 c1' m1' STEP1 (cd _) r c2 j m2 G_INNER MATCH12).
 destruct DIAG as [c2' [m2' [cd' [r' [j' [INJ_INCR [INJ_SEP [RINCR [RSEP 
  [UNCH2 [MATCH12' STEP2]]]]]]]]]]].
@@ -894,7 +893,7 @@ split; auto.
 forget (ACTIVE E_S st1) as x.
 forget (ACTIVE E_T st2') as y.
 subst.
-eapply (guarantee_stepN owned_conservT new_effects_alignedT); eauto.
+eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
 intros b ofs ? ? delta b2 ?.
 specialize (RSEP b ofs).
 spec RSEP; auto.
@@ -945,15 +944,27 @@ split; auto.
 
  (*effects_valid*)
  split.
- admit. 
+ solve[eapply effects_valid_preserved; eauto].
  split.
- admit.
+ clear - EV2 ESEM2.
+ revert st2 m2 EV2 ESEM2.
+ induction n; intros.
+ hnf in ESEM2.
+ destruct ESEM2 as [c2 [m3 [H ?]]].
+ hnf in H0; inv H0.
+ solve[eapply effects_valid_preserved; eauto].
+ hnf in ESEM2.
+ destruct ESEM2 as [c2 [m3 [H ?]]].
+ assert (core_semantics.effects_valid esemT c2 m3).
+  solve[eapply effects_valid_preserved; eauto].
+ clear EV2.
+ solve[eapply IHn; eauto].
 
  (*mem_wd*)
  split.
- admit.
+ admit. (*mem_wd*)
  split.
- admit.
+ admit. (*mem_wd*)
  
  (*guarantee*)
  split.
@@ -964,7 +975,7 @@ split; auto.
  split.
  forget (ACTIVE E_S st1) as x.
  subst.
- eapply (guarantee_stepN owned_conservT new_effects_alignedT); eauto.
+ eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
  intros b ofs ? ? delta b2 ?.
  specialize (RSEP b ofs).
  spec RSEP; auto.
@@ -978,7 +989,7 @@ split; auto.
  split.
  unfold allocs_shrink.
  intros until delta; intros EFA2 JJ'.
- admit. (*TODO*)
+ admit. (*allocs_shrink*)
 
  (*R*)
  split.
@@ -1010,8 +1021,21 @@ split; auto.
   solve[destruct MATCH12'; auto].
   intros b1 ofs1 ? ?.
   solve[destruct (RSEP b1 ofs1); auto].
+  assert (GR: guarantee (csemS y') r' c1' m1').
+   eapply guarantee_incr_alloc1; eauto.
+   eapply reserved_locs_valid; eauto.
+   intros b ofs X Y.
+   solve[eapply RSEP; eauto].
   split.
-  admit. (*compile_safety*)
+
+  destruct SAFE as [z SAFE]. exists z.
+  assert (AT_EXT: at_external (csemS y') c1 = None).
+   solve[eapply corestep_not_at_external; eauto].
+  assert (HALT: safely_halted (csemS y') c1 = None).
+   solve[eapply corestep_not_halted; eauto].
+  inv SAFE; try solve[congruence].
+  destruct (H1 c1' m1' GRc1 STEP1).
+  solve[apply (H2 _ GR)].
   exists c2'.
   split; auto.
   split; auto.
@@ -1078,7 +1102,7 @@ split; auto.
 split; auto.
 forget (ACTIVE E_S st1) as x.
 subst.
-eapply (guarantee_stepN owned_conservT new_effects_alignedT); eauto.
+eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
 intros b ofs ? ? delta b2 ?.
 specialize (RSEP b ofs).
 spec RSEP; auto.
@@ -1129,15 +1153,23 @@ split.
 
  (*effects_valid*)
  split.
- admit.
+ solve[eapply effects_valid_preserved; eauto].
  split.
- admit.
+ clear - EV2 ESEM2.
+ revert st2 m2 EV2 ESEM2.
+ induction n; intros.
+ solve[hnf in ESEM2; inv ESEM2; auto].
+ hnf in ESEM2; destruct ESEM2 as [c2 [m3 [H ?]]].
+ assert (core_semantics.effects_valid esemT c2 m3).
+  solve[eapply effects_valid_preserved; eauto].
+ clear EV2.
+ solve[eapply IHn; eauto].
 
  (*mem_wd*)
  split.
- admit.
+ admit. (*mem_wd*)
  split.
- admit.
+ admit. (*mem_wd*)
 
  (*guarantee*)
  split.
@@ -1148,7 +1180,7 @@ split.
  split.
  forget (ACTIVE E_S st1) as x.
  subst.
- eapply (guarantee_stepN owned_conservT new_effects_alignedT); eauto.
+ eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
  intros b ofs ? ? delta b2 ?.
  specialize (RSEP b ofs).
  spec RSEP; auto.
@@ -1162,7 +1194,7 @@ split.
  split.
  unfold allocs_shrink.
  intros until delta; intros EFA2 JJ'.
- admit. (*TODO*)
+ admit. (*allocs_shrink*)
 
  (*R*)
  split.
@@ -1195,7 +1227,21 @@ split.
   intros b1 ofs1 ? ?.
   solve[destruct (RSEP b1 ofs1); auto].
   split.
-  admit. (*compile_safe*)
+
+  (*compile_safe*)
+  destruct SAFE as [z SAFE]. exists z.
+  assert (AT_EXT: at_external (csemS y') c1 = None).
+   solve[eapply corestep_not_at_external; eauto].
+  assert (HALT: safely_halted (csemS y') c1 = None).
+   solve[eapply corestep_not_halted; eauto].
+  inv SAFE; try solve[congruence].
+  destruct (H1 c1' m1' GRc1 STEP1).
+  assert (GR: guarantee (csemS y') r' c1' m1').
+   eapply guarantee_incr_alloc1; eauto.
+   solve[eapply reserved_locs_valid; eauto].
+   solve[intros b ofs ? ?; eapply RSEP; eauto].
+  solve[apply (H2 _ GR)].
+
   exists c2'.
   split; auto.
   split; auto.
@@ -1276,8 +1322,15 @@ destruct (MATCH_CORES1 c1 _PROJ1) as [GRc1 [SAFE [c2 [GRc2 [PROJ2 MATCH12]]]]].
 destruct (core_at_external (core_simulations (ACTIVE E_S st1)) (cd (ACTIVE E_S st1)) 
             r j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
  as [H6 [H7 [vals2 [H8 [H9 [H10 H11]]]]]].
-
-admit. (*forall v1 : val, In v1 args -> val_valid v1 m1*)
+destruct SAFE as [z SAFE].
+assert (safely_halted (csemS (ACTIVE E_S st1)) c1 = None).
+ exploit @at_external_halted_excl; eauto.
+ intros [X|X]; eauto.
+ solve[rewrite X in AT_EXT; inv AT_EXT].
+inv SAFE; try solve[congruence].
+apply corestep_not_at_external in H0; congruence.
+rewrite H0 in AT_EXT; inv AT_EXT.
+solve[intros v1 IN; destruct (H1 _ IN); auto].
 
 inv esig_compilable. 
 edestruct extension_diagram as [s2' H12]; eauto.
@@ -1444,24 +1497,34 @@ solve[destruct MATCH12'; auto].
 
 (*effects_valid_after_ext*)
 split.
-admit.
-split. 
-admit.
-
+solve[eapply effects_valid_after_ext; eauto].
+split.
+assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
+ as [vals2 X].
+ destruct AT_EXT2 as [vals2 [? [? [? ?]]]].
+ exists vals2.
+ admit. (*by esig_compilable, at_external_match*)
+solve[eapply effects_valid_after_ext; eauto].
 (*mem_wd_after_ext*)
 split; auto.
 split; auto.
 
 (*guarantee_after_ext*)
 split. 
-admit.
-split. 
-admit.
+eapply guarantee_after_ext; eauto.
+solve[intros b ofs ? ?; eapply H6; eauto].
+split.
+assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
+ as [vals2 X].
+ admit. (*by esig_compilable, at_external_match*)
+eapply guarantee'_after_ext; eauto.
+solve[intros b ofs ? ?; eapply H6; eauto].
+solve[intros b ofs ? ?; eapply H4; eauto].
 
 (*allocs_shrink_after_ext*)
 split.
 unfold allocs_shrink.
-admit.
+admit. (*allocs_shrink*)
 
 split.
 inv esig_compilable.
@@ -1527,12 +1590,13 @@ assert (HALT: safely_halted (csemS x') c1 = None).
  rewrite X in AT_EXT1; congruence.
  solve[auto].
 inv SAFE; try solve[congruence].
-solve[apply corestep_not_at_external in H21; congruence].
+solve[apply corestep_not_at_external in H18; congruence].
 exists z.
-eapply H19; eauto.
+eapply H20; eauto.
 intros b ofs ? ? ?.
 solve[apply (H6 b ofs); auto].
 admit. (*val_not_reserved; will have to be added to after_external*)
+admit. (*val_valid; will have to be added to after_external*)
 exists c2'.
 split; auto.
 split; auto.

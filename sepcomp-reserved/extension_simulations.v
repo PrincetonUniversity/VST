@@ -1,4 +1,5 @@
 Require Import ListSet.
+Require Import Coq.Logic.Decidable.
 
 Require Import sepcomp.extspec.
 Require Import sepcomp.mem_lemmas.
@@ -8,6 +9,7 @@ Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.extension.
 Require Import sepcomp.compile_safe.
+Require Import sepcomp.Coqlib2.
 
 Require Import Axioms.
 Require Import Coqlib.
@@ -49,6 +51,7 @@ Section CoreCompatibleDefs. Variables
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
  Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable core_compat: core_compatible ge genv_map E.
 
  Import Extension.
 
@@ -80,12 +83,6 @@ Section CoreCompatibleDefs. Variables
     new_effect esem k b ofs s s' <-> 
     new_effect (csem (active E s)) k b ofs c c').
 
- Definition inject_separated2 (j j': meminj) m :=
-   forall (b1 b2: block) delta,
-   j b1 = None ->
-   j' b1 = Some (b2, delta) ->
-   ~ Mem.valid_block m b2.
-
  Lemma guarantee_step': 
    owned_conserving -> 
    new_effects_aligned -> 
@@ -113,7 +110,14 @@ Section CoreCompatibleDefs. Variables
  solve[destruct N as [X Y]; auto].
  unfold new_effect in R.
  assert (effects esem s AllocEffect b ofs \/
-         ~effects esem s' AllocEffect b ofs). admit.
+         ~effects esem s' AllocEffect b ofs).  
+  apply not_and in R.
+  destruct R; try solve[left; auto|right; auto].
+  apply not_not in H. solve[left; auto].
+  destruct (effects_dec esem s AllocEffect b ofs);
+   try solve[left; auto|right; auto].
+  solve[destruct (effects_dec esem s AllocEffect b ofs);
+   try solve[left; auto|right; auto]].
  destruct H; auto.
  eapply effects_forward in H5; eauto.
  solve[destruct H5; auto].
@@ -154,12 +158,10 @@ Section CoreCompatibleDefs. Variables
  solve[eapply OWN in H9'; eauto].
  Qed.
 
- Require Import sepcomp.Coqlib2.
-
  Lemma guarantee_stepN: 
    owned_conserving -> 
    new_effects_aligned -> 
-   forall n ge (r r': reserve) j j' s c m s' c' m',
+   forall n (r r': reserve) j j' s c m s' c' m',
    guarantee' esem j r s m ->   
    guarantee' (csem (active E s)) j r c m -> 
    proj_core E (active E s) s = Some c -> 
@@ -176,7 +178,7 @@ Section CoreCompatibleDefs. Variables
    guarantee' esem j' r' s' m'.
  Proof.
  intros OWN ALIGN.
- induction n; intros.
+ induction n; intros until m'; intros.
  hnf in H2, H3.
  inv H2; inv H3; auto.
  intros b ofs VAL INJ EF.
@@ -205,30 +207,50 @@ Section CoreCompatibleDefs. Variables
  hnf in H2, H3.
  destruct H2 as [c2 [m2 [STEP STEPN]]].
  destruct H3 as [s2 [m2' [ESTEP ESTEPN]]].
- assert (m2 = m2') by admit. (*by determinism*)
+ assert (m2 = m2').
+  inv core_compat.
+  solve[eapply corestep_pres; eauto].
  subst.
  assert (guarantee' (csem (active E s)) j' r' c2 m2').
-  admit. (*by guarantee_closed_backwards, STEP, and H11*)
+  solve[eapply guarantee'_backward_stepN; eauto].
  assert (INTER: guarantee' esem j' r' s2 m2').
   apply guarantee_step' 
-   with (s := s) (c := c) (m := m) (r := r) (j := j) (c' := c2) (ge := ge0); auto.
-  admit. (*by extension property*)
- assert (EQ: active E s = active E s2) by admit. (*by extension property*)
+   with (s := s) (c := c) (m := m) (r := r) (j := j) (c' := c2) (ge := ge); auto.
+  inv core_compat.
+  exploit corestep_pres; eauto.
+  solve[intros [? [? ?]]; auto].
+ 
+ assert (exists (r2: reserve) (j2: meminj), 
+  reserve_incr r2 r' /\
+  reserve_separated2 r2 r' j' m2' /\
+  reserve_valid' r2 j2 m2' /\
+  inject_incr j2 j' /\
+  inject_separated2 j2 j' m2') as [r2 [j2 [A [B [C [X Y]]]]]].
+  admit. (*interpolation lemma*)
+
+ assert (EQ: active E s = active E s2).
+  inv core_compat.
+  exploit corestep_pres; eauto.
+  solve[intros [? ?]; auto].
  forget (active E s) as x; subst.
- specialize (IHn ge0 r' r' j' j' s2 c2 m2' s' c' m').
+ specialize (IHn r2 r' j2 j' s2 c2 m2' s' c' m').
+ spec IHn. solve[eapply guarantee_decr2; eauto].
+ spec IHn. solve[eapply guarantee_decr2; eauto].
+ spec IHn. 
+  assert (active E s = active E s2). 
+   admit. (*extension property*)
+  forget (active E s2) as x.
+  subst.
+  inv core_compat.
+  solve[eapply corestep_pres; eauto].
+ spec IHn; auto.
+ spec IHn; auto.
+ spec IHn; auto.
+ spec IHn; auto.
  spec IHn; auto.
  spec IHn; auto. 
- spec IHn. admit. (*by extension property*)
  spec IHn; auto.
- spec IHn; auto.
- spec IHn; auto.
- spec IHn; auto.
- solve[intros ? ? ? ?; elimtype False; auto].
- spec IHn; auto.
- admit. (*need to construct truncated r_interpolant*)
- spec IHn. solve[intros ? ? ?; auto].
- spec IHn; auto.
- spec IHn. solve[intros ? ? ? ? ?; congruence].
+ spec IHn; auto. 
  spec IHn. solve[eapply effects_valid_preserved; eauto].
  apply IHn; auto.
  Qed. 

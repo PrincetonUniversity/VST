@@ -8,6 +8,7 @@ Require Import Events.
 Require Import sepcomp.extspec.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
+Require Import sepcomp.mem_lemmas.
 
 Definition is_ptr (v: val) := exists b ofs, v = Vptr b ofs.
 
@@ -48,38 +49,50 @@ solve[auto].
 Qed.
 
 (*TODO: move elsewhere*)
+Definition val_valid_opt (v: option val) (m: mem) :=
+  match v with
+  | None => True
+  | Some v' => val_valid v' m
+  end.
+
 Definition reserve_separated1 (r r': reserve) m := 
   forall b ofs, ~r b ofs -> r' b ofs -> ~Mem.valid_block m b.
 
 Section compile_safety.
-  Context {G C D Z:Type}.
-  Context (Hcore:EffectfulSemantics G C D).
+  Context {G C D Z: Type}.
+  Context (Hcore: EffectfulSemantics G C D).
 
-  Variable ge : G.
+  Variable ge: G.
 
   CoInductive compile_safe: Z -> reserve -> C -> mem -> Prop :=
   | compile_safe_halt: 
     forall z r c m ret, 
-    safely_halted Hcore c = Some ret -> 
-    val_not_reserved (Some ret) m r -> 
-    compile_safe z r c m
+      safely_halted Hcore c = Some ret -> 
+      val_not_reserved (Some ret) m r -> 
+      val_valid ret m -> 
+      compile_safe z r c m
   | compile_safe_step:
-    forall z (r: reserve) c m (r': reserve) c' m',
-    reserve_incr r r' -> 
-    reserve_separated1 r r' m -> 
-    guarantee Hcore r' c' m' -> 
-    corestep Hcore ge c m c' m' -> 
-    compile_safe z r' c' m' -> 
-    compile_safe z r c m
+    forall z (r: reserve) c m c' m',
+      corestep Hcore ge c m c' m' -> 
+      (forall c' m', 
+        guarantee Hcore r c m -> 
+        corestep Hcore ge c m c' m' -> 
+        guarantee Hcore r c' m' /\ 
+        forall r': reserve, 
+          guarantee Hcore r' c' m' -> 
+          compile_safe z r' c' m') -> 
+      compile_safe z r c m
   | compile_safe_external: 
     forall z (r: reserve) c m e sig args, 
-     at_external Hcore c = Some (e, sig, args) -> 
-    (forall z' (r': reserve) c' m' ret,
-     reserve_incr r r' -> 
-     reserve_separated1 r r' m -> 
-     val_not_reserved ret m' r' -> 
-     after_external Hcore ret c = Some c' -> 
-     compile_safe z' r' c' m') ->  
+      at_external Hcore c = Some (e, sig, args) -> 
+      (forall v, In v args -> val_not_reserved (Some v) m r /\ val_valid v m) -> 
+      (forall (z': Z) (r': reserve) m' ret c',
+        reserve_incr r r' -> 
+        reserve_separated1 r r' m -> 
+        val_not_reserved ret m' r' -> 
+        val_valid_opt ret m' -> 
+        after_external Hcore ret c = Some c' -> 
+        compile_safe z' r' c' m') ->  
     compile_safe z r c m.
 
   Fixpoint compile_safeN (n:nat) (z:Z) (r:reserve) (c:C) (m:mem) : Prop :=
@@ -90,18 +103,15 @@ Section compile_safety.
        | None, None =>
            forall c' m', 
              corestep Hcore ge c m c' m' -> 
-             exists r': reserve, 
-               reserve_incr r r' /\
-               reserve_separated1 r r' m /\
-               guarantee Hcore r' c' m' /\ 
-               compile_safeN n' z r' c' m'
+             guarantee Hcore r c' m' /\ compile_safeN n' z r c' m'
        | Some (e,sig,args), None =>
-           forall ret m' z' (r': reserve) c',
-             reserve_incr r r' -> 
-             reserve_separated1 r r' m -> 
-             val_not_reserved ret m' r' -> 
-             after_external Hcore ret c = Some c' -> 
-             compile_safeN n' z' r' c' m'
+         (forall v, In v args -> val_not_reserved (Some v) m r /\ val_valid v m) -> 
+         forall ret m' z' (r': reserve) c',
+           reserve_incr r r' -> 
+           reserve_separated1 r r' m -> 
+           val_not_reserved ret m' r' -> 
+           after_external Hcore ret c = Some c' ->
+           compile_safeN n' z' r' c' m'
        | None, Some ret => val_not_reserved (Some ret) m r
        | Some _, Some _ => False
        end
@@ -115,7 +125,7 @@ Section compile_safety.
        corestep Hcore ge q m q2 m2 -> 
        (q1, m1) = (q2, m2).
 
-  Lemma compile_safe_safe': 
+(*  Lemma compile_safe_safe': 
     forall z r c m,
     corestep_fun -> 
     compile_safe z r c m -> compile_safe' z r c m.
@@ -136,7 +146,7 @@ Section compile_safety.
   intros.
   apply IHn.
   inv H1; try solve[congruence].
-  apply corestep_not_at_external in H8.
+  apply corestep_not_at_external in H6.
   congruence.
   solve[eapply H6; eauto].
   intros NONE.
@@ -149,24 +159,39 @@ Section compile_safety.
   intros NONE'.
   intros until m'; intros H2.
   inv H1; try solve[congruence].
-  generalize (FUN _ _ _ _ _ _ _ H2 H4); intros X.
-  inv X; exists r'; split; auto.
-  Qed.
+  generalize (FUN _ _ _ _ _ _ _ H2 H0); intros X.
+  solve[inv X; split; auto].
+  Qed.*)
 
-  Lemma compile_safe_corestep_forward:
-    corestep_fun -> 
+  Lemma compile_safe'_corestep_forward:
     forall c m c' m' n z r,
     corestep Hcore ge c m c' m' -> 
     compile_safeN (S n) z r c m -> 
-    exists r': reserve, 
-      reserve_incr r r' /\
-      reserve_separated1 r r' m /\
-      guarantee Hcore r' c' m' /\ 
-      compile_safeN n z r' c' m'.
+    guarantee Hcore r c' m' /\ compile_safeN n z r c' m'.
   Proof.
   simpl; intros.
-  erewrite corestep_not_at_external in H1; eauto.
-  erewrite corestep_not_halted in H1; eauto.
+  erewrite corestep_not_at_external in H0; eauto.
+  erewrite corestep_not_halted in H0; eauto.
+  Qed.
+
+  Lemma compile_safe_corestep_forward:
+    forall c m c' m' z r,
+    compile_safe z r c m -> 
+    guarantee Hcore r c m -> 
+    corestep Hcore ge c m c' m' -> 
+    guarantee Hcore r c' m' /\ 
+    (forall r': reserve, 
+      guarantee Hcore r' c' m' -> 
+      compile_safe z r' c' m').
+  Proof.
+  simpl; intros until r; intros.
+  generalize H1 as H'; intro.
+  generalize H1 as H''; intro.
+  apply corestep_not_at_external in H'.
+  apply corestep_not_halted in H''.
+  inv H; try solve[congruence].
+  destruct (H3 _ _ H0 H1).
+  solve[split; auto].
   Qed.
 
   Lemma compile_safe_downward1 :
@@ -183,8 +208,8 @@ Section compile_safety.
     auto.
     intros.
     exploit H; eauto.
-    intros [r' [? [? [? ?]]]].
-    solve[exists r'; split; auto].
+    intros [? ?].
+    solve[split; auto].
   Qed.
 
   Lemma compile_safe_downward: 

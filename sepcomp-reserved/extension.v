@@ -112,12 +112,13 @@ Section CoreCompatible. Variables
     a relation, or equivalently, have proj_core project a /set/ of corestates; 
     but at the current stage, the conveniences of proj_core-as-function appear to 
     outweigh the disadvantages. *)
- (corestep_pres: forall s (c: cT (active E s)) m c' s' m',
+ (corestep_pres: forall s (c: cT (active E s)) m c' s' m1' m2',
    proj_core E (active E s) s = Some c -> 
-   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
-   corestep esem ge s m s' m' -> 
+   corestep (csem (active E s)) (genv_map (active E s)) c m c' m1' -> 
+   corestep esem ge s m s' m2' -> 
    active E s = active E s' /\ 
-   proj_core E (active E s) s' = Some c')
+   proj_core E (active E s) s' = Some c' /\
+   m1'=m2')
 
  (** A corestep of the currently active core forces a corestep of the 
     extended semantics *)

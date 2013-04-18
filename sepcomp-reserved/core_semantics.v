@@ -620,6 +620,21 @@ specialize (IHn _ _ STEPN).
 solve[eapply guarantee_backward_step in IHn; eauto].
 Qed.
 
+Lemma guarantee'_backward_stepN: 
+  forall ge j r c m c' m' n,
+  guarantee' j r c' m' -> 
+  corestepN efsem ge n c m c' m' -> 
+  guarantee' j r c m.
+Proof.
+intros until n; intros G' STEP.
+revert c m STEP.
+induction n; [solve[intros c m STEP; hnf in STEP; inv STEP; auto]|].
+intros c m STEP; hnf in STEP. 
+destruct STEP as [c2 [m2 [STEP STEPN]]].
+specialize (IHn _ _ STEPN).
+solve[eapply guarantee_backward_step in IHn; eauto].
+Qed.
+
 Lemma guarantee_incr: 
   forall (r r': reserve) c m,
   guarantee r c m -> 
@@ -859,6 +874,51 @@ intros.
 cut (guarantee r' c' m'). intro H7.
 solve[eapply guarantee_decr; eauto].
 solve[eapply guarantee_after_ext; eauto].
+Qed.
+
+Definition inject_separated2 (j j': meminj) m :=
+  forall (b1 b2: block) delta,
+  j b1 = None ->
+  j' b1 = Some (b2, delta) ->
+  ~ Mem.valid_block m b2.
+
+Lemma guarantee'_after_ext: 
+  forall (r r': reserve) j j' c c' m m' rv e sig args,
+  guarantee' j r c m -> 
+  effects_valid efsem c m -> 
+  at_external efsem c = Some (e, sig, args) -> 
+  after_external efsem rv c = Some c' -> 
+  mem_forward m m' -> 
+  reserve_incr r r' -> 
+  reserve_separated2 r r' j' m -> 
+  reserve_valid' r j m ->
+  inject_incr j j' -> 
+  inject_separated2 j j' m -> 
+  guarantee' j' r' c' m'.
+Proof.
+intros until args; intros GR EFVAL AT AFT FW INCR SEP VALID INJINCR INJSEP.
+intros b ofs VAL R EF.
+rewrite <-effects_external; eauto.
+rewrite <-effects_external in EF; eauto.
+destruct R as [b0 [delta [R1 R2]]].
+destruct (reserve_dec r b0 (ofs-delta)).
+case_eq (j b0); [intros [b' delta'] EQ|].
+assert (EQ': j b0 = Some (b, delta)).
+ generalize EQ as EQ'; intro.
+ apply INJINCR in EQ.
+ rewrite EQ in R1.
+ solve[inv R1; auto].
+apply GR; auto.
+specialize (SEP b ofs).
+solve[eapply VALID; eauto].
+solve[exists b0; exists delta; split; auto].
+intros NONE.
+specialize (INJSEP _ _ _ NONE R1).
+elimtype False.
+apply INJSEP.
+solve[eapply EFVAL; eauto].
+specialize (SEP _ _ n R2 _ _ R1).
+solve[apply EFVAL in EF; elimtype False; auto].
 Qed.
 
 End EffectfulSemanticsLemmas.
