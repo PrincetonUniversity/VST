@@ -269,7 +269,7 @@ End NullExtensionSafe.
  Qed.
 
  Lemma null_owned_conserving: forall F V C D Z
-         (csem: RelyGuaranteeSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
+         (csem: EffectfulSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
    owned_conserving _ (const csem) (null_extension csem csig).
  Proof.
  intros.
@@ -289,8 +289,8 @@ Section NullExtensionCompilable.
   (csig: ef_ext_spec mem Z)
   (init_world: Z)
   (entry_points: list (val*val*signature))
-  (csemS: RelyGuaranteeSemantics (Genv.t fS vS) cS dS)
-  (csemT: RelyGuaranteeSemantics (Genv.t fT vT) cT dT).
+  (csemS: EffectfulSemantics (Genv.t fS vS) cS dS)
+  (csemT: EffectfulSemantics (Genv.t fT vT) cT dT).
 
  Variables (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
@@ -305,7 +305,7 @@ Section NullExtensionCompilable.
  Import ExtensionCompilability2.
 
  Variable core_data: Type.
- Variable match_state: core_data -> reserve_map -> meminj -> cS -> mem -> cT -> mem -> Prop. 
+ Variable match_state: core_data -> reserve -> meminj -> cS -> mem -> cT -> mem -> Prop. 
  Variable core_ord: core_data -> core_data -> Prop.
  Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
    geS geT entry_points core_data match_state core_ord.
@@ -325,7 +325,7 @@ Section NullExtensionCompilable.
  Proof.
  (*SOLVED BY econstructor; eauto.  WE'LL USE THE PROVIDED LEMMAS INSTEAD.*)
  intros H1 H2 H3.
- set (R := fun (_:reserve_map) (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
+ set (R := fun (_:reserve) (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig 
@@ -355,11 +355,14 @@ Section NullExtensionCompilable.
  inversion H0; subst.
  inversion H4; subst.
  destruct core_simulation.
- solve[eapply core_at_external0 in H6; eauto].
+ eapply core_at_external0 in H6; eauto.
+
+ intros.
+ solve[eapply mem_lemmas.forall_inject_valid; eauto].
  
- intros; destruct core_simulation.
- destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 r m2 H0 H4 H7 H8) 
-  as [cd [s2 [H9 H10]]]; auto.
+ intros; destruct core_simulation; auto.
+ destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 r m2 H0 H4 H5 H6 H9 H10)
+  as [cd [s2 [H11 H12]]]; auto.
  exists (fun _ => cd); exists s2; split; auto. 
  split; auto.
 
@@ -370,7 +373,7 @@ Section NullExtensionCompilable.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (owned_initial _ b _ geS v1 vals1 c); eauto].
+ solve[eapply (effects_initial _ b _ geS v1 vals1 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
@@ -386,7 +389,7 @@ Section NullExtensionCompilable.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
- solve[eapply (owned_initial _ b _ geT v2 vals2 c); eauto].
+ solve[eapply (effects_initial _ b _ geT v2 vals2 c); eauto].
 
  split.
  intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
@@ -401,11 +404,11 @@ Section NullExtensionCompilable.
  split; auto.
  intros i c1 H9'; exists s2; split; auto.
  simpl in H9'; unfold proj_core in H9'|-*; if_tac in H9'; try congruence.
- simpl; unfold proj_core; rewrite H11; if_tac; auto.
+ simpl; unfold proj_core; rewrite H13; if_tac; auto.
  solve[elimtype False; auto].
  simpl in H9'; unfold proj_core in H9'.
  if_tac in H9'; try congruence.
- solve[unfold const; inversion H9'; rewrite H13 in *; auto].
+ solve[unfold const; inversion H9'; rewrite H15 in *; auto].
 
  intros until v1; intros ty MATCH12 HALT HASTY.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
@@ -421,7 +424,7 @@ Section NullExtensionCompilable.
  apply corestep_not_halted in H6.
  simpl in H0; unfold proj_core, active in H0.
  if_tac in H0; try congruence.
- inversion H0; rewrite H9 in *. 
+ inversion H0; rewrite H10 in *. 
  solve[simpl in H5; unfold const in H5; rewrite H5 in H6; congruence].
  Qed.
 

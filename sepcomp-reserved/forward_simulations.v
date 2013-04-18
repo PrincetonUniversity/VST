@@ -1,12 +1,4 @@
 (*CompCert imports*)
-Add LoadPath "../compcert/lib".
-Add LoadPath "../compcert/flocq/Appli".
-Add LoadPath "../compcert/flocq/Calc".
-Add LoadPath "../compcert/flocq/Core".
-Add LoadPath "../compcert/flocq/Prop".
-Add LoadPath "../compcert/common".
-Add LoadPath "../compcert/cfrontend".
-Add LoadPath "..".
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
@@ -194,14 +186,14 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           reserve_incr r r' /\ 
           reserve_separated r r' inject_id m1 m2 /\
           match_state cd' r' st1' m1' st2' m2' /\
-          guarantee Sem2 r st2' m2' /\
+          guarantee Sem2 r' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
 
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
-        forall vals vals' r m1 m2,
+        forall vals vals' (r: reserve) m1 m2,
           Forall2 Val.lessdef vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
@@ -233,7 +225,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           (forall v2, In v2 vals2 -> val_valid v2 m2);
 
     core_after_external :
-      forall cd (r: reserve) st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
+      forall cd (r: reserve) st1 st2 m1 m2 e vals1 vals2 ret1 ret2 (r': reserve) m1' m2' ef_sig,
         match_state cd r st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         (forall v1, In v1 vals1 -> val_valid v1 m1) -> 
@@ -269,7 +261,7 @@ Lemma  core_diagramN : forall (f: Forward_simulation_extends) n
       reserve_incr r r' /\ 
       reserve_separated r r' inject_id m1 m2 /\
       match_state f cd' r' st1' m1' st2' m2' /\
-      guarantee Sem2 r st2' m2' /\
+      guarantee Sem2 r' st2' m2' /\
       ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
         corestep_star Sem2 ge2 st2 m2 st2' m2' /\
         clos_trans _ (core_ord f) cd' cd).
@@ -328,7 +320,7 @@ Proof.
   apply H7.
   solve[apply H9; auto].
   split. assumption.
-  split. solve[eapply guarantee_decr; eauto].
+  split. auto.
   destruct X' as [X' | [ X' CD']].
   destruct X'' as [X'' | [X'' CD'']].
   left. eapply corestep_plus_trans; eassumption.
@@ -383,7 +375,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
     match_antimono : 
-      forall d r0 r j st m st' m',
+      forall d (r0 r: reserve) j st m st' m',
       match_state d r j st m st' m' ->
       reserve_incr r0 r -> 
       match_state d r0 j st m st' m';
@@ -404,7 +396,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           inject_separated j j' m1 m2 /\
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee' Sem2 j r st2' m2' /\
+          guarantee' Sem2 j' r' st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -412,7 +404,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 r m2,
+       forall vals1 c1 m1 j vals2 (r: reserve) m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           mem_wd m1 -> mem_wd m2 ->
@@ -488,7 +480,7 @@ Lemma core_diagramN:
         inject_separated j j' m1 m2 /\
         reserve_incr r r' /\
         reserve_separated r r' j' m1 m2 /\ 
-        guarantee' Sem2 j r st2' m2' /\ 
+        guarantee' Sem2 j' r' st2' m2' /\ 
         match_state f cd' r' j' st1' m1' st2' m2' /\
         ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
           corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -564,7 +556,7 @@ Proof.
   solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
     apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
   split. clear X X2'. 
-  solve[eapply guarantee_decr2; eauto].
+  auto.
   split. assumption.
   destruct X as [X2 | [ X2 CD]].
   destruct X2' as [X2' | [X2' CD']].
@@ -621,7 +613,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
     match_antimono : 
-      forall d r0 r j st m st' m',
+      forall d (r0 r: reserve) j st m st' m',
       match_state d r j st m st' m' ->
       reserve_incr r0 r -> 
       match_state d r0 j st m st' m';
@@ -642,7 +634,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           inject_separated j j' m1 m2 /\
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee' Sem2 j r st2' m2' /\
+          guarantee' Sem2 j' r' st2' m2' /\
           match_state cd' r' j' st1' m1' st2' m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -650,7 +642,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
 
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 r m2,
+       forall vals1 c1 m1 j vals2 (r: reserve) m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           mem_wd m1 -> mem_wd m2 ->
@@ -736,7 +728,7 @@ Lemma core_diagramN:
         inject_separated j j' m1 m2 /\
         reserve_incr r r' /\
         reserve_separated r r' j' m1 m2 /\ 
-        guarantee' Sem2 j r st2' m2' /\
+        guarantee' Sem2 j' r' st2' m2' /\
         match_state cd' r' j' st1' m1' st2' m2' /\
         ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
           corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -813,7 +805,7 @@ Proof.
   solve[destruct X2 as [CS2 | [CS2 _]]; destruct CS2 as [nn CS2];
     apply (corestepN_fwd _ _  _ _ _ _ _ CS2); auto].
   split. clear X X2'. 
-  solve[eapply guarantee_decr2; eauto].
+  auto.
   split. assumption.
   destruct X as [X2 | [ X2 CD]].
   destruct X2' as [X2' | [X2' CD']].

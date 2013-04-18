@@ -32,17 +32,20 @@ Theorem drop_extends:
   /\ Mem.extends m1' m2'.
 Proof.
   intros. inv H.
-  destruct (Mem.drop_mapped_inj  _ _ _ b b 0 _ _ _ _ mext_inj H0) as [m2' [D Inj]].
-        intros b'; intros. inv H1. inv H2. left. assumption.
-         reflexivity.
+  destruct (Mem.drop_mapped_inj  _ _ _ b b 0 _ _ _ _ mext_inj H0) 
+      as [m2' [D Inj]].
+    intros b'; intros. inv H1. inv H2. left. assumption.
+    reflexivity.
   repeat rewrite Zplus_0_r in D. exists m2'. split; trivial.
   split; trivial.
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ H0). 
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ D). assumption.
 Qed.  
 
-Lemma mem_inj_id_trans: forall m1 m2 (Inj12: Mem.mem_inj inject_id m1 m2) m3 
-          (Inj23: Mem.mem_inj inject_id m2 m3),Mem.mem_inj inject_id m1 m3.
+Lemma mem_inj_id_trans: 
+  forall m1 m2 (Inj12: Mem.mem_inj inject_id m1 m2) m3 
+         (Inj23: Mem.mem_inj inject_id m2 m3),
+  Mem.mem_inj inject_id m1 m3.
 Proof. intros.
   destruct Inj12. rename mi_perm into perm12. rename mi_access into access12. 
   rename mi_memval into memval12.
@@ -98,23 +101,35 @@ Lemma extends_refl: forall m, Mem.extends m m.
 Proof. intros.
   split. trivial.
   split; intros. 
-     inv H.  rewrite Zplus_0_r. assumption.
-     inv H.  rewrite Zplus_0_r. assumption.
-     inv H.  rewrite Zplus_0_r. apply memval_inject_id_refl.
+  inv H. rewrite Zplus_0_r. assumption.
+  inv H. rewrite Zplus_0_r. assumption.
+  inv H. rewrite Zplus_0_r. apply memval_inject_id_refl.
 Qed.
 
 Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
 Proof. intros. unfold  compose_meminj, inject_id. 
-   apply extensionality. intro b. 
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
+  apply extensionality. intro b. 
+  remember (j b). 
+  destruct o; trivial. destruct p. rewrite Zplus_0_r. trivial.
 Qed.
 
 Lemma compose_meminj_idL: forall j, j = compose_meminj inject_id j.
 Proof. intros. unfold  compose_meminj, inject_id.
-   apply extensionality. intro b.
-   remember (j b). 
-   destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
+  apply extensionality. intro b.
+  remember (j b). 
+  destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
+Qed.
+
+Lemma perm_decE: 
+  forall m b ofs k p PF,
+  (Mem.perm_dec m b ofs k p = left PF <-> Mem.perm m b ofs k p).
+Proof.
+intros until p.
+split; auto.
+intros H1.
+destruct (Mem.perm_dec m b ofs k p).
+solve[f_equal; apply proof_irr].
+solve[elimtype False; auto].
 Qed.
 
 Lemma extends_inject_compose:
@@ -145,11 +160,24 @@ Proof.
   unfold Mem.weak_valid_pointer in H0|-*.
  apply orb_true_iff in H0; apply orb_true_iff.
  destruct H0; [left | right].
-(* 
-  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. 
-  rewrite Zplus_0_r in H0.
-*)
-admit. admit. 
+ unfold Mem.valid_pointer in H0|-*.
+ destruct (Mem.perm_dec m1 b (Int.unsigned ofs) Cur Nonempty).
+ clear H0.
+ apply (mi_perm b b 0 (Int.unsigned ofs) Cur Nonempty (eq_refl _)) in p.
+ rewrite Zplus_0_r in p.
+ generalize p as p'; intro.
+ rewrite <-perm_decE with (PF := p') in p.
+ rewrite p; auto.
+ inv H0.
+ unfold Mem.valid_pointer in H0|-*.
+ destruct (Mem.perm_dec m1 b (Int.unsigned ofs - 1) Cur Nonempty).
+ clear H0.
+ apply (mi_perm b b 0 (Int.unsigned ofs - 1) Cur Nonempty (eq_refl _)) in p.
+ rewrite Zplus_0_r in p.
+ generalize p as p'; intro.
+ rewrite <-perm_decE with (PF := p') in p.
+ rewrite p; eauto.
+ inv H0.
 Qed.
 
 Lemma inject_extends_compose:
@@ -336,7 +364,8 @@ Proof.
   inv HTs. constructor. eapply  lessdef_hastype; eassumption. apply (IHV _ H4).
 Qed.
 
-Lemma valinject_hastype:  forall j v v' (V: (val_inject j) v v') T, Val.has_type v' T -> Val.has_type v T.
+Lemma valinject_hastype: 
+  forall j v v' (V: (val_inject j) v v') T, Val.has_type v' T -> Val.has_type v T.
 Proof. intros. inv V; simpl; trivial. Qed.
 
 Lemma forall_valinject_hastype:  forall j vals vals' (V:  Forall2 (val_inject j) vals vals') 
@@ -561,6 +590,23 @@ Definition val_valid (v:val) (m:mem):Prop :=
      match v with Vptr b ofs => Mem.valid_block m b | _ => True 
      end.
 
+Lemma forall_inject_valid: 
+  forall args1 args2 v j m1 m2,
+  Mem.inject j m1 m2 -> 
+  Forall2 (val_inject j) args1 args2 -> 
+  In v args1 -> 
+  val_valid v m1.
+Proof.
+  intros until m2; intros INJ H1 H2.
+  induction H1.
+  solve[hnf in H2; elimtype False; auto].
+  hnf in H2; inv H2.
+  unfold val_valid.
+  inv H; auto.
+  solve[eapply Mem.valid_block_inject_1; eauto].
+  apply IHForall2; auto.
+Qed.
+
 (*In fact val_valid is a slight relaxtion of valid_pointer*)
 Lemma valid_ptr_val_valid: forall b ofs m, 
     Mem.valid_pointer m b ofs = true -> val_valid (Vptr b (Int.repr ofs)) m.
@@ -589,16 +635,16 @@ Qed.
 Definition mem_wd m := Mem.inject_neutral (Mem.nextblock m) m.
 
 Lemma mem_wdI: forall m,
-    (forall b ofs  (R:Mem.perm m b ofs Cur Readable),
-                memval_inject  (Mem.flat_inj (Mem.nextblock m)) 
-                                             (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))
-                                            (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))) -> mem_wd m.
+  (forall b ofs  (R:Mem.perm m b ofs Cur Readable),
+    memval_inject  (Mem.flat_inj (Mem.nextblock m)) 
+    (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))
+    (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))) -> mem_wd m.
 Proof. intros.
   split; intros.
-     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
-     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
-     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r.
-        apply H. apply H1.
+  apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
+  apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
+  apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r.
+  apply H. apply H1.
 Qed.
         
         

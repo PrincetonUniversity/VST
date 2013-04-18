@@ -1,12 +1,3 @@
-Add LoadPath "../compcert/lib".
-Add LoadPath "../compcert/flocq/Appli".
-Add LoadPath "../compcert/flocq/Calc".
-Add LoadPath "../compcert/flocq/Core".
-Add LoadPath "../compcert/flocq/Prop".
-Add LoadPath "../compcert/common".
-Add LoadPath "../compcert/cfrontend".
-Add LoadPath "..".
-
 Require Import ListSet.
 Require Import compcert.common.Values.
 Require Import compcert.common.Globalenvs.
@@ -97,7 +88,7 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
     rely sourceC r c1 m1 m1' -> 
-    rely sourceC (inject_reserve f r) c1 m2 m2' -> 
+    rely' targetC f r c2 m2 m2' -> 
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 
     reserve_incr r r' -> 

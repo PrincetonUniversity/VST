@@ -162,7 +162,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
-        forall vals vals' r m1 m2,
+        forall vals vals' (r: reserve) m1 m2,
           Forall2 Val.lessdef vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
@@ -194,7 +194,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
           (forall v2, In v2 vals2 -> val_valid v2 m2).
 
   Hypothesis ext_after_external:
-      forall d r st1 st2 m1 m2 e vals1 vals2 ret1 ret2 r' m1' m2' ef_sig,
+      forall d r st1 st2 m1 m2 e vals1 vals2 ret1 ret2 (r': reserve) m1' m2' ef_sig,
         (d=st1 /\ match_states d r st1 m1 st2 m2) ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
@@ -229,11 +229,11 @@ Hypothesis ext_simulation:
     forall c2 m2, 
       match_states c1 r c1 m1 c2 m2 ->
       guarantee Sem1 r c1' m1' -> 
-      exists c2', exists r', exists m2', 
+      exists c2', exists r': reserve, exists m2', 
         reserve_incr r r' /\
         reserve_separated r r' inject_id m1 m2 /\
         match_states c1' r' c1' m1' c2' m2' /\
-        guarantee Sem2 r c2' m2' /\
+        guarantee Sem2 r' c2' m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
@@ -288,11 +288,11 @@ Section EXT_SIMULATION_STAR.
       forall (c2 : C2) (m2 : mem),
         guarantee Sem1 r c1' m1' -> 
         match_states c1 r c1 m1 c2 m2 ->
-        exists c2' r' m2', 
+        exists c2' (r': reserve) m2', 
           reserve_incr r r' /\
           reserve_separated r r' inject_id m1 m2 /\
           match_states c1' r' c1' m1' c2' m2' /\
-          guarantee Sem2 r c2' m2' /\
+          guarantee Sem2 r' c2' m2' /\
           (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
            corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure c1' c1).
 
@@ -313,11 +313,11 @@ Section EXT_SIMULATION_PLUS.
     forall c2 m2, 
       match_states c1 r c1 m1 c2 m2 ->
       guarantee Sem1 r c1' m1' -> 
-      exists c2' r' m2',
+      exists c2' (r': reserve) m2',
         reserve_incr r r' /\
         reserve_separated r r' inject_id m1 m2 /\
         match_states c1' r' c1' m1' c2' m2' /\
-        guarantee Sem2 r c2' m2' /\
+        guarantee Sem2 r' c2' m2' /\
         corestep_plus Sem2 ge2 c2 m2 c2' m2'.
 
 Lemma ext_simulation_plus: 
@@ -367,7 +367,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          effects Sem1 st1 AllocEffect b1 (ofs2 - delta).
 
    Variable match_antimono : 
-     forall d r0 r j st m st' m',
+     forall d (r0 r: reserve) j st m st' m',
        match_states d r j st m st' m' ->
        reserve_incr r0 r -> 
        match_states d r0 j st m st' m'.
@@ -380,7 +380,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 r m2,
+       forall vals1 c1 m1 j vals2 (r: reserve) m2,
           make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           mem_wd m1 -> mem_wd m2 ->
@@ -414,7 +414,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
                       (forall v2, In v2 vals2 -> val_valid v2 m2).
 
   Hypothesis inj_after_external:
-      forall d r r' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
+      forall d (r r': reserve) j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig,
         (d=st1 /\ match_states d r j st1 m1 st2 m2) ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         meminj_preserves_globals ge1 j -> 
@@ -457,7 +457,7 @@ Hypothesis order_wf: well_founded order.
           inject_separated j j' m1 m2 /\
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee' Sem2 j r c2' m2' /\
+          guarantee' Sem2 j' r' c2' m2' /\
           match_states c1' r' j' c1' m1' c2' m2' /\
           ((corestep_plus Sem2 ge2 c2 m2 c2' m2') \/
             corestep_star Sem2 ge2 c2 m2 c2' m2' /\
@@ -511,12 +511,12 @@ Section INJ_SIMULATION_STAR.
       forall c2 (r: reserve) m2 j, 
         guarantee Sem1 r c1' m1' -> 
         match_states c1 r j c1 m1 c2 m2 ->
-        (exists c2', exists m2', exists r', exists j', 
+        (exists c2', exists m2', exists r': reserve, exists j', 
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\ 
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee' Sem2 j r c2' m2' /\
+          guarantee' Sem2 j' r' c2' m2' /\
           match_states c1' r' j' c1' m1' c2' m2' /\
           (corestep_plus Sem2 ge2 c2 m2 c2' m2' 
             \/ ((measure c1' < measure c1)%nat /\ corestep_star Sem2 ge2 c2 m2 c2' m2'))).
@@ -544,12 +544,12 @@ Section INJ_SIMULATION_PLUS.
       forall c2 (r: reserve) m2 j, 
         guarantee Sem1 r c1' m1' /\
         match_states c1 r j c1 m1 c2 m2 ->
-        exists c2', exists m2', exists r', exists j', 
+        exists c2', exists m2', exists r': reserve, exists j', 
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\ 
           reserve_incr r r' /\
           reserve_separated r r' j' m1 m2 /\ 
-          guarantee' Sem2 j r c2' m2' /\
+          guarantee' Sem2 j' r' c2' m2' /\
           match_states c1' r' j' c1' m1' c2' m2' /\
           corestep_plus Sem2 ge2 c2 m2 c2' m2'.
   

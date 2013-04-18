@@ -1,7 +1,5 @@
 Require Import Coqlib.
-
 Require Import sepcomp.Coqlib2.
-
 Require Import Coq.Wellfounded.Inclusion.
 Require Import Coq.Wellfounded.Inverse_Image.
 

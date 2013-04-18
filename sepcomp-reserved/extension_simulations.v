@@ -7,6 +7,7 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.extension.
+Require Import sepcomp.compile_safe.
 
 Require Import Axioms.
 Require Import Coqlib.
@@ -70,6 +71,168 @@ Section CoreCompatibleDefs. Variables
    forall b ofs, effects (csem i) c AllocEffect b ofs -> 
      effects esem s AllocEffect b ofs.
 
+ Definition new_effects_aligned :=
+   forall ge s c m s' c' m',
+   proj_core E (active E s) s = Some c -> 
+   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+   corestep esem ge s m s' m' -> 
+   (forall k b ofs, 
+    new_effect esem k b ofs s s' <-> 
+    new_effect (csem (active E s)) k b ofs c c').
+
+ Definition inject_separated2 (j j': meminj) m :=
+   forall (b1 b2: block) delta,
+   j b1 = None ->
+   j' b1 = Some (b2, delta) ->
+   ~ Mem.valid_block m b2.
+
+ Lemma guarantee_step': 
+   owned_conserving -> 
+   new_effects_aligned -> 
+   forall ge (r r': reserve) j j' s c m s' c' m',
+   guarantee' esem j r s m ->   
+   guarantee' (csem (active E s)) j r c m -> 
+   proj_core E (active E s) s = Some c -> 
+   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+   corestep esem ge s m s' m' -> 
+   proj_core E (active E s) s' = Some c' -> 
+   reserve_separated2 r r' j' m -> 
+   reserve_valid' r j m -> 
+   reserve_incr r r' -> 
+   inject_incr j j' -> 
+   inject_separated2 j j' m -> 
+   effects_valid esem s m -> 
+   guarantee' (csem (active E s)) j' r' c' m' -> 
+   guarantee' esem j' r' s' m'.
+ Proof.
+ unfold new_effects_aligned.
+ intros OWN EQV; intros until m'. 
+ intros H1 H2 H3 H4 H5 H6 H7 H8 H9 INCR SEP EFVAL H9' b ofs VAL RR EF.
+ specialize (EQV _ _ _ _ _ _ _ H3 H4 H5).
+ destruct (new_effect_dec esem AllocEffect b ofs s s') as [N|R].
+ solve[destruct N as [X Y]; auto].
+ unfold new_effect in R.
+ assert (effects esem s AllocEffect b ofs \/
+         ~effects esem s' AllocEffect b ofs). admit.
+ destruct H; auto.
+ eapply effects_forward in H5; eauto.
+ solve[destruct H5; auto].
+ assert (H10: ~effects esem s AllocEffect b ofs).
+  intro CONTRA.
+  eapply effects_forward in H5; eauto.
+  solve[destruct H5 as [H5 _]; apply H; auto].
+ clear R; elimtype False. 
+ destruct (effects_dec esem s ModifyEffect b ofs).
+ destruct RR as [b0 [delta [JJ' RR']]].
+ destruct (reserve_dec r b0 (ofs-delta)).
+ case_eq (j b0).
+ intros [b' delta'] H11.
+ assert (b' = b /\ delta' = delta) as [EQ1 EQ2].
+  apply INCR in H11. 
+  rewrite H11 in JJ'.
+  solve[inv JJ'; auto].
+ subst.
+ assert (VAL0: Mem.valid_block m b).
+  solve[apply (H8 _ _ _ _ s0 H11)].
+ unfold guarantee', guarantee in H1.
+ apply H10. 
+ apply (H1 _ _ VAL0); auto.
+ solve[exists b0, delta; split; auto].
+ intros NONE.
+ unfold inject_separated2 in SEP.
+ apply (SEP _ _ _ NONE JJ').
+ solve[eapply EFVAL; eauto].
+ unfold reserve_separated2 in H6.
+ apply (H7 _ _ n RR' _ _ JJ').
+ solve[eapply EFVAL; eauto].
+ assert (NEW: new_effect esem ModifyEffect b ofs s s').
+  solve[split; auto].
+ rewrite EQV in NEW.
+ destruct NEW as [X Y]. 
+ unfold guarantee', guarantee in H9'.
+ specialize (H9' _ _ VAL RR Y).
+ solve[eapply OWN in H9'; eauto].
+ Qed.
+
+ Require Import sepcomp.Coqlib2.
+
+ Lemma guarantee_stepN: 
+   owned_conserving -> 
+   new_effects_aligned -> 
+   forall n ge (r r': reserve) j j' s c m s' c' m',
+   guarantee' esem j r s m ->   
+   guarantee' (csem (active E s)) j r c m -> 
+   proj_core E (active E s) s = Some c -> 
+   corestepN (csem (active E s)) (genv_map (active E s)) n c m c' m' -> 
+   corestepN esem ge n s m s' m' -> 
+   proj_core E (active E s) s' = Some c' -> 
+   reserve_separated2 r r' j' m -> 
+   reserve_valid' r j m -> 
+   reserve_incr r r' -> 
+   inject_incr j j' -> 
+   inject_separated2 j j' m -> 
+   effects_valid esem s m -> 
+   guarantee' (csem (active E s)) j' r' c' m' -> 
+   guarantee' esem j' r' s' m'.
+ Proof.
+ intros OWN ALIGN.
+ induction n; intros.
+ hnf in H2, H3.
+ inv H2; inv H3; auto.
+ intros b ofs VAL INJ EF.
+ unfold guarantee', guarantee in H.
+ specialize (H _ ofs VAL).
+ apply H; auto.
+ destruct INJ as [b0 [delta [X Y]]].
+ case_eq (j b0).
+ intros [b' delta'] W.
+ assert (b=b' /\ delta=delta') as [EQ1 EQ2].
+  apply H8 in W.
+  rewrite W in X.
+  solve[inv X; split; auto].
+ subst.
+ exists b0, delta'; split; auto.
+ destruct (reserve_dec r b0 (ofs-delta')); auto.
+ elimtype False.
+ unfold reserve_separated2 in H5.
+ apply (H5 _ _ n Y _ _ X).
+ solve[eapply H10; eauto].
+ intros NONE.
+ unfold inject_separated2 in H9.
+ elimtype False.
+ apply (H9 _ _ _ NONE X).
+ solve[eapply H10; eauto].
+ hnf in H2, H3.
+ destruct H2 as [c2 [m2 [STEP STEPN]]].
+ destruct H3 as [s2 [m2' [ESTEP ESTEPN]]].
+ assert (m2 = m2') by admit. (*by determinism*)
+ subst.
+ assert (guarantee' (csem (active E s)) j' r' c2 m2').
+  admit. (*by guarantee_closed_backwards, STEP, and H11*)
+ assert (INTER: guarantee' esem j' r' s2 m2').
+  apply guarantee_step' 
+   with (s := s) (c := c) (m := m) (r := r) (j := j) (c' := c2) (ge := ge0); auto.
+  admit. (*by extension property*)
+ assert (EQ: active E s = active E s2) by admit. (*by extension property*)
+ forget (active E s) as x; subst.
+ specialize (IHn ge0 r' r' j' j' s2 c2 m2' s' c' m').
+ spec IHn; auto.
+ spec IHn; auto. 
+ spec IHn. admit. (*by extension property*)
+ spec IHn; auto.
+ spec IHn; auto.
+ spec IHn; auto.
+ spec IHn; auto.
+ solve[intros ? ? ? ?; elimtype False; auto].
+ spec IHn; auto.
+ admit. (*need to construct truncated r_interpolant*)
+ spec IHn. solve[intros ? ? ?; auto].
+ spec IHn; auto.
+ spec IHn. solve[intros ? ? ? ? ?; congruence].
+ spec IHn. solve[eapply effects_valid_preserved; eauto].
+ apply IHn; auto.
+ Qed. 
+
 End CoreCompatibleDefs.
 
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
@@ -127,18 +290,46 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
 
  Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
- Definition match_states (cd: core_datas) (r: reserve) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
+ Definition allocs_shrink j s1 s2 :=
+   forall b1 b2 ofs2 delta, 
+   effects esemT s2 AllocEffect b2 ofs2 -> 
+   j b1 = Some (b2, delta) -> 
+   effects esemS s1 AllocEffect b1 (ofs2-delta).
+
+ Definition match_states (cd: core_datas) (r: reserve) (j: meminj) 
+                         (s1: xS) m1 (s2: xT) m2 :=
    owned_valid esemS csemS E_S s1 m1 /\ owned_disjoint esemS csemS E_S s1 /\ 
    owned_valid esemT csemT E_T s2 m2 /\ owned_disjoint esemT csemT E_T s2 /\
    reserve_valid r m1 /\ reserve_valid' r j m2 /\
+   core_semantics.effects_valid esemS s1 m1 /\ 
+   core_semantics.effects_valid esemT s2 m2 /\
+   mem_wd m1 /\ mem_wd m2 /\
+   guarantee esemS r s1 m1 /\ guarantee' esemT j r s2 m2 /\
+   allocs_shrink j s1 s2 /\
    R r j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
-   forall i c1, PROJ_CORE E_S i s1 = Some c1 -> 
+   (*invariant on active cores*)
+   (forall c1, 
+     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
+     guarantee (csemS (ACTIVE E_S s1)) r c1 m1 /\
+     (exists z: Z, 
+       compile_safe (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) z r c1 m1) /\
+     exists c2, PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 /\ 
+       guarantee' (csemT (ACTIVE E_S s1)) j r c2 m2 /\
+       match_state (ACTIVE E_S s1) (cd (ACTIVE E_S s1)) r j c1 m1 c2 m2) /\
+   (*invariant on inactive cores*)
+   (forall i c1, 
+     i <> ACTIVE E_S s1 -> 
+     PROJ_CORE E_S i s1 = Some c1 -> 
      exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
-       match_state i (cd i) r j c1 m1 c2 m2.
+     exists cd0 (r0: reserve) j0 m10 m20,
+       guarantee (csemS i) r0 c1 m10 /\
+       (exists z: Z, compile_safe (csemS i) (genv_mapS i) z r0 c1 m10) /\
+       guarantee' (csemT i) j0 r0 c2 m20 /\
+       match_state i cd0 r0 j0 c1 m10 c2 m20).
 
  Inductive Sig: Type := Make: forall  
- (corestep_rel: forall cd r r' j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
+ (corestep_rel: forall cd (r r': reserve) j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
    match_states cd r j s1 m1 s2 m2 -> 
@@ -153,13 +344,12 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    corestep esemS ge_S s1 m1 s1' m1' -> 
    corestepN esemT ge_T n s2 m2 s2' m2' -> 
    match_state (ACTIVE E_S s1) cd' r' j' c1' m1' c2' m2' -> 
-   Events.mem_unchanged_on (fun b ofs => 
-     ~effects (csemS (ACTIVE E_S s1)) c1' ModifyEffect b ofs) m1 m1' -> 
-   Events.mem_unchanged_on (fun b ofs => 
-     ~effects (csemT (ACTIVE E_S s1)) c2' ModifyEffect b ofs) m2 m2' -> 
+   guarantee (csemS (ACTIVE E_S s1)) r c1' m1' -> 
+   guarantee' (csemT (ACTIVE E_S s1)) j r c2' m2' -> 
    R r' j' s1' m1' s2' m2')
 
- (after_external_rel: forall cd r r' j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
+ (after_external_rel: 
+   forall cd (r r': reserve) j j' s1 m1 s2 m2 s1' m1' s2' m2' ret1 ret2 ef sig args1,
    match_states cd r j s1 m1 s2 m2 -> 
    inject_incr j j' -> 
    Events.inject_separated j j' m1 m2 -> 
@@ -177,7 +367,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    val_has_type_opt ret2 (ef_sig ef) -> 
    val_inject_opt j' ret1 ret2 -> 
    R r' j' s1' m1' s2' m2')   
- 
+
  (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd r j,
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
@@ -191,16 +381,14 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Forall2 (val_inject j) args1 args2 -> 
    Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
-   exists s2', exists m2', exists cd', exists r', exists j',
+   guarantee esemS r s1' m1' -> 
+   exists s2', exists m2', exists cd', exists r': reserve, exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      reserve_incr r r' /\
      reserve_separated r r' j' m1 m2 /\
+     guarantee' esemT j' r' s2' m2' /\
      match_states cd' r' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
-       ~effects esemS s1' ModifyEffect b ofs) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
-       ~effects esemT s2' ModifyEffect b ofs) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
@@ -219,17 +407,42 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
- (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 r j sig,
+ (after_external_diagram: 
+   forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd (r r': reserve) j j',
+   match_state i cd r j d1 m1 d2 m2 -> 
+   at_external esemS s1 = Some (ef, sig, args1) -> 
+   Events.meminj_preserves_globals ge_S j -> 
+   inject_incr j j' -> 
+   Events.inject_separated j j' m1 m2 -> 
+   reserve_incr r r' -> 
+   reserve_separated r r' j' m1 m2 -> 
+   Mem.inject j' m1' m2' -> 
+   val_inject_opt j' retv1 retv2 -> 
+   mem_forward m1 m1' -> 
+   mem_forward m2 m2' -> 
+   rely (csemS i) r d1 m1 m1' ->  
+   rely' (csemT i) j r d2 m2 m2' -> 
+   val_has_type_opt' retv2 (proj_sig_res (ef_sig ef)) -> 
+   after_external esemS retv1 s1 = Some s1' -> 
+   after_external esemT retv2 s2 = Some s2' -> 
+   PROJ_CORE E_S i s1' = Some d1 -> 
+   PROJ_CORE E_T i s2' = Some d2 -> 
+   ACTIVE E_S s1 <> i -> 
+   match_state i cd r' j' d1 m1' d2 m2')
+
+ (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 (r: reserve) j sig,
    In (v1, v2, sig) entry_points -> 
    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
    Mem.inject j m1 m2 -> 
+   mem_wd m1 -> 
+   mem_wd m2 -> 
    reserve_valid r m1 -> 
    reserve_valid' r j m2 -> 
    Forall2 (val_inject j) vals1 vals2 -> 
    Forall2 Val.has_type vals2 (sig_args sig) -> 
    exists cd, exists s2, 
-                make_initial_core esemT ge_T v2 vals2 = Some s2 /\
-                match_states cd r j s1 m1 s2 m2)
+     make_initial_core esemT ge_T v2 vals2 = Some s2 /\
+     match_states cd r j s1 m1 s2 m2)
  
  (safely_halted_step: forall cd r j c1 m1 c2 m2 v1 rty,
    match_states cd r j c1 m1 c2 m2 -> 
@@ -246,20 +459,18 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
    safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
    corestep esemS ge_S s1 m1 s1' m1' ->  
+   guarantee esemS r s1' m1' -> 
    exists rv2, 
      safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
      val_inject j rv1 rv2 /\ 
-   exists s2', exists m2', exists cd', exists r', exists j', 
-     inject_incr j j' /\
-     Events.inject_separated j j' m1 m2 /\
-     reserve_incr r r' /\
-     reserve_separated r r' j' m1 m2 /\
-     corestep esemT ge_T s2 m2 s2' m2' /\
-     match_states cd' r' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
-       ~effects (csemS (ACTIVE E_S s1)) c1 ModifyEffect b ofs) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
-       ~effects (csemT (ACTIVE E_S s1)) c2 ModifyEffect b ofs) m2 m2'),
+     exists s2', exists m2', exists cd', exists r': reserve, exists j', 
+       inject_incr j j' /\
+       Events.inject_separated j j' m1 m2 /\
+       reserve_incr r r' /\
+       reserve_separated r r' j' m1 m2 /\
+       corestep esemT ge_T s2 m2 s2' m2' /\
+       match_states cd' r' j' s1' m1' s2' m2' /\
+       guarantee' esemT j' r' s2' m2'),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
@@ -362,14 +573,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
 
  Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
- Definition match_states (cd: core_datas) (r: reserve) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   R r j s1 m1 s2 m2 /\ active E_S s1=active E_T s2 /\
-   forall i c1, proj_core E_S i s1 = Some c1 -> 
-     exists c2, proj_core E_T i s2 = Some c2 /\ 
-       match_state i (cd i) r j c1 m1 c2 m2.
-
  Record Sig: Type := Make {
-   _ : (forall i: nat, StableRelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
+   _ : (forall i: nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
          (genv_mapS i) (match_state i)) -> 
        genvs_domain_eq ge_S ge_T -> 
        (forall i: nat, genvs_domain_eq ge_S (genv_mapS i)) -> 
@@ -380,6 +585,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        owned_conserving esemT csemT E_T ->
        (forall x, active E_S x < max_cores)%nat ->  
        (forall x, active E_T x < max_cores)%nat ->  
+       new_effects_aligned esemT csemT genv_mapT E_T -> 
        (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 

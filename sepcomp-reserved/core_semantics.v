@@ -1,12 +1,4 @@
 (*CompCert imports*)
-Add LoadPath "../compcert/lib".
-Add LoadPath "../compcert/flocq/Appli".
-Add LoadPath "../compcert/flocq/Calc".
-Add LoadPath "../compcert/flocq/Core".
-Add LoadPath "../compcert/flocq/Prop".
-Add LoadPath "../compcert/common".
-Add LoadPath "../compcert/cfrontend".
-Add LoadPath "..".
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
@@ -292,25 +284,38 @@ Inductive effect_kind: Type := AllocEffect | ModifyEffect.
 Record EffectfulSemantics {G C D} :=
   { csem :> CoopCoreSem G C D;
     effects: C -> effect_kind -> block -> Z -> Prop;
-    effects_dec: forall c k b ofs, 
+    effects_dec: 
+      forall c k b ofs, 
       {effects c k b ofs}+{~effects c k b ofs};
-    effects_initial: forall b ofs ge v vs c k,
+    effects_initial: 
+      forall b ofs ge v vs c k,
       make_initial_core csem ge v vs = Some c -> 
       ~effects c k b ofs;
-    effects_forward: forall b ofs ge c m c' m' k,
+    effects_forward: 
+      forall b ofs ge c m c' m' k,
       corestep csem ge c m c' m' -> 
       effects c k b ofs -> 
       effects c' k b ofs /\
       mem_unchanged_on (fun b' ofs' => ~effects c' ModifyEffect b' ofs') m m';
-    effects_backward_alloc: forall b ofs ge c m c' m',
+    effects_backward_alloc: 
+      forall b ofs ge c m c' m',
       corestep csem ge c m c' m' -> 
       (effects c' AllocEffect b ofs <->
         effects c AllocEffect b ofs \/ 
         Mem.nextblock m <= b < Mem.nextblock m'); (*b newly allocated*)
-    effects_external: forall b ofs c c' k retv ef sig args,
+    effects_external: 
+      forall b ofs c c' k retv ef sig args,
       at_external csem c = Some (ef, sig, args) -> 
       after_external csem retv c = Some c' -> 
-      (effects c k b ofs <-> effects c' k b ofs)}.
+      (effects c k b ofs <-> effects c' k b ofs); 
+    effects_valid c m :=   
+      forall b ofs k, effects c k b ofs -> 
+      Mem.valid_block m b;
+    effects_valid_preserved: 
+      forall ge c m c' m', 
+      corestep csem ge c m c' m' -> 
+      effects_valid c m -> 
+      effects_valid c' m'}.
 
 Implicit Arguments EffectfulSemantics [].
 
@@ -331,10 +336,13 @@ Section EffectfulSemanticsLemmas.
 Context {G C D: Type}.
 Variable (efsem: EffectfulSemantics G C D).
 
-Definition effects_valid c m := 
-  forall b ofs k, 
-  effects efsem c k b ofs -> 
-  Mem.valid_block m b.
+Definition new_effect k b ofs c c' :=
+  ~effects efsem c k b ofs /\ effects efsem c' k b ofs.
+
+Lemma new_effect_dec: 
+  forall k b ofs c c',
+  {new_effect k b ofs c c'}+{~new_effect k b ofs c c'}.
+Admitted.
 
 Lemma effects_new: forall b ofs ge c m c' m',
   ~effects efsem c AllocEffect b ofs -> 
@@ -389,6 +397,44 @@ omega.
 solve[eapply IHn with (m := m2); eauto].
 Qed.
 
+Lemma effects_backward_allocN: 
+  forall b ofs ge n c m c' m',
+  corestepN efsem ge (S n) c m c' m' -> 
+  (effects efsem c' AllocEffect b ofs <-> 
+   effects efsem c AllocEffect b ofs \/
+   Mem.nextblock m <= b < Mem.nextblock m').
+Proof.
+induction n; simpl; intros until m'; intro H1.
+destruct H1 as [c2 [m2 [STEP EQ]]].
+inv EQ.
+solve[eapply effects_backward_alloc; eauto].
+destruct H1 as [c2 [m2 [STEP [c3 [m3 [STEP' STEPN]]]]]].
+assert (H:
+  effects efsem c' AllocEffect b ofs <->
+  effects efsem c2 AllocEffect b ofs \/
+  Mem.nextblock m2 <= b < Mem.nextblock m').
+ solve[apply IHn; hnf; exists c3, m3; split; auto].
+rewrite H.
+rewrite effects_backward_alloc; eauto.
+split; [intros [[X|X]|X]|].
+solve[left; auto].
+destruct X; right; split; auto.
+apply corestepN_fwd in STEPN; apply STEPN.
+solve[apply corestep_fwd in STEP'; apply STEP'; auto].
+destruct X; right; split; auto.
+assert (Mem.nextblock m <= Mem.nextblock m2).
+ apply corestep_fwd in STEP.
+ solve[apply forward_nextblock; auto].
+omega.
+intros [X|X].
+left; auto.
+destruct X.
+destruct (Z_lt_dec b (Mem.nextblock m2)).
+left; right; split; auto.
+assert (Mem.nextblock m2 <= b) by omega.
+solve[right; split; auto].
+Qed.
+
 Notation reserve_type := (block -> Z -> Prop).
 
 Record reserve := {sort :> reserve_type;
@@ -409,8 +455,8 @@ Axiom inject_reserve_exists : forall  (f: meminj) (r: reserve), exists (rr:reser
 Definition reserve_incr_tp (r1 r2: reserve_type) :=
   forall b ofs, r1 b ofs -> r2 b ofs.
 
-Definition reserve_incr (r1 r2: reserve) := reserve_incr_tp r1 r2.
-(*  forall b ofs, r1 b ofs -> r2 b ofs.*)
+Definition reserve_incr (r1 r2: reserve_type) := 
+  forall b ofs, r1 b ofs -> r2 b ofs.
 
 Lemma reserve_incr_refl: forall r, reserve_incr r r.
 Proof. intros r b; auto. Qed.
@@ -419,47 +465,53 @@ Lemma reserve_incr_trans: forall r1 r2 r3,
    reserve_incr r1 r2 -> reserve_incr r2 r3 -> reserve_incr r1 r3.
 Proof. intros. intros b. intros. apply H0. apply H. apply H1. Qed.
 
-Definition reserve_valid (r: reserve) (m: mem) :=
+Definition reserve_valid (r: reserve_type) (m: mem) :=
   forall b ofs, r b ofs -> Mem.valid_block m b.
 
-Lemma reserve_incr_mono: forall j j'
-              (Inc : inject_incr j j') m1 m2
-              (Sep : inject_separated j j' m1 m2) r
-              (RV : reserve_valid r m1) r'
-              (Rinc : reserve_incr_tp (inject_reserve j r) r'),
-       reserve_incr_tp (inject_reserve j' r) r'.
+Lemma reserve_incr_mono: 
+  forall j j'
+  (Inc : inject_incr j j') m1 m2
+  (Sep : inject_separated j j' m1 m2) r
+  (RV : reserve_valid r m1) r'
+  (Rinc : reserve_incr_tp (inject_reserve j r) r'),
+    reserve_incr_tp (inject_reserve j' r) r'.
 Proof. intros. intros b; intros. apply Rinc. 
-                  destruct H as [b1 [delta [HJ HR]]].
-                  exists b1. exists delta. split; trivial. 
-                  remember (j b1) as q.
-                  destruct q; apply eq_sym in Heqq. 
-                          destruct p. rewrite (Inc _ _ _ Heqq) in HJ. apply HJ.
-                  exfalso. specialize (RV _ _ HR). 
-                               destruct (Sep _ _ _ Heqq HJ). apply (H RV).
+  destruct H as [b1 [delta [HJ HR]]].
+  exists b1. exists delta. split; trivial. 
+  remember (j b1) as q.
+  destruct q; apply eq_sym in Heqq. 
+  destruct p. rewrite (Inc _ _ _ Heqq) in HJ. apply HJ.
+  exfalso. specialize (RV _ _ HR). 
+  destruct (Sep _ _ _ Heqq HJ). apply (H RV).
 Qed.
 
 Lemma inject_reserve_incr: forall r rr (R: reserve_incr r rr) j,
-             reserve_incr_tp (inject_reserve j r) (inject_reserve j rr).
-Proof. intros. intros b; intros. 
-   destruct H as [b1 [delta [J H]]].
-   exists b1. exists delta. specialize (R _ _ H).
-   auto.
+  reserve_incr_tp (inject_reserve j r) (inject_reserve j rr).
+Proof. 
+  intros. intros b; intros. 
+  destruct H as [b1 [delta [J H]]].
+  exists b1. exists delta. specialize (R _ _ H).
+  auto.
 Qed.
 
-Definition reserve_valid' (r: reserve) (f: meminj) (m: mem) :=
+Definition reserve_valid' (r: reserve_type) (f: meminj) (m: mem) :=
   forall b ofs b0 delta,
   r b0 (ofs-delta) -> 
   f b0 = Some (b, delta) -> 
   Mem.valid_block m b.
 
-Definition reserve_separated1 (r r': reserve) m := 
-  forall b ofs, ~r b ofs -> r' b ofs -> ~Mem.valid_block m b.
-
-Definition reserve_separated (r r': reserve) (f': meminj) (m1 m2: mem) :=
+Definition reserve_separated (r r': reserve_type) (f': meminj) (m1 m2: mem) :=
   forall b1 ofs, 
     ~r b1 ofs -> r' b1 ofs -> 
     ~Mem.valid_block m1 b1 /\ 
     (forall delta b2, f' b1 = Some (b2, delta) -> ~Mem.valid_block m2 b2).
+
+Definition reserve_separated1 (r r': reserve_type) m := 
+  forall b ofs, ~r b ofs -> r' b ofs -> ~Mem.valid_block m b.
+
+Definition reserve_separated2 (r r': reserve_type) (f': meminj) m :=
+  forall b1 ofs, ~r b1 ofs -> r' b1 ofs -> 
+    forall delta b2, f' b1 = Some (b2, delta) -> ~Mem.valid_block m b2.
 
 Lemma reserve_separated_same: forall r j m1 m2,
     reserve_separated r r j m1 m2.
@@ -627,6 +679,186 @@ assert (effects efsem c2 AllocEffect b' ofs').
  unfold Mem.valid_block in R1, SEP. 
  solve[right; omega].
 solve[eapply effects_forwardN; eauto].
+Qed.
+
+Lemma guarantee_incr_alloc': 
+  forall ge j j2 (r r2: reserve) c mleft m c2 m2 c' m' n,
+  (forall b0 b delta, 
+    j b0 = Some (b, delta) -> Mem.valid_block mleft b0) -> 
+  inject_incr j j2 -> 
+  inject_separated j j2 mleft m -> 
+  guarantee (inject_reserve j r) c' m' -> 
+  reserve_valid (inject_reserve j2 r2) m2 -> 
+  reserve_separated1 r r2 mleft -> 
+  corestep efsem ge c m c2 m2 -> 
+  corestepN efsem ge n c2 m2 c' m' ->
+  guarantee (inject_reserve j2 r2) c' m'.
+Proof.
+intros until n; intros INJ INCR INJSEP G1 R1 SEP STEP STEPN b' ofs' VAL R2 EFM.
+assert (G0: guarantee (inject_reserve j r) c m).
+ eapply guarantee_backward_stepN; eauto.
+ instantiate (1 := S n); hnf.
+ solve[exists c2, m2; split; eauto].
+specialize (R1 _ _ R2).
+specialize (G1 _ ofs' VAL).
+destruct R2 as [b0 [delta0 [X Y]]].
+destruct (reserve_dec r b0 (ofs'-delta0)) as [RT|RF].
+case_eq (j b0); [intros [b2 delta2] EQ|].
+assert (b' = b2) as ->.
+ apply INCR in EQ.
+ solve[rewrite EQ in X; inv X; auto].
+assert (EQ': delta0 = delta2).
+ apply INCR in EQ.
+ solve[rewrite EQ in X; inv X; auto].
+subst delta0.
+apply G1; auto.
+solve[exists b0, delta2; split; auto].
+intros NONE.
+destruct (INJSEP _ _ _ NONE X) as [Z W].
+rewrite effects_backward_allocN.
+right.
+split; eauto.
+instantiate (1 := m).
+unfold Mem.valid_block in W.
+omega.
+instantiate (1 := c).
+instantiate (1 := n).
+instantiate (1 := ge).
+hnf.
+exists c2, m2; split; auto.
+specialize (SEP _ _ RF Y).
+assert (effects efsem c2 AllocEffect b' ofs').
+ rewrite effects_backward_alloc; eauto.
+ unfold Mem.valid_block in R1, SEP. 
+ right; split; auto.
+ case_eq (j b0).
+ intros [b2 delta2] EQ.
+ eapply INJ in EQ; eauto.
+ unfold Mem.valid_block in EQ.
+ omegaContradiction.
+ intros NONE.
+ destruct (INJSEP _ _ _ NONE X).
+ destruct (Z_lt_dec b' (Mem.nextblock m)); try solve[omega].
+ solve[elimtype False; auto].
+solve[eapply effects_forwardN; eauto].
+Qed.
+
+Lemma guarantee_incr_alloc1: 
+  forall ge (r r': reserve) c m c' m',
+  guarantee r c' m' -> 
+  reserve_valid r' m' -> 
+  reserve_separated1 r r' m -> 
+  corestep efsem ge c m c' m' -> 
+  guarantee r' c' m'.
+Proof.
+intros.
+eapply guarantee_incr_alloc; eauto.
+instantiate (1 := O).
+solve[hnf; auto].
+Qed.
+
+Lemma guarantee_incr_alloc1': 
+  forall ge j j' (r r': reserve) c mleft m c' m',
+  (forall b0 b delta, 
+    j b0 = Some (b, delta) -> Mem.valid_block mleft b0) -> 
+  inject_incr j j' -> 
+  inject_separated j j' mleft m -> 
+  guarantee (inject_reserve j r) c' m' -> 
+  reserve_valid (inject_reserve j' r') m' -> 
+  reserve_separated1 r r' mleft -> 
+  corestep efsem ge c m c' m' -> 
+  guarantee (inject_reserve j' r') c' m'.
+Proof.
+intros.
+eapply guarantee_incr_alloc'; eauto.
+instantiate (1 := O).
+solve[hnf; auto].
+Qed.
+
+Lemma alloc_mod_alloc: 
+  forall b ofs ge c m c' m' r,
+  corestep efsem ge c m c' m' -> 
+  guarantee r c' m' -> 
+  r b ofs -> 
+  Mem.valid_block m' b -> 
+  ~effects efsem c AllocEffect b ofs -> 
+  effects efsem c' ModifyEffect b ofs -> 
+  effects efsem c' AllocEffect b ofs.
+Proof.
+intros until r.
+intros STEP GR RR VAL NA EFM.
+apply (GR _ ofs VAL RR EFM).
+Qed.
+
+Lemma rely_same_effects: 
+  forall r c c' m m',
+  rely r c m m' -> 
+  (forall k b ofs, effects efsem c k b ofs <-> effects efsem c' k b ofs) -> 
+  rely r c' m m'.
+Proof.
+intros until m'; intros RELY EFSAME.
+unfold rely in RELY|-*.
+apply mem_unchanged_on_sub with (Q := 
+  (fun b ofs => r b ofs /\ effects efsem c AllocEffect b ofs)); auto.
+intros b ofs [? ?]; split; auto.
+solve[rewrite EFSAME; auto].
+Qed.
+
+Lemma effects_valid_after_ext: 
+  forall c c' m m' rv e sig args,
+  effects_valid efsem c m -> 
+  at_external efsem c = Some (e, sig, args) -> 
+  after_external efsem rv c = Some c' -> 
+  mem_forward m m' -> 
+  effects_valid efsem c' m'.
+Proof.
+intros until args; intros EV AT AFT FW.
+intros b ofs k EF.
+apply FW.
+eapply EV; eauto.
+rewrite <-effects_external in EF; eauto.
+Qed.
+
+Lemma guarantee_after_ext: 
+  forall (r r': reserve) c c' m m' rv e sig args,
+  guarantee r c m -> 
+  effects_valid efsem c m -> 
+  at_external efsem c = Some (e, sig, args) -> 
+  after_external efsem rv c = Some c' -> 
+  mem_forward m m' -> 
+  reserve_incr r r' -> 
+  reserve_separated1 r r' m -> 
+  reserve_valid r m ->
+  guarantee r' c' m'.
+Proof.
+intros until args; intros GR EFVAL AT AFT FW INCR SEP VALID.
+intros b ofs VAL R EF.
+rewrite <-effects_external; eauto.
+rewrite <-effects_external in EF; eauto.
+destruct (reserve_dec r b ofs).
+apply GR; auto.
+specialize (SEP b ofs).
+solve[eapply VALID; eauto].
+specialize (SEP _ _ n R).
+solve[apply EFVAL in EF; elimtype False; auto].
+Qed.
+
+Lemma guarantee_after_ext': 
+  forall (r r': reserve) c c' m m' rv e sig args,
+  guarantee r c m -> 
+  effects_valid efsem c m -> 
+  at_external efsem c = Some (e, sig, args) -> 
+  after_external efsem rv c = Some c' -> 
+  mem_forward m m' -> 
+  reserve_incr r r' -> 
+  reserve_separated1 r r' m -> 
+  reserve_valid r m ->
+  guarantee r c' m'.
+Proof.
+intros.
+cut (guarantee r' c' m'). intro H7.
+solve[eapply guarantee_decr; eauto].
+solve[eapply guarantee_after_ext; eauto].
 Qed.
 
 End EffectfulSemanticsLemmas.

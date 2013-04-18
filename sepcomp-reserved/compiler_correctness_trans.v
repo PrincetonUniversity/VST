@@ -230,9 +230,9 @@ Lemma  diagram_extext: forall
 (G1 C1 D1 : Type)
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
-(Sem1 : CoopCoreSem G1 C1 D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem1 : EffectfulSemantics G1 C1 D1)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -252,7 +252,7 @@ Lemma  diagram_extext: forall
                         corestep_star Sem2 Genv2 st2 m2 st2'
                           m2' /\ core_ord12 cd' cd))
   epts23 
-  (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends
+  (SimExt23 : Forward_simulation_ext.Forward_simulation_extends
             _ _ Sem2 Sem3 Genv2
              Genv3 epts23)
 (st1 : C1)
@@ -261,26 +261,26 @@ Lemma  diagram_extext: forall
 (m1' : mem)
 (CS1 : corestep Sem1 Genv1 st1 m1 st1' m1')
 (d12 : core_data12)
-(d23 :Coop_forward_simulation_ext.core_data SimExt23)
+(d23 : Forward_simulation_ext.core_data SimExt23)
 (st3 : C3)
 (m3 : mem)
 (st2 : C2)
 (m2 : mem)
 (MC12 : match_core12 d12 st1 m1 st2 m2)
-(MC23 : Coop_forward_simulation_ext.match_state SimExt23 d23 st2 m2 st3 m3),
+(MC23 : Forward_simulation_ext.match_state SimExt23 d23 st2 m2 st3 m3),
 exists st3' : C3,
   exists m3' : mem,
-    exists (cd' : core_data12 * option C2 * Coop_forward_simulation_ext.core_data SimExt23),
+    exists (cd' : core_data12 * option C2 * Forward_simulation_ext.core_data SimExt23),
       (let (y, d2) := cd' in
        let (d1, X) := y in
        exists c2 : C2,
          exists m2 : mem,
            X = Some c2 /\
            match_core12 d1 st1' m1' c2 m2 /\ 
-           Coop_forward_simulation_ext.match_state SimExt23 d2 c2 m2 st3' m3') /\
+           Forward_simulation_ext.match_state SimExt23 d2 c2 m2 st3' m3') /\
       (corestep_plus Sem3 Genv3 st3 m3 st3' m3' \/
        corestep_star Sem3 Genv3 st3 m3 st3' m3' /\
-      (sem_compose_ord_eq_eq core_ord12 (clos_trans _ (Coop_forward_simulation_ext.core_ord SimExt23)) C2) cd'
+      (sem_compose_ord_eq_eq core_ord12 (clos_trans _ (Forward_simulation_ext.core_ord SimExt23)) C2) cd'
          (d12, Some st2, d23)).
 Proof. 
   intros.
@@ -319,9 +319,9 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
   (I : forall F C V : Type, 
         CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
         AST.program F V -> Prop)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -456,8 +456,8 @@ Lemma diagram_injinj: forall
 (F2 V2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1) 
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -566,9 +566,9 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
   (I :forall F C V : Type, 
     CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
     AST.program F V -> Prop)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -897,9 +897,9 @@ Lemma diagram_eqext: forall
 (G1 C1 D1 : Type)
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
-(Sem1 : CoopCoreSem G1 C1 D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem1 : EffectfulSemantics G1 C1 D1)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -976,9 +976,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1073,8 +1073,8 @@ Lemma diagram_eqinj: forall
 (F2 V2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1158,9 +1158,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1330,9 +1330,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
 (I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-(Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-(Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+(Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+(Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+(Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1428,8 +1428,8 @@ Lemma  diagram_extinj: forall
 (F2 V2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem  (Genv.t F2 V2) C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics  (Genv.t F2 V2) C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1520,9 +1520,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1654,7 +1654,7 @@ Lemma  diagram_injeq: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
+(Sem2 : EffectfulSemantics G2 C2 D2)
 (Sem3 : CoreSemantics G3 C3 mem D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
@@ -1741,9 +1741,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        j12
@@ -1845,8 +1845,8 @@ Lemma  diagram_injext: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1943,9 +1943,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        j12
@@ -2536,9 +2536,9 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
   (I : forall F C V : Type, 
         CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
         AST.program F V -> Prop)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2671,8 +2671,8 @@ Lemma diagram_injinj2: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -2866,9 +2866,9 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
   (I :forall F C V : Type, 
     CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
     AST.program F V -> Prop)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+  (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -3360,9 +3360,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -3447,8 +3447,8 @@ Lemma diagram_eqinj: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -3599,8 +3599,8 @@ Qed.
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
        (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -3910,9 +3910,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
 (I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-(Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-(Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+(Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+(Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+(Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -3999,8 +3999,8 @@ Lemma  diagram_extinj: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem2 : EffectfulSemantics G2 C2 D2)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -4182,9 +4182,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -4425,7 +4425,7 @@ Lemma  diagram_injeq: forall
 (G2 C2 D2 : Type)
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
+(Sem2 : EffectfulSemantics G2 C2 D2)
 (Sem3 : CoreSemantics G3 C3 mem D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
@@ -4569,7 +4569,7 @@ Qed.
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
        (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
        (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
@@ -4666,7 +4666,7 @@ Lemma  diagram_injext: forall
 (G3 C3 D3 : Type)
 (Sem1 : CoreSemantics G1 C1 mem D1)
 (Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(Sem3 : EffectfulSemantics G3 C3 D3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -4834,9 +4834,9 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (Sem1 : EffectfulSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
+       (Sem2 : EffectfulSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+       (Sem3 : EffectfulSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        j12
