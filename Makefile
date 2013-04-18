@@ -58,6 +58,7 @@ SEPCOMP_FILES= \
   mem_interpolation_EE.v mem_interpolation_EI.v \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v \
+  compile_safe.v \
   core_semantics.v forward_simulations.v rg_forward_simulations.v \
   forward_simulations_lemmas.v \
   extension.v extension_safety.v extension_simulations.v \
