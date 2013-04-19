@@ -479,6 +479,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) (genv_mapS i) (genv_mapT i) 
    entry_points (core_data i) (match_state i) (core_ord i).
 
+ Variable match_inject: forall i cd r j c1 m1 c2 m2,
+   match_state i cd r j c1 m1 c2 m2 -> 
+   Mem.inject j m1 m2.
+
  Definition core_datas := forall i:nat, core_data i.
 
  Variable R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop.
@@ -962,9 +966,11 @@ split; auto.
 
  (*mem_wd*)
  split.
- admit. (*mem_wd*)
+ eapply match_memwd in MATCH12'; eauto.
+ solve[destruct MATCH12'; auto].
  split.
- admit. (*mem_wd*)
+ eapply match_memwd in MATCH12'; eauto.
+ solve[destruct MATCH12'; auto].
  
  (*guarantee*)
  split.
@@ -1167,9 +1173,11 @@ split.
 
  (*mem_wd*)
  split.
- admit. (*mem_wd*)
+ eapply match_memwd in MATCH12'; eauto.
+ solve[destruct MATCH12'; auto].
  split.
- admit. (*mem_wd*)
+ eapply match_memwd in MATCH12'; eauto.
+ solve[destruct MATCH12'; auto].
 
  (*guarantee*)
  split.
@@ -1503,8 +1511,36 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  as [vals2 X].
  destruct AT_EXT2 as [vals2 [? [? [? ?]]]].
  exists vals2.
- admit. (*by esig_compilable, at_external_match*)
+ assert (X: 
+   exists (c0: cS (ACTIVE E_S st1)) (c3: cT (ACTIVE E_S st1)),
+     PROJ_CORE E_S (ACTIVE E_S st1) st1 = Some c0 /\
+     PROJ_CORE E_T (ACTIVE E_S st1) st2 = Some c3 /\
+     at_external (csemS (ACTIVE E_S st1)) c0 = Some (e, sig, vals1) /\
+     at_external (csemT (ACTIVE E_S st1)) c3 = Some (e, sig, vals2) /\
+     match_state (ACTIVE E_S st1) (cd (ACTIVE E_S st1)) r j c0 m1 c3 m2).
+  forget (ACTIVE E_S st1) as x.
+  forget (ACTIVE E_S st1') as x'.
+  forget (ACTIVE E_T st2) as y.
+  forget (ACTIVE E_T st2') as y'.
+  do 3 subst.
+  exists c1, c2.
+  solve[split3; auto].
+ destruct X as [c0 [c3 [X1 [X2 [X3 [X4 X5]]]]]].
+ inv esig_compilable.
+ specialize (at_external_match st1 m1 st2 c0 c3 m2 e sig vals1 vals2
+   (cd (ACTIVE E_S st1)) r j).
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ unfold runnable. solve[rewrite X3, X4; auto].
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ solve[eapply match_inject; eauto].
 solve[eapply effects_valid_after_ext; eauto].
+
 (*mem_wd_after_ext*)
 split; auto.
 split; auto.
@@ -1516,7 +1552,36 @@ solve[intros b ofs ? ?; eapply H6; eauto].
 split.
 assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  as [vals2 X].
- admit. (*by esig_compilable, at_external_match*)
+ destruct AT_EXT2 as [vals2 [? [? [? ?]]]].
+ exists vals2.
+ assert (X: 
+   exists (c0: cS (ACTIVE E_S st1)) (c3: cT (ACTIVE E_S st1)),
+     PROJ_CORE E_S (ACTIVE E_S st1) st1 = Some c0 /\
+     PROJ_CORE E_T (ACTIVE E_S st1) st2 = Some c3 /\
+     at_external (csemS (ACTIVE E_S st1)) c0 = Some (e, sig, vals1) /\
+     at_external (csemT (ACTIVE E_S st1)) c3 = Some (e, sig, vals2) /\
+     match_state (ACTIVE E_S st1) (cd (ACTIVE E_S st1)) r j c0 m1 c3 m2).
+  forget (ACTIVE E_S st1) as x.
+  forget (ACTIVE E_S st1') as x'.
+  forget (ACTIVE E_T st2) as y.
+  forget (ACTIVE E_T st2') as y'.
+  do 3 subst.
+  exists c1, c2.
+  solve[split3; auto].
+ destruct X as [c0 [c3 [X1 [X2 [X3 [X4 X5]]]]]].
+ inv esig_compilable.
+ specialize (at_external_match st1 m1 st2 c0 c3 m2 e sig vals1 vals2
+   (cd (ACTIVE E_S st1)) r j).
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ unfold runnable. solve[rewrite X3, X4; auto].
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ spec at_external_match; auto.
+ solve[eapply match_inject; eauto].
 eapply guarantee'_after_ext; eauto.
 solve[intros b ofs ? ?; eapply H6; eauto].
 solve[intros b ofs ? ?; eapply H4; eauto].
@@ -1634,7 +1699,6 @@ constructor; auto.
 intros; destruct (core_simulations_RGinject i) as [? _ _].
 eapply match_state_runnable; eauto.
 intros; destruct (core_simulations_RGinject i) as [_ ? _].
-solve[eapply match_state_inj; eauto].
 intros; destruct (core_simulations_RGinject i) as [_ _ ?].
 solve[eapply match_state_preserves_globals; eauto].
 Qed.
@@ -1707,7 +1771,11 @@ Module ExtensionCompilability. Section ExtensionCompilability.
        (core_ords := 
   ExtendedSimulations.core_ords core_data core_ord max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.
- solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
+ intros until m2; intros MATCH.
+ solve[destruct (H1 i); eapply match_state_inj; eauto].
+ eapply ExtendedSimulations.RGsimulations_invariant; eauto.
+ intros until m2; intros MATCH.
+ solve[destruct (H1 i); eapply match_state_inj; eauto].
 Qed.
 
 End ExtensionCompilability. End ExtensionCompilability.
@@ -1778,7 +1846,11 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
        (core_ords := 
   ExtendedSimulations.core_ords (const core_data) (const core_ord) max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto. 
- solve[eapply ExtendedSimulations.RGsimulations_invariant; eauto].
+ intros until m2; intros MATCH.
+ solve[destruct (H1 i); eapply match_state_inj; eauto].
+ eapply ExtendedSimulations.RGsimulations_invariant; eauto.
+ intros until m2; intros MATCH.
+ solve[destruct (H1 i); eapply match_state_inj; eauto].
 Qed.
 
 End ExtensionCompilability2. End ExtensionCompilability2.
