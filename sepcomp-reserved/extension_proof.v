@@ -1651,8 +1651,8 @@ assert (HALT: safely_halted (csemS x') c1 = None).
  exploit @at_external_halted_excl; eauto.
  instantiate (1 := c1).
  instantiate (1 := (csemS x')).
- intros [X|X].
- rewrite X in AT_EXT1; congruence.
+ intros [Y|Y].
+ rewrite Y in AT_EXT1; congruence.
  solve[auto].
 inv SAFE; try solve[congruence].
 solve[apply corestep_not_at_external in H18; congruence].
@@ -1665,7 +1665,12 @@ admit. (*val_valid; will have to be added to after_external*)
 exists c2'.
 split; auto.
 split; auto.
-admit. (*guarantee'_incr_after_external*)
+destruct AT_EXT2 as [vals2' [AT1 [AT2 [AT3 AT4]]]].
+eapply guarantee'_after_ext; eauto.
+eapply effects_valid in MATCH12; eauto.
+solve[destruct MATCH12; auto].
+solve[intros b ofs ? ?; destruct (H6 b ofs); auto].
+solve[intros b ofs delta ? ?; destruct (H4 b ofs delta); auto].
 solve[unfold core_datas_upd; rewrite data_upd_same; auto].
 
 (*ACTIVE E_S st1 <> i*)
