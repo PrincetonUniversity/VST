@@ -1245,10 +1245,14 @@ Proof.
  inv H1.
  simpl in H0. destruct H0. subst a.
  simpl. unfold join_te'. destruct p. rewrite H.
- rewrite eqb_type_refl. rewrite PTree.gss.
+ rewrite eqb_type_refl.
+ rewrite PTree.gss.
  destruct b; simpl ;auto.
  simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
- case_eq (t ! p0);intros. destruct p1. if_tac. rewrite PTree.gso. auto.
+ case_eq (t ! p0);intros. destruct p1. 
+ remember (eqb_type t3 t4). destruct b1. 
+ symmetry in Heqb1. apply eqb_type_true in Heqb1. subst.
+ rewrite PTree.gso. auto.
  intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
  auto. auto.
  assert (~ In id (map fst (PTree.elements t))).
@@ -1259,11 +1263,15 @@ Proof.
  simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
  destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
  contradict H0; simpl; auto.
- case_eq (t ! p); intros. destruct p0. if_tac; auto. rewrite PTree.gso.
+ case_eq (t ! p); intros. destruct p0. 
+ remember (eqb_type t3 t4). symmetry in Heqb1. 
+ destruct b1.
+ apply eqb_type_true in Heqb1. subst.
+ rewrite PTree.gso.
  apply IHl. contradict H0;simpl; auto.
  intro; subst p; congruence.
  apply IHl. contradict H0;simpl; auto.
- apply IHl. contradict H0;simpl; auto.
+ apply IHl. contradict H0. simpl. auto.
 Qed.
 
 Lemma tycontext_eqv_symm:

@@ -281,6 +281,13 @@ if_tac; auto.
 inv H0; destruct ty; inv H; auto. 
 Qed. 
 
+Definition weak_mapsto_ sh e rho :=
+match (eval_expr e rho) with
+| Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) || 
+              (mapsto_ sh (typeof e) (Vptr b o))
+| _ => FF
+end.
+
 Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->

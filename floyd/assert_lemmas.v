@@ -414,6 +414,15 @@ intros.
 Admitted.
 Hint Resolve closed_wrt_tc_expr : closed.
 
+
+Lemma closed_wrt_tc_temp_id :
+  forall Delta S e id t, expr_closed_wrt_vars S e ->
+                         expr_closed_wrt_vars S (Etempvar id t) ->
+             closed_wrt_vars S (tc_temp_id id t Delta e).
+Admitted.
+Hint Resolve closed_wrt_tc_expr : closed.
+
+
 Lemma expr_closed_tempvar:
  forall S i t, ~ S i -> expr_closed_wrt_vars S (Etempvar i t).
 Admitted.

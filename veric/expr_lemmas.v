@@ -1005,6 +1005,15 @@ destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
 simpl. unfold var_types. simpl. auto.
 Qed. 
 
+Lemma ret_type_update_dist : forall d1 d2, 
+(ret_type (join_tycon (d1) (d2))) =
+(ret_type (d1)).
+Proof.
+intros.
+destruct d1; destruct d2. destruct p; destruct p0. destruct p0; destruct p.
+simpl. unfold var_types. simpl. auto.
+Qed. 
+
 Lemma glob_types_update_dist :
 forall d1 d2, 
 (glob_types (join_tycon (d1) (d2))) =
@@ -1193,6 +1202,67 @@ intros. destruct Delta. destruct p. destruct p. unfold var_types. unfold initial
 simpl. unfold temp_types. simpl. destruct (t1 ! i); auto. destruct p; auto.
 Qed. 
 
+Lemma set_temp_ret : forall Delta i,
+ret_type (initialized i Delta) = ret_type (Delta).
+intros. 
+destruct Delta. destruct p. destruct p. unfold var_types. unfold initialized.
+simpl. unfold temp_types. simpl. destruct (t1 ! i); auto. destruct p; auto.
+Qed.
+
+
+Lemma update_tycon_eqv_ve : forall Delta c id,
+(var_types (update_tycon Delta c)) ! id = (var_types (Delta)) ! id
+
+with update_le_eqv_ve : forall (l : labeled_statements) (id : positive) Delta,
+(var_types (join_tycon_labeled l Delta)) ! id = 
+(var_types Delta) ! id.
+Proof.
+intros; 
+destruct c; simpl in *; try reflexivity.
+rewrite set_temp_ve. auto.
+destruct o. rewrite set_temp_ve. auto.
+auto.
+rewrite update_tycon_eqv_ve. apply update_tycon_eqv_ve.
+
+rewrite var_types_update_dist.
+rewrite update_tycon_eqv_ve. auto.
+
+erewrite update_le_eqv_ve. auto.
+
+intros. 
+ destruct l. simpl in *. rewrite update_tycon_eqv_ve.
+reflexivity.
+ simpl in *. rewrite var_types_update_dist.
+rewrite update_tycon_eqv_ve. auto.
+Qed.
+
+Lemma update_tycon_eqv_ret : forall Delta c,
+(ret_type (update_tycon Delta c)) = (ret_type (Delta)) 
+
+with update_le_eqv_ret : forall (l : labeled_statements)  Delta,
+(ret_type (join_tycon_labeled l Delta)) = 
+(ret_type Delta).
+Proof.
+intros; 
+destruct c; simpl in *; try reflexivity.
+rewrite set_temp_ret. auto.
+destruct o. rewrite set_temp_ret. auto.
+auto.
+rewrite update_tycon_eqv_ret. apply update_tycon_eqv_ret.
+
+rewrite ret_type_update_dist.
+rewrite update_tycon_eqv_ret. auto.
+
+rewrite update_le_eqv_ret. auto.
+
+intros. 
+ destruct l. simpl in *. rewrite update_tycon_eqv_ret.
+reflexivity.
+ simpl in *. rewrite ret_type_update_dist.
+rewrite update_tycon_eqv_ret. auto.
+Qed.
+
+
 Lemma update_tycon_same_ve : forall Delta c id v,
 (var_types (update_tycon Delta c)) ! id = Some v <->
 (var_types (Delta)) ! id = Some v
@@ -1202,36 +1272,37 @@ with update_le_same_ve : forall (l : labeled_statements) (id : positive) (v : ty
 (var_types (join_tycon_labeled l Delta)) ! id = Some v <->
 (var_types Delta) ! id = Some v.
 Proof.
-intros; split; intros.
-destruct c; simpl in *; try apply H.
-rewrite set_temp_ve in H. auto.
-destruct o. rewrite set_temp_ve in H. auto.
+intros; split; intros;
+rewrite update_tycon_eqv_ve in *; auto.
+intros; split; intros;
+rewrite update_le_eqv_ve in *; auto.
+Qed.
+
+
+Lemma update_tycon_eqv_ge : forall Delta c id,
+(glob_types (update_tycon Delta c)) ! id = (glob_types (Delta)) ! id
+
+with update_le_eqv_ge : forall (l : labeled_statements) (id : positive)  Delta,
+(glob_types (join_tycon_labeled l Delta)) ! id =
+(glob_types Delta) ! id. 
+Proof.
+intros; 
+destruct c; simpl in *; try reflexivity.
+rewrite set_temp_ge. auto.
+destruct o. rewrite set_temp_ge. auto.
 auto.
-eapply update_tycon_same_ve. rewrite <- update_tycon_same_ve. apply H.
+rewrite update_tycon_eqv_ge. apply update_tycon_eqv_ge. 
 
-rewrite var_types_update_dist in H.
-rewrite update_tycon_same_ve in H. auto.
+rewrite glob_types_update_dist.
+rewrite update_tycon_eqv_ge. auto.
+erewrite update_le_eqv_ge. auto.
 
-erewrite update_le_same_ve in H. apply H.
-
-destruct c; simpl in *; try apply H. rewrite set_temp_ve. apply H.
-destruct o. rewrite set_temp_ve. apply H.
-apply H. rewrite update_tycon_same_ve. rewrite update_tycon_same_ve.
-apply H. rewrite var_types_update_dist. 
-rewrite update_tycon_same_ve. apply H.
-rewrite update_le_same_ve. apply H.
-
-intros. split. intros.
- destruct l. simpl in *. rewrite update_tycon_same_ve in H.
-apply H. simpl in *. rewrite var_types_update_dist in H.
-rewrite update_tycon_same_ve in H. apply H.
-
-intros. destruct l; simpl in *.
-rewrite update_tycon_same_ve. apply H.
-rewrite var_types_update_dist.  rewrite update_tycon_same_ve.
-apply H.
+intros. 
+ destruct l. simpl in *. rewrite update_tycon_eqv_ge.
+auto. 
+simpl in *. rewrite glob_types_update_dist.
+rewrite update_tycon_eqv_ge. auto.
 Qed.   
-
 
 Lemma update_tycon_same_ge : forall Delta c id v,
 (glob_types (update_tycon Delta c)) ! id = Some v <->
@@ -1242,34 +1313,11 @@ with update_le_same_ge : forall (l : labeled_statements) (id : positive) (v : gl
 (glob_types (join_tycon_labeled l Delta)) ! id = Some v <->
 (glob_types Delta) ! id = Some v.
 Proof.
-intros; split; intros.
-destruct c; simpl in *; try apply H.
-rewrite set_temp_ge in H. auto.
-destruct o. rewrite set_temp_ge in H. auto.
-auto.
-eapply update_tycon_same_ge. rewrite <- update_tycon_same_ge. apply H.
-
-rewrite glob_types_update_dist in H.
-rewrite update_tycon_same_ge in H. auto.
-erewrite update_le_same_ge in H. apply H.
-
-destruct c; simpl in *; try apply H. rewrite set_temp_ge. apply H.
-destruct o. rewrite set_temp_ge. apply H.
-apply H. rewrite update_tycon_same_ge. rewrite update_tycon_same_ge.
-apply H. rewrite glob_types_update_dist. 
-rewrite update_tycon_same_ge. apply H.
-rewrite update_le_same_ge. apply H.
-
-intros. split. intros.
- destruct l. simpl in *. rewrite update_tycon_same_ge in H.
-apply H. simpl in *. rewrite glob_types_update_dist in H.
-rewrite update_tycon_same_ge in H. apply H.
-
-intros. destruct l; simpl in *.
-rewrite update_tycon_same_ge. apply H.
-rewrite glob_types_update_dist.  rewrite update_tycon_same_ge.
-apply H.
-Qed.   
+intros; split; intros;
+rewrite update_tycon_eqv_ge in *; auto.
+intros; split; intros;
+rewrite update_le_eqv_ge in *; auto.
+Qed.    
 
 Lemma typecheck_environ_update_ve : forall (rho : environ) (c : statement) (Delta : tycontext),
 typecheck_var_environ (ve_of rho) (var_types (update_tycon Delta c)) ->
@@ -1693,12 +1741,256 @@ Qed.
 Lemma tycontext_sub_refl:
  forall Delta, tycontext_sub Delta Delta.
 Proof.
-Admitted.
+intros. destruct Delta as [[[T V] r] G].
+unfold tycontext_sub.
+intuition.
+ + unfold sub_option. unfold temp_types. simpl. 
+   destruct (T ! id); auto.
+ + unfold sub_option, glob_types. simpl. 
+   destruct (G ! id); auto.
+Qed.
 
+
+Lemma initialized_ne : forall Delta id1 id2,
+id1 <> id2 ->
+(temp_types Delta) ! id1 = (temp_types (initialized id2 Delta)) ! id1.
+
+intros.
+destruct Delta as [[[? ?] ?] ?]. unfold temp_types; simpl.
+unfold initialized. simpl. unfold temp_types; simpl.
+destruct (t ! id2). destruct p. simpl.  rewrite PTree.gso; auto.
+auto.
+Qed.
+
+
+Lemma initialized_sub_temp :
+forall id Delta i Delta',
+(forall id, sub_option (temp_types Delta) ! id (temp_types Delta') ! id) ->
+ sub_option (temp_types (initialized i Delta)) ! id
+     (temp_types (initialized i Delta')) ! id.
+Proof.
+intros.
+   destruct (eq_dec id i).
+     - subst. destruct Delta as [[[? ?] ?] ?].
+       destruct Delta' as [[[? ?] ?] ?].
+       unfold initialized, temp_types  in *. 
+       simpl in *. specialize (H i). unfold sub_option in *.
+       remember (t ! i). destruct o. 
+         * destruct p. simpl in *.
+           rewrite PTree.gss. rewrite H. simpl. rewrite PTree.gss.
+           auto.
+         * simpl. rewrite <- Heqo. auto.
+     - repeat rewrite <- initialized_ne by auto. auto.
+Qed.
+
+Lemma initialized_sub :
+  forall Delta Delta' i ,
+    tycontext_sub Delta Delta' ->
+    tycontext_sub (initialized i Delta) (initialized i Delta').
+Proof.
+intros.
+unfold tycontext_sub in *. 
+destruct H as [? [? [? ?]]].
+repeat split; intros.
+ + apply initialized_sub_temp; auto.
+ + repeat rewrite set_temp_ve; auto.
+ + repeat rewrite set_temp_ret; auto. 
+ + repeat rewrite set_temp_ge; auto.
+Qed.
+ 
 Lemma update_tycon_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
    forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h).
 Proof.
+intros.
+destruct H as [? [? [? ?]]]. 
+repeat split; intros; auto.  
+ +  clear - H.
+    generalize dependent Delta.
+    revert h id Delta'.
+    induction h; intros; try apply H; simpl; try destruct o;
+     auto.
+    -  apply initialized_sub_temp; auto.
+    -  apply initialized_sub_temp; auto.
+    -  repeat rewrite temp_types_update_dist.
+       unfold sub_option in H. remember ((temp_types Delta) ! id).
+       destruct o.
+         *  
+
 Admitted.
+
+Definition te_one_denote (v1 v2 : option (type * bool)):=
+match v1, v2 with 
+| Some (t1,b1),Some (t2, b2) =>  
+  if eqb_type t1 t2 then Some (t1, andb b1 b2) else None
+| _, _ => v1 end.
+
+Lemma join_te_denote2:
+forall d1 d2 id,
+  ((join_te d1 d2) ! id) = te_one_denote (d1 ! id) (d2 ! id).
+Proof.
+intros. remember (d1 ! id). remember (d2 ! id).
+destruct o; destruct o0.
+   -  unfold te_one_denote. destruct p; destruct p0.
+      remember (eqb_type t t0). destruct b1.
+        + symmetry in Heqb1. apply eqb_type_true in Heqb1.
+          subst. apply join_te_eqv; auto.
+        + 
+Admitted.
+
+
+Lemma join_te'_denote_nonmatch :
+forall t2 b2 d2 id te,
+(option_map fst (d2 ! id)) <> Some t2 ->
+(join_te' d2 te  id (t2,b2))  = te.
+Proof.
+intros. unfold join_te'.  
+remember (d2 ! id). destruct o.
+  -  destruct p. remember (eqb_type t2 t).
+     if_tac.
+       + symmetry in Heqb0.  apply eqb_type_true in Heqb0. subst.
+         simpl in H. intuition.
+       + auto.
+  -  auto.
+Qed.
+
+Lemma join_te_denote_nonmatch : 
+forall t1 b1 t2 b2 d1 d2 id,
+Some (t1, b1) = d1 ! id ->
+Some (t2, b2) = d2 ! id ->
+t1 <> t2 ->
+(join_te d1 d2) ! id = None.
+Proof. 
+intros. 
+unfold join_te in *. rewrite PTree.fold_spec in *.
+rewrite <- fold_left_rev_right in *.
+
+(*
+assert ( In (id, (t1, b1)) (rev (PTree.elements d1)) ).
+  { intros. apply in_rev. rewrite rev_involutive. 
+    apply PTree.elements_correct. auto. }*)
+
+unfold PTree.elt in *. 
+
+forget (rev (PTree.elements d1)) as l.
+
+
+induction (l); intros.
+  -  simpl. rewrite PTree.gempty. auto.
+  -  simpl. destruct a. simpl. destruct p0. simpl in *.
+Admitted. (*
+     destruct (eq_dec p id). subst. rewrite <- H0. 
+     destruct H2.
+       + inv H2. simpl.  rewrite <- H0. remember (eqb_type t1 t2).
+         destruct b.
+         * symmetry in Heqb. apply eqb_type_true in Heqb.
+           subst; intuition.
+         * admit.
+       + simpl. remember (d2 ! p). destruct o. destruct p0.
+         
+     
+Print join_te'.
+*)
+(*
+destruct a. simpl.
+     simpl in H3. symmetry in H. 
+     specialize (H3 _ H).
+     destruct H3.
+       + inv H3. simpl. rewrite <- H0. remember (eqb_type t1 t2).
+         if_tac.
+           * symmetry in Heqb. apply eqb_type_true in Heqb. intuition.
+           * simpl in H2. 
+             apply IHl; auto. intros.
+             rewrite 
+ unfold join_te'. destruct a.
+     destruct p0. simpl. remember (d2 ! p).
+     destruct o.
+       +  destruct p0. simpl. remember (eqb_type t t0).
+          destruct b3.
+            *  rewrite PTree.gsspec. if_tac. subst.
+               rewrite <- Heqo in H0. inv H0.
+
+induction (rev (PTree.elements te1)). simpl in *.
+rewrite PTree.gempty in *. congruence.
+
+simpl in *. destruct a. destruct p0. simpl in *.
+remember (te2 ! p). destruct o. destruct p0.
+destruct (eq_dec t t0). subst. 
+rewrite eqb_type_refl in H.
+rewrite PTree.gsspec in *.
+if_tac in H. subst. specialize (H0 (t0,b0)). inv H. spec H0; auto. 
+
+remember (andb b0 b1). destruct b. symmetry in Heqb. rewrite andb_true_iff in *. 
+destruct Heqb. subst. split; exists false; auto. 
+ symmetry in Heqb. rewrite andb_false_iff in Heqb. 
+destruct Heqb; subst; eauto. auto.
+
+apply eqb_type_false in n. rewrite n in *.
+auto.
+auto.
+
+
+  
+    -  simpl. apply IHh2. unfold tycontext_sub. repeat split.
+    -  admit.
+    -  admit.
+ + repeat rewrite update_tycon_eqv_ve; auto. 
+ + repeat rewrite update_tycon_eqv_ret; auto. 
+ + destruct H as [? [? [? ?]]].
+   repeat rewrite update_tycon_eqv_ge; auto.
+Qed.
+     
+   
+ + simpl.
+
+unfold sub_option in *. copy H.
+    specialize (H id). remember ((temp_types Delta) ! id).
+    destruct o. destruct p.
+      - destruct h; simpl in *; auto; try apply H0.
+
+
+
+       
+    
+
+      - destruct h; simpl in *; try rewrite <- Heqo; auto.
+          * specialize (H0 i). unfold initialized.
+            destruct ((temp_types Delta) ! i). destruct p.
+            unfold temp_types. unfold var_types. simpl.
+
+symmetry in Heqo. destruct p. 
+ 
+    apply update_tycon_te_same with (c:=h) in Heqo. 
+    destruct Heqo. rewrite H0.
+    apply update_tycon_te_same with (c:=h) in H. 
+    destruct H. rewrite H.
+
+destruct Heqo.
+    destruct Delta as [[[? ?] ?] ?]. unfold temp_types in *.
+    simpl in *.  SearchAbout update_tycon.
+destruct h; auto; simpl in *; try apply H.
+
+     - unfold initialized. unfold temp_types. simpl. copy H.
+       specialize (H i). remember (t ! i) as o2. destruct o2; auto.
+        * simpl in *. destruct p. simpl. rewrite H. simpl.
+          remember ((PTree.set i (t3, true) t) ! id). destruct o; auto.
+          rewrite PTree.gsspec. if_tac. subst. 
+          rewrite PTree.gss in Heqo. auto. 
+          rewrite PTree.gsspec in Heqo. if_tac in Heqo.
+          intuition. specialize (H0 id). rewrite <- Heqo in *.
+          auto.
+        * simpl in *.  specialize (H0 id). remember (t ! id). 
+          destruct o; auto.
+          remember ((fst (fst (fst Delta'))) ! i). 
+          destruct o; auto. destruct p0.
+          simpl. rewrite PTree.gsspec. if_tac. subst. 
+ 
+
+ 
++ simpl. unfold initialized. unfold sub_option in *.
+specialize (H i). destruct ((temp_types Delta) ! i).
+destruct p. unfold tycontext_sub. simpl. auto
+
+Admitted.*)
 
 
