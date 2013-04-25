@@ -11,6 +11,7 @@ Require Import compcert.lib.Axioms.
 
 Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 
 (*for core_diagramN lemmas*)
 Require Import Wellfounded.

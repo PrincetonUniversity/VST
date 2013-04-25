@@ -6,8 +6,8 @@ Require Import AST.
 Require Import Events.
 
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
-
 
 Set Implicit Arguments.
 

@@ -1,4 +1,5 @@
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.step_lemmas.
