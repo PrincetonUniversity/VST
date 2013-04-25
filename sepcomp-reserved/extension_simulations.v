@@ -429,29 +429,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
- (after_external_diagram: 
-   forall i d1 s1 m1 d2 s2 m2 s1' m1' s2' m2' ef sig args1 retv1 retv2 cd (r r': reserve) j j',
-   match_state i cd r j d1 m1 d2 m2 -> 
-   at_external esemS s1 = Some (ef, sig, args1) -> 
-   Events.meminj_preserves_globals ge_S j -> 
-   inject_incr j j' -> 
-   Events.inject_separated j j' m1 m2 -> 
-   reserve_incr r r' -> 
-   reserve_separated r r' j' m1 m2 -> 
-   Mem.inject j' m1' m2' -> 
-   val_inject_opt j' retv1 retv2 -> 
-   mem_forward m1 m1' -> 
-   mem_forward m2 m2' -> 
-   rely (csemS i) r d1 m1 m1' ->  
-   rely' (csemT i) j r d2 m2 m2' -> 
-   val_has_type_opt' retv2 (proj_sig_res (ef_sig ef)) -> 
-   after_external esemS retv1 s1 = Some s1' -> 
-   after_external esemT retv2 s2 = Some s2' -> 
-   PROJ_CORE E_S i s1' = Some d1 -> 
-   PROJ_CORE E_T i s2' = Some d2 -> 
-   ACTIVE E_S s1 <> i -> 
-   match_state i cd r' j' d1 m1' d2 m2')
-
  (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 (r: reserve) j sig,
    In (v1, v2, sig) entry_points -> 
    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 

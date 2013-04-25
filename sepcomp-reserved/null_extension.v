@@ -387,8 +387,6 @@ Section NullExtensionCompilable.
 
  intros.
  solve[eapply mem_lemmas.forall_inject_valid; eauto].
-
- admit. (*TODO*)
  
  intros; destruct core_simulation; auto.
  destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 r m2 H0 H4 H5 H6 H9 H10)
@@ -499,8 +497,8 @@ Section NullExtensionCompilable.
  split.
  intros b ofs ? ? EF.
  elimtype False.
- solve[eapply effects_initial 
-   with (k := ModifyEffect) (b0 := b) (ofs0 := ofs) in H0; eauto].
+ abstract(eapply effects_initial 
+   with (k := ModifyEffect) (b0 := b) (ofs0 := ofs) in H0; eauto).
  split.
  exists init_world.
  solve[eapply prog_compile_safe; eauto].
