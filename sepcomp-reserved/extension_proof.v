@@ -724,7 +724,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (owned_conservT: owned_conserving esemT csemT E_T)
   (active_okS: (forall x_s, ACTIVE E_S x_s < max_cores)%nat)
   (active_okT: (forall x_t, ACTIVE E_T x_t < max_cores)%nat)
-  (new_effects_alignedT: new_effects_aligned esemT csemT genv_mapT E_T).
+  (new_effects_alignedT: new_effects_aligned esemT csemT ge_T genv_mapT E_T).
 
 Program Definition extended_simulation: 
   Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 

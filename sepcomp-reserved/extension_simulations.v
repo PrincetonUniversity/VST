@@ -75,7 +75,7 @@ Section CoreCompatibleDefs. Variables
      effects esem s AllocEffect b ofs.
 
  Definition new_effects_aligned :=
-   forall ge s c m s' c' m',
+   forall s c m s' c' m',
    proj_core E (active E s) s = Some c -> 
    corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
    corestep esem ge s m s' m' -> 
@@ -86,7 +86,7 @@ Section CoreCompatibleDefs. Variables
  Lemma guarantee_step': 
    owned_conserving -> 
    new_effects_aligned -> 
-   forall ge (r r': reserve) j j' s c m s' c' m',
+   forall (r r': reserve) j j' s c m s' c' m',
    guarantee' esem j r s m ->   
    guarantee' (csem (active E s)) j r c m -> 
    proj_core E (active E s) s = Some c -> 
@@ -105,7 +105,7 @@ Section CoreCompatibleDefs. Variables
  unfold new_effects_aligned.
  intros OWN EQV; intros until m'. 
  intros H1 H2 H3 H4 H5 H6 H7 H8 H9 INCR SEP EFVAL H9' b ofs VAL RR EF.
- specialize (EQV _ _ _ _ _ _ _ H3 H4 H5).
+ specialize (EQV _ _ _ _ _ _ H3 H4 H5).
  destruct (new_effect_dec esem AllocEffect b ofs s s') as [N|R].
  solve[destruct N as [X Y]; auto].
  unfold new_effect in R.
@@ -215,7 +215,7 @@ Section CoreCompatibleDefs. Variables
   solve[eapply guarantee'_backward_stepN; eauto].
  assert (INTER: guarantee' esem j' r' s2 m2').
   apply guarantee_step' 
-   with (s := s) (c := c) (m := m) (r := r) (j := j) (c' := c2) (ge := ge); auto.
+   with (s := s) (c := c) (m := m) (r := r) (j := j) (c' := c2); auto.
   inv core_compat.
   exploit corestep_pres; eauto.
   solve[intros [? [? ?]]; auto].
@@ -607,7 +607,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        owned_conserving esemT csemT E_T ->
        (forall x, active E_S x < max_cores)%nat ->  
        (forall x, active E_T x < max_cores)%nat ->  
-       new_effects_aligned esemT csemT genv_mapT E_T -> 
+       new_effects_aligned esemT csemT ge_T genv_mapT E_T -> 
        (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
