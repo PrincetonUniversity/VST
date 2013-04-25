@@ -9,27 +9,8 @@ Require Import Globalenvs.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
-(*CompCert imports*)
-(*Add LoadPath "../compcert/lib".
-Add LoadPath "../compcert/flocq/Appli".
-Add LoadPath "../compcert/flocq/Calc".
-Add LoadPath "../compcert/flocq/Core".
-Add LoadPath "../compcert/flocq/Prop".
-Add LoadPath "../compcert/common".
-Add LoadPath "../compcert/cfrontend".
-Add LoadPath "..".
-Require Import compcert.common.Events. (*needed for standard definitions of 
-                        mem_unchanged_on,loc_out-of_bounds etc etc*)
-Require Import compcert.common.Memory.
-Require Import compcert.common.AST.
-Require Import compcert.lib.Coqlib.
-Require Import compcert.common.Values.
-Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers.
-Require Import compcert.common.Globalenvs.
+Require Import sepcomp.core_semantics_lemmas.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.core_semantics.*)
 (*
 Definition reserve_image (*{F1 V1 C1:Type} 
       (Sem: RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))*)

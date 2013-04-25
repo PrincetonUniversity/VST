@@ -14,6 +14,7 @@ Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
+Require Import sepcomp.core_semantics_lemmas.
 
 (*Require Import sepcomp.compiler_correctness_trans. for auxiliary lemmas, like  sem_compose_ord_eq_eq etc*)
 Require Import sepcomp.mem_interpolation_defs. (*For definition of my_mem_unchanged_on*)
@@ -365,7 +366,8 @@ Proof. intros.
       match d with (d1,X,d2) => 
         exists c2, exists m2, exists j1, exists j2, exists (r2:reserve),
           X=Some c2 /\ j = compose_meminj j1 j2 /\ 
-          sort r2 = inject_reserve j1 r /\
+(*          r2 = reserve_incr (inject_reserve j1 r) r2 /\*)
+          r2 = inject_reserve_ j1 r /\
           matchstate12 d1 r j1 c1 m1 c2 m2 /\ matchstate23 d2 r2 j2 c2 m2 c3 m3 /\
           (guarantee Sem1 r c1 m1 /\  guarantee Sem2 r2 c2 m2 /\  
                guarantee Sem3 (inject_reserve j2 r2) c3 m3)
@@ -490,17 +492,19 @@ Proof. intros.
     clear entrypoints12 entrypoints23 entrypoints13 EPC.
     exists st2. exists m2. exists j1. exists j2.
         exists (inject_reserve_ j1 r).
-        (*destruct (inject_reserve_exists j1 r) as [j1r Hj1r].  exists j1r. (*exists  (inject_reserve j1 r) .*)*)
+    (*    destruct (inject_reserve_exists j1 r) as [j1r Hj1r].  exists j1r.*)
     split; trivial.
     split; trivial.
-    split. rewrite inject_reserve_AX. trivial.
+    split. trivial. (*rewrite inject_reserve_AX. apply reserve_incr_refl.*)
     split. apply (match_antimono12 _ _ _ _ _ _ _ _ MS12 H0).
     split. apply (match_antimono23 _ _ _ _ _ _ _ _ MS23).
-              intros b. rewrite inject_reserve_AX. (*rewrite Hj1r.*)
-              rewrite R. apply (inject_reserve_incr _ _ H0). 
+              intros b. repeat rewrite inject_reserve_AX. (*rewrite Hj1r.*)
+              (*rewrite R. apply (inject_reserve_incr _ _ H0). *)
+              intros. apply (inject_reserve_incr _ _ H0 _ _ _ H). 
     split.  intros b1; intros. apply Guar1. apply H. apply H0. apply H1. apply H2.
     split. intros b2; intros. apply Guar2. apply H.
-                              rewrite inject_reserve_AX in H1. rewrite R.
+                              rewrite inject_reserve_AX in H1. (*rewrite R.*) (*apply R.*)
+                              rewrite inject_reserve_AX.
                               eapply reserve_incr_mono with (m1:=m1)(m2:=m2); try eassumption. 
                                    apply inject_incr_refl.
                                    apply inject_separated_same_meminj.  
@@ -512,8 +516,10 @@ Proof. intros.
                subst; simpl in *. destruct H1 as [b2 [delta3 [J2 R2]]].
                          rewrite inject_reserve_AX in R2.
                          destruct R2 as [b1 [delta2 [J1 RR]]].
-                         exists b2. rewrite R. exists delta3; split; trivial.
-                         exists b1. exists delta2. split; trivial. apply H0. apply RR.
+                         exists b2. exists delta3; split; trivial.
+                            (*rewrite R.*) rewrite inject_reserve_AX.
+                         exists b1. exists delta2. split; trivial.
+                         apply H0. apply RR.
          
 (*
  (*              eapply Guar12; try assumption. unfold guarantee in H.*)
@@ -564,11 +570,10 @@ Proof. intros.
       [Inc12 [Sep12 [Rinc12 [Rsep12 [Guar2' [MS12' X12]]]]]]]]]]]. 
   destruct X12 as [X12 | [X12 ORD12]]; destruct X12 as [n X12].
   (*Case 1*)
-    assert (GUAR2: guarantee Sem2 r2 st2' m2').
+    assert (GUAR2: guarantee Sem2 (inject_reserve_ j1 r) st2' m2').
+       clear Diag23 core_diagram23.
        unfold guarantee' in Guar2'.
-       rewrite R. eapply guarantee_decr2. apply Guar2'.
-       assumption.
-       assumption.
+       rewrite inject_reserve_AX. eapply guarantee_decr2. apply Guar2'. assumption. assumption.
 (*   clear Guar2'. rename GUAR2 into Guar2'.*)
 (*    destruct (inject_reserve_exists j1 r) as [rrr Hrrr].*)
  (*   assert (GUAR2: guarantee Sem2 rrr st2' m2').
@@ -601,7 +606,7 @@ Proof. intros.
                 eapply Guar3'. apply H.
                       exists b2. exists delta3. split; trivial. simpl.
                       apply Rinc23.
-                         rewrite R.
+                         rewrite inject_reserve_AX.
                          exists b1. exists delta2.
                          split.
                             remember (j1 b1) as d.
@@ -625,14 +630,15 @@ Proof. intros.
 (*             exists  rrr.*)
              split; trivial.
              split; trivial.
-             split. rewrite inject_reserve_AX. trivial.
+             split. trivial.
              split. apply (match_antimono12 _ _ _ _ _ _ _ _ MS12'). assumption. 
              split. apply (match_antimono23 _ _ _ _ _ _ _ _ MS23').
                   simpl in *. subst. 
                   destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [RV _].
-                  clear - R  Rinc23 Inc12 Sep12 RV.
-                  intros b; intros. rewrite inject_reserve_AX in H.
-                     eapply Rinc23. rewrite R.
+                  clear -  Rinc23 Inc12 Sep12 RV. 
+                  rewrite inject_reserve_AX.
+                  intros b; intros. 
+                     eapply Rinc23. rewrite inject_reserve_AX.
                      eapply (reserve_incr_mono _ _ Inc12 _ _ Sep12 _ RV).
                         intros bb. trivial.
                         (* intros. eapply Rinc23. rewrite R. apply H0. *)
@@ -640,7 +646,7 @@ Proof. intros.
              split. apply H0.
              split; subst; simpl in *. intros b2; intros. 
                         rewrite inject_reserve_AX in H1. destruct H1 as [b1 [delta2 [J RR]]].
-                        apply Guar2'; trivial. rewrite R.                         
+                        apply Guar2'; trivial. rewrite inject_reserve_AX.                         
                         exists b1. exists delta2. split; trivial.
                         remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
                             destruct p. rewrite (Inc12 _ _ _ Heqq) in J. apply J.
@@ -662,7 +668,7 @@ Proof. intros.
                                                 apply (VAL1 _ _ RR).
                         apply Guar3'; trivial.
                         exists b2. exists delta3. split; trivial. 
-                          apply Rinc23. rewrite R. apply IR.
+                          apply Rinc23. rewrite inject_reserve_AX. apply IR.
 (*                        remember (j2 b2) as q; destruct q; apply eq_sym in Heqq.
                             destruct p. rewrite (Inc23 _ _ _ Heqq) in J2. inv J2.
                             apply Rinc23. apply J2.
@@ -705,7 +711,7 @@ Proof. intros.
                 clear Diag23.
                 eapply Guar3. apply H.
                       exists b2. exists delta3. split; trivial.
-                         rewrite R.
+                         rewrite inject_reserve_AX.
                          exists b1. exists delta2. split; trivial.
                         remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
                             destruct p. rewrite (Inc12 _ _ _ Heqq) in J1. apply J1.
@@ -721,12 +727,12 @@ Proof. intros.
 (*               destruct (inject_reserve_exists j12 r) as [rrr Hrrr]. exists rrr.*)
                  split; trivial.
                  split; trivial.
-                 split. rewrite inject_reserve_AX. trivial.
+                 split. trivial.
                  split. apply (match_antimono12 _ _ _ _ _ _ _ _ MS12'). assumption. 
                  split. apply (match_antimono23 _ _ _ _ _ _ _ _ MS23). 
                     destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [RV _].
-                    clear - R Inc12 Sep12 RV.
-                    intros b; intros. rewrite R. rewrite inject_reserve_AX in H.
+                    clear - Inc12 Sep12 RV. rewrite inject_reserve_AX.
+                    intros b; intros. rewrite inject_reserve_AX.
                     destruct H as [b1 [delta [HJ HR]]].
                     exists b1. exists delta. split; trivial. 
                     remember (j1 b1) as q.
@@ -736,7 +742,7 @@ Proof. intros.
                                  destruct (Sep12 _ _ _ Heqq HJ). apply (H RV).
                  split. assumption.
                  split. intros b2; intros. apply Guar2; try eassumption.
-                       rewrite R. rewrite inject_reserve_AX in H1.
+                       rewrite inject_reserve_AX. rewrite inject_reserve_AX in H1.
                       destruct H1 as [b1 [delta2 [J RR]]]. 
                       assert (J1: j1 b1 = Some (b2,delta2)).        
                             remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
@@ -749,7 +755,7 @@ Proof. intros.
                   intros b3; intros. apply Guar3; try eassumption.
                       destruct H1 as [b2 [delta3 [J2 R2]]].
                       exists b2. exists delta3. split; trivial.
-                      rewrite R. rewrite inject_reserve_AX in R2.
+                      rewrite  inject_reserve_AX. rewrite inject_reserve_AX in R2.
                       destruct R2 as [b1 [delta2 [J1 R1]]].
                       exists b1. exists delta2. split; trivial.
                       remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
@@ -761,17 +767,19 @@ Proof. intros.
        right. split. exists O. simpl. reflexivity.
               eapply sem_compose_ord1. apply ORD12.
     (*case n = S(n') - proof is exactly the one from Case 1*)
-    assert (GUAR2: guarantee Sem2 r2 st2' m2').
+    assert (GUAR2: guarantee Sem2 (inject_reserve_ j1 r) st2' m2').
+       clear Diag23 core_diagram23.
        unfold guarantee' in Guar2'.
-       rewrite R. eapply guarantee_decr2. apply Guar2'.
-       assumption.
-       assumption.
+       rewrite inject_reserve_AX. eapply guarantee_decr2. apply Guar2'. assumption. assumption.
 (*   clear Guar2'. rename GUAR2 into Guar2'.*)
 (*    destruct (inject_reserve_exists j1 r) as [rrr Hrrr].*)
  (*   assert (GUAR2: guarantee Sem2 rrr st2' m2').
           clear - Guar2' rrr Hrrr. rewrite Hrrr. apply Guar2'.
    clear Guar2'. rename GUAR2 into Guar2'.*)
-(*   assert (GUAR2: guarantee Sem2 (Build_reserve' rrr rrr_dec) st2' m2').
+(*    remember  (inject_reserve j1 r) as rrr. 
+    assert (rrr_dec: forall b ofs, {rrr b ofs}+{~rrr b ofs}).
+        intros; subst. unfold inject_reserve. at.
+   assert (GUAR2: guarantee Sem2 (Build_reserve' rrr rrr_dec) st2' m2').
           clear - Guar2' rrr. apply Guar2'.*)
    clear Guar2'. rename GUAR2 into Guar2'.
 
@@ -795,7 +803,7 @@ Proof. intros.
                 eapply Guar3'. apply H.
                       exists b2. exists delta3. split; trivial. simpl.
                       apply Rinc23.
-                         rewrite R.
+                         rewrite inject_reserve_AX.
                          exists b1. exists delta2.
                          split.
                             remember (j1 b1) as d.
@@ -819,14 +827,15 @@ Proof. intros.
 (*             exists  rrr.*)
              split; trivial.
              split; trivial.
-             split. rewrite inject_reserve_AX. trivial.
+             split. trivial.
              split. apply (match_antimono12 _ _ _ _ _ _ _ _ MS12'). assumption. 
              split. apply (match_antimono23 _ _ _ _ _ _ _ _ MS23').
                   simpl in *. subst. 
                   destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [RV _].
-                  clear - R  Rinc23 Inc12 Sep12 RV.
-                  intros b; intros. rewrite inject_reserve_AX in H.
-                     eapply Rinc23. rewrite R.
+                  clear -  Rinc23 Inc12 Sep12 RV. 
+                  rewrite inject_reserve_AX.
+                  intros b; intros. 
+                     eapply Rinc23. rewrite inject_reserve_AX.
                      eapply (reserve_incr_mono _ _ Inc12 _ _ Sep12 _ RV).
                         intros bb. trivial.
                         (* intros. eapply Rinc23. rewrite R. apply H0. *)
@@ -834,7 +843,7 @@ Proof. intros.
              split. apply H0.
              split; subst; simpl in *. intros b2; intros. 
                         rewrite inject_reserve_AX in H1. destruct H1 as [b1 [delta2 [J RR]]].
-                        apply Guar2'; trivial. rewrite R.                         
+                        apply Guar2'; trivial. rewrite inject_reserve_AX.                         
                         exists b1. exists delta2. split; trivial.
                         remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
                             destruct p. rewrite (Inc12 _ _ _ Heqq) in J. apply J.
@@ -856,7 +865,7 @@ Proof. intros.
                                                 apply (VAL1 _ _ RR).
                         apply Guar3'; trivial.
                         exists b2. exists delta3. split; trivial. 
-                          apply Rinc23. rewrite R. apply IR.
+                          apply Rinc23. rewrite inject_reserve_AX. apply IR.
 (*                        remember (j2 b2) as q; destruct q; apply eq_sym in Heqq.
                             destruct p. rewrite (Inc23 _ _ _ Heqq) in J2. inv J2.
                             apply Rinc23. apply J2.
@@ -876,7 +885,6 @@ Proof. intros.
           left. assumption.
           right. split. assumption.             
               eapply sem_compose_ord2. apply ORD23.
-
 
  (*initial_core*) 
   clear core_diagram23  core_halted23 core_at_external23 core_after_external23 
@@ -910,7 +918,7 @@ Proof. intros.
   (*exists rrr. exists (inject_reserve (Mem.flat_inj (Mem.nextblock m1)) r).*)
   split; trivial.
   split; trivial.
-  split. rewrite inject_reserve_AX. trivial.
+  split. trivial.
   split; trivial.
   split. apply (match_antimono23 _ _ _ _ _ _ _ _ MC23).
         intros b; intros. rewrite inject_reserve_AX in H.  destruct H as [b1 [delta [J X]]].
@@ -1119,7 +1127,7 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
              split; assumption.
   specialize (Core_after12 _ _ Inc12 Sep12 HTret2 _ MInj12' Fwd2
                        WD1' WD2' Unch2 injRet12).
-  rewrite R in Core_after23.
+  rewrite inject_reserve_AX in Core_after23.
   assert (UnchR3: rely Sem3 (inject_reserve j2 (inject_reserve j1 r)) st3 m3 m3' ).
             destruct Rely3 as [Rely3a Rely3b].
             split; intros b3 ofs; intros.
@@ -1155,16 +1163,16 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
 (*  destruct (inject_reserve_exists j12' r') as [r12' Hr12'].*)
   (*specialize (Core_after23 (inject_reserve j12' r')).*)
 
-  assert (Rinc2: reserve_incr r2 (inject_reserve_ j12' r')). 
+  assert (Rinc2: reserve_incr (inject_reserve_ j1 r) (inject_reserve_ j12' r')). 
           subst. intros b2; intros. rewrite inject_reserve_AX.
-                  rewrite R in H.
+                  rewrite inject_reserve_AX in H.
                   destruct H as [b1 [delta [HJ HR]]].
                   exists b1. exists delta. 
                   split. apply Inc12. assumption.    
                   apply Rinc. assumption.
-  assert (Rsep23:  reserve_separated r2 (inject_reserve_ j12' r') j23' m2 m3).
+  assert (Rsep23:  reserve_separated (inject_reserve_ j1 r) (inject_reserve_ j12' r') j23' m2 m3).
                   intros b2; intros. rewrite inject_reserve_AX in H0.
-                  rewrite R in H.
+                  rewrite inject_reserve_AX in H.
                   destruct H0 as [b1 [delta [HJ HR]]].
                   remember (j1 b1) as q.
                   destruct q; apply eq_sym in Heqq. 
@@ -1248,7 +1256,7 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
               apply GI; trivial.
      split. 
               destruct (effects_valid12 _ _ _ _ _ _ _ MC12) as [_ EVal2].
-               assert (Rsep2: reserve_separated1 r2 (inject_reserve_ j12' r') m2). 
+               assert (Rsep2: reserve_separated1 (inject_reserve_ j1 r) (inject_reserve_ j12' r') m2). 
                       unfold reserve_separated1. apply Rsep23. 
               clear - AtExt2 Aft2 Guar2 Rinc2 Rsep2 EVal2.
               specialize (guarantee_incr _ _ _ _ _ Guar2 Rinc2 Rsep2).
@@ -1265,7 +1273,7 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
 (*              destruct (inject_reserve_exists j2 r2) as [j2r2 Hj2r2].
               destruct (inject_reserve_exists j23' r12') as [j23r12' Hj23r12'].*)
 
-              assert (GUAR3: guarantee Sem3 (inject_reserve_ j2 r2) st3 m3).
+              assert (GUAR3: guarantee Sem3 (inject_reserve_ j2 (inject_reserve_ j1 r)) st3 m3).
                   intros b3 ofs. rewrite inject_reserve_AX.
                      intros. eapply (Guar3 b3 ofs); trivial.
 (*                     rewrite inject_reserve_AX in H0. apply H0.*)
@@ -1276,15 +1284,15 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
               specialize (Modify' H1).
               specialize (EVal3 _ _ _ Modify').
               apply Alloc.
-              clear - GUAR3 R Inc12 Sep12 Rsep23 Inc23 Sep23 Rinc2 Rsep RV1 EVal3 H0 Modify'.
-              assert (Rinc3: reserve_incr (inject_reserve_ j2 r2)
+              clear - GUAR3 Inc12 Sep12 Rsep23 Inc23 Sep23 Rinc2 Rsep RV1 EVal3 H0 Modify'.
+              assert (Rinc3: reserve_incr (inject_reserve_ j2 (inject_reserve_ j1 r))
                                (inject_reserve_ j23' (inject_reserve_ j12' r'))).
                    intros b3 delta IR. repeat rewrite inject_reserve_AX in *.
                    destruct IR as [b2 [delta3 [J2 RR]]].   
                    apply Inc23 in J2. apply Rinc2 in RR. 
                    exists b2. exists delta3.
                    split; assumption.
-               assert (Rsep3: reserve_separated1 (inject_reserve_ j2 r2)
+               assert (Rsep3: reserve_separated1 (inject_reserve_ j2 (inject_reserve_ j1 r))
                                (inject_reserve_ j23' (inject_reserve_ j12' r')) m3).
                       unfold reserve_separated1. repeat rewrite inject_reserve_AX in *. 
                       intros b3 z NIR IR. intros N.  
@@ -1296,7 +1304,7 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
                       destruct RR2 as [b1 [delta2 [J1 RR1]]].
                       apply NIR; clear NIR.
                       exists b2. exists delta3. split. assumption.
-                      rewrite R. exists b1. exists delta2.
+                      exists b1. exists delta2.
                       destruct (reserve_dec r b1 (z - delta3 - delta2)).
                          specialize (RV1 _ _ s).
                          remember (j1 b1) as w.
