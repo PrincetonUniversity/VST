@@ -1,6 +1,8 @@
+Require Import Coq.Logic.Decidable.
 Require Import msl.base. (*for spec tac*)
 
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.step_lemmas.
@@ -32,7 +34,7 @@ Variables F V C: Type.
 
 Inductive Sig: Type := Make: forall
  (ge: Genv.t F V)
- (csem: RelyGuaranteeSemantics (Genv.t F V) C (list (ident * globdef F V))),
+ (csem: EffectfulSemantics (Genv.t F V) C (list (ident * globdef F V))),
  Sig.
 
 End CompCertModule. End CompCertModule.
@@ -67,18 +69,17 @@ Definition all_at_external (l: call_stack cT num_modules) :=
    at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)
   end) l.
 
-Fixpoint owneds (stack: call_stack cT num_modules) b ofs :=
- match stack with 
- | nil => False
- | mkFrame i pf_i c_i :: stack' => 
-   owned (get_module_csem (modules pf_i)) c_i b ofs \/ owneds stack' b ofs
- end.
+Definition bool2prop (b: bool): Prop := b=true.
+Coercion bool2prop : bool >-> Sortclass.
 
 Inductive linker_corestate: Type := mkLinkerCoreState: forall
  (stack: call_stack cT num_modules)
  (stack_nonempty: length stack >= 1)
  (callers_at_external: all_at_external (List.tail stack)),
  linker_corestate.
+
+Definition stack_of (lc: linker_corestate) :=
+  match lc with mkLinkerCoreState st _ _ => st end.
 
 Implicit Arguments mkLinkerCoreState [].
 
@@ -211,6 +212,25 @@ Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :
    | _, _ => None (** either no 'main' was defined or [f] is not a [Vptr] *)
    end.
 
+Lemma linker_after_at_external_excl: 
+  forall q q' retv,
+  linker_after_external retv q = Some q' -> 
+  linker_at_external q' = None.
+Proof.
+intros q q' retv H.
+destruct q; simpl in H|-*.
+destruct stack; try solve[inversion H].
+destruct f; try solve[inversion H].
+case_eq (after_external (get_module_csem (modules PF)) retv c).
+intros c' H2; rewrite H2 in H.
+inv H; apply after_at_external_excl in H2.
+simpl; rewrite H2; auto.
+case_eq (after_external (get_module_csem (modules PF)) retv c).
+solve[intros c' H2; rewrite H2 in H; intro; congruence].
+intros H2 H3.
+solve[rewrite H2 in H; congruence].
+Qed.
+
 Program Definition linker_core_semantics: 
   CoreSemantics (Genv.t F V) linker_corestate mem (list (ident * globdef F V)) :=
  Build_CoreSemantics _ _ _ _ 
@@ -303,17 +323,7 @@ solve[destruct stack; auto].
 solve[left; auto].
 Qed.
 Next Obligation.
-destruct q; simpl in H|-*.
-destruct stack; try solve[inversion H].
-destruct f; try solve[inversion H].
-case_eq (after_external (get_module_csem (modules PF)) retv c).
-intros c' H2; rewrite H2 in H.
-inv H; apply after_at_external_excl in H2.
-simpl; rewrite H2; auto.
-case_eq (after_external (get_module_csem (modules PF)) retv c).
-solve[intros c' H2; rewrite H2 in H; intro; congruence].
-intros H2 H3.
-solve[rewrite H2 in H; congruence].
+solve[eapply linker_after_at_external_excl; eauto].
 Qed.
 
 Program Definition linker_coop_core_semantics: 
@@ -335,51 +345,136 @@ unfold linker_initial_mem in H.
 destruct H; auto.
 Qed.
 
-Program Definition rg_linker_core_semantics: 
-  RelyGuaranteeSemantics (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
- Build_RelyGuaranteeSemantics _ _ _ 
- linker_coop_core_semantics
- (fun c b => match c with mkLinkerCoreState stack _ _ => owneds stack b end)
- _ _ _ _.
-Next Obligation.
-destruct c.
-clear stack_nonempty callers_at_external.
-induction stack.
-solve[right; auto].
-destruct a.
-simpl.
-destruct (core_semantics.owned_dec (get_module_csem (modules PF)) c b ofs).
-solve[left; auto].
-destruct IHstack.
-solve[left; auto].
-right.
-intros CONTRA.
-solve[destruct CONTRA; auto].
+Notation effect_tbl := (effect_kind -> block -> Z -> bool).
+
+Definition effects_sub (ef1 ef2: effect_kind -> block -> Z -> Prop) :=
+  forall k b ofs, ef1 k b ofs -> ef2 k b ofs.
+
+Inductive eff_linker_corestate := 
+| mkEffLinkerCorestate:
+    forall (ef: effect_tbl) c
+    (pf: forall i pf_i c_i, In (mkFrame i pf_i c_i) (stack_of c) -> 
+         effects_sub (effects (get_module_csem (modules pf_i)) c_i) ef),
+    eff_linker_corestate.
+      
+Definition new_eff_tbl (c c': linker_corestate) eff_tbl k b ofs :=
+  match c, c' with
+  | mkLinkerCoreState (mkFrame i pf_i c1 :: st1) pf1 pf2, 
+    mkLinkerCoreState (mkFrame j pf_j c1' :: st1') pf1' pf2' => 
+      match safely_halted (get_module_csem (modules pf_i)) c1 with 
+      | None => 
+        match eq_nat_dec i j with 
+        | left pf => if new_effect_dec (get_module_csem (modules pf_i)) k b ofs 
+                           c1 (eq_rect j (fun x => cT x) c1' i (sym_eq pf))
+                     then true else eff_tbl k b ofs
+        | right _ => eff_tbl k b ofs
+        end
+      | Some _ => eff_tbl k b ofs
+      end
+  | _, _ => eff_tbl k b ofs
+  end. 
+
+Lemma new_eff_tbl_fwd: 
+  forall c c' (eff_tbl: effect_tbl) k b ofs,
+  eff_tbl k b ofs -> 
+  new_eff_tbl c c' eff_tbl k b ofs.
+Proof.
+intros until ofs.
+intros H1.
+unfold new_eff_tbl.
+destruct c; auto.
+destruct stack; auto.
+destruct f; auto.
+destruct c'; auto.
+destruct stack0; auto.
+destruct f; auto.
+destruct (safely_halted (get_module_csem (modules PF))); auto.
+destruct (eq_nat_dec i i0); auto.
+if_tac; auto.
+hnf; auto.
 Qed.
-Next Obligation.
-destruct c.
-intros CONTRA.
-rename H into H2.
-unfold linker_make_initial_core in H2.
-case_eq v.
-rename V into V'.
-solve[intros V; rewrite V in *; try solve[congruence]].
-intros i V2.
-rewrite V2 in H2.
+
+Lemma eq_nat_dec_refl: forall i, eq_nat_dec i i = (left (eq_refl _)).
+Proof.
+intros.
+destruct (eq_nat_dec i i); try solve[congruence].
+f_equal.
+apply proof_irr.
+Qed.
+
+Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
+ eq_rect i (fun x => cT x) c i (eq_sym e) = c.
+Proof.
+intros; rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
+apply eq_nat_dec.
+Qed.
+
+Lemma new_eff_tbl_after:
+  forall c c' (eff_tbl: effect_tbl) rv k b ofs ef sg args,
+  linker_at_external c = Some (ef, sg, args) -> 
+  linker_after_external rv c = Some c' -> 
+  (eff_tbl k b ofs <-> new_eff_tbl c c' eff_tbl k b ofs).
+Proof.
+intros until args; intros AT H1.
+destruct c; try solve[congruence].
+simpl in AT.
+destruct stack; simpl in H1.
 congruence.
-intros f V2.
-rewrite V2 in H2.
-congruence.
-intros b' i V2.
-rewrite V2 in H2.
-case_eq (Genv.find_symbol ge0 main_id).
-2: solve[intros H6; rewrite H6 in H2; destruct v; congruence].
-intros b1 H6.
-rewrite H6 in H2.
-if_tac in H2; try solve[congruence].
+destruct f.
+case_eq (at_external (get_module_csem (modules PF)) c).
+intros [[ef' sg'] args'] AT'.
+rewrite AT' in AT.
+assert (EQ: (ef, sg, args) = (ef', sg', args')).
+ destruct ef'; try solve[inv AT; auto].
+ destruct (procedure_linkage_table name) in AT; try solve[congruence].
+ inv AT; auto.
+clear H0.
+inv EQ.
+case_eq (after_external (get_module_csem (modules PF)) rv c).
+intros c0 AFT.
+rewrite AFT in H1.
+inv H1.
+simpl.
+destruct (safely_halted (get_module_csem (modules PF)) c).
+solve[split; auto].
+rewrite eq_nat_dec_refl.
+rewrite dependent_types_nonsense.
+if_tac.
+exploit @effects_external; eauto.
+intros [H0 H1].
+destruct H.
+solve[elimtype False; apply H; eauto].
+solve[split; auto].
+intros NONE.
+rewrite NONE in H1; congruence.
+intros NONE.
+rewrite NONE in AT; congruence.
+Qed.
+
+Inductive eff_linker_corestep: 
+  Genv.t F V -> 
+  eff_linker_corestate -> mem -> 
+  eff_linker_corestate -> mem -> Prop :=
+| eff_step: 
+  forall ef c m c' m' pf pf', 
+    corestep linker_coop_core_semantics ge c m c' m' -> 
+    eff_linker_corestep ge (mkEffLinkerCorestate ef c pf) m 
+                           (mkEffLinkerCorestate (new_eff_tbl c c' ef) c' pf') m'.
+
+Lemma linker_effects_initial: 
+  forall v vs c i pf_i c_i k b ofs,
+  linker_make_initial_core ge v vs = Some c -> 
+  In (mkFrame i pf_i c_i) (stack_of c) -> 
+  ~effects (get_module_csem (modules pf_i)) c_i k b ofs.
+Proof.
+unfold linker_make_initial_core.
+intros.
+destruct v; try solve[congruence].
+destruct (Genv.find_symbol ge main_id); try solve[congruence].
+if_tac in H; try congruence.
 case_eq (procedure_linkage_table main_id); try solve[congruence].
 intros n PLT.
-revert H2.
+revert H.
 generalize (refl_equal (procedure_linkage_table main_id)).
 generalize PLT.
 pattern (procedure_linkage_table main_id) at 0 2 4.
@@ -390,70 +485,470 @@ case_eq
  (make_initial_core 
    (get_module_csem (modules (plt_ok main_id n (eq_sym e))))
    (get_module_genv (modules (plt_ok main_id n (eq_sym e))))
-   (Vptr b1 i) vs); try solve[congruence].
-intros c Heq; inv Heq.
-intros H1; inv H1.
-simpl in CONTRA.
-eapply owned_initial in H0.
-elimtype False; apply H0.
-destruct CONTRA; try solve[elimtype False; auto].
+   (Vptr b1 i0) vs); try solve[congruence].
+intros c' Heq; inv Heq.
+intros H2; inv H2.
+intros EF.
+simpl in H0.
+destruct H0; try congruence.
+inv H.
+apply Eqdep_dec.inj_pair2_eq_dec in H3.
+2: solve[apply eq_nat_dec].
+subst.
+eapply effects_initial in H1.
+apply H1.
+assert (plt_ok main_id i (eq_sym e) = pf_i) as -> 
+ by apply proof_irr.
 solve[eauto].
-intros PLT.
-revert H2.
+intros PLT EF.
+revert H.
 generalize (refl_equal (procedure_linkage_table main_id)).
 generalize PLT.
 pattern (procedure_linkage_table main_id) at 0 2 4.
 rewrite PLT.
-intros ? ? ?; congruence.
+intros ? ?.
+subst.
+congruence.
+Qed.
+
+Program Definition eff_linker_coresem:
+  CoreSemantics (Genv.t F V) eff_linker_corestate mem (list (ident * globdef F V)) :=
+ Build_CoreSemantics _ _ _ _ 
+  (initial_mem linker_coop_core_semantics)
+  (fun ge0 v vs => match make_initial_core linker_coop_core_semantics ge v vs with
+                   | None => None
+                   | Some c => Some (mkEffLinkerCorestate (fun k b ofs => false) c _)
+                   end)
+  (fun efc => match efc with mkEffLinkerCorestate ef c _ => 
+                at_external linker_coop_core_semantics c end)
+  (fun rv efc => match efc with mkEffLinkerCorestate ef c pf => 
+                   match at_external linker_coop_core_semantics c, 
+                         after_external linker_coop_core_semantics rv c with
+                   | Some (e, sg, args), Some c' => Some (mkEffLinkerCorestate ef c' _)
+                   | _, _ => None
+                   end
+                 end)
+  (fun efc => match efc with 
+                mkEffLinkerCorestate ef c _ => 
+                safely_halted linker_coop_core_semantics c end)
+  eff_linker_corestep _ _ _ _.
+Next Obligation.
+intros k b ofs EF.
+elimtype False.
+solve[eapply linker_effects_initial; eauto].
 Qed.
 Next Obligation.
-destruct c'.
-destruct c.
-inv H.
-simpl in H0.
-simpl.
-destruct H0; auto.
-apply (owned_step _ b ofs) in H7; auto.
-solve[destruct H7; auto].
-apply (owned_initial _ b ofs) in H9.
-simpl in H0.
-destruct H0; auto.
-solve[elimtype False; apply H9; auto].
-unfold all_at_external in callers_at_external0.
-simpl in callers_at_external0.
-inv callers_at_external0.
-clear H4.
-(*destruct H2 as [ef [ef_sig [args AT_EXT]]].*)
-simpl in H0.
-destruct H0.
-simpl.
-solve[eapply (owned_external _ b) in AT_EXT; eauto].
-solve[left; right; right; auto].
-Qed.
-Next Obligation.
-unfold linker_at_external in H.
-unfold linker_after_external in H0.
+intros k b ofs EF.
+unfold linker_at_external, linker_after_external in *.
 destruct c.
 destruct stack.
 congruence.
 destruct f.
+simpl in pf.
+case_eq (after_external (get_module_csem (modules PF)) rv c).
+intros c0 AFT.
+rewrite AFT in *.
+inv Heq_anonymous0.
 case_eq (at_external (get_module_csem (modules PF)) c).
-intros [[ef' sig'] args'] AT_EXT.
-2: solve[intros AT_EXT; rewrite AT_EXT in H; congruence].
-case_eq (after_external (get_module_csem (modules PF)) retv c).
-intros c'' Heq.
-rewrite Heq in H0.
-inv H0.
-simpl in H1|-*.
-destruct H1.
-eapply (owned_external _ b) in Heq; eauto.
-right; auto.
-intros H2.
-rewrite H2 in H0.
+intros [[e0 sg0] args0] AT.
+rewrite AT in Heq_anonymous.
+assert (EQ: (e, sg, args) = (e0, sg0, args0)).
+ destruct e0; try solve[inv Heq_anonymous; auto].
+ destruct (procedure_linkage_table name) in Heq_anonymous; try solve[congruence].
+ inv Heq_anonymous; auto.
+clear H1.
+inv EQ.
+simpl in H.
+destruct H.
+inv H.
+apply Eqdep_dec.inj_pair2_eq_dec in H2.
+2: solve[apply eq_nat_dec].
+subst.
+specialize (pf i PF c).
+spec pf; auto.
+apply pf.
+eapply effects_external; eauto.
+solve[assert (PF = pf_i) as -> by apply proof_irr; auto].
+solve[eapply pf; eauto].
+intros NONE.
+rewrite NONE in *.
+congruence.
+intros NONE.
+rewrite NONE in *.
+congruence.
+Qed.
+Next Obligation. solve[inv H; eapply corestep_not_at_external in H0; eauto]. Qed.
+Next Obligation. solve[inv H; eapply corestep_not_halted in H0; eauto]. Qed.
+Next Obligation.
+destruct q.
+solve[exploit (at_external_halted_excl linker_coop_core_semantics); eauto].
+Qed.
+Next Obligation. 
+destruct q.
+case_eq (linker_at_external c).
+intros [[e0 sig0] args0] AT.
+revert H.
+generalize (refl_equal (linker_at_external c)).
+generalize AT.
+pattern (linker_at_external c) at 0 2 4.
+rewrite AT.
+intros ? ? H.
+case_eq (linker_after_external retv c).
+intros c' AFT.
+revert H.
+generalize (refl_equal (linker_after_external retv c)).
+generalize AFT.
+pattern (linker_after_external retv c) at 0 2 4.
+rewrite AFT.
+intros.
+inv H.
+solve[exploit linker_after_at_external_excl; eauto].
+intros NONE.
+revert H.
+generalize (refl_equal (linker_after_external retv c)).
+generalize NONE.
+pattern (linker_after_external retv c) at 0 2 4.
+rewrite NONE.
+intros.
+congruence.
+intros NONE.
+revert H.
+generalize (refl_equal (linker_at_external c)).
+generalize NONE.
+pattern (linker_at_external c) at 0 2 4.
+rewrite NONE.
+intros.
 congruence.
 Qed.
 
+Program Definition eff_linker_coopsem:
+  CoopCoreSem (Genv.t F V) eff_linker_corestate (list (ident * globdef F V)) :=
+ Build_CoopCoreSem _ _ _
+  eff_linker_coresem _ _ _.
+Next Obligation. solve[inv CS; eapply corestep_fwd; eauto]. Qed.
+Next Obligation. solve[inv CS; eapply corestep_wdmem; eauto]. Qed.
+Next Obligation. solve[unfold linker_initial_mem in H; destruct H; auto]. Qed.
+
+Program Definition eff_linker_core_semantics: 
+  EffectfulSemantics (Genv.t F V) eff_linker_corestate (list (ident * globdef F V)) :=
+ Build_EffectfulSemantics _ _ _
+   eff_linker_coopsem 
+   (fun efc => match efc with mkEffLinkerCorestate ef c pf => ef end)
+   _ _ _ _ _ _.
+Next Obligation.
+destruct c.
+destruct (ef k b ofs).
+left; hnf; auto.
+right; hnf; intros; congruence.
+Qed.
+Next Obligation.
+destruct c.
+intros CONTRA.
+case_eq (linker_make_initial_core ge v vs).
+intros l0 Heq.
+revert H.
+generalize (refl_equal (linker_make_initial_core ge v vs)).
+generalize Heq.
+pattern (linker_make_initial_core ge v vs) at 0 2 4.
+rewrite Heq.
+intros ? ? H.
+inv H.
+congruence.
+intros NONE.
+revert H.
+generalize (refl_equal (linker_make_initial_core ge v vs)).
+generalize NONE.
+pattern (linker_make_initial_core ge v vs) at 0 2 4.
+rewrite NONE.
+intros ? ? H.
+inv H.
+Qed.
+Next Obligation.
+destruct c.
+destruct c'.
+inv H.
+split.
+intros; solve[apply new_eff_tbl_fwd; auto].
+inv H7; try solve[apply mem_unchanged_on_refl; auto].
+generalize H1 as H1'; intro.
+eapply effects_forward in H1; eauto.
+destruct H1.
+apply mem_unchanged_on_sub with (Q := (fun (b' : block) (ofs' : Z) =>
+          ~ effects (get_module_csem (modules pf_i)) c' ModifyEffect b' ofs')); auto.
+intros b0 ofs0 H3 EF.
+apply H3.
+simpl.
+simpl in H3.
+apply corestep_not_halted in H1'.
+rewrite H1' in *.
+rewrite eq_nat_dec_refl in *.
+rewrite dependent_types_nonsense in *.
+if_tac.
+solve[hnf; auto].
+unfold new_effect in H4.
+apply not_and in H4.
+destruct H4.
+simpl in *.
+eapply pf; eauto.
+apply not_not in H4; auto.
+unfold decidable.
+destruct (effects_dec (get_module_csem (modules pf_i)) c1 ModifyEffect b0 ofs0).
+left; auto.
+right; auto.
+contradiction.
+destruct (effects_dec (get_module_csem (modules pf_i)) c1 ModifyEffect b0 ofs0).
+right; auto.
+solve[left; auto].
+Qed.
+Next Obligation.
+inv H.
+unfold new_eff_tbl.
+destruct c0.
+destruct stack.
+simpl in stack_nonempty.
+omega.
+destruct f.
+destruct c'0.
+destruct stack0.
+simpl in stack_nonempty0.
+omega.
+destruct f.
+inv H0. 
+rewrite eq_nat_dec_refl.
+apply Eqdep_dec.inj_pair2_eq_dec in H1.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H7.
+subst.
+generalize H11 as H11'; intro.
+apply corestep_not_halted in H11'.
+assert (PF = pf_i0) as -> by apply proof_irr.
+rewrite H11'.
+clear H.
+specialize (pf' _ pf_i c0).
+spec pf'; auto.
+simpl.
+left; auto.
+f_equal; auto.
+simpl in pf'.
+rewrite eq_nat_dec_refl in pf'.
+rewrite dependent_types_nonsense in pf'.
+if_tac.
+rewrite dependent_types_nonsense in H.
+split; auto.
+intros _.
+destruct H.
+unfold effects_sub in pf'.
+assert (pf_i = pf_i0) by apply proof_irr.
+subst.
+specialize (pf' AllocEffect _ _ H0).
+eapply effects_backward_alloc with (b0 := b) (ofs0 := ofs) in H11.
+rewrite H11 in H0.
+destruct H0; auto.
+specialize (pf _ pf_i0 c).
+spec pf.
+solve[simpl; auto].
+specialize (pf AllocEffect _ _ H0).
+hnf in pf.
+solve[left; auto].
+intros _.
+solve[hnf; auto].
+unfold new_effect in H.
+apply not_and in H.
+rewrite dependent_types_nonsense in H.
+split; auto.
+intros H0.
+destruct H.
+apply not_not in H.
+specialize (pf _ pf_i c).
+spec pf.
+assert (pf_i = pf_i0) by apply proof_irr.
+subst.
+solve[simpl; auto].
+assert (pf_i = pf_i0) by apply proof_irr.
+subst.
+specialize (pf AllocEffect _ _ H).
+solve[hnf in pf; auto].
+destruct (effects_dec (get_module_csem (modules pf_i0)) c AllocEffect b ofs).
+solve[left; auto].
+solve[right; auto].
+destruct H0; auto.
+eapply effects_backward_alloc with (b0 := b) (ofs0 := ofs) in H11.
+destruct H11.
+spec H2; auto.
+elimtype False; apply H.
+solve[assert (pf_i = pf_i0) as -> by apply proof_irr; auto].
+destruct (effects_dec (get_module_csem (modules pf_i0)) c AllocEffect b ofs).
+solve[right; auto].
+solve[left; auto].
+apply eq_nat_dec.
+solve[apply eq_nat_dec].
+apply Eqdep_dec.inj_pair2_eq_dec in H1.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H4.
+subst.
+eapply effects_initial 
+ with (b1 := b) (ofs0 := ofs) (k := AllocEffect) in H13.
+destruct (eq_nat_dec i i0).
+subst.
+exploit @at_external_halted_excl; eauto.
+intros [H1|H1].
+rewrite H1 in AT_EXT.
+congruence.
+assert (PF = pf_i0) as -> by apply proof_irr.
+rewrite H1.
+clear H.
+if_tac.
+rewrite dependent_types_nonsense in H.
+destruct H.
+elimtype False.
+apply H13.
+solve[assert (plt_ok id i0 LOOKUP0 = pf_i0) as -> by apply proof_irr; auto].
+rewrite dependent_types_nonsense in H.
+unfold new_effect in H.
+apply not_and in H.
+destruct H.
+apply not_not in H.
+split; auto.
+intros H2.
+destruct H2; auto.
+destruct H0.
+omega.
+destruct (effects_dec (get_module_csem (modules pf_i0)) c AllocEffect b ofs).
+solve[left; auto].
+solve[right; auto].
+split; auto.
+intros [H2|H2]; auto.
+destruct H2.
+omega.
+destruct (effects_dec (get_module_csem (modules PF)) c AllocEffect b ofs).
+solve[right; auto].
+solve[left; auto].
+exploit @at_external_halted_excl.
+intros [H2|H2].
+rewrite H2 in AT_EXT.
+congruence.
+assert (pf_i0 = PF) as -> by apply proof_irr.
+rewrite H2.
+split; auto.
+intros [H3|H3]; auto.
+destruct H3.
+omega.
+apply eq_nat_dec.
+apply eq_nat_dec.
+apply Eqdep_dec.inj_pair2_eq_dec in H1.
+subst.
+apply Eqdep_dec.inj_pair2_eq_dec in H7.
+subst.
+exploit @effects_external; eauto.
+intros Heq.
+destruct (eq_nat_dec i i0).
+subst.
+rewrite dependent_types_nonsense.
+assert (PF = pfj0) as -> by apply proof_irr.
+rewrite HALTED.
+split; auto.
+intros [H2|H2]; auto.
+destruct H2; omega.
+assert (PF = pfj0) as -> by apply proof_irr.
+rewrite HALTED.
+split; auto.
+intros [H2|H2]; auto.
+destruct H2; omega.
+apply eq_nat_dec.
+apply eq_nat_dec.
+Grab Existential Variables.
+refine ofs.
+refine b.
+refine AllocEffect.
+Qed.
+Next Obligation.
+destruct c.
+destruct c'.
+revert H0.
+generalize (refl_equal (linker_at_external c)).
+generalize H.
+pattern (linker_at_external c) at 0 2 4.
+rewrite H.
+intros.
+case_eq (linker_after_external retv c).
+intros c' AFT.
+revert H1.
+generalize (refl_equal (linker_after_external retv c)).
+generalize AFT.
+pattern (linker_after_external retv c) at 0 2 4.
+rewrite AFT.
+intros.
+inv H1.
+solve[split; auto].
+intros AFT.
+revert H1.
+generalize (refl_equal (linker_after_external retv c)).
+generalize AFT.
+pattern (linker_after_external retv c) at 0 2 4.
+rewrite AFT.
+intros.
+congruence.
+Qed.
+Next Obligation.
+destruct c, c'.
+inv H.
+inv H9.
+generalize H3 as H3'; intro.
+apply corestep_not_halted in H3'.
+simpl in H1.
+rewrite H3' in H1.
+rewrite eq_nat_dec_refl in H1.
+rewrite dependent_types_nonsense in H1.
+generalize H3 as H3''; intro.
+apply effects_valid_preserved in H3.
+if_tac in H1.
+destruct H4.
+solve[eapply H3; eauto].
+unfold new_effect in H4.
+apply not_and in H4.
+destruct H4.
+apply not_not in H4.
+eapply corestep_fwd; eauto.
+destruct (effects_dec (get_module_csem (modules pf_i)) c1 k b ofs).
+solve[left; auto].
+solve[right; auto].
+eapply corestep_fwd; eauto.
+destruct (effects_dec (get_module_csem (modules pf_i)) c1 k b ofs).
+solve[right; auto].
+solve[left; auto].
+intros ? ? ? EF.
+specialize (pf _ pf_i c1).
+spec pf.
+solve[simpl; auto].
+specialize (pf _ _ _ EF).
+simpl in pf.
+solve[eapply H0; eauto].
+simpl in H1.
+exploit @at_external_halted_excl.
+intros H6.
+destruct H6.
+rewrite H6 in AT_EXT; congruence.
+rewrite H6 in H1.
+destruct (eq_nat_dec i j).
+subst.
+if_tac in H1.
+rewrite dependent_types_nonsense in H7.
+destruct H7.
+elimtype False.
+clear - H8 H5.
+exploit @effects_initial; eauto.
+assert (plt_ok id j LOOKUP = pf_i) as -> by apply proof_irr.
+solve[eauto].
+solve[eauto].
+solve[eauto].
+unfold new_eff_tbl in H1.
+rewrite HALTED in H1.
+solve[eauto].
+Qed.
+
 (** Preservation of privacy invariants *)
+
+Notation owned efsem c b ofs := (effects efsem c AllocEffect b ofs).
 
 Fixpoint owned_valid_inv m (stack: call_stack cT num_modules) :=
  match stack with
@@ -499,8 +994,8 @@ Fixpoint owned_disjoint_inv (stack: call_stack cT num_modules) :=
   end.
 
 Lemma owned_valid_invariant: 
-  forall stack m stack' m' n pf1 pf2 pf1' pf2',
-  corestepN rg_linker_core_semantics ge n 
+  forall stack m stack' m' n pf1 pf1' pf2 pf2',
+  corestepN linker_core_semantics ge n 
    (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
   owned_valid_inv m stack -> 
   owned_valid_inv m' stack'.
@@ -521,16 +1016,17 @@ simpl.
 destruct H4 as [H4 H5].
 split; auto.
 intros b ofs H6.
-destruct (core_semantics.owned_dec (get_module_csem (modules pf_i)) c b ofs).
+destruct (effects_dec (get_module_csem (modules pf_i)) c AllocEffect b ofs).
 cut (Mem.nextblock m <= Mem.nextblock m2)%Z. intro H7.
 cut (b < Mem.nextblock m)%Z. intro H8.
 omega.
 eapply H4; eauto.
 apply corestep_fwd in H3.
 solve[apply forward_nextblock in H3; auto].
-eapply owned_step in H3; eauto.
-destruct H3.
-elimtype False; auto.
+eapply effects_backward_alloc with (b0 := b) (ofs0 := ofs) in H3.
+rewrite H3 in H6.
+destruct H6; auto.
+solve[elimtype False; auto].
 solve[destruct H; auto].
 assert (Mem.nextblock m <= Mem.nextblock m2)%Z. 
  apply corestep_fwd in H3.
@@ -547,7 +1043,7 @@ simpl.
 split.
 intros b' ofs' H7.
 elimtype False.
-solve[eapply owned_initial in H5; eauto].
+solve[eapply effects_initial in H5; eauto].
 split.
 intros b' ofs' H7.
 simpl in H6.
@@ -566,11 +1062,11 @@ intros b ofs H7.
 simpl in pf2.
 unfold all_at_external in pf2.
 inv pf2.
-(*destruct H4 as [ef [sig [args ATEXT]]].*)
-eapply owned_external in H3; eauto.
+eapply effects_external in H3; eauto.
 simpl in H6.
 destruct H6 as [_ [H6 H8]].
 intros; eapply H6; eauto.
+solve[rewrite H3; eauto].
 solve[destruct H6 as [? [? ?]]; eauto].
 Qed.
 
@@ -633,16 +1129,16 @@ split; auto.
 intros b ofs H2.
 simpl in H1.
 destruct H1 as [H1 H3].
-destruct (core_semantics.owned_dec (get_module_csem (modules pf_i)) c b ofs).
+destruct (effects_dec (get_module_csem (modules pf_i)) c AllocEffect b ofs).
 apply H1; auto.
 intros CONTRA.
-eapply owned_step in H; eauto.
-destruct H; eauto.
-destruct H as [H2' H4].
+eapply effects_backward_alloc in H; eauto.
+rewrite H in H2.
+destruct H2; auto.
 assert (b < Mem.nextblock m)%Z.
  clear - H0 CONTRA.
  solve[destruct H0 as [H0 [H1 H2]]; eauto].
-clear - H2' H4 H.
+clear - H2 H4 H.
 omega.
 simpl in *.
 destruct H0 as [? [? ?]].
@@ -652,7 +1148,7 @@ Qed.
 
 Lemma owned_disjoint_invariant: 
   forall stack stack' m m' n pf1 pf2 pf1' pf2',
-  corestepN rg_linker_core_semantics ge n 
+  corestepN linker_core_semantics ge n 
    (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
   owned_valid_inv m stack -> 
   owned_disjoint_inv stack -> 
@@ -688,23 +1184,23 @@ apply IHn
 simpl.
 split; auto.
 intros b' ofs' H8.
-destruct (core_semantics.owned_dec (get_module_csem (modules pf_i)) c b' ofs').
+destruct (effects_dec (get_module_csem (modules pf_i)) c AllocEffect b' ofs').
 simpl in H0.
 destruct H0 as [H0 H9].
 solve[eapply H0; eauto].
 elimtype False.
-solve[eapply owned_initial in H7; eauto].
+solve[eapply effects_initial in H7; eauto].
 simpl.
 split; auto.
 split; auto.
 intros b' H8 CONTRA.
-solve[eapply owned_initial in H7; eauto].
+solve[eapply effects_initial in H7; eauto].
 clear - H7.
 induction stack0; simpl; auto.
 destruct a.
 split; auto.
 intros b' H1 CONTRA.
-solve[eapply owned_initial in H7; eauto].
+solve[eapply effects_initial in H7; eauto].
 apply IHn 
  with (stack := mkFrame i pf_i c'' :: stack0)
       (pf1 := length_cons (mkFrame i pf_i c'') stack0)
@@ -719,10 +1215,10 @@ inv pf2.
 (*destruct H6 as [ef [sig [args ATEXT]]].*)
 clear H6.
 clear H8.
-eapply owned_external in H5; eauto.
+eapply effects_external in H5; eauto.
 simpl in H0.
 destruct H0 as [_ [H6 H8]].
-solve[eapply H6; eauto].
+solve[eapply H6; rewrite H5; eauto].
 solve[destruct H0 as [? [? ?]]; auto].
 simpl.
 simpl in H1.
@@ -741,8 +1237,9 @@ simpl in H1.
 destruct H1 as [H1 H2].
 split; auto.
 intros b ofs H3 CONTRA.
-eapply owned_external in H5; eauto.
+eapply effects_external in H5; eauto.
 apply (H1 b ofs); auto.
+solve[rewrite H5; auto].
 Qed.
 
 End LinkerCoreSemantics.
@@ -852,13 +1349,6 @@ Definition genvs: forall i: nat, Genv.t (fT i) (vT i) :=
 Definition init_data := fun i: nat => list (ident * globdef (fT i) (vT i)).
 
 Implicit Arguments linker_corestate [fT vT].
-
-Lemma dependent_types_nonsense: forall i (c: cT i) (e: i=i), 
- eq_rect i (fun x => cT x) c i (eq_sym e) = c.
-Proof.
-intros; rewrite <-Eqdep_dec.eq_rect_eq_dec; auto.
-apply eq_nat_dec.
-Qed.
 
 Variable linkable_csig_esig: linkable proj_zext
   (fun (ef: AST.external_function) => forall s c sig args,
@@ -3394,5 +3884,4 @@ solve[split; split; auto].
 solve[apply eq_nat_dec].
 Qed.
 
-End LinkerCompilable.
-  
+End LinkerCompilable.  

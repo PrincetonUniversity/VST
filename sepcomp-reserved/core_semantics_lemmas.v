@@ -1,3 +1,5 @@
+Require Import Coq.Logic.Decidable.
+
 (*CompCert imports*)
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
@@ -121,7 +123,20 @@ Definition new_effect k b ofs c c' :=
 Lemma new_effect_dec: 
   forall k b ofs c c',
   {new_effect k b ofs c c'}+{~new_effect k b ofs c c'}.
-Admitted.
+Proof.
+intros k b ofs c c'.
+unfold new_effect.
+destruct (effects_dec efsem c k b ofs).
+right.
+intros [CONTRA _].
+auto.
+destruct (effects_dec efsem c' k b ofs).
+left.
+split; auto.
+right.
+intros [C1 C2].
+auto.
+Qed.
 
 Lemma effects_new: forall b ofs ge c m c' m',
   ~effects efsem c AllocEffect b ofs -> 
@@ -134,6 +149,26 @@ eapply (effects_backward_alloc _ b ofs) in H2; eauto.
 rewrite H2 in H3.
 destruct H3; auto.
 solve[elimtype False; auto].
+Qed.
+
+Lemma effects_new2: forall b ofs ge c m c' m',
+  corestep efsem ge c m c' m' -> 
+  effects_valid efsem c m -> 
+  (new_effect AllocEffect b ofs c c' <-> 
+    Mem.nextblock m <= b < Mem.nextblock m').
+Proof.
+intros until m'; intros H1 VAL.
+eapply (effects_backward_alloc _ b ofs) in H1.
+unfold new_effect.
+rewrite H1.
+split; intros.
+destruct H; destruct H0; auto.
+elimtype False; auto.
+split; auto.
+intros CONTRA.
+apply VAL in CONTRA.
+unfold Mem.valid_block in CONTRA.
+omega.
 Qed.
 
 Lemma effects_forwardN: forall b ofs ge n c m c' m' k,
@@ -378,7 +413,6 @@ intros b ofs VAL R EF.
 destruct (STEP _ VAL) as [VAL' _].
 specialize (G' b ofs VAL' R).
 eapply effects_forward in EF; eauto.
-destruct EF as [EF _].
 specialize (G' EF).
 eapply effects_backward_alloc in STEP'.
 rewrite STEP' in G'.
@@ -750,214 +784,3 @@ solve[rewrite EQ; auto].
 Qed.
 
 End ReserveLemmas.
-
-(*BEGIN DEPRECATED
-(** Guarantee transitivity theorems *)
-
-Lemma guarantee_trans:
-  forall m2 m2' m3 m3' f1 (r1: reserve) f2 (r2: reserve) c1 c2,
-  (forall b0 b delta ofs0, 
-     guarantee_left efsem1 r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
-     guarantee_left efsem2 r2 c2 b (ofs0 + delta)) -> 
-  mem_unchanged_on (guarantee_right efsem1 f1 r1 c1) m2 m2' -> 
-  mem_unchanged_on (guarantee_right efsem2 f2 r2 c2) m3 m3' -> 
-  mem_unchanged_on (guarantee_right efsem1 (compose_meminj f1 f2) r1 c1) m3 m3'.
-Proof.
-
-Lemma guarantee_right_trans:
-  forall m2 m2' m3 m3' f1 (r1: reserve) f2 (r2: reserve) c1 c2,
-  (forall b0 b delta ofs0, 
-     guarantee_left efsem1 r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
-     guarantee_left efsem2 r2 c2 b (ofs0 + delta)) -> 
-  mem_unchanged_on (guarantee_right efsem1 f1 r1 c1) m2 m2' -> 
-  mem_unchanged_on (guarantee_right efsem2 f2 r2 c2) m3 m3' -> 
-  mem_unchanged_on (guarantee_right efsem1 (compose_meminj f1 f2) r1 c1) m3 m3'.
-Proof.
-intros until c2; intros H0 H1 H2.
-apply mem_unchanged_on_sub with (Q := guarantee_right efsem2 f2 r2 c2); auto.
-intros b ofs H4.
-unfold guarantee_right in H4|-*.
-destruct H4 as [b0 [delta [H4 H5]]].
-unfold compose_meminj in H4.
-case_eq (f1 b0).
-intros [b1 delta1] Heq1.
-rewrite Heq1 in H4.
-exists b1.
-case_eq (f2 b1).
-intros [b2 delta2] Heq2.
-rewrite Heq2 in H4.
-inv H4.
-exists delta2.
-split; auto.
-specialize (H0 _ _ _ _ H5 Heq1).
-solve[assert (ofs - (delta1+delta2) + delta1 = ofs - delta2) as <- by omega; auto].
-intros Heq; rewrite Heq in H4; congruence.
-intros Heq; rewrite Heq in H4; congruence.
-Qed.
-
-Lemma guarantee_right_trans_EI:
-  forall m2 m2' m3 m3' (r1: reserve) f2 (r2: reserve) c1 c2,
-  (forall b0 ofs0, 
-    guarantee_left efsem1 r1 c1 b0 ofs0 -> 
-    guarantee_left efsem2 r2 c2 b0 ofs0) -> 
-  mem_unchanged_on (guarantee_right efsem1 inject_id r1 c1) m2 m2' -> 
-  mem_unchanged_on (guarantee_right efsem2 f2 r2 c2) m3 m3' -> 
-  mem_unchanged_on (guarantee_right efsem1 f2 r1 c1) m3 m3'.
-Proof.
-intros.
-specialize (guarantee_right_trans m2 m2' m3 m3' inject_id r1 f2 r2 c1 c2); intros H2.
-destruct H2; auto.
-intros until ofs0; intros H2 H3.
-unfold inject_id in H3; inv H3.
-solve[assert (ofs0+0 = ofs0) as -> by omega; auto].
-assert (f2 = compose_meminj inject_id f2) as Heq.
- unfold inject_id, compose_meminj; hnf.
- extensionality b.
- destruct (f2 b); auto.
- solve[destruct p; auto].
-solve[rewrite Heq; split; intros; auto].
-Qed.
-
-Lemma guarantee_right_trans_IE:
-  forall m2 m2' m3 m3' f1 (r1: reserve) (r2: reserve) c1 c2,
-  (forall b0 b delta ofs0, 
-     guarantee_left efsem1 r1 c1 b0 ofs0 -> f1 b0 = Some (b, delta) -> 
-     guarantee_left efsem2 r2 c2 b (ofs0 + delta)) -> 
-  mem_unchanged_on (guarantee_right efsem1 f1 r1 c1) m2 m2' -> 
-  mem_unchanged_on (guarantee_right efsem2 inject_id r2 c2) m3 m3' -> 
-  mem_unchanged_on (guarantee_right efsem1 f1 r1 c1) m3 m3'.
-Proof.
-intros.
-specialize (guarantee_right_trans m2 m2' m3 m3' f1 r1 inject_id r2 c1 c2); intros H2.
-destruct H2; auto.
-assert (f1 = compose_meminj f1 inject_id) as Heq.
- unfold inject_id, compose_meminj; hnf.
- extensionality b.
- destruct (f1 b); auto.
- destruct p; auto.
- solve[do 2 f_equal; auto; omega].
-solve[rewrite Heq; split; intros; auto].
-Qed.
-
-Lemma guarantee_right_trans_EE:
-  forall m2 m2' m3 m3' (r1: reserve) (r2: reserve) c1 c2,
-  (forall b0 ofs0, 
-    guarantee_left efsem1 r1 c1 b0 ofs0 -> 
-    guarantee_left efsem2 r2 c2 b0 ofs0) -> 
-  mem_unchanged_on (guarantee_right efsem1 inject_id r1 c1) m2 m2' -> 
-  mem_unchanged_on (guarantee_right efsem2 inject_id r2 c2) m3 m3' -> 
-  mem_unchanged_on (guarantee_right efsem1 inject_id r1 c1) m3 m3'.
-Proof.
-intros.
-specialize (guarantee_right_trans m2 m2' m3 m3' inject_id r1 inject_id r2 c1 c2); intros H2.
-destruct H2; auto.
-intros until ofs0; intros H2 H3.
-unfold inject_id in H3; inv H3.
-solve[assert (ofs0+0 = ofs0) as -> by omega; auto].
-assert (inject_id = compose_meminj inject_id inject_id) as Heq.
- unfold inject_id, compose_meminj; hnf.
- extensionality b.
- solve[f_equal; auto; omega].
-solve[rewrite Heq; split; intros; auto].
-Qed.
-
-End ReserveLemmas.
-
-Definition blockmap := block -> Z -> bool.
-
-Section RelyGuaranteeSemanticsFunctor.
-Context {G C D: Type}.
-Variable csem: CoopCoreSem G C D.
-
-Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
-  match x, x' with (f, c), (f', c') => 
-    corestep csem ge c m c' m' /\
-    (forall b ofs, f' b ofs=true -> f b ofs=true \/ Mem.nextblock m <= b < Mem.nextblock m')
-  end.
-
-Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
-  Build_CoreSemantics G (blockmap*C) mem D 
-    (*initial mem*)
-    (initial_mem csem)
-    (*make_initial_core*)
-    (fun ge v vs => match make_initial_core csem ge v vs with
-                    | Some c => Some (fun _ _ => false, c)
-                    | None => None
-                    end)
-    (*at_external*)
-    (fun x => at_external csem (snd x))
-    (*after_external*)
-    (fun retv x => match after_external csem retv (snd x) with
-                   | Some c => Some (fst x, c)
-                   | None => None
-                   end)
-    (*safely_halted*)
-    (fun x => safely_halted csem (snd x))
-    (*corestep*)
-    rg_step
-    _ _ _ _.
-Next Obligation.
-destruct H as [H1 H2]; apply corestep_not_at_external in H1; auto.
-Qed.
-Next Obligation.
-destruct H as [H1 H2]; apply corestep_not_halted in H1; auto.
-Qed.
-Next Obligation. apply (at_external_halted_excl csem c). Qed.
-Next Obligation. 
-simpl in H.
-case_eq (after_external csem retv c0); intros. 
-rewrite H0 in H; inv H.
-apply after_at_external_excl in H0; auto.
-rewrite H0 in H; congruence.
-Qed.
-
-Lemma rg_csem:
-  forall ge c f m c' f' m',
-  corestep RelyGuaranteeCoreSem ge (f, c) m (f', c') m' -> 
-  corestep csem ge c m c' m'.
-Proof.
-intros until m'; intros H1.
-inv H1.
-auto.
-Qed.
-
-Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) D :=
-  Build_CoopCoreSem G (blockmap*C) D 
-    RelyGuaranteeCoreSem _ _ _.
-Next Obligation.
-inv CS.
-apply corestep_fwd in H; auto.
-Qed.
-Next Obligation.
-inv CS.
-apply corestep_wdmem in H0; auto.
-Qed.
-Next Obligation.
-apply initmem_wd in H.
-auto.
-Qed.
-
-Program Definition Efsemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
-  Build_RelyGuaranteeSemantics G (blockmap*C) D
-   RelyGuaranteeCoopSem
-   (fun x b ofs => fst x b ofs = true) _ _ _ _.
-Next Obligation.
-simpl.
-destruct (b0 b).
-left; auto.
-right; auto.
-Qed.
-Next Obligation. 
-simpl.
-destruct (make_initial_core csem ge v vs).
-inv H; auto.
-congruence.
-Qed.
-Next Obligation. 
-destruct H; auto. Qed.
-Next Obligation. 
-simpl in *|-*; destruct (after_external csem retv c); try solve[congruence].
-Qed.
-
-End RelyGuaranteeSemanticsFunctor.
-END DEPRECATED*)

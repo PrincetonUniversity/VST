@@ -206,10 +206,9 @@ Record EffectfulSemantics {G C D} :=
       make_initial_core csem ge v vs = Some c -> 
       ~effects c k b ofs;
     effects_forward: 
-      forall b ofs ge c m c' m' k,
+      forall ge c m c' m',
       corestep csem ge c m c' m' -> 
-      effects c k b ofs -> 
-      effects c' k b ofs /\
+      (forall k b ofs, effects c k b ofs -> effects c' k b ofs) /\
       mem_unchanged_on (fun b' ofs' => ~effects c' ModifyEffect b' ofs') m m';
     effects_backward_alloc: 
       forall b ofs ge c m c' m',
@@ -232,4 +231,3 @@ Record EffectfulSemantics {G C D} :=
       effects_valid c' m'}.
 
 Implicit Arguments EffectfulSemantics [].
-  
