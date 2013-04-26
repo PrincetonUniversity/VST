@@ -37,6 +37,66 @@ simpl in *;
  destruct t; try (contradiction H0);
 simpl in *.
 
+Lemma cmp_sound_aux:
+  forall b i s a , typecheck_val (force_val (Some (Val.of_bool b))) (Tint i s a) = true.
+Proof. destruct b; reflexivity. Qed.
+ 
+Lemma int_eq_true : forall x y,
+true = Int.eq x y -> x = y.
+Proof.
+intros. assert (X := Int.eq_spec x y). if_tac in X; auto. congruence.
+Qed.
+
+(*
+Lemma check_pp_int_sound : forall e1 e2 t op rho, 
+denote_tc_assert' (check_pp_int e1 e2 op t) rho ->
+is_int_type t = true /\ 
+((exists tt, e1 = Econst_int Int.zero tt) \/
+(exists tt, e2 = Econst_int Int.zero tt)).
+Proof.
+intros.
+unfold check_pp_int in *.
+destruct op; simpl in H; try inv H;
+destruct e1; simpl in H; try inv H;
+destruct e2; simpl in H; try inv H; 
+try (unfold tc_bool in H; 
+          try remember (Int.eq i Int.zero); 
+          try remember (Int.eq i0 Int.zero);
+          repeat if_tac in H; simpl in H;
+          try (contradiction H);
+          try (apply int_eq_true in Heqb);
+          try (apply int_eq_true in Heqb0);
+          subst;
+split;  eauto). 
+Qed.
+*)
+
+
+Lemma typecheck_cmp_sound:
+forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
+   (CMP:  match op with Oeq | One | Olt | Ogt | Ole | Oge => True | _ => False end),
+   denote_tc_assert (typecheck_expr Delta e2) rho ->
+   denote_tc_assert (isBinOpResultType op e1 e2 t) rho ->
+   denote_tc_assert (typecheck_expr Delta e1) rho ->
+   typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
+   typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
+   typecheck_val
+     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
+        (eval_expr e2 rho)) t = true.
+Proof.
+intros.
+destruct op; try (contradiction CMP);
+abstract(
+simpl in H0;
+intros; typecheck_sound_solver1 H0 e1 e2 t;
+unfold eval_binop; unfold sem_binary_operation, sem_cmp; simpl;
+remember (eval_expr e1 rho); destruct v; try solve[inv H3];
+remember (eval_expr e2 rho); destruct v; try solve[inv H2];
+try apply cmp_sound_aux;
+try (destruct H0; try contradiction;
+simpl in *; unfold is_true in *; rewrite H0; auto)).
+Qed.
+
 Lemma typecheck_sub_sound:
 forall (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type),
    denote_tc_assert (typecheck_expr Delta e2) rho ->
@@ -103,30 +163,7 @@ destruct (eval_expr e2 rho); inv H2;
 simpl; rewrite H0; reflexivity).
 Qed.
 
-Lemma cmp_sound_aux:
-  forall b i s a , typecheck_val (force_val (Some (Val.of_bool b))) (Tint i s a) = true.
-Proof. destruct b; reflexivity. Qed.
 
-Lemma typecheck_cmp_sound:
-forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
-   (CMP:  match op with Oeq | One | Olt | Ogt | Ole | Oge => True | _ => False end),
-   denote_tc_assert (typecheck_expr Delta e2) rho ->
-   denote_tc_assert (isBinOpResultType op e1 e2 t) rho ->
-   denote_tc_assert (typecheck_expr Delta e1) rho ->
-   typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
-   typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
-   typecheck_val
-     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
-        (eval_expr e2 rho)) t = true.
-Proof.
-intros.
-destruct op; try (contradiction CMP);
-abstract (intros; typecheck_sound_solver1 H0 e1 e2 t;
-unfold eval_binop; unfold sem_binary_operation, sem_cmp; simpl;
-destruct (eval_expr e1 rho); inv H3;
-destruct (eval_expr e2 rho); inv H2;
-apply cmp_sound_aux).
-Qed.
 
 Ltac typecheck_sound_solver Delta rho e1 e2 t :=
  match goal with

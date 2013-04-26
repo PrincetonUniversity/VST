@@ -6,6 +6,7 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 
+
 (** GENERAL KV-Maps **)
 
 Set Implicit Arguments.
@@ -517,6 +518,7 @@ Inductive tc_assert :=
 | tc_noproof : tc_assert
 | tc_TT : tc_assert
 | tc_andp': tc_assert -> tc_assert -> tc_assert
+| tc_orp' : tc_assert -> tc_assert -> tc_assert
 | tc_nonzero: expr -> tc_assert
 | tc_iszero: expr -> tc_assert
 | tc_isptr: expr -> tc_assert
@@ -538,6 +540,17 @@ match a1 with
       | _ => tc_andp' a1 a2
       end
 end. 
+
+Definition tc_orp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
+match a1 with 
+| tc_TT => tc_TT
+| tc_FF => a2
+| _ => match a2 with
+       | tc_TT => tc_TT
+       | tc_FF => a1
+       | _ => tc_orp' a1 a2
+       end
+end.
 
 Definition tc_bool (b : bool) :=
 if b then tc_TT else tc_FF.
@@ -567,6 +580,13 @@ match asn with
 | _ => asn
 end.
 
+Definition check_pp_int e1 e2 op t :=
+match op with 
+| Cop.Oeq | Cop.One => tc_andp 
+                         (tc_orp (tc_iszero e1) (tc_iszero e2))
+                         (tc_bool (is_int_type t))
+| _ => tc_noproof
+end.
 
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
 match op with
@@ -593,8 +613,9 @@ match op with
                     | _ => tc_bool (is_float_type ty)
             end 
   | Cop.Omod => match Cop.classify_binint (typeof a1) (typeof a2) with
-                    | Cop.binint_case_ii Unsigned => tc_andp (tc_nonzero a2) 
-                                                     (tc_bool (is_int_type ty))
+                    | Cop.binint_case_ii Unsigned => 
+                           tc_andp (tc_nonzero a2) 
+                           (tc_bool (is_int_type ty))
                     | Cop.binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
                                                      (tc_bool (is_int_type ty))
@@ -618,8 +639,8 @@ match op with
                    end   
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
                    match Cop.classify_cmp (typeof a1) (typeof a2) with
-                    | Cop.cmp_default 
-		    | Cop.cmp_case_pp => tc_noproof
+                    | Cop.cmp_default => tc_FF
+		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty
                     | _ => tc_bool (is_int_type ty)
                    end
   end.
@@ -940,6 +961,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_noproof => `False
   | tc_TT => `True
   | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)
+  | tc_orp' b c => `or (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `isptr (eval_expr e)
   | tc_ilt e i => `(denote_tc_igt i) (eval_expr e)

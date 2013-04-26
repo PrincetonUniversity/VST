@@ -135,31 +135,6 @@ match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
 | _ => True
 end. 
 
-Lemma semax_ptr_compare' : 
-forall {Espec: OracleKind},
-forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2,
-    is_comparison cmp = true  ->
-    typecheck_tid_ptr_compare Delta id = true ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
-         |-- local (tc_expr Delta e1) &&
-             local (tc_expr Delta e2)  && 
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) ->
-   @semax Espec Delta 
-         (PROPx P (LOCALx Q (SEPx R)))
-          (Sset id (Ebinop cmp e1 e2 ty)) 
-        (normal_ret_assert 
-          (EX old:val, 
-           PROPx P
-           (LOCALx (`eq (eval_id id)  (subst id `old 
-                     (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1) (eval_expr e2))) ::
-                       map (subst id `old) Q)
-           (SEPx (map (subst id `old) R))))).
-Proof.
-Admitted.
-
-
 Lemma elemrep_isptr:
   forall elem v, elemrep elem v = !! (isptr v) && elemrep elem v.
 Proof.
@@ -214,17 +189,11 @@ replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst; auto.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
-unfold tc_expropt.
-unfold tc_expr.
-simpl typecheck_expr.
-forget tc_noproof as POINTER_NULL_COMPARE.
-go_lower. subst h q. 
-forget (denote_tc_assert POINTER_NULL_COMPARE rho) as PNC.
-clear rho H. 
+go_lower.
+subst h q. 
 clear Post Delta.
 apply andp_right.
 apply prop_right; split; simpl; auto.
-admit.  (* pointer null compare *)
 normalize.
 apply exp_right with (hd,tl).
 destruct (isnil contents).

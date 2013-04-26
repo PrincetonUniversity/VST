@@ -551,7 +551,10 @@ Proof.
 intros.
 destruct b; simpl in *; auto;
  unfold sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
-   try destruct i; try destruct s; auto; contradiction.
+   try destruct i; try destruct s; auto; try contradiction;
+   rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+   ((intuition; unfold denote_tc_iszero in *);
+   [destruct (eval_expr e1 rho) | destruct (eval_expr e2 rho)]); inv H; auto.   
 Qed. 
 
 Definition some_pt_type := Tpointer Tvoid noattr.
