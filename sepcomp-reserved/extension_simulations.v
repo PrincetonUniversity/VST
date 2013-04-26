@@ -50,63 +50,63 @@ Section CoreCompatibleDefs. Variables
  (csem: forall i:nat, EffectfulSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
  (csig: ef_ext_spec mem Z). (** client signature *)
 
- Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variables (ge: G) (genv_map : forall (u:nat), gT u).
  Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
  Variable core_compat: core_compatible ge genv_map E.
 
  Import Extension.
 
  Definition owned_valid s m := 
-  forall i c, proj_core E i s = Some c -> 
-  forall b ofs, effects (csem i) c AllocEffect b ofs -> 
+  forall i j c, proj_core E i j s = Some c -> 
+  forall b ofs, effects (csem j) c AllocEffect b ofs -> 
     b < Mem.nextblock m.
   
  Definition owned_disjoint s :=
-  forall i j (c: cT i) (d: cT j), 
+  forall i j i' j' (c: cT i') (d: cT j'),
   i<>j -> 
-  proj_core E i s = Some c ->   
-  proj_core E j s = Some d ->   
-  forall b ofs, effects (csem i) c AllocEffect b ofs -> 
-    ~effects (csem j) d AllocEffect b ofs.
+  proj_core E i i' s = Some c ->   
+  proj_core E j j' s = Some d ->   
+  forall b ofs, effects (csem i') c AllocEffect b ofs -> 
+    ~effects (csem j') d AllocEffect b ofs.
 
  Definition owned_conserving := 
-   forall s i (c: cT i),
-   proj_core E i s = Some c -> 
-   forall b ofs, effects (csem i) c AllocEffect b ofs -> 
+   forall s i j (c: cT j),
+   proj_core E i j s = Some c -> 
+   forall b ofs, effects (csem j) c AllocEffect b ofs -> 
      effects esem s AllocEffect b ofs.
 
  Definition new_effects_aligned :=
-   forall s c m s' c' m',
-   proj_core E (active E s) s = Some c -> 
-   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+   forall j s c m s' c' m',
+   proj_core E (active E s) j s = Some c -> 
+   corestep (csem j) (genv_map j) c m c' m' -> 
    corestep esem ge s m s' m' -> 
    (forall k b ofs, 
     new_effect esem k b ofs s s' <-> 
-    new_effect (csem (active E s)) k b ofs c c').
+    new_effect (csem j) k b ofs c c').
 
  Lemma guarantee_step': 
    owned_conserving -> 
    new_effects_aligned -> 
-   forall (r r': reserve) j j' s c m s' c' m',
+   forall (r r': reserve) j j' u s c m s' c' m',
    guarantee' esem j r s m ->   
-   guarantee' (csem (active E s)) j r c m -> 
-   proj_core E (active E s) s = Some c -> 
-   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+   guarantee' (csem u) j r c m -> 
+   proj_core E (active E s) u s = Some c -> 
+   corestep (csem u) (genv_map u) c m c' m' -> 
    corestep esem ge s m s' m' -> 
-   proj_core E (active E s) s' = Some c' -> 
+   proj_core E (active E s) u s' = Some c' -> 
    reserve_separated2 r r' j' m -> 
    reserve_valid' r j m -> 
    reserve_incr r r' -> 
    inject_incr j j' -> 
    inject_separated2 j j' m -> 
    effects_valid esem s m -> 
-   guarantee' (csem (active E s)) j' r' c' m' -> 
+   guarantee' (csem u) j' r' c' m' -> 
    guarantee' esem j' r' s' m'.
  Proof.
  unfold new_effects_aligned.
  intros OWN EQV; intros until m'. 
  intros H1 H2 H3 H4 H5 H6 H7 H8 H9 INCR SEP EFVAL H9' b ofs VAL RR EF.
- specialize (EQV _ _ _ _ _ _ H3 H4 H5).
+ specialize (EQV _ _ _ _ _ _ _ H3 H4 H5).
  destruct (new_effect_dec esem AllocEffect b ofs s s') as [N|R].
  solve[destruct N as [X Y]; auto].
  unfold new_effect in R.
@@ -162,20 +162,20 @@ Section CoreCompatibleDefs. Variables
  Lemma guarantee_stepN: 
    owned_conserving -> 
    new_effects_aligned -> 
-   forall n (r r': reserve) j j' s c m s' c' m',
+   forall n (r r': reserve) j j' u s c m s' c' m',
    guarantee' esem j r s m ->   
-   guarantee' (csem (active E s)) j r c m -> 
-   proj_core E (active E s) s = Some c -> 
-   corestepN (csem (active E s)) (genv_map (active E s)) n c m c' m' -> 
+   guarantee' (csem u) j r c m -> 
+   proj_core E (active E s) u s = Some c -> 
+   corestepN (csem u) (genv_map u) n c m c' m' -> 
    corestepN esem ge n s m s' m' -> 
-   proj_core E (active E s) s' = Some c' -> 
+   proj_core E (active E s) u s' = Some c' -> 
    reserve_separated2 r r' j' m -> 
    reserve_valid' r j m -> 
    reserve_incr r r' -> 
    inject_incr j j' -> 
    inject_separated2 j j' m -> 
    effects_valid esem s m -> 
-   guarantee' (csem (active E s)) j' r' c' m' -> 
+   guarantee' (csem u) j' r' c' m' -> 
    guarantee' esem j' r' s' m'.
  Proof.
  intros OWN ALIGN.
@@ -212,7 +212,7 @@ Section CoreCompatibleDefs. Variables
   inv core_compat.
   solve[eapply corestep_pres; eauto].
  subst.
- assert (guarantee' (csem (active E s)) j' r' c2 m2').
+ assert (guarantee' (csem u) j' r' c2 m2').
   solve[eapply guarantee'_backward_stepN; eauto].
  assert (INTER: guarantee' esem j' r' s2 m2').
   apply guarantee_step' 
@@ -234,7 +234,7 @@ Section CoreCompatibleDefs. Variables
   exploit corestep_pres; eauto.
   solve[intros [? ?]; auto].
  forget (active E s) as x; subst.
- specialize (IHn r2 r' j2 j' s2 c2 m2' s' c' m').
+ specialize (IHn r2 r' j2 j' u s2 c2 m2' s' c' m').
  spec IHn. solve[eapply guarantee_decr2; eauto].
  spec IHn. solve[eapply guarantee_decr2; eauto].
  spec IHn. 
@@ -277,12 +277,13 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (csemT: forall i:nat, EffectfulSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (max_cores: nat).
+  (max_cores: nat)
+  (num_modules: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
-  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
-  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+  (genv_mapS: forall (u:nat), Genv.t (fS u) (vS u))
+  (genv_mapT: forall (u:nat), Genv.t (fT u) (vT u)).
 
  Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
    _ _ cS csemS csig).
@@ -290,10 +291,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    _ _ cT csemT csig).
 
  Variable entry_points: list (val*val*signature). (*TODO: SHOULD PERHAPS BE GENERALIZED*)
- Variable core_data: forall i: nat, Type.
- Variable match_state: forall i: nat, 
-   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
- Variable core_ord: forall i: nat, (core_data i) -> (core_data i) -> Prop.
+ Variable core_data: forall u: nat, Type.
+ Variable match_state: forall (u: nat), 
+   core_data u -> reserve -> meminj -> cS u -> mem -> cT u -> mem -> Prop.
+ Variable core_ord: forall u: nat, (core_data u) -> (core_data u) -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
@@ -303,13 +304,19 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Notation active_proj_core := (Extension.active_proj_core).
  Notation zint_invar_after_external := (Extension.zint_invar_after_external).
 
- Definition core_datas := forall i:nat, core_data i.
+ Definition core_datas := forall u i: nat, core_data u.
 
- Definition core_ords (max_cores: nat) cd1 cd2 := 
-(*exists i, (i < max_cores)%nat /\
-  (forall j, (j < i)%nat -> cd1 j=cd2 j) /\ core_ord i (cd1 i) (cd2 i)%nat.*)
-  prod_ord' _ core_ord _ _ 
-   (data_prod' _ _ _ cd1) (data_prod' _ max_cores max_cores cd2).
+ Definition core_ords (max_cores: nat) (cd1 cd2: core_datas) :=
+  prod_ord' 
+    (fun u => forall i:nat, core_data u)
+    (fun u cd1' cd2' => 
+      prod_ord' 
+        (fun i => core_data u)
+        (fun i => core_ord u)
+        max_cores max_cores 
+        (data_prod' _ _ _ cd1') (data_prod' _ max_cores max_cores cd2'))
+    num_modules num_modules
+    (data_prod' _ _ _ cd1) (data_prod' _ num_modules num_modules cd2).
 
  Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
@@ -332,29 +339,29 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    R r j s1 m1 s2 m2 /\ 
    ACTIVE E_S s1=ACTIVE E_T s2 /\
    (*invariant on active cores*)
-   (forall c1, 
-     PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-     guarantee (csemS (ACTIVE E_S s1)) r c1 m1 /\
+   (forall u c1, 
+     PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
+     guarantee (csemS u) r c1 m1 /\
      (exists z: Z, 
-       compile_safe (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) z r c1 m1) /\
-     exists c2, PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 /\ 
-       guarantee' (csemT (ACTIVE E_S s1)) j r c2 m2 /\
-       match_state (ACTIVE E_S s1) (cd (ACTIVE E_S s1)) r j c1 m1 c2 m2) /\
+       compile_safe (csemS u) (genv_mapS u) z r c1 m1) /\
+     exists c2, PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 /\ 
+       guarantee' (csemT u) j r c2 m2 /\
+       match_state u (cd u (ACTIVE E_S s1)) r j c1 m1 c2 m2) /\
    (*invariant on inactive cores*)
-   (forall i c1, 
+   (forall i u c1, 
      i <> ACTIVE E_S s1 -> 
-     PROJ_CORE E_S i s1 = Some c1 -> 
-     exists c2, PROJ_CORE E_T i s2 = Some c2 /\ 
+     PROJ_CORE E_S i u s1 = Some c1 -> 
+     exists c2, PROJ_CORE E_T i u s2 = Some c2 /\ 
      exists cd0 (r0: reserve) j0 m10 m20,
-       guarantee (csemS i) r0 c1 m10 /\
-       (exists z: Z, compile_safe (csemS i) (genv_mapS i) z r0 c1 m10) /\
-       guarantee' (csemT i) j0 r0 c2 m20 /\
-       match_state i cd0 r0 j0 c1 m10 c2 m20).
+       guarantee (csemS u) r0 c1 m10 /\
+       (exists z: Z, compile_safe (csemS u) (genv_mapS u) z r0 c1 m10) /\
+       guarantee' (csemT u) j0 r0 c2 m20 /\
+       match_state u cd0 r0 j0 c1 m10 c2 m20).
 
  Inductive Sig: Type := Make: forall  
- (corestep_rel: forall cd (r r': reserve) j j' s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
+ (corestep_rel: forall cd (r r': reserve) j j' u s1 c1 m1 c1' m1' s2 c2 m2 c2' m2' s1' s2' n cd', 
+   PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 -> 
    match_states cd r j s1 m1 s2 m2 -> 
    Mem.inject j m1 m2 -> 
    meminj_preserves_globals_ind (genv2blocks ge_S) j -> 
@@ -362,13 +369,13 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Events.inject_separated j j' m1 m2 -> 
    reserve_incr r r' -> 
    reserve_separated r r' j' m1 m2 -> 
-   corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
-   corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' ->
+   corestep (csemS u) (genv_mapS u) c1 m1 c1' m1' -> 
+   corestepN (csemT u) (genv_mapT u) n c2 m2 c2' m2' ->
    corestep esemS ge_S s1 m1 s1' m1' -> 
    corestepN esemT ge_T n s2 m2 s2' m2' -> 
-   match_state (ACTIVE E_S s1) cd' r' j' c1' m1' c2' m2' -> 
-   guarantee (csemS (ACTIVE E_S s1)) r c1' m1' -> 
-   guarantee' (csemT (ACTIVE E_S s1)) j r c2' m2' -> 
+   match_state u cd' r' j' c1' m1' c2' m2' -> 
+   guarantee (csemS u) r c1' m1' -> 
+   guarantee' (csemT u) j r c2' m2' -> 
    R r' j' s1' m1' s2' m2')
 
  (after_external_rel: 
@@ -391,13 +398,13 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    val_inject_opt j' ret1 ret2 -> 
    R r' j' s1' m1' s2' m2')   
 
- (extension_diagram: forall s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd r j,
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   runnable (csemS (ACTIVE E_S s1)) c1=false -> 
-   runnable (csemT (ACTIVE E_S s1)) c2=false -> 
-   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+ (extension_diagram: forall u s1 m1 s1' m1' s2 c1 c2 m2 ef sig args1 args2 cd r j,
+   PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 -> 
+   runnable (csemS u) c1=false -> 
+   runnable (csemT u) c2=false -> 
+   at_external (csemS u) c1 = Some (ef, sig, args1) -> 
+   at_external (csemT u) c2 = Some (ef, sig, args2) -> 
    match_states cd r j s1 m1 s2 m2 -> 
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
@@ -415,19 +422,19 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
 
- (at_external_match: forall s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd r j,
+ (at_external_match: forall u s1 m1 s2 c1 c2 m2 ef sig args1 args2 cd r j,
    ACTIVE E_S s1=ACTIVE E_T s2 -> 
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   runnable (csemS (ACTIVE E_S s1)) c1=runnable (csemT (ACTIVE E_S s1)) c2 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 -> 
+   runnable (csemS u) c1=runnable (csemT u) c2 -> 
    at_external esemS s1 = Some (ef, sig, args1) -> 
-   at_external (csemS (ACTIVE E_S s1)) c1 = Some (ef, sig, args1) -> 
-   match_state (ACTIVE E_S s1) cd r j c1 m1 c2 m2 -> 
+   at_external (csemS u) c1 = Some (ef, sig, args1) -> 
+   match_state u cd r j c1 m1 c2 m2 -> 
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
    Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
-   at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
+   at_external (csemT u) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
  (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 (r: reserve) j sig,
@@ -453,15 +460,15 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      Val.has_type v2 rty /\ 
      Mem.inject j m1 m2)
 
- (safely_halted_diagram: forall cd r j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
+ (safely_halted_diagram: forall u cd r j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd r j s1 m1 s2 m2 -> 
-   PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
-   PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
+   PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
+   PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 -> 
+   safely_halted (csemS u) c1 = Some rv1 -> 
    corestep esemS ge_S s1 m1 s1' m1' ->  
    guarantee esemS r s1' m1' -> 
    exists rv2, 
-     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+     safely_halted (csemT u) c2 = Some rv2 /\
      val_inject j rv1 rv2 /\ 
      exists s2', exists m2', exists cd', exists r': reserve, exists j', 
        inject_incr j j' /\
@@ -498,12 +505,13 @@ Module CompilableExtension. Section CompilableExtension.
   (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (max_cores: nat).
+  (max_cores: nat)
+  (num_modules: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
-  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
-  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+  (genv_mapS: forall (u:nat), Genv.t (fS u) (vS u))
+  (genv_mapT: forall (u:nat), Genv.t (fT u) (vT u)).
 
  Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
    _ _ cS csemS csig).
@@ -512,8 +520,8 @@ Module CompilableExtension. Section CompilableExtension.
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
- Variable match_state: forall i: nat, 
-   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Variable match_state: forall (u: nat), 
+   core_data u -> reserve -> meminj -> cS u -> mem -> cT u -> mem -> Prop.
  Implicit Arguments match_state [].
 
  Import Forward_simulation_inj_exposed.
@@ -547,12 +555,13 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
     EffectfulSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
-  (max_cores: nat).
+  (max_cores: nat)
+  (num_modules: nat).
 
  Variables 
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
-  (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
-  (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
+  (genv_mapS: forall (u:nat), Genv.t (fS u) (vS u))
+  (genv_mapT: forall (u:nat), Genv.t (fT u) (vT u)).
 
  Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
    _ _ cS csemS csig).
@@ -561,8 +570,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
- Variable match_state: forall i: nat, 
-   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+ Variable match_state: forall (u: nat), 
+   core_data u -> reserve -> meminj -> cS u -> mem -> cT u -> mem -> Prop.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
 
@@ -574,11 +583,11 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variable (R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop).
 
  Record Sig: Type := Make {
-   _ : (forall i: nat, RelyGuaranteeSimulation.Sig (csemS i) (csemT i) 
-         (genv_mapS i) (match_state i)) -> 
+   _ : (forall (i u: nat), RelyGuaranteeSimulation.Sig (csemS u) (csemT u) 
+         (genv_mapS u) (match_state u)) -> 
        genvs_domain_eq ge_S ge_T -> 
-       (forall i: nat, genvs_domain_eq ge_S (genv_mapS i)) -> 
-       (forall i: nat, genvs_domain_eq ge_T (genv_mapT i)) -> 
+       (forall i u: nat, genvs_domain_eq ge_S (genv_mapS u)) -> 
+       (forall i u: nat, genvs_domain_eq ge_T (genv_mapT u)) -> 
        core_compatible ge_S genv_mapS E_S -> 
        core_compatible ge_T genv_mapT E_T -> 
        owned_conserving esemS csemS E_S ->
@@ -586,11 +595,11 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        (forall x, active E_S x < max_cores)%nat ->  
        (forall x, active E_T x < max_cores)%nat ->  
        new_effects_aligned esemT csemT ge_T genv_mapT E_T -> 
-       (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
-         (genv_mapS i) (genv_mapT i) entry_points 
-         (core_data i) (@match_state i) (@core_ord i)) -> 
+       (forall i u:nat, Forward_simulation_inject (dS u) (dT u) (csemS u) (csemT u) 
+         (genv_mapS u) (genv_mapT u) entry_points 
+         (core_data u) (@match_state u) (@core_ord u)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 
-         esemS esemT csemS csemT max_cores ge_S ge_T genv_mapS genv_mapT E_S E_T 
+         esemS esemT csemS csemT max_cores num_modules ge_S ge_T genv_mapS genv_mapT E_S E_T 
          entry_points core_data match_state core_ord R -> 
        CompilableExtension.Sig esemS esemT ge_S ge_T entry_points
  }.

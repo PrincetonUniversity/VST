@@ -52,7 +52,7 @@ Implicit Arguments mkFrame [cT num_modules].
 Definition call_stack (cT: nat -> Type) (num_modules: nat) := list (frame cT num_modules).
 
 Section LinkerCoreSemantics.
-Variables (F V: Type) (ge: Genv.t F V) (num_modules: nat).
+Variables (F V: Type) (num_modules: nat).
 Variables (cT fT vT: nat -> Type)
  (procedure_linkage_table: ident -> option nat)
  (plt_ok: 
@@ -456,13 +456,13 @@ Inductive eff_linker_corestep:
   eff_linker_corestate -> mem -> 
   eff_linker_corestate -> mem -> Prop :=
 | eff_step: 
-  forall ef c m c' m' pf pf', 
+  forall ge ef c m c' m' pf pf', 
     corestep linker_coop_core_semantics ge c m c' m' -> 
     eff_linker_corestep ge (mkEffLinkerCorestate ef c pf) m 
                            (mkEffLinkerCorestate (new_eff_tbl c c' ef) c' pf') m'.
 
 Lemma linker_effects_initial: 
-  forall v vs c i pf_i c_i k b ofs,
+  forall ge v vs c i pf_i c_i k b ofs,
   linker_make_initial_core ge v vs = Some c -> 
   In (mkFrame i pf_i c_i) (stack_of c) -> 
   ~effects (get_module_csem (modules pf_i)) c_i k b ofs.
@@ -511,16 +511,20 @@ subst.
 congruence.
 Qed.
 
+Definition eff_linker_at_external efc := 
+  match efc with mkEffLinkerCorestate ef c _ => 
+    at_external linker_coop_core_semantics c end.
+
 Program Definition eff_linker_coresem:
   CoreSemantics (Genv.t F V) eff_linker_corestate mem (list (ident * globdef F V)) :=
  Build_CoreSemantics _ _ _ _ 
   (initial_mem linker_coop_core_semantics)
-  (fun ge0 v vs => match make_initial_core linker_coop_core_semantics ge v vs with
+  (fun ge v vs => match make_initial_core linker_coop_core_semantics ge v vs with
                    | None => None
                    | Some c => Some (mkEffLinkerCorestate (fun k b ofs => false) c _)
                    end)
   (fun efc => match efc with mkEffLinkerCorestate ef c _ => 
-                at_external linker_coop_core_semantics c end)
+    at_external linker_coop_core_semantics c end)
   (fun rv efc => match efc with mkEffLinkerCorestate ef c pf => 
                    match at_external linker_coop_core_semantics c, 
                          after_external linker_coop_core_semantics rv c with
@@ -994,7 +998,7 @@ Fixpoint owned_disjoint_inv (stack: call_stack cT num_modules) :=
   end.
 
 Lemma owned_valid_invariant: 
-  forall stack m stack' m' n pf1 pf1' pf2 pf2',
+  forall ge stack m stack' m' n pf1 pf1' pf2 pf2',
   corestepN linker_core_semantics ge n 
    (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
   owned_valid_inv m stack -> 
@@ -1147,7 +1151,7 @@ solve[apply IHstack; auto].
 Qed.
 
 Lemma owned_disjoint_invariant: 
-  forall stack stack' m m' n pf1 pf2 pf1' pf2',
+  forall ge stack stack' m m' n pf1 pf2 pf1' pf2',
   corestepN linker_core_semantics ge n 
    (mkLinkerCoreState stack pf1 pf2) m (mkLinkerCoreState stack' pf1' pf2') m' -> 
   owned_valid_inv m stack -> 
@@ -1282,40 +1286,66 @@ Next Obligation.
 elimtype False; auto.
 Qed.
 
-Program Definition trivial_rg_semantics: forall i: nat,
- RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_RelyGuaranteeSemantics _ _ _ (trivial_coop_core_semantics i)
-   (fun c b ofs => False) _ _ _ _.
-Next Obligation. right; auto. Qed.
+Program Definition trivial_eff_semantics: forall i: nat,
+ EffectfulSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
+ fun i: nat => Build_EffectfulSemantics _ _ _ (trivial_coop_core_semantics i)
+   (fun c k b ofs => False) 
+   _ _ _ _ _ _.
+Next Obligation.
+right; auto.
+Qed.
+Next Obligation.
+inv H.
+Qed.
+Next Obligation.
+inv H.
+Qed.
+Next Obligation.
+inv H1.
+Qed.
 
 Definition csem_map: forall i: nat, 
- RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
+ EffectfulSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
  fun i: nat => match lt_dec i num_modules with
                | left pf => get_module_csem (modules pf)
-               | right _ => trivial_rg_semantics i
+               | right _ => trivial_eff_semantics i
                end.
 
-Definition linker_proj_core (i: nat) (s: linker_corestate cT _ _ modules): option (cT i) :=
+Fixpoint linker_proj_core_aux (n: nat) (i: nat) (s: list (frame cT num_modules)): option (cT i) :=
   match s with
-  | mkLinkerCoreState nil _ _ => None
-  | mkLinkerCoreState (mkFrame j pf_j c :: call_stack) _ _ =>
-     match eq_nat_dec i j with 
-     | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
-     | right _ => None
-     end
+  | nil => None
+  | mkFrame j pf_j c :: call_stack => 
+    match n with
+    | O => match eq_nat_dec i j with 
+           | left pf => Some (eq_rect j (fun x => cT x) c i (sym_eq pf))
+           | right _ => None
+           end
+    | S n' => linker_proj_core_aux n' i call_stack
+    end
   end.
 
-Definition linker_active (s: linker_corestate cT _ _ modules): nat :=
-  match s with
-  | mkLinkerCoreState nil _ _ => 0
-  | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => i
+Definition top_idx (s: eff_linker_corestate cT _ _ modules): nat := 
+  match s with 
+  | mkEffLinkerCorestate ef (mkLinkerCoreState (mkFrame i pf_i c :: stack) _ _) _ => i
+  | _ => O
   end.
+
+Definition linker_proj_core n s: option (cT (top_idx s)) :=
+  match s with 
+  | mkEffLinkerCorestate ef (mkLinkerCoreState stack _ _) _ => 
+    linker_proj_core_aux n (top_idx s) stack
+  end.
+
+Definition linker_active (s: eff_linker_corestate cT _ _ modules): nat := O.
+
+Notation linker_at_external := 
+  (eff_linker_at_external F V procedure_linkage_table plt_ok entry_points).
 
 Definition handled (ef: AST.external_function): Prop := 
  forall s c sig args,
  linker_proj_core (linker_active s) s = Some c ->
- at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
- linker_at_external procedure_linkage_table s = None.
+ at_external (csem_map (top_idx s)) c = Some (ef, sig, args) ->
+ linker_at_external s = None.
 
 (** Consistency conditions on handled functions and the procedure linkage table *)
 
@@ -1324,11 +1354,9 @@ Variable plt_in_handled:
  at_external (get_module_csem (modules pf)) c = Some (EF_external id sig, sig2, args) ->
  procedure_linkage_table id = Some j -> handled (EF_external id sig).
 
-Implicit Arguments linker_at_external [num_modules cT].
-
 Variable at_external_not_handled:
- forall ef sig args s,
- linker_at_external fT vT procedure_linkage_table modules s = Some (ef, sig, args) ->
+ forall ef sig args (s: eff_linker_corestate cT fT vT modules),
+ linker_at_external s = Some (ef, sig, args) ->
  ~handled ef.
 
 Program Definition trivial_genv (i: nat): Genv.t (fT i) (vT i) :=
@@ -1353,22 +1381,24 @@ Implicit Arguments linker_corestate [fT vT].
 Variable linkable_csig_esig: linkable proj_zext
   (fun (ef: AST.external_function) => forall s c sig args,
     linker_proj_core (linker_active s) s = Some c ->
-    at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
-    linker_at_external _ _ procedure_linkage_table _ s = None)
+    at_external (csem_map (top_idx s)) c = Some (ef, sig, args) ->
+    linker_at_external s = None)
   csig esig.
 
 Lemma handled_lem: 
  forall s c ef sig args,
  linker_proj_core (linker_active s) s = Some c ->
- at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
- linker_at_external _ _ procedure_linkage_table _ s = None -> 
+ at_external (csem_map (top_idx s)) c = Some (ef, sig, args) ->
+ linker_at_external s = None -> 
  exists id, exists sig, 
   ef = EF_external id sig /\
   exists b, procedure_linkage_table id = Some b.
 Proof.
 intros.
-unfold linker_at_external in H1.
+unfold eff_linker_at_external in H1.
 destruct s; simpl in H1.
+destruct c0.
+simpl in H1.
 destruct stack; try solve[congruence].
 simpl in H; congruence.
 destruct f.
@@ -1391,15 +1421,17 @@ Qed.
 Lemma handled_invar: 
  forall s c s' c' ef sig args sig' args',
  linker_proj_core (linker_active s) s = Some c ->
- at_external (csem_map (linker_active s)) c = Some (ef, sig, args) ->
- linker_at_external _ _ procedure_linkage_table _ s = None -> 
+ at_external (csem_map (top_idx s)) c = Some (ef, sig, args) ->
+ linker_at_external s = None -> 
  linker_proj_core (linker_active s') s' = Some c' ->
- at_external (csem_map (linker_active s')) c' = Some (ef, sig', args') ->
- linker_at_external _ _ procedure_linkage_table _ s' = None.
+ at_external (csem_map (top_idx s')) c' = Some (ef, sig', args') ->
+ linker_at_external s' = None.
 Proof.
 intros.
-unfold linker_at_external.
+unfold eff_linker_at_external.
 destruct s'.
+destruct c0.
+simpl in H2.
 destruct stack; auto.
 destruct f; auto.
 simpl in H3.
@@ -1407,24 +1439,25 @@ unfold csem_map in H3.
 destruct (lt_dec i num_modules); try solve[elimtype False; omega].
 assert (PF = l) as -> by apply proof_irr.
 simpl in H2.
-destruct (eq_nat_dec i i); try solve[elimtype False; omega].
+rewrite eq_nat_dec_refl in H2.
 rewrite dependent_types_nonsense in H2.
 inversion H2; subst c'; clear H2.
+simpl.
 unfold genv_map in *; rewrite H3.
 assert (exists id, exists sig, 
  ef = EF_external id sig /\
  exists b, procedure_linkage_table id = Some b) as [id [sig'' [-> [b ->]]]].
  solve[eapply handled_lem; eauto].
-auto.
+solve[auto].
 Qed. 
 
 Program Definition linking_extension: 
  @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
-     (linker_corestate num_modules cT modules) 
-     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+     (eff_linker_corestate cT fT vT modules) 
+     (eff_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
      esig _ _ cT csem_map csig :=
  Extension.Make 
-  (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
+  (eff_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
   esig _ _ csem_map csig 
   (const num_modules)
   linker_proj_core _  

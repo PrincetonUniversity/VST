@@ -72,7 +72,7 @@ destruct (safely_halted csem c).
 intros; left; eexists; eauto.
 congruence.
 Qed.
-
+(*
 Module ExtensionSafety. Section ExtensionSafety. Variables
  (M: Type) (** memories *)
  (Z: Type) (** external states *)
@@ -89,7 +89,7 @@ Module ExtensionSafety. Section ExtensionSafety. Variables
  (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
- Variables (ge: G) (genv_map : forall i:nat, gT i).
+ Variables (ge: G) (genv_map : forall i u:nat, gT u).
  Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
 
 Import SafetyInvariant.
@@ -121,13 +121,14 @@ intros [[ef sig] args] AT_EXT.
 destruct (at_external_halted_excl esem s) as [H2|H2].
 rewrite AT_EXT in H2; congruence.
 simpl; rewrite H2.
-destruct (at_extern_call s ef sig args AT_EXT) as [c [H4 H5]].
+
+destruct (at_extern_call s ef sig args AT_EXT) as [j [c [H4 H5]]].
 assert (H3: True) by auto.
 generalize H1 as H1'; intro.
-specialize (H1 (ACTIVE s) c H4).
+specialize (H1 (ACTIVE s) j c H4).
 simpl in H1.
 rewrite H5 in H1.
-destruct (at_external_halted_excl (csem (ACTIVE s)) c) as [H6|H6].
+destruct (at_external_halted_excl (csem j) c) as [H6|H6].
 rewrite H6 in H5; congruence.
 rewrite H6 in H1; clear H6.
 destruct H1 as [x H1].
@@ -143,7 +144,7 @@ destruct Hlink with (x' := x)
  as [x' [H17 H18]]; auto.
 unfold Extension.handled.
 intros CONTRA.
-specialize (CONTRA s c sig args H4 H5).
+specialize (CONTRA s j c sig args H4 H5).
 solve[rewrite CONTRA in AT_EXT; congruence].
 exists x'.
 split; auto.
@@ -151,7 +152,7 @@ rewrite Extension.zmult_proj in H17; auto.
 split; auto.
 unfold Extension.handled.
 intros CONTRA.
-specialize (CONTRA s c sig args H4 H5).
+specialize (CONTRA s j c sig args H4 H5).
 solve[rewrite CONTRA in AT_EXT; congruence].
 intros ret m' z' POST.
 destruct (H8 ret m' (s \o z')) as [c' [H10 H11]].
@@ -160,15 +161,15 @@ rewrite Extension.zmult_proj in H18.
 destruct POST.
 unfold Extension.handled in H0.
 rename H0 into CONTRA.
-specialize (CONTRA s c sig args H4 H5).
+specialize (CONTRA s j c sig args H4 H5).
 solve[rewrite CONTRA in AT_EXT; congruence].
 rename H0 into POST.
 eapply H18 in POST; eauto.
-specialize (at_extern_ret z s c m z' m' (sig_args sig) args (sig_res sig) ret c' 
+specialize (at_extern_ret z j s c m z' m' (sig_args sig) args (sig_res sig) ret c' 
  ef sig x' (ext_spec_pre esig ef) (ext_spec_post esig ef)).
 destruct POST as [H0|POST].
 rename H0 into CONTRA.
-specialize (CONTRA s c sig args H4 H5).
+specialize (CONTRA s j c sig args H4 H5).
 solve[rewrite CONTRA in AT_EXT; congruence].
 hnf in at_extern_ret.
 spec at_extern_ret; auto.
@@ -183,11 +184,14 @@ exists s'.
 split; auto.
 rewrite H12.
 eapply IHn.
-intros j cj PROJJ.
-case_eq (eq_nat_dec (ACTIVE s) j).
+intros j0 xx cj PROJJ.
+case_eq (eq_nat_dec (ACTIVE s) j0).
 (*i=j*)
 intros Heq _. 
-subst j.
+subst j0.
+assert (j = xx).
+ admit. (*NOT NEEDED FOR PAPER*)
+subst xx.
 rewrite PROJJ in H14; inversion H14; rewrite H1 in *.
 unfold proj_zint in H12.
 unfold proj_zint.
@@ -196,7 +200,7 @@ eapply zint_invar_after_external in H13; eauto.
 rewrite <-H13; auto.
 (*i<>j*)
 intros Hneq _.
-specialize (at_extern_rest z s c m z' s' m' (sig_args sig) args (sig_res sig) ret c' 
+specialize (at_extern_rest z j s c m z' s' m' (sig_args sig) args (sig_res sig) ret c' 
   ef x' sig (ext_spec_pre esig ef) (ext_spec_post esig ef)).
 hnf in at_extern_rest.
 spec at_extern_rest; auto.
@@ -207,7 +211,7 @@ spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 spec at_extern_rest; auto.
 spec at_extern_rest; auto.
-destruct (at_extern_rest j (csem j) cj Hneq) as [H19 H20].
+destruct (at_extern_rest j0 xx (csem xx) cj Hneq) as [H19 H20].
 rewrite <-H12.
 solve[eapply H20; eauto].
 
@@ -216,13 +220,13 @@ intros H2.
 case_eq (safely_halted esem s); auto.
 intros.
 admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*)
-destruct (active_proj_core s) as [c PROJECT].
-case_eq (runnable (csem (ACTIVE s)) c).
+destruct (active_proj_core s) as [j [c PROJECT]].
+case_eq (runnable (csem j) c).
 (*active thread i is runnable*)
 intros RUN.
-destruct (core_prog n (s \o z) s m c H1 PROJECT)
+destruct (core_prog j n (s \o z) s m c H1 PROJECT)
  as [c' [s' [m' [CORESTEP_C [CORESTEP_T ?]]]]]; auto.
-generalize (core_pres n z s c m s' c' m' H1)
+generalize (core_pres j n z s c m s' c' m' H1)
  as INV'; auto.
 intros Hsafehalt.
 exists s'; exists m'; split; [auto|].
@@ -230,30 +234,34 @@ solve[eauto].
 
 (*active thread not runnable*)
 intros RUN.
-destruct (handled_prog n z s m c H1 PROJECT RUN H2)
+destruct (handled_prog j n z s m c H1 PROJECT RUN H2)
  as [[s' [m' [CORESTEP_T CORES_PRES]]]|[rv SAFELY_HALTED]].
 2: intros CONTRA; rewrite CONTRA in SAFELY_HALTED; congruence.
 exists s'; exists m'.
 split; auto.
 eapply IHn.
-destruct (runnable_false (csem (ACTIVE s)) c RUN) 
+destruct (runnable_false (csem j) c RUN) 
  as [SAFELY_HALTED|[ef [sig [args AT_EXT]]]].
 
 (*subcase A of no runnable thread: safely halted*)
-intros j cj PROJECTj.
+rename j into u.
+intros j w cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
 intros Heq _; subst j.
-specialize (H1 i c PROJECT).
+specialize (H1 i u c PROJECT).
 simpl in H1. 
 destruct SAFELY_HALTED as [rv SAFELY_HALTED].
-destruct (@at_external_halted_excl (gT i) (cT i) M (dT i) (csem i) c) as [H4|H4]; 
+destruct (@at_external_halted_excl (gT u) (cT u) M (dT u) (csem u) c) as [H4|H4]; 
  [|congruence].
 destruct n; simpl; auto.
-generalize (safely_halted_halted s m s' m' i c rv) as H7; auto. 
+generalize (safely_halted_halted u s m s' m' i c rv) as H7; auto. 
 intros.
 assert (H6:True) by auto.
+assert (u = w).
+ admit. (*NOT NEEDED FOR PAPER 1*) 
+subst.
 rewrite H7 in PROJECTj; inversion PROJECTj; subst; auto.
 rewrite H4. 
 rewrite SAFELY_HALTED.
@@ -262,48 +270,56 @@ rewrite SAFELY_HALTED in H1.
 admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*) 
 (*i<>j*)
 intros Hneq _.
-destruct (CORES_PRES i c) as [c' [PROJ' H5]]; auto.
-specialize (handled_rest s m s' m' c).
+destruct (CORES_PRES i u c) as [c' [PROJ' H5]]; auto.
+specialize (handled_rest u s m s' m' c).
 hnf in handled_rest.
 spec handled_rest; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
 spec handled_rest; auto.
-destruct (handled_rest j cj Hneq) as [H6 H7].
+destruct (handled_rest j w cj Hneq) as [H6 H7].
 solve[eapply H7 with (z:=z); eauto].
 
 (*subcase B of no runnable thread: at external INNER*)
-intros j cj PROJECTj.
+rename j into u.
+intros j w cj PROJECTj.
 set (i := ACTIVE s) in *.
 case_eq (eq_nat_dec i j).
 (*i=j*)
 intros Heq _; subst j.
-specialize (H1 i c PROJECT).
+specialize (H1 i u c PROJECT).
 simpl in H1. 
 rewrite AT_EXT in H1.
-remember (safely_halted (csem i) c) as SAFELY_HALTED.
+remember (safely_halted (csem u) c) as SAFELY_HALTED.
 destruct SAFELY_HALTED. 
 solve[destruct ef; elimtype False; auto].
 destruct H1 as [x H1].
 destruct H1 as [PRE POST].
-specialize (handled_pres s z m c s' m' cj ef sig args
+assert (u = w).
+ admit. (*NOT NEEDED FOR PAPER 1*)
+subst.
+specialize (handled_pres w s z m c s' m' cj ef sig args
   (ext_spec_pre csig ef)
   (ext_spec_post csig ef) x).
 hnf in handled_pres.
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
- intros s'' c'' sig' args' H3 H4.
-solve[eapply (Extension.handled_invar E) with (s := s) (c := c); eauto].
+ intros s'' xx c'' sig' args' H3 H4.
+eapply (Extension.handled_invar E) with (s := s) (c := c); eauto.
+assert (xx = w).
+ admit. (*NOT NEEDED FOR PAPER 1*)
+subst.
+spec handled_pres; auto.
+admit. (*NOT NEEDED FOR PAPER 1*)
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
 spec handled_pres; auto.
-destruct (CORES_PRES i c) as [c' H4]; auto.
+destruct (CORES_PRES i w c) as [c' H4']; auto.
 destruct handled_pres as [[AT_EXT' [PRE' ACT']] | POST'].
 (*pre-preserved case*)
-destruct H4 as [H5 H6].
-assert (H4:True) by auto.
+destruct H4' as [H5 H6].
 rewrite H5 in PROJECTj; inversion PROJECTj; subst.
 specialize (H6 (ef,sig) args (ef,sig) args AT_EXT AT_EXT'); subst.
 clear - PRE' POST AT_EXT' H4 H5 HeqSAFELY_HALTED H2 AT_EXT PROJECT.
@@ -351,3 +367,4 @@ solve[eapply H7 with (z:=z); eauto].
 Qed.
 
 End ExtensionSafety. End ExtensionSafety.
+*)
