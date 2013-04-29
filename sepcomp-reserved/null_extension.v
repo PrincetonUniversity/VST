@@ -35,7 +35,10 @@ Section NullExtension.
  Local Open Scope nat_scope.
 
  Definition xT := cT.
- Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 0 then Some s else None.
+ Definition proj_core (i u: nat) (s: xT) := 
+   if eq_nat_dec i 0 then 
+     if eq_nat_dec u 0 then Some s else None
+   else None.
  Definition active := fun _:xT => 0.
  Definition runnable := fun (s: xT) => 
    match at_external csemT s, safely_halted csemT s with 
@@ -54,9 +57,14 @@ Section NullExtension.
  Program Definition null_extension := @Extension.Make 
   _ _ _ _ _ _ _ 
   csemT csig (fun _ => Genv.t fT vT) (fun _ => dT) _ (fun _ => csemT) 
-  csig (const 1) proj_core _ active _ proj_zint proj_zext zmult _ _ _ _.
+  csig (const 1) proj_core _ active _ proj_zint proj_zext zmult _ _ _ _ _.
  Next Obligation. if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. Qed.
- Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
+ Next Obligation. if_tac; exists 0; exists s; auto. elimtype False; apply H; auto. Qed.
+ Next Obligation. 
+  if_tac in H; subst; try solve[congruence].
+  if_tac in H; subst; try solve[congruence].
+  if_tac in H0; subst; try solve[congruence].
+ Qed.
  Next Obligation. 
   split; auto.
   if_tac. 
@@ -67,145 +75,12 @@ Section NullExtension.
   rewrite H1 in H2; inv H2.
   solve[exists x'; split; auto].
  Qed.
- Next Obligation. if_tac in H; try solve[congruence]. Qed.
-
-End NullExtension.
-
-Section NullExtensionSafe.
- Variables
-  (fT vT cT dT Z: Type) (** external states *)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
-  (csig: ef_ext_spec mem Z) (** client signature *)
-  (genv_mapT: forall i:nat, Genv.t fT vT)
-  (ge: Genv.t fT vT).
-
- Import ExtensionSafety.
-
- Local Hint Unfold cores proj_core active runnable proj_zint : null_unfold.
-
- Obligation Tactic := autounfold with null_unfold;
-  intros; try solve [eexists; eauto|congruence].
-
- Lemma null_extension_safe (csem_fun: corestep_fun csemT): 
-  safe_extension ge (fun _:nat => ge) (null_extension csemT csig).
- Proof.
- destruct (ExtensionSafety ge (fun _:nat => ge) (null_extension csemT csig)) as [PF].
- apply PF.
- constructor; autounfold with null_unfold in *.
-
- (*1*) intros until m'; intros H1 H4 H5 H6. 
- assert (H3:True) by auto.
- unfold Extension.proj_core in H4; simpl in H4.
- generalize H4 as H4'; intro.
- unfold proj_core in H4; if_tac in H4; try solve[congruence].
- inversion H4 as [H7]; rewrite H7 in *; clear H7 H4.
- rewrite H in *; clear H.
- unfold Extension.proj_core; simpl; unfold proj_core.
- simpl in H5.
- f_equal; generalize (csem_fun _ _ _ _ _ _ _ H5 H6); inversion 1; auto.
- simpl in H1|-*.
- unfold proj_zint, all_safe in *.
- intros until c0; intros H0.
- assert (H8:True) by auto.
- inversion H0 as [H7]. simpl in H0. rewrite H7 in *; clear H0.
- unfold proj_core in H7.
- if_tac in H7; try solve[congruence].
- rewrite <-H0 in *; clear H; inversion H7 as [H].
- rewrite H in *; clear H7 H.
- solve[eapply safe_corestep_forward; eauto].
-
- (*2*) intros until c; intros H1 H3 H5.
- assert (H4:True) by auto.
- specialize (H1 (active s) c H3).
- simpl in H3; unfold rg_forward_simulations.runnable, runnable in H5; simpl in H5.
- case_eq (at_external csemT s).
- intros [[ef sig] args] H6.
- unfold proj_core in H3; if_tac in H3; try congruence. inv H3.
- unfold const in *; rewrite H6 in H5.
- congruence.
- unfold proj_core in H3; if_tac in H3; try congruence. inv H3.
- intros H6; unfold const in *; rewrite H6 in H5.
- case_eq (safely_halted csemT c); try congruence.
- intros rv Hsafe; rewrite Hsafe in H5.
- congruence.
- simpl in H1; rewrite H6 in H1.
- intros Hsafe; rewrite Hsafe in H1.
- destruct H1 as [c' [m' [H1 H7]]].
- solve[exists c'; exists c'; exists m'; split; auto].
-
- (*3*) intros until x; intros H2 H3 H4 H5 H6 H7 H8.
- assert (H1:True) by auto.
- unfold Extension.handled in H4.
- specialize (H4 s c sig args).
- spec H4; auto.
- spec H4; auto.
- solve[simpl in H2; inv H2; rewrite H3 in H4; congruence].
-
- (*4*) intros until c; intros H1 H2 H3.
- simpl in H3; unfold rg_forward_simulations.runnable, runnable in H3.
- simpl in H2; unfold proj_core in H2; if_tac in H2; try congruence. inv H2.
- intros H4; unfold const in *; rewrite H4 in H3.
- case_eq (safely_halted csemT c); intros; try solve[congruence].
- rewrite H0 in H3.
- right; exists v; auto.
- solve[rewrite H0 in H3; congruence].
-
- (*5*) intros until rv; intros H2 H3 H4.
- unfold const in *.
- simpl.
- apply corestep_not_halted in H4.
- simpl in H2; inversion H2; subst.
- unfold proj_core in H0.
- solve[if_tac in H0; try solve[congruence]].
-
- (*6*) intros until c; inversion 1; subst.
- intros H4 H5; intros until c0; intros H6; split.
- intros H8.
- assert (H7:True) by auto.
- simpl in H8; unfold proj_core in H8; simpl in H8; inversion H8; subst.
- simpl; unfold proj_core; simpl.
- simpl in H6; unfold active in H6.
- if_tac; auto.
- exfalso; apply H6; auto.
- intros n z z' H8.
- assert (H7:True) by auto.
- simpl in H8; unfold proj_core in H8; simpl in H8.
- simpl in H6; unfold active in H6; simpl in H6.
- if_tac in H8; auto.
- inversion H8; subst.
- exfalso; apply H6; auto.
- solve[congruence].
-
- (*7*) intros until args; intros H1.
- solve[exists s; split; auto].
-
- (*8*) intros until Q.
- unfold const in *.
- intros H2 H3 H4 H5 H6.
- assert (H1:True) by auto.
- intros H12; simpl; exists c'; split3; auto.
- simpl in H2; unfold proj_core in H2.
- if_tac in H2; try solve[congruence].
-
- (*9*) intros until Q; intros H2 H3 H4 H5 H6 H7 H70 [H8 H9]; 
- intros until c0; intros H10; split.
- intros H12.
- assert (H11:True) by auto.
- simpl in H12; unfold proj_core in H12; simpl in H12.
- if_tac in H12; auto.
- simpl in H9; unfold proj_core in H9; simpl in H9.
- simpl in H10; unfold active in H10; simpl in H10.
- exfalso; apply H10; auto.
- congruence.
- intros ge'  n H12.
- simpl in H10, H12.
- unfold active in H10; unfold proj_core in H12.
- if_tac in H12.
- exfalso; auto.
- congruence.
+ Next Obligation.
+  if_tac in H; try solve[congruence].
+  if_tac in H; try solve[congruence].
  Qed.
 
-End NullExtensionSafe.
+End NullExtension.
 
 Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
          (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ef_ext_spec mem Z)
@@ -218,7 +93,13 @@ Proof.
   intros until c; intros H1 H2 H3.
   exists s'.
   simpl; unfold cores, active; simpl; split; auto.
-  simpl in H2.
+  unfold proj_core in H2.
+  if_tac in H2; try solve[congruence].
+  if_tac in H2; try solve[congruence].
+  unfold proj_core in H2.
+  if_tac in H2; try solve[congruence].
+  if_tac in H2; try solve[congruence].
+  subst.
   solve[inv H2; auto].
 
   intros until m2'; intros H1 H2 H3.
@@ -226,26 +107,34 @@ Proof.
   split; auto.
   unfold proj_core; auto.
   if_tac; auto.
+  if_tac; auto.
+  subst.
   unfold proj_core in H1.
   if_tac in H1; try congruence.
   inv H1.
   generalize (CSEM_FUN _ _ _ _ _ _ _ H2 H3).
   inversion 1; subst; auto.
+  unfold proj_core in H1.
+  if_tac in H1; try congruence.
+  solve[if_tac in H1; try congruence].
   solve[elimtype False; auto].
 
   intros until m'; intros H1 H2.
   exists c'.
   unfold cores, active in H2.
   unfold proj_core in H1.
+  if_tac in H1; try congruence.
   solve[if_tac in H1; try congruence].
 
-  intros until m'; intros H1 H2 H3; intros j; intros q H4.
+  intros until m'; intros H1 H2 H3; intros j0; intros q r H4.
   unfold cores, active in *.
   unfold proj_core.
   if_tac; auto.
+  if_tac; auto.
+  subst.
   solve[elimtype False; omega].
 
-  intros until n; intros H1 H2 H3 j H4.
+  intros until n; intros H1 H2 H3 j0 q H4.
   unfold active, cores in *.
   unfold proj_core.
   if_tac; auto.
@@ -254,30 +143,35 @@ Proof.
   intros until retv; intros H1 H2.
   exists c'.
   unfold cores, active in H1, H2.
+  unfold proj_core in H1.
+  if_tac in H1; try congruence.
+  if_tac in H1; try congruence.
   inv H1.
   solve[split; auto].
 
-  intros s s' retv H1 j H2.
+  intros s s' retv H1 j q H2.
   unfold proj_core; auto.
   unfold active in H2.
+  if_tac; auto.
   if_tac; auto.
   solve[elimtype False; auto].
 
   intros until args; intros H1.
-  exists s.
+  exists O; exists s.
   unfold active, cores, proj_core.
-  solve[split; auto].
+  solve[if_tac; try congruence; auto].
 Qed.
 
- Lemma null_owned_conserving: forall F V C D Z
-         (csem: EffectfulSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
-   owned_conserving _ (const csem) (null_extension csem csig).
+Lemma null_owned_conserving: forall F V C D Z
+       (csem: EffectfulSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
+  owned_conserving _ (const csem) (null_extension csem csig).
 Proof.
   intros.
   unfold owned_conserving.
   intros.
   simpl in *.
   unfold proj_core in H.
+  if_tac in H; try solve[congruence].
   if_tac in H; try solve[congruence].
   inv H.
   unfold const in H0.
@@ -335,12 +229,12 @@ Section NullExtensionCompilable.
  destruct (@ExtensionCompilability
    _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig 
-   geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max R)
+   geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max threads_max R)
   as [LEM].
  admit. (*will go away*)
  apply LEM; auto.
- solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
- solve[intros i; unfold const; apply genvs_domain_eq_refl; auto].
+ solve[intros ? i; unfold const; apply genvs_domain_eq_refl; auto].
+ solve[intros ? i; unfold const; apply genvs_domain_eq_refl; auto].
  unfold E_S, const.
  solve[apply (null_core_compatible geS csig H1)].
  unfold E_T, const.
@@ -349,26 +243,45 @@ Section NullExtensionCompilable.
  solve[apply null_owned_conserving].
  
  constructor.
- assert (Extension.proj_core E_T (Extension.active E_T s') s' = Some c').
+ assert (Extension.proj_core E_T (Extension.active E_T s') O s' = Some c').
   destruct (null_core_compatible geT csig H2).
-  exploit (corestep_pres s c m c' s' m' m' H); eauto.
+  exploit (corestep_pres _ s c m c' s' m' m' H); eauto.
   intros [Heq0 [Heq ?]].
-  solve[simpl in Heq,Heq0|-*; rewrite Heq0 in *; rewrite Heq; auto].
+  simpl in Heq,Heq0|-*; rewrite Heq0 in *; rewrite <-Heq; auto.
+  unfold proj_core in Heq.
+  if_tac in Heq; try solve[congruence].
+  solve[if_tac in Heq; try solve[congruence]].
  unfold const; simpl.
  simpl in H, H5; unfold proj_core in H, H5.
- if_tac in H; try solve[congruence].
- inversion H; subst c.
- if_tac in H5; try solve[congruence].
- assert (Extension.proj_core E_T (Extension.active E_T s') s' = Some c').
+ assert (s = c).
+  if_tac in H; try solve[congruence].
+  if_tac in H; try solve[congruence].
+ subst s.
+ assert (s' = c').
+  if_tac in H5; try solve[congruence].
+  if_tac in H5; try solve[congruence].
+ subst s'.
+ solve[auto].
+
+ assert (Extension.proj_core E_T (Extension.active E_T s') O s' = Some c').
   destruct (null_core_compatible geT csig H2).
-  exploit (corestep_pres s c m c' s' m' m' H); eauto.
+  exploit (corestep_pres _ s c m c' s' m' m' H); eauto.
   intros [Heq0 [Heq ?]].
-  solve[simpl in Heq,Heq0|-*; rewrite Heq0 in *; rewrite Heq; auto].
+  simpl in Heq,Heq0|-*; rewrite Heq0 in *; rewrite <-Heq; auto.
+  unfold proj_core in Heq.
+  if_tac in Heq; try solve[congruence].
+  solve[if_tac in Heq; try solve[congruence]].
  unfold const; simpl.
  simpl in H, H5; unfold proj_core in H, H5.
- if_tac in H; try solve[congruence].
- inversion H; subst c.
- if_tac in H5; try solve[congruence].
+ assert (s = c).
+  if_tac in H; try solve[congruence].
+  if_tac in H; try solve[congruence].
+ subst s.
+ assert (s' = c').
+  if_tac in H5; try solve[congruence].
+  if_tac in H5; try solve[congruence].
+ subst s'.
+ solve[auto].
 
  constructor; try solve[intros; unfold R; auto]. 
 
@@ -377,12 +290,18 @@ Section NullExtensionCompilable.
  inversion H5; subst.
  apply corestep_not_at_external in H15.
  unfold const in H8; simpl in H8.
- rewrite H15 in H8.
- congruence.
+ unfold proj_core in H0.
+ if_tac in H0; try congruence.
+ solve[if_tac in H0; try congruence].
 
  intros until j; intros.
- inversion H0; subst.
- inversion H4; subst.
+ unfold Extension.proj_core in *.
+ simpl in *.
+ unfold proj_core in *.
+ if_tac in H0; try congruence.
+ if_tac in H0; try congruence.
+ inv H0.
+ inv H4.
  destruct core_simulation.
  eapply core_at_external0 in H6; eauto.
 
@@ -392,42 +311,53 @@ Section NullExtensionCompilable.
  intros; destruct core_simulation; auto.
  destruct (core_initial0 v1 v2 sig H vals1 s1 m1 j vals2 r m2 H0 H4 H5 H6 H9 H10)
   as [cd [s2 [H11 H12]]]; auto.
- exists (fun _ => cd); exists s2; split; auto. 
+ exists (fun _ _ => cd); exists s2; split; auto. 
  split; auto.
 
- intros i c PROJ b ofs PRIV.
+ intros i u c PROJ b ofs PRIV.
  unfold const in PRIV.
  elimtype False.
  simpl in PROJ.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
+ if_tac in PROJ; try solve[congruence].
+ subst.
  inv PROJ.
  solve[eapply (effects_initial _ b _ geS v1 vals1 c); eauto].
 
  split.
- intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
+ unfold owned_disjoint.
+ intros i j0 i' j' c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
  unfold proj_core in *.
- if_tac in PROJ1; try solve[congruence]; inv PROJ1.
- solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
+ if_tac in PROJ1; try solve[congruence]. 
+ if_tac in PROJ1; try solve[congruence]. 
+ inv PROJ1.
+ solve[if_tac in PROJ2; try solve[congruence]]. 
 
  split.
- intros i c PROJ b ofs PRIV.
+ intros i j0 c PROJ b ofs PRIV.
  unfold const in PRIV.
  elimtype False.
  simpl in PROJ.
  unfold proj_core in PROJ.
  if_tac in PROJ; try solve[congruence].
  inv PROJ.
+ if_tac in H15; try solve[congruence].
+ inv H15.
  solve[eapply (effects_initial _ b _ geT v2 vals2 c); eauto].
 
  split.
- intros i k c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
+ unfold owned_disjoint.
+ intros i j0 i' j' c d NEQ; simpl; intros PROJ1 PROJ2 b PRIV CONTRA.
  unfold proj_core in *.
- if_tac in PROJ1; try solve[congruence]; inv PROJ1.
- solve[if_tac in PROJ2; try solve[congruence]; inv PROJ2].
+ if_tac in PROJ1; try solve[congruence]. 
+ if_tac in PROJ1; try solve[congruence]. 
+ inv PROJ1.
+ solve[if_tac in PROJ2; try solve[congruence]]. 
+ 
+ split; auto.
+ split; auto.
 
- split; auto.
- split; auto.
  split.
  exploit effects_valid0; eauto.
  solve[intros [? ?]; auto].
@@ -454,13 +384,14 @@ Section NullExtensionCompilable.
  split; auto.
  split.
  
- intros c1 ACT.
+ intros u c1 ACT.
  split.
  intros b ofs ? ? EF.
  elimtype False.
  unfold const in EF; simpl in EF.
  simpl in ACT.
  unfold proj_core in ACT.
+ if_tac in ACT; try solve[congruence].
  if_tac in ACT; try solve[congruence].
  inversion ACT.
  subst c1.
@@ -470,11 +401,19 @@ Section NullExtensionCompilable.
  simpl in ACT.
  unfold proj_core in ACT.
  if_tac in ACT; try solve[congruence].
+ if_tac in ACT; try solve[congruence].
  inversion ACT.
  subst c1.
  solve[eapply prog_compile_safe; eauto]. (*potentially need to know something about v1, vals1 here*)
  exists s2.
  split; auto.
+
+ simpl in ACT|-*.
+ unfold proj_core in ACT|-*.
+ if_tac in ACT; try congruence.
+ if_tac in ACT; try congruence.
+ solve[auto].
+
  split.
  intros b ofs ? ? EF.
  elimtype False.
@@ -483,25 +422,36 @@ Section NullExtensionCompilable.
  simpl in ACT.
  unfold proj_core in ACT.
  if_tac in ACT; try solve[congruence].
+ if_tac in ACT; try solve[congruence].
  inversion ACT.
  solve[subst c1; auto].
 
- intros i c1 H9'' H9'; exists s2; split; auto.
+ intros i u c1 H9'' H9'; exists s2; split; auto.
  simpl in H9'; unfold proj_core in H9'|-*; if_tac in H9'; try congruence.
  simpl; unfold proj_core; rewrite H13; if_tac; auto.
  solve[elimtype False; auto].
  simpl in H9'; unfold proj_core in H9'.
  if_tac in H9'; try congruence.
- inversion H9'.
- subst c1.
  exists cd, r, j, m1, m2.
  split.
  intros b ofs ? ? EF.
  elimtype False.
- abstract(eapply effects_initial 
-   with (k := ModifyEffect) (b0 := b) (ofs0 := ofs) in H0; eauto).
+ eapply effects_initial 
+   with (k := ModifyEffect) (b0 := b) (ofs0 := ofs) in H0; eauto.
+ simpl in H9'; unfold proj_core in H9'.
+ if_tac in H9'; try congruence.
+ if_tac in H9'; try congruence.
+ subst.
+ simpl in H9''.
+ unfold active in H9''.
+ solve[auto].
  split.
  exists init_world.
+ simpl in H9'.
+ unfold proj_core in H9'.
+ if_tac in H9'; try congruence.
+ if_tac in H9'; try congruence.
+ inv H9'.
  solve[eapply prog_compile_safe; eauto].
  split; auto.
  intros b ofs ? ? EF.
@@ -509,10 +459,15 @@ Section NullExtensionCompilable.
  solve[eapply effects_initial 
    with (k := ModifyEffect) (b0 := b) (ofs0 := ofs) in H11; eauto].
 
+ unfold const.
+ simpl in H9'; unfold  proj_core in H9'.
+ if_tac in H9'; try congruence.
+ solve[if_tac in H9'; try congruence].
+
  intros until v1; intros ty MATCH12 HALT HASTY.
  unfold CompilabilityInvariant.match_states, const in MATCH12.
  destruct MATCH12 as [? [? [? [? [? [? [? [? [? [? [? [? [? [? [? [MATCH12 ?]]]]]]]]]]]]]]]].
- specialize (MATCH12 c1).
+ specialize (MATCH12 O c1).
  spec MATCH12; auto.
  destruct MATCH12 as [GR [? [c2' [PROJ [GR' MATCH12]]]]].
  simpl in PROJ; unfold proj_core in PROJ; inv PROJ.
@@ -523,7 +478,8 @@ Section NullExtensionCompilable.
  apply corestep_not_halted in H6.
  simpl in H0; unfold proj_core, active in H0.
  if_tac in H0; try congruence.
- inversion H0; rewrite H10 in *. 
+ if_tac in H0; try congruence.
+ inv H0.
  solve[simpl in H5; unfold const in H5; rewrite H5 in H6; congruence].
  Qed.
 
