@@ -514,6 +514,121 @@ assert (effects efsem c2 AllocEffect b' ofs').
 solve[eapply effects_forwardN; eauto].
 Qed.
 
+Lemma guarantee_incr_allocN: 
+  forall ge (r r': reserve) c m c' m' n,
+  guarantee r c' m' -> 
+  reserve_valid r m -> 
+  reserve_separated1 r r' m -> 
+  corestepN efsem ge n c m c' m' ->
+  guarantee r' c' m'.
+Proof.
+intros until n; intros G1 R1 SEP STEPN.
+revert r c m R1 SEP STEPN G1.
+induction n.
+simpl.
+intros until m; intros H1 H2; inversion 1; intros G1; subst.
+intros b' ofs' VAL R2 EF.
+destruct (reserve_dec r b' ofs').
+apply G1; auto.
+specialize (H2 _ _ n R2).
+solve[elimtype False; auto].
+intros.
+simpl in STEPN.
+destruct STEPN as [c2 [m2 [STEP STEPN]]].
+ assert (exists (r2: reserve),
+  reserve_separated1 r r2 m /\
+  reserve_separated1 r2 r' m2 /\
+  reserve_valid r2 m2) as [r2 [H2 [H3 H4]]].
+ set (r2 := fun b ofs => 
+   if Z_lt_dec b (Mem.nextblock m) then r b ofs
+     else if Z_lt_dec b (Mem.nextblock m2) then True
+     else False).
+ assert (DEC: forall b ofs, {r2 b ofs}+{~r2 b ofs}).
+   intros b ofs.
+   unfold r2.
+   destruct (Z_lt_dec b (Mem.nextblock m)).
+   apply reserve_dec.
+   destruct (Z_lt_dec b (Mem.nextblock m2)).
+   left; auto.
+   right; auto.
+ exists (Build_reserve r2 DEC).
+ split.
+ simpl.
+ intros b ofs H1.
+ unfold r2.
+ solve[destruct (Z_lt_dec b (Mem.nextblock m)); auto].
+ split.
+ intros b ofs H1.
+ unfold r2 in H1.
+ simpl in H1.
+ destruct (Z_lt_dec b (Mem.nextblock m)).
+ intros; intros CONTRA.
+ solve[eapply SEP; eauto].
+ destruct (Z_lt_dec b (Mem.nextblock m2)).
+ elimtype False; auto.
+ solve[auto].
+ simpl.
+ unfold r2.
+ intros b ofs.
+ destruct (Z_lt_dec b (Mem.nextblock m)). 
+ apply corestep_fwd in STEP.
+ intros H1.
+ solve[apply STEP; auto].
+ destruct (Z_lt_dec b (Mem.nextblock m2)); auto.
+ solve[intros; elimtype False; auto].
+apply (IHn r2 c2 m2 H4 H3 STEPN).
+solve[eapply guarantee_incr_alloc; eauto].
+Qed.
+
+Definition inject_valid j m1 m2 := 
+  forall b1 b2 (delta: Z), 
+  j b1 = Some (b2, delta) -> 
+  Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2.
+
+Definition inject_valid1 j m1 :=
+  forall b1 (b2: block) (delta: Z), 
+  j b1 = Some (b2, delta) -> 
+  Mem.valid_block m1 b1.
+
+Definition inject_valid2 j m2 := 
+  forall (b1: block) b2 (delta: Z), 
+  j b1 = Some (b2, delta) -> 
+  Mem.valid_block m2 b2.
+
+Definition inject_separated2 (j j': meminj) m :=
+  forall (b1 b2: block) delta,
+  j b1 = None ->
+  j' b1 = Some (b2, delta) ->
+  ~ Mem.valid_block m b2.
+
+Lemma inject_reserve_eq: 
+  forall j j2 r m1 m2,
+  reserve_valid r m1 -> 
+  inject_valid j m1 m2 -> 
+  inject_incr j j2 -> 
+  inject_separated j j2 m1 m2 -> 
+  inject_reserve j r = inject_reserve j2 r.
+Proof.
+intros.
+extensionality b.
+extensionality ofs.
+apply prop_ext.
+unfold inject_reserve.
+split; intros [b0 [delta [H3 H4]]].
+solve[exists b0, delta; split; auto].
+case_eq (j b0).
+intros [x y] SOME.
+generalize SOME as SOME'; intro.
+apply H1 in SOME; auto.
+rewrite SOME in H3; inv H3.
+solve[exists b0, delta; split; auto].
+intros NONE.
+specialize (H2 _ _ _ NONE H3).
+destruct H2 as [H2 H5].
+apply H in H4.
+solve[elimtype False; auto].
+Qed.
+
 Lemma guarantee_incr_alloc': 
   forall ge j j2 (r r2: reserve) c mleft m c2 m2 c' m' n,
   (forall b0 b delta, 
@@ -608,6 +723,160 @@ instantiate (1 := O).
 solve[hnf; auto].
 Qed.
 
+Lemma guarantee_incr_allocN': 
+  forall ge j j' (r r': reserve) c mleft m c' m' n,
+  (forall b0 b delta, 
+    j b0 = Some (b, delta) -> Mem.valid_block mleft b0) -> 
+  inject_incr j j' -> 
+  inject_valid j mleft m -> 
+  inject_separated j j' mleft m -> 
+  guarantee (inject_reserve j r) c' m' -> 
+  reserve_valid r mleft -> 
+  reserve_valid (inject_reserve j' r') m' -> 
+  reserve_separated1 r r' mleft -> 
+  corestepN efsem ge n c m c' m' -> 
+  guarantee (inject_reserve j' r') c' m'.
+Proof.
+intros until n; intros H1 H2 H3 H4 H5 H6 H7 H8 H9.
+revert mleft j r c m H1 H2 H3 H4 H5 H6 H8 H9.
+induction n.
+
+intros.
+simpl in H9.
+inv H9.
+intros b ofs VAL INJ EF.
+apply H5; auto.
+destruct INJ as [b0 [delta [X Y]]].
+case_eq (j b0).
+intros [x y] SOME.
+generalize SOME as SOME'; intro.
+apply H2 in SOME.
+rewrite SOME in X.
+inv X.
+destruct (reserve_dec r b0 (ofs-delta)).
+exists b0, delta; split; auto.
+exploit H8; eauto.
+solve[intros; contradiction].
+intros NONE.
+exploit H4; eauto.
+solve[intros [? ?]; contradiction].
+
+intros.
+simpl in H9.
+destruct H9 as [c2 [m2 [STEP STEPN]]].
+
+assert (exists mleft', exists j2, exists r2: reserve,
+  mem_forward mleft mleft' /\
+  inject_incr j j2 /\ 
+  inject_incr j2 j' /\
+  inject_separated j j2 mleft m /\
+  inject_separated j2 j' mleft' m2 /\
+  inject_valid j2 mleft' m2 /\ 
+  reserve_valid r2 mleft' /\ 
+  reserve_valid (inject_reserve j2 r2) m2 /\
+  reserve_separated1 r r2 mleft /\
+  reserve_separated1 r2 r' mleft')
+ as [mleft' [j2 [r2 [X [Y [Z [W [U [R [A [B [E F]]]]]]]]]]]].
+
+ set (j2 := fun b => 
+     match j b, j' b with
+     | None, Some (b', delta) => 
+       if Z_lt_dec b (Mem.nextblock mleft) then 
+         if Z_lt_dec b' (Mem.nextblock m2) then  Some (b', delta)
+         else None
+       else None
+     | Some (b', delta), _ => Some (b', delta)
+     | None, None => None
+     end).
+
+ exists mleft.
+ exists j2.
+ exists r.
+ split. admit. (*TODO*)
+ split.
+ intros b b' delta SOME.
+ unfold j2.
+ assert (Zlt b (Mem.nextblock mleft)). 
+   solve[exploit H3; eauto; intros [? ?]; auto].
+ destruct (Z_lt_dec b (Mem.nextblock mleft)); 
+  try contradiction.
+ solve[rewrite SOME; auto].
+ split.
+ intros b b' delta SOME.
+ unfold j2 in SOME.
+ case_eq (j b). 
+ intros [x y] SOME'.
+ rewrite SOME' in SOME.
+ inv SOME.
+ assert (Zlt b (Mem.nextblock mleft)). 
+   solve[exploit H3; eauto; intros [? ?]; auto].
+ destruct (Z_lt_dec b (Mem.nextblock mleft)); 
+  try contradiction.
+ solve[apply H2; auto].
+ intros NONE.
+ rewrite NONE in SOME.
+ destruct (j' b); auto.
+ destruct p.
+ destruct (Z_lt_dec b (Mem.nextblock mleft)); 
+  try congruence.
+ solve[destruct (Z_lt_dec b0 (Mem.nextblock m2)); 
+   try congruence].
+ split.
+ intros b b' delta NONE SOME.
+ unfold j2 in SOME.
+ rewrite NONE in SOME.
+ case_eq (j' b).
+ intros [x y] SOME'.
+ rewrite SOME' in SOME.
+ destruct (Z_lt_dec b (Mem.nextblock mleft)); 
+  try congruence.
+ destruct (Z_lt_dec x (Mem.nextblock m2)); 
+   try congruence.
+ inv SOME.
+ solve[exploit H4; eauto].
+ intros NONE'.
+ rewrite NONE' in SOME; congruence.
+ split.
+ intros b b' delta NONE SOME.
+ unfold j2 in NONE.
+ case_eq (j b).
+ intros [x y] SOME'.
+ rewrite SOME' in NONE.
+ congruence.
+ intros NONE'.
+ rewrite NONE' in NONE.
+ rewrite SOME in NONE.
+ split.
+ solve[exploit H4; eauto; intros [? ?]; auto].
+ case_eq (Z_lt_dec b (Mem.nextblock mleft)).
+ intros.
+ rewrite H in NONE.
+ case_eq (Z_lt_dec b' (Mem.nextblock m2)).
+ intros.
+ rewrite H0 in NONE.
+ congruence.
+ intros.
+ rewrite H0 in NONE.
+ elimtype False.
+ exploit H4; eauto.
+ solve[intros [? ?]; auto].
+ intros.
+ rewrite H in NONE.
+ elimtype False.
+ exploit H4; eauto.
+ admit. (*TODO*)
+ admit. (*TODO*)
+
+assert (guarantee (inject_reserve j2 r2) c' m').
+ solve[eapply guarantee_incr_alloc'; eauto].
+
+assert (R': inject_valid1 j2 mleft').
+ intros b ofs delta SOME.
+ solve[exploit R; eauto; intros [? ?]; auto].
+
+apply (IHn mleft' j2 r2 c2 m2 R' Z R U H A F STEPN).
+Qed.
+
 Lemma alloc_mod_alloc: 
   forall b ofs ge c m c' m' r,
   corestep efsem ge c m c' m' -> 
@@ -693,12 +962,6 @@ cut (guarantee r' c' m'). intro H7.
 solve[eapply guarantee_decr; eauto].
 solve[eapply guarantee_after_ext; eauto].
 Qed.
-
-Definition inject_separated2 (j j': meminj) m :=
-  forall (b1 b2: block) delta,
-  j b1 = None ->
-  j' b1 = Some (b2, delta) ->
-  ~ Mem.valid_block m b2.
 
 Lemma guarantee'_after_ext: 
   forall (r r': reserve) j j' c c' m m' rv e sig args,
