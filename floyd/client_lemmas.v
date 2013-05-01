@@ -1057,6 +1057,12 @@ Ltac go_lower3 :=
                  change (@prop _ (@LiftNatDed _ _ ND) P rho) with (@prop _ ND P)
         | |- context [@prop _ (@LiftNatDed' _ ?ND) ?P ?rho] =>
                  change (@prop _ (@LiftNatDed' _ ND) P rho) with (@prop _ ND P)
+        | |- context [@emp _ (@LiftNatDed _ _ ?ND) (@LiftSepLog _ _ _ ?SL) ?rho] =>
+                 change (@emp _ (@LiftNatDed _ _ ND) (@LiftSepLog _ _ ND SL) ?rho)
+                      with (@emp _ ND SL)
+        | |- context [@emp _ (@LiftNatDed' _ ?ND) (@LiftSepLog' _ _ ?SL) ?rho] =>
+                 change (@emp _ (@LiftNatDed' _ ND) (@LiftSepLog' _ ND SL) ?rho)
+                      with (@emp _ ND SL)
         end; cbv beta);
         repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
         repeat rewrite eval_id_same;
@@ -1994,7 +2000,51 @@ Ltac flatten_sepcon_in_SEP :=
 end
 end.
 
-Lemma move_prop_from_SEP:
+Lemma extract_prop_in_SEP:
+  forall n P1 Rn P Q R, 
+   nth n R emp = prop P1 && Rn -> 
+   PROPx P (LOCALx Q (SEPx R)) = PROPx (P1::P) (LOCALx Q (SEPx (replace_nth n R Rn))).
+Proof.
+intros.
+extensionality rho.
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
+simpl.
+rewrite prop_and.
+apply pred_ext; normalize.
+repeat apply andp_right; auto.
+revert R H; induction n; destruct R; simpl; intros.
+apply equal_f with rho in H.
+rewrite H; apply andp_left1; auto.
+rewrite H. normalize.
+apply equal_f with rho in H.
+rewrite H; apply andp_left1; auto.
+apply derives_trans with (TT * (!!P1 && TT)); [ | normalize].
+apply sepcon_derives; auto.
+specialize (IHn _ H).
+rewrite andp_TT. auto.
+apply prop_right; auto.
+apply prop_right; auto.
+revert R H; clear; induction n; destruct R; simpl; intros; auto.
+rewrite H.
+normalize.
+apply sepcon_derives; auto.
+revert R H; clear - H0; induction n; destruct R; simpl; intros; auto.
+rewrite H. rewrite prop_true_andp; auto.
+apply sepcon_derives; auto.
+Qed.
+
+
+Ltac move_prop_from_SEP :=
+match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
+  match R with context [(prop ?P1 && ?Rn) :: ?R'] =>
+  let n := length_of R in let n' := length_of R' in 
+   rewrite (extract_prop_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
+    simpl minus; unfold replace_nth 
+ end;
+ try (apply semax_extract_PROP; intro)
+end.
+
+Lemma move_prop_from_SEP':
   forall P1 R1 P Q R, 
       PROPx P (LOCALx Q (SEPx ((!!P1&&R1) :: R))) = PROPx (P1::P) (LOCALx Q (SEPx (R1::R))).
 Proof.
@@ -2006,7 +2056,39 @@ change SEPx with SEPx'.
  apply pred_ext; normalize.
 Qed.
 
-Lemma move_local_from_SEP:
+
+Lemma extract_local_in_SEP:
+  forall n Q1 Rn P Q R, 
+   nth n R emp = local Q1 && Rn -> 
+   PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx (Q1::Q) (SEPx (replace_nth n R Rn))).
+Proof.
+intros.
+f_equal.
+extensionality rho.
+apply equal_f with rho in H.
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
+simpl in *.
+revert R H; induction n; destruct R; simpl; intros.
+apply pred_ext; rewrite H; normalize.
+apply pred_ext; rewrite H; normalize.
+apply pred_ext; rewrite H; normalize.
+specialize (IHn _ H).
+do 2 rewrite <- sepcon_andp_prop.
+rewrite IHn.
+auto.
+Qed.
+
+
+Ltac move_local_from_SEP :=
+match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
+  match R with context [(local ?P1 && ?Rn) :: ?R'] =>
+  let n := length_of R in let n' := length_of R' in 
+   rewrite (extract_local_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
+    simpl minus; unfold replace_nth 
+ end
+end.
+
+Lemma move_local_from_SEP':
   forall P1 R1 P Q R, 
       PROPx P (LOCALx Q (SEPx ((local P1&&R1) :: R))) = PROPx P (LOCALx (P1::Q) (SEPx (R1::R))).
 Proof.
@@ -2018,7 +2100,7 @@ change SEPx with SEPx'.
  apply pred_ext; normalize.
 Qed.
 
-Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm.
+(* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.

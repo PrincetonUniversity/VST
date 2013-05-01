@@ -76,6 +76,7 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
     match v1 with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+        || !!(v2=Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
     end
   | _ => FF
@@ -84,7 +85,7 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
 Definition mapsto sh t v1 v2 := 
              !! (typecheck_val v2 t = true)  && umapsto sh t v1 v2.
 
-Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
+Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 

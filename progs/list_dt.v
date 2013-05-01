@@ -385,13 +385,163 @@ Proof.
 *)
 Abort.
 
+
+Lemma another_ewand_TT_lemma:
+ forall A B C: mpred, A && ewand C TT >=> B && ewand C TT |-- A*C >=> B*C.
+Admitted.
+
+Lemma address_mapsto_overlap:
+  forall rsh sh ch1 v1 ch2 v2 a1 a2,
+     adr_range a1 (Memdata.size_chunk ch1) a2 ->
+     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
+Proof.
+ intros.
+ apply res_predicates.address_mapsto_overlap.
+ auto.
+Qed.
+
+Lemma field_mapsto__conflict:
+  forall sh t fld v,
+        field_mapsto_ sh t fld v
+        * field_mapsto_ sh t fld v |-- FF.
+Proof.
+intros.
+unfold field_mapsto_.
+destruct v; normalize.
+destruct t; normalize.
+destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
+  normalize.
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
+  normalize.
+intros.
+apply address_mapsto_overlap.
+split; auto.
+pose proof (size_chunk_pos m); omega.
+Qed.
+
+
 Lemma links_cons_right (ls: listspec list_struct list_link): forall sh l x y z w, 
              field_mapsto sh list_struct list_link y z * 
              field_mapsto sh list_struct list_link z w * 
              links ls sh l x y
    |--   links ls sh (l++y::nil) x z * field_mapsto sh list_struct list_link z w.
-Admitted.
-
+Proof.
+intros.
+assert (TT |-- ALL l: list val, ALL x: val,
+                   ((field_mapsto sh list_struct list_link y z * links ls sh l x y)  
+                          && (ewand (field_mapsto sh list_struct list_link z w) TT))
+                     >=> (links ls sh (l++y::nil) x z && (ewand (field_mapsto sh list_struct list_link z w) TT))).
+Focus 2.
+apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
+forget (field_mapsto sh list_struct list_link y z) as A.
+forget (links ls sh (l ++ y :: nil) x z) as B.
+forget (field_mapsto sh list_struct list_link z w) as C.
+forget (links ls sh l x y) as D.
+rewrite (sepcon_assoc). rewrite (sepcon_comm C). rewrite <- sepcon_assoc.
+apply another_ewand_TT_lemma.
+clear x l.
+apply loeb.
+apply allp_right; intro l.
+apply allp_right; intro x.
+destruct l.
+rewrite links_nil_eq.
+apply derives_trans with TT; auto.
+apply subp_i1.
+apply andp_left2.
+normalize.
+simpl.
+assert (x=y) by (apply ptr_eq_e; auto). subst y.
+rewrite field_mapsto_isptr.
+normalize.
+rewrite links_cons_eq.
+apply andp_right; [ | apply andp_left2; auto].
+apply andp_right.
+normalize.
+apply not_prop_right; intro. apply ptr_eq_e in H1; subst z.
+apply ewand_conflict.
+eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict]; 
+  apply field_mapsto_field_mapsto_.
+apply exp_right with z.
+normalize.
+rewrite links_nil_eq.
+erewrite field_mapsto_typecheck_val at 1.
+2: apply list_struct_eq.
+rewrite list_link_type.
+apply andp_right.
+apply andp_left1.
+apply andp_left1. auto.
+normalize.
+apply andp_left1.
+apply derives_trans with (field_mapsto sh list_struct list_link x z * emp).
+rewrite sepcon_emp; auto.
+apply sepcon_derives; auto.
+rewrite prop_true_andp.
+apply now_later.
+clear - H1. destruct z; inv H1; simpl; auto; rewrite Int.eq_true; auto.
+apply subp_i1.
+simpl app.
+rewrite links_cons_eq.
+rewrite links_cons_eq.
+autorewrite with norm.
+apply exp_left; intro z'.
+apply exp_right with z'.
+repeat rewrite sepcon_andp_prop'.
+rewrite andp_comm. rewrite andp_assoc.
+rewrite sepcon_comm.
+repeat rewrite andp_assoc.
+repeat rewrite sepcon_andp_prop'.
+repeat rewrite andp_assoc.
+apply derives_extract_prop; intro.
+apply derives_extract_prop; intro.
+apply derives_extract_prop; intro.
+subst v.
+apply andp_right. apply prop_right; auto.
+rewrite field_mapsto_isptr.
+normalize.
+apply andp_right.
+rewrite <- andp_assoc.
+apply andp_left1.
+apply not_prop_right. intro. apply ptr_eq_e in H2. subst z.
+apply ewand_conflict.
+rewrite sepcon_comm.
+repeat rewrite <- sepcon_assoc.
+eapply derives_trans; [ apply sepcon_derives ; [ | apply derives_refl ]| ].
+apply sepcon_derives ; [ | apply derives_refl ].
+eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict]; 
+  apply field_mapsto_field_mapsto_.
+repeat rewrite FF_sepcon; auto.
+rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
+apply andp_right.
+Focus 2. apply andp_left2; apply andp_left1; auto.
+rewrite sepcon_assoc.
+rewrite <- andp_assoc.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply ewand_TT_sepcon.
+rewrite andp_comm. rewrite unfash_sepcon_distrib.
+apply sepcon_derives.
+apply andp_left2. apply andp_left1; auto.
+rewrite <- later_unfash.
+eapply derives_trans.
+eapply andp_derives. apply derives_refl. apply andp_derives.
+apply sepcon_derives. apply derives_refl. apply now_later.
+apply now_later.
+rewrite <- later_sepcon.
+repeat rewrite <- later_andp.
+apply later_derives.
+rewrite unfash_allp.
+rewrite allp_andp1 by apply nil. apply allp_left with l.
+rewrite unfash_allp.
+rewrite allp_andp1 by apply Vundef. apply allp_left with z'.
+eapply derives_trans.
+apply andp_derives; [apply unfash_fash | apply derives_refl].
+rewrite (sepcon_comm (field_mapsto _ _ _ _ _)).
+rewrite andp_comm.
+eapply derives_trans; [ apply modus_ponens |  ].
+apply andp_left1; auto.
+Qed.
 
 Lemma links_unroll_right (ls: listspec list_struct list_link): forall sh l x z , 
     links ls sh l x z = 
@@ -415,7 +565,7 @@ Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fiel
 Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link ls list_fields).
 
 Definition list_cell (ls: listspec list_struct list_link) sh p v :=
-   structfieldsof sh list_struct (all_but_link ls list_fields) 0 p v.
+   structfieldsof sh list_struct (all_but_link ls list_fields) 0 0 p v.
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
   HORec (fun (R: (list (elemtype ls))*(val*val) -> mpred) (lp: (list (elemtype ls))*(val*val)) =>

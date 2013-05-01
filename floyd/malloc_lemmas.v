@@ -25,6 +25,40 @@ Hint Rewrite memory_block_zero: norm.
 
 Global Opaque memory_block.
 
+
+Fixpoint is_Fnil (fld: fieldlist) : bool :=
+match fld with
+| Fnil => true
+| Fcons id ty fld' => false
+end.
+
+Fixpoint reptype (ty: type) : Type :=
+  match ty with
+  | Tvoid => unit
+  | Tint _ _ _ => int
+  | Tfloat _ _ => float
+  | Tpointer t1 a => val
+  | Tarray t1 sz a => list (reptype t1)
+  | Tfunction t1 t2 => unit
+  | Tstruct id fld a => reptype_structlist fld
+  | Tunion id fld a => reptype_unionlist fld
+  | Tcomp_ptr id a => val
+  end
+
+with reptype_structlist (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => 
+          if is_Fnil fld' 
+                      then reptype ty
+                      else prod (reptype ty) (reptype_structlist fld')
+  end
+with reptype_unionlist (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => sum (reptype ty) (reptype_unionlist fld')
+  end.
+
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
 Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
@@ -87,6 +121,81 @@ Definition storable_mode (ty: type) : bool :=
   | _ => true
 end.
 
+Fixpoint arrayof (t: Type) (f: forall (v1: val) (v2: t),  mpred)
+         (t1: type) (ofs: Z) (v1: val) (v2: list t) : mpred :=
+    match v2 with
+    | v::rest => f (offset_val (Int.repr ofs) v1) v * arrayof t f t1 (ofs + sizeof t1) v1 rest
+    | nil => emp
+   end.
+
+Fixpoint uarrayof (f: forall (v1: val) (v2: val),  mpred)
+         (t1: type) (ofs: Z) (v1: val) (v2: list val) : mpred :=
+    match v2 with
+    | v::rest => f (offset_val (Int.repr ofs) v1) v * uarrayof f t1 (ofs + sizeof t1) v1 rest
+    | nil => emp
+   end.
+
+Fixpoint arrayof_int (sh: share) (t: type) (ofs: Z) (v1: val) (v2: list int) : mpred :=
+    match v2 with
+    | v::rest => mapsto sh t (offset_val (Int.repr ofs) v1) (Vint v) * arrayof_int sh t (ofs + sizeof t) v1 rest
+    | nil => emp
+   end.
+
+Lemma uarrayof_int_eq:
+ forall sh t ofs v1 v2,
+    match t with Tint _ _ {| attr_volatile := false |} => True | _ => False end ->
+   uarrayof (mapsto sh t) t ofs v1 (map Vint v2) = arrayof_int sh t ofs v1 v2.
+Proof.
+intros.
+ destruct t; try contradiction. destruct a; try contradiction. destruct attr_volatile; try contradiction.
+ clear H.
+ revert ofs; induction v2; simpl; intros; auto.
+ f_equal; auto.
+Qed. 
+
+(*
+Lemma arrayof_int_eq:
+ forall sh t ofs v1 v2,
+    match t with Tint _ _ {| attr_volatile := false |} => True | _ => False end ->
+   arrayof (reptype t) (mapsto sh t) t ofs v1 (map Vint v2) = arrayof_int sh t ofs v1 v2.
+*)
+
+(*
+Lemma arrayof_u_eq:
+  forall sh t ofs v1 v2,
+   (forall v, In v v2 -> tc_val t v) ->
+   arrayof (umapsto sh t) t ofs v1 v2 = arrayof (mapsto sh t) t ofs v1 v2.
+Proof.
+ intros. revert ofs H; induction v2; simpl; intros; auto.
+ f_equal.
+ unfold mapsto.
+ rewrite prop_true_andp; auto.
+ apply IHv2.
+ intros.
+ apply H.
+ auto.
+Qed.
+*)
+
+Fixpoint arrayof_ (f: forall (v1: val),  mpred)
+         (t1: type) (ofs: Z) (v1: val) (n: nat) : mpred :=
+    match n with
+    | S n' => f (offset_val (Int.repr ofs) v1) * arrayof_ f t1 (ofs + sizeof t1) v1 n'
+    | O => emp
+   end.
+
+Lemma arrayof__eq:
+forall (f: forall (v1 v2: val), mpred) t ofs v1 n,
+  arrayof_ (fun v => f v Vundef) t ofs v1 n = uarrayof f t ofs v1 (list_repeat n Vundef).
+Proof.
+ intros; revert ofs;
+ induction n; simpl; intros; auto.
+ f_equal; auto.
+Qed.
+
+Definition force_field_offset id flds : Z :=
+  match field_offset id flds with Errors.OK z  => z | _ => 0 end.
+
 Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
   match ty with
   | Tstruct id fld a => withspacer sh pos (alignof ty)
@@ -94,8 +203,15 @@ Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
            | Fnil => at_offset (memory_block sh Int.one) (align pos (alignof ty))
            | _ => at_offset (fields_mapto_ sh 0 ty fld) (align pos (alignof ty))
            end
+  | Tarray t z a =>
+            withspacer sh pos (alignof t)
+              (fun v => (arrayof_ (typed_mapsto_' sh (align pos (alignof t)) t) t 0 v (Z.to_nat z)))
   | _ => withspacer sh pos (alignof ty)
-               (at_offset (memory_block sh (Int.repr (sizeof ty))) (align pos (alignof ty)))
+              match access_mode ty with
+              | By_value _ => 
+                    at_offset (mapsto_ sh ty) (align pos (alignof ty))
+              | _ => at_offset (memory_block sh (Int.repr (sizeof ty))) (align pos (alignof ty))
+              end
   end
 
 with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  mpred :=
@@ -104,53 +220,13 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  
  | Fcons id ty flds' => 
      (if storable_mode ty 
      then withspacer sh pos (alignof ty) (field_mapsto_ sh t0 id)
-     else typed_mapsto_' sh pos ty)
+     else typed_mapsto_' sh (pos+force_field_offset id flds) ty)
      * fields_mapto_ sh pos t0 flds'
   end.
 
 Definition typed_mapsto_ (sh: Share.t) (ty: type) : val -> mpred :=
         typed_mapsto_' sh 0 ty.
 
-Fixpoint is_Fnil (fld: fieldlist) : bool :=
-match fld with
-| Fnil => true
-| Fcons id ty fld' => false
-end.
-
-Fixpoint reptype (ty: type) : Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => int
-  | Tfloat _ _ => float
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
-  | Tstruct id fld a => reptype_structlist fld
-  | Tunion id fld a => reptype_unionlist fld
-  | Tcomp_ptr id a => val
-  end
-
-with reptype_structlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-          if is_Fnil fld' 
-                      then reptype ty
-                      else prod (reptype ty) (reptype_structlist fld')
-  end
-with reptype_unionlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => sum (reptype ty) (reptype_unionlist fld')
-  end.
-
-
-Fixpoint arrayof (t: Type) (f: forall (v1: val) (v2: t),  mpred)
-         (t1: type) (ofs: Z) (v1: val) (v2: list t) : mpred :=
-    match v2 with
-    | v::rest => f (offset_val (Int.repr ofs) v1) v * arrayof t f t1 (ofs + sizeof t1) v1 rest
-    | nil => emp
-   end.
 
 Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) (pos: Z) (v: val) :
                      (reptype t -> mpred) -> reptype t -> mpred :=
@@ -203,7 +279,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tarray t z a)) => 
                  withspacer sh pos (alignof t)
-                 (fun v => arrayof _ (typed_mapsto' sh t (align pos (alignof t))) t 0 v v3) v)
+                 (fun v => arrayof _ (typed_mapsto' sh t 0) t (align pos (alignof t)) v v3) v)
         H
 | Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>
@@ -211,7 +287,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tstruct i f a)) =>
                  withspacer sh pos (alignof (Tstruct i f a))
-                 (fun v => structfieldsof sh (Tstruct i f a) f (align pos (alignof t1)) v v3) v) H
+                 (fun v => structfieldsof sh (Tstruct i f a) f (align pos (alignof t1)) (align pos (alignof t1)) v v3) v) H
 | Tunion i f a =>
     fun H : t1 = Tunion i f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
@@ -224,7 +300,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
           (at_offset (memory_block sh (Int.repr (sizeof (Tcomp_ptr i a))))pos) v
 end eq_refl
  with
- structfieldsof (sh: Share.t) (t_str: type) (flds: fieldlist) (pos: Z) :
+ structfieldsof (sh: Share.t) (t_str: type) (flds: fieldlist) (pos pos': Z) :
                val -> reptype_structlist flds -> mpred :=
 match flds as f return (val -> reptype_structlist f -> mpred) with
 | Fnil => fun _ (_ : reptype_structlist Fnil) => emp
@@ -240,14 +316,15 @@ match flds as f return (val -> reptype_structlist f -> mpred) with
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
         withspacer sh pos (alignof t)
           (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
-             (typed_mapsto' sh t (align pos (alignof t)) v) X1) v
+             (typed_mapsto' sh t pos' v) X1) v
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
         (withspacer sh pos (alignof t)
           (fun v => maybe_field_mapsto sh t t_str i (align pos (alignof t)) v
-             (typed_mapsto' sh t (align pos (alignof t)) v) (fst X1)) *
-        (fun v => structfieldsof sh t_str flds0 pos v (snd X1))) v   ) eq_refl X0
+             (typed_mapsto' sh t pos' v) (fst X1)) *
+        (fun v => structfieldsof sh t_str flds0 pos (align pos' (alignof t) + sizeof t) v (snd X1))) v   )
+   eq_refl X0
 end
  with
 unionfieldsof  (sh: Share.t) (flds: fieldlist) (pos: Z) :  val ->reptype_unionlist flds -> mpred :=
@@ -381,16 +458,26 @@ Ltac simpl_typed_mapsto :=
   | |- context [typed_mapsto ?SH ?T] =>
          remember (typed_mapsto SH T) as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?SH ?T ?F ?N _ _] =>
-         remember (structfieldsof SH T F N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N ?N' _ _] =>
+         remember (structfieldsof SH T F N N') as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?SH ?T ?F ?N _] =>
-         remember (structfieldsof SH T F N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N ?N' _] =>
+         remember (structfieldsof SH T F N N') as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
- | |- context [structfieldsof ?SH ?T ?F ?N] =>
-         remember (structfieldsof SH T F N) as MA;
+ | |- context [structfieldsof ?SH ?T ?F ?N ?N'] =>
+         remember (structfieldsof SH T F N N') as MA;
          match goal with H: MA = _ |- _ => simpl_typed_mapsto' T H MA end
-  end.
+  end. 
+
+(* TESTING 
+Require Import progs.sha.
+Parameter sh : share.
+Parameter v: val.
+
+Goal forall r, typed_mapsto sh t_struct_SHA256state_st v r = emp.
+intro.
+ simpl_typed_mapsto.
+*)
 
 (* TESTING 
 Require Import progs.queue.
@@ -434,7 +521,8 @@ Qed.
 
 Fixpoint typecount (t: type) : nat :=
  match t with
- | Tstruct _ f _ => typecount_fields f
+ | Tstruct _ f _ => S (typecount_fields f)
+ | Tarray t' _ _ => S (typecount t')
  | _ => 1%nat
  end
 with typecount_fields (f: fieldlist) : nat :=
@@ -451,19 +539,43 @@ Qed.
 
 Lemma typecount_pos: forall t, (typecount t > 0)%nat.
 Proof.
- destruct t; simpl; auto.
- apply typecount_fields_pos.
+ destruct t; simpl; auto; omega.
 Qed.
- 
-Lemma mafoz_aux:
-  forall n f, (typecount_fields f < n)%nat -> 
-     forall sh pos t v,
-       fields_mapto_ pos sh t f (offset_val (Int.repr 0) v) =
-       fields_mapto_ pos sh t f v.
-Proof.
-induction n; intros.
- elimtype False. omega.
 
+Lemma umapsto_offset_zero:
+  forall sh t v v', umapsto sh t (offset_val (Int.repr 0) v) v' = umapsto sh t v v'.
+Proof.
+ intros.
+ unfold umapsto.
+ destruct (access_mode t); auto.
+ destruct v; simpl; auto.
+ rewrite Int.add_zero; auto.
+Qed. 
+
+Lemma mafoz_aux:
+  forall n,
+  (forall f, (typecount_fields f < n)%nat -> 
+     forall sh pos t v,
+       fields_mapto_ sh pos t f (offset_val (Int.repr 0) v) =
+       fields_mapto_ sh pos t f v) /\
+  (forall t, (typecount t < n)%nat -> 
+       forall sh ofs v, typed_mapsto_' sh ofs t (offset_val (Int.repr 0) v) =  typed_mapsto_' sh ofs t v).
+Proof.
+induction n.
+split; intros; omega.
+ assert (ARRAY: forall t sh k i pos v, 
+     (typecount t < n)%nat ->
+     arrayof_ (typed_mapsto_' sh (align pos (alignof t)) t) t i (offset_val (Int.repr 0) v) k =
+     arrayof_ (typed_mapsto_' sh (align pos (alignof t)) t) t i v k); [ | auto].
+ induction k; simpl; intros; auto.
+ f_equal.
+ replace (offset_val (Int.repr i) (offset_val (Int.repr 0) v)) with
+             (offset_val (Int.repr 0) (offset_val (Int.repr i) v)).
+ apply IHn. auto.
+ repeat rewrite offset_offset_val. rewrite Int.add_commut. auto.
+ apply IHk; auto.
+ 
+ split; intros.
  destruct f; simpl; auto.
  simpl in H.
  case_eq (storable_mode t0); intros.
@@ -480,6 +592,7 @@ induction n; intros.
                  rewrite <- offset_offset_val);
  try (f_equal; [apply spacer_offset_zero |]);
  try  apply memory_block_offset_zero.
+ apply ARRAY. simpl in H; omega.
  destruct f0.
  repeat rewrite at_offset_eq by apply memory_block_offset_zero.
  f_equal. rewrite offset_offset_val. f_equal. rewrite Int.add_commut; apply Int.add_zero.
@@ -493,6 +606,20 @@ induction n; intros.
  f_equal. rewrite offset_offset_val. f_equal.
  apply IHn.
  pose proof (typecount_pos t0). omega.
+
+ destruct t; simpl;
+ repeat rewrite withspacer_spacer; simpl; rewrite spacer_offset_zero; f_equal;
+ repeat rewrite at_offset_eq by apply memory_block_offset_zero;
+ try (rewrite offset_offset_val; rewrite Int.add_zero_l; f_equal; apply spacer_offset_zero);
+ try (destruct i, s); try destruct f; 
+ repeat rewrite at_offset_eq;
+ try (rewrite offset_offset_val; rewrite Int.add_commut; rewrite <- offset_offset_val);
+ try (apply umapsto_offset_zero);
+ try apply memory_block_offset_zero.
+ apply ARRAY. simpl in H; omega.
+ rewrite offset_offset_val. rewrite Int.add_zero. auto.
+ apply IHn. simpl in H|-*. generalize (typecount_pos t); intro. simpl. omega.
+ rewrite offset_offset_val. rewrite Int.add_zero; auto.
 Qed.
 
 Lemma fields_mapto__offset_zero:
@@ -504,6 +631,39 @@ apply (mafoz_aux (S (typecount_fields f))).
 omega.
 Qed.
 
+Lemma memory_block_isptr: forall sh i v, 
+  i > 0 -> 
+  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
+Proof.
+Admitted.  (* not difficult *)
+
+
+Lemma memory_block_address_mapsto:
+  forall n sh ch b i,
+  n = Memdata.size_chunk ch ->
+  memory_block sh (Int.repr n) (Vptr b i) =
+ address_mapsto ch Vundef (Share.unrel Share.Lsh sh)
+  (Share.unrel Share.Rsh sh) (b, Int.unsigned i)
+|| !!(Vundef = Vundef) &&
+   (EX  v2' : val,
+    address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+      (Share.unrel Share.Rsh sh) (b, Int.unsigned i)).
+Admitted. 
+
+Lemma memory_block_mapsto_:
+  forall n sh t v, 
+    match access_mode t with By_value _ => True | _ => False end ->
+   n = sizeof t ->
+   memory_block sh (Int.repr n) v = mapsto_ sh t v.
+Proof.
+ intros. subst n.
+ destruct t; try contradiction; clear H;  unfold mapsto_, umapsto; simpl;
+ try (destruct i,s); try destruct f; rewrite memory_block_isptr by omega;
+ destruct v; simpl; try  apply FF_andp; 
+ rewrite prop_true_andp by auto;
+ (apply memory_block_address_mapsto;  reflexivity).
+Qed.
+ 
 Lemma spacer_memory_block:
   forall sh pos a v,
   isptr v -> 
@@ -532,7 +692,11 @@ Proof.
  intros.
  induction ty;
  try solve [simpl; rewrite withspacer_spacer; simpl;
-                rewrite at_offset_eq by (apply memory_block_offset_zero); auto].
+                rewrite at_offset_eq by (apply memory_block_offset_zero); auto];
+ try (unfold typed_mapsto_'; rewrite withspacer_spacer; simpl; f_equal;
+  try destruct i,s; try destruct f; try rewrite at_offset_eq; simpl; try rewrite Int.add_zero; auto;
+       apply memory_block_mapsto_; simpl; auto).
+ admit. (* array case *)
  unfold typed_mapsto_'; fold fields_mapto_.
  rewrite withspacer_spacer.
  simpl. f_equal.
@@ -611,7 +775,7 @@ admit.  (* likely OK  *)
                (offset_val (Int.repr (align pos (alignof t0))) (Vptr b ofs)))
    by (destruct (storable_mode t0); auto).
 clear memory_block_typed'.
-  do 2 rewrite <-sepcon_assoc.
+  rewrite <-sepcon_assoc.
  rewrite <- IHfld. clear IHfld.
  case_eq (storable_mode t0); intros.
  admit. (* might be *)
@@ -619,12 +783,6 @@ clear memory_block_typed'.
 Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
                          Let's hope it goes faster in 8.4 *)
 
-
-Lemma memory_block_isptr: forall sh i v, 
-  i > 0 -> 
-  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
-Proof.
-Admitted.  (* not difficult *)
 
 Lemma typed_mapsto__isptr:
   forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
@@ -698,4 +856,3 @@ Lemma typed_mapsto_typed_mapsto_ :
 Admitted.
 Hint Resolve typed_mapsto_typed_mapsto_.
 Hint Resolve field_mapsto_field_mapsto_.
-

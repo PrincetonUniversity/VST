@@ -1470,8 +1470,21 @@ Proof.
  revert H0; case_eq (access_mode t); intros; auto.
  destruct v1; try contradiction.
  rename H into Hmode.
+destruct H0 as [H0|H0]; [left | right].
  destruct H0 as [bl [? ?]]; exists bl; split; auto.
  clear - H0 H1.
+  intro loc'; specialize (H0 loc').
+  hnf in *.
+  if_tac.
+  destruct H0 as [p ?]; exists p.
+  hnf in *.
+  rewrite preds_fmap_NoneP in *.
+  apply (age1_YES w r); auto.
+  unfold noat in *; simpl in *.
+ apply <- (age1_resource_at_identity _ _ loc' H1); auto.
+ destruct H0 as [? [v2' [bl [? ?]]]].
+ hnf in H. subst v2. split; hnf; auto. exists v2', bl; split; auto. 
+ clear - H2 H1; rename H2 into H0.
   intro loc'; specialize (H0 loc').
   hnf in *.
   if_tac.

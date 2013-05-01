@@ -568,7 +568,7 @@ Proof.
   simpl.
   repeat rewrite Share.unrel_splice_R.
   repeat rewrite Share.unrel_splice_L.
-  destruct a; simpl in H; unfold load in H;
+  destruct a; try left; simpl in H; unfold load in H;
   try (if_tac in H; [ | discriminate H]);
   try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
             exists B; replace V with (decode_val ch B) by (inversion H; auto)
@@ -753,7 +753,7 @@ if_tac; auto.
 
   case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
  (* is an array *)
- destruct t; inv HT.
+ destruct t; try left; inv HT.
  exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
@@ -815,7 +815,7 @@ assert ((EX  bl : list memval,
   destruct loc; destruct H; subst b1.
   apply nth_getN; simpl; omega.
   apply H2.
-  destruct t; try apply H. auto.
+  destruct t; try left; try apply H. auto.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1413,7 +1413,8 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  exists w1'; exists w2'; split3; auto.
  2: eapply IHdl; eauto.
  clear - H1 H4. destruct H4 as [H4' H4].
- destruct a; simpl in *;
+ destruct a; simpl in *; 
+   try (destruct H1 as [H1 | [H88 _]]; [left | solve [inv H88]]);
  try solve [
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
  if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
@@ -1434,6 +1435,13 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
  destruct t; inv HT.
  hnf in H1|-*.
+ destruct H1 as [H1 | H1]; [left | right].
+ destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
+ do 3 red in H8|-*. apply H0; auto.
+ destruct H1 as [H1' [v2' H1]]; split; [assumption | exists v2' ].
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
@@ -1441,10 +1449,16 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  do 3 red in H8|-*. apply H0; auto.
  assert (umapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
       (offset_val i0 v) w1'); [ | destruct t; auto].
- hnf in H1|-*.
  assert (H1': umapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
                 (Vptr b z) (offset_val i0 v) w1) by (destruct t; auto; congruence).
  clear H1.
+ destruct H1' as [H1' | H1']; [left | right].
+ destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct (H4 loc).
+ hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
+  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
+ do 3 red in H8|-*. apply H0; auto.
+ destruct H1' as [H1'' [v2' H1']]; split; [assumption | exists v2'].
  destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.

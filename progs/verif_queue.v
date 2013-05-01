@@ -400,7 +400,6 @@ change (`(EX  prefix : list val,
       `(links QS Tsh prefix hd tl * link tl nullval)).
 rewrite extract_exists_in_SEP.
 apply extract_exists_pre. intro prefix.
-rewrite move_prop_from_SEP.
 normalize.
 subst.
 unfold link.
@@ -459,7 +458,6 @@ destruct prefix; inv H.
 rewrite links_nil_eq.
 normalize.
 focus_SEP 1.
-rewrite move_prop_from_SEP.
 normalize. apply ptr_eq_e in H. subst hd.
 replace_SEP 2 (`(field_mapsto Tsh t_struct_elem _next) (eval_id _h) `nullval).
 go_lower; subst; auto.

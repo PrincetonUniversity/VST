@@ -129,10 +129,14 @@ Lemma mapsto_valid_pointer : forall b o sh t jm,
 valid_pointer (m_dry jm) b (Int.unsigned o) = true. 
 intros.
 
-destruct H. destruct H. destruct H. destruct H0. 
-
-destruct H0. unfold umapsto in *. 
-destruct (access_mode t); try solve [ inv H0]. 
+destruct H. destruct H. destruct H. destruct H0.
+unfold mapsto_,umapsto in H0.  unfold umapsto in *. 
+destruct (access_mode t); try solve [ inv H0].
+assert (exists v,  address_mapsto m v (Share.unrel Share.Lsh sh)
+        (Share.unrel Share.Rsh sh) (b, Int.unsigned o) x).
+destruct H0.
+econstructor; apply H0. destruct H0 as [_ [v2' H0]]; exists v2'; apply H0.
+clear H0; destruct H2 as [x1 H0].
 
 pose proof mapsto_core_load m x1 (Share.unrel Share.Lsh sh)
           (Share.unrel Share.Rsh sh) (b, Int.unsigned o) (m_phi jm). 
@@ -167,10 +171,10 @@ Lemma mapsto_is_pointer : forall sh t m v,
 mapsto_ sh t v m ->
 exists b, exists o, v = Vptr b o. 
 Proof.
-intros. destruct v; destruct H;
-simpl in H;  unfold umapsto in *; 
-destruct (access_mode t); inv H. 
-eauto. 
+intros. unfold mapsto_, umapsto in H.
+destruct (access_mode t); try contradiction.
+destruct v; try contradiction.
+destruct H as [? | [? [v ?]]]; eauto.
 Qed. 
 
 Definition cmp_ptr_no_mem c v1 v2  :=
@@ -707,6 +711,7 @@ unfold umapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
 rewrite H2 in H5.
+destruct H5 as [H5 | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
 assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
 apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 exists m1; exists m2; split3; auto.
@@ -920,8 +925,8 @@ apply semax_pre with
       |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
       |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
 intro. apply andp_left2. 
-unfold mapsto_. normalize. rewrite later_ex; [ | apply Vundef].
-apply exp_derives; intro v3. repeat rewrite later_andp; auto.
+unfold mapsto_. apply exp_right with Vundef.
+repeat rewrite later_andp; auto.
 apply extract_exists_pre; intro v3.
 apply semax_straight_simple; auto.
 intros jm jm1 Delta' ge ve te rho k F TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
@@ -944,6 +949,9 @@ destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
+assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
+        (b0, Int.unsigned i) w1) by (destruct H4 as [H4 |[? [? ?]]]; eauto).
+clear v3 H4; destruct H2 as [v3 H4].
 
 assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
@@ -1026,7 +1034,7 @@ clear - Hmode TC3 TC2 TC4.
 eapply typecheck_val_eval_cast; eauto.
 
 rewrite Hmode.
-rewrite He1'.
+rewrite He1'. apply orp_right1.
 rewrite writable_share_right; auto.
 rewrite <- eval_cast_sem_cast. auto.
 clear - H6 H5 H1.

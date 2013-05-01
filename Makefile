@@ -58,8 +58,8 @@ SEPCOMP_FILES= \
   mem_interpolation_EE.v mem_interpolation_EI.v \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v \
-  compile_safe.v \
-  core_semantics.v core_semantics_lemmas.v \
+  core_semantics.v 
+#  compile_safe.v core_semantics_lemmas.v \
   forward_simulations.v rg_forward_simulations.v \
   forward_simulations_lemmas.v \
   extension.v extension_safety.v extension_simulations.v \
@@ -86,7 +86,8 @@ FLOYD_FILES= \
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
-  reverse.v queue.v sumarray.v message.v
+  reverse.v queue.v sumarray.v message.v \
+  sha.v verif_sha.v
 
 FILES = \
  $(MSL_FILES:%=msl/%) \

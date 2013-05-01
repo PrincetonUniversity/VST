@@ -448,8 +448,8 @@ unfold mapsto.
 normalize.
 unfold umapsto.
 rewrite H6.
-unfold eval_field. rewrite H5. 
-auto.
+unfold eval_field. rewrite H5.
+simpl. apply sepcon_derives; auto. apply orp_right1. auto.
 
 (* POSTCONDITION *)
 intros ek vl.
@@ -469,6 +469,9 @@ rewrite field_offset_unroll. unfold offset_val.
 destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
 destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
 normalize.
+apply sepcon_derives; auto.
+apply orp_left; auto.
+normalize. rewrite H5 in H2; inv H2.
 Qed.
 
 Lemma writable_share_top: writable_share Tsh.
@@ -577,15 +580,17 @@ unfold lift1. unfold_lift.
 rewrite TE1. rewrite H4; simpl eval_field.
 rewrite field_offset_unroll in H5. rewrite H5.
 normalize.
-apply exp_right with v0.
+(* apply exp_right with v0. *)
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. rewrite TE1.
 rewrite H5. rewrite tc_andp_TT2.
 rewrite denote_tc_assert_andp.
 split; auto. rewrite H7; auto.
 apply sepcon_derives; auto.
+simpl.
+apply orp_right2. apply andp_right; try apply prop_right; auto.
+apply exp_right with v0; auto.
 repeat apply andp_right; try apply prop_right; auto.
-hnf.
 hnf; simpl. hnf in H3. simpl in H3.
 rewrite denote_tc_assert_andp in H3. destruct H3.
 eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
@@ -604,6 +609,9 @@ case_eq (field_offset fld fields); intros; normalize.
 case_eq (eval_lvalue e1 rho); intros; normalize.
 rewrite <- H1. rewrite H4.
 normalize.
+apply orp_left; auto.
+normalize.
+rewrite H7 in H2; inv H2.
 Opaque field_mapsto.
 Qed.
 
@@ -849,7 +857,6 @@ Lemma mapsto__isptr:
    mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
 intros; unfold mapsto_, umapsto.
-normalize. f_equal. extensionality v2.
 destruct (access_mode t); normalize.
 destruct v1; normalize.
 Qed.

@@ -125,7 +125,12 @@ destruct v1;
 try solve [destruct v1'; inv H2; simpl; normalize; try apply Vundef].
 rewrite prop_true_andp by auto.
 destruct v1'; inv H2.
-f_equal.
+apply pred_ext.
+apply orp_left.
+apply exp_right with Vundef; auto.
+apply andp_left2; auto.
+apply orp_right2. apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Lemma field_mapsto_typecheck_val:
@@ -260,8 +265,12 @@ destruct v1; try solve [simpl; normalize];
 destruct v1'; inv H2; normalize.
 rewrite field_offset_unroll. rewrite H1.
 rewrite H3.
-rewrite andp_assoc. f_equal.
-normalize.
+rewrite andp_assoc.
+apply pred_ext; normalize.
+apply orp_left; auto.
+normalize. inv H.
+apply orp_right1.
+auto.
 Qed.
 
 (*
@@ -315,6 +324,8 @@ simpl in H1.
 destruct v1; inv H1.
 rewrite field_offset_unroll. rewrite H0.
 repeat apply andp_right; try apply prop_right; auto.
+apply orp_left; auto.
+normalize. inv H2.
 Qed.
 
 Ltac umapsto_field_mapsto_tac :=  

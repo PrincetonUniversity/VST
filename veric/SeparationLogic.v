@@ -90,17 +90,17 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
     match v1 with
      | Vptr b ofs => 
           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+        || !!(v2=Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
     end
   | _ => FF
   end. 
 
-
 Definition tc_val t v := typecheck_val v t = true.
 
 Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
 
-Definition mapsto_ sh t v1 := EX v2:val, umapsto sh t v1 v2.
+Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
 
 Definition Tsh : share := Share.top.
 
