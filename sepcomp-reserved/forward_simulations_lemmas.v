@@ -367,11 +367,13 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          j b1 = Some (b2, delta) ->
          effects Sem1 st1 AllocEffect b1 (ofs2 - delta).
 
-   Variable match_antimono : 
-     forall d (r0 r: reserve) j st m st' m',
+   Variable match_mono : 
+     forall d (r r1: reserve) j st m st' m',
        match_states d r j st m st' m' ->
-       reserve_incr r0 r -> 
-       match_states d r0 j st m st' m'.
+       reserve_incr r r1 -> 
+       reserve_valid r1 m -> 
+       reserve_valid' r1 j m' ->
+       match_states d r1 j st m st' m'.
        
    Variable match_validblocks : 
      forall d r j c1 m1 c2 m2, 
@@ -481,7 +483,7 @@ Proof.
   solve[exploit allocs_only_shrink; eauto].
   intros. destruct H; subst.
   split; auto.
-  solve[exploit match_antimono; eauto].
+  solve[exploit match_mono; eauto].
   intros. destruct H; subst.
   solve[exploit match_validblocks; eauto].
   intros. destruct H1; subst.

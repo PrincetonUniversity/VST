@@ -375,11 +375,13 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         j b1 = Some (b2, delta) ->
         effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
-    match_antimono : 
-      forall d (r0 r: reserve) j st m st' m',
-      match_state d r j st m st' m' ->
-      reserve_incr r0 r -> 
-      match_state d r0 j st m st' m';
+    match_mono : 
+      forall d (r r1: reserve) j st1 m1 st2 m2,
+      match_state d r j st1 m1 st2 m2 ->
+      reserve_incr r r1 -> 
+      reserve_valid r1 m1 -> 
+      reserve_valid' r1 j m2 ->
+      match_state d r1 j st1 m1 st2 m2;
     
     match_validblocks : 
       forall d r j c1 m1 c2 m2, 
@@ -613,12 +615,14 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         j b1 = Some (b2, delta) ->
         effects Sem1 st1 AllocEffect b1 (ofs2 - delta);
 
-    match_antimono : 
-      forall d (r0 r: reserve) j st m st' m',
-      match_state d r j st m st' m' ->
-      reserve_incr r0 r -> 
-      match_state d r0 j st m st' m';
-    
+    match_mono : 
+      forall d (r r1: reserve) j st1 m1 st2 m2,
+      match_state d r j st1 m1 st2 m2 ->
+      reserve_incr r r1 -> 
+      reserve_valid r1 m1 -> 
+      reserve_valid' r1 j m2 ->
+      match_state d r1 j st1 m1 st2 m2;
+
     match_validblocks : 
       forall d r j c1 m1 c2 m2, 
       match_state d r j c1 m1 c2 m2 -> 
