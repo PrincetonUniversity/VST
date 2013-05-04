@@ -173,6 +173,47 @@ split; auto.
 pose proof (size_chunk_pos m); omega.
 Qed.
 
+(*
+Lemma semax_load_field_deref'':
+forall Espec (Delta: tycontext) n sh id t1 fld P Q R e1 v1 v2 t2 i2 sid fields ,
+    t1 = Tstruct sid fields noattr ->
+    typeof e1 = tptr t1 ->
+        (temp_types Delta) ! id = Some (t2,i2) ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+     Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`eq v1 (eval_expr e1)) ->
+    nth_error R n = Some (`(field_mapsto sh t1 fld) v1 v2) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Efield (Ederef e1 t1) fld t2))
+       (normal_ret_assert 
+        (EX old:val,
+          PROPx P (LOCALx (`eq (eval_id id) (subst id (`old) v2) :: map (subst id (`old)) Q)
+                (SEPx 
+                  (map (subst id (`old))
+                    (replace_nth n R (`(field_mapsto sh t1 fld) (eval_expr e1) v2))))))).
+Admitted.
+*)
+
+Definition whatever {A: Type} (x: A) := True.
+Opaque whatever.
+Lemma whatever_i {A: Type}: forall x: A, whatever x.
+intro. apply I.
+Qed.
+
+Ltac convertible A B := let H := fresh in assert (H: A=B) by reflexivity; clear H.
+
+Ltac find_equation E L n F :=
+ match L with 
+(*   | `(eq ?x) E :: _ => F n x *)
+  | `(eq ?x) ?E' :: _ => convertible E E'; F n x E
+  | _ :: ?Y => let n' := constr:(S n) in find_equation E Y n' F
+  | nil => fail
+  end.
+
+
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
@@ -182,11 +223,6 @@ unfold fifo.
 match goal with |- semax _ _ _ ?P => set (Post := P) end.
 normalize. intros [hd tl].
 normalize.
-repeat rewrite (lift2more q).
-replace_SEP 0 (`(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd).
-go_lower; subst; auto.
-replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
-go_lower; subst; auto.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
 go_lower.
@@ -315,8 +351,6 @@ Proof.
  reflexivity.
 Qed.
 
-
-
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
 start_function.
@@ -327,10 +361,12 @@ name t _t.
 unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
+(*
 replace_SEP 1 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
 go_lower; subst. auto.
 replace_SEP 0 (`(field_mapsto Tsh t_struct_fifo _head) (eval_id _Q) `hd).
 go_lower; subst; auto.
+*)
 replace_SEP 3 (`link_ (eval_id _p)).
 go_lower; subst; auto.
 unfold link_.
@@ -347,11 +383,13 @@ forward.  (* if (h==NULL) ... *)
 go_lower. forget False as POINTER_COMPARE_NULL.
 subst. apply andp_right; auto.
 apply prop_right; repeat split; auto.
-admit.  (* pointer compare null *)
+right. hnf. apply Int.eq_true.
 (* then clause *)
 simpl.
 forward. (*  Q->head=p; *)
 apply sequential.
+replace_SEP 2 (`(field_mapsto Tsh t_struct_fifo _tail) (eval_id _Q) `tl).
+go_lower; subst. auto.
 forward. (* Q->tail=p; *)
 go_lower.
 subst.
@@ -459,7 +497,7 @@ rewrite links_nil_eq.
 normalize.
 focus_SEP 1.
 normalize. apply ptr_eq_e in H. subst hd.
-replace_SEP 2 (`(field_mapsto Tsh t_struct_elem _next) (eval_id _h) `nullval).
+replace_SEP 0 (`(field_mapsto Tsh t_struct_elem _next) (eval_id _h) `nullval).
 go_lower; subst; auto.
  forward. (*  n=h->next; *)
  forward. (* Q->head=n; *)
@@ -576,7 +614,7 @@ forward. (* fifo_put(Q,p);*)
  instantiate (1:= ((q,nil),p')) in (Value of witness).
  unfold witness.
  go_lower. subst p Q. normalize. cancel.
-unfold elemrep. unfold link_. cancel.
+unfold elemrep. cancel.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
 go_lower. subst Q p. normalize.
@@ -631,29 +669,19 @@ forward. (*  freeN(p, sizeof( *p)); *)
 instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
 go_lower. normalize.
-eapply derives_trans.
-apply sepcon_derives.
-apply field_mapsto_field_mapsto_.
-apply sepcon_derives.
-apply field_mapsto_field_mapsto_.
-apply derives_refl.
-repeat rewrite <- sepcon_assoc.
-pull_left (link_ p).
-do 2 rewrite sepcon_assoc.
-apply sepcon_derives.
-change 12 with (sizeof t_struct_elem).
+simpl force_int.
 rewrite (eval_cast_neutral_tc_val p); eauto.
- unfold eval_cast_neutral, force_int. (* fixme *)
+change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed.
-clear. (* This "clear" is only needed to work around bug 2997 in Coq 8.4 *)
-simpl_typed_mapsto.
-cancel.
+
 unfold Frame.
 instantiate (1:= `(fifo (p2 :: nil) q2 *
 (field_mapsto Tsh t_struct_elem _a p2 (Vint (Int.repr 2)) *
  field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20))))::nil).
-simpl.
-cancel.
+clear. (* This "clear" is only needed to work around bug 2997 in Coq 8.4 *)
+simpl_typed_mapsto.
+simpl. normalize. cancel.
+apply sepcon_derives; apply field_mapsto_field_mapsto_.
 forward. (* return i+j; *)
 go_lower. normalize.
 Qed.

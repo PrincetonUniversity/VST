@@ -3,6 +3,7 @@ Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Export floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
+Require Export floyd.loadstore_lemmas.
 Import Cop.
 
 Local Open Scope logic.
@@ -655,6 +656,7 @@ Ltac hoist_later_in_pre :=
      end.
 
 Ltac semax_field_tac :=
+ idtac;  (* need this bogosity so it can be passed as an argument *)
 match goal with
  |  |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e _) ?fld _)) _ =>
@@ -826,6 +828,7 @@ Qed.
 
 
 Ltac load_array_tac :=
+  idtac;  (* need this bogosity so it can be passed as an argument *)
 match goal with |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
      apply (semax_pre 
@@ -1030,6 +1033,98 @@ first [eapply forward_ptr_compare_closed_now;
 Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
+(* BEGIN new semax_load tactics *************************)
+
+Definition whatever {A: Type} (x: A) := True.
+Opaque whatever.
+Lemma whatever_i {A: Type}: forall x: A, whatever x.
+intro. apply I.
+Qed.
+
+Ltac convertible A B := let H := fresh in assert (H: A=B) by reflexivity; clear H.
+
+Ltac find_equation E L n F :=
+ match L with 
+(*   | `(eq ?x) E :: _ => F n x *)
+  | `(eq ?x) ?E' :: _ => convertible E E'; F n (@liftx (LiftEnviron val) x) E
+  | _ :: ?Y => let n' := constr:(S n) in find_equation E Y n' F
+  | nil => F O E E
+  end.
+
+Ltac find_mapsto n R F eq_n xE E :=
+ match R with
+(* | `(mapsto ?sh ?t) (`(eval_binop Oadd (tptr _) tint) E (* ?E' *) ?INDEX) ?v2 :: _ => 
+     (convertible E E' || convertible (@liftx (LiftEnviron val) x) E'); 
+    F n E E' sh v2
+*)
+ | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
+     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
+    F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
+ | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
+     (convertible E E' || convertible xE E'); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    F n E E' sh v2
+ | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
+ | _ => fail "find_mapsto"
+  end.
+
+Ltac quick_load_equality :=
+ (intros ?rho; apply prop_right; reflexivity) ||
+ (apply go_lower_lem20;
+  intros ?rho; 
+  simpl derives; repeat (apply go_lower_lem24; intro);
+  apply prop_right; assumption) ||
+  idtac.
+
+Ltac load_field_aux1 n' e1' v1' sh' v2' := 
+  eapply semax_post'; [ | 
+      eapply semax_load_field_deref''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
+       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      | try solve [go_lower; apply prop_right; auto ] 
+      | quick_load_equality
+      | reflexivity ]
+].
+
+Ltac load_field_aux2 n' e1' v1' sh' v2' := 
+  eapply semax_post'; [ | 
+      eapply semax_load_field''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
+       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      | try solve [go_lower; apply prop_right; auto ]
+      | quick_load_equality
+      | reflexivity ]
+].
+
+Ltac found_mapsto n' e1' v1' sh' v2' := idtac.
+
+Ltac semax_load_aux Q R eval_e F :=
+   let E := fresh "E" in
+    assert (E := whatever_i eval_e);
+    simpl in E;
+    match type of E with whatever ?E' => 
+        clear E;
+        let F := find_mapsto O R F in
+         find_equation E' Q O F
+    end;
+    unfold replace_nth.
+
+Ltac semax_load_tac :=
+hoist_later_in_pre;
+match goal with 
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
+   semax_load_aux  Q R (eval_expr e1) found_mapsto
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset ?id (Efield (Ederef ?e1 ?t1) ?fld ?t2)) _ =>
+   semax_load_aux  Q R (eval_expr e1) load_field_aux1
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset ?id (Efield ?e1 ?fld ?t2)) _ =>
+   semax_load_aux  Q R (eval_lvalue e1) load_field_aux2
+end.
+
+(* END new semax_load tactics *************************)
+
 
 Ltac forward1 :=   
    match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
@@ -1041,7 +1136,11 @@ Ltac forward1 :=
   | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
          store_tac || fail 2 "store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-         semax_field_tac || fail 2 "semax_field_tac failed"
+         semax_load_tac || fail 2 "semax_load_tac failed"
+(*  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
+         semax_load_tac || fail 2 "semax_load_tac failed" *)
+(*  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
+         semax_field_tac || fail 2 "semax_field_tac failed" *)
   | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
          load_array_tac || fail 2 "load_array_tac failed"
   | |- @semax _ _ _ (Sset ?id ?e) _ => 
@@ -1075,7 +1174,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold exit_tycon, update_tycon, Post; clear Post ]
   end.
 
-Ltac forward :=
+Ltac forward_with F1 :=
 match goal with
  (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE1, above)  *)
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
@@ -1092,7 +1191,7 @@ match goal with
            ]
  (* END HORRIBLE2 *)
   | |- @semax _ _ _ (Ssequence (Ssequence _ _) _) _ =>
-          apply -> seq_assoc; forward
+          apply -> seq_assoc; forward_with F1
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
@@ -1111,7 +1210,6 @@ match goal with
                [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ] 
                | try (apply exp_left; intro_old_var'' id)
                ]
-
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
@@ -1133,7 +1231,7 @@ match goal with
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
-               [ forward1; unfold Post; 
+               [ F1; unfold Post; 
                  try simple apply normal_ret_assert_derives';
                  try apply derives_refl
                | try unfold exit_tycon; 
@@ -1143,11 +1241,13 @@ match goal with
                     try simple apply elim_redundant_Delta;
                     redefine_Delta
                ]
-  | |- @semax _ _ _ ?c1 _ => forward1;
+  | |- @semax _ _ _ ?c1 _ => F1;
                   try unfold exit_tycon; 
                   simpl update_tycon;
                   try (apply exp_left; intro_old_var c1)
   end.
+
+Ltac forward := forward_with forward1.
 
 Lemma start_function_aux1:
   forall R1 P Q R, 

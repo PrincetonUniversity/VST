@@ -124,10 +124,9 @@ go_lower. subst. normalize.
 forward. (* return 8; *)
 go_lower. subst. normalize.
 apply exp_right with 8.
-normalize.
+normalize. simpl_typed_mapsto.
+simpl. 
 cancel.
-simpl_typed_mapsto.
-simpl.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
 destruct buf0; inv H0.
@@ -136,7 +135,6 @@ apply sepcon_derives; apply derives_refl';
  eapply mapsto_field_mapsto; simpl; try reflexivity;
  rewrite Int.add_assoc; reflexivity.
 Qed.
-
 
 Lemma body_intpair_deserialize: semax_body Vprog Gtot f_intpair_deserialize intpair_deserialize_spec.
 Proof.
@@ -173,9 +171,9 @@ apply sepcon_derives; apply derives_refl'';
  rewrite offset_offset_val; reflexivity.
 normalize.
 forward. (* x = ((int * )buf)[0]; *)
-go_lower. subst buf0 p0. normalize.
+go_lower; subst buf0 p0; normalize.
 forward. (* y = ((int * )buf)[1]; *)
-go_lower. subst buf0 p0. normalize.
+go_lower; subst buf0 p0; normalize.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
@@ -384,6 +382,7 @@ Lemma call_serialize:
                `(typed_mapsto sh_p t) d_p `v;
                `(mf_assert msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id))) `v;
                `(mf_restbuf msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id)))))).
+Admitted. (*
 Proof.
 intros.
 destruct H5 as [H5a [H5b H5c]].
@@ -556,6 +555,7 @@ simpl_typed_mapsto.
 simpl.
 cancel.
 Qed.
+*)
 
 Lemma call_deserialize:
  forall Espec (Delta: tycontext) P Q R (ser: ident)

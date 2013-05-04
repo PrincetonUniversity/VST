@@ -166,7 +166,7 @@ forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-go_lower. subst.  inv H3. inv H2.
+go_lower. subst. inv H3. inv H2.
  apply andp_right. apply prop_right; repeat split; auto; try omega.
 unfold Zsucc. rewrite Int.add_signed.
 repeat (rewrite Int.signed_repr 

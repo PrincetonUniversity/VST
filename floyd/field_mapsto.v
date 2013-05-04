@@ -12,6 +12,15 @@ destruct (access_mode t); normalize.
 destruct v1; normalize.
 Qed.
 
+Lemma mapsto__isptr:
+  forall sh t v1,
+   mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
+Proof.
+intros; unfold mapsto_, umapsto.
+destruct (access_mode t); normalize.
+destruct v1; normalize.
+Qed.
+
 Lemma field_offset_rec_unroll:
   forall fields0 fld sid fields n,
     field_offset_rec fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) n =
@@ -91,7 +100,6 @@ destruct (access_mode
 normalize.
 apply exp_right with v2; normalize.
 Qed.
-
 
 Lemma offset_val_force_ptr:
   offset_val Int.zero = force_ptr.
@@ -405,3 +413,14 @@ apply andp_left1.
 apply prop_derives.
 induction fld; simpl; auto.
 Qed.
+
+
+Lemma field_mapsto_nonvolatile:
+  forall sh t fld v v', field_mapsto sh t fld v v' = !!(type_is_volatile t = false) && field_mapsto sh t fld v v'.
+Proof.
+intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
+rewrite field_mapsto__nonvolatile; normalize.
+Qed. 
