@@ -80,8 +80,8 @@ go_lower.  subst.  normalize.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
 normalize.
-forward.  (* h = t->h; *)
-forward.  (*  t = t->t; *)
+forward.  (* h = t->head; *)
+forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
@@ -130,8 +130,8 @@ focus_SEP 1; apply semax_lseg_nonnull;
         [ | intros h r y ?].
 go_lower. normalize.
 subst cts2.
-forward.  (* t = v->t; *)
-forward.  (*  v->t = w; *)
+forward.  (* t = v->tail; *)
+forward. (*  v->tail = w; *)
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
@@ -150,7 +150,7 @@ apply exp_right with r.
   apply exp_right with cts1.
   apply exp_right with w0.
   normalize.
-  erewrite (field_mapsto_typecheck_val _ _ _ _ _ _struct_list _  noattr); [ | reflexivity].
+  erewrite (field_mapsto_typecheck_val _ _tail _ _ _ _struct_list _  noattr); [ | reflexivity].
   type_of_field_tac.
   normalize.
   replace (eval_cast_neutral w0) with w0 in * by (destruct w0; inv H0; auto).

@@ -127,10 +127,6 @@ split; auto.
 apply eqb_type_refl.
 Qed.
 
-Lemma liftTrue: forall rho, `True rho.
-Proof. intro. unfold_lift; apply I. Qed.
-Hint Resolve liftTrue.
-
 Lemma semax_call_id0:
  forall Espec Delta P Q R id bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),

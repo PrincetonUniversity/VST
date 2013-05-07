@@ -23,367 +23,6 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
  See also BEGIN HORRIBLE1 , later in this file
 *)
  
-Definition logical_and_result v1 t1 v2 t2 :=
-match (strict_bool_val t1 v1) with
-| Some b1 => if b1 then match (strict_bool_val t2 v2) with
-                            | Some b2 => if b2 then  Vint Int.one 
-                                         else Vint Int.zero
-                            | None => Vundef end
-                   else Vint Int.zero
-| None => Vundef
-end.
-
-Definition logical_or_result v1 t1 v2 t2 :=
-match (strict_bool_val t1 v1) with
-| Some b1 => if b1 then Vint Int.one
-                   else match (strict_bool_val t2 v2) with
-                            | Some b2 => if b2 then  Vint Int.one 
-                                         else Vint Int.zero
-                            | None => Vundef end
-| None => Vundef
-end.
-
-Definition logical_or tid e1 e2 :=
-(Sifthenelse e1
-             (Sset tid (Econst_int (Int.repr 1) tint))
-             (Ssequence
-                (Sset tid (Ecast e2 tbool))
-                (Sset tid (Ecast (Etempvar tid tbool) tint)))).
-
-
-Definition logical_and tid e1 e2 :=
-(Sifthenelse e1
-            (Ssequence
-              (Sset tid (Ecast e2 tbool))
-              (Sset tid (Ecast (Etempvar tid tbool) tint)))
-            (Sset tid (Econst_int (Int.repr 0) tint))).
-
-Lemma semax_pre_flipped : 
- forall (P' : environ -> mpred) (Espec : OracleKind)
-         (Delta : tycontext) (P1 : list Prop) (P2 : list (environ -> Prop))
-         (P3 : list (environ -> mpred)) (c : statement) 
-         (R : ret_assert),
-       semax Delta P' c R ->
-       PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3)) |-- P' ->
-        semax Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
-Proof. intros. 
-eapply semax_pre. apply H0. auto.
-Qed.
-
-Lemma tc_environ_init: forall Delta id rho,
-                         tc_environ (initialized id Delta) rho ->
-                         tc_environ Delta rho.
-Proof.  
-intros.
-unfold tc_environ in *. destruct Delta. destruct p. destruct p.
-unfold initialized in *. simpl in *. unfold temp_types in *.
-unfold var_types in *. unfold ret_type in *. simpl in *.
-remember (t1 ! id). destruct o; auto.
-destruct p. unfold typecheck_environ in *. intuition.
-clear - H0 Heqo. unfold typecheck_temp_environ in *.
-intros. destruct (eq_dec id id0). subst.
-specialize (H0 id0 true t3). spec H0.
-unfold temp_types in *. simpl in *. rewrite PTree.gss. auto.
-destruct H0. exists x. intuition. unfold temp_types in *.
-simpl in H. rewrite H in *. inv Heqo. auto.
-apply H0. 
-unfold temp_types in *. simpl in *.
-rewrite PTree.gso. auto. auto.
-Qed.
-
-Lemma bool_cast : forall e rho,
-   typecheck_val (eval_expr e rho) (typeof e) = true ->
-  eval_cast tbool tint (eval_cast (typeof e) tbool (eval_expr e rho)) =
-   match strict_bool_val (eval_expr e rho) (typeof e) with
-   | Some true => Vint Int.one
-   | Some false => Vint Int.zero
-   | None => Vundef
-   end.
-Proof.
-intros.
-unfold eval_cast. simpl.
-remember (eval_expr e rho). destruct v. inv H. simpl.
- unfold eval_cast_neutral.
-remember (typeof e); destruct t; inv H; simpl;
-remember (Int.eq i Int.zero); if_tac; auto; try congruence.
-remember (typeof e); destruct t; inv H. simpl.
-if_tac; auto.
-destruct (typeof e); inv H; auto.
-Qed.
-
-Lemma semax_logical_or:
- forall Espec Delta P Q R tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
-   Q) (SEPx (R))))
-    (logical_or tid e1 e2)
-  (normal_ret_assert (PROPx P (LOCALx 
-((`eq (eval_id tid) 
-   (`logical_or_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
-Proof.
-intros.
-apply semax_ifthenelse_PQR. 
-  - auto. 
-  -  eapply semax_pre. apply derives_refl.
-     eapply semax_post_flipped.
-     apply forward_setx. 
-     intro rho. normalize. apply prop_right. simpl.
-     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
-     simpl. auto.
-     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
-     apply exp_left. intro old. normalize. autorewrite with subst.
-     intro rho'. normalize.
-     repeat apply andp_right; normalize. apply prop_right.
-     unfold logical_or_result. unfold typed_true in *.
-     unfold subst in *. 
-
-     assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     
-     super_unfold_lift. rewrite H10 in *. clear H10.
-     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
-     auto.
-  - eapply semax_seq'. 
-      + eapply forward_setx.
-        intro rho. normalize. 
-        apply andp_right; apply prop_right.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        simpl. super_unfold_lift. split. auto. 
-        unfold isCastResultType. simpl. destruct (typeof e2); 
-                                        inv H0; simpl; auto.
-        simpl.  auto.
-      + simpl update_tycon. apply extract_exists_pre. intro oldval.
-        autorewrite with subst.  
-        apply (semax_pre ((PROPx P
-        (LOCALx
-           (tc_environ (initialized tid Delta) ::
-             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
-            :: `(typed_false (typeof e1)) (eval_expr e1)
-               :: tc_expr Delta e2
-                  :: Q)
-           (SEPx R))))). intro rho. normalize.
-        eapply semax_post_flipped.
-        eapply forward_setx. intro rho. normalize.
-        apply andp_right; apply prop_right. 
-        unfold tc_expr. simpl. rewrite tc_andp_sound. 
-        super_unfold_lift. split. 
-        erewrite temp_types_init_same by eauto. simpl. auto.
-        simpl. auto.
-        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
-        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
-        simpl. super_unfold_lift; auto.
-        intros. intro rho.
-        normalize. apply normal_ret_assert_derives'.
-        apply exp_left. intro old. autorewrite with subst.
-        intro rho'. normalize. repeat apply andp_right; 
-                               [ | normalize | normalize].
-
-        { apply prop_right.
-          rewrite H4. simpl. super_unfold_lift.
-          simpl. unfold subst in *.
-          unfold eval_id. simpl. rewrite Map.gss. simpl.
-          apply expr_lemmas.typecheck_expr_sound in H8.
-          Focus 2. eapply tc_environ_init. apply H5.
-
-
-          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
-                  eval_expr (Ecast e2 tbool) rho').
-              simpl. super_unfold_lift. unfold eval_cast. simpl.
-              remember (typeof e2). 
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H10 in *. simpl in H10. super_unfold_lift.
-          clear H9 H10. rewrite H6.
-          assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *. clear H9.
-          assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *.
-          clear H4 H6 H9 H3. 
-          simpl. super_unfold_lift.
-          unfold logical_or_result. 
-          unfold typed_false in *. rewrite H7.
-          simpl. 
-          apply bool_cast. auto.
-          }
-Qed.
-
-
-
-
-Lemma semax_logical_and:
- forall Espec Delta P Q R tid e1 e2 b
-   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
-   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
- bool_type (typeof e1) = true ->
- bool_type (typeof e2) = true ->
- (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
-   Q) (SEPx (R))))
-    (logical_and tid e1 e2)
-  (normal_ret_assert (PROPx P (LOCALx 
-((`eq (eval_id tid) 
-   (`logical_and_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R)))))
-  . 
-Proof.
-intros.
-apply semax_ifthenelse_PQR. 
-  - auto. 
-  - eapply semax_seq'. 
-      + eapply forward_setx.
-        intro rho. normalize. 
-        apply andp_right; apply prop_right.
-        unfold tc_expr. simpl. rewrite tc_andp_sound.
-        simpl. super_unfold_lift. split. auto. 
-        unfold isCastResultType. simpl. destruct (typeof e2); 
-                                        inv H0; simpl; auto.
-        simpl.  auto.
-      + simpl update_tycon. apply extract_exists_pre. intro oldval.
-        autorewrite with subst.  
-        apply (semax_pre ((PROPx P
-        (LOCALx
-           (tc_environ (initialized tid Delta) ::
-             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
-            :: `(typed_true (typeof e1)) (eval_expr e1)
-               :: tc_expr Delta e2
-                  :: Q)
-           (SEPx R))))). intro rho. normalize.
-        eapply semax_post_flipped.
-        eapply forward_setx. intro rho. normalize.
-        apply andp_right; apply prop_right. 
-        unfold tc_expr. simpl. rewrite tc_andp_sound. 
-        super_unfold_lift. split. 
-        erewrite temp_types_init_same by eauto. simpl. auto.
-        simpl. auto.
-        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
-        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
-        simpl. super_unfold_lift; auto.
-        intros. intro rho.
-        normalize. apply normal_ret_assert_derives'.
-        apply exp_left. intro old. autorewrite with subst.
-        intro rho'. normalize. repeat apply andp_right; 
-                               [ | normalize | normalize].
-
-        { apply prop_right.
-          rewrite H4. simpl. super_unfold_lift.
-          simpl. unfold subst in *.
-          unfold eval_id. simpl. rewrite Map.gss. simpl.
-          apply expr_lemmas.typecheck_expr_sound in H8.
-          Focus 2. eapply tc_environ_init. apply H5.
-
-
-          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
-                  eval_expr (Ecast e2 tbool) rho').
-              simpl. super_unfold_lift. unfold eval_cast. simpl.
-              remember (typeof e2). 
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H10 in *. simpl in H10. super_unfold_lift.
-          clear H9 H10. rewrite H6.
-          assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *. clear H9.
-          assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *.
-          clear H4 H6 H9 H3. 
-          simpl. super_unfold_lift.
-          unfold logical_and_result. 
-          unfold typed_true in *. rewrite H7.
-          simpl. 
-
-        apply bool_cast. auto. }
-  -  eapply semax_pre. apply derives_refl.
-     eapply semax_post_flipped.
-     apply forward_setx. 
-     intro rho. normalize. apply prop_right. simpl.
-     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
-     simpl. auto.
-     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
-     apply exp_left. intro old. normalize. autorewrite with subst.
-     intro rho'. normalize.
-     repeat apply andp_right; normalize. apply prop_right.
-     unfold logical_and_result. unfold typed_false in *.
-     unfold subst in *. 
-
-     assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     
-     super_unfold_lift. rewrite H10 in *. clear H10.
-     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
-     assert (exists v, strict_bool_val (eval_expr e2 rho') (typeof e2) = Some v).
-     assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     apply expr_lemmas.typecheck_expr_sound in H7; auto.
-     rewrite H10 in *. remember (eval_expr e2 rho'). 
-     destruct v; eauto; 
-     destruct (typeof e2); simpl; eauto; try solve[inv H7; 
-     try rewrite H12; eauto]; simpl in *; congruence.
-     auto.
-Qed.
-     
-
 
 Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
@@ -762,7 +401,7 @@ Ltac isolate_mapsto__tac e fld R :=
   || fail 4 "Could not isolate `(field_mapsto_ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
 
 
-Ltac store_field_tac :=
+Ltac old_store_field_tac :=
   match goal with
   | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Efield (Ederef ?e ?t3) ?fld ?t2) ?e2) _ =>
@@ -1033,7 +672,7 @@ first [eapply forward_ptr_compare_closed_now;
 Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
-(* BEGIN new semax_load tactics *************************)
+(* BEGIN new semax_load and semax_store tactics *************************)
 
 Definition whatever {A: Type} (x: A) := True.
 Opaque whatever.
@@ -1041,8 +680,10 @@ Lemma whatever_i {A: Type}: forall x: A, whatever x.
 intro. apply I.
 Qed.
 
-Ltac convertible A B := let H := fresh in assert (H: A=B) by reflexivity; clear H.
-
+Ltac convertible A B := unify A B.
+(*
+let H := fresh in assert (H: A=B) by reflexivity; clear H.
+*)
 Ltac find_equation E L n F :=
  match L with 
 (*   | `(eq ?x) E :: _ => F n x *)
@@ -1053,10 +694,19 @@ Ltac find_equation E L n F :=
 
 Ltac find_mapsto n R F eq_n xE E :=
  match R with
-(* | `(mapsto ?sh ?t) (`(eval_binop Oadd (tptr _) tint) E (* ?E' *) ?INDEX) ?v2 :: _ => 
-     (convertible E E' || convertible (@liftx (LiftEnviron val) x) E'); 
+ | `(mapsto ?sh ?t ?x ?v2) :: _ => 
+     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x));
+    change (`(mapsto sh t x v2)) with (`(mapsto sh t) `x `v2); 
+    F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
+ | `(mapsto ?sh ?t) ?E' ?v2 :: _ => 
+     (convertible E E' || convertible xE E'); 
     F n E E' sh v2
-*)
+ | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
+ | _ => fail "find_mapsto"
+  end.
+
+Ltac find_field_mapsto n R F eq_n xE E :=
+ match R with
  | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
      (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
@@ -1066,8 +716,8 @@ Ltac find_mapsto n R F eq_n xE E :=
      (convertible E E' || convertible xE E'); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     F n E E' sh v2
- | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
- | _ => fail "find_mapsto"
+ | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto n' R' F eq_n xE E
+ | _ => fail "find_field_mapsto"
   end.
 
 Ltac quick_load_equality :=
@@ -1077,6 +727,15 @@ Ltac quick_load_equality :=
   simpl derives; repeat (apply go_lower_lem24; intro);
   apply prop_right; assumption) ||
   idtac.
+
+Ltac load_aux0 n' e1' v1' sh' v2' := 
+hoist_later_in_pre;
+eapply semax_post'; [ |
+ eapply semax_load'' with (n:=n')(sh:=sh')(v1:= v1')(v2:=v2');
+  [ reflexivity | reflexivity | reflexivity | reflexivity
+      | try solve [go_lower; apply prop_right; auto ] 
+  | quick_load_equality |   reflexivity]];
+ unfold replace_nth.
 
 Ltac load_field_aux1 n' e1' v1' sh' v2' := 
   eapply semax_post'; [ | 
@@ -1098,13 +757,13 @@ Ltac load_field_aux2 n' e1' v1' sh' v2' :=
 
 Ltac found_mapsto n' e1' v1' sh' v2' := idtac.
 
-Ltac semax_load_aux Q R eval_e F :=
+Ltac semax_load_aux F0 Q R eval_e F :=
    let E := fresh "E" in
     assert (E := whatever_i eval_e);
     simpl in E;
     match type of E with whatever ?E' => 
         clear E;
-        let F := find_mapsto O R F in
+        let F := F0 O R F in
          find_equation E' Q O F
     end;
     unfold replace_nth.
@@ -1113,17 +772,100 @@ Ltac semax_load_tac :=
 hoist_later_in_pre;
 match goal with 
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
-   semax_load_aux  Q R (eval_expr e1) found_mapsto
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e1 ?t1) ?fld ?t2)) _ =>
-   semax_load_aux  Q R (eval_expr e1) load_field_aux1
+   semax_load_aux find_field_mapsto Q R (eval_expr e1) load_field_aux1
+  (* this line does not work for some reason:        || fail 2 "load field tac 1"  *)
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield ?e1 ?fld ?t2)) _ =>
-   semax_load_aux  Q R (eval_lvalue e1) load_field_aux2
+   semax_load_aux find_field_mapsto Q R (eval_lvalue e1) load_field_aux2
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
+                    (Sset ?id (Ederef ?e1 _)) _ =>
+   semax_load_aux find_mapsto Q R (eval_expr e1) load_aux0
 end.
 
-(* END new semax_load tactics *************************)
+Ltac find_field_mapsto_ n R F eq_n xE E :=
+ match R with
+(* | `(mapsto ?sh ?t) (`(eval_binop Oadd (tptr _) tint) E (* ?E' *) ?INDEX) ?v2 :: _ => 
+     (convertible E E' || convertible (@liftx (LiftEnviron val) x) E'); 
+    F n E E' sh v2
+*)
+ | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
+     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
+    F n E (@liftx (LiftEnviron val) x) sh
+ | `(field_mapsto_ ?sh ?t ?fld ?x) :: _ =>
+     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    change (`(field_mapsto sh t fld x)) with (`(field_mapsto sh t fld) `x);
+    F n E (@liftx (LiftEnviron val) x) sh
+ | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
+     (convertible E E' || convertible xE E'); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    F n E E' sh
+ | `(field_mapsto_ ?sh ?t ?fld) ?E' :: _ =>
+     (convertible E E' || convertible xE E'); 
+   (* pose (bbb := (sh,n,e1,v1,v2)); *)
+    F n E E' sh
+ | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto_ n' R' F eq_n xE E
+ | _ => fail "find_field_mapsto_"
+  end.
+
+
+Ltac semax_store_aux Q R eval_e F :=
+   let E := fresh "E" in
+    assert (E := whatever_i eval_e);
+    simpl in E;
+    match type of E with whatever ?E' => 
+        clear E;
+        let F := find_field_mapsto_ O R F in
+         find_equation E' Q O F
+    end;
+    unfold replace_nth.
+
+
+Ltac store_field_aux1  e2' n' e1' v1' sh' :=
+ (*   pose (bbb := (e2, n',e1',v1',sh')) ; *)
+  eapply semax_post'; [ | 
+      eapply semax_store_field_deref'' with (n:=n')(sh:=sh')(v1:=v1') (e2:=e2');
+       [auto | reflexivity | reflexivity | reflexivity 
+      | try solve [repeat split; hnf; simpl; intros; congruence]
+      | try solve [go_lower; apply prop_right; auto ] 
+      | try solve [go_lower; apply prop_right; auto ] 
+      | quick_load_equality
+      | reflexivity
+      | intro; unfold_lift; first [apply derives_refl | apply field_mapsto_field_mapsto_]
+      ] ] .
+
+
+Ltac store_field_aux2  e2' n' e1' v1' sh' :=
+   pose (bbb := (e2', n',e1',v1',sh'));
+  eapply semax_post'; [ | 
+      eapply semax_store_field'' with (n:=n')(sh:=sh')(v1:=v1');
+       [auto | reflexivity | reflexivity | reflexivity 
+      | try solve [repeat split; hnf; simpl; intros; congruence]
+      | try solve [go_lower; apply prop_right; auto ] 
+      | try solve [go_lower; apply prop_right; auto ] 
+      | quick_load_equality
+      | reflexivity
+      | intro; unfold_lift; first [apply derives_refl | apply field_mapsto_field_mapsto_]
+      ] ] .
+
+Ltac store_field_tac :=
+ hoist_later_in_pre;
+  match goal with
+  | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign (Efield (Ederef ?e1 ?t1) ?fld ?t2) ?e2) _ =>
+   let F := store_field_aux1 e2 in
+   semax_store_aux  Q R (eval_expr e1) F
+          || fail 2 "store field tac 1"
+  | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign (Efield ?e1 ?fld ?t2) ?e2) _ =>
+   let F := store_field_aux2 e2 in
+   semax_store_aux  Q R (eval_lvalue e1) F
+  end.
+
+(* END new semax_load and semax_store tactics *************************)
 
 
 Ltac forward1 :=   
@@ -1137,12 +879,12 @@ Ltac forward1 :=
          store_tac || fail 2 "store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
          semax_load_tac || fail 2 "semax_load_tac failed"
-(*  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
-         semax_load_tac || fail 2 "semax_load_tac failed" *)
-(*  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-         semax_field_tac || fail 2 "semax_field_tac failed" *)
   | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
-         load_array_tac || fail 2 "load_array_tac failed"
+         semax_load_tac || fail 2 "semax_load_tac failed" 
+(*  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
+         semax_field_tac || fail 2 "semax_field_tac failed" 
+  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
+         load_array_tac || fail 2 "load_array_tac failed" *)
   | |- @semax _ _ _ (Sset ?id ?e) _ => 
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 

@@ -3,6 +3,10 @@ Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)
 
+Lemma liftTrue: forall rho, `True rho.
+Proof. intro. unfold_lift; apply I. Qed.
+Hint Resolve liftTrue.
+
 Lemma overridePost_normal:
   forall P Q, overridePost P (normal_ret_assert Q) = normal_ret_assert P.
 Proof.

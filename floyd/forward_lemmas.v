@@ -5,6 +5,114 @@ Require Import floyd.assert_lemmas.
 Import Cop.
 Local Open Scope logic.
 
+Lemma semax_ifthenelse_PQR : 
+   forall Espec Delta P Q R (b: expr) c d Post,
+      bool_type (typeof b) = true ->
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+                        c Post -> 
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+                        d Post -> 
+     @semax Espec Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
+                         (Sifthenelse b c d) Post.
+Proof.
+ intros.
+ eapply semax_pre0; [ | apply semax_ifthenelse]; auto.
+ instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
+ unfold PROPx, LOCALx; intro rho; normalize.
+ eapply semax_pre0; [ | eassumption].
+ unfold PROPx, LOCALx; intro rho; normalize.
+ eapply semax_pre0; [ | eassumption].
+ unfold PROPx, LOCALx; intro rho; normalize.
+Qed.
+
+Definition logical_and_result v1 t1 v2 t2 :=
+match (strict_bool_val t1 v1) with
+| Some b1 => if b1 then match (strict_bool_val t2 v2) with
+                            | Some b2 => if b2 then  Vint Int.one 
+                                         else Vint Int.zero
+                            | None => Vundef end
+                   else Vint Int.zero
+| None => Vundef
+end.
+
+Definition logical_or_result v1 t1 v2 t2 :=
+match (strict_bool_val t1 v1) with
+| Some b1 => if b1 then Vint Int.one
+                   else match (strict_bool_val t2 v2) with
+                            | Some b2 => if b2 then  Vint Int.one 
+                                         else Vint Int.zero
+                            | None => Vundef end
+| None => Vundef
+end.
+
+Definition logical_or tid e1 e2 :=
+(Sifthenelse e1
+             (Sset tid (Econst_int (Int.repr 1) tint))
+             (Ssequence
+                (Sset tid (Ecast e2 tbool))
+                (Sset tid (Ecast (Etempvar tid tbool) tint)))).
+
+
+Definition logical_and tid e1 e2 :=
+(Sifthenelse e1
+            (Ssequence
+              (Sset tid (Ecast e2 tbool))
+              (Sset tid (Ecast (Etempvar tid tbool) tint)))
+            (Sset tid (Econst_int (Int.repr 0) tint))).
+
+Lemma semax_pre_flipped : 
+ forall (P' : environ -> mpred) (Espec : OracleKind)
+         (Delta : tycontext) (P1 : list Prop) (P2 : list (environ -> Prop))
+         (P3 : list (environ -> mpred)) (c : statement) 
+         (R : ret_assert),
+       semax Delta P' c R ->
+       PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3)) |-- P' ->
+        semax Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
+Proof. intros. 
+eapply semax_pre. apply H0. auto.
+Qed.
+
+Lemma tc_environ_init: forall Delta id rho,
+                         tc_environ (initialized id Delta) rho ->
+                         tc_environ Delta rho.
+Proof.  
+intros.
+unfold tc_environ in *. destruct Delta. destruct p. destruct p.
+unfold initialized in *. simpl in *. unfold temp_types in *.
+unfold var_types in *. unfold ret_type in *. simpl in *.
+remember (t1 ! id). destruct o; auto.
+destruct p. unfold typecheck_environ in *. intuition.
+clear - H0 Heqo. unfold typecheck_temp_environ in *.
+intros. destruct (eq_dec id id0). subst.
+specialize (H0 id0 true t3). spec H0.
+unfold temp_types in *. simpl in *. rewrite PTree.gss. auto.
+destruct H0. exists x. intuition. unfold temp_types in *.
+simpl in H. rewrite H in *. inv Heqo. auto.
+apply H0. 
+unfold temp_types in *. simpl in *.
+rewrite PTree.gso. auto. auto.
+Qed.
+
+Lemma bool_cast : forall e rho,
+   typecheck_val (eval_expr e rho) (typeof e) = true ->
+  eval_cast tbool tint (eval_cast (typeof e) tbool (eval_expr e rho)) =
+   match strict_bool_val (eval_expr e rho) (typeof e) with
+   | Some true => Vint Int.one
+   | Some false => Vint Int.zero
+   | None => Vundef
+   end.
+Proof.
+intros.
+unfold eval_cast. simpl.
+remember (eval_expr e rho). destruct v. inv H. simpl.
+ unfold eval_cast_neutral.
+remember (typeof e); destruct t; inv H; simpl;
+remember (Int.eq i Int.zero); if_tac; auto; try congruence.
+remember (typeof e); destruct t; inv H. simpl.
+if_tac; auto.
+destruct (typeof e); inv H; auto.
+Qed.
+
 Lemma tycontext_eqv_sub:
   forall Delta Delta', tycontext_eqv Delta Delta' ->
          tycontext_sub Delta Delta'.
@@ -568,22 +676,276 @@ Proof.
 destruct (split l); f_equal; auto.
 Qed.
 
-Lemma semax_ifthenelse_PQR : 
-   forall Espec Delta P Q R (b: expr) c d Post,
-      bool_type (typeof b) = true ->
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        c Post -> 
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
-                        d Post -> 
-     @semax Espec Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
-                         (Sifthenelse b c d) Post.
+
+Lemma semax_logical_or:
+ forall Espec Delta P Q R tid e1 e2 b
+   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
+   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
+   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
+   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+ bool_type (typeof e1) = true ->
+ bool_type (typeof e2) = true ->
+ (temp_types Delta) ! tid = Some (tint, b) ->
+  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+   Q) (SEPx (R))))
+    (logical_or tid e1 e2)
+  (normal_ret_assert (PROPx P (LOCALx 
+((`eq (eval_id tid) 
+   (`logical_or_result 
+          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
 Proof.
- intros.
- eapply semax_pre0; [ | apply semax_ifthenelse]; auto.
- instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
- unfold PROPx, LOCALx; intro rho; normalize.
- eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
- eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
+intros.
+apply semax_ifthenelse_PQR. 
+  - auto. 
+  -  eapply semax_pre. apply derives_refl.
+     eapply semax_post_flipped.
+     apply forward_setx. 
+     intro rho. normalize. apply prop_right. simpl.
+     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
+     simpl. apply I.
+     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
+     apply exp_left. intro old. normalize. autorewrite with subst.
+     intro rho'. normalize.
+     repeat apply andp_right; normalize. apply prop_right.
+     unfold logical_or_result. unfold typed_true in *.
+     unfold subst in *. 
+
+     assert ((eval_expr e1 (env_set rho' tid old)) =
+                  eval_expr e1 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE1. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+     
+     super_unfold_lift. rewrite H10 in *. clear H10.
+     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
+     auto.
+  - eapply semax_seq'. 
+      + eapply forward_setx.
+        intro rho. normalize. 
+        apply andp_right; apply prop_right.
+        unfold tc_expr. simpl. rewrite tc_andp_sound.
+        simpl. super_unfold_lift. split. auto. 
+        unfold isCastResultType. destruct (typeof e2); 
+                                        inv H0; simpl; apply I.
+       apply H5.        
+      + simpl update_tycon. apply extract_exists_pre. intro oldval.
+        autorewrite with subst.  
+        apply (semax_pre ((PROPx P
+        (LOCALx
+           (tc_environ (initialized tid Delta) ::
+             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
+            :: `(typed_false (typeof e1)) (eval_expr e1)
+               :: tc_expr Delta e2
+                  :: Q)
+           (SEPx R))))). intro rho. normalize.
+        eapply semax_post_flipped.
+        eapply forward_setx. intro rho. normalize.
+        apply andp_right; apply prop_right. 
+        unfold tc_expr. simpl. rewrite tc_andp_sound. 
+        super_unfold_lift. split. 
+        erewrite temp_types_init_same by eauto. simpl. apply I.
+         apply I.
+        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
+        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
+        simpl. super_unfold_lift; auto.
+        intros. intro rho.
+        normalize. apply normal_ret_assert_derives'.
+        apply exp_left. intro old. autorewrite with subst.
+        intro rho'. normalize. repeat apply andp_right; 
+                               [ | normalize | normalize].
+
+        { apply prop_right.
+          rewrite H4. simpl. super_unfold_lift.
+          simpl. unfold subst in *.
+          unfold eval_id. simpl. rewrite Map.gss. simpl.
+          apply expr_lemmas.typecheck_expr_sound in H8.
+          Focus 2. eapply tc_environ_init. apply H5.
+
+
+          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
+                  eval_expr (Ecast e2 tbool) rho').
+              simpl. super_unfold_lift. unfold eval_cast. simpl.
+              remember (typeof e2). 
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE2. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H10 in *. simpl in H10. super_unfold_lift.
+          clear H9 H10. rewrite H6.
+          assert ((eval_expr e2 (env_set rho' tid old)) =
+                  eval_expr e2 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE2. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H9 in *. clear H9.
+          assert ((eval_expr e1 (env_set rho' tid old)) =
+                  eval_expr e1 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE1. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H9 in *.
+          clear H4 H6 H9 H3. 
+          simpl. super_unfold_lift.
+          unfold logical_or_result. 
+          unfold typed_false in *. rewrite H7.
+          simpl. 
+          apply bool_cast. auto.
+          }
 Qed.
+
+
+
+
+Lemma semax_logical_and:
+ forall Espec Delta P Q R tid e1 e2 b
+   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
+   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
+   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
+   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+ bool_type (typeof e1) = true ->
+ bool_type (typeof e2) = true ->
+ (temp_types Delta) ! tid = Some (tint, b) ->
+  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+   Q) (SEPx (R))))
+    (logical_and tid e1 e2)
+  (normal_ret_assert (PROPx P (LOCALx 
+((`eq (eval_id tid) 
+   (`logical_and_result 
+          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R)))))
+  . 
+Proof.
+intros.
+apply semax_ifthenelse_PQR. 
+  - auto. 
+  - eapply semax_seq'. 
+      + eapply forward_setx.
+        intro rho. normalize. 
+        apply andp_right; apply prop_right.
+        unfold tc_expr. simpl. rewrite tc_andp_sound.
+        simpl. super_unfold_lift. split. auto. 
+        unfold isCastResultType. simpl. destruct (typeof e2); 
+                                        inv H0; simpl; apply I.
+        apply H5.
+      + simpl update_tycon. apply extract_exists_pre. intro oldval.
+        autorewrite with subst.  
+        apply (semax_pre ((PROPx P
+        (LOCALx
+           (tc_environ (initialized tid Delta) ::
+             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
+            :: `(typed_true (typeof e1)) (eval_expr e1)
+               :: tc_expr Delta e2
+                  :: Q)
+           (SEPx R))))). intro rho. normalize.
+        eapply semax_post_flipped.
+        eapply forward_setx. intro rho. normalize.
+        apply andp_right; apply prop_right. 
+        unfold tc_expr. simpl. rewrite tc_andp_sound. 
+        super_unfold_lift. split. 
+        erewrite temp_types_init_same by eauto. simpl. apply I.
+        apply I.
+        simpl. unfold tc_temp_id. unfold typecheck_temp_id.
+        erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
+        simpl. super_unfold_lift; auto.
+        intros. intro rho.
+        normalize. apply normal_ret_assert_derives'.
+        apply exp_left. intro old. autorewrite with subst.
+        intro rho'. normalize. repeat apply andp_right; 
+                               [ | normalize | normalize].
+
+        { apply prop_right.
+          rewrite H4. simpl. super_unfold_lift.
+          simpl. unfold subst in *.
+          unfold eval_id. simpl. rewrite Map.gss. simpl.
+          apply expr_lemmas.typecheck_expr_sound in H8.
+          Focus 2. eapply tc_environ_init. apply H5.
+
+
+          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
+                  eval_expr (Ecast e2 tbool) rho').
+              simpl. super_unfold_lift. unfold eval_cast. simpl.
+              remember (typeof e2). 
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE2. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H10 in *. simpl in H10. super_unfold_lift.
+          clear H9 H10. rewrite H6.
+          assert ((eval_expr e2 (env_set rho' tid old)) =
+                  eval_expr e2 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE2. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H9 in *. clear H9.
+          assert ((eval_expr e1 (env_set rho' tid old)) =
+                  eval_expr e1 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE1. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+          rewrite H9 in *.
+          clear H4 H6 H9 H3. 
+          simpl. super_unfold_lift.
+          unfold logical_and_result. 
+          unfold typed_true in *. rewrite H7.
+          simpl. 
+
+        apply bool_cast. auto. }
+  -  eapply semax_pre. apply derives_refl.
+     eapply semax_post_flipped.
+     apply forward_setx. 
+     intro rho. normalize. apply prop_right. simpl.
+     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
+     simpl. apply I.
+     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
+     apply exp_left. intro old. normalize. autorewrite with subst.
+     intro rho'. normalize.
+     repeat apply andp_right; normalize. apply prop_right.
+     unfold logical_and_result. unfold typed_false in *.
+     unfold subst in *. 
+
+     assert ((eval_expr e1 (env_set rho' tid old)) =
+                  eval_expr e1 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE1. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+     
+     super_unfold_lift. rewrite H10 in *. clear H10.
+     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
+     assert (exists v, strict_bool_val (eval_expr e2 rho') (typeof e2) = Some v).
+     assert ((eval_expr e2 (env_set rho' tid old)) =
+                  eval_expr e2 rho').
+              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
+                                         (te_of rho')).
+              unfold env_set. simpl.
+              erewrite <- CLOSE2. destruct rho'. simpl. auto.
+              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
+                                                        auto.
+     apply expr_lemmas.typecheck_expr_sound in H7; auto.
+     rewrite H10 in *. remember (eval_expr e2 rho'). 
+     destruct v; eauto; 
+     destruct (typeof e2); simpl; eauto; try solve[inv H7; 
+     try rewrite H12; eauto]; simpl in *; congruence.
+     auto.
+Qed.
+     

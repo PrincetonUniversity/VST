@@ -653,7 +653,7 @@ Qed.
 
 
 Lemma semax_store_field'':
-forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
+forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields 
     (WS: writable_share sh) ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = t1 ->
@@ -662,7 +662,8 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_lvalue Delta e1) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta (Ecast e2 t2)) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- local (`eq v1 (eval_lvalue e1)) ->
-    nth_error R n = Some (`(field_mapsto_ sh t1 fld) v1) ->
+    nth_error R n = Some R1 ->
+    R1 |-- `(field_mapsto_ sh t1 fld) v1 ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
        (Sassign (Efield e1 fld t2) e2) 
@@ -671,7 +672,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
               (SEPx (replace_nth n R
                     (`(field_mapsto sh t1 fld) v1 (`(eval_cast (typeof e2) t2) (eval_expr e2)))))))).
 Proof.
-intros.
+intros. rename H7 into H6'.
 assert (SF := semax_store_field). unfold_lift.
 unfold_lift in SF.
 subst t1.
@@ -688,16 +689,26 @@ assert (H1': PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`eq v1
   unfold fold_right at 2. rewrite sepcon_emp. apply TT_right.
  }
 assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eval_lvalue e1))).
-  {clear - H1' H6. rename H1' into H4; rename H6 into H5.
+  {clear - H1' H6 H6'. rename H1' into H4.
+  assert (H5: nth n R TT |-- local (`isptr v1)).
+    clear - H6 H6'; revert R H6; induction n; destruct R; simpl; intros; inv H6.
+   eapply derives_trans; [apply H6' |].
+  unfold_lift; rewrite field_mapsto__isptr. normalize.
+  apply IHn; auto.
+   clear H6.
    rewrite (local_andp_lemma _ _ H4).
    clear H4.
    unfold_lift.
    change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; intro rho; simpl in *.
    apply derives_extract_prop; intro. unfold_lift in H. rewrite <- H. clear e1 H.
    apply andp_left2. apply andp_left2.
-   unfold_lift in H5.
-   revert R H5; induction n; destruct R; intros; inv H5; simpl in *; auto.
-   rewrite field_mapsto__isptr. normalize.
+   specialize (H5 rho). unfold local,lift1 in H5. unfold_lift in H5.
+   revert R H5; induction n; destruct R; simpl; intros.
+   eapply derives_trans; [ | apply H5]; apply prop_right; auto.
+   apply derives_trans with ((!!isptr (v1 rho) && TT) * TT).
+   apply sepcon_derives; auto. rewrite andp_TT. auto.
+   normalize.
+   eapply derives_trans; [ | apply H5]; apply prop_right; auto.
    apply derives_trans with (TT * (!!isptr (v1 rho) && TT)).
    apply sepcon_derives; auto. rewrite andp_TT. auto.
    normalize.
@@ -713,21 +724,21 @@ repeat (apply derives_extract_prop; intro).
 destruct H11.
 unfold tc_lvalue. simpl typecheck_lvalue.
 repeat rewrite prop_true_andp by auto.
-rewrite <- H7. rewrite <- H0 in H6.
-clear - H6. rename H6 into H0.
-revert R H0; induction n; destruct R; simpl; intros; inv H0; auto.
-rewrite emp_sepcon; auto.
-rewrite <- sepcon_assoc.
+rewrite <- H7. rewrite <- H0 in H6'.
+clear - H6 H6'. rename H6 into H0.
+revert R H0; induction n; destruct R; intros; inv H0; auto.
+ simpl.  rewrite emp_sepcon. apply sepcon_derives; auto.
+ unfold_lift in H6'; apply H6'.
+ simpl in *.
+ rewrite <- sepcon_assoc.
 rewrite (sepcon_comm (field_mapsto_ _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 repeat rewrite denote_tc_assert_andp.
 
-
 intros ek vl rho; unfold normal_ret_assert, local,lift1; unfold_lift; simpl.
 repeat (apply derives_extract_prop; intro).
 repeat apply andp_right; try apply prop_right; auto.
-
 rewrite H0.
 match goal with |- ?A |-- _ => apply derives_trans with (local (`eq v1 (eval_lvalue e1)) rho && A) end.
 apply andp_right; auto.
@@ -738,7 +749,7 @@ unfold tc_environ, exit_tycon. subst ek. apply H.
 apply derives_extract_prop; intro. unfold_lift in H9. rewrite <- H9.
 change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; simpl.
 normalize. simpl.
-clear - H6; revert R H6; induction n; destruct R; simpl; intros; inv  H6.
+clear - H6; revert R H6; induction n; destruct R; simpl; intros; inv H6.
 rewrite emp_sepcon; auto.
 rewrite <- sepcon_assoc.
 rewrite (sepcon_comm (field_mapsto _ _ _ _ _)).
@@ -747,7 +758,7 @@ apply sepcon_derives; auto.
 Qed.
 
 Lemma semax_store_field_deref'':
-forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
+forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields
     (WS: writable_share sh) ,
     t1 = Tstruct sid fields noattr ->
     typeof e1 = tptr t1 ->
@@ -756,7 +767,8 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta (Ecast e2 t2)) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- local (`eq v1 (eval_expr e1)) ->
-    nth_error R n = Some (`(field_mapsto_ sh t1 fld) v1) ->
+    nth_error R n = Some R1 ->
+    R1 |-- `(field_mapsto_ sh t1 fld) v1 ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
        (Sassign (Efield (Ederef e1 t1) fld t2) e2) 
@@ -765,7 +777,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 sid fields
               (SEPx (replace_nth n R
                     (`(field_mapsto sh t1 fld) v1 (`(eval_cast (typeof e2) t2) (eval_expr e2)))))))).
 Proof.
-intros.
+intros. rename H7 into H6'.
 assert (H1': PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`eq v1 (eval_expr e1))).
  {  eapply derives_trans; [ | apply H5].
   apply andp_derives; auto. apply andp_derives; auto. change SEPx with SEPx'; unfold SEPx'.
@@ -791,15 +803,24 @@ repeat (apply derives_extract_prop; intro).
 unfold_lift in H7.
 normalize.
 rewrite <- H7.
+clear - H6 H6'.
+eapply derives_trans with (R1 rho * TT).
+Focus 2.
+eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] |].
+apply H6'. 
+unfold_lift; rewrite field_mapsto__isptr. normalize.
 clear - H6.
 revert R H6; induction n; destruct R; simpl; intros; inv H6.
-normalize. rewrite field_mapsto__isptr; normalize.
-apply derives_trans with (TT * (!!isptr (v1 rho) && TT)).
-apply sepcon_derives; auto. rewrite andp_TT; auto. normalize.
+apply sepcon_derives; auto.
+specialize (IHn _ H0).
+rewrite sepcon_comm.
+apply derives_trans with ((R1 rho * TT) * TT).
+apply sepcon_derives; auto.
+rewrite sepcon_assoc. apply sepcon_derives; auto.
 apply andp_left2; auto.
 intros. apply andp_left2; auto.
 assert (SF := semax_store_field'' Espec Delta n sh t1 fld P (`isptr (eval_expr e1) :: Q) R
-  (Ederef e1 t1) v1 e2 t2 sid fields WS).
+  (Ederef e1 t1) v1 e2 t2 R1 sid fields WS).
 eapply semax_pre_post; [ | | eapply SF]; try eassumption; clear SF; auto.
 apply andp_left2; auto.
 intros; apply andp_left2.

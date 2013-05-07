@@ -181,7 +181,6 @@ go_lower. subst. unfold intpair_message. normalize.
 simpl_typed_mapsto.
 simpl.
 cancel.
-rewrite sepcon_comm.
 apply sepcon_derives;
 apply derives_refl'; eapply mapsto_field_mapsto;  try (simpl; reflexivity);
  destruct buf0; inv H1; unfold eval_binop; simpl; rewrite Int.add_assoc; reflexivity. 
@@ -650,9 +649,10 @@ replace (`(typed_mapsto_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
 flatten_sepcon_in_SEP. (* only need this with HACK? *)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
-apply drop_local.  (* tempory, should fix store_field_tac *)
+apply derives_refl.
 simpl update_tycon. (* should forward do this? *)
-
+normalize.
+unfold app.
 
 Ltac gather_SEP' L :=
    grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)
@@ -665,7 +665,7 @@ gather_SEP' (0::1::nil).
 replace_SEP  (`(typed_mapsto Tsh t_struct_intpair)
                       (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2))).
 simpl_typed_mapsto.
-extensionality rho; unfold_lift; simpl; rewrite sepcon_comm; reflexivity.
+extensionality rho; unfold_lift; simpl; reflexivity.
 
 rewrite -> seq_assoc.
 eapply semax_seq'.
@@ -716,16 +716,16 @@ repeat rewrite <- sepcon_assoc.
 apply derives_trans with
 ( typed_mapsto_ Tsh t_struct_intpair
       (eval_var _q t_struct_intpair rho) 
- * TT 
- * typed_mapsto_ Tsh (tarray tuchar 8)
+ * TT
+ *typed_mapsto_ Tsh (tarray tuchar 8)
       (eval_var _buf (tarray tuchar 8) rho)
- *  typed_mapsto_ Tsh t_struct_intpair
-      (eval_var _p t_struct_intpair rho)).
+ * typed_mapsto_ Tsh t_struct_intpair
+      (eval_var _p t_struct_intpair rho)
+ ).
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.
-simpl_typed_mapsto.
-rewrite sepcon_comm; apply sepcon_derives; auto. 
+simpl_typed_mapsto. apply sepcon_derives; auto. 
 rewrite <- memory_block_typed.
 change (sizeof (tarray tuchar 8)) with (sizeof t_struct_intpair).
 rewrite memory_block_typed. auto.
