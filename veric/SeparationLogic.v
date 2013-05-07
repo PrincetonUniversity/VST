@@ -648,8 +648,7 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
         (normal_ret_assert 
           (EX old:val, 
                  local (`eq (eval_id id)  (subst id `old 
-                     (`(cmp_ptr_no_mem (op_to_cmp cmp))
-                            (eval_expr e1) (eval_expr e2)))) &&
+                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
                             subst id `old P)).
 
 Axiom semax_load : 

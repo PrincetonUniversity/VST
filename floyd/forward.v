@@ -658,16 +658,15 @@ match e with
 | _ => false
 end.
 
-
 Ltac forward_ptr_cmp := 
 first [eapply forward_ptr_compare_closed_now;
        [    solve [auto 50 with closed] 
           | solve [auto 50 with closed] 
           | solve [auto 50 with closed] 
           | solve [auto 50 with closed]
-          | 
+          | auto
           | reflexivity ]
-       | eapply forward_ptr_compare'; try reflexivity].
+       | eapply forward_ptr_compare'; try reflexivity; auto].
  
 Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.

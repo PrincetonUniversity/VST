@@ -614,14 +614,55 @@ Proof.
 intros. 
 assert (TC1 := typecheck_expr_sound _ _ _ H H1).
 assert (TC2 := typecheck_expr_sound _ _ _ H H3).
+copy H2.
 
-eapply typecheck_binop_sound2 in H2; eauto. 
-unfold eval_binop in *. apply typecheck_force_Some in H2. destruct H2.
-congruence. 
+
+eapply typecheck_binop_sound2 in H2; eauto.
+remember (eval_expr e1 rho); remember (eval_expr e2 rho);
+destruct v; destruct v0; 
+try solve [apply typecheck_force_Some in H2; destruct H2;
+try congruence].
+
+unfold isBinOpResultType in *;
+remember (typeof e1). remember (typeof e2).
+destruct t1; try solve [inv TC1];
+destruct t0; try solve [inv TC2];
+
+destruct b; simpl in H7; try contradiction H7;
+try solve[ simpl in H2; apply typecheck_force_Some in H2; destruct H2;
+unfold sem_binary_operation in *; try congruence];
+rewrite tc_andp_sound in *; simpl in H7;
+super_unfold_lift;
+rewrite <- Heqv in *; rewrite <- Heqv0 in *;
+intuition.
+
 Qed. 
   
 Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
+
+Lemma ptr_compare_no_binop_tc : 
+forall e1 e2 b1 i1 b2 i2 rho b t,
+typecheck_val (eval_expr e1 rho) (typeof e1) = true ->
+typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
+Vptr b1 i1 = eval_expr e1 rho ->
+Vptr b2 i2 = eval_expr e2 rho ->
+true = is_comparison b ->
+~denote_tc_assert (isBinOpResultType b e1 e2 t) rho.
+Proof.
+intros.
+unfold not. intro.
+rewrite <- H1 in *. rewrite <- H2 in *.
+unfold isBinOpResultType in *.
+destruct b; inv H3;
+remember (typeof e1); remember (typeof e2);
+destruct t1; try solve[inv H0];
+destruct t0; try solve[inv H];
+simpl in H4;
+try rewrite tc_andp_sound in *; simpl in *; super_unfold_lift;
+try rewrite <- H1 in *; try rewrite <- H2 in *; intuition.
+
+Qed.
 
 Lemma eval_both_relate:
   forall Delta ge te ve rho e m, 
@@ -671,7 +712,7 @@ simpl. simpl in H3.
 rewrite H3.
 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct H2.
+destruct H2. unfold tc_bool in H2.
 if_tac in H2; try contradiction.
 apply Clight.eval_Elvalue with b ofs; [  | econstructor 2; apply MODE].
 assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.
@@ -804,14 +845,48 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val.
 remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
 (typeof e2) Mem.empty).
-destruct o. eapply Clight.eval_Ebinop. eapply IHe1; eauto.
-eapply IHe2. apply H. apply H3. auto. apply typecheck_expr_sound in H3; auto.
-rewrite Heqo.
+{ destruct o. 
+  + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
+    eapply IHe2. apply H. apply H3.
 
-apply tc_binaryop_nomem with (t:=t); auto.
-specialize (IHe1 ge). specialize (IHe2 ge). intuition.
-clear H6 H8. 
-eapply eval_binop_relate_fail; eauto.
+    remember (eval_expr e1 rho); remember (eval_expr e2 rho);
+    destruct v0; destruct v1; simpl;
+    rewrite Heqv0 at 1; rewrite Heqv1;
+    rewrite Heqv0 in Heqo at 1;
+    rewrite Heqv1 in Heqo;
+    try rewrite Heqo;
+    try apply tc_binaryop_nomem with (t:=t); auto.
+    remember (is_comparison b). destruct b2.
+
+       - apply typecheck_expr_sound in H3; auto.
+         apply typecheck_expr_sound in H4; auto.
+
+         eapply ptr_compare_no_binop_tc in H1; eauto; 
+         try contradiction.
+      
+      -  rewrite Heqo.
+
+         remember (eval_expr e1 rho).  remember (eval_expr e2 rho).
+         destruct v; destruct v0; 
+         try solve [try
+             rewrite Heqv in *; try rewrite Heqv0 in *; eauto];
+         rewrite Heqv2; rewrite Heqv3;
+         eapply tc_binaryop_nomem; eauto.
+  + specialize (IHe1 ge). specialize (IHe2 ge). intuition.
+         clear H6 H8. 
+    remember (eval_expr e1 rho). remember (eval_expr e2 rho).
+         destruct v; destruct v0; 
+         rewrite Heqv in Heqo at 1, H7;
+         rewrite Heqv0 in Heqo, H2;
+         try eapply eval_binop_relate_fail; eauto.
+         remember (is_comparison b). destruct b2. 
+         apply typecheck_expr_sound in H3; auto.
+         apply typecheck_expr_sound in H4; auto.    
+         eapply ptr_compare_no_binop_tc in H1; eauto; 
+         try contradiction.
+
+         try eapply eval_binop_relate_fail; eauto. }
+
 
 (*Cast*)
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).

@@ -296,8 +296,42 @@ Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) 
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
        force_val (Cop.sem_unary_operation op v1 t1).
 
+Definition cmp_ptr_no_mem c v1 v2  :=
+match v1, v2 with
+Vptr b o, Vptr b1 o1 => 
+  if zeq b b1 then
+    Val.of_bool (Int.cmpu c o o1)
+  else
+    match Val.cmp_different_blocks c with
+    | Some b => Val.of_bool b
+    | None => Vundef
+    end
+| _, _ => Vundef
+end. 
+
+Definition op_to_cmp cop :=
+match cop with 
+| Cop.Oeq => Ceq | Cop.One =>  Cne
+| Cop.Olt => Clt | Cop.Ogt =>  Cgt 
+| Cop.Ole => Cle | Cop.Oge =>  Cge 
+| _ => Ceq (*doesn't matter*)
+end.
+
+Definition is_comparison op :=
+match op with 
+  | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => true              
+  | _ => false
+end.
+
 Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       force_val (Cop.sem_binary_operation op v1 t1 v2 t2 Mem.empty).
+       match v1, v2 with
+       | Vptr _ _, Vptr _ _ => if (is_comparison op) then
+                             cmp_ptr_no_mem (op_to_cmp op) v1 v2
+                           else
+                             force_val (Cop.sem_binary_operation op v1 
+                                        t1 v2 t2 Mem.empty)
+       | _, _ => force_val (Cop.sem_binary_operation op v1 t1 v2 t2 Mem.empty)
+end.
 
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.
@@ -384,6 +418,8 @@ Definition eval_cast (t1 t2: type) : val->val :=
   | Cop.cast_case_void => Datatypes.id
   | Cop.cast_case_default => always Vundef
   end.
+
+
 
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
@@ -513,8 +549,24 @@ match op with
                     end
 end.
 
+Inductive tc_error :=
+| op_result_type : expr -> tc_error
+| arg_type : expr -> tc_error
+| pp_compare_size_0 : type -> tc_error
+| invalid_cast : type -> type -> tc_error
+| invalid_cast_result : type -> type -> tc_error
+| invalid_expression : expr -> tc_error
+| var_not_in_tycontext : tycontext -> positive  -> tc_error
+| mismatch_context_type : type -> type -> tc_error
+| deref_byvalue : type -> tc_error
+| volatile_load : type -> tc_error
+| invalid_field_access : expr -> tc_error
+| invalid_struct_field : ident -> fieldlist -> tc_error
+| invalid_lvalue : expr -> tc_error
+| wrong_signature : tc_error.
+
 Inductive tc_assert :=
-| tc_FF: tc_assert
+| tc_FF: tc_error -> tc_assert
 | tc_noproof : tc_assert
 | tc_TT : tc_assert
 | tc_andp': tc_assert -> tc_assert -> tc_assert
@@ -533,10 +585,10 @@ Inductive tc_assert :=
 Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
 match a1 with
 | tc_TT => a2
-| tc_FF => tc_FF
+| tc_FF e => tc_FF e
 | _ => match a2 with
       | tc_TT => a1 
-      | tc_FF => tc_FF
+      | tc_FF e => tc_FF e
       | _ => tc_andp' a1 a2
       end
 end. 
@@ -544,17 +596,19 @@ end.
 Definition tc_orp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
 match a1 with 
 | tc_TT => tc_TT
-| tc_FF => a2
+| tc_FF _ => a2
 | _ => match a2 with
        | tc_TT => tc_TT
-       | tc_FF => a1
+       | tc_FF _ => a1
        | _ => tc_orp' a1 a2
        end
 end.
 
-Definition tc_bool (b : bool) :=
-if b then tc_TT else tc_FF.
+Definition tc_bool (b : bool) (e: tc_error) :=
+if b then tc_TT else tc_FF e.
 
+(*
+Unused
 Fixpoint tc_assert_simpl asn :=
 match asn with
 | tc_andp' a1 a2 =>
@@ -578,77 +632,83 @@ match asn with
                                    | None => tc_FF
                                  end
 | _ => asn
-end.
+end.*)
 
-Definition check_pp_int e1 e2 op t :=
+Definition check_pp_int e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
                          (tc_orp (tc_iszero e1) (tc_iszero e2))
-                         (tc_bool (is_int_type t))
+                         (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
+let e := (Ebinop op a1 a2 ty) in
+let reterr := op_result_type e in
+let deferr := arg_type e in 
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
-                    | Cop.add_default => tc_FF
-                    | Cop.add_case_ii _ => tc_bool (is_int_type ty) 
-                    | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty)) 
-                    | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty))
-                    | _ => tc_bool (is_float_type ty)
+                    | Cop.add_default => tc_FF deferr
+                    | Cop.add_case_ii _ => tc_bool (is_int_type ty) reterr 
+                    | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | _ => tc_bool (is_float_type ty) deferr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
-                    | Cop.sub_default => tc_FF
-                    | Cop.sub_case_ii _ => tc_bool (is_int_type ty) 
-                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty))
+                    | Cop.sub_default => tc_FF deferr
+                    | Cop.sub_case_ii _ => tc_bool (is_int_type ty) reterr 
+                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
-                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty)))
-			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)))
-                    | _ => tc_bool (is_float_type ty)
+                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr))
+			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)) 
+                                      (pp_compare_size_0 ty2) )
+                    | _ => tc_bool (is_float_type ty) deferr
             end 
   | Cop.Omul => match Cop.classify_mul (typeof a1) (typeof a2) with 
-                    | Cop.mul_default => tc_FF
-                    | Cop.mul_case_ii _ => tc_bool (is_int_type ty)
-                    | _ => tc_bool (is_float_type ty)
+                    | Cop.mul_default => tc_FF deferr
+                    | Cop.mul_case_ii _ => tc_bool (is_int_type ty) reterr
+                    | _ => tc_bool (is_float_type ty) deferr
             end 
   | Cop.Omod => match Cop.classify_binint (typeof a1) (typeof a2) with
                     | Cop.binint_case_ii Unsigned => 
                            tc_andp (tc_nonzero a2) 
-                           (tc_bool (is_int_type ty))
+                           (tc_bool (is_int_type ty) reterr)
                     | Cop.binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
-                                                     (tc_bool (is_int_type ty))
-                    | Cop.binint_default => tc_FF
+                                                     (tc_bool (is_int_type ty) reterr)
+                    | Cop.binint_default => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_div (typeof a1) (typeof a2) with
-                    | Cop.div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty))
-                    | Cop.div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int_type ty))
+                    | Cop.div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty) reterr)
+                    | Cop.div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                                                        (tc_bool (is_int_type ty) reterr)
                     | Cop.div_case_ff | Cop.div_case_if _ | Cop.div_case_fi _ =>
-                          tc_bool (is_float_type ty) 
-                    | Cop.div_default => tc_FF
+                          tc_bool (is_float_type ty) reterr 
+                    | Cop.div_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty))
-                    | _ => tc_FF
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty) 
+                                                                                         reterr)
+                    | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor => 
                    match Cop.classify_binint (typeof a1) (typeof a2) with
-                    | Cop.binint_case_ii _ =>tc_bool (is_int_type ty)
-                    | _ => tc_FF
+                    | Cop.binint_case_ii _ =>tc_bool (is_int_type ty) reterr
+                    | _ => tc_FF deferr
                    end   
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
                    match Cop.classify_cmp (typeof a1) (typeof a2) with
-                    | Cop.cmp_default => tc_FF
-		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty
-                    | _ => tc_bool (is_int_type ty)
+                    | Cop.cmp_default => tc_FF deferr
+		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
+                    | _ => tc_bool (is_int_type ty) reterr
                    end
   end.
 
 
 Definition isCastResultType tfrom tto ty a : tc_assert :=
 match Cop.classify_cast tfrom tto with
-| Cop.cast_case_default => tc_FF
+| Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
@@ -656,9 +716,9 @@ match Cop.classify_cast tfrom tto with
                                 else tc_iszero a)
 | Cop.cast_case_void => tc_noproof
 | _ => match tto with 
-      | Tint _ _ _  => tc_bool (is_int_type ty)
-      | Tfloat _ _  => tc_bool (is_float_type ty)
-      | _ => tc_FF
+      | Tint _ _ _  => tc_bool (is_int_type ty) (invalid_cast_result tto ty) 
+      | Tfloat _ _  => tc_bool (is_float_type ty) (invalid_cast_result tto ty)
+      | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
 
@@ -724,22 +784,24 @@ match e with
                        match (temp_types Delta)!id with 
                          | Some ty' => if(* eqb_type*)same_base_type ty (fst ty') then 
                                          if (snd ty') then tc_TT else (tc_initialized id ty)
-                                       else tc_FF
-		         | None => tc_FF
+                                       else tc_FF (mismatch_context_type ty (fst ty'))
+		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
-                     else tc_FF
- | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty))
- | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty)) (tcr a)
+                     else tc_FF (volatile_load ty)
+ | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
+                                                      (op_result_type e))
+ | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
  | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty a)
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
-                            | Some ty' => tc_andp (if eqb_type ty ty' then tc_TT else tc_FF) 
-                                (tc_bool (negb (type_is_volatile ty)))
-                            | None => tc_FF
+                            | Some ty' => tc_andp (tc_bool (eqb_type ty ty') 
+                                                           (mismatch_context_type ty ty')) 
+                                (tc_bool (negb (type_is_volatile ty)) (volatile_load ty))
+                            | None => tc_FF (var_not_in_tycontext Delta id)
                             end 
-                         | _ => tc_FF
+                         | _ => tc_FF (deref_byvalue ty)
                         end
  | Efield a i ty => match access_mode ty with
                          | By_reference => 
@@ -747,36 +809,46 @@ match e with
                             | Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => tc_TT
-                                  | _ => tc_FF
+                                  | _ => tc_FF (invalid_struct_field i fList)
                                   end
                             | Tunion id fList att => tc_TT
-                            | _ => tc_FF
-                            end)) (tc_bool (negb (type_is_volatile ty)))
-                         | _ => tc_FF
+                            | _ => tc_FF (invalid_field_access e)
+                            end)) (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+                         | _ => tc_FF (deref_byvalue ty)
                         end
- | _ => tc_FF
+ | _ => tc_FF (invalid_expression e)
 end
 
 with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with 
-                  | Some ty' => tc_andp (if eqb_type ty ty' then tc_TT else tc_FF) 
-                                (tc_bool (negb (type_is_volatile ty)))
-                  | None => tc_FF
+                  | Some ty' => tc_andp 
+                                  (tc_bool (eqb_type ty ty') 
+                                           (mismatch_context_type ty ty')) 
+                                  (tc_bool (negb (type_is_volatile ty))
+                                           (volatile_load ty))
+                  | None => tc_FF (var_not_in_tycontext Delta id)
                  end
- | Ederef a ty => tc_andp (tc_andp (tc_andp (typecheck_expr Delta a) 
-                          (tc_bool (is_pointer_type (typeof a))))
-                          (tc_isptr a)) (tc_bool (negb (type_is_volatile ty)))
- | Efield a i ty => tc_andp (tc_andp (typecheck_lvalue Delta a) (match typeof a with
+ | Ederef a ty => tc_andp 
+                    (tc_andp 
+                       (tc_andp 
+                          (typecheck_expr Delta a) 
+                          (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
+                       (tc_isptr a)) 
+                    (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+ | Efield a i ty => tc_andp 
+                      (tc_andp 
+                         (typecheck_lvalue Delta a) 
+                         (match typeof a with
                             | Tstruct id fList att =>
-                                  match field_offset i fList with 
-                                  | Errors.OK delta => tc_TT
-                                  | _ => tc_FF
-                                  end
+                              match field_offset i fList with 
+                                | Errors.OK delta => tc_TT
+                                | _ => tc_FF (invalid_struct_field i fList)
+                              end
                             | Tunion id fList att => tc_TT
-                            | _ => tc_FF
-                            end)) (tc_bool (negb (type_is_volatile ty)))
- | _  => tc_FF
+                            | _ => tc_FF (invalid_field_access e)
+                          end)) (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+ | _  => tc_FF (invalid_lvalue e)
 end.
 
 
@@ -784,14 +856,14 @@ end.
 
 Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) => tc_andp (tc_bool (is_neutral_cast ty t)) 
+  | Some (t,_) => tc_andp (tc_bool (is_neutral_cast ty t) (invalid_cast ty t)) 
                   (isCastResultType ty t t a)
-  | None => tc_FF
+  | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
 Fixpoint tc_might_be_true (asn : tc_assert) :=
 match asn with
- | tc_FF => false
+ | tc_FF _ => false
  | tc_andp' a1 a2 => tc_might_be_true a1 && tc_might_be_true a2
  | _ => true
 end.
@@ -819,7 +891,7 @@ match tl,el with
 | t::tl', e:: el' => tc_andp (typecheck_expr Delta (Ecast e t)) 
                       (typecheck_exprlist Delta tl' el')
 | nil, nil => tc_TT
-| _, _ => tc_FF
+| _, _ => tc_FF wrong_signature
 end.
 
 
@@ -957,7 +1029,7 @@ Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id =
 
 Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   match a with
-  | tc_FF => `False
+  | tc_FF _ => `False
   | tc_noproof => `False
   | tc_TT => `True
   | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)

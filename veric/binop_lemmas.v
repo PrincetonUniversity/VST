@@ -146,7 +146,7 @@ Lemma typecheck_shift_sound:
 forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
    (OPER: match op with Oshl | Oshr => True | _ => False end),
    denote_tc_assert (typecheck_expr Delta e2) rho ->
-   denote_tc_assert (isBinOpResultType Oshl e1 e2 t) rho ->
+   denote_tc_assert (isBinOpResultType op e1 e2 t) rho ->
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
    typecheck_val (eval_expr e1 rho) (typeof e1) = true ->

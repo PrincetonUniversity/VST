@@ -102,11 +102,7 @@ match v1, v2 with
 end. 
 
 
-Definition is_comparison op :=
-match op with 
-  | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => true              
-  | _ => false
-end. 
+ 
 
 Definition blocks_match op v1 v2 :=
 match op with Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge =>
@@ -176,27 +172,6 @@ destruct (access_mode t); try contradiction.
 destruct v; try contradiction.
 destruct H as [? | [? [v ?]]]; eauto.
 Qed. 
-
-Definition cmp_ptr_no_mem c v1 v2  :=
-match v1, v2 with
-Vptr b o, Vptr b1 o1 => 
-  if zeq b b1 then
-    Val.of_bool (Int.cmpu c o o1)
-  else
-    match Val.cmp_different_blocks c with
-    | Some b => Val.of_bool b
-    | None => Vundef
-    end
-| _, _ => Vundef
-end. 
-
-Definition op_to_cmp cop :=
-match cop with 
-| Cop.Oeq => Ceq | Cop.One =>  Cne
-| Cop.Olt => Clt | Cop.Ogt =>  Cgt 
-| Cop.Ole => Cle | Cop.Oge =>  Cge 
-| _ => Ceq (*doesn't matter*)
-end.
 
 
 Lemma pointer_cmp_eval : 
@@ -308,7 +283,7 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
         (normal_ret_assert 
           (fun rho => (EX old:val, 
                  !!(eval_id id rho =  subst id old 
-                     (`(cmp_ptr_no_mem (op_to_cmp cmp)) (eval_expr e1 ) (eval_expr e2)) rho) &&
+                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
                             subst id old P rho))).
 Proof. 
 intros until sh2.
@@ -338,7 +313,7 @@ apply (typecheck_tid_ptr_compare_sub _ _ TS) in TC2.
 apply (tc_expr_sub _ _ TS) in TC3.
 apply (tc_expr_sub _ _ TS) in TC1.
 clear Delta TS.
-exists jm', (PTree.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho) ) (tx)).
+exists jm', (PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (tx)).
 econstructor.
 split.
 reflexivity.
@@ -369,7 +344,10 @@ destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
 
 
 destruct t; inv TC2.  
-simpl. 
+simpl. super_unfold_lift.
+rewrite H0. rewrite H1. 
+unfold eval_binop. rewrite CMP.
+rewrite <- H0. rewrite <- H1.
 eapply  pointer_cmp_no_mem_bool_type; eauto. 
 apply TC3. 
 apply TC1.  
@@ -390,6 +368,13 @@ eapply Clight.eval_Ebinop.
 eapply eval_expr_relate; eauto. 
 eapply eval_expr_relate; eauto.
 rewrite H3. 
+super_unfold_lift.
+destruct MT1 as [? [? [J1 [MT1 _]]]]. 
+destruct MT2 as [? [? [J2 [MT2 _]]]]. 
+destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
+destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
+rewrite H6. rewrite H7. unfold eval_binop. rewrite CMP.
+rewrite <- H6. rewrite <- H7. clear H6 H7.
 apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); eauto; simpl; eauto.
 
 apply age1_resource_decay; auto.
@@ -407,7 +392,7 @@ specialize (H2 _ H3).
 eapply sepcon_derives; try  apply H2; auto.
 clear - Hcl Hge.
 rewrite <- map_ptree_rel. 
-specialize (Hcl rho (Map.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) (make_tenv tx))).
+specialize (Hcl rho (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
@@ -420,7 +405,7 @@ apply exp_right with (eval_id id rho).
 rewrite <- map_ptree_rel.
 assert (env_set
          (mkEnviron (ge_of rho) (ve_of rho)
-            (Map.set id (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) (make_tenv tx))) id (eval_id id rho) = rho).
+            (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))) id (eval_id id rho) = rho).
   unfold env_set; 
   f_equal.
   unfold eval_id; simpl.
@@ -438,10 +423,13 @@ rewrite H4. simpl.
 apply andp_right.
 intros ? _. simpl.
 unfold subst.
+simpl in H4. super_unfold_lift.
 rewrite H4.
 unfold eval_id at 1. unfold force_val; simpl.
-rewrite Map.gss. auto.
-unfold subst; rewrite H4.
+rewrite Map.gss. auto. 
+simpl. simpl in H4. super_unfold_lift.
+unfold subst. 
+rewrite H4.
 auto. 
 Qed.
 
