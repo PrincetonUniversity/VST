@@ -851,6 +851,66 @@ eapply EV; eauto.
 rewrite <-effects_external in EF; eauto.
 Qed.
 
+Lemma reserved_separated: 
+  forall m m' b ofs,
+  mem_forward m m' -> 
+  ~reserved m b ofs ->
+  reserved m' b ofs -> 
+  Mem.nextblock m <= b < Mem.nextblock m'.
+Proof.
+intros until ofs; intros H1 H2 H3.
+destruct (Z_lt_dec b (Mem.nextblock m)); auto.
+(*old block*)
+destruct (H1 b) as [A [B E]]; auto.
+destruct H3 as [p H3].
+erewrite <-E in H3.
+exfalso.
+apply H2.
+exists p; auto.
+(*new block*)
+split.
+omega.
+destruct H3 as [p H3].
+apply Mem.perm_valid_block in H3; auto.
+Qed.
+
+Lemma effects_guarantee_after_ext: 
+  forall c c' m m' rv e sig args,
+  effects_guarantee efsem c m -> 
+  effects_valid efsem c m -> 
+  at_external efsem c = Some (e, sig, args) -> 
+  after_external efsem rv c = Some c' -> 
+  mem_forward m m' -> 
+  effects_guarantee efsem c' m'.
+Proof.
+intros until args; intros GR EFVAL AT AFT FW b ofs VALID EF.
+destruct (reserved_dec m b ofs).
+rewrite <-effects_external; eauto.
+rewrite <-effects_external in EF; eauto.
+exploit reserved_separated; eauto.
+intros [? ?].
+rewrite <-effects_external; eauto.
+rewrite <-effects_external in EF; eauto.
+apply EFVAL in EF.
+exfalso. unfold Mem.valid_block in EF. omega.
+Qed.
+
+Lemma effects_guarantee_preservedN: 
+  forall ge c c' m m' n,
+  effects_guarantee efsem c m -> 
+  corestepN efsem ge n c m c' m' -> 
+  effects_guarantee efsem c' m'.
+Proof.
+intros until n; revert c m.
+induction n.
+simpl.
+intros.
+inv H0; auto.
+intros c m H1; simpl; intros [c2 [m2 [STEP STEPN]]].
+apply (IHn c2 m2); auto.
+eapply effects_guarantee_preserved; eauto.
+Qed.
+
 Lemma guarantee_after_ext: 
   forall (r r': reserve) c c' m m' rv e sig args,
   guarantee r c m -> 

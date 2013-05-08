@@ -567,8 +567,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    (forall u c1, 
      PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
      effects_guarantee (csemS u) c1 m1 /\
-     (exists z: Z, 
-       compile_safe (csemS u) z c1 m1) /\
      exists c2, PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 /\ 
        effects_guarantee (csemT u) c2 m2 /\
        match_state u (cd u (ACTIVE E_S s1)) j c1 m1 c2 m2) /\
@@ -579,7 +577,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
      exists c2, PROJ_CORE E_T i u s2 = Some c2 /\ 
      exists cd0 j0 m10 m20,
        effects_guarantee (csemS u) c1 m10 /\
-       (exists z: Z, compile_safe (csemS u) z c1 m10) /\
        effects_guarantee (csemT u) c2 m20 /\
        match_state u cd0 j0 c1 m10 c2 m20).
 
@@ -649,7 +646,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
-     effects_guarantee esemT s2' m2' /\
      match_states cd' j' s1' m1' s2' m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
@@ -742,7 +738,7 @@ destruct H as
  [? [? [? [EV1 [EV2 [WD1 [WD2 [? [? [JJ [RR [? [? [MATCH1 MATCH2]]]]]]]]]]]]]].
 destruct (active_proj_core E_S c1) as [_u_ [c2' H7]].
 specialize (MATCH1 _ _ H7).
-destruct MATCH1 as [GR [c3 [PROJ [? [GR2 MATCH]]]]].
+destruct MATCH1 as [GR [c3 [PROJ [GR2 MATCH]]]].
 solve[eapply match_validblocks in MATCH; eauto].
 Qed.
 Next Obligation. 
@@ -753,8 +749,8 @@ Qed.
 Next Obligation. 
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
-destruct MATCH as [VAL1 [DISJ1 [VAL2 [DISJ2 [RVAL1 [RVAL2 
- [EV1 [EV2 [WD1 [WD2 [GR1 [GR2 [JJ [RR [ACT [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]]]].
+destruct MATCH as [VAL1 [DISJ1 [VAL2 [DISJ2 
+ [EV1 [EV2 [WD1 [WD2 [GR1 [GR2 [RR [ACT [JJ [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]].
 rename H into STEP.
 destruct (active_proj_core E_S st1) as [_u1_ [c1 PROJ1]].
 destruct (active_proj_core E_T st2) as [_u2_ [c2 PROJ2]].
@@ -774,13 +770,13 @@ intros RUN1.
 assert (RUN2: runnable (csemT _u2_) c2=true).
  specialize (MATCH_CORES1 _ c1).
  spec MATCH_CORES1; auto.
- destruct MATCH_CORES1 as [GRc1 [SAFE [c2' [PROJ2' [GRc2 MTCH]]]]].
+ destruct MATCH_CORES1 as [GRc1 [c2' [PROJ2' [GRc2 MTCH]]]].
  assert (_u1_ = _u2_).
   solve[eapply Extension.proj_core_types; eauto].
  subst.
  inv esig_compilable.
  rewrite match_state_runnable 
-  with (cd := cd _u2_ (ACTIVE E_S st1)) (r := r) (j := j) 
+  with (cd := cd _u2_ (ACTIVE E_S st1)) (j := j) 
        (m1 := m1) (c2 := c2) (m2 := m2) in RUN1.
  solve[auto].
  rewrite PROJ2' in PROJ2.
@@ -809,19 +805,12 @@ assert (ACT1': ACTIVE E_S st1 = ACTIVE E_S st1').
  solve[destruct corestep_pres; auto].
 generalize (core_diagram (core_simulations _u1_)) as DIAG; intro.
 clear c2 PROJ2 RUN2.
-destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [SAFE [c2 [PROJ2 [GRc2 MATCH12]]]]].
+destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [c2 [PROJ2 [GRc2 MATCH12]]]].
 unfold core_datas in cd.
-assert (G_INNER: guarantee (csemS _u1_) r c1' m1').
- destruct SAFE as [z SAFE].
- assert (AT_EXT: at_external (csemS _u1_) c1 = None).
-  solve[eapply corestep_not_at_external; eauto].
- assert (HALT: safely_halted (csemS _u1_) c1 = None).
-  solve[eapply corestep_not_halted; eauto].
- inv SAFE; try solve[congruence].
- solve[destruct (H0 c1' m1' GRc1 STEP1); auto].
-specialize (DIAG c1 m1 c1' m1' STEP1 (cd _ _) r c2 j m2 G_INNER MATCH12).
-destruct DIAG as [c2' [m2' [cd' [r' [j' [INJ_INCR [INJ_SEP [RINCR [RSEP 
- [UNCH2 [MATCH12' STEP2]]]]]]]]]]].
+assert (G_INNER: effects_guarantee (csemS _u1_) c1' m1').
+ solve[eapply effects_guarantee_preserved; eauto].
+specialize (DIAG c1 m1 c1' m1' STEP1 (cd _ _) c2 j m2 MATCH12).
+destruct DIAG as [c2' [m2' [cd' [j' [INJ_INCR [INJ_SEP [MATCH12' STEP2]]]]]]].
 destruct STEP2 as [STEP2|STEP2].
 
 (*corestep_plus case*)
@@ -835,28 +824,11 @@ spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'.
 exists (core_datas_upd _u1_ (ACTIVE E_S st1) cd' cd).
-exists r'.
 exists j'.
 split3; auto.
 split; auto.
-split; auto.
-split; auto.
-forget (ACTIVE E_S st1) as x.
-forget (ACTIVE E_T st2') as y.
-subst.
-eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
-intros b ofs ? ? delta b2 ?.
-specialize (RSEP b ofs).
-spec RSEP; auto.
-spec RSEP; auto.
-destruct RSEP as [_ H2].
-solve[eapply H2; eauto].
-intros b ofs ? ? ?.
-solve[exploit (INJ_SEP b ofs); eauto; intros [X Y]; apply Y; auto].
-split; auto.
  (*Subgoal: match_states*)
- hnf.
- split.
+ hnf. split.
 
  (*owned_valid*)
  eapply owned_valid_inv with (n := S O); eauto.
@@ -882,16 +854,6 @@ split; auto.
  forget (ACTIVE E_T st2') as k2.
  subst.
  solve[eapply owned_disjoint_inv; eauto].
-
- (*reserve_valid*)
- split.
- destruct (core_simulations _u1_).
- eapply reserved_locs_valid0 in MATCH12'.
- solve[destruct MATCH12'; auto].
- split.
- destruct (core_simulations _u1_).
- eapply reserved_locs_valid0 in MATCH12'.
- solve[destruct MATCH12'; auto].
 
  (*effects_valid*)
  split.
@@ -919,30 +881,11 @@ split; auto.
  eapply match_memwd in MATCH12'; eauto.
  solve[destruct MATCH12'; auto].
  
- (*guarantee*)
+ (*effects_guarantee*)
  split.
- eapply guarantee_incr_alloc1; eauto.
- eapply reserved_locs_valid in MATCH12'; eauto.
- destruct MATCH12'; auto.
- solve[intros b1 ofs1 X Y; destruct (RSEP b1 ofs1); auto].
+ admit.
  split.
- forget (ACTIVE E_S st1) as x.
- subst.
- eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
- intros b ofs ? ? delta b2 ?.
- specialize (RSEP b ofs).
- spec RSEP; auto.
- spec RSEP; auto.
- destruct RSEP as [_ H2].
- solve[eapply H2; eauto].
- intros b ofs ? ? ?.
- solve[exploit (INJ_SEP b ofs); eauto; intros [X Y]; apply Y; auto].
-  
- (*allocs_shrink*)
- split.
- unfold allocs_shrink.
- intros until delta; intros EFA2 JJ'.
- admit. (*allocs_shrink*)
+ admit.
 
  (*R*)
  split.
@@ -952,12 +895,18 @@ split; auto.
  erewrite meminj_preserves_genv2blocks.
  eauto.
  solve[apply genvs_domain_eq_sym; auto].
- solve[eapply guarantee_decr2; eauto].
+ solve[eapply effects_guarantee_preservedN; eauto].
+
+ (*active*)
+ split.
+ solve[rewrite <-ACT1', <-ACT2'; auto].
+
+ (*reserved*)
+ split.
+ intros.
+ solve[eapply match_reserved in MATCH12'; eauto].
 
  split.
-  solve[rewrite <-ACT1', <-ACT2'; auto].
-  split. 
-
   (*ACTIVE E_S st1 = i*)
   intros _u_ _c _PROJ1'.
   forget (ACTIVE E_S st1) as x.
@@ -972,32 +921,14 @@ split; auto.
    rewrite PROJ1' in _PROJ1'.
    solve[inv _PROJ1'; auto].
   split.
-  eapply guarantee_incr_alloc1; eauto.
-  eapply reserved_locs_valid in MATCH12'; eauto.
-  solve[destruct MATCH12'; auto].
-  intros b1 ofs1 ? ?.
-  solve[destruct (RSEP b1 ofs1); auto].
-  assert (GR: guarantee (csemS _u1_) r' c1' m1').
-   eapply guarantee_incr_alloc1; eauto.
-   eapply reserved_locs_valid; eauto.
-   intros b ofs X Y.
-   solve[eapply RSEP; eauto].
-  split.
-
-  destruct SAFE as [z SAFE]. exists z.
-  assert (AT_EXT: at_external (csemS _u1_) c1 = None).
-   solve[eapply corestep_not_at_external; eauto].
-  assert (HALT: safely_halted (csemS _u1_) c1 = None).
-   solve[eapply corestep_not_halted; eauto].
-  inv SAFE; try solve[congruence].
-  destruct (H1 c1' m1' GRc1 STEP1).
-  solve[apply (H2 _ GR)].
+  solve[eapply effects_guarantee_preserved; eauto].
   exists c2'.
   split; auto.
   split; auto.
   unfold core_datas_upd.
-  rewrite data_upd_same.
-  rewrite data_upd_same.
+  solve[eapply effects_guarantee_preservedN; eauto].
+  unfold core_datas_upd.
+  do 2 rewrite data_upd_same.
   solve[auto].
 
   (*ACTIVE E_S st1 <> i*)
@@ -1022,7 +953,7 @@ split; auto.
   spec MATCH_CORES2.
   solve[rewrite ACT1'; auto].
   destruct (MATCH_CORES2 _PROJ1) as 
-   [_d [_PROJ2 [cd0 [r0 [j0 [m10 [m20 [GR10 [GR20 _MATCH12]]]]]]]]].
+   [_d [_PROJ2 [cd0 [j0 [m10 [m20 [GR10 [GR20 _MATCH12]]]]]]]].
   assert (_PROJ2': PROJ_CORE E_T i _ st2' = Some _d). 
    inv core_compatT.
    specialize (corestep_others_backward _u1_ st2). 
@@ -1039,7 +970,7 @@ split; auto.
    spec corestep_others_backward; auto.
    solve[rewrite <-corestep_others_backward; auto].
   exists _d; split; auto.
-  solve[exists cd0, r0, j0, m10, m20; split; auto].
+  solve[exists cd0, j0, m10, m20; split; auto].
   solve[left; exists n; auto].
 
 (*corestep_star case*)
@@ -1053,24 +984,9 @@ spec CSTEPN; auto.
 destruct CSTEPN as [st2' [ESEM2 [ACT2' PROJ2']]].
 exists st2'; exists m2'. 
 exists (core_datas_upd _u1_ (ACTIVE E_S st1) cd' cd).
-exists r'.
 exists j'.
 split3; auto.
 split; auto.
-split; auto.
-split; auto.
-forget (ACTIVE E_S st1) as x.
-subst.
-eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
-intros b ofs ? ? delta b2 ?.
-specialize (RSEP b ofs).
-spec RSEP; auto.
-spec RSEP; auto.
-destruct RSEP as [_ H2].
-solve[eapply H2; eauto].
-intros b ofs ? ? ?.
-solve[exploit (INJ_SEP b ofs); eauto; intros [X Y]; apply Y; auto].
-split.
  (*Subgoal: match_states*)
  hnf.
  split.
@@ -1100,16 +1016,6 @@ split.
  subst.
  solve[eapply owned_disjoint_inv; eauto].
 
- (*reserve_valid*)
- split.
- destruct (core_simulations _u1_).
- eapply reserved_locs_valid0 in MATCH12'.
- solve[destruct MATCH12'; auto].
- split.
- destruct (core_simulations _u1_).
- eapply reserved_locs_valid0 in MATCH12'.
- solve[destruct MATCH12'; auto].
-
  (*effects_valid*)
  split.
  solve[eapply effects_valid_preserved; eauto].
@@ -1132,30 +1038,10 @@ split.
  eapply match_memwd in MATCH12'; eauto.
  solve[destruct MATCH12'; auto].
 
- (*guarantee*)
  split.
- eapply guarantee_incr_alloc1; eauto.
- eapply reserved_locs_valid in MATCH12'; eauto.
- destruct MATCH12'; auto.
- solve[intros b1 ofs1 X Y; destruct (RSEP b1 ofs1); auto].
+ admit.
  split.
- forget (ACTIVE E_S st1) as x.
- subst.
- eapply (guarantee_stepN core_compatT owned_conservT new_effects_alignedT); eauto.
- intros b ofs ? ? delta b2 ?.
- specialize (RSEP b ofs).
- spec RSEP; auto.
- spec RSEP; auto.
- destruct RSEP as [_ H2].
- solve[eapply H2; eauto].
- intros b ofs ? ? ?.
- solve[exploit (INJ_SEP b ofs); eauto; intros [X Y]; apply Y; auto].
- 
- (*allocs_shrink*)
- split.
- unfold allocs_shrink.
- intros until delta; intros EFA2 JJ'.
- admit. (*allocs_shrink*)
+ admit.
 
  (*R*)
  split.
@@ -1165,13 +1051,19 @@ split.
  erewrite meminj_preserves_genv2blocks.
  eauto.
  solve[apply genvs_domain_eq_sym; auto].
- solve[eapply guarantee_decr2; eauto].
+ solve[eapply effects_guarantee_preservedN; eauto].
+
+ (*active*)
+ split.
+ solve[rewrite <-ACT1', <-ACT2'; auto].
+ 
+ (*reserved*)
+ split. 
+ intros.
+ solve[eapply match_reserved; eauto].
 
  split.
-  solve[rewrite <-ACT1', <-ACT2'; auto].
-  split. 
-
-  (*ACTIVE E_S st1 = i*)
+ (*ACTIVE E_S st1 = i*)
   intros _u_ _c _PROJ1'.
   forget (ACTIVE E_S st1) as x.
   forget (ACTIVE E_T st2) as y.
@@ -1185,30 +1077,11 @@ split.
    rewrite PROJ1' in _PROJ1'.
    solve[inv _PROJ1'; auto].
   split.
-  eapply guarantee_incr_alloc1; eauto.
-  eapply reserved_locs_valid in MATCH12'; eauto.
-  solve[destruct MATCH12'; auto].
-  intros b1 ofs1 ? ?.
-  solve[destruct (RSEP b1 ofs1); auto].
-  split.
-
-  (*compile_safe*)
-  destruct SAFE as [z SAFE]. exists z.
-  assert (AT_EXT: at_external (csemS _u1_) c1 = None).
-   solve[eapply corestep_not_at_external; eauto].
-  assert (HALT: safely_halted (csemS _u1_) c1 = None).
-   solve[eapply corestep_not_halted; eauto].
-  inv SAFE; try solve[congruence].
-  destruct (H1 c1' m1' GRc1 STEP1).
-  assert (GR: guarantee (csemS _u1_) r' c1' m1').
-   eapply guarantee_incr_alloc1; eauto.
-   solve[eapply reserved_locs_valid; eauto].
-   solve[intros b ofs ? ?; eapply RSEP; eauto].
-  solve[apply (H2 _ GR)].
-
+  solve[eapply effects_guarantee_preserved; eauto].
   exists c2'.
   split; auto.
   split; auto.
+  solve[eapply effects_guarantee_preservedN; eauto].
   unfold core_datas_upd. 
   rewrite data_upd_same.
   rewrite data_upd_same.
@@ -1236,7 +1109,7 @@ split.
   spec MATCH_CORES2.
   solve[rewrite ACT1'; auto].
   destruct (MATCH_CORES2 _PROJ1) as 
-   [_d [_PROJ2 [cd0 [r0 [j0 [m10 [m20 [GR10 [GR20 _MATCH12]]]]]]]]].
+   [_d [_PROJ2 [cd0 [j0 [m10 [m20 [GR10 [GR20 _MATCH12]]]]]]]].
   assert (_PROJ2': PROJ_CORE E_T i _ st2' = Some _d). 
    inv core_compatT.
    specialize (corestep_others_backward _u1_ st2). 
@@ -1253,7 +1126,7 @@ split.
    spec corestep_others_backward; auto.
    solve[rewrite <-corestep_others_backward; auto].
   exists _d; split; auto.
-  solve[exists cd0, r0, j0, m10, m20; split; auto].
+  solve[exists cd0, j0, m10, m20; split; auto].
   right. split. exists n. auto.
   apply core_datas_upd_ord; auto.
   admit. (*all modules indexes < num_modules*)
@@ -1268,29 +1141,27 @@ destruct RUN1 as [[rv1 HALT]|[ef [sig [args AT_EXT]]]].
 (*active thread is safely halted*)
 specialize (MATCH_CORES1 _ c1 _PROJ1).
 clear c2 PROJ2.
-destruct MATCH_CORES1 as [GRc1 [SAFE [c2 [PROJ2 [GRc2 MATCH12]]]]].
+destruct MATCH_CORES1 as [GRc1 [c2 [PROJ2 [GRc2 MATCH12]]]].
 destruct (exists_ty rv1) as [ty1 HAS_TY].
 destruct (core_halted (core_simulations _u1_) 
-  (cd _u1_ (ACTIVE E_S st1)) r j c1 m1 c2 m2 rv1 ty1 MATCH12 HALT) 
+  (cd _u1_ (ACTIVE E_S st1)) j c1 m1 c2 m2 rv1 ty1 MATCH12 HALT) 
  as [rv2 [VAL_INJ [SAFE_T INJ]]]; auto.
 inv esig_compilable.
 eapply safely_halted_diagram with (m1' := m1') in MATCH'; eauto.
 destruct MATCH' as [rv2' [H7 [VAL_INJ' 
- [st2' [m2' [cd' [r' [j' [INJ_INCR [SEP [STEP2' 
- [RM_INCR [RM_SEP [MATCH12' UNCH2]]]]]]]]]]]]]].
-exists st2'; exists m2'; exists cd'; exists r'; exists j'.
+ [st2' [m2' [cd' [j' [INJ_INCR [SEP [STEP2' [MATCH12' UNCH2]]]]]]]]]]].
+exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
-split3; auto.
-split; auto.
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
+admit. (*...*)
 
 (*active thread is at_external*)
 clear c2 PROJ2.
-destruct (MATCH_CORES1 _ c1 _PROJ1) as [GRc1 [SAFE [c2 [GRc2 [PROJ2 MATCH12]]]]].
+destruct (MATCH_CORES1 _ c1 _PROJ1) as [GRc1 [c2 [GRc2 [PROJ2 MATCH12]]]].
 destruct (core_at_external (core_simulations _u1_) (cd _u1_ (ACTIVE E_S st1)) 
-            r j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
+            j c1 m1 c2 m2 ef args sig MATCH12 AT_EXT)
  as [H6 [H7 [vals2 [H8 [H9 [H10 H11]]]]]].
-destruct SAFE as [z SAFE].
+(*destruct SAFE as [z SAFE].
 assert (safely_halted (csemS _u1_) c1 = None).
  exploit @at_external_halted_excl; eauto.
  intros [X|X]; eauto.
@@ -1298,7 +1169,8 @@ assert (safely_halted (csemS _u1_) c1 = None).
 inv SAFE; try solve[congruence].
 apply corestep_not_at_external in H0; congruence.
 rewrite H0 in AT_EXT; inv AT_EXT.
-solve[intros v1 IN; destruct (H1 _ IN); auto].
+solve[intros v1 IN; destruct (H1 _ IN); auto].*)
+admit. (*val_valid*)
 
 inv esig_compilable. 
 edestruct extension_diagram as [s2' H12]; eauto.
@@ -1306,6 +1178,7 @@ solve[erewrite <-match_state_runnable; eauto].
 rewrite <-meminj_preserves_genv2blocks.
 rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS _u1_)); auto.
 solve[rewrite meminj_preserves_genv2blocks; auto].
+admit. 
 Qed.
 
 (*we punt in the make_initial_core case of the simulation proof; to do more requires 
@@ -1317,8 +1190,8 @@ Next Obligation.
 rename H into MATCH.
 hnf in MATCH.
 destruct MATCH 
- as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RMV1 [RMV2 [EV1 [EV2 
-    [WD1 [WD2 [GR1 [GR2 [SHRINK [RR [ACT [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]]]].
+ as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [EV1 [EV2 
+    [WD1 [WD2 [GR1 [GR2 [RR [ACT [JJ [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]].
 destruct (active_proj_core E_S) with (s := st1) as [_u1_ [c1 PROJ1]].
 assert (AT_EXT1: at_external (csemS _u1_) c1 = Some (e, sig, vals1)).
  inv core_compatS.
@@ -1328,9 +1201,9 @@ assert (AT_EXT1: at_external (csemS _u1_) c1 = Some (e, sig, vals1)).
  subst.  
  rewrite PROJ in PROJ1; inv PROJ1.
  solve[inv PROJ; auto].
-destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [SAFE [c2 [PROJ2 [GRc2 MATCH12]]]]].
+destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [c2 [PROJ2 [GRc2 MATCH12]]]].
 destruct (core_at_external (core_simulations _u1_) 
-            (cd _u1_ (ACTIVE E_S st1)) r j c1 m1 c2 m2 e vals1 sig MATCH12 AT_EXT1)
+            (cd _u1_ (ACTIVE E_S st1)) j c1 m1 c2 m2 e vals1 sig MATCH12 AT_EXT1)
  as [INJ [GLOBS [vals2 [VALINJ [TYPE [AT_EXT2 VALVAL]]]]]].
 solve[apply H1].
 split3; auto.
@@ -1352,9 +1225,9 @@ rename H into MATCH.
 generalize MATCH as MATCH'; intro.
 hnf in MATCH.
 destruct MATCH 
- as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RMV1 [RMV2 
-    [EV1 [EV2 [WD1 [WD2 [GR1 [GR2 [SHRINK [RR 
-    [ACT [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]]]].
+ as [PRIV1 [DISJ1 [PRIV2 [DISJ2 
+    [EV1 [EV2 [WD1 [WD2 [GR1 [GR2 [RR
+    [ACT [JJ [MATCH_CORES1 MATCH_CORES2]]]]]]]]]]]]]].
 generalize MATCH_CORES2 as MATCH_CORES'; intro.
 destruct (active_proj_core E_S) with (s := st1) as [_u1_ [c1 PROJ1]].
 assert (AT_EXT1: at_external (csemS _) c1 = Some (e, sig, vals1)).
@@ -1365,28 +1238,25 @@ assert (AT_EXT1: at_external (csemS _) c1 = Some (e, sig, vals1)).
  subst.
  rewrite PROJ in PROJ1; inv PROJ1.
  solve[inv PROJ; auto].
-destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [SAFE [c2 [PROJ2 [GRc2 MATCH12]]]]].
+destruct (MATCH_CORES1 _ c1 PROJ1) as [GRc1 [c2 [PROJ2 [GRc2 MATCH12]]]].
 destruct (core_after_external (core_simulations _u1_) 
-                (cd _u1_ (ACTIVE E_S st1)) r r' j j' c1 c2 m1 e 
+                (cd _u1_ (ACTIVE E_S st1)) j j' c1 c2 m1 e 
                 vals1 ret1 m1' m2 m2' ret2 sig)
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH12']]]]]; auto.
 rewrite <-meminj_preserves_genv2blocks.
 rewrite <-genvs_domain_eq_preserves with (ge1 := ge_S); auto.
 rewrite meminj_preserves_genv2blocks; auto.
 
-unfold rely in H13|-*.
+unfold rely in H11|-*.
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  r b ofs /\ effects esemS st1 AllocEffect b ofs); auto.
+  reserved m1 b ofs /\ effects esemS st1 AllocEffect b ofs); auto.
 intros b ofs [? ?].
 split; auto.
 solve[eapply owned_conservS; eauto].
-unfold rely', rely in H14|-*.
+unfold rely in H12|-*.
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
-  inject_reserve j r b ofs /\ effects esemT st2 AllocEffect b ofs); auto.
-unfold inject_reserve.
-intros b ofs [[? [? [? ?]]] EF].
-split.
-exists x, x0.
+  reserved m2 b ofs /\ effects esemT st2 AllocEffect b ofs); auto.
+intros b ofs [? ?].
 split; auto.
 solve[eapply owned_conservT; eauto].
 
@@ -1459,16 +1329,6 @@ split.
 destruct AT_EXT2 as [vals2 [FV1 [FV2 [AT_EXT2 VALVAL]]]].
 solve[eapply owned_disjoint_after_ext; eauto].
 
-(*reserve_valid_after_ext*)
-split.
-destruct (core_simulations _u1_).
-eapply reserved_locs_valid0 in MATCH12'.
-solve[destruct MATCH12'; auto].
-split.
-destruct (core_simulations _u1_).
-eapply reserved_locs_valid0 in MATCH12'.
-solve[destruct MATCH12'; auto].
-
 (*effects_valid_after_ext*)
 split.
 solve[eapply effects_valid_after_ext; eauto].
@@ -1483,7 +1343,7 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
      PROJ_CORE E_T (ACTIVE E_S st1) _u1_ st2 = Some c3 /\
      at_external (csemS _u1_) c0 = Some (e, sig, vals1) /\
      at_external (csemT _u1_) c3 = Some (e, sig, vals2) /\
-     match_state _u1_ (cd _u1_ (ACTIVE E_S st1)) r j c0 m1 c3 m2).
+     match_state _u1_ (cd _u1_ (ACTIVE E_S st1)) j c0 m1 c3 m2).
   forget (ACTIVE E_S st1) as x.
   forget (ACTIVE E_S st1') as x'.
   forget (ACTIVE E_T st2) as y.
@@ -1494,7 +1354,7 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  destruct X as [c0 [c3 [X1 [X2 [X3 [X4 X5]]]]]].
  inv esig_compilable.
  specialize (at_external_match _ st1 m1 st2 c0 c3 m2 e sig vals1 vals2
-   (cd _u1_ (ACTIVE E_S st1)) r j).
+   (cd _u1_ (ACTIVE E_S st1)) j).
  spec at_external_match; auto.
  spec at_external_match; auto.
  spec at_external_match; auto.
@@ -1513,8 +1373,7 @@ split; auto.
 
 (*guarantee_after_ext*)
 split. 
-eapply guarantee_after_ext; eauto.
-solve[intros b ofs ? ?; eapply H6; eauto].
+solve[eapply effects_guarantee_after_ext; eauto].
 split.
 assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  as [vals2 X].
@@ -1526,7 +1385,7 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
      PROJ_CORE E_T (ACTIVE E_S st1) _u1_ st2 = Some c3 /\
      at_external (csemS _u1_) c0 = Some (e, sig, vals1) /\
      at_external (csemT _u1_) c3 = Some (e, sig, vals2) /\
-     match_state _u1_ (cd _u1_ (ACTIVE E_S st1)) r j c0 m1 c3 m2).
+     match_state _u1_ (cd _u1_ (ACTIVE E_S st1)) j c0 m1 c3 m2).
   forget (ACTIVE E_S st1) as x.
   forget (ACTIVE E_S st1') as x'.
   forget (ACTIVE E_T st2) as y.
@@ -1537,7 +1396,7 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  destruct X as [c0 [c3 [X1 [X2 [X3 [X4 X5]]]]]].
  inv esig_compilable.
  specialize (at_external_match _ st1 m1 st2 c0 c3 m2 e sig vals1 vals2
-   (cd _u1_ (ACTIVE E_S st1)) r j).
+   (cd _u1_ (ACTIVE E_S st1)) j).
  spec at_external_match; auto.
  spec at_external_match; auto.
  spec at_external_match; auto.
@@ -1548,23 +1407,17 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  spec at_external_match; auto.
  spec at_external_match; auto.
  solve[eapply match_inject; eauto].
-eapply guarantee'_after_ext; eauto.
-solve[intros b ofs ? ?; eapply H6; eauto].
-solve[intros b ofs ? ?; eapply H4; eauto].
+solve[eapply effects_guarantee_after_ext; eauto].
 
-(*allocs_shrink_after_ext*)
-split.
-unfold allocs_shrink.
-admit. (*allocs_shrink*)
-
+(*R*)
 split.
 inv esig_compilable.
 eapply after_external_rel; eauto.
 eapply rely_same_effects; eauto.
 solve[intros; eapply effects_external; eauto].
-unfold rely', rely in H14|-*.
+unfold rely in H12|-*.
 apply mem_unchanged_on_sub with (Q := 
-  (fun b ofs => inject_reserve j r b ofs /\ 
+  (fun b ofs => reserved m2 b ofs /\ 
     effects esemT st2 AllocEffect b ofs)); auto.
 intros b ofs [? ?]; split; auto.
 assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
@@ -1576,7 +1429,7 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
  forget (ACTIVE E_T st2') as y'.
  do 4 subst.
  specialize (at_external_match 
-    _ st1 m1 st2 c1 c2 m2 e sig vals1 vals2 (cd _u1_ (ACTIVE E_S st1)) r j).
+    _ st1 m1 st2 c1 c2 m2 e sig vals1 vals2 (cd _u1_ (ACTIVE E_S st1)) j).
  spec at_external_match; auto.
  spec at_external_match; auto.
  spec at_external_match; auto.
@@ -1590,6 +1443,12 @@ assert (exists vals2, at_external esemT st2 = Some (e, sig, vals2))
 solve[intros; eapply effects_external; eauto].
 
 split; auto.
+
+(*reserved*)
+split.
+intros.
+solve[eapply match_reserved; eauto].
+
 split.
 (*ACTIVE E_S st1 = i*)
 forget (ACTIVE E_S st1) as x.
@@ -1604,10 +1463,10 @@ subst.
 rewrite _PROJ1' in PROJ1'.
 inv PROJ1'; auto.
 split.
-eapply guarantee_after_ext; eauto.
+eapply effects_guarantee_after_ext; eauto.
 eapply effects_valid in MATCH12; eauto.
 solve[destruct MATCH12; auto].
-intros b ofs; intros.
+(*intros b ofs; intros.
 rename H6 into RSEP.
 specialize (RSEP b ofs).
 spec RSEP; auto.
@@ -1629,17 +1488,15 @@ exists z.
 eapply H20; eauto.
 intros b ofs ? ? ?.
 solve[apply (H6 b ofs); auto].
-admit. (*val_not_reserved; will have to be added to after_external*)
-admit. (*val_valid; will have to be added to after_external*)
+(*val_not_reserved; will have to be added to after_external*)
+(*val_valid; will have to be added to after_external*)*)
 exists c2'.
 split; auto.
 split; auto.
 destruct AT_EXT2 as [vals2' [AT1 [AT2 [AT3 AT4]]]].
-eapply guarantee'_after_ext; eauto.
+eapply effects_guarantee_after_ext; eauto.
 eapply effects_valid in MATCH12; eauto.
 solve[destruct MATCH12; auto].
-solve[intros b ofs ? ?; destruct (H6 b ofs); auto].
-solve[intros b ofs delta ? ?; destruct (H4 b ofs delta); auto].
 solve[unfold core_datas_upd; do 2 rewrite data_upd_same; auto].
 
 (*ACTIVE E_S st1 <> i*)
@@ -1714,7 +1571,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
  Variable match_state: forall i: nat, 
-   core_data i -> reserve -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
+   core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
@@ -1722,12 +1579,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
 
  Definition core_datas := forall i: nat, core_data i. 
 
- Variable R: reserve -> meminj -> xS -> mem -> xT -> mem -> Prop.
- Variable R_antimono: 
-   forall (r0 r: reserve) j s1 m1 s2 m2,
-   reserve_incr r0 r -> 
-   R r j s1 m1 s2 m2 -> 
-   R r0 j s1 m1 s2 m2.
+ Variable R: meminj -> xS -> mem -> xT -> mem -> Prop.
 
  Import Forward_simulation_inj_exposed.
 
@@ -1742,7 +1594,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
   with (core_datas := ExtendedSimulations.core_datas core_data)
        (match_states := 
   ExtendedSimulations.match_states fS fT vS vT esemS esemT csemS csemT 
-                                   genv_mapS E_S E_T match_state R)
+                                   E_S E_T match_state R)
        (core_ords := 
   ExtendedSimulations.core_ords core_ord num_modules max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto.
@@ -1787,7 +1639,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.
  Variable match_state: 
-   core_data -> reserve -> meminj -> cS -> mem -> cT -> mem -> Prop.
+   core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
  Variable core_ord: core_data -> core_data -> Prop.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
@@ -1796,12 +1648,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Definition core_datas := nat -> core_data.
 
- Variable R: reserve -> meminj -> cS -> mem -> cT -> mem -> Prop.
- Variable R_antimono: 
-   forall (r0 r: reserve) j s1 m1 s2 m2,
-   reserve_incr r0 r -> 
-   R r j s1 m1 s2 m2 -> 
-   R r0 j s1 m1 s2 m2.
+ Variable R: meminj -> cS -> mem -> cT -> mem -> Prop.
 
  Import Forward_simulation_inj_exposed.
 
@@ -1818,7 +1665,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
        (match_states := 
   ExtendedSimulations.match_states (const fS) (const fT) (const vS) (const vT) 
               esemS esemT (const csemS) (const csemT) 
-              (const geS) E_S E_T (const match_state) R)
+              E_S E_T (const match_state) R)
        (core_ords := 
   ExtendedSimulations.core_ords (const core_ord) num_modules max_cores).
  eapply ExtendedSimulations.extended_simulation; eauto. 

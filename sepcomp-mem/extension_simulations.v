@@ -9,7 +9,6 @@ Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.extension.
-Require Import sepcomp.compile_safe.
 Require Import sepcomp.Coqlib2.
 
 Require Import Axioms.
@@ -166,8 +165,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    (forall u c1, 
      PROJ_CORE E_S (ACTIVE E_S s1) u s1 = Some c1 -> 
      effects_guarantee (csemS u) c1 m1 /\
-     (exists z: Z, 
-       compile_safe (csemS u) z c1 m1) /\
      exists c2, PROJ_CORE E_T (ACTIVE E_S s1) u s2 = Some c2 /\ 
        effects_guarantee (csemT u) c2 m2 /\
        match_state u (cd u (ACTIVE E_S s1)) j c1 m1 c2 m2) /\
@@ -178,7 +175,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      exists c2, PROJ_CORE E_T i u s2 = Some c2 /\ 
      exists cd0 j0 m10 m20,
        effects_guarantee (csemS u) c1 m10 /\
-       (exists z: Z, compile_safe (csemS u) z c1 m10) /\
        effects_guarantee (csemT u) c2 m20 /\
        match_state u cd0 j0 c1 m10 c2 m20).
 
@@ -235,7 +231,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
-     effects_guarantee esemT s2' m2' /\
      match_states cd' j' s1' m1' s2' m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))

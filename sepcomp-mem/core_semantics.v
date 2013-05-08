@@ -200,8 +200,7 @@ Inductive effect_kind: Type := AllocEffect | ModifyEffect.
 
 Local Notation "a # b" := (ZMap.get b a) (at level 1).
 
-Definition reserved (m: mem) b ofs := 
-  exists p, (m.(Mem.mem_access) # b ofs) Res = Some p.
+Definition reserved (m: mem) b ofs := exists p, Mem.perm m b ofs Res p.
 
 Lemma reserved_dec: 
   forall m b ofs, 
@@ -209,9 +208,14 @@ Lemma reserved_dec:
 Proof.
 intros.
 unfold reserved.
-destruct ((Mem.mem_access m) # b ofs Res).
-left; exists p; auto.
-right. intros [p CONTRA]. congruence.
+destruct (Mem.perm_dec m b ofs Res Nonempty).
+left.
+exists Nonempty; auto.
+right.
+intros [p CONTRA].
+apply n.
+eapply Mem.perm_implies; eauto.
+eauto with mem.
 Qed.
 
 Record EffectfulSemantics {G C D} := { 
