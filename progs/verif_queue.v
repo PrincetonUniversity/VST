@@ -289,90 +289,7 @@ go_lower.
   destruct Q; inv H; inv TC; simpl; auto.
 Qed.
 
-Lemma typed_true_nullptr:
- forall v t t' m,
-   typed_true tint (force_val (sem_cmp Ceq v (tptr t) (Vint Int.zero) (tptr t') m)) ->
-   v=nullval.
-Proof.
- intros.
- destruct v; inv H.
- pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
- reflexivity.
-Qed.
-
-Lemma typed_true_nullptr':
-  forall t t' v,
-    typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
-Proof.
- intros. unfold eval_binop, typed_true in H.
- destruct v; inv H; auto.
- pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
- reflexivity.
-Qed.
-
-Lemma typed_true_Oeq_nullval:
- forall v vnull,
-  vnull= nullval ->
-   `(typed_true tint) (`(eval_binop Oeq (tptr t_struct_elem) (tptr tvoid)) v `vnull) =
-    `(eq nullval) v.
-Proof.
-intros. subst.
- unfold_lift; extensionality rho.
- apply prop_ext.
- destruct (v rho); intuition; inv H.
- pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
- reflexivity.
- simpl. reflexivity.
-Qed.
-Hint Rewrite typed_true_Oeq_nullval using reflexivity : norm.
-
-Lemma typed_false_One_nullval:
- forall v vnull,
-  vnull= nullval ->
-   `(typed_false tint) (`(eval_binop One (tptr t_struct_elem) (tptr tvoid)) v `vnull) =
-    `(eq nullval) v.
-Proof.
-intros. subst.
- unfold_lift; extensionality rho.
- apply prop_ext.
- destruct (v rho); intuition; inv H.
- pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
- reflexivity.
- simpl. reflexivity.
-Qed.
-Hint Rewrite typed_false_One_nullval using reflexivity : norm.
-
-
-Lemma typed_true_One_nullval:
- forall v vnull,
-  vnull= nullval ->
-   local (`(typed_true tint) (`(eval_binop One (tptr t_struct_elem) (tptr tvoid)) v `vnull)) |--
-   local (`(ptr_neq nullval) v).
-Proof.
-intros. subst.
- intro rho; unfold local, lift1; unfold_lift.
- apply prop_derives; intro.
- unfold ptr_neq, ptr_eq; simpl; intro.
- destruct (v rho); try contradiction.
- pose proof (Int.eq_spec Int.zero i). rewrite H0 in H1.
- subst. inv H.
-Qed.
-
-Lemma typed_false_Oeq_nullval:
- forall v vnull,
-  vnull= nullval ->
-   local (`(typed_false tint) (`(eval_binop Oeq (tptr t_struct_elem) (tptr tvoid)) v `vnull)) |--
-   local (`(ptr_neq nullval) v).
-Proof.
-intros. subst.
- unfold_lift; intro rho.  unfold local, lift1; apply prop_derives; intro.
- intro. apply ptr_eq_e in H0. rewrite <- H0 in H.
- inv H.
-Qed.
+Require Import floyd.compare_lemmas.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
@@ -401,13 +318,9 @@ subst. apply andp_right; auto.
 apply prop_right; repeat split; auto.
 right. hnf. apply Int.eq_true.
 (* then clause *)
-simpl. normalize.
+simplify_typed_comparison.
 forward. (*  Q->head=p; *)
 forward. (* Q->tail=p; *)
-match goal with |- PROPx _ (LOCALx ?Q _) |-- _ =>
- replace Q with (tc_environ Delta :: Q) 
-   by admit  (* temporary hack until forward gets the semax_post right *)
-end.
 go_lower.
 subst. subst hd.
 destruct (@isnil val contents).
@@ -426,7 +339,6 @@ rewrite prop_true_andp by (split;  auto; apply Int.eq_true).
 cancel.
 (* CASE TWO: contents <> nil *)
 normalize.
-(* apply typed_true_nullptr in H. rewrite H. *)
 destruct prefix.
 rewrite links_nil_eq.
 normalize.
@@ -439,12 +351,13 @@ normalize.
 rewrite links_cons_eq.
 normalize.
 (* else clause *)
+simplify_typed_comparison.
 forward. (*  t = Q->tail; *)
-simpl classify_cast. cbv iota.
+(* simpl classify_cast. cbv iota. *)
 destruct (isnil contents).
 (* CASE THREE: contents = nil *)
 apply semax_pre with FF; [ | apply semax_ff].
-go_lower. normalize. subst. simpl in H1. inv H1.
+go_lower. normalize. subst. destruct H1. reflexivity.
 focus_SEP 2.
 change (`(EX  prefix : list val,
       !!(contents = prefix ++ tl :: nil) &&
@@ -466,15 +379,15 @@ forward. (* Q->tail=p; *)
 go_lower. subst. clear n.
 normalize.
 unfold fifo.
-apply exp_right with ((eval_id _h rho), eval_cast_neutral (eval_id _p rho)).
-destruct (isnil ((prefix ++ eval_id _t rho :: nil) ++ eval_id _p rho :: nil)).
+apply exp_right with (hd, p').
+destruct (isnil ((prefix ++ tl :: nil) ++ p' :: nil)).
 destruct prefix; inv e.
 clear n.
 normalize.
-apply exp_right with (prefix ++ eval_id _t rho :: nil).
-rewrite (field_mapsto_isptr _ _ _ (eval_id _p rho)).
+apply exp_right with (prefix ++ tl :: nil).
+rewrite (field_mapsto_isptr _ _ _ p').
 normalize.
-remember (link (eval_id _p rho) nullval) as A.
+remember (link p' nullval) as A. (* prevent it from canceling! *)
 cancel. subst.
 eapply derives_trans; [ | apply links_cons_right ].
 cancel.

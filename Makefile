@@ -82,6 +82,7 @@ VERIC_FILES= \
 FLOYD_FILES= \
    base.v proofauto.v malloc_lemmas.v \
    client_lemmas.v canonicalize.v assert_lemmas.v field_mapsto.v \
+   compare_lemmas.v \
    call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v 
 
 PROGS_FILES= \

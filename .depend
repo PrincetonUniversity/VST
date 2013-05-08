@@ -98,19 +98,20 @@ veric/SeparationLogicSoundness.vo veric/SeparationLogicSoundness.glob veric/Sepa
 veric/NullExtension.vo veric/NullExtension.glob veric/NullExtension.v.beautified: veric/NullExtension.v sepcomp/extspec.vo sepcomp/step_lemmas.vo veric/base.vo veric/Clight_new.vo veric/Clight_lemmas.vo veric/juicy_extspec.vo veric/juicy_mem.vo
 veric/SequentialClight.vo veric/SequentialClight.glob veric/SequentialClight.v.beautified: veric/SequentialClight.v sepcomp/core_semantics.vo veric/base.vo veric/Clight_new.vo veric/Clight_lemmas.vo sepcomp/step_lemmas.vo veric/SeparationLogic.vo veric/juicy_extspec.vo veric/juicy_mem.vo veric/NullExtension.vo veric/Clight_sim.vo veric/SeparationLogicSoundness.vo sepcomp/extspec.vo msl/msl_standard.vo
 floyd/base.vo floyd/base.glob floyd/base.v.beautified: floyd/base.v compcert/exportclight/Clightdefs.vo veric/SeparationLogic.vo msl/Extensionality.vo compcert/lib/Coqlib.vo sepcomp/Coqlib2.vo veric/juicy_extspec.vo veric/SeparationLogicSoundness.vo veric/NullExtension.vo
-floyd/proofauto.vo floyd/proofauto.glob floyd/proofauto.v.beautified: floyd/proofauto.v floyd/base.vo floyd/field_mapsto.vo floyd/client_lemmas.vo floyd/assert_lemmas.vo floyd/forward.vo floyd/malloc_lemmas.vo
+floyd/proofauto.vo floyd/proofauto.glob floyd/proofauto.v.beautified: floyd/proofauto.v floyd/base.vo floyd/field_mapsto.vo floyd/client_lemmas.vo floyd/assert_lemmas.vo floyd/compare_lemmas.vo floyd/forward.vo floyd/malloc_lemmas.vo
 floyd/malloc_lemmas.vo floyd/malloc_lemmas.glob floyd/malloc_lemmas.v.beautified: floyd/malloc_lemmas.v floyd/base.vo floyd/field_mapsto.vo floyd/assert_lemmas.vo floyd/client_lemmas.vo
 floyd/client_lemmas.vo floyd/client_lemmas.glob floyd/client_lemmas.v.beautified: floyd/client_lemmas.v floyd/base.vo floyd/assert_lemmas.vo
 floyd/canonicalize.vo floyd/canonicalize.glob floyd/canonicalize.v.beautified: floyd/canonicalize.v floyd/base.vo floyd/client_lemmas.vo
 floyd/assert_lemmas.vo floyd/assert_lemmas.glob floyd/assert_lemmas.v.beautified: floyd/assert_lemmas.v floyd/base.vo
 floyd/field_mapsto.vo floyd/field_mapsto.glob floyd/field_mapsto.v.beautified: floyd/field_mapsto.v floyd/base.vo floyd/assert_lemmas.vo
+floyd/compare_lemmas.vo floyd/compare_lemmas.glob floyd/compare_lemmas.v.beautified: floyd/compare_lemmas.v floyd/base.vo floyd/client_lemmas.vo floyd/assert_lemmas.vo
 floyd/call_lemmas.vo floyd/call_lemmas.glob floyd/call_lemmas.v.beautified: floyd/call_lemmas.v floyd/base.vo floyd/client_lemmas.vo floyd/field_mapsto.vo floyd/assert_lemmas.vo
 floyd/loadstore_lemmas.vo floyd/loadstore_lemmas.glob floyd/loadstore_lemmas.v.beautified: floyd/loadstore_lemmas.v floyd/base.vo floyd/client_lemmas.vo floyd/field_mapsto.vo floyd/assert_lemmas.vo
 floyd/forward_lemmas.vo floyd/forward_lemmas.glob floyd/forward_lemmas.v.beautified: floyd/forward_lemmas.v floyd/base.vo floyd/client_lemmas.vo floyd/field_mapsto.vo floyd/assert_lemmas.vo
 floyd/forward.vo floyd/forward.glob floyd/forward.v.beautified: floyd/forward.v floyd/base.vo floyd/client_lemmas.vo floyd/field_mapsto.vo floyd/assert_lemmas.vo floyd/canonicalize.vo floyd/forward_lemmas.vo floyd/call_lemmas.vo floyd/loadstore_lemmas.vo
 progs/list_dt.vo progs/list_dt.glob progs/list_dt.v.beautified: progs/list_dt.v floyd/proofauto.vo
 progs/verif_reverse.vo progs/verif_reverse.glob progs/verif_reverse.v.beautified: progs/verif_reverse.v floyd/proofauto.vo progs/list_dt.vo progs/reverse.vo
-progs/verif_queue.vo progs/verif_queue.glob progs/verif_queue.v.beautified: progs/verif_queue.v floyd/proofauto.vo progs/list_dt.vo progs/queue.vo
+progs/verif_queue.vo progs/verif_queue.glob progs/verif_queue.v.beautified: progs/verif_queue.v floyd/proofauto.vo progs/list_dt.vo progs/queue.vo floyd/compare_lemmas.vo
 progs/verif_sumarray.vo progs/verif_sumarray.glob progs/verif_sumarray.v.beautified: progs/verif_sumarray.v floyd/proofauto.vo progs/sumarray.vo
 progs/verif_message.vo progs/verif_message.glob progs/verif_message.v.beautified: progs/verif_message.v floyd/proofauto.vo progs/message.vo
 progs/reverse.vo progs/reverse.glob progs/reverse.v.beautified: progs/reverse.v compcert/exportclight/Clightdefs.vo

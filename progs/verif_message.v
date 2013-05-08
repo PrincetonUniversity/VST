@@ -649,7 +649,6 @@ replace (`(typed_mapsto_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
 flatten_sepcon_in_SEP. (* only need this with HACK? *)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
-apply derives_refl.
 simpl update_tycon. (* should forward do this? *)
 normalize.
 unfold app.

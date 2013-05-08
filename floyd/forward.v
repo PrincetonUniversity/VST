@@ -752,7 +752,7 @@ Ltac quick_load_equality :=
 
 Ltac load_aux0 n' e1' v1' sh' v2' := 
 hoist_later_in_pre;
-eapply semax_post'; [ |
+eapply semax_post3; [ |
  eapply semax_load'' with (n:=n')(sh:=sh')(v1:= v1')(v2:=v2');
   [ reflexivity | reflexivity | reflexivity | reflexivity
       | try solve [go_lower; apply prop_right; auto ] 
@@ -760,7 +760,7 @@ eapply semax_post'; [ |
  unfold replace_nth.
 
 Ltac load_field_aux1 n' e1' v1' sh' v2' := 
-  eapply semax_post'; [ | 
+  eapply semax_post3; [ | 
       eapply semax_load_field_deref''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
        [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
       | try solve [go_lower; apply prop_right; auto ] 
@@ -769,7 +769,7 @@ Ltac load_field_aux1 n' e1' v1' sh' v2' :=
 ].
 
 Ltac load_field_aux2 n' e1' v1' sh' v2' := 
-  eapply semax_post'; [ | 
+  eapply semax_post3; [ | 
       eapply semax_load_field''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
        [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
       | try solve [go_lower; apply prop_right; auto ]
@@ -849,7 +849,7 @@ Ltac semax_store_aux Q R eval_e F :=
 
 Ltac store_field_aux1  e2' n' e1' v1' sh' :=
  (*   pose (bbb := (e2, n',e1',v1',sh')) ; *)
-  eapply semax_post'; [ | 
+  eapply semax_post3; [ | 
       eapply semax_store_field_deref'' with (n:=n')(sh:=sh')(v1:=v1') (e2:=e2');
        [auto | reflexivity | reflexivity | reflexivity 
       | try solve [repeat split; hnf; simpl; intros; congruence]
@@ -863,7 +863,7 @@ Ltac store_field_aux1  e2' n' e1' v1' sh' :=
 
 Ltac store_field_aux2  e2' n' e1' v1' sh' :=
    pose (bbb := (e2', n',e1',v1',sh'));
-  eapply semax_post'; [ | 
+  eapply semax_post3; [ | 
       eapply semax_store_field'' with (n:=n')(sh:=sh')(v1:=v1');
        [auto | reflexivity | reflexivity | reflexivity 
       | try solve [repeat split; hnf; simpl; intros; congruence]
@@ -940,6 +940,19 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
                | unfold exit_tycon, update_tycon, Post; clear Post ]
   end.
 
+Lemma normal_ret_assert_derives'': 
+  forall P Q R, P |-- R ->  normal_ret_assert (local Q && P) |-- normal_ret_assert R.
+Proof. 
+  intros. intros ek vl rho. apply normal_ret_assert_derives. 
+ simpl. apply andp_left2. apply H.
+Qed.
+
+Lemma drop_tc_environ:
+ forall Delta R, local (tc_environ Delta) && R |-- R.
+Proof.
+intros. apply andp_left2; auto.
+Qed.
+
 Ltac forward_with F1 :=
 match goal with
  (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE1, above)  *)
@@ -998,8 +1011,8 @@ match goal with
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [ F1; unfold Post; 
-                 try simple apply normal_ret_assert_derives';
-                 try apply derives_refl
+                 try (simple apply normal_ret_assert_derives'' || simple apply normal_ret_assert_derives');
+                 try (apply drop_tc_environ || apply derives_refl)
                | try unfold exit_tycon; 
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
@@ -1008,6 +1021,7 @@ match goal with
                     redefine_Delta
                ]
   | |- @semax _ _ _ ?c1 _ => F1;
+                  try (apply drop_tc_environ || rewrite insert_local);
                   try unfold exit_tycon; 
                   simpl update_tycon;
                   try (apply exp_left; intro_old_var c1)
