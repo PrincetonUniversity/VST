@@ -882,10 +882,8 @@ split; auto.
  solve[destruct MATCH12'; auto].
  
  (*effects_guarantee*)
- split.
- admit.
- split.
- admit.
+ split. solve[eapply effects_guarantee_preserved; eauto].
+ split. solve[eapply effects_guarantee_preservedN; eauto].
 
  (*R*)
  split.
@@ -1038,10 +1036,8 @@ split; auto.
  eapply match_memwd in MATCH12'; eauto.
  solve[destruct MATCH12'; auto].
 
- split.
- admit.
- split.
- admit.
+ split. solve[eapply effects_guarantee_preserved; eauto].
+ split. solve[eapply effects_guarantee_preservedN; eauto].
 
  (*R*)
  split.
@@ -1153,7 +1149,7 @@ destruct MATCH' as [rv2' [H7 [VAL_INJ'
 exists st2'; exists m2'; exists cd'; exists j'.
 split3; auto; split; auto.
 solve[left; exists 0%nat; eexists; eexists; split; simpl; eauto].
-admit. (*...*)
+solve[eapply effects_guarantee_preserved; eauto].
 
 (*active thread is at_external*)
 clear c2 PROJ2.
@@ -1178,7 +1174,7 @@ solve[erewrite <-match_state_runnable; eauto].
 rewrite <-meminj_preserves_genv2blocks.
 rewrite genvs_domain_eq_preserves with (ge2 := (genv_mapS _u1_)); auto.
 solve[rewrite meminj_preserves_genv2blocks; auto].
-admit. 
+solve[eapply effects_guarantee_preserved; eauto].
 Qed.
 
 (*we punt in the make_initial_core case of the simulation proof; to do more requires 
