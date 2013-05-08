@@ -47,6 +47,133 @@ Proof.
 intros. assert (X := Int.eq_spec x y). if_tac in X; auto. congruence.
 Qed.
 
+Definition check_pp_int' e1 e2 op t :=
+match op with 
+| Cop.Oeq | Cop.One => tc_andp 
+                         (tc_orp (tc_iszero' e1) (tc_iszero' e2))
+                         (tc_bool (is_int_type t) (pp_compare_size_0 t))
+| _ => tc_noproof
+end.
+
+
+Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
+Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
+ 
+Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e. 
+Proof. intros; unfold tc_andp; reflexivity. Qed.
+
+Lemma denote_tc_assert_orp: forall x y rho, 
+  denote_tc_assert (tc_orp x y) rho = (denote_tc_assert x rho \/ denote_tc_assert y rho).
+Proof.
+ intros.
+ unfold tc_orp.
+ unfold denote_tc_assert;
+ destruct x,y; simpl; auto;
+ try solve [unfold_lift; simpl; apply prop_ext; intuition].
+Qed. 
+
+Lemma denote_tc_assert_andp: forall x y rho, 
+  denote_tc_assert (tc_andp x y) rho = (denote_tc_assert x rho /\ denote_tc_assert y rho).
+Proof.
+ intros.
+ unfold tc_andp.
+ unfold denote_tc_assert;
+ destruct x,y; simpl; auto;
+ unfold_lift; simpl; apply prop_ext; intuition.
+Qed. 
+
+Lemma is_true_true: is_true true = True.
+Proof. apply prop_ext; intuition. Qed.
+Lemma is_true_false: is_true false = False.
+Proof. apply prop_ext; intuition. Qed.
+
+Lemma and_False: forall x, (x /\ False) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma den_isBinOpR: forall op a1 a2 ty,
+  denote_tc_assert (isBinOpResultType op a1 a2 ty) = 
+let e := (Ebinop op a1 a2 ty) in
+let reterr := op_result_type e in
+let deferr := arg_type e in 
+ denote_tc_assert
+ match op with
+  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
+                    | Cop.add_default => tc_FF deferr 
+                    | Cop.add_case_ii _ => tc_bool (is_int_type ty) reterr
+                    | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr ) 
+                    | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr )
+                    | _ => tc_bool (is_float_type ty) deferr 
+            end
+  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
+                    | Cop.sub_default => tc_FF deferr 
+                    | Cop.sub_case_ii _ => tc_bool (is_int_type ty) reterr 
+                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr )
+                    | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
+                             tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
+                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr ))
+			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)) (pp_compare_size_0 ty2))
+                    | _ => tc_bool (is_float_type ty)deferr 
+            end 
+  | Cop.Omul => match Cop.classify_mul (typeof a1) (typeof a2) with 
+                    | Cop.mul_default => tc_FF deferr 
+                    | Cop.mul_case_ii _ => tc_bool (is_int_type ty) reterr 
+                    | _ => tc_bool (is_float_type ty) deferr 
+            end 
+  | Cop.Omod => match Cop.classify_binint (typeof a1) (typeof a2) with
+                    | Cop.binint_case_ii Unsigned => 
+                           tc_andp (tc_nonzero a2) 
+                           (tc_bool (is_int_type ty) reterr )
+                    | Cop.binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                                                      (tc_nodivover a1 a2))
+                                                     (tc_bool (is_int_type ty) reterr )
+                    | Cop.binint_default => tc_FF deferr 
+            end
+  | Cop.Odiv => match Cop.classify_div (typeof a1) (typeof a2) with
+                    | Cop.div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty) reterr )
+                    | Cop.div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) (tc_bool (is_int_type ty) reterr )
+                    | Cop.div_case_ff | Cop.div_case_if _ | Cop.div_case_fi _ =>
+                          tc_bool (is_float_type ty) reterr 
+                    | Cop.div_default => tc_FF deferr 
+            end
+  | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty) reterr )
+                    | _ => tc_FF deferr 
+                   end
+  | Cop.Oand | Cop.Oor | Cop.Oxor => 
+                   match Cop.classify_binint (typeof a1) (typeof a2) with
+                    | Cop.binint_case_ii _ =>tc_bool (is_int_type ty) reterr 
+                    | _ => tc_FF deferr 
+                   end   
+  | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
+                   match Cop.classify_cmp (typeof a1) (typeof a2) with
+                    | Cop.cmp_default => tc_FF deferr 
+		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty
+                    | _ => tc_bool (is_int_type ty) reterr 
+                   end
+  end.
+Proof.
+ intros.
+ unfold isBinOpResultType, classify_cmp;  destruct op; auto;
+ unfold check_pp_int';
+ extensionality rho;
+ destruct (typeof a1), (typeof a2); simpl; auto;
+ try (destruct i; auto; destruct s; auto;
+       try (destruct i0; auto; destruct s0; auto));
+ unfold_lift; unfold tc_iszero;  
+   destruct (is_int_type ty); simpl; unfold_lift; auto;
+  try rewrite tc_andp_TT2;
+ repeat rewrite denote_tc_assert_andp;
+ repeat rewrite denote_tc_assert_orp;
+ repeat rewrite and_False;
+ simpl; unfold_lift; simpl; f_equal; auto;
+ unfold denote_tc_iszero;
+ clear;
+ repeat (match goal with a: expr |- _ => destruct a; simpl; auto end);
+ try solve [unfold_lift; simpl; destruct (Int.eq i Int.zero); simpl;  symmetry; try apply is_true_true; try apply is_true_false].
+Qed.
+
 (*
 Lemma check_pp_int_sound : forall e1 e2 t op rho, 
 denote_tc_assert' (check_pp_int e1 e2 op t) rho ->
@@ -71,7 +198,6 @@ split;  eauto).
 Qed.
 *)
 
-
 Lemma typecheck_cmp_sound:
 forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
    (CMP:  match op with Oeq | One | Olt | Ogt | Ole | Oge => True | _ => False end),
@@ -84,7 +210,7 @@ forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof.
-intros.
+intros. rewrite den_isBinOpR in H0.
 destruct op; try (contradiction CMP);
 abstract(
 simpl in H0;

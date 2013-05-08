@@ -341,6 +341,38 @@ destruct v; inv H2.
 destruct f; inv H1; simpl; destruct t; try inv H0; auto.
 Qed.
 
+Lemma denote_tc_assert_iszero: forall e rho,
+  denote_tc_assert (tc_iszero e) rho = 
+  match (eval_expr e rho) with Vint i => is_true (Int.eq i Int.zero) | _ => False end.
+Proof.
+ unfold tc_iszero. destruct e; simpl; intros; auto.
+ unfold_lift; simpl; destruct (Int.eq i Int.zero); simpl;  symmetry; try apply is_true_true; try apply is_true_false.
+Qed.
+
+Lemma isCastR: forall tfrom tto ty a, 
+  denote_tc_assert (isCastResultType tfrom tto ty a) =
+ denote_tc_assert
+match Cop.classify_cast tfrom tto with
+| Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
+| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
+| Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
+| Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
+                            (if orb  (andb (is_pointer_type ty) (is_pointer_type tfrom)) (andb (is_int_type ty) (is_int_type tfrom)) then tc_TT
+                                else tc_iszero' a)
+| Cop.cast_case_void => tc_noproof
+| _ => match tto with 
+      | Tint _ _ _  => tc_bool (is_int_type ty) (invalid_cast_result tto ty) 
+      | Tfloat _ _  => tc_bool (is_float_type ty) (invalid_cast_result tto ty) 
+      | _ => tc_FF (invalid_cast tfrom tto)
+      end
+end.
+Proof. intros; extensionality rho.
+ unfold isCastResultType.
+ destruct (classify_cast tfrom tto); auto.
+ destruct (eqb_type tfrom ty); auto.
+ if_tac; auto. apply denote_tc_assert_iszero.
+Qed.
+
 Lemma typecheck_cast_sound: 
  forall Delta rho e t,
  typecheck_environ Delta rho ->
@@ -359,7 +391,7 @@ rewrite denote_tc_assert_andp in H0.
 destruct H0.
 specialize (H1 H0).
 unfold eval_cast, sem_cast.
-unfold isCastResultType in H2.
+rewrite isCastR in H2.
 revert H2; case_eq (classify_cast (typeof e) t); intros;
 try solve [destruct t; try contradiction;
     destruct (eval_expr e rho), (typeof e); inv H2; inv  H1; simpl; auto; destruct i; inv H5].
@@ -553,9 +585,14 @@ destruct b; simpl in *; auto;
  unfold sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
    try destruct i; try destruct s; auto; try contradiction;
    rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
-   ((intuition; unfold denote_tc_iszero in *);
-   [destruct (eval_expr e1 rho) | destruct (eval_expr e2 rho)]); inv H; auto.   
-Qed. 
+   ((intuition; unfold denote_tc_iszero in *));
+ rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
+  destruct H0.
+ destruct (eval_expr e1 rho); (contradiction || rewrite H); auto.
+ destruct (eval_expr e2 rho); (contradiction || rewrite H); auto.
+ destruct (eval_expr e1 rho); (contradiction || rewrite H); auto.
+ destruct (eval_expr e2 rho); (contradiction || rewrite H); auto.
+Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
 
@@ -615,15 +652,13 @@ intros.
 assert (TC1 := typecheck_expr_sound _ _ _ H H1).
 assert (TC2 := typecheck_expr_sound _ _ _ H H3).
 copy H2.
-
-
+rewrite den_isBinOpR in H7; simpl in H7.
 eapply typecheck_binop_sound2 in H2; eauto.
 remember (eval_expr e1 rho); remember (eval_expr e2 rho);
 destruct v; destruct v0; 
 try solve [apply typecheck_force_Some in H2; destruct H2;
 try congruence].
 
-unfold isBinOpResultType in *;
 remember (typeof e1). remember (typeof e2).
 destruct t1; try solve [inv TC1];
 destruct t0; try solve [inv TC2];
@@ -635,7 +670,6 @@ rewrite tc_andp_sound in *; simpl in H7;
 super_unfold_lift;
 rewrite <- Heqv in *; rewrite <- Heqv0 in *;
 intuition.
-
 Qed. 
   
 Opaque tc_andp.
@@ -653,7 +687,7 @@ Proof.
 intros.
 unfold not. intro.
 rewrite <- H1 in *. rewrite <- H2 in *.
-unfold isBinOpResultType in *.
+rewrite den_isBinOpR in *.
 destruct b; inv H3;
 remember (typeof e1); remember (typeof e2);
 destruct t1; try solve[inv H0];
@@ -1556,6 +1590,7 @@ clear - H7 H6 H8.
 rewrite eval_cast_sem_cast. 
 revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
 simpl.
+rewrite isCastR in H6.
 case_eq (eval_expr e2 rho); intros; rename H0 into H99;
  destruct t2; inv H8; inv H; simpl; auto;
 hnf in H6; try contradiction; rewrite H99 in *;
@@ -1773,6 +1808,7 @@ typecheck_environ Delta rho ->
 typecheck_val (eval_expr e rho) t = true. 
 Proof.
 intros.
+rewrite isCastR in H0.
 apply typecheck_expr_sound in H1; auto. 
 destruct (typeof e); destruct t; simpl in H; simpl in H0;
 try congruence; remember (eval_expr e rho); destruct v;

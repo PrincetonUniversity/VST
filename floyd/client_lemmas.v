@@ -1146,6 +1146,22 @@ Proof. intros.  extensionality rho.
   unfold lift1.  f_equal; normalize.
 Qed.
 
+Lemma lift_lift_retval:
+  forall (i: ident) P,
+   @liftx (Tarrow environ (LiftEnviron mpred))
+     (@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
+Proof.
+ reflexivity.
+Qed.
+Hint Rewrite lift_lift_retval: norm.
+
+Lemma lift_lift_val:
+  forall P v,
+  (@liftx (Tarrow val (LiftEnviron val)) P (@liftx (LiftEnviron val) v)) =
+  (@liftx (LiftEnviron val) (P v)).
+Proof. reflexivity. Qed.
+Hint Rewrite lift_lift_val : norm.
+
 (* Lemma lift1_lift1_retvalC : forall i (P: val -> environ -> mpred),
 `(@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
 Proof. intros.  extensionality rho.

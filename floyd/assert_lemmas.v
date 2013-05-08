@@ -2,6 +2,7 @@ Require Import floyd.base.
 Local Open Scope logic.
 
 (* no "semax" in this file, just assertions. *)
+Global Transparent Int.repr.
 
 Lemma liftTrue: forall rho, `True rho.
 Proof. intro. unfold_lift; apply I. Qed.

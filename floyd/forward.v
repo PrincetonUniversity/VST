@@ -673,6 +673,24 @@ tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
 
+Lemma semax_post3: 
+  forall R' Espec Delta P c R,
+    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    @semax Espec Delta P c (normal_ret_assert R') ->
+    @semax Espec Delta P c (normal_ret_assert R) .
+Proof.
+ intros. eapply semax_post; [ | apply H0].
+ intros. unfold local,lift1, normal_ret_assert.
+ intro rho; normalize. eapply derives_trans; [ | apply H].
+ simpl; apply andp_right; auto. apply prop_right; auto.
+Qed.
+
+Ltac ensure_normal_ret_assert :=
+ match goal with 
+ | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- semax _ _ _ _ => apply sequential
+ end.
+
 Definition whatever {A: Type} (x: A) := True.
 Opaque whatever.
 Lemma whatever_i {A: Type}: forall x: A, whatever x.
@@ -768,7 +786,8 @@ Ltac semax_load_aux F0 Q R eval_e F :=
     unfold replace_nth.
 
 Ltac semax_load_tac :=
-hoist_later_in_pre;
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
 match goal with 
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield (Ederef ?e1 ?t1) ?fld ?t2)) _ =>
@@ -851,6 +870,7 @@ Ltac store_field_aux2  e2' n' e1' v1' sh' :=
       ] ] .
 
 Ltac store_field_tac :=
+  ensure_normal_ret_assert;
  hoist_later_in_pre;
   match goal with
   | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 

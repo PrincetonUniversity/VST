@@ -548,8 +548,8 @@ Proof.
  intros.
  unfold umapsto.
  destruct (access_mode t); auto.
- destruct v; simpl; auto.
- rewrite Int.add_zero; auto.
+ destruct v; auto.
+ unfold offset_val. rewrite Int.add_zero; auto.
 Qed. 
 
 Lemma mafoz_aux:

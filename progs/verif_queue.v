@@ -185,10 +185,9 @@ normalize.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
 go_lower.
-subst h q. 
-clear Post Delta.
+subst h q.  
 apply andp_right.
-apply prop_right; split; simpl; auto.
+apply prop_right; simpl; auto. 
 normalize.
 apply exp_right with (hd,tl).
 destruct (isnil contents).
@@ -256,17 +255,6 @@ apply prop_right; unfold lift; simpl.
 split; auto.
 Qed.
 
-Transparent Int.repr.
-
-Lemma lift_lift_retval:
-  forall (i: ident) P,
-   @liftx (Tarrow environ (LiftEnviron mpred))
-     (@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
-Proof.
- reflexivity.
-Qed.
-Hint Rewrite lift_lift_retval: norm.
-
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
@@ -287,9 +275,7 @@ apply semax_pre
 go_lower. destruct q; inv H0; inv TC0; normalize.
 rewrite memory_block_fifo. normalize.
 forward. (* Q->head = NULL; *)
-go_lower. apply prop_right. hnf. apply Int.eq_true.
 forward.  (*  Q->tail = NULL;  *)
-go_lower. apply prop_right. hnf. apply Int.eq_true.
 forward. (* return Q; *)
 go_lower.
   apply andp_right. apply prop_right; auto.
@@ -315,12 +301,78 @@ Proof.
  reflexivity.
 Qed.
 
-Lemma lift_lift_val:
-  forall P v,
-  (@liftx (Tarrow val (LiftEnviron val)) P (@liftx (LiftEnviron val) v)) =
-  (@liftx (LiftEnviron val) (P v)).
-Proof. reflexivity. Qed.
-Hint Rewrite lift_lift_val : norm.
+Lemma typed_true_nullptr':
+  forall t t' v,
+    typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
+Proof.
+ intros. unfold eval_binop, typed_true in H.
+ destruct v; inv H; auto.
+ pose proof (Int.eq_spec i Int.zero).
+ destruct (Int.eq i Int.zero); inv H1. 
+ reflexivity.
+Qed.
+
+Lemma typed_true_Oeq_nullval:
+ forall v vnull,
+  vnull= nullval ->
+   `(typed_true tint) (`(eval_binop Oeq (tptr t_struct_elem) (tptr tvoid)) v `vnull) =
+    `(eq nullval) v.
+Proof.
+intros. subst.
+ unfold_lift; extensionality rho.
+ apply prop_ext.
+ destruct (v rho); intuition; inv H.
+ pose proof (Int.eq_spec i Int.zero).
+ destruct (Int.eq i Int.zero); inv H1. 
+ reflexivity.
+ simpl. reflexivity.
+Qed.
+Hint Rewrite typed_true_Oeq_nullval using reflexivity : norm.
+
+Lemma typed_false_One_nullval:
+ forall v vnull,
+  vnull= nullval ->
+   `(typed_false tint) (`(eval_binop One (tptr t_struct_elem) (tptr tvoid)) v `vnull) =
+    `(eq nullval) v.
+Proof.
+intros. subst.
+ unfold_lift; extensionality rho.
+ apply prop_ext.
+ destruct (v rho); intuition; inv H.
+ pose proof (Int.eq_spec i Int.zero).
+ destruct (Int.eq i Int.zero); inv H1. 
+ reflexivity.
+ simpl. reflexivity.
+Qed.
+Hint Rewrite typed_false_One_nullval using reflexivity : norm.
+
+
+Lemma typed_true_One_nullval:
+ forall v vnull,
+  vnull= nullval ->
+   local (`(typed_true tint) (`(eval_binop One (tptr t_struct_elem) (tptr tvoid)) v `vnull)) |--
+   local (`(ptr_neq nullval) v).
+Proof.
+intros. subst.
+ intro rho; unfold local, lift1; unfold_lift.
+ apply prop_derives; intro.
+ unfold ptr_neq, ptr_eq; simpl; intro.
+ destruct (v rho); try contradiction.
+ pose proof (Int.eq_spec Int.zero i). rewrite H0 in H1.
+ subst. inv H.
+Qed.
+
+Lemma typed_false_Oeq_nullval:
+ forall v vnull,
+  vnull= nullval ->
+   local (`(typed_false tint) (`(eval_binop Oeq (tptr t_struct_elem) (tptr tvoid)) v `vnull)) |--
+   local (`(ptr_neq nullval) v).
+Proof.
+intros. subst.
+ unfold_lift; intro rho.  unfold local, lift1; apply prop_derives; intro.
+ intro. apply ptr_eq_e in H0. rewrite <- H0 in H.
+ inv H.
+Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
@@ -336,7 +388,6 @@ replace_SEP 3 (`link_ (eval_id _p)).
 go_lower; subst; auto.
 unfold link_.
 forward. (* p->next = NULL; *)
-go_lower; apply prop_right; apply Int.eq_true.
 simpl typeof. simpl eval_expr. normalize.
 change (eval_cast (tptr tvoid) (tptr t_struct_elem)
          (eval_cast tint (tptr tvoid) (Vint (Int.repr 0))))
@@ -350,35 +401,36 @@ subst. apply andp_right; auto.
 apply prop_right; repeat split; auto.
 right. hnf. apply Int.eq_true.
 (* then clause *)
-simpl.
+simpl. normalize.
 forward. (*  Q->head=p; *)
-apply sequential.
 forward. (* Q->tail=p; *)
+match goal with |- PROPx _ (LOCALx ?Q _) |-- _ =>
+ replace Q with (tc_environ Delta :: Q) 
+   by admit  (* temporary hack until forward gets the semax_post right *)
+end.
 go_lower.
-subst.
+subst. subst hd.
 destruct (@isnil val contents).
 (* CASE ONE:  isnil contents *)
 subst. normalize.
-simpl in H0.
-unfold fifo. apply exp_right with (eval_cast_neutral (eval_id _p rho), eval_cast_neutral (eval_id _p rho)).
+unfold fifo. apply exp_right with (p',p').
 simpl.
-destruct (isnil (eval_id _p rho ::nil)); [ congruence | ].
+destruct (isnil (p' ::nil)); [ congruence | ].
 normalize.
 apply exp_right with nil.
 rewrite links_nil_eq.
 rewrite (field_mapsto_isptr _ _next).
  normalize.
-destruct (eval_id _p rho); inv H1. unfold link.
-rewrite prop_true_andp.
+destruct p'; inv H. unfold link.
+rewrite prop_true_andp by (split;  auto; apply Int.eq_true).
 cancel.
- split; auto. apply Int.eq_true.
 (* CASE TWO: contents <> nil *)
 normalize.
-apply typed_true_nullptr in H. rewrite H.
+(* apply typed_true_nullptr in H. rewrite H. *)
 destruct prefix.
 rewrite links_nil_eq.
 normalize.
-apply ptr_eq_e in H0. subst tl.
+apply ptr_eq_e in H. subst tl.
 unfold link.
 repeat rewrite <- sepcon_assoc.
 rewrite sepcon_comm.

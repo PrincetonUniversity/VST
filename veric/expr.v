@@ -572,7 +572,7 @@ Inductive tc_assert :=
 | tc_andp': tc_assert -> tc_assert -> tc_assert
 | tc_orp' : tc_assert -> tc_assert -> tc_assert
 | tc_nonzero: expr -> tc_assert
-| tc_iszero: expr -> tc_assert
+| tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
 | tc_ilt: expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
@@ -581,6 +581,11 @@ Inductive tc_assert :=
 | tc_nodivover: expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
+Definition tc_iszero (e: expr) : tc_assert :=
+  match e with
+  | Econst_int i _ => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | _ => tc_iszero' e
+  end.
 
 Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
 match a1 with
@@ -1042,7 +1047,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
   | tc_nodivover v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero e => `denote_tc_iszero (eval_expr e)
+  | tc_iszero' e => `denote_tc_iszero (eval_expr e)
  end.
 
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 

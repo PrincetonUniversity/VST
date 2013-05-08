@@ -62,14 +62,8 @@ unfold typecheck_val in H.
 destruct v; simpl in H; try discriminate; unfold Int.cmpu; rewrite Int.eq_true.
 apply prop_ext; intuition.
 apply prop_ext; intuition.
-apply pred_ext; normalize.
-contradiction H0.
-unfold ptr_eq, typecheck_val in H|-*.
-destruct v0; inv H; auto.
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
+apply pred_ext; repeat (apply derives_extract_prop; intro).
+destruct H0. contradiction H1. destruct v; inv H; simpl; rewrite Int.eq_true; auto.
 inv H0.
 Qed.
 
@@ -105,7 +99,10 @@ repeat rewrite sepcon_andp_prop'; apply andp_right.
 rewrite (field_mapsto_typecheck_val list_struct list_link sh v tail list_structid list_fields noattr)
   by apply list_struct_eq.
 rewrite list_link_type.
-normalize. auto.
+rewrite sepcon_andp_prop';
+apply derives_extract_prop; intro;
+ apply prop_right; auto.
+auto.
 apply exp_left; intro r'.
 apply exp_left; intro y.
 repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
@@ -122,31 +119,48 @@ Proof.
 intros.
 rewrite links_unfold at 1.
 apply pred_ext; destruct l.
-normalize.
+apply derives_extract_prop; intro.
+repeat rewrite prop_true_andp by auto.
 apply orp_right1; auto.
 apply orp_right2.
 unfold links_cons.
-normalize.
+apply derives_extract_prop; intros [? ?].
+apply exp_left; intro tail.
+subst x.
+rewrite prop_true_andp by auto.
 apply exp_right with l.
-normalize.
 apply exp_right with tail.
 normalize.
 apply andp_right.
 erewrite (field_mapsto_typecheck_val list_struct list_link sh v tail); try reflexivity.
 rewrite list_link_type.
-normalize.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
+apply prop_right; auto.
 apply list_struct_eq.
 auto.
-apply orp_left; normalize.
-unfold links_cons.
-normalize. inv H0.
 apply orp_left.
-normalize. inv H0.
+rewrite andp_assoc.
+repeat (apply derives_extract_prop; intro).
+rewrite prop_true_andp by auto; auto.
 unfold links_cons.
-normalize.
-intros. symmetry in H0; inv H0.
+apply derives_extract_prop; intro.
+apply exp_left; intro r.
+apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
+inv H0.
+apply orp_left.
+rewrite andp_assoc.
+repeat (apply derives_extract_prop; intro).
+inv H0.
+unfold links_cons.
+apply derives_extract_prop; intro.
+apply exp_left; intro r.
+apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
+symmetry in H0; inv H0.
+rewrite prop_true_andp by auto.
 apply exp_right with y.
-normalize.
+auto.
 Qed.
 
 Lemma links_nonnull (ls: listspec list_struct list_link):
@@ -156,8 +170,11 @@ Lemma links_nonnull (ls: listspec list_struct list_link):
 Proof.
 intros. subst. 
 rewrite links_unroll.
-apply pred_ext; normalize.
-apply orp_left; auto. normalize.
+rewrite andp_assoc.
+apply pred_ext.
+apply orp_left; auto.
+repeat (apply derives_extract_prop; intro).
+subst.
 unfold typed_true, strict_bool_val,ptr_eq in *.
 destruct v; simpl in *; try contradiction.
 rewrite H0 in H. inv H.
@@ -168,10 +185,20 @@ Lemma links_nil_eq (ls: listspec list_struct list_link):
     forall sh p q, links ls sh nil p q = !! (ptr_eq p q) && emp.
 Proof. intros.
  rewrite links_unroll.
+rewrite andp_assoc.
  apply pred_ext.
- apply orp_left. normalize.
- normalize. unfold links_cons. normalize. inv H0.
- apply orp_right1. normalize.
+ apply orp_left.
+repeat (apply derives_extract_prop; intro).
+rewrite prop_true_andp by auto; auto.
+ unfold links_cons.
+apply derives_extract_prop; intro.
+ apply exp_left; intro r.
+ apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
+ inv H0.
+apply derives_extract_prop; intro.
+repeat rewrite prop_true_andp by auto.
+ apply orp_right1. auto.
 Qed.
 
 Lemma links_cons_eq (ls: listspec list_struct list_link):
@@ -191,17 +218,25 @@ Proof.
  apply derives_extract_prop; intro.
  inv H0.
  unfold links_cons.
- normalize. inv H0. intros r0 ?.
- apply exp_right with r0.
- repeat apply andp_right; try apply prop_right; auto.
- normalize.
- normalize.
+ apply derives_extract_prop; intro.
+ apply exp_left; intro r0.
+ apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
+ inv H0.
+ rewrite prop_true_andp by auto.
+ apply exp_right with y.
+ rewrite prop_true_andp by auto.
+ auto.
+ apply derives_extract_prop; intros [? ?]. subst x.
+ apply exp_left; intro y.
+repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
  apply orp_right2.
  unfold links_cons.
- apply andp_right. apply prop_right; auto.
+ rewrite prop_true_andp by auto.
  apply exp_right with r.
  apply exp_right with y.
- normalize.
+ rewrite prop_true_andp by auto.
+ auto.
 Qed.
 
 Lemma eqp_e {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
@@ -264,7 +299,6 @@ intros. rewrite andp_comm. rewrite allp_andp1; auto.
 f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
-
 Lemma links_cons_right_null (ls: listspec list_struct list_link): forall sh l x y, 
              field_mapsto sh list_struct list_link y nullval * 
              links ls sh l x y
@@ -285,18 +319,20 @@ rewrite links_nil_eq.
 apply derives_trans with TT; auto.
 apply subp_i1.
 apply andp_left2.
-normalize.
+rewrite sepcon_andp_prop.
+apply derives_extract_prop; intro.
+rewrite sepcon_emp.
 simpl.
-assert (x=y) by (apply ptr_eq_e; auto). subst y.
+apply ptr_eq_e in H. subst y.
 rewrite field_mapsto_isptr.
-normalize.
+apply derives_extract_prop; intro.
 rewrite links_cons_eq.
 apply andp_right.  apply prop_right; auto.
-split; auto. intro. apply ptr_eq_e in H1. subst. apply H0.
+split; auto. intro. apply ptr_eq_e in H0. subst. apply H.
 apply exp_right with nullval.
-normalize.
+rewrite prop_true_andp by auto.
 rewrite links_nil_eq.
-normalize.
+rewrite prop_true_andp by reflexivity.
 apply derives_trans with (field_mapsto sh list_struct list_link x nullval * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
@@ -343,16 +379,19 @@ destruct l.
 simpl.
 rewrite links_nil_eq.
 apply andp_left2.
-normalize. apply ptr_eq_e in H2. subst z.
+repeat rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro.
+rewrite emp_sepcon.
+apply ptr_eq_e in H2. subst z.
 rewrite links_cons_eq.
 rewrite field_mapsto_isptr.
-normalize.
+apply derives_extract_prop; intro.
+rewrite prop_true_andp.
+2: split; auto; intro Hx; destruct y; inv H2; inv Hx.
 apply exp_right with nullval.
-apply andp_right.
-apply prop_right.
-intro. apply ptr_eq_e in H3. subst. apply H2.
-normalize.
-rewrite links_nil_eq. normalize.
+rewrite prop_true_andp by auto.
+rewrite links_nil_eq.
+rewrite prop_true_andp by reflexivity.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
 rewrite sepcon_emp; auto.
 eapply derives_trans.
@@ -373,7 +412,6 @@ Proof.
 destruct x; simpl; intros; try contradiction.
 split; auto. apply Int.eq_true.
 Qed.
-
 
 Lemma links_cons_right_null' (ls: listspec list_struct list_link): forall sh l x y, 
      links ls sh (l++y::nil) x nullval
@@ -407,14 +445,21 @@ Lemma field_mapsto__conflict:
 Proof.
 intros.
 unfold field_mapsto_.
-destruct v; normalize.
-destruct t; normalize.
+destruct v; try (rewrite FF_sepcon ; apply FF_left).
+destruct t; try (rewrite FF_sepcon ; apply FF_left).
 destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
-  normalize.
+ try (rewrite FF_sepcon ; apply FF_left).
 destruct (access_mode
     (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
-  normalize.
-intros.
+ try (rewrite FF_sepcon ; apply FF_left).
+repeat rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro.
+rewrite exp_sepcon1.
+apply exp_left; intro.
+repeat rewrite sepcon_andp_prop.
+apply derives_extract_prop; intro.
+rewrite exp_sepcon2.
+apply exp_left; intro.
 apply address_mapsto_overlap.
 split; auto.
 pose proof (size_chunk_pos m); omega.
@@ -449,16 +494,20 @@ rewrite links_nil_eq.
 apply derives_trans with TT; auto.
 apply subp_i1.
 apply andp_left2.
-normalize.
+rewrite sepcon_andp_prop.
+rewrite andp_assoc.
+apply derives_extract_prop; intro.
+rewrite sepcon_emp.
 simpl.
-assert (x=y) by (apply ptr_eq_e; auto). subst y.
+apply ptr_eq_e in H; subst y.
 rewrite field_mapsto_isptr.
-normalize.
+rewrite andp_assoc.
+apply derives_extract_prop; intro.
 rewrite links_cons_eq.
 apply andp_right; [ | apply andp_left2; auto].
 apply andp_right.
-normalize.
-apply not_prop_right; intro. apply ptr_eq_e in H1; subst z.
+rewrite prop_and; rewrite prop_true_andp by auto.
+apply not_prop_right; intro. apply ptr_eq_e in H0; subst z.
 apply ewand_conflict.
 eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict]; 
   apply field_mapsto_field_mapsto_.
@@ -478,7 +527,7 @@ rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 rewrite prop_true_andp.
 apply now_later.
-clear - H1. destruct z; inv H1; simpl; auto; rewrite Int.eq_true; auto.
+clear - H0. destruct z; inv H0; simpl; auto; rewrite Int.eq_true; auto.
 apply subp_i1.
 simpl app.
 rewrite links_cons_eq.
@@ -498,6 +547,9 @@ apply derives_extract_prop; intro.
 subst v.
 apply andp_right. apply prop_right; auto.
 rewrite field_mapsto_isptr.
+repeat rewrite sepcon_andp_prop'.
+repeat rewrite andp_assoc.
+apply derives_extract_prop; intro.
 normalize.
 apply andp_right.
 rewrite <- andp_assoc.
@@ -621,15 +673,10 @@ rewrite Int.eq_true. auto.
 split; auto. 
 unfold Int.cmpu.
 rewrite Int.eq_true. auto.
-normalize.
-apply pred_ext; normalize.
+apply pred_ext;
+apply derives_extract_prop; intro.
 contradiction H0.
-unfold ptr_eq, typecheck_val in H|-*.
-destruct v; inv H; auto.
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
+destruct v; inv H; try split; auto; apply Int.eq_true.
 inv H0.
 Qed.
 
@@ -668,7 +715,11 @@ repeat rewrite sepcon_andp_prop'; apply andp_right.
 rewrite (field_mapsto_typecheck_val list_struct list_link sh x tail list_structid list_fields noattr)
   by apply list_struct_eq.
 rewrite list_link_type.
-normalize. auto.
+rewrite sepcon_andp_prop.
+rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro.
+apply prop_right; auto.
+auto.
 apply exp_left; intro h.
 apply exp_left; intro r'.
 apply exp_left; intro y.
@@ -686,33 +737,55 @@ Proof.
 intros.
 rewrite lseg_unfold at 1.
 apply pred_ext; destruct l.
-normalize.
+apply derives_extract_prop; intros. 
+rewrite prop_true_andp by auto.
+rewrite prop_true_andp by auto.
 apply orp_right1; auto.
 apply orp_right2.
 unfold lseg_cons.
-normalize.
+apply derives_extract_prop; intros. 
+apply exp_left; intro tail.
+rewrite prop_true_andp by auto.
 apply exp_right with e.
-normalize.
 apply exp_right with l.
-normalize.
 apply exp_right with tail.
-normalize.
+repeat rewrite sepcon_andp_prop'.
 apply andp_right.
 erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
 rewrite list_link_type.
-normalize.
+rewrite sepcon_andp_prop.
+rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro. 
+apply prop_right; split; auto.
 apply list_struct_eq.
 auto.
-apply orp_left; normalize.
-unfold lseg_cons.
-normalize. inv H0.
 apply orp_left.
-normalize. inv H0.
+rewrite andp_assoc;
+do 2 (apply derives_extract_prop; intro).
+ rewrite prop_true_andp by auto. auto.
 unfold lseg_cons.
-normalize.
-intros. symmetry in H0; inv H0.
+apply derives_extract_prop; intros.
+apply exp_left; intro h.
+apply exp_left; intro r.
+apply exp_left; intro y.
+do 2 rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intros [? ?].
+inv H0. 
+apply orp_left.
+rewrite andp_assoc;
+do 2 (apply derives_extract_prop; intro).
+inv H0.
+unfold lseg_cons.
+apply derives_extract_prop; intros.
+apply exp_left; intro h.
+apply exp_left; intro r.
+apply exp_left; intro y.
+do 2 rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intros [? ?].
+symmetry in H0; inv H0.
+ rewrite prop_true_andp by auto.
 apply exp_right with y.
-normalize.
+auto.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_struct list_link):
@@ -741,11 +814,13 @@ Lemma lseg_nonnull (ls: listspec list_struct list_link):
 Proof.
 intros. subst. 
 rewrite lseg_unroll.
-apply pred_ext; normalize.
-apply orp_left; auto. normalize.
-unfold typed_true, strict_bool_val,ptr_eq in *.
-destruct v; simpl in *; try contradiction.
-rewrite H0 in H. inv H.
+apply pred_ext.
+apply orp_left; auto.
+rewrite andp_assoc;
+do 2 (apply derives_extract_prop; intro).
+apply ptr_eq_e in H0.
+subst.
+inv H.
 apply orp_right2. auto.
 Qed.
 
@@ -762,15 +837,35 @@ Lemma lift2_lseg_cons (ls: listspec list_struct list_link):
 Proof.
  intros.
  unfold lseg_cons, ptr_neq; unfold_lift. extensionality rho. simpl.
- apply pred_ext; normalize.
- apply exp_right with (h, r, y). normalize.
- destruct h as [[h r] y]. normalize.
- apply exp_right with h. apply andp_right; auto.
+ apply pred_ext.
+ apply derives_extract_prop; intro.
+ apply exp_left; intro h.
+ apply exp_left; intro r.
+ apply exp_left; intro y.
+do 2 rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intros [? ?].
+inv H0. 
+ apply exp_right with (h, r, y).
+ rewrite prop_true_andp by auto.
+ normalize.
+ apply exp_left; intros [[h r] y].
+ apply derives_extract_prop; intro.
+ inv H.
+ unfold local, lift1.
+ apply derives_extract_prop; intro.
+ rewrite prop_true_andp by auto.
+ apply exp_right with h.
  apply exp_right with r.
- apply exp_right with y. normalize.
+ apply exp_right with y.
+ do 2 rewrite sepcon_andp_prop'.
  apply andp_right.
  erewrite (field_mapsto_typecheck_val); [ | apply list_struct_eq].
- rewrite list_link_type. normalize. auto.
+ rewrite list_link_type.
+ rewrite sepcon_andp_prop.
+ rewrite sepcon_andp_prop'.
+ apply derives_extract_prop; intro.
+ apply prop_right; auto.
+ auto.
 Qed.
 
 Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
@@ -796,15 +891,28 @@ apply derives_trans with
 apply andp_right; auto.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_lift; simpl.
-unfold lift1; simpl; normalize.
+unfold lift1; simpl. 
+ repeat (apply derives_extract_prop; intro).
+ rewrite prop_true_andp by auto.
+ rewrite prop_true_andp by auto.
 apply sepcon_derives; auto.
-rewrite lseg_nonnull; auto. normalize.
+rewrite lseg_nonnull; auto.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
-unfold lseg_cons.
-normalize.
-apply exp_right with (h,r,y).
-normalize.
+ unfold_lift.
+ unfold lseg_cons. simpl.
+ apply derives_extract_prop; intro.
+ apply derives_extract_prop; intros [? ?].
+ rewrite sepcon_andp_prop'.
+ apply derives_extract_prop; intro.
+ rewrite exp_sepcon1; apply exp_left; intro h.
+ rewrite exp_sepcon1; apply exp_left; intro r.
+ rewrite exp_sepcon1; apply exp_left; intro y.
+ repeat rewrite sepcon_andp_prop'.
+ apply derives_extract_prop; intros [? ?].
+ subst.
+ apply exp_right with (h,r,y).
+ repeat rewrite prop_true_andp by auto.
  repeat rewrite sepcon_assoc.
  auto.
 Qed.
@@ -839,9 +947,13 @@ Lemma lseg_nil_eq (ls: listspec list_struct list_link):
 Proof. intros.
  rewrite lseg_unroll.
  apply pred_ext.
- apply orp_left. normalize.
- normalize. unfold lseg_cons. normalize. inv H0.
- apply orp_right1. normalize.
+ apply orp_left.
+ rewrite andp_assoc.
+ apply andp_derives; auto.
+rewrite prop_true_andp by auto. auto.
+ unfold lseg_cons. normalize. inv H0.
+ apply orp_right1.  rewrite andp_assoc.
+ rewrite (prop_true_andp (_ = _)) by auto. auto.
 Qed.
 
 Lemma lseg_cons_eq (ls: listspec list_struct list_link):
@@ -865,7 +977,10 @@ Proof.
  apply exp_left; intro h0.
  apply exp_left; intro r0.
  apply exp_derives; intro y.
- normalize. symmetry in H; inv H. auto.
+ repeat rewrite sepcon_andp_prop'.
+ apply derives_extract_prop; intros [? ?].
+ symmetry in H; inv H.
+ rewrite prop_true_andp by auto. auto.
  apply orp_right2.
  unfold lseg_cons.
  apply andp_derives; auto.
@@ -905,18 +1020,20 @@ rewrite lseg_nil_eq.
 apply derives_trans with TT; auto.
 apply subp_i1.
 apply andp_left2.
-normalize.
-simpl.
-assert (x=y) by (apply ptr_eq_e; auto). subst y.
+repeat rewrite sepcon_andp_prop.
+ apply derives_extract_prop; intro.
+ rewrite sepcon_emp. simpl app.
+ apply ptr_eq_e in H; subst y.
 rewrite field_mapsto_isptr.
-normalize.
+repeat rewrite sepcon_andp_prop.
+ apply derives_extract_prop; intro.
 rewrite lseg_cons_eq.
 apply andp_right.  apply prop_right; auto.
-intro. apply ptr_eq_e in H1. subst. apply H0.
+intro. apply ptr_eq_e in H0. subst. apply H.
 apply exp_right with nullval.
-normalize.
+ rewrite prop_true_andp by reflexivity.
 rewrite lseg_nil_eq.
-normalize.
+ rewrite prop_true_andp by reflexivity.
 cancel. apply now_later.
 apply subp_i1.
 simpl app.

@@ -248,26 +248,7 @@ match goal with |- semax _ _ ?C ?P => set (cmd:=C); set (Post:=P) end.
 normalize.
 intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
 normalize.
-repeat rewrite (lift2more ctx).
-
-Ltac unsubst_var1 a b R :=
- match R with
- | @liftx ?L ?f (?liftx ?Ha a) ?c :: ?R' => let uv := unsubst_var1 a b R' in constr:(@liftx L f b c :: uv)
- | ?h :: ?R' => let uv := unsubst_var1 R' in constr:(h::R')
- | nil => constr:(nil)
-end.
-
-Ltac unsubst_var a :=
- match goal with |- semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
-   match Q with context [`(eq a) ?b] =>
-      let R' := unsubst_var1 a b R 
-        in apply (semax_pre (PROPx P (LOCALx Q (SEPx R'))));
-                [go_lower; subst a; repeat apply andp_right; try apply prop_right; solve [auto]
-                | ]
-   end
-end.
-unsubst_var ctx.
-
 unfold cmd; clear cmd.
 forward. (* data=in; *)
-forward0.
+
+Admitted.
