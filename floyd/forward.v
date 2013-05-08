@@ -664,7 +664,12 @@ first [eapply forward_ptr_compare_closed_now;
           | solve [auto 50 with closed] 
           | solve [auto 50 with closed] 
           | solve [auto 50 with closed]
-          | auto
+          | first [solve [auto] 
+                  | (right; go_lower; apply andp_right; 
+                                [ | solve [subst;cancel]];
+                                apply andp_right; 
+                                [ normalize 
+                                | solve [subst;cancel]])]
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
  
