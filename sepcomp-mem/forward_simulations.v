@@ -325,6 +325,14 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
       forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
         Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
 
+    alloc_effects_preserved: 
+      forall d j c1 m1 c2 m2, 
+      match_state d j c1 m1 c2 m2 ->  
+      forall b1 b2 delta ofs, 
+        j b1 = Some (b2, delta) ->
+        effects Sem1 c1 AllocEffect b1 (ofs-delta) ->
+        effects Sem2 c2 AllocEffect b2 ofs;
+
     match_reserved :
       forall d j c1 m1 c2 m2,
         match_state d j c1 m1 c2 m2 -> 
@@ -396,7 +404,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
         mem_forward m1 m1'  -> 
         mem_forward m2 m2' -> 
-
         rely Sem1 st1 m1 m1' -> 
         rely Sem2 st2 m2 m2' -> 
 
@@ -505,6 +512,14 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
       match_state d j c1 m1 c2 m2 -> 
       forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
         Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2;
+
+    alloc_effects_preserved: 
+      forall d j c1 m1 c2 m2, 
+      match_state d j c1 m1 c2 m2 ->  
+      forall b1 b2 delta ofs, 
+        j b1 = Some (b2, delta) ->
+        effects Sem1 c1 AllocEffect b1 (ofs-delta) ->
+        effects Sem2 c2 AllocEffect b2 ofs;
 
     match_reserved :
       forall d j c1 m1 c2 m2,

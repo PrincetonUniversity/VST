@@ -1,11 +1,12 @@
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
-Require Import Globalenvs.
+Require Import sepcomp.Events.
+Require Import sepcomp.Memory.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Values.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
+Require Import sepcomp.Globalenvs.
+Require Import compcert.lib.Axioms.
 
 Require Import Axioms.
 Require Import Wellfounded.
@@ -16,8 +17,9 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.mem_interpolation_defs. (*For definition of my_mem_unchanged_on*)
-Require Import sepcomp.RG_interpolants.
 
+(*INCLUDE THIS ONCE we're look at afterexternal*)
+Require Import sepcomp.RG_interpolants.
 Declare Module RGMEMAX : RGInterpolationAxioms.
 
 Section RGSIM.
@@ -39,7 +41,7 @@ Inductive sim g1 g2 entrypoints: Type :=
   | siminj: forall (R:Coop_forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
            g1 g2 entrypoints),
    sim g1 g2 entrypoints*)
-  | sim_inj: forall  cd (matchstate:cd -> reserve -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
+  | sim_inj: forall  cd (matchstate:cd -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
                               coreord
         (RG: @RelyGuaranteeSimulation.Sig _ _ _ _ _ _ _ Sem1 Sem2
                g1 cd matchstate)
@@ -268,49 +270,48 @@ Proof. intros.
   rename coreord into coreord23.
   rename RG into RG23.
   rename R into R23.
-  specialize (Forward_simulation_inj_exposed.core_diagramN R12).
+(*  specialize (Forward_simulation_inj_exposed.core_diagramN R12).*)
   specialize (Forward_simulation_inj_exposed.core_diagramN R23).
-  intros Diag23 Diag12.
+  intros Diag23 (*Diag12*).
   eapply sim_inj with
     (coreord := sem_compose_ord_eq_eq coreord12 (clos_trans _ coreord23) C2)
-    (matchstate := fun d (r:reserve) j c1 m1 c3 m3 => 
+    (matchstate := fun d j c1 m1 c3 m3 => 
       match d with (d1,X,d2) => 
         exists c2, exists m2, exists j12, exists j23, 
           X=Some c2 /\ j = compose_meminj j12 j23 /\ 
-          matchstate12 d1 r j12 c1 m1 c2 m2 /\
-          matchstate23 d2 (inject_reserve_ j12 r) j23 c2 m2 c3 m3 /\
-          guarantee Sem1 r c1 m1 /\
-          guarantee Sem2 (inject_reserve j12 r) c2 m2 /\ 
-          guarantee Sem3 (inject_reserve j23 ((inject_reserve j12 r))) c3 m3
+          matchstate12 d1 j12 c1 m1 c2 m2 /\
+          matchstate23 d2 j23 c2 m2 c3 m3
       end).
     (*RG*) clear R12 R23.
          destruct RG12 as [match_state_runnable12 match_state_inj12
-                                        match_state_preserves_globals12].
+                           match_state_preserves_globals12].
          destruct RG23 as [match_state_runnable23 match_state_inj23 
-                                         match_state_preserves_globals23 ].
+                           match_state_preserves_globals23 ].
         econstructor; intros.
         (*match_state_runnable*) 
         destruct cd as [[d1 d2] d3]. rename c2 into c3. rename m2 into m3.
-        destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-        rewrite (match_state_runnable12 _ _ _ _ _ _  _ MS12).
-        solve[apply (match_state_runnable23 _ _ _ _ _ _ _ MS23)].
+        destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+        rewrite (match_state_runnable12 _ _ _ _ _ _ MS12).
+        solve[apply (match_state_runnable23 _ _ _ _ _ _ MS23)].
         (*match_state_inj*) 
         destruct cd as [[d1 d2] d3]. rename c2 into c3. rename m2 into m3.
-         destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst. 
+         destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst. 
          eapply Mem.inject_compose.
-         apply (match_state_inj12 _ _ _ _ _ _ _ MS12).
-         apply (match_state_inj23 _ _ _ _ _ _ _ MS23).
+         apply (match_state_inj12 _ _ _ _ _ _ MS12).
+         apply (match_state_inj23 _ _ _ _ _ _ MS23).
          (*match_state_preserves_globals*)
          admit. 
   destruct R12
-    as [core_ord_wf12 match_memwd12 res_valid12  
-           effects_valid12 allocs_shrink12 (*match_mono12*)
-           match_validblocks12 core_diagram12 core_initial12
-           core_halted12 core_at_external12 core_after_external12].  
+    as [core_ord_wf12 match_memwd12 
+        effects_valid12 match_validblocks12
+        alloc_effects_preserved12 match_reserved12
+        core_diagram12 core_initial12
+        core_halted12 core_at_external12 core_after_external12].  
   destruct R23 
-    as [core_ord_wf23 match_memwd23  res_valid23
-           effects_valid23 allocs_shrink23 (*match_mono23*)
-           match_validblocks23 core_diagram23 core_initial23
+    as [core_ord_wf23 match_memwd23 
+           effects_valid23 match_validblocks23
+           alloc_effects_preserved23 match_reserved23
+           _ (*core_diagram23*) core_initial23
            core_halted23 core_at_external23 core_after_external23].  
   constructor. 
  (*well_founded*)
@@ -318,878 +319,163 @@ Proof. intros.
          assumption.
          eapply wf_clos_trans. assumption. 
  (*match_memwd*)
-    clear core_diagram12 core_initial23 
-      core_halted23 core_at_external23 core_after_external23 
-      core_initial12  core_halted12 core_at_external12 core_after_external12
-      core_diagram23 core_ord_wf23 core_ord_wf12 res_valid12 res_valid23
-      (* match_mono12 *) (* match_mono23 *) effects_valid12 effects_valid23
-      allocs_shrink12 allocs_shrink23 match_validblocks12 match_validblocks23.
-    clear Diag12 Diag23.
-    intros. 
-    destruct cd as [[d12 cc2] d23]. rename c2 into st3. rename m2 into m3.
-    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-    split. apply (match_memwd12 _ _ _ _ _ _ _ MS12).
-    solve[apply (match_memwd23 _ _ _ _ _ _ _ MS23)].
-  (*reserve_valid*) 
-    clear core_diagram12 core_initial23  core_halted23 
-      core_at_external23 core_after_external23 core_initial12 
-      core_halted12 core_at_external12 core_after_external12
-      core_diagram23 core_ord_wf23 core_ord_wf12  match_validblocks12
-      (* match_mono12 *) (* match_mono23 *) effects_valid12 effects_valid23
-      allocs_shrink12 allocs_shrink23 match_memwd12 match_memwd23.
-     clear Diag12 Diag23.
-     intros. rename c2 into c3. rename m2 into m3.
-     destruct cd as [[d12 cc2] d23].
-     destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-     clear entrypoints12 entrypoints23 entrypoints13 EPC.
-     split. apply (res_valid12 _ _ _ _ _ _ _ MS12).
-     intros b3 ofs b1 delta R1 Comp.
-     destruct (compose_meminjD_Some _ _ _ _ _ Comp) 
-       as [bb [delta2 [delta3 [J1 [J2 XX]]]]].         
-     subst; clear Comp.
-     eapply (match_validblocks23 _ _ _ _ _ _ _ _ MS23).
+    clear - match_memwd12 match_memwd23.
+    intros.
+    rename c2 into st3. rename m2 into m3.
+    destruct cd as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+    split. apply (match_memwd12 _ _ _ _ _ _ MS12).
+    solve[apply (match_memwd23 _ _ _ _ _ _ MS23)].
  (*effects_valid*)
-     clear core_diagram12 core_initial23 
-       core_halted23 core_at_external23 core_after_external23 
-        core_initial12  core_halted12 core_at_external12 core_after_external12
-        core_diagram23 core_ord_wf23 core_ord_wf12  match_validblocks12 match_validblocks23
-        (* match_mono12 *) (* match_mono23 *) res_valid12 res_valid23
-        allocs_shrink12 allocs_shrink23 match_memwd12 match_memwd23.
-     clear Diag12 Diag23.
+     clear - effects_valid12 effects_valid23. 
       intros. 
-      destruct cd as [[d12 cc2] d23]. rename c2 into c3. rename m2 into m3.
-      destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-      clear entrypoints12 entrypoints23 entrypoints13 EPC.
-      split. eapply (effects_valid12 _ _ _ _ _ _ _ MS12). 
-                solve[eapply (effects_valid23 _ _ _ _ _ _ _ MS23)].
- (*allocs_atmost_shrink*)
-    clear core_diagram12 core_initial23 
-      core_halted23 core_at_external23 core_after_external23 
-      core_initial12  core_halted12 core_at_external12 core_after_external12
-      core_diagram23 core_ord_wf23 core_ord_wf12  match_validblocks12 match_validblocks23
-      (* match_mono12 *) (* match_mono23 *) res_valid12 res_valid23
-      effects_valid12 effects_valid23 match_memwd12 match_memwd23.
-   clear Diag12 Diag23.
-      intros. 
-      destruct cd as [[d12 cc2] d23]. rename st2 into st3. rename m2 into m3.
-      destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-      clear entrypoints12 entrypoints23 entrypoints13 EPC.
-      destruct (compose_meminjD_Some _ _ _ _ _ H1) 
-       as [bb [delta2 [delta3 [J1 [J2 XX]]]]].          
-      subst; clear H1.
-      specialize (allocs_shrink23 _ _ _ _ _ _ _ MS23 _ _ H0 _ _ J2). 
-      specialize (allocs_shrink12 _ _ _ _ _ _ _ MS12 _ _ allocs_shrink23 _ _ J1). 
-      assert (Arith: ofs2 - delta3 - delta2 = ofs2 - (delta2 + delta3)) by omega.
-      rewrite Arith in allocs_shrink12; assumption.
- (*monotonicity
-    clear core_diagram12 core_initial23 
-      core_halted23 core_at_external23 core_after_external23 
-      core_initial12  core_halted12 core_at_external12 core_after_external12
-      core_diagram23 core_ord_wf23 core_ord_wf12 
-      allocs_shrink12 allocs_shrink23 res_valid12 res_valid23
-      effects_valid12 effects_valid23 match_memwd12 match_memwd23.
-     clear Diag12 Diag23.
-      intros.
-      destruct d as [[d12 cc2] d23]. rename st2 into st3. rename m2 into m3.
-      destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 [Guar1 [Guar2 Guar3]]]]]]]]]]; subst.
-      clear entrypoints12 entrypoints23 entrypoints13 EPC.
-      exists c2, m2, j12, j23.
-      repeat (split; try trivial).
-      (*1/5*) eapply (* match_mono12 *); try eassumption.
-        intros b ofs; intros. eapply match_validblocks12; eassumption.
-      (*2/5*) eapply (* match_mono23 *); try eassumption.
-        intros b2 ofs; intros. 
-        rewrite inject_reserve_AX. rewrite inject_reserve_AX in H. 
-        destruct H as [b1 [delta [J1 R]]].
-        apply H0 in R.
-        exists b1, delta; eauto.
-
-        intros b ofs; intros.
-        rewrite inject_reserve_AX in H.
-        destruct H as [b1 [delta [J1 R]]].
-        eapply match_validblocks12; try eassumption.
-
-        intros b; intros.
-        eapply match_validblocks23; try eassumption.
-      (*3/5*) intros b; intros.
-              admit. (*need to modify match_mono slightly*)
-      xx
-eapply match_validblocks12; eassumption. 
- eapply match_validblocks12; eassumption.
-  admit. monotonicity*)
+      rename c2 into c3. rename m2 into m3.
+      destruct cd as [[d12 cc2] d23]. 
+      destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+      split. eapply (effects_valid12 _ _ _ _ _ _ MS12). 
+             solve[eapply (effects_valid23 _ _ _ _ _ _ MS23)].
  (*valid_blocks*)
-    clear core_diagram12 core_initial23 
-      core_halted23 core_at_external23 core_after_external23 
-      core_initial12  core_halted12 core_at_external12 core_after_external12
-      core_diagram23 core_ord_wf23 core_ord_wf12  (* match_mono12 *) (* match_mono23 *)
-      allocs_shrink12 allocs_shrink23 res_valid12 res_valid23
-      effects_valid12 effects_valid23 match_memwd12 match_memwd23.
-    clear Diag12 Diag23.
+    clear - match_validblocks12 match_validblocks23.
     intros. rename H0 into Jb1.
     rename c2 into st3. rename m2 into m3. rename b2 into b3.
     destruct d as [[d12 cc2] d23].
-    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 [MS23 Guars]]]]]]]]; subst.
-    clear entrypoints12 entrypoints23 entrypoints13 EPC.
+    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
     destruct (compose_meminjD_Some _ _ _ _ _ Jb1)
-        as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]]. subst; clear Jb1.
+        as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
+    subst; clear Jb1.
     split.
-    solve[apply (match_validblocks12 _ _ _ _ _ _ _ MS12 _ _ _ J1)].
-    solve[apply (match_validblocks23 _ _ _ _ _ _ _ MS23 _ _ _ J2)].  
-
+    solve[apply (match_validblocks12 _ _ _ _ _ _ MS12 _ _ _ J1)].
+    solve[apply (match_validblocks23 _ _ _ _ _ _ MS23 _ _ _ J2)].
+ (*alloc_effects_preserved*)
+    clear - alloc_effects_preserved12 alloc_effects_preserved23.
+    intros. rename b2 into b3. rename H0 into Jb1.
+    rename c2 into st3. rename m2 into m3.
+    destruct d as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+    destruct (compose_meminjD_Some _ _ _ _ _ Jb1)
+        as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
+    subst; clear Jb1.
+    eapply (alloc_effects_preserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+    eapply (alloc_effects_preserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+    assert (Arith: ofs - delta3 - delta2 = ofs - (delta2 + delta3)) by omega.
+    rewrite Arith; trivial.
+ (*match_reserved*)
+    clear - match_reserved12 match_reserved23.
+    intros. rename b0 into b1. rename H0 into Jb1.
+    rename c2 into st3. rename m2 into m3. rename b into b3.
+    destruct d as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+    destruct (compose_meminjD_Some _ _ _ _ _ Jb1)
+        as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
+    subst; clear Jb1.
+    eapply (match_reserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+    eapply (match_reserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+    assert (Arith: ofs - delta3 - delta2 = ofs - (delta2 + delta3)) by omega.
+    rewrite Arith; trivial.
  (*core_diagram*)
-  clear core_initial23  core_halted23 core_at_external23 core_after_external23 
-     core_initial12  core_halted12 core_at_external12 core_after_external12
-     core_ord_wf23 core_ord_wf12 match_memwd12 match_memwd23.
+  clear - match_validblocks12 match_validblocks23 
+          core_diagram12 Diag23. 
   intros. rename st2 into st3.
-  rename m2 into m3. rename H into CS.
+  rename m2 into m3. rename H into CS1.
   destruct cd as [[d12 cc2] d23].
-  rename H0 into Guar1'.
-  destruct H1 as [c2 [m2 [j12 [j23 [? [J 
-    [MS12 [MS23 [Guar1 [Guar2 Guar3]]]]]]]]]]; subst.
-  clear entrypoints12 entrypoints23 entrypoints13 EPC.
-  clear Diag12.
-  specialize (core_diagram12 _ _ _ _ CS _ _ _ _ _ Guar1' MS12).
-  destruct core_diagram12 as [st2' [m2' [cd12' [r' [j12'
-      [Inc12 [Sep12 [Rinc12 [Rsep12 [Z12 X12]]]]]]]]]]. (*[Guar2' [MS12' X12]]]]]]]]]]]. *)
-  destruct X12 as [X12 | [X12 ORD12]]; destruct X12 as [n X12].
-  (*Case 1*)
-     clear core_diagram23.
-     assert (Guar2': guarantee Sem2 (inject_reserve_ j12 r) st2' m2').
-         destruct (Z12 r') as [GG2' MS12'].
-           assumption.
-           apply reserve_incr_refl. 
-           unfold guarantee' in GG2'.
-           rewrite inject_reserve_AX.
-           solve[eapply guarantee_decr2; eassumption].
-    specialize (Diag23 _ _ _ _ _ X12 _  _ _ _ _ Guar2' MS23).
-    destruct Diag23 as [st3' [m3' [cd23' [r23' [j23'
-      [Inc23 [Sep23 [Rinc23 [Rsep23 [Z23 X23]]]]]]]]]].
-     exists st3'. exists m3'. exists ((cd12', Some st2'), cd23').
-      assert (rEX: exists (rr:reserve), forall b ofs,
-              rr b ofs <->  
-              (r' b ofs \/ (exists b2, exists delta2, 
-                          j12' b = Some(b2,delta2) /\ r23' b2 (ofs + delta2)))).
-        admit. 
-      destruct rEX as [rr Hrr].
-      exists rr.  (*IF WE USE r WE HAVE TO USE ANTIMONOTONICOITY*)
-      exists (compose_meminj j12' j23').
-      split. eapply compose_meminj_inject_incr; eassumption.
-      split. eapply compose_meminj_inject_separated.
-                      eassumption. eassumption. eassumption. eassumption.
-                      apply (match_validblocks12 _ _ _ _ _ _ _ MS12).
-                      apply (match_validblocks23 _ _ _ _ _ _ _ MS23).
-      split. intros b; intros.
-           rewrite Hrr. clear Hrr. left.
-           eapply Rinc12; eassumption.
-      split. intros b; intros. rewrite Hrr in H0. 
-             destruct H0; clear Hrr. 
-              destruct (Rsep12 _ _ H H0). 
-              split; trivial. 
-              intros delta b3 Comp.
-              destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-                as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-              subst; clear Comp.
-              apply H2 in J1.
-              case_eq (j23 b2).     
-                 intros [? ?] ?. 
-                 rewrite (Inc23 _ _ _ H3) in J2. inv J2.
-                 exfalso. apply J1.
-                 solve[eapply (match_validblocks23 _ _ _ _ _ _ _ MS23); eassumption].
-              intros. apply (Sep23 _ _ _ H3 J2).
-            destruct H0 as [b2 [delta2 [J12 R23']]].
-              case_eq (j12 b).     
-                 intros [? ?] ?. 
-                 rewrite (Inc12 _ _ _ H0) in J12. inv J12.
-                 exfalso. 
-                 destruct (Rsep23 b2 (ofs + delta2)).
-                    intros N.
-                 solve[eapply (match_validblocks23 _ _ _ _ _ _ _ MS23); eassumption].
-              intros. apply (Sep23 _ _ _ H3 J2).
-              
-            destruct (Rsep23 b2 (ofs + delta2)).
-               intros N. rewrite inject_reserve_AX in N.
-               destruct N as [b1 [delta [J R]]].
-
-            eapply (Z23 r23').  pply reserve_separated_same. 
-      split.
-        intros r'' rsep'' rinc''.
-        split. 
-          (*goal is: guarantee' Sem3 (compose_meminj j12' j23') r'' st3' m3'*)
-          unfold guarantee'.
-          assert (STEPN: exists n, corestepN Sem3 G3 n st3 m3 st3' m3').
-           destruct X23.
-           unfold corestep_plus in H.
-           destruct H as [m STEPM].
-           exists (S m); auto.
-           destruct H as [H _].
-           unfold corestep_star in H.
-           solve[auto].
-          destruct STEPN as [m STEPM].
-          eapply guarantee_incr_allocN' 
-            with (mleft := m1) 
-               (j := compose_meminj j12 j23); eauto.
-            solve[eapply compose_meminj_inject_incr; eassumption].
-            solve[eapply compose_meminj_inject_separated; eauto].
-          intros b3 ofs; intros.
-            destruct H0 as [b1 [delta [Comp R]]].
-            destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-              as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-            subst; clear Comp.
-            eapply (Z23 r23').
-               assumption.
-               apply reserve_incr_refl.
-               assumption.
-               exists b2, delta3.
-                 split. apply (Inc23 _ _ _ J2).
-                 apply Rinc23. rewrite inject_reserve_AX.
-                   exists b1, delta2.
-                   split; trivial.
-                   assert (ofs - delta3 - delta2 = ofs - (delta2 + delta3))
-                      as -> by omega.
-                   clear H0.
-                   destruct (reserve_dec r b1 (ofs - (delta2 + delta3))).
-                     trivial.
-                     destruct (Rsep12 _ _ n0 R).
-                     exfalso. apply H0; clear H0 H2 n0.
-                     solve[eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                assumption.
-            intros b; intros.
-             destruct (reserve_dec r b ofs).
-               apply Rinc12 in s. contradiction.
-             solve[eapply rsep''; eassumption]. 
-        exists st2', m2', j12', j23'.
-          repeat split; try solve[reflexivity].
-          apply Z12.
-            intros b; intros.
-              destruct (reserve_dec r' b ofs).
-                solve[eapply Rsep12; eassumption].
-              destruct (rsep'' _ _ H H0).
-                split; trivial; intros.
-                case_eq (j12 b).
-                  intros [? ?] ?. 
-                  exfalso. apply H1; clear H1 H2 H3.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-           assumption.
-          apply Z23.
-            intros b; intros.
-              rewrite inject_reserve_AX in H0, H.
-              destruct H0 as [b1 [delta2 [J12' R'']]].
-              destruct (reserve_dec r b1 (ofs - delta2)).
-                case_eq (j12 b1).
-                  intros [? ?] ?. 
-                  rewrite (Inc12 _ _ _ H0) in J12'. inv J12'.
-                  exfalso. apply H; clear H. 
-                  exists b1, delta2. split; trivial.
-                intros. destruct (Sep12 _ _ _ H0 J12').
-                  apply (res_valid12 _ _ _ _ _ _ _ MS12) in s.
-                  contradiction.
-              destruct (rsep'' _ _ n0 R'').  
-                case_eq (j12 b1).
-                  intros [? ?] ?. 
-                  rewrite (Inc12 _ _ _ H2) in J12'. inv J12'.
-                  exfalso. apply H0; clear H0.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. destruct (Sep12 _ _ _ H2 J12').
-                  split; trivial; intros. 
-                case_eq (j23 b).
-                  intros [? ?] ?. 
-                  rewrite (Inc23 _ _ _ H6) in H5. inv H5.
-                  exfalso. apply H4; clear H4.
-                  solve [eapply (match_validblocks23 _ _ _ _ _ _ _ MS23); eassumption].
-                intros. apply (Sep23 _ _ _ H6 H5).
-                  split; trivial; intros.   H2. contradiction.
-                  exfalso. apply H0; clear H. 
-                  exists b1, delta2. split; trivial.
-                intros. destruct (Sep12 _ _ _ H0 J12').
-                  apply (res_valid12 _ _ _ _ _ _ _ MS12) in s.
-                  contradiction.
-                  eapply (H b1); clear H. H2 H3.
-                  solve [e; eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-                
-                destruct (rsep'' _ _ s R'').
-                solve[eapply Rsep12; eassumption].
-              destruct (rsep'' _ _ H H0).
-                split; trivial; intros.
-                case_eq (j12 b).
-                  intros [? ?] ?. 
-                  exfalso. apply H1; clear H1 H2 H3.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-           assumption.
- assumption.
-      exists r'. (*IF WE USE r WE HAVE TO USE ANTIMONOTONICOITY*)
-      exists (compose_meminj j12' j23').
-      split. eapply compose_meminj_inject_incr; eassumption.
-      split. eapply compose_meminj_inject_separated.
-                      eassumption. eassumption. eassumption. eassumption.
-                      apply (match_validblocks12 _ _ _ _ _ _ _ MS12).
-                      apply (match_validblocks23 _ _ _ _ _ _ _ MS23).
-      split. auto. (*apply reserve_incr_refl.*)
-      split. 
-        intros b ofs; intros.
-        split; auto.
-        solve[eapply Rsep12; eauto].
-        intros delta b3; intros H1.
-        apply compose_meminjD_Some in H1.
-        destruct H1 as [b2 [delta1 [delta2 [J12' [J23' X]]]]]; subst.
-        case_eq (j23 b2).
-        intros [? ?] J23.
-        generalize J23 as J23''; intro.
-        apply Inc23 in J23.
-        rewrite J23 in J23'; inv J23'.
-        destruct (Rsep12 _ _ H H0).
-        elimtype False.
-        apply (H2 _ _ J12').
-        exploit match_validblocks23; eauto.
-        solve[intros [? ?]; auto].
-        (*j23 b2 = None*)
-        solve[intros; eapply Sep23; eauto].
-      split.
-        intros r'' rsep'' rinc''.
-        split. unfold guarantee'.
-          assert (STEPN: exists n, corestepN Sem3 G3 n st3 m3 st3' m3').
-           destruct X23.
-           unfold corestep_plus in H.
-           destruct H as [m STEPM].
-           exists (S m); auto.
-           destruct H as [H _].
-           unfold corestep_star in H.
-           solve[auto].
-          destruct STEPN as [m STEPM].
-          eapply guarantee_incr_allocN' 
-            with (mleft := m1) 
-               (j := compose_meminj j12 j23); eauto.
-            solve[eapply compose_meminj_inject_incr; eassumption].
-            solve[eapply compose_meminj_inject_separated; eauto].
-          intros b3 ofs; intros.
-            destruct H0 as [b1 [delta [Comp R]]].
-            destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-              as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-            subst; clear Comp.
-            eapply (Z23 r23').
-               assumption.
-               apply reserve_incr_refl.
-               assumption.
-               exists b2, delta3.
-                 split. apply (Inc23 _ _ _ J2).
-                 apply Rinc23. rewrite inject_reserve_AX.
-                   exists b1, delta2.
-                   split; trivial.
-                   assert (ofs - delta3 - delta2 = ofs - (delta2 + delta3))
-                      as -> by omega.
-                   clear H0.
-                   destruct (reserve_dec r b1 (ofs - (delta2 + delta3))).
-                     trivial.
-                     destruct (Rsep12 _ _ n0 R).
-                     exfalso. apply H0; clear H0 H2 n0.
-                     solve[eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                assumption.
-            intros b; intros.
-             destruct (reserve_dec r b ofs).
-               apply Rinc12 in s. contradiction.
-             solve[eapply rsep''; eassumption]. 
-        exists st2', m2', j12', j23'.
-          repeat split; try solve[reflexivity].
-          apply Z12.
-            intros b; intros.
-              destruct (reserve_dec r' b ofs).
-                solve[eapply Rsep12; eassumption].
-              destruct (rsep'' _ _ H H0).
-                split; trivial; intros.
-                case_eq (j12 b).
-                  intros [? ?] ?. 
-                  exfalso. apply H1; clear H1 H2 H3.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-           assumption.
-          apply Z23.
-            intros b; intros.
-              rewrite inject_reserve_AX in H0, H.
-              destruct H0 as [b1 [delta2 [J12' R'']]].
-              destruct (reserve_dec r b1 (ofs - delta2)).
-                case_eq (j12 b1).
-                  intros [? ?] ?. 
-                  rewrite (Inc12 _ _ _ H0) in J12'. inv J12'.
-                  exfalso. apply H; clear H. 
-                  exists b1, delta2. split; trivial.
-                intros. destruct (Sep12 _ _ _ H0 J12').
-                  apply (res_valid12 _ _ _ _ _ _ _ MS12) in s.
-                  contradiction.
-              destruct (rsep'' _ _ n0 R'').  
-                case_eq (j12 b1).
-                  intros [? ?] ?. 
-                  rewrite (Inc12 _ _ _ H2) in J12'. inv J12'.
-                  exfalso. apply H0; clear H0.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. destruct (Sep12 _ _ _ H2 J12').
-                  split; trivial; intros. 
-                case_eq (j23 b).
-                  intros [? ?] ?. 
-                  rewrite (Inc23 _ _ _ H6) in H5. inv H5.
-                  exfalso. apply H4; clear H4.
-                  solve [eapply (match_validblocks23 _ _ _ _ _ _ _ MS23); eassumption].
-                intros. apply (Sep23 _ _ _ H6 H5).
-                  split; trivial; intros.   H2. contradiction.
-                  exfalso. apply H0; clear H. 
-                  exists b1, delta2. split; trivial.
-                intros. destruct (Sep12 _ _ _ H0 J12').
-                  apply (res_valid12 _ _ _ _ _ _ _ MS12) in s.
-                  contradiction.
-                  eapply (H b1); clear H. H2 H3.
-                  solve [e; eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-                
-                destruct (rsep'' _ _ s R'').
-                solve[eapply Rsep12; eassumption].
-              destruct (rsep'' _ _ H H0).
-                split; trivial; intros.
-                case_eq (j12 b).
-                  intros [? ?] ?. 
-                  exfalso. apply H1; clear H1 H2 H3.
-                  solve [eapply (match_validblocks12 _ _ _ _ _ _ _ MS12); eassumption].
-                intros. apply (Sep12 _ _ _ H4 H3).
-           assumption.
- assumption.
-               apply reserve_separated_same.
-            eapply Guar3'; try eassumption.
-            exists b2, delta3. apply Inc23 in J2. 
-            split; trivial.
-            apply Rinc23.
-            rewrite inject_reserve_AX.
-            exists b1, delta2.
-            split; trivial.
-            assert (ofs - delta3 - delta2 = ofs - (delta2 + delta3))
-              as -> by omega.
-            assumption.
-           intros b ofs; intros.
-            destruct (Rsep12 _ _ H H0).
-          split; trivial.
-          intros delta b3 Comp.
-          destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-            as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-          subst; clear Comp.
-          case_eq (j23 b2).
-            intros [bb d] J23.
-              rewrite (Inc23 _ _ _ J23) in J2. inv J2.
-              destruct (match_validblocks23 _ _ _ _ _ _ _ MS23 _ _ _ J23).
-               exfalso. apply (H2 _ _ J1 H3).
-            intros. apply (Sep23 _ _ _ H3 J2).
-    split.
-      exists st2'. exists m2'. exists j12'. exists j23'.
-      split; auto.
-      split; auto.
-      split; auto.
-      split; auto.
-      eapply guarantee_incr_alloc1; eauto.
-      eapply res_valid12 with (m1:=m1'); eauto.
-      intros b1 ofs1 ? ?.
-        exploit Rsep12; eauto.
-        solve[intros [? ?]; auto].
-
-      intros. (*HAVE MS23' : matchstate23 cd23' r23' j23' st2' m2' st3' m3'*)
-      assert (EQ: forall b ofs, Mem.valid_block m2' b -> 
-          (r23' b ofs -> r2 b ofs)).
-       intros. 
-       split; intros.
-         destruct (reserve_dec (inject_reserve_ j12 r) b ofs).
-           apply Rinc23; assumption.
-         destruct (reserve_dec (inject_reserve_ j12' r') b ofs).
-           rewrite inject_reserve_AX in s.
-           destruct s as [b1 [delta [J1' R']]].
-           case_eq (j12 b1).
-              intros [? ?] ?.
-              rewrite (Inc12 _ _ _ H3) in J1'. inv J1'. exfalso.
-              apply n0. rewrite inject_reserve_AX.
-              exists b1, delta. split; trivial. 
-              destruct (reserve_dec r b1 (ofs - delta)); trivial. 
-              exfalso. destruct (Rsep12 _ _ n1 R'). 
-              apply H4. exploit match_validblocks12; eauto.
-               intros. destruct H6. trivial.
-           intros.  destruct (Sep12 _ _ _ H3 J1').  assumption. eauto.
-           apply Rinc23; assumption.
-       destruct 
-      
-      admit. (*reserve_sep in match*)
-      destruct X23 as [X23 | [X23 ORD23]].
-      left. assumption.
-      right. split. assumption.             
-      solve[eapply sem_compose_ord2; apply ORD23].
-Qed.
-
-
-
-  (*Case 1*)
-    assert (GUAR2: guarantee Sem2 (inject_reserve_ j12 r) st2' m2').
-       clear Diag23 core_diagram23.
-       unfold guarantee' in Guar2'.
-       rewrite inject_reserve_AX. eapply guarantee_decr2. apply Guar2'. 
-       auto. auto.
-    clear Guar2'. rename GUAR2 into Guar2'.
-
-    specialize (Diag23 _ _ _ _ _ X12 _  _ _ _ _ Guar2' MS23).
-    destruct Diag23 as [st3' [m3' [cd23' [r23' [j23'
-      [Inc23 [Sep23 [Rinc23 [Rsep23 [Guar3' [MS23' X23]]]]]]]]]]].
-     exists st3'. exists m3'. exists ((cd12', Some st2'), cd23'). 
-      exists r. (*TRICK: DO NOT USE r12' HERE*)
-      exists (compose_meminj j12 j23).
-      split. apply inject_incr_refl. (* eapply compose_meminj_inject_incr; eassumption.*)
-      split. admit.
-(*      split. eapply compose_meminj_inject_separated.
-                      eassumption. eassumption. eassumption. eassumption.
-                      apply (match_validblocks12 _ _ _ _ _ _ _ MS12).
-                      apply (match_validblocks23 _ _ _ _ _ _ _ MS23).*)
-      split. apply reserve_incr_refl.
-      split. admit. (* 
-        intros b ofs; intros.
-        split; auto.
-        solve[eapply Rsep12; eauto].
-        intros delta b3; intros H1.
-        apply compose_meminjD_Some in H1.
-        destruct H1 as [b2 [delta1 [delta2 [J12' [J23' X]]]]]; subst.
-        case_eq (j23 b2).
-        intros [? ?] J23.
-        generalize J23 as J23''; intro.
-        apply Inc23 in J23.
-        rewrite J23 in J23'; inv J23'.
-        destruct (Rsep12 _ _ H H0).
-        elimtype False.
-        apply (H2 _ _ J12').
-        exploit match_validblocks23; eauto.
-        solve[intros [? ?]; auto].
-        (*j23 b2 = None*)
-        solve[intros; eapply Sep23; eauto].*)
-      split.
-        unfold guarantee'.
-        assert (STEPN: exists n, corestepN Sem3 G3 n st3 m3 st3' m3').
-         destruct X23.
-         unfold corestep_plus in H.
-         destruct H as [m STEPM].
-         exists (S m); auto.
-         destruct H as [H _].
-         unfold corestep_star in H.
-         solve[auto].
-        destruct STEPN as [m STEPM].
-        eapply guarantee_incr_allocN' 
-          with (mleft := m1) 
-             (j := compose_meminj j12 j23); eauto.
-          admit. (*solve[eapply compose_meminj_inject_incr; eassumption].*)
-(*          solve[eapply compose_meminj_inject_separated; eauto].*)
-        intros b3 ofs; intros.
-          destruct H0 as [b1 [delta [Comp R]]].
-          destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-            as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-          subst; clear Comp.
-          eapply Guar3'; try eassumption.
-          exists b2, delta3. apply Inc23 in J2. 
-          split; trivial.
-          apply Rinc23.
-          rewrite inject_reserve_AX.
-          exists b1, delta2.
-          split; trivial.
-          assert (ofs - delta3 - delta2 = ofs - (delta2 + delta3))
-            as -> by omega.
-          eauto.
-         apply reserve_incr_refl. (*intros b ofs; intros.
-          destruct (Rsep12 _ _ H H0).
-          split; trivial.
-          intros delta b3 Comp.
-          destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-            as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-          subst; clear Comp.
-          case_eq (j23 b2).
-            intros [bb d] J23.
-              rewrite (Inc23 _ _ _ J23) in J2. inv J2.
-              destruct (match_validblocks23 _ _ _ _ _ _ _ MS23 _ _ _ J23).
-               exfalso. apply (H2 _ _ J1 H3).
-            intros. apply (Sep23 _ _ _ H3 J2).*)
-         admit.
-    split.
-      exists st2'. exists m2'. exists j12. exists j23.
-      split; auto.
-      split; auto.
-      split; auto.
-      split; auto.
-      eapply guarantee_incr_alloc1; eauto.
-      eapply res_valid12 with (m1:=m1'); eauto.
-      intros b1 ofs1 ? ?.
-        exploit Rsep12; eauto.
-        solve[intros [? ?]; auto].
-
-      intros.
-      
-      admit. (*reserve_sep in match*)
-      destruct X23 as [X23 | [X23 ORD23]].
-      left. assumption.
-      right. split. assumption.             
-      solve[eapply sem_compose_ord2; apply ORD23].
-Qed.
-  (*Case2*)
-     destruct n.
-     (*case n = 0*)
-         simpl in X12.
-         inv X12.
-         exists st3. exists m3. exists ((cd12', Some st2'), d23).
-         exists r. (*TRICK: DO NOT USE r12' HERE.*)
-         exists (compose_meminj j12 j2).
-         split. eapply compose_meminj_inject_incr. eassumption. apply inject_incr_refl.
-         split. eapply compose_meminj_inject_separated.
-                      eassumption. 
-                      apply inject_separated_same_meminj. 
-                       assumption. apply inject_incr_refl.
-                       apply (match_validblocks12 _ _ _ _ _ _ _ MS12).
-                       apply (match_validblocks23 _ _ _ _ _ _ _ MS23).
-         split. apply reserve_incr_refl.
-         split. apply reserve_separated_same.
-         split. intros b3; intros. destruct H1 as [b1 [delta [Comp HR]]].
-                destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-                    as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]]. subst; clear Comp.
-                clear Diag23.
-                eapply Guar3. apply H.
-                      exists b2. exists delta3. split; trivial.
-                         rewrite inject_reserve_AX.
-                         exists b1. exists delta2. split; trivial.
-                        remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
-                            destruct p. rewrite (Inc12 _ _ _ Heqq) in J1. apply J1.
-                        exfalso. destruct (Sep12 _ _ _ Heqq J1) as [NV1 _].
-                                       apply NV1; clear NV1.
-                                       destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 _].
-                                       apply (VAL1 _ _ HR). 
-                            assert (Arith: ofs - (delta2 + delta3) = ofs - delta3 - delta2) by omega.
-                            rewrite Arith in HR; assumption.
-                 apply H2.
-         split. exists st2'. exists m2'. exists j12. exists j2.
-               exists (inject_reserve_ j12 r).         
-(*               destruct (inject_reserve_exists j12 r) as [rrr Hrrr]. exists rrr.*)
-                 split; trivial.
-                 split; trivial.
-                 split. trivial.
-                 split. apply ((* match_mono12 *) _ _ _ _ _ _ _ _ MS12'). assumption. 
-                 split. apply ((* match_mono23 *) _ _ _ _ _ _ _ _ MS23). 
-                    destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [RV _].
-                    clear - Inc12 Sep12 RV. rewrite inject_reserve_AX.
-                    intros b; intros. rewrite inject_reserve_AX.
-                    destruct H as [b1 [delta [HJ HR]]].
-                    exists b1. exists delta. split; trivial. 
-                    remember (j1 b1) as q.
-                    destruct q; apply eq_sym in Heqq. 
-                            destruct p. rewrite (Inc12 _ _ _ Heqq) in HJ. apply HJ.
-                    exfalso. specialize (RV _ _ HR). 
-                                 destruct (Sep12 _ _ _ Heqq HJ). apply (H RV).
-                 split. assumption.
-                 split. intros b2; intros. apply Guar2; try eassumption.
-                       rewrite inject_reserve_AX. rewrite inject_reserve_AX in H1.
-                      destruct H1 as [b1 [delta2 [J RR]]]. 
-                      assert (J1: j1 b1 = Some (b2,delta2)).        
-                            remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
-                                destruct p. rewrite (Inc12 _ _ _ Heqq) in J. apply J.
-                            exfalso. destruct (Sep12 _ _ _ Heqq J) as [NV1 _].
-                                           apply NV1; clear NV1.
-                                            destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 _].
-                                            apply (VAL1 _ _ RR). 
-                      exists b1. exists delta2. split; trivial. 
-                  intros b3; intros. apply Guar3; try eassumption.
-                      destruct H1 as [b2 [delta3 [J2 R2]]].
-                      exists b2. exists delta3. split; trivial.
-                      rewrite  inject_reserve_AX. rewrite inject_reserve_AX in R2.
-                      destruct R2 as [b1 [delta2 [J1 R1]]].
-                      exists b1. exists delta2. split; trivial.
-                      remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
-                                destruct p. rewrite (Inc12 _ _ _ Heqq) in J1. apply J1.
-                      exfalso. destruct (Sep12 _ _ _ Heqq J1) as [NV1 _].
-                                           apply NV1; clear NV1.
-                                            destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 _].
-                                            apply (VAL1 _ _ R1). 
-       right. split. exists O. simpl. reflexivity.
-              eapply sem_compose_ord1. apply ORD12.
-    (*case n = S(n') - proof is exactly the one from Case 1*)
-    assert (GUAR2: guarantee Sem2 (inject_reserve_ j1 r) st2' m2').
-       clear Diag23 core_diagram23.
-       unfold guarantee' in Guar2'.
-       rewrite inject_reserve_AX. eapply guarantee_decr2. apply Guar2'. assumption. assumption.
-(*   clear Guar2'. rename GUAR2 into Guar2'.*)
-(*    destruct (inject_reserve_exists j1 r) as [rrr Hrrr].*)
- (*   assert (GUAR2: guarantee Sem2 rrr st2' m2').
-          clear - Guar2' rrr Hrrr. rewrite Hrrr. apply Guar2'.
-   clear Guar2'. rename GUAR2 into Guar2'.*)
-(*    remember  (inject_reserve j1 r) as rrr. 
-    assert (rrr_dec: forall b ofs, {rrr b ofs}+{~rrr b ofs}).
-        intros; subst. unfold inject_reserve. at.
-   assert (GUAR2: guarantee Sem2 (Build_reserve' rrr rrr_dec) st2' m2').
-          clear - Guar2' rrr. apply Guar2'.*)
-   clear Guar2'. rename GUAR2 into Guar2'.
-
-    specialize (Diag23 _ _ _ _ _ X12 _  _ _ _ _ Guar2' MS23).
-    destruct Diag23 as [st3' [m3' [cd23' [r23' [j23
-      [Inc23 [Sep23 [Rinc23 [Rsep23 [Guar3' [MS23' X23]]]]]]]]]]].
-     exists st3'. exists m3'. exists ((cd12', Some st2'), cd23'). 
-      exists r. (*TRICK: DO NOT USE r12' HERE*)
-      exists (compose_meminj j12 j23).
-      split. eapply compose_meminj_inject_incr; eassumption.
-      split. eapply compose_meminj_inject_separated.
-                      eassumption. eassumption. eassumption. eassumption.
-                      apply (match_validblocks12 _ _ _ _ _ _ _ MS12).
-                      apply (match_validblocks23 _ _ _ _ _ _ _ MS23).
-      split. apply reserve_incr_refl.
-      split. apply reserve_separated_same.
-      split. intros b3; intros. destruct H1 as [b1 [delta [Comp HR]]].
-                destruct (compose_meminjD_Some _ _ _ _ _ Comp)
-                    as [b2 [delta2 [delta3 [J1 [J2 ZZ]]]]].
-                subst; clear Comp.
-                eapply Guar3'. apply H.
-                      exists b2. exists delta3. split; trivial. simpl.
-                      apply Rinc23.
-                         rewrite inject_reserve_AX.
-                         exists b1. exists delta2.
-                         split.
-                            remember (j1 b1) as d.
-                            destruct d; apply eq_sym in Heqd.
-                              destruct p. rewrite (Inc12 _ _ _ Heqd) in J1; assumption.
-                            destruct (Sep12 _ _ _ Heqd J1) as [NV _].
-                              exfalso. apply NV.
-                              destruct (res_valid12 _ _ _ _ _ _ _ MS12).
-                              eapply H1. apply HR.
-                         assert (Arith: ofs - (delta2 + delta3) = ofs - delta3 - delta2) by omega.
-                            rewrite Arith in HR; assumption.
-                 apply H2.
-                
-     split. exists st2'. exists m2'. exists j12. exists j23.
-        exists (inject_reserve_ j12 r).
-(*            destruct (inject_reserve_exists j12 r) as [rrr Hrrr].*)
- (*   assert (GUAR2: guarantee Sem2 rrr st2' m2').
-          clear - Guar2' rrr Hrrr. rewrite Hrrr. apply Guar2'.
-   clear Guar2'. rename GUAR2 into Guar2'.*)
-(*             exists  (inject_reserve j12 r).*)
-(*             exists  rrr.*)
-             split; trivial.
-             split; trivial.
-             split. trivial.
-             split. apply ((* match_mono12 *) _ _ _ _ _ _ _ _ MS12'). assumption. 
-             split. apply ((* match_mono23 *) _ _ _ _ _ _ _ _ MS23').
-                  simpl in *. subst. 
-                  destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [RV _].
-                  clear -  Rinc23 Inc12 Sep12 RV. 
-                  rewrite inject_reserve_AX.
-                  intros b; intros. 
-                     eapply Rinc23. rewrite inject_reserve_AX.
-                     eapply (reserve_incr_mono _ _ Inc12 _ _ Sep12 _ RV).
-                        intros bb. trivial.
-                        (* intros. eapply Rinc23. rewrite R. apply H0. *)
-                        apply H.
-             split. apply H0.
-             split; subst; simpl in *. intros b2; intros. 
-                        rewrite inject_reserve_AX in H1. destruct H1 as [b1 [delta2 [J RR]]].
-                        apply Guar2'; trivial. rewrite inject_reserve_AX.                         
-                        exists b1. exists delta2. split; trivial.
-                        remember (j1 b1) as q; destruct q; apply eq_sym in Heqq.
-                            destruct p. rewrite (Inc12 _ _ _ Heqq) in J. apply J.
-                        exfalso. destruct (Sep12 _ _ _ Heqq J) as [NV1 _].
-                                       apply NV1; clear NV1.
-                                       destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 _].
-                                       apply (VAL1 _ _ RR). 
-              intros b3; intros. destruct H1 as [b2 [delta3 [J2 R2]]].
-                        assert (IR: inject_reserve j1 r b2 (ofs - delta3)).
-                                       rewrite inject_reserve_AX in R2.
-                                       destruct R2 as [b1 [delta2 [J1 RR]]].
-                                       exists b1. exists delta2.
-                                       split; trivial.
-                                       remember (j1 b1) as w; destruct w; apply eq_sym in Heqw. 
-                                                      destruct p. rewrite (Inc12 _ _ _ Heqw) in J1. apply J1.
-                                             exfalso. destruct (Sep12 _ _ _ Heqw J1) as [NV1 _].
-                                                apply NV1; clear NV1.
-                                                destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 VAL2].
-                                                apply (VAL1 _ _ RR).
-                        apply Guar3'; trivial.
-                        exists b2. exists delta3. split; trivial. 
-                          apply Rinc23. rewrite inject_reserve_AX. apply IR.
-(*                        remember (j2 b2) as q; destruct q; apply eq_sym in Heqq.
-                            destruct p. rewrite (Inc23 _ _ _ Heqq) in J2. inv J2.
-                            apply Rinc23. apply J2.
-                        exfalso. destruct (Sep23 _ _ _ Heqq J2) as [NV2 _].
-                                       apply NV2; clear NV2.
-                                       destruct (res_valid12 _ _ _ _ _ _ _ MS12) as [VAL1 VAL2].
-                                       destruct IR as [b1 [delta2 [J1 R1]]].
-                                       eapply (VAL2 b2  (ofs - delta3)). apply R1. apply J1.
-                          rewrite R. apply IR.*)
-      (*split. assumption.
-      split. eapply guarantee_right_trans_TwoSem; try eassumption.
-                intros. apply Guar.
-                 exists b0. exists delta. 
-                  assert (Arith: ofs0 + delta - delta = ofs0) by omega. 
-                  rewrite Arith. split; trivial.*)
-       destruct X23 as [X23 | [X23 ORD23]].
-          left. assumption.
-          right. split. assumption.             
+  destruct H0 as [st2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+  specialize (core_diagram12 _ _ _ _ CS1 _ _ _ _ MS12).
+  destruct core_diagram12 as [st2' [m2' [d12' [j12'
+      [Inc12 [Sep12 [Z12 X12]]]]]]].
+  assert (ZZ: corestep_plus Sem2 G2 st2 m2 st2' m2' \/
+      (st2,m2) = (st2',m2') /\ coreord12 d12' d12).
+     destruct X12. auto.
+     destruct H.
+     destruct H. destruct x.
+     right. split; auto.
+     left. exists x; auto.
+  clear X12. destruct ZZ as [CS2 | [CS2 ord12']].
+ (*case1*) 
+  destruct CS2 as [n CS2].
+    clear CS1.
+    specialize (Diag23 _ _ _ _ _ CS2 _ _ _ _ MS23).
+    destruct Diag23 as [st3' [m3' [d23' [j23'
+      [Inc23 [Sep23 [MS23' X23]]]]]]].
+    exists st3', m3', (d12',Some st2', d23').
+    exists (compose_meminj j12' j23').
+    split. solve[eapply compose_meminj_inject_incr; eassumption].
+    split. eapply compose_meminj_inject_separated.
+            apply Sep12. apply Sep23. assumption. assumption.
+            eapply (match_validblocks12 _ _ _ _ _ _ MS12).
+            eapply (match_validblocks23 _ _ _ _ _ _ MS23).
+    split. exists st2', m2', j12', j23'. auto.
+    destruct X23 as [X23 | [X23 ORD23]].
+    left. assumption.
+    right. split. assumption. 
               eapply sem_compose_ord2. apply ORD23.
+  (*case 2*)
+    inv CS2.
+    exists st3, m3, (d12',Some st2',d23).
+    exists (compose_meminj j12' j23). 
+    split. eapply compose_meminj_inject_incr.
+             assumption. apply inject_incr_refl.
+    split. eapply compose_meminj_inject_separated.
+             eassumption.
+             apply inject_separated_same_meminj.    
+             assumption.
+             apply inject_incr_refl.
+             eapply (match_validblocks12 _ _ _ _ _ _ MS12).
+             eapply (match_validblocks23 _ _ _ _ _ _ MS23).
+    split. exists st2', m2', j12', j23. auto.
+    right. split. exists O. simpl; auto.
+    eapply sem_compose_ord1. apply ord12'. 
 
  (*initial_core*) 
-  clear core_diagram23  core_halted23 core_at_external23 core_after_external23 
-    core_diagram12  core_halted12 core_at_external12 core_after_external12 
-    res_valid12 res_valid23 res_valid12  res_valid23
-    (* match_mono12 *) Diag12 Diag23.
-  intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
+  clear - core_initial12 core_initial23 EPC. 
+  intros. rename m2 into m3. rename v2 into v3.
+  rename vals2 into vals3. 
   rename H2 into WD1. rename H3 into WD3.
-  rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
+  rewrite (EPC v1 v3 sig) in H.
+  destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
-  eapply forall_valinject_hastype; eassumption.
-  destruct (mem_wd_inject_splitL _ _ _ H1 WD1) as [Flat1 XX]; rewrite XX.
+    eapply forall_valinject_hastype; eassumption.
+  destruct (mem_wd_inject_splitL _ _ _ H1 WD1)
+    as [Flat1 XX]; rewrite XX.
   assert (ValInjFlat1 := forall_val_inject_flat _ _ _ H1 _ _ H4).
-(*  assert (PUB1:forall b : block, k1 b -> exists b' : block, exists ofs : Z,
-                   Mem.flat_inj (Mem.nextblock m1) b = Some (b', ofs)).
-       intros. destruct (H5 _ H) as [b2 [ofs2 J]]. 
-         eexists. eexists. apply flatinj_I. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ J H1).*)
-  assert (RMapValID: reserve_valid' r (Mem.flat_inj (Mem.nextblock m1)) m1).
-       intros b1; intros. (*destruct H as [b [delta [J R]]]. *)
-            apply flatinj_E in H2. apply H2.
-  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ _ H0 Flat1 WD1 WD1 
-       ValInjFlat1 HT H6 RMapValID)
+  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 Flat1
+      WD1 WD1 ValInjFlat1 HT)
     as [d12 [c2 [Ini2 MC12]]].
 
-  destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _ _ Ini2 H1 WD1 WD3 H4 H5 H6 H7)
+  destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _ Ini2 H1 WD1 WD3
+       H4 H5)
     as [d23 [c3 [Ini3 MC23]]].
   exists (d12,Some c2,d23). exists c3. 
   split; trivial. 
-  exists c2. exists m1. exists  (Mem.flat_inj (Mem.nextblock m1)). exists j.
-  exists (inject_reserve_ (Mem.flat_inj (Mem.nextblock m1)) r).
-  (*exists rrr. exists (inject_reserve (Mem.flat_inj (Mem.nextblock m1)) r).*)
-  split; trivial.
-  split; trivial.
-  split. trivial.
-  split; trivial.
-  split. apply ((* match_mono23 *) _ _ _ _ _ _ _ _ MC23).
-        intros b; intros. rewrite inject_reserve_AX in H.  destruct H as [b1 [delta [J X]]].
-              destruct (flatinj_E _ _ _ _ J) as [? [? ?]]. clear XX. subst.
-              rewrite Zminus_0_r in X. apply X. 
-  split. eapply guarantee_initial; eassumption.
-  split; eapply guarantee_initial; eassumption.
+  exists c2. exists m1.
+  exists  (Mem.flat_inj (Mem.nextblock m1)).
+  exists j. auto.
  (*safely_halted*)
-  clear core_diagram23  core_initial23 core_at_external23 core_after_external23 
-    core_diagram12  core_initial12 core_at_external12 core_after_external12.
+  clear - core_halted12 core_halted23. 
   intros. rename c2 into c3. rename m2 into m3.  
   destruct cd as [[d12 cc2] d23]. 
-  destruct H as [c2 [m2 [j12 [j23 [rr [X [Y [R [MC12 [MC23 [Guar1 [Guar2 Guar3]]]]]]]]]]]]; subst. 
-  destruct (core_halted12 _ _ _ _ _ _ _ _ _ MC12 H0 H1)
+  destruct H as [st2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+  destruct (core_halted12 _ _ _ _ _ _ _ _ MS12 H0 H1)
      as [v2 [vinj12 [SH2 [rty2 Inj12]]]].
-  clear core_halted12.
-  destruct (core_halted23 _ _ _ _ _ _ _ _ _ MC23 SH2 rty2)
+  destruct (core_halted23 _ _ _ _ _ _ _ _ MS23 SH2 rty2)
      as [v3 [vinj23 [SH3 [rty3 Inj23]]]].
-  clear core_halted23.
+  clear core_halted23 core_halted12.
   exists v3.
   split. apply (val_inject_compose _ _ _ _ _ vinj12 vinj23).
   split. trivial.
   split. assumption. 
   eapply Mem.inject_compose; eassumption.
-(*atexternal*)
-  clear core_diagram23  core_initial23 core_halted23 core_after_external23 
-    core_diagram12  core_initial12 core_halted12 core_after_external12 Diag12 Diag23.
-  intros. rename st2 into st3. rename m2 into m3.  rename H1 into ValsValid1.
+(*atexternal*) 
+  clear - core_at_external12 core_at_external23.
+  intros. rename st2 into st3. rename m2 into m3.
+  rename H1 into ValsValid1. rename H0 into AtExt1.
   destruct cd as [[d12 cc2] d23]. 
-  destruct H as [st2 [m2 [j1 [j2 [r2 [Y [J [R [MC12 [MC23 [Guar1 [Guar2 Guar3]]]]]]]]]]]]. subst.
-  apply (core_at_external12 _ _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 [AtExt2 ValsValid2]]]]]].
-  apply (core_at_external23 _ _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-  destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 [AtExt3 ValsValid3]]]]]].
+  destruct H as [st2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+  apply (core_at_external12 _ _ _ _ _ _ _ _ _ MS12) in AtExt1; try assumption.
+  destruct AtExt1 as [MInj12 [PGj1 [vals2 [ValsInj12 
+    [HTVals2 [AtExt2 ValsValid2]]]]]].
+  apply (core_at_external23 _ _ _ _ _ _ _ _ _ MS23) in AtExt2; try assumption. 
+  destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23
+    [HTVals3 [AtExt3 ValsValid3]]]]]].
   split. eapply Mem.inject_compose; eassumption.
   split.
   admit. (*TODO: need to prove meminj_preserves_globals G1
@@ -1197,41 +483,44 @@ Qed.
             from meminj_preserves_globals G1 j1
             and meminj_preserves_globals G2 j2*)
   exists vals3. 
-  split.  eapply forall_val_inject_compose; eassumption.
+  split. eapply forall_val_inject_compose; eassumption.
   split. assumption.
   split; assumption.
- (*after_external*) clear core_diagram12 core_initial12 core_halted12 
-  core_diagram23 core_initial23 core_halted23 Diag12 Diag23. 
-  intros cd r r' j j' st1 st3 m1 e vals1 ret1 m1' m3 m3' ret3 sig H
-             AtExt1 ValsValid1 PG Inc Sep Rinc Rsep MInj13'
+ (*after_external*) 
+  clear - core_at_external12 core_at_external23
+          core_after_external12 core_after_external23
+          match_memwd12 match_memwd23
+          alloc_effects_preserved12 alloc_effects_preserved23
+          match_reserved12 match_reserved23. 
+  intros cd j j' st1 st3 m1 e vals1 ret1 m1' m3 m3' ret3 sig H
+             AtExt1 ValsValid1 PG Inc Sep MInj13'
              WD1'  WD3' val_inj_ret13 Fwd1 Fwd3
              Rely1 Rely3 HTret1 HTret3. 
   destruct cd as [[d12 cc2] d23]. 
-  destruct H as [st2 [m2 [j1 [j2 [r2 [Y [J [R [MC12 [MC23 [Guar1 [Guar2 Guar3]]]]]]]]]]]]. subst.
-  destruct (core_at_external12 _ _ _ _ _ _ _ _ _ _ MC12 AtExt1 ValsValid1) 
+  destruct H as [st2 [m2 [j12 [j23 [? [J [MS12 MS23]]]]]]]; subst.
+  destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MS12 AtExt1 ValsValid1) 
    as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 [AtExt2 ValsValid2]]]]]].
-  destruct (core_at_external23 _ _ _ _ _ _ _ _ _ _ MC23 AtExt2 ValsValid2) 
+  destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MS23 AtExt2 ValsValid2) 
    as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 [AtExt3 ValsValid3]]]]]].
   clear core_at_external12 core_at_external23.
   assert (HTVals1:  Forall2 Val.has_type vals1 (sig_args (ef_sig e))).   
       eapply forall_valinject_hastype; eassumption.
   (*Val.has_type ret1 (proj_sig_res (ef_sig e))). 
             eapply valinject_hastype; eassumption.*)
-  destruct (match_memwd12 _ _ _ _ _ _ _ MC12) as [WD1 WD2].
-  destruct (match_memwd23 _ _ _ _ _ _ _ MC23) as [_ WD3].
-destruct (res_valid12 _ _ _ _ _ _ _ MC12) as [RV1 RVR2].
-destruct (res_valid23 _ _ _ _ _ _ _ MC23) as [RV2 RVR3].
-assert (Core_after12: forall (cd : cd12) (r : reserve)
+  destruct (match_memwd12 _ _ _ _ _ _ MS12) as [WD1 WD2].
+  destruct (match_memwd23 _ _ _ _ _ _ MS23) as [_ WD3].
+  (*destruct (res_valid12 _ _ _ _ _ _ _ MC12) as [RV1 RVR2].
+destruct (res_valid23 _ _ _ _ _ _ _ MC23) as [RV2 RVR3].*)
+  assert (Core_after12: forall (cd : cd12)
                           (j: meminj) (st1 : C1) (st2 : C2) (m1 m2 : mem),
-                         matchstate12 cd r j st1 m1 st2 m2 ->
+                         matchstate12 cd j st1 m1 st2 m2 ->
                          meminj_preserves_globals G1 j ->
                   forall (e : external_function) (sig : signature) (vals1 : list val),
                         at_external Sem1 st1 = Some (e, sig, vals1) ->
                         (forall v1 : val, In v1 vals1 -> val_valid v1 m1) ->
                   forall  (m1' : mem) ret1,
                         mem_forward m1 m1' ->
-                        rely Sem1 r st1 m1 m1' -> 
-                (*        mem_unchanged_on (rely_left Sem1 r st1) m1 m1' ->*)
+                        rely Sem1 st1 m1 m1' -> 
                         val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) ->
                    forall j' ret2,
                         inject_incr j j' ->
@@ -1241,37 +530,27 @@ assert (Core_after12: forall (cd : cd12) (r : reserve)
                         Mem.inject j' m1' m2' ->
                         mem_forward m2 m2' ->
                         mem_wd m1' -> mem_wd m2' ->
-(*                        mem_unchanged_on (rely_right Sem1 j r st1) m2 m2' ->*)
-                        rely Sem2 (inject_reserve j r) st2 m2 m2' -> 
+                        rely Sem2 st2 m2 m2' -> 
                         val_inject_opt j' ret1 ret2 ->
-                   forall (r':reserve),
-                        reserve_incr r r' ->
-                        reserve_separated r r' j' m1 m2 -> (*
-                        (forall (b : block) (ofs : Z),
-                         ~ r b ofs -> r' b ofs -> ~ owned Sem1 st1 b ofs) ->*)
-                        exists (cd' : cd12) (st1' : C1) (st2' : C2),
+                   exists (cd' : cd12) (st1' : C1) (st2' : C2),
                           after_external Sem1 ret1 st1 = Some st1' /\
                           after_external Sem2 ret2 st2 = Some st2' /\
-                          matchstate12 cd' r' j' st1' m1' st2' m2' (*/\
-                          owned Sem1 st1' = owned Sem1 st1 /\
-                          owned Sem2 st2' = owned Sem2 st2*)).
+                          matchstate12 cd' j' st1' m1' st2' m2').
      clear - core_after_external12.
-    intros. apply (core_after_external12  cd r r' j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 sig);
-                    assumption.
-    clear core_after_external12.
-    specialize (Core_after12 _ _ _ _ _ _  _ MC12 PGj1).
-    specialize (Core_after12 _ _ _ AtExt1 ValsValid1 _ _ Fwd1 Rely1 HTret1).
-assert (Core_after23: forall (cd : cd23) (r : reserve)
+     intros. eapply core_after_external12; eauto. 
+  clear core_after_external12.
+  specialize (Core_after12 _ _ _ _ _ _ MS12 PGj1).
+  specialize (Core_after12 _ _ _ AtExt1 ValsValid1 _ _ Fwd1 Rely1 HTret1).
+  assert (Core_after23: forall (cd : cd23)
                           (j: meminj) (st2 : C2) (st3 : C3) (m2 m3 : mem),
-                         matchstate23 cd r j st2 m2 st3 m3 ->
+                         matchstate23 cd j st2 m2 st3 m3 ->
                          meminj_preserves_globals G2 j ->
                   forall (e : external_function) (sig : signature) (vals2 : list val),
                         at_external Sem2 st2 = Some (e, sig, vals2) ->
                         (forall v2 : val, In v2 vals2 -> val_valid v2 m2) ->
                   forall  (m2' : mem) ret2,
                         mem_forward m2 m2' ->
-                        rely Sem2 r st2 m2 m2' -> 
-                (*  mem_unchanged_on (rely_left Sem2 r st2) m2 m2' ->*)
+                        rely Sem2 st2 m2 m2' -> 
                         val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) ->
                    forall j' ret3,
                         inject_incr j j' ->
@@ -1281,31 +560,83 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
                         Mem.inject j' m2' m3' ->
                         mem_wd m2' -> mem_wd m3' ->
                         mem_forward m3 m3' ->
-(*                        mem_unchanged_on (rely_right Sem2 j r st2) m3 m3' ->*)
-                        rely Sem3 (inject_reserve j r) st3 m3 m3' -> 
+                        rely Sem3 st3 m3 m3' -> 
                         val_inject_opt j' ret2 ret3 ->
-                   forall (r': reserve),
-                        reserve_incr r r' ->
-                        reserve_separated r r' j' m2 m3 ->
-(*                        (forall (b : block) (ofs : Z),
-                         ~ r b ofs -> r' b ofs -> ~ owned Sem2 st2 b ofs) ->*)
-                        exists (cd' : cd23) (st2' : C2) (st3' : C3),
+                   exists (cd' : cd23) (st2' : C2) (st3' : C3),
                           after_external Sem2 ret2 st2 = Some st2' /\
                           after_external Sem3 ret3 st3 = Some st3' /\
-                          matchstate23 cd' r' j' st2' m2' st3' m3' (* /\
-                          owned Sem2 st2' = owned Sem2 st2 /\
-                          owned Sem3 st3' = owned Sem3 st3*) ).
+                          matchstate23 cd' j' st2' m2' st3' m3').
      clear - core_after_external23.
-    intros. apply (core_after_external23 cd r r' j j' st2 st3 m2 e vals2 ret2 m2' m3 m3' ret3 sig);
-                   assumption.
-    clear core_after_external23.
-(*
-  assert (myMC23 : matchstate23 d23 (Build_reserve' (inject_reserve j1 r) Dec1) j2 st2 m2 st3 m3).
-                   simpl. apply MC23.
-  clear MC23. rename myMC23 into MC23.
-*)
-    specialize (Core_after23 _ _ _ _ _ _ _ MC23 PGj2).
-    specialize (Core_after23 _ _ _ AtExt2 ValsValid2).
+     intros. eapply core_after_external23; eauto. 
+  clear core_after_external23.
+  specialize (Core_after23 _ _ _ _ _ _ MS23 PGj2).
+  specialize (Core_after23 _ _ _ AtExt2 ValsValid2).
+  specialize  (RGMEMAX.interpolate_II Sem1 Sem2 _ _ _
+             MInj12 _ Fwd1 _ _ MInj23 _ Fwd3 _ MInj13' Inc
+             Sep WD1 WD1' WD2 WD3 WD3' _ _ Rely1 Rely3); intros IP.
+  destruct IP as [m2' [j12' [j23' [J' [Inc12 [Inc23 [MInj12' [Fwd2 
+                   [MInj23' [Sep12 [Sep23 [WD2' Unch2]]]]]]]]]]]].
+     clear Core_after12 Core_after23.
+     simpl. intros. destruct H.
+     destruct (compose_meminjD_Some _ _ _ _ _ H0) 
+        as [b2 [delta2 [delta3 [J1 [J2 Hdelta]]]]].
+     subst; clear H0.
+     split. apply (match_reserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+            apply (match_reserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+            assert (Arith: ofs + (delta2 + delta3) - delta3 - delta2 = ofs) by omega.
+            rewrite Arith; trivial.
+     apply (alloc_effects_preserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+       apply (alloc_effects_preserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+       assert (Arith: ofs + (delta2 + delta3) - delta3 - delta2 = ofs) by omega.
+       rewrite Arith; trivial.
+  (*assert (UU: forall b1 z, 
+          (fun (b : block) (ofs : Z) =>
+             reserved m1 b ofs /\ effects Sem1 st1 AllocEffect b ofs) b1 z ->
+          exists b3 delta, (compose_meminj j12 j23) b1 = Some (b3, delta) /\
+            (fun (b : block) (ofs : Z) =>
+             reserved m3 b ofs /\ effects Sem3 st3 AllocEffect b ofs) b3 (z+delta)).
+     clear Core_after12 Core_after23.
+     simpl. intros. destruct H.xx
+     destruct (compose_meminjD_Some _ _ _ _ _ H0) 
+        as [b2 [delta2 [delta3 [J1 [J2 Hdelta]]]]].
+     subst; clear H0.
+     split. apply (match_reserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+            apply (match_reserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+            assert (Arith: ofs - delta3 - delta2 = ofs - (delta2 + delta3)) by omega.
+            rewrite Arith; trivial.
+     apply (alloc_effects_preserved23 _ _ _ _ _ _ MS23 _ _ _ _ J2).
+       apply (alloc_effects_preserved12 _ _ _ _ _ _ MS12 _ _ _ _ J1).
+       assert (Arith: ofs - delta3 - delta2 = ofs - (delta2 + delta3)) by omega.
+       rewrite Arith; trivial.*)
+  destruct Unch2 as [U2 [Rely2 [HU12 HU23]]].
+  assert (exists ret2, val_inject_opt j12' ret1 ret2 /\ val_inject_opt j23' ret2 ret3 /\
+              val_has_type_opt' ret2 (proj_sig_res (ef_sig e))).
+      subst. apply val_inject_opt_split in val_inj_ret13.
+                 destruct val_inj_ret13 as [ret2 [injRet12 injRet23]].
+      exists ret2. split; trivial. split; trivial.  
+         eapply val_inject_opt_hastype; eassumption.
+  destruct H as [ret2 [injRet12 [injRet23 HTret2]]]. 
+  specialize (WD2' WD2). 
+  specialize (Core_after12 _ _ Inc12 Sep12 HTret2 _ MInj12' Fwd2
+                       WD1' WD2').
+  assert (RELY12: rely Sem2 st2 m2 m2'). admit.
+     clear Core_after12 Core_after23.
+     unfold rely.
+       split; intros b ofs; intros.
+            eapply Rely2; try eassumption.
+            destruct H as [[b1 [delta2 [J1 RR1]]] Eff2].
+            specialize (allocs_shrink12  _ _ _ _ _ _ _ MC12 _ _ Eff2 _ _ J1).
+            specialize (HRely12 _ (ofs - delta2) _ _ J1).
+             assert (Arith: ofs - delta2 + delta2 = ofs) by omega.
+             rewrite Arith in HRely12. apply HRely12.
+             split; assumption. 
+     unfold rely. eapply mem_unchanged_on_sub. apply Rely2.
+     intros. destruct H. apply HU12
+  specialize (Core_after12 _ _ Inc12 Sep12 HTret2 _ MInj12' Fwd2
+                       WD1' WD2').
+
+ 
+ Locate rely. xx
   specialize  (RGMEMAX.interpolate_II Sem1 Sem2 _ _ _
              MInj12 _ Fwd1 _ _ MInj23 _ Fwd3 _ MInj13' Inc
              Sep WD1 WD1' WD2 WD3 WD3'); intros IP.
@@ -1333,11 +664,7 @@ assert (Core_after23: forall (cd : cd23) (r : reserve)
 (*unfold rely', rely in Rely3.
                (fun (b : block) (ofs : Z) => r b ofs /\
                effects Sem1 st1 AllocEffect b ofs)). _ Rely1 _ Rely3). rely Sem1 r st1 m1 m1'*)
-  destruct IP as [m2' [j12' [j23' [J' [Inc12 [Inc23 [MInj12' [Fwd2 
-                   [MInj23' [Sep12 [Sep23 [WD2' [RSEP12' [r23 [R23
-                   [Rely2 [HRely12 UnchR2]]]]]]]]]]]]]]]]]. (*[Rely33 UnchR33]]]]]]]]]]]]]]]]]]].*)
-  subst.
-  assert (exists ret2, val_inject_opt j12' ret1 ret2 /\ val_inject_opt j23' ret2 ret3 /\
+   assert (exists ret2, val_inject_opt j12' ret1 ret2 /\ val_inject_opt j23' ret2 ret3 /\
               val_has_type_opt' ret2 (proj_sig_res (ef_sig e))).
       subst. apply val_inject_opt_split in val_inj_ret13.
                  destruct val_inj_ret13 as [ret2 [injRet12 injRet23]].
