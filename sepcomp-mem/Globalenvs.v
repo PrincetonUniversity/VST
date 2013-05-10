@@ -673,20 +673,16 @@ Remark alloc_global_perm:
   forall k prm b' q idg m m',
   alloc_global m idg = Some m' ->
   Mem.valid_block m b' ->
+  isMaxCur k=true -> 
   (Mem.perm m b' q k prm <-> Mem.perm m' b' q k prm).
 Proof.
   intros. destruct idg as [id [f|v]]; simpl in H. 
   (* function *)
   destruct (Mem.alloc m 0 1) as [m1 b] eqn:?. 
   assert (b' <> b). apply Mem.valid_not_valid_diff with m; eauto with mem.
-  case_eq (isMaxCur k). intros.
   split; intros.
   eapply Mem.perm_drop_3; eauto. eapply Mem.perm_alloc_1; eauto. 
   eapply Mem.perm_alloc_4; eauto. eapply Mem.perm_drop_4; eauto. 
-  intros. destruct k; try inv H2. 
-  split; intros.  
-  eapply Mem.perm_drop_6; eauto. eapply Mem.perm_alloc_1; eauto.
-  eapply Mem.perm_alloc_4; eauto. eapply Mem.perm_drop_5; eauto. 
   (* variable *)
   set (init := gvar_init v) in *.
   set (sz := init_data_list_size init) in *.
@@ -694,7 +690,6 @@ Proof.
   destruct (store_zeros m1 b 0 sz) as [m2|] eqn:?; try discriminate.
   destruct (store_init_data_list m2 b 0 init) as [m3|] eqn:?; try discriminate.
   assert (b' <> b). apply Mem.valid_not_valid_diff with m; eauto with mem.
-  case_eq (isMaxCur k). intros.
   split; intros.
   eapply Mem.perm_drop_3; eauto.
   erewrite <- store_init_data_list_perm; [idtac|eauto].
@@ -704,22 +699,13 @@ Proof.
   erewrite store_zeros_perm; [idtac|eauto].
   erewrite store_init_data_list_perm; [idtac|eauto]. 
   eapply Mem.perm_drop_4; eauto. 
-  intros. destruct k; try inv H2.
-  split; intros.
-  eapply Mem.perm_drop_6; eauto. 
-  erewrite <- store_init_data_list_perm; [idtac|eauto].
-  erewrite <- store_zeros_perm; [idtac|eauto].
-  eapply Mem.perm_alloc_1; eauto. 
-  eapply Mem.perm_alloc_4; eauto. 
-  erewrite store_zeros_perm; [idtac|eauto].
-  erewrite store_init_data_list_perm; [idtac|eauto]. 
-  eapply Mem.perm_drop_5; eauto. 
 Qed.
 
 Remark alloc_globals_perm:
   forall k prm b' q gl m m',
   alloc_globals m gl = Some m' ->
   Mem.valid_block m b' ->
+  isMaxCur k=true -> 
   (Mem.perm m b' q k prm <-> Mem.perm m' b' q k prm).
 Proof.
   induction gl.

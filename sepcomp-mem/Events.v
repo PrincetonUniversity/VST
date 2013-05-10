@@ -577,6 +577,10 @@ Definition loc_out_of_reach (f: meminj) (m: mem) (b: block) (ofs: Z): Prop :=
   forall b0 delta,
   f b0 = Some(b, delta) -> ~Mem.perm m b0 (ofs - delta) Max Nonempty.
 
+Definition loc_out_of_reach' (f: meminj) (m: mem) (b: block) (ofs: Z): Prop :=
+  forall b0 delta,
+  f b0 = Some(b, delta) -> Mem.perm m b0 (ofs - delta) Res Nonempty.
+
 Definition inject_separated (f f': meminj) (m1 m2: mem): Prop :=
   forall b1 b2 delta,
   f b1 = None -> f' b1 = Some(b2, delta) ->
@@ -973,6 +977,7 @@ Proof.
     (Int.unsigned ofs + delta, Int.unsigned ofs + delta + size_chunk chunk)).
   red; intros; red; intros. exploit (H1 x H7). eauto.
   exploit Mem.store_valid_access_3. eexact H0. intros [C D].
+  intros.
   apply Mem.perm_cur_max. apply Mem.perm_implies with Writable; auto with mem.
   apply C. red in H8; simpl in H8. omega. 
   auto.
@@ -1121,7 +1126,8 @@ Proof.
 (* valid block *)
   inv H. eauto with mem.
 (* perms *)
-  inv H. exploit Mem.perm_alloc_inv. eauto. eapply Mem.perm_store_2; eauto.
+  inv H. exploit Mem.perm_alloc_inv. eauto. instantiate (1 := Max); auto.
+  eapply Mem.perm_store_2; eauto.
   rewrite zeq_false. auto. 
   apply Mem.valid_not_valid_diff with m1; eauto with mem.
 (* readonly *)

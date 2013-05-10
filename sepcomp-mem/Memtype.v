@@ -295,7 +295,7 @@ Axiom valid_pointer_implies:
 (** ** Properties of the initial memory state. *)
 
 Axiom nextblock_empty: nextblock empty = 1.
-Axiom perm_empty: forall b ofs k p, ~perm empty b ofs k p.
+Axiom perm_empty: forall b ofs k p, isMaxCur k=true -> ~perm empty b ofs k p.
 Axiom valid_access_empty:
   forall chunk b ofs p, ~valid_access empty chunk b ofs p.
 
@@ -644,16 +644,17 @@ Axiom perm_alloc_1:
   forall b' ofs k p, perm m1 b' ofs k p -> perm m2 b' ofs k p.
 Axiom perm_alloc_2:
   forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) ->
-  forall ofs k, lo <= ofs < hi -> perm m2 b ofs k Freeable.
+  forall ofs k, isMaxCur k=true -> lo <= ofs < hi -> perm m2 b ofs k Freeable.
 Axiom perm_alloc_3:
   forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) ->
-  forall ofs k p, perm m2 b ofs k p -> lo <= ofs < hi.
+  forall ofs k p, isMaxCur k=true -> perm m2 b ofs k p -> lo <= ofs < hi.
 Axiom perm_alloc_4:
   forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) ->
-  forall b' ofs k p, perm m2 b' ofs k p -> b' <> b -> perm m1 b' ofs k p.
+  forall b' ofs k p, isMaxCur k=true -> perm m2 b' ofs k p -> b' <> b -> perm m1 b' ofs k p.
 Axiom perm_alloc_inv:
   forall m1 lo hi m2 b, alloc m1 lo hi = (m2, b) ->
   forall b' ofs k p, 
+  isMaxCur k=true -> 
   perm m2 b' ofs k p ->
   if zeq b' b then lo <= ofs < hi else perm m1 b' ofs k p.
 
@@ -739,15 +740,16 @@ Axiom perm_free_2:
 Axiom perm_free_3:
   forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 ->
   forall b ofs k p,
+  isMaxCur k=true -> 
   perm m2 b ofs k p -> perm m1 b ofs k p.
 Axiom perm_free_4:
   forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 ->
   forall b ofs p,
   perm m1 b ofs Res p -> perm m2 b ofs Res p.
-Axiom perm_free_5:
+(*Axiom perm_free_5:
   forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 ->
   forall b ofs p,
-  perm m2 b ofs Res p -> perm m1 b ofs Res p.
+  perm m2 b ofs Res p -> perm m1 b ofs Res p.*)
 
 (** Effect of [free] on access validity. *)
 
@@ -941,7 +943,7 @@ Axiom valid_block_extends:
   (valid_block m1 b <-> valid_block m2 b).
 Axiom perm_extends:
   forall m1 m2 b ofs k p,
-  extends m1 m2 -> perm m1 b ofs k p -> perm m2 b ofs k p.
+  extends m1 m2 -> isMaxCur k=true -> perm m1 b ofs k p -> perm m2 b ofs k p.
 Axiom valid_access_extends:
   forall m1 m2 chunk b ofs p,
   extends m1 m2 -> valid_access m1 chunk b ofs p -> valid_access m2 chunk b ofs p.
@@ -987,6 +989,7 @@ Axiom perm_inject:
   forall f m1 m2 b1 b2 delta ofs k p,
   f b1 = Some(b2, delta) ->
   inject f m1 m2 ->
+  isMaxCur k=true -> 
   perm m1 b1 ofs k p -> perm m2 b2 (ofs + delta) k p.
 
 Axiom valid_access_inject:
@@ -1177,11 +1180,13 @@ Axiom alloc_left_mapped_inject:
   alloc m1 lo hi = (m1', b1) ->
   valid_block m2 b2 ->
   0 <= delta <= Int.max_unsigned ->
-  (forall ofs k p, perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
-  (forall ofs k p, lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
+  (forall ofs k p, isMaxCur k=true -> 
+    perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
+  (forall ofs k p, isMaxCur k=true -> lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
   inj_offset_aligned delta (hi-lo) ->
   (forall b delta' ofs k p,
    f b = Some (b2, delta') -> 
+   isMaxCur k=true -> 
    perm m1 b ofs k p ->
    lo + delta <= ofs + delta' < hi + delta -> False) ->
   exists f',

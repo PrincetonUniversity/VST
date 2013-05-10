@@ -67,15 +67,19 @@ Record mem' : Type := mkmem {
   access_max: 
     forall b ofs, perm_order'' (mem_access#b ofs Max) (mem_access#b ofs Cur);
   nextblock_noaccess:
-    forall b ofs k, b >= nextblock -> mem_access#b ofs k = None
+    forall b ofs k, b >= nextblock -> mem_access#b ofs k = None;
+  nomax_reserved: 
+    forall b ofs, 0 <= b < nextblock -> 
+      mem_access#b ofs Max = None -> 
+      exists p, mem_access#b ofs Res = Some p
 }.
 
 Definition mem := mem'.
 
 Lemma mkmem_ext:
- forall cont1 cont2 acc1 acc2 next1 next2 a1 a2 b1 b2 c1 c2,
+ forall cont1 cont2 acc1 acc2 next1 next2 a1 a2 b1 b2 c1 c2 d1 d2,
   cont1=cont2 -> acc1=acc2 -> next1=next2 ->
-  mkmem cont1 acc1 next1 a1 b1 c1 = mkmem cont2 acc2 next2 a2 b2 c2.
+  mkmem cont1 acc1 next1 a1 b1 c1 d1 = mkmem cont2 acc2 next2 a2 b2 c2 d2.
 Proof.
   intros. subst. f_equal; apply proof_irr.
 Qed.
@@ -330,16 +334,32 @@ Qed.
 
 Program Definition empty: mem :=
   mkmem (ZMap.init (ZMap.init Undef))
-        (ZMap.init (fun ofs k => None))
-        1 _ _ _.
+        (ZMap.set 0 (fun ofs k => if isMaxCur k then None else Some Nonempty)
+          (ZMap.init (fun ofs k => None)))
+        1 _ _ _ _.
 Next Obligation.
   omega.
 Qed.
 Next Obligation.
-  repeat rewrite ZMap.gi. red; auto.
+  repeat rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b 0); simpl; auto.
+  repeat rewrite ZMap.gi. simpl; auto.
 Qed.
 Next Obligation.
+  rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b 0); subst.
+  omega.
   rewrite ZMap.gi. auto.
+Qed.
+Next Obligation.
+  exists Nonempty.
+  rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b 0); subst; simpl; auto.
+  rewrite ZMap.gi; auto.
+  rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b 0); subst; simpl; auto.
+  elimtype False; auto.
+  omega.
 Qed.
 
 Definition nullptr: block := 0.
@@ -349,25 +369,51 @@ Definition nullptr: block := 0.
   undefined cells.  Note that allocation never fails: we model an
   infinite memory. *)
 
+Definition alloc_access (m: mem) (lo hi: Z) :=
+  (ZMap.set m.(nextblock)
+    (fun ofs k => 
+      if zle lo ofs && zlt ofs hi then 
+        if isMaxCur k then Some Freeable else None
+      else if isMaxCur k then None else Some Freeable)
+    m.(mem_access)).
+
+Lemma alloc_nomax_reserved: 
+  forall m lo hi b ofs,
+    0 <= b < Zsucc m.(nextblock) -> 
+    (alloc_access m lo hi)#b ofs Max = None -> 
+    exists p, (alloc_access m lo hi)#b ofs Res = Some p.
+Proof.
+  unfold alloc_access; intros.
+  rewrite ZMap.gsspec in H0|-*.
+  destruct (ZIndexed.eq b m.(nextblock)); subst; simpl in *.
+  case_eq (zle lo ofs && zlt ofs hi); intros.
+  rewrite H1 in H0; congruence.
+  exists Freeable.
+  auto.
+  exploit nomax_reserved; eauto.
+  omega.
+Qed.
+  
 Program Definition alloc (m: mem) (lo hi: Z) :=
   (mkmem (ZMap.set m.(nextblock) 
                    (ZMap.init Undef)
                    m.(mem_contents))
-         (ZMap.set m.(nextblock)
-                   (fun ofs k => if zle lo ofs && zlt ofs hi then Some Freeable else None)
-                   m.(mem_access))
+         (alloc_access m lo hi)
          (Zsucc m.(nextblock))
-         _ _ _,
+         _ _ _ (alloc_nomax_reserved m lo hi),
    m.(nextblock)).
 Next Obligation.
   generalize (nextblock_pos m). omega. 
 Qed.
 Next Obligation.
+  unfold alloc_access.
   repeat rewrite ZMap.gsspec. destruct (ZIndexed.eq b (nextblock m)). 
-  subst b. destruct (zle lo ofs && zlt ofs hi); red; auto with mem. 
+  subst b; simpl.
+  destruct (zle lo ofs && zlt ofs hi); red; auto with mem. 
   apply access_max. 
 Qed.
 Next Obligation.
+  unfold alloc_access.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b (nextblock m)). 
   subst b. generalize (nextblock_pos m). intros. omegaContradiction.
   apply nextblock_noaccess. omega.
@@ -378,29 +424,55 @@ Qed.
   has been invalidated: future reads and writes to this
   range will fail.  Requires freeable permission on the given range. *)
 
+Definition unchecked_free_access (m: mem) (b: block) (lo hi: Z) :=
+  (ZMap.set b 
+    (fun ofs k => 
+      if zle lo ofs && zlt ofs hi then 
+        if isMaxCur k then None
+        else if zlt b m.(nextblock) then Some Freeable else None
+      else m.(mem_access)#b ofs k)
+    m.(mem_access)).
+
+Lemma unchecked_free_nomax_reserved: 
+  forall b0 m lo hi b ofs,
+    0 <= b < m.(nextblock) -> 
+    (unchecked_free_access m b0 lo hi)#b ofs Max = None -> 
+    exists p, (unchecked_free_access m b0 lo hi)#b ofs Res = Some p.
+Proof.
+  unfold unchecked_free_access; intros.
+  rewrite ZMap.gsspec in H0|-*.
+  destruct (ZIndexed.eq b b0); subst; simpl in *.
+  case_eq (zle lo ofs && zlt ofs hi); intros.
+  rewrite H1 in H0.
+  exists Freeable.
+  destruct (zlt b0 (nextblock m)); auto.
+  omega.
+  rewrite H1 in H0.
+  exploit nomax_reserved; eauto.
+  exploit nomax_reserved; eauto.
+Qed.
+
 Program Definition unchecked_free (m: mem) (b: block) (lo hi: Z): mem :=
-  mkmem m.(mem_contents)
-        (ZMap.set b 
-                (fun ofs k => 
-                  if isMaxCur k then 
-                    if zle lo ofs && zlt ofs hi then None 
-                    else m.(mem_access)#b ofs k
-                  else m.(mem_access)#b ofs k)
-                m.(mem_access))
-        m.(nextblock) _ _ _.
+  mkmem m.(mem_contents) (unchecked_free_access m b lo hi)
+        m.(nextblock) _ _ _ (unchecked_free_nomax_reserved b m lo hi).
 Next Obligation.
   apply nextblock_pos. 
 Qed.
 Next Obligation.
+  unfold unchecked_free_access.
   repeat rewrite ZMap.gsspec. destruct (ZIndexed.eq b0 b).
   simpl.
   destruct (zle lo ofs && zlt ofs hi). red; auto. apply access_max. 
   apply access_max.
 Qed.
 Next Obligation.
+  unfold unchecked_free_access.
   repeat rewrite ZMap.gsspec. destruct (ZIndexed.eq b0 b). subst.
   destruct (isMaxCur k).
   destruct (zle lo ofs && zlt ofs hi). auto. apply nextblock_noaccess; auto.
+  destruct (zle lo ofs && zlt ofs hi). 
+  destruct (zlt b (nextblock m)); auto.
+  omega.
   apply nextblock_noaccess; auto.
   apply nextblock_noaccess; auto.
 Qed.
@@ -532,7 +604,8 @@ Definition store (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z) (v: val): op
                 m.(nextblock)
                 m.(nextblock_pos)
                 m.(access_max)
-                m.(nextblock_noaccess))
+                m.(nextblock_noaccess)
+                m.(nomax_reserved))
   else
     None.
 
@@ -557,7 +630,8 @@ Definition storebytes (m: mem) (b: block) (ofs: Z) (bytes: list memval) : option
              m.(nextblock)
              m.(nextblock_pos)
              m.(access_max)
-             m.(nextblock_noaccess))
+             m.(nextblock_noaccess)
+             m.(nomax_reserved))
   else
     None.
 
@@ -576,7 +650,7 @@ Program Definition drop_perm (m: mem) (b: block) (lo hi: Z) (p: permission): opt
                             else m.(mem_access)#b ofs k
                           else m.(mem_access)#b ofs k)
                         m.(mem_access))
-                m.(nextblock) _ _ _)
+                m.(nextblock) _ _ _ _)
   else None.
 Next Obligation.
   apply nextblock_pos.
@@ -602,6 +676,13 @@ Next Obligation.
   intros; destruct k; try inv H2; auto.
   auto.
 Qed.
+Next Obligation.
+  rewrite ZMap.gsspec in *.
+  destruct (ZIndexed.eq b0 b). subst b0.
+  simpl in *. destruct (zle lo ofs && zlt ofs hi). congruence.
+  exploit nomax_reserved; eauto.
+  exploit nomax_reserved; eauto.
+Qed.
 
 (** * Properties of the memory operations *)
 
@@ -610,14 +691,18 @@ Qed.
 Theorem nextblock_empty: nextblock empty = 1.
 Proof. reflexivity. Qed.
 
-Theorem perm_empty: forall b ofs k p, ~perm empty b ofs k p.
+Theorem perm_empty: forall b ofs k p, isMaxCur k=true -> ~perm empty b ofs k p.
 Proof. 
-  intros. unfold perm, empty; simpl. rewrite ZMap.gi. simpl. tauto. 
+  intros. unfold perm, empty; simpl. 
+  rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b 0). subst b.
+  rewrite H; auto.
+  rewrite ZMap.gi. simpl. tauto. 
 Qed.
 
 Theorem valid_access_empty: forall chunk b ofs p, ~valid_access empty chunk b ofs p.
 Proof.
-  intros. red; intros. elim (perm_empty b ofs Cur p). apply H. 
+  intros. red; intros. elim (perm_empty b ofs Cur p). auto. apply H. 
   generalize (size_chunk_pos chunk); omega.
 Qed.
 
@@ -1643,38 +1728,49 @@ Theorem perm_alloc_1:
   forall b' ofs k p, perm m1 b' ofs k p -> perm m2 b' ofs k p.
 Proof.
   unfold perm; intros. injection ALLOC; intros. rewrite <- H1; simpl.
-  subst b. rewrite ZMap.gsspec. destruct (ZIndexed.eq b' (nextblock m1)); auto.
+  subst b. unfold alloc_access in *.
+  rewrite ZMap.gsspec. destruct (ZIndexed.eq b' (nextblock m1)); auto.
   rewrite nextblock_noaccess in H. contradiction. omega. 
 Qed.
 
 Theorem perm_alloc_2:
-  forall ofs k, lo <= ofs < hi -> perm m2 b ofs k Freeable.
+  forall ofs k, isMaxCur k=true -> lo <= ofs < hi -> perm m2 b ofs k Freeable.
 Proof.
-  unfold perm; intros. injection ALLOC; intros. rewrite <- H1; simpl.
-  subst b. rewrite ZMap.gss. unfold proj_sumbool. rewrite zle_true.
-  rewrite zlt_true. simpl. auto with mem. omega. omega.
+  unfold perm; intros. injection ALLOC; intros. rewrite <- H2; simpl.
+  subst b. unfold alloc_access in *. 
+  rewrite ZMap.gss. unfold proj_sumbool. rewrite zle_true.
+  rewrite zlt_true. simpl. auto with mem. 
+  destruct (isMaxCur k). simpl; auto with mem.
+  destruct (zlt ofs lo). omega.
+  destruct (zle hi ofs). omega.
+  simpl; auto with mem.
+  congruence.
+  omega. omega.
 Qed.
 
 Theorem perm_alloc_inv:
   forall b' ofs k p, 
+  isMaxCur k=true -> 
   perm m2 b' ofs k p ->
   if zeq b' b then lo <= ofs < hi else perm m1 b' ofs k p.
 Proof.
   intros until p; unfold perm. inv ALLOC. simpl. 
+  unfold alloc_access in *.
   rewrite ZMap.gsspec. unfold ZIndexed.eq. destruct (zeq b' (nextblock m1)); intros.
+  rewrite H in H0.
   destruct (zle lo ofs); try contradiction. destruct (zlt ofs hi); try contradiction.
   split; auto. 
   auto.
 Qed.
 
 Theorem perm_alloc_3:
-  forall ofs k p, perm m2 b ofs k p -> lo <= ofs < hi.
+  forall ofs k p, isMaxCur k=true -> perm m2 b ofs k p -> lo <= ofs < hi.
 Proof.
   intros. exploit perm_alloc_inv; eauto. rewrite zeq_true; auto.
 Qed.
 
 Theorem perm_alloc_4:
-  forall b' ofs k p, perm m2 b' ofs k p -> b' <> b -> perm m1 b' ofs k p.
+  forall b' ofs k p, isMaxCur k=true -> perm m2 b' ofs k p -> b' <> b -> perm m1 b' ofs k p.
 Proof.
   intros. exploit perm_alloc_inv; eauto. rewrite zeq_false; auto.
 Qed.
@@ -1696,7 +1792,7 @@ Theorem valid_access_alloc_same:
   valid_access m2 chunk b ofs Freeable.
 Proof.
   intros. constructor; auto with mem.
-  red; intros. apply perm_alloc_2. omega. 
+  red; intros. apply perm_alloc_2. simpl; auto. omega. 
 Qed.
 
 Local Hint Resolve valid_access_alloc_other valid_access_alloc_same: mem.
@@ -1713,11 +1809,11 @@ Proof.
   unfold eq_block. destruct (zeq b' b). subst b'.
   assert (perm m2 b ofs Cur p). apply H0. omega. 
   assert (perm m2 b (ofs + size_chunk chunk - 1) Cur p). apply H0. omega. 
-  exploit perm_alloc_inv. eexact H2. rewrite zeq_true. intro.
-  exploit perm_alloc_inv. eexact H3. rewrite zeq_true. intro. 
+  exploit perm_alloc_inv. instantiate (1:=Cur); auto. eexact H2. rewrite zeq_true. intro.
+  exploit perm_alloc_inv. instantiate (1:=Cur); auto. eexact H3. rewrite zeq_true. intro. 
   intuition omega. 
   split; auto. red; intros. 
-  exploit perm_alloc_inv. apply H0. eauto. rewrite zeq_false; auto. 
+  exploit perm_alloc_inv. instantiate (1:=Cur); auto. apply H0. eauto. rewrite zeq_false; auto. 
 Qed.
 
 Theorem load_alloc_unchanged:
@@ -1761,7 +1857,7 @@ Theorem load_alloc_same':
 Proof.
   intros. assert (exists v, load chunk m2 b ofs = Some v).
     apply valid_access_load. constructor; auto.
-    red; intros. eapply perm_implies. apply perm_alloc_2. omega. auto with mem.
+    red; intros. eapply perm_implies. apply perm_alloc_2. simpl; auto. omega. auto with mem.
   destruct H2 as [v LOAD]. rewrite LOAD. decEq.
   eapply load_alloc_same; eauto.
 Qed.
@@ -1830,9 +1926,9 @@ Theorem perm_free_1:
   perm m2 b ofs k p.
 Proof.
   intros. rewrite free_result. unfold perm, unchecked_free; simpl.
+  unfold unchecked_free_access.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
-  destruct (isMaxCur k); auto.
-  destruct (zle lo ofs); simpl. 
+  destruct (zle lo ofs); simpl.
   destruct (zlt ofs hi); simpl.
   elimtype False; intuition.
   auto. auto.
@@ -1843,6 +1939,7 @@ Theorem perm_free_2:
   forall ofs k p, isMaxCur k=true -> lo <= ofs < hi -> ~ perm m2 bf ofs k p.
 Proof.
   intros. rewrite free_result. unfold perm, unchecked_free; simpl.
+  unfold unchecked_free_access; simpl.
   rewrite ZMap.gss. 
   destruct (isMaxCur k).
   unfold proj_sumbool. rewrite zle_true. rewrite zlt_true. 
@@ -1852,13 +1949,16 @@ Qed.
 
 Theorem perm_free_3:
   forall b ofs k p,
+  isMaxCur k=true -> 
   perm m2 b ofs k p -> perm m1 b ofs k p.
 Proof.
   intros until p. rewrite free_result. unfold perm, unchecked_free; simpl.
+  intros MAX.
+  unfold unchecked_free_access; simpl.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
-  destruct (isMaxCur k); auto.
   destruct (zle lo ofs); simpl. 
-  destruct (zlt ofs hi); simpl. tauto. 
+  destruct (zlt ofs hi); simpl.
+  rewrite MAX; simpl. tauto.
   auto. auto. auto. 
 Qed.
 
@@ -1867,17 +1967,18 @@ Theorem perm_free_4:
   perm m1 b ofs Res p -> perm m2 b ofs Res p.
 Proof.
   intros until p. rewrite free_result. unfold perm, unchecked_free; simpl.
-  rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
-  auto. auto.
-Qed.
-
-Theorem perm_free_5:
-  forall b ofs p,
-  perm m2 b ofs Res p -> perm m1 b ofs Res p.
-Proof.
-  intros until p. rewrite free_result. unfold perm, unchecked_free; simpl.
-  rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
-  auto. auto.
+  unfold unchecked_free_access; simpl.
+  rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf); auto. subst b; simpl.
+  case_eq (zle lo ofs && zlt ofs hi); intros.
+  assert (bf < nextblock m1). 
+   unfold free in FREE.
+   destruct (range_perm_dec m1 bf lo hi Cur Freeable).
+   unfold range_perm in r.
+   specialize (r ofs).
+   exploit perm_valid_block; eauto.
+   congruence.
+  destruct (zlt bf (nextblock m1)); simpl; auto with mem.
+  auto.
 Qed.
 
 Theorem perm_free_inv:
@@ -1886,8 +1987,8 @@ Theorem perm_free_inv:
   (b = bf /\ lo <= ofs < hi) \/ perm m2 b ofs k p.
 Proof.
   intros. rewrite free_result. unfold perm, unchecked_free; simpl.
+  unfold unchecked_free_access.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf); auto. subst b.
-  destruct (isMaxCur k); auto.
   destruct (zle lo ofs); simpl; auto.
   destruct (zlt ofs hi); simpl; auto.
 Qed.
@@ -1925,6 +2026,7 @@ Proof.
   intros. destruct H. split; auto. 
   red; intros. generalize (H ofs0 H1). 
   rewrite free_result. unfold perm, unchecked_free; simpl. 
+  unfold unchecked_free_access.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
   destruct (zle lo ofs0); simpl.
   destruct (zlt ofs0 hi); simpl.
@@ -2131,6 +2233,7 @@ Record mem_inj (f: meminj) (m1 m2: mem) : Prop :=
     mi_perm:
       forall b1 b2 delta ofs k p,
       f b1 = Some(b2, delta) ->
+      isMaxCur k=true -> 
       perm m1 b1 ofs k p ->
       perm m2 b2 (ofs + delta) k p;
     mi_access:
@@ -2152,6 +2255,7 @@ Lemma perm_inj:
   mem_inj f m1 m2 ->
   perm m1 b1 ofs k p ->
   f b1 = Some(b2, delta) ->
+  isMaxCur k=true -> 
   perm m2 b2 (ofs + delta) k p.
 Proof.
   intros. eapply mi_perm; eauto. 
@@ -2162,6 +2266,7 @@ Lemma range_perm_inj:
   mem_inj f m1 m2 ->
   range_perm m1 b1 lo hi k p ->
   f b1 = Some(b2, delta) ->
+  isMaxCur k=true -> 
   range_perm m2 b2 (lo + delta) (hi + delta) k p.
 Proof.
   intros; red; intros.
@@ -2485,7 +2590,8 @@ Lemma alloc_left_unmapped_inj:
 Proof.
   intros. inversion H. constructor.
 (* perm *)
-  intros. exploit perm_alloc_inv; eauto. intros. 
+  intros. 
+  exploit perm_alloc_inv; eauto. intros. 
   destruct (zeq b0 b1). congruence. eauto. 
 (* access *)
   intros. exploit valid_access_alloc_inv; eauto. unfold eq_block. intros. 
@@ -2493,7 +2599,7 @@ Proof.
 (* mem_contents *)
   injection H0; intros NEXT MEM. intros. 
   rewrite <- MEM; simpl. rewrite NEXT.
-  exploit perm_alloc_inv; eauto. intros.
+  exploit perm_alloc_inv; eauto. auto. intros.
   rewrite ZMap.gsspec. unfold ZIndexed.eq. destruct (zeq b0 b1). 
   rewrite ZMap.gi. constructor. eauto. 
 Qed.
@@ -2507,7 +2613,7 @@ Lemma alloc_left_mapped_inj:
   alloc m1 lo hi = (m1', b1) ->
   valid_block m2 b2 ->
   inj_offset_aligned delta (hi-lo) ->
-  (forall ofs k p, lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
+  (forall ofs k p, isMaxCur k=true -> lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
   f b1 = Some(b2, delta) ->
   mem_inj f m1' m2.
 Proof.
@@ -2522,13 +2628,13 @@ Proof.
   destruct (zeq b0 b1). subst b0. rewrite H4 in H5. inv H5. 
   split. red; intros. 
   replace ofs0 with ((ofs0 - delta0) + delta0) by omega. 
-  apply H3. omega. 
+  apply H3. simpl; auto. omega. 
   destruct H6. apply Zdivide_plus_r. auto. apply H2. omega.
   eauto.
 (* mem_contents *)
   injection H0; intros NEXT MEM. 
   intros. rewrite <- MEM; simpl. rewrite NEXT.
-  exploit perm_alloc_inv; eauto. intros.
+  exploit perm_alloc_inv; eauto. intros. auto.
   rewrite ZMap.gsspec. unfold ZIndexed.eq. 
   destruct (zeq b0 b1). rewrite ZMap.gi. constructor. eauto.
 Qed.
@@ -2572,10 +2678,7 @@ Proof.
   constructor.
 (* perm *)
   intros. 
-  case_eq (isMaxCur k); intros.
   eapply PERM; eauto.
-  destruct k; try inv H4.
-  solve[exploit perm_free_4; eauto].
 (* access *)
   intros. exploit mi_access0; eauto. intros [RG AL]. split; auto.
   red; intros. replace ofs0 with ((ofs0 - delta) + delta) by omega.
@@ -2596,8 +2699,7 @@ Proof.
   intros. inv H. constructor. 
 (* perm *)
   intros. eapply mi_perm0; eauto. 
-  case_eq (isMaxCur k). intros. eapply perm_drop_4; eauto. 
-  intros. destruct k; try inv H3. eapply perm_drop_5; eauto.
+  eapply perm_drop_4; eauto. 
 (* access *)
   intros. eapply mi_access0. eauto.
   eapply valid_access_drop_2; eauto.
@@ -2627,26 +2729,23 @@ Proof.
   inv H.
   assert (PERM: forall b0 b3 delta0 ofs k p0,
                 f b0 = Some (b3, delta0) ->
+                isMaxCur k=true -> 
                 perm m1' b0 ofs k p0 -> perm m2' b3 (ofs + delta0) k p0).
     intros.
     assert (perm m2 b3 (ofs + delta0) k p0).
-      eapply mi_perm0; eauto. 
-      case_eq (isMaxCur k). intros. eapply perm_drop_4; eauto. 
-      intros. destruct k; try inv H4. eapply perm_drop_5; eauto.
+      eapply mi_perm0; eauto. eapply perm_drop_4; eauto. 
     destruct (zeq b1 b0).
     (* b1 = b0 *)
-    case_eq (isMaxCur k). intros. 
     subst b0. rewrite H2 in H; inv H.
     destruct (zlt (ofs + delta0) (lo + delta0)). eapply perm_drop_3; eauto.
     destruct (zle (hi + delta0) (ofs + delta0)). eapply perm_drop_3; eauto.
     assert (perm_order p p0).
-      eapply perm_drop_2. exact H0. exact H5. instantiate (1 := ofs). omega. eauto. 
+      eapply perm_drop_2.  eexact H0. 
+      instantiate (1 := k); auto.
+      instantiate (1 := ofs). omega. eauto. 
     apply perm_implies with p; auto. 
-    eapply perm_drop_1. eauto. eauto. omega.
-    intros. destruct k; try inv H5.
-    solve[eapply perm_drop_6; eauto].
+    eapply perm_drop_1. eauto. auto. omega.
     (* b1 <> b0 *)
-    case_eq (isMaxCur k). intros.
     eapply perm_drop_3; eauto.
     destruct (zeq b3 b2); auto.
     destruct (zlt (ofs + delta0) (lo + delta)); auto.
@@ -2654,14 +2753,14 @@ Proof.
     exploit H1; eauto.
     instantiate (1 := ofs + delta0 - delta). 
     apply perm_cur_max. apply perm_implies with Freeable.
-    eapply range_perm_drop_1. exact H0. subst. omega. auto with mem.
-    destruct k; try inv H5.
-    eapply perm_drop_4; eauto. apply perm_implies with p0. eauto. eauto with mem.
-    eapply perm_drop_4; eauto. apply perm_cur_max. apply perm_implies with p0. eauto.  
-    eauto with mem.
+    eapply range_perm_drop_1; eauto. omega. auto with mem. 
+    eapply perm_drop_4; eauto. instantiate (1 := ofs).
+    destruct k.
+    simpl in H3; congruence. apply perm_implies with p0. eauto.  
+    auto with mem.
+    apply perm_cur_max. apply perm_implies with p0. eauto.  
+    auto with mem.
     unfold block. omega.
-    intros. destruct k; try inv H5.
-    eapply perm_drop_6; eauto.
   constructor.
 (* perm *)
   auto.
@@ -2675,8 +2774,7 @@ Proof.
   replace (m1'.(mem_contents)#b0) with (m1.(mem_contents)#b0).
   replace (m2'.(mem_contents)#b3) with (m2.(mem_contents)#b3).
   apply mi_memval0; auto. eapply perm_drop_4; eauto. 
-  unfold drop_perm in DROP; destruct (range_perm_dec m2 b2 (lo + delta) (hi + delta) Cur Freeable); 
-    inv DROP; auto.
+  unfold drop_perm in DROP; destruct (range_perm_dec m2 b2 (lo + delta) (hi + delta) Cur Freeable); inv DROP; auto.
   unfold drop_perm in H0; destruct (range_perm_dec m1 b1 lo hi Cur Freeable); inv H0; auto.
 Qed.
 
@@ -2692,16 +2790,14 @@ Proof.
   intros. inv H. 
   assert (PERM: forall b0 b3 delta0 ofs k p0,
                 f b0 = Some (b3, delta0) ->
+                isMaxCur k=true -> 
                 perm m1 b0 ofs k p0 -> perm m2' b3 (ofs + delta0) k p0).
     intros. 
-    case_eq (isMaxCur k). intros.
     eapply perm_drop_3; eauto. 
     destruct (zeq b3 b); auto. subst b3. right. 
     destruct (zlt (ofs + delta0) lo); auto.
     destruct (zle hi (ofs + delta0)); auto.
     byContradiction. exploit H1; eauto. omega.
-    intros. destruct k; try inv H3.
-    eapply perm_drop_6; eauto.
   constructor.
   (* perm *)
   auto.
@@ -2951,9 +3047,10 @@ Proof.
   intros. inv H. unfold valid_block. rewrite mext_next0. omega. 
 Qed.
 
+(*TODO: prove for all "k" once Res property is added to mem_inj*)
 Theorem perm_extends:
   forall m1 m2 b ofs k p,
-  extends m1 m2 -> perm m1 b ofs k p -> perm m2 b ofs k p.
+  extends m1 m2 -> isMaxCur k=true -> perm m1 b ofs k p -> perm m2 b ofs k p.
 Proof.
   intros. inv H. replace ofs with (ofs + 0) by omega. 
   eapply perm_inj; eauto. 
@@ -3048,6 +3145,7 @@ Theorem perm_inject:
   forall f m1 m2 b1 b2 delta ofs k p,
   f b1 = Some(b2, delta) ->
   inject f m1 m2 ->
+  isMaxCur k=true -> 
   perm m1 b1 ofs k p -> perm m2 b2 (ofs + delta) k p.
 Proof.
   intros. inv H0. eapply perm_inj; eauto. 
@@ -3057,6 +3155,7 @@ Theorem range_perm_inject:
   forall f m1 m2 b1 b2 delta lo hi k p,
   f b1 = Some(b2, delta) ->
   inject f m1 m2 ->
+  isMaxCur k=true -> 
   range_perm m1 b1 lo hi k p -> range_perm m2 b2 (lo + delta) (hi + delta) k p.
 Proof.
   intros. inv H0. eapply range_perm_inj; eauto.
@@ -3546,8 +3645,10 @@ Proof.
   unfold f'; red; intros.
   destruct (zeq b0 b1); destruct (zeq b2 b1); try congruence.
   eapply mi_no_overlap0. eexact H3. eauto. eauto.
-  exploit perm_alloc_inv. eauto. eexact H6. rewrite zeq_false; auto. 
-  exploit perm_alloc_inv. eauto. eexact H7. rewrite zeq_false; auto. 
+  exploit perm_alloc_inv. eauto. instantiate (1:=Max); auto. 
+    eexact H6. rewrite zeq_false; auto. 
+  exploit perm_alloc_inv. eauto. instantiate (1:=Max); auto.
+    eexact H7. rewrite zeq_false; auto. 
 (* representable *)
   unfold f'; intros.
   destruct (zeq b b1); try discriminate.
@@ -3569,11 +3670,13 @@ Theorem alloc_left_mapped_inject:
   alloc m1 lo hi = (m1', b1) ->
   valid_block m2 b2 ->
   0 <= delta <= Int.max_unsigned ->
-  (forall ofs k p, perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
-  (forall ofs k p, lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
+  (forall ofs k p, isMaxCur k=true -> 
+    perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
+  (forall ofs k p, isMaxCur k=true -> lo <= ofs < hi -> perm m2 b2 (ofs + delta) k p) ->
   inj_offset_aligned delta (hi-lo) ->
   (forall b delta' ofs k p,
    f b = Some (b2, delta') -> 
+   isMaxCur k=true -> 
    perm m1 b ofs k p ->
    lo + delta <= ofs + delta' < hi + delta -> False) ->
   exists f',
@@ -3613,16 +3716,18 @@ Proof.
   unfold f'; intros. destruct (zeq b b1). congruence. eauto.
 (* overlap *)
   unfold f'; red; intros.
-  exploit perm_alloc_inv. eauto. eexact H12. intros P1.
-  exploit perm_alloc_inv. eauto. eexact H13. intros P2.
+  exploit perm_alloc_inv. eauto. instantiate (1:=Max); auto.
+    eexact H12. intros P1.
+  exploit perm_alloc_inv. eauto. instantiate (1:=Max); auto.
+    eexact H13. intros P2.
   destruct (zeq b0 b1); destruct (zeq b3 b1).
   congruence.
   inversion H10; subst b0 b1' delta1. 
     destruct (zeq b2 b2'); auto. subst b2'. right; red; intros.
-    eapply H6; eauto. omega.
+    eapply H6; eauto. simpl; auto. omega.
   inversion H11; subst b3 b2' delta2. 
     destruct (zeq b1' b2); auto. subst b1'. right; red; intros.
-    eapply H6; eauto. omega.
+    eapply H6; eauto. simpl; auto. omega.
   eauto.
 (* representable *)
   unfold f'; intros.
@@ -3630,11 +3735,13 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H10.
   destruct (zeq b b1).
    subst. injection H9; intros; subst b' delta0. destruct H10.
-    exploit perm_alloc_inv; eauto; rewrite zeq_true; intro.
-    exploit H3. apply H4 with (k := Cur) (p := Nonempty); eauto.
+    exploit perm_alloc_inv; eauto. simpl; auto. rewrite zeq_true; intro.
+    exploit H3. instantiate (1 := Cur); auto.
+    apply H4 with (k := Cur) (p := Nonempty); eauto.
     generalize (Int.unsigned_range_2 ofs). omega.
-   exploit perm_alloc_inv; eauto; rewrite zeq_true; intro.
-   exploit H3. apply H4 with (k := Cur) (p := Nonempty); eauto.
+   exploit perm_alloc_inv; eauto. simpl; auto. rewrite zeq_true; intro.
+   exploit H3. instantiate (1 := Cur); auto. 
+   apply H4 with (k := Cur) (p := Nonempty); eauto.
    generalize (Int.unsigned_range_2 ofs). omega.
   eapply mi_representable0; try eassumption.
   rewrite !weak_valid_pointer_spec, !valid_pointer_nonempty_perm.
@@ -3840,8 +3947,8 @@ Proof.
   subst b1x. destruct A. congruence. 
   assert (delta1y = delta2y) by congruence. right; omega.
   exploit mi_no_overlap1. eauto. eauto. eauto.
-    eapply perm_inj. eauto. eexact H2. eauto. 
-    eapply perm_inj. eauto. eexact H3. eauto. 
+    eapply perm_inj. eauto. eexact H2. eauto. auto.
+    eapply perm_inj. eauto. eexact H3. eauto. auto.
   unfold block; omega.
 (* representable *)
   intros. 
