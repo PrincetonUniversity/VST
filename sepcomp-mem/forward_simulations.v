@@ -190,7 +190,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
 
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
-        forall vals vals' (r: reserve) m1 m2,
+        forall vals vals' m1 m2,
           Forall2 Val.lessdef vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
