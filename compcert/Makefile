@@ -12,36 +12,29 @@
 
 include Makefile.config
 
-DIRS=lib common backend cfrontend driver flocq exportclight
+DIRS=lib common $(ARCH)/$(VARIANT) $(ARCH) backend cfrontend driver \
+  flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight
 
-DIRS_LONG= $(DIRS) flocq/Core flocq/Prop flocq/Calc flocq/Appli \
-  $(ARCH)/$(VARIANT) $(ARCH)
+RECDIRS=lib common backend cfrontend driver flocq exportclight
 
-# This section uses the -exclude-dir feature of coqc,
-# which does not work in Coq 8.3 or Coq 8.4pl2. 
-# See Coq bug report 3025.  Until it's fixed, we do something uglier.
-# Also, even when 3025 is fixed, coqdep might still not respect
-# -exclude-dir, so be careful.
-# EXCLUDES= $(filter-out $(ARCH), ia32 arm powerpc)
-# 
-# INCLUDES= $(EXCLUDES:%=-exclude-dir %) -R . -as compcert 
+COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d)) \
+  -I $(ARCH)/$(VARIANT) -as compcert.$(ARCH).$(VARIANT) \
+  -I $(ARCH) -as compcert.$(ARCH)
 
-# Until -exclude-dir is fixed, we have to do it this way:
-INCLUDES= $(foreach a,$(DIRS),-R $(a) -as compcert.$(a)) -I $(ARCH) -as $(ARCH) -I $(ARCH)/$(VARIANT) -as $(ARCH).$(VARIANT)
+CAMLINCLUDES=$(patsubst %,-I %, $(DIRS)) -I extraction -I cparser
 
-COQC=coqc -q $(INCLUDES)
-COQDEP= coqdep $(INCLUDES)
+COQC=coqc -q $(COQINCLUDES)
+COQDEP=coqdep $(COQINCLUDES)
 COQDOC=coqdoc
-COQEXEC=coqtop $(INCLUDES) -batch -load-vernac-source
-COQCHK=coqchk $(INCLUDES)
+COQEXEC=coqtop $(COQINCLUDES) -batch -load-vernac-source
+COQCHK=coqchk $(COQINCLUDES)
 
 OCAMLBUILD=ocamlbuild
 OCB_OPTIONS=\
   -j 2 \
   -no-hygiene \
   -no-links \
-  -I extraction -I cparser $(DIRS_LONG:%=-I %)
-# $(INCLUDES)
+  $(CAMLINCLUDES)
 OCB_OPTIONS_CHECKLINK=\
   $(OCB_OPTIONS) \
   -I checklink \
@@ -50,8 +43,8 @@ OCB_OPTIONS_CLIGHTGEN=\
   $(OCB_OPTIONS) \
   -I exportclight
 
-# VPATH=$(DIRS)
-# GPATH=$(DIRS)
+VPATH=$(DIRS)
+GPATH=$(DIRS)
 
 # Flocq
 FLOCQ_CORE=Fcore_float_prop.v Fcore_Zaux.v Fcore_rnd_ne.v Fcore_FTZ.v \
@@ -62,55 +55,43 @@ FLOCQ_PROP=Fprop_Sterbenz.v Fprop_mult_error.v Fprop_relative.v \
 FLOCQ_CALC=Fcalc_ops.v Fcalc_bracket.v Fcalc_sqrt.v Fcalc_div.v Fcalc_round.v \
   Fcalc_digits.v
 FLOCQ_APPLI=Fappli_IEEE_bits.v Fappli_IEEE.v
-FLOCQ=$(FLOCQ_CORE:%=Core/%) $(FLOCQ_PROP:%=Prop/%) $(FLOCQ_CALC:%=Calc/%) $(FLOCQ_APPLI:%=Appli/%)
+FLOCQ=$(FLOCQ_CORE) $(FLOCQ_PROP) $(FLOCQ_CALC) $(FLOCQ_APPLI)
 
 # General-purpose libraries (in lib/)
 
 LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
   Iteration.v Integers.v Floats.v Parmov.v UnionFind.v Wfsimpl.v \
-  Postorder.v
+  Postorder.v FSetAVLplus.v
 
 # Parts common to the front-ends and the back-end (in common/)
 
 COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
   Values.v Smallstep.v Behaviors.v Switch.v Determinism.v
 
-# Back-end modules (in backend/)
+# Back-end modules (in backend/, $(ARCH)/, $(ARCH)/$(VARIANT))
 
 BACKEND=\
-  Cminor.v CminorSel.v \
-  Selection.v Selectionproof.v \
+  Cminor.v Op.v CminorSel.v \
+  SelectOp.v SelectLong.v Selection.v \
+  SelectOpproof.v SelectLongproof.v Selectionproof.v \
   Registers.v RTL.v \
   RTLgen.v RTLgenspec.v RTLgenproof.v \
   Tailcall.v Tailcallproof.v \
   Inlining.v Inliningspec.v Inliningproof.v \
   Renumber.v Renumberproof.v \
   RTLtyping.v \
-  Kildall.v \
-  Constprop.v Constpropproof.v \
-  CSE.v CSEproof.v \
-  Locations.v Conventions.v LTL.v LTLtyping.v \
-  InterfGraph.v Coloring.v Coloringproof.v \
-  Allocation.v Allocproof.v Alloctyping.v \
-  Tunneling.v Tunnelingproof.v Tunnelingtyping.v \
-  LTLin.v LTLintyping.v \
-  Linearize.v Linearizeproof.v Linearizetyping.v \
-  CleanupLabels.v CleanupLabelsproof.v CleanupLabelstyping.v \
+  Kildall.v Liveness.v \
+  ConstpropOp.v Constprop.v ConstpropOpproof.v Constpropproof.v \
+  CombineOp.v CSE.v CombineOpproof.v CSEproof.v \
+  Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
+  Allocation.v Allocproof.v \
+  Tunneling.v Tunnelingproof.v \
   Linear.v Lineartyping.v \
-  Parallelmove.v Reload.v Reloadproof.v Reloadtyping.v \
-  RRE.v RREproof.v RREtyping.v \
-  Mach.v Asmgenproof0.v \
-  Bounds.v Stacking.v Stackingproof.v
-
-# Architecture-specific files  (in $(ARCH)/  )
-ARCHFILES= Op.v CombineOp.v CombineOpproof.v \
-  ConstpropOp.v ConstpropOpproof.v Machregs.v \
-  SelectOp.v SelectOpproof.v \
-  Asm.v Asmgen.v Asmgenproof1.v Asmgenproof.v
-
-# Arch-variant-specific files  (in $(ARCH)/$(VARIANT)/  )
-VARIANTFILES= Stacklayout.v Conventions1.v  
-
+  Linearize.v Linearizeproof.v \
+  CleanupLabels.v CleanupLabelsproof.v \
+  Mach.v \
+  Bounds.v Stacklayout.v Stacking.v Stackingproof.v \
+  Asm.v Asmgen.v Asmgenproof0.v Asmgenproof1.v Asmgenproof.v
 
 # C front-end modules (in cfrontend/)
 
@@ -127,10 +108,7 @@ DRIVER=Compiler.v Complements.v
 
 # All source files
 
-FILES=$(LIB:%=lib/%) $(COMMON:%=common/%) $(BACKEND:%=backend/%) \
-     $(CFRONTEND:%=cfrontend/%) $(DRIVER:%=driver/%) \
-     $(FLOCQ:%=flocq/%) $(ARCHFILES:%=$(ARCH)/%) \
-     $(VARIANTFILES:%=$(ARCH)/$(VARIANT)/%)
+FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ)
 
 # Symbolic links vs. copy
 
@@ -213,7 +191,7 @@ latexdoc:
 %.vo: %.v
 	@rm -f doc/glob/$(*F).glob
 	@echo "COQC $*.v"
-	$(COQC) -dump-glob doc/$(*F).glob $*.v
+	@$(COQC) -dump-glob doc/$(*F).glob $*.v
 
 %.v: %.vp tools/ndfun
 	@rm -f $*.v
@@ -249,7 +227,7 @@ endif
 	$(MAKE) -C runtime install
 
 clean:
-	rm -f $(patsubst %, %/*.vo, $(DIRS_LONG))
+	rm -f $(patsubst %, %/*.vo, $(DIRS))
 	rm -f ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
 	rm -rf _build
 	rm -rf doc/html doc/*.glob
@@ -258,8 +236,7 @@ clean:
 	rm -f extraction/STAMP extraction/*.ml extraction/*.mli
 	rm -f tools/ndfun
 	$(MAKE) -C runtime clean
-	$(MAKE) -C test/cminor clean
-	$(MAKE) -C test/c clean
+	$(MAKE) -C test clean
 
 distclean:
 	$(MAKE) clean
@@ -268,13 +245,19 @@ distclean:
 check-admitted: $(FILES)
 	@grep -w 'admit\|Admitted\|ADMITTED' $^ || echo "Nothing admitted."
 
-# Problems with coqchk (coq 8.3pl3):
-#   Integers.one_bits_range takes forever to check
-#   Mach#<>#instruction causes a failure
-#   Asm#<>#instruction causes a failure
-#   UnionFind.UF.elt causes an Anomaly (!)
+# Problems with coqchk (coq 8.4.pl2):
+# Integers.Int.Z_mod_modulus_range takes forever to check
+# Floats.Float.double_of_bits_of_double takes forever to check
+# AST.external_function gives "Failure: impredicative Type inductive type"
+# Asm.instruction gives "Failure: impredicative Type inductive type"
+# Mach.instruction gives "Failure: impredicative Type inductive type"
+# UnionFind.UF.elt gives "Anomaly: Uncaught exception Reduction.NotConvertible"
+
 check-proof: $(FILES)
-	$(COQCHK) -admit Integers -admit Mach -admit Asm -admit UnionFind Complements
+	$(COQCHK) -admit Integers -admit Floats -admit AST -admit Asm -admit Mach -admit UnionFind Complements 
+
+print-includes:
+	@echo $(COQINCLUDES)
 
 include .depend
 

@@ -2,30 +2,34 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _bufsize : ident := 15%positive.
-Definition _p : ident := 7%positive.
-Definition ___builtin_annot_intval : ident := 3%positive.
-Definition ___builtin_fabs : ident := 1%positive.
-Definition _serialize : ident := 14%positive.
-Definition _ser : ident := 19%positive.
-Definition _intpair_serialize : ident := 9%positive.
-Definition _y : ident := 4%positive.
-Definition _q : ident := 17%positive.
-Definition _buf : ident := 8%positive.
-Definition _len : ident := 18%positive.
-Definition _struct_message : ident := 16%positive.
-Definition _deserialize : ident := 13%positive.
-Definition _struct_intpair : ident := 6%positive.
-Definition _intpair_message : ident := 12%positive.
-Definition _intpair_deserialize : ident := 11%positive.
-Definition _x : ident := 5%positive.
-Definition ___builtin_memcpy_aligned : ident := 2%positive.
-Definition _main : ident := 21%positive.
-Definition _length : ident := 10%positive.
-Definition _des : ident := 20%positive.
+Definition _x : ident := 15%positive.
+Definition ___builtin_fabs : ident := 7%positive.
+Definition ___builtin_negl : ident := 3%positive.
+Definition ___builtin_write16_reversed : ident := 1%positive.
+Definition _y : ident := 14%positive.
+Definition _intpair_serialize : ident := 19%positive.
+Definition ___builtin_annot_intval : ident := 9%positive.
+Definition ___builtin_addl : ident := 4%positive.
+Definition _p : ident := 17%positive.
+Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _buf : ident := 18%positive.
+Definition _struct_intpair : ident := 16%positive.
+Definition _main : ident := 27%positive.
+Definition _struct_message : ident := 13%positive.
+Definition ___builtin_mull : ident := 6%positive.
+Definition _ser : ident := 25%positive.
+Definition _bufsize : ident := 12%positive.
+Definition _des : ident := 26%positive.
+Definition _len : ident := 24%positive.
+Definition _q : ident := 23%positive.
+Definition _serialize : ident := 11%positive.
+Definition ___builtin_subl : ident := 5%positive.
+Definition ___builtin_write32_reversed : ident := 2%positive.
+Definition _intpair_deserialize : ident := 21%positive.
+Definition _deserialize : ident := 10%positive.
+Definition _intpair_message : ident := 22%positive.
+Definition _length : ident := 20%positive.
 
-Definition t_struct_intpair :=
-   (Tstruct _struct_intpair (Fcons _x tint (Fcons _y tint Fnil)) noattr).
 Definition t_struct_message :=
    (Tstruct _struct_message
      (Fcons _bufsize tint
@@ -37,6 +41,8 @@ Definition t_struct_message :=
                    (Tcons (tptr tvoid)
                      (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid)) Fnil)))
      noattr).
+Definition t_struct_intpair :=
+   (Tstruct _struct_intpair (Fcons _x tint (Fcons _y tint Fnil)) noattr).
 
 Definition f_intpair_serialize := {|
   fn_return := tint;
@@ -120,7 +126,7 @@ Definition f_main := {|
                 (tptr (Tfunction
                         (Tcons (tptr tvoid)
                           (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid))) ::
-               (22%positive, tint) :: nil);
+               (28%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sassign (Efield (Evar _p t_struct_intpair) _x tint)
@@ -135,13 +141,13 @@ Definition f_main := {|
                   tint))))
       (Ssequence
         (Ssequence
-          (Scall (Some 22%positive)
+          (Scall (Some 28%positive)
             (Etempvar _ser (tptr (Tfunction
                                    (Tcons (tptr tvoid)
                                      (Tcons (tptr tuchar) Tnil)) tint)))
             ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)) ::
              (Evar _buf (tarray tuchar 8)) :: nil))
-          (Sset _len (Etempvar 22%positive tint)))
+          (Sset _len (Etempvar 28%positive tint)))
         (Ssequence
           (Sset _des
             (Efield (Evar _intpair_message t_struct_message) _deserialize

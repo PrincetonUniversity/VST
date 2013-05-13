@@ -353,6 +353,7 @@ Lemma val_inject_split: forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 
 Proof. intros. 
    inv V. 
      exists (Vint i). split; constructor.
+     exists (Vlong i); split; constructor.
      exists (Vfloat f). split; constructor. 
      apply compose_meminjD_Some in H. rename b2 into b3.
        destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst. 
@@ -580,7 +581,7 @@ Qed.
 Lemma inject_valvalid: forall j m1 m2 (Inj: Mem.inject j m1 m2) v2 (V:val_valid v2 m2) v1,
              val_inject j v1 v2 -> val_valid v1 m1.
 Proof. intros.
-  inv H. constructor. constructor.
+  inv H. constructor. constructor. constructor.
      simpl in *. eapply Mem.valid_block_inject_1; eassumption. 
      constructor. 
 Qed. 
@@ -708,7 +709,7 @@ Proof. intros. unfold mem_wd in *.
                 apply Mem.valid_access_valid_block in X. apply X.
             constructor.
       rewrite (Mem.nextblock_store _ _ _ _ _ _ ST). 
-          destruct v. constructor. constructor. constructor.
+          destruct v; try solve [constructor].
             econstructor. eapply flatinj_I. apply V. 
                           rewrite Int.add_zero. trivial.
 Qed.
@@ -799,17 +800,10 @@ Lemma valid_genv_store_init_data:
   (SID: Genv.store_init_data ge m1 b z a = Some m2),
   valid_genv ge m1 -> valid_genv ge m2.
 Proof. intros F V ge a.
-  destruct a; simpl; intros.
+  destruct a; simpl; intros;
+  try solve [
     intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
-    intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
-    intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
-    intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
-    intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0)).
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0))].
     inv SID; trivial.
     remember ( Genv.find_symbol ge i) as d.
       destruct d; inv SID. 

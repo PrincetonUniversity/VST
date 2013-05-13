@@ -153,6 +153,7 @@ destruct x; simpl in *; try congruence.
 destruct x; simpl in *; try congruence. 
 destruct t0; simpl in *; try congruence; intuition.
 destruct t0; simpl in *; try congruence; intuition.
+destruct t0; simpl in *; try congruence; intuition.
 Qed. 
 
 

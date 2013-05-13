@@ -1530,16 +1530,14 @@ Proof.
  inv H0.  rewrite  negb_involutive. unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
  destruct i0; simpl; auto; destruct (Int.eq i Int.zero); auto;
  destruct s; simpl; auto.
- 
- destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
-
- destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
-
- destruct (Int.eq i Int.zero); try congruence. inv H0; simpl in *; auto.
-
- destruct (typeof a); try congruence. simpl. destruct ((Float.cmp Ceq f Float.zero)); inv H0; auto.
-
- destruct (typeof a); inv H0; simpl; auto.
+  destruct (Int.eq i Int.zero);  inv H0; reflexivity.
+ destruct (Int.eq i Int.zero);  inv H0; reflexivity.
+ destruct (Int.eq i Int.zero);  inv H0; reflexivity.
+ destruct (typeof a); inv H0; simpl.
+ destruct (Int64.eq i Int64.zero); reflexivity.
+ destruct (typeof a); inv H0; simpl.
+ destruct ((Float.cmp Ceq f Float.zero)); reflexivity.
+ destruct (typeof a); inv H0; simpl; rewrite Int.eq_true; reflexivity.
 Qed.
 
 Lemma guard_environ_sub:

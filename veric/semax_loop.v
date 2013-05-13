@@ -40,7 +40,8 @@ Lemma strict_bool_val_sub : forall v t b,
 Proof.
   intros. destruct v; destruct t; simpl in *; auto; try congruence; 
    unfold Cop.bool_val, Cop.classify_bool; simpl.
-  destruct i0; auto. destruct s; auto.
+  destruct i0; auto.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.

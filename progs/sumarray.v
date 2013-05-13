@@ -2,17 +2,23 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _s : ident := 7%positive.
-Definition ___builtin_annot_intval : ident := 3%positive.
-Definition ___builtin_fabs : ident := 1%positive.
-Definition _sumarray : ident := 9%positive.
-Definition _a : ident := 4%positive.
-Definition _x : ident := 8%positive.
-Definition _i : ident := 6%positive.
-Definition _main : ident := 11%positive.
-Definition _n : ident := 5%positive.
-Definition ___builtin_memcpy_aligned : ident := 2%positive.
-Definition _four : ident := 10%positive.
+Definition _sumarray : ident := 15%positive.
+Definition ___builtin_fabs : ident := 7%positive.
+Definition ___builtin_negl : ident := 3%positive.
+Definition ___builtin_write16_reversed : ident := 1%positive.
+Definition _x : ident := 14%positive.
+Definition ___builtin_annot_intval : ident := 9%positive.
+Definition ___builtin_addl : ident := 4%positive.
+Definition _main : ident := 17%positive.
+Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _four : ident := 16%positive.
+Definition _s : ident := 13%positive.
+Definition ___builtin_mull : ident := 6%positive.
+Definition _i : ident := 12%positive.
+Definition _n : ident := 11%positive.
+Definition ___builtin_subl : ident := 5%positive.
+Definition ___builtin_write32_reversed : ident := 2%positive.
+Definition _a : ident := 10%positive.
 
 
 Definition f_sumarray := {|
@@ -54,14 +60,14 @@ Definition f_main := {|
   fn_return := tint;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_s, tint) :: (12%positive, tint) :: nil);
+  fn_temps := ((_s, tint) :: (18%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 12%positive)
+    (Scall (Some 18%positive)
       (Evar _sumarray (Tfunction (Tcons (tptr tint) (Tcons tint Tnil)) tint))
       ((Evar _four (tarray tint 4)) :: (Econst_int (Int.repr 4) tint) :: nil))
-    (Sset _s (Etempvar 12%positive tint)))
+    (Sset _s (Etempvar 18%positive tint)))
   (Sreturn (Some (Etempvar _s tint))))
 |}.
 

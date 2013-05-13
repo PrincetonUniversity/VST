@@ -692,8 +692,10 @@ intros.
 unfold sem_cmp in H. 
 unfold classify_cmp in H. simpl in H.
 rewrite Int.negate_cmp.
-destruct i; inv H. destruct j; inv H1.
+destruct i; inv H. 
+destruct j; inv H1.
 simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+destruct j; inv H1.
 Qed.
 
 
@@ -707,6 +709,7 @@ unfold sem_cmp in H.
 unfold classify_cmp in H. simpl in H.
 destruct i; inv H. destruct j; inv H1.
 simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+destruct j; inv H1.
 Qed.
 
 Lemma typed_true_ptr: 
@@ -955,6 +958,7 @@ intros.
  unfold typecheck_val in H1.
  simpl in H1.
  revert H1; case_eq (eval_var i t rho); intros; try reflexivity.
+ specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
  specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
 Qed.
 

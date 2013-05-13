@@ -17,6 +17,7 @@
   the abstract syntax trees of many of the intermediate languages. *)
 
 Require Import Coqlib.
+Require String.
 Require Import Errors.
 Require Import Integers.
 Require Import Floats.
@@ -32,16 +33,19 @@ Definition ident := positive.
 
 Definition ident_eq := peq.
 
-(** The intermediate languages are weakly typed, using only two types:
-  [Tint] for integers and pointers, and [Tfloat] for floating-point
-  numbers. *)
+Parameter ident_of_string : String.string -> ident.
+
+(** The intermediate languages are weakly typed, using only three
+  types: [Tint] for 32-bit integers and pointers, [Tfloat] for 64-bit
+  floating-point numbers, [Tlong] for 64-bit integers. *)
 
 Inductive typ : Type :=
-  | Tint : typ
-  | Tfloat : typ.
+  | Tint
+  | Tfloat
+  | Tlong.
 
 Definition typesize (ty: typ) : Z :=
-  match ty with Tint => 4 | Tfloat => 8 end.
+  match ty with Tint => 4 | Tfloat => 8 | Tlong => 8 end.
 
 Lemma typesize_pos: forall ty, typesize ty > 0.
 Proof. destruct ty; simpl; omega. Qed.
@@ -50,9 +54,11 @@ Lemma typ_eq: forall (t1 t2: typ), {t1=t2} + {t1<>t2}.
 Proof. decide equality. Defined.
 Global Opaque typ_eq.
 
-Lemma opt_typ_eq: forall (t1 t2: option typ), {t1=t2} + {t1<>t2}.
-Proof. decide equality. apply typ_eq. Defined.
-Global Opaque opt_typ_eq.
+Definition opt_typ_eq: forall (t1 t2: option typ), {t1=t2} + {t1<>t2}
+                     := option_eq typ_eq.
+
+Definition list_typ_eq: forall (l1 l2: list typ), {l1=l2} + {l1<>l2}
+                     := list_eq_dec typ_eq.
 
 (** Additionally, function definitions and function calls are annotated
   by function signatures indicating the number and types of arguments,
@@ -71,19 +77,28 @@ Definition proj_sig_res (s: signature) : typ :=
   | Some t => t
   end.
 
+Definition signature_eq: forall (s1 s2: signature), {s1=s2} + {s1<>s2}.
+Proof. generalize opt_typ_eq, list_typ_eq; intros; decide equality. Defined.
+Global Opaque signature_eq.
+
 (** Memory accesses (load and store instructions) are annotated by
   a ``memory chunk'' indicating the type, size and signedness of the
   chunk of memory being accessed. *)
 
 Inductive memory_chunk : Type :=
-  | Mint8signed : memory_chunk     (**r 8-bit signed integer *)
-  | Mint8unsigned : memory_chunk   (**r 8-bit unsigned integer *)
-  | Mint16signed : memory_chunk    (**r 16-bit signed integer *)
-  | Mint16unsigned : memory_chunk  (**r 16-bit unsigned integer *)
-  | Mint32 : memory_chunk          (**r 32-bit integer, or pointer *)
-  | Mfloat32 : memory_chunk        (**r 32-bit single-precision float *)
-  | Mfloat64 : memory_chunk        (**r 64-bit double-precision float *)
-  | Mfloat64al32 : memory_chunk.   (**r 64-bit double-precision float, 4-aligned *)
+  | Mint8signed     (**r 8-bit signed integer *)
+  | Mint8unsigned   (**r 8-bit unsigned integer *)
+  | Mint16signed    (**r 16-bit signed integer *)
+  | Mint16unsigned  (**r 16-bit unsigned integer *)
+  | Mint32          (**r 32-bit integer, or pointer *)
+  | Mint64          (**r 64-bit integer *)
+  | Mfloat32        (**r 32-bit single-precision float *)
+  | Mfloat64        (**r 64-bit double-precision float *)
+  | Mfloat64al32.   (**r 64-bit double-precision float, 4-aligned *)
+
+Definition chunk_eq: forall (c1 c2: memory_chunk), {c1=c2} + {c1<>c2}.
+Proof. decide equality. Defined.
+Global Opaque chunk_eq.
 
 (** The type (integer/pointer or float) of a chunk. *)
 
@@ -94,9 +109,20 @@ Definition type_of_chunk (c: memory_chunk) : typ :=
   | Mint16signed => Tint
   | Mint16unsigned => Tint
   | Mint32 => Tint
+  | Mint64 => Tlong
   | Mfloat32 => Tfloat
   | Mfloat64 => Tfloat
   | Mfloat64al32 => Tfloat
+  end.
+
+(** The chunk that is appropriate to store and reload a value of
+  the given type, without losing information. *)
+
+Definition chunk_of_type (ty: typ) :=
+  match ty with
+  | Tint => Mint32
+  | Tfloat => Mfloat64al32
+  | Tlong => Mint64
   end.
 
 (** Initialization data for global variables. *)
@@ -105,6 +131,7 @@ Inductive init_data: Type :=
   | Init_int8: int -> init_data
   | Init_int16: int -> init_data
   | Init_int32: int -> init_data
+  | Init_int64: int64 -> init_data
   | Init_float32: float -> init_data
   | Init_float64: float -> init_data
   | Init_space: Z -> init_data
@@ -516,6 +543,16 @@ Definition ef_reloads (ef: external_function) : bool :=
   | _ => true
   end.
 
+(** Equality between external functions.  Used in module [Allocation]. *)
+
+Definition external_function_eq: forall (ef1 ef2: external_function), {ef1=ef2} + {ef1<>ef2}.
+Proof.
+  generalize ident_eq signature_eq chunk_eq typ_eq zeq Int.eq_dec; intros.
+  decide equality.
+  apply list_eq_dec. decide equality. apply Float.eq_dec. 
+Defined.
+Global Opaque external_function_eq.
+
 (** Function definitions are the union of internal and external functions. *)
 
 Inductive fundef (F: Type): Type :=
@@ -549,4 +586,3 @@ Definition transf_partial_fundef (fd: fundef A): res (fundef B) :=
   end.
 
 End TRANSF_PARTIAL_FUNDEF.
-

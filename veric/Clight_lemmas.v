@@ -11,6 +11,7 @@ Definition val_to_bool (v: val) : option bool :=
 Definition bool_of_valf (v: val): option bool := 
 match v with
   | Vint i => Some (negb (Int.eq i Int.zero))
+  | Vlong i => Some (negb (Int64.eq i Int64.zero))
   | Vfloat _ => None
   | Vptr _ _ => Some true
   | Vundef => None
@@ -119,26 +120,27 @@ Proof.
  intros.
  destruct (Clight.eval_expr_lvalue_ind ge e le m
    (fun a v =>  forall v', Clight.eval_expr ge e le m a v' -> v=v')
-   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros.
-  inv H; auto. inv H0; auto. inv H; auto. inv H0; auto. inv H0; auto.
-  congruence. inv H1; auto. inv H1; auto. apply H0 in H5. inv H5; auto.
-  inv H2; auto. inv H2; auto. apply H0 in H7.  subst; congruence.
-  inv H3. inv H4. apply H0 in H10. apply H2 in H11. subst; congruence.
-  inv H6. inv H5. inv H5. inv H5. inv H2.
-  apply H0 in H5. subst v1. congruence.
+   (fun a b i => forall b' i', Clight.eval_lvalue ge e le m a b' i' -> (b,i)=(b',i'))); intros;
 
-  inv H3.
-  inv H; inv H2; try solve [  apply H0 in H; inv H;  eapply deref_loc_fun; eauto].
-  inv H0; congruence.
-  inv H2; congruence.
-  inv H1. apply H0 in H6. congruence.
-  inv H3. apply H0 in H7; congruence.
-  apply H0 in H9; congruence.
-  inv H2.
-  apply H0 in H6; congruence.
-  apply H0 in H8; congruence.
+  try solve [repeat 
+  match goal with
+  |  H: eval_expr _ _ _ _ ?a _  |- _ => (is_var a; fail 1) || inv H
+  | H: eval_lvalue _ _ _ _ ?a _ _ |- _  => (is_var a; fail 1) || inv H
+  end; congruence].
+ * inv H1. apply H0 in H5; congruence. inv H2.
+ * inv H2. apply H0 in H7; congruence. inv H3.
+ * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.
+ * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3.
+ * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto. 
+   inv H. congruence. inversion2 H4 H9.  eapply deref_loc_fun; eauto.
+   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
+   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
+   apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
+ * inv H1. apply H0 in H6. congruence.
+ * inv H3. apply H0 in H7. congruence. congruence.
+ * inv H2. apply H0 in H6. congruence. apply H0 in H8. congruence.
 
- split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
+ * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
 Qed.
 
 Lemma eval_expr_fun:   forall {ge e le m a v v'},

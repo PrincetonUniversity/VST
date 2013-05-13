@@ -187,6 +187,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
   | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => umapsto sh (Tlong Unsigned noattr) a (Vlong i)
   | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
   | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
@@ -283,6 +284,8 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
       Mem.load Mint16unsigned m b p = Some(Vint(Int.zero_ext 16 n))
   | Init_int32 n =>
       Mem.load Mint32 m b p = Some(Vint n)
+  | Init_int64 n =>
+      Mem.load Mint64 m b p = Some(Vlong n)
   | Init_float32 n =>
       Mem.load Mfloat32 m b p = Some(Vfloat(Float.singleoffloat n))
   | Init_float64 n =>
@@ -302,6 +305,7 @@ Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
   | Init_int16 n => Zeq_bool (z mod 2) 0
   | Init_int32 n => Zeq_bool (z mod 4) 0
+  | Init_int64 n => Zeq_bool (z mod 8) 0
   | Init_float32 n =>  Zeq_bool (z mod 4) 0
   | Init_float64 n =>  Zeq_bool (z mod 8) 0
   | Init_addrof symb ofs =>  Zeq_bool (z mod 4) 0
@@ -620,6 +624,29 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.  
 (* Int32 *)
+  repeat split; auto; clear H.
+  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
+  intro loc; specialize (H2 loc).
+  simpl in H2. simpl size_chunk. hnf; if_tac; auto.
+  exists NU.
+  destruct H2.
+  apply join_comm in H1.
+  apply (resource_at_join _ _ _ loc) in H1.
+  apply H2 in H1. hnf; rewrite H1.
+  unfold beyond_block. rewrite only_blocks_at.
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
+  unfold inflate_initial_mem'. rewrite H4.
+ unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  destruct (gvar_readonly v);  repeat f_equal; auto.
+  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+  rewrite H0.
+  destruct loc; destruct H; subst b0.
+  apply nth_getN; simpl; omega.
+(* Int64 *)
   repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).

@@ -54,7 +54,7 @@ Fixpoint constval (a: expr) : res val :=
   match a with
   | Eval v ty =>
       match v with
-      | Vint _ | Vfloat _ => OK v
+      | Vint _ | Vfloat _ | Vlong _ => OK v
       | Vptr _ _ | Vundef => Error(msg "illegal constant")
       end
   | Evalof l ty =>
@@ -147,14 +147,17 @@ Definition transl_init_single (ty: type) (a: expr) : res init_data :=
   do v1 <- constval a;
   do v2 <- do_cast v1 (typeof a) ty;
   match v2, ty with
-  | Vint n, Tint I8 sg _ => OK(Init_int8 n)
+  | Vint n, Tint (I8|IBool) sg _ => OK(Init_int8 n)
   | Vint n, Tint I16 sg _ => OK(Init_int16 n)
   | Vint n, Tint I32 sg _ => OK(Init_int32 n)
   | Vint n, Tpointer _ _ => OK(Init_int32 n)
+  | Vint n, Tcomp_ptr _ _ => OK(Init_int32 n)
+  | Vlong n, Tlong _ _ => OK(Init_int64 n)
   | Vfloat f, Tfloat F32 _ => OK(Init_float32 f)
   | Vfloat f, Tfloat F64 _ => OK(Init_float64 f)
   | Vptr (Zpos id) ofs, Tint I32 sg _ => OK(Init_addrof id ofs)
   | Vptr (Zpos id) ofs, Tpointer _ _ => OK(Init_addrof id ofs)
+  | Vptr (Zpos id) ofs, Tcomp_ptr _ _ => OK(Init_addrof id ofs)
   | Vundef, _ => Error(msg "undefined operation in initializer")
   | _, _ => Error (msg "type mismatch in initializer")
   end.
@@ -208,7 +211,7 @@ with transl_init_struct (id: ident) (ty: type)
       OK (padding pos (sizeof ty))
   | Init_cons i1 il', Fcons _ ty1 fl' =>
       let pos1 := align pos (alignof ty1) in
-      do d1 <- transl_init (unroll_composite id ty ty1) i1;
+      do d1 <- transl_init ty1 i1;
       do d2 <- transl_init_struct id ty fl' il' (pos1 + sizeof ty1);
       OK (padding pos pos1 ++ d1 ++ d2)
   | _, _ =>
@@ -221,7 +224,7 @@ with transl_init_union (id: ident) (ty ty1: type) (il: initializer_list)
   | Init_nil =>
       Error (msg "empty union initializer")
   | Init_cons i1 _ =>
-      do d <- transl_init (unroll_composite id ty ty1) i1;
+      do d <- transl_init ty1 i1;
       OK (d ++ padding (sizeof ty1) (sizeof ty))
   end.
 

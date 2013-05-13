@@ -226,12 +226,6 @@ destruct cmp; inv H; try rewrite H3 in *;
 try rewrite H4 in *; subst;
 unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto.
-if_tac; auto; subst; unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
-if_tac; auto; subst; unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
-unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
-unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
-unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
-unfold weak_valid_pointer; rewrite MT_1, MT_2; simpl; auto.
 Qed. 
 
 Lemma pointer_cmp_no_mem_bool_type : 
@@ -888,11 +882,14 @@ destruct ch; destruct (typeof  e1); try solve [inv H1];
 simpl in *; try destruct i; try destruct s; try destruct f; try solve [inv H1]; clear H1; destruct (eval_expr e2 rho); destruct (typeof e2); try solve [inv H]; 
 unfold Cop.sem_cast; simpl;
 try destruct (Float.intoffloat f); 
-try destruct (Float.intuoffloat f); auto; simpl;
+try destruct (Float.intuoffloat f);
+try destruct (Float.longoffloat f);
+try destruct (Float.longuoffloat f);
+ auto; simpl;
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto];
-rewrite Float.singleoffloat_idem; auto. 
+try rewrite Float.singleoffloat_idem; auto.
 Qed. 
 
 Lemma semax_store:

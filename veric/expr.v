@@ -284,9 +284,10 @@ these return vundef if something goes wrong, meaning they always return some val
 Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
-   | Vint n, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) =>
+   | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
+   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) =>
              if Int.eq n Int.zero then Some false else None
-   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => Some true
+   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => Some true
    | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
    | _, _ => None
    end.
@@ -380,6 +381,9 @@ Definition eval_cast_neutral (v: val) : val :=
 Definition eval_cast_i2i f v := 
   match v with Vint i => Vint (f i) | _ => Vundef end.
 
+Definition eval_cast_l2l v := 
+  match v with Vlong i => Vlong i | _ => Vundef end.
+
 Definition eval_cast_f2f f v :=
   match v with Vfloat x => Vfloat (f x) | _ => Vundef end.
 
@@ -402,28 +406,61 @@ Definition eval_cast_p2bool v :=
                     | _ => Vundef
   end.
 
+Definition eval_cast_i2l f v := 
+     match v with
+      | Vint n => Vlong (f n)
+      | _ => Vundef
+      end.
+
+Definition eval_cast_l2i f v := 
+  match v with Vlong i => Vint (f (Int.repr (Int64.unsigned i))) | _ => Vundef end.
+
+Definition eval_cast_l2f (f: float->float) (g: Int64.int ->float) v :=
+  match v with Vlong i => Vfloat (f (g i)) | _ => Vundef end.
+
+Definition eval_cast_f2l (f: float->option Int64.int)  v :=
+ match v with Vfloat x => match f x with Some i => Vlong i | _ => Vundef end 
+                    | _ => Vundef 
+ end.
+
+Definition eval_cast_l2bool v :=
+      match v with
+      | Vlong n =>
+            Vint(if Int64.eq n Int64.zero then Int.zero else Int.one)
+      | _ => Vundef
+      end.
+
+Definition eval_cast_struct id1 fld1 id2 fld2 v :=
+      match v with 
+        | Vptr _ _ => if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then v else Vundef
+        | _ => Vundef
+      end.
+
 Definition eval_cast (t1 t2: type) : val->val := 
   match Cop.classify_cast t1 t2 with
   | Cop.cast_case_neutral => eval_cast_neutral
   | Cop.cast_case_i2i sz2 si2 => eval_cast_i2i (Cop.cast_int_int sz2 si2)
+  | Cop.cast_case_l2l  => eval_cast_l2l
+  | Cop.cast_case_i2l si => eval_cast_i2l (Cop.cast_int_long si)
+  | Cop.cast_case_l2i sz2 si2 => eval_cast_l2i (Cop.cast_int_int sz2 si2)
   | Cop.cast_case_f2f sz2 => eval_cast_f2f (Cop.cast_float_float sz2)
   | Cop.cast_case_i2f si1 sz2 => eval_cast_i2f (Cop.cast_float_float sz2) (Cop.cast_int_float si1)
+  | Cop.cast_case_l2f si1 sz2 => eval_cast_l2f (Cop.cast_float_float sz2) (Cop.cast_long_float si1)
   | Cop.cast_case_f2i sz2 si2 => eval_cast_f2i (Cop.cast_float_int si2) (Cop.cast_int_int sz2 si2)
+  | Cop.cast_case_f2l si2 => eval_cast_f2l (Cop.cast_float_long si2)
+  | Cop.cast_case_l2bool => eval_cast_l2bool
   | Cop.cast_case_f2bool => eval_cast_f2bool
   | Cop.cast_case_p2bool => eval_cast_p2bool
-  | Cop.cast_case_struct id1 fld1 id2 fld2 =>
-      if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then Datatypes.id else always Vundef
-  | Cop.cast_case_union id1 fld1 id2 fld2 =>
-      if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then Datatypes.id else always Vundef
+  | Cop.cast_case_struct id1 fld1 id2 fld2 => eval_cast_struct id1 fld1 id2 fld2
+  | Cop.cast_case_union id1 fld1 id2 fld2 => eval_cast_struct id1 fld1 id2 fld2
   | Cop.cast_case_void => Datatypes.id
   | Cop.cast_case_default => always Vundef
   end.
 
-
-
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
+ | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
  | Etempvar id ty => eval_id id 
  | Eaddrof a ty => eval_lvalue a 
@@ -494,7 +531,7 @@ Definition glob_types (Delta: tycontext) : PTree.t global_spec := snd Delta.
 
 Definition bool_type (t: type) : bool :=
   match t with
-  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
   | _ => false
   end.
 
@@ -515,6 +552,13 @@ end.
 Definition is_int_type ty := 
 match ty with
 | Tint _ _ _ => true
+| _ => false
+end.
+
+
+Definition is_long_type ty := 
+match ty with
+| Tlong _ _ => true
 | _ => false
 end.
 
@@ -540,7 +584,8 @@ match op with
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
                         | Cop.notint_default => false
-                        | _ => is_int_type ty 
+                        | Cop.notint_case_i _ => is_int_type ty 
+                        | Cop.notint_case_l _ => is_long_type ty 
                         end
   | Cop.Oneg => match Cop.classify_neg (typeof a) with
                     | Cop.neg_case_i sg => is_int_type ty
@@ -584,6 +629,7 @@ Inductive tc_assert :=
 Definition tc_iszero (e: expr) : tc_assert :=
   match e with
   | Econst_int i _ => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Econst_long i _ => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
@@ -647,66 +693,97 @@ match op with
 | _ => tc_noproof
 end.
 
+
+Definition check_pl_long e2 op t e :=
+match op with 
+| Cop.Oeq | Cop.One => tc_andp 
+                         (tc_iszero e2)
+                         (tc_bool (is_int_type t) (op_result_type e))
+| _ => tc_noproof
+end.
+
+
+Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
+ match Cop.classify_binarith t1 t2 with
+  | Cop.bin_case_i sg =>  tc_bool (is_int_type ty) reterr 
+  | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr 
+  | Cop.bin_case_f    => tc_bool (is_float_type ty) reterr
+ | Cop.bin_default => tc_FF deferr
+ end.
+
+Definition is_numeric_type t :=
+match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
+
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in 
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
-                    | Cop.add_default => tc_FF deferr
-                    | Cop.add_case_ii _ => tc_bool (is_int_type ty) reterr 
                     | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
                     | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
-                    | _ => tc_bool (is_float_type ty) deferr
+                    | Cop.add_case_pl _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_lp _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
-                    | Cop.sub_default => tc_FF deferr
-                    | Cop.sub_case_ii _ => tc_bool (is_int_type ty) reterr 
-                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pl _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr))
 			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)) 
                                       (pp_compare_size_0 ty2) )
-                    | _ => tc_bool (is_float_type ty) deferr
+                    | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
-  | Cop.Omul => match Cop.classify_mul (typeof a1) (typeof a2) with 
-                    | Cop.mul_default => tc_FF deferr
-                    | Cop.mul_case_ii _ => tc_bool (is_int_type ty) reterr
-                    | _ => tc_bool (is_float_type ty) deferr
-            end 
-  | Cop.Omod => match Cop.classify_binint (typeof a1) (typeof a2) with
-                    | Cop.binint_case_ii Unsigned => 
+  | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
+  | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
+                    | Cop.bin_case_i Unsigned => 
                            tc_andp (tc_nonzero a2) 
                            (tc_bool (is_int_type ty) reterr)
-                    | Cop.binint_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                    | Cop.bin_case_l Unsigned => 
+                           tc_andp (tc_nonzero a2) 
+                           (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
                                                      (tc_bool (is_int_type ty) reterr)
-                    | Cop.binint_default => tc_FF deferr
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) 
+                                                      (tc_nodivover a1 a2))
+                                                     (tc_bool (is_long_type ty) reterr)
+                    | _ => tc_FF deferr
             end
-  | Cop.Odiv => match Cop.classify_div (typeof a1) (typeof a2) with
-                    | Cop.div_case_ii Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty) reterr)
-                    | Cop.div_case_ii Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
+  | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
+                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty) reterr)
+                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_int_type ty) reterr)
-                    | Cop.div_case_ff | Cop.div_case_if _ | Cop.div_case_fi _ =>
-                          tc_bool (is_float_type ty) reterr 
-                    | Cop.div_default => tc_FF deferr
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                                                        (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
                     | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty) 
                                                                                          reterr)
+                    (* NEED TO HANDLE OTHER SHIFT CASES *)
                     | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor => 
-                   match Cop.classify_binint (typeof a1) (typeof a2) with
-                    | Cop.binint_case_ii _ =>tc_bool (is_int_type ty) reterr
+                   match Cop.classify_binarith (typeof a1) (typeof a2) with
+                    | Cop.bin_case_i _ =>tc_bool (is_int_type ty) reterr
+                    (* NEED TO HANDLE OTHER BIN CASES *)
                     | _ => tc_FF deferr
                    end   
   | Cop.Oeq | Cop.One | Cop.Olt | Cop.Ogt | Cop.Ole | Cop.Oge => 
                    match Cop.classify_cmp (typeof a1) (typeof a2) with
-                    | Cop.cmp_default => tc_FF deferr
+                    | Cop.cmp_default => 
+                           tc_bool (is_numeric_type (typeof a1) 
+                                         && is_numeric_type (typeof a2)
+                                          && is_int_type ty)
+                                             deferr
 		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
-                    | _ => tc_bool (is_int_type ty) reterr
+                    | Cop.cmp_case_pl => check_pl_long a2 op ty e
+                    | Cop.cmp_case_lp => check_pl_long a1 op ty e
                    end
   end.
 
@@ -740,11 +817,10 @@ match Cop.classify_cast tfrom tto with
                                       (is_int_type tto)
                                then true else false
 | Cop.cast_case_i2i _ _ => true
+| Cop.cast_case_l2l => true
 | Cop.cast_case_f2f _ => true
 | _  => false
 end. 
-
-
 
 Definition globtype (g: global_spec) : type :=
 match g with 
@@ -903,12 +979,15 @@ end.
 Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
  | Vint i, Tint _ _ _ => true  
+ | Vlong i, Tlong _ _ => true
  | Vfloat v, Tfloat _ _ => true  
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => 
+ | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => 
                     (Int.eq i Int.zero) 
+(* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => 
+                    (Int64.eq i Int64.zero)  *)
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
                    | Tfunction _ _ | Tstruct _ _ _ 
-                   | Tunion _ _ _) => true
+                   | Tunion _ _ _ | Tcomp_ptr _ _) => true
  | Vundef, _ => false
  | _, _ => false
  end.
@@ -927,7 +1006,7 @@ typecheck_val v tfrom = true ->
 typecheck_val v tto = true. 
 Proof. 
 intros. destruct tfrom; destruct tto; destruct v; intuition; 
-try solve [try destruct i; try destruct i0; destruct s; inv H]. 
+ try destruct i; try destruct i0; destruct s; inv H.
 Qed. 
 
 
@@ -982,7 +1061,10 @@ same_env rho Delta.
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
 Definition denote_tc_iszero v :=
-         match v with Vint i => is_true (Int.eq i Int.zero) | _ => False end.
+         match v with Vint i => is_true (Int.eq i Int.zero) 
+                            | Vlong i => is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
+                            | _ => False 
+         end.
 
 Definition denote_tc_nonzero v := 
          match v with Vint i => if negb (Int.eq i Int.zero) then True else False
@@ -1050,20 +1132,46 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
  end.
 
+
+Lemma and_False: forall x, (x /\ False) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma and_True: forall x, (x /\ True) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma True_and: forall x, (True /\ x) = x.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+Lemma False_and: forall x, (False /\ x) = False.
+Proof.
+intros; apply prop_ext; intuition.
+Qed.
+
+
 Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
 Proof.
-intros. destruct a1; destruct a2; simpl in *;
-  unfold_lift; intuition.
+intros.
+ unfold tc_andp.
+ destruct a1; simpl; unfold_lift;
+ repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
+  try apply iff_refl;
+  destruct a2; simpl in *; unfold_lift;
+ repeat first [rewrite False_and | rewrite True_and | rewrite and_False | rewrite and_True];
+  try apply iff_refl.
 Qed. 
 
 Lemma denote_tc_assert_andp: 
   forall a b rho, denote_tc_assert (tc_andp a b) rho =
              (denote_tc_assert a rho /\ denote_tc_assert b rho).
 Proof.
- intros. apply prop_ext.
- unfold denote_tc_assert, tc_andp. simpl.
- unfold_lift.
- destruct a,b; simpl; intuition; try contradiction.
+ intros. apply prop_ext. rewrite tc_andp_sound.
+ simpl; apply iff_refl.
 Qed.
 
 (** Functions that modify type environments **)

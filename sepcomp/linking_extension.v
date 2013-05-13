@@ -367,6 +367,9 @@ solve[intros V; rewrite V in *; try solve[congruence]].
 intros i V2.
 rewrite V2 in H2.
 congruence.
+intros i V2.
+rewrite V2 in H2.
+congruence.
 intros f V2.
 rewrite V2 in H2.
 congruence.
@@ -2649,6 +2652,9 @@ solve[intros V; rewrite V in *; try solve[congruence]].
 intros i V.
 rewrite V in H2.
 destruct v1; try solve[congruence].
+intros i V.
+rewrite V in H2.
+destruct v1; try solve[congruence].
 intros f V.
 rewrite V in H2.
 congruence.
@@ -2686,6 +2692,9 @@ simpl; split; auto.
 unfold linker_make_initial_core.
 case_eq v2.
 clear - entry_points_eq H1.
+specialize (entry_points_eq (Vptr b' i) v2 sig H1).
+destruct entry_points_eq as [b [ofs [VPTR1 VPTR2]]].
+solve[rewrite VPTR2; intros; congruence].
 specialize (entry_points_eq (Vptr b' i) v2 sig H1).
 destruct entry_points_eq as [b [ofs [VPTR1 VPTR2]]].
 solve[rewrite VPTR2; intros; congruence].

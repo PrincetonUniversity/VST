@@ -36,6 +36,7 @@ Fixpoint reptype (ty: type) : Type :=
   match ty with
   | Tvoid => unit
   | Tint _ _ _ => int
+  | Tlong _ _ => Int64.int
   | Tfloat _ _ => float
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
@@ -234,6 +235,9 @@ match t as t0 return ((reptype t0 -> mpred) -> reptype t0 -> mpred) with
 | Tint i s a =>
     fun (_ : reptype (Tint i s a) -> mpred) (v2'0 : reptype (Tint i s a)) =>
     at_offset (fun v => field_mapsto sh t_str id v (Vint v2'0)) pos v
+| Tlong s a =>
+    fun (_ : reptype (Tlong s a) -> mpred) (v2'0 : reptype (Tlong s a)) =>
+    at_offset (fun v => field_mapsto sh t_str id v (Vlong v2'0)) pos v
 | Tfloat f a =>
     fun (_ : reptype (Tfloat f a) -> mpred) (v2'0 : reptype (Tfloat f a)) =>
     at_offset (fun v => field_mapsto sh t_str id v (Vfloat v2'0)) pos v
@@ -262,6 +266,12 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
         (fun v (v3 : reptype (Tint i s a)) =>
                 withspacer sh pos (alignof (Tint i s a))
                 (at_offset2 (mapsto sh (Tint i s a)) (align pos (alignof t1)) (Vint v3)) v) H
+| Tlong s a =>
+    fun H : t1 = Tlong s a =>
+      eq_rect_r (fun t2 : type => val -> reptype t2 -> mpred)
+        (fun v (v3 : reptype (Tlong s a)) =>
+                withspacer sh pos (alignof (Tlong s a))
+                (at_offset2 (mapsto sh (Tlong s a)) (align pos (alignof t1)) (Vlong v3)) v) H
 | Tfloat f a =>
     fun H : t1 = Tfloat f a =>
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)

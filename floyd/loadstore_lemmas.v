@@ -360,6 +360,7 @@ apply semax_pre0 with
          match v1 with
          | Vundef => FF
          | Vint _ => FF
+         | Vlong _ => FF
          | Vfloat _ => FF
          | Vptr l ofs =>
              match typeof e1 with

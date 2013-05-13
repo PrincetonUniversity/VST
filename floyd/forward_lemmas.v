@@ -108,6 +108,8 @@ remember (eval_expr e rho). destruct v. inv H. simpl.
  unfold eval_cast_neutral.
 remember (typeof e); destruct t; inv H; simpl;
 remember (Int.eq i Int.zero); if_tac; auto; try congruence.
+remember (typeof e); destruct t; inv H; simpl;
+remember (Int64.eq i Int64.zero); if_tac; auto; try congruence.
 remember (typeof e); destruct t; inv H. simpl.
 if_tac; auto.
 destruct (typeof e); inv H; auto.

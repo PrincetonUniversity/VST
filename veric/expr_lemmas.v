@@ -158,9 +158,10 @@ rewrite tc_andp_sound in *. simpl in *. super_unfold_lift.
 clear H3. symmetry in Heqo.
 specialize (H i t0 Heqo).
 
-destruct H. 
+{destruct H. 
 rewrite H in *. rewrite <- Heqb. rewrite eqb_type_refl in *. destruct pt; auto.
-remember ((glob_types Delta) ! i). destruct o; try congruence.
+}
+{remember ((glob_types Delta) ! i). destruct o; try congruence.
 rewrite tc_andp_sound in *.  simpl in *. 
 simpl in *. super_unfold_lift. destruct H0. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
@@ -169,9 +170,11 @@ unfold same_env in *.
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0). 
 destruct H5. simpl in *. unfold Map.get. rewrite H5. 
 unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. destruct H6. 
-rewrite H6. rewrite eqb_type_refl. auto. destruct H5; congruence.  
-
-inv H0. inv H0. 
+rewrite H6. rewrite eqb_type_refl. auto.
+destruct pt; inv H1; reflexivity.
+destruct H5; congruence. inv H0.
+inv H0.
+} 
 Qed.
 
 Lemma typecheck_expr_sound_Efield:
@@ -327,11 +330,9 @@ destruct t;  inv H0.
 unfold sem_notbool.
 destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
 (* notint case *)
-assert (is_int_type t = true) 
-  by (destruct (typeof e); try destruct i,s; inv H; auto).
-destruct t;  inv H0.
 unfold sem_notint.
-destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
+destruct (typeof e), v; inv H; inv H2; simpl; auto.
+destruct i,s; destruct t; inv H1; simpl; auto.
 (* neg case *)
 unfold sem_neg; simpl.
 destruct (typeof e); inv H.
@@ -341,13 +342,6 @@ destruct v; inv H2.
 destruct f; inv H1; simpl; destruct t; try inv H0; auto.
 Qed.
 
-Lemma denote_tc_assert_iszero: forall e rho,
-  denote_tc_assert (tc_iszero e) rho = 
-  match (eval_expr e rho) with Vint i => is_true (Int.eq i Int.zero) | _ => False end.
-Proof.
- unfold tc_iszero. destruct e; simpl; intros; auto.
- unfold_lift; simpl; destruct (Int.eq i Int.zero); simpl;  symmetry; try apply is_true_true; try apply is_true_false.
-Qed.
 
 Lemma isCastR: forall tfrom tto ty a, 
   denote_tc_assert (isCastResultType tfrom tto ty a) =
@@ -484,7 +478,7 @@ clear H H6 H4.
 hnf in H3. unfold_lift in H3; hnf in H3.
 unfold_lift.
 destruct (eval_expr e rho); try contradiction.
-apply H1.
+destruct pt; inv H1; reflexivity.
 Qed.
 
 (** Main soundness result for the typechecker **)
@@ -527,8 +521,11 @@ destruct t; auto.
 eapply typecheck_unop_sound; eauto.
 (*binop*)
 repeat rewrite andb_true_iff in *; intuition.
-clear H4. clear H2. clear H. 
-eapply typecheck_binop_sound; eauto.
+clear H4. clear H2. clear H.
+simpl in H0.
+repeat rewrite denote_tc_assert_andp in H0.
+destruct H0 as [[H0 E1] E2].
+apply (typecheck_binop_sound b Delta rho e1 e2 t H0 (H3 E2) (H1 E1)).
 
 (* cast *)
 eapply typecheck_cast_sound; eauto.
@@ -588,10 +585,10 @@ destruct b; simpl in *; auto;
    ((intuition; unfold denote_tc_iszero in *));
  rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
   destruct H0.
- destruct (eval_expr e1 rho); (contradiction || rewrite H); auto.
- destruct (eval_expr e2 rho); (contradiction || rewrite H); auto.
- destruct (eval_expr e1 rho); (contradiction || rewrite H); auto.
- destruct (eval_expr e2 rho); (contradiction || rewrite H); auto.
+* destruct (eval_expr e1 rho); try contradiction; auto.
+* destruct (eval_expr e2 rho); try contradiction; auto.
+* destruct (eval_expr e1 rho); try contradiction; auto.
+* destruct (eval_expr e2 rho); try contradiction; auto.
 Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -629,7 +626,6 @@ Proof.
 intros. 
 pose proof (typecheck_binop_sound).
 simpl in H4. unfold_lift in H4. eapply H4; eauto.
-simpl. repeat (try rewrite tc_andp_sound; try super_unfold_lift; simpl in *). intuition; eauto. 
 Qed. 
 
 Lemma eval_binop_relate_fail :
@@ -666,7 +662,7 @@ destruct t0; try solve [inv TC2];
 destruct b; simpl in H7; try contradiction H7;
 try solve[ simpl in H2; apply typecheck_force_Some in H2; destruct H2;
 unfold sem_binary_operation in *; try congruence];
-rewrite tc_andp_sound in *; simpl in H7;
+try rewrite tc_andp_sound in *; simpl in H7;
 super_unfold_lift;
 rewrite <- Heqv in *; rewrite <- Heqv0 in *;
 intuition.
@@ -922,25 +918,23 @@ remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rh
          try eapply eval_binop_relate_fail; eauto. }
 
 
-(*Cast*)
+(*Cast*) {
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_cast in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
-remember (classify_cast (typeof e) t) as o; destruct o; eapply IHe; auto.
+eapply IHe; auto.
 unfold sem_cast.
-destruct (classify_cast (typeof e) t); destruct (eval_expr e rho); inv TC; try reflexivity.
+remember (classify_cast (typeof e) t) as o; destruct o;
+ destruct (eval_expr e rho); inv TC; try reflexivity;
+ try solve [destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; 
+   (reflexivity || destruct t; inv H4; destruct (typeof e); try destruct i0; inv Heqo)].
 simpl; destruct (cast_float_int si2 f); inv H4; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; reflexivity.
-
+simpl; destruct (cast_float_long si2 f); inv H4; reflexivity.
+simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
+simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
+}
 (*Field*)
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. repeat rewrite tc_andp_sound in *. 
@@ -1554,18 +1548,21 @@ Lemma eval_cast_sem_cast:
 Proof.
 unfold sem_cast, eval_cast, classify_cast.
 intros.
+pose (tx:=t); pose (t'x := t'); pose (v' := v).
 destruct t,t'; simpl; try reflexivity;
+try solve [destruct v; reflexivity];
 try solve[ destruct i; try reflexivity; try solve [destruct v; reflexivity]];
 try solve[ destruct i0; try reflexivity]; simpl.
 destruct i0, s0, v; reflexivity.
 destruct i,v; simpl; try reflexivity; destruct (cast_float_int s f0); reflexivity.
 unfold eval_cast_f2f.
 destruct v; try reflexivity.
-destruct v; try reflexivity.
-destruct v; try reflexivity.
-destruct v; try reflexivity.
-destruct (ident_eq i i0 && fieldlist_eq f f0); reflexivity.
-destruct (ident_eq i i0 && fieldlist_eq f f0); reflexivity.
+simpl. destruct (cast_float_long s f0); reflexivity.
+destruct v; simpl; try reflexivity.
+destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
+destruct v; simpl; try reflexivity.
+destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
+destruct i0,  v; reflexivity.
 Qed.
 
 Lemma sem_cast_eval_cast:
@@ -1596,21 +1593,15 @@ case_eq (eval_expr e2 rho); intros; rename H0 into H99;
 hnf in H6; try contradiction; rewrite H99 in *;
 destruct (typeof e2); inv H2; inv H1; auto;
 try (unfold sem_cast in H0; simpl in H0;
-      destruct i0; simpl in*; destruct s; inv H0; simpl; auto).
+      destruct i0; simpl in*; destruct s; inv H0; simpl; auto);
+ try solve [super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction].
+simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
 simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
 simpl in *. unfold isCastResultType in H6. simpl in H6.
-unfold sem_cast in H0. 
-simpl in H0.
+unfold sem_cast in H0. simpl in H0.
 destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
 invSome; simpl; auto.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
-super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction.
 Qed.
-
 
 Definition func_tycontext_t_denote :=
 forall p t id ty b,  list_norepet (map fst p ++ map fst t ) ->   

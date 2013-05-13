@@ -2,23 +2,29 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _reverse : ident := 15%positive.
-Definition _head : ident := 7%positive.
-Definition ___builtin_annot_intval : ident := 3%positive.
-Definition ___builtin_fabs : ident := 1%positive.
-Definition _v : ident := 14%positive.
-Definition _s : ident := 9%positive.
-Definition _three : ident := 4%positive.
-Definition _main : ident := 17%positive.
-Definition _p : ident := 8%positive.
-Definition _r : ident := 16%positive.
-Definition _w : ident := 13%positive.
-Definition _tail : ident := 6%positive.
-Definition _sumlist : ident := 12%positive.
-Definition _h : ident := 11%positive.
-Definition _struct_list : ident := 5%positive.
-Definition ___builtin_memcpy_aligned : ident := 2%positive.
-Definition _t : ident := 10%positive.
+Definition _s : ident := 15%positive.
+Definition ___builtin_fabs : ident := 7%positive.
+Definition ___builtin_negl : ident := 3%positive.
+Definition ___builtin_write16_reversed : ident := 1%positive.
+Definition _p : ident := 14%positive.
+Definition _w : ident := 19%positive.
+Definition ___builtin_annot_intval : ident := 9%positive.
+Definition ___builtin_addl : ident := 4%positive.
+Definition _h : ident := 17%positive.
+Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _sumlist : ident := 18%positive.
+Definition _t : ident := 16%positive.
+Definition _three : ident := 13%positive.
+Definition ___builtin_mull : ident := 6%positive.
+Definition _head : ident := 12%positive.
+Definition _main : ident := 23%positive.
+Definition _tail : ident := 11%positive.
+Definition ___builtin_subl : ident := 5%positive.
+Definition ___builtin_write32_reversed : ident := 2%positive.
+Definition _reverse : ident := 21%positive.
+Definition _struct_list : ident := 10%positive.
+Definition _r : ident := 22%positive.
+Definition _v : ident := 20%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list
@@ -97,22 +103,22 @@ Definition f_main := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_r, (tptr t_struct_list)) :: (_s, tint) ::
-               (19%positive, tint) :: (18%positive, (tptr t_struct_list)) ::
+               (25%positive, tint) :: (24%positive, (tptr t_struct_list)) ::
                nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 18%positive)
+    (Scall (Some 24%positive)
       (Evar _reverse (Tfunction (Tcons (tptr t_struct_list) Tnil)
                        (tptr t_struct_list)))
       ((Evar _three (tarray t_struct_list 3)) :: nil))
-    (Sset _r (Etempvar 18%positive (tptr t_struct_list))))
+    (Sset _r (Etempvar 24%positive (tptr t_struct_list))))
   (Ssequence
     (Ssequence
-      (Scall (Some 19%positive)
+      (Scall (Some 25%positive)
         (Evar _sumlist (Tfunction (Tcons (tptr t_struct_list) Tnil) tint))
         ((Etempvar _r (tptr t_struct_list)) :: nil))
-      (Sset _s (Etempvar 19%positive tint)))
+      (Sset _s (Etempvar 25%positive tint)))
     (Sreturn (Some (Etempvar _s tint)))))
 |}.
 

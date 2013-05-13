@@ -126,6 +126,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
   | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
   | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => umapsto sh (Tlong Unsigned noattr) a (Vlong i)
   | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
   | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
@@ -145,6 +146,7 @@ Definition init_data_size (i: init_data) : Z :=
   | Init_int8 _ => 1
   | Init_int16 _ => 2
   | Init_int32 _ => 4
+  | Init_int64 _ => 8
   | Init_float32 _ => 4
   | Init_float64 _ => 8
   | Init_addrof _ _ => 4
@@ -186,6 +188,7 @@ Definition initializer_aligned (z: Z) (d: init_data) : bool :=
   match d with
   | Init_int16 n => Zeq_bool (z mod 2) 0
   | Init_int32 n => Zeq_bool (z mod 4) 0
+  | Init_int64 n => Zeq_bool (z mod 8) 0
   | Init_float32 n =>  Zeq_bool (z mod 4) 0
   | Init_float64 n =>  Zeq_bool (z mod 8) 0
   | Init_addrof symb ofs =>  Zeq_bool (z mod 4) 0
@@ -252,7 +255,7 @@ Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition bool_type (t: type) : bool :=
   match t with
-  | Tint _ _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
   | _ => false
   end.
 

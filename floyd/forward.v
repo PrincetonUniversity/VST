@@ -28,7 +28,7 @@ Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
-   match retty with Tvoid => False | _ => True end ->
+   match retty with Tvoid => False | Tcomp_ptr _ _ => False | _ => True end ->
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
@@ -50,7 +50,9 @@ Proof.
 
  intros. rename H3 into NONVOL.
  eapply semax_seq'.
- apply (semax_call_id1' _ _ P Q R ret' _ _ bl _ _ x _ _ GLBL H H0 CLOSQ CLOSR).
+ assert (H0':    match retty with Tvoid => False | _ => True end)
+  by (clear - H0; destruct retty; try contradiction; auto).
+ apply (semax_call_id1' _ _ P Q R ret' _ _ bl _ _ x _ _ GLBL H H0' CLOSQ CLOSR).
 match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
    assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
  end.
@@ -92,7 +94,8 @@ Focus 2.
  rewrite PTree.gss. auto.
  (* End Focus 2 *)
  unfold local; apply prop_right.
- simpl.  destruct retty; simpl; inv H5; apply I.
+ simpl.  destruct retty; simpl; inv H5; try apply I.
+ contradiction.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.
  destruct (eq_dec ret' ret).

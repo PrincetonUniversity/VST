@@ -374,6 +374,7 @@ Hint Resolve closed_wrt_main_pre closed_wrt_globvars: closed.
 Fixpoint temp_free_in (id: ident) (e: expr) := 
  match e with
  | Econst_int _ _ => false
+ | Econst_long _ _ => false
  | Econst_float _ _ => false
  | Evar _ _ => false
  | Etempvar i _ => eqb_ident id i

@@ -408,6 +408,7 @@ intros v.
 destruct v.
 exists Tint; simpl; auto.
 exists Tint; simpl; auto.
+exists Tlong; simpl; auto.
 exists Tfloat; simpl; auto.
 exists Tint; simpl; auto.
 Qed.
