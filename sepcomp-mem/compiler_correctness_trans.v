@@ -1,18 +1,19 @@
 (*CompCert imports*)
-Require Import Events.
-Require Import Memory.
+Require Import sepcomp.Events.
+Require Import sepcomp.Memory.
 Require Import AST.
 Require Import Coqlib.
 Require Import Values.
 Require Import Maps.
 Require Import Integers.
-Require Import Globalenvs.
+Require Import sepcomp.Globalenvs.
 
 Require Import sepcomp.Coqlib2. 
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolants.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 
 Require Import Wellfounded.
@@ -298,7 +299,7 @@ Proof.
     (*case1*) 
     destruct CS2.
     clear MC12 CS1.
-    destruct (Coop_forward_simulation_ext.core_diagramN SimExt23 _ _ _ _ _ H _ _ _ MC23)
+    destruct (Forward_simulation_ext.core_diagramN SimExt23 _ _ _ _ _ H _ _ _ MC23)
        as [st3' [m3' [d23' [MC23' X23]]]].
     exists st3'. exists m3'. exists (d12',Some st2',d23').
     split. exists st2'. exists m2'. split. trivial. split; assumption.
@@ -338,16 +339,16 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)
-  (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends
+  (SimExt12 : Forward_simulation_ext.Forward_simulation_extends
                (list (ident * globdef F1 V1))
                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                (Genv.globalenv P2) epts12)
-  (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends
+  (SimExt23 : Forward_simulation_ext.Forward_simulation_extends
              (list (ident * globdef F2 V2))
              (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
              (Genv.globalenv P3) epts23).
 
-Lemma extext: Coop_forward_simulation_ext.Forward_simulation_extends
+Lemma extext: Forward_simulation_ext.Forward_simulation_extends
   (list (ident * globdef F1 V1))
   (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13. 
@@ -359,40 +360,50 @@ Proof.
                         core_after_external12].  
   destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_wd23 match_vb23
     core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].*)
-  eapply Coop_forward_simulation_ext.Build_Forward_simulation_extends with
-    (core_ord :=  sem_compose_ord_eq_eq (Coop_forward_simulation_ext.core_ord SimExt12) (clos_trans _ (Coop_forward_simulation_ext.core_ord SimExt23)) C2)
+  eapply Forward_simulation_ext.Build_Forward_simulation_extends with
+    (core_ord :=  sem_compose_ord_eq_eq (Forward_simulation_ext.core_ord SimExt12) (clos_trans _ (Forward_simulation_ext.core_ord SimExt23)) C2)
     (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\
-     (Coop_forward_simulation_ext.match_state SimExt12) d1 c1 m1 c2 m2 /\ (Coop_forward_simulation_ext.match_state SimExt23) d2 c2 m2 c3 m3 end).
+     (Forward_simulation_ext.match_state SimExt12) d1 c1 m1 c2 m2 /\ (Forward_simulation_ext.match_state SimExt23) d2 c2 m2 c3 m3 end).
  (*well_founded*)
    eapply well_founded_sem_compose_ord_eq_eq. destruct SimExt12. assumption.
     eapply wf_clos_trans. destruct SimExt23. assumption.
- (*match_wd*) intros. rename c2 into c3. rename m2 into m3. destruct d as [[d12 cc2] d23]. 
+ (*match_wd*) intros. rename c2 into c3. rename m2 into m3. destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-  split. apply (Coop_forward_simulation_ext.match_memwd SimExt12 _ _ _ _ _ MC12).
-  apply (Coop_forward_simulation_ext.match_memwd SimExt23 _ _ _ _ _ MC23).
- (*match_validblocks*) 
-  intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
+  split. apply (Forward_simulation_ext.match_memwd SimExt12 _ _ _ _ _ MC12).
+  apply (Forward_simulation_ext.match_memwd SimExt23 _ _ _ _ _ MC23).
+(*match_valid*)
+  intros. rename c2 into c3.  rename m2 into m3.
+  destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m [X [MC12 MC23]]]]; subst.
-  split; intros. eapply (Coop_forward_simulation_ext.match_validblocks SimExt23 _ _ _ _ _ MC23). 
-  eapply (Coop_forward_simulation_ext.match_validblocks SimExt12 _ _ _ _ _ MC12). apply H.
-  eapply (Coop_forward_simulation_ext.match_validblocks SimExt12 _ _ _ _ _ MC12). 
-  eapply (Coop_forward_simulation_ext.match_validblocks SimExt23 _ _ _ _ _ MC23). apply H. 
+  split; intros.
+  eapply (Forward_simulation_ext.match_valid SimExt23 _ _ _ _ _ MC23). 
+  eapply (Forward_simulation_ext.match_valid SimExt12 _ _ _ _ _ MC12). apply H.
+  eapply (Forward_simulation_ext.match_valid SimExt12 _ _ _ _ _ MC12). 
+  eapply (Forward_simulation_ext.match_valid SimExt23 _ _ _ _ _ MC23). apply H.  
+ (*match_reserved*) 
+  intros. rename c2 into c3.  rename m2 into m3.
+  destruct cd as [[d12 cc2] d23]. 
+  destruct H as [c2 [m [X [MC12 MC23]]]]; subst.
+  eapply (Forward_simulation_ext.match_reserved SimExt23 _ _ _ _ _ MC23). 
+  eapply (Forward_simulation_ext.match_reserved SimExt12 _ _ _ _ _ MC12). apply H0.
 (*core_diagram*)
   intros. rename st2 into st3. rename m2 into m3.
-  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
+  destruct cd as [[d12 cc2] d23].
+  destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
   apply (diagram_extext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 
-      (Coop_forward_simulation_ext.core_data SimExt12) 
-      (Coop_forward_simulation_ext.match_state SimExt12)
+      (Forward_simulation_ext.core_data SimExt12) 
+      (Forward_simulation_ext.match_state SimExt12)
         _ _  (Genv.globalenv P1)  (Genv.globalenv P3) 
-      (Coop_forward_simulation_ext.core_diagram SimExt12) _ SimExt23
-      _ _ _ _ H _ _ _ _ _ _ H0 H1).  
+      (Forward_simulation_ext.core_diagram SimExt12) _ SimExt23
+      _ _ _ _ H _ _ _ _ _ _ H0 H1).
  (*initial_core*)
   intros. rename m2 into m3. rename vals' into args3. rename vals into args1. rename v2 into v3.
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type args1 (sig_args sig)). eapply forall_lessdef_hastype; eassumption.
-  destruct ((Coop_forward_simulation_ext.core_initial SimExt12) _ _ _ EP12 _ _ m1 _ (forall_lessdef_refl args1) HT (extends_refl _)) 
+  destruct ((Forward_simulation_ext.core_initial SimExt12) _ _ _ 
+      EP12 _ _ m1 _ (forall_lessdef_refl args1) HT (extends_refl _)) 
     as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]]; try assumption.
-  destruct ((Coop_forward_simulation_ext.core_initial SimExt23) _ _ _ EP23 _ _ _ _ H0 H1 H2) 
+  destruct ((Forward_simulation_ext.core_initial SimExt23) _ _ _ EP23 _ _ _ _ H0 H1 H2) 
     as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]]; try assumption.
   rewrite Ini22 in Ini2. inv Ini2.
   exists (d12,Some c2, d23). exists c1. exists c3. split; trivial. split; trivial.
@@ -400,38 +411,39 @@ Proof.
  (*safely_halted*)
   intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-  apply ((Coop_forward_simulation_ext.core_halted SimExt12) _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [v2 [V12 [SH2 [Ext12 VV2]]]].
-  apply ((Coop_forward_simulation_ext.core_halted SimExt23) _ _ _ _ _ _ MC23) in SH2; try assumption. 
-  destruct SH2 as [v3 [V23 [SH3 [Ext23 VV3]]]].
+  apply ((Forward_simulation_ext.core_halted SimExt12) _ _ _ _ _ _ MC12) in H0; try assumption. 
+  destruct H0 as [v2 [V12 [SH2 Ext12]]].
+  apply ((Forward_simulation_ext.core_halted SimExt23) _ _ _ _ _ _ MC23) in SH2; try assumption. 
+  destruct SH2 as [v3 [V23 [SH3 Ext23]]].
   exists v3. split. eapply Val.lessdef_trans; eassumption.
   split; trivial. 
-  split. eapply extends_trans; eassumption.
-  assumption.
+  eapply extends_trans; eassumption.
  (*atexternal*)
   intros. rename st2 into st3. rename m2 into m3. destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-  apply ((Coop_forward_simulation_ext.core_at_external SimExt12) _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
+  apply ((Forward_simulation_ext.core_at_external SimExt12) _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
   destruct H0 as [vals2 [Ext12 [LD12 [HT2 [AtExt2 VV2]]]]].
-  apply ((Coop_forward_simulation_ext.core_at_external SimExt23) _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
+  apply ((Forward_simulation_ext.core_at_external SimExt23) _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
   destruct AtExt2 as [vals3 [Ext23 [LS23 [HT3 [AtExt3 VV3]]]]]. 
   exists vals3. split. eapply extends_trans; eassumption.
   split. eapply forall_lessdef_trans; eassumption.
   split. assumption.
   split; assumption.
- (*after_external*)
+ (*after_external*)Todo:Adapt to sepcomp-mem.
   intros. rename st2 into st3. rename m2 into m3. rename m2' into m3'.  
   rename vals2 into vals3. rename ret2 into ret3. 
   destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
-  destruct ((Coop_forward_simulation_ext.core_at_external SimExt12) _ _ _ _ _ _ _ _ MC12 H0) 
+  destruct ((Forward_simulation_ext.core_at_external SimExt12) _ _ _ _ _ _ _ _ MC12 H0) 
     as [vals2 [Ext12 [ValsLD12 [HTVals2 [AtExt2 VV2]]]]]; try assumption.
-  destruct ((Coop_forward_simulation_ext.core_at_external SimExt23) _ _ _ _ _ _ _ _ MC23 AtExt2) 
+  destruct ((Forward_simulation_ext.core_at_external SimExt23) _ _ _ _ _ _ _ _ MC23 AtExt2) 
     as [vals33 [Ext23 [ValsLD23 [HTVals3 [AtExt3 VV3]]]]]; try assumption.
   rewrite AtExt3 in H2. inv H2.
   assert (HTR1: Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eassumption.
   assert (UnchOn3 :  mem_unchanged_on (loc_out_of_bounds m2) m3 m3').
-  split; intros; eapply H7; trivial.
-  eapply extends_loc_out_of_bounds; eassumption.
+    split; intros.
+      unfold rely' in H7.
+    eapply H7; trivial.
+    specialize extends_loc_out_of_bounds. eassumption.
   intros. apply H in H15. eapply extends_loc_out_of_bounds; eassumption.
   destruct (MEMAX.interpolate_EE _ _ Ext12 _ H5 _ Ext23 _ H6 H9 H7 H12) 
     as [m2' [Fwd2 [Ext12' [Ext23' [UnchOn2 WD2]]]]].

@@ -27,6 +27,7 @@ Instance EqDec_val: EqDec val.
 Proof.
  hnf. decide equality.
  apply Int.eq_dec.
+ apply Int64.eq_dec.
  apply Float.eq_dec.
  apply Int.eq_dec.
  apply eq_block.
