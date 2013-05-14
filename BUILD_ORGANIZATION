@@ -46,7 +46,7 @@ coqc `cat .loadpath` veric/base.v  # will run coqc with the right options.
 NEW DIRECTORIES:
 If you add a new directory, you will probably want to augment the loadpath
 so that qualified names work right.  For example:
-  coqc `cat .loadpath` -I new -as new veric/new.v 
+  coqc `cat .loadpath` -I new -as new new/myfile.v 
 The Makefile automatically creates the .loadpath file
 with the subdirectories that it knows about.
 

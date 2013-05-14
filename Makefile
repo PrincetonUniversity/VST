@@ -60,7 +60,7 @@ SEPCOMP_FILES= \
   mem_interpolation_proofs.v \
   core_semantics.v \
  forward_simulations.v rg_forward_simulations.v \
-  extension.v extension_proof.v 
+#  extension.v extension_proof.v 
 #  compile_safe.v core_semantics_lemmas.v \
 #  forward_simulations_lemmas.v \
 #   extension_safety.v extension_simulations.v \
@@ -75,10 +75,10 @@ VERIC_FILES= \
   Clight_lemmas.v Clight_new.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
-  juicy_linking_extension.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
   initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v \
   NullExtension.v SequentialClight.v
+#  juicy_linking_extension.v \
 
 FLOYD_FILES= \
    base.v proofauto.v malloc_lemmas.v \
@@ -119,11 +119,14 @@ progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop -load-vernac-source floyd/proofauto -outputstate floyd/floyd -batch
 
+.depend:
+	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
+
 depend:
 	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
 
 clean:
-	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath
+	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
 
 count:
 	wc $(FILES)
