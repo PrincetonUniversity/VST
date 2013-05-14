@@ -740,7 +740,6 @@ Axiom perm_free_2:
 Axiom perm_free_3:
   forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 ->
   forall b ofs k p,
-  isMaxCur k=true -> 
   perm m2 b ofs k p -> perm m1 b ofs k p.
 Axiom perm_free_4:
   forall m1 bf lo hi m2, free m1 bf lo hi = Some m2 ->

@@ -67,19 +67,15 @@ Record mem' : Type := mkmem {
   access_max: 
     forall b ofs, perm_order'' (mem_access#b ofs Max) (mem_access#b ofs Cur);
   nextblock_noaccess:
-    forall b ofs k, b >= nextblock -> mem_access#b ofs k = None;
-  nomax_reserved: 
-    forall b ofs, 0 <= b < nextblock -> 
-      mem_access#b ofs Max = None -> 
-      exists p, mem_access#b ofs Res = Some p
+    forall b ofs k, b >= nextblock -> mem_access#b ofs k = None
 }.
 
 Definition mem := mem'.
 
 Lemma mkmem_ext:
- forall cont1 cont2 acc1 acc2 next1 next2 a1 a2 b1 b2 c1 c2 d1 d2,
+ forall cont1 cont2 acc1 acc2 next1 next2 a1 a2 b1 b2 c1 c2,
   cont1=cont2 -> acc1=acc2 -> next1=next2 ->
-  mkmem cont1 acc1 next1 a1 b1 c1 d1 = mkmem cont2 acc2 next2 a2 b2 c2 d2.
+  mkmem cont1 acc1 next1 a1 b1 c1 = mkmem cont2 acc2 next2 a2 b2 c2.
 Proof.
   intros. subst. f_equal; apply proof_irr.
 Qed.
@@ -336,7 +332,7 @@ Program Definition empty: mem :=
   mkmem (ZMap.init (ZMap.init Undef))
         (ZMap.set 0 (fun ofs k => if isMaxCur k then None else Some Nonempty)
           (ZMap.init (fun ofs k => None)))
-        1 _ _ _ _.
+        1 _ _ _.
 Next Obligation.
   omega.
 Qed.
@@ -350,16 +346,6 @@ Next Obligation.
   destruct (ZIndexed.eq b 0); subst.
   omega.
   rewrite ZMap.gi. auto.
-Qed.
-Next Obligation.
-  exists Nonempty.
-  rewrite ZMap.gsspec.
-  destruct (ZIndexed.eq b 0); subst; simpl; auto.
-  rewrite ZMap.gi; auto.
-  rewrite ZMap.gsspec.
-  destruct (ZIndexed.eq b 0); subst; simpl; auto.
-  elimtype False; auto.
-  omega.
 Qed.
 
 Definition nullptr: block := 0.
@@ -376,23 +362,6 @@ Definition alloc_access (m: mem) (lo hi: Z) :=
         if isMaxCur k then Some Freeable else None
       else if isMaxCur k then None else Some Freeable)
     m.(mem_access)).
-
-Lemma alloc_nomax_reserved: 
-  forall m lo hi b ofs,
-    0 <= b < Zsucc m.(nextblock) -> 
-    (alloc_access m lo hi)#b ofs Max = None -> 
-    exists p, (alloc_access m lo hi)#b ofs Res = Some p.
-Proof.
-  unfold alloc_access; intros.
-  rewrite ZMap.gsspec in H0|-*.
-  destruct (ZIndexed.eq b m.(nextblock)); subst; simpl in *.
-  case_eq (zle lo ofs && zlt ofs hi); intros.
-  rewrite H1 in H0; congruence.
-  exists Freeable.
-  auto.
-  exploit nomax_reserved; eauto.
-  omega.
-Qed.
   
 Program Definition alloc (m: mem) (lo hi: Z) :=
   (mkmem (ZMap.set m.(nextblock) 
@@ -400,7 +369,7 @@ Program Definition alloc (m: mem) (lo hi: Z) :=
                    m.(mem_contents))
          (alloc_access m lo hi)
          (Zsucc m.(nextblock))
-         _ _ _ (alloc_nomax_reserved m lo hi),
+         _ _ _,
    m.(nextblock)).
 Next Obligation.
   generalize (nextblock_pos m). omega. 
@@ -429,32 +398,13 @@ Definition unchecked_free_access (m: mem) (b: block) (lo hi: Z) :=
     (fun ofs k => 
       if zle lo ofs && zlt ofs hi then 
         if isMaxCur k then None
-        else if zlt b m.(nextblock) then Some Freeable else None
+        else m.(mem_access)#b ofs k
       else m.(mem_access)#b ofs k)
     m.(mem_access)).
 
-Lemma unchecked_free_nomax_reserved: 
-  forall b0 m lo hi b ofs,
-    0 <= b < m.(nextblock) -> 
-    (unchecked_free_access m b0 lo hi)#b ofs Max = None -> 
-    exists p, (unchecked_free_access m b0 lo hi)#b ofs Res = Some p.
-Proof.
-  unfold unchecked_free_access; intros.
-  rewrite ZMap.gsspec in H0|-*.
-  destruct (ZIndexed.eq b b0); subst; simpl in *.
-  case_eq (zle lo ofs && zlt ofs hi); intros.
-  rewrite H1 in H0.
-  exists Freeable.
-  destruct (zlt b0 (nextblock m)); auto.
-  omega.
-  rewrite H1 in H0.
-  exploit nomax_reserved; eauto.
-  exploit nomax_reserved; eauto.
-Qed.
-
 Program Definition unchecked_free (m: mem) (b: block) (lo hi: Z): mem :=
   mkmem m.(mem_contents) (unchecked_free_access m b lo hi)
-        m.(nextblock) _ _ _ (unchecked_free_nomax_reserved b m lo hi).
+        m.(nextblock) _ _ _.
 Next Obligation.
   apply nextblock_pos. 
 Qed.
@@ -473,6 +423,7 @@ Next Obligation.
   destruct (zle lo ofs && zlt ofs hi). 
   destruct (zlt b (nextblock m)); auto.
   omega.
+  apply nextblock_noaccess; auto.
   apply nextblock_noaccess; auto.
   apply nextblock_noaccess; auto.
 Qed.
@@ -604,8 +555,7 @@ Definition store (chunk: memory_chunk) (m: mem) (b: block) (ofs: Z) (v: val): op
                 m.(nextblock)
                 m.(nextblock_pos)
                 m.(access_max)
-                m.(nextblock_noaccess)
-                m.(nomax_reserved))
+                m.(nextblock_noaccess))
   else
     None.
 
@@ -630,8 +580,7 @@ Definition storebytes (m: mem) (b: block) (ofs: Z) (bytes: list memval) : option
              m.(nextblock)
              m.(nextblock_pos)
              m.(access_max)
-             m.(nextblock_noaccess)
-             m.(nomax_reserved))
+             m.(nextblock_noaccess))
   else
     None.
 
@@ -650,7 +599,7 @@ Program Definition drop_perm (m: mem) (b: block) (lo hi: Z) (p: permission): opt
                             else m.(mem_access)#b ofs k
                           else m.(mem_access)#b ofs k)
                         m.(mem_access))
-                m.(nextblock) _ _ _ _)
+                m.(nextblock) _ _ _)
   else None.
 Next Obligation.
   apply nextblock_pos.
@@ -675,13 +624,6 @@ Next Obligation.
   auto. auto. 
   intros; destruct k; try inv H2; auto.
   auto.
-Qed.
-Next Obligation.
-  rewrite ZMap.gsspec in *.
-  destruct (ZIndexed.eq b0 b). subst b0.
-  simpl in *. destruct (zle lo ofs && zlt ofs hi). congruence.
-  exploit nomax_reserved; eauto.
-  exploit nomax_reserved; eauto.
 Qed.
 
 (** * Properties of the memory operations *)
@@ -1763,6 +1705,21 @@ Proof.
   auto.
 Qed.
 
+Theorem perm_alloc_inv':
+  forall b' ofs p, 
+  perm m2 b' ofs Res p ->
+  if zeq b' b then ofs < lo \/ ofs >= hi else perm m1 b' ofs Res p.
+Proof.
+  intros until p; unfold perm. inv ALLOC. simpl. 
+  unfold alloc_access in *.
+  rewrite ZMap.gsspec. unfold ZIndexed.eq. destruct (zeq b' (nextblock m1)); intros.
+  destruct (zle lo ofs); try contradiction. 
+  destruct (zlt ofs hi); try contradiction.
+  right; auto.
+  left; omega.
+  auto.
+Qed.
+
 Theorem perm_alloc_3:
   forall ofs k p, isMaxCur k=true -> perm m2 b ofs k p -> lo <= ofs < hi.
 Proof.
@@ -1862,6 +1819,54 @@ Proof.
   eapply load_alloc_same; eauto.
 Qed.
 
+Definition reserved (m: mem) b ofs := exists p, Mem.perm m b ofs Res p.
+
+Theorem alloc_reserved_unchanged: 
+  forall b' ofs,
+  valid_block m1 b' -> 
+  (reserved m1 b' ofs <-> reserved m2 b' ofs).
+Proof.
+  intros b' ofs VAL.
+  unfold reserved; split; intros [p PERM]; exists p. 
+  apply perm_alloc_1; auto.
+  apply perm_alloc_inv' in PERM.
+  destruct (zeq b' b); subst.
+  unfold valid_block in VAL.
+  inv ALLOC. omegaContradiction.
+  auto.
+Qed.
+
+Theorem alloc_reserved_inrange:
+  forall ofs,
+  lo <= ofs < hi -> 
+  ~reserved m2 b ofs.
+Proof.
+intros ofs H1 [p CONTRA].
+apply perm_alloc_inv' in CONTRA.
+destruct (zeq b b). omega.
+elimtype False; auto.
+Qed.
+
+Theorem alloc_reserved_oorange:
+  forall ofs,
+  ofs < lo \/ ofs >= hi -> 
+  reserved m2 b ofs.
+Proof.
+intros ofs H1. exists Freeable.
+inv ALLOC. hnf; simpl.
+unfold alloc_access.
+rewrite ZMap.gsspec.
+destruct (ZIndexed.eq (nextblock m1) (nextblock m1)); 
+  try congruence.
+destruct (zle lo ofs). simpl.
+destruct (zlt ofs hi). simpl.
+omega.
+simpl; auto with mem.
+destruct (zlt ofs hi). simpl.
+auto with mem.
+simpl; auto with mem.
+Qed.
+
 End ALLOC.
 
 Local Hint Resolve valid_block_alloc fresh_block_alloc valid_new_block: mem.
@@ -1949,16 +1954,14 @@ Qed.
 
 Theorem perm_free_3:
   forall b ofs k p,
-  isMaxCur k=true -> 
   perm m2 b ofs k p -> perm m1 b ofs k p.
 Proof.
   intros until p. rewrite free_result. unfold perm, unchecked_free; simpl.
-  intros MAX.
   unfold unchecked_free_access; simpl.
   rewrite ZMap.gsspec. destruct (ZIndexed.eq b bf). subst b.
   destruct (zle lo ofs); simpl. 
   destruct (zlt ofs hi); simpl.
-  rewrite MAX; simpl. tauto.
+  destruct (isMaxCur k); auto. simpl. tauto.
   auto. auto. auto. 
 Qed.
 
@@ -2824,7 +2827,9 @@ Qed.
 Record extends' (m1 m2: mem) : Prop :=
   mk_extends {
     mext_next: nextblock m1 = nextblock m2;
-    mext_inj:  mem_inj inject_id m1 m2
+    mext_inj:  mem_inj inject_id m1 m2;
+    mext_reserved: forall b ofs, 
+      reserved m1 b ofs <-> reserved m2 b ofs
   }.
 
 Definition extends := extends'.
@@ -2837,6 +2842,7 @@ Proof.
   intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by omega. auto.
   intros. unfold inject_id in H; inv H. replace (ofs + 0) with ofs by omega. 
   apply memval_lessdef_refl.
+  intros; split; auto.
 Qed.
 
 Theorem load_extends:
@@ -2895,6 +2901,14 @@ Proof.
   rewrite (nextblock_store _ _ _ _ _ _ H0).
   rewrite (nextblock_store _ _ _ _ _ _ A).
   auto.
+  intros. 
+  cut (reserved m1' b0 ofs0 = reserved m1 b0 ofs0). intros ->.
+  cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->.
+  auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply store_access in A; rewrite A; auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply store_access in H0; rewrite H0; auto.  
 Qed.
 
 Theorem store_outside_extends:
@@ -2908,6 +2922,9 @@ Proof.
   rewrite (nextblock_store _ _ _ _ _ _ H0). auto.
   eapply store_outside_inj; eauto.
   unfold inject_id; intros. inv H2. eapply H1; eauto. omega. 
+  intros. cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->. auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply store_access in H0; rewrite H0; auto.  
 Qed.
 
 Theorem storev_extends:
@@ -2945,6 +2962,14 @@ Proof.
   rewrite (nextblock_storebytes _ _ _ _ _ H0).
   rewrite (nextblock_storebytes _ _ _ _ _ A).
   auto.
+  intros. 
+  cut (reserved m1' b0 ofs0 = reserved m1 b0 ofs0). intros ->.
+  cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->.
+  auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply storebytes_access in A; rewrite A; auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply storebytes_access in H0; rewrite H0; auto.  
 Qed.
 
 Theorem storebytes_outside_extends:
@@ -2958,6 +2983,9 @@ Proof.
   rewrite (nextblock_storebytes _ _ _ _ _ H0). auto.
   eapply storebytes_outside_inj; eauto.
   unfold inject_id; intros. inv H2. eapply H1; eauto. omega. 
+  intros. cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->. auto.
+  unfold reserved. f_equal. extensionality p. unfold perm.
+  apply storebytes_access in H0; rewrite H0; auto.  
 Qed.
 
 Theorem alloc_extends:
@@ -2989,6 +3017,7 @@ Proof.
   eapply perm_implies with Freeable; auto with mem.
   eapply perm_alloc_2; eauto.
   omega.
+  admit.
 Qed.
 
 Theorem free_left_extends:
@@ -3000,6 +3029,7 @@ Proof.
   intros. inv H. constructor.
   rewrite (nextblock_free _ _ _ _ _ H0). auto.
   eapply free_left_inj; eauto.
+  admit.
 Qed.
 
 Theorem free_right_extends:
@@ -3013,6 +3043,7 @@ Proof.
   rewrite (nextblock_free _ _ _ _ _ H0). auto.
   eapply free_right_inj; eauto.
   unfold inject_id; intros. inv H2. eapply H1; eauto. omega.
+  admit.
 Qed. 
 
 Theorem free_parallel_extends:
@@ -3037,6 +3068,7 @@ Proof.
   eapply free_left_inj; eauto. 
   unfold inject_id; intros. inv H1.
   eapply perm_free_2. exact H0. eauto. instantiate (1 := ofs). omega. eauto.
+  admit.
 Qed.
 
 Theorem valid_block_extends:
@@ -3112,7 +3144,15 @@ Record inject' (f: meminj) (m1 m2: mem) : Prop :=
       forall b b' delta ofs,
       f b = Some(b', delta) ->
       weak_valid_pointer m1 b (Int.unsigned ofs) = true ->
-      delta >= 0 /\ 0 <= Int.unsigned ofs + delta <= Int.max_unsigned
+      delta >= 0 /\ 0 <= Int.unsigned ofs + delta <= Int.max_unsigned;
+    mi_unmappedreserved:
+      forall b, f b = None -> forall ofs, reserved m1 b ofs;
+    mi_reserved:
+      forall b2 ofs, 
+        reserved m2 b2 ofs <->
+         (forall b1 delta, 
+          f b1 = Some(b2, delta) -> 
+          reserved m1 b1 (ofs-delta))
   }.
 Definition inject := inject'.
 
@@ -3448,6 +3488,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto with mem.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem store_unmapped_inject:
@@ -3472,6 +3516,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H3 |- *.
   destruct H3; eauto with mem.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem store_outside_inject:
@@ -3495,6 +3543,10 @@ Proof.
   auto.
 (* representable *)
   eauto with mem.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem storev_mapped_inject:
@@ -3540,6 +3592,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto using perm_storebytes_2. 
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem storebytes_unmapped_inject:
@@ -3564,6 +3620,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H3 |- *.
   destruct H3; eauto using perm_storebytes_2.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem storebytes_outside_inject:
@@ -3587,6 +3647,10 @@ Proof.
   auto.
 (* representable *)
   auto.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 (* Preservation of allocations *)
@@ -3609,6 +3673,10 @@ Proof.
   auto.
 (* representable *)
   auto.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem alloc_left_unmapped_inject:
@@ -3656,6 +3724,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto using perm_alloc_4.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 (* incr *)
   split. auto. 
 (* image *)
@@ -3746,6 +3818,10 @@ Proof.
   eapply mi_representable0; try eassumption.
   rewrite !weak_valid_pointer_spec, !valid_pointer_nonempty_perm.
   destruct H10; eauto using perm_alloc_4.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 (* incr *)
   split. auto.
 (* image of b1 *)
@@ -3804,6 +3880,10 @@ Proof.
   rewrite weak_valid_pointer_spec in *.
   rewrite !valid_pointer_nonempty_perm in H2 |- *.
   destruct H2; eauto with mem.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Lemma free_list_left_inject:
@@ -3840,6 +3920,10 @@ Proof.
   auto.
 (* representable *)
   auto.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Lemma perm_free_list:
@@ -3894,6 +3978,7 @@ Proof.
   intros. destruct H. constructor; eauto.
   eapply drop_outside_inj; eauto.
   intros. unfold valid_block in *. erewrite nextblock_drop; eauto. 
+  admit. 
 Qed.
 
 (** Composing two memory injections. *)
@@ -3965,6 +4050,10 @@ Proof.
     ((Int.unsigned ofs - 1) + delta1) by omega.
   destruct H0; eauto using perm_inj.
   rewrite H. omega.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Lemma val_lessdef_inject_compose:
@@ -4000,6 +4089,10 @@ Proof.
   eapply mi_representable0; eauto.
   rewrite weak_valid_pointer_spec, !valid_pointer_nonempty_perm in *.
   destruct H1; eauto using perm_extends.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Lemma inject_extends_compose:
@@ -4019,6 +4112,10 @@ Proof.
   red; intros. eapply mi_no_overlap0; eauto.
 (* representable *)
   eapply mi_representable0; eauto.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Lemma extends_extends_compose:
@@ -4032,6 +4129,7 @@ Proof.
   replace inject_id with (compose_meminj inject_id inject_id).
   eapply mem_inj_compose; eauto. 
   apply extensionality; intros. unfold compose_meminj, inject_id. auto.
+  erewrite mext_reserved0, mext_reserved1; split; auto.
 Qed.
 
 (** Injecting a memory into itself. *)
@@ -4068,6 +4166,10 @@ Proof.
 (* range *)
   unfold flat_inj; intros.
   destruct (zlt b (nextblock m)); inv H0. generalize (Int.unsigned_range_2 ofs); omega.
+(* unmapped_reserved *)
+  admit.
+(* reserved *)
+  admit.
 Qed.
 
 Theorem empty_inject_neutral:
