@@ -39,8 +39,17 @@ To use either of these interactive development environments you will
 need to have the right load path.  This can be done by command-line
 arguments to coqide or coqtop.  The precise command-line arguments
 to use are in the file .loadpath, which is constructed automatically
-when you do "make".  For example:    coqide `cat .loadpath` veric/base.v
-will run coqide with the right options.
+when you do "make".  For example:    
+coqide `cat .loadpath` veric/base.v  # will run coqide with the right options.
+coqc `cat .loadpath` veric/base.v  # will run coqc with the right options.
+
+NEW DIRECTORIES:
+If you add a new directory, you will probably want to augment the loadpath
+so that qualified names work right.  For example:
+  coqc `cat .loadpath` -I new -as new veric/new.v 
+The Makefile automatically creates the .loadpath file
+with the subdirectories that it knows about.
+
 
 EXTERNAL COMPCERT: 
 The VST imports from the CompCert verified C compiler, the definition

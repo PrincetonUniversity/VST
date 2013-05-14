@@ -372,12 +372,73 @@ Qed.
 
 Hint Resolve corable_fun_assert : normalize.
 
+Lemma prop_derives {A}{H: ageable A}: 
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros. intros w ?; apply H0; auto.
+Qed.
+
+Lemma tc_expr_lvalue_sub:
+  forall Delta Delta', 
+    tycontext_sub Delta Delta' ->
+  forall rho e, (tc_expr Delta e rho |-- tc_expr Delta' e rho /\
+                      tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho).
+Proof.
+induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
+ simpl; auto.
+* destruct (access_mode t) eqn:?; auto.
+  destruct (get_var_type Delta i) eqn:?; [ | contradiction].
+  destruct H as [_ [? [_ ?]]].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  unfold get_var_type in *. rewrite <- H.
+  destruct ((var_types Delta)!i); auto.
+  destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
+  specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
+  auto.
+* destruct (get_var_type Delta i) eqn:?; [ | contradiction].
+  destruct H as [_ [? [_ ?]]].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  unfold get_var_type in *. rewrite <- H.
+  destruct ((var_types Delta)!i); auto.
+  destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
+  specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
+  auto.
+* destruct (negb (type_is_volatile t)); auto.
+  destruct ((temp_types Delta)!i) eqn:H1; [ | contradiction].
+  destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
+  rewrite H. auto.
+* destruct IHe.
+  repeat rewrite denote_tc_assert_andp.
+  intros [[[? ?] ?] ?]; repeat split; auto.
+  unfold tc_expr in H0.
+  apply (H0 w); unfold prop; auto.
+*   repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
+ destruct IHe. apply (H3 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
+ destruct IHe. apply (H2 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
+ destruct IHe1 as [H8 _]; apply (H8 w); auto.
+ destruct IHe2 as [H8 _]; apply (H8 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
+   destruct IHe as [H8 _]; apply (H8 w); auto.
+* destruct (access_mode t) eqn:?; auto.
+ repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
+ destruct IHe. apply (H4 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
+ destruct IHe as [_ H8]; apply (H8 w); auto.
+Qed.
+
 Lemma tc_expr_sub:
    forall Delta Delta',
     tycontext_sub Delta Delta' ->
     forall e rho, tc_expr Delta e rho |-- tc_expr Delta' e rho.
-Proof.
-Admitted.
+Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
+
+Lemma tc_lvalue_sub:
+   forall Delta Delta',
+    tycontext_sub Delta Delta' ->
+    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_temp_id_sub:
    forall Delta Delta',
@@ -394,12 +455,6 @@ destruct p.
 rewrite H. auto.
 Qed.
 
-Lemma tc_lvalue_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
-Proof.
-Admitted.
   
 Lemma tc_temp_id_load_sub:
    forall Delta Delta',
@@ -418,5 +473,15 @@ Lemma tc_exprlist_sub:
     tycontext_sub Delta Delta' ->
     forall e t rho, tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
 Proof.
-Admitted.
+intros.
+revert t; induction e; destruct t;  simpl; auto.
+specialize (IHe t).
+unfold tc_exprlist.
+intro w; unfold prop.
+simpl.
+repeat rewrite denote_tc_assert_andp.
+intros [[? ?] ?]; repeat split; auto.
+apply (tc_expr_sub _ _ H e0 rho w); auto.
+apply (IHe w); auto.
+Qed.
 

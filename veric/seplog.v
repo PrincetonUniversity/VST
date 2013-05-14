@@ -112,6 +112,37 @@ Definition address_mapsto_zeros' (n: Z) : spec :=
                                   (fun l' => yesat NoneP (VAL (Byte Byte.zero)) rsh sh l')
                                   noat).
 
+Lemma Z_of_nat_ge_O: forall n, Z.of_nat n >= 0.
+Proof. intros. 
+change 0 with (Z.of_nat O).
+apply inj_ge. clear; omega.
+Qed.
+
+Lemma rev_if_be_singleton:
+  forall x, rev_if_be (x::nil) = (x::nil).
+Proof. intro. unfold rev_if_be; destruct big_endian; auto. Qed.
+
+Lemma resource_fmap_core:
+  forall w loc, resource_fmap (approx (level w)) (core (w @ loc)) = core (w @ loc).
+Proof.
+intros.
+case_eq (w @ loc); intros;
+ [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+rewrite <- H. apply resource_at_approx.
+Qed.
+
+Lemma decode_byte_val:
+  forall m, decode_val Mint8unsigned (Byte m :: nil) =
+              Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned m))).
+Proof.
+intros.
+unfold decode_val. simpl.
+f_equal.
+unfold decode_int.
+rewrite rev_if_be_singleton.
+unfold int_of_bytes. f_equal. f_equal. apply Z.add_0_r.
+Qed.
+
 Lemma address_mapsto_zeros_eq:
   forall sh n,
    address_mapsto_zeros sh n =
@@ -120,6 +151,7 @@ Lemma address_mapsto_zeros_eq:
 Proof.
 induction n;
 extensionality adr; destruct adr as [b i].
+* (* base case *)
 simpl.
 unfold address_mapsto_zeros'.
 apply pred_ext.
@@ -137,10 +169,12 @@ specialize (H (b',i')).
 hnf in H.
 rewrite if_false in H. apply H.
 clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+* (* inductive case *)
 rewrite inj_S.
 simpl.
 rewrite IHn; clear IHn.
 apply pred_ext; intros w ?.
+ - (* forward case *)
 destruct H as [w1 [w2 [? [? ?]]]].
 intros [b' i'].
 hnf.
@@ -164,7 +198,33 @@ destruct bl; try solve [inv H0].
 destruct bl; inv H0.
 simpl.
 clear - H3.
-admit. 
+ {
+destruct m; try solve [inv H3].
+rewrite decode_byte_val in H3.
+f_equal.
+assert (Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.repr 0).
+forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H3; auto.
+clear H3.
+assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
+    Int.unsigned Int.zero).
+f_equal; auto. rewrite Int.unsigned_zero in H0.
+clear H.
+SearchAbout (Int.unsigned (Int.zero_ext _ _)).
+rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
+rewrite Int.unsigned_repr in H0.
+rewrite Zdiv.Zmod_small in H0.
+assert (Byte.repr (Byte.unsigned i) = Byte.zero).
+apply f_equal; auto.
+rewrite Byte.repr_unsigned in H. auto.
+apply Byte.unsigned_range.
+clear.
+pose proof (Byte.unsigned_range i).
+destruct H; split; auto.
+apply Z.le_trans with Byte.modulus.
+omega.
+clear.
+compute; congruence.
+}
 f_equal. f_equal.
 destruct LEV; auto.
 destruct H2.
@@ -193,8 +253,11 @@ clear H7.
 replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
 replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
 omega.
-admit.  (* trivial *)
-admit.  (* trivial *)
+symmetry; apply Zmax_left.
+apply Z_of_nat_ge_O.
+symmetry; apply Zmax_left.
+clear.
+pose proof (Z_of_nat_ge_O n). omega.
 apply (resource_at_join _ _ _ (b',i')) in H.
 destruct H0 as [bl [[? [? ?]] ?]].
 specialize (H5 (b',i')); specialize (H1 (b',i')).
@@ -206,17 +269,101 @@ simpl in H1|-*.
 rewrite <- H; auto.
 clear - H2; contradict H2.
 destruct H2; split; auto.
-admit.  (* easy *)
+destruct H0.
+split; try omega.
+pose proof (Z_of_nat_ge_O n). 
+rewrite Zmax_left in H1 by omega.
+rewrite Zmax_left by omega.
+omega.
 clear - H2; contradict H2; simpl in H2.
 destruct H2; split; auto.
-admit.  (* easy *)
+rewrite Zmax_left by omega.
+omega.
 
-(* backward direction.
-  This will work, but it might be better to prove the whole
-  lemma by equivalence to VALspec_range, with
-  VALspec_range_split.
-*)
-Admitted.
+- (* backward direction *)
+forget (Share.unrel Share.Lsh sh) as rsh.
+forget (Share.unrel Share.Rsh sh) as sh'. clear sh; rename sh' into sh.
+assert (H0 := H (b,i)).
+hnf in H0.
+rewrite if_true in H0
+  by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
+destruct H0 as [H0 H1].
+assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
+ YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+    else core (w @ loc)))).
+ {intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
+  destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.  
+ }
+destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
+extensionality loc. unfold compose.
+if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+           | apply resource_fmap_core].
+assert (AV.valid (res_option oo 
+  fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
+                     then YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+    else core (w @ loc))).
+ {intros b' z'; unfold res_option, compose; if_tac; simpl; auto. 
+  case_eq (w @ (b',z')); intros;
+   [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+ }
+destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
+extensionality loc. unfold compose.
+if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+           | apply resource_fmap_core].
+exists w1; exists w2; split3; auto.
++apply resource_at_join2; try congruence.
+  intro loc; rewrite H4; rewrite H7.
+ clear - H.
+ specialize (H loc).  unfold jam in H. hnf in H.
+ rewrite Zmax_left by (pose proof (Z_of_nat_ge_O n); omega).
+ rewrite Zmax_left in H by (pose proof (Z_of_nat_ge_O n); omega).
+ if_tac. rewrite if_false.
+ subst. rewrite if_true in H.
+  destruct H as [H' H]; rewrite H. rewrite core_YES.
+ rewrite preds_fmap_NoneP.
+ apply join_unit2.
+ constructor. auto.
+ repeat f_equal.
+ apply mk_lifted_refl1.
+ split; auto; omega.
+ subst. intros [? ?]; omega.
+ if_tac in H.
+ rewrite if_true.
+ destruct H as [H' H]; rewrite H; clear H. rewrite core_YES.
+ rewrite preds_fmap_NoneP.
+ apply join_unit1.
+ constructor; auto.
+ f_equal.
+ apply mk_lifted_refl1.
+ destruct loc;
+ destruct H2; split; auto.
+ assert (z<>i) by congruence.
+ omega.
+ rewrite if_false.
+ unfold noat in H. simpl in H.
+ apply join_unit1; [apply core_unit | ].
+ clear - H.
+ apply H. apply join_unit2. apply core_unit. auto.
+ destruct loc. intros [? ?]; subst. apply H2; split; auto; omega.
++ exists (Byte Byte.zero :: nil); split.
+ split. reflexivity. split.
+ unfold decode_val. simpl. f_equal.
+ unfold decode_int. rewrite rev_if_be_singleton. simpl.
+ reflexivity.
+ apply Z.divide_1_l.
+ intro loc. hnf. if_tac. exists H0.
+ destruct loc as [b' i']. destruct H8; subst b'.
+ simpl in H9. assert (i=i') by omega; subst i'.
+ rewrite Zminus_diag. hnf. rewrite preds_fmap_NoneP.
+  rewrite H4. rewrite if_true by auto. f_equal.
+ unfold noat. simpl. rewrite H4. rewrite if_false. apply core_identity.
+  swap H8. subst. split; auto. simpl; omega.
++ intro loc. hnf. 
+ if_tac. exists H0. hnf. rewrite H7.
+ rewrite if_true by auto. rewrite preds_fmap_NoneP. auto.
+ unfold noat. simpl. rewrite H7.
+ rewrite if_false by auto. apply core_identity.
+Qed.
 
 Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
  match a with
@@ -248,9 +395,8 @@ Lemma memory_block'_eq:
 Proof.
 intros.
 unfold memory_block'_alt.
-revert i H H0; induction n; intros.
-simpl.
-symmetry; apply VALspec_range_0.
+revert i H H0; induction n; intros;
+ [symmetry; apply VALspec_range_0 | ].
 unfold memory_block'; fold memory_block'.
 rewrite (IHn (i+1))
  by (rewrite inj_S in H0; omega).
@@ -262,13 +408,42 @@ rewrite VALspec1.
 unfold mapsto_.
 unfold umapsto.
 simpl access_mode. cbv beta iota.
-rewrite Int.unsigned_repr.
-clear.
+rewrite Int.unsigned_repr by (pose proof (Zle_0_nat (S n)); omega).
 forget (Share.unrel Share.Lsh sh) as rsh.
 forget (Share.unrel Share.Rsh sh) as sh'.
 clear.
-admit.  (* straightforward *)
-pose proof (Zle_0_nat (S n)); omega.
+assert (EQ: forall loc, jam (adr_range_dec loc (size_chunk Mint8unsigned)) = jam (eq_dec loc)).
+intros [b' z']; unfold jam; extensionality P Q loc;
+ destruct loc as [b'' z'']; apply exist_ext; extensionality w;
+ if_tac; [rewrite if_true | rewrite if_false]; auto;
+  [destruct H; subst; f_equal;  simpl in H0; omega 
+  | swap H; inv H0; split; simpl; auto; omega].
+apply pred_ext.
+intros w ?.
+right; split; hnf; auto.
+assert (H':= H (b,i)).
+hnf in H'. rewrite if_true in H' by auto.
+destruct H' as [v H'].
+pose (l := v::nil).
+destruct v; [exists Vundef | exists (Vint (Int.zero_ext 8 (Int.repr (Byte.unsigned i0)))) | exists Vundef];
+exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode_byte_val) |  apply Z.divide_1_l ] | ]);
+  rewrite EQ; intro loc; specialize (H loc);
+ hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
+ unfold l; simpl nth; auto.
+rewrite prop_true_andp by auto.
+apply orp_left.
+intros w [l [[? [? ?]] ?]].
+ intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+ hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+ destruct l; inv H. exists m.
+ destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+ f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+intros w [v2' [l [[? [? ?]] ?]]].
+ intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
+ hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
+ destruct l; inv H. exists m.
+ destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
+ f_equal. f_equal. rewrite Zminus_diag. reflexivity.
 Qed.
 
 Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
