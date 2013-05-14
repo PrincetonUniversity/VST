@@ -1062,19 +1062,15 @@ apply H2 in H. inv H.
 
 simpl in *. destruct a. simpl in *. destruct p0. simpl.
 remember (te2 ! p). destruct o. destruct p0.
-destruct (eq_dec t t0).
- subst. rewrite eqb_type_refl.
-rewrite PTree.gsspec. if_tac. subst. specialize (H1 (t0,b)).
-intuition. rewrite H1 in *. inv H.
- rewrite <- Heqo in *. inv H0. auto.
-apply IHl; auto. intros. specialize (H2 (t1,b1)). intuition. inv H2. destruct H3; auto. 
-specialize (H1 (t1,b1)). intuition.
-rewrite H1 in H4. inv H4. auto.
-apply eqb_type_false in n; rewrite n.
+(* destruct (eq_dec t t0).
+ subst. *)
+rewrite PTree.gsspec. if_tac. subst. specialize (H1 (t,b)).
+spec H1; [solve [auto] | ].
+inversion2  H H1.
+rewrite H0 in Heqo; inv Heqo. auto.
 apply IHl; auto.
-intros. (*rewrite H in H4. inv H4.*) edestruct H2. apply H. inv H4. rewrite H0 in *.
-inv Heqo. rewrite eqb_type_refl in n; inv n.
-rewrite H in H3; inv H3. auto.
+intros. inversion2 H H4. specialize (H2 _ H).
+destruct H2. inv H2. congruence.  auto.
 apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 (t1, b1)).
 intuition. inv H2. congruence.
 Qed.
@@ -1838,8 +1834,9 @@ unfold typecheck_tid_ptr_compare;
 intros.
 destruct H as [? _].
 specialize (H id).
-destruct ((temp_types Delta) ! id); try discriminate.
-destruct p. simpl in H. rewrite H. auto.
+destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
+destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
+ destruct H; subst; auto.
 Qed.
 
 
@@ -1850,7 +1847,7 @@ intros. destruct Delta as [[[T V] r] G].
 unfold tycontext_sub.
 intuition.
  + unfold sub_option. unfold temp_types. simpl. 
-   destruct (T ! id); auto.
+   destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
  + unfold sub_option, glob_types. simpl. 
    destruct (G ! id); auto.
 Qed.
@@ -1867,7 +1864,7 @@ destruct (t ! id2). destruct p. simpl.  rewrite PTree.gso; auto.
 auto.
 Qed.
 
-
+(*
 Lemma initialized_sub_temp :
 forall id Delta i Delta',
 (forall id, sub_option (temp_types Delta) ! id (temp_types Delta') ! id) ->
@@ -1887,6 +1884,7 @@ intros.
          * simpl. rewrite <- Heqo. auto.
      - repeat rewrite <- initialized_ne by auto. auto.
 Qed.
+*)
 
 Lemma initialized_sub :
   forall Delta Delta' i ,
@@ -1897,12 +1895,91 @@ intros.
 unfold tycontext_sub in *. 
 destruct H as [? [? [? ?]]].
 repeat split; intros.
- + apply initialized_sub_temp; auto.
+ + specialize (H id); clear - H.
+        destruct (eq_dec  i id).
+        -  unfold initialized. subst.
+           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?.
+         unfold temp_types at 1; simpl; rewrite PTree.gss.
+        destruct ((temp_types Delta')!id) as [[? ?] |]. destruct H; subst t0.
+         unfold temp_types at 1. simpl. rewrite PTree.gss. auto. contradiction.
+         rewrite Heqo. auto.
+        -   rewrite <- initialized_ne by auto.
+           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?; auto.
+           rewrite <- initialized_ne by auto.
+        destruct ((temp_types Delta')!id) as [[? ?] |]; [| contradiction].
+         auto.
  + repeat rewrite set_temp_ve; auto.
  + repeat rewrite set_temp_ret; auto. 
  + repeat rewrite set_temp_ge; auto.
 Qed.
- 
+
+
+Definition te_one_denote (v1 v2 : option (type * bool)):=
+match v1, v2 with 
+| Some (t1,b1),Some (t2, b2) =>  Some (t1, andb b1 b2)
+| _, _ => None
+end.
+
+Lemma join_te_denote2:
+forall d1 d2 id,
+  ((join_te d1 d2) ! id) = te_one_denote (d1 ! id) (d2 ! id).
+Proof.
+intros. remember (d1 ! id). remember (d2 ! id).
+destruct o; destruct o0.
+   -  unfold te_one_denote. destruct p; destruct p0.
+      remember (eqb_type t t0). destruct b1.
+        + symmetry in Heqb1. apply eqb_type_true in Heqb1.
+          subst. apply join_te_eqv; auto.
+        + unfold join_te.
+(* Print join_te'.
+ rewrite PTree.fold_spec.
+SearchAbout PTree.elements.
+SearchAbout PTree.fold.
+*)
+Admitted.
+
+Lemma tycontext_sub_join:
+ forall Delta1 Delta2 Delta1' Delta2',
+  tycontext_sub Delta1 Delta1' -> tycontext_sub Delta2 Delta2' ->
+  tycontext_sub (join_tycon Delta1 Delta2) (join_tycon Delta1' Delta2').
+Proof.
+intros [[[A1 B1] C1] D1] [[[A2 B2] C2] D2] [[[A1' B1'] C1'] D1'] [[[A2' B2'] C2'] D2']
+  [? [? [? ?]]] [? [? [? ?]]].
+simpl in *.
+unfold join_tycon.
+split; [ | split; [ | split]]; simpl; auto.
+intro id; specialize (H id); specialize (H3 id).
+unfold temp_types in *.
+simpl in *.
+clear - H H3.
+unfold sub_option in *.
+repeat rewrite join_te_denote2.
+unfold te_one_denote.
+destruct (A1 ! id) as [[? b1] |].
+destruct (A1' ! id) as [[? b1'] |]; [ | contradiction].
+destruct H; subst t0.
+destruct (A2 ! id) as [[? b2] |].
+destruct (A2' ! id) as [[? b2'] |]; [ | contradiction].
+destruct H3; subst t1.
+split; auto. destruct b1,b1'; inv H0; simpl; auto.
+destruct (A2' ! id) as [[? b2'] |]; split; auto.
+auto.
+Qed.
+
+Lemma temp_types_same_type' : forall i (Delta: tycontext),
+ (temp_types (initialized i Delta)) ! i =
+  match (temp_types Delta) ! i with
+   | Some (t, b) => Some (t, true)
+  | None => None 
+  end.
+Proof.
+intros.
+unfold initialized.
+destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?.
+unfold temp_types at 1. simpl. rewrite PTree.gss. auto.
+auto.
+Qed.
+
 Lemma update_tycon_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
    forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h).
@@ -1915,187 +1992,31 @@ repeat split; intros; auto.
     revert h id Delta'.
     induction h; intros; try apply H; simpl; try destruct o;
      auto.
-    -  apply initialized_sub_temp; auto.
-    -  apply initialized_sub_temp; auto.
-    -  repeat rewrite temp_types_update_dist.
-       unfold sub_option in H. remember ((temp_types Delta) ! id).
-       destruct o.
-         *  
-
+    -          destruct (eq_dec id i). subst.
+        rewrite temp_types_same_type'.
+        specialize (H i).
+        destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?.
+        rewrite temp_types_same_type'.
+        destruct ((temp_types Delta') ! i) as [[? ?]|] eqn:?; [ | contradiction].
+        destruct H; subst t0. split; auto. auto.
+         specialize (H id).
+          rewrite <- initialized_ne by auto. 
+        destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
+          rewrite <- initialized_ne by auto. 
+        destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
+  -  repeat rewrite temp_types_update_dist.
+       specialize (H id).
+        destruct (eq_dec id i). subst.
+        rewrite temp_types_same_type'.
+        destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; auto.
+        rewrite temp_types_same_type'.
+        destruct ((temp_types Delta') ! i) as [[? ?]|] eqn:?; [ | contradiction].
+        destruct H; subst t0. split; auto. auto.
+          rewrite <- initialized_ne by auto. 
+        destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
+          rewrite <- initialized_ne by auto. 
+        destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
+  -
 Admitted.
-
-Definition te_one_denote (v1 v2 : option (type * bool)):=
-match v1, v2 with 
-| Some (t1,b1),Some (t2, b2) =>  
-  if eqb_type t1 t2 then Some (t1, andb b1 b2) else None
-| _, _ => v1 end.
-
-Lemma join_te_denote2:
-forall d1 d2 id,
-  ((join_te d1 d2) ! id) = te_one_denote (d1 ! id) (d2 ! id).
-Proof.
-intros. remember (d1 ! id). remember (d2 ! id).
-destruct o; destruct o0.
-   -  unfold te_one_denote. destruct p; destruct p0.
-      remember (eqb_type t t0). destruct b1.
-        + symmetry in Heqb1. apply eqb_type_true in Heqb1.
-          subst. apply join_te_eqv; auto.
-        + 
-Admitted.
-
-
-Lemma join_te'_denote_nonmatch :
-forall t2 b2 d2 id te,
-(option_map fst (d2 ! id)) <> Some t2 ->
-(join_te' d2 te  id (t2,b2))  = te.
-Proof.
-intros. unfold join_te'.  
-remember (d2 ! id). destruct o.
-  -  destruct p. remember (eqb_type t2 t).
-     if_tac.
-       + symmetry in Heqb0.  apply eqb_type_true in Heqb0. subst.
-         simpl in H. intuition.
-       + auto.
-  -  auto.
-Qed.
-
-Lemma join_te_denote_nonmatch : 
-forall t1 b1 t2 b2 d1 d2 id,
-Some (t1, b1) = d1 ! id ->
-Some (t2, b2) = d2 ! id ->
-t1 <> t2 ->
-(join_te d1 d2) ! id = None.
-Proof. 
-intros. 
-unfold join_te in *. rewrite PTree.fold_spec in *.
-rewrite <- fold_left_rev_right in *.
-
-(*
-assert ( In (id, (t1, b1)) (rev (PTree.elements d1)) ).
-  { intros. apply in_rev. rewrite rev_involutive. 
-    apply PTree.elements_correct. auto. }*)
-
-unfold PTree.elt in *. 
-
-forget (rev (PTree.elements d1)) as l.
-
-
-induction (l); intros.
-  -  simpl. rewrite PTree.gempty. auto.
-  -  simpl. destruct a. simpl. destruct p0. simpl in *.
-Admitted. (*
-     destruct (eq_dec p id). subst. rewrite <- H0. 
-     destruct H2.
-       + inv H2. simpl.  rewrite <- H0. remember (eqb_type t1 t2).
-         destruct b.
-         * symmetry in Heqb. apply eqb_type_true in Heqb.
-           subst; intuition.
-         * admit.
-       + simpl. remember (d2 ! p). destruct o. destruct p0.
-         
-     
-Print join_te'.
-*)
-(*
-destruct a. simpl.
-     simpl in H3. symmetry in H. 
-     specialize (H3 _ H).
-     destruct H3.
-       + inv H3. simpl. rewrite <- H0. remember (eqb_type t1 t2).
-         if_tac.
-           * symmetry in Heqb. apply eqb_type_true in Heqb. intuition.
-           * simpl in H2. 
-             apply IHl; auto. intros.
-             rewrite 
- unfold join_te'. destruct a.
-     destruct p0. simpl. remember (d2 ! p).
-     destruct o.
-       +  destruct p0. simpl. remember (eqb_type t t0).
-          destruct b3.
-            *  rewrite PTree.gsspec. if_tac. subst.
-               rewrite <- Heqo in H0. inv H0.
-
-induction (rev (PTree.elements te1)). simpl in *.
-rewrite PTree.gempty in *. congruence.
-
-simpl in *. destruct a. destruct p0. simpl in *.
-remember (te2 ! p). destruct o. destruct p0.
-destruct (eq_dec t t0). subst. 
-rewrite eqb_type_refl in H.
-rewrite PTree.gsspec in *.
-if_tac in H. subst. specialize (H0 (t0,b0)). inv H. spec H0; auto. 
-
-remember (andb b0 b1). destruct b. symmetry in Heqb. rewrite andb_true_iff in *. 
-destruct Heqb. subst. split; exists false; auto. 
- symmetry in Heqb. rewrite andb_false_iff in Heqb. 
-destruct Heqb; subst; eauto. auto.
-
-apply eqb_type_false in n. rewrite n in *.
-auto.
-auto.
-
-
-  
-    -  simpl. apply IHh2. unfold tycontext_sub. repeat split.
-    -  admit.
-    -  admit.
- + repeat rewrite update_tycon_eqv_ve; auto. 
- + repeat rewrite update_tycon_eqv_ret; auto. 
- + destruct H as [? [? [? ?]]].
-   repeat rewrite update_tycon_eqv_ge; auto.
-Qed.
-     
-   
- + simpl.
-
-unfold sub_option in *. copy H.
-    specialize (H id). remember ((temp_types Delta) ! id).
-    destruct o. destruct p.
-      - destruct h; simpl in *; auto; try apply H0.
-
-
-
-       
-    
-
-      - destruct h; simpl in *; try rewrite <- Heqo; auto.
-          * specialize (H0 i). unfold initialized.
-            destruct ((temp_types Delta) ! i). destruct p.
-            unfold temp_types. unfold var_types. simpl.
-
-symmetry in Heqo. destruct p. 
- 
-    apply update_tycon_te_same with (c:=h) in Heqo. 
-    destruct Heqo. rewrite H0.
-    apply update_tycon_te_same with (c:=h) in H. 
-    destruct H. rewrite H.
-
-destruct Heqo.
-    destruct Delta as [[[? ?] ?] ?]. unfold temp_types in *.
-    simpl in *.  SearchAbout update_tycon.
-destruct h; auto; simpl in *; try apply H.
-
-     - unfold initialized. unfold temp_types. simpl. copy H.
-       specialize (H i). remember (t ! i) as o2. destruct o2; auto.
-        * simpl in *. destruct p. simpl. rewrite H. simpl.
-          remember ((PTree.set i (t3, true) t) ! id). destruct o; auto.
-          rewrite PTree.gsspec. if_tac. subst. 
-          rewrite PTree.gss in Heqo. auto. 
-          rewrite PTree.gsspec in Heqo. if_tac in Heqo.
-          intuition. specialize (H0 id). rewrite <- Heqo in *.
-          auto.
-        * simpl in *.  specialize (H0 id). remember (t ! id). 
-          destruct o; auto.
-          remember ((fst (fst (fst Delta'))) ! i). 
-          destruct o; auto. destruct p0.
-          simpl. rewrite PTree.gsspec. if_tac. subst. 
- 
-
- 
-+ simpl. unfold initialized. unfold sub_option in *.
-specialize (H i). destruct ((temp_types Delta) ! i).
-destruct p. unfold tycontext_sub. simpl. auto
-
-Admitted.*)
 
 

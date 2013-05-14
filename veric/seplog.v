@@ -209,7 +209,6 @@ assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
     Int.unsigned Int.zero).
 f_equal; auto. rewrite Int.unsigned_zero in H0.
 clear H.
-SearchAbout (Int.unsigned (Int.zero_ext _ _)).
 rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
 rewrite Int.unsigned_repr in H0.
 rewrite Zdiv.Zmod_small in H0.

@@ -107,11 +107,36 @@ Proof.
  apply H; auto.
 Qed.
 
+Lemma tycontext_sub_update_c:
+ forall c (Delta Delta' : tycontext),
+    tycontext_sub Delta Delta' -> tycontext_sub (update_tycon Delta c) (update_tycon Delta' c)
+with tycontext_sub_update_l:
+  forall l (Delta Delta' : tycontext),
+    tycontext_sub Delta Delta' -> tycontext_sub (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
+Proof.
+clear tycontext_sub_update_c.
+induction c; intros; simpl; auto.
+apply initialized_sub; auto.
+destruct o; auto.
+apply initialized_sub; auto.
+specialize (IHc1 _ _ H).
+specialize (IHc2 _ _ H).
+apply tycontext_sub_join; auto.
+clear tycontext_sub_update_l.
+induction l; simpl; intros; auto.
+apply tycontext_sub_join; auto.
+Qed.
+
 Lemma exit_tycon_sub:
   forall Delta Delta' c ek,  tycontext_sub Delta Delta' ->
       tycontext_sub (exit_tycon c Delta ek)
                         (exit_tycon c Delta' ek).
-Admitted.
+Proof.
+intros.
+revert Delta Delta' H;
+destruct ek; simpl; auto.
+apply tycontext_sub_update_c.
+Qed.
 
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
@@ -525,11 +550,8 @@ destruct p0.
 rewrite <- (H0 p).
 destruct (t3 ! p); auto.
 destruct p0.
-destruct (eq_dec t0 t1). subst. rewrite eqb_type_refl.
 destruct (eq_dec p id). subst. repeat rewrite PTree.gss; auto.
 repeat rewrite (PTree.gso); auto.
-apply eqb_type_false in n. rewrite n.
-auto.
 Qed.
 
 Lemma update_tycontext_eqv:
@@ -1573,59 +1595,9 @@ unfold typecheck_tid_ptr_compare;
 intros.
 destruct H as [? _].
 specialize (H id).
-destruct ((temp_types Delta) ! id); try discriminate.
-destruct p. simpl in H. rewrite H. auto.
+destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
+destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
+destruct H; subst; auto.
 Qed.
 
-Lemma tc_expr_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_expr Delta e rho |-- tc_expr Delta' e rho.
-Proof.
-Admitted.
-
-Lemma tc_temp_id_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t e rho, 
-   tc_temp_id id t Delta e rho |-- tc_temp_id id t Delta' e rho.
-Proof.
-unfold tc_temp_id; intros.
-unfold typecheck_temp_id.
-intros w ?.  hnf in H0|-*.
-destruct H as [? _]. specialize (H id). hnf in H.
-destruct ((temp_types Delta)! id); try contradiction.
-destruct p.
-rewrite H. auto.
-Qed.
-
-Lemma tc_lvalue_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
-Proof.
-Admitted.
-  
-Lemma tc_temp_id_load_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t v rho, 
-   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
-Proof.
-unfold tc_temp_id_load; simpl; intros.
-intros w [tto [x [? ?]]]; exists tto; exists x; split; auto.
-destruct H as [H _].
-specialize (H id); hnf in H. rewrite H0 in H; auto.
-Qed.
-
-Lemma tycontext_sub_refl:
- forall Delta, tycontext_sub Delta Delta.
-Proof.
-Admitted.
-
-Lemma update_tycon_sub:
-  forall Delta Delta', tycontext_sub Delta Delta' ->
-   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h).
-Proof.
-Admitted.
 

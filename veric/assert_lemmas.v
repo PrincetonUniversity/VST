@@ -404,9 +404,13 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
 * destruct (negb (type_is_volatile t)); auto.
-  destruct ((temp_types Delta)!i) eqn:H1; [ | contradiction].
+  destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
-  rewrite H. auto.
+  destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
+  simpl @fst; simpl @snd. destruct H; subst t1; auto.
+  destruct b; simpl in H0; subst; auto.
+  if_tac; intros; try contradiction.
+  destruct b0; auto. apply I.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
   intros [[[? ?] ?] ?]; repeat split; auto.
@@ -449,10 +453,10 @@ Proof.
 unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
 intros w ?.  hnf in H0|-*.
-destruct H as [? _]. specialize (H id). hnf in H.
-destruct ((temp_types Delta)! id); try contradiction.
-destruct p.
-rewrite H. auto.
+destruct H as [? _]. specialize (H id).
+destruct ((temp_types Delta)! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
+destruct H; subst; auto.
 Qed.
 
   
@@ -463,9 +467,13 @@ Lemma tc_temp_id_load_sub:
    tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
 Proof.
 unfold tc_temp_id_load; simpl; intros.
-intros w [tto [x [? ?]]]; exists tto; exists x; split; auto.
+intros w [tto [x [? ?]]]; exists tto.
 destruct H as [H _].
-specialize (H id); hnf in H. rewrite H0 in H; auto.
+specialize (H id); hnf in H.
+rewrite H0 in H; auto.
+destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
+destruct H; subst.
+exists b; auto.
 Qed.
 
 Lemma tc_exprlist_sub:

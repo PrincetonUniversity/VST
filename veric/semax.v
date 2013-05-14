@@ -222,15 +222,6 @@ Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
       (believe_external Espec gx v fsig A P Q
         || believe_internal_ semax gx Delta v fsig A P Q).
 
-Definition sub_option {A} (x y: option A) :=
- match x with Some x' => y = Some x' | None => True end.
-
-Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
- (forall id, sub_option ((temp_types Delta) ! id) ((temp_types Delta') ! id))
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id)).               
-
 Definition semax_  (Espec: OracleKind)
        (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
  match a with SemaxArg Delta P c R =>

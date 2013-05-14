@@ -32,10 +32,10 @@ Qed.
 Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
 Admitted. 
 
-
 Lemma join_te_denote : forall te1 te2 id b t1,
 (join_te te1 te2) ! id = Some (t1, b) ->
-(exists b1, te1 ! id = Some (t1, b || b1)) /\ (exists b2, te2 ! id = Some (t1,b || b2)).
+  (exists b1, te1 ! id = Some (t1, b || b1)) /\ 
+  match te2 ! id with Some (t2,b2) => b = b && b2 | None => True end.
 Proof.
 intros.
  
@@ -50,21 +50,15 @@ assert (NOREP := PTree.elements_keys_norepet (te1)).
 induction (rev (PTree.elements te1)). simpl in *.
 rewrite PTree.gempty in *. congruence.
 
-simpl in *. destruct a. destruct p0. simpl in *.
-remember (te2 ! p). destruct o. destruct p0.
-destruct (eq_dec t t0). subst. 
-rewrite eqb_type_refl in H.
-rewrite PTree.gsspec in *.
-if_tac in H. subst. specialize (H0 (t0,b0)). inv H. spec H0; auto. 
+simpl in *. destruct a as [p [t b0]]. simpl in *.
+destruct (te2 ! p) eqn:?.  destruct p0.
+rewrite PTree.gsspec in H.
+if_tac in H. subst. specialize (H0 (t,b0)). inv H.
+ spec H0; auto.
+ split. exists b0. rewrite H0. repeat f_equal. destruct b0,b1; simpl; auto.
+ rewrite Heqo. destruct b0; simpl; auto. destruct b1; simpl; auto.
 
-remember (andb b0 b1). destruct b. symmetry in Heqb. rewrite andb_true_iff in *. 
-destruct Heqb. subst. split; exists false; auto. 
- symmetry in Heqb. rewrite andb_false_iff in Heqb. 
-destruct Heqb; subst; eauto. auto.
-
-apply eqb_type_false in n. rewrite n in *.
-auto.
-auto.
+ auto. auto.
 Qed. 
 
 Lemma typecheck_environ_join1:
@@ -81,7 +75,7 @@ destruct rho. simpl in *.
 unfold typecheck_temp_environ in *. intros. unfold temp_types in *.
 destruct Delta2. destruct p. destruct p. simpl in *. destruct Delta1.
 destruct p. destruct p. simpl in *. apply join_te_denote in H2.
-destruct H2. destruct H2. destruct H3.
+destruct H2. destruct H2.
 edestruct H1. eauto. destruct H4. destruct H5. 
 destruct b; intuition. simpl in *. eauto. eauto. 
 unfold join_tycon. destruct Delta2. 
@@ -96,37 +90,96 @@ repeat destruct p. simpl in *. subst. unfold same_env in *.
 simpl in *. intros. specialize (H4 id t3 H0). auto.  
 Qed. 
 
+Definition tycontext_evolve (Delta Delta' : tycontext) :=
+ (forall id, match (temp_types Delta) ! id, (temp_types Delta') ! id with
+                | Some (t,b), Some (t',b') => t=t' /\ (orb (negb b) b' = true)
+                | None, None => True
+                | _, _ => False
+               end)
+ /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
+ /\ ret_type Delta = ret_type Delta'
+ /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id).
+
+Lemma initialized_tycontext_evolve:
+  forall i Delta, tycontext_evolve Delta (initialized i Delta).
+Proof.
+intros i [[[A B] C] D].
+ unfold initialized;
+ split; [| split; [|split]]; intros; unfold temp_types, var_types, glob_types, ret_type;
+ simpl.
+ destruct (A ! id) as [[? ?]|] eqn:?; simpl.
+ destruct (A!i) as [[? ?]|] eqn:?; simpl.
+ destruct (eq_dec i id). subst. rewrite PTree.gss. inversion2 Heqo Heqo0.
+ split; auto. destruct b; reflexivity.
+ rewrite PTree.gso by auto. rewrite Heqo. split; auto.
+ destruct b; simpl; auto. rewrite Heqo. destruct b; simpl; auto.
+ destruct (A!i) as [[? ?]|] eqn:?; simpl.
+ destruct (eq_dec i id). subst. congruence.
+ rewrite PTree.gso by auto. rewrite Heqo. auto.
+ rewrite Heqo. auto.
+ destruct (A!i) as [[? ?]|]; reflexivity.
+ destruct (A!i) as [[? ?]|]; reflexivity.
+ destruct (A!i) as [[? ?]|]; reflexivity.
+Qed.
+
+Lemma tycontext_evolve_trans: forall Delta1 Delta2 Delta3,
+   tycontext_evolve Delta1 Delta2 ->
+   tycontext_evolve Delta2 Delta3 ->
+   tycontext_evolve Delta1 Delta3.
+Proof.
+intros [[[A B] C] D] [[[A1 B1] C1] D1] [[[A2 B2] C2] D2]
+  [S1 [S2 [S3 S4]]]  [T1 [T2 [T3 T4]]];
+ split; [| split; [|split]];
+ unfold temp_types,var_types, ret_type in *; simpl in *;
+ try congruence.
+ clear - S1 T1.
+ intro id; specialize (S1 id); specialize (T1 id).
+ destruct (A!id) as [[? ?]|].
+ destruct (A1!id) as [[? ?]|]; [ | contradiction]. destruct S1; subst t0.
+ destruct (A2!id) as [[? ?]|]; [ | contradiction]. destruct T1; subst t0.
+ split; auto. destruct b; inv H0; auto. destruct b0; inv H; simpl in H1. auto.
+ destruct (A1!id) as [[? ?]|]; [ contradiction| ].
+ auto.
+Qed.
 
 Lemma typecheck_environ_join2:
-  forall rho Delta1 Delta2, 
-        var_types Delta1 = var_types Delta2 ->
-        glob_types Delta1 = glob_types Delta2 ->
+  forall rho Delta Delta1 Delta2, 
+        tycontext_evolve Delta Delta1 ->
+        tycontext_evolve Delta Delta2 ->
         typecheck_environ Delta2 rho ->
         typecheck_environ (join_tycon Delta1 Delta2) rho.
 Proof.
-intros.
- unfold typecheck_environ in *.  intuition.
-destruct rho. simpl in *.
-unfold typecheck_temp_environ in *. intros. unfold temp_types in *.
-destruct Delta2. destruct p. destruct p. simpl in *. destruct Delta1.
-destruct p. destruct p. simpl in *. apply join_te_denote in H4.
-destruct H4. destruct H4. destruct H6.
-edestruct H2; eauto.  destruct H7. destruct H8; destruct b; eauto. 
-unfold join_tycon. destruct Delta2. 
-destruct p. destruct p. destruct Delta1. destruct p. destruct p.
-unfold join_te. unfold var_types in *.  simpl in *. subst. auto. 
-
-unfold join_tycon. destruct Delta2. destruct p. destruct p. destruct Delta1.
-repeat destruct p. unfold glob_types in *; simpl in *; subst; auto. 
-
-unfold join_tycon. destruct Delta2. destruct p. destruct p. destruct Delta1.
-repeat destruct p. unfold var_types in *. simpl in H. subst. unfold glob_types in *.
-simpl in *. subst. 
-unfold same_env in *. 
-eapply H5; eauto. 
+intros [ge ve te] [[[A B] C] D] [[[A1 B1] C1] D1] [[[A2 B2] C2] D2]
+  [S1 [S2 [S3 S4]]]  [T1 [T2 [T3 T4]]]
+  [U1 [U2 [U3 U4]]];
+ split; [| split; [|split]];
+ unfold temp_types,var_types, ret_type in *; simpl in *;
+ subst C1 C2.
+* clear - S1 T1 U1; unfold typecheck_temp_environ in *.
+  intros.
+  specialize (S1 id); specialize (T1 id); specialize (U1 id).
+  apply join_te_denote in H. destruct H as [[b1 ?] ?].
+  rewrite H in *. clear A1 H.
+ destruct (A ! id) as [[? ?]|]; [ | contradiction].
+ destruct S1; subst ty.
+ destruct (A2!id) as [[? ?]|]; [ | contradiction].
+ destruct T1; subst t0.
+ destruct (U1 _ _ (eq_refl _)) as [v [? ?]].
+ exists v; split; auto.
+ destruct H3; auto; left.
+ unfold is_true.
+ destruct b; auto. destruct b2; inv H0. rewrite H3; auto.
+* unfold typecheck_var_environ in *; intros.
+  rewrite <- S2 in H. rewrite T2 in H. apply U2 in H. auto.
+* unfold typecheck_glob_environ in *; intros.
+  rewrite <- S4 in H. rewrite T4 in H. apply U3 in H. auto.
+* unfold same_env in *; intros.
+ unfold glob_types in *. simpl in *.
+ rewrite <- S4 in H. rewrite T4 in H. apply U4 in H.
+ destruct H; auto; right.
+ destruct H as [t1 ?]. exists t1.
+ unfold var_types in *; simpl in *; auto. congruence.
 Qed.
-
-
 
 Lemma typecheck_val_ptr_lemma:
    forall rho Delta id t a,

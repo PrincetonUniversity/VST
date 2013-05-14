@@ -1182,13 +1182,11 @@ match (temp_types Delta) ! id with
 | None => Delta (*Shouldn't happen *)
 end.
 
-Definition join_te' te2 (te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
+
+Definition join_te'  (te2 te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
    let (ty, assn) := val in
         match (te2 ! id) with
-        | Some (ty2, assn2) => if eqb_type ty ty2 then
-                                    PTree.set id (ty, assn && assn2) te
-                               else
-                                    te
+        | Some (ty2, assn2) => PTree.set id (ty, assn && assn2) te
         | None => te
         end.
 
@@ -1420,7 +1418,11 @@ Definition sub_option {A} (x y: option A) :=
  match x with Some x' => y = Some x' | None => True end.
 
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
- (forall id, sub_option ((temp_types Delta) ! id) ((temp_types Delta') ! id))
+ (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
+                 | None, _ => True
+                 | Some (t,b), None => False
+                 | Some (t,b), Some (t',b') => t=t' /\ orb (negb b) b' = true
+                end)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id)).               
@@ -1451,17 +1453,14 @@ Proof.
  inv H0.
  inv H1.
  simpl in H0. destruct H0. subst a.
- simpl. unfold join_te'. destruct p. rewrite H.
- rewrite eqb_type_refl.
+ simpl. unfold join_te'. destruct p. rewrite H. rewrite andb_diag.
  rewrite PTree.gss.
  destruct b; simpl ;auto.
  simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
- case_eq (t ! p0);intros. destruct p1. 
- remember (eqb_type t3 t4). destruct b1. 
- symmetry in Heqb1. apply eqb_type_true in Heqb1. subst.
+ case_eq (t ! p0);intros. destruct p1.
  rewrite PTree.gso. auto.
  intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
- auto. auto.
+ auto.
  assert (~ In id (map fst (PTree.elements t))).
  intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
  apply PTree.elements_complete in H1. congruence.
@@ -1471,14 +1470,10 @@ Proof.
  destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
  contradict H0; simpl; auto.
  case_eq (t ! p); intros. destruct p0. 
- remember (eqb_type t3 t4). symmetry in Heqb1. 
- destruct b1.
- apply eqb_type_true in Heqb1. subst.
  rewrite PTree.gso.
  apply IHl. contradict H0;simpl; auto.
  intro; subst p; congruence.
  apply IHl. contradict H0;simpl; auto.
- apply IHl. contradict H0. simpl. auto.
 Qed.
 
 Lemma tycontext_eqv_symm:
