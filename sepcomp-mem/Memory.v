@@ -626,6 +626,36 @@ Next Obligation.
   auto.
 Qed.
 
+(** [reserve m b lo hi] sets the reserve permissions of the byte range
+    [(b, lo) ... (b, hi - 1)] to [Freeable].  
+    Returns updated memory state, or [None] if [b] is invalid. *)
+
+Program Definition reserve (m: mem) (b: block) (lo hi: Z): mem :=
+     mkmem m.(mem_contents)
+                (ZMap.set b
+                        (fun ofs k => 
+                          if zlt b m.(nextblock) then
+                              if isMaxCur k then m.(mem_access)#b ofs k
+                              else if zle lo ofs && zlt ofs hi then Some Freeable 
+                                   else m.(mem_access)#b ofs k
+                          else m.(mem_access)#b ofs k)
+                        m.(mem_access))
+                m.(nextblock) _ _ _.
+Next Obligation.
+  apply nextblock_pos.
+Qed.
+Next Obligation.
+  repeat rewrite ZMap.gsspec. destruct (ZIndexed.eq b0 b). subst b0.
+  destruct (zlt b (nextblock m)).
+  destruct (zle lo ofs && zlt ofs hi). simpl. auto with mem. apply access_max. 
+  simpl. apply access_max. apply access_max. apply access_max.
+Qed.
+Next Obligation.
+  specialize (nextblock_noaccess m b0 ofs k H). intros. 
+  rewrite ZMap.gsspec. destruct (ZIndexed.eq b0 b). subst b0.
+  destruct (zlt b (nextblock m)). omega. auto. auto.
+Qed.
+
 (** * Properties of the memory operations *)
 
 (** Properties of the empty store. *)
@@ -2220,6 +2250,109 @@ Proof.
 Qed.
 
 End DROP.
+
+(** ** Properties related to [reserve] *)
+
+Section RESERVE.
+
+Variable m: mem.
+Variable b: block.
+Variable lo hi: Z.
+Variable m': mem.
+Hypothesis RES: reserve m b lo hi = m'.
+
+Theorem nextblock_reserve:
+  nextblock m' = nextblock m.
+Proof.
+  unfold reserve in RES. 
+  inv RES; simpl; auto.
+Qed.
+
+Theorem reserve_valid_block_1:
+  forall b', valid_block m b' -> valid_block m' b'.
+Proof.
+  unfold valid_block; rewrite nextblock_reserve; auto.
+Qed.
+
+Theorem reserve_valid_block_2:
+  forall b', valid_block m' b' -> valid_block m b'.
+Proof.
+  unfold valid_block; rewrite nextblock_reserve; auto.
+Qed.
+
+Theorem perm_reserve_1:
+  b < nextblock m -> 
+  forall ofs p, lo <= ofs < hi -> perm m' b ofs Res p.
+Proof.
+  intros.
+  unfold reserve in RES; inv RES; simpl.
+  unfold perm. simpl. rewrite ZMap.gss. unfold proj_sumbool. 
+  destruct (zlt b (nextblock m)).
+  rewrite zle_true. rewrite zlt_true. simpl. auto with mem. 
+  omega. omega. omega.
+Qed.
+  
+Theorem perm_reserve_2:
+  forall b' ofs p', 
+    b' <> b \/ ofs < lo \/ hi <= ofs -> 
+    (perm m b' ofs Res p' <-> perm m' b' ofs Res p').
+Proof.
+  intros.
+  unfold reserve in RES. inv RES.
+  unfold perm; simpl. rewrite ZMap.gsspec. destruct (ZIndexed.eq b' b). subst b'. 
+  simpl. unfold proj_sumbool. destruct (zle lo ofs). destruct (zlt ofs hi). 
+  byContradiction. intuition omega. 
+  destruct (zlt b (nextblock m)).
+  simpl; split; auto. simpl; split; auto.
+  destruct (zlt b (nextblock m)).
+  split; auto. split; auto. split; auto.
+Qed.
+
+Theorem perm_reserve_3:
+  forall ofs k p', isMaxCur k=true -> (perm m b ofs k p' <-> perm m' b ofs k p').
+Proof.
+  intros.
+  unfold reserve in RES. inv RES.
+  unfold perm; simpl.
+  rewrite ZMap.gss, H; split; auto.
+  destruct (zlt b (nextblock m)); auto.
+  destruct (zlt b (nextblock m)); auto.
+Qed.
+
+Lemma valid_access_reserve:
+  forall chunk b' ofs p', 
+  (valid_access m chunk b' ofs p' <-> valid_access m' chunk b' ofs p').
+Proof.
+  intros. 
+  unfold reserve in RES. inv RES.
+  unfold valid_access, range_perm, perm. simpl.
+  split; intros [? ?]; split; auto.
+  intros. rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b' b). subst b'.
+  simpl; auto. auto.
+  destruct (zlt b (nextblock m)); auto.
+  auto.
+  rewrite ZMap.gsspec in H.
+  destruct (ZIndexed.eq b' b). subst b'.
+  destruct (zlt b (nextblock m)).
+  simpl in H; auto. auto. auto.
+Qed.
+
+Theorem load_reserve:
+  forall chunk b' ofs, 
+  load chunk m' b' ofs = load chunk m b' ofs.
+Proof.
+  intros.
+  unfold load.
+  destruct (valid_access_dec m chunk b' ofs Readable).
+  rewrite pred_dec_true; auto.
+  unfold reserve in RES. inv RES; simpl; auto.
+  erewrite <-valid_access_reserve; eauto.
+  rewrite pred_dec_false; auto.
+  erewrite <-valid_access_reserve; eauto.
+Qed.
+
+End RESERVE.
 
 (** * Generic injections *)
 

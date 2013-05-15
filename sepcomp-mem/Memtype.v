@@ -172,6 +172,11 @@ Fixpoint free_list (m: mem) (l: list (block * Z * Z)) {struct l}: option mem :=
 
 Parameter drop_perm: forall (m: mem) (b: block) (lo hi: Z) (p: permission), option mem.
 
+(** [reserve m b lo hi] sets the reserve permissions of the byte range
+    [(b, lo) ... (b, hi - 1)] to [Freeable]. *)
+
+Parameter reserve: forall (m: mem) (b: block) (lo hi: Z), mem.
+
 (** * Permissions, block validity, access validity, and bounds *)
 
 (** The next block of a memory state is the block identifier for the
@@ -828,6 +833,39 @@ Axiom load_drop:
   forall m b lo hi p m', drop_perm m b lo hi p = Some m' ->
   forall chunk b' ofs, 
   b' <> b \/ ofs + size_chunk chunk <= lo \/ hi <= ofs \/ perm_order p Readable ->
+  load chunk m' b' ofs = load chunk m b' ofs.
+
+
+(** ** Properties of [reserve] *)
+
+Axiom nextblock_reserve:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  nextblock m' = nextblock m.
+Axiom reserve_valid_block_1:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall b', valid_block m b' -> valid_block m' b'.
+Axiom reserve_valid_block_2:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall b', valid_block m' b' -> valid_block m b'.
+Axiom perm_reserve_1:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  b < nextblock m -> 
+  forall ofs p, lo <= ofs < hi -> perm m' b ofs Res p.
+Axiom perm_reserve_2:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall b' ofs p', 
+    b' <> b \/ ofs < lo \/ hi <= ofs -> 
+    (perm m b' ofs Res p' <-> perm m' b' ofs Res p').
+Axiom perm_reserve_3:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall ofs k p', isMaxCur k=true -> (perm m b ofs k p' <-> perm m' b ofs k p').
+Axiom valid_access_reserve:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall chunk b' ofs p', 
+  (valid_access m chunk b' ofs p' <-> valid_access m' chunk b' ofs p').
+Axiom load_reserve:
+  forall m b lo hi m', reserve m b lo hi = m' ->
+  forall chunk b' ofs, 
   load chunk m' b' ofs = load chunk m b' ofs.
 
 (** * Relating two memory states. *)
