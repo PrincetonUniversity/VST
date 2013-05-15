@@ -858,7 +858,7 @@ Axiom perm_reserve_2:
     (perm m b' ofs Res p' <-> perm m' b' ofs Res p').
 Axiom perm_reserve_3:
   forall m b lo hi m', reserve m b lo hi = m' ->
-  forall ofs k p', isMaxCur k=true -> (perm m b ofs k p' <-> perm m' b ofs k p').
+  forall b' ofs k p', isMaxCur k=true -> (perm m b' ofs k p' <-> perm m' b' ofs k p').
 Axiom valid_access_reserve:
   forall m b lo hi m', reserve m b lo hi = m' ->
   forall chunk b' ofs p', 
@@ -867,6 +867,12 @@ Axiom load_reserve:
   forall m b lo hi m', reserve m b lo hi = m' ->
   forall chunk b' ofs, 
   load chunk m' b' ofs = load chunk m b' ofs.
+
+Axiom store_reserve_1:
+  forall chunk b' ofs v m m' b lo hi,
+  store chunk m b' ofs v = Some m' ->
+  store chunk (reserve m b lo hi) b' ofs v = Some (reserve m' b lo hi).
+
 
 (** * Relating two memory states. *)
 
@@ -945,13 +951,21 @@ Axiom storebytes_outside_extends:
   extends m1 m2'.
 
 Axiom alloc_extends:
+  forall m1 m2 lo hi b m1',
+  extends m1 m2 ->
+  alloc m1 lo hi = (m1', b) ->
+  exists m2',
+     alloc m2 lo hi = (m2', b)
+  /\ extends m1' m2'.
+
+Axiom alloc_extends':
   forall m1 m2 lo1 hi1 b m1' lo2 hi2,
   extends m1 m2 ->
   alloc m1 lo1 hi1 = (m1', b) ->
   lo2 <= lo1 -> hi1 <= hi2 ->
   exists m2',
      alloc m2 lo2 hi2 = (m2', b)
-  /\ extends m1' m2'.
+  /\ extends m1' (reserve (reserve m2' b lo2 lo1) b hi1 hi2).
 
 Axiom free_left_extends:
   forall m1 m2 b lo hi m1',

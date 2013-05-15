@@ -2309,17 +2309,38 @@ Proof.
 Qed.
 
 Theorem perm_reserve_3:
-  forall ofs k p', isMaxCur k=true -> (perm m b ofs k p' <-> perm m' b ofs k p').
+  forall b' ofs k p', isMaxCur k=true -> (perm m b' ofs k p' <-> perm m' b' ofs k p').
 Proof.
   intros.
   unfold reserve in RES. inv RES.
   unfold perm; simpl.
-  rewrite ZMap.gss, H; split; auto.
+  rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b' b). subst. rewrite H.
   destruct (zlt b (nextblock m)); auto.
   destruct (zlt b (nextblock m)); auto.
+  split; auto. split; auto. split; auto. split; auto.
 Qed.
 
 Lemma valid_access_reserve:
+  forall chunk b' ofs p', 
+  (valid_access m chunk b' ofs p' <-> valid_access m' chunk b' ofs p').
+Proof.
+  intros. 
+  unfold reserve in RES. inv RES.
+  unfold valid_access, range_perm, perm. simpl.
+  split; intros [? ?]; split; auto.
+  intros. rewrite ZMap.gsspec.
+  destruct (ZIndexed.eq b' b). subst b'.
+  simpl; auto. auto.
+  destruct (zlt b (nextblock m)); auto.
+  auto.
+  rewrite ZMap.gsspec in H.
+  destruct (ZIndexed.eq b' b). subst b'.
+  destruct (zlt b (nextblock m)).
+  simpl in H; auto. auto. auto.
+Qed.
+
+Lemma valid_access_reserve':
   forall chunk b' ofs p', 
   (valid_access m chunk b' ofs p' <-> valid_access m' chunk b' ofs p').
 Proof.
@@ -2353,6 +2374,23 @@ Proof.
 Qed.
 
 End RESERVE.
+
+Theorem store_reserve_1:
+  forall chunk b' ofs v m m' b lo hi,
+  store chunk m b' ofs v = Some m' ->
+  store chunk (reserve m b lo hi) b' ofs v = Some (reserve m' b lo hi).
+Proof.
+  intros.
+  unfold store in H|-*.
+  destruct (valid_access_dec m chunk b' ofs Writable). inv H.
+  destruct (valid_access_dec (reserve m b lo hi) chunk b' ofs Writable).
+  unfold reserve in |-*. simpl.
+  f_equal. f_equal; try apply proof_irr. 
+  elimtype False. apply n; clear n. 
+  rewrite <-valid_access_reserve; eauto.
+  destruct (valid_access_dec (reserve m b lo hi) chunk b' ofs Writable).
+  congruence. congruence.
+Qed.  
 
 (** * Generic injections *)
 
@@ -2949,6 +2987,40 @@ Proof.
   unfold drop_perm in H0; destruct (range_perm_dec m2 b lo hi Cur Freeable); inv H0; auto.
 Qed.
 
+Lemma reserve_left_inj: forall f m1 m2 b lo hi,
+  mem_inj f m1 m2 -> 
+  mem_inj f (reserve m1 b lo hi) m2.
+Proof.
+  intros until hi; intros H.
+  inv H.
+  constructor; intros.
+  rewrite <-perm_reserve_3 in H1; eauto.
+  rewrite <-valid_access_reserve in H0; eauto.
+  rewrite <-perm_reserve_3 in H0; eauto.
+Qed.
+
+Lemma reserve_right_inj: forall f m1 m2 b lo hi,
+  mem_inj f m1 m2 -> 
+  mem_inj f m1 (reserve m2 b lo hi).
+Proof.
+  intros until hi; intros H.
+  inv H.
+  constructor; intros.
+  rewrite <-perm_reserve_3; eauto.
+  rewrite <-valid_access_reserve; eauto.
+  simpl; auto.
+Qed.
+
+Lemma reserve_both_inj: forall f m1 m2 b1 b2 lo1 lo2 hi1 hi2,
+  mem_inj f m1 m2 -> 
+  mem_inj f (reserve m1 b1 lo1 hi1) (reserve m2 b2 lo2 hi2).
+Proof.
+  intros.
+  cut (mem_inj f m1 (reserve m2 b2 lo2 hi2)). intros.
+  eapply reserve_left_inj in H0; eauto.
+  eapply reserve_right_inj; eauto.
+Qed.
+
 (** * Memory extensions *)
 
 (**  A store [m2] extends a store [m1] if [m2] can be obtained from [m1]
@@ -2961,8 +3033,8 @@ Record extends' (m1 m2: mem) : Prop :=
   mk_extends {
     mext_next: nextblock m1 = nextblock m2;
     mext_inj:  mem_inj inject_id m1 m2;
-    mext_reserved: forall b ofs, 
-      reserved m1 b ofs <-> reserved m2 b ofs
+    mext_reserved: forall b ofs, valid_block m1 b -> 
+      (reserved m1 b ofs <-> reserved m2 b ofs)
   }.
 
 Definition extends := extends'.
@@ -3037,7 +3109,8 @@ Proof.
   intros. 
   cut (reserved m1' b0 ofs0 = reserved m1 b0 ofs0). intros ->.
   cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->.
-  auto.
+  apply mext_reserved0.
+  eapply store_valid_block_2; eauto.
   unfold reserved. f_equal. extensionality p. unfold perm.
   apply store_access in A; rewrite A; auto.
   unfold reserved. f_equal. extensionality p. unfold perm.
@@ -3099,6 +3172,8 @@ Proof.
   cut (reserved m1' b0 ofs0 = reserved m1 b0 ofs0). intros ->.
   cut (reserved m2' b0 ofs0 = reserved m2 b0 ofs0). intros ->.
   auto.
+  apply mext_reserved0.
+  eapply storebytes_valid_block_2; eauto.
   unfold reserved. f_equal. extensionality p. unfold perm.
   apply storebytes_access in A; rewrite A; auto.
   unfold reserved. f_equal. extensionality p. unfold perm.
@@ -3122,13 +3197,46 @@ Proof.
 Qed.
 
 Theorem alloc_extends:
+  forall m1 m2 lo hi b m1',
+  extends m1 m2 ->
+  alloc m1 lo hi = (m1', b) ->
+  exists m2',
+     alloc m2 lo hi = (m2', b)
+  /\ extends m1' m2'.
+Proof.
+  intros. inv H. 
+  case_eq (alloc m2 lo hi); intros m2' b' ALLOC. 
+  assert (b' = b).
+    rewrite (alloc_result _ _ _ _ _ H0). 
+    rewrite (alloc_result _ _ _ _ _ ALLOC).
+    auto.
+  subst b'.
+  exists m2'; split; auto.
+  constructor. 
+  rewrite (nextblock_alloc _ _ _ _ _ H0).
+  symmetry. 
+  rewrite (nextblock_alloc _ _ _ _ _ ALLOC). 
+  congruence.
+  assert (mem_inj inject_id m1' m2').
+    eapply alloc_left_mapped_inj with (m1 := m1) (m2 := m2') (b2 := b) (delta := 0); eauto.
+    eapply alloc_right_inj; eauto.
+    eauto with mem.
+    red. intros. apply Zdivide_0.
+    intros. eapply perm_implies with Freeable; auto with mem.
+    eapply perm_alloc_2; eauto.
+    omega.
+  auto. 
+  admit.
+Qed.
+
+Theorem alloc_extends':
   forall m1 m2 lo1 hi1 b m1' lo2 hi2,
   extends m1 m2 ->
   alloc m1 lo1 hi1 = (m1', b) ->
   lo2 <= lo1 -> hi1 <= hi2 ->
   exists m2',
      alloc m2 lo2 hi2 = (m2', b)
-  /\ extends m1' m2'.
+  /\ extends m1' (reserve (reserve m2' b lo2 lo1) b hi1 hi2).
 Proof.
   intros. inv H. 
   case_eq (alloc m2 lo2 hi2); intros m2' b' ALLOC. 
@@ -3140,16 +3248,20 @@ Proof.
   exists m2'; split; auto.
   constructor. 
   rewrite (nextblock_alloc _ _ _ _ _ H0).
+  symmetry. erewrite nextblock_reserve; eauto.
+  erewrite nextblock_reserve; eauto.
   rewrite (nextblock_alloc _ _ _ _ _ ALLOC). 
   congruence.
-  eapply alloc_left_mapped_inj with (m1 := m1) (m2 := m2') (b2 := b) (delta := 0); eauto.
-  eapply alloc_right_inj; eauto.
-  eauto with mem.
-  red. intros. apply Zdivide_0.
-  intros.
-  eapply perm_implies with Freeable; auto with mem.
-  eapply perm_alloc_2; eauto.
-  omega.
+  assert (mem_inj inject_id m1' m2').
+    eapply alloc_left_mapped_inj with (m1 := m1) (m2 := m2') (b2 := b) (delta := 0); eauto.
+    eapply alloc_right_inj; eauto.
+    eauto with mem.
+    red. intros. apply Zdivide_0.
+    intros. eapply perm_implies with Freeable; auto with mem.
+    eapply perm_alloc_2; eauto.
+    omega.
+  do 2 apply reserve_right_inj; auto.
+  intros b0 ofs.
   admit.
 Qed.
 
@@ -3281,11 +3393,11 @@ Record inject' (f: meminj) (m1 m2: mem) : Prop :=
     mi_unmappedreserved:
       forall b, f b = None -> forall ofs, reserved m1 b ofs;
     mi_reserved:
-      forall b2 ofs, 
-        reserved m2 b2 ofs <->
-         (forall b1 delta, 
+      forall b2 ofs, valid_block m2 b2 -> 
+        (reserved m2 b2 ofs <->
+         (forall b1 delta, valid_block m1 b2 -> 
           f b1 = Some(b2, delta) -> 
-          reserved m1 b1 (ofs-delta))
+          reserved m1 b1 (ofs-delta)))
   }.
 Definition inject := inject'.
 
@@ -4262,7 +4374,9 @@ Proof.
   replace inject_id with (compose_meminj inject_id inject_id).
   eapply mem_inj_compose; eauto. 
   apply extensionality; intros. unfold compose_meminj, inject_id. auto.
-  erewrite mext_reserved0, mext_reserved1; split; auto.
+  erewrite mext_reserved0, mext_reserved1. split; auto.
+  unfold valid_block in H|-*; rewrite <-mext_next0; auto.
+  auto.
 Qed.
 
 (** Injecting a memory into itself. *)

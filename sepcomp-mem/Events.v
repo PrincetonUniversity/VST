@@ -1137,14 +1137,14 @@ Proof.
   eapply Mem.load_alloc_unchanged; eauto.
 (* mem extends *)
   inv H. inv H1. inv H5. inv H7. 
-  exploit Mem.alloc_extends; eauto. apply Zle_refl. apply Zle_refl.
+  exploit Mem.alloc_extends; eauto. 
   intros [m3' [A B]].
   exploit Mem.store_within_extends. eexact B. eauto. 
   instantiate (1 := Vint n). auto. 
   intros [m2' [C D]].
   exists (Vptr b Int.zero); exists m2'; intuition.
   econstructor; eauto.
-  eapply UNCHANGED; eauto.
+  intros. eapply UNCHANGED; eauto.
 (* mem injects *)
   inv H0. inv H2. inv H6. inv H8.
   exploit Mem.alloc_parallel_inject; eauto. apply Zle_refl. apply Zle_refl. 
