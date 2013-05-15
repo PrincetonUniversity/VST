@@ -330,8 +330,8 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
       match_state d j c1 m1 c2 m2 ->  
       forall b1 b2 delta ofs, 
         j b1 = Some (b2, delta) ->
-        effects Sem1 c1 AllocEffect b1 (ofs-delta) ->
-        effects Sem2 c2 AllocEffect b2 ofs;
+        (effects Sem1 c1 AllocEffect b1 (ofs-delta) 
+         <-> effects Sem2 c2 AllocEffect b2 ofs);
 
     match_reserved :
       forall d j c1 m1 c2 m2,
@@ -518,8 +518,8 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
       match_state d j c1 m1 c2 m2 ->  
       forall b1 b2 delta ofs, 
         j b1 = Some (b2, delta) ->
-        effects Sem1 c1 AllocEffect b1 (ofs-delta) ->
-        effects Sem2 c2 AllocEffect b2 ofs;
+        (effects Sem1 c1 AllocEffect b1 (ofs-delta) 
+         <-> effects Sem2 c2 AllocEffect b2 ofs);
 
     match_reserved :
       forall d j c1 m1 c2 m2,

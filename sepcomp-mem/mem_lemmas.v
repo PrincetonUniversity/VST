@@ -40,7 +40,27 @@ Proof.
   split; trivial.
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ H0). 
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ D). assumption.
+
+  intros. unfold Mem.reserved in *.
+    split; intros; destruct H as [pp Hp]. 
+      apply (Mem.perm_drop_5 _ _ _ _ _ _ H0) in Hp.
+      destruct (mext_reserved b0 ofs).
+      destruct H. eexists; eassumption.
+      eexists. eapply Mem.perm_drop_6. eassumption. apply H.
+    
+      apply (Mem.perm_drop_5 _ _ _ _ _ _ D) in Hp.
+      destruct (mext_reserved b0 ofs).
+      destruct H1. eexists; eassumption.
+      eexists. eapply Mem.perm_drop_6. eassumption. apply H1.
 Qed.  
+
+Lemma inject_idI: forall b, inject_id b = Some(b,0).
+Proof. intros. reflexivity. Qed.
+
+Lemma inject_idE: forall b b' d, 
+  inject_id b = Some(b',d) -> b'=b /\ d=0.
+Proof. intros.
+  unfold inject_id in H. inv H. auto. Qed.
 
 Lemma mem_inj_id_trans: 
   forall m1 m2 (Inj12: Mem.mem_inj inject_id m1 m2) m3 
@@ -86,12 +106,29 @@ Proof. intros.
   rewrite Int.add_zero. trivial.
   inv MV2. inv H3. rewrite Int.add_zero. 
   rewrite Int.add_zero in H5. econstructor.
+  (*mi_reserved
+  destruct (mi_reserved b2 ofs).
+  destruct (mi_reserved0 b2 ofs). 
+  clear - H H0 H1 H2.
+  unfold inject_id in *. simpl in *.
+  split; intros.
+    inv H4.
+    eapply H; try eassumption.
+    specialize (H1 H3 _ _ (eq_refl _)).
+    rewrite <- Zminus_0_l_reverse in H1. apply H1. 
+    trivial.
+  apply H2. intros. specialize (H3 _ _ H4).
+    inv H4. rewrite <- Zminus_0_l_reverse.
+    apply H0. intros. inv H4. trivial.*)
 Qed.
 
 Lemma extends_trans: forall m1 m2 
   (Ext12: Mem.extends m1 m2) m3 (Ext23: Mem.extends m2 m3), Mem.extends m1 m3.
 Proof. intros. inv Ext12. inv Ext23.
   split. rewrite mext_next. assumption. eapply mem_inj_id_trans; eauto. 
+  intros. split; intros.
+     apply mext_reserved0. apply mext_reserved. apply H.
+     apply mext_reserved. apply mext_reserved0. apply H.
 Qed.  
 
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
@@ -107,6 +144,11 @@ Proof. intros.
   inv H. rewrite Zplus_0_r. assumption.
   inv H. rewrite Zplus_0_r. assumption.
   inv H. rewrite Zplus_0_r. apply memval_inject_id_refl.
+  (*split; intros. destruct (inject_idE _ _ _ H0); subst.
+     rewrite <- Zminus_0_l_reverse. trivial.
+    specialize (H _ _ (eq_refl _)).
+    rewrite <- Zminus_0_l_reverse in H. trivial.*)
+  intros. split; auto.
 Qed.
 
 Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
@@ -154,6 +196,19 @@ Proof.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
   rewrite <- compose_meminj_idL in K. apply K.
   reflexivity.
+  (*mi_reserved
+  split; intros.
+    destruct (mi_reserved0 b2 ofs) as [R2 _].
+    specialize (R2 H _ _ H0).
+    destruct (mi_reserved b1 (ofs -delta)) as [R1 _].
+    specialize (R1 R2 _ _ (inject_idI _)).
+    rewrite <- Zminus_0_l_reverse in R1. trivial.
+    
+    eapply mi_reserved0. intros.
+       eapply mi_reserved. intros.
+       destruct (inject_idE _ _ _ H1); subst.
+       rewrite <- Zminus_0_l_reverse. 
+       apply (H _ _ H0).*)
   apply mi_freeblocks. unfold Mem.valid_block. rewrite <- mext_next. apply H.
   eapply mi_mappedblocks. apply H.
   intros b; intros.  
@@ -186,6 +241,19 @@ Proof.
  rewrite p; eauto.
  reflexivity.
  inv H0.
+
+ (*mi_unmappedreserved*)
+ apply mext_reserved. apply mi_unmappedreserved. apply H. 
+
+ (*mi_reserved*)
+  split; intros.
+    destruct (mi_reserved b2 ofs) as [R2 _].
+    specialize (R2 H _ _ H0).
+    apply mext_reserved. apply R2.
+    
+    eapply mi_reserved. intros.
+       eapply mext_reserved.
+       apply H. trivial.
 Qed.
 
 Lemma inject_extends_compose:
@@ -207,10 +275,33 @@ Proof. intros.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
   rewrite <- compose_meminj_idR in K. apply K.
   reflexivity.
+  (*mi_reserved
+  split; intros.
+    eapply mi_reserved; try eassumption.
+    destruct (mi_reserved0 b2 ofs) as [R2 _].
+    specialize (R2 H _ _ (eq_refl _)).
+    rewrite <- Zminus_0_l_reverse in R2. trivial.
+    
+    eapply mi_reserved0. intros.
+       destruct (inject_idE _ _ _ H0); subst.
+       rewrite <- Zminus_0_l_reverse. 
+       eapply mi_reserved. intros.
+       apply (H _ _ H1).*)
   apply mi_freeblocks. apply H.
   unfold Mem.valid_block. rewrite <- mext_next. eapply mi_mappedblocks. apply H.
   intros b; intros. apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
   eapply mi_representable. apply H. apply H0.
+
+  (*mi_unmappedreserved*)
+  apply mi_unmappedreserved. apply H.
+
+  (*mi_reserved*)
+  split; intros.
+    eapply mi_reserved; try eassumption.
+    eapply mext_reserved; try eassumption.
+
+    eapply mext_reserved; try eassumption.
+    eapply mi_reserved; try eassumption.
 Qed.
 
 Lemma extends_extends_compose:
@@ -232,6 +323,26 @@ Proof. intros.
   assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
   rewrite <- compose_meminj_idR in K. apply K.
   reflexivity.
+  (*mi_reserved
+  split; intros.
+    eapply mi_reserved; try eassumption.
+    destruct (inject_idE _ _ _ H0); subst.
+    destruct (mi_reserved0 b1 ofs) as [R2 _].
+    specialize (R2 H _ _ (eq_refl _)).
+    rewrite <- Zminus_0_l_reverse in R2. trivial.
+    
+    eapply mi_reserved0. intros.
+       destruct (inject_idE _ _ _ H0); subst.
+       rewrite <- Zminus_0_l_reverse. 
+       eapply mi_reserved. intros.
+       apply (H _ _ H1).*)
+  (*mi_reserved*)
+  split; intros.
+    eapply mext_reserved0; try eassumption.
+    eapply mext_reserved; try eassumption.
+
+    eapply mext_reserved; try eassumption.
+    eapply mext_reserved0; try eassumption.
 Qed.
 
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)), 
@@ -676,6 +787,12 @@ Proof. intros.
   apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
   apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r.
   apply H. apply H1.
+  (*mi_reserved
+   split; intros.
+     apply flatinj_E in H1.
+     destruct H1 as [? [? ?]]; subst.
+     rewrite Zminus_0_r. trivial.
+   admit. (*TODO: add mem_valid_block in RHS of mi_reserved*)*)
 Qed.
         
         
@@ -743,6 +860,14 @@ Proof. intros. unfold mem_wd in *.
                   specialize (mi_memval _ _ _ _ X H0). rewrite Zplus_0_r in mi_memval.
                   eapply memval_inject_incr; try eassumption.
                        intros bb; intros. eapply flatinj_mono; try eassumption. omega.
+  (*mi_reserved
+   split; intros.
+     apply flatinj_E in H0. destruct H0 as[? [? ?]]; subst.
+     rewrite Zminus_0_r. apply H.
+   apply mi_reserved. intros.
+     apply H.
+     apply flatinj_E in H0. destruct H0 as[? [? ?]]; subst.
+     apply flatinj_I. omega.*)
 Qed. 
 
 Lemma  mem_wd_drop: forall m b lo hi p m' (DROP: Mem.drop_perm m b lo hi p = Some m')
@@ -761,9 +886,15 @@ Proof. intros. inv H.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
         assert (X: Mem.flat_inj thr b1 = Some (b1,0)). apply flatinj_I. assumption.
-        assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ Cur _ (eq_refl _) H0).
+        assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ Cur _ H0).
          specialize (mi_memval _ _ _ _ X Y). rewrite Zplus_0_r in *.    
          rewrite (Mem.free_result _ _ _ _ _ FREE) in *. simpl in *. apply mi_memval.
+  (*mi_reserved
+    split; intros.
+     apply flatinj_E in H0. destruct H0 as[? [? ?]]; subst.
+     rewrite Zminus_0_r. trivial.
+    specialize (H b2 0). rewrite Zminus_0_r in H.
+      apply H. admit. (*TODO: add nxtblock condition in RHS of mi_reserved*)*)  
 Qed.
 
 Lemma mem_wd_free: forall m b lo hi m' (WDm: mem_wd m)
