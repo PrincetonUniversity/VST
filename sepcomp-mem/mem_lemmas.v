@@ -42,15 +42,18 @@ Proof.
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ D). assumption.
 
   intros. unfold Mem.reserved in *.
-    split; intros; destruct H as [pp Hp]. 
+    split; intros; destruct H1 as [pp Hp]. 
       apply (Mem.perm_drop_5 _ _ _ _ _ _ H0) in Hp.
-      destruct (mext_reserved b0 ofs).
-      destruct H. eexists; eassumption.
-      eexists. eapply Mem.perm_drop_6. eassumption. apply H.
+      destruct (mext_reserved b0 ofs) as [A _].
+         eapply Mem.perm_valid_block; eassumption.
+      destruct A. eexists; eassumption.
+      eexists. eapply Mem.perm_drop_6. eassumption. apply H1.
     
       apply (Mem.perm_drop_5 _ _ _ _ _ _ D) in Hp.
-      destruct (mext_reserved b0 ofs).
-      destruct H1. eexists; eassumption.
+      destruct (mext_reserved b0 ofs) as [_ B].
+        apply Mem.perm_valid_block in Hp.
+        unfold Mem.valid_block. rewrite mext_next. apply Hp.
+      destruct B. eexists; eassumption.
       eexists. eapply Mem.perm_drop_6. eassumption. apply H1.
 Qed.  
 
@@ -127,8 +130,13 @@ Lemma extends_trans: forall m1 m2
 Proof. intros. inv Ext12. inv Ext23.
   split. rewrite mext_next. assumption. eapply mem_inj_id_trans; eauto. 
   intros. split; intros.
-     apply mext_reserved0. apply mext_reserved. apply H.
-     apply mext_reserved. apply mext_reserved0. apply H.
+     apply mext_reserved0.
+        unfold Mem.valid_block. rewrite <- mext_next. apply H.
+        apply mext_reserved. apply H. apply H0.
+     apply mext_reserved. apply H.
+         apply mext_reserved0.
+           unfold Mem.valid_block. rewrite <- mext_next. apply H.
+         apply H0.
 Qed.  
 
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
@@ -243,17 +251,24 @@ Proof.
  inv H0.
 
  (*mi_unmappedreserved*)
- apply mext_reserved. apply mi_unmappedreserved. apply H. 
+ apply mext_reserved. assumption. 
+  apply mi_unmappedreserved. apply H.
+        unfold Mem.valid_block. rewrite <- mext_next. apply H0. 
 
  (*mi_reserved*)
   split; intros.
     destruct (mi_reserved b2 ofs) as [R2 _].
-    specialize (R2 H _ _ H0).
-    apply mext_reserved. apply R2.
+       apply H.
+    apply mext_reserved. apply H1. 
+    apply R2; try assumption.
+      unfold Mem.valid_block. rewrite <- mext_next. apply H1. 
     
-    eapply mi_reserved. intros.
-       eapply mext_reserved.
-       apply H. trivial.
+    eapply mi_reserved. apply H.
+      intros.
+      unfold Mem.valid_block in H1.
+      rewrite <- mext_next in H1.
+      apply (mext_reserved _ _ H1).
+      apply H0; trivial. 
 Qed.
 
 Lemma inject_extends_compose:
@@ -293,9 +308,12 @@ Proof. intros.
   eapply mi_representable. apply H. apply H0.
 
   (*mi_unmappedreserved*)
-  apply mi_unmappedreserved. apply H.
+  apply mi_unmappedreserved; assumption.
 
   (*mi_reserved*)
+  assert (Mem.valid_block m2 b2).
+       unfold Mem.valid_block.
+       rewrite mext_next. apply H. 
   split; intros.
     eapply mi_reserved; try eassumption.
     eapply mext_reserved; try eassumption.
@@ -337,6 +355,9 @@ Proof. intros.
        eapply mi_reserved. intros.
        apply (H _ _ H1).*)
   (*mi_reserved*)
+  assert (Mem.valid_block m2 b).
+       unfold Mem.valid_block.
+       rewrite <- mext_next. apply H. 
   split; intros.
     eapply mext_reserved0; try eassumption.
     eapply mext_reserved; try eassumption.

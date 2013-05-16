@@ -3521,7 +3521,8 @@ Record inject' (f: meminj) (m1 m2: mem) : Prop :=
       weak_valid_pointer m1 b (Int.unsigned ofs) = true ->
       delta >= 0 /\ 0 <= Int.unsigned ofs + delta <= Int.max_unsigned;
     mi_unmappedreserved:
-      forall b, f b = None -> forall ofs, reserved m1 b ofs;
+      forall b, f b = None -> valid_block m1 b ->
+      forall ofs, reserved m1 b ofs;
     mi_reserved:
       forall b2 ofs, valid_block m2 b2 -> 
         (reserved m2 b2 ofs <->
@@ -3864,7 +3865,8 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto with mem.
 (* unmapped_reserved *)
-  intros b NONE ofs0.
+  intros b NONE VBn ofs0.
+  assert (VBm := store_valid_block_2 _ _ _ _ _ _ H0 _ VBn).
   exploit mi_unmappedreserved0; eauto; intros [p PERM].
   eapply perm_store_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
