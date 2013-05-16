@@ -873,6 +873,13 @@ Axiom store_reserve_1:
   store chunk m b' ofs v = Some m' ->
   store chunk (reserve m b lo hi) b' ofs v = Some (reserve m' b lo hi).
 
+Parameter reserved: mem -> block -> Z -> Prop.
+
+Axiom reserved_reserve: 
+  forall m lo hi b b' ofs,
+  valid_block m b -> 
+  (reserved (reserve m b lo hi) b' ofs <->
+  (b=b' /\ lo <= ofs < hi) \/ reserved m b' ofs).
 
 (** * Relating two memory states. *)
 

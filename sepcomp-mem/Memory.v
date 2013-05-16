@@ -2392,6 +2392,75 @@ Proof.
   congruence. congruence.
 Qed.  
 
+Theorem store_reserved:
+  forall chunk b ofs v m m',
+  store chunk m b ofs v = Some m' ->
+  forall b' ofs', (reserved m' b' ofs' <-> reserved m b' ofs').
+Proof.
+  intros until m'; intros H1 b' ofs'.
+  split; intros [p RES].
+  eapply perm_store_2 in RES; eauto. exists p; auto.
+  eapply perm_store_1 in RES; eauto. exists p; auto.  
+Qed.
+
+Theorem reserved_reserve: 
+  forall m lo hi b b' ofs,
+  valid_block m b -> 
+  (reserved (reserve m b lo hi) b' ofs <->
+  (b=b' /\ lo <= ofs < hi) \/ reserved m b' ofs).
+Proof.
+  intros until ofs. intros VAL.
+  destruct (zeq b b'). subst b'.
+  destruct (zle lo ofs). destruct (zlt ofs hi).
+  split. intros [p RES]. 
+  exploit (perm_reserve_1 m b lo hi (reserve m b lo hi) (refl_equal _) 
+    VAL ofs Freeable); eauto.
+  intros [[_ H1]|H1]. 
+  unfold reserved, reserve, perm; simpl; exists Freeable.
+  rewrite ZMap.gss. unfold valid_block in VAL.
+  destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  simpl. auto with mem.
+  unfold reserved, reserve, perm; exists Freeable; simpl.
+  rewrite ZMap.gss. unfold valid_block in VAL.
+  destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  simpl. auto with mem.
+  split. intros [p RES]. right. 
+  unfold reserve, perm in RES; simpl in RES.
+  rewrite ZMap.gss in RES.
+  destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  simpl in RES. exists p. auto. exists p; auto.
+  intros [[_ H]|H]. omega.
+  destruct H as [p RES]. unfold reserve, perm in RES; simpl in RES.
+  exists p. unfold reserve, perm. simpl.
+  unfold valid_block in VAL.
+  rewrite ZMap.gss. destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  simpl in RES. auto. 
+  split. intros [p RES]. right. 
+  unfold reserve, perm in RES; simpl in RES.
+  rewrite ZMap.gss in RES.
+  destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  simpl in RES. exists p. auto. exists p; auto. exists p; auto.
+  intros [[_ H]|H]. omega.
+  destruct H as [p RES]. unfold reserve, perm in RES; simpl in RES.
+  exists p. unfold reserve, perm. simpl.
+  unfold valid_block in VAL.
+  rewrite ZMap.gss. destruct (zlt b (nextblock m)); try omega.
+  simpl. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
+  auto. auto.
+  split. intros [p RES]. right. exists p.
+  unfold reserve, perm in RES; simpl in RES.
+  rewrite ZMap.gso in RES; auto.
+  intros [[H1 H2]|H]. subst; omega. 
+  destruct H as [p RES]. exists p. unfold reserve, perm. simpl.
+  unfold valid_block in VAL.
+  rewrite ZMap.gso; auto.
+Qed.
+
 (** * Generic injections *)
 
 (** A memory state [m1] generically injects into another memory state [m2] via the
@@ -3226,7 +3295,27 @@ Proof.
     eapply perm_alloc_2; eauto.
     omega.
   auto. 
-  admit.
+  intros b0 ofs VAL.
+  assert (b = nextblock m1). apply alloc_result in H0; auto. subst b.
+  destruct (zeq b0 (nextblock m1)). subst.
+  destruct (zle lo ofs). destruct (zlt ofs hi).
+  eapply alloc_reserved_inrange in H0; eauto.
+  eapply alloc_reserved_inrange in ALLOC; eauto.
+  solve[split; intros; elimtype False; auto].
+  eapply alloc_reserved_oorange in H0; eauto.
+  eapply alloc_reserved_oorange in ALLOC; eauto.
+  solve[split; intros; auto].
+  eapply alloc_reserved_oorange with (ofs := ofs) in H0; eauto; try omega.
+  eapply alloc_reserved_oorange with (ofs := ofs) in ALLOC; eauto; try omega.
+  solve[split; intros; auto].
+  assert (valid_block m1 b0). 
+    unfold valid_block in *. 
+    apply nextblock_alloc in H0. rewrite H0 in VAL. omega.
+  assert (valid_block m2 b0). 
+    unfold valid_block in *. rewrite <-mext_next0; auto.
+  rewrite <-alloc_reserved_unchanged; eauto.
+  apply iff_sym. rewrite <-alloc_reserved_unchanged; eauto.
+  apply iff_sym. apply mext_reserved0; auto.
 Qed.
 
 Theorem alloc_extends':
@@ -3261,10 +3350,51 @@ Proof.
     eapply perm_alloc_2; eauto.
     omega.
   do 2 apply reserve_right_inj; auto.
-  intros b0 ofs.
-  admit.
+  intros b0 ofs VAL.
+  assert (b = nextblock m1). apply alloc_result in H0; auto. subst b.
+  assert (valid_block m2' (nextblock m1)). 
+    apply nextblock_alloc in ALLOC. unfold valid_block. 
+    rewrite ALLOC, mext_next0. omega.
+  rewrite reserved_reserve; auto.
+  rewrite reserved_reserve; auto.
+  destruct (zeq b0 (nextblock m1)). subst.
+  destruct (zle lo1 ofs). destruct (zlt ofs hi1).
+  eapply alloc_reserved_inrange in H0; eauto.
+  eapply alloc_reserved_inrange in ALLOC; eauto.
+  split; intros. contradiction.
+  destruct H3 as [[? ?]|[[? ?]|?]]; try omega.
+  exfalso; apply ALLOC; eauto. omega.
+  destruct (zlt ofs hi2).
+  split; intros. left; split; auto. omega.
+  eapply alloc_reserved_oorange in H0; eauto.
+  destruct (zle lo2 ofs).
+  split; intros. 
+  eapply alloc_reserved_oorange in ALLOC; eauto.
+  destruct H3 as [[? ?]|[[? ?]|?]]; try omega.  
+  eapply alloc_reserved_oorange in H0; eauto. omega.
+  destruct (zle lo2 ofs). split; intros.
+  right. left. split; auto. omega.
+  eapply alloc_reserved_oorange in H0; eauto. omega.
+  split; intros. right. right. 
+  eapply alloc_reserved_oorange in ALLOC; eauto. omega.
+  destruct H3 as [[? ?]|[[? ?]|?]]; try omega.    
+  eapply alloc_reserved_oorange in H0; eauto. omega.
+  eapply alloc_reserved_oorange in H0; eauto. omega.
+  assert (valid_block m1 b0). 
+    apply nextblock_alloc in H0.
+    unfold valid_block in *. rewrite H0 in VAL. omega.
+  assert (valid_block m2 b0). 
+    apply nextblock_alloc in ALLOC.  
+    unfold valid_block in *. rewrite ALLOC in H. omega.    
+  eapply alloc_reserved_unchanged with (b' := b0) in H0; eauto.
+  eapply alloc_reserved_unchanged with (b' := b0) in ALLOC; eauto.
+  rewrite <-H0; rewrite <-ALLOC.
+  split; intros; auto.
+  right. right. rewrite <-mext_reserved0; auto.
+  destruct H5 as [[? ?]|[[? ?]|?]]; try solve[exfalso; auto].
+  rewrite mext_reserved0; auto.
 Qed.
-
+  
 Theorem free_left_extends:
   forall m1 m2 b lo hi m1',
   extends m1 m2 ->
@@ -3395,7 +3525,7 @@ Record inject' (f: meminj) (m1 m2: mem) : Prop :=
     mi_reserved:
       forall b2 ofs, valid_block m2 b2 -> 
         (reserved m2 b2 ofs <->
-         (forall b1 delta, valid_block m1 b2 -> 
+         (forall b1 delta, valid_block m1 b1 -> 
           f b1 = Some(b2, delta) -> 
           reserved m1 b1 (ofs-delta)))
   }.
@@ -3734,9 +3864,25 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto with mem.
 (* unmapped_reserved *)
-  admit.
+  intros b NONE ofs0.
+  exploit mi_unmappedreserved0; eauto; intros [p PERM].
+  eapply perm_store_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  rewrite store_reserved; eauto. 
+  assert (valid_block m2 b0) by (eapply store_valid_block_2; eauto).
+  exploit (mi_reserved0 b0 ofs0); eauto. 
+  intros EQ. rewrite EQ. split; intros. 
+  rewrite store_reserved; eauto. 
+  apply H4; auto. 
+  destruct (Z_lt_dec b3 (nextblock m1)); auto.
+  exploit mi_freeblocks0; eauto; intros. rewrite H7 in H6; congruence.
+  rewrite <-store_reserved; eauto. 
+  apply H4; auto. 
+  destruct (Z_lt_dec b3 (nextblock n1)); auto.
+  exploit mi_freeblocks0; eauto; intros. intros CONTRA.
+  apply n. eapply store_valid_block_1 in CONTRA; eauto.
+  rewrite H7 in H6; congruence.
 Qed.
 
 Theorem store_unmapped_inject:
