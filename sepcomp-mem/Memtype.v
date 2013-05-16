@@ -875,6 +875,16 @@ Axiom store_reserve_1:
 
 Parameter reserved: mem -> block -> Z -> Prop.
 
+Axiom store_reserved:
+  forall chunk b ofs v m m',
+  store chunk m b ofs v = Some m' ->
+  forall b' ofs', (reserved m' b' ofs' <-> reserved m b' ofs').
+
+Axiom storebytes_reserved:
+  forall b ofs vs m m',
+  storebytes m b ofs vs = Some m' ->
+  forall b' ofs', (reserved m' b' ofs' <-> reserved m b' ofs').
+
 Axiom reserved_reserve: 
   forall m lo hi b b' ofs,
   valid_block m b -> 

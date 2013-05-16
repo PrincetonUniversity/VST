@@ -2403,6 +2403,28 @@ Proof.
   eapply perm_store_1 in RES; eauto. exists p; auto.  
 Qed.
 
+Theorem storebytes_reserved:
+  forall b ofs vs m m',
+  storebytes m b ofs vs = Some m' ->
+  forall b' ofs', (reserved m' b' ofs' <-> reserved m b' ofs').
+Proof.
+  intros until m'; intros H1 b' ofs'.
+  split; intros [p RES].
+  eapply perm_storebytes_2 in RES; eauto. exists p; auto.
+  eapply perm_storebytes_1 in RES; eauto. exists p; auto.  
+Qed.
+
+Theorem free_reserved: 
+  forall b lo hi m m',
+  free m b lo hi = Some m' ->
+  forall b' ofs', (reserved m' b' ofs' <-> reserved m b' ofs').
+Proof.
+  intros until m'; intros H1 b' ofs'.
+  split; intros [p RES].
+  eapply perm_free_3 in RES; eauto. exists p; auto.
+  eapply perm_free_4 in RES; eauto. exists p; auto.  
+Qed.
+
 Theorem reserved_reserve: 
   forall m lo hi b b' ofs,
   valid_block m b -> 
@@ -3404,7 +3426,10 @@ Proof.
   intros. inv H. constructor.
   rewrite (nextblock_free _ _ _ _ _ H0). auto.
   eapply free_left_inj; eauto.
-  admit.
+  intros. rewrite free_reserved; eauto. 
+  assert (valid_block m1 b0). 
+    eapply valid_block_free_2; eauto.
+  auto.
 Qed.
 
 Theorem free_right_extends:
@@ -3418,7 +3443,8 @@ Proof.
   rewrite (nextblock_free _ _ _ _ _ H0). auto.
   eapply free_right_inj; eauto.
   unfold inject_id; intros. inv H2. eapply H1; eauto. omega.
-  admit.
+  intros. apply iff_sym. rewrite free_reserved; eauto.
+  apply iff_sym; auto.
 Qed. 
 
 Theorem free_parallel_extends:
@@ -3443,7 +3469,11 @@ Proof.
   eapply free_left_inj; eauto. 
   unfold inject_id; intros. inv H1.
   eapply perm_free_2. exact H0. eauto. instantiate (1 := ofs). omega. eauto.
-  admit.
+  intros. rewrite free_reserved; eauto. 
+  apply iff_sym. rewrite free_reserved; eauto. 
+  assert (valid_block m1 b0). 
+    eapply valid_block_free_2; eauto.
+  apply iff_sym; auto.
 Qed.
 
 Theorem valid_block_extends:
@@ -3521,8 +3551,8 @@ Record inject' (f: meminj) (m1 m2: mem) : Prop :=
       weak_valid_pointer m1 b (Int.unsigned ofs) = true ->
       delta >= 0 /\ 0 <= Int.unsigned ofs + delta <= Int.max_unsigned;
     mi_unmappedreserved:
-      forall b, f b = None -> valid_block m1 b ->
-      forall ofs, reserved m1 b ofs;
+      forall b, f b = None -> valid_block m1 b -> 
+        forall ofs, reserved m1 b ofs;
     mi_reserved:
       forall b2 ofs, valid_block m2 b2 -> 
         (reserved m2 b2 ofs <->
@@ -3865,9 +3895,10 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto with mem.
 (* unmapped_reserved *)
-  intros b NONE VBn ofs0.
-  assert (VBm := store_valid_block_2 _ _ _ _ _ _ H0 _ VBn).
-  exploit mi_unmappedreserved0; eauto; intros [p PERM].
+  intros b NONE VAL ofs0.
+  exploit mi_unmappedreserved0; eauto. 
+  eapply store_valid_block_2; eauto.
+  intros [p PERM].
   eapply perm_store_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
   intros b0 ofs0 VAL.
@@ -3910,9 +3941,24 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H3 |- *.
   destruct H3; eauto with mem.
 (* unmapped_reserved *)
-  admit.
+  intros b NONE VAL ofs0.
+  exploit mi_unmappedreserved0; eauto. 
+  eapply store_valid_block_2; eauto.
+  intros [p PERM].
+  eapply perm_store_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  exploit (mi_reserved0 b0 ofs0); eauto. 
+  intros EQ. rewrite EQ. split; intros. 
+  rewrite store_reserved; eauto. 
+  apply H2; auto. 
+  eapply store_valid_block_2; eauto.  
+  rewrite <-store_reserved; eauto. 
+  apply H2; auto. 
+  destruct (Z_lt_dec b2 (nextblock n1)); auto.
+  exploit mi_freeblocks0; eauto; intros. intros CONTRA.
+  apply n. eapply store_valid_block_1 in CONTRA; eauto.
+  rewrite H5 in H4; congruence.
 Qed.
 
 Theorem store_outside_inject:
@@ -3937,9 +3983,13 @@ Proof.
 (* representable *)
   eauto with mem.
 (* unmapped_reserved *)
-  admit.
+  intros b0 NONE VAL ofs0.
+  exploit mi_unmappedreserved0; eauto.
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  rewrite store_reserved; eauto. 
+  assert (valid_block m2 b0) by (eapply store_valid_block_2; eauto).
+  exploit (mi_reserved0 b0 ofs0); eauto. 
 Qed.
 
 Theorem storev_mapped_inject:
@@ -3986,9 +4036,27 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H4 |- *.
   destruct H4; eauto using perm_storebytes_2. 
 (* unmapped_reserved *)
-  admit.
+  intros b NONE VAL ofs0.
+  exploit mi_unmappedreserved0; eauto. 
+  eapply storebytes_valid_block_2; eauto.
+  intros [p PERM].
+  eapply perm_storebytes_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  rewrite storebytes_reserved; eauto. 
+  assert (valid_block m2 b0) by (eapply storebytes_valid_block_2; eauto).
+  exploit (mi_reserved0 b0 ofs0); eauto. 
+  intros EQ. rewrite EQ. split; intros. 
+  rewrite storebytes_reserved; eauto. 
+  apply H4; auto. 
+  destruct (Z_lt_dec b3 (nextblock m1)); auto.
+  exploit mi_freeblocks0; eauto; intros. rewrite H7 in H6; congruence.
+  rewrite <-storebytes_reserved; eauto. 
+  apply H4; auto. 
+  destruct (Z_lt_dec b3 (nextblock n1)); auto.
+  exploit mi_freeblocks0; eauto; intros. intros CONTRA.
+  apply n. eapply storebytes_valid_block_1 in CONTRA; eauto.
+  rewrite H7 in H6; congruence.
 Qed.
 
 Theorem storebytes_unmapped_inject:
@@ -4014,9 +4082,24 @@ Proof.
   rewrite !valid_pointer_nonempty_perm in H3 |- *.
   destruct H3; eauto using perm_storebytes_2.
 (* unmapped_reserved *)
-  admit.
+  intros b NONE VAL ofs0.
+  exploit mi_unmappedreserved0; eauto. 
+  eapply storebytes_valid_block_2; eauto.
+  intros [p PERM].
+  eapply perm_storebytes_1 in PERM; eauto. exists p; eauto. 
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  exploit (mi_reserved0 b0 ofs0); eauto. 
+  intros EQ. rewrite EQ. split; intros. 
+  rewrite storebytes_reserved; eauto. 
+  apply H2; auto. 
+  eapply storebytes_valid_block_2; eauto.  
+  rewrite <-storebytes_reserved; eauto. 
+  apply H2; auto. 
+  destruct (Z_lt_dec b2 (nextblock n1)); auto.
+  exploit mi_freeblocks0; eauto; intros. intros CONTRA.
+  apply n. eapply storebytes_valid_block_1 in CONTRA; eauto.
+  rewrite H5 in H4; congruence.
 Qed.
 
 Theorem storebytes_outside_inject:
@@ -4041,9 +4124,14 @@ Proof.
 (* representable *)
   auto.
 (* unmapped_reserved *)
-  admit.
+  intros b0 NONE ofs0.
+  exploit mi_unmappedreserved0; eauto.
 (* reserved *)
-  admit.
+  intros b0 ofs0 VAL.
+  rewrite storebytes_reserved; eauto. 
+  assert (valid_block m2 b0) by (eapply storebytes_valid_block_2; eauto).
+  exploit (mi_reserved0 b0 ofs0); eauto. 
+  (*FIXME*) Grab Existential Variables. refine ofs. 
 Qed.
 
 (* Preservation of allocations *)
@@ -4067,8 +4155,9 @@ Proof.
 (* representable *)
   auto.
 (* unmapped_reserved *)
-  admit.
+  auto.
 (* reserved *)
+  intros. 
   admit.
 Qed.
 
