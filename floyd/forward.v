@@ -8,6 +8,51 @@ Import Cop.
 
 Local Open Scope logic.
 
+Definition abbreviate {A:Type} (x:A) := x.
+Notation "'...'" := (abbreviate _).
+
+Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
+   (first [ is_var y 
+           |  let x' := fresh x in set (x':=y); change y with (abbreviate y) in x']).
+
+Tactic Notation "abbreviate" constr(y) ":" constr(t) "as"  ident(x)  :=
+   (first [ is_var y 
+           |  let x' := fresh x in set (x':=y : t); change y with (@abbreviate t y) in x']).
+
+Ltac unfold_abbrev :=
+  repeat match goal with H := abbreviate _ |- _ => 
+                        unfold H, abbreviate; clear H 
+            end.
+
+Ltac unfold_abbrev_ret :=
+  repeat match goal with H := @abbreviate ret_assert _ |- _ => 
+                        unfold H, abbreviate; clear H 
+            end.
+
+Ltac clear_abbrevs :=  repeat match goal with H := abbreviate _ |- _ => clear H end.
+
+Ltac abbreviate_semax :=
+ match goal with
+ | |- semax _ _ _ _ => unfold_abbrev;
+        match goal with |- semax ?D _ ?C ?P => 
+            abbreviate D : tycontext as Delta;
+            abbreviate P : ret_assert as POSTCONDITION;
+            match C with
+            | Ssequence ?C1 ?C2 =>
+                abbreviate C2 as MORE_COMMANDS;
+                match C1 with
+                | Swhile _ ?C3 => abbreviate C3 as LOOP_BODY
+                | _ => idtac
+                end
+            | Swhile _ ?C3 => abbreviate C3 as LOOP_BODY
+            | _ => idtac
+            end
+        end
+ | |- _ |-- _ => unfold_abbrev_ret
+ | |- _ => idtac
+ end;
+ clear_abbrevs.
+
 (* BEGIN HORRIBLE1.
   The following lemma is needed because CompCert clightgen
  produces the following AST for function call:
@@ -170,7 +215,13 @@ Qed.
 (* END HORRIBLE1 *)
 
 
+Ltac ignore x := idtac.
+
 Ltac forward_while Inv Postcond :=
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
     [ | (apply semax_seq with Postcond;
             [ apply semax_while' ; [ compute; auto | | | ] 
@@ -213,7 +264,7 @@ Ltac forward_while Inv Postcond :=
                | simpl update_tycon ]
         end)
 
-   ].
+   ]; abbreviate_semax.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
@@ -508,13 +559,20 @@ Ltac intro_old_var'' id :=
         intro x
   end.
 
-Ltac semax_call_id_tac_aux Espec Delta P Q R id f bl :=
-   let VT := fresh "VT" in let GT := fresh "GT" in 
-         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      assert (VT: (var_types Delta) ! f = None) by reflexivity;
+Ltac get_global_fun_def Delta f fsig A Pre Post :=
+    let VT := fresh "VT" in let GT := fresh "GT" in  
+      assert (VT: (var_types Delta) ! f = None) by 
+               (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
-                    by (unfold fsig, A, Pre, Post; simpl; reflexivity);
+                    by ((unfold fsig, A, Pre, Post; simpl; reflexivity) || 
+                          fail 1 "Function " f " has no specification in the type context");
+     clear VT GT.
+
+
+Ltac semax_call_id_tac_aux Espec Delta P Q R id f bl :=
+      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+      get_global_fun_def Delta f fsig A Pre Post;
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
@@ -532,17 +590,14 @@ Ltac semax_call_id_tac_aux Espec Delta P Q R id f bl :=
        [apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
                ]];
-  clear SCI VT GT; try clear H;
+  clear SCI; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
 
 Ltac semax_call0_id_tac_aux Espec Delta P Q R f bl :=
-   let VT := fresh "VT" in let GT := fresh "GT" in 
-         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      assert (VT: (var_types Delta) ! f = None) by reflexivity;
-      assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
-                    by (unfold fsig, A, Pre, Post; simpl; reflexivity);
+      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+       get_global_fun_def Delta f fsig A Pre Post;
  let SCI := fresh "SCI" in
     let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
@@ -560,7 +615,7 @@ Ltac semax_call0_id_tac_aux Espec Delta P Q R f bl :=
        [ apply (semax_call_id_aux1 _ _ _ _ _ H)
        | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
                ]];
-  clear SCI VT GT; try clear H;
+  clear SCI; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
 (* BEGIN HORRIBLE1.
@@ -576,13 +631,9 @@ about id'.  So we handle it all in one gulp.
 *)
 
 Ltac semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl :=
-   let VT := fresh "VT" in let GT := fresh "GT" in 
          let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
          evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-
-      assert (VT: (var_types Delta) ! f = None) by reflexivity;
-      assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
-                    by (unfold fsig, A, Pre, Post; simpl; reflexivity);
+         get_global_fun_def Delta f fsig A Pre Post;
 
  let SCI := fresh "SCI" in
     let H := fresh in let x := fresh "witness" in let F := fresh "Frame" in
@@ -605,7 +656,7 @@ Ltac semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl :=
                                  | (*solve[simpl; auto with closed] PREMATURELY INSTANTIATES FRAME *) 
                                  | reflexivity | reflexivity | reflexivity | reflexivity ] ) ]
                ]];
-  clear SCI VT GT; try clear H;
+  clear SCI; try clear H;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
 
 (* END HORRIBLE1.  *)
@@ -625,21 +676,6 @@ Ltac sequential :=
  |  |- @semax _ _ _ _ (normal_ret_assert _) => fail 2
  |  |- @semax _ _ _ ?s _ =>  check_sequential s; apply sequential
  end.
-
-Ltac redefine_Delta := 
-  match goal with 
-  | Delta:= _: tycontext |- @semax _ (initialized _ _) _ _ _ =>
-       unfold Delta in *; clear Delta;
-       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
-           set (Delta:=D); change tycontext in (type of Delta)
-       end
-  | Delta:= _: tycontext |- @semax _ (join_tycon _ _) _ _ _ =>
-       unfold Delta in *; clear Delta;
-       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
-           set (Delta:=D); change tycontext in (type of Delta)
-       end
-  | |- _ => idtac
-end.
 
 Ltac is_canonical P :=
  match P with 
@@ -956,6 +992,24 @@ Proof.
 intros. apply andp_left2; auto.
 Qed.
 
+(*
+Ltac redefine_Delta := 
+  match goal with 
+  | Delta:= _: tycontext |- @semax _ (initialized _ _) _ _ _ =>
+       unfold Delta in *; clear Delta;
+       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
+           set (Delta:=D); change tycontext in (type of Delta)
+       end
+  | Delta:= _: tycontext |- @semax _ (join_tycon _ _) _ _ _ =>
+       unfold Delta in *; clear Delta;
+       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
+           set (Delta:=D); change tycontext in (type of Delta)
+       end
+  | |- _ => idtac
+end.
+*)
+
+
 Ltac forward_with F1 :=
 match goal with
  (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE1, above)  *)
@@ -970,7 +1024,7 @@ match goal with
            |  try unfold exit_tycon; 
                  simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
-           ]
+           ]; abbreviate_semax
  (* END HORRIBLE2 *)
   | |- @semax _ _ _ (Ssequence (Ssequence _ _) _) _ =>
           apply -> seq_assoc; forward_with F1
@@ -983,7 +1037,7 @@ match goal with
            |  try unfold exit_tycon; 
                  simpl update_tycon; unfold map; fold @map;
             try (apply extract_exists_pre; intro_old_var'' id)
-            ]
+            ]; abbreviate_semax
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
@@ -991,7 +1045,7 @@ match goal with
                eapply semax_post_flipped';
                [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ] 
                | try (apply exp_left; intro_old_var'' id)
-               ]
+               ]; abbreviate_semax
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
@@ -1000,7 +1054,7 @@ match goal with
            [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
            |  try unfold exit_tycon; 
                  simpl update_tycon; simpl map
-            ]
+            ]; abbreviate_semax
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
        (* HACK ... need this extra clause, because trying to do it via the general case
           of the next clause leads to unification difficulties; maybe the general case
@@ -1008,7 +1062,7 @@ match goal with
            eapply semax_post_flipped';
            [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
            | 
-            ]
+            ]; abbreviate_semax
   | |- @semax _ _ _ (Ssequence ?c1 ?c2) _ => 
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
@@ -1020,14 +1074,14 @@ match goal with
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
                     try (apply extract_exists_pre; intro_old_var c1);
-                    try simple apply elim_redundant_Delta;
-                    redefine_Delta
-               ]
+                    try simple apply elim_redundant_Delta
+               ]; abbreviate_semax
   | |- @semax _ _ _ ?c1 _ => F1;
                   try (apply drop_tc_environ || rewrite insert_local);
                   try unfold exit_tycon; 
                   simpl update_tycon;
-                  try (apply exp_left; intro_old_var c1)
+                  try (apply exp_left; intro_old_var c1);
+                  abbreviate_semax
   end.
 
 Ltac forward := forward_with forward1.
@@ -1044,6 +1098,18 @@ unfold PROPx, LOCALx, SEPx'; normalize.
 f_equal. f_equal. rewrite sepcon_comm. auto.
 Qed. 
 
+Ltac unfold_Delta := 
+repeat
+match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
+  first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
+end;
+ match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
+     change (func_tycontext f V G) with (abbreviate (func_tycontext f V G)) in Delta;
+      unfold func_tycontext, make_tycontext,
+     make_tycontext_t, make_tycontext_v, make_tycontext_g,
+      fn_temps,fn_params, fn_vars, fn_return in Delta;
+     simpl in Delta
+ end.
 
 Ltac start_function := 
  match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
@@ -1058,7 +1124,7 @@ Ltac start_function :=
              destruct p as [a b]
            end;
  match goal with |- @semax _ (func_tycontext ?F ?V ?G) _ _ _ => 
-   set (Delta := func_tycontext F V G)
+   set (Delta := func_tycontext F V G); unfold_Delta
  end;
   match goal with
   | |- @semax _ _ (?P * stackframe_of ?F) _ _ =>

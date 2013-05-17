@@ -677,7 +677,6 @@ apply andp_right; try apply prop_right; auto.
 apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
 intro rho. apply prop_right. hnf. auto.
 simpl update_tycon. unfold app.
-redefine_Delta.
 focus_SEP 2.
 eapply semax_pre0; [apply intpair_message_length | ].
 focus_SEP 1 4.

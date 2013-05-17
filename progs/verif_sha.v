@@ -220,8 +220,6 @@ Lemma lift1more {A}{T}:
      @liftx (Tarrow A (LiftEnviron T)) F `v.
 Proof. reflexivity. Qed.
 
-
-
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_typed_mapsto_. 
@@ -244,11 +242,25 @@ name ctx_ _ctx.
 unfold sha256state_.
 simpl_stackframe_of. 
 simpl_typed_mapsto; simpl_array_of_t. simpl eval_expr.
-match goal with |- semax _ _ ?C ?P => set (cmd:=C); set (Post:=P) end.
-normalize.
-intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
-normalize.
-unfold cmd; clear cmd.
+
 forward. (* data=in; *)
 
 Admitted.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

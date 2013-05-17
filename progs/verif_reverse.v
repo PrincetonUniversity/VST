@@ -125,7 +125,7 @@ go_lower.
 go_lower. subst. normalize. 
     rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-normalize. subst contents.
+normalize. (* unfold POSTCONDITION; clear POSTCONDITION.  subst contents. *)
 focus_SEP 1; apply semax_lseg_nonnull;
         [ | intros h r y ?].
 go_lower. normalize.
@@ -145,7 +145,7 @@ apply exp_right with r.
   unfold lseg_cons.
   apply andp_right.
   apply prop_right.
-  destruct w; inv H4; simpl; auto.
+  destruct w; inv H5; simpl; auto.
   apply exp_right with h.
   apply exp_right with cts1.
   apply exp_right with w0.
@@ -153,7 +153,7 @@ apply exp_right with r.
   erewrite (field_mapsto_typecheck_val _ _tail _ _ _ _struct_list _  noattr); [ | reflexivity].
   type_of_field_tac.
   normalize.
-  replace (eval_cast_neutral w0) with w0 in * by (destruct w0; inv H0; auto).
+  replace (eval_cast_neutral w0) with w0 in * by (destruct w0; inv H1; auto).
   normalize.
   cancel. 
 (* after the loop *)

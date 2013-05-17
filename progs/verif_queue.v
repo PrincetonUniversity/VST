@@ -357,7 +357,8 @@ forward. (*  t = Q->tail; *)
 destruct (isnil contents).
 (* CASE THREE: contents = nil *)
 apply semax_pre with FF; [ | apply semax_ff].
-go_lower. normalize. subst. destruct H1. reflexivity.
+clear_abbrevs.
+go_lower. subst. normalize.
 focus_SEP 2.
 change (`(EX  prefix : list val,
       !!(contents = prefix ++ tl :: nil) &&
@@ -368,9 +369,9 @@ change (`(EX  prefix : list val,
 rewrite extract_exists_in_SEP.
 apply extract_exists_pre. intro prefix.
 normalize.
-subst.
 unfold link.
 replace_SEP 1 ( `(field_mapsto Tsh t_struct_elem _next) (eval_id _t) `nullval).
+clear_abbrevs.
 go_lower. subst; auto.
 forward. (*  t->next=p; *)
 simpl.
@@ -393,6 +394,7 @@ eapply derives_trans; [ | apply links_cons_right ].
 cancel.
 
 (* after the if *)
+unfold_abbrev.  (* FIXME this should not be necessary *)
 forward. (* return ; *)
 go_lower. normalize.
 Qed.
@@ -418,8 +420,9 @@ destruct (isnil (p::contents)) as [e3|n3]; [inv e3 | clear n3].
 normalize. intro prefix.
 normalize.
  forward. (*   p = Q->head; *)
-destruct prefix; inv H.
+destruct prefix; inversion H; clear H.
 (* CASE 1: prefix=nil *)
+subst tl.
 rewrite links_nil_eq.
 normalize.
 normalize. apply ptr_eq_e in H. subst hd.
@@ -439,15 +442,15 @@ unfold link.
 rewrite links_cons_eq.
 normalize. intro.
 repeat rewrite andp_assoc.
-normalize.
-subst.
+normalize. subst v hd.
 forward. (*  n=h->next; *)
  forward. (* Q->head=n; *)
  forward. (* return p; *)
 go_lower. subst x h q.
  rewrite prop_true_andp by auto.
- rewrite prop_true_andp by (destruct hd; apply TC0).
+ rewrite prop_true_andp by (destruct p; apply TC0).
  unfold fifo. normalize. apply exp_right with (n, tl).
+ subst.
  destruct (isnil (prefix ++ tl :: nil)); [ destruct prefix; inv e | ]. clear n0.
  normalize. apply exp_right with prefix.
  rewrite prop_true_andp by auto. unfold link_. cancel.
