@@ -6,6 +6,7 @@ all :
 	cd hoare; make
 	cd sep; make
 	cd cont; make
+	cd floyd_tut; make
 
 clean :
 	cd lam_ref; make clean
