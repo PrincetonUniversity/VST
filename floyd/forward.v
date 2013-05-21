@@ -9,18 +9,19 @@ Import Cop.
 Local Open Scope logic.
 
 Definition abbreviate {A:Type} (x:A) := x.
-Notation "'...'" := (abbreviate _).
+Implicit Arguments abbreviate [[A][x]].
+(* Notation "'...'" := (abbreviate _). *)
 
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
    (first [ is_var y 
-           |  let x' := fresh x in set (x':=y); change y with (abbreviate y) in x']).
+           |  let x' := fresh x in set (x':=y); change y with (@abbreviate _ y) in x']).
 
 Tactic Notation "abbreviate" constr(y) ":" constr(t) "as"  ident(x)  :=
    (first [ is_var y 
            |  let x' := fresh x in set (x':=y : t); change y with (@abbreviate t y) in x']).
 
 Ltac unfold_abbrev :=
-  repeat match goal with H := abbreviate _ |- _ => 
+  repeat match goal with H := @abbreviate _ _ |- _ => 
                         unfold H, abbreviate; clear H 
             end.
 
@@ -29,7 +30,7 @@ Ltac unfold_abbrev_ret :=
                         unfold H, abbreviate; clear H 
             end.
 
-Ltac clear_abbrevs :=  repeat match goal with H := abbreviate _ |- _ => clear H end.
+Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
 Ltac abbreviate_semax :=
  match goal with
@@ -1104,7 +1105,7 @@ match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
   first [unfold f in Delta | unfold V in Delta | unfold G in Delta ]
 end;
  match goal with Delta := func_tycontext ?f ?V ?G |- _ =>
-     change (func_tycontext f V G) with (abbreviate (func_tycontext f V G)) in Delta;
+     change (func_tycontext f V G) with (@abbreviate _ (func_tycontext f V G)) in Delta;
       unfold func_tycontext, make_tycontext,
      make_tycontext_t, make_tycontext_v, make_tycontext_g,
       fn_temps,fn_params, fn_vars, fn_return in Delta;
