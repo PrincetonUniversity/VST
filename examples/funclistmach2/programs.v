@@ -33,9 +33,9 @@ Program Definition add_term_measure : termMeas :=
   | None => False
   end.
 Next Obligation.
-  destruct x; intuition.
-  destruct x1; intuition.
-  destruct o0; intuition.
+ destruct x as [ | x o0 x1] ; [contradiction H | ].
+ destruct x; [ contradiction H | simpl in *] .
+ destruct o; simpl in *;  [congruence | contradiction].
 Qed.
 
 Definition add_P' n m st :=
@@ -67,7 +67,9 @@ Program Definition value_to_store_termMeas (vt:valueTermMeas) : termMeas :=
              | None   => False
              end.
 Next Obligation.
-  destruct x; intuition. destruct o; intuition. destruct vt; simpl in *.
+  destruct x; simpl in *; intuition. 
+  destruct o; simpl in *; intuition.
+  destruct vt; simpl in *.
   eauto.
 Qed.
 
@@ -127,8 +129,23 @@ Program Definition apply_tm (fs:{A:Type & stdFunspec A}) : valueTermMeas :=
   | _, _ => False
   end.
 Next Obligation.
-  destruct v; intuition. destruct v1; intuition. destruct n; intuition. destruct n'; intuition.
-  destruct (sfs_t X); simpl in *. eauto.
+  destruct v; simpl in *; intuition.
+  discriminate.
+  destruct v1; simpl in *; intuition; discriminate.
+Qed.
+Next Obligation.
+ intros [? ?].
+ inv H.
+Qed.
+Next Obligation.
+ destruct v; simpl in *; try contradiction.
+ destruct v1; simpl in *; try contradiction.
+ destruct n; simpl in *; try contradiction.
+ destruct n'; simpl in *; try contradiction.
+ destruct fs; simpl in *.
+ destruct s; simpl in *.
+ destruct sfs_t0; simpl in *.
+ f_equal; eapply e; eauto.
 Qed.
 
 Definition apply_fs (fs:{A:Type & stdFunspec A}) : {A:Type & stdFunspec A} :=
@@ -316,7 +333,11 @@ Program Definition map_worker_tm (fs:{A:Type & stdFunspec A}) : termMeas :=
   | _ => False
   end.
 Next Obligation.
-  destruct (x#4); intuition.
+ congruence.
+Qed.
+Next Obligation.
+ simpl in *.
+  destruct (x#4); simpl in *; intuition.
   eapply map_inner_tm_fun; eauto.
 Qed.
 
@@ -327,6 +348,9 @@ Program Definition map_tm (fs:{A:Type & stdFunspec A}) : valueTermMeas :=
      map_inner_tm (sfs_t (projT2 fs)) v n'
   | _, _ => False
   end.
+Next Obligation.
+intros [? ?]. inv H.
+Qed.
 Next Obligation.
   destruct v. elim H.
   destruct n; destruct n'; try tauto.

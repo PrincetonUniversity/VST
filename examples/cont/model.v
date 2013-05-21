@@ -786,7 +786,8 @@ Proof.
  clear H; rename H' into H.
  subst.
  assert (step p ((s,h), If x Then c1 Else c2) = Some ((s,h), c2)).
- simpl. rewrite (eval_expr_get vars s h x); auto. rewrite e; simpl; auto.
+ simpl. rewrite (eval_expr_get vars s h x); auto.
+ rewrite e; simpl; auto.
  apply (safeN_step _ _ _ _ H10).
  specialize (H n'). rewrite semax'_unfold in H.
  assert (necR n' (level w')). apply necR_trans with (level w); auto.

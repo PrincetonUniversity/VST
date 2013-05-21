@@ -53,6 +53,7 @@ Definition nonfreevars (P: pred world) (x: var) : Prop :=
 Definition subset (S1 S2: var -> Prop) := 
   forall x, S1 x -> S2 x.
 
+(* the rest of this file is w.r.t. a previous version of the operational semantics...
 Definition semax (P: pred world) (c: command) (Q: pred world) : Prop :=
   forall F s, subset (modvars c) (nonfreevars F) ->
     (P*F)%pred (den s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den s').
@@ -210,3 +211,4 @@ Proof.
  exists (env_set x v stk, hp1); exists (env_set x v stk, hp2); split; auto.
   split; auto. simpl. apply join_equiv_refl.
 Qed.
+*)

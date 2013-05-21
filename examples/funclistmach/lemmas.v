@@ -9,7 +9,7 @@ Open Scope pred.
 
 (* Various utility lemmas *)
 
-Lemma later_level : forall k1 k2,
+Lemma later_level : forall k1 k2 : K.knot,
   laterR k1 k2 ->
   level k2 < level k1.
 Proof.
@@ -26,7 +26,7 @@ Proof.
 Qed.
 
 
-Lemma nec_level : forall k1 k2,
+Lemma nec_level : forall k1 k2 : K.knot,
   necR k1 k2 ->
   level k2 <= level k1.
 Proof.

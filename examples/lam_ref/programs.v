@@ -251,7 +251,7 @@ Proof.
   apply T_App with A.
   apply T_App with (Rec (Wf_ty A B)).
   rewrite Rec_fold_unfold at 1.
-  2: apply Wf_ty_cont.
+  2: apply (Wf_ty_cont A B).
   apply T_Var; auto.
   apply T_Var; auto.
   apply T_Var; auto.

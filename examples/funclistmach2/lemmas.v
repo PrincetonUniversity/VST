@@ -9,7 +9,7 @@ Open Scope pred.
 
 (* Various utility lemmas *)
 
-Lemma later_level : forall k1 k2,
+Lemma later_level : forall k1 k2 : K.knot,
   laterR k1 k2 ->
   level k2 < level k1.
 Proof.
@@ -25,7 +25,7 @@ Proof.
   apply lt_trans with (level y); auto.
 Qed.
 
-Lemma nec_level : forall k1 k2,
+Lemma nec_level : forall k1 k2 : K.knot,
   necR k1 k2 ->
   level k2 <= level k1.
 Proof.
@@ -41,7 +41,7 @@ Proof.
   apply le_trans with (level y); auto.
 Qed.
 
-Lemma age1_level : forall p1 p2,
+Lemma age1_level : forall p1 p2 : K.knot,
   age1 p1 = Some p2 ->
   level p1 = S (level p2).
 Proof.

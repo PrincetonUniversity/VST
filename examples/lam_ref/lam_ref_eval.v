@@ -166,11 +166,12 @@ Lemma eval_correct : forall x m e m' e',
   eval x m e = (m',e') ->
   stepstar (m,e) (m',e').
 Proof.
-  intros; unfold eval, iter in H.
+  intros; unfold eval in H.
   destruct x.
   inv H; apply step_refl.
   2: inv H; apply step_refl.
-  rewrite iter_nat_of_P in H.
+  rewrite iter_nat_of_Z in H by apply Zle_0_pos.
+  rewrite Zabs2Nat.inj_pos in H.
   revert H.
   generalize (nat_of_P p); clear p.
   intro n; revert m e m' e'.

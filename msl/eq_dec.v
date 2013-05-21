@@ -56,14 +56,14 @@ Proof.
   repeat intro.
  destruct (lt_eq_lt_dec a a') as [[?|?]| ?]; auto;
   right; intro; subst; eapply lt_irrefl; eauto.
-Qed.
+Defined.
 
 Instance EqDec_prod (A: Type) (EA: EqDec A) (B: Type) (EB: EqDec B) : EqDec (A*B).
 Proof.
  hnf. decide equality; try apply eq_dec.
-Qed.
+Defined.
 
 Instance EqDec_list (A: Type) (EA: EqDec A) : EqDec (list A).
 Proof.
  hnf. apply list_eq_dec; intros; apply EA.
-Qed.
+Defined.
