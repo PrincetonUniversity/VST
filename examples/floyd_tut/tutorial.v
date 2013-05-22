@@ -1,3 +1,9 @@
+(* NOTE: The LoadPath commands below assume that you run 
+ * coqide or Proof General with current directory as the one
+ * in which this tutorial.v file is located, not some parent
+ * directory.
+ *)
+
 (* TUTORIAL ON LIFTED EXPRESSIONS. 
  * For more information and explanations,
  * see these chapters of Program Logics for Certified Compilers:
@@ -27,6 +33,8 @@ Import Extensionality.
 (*The mathematical integers are represented by Coq's Z type: *)
 Check 0%Z : Z.
 Check 1%Z : Z.
+(* Recall that the %Z notation means, interpret this notation
+ * in the Z notation-scope, not in "nat" or "positive" scope *)
 
 (* CompCert's Int.int implements 32-bit modular arithmetic *)
 Goal int = Int.int.      Proof. reflexivity. Qed.
@@ -222,6 +230,12 @@ Check `(mapsto Tsh tint) f `(Vint Int.zero).
 Definition _i : ident := 4%positive.
 Definition _s : ident := 5%positive.
 Definition _t : ident := 6%positive.
+(* Recall that the % notation means, interpret these constants
+ * as [positive] numbers, not as nat or Z.  CompCert happens
+ * to use the positive type for identifiers, because it has
+ * very efficient symbol-table lookup
+ *)
+
 
 (* Each of the following lines says the same thing in a different
  * notation: the value of local-variable
@@ -260,9 +274,9 @@ Check (prop (i <> Int.zero) && local (`(eq (Vint i)) (eval_id _i)) &&
  * can be equivalently written, 
  *)
 Check (PROP(i<>Int.zero) 
-            LOCAL(`(eq (Vint i)) (eval_id _i)) 
-            SEP (`(mapsto Tsh tint) (eval_id _s) `(Vint i);
-                  `(mapsto Tsh (tptr tint)) (eval_id _t) (eval_id _s))).
+       LOCAL(`(eq (Vint i)) (eval_id _i)) 
+       SEP (`(mapsto Tsh tint) (eval_id _s) `(Vint i);
+             `(mapsto Tsh (tptr tint)) (eval_id _t) (eval_id _s))).
 
 (* Expression evaluation.  An expression can be evaluated
  * as an r-value using eval_expr, or as an l-value using
@@ -280,11 +294,11 @@ Check (PROP(i<>Int.zero)
  *)
 
 Locate eval_expr.
- (* Constant veric.expr.eval_expr
+ (* "Locate" tells us that there are two eval_expr's out there,
+  * and the one we're using here is the FIRST one, from veric:
+  * Constant veric.expr.eval_expr
   * Inductive compcert.cfrontend.Clight.eval_expr
-  *   and here we're talking about the one from veric,
-  *   not the one from compcert.
- *) 
+  *) 
 
 Check eval_expr : expr -> environ -> val.
 Print eval_expr.
