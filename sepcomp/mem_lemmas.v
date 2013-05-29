@@ -117,6 +117,18 @@ Proof. intros. unfold  compose_meminj, inject_id.
    destruct o; trivial. destruct p. rewrite Zplus_0_l. trivial.  
 Qed.
 
+Lemma perm_decE: 
+  forall m b ofs k p PF,
+  (Mem.perm_dec m b ofs k p = left PF <-> Mem.perm m b ofs k p).
+Proof.
+intros until p.
+split; auto.
+intros H1.
+destruct (Mem.perm_dec m b ofs k p).
+solve[f_equal; apply proof_irr].
+solve[elimtype False; auto].
+Qed.
+
 Lemma extends_inject_compose:
   forall f m1 m2 m3,
   Mem.extends m1 m2 -> Mem.inject f m2 m3 -> Mem.inject f m1 m3.
@@ -145,11 +157,24 @@ Proof.
   unfold Mem.weak_valid_pointer in H0|-*.
  apply orb_true_iff in H0; apply orb_true_iff.
  destruct H0; [left | right].
-(* 
-  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. 
-  rewrite Zplus_0_r in H0.
-*)
-admit. admit. 
+ unfold Mem.valid_pointer in H0|-*.
+ destruct (Mem.perm_dec m1 b (Int.unsigned ofs) Cur Nonempty).
+ clear H0.
+ apply (mi_perm b b 0 (Int.unsigned ofs) Cur Nonempty (eq_refl _)) in p.
+ rewrite Zplus_0_r in p.
+ generalize p as p'; intro.
+ rewrite <- perm_decE with (PF := p') in p.
+ rewrite p; auto.
+ inv H0.
+ unfold Mem.valid_pointer in H0|-*.
+ destruct (Mem.perm_dec m1 b (Int.unsigned ofs - 1) Cur Nonempty).
+ clear H0.
+ apply (mi_perm b b 0 (Int.unsigned ofs - 1) Cur Nonempty (eq_refl _)) in p.
+ rewrite Zplus_0_r in p.
+ generalize p as p'; intro.
+ rewrite <-perm_decE with (PF := p') in p.
+ rewrite p; eauto.
+ inv H0.
 Qed.
 
 Lemma inject_extends_compose:
