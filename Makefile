@@ -62,7 +62,7 @@ SEPCOMP_FILES= \
  forward_simulations.v rg_forward_simulations.v \
 #  extension.v extension_proof.v 
 #  compile_safe.v core_semantics_lemmas.v \
-#  forward_simulations_lemmas.v \
+  forward_simulations_lemmas.v \
 #   extension_safety.v extension_simulations.v \
 #  extension_proof_safety.v 
 #  null_extension.v fs_extension.v linking_extension.v trace_extension.v \
@@ -72,7 +72,7 @@ SEPCOMP_FILES= \
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
   lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v \
-  Clight_lemmas.v Clight_new.v Clight_sim.v \
+  Clight_lemmas.v Clight_new.v Clight_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \

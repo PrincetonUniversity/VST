@@ -944,3 +944,192 @@ eapply (IHl  _ _  H2).
     apply (mem_wd_alloc_global ge _ _ _ Heqd H H0).
     apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
 Qed.
+
+
+Lemma mem_wd_load: forall m ch b ofs v
+  (LD: Mem.load ch m b ofs = Some v)
+  (WD : mem_wd m), val_valid v m.
+Proof. intros.
+  destruct v; simpl; trivial.
+  destruct (Mem.load_valid_access _ _ _ _ _ LD) as [Perms Align].
+  apply Mem.load_result in LD.
+  apply eq_sym in LD. apply decode_val_pointer_inv in LD.
+  destruct LD.
+  destruct ch; inv H; simpl in *.
+  unfold mem_wd in WD. unfold Mem.inject_neutral in WD.
+  destruct WD.
+  assert (Arith: ofs <= ofs < ofs + 4). omega.
+  specialize (Perms _ Arith).
+  assert (VB:= Mem.perm_valid_block _ _ _ _ _ Perms).
+  assert (Z:= flatinj_I (Mem.nextblock m) b VB).
+  specialize (mi_memval _ _ _ _ Z Perms).
+  inv H0. rewrite Zplus_0_r in mi_memval. rewrite H1 in mi_memval.
+  inversion mi_memval. clear H9. subst.
+  apply flatinj_E in H5. apply H5.
+Qed.
+
+Lemma mem_wd_storebytes: forall m b ofs bytes m' (WDm: mem_wd m)
+  (ST: Mem.storebytes m b ofs bytes = Some m')
+  (BytesValid: forall v, In v bytes ->
+               memval_inject (Mem.flat_inj (Mem.nextblock m)) v v), 
+   mem_wd m'.
+Proof. intros. apply mem_wdI. intros.
+  assert (F: Mem.flat_inj (Mem.nextblock m) b0 = Some (b0, 0)).
+        apply flatinj_I. 
+        apply (Mem.storebytes_valid_block_2 _ _ _ _ _ ST).
+        eapply Mem.perm_valid_block; eassumption.
+  apply mem_wd_E in WDm.
+  assert (P:= Mem.perm_storebytes_2 _ _ _ _ _ ST _ _ _ _ R).
+  specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ WDm) _ _ _ _ F P).
+  rewrite Zplus_0_r.
+  intros MVI.
+  rewrite (Mem.nextblock_storebytes _ _ _ _ _ ST).
+  rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST).
+  remember (eq_block b0 b).
+  destruct s; subst; clear Heqs.
+  (*case b0=b*) 
+    rewrite ZMap.gss.
+    remember (zlt ofs0 ofs) as d.
+    destruct d; clear Heqd.
+    (*case ofs0 < ofs*) 
+      rewrite Mem.setN_outside; try (left; assumption).
+      assumption.
+    (*case ofs0 >= ofs*)
+      remember (zlt ofs0 (ofs + (Z.of_nat (length bytes)))) as d.
+      destruct d; clear Heqd.
+      (*case <*) 
+        eapply Mem.setN_property. 
+          apply BytesValid.
+          split. omega. apply l. 
+      (*case >= *)
+         rewrite Mem.setN_outside; try (right; assumption).
+      assumption.
+  (*case b0 <> b*)
+    rewrite ZMap.gso; trivial.
+Qed.
+
+Lemma getN_aux: forall n p c B1 v B2, Mem.getN n p c = B1 ++ v::B2 ->
+    v = ZMap.get (p + Z.of_nat (length B1)) c.
+Proof. intros n.
+  induction n; simpl; intros. 
+    destruct B1; simpl in *. inv H. inv H.
+    destruct B1; simpl in *. 
+      inv H. rewrite Zplus_0_r. trivial.
+      inv H. specialize (IHn _ _ _ _ _ H2). subst.
+        rewrite Zpos_P_of_succ_nat. 
+        remember (Z.of_nat (length B1)) as m. clear Heqm H2. rewrite <- Z.add_1_l.
+         rewrite Zplus_assoc. trivial. 
+Qed. 
+
+Lemma getN_range: forall n ofs M bytes1 v bytes2,
+  Mem.getN n ofs M = bytes1 ++ v::bytes2 ->
+  (length bytes1 < n)%nat.
+Proof. intros n.
+  induction n; simpl; intros.
+    destruct bytes1; inv H. 
+    destruct bytes1; simpl in *; inv H.
+      omega.
+    specialize (IHn _ _ _ _ _ H2). omega.
+Qed.
+
+Lemma loadbytes_D: forall m b ofs n bytes
+      (LD: Mem.loadbytes m b ofs n = Some bytes),
+      Mem.range_perm m b ofs (ofs + n) Cur Readable /\
+      bytes = Mem.getN (nat_of_Z n) ofs (ZMap.get b (Mem.mem_contents m)).
+Proof. intros. Admitted. (*Essentially ok - we're only exposing the definition of  Mem.loadbytes here...*)
+
+Lemma loadbytes_valid: forall m (WD: mem_wd m) b ofs' n bytes
+      (LD: Mem.loadbytes m b (Int.unsigned ofs') n = Some bytes)
+      v (B: In v bytes),
+      memval_inject (Mem.flat_inj (Mem.nextblock m)) v v.
+Proof. intros.
+  destruct (loadbytes_D _ _ _ _ _ LD) as [Range BB]; subst. 
+  assert (L:= Mem.loadbytes_length _ _ _ _ _ LD).
+  apply In_split in B. destruct B as [bytes1 [bytes2 B]]. subst.
+  assert (I: Int.unsigned ofs' <= (Int.unsigned ofs') + Z.of_nat (length bytes1) < 
+                  Int.unsigned ofs' + n).
+    assert (II:= getN_range _ _ _ _ _ _ B).
+    clear Range LD B L.
+    split. omega.
+    assert (Z.of_nat (length bytes1) < Z.of_nat (nat_of_Z n)).
+        omega.
+    rewrite nat_of_Z_eq in H. omega. clear H.
+     unfold nat_of_Z in II.
+        destruct n. omega. specialize (Pos2Z.is_pos p); omega.
+        rewrite Z2Nat.inj_neg in II. destruct bytes1; simpl in II; inv II.
+  specialize (Range _ I). 
+  assert (F: Mem.flat_inj (Mem.nextblock m) b = Some (b, 0)).
+    apply flatinj_I. apply Mem.perm_valid_block in Range. apply Range.
+    specialize (Mem.mi_memval _ _ _ WD _ _ _ _ F Range).
+    intros. rewrite Zplus_0_r in H.
+   apply getN_aux in B. subst. apply H.
+Qed.
+
+Lemma freelist_mem_wd: forall l m m'
+      (M: Mem.free_list m l = Some m')
+      (WD: mem_wd m), mem_wd m'.
+Proof. intros l.
+  induction l; simpl; intros.
+    inv M; trivial.
+  destruct a. destruct p.
+  remember (Mem.free m b z0 z) as d.
+  destruct d; inv M; apply eq_sym in Heqd.
+  apply (IHl _ _ H0).
+  eapply mem_wd_free; eassumption. 
+Qed.
+
+(******** Compatibility of memory operation with mem_forward********)
+
+Lemma store_forward: forall m b ofs v ch m'
+      (M:Mem.store ch m b ofs v = Some m'),
+      mem_forward m m'.
+Proof. intros.
+   split; intros.
+    eapply Mem.store_valid_block_1; eassumption.
+    eapply Mem.perm_store_2; eassumption.
+Qed.
+
+Lemma storebytes_forward: forall m b ofs bytes m'
+      (M: Mem.storebytes m b ofs bytes = Some m'),
+      mem_forward m m'.
+Proof. intros.
+   split; intros.
+    eapply Mem.storebytes_valid_block_1; eassumption.
+    eapply Mem.perm_storebytes_2; eassumption.
+Qed.
+
+Lemma alloc_forward: 
+      forall m lo hi m' b
+      (A: Mem.alloc m lo hi = (m',b)),
+      mem_forward m m'.
+Proof.
+intros.
+  split; intros.
+  eapply Mem.valid_block_alloc; eassumption.
+  eapply Mem.perm_alloc_4; try eassumption.
+  intros N; subst. eapply (Mem.fresh_block_alloc _ _ _ _ _ A H).
+Qed.
+
+Lemma free_forward: forall b z0 z m m'
+      (M: Mem.free m b z0 z = Some m'),
+      mem_forward m m'.
+Proof. intros.
+  split; intros.
+  eapply Mem.valid_block_free_1; eassumption. 
+  eapply Mem.perm_free_3; eassumption. 
+Qed.
+
+Lemma freelist_forward: forall l m m'
+      (M: Mem.free_list m l = Some m'),
+      mem_forward m m'.
+Proof. intros l.
+  induction l; simpl; intros.
+    inv M. apply mem_forward_refl.
+  destruct a. destruct p.
+  remember (Mem.free m b z0 z) as d.
+  destruct d; inv M; apply eq_sym in Heqd.
+  specialize (IHl _ _ H0).
+  apply free_forward in Heqd.
+  eapply mem_forward_trans; eassumption. 
+Qed.
+
