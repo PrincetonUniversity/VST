@@ -1133,3 +1133,48 @@ Proof. intros l.
   eapply mem_forward_trans; eassumption. 
 Qed.
 
+
+Lemma mem_wd_extends_inject: forall m m' (WD: mem_wd m), 
+   Mem.extends m m' ->
+   Mem.inject (Mem.flat_inj (Mem.nextblock m)) m m'.
+Proof. intros.
+  destruct H.
+  split; intros.
+  (*mi_inj*)
+    split; intros.
+    (*mi_perm*)
+      apply flatinj_E in H. destruct H as [? [? ?]]; subst.
+        apply (Mem.mi_perm _ _ _ mext_inj b1); trivial.
+    (*mi_access*)
+      apply flatinj_E in H. destruct H as [? [? ?]]; subst.
+        apply (Mem.mi_access _ _ _ mext_inj b1); trivial.
+    (*mi_memval*)
+      destruct WD as [_ _ MVM]. specialize (MVM _ _ _ _ H H0).
+      assert (MM':= Mem.mi_memval _ _ _ mext_inj b1 ofs _ _ (eq_refl _) H0).
+
+      assert (F:= flatinj_E _ _ _ _ H). destruct F as [? [? ?]]; subst.
+      remember (ZMap.get ofs (ZMap.get b1 (Mem.mem_contents m))) as v.
+      inv MM'; try econstructor.
+      inv H2.
+      inv MVM. rewrite <- H4 in H5. inv H5.  
+           rewrite <- H4 in H2. inv H2.
+           assert (F:= flatinj_E _ _ _ _ H6). destruct F as [? [? ?]]; subst. apply H6.
+           rewrite <- H4 in H5. inv H5.
+        trivial. 
+  (* mi_freeblocks*)
+  unfold Mem.flat_inj.
+    destruct (zlt b (Mem.nextblock m)).
+     exfalso. apply (H l). trivial.
+  (*mi_mappedblocks*)
+  apply flatinj_E in H. destruct H as [? [? ?]]; subst.
+    rewrite mext_next in H1. apply H1.
+  (*mi_no_overlap*)
+  intros b1; intros.
+    apply flatinj_E in H0. destruct H0 as [? [? ?]]; subst.
+    apply flatinj_E in H1. destruct H1 as [? [? ?]]; subst.
+    left; trivial.
+  (*mi_representable*)
+  apply flatinj_E in H. destruct H as [? [? ?]]; subst.
+    split. omega.
+    rewrite Zplus_0_r. apply Int.unsigned_range_2.
+Qed. 
