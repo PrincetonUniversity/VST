@@ -424,3 +424,40 @@ apply andp_right; auto.
 eapply derives_trans; [apply field_mapsto_field_mapsto_ | ].
 rewrite field_mapsto__nonvolatile; normalize.
 Qed. 
+
+Lemma address_mapsto_overlap:
+  forall rsh sh ch1 v1 ch2 v2 a1 a2,
+     adr_range a1 (Memdata.size_chunk ch1) a2 ->
+     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
+Proof.
+ intros.
+ apply res_predicates.address_mapsto_overlap.
+ auto.
+Qed.
+
+Lemma field_mapsto__conflict:
+  forall sh t fld v,
+        field_mapsto_ sh t fld v
+        * field_mapsto_ sh t fld v |-- FF.
+Proof.
+intros.
+unfold field_mapsto_.
+destruct v; try (rewrite FF_sepcon ; apply FF_left).
+destruct t; try (rewrite FF_sepcon ; apply FF_left).
+destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
+ try (rewrite FF_sepcon ; apply FF_left).
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
+ try (rewrite FF_sepcon ; apply FF_left).
+repeat rewrite sepcon_andp_prop'.
+apply derives_extract_prop; intro.
+rewrite exp_sepcon1.
+apply exp_left; intro.
+repeat rewrite sepcon_andp_prop.
+apply derives_extract_prop; intro.
+rewrite exp_sepcon2.
+apply exp_left; intro.
+apply address_mapsto_overlap.
+split; auto.
+pose proof (size_chunk_pos m); omega.
+Qed.

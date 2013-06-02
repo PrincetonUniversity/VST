@@ -153,26 +153,6 @@ Proof.
  auto.
 Qed.
 
-Lemma field_mapsto__conflict:
-  forall sh t fld v,
-        field_mapsto_ sh t fld v
-        * field_mapsto_ sh t fld v |-- FF.
-Proof.
-intros.
-unfold field_mapsto_.
-destruct v; normalize.
-destruct t; normalize.
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
-  normalize.
-destruct (access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
-  normalize.
-intros.
-apply address_mapsto_overlap.
-split; auto.
-pose proof (size_chunk_pos m); omega.
-Qed.
-
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
@@ -227,34 +207,6 @@ cancel.
 normalize.
 Qed.
 
-Lemma replace_LOCAL':
- forall Q' Espec Delta P Q R c Post,
- (PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT)))) |-- LOCALx Q' (SEP (TT)) ->
- @semax Espec Delta (PROPx P (LOCALx Q' (SEPx R))) c Post ->
- @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros until 1.
-apply semax_pre.
-unfold PROPx,LOCALx, local, lift1, lift; intro rho.
-simpl.
-apply derives_extract_prop; intro.
-apply derives_extract_prop; intro.
-unfold lift in H1.
-repeat apply andp_right; auto.
-apply prop_right; auto.
-destruct H1.
-specialize (H rho).
-change SEPx with SEPx' in H.
-unfold PROPx,LOCALx,SEPx', local, lift1, lift in H.
-simpl in H.  rewrite sepcon_emp in H.
-change (@prop mpred _ True) with (@TT mpred _) in H.
-repeat rewrite andp_TT in H.
-eapply derives_trans; [ | apply H].
-rewrite prop_true_andp by auto.
-apply prop_right; unfold lift; simpl.
-split; auto.
-Qed.
-
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
@@ -288,8 +240,6 @@ go_lower.
   rewrite field_mapsto_isptr.  normalize.
   destruct Q; inv H; inv TC; simpl; auto.
 Qed.
-
-Require Import floyd.compare_lemmas.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
@@ -600,17 +550,6 @@ apply sepcon_derives; apply field_mapsto_field_mapsto_.
 forward. (* return i+j; *)
 go_lower. normalize.
 Qed.
-
-(*
-Notation "( e )" := (Etempvar e _) (at level 80) : C.
-Notation "a = p '->' f ;" := 
-   (Sset a (Efield (Ederef p _) f _)) (at level 100) : C.
-Notation "p '- >' f = e ;" := 
-   (Sassign (Efield (Ederef p _) f _) e) (at level 100) : C.
-Notation "& e" := (Eaddrof e _) (at level 80) : C.
-Notation "e - > f" := (Efield (Ederef e _) f _) (at level 82, left associativity): C.
-Delimit Scope C with C.
-*)
 
 Existing Instance NullExtension.Espec.
 

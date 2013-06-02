@@ -9,17 +9,23 @@
  * see these chapters of Program Logics for Certified Compilers:
  *  Ch. 12 Separation Logic as a logic;
  *  Ch. 21 Lifted separation logics; 
- *  Ch. 28 Expressions, values, and assertions
+ *  Ch. 23 Expressions, values, and assertions
  *)
 
 (* LOADPATHS, assuming this file is located
  *  in vst/examples/___/___.v
+ * and that you start coqide/PG from the same directory.
  *)
 Add LoadPath "../../msl" as msl.
 Add LoadPath "../../compcert" as compcert.
 Add LoadPath "../../sepcomp" as sepcomp.
 Add LoadPath "../../veric" as veric.
 Add LoadPath "../../floyd" as floyd.
+(* Instead, you could delete all the [Add LoadPath]
+ * commands, and run coqide/PG from the root [vst]
+ * directory, with these command-line arguments:
+ * -I msl as msl -R compcert -as compcert -I sepcomp -as sepcomp -I veric -as veric -I floyd -as floyd
+ *)
 
 (* Import all the definitions of CompCert values and syntax *)
 Require Import compcert.exportclight.Clightdefs.

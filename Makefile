@@ -59,10 +59,10 @@ SEPCOMP_FILES= \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v \
   core_semantics.v \
+  forward_simulations_lemmas.v \
  forward_simulations.v rg_forward_simulations.v \
 #  extension.v extension_proof.v 
 #  compile_safe.v core_semantics_lemmas.v \
-  forward_simulations_lemmas.v \
 #   extension_safety.v extension_simulations.v \
 #  extension_proof_safety.v 
 #  null_extension.v fs_extension.v linking_extension.v trace_extension.v \
@@ -97,6 +97,11 @@ FILES = \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) 
+
+%_stripped.v: %.v
+# e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
+# from progs/verif_reverse.v
+	grep -v '^.[*][*][ )]' $*.v >$@
 
 %.vo: %.v
 	@echo COQC $*.v

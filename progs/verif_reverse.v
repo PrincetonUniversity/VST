@@ -1,20 +1,59 @@
+(** Heavily annotated for a tutorial introduction.
+ ** See the Makefile for how to strip the annotations
+ **)
+
+(** First, import the entire Floyd proof automation system, which 
+ ** includes the VeriC program logic and the MSL theory of separation logic
+ **)
 Require Import floyd.proofauto.
+
+(** Import the theory of list segments.  This is not, strictly speaking,
+ ** part of the Floyd system.  In principle, any user of Floyd can build
+ ** theories of new data structures (list segments, trees, doubly linked
+ ** lists, trees with cross edges, etc.).  We emphasize this by putting
+ ** list_dt in the progs directory.   "dt" stands for "dependent types",
+ ** as the theory uses Coq's dependent types to handle user-defined
+ ** record fields.
+ **)
 Require Import progs.list_dt.
+
+(** Import the [reverse.v] file, which is produced by CompCert's clightgen
+ ** from reverse.c 
+ **)
 Require Import progs.reverse.
 
+(** Open the notation scope containing  !! * && operators of separation logic *)
 Local Open Scope logic.
 
+(** The reverse.c program uses the linked list structure [struct list].
+ ** This satisfies the linked-list pattern, in that it has one self-reference
+ ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
+ ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
+ **)
 Instance LS: listspec t_struct_list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
+(**  An auxiliary definition useful in the specification of [sumlist] *)
 Definition sum_int := fold_right Int.add Int.zero.
 
+(** Specification of the [sumlist] function from reverse.c.  All the functions
+ ** defined in the file, AND extern functions imported by the .c file,
+ ** must be declared in this way.
+ **)
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int
   PRE [ _p OF (tptr t_struct_list)] 
                        `(lseg LS sh contents) (eval_id _p) `nullval
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
+(** This specification has an imprecise and leaky postcondition:
+ ** it neglects to say that the original list [p] is still there.
+ ** Because the postcondition has no spatial part, it makes no
+ ** claim at all: the list [p] leaks away, and arbitrary other stuff
+ ** might have been allocated.  All the postcondition specifies
+ ** is that the contents of the list has been added up correctly.
+ ** One could easily make a more precise specification of this function.
+ **)
 
 Definition reverse_spec :=
  DECLARE _reverse
@@ -30,35 +69,54 @@ Definition main_spec :=
   PRE  [] main_pre prog u
   POST [ tint ] main_post prog u.
 
+(** Declare the types of all the global variables.  [Vprog] must list
+ ** the globals in the same order as in reverse.c file (and as in reverse.v).
+ **)
 Definition Vprog : varspecs := 
           (_three, Tarray t_struct_list 3 noattr)::nil.
 
+(** Declare all the functions, in exactly the same order as they
+ ** appear in reverse.c (and in reverse.v).
+ **)
 Definition Gprog : funspecs := 
     sumlist_spec :: reverse_spec :: main_spec::nil.
 
+(** The [prog] definition in reverse.v lists several compiler-builtins
+ ** in addition to the user-defined sumlist,reverse,main.
+ ** The [do_builtins] tactic adds vacuous (but sound) declarations
+ ** for them, turning Gprog in to Gtot.
+ **)
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
+(** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh v i,
    list_cell LS sh v i = field_mapsto sh t_struct_list _head v (Vint i).
-Proof. intros. simpl_list_cell; auto. Qed.
-Hint Rewrite list_cell_eq : norm.
+Proof.  reflexivity. Qed.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
-   @eq (environ->mpred) (`(list_cell LS sh) e v) 
-                  (`(field_mapsto sh t_struct_list _head) e (`Vint v)).
-Proof.
-  intros. extensionality rho; unfold_lift. simpl_list_cell; auto.
-Qed.
-Hint Rewrite lift_list_cell_eq : norm.
+   `(list_cell LS sh) e v = `(field_mapsto sh t_struct_list _head) e (`Vint v).
+Proof. reflexivity. Qed.
 
+(** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts: list int, 
             PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
             SEP ( TT ; `(lseg LS sh cts) (eval_id _t) `nullval)).
 
+(** For every function definition in the C program, prove that the
+ ** function-body (in this case, f_sumlist) satisfies its specification
+ ** (in this case, sumlist_spec).  
+ **)
 Lemma body_sumlist: semax_body Vprog Gtot f_sumlist sumlist_spec.
 Proof.
+(** Here is the standard way to start a function-body proof:  First,
+ ** start-function; then for every function-parameter and every
+ ** nonadressable local variable ("temp"), do the "name" tactic.
+ ** The second argument of "name" is the identifier of the variable
+ ** generated by CompCert; the first argument is whatever you like,
+ ** how you want the "go_lower" tactic to refer to the value of the variable.
+ **)
 start_function.
 name t _t.
 name p _p.
@@ -79,6 +137,8 @@ go_lower.  subst.  normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
+subst cts.
+rewrite lift_list_cell_eq.
 normalize.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
@@ -86,10 +146,11 @@ forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with r.
-go_lower. subst. inv H1.
- rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
-             Int.add_neg_zero, Int.add_zero.
-normalize. cancel. 
+go_lower. subst. inv H0.
+ rewrite prop_true_andp
+ by (rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
+             Int.add_neg_zero, Int.add_zero; auto).
+cancel. 
 (* After the loop *)
 forward.  (* return s; *)
 go_lower. simpl. rewrite H0; normalize.
@@ -161,6 +222,13 @@ forward.  (* return w; *)
 go_lower. normalize.
 Qed.
 
+(** this setup_globals lemma demonstrates that the initialized global variables
+ ** satisfy a particular separation-logic predicate.  Here, this lemma is
+ ** fairly automated; the "repeat" walks down a list of arbitrary length
+ ** (in this case, the initialized array is three elements long).  But
+ ** the automation and proof is not very beautiful or self-explanatory;
+ ** this needs improvement.
+ **)
 Lemma setup_globals:
   forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
    main_pre prog u rho
