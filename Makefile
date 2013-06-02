@@ -25,6 +25,17 @@ ifneq ($(CV1), $(CV2))
 $(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
 endif
 
+ifeq ($(wildcard $(COMPCERT)/*/Clight.vo), )
+ifeq ($(COMPCERT), compcert)
+ $(warning FIRST BUILD COMPCERT, by:  cd compcert; ./make   (use ./make and not just make))
+ $(warning "or, link to an external compcert directory by creating a CONFIGURE file;")
+ $(error " see the note in vst/Makefile.")
+else
+ $(error FIRST BUILD COMPCERT, by:  cd $(COMPCERT); make clightgen)
+endif
+endif
+
+
 COQFLAGS= $(INCLUDE)
 DEPFLAGS= $(INCLUDE)
 COQC=coqc

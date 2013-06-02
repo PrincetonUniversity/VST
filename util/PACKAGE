@@ -1,0 +1,22 @@
+#
+# This script builds a VST distribution as a tgz file.
+# To run it: from some place outside of an svn-checked-out directory,
+#   sh  .../vst/util/PACKAGE
+# the result will be in vst.tgz
+
+svn co https://svn.princeton.edu/appel/vst --depth files
+(cd vst; svn co https://svn.princeton.edu/appel/vst/compcert)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/msl)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/sepcomp)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/veric)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/floyd)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/progs)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/examples)
+rm -rf vst/.svn vst/*/.svn
+echo "COMPRESSING: tar cfz vst.tgz vst"
+tar cfz vst.tgz vst
+rm -rf vst
+
+
+
+
