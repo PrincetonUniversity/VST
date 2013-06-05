@@ -18,11 +18,12 @@ Proof.
  intros.
  eapply semax_pre0; [ | apply semax_ifthenelse]; auto.
  instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
- unfold PROPx, LOCALx; intro rho; normalize.
+ clear. 
+ go_lowerx.
  eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
  eapply semax_pre0; [ | eassumption].
- unfold PROPx, LOCALx; intro rho; normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
 Definition logical_and_result v1 t1 v2 t2 :=
@@ -133,8 +134,8 @@ unfold Swhile.
 apply (@semax_loop Espec Delta Q Q).
 Focus 2.
  clear; eapply semax_post; [ | apply semax_skip];
- destruct ek; unfold normal_ret_assert, loop2_ret_assert; intros; 
-    normalize; try solve [inv H]; apply andp_left2; auto.
+ destruct ek; unfold normal_ret_assert, loop2_ret_assert; intros;
+ go_lowerx; try discriminate.
 (* End Focus 2*)
 apply semax_seq with 
  (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
@@ -145,15 +146,13 @@ intro; auto.
 apply semax_ifthenelse; auto.
 eapply semax_post; [ | apply semax_skip].
 intros.
-intro rho; unfold normal_ret_assert, overridePost; simpl.
-normalize. rewrite if_true by auto.
-normalize.
+ unfold normal_ret_assert, overridePost;  go_lowerx.
+ subst. rewrite if_true by auto. repeat rewrite prop_true_andp by auto. auto.
 eapply semax_pre_simple; [ | apply semax_break].
-unfold overridePost. rewrite if_false by congruence.
-unfold loop1_ret_assert.
+ unfold overridePost. go_lowerx. rewrite if_false by congruence. 
 eapply derives_trans; try apply Post.
-rewrite andp_assoc. apply andp_derives; auto.
-rewrite andp_comm; auto.
+ unfold local,lift0,lift1; simpl.
+ repeat apply andp_right; try apply prop_right; auto.
 simpl update_tycon.
 apply semax_extensionality_Delta with Delta; auto.
 apply tycontext_eqv_sub. 
@@ -173,10 +172,10 @@ apply semax_while; auto.
 eapply derives_trans; [ | apply H0].
 normalize.
 eapply derives_trans; [ | apply H1].
-intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
-repeat rewrite prop_true_andp by auto. auto.
+ go_lowerx.
+ apply andp_right; auto. apply prop_right; auto.
 eapply semax_pre_simple; [ | apply H2].
-intro rho; unfold PROPx,LOCALx, lift1; unfold_lift; simpl; normalize.
+ go_lowerx.  apply andp_right; auto. apply prop_right; auto.
 Qed.
 
 Lemma semax_whilex : 
@@ -195,16 +194,15 @@ intros.
 apply semax_while; auto.
 rewrite exp_andp2.
 apply exp_left. intro x; eapply derives_trans; [ | apply (H0 x)].
-normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 rewrite exp_andp2.
 apply exp_left. intro x; eapply derives_trans; [ | apply (H1 x)].
-intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 normalize.
 apply extract_exists_pre; intro x.
 eapply semax_pre_simple; [ | apply (H2 x)].
-intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 Qed.
-
 
 Lemma semax_whilex2 : 
  forall Espec Delta A1 A2 P Q R test body Post,
@@ -224,15 +222,15 @@ apply semax_while; auto.
 rewrite exp_andp2. apply exp_left. intro x1.
 rewrite exp_andp2. apply exp_left. intro x2.
  eapply derives_trans; [ | apply (H0 x1 x2)].
-normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 rewrite exp_andp2. apply exp_left. intro x1.
 rewrite exp_andp2. apply exp_left. intro x2.
  eapply derives_trans; [ | apply (H1 x1 x2)].
-intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
-normalize. apply extract_exists_pre; intro x1.
-normalize. apply extract_exists_pre; intro x2.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
+rewrite exp_andp2.  apply extract_exists_pre; intro x1.
+rewrite exp_andp2. apply extract_exists_pre; intro x2.
 eapply semax_pre_simple; [ | apply (H2 x1 x2)].
-intro rho; unfold PROPx,LOCALx,local,lift1; unfold_lift; simpl; normalize.
+ go_lowerx. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
 Lemma closed_wrt_map_subst':
@@ -317,32 +315,20 @@ Proof.
 intros.
 intuition.
 eapply semax_post; [ | apply forward_setx_closed_now'; auto with closed].
-intros. intro rho. normalize. apply H3.
-
+intros.  intro rho. normalize. apply H3.
 
 eapply semax_post. intros ek vl rho. 
 simpl. apply andp_left2. apply H3.
 
-eapply semax_pre_post; [ | | eapply (semax_ptr_compare Delta (PROPx P (LOCALx Q (SEPx R))) _ _ _ _ _ sh1 sh2)].
-  +eapply derives_trans; [ | apply now_later]. 
-   intro rho. normalize. 
-   apply andp_right; auto.
-   specialize (H5 rho).   
-   simpl in H5.
-   normalize in H5. 
-   normalize. 
+eapply semax_pre_post; [ | | eapply (semax_ptr_compare Delta (PROPx P (LOCALx Q (SEPx R))) _ _ _ _ _ sh1 sh2)]; auto.
+  +eapply derives_trans; [ | apply now_later].
+  apply andp_right. rewrite insert_local.  apply H5. apply andp_left2; auto.
   
-  +intros ex vl rho.
-   unfold normal_ret_assert. simpl.
-   super_unfold_lift. 
-   repeat apply andp_right. 
-   normalize. 
-   normalize. 
-   normalize. 
-   autorewrite with subst in *. normalize.
-
-   +auto. 
-   +auto.
+  +intros ex vl.
+    unfold normal_ret_assert.
+    repeat rewrite exp_andp2; apply exp_left; intro old.
+    autorewrite with subst.
+    go_lowerx.    repeat apply andp_right; try apply prop_right; auto. 
 Qed.  
 
 Lemma forward_setx_closed_now_seq:
@@ -413,14 +399,9 @@ Lemma forward_setx':
 Proof.
 intros.
 eapply semax_pre_post; [ | | apply (semax_set_forward Delta P id e); auto].
-eapply derives_trans ; [ | apply now_later].
-intro rho; normalize.
-apply andp_right; auto.
-eapply derives_trans; [apply H | ].
-normalize.
-intros ek vl rho; unfold normal_ret_assert. simpl; normalize.
-apply exp_right with x.
-normalize.
++ eapply derives_trans ; [ | apply now_later].
+   apply andp_left2; apply andp_right; auto.
++ intros ek vl; unfold normal_ret_assert; go_lowerx.
 Qed.
 
 
@@ -441,11 +422,10 @@ Proof.
  eapply semax_post; [ | apply forward_setx'; auto].
  intros.
  autorewrite with ret_assert subst.
- intro rho. simpl. normalize.
- apply exp_right with x.
- autorewrite with  subst. normalize.
+ repeat rewrite exp_andp2. apply exp_derives; intro x.
+  autorewrite with subst.
+ go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 Qed.
-
 
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
@@ -465,15 +445,12 @@ typecheck_tid_ptr_compare Delta id = true ->
        (subst id (`old)) P))).
 Proof. 
 intros.
-eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta P _ _ _ _ _ sh1 sh2)].
-eapply derives_trans; [ | apply now_later]. 
-intro rho. normalize. 
-apply andp_right; auto.  
-eapply derives_trans. apply H. normalize. 
-intros ek vl rho. unfold normal_ret_assert. simpl. 
-normalize. 
-apply exp_right with x. normalize. 
-auto. auto. 
+eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta P _ _ _ _ _ sh1 sh2)]; auto. 
++ eapply derives_trans; [ | apply now_later].
+    apply andp_left2. apply andp_right; auto.
++ intros ek vl. unfold normal_ret_assert.
+   repeat rewrite exp_andp2. apply exp_derives; intro x.
+  apply andp_left2; auto.
 Qed. 
 
 Lemma forward_ptr_compare' : 
@@ -514,10 +491,11 @@ eapply semax_post. intros ek vl rho.
 simpl. apply andp_left2. apply H2.
 eapply semax_pre_post; [ | | apply (semax_ptr_compare Delta (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) _ _ _ _ _ sh1 sh2)].
 eapply derives_trans; [ | apply now_later].
-apply andp_right; normalize.
-intros ek vl rho. unfold normal_ret_assert. simpl.
-normalize. apply exp_right with x. normalize.
-autorewrite with subst. normalize. 
+rewrite insert_local; apply andp_right; auto.
+intros ek vl. unfold normal_ret_assert.
+repeat rewrite exp_andp2. apply exp_derives; intro x.
+autorewrite with subst.
+go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 auto. auto. 
 Qed.
 
@@ -545,9 +523,9 @@ Proof.
  eapply semax_post; [ | apply forward_ptr_compare'' with (sh1 := sh1) (sh2 := sh2); auto].
  intros.
  autorewrite with ret_assert subst.
- intro rho. simpl. normalize.
- apply exp_right with x.
- autorewrite with  subst. normalize.
+repeat rewrite exp_andp2. apply exp_derives; intro x.
+ autorewrite with  subst.  go_lowerx.
+ repeat apply andp_right; try apply prop_right; auto.
 Qed. 
 
 Lemma normal_ret_assert_derives':
@@ -561,9 +539,8 @@ Lemma normal_ret_assert_derives'':
   forall (P: environ->mpred) (Q: ret_assert), 
       (P |-- Q EK_normal None) ->
       normal_ret_assert P |-- Q.
-Proof. intros; intros ek vl rho. 
-    unfold normal_ret_assert; destruct ek; simpl; normalize.
-   inv H0. inv H0. inv H0.
+Proof. intros; intros ek vl; unfold normal_ret_assert.
+  go_lowerx. subst; apply H.
 Qed.
 
 Lemma after_set_special1:
@@ -574,20 +551,16 @@ Lemma after_set_special1:
     normal_ret_assert (EX  x : A, PROPx (P x) (LOCALx (Q x) (SEPx (R x)))) ek vl 
    |-- normal_ret_assert Post ek vl.
 Proof.
- intros.
- intro rho; unfold local,lift1. simpl.
- apply derives_extract_prop. intro.
- unfold normal_ret_assert.
- simpl. apply derives_extract_prop. intro.
- simpl. subst. apply andp_right. apply prop_right; auto.
- apply andp_derives; auto.
- eapply derives_trans; [ | apply H]; clear H.
- simpl. apply exp_derives; intro x.
- unfold PROPx. simpl. apply andp_derives; auto.
- unfold LOCALx; simpl; apply andp_derives; auto.
- unfold local,lift1; unfold_lift.
- apply prop_derives.
- intro; split; auto.
+ intros. unfold normal_ret_assert.
+ repeat rewrite exp_andp2.
+ apply exp_left; intro x.
+ apply andp_right. go_lowerx; apply prop_right; auto.
+ apply andp_right. go_lowerx; apply prop_right; auto.
+ eapply derives_trans; [ | apply H].
+ apply exp_right with x.
+ rewrite <- insert_local.
+ go_lowerx. subst.
+ repeat apply andp_right; try apply prop_right; auto.
 Qed.
 
 
@@ -610,10 +583,9 @@ Lemma semax_load_assist1:
   forall B P Q1 Q R,
   (forall rho, Q1 rho = True) ->
   B && PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (Q1::Q) (SEPx R)).
-Proof. intros; intro rho;  normalize.
- apply andp_left2.
-  apply andp_right; auto. apply andp_right; apply prop_right; auto.
- rewrite H; auto.
+Proof.
+ intros. rewrite <- insert_local. apply andp_derives; auto.
+ intro rho; apply prop_right; simpl. rewrite H; auto.
 Qed.
 
 Lemma snd_split_map {A B}:
@@ -623,6 +595,58 @@ Proof.
 destruct (split l); f_equal; auto.
 Qed.
 
+Opaque tc_andp.
+
+Lemma tc_expr_init:
+  forall i Delta rho e, tc_expr Delta e rho ->
+                 tc_expr (initialized i Delta) e rho
+with tc_lvalue_init:
+  forall i Delta rho e, tc_lvalue Delta e rho ->
+                 tc_lvalue (initialized i Delta) e rho.
+Proof.
+clear tc_expr_init; induction e; intros; auto;
+ unfold tc_expr in *; simpl in *.
+ destruct (access_mode t) eqn:?; auto.
+  unfold get_var_type in *.
+ rewrite expr_lemmas.set_temp_ve.
+ destruct ((var_types Delta) ! i0); auto.
+ rewrite expr_lemmas.set_temp_ge.
+ destruct ((glob_types Delta) ! i0); auto.
+ destruct (negb (type_is_volatile t)); auto.
+ destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
+ destruct p.  
+ destruct (eq_dec i i0). subst. 
+  apply temp_types_init_same in Heqo. rewrite Heqo.
+  destruct b; [apply H | ]. simpl in *.
+  if_tac; auto. apply I.
+  rewrite <- expr_lemmas.initialized_ne by auto.  rewrite Heqo.
+  auto.
+  rewrite denote_tc_assert_andp in H|-*.
+  destruct H; split; auto. apply tc_lvalue_init; auto.
+  rewrite denote_tc_assert_andp in H|-*.
+ destruct H; split; auto.
+  repeat rewrite denote_tc_assert_andp in H|-*.
+  destruct H as [[? ?] ?]. split; auto.
+    rewrite denote_tc_assert_andp in H|-*.
+  destruct H; split; auto.
+ destruct (access_mode t); auto.
+  repeat rewrite denote_tc_assert_andp in H|-*.
+  destruct H as [[? ?] ?]. split; auto. split; auto.
+ apply tc_lvalue_init; auto.
+
+ clear tc_lvalue_init.
+ unfold tc_lvalue; induction e; simpl; auto; intro.
+ unfold get_var_type in *.  rewrite expr_lemmas.set_temp_ve.
+ destruct ((var_types Delta) ! i0); auto.
+rewrite expr_lemmas.set_temp_ge.
+ destruct ((glob_types Delta) ! i0); auto.
+   repeat rewrite denote_tc_assert_andp in H|-*.
+ decompose [and] H; repeat split; auto.
+ apply tc_expr_init; auto.
+   repeat rewrite denote_tc_assert_andp in H|-*.
+ decompose [and] H; clear H; repeat split; auto.
+Qed.
+Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 
 Lemma semax_logical_or:
  forall Espec Delta P Q R tid e1 e2 b
@@ -647,37 +671,28 @@ apply semax_ifthenelse_PQR.
   -  eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 
-     intro rho. normalize. apply prop_right. simpl.
-     unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
+     go_lowerx. apply andp_right; apply prop_right.
+    apply I.   unfold tc_temp_id, typecheck_temp_id. rewrite H1.
      simpl. apply I.
-     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
-     apply exp_left. intro old. normalize. autorewrite with subst.
-     intro rho'. normalize.
-     repeat apply andp_right; normalize. apply prop_right.
-     unfold logical_or_result. unfold typed_true in *.
-     unfold subst in *. 
-
-     assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     
-     super_unfold_lift. rewrite H10 in *. clear H10.
-     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
-     auto.
+     intros ek vl.
+    unfold normal_ret_assert. repeat rewrite exp_andp2.
+     apply exp_left;  intro.
+     autorewrite with subst.
+   replace (`(typed_true (typeof e1)) (subst tid `x (eval_expr e1)))
+    with (`(typed_true (typeof e1)) (eval_expr e1))
+  by (extensionality rho; unfold_lift; autorewrite with subst; auto).
+   go_lowerx. subst. apply andp_right; auto. apply prop_right; split; auto.
+   rewrite H6.
+   unfold logical_or_result.
+ destruct (typeof e1), (eval_expr e1 rho); inv H; inv H8; simpl;
+   try rewrite H3; auto.
   - eapply semax_seq'. 
       + eapply forward_setx.
-        intro rho. normalize. 
-        apply andp_right; apply prop_right.
+         go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
         unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
-       apply H5.        
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
         autorewrite with subst.  
         apply (semax_pre ((PROPx P
@@ -687,10 +702,11 @@ apply semax_ifthenelse_PQR.
             :: `(typed_false (typeof e1)) (eval_expr e1)
                :: tc_expr Delta e2
                   :: Q)
-           (SEPx R))))). intro rho. normalize.
+           (SEPx R))))).
+       go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
         eapply semax_post_flipped.
-        eapply forward_setx. intro rho. normalize.
-        apply andp_right; apply prop_right. 
+        eapply forward_setx.
+        go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound. 
         super_unfold_lift. split. 
         erewrite temp_types_init_same by eauto. simpl. apply I.
@@ -698,61 +714,26 @@ apply semax_ifthenelse_PQR.
         simpl. unfold tc_temp_id. unfold typecheck_temp_id.
         erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
         simpl. super_unfold_lift; auto.
-        intros. intro rho.
-        normalize. apply normal_ret_assert_derives'.
-        apply exp_left. intro old. autorewrite with subst.
-        intro rho'. normalize. repeat apply andp_right; 
-                               [ | normalize | normalize].
-
-        { apply prop_right.
-          rewrite H4. simpl. super_unfold_lift.
-          simpl. unfold subst in *.
-          unfold eval_id. simpl. rewrite Map.gss. simpl.
-          apply expr_lemmas.typecheck_expr_sound in H8.
-          Focus 2. eapply tc_environ_init. apply H5.
-
-
-          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
-                  eval_expr (Ecast e2 tbool) rho').
-              simpl. super_unfold_lift. unfold eval_cast. simpl.
-              remember (typeof e2). 
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H10 in *. simpl in H10. super_unfold_lift.
-          clear H9 H10. rewrite H6.
-          assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *. clear H9.
-          assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *.
-          clear H4 H6 H9 H3. 
-          simpl. super_unfold_lift.
-          unfold logical_or_result. 
-          unfold typed_false in *. rewrite H7.
-          simpl. 
-          apply bool_cast. auto.
-          }
+        intros. unfold normal_ret_assert.
+        repeat rewrite exp_andp2. apply exp_left; intro.
+       simpl eval_expr. 
+       autorewrite with subst.
+       rewrite (closed_wrt_subst _ _ (eval_expr e1)) by auto.
+       rewrite (closed_wrt_subst _ _ (eval_expr e2)) by auto.
+       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
+       rewrite H6. rewrite H8.
+        unfold logical_or_result.
+        subst ek vl. simpl in  H2.
+        rewrite H9.
+      clear e1 H CLOSE1 H9.
+      clear Q CLOSQ R CLOSR H11.
+       unfold subst in *.
+       apply bool_cast.
+      replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
+      by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
+        eapply expr_lemmas.typecheck_expr_sound; eauto.
+    apply tc_expr_init; apply H10.
 Qed.
-
-
-
 
 Lemma semax_logical_and:
  forall Espec Delta P Q R tid e1 e2 b
@@ -777,13 +758,11 @@ apply semax_ifthenelse_PQR.
   - auto. 
   - eapply semax_seq'. 
       + eapply forward_setx.
-        intro rho. normalize. 
-        apply andp_right; apply prop_right.
+         go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
-        unfold isCastResultType. simpl. destruct (typeof e2); 
+        unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
-        apply H5.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
         autorewrite with subst.  
         apply (semax_pre ((PROPx P
@@ -793,106 +772,50 @@ apply semax_ifthenelse_PQR.
             :: `(typed_true (typeof e1)) (eval_expr e1)
                :: tc_expr Delta e2
                   :: Q)
-           (SEPx R))))). intro rho. normalize.
+           (SEPx R))))).
+       go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
         eapply semax_post_flipped.
-        eapply forward_setx. intro rho. normalize.
-        apply andp_right; apply prop_right. 
+        eapply forward_setx.
+        go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound. 
         super_unfold_lift. split. 
         erewrite temp_types_init_same by eauto. simpl. apply I.
-        apply I.
+         apply I.
         simpl. unfold tc_temp_id. unfold typecheck_temp_id.
         erewrite temp_types_init_same by eauto. rewrite tc_andp_sound.
         simpl. super_unfold_lift; auto.
-        intros. intro rho.
-        normalize. apply normal_ret_assert_derives'.
-        apply exp_left. intro old. autorewrite with subst.
-        intro rho'. normalize. repeat apply andp_right; 
-                               [ | normalize | normalize].
-
-        { apply prop_right.
-          rewrite H4. simpl. super_unfold_lift.
-          simpl. unfold subst in *.
-          unfold eval_id. simpl. rewrite Map.gss. simpl.
-          apply expr_lemmas.typecheck_expr_sound in H8.
-          Focus 2. eapply tc_environ_init. apply H5.
-
-
-          assert ((eval_expr (Ecast e2 tbool) (env_set rho' tid old)) =
-                  eval_expr (Ecast e2 tbool) rho').
-              simpl. super_unfold_lift. unfold eval_cast. simpl.
-              remember (typeof e2). 
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H10 in *. simpl in H10. super_unfold_lift.
-          clear H9 H10. rewrite H6.
-          assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *. clear H9.
-          assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-          rewrite H9 in *.
-          clear H4 H6 H9 H3. 
-          simpl. super_unfold_lift.
-          unfold logical_and_result. 
-          unfold typed_true in *. rewrite H7.
-          simpl. 
-
-        apply bool_cast. auto. }
-  -  eapply semax_pre. apply derives_refl.
+        intros. unfold normal_ret_assert.
+        repeat rewrite exp_andp2. apply exp_left; intro.
+       simpl eval_expr. 
+       autorewrite with subst.
+       rewrite (closed_wrt_subst _ _ (eval_expr e1)) by auto.
+       rewrite (closed_wrt_subst _ _ (eval_expr e2)) by auto.
+       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
+       rewrite H6. rewrite H8.
+        unfold logical_and_result.
+        subst ek vl. simpl in  H2.
+        rewrite H9.
+      clear e1 H CLOSE1 H9.
+      clear Q CLOSQ R CLOSR H11.
+       unfold subst in *.
+       apply bool_cast.
+      replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
+      by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
+        eapply expr_lemmas.typecheck_expr_sound; eauto.
+    apply tc_expr_init; apply H10.
+- eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 
-     intro rho. normalize. apply prop_right. simpl.
+     go_lowerx. apply andp_right; try apply prop_right; auto.
+     apply I.
      unfold tc_temp_id. unfold typecheck_temp_id. rewrite H1.
      simpl. apply I.
-     intros ek vl rho. normalize. apply normal_ret_assert_derives'.
-     apply exp_left. intro old. normalize. autorewrite with subst.
-     intro rho'. normalize.
-     repeat apply andp_right; normalize. apply prop_right.
+     intros ek vl. unfold normal_ret_assert.
+   repeat rewrite exp_andp2. apply exp_left; intro x.
+   autorewrite with subst.  
+    go_lowerx. apply andp_right; auto.
+  apply prop_right; split; auto.
      unfold logical_and_result. unfold typed_false in *.
-     unfold subst in *. 
-
-     assert ((eval_expr e1 (env_set rho' tid old)) =
-                  eval_expr e1 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE1. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     
-     super_unfold_lift. rewrite H10 in *. clear H10.
-     rewrite H6. simpl. rewrite H4. simpl. super_unfold_lift.
-     assert (exists v, strict_bool_val (eval_expr e2 rho') (typeof e2) = Some v).
-     assert ((eval_expr e2 (env_set rho' tid old)) =
-                  eval_expr e2 rho').
-              replace rho' with (mkEnviron (ge_of rho') (ve_of rho')
-                                         (te_of rho')).
-              unfold env_set. simpl.
-              erewrite <- CLOSE2. destruct rho'. simpl. auto.
-              intros. rewrite Map.gsspec. if_tac; auto. destruct rho'; 
-                                                        auto.
-     apply expr_lemmas.typecheck_expr_sound in H7; auto.
-     rewrite H10 in *. remember (eval_expr e2 rho'). 
-     destruct v; eauto; 
-     destruct (typeof e2); simpl; eauto; try solve[inv H7; 
-     try rewrite H12; eauto]; simpl in *; congruence.
-     auto.
+    autorewrite with subst in H8. rewrite H8.
+    apply H6.
 Qed.
-     

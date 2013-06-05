@@ -24,6 +24,16 @@ apply andp_right; auto.
 apply andp_left2; auto.
 Qed.
 
+
+Lemma insert_SEP: 
+ forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
+Proof.
+intros. 
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
+extensionality rho; simpl.
+repeat rewrite sepcon_andp_prop. f_equal; auto.
+Qed.
+
 Lemma semax_load'':
   forall Espec (Delta : tycontext) (sh : Share.t) (id : positive) (n: nat)
          P Q R (e1 : expr) t1 i2 (v1 v2 : environ -> val),
@@ -59,7 +69,7 @@ assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eva
   apply andp_left2. apply andp_left2.
   unfold_lift in H5.
   revert R H5; induction n; destruct R; intros; inv H5; simpl in *; auto.
-  rewrite mapsto_isptr. normalize.
+  rewrite mapsto_isptr.  normalize.
   apply derives_trans with (TT * (!!isptr (v1 rho) && TT)).
   apply sepcon_derives; auto. rewrite andp_TT. auto.
   normalize.
@@ -73,18 +83,12 @@ rewrite (local_andp_lemma _ _ H4).
 rewrite (local_andp_lemma _ _ H3).
 rewrite (local_andp_lemma _ _ H2).
 repeat rewrite <- andp_assoc. apply andp_left1.
-intro rho; unfold local, lift1.
-clear - H H1; simpl; normalize.
-unfold tc_expr, tc_lvalue in *; simpl in *.
-rewrite H1. rewrite H. simpl.
-repeat rewrite tc_andp_TT2.
-rewrite denote_tc_assert_andp.
-simpl.
-split; auto.
+{go_lowerx. intro. apply prop_right. unfold tc_lvalue; simpl.
+ rewrite H,H1.
+ repeat rewrite denote_tc_assert_andp; repeat split; auto.
+}
 unfold tc_temp_id_load. rewrite H0.
-intro rho.
-simpl.
-apply prop_right.
+go_lowerx. apply prop_right.
 do 2 eexists; split; try reflexivity.
 unfold allowedValCast; simpl. rewrite CLASSIFY.
 destruct t1; simpl; auto.
@@ -97,28 +101,26 @@ rewrite <- insert_local.
 apply andp_derives; auto.
 apply andp_left2.
 clear - H5.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; intro rho; simpl.
-normalize.
+go_lowerx.
 clear - H5; revert R H5; induction n; destruct R; simpl; intros; inv H5.
 rewrite emp_sepcon; apply sepcon_derives; auto.
 rewrite <- sepcon_assoc.
 rewrite (sepcon_comm (mapsto _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
-intro rho; unfold_lift.
-unfold local, lift1; simpl.
-normalize.
+go_lowerx.
 rewrite mapsto_force_ptr.
 rewrite H6; auto.
 
-intros ek vl rho.
+intros ek vl.
 unfold normal_ret_assert.
-normalize. 
-apply exp_right with old.
-normalize. simpl typeof; unfold eval_lvalue; fold eval_expr.
+repeat rewrite exp_andp2.
+apply exp_derives; intro old.
+simpl typeof; unfold eval_lvalue; fold eval_expr.
 autorewrite with subst.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
-normalize.
+rewrite insert_SEP.
+apply andp_left2.
+go_lowerx. apply andp_right; try apply prop_right; auto.
 rewrite mapsto_force_ptr.
 clear - H5.
 revert R H5; induction n; destruct R; simpl; intros; auto; inv H5.
@@ -164,10 +166,7 @@ assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eva
   {clear - H1' H0. rename H1' into H4; rename H0 into H5.
    rewrite (local_andp_lemma _ _ H4).
    clear H4.
-   unfold_lift.
-   change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; intro rho; simpl in *.
-   apply derives_extract_prop; intro. unfold_lift in H. rewrite <- H. clear e1 H.
-   apply andp_left2. apply andp_left2.
+   go_lowerx. rewrite <- H. clear e1 H.
    unfold_lift in H5.
    revert R H5; induction n; destruct R; intros; inv H5; simpl in *; auto.
    rewrite mapsto__isptr. normalize.
@@ -183,53 +182,36 @@ rewrite (local_andp_lemma _ _ H1').
 rewrite (local_andp_lemma _ _ H2).
 rewrite (local_andp_lemma _ _ H3).
 rewrite (local_andp_lemma _ _ H5).
-change SEPx with SEPx'.
-intro rho; unfold PROPx, LOCALx, SEPx', local, lift1,lift2.
-simpl.
-unfold_lift.
-repeat (apply derives_extract_prop; intro).
+go_lowerx.
+repeat apply andp_right; try apply prop_right; auto. 
 destruct H11.
 unfold tc_lvalue. simpl typecheck_lvalue.
-repeat rewrite denote_tc_assert_andp.
-rewrite H; simpl.
-
-rewrite isptr_force_ptr by auto.
-repeat apply andp_right; try apply prop_right; auto.
-repeat split; auto.
-rewrite NONVOL; hnf; unfold_lift; hnf; auto.
+repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite H; apply I. rewrite NONVOL; apply I.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
-rewrite <- H6.
+unfold_lift. rewrite isptr_force_ptr by auto. rewrite <- H6.
 clear - H0.
 revert R H0; induction n; destruct R; simpl; intros; inv H0; auto.
-rewrite emp_sepcon; auto.
+rewrite emp_sepcon; auto. f_equal.
 rewrite <- sepcon_assoc.
 rewrite (sepcon_comm (mapsto_ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 
-intros ek vl rho; unfold normal_ret_assert, local,lift1; unfold_lift; simpl. unfold_lift.
-match goal with |- ?A |-- _ => apply derives_trans with (local (`eq v1 (eval_expr e1)) rho && A) end.
-apply andp_right.
-eapply derives_trans; [ | apply H1].
+intros ek vl; unfold normal_ret_assert.
+match goal with |- ?A |-- _ => 
+  apply derives_trans with (local (`eq v1 (eval_expr e1)) && A) 
+end.
+apply andp_right; auto. eapply derives_trans; [| apply H1].
 rewrite <- insert_local.
-simpl.
-apply andp_derives.
-apply prop_derives.
-clear. 
-unfold tc_environ, exit_tycon. destruct ek; auto.
-repeat (apply derives_extract_prop; intro).
-subst.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; simpl.
-clear. induction R; normalize.
-repeat (apply derives_extract_prop; intro).
-repeat (rewrite prop_true_andp by auto).
-auto.
-repeat (apply derives_extract_prop; intro).
-unfold_lift in H5. rewrite <- H5.
-repeat (rewrite prop_true_andp by auto).
-normalize.
-rewrite mapsto_force_ptr.
+rewrite andp_comm.
+rewrite insert_SEP.
+go_lowerx. subst. rewrite sepcon_emp.
+repeat apply andp_right; try apply prop_right; auto.
+rewrite insert_SEP.
+go_lowerx. subst. unfold_lift. rewrite mapsto_force_ptr.
+rewrite <- H5. 
 clear - H0. revert R H0; induction n; destruct R; simpl; intros; inv H0.
 rewrite emp_sepcon; auto.
 rewrite <- sepcon_assoc.
@@ -237,7 +219,6 @@ rewrite (sepcon_comm (mapsto _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 Qed.
-
 
 Lemma semax_load_field:
 forall Espec (Delta: tycontext) sh id t1 fld P e1 v2 t2 i2 sid fields ,
@@ -275,10 +256,7 @@ apply (semax_pre_post
   [ | | apply semax_load].
 
 (* PRECONDITION *)
-intro rho.
-unfold tc_temp_id_load, local,lift1.  unfold_lift.
-simpl.
-apply derives_extract_prop; intro.
+go_lowerx.
 apply later_derives.
 apply derives_extract_prop; intro.
 unfold field_mapsto; unfold_lift. 
@@ -290,7 +268,9 @@ case_eq (field_offset fld fields); intros;
  try (rewrite FF_sepcon; apply FF_left).
 case_eq (access_mode t2); intros;
  try (rewrite FF_sepcon; apply FF_left).
-normalize.
+rewrite andp_assoc.
+repeat rewrite sepcon_andp_prop'.
+  repeat (apply derives_extract_prop; intro).
 repeat apply andp_right; try apply prop_right.
 unfold tc_lvalue. 
 unfold typecheck_lvalue; fold typecheck_lvalue. rewrite H1.
@@ -301,7 +281,7 @@ exists t2; exists i2; split; auto.
 unfold allowedValCast. rewrite CLASSIFY.
 destruct t2; simpl; auto. auto.
 unfold mapsto.
-normalize.
+repeat rewrite prop_true_andp by auto.
 unfold umapsto.
 rewrite H6.
 unfold eval_field. rewrite H5.
@@ -309,27 +289,27 @@ simpl. apply sepcon_derives; auto. apply orp_right1. auto.
 
 (* POSTCONDITION *)
 intros ek vl.
-apply andp_left2.
-intro rho. apply normal_ret_assert_derives.
-unfold local, lift1; unfold_lift; simpl.
+apply andp_left2. apply normal_ret_assert_derives'.
 apply exp_derives. intro old.
 apply andp_derives; auto.
-unfold subst. unfold_lift.
+unfold subst. go_lowerx.
+rewrite sepcon_andp_prop. apply derives_extract_prop. intro.
 unfold mapsto, field_mapsto, umapsto.
+rewrite sepcon_andp_prop'. apply derives_extract_prop. intro.
 rewrite H1. rewrite <- TC2.
-normalize.
-case_eq (access_mode t2); intros; 
+destruct (access_mode t2) eqn:?; 
  try (rewrite FF_sepcon; apply FF_left).
 simpl eval_field. unfold always.
 rewrite field_offset_unroll. unfold offset_val.
+unfold_lift.
 destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
 destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
-normalize.
 apply sepcon_derives; auto.
+repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
-normalize. rewrite H5 in H2; inv H2.
+apply derives_extract_prop; intro.
+rewrite H4 in H3; inv H3.
 Qed.
-
 
 Lemma semax_store_field: 
 forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
@@ -404,8 +384,12 @@ destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
 destruct ( access_mode
     (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld));
    try (rewrite FF_sepcon; apply FF_left).
-normalize.
-apply exp_right with v2. rewrite H0. normalize.
+rewrite sepcon_andp_prop'. apply derives_extract_prop; intro.
+repeat rewrite exp_sepcon1.
+simpl.
+apply exp_derives; intro v2.
+rewrite H0. rewrite prop_true_andp by auto. auto.
+
 apply extract_exists_pre; intro v0.
 
 pose proof (semax_store Delta (Efield e1 fld t2) e2 sh 
@@ -418,6 +402,7 @@ match goal with |- (?A && |> ?B |-- |> ?C) =>
     [rewrite (later_andp A B); apply andp_derives; auto; apply now_later 
     | apply later_derives]
 end.
+
 intro rho; unfold lift1; unfold_lift.
  simpl andp; simpl sepcon. cbv beta.
 rewrite TE1.
@@ -433,7 +418,6 @@ unfold lift1. unfold_lift.
 rewrite TE1. rewrite H4; simpl eval_field.
 rewrite field_offset_unroll in H5. rewrite H5.
 normalize.
-(* apply exp_right with v0. *)
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. rewrite TE1.
 rewrite H5. rewrite tc_andp_TT2.
@@ -448,23 +432,25 @@ hnf; simpl. hnf in H3. simpl in H3.
 rewrite denote_tc_assert_andp in H3. destruct H3.
 eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
 
-intros ek vl rho; unfold local, lift1; unfold_lift; unfold normal_ret_assert; simpl.
-unfold_lift.
+intros ek vl; unfold normal_ret_assert; go_lowerx.
 normalize.
 apply sepcon_derives; auto.
 unfold mapsto, umapsto, field_mapsto.
 rewrite TE1.
-case_eq (access_mode t2); intros; normalize.
+apply derives_extract_prop; intro.
+destruct (access_mode t2) eqn:?; try apply FF_left.
+unfold_lift.
 unfold eval_field.
 rewrite field_offset_unroll.
 unfold offset_val, always.
-case_eq (field_offset fld fields); intros; normalize.
-case_eq (eval_lvalue e1 rho); intros; normalize.
+case_eq (field_offset fld fields); intros; try apply FF_left.
+case_eq (eval_lvalue e1 rho); intros; try apply FF_left.
 rewrite <- H1. rewrite H4.
-normalize.
+rewrite Heqm.
+repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
-normalize.
-rewrite H7 in H2; inv H2.
+apply derives_extract_prop; intro.
+rewrite H9 in H4; inv H4.
 Opaque field_mapsto.
 Qed.
 
@@ -487,10 +473,8 @@ intros.
 eapply semax_pre0; [ | eapply semax_store_field; eassumption].
 apply later_derives.
 apply andp_derives; auto.
-intro rho; simpl.
 apply sepcon_derives; auto.
-unfold lift.
-unfold_lift. apply field_mapsto_field_mapsto_.
+go_lowerx. apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma semax_load_field'':
@@ -529,22 +513,14 @@ rewrite (local_andp_lemma _ _ H5).
 rewrite <- insert_local.
 assert (PROPx P (LOCALx Q (SEPx R)) |-- local (`isptr v1)).
 clear - H6.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
-change SEPx with SEPx'.
- unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
+go_lowerx.
 unfold_lift in H6.
 revert R H6; induction n; destruct R; simpl; intros; inv H6.
-rewrite field_mapsto_isptr. normalize.
+rewrite field_mapsto_isptr. clear; normalize.
 apply derives_trans with (TT * (!!isptr (v1 rho) && TT)).
 apply sepcon_derives; auto. rewrite andp_TT; auto. normalize.
  rewrite (local_andp_lemma _ _ H3).
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
-repeat apply andp_right; try apply prop_right; auto.
-normalize.
-repeat apply andp_right; try apply prop_right; auto.
+go_lowerx.
 rewrite <- H8.
 clear - H6. rename H6 into H5.
 clear - H5; revert R H5; induction n; destruct R; simpl; intros; inv H5.
@@ -554,13 +530,11 @@ rewrite (sepcon_comm (field_mapsto _ _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 
-intros ek vl rho.
-unfold normal_ret_assert.
-normalize.
+intros ek vl; unfold normal_ret_assert.
+repeat rewrite exp_andp2. apply exp_derives; intro old.
 autorewrite with subst.
-normalize.
-apply exp_right with old.
-normalize.
+rewrite insert_SEP. go_lowerx.
+apply andp_right; try apply prop_right; auto.
 clear - H6. rename H6 into H5.
 clear - H5; revert R H5; induction n; destruct R; simpl; intros; inv H5.
 apply sepcon_derives. apply derives_refl.
@@ -607,24 +581,21 @@ rewrite (local_andp_lemma _ _ H5).
 rewrite <- insert_local.
 assert (PROPx P (LOCALx Q (SEPx R)) |-- local (`isptr v1)).
 clear - H6.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
-change SEPx with SEPx'.
- unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
+go_lowerx.
 unfold_lift in H6.
 revert R H6; induction n; destruct R; simpl; intros; inv H6.
 rewrite field_mapsto_isptr. normalize.
 apply derives_trans with (TT * (!!isptr (v1 rho) && TT)).
 apply sepcon_derives; auto. rewrite andp_TT; auto. normalize.
  rewrite (local_andp_lemma _ _ H3).
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
+go_lowerx. 
 repeat apply andp_right; try apply prop_right; auto.
+unfold tc_lvalue; simpl.
 repeat rewrite denote_tc_assert_andp.
 rewrite H0, H. repeat split; simpl; auto.
 unfold_lift; rewrite <- H8; apply H10.
-normalize.
+repeat rewrite prop_true_andp by auto.
+unfold_lift. rewrite field_mapsto_force_ptr.
 rewrite <- H8.
 clear - H6. rename H6 into H5.
 clear - H5; revert R H5; induction n; destruct R; simpl; intros; inv H5.
@@ -634,14 +605,15 @@ rewrite (sepcon_comm (field_mapsto _ _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 
-intros ek vl rho.
+intros ek vl.
 unfold normal_ret_assert.
-normalize.
+repeat rewrite exp_andp2; apply exp_derives; intro old.
+simpl eval_lvalue.
 autorewrite with subst.
-normalize.
-apply exp_right with old.
-normalize.
-simpl eval_lvalue. autorewrite with subst. normalize.
+rewrite insert_SEP.
+go_lowerx.
+apply andp_right. apply prop_right; auto.
+rewrite field_mapsto_force_ptr.
 clear - H6. rename H6 into H5.
 clear - H5; revert R H5; induction n; destruct R; simpl; intros; inv H5.
 apply sepcon_derives. apply derives_refl.
@@ -651,7 +623,6 @@ rewrite (sepcon_comm (field_mapsto _ _ _ _ _)).
 rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 Qed.
-
 
 Lemma semax_store_field'':
 forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields 
@@ -717,14 +688,8 @@ assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eva
 rewrite (local_andp_lemma _ _ H1').
 rewrite (local_andp_lemma _ _ H3).
 rewrite (local_andp_lemma _ _ H4).
-change SEPx with SEPx'.
-intro rho; unfold PROPx, LOCALx, SEPx', local, lift1,lift2.
-simpl.
-unfold_lift.
-repeat (apply derives_extract_prop; intro).
-destruct H11.
-unfold tc_lvalue. simpl typecheck_lvalue.
-repeat rewrite prop_true_andp by auto.
+rewrite insert_SEP.
+go_lowerx.
 rewrite <- H7. rewrite <- H0 in H6'.
 clear - H6 H6'. rename H6 into H0.
 revert R H0; induction n; destruct R; intros; inv H0; auto.
@@ -737,19 +702,20 @@ rewrite sepcon_assoc.
 apply sepcon_derives; auto.
 repeat rewrite denote_tc_assert_andp.
 
-intros ek vl rho; unfold normal_ret_assert, local,lift1; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
-repeat apply andp_right; try apply prop_right; auto.
+intros ek vl; unfold normal_ret_assert.
+rewrite insert_SEP.
 rewrite H0.
-match goal with |- ?A |-- _ => apply derives_trans with (local (`eq v1 (eval_lvalue e1)) rho && A) end.
-apply andp_right; auto.
+match goal with |- ?A |-- _ => apply derives_trans with (local (`eq v1 (eval_lvalue e1)) && A) end.
+apply andp_right.
 eapply derives_trans; [ | apply H5].
-normalize.
-apply andp_right; apply prop_right; auto.
-unfold tc_environ, exit_tycon. subst ek. apply H.
-apply derives_extract_prop; intro. unfold_lift in H9. rewrite <- H9.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1; simpl.
-normalize. simpl.
+rewrite <- insert_local.
+go_lowerx.
+repeat apply andp_right; try apply prop_right; auto.
+subst ek. apply H.
+rewrite sepcon_emp; apply prop_right; auto.
+apply andp_derives; auto.
+go_lowerx. rewrite <- H.
+
 clear - H6; revert R H6; induction n; destruct R; simpl; intros; inv H6.
 rewrite emp_sepcon; auto.
 rewrite <- sepcon_assoc.
@@ -796,13 +762,8 @@ rewrite <- insert_local.
 apply andp_right; auto.
 rewrite insert_local.
 rewrite (local_andp_lemma _ _ H1').
-intro rho.
-simpl.
 rewrite <- insert_local.
-simpl.
-repeat (apply derives_extract_prop; intro).
-unfold_lift in H7.
-normalize.
+go_lowerx.
 rewrite <- H7.
 clear - H6 H6'.
 eapply derives_trans with (R1 rho * TT).
@@ -819,7 +780,7 @@ apply derives_trans with ((R1 rho * TT) * TT).
 apply sepcon_derives; auto.
 rewrite sepcon_assoc. apply sepcon_derives; auto.
 apply andp_left2; auto.
-intros. apply andp_left2; auto.
+intros ek vl. apply andp_left2; auto.
 assert (SF := semax_store_field'' Espec Delta n sh t1 fld P (`isptr (eval_expr e1) :: Q) R
   (Ederef e1 t1) v1 e2 t2 R1 sid fields WS).
 eapply semax_pre_post; [ | | eapply SF]; try eassumption; clear SF; auto.
@@ -832,12 +793,11 @@ rewrite (andp_comm (local _) (local _)). rewrite andp_assoc.
 rewrite insert_local. rewrite (local_andp_lemma _ _ H3).
 rewrite <- andp_assoc. 
 apply andp_left1.
-intro rho; unfold local,lift1.
-simpl. rewrite <- prop_and. apply prop_derives.
+go_lowerx. intro. apply prop_right.
 unfold tc_lvalue. simpl typecheck_lvalue.
 rewrite H0,H. simpl tc_bool. repeat rewrite tc_andp_TT2.
-rewrite denote_tc_assert_andp. simpl. unfold_lift.
-intros [? ?]; split; auto.
+rewrite denote_tc_assert_andp.
+split; auto.
 do 2 rewrite <- insert_local.
  rewrite <- andp_assoc.
 rewrite (andp_comm (local _) (local _)). rewrite andp_assoc.
@@ -847,11 +807,7 @@ do 2 rewrite <- insert_local. rewrite <- andp_assoc.
 rewrite (andp_comm (local _) (local _)). rewrite andp_assoc.
 rewrite insert_local.
 rewrite (local_andp_lemma _ _ H5).
-intro rho.
-simpl.
-repeat (apply derives_extract_prop; intro).
-apply prop_right.
-unfold_lift in H7. unfold_lift in H8. unfold_lift.
+go_lowerx. apply prop_right.
 rewrite isptr_force_ptr by auto.
 auto.
 Qed.
@@ -881,27 +837,24 @@ intros. rename H3 into CC.
 eapply semax_pre_post;
   [ | |  apply (semax_load_field Espec Delta sh id t1 fld (PROPx P (LOCALx Q (SEPx R))) e1
    v2 t2 i2 sid fields)]; auto; try congruence.
++
 match goal with |- ?P |-- _ => 
  let P' := strip1_later P in apply derives_trans with (|>P' )
 end.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
 apply later_derives.
-
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
- rewrite field_mapsto_isptr.
-normalize.
-repeat apply andp_right; try apply prop_right; auto.
-
-intros ek vl rho.
+go_lowerx.
++
+intros ek vl.
 unfold normal_ret_assert.
-normalize.
+repeat rewrite exp_andp2.
+apply exp_derives; intro old.
 autorewrite with subst.
-try intros old ?. (* Coq 8.3/8.4 compatibility *)
-apply exp_right with old.
-autorewrite with subst. normalize.
+apply andp_left2.
+rewrite insert_SEP.
+go_lowerx.
+repeat apply andp_right; try apply prop_right; auto.
 Qed.
-
 
 Lemma semax_load_field_deref:
 forall Espec (Delta: tycontext) sh id t1 fld P Q R e1 v2 t2 i2 sid fields ,
@@ -928,32 +881,22 @@ eapply derives_trans.
 apply andp_derives. apply now_later. apply derives_refl.
 rewrite <- later_andp. apply later_derives.
 apply go_lower_lem9.
- change SEPx with SEPx'.
- intro rho; unfold PROPx, LOCALx, SEPx', local,lift1; unfold_lift.
-simpl.
-apply andp_derives; auto.
-rewrite field_mapsto_isptr.
-rewrite field_mapsto_nonvolatile.
-normalize.
-apply andp_right; auto.
-apply andp_right; apply prop_right; auto.
-hnf; simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
-rewrite H0; reflexivity.
-rewrite H8; reflexivity.
+go_lowerx.
+rewrite field_mapsto_isptr. normalize.
+rewrite field_mapsto_nonvolatile. normalize.
+unfold_lift. rewrite isptr_force_ptr by auto.
+repeat apply andp_right; try apply prop_right;  auto.
+hnf; simpl. rewrite H0. rewrite H9.
+repeat rewrite denote_tc_assert_andp; repeat split; auto.
 
-intros. apply andp_left2.
+intros ek vl. apply andp_left2.
 apply normal_ret_assert_derives'.
 apply exp_derives; intro old.
- change SEPx with SEPx'.
- intro rho; unfold PROPx, LOCALx, SEPx', local,lift1; unfold_lift.
 simpl.
-apply andp_derives; auto.
-apply andp_derives; auto.
-unfold subst; simpl.
-apply sepcon_derives; auto.
-unfold_lift.
+autorewrite with subst.
+go_lowerx.
 rewrite field_mapsto_force_ptr.
-auto.
+repeat apply andp_right; try apply prop_right; auto.
 Qed.
 
 Lemma semax_store_field':
@@ -980,15 +923,13 @@ specialize (H3 Espec Delta sh e1 fld (PROPx P (LOCALx Q (SEPx R)))
    t2 e2 sid fields WS H0 H1 H2).
 eapply semax_pre_post; [ | | eapply H3]; try eassumption.
 apply andp_left2. apply later_derives.
-change SEPx with SEPx';
-unfold PROPx, LOCALx,SEPx', local,lift1; unfold_lift; intro rho.
-simpl. normalize. rewrite H0; auto. 
+go_lowerx. rewrite H0; auto. 
 
-intros ek vl rho; unfold normal_ret_assert, local,lift1; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro); subst.
-repeat apply andp_right; try apply prop_right; auto.
+intros ek vl.
+apply andp_left2. apply normal_ret_assert_derives'.
+rewrite insert_SEP.
 rewrite H0.
-normalize.
+go_lowerx.
 Qed.
 
 Lemma semax_store_field_deref:
@@ -1012,20 +953,17 @@ pose proof (semax_store_field' Espec Delta sh t1 fld P Q R (Ederef e1 t1) e2 t2 
 unfold_lift. unfold_lift in H3.
 eapply semax_pre_post; [  | | eapply H3].
 apply andp_left2; apply later_derives.
-intro rho; simpl; unfold PROPx; simpl; apply andp_derives; auto.
-change SEPx with SEPx'; unfold LOCALx, SEPx'; simpl; normalize.
-
+go_lowerx.
 rewrite field_mapsto__isptr.
-rewrite field_mapsto__nonvolatile.
-simpl; normalize.
+rewrite field_mapsto__nonvolatile. normalize.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. repeat rewrite denote_tc_assert_andp.
 repeat split; auto. rewrite H0; apply I. rewrite H. apply I.
 
-intros. apply andp_left2; auto.
+intros ek vl. apply andp_left2; auto.
 apply normal_ret_assert_derives'.
-intro rho; simpl; unfold PROPx; simpl; apply andp_derives; auto.
-change SEPx with SEPx'; unfold LOCALx, SEPx'; simpl; normalize.
+go_lowerx.
+normalize.
 Qed.
 
 Lemma semax_store_PQR:
@@ -1048,30 +986,22 @@ pose proof semax_store.
 unfold_lift; unfold_lift in H0.
 eapply semax_pre_post; [ | | eapply (H0 Delta (Ederef e1 t1) e2 sh)]; try eassumption.
 instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
-apply andp_left2. apply later_derives. change SEPx with SEPx'.
-intro rho; unfold PROPx, LOCALx, SEPx', local, lift1,lift2.
-simpl.
-unfold_lift.
-normalize.
-unfold tc_lvalue. simpl typecheck_lvalue.
-rewrite H; simpl.
+apply andp_left2. apply later_derives.
+go_lowerx.
 rewrite mapsto__isptr at 1. normalize.
 repeat apply andp_right; try apply prop_right; auto.
+hnf; simpl. rewrite H; simpl.
 repeat rewrite denote_tc_assert_andp.
 repeat split; auto.
 rewrite NONVOL; hnf; unfold_lift; hnf; auto.
 replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
 clear - H5; hnf in H5. destruct (eval_expr e1 rho); try contradiction; simpl; auto.
 
-intros ek vl rho; unfold normal_ret_assert, local,lift1; unfold_lift; simpl. unfold_lift.
-repeat (apply derives_extract_prop; intro).
-subst. repeat rewrite prop_true_andp by auto.
-normalize.
-cancel.
-clear.
-rewrite mapsto_isptr at 1. normalize.
-replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
-destruct (eval_expr e1 rho); simpl in *; try contradiction; auto.
+intros ek vl; unfold normal_ret_assert.
+rewrite insert_SEP. go_lowerx.
+unfold_lift.
+rewrite mapsto_force_ptr.
+auto.
 Qed.
 
 Lemma semax_load':
@@ -1102,38 +1032,31 @@ match goal with |- ?P |-- _ =>
 end.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
 apply later_derives.
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,lift1,tc_expr,tc_lvalue; unfold_lift; simpl.
-repeat (apply derives_extract_prop; intro).
+rewrite insert_SEP.
+go_lowerx.
 rewrite mapsto_isptr.
-rewrite sepcon_andp_prop'.
-apply derives_extract_prop; intro.
-destruct H4.
-rewrite H in *. rewrite H1 in *. simpl.
-unfold mapsto.
+normalize.
 repeat apply andp_right; try apply prop_right; auto.
-repeat rewrite denote_tc_assert_andp.
-repeat split; auto.
+hnf; simpl; repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite H; apply I.
+rewrite H1; apply I.
 hnf. exists t1, i2. split; auto.
 unfold allowedValCast. rewrite CLASSIFY.
 destruct t1; simpl; auto.
-normalize.
-apply sepcon_derives; auto.
-destruct (eval_expr e1 rho); inv H5; auto.
+unfold_lift; rewrite mapsto_force_ptr; auto.
 
-intros ek vl rho.
+intros ek vl.
+apply andp_left2.
 unfold normal_ret_assert.
-normalize. 
-try (intros old ?).  (* Coq 8.3/8.4 compatibility *)
-apply exp_right with old.
-normalize. simpl typeof; unfold eval_lvalue; fold eval_expr.
+repeat rewrite exp_andp2.
+apply exp_derives; intro old.
+simpl eval_lvalue.
 autorewrite with subst.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
-normalize.
-apply sepcon_derives; auto.
-match goal with |- mapsto _ _ (force_ptr ?E) _ |-- _ =>
- destruct E; simpl; auto
-end.
+repeat rewrite insert_SEP.
+go_lowerx.
+repeat apply andp_right; try apply prop_right; auto.
+unfold_lift; rewrite mapsto_force_ptr.
+auto.
 Qed.
 
 

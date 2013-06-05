@@ -117,6 +117,8 @@ FILES = \
 %.vo: %.v
 	@echo COQC $*.v
 	@$(COQC) $(COQFLAGS) $*.v
+#  to collect wall-clock timings, use the following in place of the one above
+#	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
 
 compcert/%.vo: compcert/%.v
 	()

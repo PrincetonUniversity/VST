@@ -266,32 +266,6 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred := 
-     andp (prop (fold_right and True P)).
-
-Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10) : logic.
-Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10) : logic.
-Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10) : logic.
-
-Definition LOCALx (Q: list (environ -> Prop)) : forall (R: environ->mpred), environ->mpred := 
-                 andp (local (fold_right (`and) (`True) Q)).
-
-Notation " 'LOCAL' ( )   z" := (LOCALx nil z)  (at level 9) : logic.
-Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
-
-Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
-         (at level 9) : logic.
-
-Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
-Definition SEPx': forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
-Global Opaque SEPx.
-
-Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
-         (at level 8) : logic.
-
-Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
-Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
-
 Definition nullval : val := Vint Int.zero.
 
 Lemma bool_val_int_eq_e: 
@@ -362,6 +336,32 @@ Qed.
 Hint Rewrite ret_type_initialized : norm.
 
 Hint Rewrite bool_val_notbool_ptr using (solve [simpl; auto]) : norm.
+
+Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred := 
+     andp (prop (fold_right and True P)).
+
+Notation "'PROP' ( x ; .. ; y )   z" := (PROPx (cons x%type .. (cons y%type nil) ..) z) (at level 10) : logic.
+Notation "'PROP' ()   z" :=   (PROPx nil z) (at level 10) : logic.
+Notation "'PROP' ( )   z" :=   (PROPx nil z) (at level 10) : logic.
+
+Definition LOCALx (Q: list (environ -> Prop)) : forall (R: environ->mpred), environ->mpred := 
+                 andp (local (fold_right (`and) (`True) Q)).
+
+Notation " 'LOCAL' ( )   z" := (LOCALx nil z)  (at level 9) : logic.
+Notation " 'LOCAL' ()   z" := (LOCALx nil z)  (at level 9) : logic.
+
+Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type nil) ..) z)
+         (at level 9) : logic.
+
+Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
+Definition SEPx': forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
+Global Opaque SEPx.
+
+Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
+         (at level 8) : logic.
+
+Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
+Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
@@ -515,6 +515,24 @@ Lemma TT_prop_right {A}{NA: NatDed A}:
 Proof. intros. apply prop_right. auto.
 Qed.
 
+
+Ltac careful_unfold_lift := (* this should replace the unfold_lift in veric/lift.v *)
+  change @liftx with @liftx'; unfold liftx';
+  repeat  match goal with(* This unfolds instances of Tend *)
+  | |- context [lift_uncurry_open (?F _)] => unfold F 
+  | |- context [Tarrow _ (?F _)] => unfold F 
+  end;
+  simpl lift_uncurry_open;  (* do this first, or the "unfold Tarrow" can blow up *)
+  unfold Tarrow, Tend, lift_S, lift_T, lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift.
+
+Ltac go_lowerx :=
+   change SEPx with SEPx';
+   unfold PROPx, LOCALx,SEPx', local, lift1; careful_unfold_lift; intro rho; simpl;
+   repeat rewrite andp_assoc;
+   repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
+   try apply prop_left;
+   repeat rewrite prop_true_andp by assumption;
+   try apply derives_refl.
 
 Ltac go_lower1 :=
  repeat match goal with 
