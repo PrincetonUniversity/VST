@@ -94,7 +94,7 @@ Module Type KNOT_SA.
   Axiom join_unsquash : forall x1 x2 x3 : knot,
     join x1 x2 x3 = join (unsquash x1) (unsquash x2) (unsquash x3).
 
-  Axiom asa_knot : Sep_alg T -> @Age_alg knot _ K.ageable_knot.
+  Axiom asa_knot : Sep_alg T -> @Age_alg knot _ K.ag_knot.
 
 End KNOT_SA.
 
@@ -124,9 +124,9 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
     intro x0.
     spec H x0.
     unfold K'.approx.
-    destruct (le_gt_dec n (level (fst x0))).
+    destruct (le_gt_dec n (level x0)).
     generalize (T_bot_identity); intro.
-   apply T_bot_unit.
+    apply T_bot_unit.
     trivial.
   Qed.
   Lemma F_approx_join_hom : forall n,
@@ -252,20 +252,20 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
       spec H k.
       unfold approx in *.
       revert H.
-      elim (le_gt_dec n (level (fst k))); intros; trivial.
+      elim (le_gt_dec n (level k)); intros; trivial.
       apply T_bot_identity.
       apply join_comm.
       trivial.
 
-    exists (fun w => if le_gt_dec n (level (fst w)) then projT1 (join_ex_units (z w)) else x' w).
-    exists (fun w => if le_gt_dec n (level (fst w)) then z w else y w).
+    exists (fun w => if le_gt_dec n (level w) then projT1 (join_ex_units (z w)) else x' w).
+    exists (fun w => if le_gt_dec n (level w) then z w else y w).
     split.
     intro w.
     spec H w.
     revert H.
     rewrite H0.
     unfold approx.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
     destruct (join_ex_units (z w)).
     simpl. apply u.
 
@@ -274,34 +274,34 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
     spec H w.
     revert H.
     unfold approx.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
     apply join_unit2_e in H; auto.
     apply T_bot_identity.
     
     unfold approx.
     extensionality w.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
   Qed.
 
   Lemma pred_unmap_right_approx (sa_T: Sep_alg T):
     forall n, unmap_right _ Join_pred (approx n).
   Proof.
     red; intros.
-    exists (fun w => if le_gt_dec n (level (fst w)) then (projT1 (join_ex_units (x w))) else y w).
-    exists (fun w => if le_gt_dec n (level (fst w)) then x w else z' w).
+    exists (fun w => if le_gt_dec n (level w) then (projT1 (join_ex_units (x w))) else y w).
+    exists (fun w => if le_gt_dec n (level w) then x w else z' w).
     split.
     intro w.
     spec H w.
     revert H.
     unfold approx.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
     destruct (join_ex_units (x w)).
     simpl. apply join_comm; apply u.
     
     split.
     unfold approx.
     extensionality w.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
     
     pattern z' at 2.
     assert (z' = approx n z').
@@ -309,13 +309,13 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
       spec H k.
       unfold approx in *.
       revert H.
-      elim (le_gt_dec n (level (fst k))); intros; trivial.
+      elim (le_gt_dec n (level k)); intros; trivial.
       symmetry.
       apply (T_bot_identity _ _ H).
     rewrite H0.
     unfold approx.
     extensionality w.
-    elim (le_gt_dec n (level (fst w))); intros; trivial.
+    elim (le_gt_dec n (level w)); intros; trivial.
   Qed.
 
   Lemma unage_join1 (sa_T: Sep_alg T) : forall x x' y' z', join x' y' z' -> age x x' ->
@@ -451,7 +451,7 @@ Module KnotSa (TFSA':TY_FUNCTOR_SA) (K':KNOT with Module TF:=TFSA'.TF)
     trivial.
   Qed.
 
-  Theorem asa_knot(sa_T: Sep_alg T) : @Age_alg knot _ K.ageable_knot.
+  Theorem asa_knot(sa_T: Sep_alg T) : @Age_alg knot _ K.ag_knot.
   Proof.
     constructor.
     exact age_join1.

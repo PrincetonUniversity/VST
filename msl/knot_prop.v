@@ -47,7 +47,9 @@ Module Type KNOT_PROP.
 
   Parameter knot : Type.
 
-  Parameter ageable_knot : ageable knot. Existing Instance ageable_knot.
+  Parameter ag_knot : ageable knot. 
+  Existing Instance ag_knot.
+  Existing Instance ag_prod.
 
   Definition predicate := (knot * other) -> Prop.
 
@@ -55,11 +57,10 @@ Module Type KNOT_PROP.
   Parameter unsquash : knot -> (nat * F predicate).
 
   Definition approx (n:nat) (p:predicate) : predicate := 
-     fun w => level (fst w) < n /\ p w.
+     fun w => level w < n /\ p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
-
 
   Axiom knot_level : forall k:knot,
     level k = fst (unsquash k).
@@ -132,10 +133,12 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
   Definition unsquash : knot -> (nat * F predicate) :=
     Knot_G.unsquash.
 
-  Definition ageable_knot := Knot_G.ageable_knot.
+  Definition ag_knot := Knot_G.ag_knot.
+  Existing Instance ag_knot.
+  Existing Instance ag_prod.
 
   Definition approx (n:nat) (p:predicate) : predicate := 
-     fun w => level (fst w) < n /\ p w.
+     fun w => level w < n /\ p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
@@ -148,11 +151,8 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
     apply Knot_G.unsquash_squash.
     extensionality n p w.
     unfold approx, Knot_G.approx, TF_G.T_bot.
-    simpl.
-    case (le_gt_dec n (level (fst w))); intro; apply prop_ext; simpl; firstorder.
-    revert l H; clear; unfold knot, TF_G.other in *;
-      generalize (@level Knot_G.knot Knot_G.ageable_knot (fst w)).
-    intros; omega.
+    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.
+    unfold knot, TF_G.other, ag_knot in *. omega.
   Qed.
 
   Definition knot_level := Knot_G.knot_level.
@@ -169,9 +169,10 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
   Definition knot : Type := K.knot.
   Definition predicate := (knot * other) -> T.
 
-  Definition ageable_knot : ageable knot :=
-    K.ageable_knot.
-  Existing Instance ageable_knot.
+  Definition ag_knot : ageable knot :=
+    K.ag_knot.
+  Existing Instance ag_knot.
+  Existing Instance ag_prod.
 
   Definition squash : (nat * F predicate) -> knot :=
     K.squash.
@@ -179,7 +180,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     K.unsquash.
 
   Definition approx (n:nat) (p:predicate) : predicate := 
-     fun w => if le_gt_dec n (level (fst w)) then T_bot else p w.
+     fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
@@ -192,8 +193,8 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.unsquash_squash.
     extensionality n p w.
     unfold approx, K.approx, TF.T_bot.
-    case (le_gt_dec n (level (@fst knot other w))); intro; apply prop_ext; firstorder.    
-    unfold knot, ageable_knot, other in *.
+    case (le_gt_dec n (level w)); intro; apply prop_ext; firstorder.    
+    unfold knot, ag_knot, other in *.
     omega.
   Qed.
 

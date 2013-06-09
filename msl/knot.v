@@ -27,8 +27,9 @@ Module Type KNOT.
 
   Parameter knot : Type.
 
-  Parameter ageable_knot : ageable knot.
-  Existing Instance ageable_knot.
+  Parameter ag_knot : ageable knot.
+  Existing Instance ag_knot.
+  Existing Instance ag_prod.
 
   Definition predicate := (knot * other) -> T.
 
@@ -36,7 +37,7 @@ Module Type KNOT.
   Parameter unsquash : knot -> (nat * F predicate).
 
   Definition approx (n:nat) (p:predicate) : predicate := 
-     fun w => if le_gt_dec n (level (fst w)) then T_bot else p w.
+     fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
@@ -463,9 +464,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     destruct n; inv H; simpl; auto.
   Qed.
 
-  Definition ageable_knot : ageable knot :=
+  Definition ag_knot : ageable knot :=
     mkAgeable knot def_knot_level def_knot_age1 ag_knot_facts .
-  Existing Instance ageable_knot.
+  Existing Instance ag_knot.
+  Existing Instance ag_prod.
 
 
   Lemma knot_level : forall k:knot,
