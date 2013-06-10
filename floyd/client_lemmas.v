@@ -2,6 +2,84 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
+(**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
+
+Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
+  forall (Q: A),  P -> (!! P && Q = Q).
+Proof with norm.
+intros.
+apply pred_ext. apply andp_left2...
+apply andp_right... apply prop_right...
+Qed.
+
+
+Ltac normalize1 := 
+         match goal with      
+            | |- context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
+                      change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
+            | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
+                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F) 
+                     with (@later B C X5 (D F))   
+            | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D) 
+                                                         (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
+                   change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
+                      with (@sepcon C D H (J L) (K L))
+            | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with norm)
+            | |- context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) by (auto with norm)
+            | |- context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) by (auto with norm)
+            | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with norm)
+            | |-  derives ?A   ?B => match A with 
+                   | FF => apply FF_left
+                   | !! _ => apply derives_extract_prop0
+                   | exp (fun y => _) => apply imp_extract_exp_left; intro y
+                   | !! _ && _ => apply derives_extract_prop
+                   | _ && !! _ => apply derives_extract_prop'
+                   | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
+                   | context [ ?Q && (!! ?P && ?R)] =>
+                                  match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end
+                 (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
+                    preserves the name of the "y" variable *)
+                   | context [andp (exp (fun y => _)) _] => 
+                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [andp _ (exp (fun y => _))] => 
+                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [sepcon (exp (fun y => _)) _] => 
+                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               apply imp_extract_exp_left; intro y
+                   | context [sepcon _ (exp (fun y => _))] => 
+                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                                apply imp_extract_exp_left; intro y
+                   end
+              | |- TT |-- !! _ => apply TT_prop_right
+              | |- _ |-- TT => apply TT_right
+              | |- _ => solve [auto with typeclass_instances]
+              | |- _ |-- !! (?x = ?y) && _ => 
+                            (rewrite (prop_true_andp' (x=y))
+                                            by (unfold y; reflexivity); unfold y in *; clear y) ||
+                            (rewrite (prop_true_andp' (x=y))
+                                            by (unfold x; reflexivity); unfold x in *; clear x)
+              | |- _ = ?x -> _ => intro; subst x
+              | |- ?x = _ -> _ => intro; subst x
+              |  |- ?ZZ -> ?YY => match type of ZZ with 
+                                               | Prop => 
+                                                 let Z1 := fresh "YY" in set (Z1:=YY); autorewrite with norm; unfold Z1; clear Z1;
+                                                   (simple apply and_rect ||    
+                                                    (let H := fresh in
+                                                       ((assert (H:ZZ) by auto; clear H; intros _) || intro H)))
+                                               | _ => intros _
+                                              end
+              | |- _ => progress (autorewrite with norm); auto with typeclass_instances
+              | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
+              end.
+
+Ltac normalize := repeat normalize1; try contradiction.
+
+(****** END experimental normalize ******************)
+
+
+
 (* The following line should not be needed, and was not needed
  in Coq 8.3, but in Coq 8.4 it seems to be necessary. *)
 Hint Resolve (@LiftClassicalSep environ) : typeclass_instances.
@@ -495,7 +573,6 @@ Lemma go_lower_lem22:
     PROPx (P::P') QR |-- PQR'.
 Proof. intros. intro rho. unfold PROPx; simpl.
  normalize.
- destruct H0.
  unfold PROPx in H.
  eapply derives_trans; [ | apply H; auto].
  normalize.
@@ -572,7 +649,6 @@ Lemma go_lower_lem24:
 Proof.
    unfold LOCALx,local; super_unfold_lift; simpl; intros.
  normalize. 
- destruct H0.
  eapply derives_trans;  [ | apply (H H0)].
  normalize.
 Qed.
@@ -650,7 +726,7 @@ Proof.
  induction P'.
  simpl fold_right_and. normalize. apply go_lower_lem27a.
  apply andp_right; auto. apply prop_right; auto.
- simpl. normalize. destruct H.
+ simpl. normalize.
  eapply derives_trans.
  2: eapply derives_trans; [ apply IHP' | ].
  apply andp_right; auto. apply prop_right; auto.
@@ -671,7 +747,6 @@ Lemma go_lower_lem24a:
   LOCALx (`(typed_false (Tpointer t a)) e ::Q) R rho |-- PQR.
 Proof. unfold LOCALx, local; super_unfold_lift; intros.
  simpl. normalize.
- destruct H0.
  apply typed_false_ptr in H0.
   eapply derives_trans; [ | apply (H H0)].
  simpl.
@@ -1982,11 +2057,17 @@ Qed.
 
 Ltac extract_prop_in_LOCAL :=
  match goal with |- @semax _ _ (PROPx _ (LOCALx ?Q _)) _ _ =>
-   match Q with context [ lift0 ?z :: _ ] =>
+   match Q with 
+    | context [ lift0 ?z :: _ ] =>
+        let n := find_in_list (lift0 z) Q
+         in rewrite (grab_nth_LOCAL n); rewrite move_prop_from_LOCAL
+   | context [@liftx (LiftEnviron Prop) ?z :: _ ] =>
+        change (@liftx (LiftEnviron Prop) z) with (@lift0 Prop z);
         let n := find_in_list (lift0 z) Q
          in rewrite (grab_nth_LOCAL n); rewrite move_prop_from_LOCAL
   end
 end.
+
 
 Ltac repeat_extract_exists_pre :=
    first [(apply extract_exists_pre;
@@ -2071,6 +2152,14 @@ rewrite H. rewrite prop_true_andp; auto.
 apply sepcon_derives; auto.
 Qed.
 
+Lemma insert_SEP: 
+ forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
+Proof.
+intros. 
+change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
+extensionality rho; simpl.
+repeat rewrite sepcon_andp_prop. f_equal; auto.
+Qed.
 
 Ltac move_prop_from_SEP :=
 match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
@@ -2125,6 +2214,32 @@ match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
     simpl minus; unfold replace_nth 
  end
 end.
+
+Ltac move_from_SEP :=
+  (* combines extract_exists_in_SEP, move_prop_from_SEP, move_local_from_SEP, 
+                  flatten_sepcon_in_SEP *)
+match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
+  match R with 
+  | context [(local ?P1 && ?Rn) :: ?R'] =>
+      let n := length_of R in let n' := length_of R' in 
+       rewrite (extract_local_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
+        simpl minus; unfold replace_nth 
+  | context [(prop ?P1 && ?Rn) :: ?R'] =>
+      let n := length_of R in let n' := length_of R' in 
+        rewrite (extract_prop_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
+        simpl minus; unfold replace_nth;
+        try (apply semax_extract_PROP; intro)
+  | context [ exp ?z :: _] =>
+        let n := find_in_list (exp z) R 
+         in rewrite (grab_nth_SEP n); unfold nth, delete_nth; rewrite extract_exists_in_SEP;
+             repeat_extract_exists_pre
+  | context [ (sepcon ?x  ?y) :: ?R'] =>
+        let n := length_of R in let n' := length_of R' in 
+         rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
+         rewrite flatten_sepcon_in_SEP
+ end
+end.
+
 
 Lemma move_local_from_SEP':
   forall P1 R1 P Q R, 

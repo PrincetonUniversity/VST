@@ -24,16 +24,6 @@ apply andp_right; auto.
 apply andp_left2; auto.
 Qed.
 
-
-Lemma insert_SEP: 
- forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
-Proof.
-intros. 
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
-extensionality rho; simpl.
-repeat rewrite sepcon_andp_prop. f_equal; auto.
-Qed.
-
 Lemma semax_load'':
   forall Espec (Delta : tycontext) (sh : Share.t) (id : positive) (n: nat)
          P Q R (e1 : expr) t1 i2 (v1 v2 : environ -> val),

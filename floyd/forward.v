@@ -272,21 +272,19 @@ Ltac normalize :=
  try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
  match goal with 
  | |- semax _ _ _ _ =>
-  msl.log_normalize.normalize;
+  floyd.client_lemmas.normalize;
   repeat 
-  (first [ apply normal_ret_assert_derives
-         | apply normal_ret_assert_derives'
-         | apply normal_ret_assert_derives''
-         | simpl_tc_expr
-         | flatten_sepcon_in_SEP
-          | apply semax_extract_PROP_True; [solve [auto] | ]
-          | apply semax_extract_PROP; intro
+  (first [ simpl_tc_expr
+         | simple apply semax_extract_PROP_True; [solve [auto] | ]
+         | simple apply semax_extract_PROP; intro
          | extract_prop_in_LOCAL
-         | move_prop_from_SEP
-         | move_local_from_SEP
-         | extract_exists_in_SEP
+         | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
-  | |- _  => msl.log_normalize.normalize
+  | |- _  => 
+ (* simple apply normal_ret_assert_derives
+         | simple apply normal_ret_assert_derives'
+         | simple apply normal_ret_assert_derives'' *)
+    floyd.client_lemmas.normalize
   end.
 
 Ltac unfold_fold_eval_expr :=

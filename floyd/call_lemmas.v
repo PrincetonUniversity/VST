@@ -90,11 +90,12 @@ rewrite emp_sepcon, sepcon_comm.
 repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
-autorewrite with subst norm ret_assert.
+apply andp_left2.
+apply normal_ret_assert_derives'.
 normalize.
-intro v.
-intro rho; autorewrite with subst norm. normalize.
-rewrite sepcon_comm; auto.
+autorewrite with subst norm ret_assert.
+rewrite sepcon_comm.
+rewrite insert_SEP. auto.
 Qed.
 
 Lemma semax_fun_id':
