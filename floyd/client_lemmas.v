@@ -12,6 +12,15 @@ apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
 Qed.
 
+Ltac norm_rewrite := autorewrite with norm.
+ (* New version: rewrite_strat (topdown hints norm).
+     But this will have to wait for the next version of Coq, probably 8.4pl3,
+    because in 8.4pl2, rewrite_strat does not discharge side conditions.
+    According to Matthieu Sozeau, in the Coq trunk as of June 5, 2013,
+    rewrite_strat is documented AND discharges side conditions.
+    It might be about twice as fast, or 1.7 times as fast, as the old autorewrite.
+    And then, maybe use "bottomup" instead of "topdown", see if that's better.
+ *)
 
 Ltac normalize1 := 
          match goal with      
@@ -31,7 +40,7 @@ Ltac normalize1 :=
             | |-  derives ?A   ?B => match A with 
                    | FF => apply FF_left
                    | !! _ => apply derives_extract_prop0
-                   | exp (fun y => _) => apply imp_extract_exp_left; intro y
+                   | exp (fun y => _) => apply imp_extract_exp_left; (intro y || intro)
                    | !! _ && _ => apply derives_extract_prop
                    | _ && !! _ => apply derives_extract_prop'
                    | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
@@ -40,16 +49,16 @@ Ltac normalize1 :=
                  (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                     preserves the name of the "y" variable *)
                    | context [andp (exp (fun y => _)) _] => 
-                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                apply imp_extract_exp_left; intro y
                    | context [andp _ (exp (fun y => _))] => 
-                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                apply imp_extract_exp_left; intro y
                    | context [sepcon (exp (fun y => _)) _] => 
-                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                apply imp_extract_exp_left; intro y
                    | context [sepcon _ (exp (fun y => _))] => 
-                               let BB := fresh "BB" in set (BB:=B); autorewrite with norm; unfold BB; clear BB;
+                               let BB := fresh "BB" in set (BB:=B); norm_rewrite; unfold BB; clear BB;
                                 apply imp_extract_exp_left; intro y
                    end
               | |- TT |-- !! _ => apply TT_prop_right
@@ -64,13 +73,13 @@ Ltac normalize1 :=
               | |- ?x = _ -> _ => intro; subst x
               |  |- ?ZZ -> ?YY => match type of ZZ with 
                                                | Prop => 
-                                                 let Z1 := fresh "YY" in set (Z1:=YY); autorewrite with norm; unfold Z1; clear Z1;
+                                                 let Z1 := fresh "YY" in set (Z1:=YY); norm_rewrite; unfold Z1; clear Z1;
                                                    (simple apply and_rect ||    
                                                     (let H := fresh in
                                                        ((assert (H:ZZ) by auto; clear H; intros _) || intro H)))
                                                | _ => intros _
                                               end
-              | |- _ => progress (autorewrite with norm); auto with typeclass_instances
+              | |- _ => progress (norm_rewrite); auto with typeclass_instances
               | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
               end.
 

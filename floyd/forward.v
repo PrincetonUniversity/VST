@@ -14,11 +14,13 @@ Implicit Arguments abbreviate [[A][x]].
 
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
    (first [ is_var y 
-           |  let x' := fresh x in set (x':=y); change y with (@abbreviate _ y) in x']).
+           |  let x' := fresh x in pose (x':= @abbreviate _ y); 
+              replace y with x' by reflexivity]).
 
 Tactic Notation "abbreviate" constr(y) ":" constr(t) "as"  ident(x)  :=
    (first [ is_var y 
-           |  let x' := fresh x in set (x':=y : t); change y with (@abbreviate t y) in x']).
+           |  let x' := fresh x in pose (x':= @abbreviate t y); 
+               replace y with x' by reflexivity]).
 
 Ltac unfold_abbrev :=
   repeat match goal with H := @abbreviate _ _ |- _ => 

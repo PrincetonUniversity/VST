@@ -71,8 +71,7 @@ SEPCOMP_FILES= \
   mem_interpolation_proofs.v \
   core_semantics.v \
   forward_simulations_lemmas.v \
-  forward_simulations.v rg_forward_simulations.v \
-  extension.v extension_proof.v \
+  forward_simulations.v rg_forward_simulations.v extension.v extension_proof.v \
 #  compile_safe.v core_semantics_lemmas.v \
    extension_safety.v extension_simulations.v \
   extension_proof_safety.v \

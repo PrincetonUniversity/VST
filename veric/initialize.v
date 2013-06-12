@@ -248,70 +248,31 @@ simpl.
 rewrite sepcon_emp.
 apply sepcon_comm.
 Qed.
-(*TODO: prot this lemma to positive
-Lemma add_variables_nextblock:
-  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
-  match vl with 
-    nil => 
-       Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
-            Some (Genv.genv_next ge)
-  | _ :: _ => Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
-          Some (Genv.genv_next ge + Pos.of_nat (length vl))%positive
- end.
-Proof. intros.
-   specialize (@find_symbol_add_globals F V i g i vl). intros ZZ.
-    destruct vl; simpl in *.
- induction vl; intros.
- inv H. clear H3. simpl.
-   specialize (@find_symbol_add_globals F V i g i ul).
-    unfold Genv.add_global, Genv.find_symbol; simpl. 
-    rewrite PTree.gss.
- replace (Some (Genv.genv_next ge + 0)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
- Focus 2. 
-  unfold Genv.add_global, Genv.find_symbol; simpl. rewrite PTree.gss. f_equal; unfold block; omega.
-  forget (Genv.add_global ge (i, g)) as ge1.
-  revert H2 ge1; induction ul; simpl; intros; auto.
-  spec IHul; [intuition |].
-  rewrite IHul.
-  unfold Genv.find_symbol, Genv.add_global. simpl.
-  rewrite PTree.gso; auto.
-  simpl length.
-  rewrite inj_S.
-  unfold Zsucc.
-  simpl.
-  rewrite (IHvl  (Genv.add_global ge a) i g ul).
-  f_equal.
-  destruct ge;   unfold Genv.add_global, Genv.genv_next; simpl. omega.
-  simpl in H. inv H; auto.
-Qed.
 
-Here's the original proof.
 Lemma add_variables_nextblock:
   forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
    Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
-          Some (Genv.genv_next ge + Z_of_nat (length vl)).
-Proof.
+          Some (Genv.advance_next vl (Genv.genv_next ge)).
+Proof. 
  induction vl; intros.
  inv H. clear H3. simpl.
- replace (Some (Genv.genv_next ge + 0)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
- Focus 2. 
+ change positive with block.
+ replace (Some (Genv.genv_next ge)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
+ Focus 2. {
   unfold Genv.add_global, Genv.find_symbol; simpl. rewrite PTree.gss. f_equal; unfold block; omega.
+  } Unfocus.
   forget (Genv.add_global ge (i, g)) as ge1.
   revert H2 ge1; induction ul; simpl; intros; auto.
   spec IHul; [intuition |].
   rewrite IHul.
   unfold Genv.find_symbol, Genv.add_global. simpl.
   rewrite PTree.gso; auto.
-  simpl length.
-  rewrite inj_S.
-  unfold Zsucc.
+  simpl length. simpl Genv.advance_next.
   simpl.
   rewrite (IHvl  (Genv.add_global ge a) i g ul).
   f_equal.
-  destruct ge;   unfold Genv.add_global, Genv.genv_next; simpl. omega.
   simpl in H. inv H; auto.
 Qed.
-*)
 
 Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p: Z) (d: init_data) : Prop :=
   match d with
@@ -574,6 +535,22 @@ if_tac in H1; inv H1.
  destruct H1 as [? | [?|[?|?]]]; rewrite H1; simpl; auto.
 Qed.
 
+Lemma Zmax_Z_of_nat:
+ forall n, Zmax (Z_of_nat n) 0 = Z_of_nat n.
+Proof.
+intros.
+apply Z.max_l.
+omega.
+Qed.
+(*
+Lemma Zmax_of_nat: 
+  forall n, Z_of_nat (nat_of_Z n) = Zmax n 0.
+Proof.
+ intros.
+ apply nat_of_Z_max.
+Qed.
+*)
+
 Lemma init_data_lem:
 forall ge (v : globvar type) (b : block) (m1 : mem')
   (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: environ)
@@ -755,14 +732,8 @@ Proof.
 
  rewrite address_mapsto_zeros_eq.
   intro loc. hnf. specialize (H2 loc); simpl in H2.
-Lemma Zmax_Z_of_nat:
- forall n, Zmax (Z_of_nat n) 0 = Z_of_nat n.
-Admitted.
 rewrite Zmax_Z_of_nat.
-Lemma Zmax_of_nat: 
-  forall n, Z_of_nat (nat_of_Z n) = Zmax n 0.
-Admitted.
-rewrite Zmax_of_nat.
+rewrite nat_of_Z_max.
 if_tac; auto.
 
  rewrite Share.unrel_splice_R.
@@ -1485,11 +1456,13 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
              rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
           | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]].
  rewrite address_mapsto_zeros_eq in H1|-*.
- rewrite Zmax_of_nat in *.
+ rewrite nat_of_Z_max in *.
  rewrite Share.unrel_splice_L in *.
  rewrite Share.unrel_splice_R in *.
  intro loc; specialize (H1 loc).
- replace  (Zmax (Zmax z0 0) 0) with (Zmax z0 0) in * by admit.
+ assert (H99:  Zmax (Zmax z0 0) 0 = Zmax z0 0).
+   apply Z.max_l. apply Zmax_bound_r. omega.
+ rewrite H99 in *.
  hnf in H1|-*.
  if_tac; [destruct H1 as [p H1]; exists p; hnf in H1|-*; rewrite <- H4'; destruct (H4 loc) as [_ H5]
           | destruct (H4 loc) as [HH _]; intuition].
@@ -1581,7 +1554,6 @@ Lemma global_initializers:
     Genv.init_mem prog = Some m ->
      app_pred (globvars2pred (prog_vars prog) rho)
   (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
-Admitted. (* (*TODO: port this proof to positive
 Proof.
  intros until rho. intros ? AL SAME_IDS RHO ?. 
  unfold all_initializers_aligned in AL.
@@ -1620,7 +1592,7 @@ Focus 2. apply H3. clear.
  split. auto.
  intro loc. intuition.
 intros. rename H3 into HACK; revert phi HACK.
-  revert H m G0 G H2 H0 H1; induction vl; simpl; intros.
+  revert H m G0 G H2 H0 H1; induction vl; intros.
  apply resource_at_empty2.
  intro l. apply proj2 in HACK; specialize (HACK l).
  unfold inflate_initial_mem in HACK|-*.
@@ -1629,6 +1601,7 @@ intros. rename H3 into HACK; revert phi HACK.
  inversion H0; clear H0; subst m.
  unfold access_at, empty in HACK; simpl in HACK; rewrite PMap.gi in HACK. 
    destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
+ simpl in H0.
  revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
  spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
    apply andb_true_iff in AL; destruct AL; auto.
@@ -1636,61 +1609,43 @@ intros. rename H3 into HACK; revert phi HACK.
  assert (H4': (Pos.to_nat b <= length vl)%nat).
  clear - H4. rewrite Zlength_correct in H4.
       rewrite <- Z2Nat.inj_pos.
-      (*forget (Z.pos b) as bb. forget (length vl) as n. clear vl b.*)
        rewrite <- Nat2Z.id .
        apply Z2Nat.inj_le. specialize (Pos2Z.is_pos b). omega.
-       omega.
-       apply H4.
- specialize (Pos2Z.is_pos b). intros POS.
+       omega. omega.
+ assert (POS := Pos2Z.is_pos b).
  rewrite H.
-   specialize (Pos2Nat.is_succ b). intros. destruct H5 as [k Hk].
-   rewrite Hk in *. unfold nat_of_Z in *. rewrite Z2Nat.inj_pos.
-   destruct k; simpl in *.
-     rewrite Hk. 
-   assert (exists kk, k = S kk).
-         clear -k HK POS vl H4'. 
-         induction vl; simpl in *; intros. omega.
-         destruct (le_lt_eq_dec _ _ H4').
-           destruct IHvl. omega. subst. exists x. trivial.
-         inv e. apply IHvl. exists O. omega.
-   rewrite Hk. clear H4 Hk b POS. 
-(*   assert (exists kk, (length vl = S k + kk)%nat).
-         clear -k vl H4'. 
-         induction vl; simpl in *; intros. omega.
-         destruct (le_lt_eq_dec _ _ H4').
-           destruct IHvl. omega. rewrite H in *. exists (S x); simpl. omega.
-         inv e. exists O. omega.
-   destruct H4 as [kk Hkk]. *)
-    assert (exists kk, k = S kk).
-         clear -k vl H4'. 
-         induction vl; simpl in *; intros. omega.
-         destruct (le_lt_eq_dec _ _ H4').
-           destruct IHvl. omega. subst. exists x. trivial.
-         inv e. apply IHvl. exists O. omega.
-   destruct H4 as [kk Hkk]. *)
-   trivial. arith.
-         simpl. exists (length vl). destruct k. trivial. 
-
- clear IHvl. destruct a. simpl.xx
-   specialize (nth_error_app (cons i nil) (map fst vl) (length vl - S k)).
-   intros ZZ. rewrite <- ZZ. simpl. 
-   assert (X: (length vl - S k = length vl - k -1)%nat) by omega.
-   rewrite X. rewrite <- nth_error_rev.
- apply iff_refl. simpl. omega.
-   replace (Pos.to_nat b) with (S (nat_of_Z b - 1)) by omega.
- replace (length vl - (nat_of_Z b - 1))%nat with (S (length vl - S (nat_of_Z b - 1)))%nat by omega.
- apply iff_refl. rewrite Zlength_cons; omega.
+Lemma Pos_to_nat_eq_S:
+  forall b, Pos.to_nat b = S (nat_of_Z (Z.pos b) - 1).
+Proof. intros. simpl; pose proof (Pos2Nat.is_pos b); omega.
+Qed.
+ rewrite Pos_to_nat_eq_S.
+ replace (length vl - (nat_of_Z (Z.pos b) - 1))%nat with (S (length vl - S (nat_of_Z (Z.pos b) - 1)))%nat.
+2:  simpl;  pose proof (Pos2Nat.is_pos b); omega.
+ simpl. replace (length vl - (Pos.to_nat b - 1))%nat with
+             (S (length vl - S (Pos.to_nat b - 1)))%nat.
+ apply iff_refl.
+ pose proof (Pos2Nat.is_pos b); omega. 
+ rewrite Zlength_cons. omega.
  destruct a.
  assert (FS: Genv.find_symbol gev i = Some (nextblock m0)).
   assert (Genv.find_symbol gev i = Some (nextblock m0)).
     apply H. apply alloc_globals_rev_nextblock in H0. rewrite H0 .
-      rewrite Zlength_cons. rewrite Zlength_correct. omega.
+      rewrite Zlength_cons.
+ rewrite Z2Pos.id.
+ rewrite Zlength_correct. omega.
+ rewrite Zlength_correct. omega.
+ simpl.
    apply alloc_globals_rev_nextblock in H0. rewrite H0 .
-   replace (nat_of_Z (Zsucc (Zlength vl))) with (S (length vl)).
+  replace (Pos.to_nat (Z.to_pos (Z.succ (Zlength vl))))
+    with (S (length vl)).
+Focus 2.
+rewrite Pos_to_nat_eq_S.
+ rewrite Zlength_correct.
+  rewrite Z2Pos.id by omega.
+ unfold nat_of_Z. 
+ rewrite Z2Nat.inj_succ by omega.
+ rewrite Nat2Z.id. omega.
    replace (length vl - length vl)%nat with O by omega. reflexivity.
-   rewrite Zlength_correct. unfold Zsucc. 
-   rewrite nat_of_Z_plus by omega. rewrite nat_of_Z_of_nat. 
-    change (nat_of_Z 1) with 1%nat. omega.
   auto.
   destruct g.
  (* Gfun case *)
@@ -1720,7 +1675,7 @@ intros. rename H3 into HACK; revert phi HACK.
  contradiction H6. apply in_app. apply in_app_or in H2. 
  destruct H2; [right|left].  change i with (fst (i,f)); apply in_map; auto.
  assert (In i (map fst (prog_funct' vl))).
-  change i with (fst (i,f)); rewrite H1; apply in_map; auto.
+  change i with (fst (i,f)); simpl in H1; rewrite H1; apply in_map; auto.
  clear - H4; induction vl; simpl in *; auto. destruct a; destruct g; simpl in *; auto. destruct H4; auto.
   unfold globvars2pred.
   simpl map.  simpl fold_right.
@@ -1743,18 +1698,29 @@ intros. rename H3 into HACK; revert phi HACK.
   unfold Genv.alloc_global in H3.
   revert H3; case_eq (alloc m0 0 (Genv.init_data_list_size (gvar_init v))); intros.
   invSome. invSome.
-  assert (b-1 = Zlength vl).
+  assert (Z.pos b-1 = Zlength vl).
     clear - H0 H3.
 
   apply alloc_globals_rev_nextblock in H0. apply alloc_result in H3.
-  subst.  rewrite H0.  omega. 
+  subst.  rewrite H0.
+  rewrite Zlength_correct.
+  rewrite Z2Pos.id by omega. omega.  
  destruct (H i b) as [_ ?].
   rewrite Zlength_cons; rewrite H6.
   split; try omega.
   rewrite Zlength_correct. omega.
-  spec H7. replace (nat_of_Z b) with (S (length vl)). rewrite minus_diag. reflexivity.
+  spec H7. replace (Pos.to_nat b) with (S (length vl)). rewrite minus_diag. reflexivity.
   clear - H6. rewrite Zlength_correct in H6. apply inj_eq_rev.
-  rewrite Coqlib.nat_of_Z_eq by omega. rewrite inj_S. omega.
+  rewrite inj_S. rewrite <- H6. clear.
+  rewrite Pos_to_nat_eq_S.
+  replace (Z.succ (Z.pos b - 1)) with (Z.pos b) by omega.
+  unfold nat_of_Z.
+  replace (S (Z.to_nat (Z.pos b) - 1)) 
+    with (Z.to_nat (Z.pos b))
+  by (rewrite Z2Nat.inj_pos; pose proof (Pos2Nat.is_pos b); omega).
+ rewrite Z2Nat.id by (pose proof (Pos2Z.is_pos b); omega).
+ auto.
+  
 pose proof (init_data_list_lem gev m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
      H3 H5 H8 H9) .
  spec H11.
@@ -1770,4 +1736,3 @@ pose proof (init_data_list_lem gev m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G)
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
 Qed.
-*)

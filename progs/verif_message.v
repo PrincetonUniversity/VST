@@ -381,7 +381,6 @@ Lemma call_serialize:
                `(typed_mapsto sh_p t) d_p `v;
                `(mf_assert msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id))) `v;
                `(mf_restbuf msg sh_buf) d_buf (`Int.signed (`force_int (eval_id id)))))).
-Admitted. (*
 Proof.
 intros.
 destruct H5 as [H5a [H5b H5c]].
@@ -513,14 +512,15 @@ clear - H3id.
 admit. (* straightforward *)
 intros.
 unfold normal_ret_assert.
-normalize. intro old''.
+repeat rewrite exp_andp2. apply exp_left; intro old''.
 assert (C1:=closed_wrt_subset _ _ CLid).
 assert (C2:=closed_wrt_Forall_subset _ _ CLid).
 autorewrite with subst.
+normalize.
+autorewrite with subst.
 go_lower. normalize.
 unfold serialize_post, serialize_spec.
-normalize. intro len.
-intro.
+normalize. rename x0 into len.
 subst.
 rewrite H1;
 rewrite <- H7.
@@ -554,7 +554,6 @@ simpl_typed_mapsto.
 simpl.
 cancel.
 Qed.
-*)
 
 Lemma call_deserialize:
  forall Espec (Delta: tycontext) P Q R (ser: ident)
@@ -649,7 +648,9 @@ replace (`(typed_mapsto_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
 flatten_sepcon_in_SEP. (* only need this with HACK? *)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
-simpl update_tycon. (* should forward do this? *)
+rewrite normal_ret_assert_eq. normalize.
+change abbreviate with Delta. (* SHOULD NOT NEED THIS LINE *)
+apply elim_redundant_Delta. (* SHOULD NOT NEED THIS LINE *)
 normalize.
 unfold app.
 
