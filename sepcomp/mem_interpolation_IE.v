@@ -4,7 +4,9 @@ Require Import Coqlib.
 Require Import Integers.
 Require Import compcert.common.Values.
 Require Import Maps.
+Require Import Axioms.
 
+Require Import FiniteMaps.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolation_defs.
 
@@ -36,7 +38,7 @@ Definition Content_IE_Property j12 (m1 m1' m2 m3':Mem.mem)
           | None => ZMap.get ofs2 (PMap.get b2 CM) =
                     ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
        end)
-   /\ (~ Mem.valid_block m2 b2 -> forall ofs2,
+   /\ (~ Mem.valid_block m2 b2 -> forall (HM3': Mem.valid_block m3' b2) ofs2,
           ZMap.get ofs2 (PMap.get b2 CM) = 
           ZMap.get ofs2 (PMap.get b2 m3'.(Mem.mem_contents)))
    /\ fst CM !! b2 = Undef.
@@ -171,6 +173,7 @@ assert (Ext23': Mem.extends m2' m3').
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (plt b2 (Mem.nextblock m2)) as z.
             destruct z as [z|z]; clear Heqz.
+            (*validblock m2 b2*)
               clear InvalC InvalA.
                  specialize (ValC z ofs). specialize (ValA z Cur ofs).
                  remember (source j m1 b2 ofs) as src.
@@ -191,7 +194,13 @@ assert (Ext23': Mem.extends m2' m3').
                     rewrite Zplus_0_r in mi_memval.
                     rewrite (UV _ _ NE Hperm3).
                     apply mi_memval.
-              clear ValA ValC. rewrite (InvalC z).
+            (*invalidblock m2 b2*)
+              clear ValA ValC.
+              assert (VB3: Mem.valid_block m3' b2).
+                 apply Mem.perm_valid_block in H0.
+                 unfold Mem.valid_block. 
+                 rewrite <- NB. apply H0.
+              rewrite (InvalC z VB3).
                   apply memval_inject_id_refl.
 split; trivial.
 assert (Inj12': Mem.inject j' m1' m2'). 
@@ -290,9 +299,12 @@ assert (Inj12': Mem.inject j' m1' m2').
                 rewrite (source_SomeI j m1 b2 b1 ofs delta OV1 HJ Hperm1) in *.
                 rewrite ValC.
                 eapply Inj13'. apply H. apply H0. 
-            clear ValC ValA. rewrite (InvalC z). clear InvalC. 
-                specialize ( InvalA z Cur (ofs+delta)).
-                eapply Inj13'.  apply H. apply H0.
+            clear ValC ValA.
+              assert (VB3: Mem.valid_block m3' b2).
+                eapply Mem.valid_block_inject_2. apply H. apply Inj13'.
+              rewrite (InvalC z VB3). clear InvalC. 
+              specialize ( InvalA z Cur (ofs+delta)).
+              eapply Inj13'.  apply H. apply H0.
     split. 
     (*mi_inj*) assumption.
     (*mi_freeblocks*) intros. eapply Inj13'. apply H.
@@ -334,19 +346,167 @@ split; trivial.
   intros. eapply extends_memwd. apply Ext23'. assumption.
 Qed.
 
-Parameter mkAccessMap_IE_exists: 
-           forall (j j':meminj) (m1 m1' m2 m3':Mem.mem), 
-           ZMap.t (Z -> perm_kind -> option permission).
-Axiom mkAccessMap_IE_ok: forall j j' m1 m1' m2 m3', 
-      AccessMap_IE_Property j j' m1 m1' m2 m3' 
-               (mkAccessMap_IE_exists j j' m1 m1' m2 m3').
+Definition AccessMap_IE_FUN (j12 j12':meminj) (m1 m1' m2 m3':Mem.mem) (b2:block):
+           Z -> perm_kind -> option permission :=
+  if plt b2 (Mem.nextblock m2) 
+  then (fun ofs2 k => 
+         match source j12 m1 b2 ofs2 with
+             Some(b1,ofs1) => PMap.get b1 m1'.(Mem.mem_access) ofs1 k
+           | None => PMap.get b2 m2.(Mem.mem_access) ofs2 k
+         end)
+  else (fun ofs2 k =>
+           match source j12' m1' b2 ofs2 with 
+              Some(b1,ofs1) => PMap.get b1 m1'.(Mem.mem_access) ofs1 k
+            | None => PMap.get b2 m3'.(Mem.mem_access) ofs2 k
+          end).
 
-Parameter mkContentsMap_IE_exists: 
-           forall (j :meminj) (m1 m1' m2 m3':Mem.mem), ZMap.t (ZMap.t memval).
-Axiom mkContentsMap_IE_ok: forall j m1 m1' m2 m3', 
-      Content_IE_Property j m1 m1' m2 m3'
-              (mkContentsMap_IE_exists j m1 m1' m2 m3').
+Lemma mkAccessMap_IE_existsT: forall j12 j12'(m1 m1' m2 m3':Mem.mem)
+       (VB': forall b1 b3 delta, j12' b1 = Some (b3, delta) ->
+               (Mem.valid_block m1' b1 /\ Mem.valid_block m3' b3))
+       (VB : (Mem.nextblock m2 <= Mem.nextblock m3')%positive), 
+      { M : PMap.t (Z -> perm_kind -> option permission) |
+          fst M = (fun k ofs => None) /\
+          forall b, PMap.get b M = AccessMap_IE_FUN j12 j12' m1 m1' m2 m3' b}.
+Proof. intros.
+  apply (pmap_construct_c _ (AccessMap_IE_FUN j12 j12' m1 m1' m2 m3') 
+              (Mem.nextblock m3') (fun ofs k => None)).
+    intros. unfold AccessMap_IE_FUN.
+    remember (plt n (Mem.nextblock m2)) as d.
+    destruct d; clear Heqd; trivial.    
+       exfalso. xomega.
+    extensionality ofs. extensionality k. 
+      remember (source j12' m1' n ofs) as src.
+      destruct src.
+        apply source_SomeE in Heqsrc.
+        destruct Heqsrc as [b1 [delta [ofs1
+          [PBO [Bounds [J1 [P1 Off2]]]]]]]; subst.
+        destruct (VB' _ _ _ J1).
+           contradiction.
+      apply m3'. apply H. 
+Qed.
 
+Definition ContentMap_IE_ValidBlock_FUN (j12:meminj) m1 m2 m3' 
+                  b2 ofs2: memval :=
+    match source j12 m1 b2 ofs2 with
+      Some(b1,ofs1) => ZMap.get ofs2 (PMap.get b2 m3'.(Mem.mem_contents))
+    | None => ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
+    end.
+
+Definition ContentMap_IE_InvalidBlock_FUN m3' b2 ofs2: memval :=
+   ZMap.get ofs2 (PMap.get b2 m3'.(Mem.mem_contents)).
+
+Definition ContentMap_IE_Block_FUN j12 m1 m2 m3' b ofs : memval:=
+  if plt b (Mem.nextblock m2)
+  then ContentMap_IE_ValidBlock_FUN j12 m1 m2 m3' b ofs
+  else ContentMap_IE_InvalidBlock_FUN m3' b ofs.
+
+Lemma CM_block_IE_existsT: forall j12 (m1 m2 m3':Mem.mem) b, 
+      { M : ZMap.t memval | 
+          fst M = Undef /\
+          forall ofs, ZMap.get ofs M =
+                      ContentMap_IE_Block_FUN j12 m1 m2 m3' b ofs}.
+Proof. intros.
+  remember (zmap_finite_c _ (PMap.get b m3'.(Mem.mem_contents))) as LH3.
+  apply eq_sym in HeqLH3. destruct LH3 as [lo3 hi3]. 
+  specialize (zmap_finite_sound_c _ _ _ _ HeqLH3).
+  intros Bounds3; clear HeqLH3.
+  remember (zmap_finite_c _ (PMap.get b m2.(Mem.mem_contents))) as LH2.
+  apply eq_sym in HeqLH2. destruct LH2 as [lo2 hi2]. 
+  specialize (zmap_finite_sound_c _ _ _ _ HeqLH2).
+  intros Bounds2; clear HeqLH2.
+   assert (Undef2: fst (Mem.mem_contents m2) !! b = Undef). apply m2.
+   assert (Undef3: fst (Mem.mem_contents m3') !! b = Undef). apply m3'.
+   rewrite Undef2 in *. rewrite Undef3 in *. clear Undef3 Undef2.
+
+  destruct (zmap_construct_c _ (ContentMap_IE_Block_FUN j12 m1 m2 m3' b)
+             (Z.min lo2 lo3) (Z.max hi2 hi3) Undef) as [M PM].
+    intros. unfold ContentMap_IE_Block_FUN; simpl. 
+        unfold ContentMap_IE_ValidBlock_FUN.
+        unfold ContentMap_IE_InvalidBlock_FUN.
+   rewrite Bounds3.
+   rewrite Bounds2.
+     destruct (plt b (Mem.nextblock m2)); trivial.
+       destruct (source j12 m1 b n); trivial.
+         destruct p0; trivial.
+     destruct H.  apply Z.min_glb_lt_iff in H. left. apply H.
+     assert (Z.max hi2 hi3 < n) by omega.
+     apply Z.max_lub_lt_iff in H0. right; omega.
+     destruct H.  apply Z.min_glb_lt_iff in H. left. apply H.
+     assert (Z.max hi2 hi3 < n) by omega.
+     apply Z.max_lub_lt_iff in H0. right; omega.
+  exists M. apply PM.
+Qed.
+
+Definition ContentsMap_IE_FUN (j12:meminj) (m1 m2 m3':Mem.mem) (b:block):
+            ZMap.t memval.
+destruct (plt b (Mem.nextblock m3')).
+  apply(CM_block_IE_existsT j12 m1 m2 m3' b).
+  apply (ZMap.init Undef).
+Defined.
+
+Lemma ContentsMap_IE_existsT: forall (j12:meminj) (m1 m2 m3':Mem.mem), 
+      { M : PMap.t (ZMap.t memval) |
+        fst M = ZMap.init Undef /\
+        forall b, PMap.get b M = ContentsMap_IE_FUN j12 m1 m2 m3' b}.
+Proof. intros.
+  apply (pmap_construct_c _ (ContentsMap_IE_FUN j12 m1 m2 m3') 
+              (Mem.nextblock m3') (ZMap.init Undef)). 
+    intros. unfold ContentsMap_IE_FUN.
+    remember (plt n (Mem.nextblock m3')) as d.
+    destruct d; clear Heqd; trivial.   
+      exfalso. xomega.
+Qed.
+
+Definition mkIE (j j': meminj) (m1 m1' m2 m3':Mem.mem)
+                (VB': forall (b1 b3 : block) (delta : Z),
+                       j' b1 = Some (b3, delta) ->
+                       (Mem.valid_block m1' b1 /\ Mem.valid_block m3' b3))
+                (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive)
+               : Mem.mem'.
+destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
+destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
+  
+eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
+                      (mem_access:=AM)
+                      (mem_contents:=CM).
+ (* apply (mkContentsMap_IE_exists j m1 m1' m2 m3').*)
+(*  apply m3'.*)
+  (*access_max*)
+  intros. rewrite PAM. unfold AccessMap_IE_FUN.
+     destruct (plt b (Mem.nextblock m2)).
+     (*valid_block m2 b*)
+        remember (source j m1 b ofs) as src.
+        destruct src. 
+          destruct p0. apply m1'. 
+        apply m2. 
+     (*invalid_block m2 b*)
+        remember (source j' m1' b ofs) as src.
+        destruct src. 
+          destruct p. apply m1'. 
+        apply m3'. 
+  (*nextblock_noaccess*)
+    intros. rewrite PAM.
+    unfold AccessMap_IE_FUN.
+    destruct (plt b (Mem.nextblock m2)).
+      exfalso. apply H; clear - VB p. xomega.
+    remember (source j' m1' b ofs) as src.
+    destruct src.
+      destruct p.
+      exfalso. apply H. clear - Heqsrc VB'.
+      apply source_SomeE in Heqsrc.
+      destruct Heqsrc as [b1 [delta [ofs1
+          [PBO [Bounds [J1 [P1 Off2]]]]]]]; subst.
+        apply (VB' _ _ _ J1).
+      apply m3'. apply H.  
+  (*contents_default*)
+    intros. rewrite PCM. 
+    unfold ContentsMap_IE_FUN.
+    destruct (plt b (Mem.nextblock m3')). 
+     remember (CM_block_IE_existsT j m1 m2 m3' b). 
+     destruct s. apply a.
+    reflexivity.
+Defined.
+(*
 Definition mkIE (j j': meminj) (m1 m1' m2 :Mem.mem)
                  (Minj12 : Mem.inject j m1 m2) 
                  (Fwd1: mem_forward m1 m1') 
@@ -357,58 +517,60 @@ Definition mkIE (j j': meminj) (m1 m1' m2 :Mem.mem)
                  (Inj13' : Mem.inject j' m1' m3')
                  (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
                : Mem.mem'.
+assert (VB': forall (b1 b3 : block) (delta : Z),
+               j' b1 = Some (b3, delta) ->
+               (Mem.valid_block m1' b1 /\ Mem.valid_block m3' b3)).
+    intros.
+    split.
+       eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ H Inj13').
+       eapply (Mem.valid_block_inject_2 _ _ _ _ _ _ H Inj13').
+assert (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive).
+  apply mem_forward_nb in Fwd3. inv Ext23. 
+  rewrite mext_next. apply Fwd3. 
+destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
+destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
+  
 eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
-                      (mem_access:=mkAccessMap_IE_exists j j' m1 m1' m2 m3')
-                      (mem_contents:=mkContentsMap_IE_exists j m1 m1' m2 m3').
+                      (mem_access:=AM)
+                      (mem_contents:=CM).
  (* apply (mkContentsMap_IE_exists j m1 m1' m2 m3').*)
 (*  apply m3'.*)
   (*access_max*)
-  intros. destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [Val Inval].
-    remember (plt b m2.(Mem.nextblock)) as z. 
-    destruct z as [z|z]; clear Heqz.
-    (*Case valid*) clear Inval.
-      assert (MaxP := Val z Max ofs).
-      assert (CurP := Val z Cur ofs).
-      clear Val.
-      remember (source j m1 b ofs) as src.
-      destruct src.
-        apply source_SomeE in Heqsrc.
-        destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
-        subst.
-        rewrite MaxP. rewrite CurP.  apply m1'.
-      rewrite MaxP. rewrite CurP.  apply m2.
-    (*Case invalid*) clear Val.
-      assert (MaxP := Inval z Max ofs).
-      assert (CurP := Inval z Cur ofs).
-      clear Inval.
-      remember (source j' m1' b ofs) as src.
-      destruct src.
-      apply source_SomeE in Heqsrc.
-      destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
-      subst.
-      rewrite MaxP. rewrite CurP.  apply m1'.
-    rewrite MaxP. rewrite CurP.  apply m3'.
+  intros. rewrite PAM. unfold AccessMap_IE_FUN.
+     destruct (plt b (Mem.nextblock m2)).
+     (*valid_block m2 b*)
+        remember (source j m1 b ofs) as src.
+        destruct src. 
+          destruct p0. apply m1'. 
+        apply m2. 
+     (*invalid_block m2 b*)
+        remember (source j' m1' b ofs) as src.
+        destruct src. 
+          destruct p. apply m1'. 
+        apply m3'. 
   (*nextblock_noaccess*)
-    intros. 
-    assert (NV3 : ~ Mem.valid_block m3 b). intros N. 
-           destruct (Fwd3 _ N). unfold Mem.valid_block in H0. xomega.
-    assert (NV2 : ~ Mem.valid_block m2 b). intros N.
-           apply NV3. eapply (Mem.valid_block_extends _ _ _ Ext23). apply N.  
-    destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [_ Inval].
-    specialize (Inval NV2 k ofs).
+    intros. rewrite PAM.
+    unfold AccessMap_IE_FUN.
+    destruct (plt b (Mem.nextblock m2)).
+      exfalso. apply H; clear - VB p. xomega.
     remember (source j' m1' b ofs) as src.
     destruct src.
-    apply source_SomeE in Heqsrc.
-       destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
-       subst.
-       specialize (Mem.valid_block_inject_2  _ _ _ _ _ _ J1 Inj13').
-       intros. exfalso. unfold Mem.valid_block in H0. xomega.
-    rewrite Inval. apply m3'. apply H.
+      destruct p.
+      exfalso. apply H. clear - Heqsrc VB'.
+      apply source_SomeE in Heqsrc.
+      destruct Heqsrc as [b1 [delta [ofs1
+          [PBO [Bounds [J1 [P1 Off2]]]]]]]; subst.
+        apply (VB' _ _ _ J1).
+      apply m3'. apply H.  
   (*contents_default*)
-    intros b.
-    destruct (mkContentsMap_IE_ok j m1 m1' m2 m3' b) as [_ [_ Default]].
-    trivial.
+    intros. rewrite PCM. 
+    unfold ContentsMap_IE_FUN.
+    destruct (plt b (Mem.nextblock m3')). 
+     remember (CM_block_IE_existsT j m1 m2 m3' b). 
+     destruct s. apply a.
+    reflexivity.
 Defined.
+*)
 
 Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
                  (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
@@ -425,10 +587,85 @@ Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
                       Mem.inject j' m1' m2' /\
                       Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
                       (mem_wd m2 -> mem_wd m2').    
-Proof. intros. 
-  exists (mkIE j j' m1 m1' m2 Minj12 Fwd1 InjInc Sep12 m3 m3' Ext23 
-             Fwd3 Inj13' WD2 WD1' WD3').
+Proof. intros.
+  assert (VB': forall (b1 b3 : block) (delta : Z),
+               j' b1 = Some (b3, delta) ->
+               (Mem.valid_block m1' b1 /\ Mem.valid_block m3' b3)).
+    intros.
+    split.
+       eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ H Inj13').
+       eapply (Mem.valid_block_inject_2 _ _ _ _ _ _ H Inj13').
+  assert (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive).
+    apply mem_forward_nb in Fwd3. inv Ext23. 
+    rewrite mext_next. apply Fwd3. 
+assert (VBB: Mem.nextblock (mkIE j j' m1 m1' m2 m3' VB' VB)
+                 = Mem.nextblock m3').
+  unfold mkIE. 
+  destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
+  simpl.
+  destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
+  simpl. reflexivity.
+exists (mkIE j j' m1 m1' m2 m3' VB' VB).
 eapply IE_ok with (m3:=m3); trivial.
-        subst. apply mkContentsMap_IE_ok.  
-        subst. apply mkAccessMap_IE_ok.  
+(*ContentMapOK*) 
+   unfold Content_IE_Property, mkIE.
+  destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
+  simpl.
+  destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
+  simpl. 
+   intros.
+   split; intros.
+   (*valid_block m2 b*)
+     assert (PLT3: Plt b2 (Mem.nextblock m3')).
+       unfold Mem.valid_block in H. clear -VB H. xomega.
+     rewrite PCM. unfold ContentsMap_IE_FUN.
+     destruct (plt b2 (Mem.nextblock m3')); try contradiction.     
+     destruct (CM_block_IE_existsT j m1 m2 m3' b2) as [CMb [CMbDef CMbP]]; simpl.
+     remember (source j m1 b2 ofs2) as src.
+     destruct src.
+       destruct p0.
+         rewrite CMbP.
+         unfold ContentMap_IE_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+           unfold ContentMap_IE_ValidBlock_FUN.
+           rewrite <- Heqsrc. trivial.
+     rewrite CMbP. 
+         unfold ContentMap_IE_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+         unfold ContentMap_IE_ValidBlock_FUN.
+         rewrite <- Heqsrc. trivial.
+  split; intros.
+     rewrite PCM. unfold ContentsMap_IE_FUN.
+     destruct (CM_block_IE_existsT j m1 m2 m3' b2) as [CMb [CMbDef CMbP]]; simpl.
+     destruct (plt b2 (Mem.nextblock m3')); try contradiction.
+     rewrite CMbP. unfold ContentMap_IE_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+         unfold ContentMap_IE_InvalidBlock_FUN. trivial.
+  (*default*)
+     rewrite PCM. 
+     unfold ContentsMap_IE_FUN.
+     destruct ( plt b2 (Mem.nextblock m3')).
+       destruct (CM_block_IE_existsT j m1 m2 m3' b2) as [CMb [CMbDef CMbP]]; simpl.
+       assumption. 
+       reflexivity.
+(*AccessMapOK*)
+   unfold AccessMap_IE_Property, mkIE.
+   destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
+   simpl.
+   destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
+   simpl.
+   intros.
+   split; intros.
+   (*valid_block m2 b*)
+     rewrite PAM. unfold AccessMap_IE_FUN.
+     destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+     remember (source j m1 b2 ofs2) as src.
+     destruct src; trivial.
+       destruct p0; trivial.
+  (*invalid_block m2 b*)
+   rewrite PAM. unfold AccessMap_IE_FUN.
+   destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+   remember (source j' m1' b2 ofs2) as src. 
+     destruct src; trivial.
+       destruct p; trivial.
 Qed.
