@@ -66,7 +66,7 @@ LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
 # Parts common to the front-ends and the back-end (in common/)
 
 COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
-  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v
+  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Subtyping.v
 
 # Back-end modules (in backend/, $(ARCH)/, $(ARCH)/$(VARIANT))
 
@@ -122,7 +122,9 @@ all:
 	$(MAKE) proof
 	$(MAKE) extraction
 	$(MAKE) ccomp
+ifeq ($(HAS_RUNTIME_LIB),true)
 	$(MAKE) runtime
+endif
 ifeq ($(CCHECKLINK),true)
 	$(MAKE) cchecklink
 endif
@@ -208,6 +210,7 @@ driver/Configuration.ml: Makefile.config VERSION
          echo let variant = "\"$(VARIANT)\""; \
          echo let system = "\"$(SYSTEM)\""; \
          echo let has_runtime_lib = $(HAS_RUNTIME_LIB); \
+         echo let asm_supports_cfi = $(ASM_SUPPORTS_CFI); \
          version=`cat VERSION`; \
          echo let version = "\"$$version\"") \
         > driver/Configuration.ml
@@ -224,7 +227,9 @@ install:
 ifeq ($(CCHECKLINK),true)
 	install ./cchecklink $(BINDIR)
 endif
+ifeq ($(HAS_RUNTIME_LIB),true)
 	$(MAKE) -C runtime install
+endif
 
 clean:
 	rm -f $(patsubst %, %/*.vo, $(DIRS))

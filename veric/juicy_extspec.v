@@ -82,7 +82,7 @@ Definition juicy_core_sem
   {G C D} (csem: CoreSemantics G C mem D) :
    CoreSemantics G C juicy_mem jm_init_package :=
   @Build_CoreSemantics _ _ _ _
-    init_jmem
+(*deprecated    init_jmem*)
     (make_initial_core csem)
     (at_external csem)
     (after_external csem)

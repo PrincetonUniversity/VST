@@ -58,7 +58,7 @@ Lemma eq_block_lem:
 Proof.
 intros.
 unfold eq_block.
-rewrite zeq_true.
+rewrite peq_true.
 auto.
 Qed.
 

@@ -528,7 +528,7 @@ exists Hhered.
 simpl.
 simpl in INIT.
 rewrite FIND in INIT.
-if_tac in INIT; try solve[elimtype False; omega].
+if_tac in INIT; try solve[elimtype False; xomega].
 case_eq (procedure_linkage_table main_id).
 intros b0 PLT.
 revert INIT.

@@ -300,7 +300,7 @@ Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
 Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
-  if zeq b b1 then
+  if peq b b1 then
     Val.of_bool (Int.cmpu c o o1)
   else
     match Val.cmp_different_blocks c with
@@ -1098,7 +1098,7 @@ Definition denote_tc_Zle z v :=
 
 Definition denote_tc_samebase v1 v2 :=
                          match v1, v2 with
-                           | Vptr b1 _, Vptr b2 _ => is_true (zeq b1 b2)
+                           | Vptr b1 _, Vptr b2 _ => is_true (peq b1 b2)
                            | _, _ => False 
                          end.
 

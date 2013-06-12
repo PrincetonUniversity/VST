@@ -1,12 +1,12 @@
-Require Import Events. (*is needed for some definitions (loc_unmapped etc, and
-  also at the very end of this file, in order to convert between the 
-  tweaked and the standard definitions of mem_unchanged_on etc*)
+Require Import Events. (*is needed for some definitions (loc_unmapped etc*)
 Require Import Memory.
 Require Import Coqlib.
 Require Import Integers.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Maps.
+Require Import Axioms.
 
+Require Import FiniteMaps.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolation_defs.
 
@@ -15,40 +15,41 @@ Definition AccessMap_EI_Property (j:meminj) (m1 m1' m2 : mem)
   forall b2, 
     (Mem.valid_block m2 b2 -> forall k ofs2,
        match j b2 with 
-         None => ZMap.get b2 AM ofs2 k  = 
-                        ZMap.get b2 m2.(Mem.mem_access) ofs2 k
+         None => PMap.get b2 AM ofs2 k  = 
+                        PMap.get b2 m2.(Mem.mem_access) ofs2 k
        | Some (b3,d3) =>
           (Mem.perm m1 b2 ofs2 Max Nonempty -> 
-           ZMap.get b2 AM ofs2 k = ZMap.get b2 m1'.(Mem.mem_access) ofs2 k) 
+           PMap.get b2 AM ofs2 k = PMap.get b2 m1'.(Mem.mem_access) ofs2 k) 
        /\ (~Mem.perm m1 b2 ofs2 Max Nonempty -> 
-           ZMap.get b2 AM ofs2 k  = ZMap.get b2 m2.(Mem.mem_access) ofs2 k)
+           PMap.get b2 AM ofs2 k  = PMap.get b2 m2.(Mem.mem_access) ofs2 k)
      end)
   /\ (~ Mem.valid_block m2 b2 -> forall k ofs2,
          (Mem.perm m1' b2 ofs2 Max Nonempty ->
-           ZMap.get b2 AM ofs2 k = ZMap.get b2 m1'.(Mem.mem_access) ofs2 k)
-       /\ (~Mem.perm m1' b2 ofs2 Max Nonempty -> ZMap.get b2 AM ofs2 k = None)).
+           PMap.get b2 AM ofs2 k = PMap.get b2 m1'.(Mem.mem_access) ofs2 k)
+       /\ (~Mem.perm m1' b2 ofs2 Max Nonempty -> PMap.get b2 AM ofs2 k = None)).
 
 Definition Content_EI_Property (j:meminj) (m1 m1' m2:Mem.mem) 
                                (CM:ZMap.t (ZMap.t memval)):=
   forall b2, 
       (Mem.valid_block m2 b2 -> forall ofs2,
              match j b2 with
-               None =>  ZMap.get ofs2 (ZMap.get b2 CM) =
-                           ZMap.get ofs2 (ZMap.get b2 m2.(Mem.mem_contents))
+               None =>  ZMap.get ofs2 (PMap.get b2 CM) =
+                           ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
              | Some (b3,delta3) => 
                      (Mem.perm m1 b2 ofs2 Max Nonempty ->
-                            ZMap.get ofs2 (ZMap.get b2 CM) =
-                           ZMap.get ofs2 (ZMap.get b2 m1'.(Mem.mem_contents)))
+                            ZMap.get ofs2 (PMap.get b2 CM) =
+                           ZMap.get ofs2 (PMap.get b2 m1'.(Mem.mem_contents)))
                  /\ (~Mem.perm m1 b2 ofs2 Max Nonempty -> 
-                          ZMap.get ofs2 (ZMap.get b2 CM) = 
-                         ZMap.get ofs2 (ZMap.get b2 m2.(Mem.mem_contents)))
+                          ZMap.get ofs2 (PMap.get b2 CM) = 
+                         ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents)))
             end)
-  /\ (~ Mem.valid_block m2 b2 -> forall ofs2,
+    /\ (~ Mem.valid_block m2 b2 -> forall (HM1': Mem.valid_block m1' b2) ofs2,
            (Mem.perm m1' b2 ofs2 Cur Readable ->
-                ZMap.get ofs2 (ZMap.get b2 CM) =
-                ZMap.get ofs2 (ZMap.get b2 m1'.(Mem.mem_contents)))
+                ZMap.get ofs2 (PMap.get b2 CM) =
+                ZMap.get ofs2 (PMap.get b2 m1'.(Mem.mem_contents)))
         /\ (~Mem.perm m1' b2 ofs2 Cur Readable -> 
-                ZMap.get ofs2 (ZMap.get b2 CM) =Undef)).
+                ZMap.get ofs2 (PMap.get b2 CM) =Undef))
+    /\ fst CM !! b2 = Undef.
 
 Lemma EI_ok: forall (m1 m2 m1':mem)
                (Ext12: Mem.extends m1 m2)
@@ -56,9 +57,9 @@ Lemma EI_ok: forall (m1 m2 m1':mem)
                (Inj23: Mem.inject j m2 m3)
                m3' (Fwd3: mem_forward m3 m3') j'
                (Inj13': Mem.inject j' m1' m3')
-               (UnchOn3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3') 
+               (UnchOn3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3') 
                (InjInc: inject_incr j j') (injSep: inject_separated j j' m1 m3)
-               (UnchOn1: my_mem_unchanged_on (loc_unmapped j) m1 m1')
+               (UnchOn1: Mem.unchanged_on (loc_unmapped j) m1 m1')
                (WD1': mem_wd m1') 
                (WD2: mem_wd m2) (WD3': mem_wd m3') m2'
                (NB: m2'.(Mem.nextblock)=m1'.(Mem.nextblock))
@@ -67,21 +68,21 @@ Lemma EI_ok: forall (m1 m2 m1':mem)
         mem_forward m2 m2' /\ 
                Mem.extends m1' m2' /\ 
                Mem.inject j' m2' m3' /\ 
-               my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-               my_mem_unchanged_on (loc_unmapped j) m2 m2' /\
+               Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
+               Mem.unchanged_on (loc_unmapped j) m2 m2' /\
                (mem_wd m2 -> mem_wd m2').
 Proof. intros.
 assert (VB' : forall b : block, Mem.valid_block m1' b = Mem.valid_block m2' b).
   intros; unfold Mem.valid_block. rewrite NB. trivial.
 assert (Inj13:= extends_inject_compose _ _ _ _ Ext12 Inj23).
-assert (MMU_LU: my_mem_unchanged_on (loc_unmapped j) m2 m2' ).
+assert (MMU_LU: Mem.unchanged_on (loc_unmapped j) m2 m2' ).
    split. intros. 
        destruct (ACCESS b) as [Val _].
-        specialize (Val H k ofs). rewrite HP in Val.
-        rewrite (perm_subst _ _ _ _ _ _ _ Val). trivial.
-    intros. assert (Val2:= Mem.perm_valid_block _ _ _ _ _ HMeperm).
-        destruct (CONT b) as [ContVal _]. rewrite HP in ContVal.
-        rewrite (ContVal Val2 ofs). apply H. 
+        specialize (Val H0 k ofs). rewrite H in Val.
+        rewrite (perm_subst _ _ _ _ _ _ _ Val). split; auto.
+    intros. assert (Val2:= Mem.perm_valid_block _ _ _ _ _ H0).
+        destruct (CONT b) as [ContVal _]. rewrite H in ContVal.
+        apply (ContVal Val2 ofs).
 assert (Fwd2: mem_forward m2 m2').
     split; intros.
      (*valid_block*) apply (Mem.valid_block_extends _ _ b Ext12) in H. 
@@ -101,29 +102,31 @@ assert (Fwd2: mem_forward m2 m2').
                    rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. apply H0.
             rewrite (perm_subst _ _ _ _ _ _ _ H2) in *. apply H0.
       exfalso. apply (H1 H).
-assert (MMU_LOOB: my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2'). 
-   split; intros.
+assert (MMU_LOOB: Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'). 
+   split; intros. 
       apply (valid_split _ _ _ _  (ACCESS b)); clear ACCESS; intros.
-         specialize (H1 k ofs).
+         specialize (H2 k ofs).
          remember (j b) as jb.
          destruct jb; apply eq_sym in Heqjb.
-              destruct p.
-              destruct H1 as [_ NoMax].
-              rewrite (perm_subst _ _ _ _ _ _ _ (NoMax HP)). trivial.
-         rewrite (perm_subst _ _ _ _ _ _ _ H1) in *. trivial.
-      exfalso. apply (H0 H).
+              destruct p0.
+              destruct H2 as [_ NoMax].
+              rewrite (perm_subst _ _ _ _ _ _ _ (NoMax H)).
+              split; auto.
+         rewrite (perm_subst _ _ _ _ _ _ _ H2) in *.
+           split; auto.
+      contradiction.
   destruct (CONT b) as [ValC _].
        destruct (ACCESS b) as [ValA _].
-       specialize (ValC (Mem.perm_valid_block _ _ _ _ _ HMeperm) ofs).
-       specialize (ValA (Mem.perm_valid_block _ _ _ _ _ HMeperm) Cur ofs).
-       unfold loc_out_of_bounds in HP.
+       specialize (ValC (Mem.perm_valid_block _ _ _ _ _ H0) ofs).
+       specialize (ValA (Mem.perm_valid_block _ _ _ _ _ H0) Cur ofs).
+       unfold loc_out_of_bounds in H.
        remember (j b) as jb.
        destruct jb; apply eq_sym in Heqjb.
           destruct p.
           eapply (perm_split _ _ _ _ _ _ _ ValC); clear ValC; intros.
-             exfalso. apply HP. apply H0.
-         rewrite H1. assumption.
-      rewrite ValC. assumption.
+             exfalso. apply H. apply H1.
+         apply H2.
+      apply ValC.
 split; trivial.
 assert (Ext12':  Mem.extends m1' m2').
     split. 
@@ -150,7 +153,7 @@ assert (Ext12':  Mem.extends m1' m2').
             rewrite (perm_subst _ _ _ _ _ _ _ H1) in *. clear H1.
                  destruct UnchOn1 as [UP _].
                  eapply (extends_perm _ _ Ext12).
-                 rewrite (UP _ _ _ Heqjb Val1). apply H. 
+                 rewrite (UP _ _ _ p Heqjb Val1). apply H. 
              destruct (H1 k ofs) as [Val _]; clear H1.
                   assert (Perm1: Mem.perm m1' b ofs Max Nonempty). 
                           eapply Mem.perm_max. eapply Mem.perm_implies.
@@ -165,7 +168,7 @@ assert (Ext12':  Mem.extends m1' m2').
              intros off Hoff. specialize (H0 _ Hoff). 
              apply (Perm12' _ _ _ _ H0). 
          (*mi_memval *) intros. inv H. rewrite Zplus_0_r.
-            destruct (CONT b2) as [ContVal ContInval]; clear CONT.
+            destruct (CONT b2) as [ContVal [ContInval Default]]; clear CONT.
             apply (valid_split _ _ _ _  (ACCESS b2)); clear ACCESS; intros.
                 clear ContInval.
                 assert (Perm: Mem.perm m1 b2 ofs Max Nonempty).
@@ -182,12 +185,13 @@ assert (Ext12':  Mem.extends m1' m2').
                   rewrite ContVal. clear ContVal.
                          destruct UnchOn1 as [UP UV].
                          apply (Mem.valid_block_extends _ _ _ Ext12) in H.
-                         rewrite <- (UP _ _ _ Heqjb2 H) in H0.
-                         rewrite (UV _ _ Heqjb2 H0 _ (eq_refl _)).
+                         rewrite <- (UP _ _ _ _ Heqjb2 H) in H0.
+                         rewrite (UV _ _ Heqjb2 H0).
                          specialize (Mem.mi_memval _ _ _ (Mem.mext_inj _ _ 
                                       Ext12) b2 ofs _ _ (eq_refl _) H0).
                          rewrite Zplus_0_r; trivial.  
-                destruct (ContInval H ofs) as [Cont _]. 
+                assert (VB1':= Mem.perm_valid_block _ _ _ _ _ H0).
+                destruct (ContInval H VB1' ofs) as [Cont _]. 
                   clear ContVal ContInval.
                   rewrite (Cont H0); clear Cont. 
                   apply memval_inject_id_refl.
@@ -235,7 +239,7 @@ assert (Inj23': Mem.inject j' m2' m3').
                               apply H4; trivial.
                               apply H4. omega.
                   assert (Val3:=Mem.valid_block_inject_2 _ _ _ _ _ _ J Inj23).
-              rewrite <- (U3Perm _ _ _ H3 Val3).
+              rewrite <- (U3Perm _ _ _ p H3 Val3).
                 eapply Inj23. apply J. apply H0.
           assert (NVal1: ~Mem.valid_block m1 b1). intros N. apply H1.
                  apply (Mem.valid_block_extends _ _ _ Ext12). apply N.
@@ -271,7 +275,7 @@ assert (Inj23': Mem.inject j' m2' m3').
            eapply inject_aligned_ofs. 
            apply (inj_implies_inject_aligned _ _ _ Inj13'). apply H. apply H1.
        (*mi_memval *) intros.
-           destruct (CONT b1) as [ContVal ContInval]; clear CONT.
+           destruct (CONT b1) as [ContVal [ContInval Default]]; clear CONT.
            assert (NP: Mem.perm m2' b1 ofs Max Nonempty).
                    eapply Mem.perm_max. eapply Mem.perm_implies. 
                    apply H0. constructor.
@@ -319,7 +323,7 @@ assert (Inj23': Mem.inject j' m2' m3').
               assert (Val3:=Mem.valid_block_inject_2 _ _ _ _ _ _ J Inj23).
               assert (Perm3:  Mem.perm m3 b2 (ofs+delta) Cur Readable).
                   eapply Inj23. apply J. apply H0.                   
-            rewrite (U3Val _ _ H3 Perm3 _ (eq_refl _)).
+            rewrite (U3Val _ _ H3 Perm3).
               eapply memval_inject_incr.
                  apply (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj23) 
                                       _ _ _ _ J H0).
@@ -333,7 +337,9 @@ assert (Inj23': Mem.inject j' m2' m3').
                     destruct p. exfalso. apply H1.
                     apply (Mem.valid_block_inject_1 _ _ _ _ _ _ Heqd Inj23).
               destruct (H2 Max ofs) as [Perm2'MaxP Perm2'MaxNop].
-              destruct (ContInval H1 ofs) as [ContPerm ContNoPerm]; 
+              assert (VB1': Mem.valid_block m1' b1).
+                 rewrite VB'. apply (Mem.perm_valid_block _ _ _ _ _ H0). 
+              destruct (ContInval H1 VB1' ofs) as [ContPerm ContNoPerm]; 
                        clear ContInval.
               specialize (H2 Cur ofs).
               apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
@@ -413,34 +419,51 @@ assert (Inj23': Mem.inject j' m2' m3').
                  destruct p. rewrite (InjInc _ _ _ Heqd) in H.  apply H.   
                  destruct (injSep _ _ _ Heqd H). exfalso. 
                  apply (Mem.valid_block_extends _ _ _ Ext12) in H1. apply (H3 H1).
-admit.  (* weak_valid_pointer...
-             specialize (H2 k (Int.unsigned ofs)).
+             (* weak_valid_pointer*)
              rewrite J in H2.
-             apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
-                   rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
-                   eapply Inj13'. apply H. apply H0.
-             rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
-                       eapply Inj23. apply J. apply H0. *)
+             destruct H0.
+             (*location ofs*)
+               specialize (H2 Max (Int.unsigned ofs)).
+               apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
+                 rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj13'. apply H. left. apply H0.
+               rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj23. apply J. left. apply H0.
+             (*location ofs -1*)
+               specialize (H2 Max (Int.unsigned ofs -1)).
+               apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
+                 rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj13'. apply H. right. apply H0.
+               rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj23. apply J. right. apply H0.
            (*case invalid*)
              assert (J: j b = None).
                remember (j b) as d. destruct d; apply eq_sym in Heqd; trivial. 
                   destruct p. exfalso. apply H1.
                   apply (Mem.valid_block_inject_1 _ _ _ _ _ _ Heqd Inj23).
-admit.  (* weak_valid_pointer...
-             specialize (H2 k (Int.unsigned ofs)).
-             apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
-                 rewrite (perm_subst _ _ _ _ _ _ _ H3) in *; clear H3.
-                     eapply Inj13'. apply H. apply H0.
-             unfold Mem.perm in H0. rewrite H3 in H0. inv H0. *)
+             (* weak_valid_pointer*)
+             destruct H0.
+             (*location ofs*)
+               specialize (H2 Max (Int.unsigned ofs)).
+               apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
+                 rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj13'. apply H. left. apply H0.
+               unfold Mem.perm in H0. rewrite H3 in H0. contradiction.
+             (*location ofs -1*)
+               specialize (H2 Max (Int.unsigned ofs -1)).
+               apply (perm_split _ _ _ _ _ _ _ H2); clear H2; intros.
+                 rewrite (perm_subst _ _ _ _ _ _ _ H3) in *. clear H3.
+                 eapply Inj13'. apply H. right. apply H0.
+               unfold Mem.perm in H0. rewrite H3 in H0. contradiction.
 split; trivial.
 split; trivial.
 split; trivial.
 (*mem_wd m2'*) intros.
     apply mem_wdI. intros.
-    remember ((ZMap.get ofs (ZMap.get b (Mem.mem_contents m2')))) as v.
+    remember ((ZMap.get ofs (PMap.get b (Mem.mem_contents m2')))) as v.
     destruct v; try econstructor.
     apply flatinj_I.
-      destruct (CONT b) as [ContVal ContInval].
+      destruct (CONT b) as [ContVal [ContInval Default]].
       apply (valid_split _ _ _ _  (ACCESS b)); intros.
       (*case valid*)
           clear ContInval.
@@ -486,7 +509,9 @@ split; trivial.
                   apply Fwd2.  apply H3.
       (*case invalid*)
         clear ContVal.
-        destruct (ContInval H0 ofs) as [ContPerm ContNoperm]; clear ContInval.
+        assert (VB1': Mem.valid_block m1' b).
+          rewrite VB'. apply (Mem.perm_valid_block _ _ _ _ _ R).
+        destruct (ContInval H0 VB1' ofs) as [ContPerm ContNoperm]; clear ContInval.
         specialize (H1 Cur ofs).
         apply (perm_split _ _ _ _ _ _ _ H1); clear H1; intros.
            rewrite (perm_subst _ _ _ _ _ _ _ H2) in *; clear H2.
@@ -503,119 +528,277 @@ split; trivial.
     rewrite Int.add_zero. trivial.
 Qed.
 
-Parameter mkAccessMap_EI_exists:  forall (j:meminj) (m1 m1' m2:Mem.mem), 
-          ZMap.t (Z -> perm_kind -> option permission).
-Axiom mkAccessMap_EI_ok: forall j (m1 m1' m2:Mem.mem), 
-      AccessMap_EI_Property j m1 m1' m2 (mkAccessMap_EI_exists j m1 m1' m2).
+Definition AccessMap_EI_FUN (j:meminj) (m1 m1' m2 : mem) (b2:block):
+           Z -> perm_kind -> option permission :=
+  if plt b2 (Mem.nextblock m2)
+  then (fun ofs2 k =>
+       match j b2 with 
+         None => PMap.get b2 m2.(Mem.mem_access) ofs2 k
+       | Some (b3,d3) =>
+          if Mem.perm_dec m1 b2 ofs2 Max Nonempty 
+          then PMap.get b2 m1'.(Mem.mem_access) ofs2 k
+          else PMap.get b2 m2.(Mem.mem_access) ofs2 k
+        end)
+  else (fun ofs2 k =>
+         if Mem.perm_dec m1' b2 ofs2 Max Nonempty 
+         then PMap.get b2 m1'.(Mem.mem_access) ofs2 k
+         else None).
 
-Parameter mkContentsMap_EI_exists: 
-           forall (j :meminj) (m1 m1' m2:Mem.mem), ZMap.t (ZMap.t memval).
-Axiom mkContentsMap_EI_ok: forall j m1 m1' m2, 
-      Content_EI_Property j m1 m1' m2 (mkContentsMap_EI_exists j m1 m1' m2).
+Lemma mkAccessMap_EI_existsT: forall j (m1 m1' m2:Mem.mem)
+       (VB : (Mem.nextblock m2 <= Mem.nextblock m1')%positive), 
+      { M : PMap.t (Z -> perm_kind -> option permission) |
+          fst M = (fun k ofs => None) /\
+          forall b, PMap.get b M = AccessMap_EI_FUN j m1 m1' m2 b}.
+Proof. intros.
+  apply (pmap_construct_c _ (AccessMap_EI_FUN j m1 m1' m2) 
+              (Mem.nextblock m1') (fun ofs k => None)).
+    intros. unfold AccessMap_EI_FUN.
+    remember (plt n (Mem.nextblock m2)) as d.
+    destruct d; clear Heqd; trivial.    
+       exfalso. xomega.
+    extensionality ofs. extensionality k. 
+      destruct (Mem.perm_dec m1' n ofs Max Nonempty); trivial.
+      apply Mem.perm_valid_block in p. 
+      exfalso. unfold Mem.valid_block in p. xomega.
+Qed.
 
+Definition ContentMap_EI_ValidBlock_FUN (j:meminj) m1 m1' m2 b2 ofs2: memval :=
+             match j b2 with
+               None => ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
+             | Some (b3,delta3) => 
+                  if Mem.perm_dec m1 b2 ofs2 Max Nonempty 
+                  then ZMap.get ofs2 (PMap.get b2 m1'.(Mem.mem_contents))
+                  else ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
+             end.
+
+Definition ContentMap_EI_InvalidBlock_FUN m1' b2 ofs2: memval :=
+    if Mem.perm_dec m1' b2 ofs2 Cur Readable
+    then ZMap.get ofs2 (PMap.get b2 m1'.(Mem.mem_contents))
+    else Undef.
+
+Definition ContentMap_EI_Block_FUN j m1 m1' m2 b ofs : memval:=
+  if plt b (Mem.nextblock m2)
+  then ContentMap_EI_ValidBlock_FUN j m1 m1' m2 b ofs
+  else ContentMap_EI_InvalidBlock_FUN m1' b ofs.
+
+Lemma CM_block_EI_existsT: forall j (m1 m1' m2:Mem.mem) b, 
+      { M : ZMap.t memval | 
+          fst M = Undef /\
+          forall ofs, ZMap.get ofs M =
+                      ContentMap_EI_Block_FUN j m1 m1' m2 b ofs}.
+Proof. intros.
+  remember (zmap_finite_c _ (PMap.get b m1'.(Mem.mem_contents))) as LH1.
+  apply eq_sym in HeqLH1. destruct LH1 as [lo1 hi1]. 
+  specialize (zmap_finite_sound_c _ _ _ _ HeqLH1).
+  intros Bounds1; clear HeqLH1.
+  remember (zmap_finite_c _ (PMap.get b m2.(Mem.mem_contents))) as LH2.
+  apply eq_sym in HeqLH2. destruct LH2 as [lo2 hi2]. 
+  specialize (zmap_finite_sound_c _ _ _ _ HeqLH2).
+  intros Bounds2; clear HeqLH2.
+   assert (Undef2: fst (Mem.mem_contents m2) !! b = Undef). apply m2.
+   assert (Undef1: fst (Mem.mem_contents m1') !! b = Undef). apply m1'.
+   rewrite Undef2 in *. rewrite Undef1 in *. clear Undef1 Undef2.
+
+  destruct (zmap_construct_c _ (ContentMap_EI_Block_FUN j m1 m1' m2 b)
+             (Z.min lo1 lo2) (Z.max hi1 hi2) Undef) as [M PM].
+    intros. unfold ContentMap_EI_Block_FUN; simpl. 
+        unfold ContentMap_EI_ValidBlock_FUN.
+        unfold ContentMap_EI_InvalidBlock_FUN.
+   rewrite Bounds1.
+   rewrite Bounds2.
+     destruct (plt b (Mem.nextblock m2)); trivial.
+       destruct (j b); trivial.
+         destruct p0.
+         destruct (Mem.perm_dec m1 b n Max Nonempty); trivial.
+     destruct (Mem.perm_dec m1' b n Cur Readable); trivial.
+     
+     destruct H.  apply Z.min_glb_lt_iff in H. left. apply H.
+     assert (Z.max hi1 hi2 < n) by omega.
+     apply Z.max_lub_lt_iff in H0. right; omega.
+     destruct H.  apply Z.min_glb_lt_iff in H. left. apply H.
+     assert (Z.max hi1 hi2 < n) by omega.
+     apply Z.max_lub_lt_iff in H0. right; omega.
+  exists M. apply PM.
+Qed.
+
+Definition ContentsMap_EI_FUN (j:meminj) (m1 m1' m2:Mem.mem) (b:block):
+            ZMap.t memval.
+destruct (plt b (Mem.nextblock m1')).
+  apply(CM_block_EI_existsT j m1 m1' m2 b).
+  apply (ZMap.init Undef).
+Defined.
+
+
+Lemma ContentsMap_EI_existsT: forall (j:meminj) (m1 m1' m2:Mem.mem), 
+      { M : PMap.t (ZMap.t memval) |
+        fst M = ZMap.init Undef /\
+        forall b, PMap.get b M = ContentsMap_EI_FUN j m1 m1' m2 b}.
+Proof. intros.
+  apply (pmap_construct_c _ (ContentsMap_EI_FUN j m1 m1' m2) 
+              (Mem.nextblock m1') (ZMap.init Undef)). 
+    intros. unfold ContentsMap_EI_FUN. simpl.
+    remember (plt n (Mem.nextblock m1')) as d.
+    destruct d; clear Heqd; trivial.   
+      exfalso. xomega.
+Qed.
+ 
 Definition mkEI (j j': meminj) (m1 m2 m1':mem)
                 (Ext12: Mem.extends m1 m2) 
                 (Fwd1: mem_forward m1 m1') m3 
                 (Inj23: Mem.inject j m2 m3)
                 m3' (Fwd3: mem_forward m3 m3') 
                 (Inj13': Mem.inject j' m1' m3')
-                (UnchOn3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3') 
+                (UnchOn3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3') 
                 (InjInc: inject_incr j j') (injSep: inject_separated j j' m1 m3)
-                (UnchOn1: my_mem_unchanged_on (loc_unmapped j) m1 m1')
+                (UnchOn1: Mem.unchanged_on (loc_unmapped j) m1 m1')
                 (WD1': mem_wd m1') (WD2: mem_wd m2) (WD3': mem_wd m3')
              : Mem.mem'.
+assert (VB: (Mem.nextblock m2 <= Mem.nextblock m1')%positive).
+   destruct Ext12. rewrite <- mext_next.
+   apply (mem_forward_nb _ _ Fwd1).    
+destruct (mkAccessMap_EI_existsT j m1 m1' m2) as [AM [ADefault PAM]].
+   assumption.
+destruct (ContentsMap_EI_existsT j m1 m1' m2) as [CM [CDefault PCM]].
 eapply Mem.mkmem with (nextblock:=m1'.(Mem.nextblock))
-                      (mem_access:=mkAccessMap_EI_exists j m1 m1' m2).
-  apply (mkContentsMap_EI_exists j m1 m1' m2).
-  apply m1'.
+                      (mem_access:=AM)
+                      (mem_contents:=CM).
+  (*apply (mkContentsMap_EI_exists j m1 m1' m2).*)
+(*  apply m1'.*)
   (*access_max*)
-     intros. specialize (mkAccessMap_EI_ok j m1 m1' m2 b). intros.
-     apply (valid_split _ _ _ _  H); clear H; intros.
+     intros. rewrite PAM. unfold AccessMap_EI_FUN.
+     destruct (plt b (Mem.nextblock m2)).
      (*valid_block m2 b*)
-         assert (MAX:= H0 Max ofs). 
-         specialize (H0 Cur ofs).
-         remember (j b) as jb.
-         destruct jb; apply eq_sym in Heqjb.
-            destruct p.
-            destruct MAX as [MaxPerm MaxNoperm].
-            apply (perm_split _ _ _ _ _ _ _ H0); clear H0; intros.
-              clear MaxNoperm.
-                 rewrite H1 in *; clear H1.
-                 rewrite (MaxPerm H0). apply m1'.
-            clear MaxPerm. 
-                 rewrite H1 in *; clear H1.
-                 rewrite (MaxNoperm H0). apply m2.
-          rewrite H0 in *; clear H0.
-                 rewrite MAX; clear MAX. apply m2.
+        destruct (j b). 
+          destruct p0.
+          destruct (Mem.perm_dec m1 b ofs Max Nonempty).
+             apply m1'.
+             apply m2.
+        apply m2.
      (*~ valid_block m2 b*)
-         destruct (H0 Max ofs) as [MaxPerm MaxNoPerm].
-         apply (perm_split _ _ _ _ _ _ _ (H0 Cur ofs)); clear H0; intros.
-              clear MaxNoPerm.
-                 rewrite H1 in *; clear H1.
-                 rewrite (MaxPerm H0). apply m1'.
-          clear MaxPerm. 
-                 rewrite H1 in *; clear H1.
-                 rewrite (MaxNoPerm H0). constructor.
+        destruct (Mem.perm_dec m1' b ofs Max Nonempty).
+           apply m1'.
+           reflexivity.
   (*nextblock_noaccess*)
-    intros. 
-    assert (NV1' : ~ Mem.valid_block m1' b). apply H.
-    assert (NV1 : ~ Mem.valid_block m1 b). intros N. destruct (Fwd1 _ N). apply (NV1' H0).
-    destruct (mkAccessMap_EI_ok j m1 m1' m2 b) as [_ Inval].
-     assert (NVB2: ~ Mem.valid_block m2 b). 
-        intros N. apply NV1. 
-        apply (Mem.valid_block_extends _ _ b Ext12). apply N.
-     specialize (Inval NVB2 k ofs).
-     apply (perm_split _ _ _ _ _ _ _ Inval); clear Inval; intros.
-          rewrite H1. apply m1'.  apply H.
-          rewrite H1. trivial.
+    intros. rewrite PAM.
+    unfold AccessMap_EI_FUN.
+    destruct (plt b (Mem.nextblock m2)).
+      exfalso. apply H; clear - VB p. xomega.
+    destruct (Mem.perm_dec m1' b ofs Max Nonempty); trivial.
+      exfalso. apply H. apply (Mem.perm_valid_block _ _ _ _ _ p).
+  (*contents_default*)
+    intros. rewrite PCM. 
+    unfold ContentsMap_EI_FUN.
+    destruct (plt b (Mem.nextblock m1')). 
+     remember (CM_block_EI_existsT j m1 m1' m2 b). 
+     destruct s. apply a.
+    reflexivity.
 Defined.
-
-Lemma my_interpolate_EI: forall (j j': meminj) (m1 m2 m1':mem)
-                (Ext12: Mem.extends m1 m2) 
-                (Fwd1: mem_forward m1 m1') m3 
-                (Inj23: Mem.inject j m2 m3)
-                m3' (Fwd3: mem_forward m3 m3') 
-                (Inj13': Mem.inject j' m1' m3') 
-                (UnchOn3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3') 
-                (InjInc: inject_incr j j') (injSep: inject_separated j j' m1 m3)
-                (UnchOn1: my_mem_unchanged_on (loc_unmapped j) m1 m1')
-                (WD1': mem_wd m1') (WD2: mem_wd m2) (WD3': mem_wd m3'),
-    exists m2', mem_forward m2 m2' /\
-                Mem.extends m1' m2' /\ 
-                Mem.inject j' m2' m3' /\ 
-                my_mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                my_mem_unchanged_on (loc_unmapped j) m2 m2' /\
-                (mem_wd m2 -> mem_wd m2').
-Proof. intros. 
-  exists (mkEI j j' m1 m2 m1' Ext12 Fwd1 _ Inj23 _ Fwd3 Inj13' 
-              UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3'). 
-  apply (EI_ok m1 m2 m1' Ext12 Fwd1 _ _ Inj23 _ Fwd3 _ Inj13'
-            UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3' 
-            (mkEI j j' m1 m2 m1' Ext12 Fwd1 m3 Inj23 m3' Fwd3 
-                  Inj13' UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3')
-            (eq_refl _)).
-   apply mkContentsMap_EI_ok.  apply mkAccessMap_EI_ok.
-Qed.
 
 Lemma interpolate_EI: forall (m1 m2 m1':mem) 
                    (Ext12: Mem.extends m1 m2) (Fwd1: mem_forward m1 m1')
                    m3 j (Inj23: Mem.inject j m2 m3) m3' 
                    (Fwd3: mem_forward m3 m3') j'
                    (Inj13': Mem.inject j' m1' m3')
-                   (UnchOn3: mem_unchanged_on (loc_out_of_reach j m1) m3 m3') 
+                   (UnchOn3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3') 
                    (InjInc: inject_incr j j')
                    (injSep: inject_separated j j' m1 m3)
-                   (UnchOn1: mem_unchanged_on (loc_unmapped j) m1 m1')
+                   (UnchOn1:  Mem.unchanged_on (loc_unmapped j) m1 m1')
                    (WD1':mem_wd m1') (WD2: mem_wd m2) (WD3': mem_wd m3'),
        exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\ 
                    Mem.inject j' m2' m3' /\ 
-                   mem_unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                   mem_unchanged_on (loc_unmapped j) m2 m2' /\
+                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
+                   Mem.unchanged_on (loc_unmapped j) m2 m2' /\
                    (mem_wd m2 -> mem_wd m2').
-Proof. intros. rewrite <- unchAx in UnchOn3.  rewrite <- unchAx in UnchOn1. 
-  destruct (my_interpolate_EI _ _ _ _ _ Ext12 Fwd1 _ Inj23 _ 
-              Fwd3 Inj13' UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3')
-    as [m2' [Fwd2 [Ext12' [Inj23' [UnchLoob22 [UnchLU22 WD2']]]]]].
-  rewrite unchAx in *. 
-  exists m2'. repeat (split; trivial).
+Proof. intros. 
+  assert (VB: Mem.nextblock
+    (mkEI j j' m1 m2 m1' Ext12 Fwd1 m3 Inj23 m3' Fwd3 Inj13' UnchOn3 InjInc
+       injSep UnchOn1 WD1' WD2 WD3') = Mem.nextblock m1').
+    unfold mkEI.
+   destruct (mkAccessMap_EI_existsT j m1 m1' m2) as [AM [ADefault PAM]].
+   simpl.
+   destruct (ContentsMap_EI_existsT j m1 m1' m2) as [CM [CDefault PCM]].
+   simpl. reflexivity.
+  exists (mkEI j j' m1 m2 m1' Ext12 Fwd1 _ Inj23 _ Fwd3 Inj13' 
+              UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3'). 
+  apply (EI_ok m1 m2 m1' Ext12 Fwd1 _ _ Inj23 _ Fwd3 _ Inj13'
+            UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3' 
+            (mkEI j j' m1 m2 m1' Ext12 Fwd1 m3 Inj23 m3' Fwd3 
+                  Inj13' UnchOn3 InjInc injSep UnchOn1 WD1' WD2 WD3')
+            VB).
+(*ContentMapOK*) 
+   unfold Content_EI_Property, mkEI.
+   destruct (mkAccessMap_EI_existsT j m1 m1' m2) as [AM [ADef AP]]; simpl.
+        destruct (ContentsMap_EI_existsT j m1 m1' m2) as [CM [CDef CP]]. simpl. 
+   intros.
+   split; intros.
+   (*valid_block m2 b*)
+     rewrite CP. unfold ContentsMap_EI_FUN.
+     destruct (CM_block_EI_existsT j m1 m1' m2 b2) as [CMb [CMbDef CMbP]]; simpl.
+     destruct (plt b2 (Mem.nextblock m1')).
+       remember (j b2).
+       destruct o.
+         destruct p0.
+         rewrite CMbP.
+         unfold ContentMap_EI_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)).
+           unfold ContentMap_EI_ValidBlock_FUN.
+           rewrite <- Heqo.
+           destruct (Mem.perm_dec m1 b2 ofs2 Max Nonempty). 
+           split; intros; trivial. contradiction.
+           split; intros; trivial. contradiction.
+         contradiction.
+       rewrite CMbP. 
+         unfold ContentMap_EI_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+         unfold ContentMap_EI_ValidBlock_FUN.
+         rewrite <- Heqo. trivial.
+    exfalso. apply n. apply Fwd1.
+      rewrite Mem.valid_block_extends. apply H. assumption.
+  split; intros.
+     rewrite CP. unfold ContentsMap_EI_FUN.
+     destruct (CM_block_EI_existsT j m1 m1' m2 b2) as [CMb [CMbDef CMbP]]; simpl.
+     destruct (plt b2 (Mem.nextblock m1')); try contradiction.
+     split; intros.
+       rewrite CMbP. unfold ContentMap_EI_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+         unfold ContentMap_EI_InvalidBlock_FUN.
+         destruct (Mem.perm_dec m1' b2 ofs2 Cur Readable); try contradiction.
+         trivial.
+       rewrite CMbP. unfold ContentMap_EI_Block_FUN.
+         destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+         unfold ContentMap_EI_InvalidBlock_FUN.
+         destruct (Mem.perm_dec m1' b2 ofs2 Cur Readable); try contradiction.
+         trivial.
+  (*default*)
+     rewrite CP. 
+     unfold ContentsMap_EI_FUN.
+     destruct ( plt b2 (Mem.nextblock m1')).
+       destruct (CM_block_EI_existsT j m1 m1' m2 b2) as [CMb [CMbDef CMbP]]; simpl.
+       assumption. 
+       reflexivity.
+(*AccessMapOK*)
+   unfold AccessMap_EI_Property, mkEI.
+   destruct (mkAccessMap_EI_existsT j m1 m1' m2) as [AM [ADef AP]]; simpl.
+        destruct (ContentsMap_EI_existsT j m1 m1' m2) as [CM [CDef CP]]. simpl. 
+   intros.
+   split; intros.
+   (*valid_block m2 b*)
+     rewrite AP. unfold AccessMap_EI_FUN.
+     destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+     destruct (Mem.perm_dec m1 b2 ofs2 Max Nonempty).
+       remember (j b2).
+       destruct o; trivial.
+       destruct p1.
+          split; intros; try contradiction. trivial.
+     remember (j b2).
+       destruct o; trivial.
+       destruct p0.
+          split; intros; try contradiction. trivial.
+
+  (*invalid_block m2 b*)
+   rewrite AP. unfold AccessMap_EI_FUN.
+   destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+   destruct (Mem.perm_dec m1' b2 ofs2 Max Nonempty).
+     split; intros; try contradiction. trivial.
+     split; intros; try contradiction. trivial.
 Qed.

@@ -4,7 +4,7 @@ Require Import Smallstep.
 Require Import Globalenvs.
 Require Import AST.
 Require Import Memory.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Integers.
 
 Require Import sepcomp.core_semantics.
@@ -111,8 +111,11 @@ Theorem CoreCorrectness_implies_CompcertForwardSimulation:
     In (P1.(prog_main), CompilerCorrectness.extern_func main_sig) ExternIdents  -> 
     P1.(prog_main) = P2.(prog_main) ->
     CompilerCorrectness.core_correctness
-    (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> 
-      initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))
+
+    (fun F C V Sem P => True)
+(*was:    (fun F C V Sem P => (forall x, Genv.init_mem P = Some x <-> 
+      initial_mem Sem (Genv.globalenv P) x P.(prog_defs)))*)
+
     ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
     forward_simulation (mk_semantics F1 C1 V1 Sem1 P1)  (mk_semantics F2 C2 V2 Sem2 P2).
 Proof.
@@ -141,8 +144,9 @@ Proof.
     split. simpl. exists bb. exists nil. simpl.
     repeat  split; try constructor. rewrite <- H0. apply KK2.
     assumption.
-    destruct (Eq_init m1).  apply GenvInit1. apply K5. destruct H1; subst. simpl in *. 
-    apply GenvInit2. apply H1. 
+    apply (Eq_init m1). assumption.
+    (*was: destruct (Eq_init m1). apply GenvInit1. apply K5. destruct H1; subst. simpl in *. 
+           apply GenvInit2. apply H1. *)
     simpl. hnf. simpl in *. split; trivial. rewrite K3 in KK1. inv KK1.  inv K2. 
     rewrite K4 in ini1. inv ini1. assumption.
   (*final_state*)
@@ -196,13 +200,15 @@ Proof.
   apply ( @Forward_simulation  (mk_semantics F1 C1 V1 Sem1 P1) 
                   (mk_semantics F2 C2 V2 Sem2 P2)
     fsim_index fsim_order fsim_order_wf  fsim_match_states).
-  (*initial_state*) simpl. unfold initial_state. intros.
+  (*initial_state*) simpl.
+    unfold initial_state. intros.
     destruct s1 as [c1 m1]. simpl in *.
     destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
     destruct (ePts_ok _ _ H) as [b1 [KK1 [KK2 [Hfound [f1 [f2 [Hf1 Hf2]]]]]]].
     rewrite KK1 in K3. inv K3. inv K2. clear K1 ePts_ok H.
-    apply GenvInit1 in K5. apply Extends_init in K5.
-    destruct K5 as [m2 [iniMem2 Mextends]].
+    destruct (Extends_init _ K5) as [m2 [iniMem2 Mextends]].    
+    (*WAS: apply GenvInit1 in K5. apply Extends_init in K5.
+           destruct K5 as [m2 [iniMem2 Mextends]].*)
     assert (X := @Forward_simulation_ext.core_initial _ _ _ _ _ _ Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil nil m1 m2).
     destruct X as [d' [c1' [c2' [IniCore1 [IniCore2 ExtMatch]]]]].
@@ -216,7 +222,7 @@ Proof.
     repeat  split; try constructor. 
     rewrite <- H0. apply KK2.  
     assumption.
-   apply GenvInit2. apply iniMem2. 
+   (*apply GenvInit2.*) apply iniMem2. 
   (*finalstate*)
     clear GenvInit1 GenvInit2.
     simpl. unfold final_state. intros. destruct s1 as [c1 m1].
@@ -288,7 +294,8 @@ Proof.
     destruct H1 as [b [args [K1 [ K2 [K3 [K4 K5]]]]]].
     destruct (ePts_ok _ _ H) as [b1 [b2 [KK1 [KK2 [Hjb [Hfound [f1 [f2 [Hf1 Hf2]]]]]]]]].
     rewrite KK1 in K3. inv K3. inv K2. clear K1.
-    destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init . apply GenvInit1. apply K5.
+    destruct (Inj_init m1) as [m2 [initMem2 Inj]]; clear Inj_init .
+        (*apply GenvInit1.*) apply K5.
     assert (X := @Forward_simulation_inj.core_initial _ _ _ _ _ _ _ Sem1 Sem2  
       (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
     destruct X as [d' [c2 [iniCore2 Match]]].
@@ -299,7 +306,7 @@ Proof.
     repeat  split; try constructor.
     rewrite <- H0. apply KK2.
     assumption.
-    apply GenvInit2. apply initMem2.
+    (*apply GenvInit2.*) apply initMem2.
     exists jInit. split; auto. 
   (*finalstate*)
     clear GenvInit1 GenvInit2.

@@ -21,8 +21,8 @@ Require Import AST.
 Require Import Integers.
 Require Import Floats.
 
-Definition block : Type := Z.
-Definition eq_block := zeq.
+Definition block : Type := positive.
+Definition eq_block := peq.
 
 (** A value is either:
 - a machine integer;
@@ -61,6 +61,7 @@ Definition has_type (v: val) (t: typ) : Prop :=
   | Vint _, Tint => True
   | Vlong _, Tlong => True
   | Vfloat _, Tfloat => True
+  | Vfloat f, Tsingle => Float.is_single f
   | Vptr _ _, Tint => True
   | _, _ => False
   end.
@@ -77,6 +78,23 @@ Definition has_opttype (v: val) (ot: option typ) : Prop :=
   | None => v = Vundef
   | Some t => has_type v t
   end.
+
+Lemma has_subtype:
+  forall ty1 ty2 v,
+  subtype ty1 ty2 = true -> has_type v ty1 -> has_type v ty2.
+Proof.
+  intros. destruct ty1; destruct ty2; simpl in H; discriminate || assumption || idtac.
+  unfold has_type in *. destruct v; auto. 
+Qed.
+
+Lemma has_subtype_list:
+  forall tyl1 tyl2 vl,
+  subtype_list tyl1 tyl2 = true -> has_type_list vl tyl1 -> has_type_list vl tyl2.
+Proof.
+  induction tyl1; intros; destruct tyl2; try discriminate; destruct vl; try contradiction.
+  red; auto.
+  simpl in *. InvBooleans. destruct H0. split; auto. eapply has_subtype; eauto.
+Qed.
 
 (** Truth values.  Pointers and non-zero integers are treated as [True].
   The integer 0 (also used to represent the null pointer) is [False].
@@ -194,7 +212,7 @@ Definition sub (v1 v2: val): val :=
   | Vint n1, Vint n2 => Vint(Int.sub n1 n2)
   | Vptr b1 ofs1, Vint n2 => Vptr b1 (Int.sub ofs1 n2)
   | Vptr b1 ofs1, Vptr b2 ofs2 =>
-      if zeq b1 b2 then Vint(Int.sub ofs1 ofs2) else Vundef
+      if eq_block b1 b2 then Vint(Int.sub ofs1 ofs2) else Vundef
   | _, _ => Vundef
   end.
 
@@ -550,7 +568,7 @@ Definition cmpu_bool (c: comparison) (v1 v2: val): option bool :=
   | Vint n1, Vptr b2 ofs2 =>
       if Int.eq n1 Int.zero then cmp_different_blocks c else None
   | Vptr b1 ofs1, Vptr b2 ofs2 =>
-      if zeq b1 b2 then
+      if eq_block b1 b2 then
         if weak_valid_ptr b1 (Int.unsigned ofs1)
            && weak_valid_ptr b2 (Int.unsigned ofs2)
         then Some (Int.cmpu c ofs1 ofs2)
@@ -603,14 +621,14 @@ Definition cmplu (c: comparison) (v1 v2: val): option val :=
 
 End COMPARISONS.
 
-(** [load_result] is used in the memory model (library [Mem])
-  to post-process the results of a memory read.  For instance,
-  consider storing the integer value [0xFFF] on 1 byte at a
-  given address, and reading it back.  If it is read back with
+(** [load_result] reflects the effect of storing a value with a given
+  memory chunk, then reading it back with the same chunk.  Depending
+  on the chunk and the type of the value, some normalization occurs.
+  For instance, consider storing the integer value [0xFFF] on 1 byte
+  at a given address, and reading it back.  If it is read back with
   chunk [Mint8unsigned], zero-extension must be performed, resulting
-  in [0xFF].  If it is read back as a [Mint8signed], sign-extension
-  is performed and [0xFFFFFFFF] is returned.   Type mismatches
-  (e.g. reading back a float as a [Mint32]) read back as [Vundef]. *)
+  in [0xFF].  If it is read back as a [Mint8signed], sign-extension is
+  performed and [0xFFFFFFFF] is returned. *)
 
 Definition load_result (chunk: memory_chunk) (v: val) :=
   match chunk, v with
@@ -625,6 +643,19 @@ Definition load_result (chunk: memory_chunk) (v: val) :=
   | (Mfloat64 | Mfloat64al32), Vfloat f => Vfloat f
   | _, _ => Vundef
   end.
+
+Lemma load_result_type:
+  forall chunk v, has_type (load_result chunk v) (type_of_chunk chunk).
+Proof.
+  intros. destruct chunk; destruct v; simpl; auto. apply Float.singleoffloat_is_single.
+Qed.
+
+Lemma load_result_same:
+  forall v ty, has_type v ty -> load_result (chunk_of_type ty) v = v.
+Proof.
+  unfold has_type; intros. destruct v; destruct ty; try contradiction; auto.
+  simpl. rewrite Float.singleoffloat_of_single; auto. 
+Qed.
 
 (** Theorems on arithmetic operations. *)
 
@@ -754,7 +785,7 @@ Proof.
   destruct v1; destruct v2; intros; simpl; auto.
   rewrite Int.sub_add_l. auto.
   rewrite Int.sub_add_l. auto.
-  case (zeq b b0); intro. rewrite Int.sub_add_l. auto. reflexivity.
+  case (eq_block b b0); intro. rewrite Int.sub_add_l. auto. reflexivity.
 Qed.
 
 Theorem sub_add_r:
@@ -766,7 +797,7 @@ Proof.
   repeat rewrite Int.add_assoc. decEq. apply Int.add_commut.
   decEq. repeat rewrite Int.sub_add_opp. 
   rewrite Int.add_assoc. decEq. apply Int.neg_add_distr.
-  case (zeq b b0); intro. simpl. decEq. 
+  case (eq_block b b0); intro. simpl. decEq. 
   repeat rewrite Int.sub_add_opp. rewrite Int.add_assoc. decEq.
   apply Int.neg_add_distr.
   reflexivity.
@@ -1006,7 +1037,7 @@ Proof.
   rewrite Int.negate_cmpu. auto.
   destruct (Int.eq i Int.zero); auto. 
   destruct (Int.eq i0 Int.zero); auto.
-  destruct (zeq b b0).
+  destruct (eq_block b b0).
   destruct ((valid_ptr b (Int.unsigned i) || valid_ptr b (Int.unsigned i - 1)) &&
             (valid_ptr b0 (Int.unsigned i0) || valid_ptr b0 (Int.unsigned i0 - 1))).
   rewrite Int.negate_cmpu. auto.
@@ -1053,13 +1084,13 @@ Proof.
   rewrite Int.swap_cmpu. auto.
   case (Int.eq i Int.zero); auto.
   case (Int.eq i0 Int.zero); auto.
-  destruct (zeq b b0); subst.
-  rewrite zeq_true.
+  destruct (eq_block b b0); subst.
+  rewrite dec_eq_true.
   destruct (valid_ptr b0 (Int.unsigned i) || valid_ptr b0 (Int.unsigned i - 1));
   destruct (valid_ptr b0 (Int.unsigned i0) || valid_ptr b0 (Int.unsigned i0 - 1));
   simpl; auto.
   rewrite Int.swap_cmpu. auto.
-  rewrite zeq_false by auto.
+  rewrite dec_eq_false by auto.
   destruct (valid_ptr b (Int.unsigned i));
     destruct (valid_ptr b0 (Int.unsigned i0)); simpl; auto.
 Qed.
@@ -1255,7 +1286,7 @@ Proof.
   destruct v1; simpl in H2; try discriminate;
   destruct v2; simpl in H2; try discriminate;
   inv H0; inv H1; simpl; auto.
-  destruct (zeq b0 b1).
+  destruct (eq_block b0 b1).
   assert (forall b ofs, valid_ptr b ofs || valid_ptr b (ofs - 1) = true ->
                         valid_ptr' b ofs || valid_ptr' b (ofs - 1) = true).
     intros until ofs. rewrite ! orb_true_iff. intuition. 
@@ -1370,7 +1401,7 @@ Remark val_sub_inject:
 Proof.
   intros. inv H; inv H0; simpl; auto.
   econstructor; eauto. rewrite Int.sub_add_l. auto.
-  destruct (zeq b1 b0); auto. subst. rewrite H1 in H. inv H. rewrite zeq_true.
+  destruct (eq_block b1 b0); auto. subst. rewrite H1 in H. inv H. rewrite dec_eq_true. 
   rewrite Int.sub_shifted. auto.
 Qed.
 
@@ -1430,15 +1461,15 @@ Proof.
   fold (weak_valid_ptr1 b0 (Int.unsigned ofs0)) in H1.
   fold (weak_valid_ptr2 b2 (Int.unsigned (Int.add ofs1 (Int.repr delta)))).
   fold (weak_valid_ptr2 b3 (Int.unsigned (Int.add ofs0 (Int.repr delta0)))). 
-  destruct (zeq b1 b0); subst.
-  rewrite H in H2. inv H2. rewrite zeq_true.
+  destruct (eq_block b1 b0); subst.
+  rewrite H in H2. inv H2. rewrite dec_eq_true.
   destruct (weak_valid_ptr1 b0 (Int.unsigned ofs1)) eqn:?; try discriminate.
   destruct (weak_valid_ptr1 b0 (Int.unsigned ofs0)) eqn:?; try discriminate.
   erewrite !weak_valid_ptr_inj by eauto. simpl.
   rewrite <-H1. simpl. decEq. apply Int.translate_cmpu; eauto.
   destruct (valid_ptr1 b1 (Int.unsigned ofs1)) eqn:?; try discriminate.
   destruct (valid_ptr1 b0 (Int.unsigned ofs0)) eqn:?; try discriminate.
-  destruct (zeq b2 b3); subst.
+  destruct (eq_block b2 b3); subst.
   assert (valid_ptr_implies: forall b ofs, valid_ptr1 b ofs = true -> weak_valid_ptr1 b ofs = true).
     intros. unfold weak_valid_ptr1. rewrite H0; auto. 
   erewrite !weak_valid_ptr_inj by eauto using valid_ptr_implies. simpl.

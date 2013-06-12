@@ -23,7 +23,7 @@ unfold inflate_initial_mem'.
 destruct l.
 unfold access_at; unfold empty at 1.
 simpl.
-rewrite ZMap.gi.
+rewrite PMap.gi.
 destruct (max_access_at empty (b,z)); try destruct p; try apply NO_identity.
 Qed.
 Local Hint Resolve inflate_initial_mem_empty.
@@ -243,7 +243,7 @@ Qed.
 Lemma core_load_getN: forall ch v b ofs bl phi m, 
   contents_cohere m phi
   -> (core_load' ch (b, ofs) v bl)%pred phi
-  -> bl = Mem.getN (size_chunk_nat ch) ofs (ZMap.get b (Mem.mem_contents m)).
+  -> bl = Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents m)).
 Proof.
 intros until m; intros H0 H.
 destruct H as [[H3 H4] H].
@@ -507,7 +507,7 @@ Lemma nth_getN: forall m b ofs ofs' z,
   ofs <= ofs' < ofs + z
   -> z >= 0
   -> contents_at m (b, ofs')
-  = nth (nat_of_Z (ofs' - ofs)) (Mem.getN (nat_of_Z z) ofs (ZMap.get b (Mem.mem_contents m))) Undef.
+  = nth (nat_of_Z (ofs' - ofs)) (Mem.getN (nat_of_Z z) ofs (PMap.get b (Mem.mem_contents m))) Undef.
 Proof.
 intros.
 revert ofs ofs' H H0.
@@ -566,7 +566,7 @@ unfold Mem.load in H.
 if_tac in H; try solve [inv H].
 inversion H.
 clear H.
-exists (Mem.getN (size_chunk_nat ch) ofs (ZMap.get b (Mem.mem_contents (m_dry m)))).
+exists (Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents (m_dry m)))).
 generalize H0 as H0'; intro.
 Local Hint Resolve Mem.getN_length.
 unfold Mem.valid_access in H0'.
@@ -604,7 +604,7 @@ destruct k; try solve [contradiction H99; simpl; auto].
 exists rsh,sh; exists p.
 destruct (H1 _ _ _ _ _ H4). subst pp.
 cut (m0 = nth (nat_of_Z (snd (b', ofs') - snd (b, ofs)))
-           (Mem.getN (size_chunk_nat ch) ofs (ZMap.get b (Mem.mem_contents (m_dry m))))
+           (Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents (m_dry m))))
            Undef). intro Heq0.
 f_equal; auto.
 f_equal; auto.
@@ -642,7 +642,7 @@ Proof.
 intros. rename H into Halign.
 unfold address_mapsto.
 pose (f l' := if adr_range_dec loc (size_chunk ch) l'
-                     then YES rsh sh (VAL (nthbyte (snd l' - snd loc) (Mem.getN (size_chunk_nat ch) (snd loc) (ZMap.get (fst loc) (Mem.mem_contents m))))) NoneP
+                     then YES rsh sh (VAL (nthbyte (snd l' - snd loc) (Mem.getN (size_chunk_nat ch) (snd loc) (PMap.get (fst loc) (Mem.mem_contents m))))) NoneP
                      else NO Share.bot).
 assert (CompCert_AV.valid (res_option oo f)).
 apply VAL_valid.
@@ -660,7 +660,7 @@ unfold NoneP. f_equal. unfold compose. extensionality x.
 apply approx_FF.
 exists phi.
 split; auto.
-exists (Mem.getN (size_chunk_nat ch) (snd loc) (ZMap.get (fst loc) (Mem.mem_contents m))).
+exists (Mem.getN (size_chunk_nat ch) (snd loc) (PMap.get (fst loc) (Mem.mem_contents m))).
 split.
 repeat split; auto. 
 Transparent Mem.load.
@@ -766,18 +766,43 @@ repeat match goal with [ H: context[ _ /\ _ ] |- _] => destruct H end.
 auto.
 Qed.
 
+Program Definition mapsto_can_store_definition ch v rsh b ofs jm (v':val)
+  (MAPSTO: (address_mapsto ch v rsh Share.top (b, ofs) * TT)%pred (m_phi jm)):
+  Memory.mem. 
+Proof. intros.
+pose proof (mapsto_valid_access_wr _ _ _ _ _ _ MAPSTO).
+apply (mkmem
+  (PMap.set b (setN (encode_val ch v') ofs (PMap.get b (mem_contents (m_dry jm))))
+    (mem_contents (m_dry jm))) (mem_access (m_dry jm))
+  (nextblock (m_dry jm)) (access_max (m_dry jm)) (nextblock_noaccess (m_dry jm))).
+intros. destruct jm; simpl.
+  rewrite PMap.gsspec. destruct (peq b0 b).
+  rewrite setN_default. apply contents_default. 
+  apply contents_default.
+Defined.
+
+Lemma mapsto_can_store_property: forall (ch:memory_chunk) v rsh b ofs jm v'
+  (MAPSTO: (address_mapsto ch v rsh Share.top (b, ofs) * TT)%pred (m_phi jm)),
+  Mem.store ch (m_dry jm) b ofs v' = 
+  Some(mapsto_can_store_definition jm v' MAPSTO).
+Proof.
+intros.
+pose proof (mapsto_valid_access_wr _ _ _ _ _ _ MAPSTO).
+unfold mapsto_can_store_definition. simpl.
+Transparent Mem.store. unfold store.
+destruct (valid_access_dec (m_dry jm) ch b ofs Writable).
+f_equal. f_equal; auto.
+contradiction.
+Opaque Mem.store.
+Qed.
+
 Lemma mapsto_can_store: forall ch v rsh b ofs jm v',
   (address_mapsto ch v rsh Share.top (b, ofs) * TT)%pred (m_phi jm)
   -> exists m', Mem.store ch (m_dry jm) b ofs v' = Some m'.
 Proof.
 intros.
-pose proof (mapsto_valid_access_wr _ _ _ _ _ _ H).
-exists (mkmem
-  (ZMap.set b (setN (encode_val ch v') ofs (ZMap.get b (mem_contents (m_dry jm))))
-    (mem_contents (m_dry jm))) (mem_access (m_dry jm)) 
-  (nextblock (m_dry jm)) (nextblock_pos (m_dry jm)) (access_max (m_dry jm)) (nextblock_noaccess (m_dry jm))).
-Transparent Mem.store. unfold store.
-rewrite if_true by auto. auto.
+exists (mapsto_can_store_definition jm v' H).
+apply mapsto_can_store_property.
 Qed.
 
 Lemma store_outside':
@@ -801,7 +826,7 @@ left; auto.
 right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
-rewrite ZMap.gss.
+rewrite PMap.gss.
 rewrite Mem.setN_other; auto.
 intros.
 rewrite encode_val_length in H0.
@@ -813,7 +838,7 @@ omega.
 right.
 unfold contents_at; rewrite H0; clear H0.
 simpl.
-rewrite ZMap.gso by auto. auto.
+rewrite PMap.gso by auto. auto.
 symmetry; eapply Mem.store_access; eauto.
 symmetry; eapply Mem.nextblock_store; eauto.
 Qed.
@@ -886,7 +911,7 @@ assert (H0 : access_at m' (b0, ofs0) = None).
   if_tac in H; try solve [congruence].
   unfold unchecked_free in H. inv H. simpl.
   assert (b = b0) by (destruct a; auto). subst.
-  unfold access_at; simpl. rewrite ZMap.gss.
+  unfold access_at; simpl. rewrite PMap.gss.
   rewrite adr_range_zle_zlt with (b:=b0); auto.
 spec Ha (b0,ofs0). rewrite <- H5 in Ha.
 rewrite H0 in Ha.
@@ -1000,7 +1025,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
   destruct (perm_of_sh_pshare t p) as [p' H4].
   unfold perm_of_res in Ha. simpl in Ha. rewrite H4 in Ha.
   assert (access_at m1 (nextblock m1, z) = None).
-    unfold access_at; apply nextblock_noaccess; simpl; omega.
+    unfold access_at; apply nextblock_noaccess; simpl; xomega.
   congruence.
 apply alloc_dry_unchanged_on with (m1:=m1)(m2:=m2) in H2; auto.
 destruct H2.
@@ -1046,7 +1071,7 @@ assert (~adr_range (b,lo) (hi-lo) loc).
   destruct (perm_of_sh_pshare t p) as [p' H4].
   unfold perm_of_res in Ha; simpl in Ha; rewrite H4 in Ha.
   assert (access_at m1 (nextblock m1, z) = None).
-    unfold access_at. simpl. apply nextblock_noaccess. omega.
+    unfold access_at. simpl. apply nextblock_noaccess. xomega.
   congruence.
 apply alloc_dry_unchanged_on with (m1:=m1)(m2:=m2) in H2; auto.
 destruct H2.

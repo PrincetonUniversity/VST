@@ -2,14 +2,14 @@
 Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.
 Require Import AST.
 Require Import Globalenvs.
 
 Require Import Axioms.
-Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
+Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 
 Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
@@ -124,7 +124,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         match_state cd st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd',
           match_state cd' st1' m1' st2' m2' /\
-          mem_unchanged_on (fun b ofs => 
+          Mem.unchanged_on (fun b ofs => 
             (*I'm not sure whether this should be ~private_block st1 or
                ~private_block st2.  Perhaps it doesn't matter if we know that 
                private_block st2 -> private_block st1 over extension passes. *)
@@ -173,7 +173,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (fun b ofs => 
+        Mem.unchanged_on (fun b ofs => 
           loc_out_of_bounds m1 b ofs /\ private_block Sem1 st1 b) m2 m2' -> 
        (*i.e., spill-locations didn't change*)
         Val.lessdef ret1 ret2 ->
@@ -274,7 +274,7 @@ Module Coop_forward_simulation_ext. Section Forward_simulation_extends.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (loc_out_of_bounds m1) m2 m2' -> 
+        Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' -> 
         (*i.e., spill-locations didn't change*)
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
@@ -316,9 +316,9 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (fun b ofs => 
+          Mem.unchanged_on (fun b ofs => 
             loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
-          mem_unchanged_on (fun b ofs => 
+          Mem.unchanged_on (fun b ofs => 
             loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -367,10 +367,10 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         val_inject_opt j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
          val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
          val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
@@ -471,9 +471,9 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
         val_inject j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (loc_unmapped j) m1 m1' ->
+         Mem.unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+         Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
          Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
         mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
@@ -514,9 +514,9 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           inject_incr j j' /\
           inject_separated j j' m1 m2 /\
           match_state cd' j' st1' m1' st2' m2' /\
-          mem_unchanged_on (fun b ofs => 
+          Mem.unchanged_on (fun b ofs => 
             loc_unmapped j b ofs /\ ~private_block Sem1 st1 b) m1 m1' /\
-          mem_unchanged_on (fun b ofs => 
+          Mem.unchanged_on (fun b ofs => 
             loc_out_of_reach j m1 b ofs /\ ~private_block Sem2 st2 b) m2 m2' /\
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -565,10 +565,10 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         val_inject_opt j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_unmapped j b ofs /\ private_block Sem1 st1 b) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 st2 b) m2 m2' ->
          val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) -> 
          val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) -> 
@@ -727,9 +727,11 @@ Inductive core_correctness (I: forall F C V
       (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
       (P1 : AST.program F1 V1)
       (P2 : AST.program F2 V2)
-      (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+      (Eq_init : forall m1 : mem,
+            Genv.init_mem P1 = Some m1 -> Genv.init_mem P2 = Some m1)
+      (*(Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
         (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
-          /\ m1 = m2))
+          /\ m1 = m2))*)
       entrypoints
       (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
       (R:Forward_simulation_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 
@@ -744,9 +746,11 @@ Inductive core_correctness (I: forall F C V
   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
-  (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+  (Extends_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+    exists m2, Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
+  (*(Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
-      /\ Mem.extends m1 m2))
+      /\ Mem.extends m1 m2))*)
   entrypoints
   (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
   (R:Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
@@ -763,9 +767,11 @@ Inductive core_correctness (I: forall F C V
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   entrypoints jInit
-  (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+  (Inj_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+      exists m2, Genv.init_mem P2 = Some m2 /\ Mem.inject jInit m1 m2)
+  (*(Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
-      /\ Mem.inject jInit m1 m2))
+      /\ Mem.inject jInit m1 m2))*)
   (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
   (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
   (R:Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
@@ -835,8 +841,10 @@ forall (F1 C1 V1 F2 C2 V2:Type)
     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
     (P1 : AST.program F1 V1)
     (P2 : AST.program F2 V2)
-    (Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
-      (exists m2, initial_mem Sem2 (Genv.globalenv P2)  m2 P2.(prog_defs) /\ m1=m2))
+    (Eq_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+                                Genv.init_mem P2 = Some m1)
+    (*(Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+      (exists m2, initial_mem Sem2 (Genv.globalenv P2)  m2 P2.(prog_defs) /\ m1=m2))*)
     (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
     (R:Forward_simulation_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
@@ -850,9 +858,11 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
-   (Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+   (Ext_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+         exists m2, Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
+   (*(Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) /\
-       Mem.extends m1 m2))
+       Mem.extends m1 m2))*)
    (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
    (R:Coop_forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
@@ -867,9 +877,11 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    jInit
-   (Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+   (Inj_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+      exists m2, Genv.init_mem P2 = Some m2 /\ Mem.inject jInit m1 m2)
+   (*(Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
-       /\ Mem.inject jInit m1 m2))
+       /\ Mem.inject jInit m1 m2))*)
    (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
    (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
    (R:Coop_forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 

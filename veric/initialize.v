@@ -72,9 +72,9 @@ Lemma level_only_blocks: forall {S} S_dec phi,
 Proof. intros. apply level_make_rmap.
 Qed.
 
-Definition upto_block (b: block) (w: rmap) : rmap :=  only_blocks (fun b' => zlt b' b) w.
+Definition upto_block (b: block) (w: rmap) : rmap :=  only_blocks (fun b' => plt b' b) w.
 
-Definition beyond_block (b: block) (w: rmap) : rmap := only_blocks (not_dec (fun b' => zlt b' b)) w.
+Definition beyond_block (b: block) (w: rmap) : rmap := only_blocks (not_dec (fun b' => plt b' b)) w.
 
   
 Lemma join_upto_beyond_block:
@@ -248,7 +248,44 @@ simpl.
 rewrite sepcon_emp.
 apply sepcon_comm.
 Qed.
+(*TODO: prot this lemma to positive
+Lemma add_variables_nextblock:
+  forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
+  match vl with 
+    nil => 
+       Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
+            Some (Genv.genv_next ge)
+  | _ :: _ => Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
+          Some (Genv.genv_next ge + Pos.of_nat (length vl))%positive
+ end.
+Proof. intros.
+   specialize (@find_symbol_add_globals F V i g i vl). intros ZZ.
+    destruct vl; simpl in *.
+ induction vl; intros.
+ inv H. clear H3. simpl.
+   specialize (@find_symbol_add_globals F V i g i ul).
+    unfold Genv.add_global, Genv.find_symbol; simpl. 
+    rewrite PTree.gss.
+ replace (Some (Genv.genv_next ge + 0)) with (Genv.find_symbol (Genv.add_global ge (i,g)) i).
+ Focus 2. 
+  unfold Genv.add_global, Genv.find_symbol; simpl. rewrite PTree.gss. f_equal; unfold block; omega.
+  forget (Genv.add_global ge (i, g)) as ge1.
+  revert H2 ge1; induction ul; simpl; intros; auto.
+  spec IHul; [intuition |].
+  rewrite IHul.
+  unfold Genv.find_symbol, Genv.add_global. simpl.
+  rewrite PTree.gso; auto.
+  simpl length.
+  rewrite inj_S.
+  unfold Zsucc.
+  simpl.
+  rewrite (IHvl  (Genv.add_global ge a) i g ul).
+  f_equal.
+  destruct ge;   unfold Genv.add_global, Genv.genv_next; simpl. omega.
+  simpl in H. inv H; auto.
+Qed.
 
+Here's the original proof.
 Lemma add_variables_nextblock:
   forall F V vl (ge: Genv.t F V) i g ul, list_norepet (map (@fst _ _) (vl++(i,g)::ul)) ->
    Genv.find_symbol (Genv.add_globals ge (vl++(i,g)::ul)) i = 
@@ -274,7 +311,7 @@ Proof.
   destruct ge;   unfold Genv.add_global, Genv.genv_next; simpl. omega.
   simpl in H. inv H; auto.
 Qed.
-
+*)
 
 Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p: Z) (d: init_data) : Prop :=
   match d with
@@ -333,7 +370,7 @@ Proof.
   remember (Some m') as m1.
   revert z'  m' Heqm1 H0; induction H; intros. omegaContradiction.
   subst res.
- destruct (eq_dec z' p). 
+ destruct (Z.eq_dec z' p). 
  Focus 2. apply IHR_store_zeros; auto. 
    clear - H0 n0.  destruct H0. omega.
   subst z'.
@@ -588,7 +625,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf. rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -611,7 +648,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -634,7 +671,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -657,7 +694,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -680,7 +717,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -703,7 +740,7 @@ Proof.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -736,7 +773,7 @@ if_tac; auto.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H3; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H3; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -748,7 +785,7 @@ if_tac; auto.
   inv H.
   assert (contents_at m3 (b,z1) = Byte Byte.zero). 
     unfold contents_at.
-    simpl. forget (ZMap.get z1 (ZMap.get b (mem_contents m3))) as byt.
+    simpl. forget (ZMap.get z1 (PMap.get b (mem_contents m3))) as byt.
     clear - H7.
     unfold decode_val in H7. 
     revert H7; case_eq (proj_bytes (byt::nil)); intros; try discriminate.
@@ -781,7 +818,7 @@ if_tac; auto.
   case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
  (* is an array *)
  destruct t; try left; inv HT.
- exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
+ exists ( (getN (size_chunk_nat Mint32) z (PMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
@@ -793,7 +830,7 @@ if_tac; auto.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -817,7 +854,7 @@ assert ((EX  bl : list memval,
          (VAL (nth (nat_of_Z ((let (_, y) := loc in y) - z)) bl Undef))
          extern_retainer (readonly2share (gvar_readonly v)) loc) noat))%pred
   w1).
- exists ( (getN (size_chunk_nat Mint32) z (ZMap.get b (mem_contents m3)))).
+ exists ( (getN (size_chunk_nat Mint32) z (PMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
@@ -829,7 +866,7 @@ assert ((EX  bl : list memval,
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; omega).
+  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
@@ -886,9 +923,9 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   rewrite (nextblock_drop _ _ _ _ _ _ H2).
   rewrite (Genv.store_init_data_list_nextblock _ _ _ _ _ H1).
   rewrite (Genv.store_zeros_nextblock _ _ _ _ H0).
-  assert (nextblock m1 = Zsucc b /\ b = nextblock m0).
+  assert (nextblock m1 = Psucc b /\ b = nextblock m0).
    clear - H. Transparent alloc. inv H.  simpl. auto. Opaque alloc.
- destruct H5; unfold block in *; omega.
+ destruct H5; unfold block in *; xomega.
  assert (forall loc, if adr_range_dec (b,0)  (Genv.init_data_list_size (gvar_init v)) loc
                              then access_at m4 loc = Some (Genv.perm_globvar v)
                              else identity (phi @ loc)).
@@ -898,13 +935,13 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
       forget (Genv.init_data_list_size (gvar_init v)) as n.
      clear - H2 H5. unfold drop_perm in H2.
       destruct (range_perm_dec m3 b 0 n Cur Freeable); inv H2.
-      simpl.  rewrite ZMap.gss.
+      simpl.  rewrite PMap.gss.
        destruct (zle 0 z); try omegaContradiction. destruct (zlt z n); try omegaContradiction.
        simpl; auto.
     destruct loc.
   destruct (eq_dec b b0). subst b0.
   unfold phi. unfold beyond_block. rewrite only_blocks_at.
-   simpl. rewrite if_true by (unfold block; omega).
+   simpl. rewrite if_true by (unfold block; xomega).
   unfold inflate_initial_mem.  rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'.
   replace (access_at m4 (b,z)) with (@None permission).
@@ -912,7 +949,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   symmetry.  transitivity (access_at m3 (b,z)).
   clear - H4 H2. unfold access_at; unfold drop_perm in H2.
    destruct (range_perm_dec m3 b 0 (Genv.init_data_list_size (gvar_init v)) Cur
-         Freeable); inv H2. simpl. rewrite ZMap.gss.
+         Freeable); inv H2. simpl. rewrite PMap.gss.
   unfold adr_range in H4. destruct (zle 0 z); auto.
    destruct (zlt z (Genv.init_data_list_size (gvar_init v)) ); auto.
   contradiction H4. split; auto.
@@ -922,7 +959,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   transitivity (access_at m1 (b,z)).
   clear - H0. erewrite store_zeros_access; eauto.
   clear - H H4. Transparent alloc. inv H. Opaque alloc. unfold access_at; simpl.
-  rewrite ZMap.gss. destruct (zle 0 z); auto.
+  rewrite PMap.gss. destruct (zle 0 z); auto.
    destruct (zlt z (Genv.init_data_list_size (gvar_init v)) ); auto.
   contradiction H4. split; auto.
    apply H3. auto.
@@ -1095,7 +1132,7 @@ Qed.
 
 Lemma alloc_global_beyond2:
   forall {F V} (ge: Genv.t F V) m iv m', Genv.alloc_global ge m iv = Some m' ->
-       forall loc, fst loc > nextblock m ->
+       forall loc, (fst loc > nextblock m)%positive ->
         access_at m' loc = None.
 Proof.
  intros.
@@ -1110,16 +1147,16 @@ Transparent alloc.
   destruct (range_perm_dec m b0 0 N Cur Freeable); inv H
  end; 
   inv H; simpl in *;
- repeat rewrite ZMap.gss; 
- repeat rewrite ZMap.gso by (intro Hx; inv Hx; omega);
- try (apply nextblock_noaccess; omega).
+ repeat rewrite PMap.gss; 
+ repeat rewrite PMap.gso by (intro Hx; inv Hx; xomega);
+ try (apply nextblock_noaccess; xomega).
  apply store_zeros_access in H1.
  apply store_init_data_list_outside' in H4.
  destruct H4 as [? [? ?]]. rewrite H2 in H1.
  change (access_at m2 (b,ofs) = None).
  rewrite H1. unfold access_at; simpl.
- repeat rewrite ZMap.gso by (intro Hx; inv Hx; omega).
- apply nextblock_noaccess; omega.
+ repeat rewrite PMap.gso by (intro Hx; inv Hx; xomega).
+ apply nextblock_noaccess; xomega.
 Qed.
 
 Lemma alloc_global_access:
@@ -1141,10 +1178,10 @@ apply store_init_data_list_access in H3.
 rewrite H0 in H3. clear m1 H0.
 inv H. unfold access_at in H3. simpl in *.
 apply equal_f with (nextblock m, z) in H3.
-simpl in H3. rewrite ZMap.gss in *.
+simpl in H3. rewrite PMap.gss in *.
 destruct (zle 0 z). simpl. destruct (zlt z N).
 simpl.
-rewrite if_true; auto. rewrite if_false; auto. intros [? ?]. omega.
+rewrite if_true; auto. rewrite if_false; auto. intros [? ?]. xomega.
 simpl. rewrite if_false by omega. 
 simpl in H3; auto.
 Qed.
@@ -1170,7 +1207,7 @@ Proof.
  destruct (eq_dec (fst loc) (nextblock m0)).
 Focus 2.
  assert (access_at m loc = None).
-  eapply alloc_global_beyond2; try eassumption. unfold block in *; omega.
+  eapply alloc_global_beyond2; try eassumption. unfold block in *; xomega.
  assert (access_at m0 loc = None).
   unfold access_at. apply nextblock_noaccess. auto.
  unfold inflate_initial_mem'; rewrite H2; rewrite H3; auto.
@@ -1179,7 +1216,7 @@ Focus 2.
  clear H1.
  specialize (H0 (snd loc)).
  assert (access_at m0 loc = None).
-  unfold access_at. apply nextblock_noaccess. rewrite <- e; omega.
+  unfold access_at. apply nextblock_noaccess. rewrite <- e; xomega.
  unfold inflate_initial_mem' at 1. rewrite H1.
   unfold inflate_initial_mem'.
  destruct loc; simpl in e; subst.
@@ -1302,9 +1339,9 @@ Proof.
   unfold Genv.alloc_global in H.
   revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
   destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0. 
-  unfold access_at; simpl. apply alloc_result in H; subst b. rewrite ZMap.gss.
+  unfold access_at; simpl. apply alloc_result in H; subst b. rewrite PMap.gss.
  destruct (zle 0 0); try omegaContradiction. destruct (zlt 0 1); try omegaContradiction; simpl. auto.
- symmetry. apply nextblock_noaccess. simpl; unfold block; clear; omega.
+ symmetry. apply nextblock_noaccess. simpl; unfold block; clear; xomega.
  replace (inflate_initial_mem m0 (initial_core gev GG n) @ loc)
    with (inflate_initial_mem m (initial_core gev GG n) @ loc); auto.
  clear - n0 H.
@@ -1317,30 +1354,30 @@ Proof.
   unfold alloc; inv H. unfold access_at; simpl.
   destruct loc as [b z]; simpl in *.
   destruct (eq_dec b (nextblock m0)).
-  subst. repeat rewrite ZMap.gss. assert (z<>0) by congruence.
+  subst. repeat rewrite PMap.gss. assert (z<>0) by congruence.
   destruct (zle 0 z). simpl. destruct (zlt z 1); try omegaContradiction. simpl.
-  apply nextblock_noaccess. omega.
+  apply nextblock_noaccess. xomega.
    destruct (zlt z 1); try omegaContradiction. simpl.
-  apply nextblock_noaccess. omega.
- rewrite ZMap.gss. rewrite ZMap.gso by auto. rewrite ZMap.gso by auto. auto.
+  apply nextblock_noaccess. xomega.
+ rewrite PMap.gss. rewrite PMap.gso by auto. rewrite PMap.gso by auto. auto.
  case_eq (access_at m loc); auto.
   unfold Genv.alloc_global in H.
   revert H; case_eq (alloc m0 0 1); intros. unfold drop_perm in H0.
   destruct (range_perm_dec m1 b 0 1 Cur Freeable); inv H0.
   unfold contents_at; simpl. unfold access_at in H1; simpl in H1.
-  destruct (eq_dec b (fst loc)). subst. rewrite ZMap.gss in H1.
+  destruct (eq_dec b (fst loc)). subst. rewrite PMap.gss in H1.
   destruct (zle 0 (snd loc)); simpl in H1; auto.
   destruct (zlt (snd loc) 1); simpl in H1; auto. assert (snd loc = 0) by omega. 
   destruct loc; apply alloc_result in H; simpl in *; congruence.
- clear r H8. inv H. simpl in *. rewrite H3 in *; rewrite ZMap.gss in *.
+ clear r H8. inv H. simpl in *. rewrite H3 in *; rewrite PMap.gss in *.
   destruct (zle 0 (snd loc)); try omegaContradiction.
   destruct (zlt (snd loc) 1); try omegaContradiction. inv H1; auto.
-  clear H8 r. inv H. simpl in H1; rewrite <- H3 in H1; rewrite ZMap.gss in H1.
+  clear H8 r. inv H. simpl in H1; rewrite <- H3 in H1; rewrite PMap.gss in H1.
   destruct (zle 0 (snd loc)); try omegaContradiction.
   destruct (zlt (snd loc) 1); try omegaContradiction. inv H1; auto.
-  rewrite ZMap.gso in H1 by auto.
-  replace (ZMap.get (fst loc) (mem_contents m1)) with (ZMap.get (fst loc) (mem_contents m0)); auto.
-  inv H; simpl. rewrite ZMap.gso; auto.
+  rewrite PMap.gso in H1 by auto.
+  replace (PMap.get (fst loc) (mem_contents m1)) with (PMap.get (fst loc) (mem_contents m0)); auto.
+  inv H; simpl. rewrite PMap.gso; auto.
 Qed.
 
 Lemma resource_identity_dec:
@@ -1505,11 +1542,11 @@ Proof.
  unfold upto_block. rewrite level_only_blocks. auto.
  clear H; rename H1 into H.
  intro loc; specialize (H loc).
- destruct (zlt (fst loc) (nextblock m0)).
+ destruct (plt (fst loc) (nextblock m0)).
  unfold upto_block. rewrite only_blocks_at. rewrite if_true by auto.
  replace (inflate_initial_mem m0 (initial_core gev G n) @ loc)
    with (inflate_initial_mem m (initial_core gev G n) @ loc); auto.
- try rename l into z.   (* Coq 8.3/8.4 compatibility *)
+ try rename p into z.   (* Coq 8.3/8.4 compatibility *)
  clear - z H0.
  unfold inflate_initial_mem; repeat rewrite resource_at_make_rmap.
  unfold inflate_initial_mem'.
@@ -1544,6 +1581,7 @@ Lemma global_initializers:
     Genv.init_mem prog = Some m ->
      app_pred (globvars2pred (prog_vars prog) rho)
   (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
+Admitted. (* (*TODO: port this proof to positive
 Proof.
  intros until rho. intros ? AL SAME_IDS RHO ?. 
  unfold all_initializers_aligned in AL.
@@ -1589,19 +1627,57 @@ intros. rename H3 into HACK; revert phi HACK.
  rewrite resource_at_make_rmap in *.
  unfold inflate_initial_mem' in HACK|-*.
  inversion H0; clear H0; subst m.
- unfold access_at, empty in HACK; simpl in HACK; rewrite ZMap.gi in HACK. 
+ unfold access_at, empty in HACK; simpl in HACK; rewrite PMap.gi in HACK. 
    destruct HACK as [HACK _]. rewrite <- HACK. apply NO_identity.
  revert H0; case_eq (alloc_globals_rev gev empty vl); intros; try congruence.
  spec IHvl. clear - AL. simpl in AL. destruct a. destruct g; auto. simpl in AL.
    apply andb_true_iff in AL; destruct AL; auto.
   spec IHvl; [ intros | ].
- assert (H4': (0 < nat_of_Z b <= length vl)%nat).
- clear - H4. destruct H4. split. apply inj_lt_rev. rewrite nat_of_Z_max.
- rewrite Zmax_spec; destruct (zlt 0 b); simpl; omega.
-  apply inj_le_rev. rewrite Zlength_correct in H0.
- rewrite nat_of_Z_max; rewrite Zmax_spec; destruct (zlt 0 b); simpl; omega.
+ assert (H4': (Pos.to_nat b <= length vl)%nat).
+ clear - H4. rewrite Zlength_correct in H4.
+      rewrite <- Z2Nat.inj_pos.
+      (*forget (Z.pos b) as bb. forget (length vl) as n. clear vl b.*)
+       rewrite <- Nat2Z.id .
+       apply Z2Nat.inj_le. specialize (Pos2Z.is_pos b). omega.
+       omega.
+       apply H4.
+ specialize (Pos2Z.is_pos b). intros POS.
  rewrite H.
- replace (nat_of_Z b) with (S (nat_of_Z b - 1)) by omega.
+   specialize (Pos2Nat.is_succ b). intros. destruct H5 as [k Hk].
+   rewrite Hk in *. unfold nat_of_Z in *. rewrite Z2Nat.inj_pos.
+   destruct k; simpl in *.
+     rewrite Hk. 
+   assert (exists kk, k = S kk).
+         clear -k HK POS vl H4'. 
+         induction vl; simpl in *; intros. omega.
+         destruct (le_lt_eq_dec _ _ H4').
+           destruct IHvl. omega. subst. exists x. trivial.
+         inv e. apply IHvl. exists O. omega.
+   rewrite Hk. clear H4 Hk b POS. 
+(*   assert (exists kk, (length vl = S k + kk)%nat).
+         clear -k vl H4'. 
+         induction vl; simpl in *; intros. omega.
+         destruct (le_lt_eq_dec _ _ H4').
+           destruct IHvl. omega. rewrite H in *. exists (S x); simpl. omega.
+         inv e. exists O. omega.
+   destruct H4 as [kk Hkk]. *)
+    assert (exists kk, k = S kk).
+         clear -k vl H4'. 
+         induction vl; simpl in *; intros. omega.
+         destruct (le_lt_eq_dec _ _ H4').
+           destruct IHvl. omega. subst. exists x. trivial.
+         inv e. apply IHvl. exists O. omega.
+   destruct H4 as [kk Hkk]. *)
+   trivial. arith.
+         simpl. exists (length vl). destruct k. trivial. 
+
+ clear IHvl. destruct a. simpl.xx
+   specialize (nth_error_app (cons i nil) (map fst vl) (length vl - S k)).
+   intros ZZ. rewrite <- ZZ. simpl. 
+   assert (X: (length vl - S k = length vl - k -1)%nat) by omega.
+   rewrite X. rewrite <- nth_error_rev.
+ apply iff_refl. simpl. omega.
+   replace (Pos.to_nat b) with (S (nat_of_Z b - 1)) by omega.
  replace (length vl - (nat_of_Z b - 1))%nat with (S (length vl - S (nat_of_Z b - 1)))%nat by omega.
  apply iff_refl. rewrite Zlength_cons; omega.
  destruct a.
@@ -1694,4 +1770,4 @@ pose proof (init_data_list_lem gev m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G)
  apply IHvl; auto.
  eapply another_hackfun_lemma; eauto.
 Qed.
-
+*)

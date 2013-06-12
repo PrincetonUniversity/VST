@@ -2,7 +2,7 @@
 Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.
 Require Import AST.
@@ -198,7 +198,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
-        mem_unchanged_on (fun b ofs => 
+        Mem.unchanged_on (fun b ofs => 
           loc_out_of_bounds m1 b ofs /\ private_block Sem1 st1 b) m2 m2' -> 
        (*ie spill-locations didn't change*)        
         Val.lessdef ret1 ret2 ->
@@ -220,7 +220,7 @@ Hypothesis ext_simulation:
     forall c2 m2, match_states c1 c1 m1 c2 m2 ->
       exists c2', exists m2', 
         match_states c1' c1' m1' c2' m2' /\
-        mem_unchanged_on (fun b ofs => 
+        Mem.unchanged_on (fun b ofs => 
           loc_out_of_bounds m1 b ofs /\ ~private_block Sem1 c1 b) m2 m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
@@ -256,7 +256,7 @@ Section EXT_SIMULATION_STAR.
         exists c2' : C2,
           exists m2' : mem,
             match_states c1' c1' m1' c2' m2' /\
-            mem_unchanged_on
+            Mem.unchanged_on
             (fun (b : block) (ofs : Z) =>
               loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m2 m2' /\
             (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
@@ -282,7 +282,7 @@ Section EXT_SIMULATION_PLUS.
       exists c2', exists m2', 
         corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
         match_states c1' c1' m1' c2' m2' /\
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_out_of_bounds m1 b ofs /\ ~ private_block Sem1 c1 b) m2 m2'.
 
@@ -364,10 +364,10 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         val_inject_opt j' ret1 ret2 ->
 
          mem_forward m1 m1'  -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_unmapped j b ofs /\ private_block Sem1 c1 b) m1 m1' ->
          mem_forward m2 m2' -> 
-         mem_unchanged_on (fun b ofs => 
+         Mem.unchanged_on (fun b ofs => 
            loc_out_of_reach j m1 b ofs /\ private_block Sem2 c2 b) m2 m2' ->
          val_has_type_opt' ret1 (proj_sig_res (ef_sig e)) ->
          val_has_type_opt' ret2 (proj_sig_res (ef_sig e)) ->
@@ -388,10 +388,10 @@ Hypothesis order_wf: well_founded order.
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\
         match_states c1' j' c1' m1' c2' m2' /\
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
@@ -431,10 +431,10 @@ Section INJ_SIMULATION_STAR.
       (exists c2', exists m2', exists j', 
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\ 
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2' /\
         match_states c1' j' c1' m1' c2' m2' /\
@@ -466,10 +466,10 @@ Section INJ_SIMULATION_PLUS.
         inject_separated j j' m1 m2 /\ 
         corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
         match_states c1' j' c1' m1' c2' m2' /\ 
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_unmapped j b ofs /\ ~ private_block Sem1 c1 b) m1 m1' /\
-        mem_unchanged_on
+        Mem.unchanged_on
         (fun (b : block) (ofs : Z) =>
           loc_out_of_reach j m1 b ofs /\ ~ private_block Sem2 c2 b) m2 m2'.
   

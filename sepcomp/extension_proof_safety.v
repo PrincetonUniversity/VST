@@ -10,7 +10,7 @@ Require Import sepcomp.extension_safety.
 Require Import sepcomp.Coqlib2.
 
 Require Import AST.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Globalenvs.
 Require Import Events.
 Require Import Memory.

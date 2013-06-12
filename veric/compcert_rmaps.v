@@ -27,7 +27,7 @@ Qed.
 Module CompCert_AV <: ADR_VAL.
 
 Definition address := address.
-Definition some_address : address := (0,0).
+Definition some_address : address := (xH,0).
 Definition kind := kind.
 
 Definition valid (f: address -> option (pshare*kind)) := 
@@ -210,7 +210,7 @@ Qed.
 
 Instance EqDec_kind: EqDec kind.
 Proof.
-  hnf. decide equality; try apply eq_dec.
+  hnf. decide equality; try apply eq_dec; try apply zeq.
 Qed.
 
 Module R := Rmaps (CompCert_AV).

@@ -8,7 +8,7 @@ Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 
 Require Import AST. (*for typ*)
-Require Import Values. (*for val*)
+Require Import compcert.common.Values. (*for val*)
 Require Import Integers.
 
 Set Implicit Arguments.

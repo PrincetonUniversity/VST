@@ -1043,7 +1043,7 @@ Lemma CC_corestep_not_halted :
    Proof. intros. right; trivial. Qed.
 
 Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem   (list (ident * globdef fundef type)).
- apply (Build_CoreSemantics _ _ _ _ cl_init_mem
+ apply (Build_CoreSemantics _ _ _ _ (*cl_init_mem*)
                 CC_initial_core CC_at_external CC_after_external CC_safely_halted CC_step).
        apply CC_corestep_not_at_external.
        apply CC_corestep_not_halted.
@@ -1770,12 +1770,19 @@ Proof.
  (* final states *)  
       intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
   (*at_external*)
-     intros. inv H. simpl in *. inv H2. simpl in *. inv H0.
-          split. unfold CC_at_external. destruct tyres;auto.
+     intros. inv H; subst; simpl in *. 
+          inv H0. simpl in *. inv H2. simpl in *. inv H1.
+          split. unfold CC_at_external. destruct tyres;auto. simpl.
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
   (*after_external*) 
-         intros. inv H; simpl in *. 
+         intros. inv H1; simpl in *. 
           admit. (*reason about external functions*)
+         intros. destruct H; subst.
+          inv H4. simpl in *. inv H1. simpl in *. inv H0. 
+          admit. (*destruct tyres;auto.
+          inv H1.
+          unfold CC_at_external. destruct tyres;auto. simpl.
+          admit.*) (*HOLE REGARDING ARGUMENT TYPES???*)
   (*simulation_diag*)
 (*     intros. destruct H0. Focus 2.  destruct H.  inv H. 
       assert (X:= Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ CS _ H).
@@ -1785,6 +1792,26 @@ Proof.
   Qed.
 
 Require Import sepcomp.forward_simulations.
+
+Theorem Clightnew_Clight_sim: forall p ExternIdents entrypoints
+         (ext_ok: CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
+        (*(IniHyp: forall x, Genv.init_mem p = Some x <-> initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_defs))*),
+        CompilerCorrectness.core_correctness
+             (fun F C V Sem P => True)
+              ExternIdents _ _ _ _ _ _  cl_core_sem CC_core_sem p p.
+Proof.
+intros.
+econstructor.
+  auto. (*simpl.  intros. exists m1; auto.*)
+  apply ext_ok.
+  eapply Clightnew_Clight_sim_eq; eauto.
+  trivial.
+  unfold CompilerCorrectness.GenvHyp; auto.
+  trivial. (*apply IniHyp.*)
+  trivial. (*apply IniHyp.*)
+Qed.
+
+(*Before elimination of initial_mem from coresem, the theorem was like this:
 
 Theorem Clightnew_Clight_sim: forall p ExternIdents entrypoints
          (ext_ok: CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
@@ -1803,4 +1830,4 @@ econstructor.
   apply IniHyp.
   apply IniHyp.
 Qed.
-  
+*)

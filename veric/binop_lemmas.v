@@ -523,7 +523,7 @@ Proof.
  unfold sem_mod, sem_binarith, sem_cast.
  destruct i1,s1,i2,s2; simpl; rewrite H; try rewrite H0; reflexivity.
 Qed.
-
+(*
 
 Ltac crunch := 
 repeat (
@@ -602,6 +602,97 @@ try match goal with
 | |- context [sem_sub] =>
      unfold sem_sub; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
      try rewrite zeq_true;
+     try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
+    reflexivity
+ | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ (Vint ?i0) _)) _ = true =>
+       unfold sem_div, sem_mod, sem_binarith, sem_cast;
+       simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
+       reflexivity
+ | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ (Vint ?i0) _)) _ = true =>
+       unfold sem_shl, sem_shr, sem_shift;
+     rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
+  simpl; rewrite H; reflexivity
+end).
+Qed.
+*)
+
+Ltac crunchp := 
+repeat (
+ unfold is_true in *; simpl;
+ match goal with 
+  | H: ?f _ = ?f _ |- _ => inv H
+  | |- _ => first [contradiction | discriminate | reflexivity
+                         | rewrite or_False in * | rewrite False_or in * | rewrite peq_true ]
+  | H: denote_tc_assert' (tc_bool ?A _) _ |- _ => 
+     destruct A eqn:?; try contradiction H; clear H
+  | H: denote_tc_assert' (tc_andp' _ _) _ |- _ => 
+     apply denote_tc_assert'_andp'_e in H; destruct H
+  | H: denote_tc_assert' (tc_orp' _ _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_isptr _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_ilt _ _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_iszero' _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_nonzero _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_nodivover _ _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_samebase _ _) _ |- _ => hnf in H
+ | H: denote_tc_iszero _ |- _ => hnf in H
+  | H: ?A=true |- _ => rewrite H; simpl
+  | H: ?A=false |- _ => rewrite H; simpl
+  | H: negb ?A = true |- _ => destruct A eqn:?; inv H; simpl; auto
+  | H: if negb ?A then True else False |- _ => 
+           destruct A eqn:?; try contradiction H; clear H; simpl; auto 
+ | H: denote_tc_assert' (match ?A with _ => _ end) _ |- _ => 
+          first [is_var A; destruct A 
+                 | let J := fresh in destruct A eqn:J; move J before H]
+  | H: match ?A with _ => _ end = _ |- _ => 
+          first [is_var A; destruct A 
+                 | let J := fresh in destruct A eqn:?; move J before H]
+  | H: is_int_type ?t = true |- _ => destruct t; inv H 
+  | H: is_long_type ?t = true |- _ => destruct t; inv H 
+  | H: is_float_type ?t = true |- _ => destruct t; inv H
+  | H: is_pointer_type ?t = true |- _ => destruct t; inv H  
+  | H: andb _ _ = true |- _ => apply -> andb_true_iff in H; destruct H
+  | H: proj_sumbool (peq ?b ?b') = true |- _ =>  destruct (peq b b'); inv H
+  | |- typecheck_val (Val.of_bool ?A) _ = _ => destruct A
+  end).
+
+Lemma typecheck_binop_sound:
+forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho)
+   (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
+   (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
+   typecheck_val
+     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
+        (eval_expr e2 rho)) t = true.
+Proof.
+intros; destruct op;
+abstract (
+rewrite den_isBinOpR in IBR; simpl in IBR;
+ let E1 := fresh "E1" in let E2 := fresh "E2" in 
+ destruct (typeof e1) as [ | i1 s1 ? | s1 ? | i1 ? | | | | | | ];
+ destruct (eval_expr e1 rho) eqn:E1; inv TV1;
+ destruct (typeof e2) as [ | i2 s2 ? | s2 ? | i2 ? | | | | | | ];
+ try solve [inv IBR];
+ destruct (eval_expr e2 rho) eqn:E2; inv TV2;
+unfold eval_binop, sem_binary_operation;
+unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv,
+  binarithType, classify_binarith in IBR;
+ rewrite <- denote_tc_assert'_eq in IBR;
+crunchp;
+try rewrite E1 in *; 
+try rewrite E2 in *; 
+simpl in *; crunchp;
+try match goal with
+| |- _ => first [simple apply typecheck_val_sem_cmp; apply I
+                         |  simple apply typecheck_sem_div_sound; assumption 
+                         |  simple apply typecheck_sem_mod_sound; assumption]
+| |- context [sem_add] =>
+  unfold sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
+  reflexivity
+ | |- typecheck_val (force_val ((sem_cmp _ _ ?t1 _ ?t2) _)) _ = true =>
+        sem_cmp_solver t1 t2
+| |- context [sem_sub] =>
+     unfold sem_sub; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
+     try rewrite peq_true;
      try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
     reflexivity
  | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ (Vint ?i0) _)) _ = true =>

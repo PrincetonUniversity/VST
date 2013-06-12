@@ -3,7 +3,7 @@ Require Import ListSet.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Globalenvs.
 Require Import Memory.
 Require Import AST.
@@ -87,9 +87,9 @@ Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
     Mem.inject f m1 m2 -> 
     meminj_preserves_globals_ind (genv2blocks ge1) f -> 
     Mem.inject f' m1' m2' -> 
-    mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       loc_unmapped f b ofs /\ private_block sourceC c1 b) m1 m1' ->
-    mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       loc_out_of_reach f m1 b ofs /\ private_block targetC c2 b) m2 m2' ->
     inject_incr f f' -> 
     inject_separated f f' m1 m2 -> 

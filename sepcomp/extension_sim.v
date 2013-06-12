@@ -9,7 +9,7 @@ Require Import Axioms.
 Require Import Coqlib.
 Require Import AST.
 Require Import Integers.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Memory.
 Require Import Globalenvs.
 Require Import Events.

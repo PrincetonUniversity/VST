@@ -1,10 +1,8 @@
-Require Import Events. (*is needed for some definitions (loc_unmapped etc, and
-  also at the very end of this file, in order to convert between the 
-  tweaked and the standard definitions of mem_unchanged_on etc*)
+Require Import Events. (*is needed for some definitions (loc_unmapped etc*)
 Require Import Memory.
 Require Import Coqlib.
 Require Import Integers.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Maps.
 
 Require Import sepcomp.mem_lemmas.
@@ -15,17 +13,17 @@ Definition AccessMap_IE_Property  j12 j12' m1 m1' m2 m3'
   forall b2, 
     (Mem.valid_block m2 b2 -> forall k ofs2,
          match source j12 m1 b2 ofs2 with
-             Some(b1,ofs1) =>  ZMap.get b2 AM ofs2 k =
-                               ZMap.get b1 m1'.(Mem.mem_access) ofs1 k
-           | None => ZMap.get b2 AM ofs2 k = 
-                     ZMap.get b2 m2.(Mem.mem_access) ofs2 k
+             Some(b1,ofs1) =>  PMap.get b2 AM ofs2 k =
+                               PMap.get b1 m1'.(Mem.mem_access) ofs1 k
+           | None => PMap.get b2 AM ofs2 k = 
+                     PMap.get b2 m2.(Mem.mem_access) ofs2 k
            end)
      /\ (~ Mem.valid_block m2 b2 -> forall k ofs2,
            match source j12' m1' b2 ofs2 with 
-              Some(b1,ofs1) => ZMap.get b2 AM ofs2 k =
-                               ZMap.get b1 m1'.(Mem.mem_access) ofs1 k
-            | None => ZMap.get b2 AM ofs2 k =
-                      ZMap.get b2 m3'.(Mem.mem_access) ofs2 k
+              Some(b1,ofs1) => PMap.get b2 AM ofs2 k =
+                               PMap.get b1 m1'.(Mem.mem_access) ofs1 k
+            | None => PMap.get b2 AM ofs2 k =
+                      PMap.get b2 m3'.(Mem.mem_access) ofs2 k
           end).
 
 Definition Content_IE_Property j12 (m1 m1' m2 m3':Mem.mem)
@@ -33,25 +31,26 @@ Definition Content_IE_Property j12 (m1 m1' m2 m3':Mem.mem)
   forall b2, 
     (Mem.valid_block m2 b2 -> forall ofs2,
        match source j12 m1 b2 ofs2 with
-            Some(b1,ofs1) => ZMap.get ofs2 (ZMap.get b2 CM) = 
-                             ZMap.get ofs2 (ZMap.get b2 m3'.(Mem.mem_contents))
-          | None => ZMap.get ofs2 (ZMap.get b2 CM) =
-                    ZMap.get ofs2 (ZMap.get b2 m2.(Mem.mem_contents))
+            Some(b1,ofs1) => ZMap.get ofs2 (PMap.get b2 CM) = 
+                             ZMap.get ofs2 (PMap.get b2 m3'.(Mem.mem_contents))
+          | None => ZMap.get ofs2 (PMap.get b2 CM) =
+                    ZMap.get ofs2 (PMap.get b2 m2.(Mem.mem_contents))
        end)
- /\ (~ Mem.valid_block m2 b2 -> forall ofs2,
-          ZMap.get ofs2 (ZMap.get b2 CM) = 
-          ZMap.get ofs2 (ZMap.get b2 m3'.(Mem.mem_contents))).
+   /\ (~ Mem.valid_block m2 b2 -> forall ofs2,
+          ZMap.get ofs2 (PMap.get b2 CM) = 
+          ZMap.get ofs2 (PMap.get b2 m3'.(Mem.mem_contents)))
+   /\ fst CM !! b2 = Undef.
 
 Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j 
            (Minj12 : Mem.inject j m1 m2) 
            (Fwd1: mem_forward m1 m1') j'
            (InjInc: inject_incr j j')  (Sep12 : inject_separated j j' m1 m2) 
-           (UnchLUj: my_mem_unchanged_on (loc_unmapped j) m1 m1')
+           (UnchLUj: Mem.unchanged_on (loc_unmapped j) m1 m1')
            (Ext23 : Mem.extends m2 m3) 
            (Fwd3: mem_forward m3 m3') 
-           (UnchLOORj1_3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
+           (UnchLOORj1_3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3')
            (Inj13' : Mem.inject j' m1' m3')
-           (UnchLOOB23_3': my_mem_unchanged_on (loc_out_of_bounds m2) m3 m3')
+           (UnchLOOB23_3': Mem.unchanged_on (loc_out_of_bounds m2) m3 m3')
            (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
            m2'
            (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
@@ -61,7 +60,7 @@ Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j
        mem_forward m2 m2' /\  
           Mem.extends m2' m3' /\ 
           Mem.inject j' m1' m2' /\ 
-          my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
           (mem_wd m2 -> mem_wd m2').    
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
@@ -94,7 +93,7 @@ assert (Ext23': Mem.extends m2' m3').
        split; intros. inv H. rewrite Zplus_0_r.
          (*mi_perm*)
             destruct (ACCESS b2) as [Val2 Inval2].
-            remember (zlt b2 (Mem.nextblock m2)) as z.
+            remember (plt b2 (Mem.nextblock m2)) as z.
             destruct z as [z|z]; clear Heqz. clear Inval2. specialize (Val2 z k ofs).
               remember (source j m1 b2 ofs) as src.
               destruct src.
@@ -133,7 +132,7 @@ assert (Ext23': Mem.extends m2' m3').
             split; trivial. 
                intros off; intros. specialize (H0 _ H). clear H.
                destruct (ACCESS b2) as [Val2 Inval2].
-               remember (zlt b2 (Mem.nextblock m2)) as z.
+               remember (plt b2 (Mem.nextblock m2)) as z.
                destruct z as [z|z]; clear Heqz.
                   clear Inval2. specialize (Val2 z Cur off).
                   remember (source j m1 b2 off) as src. 
@@ -168,9 +167,9 @@ assert (Ext23': Mem.extends m2' m3').
                   unfold Mem.perm in *. rewrite Inval2 in H0; clear Inval2.
                   apply H0.
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
-            destruct (CONT b2) as [ValC InvalC].  
+            destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
-            remember (zlt b2 (Mem.nextblock m2)) as z.
+            remember (plt b2 (Mem.nextblock m2)) as z.
             destruct z as [z|z]; clear Heqz.
               clear InvalC InvalA.
                  specialize (ValC z ofs). specialize (ValA z Cur ofs).
@@ -190,12 +189,8 @@ assert (Ext23': Mem.extends m2' m3').
                     destruct Ext23. destruct mext_inj.
                     specialize (mi_memval b2 ofs b2 0 (eq_refl _) H0). 
                     rewrite Zplus_0_r in mi_memval.
-                    specialize (UV _ _ NE Hperm3).
-                    inv mi_memval.
-                        apply eq_sym in H. rewrite (UV _ H). constructor.
-                        apply eq_sym in H1. rewrite (UV _ H1). econstructor. 
-                            apply H2. trivial.
-                        constructor. 
+                    rewrite (UV _ _ NE Hperm3).
+                    apply mi_memval.
               clear ValA ValC. rewrite (InvalC z).
                   apply memval_inject_id_refl.
 split; trivial.
@@ -204,7 +199,7 @@ assert (Inj12': Mem.inject j' m1' m2').
        split; intros.
        (*mi_perm*)
           destruct (ACCESS b2) as [Val2 Inval2].
-          remember (zlt b2 (Mem.nextblock m2)) as z.
+          remember (plt b2 (Mem.nextblock m2)) as z.
           destruct z as [z|z]; clear Heqz. clear Inval2. 
             specialize  (Val2 z k (ofs + delta)).
             assert (HJ: j b1 = Some (b2, delta)).
@@ -237,7 +232,7 @@ assert (Inj12': Mem.inject j' m1' m2').
            split.
               intros off; intros. 
               destruct (ACCESS b2) as [Val2 Inval2].
-              remember (zlt b2 (Mem.nextblock m2)) as z.
+              remember (plt b2 (Mem.nextblock m2)) as z.
               destruct z as [z|z]; clear Heqz. clear Inval2. 
                  specialize (Val2 z Cur off).
                  assert (HJ: j b1 = Some (b2, delta)).
@@ -273,9 +268,9 @@ assert (Inj12': Mem.inject j' m1' m2').
                       apply H0. omega. apply perm_any_N. 
          eapply Inj13'. apply H. split; eassumption.
    (*memval*)
-            destruct (CONT b2) as [ValC InvalC].  
+            destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
-            remember (zlt b2 (Mem.nextblock m2)) as z.
+            remember (plt b2 (Mem.nextblock m2)) as z.
             destruct z as [z|z]; clear Heqz.
               clear InvalC InvalA. 
                 specialize (ValC z (ofs+delta)). 
@@ -298,44 +293,43 @@ assert (Inj12': Mem.inject j' m1' m2').
             clear ValC ValA. rewrite (InvalC z). clear InvalC. 
                 specialize ( InvalA z Cur (ofs+delta)).
                 eapply Inj13'.  apply H. apply H0.
-    split. assumption.
-    intros. eapply Inj13'. apply H.
-    intros. apply (Mem.valid_block_extends _ _ _ Ext23'). 
+    split. 
+    (*mi_inj*) assumption.
+    (*mi_freeblocks*) intros. eapply Inj13'. apply H.
+    (*mi_mappedblocks*)  intros. apply (Mem.valid_block_extends _ _ _ Ext23'). 
              eapply Inj13'. apply H.
-    apply Inj13'.
-    apply Inj13'.
+    (*mi_no_overlap*) apply Inj13'.
+    (*mi_representable*) apply Inj13'.
 split; trivial.
-assert (MUO: my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2').
+assert (MUO: Mem.unchanged_on (loc_out_of_reach j m1) m2 m2').
    destruct UnchLOORj1_3 as [UnchA UnchB].
    split; intros. clear UnchB.
       destruct (ACCESS b) as [Val _].
-      specialize (Val H k ofs).
-      unfold loc_out_of_reach in HP.
+      specialize (Val H0 k ofs).
+      unfold loc_out_of_reach in H.
       remember (source j m1 b ofs) as src.
       destruct src. 
          apply source_SomeE in Heqsrc.
          destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
          subst.
-         specialize (HP _ _ J1). 
-         assert (ofs1 + delta - delta=ofs1). omega. 
-         rewrite H0 in HP.
-         exfalso. apply (HP P1).
-      unfold Mem.perm in *. rewrite Val. trivial.
+         specialize (H _ _ J1). 
+         assert (Arith: ofs1 + delta - delta=ofs1) by omega. 
+         rewrite Arith in H. contradiction.
+      unfold Mem.perm in *. rewrite Val. split; auto.
    clear UnchA.
-      assert (V2:= Mem.perm_valid_block _ _ _ _ _ HMeperm).
+      assert (V2:= Mem.perm_valid_block _ _ _ _ _ H0).
       destruct (CONT b) as [Val _].
       specialize (Val V2 ofs).
-      unfold loc_out_of_reach in HP.
+      unfold loc_out_of_reach in H.
       remember (source j m1 b ofs) as src.
       destruct src. 
         apply source_SomeE in Heqsrc.
         destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
         subst.
-        specialize (HP _ _ J1). 
-        assert (ofs1 + delta - delta=ofs1). omega. 
-        rewrite H in HP.
-        exfalso. apply (HP P1).
-      unfold Mem.perm in *. rewrite Val. trivial.
+        specialize (H _ _ J1). 
+        assert (Arith : ofs1 + delta - delta=ofs1) by omega. 
+        rewrite Arith in H. contradiction.
+      apply Val.
 split; trivial. 
   intros. eapply extends_memwd. apply Ext23'. assumption.
 Qed.
@@ -364,12 +358,13 @@ Definition mkIE (j j': meminj) (m1 m1' m2 :Mem.mem)
                  (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
                : Mem.mem'.
 eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
-                      (mem_access:=mkAccessMap_IE_exists j j' m1 m1' m2 m3').
-  apply (mkContentsMap_IE_exists j m1 m1' m2 m3').
-  apply m3'.
+                      (mem_access:=mkAccessMap_IE_exists j j' m1 m1' m2 m3')
+                      (mem_contents:=mkContentsMap_IE_exists j m1 m1' m2 m3').
+ (* apply (mkContentsMap_IE_exists j m1 m1' m2 m3').*)
+(*  apply m3'.*)
   (*access_max*)
   intros. destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [Val Inval].
-    remember (zlt b m2.(Mem.nextblock)) as z. 
+    remember (plt b m2.(Mem.nextblock)) as z. 
     destruct z as [z|z]; clear Heqz.
     (*Case valid*) clear Inval.
       assert (MaxP := Val z Max ofs).
@@ -396,7 +391,7 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
   (*nextblock_noaccess*)
     intros. 
     assert (NV3 : ~ Mem.valid_block m3 b). intros N. 
-           destruct (Fwd3 _ N). unfold Mem.valid_block in H0. omega.
+           destruct (Fwd3 _ N). unfold Mem.valid_block in H0. xomega.
     assert (NV2 : ~ Mem.valid_block m2 b). intros N.
            apply NV3. eapply (Mem.valid_block_extends _ _ _ Ext23). apply N.  
     destruct (mkAccessMap_IE_ok j j' m1 m1' m2 m3' b) as [_ Inval].
@@ -407,26 +402,29 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
        destruct Heqsrc as [b1 [delta [ofs1 [PBO [Bounds [J1 [P1 Off2]]]]]]].
        subst.
        specialize (Mem.valid_block_inject_2  _ _ _ _ _ _ J1 Inj13').
-       intros. exfalso. unfold Mem.valid_block in H0. omega.
+       intros. exfalso. unfold Mem.valid_block in H0. xomega.
     rewrite Inval. apply m3'. apply H.
+  (*contents_default*)
+    intros b.
+    destruct (mkContentsMap_IE_ok j m1 m1' m2 m3' b) as [_ [_ Default]].
+    trivial.
 Defined.
 
-Lemma my_interpolate_IE: forall m1 m1' m2 j
-              (Minj12 : Mem.inject j m1 m2) 
-              (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
-              (Sep12 : inject_separated j j' m1 m2) 
-              (UnchLUj: my_mem_unchanged_on (loc_unmapped j) m1 m1')
-              m3 m3' (Ext23 : Mem.extends m2 m3) (Fwd3: mem_forward m3 m3') 
-              (UnchLOORj1_3: my_mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
-              (Inj13' : Mem.inject j' m1' m3')
-              (UnchLOOB23_3' : my_mem_unchanged_on 
-                              (loc_out_of_bounds m2) m3 m3')
-              (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
-         exists m2', mem_forward m2 m2' /\ 
-                     Mem.extends m2' m3' /\ 
-                     Mem.inject j' m1' m2' /\ 
-                     my_mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
-                     (mem_wd m2 -> mem_wd m2').
+Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
+                 (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
+                 (Sep12 : inject_separated j j' m1 m2) 
+                 (UnchLUj: Mem.unchanged_on (loc_unmapped j) m1 m1')
+                 m3 m3' (Ext23 : Mem.extends m2 m3)
+                 (Fwd3: mem_forward m3 m3') 
+                 (UnchLOORj1_3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3')
+                 (Inj13' : Mem.inject j' m1' m3')
+                 (UnchLOOB23_3': Mem.unchanged_on
+                                  (loc_out_of_bounds m2) m3 m3')
+                 (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
+         exists m2',  mem_forward m2 m2' /\ Mem.extends m2' m3' /\ 
+                      Mem.inject j' m1' m2' /\
+                      Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+                      (mem_wd m2 -> mem_wd m2').    
 Proof. intros. 
   exists (mkIE j j' m1 m1' m2 Minj12 Fwd1 InjInc Sep12 m3 m3' Ext23 
              Fwd3 Inj13' WD2 WD1' WD3').
@@ -434,31 +432,3 @@ eapply IE_ok with (m3:=m3); trivial.
         subst. apply mkContentsMap_IE_ok.  
         subst. apply mkAccessMap_IE_ok.  
 Qed.
-
-Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
-                 (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
-                 (Sep12 : inject_separated j j' m1 m2) 
-                 (UnchLUj: mem_unchanged_on (loc_unmapped j) m1 m1')
-                 m3 m3' (Ext23 : Mem.extends m2 m3)
-                 (Fwd3: mem_forward m3 m3') 
-                 (UnchLOORj1_3: mem_unchanged_on (loc_out_of_reach j m1) m3 m3')
-                 (Inj13' : Mem.inject j' m1' m3')
-                 (UnchLOOB23_3': mem_unchanged_on
-                                  (loc_out_of_bounds m2) m3 m3')
-                 (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
-         exists m2',  mem_forward m2 m2' /\ Mem.extends m2' m3' /\ 
-                      Mem.inject j' m1' m2' /\
-                      mem_unchanged_on (loc_out_of_reach j m1) m2 m2' /\
-                      (mem_wd m2 -> mem_wd m2').    
-Proof. intros.
-   rewrite <- unchAx in UnchLUj, UnchLOORj1_3, UnchLOOB23_3'.
-   destruct (my_interpolate_IE _ _ _ _ Minj12  Fwd1
-                             j' InjInc Sep12 
-                             UnchLUj
-                             m3 m3' Ext23
-                             Fwd3
-                             UnchLOORj1_3
-                             Inj13'  UnchLOOB23_3' WD2 WD1' WD3')
-   as [m2' [Fwd2 [Ext23' [Inj12' [MU WD2']]]]].
-  exists m2'. rewrite unchAx in MU. repeat (split; trivial).
-Qed.     

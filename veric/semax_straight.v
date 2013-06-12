@@ -225,7 +225,15 @@ unfold Cop.sem_binary_operation.
 destruct cmp; inv H; try rewrite H3 in *; 
 try rewrite H4 in *; subst;
 unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
-try solve[if_tac; eauto]; try repeat rewrite zeq_true; eauto.
+try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
+
+
+unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
+try solve [if_tac; subst; eauto; 
+   try repeat rewrite peq_true; eauto; repeat rewrite peq_false; eauto].
+unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
+try solve [if_tac; subst; eauto; 
+   try repeat rewrite peq_true; eauto; repeat rewrite peq_false; eauto].
 Qed. 
 
 Lemma pointer_cmp_no_mem_bool_type : 
@@ -851,7 +859,7 @@ rewrite (nth_getN m' b _ _ _ H0).
 simpl.
 f_equal.
 rewrite (store_mem_contents _ _ _ _ _ _ STORE).
-rewrite ZMap.gss.
+rewrite PMap.gss.
 replace (nat_of_Z (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
 rewrite <- (encode_val_length ch v').
 apply getN_setN_same.
@@ -986,7 +994,7 @@ unfold Mem.storev.
 simpl m_dry.
 rewrite (age_jm_dry Hage); auto.
 apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
-rewrite (age_jm_dry Hage); omega.
+rewrite (age_jm_dry Hage); xomega.
 apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.

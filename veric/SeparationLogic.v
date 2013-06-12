@@ -4,7 +4,7 @@ Require Import Coqlib.
 Require Export AST.
 Require Export Integers.
 Require Export Floats.
-Require Export Values.
+Require Export compcert.common.Values.
 Require Export Maps.
 Require Export Ctypes.
 Require Export Clight.
@@ -393,7 +393,7 @@ end.
 Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
-  if zeq b b1 then
+  if peq b b1 then
     Val.of_bool (Int.cmpu c o o1)
   else
     match Val.cmp_different_blocks c with

@@ -1110,7 +1110,7 @@ Proof.
  destruct v; simpl; auto.
  unfold eval_binop; simpl; auto.
  f_equal. f_equal.
- destruct (eq_dec i 0).
+ destruct (Z.eq_dec i 0).
     subst. rewrite Int.mul_zero. rewrite Zmult_0_r. auto.
  assert (repable_signed (sizeof ty)). eapply repable_signed_mult1; eauto.
  assert (repable_signed i). apply repable_signed_mult2 in H; auto.
@@ -1142,7 +1142,7 @@ Lemma add_ptr_int'_offset:
   add_ptr_int' t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  intros.
- destruct (eq_dec n 0).
+ destruct (Z.eq_dec n 0).
  subst.
  unfold add_ptr_int'.
  rewrite if_true. destruct v; simpl; auto. auto.

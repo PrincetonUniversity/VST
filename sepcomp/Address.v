@@ -14,7 +14,7 @@ Instance EqDec_address: EqDec address.
 Proof.
  intros [b1 z1] [b2 z2].
  destruct (eq_dec b1 b2).
- destruct (eq_dec z1 z2).
+ destruct (Z.eq_dec z1 z2).
  left; congruence.
  right; congruence.
  right; congruence.
@@ -49,7 +49,7 @@ destruct (zlt z' (z+n)).
 left; auto.
 right; intros [? ?]; omega.
 right; intros [? ?]; omega.
-right; intros [? ?]; unfold block in *; omega.
+right; intros [? ?]; unfold block in *; xomega.
 Qed.
 
 (*

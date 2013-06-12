@@ -12,7 +12,7 @@ Require Import Axioms.
 Require Import Coqlib.
 Require Import AST.
 Require Import Integers.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Memory.
 Require Import Globalenvs.
 Require Import Events.
@@ -53,7 +53,7 @@ Section CoreCompatibleDefs. Variables
 
  Definition private_valid s m := 
   forall i c, proj_core E i s = Some c -> 
-  forall b, private_block (csem i) c b -> b < Mem.nextblock m.
+  forall b, private_block (csem i) c b -> (b < Mem.nextblock m)%positive.
   
  Definition private_disjoint s :=
   forall i j (c: cT i) (d: cT j), 
@@ -147,9 +147,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' -> 
     R j' s1' m1' s2' m2')
 
@@ -159,10 +159,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Events.inject_separated j j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
    mem_forward m1 m1'-> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_unmapped j b ofs /\ private_block esemS s1 b) m1 m1' -> 
    mem_forward m2 m2' -> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_out_of_reach j m1 b ofs /\ private_block esemT s2 b) m2 m2' -> 
    at_external esemS s1 = Some (ef, sig, args1) -> 
    after_external esemS ret1 s1 = Some s1' -> 
@@ -189,9 +189,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_unmapped j b ofs /\ ~private_block esemS s1 b) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_out_of_reach j m1 b ofs /\ ~private_block esemT s2 b) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
@@ -244,9 +244,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
      Events.inject_separated j j' m1 m2 /\
      corestep esemT ge_T s2 m2 s2' m2' /\
      match_states cd' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2'),
  Sig.
 

@@ -114,8 +114,8 @@ Proof.
  destruct (eq_dec t Share.bot). subst; auto.
  rewrite perm_of_nonempty in H0 by auto. contradiction.
  destruct (perm_of_sh_pshare t p). rewrite H1 in H0.
- destruct k; try contradiction; omega.
- omega. omega.
+ destruct k; try contradiction; xomega.
+ xomega. xomega.
 Qed.
 
 Transparent alloc.
@@ -132,7 +132,7 @@ inv H0; split; auto.
 destruct loc as [b' z]; destruct H1; subst b'.
 unfold contents_at. inv H; simpl. 
 destruct (alloc (m_dry jm) lo hi).
-rewrite ZMap.gss.
+rewrite PMap.gss.
 rewrite ZMap.gi; auto.
 destruct loc as [b' z].
 destruct (eq_dec b b').
@@ -147,10 +147,10 @@ unfold perm_of_res, perm_of_sh in H2; simpl in H2.
 if_tac in H2. subst. if_tac in H2; inv H2.
 if_tac in H2; try congruence.
 eapply pshare_sh_bot; eauto.
-simpl. subst. omega.
+simpl. subst. xomega.
 assert (contents_at m' (b',z) = contents_at (m_dry jm) (b',z)).
 unfold contents_at. simpl.
-inv H. simpl. rewrite ZMap.gso; auto.
+inv H. simpl. rewrite PMap.gso; auto.
 rewrite H2.
 apply (juicy_mem_contents jm _ _ _ _ _ H0).
 Qed.
@@ -167,7 +167,7 @@ if_tac.
 unfold perm_of_res; simpl.   rewrite perm_of_freeable.
 inv H. unfold access_at; simpl. 
    destruct loc as [b' z]; destruct H0; simpl in *; subst b'.
-rewrite ZMap.gss.
+rewrite PMap.gss.
 destruct H0.
 destruct (zle lo z); try contradiction.
 simpl. 
@@ -182,16 +182,16 @@ simpl in *.
 unfold perm_of_res. simpl. rewrite perm_of_empty.
 unfold access_at.
 inv H. simpl.
-rewrite ZMap.gss.
+rewrite PMap.gss.
 destruct (zle lo z); simpl; auto.
 destruct (zlt z hi); simpl; auto.
 contradict H0; split; auto. omega.
-apply alloc_result in H. subst; simpl; omega.
+apply alloc_result in H. subst; simpl; xomega.
 replace (access_at m' (b',z)) with (access_at (m_dry jm) (b',z)).
 apply (juicy_mem_access jm (b',z)).
 unfold access_at.
 simpl.
-inv H. simpl. rewrite ZMap.gso; auto.
+inv H. simpl. rewrite PMap.gso; auto.
 Qed.
 
 Lemma after_alloc_max_access_cohere: 
@@ -206,7 +206,7 @@ if_tac. simpl; rewrite perm_of_freeable.
 destruct loc. destruct H1. subst b0.
 unfold max_access_at.
 simpl. inv H.
-simpl. rewrite ZMap.gss.
+simpl. rewrite PMap.gss.
 destruct H2. 
 destruct (zle lo z); try contradiction.
 simpl. 
@@ -224,19 +224,19 @@ rewrite nextblock_noaccess in H3; auto.
 simpl in H3.
 revert H3; case_eq (perm_of_sh t Share.bot); intros; try contradiction.
 hnf. destruct (max_access_at m' (b, z)); auto.
-subst; omega.
+subst; xomega.
 unfold max_access_at.
 inv H; simpl. 
-rewrite ZMap.gso; auto.
+rewrite PMap.gso; auto.
 replace (max_access_at m' loc) with (max_access_at (m_dry jm) loc); auto.
 inv H.
 unfold max_access_at. simpl.
-destruct k; simpl; try omega.
+destruct k; simpl; try xomega.
 apply H3.
 unfold max_access_at.
 inv H; simpl.
 destruct (eq_dec (fst loc) (nextblock (m_dry jm))).
-rewrite e. rewrite ZMap.gss.
+rewrite e. rewrite PMap.gss.
 destruct loc as [b z]. simpl in *.
 subst b.
 destruct (zle lo z).
@@ -244,13 +244,13 @@ destruct (zlt z hi).
 contradiction H1; split; auto.
 omega.
 simpl.
-apply nextblock_noaccess; omega.
+apply nextblock_noaccess; xomega.
 simpl.
-apply nextblock_noaccess; omega.
-rewrite ZMap.gso by auto. auto.
+apply nextblock_noaccess; xomega.
+rewrite PMap.gso by auto. auto.
 pose proof (nextblock_alloc _ _ _ _ _ H).
 forget (m_dry jm) as m.
-clear - H4 H H3. rewrite H4. omega.
+clear - H4 H H3. rewrite H4. xomega.
 Qed.
 
 Lemma after_alloc_alloc_cohere:
@@ -265,11 +265,11 @@ unfold after_alloc'.
 destruct loc as [b' z]. simpl in *.
 destruct (eq_dec b' b). subst b'.
 inv H.
-simpl in *. omegaContradiction.
+simpl in *. xomegaContradiction.
 rewrite if_false.
 apply (juicy_mem_alloc_cohere jm (b',z)).
-inv H. simpl in *. omega.
-intros [? ?]; subst. omega.
+inv H. simpl in *. xomega.
+intros [? ?]; subst. xomega.
 Qed.
 
 Definition juicy_mem_alloc (jm: juicy_mem) (lo hi: Z) : juicy_mem * block :=

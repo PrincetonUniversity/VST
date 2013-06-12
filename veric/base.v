@@ -3,7 +3,7 @@ Require Export Coqlib.
 Require Export AST.
 Require Export Integers.
 Require Export Floats.
-Require Export Values.
+Require Export compcert.common.Values.
 Require Export Maps.
 Require Export Memdata.
 Require Export Memtype.

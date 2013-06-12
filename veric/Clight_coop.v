@@ -131,7 +131,7 @@ Proof. intros.
 
   try solve [eapply sem_binarith_val_valid; try eassumption; 
        try solve[intros; simpl in *; inv H; simpl; trivial]].
-  remember (zeq b b0) as s.
+  remember (eq_block b b0) as s.
   destruct s; subst; clear Heqs; try inv H0.
     remember (Int.eq (Int.repr (sizeof ty)) Int.zero) as p.
     destruct p; inv H1; simpl. trivial.
@@ -465,7 +465,7 @@ Qed.
 Program Definition cl_coop_core_sem : 
   CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globdef fundef type)) :=
   @Build_CoreSemantics _ _ _ _
-    cl_init_mem
+    (*cl_init_mem*)
     cl_initial_core
     cl_at_external
     cl_after_external
@@ -503,5 +503,5 @@ Program Definition cl_coop_sem :
 apply Build_CoopCoreSem with (coopsem := cl_coop_core_sem).
   apply coop_forward.
   apply coop_mem_wd.
-  intros. simpl in H. admit. (* TODO: cl_init_mem is not yet defined in Clight_new*)
+  (*intros. simpl in H. cl_init_mem deprecated*)
 Qed.

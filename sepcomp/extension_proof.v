@@ -10,7 +10,7 @@ Require Import sepcomp.Coqlib2.
 Require Import sepcomp.wf_lemmas.
 
 Require Import AST.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Globalenvs.
 Require Import Events.
 Require Import Memory.
@@ -165,7 +165,7 @@ Lemma private_valid_inv:
 Proof.
 intros until n; intros H1 H2 H3 H4 H5.
 intros i x'' PROJ b PRIV.
-assert (H6: Mem.nextblock m <= Mem.nextblock m').
+assert (H6: (Mem.nextblock m <= Mem.nextblock m')%positive).
  apply corestepN_fwd in H3.
  solve[apply forward_nextblock in H3; auto].
 destruct (eq_nat_dec i (active E s)). subst.
@@ -175,17 +175,17 @@ assert (H5: {private_block (csem (active E s)) x b}+
  by apply private_block_dec.
 destruct H5 as [H5|H5].
 specialize (H2 (active E s) x H1 b H5).
-omega.
+xomega.
 eapply private_newN in PRIV; eauto.
 solve[destruct PRIV; auto].
 
 cut (proj_core E i s = Some x''). intro H7.
 unfold private_valid in H2.
 specialize (H2 i x'' H7 b PRIV).
-assert (H8: Mem.nextblock m <= Mem.nextblock m').
+assert (H8: (Mem.nextblock m <= Mem.nextblock m')%positive).
  apply corestepN_fwd in H3.
  solve[apply forward_nextblock in H3; auto].
-omega.
+xomega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
 Qed.
@@ -207,9 +207,9 @@ destruct (eq_nat_dec i (active E s)).
 subst.
 destruct (private_block_dec x b). 
 unfold private_valid in PRIV.
-cut (b < Mem.nextblock m). intro H1.
-cut (Mem.nextblock m <= Mem.nextblock m'). intro H2.
-omega.
+cut ((b < Mem.nextblock m)%positive). intro H1.
+cut ((Mem.nextblock m <= Mem.nextblock m')%positive). intro H2.
+xomega.
 solve[apply forward_nextblock in FWD; auto].
 eapply PRIV; eauto.
 rewrite PROJC in PROJ'; inv PROJ'.
@@ -219,9 +219,9 @@ assert (proj_core E i s = Some c).
  inv Hcore_compatible.
  rewrite after_ext_others with (retv := retv) (s' := s'); auto.
 unfold private_valid in PRIV.
-cut (b < Mem.nextblock m). intro H1.
-cut (Mem.nextblock m <= Mem.nextblock m'). intro H2.
-omega.
+cut ((b < Mem.nextblock m)%positive). intro H1.
+cut ((Mem.nextblock m <= Mem.nextblock m')%positive). intro H2.
+xomega.
 solve[apply forward_nextblock in FWD; auto].
 solve[eapply PRIV; eauto].
 Qed.
@@ -289,7 +289,7 @@ assert (Hneq: j<>active E s) by auto.
 generalize H3 as H3'; intro.
 eapply private_newN in H3; eauto.
 specialize (VAL j d H9 b CONTRA).
-omega.
+xomega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
 destruct (eq_nat_dec j (active E s)). subst.
@@ -302,7 +302,7 @@ assert (Hneq: i<>active E s) by auto.
 generalize H3 as H3'; intro.
 eapply private_newN in H3; eauto.
 specialize (VAL i c H9 b H8).
-omega.
+xomega.
 inv Hcore_compatible.
 solve[erewrite corestep_others_backward; eauto].
 eapply H2; eauto.
@@ -529,9 +529,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestep (csemS (ACTIVE E_S s1)) (genv_mapS (ACTIVE E_S s1)) c1 m1 c1' m1' -> 
     corestepN (csemT (ACTIVE E_S s1)) (genv_mapT (ACTIVE E_S s1)) n c2 m2 c2' m2' -> 
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' -> 
     match_state i (cd i) j' d1 m1' d2 m2')
 
@@ -558,9 +558,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     corestep esemS ge_S s1 m1 s1' m1' -> 
     corestepN esemT ge_T n s2 m2 s2' m2' -> 
     match_state (ACTIVE E_S s1) cd' j' c1' m1' c2' m2' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' -> 
-    Events.mem_unchanged_on (fun b ofs => 
+    Mem.unchanged_on (fun b ofs => 
       Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2' -> 
     R j' s1' m1' s2' m2')
 
@@ -570,10 +570,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Events.inject_separated j j' m1 m2 -> 
    Mem.inject j' m1' m2' -> 
    mem_forward m1 m1'-> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_unmapped j b ofs /\ private_block esemS s1 b) m1 m1' -> 
    mem_forward m2 m2' -> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_out_of_reach j m1 b ofs /\ private_block esemT s2 b) m2 m2' -> 
    at_external esemS s1 = Some (ef, sig, args1) -> 
    after_external esemS ret1 s1 = Some s1' -> 
@@ -600,9 +600,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
      inject_incr j j' /\
      Events.inject_separated j j' m1 m2 /\
      match_states cd' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_unmapped j b ofs /\ ~private_block esemS s1 b) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_out_of_reach j m1 b ofs /\ ~private_block esemT s2 b) m2 m2' /\
      ((corestep_plus esemT ge_T s2 m2 s2' m2') \/
       corestep_star esemT ge_T s2 m2 s2' m2' /\ core_ords max_cores cd' cd))
@@ -632,10 +632,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j' m1' m2' -> 
    val_inject_opt j' retv1 retv2 -> 
    mem_forward m1 m1' -> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_unmapped j b ofs /\ private_block (csemS i) d1 b) m1 m1' -> 
    mem_forward m2 m2' -> 
-   Events.mem_unchanged_on (fun b ofs => 
+   Mem.unchanged_on (fun b ofs => 
      Events.loc_out_of_reach j m1 b ofs /\ private_block (csemT i) d2 b) m2 m2' -> 
    val_has_type_opt' retv2 (proj_sig_res (ef_sig ef)) -> 
    after_external esemS retv1 s1 = Some s1' -> 
@@ -678,9 +678,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
      Events.inject_separated j j' m1 m2 /\
      corestep esemT ge_T s2 m2 s2' m2' /\
      match_states cd' j' s1' m1' s2' m2' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_unmapped j b ofs /\ ~private_block (csemS (ACTIVE E_S s1)) c1 b) m1 m1' /\
-     Events.mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        Events.loc_out_of_reach j m1 b ofs /\ ~private_block (csemT (ACTIVE E_S s1)) c2 b) m2 m2'),
   internal_compilability_invariant.
 

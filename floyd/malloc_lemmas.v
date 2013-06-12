@@ -90,7 +90,7 @@ destruct z; auto.
 Qed.
 
 Definition spacer (sh: share) (pos: Z) (alignment: Z) : val -> mpred :=
-  if eq_dec  (align pos alignment - pos) 0
+  if Z.eq_dec  (align pos alignment - pos) 0
   then fun _ => emp
   else
    at_offset (memory_block sh (Int.repr (align pos alignment - pos))) pos.
@@ -523,7 +523,7 @@ Lemma spacer_offset_zero:
 Proof.
  intros;
  unfold spacer.
- destruct (eq_dec (align pos n - pos) 0);  auto.
+ destruct (Z.eq_dec (align pos n - pos) 0);  auto.
  repeat rewrite at_offset_eq; 
  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
  apply memory_block_offset_zero.
@@ -682,7 +682,7 @@ Proof.
 intros.
 destruct v; inv H.
 unfold spacer.
-destruct (eq_dec (align pos a - pos) 0);
+destruct (Z.eq_dec (align pos a - pos) 0);
 try solve [rewrite e; simpl offset_val; rewrite memory_block_zero; auto].
 unfold at_offset.
 destruct pos; auto.
@@ -769,7 +769,7 @@ admit.  (* likely OK  *)
  intros. revert pos ofs; induction fld; simpl; intros.
  rewrite sepcon_comm; f_equal.
  unfold spacer.
- destruct (eq_dec (align pos 1 - pos) 0); auto.
+ destruct (Z.eq_dec (align pos 1 - pos) 0); auto.
  replace (Zminus (align pos (Zpos xH)) pos) with 0.
  unfold at_offset. destruct pos;  apply memory_block_zero.
  unfold align. replace (pos + 1 - 1) with pos by omega.

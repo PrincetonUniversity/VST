@@ -1,22 +1,22 @@
 (*CompCert imports*)
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import Values.
-Require Import Maps.
-Require Import Integers.
-Require Import Axioms.
-Require Import Globalenvs.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Values.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Axioms.
+Require Import common.Globalenvs.
 
 Lemma mem_unchanged_on_sub: forall (P Q: block -> BinInt.Z -> Prop) m m',
-  mem_unchanged_on Q m m' -> 
+  Mem.unchanged_on Q m m' -> 
   (forall b ofs, P b ofs -> Q b ofs) -> 
-  mem_unchanged_on P m m'.
+  Mem.unchanged_on P m m'.
 Proof.
 intros until m'; intros [H1 H2] H3.
 split; intros.
 solve[apply (H1 b ofs k p (H3 b ofs H)); auto].
-solve[apply (H2 chunk b ofs v); auto]. 
+solve[apply (H2 b ofs); auto]. 
 Qed.
 
 Lemma inject_separated_same_meminj: forall j m m', 
@@ -70,7 +70,7 @@ Proof. intros.
   assumption.
   assert (MV2:= memval23 _ _ _ _  H1 R2).
   inv H. inv H1.  rewrite Zplus_0_r in *.
-  remember  (ZMap.get ofs (ZMap.get b2 (Mem.mem_contents m2))) as v.
+  remember  (ZMap.get ofs (PMap.get b2 (Mem.mem_contents m2))) as v.
   destruct v. inv MV1. apply MV2.
   inv MV1. apply MV2.
   inv MV2. constructor.
@@ -155,26 +155,15 @@ Proof.
   apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
   eapply mi_representable. apply H.
   unfold Mem.weak_valid_pointer in H0|-*.
- apply orb_true_iff in H0; apply orb_true_iff.
+(* apply orb_true_iff in H0; apply orb_true_iff.*)
  destruct H0; [left | right].
  unfold Mem.valid_pointer in H0|-*.
- destruct (Mem.perm_dec m1 b (Int.unsigned ofs) Cur Nonempty).
- clear H0.
- apply (mi_perm b b 0 (Int.unsigned ofs) Cur Nonempty (eq_refl _)) in p.
- rewrite Zplus_0_r in p.
- generalize p as p'; intro.
- rewrite <- perm_decE with (PF := p') in p.
- rewrite p; auto.
- inv H0.
- unfold Mem.valid_pointer in H0|-*.
- destruct (Mem.perm_dec m1 b (Int.unsigned ofs - 1) Cur Nonempty).
- clear H0.
- apply (mi_perm b b 0 (Int.unsigned ofs - 1) Cur Nonempty (eq_refl _)) in p.
- rewrite Zplus_0_r in p.
- generalize p as p'; intro.
- rewrite <-perm_decE with (PF := p') in p.
- rewrite p; eauto.
- inv H0.
+ apply (mi_perm b b 0 _ _ Nonempty (eq_refl _)) in H0.
+ rewrite Zplus_0_r in H0.
+ apply H0. 
+ apply (mi_perm b b 0 _ _ Nonempty (eq_refl _)) in H0.
+ rewrite Zplus_0_r in H0.
+ apply H0. 
 Qed.
 
 Lemma inject_extends_compose:
@@ -222,25 +211,24 @@ Proof. intros.
 Qed.
 
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)), 
-  b2=b1 /\ delta=0 /\ b2 < b.
+  b2=b1 /\ delta=0 /\ Plt b2 b.
 Proof. 
   unfold Mem.flat_inj. intros.
-  remember (zlt b1 b).
-  destruct s; inv H. repeat split; trivial.
+  destruct (plt b1 b); inv H. repeat split; trivial.
 Qed.
 
-Lemma flatinj_I: forall bb b, b < bb -> Mem.flat_inj bb b = Some (b, 0).
+Lemma flatinj_I: forall bb b, Plt b bb -> Mem.flat_inj bb b = Some (b, 0).
 Proof. 
   intros. unfold Mem.flat_inj.
-  remember (zlt b bb). destruct s; trivial. exfalso. omega. 
+  destruct (plt b bb); trivial. exfalso. xomega. 
 Qed.
 
 Lemma flatinj_mono: forall b b1 b2 b' delta 
   (F: Mem.flat_inj b1 b = Some (b', delta)),
-  Zlt b1 b2 -> Mem.flat_inj b2 b = Some (b', delta).
+  Plt b1 b2 -> Mem.flat_inj b2 b = Some (b', delta).
 Proof. intros.
   apply flatinj_E in F. destruct F as [? [? ?]]; subst.
-  apply flatinj_I. omega.
+  apply flatinj_I. xomega.
 Qed.
 
 (* A minimal preservation property we sometimes require.*)
@@ -258,6 +246,26 @@ Proof. intros. intros  b Hb.
   destruct (H _ Hb). 
   destruct (H0 _ H1).
   split; eauto. 
+Qed. 
+
+Lemma forward_unchanged_trans: forall P m1 m2 m3,
+Mem.unchanged_on P m1 m2 -> Mem.unchanged_on P m2 m3 ->
+mem_forward m1 m2 -> mem_forward m2 m3 ->
+mem_forward m1 m3 /\ Mem.unchanged_on P m1 m3.
+Proof. intros.
+split. eapply mem_forward_trans; eassumption.
+split; intros.
+  destruct H.
+  destruct (unchanged_on_perm _ _ k p H3 H4).
+  destruct H0. destruct (H1 _ H4).
+  destruct (unchanged_on_perm0 _ _ k p H3 H0).
+  split; intros; auto.
+destruct H.
+  rewrite <- (unchanged_on_contents _ _ H3 H4).
+  destruct H0.
+  apply (unchanged_on_contents0 _ _ H3). 
+  apply unchanged_on_perm; try assumption.
+  apply Mem.perm_valid_block in H4. assumption.
 Qed. 
 
 Lemma matchOptE: forall {A} (a:option A) (P: A -> Prop),
@@ -459,9 +467,10 @@ Proof. intros.
   inv V; try constructor.
     apply val_inject_ptr with (delta:=0).
             unfold Mem.flat_inj. inv Inj.
-            remember (zlt b1 (Mem.nextblock m1)).
-            destruct s. trivial. assert (j b1 = None). 
-            apply mi_freeblocks. assumption. rewrite H in H0. inv H0.
+            destruct (plt b1 (Mem.nextblock m1)).
+               trivial.
+            assert (j b1 = None). 
+              apply mi_freeblocks. assumption. rewrite H in H0. inv H0.
             rewrite Int.add_zero. trivial.
 Qed.
 
@@ -488,19 +497,19 @@ Proof. intros. destruct Ext. destruct mext_inj.
   rewrite Zplus_0_r in mi_perm. assumption.
 Qed.
 
-Lemma extends_permorder: forall m1 m2 (Ext: Mem.extends m1 m2) b ofs k,
-  Mem.perm_order'' (ZMap.get b (Mem.mem_access m2) ofs k)
-                   (ZMap.get b (Mem.mem_access m1) ofs k).
+Lemma extends_permorder: forall m1 m2 (Ext: Mem.extends m1 m2) (b:block) ofs k,
+  Mem.perm_order'' (PMap.get b (Mem.mem_access m2) ofs k)
+                   (PMap.get b (Mem.mem_access m1) ofs k).
 Proof.
   intros. destruct Ext.  destruct mext_inj as [prm _ _].
   specialize (prm b b 0 ofs k). unfold Mem.perm in prm. 
-  remember ((ZMap.get b (Mem.mem_access m2) ofs k)) as z.
+  remember ((PMap.get b (Mem.mem_access m2) ofs k)) as z.
   destruct z; apply eq_sym in Heqz; simpl  in *. 
-    remember ((ZMap.get b (Mem.mem_access m1) ofs k)) as zz.
+    remember ((PMap.get b (Mem.mem_access m1) ofs k)) as zz.
     destruct zz; trivial; apply eq_sym in Heqzz; simpl  in *.
        rewrite Zplus_0_r in prm. rewrite Heqz in prm. 
        specialize (prm p0 (eq_refl _)). apply prm. apply perm_refl. 
-  remember ((ZMap.get b (Mem.mem_access m1) ofs k)) as zz.
+  remember ((PMap.get b (Mem.mem_access m1) ofs k)) as zz.
     destruct zz; trivial; apply eq_sym in Heqzz; simpl  in *.
        rewrite Zplus_0_r in prm. rewrite Heqz in prm. 
        specialize (prm p (eq_refl _)). exfalso. apply prm. apply perm_refl. 
@@ -511,15 +520,15 @@ Lemma fwd_maxperm: forall m1 m2 (FWD: mem_forward m1 m2) b
   Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p.
 Proof. intros. apply FWD; assumption. Qed. 
 
-Lemma fwd_maxpermorder: forall m1 m2 (FWD: mem_forward m1 m2) b 
+Lemma fwd_maxpermorder: forall m1 m2 (FWD: mem_forward m1 m2) (b:block) 
   (V:Mem.valid_block m1 b) ofs,
-  Mem.perm_order'' (ZMap.get b (Mem.mem_access m1) ofs Max)
-                   (ZMap.get b (Mem.mem_access m2) ofs Max).
+  Mem.perm_order'' (PMap.get b (Mem.mem_access m1) ofs Max)
+                   (PMap.get b (Mem.mem_access m2) ofs Max).
 Proof.
   intros. destruct (FWD b); try assumption. 
-  remember ((ZMap.get b (Mem.mem_access m2) ofs Max)) as z.
+  remember ((PMap.get b (Mem.mem_access m2) ofs Max)) as z.
   destruct z; apply eq_sym in Heqz; simpl  in *.
-  remember ((ZMap.get b (Mem.mem_access m1) ofs Max)) as zz.
+  remember ((PMap.get b (Mem.mem_access m1) ofs Max)) as zz.
   destruct zz; apply eq_sym in Heqzz; simpl  in *.
   specialize (H0 ofs p).  unfold Mem.perm in H0. unfold Mem.perm_order' in H0. 
   rewrite Heqz in H0. rewrite Heqzz in H0. apply H0. apply perm_refl.
@@ -527,26 +536,26 @@ Proof.
   rewrite Heqz in H0. rewrite Heqzz in H0. apply H0. apply perm_refl.
 
 
-  remember ((ZMap.get b (Mem.mem_access m1) ofs Max)) as zz.
+  remember ((PMap.get b (Mem.mem_access m1) ofs Max)) as zz.
   destruct zz; apply eq_sym in Heqzz; simpl in *; trivial.
 Qed.
 
 Lemma po_oo: forall p q, Mem.perm_order' p q = Mem.perm_order'' p (Some q).
 Proof. intros. destruct p; trivial. Qed. 
 
-Lemma inject_permorder: forall j m1 m2 (Inj : Mem.inject j m1 m2) b b' ofs'
+Lemma inject_permorder: forall j m1 m2 (Inj : Mem.inject j m1 m2) (b b':block) ofs'
       (J: j b = Some (b', ofs')) ofs k,
-     Mem.perm_order'' (ZMap.get b' (Mem.mem_access m2) (ofs + ofs') k)
-     (ZMap.get b (Mem.mem_access m1) ofs k).
+     Mem.perm_order'' (PMap.get b' (Mem.mem_access m2) (ofs + ofs') k)
+     (PMap.get b (Mem.mem_access m1) ofs k).
 Proof.
   intros. destruct Inj. destruct mi_inj as [prm _ _ ].
   specialize (prm b b' ofs' ofs k). unfold Mem.perm in prm. 
-  remember ((ZMap.get b' (Mem.mem_access m2) (ofs + ofs') k)) as z.
+  remember ((PMap.get b' (Mem.mem_access m2) (ofs + ofs') k)) as z.
   destruct z; apply eq_sym in Heqz; simpl  in *. 
-    remember ((ZMap.get b (Mem.mem_access m1) ofs k)) as zz.
+    remember ((PMap.get b (Mem.mem_access m1) ofs k)) as zz.
     destruct zz; trivial; apply eq_sym in Heqzz; simpl  in *.
        eapply prm. apply J. apply perm_refl. 
-  remember ((ZMap.get b (Mem.mem_access m1) ofs k)) as zz.
+  remember ((PMap.get b (Mem.mem_access m1) ofs k)) as zz.
     destruct zz; trivial; apply eq_sym in Heqzz; simpl  in *.
        eapply prm. apply J. apply perm_refl. 
 Qed.
@@ -563,20 +572,22 @@ Proof. intros. destruct Inj. destruct mi_inj.
 intros N. apply H. apply (mi_perm _ _ _ _ _ _ J) in N. apply N.
 Qed.
 
-Lemma mem_unchanged_on_refl: forall m f, mem_unchanged_on f m m.
-Proof. intros. split; intros; trivial. Qed.
+(*now in Memory.v
+Lemma mem_unchanged_on_refl: forall m f, Mem.unchanged_on f m m.
+Proof. intros. split; trivial. 
+   intros; split; trivial.
+Qed.*)
 
 Lemma inject_LOOR_LOOB: forall m1 m2 j (Minj12 : Mem.inject j m1 m2) m3 m3', 
-  mem_unchanged_on (loc_out_of_reach j m1) m3 m3' -> 
-  mem_unchanged_on (loc_out_of_bounds m2) m3 m3'.
+  Mem.unchanged_on (loc_out_of_reach j m1) m3 m3' -> 
+  Mem.unchanged_on (loc_out_of_bounds m2) m3 m3'.
 Proof. intros.
      split; intros; eapply H; trivial.
          intros b2; intros. unfold loc_out_of_bounds in H0. intros N. apply H0.
                           inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
                          rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
-    intros. apply H0 in H2.
-         intros b2; intros. unfold loc_out_of_bounds in H2. intros N. apply H2.
-                          inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H3) in N.
+    intros b2; intros. unfold loc_out_of_bounds in H0. intros N. apply H0.
+                          inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
                          rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
 Qed.
 
@@ -615,10 +626,10 @@ Qed.
 Definition mem_wd m := Mem.inject_neutral (Mem.nextblock m) m.
 
 Lemma mem_wdI: forall m,
-    (forall b ofs  (R:Mem.perm m b ofs Cur Readable),
+    (forall (b:block) ofs  (R:Mem.perm m b ofs Cur Readable),
                 memval_inject  (Mem.flat_inj (Mem.nextblock m)) 
-                                             (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))
-                                            (ZMap.get ofs (ZMap.get b (Mem.mem_contents m)))) -> mem_wd m.
+                                             (ZMap.get ofs (PMap.get b (Mem.mem_contents m)))
+                                            (ZMap.get ofs (PMap.get b (Mem.mem_contents m)))) -> mem_wd m.
 Proof. intros.
   split; intros.
      apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
@@ -638,10 +649,10 @@ Proof. intros. apply mem_wd_E in H.
    apply extensionality. intro b. 
    remember (j b). 
    destruct o; trivial. destruct p. unfold Mem.flat_inj in *.
-   remember (zlt b0 (Mem.nextblock m)).
-  destruct s.  rewrite Zplus_0_r. trivial.
-  inv J. apply eq_sym in Heqo. specialize (mi_mappedblocks _ _ _ Heqo).
-               exfalso. unfold Mem.valid_block in mi_mappedblocks. omega.
+   destruct (plt b0 (Mem.nextblock m)).
+     rewrite Zplus_0_r. trivial.
+   inv J. apply eq_sym in Heqo. specialize (mi_mappedblocks _ _ _ Heqo).
+               exfalso. unfold Mem.valid_block in mi_mappedblocks. xomega.
 Qed.
 
 Lemma meminj_split_flatinjL: forall j m m' (J:Mem.inject j m m'), mem_wd m -> 
@@ -650,8 +661,8 @@ Proof. intros. apply mem_wd_E in H.
    unfold  compose_meminj.
    apply extensionality. intro b. 
    unfold Mem.flat_inj in *.
-   remember (zlt b (Mem.nextblock m)).
-  destruct s. remember (j b). destruct o. destruct p.  rewrite Zplus_0_l. trivial. trivial.
+   destruct (plt b (Mem.nextblock m)).
+     remember (j b). destruct o. destruct p0.  rewrite Zplus_0_l. trivial. trivial.
   inv J. apply mi_freeblocks. assumption.
 Qed.
 
@@ -691,7 +702,9 @@ Proof. intros. unfold mem_wd in *.
                      apply flatinj_I. apply (Mem.perm_valid_block _ _ _ _ _ H0).
                   specialize (mi_memval _ _ _ _ X H0). rewrite Zplus_0_r in mi_memval.
                   eapply memval_inject_incr; try eassumption.
-                       intros bb; intros. eapply flatinj_mono; try eassumption. omega.
+                       intros bb; intros.
+                        eapply flatinj_mono; try eassumption; xomega.
+       xomega.
 Qed. 
 
 Lemma  mem_wd_drop: forall m b lo hi p m' (DROP: Mem.drop_perm m b lo hi p = Some m')
@@ -754,7 +767,7 @@ Proof.
   rewrite Zplus_0_r in mi_memval.
   destruct H. specialize (mi_memval0 b ofs b 0 H2 H0). 
   rewrite Zplus_0_r in mi_memval0. 
-  remember (ZMap.get ofs (ZMap.get b (Mem.mem_contents m1))) as v.
+  remember (ZMap.get ofs (PMap.get b (Mem.mem_contents m1))) as v.
   destruct v. constructor. constructor.
   econstructor.
     eapply flatinj_I. inv mi_memval. inv H4. rewrite Int.add_zero in H6. 
@@ -988,7 +1001,7 @@ Proof. intros. apply mem_wdI. intros.
   remember (eq_block b0 b).
   destruct s; subst; clear Heqs.
   (*case b0=b*) 
-    rewrite ZMap.gss.
+    rewrite PMap.gss.
     remember (zlt ofs0 ofs) as d.
     destruct d; clear Heqd.
     (*case ofs0 < ofs*) 
@@ -1005,7 +1018,7 @@ Proof. intros. apply mem_wdI. intros.
          rewrite Mem.setN_outside; try (right; assumption).
       assumption.
   (*case b0 <> b*)
-    rewrite ZMap.gso; trivial.
+    rewrite PMap.gso; trivial.
 Qed.
 
 Lemma getN_aux: forall n p c B1 v B2, Mem.getN n p c = B1 ++ v::B2 ->
@@ -1035,8 +1048,14 @@ Qed.
 Lemma loadbytes_D: forall m b ofs n bytes
       (LD: Mem.loadbytes m b ofs n = Some bytes),
       Mem.range_perm m b ofs (ofs + n) Cur Readable /\
-      bytes = Mem.getN (nat_of_Z n) ofs (ZMap.get b (Mem.mem_contents m)).
-Proof. intros. Admitted. (*Essentially ok - we're only exposing the definition of  Mem.loadbytes here...*)
+      bytes = Mem.getN (nat_of_Z n) ofs (PMap.get b (Mem.mem_contents m)).
+Proof. intros.
+  Transparent Mem.loadbytes.
+  unfold Mem.loadbytes in LD.
+  Opaque Mem.loadbytes.
+  remember (Mem.range_perm_dec m b ofs (ofs + n) Cur Readable) as d.
+  destruct d; inv LD. auto.
+Qed.
 
 Lemma loadbytes_valid: forall m (WD: mem_wd m) b ofs' n bytes
       (LD: Mem.loadbytes m b (Int.unsigned ofs') n = Some bytes)
@@ -1153,7 +1172,7 @@ Proof. intros.
       assert (MM':= Mem.mi_memval _ _ _ mext_inj b1 ofs _ _ (eq_refl _) H0).
 
       assert (F:= flatinj_E _ _ _ _ H). destruct F as [? [? ?]]; subst.
-      remember (ZMap.get ofs (ZMap.get b1 (Mem.mem_contents m))) as v.
+      remember (ZMap.get ofs (PMap.get b1 (Mem.mem_contents m))) as v.
       inv MM'; try econstructor.
       inv H2.
       inv MVM. rewrite <- H4 in H5. inv H5.  
@@ -1163,8 +1182,8 @@ Proof. intros.
         trivial. 
   (* mi_freeblocks*)
   unfold Mem.flat_inj.
-    destruct (zlt b (Mem.nextblock m)).
-     exfalso. apply (H l). trivial.
+    destruct (plt b (Mem.nextblock m)).
+     exfalso. apply (H p). trivial.
   (*mi_mappedblocks*)
   apply flatinj_E in H. destruct H as [? [? ?]]; subst.
     rewrite mext_next in H1. apply H1.
@@ -1178,3 +1197,26 @@ Proof. intros.
     split. omega.
     rewrite Zplus_0_r. apply Int.unsigned_range_2.
 Qed. 
+
+Lemma mem_forward_nb: forall m1 m2 (Fwd: mem_forward m1 m2),
+   (Mem.nextblock m1 <= Mem.nextblock m2)%positive.
+Proof. unfold mem_forward; intros.
+remember ((Mem.nextblock m1 ?= Mem.nextblock m2)%positive).
+destruct c; apply eq_sym in Heqc.
+  rewrite Pos.lt_eq_cases. right. 
+    apply Pos.compare_eq_iff . apply Heqc.
+  rewrite Pos.lt_eq_cases. left. 
+    apply Pos.compare_lt_iff in Heqc. apply Heqc.
+  rewrite Pcompare_eq_Gt in Heqc.
+    exfalso. destruct (Fwd (Mem.nextblock m2)); clear Fwd.
+      unfold Mem.valid_block. xomega.
+    clear - H. unfold Mem.valid_block in H. xomega.
+Qed.
+
+Lemma pos_succ_plus_assoc: forall n m,
+    (Pos.succ n + m = n + Pos.succ m)%positive.
+Proof. intros. 
+  do 2 rewrite Pplus_one_succ_r;
+           rewrite (Pos.add_comm m);     
+           rewrite Pos.add_assoc; trivial.
+Qed.

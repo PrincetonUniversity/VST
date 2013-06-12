@@ -64,21 +64,21 @@ MSL_FILES = \
 
 SEPCOMP_FILES= \
   Address.v step_lemmas.v Coqlib2.v \
-  extspec.v \
+  extspec.v FiniteMaps.v \
   wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v \
   core_semantics.v \
   forward_simulations_lemmas.v \
- forward_simulations.v rg_forward_simulations.v \
-#  extension.v extension_proof.v 
+  forward_simulations.v rg_forward_simulations.v \
+  extension.v extension_proof.v \
 #  compile_safe.v core_semantics_lemmas.v \
-#   extension_safety.v extension_simulations.v \
-#  extension_proof_safety.v 
-#  null_extension.v fs_extension.v linking_extension.v trace_extension.v \
-#  mem_interpolants.v compiler_correctness_trans.v \
-#  compcert_compiler_correctness.v RG_interpolants.v rgsim.v
+   extension_safety.v extension_simulations.v \
+  extension_proof_safety.v \
+  null_extension.v fs_extension.v linking_extension.v trace_extension.v \
+  mem_interpolants.v compiler_correctness_trans.v \
+  compcert_compiler_correctness.v #RG_interpolants.v rgsim.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \

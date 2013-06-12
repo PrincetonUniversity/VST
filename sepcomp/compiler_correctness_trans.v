@@ -3,7 +3,7 @@ Require Import Events.
 Require Import Memory.
 Require Import AST.
 Require Import Coqlib.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.
 Require Import Globalenvs.
@@ -384,11 +384,13 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
   (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig)
             ExternIdents)
   (i1: I F1 C1 V1 Sem1 P1)
-  (Ext_init12 : forall m1 : mem,
+  (Ext_init12: forall m1, Genv.init_mem P1 = Some m1 -> 
+               exists m2, Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
+(*  (Ext_init12 : forall m1 : mem,
              initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
-               Mem.extends m1 m2)
+               Mem.extends m1 m2)*)
   (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends
                (list (ident * globdef F1 V1))
                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
@@ -479,10 +481,10 @@ Proof.
     as [vals33 [Ext23 [ValsLD23 [HTVals3 [AtExt3 VV3]]]]]; try assumption.
   rewrite AtExt3 in H2. inv H2.
   assert (HTR1: Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eassumption.
-  assert (UnchOn3 :  mem_unchanged_on (loc_out_of_bounds m2) m3 m3').
+  assert (UnchOn3 :  Mem.unchanged_on (loc_out_of_bounds m2) m3 m3').
   split; intros; eapply H7; trivial.
   eapply extends_loc_out_of_bounds; eassumption.
-  intros. apply H in H15. eapply extends_loc_out_of_bounds; eassumption.
+  eapply extends_loc_out_of_bounds; eassumption. 
   destruct (MEMAX.interpolate_EE _ _ Ext12 _ H5 _ Ext23 _ H6 H9 H7 H12) 
     as [m2' [Fwd2 [Ext12' [Ext23' [UnchOn2 WD2]]]]].
   assert (WD2': mem_wd m2'). apply (extends_memwd _ _ Ext23' H12).
@@ -836,10 +838,10 @@ Proof.
   split. eapply valinject_hastype; eassumption.
   eapply inject_valvalid; eassumption. 
   destruct H0 as [ret2 [injRet12 [injRet23 [HasTp2 ValV2]]]].
-  assert (Unch111': mem_unchanged_on (loc_unmapped j1) m1 m1').
+  assert (Unch111': Mem.unchanged_on (loc_unmapped j1) m1 m1').
   split; intros; apply H9; unfold compose_meminj, loc_unmapped in *. 
   rewrite H0. trivial. trivial. 
-  intros. specialize (H0 _ H2). rewrite H0. trivial. trivial.
+  intros. rewrite H0. trivial. trivial.
   specialize (core_after_external12 _ _ j12' _ _ _ _ _ ret1 m1' m2 m2' ret2 _ MInj12 MC12 AtExt1
     VV1 PGj1 Incr12 Sep12 MInj12' injRet12 H8 Unch111' Fwd2 Unch22 HasTp2 H13 WD2' H15 ValV2).
   destruct core_after_external12 as [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]].
@@ -1001,8 +1003,11 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
   (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
   (i1: I F1 C1 V1 Sem1 P1)
   (Eq_init12 : forall m1 : mem,
+    Genv.init_mem P1 = Some m1 -> Genv.init_mem P2 = Some m1)
+(*  (Eq_init12 : forall m1 : mem,
     initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
     exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+*)
   (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
     (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
     (Genv.globalenv P2) epts12) 
@@ -1208,8 +1213,11 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Eq_init12 : forall m1 : mem,
+            Genv.init_mem P1 = Some m1 -> Genv.init_mem P2 = Some m1)
+(*       (Eq_init12 : forall m1 : mem,
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+*)
        (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
                                           (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
@@ -1446,8 +1454,11 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Eq_init12 : forall m1 : mem,
+            Genv.init_mem P1 = Some m1 -> Genv.init_mem P2 = Some m1)
+(*       (Eq_init12 : forall m1 : mem,
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
+*)
        (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
                                           (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
@@ -1522,10 +1533,13 @@ Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
      (e12 : prog_main P1 = prog_main P2)
      (g12: CompilerCorrectness.GenvHyp P1 P2)
      (Eq_init12 : forall m1 : mem,
+            Genv.init_mem P1 = Some m1 -> Genv.init_mem P2 = Some m1)
+ (*    (Eq_init12 : forall m1 : mem,
           initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
           exists m2 : mem,
             initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
-     (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
+ *)
+    (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
                                 (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                                (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
@@ -1548,9 +1562,10 @@ induction SIM23; intros; subst.
                                rename H into EPC. rename i into i2. rename i0 into i3.
        apply CompilerCorrectness.ccs_eq with (entrypoints:=entrypoints13);try assumption.
        (*init_mem*)
-         intros m1 Ini1.
-           destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
-           apply (Eq_init23 _ Ini2). 
+         intros m1 Ini1. apply Eq_init12 in Ini1.
+           apply Eq_init23 in Ini1. apply Ini1.
+           (*destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
+           apply (Eq_init23 _ Ini2). *)
        (*entrypoints_ok*)
            apply ePts_compose1 with (Prg2:=P2)(Epts12:=epts12)(Epts23:=epts23); assumption.
        (*sim_eqeq*)
@@ -1564,14 +1579,15 @@ induction SIM23; intros; subst.
  (*extension pass Sem2 -> Sem3*) 
         rename C2 into C3. rename V2 into V3. rename F2 into F3. rename P2 into P3. rename Sem2 into Sem3.
         rename C0 into C2. rename V0 into V2. rename F0 into F2. rename P0 into P2. rename Sem0 into Sem2.
-        rename Extends_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
+        rename Ext_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
                                rename H0 into Extern1. rename H1 into Extern2. rename ePts_ok into ePts23_ok.
                                rename H into EPC. rename i into i2. rename i0 into i3.
        apply CompilerCorrectness.ccs_ext with (entrypoints:=entrypoints13); try assumption.
        (*init_mem*)
-         intros m1 Ini1.
-           destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
-           apply (Ext_init23 _ Ini2).
+         intros m1 Ini1. apply Eq_init12 in Ini1.
+           apply Ext_init23. apply Ini1.
+           (*destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
+           apply (Ext_init23 _ Ini2).*)
        (*entrypoints_ok*)
            apply ePts_compose1 with (Prg2:=P2)(Epts12:=epts12)(Epts23:=epts23); assumption.
        (*sim_eqext*) 
@@ -1590,9 +1606,10 @@ induction SIM23; intros; subst.
                                rename H into EPC. rename i into i2. rename i0 into i3.
        apply CompilerCorrectness.ccs_inj with (entrypoints:=entrypoints13)(jInit:=jInit); try assumption.
        (*init_mem*)
-         intros m Ini1.
-           destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
-           apply (Inj_init23 _ Ini2).
+         intros m Ini1. apply (Inj_init23).
+           apply Eq_init12. apply Ini1.
+           (*destruct (Eq_init12 _ Ini1) as [m2 [Ini2 XX]]. subst.
+           apply (Inj_init23 _ Ini2).*)
        (*entrypoints_ok*)
            eapply ePts_compose2; eassumption.
        (*preserves_globals*) 
@@ -1758,10 +1775,9 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
 (Ext_init12 : forall m1 : mem,
-             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
+             Genv.init_mem P1 = Some m1 ->
              exists m2 : mem,
-               initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
-               Mem.extends m1 m2)
+               Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
 (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
              (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
              (Genv.globalenv P2) epts12)
@@ -2030,10 +2046,14 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Ext_init12 : forall m1 : mem,
+             Genv.init_mem P1 = Some m1 ->
+             exists m2 : mem,
+               Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
+       (*(Ext_init12 : forall m1 : mem,
              initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
-               Mem.extends m1 m2)
+               Mem.extends m1 m2)*)
      (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
              (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
      (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F2 V2))
@@ -2116,10 +2136,10 @@ Proof.
                         eapply forall_lessdef_hastype; eassumption.
                     assert (HRet1:   Val.has_type ret1 (proj_sig_res ef_sig)). 
                         eapply valinject_hastype; eassumption.
-                    assert (UnchOn3 :  mem_unchanged_on (loc_out_of_reach j m2) m3 m3').
+                    assert (UnchOn3 : Mem.unchanged_on (loc_out_of_reach j m2) m3 m3').
                         split; intros; eapply H11; trivial.
                                  eapply extends_loc_out_of_reach; eassumption.
-                                 intros. apply H0 in H18. eapply extends_loc_out_of_reach; eassumption.
+                                 intros.  eapply extends_loc_out_of_reach; eassumption.
                     assert (Sep23: inject_separated j j' m2 m3).
                          intros b. intros. destruct (H5 _ _ _ H0 H17). split; trivial. 
                          intros N. apply H18.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
@@ -2163,10 +2183,14 @@ Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
      (e12 : prog_main P1 = prog_main P2)
      (g12: CompilerCorrectness.GenvHyp P1 P2)
      (Ext_init12 : forall m1 : mem,
+             Genv.init_mem P1 = Some m1 ->
+             exists m2 : mem,
+               Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
+     (*(Ext_init12 : forall m1 : mem,
                initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
                exists m2 : mem,
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
-                 Mem.extends m1 m2)
+                 Mem.extends m1 m2)*)
      (SimExt12 :  Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
                                 (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
                               (Genv.globalenv P2) epts12)
@@ -2191,7 +2215,9 @@ induction SIM23; intros; subst.
        (*init_mem*)
          intros m1 Ini1.
            destruct (Ext_init12 _ Ini1) as [m2 [Ini2 XX]].
-           apply Eq_init23 in Ini2. destruct Ini2 as [m3 [Ini3 Y]]; subst. exists m3; split; assumption.
+           apply Eq_init23 in Ini2.
+           (*destruct Ini2 as [m3 [Ini3 Y]]; subst. *)
+           exists m2; split; assumption.
        (*entrypoints_ok*)
            eapply ePts_compose1; eassumption.
        (*sim_exteq*) 
@@ -2205,7 +2231,7 @@ induction SIM23; intros; subst.
   (*extension pass Sem2 -> Sem3*) 
         rename C2 into C3. rename V2 into V3. rename F2 into F3. rename P2 into P3. rename Sem2 into Sem3.
         rename C0 into C2. rename V0 into V2. rename F0 into F2. rename P0 into P2.  rename Sem0 into Sem2.
-        rename Extends_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
+        rename Ext_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
                                rename H0 into Extern1. rename H1 into Extern2. rename ePts_ok into ePts23_ok. 
                                rename H into EPC. rename i into i2. rename i0 into i3.
        apply CompilerCorrectness.ccs_ext with (entrypoints:=entrypoints13); try assumption.
@@ -2417,10 +2443,15 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
        (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
        (i1: I F1 C1 V1 Sem1 P1)
        (Inj_init12 : forall m1 : mem,
+             Genv.init_mem P1 = Some m1 ->
+             exists m2 : mem,
+               Genv.init_mem P2 = Some m2 /\ Mem.inject j12 m1 m2)
+(*       (Inj_init12 : forall m1 : mem,
                initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
                exists m2 : mem,
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.inject j12 m1 m2)
+*)
       (PG1 : meminj_preserves_globals (Genv.globalenv P1) j12)
       (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
                           (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
@@ -2767,7 +2798,7 @@ Proof.
                     assert (Sep12: inject_separated j j' m1 m2).
                          intros b; intros. destruct (H5 _ _ _ H0 H17). split; trivial.
                             intros N. apply H19. inv MExt23. unfold Mem.valid_block. rewrite <- mext_next. apply N.
-                    assert (UnchLOOB23_3': mem_unchanged_on (loc_out_of_bounds m2) m3 m3'). 
+                    assert (UnchLOOB23_3': Mem.unchanged_on (loc_out_of_bounds m2) m3 m3'). 
                          eapply inject_LOOR_LOOB; eassumption.
                     assert (WD2: mem_wd m2). apply match_memwd23 in MC23. apply MC23. 
                     destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H8 _ H4 Sep12 H9 _ _ MExt23 H10 H11 H6 UnchLOOB23_3' WD2 H13 H14)
@@ -2800,12 +2831,17 @@ Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
      (g12: CompilerCorrectness.GenvHyp P1 P2)
      (VarsOK1: CompilerCorrectness.externvars_ok P1 ExternIdents)
      (j12 : meminj)
-     (ePts12_ok : CompilerCorrectness.entryPts_inject_ok P1 P2 j12 ExternIdents epts12)
+     (ePts12_ok : CompilerCorrectness.entryPts_inject_ok P1 P2 j12 ExternIdents epts12) 
      (Inj_init12 : forall m1 : mem,
+             Genv.init_mem P1 = Some m1 ->
+             exists m2 : mem,
+               Genv.init_mem P2 = Some m2 /\ Mem.inject j12 m1 m2)
+(*    (Inj_init12 : forall m1 : mem,
            initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
            exists m2 : mem,
              initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
              Mem.inject j12 m1 m2)
+*)
      (PG1: meminj_preserves_globals (Genv.globalenv P1) j12)
      (SimInj12: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
                                  (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
@@ -2831,7 +2867,8 @@ induction SIM23; intros; subst.
        (*init_mem*)
          intros m1 Ini1.
            destruct (Inj_init12 _ Ini1) as [m2 [Ini2 MInj12]].
-           destruct (Eq_init23 _ Ini2) as [m3 [Ini3 MEq23]]; subst. exists m3; split; assumption.
+           exists m2. split; trivial.
+           apply Eq_init23. apply Ini2.
        (*entrypoints_ok*)
            eapply ePts_compose3; eassumption.
        (*sim_injeq*) 
@@ -2845,7 +2882,7 @@ induction SIM23; intros; subst.
  (*extension pass Sem2 -> Sem3*) 
         rename C2 into C3. rename V2 into V3. rename F2 into F3. rename P2 into P3. rename Sem2 into Sem3.
         rename C0 into C2. rename V0 into V2. rename F0 into F2. rename P0 into P2.  rename Sem0 into Sem2.
-        rename Extends_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
+        rename Ext_init into Ext_init23. rename e into e23. rename g into g23. rename R into SimExt23.
                                rename H0 into Extern1. rename H1 into Extern2. rename ePts_ok into ePts23_ok. 
                                rename H into EPC. rename i into i2. rename i0 into i3.
        apply CompilerCorrectness.ccs_inj with (entrypoints:=entrypoints13)(jInit:=j12); try assumption.

@@ -255,7 +255,7 @@ Proof.
  rewrite juicy_mem_alloc_cohere. rewrite core_NO; auto.
  simpl. destruct H.
  revert H; case_eq (alloc (m_dry jm) lo hi); intros.
- simpl in *. subst b0. apply alloc_result in H. subst b; omega.
+ simpl in *. subst b0. apply alloc_result in H. subst b; xomega.
 Qed. (* Admitted: move this to juicy_mem_ops *)
 
 
@@ -338,7 +338,7 @@ Proof.
  exists rho'; exists j.
  split. apply age_jm_dry in H. rewrite <- H; auto.
  assert (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
-             nextblock (m_dry jm) <= nextblock (m_dry jm') /\
+             (nextblock (m_dry jm) <= nextblock (m_dry jm'))%positive /\
              level jm = level jm' /\
             core (m_phi jm) = core (m_phi jm') ).
 Focus 2.
@@ -355,7 +355,7 @@ Focus 2.
  forget empty_env as rho. clear H0.
  revert rho jm Heqx H1; induction vl; intros.
  inv Heqx. split. apply resource_decay_refl.
-   apply juicy_mem_alloc_cohere. apply Zle_refl.
+   apply juicy_mem_alloc_cohere. apply Ple_refl.
  destruct a as [id ty].
  unfold alloc_juicy_variables in Heqx; fold alloc_juicy_variables in Heqx.
  revert Heqx; case_eq (juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
@@ -366,9 +366,9 @@ Focus 2.
  specialize (IHvl _ _ Heqx H1).
  symmetry in H0; pose proof (nextblock_alloc _ _ _ _ _ H0).
  destruct IHvl.
- split; [ |  rewrite H3 in H5; omega].
+ split; [ |  rewrite H3 in H5; xomega].
  eapply resource_decay_trans; try eassumption. 
- rewrite H3; omega.
+ rewrite H3; xomega.
  clear - H H2 H0.
  change (level (m_phi jm) = level (m_phi jm1)) in H2.
  unfold resource_decay.
@@ -380,7 +380,7 @@ Focus 2.
  replace (sizeof ty - 0) with (sizeof ty) by omega.
  destruct loc as [b z]. simpl in *.
  if_tac. destruct H1; subst b1.
- right. right. left. split. apply alloc_result in H0; subst b; omega.
+ right. right. left. split. apply alloc_result in H0; subst b; xomega.
  eauto.
  rewrite <- H2. left. apply resource_at_approx.
 Qed.

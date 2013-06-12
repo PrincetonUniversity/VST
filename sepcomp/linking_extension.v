@@ -18,7 +18,7 @@ Require Import Axioms.
 Require Import Coqlib.
 Require Import AST.
 Require Import Integers.
-Require Import Values.
+Require Import compcert.common.Values.
 Require Import Memory.
 Require Import Globalenvs.
 Require Import Events.
@@ -85,7 +85,7 @@ Implicit Arguments mkLinkerCoreState [].
 Definition genvs_agree (F1 F2 V1 V2: Type) (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
   (forall id: ident, Genv.find_symbol ge1 id=Genv.find_symbol ge2 id) /\
   (forall b v1 v2,
-    ZMap.get b (Genv.genv_vars ge1) = Some v1 -> ZMap.get b (Genv.genv_vars ge2) = Some v2 ->  
+    PTree.get b (Genv.genv_vars ge1) = Some v1 -> PTree.get b (Genv.genv_vars ge2) = Some v2 ->  
     gvar_init v1=gvar_init v2).
 
 Lemma length_cons {A: Type}: forall (a: A) (l: list A), length (a :: l) >= 1.
@@ -195,7 +195,7 @@ Definition linker_initial_mem (ge: Genv.t F V) (m: mem) (init_data: list (ident 
 Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :=
   match f, Genv.find_symbol ge main_id with
   | Vptr b ofs, Some b' => 
-    if Z_eq_dec b b' then 
+    if eq_block b b' then 
        (match procedure_linkage_table main_id as x 
           return (x = procedure_linkage_table main_id -> option linker_corestate) with
        | None => fun _ => None (** no module defines 'main' *)
@@ -214,7 +214,7 @@ Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :
 Program Definition linker_core_semantics: 
   CoreSemantics (Genv.t F V) linker_corestate mem (list (ident * globdef F V)) :=
  Build_CoreSemantics _ _ _ _ 
-  linker_initial_mem 
+  (*deprecated: linker_initial_mem*) 
   linker_make_initial_core
   linker_at_external
   linker_after_external
@@ -319,7 +319,7 @@ Qed.
 Program Definition linker_coop_core_semantics: 
   CoopCoreSem (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
  Build_CoopCoreSem _ _ _
-  linker_core_semantics _ _ _.
+  linker_core_semantics _ _ (*_*).
 Next Obligation.
 inv CS.
 apply corestep_fwd in H1; auto.
@@ -330,10 +330,10 @@ Next Obligation.
 inv CS; auto.
 apply corestep_wdmem in H2; auto.
 Qed.
-Next Obligation. 
+(*initial_mem deprecated Next Obligation. 
 unfold linker_initial_mem in H.
 destruct H; auto.
-Qed.
+Qed.*)
 
 Program Definition rg_linker_core_semantics: 
   RelyGuaranteeSemantics (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
@@ -463,14 +463,14 @@ Fixpoint private_valid_inv m (stack: call_stack cT num_modules) :=
  | nil => True
  | mkFrame i pf_i c_i :: stack' => 
    (forall b, private_block (get_module_csem (modules pf_i)) c_i b -> 
-     (b < Mem.nextblock m)%Z) /\
+     (b < Mem.nextblock m)%positive) /\
    private_valid_inv m stack'
  end.
 
 Lemma private_valid_inv_fwd: 
   forall m m' stack,
   private_valid_inv m stack -> 
-  (Mem.nextblock m <= Mem.nextblock m')%Z -> 
+  (Mem.nextblock m <= Mem.nextblock m')%positive -> 
   private_valid_inv m' stack.
 Proof.
 induction stack; auto.
@@ -479,9 +479,9 @@ destruct a.
 intros [H1 H2] H3.
 split; auto.
 intros b H4.
-assert (b < Mem.nextblock m)%Z.
+assert (b < Mem.nextblock m)%positive.
 auto.
-omega.
+xomega.
 Qed.
 
 Fixpoint private_disjoint_inv' (i: nat) (pf_i: i < num_modules) 
@@ -525,9 +525,9 @@ destruct H4 as [H4 H5].
 split; auto.
 intros b H6.
 destruct (private_dec (get_module_csem (modules pf_i)) c b).
-cut (Mem.nextblock m <= Mem.nextblock m2)%Z. intro H7.
-cut (b < Mem.nextblock m)%Z. intro H8.
-omega.
+cut (Mem.nextblock m <= Mem.nextblock m2)%positive. intro H7.
+cut (b < Mem.nextblock m)%positive. intro H8.
+xomega.
 apply H4; auto.
 apply corestep_fwd in H3.
 solve[apply forward_nextblock in H3; auto].
@@ -535,7 +535,7 @@ eapply private_step in H3; eauto.
 destruct H3.
 elimtype False; auto.
 solve[destruct H; auto].
-assert (Mem.nextblock m <= Mem.nextblock m2)%Z. 
+assert (Mem.nextblock m <= Mem.nextblock m2)%positive. 
  apply corestep_fwd in H3.
  solve[apply forward_nextblock in H3; auto].
 solve[eapply private_valid_inv_fwd; eauto].
@@ -642,11 +642,11 @@ intros CONTRA.
 eapply private_step in H; eauto.
 destruct H; eauto.
 destruct H as [H2' H4].
-assert (b < Mem.nextblock m)%Z.
+assert (b < Mem.nextblock m)%positive.
  clear - H0 CONTRA.
  solve[destruct H0 as [H0 [H1 H2]]; auto].
 clear - H2' H4 H.
-omega.
+xomega.
 simpl in *.
 destruct H0 as [? [? ?]].
 destruct H1 as [? ?].
@@ -772,21 +772,23 @@ Definition genv_map: nat -> Type := fun i: nat => Genv.t (fT i) (vT i).
 Program Definition trivial_core_semantics: forall i: nat, 
  CoreSemantics (genv_map i) (cT i) mem (list (ident * globdef (fT i) (vT i))) :=
  fun i: nat => Build_CoreSemantics _ _ _ _ 
-  (fun _ _ _ => False) (fun _ _ _ => None) (fun _ => None) 
+  (*initial_mem: (fun _ _ _ => False)*)
+  (fun _ _ _ => None) (fun _ => None) 
   (fun _ _ => None) (fun _ => None) (fun _ _ _ _ _ => False) _ _ _ _.
 
 Program Definition trivial_coop_core_semantics: forall i: nat,
  CoopCoreSem (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_CoopCoreSem _ _ _ (trivial_core_semantics i) _ _ _.
+ fun i: nat => Build_CoopCoreSem _ _ _ (trivial_core_semantics i) _ _ (*_*).
 Next Obligation.
 elimtype False; auto.
 Qed.
 Next Obligation.
 elimtype False; auto.
 Qed.
+(*initial_mem:
 Next Obligation.
 elimtype False; auto.
-Qed.
+Qed.*)
 
 Program Definition trivial_rg_semantics: forall i: nat,
  RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
@@ -838,12 +840,12 @@ Variable at_external_not_handled:
  ~handled ef.
 
 Program Definition trivial_genv (i: nat): Genv.t (fT i) (vT i) :=
- Genv.mkgenv (PTree.empty block) (ZMap.init None) (ZMap.init None) (Zgt_pos_0 1) 
+ @Genv.mkgenv _ _ (PTree.empty block) (PTree.empty _) (PTree.empty _) 1%positive
  _ _ _ _ _.
 Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
-Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
-Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
-Next Obligation. solve[rewrite ZMap.gi in H; congruence]. Qed.
+Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
+Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
+Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
 Next Obligation. solve[rewrite PTree.gempty in H; congruence]. Qed.
 
 Definition genvs: forall i: nat, Genv.t (fT i) (vT i) :=
@@ -1537,11 +1539,11 @@ Fixpoint tl_inv j m1 m2
      inject_incr j0 j /\
      inject_separated j0 j m10 m20 /\
      mem_forward m10 m1 /\
-     mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        loc_unmapped j0 b ofs /\ 
        private_block (get_module_csem (modules_S pf_i)) c_i b) m10 m1 /\
      mem_forward m20 m2 /\
-     mem_unchanged_on (fun b ofs => 
+     Mem.unchanged_on (fun b ofs => 
        loc_out_of_reach j0 m10 b ofs /\ 
        private_block (get_module_csem (modules_T pf_k)) c_k b) m20 m2) /\
    tl_inv j m1 m2 stack1' stack2'
@@ -1998,7 +2000,7 @@ solve[assert (l = PF) as -> by apply proof_irr; auto].
 split; auto.
 solve[eapply mem_forward_trans; eauto].
 
-apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
+apply (@unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
 intros b ofs p H1 H2.
 solve[destruct (QQ4 b H1); auto].
 apply mem_unchanged_on_sub with (Q := fun b ofs => 
@@ -2049,12 +2051,12 @@ destruct RR as [PRIV1 [DISJ1 [PRIV2 [DISJ2 [RR1 [[cd' MATCH] RR2]]]]]].
 
 split3; auto.
 
-assert (Hlt: (Mem.nextblock m1 <= Mem.nextblock m1')%Z).
+assert (Hlt: (Mem.nextblock m1 <= Mem.nextblock m1')%positive).
  solve[apply forward_nextblock in H6; auto].
 
 split; auto.
 intros b H10.
-assert (b < Mem.nextblock m1)%Z.
+assert (b < Mem.nextblock m1)%positive.
  case_eq (at_external (get_module_csem (modules_S PF)) c).
  intros [[ef' sig'] args'] ATEXT.
  eapply private_external in Heq1; eauto.
@@ -2063,7 +2065,7 @@ assert (b < Mem.nextblock m1)%Z.
  intros ATEXT.
  rewrite ATEXT in AT_EXT.
  congruence.
-omega.
+xomega.
 eapply private_valid_inv_fwd; eauto.
 solve[destruct PRIV1; auto].
 destruct DISJ1 as [X Y].
@@ -2078,7 +2080,7 @@ solve[apply X].
 split; auto.
 simpl; split; auto.
 intros b H10.
-assert (b < Mem.nextblock m2)%Z.
+assert (b < Mem.nextblock m2)%positive.
  case_eq (at_external (get_module_csem (modules_S PF)) c).
  2: intros ATEXT; rewrite ATEXT in AT_EXT; congruence.
  intros [[ef' sig'] args'] ATEXT.
@@ -2279,7 +2281,7 @@ solve[intros b ofs [? ?]; split; auto].
 split; auto.
 solve[eapply mem_forward_trans; eauto].
 
-apply (@mem_unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
+apply (@unchanged_outofreach_trans _ _ _ _ m10 m1 m20 m2 m2' j0 j); auto.
 intros b ofs p H1 H2.
 solve[destruct (QQ4 b H1); auto].
 simpl in H9.
@@ -2533,11 +2535,10 @@ solve[apply inject_separated_same_meminj].
 split; auto.
 solve[apply mem_forward_refl].
 split; auto.
-solve[unfold mem_unchanged_on; split; auto].
+solve [constructor; split; auto; split; trivial].
 split; auto.
 solve[apply mem_forward_refl].
-solve[unfold mem_unchanged_on; split; auto].
-
+solve [constructor; split; auto; split; trivial].
 split; auto.
 intros.
 destruct (eq_nat_dec i0 k).
@@ -2553,9 +2554,10 @@ unfold ExtendedSimulations.core_datas_upd.
 solve[rewrite data_upd_same; auto].
 congruence.
 
-split. solve[unfold mem_unchanged_on; split; auto].
-split. solve[unfold mem_unchanged_on; split; auto].
-
+split. 
+solve [constructor; split; auto; split; trivial].
+split.
+solve [constructor; split; auto; split; trivial].
 left.
 exists O; simpl.
 exists (mkLinkerCoreState 
@@ -2737,6 +2739,7 @@ assert (plt_ok (Logic.eq_sym e) = l) as -> by apply proof_irr; auto.
 unfold genv_map in INIT.
 rewrite INIT.
 solve[assert (l = plt_ok PLT0) as -> by apply proof_irr; auto].
+exfalso. apply H0; trivial. 
 
 revert H2.
 generalize (refl_equal (procedure_linkage_table main_id)).
@@ -3323,7 +3326,7 @@ destruct (lt_dec i0 num_modules); try solve[elimtype False; omega].
 assert (l = pfj) by apply proof_irr; subst.
 solve[rewrite H4 in HALTED; inv HALTED; auto].
 
-solve[split; split; auto].
+solve[split; split; auto; intros; split; trivial].
 solve[apply eq_nat_dec].
 Qed.
 
