@@ -30,7 +30,7 @@ Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]
 
 Section SafetyMonotonicity. 
  Variables 
-  (G cT M D Z Zext: Type) (CS: CoreSemantics G cT M D)
+  (G cT M (*D*) Z Zext: Type) (CS: CoreSemantics G cT M (*D*))
   (csig: ef_ext_spec M Z) (handled: AST.external_function -> Prop).
 
 Lemma safety_monotonicity : forall ge n z c m,
@@ -41,7 +41,7 @@ intros ge n; induction n; auto.
 intros  ora c m; simpl; intros H1.
 destruct (at_external CS c).
 destruct p; destruct p.
-destruct (safely_halted CS c).
+destruct (halted CS c).
 auto.
 destruct H1 as [x [H1 H2]].
 destruct H1 as [H1 H1'].
@@ -51,16 +51,16 @@ destruct (H2 ret m' z').
 right; auto.
 destruct H as [H4 H5].
 exists x0; split; auto.
-destruct (safely_halted CS c); auto.
+destruct (halted CS c); auto.
 destruct H1 as [c' [m' [H1 H2]]].
 exists c'; exists m'; split; auto.
 Qed.
 
 End SafetyMonotonicity.
 
-Lemma runnable_false (G C M D: Type) (csem: CoreSemantics G C M D): 
+Lemma runnable_false (G C M (*D*): Type) (csem: CoreSemantics G C M (*D*)): 
  forall c, runnable csem c=false -> 
- (exists rv, safely_halted csem c = Some rv) \/
+ (exists rv, halted csem c = Some rv) \/
  (exists ef, exists sig, exists args, 
    at_external csem c = Some (ef, sig, args)).
 Proof.
@@ -68,7 +68,7 @@ intros c; unfold runnable.
 destruct (at_external csem c).
 destruct p as [[ef sig] vals].
 intros; right; do 2 eexists; eauto.
-destruct (safely_halted csem c).
+destruct (halted csem c).
 intros; left; eexists; eauto.
 congruence.
 Qed.
@@ -79,18 +79,18 @@ Module ExtensionSafety. Section ExtensionSafety. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
- (dT: nat -> Type) (** initialization data *)
+ (*(dT: nat -> Type) (** initialization data *)*)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT*) cT csem csig.
 
 Import SafetyInvariant.
 
@@ -133,7 +133,7 @@ rewrite H6 in H1; clear H6.
 destruct H1 as [x H1].
 destruct H1 as [H7 H8].
 generalize (Extension.linkable); intros Hlink.
-specialize (Hlink _ _ _ _ _ _ _ _ _ _ _ _ _ _ E). 
+specialize (Hlink (* _ _ *) _ _ _ _ _ _ _ _ _ _ _ _ E). 
 destruct Hlink as [Hlink Hlink0].
 specialize (Hlink ef 
   (ext_spec_pre esig ef) (ext_spec_post esig ef) 
@@ -213,7 +213,7 @@ solve[eapply H20; eauto].
 
 (*CASE 2: at_external OUTER = None; i.e., inner corestep or handled function*)
 intros H2.
-case_eq (safely_halted esem s); auto.
+case_eq (halted esem s); auto.
 intros.
 admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*)
 destruct (active_proj_core s) as [c PROJECT].
@@ -248,10 +248,10 @@ intros Heq _; subst j.
 specialize (H1 i c PROJECT).
 simpl in H1. 
 destruct SAFELY_HALTED as [rv SAFELY_HALTED].
-destruct (@at_external_halted_excl (gT i) (cT i) M (dT i) (csem i) c) as [H4|H4]; 
+destruct (@at_external_halted_excl (gT i) (cT i) M (*(dT i)*) (csem i) c) as [H4|H4]; 
  [|congruence].
 destruct n; simpl; auto.
-generalize (safely_halted_halted s m s' m' i c rv) as H7; auto. 
+generalize (halted_halted s m s' m' i c rv) as H7; auto. 
 intros.
 assert (H6:True) by auto.
 rewrite H7 in PROJECTj; inversion PROJECTj; subst; auto.
@@ -281,7 +281,7 @@ intros Heq _; subst j.
 specialize (H1 i c PROJECT).
 simpl in H1. 
 rewrite AT_EXT in H1.
-remember (safely_halted (csem i) c) as SAFELY_HALTED.
+remember (halted (csem i) c) as SAFELY_HALTED.
 destruct SAFELY_HALTED. 
 solve[destruct ef; elimtype False; auto].
 destruct H1 as [x H1].
@@ -325,7 +325,7 @@ generalize (after_at_external_excl (csem i) ret c c' AFTER_EXT); intros AT_EXT'.
 clear - PRE POST POST' AT_EXT' AFTER_EXT H4 H5 H6 HeqSAFELY_HALTED.
 destruct n; simpl; auto.
 rewrite AT_EXT'.
-case_eq (safely_halted (csem i) c'); auto.
+case_eq (halted (csem i) c'); auto.
 admit. (*NOT NEEDED FOR PAPER 1: safely_halted, need to update invariant*) 
 destruct (POST ret m' (s' \o z) POST') as [c'' [AFTER_EXT' SAFEN]].
 unfold i in AFTER_EXT'.

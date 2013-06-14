@@ -20,11 +20,11 @@ Require Import Relations.
 
 Declare Module MEMAX : MemoryInterpolationAxioms.
 
-Lemma corestepN_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
+Lemma corestepN_fwd: forall {G C} (Sem: CoopCoreSem G C)
   g N c m c' m' (CS:corestepN Sem g N c m c' m'), 
   mem_forward m m'.
 Proof. 
-  intros G C D Sem g N.
+  intros G C Sem g N.
   induction N; simpl; intros.
   inv CS. apply mem_forward_refl. 
   destruct CS as [c2 [m2 [CS1 CS2]]].
@@ -32,12 +32,12 @@ Proof.
   eapply mem_forward_trans; eassumption.
 Qed. 
 
-Lemma corestep_star_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
+Lemma corestep_star_fwd: forall {G C} (Sem: CoopCoreSem G C)
   g c m c' m' (CS:corestep_star Sem g c m c' m'), 
   mem_forward m m'.
 Proof. intros. destruct CS.  eapply  corestepN_fwd. apply H. Qed.
 
-Lemma corestep_plus_fwd: forall {G C D} (Sem: CoopCoreSem G C D)
+Lemma corestep_plus_fwd: forall {G C} (Sem: CoopCoreSem G C)
   g c m c' m' (CS:corestep_plus Sem g c m c' m'), 
   mem_forward m m'.
 Proof. intros. destruct CS.  eapply  corestepN_fwd. apply H. Qed.
@@ -227,12 +227,12 @@ Qed.
 
 Section EXTEXT.
 Lemma  diagram_extext: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoreSemantics G2 C2 mem)
+(Sem3 : CoreSemantics G3 C3 mem)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -368,11 +368,11 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
   (I : forall F C V : Type, 
-        CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
+        CoreSemantics (Genv.t F V) C mem -> 
         AST.program F V -> Prop)
-  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -392,17 +392,14 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)*)
   (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends
-               (list (ident * globdef F1 V1))
-               (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+              Sem1 Sem2 (Genv.globalenv P1)
                (Genv.globalenv P2) epts12)
   (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends
-             (list (ident * globdef F2 V2))
-             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
-             (Genv.globalenv P3) epts23).
+              Sem2 Sem3 (Genv.globalenv P2)
+               (Genv.globalenv P3) epts23).
 
 Lemma extext: Coop_forward_simulation_ext.Forward_simulation_extends
-  (list (ident * globdef F1 V1))
-  (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+   Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13. 
 Proof. 
   intros.
@@ -436,7 +433,7 @@ Proof.
              epts23 entrypoints13 Ext_init12 SimExt12 SimExt23.
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
-  eapply (diagram_extext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 
+  eapply (diagram_extext _ _ _ _ _ _ Sem1 Sem2 Sem3 
     core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
  (*initial_core*)
   intros. rename m2 into m3. rename vals' into args3. rename vals into args1. rename v2 into v3.
@@ -504,12 +501,12 @@ End EXTEXT.
 
 Section INJINJ.
 Lemma diagram_injinj: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoopCoreSem G2 C2)
+(Sem3 : CoopCoreSem G3 C3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -622,7 +619,7 @@ Proof.
     apply ZZ.
   clear MC12 InjIncr12 InjSep12 MC12' MatchHyp12. 
   clear st1 m1 st1' m1' j12 j12'. 
-  clear G1 C1 D1 Sem1 match_core12 Genv1.
+  clear G1 C1 Sem1 match_core12 Genv1.
   revert j23 d23 st2 m2 st3 m3 H MC23. 
   induction x; intros. 
    (*base case*) simpl in H.
@@ -701,11 +698,11 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
   (I :forall F C V : Type, 
-    CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
+    CoreSemantics (Genv.t F V) C mem -> 
     AST.program F V -> Prop)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+  (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -715,14 +712,13 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
   (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig) ExternIdents)
   (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
   (i1: I F1 C1 V1 Sem1 P1)
-  (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-    (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
-  (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F2 V2))
-    (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
+  (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject 
+              Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
+  (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject 
+              Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
 Lemma injinj: Coop_forward_simulation_inj.Forward_simulation_inject 
-  (list (ident * globdef F1 V1))
-  (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+   Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13.
 Proof.
   destruct SimInj12 
@@ -761,7 +757,7 @@ Proof.
     epts23 entrypoints13 (*Inj_init12*) SimInj12 SimInj23.
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [j12 [j23 [X [? [MC12 MC23]]]]]]]; subst.
-  eapply (diagram_injinj _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ 
+  eapply (diagram_injinj _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ 
     core_diagram12 _ _ _ _ core_diagram23 
     match_validblock12 match_validblock23); try eassumption.
  (*initial_core*)
@@ -860,12 +856,12 @@ End INJINJ.
 
 Section EQEQ.
 Lemma diagram_eqeq: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
+(G1 C1: Type)
+(G2 C2 : Type)
+(G3 C3 : Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoreSemantics G2 C2 mem)
+(Sem3 : CoreSemantics G3 C3 mem)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -988,11 +984,11 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
   (I :forall F C V : Type, 
-    CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> 
+    CoreSemantics (Genv.t F V) C mem -> 
     AST.program F V -> Prop)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
-  (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
+  (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem)
   ExternIdents epts12  epts23 entrypoints13
   (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
   (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1008,15 +1004,15 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
     initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
     exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-  (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
-    (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+  (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem
+             Sem1 Sem2 (Genv.globalenv P1)
     (Genv.globalenv P2) epts12) 
-  (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F2 V2))
-    (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+  (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem
+             Sem2 Sem3 (Genv.globalenv P2)
     (Genv.globalenv P3) epts23).
 
-Lemma eqeq: Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
-  (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqeq: Forward_simulation_eq.Forward_simulation_equals mem 
+       Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13.
 Proof.
   destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 
@@ -1035,7 +1031,7 @@ Proof.
     core_halted12 core_at_external12 core_after_external12 Eq_init12 SimEq12 SimEq23
     i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13.
   intros. destruct d as [[d12 cc2] d23]. destruct H0 as [c2 [X [? ?]]]; subst.
-  eapply (diagram_eqeq _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 
+  eapply (diagram_eqeq _ _ _ _ _ _ Sem1 Sem2 Sem3 
     core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); eassumption. 
            (*initial_core*)
   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
@@ -1071,12 +1067,12 @@ End EQEQ.
 
 Section EQEXT.
 Lemma diagram_eqext: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoreSemantics G2 C2 mem)
+(Sem3 : CoreSemantics G3 C3 mem)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1199,10 +1195,10 @@ Proof. intros.   destruct (core_diagram12 _ _ _ _ CS1 _ _ MC12) as [st2' [d12' [
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1218,15 +1214,12 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
-                                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
-                            (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+       (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
                             (Genv.globalenv P3) epts23).
 
-Lemma eqext: Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-                                           (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqext: Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
                                            (Genv.globalenv P3) entrypoints13.
 Proof.
   destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 
@@ -1251,7 +1244,7 @@ Proof.
     i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Eq_init12 SimEq12 SimExt23.
   intros. rename st2 into st3.
   destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [X [? ?]]]; subst. rename m2 into m3.
-  eapply (diagram_eqext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); eassumption. 
+  eapply (diagram_eqext _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); eassumption. 
            (*initial_core*)
   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type vals (sig_args sig)). eapply forall_lessdef_hastype; eauto.
@@ -1286,12 +1279,12 @@ End EQEXT.
 
 Section EQINJ.
 Lemma diagram_eqinj: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(G1 C1 : Type)
+(G2 C2 : Type)
+(G3 C3 : Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoopCoreSem G2 C2)
+(Sem3 : CoopCoreSem G3 C3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> C2 -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1440,10 +1433,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem )
+       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1459,15 +1452,12 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
-                                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F2 V2))
-             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+       (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2)
              (Genv.globalenv P3) epts23).
 
-Lemma eqinj: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqinj: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof.
           destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
@@ -1489,7 +1479,7 @@ Proof.
                           i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Eq_init12 SimEq12 SimInj23.
                  intros. rename st2 into st3.
                  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [X [? ?]]]; subst. rename m2 into m3.
-                 eapply (diagram_eqinj _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
+                 eapply (diagram_eqinj _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
             (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
                   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). eapply forall_valinject_hastype; eauto.
@@ -1524,9 +1514,9 @@ Qed.
 End EQINJ.
 
 Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1539,8 +1529,7 @@ Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
           exists m2 : mem,
             initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
  *)
-    (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F1 V1))
-                                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+    (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
                                (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -1627,12 +1616,12 @@ Qed.
 
 Section EXTEQ. 
 Lemma  diagram_exteq: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoreSemantics G2 C2 mem)
+(Sem3 : CoreSemantics G3 C3 mem)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1761,10 +1750,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
-(I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-(Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-(Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-(Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+(I : forall F C V : Type,  CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+(Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+(Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+(Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1778,15 +1767,12 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
              Genv.init_mem P1 = Some m1 ->
              exists m2 : mem,
                Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
-(SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-             (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+(SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
              (Genv.globalenv P2) epts12)
-(SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F2 V2))
-            (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+(SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem Sem2 Sem3 (Genv.globalenv P2)
             (Genv.globalenv P3) epts23).
 
-Lemma exteq: Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma exteq: Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
                                        (Genv.globalenv P3) entrypoints13. 
 Proof.
       destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_validblocks12
@@ -1809,7 +1795,7 @@ Proof.
                           i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Ext_init12 SimExt12 SimEq23.
                  intros. rename st2 into st3.
                  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [X [? ?]]]; subst. rename m2 into m3.
-                 eapply (diagram_exteq _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
+                 eapply (diagram_exteq _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
             (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ H0 H1 H2 H3 H4) as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
@@ -1846,12 +1832,12 @@ End EXTEQ.
 
 Section EXTINJ.
 Lemma  diagram_extinj: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoopCoreSem G2 C2)
+(Sem3 : CoopCoreSem G3 C3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1952,7 +1938,7 @@ Proof. intros.
           apply ZZ.         
 
     clear MC12 MC12' match_validblocks12. (*InjIncr12 InjSep12 MC12' MatchHyp12.*)
-          clear st1 m1 st1' m1'. clear G1 C1 D1 Sem1 match_core12 Genv1.
+          clear st1 m1 st1' m1'. clear G1 C1 Sem1 match_core12 Genv1.
 
     revert j23 d23 st2 m2 st3 m3 H MC23. 
     induction x; intros.  
@@ -2032,10 +2018,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2054,13 +2040,10 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)*)
-     (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-             (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
-     (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F2 V2))
-             (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
+     (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
+     (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
-Lemma extinj: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                                         (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma extinj: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof.
          destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_validblocks12
@@ -2087,7 +2070,7 @@ Proof.
                           i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Ext_init12 SimExt12 SimInj23.
                  intros. rename st2 into st3. rename m2 into m3.
                  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
-                 eapply (diagram_extinj _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 
+                 eapply (diagram_extinj _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 
                      match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
                        intros. eapply (match_validblocks12 _ _ _ _ _ H2). apply H3.
             (*initial_core*)
@@ -2174,9 +2157,9 @@ Qed.
 End EXTINJ.
 
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2191,8 +2174,7 @@ Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                exists m2 : mem,
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.extends m1 m2)*)
-     (SimExt12 :  Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F1 V1))
-                                (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+     (SimExt12 :  Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
                               (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -2282,12 +2264,12 @@ Qed.
 
 Section INJEQ.
 Lemma  diagram_injeq: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoopCoreSem G2 C2 D2)
-(Sem3 : CoreSemantics G3 C3 mem D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoopCoreSem G2 C2)
+(Sem3 : CoreSemantics G3 C3 mem)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -2428,10 +2410,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+       (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        j12
@@ -2453,14 +2435,11 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                  Mem.inject j12 m1 m2)
 *)
       (PG1 : meminj_preserves_globals (Genv.globalenv P1) j12)
-      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                           (Genv.globalenv P2) epts12)
-      (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem (list (ident * globdef F2 V2))
-                          (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
+      (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
-Lemma injeq: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                                        (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma injeq: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof. 
   destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_vb12
@@ -2483,7 +2462,7 @@ Proof.
                           i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 Inj_init12 SimInj12 SimEq23.
                  intros. rename st2 into st3.
                  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [X [? ?]]]; subst.
-                 eapply (diagram_injeq _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
+                 eapply (diagram_injeq _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
              (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3 H4 H5) as [d12 [c2 [Ini2 MC12]]].
@@ -2527,12 +2506,12 @@ End INJEQ.
 
 Section INJEXT.
 Lemma  diagram_injext: forall
-(G1 C1 D1 : Type)
-(G2 C2 D2 : Type)
-(G3 C3 D3 : Type)
-(Sem1 : CoreSemantics G1 C1 mem D1)
-(Sem2 : CoreSemantics G2 C2 mem D2)
-(Sem3 : CoopCoreSem G3 C3 D3)
+(G1 C1: Type)
+(G2 C2: Type)
+(G3 C3: Type)
+(Sem1 : CoreSemantics G1 C1 mem)
+(Sem2 : CoreSemantics G2 C2 mem)
+(Sem3 : CoopCoreSem G3 C3)
 (core_data12 : Type)
 (match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -2633,7 +2612,7 @@ Proof. intros.
 
     clear MC12 MC12' MatchHyp12. (*InjIncr12 InjSep12 MC12' MatchHyp12.*)
           clear InjSep InjIncr j23 j' st1 m1 st1' m1'. 
-          clear G1 C1 D1 Sem1 match_core12 Genv1.
+          clear G1 C1 Sem1 match_core12 Genv1.
 
     revert d23 st2 m2 st3 m3 H MC23. 
     induction x; intros.  
@@ -2699,10 +2678,10 @@ Proof. intros.
 Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V)) -> AST.program F V -> Prop)
-       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+       (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
+       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+       (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+       (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
        (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3) 
        j12
@@ -2719,15 +2698,12 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.inject j12 m1 m2)*)
       (PG1 : meminj_preserves_globals (Genv.globalenv P1) j12)
-      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                          (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                           (Genv.globalenv P2) epts12)
-      (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends (list (ident * globdef F2 V2))
-                           (list (ident * globdef F3 V3)) Sem2 Sem3 (Genv.globalenv P2)
+      (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
                            (Genv.globalenv P3) epts23).
 
-Lemma injext: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                                (list (ident * globdef F3 V3)) Sem1 Sem3 (Genv.globalenv P1)
+Lemma injext: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                (Genv.globalenv P3) entrypoints13.
 Proof.
     destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_vb12
@@ -2754,7 +2730,7 @@ Proof.
                           i1 I core_ord_wf23 core_ord_wf12 EXT2 EXT1 EPC e12 g12 ePts12_ok epts12  epts23 entrypoints13 (*Inj_init12 *) SimInj12 SimExt23.
                  intros. rename st2 into st3. rename m2 into m3.
                  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [X [? ?]]]]; subst.
-                 eapply (diagram_injext _ _ _ _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
+                 eapply (diagram_injext _ _ _ _ _ _ Sem1 Sem2 Sem3 core_data12 match_core12 _ _ _ core_diagram12 _ _ _ _ core_diagram23); try eassumption.
            (*initial_core*)
                   intros. rename m2 into m3. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3 H4 H5) as [d12 [c2 [Ini2 MC12]]].
@@ -2822,9 +2798,9 @@ Qed.
 End INJEXT.
 
 Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
+     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (e12 : prog_main P1 = prog_main P2)
@@ -2843,8 +2819,7 @@ Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
              Mem.inject j12 m1 m2)
 *)
      (PG1: meminj_preserves_globals (Genv.globalenv P1) j12)
-     (SimInj12: Coop_forward_simulation_inj.Forward_simulation_inject (list (ident * globdef F1 V1))
-                                 (list (ident * globdef F2 V2)) Sem1 Sem2 (Genv.globalenv P1)
+     (SimInj12: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                                  (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -2931,12 +2906,12 @@ Qed.
 
 Theorem cc_trans:
      forall ExternIdents entrypoints12 I F1 C1 V1 F2 C2 V2
-        (Sem1: RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-        (Sem2: RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+        (Sem1: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+        (Sem2: RelyGuaranteeSemantics (Genv.t F2 V2) C2)
         P1 P2 
         (SIM12: CompilerCorrectness.cc_sim I ExternIdents entrypoints12 F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2)
         F3 V3 C3
-        (Sem3: RelyGuaranteeSemantics (Genv.t F3 V3) C3 (list (ident * globdef F3 V3)))
+        (Sem3: RelyGuaranteeSemantics (Genv.t F3 V3) C3)
         entrypoints23 P3 
         (SIM23:CompilerCorrectness.cc_sim I ExternIdents entrypoints23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
         entrypoints13 (EPC:entrypoints_compose entrypoints12 entrypoints23 entrypoints13),

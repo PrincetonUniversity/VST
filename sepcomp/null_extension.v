@@ -24,8 +24,8 @@ Set Implicit Arguments.
 
 Section NullExtension.
  Variables
-  (fT vT cT dT Z: Type) (** external states *)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
+  (fT vT cT (*dT*) Z: Type) (** external states *)
+  (csemT: CoreSemantics (Genv.t fT vT) cT mem (*dT*)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT).
 
@@ -37,7 +37,7 @@ Section NullExtension.
  Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 0 then Some s else None.
  Definition active := fun _:xT => 0.
  Definition runnable := fun (s: xT) => 
-   match at_external csemT s, safely_halted csemT s with 
+   match at_external csemT s, halted csemT s with 
      | None, None => true
      | _, _ => false
    end.
@@ -51,8 +51,8 @@ Section NullExtension.
   intros; try solve [eexists; eauto|congruence].
 
  Program Definition null_extension := @Extension.Make 
-  _ _ _ _ _ _ _ 
-  csemT csig (fun _ => Genv.t fT vT) (fun _ => dT) _ (fun _ => csemT) 
+  (*_*) _ _ _ _ _ _ 
+  csemT csig (fun _ => Genv.t fT vT) (*(fun _ => dT)*) _ (fun _ => csemT) 
   csig (const 1) proj_core _ active _ proj_zint proj_zext zmult _ _ _ _.
  Next Obligation. if_tac; auto. rewrite H0 in H. unfold const in *. elimtype False; omega. Qed.
  Next Obligation. if_tac; exists s; auto. elimtype False; apply H; auto. Qed.
@@ -72,8 +72,8 @@ End NullExtension.
 
 Section NullExtensionSafe.
  Variables
-  (fT vT cT dT Z: Type) (** external states *)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) 
+  (fT vT cT (*dT*) Z: Type) (** external states *)
+  (csemT: CoreSemantics (Genv.t fT vT) cT mem (*dT*)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (genv_mapT: forall i:nat, Genv.t fT vT)
   (ge: Genv.t fT vT).
@@ -124,7 +124,7 @@ Section NullExtensionSafe.
  congruence.
  unfold proj_core in H3; if_tac in H3; try congruence. inv H3.
  intros H6; unfold const in *; rewrite H6 in H5.
- case_eq (safely_halted csemT c); try congruence.
+ case_eq (halted csemT c); try congruence.
  intros rv Hsafe; rewrite Hsafe in H5.
  congruence.
  simpl in H1; rewrite H6 in H1.
@@ -144,7 +144,7 @@ Section NullExtensionSafe.
  simpl in H3; unfold rg_forward_simulations.runnable, runnable in H3.
  simpl in H2; unfold proj_core in H2; if_tac in H2; try congruence. inv H2.
  intros H4; unfold const in *; rewrite H4 in H3.
- case_eq (safely_halted csemT c); intros; try solve[congruence].
+ case_eq (halted csemT c); intros; try solve[congruence].
  rewrite H0 in H3.
  right; exists v; auto.
  solve[rewrite H0 in H3; congruence].
@@ -206,8 +206,8 @@ Section NullExtensionSafe.
 
 End NullExtensionSafe.
 
- Lemma null_core_compatible: forall F V C D Z (ge: Genv.t F V) 
-         (csem: CoreSemantics (Genv.t F V) C mem D) (csig: ef_ext_spec mem Z)
+ Lemma null_core_compatible: forall F V C (*D*) Z (ge: Genv.t F V) 
+         (csem: CoreSemantics (Genv.t F V) C mem (*D*)) (csig: ef_ext_spec mem Z)
          (csem_fun: corestep_fun csem),
    core_compatible ge (fun _:nat => ge) (null_extension csem csig).
  Proof.
@@ -268,8 +268,8 @@ End NullExtensionSafe.
  solve[split; auto].
  Qed.
 
- Lemma null_private_conserving: forall F V C D Z
-         (csem: RelyGuaranteeSemantics (Genv.t F V) C D) (csig: ef_ext_spec mem Z),
+ Lemma null_private_conserving: forall F V C (*D*) Z
+         (csem: RelyGuaranteeSemantics (Genv.t F V) C (*D*)) (csig: ef_ext_spec mem Z),
    private_conserving _ (const csem) (null_extension csem csig).
  Proof.
  intros.
@@ -285,20 +285,20 @@ End NullExtensionSafe.
 
 Section NullExtensionCompilable.
  Variables 
-  (fS vS fT vT cS cT dS dT Z: Type) 
+  (fS vS fT vT cS cT (*dS dT*) Z: Type) 
   (csig: ef_ext_spec mem Z)
   (init_world: Z)
   (entry_points: list (val*val*signature))
-  (csemS: RelyGuaranteeSemantics (Genv.t fS vS) cS dS)
-  (csemT: RelyGuaranteeSemantics (Genv.t fT vT) cT dT).
+  (csemS: RelyGuaranteeSemantics (Genv.t fS vS) cS (*dS*))
+  (csemT: RelyGuaranteeSemantics (Genv.t fT vT) cT (*dT*)).
 
  Variables (geS: Genv.t fS vS) (geT: Genv.t fT vT).
 
- Definition E_S: @Extension.Sig mem Z unit Z (Genv.t fS vS) dS cS csemS csig 
-   _ _ (const cS) (const csemS) csig :=
+ Definition E_S: @Extension.Sig mem Z unit Z (Genv.t fS vS) (*dS*) cS csemS csig 
+   _ (*_*) (const cS) (const csemS) csig :=
   null_extension csemS csig.
- Definition E_T: @Extension.Sig mem Z unit Z (Genv.t fT vT) dT cT csemT csig 
-   _ _ (const cT) (const csemT) csig :=
+ Definition E_T: @Extension.Sig mem Z unit Z (Genv.t fT vT) (*dT*) cT csemT csig 
+   _ (*_*) (const cT) (const csemT) csig :=
   null_extension csemT csig.
 
  Import Forward_simulation_inj_exposed.
@@ -307,7 +307,7 @@ Section NullExtensionCompilable.
  Variable core_data: Type.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
  Variable core_ord: core_data -> core_data -> Prop.
- Variable core_simulation: Forward_simulation_inject dS dT csemS csemT 
+ Variable core_simulation: Forward_simulation_inject (*dS dT*) csemS csemT 
    geS geT entry_points core_data match_state core_ord.
  Variable core_simulationsRG: forall i:nat, 
    StableRelyGuaranteeSimulation.Sig csemS csemT geS match_state.
@@ -327,7 +327,7 @@ Section NullExtensionCompilable.
  intros H1 H2 H3.
  set (R := fun (_:meminj) (_:cS) (_:mem) (_:cT) (_:mem) => True).
  destruct (@ExtensionCompilability
-   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+   (*_ _ _ _ *)_ _ _ _ _ _ _ _ _ _ _ _ _
    csemS csemT csemS csemT csig csig 
    geS geT geS geT E_S E_T entry_points core_data match_state core_ord threads_max R)
   as [LEM].

@@ -169,30 +169,30 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
- (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+ (initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
    In (v1, v2, sig) entry_points -> 
-   make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
+   initial_core esemS ge_S v1 vals1 = Some s1 -> 
    Mem.inject j m1 m2 -> 
    Forall2 (val_inject j) vals1 vals2 -> 
    Forall2 Val.has_type vals2 (sig_args sig) -> 
    exists cd, exists s2, 
-     make_initial_core esemT ge_T v2 vals2 = Some s2 /\
+     initial_core esemT ge_T v2 vals2 = Some s2 /\
      match_states cd j s1 m1 s2 m2)
  
- (safely_halted_step: forall cd j c1 m1 c2 m2 v1,
+ (halted_step: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
-   safely_halted esemS c1 = Some v1 -> 
+   halted esemS c1 = Some v1 -> 
    exists v2, val_inject j v1 v2 /\
-     safely_halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
+     halted esemT c2 = Some v2 /\ Mem.inject j m1 m2)
 
- (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
+ (halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
+   halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
    corestep esemS ge_S s1 m1 s1' m1' ->  
    exists rv2, 
-     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+     halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
      val_inject j rv1 rv2 /\ 
    exists s2', exists m2', exists cd', exists j', 
      inject_incr j j' /\

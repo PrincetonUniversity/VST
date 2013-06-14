@@ -456,20 +456,20 @@ Proof.
 Qed.
 
 Lemma cl_coopstep_not_halted :
-  forall ge m q m' q', coopstep ge q m q' m' -> cl_safely_halted q = None.
+  forall ge m q m' q', coopstep ge q m q' m' -> cl_halted q = None.
 Proof.
   intros.
   simpl; auto.
 Qed.
 
 Program Definition cl_coop_core_sem : 
-  CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globdef fundef type)) :=
-  @Build_CoreSemantics _ _ _ _
+  CoreSemantics (Genv.t fundef type) corestate mem :=
+  @Build_CoreSemantics _ _ _ (*_*)
     (*cl_init_mem*)
     cl_initial_core
     cl_at_external
     cl_after_external
-    cl_safely_halted
+    cl_halted
     coopstep
     cl_coopstep_not_at_external
     cl_coopstep_not_halted _
@@ -499,7 +499,7 @@ eapply cl_forward; eassumption.
 Qed.
 
 Program Definition cl_coop_sem : 
-  CoopCoreSem (Genv.t fundef type) corestate  (list (ident * globdef fundef type)).
+  CoopCoreSem (Genv.t fundef type) corestate.
 apply Build_CoopCoreSem with (coopsem := cl_coop_core_sem).
   apply coop_forward.
   apply coop_mem_wd.

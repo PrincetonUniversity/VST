@@ -941,7 +941,7 @@ Qed.
 Lemma safe_step_forward:
   forall psi n ora st m,
    cl_at_external st = None ->
-   j_safely_halted cl_core_sem st  = None ->
+   j_halted cl_core_sem st  = None ->
    jsafeN (@OK_spec Espec) psi (S n) ora st m ->
  exists st', exists m',
    jstep cl_core_sem psi st m st' m' /\

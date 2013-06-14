@@ -21,14 +21,14 @@ Module Extension. Section Extension. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
- (dT: nat -> Type) (** initialization data *)
+(* (dT: nat -> Type) (** initialization data *)*)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Record Sig := Make {
@@ -66,8 +66,8 @@ Module Extension. Section Extension. Variables
 
 End Extension. End Extension.
 
-Implicit Arguments Extension.Sig [M G D xT].
-Implicit Arguments Extension.Make [G xT cT M D Z Zint Zext].
+Implicit Arguments Extension.Sig [M G (*D*) xT].
+Implicit Arguments Extension.Make [G xT cT M (*D*) Z Zint Zext].
 
 (** Some administrative requirements on the interactions between extensions and
    inner cores. Perhaps some of these conditions could be merged with those for
@@ -79,18 +79,18 @@ Section CoreCompatible. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT *) cT csem csig.
 
  Import Extension.
 

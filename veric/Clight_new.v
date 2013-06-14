@@ -228,7 +228,7 @@ Definition vret2v (vret: list val) : val :=
 
 Definition exit_syscall_number : ident := 1%positive.
 
-Definition cl_safely_halted (c: corestate) : option val := None.
+Definition cl_halted (c: corestate) : option val := None.
 
 Definition empty_function : function := mkfunction Tvoid nil nil nil Sskip.
 
@@ -268,7 +268,7 @@ Proof.
 Qed.
 
 Lemma cl_corestep_not_halted :
-  forall ge m q m' q', cl_step ge q m q' m' -> cl_safely_halted q = None.
+  forall ge m q m' q', cl_step ge q m q' m' -> cl_halted q = None.
 Proof.
   intros.
   simpl; auto.
@@ -285,13 +285,13 @@ destruct lid; try congruence; inv H; auto.
 Qed.
 
 Program Definition cl_core_sem : 
-  CoreSemantics (Genv.t fundef type) corestate mem  (list (ident * globdef fundef type)) :=
-  @Build_CoreSemantics _ _ _ _
+  CoreSemantics (Genv.t fundef type) corestate mem :=
+  @Build_CoreSemantics _ _ _ 
     (*deprecated cl_init_mem*)
     cl_initial_core
     cl_at_external
     cl_after_external
-    cl_safely_halted
+    cl_halted
     cl_step
     cl_corestep_not_at_external 
     cl_corestep_not_halted _

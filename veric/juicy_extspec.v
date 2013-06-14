@@ -26,38 +26,38 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
-Definition jstep {G C D} (csem: CoreSemantics G C mem D)
+Definition jstep {G C} (csem: CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm').
 
-Definition j_safely_halted {G C D} (csem: CoreSemantics G C mem D)
+Definition j_halted {G C} (csem: CoreSemantics G C mem)
        (c: C) : option val :=
-     safely_halted csem c.
+     halted csem c.
 
-Lemma jstep_not_at_external {G C D} (csem: CoreSemantics G C mem D):
+Lemma jstep_not_at_external {G C} (csem: CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
 Proof.
   intros.
   destruct H. eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {G C D} (csem: CoreSemantics G C mem D):
-  forall ge m q m' q', jstep csem ge q m q' m' -> j_safely_halted csem q = None.
+Lemma jstep_not_halted  {G C} (csem: CoreSemantics G C mem):
+  forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
 Proof.
   intros. destruct H. eapply corestep_not_halted; eauto.
 Qed.
 
-Lemma j_at_external_halted_excl {G C D} (csem: CoreSemantics G C mem D):
+Lemma j_at_external_halted_excl {G C} (csem: CoreSemantics G C mem):
   forall (q : C),
-  at_external csem q = None \/ j_safely_halted csem q = None.
+  at_external csem q = None \/ j_halted csem q = None.
 Proof.
  intros.
  destruct (at_external_halted_excl csem q); [left | right]; auto.
 Qed.
 
-Lemma j_after_at_external_excl {G C D} (csem: CoreSemantics G C mem D): 
+Lemma j_after_at_external_excl {G C} (csem: CoreSemantics G C mem): 
   forall retv q q',
   after_external csem retv q = Some q' -> at_external csem q' = None.
 Proof.
@@ -79,14 +79,14 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem  
-  {G C D} (csem: CoreSemantics G C mem D) :
-   CoreSemantics G C juicy_mem jm_init_package :=
-  @Build_CoreSemantics _ _ _ _
+  {G C} (csem: CoreSemantics G C mem) :
+   CoreSemantics G C juicy_mem (*jm_init_package*) :=
+  @Build_CoreSemantics _ _ _ (*_*)
 (*deprecated    init_jmem*)
-    (make_initial_core csem)
+    (core_semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
-    (j_safely_halted csem)
+    (j_halted csem)
     (jstep csem)
     (jstep_not_at_external csem)
     (jstep_not_halted csem)
@@ -180,8 +180,8 @@ unfold rmap in *.
  apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
-Lemma age_safe {G C D}
-  (csem: CoreSemantics G C mem D){Z}  (Hspec : juicy_ext_spec Z):
+Lemma age_safe {G C}
+  (csem: CoreSemantics G C mem){Z}  (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
    safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
@@ -197,8 +197,8 @@ Proof.
    simpl in H0. subst SN.
    revert H0; case_eq (at_external csem c); intros.
    destruct p. destruct p. 
-   unfold j_safely_halted in *.
-   destruct (safely_halted csem c); [contradiction | ].
+   unfold j_halted in *.
+   destruct (halted csem c); [contradiction | ].
   destruct H0 as [x ?]. exists x.
   destruct H0; split; auto.
   clear - H2 H0.
@@ -209,8 +209,8 @@ Proof.
    exists c'; split; auto.
    eapply safe_downward; try eassumption. 
   omega.
-   unfold j_safely_halted in *.
-   destruct (safely_halted csem c); auto.
+   unfold j_halted in *.
+   destruct (halted csem c); auto.
   eapply JE_exit_hered; eauto.
    destruct H0 as [c' [jm' [[? [? ?]] ?]]].
    pose proof (age_level _ _ H2).

@@ -48,21 +48,21 @@ Require Import sepcomp.mem_lemmas.
     4) after external calls, cores are back in a "runnable" state
        (NOTE: this axiom may be removed at some point) *)
 
-Record CoreSemantics {G C M D:Type}: Type :=
+Record CoreSemantics {G C M (*D only needed in initial_mem*):Type}: Type :=
   { (*Removed: is a propert of programs, not of cores
       initial_mem: G -> M -> D -> Prop;*)
-    make_initial_core : G -> val -> list val -> option C;
+    initial_core : G -> val -> list val -> option C;
     at_external : C -> option (external_function * signature * list val);
     after_external : option val -> C -> option C;
-    safely_halted : C -> option val; 
+    halted : C -> option val; 
     corestep : G -> C -> M -> C -> M -> Prop;
 
     corestep_not_at_external: forall ge m q m' q', 
       corestep ge q m q' m' -> at_external q = None;
     corestep_not_halted: forall ge m q m' q', 
-      corestep ge q m q' m' -> safely_halted q = None;
+      corestep ge q m q' m' -> halted q = None;
     at_external_halted_excl: forall q, 
-      at_external q = None \/ safely_halted q = None;
+      at_external q = None \/ halted q = None;
     after_at_external_excl : forall retv q q',
       after_external retv q = Some q' -> at_external q' = None
   }.
@@ -72,7 +72,7 @@ Implicit Arguments CoreSemantics [].
 (**  Multistepping *)
 
 Section corestepN.
-  Context {G C M E D:Type} (Sem:CoreSemantics G C M D) (ge:G).
+  Context {G C M E:Type} (Sem:CoreSemantics G C M) (ge:G).
 
   Fixpoint corestepN (n:nat) : C -> M -> C -> M -> Prop :=
     match n with
@@ -184,8 +184,8 @@ End corestepN.
    they require that the memories produced by coresteps contain no dangling 
    pointers. *)
 
-Record CoopCoreSem {G C D} :=
-  { coopsem :> CoreSemantics G C mem D;
+Record CoopCoreSem {G C} :=
+  { coopsem :> CoreSemantics G C mem;
     corestep_fwd : forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
       mem_forward m m';
     corestep_wdmem: forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
@@ -196,8 +196,8 @@ Record CoopCoreSem {G C D} :=
 Implicit Arguments CoopCoreSem [].
 
 Section CoopCoreSemLemmas.
-Context {G C D: Type}.
-Variable coopsem: CoopCoreSem G C D.
+Context {G C: Type}.
+Variable coopsem: CoopCoreSem G C.
 
 Lemma corestepN_fwd: forall ge c m c' m' n,
   corestepN coopsem ge n c m c' m' -> 
@@ -285,13 +285,13 @@ Qed.
    tracking blocks "private" to this core.  Inuitively, private blocks are 
    blocks allocated by coresteps of this semantics. *)
 
-Record RelyGuaranteeSemantics {G C D} :=
-  { csem :> CoopCoreSem G C D;
+Record RelyGuaranteeSemantics {G C} :=
+  { csem :> CoopCoreSem G C;
     private_block: C -> block -> Prop;
     private_dec: forall c b, 
       {private_block c b}+{~private_block c b};
     private_initial: forall b ge v vs c,
-      make_initial_core csem ge v vs = Some c -> 
+      initial_core csem ge v vs = Some c -> 
       ~private_block c b;
     private_step: forall b ge c m c' m',
       corestep csem ge c m c' m' -> 
@@ -304,13 +304,13 @@ Record RelyGuaranteeSemantics {G C D} :=
 
 Implicit Arguments RelyGuaranteeSemantics [].
 
-Record EqRelyGuaranteeSemantics {G C D} :=
-  { eq_csem :> CoopCoreSem G C D;
+Record EqRelyGuaranteeSemantics {G C} :=
+  { eq_csem :> CoopCoreSem G C;
     eq_private_block: C -> block -> Prop;
     eq_private_dec: forall c b, 
       {eq_private_block c b}+{~eq_private_block c b};
     eq_private_initial: forall b ge v vs c,
-      make_initial_core eq_csem ge v vs = Some c -> 
+      initial_core eq_csem ge v vs = Some c -> 
       ~eq_private_block c b;
     eq_private_step: forall b ge c m c' m',
       corestep eq_csem ge c m c' m' -> 
@@ -323,8 +323,8 @@ Record EqRelyGuaranteeSemantics {G C D} :=
 
 Implicit Arguments EqRelyGuaranteeSemantics [].
 
-Program Definition eq_rely2rely_sem G C D 
-  (eq_rgsem: EqRelyGuaranteeSemantics G C D): RelyGuaranteeSemantics G C D :=
+Program Definition eq_rely2rely_sem G C 
+  (eq_rgsem: EqRelyGuaranteeSemantics G C): RelyGuaranteeSemantics G C :=
  {| csem := eq_csem eq_rgsem;
     private_block := eq_private_block eq_rgsem;
     private_dec := eq_private_dec eq_rgsem;
@@ -351,8 +351,8 @@ xomega.
 Qed.
 
 Section RelyGuaranteeSemanticsLemmas.
-Context {G C D: Type}.
-Variable rgsem: RelyGuaranteeSemantics G C D.
+Context {G C: Type}.
+Variable rgsem: RelyGuaranteeSemantics G C.
 
 Lemma private_new: forall b ge c m c' m',
   ~private_block rgsem c b -> 
@@ -501,8 +501,8 @@ End RelyGuaranteeSemanticsLemmas.
 Definition blockmap := block -> bool.
 
 Section RelyGuaranteeSemanticsFunctor.
-Context {G C D: Type}.
-Variable csem: CoopCoreSem G C D.
+Context {G C: Type}.
+Variable csem: CoopCoreSem G C.
 
 Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :=
   match x, x' with (f, c), (f', c') => 
@@ -511,12 +511,12 @@ Definition rg_step (ge: G) (x: blockmap*C) (m: mem) (x': blockmap*C) (m': mem) :
   end.
 
 
-Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
-  Build_CoreSemantics G (blockmap*C) mem D 
+Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem :=
+  Build_CoreSemantics G (blockmap*C) mem 
     (*initial mem deprecated here
     (initial_mem csem)*)
     (*make_initial_core*)
-    (fun ge v vs => match make_initial_core csem ge v vs with
+    (fun ge v vs => match initial_core csem ge v vs with
                     | Some c => Some (fun _ => false, c)
                     | None => None
                     end)
@@ -528,7 +528,7 @@ Program Definition RelyGuaranteeCoreSem: CoreSemantics G (blockmap*C) mem D :=
                    | None => None
                    end)
     (*safely_halted*)
-    (fun x => safely_halted csem (snd x))
+    (fun x => halted csem (snd x))
     (*corestep*)
     rg_step
     _ _ _ _.
@@ -557,8 +557,8 @@ inv H1.
 auto.
 Qed.
 
-Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) D :=
-  Build_CoopCoreSem G (blockmap*C) D 
+Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) :=
+  Build_CoopCoreSem G (blockmap*C)
     RelyGuaranteeCoreSem (*_*) _ _.
 Next Obligation.
 inv CS.
@@ -574,8 +574,8 @@ apply initmem_wd in H.
 auto.
 Qed.*)
 
-Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) D :=
-  Build_RelyGuaranteeSemantics G (blockmap*C) D
+Program Definition RGSemantics: RelyGuaranteeSemantics G (blockmap*C) :=
+  Build_RelyGuaranteeSemantics G (blockmap*C)
    RelyGuaranteeCoopSem
    (fun x b => fst x b = true) _ _ _ _.
 Next Obligation.
@@ -586,7 +586,7 @@ right; auto.
 Qed.
 Next Obligation. 
 simpl.
-destruct (make_initial_core csem ge v vs).
+destruct (initial_core csem ge v vs).
 inv H; auto.
 congruence.
 Qed.

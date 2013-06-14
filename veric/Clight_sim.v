@@ -1042,8 +1042,8 @@ Lemma CC_corestep_not_halted :
        forall q, CC_at_external q = None \/ CC_safely_halted q = None.
    Proof. intros. right; trivial. Qed.
 
-Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem   (list (ident * globdef fundef type)).
- apply (Build_CoreSemantics _ _ _ _ (*cl_init_mem*)
+Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem.
+ apply (Build_CoreSemantics _ _ _ (*_*) (*cl_init_mem*)
                 CC_initial_core CC_at_external CC_after_external CC_safely_halted CC_step).
        apply CC_corestep_not_at_external.
        apply CC_corestep_not_halted.
@@ -1753,7 +1753,7 @@ Lemma Clightnew_Clight_sim_eq: forall p ExternIdents entrypoints
                (ext_ok : CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
 (*               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
                                            initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_vars))*),
-              Forward_simulation_eq.Forward_simulation_equals _ _ _ cl_core_sem CC_core_sem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
+              Forward_simulation_eq.Forward_simulation_equals _ (*_ _*) cl_core_sem CC_core_sem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
 Proof.
   intros. 
   pose (bogus_measure := (fun x: corestate => O)).
@@ -1768,7 +1768,7 @@ Proof.
        simpl. assert (myStatement = Sskip). admit. 
           rewrite H1. econstructor. simpl. constructor. simpl. constructor.
  (* final states *)  
-      intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_safely_halted  in H0. inv H0.
+      intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_halted  in H0. inv H0.
   (*at_external*)
      intros. inv H; subst; simpl in *. 
           inv H0. simpl in *. inv H2. simpl in *. inv H1.

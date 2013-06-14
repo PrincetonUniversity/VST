@@ -21,8 +21,8 @@ Require Import Coqlib.
 Set Implicit Arguments.
 
 Section CompCertExecution.
-Context {G C M D Z:Type}.
-Context (Hcore:CoreSemantics G C M D).
+Context {G C M (*D*) Z:Type}.
+Context (Hcore:CoreSemantics G C M (*D*)).
 Variable (Hspec:external_specification M external_function Z).
 
 Variable ge : G.
@@ -44,8 +44,8 @@ Inductive compcert_stepN: nat -> Z -> C -> M -> Z -> C -> M -> Prop :=
 End CompCertExecution.
 
 Section TraceExtension.
- Variables (fT vT cT dT Z: Type) (initial_z: Z)
-  (csemT: CoreSemantics (Genv.t fT vT) cT mem dT) (csig: ef_ext_spec mem Z).
+ Variables (fT vT cT (*dT*) Z: Type) (initial_z: Z)
+  (csemT: CoreSemantics (Genv.t fT vT) cT mem (*dT*)) (csig: ef_ext_spec mem Z).
 
  Local Open Scope nat_scope.
 
@@ -63,10 +63,10 @@ Section TraceExtension.
  Definition trace_of (s: trace_corestate) :=
   match s with mkTraceCoreState _ _ tr => tr end.
 
- Definition trace_initial_mem := initial_mem csemT.
+(* Definition trace_initial_mem := initial_mem csemT.*)
 
- Definition trace_make_initial_core ge v args := 
-  match make_initial_core csemT ge v args with
+ Definition trace_initial_core ge v args := 
+  match initial_core csemT ge v args with
   | Some c => Some (mkTraceCoreState initial_z c nil)
   | None => None 
   end. 
@@ -77,8 +77,8 @@ Section TraceExtension.
  Definition trace_after_external (rv: option val) (s: trace_corestate): 
   option trace_corestate := None.
 
- Definition trace_safely_halted (s: trace_corestate) :=
-  safely_halted csemT (core_of s).
+ Definition trace_halted (s: trace_corestate) :=
+  halted csemT (core_of s).
 
  Definition ef_id (ef: external_function): option ident :=
   match ef with 
@@ -108,16 +108,16 @@ Section TraceExtension.
      (mkTraceCoreState z' c' (Event_syscall id evargs evret :: tr)) m' .
 
  Program Definition trace_core_semantics :=
-  Build_CoreSemantics _ _ _ _
-   trace_initial_mem
-   trace_make_initial_core
+  Build_CoreSemantics _ _ _ (*_*)
+   (*trace_initial_mem*)
+   trace_initial_core
    trace_at_external
    trace_after_external
-   trace_safely_halted
+   trace_halted
    trace_corestep 
    _ _ _ _.
  Next Obligation.
- inv H; unfold trace_safely_halted; simpl.
+ inv H; unfold trace_halted; simpl.
  solve[apply corestep_not_halted in H0; auto].
  exploit (@at_external_halted_excl (Genv.t fT vT)); intros.
  destruct H; eauto.
@@ -128,7 +128,7 @@ Section TraceExtension.
   if eq_nat_dec i 0 then Some (core_of s) else None.
  Definition active := fun _:trace_corestate => 0.
  Definition runnable := fun (s: trace_corestate) => 
-  match at_external csemT (core_of s), safely_halted csemT (core_of s) with 
+  match at_external csemT (core_of s), halted csemT (core_of s) with 
   | None, None => true
   | _, _ => false
   end.
@@ -151,9 +151,9 @@ Section TraceExtension.
   autounfold with null_unfold; intros; 
    try solve [eexists; eauto|congruence].
 
- Program Definition trace_extension := @Extension.Make _ _ _ _ _ _ _
+ Program Definition trace_extension := @Extension.Make _ _ _ _ _ _ (*_*)
   trace_core_semantics empty_sig 
-  (@const nat _ (Genv.t fT vT)) (@const nat _ dT)  (@const nat _ cT)
+  (@const nat _ (Genv.t fT vT)) (*(@const nat _ dT)*)  (@const nat _ cT)
   cores csig (const 1) proj_core _ active _ proj_zint proj_zext zmult 
   _ _ _ _.
  Next Obligation. 

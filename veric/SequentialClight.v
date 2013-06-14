@@ -34,7 +34,7 @@ Definition dryspec : ext_spec unit :=
      Genv.init_mem prog = Some m ->
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
-       make_initial_core cl_core_sem
+       initial_core cl_core_sem
                     (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, 
         safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.

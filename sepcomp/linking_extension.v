@@ -32,7 +32,7 @@ Variables F V C: Type.
 
 Inductive Sig: Type := Make: forall
  (ge: Genv.t F V)
- (csem: RelyGuaranteeSemantics (Genv.t F V) C (list (ident * globdef F V))),
+ (csem: RelyGuaranteeSemantics (Genv.t F V) C (*(list (ident * globdef F V))*)),
  Sig.
 
 End CompCertModule. End CompCertModule.
@@ -128,7 +128,7 @@ Inductive linker_corestep:
   (forall (k: nat) (pf_k: k<num_modules), genvs_domain_eq ge (get_module_genv (modules pf_k))) ->
   Genv.find_symbol ge id = Some b -> 
   In (Vptr b (Int.repr 0), Vptr b (Int.repr 0), sig) entry_points -> 
-  make_initial_core 
+  initial_core 
    (get_module_csem (modules (plt_ok id j LOOKUP)))
    (get_module_genv (modules (plt_ok id j LOOKUP))) (Vptr b (Int.repr 0)) args = Some c' -> 
 
@@ -140,7 +140,7 @@ Inductive linker_corestep:
 (** 'return' steps *)
 | link_return: forall ge stack i j c m (pf_i: i < num_modules) c' c'' retv ef sig args pfj
    (AT_EXT: at_external (get_module_csem (modules pf_i)) c = Some (ef, sig, args)) 
-   (HALTED: safely_halted (get_module_csem (modules pfj)) c' = Some retv) 
+   (HALTED: halted (get_module_csem (modules pfj)) c' = Some retv) 
    (TYCHECKS: val_has_type_opt (Some retv) (ef_sig ef)) (*FIXME: allow retv = None*) 
    pf ext_pf ext_pf',
   (forall (k: nat) (pf_k: k<num_modules), genvs_agree ge (get_module_genv (modules pf_k))) ->
@@ -178,11 +178,11 @@ Definition linker_after_external (retv: option val) (s: linker_corestate) :=
     end
   end.
 
-Definition linker_safely_halted (s: linker_corestate) :=
+Definition linker_halted (s: linker_corestate) :=
   match s with
   | mkLinkerCoreState nil _ _ => None
   | mkLinkerCoreState (mkFrame i pf_i c :: nil) _ _ =>
-     safely_halted (get_module_csem (modules pf_i)) c
+     halted (get_module_csem (modules pf_i)) c
   | mkLinkerCoreState (mkFrame i pf_i c :: call_stack) _ _ => None
   end.
 
@@ -192,7 +192,7 @@ Definition linker_initial_mem (ge: Genv.t F V) (m: mem) (init_data: list (ident 
   mem_wd m /\
   Genv.alloc_globals ge Mem.empty init_data = Some m.
 
-Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :=
+Definition linker_initial_core (ge: Genv.t F V) (f: val) (args: list val) :=
   match f, Genv.find_symbol ge main_id with
   | Vptr b ofs, Some b' => 
     if eq_block b b' then 
@@ -200,7 +200,7 @@ Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :
           return (x = procedure_linkage_table main_id -> option linker_corestate) with
        | None => fun _ => None (** no module defines 'main' *)
        | Some i => fun pf => 
-         match make_initial_core (get_module_csem (modules (@plt_ok main_id i (eq_sym pf)))) 
+         match initial_core (get_module_csem (modules (@plt_ok main_id i (eq_sym pf)))) 
                  (get_module_genv (modules (@plt_ok main_id i (eq_sym pf)))) f args with
          | None => None
          | Some c => Some (mkLinkerCoreState (mkFrame i (plt_ok main_id i (eq_sym pf)) c :: nil) 
@@ -212,13 +212,13 @@ Definition linker_make_initial_core (ge: Genv.t F V) (f: val) (args: list val) :
    end.
 
 Program Definition linker_core_semantics: 
-  CoreSemantics (Genv.t F V) linker_corestate mem (list (ident * globdef F V)) :=
- Build_CoreSemantics _ _ _ _ 
+  CoreSemantics (Genv.t F V) linker_corestate mem (*(list (ident * globdef F V)) *):=
+ Build_CoreSemantics (*_*) _ _ _ 
   (*deprecated: linker_initial_mem*) 
-  linker_make_initial_core
+  linker_initial_core
   linker_at_external
   linker_after_external
-  linker_safely_halted
+  linker_halted
   linker_corestep _ _ _ _.
 Next Obligation.
 inv H.
@@ -317,8 +317,8 @@ solve[rewrite H2 in H; congruence].
 Qed.
 
 Program Definition linker_coop_core_semantics: 
-  CoopCoreSem (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
- Build_CoopCoreSem _ _ _
+  CoopCoreSem (Genv.t F V) linker_corestate (*(list (ident * globdef F V)) *):=
+ Build_CoopCoreSem (*_*) _ _
   linker_core_semantics _ _ (*_*).
 Next Obligation.
 inv CS.
@@ -336,8 +336,8 @@ destruct H; auto.
 Qed.*)
 
 Program Definition rg_linker_core_semantics: 
-  RelyGuaranteeSemantics (Genv.t F V) linker_corestate (list (ident * globdef F V)) :=
- Build_RelyGuaranteeSemantics _ _ _ 
+  RelyGuaranteeSemantics (Genv.t F V) linker_corestate (*(list (ident * globdef F V)) *) :=
+ Build_RelyGuaranteeSemantics (*_*) _ _ 
  linker_coop_core_semantics
  (fun c b => match c with mkLinkerCoreState stack _ _ => private_blocks stack b end)
  _ _ _ _.
@@ -360,7 +360,7 @@ Next Obligation.
 destruct c.
 intros CONTRA.
 rename H into H2.
-unfold linker_make_initial_core in H2.
+unfold linker_initial_core in H2.
 case_eq v.
 rename V into V'.
 solve[intros V; rewrite V in *; try solve[congruence]].
@@ -390,7 +390,7 @@ rewrite PLT.
 intros ? ?.
 subst.
 case_eq
- (make_initial_core 
+ (initial_core 
    (get_module_csem (modules (plt_ok main_id n (eq_sym e))))
    (get_module_genv (modules (plt_ok main_id n (eq_sym e))))
    (Vptr b1 i) vs); try solve[congruence].
@@ -770,15 +770,15 @@ Variables
 Definition genv_map: nat -> Type := fun i: nat => Genv.t (fT i) (vT i).
 
 Program Definition trivial_core_semantics: forall i: nat, 
- CoreSemantics (genv_map i) (cT i) mem (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_CoreSemantics _ _ _ _ 
+ CoreSemantics (genv_map i) (cT i) mem (*(list (ident * globdef (fT i) (vT i)))*) :=
+ fun i: nat => Build_CoreSemantics (*_*) _ _ _ 
   (*initial_mem: (fun _ _ _ => False)*)
   (fun _ _ _ => None) (fun _ => None) 
   (fun _ _ => None) (fun _ => None) (fun _ _ _ _ _ => False) _ _ _ _.
 
 Program Definition trivial_coop_core_semantics: forall i: nat,
- CoopCoreSem (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_CoopCoreSem _ _ _ (trivial_core_semantics i) _ _ (*_*).
+ CoopCoreSem (genv_map i) (cT i) (*(list (ident * globdef (fT i) (vT i)))*) :=
+ fun i: nat => Build_CoopCoreSem (*_*) _ _ (trivial_core_semantics i) _ _ (*_*).
 Next Obligation.
 elimtype False; auto.
 Qed.
@@ -791,13 +791,13 @@ elimtype False; auto.
 Qed.*)
 
 Program Definition trivial_rg_semantics: forall i: nat,
- RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
- fun i: nat => Build_RelyGuaranteeSemantics _ _ _ (trivial_coop_core_semantics i)
+ RelyGuaranteeSemantics (genv_map i) (cT i) (*(list (ident * globdef (fT i) (vT i)))*) :=
+ fun i: nat => Build_RelyGuaranteeSemantics (*_*) _ _ (trivial_coop_core_semantics i)
    (fun c b => False) _ _ _ _.
 Next Obligation. right; auto. Qed.
 
 Definition csem_map: forall i: nat, 
- RelyGuaranteeSemantics (genv_map i) (cT i) (list (ident * globdef (fT i) (vT i))) :=
+ RelyGuaranteeSemantics (genv_map i) (cT i) (*(list (ident * globdef (fT i) (vT i)))*) :=
  fun i: nat => match lt_dec i num_modules with
                | left pf => get_module_csem (modules pf)
                | right _ => trivial_rg_semantics i
@@ -934,13 +934,14 @@ auto.
 Qed. 
 
 Program Definition linking_extension: 
- @Extension.Sig _ _ _ _ (Genv.t F V) (list (ident * globdef F V)) 
+ @Extension.Sig _ _ _ _ (Genv.t F V) (*(list (ident * globdef F V)) *)
      (linker_corestate num_modules cT modules) 
-     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-     esig _ _ cT csem_map csig :=
+     (rg_linker_core_semantics F V cT fT vT procedure_linkage_table 
+              plt_ok modules entry_points)
+     esig _ (*_*) cT csem_map csig :=
  Extension.Make 
   (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points)
-  esig _ _ csem_map csig 
+  esig _ (*_*) csem_map csig 
   (const num_modules)
   linker_proj_core _  
   linker_active _ 
@@ -1084,10 +1085,10 @@ Lemma linker_core_compatible: forall (ge: Genv.t F V)
    (domain_eq: forall (k : nat) (pf_k : k < num_modules),
      genvs_domain_eq ge (get_module_genv (modules pf_k)))
    (csem_fun: forall i: nat, corestep_fun (csem_map i)),
- @core_compatible _ _ _ _ (Genv.t F V) (list (ident*globdef F V)) 
+ @core_compatible _ _ _ _ (Genv.t F V) (*(list (ident*globdef F V)) *)
         (linker_corestate num_modules cT modules) 
         (linker_core_semantics F V cT fT vT procedure_linkage_table plt_ok modules entry_points) 
-        esig (fun i => Genv.t (fT i) (vT i)) init_data cT
+        esig (fun i => Genv.t (fT i) (vT i)) (*init_data*) cT
         csem_map csig ge genvs linking_extension.
 Proof.
 intros; constructor.
@@ -1121,7 +1122,7 @@ rewrite H5 in *; clear H5 H2 e.
 unfold runnable in H1; simpl in H1.
 unfold init_data in H1.
 destruct (@at_external (Genv.t (fT j) (vT j)) (cT j) Mem.mem
-             (list (prod ident (globdef (fT j) (vT j)))) 
+             (*(list (prod ident (globdef (fT j) (vT j)))) *)
              (csem_map j) c).
 congruence.
 unfold csem_map in H1.
@@ -1521,8 +1522,9 @@ Variable entry_points: list (val*val*signature).
 
 Variable core_simulations: forall i: nat,
  Forward_simulation_inject
-  (list (ident * globdef (fS i) (vS i)))
-  (list (ident * globdef (fT i) (vT i))) (csem_map_S i) 
+  (*(list (ident * globdef (fS i) (vS i)))
+  (list (ident * globdef (fT i) (vT i)))*)
+  (csem_map_S i) 
   (csem_map_T i) (genv_mapS i) (genv_mapT i) entry_points 
   (core_data i) (@match_state i) (@core_ord i).
 
@@ -2645,10 +2647,10 @@ rewrite H12.
 destruct ef; auto.
 solve[destruct (procedure_linkage_table name); try solve[congruence]].
 
-(*5: make_initial_core_diagram*)
+(*5: initial_core_diagram*)
 intros until sig; intros H1 H2 H3 H4 H5.
 destruct s1; simpl in *.
-unfold linker_make_initial_core in H2.
+unfold linker_initial_core in H2.
 case_eq v1.
 solve[intros V; rewrite V in *; try solve[congruence]].
 intros i V.
@@ -2670,7 +2672,7 @@ if_tac in H2; try solve[congruence].
 case_eq (procedure_linkage_table main_id); try solve[congruence].
 intros n PLT.
 case_eq
- (make_initial_core (get_module_csem (modules_S (plt_ok PLT)))
+ (initial_core (get_module_csem (modules_S (plt_ok PLT)))
    (get_module_genv (modules_S (plt_ok PLT))) 
    (Vptr b i) vals1); try solve[congruence].
 intros c Heq; inv Heq.
@@ -2691,7 +2693,7 @@ exists (ExtendedSimulations.core_datas_upd _ n cd' cd).
 exists (mkLinkerCoreState (mkFrame n (plt_ok PLT) c2 :: nil) (length_cons _ _)
  (all_at_external_consnil _ _ _ _)).
 simpl; split; auto.
-unfold linker_make_initial_core.
+unfold linker_initial_core.
 case_eq v2.
 clear - entry_points_eq H1.
 specialize (entry_points_eq (Vptr b' i) v2 sig H1).
@@ -2849,10 +2851,10 @@ rewrite H7 in *.
 intros ? e.
 solve[intros; congruence].
 
-(*6: safely_halted_step*)
+(*6: halted_step*)
 intros until rty.
 intros H1 H2.
-unfold linker_safely_halted in H2.
+unfold linker_halted in H2.
 destruct c1; try solve[congruence].
 case_eq stack.
 intros Hstack; rewrite Hstack in *; congruence.
@@ -2886,7 +2888,7 @@ destruct core_halted1 as [v2 [H5 [H6 H7]]]; auto.
 exists v2.
 split; auto.
 split; auto.
-unfold linker_safely_halted.
+unfold linker_halted.
 destruct c2.
 destruct stack0.
 simpl in stack_nonempty0; elimtype False; omega.
@@ -2908,7 +2910,7 @@ rewrite Hstack'.
 simpl.
 solve[intros [? [? [? [? [? [? FALSE]]]]]]; elimtype False; auto].
 
-(*7: safely_halted_diagram*)
+(*7: halted_diagram*)
 intros until c2; intros H1 H2 H3 H4 H5.
 destruct (core_simulations (linker_active s1)).
 

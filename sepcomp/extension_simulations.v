@@ -36,18 +36,18 @@ Section CoreCompatibleDefs. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: RelyGuaranteeSemantics G xT D) (** extended semantics *)
+ (esem: RelyGuaranteeSemantics G xT (*D*)) (** extended semantics *)
  (esig: ef_ext_spec mem Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, RelyGuaranteeSemantics (gT i) (cT i) (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, RelyGuaranteeSemantics (gT i) (cT i) (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec mem Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT*) cT csem csig.
 
  Import Extension.
 
@@ -72,20 +72,20 @@ End CoreCompatibleDefs.
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
-  (D_S D_T: Type) (** source and target extension initialization data *)
+(*  (D_S D_T: Type) (** source and target extension initialization data *)*)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
   (cS cT: nat -> Type) (** corestates of source and target core semantics *)
-  (dS dT: nat -> Type) (** initialization data *)
+(*  (dS dT: nat -> Type) (** initialization data *)*)
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS (*D_S*)) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT (*D_T*)) (** extended target semantics *)
  (** a set of core semantics *)
-  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) 
+  (csemS: forall i:nat, RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (*(dS i)*)) 
  (** a set of core semantics *)
-  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) 
+  (csemT: forall i:nat, RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (*(dT i)*)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -95,10 +95,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
-   _ _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
-   _ _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) (*D_S*) xS esemS esig 
+   _ (*_*) cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) (*D_T*) xT esemT esig 
+   _ (*_*) cT csemT csig).
 
  Variable entry_points: list (val*val*signature). (*TODO: SHOULD PERHAPS BE GENERALIZED*)
  Variable core_data: forall i: nat, Type.
@@ -211,33 +211,33 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    at_external (csemT (ACTIVE E_S s1)) c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
 
-  (make_initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+  (initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
-    make_initial_core esemS ge_S v1 vals1 = Some s1 -> 
+    initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
-      make_initial_core esemT ge_T v2 vals2 = Some s2 /\
+      initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
  
- (safely_halted_step: forall cd j c1 m1 c2 m2 v1 rty,
+ (halted_step: forall cd j c1 m1 c2 m2 v1 rty,
    match_states cd j c1 m1 c2 m2 -> 
-   safely_halted esemS c1 = Some v1 -> 
+   halted esemS c1 = Some v1 -> 
    Val.has_type v1 rty -> 
    exists v2, val_inject j v1 v2 /\
-     safely_halted esemT c2 = Some v2 /\ 
+     halted esemT c2 = Some v2 /\ 
      Val.has_type v2 rty /\ 
      Mem.inject j m1 m2)
 
- (safely_halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
+ (halted_diagram: forall cd j m1 m1' m2 rv1 s1 s2 s1' c1 c2,
    match_states cd j s1 m1 s2 m2 -> 
    PROJ_CORE E_S (ACTIVE E_S s1) s1 = Some c1 -> 
    PROJ_CORE E_T (ACTIVE E_S s1) s2 = Some c2 -> 
-   safely_halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
+   halted (csemS (ACTIVE E_S s1)) c1 = Some rv1 -> 
    corestep esemS ge_S s1 m1 s1' m1' ->  
    exists rv2, 
-     safely_halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
+     halted (csemT (ACTIVE E_S s1)) c2 = Some rv2 /\
      val_inject j rv1 rv2 /\ 
    exists s2', exists m2', exists cd', exists j', 
      inject_incr j j' /\
@@ -259,20 +259,20 @@ Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t 
 Module CompilableExtension. Section CompilableExtension. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
-  (D_S D_T: Type) (** source and target extension initialization data *)
+(*  (D_S D_T: Type) (** source and target extension initialization data *)*)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
   (cS cT: nat -> Type) (** corestates of source and target core semantics *)
-  (dS dT: nat -> Type) (** initialization data *)
+(*  (dS dT: nat -> Type) (** initialization data *)*)
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS (*D_S*)) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT (*D_T*)) (** extended target semantics *)
  (** a set of core semantics *)
-  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (dS i)) 
+  (csemS: forall i:nat, CoreSemantics (Genv.t (fS i) (vS i)) (cS i) mem (*(dS i)*)) 
  (** a set of core semantics *)
-  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (dT i)) 
+  (csemT: forall i:nat, CoreSemantics (Genv.t (fT i) (vT i)) (cT i) mem (*(dT i)*)) 
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -282,10 +282,10 @@ Module CompilableExtension. Section CompilableExtension.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
-   _ _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
-   _ _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) (*D_S*) xS esemS esig 
+   _ (*_*) cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) (*D_T*) xT esemT esig 
+   _ (*_*) cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
@@ -299,7 +299,7 @@ Module CompilableExtension. Section CompilableExtension.
    core_datas: Type;
    core_ords: core_datas -> core_datas -> Prop;
    match_states: core_datas -> meminj -> xS -> mem -> xT -> mem -> Prop;
-   _ : Forward_simulation_inject D_S D_T esemS esemT ge_S ge_T 
+   _ : Forward_simulation_inject (*D_S D_T*) esemS esemT ge_S ge_T 
           entry_points core_datas match_states core_ords
  }.
 
@@ -308,20 +308,20 @@ End CompilableExtension. End CompilableExtension.
 Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
-  (D_S D_T: Type) (** source and target extension initialization data *)
+(*  (D_S D_T: Type) (** source and target extension initialization data *)*)
   (xS xT: Type) (** corestates of source and target extended semantics *)
   (fS fT vS vT: nat -> Type) (** global environments of core semantics *)
   (cS cT: nat -> Type) (** corestates of source and target core semantics *)
-  (dS dT: nat -> Type) (** initialization data *)
+(*  (dS dT: nat -> Type) (** initialization data *)*)
   (Z: Type) (** external states *)
   (Zint: Type) (** portion of Z implemented by extension *)
   (Zext: Type) (** portion of Z external to extension *)
-  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS D_S) (** extended source semantics *)
-  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT D_T) (** extended target semantics *)
+  (esemS: RelyGuaranteeSemantics (Genv.t F_S V_S) xS (*D_S*)) (** extended source semantics *)
+  (esemT: RelyGuaranteeSemantics (Genv.t F_T V_T) xT (*D_T*)) (** extended target semantics *)
   (csemS: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (dS i)) (** a set of core semantics *)
+    RelyGuaranteeSemantics (Genv.t (fS i) (vS i)) (cS i) (*(dS i)*)) (** a set of core semantics *)
   (csemT: forall i:nat, 
-    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (dT i)) (** a set of core semantics *)
+    RelyGuaranteeSemantics (Genv.t (fT i) (vT i)) (cT i) (*(dT i)*)) (** a set of core semantics *)
   (csig: ef_ext_spec mem Z) (** client signature *)
   (esig: ef_ext_spec mem Zext) (** extension signature *)
   (max_cores: nat).
@@ -331,10 +331,10 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (genv_mapS: forall i:nat, Genv.t (fS i) (vS i))
   (genv_mapT: forall i:nat, Genv.t (fT i) (vT i)).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) D_S xS esemS esig 
-   _ _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) D_T xT esemT esig 
-   _ _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) (*D_S*) xS esemS esig 
+   _ (*_*) cS csemS csig).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) (*D_T*) xT esemT esig 
+   _ (*_*) cT csemT csig).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: forall i: nat, Type.
@@ -368,7 +368,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        private_conserving esemT csemT E_T ->
        (forall x, active E_S x < max_cores)%nat ->  
        (forall x, active E_T x < max_cores)%nat ->  
-       (forall i:nat, Forward_simulation_inject (dS i) (dT i) (csemS i) (csemT i) 
+       (forall i:nat, Forward_simulation_inject (*(dS i) (dT i)*) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 

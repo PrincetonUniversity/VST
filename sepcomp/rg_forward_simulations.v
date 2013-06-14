@@ -11,8 +11,8 @@ Require Import Events.
 
 Set Implicit Arguments.
 
-Definition runnable {G C M D} (csem: CoreSemantics G C M D) (c: C) :=
-  match at_external csem c, safely_halted csem c with 
+Definition runnable {G C M} (csem: CoreSemantics G C M) (c: C) :=
+  match at_external csem c, halted csem c with 
   | None, None => true
   | _, _ => false
   end.
@@ -32,10 +32,10 @@ Definition genv2blocks {F V: Type} (ge: Genv.t F V) :=
 (** RelyGuarantee Simulations *)
 
 Module RelyGuaranteeSimulation. Section RelyGuaranteeSimulation.
- Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
+ Variables (F1 V1 C1 G2 C2: Type).
  Variables 
-  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
-  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
+  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+  (targetC: RelyGuaranteeSemantics G2 C2) 
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)
@@ -61,8 +61,8 @@ End RelyGuaranteeSimulation. End RelyGuaranteeSimulation.
 Module StableRelyGuaranteeSimulation. Section StableRelyGuaranteeSimulation.
  Variables (F1 V1 C1 INIT1 G2 C2 INIT2: Type).
  Variables 
-  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1 INIT1)
-  (targetC: RelyGuaranteeSemantics G2 C2 INIT2) 
+  (sourceC: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+  (targetC: RelyGuaranteeSemantics G2 C2) 
   (ge1: Genv.t F1 V1) (ge2: G2) 
   (entry_points: list (val * val * signature))
   (core_data: Type)

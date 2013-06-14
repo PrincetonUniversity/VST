@@ -219,7 +219,7 @@ revert H10; case_eq (level jm); intros.
 omegaContradiction.
 apply levelS_age1 in H10. destruct H10 as [jm' ?].
 clear H11.
-apply (@safe_step'_back2 _ _ _ _ _ _ _ psi ora _ jm 
+apply (@safe_step'_back2  _ _ _ _ _ _ psi ora _ jm 
         (State vx tx (Kseq (if b' then c else d) :: k)) jm' _).
 split3.
 rewrite <- (age_jm_dry H10); econstructor; eauto.

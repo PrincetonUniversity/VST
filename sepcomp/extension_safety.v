@@ -22,14 +22,14 @@ Section SafeExtension. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
- (dT: nat -> Type) (** initialization data *)
+ (*(dT: nat -> Type) (** initialization data *)*)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
@@ -45,11 +45,11 @@ Section SafeExtension. Variables
       at_external (csem i) c = Some (ef, sig, args) /\
       safeN (csem i) csig (genv_map i) n z0 c m0).*)
 
- Definition all_safe (E: Sig Z Zint Zext esem esig gT dT cT csem csig)
+ Definition all_safe (E: Sig Z Zint Zext esem esig gT (*dT*) cT csem csig)
                      (n: nat) (z: Z) (w: xT) (m: M) :=
   forall i c, proj_core E i w = Some c -> safeN (csem i) csig (genv_map i) n z c m.
 
- Definition safe_extension (E: Sig Z Zint Zext esem esig gT dT cT csem csig) :=
+ Definition safe_extension (E: Sig Z Zint Zext esem esig gT (*dT*) cT csem csig) :=
   forall n s m z, all_safe E n (zmult E (proj_zint E s) z) s m -> 
   safeN esem (link_ext_spec (handled E) esig) ge n z s m.
 
@@ -61,18 +61,18 @@ Module SafetyInvariant. Section SafetyInvariant. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
- (dT: nat -> Type) (** initialization data *)
+(* (dT: nat -> Type) (** initialization data *)*)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT*) cT csem csig.
 
 Definition proj_zint := E.(Extension.proj_zint). 
 Coercion proj_zint : xT >-> Zint.
@@ -135,12 +135,12 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
         (forall ef args ef' args', 
           at_external (csem i) c = Some (ef, args) -> 
           at_external (csem i) c' = Some (ef', args') -> c=c')) \/
-   (exists rv, safely_halted esem s = Some rv))
+   (exists rv, halted esem s = Some rv))
 
  (** Safely halted threads remain halted. *)
- (safely_halted_halted: forall s m s' m' i c rv,
+ (halted_halted: forall s m s' m' i c rv,
    PROJ_CORE i s = Some c -> 
-   safely_halted (csem i) c = Some rv -> 
+   halted (csem i) c = Some rv -> 
    corestep esem ge s m s' m' -> PROJ_CORE i s' = Some c)
 
  (** Safety of other threads is preserved when handling one step of blocked
@@ -149,7 +149,7 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
    PROJ_CORE (ACTIVE s) s = Some c -> 
    ((exists ef, exists sig, exists args, 
       at_external (csem (ACTIVE s)) c = Some (ef, sig, args)) \/ 
-     exists rv, safely_halted (csem (ACTIVE s)) c = Some rv) -> 
+     exists rv, halted (csem (ACTIVE s)) c = Some rv) -> 
    at_external esem s = None -> 
    corestep esem ge s m s' m' -> 
    (forall j c0, ACTIVE s <> j ->  
@@ -192,7 +192,7 @@ Inductive safety_invariant: Type := SafetyInvariant: forall
    after_external (csem (ACTIVE s)) ret c = Some c' -> 
    after_external esem ret s = Some s' -> 
    PROJ_CORE (ACTIVE s) s' = Some c' ->  
-   (forall j (CS0: CoreSemantics (gT j) (cT j) M (dT j)) c0, ACTIVE s <> j -> 
+   (forall j (CS0: CoreSemantics (gT j) (cT j) M (*(dT j)*)) c0, ACTIVE s <> j -> 
     (PROJ_CORE j s' = Some c0 -> PROJ_CORE j s = Some c0) /\
     (forall ge n, PROJ_CORE j s = Some c0 -> 
       safeN CS0 csig ge (S n) (s \o z) c0 m -> 
@@ -207,18 +207,18 @@ Module EXTENSION_SAFETY. Section EXTENSION_SAFETY. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
- (D: Type) (** extension initialization data *)
+(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
- (esem: CoreSemantics G xT M D) (** extended semantics *)
+ (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
  (gT: nat -> Type) (** global environments of core semantics *)
  (dT: nat -> Type) (** initialization data *)
  (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (dT i)) (** a set of core semantics *)
+ (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT dT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT*) cT csem csig.
 
 Import SafetyInvariant.
 

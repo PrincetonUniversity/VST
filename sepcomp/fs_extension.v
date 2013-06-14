@@ -161,8 +161,8 @@ Definition mount_fs (fstore: forall (name: int), option file) :=
 
 Section FSExtension.
 Variables 
-  (Z cT D: Type) 
-  (csem: CoreSemantics genv cT mem D)
+  (Z cT (*D*): Type) 
+  (csem: CoreSemantics genv cT mem (*D*))
   (init_world: Z).
 
 Definition cores := fun _:nat => csem.
@@ -183,7 +183,7 @@ End selectors.
 Definition proj_core (i: nat) (s: xT) := if eq_nat_dec i 0 then Some (get_core s) else None.
 Definition active := fun _: xT => 0.
 Definition runnable := fun (s: xT) => 
-  match at_external csem (get_core s), safely_halted csem (get_core s) with 
+  match at_external csem (get_core s), halted csem (get_core s) with 
   | None, None => true
   | _, _ => false
   end.
@@ -206,7 +206,7 @@ Definition int2fmode (i: int): option fmode :=
   else if Int.eq i Int.one then Some WRONLY
        else if Int.eq i (Int.repr 3%Z) then Some RDWR
             else None.
-
+TODO: ADD TREAMTENT FOR LONG
 Definition val2oint (v: val): option int :=
   match v with
   | Vundef => None
@@ -519,8 +519,8 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
 
 Definition os_initial_mem := initial_mem csem.
 
-Definition os_make_initial_core (ge: genv) (v: val) (args: list val): option xT :=
-  match make_initial_core csem ge v args with
+Definition os_initial_core (ge: genv) (v: val) (args: list val): option xT :=
+  match initial_core csem ge v args with
   | Some c => Some (mkxT init_world c (mount_fs (fun _: int => None)))
   | None => None
   end.
@@ -649,15 +649,15 @@ Definition os_after_external (ov: option val) (s: xT): option xT :=
   | None => None
   end.
 
-Definition os_safely_halted (s: xT): option val :=
-  safely_halted csem (get_core s).
+Definition os_halted (s: xT): option val :=
+  halted csem (get_core s).
 
 Program Definition FSCoreSem := Build_CoreSemantics genv xT mem D
   os_initial_mem
-  os_make_initial_core
+  os_initial_core
   os_at_external
   os_after_external
-  os_safely_halted
+  os_halted
   os_step
   _ _ _ _.
 Next Obligation.

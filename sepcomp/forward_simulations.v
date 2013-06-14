@@ -36,9 +36,9 @@ Definition val_has_type_opt (v: option val) (sig: signature) :=
    memory layout at all. *)
 
 Module Forward_simulation_eq. Section Forward_simulation_equals. 
-  Context {M G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics G1 C1 M D1}
-          {Sem2 : CoreSemantics G2 C2 M D2}
+  Context {M G1 C1 G2 C2:Type}
+          {Sem1 : CoreSemantics G1 C1 M}
+          {Sem2 : CoreSemantics G2 C2 M}
 
           {ge1:G1}
           {ge2:G2}
@@ -65,14 +65,14 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
         forall vals,
           Forall2 (Val.has_type) vals (sig_args sig) ->
           exists cd, exists c1, exists c2,
-            make_initial_core Sem1 ge1 v1 vals = Some c1 /\
-            make_initial_core Sem2 ge2 v2 vals = Some c2 /\
+            initial_core Sem1 ge1 v1 vals = Some c1 /\
+            initial_core Sem2 ge2 v2 vals = Some c2 /\
             match_core cd c1 c2;
 
     core_halted : forall cd c1 c2 v,
       match_core cd c1 c2 ->
-      safely_halted Sem1 c1 = Some v ->
-      safely_halted Sem2 c2 = Some v;
+      halted Sem1 c1 = Some v ->
+      halted Sem2 c2 = Some v;
 
     core_at_external : 
       forall d st1 st2 e args ef_sig,
@@ -103,9 +103,9 @@ End Forward_simulation_eq.
 (** * Next, an axiom for passes that allow the memory to undergo extension. *)
 
 Module Forward_simulation_ext. Section Forward_simulation_extends. 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1: RelyGuaranteeSemantics G1 C1 D1}
-          {Sem2: RelyGuaranteeSemantics  G2 C2 D2}
+  Context {G1 C1 G2 C2:Type}
+          {Sem1: RelyGuaranteeSemantics G1 C1}
+          {Sem2: RelyGuaranteeSemantics  G2 C2}
 
           {ge1:G1}
           {ge2:G2}
@@ -140,16 +140,16 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
           exists cd, exists c1, exists c2,
-            make_initial_core Sem1 ge1 v1 vals = Some c1 /\
-            make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
+            initial_core Sem1 ge1 v1 vals = Some c1 /\
+            initial_core Sem2 ge2 v2 vals' = Some c2 /\
             match_state cd c1 m1 c2 m2;
 
     core_halted : 
       forall cd st1 m1 st2 m2 v1,
         match_state cd st1 m1 st2 m2 ->
-        safely_halted Sem1 st1 = Some v1 ->
+        halted Sem1 st1 = Some v1 ->
         exists v2, Val.lessdef v1 v2 /\
-            safely_halted Sem2 st2 = Some v2 /\
+            halted Sem2 st2 = Some v2 /\
             Mem.extends m1 m2;
 
     core_at_external : 
@@ -196,9 +196,9 @@ End Forward_simulation_ext.
    standard versions everywhere? *)
 
 Module Coop_forward_simulation_ext. Section Forward_simulation_extends. 
-  Context {G1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoopCoreSem G1 C1 D1}
-          {Sem2 : CoopCoreSem G2 C2 D2}
+  Context {G1 C1 G2 C2:Type}
+          {Sem1 : CoopCoreSem G1 C1}
+          {Sem2 : CoopCoreSem G2 C2}
 
           {ge1:G1}
           {ge2:G2}
@@ -238,16 +238,16 @@ Module Coop_forward_simulation_ext. Section Forward_simulation_extends.
           Mem.extends m1 m2 ->
           mem_wd m1 -> mem_wd m2 ->
           exists cd, exists c1, exists c2,
-            make_initial_core Sem1 ge1 v1 vals = Some c1 /\
-            make_initial_core Sem2 ge2 v2 vals' = Some c2 /\
+            initial_core Sem1 ge1 v1 vals = Some c1 /\
+            initial_core Sem2 ge2 v2 vals' = Some c2 /\
             match_state cd c1 m1 c2 m2;
 
     core_halted : 
       forall cd st1 m1 st2 m2 v1,
         match_state cd st1 m1 st2 m2 ->
-        safely_halted Sem1 st1 = Some v1 -> val_valid v1 m1 ->
+        halted Sem1 st1 = Some v1 -> val_valid v1 m1 ->
         exists v2, Val.lessdef v1 v2 /\
-            safely_halted Sem2 st2 = Some v2 /\
+            halted Sem2 st2 = Some v2 /\
             Mem.extends m1 m2 /\ val_valid v2 m2;
 
     core_at_external : 
@@ -296,9 +296,9 @@ End Coop_forward_simulation_ext.
 (** An axiom for passes that use memory injections. *)
 
 Module Forward_simulation_inj. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
-          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
+  Context {F1 V1 C1 G2 C2:Type}
+          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1}
+          {Sem2 : RelyGuaranteeSemantics G2 C2}
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
@@ -327,20 +327,20 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2,
-          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
-            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
     core_halted : forall cd j c1 m1 c2 m2 v1 rty,
       match_state cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 c1 = Some v1 ->
+      halted Sem1 c1 = Some v1 ->
       Val.has_type v1 rty -> 
       exists v2, val_inject j v1 v2 /\
-          safely_halted Sem2 c2 = Some v2 /\
+          halted Sem2 c2 = Some v2 /\
           Val.has_type v2 rty /\
           Mem.inject j m1 m2;
 
@@ -387,9 +387,9 @@ Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 End Forward_simulation_inj.
 
 Module Coop_forward_simulation_inj. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem D1}
-          {Sem2 : CoreSemantics G2 C2 mem D2}
+  Context {F1 V1 C1 G2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
+          {Sem2 : CoreSemantics G2 C2 mem}
           {ge1: Genv.t F1 V1}
           {ge2:G2}
           {entry_points : list (val * val * signature)}.
@@ -425,7 +425,7 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2,
-          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
           mem_wd m1 -> mem_wd m2 ->
           (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
@@ -434,15 +434,15 @@ Module Coop_forward_simulation_inj. Section Forward_simulation_inject.
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
-            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
     core_halted : forall cd j c1 m1 c2 m2 v1,
       match_state cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 c1 = Some v1 ->
+      halted Sem1 c1 = Some v1 ->
       val_valid v1 m1 ->
       exists v2, val_inject j v1 v2 /\
-        safely_halted Sem2 c2 = Some v2 /\
+        halted Sem2 c2 = Some v2 /\
         Mem.inject j m1 m2 /\ val_valid v2 m2;
 
     core_at_external : 
@@ -493,9 +493,9 @@ End Coop_forward_simulation_inj.
 (* A variation of Forward_simulation_inj that exposes core_data and match_state *)
 
 Module Forward_simulation_inj_exposed. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 D1 G2 C2 D2:Type}
-          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1}
-          {Sem2 : RelyGuaranteeSemantics G2 C2 D2}
+  Context {F1 V1 C1 G2 C2:Type}
+          {Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1}
+          {Sem2 : RelyGuaranteeSemantics G2 C2}
 
           {ge1: Genv.t F1 V1}
           {ge2:G2}
@@ -525,20 +525,20 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2,
-          make_initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
            Forall2 (val_inject j) vals1 vals2 ->
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
           exists cd, exists c2, 
-            make_initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
 
     core_halted : forall cd j c1 m1 c2 m2 v1 rty,
       match_state cd j c1 m1 c2 m2 ->
-      safely_halted Sem1 c1 = Some v1 ->
+      halted Sem1 c1 = Some v1 ->
       Val.has_type v1 rty -> 
       exists v2, val_inject j v1 v2 /\
-        safely_halted Sem2 c2 = Some v2 /\
+        halted Sem2 c2 = Some v2 /\
         Val.has_type v2 rty /\
         Mem.inject j m1 m2;
 
@@ -586,13 +586,13 @@ Implicit Arguments Forward_simulation_inject [[F1][V1] [C1] [G2] [C2]].
 End Forward_simulation_inj_exposed.
 
 Lemma Forward_simulation_inj_exposed_hidden: 
-  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
-   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 
+  forall (F1 V1 C1 G2 C2: Type) 
+   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+   (csemT: RelyGuaranteeSemantics G2 C2) ge1 ge2 
    entry_points core_data match_state core_ord,
-  Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+  Forward_simulation_inj_exposed.Forward_simulation_inject csemS csemT ge1 ge2
     entry_points core_data match_state core_ord -> 
-  Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points.
+  Forward_simulation_inj.Forward_simulation_inject csemS csemT ge1 ge2 entry_points.
 Proof.
 intros until core_ord; intros []; intros.
 solve[eapply @Forward_simulation_inj.Build_Forward_simulation_inject 
@@ -600,14 +600,14 @@ solve[eapply @Forward_simulation_inj.Build_Forward_simulation_inject
 Qed.
 
 Lemma Forward_simulation_inj_hidden_exposed:
-  forall (F1 V1 C1 D1 G2 C2 D2: Type) 
-   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1 D1)
-   (csemT: RelyGuaranteeSemantics G2 C2 D2) ge1 ge2 entry_points,
-  Forward_simulation_inj.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2 entry_points -> 
+  forall (F1 V1 C1 G2 C2: Type) 
+   (csemS: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+   (csemT: RelyGuaranteeSemantics G2 C2) ge1 ge2 entry_points,
+  Forward_simulation_inj.Forward_simulation_inject csemS csemT ge1 ge2 entry_points -> 
   {core_data: Type & 
   {match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop &
   {core_ord: core_data -> core_data -> Prop & 
-    Forward_simulation_inj_exposed.Forward_simulation_inject D1 D2 csemS csemT ge1 ge2
+    Forward_simulation_inj_exposed.Forward_simulation_inject csemS csemT ge1 ge2
     entry_points core_data match_state core_ord}}}.
 Proof.
 intros until entry_points; intros []; intros.
@@ -714,17 +714,17 @@ Definition GenvHyp {F1 V1 F2 V2}
     block_is_volatile (Genv.globalenv P1) b).
 
 Inductive core_correctness (I: forall F C V  
-  (Sem : CoreSemantics (Genv.t F V) C mem (list (ident * globdef F V))) 
+  (Sem : CoreSemantics (Genv.t F V) C mem) 
   (P : AST.program F V),Prop)
   (ExternIdents: list (ident * external_description)):
   forall (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-    (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+    (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+    (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
     (P1 : AST.program F1 V1)
     (P2 : AST.program F2 V2), Type :=
     corec_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-      (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-      (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+      (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+      (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
       (P1 : AST.program F1 V1)
       (P2 : AST.program F2 V2)
       (Eq_init : forall m1 : mem,
@@ -734,16 +734,16 @@ Inductive core_correctness (I: forall F C V
           /\ m1 = m2))*)
       entrypoints
       (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-      (R:Forward_simulation_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 
-        (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
+      (R:Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 
+        (Genv.globalenv P1) (Genv.globalenv P2) entrypoints), 
       prog_main P1 = prog_main P2 -> 
       (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
       GenvHyp P1 P2 ->
       I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
       core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 | corec_ext: forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   (Extends_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
@@ -753,7 +753,7 @@ Inductive core_correctness (I: forall F C V
       /\ Mem.extends m1 m2))*)
   entrypoints
   (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-  (R:Forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
+  (R:Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
     (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
   prog_main P1 = prog_main P2 -> 
   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -762,8 +762,8 @@ Inductive core_correctness (I: forall F C V
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_inj : forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   entrypoints jInit
@@ -774,7 +774,7 @@ Inductive core_correctness (I: forall F C V
       /\ Mem.inject jInit m1 m2))*)
   (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
   (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-  (R:Forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+  (R:Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 
     (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
   prog_main P1 = prog_main P2 ->
  (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -784,9 +784,9 @@ Inductive core_correctness (I: forall F C V
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
-  (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem (list (ident * globdef F3 V3)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
+  (Sem3 : CoreSemantics (Genv.t F3 V3) C3 mem)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   (P3 : AST.program F3 V3),
@@ -795,8 +795,8 @@ Inductive core_correctness (I: forall F C V
   core_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
 
 Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)  ExternIdents I,
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -804,8 +804,8 @@ Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
 Proof. intros. induction X; intuition. Qed.
 
 Lemma corec_main: forall {F1 C1 V1 F2 C2 V2}
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)  ExternIdents I,
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -814,8 +814,8 @@ Proof. intros. induction X; intuition. congruence. Qed.
 
 (*TRANSITIVITY OF THE GENV-ASSUMPTIONS:*)
 Lemma corec_Genv:forall {F1 C1 V1 F2 C2 V2}
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem (list (ident * globdef F1 V1)))
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem (list (ident * globdef F2 V2)))
+  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)  ExternIdents I,
   core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
@@ -828,17 +828,17 @@ Proof.
 Qed.
 
 Inductive cc_sim (I: forall F C V 
-          (Sem : RelyGuaranteeSemantics (Genv.t F V) C (list (ident * globdef F V)))
+          (Sem : RelyGuaranteeSemantics (Genv.t F V) C)
           (P : AST.program F V), Prop)
 (ExternIdents: list (ident * external_description)) entrypoints:
 forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+  (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+  (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2), Type :=
   ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-    (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+    (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+    (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
     (P1 : AST.program F1 V1)
     (P2 : AST.program F2 V2)
     (Eq_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
@@ -846,7 +846,7 @@ forall (F1 C1 V1 F2 C2 V2:Type)
     (*(Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
       (exists m2, initial_mem Sem2 (Genv.globalenv P2)  m2 P2.(prog_defs) /\ m1=m2))*)
     (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-    (R:Forward_simulation_eq.Forward_simulation_equals _ _ _ Sem1 Sem2 
+    (R:Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
     prog_main P1 = prog_main P2 -> 
    (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -854,8 +854,8 @@ forall (F1 C1 V1 F2 C2 V2:Type)
     I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
     cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    (Ext_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
@@ -864,7 +864,7 @@ forall (F1 C1 V1 F2 C2 V2:Type)
      (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) /\
        Mem.extends m1 m2))*)
    (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
-   (R:Coop_forward_simulation_ext.Forward_simulation_extends _ _ Sem1 Sem2 
+   (R:Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
    prog_main P1 = prog_main P2 -> 
   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
@@ -872,8 +872,8 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
                cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1 (list (ident * globdef F1 V1)))
-   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2 (list (ident * globdef F2 V2)))
+   (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
+   (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
    (P1 : AST.program F1 V1)
    (P2 : AST.program F2 V2)
    jInit
@@ -884,7 +884,7 @@ forall (F1 C1 V1 F2 C2 V2:Type)
        /\ Mem.inject jInit m1 m2))*)
    (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
    (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
-   (R:Coop_forward_simulation_inj.Forward_simulation_inject _ _ Sem1 Sem2 
+   (R:Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
    prog_main P1 = prog_main P2 ->
    (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
