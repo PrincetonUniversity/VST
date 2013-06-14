@@ -54,6 +54,8 @@ Definition _ll : ident := 48%positive.
 Definition _l : ident := 35%positive.
 Definition _h : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _T1' : ident := 54%positive.
+Definition _l' : ident := 53%positive.
 
 Definition t_struct_SHA256state_st :=
    (Tstruct _struct_SHA256state_st
@@ -141,8 +143,8 @@ Definition f_sha256_block_data_order := {|
                (_e, tuint) :: (_f, tuint) :: (_g, tuint) :: (_h, tuint) ::
                (_s0, tuint) :: (_s1, tuint) :: (_T1, tuint) ::
                (_T2, tuint) :: (_t, tuint) :: (_l, tuint) :: (_Ki, tuint) ::
-               (_i, tint) :: (_data, (tptr tuchar)) ::
-               (54%positive, tuint) :: (53%positive, tuint) :: nil);
+               (_i, tint) :: (_data, (tptr tuchar)) :: (_T1', tuint) ::
+               (_l', tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _data (Etempvar _in (tptr tvoid)))
@@ -225,7 +227,7 @@ Definition f_sha256_block_data_order := {|
                           (Ssequence
                             (Ssequence
                               (Ssequence
-                                (Scall (Some 53%positive)
+                                (Scall (Some _l')
                                   (Evar ___builtin_read32_reversed (Tfunction
                                                                     (Tcons
                                                                     (tptr tuint)
@@ -233,8 +235,7 @@ Definition f_sha256_block_data_order := {|
                                                                     tuint))
                                   ((Ecast (Etempvar _data (tptr tuchar))
                                      (tptr tuint)) :: nil))
-                                (Sset _l
-                                  (Ecast (Etempvar 53%positive tuint) tuint)))
+                                (Sset _l (Ecast (Etempvar _l' tuint) tuint)))
                               (Sset _data
                                 (Ebinop Oadd (Etempvar _data (tptr tuchar))
                                   (Econst_int (Int.repr 4) tint)
@@ -242,15 +243,15 @@ Definition f_sha256_block_data_order := {|
                             (Ssequence
                               (Ssequence
                                 (Ssequence
-                                  (Sset 54%positive (Etempvar _l tuint))
+                                  (Sset _T1' (Etempvar _l tuint))
                                   (Sassign
                                     (Ederef
                                       (Ebinop Oadd
                                         (Evar _X (tarray tuint 16))
                                         (Etempvar _i tint) (tptr tuint))
-                                      tuint) (Etempvar 54%positive tuint)))
+                                      tuint) (Etempvar _T1' tuint)))
                                 (Sset _T1
-                                  (Ecast (Etempvar 54%positive tuint) tuint)))
+                                  (Ecast (Etempvar _T1' tuint) tuint)))
                               (Ssequence
                                 (Sset _Ki
                                   (Ederef
@@ -1008,7 +1009,7 @@ Definition f_SHA256_Update := {|
   fn_vars := nil;
   fn_temps := ((_data, (tptr tuchar)) :: (_p, (tptr tuchar)) ::
                (_l, tuint) :: (_cNl, tuint) :: (_cNh, tuint) ::
-               (_n, tuint) :: (53%positive, tint) :: nil);
+               (_n, tuint) :: (55%positive, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _data (Etempvar _data_ (tptr tvoid)))
@@ -1085,9 +1086,9 @@ Definition f_SHA256_Update := {|
                                            (Econst_int (Int.repr 16) tint)
                                            (Econst_int (Int.repr 4) tint)
                                            tint) tint)
-                            (Sset 53%positive (Econst_int (Int.repr 1) tint))
+                            (Sset 55%positive (Econst_int (Int.repr 1) tint))
                             (Ssequence
-                              (Sset 53%positive
+                              (Sset 55%positive
                                 (Ecast
                                   (Ebinop Oge
                                     (Ebinop Oadd (Etempvar _len tuint)
@@ -1096,9 +1097,9 @@ Definition f_SHA256_Update := {|
                                       (Econst_int (Int.repr 16) tint)
                                       (Econst_int (Int.repr 4) tint) tint)
                                     tint) tbool))
-                              (Sset 53%positive
-                                (Ecast (Etempvar 53%positive tbool) tint))))
-                          (Sifthenelse (Etempvar 53%positive tint)
+                              (Sset 55%positive
+                                (Ecast (Etempvar 55%positive tbool) tint))))
+                          (Sifthenelse (Etempvar 55%positive tint)
                             (Ssequence
                               (Scall None
                                 (Evar _memcpy (Tfunction

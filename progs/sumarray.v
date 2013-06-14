@@ -19,6 +19,7 @@ Definition _n : ident := 11%positive.
 Definition ___builtin_subl : ident := 5%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition _a : ident := 10%positive.
+Definition _s' : ident := 18%positive.
 
 
 Definition f_sumarray := {|
@@ -60,14 +61,14 @@ Definition f_main := {|
   fn_return := tint;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_s, tint) :: (18%positive, tint) :: nil);
+  fn_temps := ((_s, tint) :: (_s', tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 18%positive)
+    (Scall (Some _s')
       (Evar _sumarray (Tfunction (Tcons (tptr tint) (Tcons tint Tnil)) tint))
       ((Evar _four (tarray tint 4)) :: (Econst_int (Int.repr 4) tint) :: nil))
-    (Sset _s (Etempvar 18%positive tint)))
+    (Sset _s (Etempvar _s' tint)))
   (Sreturn (Some (Etempvar _s tint))))
 |}.
 

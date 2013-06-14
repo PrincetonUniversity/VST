@@ -211,8 +211,8 @@ Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
 Proof.
 start_function.
 name Q _Q.
-name q 32%positive.
-forward. (* q = mallocN(sizeof ( *Q)); *) 
+name Q' _Q'.
+forward. (* Q' = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
 go_lower. normalize.
 repeat apply andp_right; try apply prop_right.
@@ -220,11 +220,11 @@ compute; congruence.
 compute; congruence.
 cancel.
 normalize.
-forward. (* Q = (struct fifo * )q; *)
+forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
    SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
-go_lower. destruct q; inv H0; inv TC; normalize.
+go_lower. destruct Q'; inv H0; inv TC; normalize.
 rewrite memory_block_fifo. normalize.
 forward. (* Q->head = NULL; *)
 forward.  (*  Q->tail = NULL;  *)
@@ -413,7 +413,7 @@ start_function. rename a into a0; rename b into b0.
 name a _a.
 name b _b.
 name p _p.
-name p' 26%positive.
+name p' _p'.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
 go_lower. subst a b. normalize.

@@ -33,6 +33,12 @@ Definition _p : ident := 21%positive.
 Definition _mallocN : ident := 10%positive.
 Definition _h : ident := 22%positive.
 Definition _fifo_new : ident := 20%positive.
+Definition _Q'1 : ident := 34%positive.
+Definition _p'1 : ident := 35%positive.
+Definition _p'3 : ident := 37%positive.
+Definition _p' : ident := 33%positive.
+Definition _p'2 : ident := 36%positive.
+Definition _Q' : ident := 32%positive.
 
 Definition t_struct_fifo :=
    (Tstruct _struct_fifo
@@ -58,16 +64,14 @@ Definition f_fifo_new := {|
   fn_return := (tptr t_struct_fifo);
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_Q, (tptr t_struct_fifo)) :: (32%positive, (tptr tvoid)) ::
-               nil);
+  fn_temps := ((_Q, (tptr t_struct_fifo)) :: (_Q', (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 32%positive)
+    (Scall (Some _Q')
       (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid)))
       ((Econst_int (Int.repr 8) tuint) :: nil))
-    (Sset _Q
-      (Ecast (Etempvar 32%positive (tptr tvoid)) (tptr t_struct_fifo))))
+    (Sset _Q (Ecast (Etempvar _Q' (tptr tvoid)) (tptr t_struct_fifo))))
   (Ssequence
     (Sassign
       (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _head
@@ -167,15 +171,14 @@ Definition f_make_elem := {|
   fn_return := (tptr t_struct_elem);
   fn_params := ((_a, tint) :: (_b, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr t_struct_elem)) :: (32%positive, (tptr tvoid)) ::
-               nil);
+  fn_temps := ((_p, (tptr t_struct_elem)) :: (_p', (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 32%positive)
+    (Scall (Some _p')
       (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid)))
       ((Econst_int (Int.repr 12) tuint) :: nil))
-    (Sset _p (Etempvar 32%positive (tptr tvoid))))
+    (Sset _p (Etempvar _p' (tptr tvoid))))
   (Ssequence
     (Sassign
       (Efield (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem) _a
@@ -192,25 +195,24 @@ Definition f_main := {|
   fn_params := nil;
   fn_vars := nil;
   fn_temps := ((_i, tint) :: (_j, tint) :: (_Q, (tptr t_struct_fifo)) ::
-               (_p, (tptr t_struct_elem)) ::
-               (35%positive, (tptr t_struct_elem)) ::
-               (34%positive, (tptr t_struct_elem)) ::
-               (33%positive, (tptr t_struct_elem)) ::
-               (32%positive, (tptr t_struct_fifo)) :: nil);
+               (_p, (tptr t_struct_elem)) :: (_p'3, (tptr t_struct_elem)) ::
+               (_p'2, (tptr t_struct_elem)) ::
+               (_p'1, (tptr t_struct_elem)) ::
+               (_Q'1, (tptr t_struct_fifo)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 32%positive)
-      (Evar _fifo_new (Tfunction Tnil (tptr t_struct_fifo))) nil)
-    (Sset _Q (Etempvar 32%positive (tptr t_struct_fifo))))
+    (Scall (Some _Q'1) (Evar _fifo_new (Tfunction Tnil (tptr t_struct_fifo)))
+      nil)
+    (Sset _Q (Etempvar _Q'1 (tptr t_struct_fifo))))
   (Ssequence
     (Ssequence
-      (Scall (Some 33%positive)
+      (Scall (Some _p'1)
         (Evar _make_elem (Tfunction (Tcons tint (Tcons tint Tnil))
                            (tptr t_struct_elem)))
         ((Econst_int (Int.repr 1) tint) :: (Econst_int (Int.repr 10) tint) ::
          nil))
-      (Sset _p (Etempvar 33%positive (tptr t_struct_elem))))
+      (Sset _p (Etempvar _p'1 (tptr t_struct_elem))))
     (Ssequence
       (Scall None
         (Evar _fifo_put (Tfunction
@@ -220,12 +222,12 @@ Definition f_main := {|
          (Etempvar _p (tptr t_struct_elem)) :: nil))
       (Ssequence
         (Ssequence
-          (Scall (Some 34%positive)
+          (Scall (Some _p'2)
             (Evar _make_elem (Tfunction (Tcons tint (Tcons tint Tnil))
                                (tptr t_struct_elem)))
             ((Econst_int (Int.repr 2) tint) ::
              (Econst_int (Int.repr 20) tint) :: nil))
-          (Sset _p (Etempvar 34%positive (tptr t_struct_elem))))
+          (Sset _p (Etempvar _p'2 (tptr t_struct_elem))))
         (Ssequence
           (Scall None
             (Evar _fifo_put (Tfunction
@@ -235,11 +237,11 @@ Definition f_main := {|
              (Etempvar _p (tptr t_struct_elem)) :: nil))
           (Ssequence
             (Ssequence
-              (Scall (Some 35%positive)
+              (Scall (Some _p'3)
                 (Evar _fifo_get (Tfunction (Tcons (tptr t_struct_fifo) Tnil)
                                   (tptr t_struct_elem)))
                 ((Etempvar _Q (tptr t_struct_fifo)) :: nil))
-              (Sset _p (Etempvar 35%positive (tptr t_struct_elem))))
+              (Sset _p (Etempvar _p'3 (tptr t_struct_elem))))
             (Ssequence
               (Sset _i
                 (Efield

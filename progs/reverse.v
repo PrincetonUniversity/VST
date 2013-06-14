@@ -25,6 +25,8 @@ Definition _reverse : ident := 21%positive.
 Definition _struct_list : ident := 10%positive.
 Definition _r : ident := 22%positive.
 Definition _v : ident := 20%positive.
+Definition _s' : ident := 25%positive.
+Definition _r' : ident := 24%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list
@@ -102,23 +104,22 @@ Definition f_main := {|
   fn_return := tint;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_r, (tptr t_struct_list)) :: (_s, tint) ::
-               (25%positive, tint) :: (24%positive, (tptr t_struct_list)) ::
-               nil);
+  fn_temps := ((_r, (tptr t_struct_list)) :: (_s, tint) :: (_s', tint) ::
+               (_r', (tptr t_struct_list)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
-    (Scall (Some 24%positive)
+    (Scall (Some _r')
       (Evar _reverse (Tfunction (Tcons (tptr t_struct_list) Tnil)
                        (tptr t_struct_list)))
       ((Evar _three (tarray t_struct_list 3)) :: nil))
-    (Sset _r (Etempvar 24%positive (tptr t_struct_list))))
+    (Sset _r (Etempvar _r' (tptr t_struct_list))))
   (Ssequence
     (Ssequence
-      (Scall (Some 25%positive)
+      (Scall (Some _s')
         (Evar _sumlist (Tfunction (Tcons (tptr t_struct_list) Tnil) tint))
         ((Etempvar _r (tptr t_struct_list)) :: nil))
-      (Sset _s (Etempvar 25%positive tint)))
+      (Sset _s (Etempvar _s' tint)))
     (Sreturn (Some (Etempvar _s tint)))))
 |}.
 

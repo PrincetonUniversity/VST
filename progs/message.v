@@ -29,6 +29,7 @@ Definition _intpair_deserialize : ident := 21%positive.
 Definition _deserialize : ident := 10%positive.
 Definition _intpair_message : ident := 22%positive.
 Definition _length : ident := 20%positive.
+Definition _len' : ident := 28%positive.
 
 Definition t_struct_message :=
    (Tstruct _struct_message
@@ -126,7 +127,7 @@ Definition f_main := {|
                 (tptr (Tfunction
                         (Tcons (tptr tvoid)
                           (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid))) ::
-               (28%positive, tint) :: nil);
+               (_len', tint) :: nil);
   fn_body :=
 (Ssequence
   (Sassign (Efield (Evar _p t_struct_intpair) _x tint)
@@ -141,13 +142,13 @@ Definition f_main := {|
                   tint))))
       (Ssequence
         (Ssequence
-          (Scall (Some 28%positive)
+          (Scall (Some _len')
             (Etempvar _ser (tptr (Tfunction
                                    (Tcons (tptr tvoid)
                                      (Tcons (tptr tuchar) Tnil)) tint)))
             ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)) ::
              (Evar _buf (tarray tuchar 8)) :: nil))
-          (Sset _len (Etempvar 28%positive tint)))
+          (Sset _len (Etempvar _len' tint)))
         (Ssequence
           (Sset _des
             (Efield (Evar _intpair_message t_struct_message) _deserialize

@@ -12,6 +12,10 @@ COMPCERT=compcert
 # at least, coqdep is confused by the absolute pathname while
 # it works fine with the relative pathname
 
+#Note2:  By default, the rules for converting .c files to .v files
+# are inactive.  To activate them, do something like
+#  make CLIGHTGEN=clightgen
+
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric floyd progs
@@ -101,6 +105,8 @@ PROGS_FILES= \
   reverse.v queue.v sumarray.v message.v \
   sha.v verif_sha.v
 
+C_FILES = reverse.c queue.c sumarray.c message.c sha.c
+
 FILES = \
  $(MSL_FILES:%=msl/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
@@ -129,6 +135,20 @@ sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+
+ifdef CLIGHTGEN
+# Is there a way to generate the next 5 rules automatically from C_FILES? 
+progs/reverse.v: progs/reverse.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+progs/queue.v: progs/queue.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+progs/sumarray.v: progs/sumarray.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+progs/message.v: progs/message.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+progs/sha.v: progs/sha.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+endif
 
 .loadpath: Makefile
 	echo $(INCLUDE) >.loadpath
