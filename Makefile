@@ -72,16 +72,18 @@ SEPCOMP_FILES= \
   wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v \
   mem_interpolation_IE.v mem_interpolation_II.v \
-  mem_interpolation_proofs.v \
-  core_semantics.v \
-  forward_simulations_lemmas.v \
-  forward_simulations.v rg_forward_simulations.v extension.v extension_proof.v \
+  mem_interpolation_proofs.v compiler_correctness.v \
+  core_semantics.v forward_simulations.v \
+  forward_simulations_lemmas.v rg_forward_simulations.v \
+  rg_semantics.v rg_forward_simulations_lemmas.v extension.v extension_proof.v \
 #  compile_safe.v core_semantics_lemmas.v \
    extension_safety.v extension_simulations.v \
   extension_proof_safety.v \
   null_extension.v fs_extension.v linking_extension.v trace_extension.v \
-  mem_interpolants.v compiler_correctness_trans.v \
-  compcert_compiler_correctness.v #RG_interpolants.v rgsim.v
+  compiler_correctness_trans.v \
+  #compcert_compiler_correctness.v \
+  #Cminor.v Csharpminor.v Cminorgen.v Switch.v Ordered.v \
+  #RG_interpolants.v rgsim.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
@@ -90,8 +92,9 @@ VERIC_FILES= \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
-  initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v \
-  NullExtension.v SequentialClight.v
+  initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v  \
+  NullExtension.v SequentialClight.v \
+#   Cminor_coop.v Csharpminor_coop.v CminorgenproofRestructuredJune.v
 #  juicy_linking_extension.v \
 
 FLOYD_FILES= \

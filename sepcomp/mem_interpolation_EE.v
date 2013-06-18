@@ -494,7 +494,7 @@ Proof. intros.
           split; intros; try contradiction; trivial.
        contradiction.
      exfalso. apply n; clear - H Fwd1 Ext12.
-       apply mem_forward_nb in Fwd1.
+       apply forward_nextblock in Fwd1.
        destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
         unfold Mem.valid_block in H. xomega.
    split; intros.
@@ -532,7 +532,7 @@ Proof. intros.
           split; intros; try contradiction; trivial.
           split; intros; try contradiction; trivial.
      exfalso. apply n; clear - H Fwd1 Ext12.
-       apply mem_forward_nb in Fwd1.
+       apply forward_nextblock in Fwd1.
        destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
         unfold Mem.valid_block in H. xomega.
     contradiction.
@@ -816,7 +816,7 @@ Proof. intros.
           split; intros; try contradiction; trivial.
        contradiction.
      exfalso. apply n; clear - H Fwd1 Ext12.
-       apply mem_forward_nb in Fwd1.
+       apply forward_nextblock in Fwd1.
        destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
         unfold Mem.valid_block in H. xomega.
    split; intros.
@@ -856,7 +856,7 @@ Proof. intros.
           split; intros; try contradiction; trivial.
           split; intros; try contradiction; trivial.
      exfalso. apply n; clear - H Fwd1 Ext12.
-       apply mem_forward_nb in Fwd1.
+       apply forward_nextblock in Fwd1.
        destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
         unfold Mem.valid_block in H. xomega.
     contradiction.

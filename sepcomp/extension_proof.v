@@ -1,5 +1,6 @@
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations. 
 Require Import sepcomp.rg_forward_simulations. 
 Require Import sepcomp.step_lemmas. 
@@ -462,10 +463,10 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
 
  Variable core_simulations: forall i:nat, 
-   Forward_simulation_inject (*(dS i) (dT i)*) (csemS i) (csemT i) (genv_mapS i) (genv_mapT i) 
+   RGForward_simulation_inject (*(dS i) (dT i)*) (csemS i) (csemT i) (genv_mapS i) (genv_mapT i) 
    entry_points (core_data i) (match_state i) (core_ord i).
 
  Definition core_datas := forall i:nat, core_data i.
@@ -696,9 +697,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (active_okT: (forall x_t, ACTIVE E_T x_t < max_cores)%nat).
 
 Program Definition extended_simulation: 
-  Forward_simulation_inject (*D_S D_T*) esemS esemT ge_S ge_T 
+  RGForward_simulation_inject (*D_S D_T*) esemS esemT ge_S ge_T 
            entry_points core_datas match_states (core_ords max_cores) :=
-  @Build_Forward_simulation_inject (*_ _*) _ _ _ _ _ 
+  @Build_RGForward_simulation_inject (*_ _*) _ _ _ _ _ 
   esemS esemT ge_S ge_T entry_points core_datas match_states (core_ords max_cores) 
   _ _ _ _ _ _.
 Next Obligation. apply core_ords_wf. Qed.
@@ -1379,7 +1380,7 @@ Module ExtensionCompilability. Section ExtensionCompilability.
 
  Variable R: meminj -> xS -> mem -> xT -> mem -> Prop.
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig fS fT vS vT 
@@ -1440,7 +1441,7 @@ Module ExtensionCompilability2. Section ExtensionCompilability2.
 
  Variable R: meminj -> cS -> mem -> cT -> mem -> Prop.
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
 
  Lemma ExtensionCompilability: 
    EXTENSION_COMPILABILITY.Sig (const fS) (const fT) (const vS) (const vT)

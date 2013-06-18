@@ -655,7 +655,7 @@ Definition mkEI (j j': meminj) (m1 m2 m1':mem)
              : Mem.mem'.
 assert (VB: (Mem.nextblock m2 <= Mem.nextblock m1')%positive).
    destruct Ext12. rewrite <- mext_next.
-   apply (mem_forward_nb _ _ Fwd1).    
+   apply (forward_nextblock _ _ Fwd1).    
 destruct (mkAccessMap_EI_existsT j m1 m1' m2) as [AM [ADefault PAM]].
    assumption.
 destruct (ContentsMap_EI_existsT j m1 m1' m2) as [CM [CDefault PCM]].

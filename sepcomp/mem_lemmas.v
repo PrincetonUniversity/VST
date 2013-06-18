@@ -593,7 +593,7 @@ Qed.
 
 (*A value that is (if its a pointer) not dangling wrt m - a condition
  like this will probably be need to imposed on after-external return
- values (and thus also on the values returned by safely-halted)*)
+ values (and thus also on the values returned by halted)*)
 Definition val_valid (v:val) (m:mem):Prop := 
      match v with Vptr b ofs => Mem.valid_block m b | _ => True 
      end.
@@ -1198,19 +1198,62 @@ Proof. intros.
     rewrite Zplus_0_r. apply Int.unsigned_range_2.
 Qed. 
 
-Lemma mem_forward_nb: forall m1 m2 (Fwd: mem_forward m1 m2),
-   (Mem.nextblock m1 <= Mem.nextblock m2)%positive.
-Proof. unfold mem_forward; intros.
-remember ((Mem.nextblock m1 ?= Mem.nextblock m2)%positive).
-destruct c; apply eq_sym in Heqc.
-  rewrite Pos.lt_eq_cases. right. 
-    apply Pos.compare_eq_iff . apply Heqc.
-  rewrite Pos.lt_eq_cases. left. 
-    apply Pos.compare_lt_iff in Heqc. apply Heqc.
-  rewrite Pcompare_eq_Gt in Heqc.
-    exfalso. destruct (Fwd (Mem.nextblock m2)); clear Fwd.
-      unfold Mem.valid_block. xomega.
-    clear - H. unfold Mem.valid_block in H. xomega.
+Lemma forward_nextblock: forall m m',
+  mem_forward m m' -> 
+  (Mem.nextblock m <= Mem.nextblock m')%positive.
+Proof.
+intros m m' H1.
+unfold mem_forward in H1.
+unfold Mem.valid_block in H1.
+apply Pos.leb_le.
+remember (Pos.leb (Mem.nextblock m) (Mem.nextblock m')).
+destruct b; trivial.
+assert (H2: (Mem.nextblock m' < Mem.nextblock m)%positive). apply Pos.leb_gt. rewrite Heqb. trivial. 
+destruct (H1 (Mem.nextblock m')); auto.
+xomega.
+Qed.
+
+Lemma inject_separated_incr_fwd: 
+  forall j j' m1 m2 j'' m2'
+    (InjSep : inject_separated j j' m1 m2)
+    (InjSep' : inject_separated j' j'' m1 m2')
+    (InjIncr' : inject_incr j' j'')
+    (Fwd: mem_forward m2 m2'),
+    inject_separated j j'' m1 m2.
+Proof.
+intros. intros b. intros. remember (j' b) as z. 
+destruct z; apply eq_sym in Heqz.
+destruct p. specialize (InjIncr' _ _ _ Heqz). 
+rewrite InjIncr' in H0. inv H0.
+apply (InjSep _ _ _ H Heqz). 
+destruct (InjSep' _ _ _ Heqz H0).
+split. trivial.
+intros N. apply H2. eapply Fwd. apply N.
+Qed.
+
+Lemma inject_separated_incr_fwd2: 
+  forall j0 j j' m10 m20 m1 m2,
+  inject_incr j j' -> 
+  inject_separated j j' m1 m2 -> 
+  inject_incr j0 j -> 
+  mem_forward m10 m1 -> 
+  inject_separated j0 j m10 m20 -> 
+  mem_forward m20 m2 -> 
+  inject_separated j0 j' m10 m20.
+Proof.
+intros until m2; intros H1 H2 H3 H4 H5 H6.
+apply (@inject_separated_incr_fwd j0 j m10 m20 j' m2); auto.
+unfold inject_separated.
+intros b1 b2 delta H7 H8.
+unfold inject_separated in H2, H5.
+specialize (H2 b1 b2 delta H7 H8).
+destruct H2 as [H21 H22].
+unfold mem_forward in H4, H6.
+specialize (H4 b1).
+specialize (H6 b2).
+split; intros CONTRA.
+solve[destruct (H4 CONTRA); auto].
+apply H22; auto.
 Qed.
 
 Lemma pos_succ_plus_assoc: forall n m,
@@ -1220,3 +1263,35 @@ Proof. intros.
            rewrite (Pos.add_comm m);     
            rewrite Pos.add_assoc; trivial.
 Qed.
+
+Lemma forall_inject_val_list_inject: 
+  forall j args args' (H:Forall2 (val_inject j) args args' ), 
+    val_list_inject j args args'.
+Proof.
+intros j args.
+induction args; intros;  inv H; constructor; eauto.
+Qed. 
+
+Lemma val_list_inject_forall_inject: 
+  forall j args args' (H:val_list_inject j args args'), 
+    Forall2 (val_inject j) args args' .
+Proof.
+intros j args.
+induction args; intros;  inv H; constructor; eauto.
+Qed. 
+
+Lemma forall_lessdef_val_listless: 
+  forall args args' (H: Forall2 Val.lessdef args args'), 
+    Val.lessdef_list args args' .
+Proof.
+intros args.
+induction args; intros;  inv H; constructor; eauto.
+Qed. 
+
+Lemma val_listless_forall_lessdef: 
+  forall args args' (H:Val.lessdef_list args args'), 
+    Forall2 Val.lessdef args args' .
+Proof.
+intros args.
+induction args; intros;  inv H; constructor; eauto.
+Qed. 

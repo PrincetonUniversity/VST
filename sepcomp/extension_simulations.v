@@ -4,6 +4,7 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.extension.
@@ -293,13 +294,13 @@ Module CompilableExtension. Section CompilableExtension.
    core_data i -> meminj -> cS i -> mem -> cT i -> mem -> Prop.
  Implicit Arguments match_state [].
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
 
  Record Sig: Type := Make {
    core_datas: Type;
    core_ords: core_datas -> core_datas -> Prop;
    match_states: core_datas -> meminj -> xS -> mem -> xT -> mem -> Prop;
-   _ : Forward_simulation_inject (*D_S D_T*) esemS esemT ge_S ge_T 
+   _ : RGForward_simulation_inject (*D_S D_T*) esemS esemT ge_S ge_T 
           entry_points core_datas match_states core_ords
  }.
 
@@ -343,7 +344,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Variable core_ord: forall i: nat, core_data i -> core_data i -> Prop.
  Implicit Arguments match_state [].
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
  Import Extension.
 
  Definition core_datas := forall i:nat, core_data i.
@@ -368,7 +369,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        private_conserving esemT csemT E_T ->
        (forall x, active E_S x < max_cores)%nat ->  
        (forall x, active E_T x < max_cores)%nat ->  
-       (forall i:nat, Forward_simulation_inject (*(dS i) (dT i)*) (csemS i) (csemT i) 
+       (forall i:nat, RGForward_simulation_inject (*(dS i) (dT i)*) (csemS i) (csemT i) 
          (genv_mapS i) (genv_mapT i) entry_points 
          (core_data i) (@match_state i) (@core_ord i)) -> 
        CompilabilityInvariant.Sig fS fT vS vT 

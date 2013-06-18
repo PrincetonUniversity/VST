@@ -1,5 +1,6 @@
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
+Require Import sepcomp.compiler_correctness.
 Require Import sepcomp.forward_simulations_lemmas.
 
 Require Import veric.base.
@@ -1753,7 +1754,7 @@ Lemma Clightnew_Clight_sim_eq: forall p ExternIdents entrypoints
                (ext_ok : CompilerCorrectness.entryPts_ok p p ExternIdents entrypoints)
 (*               (IniHyp : forall x : mem, Genv.init_mem p = Some x <->
                                            initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_vars))*),
-              Forward_simulation_eq.Forward_simulation_equals _ (*_ _*) cl_core_sem CC_core_sem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
+              Forward_simulation_eq.Forward_simulation_equals (*_ _ _*) cl_core_sem CC_core_sem (Genv.globalenv p) (Genv.globalenv p) entrypoints.
 Proof.
   intros. 
   pose (bogus_measure := (fun x: corestate => O)).

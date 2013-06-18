@@ -1,5 +1,6 @@
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
+Require Import sepcomp.rg_semantics.
 Require Import sepcomp.rg_forward_simulations.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.extspec.
@@ -301,13 +302,13 @@ Section NullExtensionCompilable.
    _ (*_*) (const cT) (const csemT) csig :=
   null_extension csemT csig.
 
- Import Forward_simulation_inj_exposed.
+ Import RGForward_simulation_inj_exposed.
  Import ExtensionCompilability2.
 
  Variable core_data: Type.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop. 
  Variable core_ord: core_data -> core_data -> Prop.
- Variable core_simulation: Forward_simulation_inject (*dS dT*) csemS csemT 
+ Variable core_simulation: RGForward_simulation_inject (*dS dT*) csemS csemT 
    geS geT entry_points core_data match_state core_ord.
  Variable core_simulationsRG: forall i:nat, 
    StableRelyGuaranteeSimulation.Sig csemS csemT geS match_state.

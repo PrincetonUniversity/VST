@@ -1072,7 +1072,7 @@ Proof. intros.
            intros. destruct (Fwd1 (b -1)).  unfold Mem.valid_block. omega. 
                  unfold Mem.valid_block in H0. omega. 
        clear -B. specialize (B (Mem.nextblock m1)). omega. *)
-  assert (NB1:= mem_forward_nb _ _ Fwd1).
+  assert (NB1:= forward_nextblock _ _ Fwd1).
   assert (XX: n1' = Mem.nextblock m1'). (* /\ 
               (Mem.nextblock m2 + (Mem.nextblock m1' - Mem.nextblock m1) = n2')%positive ).*)
     destruct (mkInjections_0  _ _ _ _ _ _ _ _ _ _ HeqMKI)
@@ -3105,7 +3105,7 @@ destruct (mkInjections_0  _ _ _ _ _ _ _ _ _ _ HeqMKI)
    as [HH | HH]. 
 destruct HH as [? [? [? [? ?]]]]. subst.
   assert (Mem.nextblock m1' = Mem.nextblock m1).
-      apply mem_forward_nb in Fwd1. eapply Pos.le_antisym; assumption.
+      apply forward_nextblock in Fwd1. eapply Pos.le_antisym; assumption.
   rewrite H0 in *.
   assert (VB1': forall (b1 b2 : block) (delta : Z),
              j12 b1 = Some (b2, delta) -> Mem.valid_block m1' b1).

@@ -1,4 +1,5 @@
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.extspec.
@@ -206,13 +207,13 @@ Definition int2fmode (i: int): option fmode :=
   else if Int.eq i Int.one then Some WRONLY
        else if Int.eq i (Int.repr 3%Z) then Some RDWR
             else None.
-TODO: ADD TREAMTENT FOR LONG
 Definition val2oint (v: val): option int :=
   match v with
   | Vundef => None
   | Vint i => Some i
   | Vfloat _ => None
   | Vptr _ _ => None
+  | Vlong _ => None (*LENB: is this ok, Gordon?*)
   end.
 
 Definition address := (block * BinInt.Z)%type.
@@ -220,6 +221,7 @@ Definition val2oadr (v: val): option address :=
   match v with
   | Vundef => None
   | Vint i => None
+  | Vlong i => None
   | Vfloat _ => None
   | Vptr b ofs => Some (b, Int.unsigned ofs)
   end.
@@ -517,7 +519,9 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   after_external csem (Some (Vint (Int.repr (Z_of_nat nbytes_written)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs') m.
 
+(*Deprecated
 Definition os_initial_mem := initial_mem csem.
+*)
 
 Definition os_initial_core (ge: genv) (v: val) (args: list val): option xT :=
   match initial_core csem ge v args with
@@ -652,8 +656,8 @@ Definition os_after_external (ov: option val) (s: xT): option xT :=
 Definition os_halted (s: xT): option val :=
   halted csem (get_core s).
 
-Program Definition FSCoreSem := Build_CoreSemantics genv xT mem D
-  os_initial_mem
+Program Definition FSCoreSem := Build_CoreSemantics genv xT mem (*D*)
+  (*os_initial_mem*)
   os_initial_core
   os_at_external
   os_after_external

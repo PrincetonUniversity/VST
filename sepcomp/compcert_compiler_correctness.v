@@ -7,9 +7,10 @@ Require Import Memory.
 Require Import compcert.common.Values.
 Require Import Integers.
 
+Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
-Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.compiler_correctness.
 
 Require Import sepcomp.Coqlib2. 
 
@@ -216,6 +217,7 @@ Proof.
     constructor.
     constructor.
     assumption.
+    admit. admit. (*mem_wd-conditions*)
     rewrite IniCore1 in K4. inv K4.
     exists d'. exists (c2', m2); simpl. 
     split; auto. 
@@ -226,10 +228,11 @@ Proof.
    (*apply GenvInit2.*) apply iniMem2. 
   (*finalstate*)
     clear GenvInit1 GenvInit2.
-    simpl. unfold final_state. intros. destruct s1 as [c1 m1].
+    simpl. unfold final_state. intros.
+    destruct s1 as [c1 m1].
     destruct s2 as [c2 m2]. simpl in *.
     destruct (Forward_simulation_ext.core_halted R _ _ _ _ _ _ H1 H2) 
-      as [r2 [LessDefR [SH2 Ext]]].
+      as [r2 [LessDefR [SH2 [Ext RVal]]]]; simpl in *; trivial.
     inv LessDefR. simpl in *. assumption.
   (*diagram*)
     clear GenvInit1 GenvInit2.
@@ -239,7 +242,7 @@ Proof.
   (*corestep*)  
     assert (DD := @Forward_simulation_ext.core_diagram _ _ _ _ Sem1 Sem2 
        (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ H6 _ _ _ H2).
-    destruct DD as [c2' [m2' [d'  [MC' [PB myStep]]]]].
+    destruct DD as [c2' [m2' [d'  [MC' myStep]]]].
     exists d'. exists (c2', m2'); simpl. split; auto.
     destruct myStep.
     (*case corestep_plus*) left. eapply corestep_plus_plus_step; eauto.
@@ -249,6 +252,7 @@ Proof.
     destruct (@Forward_simulation_ext.core_at_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2) entrypoints R _ _ _ _ _ _ _ _ H2 H8) 
       as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
+     admit. (*validity of arguments in new in CoopCoreSem*)
     assert (EXT:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H9 Mextends 
                (forall_lessdef_val_listless _ _ lessArgs)).
     destruct EXT as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].

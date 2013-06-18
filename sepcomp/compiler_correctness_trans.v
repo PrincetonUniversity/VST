@@ -14,6 +14,7 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolants.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
+Require Import sepcomp.compiler_correctness.
 
 Require Import Wellfounded.
 Require Import Relations.
@@ -391,14 +392,14 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)*)
-  (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends
+  (SimExt12 : Forward_simulation_ext.Forward_simulation_extends
               Sem1 Sem2 (Genv.globalenv P1)
                (Genv.globalenv P2) epts12)
-  (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends
+  (SimExt23 : Forward_simulation_ext.Forward_simulation_extends
               Sem2 Sem3 (Genv.globalenv P2)
                (Genv.globalenv P3) epts23).
 
-Lemma extext: Coop_forward_simulation_ext.Forward_simulation_extends
+Lemma extext: Forward_simulation_ext.Forward_simulation_extends
    Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13. 
 Proof. 
@@ -409,7 +410,7 @@ Proof.
                         core_after_external12].  
   destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_wd23 match_vb23
     core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-  eapply Coop_forward_simulation_ext.Build_Forward_simulation_extends with
+  eapply Forward_simulation_ext.Build_Forward_simulation_extends with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
     (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\
      match_core12 d1 c1 m1 c2 m2 /\ match_core23 d2 c2 m2 c3 m3 end).
@@ -446,7 +447,7 @@ Proof.
   rewrite Ini22 in Ini2. inv Ini2.
   exists (d12,Some c2, d23). exists c1. exists c3. split; trivial. split; trivial.
   exists c2. exists m1. split; trivial. split; trivial.
- (*safely_halted*)
+ (*halted*)
   intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
   apply (core_halted12 _ _ _ _ _ _ MC12) in H0; try assumption. 
@@ -712,12 +713,12 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
   (EXT1: In (prog_main P1, CompilerCorrectness.extern_func main_sig) ExternIdents)
   (EXT2: In (prog_main P2, CompilerCorrectness.extern_func main_sig) ExternIdents)
   (i1: I F1 C1 V1 Sem1 P1)
-  (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject 
+  (SimInj12 : Forward_simulation_inj.Forward_simulation_inject 
               Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
-  (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject 
+  (SimInj23 : Forward_simulation_inj.Forward_simulation_inject 
               Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
-Lemma injinj: Coop_forward_simulation_inj.Forward_simulation_inject 
+Lemma injinj: Forward_simulation_inj.Forward_simulation_inject 
    Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13.
 Proof.
@@ -729,7 +730,7 @@ Proof.
     as [core_data23 match_core23 core_ord23 core_ord_wf23  match_memwd23 
       match_validblock23 core_diagram23 
       core_initial23 core_halted23 core_at_external23 core_after_external23].
-  eapply Coop_forward_simulation_inj.Build_Forward_simulation_inject with
+  eapply Forward_simulation_inj.Build_Forward_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
     (match_state := fun d j c1 m1 c3 m3 => 
       match d with (d1,X,d2) => 
@@ -777,7 +778,7 @@ Proof.
   split; trivial. 
   exists c2. exists m1. exists  (Mem.flat_inj (Mem.nextblock m1)). exists j. 
   split; trivial. split; trivial. split; assumption.
- (*safely_halted*)
+ (*halted*)
   intros. rename c2 into c3. rename m2 into m3.  
   destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [j12 [j23 [X [Y [MC12 MC23]]]]]]]; subst. 
   apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
@@ -1004,14 +1005,14 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
     initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
     exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-  (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem
+  (SimEq12 : Forward_simulation_eq.Forward_simulation_equals 
              Sem1 Sem2 (Genv.globalenv P1)
     (Genv.globalenv P2) epts12) 
-  (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem
+  (SimEq23 : Forward_simulation_eq.Forward_simulation_equals 
              Sem2 Sem3 (Genv.globalenv P2)
     (Genv.globalenv P3) epts23).
 
-Lemma eqeq: Forward_simulation_eq.Forward_simulation_equals mem 
+Lemma eqeq: Forward_simulation_eq.Forward_simulation_equals 
        Sem1 Sem3 (Genv.globalenv P1)
   (Genv.globalenv P3) entrypoints13.
 Proof.
@@ -1040,7 +1041,7 @@ Proof.
   rewrite Ini22 in Ini2. inv Ini2.
   exists (d12,Some c2,d23). exists c1. exists c3. split; trivial. split; trivial. 
     exists c2. split; trivial. split; trivial.
-           (*safely_halted*)
+           (*halted*)
   intros. rename c2 into c3. destruct cd as [[d12 cc2] d23]. 
     destruct H as [c2 [X [MC12 MC23]]]. subst.
   apply (core_halted12 _ _ _ _ MC12) in H0.
@@ -1214,19 +1215,19 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
+       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
+       (SimExt23 : Forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
                             (Genv.globalenv P3) epts23).
 
-Lemma eqext: Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqext: Forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
                                            (Genv.globalenv P3) entrypoints13.
 Proof.
   destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 
     core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
   destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_memwd23 match_validblocks23
     core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-  eapply Coop_forward_simulation_ext.Build_Forward_simulation_extends with
+  eapply Forward_simulation_ext.Build_Forward_simulation_extends with
     (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => 
        exists c2, X = Some c2 /\ match_core12 d1 c1 c2 /\ match_core23 d2 c2 m1 c3 m3 end)
     (core_data:= prod (prod core_data12 (option C2)) core_data23)
@@ -1253,7 +1254,7 @@ Proof.
   rewrite Ini22 in Ini2. inv Ini2.
   exists (d12,Some c2,d23). exists c1. exists c3. 
   split; trivial. split; trivial. exists c2. split; trivial. split; trivial.
-           (*safely_halted*)
+           (*halted*)
   intros. rename st2 into c3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
   apply (core_halted12 _ _ _ _ MC12) in H0.
   apply (core_halted23 _ _ _ _ _ _ MC23) in H0. assumption. assumption.
@@ -1434,7 +1435,7 @@ Qed.
 
 Context {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
        (I :forall F C V : Type, CoreSemantics (Genv.t F V) C mem -> AST.program F V -> Prop)
-       (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem )
+       (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
        (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
        (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
        ExternIdents epts12  epts23 entrypoints13
@@ -1452,18 +1453,18 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
             initial_mem Sem1 (Genv.globalenv P1) m1 (prog_defs P1) ->
             exists m2 : mem, initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
 *)
-       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
+       (SimEq12 : Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 (Genv.globalenv P1)
                                           (Genv.globalenv P2) epts12) 
-       (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2)
+       (SimInj23 : Forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2)
              (Genv.globalenv P3) epts23).
 
-Lemma eqinj: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
+Lemma eqinj: Forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof.
           destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
          destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_memwd23
               match_validblock23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-          eapply Coop_forward_simulation_inj.Build_Forward_simulation_inject with
+          eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\ match_core12 d1 c1 c2 /\ match_core23 d2 j c2 m1 c3 m3 end).
             (*well_founded*)
@@ -1486,7 +1487,7 @@ Proof.
                   destruct (core_initial12 _ _ _ EP12 _ HT) as [d12 [c11 [c2 [Ini1 [Ini2 MC12]]]]]. rewrite Ini1 in H0. inv H0.
                   destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2 H3 H4 H5) as [d23 [c3 [Ini3 MC23]]].
                   exists (d12,Some c2,d23). exists c3. split; trivial. exists c2. auto.
-             (*safely_halted*)
+             (*halted*)
                     intros. rename c2 into c3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
                     apply (core_halted12 _ _ _ _ MC12) in H0; try assumption.
                     apply (core_halted23 _ _ _ _ _ _ _ MC23) in H0; try assumption.
@@ -1514,9 +1515,9 @@ Qed.
 End EQINJ.
 
 Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
+     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -1529,7 +1530,7 @@ Lemma cc_trans_CaseEq: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
           exists m2 : mem,
             initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\ m1 = m2)
  *)
-    (SimEq12 : Forward_simulation_eq.Forward_simulation_equals mem Sem1 Sem2 (Genv.globalenv P1)
+    (SimEq12 : Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 (Genv.globalenv P1)
                                (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -1767,19 +1768,19 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3:Type}
              Genv.init_mem P1 = Some m1 ->
              exists m2 : mem,
                Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
-(SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
+(SimExt12 : Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
              (Genv.globalenv P2) epts12)
-(SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem Sem2 Sem3 (Genv.globalenv P2)
+(SimEq23 : Forward_simulation_eq.Forward_simulation_equals Sem2 Sem3 (Genv.globalenv P2)
             (Genv.globalenv P3) epts23).
 
-Lemma exteq: Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
+Lemma exteq: Forward_simulation_ext.Forward_simulation_extends Sem1 Sem3 (Genv.globalenv P1)
                                        (Genv.globalenv P3) entrypoints13. 
 Proof.
       destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_validblocks12
                  core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
       destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23
                            core_initial23 core_halted23 core_at_external23 core_after_external23].
-  eapply Coop_forward_simulation_ext.Build_Forward_simulation_extends with 
+  eapply Forward_simulation_ext.Build_Forward_simulation_extends with 
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\ match_core12 d1 c1 m1 c2 m3 /\ match_core23 d2 c2 c3 end).
             (*well_founded*)
@@ -1803,7 +1804,7 @@ Proof.
                   rewrite Ini22 in Ini2. inv Ini2.
                   exists (d12,Some c2, d23). exists c1. exists c3. 
                   split; trivial. split; trivial. exists c2. split; trivial. split; trivial.
-             (*safely_halted*)
+             (*halted*)
                     intros. rename st2 into c3.  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst. 
                     apply (core_halted12 _ _ _ _ _ _ MC12) in H0. destruct H0 as [v2 [LD [SH2 Ext]]].
                     apply (core_halted23 _ _ _ _ MC23) in SH2. exists v2. split; trivial. split; trivial. assumption.
@@ -2040,17 +2041,17 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
              exists m2 : mem,
                initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                Mem.extends m1 m2)*)
-     (SimExt12 : Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
-     (SimInj23 : Coop_forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
+     (SimExt12 : Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1) (Genv.globalenv P2) epts12)
+     (SimInj23 : Forward_simulation_inj.Forward_simulation_inject Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
-Lemma extinj: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
+Lemma extinj: Forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof.
          destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_validblocks12
                       core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
          destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_memwd23 match_validblocks23
                       core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-          eapply Coop_forward_simulation_inj.Build_Forward_simulation_inject with
+          eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\ 
                                                   match_core12 d1 c1 m1 c2 m2 /\ match_core23 d2 j c2 m2 c3 m3 end).
@@ -2082,7 +2083,7 @@ Proof.
                   destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2 H3 H4 H5) as [d23 [c3 [Ini3 MC23]]].
                   exists (d12,Some c2, d23). exists c3. 
                   split; trivial. exists c2. exists m1. split; trivial. split; trivial.
-             (*safely_halted*)
+             (*halted*)
                     intros. rename c2 into c3. rename m2 into m3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_halted12 _ _ _ _ _ _ MC12) in H0; try assumption. 
@@ -2157,9 +2158,9 @@ Qed.
 End EXTINJ.
 
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
+     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (ePts12_ok : CompilerCorrectness.entryPts_ok P1 P2 ExternIdents epts12)
@@ -2174,7 +2175,7 @@ Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                exists m2 : mem,
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.extends m1 m2)*)
-     (SimExt12 :  Coop_forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
+     (SimExt12 :  Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 (Genv.globalenv P1)
                               (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -2435,17 +2436,17 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                  Mem.inject j12 m1 m2)
 *)
       (PG1 : meminj_preserves_globals (Genv.globalenv P1) j12)
-      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
+      (SimInj12 : Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                           (Genv.globalenv P2) epts12)
-      (SimEq23 : Forward_simulation_eq.Forward_simulation_equals mem Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
+      (SimEq23 : Forward_simulation_eq.Forward_simulation_equals Sem2 Sem3 (Genv.globalenv P2) (Genv.globalenv P3) epts23).
 
-Lemma injeq: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
+Lemma injeq: Forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                         (Genv.globalenv P3) entrypoints13.
 Proof. 
   destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_vb12
             core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
    destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-    eapply Coop_forward_simulation_inj.Build_Forward_simulation_inject with
+    eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\
                                                   match_core12 d1 j c1 m1 c2 m3 /\ match_core23 d2 c2 c3 end).
@@ -2470,7 +2471,7 @@ Proof.
                   rewrite Ini22 in Ini2. inv Ini2.
                   exists (d12,Some c2,d23). exists c3. split; trivial.
                   exists c2. split; trivial. split; trivial.
-             (*safely_halted*)
+             (*halted*)
                     intros. rename c2 into c3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
                     apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
@@ -2698,19 +2699,19 @@ Context {F1 C1 V1 F2 C2 V2 F3 C3 V3}
                  initial_mem Sem2 (Genv.globalenv P2) m2 (prog_defs P2) /\
                  Mem.inject j12 m1 m2)*)
       (PG1 : meminj_preserves_globals (Genv.globalenv P1) j12)
-      (SimInj12 : Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
+      (SimInj12 : Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                           (Genv.globalenv P2) epts12)
-      (SimExt23 : Coop_forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
+      (SimExt23 : Forward_simulation_ext.Forward_simulation_extends Sem2 Sem3 (Genv.globalenv P2)
                            (Genv.globalenv P3) epts23).
 
-Lemma injext: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
+Lemma injext: Forward_simulation_inj.Forward_simulation_inject Sem1 Sem3 (Genv.globalenv P1)
                                (Genv.globalenv P3) entrypoints13.
 Proof.
     destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_memwd12 match_vb12
             core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
     destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_memwd23 match_vb23
             core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
-    eapply Coop_forward_simulation_inj.Build_Forward_simulation_inject with
+    eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X = Some c2 /\
                                               match_core12 d1 j c1 m1 c2 m2 /\ match_core23 d2 c2 m2 c3 m3 end).
@@ -2739,7 +2740,7 @@ Proof.
                   rewrite Ini22 in Ini2. inv Ini2.
                   exists (d12,Some c2,d23). exists c3. split; trivial.
                   exists c2. exists m3. split; trivial. split; assumption.
-           (*safely_halted*)
+           (*halted*)
                     intros. rename c2 into c3. rename m2 into m3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
@@ -2798,9 +2799,9 @@ Qed.
 End INJEXT.
 
 Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
-     (Sem1 : RelyGuaranteeSemantics (Genv.t F1 V1) C1)
-     (Sem2 : RelyGuaranteeSemantics (Genv.t F2 V2) C2)
-     (Sem3 : RelyGuaranteeSemantics (Genv.t F3 V3) C3)
+     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
+     (Sem3 : CoopCoreSem (Genv.t F3 V3) C3)
      ExternIdents epts12 epts23 I 
      (P1 : AST.program F1 V1) (P2 : AST.program F2 V2) (P3 : AST.program F3 V3)
      (e12 : prog_main P1 = prog_main P2)
@@ -2819,7 +2820,7 @@ Lemma cc_trans_CaseInject: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3}
              Mem.inject j12 m1 m2)
 *)
      (PG1: meminj_preserves_globals (Genv.globalenv P1) j12)
-     (SimInj12: Coop_forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
+     (SimInj12: Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 (Genv.globalenv P1)
                                  (Genv.globalenv P2) epts12)
      (SIM23 : CompilerCorrectness.cc_sim I ExternIdents epts23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
      (i1: I F1 C1 V1 Sem1 P1),
@@ -2906,12 +2907,12 @@ Qed.
 
 Theorem cc_trans:
      forall ExternIdents entrypoints12 I F1 C1 V1 F2 C2 V2
-        (Sem1: RelyGuaranteeSemantics (Genv.t F1 V1) C1)
-        (Sem2: RelyGuaranteeSemantics (Genv.t F2 V2) C2)
+        (Sem1: CoopCoreSem (Genv.t F1 V1) C1)
+        (Sem2: CoopCoreSem (Genv.t F2 V2) C2)
         P1 P2 
         (SIM12: CompilerCorrectness.cc_sim I ExternIdents entrypoints12 F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2)
         F3 V3 C3
-        (Sem3: RelyGuaranteeSemantics (Genv.t F3 V3) C3)
+        (Sem3: CoopCoreSem (Genv.t F3 V3) C3)
         entrypoints23 P3 
         (SIM23:CompilerCorrectness.cc_sim I ExternIdents entrypoints23 F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3)
         entrypoints13 (EPC:entrypoints_compose entrypoints12 entrypoints23 entrypoints13),

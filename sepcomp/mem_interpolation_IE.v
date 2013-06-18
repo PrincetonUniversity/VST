@@ -525,7 +525,7 @@ assert (VB': forall (b1 b3 : block) (delta : Z),
        eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ H Inj13').
        eapply (Mem.valid_block_inject_2 _ _ _ _ _ _ H Inj13').
 assert (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive).
-  apply mem_forward_nb in Fwd3. inv Ext23. 
+  apply forward_nextblock in Fwd3. inv Ext23. 
   rewrite mext_next. apply Fwd3. 
 destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
 destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
@@ -596,7 +596,7 @@ Proof. intros.
        eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ H Inj13').
        eapply (Mem.valid_block_inject_2 _ _ _ _ _ _ H Inj13').
   assert (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive).
-    apply mem_forward_nb in Fwd3. inv Ext23. 
+    apply forward_nextblock in Fwd3. inv Ext23. 
     rewrite mext_next. apply Fwd3. 
 assert (VBB: Mem.nextblock (mkIE j j' m1 m1' m2 m3' VB' VB)
                  = Mem.nextblock m3').
