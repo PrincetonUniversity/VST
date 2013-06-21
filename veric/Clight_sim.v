@@ -817,6 +817,7 @@ Focus 1. (* case x of y *)
 (*s<>skip*)
  rewrite strip_skip'_not in H5 by auto.
  inv H5. clear n.
+ 
  admit. (*probably similar to the previous case -- means similar so s=skip*)
 
  Focus 1.  (* step_ifthenelse *)
@@ -988,7 +989,25 @@ Definition CC_at_external (c: CC_core) : option (external_function * signature *
     end
   | CC_core_Returnstate _ _ => None
  end.
-Parameter mkAfterExtCore: external_function -> typelist -> type -> val -> list val -> CC.cont -> option CC_core.
+
+
+Definition CC_after_external (rv: option val) (c: CC_core) : option CC_core :=
+  match c with
+     CC_core_Callstate fd vargs (CC.Kcall optid f e lenv k) =>
+        match fd with
+          Internal _ => None
+        | External ef tps tp =>
+            match rv, optid with
+              Some v, _ => Some(CC_core_State f Sskip k e (set_opttemp optid v lenv))
+            |   None, None    => Some(CC_core_State f Sskip k e lenv)
+            | _ , _ => None
+            end
+        end
+   | _ => None
+  end.
+
+(*Earlier definition:
+  Parameter mkAfterExtCore: external_function -> typelist -> type -> val -> list val -> CC.cont -> option CC_core.
 (*something like the following (cf Clight_sem.v) seems reasonable  - but need ge and memories...
 Definition mkAfterExtCore ge (ef:external_function) (targs: typelist) (tres: type)
                                 (vres: val) (vargs: list val) (k: CC.cont) (c: CC_core ) :Prop :=
@@ -1008,6 +1027,8 @@ Definition CC_after_external (rv: option val) (c: CC_core) : option CC_core :=
 (*MAY NEED ANOTHER CASE HERE FOR Tvoid*)
   | _, _ => None
   end.
+*)
+
 
 Parameter main_function:function. (*IS THIS WHAT THE FIRST ARGUMENT OF CC_core_state is about, ie current function?*)
 Parameter myStatement:statement.
@@ -1043,13 +1064,23 @@ Lemma CC_corestep_not_halted :
        forall q, CC_at_external q = None \/ CC_safely_halted q = None.
    Proof. intros. right; trivial. Qed.
 
+ Lemma CC_after_at_external_excl : forall retv(q q' : CC_core),
+  CC_after_external retv q = Some q' -> CC_at_external q' = None.
+  Proof. intros.
+    destruct q; simpl in *; try inv H.
+    destruct c; inv H1.
+    destruct f; inv H0; simpl in *.
+    destruct retv; inv H1; simpl. trivial.
+    destruct o; inv H0; trivial.
+  Qed.
+
 Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem.
  apply (Build_CoreSemantics _ _ _ (*_*) (*cl_init_mem*)
                 CC_initial_core CC_at_external CC_after_external CC_safely_halted CC_step).
        apply CC_corestep_not_at_external.
        apply CC_corestep_not_halted.
        apply CC_at_external_halted_excl.
-       admit.
+       apply CC_after_at_external_excl.
   Defined.
 
 Lemma CC_step_to_CCstep: forall ge q m q' m',
@@ -1763,10 +1794,12 @@ Proof.
       intros. unfold cl_core_sem, CC_core_sem; simpl. 
       unfold cl_initial_core, CC_initial_core; simpl.
      eexists. eexists. split. reflexivity. split. reflexivity.
-       assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok. admit. (*again some Genv/entrypojnts/ext_ok stuff*)
+       assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok.
+          admit. (*again some Genv/entrypojnts/ext_ok stuff*)
        subst.
-       econstructor. simpl. (*Definition of CC_initial_core seems to be wrong here*) admit.
-       simpl. assert (myStatement = Sskip). admit. 
+       econstructor. simpl.
+          admit. (*Definition of CC_initial_core seems to be wrong here*)
+         simpl. assert (myStatement = Sskip). admit. 
           rewrite H1. econstructor. simpl. constructor. simpl. constructor.
  (* final states *)  
       intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_halted  in H0. inv H0.
@@ -1777,19 +1810,25 @@ Proof.
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
   (*after_external*) 
          intros. inv H1; simpl in *. 
-          admit. (*reason about external functions*)
-         intros. destruct H; subst.
+          admit. (*HOLE REGARDING ARGUMENT TYPES???*)
+          intros. destruct H; subst.
           inv H4. simpl in *. inv H1. simpl in *. inv H0. 
           admit. (*destruct tyres;auto.
           inv H1.
           unfold CC_at_external. destruct tyres;auto. simpl.
           admit.*) (*HOLE REGARDING ARGUMENT TYPES???*)
   (*simulation_diag*)
-(*     intros. destruct H0. Focus 2.  destruct H.  inv H. 
+     intros. destruct H0.
+     (*1/2*) 
+       apply (Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ H
+                     (CC_core_State f s k' ve te)).
+          constructor; assumption.
+        (* inv H.  destruct H.  inv H. 
       assert (X:= Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ CS _ H).
       destruct X as [c2' [CSP MS']].
-      exists c2'. exists (O, c). simpl. split. left. trivial. apply CSP.
-*)  admit.
+      exists c2'. exists (O, c). simpl. split. left. 
+            trivial. apply CSP.*)
+   (*2/2*) inv H.
   Qed.
 
 Require Import sepcomp.forward_simulations.
@@ -1799,7 +1838,7 @@ Theorem Clightnew_Clight_sim: forall p ExternIdents entrypoints
         (*(IniHyp: forall x, Genv.init_mem p = Some x <-> initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_defs))*),
         CompilerCorrectness.core_correctness
              (fun F C V Sem P => True)
-              ExternIdents _ _ _ _ _ _  cl_core_sem CC_core_sem p p.
+              ExternIdents entrypoints _ _ _ _ _ _ cl_core_sem CC_core_sem p p.
 Proof.
 intros.
 econstructor.

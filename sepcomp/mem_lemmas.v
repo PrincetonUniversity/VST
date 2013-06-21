@@ -357,11 +357,14 @@ Qed.
 Lemma forall_lessdef_refl: forall vals,  Forall2 Val.lessdef vals vals.
 Proof. induction vals; econstructor; trivial. Qed.
 
-Lemma lessdef_hastype: forall v v' (V:Val.lessdef v v') T, Val.has_type v' T -> Val.has_type v T.
+Lemma lessdef_hastype: forall v v' (V:Val.lessdef v v') T, 
+              Val.has_type v' T -> Val.has_type v T.
 Proof. intros. inv V; simpl; trivial. Qed.
 
-Lemma forall_lessdef_hastype: forall vals vals' (V:Forall2 Val.lessdef vals vals') Ts 
-          (HTs: Forall2 Val.has_type vals' Ts), Forall2 Val.has_type vals Ts.
+Lemma forall_lessdef_hastype: forall vals vals' 
+          (V:Forall2 Val.lessdef vals vals') Ts 
+          (HTs: Forall2 Val.has_type vals' Ts),
+          Forall2 Val.has_type vals Ts.
 Proof.
   intros vals vals' V.
   induction V; simpl in *; intros.
@@ -369,17 +372,27 @@ Proof.
   inv HTs. constructor. eapply  lessdef_hastype; eassumption. apply (IHV _ H4).
 Qed.
 
-Lemma valinject_hastype:  forall j v v' (V: (val_inject j) v v') T, Val.has_type v' T -> Val.has_type v T.
+Lemma valinject_hastype:  forall j v v' 
+       (V: (val_inject j) v v') T, 
+       Val.has_type v' T -> Val.has_type v T.
 Proof. intros. inv V; simpl; trivial. Qed.
 
-Lemma forall_valinject_hastype:  forall j vals vals' (V:  Forall2 (val_inject j) vals vals') 
-                Ts (HTs: Forall2 Val.has_type vals' Ts), Forall2 Val.has_type vals Ts.
+Lemma forall_valinject_hastype:  forall j vals vals'
+            (V:  Forall2 (val_inject j) vals vals') 
+            Ts (HTs: Forall2 Val.has_type vals' Ts), 
+            Forall2 Val.has_type vals Ts.
 Proof.
   intros j vals vals' V.
   induction V; simpl in *; intros.
        trivial.
   inv HTs. constructor. eapply  valinject_hastype; eassumption. apply (IHV _ H4).
 Qed.
+
+Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
+  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
+  | None, None => True
+  | _, _ => False
+  end.
 
 Lemma val_inject_split: forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 j23) v1 v3),
              exists v2, val_inject j12 v1 v2 /\ val_inject j23 v2 v3. 
@@ -620,7 +633,26 @@ Proof. intros.
   inv H. constructor. constructor. constructor.
      simpl in *. eapply Mem.valid_block_inject_1; eassumption. 
      constructor. 
-Qed. 
+Qed.
+
+(*Preservation of val_valid along an injection only holds 
+  if the LHS value is defined*) 
+Lemma inject_valvalid_1:
+  forall (j : meminj) (m1 m2 : mem),
+  Mem.inject j m1 m2 ->
+  forall v1 : val,
+  val_valid v1 m1 -> forall v2 : val, val_inject j v1 v2 -> 
+  match v1 with Vundef => True
+      | _ => val_valid v2 m2
+  end.
+Proof. intros.
+  destruct v1; trivial.
+  inv H1; trivial.
+  inv H1; trivial.
+  inv H1; trivial.
+  inv H1. simpl in *.
+  eapply Mem.valid_block_inject_2; eassumption.
+Qed.
 
 (*memories that do not contain "dangling pointers"*)
 Definition mem_wd m := Mem.inject_neutral (Mem.nextblock m) m.
@@ -1295,3 +1327,23 @@ Proof.
 intros args.
 induction args; intros;  inv H; constructor; eauto.
 Qed. 
+
+Lemma storev_valid_block_1:
+forall ch m addr v m', 
+Mem.storev ch m addr v = Some m' -> 
+(forall b, Mem.valid_block m b -> Mem.valid_block m' b).
+Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_1; eauto. Qed.
+
+Lemma storev_valid_block_2:
+forall ch m addr v m', 
+Mem.storev ch m addr v = Some m' -> 
+(forall b, Mem.valid_block m' b -> Mem.valid_block m b).
+Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
+
+Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
+Proof. intros.
+unfold Mem.valid_block.
+remember (plt b (Mem.nextblock m)).
+destruct s. left; assumption.
+right. intros N. xomega.
+Qed.

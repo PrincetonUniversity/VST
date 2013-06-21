@@ -12,33 +12,6 @@ Require Import Axioms.
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 
-Lemma external_call_mem_forward:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-    external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
-Proof.
-intros.
-intros b Hb.
-split; intros. eapply external_call_valid_block; eauto.
-eapply external_call_max_perm; eauto.
-Qed.
-
-
-Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
-  match v1, v2 with Some v1', Some v2' => val_inject j v1' v2'
-  | None, None => True
-  | _, _ => False
-  end.
-
-Definition val_has_type_opt' (v: option val) (ty: typ) :=
- match v with
- | None => True
- | Some v' => Val.has_type v' ty
- end.
-
-Definition val_has_type_opt (v: option val) (sig: signature) :=
-  val_has_type_opt' v (proj_sig_res sig).
-
 (** * Here we present a module type which expresses the sort of
    forward simulation lemmas we have available.  The idea is that
    these lemmas would be used in the individual compiler passes and
@@ -428,21 +401,38 @@ Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [G2] [C2]].
 End Forward_simulation_inj.
 
 Module Forward_simulation.
-Section Fwd_sim.
+Section Core_sim.
 Context {F1 V1 C1 F2 V2 C2:Type}
-        {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
-        {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}.
+        (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
+        (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem).
 
-Inductive sim G1 G2 entrypoints:Type :=
-  sim_eq: forall (R:@Forward_simulation_eq.Forward_simulation_equals 
+Inductive core_sim G1 G2 entrypoints:Type :=
+  core_sim_eq: forall (R:@Forward_simulation_eq.Forward_simulation_equals 
                     mem _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          sim G1 G2 entrypoints
-| sim_ext: forall (R:@Forward_simulation_ext.Forward_simulation_extends
+          core_sim G1 G2 entrypoints
+| core_sim_ext: forall (R:@Forward_simulation_ext.Forward_simulation_extends
                     _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          sim G1 G2 entrypoints
-| sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
+          core_sim G1 G2 entrypoints
+| core_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
                     _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          sim G1 G2 entrypoints.
-End Fwd_sim.
+          core_sim G1 G2 entrypoints.
+End Core_sim.
+
+Section Coop_sim.
+Context {F1 V1 C1 F2 V2 C2:Type}
+        (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
+        (Sem2 : CoopCoreSem (Genv.t F2 V2) C2).
+
+Inductive coop_sim G1 G2 entrypoints:Type :=
+  coop_sim_eq: forall (R:@Forward_simulation_eq.Forward_simulation_equals 
+                    mem _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+          coop_sim G1 G2 entrypoints
+| coop_sim_ext: forall (R:@Forward_simulation_ext.Forward_simulation_extends
+                    _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+          coop_sim G1 G2 entrypoints
+| coop_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
+                    _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+          coop_sim G1 G2 entrypoints.
+End Coop_sim.
 
 End Forward_simulation.

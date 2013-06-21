@@ -5,11 +5,37 @@ Require Import Coqlib.
 Require Import compcert.common.Values.
 Require Import Maps.
 Require Import Integers.
-Require Import AST.
+Require Import AST. 
 Require Import Globalenvs.
 Require Import Axioms.
 
 Require Import sepcomp.mem_lemmas.
+
+Lemma external_call_mem_forward:
+  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
+    external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
+Proof.
+intros.
+intros b Hb.
+split; intros. eapply external_call_valid_block; eauto.
+eapply external_call_max_perm; eauto.
+Qed.
+
+Definition external_call_mem_wd:=
+     forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+      (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
+      external_call ef ge vargs m1 t vres m2 -> 
+      mem_wd m1 -> mem_wd m2.
+
+Definition val_has_type_opt' (v: option val) (ty: typ) :=
+ match v with
+ | None => True
+ | Some v' => Val.has_type v' ty
+ end.
+
+Definition val_has_type_opt (v: option val) (sig: signature) :=
+  val_has_type_opt' v (proj_sig_res sig).
 
 (** A "core semantics represents" a fairly traditional, sequential,
    small step semantics of computation.  They are designed to
@@ -205,12 +231,6 @@ Record CoopCoreSem {G C} :=
     initmem_wd: forall g m d, initial_mem coopsem g m d -> mem_wd m*) 
 }.
 
-Definition external_call_mem_wd:=
-     forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-      (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-      external_call ef ge vargs m1 t vres m2 -> 
-      mem_wd m1 -> mem_wd m2.
-
 Implicit Arguments CoopCoreSem [].
 
 Section CoopCoreSemLemmas.
@@ -230,17 +250,50 @@ apply corestep_fwd in H; auto.
 eapply IHn; eauto.
 Qed.
 
-Lemma corestepN_memwd: forall ge c m c' m' n,
-  corestepN coopsem ge n c m c' m' -> 
-  mem_wd m -> 
-  mem_wd m'.
+Lemma corestep_star_fwd: forall g c m c' m'
+  (CS:corestep_star coopsem g c m c' m'), 
+  mem_forward m m'.
+Proof. 
+  intros. destruct CS. 
+  eapply corestepN_fwd. 
+  apply H.
+Qed.
+
+Lemma corestep_plus_fwd: forall g c m c' m'
+  (CS:corestep_plus coopsem g c m c' m'), 
+  mem_forward m m'.
 Proof.
-intros until n; revert c m.
-induction n; simpl; auto.
-inversion 1; auto.
-intros c m [c2 [m2 [? ?]]] H1.
-apply corestep_wdmem in H; auto.
-eapply IHn; eauto.
+   intros. destruct CS.
+   eapply corestepN_fwd.
+   apply H.
+Qed.
+
+Lemma corestepN_memwd: forall g c m c' m' n
+  (CS: corestepN coopsem g n c m c' m'),
+  mem_wd m -> mem_wd m'.
+Proof.
+  intros until n; revert c m.
+  induction n; simpl; auto.
+    inversion 1; auto.
+  intros c m [c2 [m2 [? ?]]] H1.
+  apply corestep_wdmem in H; auto.
+  eapply IHn; eauto.
+Qed.
+
+Lemma corestep_star_memwd: forall g c m c' m'
+  (CS: corestep_star coopsem g c m c' m'), 
+  mem_wd m -> mem_wd m'.
+Proof.
+   intros. destruct CS.
+   eapply corestepN_memwd; eauto.
+Qed.
+
+Lemma corestep_plus_memwd: forall g c m c' m'
+  (CS: corestep_plus coopsem g c m c' m'),
+  mem_wd m -> mem_wd m'.
+Proof.
+   intros. destruct CS.
+   eapply corestepN_memwd; eauto.
 Qed.
 
 End CoopCoreSemLemmas.

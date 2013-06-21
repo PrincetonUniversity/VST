@@ -78,10 +78,12 @@ Definition GenvHyp {F1 V1 F2 V2}
     block_is_volatile (Genv.globalenv P2) b =
     block_is_volatile (Genv.globalenv P1) b).
 
-Inductive core_correctness (I: forall F C V  
-  (Sem : CoreSemantics (Genv.t F V) C mem) 
-  (P : AST.program F V),Prop)
-  (ExternIdents: list (ident * external_description)):
+Inductive core_correctness
+  (I: forall F C V  
+      (Sem : CoreSemantics (Genv.t F V) C mem) 
+      (P : AST.program F V),Prop)
+  (ExternIdents: list (ident * external_description))
+  entrypoints :
   forall (F1 C1 V1 F2 C2 V2:Type)
     (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
     (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
@@ -97,7 +99,6 @@ Inductive core_correctness (I: forall F C V
       (*(Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
         (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
           /\ m1 = m2))*)
-      entrypoints
       (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
       (R:Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 
         (Genv.globalenv P1) (Genv.globalenv P2) entrypoints), 
@@ -105,7 +106,7 @@ Inductive core_correctness (I: forall F C V
       (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
       GenvHyp P1 P2 ->
       I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
-      core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+      core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 | corec_ext: forall (F1 C1 V1 F2 C2 V2:Type)
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
   (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
@@ -116,7 +117,6 @@ Inductive core_correctness (I: forall F C V
   (*(Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
       /\ Mem.extends m1 m2))*)
-  entrypoints
   (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
   (R:Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
     (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
@@ -124,14 +124,14 @@ Inductive core_correctness (I: forall F C V
   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
   GenvHyp P1 P2 ->
   I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_inj : forall (F1 C1 V1 F2 C2 V2:Type)
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
   (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
-  entrypoints jInit
+  jInit
   (Inj_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
       exists m2, Genv.init_mem P2 = Some m2 /\ Mem.inject jInit m1 m2)
   (*(Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
@@ -146,7 +146,7 @@ Inductive core_correctness (I: forall F C V
   GenvHyp P1 P2 ->
   externvars_ok P1 ExternIdents ->
   I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
 
 | corec_trans: forall  (F1 C1 V1 F2 C2 V2 F3 C3 V3:Type)
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
@@ -155,16 +155,16 @@ Inductive core_correctness (I: forall F C V
   (P1 : AST.program F1 V1)
   (P2 : AST.program F2 V2)
   (P3 : AST.program F3 V3),
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
-  core_correctness I ExternIdents F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3 ->
-  core_correctness I ExternIdents F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+  core_correctness I ExternIdents entrypoints F2 C2 V2 F3 C3 V3 Sem2 Sem3 P2 P3 ->
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F3 C3 V3 Sem1 Sem3 P1 P3.
 
 Lemma corec_I: forall {F1 C1 V1 F2 C2 V2}
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
   (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
-  (P2 : AST.program F2 V2)  ExternIdents I,
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+  (P2 : AST.program F2 V2)  ExternIdents I entrypoints,
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
   I _ _ _ Sem1 P1 /\ I _ _ _ Sem2 P2.
 Proof. intros. induction X; intuition. Qed.
 
@@ -172,8 +172,8 @@ Lemma corec_main: forall {F1 C1 V1 F2 C2 V2}
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
   (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
-  (P2 : AST.program F2 V2)  ExternIdents I,
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+  (P2 : AST.program F2 V2)  ExternIdents I entrypoints,
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
   prog_main P1 = prog_main P2.
 Proof. intros. induction X; intuition. congruence. Qed.
 
@@ -182,8 +182,8 @@ Lemma corec_Genv:forall {F1 C1 V1 F2 C2 V2}
   (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
   (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
   (P1 : AST.program F1 V1)
-  (P2 : AST.program F2 V2)  ExternIdents I,
-  core_correctness I ExternIdents F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
+  (P2 : AST.program F2 V2)  ExternIdents I entrypoints,
+  core_correctness I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2 ->
   GenvHyp P1 P2.
 Proof. 
   intros. induction X; intuition. 
@@ -192,10 +192,150 @@ Proof.
   split; intros; eauto. rewrite H1. apply H. 
 Qed.
 
+Inductive core_correctnessT 
+  (I: forall F C V  
+      (Sem : CoreSemantics (Genv.t F V) C mem) 
+      (P : AST.program F V),Prop)
+  (ExternIdents: list (ident * external_description))
+  entrypoints :
+  forall (F1 C1 V F2 C2:Type)
+    (Sem1 : CoreSemantics (Genv.t F1 V) C1 mem)
+    (Sem2 : CoreSemantics (Genv.t F2 V) C2 mem)
+    (P1 : AST.program F1 V)
+    (P2 : AST.program F2 V), Type :=
+  corecT_eq : forall  (F1 C1 V F2 C2:Type)
+      (Sem1 : CoreSemantics (Genv.t F1 V) C1 mem)
+      (Sem2 : CoreSemantics (Genv.t F2 V) C2 mem)
+      (P1 : AST.program F1 V)
+      (P2 : AST.program F2 V)
+      transf (HP: P2 = transform_program transf P1)
+      (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+      (R:Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 
+        (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+      I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
+      core_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2
+| corecT_ext: forall (F1 C1 V F2 C2:Type)
+  (Sem1 : CoreSemantics (Genv.t F1 V) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V) C2 mem)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1)
+  (*(Extends_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
+    exists m2, Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)*)
+  (*(Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
+    (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) 
+      /\ Mem.extends m1 m2))*)
+  (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+  (R:Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
+    (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+  I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+  core_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2
+
+| corecT_inj : forall (F1 C1 V F2 C2:Type)
+  (Sem1 : CoreSemantics (Genv.t F1 V) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V) C2 mem)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1) m
+  (InitMem: Genv.init_mem P1 = Some m) 
+  (ePts_ok: entryPts_inject_ok P1 P2 (Mem.flat_inj (Mem.nextblock m)) ExternIdents entrypoints)
+  (*(preserves_globals: meminj_preserves_globals (Genv.globalenv P1) (Mem.flat_inj (Mem.nextblock m)))*)
+  (R:Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 
+    (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+ (*THE PRESENCE OF (HP: P2=transform_program transf P1) eliminates
+    the need for some assumptions:
+  prog_main P1 = prog_main P2 -> 
+  GenvHyp P1 P2 ->, 
+   and jInit is (Mem.flat_inj (Mem.nextblock m)) where m=init_mam P1*)
+  externvars_ok P1 ExternIdents ->
+  I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+  core_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2
+
+| corecT_trans: forall  (F1 C1 V F2 C2 F3 C3:Type)
+  (Sem1 : CoreSemantics (Genv.t F1 V) C1 mem)
+  (Sem2 : CoreSemantics (Genv.t F2 V) C2 mem)
+  (Sem3 : CoreSemantics (Genv.t F3 V) C3 mem)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+  (P3 : AST.program F3 V)
+   transf12 (HP: P2=transform_program transf12 P1)
+   transf23 (HPP: P3=transform_program transf23 P2),
+  core_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 ->
+  core_correctnessT I ExternIdents entrypoints F2 C2 V F3 C3 Sem2 Sem3 P2 P3 ->
+  core_correctnessT I ExternIdents entrypoints F1 C1 V F3 C3 Sem1 Sem3 P1 P3.
+
+(*The same relation for CoopCoreSems - we define this explicitly in order
+  enable doing induction on it: induction on core_correctnessT's that 
+  are instantiated to CoopCoreSems doesn't work.*)
+
+Inductive coop_correctnessT 
+  (I: forall F C V  
+      (Sem : CoopCoreSem (Genv.t F V) C) 
+      (P : AST.program F V),Prop)
+  (ExternIdents: list (ident * external_description))
+  entrypoints:
+  forall (F1 C1 V F2 C2:Type)
+    (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+    (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+    (P1 : AST.program F1 V)
+    (P2 : AST.program F2 V) (transf: F1 -> F2), Type :=
+  coopT_eq : forall  (F1 C1 V F2 C2:Type)
+      (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+      (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+      (P1 : AST.program F1 V)
+      (P2 : AST.program F2 V)
+      transf (HP: P2 = transform_program transf P1)
+      (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+      (R:Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 
+        (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+      I _ _ _  Sem1 P1 -> I _ _ _  Sem2 P2 -> 
+      coop_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf
+| coopT_ext: forall (F1 C1 V F2 C2:Type)
+  (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+  (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1)
+  (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
+  (R:Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
+    (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+  I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+  coop_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf
+
+| coopT_inj : forall (F1 C1 V F2 C2:Type)
+  (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+  (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1) (*m
+  (InitMem: Genv.init_mem P1 = Some m) *)
+  (ePts_ok: forall m, Genv.init_mem P1 = Some m ->
+       entryPts_inject_ok P1 P2 (Mem.flat_inj (Mem.nextblock m)) ExternIdents entrypoints)
+  (R:Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 
+    (Genv.globalenv P1) (Genv.globalenv P2) entrypoints),
+  externvars_ok P1 ExternIdents ->
+  I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+  coop_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf
+
+| coopT_trans: forall  (F1 C1 V F2 C2 F3 C3:Type)
+  (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+  (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+  (Sem3 : CoopCoreSem (Genv.t F3 V) C3)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V)
+  (P3 : AST.program F3 V)
+   transf12 (HP: P2=transform_program transf12 P1)
+   transf23 (HPP: P3=transform_program transf23 P2),
+  coop_correctnessT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf12->
+  coop_correctnessT I ExternIdents entrypoints F2 C2 V F3 C3 Sem2 Sem3 P2 P3 transf23 ->
+  coop_correctnessT I ExternIdents entrypoints F1 C1 V F3 C3 Sem1 Sem3 P1 P3 (fun f => transf23 (transf12 f)).
+
+(*The relation WITHOUT the trans-case, NOT specialized to program translations*)
 Inductive cc_sim (I: forall F C V
-          (Sem : CoopCoreSem (Genv.t F V) C)
-          (P : AST.program F V), Prop)
-(ExternIdents: list (ident * external_description)) entrypoints:
+                    (Sem : CoopCoreSem (Genv.t F V) C)
+                    (P : AST.program F V), Prop)
+          (ExternIdents: list (ident * external_description)) 
+          entrypoints:
 forall (F1 C1 V1 F2 C2 V2:Type)
   (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
   (Sem2 : CoopCoreSem(Genv.t F2 V2) C2)
@@ -217,7 +357,7 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
     GenvHyp P1 P2 ->
     I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
-    cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
+    cc_sim I ExternIdents entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
  | ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
     (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)
     (Sem2 : CoopCoreSem (Genv.t F2 V2) C2)
@@ -257,71 +397,55 @@ forall (F1 C1 V1 F2 C2 V2:Type)
    externvars_ok P1 ExternIdents ->
    I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
    cc_sim I ExternIdents entrypoints  F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2.
-(*
-Inductive cc_sim (I: forall F C V
-          (Sem : CoreSemantics (Genv.t F V) C mem)
-          (P : AST.program F V), Prop)
-(ExternIdents: list (ident * external_description)) entrypoints:
-forall (F1 C1 V1 F2 C2 V2:Type)
-  (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
-  (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
-  (P1 : AST.program F1 V1)
-  (P2 : AST.program F2 V2), Type :=
-  ccs_eq : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
-    (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
-    (P1 : AST.program F1 V1)
-    (P2 : AST.program F2 V2)
-    (Eq_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
-                                Genv.init_mem P2 = Some m1)
-    (*(Eq_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
-      (exists m2, initial_mem Sem2 (Genv.globalenv P2)  m2 P2.(prog_defs) /\ m1=m2))*)
+
+
+(*The relation WITHOUT the trans-case, AND specialized to program translations,
+  so its proof of transitivity does not need GenvHyp. Of course this means we need
+  to have V1=V2*)
+Inductive cc_simT (I: forall F C V
+                    (Sem : CoopCoreSem (Genv.t F V) C)
+                    (P : AST.program F V), Prop)
+          (ExternIdents: list (ident * external_description)) 
+          entrypoints:
+forall (F1 C1 V F2 C2:Type)
+  (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+  (Sem2 : CoopCoreSem(Genv.t F2 V) C2)
+  (P1 : AST.program F1 V)
+  (P2 : AST.program F2 V) (transf: F1 -> F2), Type :=
+  ccs_eqT : forall  (F1 C1 V F2 C2:Type)
+    (Sem1 : CoopCoreSem(Genv.t F1 V) C1)
+    (Sem2 : CoopCoreSem(Genv.t F2 V) C2)
+    (P1 : AST.program F1 V)
+    (P2 : AST.program F2 V)
+    transf (HP: P2=transform_program transf P1)
     (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
     (R:Forward_simulation_eq.Forward_simulation_equals Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints), 
-    prog_main P1 = prog_main P2 -> 
-   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
-    GenvHyp P1 P2 ->
     I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
-    cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
- | ccs_ext : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
-    (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
-   (P1 : AST.program F1 V1)
-   (P2 : AST.program F2 V2)
-   (Ext_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
-         exists m2, Genv.init_mem P2 = Some m2 /\ Mem.extends m1 m2)
-   (*(Extends_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
-     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs) /\
-       Mem.extends m1 m2))*)
+    cc_simT I ExternIdents entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf
+ | ccs_extT : forall  (F1 C1 V F2 C2:Type)
+    (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+    (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+   (P1 : AST.program F1 V)
+   (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1)
    (ePts_ok: entryPts_ok P1 P2 ExternIdents entrypoints)
    (R:Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
-   prog_main P1 = prog_main P2 -> 
-  (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
-   GenvHyp P1 P2 ->
    I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
-               cc_sim I ExternIdents  entrypoints F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2
- | ccs_inj : forall  (F1 C1 V1 F2 C2 V2:Type)
-    (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
-    (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem)
-   (P1 : AST.program F1 V1)
-   (P2 : AST.program F2 V2)
-   jInit
-   (Inj_init : forall m1 : mem, Genv.init_mem P1 = Some m1 -> 
-      exists m2, Genv.init_mem P2 = Some m2 /\ Mem.inject jInit m1 m2)
-   (*(Inj_init: forall m1, initial_mem Sem1  (Genv.globalenv P1)  m1 P1.(prog_defs)->
-     (exists m2, initial_mem Sem2  (Genv.globalenv P2)  m2 P2.(prog_defs)
-       /\ Mem.inject jInit m1 m2))*)
-   (ePts_ok: entryPts_inject_ok P1 P2 jInit ExternIdents entrypoints)
-   (preserves_globals: meminj_preserves_globals (Genv.globalenv P1) jInit)
+   cc_simT I ExternIdents  entrypoints F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf
+ | ccs_injT : forall  (F1 C1 V F2 C2:Type)
+    (Sem1 : CoopCoreSem (Genv.t F1 V) C1)
+    (Sem2 : CoopCoreSem (Genv.t F2 V) C2)
+   (P1 : AST.program F1 V)
+   (P2 : AST.program F2 V)
+   transf (HP: P2=transform_program transf P1) (*m
+  (InitMem: Genv.init_mem P1 = Some m) *)
+  (ePts_ok: forall m, Genv.init_mem P1 = Some m ->
+      entryPts_inject_ok P1 P2 (Mem.flat_inj (Mem.nextblock m)) ExternIdents entrypoints)
    (R:Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 
      (Genv.globalenv P1) (Genv.globalenv P2)  entrypoints),
-   prog_main P1 = prog_main P2 ->
-   (*HERE IS THE INJECTION OF THE GENV-ASSUMPTIONS INTO THE PROOF:*)
-   GenvHyp P1 P2 ->
    externvars_ok P1 ExternIdents ->
-   I _ _ _ _ Sem1 P1 -> I _ _ _ _ Sem2 P2 -> 
-   cc_sim I ExternIdents entrypoints  F1 C1 V1 F2 C2 V2 Sem1 Sem2 P1 P2.
-*)
+   I _ _ _ Sem1 P1 -> I _ _ _ Sem2 P2 -> 
+   cc_simT I ExternIdents entrypoints  F1 C1 V F2 C2 Sem1 Sem2 P1 P2 transf.
 End CompilerCorrectness.
