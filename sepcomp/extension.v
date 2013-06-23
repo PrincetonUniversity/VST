@@ -5,13 +5,18 @@ Require Import sepcomp.Address.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.forward_simulations.
-Require Import sepcomp.rg_forward_simulations.
 
 Require Import AST. (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import Integers.
 
 Set Implicit Arguments.
+
+Definition runnable {G C M} (csem: CoreSemantics G C M) (c: C) :=
+  match at_external csem c, halted csem c with 
+  | None, None => true
+  | _, _ => false
+  end.
 
 (** * Extensions *)
 
@@ -21,22 +26,16 @@ Module Extension. Section Extension. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
-(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
  (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
- (gT: nat -> Type) (** global environments of core semantics *)
-(* (dT: nat -> Type) (** initialization data *)*)
- (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
+ (gT: Type) (** global environment of core semantics *)
+ (cT: Type) (** corestate of core semantics *)
+ (csem: CoreSemantics gT cT M) (** core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Record Sig := Make {
-  proj_max_cores: xT -> nat;
-  proj_core: forall i:nat, xT -> option (cT i); 
-  proj_core_max: forall i s, i>=proj_max_cores s -> proj_core i s=None;
-  active : xT -> nat; 
-  active_proj_core : forall s, exists c, proj_core (active s) s=Some c;
+  proj_core: xT -> cT;
   proj_zint: xT -> Zint; 
   proj_zext: Z -> Zext;
   zmult: Zint -> Zext -> Z;
@@ -47,27 +46,27 @@ Module Extension. Section Extension. Variables
    after_external esem ret s = Some s' -> proj_zint s=proj_zint s';
 
   handled (ef: AST.external_function) :=
-   forall (s: xT) (c: cT (active s)) sig args,
-    proj_core (active s) s = Some c ->
-    at_external (csem (active s)) c = Some (ef, sig, args) ->
+   forall (s: xT) (c: cT) sig args,
+    let c := proj_core s in
+    at_external csem c = Some (ef, sig, args) ->
     at_external esem s = None;
 
   linkable: linkable proj_zext handled csig esig;
 
   handled_invar: 
    forall s c s' c' ef sig args sig' args',
-    proj_core (active s) s = Some c ->
-    at_external (csem (active s)) c = Some (ef, sig, args) ->
+    proj_core s = c -> 
+    at_external csem c = Some (ef, sig, args) ->
     at_external esem s = None -> 
-    proj_core (active s') s' = Some c' ->
-    at_external (csem (active s')) c' = Some (ef, sig', args') ->
+    proj_core s' = c' ->
+    at_external csem c' = Some (ef, sig', args') ->
     at_external esem s' = None
  }.
 
 End Extension. End Extension.
 
-Implicit Arguments Extension.Sig [M G (*D*) xT].
-Implicit Arguments Extension.Make [G xT cT M (*D*) Z Zint Zext].
+Implicit Arguments Extension.Sig [M G xT].
+Implicit Arguments Extension.Make [G xT cT M Z Zint Zext].
 
 (** Some administrative requirements on the interactions between extensions and
    inner cores. Perhaps some of these conditions could be merged with those for
@@ -79,30 +78,28 @@ Section CoreCompatible. Variables
  (Zint: Type) (** portion of Z implemented by extension *)
  (Zext: Type) (** portion of Z external to extension *)
  (G: Type) (** global environments of extended semantics *)
-(* (D: Type) (** extension initialization data *)*)
  (xT: Type) (** corestates of extended semantics *)
  (esem: CoreSemantics G xT M (*D*)) (** extended semantics *)
  (esig: ef_ext_spec M Zext) (** extension signature *)
- (gT: nat -> Type) (** global environments of core semantics *)
- (dT: nat -> Type) (** initialization data *)
- (cT: nat -> Type) (** corestates of core semantics *)
- (csem: forall i:nat, CoreSemantics (gT i) (cT i) M (*(dT i)*)) (** a set of core semantics *)
+ (gT: Type) (** global environments of core semantics *)
+ (dT: Type) (** initialization data *)
+ (cT: Type) (** corestates of core semantics *)
+ (csem: CoreSemantics gT cT M) (** core semantics *)
  (csig: ef_ext_spec M Z). (** client signature *)
 
- Variables (ge: G) (genv_map : forall i:nat, gT i).
- Variable E: Extension.Sig Z Zint Zext esem esig gT (*dT *) cT csem csig.
+ Variables (ge: G) (geT: gT).
+ Variable E: Extension.Sig Z Zint Zext esem esig gT cT csem csig.
 
  Import Extension.
 
  Inductive core_compatible: Type := CoreCompatible: forall
  (** When the active thread is runnable, a step in the extended semantics can be
     tracked back to a corestep of the active thread. *)
- (runnable_corestep: forall s m s' m' c,
-   runnable (csem (active E s)) c=true -> 
-   proj_core E (active E s) s = Some c -> 
+ (runnable_corestep: forall s m s' m',
+   let c := proj_core E s in
+   runnable csem c=true -> 
    corestep esem ge s m s' m' -> 
-   exists c', corestep (csem (active E s)) (genv_map (active E s)) c m c' m' /\ 
-    proj_core E (active E s) s' = Some c') 
+   corestep csem geT c m (proj_core E s') m')
 
  (** After a corestep of the active inner core, the active thread's new
     corestate is appropriately injected into the extended state. Note that 
@@ -112,60 +109,26 @@ Section CoreCompatible. Variables
     a relation, or equivalently, have proj_core project a /set/ of corestates; 
     but at the current stage, the conveniences of proj_core-as-function appear to 
     outweigh the disadvantages. *)
- (corestep_pres: forall s (c: cT (active E s)) m c' s' m',
-   proj_core E (active E s) s = Some c -> 
-   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+ (corestep_pres: forall s m c' s' m',
+   let c := proj_core E s in
+   corestep csem geT c m c' m' -> 
    corestep esem ge s m s' m' -> 
-   active E s = active E s' /\ 
-   proj_core E (active E s) s' = Some c')
+   proj_core E s' = c')
 
  (** A corestep of the currently active core forces a corestep of the 
     extended semantics *)
- (corestep_prog: forall s (c: cT (active E s)) m c' m',
-   proj_core E (active E s) s = Some c -> 
-   corestep (csem (active E s)) (genv_map (active E s)) c m c' m' -> 
+ (corestep_prog: forall s m c' m',
+   let c := proj_core E s in
+   corestep csem geT c m c' m' -> 
    exists s', corestep esem ge s m s' m')
-
- (** Other cores remain unchanged after coresteps of the active core. *)
- (corestep_others_forward: forall s s' (c: cT (active E s')) m c' m',
-   active E s=active E s' -> 
-   proj_core E (active E s') s' = Some c' -> 
-   corestep (csem (active E s')) (genv_map (active E s')) c m c' m' -> 
-   corestep esem ge s m s' m' -> 
-   forall j, (active E s)<>j -> proj_core E j s = proj_core E j s')
- (corestep_others_backward: forall s c m s' c' m' n,
-   proj_core E (active E s) s = Some c -> 
-   corestepN (csem (active E s)) (genv_map (active E s)) n c m c' m' -> 
-   corestepN esem ge n s m s' m' -> 
-   forall j, (active E s)<>j -> proj_core E j s = proj_core E j s')
-
- (** The active core id doesn't change along active coresteps. *)
- (after_ext_pres: forall s (c: cT (active E s)) c' s' retv,
-   proj_core E (active E s) s = Some c -> 
-   after_external (csem (active E s)) retv c = Some c' -> 
-   after_external esem retv s = Some s' -> 
-   active E s=active E s')
 
  (** Extension states can be updated to match after_external on the 
     active core. *)
- (after_ext_prog: forall s (c: cT (active E s)) c' retv,
-   proj_core E (active E s) s = Some c -> 
-   after_external (csem (active E s)) retv c = Some c' -> 
+ (after_ext_prog: forall s c' retv,
+   let c := proj_core E s in 
+   after_external csem retv c = Some c' -> 
    exists s', after_external esem retv s = Some s' /\
-    proj_core E (active E s) s' = Some c')
-
- (** after_external on extension cores leaves all but the active corestate
-    unchanged. *)
- (after_ext_others: forall s s' retv,
-   after_external esem retv s = Some s' -> 
-   forall j, (active E s)<>j -> 
-    proj_core E j s = proj_core E j s')
-
- (*Hypothesis repeated from extension signature to get around a bug in [Program]*)
- (at_extern_call: forall s ef sig args,
-   at_external esem s = Some (ef, sig, args) -> 
-   exists c, proj_core E (active E s) s = Some c /\
-    at_external (csem (active E s)) c = Some (ef, sig, args)),
+    proj_core E s' = c'),
  core_compatible.
 
 End CoreCompatible.

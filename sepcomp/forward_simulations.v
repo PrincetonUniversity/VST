@@ -400,6 +400,110 @@ Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [G2] [C2]].
 
 End Forward_simulation_inj.
 
+Module Forward_simulation_inj_exposed. Section Forward_simulation_inject. 
+  Context {F1 V1 C1 G2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
+          {Sem2 : CoreSemantics G2 C2 mem}
+          {ge1: Genv.t F1 V1}
+          {ge2:G2}
+          {entry_points : list (val * val * signature)}.
+  Variables (core_data: Type)
+            (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
+            (core_ord: core_data -> core_data -> Prop).
+
+  Record Forward_simulation_inject := 
+  { core_ord_wf : well_founded core_ord;
+
+    (*Matching memories should be well-defined ie not contain values
+        with invalid/"dangling" block numbers*)
+    match_memwd: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
+               (mem_wd m1 /\ mem_wd m2);
+
+    (*The following axiom could be strengthened to inject j m1 m2*)
+    match_validblocks: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
+          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
+
+    core_diagram : 
+      forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
+      forall cd st2 j m2,
+        match_state cd j st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists j',
+          inject_incr j j' /\
+          inject_separated j j' m1 m2 /\
+          match_state cd' j' st1' m1' st2' m2' /\
+          ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
+            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
+            core_ord cd' cd);
+
+    core_initial : forall v1 v2 sig,
+       In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 j vals2 m2,
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          Mem.inject j m1 m2 -> 
+          mem_wd m1 -> mem_wd m2 ->
+          (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
+           entry_points -> val_inject j w1 w2) ->*) Forall2
+           (val_inject j) vals1 vals2 ->
+
+          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          exists cd, exists c2, 
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            match_state cd j c1 m1 c2 m2;
+
+    core_halted : forall cd j c1 m1 c2 m2 v1,
+      match_state cd j c1 m1 c2 m2 ->
+      halted Sem1 c1 = Some v1 ->
+      val_valid v1 m1 ->
+      exists v2, val_inject j v1 v2 /\
+        halted Sem2 c2 = Some v2 /\
+        Mem.inject j m1 m2 /\ val_valid v2 m2;
+
+    core_at_external : 
+      forall cd j st1 m1 st2 m2 e vals1 ef_sig,
+        match_state cd j st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
+        ( Mem.inject j m1 m2 /\
+          meminj_preserves_globals ge1 j /\ 
+          exists vals2, Forall2 (val_inject j) vals1 vals2 /\
+          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+          at_external Sem2 st2 = Some (e,ef_sig,vals2) /\
+          (forall v2, In v2 vals2 -> val_valid v2 m2));
+
+    core_after_external :
+      forall cd j j' st1 st2 m1 e vals1 ret1 m1' m2 m2' ret2 ef_sig,
+        Mem.inject j m1 m2->
+        match_state cd j st1 m1 st2 m2 ->
+        at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
+        (forall v1, In v1 vals1 -> val_valid v1 m1) ->
+        meminj_preserves_globals ge1 j -> 
+
+        inject_incr j j' ->
+        inject_separated j j' m1 m2 ->
+        Mem.inject j' m1' m2' ->
+        val_inject j' ret1 ret2 ->
+
+         mem_forward m1 m1'  -> 
+         Mem.unchanged_on (loc_unmapped j) m1 m1' ->
+         mem_forward m2 m2' -> 
+         Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
+         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+
+        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
+
+        exists cd', exists st1', exists st2',
+          after_external Sem1 (Some ret1) st1 = Some st1' /\
+          after_external Sem2 (Some ret2) st2 = Some st2' /\
+          match_state cd' j' st1' m1' st2' m2'
+    }.
+
+End Forward_simulation_inject. 
+
+Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [G2] [C2]].
+
+End Forward_simulation_inj_exposed.
+
 Module Forward_simulation.
 Section Core_sim.
 Context {F1 V1 C1 F2 V2 C2:Type}
