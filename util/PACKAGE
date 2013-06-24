@@ -12,7 +12,9 @@ svn co https://svn.princeton.edu/appel/vst --depth files
 (cd vst; svn co https://svn.princeton.edu/appel/vst/floyd)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/progs)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/examples)
-rm -rf vst/.svn vst/*/.svn
+(cd vst; svn co https://svn.princeton.edu/appel/vst/util)
+sh util/make_version
+rm -rf util vst/.svn vst/*/.svn
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
 tar cfz vst-`cat vst/VERSION`.tgz vst
 rm -rf vst

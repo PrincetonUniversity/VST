@@ -1,0 +1,8 @@
+#!/bin/sh
+echo >version.v 'Require Import String.'
+echo -n >>version.v 'Definition svn_rev := "'
+svnversion -n >>version.v
+echo >>version.v '"%string.'
+echo -n >>version.v 'Definition release := "'
+tr -d '[:cntrl:]' <VERSION >>version.v
+echo >>version.v '"%string.'

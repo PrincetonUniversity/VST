@@ -1,0 +1,5 @@
+#!/bin/sh
+awk 'BEGIN{print "  LINES   SECONDS  Sec/Lin  Name"}\
+     /v$/{NAME=$4; LINES=$1;}/before$/{B=$1}/after$/{A=$1; \
+     printf "%6d %9.2f %8.4f %s\n", LINES, A-B, (A-B)/LINES, NAME;}' \
+     <timings >timings.txt

@@ -124,7 +124,7 @@ FILES = \
 #compcert/%.vo: compcert/%.v
 #	()
 
-all:     .loadpath $(FILES:.v=.vo)
+all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
@@ -145,6 +145,9 @@ progs/message.v: progs/message.c
 progs/sha.v: progs/sha.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 endif
+
+version.v: $(FILES) util/make_version
+	sh util/make_version
 
 .loadpath: Makefile
 	echo $(INCLUDE) >.loadpath
