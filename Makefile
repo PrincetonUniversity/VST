@@ -67,23 +67,18 @@ MSL_FILES = \
   seplog.v alg_seplog.v log_normalize.v
 
 SEPCOMP_FILES= \
-  Address.v step_lemmas.v Coqlib2.v \
-  extspec.v FiniteMaps.v \
+  Address.v step_lemmas.v Coqlib2.v extspec.v FiniteMaps.v \
   wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v \
   mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v compiler_correctness.v \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
   forward_simulations_lemmas.v rg_forward_simulations.v \
-  rg_semantics.v rg_forward_simulations_lemmas.v extension.v extension_proof.v \
-#  compile_safe.v core_semantics_lemmas.v \
-   extension_safety.v extension_simulations.v \
-  extension_proof_safety.v \
-  null_extension.v fs_extension.v linking_extension.v trace_extension.v \
-  compiler_correctness_trans.v \
-  #compcert_compiler_correctness.v \
-  #Cminor.v Csharpminor.v Cminorgen.v Switch.v Ordered.v \
-  #RG_interpolants.v rgsim.v
+  rg_semantics.v rg_forward_simulations_lemmas.v extension.v \
+  extension_simulations.v compiler_correctness_trans.v 
+# extension_proof.v extension_safety.v extension_proof_safety.v
+# null_extension.v fs_extension.v linking_extension.v trace_extension.v 
+
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
@@ -93,9 +88,7 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
   initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v \
-#   Cminor_coop.v Csharpminor_coop.v CminorgenproofRestructuredJune.v
-#  juicy_linking_extension.v \
+  NullExtension.v SequentialClight.v
 
 FLOYD_FILES= \
    base.v proofauto.v malloc_lemmas.v \
@@ -128,8 +121,8 @@ FILES = \
 #  to collect wall-clock timings, use the following in place of the one above
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
 
-compcert/%.vo: compcert/%.v
-	()
+#compcert/%.vo: compcert/%.v
+#	()
 
 all:     .loadpath $(FILES:.v=.vo)
 
