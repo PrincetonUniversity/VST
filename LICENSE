@@ -6,8 +6,6 @@ the terms in "msl/LICENSE".
 
 2.  The "compcert" subdirectory is Copyright (c) 2004-2013 by INRIA,
 and licensed according to the terms in "compcert/LICENSE".
-This is NOT AN OPEN-SOURCE LICENSE, it is published and free for certain 
-noncommercial uses, including evaluation, research, and teaching.
 
 3.  All other subdirectories are Copyright (c) 2007-2013 by Andrew W. Appel, 
 Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor, 

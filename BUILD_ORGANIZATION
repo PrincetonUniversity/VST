@@ -1,16 +1,32 @@
 HOW TO BUILD:
- (cd compcert; ./make)   # or, see EXTERNAL COMPCERT below
- make  # build the VST
+[recommended: with external CompCert build; see also EXTERNAL COMPCERT below]
+1. Examine the file vst/compcert/VERSION, download that version
+ of CompCert from compcert.inria.fr into the same parent directory
+ next to your unpack of vst, then in the compcert install do: 
+     make;  make clightgen
+ [recommended: make sure the executable compcert/clightgen
+  is on your searchpath.]
+2. In the vst directory, create a file CONFIGURE containing exactly the text:
+    COMPCERT=../compcert
+3. In the vst directory,  
+    make
+[alternate: with internal CompCert]
+1. Remove (if present) the file CONFIGURE
+2. In the vst/compcert directory,
+    make
+3. In the vst directory,
+    make
+[Note: this alternate method will not build compcert/clightgen,
+  so you will not be able to translate .c files into .v files.]
 
+ORGANIZATION:
 The Verified Software Toolchain is organized into separate subprojects,
 each in a separate directory:
 
 msl -   Mechanized Software Library
 examples - examples of how to use the msl
 compcert -   front end of the CompCert compiler, specification of C light
-sepcomp - the theory and practice of how to specify 
-    shared-memory interaction (for separation compilation and concurrency) 
-    for CompCert
+sepcomp - the theory and practice of how to specify shared-memory interaction 
 veric -  program logic (and soundness proof) for Verifiable C
 floyd -  tactics for applying the separation logic
 progs -  sample programs, with their verifications
@@ -40,8 +56,8 @@ need to have the right load path.  This can be done by command-line
 arguments to coqide or coqtop.  The precise command-line arguments
 to use are in the file .loadpath, which is constructed automatically
 when you do "make".  For example:    
-coqide `cat .loadpath` veric/base.v  # will run coqide with the right options.
-coqc `cat .loadpath` veric/base.v  # will run coqc with the right options.
+coqide `cat .loadpath`  # will run coqide with the right options.
+coqc `cat .loadpath`    # will run coqc with the right options.
 
 NEW DIRECTORIES:
 If you add a new directory, you will probably want to augment the loadpath
@@ -49,7 +65,6 @@ so that qualified names work right.  For example:
   coqc `cat .loadpath` -I new -as new new/myfile.v 
 The Makefile automatically creates the .loadpath file
 with the subdirectories that it knows about.
-
 
 EXTERNAL COMPCERT: 
 The VST imports from the CompCert verified C compiler, the definition

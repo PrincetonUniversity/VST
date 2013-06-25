@@ -9,10 +9,10 @@ The LICENSE file has information about copyright, licensing, and permissions.
 
 DOCUMENTATION:
 
-   http://vst.princeton.edu    describes the goals of the project 
+   http://vst.cs.princeton.edu    describes the goals of the project 
                      and has links to many related publications.
 
-    Program Logics for Certified Compilers, by Andrew W. Appel,
+   Program Logics for Certified Compilers, by Andrew W. Appel,
          is a prepublication draft of a forthcoming book (late 2013). 
          For access to a draft, send e-mail to Appel.
 
