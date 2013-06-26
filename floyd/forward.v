@@ -56,6 +56,43 @@ Ltac abbreviate_semax :=
  end;
  clear_abbrevs.
 
+Definition query_context Delta id :=
+     match ((temp_types Delta) ! id) with 
+      | Some _ => (temp_types Delta) ! id =
+                  (temp_types Delta) ! id
+      | None => 
+        match (var_types Delta) ! id with
+          | Some _ =>   (var_types Delta) ! id =
+                        (var_types Delta) ! id
+          | None =>
+            match (glob_types Delta) ! id with
+              | Some _ => (var_types Delta) ! id =
+                          (var_types Delta) ! id
+              | None => (temp_types Delta) ! id = None /\
+                        (var_types Delta) ! id = None /\
+                        (glob_types Delta) ! id = None
+            end
+        end
+    end.
+
+
+Lemma is_and : forall A B,
+A /\ B -> A /\ B.
+Proof.
+auto.
+Qed.
+
+Ltac solve_query_context :=
+unfold query_context; simpl; auto.
+
+
+Ltac query_context Delta id :=
+let qu := fresh "QUERY" in
+assert (query_context Delta id) as qu by solve_query_context;
+hnf in qu;
+first [apply is_and in qu |
+simpl PTree.get at 2 in qu].
+
 (* BEGIN HORRIBLE1.
   The following lemma is needed because CompCert clightgen
  produces the following AST for function call:
