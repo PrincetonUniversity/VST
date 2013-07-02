@@ -75,7 +75,8 @@ SEPCOMP_FILES= \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
   forward_simulations_lemmas.v rg_forward_simulations.v \
   rg_semantics.v rg_forward_simulations_lemmas.v extension.v \
-  extension_simulations.v compiler_correctness_trans.v 
+  extension_simulations.v compiler_correctness_trans.v \
+  extension_proof.v
 # extension_proof.v extension_safety.v extension_proof_safety.v
 # null_extension.v fs_extension.v linking_extension.v trace_extension.v 
 

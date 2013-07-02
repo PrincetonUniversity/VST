@@ -1,3 +1,4 @@
+(*Load loadpath.*)
 Require Import ListSet.
 
 Require Import sepcomp.extspec.
@@ -7,14 +8,19 @@ Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.extension.
 
-Require Import Axioms.
-Require Import Coqlib.
-Require Import AST.
-Require Import Integers.
+(*Require Import compcert.common.AST.
 Require Import compcert.common.Values.
-Require Import Memory.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.*)
+Require Import AST.
+Require Import Values.
 Require Import Globalenvs.
 Require Import Events.
+Require Import Memory.
+Require Import Coqlib.
+Require Import msl.Axioms.
 
 Set Implicit Arguments.
 
@@ -72,6 +78,17 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    match_state cd j (PROJ_CORE E_S s1) m1 (PROJ_CORE E_T s2) m2.
 
  Inductive Sig: Type := Make: forall  
+
+  (match_state_runnable: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> runnable csemS c1=runnable csemT c2)
+
+  (match_state_inj: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> Mem.inject j m1 m2)
+
+  (match_state_preserves_globals: forall cd j c1 m1 c2 m2,
+    match_state cd j c1 m1 c2 m2 -> 
+    Events.meminj_preserves_globals ge_coreS j)
+
  (extension_diagram: forall s1 m1 s1' m1' s2 m2 ef sig args1 args2 cd j,
    let c1 := PROJ_CORE E_S s1 in
    let c2 := PROJ_CORE E_T s2 in
@@ -83,7 +100,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -104,11 +121,11 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args (ef_sig ef)) -> 
+   Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external csemT c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
-
-  (initial_core_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
+ 
+  (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
@@ -118,14 +135,14 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
       initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
  
- (halted_step: forall cd j c1 m1 c2 m2 v1 rty,
+ (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-   Val.has_type v1 rty -> 
+(*   Val.has_type v1 rty -> *)
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
-     Val.has_type v2 rty /\ 
-     Mem.inject j m1 m2),
+     Mem.inject j m1 m2 /\
+     val_valid v2 m2),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
@@ -222,7 +239,7 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
        core_compatible ge_S ge_coreS E_S -> 
        core_compatible ge_T ge_coreT E_T -> 
        CompilabilityInvariant.Sig 
-         esemS esemT csemS csemT ge_S ge_T E_S E_T 
+         esemS esemT csemS csemT ge_S ge_T ge_coreS E_S E_T 
          entry_points match_state core_ord -> 
        CompilableExtension.Sig esemS esemT csemS csemT ge_S ge_T E_S E_T 
          entry_points match_state core_ord

@@ -122,6 +122,12 @@ Section CoreCompatible. Variables
    corestep csem geT c m c' m' -> 
    exists s', corestep esem ge s m s' m')
 
+ (at_external_proj: forall s ef sig args, 
+   at_external esem s = Some (ef, sig, args) ->
+   at_external csem (proj_core E s) = Some (ef, sig, args))
+
+ (halted_proj: forall s, halted esem s = halted csem (proj_core E s))
+
  (** Extension states can be updated to match after_external on the 
     active core. *)
  (after_ext_prog: forall s c' retv,
