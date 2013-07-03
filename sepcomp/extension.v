@@ -51,7 +51,7 @@ Module Extension. Section Extension. Variables
     at_external csem c = Some (ef, sig, args) ->
     at_external esem s = None;
 
-  linkable: linkable proj_zext handled csig esig;
+(*  linkable: linkable proj_zext handled csig esig;*)
 
   handled_invar: 
    forall s c s' c' ef sig args sig' args',
@@ -88,7 +88,7 @@ Section CoreCompatible. Variables
  (csig: ef_ext_spec M Z). (** client signature *)
 
  Variables (ge: G) (geT: gT).
- Variable E: Extension.Sig Z Zint Zext esem esig gT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem gT cT csem.
 
  Import Extension.
 

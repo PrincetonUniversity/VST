@@ -1,4 +1,4 @@
-(*Load loadpath.*)
+Load loadpath.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations. 
@@ -9,18 +9,12 @@ Require Import sepcomp.extension_simulations.
 Require Import sepcomp.Coqlib2.
 Require Import sepcomp.wf_lemmas.
 
-(*Require Import compcert.common.AST.
+Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
-Require Import compcert.lib.Coqlib.*)
-Require Import AST.
-Require Import Values.
-Require Import Globalenvs.
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
+Require Import compcert.lib.Coqlib.
 
 Set Implicit Arguments.
 
@@ -62,7 +56,7 @@ Section CoreCompatibleLemmas. Variables
  (csig: ef_ext_spec mem Z). (** client signature *)
 
  Variables (ge: G) (ge_core: gT).
- Variable E: Extension.Sig Z Zint Zext esem esig gT cT csem csig.
+ Variable E: Extension.Sig Z Zint Zext esem gT cT csem.
 
 Variable Hcore_compatible: core_compatible ge ge_core E.
 
@@ -284,9 +278,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (ge_coreT: Genv.t fT vT).
 
  Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) 
-                               xS esemS esig _ cS csemS csig).
+                               xS esemS _ cS csemS).
  Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) 
-                               xT esemT esig _ cT csemT csig).
+                               xT esemT _ cT csemT).
  Variable entry_points: list (val*val*signature).
 
  Notation PROJ_CORE := (Extension.proj_core).
@@ -630,8 +624,8 @@ Module ExtensionCompilability. Section ExtensionCompilability.
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (ge_coreS: Genv.t fS vS) (ge_coreT: Genv.t fT vT).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS esig _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT esig _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS _ cS csemS).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT _ cT csemT).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.

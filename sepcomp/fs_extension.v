@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
@@ -8,16 +9,15 @@ Require Import sepcomp.extension_simulations.
 Require Import sepcomp.extension_proof.
 Require Import sepcomp.Coqlib2.
 
-Require Import Axioms.
-Require Import Coqlib.
-Require Import AST.
-Require Import Integers.
+Require Import compcert.common.AST.
 Require Import compcert.common.Values.
-Require Import Memory.
-Require Import Globalenvs.
-Require Import Events.
-Require Ctypes.
-Require Clight.
+Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Integers.
+Require Import compcert.lib.Coqlib.
+Require compcert.cfrontend.Ctypes.
+Require compcert.cfrontend.Clight.
 
 Set Implicit Arguments.
 
@@ -165,8 +165,6 @@ Variables
   (Z cT (*D*): Type) 
   (csem: CoreSemantics genv cT mem (*D*))
   (init_world: Z).
-
-Definition cores := fun _:nat => csem.
 
 Local Open Scope nat_scope.
 
@@ -519,10 +517,6 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   after_external csem (Some (Vint (Int.repr (Z_of_nat nbytes_written)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs') m.
 
-(*Deprecated
-Definition os_initial_mem := initial_mem csem.
-*)
-
 Definition os_initial_core (ge: genv) (v: val) (args: list val): option xT :=
   match initial_core csem ge v args with
   | Some c => Some (mkxT init_world c (mount_fs (fun _: int => None)))
@@ -641,11 +635,69 @@ Definition os_at_external (s: xT) :=
  destruct sig_args; auto.
  Qed.
 
- Lemma os_at_external_neq: forall s ef sig args, 
-  os_at_external s = Some (ef, sig, args) -> 
-  ef<>SYS_OPEN /\ ef<>SYS_READ /\ ef<>SYS_WRITE.
+ Lemma os_at_external_core3: forall s ef sig args, 
+  at_external csem (get_core s) = Some (ef, sig, args) -> 
+  ef=SYS_READ \/ ef=SYS_WRITE \/ ef=SYS_OPEN -> 
+  os_at_external s = None.
  Proof.
- Admitted. (*NOT NEEDED FOR PAPER 1*)
+ intros until args; intros H1.
+ destruct s.
+ unfold os_at_external.
+ intros H.
+ destruct H; subst. 
+ rewrite H1; auto.
+ rewrite H1; auto.
+ destruct H; subst; auto.
+ Qed.
+
+ Lemma os_at_external_core4: forall s ef sig args, 
+  at_external csem (get_core s) = Some (ef, sig, args) -> 
+  os_at_external s = None -> 
+  ef=SYS_READ \/ ef=SYS_WRITE \/ ef=SYS_OPEN.
+ Proof.
+ intros until args; intros H1.
+ destruct s.
+ intros H.
+ unfold os_at_external in H.
+ rewrite H1 in H.
+ destruct ef; try congruence.
+ destruct name; try congruence.
+ destruct name; try congruence.
+ destruct sg; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct sig_res; try congruence.  
+ destruct t; try congruence.  
+ left; auto.
+ destruct name; try congruence.
+ destruct name; try congruence.
+ destruct name; try congruence.
+ destruct sg; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct sig_res; try congruence.  
+ destruct t; try congruence.  
+ right. right; auto.
+ destruct sg; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct t; try congruence.  
+ destruct sig_args; try congruence.  
+ destruct sig_res; try congruence.  
+ destruct t; try congruence.  
+ right. left; auto.
+ Qed.
 
 Definition os_after_external (ov: option val) (s: xT): option xT :=
   match after_external csem ov (get_core s) with
@@ -656,8 +708,7 @@ Definition os_after_external (ov: option val) (s: xT): option xT :=
 Definition os_halted (s: xT): option val :=
   halted csem (get_core s).
 
-Program Definition FSCoreSem := Build_CoreSemantics genv xT mem (*D*)
-  (*os_initial_mem*)
+Program Definition FSCoreSem := Build_CoreSemantics genv xT mem
   os_initial_core
   os_at_external
   os_after_external
@@ -753,5 +804,106 @@ Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ)
 Definition Client_FSExtSpec :=
   Build_external_specification Memory.mem AST.external_function (fs*Z)
   (fun ef: AST.external_function => address) fs_pre fs_post.
+
+Lemma fs_ext_pf3: 
+  forall (s : xT) (c : cT) (s' : xT) (c' : cT) (ef : external_function)
+  (sig : signature) (args : list val) (sig' : signature) 
+  (args' : list val),
+  get_core s = c ->
+  at_external csem c = Some (ef, sig, args) ->
+  at_external FSCoreSem s = None ->
+  get_core s' = c' ->
+  at_external csem c' = Some (ef, sig', args') ->
+  at_external FSCoreSem s' = None.
+Proof.
+intros.
+exploit os_at_external_core4; eauto.
+rewrite H.
+eauto.
+intros.
+eapply os_at_external_core3; eauto.
+rewrite H2; eauto.
+Qed.
+
+Program Definition FS_extension: Extension.Sig (Z*fs) fs Z FSCoreSem _ _ csem := 
+  @Extension.Make _ _ _ _ _ _ FSCoreSem _ _ csem
+    get_core get_fs fst (fun (x: fs) (y: Z) => (y, x)) 
+    _ _ fs_ext_pf3.
+Next Obligation.
+unfold os_after_external in H0.
+case_eq (after_external csem ret (get_core s)).
+intros.
+rewrite H1 in H0.
+inv H0.
+simpl; auto.
+intros.
+rewrite H1 in H0.
+congruence.
+Qed.
+
+Variable csem_det:
+  forall ge c m c' m' c'' m'',
+  corestep csem ge c m c' m' -> 
+  corestep csem ge c m c'' m'' -> 
+  c'=c'' /\ m'=m''.
+
+Lemma FS_core_compat: 
+  forall ge, @core_compatible _ _ _ _ _ _  FSCoreSem  _ _ _ ge ge FS_extension.
+Proof.
+intros.
+constructor; auto.
+(*goal 1*)
+intros.
+simpl.
+simpl in H0.
+unfold c in *.
+inv H0.
+simpl in H. simpl. auto.
+simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
+simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
+simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
+(*goal 2*)
+intros.
+simpl in H0.
+unfold c in *.
+inv H0.
+simpl.
+simpl in H.
+eapply csem_det in H1; eauto.
+solve[destruct H1; auto].
+simpl in *.
+apply corestep_not_at_external in H.
+rewrite H in H1.
+congruence.
+apply corestep_not_at_external in H.
+simpl in H.
+rewrite H in H1.
+congruence.
+apply corestep_not_at_external in H.
+simpl in H.
+rewrite H in H1.
+congruence.
+(*goal 3*)
+intros.
+destruct s.
+exists (mkxT z c' fs0).
+unfold c in *.
+simpl in H.
+solve[apply os_corestep; auto].
+(*goal 4*)
+intros.
+solve[exploit os_at_external_core1; eauto].
+(*goal 5*)
+intros.
+unfold c in *.
+simpl in H.
+destruct s.
+exists (mkxT z c' fs0).
+simpl.
+split; auto.
+unfold os_after_external.
+rewrite H.
+auto.
+Qed.
 
 End FSExtension.

@@ -1,4 +1,4 @@
-(*Load loadpath.*)
+Load loadpath.
 Require Import ListSet.
 
 Require Import sepcomp.extspec.
@@ -8,19 +8,12 @@ Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.extension.
 
-(*Require Import compcert.common.AST.
+Require Import compcert.common.AST.
 Require Import compcert.common.Values.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
-Require Import compcert.lib.Coqlib.*)
-Require Import AST.
-Require Import Values.
-Require Import Globalenvs.
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
-Require Import msl.Axioms.
+Require Import compcert.lib.Coqlib.
 
 Set Implicit Arguments.
 
@@ -58,10 +51,10 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (ge_coreS: Genv.t fS vS) (ge_coreT: Genv.t fT vT).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS esig 
-   _ (*_*) cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT esig 
-   _ (*_*) cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS 
+   _ (*_*) cS csemS).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT 
+   _ (*_*) cT csemT).
 
  Variable entry_points: list (val*val*signature). (*TODO: SHOULD PERHAPS BE GENERALIZED*)
  Variable core_data: Type.
@@ -171,8 +164,8 @@ Module CompilableExtension. Section CompilableExtension.
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (ge_coreS: Genv.t fS vS) (ge_coreT: Genv.t fT vT).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS esig _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT esig _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS _ cS csemS).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT _ cT csemT).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.
@@ -214,8 +207,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
   (ge_S: Genv.t F_S V_S) (ge_T: Genv.t F_T V_T) 
   (ge_coreS: Genv.t fS vS) (ge_coreT: Genv.t fT vT).
 
- Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS esig _ cS csemS csig).
- Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT esig _ cT csemT csig).
+ Variable (E_S: @Extension.Sig mem Z Zint Zext (Genv.t F_S V_S) xS esemS _ cS csemS).
+ Variable (E_T: @Extension.Sig mem Z Zint Zext (Genv.t F_T V_T) xT esemT _ cT csemT).
 
  Variable entry_points: list (val*val*signature).
  Variable core_data: Type.
