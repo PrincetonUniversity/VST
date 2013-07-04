@@ -300,7 +300,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    entry_points core_data match_state core_ord.
 
  Definition match_states (cd: core_data) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   match_state cd j (PROJ_CORE E_S s1) m1 (PROJ_CORE E_T s2) m2.
+   match_state cd j (PROJ_CORE E_S s1) m1 (PROJ_CORE E_T s2) m2 /\
+   Extension.proj_zint E_S s1 = Extension.proj_zint E_T s2.
 
  Inductive internal_compilability_invariant: Type := 
    InternalCompilabilityInvariant: forall 
@@ -390,10 +391,12 @@ destruct core_simulation; auto.
 Qed.
 Next Obligation.
 destruct core_simulation; auto.
+destruct H.
 eapply match_memwd0; eauto.
 Qed.
 Next Obligation.
 destruct core_simulation; auto.
+destruct H.
 eapply match_validblocks0; eauto.
 Qed.
 Next Obligation.
@@ -410,6 +413,7 @@ assert (RUN2: runnable csemT (PROJ_CORE E_T st2)=true).
  rewrite match_state_runnable 
   with (cd := cd) (j := j) (m1 := m1) (c2 := PROJ_CORE E_T st2) (m2 := m2) in RUN1.
  auto.
+ destruct MATCH as [MATCH XX].
  solve[auto].
 assert (corestep csemS ge_coreS (PROJ_CORE E_S st1) m1 (PROJ_CORE E_S st1') m1').
  inv esig_compilable.
@@ -419,6 +423,7 @@ assert (corestep csemS ge_coreS (PROJ_CORE E_S st1) m1 (PROJ_CORE E_S st1') m1')
 
 destruct core_simulation.
 rename core_diagram0 into DIAG.
+destruct MATCH as [MATCH XX].
 specialize (DIAG (PROJ_CORE E_S st1) m1 (PROJ_CORE E_S st1') m1' H 
                  cd (PROJ_CORE E_T st2) j m2 MATCH).
 destruct DIAG as [c2' [m2' [cd' [j' [INJ_INCR [INJ_SEP [MATCH'' STEP2]]]]]]].
@@ -442,7 +447,8 @@ split; auto.
 split.
 unfold match_states; auto.
 rewrite H2.
-solve[auto].
+split; auto.
+admit. (*zint_invariant over coresteps*)
 left.
 exists n. simpl. exists c2'', m2''. split; auto. 
 
@@ -467,7 +473,8 @@ split; auto.
 split.
 unfold match_states; auto.
 rewrite PROJ.
-solve[auto].
+split; auto.
+admit. (*zint_invariant over coresteps*)
 right.
 split; auto.
 exists n; auto.
@@ -494,6 +501,8 @@ clear
  core_initial0
  core_diagram0
  match_memwd0.
+generalize MATCH12 as MATCH12'; intro.
+destruct MATCH12 as [MATCH12 XX].
 specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
 spec core_at_external0.
 admit. (*!!! *)
@@ -514,8 +523,8 @@ rewrite meminj_preserves_genv2blocks in GLOB.
 specialize (extension_diagram
  _ _ _ _ _ _ _ _ _ _ _ _
  RUN1' RUN2'
- AT_EXT ATEXT 
- MATCH12 
+ AT_EXT ATEXT
+ MATCH12'
  INJ GLOB INJ1 HASTY
  STEP).
 destruct extension_diagram
@@ -543,6 +552,8 @@ inv esig_compilable.
 generalize H0 as H0'; intro.
 inv core_compatS.
 apply at_external_proj in H0.
+generalize H as H'; intro.
+destruct H as [H XX].
 specialize (core_at_external0
  _ _ _ _ _ _ _ _ _ 
  H H0 H1).
@@ -571,6 +582,7 @@ generalize H1 as H1'; intro.
 assert (H2': exists vals2, at_external esemT st2 = Some (e, ef_sig, vals2)).
  inv core_compatS.
  apply at_external_proj in H1.
+ destruct H0.
  specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1 H2).
  destruct core_at_external0 as [? [? [vals2 [? [? [? ?]]]]]].
  exists vals2.
@@ -583,6 +595,7 @@ assert (H3': meminj_preserves_globals ge_coreS j).
  rewrite genvs_domain_eqS in H3.
  rewrite meminj_preserves_genv2blocks in H3.
  solve[auto].
+destruct H0 as [H0 XX].
 specialize (core_after_external0
  _ _ _ _ _ _ _ _ _ _ _ _ _ _
  H H0 H1 H2 H3' H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16).
@@ -599,7 +612,8 @@ exists s1', s2'; split; auto.
 split; auto.
 unfold match_states.
 rewrite H18, H20.
-solve[auto].
+split; auto.
+admit. (*zint_invar_after_external*)
 Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.

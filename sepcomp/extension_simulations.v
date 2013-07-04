@@ -68,7 +68,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Notation zint_invar_after_external := (Extension.zint_invar_after_external).
 
  Definition match_states (cd: core_data) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   match_state cd j (PROJ_CORE E_S s1) m1 (PROJ_CORE E_T s2) m2.
+   match_state cd j (PROJ_CORE E_S s1) m1 (PROJ_CORE E_T s2) m2 /\
+   Extension.proj_zint E_S s1 = Extension.proj_zint E_T s2.
 
  Inductive Sig: Type := Make: forall  
 
@@ -176,7 +177,8 @@ Module CompilableExtension. Section CompilableExtension.
  Import Extension.
 
  Definition match_states (cd: core_data) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   match_state cd j (proj_core E_S s1) m1 (proj_core E_T s2) m2.
+   match_state cd j (proj_core E_S s1) m1 (proj_core E_T s2) m2 /\
+   Extension.proj_zint E_S s1 = Extension.proj_zint E_T s2.
 
  Import Forward_simulation_inj_exposed.
 
@@ -219,7 +221,8 @@ Module EXTENSION_COMPILABILITY. Section EXTENSION_COMPILABILITY.
  Import Extension.
 
  Definition match_states (cd: core_data) (j: meminj) (s1: xS) m1 (s2: xT) m2 :=
-   match_state cd j (proj_core E_S s1) m1 (proj_core E_T s2) m2.
+   match_state cd j (proj_core E_S s1) m1 (proj_core E_T s2) m2 /\
+   Extension.proj_zint E_S s1 = Extension.proj_zint E_T s2.
 
  Import Forward_simulation_inj_exposed.
 

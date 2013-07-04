@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import ListSet.
 
 Require Import sepcomp.extspec.
@@ -6,9 +7,9 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.forward_simulations.
 
-Require Import AST. (*for typ*)
+Require Import compcert.common.AST. (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import Integers.
+Require Import compcert.lib.Integers.
 
 Set Implicit Arguments.
 
@@ -17,8 +18,6 @@ Definition runnable {G C M} (csem: CoreSemantics G C M) (c: C) :=
   | None, None => true
   | _, _ => false
   end.
-
-(** * Extensions *)
 
 Module Extension. Section Extension. Variables
  (M: Type) (** memories *)

@@ -21,7 +21,7 @@ Require compcert.cfrontend.Clight.
 
 Set Implicit Arguments.
 
-Definition genv := Genv.t Clight.fundef Ctypes.type.
+(*Definition genv := Genv.t Clight.fundef Ctypes.type.*)
 
 Inductive fmode: Type := RDONLY | WRONLY | RDWR.
 
@@ -162,8 +162,8 @@ Definition mount_fs (fstore: forall (name: int), option file) :=
 
 Section FSExtension.
 Variables 
-  (Z cT (*D*): Type) 
-  (csem: CoreSemantics genv cT mem (*D*))
+  (Z cT genv: Type) 
+  (csem: CoopCoreSem genv cT)
   (init_world: Z).
 
 Local Open Scope nat_scope.
@@ -748,6 +748,13 @@ simpl; rewrite H1; auto.
 intros H1; rewrite H1 in H; congruence.
 Qed.
 
+Program Definition FSCoopSem := 
+  Build_CoopCoreSem _ _ FSCoreSem _ _.
+Next Obligation.
+Admitted.
+Next Obligation.
+Admitted.
+
 Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
 
 Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z) m :=
@@ -904,6 +911,248 @@ split; auto.
 unfold os_after_external.
 rewrite H.
 auto.
-Qed.
+Qed.  
 
 End FSExtension.
+
+Section FSExtension_Compilable.
+Variables 
+(Z S T fS vS fT vT: Type) 
+(init_world: Z)
+(csemS: CoopCoreSem (Genv.t fS vS) S) 
+(csemT: CoopCoreSem (Genv.t fT vT) T)
+(geS: Genv.t fS vS)
+(geT: Genv.t fT vT)
+(entry_points: list (val*val*signature))
+(core_data: Type)
+(core_ord: core_data -> core_data -> Prop)
+(MATCH: core_data -> meminj -> S -> mem -> T -> mem -> Prop).
+
+Definition FS_S := FS_extension csemS init_world.
+Definition FS_T := FS_extension csemT init_world.
+
+Import Forward_simulation_inj_exposed.
+
+Variable coreSim: 
+  Forward_simulation_inject csemS csemT geS geT entry_points
+    core_data MATCH core_ord.
+
+Variable genvs_eq: genvs_domain_eq geS geT.
+
+
+(*ASSUMPTIONS*)
+Variable csemS_det: 
+  forall (ge : Genv.t fS vS) (c : S) (m : mem) (c' : S) 
+  (m' : mem) (c'' : S) (m'' : mem),
+  corestep csemS ge c m c' m' ->
+  corestep csemS ge c m c'' m'' -> c' = c'' /\ m' = m''.
+
+Variable csemT_det:
+  forall (ge : Genv.t fT vT) (c : T) (m : mem) (c' : T) 
+  (m' : mem) (c'' : T) (m'' : mem),
+  corestep csemT ge c m c' m' ->
+  corestep csemT ge c m c'' m'' -> c' = c'' /\ m' = m''.
+
+Variable match_state_runnable:
+   forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
+     (c2 : T) (m2 : mem),
+   MATCH cd j c1 m1 c2 m2 ->
+   extension.runnable csemS c1 = extension.runnable csemT c2.
+
+Variable match_state_meminj:
+   forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
+   (c2 : T) (m2 : mem), MATCH cd j c1 m1 c2 m2 -> Mem.inject j m1 m2.
+
+Variable match_preserves_globs:
+   forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
+     (c2 : T) (m2 : mem),
+   MATCH cd j c1 m1 c2 m2 -> meminj_preserves_globals geS j.
+
+                            
+Lemma FS_extension_compilable:
+  @CompilableExtension.Sig _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  (FSCoopSem csemS init_world)
+  (FSCoopSem csemT init_world)
+  csemS csemT
+  geS geT FS_S FS_T entry_points core_data MATCH core_ord.
+Proof.
+destruct (@ExtensionCompilability.ExtensionCompilability
+   _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+  (FSCoopSem csemS init_world)
+  (FSCoopSem csemT init_world)
+  csemS csemT
+  geS geT geS geT FS_S FS_T entry_points core_data MATCH core_ord) as [L].
+apply L; auto.
+apply genvs_domain_eq_refl.
+apply genvs_domain_eq_refl.
+apply FS_core_compat.
+apply csemS_det.
+apply FS_core_compat.
+apply csemT_det.
+constructor; auto.
+
+(*1: handled steps*)
+intros until j.
+simpl in *.
+intros H1 H2 H3 H4 H5 H6 H7 H8 H9 STEP.
+inv STEP.
+
+(*fs_open*)
+apply corestep_not_at_external in H.
+simpl in H3. rewrite H in H3. congruence.
+destruct s1; simpl in *.
+destruct s2; simpl in *.
+
+assert (exists cd' c0' c1',
+        after_external csemS (Some (Vint unused_fd)) c0 = Some c0' /\
+        after_external csemT (Some (Vint unused_fd)) c1 = Some c1' /\
+        MATCH cd' j c0' m1' c1' m2).
+ destruct coreSim.
+ clear core_diagram0 core_initial0 core_at_external0 core_halted0.
+ specialize (core_after_external0
+  cd j j c0 c1 m1' 
+  (EF_external 8%positive {| sig_args := Tint :: Tint :: nil; sig_res := Some Tint |})
+  args1 (Vint unused_fd)
+  m1' m2 m2
+  (Vint unused_fd)
+  sig).
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+unfold CompilabilityInvariant.match_states in H5.
+destruct H5; auto.
+spec core_after_external0; auto.
+rewrite H.
+rewrite H in H3.
+inv H3.
+solve[auto].
+spec core_after_external0; auto.
+intros.
+admit. (*!!!*)
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+solve[apply mem_lemmas.inject_separated_same_meminj].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+solve[apply mem_lemmas.mem_forward_refl].
+spec core_after_external0; auto.
+solve[apply Mem.unchanged_on_refl].
+spec core_after_external0; auto.
+solve[apply mem_lemmas.mem_forward_refl].
+spec core_after_external0; auto.
+solve[apply Mem.unchanged_on_refl].
+spec core_after_external0; auto.
+rewrite H3 in H.
+inv H.
+admit. (*sig0 should be {| ... |} in H3*)
+destruct H5 as [H5 XX].
+exploit match_memwd0; eauto.
+intros [? ?].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; simpl; auto.
+solve[spec core_after_external0; simpl; auto].
+
+destruct H15 as [cd' [c0' [c1' [AFT1 [AFT2 MM]]]]].
+exists (mkxT z c1' fs'), m2, cd', j.
+split; auto.
+split; auto.
+solve[apply mem_lemmas.inject_separated_same_meminj].
+split; auto.
+unfold CompilabilityInvariant.match_states.
+simpl.
+assert (c = c0') as ->.
+  rewrite AFT1 in H14. 
+  solve[inv H14; auto].
+solve[auto].
+split.
+solve[apply Mem.unchanged_on_refl].
+split.
+solve[apply Mem.unchanged_on_refl].
+left.
+exists O.
+simpl.
+exists (mkxT z c1' fs'), m2.
+split; auto.
+destruct H5 as [H5 XX].
+simpl in XX.
+subst fs2.
+apply os_open
+ with (md0 := md0) (fname0 := fname0)
+      (md := md) (fname := fname) (unused_fd := unused_fd)
+      (sig := sig); auto.
+simpl.
+rewrite H4.
+admit. (*easy*)
+
+(*fs_read*)
+destruct s1, s2; simpl in *.
+
+assert (exists m2',
+        Mem.storebytes m2 (fst adr) (snd adr) bytes = Some m2' /\
+        Mem.inject j m1' m2').
+ admit. (*TODO*)
+destruct H15 as [m2' [H15 INJ]].
+
+assert (exists cd' c0' c1',
+        after_external csemS (Some (Vint (Int.repr (Zlength bytes)))) c0 = Some c0' /\
+        after_external csemT (Some (Vint (Int.repr (Zlength bytes)))) c1 = Some c1' /\
+        MATCH cd' j c0' m1' c1' m2').
+ destruct coreSim.
+ clear core_diagram0 core_initial0 core_at_external0 core_halted0.
+ specialize (core_after_external0
+  cd j j c0 c1 m1 
+  (EF_external 3%positive
+        {| sig_args := Tint :: Tint :: Tint :: nil; sig_res := Some Tint |})
+  args1 (Vint (Int.repr (Zlength bytes)))
+  m1' m2 m2'
+  (Vint (Int.repr (Zlength bytes)))
+  sig).
+spec core_after_external0; auto.
+destruct H5. simpl in H5.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+rewrite H.
+rewrite H3 in H.
+inv H.
+solve[auto].
+spec core_after_external0; auto.
+admit. (*!!!*)
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+solve[apply mem_lemmas.inject_separated_same_meminj].
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+spec core_after_external0; auto.
+admit. (*by mem_forward storebytes*)
+spec core_after_external0; auto.
+admit. (*Events.v*)
+spec core_after_external0; auto.
+admit. (*by mem_forward storebytes*)
+spec core_after_external0; auto.
+admit. (*Events.v*)
+spec core_after_external0; auto.
+admit. (*sig should be {| ... |} in H*)
+spec core_after_external0; auto.
+admit. (*need to restrict bytes*)
+spec core_after_external0; auto.
+admit. (*need to restrict bytes*)
+spec core_after_external0; auto.
+admit. (*ditto*)
+spec core_after_external0; auto.
+admit. (*ditto*)
+destruct H16 as [cd' [c0' [c1' [? [? ?]]]]].
+admit. 
+admit.
+
+(*goal 2*)
+admit. (*easy*)
+(*goal 3*)
+admit. (*easy*)
+(*goal 4*)
+admit. (*easy*)
+Qed.
+
+End FSExtension_Compilable.
