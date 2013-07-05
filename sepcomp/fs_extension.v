@@ -21,6 +21,81 @@ Require compcert.cfrontend.Clight.
 
 Set Implicit Arguments.
 
+Definition is_defchar (mv: memval) :=
+  match mv with
+    | Byte _ => True
+    | _ => False
+  end.
+
+Inductive extcall_storebytes_sem
+  (F V: Type) (ge: Genv.t F V): list val -> mem -> trace -> val -> mem -> Prop :=
+  | extcall_storebytes_sem_intro: forall (b: block) (ofs: int) bytes m m',
+      Zlength bytes > 0 -> 
+      Forall is_defchar bytes -> 
+      Mem.storebytes m b (Int.unsigned ofs) bytes = Some m' ->
+      extcall_storebytes_sem ge (Vptr b ofs :: nil) m E0 Vundef m'.
+
+Lemma extcall_storebytes_sem_inject_comm:
+  forall (F V : Type) (ge : Genv.t F V) (vargs : list val) 
+     (m1 : mem) (t : trace) (vres : val) (m2 : mem)
+     (f : block -> option (block * Z)) (m1' : mem) 
+     (vargs' : list val),
+   meminj_preserves_globals ge f ->
+   extcall_storebytes_sem ge vargs m1 t vres m2 ->
+   Mem.inject f m1 m1' ->
+   val_list_inject f vargs vargs' ->
+   exists (f' : meminj) (vres' : val) (m2' : mem),
+     extcall_storebytes_sem ge vargs' m1' t vres' m2' /\
+     val_inject f' vres vres' /\
+     Mem.inject f' m2 m2' /\
+     Mem.unchanged_on (loc_unmapped f) m1 m2 /\
+     Mem.unchanged_on (loc_out_of_reach f m1) m1' m2' /\
+     inject_incr f f' /\ inject_separated f f' m1 m1'.
+Proof.
+  intros. inv H0. inv H2. inv H9. inv H7. 
+  assert (RPDST: Mem.range_perm m1 b (Int.unsigned ofs) 
+                 (Int.unsigned ofs + Z_of_nat (length bytes)) Cur Nonempty).
+    eapply Mem.range_perm_implies. eapply Mem.storebytes_range_perm; eauto. solve[auto with mem].
+  assert (PDST: Mem.perm m1 b (Int.unsigned ofs) Cur Nonempty).
+    apply RPDST. rewrite Zlength_correct in H3. omega.
+  exploit Mem.address_inject.  eauto. eexact PDST. eauto. intros EQ2.
+  exploit Mem.storebytes_mapped_inject; eauto.
+  instantiate (1 := bytes).
+  clear - H4.
+  induction bytes.
+  constructor.
+  constructor. destruct a. inv H4. simpl in H1. elimtype False; auto.
+  constructor. 
+  inv H4. simpl in H1. elimtype False; auto.
+  inv H4.
+  solve[eapply IHbytes; auto].
+  intros [m2' [C D]].
+  exists f; exists Vundef; exists m2'.
+  split. econstructor; try rewrite EQ1; try rewrite EQ2; eauto. 
+  split; auto.
+  split; auto.
+  split. eapply Mem.storebytes_unchanged_on; eauto. unfold loc_unmapped; intros.
+  congruence.
+  split. eapply Mem.storebytes_unchanged_on; eauto. unfold loc_out_of_reach; intros. red; intros.
+  eelim H2; eauto. 
+  apply Mem.perm_cur_max. apply Mem.perm_implies with Writable; auto with mem.
+  eapply Mem.storebytes_range_perm; eauto. 
+  erewrite list_forall2_length; eauto. 
+  instantiate (1 := bytes).
+  omega.
+  instantiate (1 := memval_inject f).
+  clear - H4.
+  induction bytes.
+  constructor.
+  constructor. destruct a. inv H4. simpl in H1. elimtype False; auto.
+  constructor. 
+  inv H4. simpl in H1. elimtype False; auto.
+  solve[inv H4; auto].
+  split.
+  apply inject_incr_refl.
+  red; intros; congruence.
+Qed.
+
 (*Definition genv := Genv.t Clight.fundef Ctypes.type.*)
 
 Inductive fmode: Type := RDONLY | WRONLY | RDWR.
