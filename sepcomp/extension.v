@@ -44,6 +44,11 @@ Module Extension. Section Extension. Variables
    at_external esem s = Some (ef, sig, args) -> 
    after_external esem ret s = Some s' -> proj_zint s=proj_zint s';
 
+  zint_invar_over_corestep: forall ge ge_core s m s' m',
+    corestep csem ge_core (proj_core s) m (proj_core s') m' ->
+    corestep esem ge s m s' m' ->
+    proj_zint s=proj_zint s';
+
   handled (ef: AST.external_function) :=
    forall (s: xT) (c: cT) sig args,
     let c := proj_core s in
@@ -108,18 +113,19 @@ Section CoreCompatible. Variables
     a relation, or equivalently, have proj_core project a /set/ of corestates; 
     but at the current stage, the conveniences of proj_core-as-function appear to 
     outweigh the disadvantages. *)
- (corestep_pres: forall s m c' s' m',
+ (corestep_pres: forall s m c' s' m' m'',
    let c := proj_core E s in
    corestep csem geT c m c' m' -> 
-   corestep esem ge s m s' m' -> 
-   proj_core E s' = c')
+   corestep esem ge s m s' m'' -> 
+   proj_core E s' = c' /\ m'=m'')
 
  (** A corestep of the currently active core forces a corestep of the 
     extended semantics *)
  (corestep_prog: forall s m c' m',
    let c := proj_core E s in
    corestep csem geT c m c' m' -> 
-   exists s', corestep esem ge s m s' m')
+   exists s', corestep esem ge s m s' m' /\ 
+              proj_core E s' = c')
 
  (at_external_proj: forall s ef sig args, 
    at_external esem s = Some (ef, sig, args) ->

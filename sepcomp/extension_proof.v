@@ -55,12 +55,73 @@ Section CoreCompatibleLemmas. Variables
  (csem: CoopCoreSem gT cT)
  (csig: ef_ext_spec mem Z). (** client signature *)
 
- Variables (ge: G) (ge_core: gT).
- Variable E: Extension.Sig Z Zint Zext esem gT cT csem.
+Variables (ge: G) (ge_core: gT).
+Variable E: Extension.Sig Z Zint Zext esem gT cT csem.
 
 Variable Hcore_compatible: core_compatible ge ge_core E.
 
 Import Extension.
+
+Lemma zint_invar_over_corestepN:
+  forall n s m s' m',
+  corestepN csem ge_core n (proj_core E s) m (proj_core E s') m' ->
+  corestepN esem ge n s m s' m' ->
+  proj_zint E s=proj_zint E s'.
+Proof.
+intros.
+revert s m H H0.
+induction n.
+simpl.
+intros.
+inv H0.
+solve[auto].
+intros s2 m2.
+simpl.
+intros [x [m0 [H1 H2]]].
+intros [x' [m0' [H1' H2']]].
+assert (proj_core E x' = x).
+ inv Hcore_compatible.
+ eapply corestep_pres in H1; eauto.
+ solve[destruct H1; auto].
+assert (m0 = m0').
+ rewrite <-H in H1.
+ inv Hcore_compatible.
+ eapply corestep_pres with (m'' := m0') in H1; eauto.
+ solve[destruct H1; auto]. 
+subst m0.
+eapply zint_invar_over_corestep in H1'.
+rewrite H1'.
+eapply IHn; eauto.
+solve[rewrite H; auto].
+rewrite H; eauto.
+Qed.
+
+Lemma corestepN_pres: forall n s m c' s' m' m'',
+   corestepN csem ge_core n (proj_core E s) m c' m' -> 
+   corestepN esem ge n s m s' m'' -> 
+   proj_core E s' = c' /\ m'=m''.
+Proof.
+intros.
+revert s m H H0.
+induction n.
+simpl.
+intros.
+inv H0. 
+solve[split; inv H; auto].
+intros s m.
+simpl.
+intros [c2 [m2 [STEP STEPN]]].
+intros [st2 [m2' [CSTEP CSTEPN]]].
+assert (proj_core E st2 = c2 /\ m2' = m2).
+ inv Hcore_compatible.
+ eapply corestep_pres with (m'' := m2') in STEP.
+ destruct STEP. subst m2'.
+ rewrite H.
+ solve[split; auto].
+ solve[auto].
+eapply IHn; eauto.
+solve[destruct H; subst c2; subst m2'; auto].
+Qed.
 
 Lemma corestep_step: 
   forall s m c' m',
@@ -74,9 +135,6 @@ intros until m'; intros H0 H1.
 inv Hcore_compatible.
 generalize H1 as H1'; intro.
 eapply corestep_prog in H1; eauto.
-destruct H1 as [s' H1].
-exists s'.
-solve[split; eauto]. 
 Qed.
 
 Lemma corestep_stepN: 
@@ -448,7 +506,24 @@ split.
 unfold match_states; auto.
 rewrite H2.
 split; auto.
-admit. (*zint_invariant over coresteps*)
+symmetry.
+eapply Extension.zint_invar_over_corestep in STEP; eauto.
+rewrite <-STEP.
+assert (Extension.proj_zint E_T st2'' =
+        Extension.proj_zint E_T st2) as ->.
+  simpl in STEP2.
+  destruct STEP2 as [? [? [S1 S2]]].
+  assert (PROJ_CORE E_T c2'' = x /\ m2'' = x0).
+    inv core_compatT.
+    eapply corestep_pres in S1; eauto.
+    destruct S1. solve[split; auto].
+  destruct H3.
+  subst m2''; subst x.
+  eapply zint_invar_over_corestepN in H1; eauto.
+  rewrite <-H1.
+  eapply Extension.zint_invar_over_corestep in H0; eauto.
+  solve[subst c2'; auto].
+solve[auto].
 left.
 exists n. simpl. exists c2'', m2''. split; auto. 
 
@@ -474,7 +549,15 @@ split.
 unfold match_states; auto.
 rewrite PROJ.
 split; auto.
-admit. (*zint_invariant over coresteps*)
+symmetry.
+eapply Extension.zint_invar_over_corestep in STEP; eauto.
+rewrite <-STEP.
+assert (Extension.proj_zint E_T st2'' =
+        Extension.proj_zint E_T st2) as ->.
+  eapply zint_invar_over_corestepN in STEP2N; eauto.
+  rewrite PROJ.
+  solve[auto].
+solve[auto].
 right.
 split; auto.
 exists n; auto.
@@ -613,7 +696,12 @@ split; auto.
 unfold match_states.
 rewrite H18, H20.
 split; auto.
-admit. (*zint_invar_after_external*)
+symmetry.
+eapply Extension.zint_invar_after_external in H19; eauto.
+rewrite <-H19.
+eapply Extension.zint_invar_after_external in H17; eauto.
+rewrite <-H17.
+auto.
 Qed.
 
 End ExtendedSimulations. End ExtendedSimulations.

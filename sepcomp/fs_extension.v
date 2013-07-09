@@ -910,7 +910,7 @@ Qed.
 Program Definition FS_extension: Extension.Sig (Z*fs) fs Z FSCoreSem _ _ csem := 
   @Extension.Make _ _ _ _ _ _ FSCoreSem _ _ csem
     get_core get_fs fst (fun (x: fs) (y: Z) => (y, x)) 
-    _ _ fs_ext_pf3.
+    _ _ _ fs_ext_pf3.
 Next Obligation.
 unfold os_after_external in H0.
 case_eq (after_external csem ret (get_core s)).
@@ -921,6 +921,10 @@ simpl; auto.
 intros.
 rewrite H1 in H0.
 congruence.
+Qed.
+Next Obligation.
+apply corestep_not_at_external in H.
+inv H0; simpl; auto; rewrite H in H1; congruence.
 Qed.
 
 Variable csem_det:
@@ -971,7 +975,9 @@ destruct s.
 exists (mkxT z c' fs0).
 unfold c in *.
 simpl in H.
+split.
 solve[apply os_corestep; auto].
+solve[auto].
 (*goal 4*)
 intros.
 solve[exploit os_at_external_core1; eauto].
@@ -1201,11 +1207,11 @@ solve[apply mem_lemmas.inject_separated_same_meminj].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
-admit. (*by mem_forward storebytes*)
+solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
 admit. (*Events.v*)
 spec core_after_external0; auto.
-admit. (*by mem_forward storebytes*)
+solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
 admit. (*Events.v*)
 spec core_after_external0; auto.
