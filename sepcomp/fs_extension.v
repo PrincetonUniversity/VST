@@ -28,29 +28,27 @@ Definition is_defchar (mv: memval) :=
   end.
 
 Inductive extcall_storebytes_sem
-  (F V: Type) (ge: Genv.t F V): list val -> mem -> trace -> val -> mem -> Prop :=
+  (F V: Type) (ge: Genv.t F V): list memval -> list val -> mem -> trace -> val -> mem -> Prop :=
   | extcall_storebytes_sem_intro: forall (b: block) (ofs: int) bytes m m',
       Zlength bytes > 0 -> 
       Forall is_defchar bytes -> 
       Mem.storebytes m b (Int.unsigned ofs) bytes = Some m' ->
-      extcall_storebytes_sem ge (Vptr b ofs :: nil) m E0 Vundef m'.
+      extcall_storebytes_sem ge bytes (Vptr b ofs :: nil) m E0 Vundef m'.
 
 Lemma extcall_storebytes_sem_inject_comm:
   forall (F V : Type) (ge : Genv.t F V) (vargs : list val) 
-     (m1 : mem) (t : trace) (vres : val) (m2 : mem)
+     (m1 : mem) (t : trace) (m2 : mem)
      (f : block -> option (block * Z)) (m1' : mem) 
-     (vargs' : list val),
+     (vargs' : list val) bytes,
    meminj_preserves_globals ge f ->
-   extcall_storebytes_sem ge vargs m1 t vres m2 ->
+   extcall_storebytes_sem ge bytes vargs m1 t Vundef m2 ->
    Mem.inject f m1 m1' ->
    val_list_inject f vargs vargs' ->
-   exists (f' : meminj) (vres' : val) (m2' : mem),
-     extcall_storebytes_sem ge vargs' m1' t vres' m2' /\
-     val_inject f' vres vres' /\
-     Mem.inject f' m2 m2' /\
+   exists (m2' : mem),
+     extcall_storebytes_sem ge bytes vargs' m1' t Vundef m2' /\
+     Mem.inject f m2 m2' /\
      Mem.unchanged_on (loc_unmapped f) m1 m2 /\
-     Mem.unchanged_on (loc_out_of_reach f m1) m1' m2' /\
-     inject_incr f f' /\ inject_separated f f' m1 m1'.
+     Mem.unchanged_on (loc_out_of_reach f m1) m1' m2'.
 Proof.
   intros. inv H0. inv H2. inv H9. inv H7. 
   assert (RPDST: Mem.range_perm m1 b (Int.unsigned ofs) 
@@ -70,13 +68,13 @@ Proof.
   inv H4.
   solve[eapply IHbytes; auto].
   intros [m2' [C D]].
-  exists f; exists Vundef; exists m2'.
+  exists m2'.
   split. econstructor; try rewrite EQ1; try rewrite EQ2; eauto. 
   split; auto.
   split; auto.
-  split. eapply Mem.storebytes_unchanged_on; eauto. unfold loc_unmapped; intros.
-  congruence.
-  split. eapply Mem.storebytes_unchanged_on; eauto. unfold loc_out_of_reach; intros. red; intros.
+  eapply Mem.storebytes_unchanged_on; eauto. unfold loc_unmapped; intros.
+  rewrite H6; intros x; congruence.
+  eapply Mem.storebytes_unchanged_on; eauto. unfold loc_out_of_reach; intros. red; intros.
   eelim H2; eauto. 
   apply Mem.perm_cur_max. apply Mem.perm_implies with Writable; auto with mem.
   eapply Mem.storebytes_range_perm; eauto. 
@@ -91,9 +89,31 @@ Proof.
   constructor. 
   inv H4. simpl in H1. elimtype False; auto.
   solve[inv H4; auto].
-  split.
-  apply inject_incr_refl.
-  red; intros; congruence.
+Qed.
+
+Lemma storebytes_sem_inject_comm:
+  forall F V (ge: Genv.t F V) m1 m1' m2 bytes b ofs j b' delta,
+   Mem.storebytes m1 b (Int.unsigned (Int.repr ofs)) bytes = Some m1' ->
+   Zlength bytes > 0 -> 
+   Forall is_defchar bytes -> 
+   meminj_preserves_globals ge j ->
+   Mem.inject j m1 m2 ->
+   j b = Some (b', delta) -> 
+   exists m2',
+     Mem.storebytes m2 b' (Int.unsigned (Int.add (Int.repr ofs) (Int.repr delta))) bytes = Some m2' /\
+     Mem.inject j m1' m2' /\
+     Mem.unchanged_on (loc_unmapped j) m1 m1' /\
+     Mem.unchanged_on (loc_out_of_reach j m1) m2 m2'.
+Proof.
+intros.
+edestruct extcall_storebytes_sem_inject_comm
+ with (vargs := Vptr b (Int.repr ofs) :: nil); eauto.
+solve[eapply extcall_storebytes_sem_intro; eauto].
+destruct H5 as [? [? [? ?]]].
+exists x.
+split; auto.
+inv H5.
+auto.
 Qed.
 
 (*Definition genv := Genv.t Clight.fundef Ctypes.type.*)
@@ -1165,16 +1185,66 @@ apply os_open
       (sig := sig); auto.
 simpl.
 rewrite H4.
-admit. (*easy*)
+rewrite H in H3.
+inv H3.
+assert (args2 = fname0 :: md0 :: nil) as ->.
+ destruct args2.
+ inversion H8.
+ destruct args2.
+ inversion H8; subst.
+ inv H19.
+ inversion H8; subst.
+ destruct args2.
+ inversion H19; subst.
+ f_equal; auto.
+ unfold val2oint in H11.
+ inv H17; auto; try congruence.
+ unfold val2omode in H10.
+ inv H18; auto; try congruence.
+ simpl in H10; congruence.
+ simpl in H10; congruence.
+ inv H19.
+ solve[inv H21].
+auto.
 
 (*fs_read*)
 destruct s1, s2; simpl in *.
 
-assert (exists m2',
-        Mem.storebytes m2 (fst adr) (snd adr) bytes = Some m2' /\
-        Mem.inject j m1' m2').
- admit. (*TODO*)
-destruct H15 as [m2' [H15 INJ]].
+assert (exists m2' b' ofs',
+        Mem.storebytes m2 b' ofs' bytes = Some m2' /\
+        Mem.inject j m1' m2' /\
+        Mem.unchanged_on (loc_unmapped j) m1 m1' /\
+        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2').
+ destruct adr.
+ simpl in H13|-*.
+ assert (Int.unsigned (Int.repr z2) = z2). admit.
+ rewrite <-H15 in H13.
+ rewrite H3 in H.
+ inversion H.
+ subst args1.
+ assert (buf = Vptr b (Int.repr z2)).
+  unfold val2oadr in H10.
+  destruct buf; try congruence; try inv H10.
+  rewrite Int.repr_unsigned; auto.
+ subst buf.
+ assert (exists b' delta, j b = Some (b', delta)).
+  inversion H8.
+  inversion H22.
+  subst x0.
+  inversion H25.
+  subst y0.
+  exists b2, delta.
+  solve[auto].
+ destruct H16 as [b' [delta JJ]].
+ eapply storebytes_sem_inject_comm 
+  with (m2 := m2) (j := j) (b' := b') in H13; eauto.
+ destruct H13 as [m2' [? [? [? ?]]]].
+ exists m2', b', (Int.unsigned (Int.add (Int.repr z2) (Int.repr delta))). 
+ split; auto.
+ admit. (*spec*)
+ admit. (*spec*)
+
+destruct H15 as [m2' [b' [ofs' [H15 [INJ [UNCH1 UNCH2]]]]]].
 
 assert (exists cd' c0' c1',
         after_external csemS (Some (Vint (Int.repr (Zlength bytes)))) c0 = Some c0' /\
@@ -1209,11 +1279,9 @@ spec core_after_external0; auto.
 spec core_after_external0; auto.
 solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
-admit. (*Events.v*)
 spec core_after_external0; auto.
 solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
-admit. (*Events.v*)
 spec core_after_external0; auto.
 admit. (*sig should be {| ... |} in H*)
 spec core_after_external0; auto.
@@ -1225,7 +1293,45 @@ admit. (*ditto*)
 spec core_after_external0; auto.
 admit. (*ditto*)
 destruct H16 as [cd' [c0' [c1' [? [? ?]]]]].
-admit. 
+
+exists (mkxT z c1' fs0), m2', cd', j.
+split; auto.
+split; auto.
+apply mem_lemmas.inject_separated_same_meminj.
+split; auto.
+split; auto.
+rewrite H14 in H16; inv H16.
+solve[auto].
+split; auto.
+split; auto.
+left.
+exists O.
+simpl.
+exists (mkxT z c1' fs0), m2'.
+split; auto.
+assert (fs0 = get_fs (mkxT z1 c1 fs2)) as ->.
+  simpl.
+  unfold fs0.
+  destruct H5.
+  solve[auto].
+apply os_read
+ with (fd0 := fd0)
+      (fd := fd)
+      (buf := Vptr b' (Int.repr ofs'))
+      (adr := (b',ofs'))
+      (nbytes0 := nbytes0)
+      (nbytes := nbytes)
+      (bytes := bytes)
+      (sig := sig); auto.
+simpl.
+rewrite H4.
+admit. (*ef stuff*)
+simpl; auto.
+f_equal; auto.
+f_equal; auto.
+admit. (*switch to int*)
+
+(*fs_write*)
 admit.
 
 (*goal 2*)
