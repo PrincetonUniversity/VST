@@ -852,9 +852,30 @@ Qed.
 Program Definition FSCoopSem := 
   Build_CoopCoreSem _ _ FSCoreSem _ _.
 Next Obligation.
-Admitted.
+inv CS.
+destruct csem.
+destruct coopsem.
+eapply corestep_fwd; eauto.
+solve[apply mem_lemmas.mem_forward_refl].
+solve[eapply mem_lemmas.storebytes_forward; eauto].
+Qed.
 Next Obligation.
-Admitted.
+inv CS.
+destruct csem.
+eapply corestep_wdmem; eauto.
+auto.
+eapply mem_lemmas.mem_wd_storebytes; eauto.
+intros v IN.
+clear - H5 IN.
+induction bytes.
+simpl in IN; inv IN.
+simpl in IN.
+destruct IN. subst. inv H5.
+destruct v; simpl in H1; try inv H1.
+solve[apply memval_inject_byte].
+apply IHbytes; auto.
+solve[inv H5; auto].
+Qed.
 
 Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
 
