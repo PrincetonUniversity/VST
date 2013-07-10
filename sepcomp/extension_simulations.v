@@ -122,6 +122,8 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
+    mem_lemmas.mem_wd m1 -> 
+    mem_lemmas.mem_wd m2 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 
@@ -132,7 +134,7 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-(*   Val.has_type v1 rty -> *)
+   mem_lemmas.val_valid v1 m1 -> 
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
      Mem.inject j m1 m2 /\

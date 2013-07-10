@@ -93,26 +93,30 @@ Qed.
 
 Lemma storebytes_sem_inject_comm:
   forall F V (ge: Genv.t F V) m1 m1' m2 bytes b ofs j b' delta,
-   Mem.storebytes m1 b (Int.unsigned (Int.repr ofs)) bytes = Some m1' ->
+   Mem.storebytes m1 b (Int.unsigned ofs) bytes = Some m1' ->
    Zlength bytes > 0 -> 
    Forall is_defchar bytes -> 
    meminj_preserves_globals ge j ->
    Mem.inject j m1 m2 ->
    j b = Some (b', delta) -> 
    exists m2',
-     Mem.storebytes m2 b' (Int.unsigned (Int.add (Int.repr ofs) (Int.repr delta))) bytes = Some m2' /\
+     Mem.storebytes m2 b' (Int.unsigned (Int.add ofs (Int.repr delta))) bytes = Some m2' /\
      Mem.inject j m1' m2' /\
      Mem.unchanged_on (loc_unmapped j) m1 m1' /\
      Mem.unchanged_on (loc_out_of_reach j m1) m2 m2'.
 Proof.
 intros.
 edestruct extcall_storebytes_sem_inject_comm
- with (vargs := Vptr b (Int.repr ofs) :: nil); eauto.
-solve[eapply extcall_storebytes_sem_intro; eauto].
+ with (vargs := Vptr b (Int.repr (Int.unsigned ofs)) :: nil); eauto.
+eapply extcall_storebytes_sem_intro; eauto.
+rewrite Int.repr_unsigned.
+solve[eauto].
 destruct H5 as [? [? [? ?]]].
 exists x.
 split; auto.
 inv H5.
+auto.
+rewrite Int.repr_unsigned in H15.
 auto.
 Qed.
 
@@ -309,14 +313,14 @@ Definition val2oint (v: val): option int :=
   | Vlong _ => None (*LENB: is this ok, Gordon?*)
   end.
 
-Definition address := (block * BinInt.Z)%type.
+Definition address := (block * int)%type.
 Definition val2oadr (v: val): option address :=
   match v with
   | Vundef => None
   | Vint i => None
   | Vlong i => None
   | Vfloat _ => None
-  | Vptr b ofs => Some (b, Int.unsigned ofs)
+  | Vptr b ofs => Some (b, ofs)
   end.
 
 Definition val2omode (mode: val): option fmode :=
@@ -598,19 +602,21 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
   fs_read fs fd (nat_of_Z (Int.unsigned nbytes)) = Some bytes -> 
-  Mem.storebytes m (fst adr) (snd adr) bytes = Some m' -> 
+  Forall is_defchar bytes -> 
+  (Zlength bytes > 0)%Z -> 
+  Mem.storebytes m (fst adr) (Int.unsigned (snd adr)) bytes = Some m' -> 
   after_external csem (Some (Vint (Int.repr (Zlength bytes)))) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs) m'
-| os_write: forall ge z s m c fd0 fd adr buf nbytes0 nbytes bytes fs' nbytes_written sig,
+(*| os_write: forall ge z s m c fd0 fd adr buf nbytes0 nbytes bytes fs' nbytes_written sig,
   let fs := get_fs s in
   at_external csem (get_core s) = Some (SYS_WRITE, sig, fd0::buf::nbytes0::nil) ->
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
-  Mem.loadbytes m (fst adr) (snd adr) (Int.unsigned nbytes) = Some bytes -> 
+  Mem.loadbytes m (fst adr) (Int.unsigned (snd adr)) (Int.unsigned nbytes) = Some bytes -> 
   fs_write fs fd bytes = Some (nbytes_written, fs') -> 
   after_external csem (Some (Vint (Int.repr (Z_of_nat nbytes_written)))) (get_core s) = Some c -> 
-  os_step ge s m (mkxT z c fs') m.
+  os_step ge s m (mkxT z c fs') m*).
 
 Definition os_initial_core (ge: genv) (v: val) (args: list val): option xT :=
   match initial_core csem ge v args with
@@ -818,14 +824,14 @@ inv H.
 apply corestep_not_at_external in H0; simpl in H1; congruence.
 unfold os_at_external; rewrite H0; auto.
 unfold os_at_external; rewrite H0; auto.
-unfold os_at_external; rewrite H0; auto.
+(*unfold os_at_external; rewrite H0; auto.*)
 Qed.
 Next Obligation.
 inv H.
 apply corestep_not_halted in H0; simpl; auto.
 edestruct (at_external_halted_excl csem); eauto. congruence.
 edestruct (at_external_halted_excl csem); eauto. congruence.
-edestruct (at_external_halted_excl csem); eauto. congruence.
+(*edestruct (at_external_halted_excl csem); eauto. congruence.*)
 Qed.
 Next Obligation.
 edestruct (at_external_halted_excl csem); eauto.
@@ -869,7 +875,8 @@ Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z
         u=adr /\
         List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_READ_SIG) /\
         is_readable fsys fd /\ 
-        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.unsigned nbytes) Cur Writable
+        Mem.range_perm m (fst adr) (Int.unsigned (snd adr)) 
+                         (Int.unsigned (snd adr) + Int.unsigned nbytes) Cur Writable
     | _, _, _ => False
     end
   | SYS_WRITE, (fsys, z), (fd0::buf::nbytes0::nil) => 
@@ -878,7 +885,8 @@ Definition fs_pre (ef: AST.external_function) u (typs: list typ) args (fsz: fs*Z
         u=adr /\
         List.Forall2 Val.has_type (fd0::buf::nbytes0::nil) (sig_args SYS_WRITE_SIG) /\
         is_writable fsys fd /\ 
-        Mem.range_perm m (fst adr) (snd adr) (snd adr + Int.unsigned nbytes) Cur Readable
+        Mem.range_perm m (fst adr) (Int.unsigned (snd adr)) 
+                         (Int.unsigned (snd adr) + Int.unsigned nbytes) Cur Readable
      | _, _, _ => False
      end
   | _, _, _ => False
@@ -898,7 +906,7 @@ Definition fs_post (ef: AST.external_function) (adr: address) (ty: option typ)
       obind False (val2oint retval) (fun nbytes => 
         exists bytes, 
           nbytes=Int.repr (Zlength bytes) /\
-          Mem.loadbytes m (fst adr) (snd adr) (Int.unsigned nbytes) = Some bytes))
+          Mem.loadbytes m (fst adr) (Int.unsigned (snd adr)) (Int.unsigned nbytes) = Some bytes))
   | SYS_WRITE, (fsys, z) => True
   | _, _ => True
   end.
@@ -967,7 +975,7 @@ inv H0.
 simpl in H. simpl. auto.
 simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
 simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
-simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
+(*simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.*)
 (*goal 2*)
 intros.
 simpl in H0.
@@ -985,10 +993,10 @@ apply corestep_not_at_external in H.
 simpl in H.
 rewrite H in H1.
 congruence.
-apply corestep_not_at_external in H.
+(*apply corestep_not_at_external in H.
 simpl in H.
 rewrite H in H1.
-congruence.
+congruence.*)
 (*goal 3*)
 intros.
 destruct s.
@@ -1128,6 +1136,7 @@ inv H3.
 solve[auto].
 spec core_after_external0; auto.
 intros.
+clear - H8.
 admit. (*!!!*)
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -1211,41 +1220,40 @@ auto.
 destruct s1, s2; simpl in *.
 
 assert (exists m2' b' ofs',
-        Mem.storebytes m2 b' ofs' bytes = Some m2' /\
+        Mem.storebytes m2 b' (Int.unsigned ofs') bytes = Some m2' /\
         Mem.inject j m1' m2' /\
         Mem.unchanged_on (loc_unmapped j) m1 m1' /\
-        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2').
+        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
+        (exists delta, j (fst adr) = Some (b',delta) /\
+          ofs' = Int.add (snd adr) (Int.repr delta))).
  destruct adr.
  simpl in H13|-*.
- assert (Int.unsigned (Int.repr z2) = z2). admit.
- rewrite <-H15 in H13.
  rewrite H3 in H.
  inversion H.
  subst args1.
- assert (buf = Vptr b (Int.repr z2)).
+ assert (buf = Vptr b i).
   unfold val2oadr in H10.
   destruct buf; try congruence; try inv H10.
-  rewrite Int.repr_unsigned; auto.
  subst buf.
  assert (exists b' delta, j b = Some (b', delta)).
   inversion H8.
-  inversion H22.
+  inversion H23.
   subst x0.
-  inversion H25.
+  inversion H26.
   subst y0.
   exists b2, delta.
   solve[auto].
- destruct H16 as [b' [delta JJ]].
+ destruct H17 as [b' [delta JJ]].
  eapply storebytes_sem_inject_comm 
   with (m2 := m2) (j := j) (b' := b') in H13; eauto.
  destruct H13 as [m2' [? [? [? ?]]]].
- exists m2', b', (Int.unsigned (Int.add (Int.repr z2) (Int.repr delta))). 
+ exists m2', b', (Int.add i (Int.repr delta)).
  split; auto.
- admit. (*spec*)
- admit. (*spec*)
-
-destruct H15 as [m2' [b' [ofs' [H15 [INJ [UNCH1 UNCH2]]]]]].
-
+ split; auto.
+ split; auto.
+ split; auto.
+ solve[exists delta; auto].
+destruct H17 as [m2' [b' [ofs' [H17 [INJ [UNCH1 [UNCH2 XX]]]]]]].
 assert (exists cd' c0' c1',
         after_external csemS (Some (Vint (Int.repr (Zlength bytes)))) c0 = Some c0' /\
         after_external csemT (Some (Vint (Int.repr (Zlength bytes)))) c1 = Some c1' /\
@@ -1285,14 +1293,43 @@ spec core_after_external0; auto.
 spec core_after_external0; auto.
 admit. (*sig should be {| ... |} in H*)
 spec core_after_external0; auto.
-admit. (*need to restrict bytes*)
+
+eapply mem_lemmas.mem_wd_storebytes; eauto.
+edestruct (FSCoopSem csemS).
+refine init_world.
+exploit match_memwd0; eauto.
+solve[intros [? ?]; auto].
+intros v IN.
+clear - H13 IN.
+induction bytes.
+simpl in IN; inv IN.
+simpl in IN.
+destruct IN. subst. inv H13. 
+destruct v; simpl in H1; try inv H1.
+solve[apply memval_inject_byte].
+apply IHbytes; auto.
+solve[inv H13; auto].
 spec core_after_external0; auto.
-admit. (*need to restrict bytes*)
+eapply mem_lemmas.mem_wd_storebytes; eauto.
+edestruct (FSCoopSem csemT).
+refine init_world.
+exploit match_memwd0; eauto.
+solve[intros [? ?]; auto].
+intros v IN.
+clear - H13 IN.
+induction bytes.
+simpl in IN; inv IN.
+simpl in IN.
+destruct IN. subst. inv H13. 
+destruct v; simpl in H1; try inv H1.
+solve[apply memval_inject_byte].
+apply IHbytes; auto.
+solve[inv H13; auto].
 spec core_after_external0; auto.
-admit. (*ditto*)
+solve[simpl; auto].
 spec core_after_external0; auto.
-admit. (*ditto*)
-destruct H16 as [cd' [c0' [c1' [? [? ?]]]]].
+solve[simpl; auto].
+destruct H18 as [cd' [c0' [c1' [? [? ?]]]]].
 
 exists (mkxT z c1' fs0), m2', cd', j.
 split; auto.
@@ -1300,7 +1337,8 @@ split; auto.
 apply mem_lemmas.inject_separated_same_meminj.
 split; auto.
 split; auto.
-rewrite H14 in H16; inv H16.
+simpl.
+rewrite H16 in H18; inv H18.
 solve[auto].
 split; auto.
 split; auto.
@@ -1317,7 +1355,7 @@ assert (fs0 = get_fs (mkxT z1 c1 fs2)) as ->.
 apply os_read
  with (fd0 := fd0)
       (fd := fd)
-      (buf := Vptr b' (Int.repr ofs'))
+      (buf := Vptr b' ofs')
       (adr := (b',ofs'))
       (nbytes0 := nbytes0)
       (nbytes := nbytes)
@@ -1325,21 +1363,120 @@ apply os_read
       (sig := sig); auto.
 simpl.
 rewrite H4.
-admit. (*ef stuff*)
-simpl; auto.
+rewrite H in H3.
+inv H3.
 f_equal; auto.
 f_equal; auto.
-admit. (*switch to int*)
 
-(*fs_write*)
-admit.
+destruct XX as [delta [XX YY]].
+destruct adr.
+simpl in XX.
+clear - XX YY H8 H0 H10 H11.
+destruct args2; simpl in H8; try inv H8.
+destruct args2; simpl in H5; try inv H5.
+unfold val2oint,val2oadr in *.
+destruct fd0; try congruence.
+destruct buf; try congruence.
+destruct nbytes0; try congruence.
+inv H0; inv H10; inv H11.
+inv H3.
+inv H4.
+inv H7.
+simpl.
+rewrite H1 in XX; inv XX.
+inv H2.
+inv H4.
+solve[auto].
 
 (*goal 2*)
-admit. (*easy*)
+intros.
+simpl in *.
+unfold os_at_external in *.
+unfold c1 in *.
+unfold c2 in *. 
+simpl in H1,H7. 
+rewrite H7.
+rewrite H1 in H0.
+destruct ef; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t; auto.
+congruence.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct name; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct name; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct name; auto.
+destruct sig_res; auto.
+destruct t; auto.
+congruence.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct name; auto.
+destruct sg; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct t; auto.
+destruct sig_args; auto.
+destruct sig_res; auto.
+destruct t; auto.
+congruence.
+
 (*goal 3*)
-admit. (*easy*)
+intros.
+simpl in H0|-*.
+unfold os_initial_core in H0|-*.
+case_eq (initial_core csemS geS v1 vals1).
+intros s INIT.
+rewrite INIT in H0.
+inv H0.
+destruct coreSim.
+clear 
+ core_diagram0 
+ core_halted0
+ core_at_external0
+ core_after_external0.
+eapply core_initial0 in INIT; eauto.
+destruct INIT as [cd [c2 [INIT MATCH']]].
+rewrite INIT.
+exists cd; eexists; split; eauto.
+split. simpl. auto. simpl; auto.
+intros NONE.
+rewrite NONE in H0.
+congruence.
+
 (*goal 4*)
-admit. (*easy*)
+intros.
+destruct coreSim.
+clear 
+ core_diagram0 
+ core_initial0
+ core_at_external0
+ core_after_external0.
+destruct H as [H2 H3].
+solve[eapply core_halted0 in H2; eauto].
 Qed.
 
 End FSExtension_Compilable.
