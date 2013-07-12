@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
