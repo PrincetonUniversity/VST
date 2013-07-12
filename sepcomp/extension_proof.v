@@ -351,6 +351,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
+ Variable at_extern_valid:
+  forall c1 m1 c2 m2 cd j ef sig args,
+    match_state cd j c1 m1 c2 m2 ->
+    at_external csemS c1 = Some (ef, sig, args) -> 
+    forall v, In v args -> val_valid v m1.
+
  Import Forward_simulation_inj_exposed.
 
  Variable core_simulation: 
@@ -590,7 +596,7 @@ generalize MATCH12 as MATCH12'; intro.
 destruct MATCH12 as [MATCH12 XX].
 specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
 spec core_at_external0.
-admit. (*!!! *)
+solve[eapply at_extern_valid; eauto].
 destruct core_at_external0 
  as [INJ [GLOB [val2 [INJ1 [HASTY [ATEXT VALVALID]]]]]].
 assert (RUN2': runnable csemT (PROJ_CORE E_T st2) = false).

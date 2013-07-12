@@ -55,8 +55,6 @@ Module Extension. Section Extension. Variables
     at_external csem c = Some (ef, sig, args) ->
     at_external esem s = None;
 
-(*  linkable: linkable proj_zext handled csig esig;*)
-
   handled_invar: 
    forall s c s' c' ef sig args sig' args',
     proj_core s = c -> 

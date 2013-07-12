@@ -585,9 +585,9 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
 | os_corestep: forall ge z c fs m c' m',
   corestep csem ge c m c' m' -> 
   os_step ge (mkxT z c fs) m (mkxT z c' fs) m'
-| os_open: forall ge z s m c md0 fname0 md fname unused_fd fs' sig,
+| os_open: forall ge z s m c md0 fname0 md fname unused_fd fs',
   let fs := get_fs s in 
-  at_external csem (get_core s) = Some (SYS_OPEN, sig, fname0::md0::nil) ->
+  at_external csem (get_core s) = Some (SYS_OPEN, SYS_OPEN_SIG, fname0::md0::nil) ->
   alloc_fd fs = Some unused_fd ->
   val2omode md0 = Some md -> 
   val2oint fname0 = Some fname -> 
@@ -595,9 +595,9 @@ Inductive os_step: genv -> xT -> mem -> xT -> mem -> Prop :=
   fs_open fs unused_fd fname md = Some fs' -> 
   after_external csem (Some (Vint unused_fd)) (get_core s) = Some c -> 
   os_step ge s m (mkxT z c fs') m
-| os_read: forall ge z s m c fd0 fd buf adr nbytes0 nbytes bytes m' sig,
+| os_read: forall ge z s m c fd0 fd buf adr nbytes0 nbytes bytes m',
   let fs := get_fs s in
-  at_external csem (get_core s) = Some (SYS_READ, sig, fd0::buf::nbytes0::nil) ->
+  at_external csem (get_core s) = Some (SYS_READ, SYS_READ_SIG, fd0::buf::nbytes0::nil) ->
   val2oint fd0 = Some fd -> 
   val2oadr buf = Some adr -> 
   val2oint nbytes0 = Some nbytes -> 
@@ -1076,27 +1076,28 @@ Variable csemS_det:
   (m' : mem) (c'' : S) (m'' : mem),
   corestep csemS ge c m c' m' ->
   corestep csemS ge c m c'' m'' -> c' = c'' /\ m' = m''.
-
 Variable csemT_det:
   forall (ge : Genv.t fT vT) (c : T) (m : mem) (c' : T) 
   (m' : mem) (c'' : T) (m'' : mem),
   corestep csemT ge c m c' m' ->
   corestep csemT ge c m c'' m'' -> c' = c'' /\ m' = m''.
-
 Variable match_state_runnable:
    forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
      (c2 : T) (m2 : mem),
    MATCH cd j c1 m1 c2 m2 ->
    extension.runnable csemS c1 = extension.runnable csemT c2.
-
 Variable match_state_meminj:
    forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
    (c2 : T) (m2 : mem), MATCH cd j c1 m1 c2 m2 -> Mem.inject j m1 m2.
-
 Variable match_preserves_globs:
    forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
      (c2 : T) (m2 : mem),
    MATCH cd j c1 m1 c2 m2 -> meminj_preserves_globals geS j.
+Variable at_extern_valid:
+  forall c1 m1 c2 m2 cd j ef sig args,
+    MATCH cd j c1 m1 c2 m2 ->
+    at_external csemS c1 = Some (ef, sig, args) -> 
+    forall v, In v args -> mem_lemmas.val_valid v m1.
 
                             
 Lemma FS_extension_compilable:
@@ -1157,8 +1158,10 @@ inv H3.
 solve[auto].
 spec core_after_external0; auto.
 intros.
-clear - H8.
-admit. (*!!!*)
+destruct H5 as [M1 M2].
+rewrite H3 in H.
+inv H.
+solve[eapply at_extern_valid; eauto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -1176,7 +1179,7 @@ solve[apply Mem.unchanged_on_refl].
 spec core_after_external0; auto.
 rewrite H3 in H.
 inv H.
-admit. (*sig0 should be {| ... |} in H3*)
+solve[simpl; auto].
 destruct H5 as [H5 XX].
 exploit match_memwd0; eauto.
 intros [? ?].
@@ -1211,8 +1214,7 @@ simpl in XX.
 subst fs2.
 apply os_open
  with (md0 := md0) (fname0 := fname0)
-      (md := md) (fname := fname) (unused_fd := unused_fd)
-      (sig := sig); auto.
+      (md := md) (fname := fname) (unused_fd := unused_fd); auto.
 simpl.
 rewrite H4.
 rewrite H in H3.
@@ -1288,7 +1290,7 @@ assert (exists cd' c0' c1',
   args1 (Vint (Int.repr (Zlength bytes)))
   m1' m2 m2'
   (Vint (Int.repr (Zlength bytes)))
-  sig).
+  (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint))).
 spec core_after_external0; auto.
 destruct H5. simpl in H5.
 spec core_after_external0; auto.
@@ -1298,7 +1300,9 @@ rewrite H3 in H.
 inv H.
 solve[auto].
 spec core_after_external0; auto.
-admit. (*!!!*)
+rewrite H3 in H.
+inv H.
+solve[eapply at_extern_valid; eauto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 spec core_after_external0; auto.
@@ -1312,7 +1316,7 @@ spec core_after_external0; auto.
 solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
-admit. (*sig should be {| ... |} in H*)
+solve[simpl; auto].
 spec core_after_external0; auto.
 
 eapply mem_lemmas.mem_wd_storebytes; eauto.
@@ -1380,8 +1384,7 @@ apply os_read
       (adr := (b',ofs'))
       (nbytes0 := nbytes0)
       (nbytes := nbytes)
-      (bytes := bytes)
-      (sig := sig); auto.
+      (bytes := bytes); auto.
 simpl.
 rewrite H4.
 rewrite H in H3.
