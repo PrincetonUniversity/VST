@@ -5,11 +5,22 @@ This directory includes files accompanying the POPL'14 submission:
 
     Verified Compilation for Shared-Memory C
 
-SUMMARY
--------
+BUILDING
+--------
+
+The files in this directory are excerpted from a larger proof development,
+the VST, or Princeton Verified Software Toolchain.  
+
+To build, please download revision XXXX of the VST from the SVN repository
+linked at
+
+    http://vst.cs.princeton.edu/download
+
+and follow the attached build/installation instructions.
 
 
-
+FILES
+-----
 
 Section 6:
 ----------
