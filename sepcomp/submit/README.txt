@@ -12,12 +12,14 @@ The files in this directory are excerpted from a larger proof development,
 the VST, or Princeton Verified Software Toolchain.  
 
 To build, and to get a sense of the larger context of the proof development,
-please download revision 5579 of the VST from the SVN repository
+please download revision 5580 of the VST from the SVN repository
 linked at
 
     http://vst.cs.princeton.edu/download
 
-and follow the attached build/installation instructions.  
+and follow the attached build/installation instructions.  Most of the files
+relating to this paper are in directory vst/sepcomp, with the exception of 
+Clight_new.v, which can be found in vst/veric.
 
 
 FILES
