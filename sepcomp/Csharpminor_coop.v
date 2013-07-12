@@ -6,6 +6,9 @@ Require Import Memory.
 Require Import Events.
 Require Import Globalenvs.
 
+Require Import sepcomp.Cminor_coop. 
+  (*to enable reuse of the lemmas eval_unop_valid and eval_binop_valid*)
+
 Require Import sepcomp.Csharpminor.
 Require Import sepcomp.mem_lemmas. (*for mem_forward and wd_mem*)
 Require Import sepcomp.core_semantics.
@@ -271,8 +274,10 @@ Proof.
     eapply eval_var_addr_val_valid; eassumption.
     destruct cst; try inv H; simpl in *; trivial.
 
-    admit. (*unary operators - should be similar to Clight case*)
-    admit. (*binary operators - should be similar to Clight case*)
+    (*The next 2 geoals are particularly easy, since
+       the expressions here are the same as in Cminor*)
+    eapply eval_unop_valid; eassumption. 
+    eapply (eval_binop_valid v1 v2); eassumption. 
       
   destruct v1; try inv H1; simpl in *.
     eapply mem_wd_load; eassumption.
@@ -366,7 +371,7 @@ Program Definition csharpmin_coop_sem :
 apply Build_CoopCoreSem with (coopsem := csharpmin_core_sem).
   apply csharpmin_coop_forward.
   apply csharpmin_coop_mem_wd.
-Qed.
+Defined.
 (*
 Lemma CSharpMin_corestepSN_2_CompCertStepStar: forall (ge : genv) n (q : CSharpMin_core) (m : mem) (q' : CSharpMin_core) (m' : mem),
    corestepN CSharpMin_CompcertCoreSem ge n q m q' m' -> 

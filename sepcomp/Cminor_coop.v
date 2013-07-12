@@ -239,6 +239,195 @@ Definition valid_env (e:env) (m:mem) :=
   forall id b z , Maps.PTree.get id e = Some (Vptr b z) ->
                   Mem.valid_block m b. 
 
+Lemma eval_unop_valid: forall w m v f 
+   (W: val_valid w m) (EV: eval_unop f w = Some v),
+   val_valid v m.
+Proof.
+intros.
+destruct v; simpl; trivial.
+destruct w; simpl in *; try destruct f; try inv EV.
+remember (Floats.Float.intoffloat f0) as q.
+  destruct q; try inv H0.
+remember (Floats.Float.intuoffloat f0) as q.
+  destruct q; try inv H0.
+remember (Floats.Float.longoffloat f0) as q.
+  destruct q; try inv H0.
+remember (Floats.Float.longuoffloat f0) as q.
+  destruct q; try inv H0.
+Qed.
+
+Lemma eval_binop_valid: forall w1 w2 m v f
+    (W1: val_valid w1 m) (W2: val_valid w2 m)
+    (EV: eval_binop f w1 w2 m = Some v),
+    val_valid v m.
+Proof. intros.
+destruct v; simpl; trivial.
+destruct w1; destruct w2; simpl in *; 
+   try destruct f; try inv EV; trivial.
+remember (Int.eq i1 Int.zero
+         || Int.eq i0 (Int.repr Int.min_signed) && Int.eq i1 Int.mone) as q.
+  destruct q; try inv H0.
+remember (Int.eq i1 Int.zero) as q.
+  destruct q; try inv H0.
+remember (Int.eq i1 Int.zero
+         || Int.eq i0 (Int.repr Int.min_signed) && Int.eq i1 Int.mone) as q.
+  destruct q; try inv H0.
+remember (Int.eq i1 Int.zero) as q.
+  destruct q; try inv H0.
+remember (Int.ltu i1 Int.iwordsize) as q.
+  destruct q; try inv H0.
+remember (Int.ltu i1 Int.iwordsize) as q.
+  destruct q; try inv H0.
+remember (Int.ltu i1 Int.iwordsize) as q.
+  destruct q; try inv H0.
+unfold Val.cmp in H0. destruct c; simpl in *.
+  remember (Int.eq i0 i1) as q.
+    destruct q; try inv H0.
+  remember (negb (Int.eq i0 i1)) as q.
+    destruct q; try inv H0.
+  remember (Int.lt i0 i1) as q.
+    destruct q; try inv H0.
+  remember (negb (Int.lt i1 i0)) as q.
+    destruct q; try inv H0.
+  remember (Int.lt i1 i0) as q.
+    destruct q; try inv H0.
+  remember ( negb (Int.lt i0 i1)) as q.
+    destruct q; try inv H0.
+unfold Val.cmpu in H0. destruct c; simpl in *.
+  remember (Int.eq i0 i1) as q.
+    destruct q; try inv H0.
+  remember (negb (Int.eq i0 i1)) as q.
+    destruct q; try inv H0.
+  remember (Int.ltu i0 i1) as q.
+    destruct q; try inv H0.
+  remember (negb (Int.ltu i1 i0)) as q.
+    destruct q; try inv H0.
+  remember (Int.ltu i1 i0) as q.
+    destruct q; try inv H0.
+  remember (negb (Int.ltu i0 i1)) as q.
+    destruct q; try inv H0.
+unfold Val.cmpu in H0. 
+  destruct c; simpl in *;
+    try (remember (Int.eq i0 Int.zero) as q;
+       destruct q; try inv H0).
+remember (Int.ltu i1 Int64.iwordsize') as q.
+    destruct q; try inv H0.
+remember (Int.ltu i1 Int64.iwordsize') as q.
+  destruct q; try inv H0.
+remember (Int.ltu i1 Int64.iwordsize') as q.
+  destruct q; try inv H0.
+remember (Int64.eq i1 Int64.zero
+         || Int64.eq i0 (Int64.repr Int64.min_signed) &&
+            Int64.eq i1 Int64.mone) as q.
+  destruct q; try inv H0.
+remember (Int64.eq i1 Int64.zero) as q.
+  destruct q; try inv H0.
+remember (Int64.eq i1 Int64.zero
+         || Int64.eq i0 (Int64.repr Int64.min_signed) &&
+            Int64.eq i1 Int64.mone) as q.
+  destruct q; try inv H0.
+remember (Int64.eq i1 Int64.zero) as q.
+  destruct q; try inv H0.
+remember (Int64.cmp c i0 i1) as q.
+  destruct q; try inv H0.
+remember (Int64.cmpu c i0 i1) as q.
+  destruct q; try inv H0.
+unfold Val.cmpf in H0.
+  destruct c; simpl in *; try inv H0.
+  remember (Floats.Float.cmp Ceq f0 f1) as q.
+    destruct q; try inv H1.
+  remember (Floats.Float.cmp Cne f0 f1) as q.
+    destruct q; try inv H1.
+  remember (Floats.Float.cmp Clt f0 f1) as q.
+    destruct q; try inv H1.
+  remember (Floats.Float.cmp Cle f0 f1) as q.
+    destruct q; try inv H1.
+  remember (Floats.Float.cmp Cgt f0 f1) as q.
+    destruct q; try inv H1.
+  remember (Floats.Float.cmp Cge f0 f1) as q.
+    destruct q; try inv H1.
+unfold Val.cmpu in H0.
+  destruct c; simpl in *;
+  try (remember (Int.eq i1 Int.zero) as q;
+       destruct q; try inv H0).
+remember (eq_block b0 b1) as q.
+  destruct q; try inv H0.
+unfold Val.cmpu in H0.
+  destruct c; simpl in *.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (Int.eq i0 i1) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (Int.eq i0 i1) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (Int.ltu i0 i1) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (negb (Int.ltu i1 i0)) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (Int.ltu i1 i0) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+  remember (eq_block b0 b1) as q.
+    destruct q; try inv H0.
+    remember ((Mem.valid_pointer m b1 (Int.unsigned i0)
+            || Mem.valid_pointer m b1 (Int.unsigned i0 - 1)) &&
+           (Mem.valid_pointer m b1 (Int.unsigned i1)
+            || Mem.valid_pointer m b1 (Int.unsigned i1 - 1))) as q;
+       destruct q; try inv H1.
+       remember (negb(Int.ltu i0 i1)) as q.
+         destruct q; try inv H0.
+    remember (Mem.valid_pointer m b0 (Int.unsigned i0) &&
+           Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
+       destruct q; try inv H1.
+Qed.
+
 Lemma eval_expr_val_valid:
   forall ge sp e m
     (SP: val_valid sp m)
@@ -257,9 +446,9 @@ Proof.
 
       destruct sp; simpl; trivial.
 
-    admit. (*unary operators - should be similar to Clight case*)
-    admit. (*binary operators - should be similar to Clight case*)
-      
+    eapply eval_unop_valid; eassumption.
+    eapply (eval_binop_valid v1 v2); eassumption.
+
   destruct vaddr; try inv H1; simpl in *.
     eapply mem_wd_load; eassumption.
 Qed. 
@@ -316,7 +505,7 @@ Lemma cmin_coop_mem_wd: forall g c m c' m'
 Proof. intros. destruct CS as [GE [VS Step]].
    unfold CMin_corestep in Step. 
    destruct c; destruct c'; simpl in *; try contradiction.
-   destruct VS as [VE VSP].   
+   destruct VS as [VE VSP]. 
      destruct Step as [t CS].
        inv CS; simpl in *; try eauto.
        destruct vaddr; simpl in H14; inv H14. 
@@ -346,7 +535,7 @@ Program Definition cmin_coop_sem :
 apply Build_CoopCoreSem with (coopsem := cmin_core_sem).
   apply cmin_coop_forward.
   apply cmin_coop_mem_wd.
-Qed.
+Defined.
 
 Lemma CMin_corestep_2_CompCertStep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
    CMin_corestep ge q m q' m' -> 
