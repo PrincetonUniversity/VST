@@ -33,6 +33,8 @@ Section 3:
    definition of core_semantics, cooperative core_semantics,
    and lemmas on multietep relations
 
+- Clight_new.v core semantics for CompCert's Clight language.
+
 Section 4:
 ----------
 
@@ -68,6 +70,21 @@ Files required for proof of transitivity:
 
 - compiler_correctness_trans.v
   lifts transitivity of core forward simulations to programs.
+
+Section 5:
+----------
+
+- Files from CompCert 2.0 (appropriate license applies here!):
+  Switch.v, Ordered.v Cminor.v Csharpminor.v Cminorgen.v Cminorgenproof.v
+
+- CminorgenproofRestructured.v: restructuring of Cminorgenproof.v to
+  isolate the cases on the varisou istructions better.
+
+- Cminor_coop.v, Csharpminor_coop.v
+  Cores semantics and cooperative core semantics formulations of the
+  two languages
+
+- CminorgenproofSIM.v: the adapted proof of the phase
 
 Section 6:
 ----------
