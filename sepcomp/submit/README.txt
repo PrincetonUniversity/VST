@@ -58,9 +58,13 @@ Section 4:
   CompCert2.0)
 
 Files required for proof of transitivity:
+- FiniteMaps.v (auxilary data structure; used in cstructing 
+  interpolating memories)
 
 - mem_interpol*.v: files for the interpolation lemmas
-   (4 cases: extend-extend (EE), extend-inject (EI),etc).
+   (4 cases: extend-extend (EE), extend-inject (EI),etc),
+  with appropriate constructions of the memories, injections, etc,
+  and proofs that they satify the diagrams.
   All interpolation lemmas are collected together in mem-interpolants.v
 
 - forward_simulations_trans.v
