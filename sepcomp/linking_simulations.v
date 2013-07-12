@@ -6,7 +6,7 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
-Require Import sepcomp.extension.
+Require Import sepcomp.linking.
 
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.

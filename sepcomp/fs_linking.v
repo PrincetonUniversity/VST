@@ -4,9 +4,9 @@ Require Import sepcomp.rg_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.extspec.
-Require Import sepcomp.extension.
-Require Import sepcomp.extension_simulations.
-Require Import sepcomp.extension_proof.
+Require Import sepcomp.linking.
+Require Import sepcomp.linking_simulations.
+Require Import sepcomp.linking_proof.
 Require Import sepcomp.Coqlib2.
 
 Require Import compcert.common.AST.
@@ -994,9 +994,9 @@ simpl in H0.
 unfold c in *.
 inv H0.
 simpl in H. simpl. auto.
-simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
-simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.
-(*simpl in *. unfold extension.runnable in H. rewrite H1 in H. congruence.*)
+simpl in *. unfold linking.runnable in H. rewrite H1 in H. congruence.
+simpl in *. unfold linking.runnable in H. rewrite H1 in H. congruence.
+(*simpl in *. unfold linking.runnable in H. rewrite H1 in H. congruence.*)
 (*goal 2*)
 intros.
 simpl in H0.
@@ -1085,7 +1085,7 @@ Variable match_state_runnable:
    forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
      (c2 : T) (m2 : mem),
    MATCH cd j c1 m1 c2 m2 ->
-   extension.runnable csemS c1 = extension.runnable csemT c2.
+   linking.runnable csemS c1 = linking.runnable csemT c2.
 Variable match_state_meminj:
    forall (cd : core_data) (j : meminj) (c1 : S) (m1 : mem) 
    (c2 : T) (m2 : mem), MATCH cd j c1 m1 c2 m2 -> Mem.inject j m1 m2.
@@ -1113,6 +1113,8 @@ destruct (@ExtensionCompilability.ExtensionCompilability
   (FSCoopSem csemT init_world)
   csemS csemT
   geS geT geS geT FS_S FS_T entry_points core_data MATCH core_ord) as [L].
+intros.
+eapply at_extern_valid; eauto.
 apply L; auto.
 apply genvs_domain_eq_refl.
 apply genvs_domain_eq_refl.

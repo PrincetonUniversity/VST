@@ -4,8 +4,8 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations. 
 Require Import sepcomp.step_lemmas. 
 Require Import sepcomp.extspec. 
-Require Import sepcomp.extension.
-Require Import sepcomp.extension_simulations.
+Require Import sepcomp.linking.
+Require Import sepcomp.linking_simulations.
 Require Import sepcomp.Coqlib2.
 Require Import sepcomp.wf_lemmas.
 
@@ -742,6 +742,12 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
  Implicit Arguments match_state [].
  Variable core_ord: core_data -> core_data -> Prop.
+
+ Variable at_extern_valid:
+  forall c1 m1 c2 m2 cd j ef sig args,
+    match_state cd j c1 m1 c2 m2 ->
+    at_external csemS c1 = Some (ef, sig, args) -> 
+    forall v, In v args -> val_valid v m1.
 
  Import Extension.
 
