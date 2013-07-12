@@ -11,12 +11,13 @@ BUILDING
 The files in this directory are excerpted from a larger proof development,
 the VST, or Princeton Verified Software Toolchain.  
 
-To build, please download revision XXXX of the VST from the SVN repository
+To build, and to get a sense of the larger context of the proof development,
+please download revision 5579 of the VST from the SVN repository
 linked at
 
     http://vst.cs.princeton.edu/download
 
-and follow the attached build/installation instructions.
+and follow the attached build/installation instructions.  
 
 
 FILES
@@ -82,7 +83,7 @@ Section 5:
   Switch.v, Ordered.v Cminor.v Csharpminor.v Cminorgen.v Cminorgenproof.v
 
 - CminorgenproofRestructured.v: restructuring of Cminorgenproof.v to
-  isolate the cases on the varisou istructions better.
+  isolate the cases on the various istructions better.
 
 - Cminor_coop.v, Csharpminor_coop.v
   Cores semantics and cooperative core semantics formulations of the
