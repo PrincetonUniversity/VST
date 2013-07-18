@@ -59,25 +59,32 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at_range tuchar sh (fun _ => c) 0 n p)).
 
-Definition sha256state_ (c: val) : mpred :=
-   (EX r:_, typed_mapsto Tsh t_struct_SHA256state_st c r).
+Definition s256state := (list int * (int * (int * (list int * int))))%type.
+Definition s256_h (s: s256state) := fst s.
+Definition s256_Nl (s: s256state) := fst (snd s).
+Definition s256_Nh (s: s256state) := fst (snd (snd s)).
+Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
+Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
 
-Definition arrayof_int sh t := arrayof int (fun (v : val) (v3 : int) => mapsto sh t v (Vint v3)) t.
-Definition arrayof_float sh t := arrayof float (fun (v : val) v3 => mapsto sh t v (Vfloat v3)) t.
+Definition sha256state_ (c: val) : mpred :=
+   (EX r:_, !! (length (s256_h r) = 8%nat /\ length (s256_data r) = 16%nat) &&
+                typed_mapsto Tsh t_struct_SHA256state_st c r).
+
+Definition arrayof_uint sh := 
+    arrayof tuint (fun (v : val) (v3 : reptype tuint) => mapsto sh tuint v (Vint v3)).
 
 Ltac simpl_array_of_t :=
+ change (Tint I32 Unsigned noattr) with tuint;
  repeat 
  match goal with 
- | |- appcontext [arrayof int (fun v v3 => mapsto ?sh ?t v (Vint v3)) ?t'] =>
-   change (arrayof int (fun v v3 => mapsto sh t v (Vint v3)) t') 
-      with (arrayof_int sh t')
- | |- appcontext [arrayof float (fun v v3 => mapsto ?sh ?t v (Vfloat v3)) ?t'] =>
-   change (arrayof float (fun v v3 => mapsto sh t v (Vfloat v3)) t') 
-      with (arrayof_float sh t')
+ | |- appcontext [arrayof tuint (fun v v3 => mapsto ?sh tuint v (Vint v3))] =>
+   change (arrayof tuint (fun (v: val) (v3: int) => mapsto sh tuint v (Vint v3))) 
+      with (arrayof_uint sh) 
  end.
 
 Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
 intros.
+ simpl in r.
  simpl_typed_mapsto.
  simpl_array_of_t.
  simpl in r.
@@ -203,10 +210,13 @@ Lemma sha256state__isptr:
 Proof.
 intros. unfold sha256state_. normalize. apply f_equal.
 extensionality r.
+rewrite <- andp_assoc.
+rewrite (andp_comm (!!isptr c)).
+rewrite andp_assoc.
+f_equal.
 simpl_typed_mapsto.
 rewrite field_mapsto_isptr at 1. normalize.
 Qed.
-
 
 Lemma lift2more {A}{B}{T}:
   forall (v :A) (v': B) (F: A -> B -> T),
@@ -224,9 +234,19 @@ Ltac simpl_stackframe_of :=
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_typed_mapsto_. 
 
+Lemma ditch_SEP: forall P Q R S,
+   PROPx P (LOCALx Q (SEPx (TT::nil))) |-- S ->
+     PROPx P (LOCALx Q (SEPx R)) |-- S.
+Proof.
+intros.
+eapply derives_trans; [| apply H]; clear H.
+go_lowerx.
+normalize.
+Qed.
+
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
-start_function.
+start_function. abbreviate_semax. (* fold abbreviate_semax into start_function! *)
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -241,9 +261,38 @@ name in_ _in.
 name ctx_ _ctx.
 unfold sha256state_.
 simpl_stackframe_of. 
-simpl_typed_mapsto; simpl_array_of_t. simpl eval_expr.
+normalize. intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
+repeat simpl_typed_mapsto.
+unfold fst,snd.
+rewrite field_mapsto_isptr.
+rewrite andp_assoc.
+normalize.
+unfold s256_data in H1.
+simpl in H0; simpl in H1.
+repeat rewrite arrayof_array_at'.
 
-forward. (* data=in; *)
+
+forward. (* data = in; *)
+
+
+forward0.
+hoist_later_in_pre.
+eapply (semax_load_array Espec Delta 4%nat)
+  with (v2 := eval_expr (Econst_int (Int.repr 0) tint));
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| ].
+
+clear POSTCONDITION Post MORE_COMMANDS.
+
+apply ditch_SEP.
+go_lower; subst; normalize.  (* 135 seconds! *)
+reflexivity.
+rewrite Zlength_correct; rewrite H0; change (Int.repr 0) with Int.zero; 
+  rewrite Int.signed_zero; split; simpl; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+autorewrite with subst.
 
 Admitted.
 

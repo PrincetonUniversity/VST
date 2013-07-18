@@ -1262,3 +1262,26 @@ Proof.  intros; subst; apply derives_refl. Qed.
 
 Lemma derives_refl'' {A}{NA: NatDed A}: forall P Q: A, Q=P -> P |-- Q.
 Proof.  intros; subst; apply derives_refl. Qed.
+
+Lemma isptr_deref_noload:
+ forall t p, access_mode t = By_reference -> isptr (deref_noload t p) = isptr p.
+Proof.
+intros.
+unfold deref_noload. rewrite H. reflexivity.
+Qed.
+Hint Rewrite isptr_deref_noload using reflexivity : norm.
+
+Lemma isptr_offset_val:
+ forall i p, isptr (offset_val i p) = isptr p.
+Proof.
+intros.
+unfold isptr.
+destruct p; simpl; auto.
+Qed.
+Hint Rewrite isptr_offset_val : norm.
+
+Lemma isptr_force_ptr' : forall p, isptr (force_ptr p) =  isptr p.
+Proof.
+intros. destruct p; reflexivity.
+Qed.
+Hint Rewrite isptr_force_ptr' : norm.

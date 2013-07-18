@@ -1261,12 +1261,22 @@ Proof.
 Qed.
 Hint Rewrite lift_lift_retval: norm.
 
+
+Lemma lift_lift_x:  (* generalizes lift_lift_val *)
+  forall t t' P (v: t),
+  (@liftx (Tarrow t (LiftEnviron t')) P (@liftx (LiftEnviron t) v)) =
+  (@liftx (LiftEnviron t') (P v)).
+Proof. reflexivity. Qed.
+Hint Rewrite lift_lift_x : norm.
+
+(*
 Lemma lift_lift_val:
   forall P v,
   (@liftx (Tarrow val (LiftEnviron val)) P (@liftx (LiftEnviron val) v)) =
   (@liftx (LiftEnviron val) (P v)).
 Proof. reflexivity. Qed.
 Hint Rewrite lift_lift_val : norm.
+*)
 
 (* Lemma lift1_lift1_retvalC : forall i (P: val -> environ -> mpred),
 `(@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).

@@ -69,12 +69,10 @@ MSL_FILES = \
 SEPCOMP_FILES= \
   Address.v step_lemmas.v Coqlib2.v extspec.v FiniteMaps.v \
   wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
-  mem_interpolation_EE.v mem_interpolation_EI.v \
-  mem_interpolation_IE.v mem_interpolation_II.v \
+  mem_interpolation_EE.v mem_interpolation_EI.v mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v compiler_correctness.v \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
-  forward_simulations_lemmas.v rg_forward_simulations.v \
-  rg_semantics.v rg_forward_simulations_lemmas.v \
+  forward_simulations_lemmas.v rg_forward_simulations.v rg_semantics.v rg_forward_simulations_lemmas.v \
   linking.v linking_simulations.v linking_proof.v \
   compiler_correctness_trans.v \
   fs_linking.v
@@ -95,7 +93,7 @@ VERIC_FILES= \
 FLOYD_FILES= \
    base.v proofauto.v malloc_lemmas.v \
    client_lemmas.v canonicalize.v assert_lemmas.v field_mapsto.v \
-   compare_lemmas.v \
+   compare_lemmas.v array_lemmas.v \
    call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v 
 
 PROGS_FILES= \
