@@ -165,9 +165,11 @@ normalize.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
 go_lower.
+clear Delta POSTCONDITION Post.
 subst h q.  
 apply andp_right.
-apply prop_right; simpl; auto. 
+apply prop_right; simpl; auto.
+unfold fifo. 
 normalize.
 apply exp_right with (hd,tl).
 destruct (isnil contents).
@@ -252,6 +254,7 @@ unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
 replace_SEP 3 (`link_ (eval_id _p)).
+clear POSTCONDITION MORE_COMMANDS.
 go_lower; subst; auto.
 unfold link_.
 forward. (* p->next = NULL; *)

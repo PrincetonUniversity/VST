@@ -52,7 +52,7 @@ Tactic Notation "unfold_lift" :=
   | |- context [lift_uncurry_open (?F _)] => unfold F 
   | |- context [Tarrow _ (?F _)] => unfold F 
   end;
-  unfold Tarrow, Tend, lift_S, lift_T, lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift.
+  cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
 
 Tactic Notation "unfold_lift" "in" hyp(H) := (* move this to veric/lift.v *)
   change @liftx with @liftx' in H;  unfold liftx' (*, id_for_lift*) in H;
@@ -60,7 +60,7 @@ Tactic Notation "unfold_lift" "in" hyp(H) := (* move this to veric/lift.v *)
   | context [lift_uncurry_open (?F _)] => unfold F in H
   | context [Tarrow _ (?F _)] => unfold F in H
   end;
-  unfold liftx', Tarrow, Tend, lift_S, lift_T, lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift in H.
+  cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in H.
 
 Tactic Notation "unfold_lift" "in" "*" :=
   change @liftx with @liftx' in *;  unfold liftx' (*, id_for_lift *) in *;
@@ -68,8 +68,7 @@ Tactic Notation "unfold_lift" "in" "*" :=
              | H: context [lift_uncurry_open (?F _)] |- _ => unfold F in H
              | |- context [Tarrow _ (?F _)] => unfold F 
              end; 
-  unfold liftx', Tarrow, Tend, lift_S, lift_T, lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift in *.
-
+  cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in *.
 
 (* The reaspon for writing   liftx(x : _) instead 
   of just (liftx x)  is to get the case  `(fun v => ..v...) to work *)

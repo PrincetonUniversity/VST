@@ -246,7 +246,7 @@ Qed.
 
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
-start_function. abbreviate_semax. (* fold abbreviate_semax into start_function! *)
+start_function.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -270,29 +270,121 @@ normalize.
 unfold s256_data in H1.
 simpl in H0; simpl in H1.
 repeat rewrite arrayof_array_at'.
-
+assert (Zlength r_h = 8) by (rewrite Zlength_correct; omega).
 
 forward. (* data = in; *)
 
-
-forward0.
-hoist_later_in_pre.
-eapply (semax_load_array Espec Delta 4%nat)
-  with (v2 := eval_expr (Econst_int (Int.repr 0) tint));
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
 [reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
 | unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
-| ].
-
-clear POSTCONDITION Post MORE_COMMANDS.
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
 
 apply ditch_SEP.
-go_lower; subst; normalize.  (* 135 seconds! *)
-reflexivity.
-rewrite Zlength_correct; rewrite H0; change (Int.repr 0) with Int.zero; 
-  rewrite Int.signed_zero; split; simpl; omega.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
 destruct ctx_; inv H2; simpl; auto.
 
-autorewrite with subst.
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
+
+forward0; [hoist_later_in_pre | abbreviate_semax ];
+[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+ eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
+[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+end
+| apply extract_exists_pre; intro; autorewrite with subst].
+
+apply ditch_SEP.
+go_lower; subst; normalize; try reflexivity.
+rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+split; omega.
+destruct ctx_; inv H2; simpl; auto.
+
 
 Admitted.
 

@@ -1177,7 +1177,8 @@ Ltac start_function :=
   | |- @semax _ _ (PROPx _ _) _ _ => idtac 
   | _ => canonicalize_pre 
  end;
- repeat (apply semax_extract_PROP; intro).
+ repeat (apply semax_extract_PROP; intro);
+ abbreviate_semax.
 
 Opaque sepcon.
 Opaque emp.

@@ -608,12 +608,14 @@ Ltac careful_unfold_lift := (* this should replace the unfold_lift in veric/lift
   | |- context [lift_uncurry_open (?F _)] => unfold F 
   | |- context [Tarrow _ (?F _)] => unfold F 
   end;
-  simpl lift_uncurry_open;  (* do this first, or the "unfold Tarrow" can blow up *)
-  unfold Tarrow, Tend, lift_S, lift_T, lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift.
+  simpl lift_uncurry_open;  
+    (*  old comment said, "do this first, or the "unfold Tarrow" can blow up";
+        but now maybe it won't blow up, using cbv delta instead of unfold  *)
+  cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
 
 Ltac go_lowerx :=
    change SEPx with SEPx';
-   unfold PROPx, LOCALx,SEPx', local, lift1; careful_unfold_lift; intro rho; simpl;
+   unfold PROPx, LOCALx,SEPx', local, lift1; (*careful_*)unfold_lift; intro rho; simpl;
    repeat rewrite andp_assoc;
    repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
    try apply prop_left;
@@ -824,15 +826,15 @@ Qed.
 
 Ltac super_unfold_lift_in H :=
    try change @liftx with @liftx' in H;
-   unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T,
-    lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,
-    lift1, lift2, lift3 in H.
+   cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+    lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
+    lift1 lift2 lift3] beta iota in H.
 
-Ltac super_unfold_lift' :=
-   try change @liftx with @liftx';
-   unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T,
-    lift_prod, lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,
-    lift1, lift2, lift3.
+Ltac super_unfold_lift' := 
+ try change @liftx with @liftx';
+  cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+    lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
+    lift1 lift2 lift3] beta iota.
 
 Lemma typed_false_cmp'':
   forall i j op e1 e2,

@@ -874,7 +874,7 @@ apply go_lower_lem9.
 go_lowerx.
 rewrite field_mapsto_isptr. normalize.
 rewrite field_mapsto_nonvolatile. normalize.
-unfold_lift. rewrite isptr_force_ptr by auto.
+unfold_lift. 
 repeat apply andp_right; try apply prop_right;  auto.
 hnf; simpl. rewrite H0. rewrite H9.
 repeat rewrite denote_tc_assert_andp; repeat split; auto.

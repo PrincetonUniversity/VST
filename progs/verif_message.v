@@ -617,7 +617,8 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
-start_function. simpl_stackframe_of.
+start_function. unfold MORE_COMMANDS, abbreviate.
+simpl_stackframe_of.
 name len _len.
 name x _x.
 name y _y.
@@ -711,23 +712,13 @@ go_lower. subst. simpl. normalize. unfold main_post.
 2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H1;
  apply memory_block_zero.
 
-repeat rewrite <- sepcon_assoc.
-apply derives_trans with
-( typed_mapsto_ Tsh t_struct_intpair
-      (eval_var _q t_struct_intpair rho) 
- * TT
- *typed_mapsto_ Tsh (tarray tuchar 8)
-      (eval_var _buf (tarray tuchar 8) rho)
- * typed_mapsto_ Tsh t_struct_intpair
-      (eval_var _p t_struct_intpair rho)
- ).
-apply sepcon_derives; auto.
-apply sepcon_derives; auto.
-apply sepcon_derives; auto.
-simpl_typed_mapsto. apply sepcon_derives; auto. 
+eapply derives_trans.
+apply typed_mapsto_typed_mapsto_.
 rewrite <- memory_block_typed.
-change (sizeof (tarray tuchar 8)) with (sizeof t_struct_intpair).
-rewrite memory_block_typed. auto.
+auto.
+
+repeat rewrite var_block_typed_mapsto_.
+normalize.
 cancel.
 Qed.
 

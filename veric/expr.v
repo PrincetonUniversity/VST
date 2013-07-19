@@ -204,9 +204,9 @@ Canonical Structure LiftEnviron := Tend environ.
 
 
 Ltac super_unfold_lift :=
-  change @liftx with @liftx' in *;  
-  unfold liftx', id_for_lift, LiftEnviron, Tarrow, Tend, lift_S, lift_T, lift_prod, 
-  lift_last, lifted, lift_uncurry_open, lift_curry, lift, lift0,lift1,lift2,lift3 in *.
+  change @liftx with @liftx' in *; 
+  cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T lift_prod 
+  lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
 
 (** Computational version of type_eq **)
 
