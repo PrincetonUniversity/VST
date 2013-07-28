@@ -15,10 +15,10 @@ Definition __builtin_read32_reversed_spec :=
   WITH p: val, sh: share, contents: Z -> int
   PRE [ 1%positive OF tptr tuint ] 
         PROP() LOCAL (`(eq p) (eval_id 1%positive))
-        SEP (`(array_at_range tuchar sh contents 0 4 p))
+        SEP (`(array_at tuchar sh contents 0 4 p))
   POST [ tuint ] 
      local (`(eq (Vint (big_endian_integer contents))) retval) &&
-     `(array_at_range tuchar sh contents 0 4 p).
+     `(array_at tuchar sh contents 0 4 p).
 
 (*        SEP (`(rangespec 0 4 (fun i => mapsto_ sh tuchar (add_ptr_int tuchar p i)))) *)
 
@@ -31,7 +31,7 @@ Definition __builtin_write32_reversed_spec :=
                      `(eq (Vint(big_endian_integer contents))) (eval_id 2%positive))
         SEP (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
-     `(array_at_range tuchar sh contents 0 4 p).
+     `(array_at tuchar sh contents 0 4 p).
 
 Definition memcpy_spec :=
   DECLARE _memcpy
@@ -40,12 +40,12 @@ Definition memcpy_spec :=
        PROP (writable_share (snd sh))
        LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
                     `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))
-       SEP (`(array_at_range tuchar (fst sh) contents 0 n q);
+       SEP (`(array_at tuchar (fst sh) contents 0 n q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at_range tuchar (fst sh) contents 0 n q) *
-        `(array_at_range tuchar (snd sh) contents 0 n p)).
+       (`(array_at tuchar (fst sh) contents 0 n q) *
+        `(array_at tuchar (snd sh) contents 0 n p)).
 
 Definition memset_spec :=
   DECLARE _memset
@@ -57,7 +57,7 @@ Definition memset_spec :=
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at_range tuchar sh (fun _ => c) 0 n p)).
+       (`(array_at tuchar sh (fun _ => c) 0 n p)).
 
 Definition s256state := (list int * (int * (int * (list int * int))))%type.
 Definition s256_h (s: s256state) := fst s.
@@ -70,6 +70,7 @@ Definition sha256state_ (c: val) : mpred :=
    (EX r:_, !! (length (s256_h r) = 8%nat /\ length (s256_data r) = 16%nat) &&
                 typed_mapsto Tsh t_struct_SHA256state_st c r).
 
+(*
 Definition arrayof_uint sh := 
     arrayof tuint (fun (v : val) (v3 : reptype tuint) => mapsto sh tuint v (Vint v3)).
 
@@ -81,12 +82,12 @@ Ltac simpl_array_of_t :=
    change (arrayof tuint (fun (v: val) (v3: int) => mapsto sh tuint v (Vint v3))) 
       with (arrayof_uint sh) 
  end.
+*)
 
 Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
 intros.
  simpl in r.
  simpl_typed_mapsto.
- simpl_array_of_t.
  simpl in r.
  destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
  simpl.
@@ -129,7 +130,7 @@ Definition SHA256_Final_spec :=
          SEP(`(sha256state_ c); `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          SEP(`(sha256state_ c); 
-                `(EX mdv:list int, arrayof_int shmd tuchar 32 md mdv)).
+                `(EX mdv:list (reptype tuchar), array_at tuchar shmd (ZnthV mdv) 0 32 md)).
 
 Definition SHA256_spec :=
   DECLARE _SHA256
@@ -142,7 +143,7 @@ Definition SHA256_spec :=
                `(memory_block (snd sh) (Int.repr 32) md))
   POST [ tvoid ] 
          SEP(`A;
-               `(EX mdv:list int, arrayof_int (snd sh) tuchar 32 md mdv)).
+               `(EX mdv:list (reptype tuchar), array_at tuchar (snd sh) (ZnthV mdv) 0 32 md)).
 
 Module Alternate.
 
@@ -161,13 +162,13 @@ Definition field_offset' (t: type) (fld: ident) (p: val) : val :=
   end.
 
 Definition sha256state (r: sha256rep) (p: val) : mpred :=
-   array_at_range tuint Tsh (sr_h r) 0 8
+   array_at tuint Tsh (sr_h r) 0 8
       (field_offset' t_struct_SHA256state_st _h p) 
  * field_mapsto Tsh t_struct_SHA256state_st _Nl p 
                    (Vint (Int.repr (sr_lh r)))
  * field_mapsto Tsh t_struct_SHA256state_st _Nh p 
                    (Vint (Int.repr (Zdiv (sr_lh r) Int.modulus)))
- * array_at_range tuint Tsh (sr_data r) 0 16
+ * array_at tuint Tsh (sr_data r) 0 16
       (field_offset' t_struct_SHA256state_st _data p) 
  * field_mapsto Tsh t_struct_SHA256state_st _num p 
                  (Vint (Int.repr (sr_num r))).
@@ -269,8 +270,17 @@ rewrite andp_assoc.
 normalize.
 unfold s256_data in H1.
 simpl in H0; simpl in H1.
-repeat rewrite arrayof_array_at'.
 assert (Zlength r_h = 8) by (rewrite Zlength_correct; omega).
+
+Lemma no_offset:
+  forall v, isptr v -> `v = `(offset_val Int.zero) `v.
+Proof.
+intros.
+rewrite <- lift1more.
+f_equal.
+symmetry.
+rewrite offset_val_force_ptr. apply isptr_force_ptr; auto.
+Qed.
 
 forward. (* data = in; *)
 
@@ -278,7 +288,8 @@ forward0; [hoist_later_in_pre | abbreviate_semax ];
 [match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
  eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
 [reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
+        f_equal; (apply no_offset; auto || reflexivity) 
 | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
 end
 | apply extract_exists_pre; intro; autorewrite with subst].
@@ -294,7 +305,8 @@ forward0; [hoist_later_in_pre | abbreviate_semax ];
 [match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
  eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
 [reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
+        f_equal; (apply no_offset; auto || reflexivity) 
 | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
 end
 | apply extract_exists_pre; intro; autorewrite with subst].
@@ -304,13 +316,13 @@ go_lower; subst; normalize; try reflexivity.
 rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
 split; omega.
 destruct ctx_; inv H2; simpl; auto.
-
 
 forward0; [hoist_later_in_pre | abbreviate_semax ];
 [match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
  eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
 [reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
+| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
+        f_equal; (apply no_offset; auto || reflexivity) 
 | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
 end
 | apply extract_exists_pre; intro; autorewrite with subst].
@@ -321,69 +333,6 @@ rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega)
 split; omega.
 destruct ctx_; inv H2; simpl; auto.
 
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
-
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
-
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
-
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; reflexivity 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
 
 
 Admitted.

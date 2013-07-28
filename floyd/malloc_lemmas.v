@@ -122,37 +122,44 @@ Definition storable_mode (ty: type) : bool :=
   | _ => true
 end.
 
-Fixpoint arrayof (t: type) (f: forall (v1: val) (v2: reptype t),  mpred)
-            (ofs: Z) (v1: val) (v2: list (reptype t)) : mpred :=
-    match v2 with
-    | v::rest => f (offset_val (Int.repr ofs) v1) v * arrayof t f  (ofs + sizeof t) v1 rest
-    | nil => emp
-   end.
+Fixpoint default_val (t: type) : reptype t :=
+  match t as t0 return (reptype t0) with
+  | Tvoid => tt
+  | Tint _ _ _ => Int.zero
+  | Tlong _ _ => Int64.zero
+  | Tfloat _ _ => Float.zero
+  | Tpointer _ _ => Vundef
+  | Tarray t0 _ _ => nil
+  | Tfunction _ _ => tt
+  | Tstruct _ f _ => fieldlist_rect (fun f0 : fieldlist => reptype_structlist f0) tt
+            (fun (_ : ident) (t : type) (f0 : fieldlist) (IHf : reptype_structlist f0) =>
+           match f0 as f1
+                return (reptype_structlist f1 ->
+                              if is_Fnil f1 then reptype t else (reptype t * reptype_structlist f1)%type)
+         with
+             | Fnil => fun _ : reptype_structlist Fnil => default_val t
+             | Fcons i0 t0 f1 =>
+                 fun IHf0 : reptype_structlist (Fcons i0 t0 f1) => (default_val t, IHf0)
+         end IHf) f
+  | Tunion _ f _ =>
+      match f as f0 return (reptype_unionlist f0) with
+      | Fnil => tt
+      | Fcons _ t1 _ => inl (default_val t1)
+      end
+  | Tcomp_ptr _ _ => Vundef
+  end.
 
-Fixpoint uarrayof (f: forall (v1: val) (v2: val),  mpred)
-         (t1: type) (ofs: Z) (v1: val) (v2: list val) : mpred :=
-    match v2 with
-    | v::rest => f (offset_val (Int.repr ofs) v1) v * uarrayof f t1 (ofs + sizeof t1) v1 rest
-    | nil => emp
-   end.
+Definition ZnthV {t} (lis: list (reptype t)) (i: Z) : reptype t := 
+       nth (Z.to_nat i) lis (default_val t).
 
-Fixpoint arrayof_int (sh: share) (t: type) (ofs: Z) (v1: val) (v2: list int) : mpred :=
-    match v2 with
-    | v::rest => mapsto sh t (offset_val (Int.repr ofs) v1) (Vint v) * arrayof_int sh t (ofs + sizeof t) v1 rest
-    | nil => emp
-   end.
+Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
+  match n with
+  | O => emp
+  | S n' => P lo * rangespec' (Zsucc lo) n' P
+ end.
 
-Lemma uarrayof_int_eq:
- forall sh t ofs v1 v2,
-    match t with Tint _ _ {| attr_volatile := false |} => True | _ => False end ->
-   uarrayof (mapsto sh t) t ofs v1 (map Vint v2) = arrayof_int sh t ofs v1 v2.
-Proof.
-intros.
- destruct t; try contradiction. destruct a; try contradiction. destruct attr_volatile; try contradiction.
- clear H.
- revert ofs; induction v2; simpl; intros; auto.
- f_equal; auto.
-Qed. 
+Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
+  rangespec' lo (nat_of_Z (hi-lo)) P.
 
 Fixpoint arrayof_' (f: forall (v1: val),  mpred)
          (t1: type) (ofs: Z) (n: nat) (v1: val) : mpred :=
@@ -188,15 +195,6 @@ Qed.
 
 Definition arrayof_ (f: forall (v1: val),  mpred) (t1: type) (n: nat) (v1: val) : mpred :=
              arrayof_' f t1 0 n v1.
-
-Lemma arrayof_'_eq:
-forall (f: forall (v1 v2: val), mpred) t ofs n v1,
-  arrayof_' (fun v => f v Vundef) t ofs n v1 = uarrayof f t ofs v1 (list_repeat n Vundef).
-Proof.
- intros; revert ofs;
- induction n; simpl; intros; auto.
- f_equal; auto.
-Qed.
 
 Definition force_field_offset id flds : Z :=
   match field_offset id flds with Errors.OK z  => z | _ => 0 end.
@@ -255,6 +253,10 @@ end.
 Definition at_offset2 {T} (f: val -> T -> mpred) pos (v2: T) := 
            at_offset (fun v => f v v2) pos.
 
+Definition array_at' (t: type) (sh: Share.t) (tmaps: val -> reptype t -> mpred) (f: Z -> reptype t) (lo hi: Z)
+                                   (v: val) : mpred :=
+           rangespec lo hi (fun i => tmaps (add_ptr_int t v i) (f i)).
+
 Fixpoint typed_mapsto' (sh: Share.t) (t1: type) (pos: Z) : val -> reptype t1 -> mpred :=
 match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
 | Tvoid => fun _ _ => emp
@@ -287,7 +289,8 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
       eq_rect_r (fun t2 : type =>  val -> reptype t2 -> mpred)
         (fun v (v3 : reptype (Tarray t z a)) => 
                  withspacer sh pos (alignof t)
-                 (fun v => arrayof t (typed_mapsto' sh t 0) (align pos (alignof t)) v v3) v)
+                  (at_offset (fun v =>
+                          array_at' t sh (typed_mapsto' sh t 0) (ZnthV v3) 0 (Zlength v3) v) (align pos (alignof t))) v)
         H
 | Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>
@@ -404,6 +407,10 @@ Proof. reflexivity. Qed.
 Definition opaque_sepcon := @sepcon (val->mpred) _ _.
 Global Opaque opaque_sepcon.
 
+Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
+                                   (v: val) :=
+           rangespec lo hi (fun i => typed_mapsto sh t (add_ptr_int t v i) (f i)).
+
 Ltac simpl_typed_mapsto' T H MA :=
        try unfold T in H;
        unfold  typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto', 
@@ -432,6 +439,8 @@ Ltac simpl_typed_mapsto' T H MA :=
             (fun P Q (v: val) => @sepcon mpred _ _ (P v) (Q v)) in H;
        subst MA;
       repeat match goal with 
+ | |- appcontext [array_at' ?t ?sh (typed_mapsto ?sh ?t)] =>
+              change (array_at' t sh (typed_mapsto sh t)) with (array_at t sh)
         | |- context [@liftx (Tarrow val (LiftEnviron mpred))(fun v: val => @sepcon mpred _ _ 
                                    (?A1 ?B1 ?C1 ?D1 v)  (?A2 ?B2 ?C2 ?D2 v)) ?V] =>
           change (@liftx (Tarrow val (LiftEnviron mpred)) (fun v: val => @sepcon mpred _ _ 
@@ -460,6 +469,14 @@ Ltac simpl_typed_mapsto1 :=
   end. 
 
 Ltac simpl_typed_mapsto := repeat simpl_typed_mapsto1.
+
+(*
+Require Import progs.sha.
+
+Goal typed_mapsto Tsh t_struct_SHA256state_st = fun _ _ => TT.
+simpl_typed_mapsto.
+Abort.
+*)
 
 (* TESTING 
 Require Import progs.sha.
@@ -805,8 +822,6 @@ simpl. rewrite emp_sepcon.
 rewrite Int.add_zero. auto.
 Qed.
 
-
-
 Lemma var_block_typed_mapsto_:
   forall  sh id t, 
  var_block sh (id, t) = 
@@ -828,33 +843,4 @@ Admitted.
 Hint Resolve typed_mapsto_typed_mapsto_.
 Hint Resolve field_mapsto_field_mapsto_.
 
-Fixpoint default_val (t: type) : reptype t :=
-  match t as t0 return (reptype t0) with
-  | Tvoid => tt
-  | Tint _ _ _ => Int.zero
-  | Tlong _ _ => Int64.zero
-  | Tfloat _ _ => Float.zero
-  | Tpointer _ _ => Vundef
-  | Tarray t0 _ _ => nil
-  | Tfunction _ _ => tt
-  | Tstruct _ f _ => fieldlist_rect (fun f0 : fieldlist => reptype_structlist f0) tt
-            (fun (_ : ident) (t : type) (f0 : fieldlist) (IHf : reptype_structlist f0) =>
-           match f0 as f1
-                return (reptype_structlist f1 ->
-                              if is_Fnil f1 then reptype t else (reptype t * reptype_structlist f1)%type)
-         with
-             | Fnil => fun _ : reptype_structlist Fnil => default_val t
-             | Fcons i0 t0 f1 =>
-                 fun IHf0 : reptype_structlist (Fcons i0 t0 f1) => (default_val t, IHf0)
-         end IHf) f
-  | Tunion _ f _ =>
-      match f as f0 return (reptype_unionlist f0) with
-      | Fnil => tt
-      | Fcons _ t1 _ => inl (default_val t1)
-      end
-  | Tcomp_ptr _ _ => Vundef
-  end.
-
-Global Opaque arrayof.
 Global Opaque arrayof_.
-

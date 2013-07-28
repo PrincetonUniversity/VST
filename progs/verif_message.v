@@ -712,13 +712,18 @@ go_lower. subst. simpl. normalize. unfold main_post.
 2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H1;
  apply memory_block_zero.
 
-eapply derives_trans.
-apply typed_mapsto_typed_mapsto_.
-rewrite <- memory_block_typed.
-auto.
-
 repeat rewrite var_block_typed_mapsto_.
 normalize.
+eapply derives_trans; [
+  repeat simple apply sepcon_derives; 
+   try simple apply typed_mapsto_typed_mapsto_;
+   try simple apply field_mapsto_field_mapsto_;
+   apply derives_refl 
+ | ].
+replace ( typed_mapsto_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
+   with (typed_mapsto_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
+ by (repeat rewrite <- memory_block_typed; auto).
+simpl_typed_mapsto.
 cancel.
 Qed.
 

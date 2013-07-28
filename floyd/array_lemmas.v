@@ -6,23 +6,6 @@ Require Import floyd.compare_lemmas.
 Require Import floyd.malloc_lemmas.
 Local Open Scope logic.
 
-
-Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
-  match n with
-  | O => emp
-  | S n' => P lo * rangespec' (Zsucc lo) n' P
- end.
-
-Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
-  rangespec' lo (nat_of_Z (hi-lo)) P.
-
-Definition array_at (t: type) (sh: Share.t) (v: val) (i: Z) (e: reptype t) : mpred :=
-   typed_mapsto sh t (add_ptr_int t v i) e.
-
-Definition array_at_range (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
-                                   (v: val) :=
-           rangespec lo hi (fun i => array_at t sh v i (f i)).
-
 Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
  match n with
   | O => zero
@@ -31,10 +14,6 @@ Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :
 
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (nat_of_Z (hi-lo)).
-
-
-Definition ZnthV {t} (lis: list (reptype t)) (i: Z) : reptype t := 
-       nth (Z.to_nat i) lis (default_val t).
 
 Lemma rangespec'_ext:
  forall f f' contents lo,
@@ -45,78 +24,6 @@ induction contents; intros.
 simpl. auto.
 simpl. f_equal. apply H. omega.
 apply IHcontents. intros. apply H. omega.
-Qed.
-
-Transparent arrayof.
-
-Lemma arrayof_array_at:
-  forall sh t (ofs: Z) (contents: list (reptype t)),
-    (fun v => arrayof t (typed_mapsto sh t) ofs v contents) = 
-    at_offset (array_at_range t sh (ZnthV contents) 0 (Zlength contents)) ofs.
-Proof. 
-intros.
-extensionality v.
-rewrite at_offset_eq.
-Focus 2.
-  unfold array_at_range, rangespec; simpl; f_equal; extensionality i.
-  unfold array_at. f_equal. unfold add_ptr_int.
-  unfold offset_val. unfold tptr. destruct v; simpl; auto.
-  f_equal. rewrite Int.add_zero. auto.
-unfold array_at_range, rangespec.
-rewrite Z.sub_0_r.
-rewrite Zlength_correct.
-rewrite nat_of_Z_of_nat.
-transitivity 
- (rangespec' 0 (length contents)
-  (fun i : Z =>
-   array_at t sh (offset_val (Int.repr ofs) v) (i-0) (ZnthV contents (i-0))));
- [ |  f_equal; extensionality i; repeat f_equal; omega].
-assert (Hlen: 0 <= 0).
-omega.
-remember 0 as k. pattern k at 1 in Hlen; rewrite Heqk in Hlen. clear Heqk.
-revert k ofs Hlen; induction contents; simpl; intros; auto.
-f_equal.
-clear.
-replace (k-k) with 0 by omega.
-unfold array_at. f_equal.
-destruct v; simpl; auto. f_equal.
-rewrite Int.mul_zero. rewrite Int.add_zero. auto.
-rewrite (IHcontents (Z.succ k)) by omega; clear IHcontents.
-apply rangespec'_ext; intros.
-unfold array_at.
-f_equal.
-unfold add_ptr_int.
-destruct v; simpl; auto. f_equal.
-repeat rewrite Int.add_assoc.
-f_equal.
-unfold Z.succ.
-replace (i - (k + 1)) with (i-k + -1) by omega.
-repeat rewrite <- add_repr.
-rewrite Int.mul_add_distr_r.
-rewrite Int.mul_mone.
-rewrite (Int.add_commut (Int.mul _ _)).
-rewrite Int.add_assoc.
-f_equal.
-repeat rewrite <- Int.add_assoc.
-rewrite Int.add_neg_zero.
-rewrite Int.add_zero_l.
-auto.
-unfold ZnthV, Z.succ.
-replace (i-k) with (1+ (i-(k+1))) by omega.
-destruct (zlt (i - (k+1)) 0).
-omega.
-rewrite Z2Nat.inj_add by omega.
-simpl. auto.
-Qed.
-
-Opaque arrayof.
-
-Lemma arrayof_array_at':
-  forall t (ofs: Z) (contents: list (reptype t)) v sh,
-    arrayof t (typed_mapsto sh t) ofs v contents = 
-    at_offset (array_at_range t sh (ZnthV contents) 0 (Zlength contents)) ofs v.
-Proof.
-intros. subst. rewrite <- arrayof_array_at. auto.
 Qed.
 
 Definition repinject (t: type) : option (reptype t -> val) :=
@@ -140,16 +47,16 @@ intros.
  try destruct i; try destruct f; try omega.
 Qed.
 
-Lemma split3_array_at_range:
+Lemma split3_array_at:
   forall i ty sh contents lo hi v,
        lo <= i < hi ->
-     array_at_range ty sh contents lo hi v =
-     array_at_range ty sh contents lo i v *
+     array_at ty sh contents lo hi v =
+     array_at ty sh contents lo i v *
      typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
-     array_at_range ty sh contents (Zsucc i) hi v.
+     array_at ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
- unfold array_at_range, rangespec.
+ unfold array_at, rangespec.
  remember (nat_of_Z (i - lo)) as n.
  replace (nat_of_Z (hi - lo)) with (n + nat_of_Z (hi - i))%nat.
 Focus 2. {subst; unfold nat_of_Z; rewrite <- Z2Nat.inj_add by omega.
@@ -186,26 +93,25 @@ Focus 2. {
   omega.
 Qed.
 
-Lemma lift_split3_array_at_range:
+Lemma lift_split3_array_at:
   forall i ty sh contents lo hi,
        lo <= i < hi ->
-     array_at_range ty sh contents lo hi =
-     array_at_range ty sh contents lo i *
+     array_at ty sh contents lo hi =
+     array_at ty sh contents lo i *
      (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
-     array_at_range ty sh contents (Zsucc i) hi.
+     array_at ty sh contents (Zsucc i) hi.
 Proof.
- intros. extensionality v. simpl. apply split3_array_at_range. auto.
+ intros. extensionality v. simpl. apply split3_array_at. auto.
 Qed.
 
 Lemma at_offset_array: forall v t1 sh contents lo hi ofs,
-     `(at_offset (array_at_range t1 sh contents lo hi) ofs) v =
-     `(array_at_range t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v).
+     `(at_offset (array_at t1 sh contents lo hi) ofs) v =
+     `(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v).
 Proof.
  intros. extensionality rho. unfold_lift.
  rewrite at_offset_eq; auto.
-  unfold array_at_range, rangespec.
+  unfold array_at, rangespec.
  apply rangespec'_ext. intros.
- unfold array_at.
  destruct (v rho); simpl; auto.
  f_equal. f_equal. rewrite Int.add_assoc. f_equal.
  rewrite Int.add_zero_l. auto.
@@ -313,7 +219,8 @@ forall Espec (Delta: tycontext) n id sh t1 inject P Q R lo hi contents e1 (v1 v2
     type_is_volatile t1 = false ->
     strictAllowedCast t1 t1' = true ->
     repinject t1 = Some inject ->
-    @nth_error (LiftEnviron mpred) R n = Some (`(at_offset (array_at_range t1 sh contents lo hi) ofs) v1) ->
+    @nth_error (LiftEnviron mpred) R n = Some (`(array_at t1 sh contents lo hi)
+                                 (`(offset_val (Int.repr ofs)) v1)) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && local (`isptr v1) && 
@@ -345,12 +252,12 @@ replace (EX  old : val,
             :: map (subst id `old) Q)
            (SEPx
               (map (subst id `old)
-                 (`(at_offset (array_at_range t1 sh contents lo hi) ofs) v1 ::
+                 (`(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v1) ::
                     replace_nth n R emp))))).
 Focus 2. {
   f_equal. extensionality old.  f_equal. f_equal.
  assert (subst id `old (SEPx 
-              (`(at_offset (array_at_range t1 sh contents lo hi) ofs) v1
+              (`(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v1)
                   :: (replace_nth n R emp))) =
              subst id `old (SEPx R)).
 f_equal.
@@ -371,7 +278,7 @@ change (@replace_nth (environ -> mpred) n R
                       (@LiftSepLog' mpred Nveric Sveric))) 
  in *.
 forget (@replace_nth (LiftEnviron mpred) n R emp) as R'. clear n R.
- rewrite at_offset_array in H2|-*.
+ (* rewrite at_offset_array in H2|-*. *)
 
 apply semax_pre_post with
    (|>PROPx P
@@ -379,12 +286,12 @@ apply semax_pre_post with
                       `(in_range lo hi) (`force_signed_int v2) :: `isptr v1 ::
                      `eq (`force_val (`sem_add (`(offset_val (Int.repr ofs)) v1) `(tptr t1) v2 `tint)) (eval_expr e1) :: Q)
           (SEPx
-             (`(array_at_range t1 sh contents)  
+             (`(array_at t1 sh contents)  
                    (`force_signed_int v2)
                    (`Z.succ (`force_signed_int v2)) 
-                   (`(offset_val (Int.repr ofs)) v1) :: `(array_at_range t1 sh contents lo)  (`force_signed_int v2)
+                   (`(offset_val (Int.repr ofs)) v1) :: `(array_at t1 sh contents lo)  (`force_signed_int v2)
                 (`(offset_val (Int.repr ofs)) v1) :: 
-             `(array_at_range t1 sh contents)  
+             `(array_at t1 sh contents)  
                    (`Z.succ (`force_signed_int v2)) `hi
                    (`(offset_val (Int.repr ofs)) v1) :: 
                R'))))
@@ -399,13 +306,13 @@ apply semax_pre_post with
                        :: Q))
            (SEPx
               (map (subst id `old)
-                 (`(array_at_range t1 sh contents)  
+                 (`(array_at t1 sh contents)  
                    (`force_signed_int (subst id `old v2))
                    (`Z.succ (`force_signed_int (subst id `old v2)))
                    (`(offset_val (Int.repr ofs)) v1) :: 
-                 `(array_at_range t1 sh contents lo)  (`force_signed_int v2)
+                 `(array_at t1 sh contents lo)  (`force_signed_int v2)
                         (`(offset_val (Int.repr ofs)) v1) :: 
-                `(array_at_range t1 sh contents)  
+                `(array_at t1 sh contents)  
                    (`Z.succ (`force_signed_int (subst id `old v2))) `hi
                    (`(offset_val (Int.repr ofs)) v1) :: 
                R')))))).
@@ -417,11 +324,11 @@ apply semax_pre_post with
  clear.
  go_lowerx.
  apply andp_right. destruct H1; apply prop_right; repeat split; auto. 
- rewrite (split3_array_at_range (force_signed_int (v2 rho)) _ _ _ lo hi) by apply H1.
- rewrite (sepcon_comm (array_at_range _ _ _ _ _ _)).
+ rewrite (split3_array_at (force_signed_int (v2 rho)) _ _ _ lo hi) by apply H1.
+ rewrite (sepcon_comm (array_at _ _ _ _ _ _)).
  repeat rewrite sepcon_assoc.
  apply sepcon_derives; auto.
- unfold array_at_range, rangespec.
+ unfold array_at, rangespec.
  replace ( (Z.succ (force_signed_int (v2 rho)) - force_signed_int (v2 rho))) with 1 by omega.
  simpl. rewrite sepcon_emp.
  apply derives_refl.
@@ -436,10 +343,10 @@ apply semax_pre_post with
   destruct (subst id (fun _ : environ => old) v1 rho); inv H2.
   destruct (subst id (fun _ : environ => old) v2 rho); inv H3.
   simpl in *.  
-  rewrite (split3_array_at_range (Int.signed i0)  _ _ _ lo hi _ H1).
+  rewrite (split3_array_at (Int.signed i0)  _ _ _ lo hi _ H1).
  simpl.
  cancel.
- unfold array_at_range, rangespec.
+ unfold array_at, rangespec.
   replace (Z.succ (Int.signed i0) - Int.signed i0) with 1 by omega.
  simpl.
  rewrite sepcon_emp. apply derives_refl.
@@ -453,9 +360,9 @@ apply semax_pre_post with
                  :: `isptr v1
                     :: `eq (`force_val (`sem_add (`(offset_val (Int.repr ofs)) v1) `(tptr t1) v2 `tint))
                          (eval_expr e1) :: Q)
-                (SEPx (`(array_at_range t1 sh contents lo) (`force_signed_int v2)
+                (SEPx (`(array_at t1 sh contents lo) (`force_signed_int v2)
                    (`(offset_val (Int.repr ofs)) v1)
-                 :: `(array_at_range t1 sh contents)
+                 :: `(array_at t1 sh contents)
                       (`Z.succ (`force_signed_int v2)) `hi
                       (`(offset_val (Int.repr ofs)) v1) :: R')))) (Ederef e1 t1)
     (`inject (`contents (`force_signed_int v2))))]; auto.
@@ -475,8 +382,8 @@ apply semax_pre_post with
     apply strictAllowedValCast; auto.
 
  normalize. apply sepcon_derives; auto.
- unfold array_at_range, rangespec. rewrite Zsucc_sub_self.
- simpl. unfold array_at. unfold_lift. rewrite <- H8.
+ unfold array_at, rangespec. rewrite Zsucc_sub_self.
+ simpl. unfold_lift. rewrite <- H8.
       destruct (v1 rho); inv H7. destruct (v2 rho); inv H5.
  simpl. rewrite sepcon_emp.
   rewrite Int.repr_signed.
@@ -499,9 +406,9 @@ forget (subst id `old v1) as v1'.
  destruct (v2' rho); inv H5.
  destruct (v1' rho); inv H7.
  simpl.
- unfold array_at_range, rangespec.
+ unfold array_at, rangespec.
  rewrite Zsucc_sub_self. simpl. rewrite sepcon_emp.
- unfold array_at.
+
  rewrite repinject_typed_mapsto with (inject := inject); auto.
  simpl. rewrite Int.repr_signed.
  apply derives_refl.

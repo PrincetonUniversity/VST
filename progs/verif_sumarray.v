@@ -13,10 +13,10 @@ Definition sumarray_spec :=
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
-          SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))
+          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
   POST [ tint ]  
         local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
-                 && `(array_at_range tint sh contents 0 size a0).
+                 && `(array_at tint sh contents 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -38,28 +38,28 @@ Definition sumarray_Inv a0 sh contents size :=
                 `(eq (Vint (Int.repr size))) (eval_id _n);
            `isptr (eval_id _a); 
     `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s))
-   SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))).
+   SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
 
-Lemma split3_array_at_range:
+Lemma split3_array_at:
   forall i ty sh contents lo hi v,
        lo <= i < hi ->
-     array_at_range ty sh contents lo hi v =
-     array_at_range ty sh contents lo i v *
+     array_at ty sh contents lo hi v =
+     array_at ty sh contents lo i v *
      typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
-     array_at_range ty sh contents (Zsucc i) hi v.
+     array_at ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
 Admitted.
 
-Lemma lift_split3_array_at_range:
+Lemma lift_split3_array_at:
   forall i ty sh contents lo hi,
        lo <= i < hi ->
-     array_at_range ty sh contents lo hi =
-     array_at_range ty sh contents lo i *
+     array_at ty sh contents lo hi =
+     array_at ty sh contents lo i *
      (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
-     array_at_range ty sh contents (Zsucc i) hi.
+     array_at ty sh contents (Zsucc i) hi.
 Proof.
- intros. extensionality v. simpl. apply split3_array_at_range. auto.
+ intros. extensionality v. simpl. apply split3_array_at. auto.
 Qed.
 
 Lemma body_sumarray: semax_body Vprog Gtot f_sumarray sumarray_spec.
@@ -75,7 +75,7 @@ forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP() LOCAL (`(eq a0) (eval_id _a);   
      `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))
-     SEP (`(array_at_range tint sh contents 0 size) (eval_id _a))).
+     SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
@@ -97,13 +97,13 @@ apply semax_pre with
    `(eq (Vint (Int.repr size))) (eval_id _n); `isptr (eval_id _a);
    `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i0))) (eval_id _s))
    SEP 
-   (`(array_at_range tint sh contents 0 i0) (eval_id _a);
+   (`(array_at tint sh contents 0 i0) (eval_id _a);
     `(typed_mapsto sh tint) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
-    `(array_at_range tint sh contents (Zsucc i0) size) (eval_id _a))).
+    `(array_at tint sh contents (Zsucc i0) size) (eval_id _a))).
   rewrite typed_mapsto_tint.
   go_lower. subst. intcompare H2.
   apply andp_right. apply prop_right; repeat split; auto; omega.
-  rewrite (split3_array_at_range i0) by omega.
+  rewrite (split3_array_at i0) by omega.
   cancel.
   rewrite typed_mapsto_tint.
 forward. (* x = a[i]; *)
@@ -119,7 +119,7 @@ repeat (rewrite Int.signed_repr
       by (unfold Int.min_signed, Int.max_signed in *; omega)).
 auto.
  admit.  (* need simple lemma fold_range_split *)
- rewrite split3_array_at_range with (i:=i0) (lo:=0)(hi:=size); auto.
+ rewrite split3_array_at with (i:=i0) (lo:=0)(hi:=size); auto.
  simpl_typed_mapsto.
  cancel.
 (* After the loop *)
@@ -132,7 +132,7 @@ Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 Lemma  setup_globals:
   forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
      main_pre prog u rho
-      |-- array_at_range tint Ews four_contents 0 4
+      |-- array_at tint Ews four_contents 0 4
                 (eval_var _four (tarray tint 4) rho).
 Proof.
  unfold main_pre.
@@ -143,7 +143,7 @@ Proof.
  unfold tarray.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.
- unfold array_at_range, rangespec; simpl.
+ unfold array_at, rangespec; simpl.
  unfold array_at.
  repeat  simpl_typed_mapsto.
  rewrite sepcon_emp.
