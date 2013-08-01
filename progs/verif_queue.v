@@ -272,6 +272,7 @@ apply prop_right; repeat split; auto.
 right. hnf. apply Int.eq_true.
 (* then clause *)
 simplify_typed_comparison.
+fold t_struct_fifo.
 forward. (*  Q->head=p; *)
 forward. (* Q->tail=p; *)
 go_lower.

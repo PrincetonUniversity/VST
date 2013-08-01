@@ -779,14 +779,17 @@ Lemma whatever_i {A: Type}: forall x: A, whatever x.
 intro. apply I.
 Qed.
 
-Ltac convertible A B := unify A B.
+
+Ltac unify_force w x :=
+ first [ unify w x | unify w (`force_ptr x)].
+
 (*
 let H := fresh in assert (H: A=B) by reflexivity; clear H.
 *)
 Ltac find_equation E L n F :=
  match L with 
 (*   | `(eq ?x) E :: _ => F n x *)
-  | `(eq ?x) ?E' :: _ => convertible E E'; F n (@liftx (LiftEnviron val) x) E
+  | `(eq ?x) ?E' :: _ => unify_force E E'; F n (@liftx (LiftEnviron val) x) E
   | _ :: ?Y => let n' := constr:(S n) in find_equation E Y n' F
   | nil => F O E E
   end.
@@ -794,11 +797,11 @@ Ltac find_equation E L n F :=
 Ltac find_mapsto n R F eq_n xE E :=
  match R with
  | `(mapsto ?sh ?t ?x ?v2) :: _ => 
-     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x));
+     (unify_force E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)) ;  
     change (`(mapsto sh t x v2)) with (`(mapsto sh t) `x `v2); 
     F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
  | `(mapsto ?sh ?t) ?E' ?v2 :: _ => 
-     (convertible E E' || convertible xE E'); 
+     (unify_force E E' || unify xE E'); 
     F n E E' sh v2
  | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
  | _ => fail "find_mapsto"
@@ -807,12 +810,12 @@ Ltac find_mapsto n R F eq_n xE E :=
 Ltac find_field_mapsto n R F eq_n xE E :=
  match R with
  | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
-     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+     (unify_force E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
     F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
  | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
-     (convertible E E' || convertible xE E'); 
+     (unify_force E E' || unify_force xE E'); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     F n E E' sh v2
  | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto n' R' F eq_n xE E
@@ -820,11 +823,11 @@ Ltac find_field_mapsto n R F eq_n xE E :=
   end.
 
 Ltac quick_load_equality :=
- (intros ?rho; apply prop_right; reflexivity) ||
+ (intros ?rho; apply prop_right; unfold_lift; force_eq_tac) ||
  (apply go_lower_lem20;
   intros ?rho; 
-  simpl derives; repeat (apply go_lower_lem24; intro);
-  apply prop_right; assumption) ||
+  simpl derives; repeat (simple apply go_lower_lem24; intro);
+  apply prop_right; simpl; unfold_lift; force_eq_tac) ||
   idtac.
 
 Ltac load_aux0 n' e1' v1' sh' v2' := 
@@ -836,20 +839,19 @@ eapply semax_post3; [ |
   | quick_load_equality |   reflexivity]];
  unfold replace_nth.
 
-Ltac load_field_aux1 n' e1' v1' sh' v2' := 
-  eapply semax_post3; [ | 
-      eapply semax_load_field_deref''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
-       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | try solve [go_lower; apply prop_right; auto ] 
-      | quick_load_equality
-      | reflexivity ]
-].
+Lemma lift_field_mapsto_force_ptr:
+ forall sh t fld v, `(field_mapsto sh t fld) (`force_ptr v) = 
+                    `(field_mapsto sh t fld) v.
+Proof.
+intros. extensionality y rho. unfold_lift. rewrite field_mapsto_force_ptr.
+auto.
+Qed.
 
-Ltac load_field_aux2 n' e1' v1' sh' v2' := 
+Ltac load_field_aux n' e1' v1' sh' v2' := 
   eapply semax_post3; [ | 
-      eapply semax_load_field''  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
+      eapply semax_load_field''force  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
        [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | try solve [go_lower; apply prop_right; auto ]
+      | try solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto ]
       | quick_load_equality
       | reflexivity ]
 ].
@@ -872,12 +874,9 @@ Ltac semax_load_tac :=
  hoist_later_in_pre;
 match goal with 
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Efield (Ederef ?e1 ?t1) ?fld ?t2)) _ =>
-   semax_load_aux find_field_mapsto Q R (eval_expr e1) load_field_aux1
-  (* this line does not work for some reason:        || fail 2 "load field tac 1"  *)
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Efield ?e1 ?fld ?t2)) _ =>
-   semax_load_aux find_field_mapsto Q R (eval_lvalue e1) load_field_aux2
+     semax_load_aux find_field_mapsto Q R (eval_lvalue e1) load_field_aux; 
+     try (simpl eval_lvalue; rewrite lift_field_mapsto_force_ptr)
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Ederef ?e1 _)) _ =>
    semax_load_aux find_mapsto Q R (eval_expr e1) load_aux0
@@ -885,26 +884,22 @@ end.
 
 Ltac find_field_mapsto_ n R F eq_n xE E :=
  match R with
-(* | `(mapsto ?sh ?t) (`(eval_binop Oadd (tptr _) tint) E (* ?E' *) ?INDEX) ?v2 :: _ => 
-     (convertible E E' || convertible (@liftx (LiftEnviron val) x) E'); 
-    F n E E' sh v2
-*)
  | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
-     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+     (unify E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
     F n E (@liftx (LiftEnviron val) x) sh
  | `(field_mapsto_ ?sh ?t ?fld ?x) :: _ =>
-     (convertible E (@liftx (LiftEnviron val) x) || convertible xE (@liftx (LiftEnviron val) x)); 
+     (unify E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     change (`(field_mapsto sh t fld x)) with (`(field_mapsto sh t fld) `x);
     F n E (@liftx (LiftEnviron val) x) sh
  | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
-     (convertible E E' || convertible xE E'); 
+     (unify E E' || unify xE E'); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     F n E E' sh
  | `(field_mapsto_ ?sh ?t ?fld) ?E' :: _ =>
-     (convertible E E' || convertible xE E'); 
+     (unify E E' || unify xE E'); 
    (* pose (bbb := (sh,n,e1,v1,v2)); *)
     F n E E' sh
  | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto_ n' R' F eq_n xE E

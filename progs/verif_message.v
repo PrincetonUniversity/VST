@@ -115,8 +115,10 @@ repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto_; try reflexivity; simpl;
  rewrite offset_offset_val; simpl; f_equal; compute; auto.
+ normalize.
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
+simpl.
 forward. (*  ((int * )buf)[0]=x; *)
 go_lower. subst. normalize. 
 forward. (*  ((int * )buf)[1]=y; *)
