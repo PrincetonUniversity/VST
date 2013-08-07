@@ -101,6 +101,8 @@ normalize.
 apply exp_right with v2; normalize.
 Qed.
 
+Hint Resolve field_mapsto_field_mapsto_: cancel.
+
 Lemma offset_val_force_ptr:
   offset_val Int.zero = force_ptr.
 Proof. extensionality v. destruct v; try reflexivity.

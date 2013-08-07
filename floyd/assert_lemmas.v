@@ -876,17 +876,68 @@ Lemma TT_sepcon {A} {NA: NatDed A}{SA: SepLog A}{CA: ClassicalSep A}:
 Proof. intros. rewrite sepcon_comm; apply sepcon_TT.
 Qed.
 
-Ltac find_change P Q :=
- match Q with
-  | ?Q1 * ?Q2 => first [change Q2 with P | find_change P Q1]
-  | _ => change Q with P
- end.
+Hint Resolve (@derives_refl mpred _) : cancel.
+Hint Resolve (@now_later mpred _ _) : cancel.
 
-Ltac find_change_later P Q :=
- match Q with
-  | ?Q1 * later ?Q2 => first [change Q2 with P | find_change_later P Q1]
-  | later ?Q2 => change Q2 with P
- end.
+Lemma cancel1_start:
+ forall P Q : mpred, 
+   P |-- Q * emp ->
+   P |-- Q.
+Proof. intros. rewrite sepcon_emp in H; auto.
+Qed.
+
+Lemma cancel1_here:
+  forall P P' Q1 Q2 Q3 : mpred, 
+  P' |-- Q2 ->
+  P |-- Q1 * Q3 ->
+  P * P' |-- Q1 * Q2 * Q3.
+Proof.
+intros. rewrite (sepcon_comm Q1).
+rewrite sepcon_assoc.  rewrite sepcon_comm. apply sepcon_derives; auto.
+Qed.
+
+Lemma cancel1_next:
+  forall P Q1 Q2 Q3 : mpred,
+   P |-- Q1 * (Q2 * Q3) ->
+   P |-- Q1 * Q2 * Q3.
+Proof. intros. rewrite sepcon_assoc; auto. Qed.
+
+Lemma cancel1_last:
+  forall P P' Q2 Q3 : mpred,
+  P' |-- Q2 ->
+  P |-- Q3 ->
+  P * P' |-- Q2 * Q3.
+Proof.
+ intros. rewrite sepcon_comm; apply sepcon_derives; auto.
+Qed.
+
+Lemma cancel1_finish1:
+  forall P Q1 Q2 Q3 : mpred,
+   P |-- Q1 * Q2 * Q3 ->
+   P |-- Q1 * (Q2 * Q3).
+Proof.
+ intros. rewrite <- sepcon_assoc. auto.
+Qed.
+
+Lemma cancel1_finish2:
+  forall P Q : mpred, 
+    P |-- Q ->
+   P |-- Q * emp.
+Proof. intros. rewrite sepcon_emp; auto.
+Qed.
+
+Ltac cancel1 := 
+ first [
+   simple apply cancel1_here; [solve [auto with nocore cancel] | ]
+ | simple apply cancel1_next; cancel1
+ | simple apply cancel1_last; [solve [auto with nocore cancel] | ]
+ ].
+
+Ltac cancel2 := 
+  simple apply cancel1_start;
+  cancel1;
+  repeat simple apply cancel1_finish1; 
+  simple apply cancel1_finish2.
 
 Ltac lift1 a e1 rho  :=
  match e1 with
@@ -958,6 +1009,12 @@ Ltac cancel_frame :=
 match goal with |- ?P |-- fold_right sepcon emp ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
+    repeat change lift0 with (@liftx (LiftEnviron mpred));
+    repeat change lift1 with (fun A => @liftx (Tarrow A (LiftEnviron mpred)));
+    repeat change lift2 with (fun A B => @liftx (Tarrow A (Tarrow B (LiftEnviron mpred))));
+    repeat change lift3 with (fun A B C => @liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))));
+    repeat change lift4 with (fun A B C D => @liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))));
+    cbv beta;
     repeat rewrite sepcon_assoc;
     repeat apply cancel_frame2; 
     try apply cancel_frame1;
@@ -975,13 +1032,7 @@ repeat
 match goal with 
    | |- sepcon _ emp |-- _ => fail 1
    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
-   | |- sepcon ?P ?P' |-- ?Q =>
-      first [find_change P' Q; pull_right P'; 
-               apply sepcon_derives; [  | apply derives_refl ]
-             | find_change_later P' Q; pull_right (later P'); 
-               apply sepcon_derives; [  | apply now_later ]
-             | pull_left P'
-             ]
+   | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
  end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);

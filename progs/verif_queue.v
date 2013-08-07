@@ -391,7 +391,6 @@ unfold link.
  unfold fifo. normalize. apply exp_right with (nullval, h).
  destruct (@isnil val nil); [ | congruence].
  rewrite prop_true_andp by auto. unfold link_. cancel.
- apply field_mapsto_field_mapsto_.
 (* CASE 2: prefix <> nil *)
 rewrite links_cons_eq.
 normalize. intro.
@@ -550,7 +549,6 @@ instantiate (1:= `(fifo (p2 :: nil) q2 *
 clear. (* This "clear" is only needed to work around bug 2997 in Coq 8.4 *)
 simpl_typed_mapsto.
 simpl. normalize. cancel.
-apply sepcon_derives; apply field_mapsto_field_mapsto_.
 forward. (* return i+j; *)
 go_lower. normalize.
 Qed.
