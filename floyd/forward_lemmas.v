@@ -525,7 +525,7 @@ Proof.
  autorewrite with ret_assert subst.
 repeat rewrite exp_andp2. apply exp_derives; intro x.
  autorewrite with  subst.  go_lowerx.
- repeat apply andp_right; try apply prop_right; auto.
+ repeat apply andp_right; try apply prop_right; auto. 
 Qed. 
 
 Lemma normal_ret_assert_derives':
@@ -818,4 +818,62 @@ apply semax_ifthenelse_PQR.
      unfold logical_and_result. unfold typed_false in *.
     autorewrite with subst in H8. rewrite H8.
     apply H6.
+Qed.
+
+Lemma semax_logical_and_PQR: 
+  forall Espec Delta P Q R PQR tid e1 e2 b
+   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
+   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
+   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
+   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+ bool_type (typeof e1) = true ->
+ bool_type (typeof e2) = true ->
+ (temp_types Delta) ! tid = Some (tint, b) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
+         local (tc_expr Delta e2) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+  (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_and_result 
+          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
+   @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
+    (logical_and tid e1 e2) PQR.
+Proof.
+intros. 
+eapply semax_pre_flipped.
+eapply semax_post_flipped. 
+eapply semax_logical_and; try eassumption.
+intros.
+specialize (H3 ek vl). 
+apply andp_left2. apply H3.
+intro rho. specialize (H2 rho). normalize. normalize in H2.
+apply andp_right.
+eapply derives_trans. apply H2.
+normalize. auto.
+Qed.
+
+Lemma semax_logical_or_PQR: 
+  forall Espec Delta P Q R PQR tid e1 e2 b
+   (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
+   (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
+   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
+   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+ bool_type (typeof e1) = true ->
+ bool_type (typeof e2) = true ->
+ (temp_types Delta) ! tid = Some (tint, b) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
+         local (tc_expr Delta e2) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+  (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_or_result 
+          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
+   @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
+    (logical_or tid e1 e2) PQR.
+Proof.
+intros. 
+eapply semax_pre_flipped.
+eapply semax_post_flipped. 
+eapply semax_logical_or; try eassumption.
+intros.
+specialize (H3 ek vl). 
+apply andp_left2. apply H3.
+intro rho. specialize (H2 rho). normalize. normalize in H2.
+apply andp_right.
+eapply derives_trans. apply H2.
+normalize. auto.
 Qed.

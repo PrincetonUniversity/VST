@@ -963,6 +963,14 @@ Ltac store_field_tac :=
 
 (* END new semax_load and semax_store tactics *************************)
 
+Ltac semax_logic_and_or :=
+first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
+[ auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto | auto | reflexivity
+| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
 
 Ltac forward1 :=   
    match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
@@ -985,9 +993,10 @@ Ltac forward1 :=
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>
+             first [ semax_logic_and_or |
             (apply semax_pre
                      with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
-             [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]])
+             [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]])]
             || fail 2 "semax_ifthenelse_PQR did not match"
   | |- @semax _ _ _ (Sreturn _) _ => 
          (eapply semax_pre_simple; [ go_lower1 | apply semax_return ])
