@@ -407,7 +407,6 @@ go_lower. subst x h q.
  destruct (isnil (prefix ++ tl :: nil)); [ destruct prefix; inv e | ]. clear n0.
  normalize. apply exp_right with prefix.
  rewrite prop_true_andp by auto. unfold link_. cancel.
- apply field_mapsto_field_mapsto_.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.

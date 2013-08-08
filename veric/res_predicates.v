@@ -719,6 +719,195 @@ Definition FUNspec (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)(l: a
 
 (***********)
 
+
+Lemma superprecise_ewand_lem1:
+  forall S P: mpred, superprecise P ->
+          S |-- P * TT ->
+          S = P * (ewand P S).
+Proof.
+intros.
+apply pred_ext.
+intros w ?. specialize (H0 w H1).
+destruct H0 as [w1 [w2 [? [? _]]]].
+exists w1; exists w2; split3; auto.
+exists w1; exists w; split3; auto.
+intros w [w1 [w2 [? [? ?]]]].
+destruct H3 as [w3 [w4 [? [? ?]]]].
+assert (w1=w3). eapply H; eauto.
+apply join_core2 in H1; apply join_core2 in H3; unfold comparable; congruence.
+subst w3.
+pose proof (join_eq H1 H3); subst w4.
+auto.
+Qed.
+
+Lemma int_of_bytes_uniq:
+  forall i j, length i = length j -> int_of_bytes i = int_of_bytes j -> i = j.
+Proof.
+  induction i; intros.
+ destruct j; inv H. auto.
+ destruct j; inv H.
+ specialize (IHi _ H2).
+ simpl in H0.
+Admitted.  (* tedious but trivial *)
+
+Lemma decode_int_uniq:
+  forall i j, length i = length j -> decode_int i = decode_int j -> i=j.
+Proof.
+ unfold decode_int, rev_if_be.
+ destruct big_endian.
+ intros. rewrite <- (rev_involutive i). rewrite <- (rev_involutive j).
+ f_equal.
+ assert (length (rev i) = length (rev j)).
+ repeat rewrite rev_length; auto.
+ eapply int_of_bytes_uniq; eauto.
+ apply int_of_bytes_uniq.
+Qed.
+
+Lemma decode_val_uniq: 
+  forall ch b1 b2 v, 
+    v <> Vundef ->
+    length b1 = size_chunk_nat ch ->
+    length b2 = size_chunk_nat ch ->
+    decode_val ch b1 = v ->
+    decode_val ch b2 = v ->
+    b1=b2.
+Proof.
+ intros.
+ unfold size_chunk_nat in *.
+ unfold decode_val in *.
+ destruct (proj_bytes b1) eqn:B1.
+Focus 2.
+{ destruct ch; try congruence.
+ destruct (proj_bytes b2) eqn:B2.
+subst v.
+unfold proj_pointer in H3.
+destruct b1; try congruence.
+destruct m; try congruence.
+if_tac in H3; try congruence.
+clear - H2 H3 H.
+subst v.
+unfold proj_pointer in *.
+destruct b1; try congruence.
+destruct m; try congruence.
+destruct b2; try congruence. destruct m; try congruence.
+destruct (check_pointer 4 b i (Pointer b i n :: b1)) eqn:?; try congruence.
+destruct (check_pointer 4 b0 i0 (Pointer b0 i0 n0 :: b2)) eqn:?; try congruence.
+inv H3.
+clear H.
+unfold check_pointer in *; simpl in *.
+repeat match goal with 
+| H: ?A = true |- _ =>
+  match A with 
+  | context [eq_block ?a ?b]  =>
+     destruct (eq_block a b); simpl in *; try congruence
+  | context [Int.eq_dec ?i ?j] => 
+     destruct (Int.eq_dec i j); simpl in *; try congruence
+  | context [match ?n with _ => _ end] =>
+     destruct n; simpl in *; try congruence
+  end
+end.
+} Unfocus.
+destruct (proj_bytes b2) eqn:B2.
+Focus 2. {
+destruct ch; try congruence.
+unfold proj_pointer in H3.
+destruct b2; try congruence.
+destruct m; try congruence.
+if_tac in H3; try congruence.
+} Unfocus.
+pose proof (length_proj_bytes _ _ B1).
+pose proof (length_proj_bytes _ _ B2).
+rewrite <- H4 in *; rewrite <- H5 in *.
+assert (l=l0).
+Focus 2. {
+clear - H6 B1 B2.
+revert l0 b1 b2 B1 B2 H6; induction l; destruct l0; intros; inv H6.
+destruct b1; inv B1. destruct b2; inv B2; auto.
+destruct m; try congruence.
+destruct (proj_bytes b2);  inv H0.
+destruct m; inv H0.
+destruct (proj_bytes b1);  inv H1.
+destruct b1; inv B1.
+destruct m; inv H0.
+destruct (proj_bytes b1) eqn:?; inv H1.
+destruct b2; inv B2.
+destruct m; inv H0.
+destruct (proj_bytes b2) eqn:?; inv H1.
+specialize (IHl _ _ _ Heqo Heqo0).
+f_equal; auto.
+} Unfocus.
+clear b1 b2 H4 H5 B1 B2.
+clear H.
+subst v.
+Lemma Vint_inj: forall i j, Vint i = Vint j -> i=j. 
+Proof. congruence. Qed.
+destruct ch; try apply Vint_inj in H3;
+simpl in H0,H1; unfold Pos.to_nat in H0,H1; simpl in H0,H1.
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+apply decode_int_uniq; [ congruence | ].
+admit. (*looks good *)
+Qed.
+
+Lemma superprecise_address_mapsto:
+  forall ch v rsh sh loc, 
+   v<>Vundef -> superprecise (address_mapsto ch v rsh sh loc).
+Proof.
+intros.
+hnf; intros.
+unfold address_mapsto in *.
+destruct H0 as [b1 [[? [? ?]] ?]]; destruct H1 as [b2 [[? [? ?]] ?]].
+assert (b1=b2) by (eapply decode_val_uniq; eauto).
+subst b2.
+assert (level w1 = level w2).
+clear - H2; unfold comparable in H2.
+rewrite <- level_core. rewrite <- (level_core w2).
+congruence.
+apply rmap_ext.
+auto.
+intro.
+clear - H5 H8 H9 H2.
+specialize (H5 l); specialize (H8 l).
+hnf in H5,H8.
+if_tac in H5.
+destruct H5 as [p ?]. destruct H8 as [p' ?].
+hnf in H0,H1.
+rewrite H0,H1.
+f_equal.
+f_equal.
+apply proof_irr.
+congruence.
+do 3 red in H5, H8.
+unfold comparable in H2; clear - H5 H8 H2.
+assert (core (w1 @ l) = core (w2 @ l)).
+repeat rewrite core_resource_at.
+congruence.
+clear H2.
+transitivity (core (w1 @ l)).
+apply unit_core.
+apply  identity_unit_equiv.
+auto.
+rewrite H.
+symmetry.
+apply unit_core.
+apply  identity_unit_equiv.
+auto.
+Qed.
+
 Lemma address_mapsto_old_parametric: forall ch v, 
    spec_parametric (fun l rsh sh l' => yesat NoneP (VAL (nthbyte (snd l' - snd l) (encode_val ch v))) rsh sh l').
 Proof.

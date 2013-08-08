@@ -1,6 +1,12 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma subst_derives:
+  forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
+Proof.
+ intros. intro rho. unfold subst. apply H.
+Qed.
+
 (* no "semax" in this file, just assertions. *)
 Global Transparent Int.repr.
 
@@ -928,16 +934,16 @@ Qed.
 
 Ltac cancel1 := 
  first [
-   simple apply cancel1_here; [solve [auto with nocore cancel] | ]
+   simple apply cancel1_here; [solve [eauto with nocore cancel] | ]
  | simple apply cancel1_next; cancel1
- | simple apply cancel1_last; [solve [auto with nocore cancel] | ]
+ | simple apply cancel1_last; [solve [eauto with nocore cancel] | ]
  ].
 
 Ltac cancel2 := 
   simple apply cancel1_start;
   cancel1;
   repeat simple apply cancel1_finish1; 
-  simple apply cancel1_finish2.
+  try simple apply cancel1_finish2.
 
 Ltac lift1 a e1 rho  :=
  match e1 with

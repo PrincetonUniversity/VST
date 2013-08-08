@@ -186,12 +186,6 @@ Proof.
  autorewrite with subst. f_equal; auto.
 Qed.
 
-Lemma subst_derives:
-  forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
-Proof.
- intros. intro rho. unfold subst. apply H.
-Qed.
-
 Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
 Proof.
  intros. extensionality rho. unfold subst.

@@ -1116,4 +1116,207 @@ unfold_lift; rewrite mapsto_force_ptr.
 auto.
 Qed.
 
+Lemma semax_load_37 : 
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P e1 (v2: environ -> val),
+     P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+    @semax Espec Delta 
+       (|> (local (tc_lvalue Delta e1) && 
+       local (tc_temp_id_load id (typeof e1) Delta v2) && 
+          P))
+       (Sset id e1)
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
+                                          (subst id (`old) P))).
+Proof.
+intros.
+assert (EQ: P = `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * 
+                  (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) P)).
+extensionality rho.
+simpl.
+apply res_predicates.superprecise_ewand_lem1.
+unfold_lift.
+apply superprecise_mapsto.
+apply H. clear H.
+
+eapply semax_pre_post; [ | | apply (semax_load Delta sh id
+   (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) P )
+   e1 v2)].
+* 
+intros.
+apply andp_left2.
+apply later_derives.
+apply andp_derives; auto.
+apply derives_refl'; auto.
+*
+intros.
+apply andp_left2.
+apply normal_ret_assert_derives'.
+apply exp_derives; intro old.
+apply andp_derives; auto.
+apply subst_derives.
+apply derives_refl'; auto.
+Qed.
+
+
+Lemma semax_load_field_37:
+forall  (sh: share) (v: val)
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 i2 sid fields ,
+    typeof e1 = Tstruct sid fields noattr ->
+    (temp_types Delta) ! id = Some (t2,i2) ->
+   t1 = typeof e1 ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+   Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
+   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
+                           |-- local (tc_lvalue Delta e1) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  `(field_mapsto sh t1 fld) (eval_lvalue e1) `v * TT ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Efield e1 fld t2))
+       (normal_ret_assert (
+         EX old:val, PROPx P 
+                     (LOCALx (`(eq v) (eval_id id) :: map (subst id (`old)) Q)
+                     (SEPx (map (subst id (`old)) R))))).
+Proof.
+Transparent field_mapsto.
+pose proof I.
+pose proof I.
+intros. rename H5 into CLASSIFY.
+rename H3 into TC0; rename H4 into TC2.
+subst t1.
+rename H2 into TE1.
+rename H6 into TC3; rename H7 into H6.
+repeat rewrite <- insert_local in H6.
+repeat rewrite <- insert_local in TC3.
+replace  (EX  old : val,
+      PROPx P
+        (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+           (SEPx (map (subst id `old) R))))
+  with  (EX  old : val, local (`(eq v) (eval_id id)) && 
+                   subst id `old (PROPx P (LOCALx Q (SEPx R))))
+  by (f_equal; extensionality old; autorewrite with subst; rewrite insert_local; auto).
+forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
+eapply semax_pre_post; [ | | apply (semax_load_37 Delta sh id (local (tc_environ Delta) && PQR) _ (`v))].
+* (* PRECONDITION *)
+apply derives_trans with (|> (local (tc_environ Delta) && PQR)).
+rewrite later_andp. apply andp_derives; auto. apply now_later.
+apply later_derives.
+apply andp_right; auto.
+apply derives_trans with 
+ (local (tc_lvalue Delta e1)  && (`(field_mapsto sh (typeof e1) fld) (eval_lvalue e1) `v * TT)).
+apply andp_right.
+eapply derives_trans; [ | apply TC3].
+apply andp_right. apply andp_left1; auto. apply andp_right; [ |  apply andp_left2; auto].
+eapply derives_trans; [apply H6 | ].
+go_lowerx. unfold field_mapsto.
+destruct (eval_lvalue e1 rho);  try (rewrite FF_sepcon; apply FF_left).
+rewrite H1. rewrite field_offset_unroll. 
+destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
+rewrite <- TC2.
+destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
+apply TT_right.
+eapply derives_trans; [apply H6 | ].
+apply sepcon_derives; auto.
+go_lowerx.
+unfold field_mapsto, tc_lvalue, tc_temp_id_load.
+simpl.
+destruct (eval_lvalue e1 rho);  try (rewrite FF_sepcon; apply FF_left).
+rewrite H1. rewrite field_offset_unroll. 
+destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
+rewrite <- TC2.
+destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
+normalize.
+apply andp_right; apply prop_right.
+rewrite denote_tc_assert_andp; split.
+apply H2. rewrite H4. apply I.
+exists t2,i2. split; auto.
+unfold allowedValCast. rewrite CLASSIFY.
+destruct t2; simpl; auto.
+* (* POSTCONDITION *)
+intros ek vl.
+apply andp_left2. apply normal_ret_assert_derives'.
+apply exp_derives; intro old.
+apply andp_derives; auto.
+clear; intro; unfold_lift; apply prop_derives; auto.
+autorewrite with subst.
+apply andp_left2; auto.
+*
+ eapply derives_trans; [ apply H6 | ].
+apply sepcon_derives; auto.
+unfold field_mapsto, mapsto, umapsto.
+go_lowerx.
+unfold_lift.
+destruct (eval_lvalue e1 rho); try apply FF_left.
+rewrite H1.
+rewrite field_offset_unroll.
+simpl.
+destruct (field_offset fld fields);   try apply FF_left.
+rewrite <- TC2.
+destruct (access_mode t2);   try apply FF_left.
+simpl offset_val. cbv iota.
+normalize.
+apply orp_right1.
+auto.
+Qed.
+
+Lemma semax_load_field_38:
+forall  (sh: share) (v: val)
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 i2 sid fields ,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+    typeof e1 = Tstruct sid fields noattr ->
+    (temp_types Delta) ! id = Some (t2,i2) ->
+   t1 = typeof e1 ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+   Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
+   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
+                           |-- local (tc_lvalue Delta e1) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  `(field_mapsto sh t1 fld) (eval_lvalue e1) `v * TT ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Efield e1 fld t2))
+       (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
+Proof.
+intros.
+eapply semax_post';[ | eapply semax_load_field_37; eauto].
+apply exp_left; intro old.
+autorewrite with subst. auto.
+Qed.
+
+
+Lemma semax_load_field_39:
+forall  (sh: share) (v: val)
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 i2 sid fields ,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+    t1 = Tstruct sid fields noattr ->
+    (temp_types Delta) ! id = Some (t2,i2) ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+   typeof e1 = tptr t1 ->
+   Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  local (tc_expr Delta e1) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  `(field_mapsto sh t1 fld) (eval_expr e1) `v * TT ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Efield (Ederef e1 t1) fld t2))
+       (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
+Proof.
+intros.
+eapply semax_load_field_38; eauto.
+do 2 rewrite <- insert_local. rewrite <- andp_assoc.
+rewrite (andp_comm (local _)).
+rewrite andp_assoc. apply andp_left2. rewrite insert_local.
+apply derives_trans with (local (tc_expr Delta e1) && local (`isptr (eval_expr e1))).
+apply andp_right; auto.
+eapply derives_trans; [ apply H7 | ].
+clear; go_lowerx. rewrite field_mapsto_isptr; normalize.
+go_lowerx. intro. apply prop_right.
+unfold tc_lvalue; simpl denote_tc_assert.
+repeat rewrite denote_tc_assert_andp.
+repeat split; auto.
+rewrite H4. apply I.
+rewrite H1; apply I.
+eapply derives_trans; [ apply H7 | ].
+apply sepcon_derives; auto.
+go_lowerx. unfold_lift. rewrite field_mapsto_force_ptr; eapply derives_refl.
+Qed.
 

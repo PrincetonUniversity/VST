@@ -3,6 +3,25 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma superprecise_mapsto:
+  forall sh t v1 v2, predicates_sl.superprecise (mapsto sh t v1 v2).
+Proof.
+intros.
+hnf; intros.
+unfold mapsto in *.
+destruct H as [TC H]. destruct H0 as [TC0 H0].
+unfold umapsto in *.
+destruct (access_mode t); try contradiction.
+destruct v1; try contradiction.
+destruct (eq_dec v2 Vundef).
+subst; inv TC0.
+destruct H.
+destruct H0.
+* eapply res_predicates.superprecise_address_mapsto; eauto.
+* destruct H0. assert (v2=Vundef) by apply H0. congruence. 
+* destruct H. assert (v2=Vundef) by apply H. congruence. 
+Qed.
+
 Lemma mapsto_isptr:
   forall sh t v1 v2,
    mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
