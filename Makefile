@@ -81,7 +81,7 @@ SEPCOMP_FILES= \
 
 
 VERIC_FILES= \
-  base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v \
+  base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
   lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v \
   Clight_lemmas.v Clight_new.v Clight_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
@@ -98,7 +98,7 @@ FLOYD_FILES= \
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
-  reverse.v queue.v sumarray.v message.v \
+  insertionsort.v reverse.v queue.v sumarray.v message.v \
   sha.v verif_sha.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c sha.c
