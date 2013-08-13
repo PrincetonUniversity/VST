@@ -8,6 +8,7 @@ Require Import veric.expr.
 Require Export veric.environ_lemmas. 
 Require Import veric.binop_lemmas. 
 Import Cop.
+Import Cop2.
 
 Opaque tc_andp. (* This is needed otherwise certain Qeds take
     forever in Coq 8.3.  *)
@@ -569,10 +570,10 @@ Definition is_ptr_type (ty: type) : bool :=
   | _ => false
 end.
 
-
+(*(*
 Lemma tc_binaryop_nomem : forall b e1 e2 m1 m2 t rho,
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
-sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
+sem_binary_operation b (typeof e1) (eval_expr e1 rho) (eval_expr e2 rho)
   (typeof e2) (m1) =
 sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
   (typeof e2) (m2).
@@ -582,6 +583,27 @@ destruct b; simpl in *; auto;
  unfold sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
    try destruct i; try destruct s; auto; try contradiction;
    rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+   ((intuition; unfold denote_tc_iszero in *));
+ rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
+  destruct H0.
+* destruct (eval_expr e1 rho); try contradiction; auto.
+* destruct (eval_expr e2 rho); try contradiction; auto.
+* destruct (eval_expr e1 rho); try contradiction; auto.
+* destruct (eval_expr e2 rho); try contradiction; auto.
+Qed.
+*)
+
+Lemma tc_binaryop_relate : forall b e1 e2 m1 t rho,
+denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
+Cop.sem_binary_operation b  (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
+  (typeof e2) (m1) =
+sem_binary_operation b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho).
+Proof.
+intros.
+destruct b; simpl in *; auto;
+ unfold sem_cmp, Cop.sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
+   try destruct i; try destruct s; auto; try contradiction;
+   try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
    ((intuition; unfold denote_tc_iszero in *));
  rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
   destruct H0.
@@ -638,8 +660,7 @@ denote_tc_assert (typecheck_expr Delta e2) rho ->
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
 denote_tc_assert (typecheck_expr Delta e1) rho ->
 None =
-sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
-  (typeof e2) Mem.empty ->
+sem_binary_operation b  (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
 Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
@@ -654,19 +675,7 @@ remember (eval_expr e1 rho); remember (eval_expr e2 rho);
 destruct v; destruct v0; 
 try solve [apply typecheck_force_Some in H2; destruct H2;
 try congruence].
-
-remember (typeof e1). remember (typeof e2).
-destruct t1; try solve [inv TC1];
-destruct t0; try solve [inv TC2];
-
-destruct b; simpl in H7; try contradiction H7;
-try solve[ simpl in H2; apply typecheck_force_Some in H2; destruct H2;
-unfold sem_binary_operation in *; try congruence];
-try rewrite tc_andp_sound in *; simpl in H7;
-super_unfold_lift;
-rewrite <- Heqv in *; rewrite <- Heqv0 in *;
-intuition.
-Qed. 
+Qed.
   
 Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
@@ -850,8 +859,8 @@ intuition. rewrite H6 in *. constructor. inv H10. auto.
 (*unop*)
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-unfold eval_unop in *. super_unfold_lift. intuition. unfold force_val. 
-remember (sem_unary_operation u (eval_expr e rho) (typeof e)).
+unfold eval_unop in *. intuition. unfold force_val. 
+remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
 destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
 destruct u. simpl in *. remember (typeof e); destruct t0; try inv H2;
@@ -873,8 +882,7 @@ simpl in *; inv Heqo.
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val.
-remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
-(typeof e2) Mem.empty).
+remember (sem_binary_operation b (typeof e1) (typeof e2)(eval_expr e1 rho) (eval_expr e2 rho)).
 { destruct o. 
   + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
     eapply IHe2. apply H. apply H3.
@@ -885,23 +893,8 @@ remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rh
     rewrite Heqv0 in Heqo at 1;
     rewrite Heqv1 in Heqo;
     try rewrite Heqo;
-    try apply tc_binaryop_nomem with (t:=t); auto.
-    remember (is_comparison b). destruct b2.
-
-       - apply typecheck_expr_sound in H3; auto.
-         apply typecheck_expr_sound in H4; auto.
-
-         eapply ptr_compare_no_binop_tc in H1; eauto; 
-         try contradiction.
-      
-      -  rewrite Heqo.
-
-         remember (eval_expr e1 rho).  remember (eval_expr e2 rho).
-         destruct v; destruct v0; 
-         try solve [try
-             rewrite Heqv in *; try rewrite Heqv0 in *; eauto];
-         rewrite Heqv2; rewrite Heqv3;
-         eapply tc_binaryop_nomem; eauto.
+    try apply tc_binaryop_relate with (t:=t); auto.
+    
   + specialize (IHe1 ge). specialize (IHe2 ge). intuition.
          clear H6 H8. 
     remember (eval_expr e1 rho). remember (eval_expr e2 rho).
@@ -909,13 +902,7 @@ remember (sem_binary_operation b (eval_expr e1 rho) (typeof e1) (eval_expr e2 rh
          rewrite Heqv in Heqo at 1, H7;
          rewrite Heqv0 in Heqo, H2;
          try eapply eval_binop_relate_fail; eauto.
-         remember (is_comparison b). destruct b2. 
-         apply typecheck_expr_sound in H3; auto.
-         apply typecheck_expr_sound in H4; auto.    
-         eapply ptr_compare_no_binop_tc in H1; eauto; 
-         try contradiction.
-
-         try eapply eval_binop_relate_fail; eauto. }
+}
 
 
 (*Cast*) {
@@ -925,7 +912,7 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_cast in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply IHe; auto.
-unfold sem_cast.
+unfold sem_cast, Cop.sem_cast.
 remember (classify_cast (typeof e) t) as o; destruct o;
  destruct (eval_expr e rho); inv TC; try reflexivity;
  try solve [destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; 
@@ -1483,16 +1470,23 @@ Lemma map_ptree_rel : forall id v te, Map.set id v (make_tenv te) = make_tenv (P
 intros. unfold Map.set. unfold make_tenv. extensionality. rewrite PTree.gsspec; auto.
 Qed.
 
+Lemma cop_2_sem_cast : forall t1 t2 e,
+Cop.sem_cast (e) t1 t2 = Cop2.sem_cast t1 t2 e.
+Proof.
+intros.
+destruct t1; destruct t2; destruct e; auto.
+Qed.
+
 Lemma cast_exists : forall Delta e2 t rho 
 (TC: typecheck_environ Delta rho), 
 denote_tc_assert (typecheck_expr Delta e2) rho ->
 denote_tc_assert (isCastResultType (typeof e2) t t e2)
   rho ->
-sem_cast (eval_expr e2 rho) (typeof e2) t =
-Some (force_val (sem_cast (eval_expr e2 rho) (typeof e2) t)).
+sem_cast (typeof e2) t (eval_expr e2 rho)  =
+Some (force_val (sem_cast (typeof e2) t (eval_expr e2 rho))).
 Proof.
 intros. 
-assert (exists v, sem_cast (eval_expr e2 rho) (typeof e2) t= Some v).
+assert (exists v, sem_cast (typeof e2) t (eval_expr e2 rho) = Some v).
 
 apply typecheck_expr_sound in H.
 rename t into t0.
@@ -1539,8 +1533,9 @@ Opaque liftx.
 destruct H1. rewrite H1. auto.
 Qed.
 
+
 Lemma eval_cast_sem_cast:
-  forall v t t', eval_cast t t' v = force_val (sem_cast v t t').
+  forall v t t', eval_cast t t' v = force_val (sem_cast t t' v).
 Proof.
 unfold sem_cast, eval_cast, classify_cast.
 intros.
@@ -1563,7 +1558,7 @@ Qed.
 
 Lemma sem_cast_eval_cast:
   forall v1 t1 t2 v,
-  sem_cast v1 t1 t2 = Some v -> eval_cast t1 t2 v1 = v.
+  sem_cast t1 t2 v1  = Some v -> eval_cast t1 t2 v1 = v.
 Proof.
 intros.
 rewrite eval_cast_sem_cast.
@@ -1581,7 +1576,7 @@ assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
 clear - H7 H6 H8.
 rewrite eval_cast_sem_cast. 
-revert H7; case_eq (sem_cast (eval_expr e2 rho) (typeof e2) t2); intros; inv H7.
+revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7.
 simpl.
 rewrite isCastR in H6.
 case_eq (eval_expr e2 rho); intros; rename H0 into H99;

@@ -5,7 +5,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
-
+Require Export veric.Cop2.
 
 (** GENERAL KV-Maps **)
 
@@ -295,8 +295,8 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
-       force_val (Cop.sem_unary_operation op v1 t1).
-
+       force_val (Cop2.sem_unary_operation op t1 v1).
+(*
 Definition cmp_ptr_no_mem c v1 v2  :=
 match v1, v2 with
 Vptr b o, Vptr b1 o1 => 
@@ -309,7 +309,7 @@ Vptr b o, Vptr b1 o1 =>
     end
 | _, _ => Vundef
 end. 
-
+*)
 Definition op_to_cmp cop :=
 match cop with 
 | Cop.Oeq => Ceq | Cop.One =>  Cne
@@ -325,14 +325,7 @@ match op with
 end.
 
 Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       match v1, v2 with
-       | Vptr _ _, Vptr _ _ => if (is_comparison op) then
-                             cmp_ptr_no_mem (op_to_cmp op) v1 v2
-                           else
-                             force_val (Cop.sem_binary_operation op v1 
-                                        t1 v2 t2 Mem.empty)
-       | _, _ => force_val (Cop.sem_binary_operation op v1 t1 v2 t2 Mem.empty)
-end.
+       force_val (Cop2.sem_binary_operation op t1 t2 v1 v2).
 
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.

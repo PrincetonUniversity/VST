@@ -186,10 +186,13 @@ Lemma pointer_cmp_eval :
    (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
    Cop.sem_binary_operation cmp (eval_expr e1 rho) 
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
-   Some (cmp_ptr_no_mem (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)). 
+  Some
+     (force_val
+        (sem_binary_operation cmp (typeof e1) (typeof e2) 
+           (eval_expr e1 rho) (eval_expr e2 rho))). 
 Proof.
 intros until rho. intros ? ? BM.  intros.
-unfold cmp_ptr_no_mem.  
+unfold Cop.sem_binary_operation, sem_cmp.  
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto. 
 apply typecheck_expr_sound in H1; auto.
 
@@ -205,12 +208,12 @@ simpl in BM.
 
 rewrite H3 in *. rewrite H4 in *. 
 
-
 destruct (typeof e1); 
-try solve [simpl in *; congruence]; 
+try solve [simpl in *; congruence];
 
 destruct (typeof e2); 
 try solve [simpl in *; congruence];
+
 
 try solve[
   destruct MT1; inv H5 
@@ -221,24 +224,16 @@ apply mapsto_valid_pointer in MT_1.
 apply mapsto_valid_pointer in MT_2.
  
 
-unfold Cop.sem_binary_operation. 
+unfold sem_binary_operation, sem_cmp. 
+
 destruct cmp; inv H; try rewrite H3 in *; 
 try rewrite H4 in *; subst;
 unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
-
-
-unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
-try solve [if_tac; subst; eauto; 
-   try repeat rewrite peq_true; eauto; repeat rewrite peq_false; eauto].
-unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
-try solve [if_tac; subst; eauto; 
-   try repeat rewrite peq_true; eauto; repeat rewrite peq_false; eauto].
-Qed. 
+Qed.
 
 Lemma pointer_cmp_no_mem_bool_type : 
-   forall (Delta : tycontext) cmp (e1 e2 : expr) ty b1 o1 b2 o2,
-   is_int_type ty = true ->
+   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i s a,
    is_comparison cmp = true->
    forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
@@ -246,22 +241,32 @@ Lemma pointer_cmp_no_mem_bool_type :
    blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
    denote_tc_assert (typecheck_expr Delta e1) rho ->
    denote_tc_assert (typecheck_expr Delta e2) rho ->
+   (mapsto_ sh1 (typeof e1)
+      (eval_expr e1 rho)) x ->
+   (mapsto_ sh2 (typeof e2)
+      (eval_expr e2 rho)) x1 ->
    typecheck_environ Delta rho ->
-   typecheck_val (cmp_ptr_no_mem  (op_to_cmp cmp) (eval_expr e1 rho) (eval_expr e2 rho)) ty = true. 
+    typecheck_val
+     (force_val
+        (sem_binary_operation cmp (typeof e1) (typeof e2)
+           (eval_expr e1 rho)
+           (eval_expr e2 rho)))
+     (Tint i s a) = true.
 Proof.
 intros. 
 apply typecheck_both_sound in H4; auto. 
-apply typecheck_both_sound in H5; auto. 
-unfold cmp_ptr_no_mem. 
-unfold blocks_match in *. 
+apply typecheck_both_sound in H3; auto. 
+rewrite H0 in *. 
 rewrite H1 in *. 
-rewrite H2 in *. 
-if_tac; auto.
- destruct ty; inv H; of_bool_destruct; auto.
- destruct cmp; try rewrite H1 in *; try rewrite H2 in *; subst;
-inv H0; destruct ty; inv H; auto. 
-Qed. 
+unfold sem_binary_operation.
+destruct (typeof e1); try solve[simpl in *; try contradiction; try congruence]; 
+destruct (typeof e2); try solve[simpl in *; try contradiction; try congruence].
 
+destruct cmp; inv H;
+unfold sem_cmp; simpl;
+if_tac; auto; simpl; of_bool_destruct; auto.
+Qed.
+ 
 Definition weak_mapsto_ sh e rho :=
 match (eval_expr e rho) with
 | Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) || 
@@ -325,6 +330,7 @@ normalize in H0.
 
 clear H H0. 
 simpl. rewrite <- map_ptree_rel.
+
 apply guard_environ_put_te'; auto. subst. simpl.
 unfold construct_rho in *; auto.
 
@@ -347,9 +353,8 @@ destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
 
 destruct t; inv TC2.  
 simpl. super_unfold_lift.
-rewrite H0. rewrite H1. 
-unfold eval_binop. rewrite CMP.
-rewrite <- H0. rewrite <- H1.
+unfold eval_binop. 
+simpl.
 eapply  pointer_cmp_no_mem_bool_type; eauto. 
 apply TC3. 
 apply TC1.  
@@ -375,8 +380,9 @@ destruct MT1 as [? [? [J1 [MT1 _]]]].
 destruct MT2 as [? [? [J2 [MT2 _]]]]. 
 destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
 destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
-rewrite H6. rewrite H7. unfold eval_binop. rewrite CMP.
+rewrite H6. rewrite H7. unfold eval_binop. 
 rewrite <- H6. rewrite <- H7. clear H6 H7.
+
 apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); eauto; simpl; eauto.
 
 apply age1_resource_decay; auto.
@@ -1029,6 +1035,7 @@ eapply typecheck_val_eval_cast; eauto.
 rewrite Hmode.
 rewrite He1'. apply orp_right1.
 rewrite writable_share_right; auto.
+rewrite cop_2_sem_cast.
 rewrite <- eval_cast_sem_cast. auto.
 clear - H6 H5 H1.
 intros ? ?.

@@ -86,7 +86,7 @@ go_lower.
 (* Prove that invariant && not loop-cond implies postcondition *)
 simpl eval_expr.
 go_lower. subst.
- intcompare H2.
+ (*intcompare H2.*)
  repeat apply andp_right; try apply prop_right; repeat split; auto.
  f_equal. omega.
 (* Prove that loop body preserves invariant *)
@@ -101,7 +101,7 @@ apply semax_pre with
     `(typed_mapsto sh tint) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
     `(array_at tint sh contents (Zsucc i0) size) (eval_id _a))).
   rewrite typed_mapsto_tint.
-  go_lower. subst. intcompare H2.
+  go_lower. subst. (*intcompare H2.*)
   apply andp_right. apply prop_right; repeat split; auto; omega.
   rewrite (split3_array_at i0) by omega.
   cancel.

@@ -788,8 +788,8 @@ Qed.
 Hint Rewrite typed_true_isptr using apply I : norm.
 
 Lemma typed_false_cmp':
-  forall op i j m, 
-   typed_false tint (force_val (sem_cmp op i tint j tint m)) ->
+  forall op i j, 
+   typed_false tint (force_val (sem_cmp op tint tint i j )) ->
    Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
 Proof.
 intros.
@@ -804,8 +804,8 @@ Qed.
 
 
 Lemma typed_true_cmp':
-  forall op i j m, 
-   typed_true tint (force_val (sem_cmp op i tint j tint m)) ->
+  forall op i j, 
+   typed_true tint (force_val (sem_cmp op tint tint i j)) ->
    Int.cmp op (force_int i) (force_int j) = true.
 Proof.
 intros.
@@ -838,7 +838,7 @@ Ltac super_unfold_lift' :=
 
 Lemma typed_false_cmp'':
   forall i j op e1 e2,
-   typed_false tint (force_val (sem_cmp op e1 tint e2 tint Memory.Mem.empty)) ->
+   typed_false tint (force_val (sem_cmp op tint tint e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 
@@ -858,7 +858,7 @@ Qed.
 
 Lemma typed_true_cmp'':
   forall i j op e1 e2,
-   typed_true tint (force_val (sem_cmp op e1 tint e2 tint Memory.Mem.empty)) ->
+   typed_true tint (force_val (sem_cmp op tint tint e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 

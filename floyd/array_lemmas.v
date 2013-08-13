@@ -113,8 +113,8 @@ Proof.
   unfold array_at, rangespec.
  apply rangespec'_ext. intros.
  destruct (v rho); simpl; auto.
- f_equal. f_equal. rewrite Int.add_assoc. f_equal.
- rewrite Int.add_zero_l. auto.
+ f_equal. f_equal. f_equal.
+ rewrite Int.add_zero. auto.
 Qed.
 
 Definition strictAllowedCast tfrom tto :=
@@ -218,7 +218,7 @@ forall Espec (Delta: tycontext) n id sh t1 inject P Q R lo hi contents e1 (v1 v2
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && local (`isptr v1) && 
-     local (`eq (`force_val (`sem_add (`(offset_val (Int.repr ofs)) v1) `(tptr t1) v2 `tint)) (eval_expr e1)) ->
+     local (`eq (`force_val (`(sem_add (tptr t1) (tint)) (`(offset_val (Int.repr ofs)) v1) v2 )) (eval_expr e1)) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ederef e1 t1))
@@ -278,7 +278,7 @@ apply semax_pre_post with
    (|>PROPx P
        (LOCALx (tc_expr Delta e1 :: `(tc_val tint) v2 ::
                       `(in_range lo hi) (`force_signed_int v2) :: `isptr v1 ::
-                     `eq (`force_val (`sem_add (`(offset_val (Int.repr ofs)) v1) `(tptr t1) v2 `tint)) (eval_expr e1) :: Q)
+                     `eq (`force_val (`(sem_add (tptr t1) tint) (`(offset_val (Int.repr ofs)) v1) v2 )) (eval_expr e1) :: Q)
           (SEPx
              (`(array_at t1 sh contents)  
                    (`force_signed_int v2)
@@ -352,7 +352,7 @@ apply semax_pre_post with
            :: `(tc_val tint) v2
               :: `(in_range lo hi) (`force_signed_int v2)
                  :: `isptr v1
-                    :: `eq (`force_val (`sem_add (`(offset_val (Int.repr ofs)) v1) `(tptr t1) v2 `tint))
+                    :: `eq (`force_val (`(sem_add (tptr t1) tint) (`(offset_val (Int.repr ofs)) v1) v2))
                          (eval_expr e1) :: Q)
                 (SEPx (`(array_at t1 sh contents lo) (`force_signed_int v2)
                    (`(offset_val (Int.repr ofs)) v1)
@@ -380,12 +380,14 @@ apply semax_pre_post with
  simpl. unfold_lift. rewrite <- H8.
       destruct (v1 rho); inv H7. destruct (v2 rho); inv H5.
  simpl. rewrite sepcon_emp.
-  rewrite Int.repr_signed.
+ unfold add_ptr_int. unfold eval_binop. simpl.
+ rewrite Int.repr_signed.
  forget (Vptr b
      (Int.add (Int.add i (Int.repr ofs)) (Int.mul (Int.repr (sizeof t1)) i0))) as loc.
  forget (contents (Int.signed i0)) as c.
  clear - H3.
- rewrite <- repinject_typed_mapsto by auto. auto.
+ rewrite <- repinject_typed_mapsto by auto.  
+auto.
 
 {intros ek vl. apply andp_left2.
  apply normal_ret_assert_derives'.
@@ -404,7 +406,8 @@ forget (subst id `old v1) as v1'.
  rewrite Zsucc_sub_self. simpl. rewrite sepcon_emp.
 
  rewrite repinject_typed_mapsto with (inject := inject); auto.
- simpl. rewrite Int.repr_signed.
+ simpl. unfold add_ptr_int, eval_binop. simpl.
+ rewrite Int.repr_signed.
  apply derives_refl.
 }
 Qed.

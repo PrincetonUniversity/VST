@@ -5,8 +5,8 @@ Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
 Lemma typed_true_nullptr:
- forall v t t' m,
-   typed_true tint (force_val (sem_cmp Ceq v (tptr t) (Vint Int.zero) (tptr t') m)) ->
+ forall v t t',
+   typed_true tint (force_val (sem_cmp Ceq (tptr t) (tptr t') v (Vint Int.zero))) ->
    v=nullval.
 Proof.
  intros.
@@ -37,9 +37,16 @@ intros.
  apply prop_derives; intro.
  destruct (v rho); inv H.
  pose proof (Int.eq_spec i Int.zero).
- destruct (Int.eq i Int.zero); inv H1. 
+ destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
-Qed.
+ unfold strict_bool_val in *.
+ simpl in *. unfold eval_binop in *. unfold sem_binary_operation in *.
+ unfold sem_cmp in *. simpl in *.
+ remember (Int.eq i Int.zero).
+ destruct b; auto.
+ apply  binop_lemmas.int_eq_true in Heqb.
+ congruence.
+ inv H2. Qed.
 
 Definition  binary_operation_to_comparison (op: binary_operation) :=
  match op with
@@ -207,7 +214,13 @@ intros.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1. 
  reflexivity.
-Qed.
+ unfold strict_bool_val, eval_binop in H2. simpl in H2.
+ remember (negb (Int.eq i Int.zero)). destruct b; inv H2.
+ symmetry in Heqb. rewrite negb_false_iff in Heqb.
+ symmetry in Heqb.
+ apply  binop_lemmas.int_eq_true in Heqb.
+ congruence.
+Qed. 
 
 Lemma typed_true_One_nullval:
  forall v t t',

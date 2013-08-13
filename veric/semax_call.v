@@ -19,7 +19,6 @@ Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
  
 Open Local Scope pred.
-
 Section extensions.
 Context (Espec: OracleKind).
 
@@ -712,6 +711,7 @@ exists (force_val
                 (mkEnviron (filter_genv psi) (make_venv vx)
                    (fun id0 : positive => tx ! id0))) 
              (typeof e) ty)).
+rewrite cop_2_sem_cast.
 rewrite <- eval_cast_sem_cast. 
 split.
 auto. right. eapply typecheck_val_eval_cast with (Delta := Delta). 
