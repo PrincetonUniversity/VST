@@ -652,6 +652,7 @@ Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (elemtype 
              field_mapsto sh list_struct list_link x y * 
              |> lseg ls sh r y z.
 
+(*
 Lemma lseg_neq (ls: listspec list_struct list_link):  forall sh l x z , 
   typecheck_val x (tptr list_struct) = true ->
   typecheck_val z (tptr list_struct) = true ->
@@ -693,7 +694,7 @@ apply andp_right.
 apply prop_right; auto.
 apply exp_right with y.
  auto.
-Qed.
+Qed.*)
 
 Lemma lseg_unroll (ls: listspec list_struct list_link): forall sh l x z , 
     lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons ls sh l x z.
@@ -771,22 +772,32 @@ Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
  apply now_later.
 Qed.
 
+Lemma lseg_neq (ls: listspec list_struct list_link):
+  forall sh s v v2,
+    ptr_neq v v2 ->
+     lseg ls sh s v v2 = lseg_cons ls sh s v v2.
+intros. rewrite lseg_unroll.
+apply pred_ext. apply orp_left; auto. 
+rewrite andp_assoc.
+do 2 (apply derives_extract_prop; intro). 
+congruence.
+apply orp_right2. auto.
+Qed.
+
 Lemma lseg_nonnull (ls: listspec list_struct list_link):
   forall sh s v,
       typed_true (tptr list_struct) v ->
      lseg ls sh s v nullval = lseg_cons ls sh s v nullval.
 Proof.
-intros. subst. 
-rewrite lseg_unroll.
-apply pred_ext.
-apply orp_left; auto.
-rewrite andp_assoc;
-do 2 (apply derives_extract_prop; intro).
-apply ptr_eq_e in H0.
-subst.
+intros. unfold nullval.
+apply lseg_neq.
+destruct v; inv H; intuition; try congruence.
+intro. apply ptr_eq_e in H. 
 inv H.
-apply orp_right2. auto.
+inv H1.
+intro. simpl in H. congruence.
 Qed.
+
 
 Lemma lift2_lseg_cons (ls: listspec list_struct list_link): 
  forall sh s p q, `(lseg_cons ls sh s)  p q =
@@ -832,26 +843,28 @@ inv H0.
  auto.
 Qed.
 
-Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
-   forall P Q1 Q R e sh s,
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
-                        local (`(typed_true (tptr list_struct)) e) ->
-      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
+
+
+Lemma unfold_lseg_neq (ls: listspec list_struct list_link):
+   forall P Q1 Q R v v2 sh s,
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |-- 
+                        local (`ptr_neq v v2) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |--
      EX hry: elemtype ls * list (elemtype ls) * val,
       match hry with (h,r,y) => 
        !! (s=h::r) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh) e (`h) ::
-                  `(field_mapsto sh list_struct list_link) e (`y) ::
-                  |> `(lseg ls sh r) (`y) (`nullval) ::
+        (SEPx (`(list_cell ls sh) v (`h) ::
+                  `(field_mapsto sh list_struct list_link) v (`y) ::
+                  |> `(lseg ls sh r) (`y) (v2) ::
                   R)))
         end.
 Proof.
 intros.
 apply derives_trans with
-(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls sh s) e (`nullval) :: R)))).
+(PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg_cons ls sh s) v v2 :: R)))).
 apply derives_trans with
-(local (`(typed_true (tptr list_struct)) e) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R)))).
+(local (`ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R)))).
 apply andp_right; auto.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_lift; simpl.
@@ -860,7 +873,7 @@ unfold lift1; simpl.
  rewrite prop_true_andp by auto.
  rewrite prop_true_andp by auto.
 apply sepcon_derives; auto.
-rewrite lseg_nonnull; auto.
+rewrite lseg_neq; auto.
 change SEPx with SEPx'.
 intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
  unfold_lift.
@@ -881,6 +894,58 @@ intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; 
  auto.
 Qed.
 
+
+Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
+   forall P Q1 Q R e sh s,
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
+                        local (`(typed_true (tptr list_struct)) e) ->
+      PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
+     EX hry: elemtype ls * list (elemtype ls) * val,
+      match hry with (h,r,y) => 
+       !! (s=h::r) &&
+      PROPx P (LOCALx Q 
+        (SEPx (`(list_cell ls sh) e (`h) ::
+                  `(field_mapsto sh list_struct list_link) e (`y) ::
+                  |> `(lseg ls sh r) (`y) (`nullval) ::
+                  R)))
+        end.
+Proof.
+intros. apply unfold_lseg_neq.
+eapply derives_trans.
+apply H. normalize.
+unfold local. super_unfold_lift.
+ intro rho.
+apply derives_extract_prop0; intro.
+unfold nullval.
+normalize. destruct (e rho); inv H0; try congruence; auto.
+intro. apply ptr_eq_e in H0. congruence.
+Qed.
+
+Lemma semax_lseg_neq (ls: listspec list_struct list_link):
+  forall (Espec: OracleKind)
+      Delta P Q sh s v v2 R c Post,
+   PROPx P (LOCALx (tc_environ Delta :: Q)
+            (SEPx (`(lseg ls sh s) v v2 :: R))) |-- 
+                        local (`ptr_neq v v2)  ->
+  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), s=h::r ->
+    semax Delta 
+        (PROPx P (LOCALx Q 
+        (SEPx (`(list_cell ls sh) v (`h) ::
+                  `(field_mapsto sh list_struct list_link) v (`y) ::
+                  |> `(lseg ls sh r) (`y) v2 ::
+                  R)))) c Post) ->
+   semax Delta 
+       (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) v v2 :: R)))) 
+       c Post.
+Proof.
+intros.
+eapply semax_pre;  [apply unfold_lseg_neq | ].
+eapply derives_trans; [ | apply H].
+normalize.
+apply extract_exists_pre; intros [[h r] y].
+apply semax_extract_prop; intro; auto.
+Qed.
+
 Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
   forall (Espec: OracleKind)
       Delta P Q sh s e R c Post,
@@ -899,11 +964,13 @@ Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
        c Post.
 Proof.
 intros.
-eapply semax_pre;  [apply unfold_lseg_cons | ].
-eapply derives_trans; [ | apply H].
-normalize.
-apply extract_exists_pre; intros [[h r] y].
-apply semax_extract_prop; intro; auto.
+apply semax_lseg_neq. eapply derives_trans.
+apply H. unfold local. super_unfold_lift.
+intro rho. normalize.
+unfold nullval.
+intro.
+destruct (e rho); inv H1; auto; congruence.
+auto.
 Qed.
 
 Lemma lseg_nil_eq (ls: listspec list_struct list_link): 
