@@ -39,14 +39,7 @@ intros.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1.
  reflexivity.
- unfold strict_bool_val in *.
- simpl in *. unfold eval_binop in *. unfold sem_binary_operation in *.
- unfold sem_cmp in *. simpl in *.
- remember (Int.eq i Int.zero).
- destruct b; auto.
- apply  binop_lemmas.int_eq_true in Heqb.
- congruence.
- inv H2. Qed.
+Qed.
 
 Definition  binary_operation_to_comparison (op: binary_operation) :=
  match op with
@@ -214,12 +207,6 @@ intros.
  pose proof (Int.eq_spec i Int.zero).
  destruct (Int.eq i Int.zero); inv H1. 
  reflexivity.
- unfold strict_bool_val, eval_binop in H2. simpl in H2.
- remember (negb (Int.eq i Int.zero)). destruct b; inv H2.
- symmetry in Heqb. rewrite negb_false_iff in Heqb.
- symmetry in Heqb.
- apply  binop_lemmas.int_eq_true in Heqb.
- congruence.
 Qed. 
 
 Lemma typed_true_One_nullval:

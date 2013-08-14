@@ -113,8 +113,7 @@ Proof.
   unfold array_at, rangespec.
  apply rangespec'_ext. intros.
  destruct (v rho); simpl; auto.
- f_equal. f_equal. f_equal.
- rewrite Int.add_zero. auto.
+ f_equal. f_equal. rewrite Int.add_zero. auto.
 Qed.
 
 Definition strictAllowedCast tfrom tto :=
@@ -206,19 +205,21 @@ Proof.
   intro. replace (Z.succ x - x) with 1 by omega. reflexivity.
 Qed.
 
-Lemma semax_load_array:
-forall Espec (Delta: tycontext) n id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2 ofs,
+Require floyd.loadstore_lemmas.
+
+Lemma semax_load_array':
+forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
     (temp_types Delta) ! id = Some (t1',i2) ->
     type_is_volatile t1 = false ->
     strictAllowedCast t1 t1' = true ->
     repinject t1 = Some inject ->
-    @nth_error (LiftEnviron mpred) R n = Some (`(array_at t1 sh contents lo hi)
-                                 (`(offset_val (Int.repr ofs)) v1)) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+            `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && local (`isptr v1) && 
-     local (`eq (`force_val (`(sem_add (tptr t1) (tint)) (`(offset_val (Int.repr ofs)) v1) v2 )) (eval_expr e1)) ->
+     local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ederef e1 t1))
@@ -229,185 +230,131 @@ forall Espec (Delta: tycontext) n id sh t1 inject P Q R lo hi contents e1 (v1 v2
                   (map (subst id (`old)) R))))).
 Proof.
  intros until 2. intros NONVOL CLASSIFY H3 H5 H2.
- rewrite (SEP_nth_isolate _ _ _ H5) in H2|-*.
-replace (EX  old : val,
-      PROPx P
-        (LOCALx
-           (`eq (eval_id id)
-              (subst id `old (`inject (`contents (`force_signed_int v2))))
-            :: map (subst id `old) Q)
-           (SEPx
-              (map (subst id `old) R))))
- with  (EX  old : val,
-      PROPx P
-        (LOCALx
-           (`eq (eval_id id)
-              (subst id `old (`inject (`contents (`force_signed_int v2))))
-            :: map (subst id `old) Q)
-           (SEPx
-              (map (subst id `old)
-                 (`(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v1) ::
-                    replace_nth n R emp))))).
-Focus 2. {
-  f_equal. extensionality old.  f_equal. f_equal.
- assert (subst id `old (SEPx 
-              (`(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v1)
-                  :: (replace_nth n R emp))) =
-             subst id `old (SEPx R)).
-f_equal.
- rewrite (SEP_nth_isolate _ _ _ H5). auto.
- clear - H1. 
- change SEPx with SEPx' in *; unfold SEPx' in *.
- autorewrite with subst in H1.
- repeat rewrite fold_right_sepcon_subst.
- auto.
-} Unfocus.
-clear H5.
 
-change (@replace_nth (environ -> mpred) n R 
-       (@emp (environ -> mpred) (@LiftNatDed' mpred Nveric)
-                      (@LiftSepLog' mpred Nveric Sveric))) 
-  with (@replace_nth (LiftEnviron mpred) n R
-       (@emp (LiftEnviron mpred) (@LiftNatDed' mpred Nveric)
-                      (@LiftSepLog' mpred Nveric Sveric))) 
- in *.
-forget (@replace_nth (LiftEnviron mpred) n R emp) as R'. clear n R.
- (* rewrite at_offset_array in H2|-*. *)
-
-apply semax_pre_post with
-   (|>PROPx P
-       (LOCALx (tc_expr Delta e1 :: `(tc_val tint) v2 ::
-                      `(in_range lo hi) (`force_signed_int v2) :: `isptr v1 ::
-                     `eq (`force_val (`(sem_add (tptr t1) tint) (`(offset_val (Int.repr ofs)) v1) v2 )) (eval_expr e1) :: Q)
-          (SEPx
-             (`(array_at t1 sh contents)  
-                   (`force_signed_int v2)
-                   (`Z.succ (`force_signed_int v2)) 
-                   (`(offset_val (Int.repr ofs)) v1) :: `(array_at t1 sh contents lo)  (`force_signed_int v2)
-                (`(offset_val (Int.repr ofs)) v1) :: 
-             `(array_at t1 sh contents)  
-                   (`Z.succ (`force_signed_int v2)) `hi
-                   (`(offset_val (Int.repr ofs)) v1) :: 
-               R'))))
-  (normal_ret_assert
-     (EX  old : val,
-      PROPx P
-        (LOCALx
-           (`eq (eval_id id)
-              (subst id `old (`inject (`contents (`force_signed_int v2))))
-            :: map (subst id `old) (`(in_range lo hi) (`force_signed_int v2)
-                       :: `isptr v1 :: `(tc_val tint) v2
-                       :: Q))
-           (SEPx
-              (map (subst id `old)
-                 (`(array_at t1 sh contents)  
-                   (`force_signed_int (subst id `old v2))
-                   (`Z.succ (`force_signed_int (subst id `old v2)))
-                   (`(offset_val (Int.repr ofs)) v1) :: 
-                 `(array_at t1 sh contents lo)  (`force_signed_int v2)
-                        (`(offset_val (Int.repr ofs)) v1) :: 
-                `(array_at t1 sh contents)  
-                   (`Z.succ (`force_signed_int (subst id `old v2))) `hi
-                   (`(offset_val (Int.repr ofs)) v1) :: 
-               R')))))).
-{eapply derives_trans. apply andp_derives. apply now_later. apply derives_refl.
- rewrite <- later_andp. apply later_derives.
- rewrite insert_local.
- eapply derives_trans.
- apply andp_right. apply H2. apply derives_refl.
- clear.
- go_lowerx.
- apply andp_right. destruct H1; apply prop_right; repeat split; auto. 
- rewrite (split3_array_at (force_signed_int (v2 rho)) _ _ _ lo hi) by apply H1.
- rewrite (sepcon_comm (array_at _ _ _ _ _ _)).
- repeat rewrite sepcon_assoc.
- apply sepcon_derives; auto.
- unfold array_at, rangespec.
- replace ( (Z.succ (force_signed_int (v2 rho)) - force_signed_int (v2 rho))) with 1 by omega.
- simpl. rewrite sepcon_emp.
- apply derives_refl.
-}
-
-{ clear. intros ek vl. apply andp_left2. apply normal_ret_assert_derives'.
- apply exp_derives; intro old.
- autorewrite with subst.
-
- go_lowerx. normalize. cancel.
-  clear - H1 H2 H3.
-  destruct (subst id (fun _ : environ => old) v1 rho); inv H2.
-  destruct (subst id (fun _ : environ => old) v2 rho); inv H3.
-  simpl in *.  
-  rewrite (split3_array_at (Int.signed i0)  _ _ _ lo hi _ H1).
- simpl.
- cancel.
- unfold array_at, rangespec.
-  replace (Z.succ (Int.signed i0) - Int.signed i0) with 1 by omega.
- simpl.
- rewrite sepcon_emp. apply derives_refl.
-}
-
- eapply semax_pre_post;
-  [ | |  apply (semax_load Delta sh id 
+eapply semax_pre_post;
+  [ | |  apply (loadstore_lemmas.semax_load_37 Delta sh id 
                 (PROPx P (LOCALx (tc_expr Delta e1
            :: `(tc_val tint) v2
               :: `(in_range lo hi) (`force_signed_int v2)
                  :: `isptr v1
-                    :: `eq (`force_val (`(sem_add (tptr t1) tint) (`(offset_val (Int.repr ofs)) v1) v2))
+                    :: `eq (`force_val (`sem_add `(tptr t1)  `tint v1 v2))
                          (eval_expr e1) :: Q)
-                (SEPx (`(array_at t1 sh contents lo) (`force_signed_int v2)
-                   (`(offset_val (Int.repr ofs)) v1)
-                 :: `(array_at t1 sh contents)
-                      (`Z.succ (`force_signed_int v2)) `hi
-                      (`(offset_val (Int.repr ofs)) v1) :: R')))) (Ederef e1 t1)
-    (`inject (`contents (`force_signed_int v2))))]; auto.
- clear H2.
-  eapply derives_trans; [apply andp_derives; [ apply now_later | apply derives_refl] | ].
-  rewrite <- later_andp.
-  apply later_derives.
-  go_lowerx. apply andp_right.
-  apply prop_right. unfold tc_lvalue; simpl.
-    repeat rewrite denote_tc_assert_andp; repeat split; auto.
-    rewrite H; apply I. hnf. unfold_lift. rewrite <- H8.
-   destruct (v1 rho); inv H7. destruct (v2 rho); inv H5; reflexivity.
-    rewrite NONVOL; apply I.
- apply andp_right. apply prop_right.
-  unfold tc_temp_id_load. rewrite H0.
-    do 2  eexists; split; try reflexivity.
-    apply strictAllowedValCast; auto.
+                (SEPx R))) (Ederef e1 t1)
+    (`inject (`contents (`force_signed_int v2))))].
+* (* precondition *)
+apply loadstore_lemmas.later_left2.
+rewrite insert_local.
+rewrite <- (andp_dup (PROPx _ _)).
+eapply derives_trans.
+apply andp_derives.
+apply derives_refl.
+rewrite <- (andp_dup (PROPx _ _)).
+apply andp_derives.
+apply H2.
+apply H5.
+clear H2 H5.
 
- normalize. apply sepcon_derives; auto.
- unfold array_at, rangespec. rewrite Zsucc_sub_self.
- simpl. unfold_lift. rewrite <- H8.
-      destruct (v1 rho); inv H7. destruct (v2 rho); inv H5.
- simpl. rewrite sepcon_emp.
- unfold add_ptr_int. unfold eval_binop. simpl.
- rewrite Int.repr_signed.
- forget (Vptr b
-     (Int.add (Int.add i (Int.repr ofs)) (Int.mul (Int.repr (sizeof t1)) i0))) as loc.
- forget (contents (Int.signed i0)) as c.
- clear - H3.
- rewrite <- repinject_typed_mapsto by auto.  
-auto.
+go_lowerx.
+forget (fold_right
+  (fun (P0 Q0 : environ -> mpred) (rho0 : environ) => P0 rho0 * Q0 rho0)
+  (fun _ : environ => emp) R rho) as RR.
+normalize.
+repeat apply andp_right; try apply prop_right; auto.
+hnf; simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite H; apply I.
+hnf. unfold_lift. rewrite <- H9.
+destruct (v2 rho); inv H6.
+destruct (v1 rho); inv H8.
+apply I.
+rewrite NONVOL; apply I.
+exists t1',i2; split; auto. apply strictAllowedValCast; auto.
+apply andp_left1; auto.
 
-{intros ek vl. apply andp_left2.
- apply normal_ret_assert_derives'.
+* (* postcondition *)
+clear. intros ek vl. apply andp_left2. apply normal_ret_assert_derives'.
  apply exp_derives; intro old.
- clear H2. simpl eval_lvalue.
- autorewrite with subst.  repeat rewrite resubst.
-forget (subst id `old v2) as v2'.
-forget (subst id `old v1) as v1'.
- forget (subst id `old (eval_expr e1)) as e1'.
- clear v1 v2.
- go_lowerx. normalize. cancel. rewrite <- H8.
- destruct (v2' rho); inv H5.
- destruct (v1' rho); inv H7.
- simpl.
- unfold array_at, rangespec.
- rewrite Zsucc_sub_self. simpl. rewrite sepcon_emp.
+ autorewrite with subst.
+ go_lowerx. normalize.
 
- rewrite repinject_typed_mapsto with (inject := inject); auto.
- simpl. unfold add_ptr_int, eval_binop. simpl.
- rewrite Int.repr_signed.
- apply derives_refl.
-}
+* (* condition for semax_load_37 *)
+eapply derives_trans; [ | eapply derives_trans; [ | ]].
+Focus 2.
+apply andp_derives; [apply H2 | apply H5].
+rewrite andp_dup.
+rewrite <- (insert_local (tc_environ Delta)).
+apply andp_derives; auto.
+repeat (rewrite <- insert_local; apply andp_left2).
+auto.
+clear H2 H5.
+go_lowerx. normalize.
+destruct (v2 rho); inv H2.
+simpl in H4|-*.
+unfold in_range in H4.
+rewrite (split3_array_at (Int.signed i)  _ _ _ lo hi _ H4).
+rewrite (sepcon_comm (array_at t1 sh contents lo (Int.signed i) _)).
+repeat rewrite sepcon_assoc.
+apply sepcon_derives; auto.
+rewrite <- H6.
+destruct (v1 rho); inv H5.
+simpl.
+rewrite <- repinject_typed_mapsto by auto.
+apply derives_refl'.
+f_equal.
+unfold add_ptr_int, eval_binop; simpl.
+f_equal.
+rewrite Int.repr_signed.
+auto.
+Qed.
+
+Lemma semax_load_array:
+forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
+    typeof e1 =  tptr t1 ->
+    (temp_types Delta) ! id = Some (t1',i2) ->
+    type_is_volatile t1 = false ->
+    strictAllowedCast t1 t1' = true ->
+    repinject t1 = Some inject ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+            `(array_at t1 sh contents lo hi) v1 * TT ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+     local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
+     local (`(in_range lo hi) (`force_signed_int v2)) && 
+     local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ederef e1 t1))
+       (normal_ret_assert 
+        (EX old:val,
+          PROPx P (LOCALx (`eq (eval_id id) (subst id (`old) (`inject (`contents (`force_signed_int v2)))) :: map (subst id (`old)) Q)
+                (SEPx 
+                  (map (subst id (`old)) R))))).
+Proof.
+intros.
+eapply semax_load_array'; eauto.
+rewrite <- (andp_dup (PROPx _ _)).
+eapply derives_trans.
+apply andp_derives.
+apply H4.
+apply H5.
+clear.
+go_lowerx.
+normalize.
+apply andp_right; [ | apply prop_right; auto].
+unfold in_range in H1.
+assert (0<(hi-lo)) by omega.
+clear - H3.
+unfold array_at, rangespec.
+destruct (nat_of_Z (hi-lo)) eqn:?.
+elimtype False; clear - H3 Heqn.
+assert (Z.of_nat (nat_of_Z (hi-lo)) = (hi-lo)).
+apply nat_of_Z_eq; omega.
+rewrite Heqn in H. simpl in H. omega.
+unfold rangespec'; fold rangespec'.
+rewrite sepcon_assoc.
+eapply derives_trans.
+apply sepcon_derives; [ | apply TT_right].
+apply typed_mapsto_typed_mapsto_.
+rewrite typed_mapsto__isptr.
+normalize.
+apply prop_right.
+destruct (v1 rho); inv H; reflexivity.
 Qed.

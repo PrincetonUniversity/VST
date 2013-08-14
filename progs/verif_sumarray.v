@@ -88,7 +88,7 @@ simpl eval_expr.
 go_lower. subst.
  (*intcompare H2.*)
  repeat apply andp_right; try apply prop_right; repeat split; auto.
- f_equal. omega.
+ f_equal. f_equal. omega.
 (* Prove that loop body preserves invariant *)
 simpl.
 apply semax_pre with
@@ -112,12 +112,13 @@ forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-go_lower. subst. inv H3. inv H2.
+go_lower. subst. simpl in *.
  apply andp_right. apply prop_right; repeat split; auto; try omega.
-unfold Zsucc. rewrite Int.add_signed.
+unfold Zsucc. unfold eval_binop;  simpl. rewrite Int.add_signed.
 repeat (rewrite Int.signed_repr 
       by (unfold Int.min_signed, Int.max_signed in *; omega)).
 auto.
+unfold eval_binop; simpl.
  admit.  (* need simple lemma fold_range_split *)
  rewrite split3_array_at with (i:=i0) (lo:=0)(hi:=size); auto.
  simpl_typed_mapsto.
@@ -179,6 +180,7 @@ unfold Frame.
  auto with closed.
  forward. (* return s; *)
  go_lower. subst. normalize.
+ unfold main_post; simpl; apply TT_right.
 Qed.
 
 Existing Instance NullExtension.Espec.

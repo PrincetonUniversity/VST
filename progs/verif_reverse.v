@@ -146,14 +146,15 @@ forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with r.
-go_lower. subst. inv H0.
- rewrite prop_true_andp
- by (rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
-             Int.add_neg_zero, Int.add_zero; auto).
-cancel. 
+go_lower. subst. 
+ rewrite prop_true_andp; [cancel | ].
+unfold eval_binop; simpl.
+rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
+             Int.add_neg_zero, Int.add_zero; auto.
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. simpl. rewrite H0; normalize.
+go_lower. destruct s; inv TC; reflexivity.
+destruct s; inv TC; rewrite H0.  normalize.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=

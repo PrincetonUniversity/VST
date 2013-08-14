@@ -1116,10 +1116,21 @@ unfold_lift; rewrite mapsto_force_ptr.
 auto.
 Qed.
 
+Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:  (* MOVE THIS TO ANOTHER FILE *)
+ forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+Proof.
+intros.
+apply derives_trans with (|> (A && B)).
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+apply later_derives; assumption.
+Qed.
+
 Lemma semax_load_37 : 
   forall {Espec: OracleKind},
 forall (Delta: tycontext) sh id P e1 (v2: environ -> val),
-     P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
        local (tc_temp_id_load id (typeof e1) Delta v2) && 
@@ -1129,8 +1140,8 @@ forall (Delta: tycontext) sh id P e1 (v2: environ -> val),
                                           (subst id (`old) P))).
 Proof.
 intros.
-assert (EQ: P = `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * 
-                  (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) P)).
+assert (EQ: local (tc_environ Delta) && P = `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * 
+                  (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) (local (tc_environ Delta) && P))).
 extensionality rho.
 simpl.
 apply res_predicates.superprecise_ewand_lem1.
@@ -1139,12 +1150,20 @@ apply superprecise_mapsto.
 apply H. clear H.
 
 eapply semax_pre_post; [ | | apply (semax_load Delta sh id
-   (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) P )
+   (ewand (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2) (local (tc_environ Delta) && P) )
    e1 v2)].
 * 
 intros.
-apply andp_left2.
-apply later_derives.
+apply later_left2.
+apply derives_trans with 
+  (local (tc_lvalue Delta e1) &&
+ (local (tc_temp_id_load id (typeof e1) Delta v2) && (local (tc_environ Delta) &&P))).
+repeat apply andp_right. apply andp_left2; apply andp_left1; auto.
+ apply andp_left1; auto. apply andp_left2; apply andp_left1; apply andp_left2; auto.
+apply andp_left1; auto.
+repeat apply andp_left2; auto.
+repeat rewrite andp_assoc.
+apply andp_derives; auto.
 apply andp_derives; auto.
 apply derives_refl'; auto.
 *
@@ -1154,9 +1173,9 @@ apply normal_ret_assert_derives'.
 apply exp_derives; intro old.
 apply andp_derives; auto.
 apply subst_derives.
-apply derives_refl'; auto.
+rewrite <- EQ.
+apply andp_left2; auto.
 Qed.
-
 
 Lemma semax_load_field_37:
 forall  (sh: share) (v: val)
@@ -1195,12 +1214,10 @@ replace  (EX  old : val,
                    subst id `old (PROPx P (LOCALx Q (SEPx R))))
   by (f_equal; extensionality old; autorewrite with subst; rewrite insert_local; auto).
 forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-eapply semax_pre_post; [ | | apply (semax_load_37 Delta sh id (local (tc_environ Delta) && PQR) _ (`v))].
+eapply semax_pre_post; [ | | apply (semax_load_37 Delta sh id ((*local (tc_environ Delta) && *)PQR) _ (`v))].
 * (* PRECONDITION *)
-apply derives_trans with (|> (local (tc_environ Delta) && PQR)).
-rewrite later_andp. apply andp_derives; auto. apply now_later.
-apply later_derives.
-apply andp_right; auto.
+apply later_left2.
+apply andp_right; [ | apply andp_left2; auto].
 apply derives_trans with 
  (local (tc_lvalue Delta e1)  && (`(field_mapsto sh (typeof e1) fld) (eval_lvalue e1) `v * TT)).
 apply andp_right.
@@ -1237,8 +1254,6 @@ apply andp_left2. apply normal_ret_assert_derives'.
 apply exp_derives; intro old.
 apply andp_derives; auto.
 clear; intro; unfold_lift; apply prop_derives; auto.
-autorewrite with subst.
-apply andp_left2; auto.
 *
  eapply derives_trans; [ apply H6 | ].
 apply sepcon_derives; auto.
@@ -1253,6 +1268,7 @@ destruct (field_offset fld fields);   try apply FF_left.
 rewrite <- TC2.
 destruct (access_mode t2);   try apply FF_left.
 simpl offset_val. cbv iota.
+rewrite tc_val_eq.
 normalize.
 apply orp_right1.
 auto.

@@ -2,6 +2,45 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
+Definition is_int (v: val) := 
+ match v with Vint i => True | _ => False end.
+Definition is_long (v: val) := 
+ match v with Vlong i => True | _ => False end.
+Definition is_float (v: val) := 
+ match v with Vfloat i => True | _ => False end.
+Definition is_pointer_or_null (v: val) := 
+ match v with 
+ | Vint i => i = Int.zero
+ | Vptr _ _ => True
+ | _ => False
+ end.
+ 
+Definition tc_val' (ty: type) : val -> Prop :=
+ match ty with 
+ | Tint _ _ _ => is_int
+ | Tlong _ _ => is_long 
+ | Tfloat _ _ => is_float
+ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
+ | Tstruct _ _ _ => isptr
+ | Tunion _ _ _ => isptr
+ | _ => fun _ => False
+ end.
+
+
+Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
+Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
+
+Lemma tc_val_eq: tc_val = tc_val'.
+Proof.
+extensionality t v.
+unfold tc_val, tc_val'.
+destruct t,v; try reflexivity;
+apply prop_ext; intuition; try apply I;
+simpl in *; subst;
+try apply Int.eq_true;
+try solve [apply int_eq_e; auto].
+Qed.
+
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
 Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
@@ -932,9 +971,10 @@ Lemma tc_eval_id_i:
   forall Delta t i rho, 
                tc_environ Delta rho -> 
               (temp_types Delta)!i = Some (t,true) ->
-              tc_val t (eval_id i rho).
+              tc_val' t (eval_id i rho).
 Proof.
 intros.
+rewrite <- tc_val_eq.
 unfold tc_environ in H.
 destruct rho. 
 destruct H as [? _].
@@ -963,14 +1003,16 @@ match goal with
        let Hty := fresh in 
          assert (Hty: (temp_types Delta) ! J = Some (tint, true)) by (simpl; reflexivity);
        let Htc := fresh in let Htc' := fresh in
-       assert (Htc: tc_val tint (eval_id J RHO))
+       assert (Htc: tc_val' tint (eval_id J RHO))
                         by (apply (tc_eval_id_i Delta _ _ _ H Hty));
+       simpl tc_val' in Htc;
        destruct (tc_val_extract_int _ _ _ _ Htc) as [Name Htc'];
        rewrite Htc' in *; clear Hty Htc Htc'
     | let t := fresh "t" in let TC := fresh "TC" in
          evar (t: type);
-         assert (TC: tc_val t (eval_id J RHO)) 
+         assert (TC: tc_val' t (eval_id J RHO)) 
              by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
+         simpl tc_val' in TC;
          unfold t in *; clear t;
          forget (eval_id J RHO) as Name
     ]
@@ -992,8 +1034,7 @@ intros.
  destruct t2; inv H2.
  destruct b; inv H4.
  pose proof (tc_eval_id_i _ _ _ _ H H1).
- hnf in H2.
- unfold typecheck_val in H2.
+ rewrite <- tc_val_eq in H2.
  destruct (eval_id id  rho); inv H2.
  pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
  destruct t1; destruct t3; inv H0; 
@@ -1036,6 +1077,27 @@ Proof.
  destruct v; simpl; auto; inv H; auto.
 Qed.
 *)
+
+Lemma eval_cast_pointer2':
+  forall (v : val) (t1 t2: type),
+  match t1 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
+  match t2 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
+  is_pointer_or_null v -> eval_cast t1 t2 v = v.
+Proof.
+intros.
+unfold eval_cast, classify_cast.
+subst.
+destruct t1; try contradiction; try destruct i; try contradiction; simpl; auto;
+destruct t2; try contradiction; try destruct i; try contradiction; simpl; auto;
+destruct v; inv H1; simpl; auto.
+Qed.
+
+Hint Rewrite eval_cast_pointer2' using (try apply I; try assumption; reflexivity) : norm.
+
+Lemma typecheck_val_eq:
+  forall v t, (typecheck_val v t = true) = tc_val' t v.
+Proof. intros. rewrite <- tc_val_eq. reflexivity. Qed.
+Hint Rewrite typecheck_val_eq : norm.
 
 Lemma eval_cast_pointer2: 
   forall v t1 t2 t3 t1' t2',
@@ -1095,6 +1157,11 @@ Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
+
+Lemma eval_cast_neutral_pointer_or_null:
+  forall v, is_pointer_or_null v -> eval_cast_neutral v = v.
+Proof. intros. destruct v; inv H; reflexivity. Qed.
+Hint Rewrite eval_cast_neutral_pointer_or_null using assumption : norm.
 
 Ltac eval_cast_simpl :=
     try (unfold eval_cast; simpl Cop.classify_cast; cbv iota);

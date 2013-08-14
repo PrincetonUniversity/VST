@@ -136,6 +136,7 @@ erewrite (field_mapsto_typecheck_val list_struct list_link sh v tail); try refle
 rewrite list_link_type.
 repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
 apply prop_right; auto.
+normalize in H.
 apply list_struct_eq.
 auto.
 apply orp_left.
@@ -360,6 +361,7 @@ normalize.
 apply andp_right. apply prop_right; auto.
 intro. apply ptr_eq_e in H2. subst; apply H.
 apply andp_right. apply prop_right; auto.
+normalize in H1.
 rewrite prop_true_andp by auto.
 rewrite sepcon_assoc.
 rewrite andp_comm.
@@ -480,10 +482,8 @@ rewrite links_nil_eq.
 erewrite field_mapsto_typecheck_val at 1.
 2: apply list_struct_eq.
 rewrite list_link_type.
-apply andp_right.
-apply andp_left1.
-apply andp_left1. auto.
 normalize.
+simpl in H0.
 apply andp_left1.
 apply derives_trans with (field_mapsto sh list_struct list_link x z * emp).
 rewrite sepcon_emp; auto.
@@ -526,6 +526,7 @@ apply sepcon_derives ; [ | apply derives_refl ].
 eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict]; 
   apply field_mapsto_field_mapsto_.
 repeat rewrite FF_sepcon; auto.
+normalize in H1.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 apply andp_right.
@@ -1018,6 +1019,7 @@ rewrite field_mapsto_isptr.
 normalize.
 apply andp_right. apply prop_right; auto.
 intro. apply ptr_eq_e in H2. subst; apply H1.
+normalize in H0.
 apply andp_right. apply prop_right; auto.
 apply andp_right. apply prop_right; auto.
 forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x z) as A.

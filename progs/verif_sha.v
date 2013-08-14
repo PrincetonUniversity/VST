@@ -283,57 +283,49 @@ rewrite offset_val_force_ptr. apply isptr_force_ptr; auto.
 Qed.
 
 forward. (* data = in; *)
+Hint Rewrite tc_val_eq: norm.
 
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
-        f_equal; (apply no_offset; auto || reflexivity) 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
+forward0; [hoist_later_in_pre;
+match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+   eapply semax_load_array with (v2:= eval_expr e2)
+ end;
+   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+   | solve [go_lower; cancel]
+   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+ | abbreviate_semax ];
+[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
+ [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   split; omega
+ | destruct ctx_; inv H2; simpl; normalize ]
+ | apply extract_exists_pre; intro; autorewrite with subst ].
 
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
+forward0; [hoist_later_in_pre;
+match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+   eapply semax_load_array with (v2:= eval_expr e2)
+ end;
+   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+   | solve [go_lower; cancel]
+   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+ | abbreviate_semax ];
+[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
+ [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   split; omega
+ | destruct ctx_; inv H2; simpl; normalize ]
+ | apply extract_exists_pre; intro; autorewrite with subst ].
 
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
-        f_equal; (apply no_offset; auto || reflexivity) 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
-
-forward0; [hoist_later_in_pre | abbreviate_semax ];
-[match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
- eapply (semax_load_array Espec Delta 4%nat) with (v2:= eval_expr e2);
-[reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-| unfold nth_error; change value with @Some; f_equal; rewrite lift1more; 
-        f_equal; (apply no_offset; auto || reflexivity) 
-| clear Post; try clear POSTCONDITION MORE_COMMANDS ]
-end
-| apply extract_exists_pre; intro; autorewrite with subst].
-
-apply ditch_SEP.
-go_lower; subst; normalize; try reflexivity.
-rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-split; omega.
-destruct ctx_; inv H2; simpl; auto.
-
-
+forward0; [hoist_later_in_pre;
+match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
+   eapply semax_load_array with (v2:= eval_expr e2)
+ end;
+   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
+   | solve [go_lower; cancel]
+   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
+ | abbreviate_semax ];
+[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
+ [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   split; omega
+ | destruct ctx_; inv H2; simpl; normalize ]
+ | apply extract_exists_pre; intro; autorewrite with subst ].
 
 Admitted.
 

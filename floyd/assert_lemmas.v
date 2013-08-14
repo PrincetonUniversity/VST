@@ -1,6 +1,8 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Arguments eval_binop op t1 t2 / v1 v2.
+
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
@@ -470,6 +472,7 @@ Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
  super_unfold_lift. f_equal; auto.
+ f_equal; auto.
 Qed.
 Hint Resolve expr_closed_binop : closed.
 
@@ -1012,7 +1015,7 @@ Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
 Ltac cancel_frame := 
-match goal with |- ?P |-- fold_right sepcon emp ?F ?rho  =>
+match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
     repeat change lift0 with (@liftx (LiftEnviron mpred));

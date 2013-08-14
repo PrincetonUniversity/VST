@@ -188,8 +188,6 @@ unfold eval_binop; simpl.
 destruct (Int.eq i (Int.repr 0)); reflexivity.
  simpl. reflexivity.
 apply prop_right. destruct hd; inv TC; try reflexivity.
-unfold eval_binop; simpl. change (Int.repr 0) with Int.zero; rewrite H0. simpl.
-reflexivity.
 apply andp_right.
 destruct prefix.
 rewrite links_nil_eq.
@@ -234,13 +232,12 @@ forward. (* return Q; *)
 go_lower.
   apply andp_right. apply prop_right; auto.
   rewrite field_mapsto_isptr; normalize.
-  apply andp_right.
-  apply prop_right; destruct Q; inv H; inv TC; hnf; simpl; auto.
+  apply andp_right. simpl. normalize.
   unfold fifo.
    destruct (@isnil val nil); [ | congruence].
   apply exp_right with (nullval,nullval).
   rewrite field_mapsto_isptr.  normalize.
-  destruct Q; inv H; inv TC; simpl; auto.
+  simpl. normalize.
 Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
@@ -276,7 +273,7 @@ fold t_struct_fifo.
 forward. (*  Q->head=p; *)
 forward. (* Q->tail=p; *)
 go_lower.
-subst. subst hd.
+subst.
 destruct (@isnil val contents).
 (* CASE ONE:  isnil contents *)
 subst. normalize.
@@ -298,12 +295,13 @@ rewrite links_nil_eq.
 normalize.
 apply ptr_eq_e in H. subst tl.
 unfold link.
-repeat rewrite <- sepcon_assoc.
-rewrite sepcon_comm.
-rewrite field_mapsto_isptr.
+rewrite field_mapsto_isptr with (x:=hd).
 normalize.
+destruct hd; inv H; inv H0.
 rewrite links_cons_eq.
 normalize.
+rewrite field_mapsto_isptr with (x:=v).
+normalize; destruct v; inv H2; inv H0.
 (* else clause *)
 simplify_typed_comparison.
 forward. (*  t = Q->tail; *)
@@ -312,7 +310,7 @@ destruct (isnil contents).
 (* CASE THREE: contents = nil *)
 apply semax_pre with FF; [ | apply semax_ff].
 clear_abbrevs.
-go_lower. subst. normalize.
+go_lower. subst. normalize. simpl in H1. inv H1.
 focus_SEP 2.
 change (`(EX  prefix : list val,
       !!(contents = prefix ++ tl :: nil) &&
@@ -385,9 +383,7 @@ unfold link.
  forward. (* Q->head=n; *)
  forward. (* return p; *)
  go_lower. subst. rewrite prop_true_andp by auto.
- rewrite prop_true_andp by (destruct h; apply TC0).
- rewrite prop_true_andp by (destruct h; inv TC0; auto).
- rewrite emp_sepcon.
+ normalize.
  unfold fifo. normalize. apply exp_right with (nullval, h).
  destruct (@isnil val nil); [ | congruence].
  rewrite prop_true_andp by auto. unfold link_. cancel.
@@ -400,8 +396,7 @@ forward. (*  n=h->next; *)
  forward. (* Q->head=n; *)
  forward. (* return p; *)
 go_lower. subst x h q.
- rewrite prop_true_andp by auto.
- rewrite prop_true_andp by (destruct p; apply TC0).
+ normalize.
  unfold fifo. normalize. apply exp_right with (n, tl).
  subst.
  destruct (isnil (prefix ++ tl :: nil)); [ destruct prefix; inv e | ]. clear n0.
@@ -536,8 +531,7 @@ forward. (*  freeN(p, sizeof( *p)); *)
 instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
 go_lower. normalize.
-simpl force_int.
-rewrite (eval_cast_neutral_tc_val p); eauto.
+subst Q p. simpl. normalize.
 change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed.
 
@@ -545,11 +539,10 @@ unfold Frame.
 instantiate (1:= `(fifo (p2 :: nil) q2 *
 (field_mapsto Tsh t_struct_elem _a p2 (Vint (Int.repr 2)) *
  field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20))))::nil).
-clear. (* This "clear" is only needed to work around bug 2997 in Coq 8.4 *)
 simpl_typed_mapsto.
 simpl. normalize. cancel.
 forward. (* return i+j; *)
-go_lower. normalize.
+go_lower. subst. simpl. normalize.
 Qed.
 
 Existing Instance NullExtension.Espec.

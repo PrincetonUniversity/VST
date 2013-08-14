@@ -1109,9 +1109,9 @@ match goal with
            let Post := fresh "Post" in
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
-               [ F1; unfold Post; 
+               [ F1; unfold Post; try clear Post;
                  try (simple apply normal_ret_assert_derives'' || simple apply normal_ret_assert_derives');
-                 try (apply drop_tc_environ || apply derives_refl)
+                 try (simple apply drop_tc_environ || apply derives_refl)
                | try unfold exit_tycon; 
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
