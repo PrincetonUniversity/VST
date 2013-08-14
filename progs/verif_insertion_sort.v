@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.insertionsort.
@@ -40,6 +41,18 @@ Lemma lift_list_cell_eq:
    `(list_cell LS sh) e v = `(field_mapsto sh t_struct_list _head) e (`Vint v).
 Proof. reflexivity. Qed.
 
+Check Forall.
+Definition Ilt a b:=
+Int.cmp Cle a b = true.
+(*TODO: add local eval facts to the invariant *) 
+Definition insert_invariant sh value contents :=
+EX contents_lt: list int,
+EX contents_rest: list int,
+PROP (Forall (Ilt value) contents_lt; contents_lt ++ contents_rest = contents)
+LOCAL ()
+SEP (`(lseg LS sh contents_lt) (eval_id _sorted) (eval_id _index);
+     `(lseg LS sh contents_rest) (eval_id _index) `nullval;
+      (var_block Tsh (_newitem, t_struct_list))).
 
 Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
 Proof.
@@ -67,7 +80,35 @@ forward. (*sortedvalue = index -> head;*)
 forward. (*guard = index && (value > sortedvalue);*) 
   
 forward. (*guard = guard'*)
-forward.
+forward_while (insert_invariant sh v contents) (insert_invariant sh v contents).
+(*pre implies invariant*)
+unfold insert_invariant. apply (exp_right nil). eapply (exp_right contents). go_lower.
+normalize.
+{ repeat apply andp_right. 
+  + apply prop_right. auto.
+  + normalize. 
+  + subst. apply prop_right. apply ptr_eq_refl. auto.
+  + subst. rewrite (lseg_unfold LS sh (h::r) sorted nullval).
+    normalize. apply (exp_right y).
+    apply andp_right.
+      - apply prop_right. destruct sorted; inv H6; auto.
+      - cancel. }
+(*guard typechecks*)
+go_lower.
+(*invariant implies post *)
+unfold insert_invariant. normalize.
+go_lower.
+apply (exp_right contents_lt). normalize.
+apply (exp_right contents_rest). normalize.
+
+
+
+SearchAbout lseg.
+
+}
+
+    
+ forward.
 
 forward0.
 forward0.
