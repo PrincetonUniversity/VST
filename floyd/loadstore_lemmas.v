@@ -261,6 +261,7 @@ case_eq (access_mode t2); intros;
 rewrite andp_assoc.
 repeat rewrite sepcon_andp_prop'.
   repeat (apply derives_extract_prop; intro).
+rewrite typecheck_val_eq in H7.
 repeat apply andp_right; try apply prop_right.
 unfold tc_lvalue. 
 unfold typecheck_lvalue; fold typecheck_lvalue. rewrite H1.
@@ -294,10 +295,12 @@ rewrite field_offset_unroll. unfold offset_val.
 unfold_lift.
 destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
 destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
+rewrite typecheck_val_eq.
 apply sepcon_derives; auto.
 repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
 apply derives_extract_prop; intro.
+rewrite tc_val_eq in H3.
 rewrite H4 in H3; inv H3.
 Qed.
 
@@ -417,6 +420,7 @@ apply sepcon_derives; auto.
 simpl.
 apply orp_right2. apply andp_right; try apply prop_right; auto.
 apply exp_right with v0; auto.
+rewrite tc_val_eq.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. hnf in H3. simpl in H3.
 rewrite denote_tc_assert_andp in H3. destruct H3.
@@ -425,6 +429,7 @@ eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
 intros ek vl; unfold normal_ret_assert; go_lowerx.
 normalize.
 apply sepcon_derives; auto.
+rewrite tc_val_eq in H4.
 unfold mapsto, umapsto, field_mapsto.
 rewrite TE1.
 apply derives_extract_prop; intro.

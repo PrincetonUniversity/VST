@@ -543,6 +543,7 @@ simpl_typed_mapsto.
 simpl. normalize. cancel.
 forward. (* return i+j; *)
 go_lower. subst. simpl. normalize.
+unfold main_post; simpl; apply TT_right.
 Qed.
 
 Existing Instance NullExtension.Espec.

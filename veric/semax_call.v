@@ -1178,7 +1178,7 @@ simpl. unfold te2. destruct ret; unfold rval.
 destruct vl.   
 assert (typecheck_val v (fn_return f) = true).
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
- destruct H22. destruct H. apply H. 
+ destruct H22. destruct H. rewrite tc_val_eq in H; apply H. 
 unfold construct_rho. rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. subst rho; auto.
 intros. cut (fst t = fn_return f). intros. rewrite H24; auto.
@@ -1228,7 +1228,7 @@ destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite 
 apply step_return with f None Vundef (tx); simpl; auto. 
 assert (typecheck_val v (fn_return f) = true).
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
- destruct H22. destruct H. apply H.
+ destruct H22. destruct H. rewrite tc_val_eq in H; apply H.
 destruct ret.
 simpl.
 unfold rval.

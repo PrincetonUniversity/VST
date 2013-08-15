@@ -75,12 +75,13 @@ eapply semax_pre with
       (`(field_mapsto sh t_struct_list _head) (eval_id _index) (`Vint `h);
       `(field_mapsto sh t_struct_list _tail) (eval_id _sorted) `y;
       |>`(lseg LS sh r) `y `nullval; stackframe_of f_insert)).
-go_lower. subst v index. normalize.
+go_lower. subst value index. normalize.
 forward. (*sortedvalue = index -> head;*)
 forward. (*guard = index && (value > sortedvalue);*) 
   
 forward. (*guard = guard'*)
-forward_while (insert_invariant sh v contents) (insert_invariant sh v contents).
+forward_while (insert_invariant sh v contents) (insert_invariant sh v contents);
+  autorewrite with ret_assert.
 (*pre implies invariant*)
 unfold insert_invariant. apply (exp_right nil). eapply (exp_right contents). go_lower.
 normalize.
@@ -100,6 +101,55 @@ unfold insert_invariant. normalize.
 go_lower.
 apply (exp_right contents_lt). normalize.
 apply (exp_right contents_rest). normalize.
+
+
+
+SearchAbout lseg.
+
+}
+
+    
+ forward.
+
+forward0.
+forward0.
+first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
+[ auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto | auto | reflexivity
+| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
+unfold Post0.
+forward.
+eapply semax_logical_and_PQR.
+first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
+[ auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto 50 with closed
+| auto | auto | reflexivity
+| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
+intro rho. simpl. repeat apply andp_right; try apply prop_right; auto.
+eapply semax_logical_and_PQR; auto 50 with closed.
+simpl. reflexivity.
+go_lower. subst index value. normalize.
+forward. unfold Post. go_lower.
+
+Admitted.
+
+
+
+simpl overridePost.
+unfold  overridePost.
+simpl eq_dec.
+simpl EqDec_exitkind.
+cbv beta iota.
+unfold insert_invariant. normalize.
+apply (exp_right contents_lt). normalize.
+apply (exp_right contents_rest).
+go_lower.
+ normalize.
 
 
 

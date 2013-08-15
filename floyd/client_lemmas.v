@@ -2,45 +2,6 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
-Definition is_int (v: val) := 
- match v with Vint i => True | _ => False end.
-Definition is_long (v: val) := 
- match v with Vlong i => True | _ => False end.
-Definition is_float (v: val) := 
- match v with Vfloat i => True | _ => False end.
-Definition is_pointer_or_null (v: val) := 
- match v with 
- | Vint i => i = Int.zero
- | Vptr _ _ => True
- | _ => False
- end.
- 
-Definition tc_val' (ty: type) : val -> Prop :=
- match ty with 
- | Tint _ _ _ => is_int
- | Tlong _ _ => is_long 
- | Tfloat _ _ => is_float
- | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
- | Tstruct _ _ _ => isptr
- | Tunion _ _ _ => isptr
- | _ => fun _ => False
- end.
-
-
-Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
-Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
-
-Lemma tc_val_eq: tc_val = tc_val'.
-Proof.
-extensionality t v.
-unfold tc_val, tc_val'.
-destruct t,v; try reflexivity;
-apply prop_ext; intuition; try apply I;
-simpl in *; subst;
-try apply Int.eq_true;
-try solve [apply int_eq_e; auto].
-Qed.
-
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
 Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
@@ -688,7 +649,7 @@ Lemma overridePost_normal_right:
    P |-- Q ->
    P |-- overridePost Q R EK_normal None.
 Proof. intros.
-  intro rho; unfold overridePost; simpl. rewrite if_true; auto.
+  intro rho; unfold overridePost; simpl.
   normalize.
 Qed.
 
@@ -971,10 +932,10 @@ Lemma tc_eval_id_i:
   forall Delta t i rho, 
                tc_environ Delta rho -> 
               (temp_types Delta)!i = Some (t,true) ->
-              tc_val' t (eval_id i rho).
+              tc_val t (eval_id i rho).
 Proof.
 intros.
-rewrite <- tc_val_eq.
+rewrite tc_val_eq.
 unfold tc_environ in H.
 destruct rho. 
 destruct H as [? _].
@@ -983,8 +944,8 @@ unfold eval_id. simpl in *. rewrite H1. simpl; auto.
 destruct H2. inv H2. auto.
 Qed.
 
-Lemma tc_val_extract_int:
- forall v sign ch attr, tc_val (Tint ch sign attr) v -> exists n, v = Vint n.
+Lemma is_int_e:
+ forall v , is_int v -> exists n, v = Vint n.
 Proof.
 intros. destruct v; inv H; eauto.
 Qed.
@@ -1003,16 +964,15 @@ match goal with
        let Hty := fresh in 
          assert (Hty: (temp_types Delta) ! J = Some (tint, true)) by (simpl; reflexivity);
        let Htc := fresh in let Htc' := fresh in
-       assert (Htc: tc_val' tint (eval_id J RHO))
+       assert (Htc: is_int (eval_id J RHO))
                         by (apply (tc_eval_id_i Delta _ _ _ H Hty));
-       simpl tc_val' in Htc;
-       destruct (tc_val_extract_int _ _ _ _ Htc) as [Name Htc'];
+       destruct (is_int_e _ Htc) as [Name Htc'];
        rewrite Htc' in *; clear Hty Htc Htc'
     | let t := fresh "t" in let TC := fresh "TC" in
          evar (t: type);
-         assert (TC: tc_val' t (eval_id J RHO)) 
+         assert (TC: tc_val t (eval_id J RHO)) 
              by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
-         simpl tc_val' in TC;
+         simpl tc_val in TC;
          unfold t in *; clear t;
          forget (eval_id J RHO) as Name
     ]
@@ -1034,7 +994,7 @@ intros.
  destruct t2; inv H2.
  destruct b; inv H4.
  pose proof (tc_eval_id_i _ _ _ _ H H1).
- rewrite <- tc_val_eq in H2.
+ rewrite tc_val_eq in H2.
  destruct (eval_id id  rho); inv H2.
  pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
  destruct t1; destruct t3; inv H0; 
@@ -1095,8 +1055,8 @@ Qed.
 Hint Rewrite eval_cast_pointer2' using (try apply I; try assumption; reflexivity) : norm.
 
 Lemma typecheck_val_eq:
-  forall v t, (typecheck_val v t = true) = tc_val' t v.
-Proof. intros. rewrite <- tc_val_eq. reflexivity. Qed.
+  forall v t, (typecheck_val v t = true) = tc_val t v.
+Proof. intros. rewrite tc_val_eq. reflexivity. Qed.
 Hint Rewrite typecheck_val_eq : norm.
 
 Lemma eval_cast_pointer2: 
@@ -1121,11 +1081,7 @@ Proof.
 intros.
  pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H0).
  simpl in H1.
- unfold typecheck_val in H1.
- simpl in H1.
- revert H1; case_eq (eval_var i t rho); intros; try reflexivity.
- specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
- specialize (H2 (tptr tint) (eq_refl _)). simpl in H2. inv H2.
+ destruct (eval_var i t rho); inv H1; simpl; auto.
 Qed.
 
   
@@ -1151,17 +1107,19 @@ Qed.
 
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
+Lemma eval_cast_neutral_is_pointer_or_null:
+   forall v, is_pointer_or_null v -> eval_cast_neutral v = v.
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
+
 Lemma eval_cast_neutral_isptr:
    forall v, isptr v -> eval_cast_neutral v = v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_isptr using assumption : norm.
-
-Lemma eval_cast_neutral_pointer_or_null:
-  forall v, is_pointer_or_null v -> eval_cast_neutral v = v.
-Proof. intros. destruct v; inv H; reflexivity. Qed.
-Hint Rewrite eval_cast_neutral_pointer_or_null using assumption : norm.
 
 Ltac eval_cast_simpl :=
     try (unfold eval_cast; simpl Cop.classify_cast; cbv iota);
@@ -2472,3 +2430,232 @@ Proof.
  apply prop_left; intro. apply prop_right. split; auto.
  apply extract_exists_pre.  apply H.
 Qed.
+
+Lemma saturate_local_aux1:
+  forall R0 R1 R'  S,
+          R0 * (R1 * R') |-- S ->
+          R0 * R1 * R' |-- S.
+Proof.
+intros. rewrite sepcon_assoc; auto.
+Qed.
+
+Lemma saturate_local_aux3:
+  forall R0 R1 R' S P,
+      R1 |-- !! P ->
+      (P -> (R0 * R1 * R' |-- S)) ->
+      R0 * R1 * R' |-- S.
+Proof.
+intros.
+replace R1 with (!!P && R1); normalize.
+apply pred_ext; normalize.
+apply andp_right; auto.
+Qed.
+
+Lemma saturate_local_aux4:
+ forall P Q R S,  P * (Q * R) |-- S -> P * Q * R |-- S .
+Proof. intros. rewrite sepcon_assoc; auto.
+Qed.
+
+Lemma saturate_local_aux5:
+ forall P S,  emp * P |-- S -> P |-- S .
+Proof. intros. rewrite emp_sepcon in H. auto.
+Qed.
+
+Lemma saturate_local_aux6:
+ forall P Q R S,  P * Q * R |-- S -> P * (Q * R) |-- S .
+Proof. intros. rewrite <- sepcon_assoc; auto.
+Qed.
+
+Lemma saturate_local_aux7:
+ forall P S,  P * emp |-- S -> P |-- S .
+Proof. intros. rewrite sepcon_emp in H. auto.
+Qed.
+
+Lemma saturate_local_aux8:
+ forall P S,  P |-- S -> emp * P |-- S .
+Proof. intros. rewrite emp_sepcon. auto.
+Qed.
+
+Lemma saturate_local_aux9:
+ forall P S,  P |-- S -> P * emp |-- S .
+Proof. intros. rewrite sepcon_emp. auto.
+Qed.
+
+Lemma intro_if_new_aux1:
+ forall A B C: Prop,  (B -> C) -> (A /\ B) -> C.
+Proof. intuition. Qed.
+
+Lemma intro_if_new_aux2:
+ forall A B C: Prop,  (A -> B -> C) -> (A /\ B) -> C.
+Proof. intuition. Qed.
+
+Ltac intro_if_new' := (* this version is happy even if none of them are new *)
+  match goal with
+  |  H: ?A |- (?A /\ ?B) -> _ => apply intro_if_new_aux1; intro_if_new'
+  | |- _ /\ _ -> _ => apply intro_if_new_aux2; intro; intro_if_new'
+  |  H: ?A |- ?A -> _ => intros _
+  | |- _ => intro 
+  end.
+
+Ltac intro_if_new := (* this version fails if none of them are new *)
+  match goal with
+  |  H: ?A |- (?A /\ ?B) -> _ => apply intro_if_new_aux1; (intro_if_new || fail 1)
+  | |- _ /\ _ -> _ => apply intro_if_new_aux2; intro; intro_if_new'
+  |  H: ?A |- ?A -> _ => fail 1 
+  | |- _ => intro 
+  end.
+
+Ltac saturate_local := 
+  repeat simple apply saturate_local_aux4;
+  simple apply saturate_local_aux5;
+  repeat simple apply saturate_local_aux6;
+  simple apply saturate_local_aux7;
+  repeat (
+     try (simple eapply saturate_local_aux3; 
+       [solve [eauto with saturate_local] | intro_if_new]);
+     simple apply saturate_local_aux1);
+  simple apply saturate_local_aux8;
+  repeat simple apply saturate_local_aux6;
+  simple apply saturate_local_aux9.
+
+
+Lemma mapsto_local_facts:
+  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1 /\ tc_val t v2).
+Proof.
+intros; unfold mapsto, umapsto.
+rewrite tc_val_eq.
+apply derives_extract_prop; intro.
+destruct (access_mode t); try apply FF_left.
+destruct v1; try apply FF_left.
+apply prop_right; split; auto; apply I.
+Qed.
+
+Lemma mapsto__local_facts:
+  forall sh t v1, mapsto_ sh t v1 |-- !! (isptr v1).
+Proof.
+intros; unfold mapsto_, umapsto.
+destruct (access_mode t); try apply FF_left.
+destruct v1; try apply FF_left.
+apply prop_right; apply I.
+Qed.
+Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
+(*********************************************************)
+
+Lemma drop_saturated1:
+  forall R0 R2 R' P,
+    R0 * R' |-- !! P ->
+    R0 * R2 * R' |-- !! P.
+Proof.
+intros.
+pull_right R2.
+eapply derives_trans. apply sepcon_derives. apply H.
+apply TT_right. clear.
+apply derives_trans with (!!P && TT * TT); [ | normalize].
+apply sepcon_derives; auto.
+normalize.
+Qed.
+
+Ltac drop_saturated :=
+  repeat simple apply saturate_local_aux4;
+  simple apply saturate_local_aux5;
+  repeat simple apply saturate_local_aux6;
+  simple apply saturate_local_aux7;
+ repeat 
+   first [simple eapply saturate_local_aux3; 
+             [solve [eauto with saturate_local] | intros _; apply drop_saturated1 ]
+          | simple apply saturate_local_aux1
+          ];
+  simple apply saturate_local_aux8;
+  repeat simple apply saturate_local_aux6;
+  try simple apply saturate_local_aux9.
+
+Lemma prop_right_emp {A} {NA: NatDed A}:
+ forall P: Prop, P -> emp |-- !! P.
+Proof. intros. normalize.
+Qed.
+
+Ltac prop_right_cautious :=
+ drop_saturated; 
+ try (simple apply prop_right_emp; auto);
+ try solve [simple apply prop_right; auto].
+
+(**********************************************************)
+
+Hint Rewrite <- prop_and : gather_prop.
+
+Lemma gather_prop_left {A}{NA: NatDed A}:
+  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
+Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
+Qed.
+
+Lemma gather_prop_right {A}{NA: NatDed A}:
+  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
+Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
+Qed.
+Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
+
+Definition not_a_prop {A} (P: A) := True.
+
+Ltac not_a_prop := match goal with
+  | |- not_a_prop  (prop _) => fail 1 
+  | |- _ => apply I 
+end.
+
+Lemma flip_prop {A}{NA: NatDed A}: forall P Q, 
+      not_a_prop P -> (P&&Q = Q && P).
+Proof. intros. apply andp_comm. Qed.
+
+Hint Rewrite @flip_prop using not_a_prop : gather_prop.
+
+Lemma gather_prop3 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
+Proof. intros. rewrite andp_comm. rewrite andp_assoc.
+        rewrite (andp_comm Q); auto.
+Qed.
+
+Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
+
+
+Lemma gather_prop4 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
+Proof. intros. rewrite andp_assoc. auto. 
+Qed.
+Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
+
+Lemma gather_prop5 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
+Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
+  f_equal; apply andp_comm.
+Qed.
+Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
+
+Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
+
+Ltac gather_prop := autorewrite with gather_prop;
+  match goal with 
+  | |- _ |-- !! _ && _ => apply andp_right; [ prop_right_cautious | ]
+  | |- _ |-- !! _ => prop_right_cautious
+  | |- _ => idtac
+ end; auto.
+
+(* testing
+Parameter f: nat -> Prop.
+Parameter g h : mpred.
+
+Goal ( !! f 1 && ((h && !! f 2) && h ) && (!! f 3 && (g && (!!f 4 && !! f 5) && !! f 6)) |-- FF).
+
+*)
+
+(*****************************************************************)
+
+Ltac subst_any :=
+ repeat match goal with 
+  | H: ?x = ?y |- _ => first [ subst x | subst y ]
+ end.
+
+Ltac entailer :=
+ go_lower; saturate_local; simpl tc_val in *|-*; subst_any; 
+  change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
+   unfold_lift; simpl;
+  gather_prop.
+

@@ -96,8 +96,6 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition tc_val t v := typecheck_val v t = true.
-
 Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
@@ -285,7 +283,7 @@ Definition get_result (ret: option ident) : environ -> environ :=
 Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -> mpred :=
      match vl, t with
      | None, Tvoid =>`Q (make_args nil nil)
-     | Some v, _ => @andp (environ->mpred) _ (!! (typecheck_val v t = true))
+     | Some v, _ => @andp (environ->mpred) _ (!! tc_val t v)
                              (`Q (make_args (ret_temp::nil) (v::nil)))
      | _, _ => FF
      end.
@@ -366,9 +364,6 @@ Definition tc_exprlist (Delta: tycontext) (t: list type) (e: list expr)  : envir
 
 Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> Prop := 
      denote_tc_assert (typecheck_lvalue Delta e).
-
-Definition tc_value (v:environ -> val) (t :type) : environ -> Prop :=
-     fun rho => typecheck_val (v rho) t = true.
 
 Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
    match e with None => `(t=Tvoid)

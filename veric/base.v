@@ -28,6 +28,6 @@ Instance EqDec_type: EqDec type := type_eq.
 Instance EqDec_memval: EqDec memval.
 Proof.
   hnf. repeat decide equality; apply eq_dec.
-Qed.
+Defined.
 
 Definition funsig := (list (ident*type) * type)%type. (* argument and result signature *)

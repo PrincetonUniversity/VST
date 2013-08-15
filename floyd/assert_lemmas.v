@@ -1,8 +1,6 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
-Arguments eval_binop op t1 t2 / v1 v2.
-
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
@@ -634,7 +632,7 @@ Lemma tc_eval_gvar_i:
             (glob_types Delta) ! i = Some (Global_var t) ->
              tc_val (Tpointer t noattr) (eval_var i t rho).
 Proof.
- intros. unfold tc_val, eval_var; simpl.
+ intros. rewrite tc_val_eq. unfold tc_val, eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
   destruct H as [_ [? [? ?]]].
   unfold typecheck_var_environ in  *. 

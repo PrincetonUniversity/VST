@@ -208,6 +208,7 @@ generalize (eval_expr_relate _ _ _ _ _ b (m_dry jm) Hge (guard_environ_e1 _ _ _ 
 assert (exists b': bool, strict_bool_val (eval_expr b rho) (typeof b) = Some b').
 clear - TC H TC2.
 assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2).
+rewrite tc_val_eq in TCS.
 remember (eval_expr b rho). destruct v;
 simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
 (* typechecking proof *)

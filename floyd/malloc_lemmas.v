@@ -844,3 +844,24 @@ Hint Resolve typed_mapsto_typed_mapsto_.
 Hint Resolve field_mapsto_field_mapsto_.
 
 Global Opaque arrayof_.
+
+Lemma array_at_local_facts:
+ forall t sh f lo hi v,
+   lo < hi ->
+    array_at t sh f lo hi v |-- !! isptr v.
+Proof.
+ intros.
+ unfold array_at, rangespec.
+ destruct (nat_of_Z (hi-lo)) eqn:?H.
+ elimtype False.
+ admit.  (* easy *)
+ simpl.
+ eapply derives_trans with (typed_mapsto_ sh t (add_ptr_int t v lo) * TT).
+ apply sepcon_derives; auto.
+ rewrite typed_mapsto__isptr.
+ normalize. apply prop_right.
+ destruct v; inv H1. apply I.
+Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple apply array_at_local_facts; omega : saturate_local.

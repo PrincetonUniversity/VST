@@ -304,7 +304,7 @@ Ltac forward_while Inv Postcond :=
                | simpl update_tycon ]
         end)
 
-   ]; abbreviate_semax.
+   ]; abbreviate_semax; autorewrite with ret_assert.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
@@ -1187,3 +1187,7 @@ Ltac start_function :=
 Opaque sepcon.
 Opaque emp.
 Opaque andp.
+
+Arguments overridePost Q R !ek !vl / _ .
+Arguments eq_dec A EqDec / a a' .
+Arguments EqDec_exitkind !a !a'.

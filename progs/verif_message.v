@@ -705,7 +705,7 @@ go_lower. subst. simpl. normalize. unfold main_post.
  change (mf_size intpair_message) with 8.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
- simpl in H3. rewrite <- H3. clear len TC3 H3.
+ simpl in H3. rewrite <- H3. clear len H3.
  simpl.
  replace (memory_block Tsh (Int.repr 0)
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))

@@ -148,13 +148,12 @@ unfold sumlist_Inv.
 apply exp_right with r.
 go_lower. subst. 
  rewrite prop_true_andp; [cancel | ].
-unfold eval_binop; simpl.
+simpl in H0. inv H0.
 rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
              Int.add_neg_zero, Int.add_zero; auto.
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. destruct s; inv TC; reflexivity.
-destruct s; inv TC; rewrite H0.  normalize.
+go_lower. rewrite H0; reflexivity.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=

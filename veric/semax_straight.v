@@ -195,6 +195,7 @@ intros until rho. intros ? ? BM.  intros.
 unfold Cop.sem_binary_operation, sem_cmp.  
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto. 
 apply typecheck_expr_sound in H1; auto.
+rewrite tc_val_eq in *.
 
 copy H3. copy H4. rename H5 into MT_1.
 rename H6 into MT_2. 
@@ -232,8 +233,12 @@ unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 Qed.
 
+Lemma tc_val_eq':
+  forall t v, (typecheck_val v t = true) =  tc_val t v.
+Proof. intros. rewrite tc_val_eq. auto. Qed.
+
 Lemma pointer_cmp_no_mem_bool_type : 
-   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i s a,
+   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2,
    is_comparison cmp = true->
    forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
@@ -246,16 +251,16 @@ Lemma pointer_cmp_no_mem_bool_type :
    (mapsto_ sh2 (typeof e2)
       (eval_expr e2 rho)) x1 ->
    typecheck_environ Delta rho ->
-    typecheck_val
+    is_int 
      (force_val
         (sem_binary_operation cmp (typeof e1) (typeof e2)
            (eval_expr e1 rho)
-           (eval_expr e2 rho)))
-     (Tint i s a) = true.
+           (eval_expr e2 rho))).
 Proof.
 intros. 
 apply typecheck_both_sound in H4; auto. 
-apply typecheck_both_sound in H3; auto. 
+apply typecheck_both_sound in H3; auto.
+rewrite tc_val_eq' in *.
 rewrite H0 in *. 
 rewrite H1 in *. 
 unfold sem_binary_operation.
@@ -263,8 +268,8 @@ destruct (typeof e1); try solve[simpl in *; try contradiction; try congruence];
 destruct (typeof e2); try solve[simpl in *; try contradiction; try congruence].
 
 destruct cmp; inv H;
-unfold sem_cmp; simpl;
-if_tac; auto; simpl; of_bool_destruct; auto.
+unfold sem_cmp; simpl; 
+if_tac; auto; simpl; try of_bool_destruct; auto.
 Qed.
  
 Definition weak_mapsto_ sh e rho :=
@@ -355,6 +360,7 @@ destruct t; inv TC2.
 simpl. super_unfold_lift.
 unfold eval_binop. 
 simpl.
+rewrite tc_val_eq'.
 eapply  pointer_cmp_no_mem_bool_type; eauto. 
 apply TC3. 
 apply TC1.  
@@ -648,13 +654,14 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
  with (fun rho : environ => 
    ( |> tc_lvalue Delta e1 rho && 
      |> tc_temp_id_load id (typeof e1) Delta v2 rho &&
-     |> !!(typecheck_val (v2 rho) (typeof e1) = true) && 
+     |> !! (typecheck_val (v2 rho) (typeof e1) = true) && 
      |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
 Focus 2.
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
 repeat rewrite andp_assoc. f_equal. f_equal.
+rewrite tc_val_eq'.
 unfold mapsto, umapsto. normalize.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
@@ -747,6 +754,7 @@ unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
 apply sepcon_derives; auto.
 unfold mapsto. apply andp_right; auto.
 intros ? ?; unfold prop; auto.
+rewrite tc_val_eq; auto.
 
 intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
 subst; unfold modifiedvars. simpl.
@@ -883,7 +891,7 @@ end.
 
 Lemma load_cast : 
  forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
-   typecheck_val (eval_expr e2 rho) (typeof e2) = true ->
+   tc_val (typeof e2) (eval_expr e2 rho) ->
    denote_tc_assert (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2)
      rho ->
    access_mode (typeof e1) = By_value ch ->
@@ -1030,6 +1038,7 @@ unfold mapsto, umapsto.
 apply andp_right. intros ? ?; unfold prop. simpl.
 destruct TC4 as [TC4 _].
 clear - Hmode TC3 TC2 TC4.
+rewrite tc_val_eq.
 eapply typecheck_val_eval_cast; eauto.
 
 rewrite Hmode.

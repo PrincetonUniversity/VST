@@ -539,19 +539,25 @@ Qed.
 Lemma typecheck_expr_sound : forall Delta rho e,
  typecheck_environ Delta rho -> 
               denote_tc_assert (typecheck_expr Delta e) rho ->
-             typecheck_val (eval_expr e rho) (typeof e) = true.
+              tc_val (typeof e) (eval_expr e rho).
 Proof. intros. 
+rewrite tc_val_eq.
 assert (TC := typecheck_both_sound Delta rho e). intuition. Qed.
 
 
 Lemma typecheck_lvalue_sound : forall Delta rho e,
   typecheck_environ Delta rho ->
   denote_tc_assert (typecheck_lvalue Delta e) rho ->
-  (forall pt, 
-    is_pointer_type pt = true -> 
-    typecheck_val (eval_lvalue e rho) pt=true).
-intros. edestruct (typecheck_both_sound _ _ e H).
-apply H3; eauto.
+  is_pointer_or_null (eval_lvalue e rho).
+Proof.
+intros.
+ edestruct (typecheck_both_sound _ _ e H).
+specialize (H2 (Tpointer Tvoid noattr) H0 (eq_refl _)).
+assert (tc_val (Tpointer Tvoid noattr) (eval_lvalue e rho) = 
+      (typecheck_val (eval_lvalue e rho) (Tpointer Tvoid noattr) = true)).
+rewrite tc_val_eq; auto.
+rewrite <- H3 in H2.
+apply H2.
 Qed.
 
 Lemma get_typed_int:
@@ -668,6 +674,7 @@ Proof.
 intros. 
 assert (TC1 := typecheck_expr_sound _ _ _ H H1).
 assert (TC2 := typecheck_expr_sound _ _ _ H H3).
+rewrite tc_val_eq in *.
 copy H2.
 rewrite den_isBinOpR in H7; simpl in H7.
 eapply typecheck_binop_sound2 in H2; eauto.
@@ -721,6 +728,7 @@ try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 (* var*)
 
 assert (TC_Sound:= typecheck_expr_sound).
+rewrite tc_val_eq in TC_Sound.
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
 simpl in TC_Sound|-*.
 super_unfold_lift.
@@ -773,8 +781,6 @@ destruct t; inv TC_Sound.  inv H3. rewrite <- H7 in H4; inv H4.
 
 assert (TC_Sound:= typecheck_lvalue_sound).
 specialize (TC_Sound Delta rho (Evar i t) H0 H1).
-specialize (TC_Sound some_pt_type). simpl in TC_Sound. 
-specialize (TC_Sound (eq_refl _)). 
  
 simpl in *. unfold eval_var in *. 
 remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
@@ -822,7 +828,7 @@ remember (Genv.find_symbol ge i).  destruct o; try congruence.
 assert (x = b). destruct (type_of_global ge b); inv H2; auto. subst.
 destruct (type_of_global ge b). inv H2; auto. inv H2. rewrite <- H1 in *. simpl in *.
 congruence. 
-intuition. congruence. 
+intuition. contradiction.
 
 (*temp*)  
 assert (TC:= typecheck_expr_sound).
@@ -831,7 +837,7 @@ intuition.
 constructor. unfold eval_id in *. remember (Map.get (te_of rho)  i);
 destruct o;  auto. destruct rho; inv H; unfold make_tenv in *.
 unfold Map.get in *. auto. 
-simpl in *. congruence.
+simpl in *. destruct t; contradiction H3.
 
 (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
@@ -907,6 +913,7 @@ remember (sem_binary_operation b (typeof e1) (typeof e2)(eval_expr e1 rho) (eval
 
 (*Cast*) {
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
+rewrite tc_val_eq in TC.
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_cast in *; super_unfold_lift; intuition.
@@ -949,7 +956,7 @@ rewrite <- Heqt0. auto. eauto.
 simpl. rewrite H6. simpl. apply Clight.deref_loc_reference; auto. 
 
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
-specialize (IHe ge). specialize (TC some_pt_type). intuition. simpl in H1. 
+specialize (IHe ge). intuition. simpl in H1. 
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
  unfold eval_field,offset_val in *; super_unfold_lift; remember (eval_lvalue e rho).
@@ -959,14 +966,14 @@ remember (typeof e) as t0. destruct t0; intuition.
 remember (field_offset i f) as r.
 destruct r; intuition.
  destruct v; intuition. simpl in *. exists b. exists (Int.add ofs (Int.repr z)). 
-intuition. inv H8.
+intuition. inv H7.
  eapply Clight.eval_Efield_struct; auto.
-eapply Clight.eval_Elvalue in H7. apply H7.
+eapply Clight.eval_Elvalue in H6. apply H6.
 rewrite <- Heqt0. auto. apply Clight.deref_loc_copy. simpl; auto.
 rewrite <- Heqt0; reflexivity. auto.
-inv H8; auto.
+inv H7; auto.
 subst v.
-exists b, ofs. rewrite H8. simpl. split; auto.
+exists b, ofs. rewrite H7. simpl. split; auto.
 eapply Clight.eval_Efield_union; eauto.
 eapply Clight.eval_Elvalue; eauto.
 rewrite <- Heqt0. apply Clight.deref_loc_copy.
@@ -1574,6 +1581,7 @@ Lemma typecheck_val_eval_cast:
 Proof. intros ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
+rewrite tc_val_eq in H8.
 clear - H7 H6 H8.
 rewrite eval_cast_sem_cast. 
 revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7.
@@ -1791,7 +1799,7 @@ typecheck_val (eval_expr e rho) t = true.
 Proof.
 intros.
 rewrite isCastR in H0.
-apply typecheck_expr_sound in H1; auto. 
+apply typecheck_expr_sound in H1; auto. rewrite tc_val_eq in H1.
 destruct (typeof e); destruct t; simpl in H; simpl in H0;
 try congruence; remember (eval_expr e rho); destruct v;
 simpl in H0; try congruence; auto; 

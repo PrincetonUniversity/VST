@@ -490,7 +490,7 @@ Instance EqDec_exitkind: EqDec exitkind.
 Proof.
 hnf. intros.
 decide equality.
-Qed.
+Defined.
 
 Definition mpred := pred rmap.
 
@@ -1474,4 +1474,44 @@ Lemma tycontext_eqv_symm:
 Proof.
 intros.
 destruct H as [? [? [? ?]]]; repeat split; auto.
+Qed.
+
+Arguments eval_binop op t1 t2 / v1 v2.
+
+Definition is_int (v: val) := 
+ match v with Vint i => True | _ => False end.
+Definition is_long (v: val) := 
+ match v with Vlong i => True | _ => False end.
+Definition is_float (v: val) := 
+ match v with Vfloat i => True | _ => False end.
+Definition is_pointer_or_null (v: val) := 
+ match v with 
+ | Vint i => i = Int.zero
+ | Vptr _ _ => True
+ | _ => False
+ end.
+ 
+Definition tc_val (ty: type) : val -> Prop :=
+ match ty with 
+ | Tint _ _ _ => is_int
+ | Tlong _ _ => is_long 
+ | Tfloat _ _ => is_float
+ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
+ | Tstruct _ _ _ => isptr
+ | Tunion _ _ _ => isptr
+ | _ => fun _ => False
+ end.
+
+Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
+Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
+
+Lemma tc_val_eq: tc_val = fun t v => typecheck_val v t = true.
+Proof.
+extensionality t v.
+unfold tc_val.
+destruct t,v; try reflexivity;
+apply prop_ext; intuition; try apply I;
+simpl in *; subst;
+try apply Int.eq_true;
+try solve [apply int_eq_e; auto].
 Qed.

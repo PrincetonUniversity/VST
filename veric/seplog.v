@@ -83,7 +83,7 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
   end. 
 
 Definition mapsto sh t v1 v2 := 
-             !! (typecheck_val v2 t = true)  && umapsto sh t v1 v2.
+             !! (tc_val t v2)  && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
 
@@ -519,7 +519,7 @@ Definition get_result (ret: option ident) : environ -> environ :=
 Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
      match vl, t with
      | None, Tvoid => fun rho => Q (make_args nil nil rho)
-     | Some v, _ => fun rho => !! (typecheck_val v t = true) && 
+     | Some v, _ => fun rho => !! (tc_val t v) && 
                                Q (make_args (ret_temp::nil) (v::nil) rho)
      | _, _ => fun rho => FF
      end.
@@ -658,10 +658,6 @@ Definition tc_lvalue (Delta: tycontext) (e: expr) : assert :=
      fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
 
 
-Definition tc_value (v:environ -> val) (t :type) : assert:=
-     fun rho => !! (typecheck_val (v rho) t = true).
- 
-
 Definition tc_temp_id (id : positive) (ty : type) 
   (Delta : tycontext) (e : expr) : assert  :=
      fun rho => !! denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
@@ -711,14 +707,9 @@ unfold tc_lvalue.
   destruct t; simpl; auto.
 Qed.
 
-Lemma extend_tc_value: forall v t rho, boxy extendM (tc_value v t rho).
-Proof.
-intros. unfold tc_value. auto.
-Qed.
 
 
-
-Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue extend_tc_value.
+Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
 

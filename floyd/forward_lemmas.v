@@ -149,7 +149,7 @@ intros.
  unfold normal_ret_assert, overridePost;  go_lowerx.
  subst. rewrite if_true by auto. repeat rewrite prop_true_andp by auto. auto.
 eapply semax_pre_simple; [ | apply semax_break].
- unfold overridePost. go_lowerx. rewrite if_false by congruence. 
+ unfold overridePost. go_lowerx.
 eapply derives_trans; try apply Post.
  unfold local,lift0,lift1; simpl.
  repeat apply andp_right; try apply prop_right; auto.
@@ -731,7 +731,8 @@ apply semax_ifthenelse_PQR.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
-        eapply expr_lemmas.typecheck_expr_sound; eauto.
+      rewrite typecheck_val_eq.
+      eapply expr_lemmas.typecheck_expr_sound; eauto.
     apply tc_expr_init; apply H10.
 Qed.
 
@@ -801,6 +802,7 @@ apply semax_ifthenelse_PQR.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
+      rewrite typecheck_val_eq.
         eapply expr_lemmas.typecheck_expr_sound; eauto.
     apply tc_expr_init; apply H10.
 - eapply semax_pre. apply derives_refl.

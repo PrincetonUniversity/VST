@@ -114,11 +114,10 @@ unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
 go_lower. subst. simpl in *.
  apply andp_right. apply prop_right; repeat split; auto; try omega.
-unfold Zsucc. unfold eval_binop;  simpl. rewrite Int.add_signed.
+unfold Zsucc. inv H2. rewrite Int.add_signed.
 repeat (rewrite Int.signed_repr 
       by (unfold Int.min_signed, Int.max_signed in *; omega)).
 auto.
-unfold eval_binop; simpl.
  admit.  (* need simple lemma fold_range_split *)
  rewrite split3_array_at with (i:=i0) (lo:=0)(hi:=size); auto.
  simpl_typed_mapsto.

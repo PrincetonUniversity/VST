@@ -10,6 +10,7 @@ intros.
 hnf; intros.
 unfold mapsto in *.
 destruct H as [TC H]. destruct H0 as [TC0 H0].
+rewrite tc_val_eq in *.
 unfold umapsto in *.
 destruct (access_mode t); try contradiction.
 destruct v1; try contradiction.
@@ -287,6 +288,7 @@ Lemma mapsto_field_mapsto:
 Proof.
 intros.
 unfold field_mapsto, mapsto, umapsto.
+rewrite tc_val_eq.
 rewrite <- H.
 rewrite H0.
 rewrite offset_val_force_ptr in H2.
@@ -482,3 +484,37 @@ apply address_mapsto_overlap.
 split; auto.
 pose proof (size_chunk_pos m); omega.
 Qed.
+
+Lemma field_mapsto_local_facts:
+ forall sh id t fList fld att (x y: val),
+   t = Tstruct id fList att ->
+   field_mapsto sh t fld x y |--
+      !! (isptr x /\ tc_val (type_of_field (unroll_composite_fields id t fList) fld) y
+          /\ type_is_volatile t = false).
+Proof.
+intros.
+rewrite tc_val_eq.
+erewrite field_mapsto_typecheck_val by eassumption.
+erewrite field_mapsto_isptr.
+rewrite field_mapsto_nonvolatile.
+normalize.
+apply prop_right; repeat split; auto.
+Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple eapply field_mapsto_local_facts; reflexivity : saturate_local.
+
+Lemma field_mapsto__local_facts:
+ forall sh id t fList fld att (x: val),
+   t = Tstruct id fList att ->
+   field_mapsto_ sh t fld x |--
+      !! (isptr x /\ type_is_volatile t = false).
+Proof.
+intros.
+rewrite field_mapsto__nonvolatile, field_mapsto__isptr.
+normalize.
+apply prop_right; split; auto.
+Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple eapply field_mapsto__local_facts; reflexivity : saturate_local.
