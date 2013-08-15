@@ -232,7 +232,6 @@ forward. (* return Q; *)
 go_lower.
   apply andp_right. apply prop_right; auto.
   rewrite field_mapsto_isptr; normalize.
-  apply andp_right. simpl. normalize.
   unfold fifo.
    destruct (@isnil val nil); [ | congruence].
   apply exp_right with (nullval,nullval).
@@ -437,9 +436,6 @@ go_lower.
 subst.
 rewrite field_mapsto_isptr at 1.
 normalize. destruct p; simpl in H; try contradiction.
-apply andp_right.
-apply prop_right.
-simpl; auto.
 unfold elemrep.
 cancel.
 Qed.

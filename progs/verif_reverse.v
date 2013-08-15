@@ -129,31 +129,31 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
-go_lower. subst. normalize. cancel.
+entailer. normalize. cancel.
 (* Prove that loop invariant implies typechecking condition *)
-go_lower.
+entailer.
 (* Prove that invariant && not loop-cond implies postcondition *)
-go_lower.  subst.  normalize.
+entailer. normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
     go_lower. normalize.
 subst cts.
 rewrite lift_list_cell_eq.
 normalize.
-forward.  (* h = t->head; *)
-forward.  (*  t = t->tail; *)
+forward_with new_load_tac.  (* h = t->head; *)
+forward_with new_load_tac.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with r.
-go_lower. subst. 
- rewrite prop_true_andp; [cancel | ].
-simpl in H0. inv H0.
-rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h')),
+entailer.
+   apply prop_right. inv H0.
+   rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
+  cancel.
 (* After the loop *)
 forward.  (* return s; *)
-go_lower. rewrite H0; reflexivity.
+entailer. simpl in *; congruence.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -179,47 +179,41 @@ forward_while (reverse_Inv sh contents)
 unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
-go_lower. subst. simpl; normalize.
+entailer. normalize.
 (* loop invariant implies typechecking of loop condition *)
-go_lower.
+entailer.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-go_lower. subst. normalize. 
-    rewrite <- app_nil_end, rev_involutive. auto.
+entailer. normalize.  rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-normalize. (* unfold POSTCONDITION; clear POSTCONDITION.  subst contents. *)
+normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [ | intros h r y ?].
-go_lower. normalize.
+entailer. normalize.
 subst cts2.
-forward.  (* t = v->tail; *)
+forward_with new_load_tac.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1).
 apply exp_right with r.
-  go_lower.
-  subst v0 y t. rewrite app_ass. normalize.
+entailer. 
+  rewrite app_ass. normalize.
   rewrite (lseg_unroll _ sh (h::cts1)).
   cancel.
   apply orp_right2.
   unfold lseg_cons.
   apply andp_right.
   apply prop_right.
-  destruct w; inv H5; simpl; auto.
+  destruct v0; inv H5; simpl; auto.
   apply exp_right with h.
   apply exp_right with cts1.
   apply exp_right with w0.
-  normalize.
-  erewrite (field_mapsto_typecheck_val _ _tail _ _ _ _struct_list _  noattr); [ | reflexivity].
-  type_of_field_tac.
-  normalize.
-  replace (eval_cast_neutral w0) with w0 in * by (destruct w0; inv H1; auto).
-  normalize.
-  cancel. 
+  gather_prop. normalize.
+  normalize. cancel.
 (* after the loop *)
 forward.  (* return w; *)
-go_lower. normalize.
+entailer; normalize. 
 Qed.
 
 (** this setup_globals lemma demonstrates that the initialized global variables
@@ -263,17 +257,16 @@ name r _r.
 name s _s.
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
- go_lower. normalize.
+ entailer. normalize.
  eapply derives_trans; [apply setup_globals; auto | ].
- rewrite prop_true_andp by auto.
  cancel.
 auto with closed.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
-go_lower. normalize. cancel.
+entailer. normalize. cancel.
 auto with closed.
 forward.  (* return s; *)
-go_lower. normalize.
+entailer. normalize.
 Qed.
 
 Existing Instance NullExtension.Espec.

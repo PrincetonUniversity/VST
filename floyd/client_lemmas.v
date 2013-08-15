@@ -1114,6 +1114,11 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
+Lemma is_pointer_or_null_eval_cast_neutral:
+  forall v, is_pointer_or_null (eval_cast_neutral v) = is_pointer_or_null v.
+Proof. destruct v; reflexivity. Qed.
+Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
+
 Lemma eval_cast_neutral_isptr:
    forall v, isptr v -> eval_cast_neutral v = v.
 Proof.
@@ -2505,6 +2510,11 @@ Ltac intro_if_new := (* this version fails if none of them are new *)
   | |- _ => intro 
   end.
 
+Ltac norm_on_left :=
+ cbv beta;
+ let H := fresh in intro H; 
+     simpl in H; autorewrite with norm in H; revert H.
+
 Ltac saturate_local := 
   repeat simple apply saturate_local_aux4;
   simple apply saturate_local_aux5;
@@ -2512,12 +2522,11 @@ Ltac saturate_local :=
   simple apply saturate_local_aux7;
   repeat (
      try (simple eapply saturate_local_aux3; 
-       [solve [eauto with saturate_local] | intro_if_new]);
+       [solve [eauto with saturate_local] | norm_on_left; intro_if_new]);
      simple apply saturate_local_aux1);
   simple apply saturate_local_aux8;
   repeat simple apply saturate_local_aux6;
   simple apply saturate_local_aux9.
-
 
 Lemma mapsto_local_facts:
   forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1 /\ tc_val t v2).
@@ -2654,8 +2663,13 @@ Ltac subst_any :=
  end.
 
 Ltac entailer :=
- go_lower; saturate_local; simpl tc_val in *|-*; subst_any; 
-  change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
+ go_lower; subst_any;
+ match goal with
+ |  |- _ |-- _ =>
+    saturate_local;  subst_any; 
+   change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
    unfold_lift; simpl;
-  gather_prop.
+  gather_prop
+ | |- _ => idtac
+ end.
 

@@ -961,6 +961,29 @@ Ltac store_field_tac :=
    semax_store_aux  Q R (eval_lvalue e1) F
   end.
 
+Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
+ first [
+   eapply (semax_load_field_39);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | try apply trivial_typecheck
+   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   ]
+   | eapply (semax_load_field_38);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
+   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   ]
+  | eapply (semax_load_field_37);
+   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | try solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
+   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   ]
+  ].
+
 (* END new semax_load and semax_store tactics *************************)
 
 Ltac semax_logic_and_or :=
