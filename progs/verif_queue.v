@@ -214,29 +214,24 @@ name Q _Q.
 name Q' _Q'.
 forward. (* Q' = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
-go_lower. normalize.
-repeat apply andp_right; try apply prop_right.
-compute; congruence.
-compute; congruence.
+entailer.
+apply andp_right. apply prop_right. compute; congruence.
 cancel.
 normalize.
 forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
    SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
-go_lower. destruct Q'; inv H0; inv TC; normalize.
+entailer.
 rewrite memory_block_fifo. normalize.
 forward. (* Q->head = NULL; *)
 forward.  (*  Q->tail = NULL;  *)
 forward. (* return Q; *)
-go_lower.
-  apply andp_right. apply prop_right; auto.
-  rewrite field_mapsto_isptr; normalize.
+entailer. auto.
   unfold fifo.
    destruct (@isnil val nil); [ | congruence].
   apply exp_right with (nullval,nullval).
-  rewrite field_mapsto_isptr.  normalize.
-  simpl. normalize.
+ normalize.
 Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
@@ -250,29 +245,21 @@ unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
 replace_SEP 3 (`link_ (eval_id _p)).
-clear POSTCONDITION MORE_COMMANDS.
-go_lower; subst; auto.
+entailer.
 unfold link_.
 forward. (* p->next = NULL; *)
 simpl typeof. simpl eval_expr. normalize.
-change (eval_cast (tptr tvoid) (tptr t_struct_elem)
-         (eval_cast tint (tptr tvoid) (Vint (Int.repr 0))))
-  with (Vint Int.zero).
 forward. (*   h = Q->head; *)
 apply semax_seq with 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
 forward.  (* if (h==NULL) ... *)
-go_lower. 
-subst. apply andp_right; auto.
-apply prop_right; repeat split; auto.
-right. hnf. apply Int.eq_true.
+entailer. cancel.
 (* then clause *)
 simplify_typed_comparison.
 fold t_struct_fifo.
 forward. (*  Q->head=p; *)
 forward. (* Q->tail=p; *)
-go_lower.
-subst.
+entailer.
 destruct (@isnil val contents).
 (* CASE ONE:  isnil contents *)
 subst. normalize.
@@ -282,25 +269,24 @@ destruct (isnil (p' ::nil)); [ congruence | ].
 normalize.
 apply exp_right with nil.
 rewrite links_nil_eq.
-rewrite (field_mapsto_isptr _ _next).
- normalize.
-destruct p'; inv H. unfold link.
-rewrite prop_true_andp by (split;  auto; apply Int.eq_true).
+saturate_local; gather_prop.
+split; auto.
+destruct p'; inv H; simpl; split; auto. apply Int.eq_true.
 cancel.
 (* CASE TWO: contents <> nil *)
+unfold link.
 normalize.
 destruct prefix.
 rewrite links_nil_eq.
 normalize.
-apply ptr_eq_e in H. subst tl.
-unfold link.
-rewrite field_mapsto_isptr with (x:=hd).
-normalize.
-destruct hd; inv H; inv H0.
+apply ptr_eq_e in H4. subst tl.
+saturate_local.
+destruct h; inv H4; inv H0.
 rewrite links_cons_eq.
 normalize.
-rewrite field_mapsto_isptr with (x:=v).
-normalize; destruct v; inv H2; inv H0.
+repeat rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturate_local *)
+saturate_local.
+normalize; destruct v; inv H7; inv H0.
 (* else clause *)
 simplify_typed_comparison.
 forward. (*  t = Q->tail; *)
@@ -309,7 +295,9 @@ destruct (isnil contents).
 (* CASE THREE: contents = nil *)
 apply semax_pre with FF; [ | apply semax_ff].
 clear_abbrevs.
-go_lower. subst. normalize. simpl in H1. inv H1.
+entailer.
+  normalize. (* this line shouldn't be necessary *)
+  simpl in H1. inv H1.
 focus_SEP 2.
 change (`(EX  prefix : list val,
       !!(contents = prefix ++ tl :: nil) &&
@@ -323,22 +311,20 @@ normalize.
 unfold link.
 replace_SEP 1 ( `(field_mapsto Tsh t_struct_elem _next) (eval_id _t) `nullval).
 clear_abbrevs.
-go_lower. subst; auto.
+entailer.
 forward. (*  t->next=p; *)
 simpl.
 sequential.
 forward. (* Q->tail=p; *)
-go_lower. subst. clear n.
-normalize.
+entailer. clear n.
 unfold fifo.
-apply exp_right with (hd, p').
-destruct (isnil ((prefix ++ tl :: nil) ++ p' :: nil)).
+apply exp_right with (h, p').
+destruct (isnil ((prefix ++ t :: nil) ++ p' :: nil)).
 destruct prefix; inv e.
 clear n.
 normalize.
-apply exp_right with (prefix ++ tl :: nil).
-rewrite (field_mapsto_isptr _ _ _ p').
-normalize.
+apply exp_right with (prefix ++ t :: nil).
+gather_prop.
 remember (link p' nullval) as A. (* prevent it from canceling! *)
 cancel. subst.
 eapply derives_trans; [ | apply links_cons_right ].
@@ -347,7 +333,7 @@ cancel.
 (* after the if *)
 unfold_abbrev.  (* FIXME this should not be necessary *)
 forward. (* return ; *)
-go_lower. normalize.
+entailer.
 Qed.
 
 Lemma flip_lifted_eq:
@@ -375,32 +361,29 @@ destruct prefix; inversion H; clear H.
 (* CASE 1: prefix=nil *)
 subst tl.
 rewrite links_nil_eq.
-normalize.
 normalize. apply ptr_eq_e in H. subst hd.
 unfold link.
  forward. (*  n=h->next; *)
  forward. (* Q->head=n; *)
  forward. (* return p; *)
- go_lower. subst. rewrite prop_true_andp by auto.
- normalize.
+ entailer.
  unfold fifo. normalize. apply exp_right with (nullval, h).
  destruct (@isnil val nil); [ | congruence].
- rewrite prop_true_andp by auto. unfold link_. cancel.
+ repeat rewrite prop_true_andp by auto. unfold link_.
+ cancel.
 (* CASE 2: prefix <> nil *)
 rewrite links_cons_eq.
 normalize. intro.
 repeat rewrite andp_assoc.
-normalize. subst v hd.
+normalize. destruct H. subst v hd.
 forward. (*  n=h->next; *)
  forward. (* Q->head=n; *)
  forward. (* return p; *)
-go_lower. subst x h q.
- normalize.
+ entailer.
  unfold fifo. normalize. apply exp_right with (n, tl).
- subst.
  destruct (isnil (prefix ++ tl :: nil)); [ destruct prefix; inv e | ]. clear n0.
  normalize. apply exp_right with prefix.
- rewrite prop_true_andp by auto. unfold link_. cancel.
+ repeat rewrite prop_true_andp by auto. unfold link_. cancel.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.
@@ -412,9 +395,7 @@ name p _p.
 name p' _p'.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
-go_lower. subst a b. normalize.
-repeat apply andp_right; try apply prop_right.
-compute; congruence. reflexivity.
+entailer. rewrite prop_true_andp by (compute; congruence).
 cancel.
 normalize.
 forward. (* finish the function call *)
@@ -424,7 +405,7 @@ apply semax_pre with
    SEP  (`(field_mapsto_ Tsh t_struct_elem _a) (eval_id _p);
            `(field_mapsto_ Tsh t_struct_elem _b) (eval_id _p);
            `(field_mapsto_ Tsh t_struct_elem _next) (eval_id _p))).
-go_lower; subst. normalize.
+entailer.
  change 12 with (sizeof t_struct_elem).
  rewrite memory_block_typed.
  simpl_typed_mapsto.
@@ -432,10 +413,7 @@ go_lower; subst. normalize.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
-go_lower.
-subst.
-rewrite field_mapsto_isptr at 1.
-normalize. destruct p; simpl in H; try contradiction.
+entailer. auto.
 unfold elemrep.
 cancel.
 Qed.
@@ -449,16 +427,14 @@ name Q _Q.
 name p _p.
 forward. (* Q = fifo_new(); *)
 instantiate (1:= tt) in (Value of witness).
-go_lower. normalize. cancel.
+entailer.
+cancel.
 auto with closed.
-autorewrite with subst. (* should have been done by forward *)
 forward. (*  p = make_elem(1,10); *)
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
-normalize.
 instantiate (1:= `(fifo nil) (eval_id _Q)::nil) in (Value of Frame).
-go_lower. normalize.
+entailer.
 auto with closed.
- autorewrite with subst. (* should have been done by forward *)
 apply semax_pre with
   (EX q:val, EX p:val, 
  (PROP  ()
@@ -469,22 +445,19 @@ intro rho.
    normalize. apply exp_right with (eval_id _Q rho).
    normalize. apply exp_right with (eval_id _p rho).
    normalize.
+ gather_prop.
 apply extract_exists_pre; intro q.
 apply extract_exists_pre; intro p'.
 forward. (* fifo_put(Q,p);*)
  instantiate (1:= ((q,nil),p')) in (Value of witness).
  unfold witness.
- go_lower. subst p Q. normalize. cancel.
+entailer. 
 unfold elemrep. cancel.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
-go_lower. subst Q p. normalize.
-instantiate (1:= (`(fifo (p' :: nil) q)::
-       `(field_mapsto Tsh t_struct_elem _a p' (Vint (Int.repr 1)))::
-       `(field_mapsto Tsh t_struct_elem _b p' (Vint (Int.repr 10)))::nil)) in (Value of Frame).
-unfold Frame; unfold_lift; simpl. cancel.
+entailer.
+unfold elemrep. cancel.
 auto with closed.
- autorewrite with subst. (* should have been done by forward *)
 apply semax_pre with
   (EX q:val, EX p:val, 
  (PROP  ()
@@ -493,23 +466,25 @@ apply semax_pre with
            `(fifo (p' :: nil)) (eval_id _Q);
            `(field_mapsto Tsh t_struct_elem _a p' (Vint (Int.repr 1)));
            `(field_mapsto Tsh t_struct_elem _b p' (Vint (Int.repr 10)))))).
-unfold_lift; intro rho. normalize. apply exp_right with (eval_id _Q rho).
+autorewrite with subst.
+ intro rho. normalize. apply exp_right with (eval_id _Q rho).
 normalize. apply exp_right with (eval_id _p rho).
-normalize.
+normalize. gather_prop.
 
 apply extract_exists_pre; intro q2.
 apply extract_exists_pre; intro p2.
 forward.  (* fifo_put(Q,p); *)
  instantiate (1:= ((q2,(p':: nil)),p2)) in (Value of witness).
  unfold witness.
- unfold_lift; go_lower. subst Q p. normalize.
+ entailer.
  unfold elemrep. cancel.
 simpl.
 normalize.
 forward. (*   p = fifo_get(Q); *)
  instantiate (1:= ((q2,(p2 :: nil)),p')) in (Value of witness).
 unfold witness.
-unfold_lift; go_lower. normalize. cancel.
+ entailer.
+  cancel.
 auto with closed.
  autorewrite with subst. (* should have been done by forward *)
 apply semax_pre with
@@ -520,14 +495,14 @@ apply semax_pre with
    `(field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20)));
    `(field_mapsto Tsh t_struct_elem _a) (eval_id _p) `(Vint (Int.repr 1));
    `(field_mapsto Tsh t_struct_elem _b) (eval_id _p) `(Vint (Int.repr 10)))).
-go_lower. subst. normalize. cancel.
+entailer.
+ cancel.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)
 instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
-go_lower. normalize.
-subst Q p. simpl. normalize.
+entailer.
 change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed.
 
@@ -538,8 +513,7 @@ instantiate (1:= `(fifo (p2 :: nil) q2 *
 simpl_typed_mapsto.
 simpl. normalize. cancel.
 forward. (* return i+j; *)
-go_lower. subst. simpl. normalize.
-unfold main_post; simpl; apply TT_right.
+entailer.
 Qed.
 
 Existing Instance NullExtension.Espec.

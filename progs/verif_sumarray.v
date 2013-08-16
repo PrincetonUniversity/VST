@@ -79,52 +79,37 @@ forward_while (sumarray_Inv a0 sh contents size)
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
-go_lower. subst. normalize.
- repeat apply andp_right; auto; try (apply prop_right; auto; omega).
+entailer.
+  apply andp_right.
+  apply prop_right; repeat split; auto; omega.
+  cancel.
 (* Prove that loop invariant implies typechecking condition *)
-go_lower.
+entailer.
 (* Prove that invariant && not loop-cond implies postcondition *)
-simpl eval_expr.
-go_lower. subst.
- (*intcompare H2.*)
- repeat apply andp_right; try apply prop_right; repeat split; auto.
- f_equal. f_equal. omega.
+entailer.
+ apply andp_right.
+   apply prop_right. f_equal. omega.
+   cancel.
 (* Prove that loop body preserves invariant *)
 simpl.
-apply semax_pre with
-(PROP  (0 <= i0 < size)
-   LOCAL  (`(eq a0) (eval_id _a); `(eq (Vint (Int.repr i0))) (eval_id _i);
-   `(eq (Vint (Int.repr size))) (eval_id _n); `isptr (eval_id _a);
-   `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i0))) (eval_id _s))
-   SEP 
-   (`(array_at tint sh contents 0 i0) (eval_id _a);
-    `(typed_mapsto sh tint) (`(eval_binop Oadd (tptr tint) tint)  (eval_id _a) (eval_id _i)) `(contents i0);
-    `(array_at tint sh contents (Zsucc i0) size) (eval_id _a))).
-  rewrite typed_mapsto_tint.
-  go_lower. subst. (*intcompare H2.*)
-  apply andp_right. apply prop_right; repeat split; auto; omega.
-  rewrite (split3_array_at i0) by omega.
-  cancel.
-  rewrite typed_mapsto_tint.
-forward. (* x = a[i]; *)
+forward_with new_load_tac.  (* x = a[i]; *)
+entailer.
+repeat split; auto; rewrite Int.signed_repr by repable_signed; omega.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-go_lower. subst. simpl in *.
- apply andp_right. apply prop_right; repeat split; auto; try omega.
-unfold Zsucc. inv H2. rewrite Int.add_signed.
-repeat (rewrite Int.signed_repr 
-      by (unfold Int.min_signed, Int.max_signed in *; omega)).
-auto.
+entailer.
+ apply andp_right; [apply prop_right | cancel].
+ inv H2. simpl in H3. inv H3.
+ rewrite Int.add_signed.
+repeat rewrite Int.signed_repr by repable_signed.
+ repeat split; auto; try omega.
  admit.  (* need simple lemma fold_range_split *)
- rewrite split3_array_at with (i:=i0) (lo:=0)(hi:=size); auto.
- simpl_typed_mapsto.
- cancel.
 (* After the loop *)
 forward.  (* return s; *)
-go_lower.  subst; normalize.
+entailer.
 Qed.
 
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
@@ -170,16 +155,14 @@ forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
 instantiate (1:=nil) in (Value of Frame).
 unfold Frame.
- go_lower. normalize.  (* eval_cast_simpl. *)
- repeat apply andp_right; try apply prop_right; simpl; auto. 
- compute; congruence.
+ entailer. apply andp_right.
+ apply prop_right; repeat split; auto; try solve [ compute; congruence].
  eapply eval_var_isptr; eauto.
  apply setup_globals; auto.
- try (apply LiftClassicalSep; auto with typeclass_instances). (* remove this line when it's no longer needed! *)
+ try (auto with typeclass_instances). (* remove this line when it's no longer needed! *)
  auto with closed.
  forward. (* return s; *)
- go_lower. subst. normalize.
- unfold main_post; simpl; apply TT_right.
+ entailer.
 Qed.
 
 Existing Instance NullExtension.Espec.

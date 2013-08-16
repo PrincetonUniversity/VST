@@ -85,7 +85,7 @@ Definition field_mapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpr
     let t2 := type_of_field fList' fld in
      match field_offset fld fList',  access_mode t2 with
      | Errors.OK delta, By_value ch => 
-          !! (typecheck_val v2 t2 = true) && !!(type_is_volatile t2 = false) &&
+          !! (tc_val t2 v2) && !!(type_is_volatile t2 = false) &&
            address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
      | _, _ => FF
      end
@@ -167,7 +167,7 @@ Lemma field_mapsto_typecheck_val:
   forall t fld sh x y id fList att, 
      t = Tstruct id fList att ->
      field_mapsto sh t fld x y = 
-               !! (typecheck_val y (type_of_field (unroll_composite_fields id t fList) fld) = true) && field_mapsto sh t fld x y.
+               !! (tc_val (type_of_field (unroll_composite_fields id t fList) fld) y) && field_mapsto sh t fld x y.
 Proof.
 intros. subst.
 apply pred_ext; normalize.
@@ -337,9 +337,9 @@ Lemma umapsto_field_mapsto':
               fields) fld) ->
   field_offset fld fields = Errors.OK ofs ->
   offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
-  typecheck_val v2 (type_of_field
+  tc_val (type_of_field
            (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) = true  ->
+              fields) fld) v2  ->
   type_is_volatile (type_of_field
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) = false ->
@@ -356,7 +356,8 @@ destruct v1; inv H1.
 rewrite field_offset_unroll. rewrite H0.
 repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
-normalize. inv H2.
+normalize. 
+match type of H2 with (tc_val ?t _) => destruct t; inv H2 end.
 Qed.
 
 Ltac umapsto_field_mapsto_tac :=  
@@ -376,7 +377,7 @@ Lemma mapsto_field_mapsto':
   access_mode t = By_value ch ->
   field_offset fld fields = Errors.OK ofs ->
   offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
-  typecheck_val v2 t = true  ->
+  tc_val t v2 ->
   type_is_volatile t = false ->
   mapsto sh t v1' v2 |-- field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
 Proof.
@@ -493,7 +494,6 @@ Lemma field_mapsto_local_facts:
           /\ type_is_volatile t = false).
 Proof.
 intros.
-rewrite tc_val_eq.
 erewrite field_mapsto_typecheck_val by eassumption.
 erewrite field_mapsto_isptr.
 rewrite field_mapsto_nonvolatile.

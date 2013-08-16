@@ -258,7 +258,7 @@ go_lowerx.
 forget (fold_right
   (fun (P0 Q0 : environ -> mpred) (rho0 : environ) => P0 rho0 * Q0 rho0)
   (fun _ : environ => emp) R rho) as RR.
-normalize.
+normalize. repeat rewrite prop_and.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
 rewrite H; apply I.
@@ -274,7 +274,7 @@ apply andp_left1; auto.
 clear. intros ek vl. apply andp_left2. apply normal_ret_assert_derives'.
  apply exp_derives; intro old.
  autorewrite with subst.
- go_lowerx. normalize.
+ go_lowerx. normalize. repeat rewrite prop_and; normalize.
 
 * (* condition for semax_load_37 *)
 eapply derives_trans; [ | eapply derives_trans; [ | ]].

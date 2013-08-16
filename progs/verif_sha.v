@@ -266,10 +266,9 @@ normalize. intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
 repeat simpl_typed_mapsto.
 unfold fst,snd.
 rewrite field_mapsto_isptr.
-rewrite andp_assoc.
 normalize.
-unfold s256_data in H1.
-simpl in H0; simpl in H1.
+unfold s256_data in H0;
+simpl in H0; destruct H0.
 assert (Zlength r_h = 8) by (rewrite Zlength_correct; omega).
 
 Lemma no_offset:
@@ -283,7 +282,6 @@ rewrite offset_val_force_ptr. apply isptr_force_ptr; auto.
 Qed.
 
 forward. (* data = in; *)
-Hint Rewrite tc_val_eq: norm.
 
 forward0; [hoist_later_in_pre;
 match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
@@ -296,7 +294,7 @@ match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
 [ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
  [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
    split; omega
- | destruct ctx_; inv H2; simpl; normalize ]
+ | destruct ctx_; inv H1; simpl; normalize ]
  | apply extract_exists_pre; intro; autorewrite with subst ].
 
 forward0; [hoist_later_in_pre;
@@ -310,7 +308,7 @@ match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
 [ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
  [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
    split; omega
- | destruct ctx_; inv H2; simpl; normalize ]
+ | destruct ctx_; inv H1; simpl; normalize ]
  | apply extract_exists_pre; intro; autorewrite with subst ].
 
 forward0; [hoist_later_in_pre;
@@ -324,7 +322,7 @@ match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
 [ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
  [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
    split; omega
- | destruct ctx_; inv H2; simpl; normalize ]
+ | destruct ctx_; inv H1; simpl; normalize ]
  | apply extract_exists_pre; intro; autorewrite with subst ].
 
 Admitted.

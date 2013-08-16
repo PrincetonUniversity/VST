@@ -2,8 +2,10 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
-Require Export floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
-Require Export floyd.loadstore_lemmas.
+Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
+Require Import floyd.loadstore_lemmas.
+Require Import floyd.array_lemmas.
+Require Import floyd.entailer.
 Import Cop.
 
 Local Open Scope logic.
@@ -982,6 +984,12 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
    ]
+ | match goal with |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
+    eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
+      [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      | solve [entailer; cancel]
+      | ]
+    end
   ].
 
 (* END new semax_load and semax_store tactics *************************)
@@ -1005,13 +1013,11 @@ Ltac forward1 :=
   | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
          store_tac || fail 2 "store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-         semax_load_tac || fail 2 "semax_load_tac failed"
+(*         semax_load_tac || fail 2 "semax_load_tac failed" *)
+           new_load_tac || fail 2 "new_load_tac failed"
   | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
+         new_load_tac ||
          semax_load_tac || fail 2 "semax_load_tac failed" 
-(*  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-         semax_field_tac || fail 2 "semax_field_tac failed" 
-  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
-         load_array_tac || fail 2 "load_array_tac failed" *)
   | |- @semax _ _ _ (Sset ?id ?e) _ => 
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 

@@ -261,7 +261,6 @@ case_eq (access_mode t2); intros;
 rewrite andp_assoc.
 repeat rewrite sepcon_andp_prop'.
   repeat (apply derives_extract_prop; intro).
-rewrite typecheck_val_eq in H7.
 repeat apply andp_right; try apply prop_right.
 unfold tc_lvalue. 
 unfold typecheck_lvalue; fold typecheck_lvalue. rewrite H1.
@@ -295,7 +294,6 @@ rewrite field_offset_unroll. unfold offset_val.
 unfold_lift.
 destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
 destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
-rewrite typecheck_val_eq.
 apply sepcon_derives; auto.
 repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
@@ -429,7 +427,6 @@ eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
 intros ek vl; unfold normal_ret_assert; go_lowerx.
 normalize.
 apply sepcon_derives; auto.
-rewrite tc_val_eq in H4.
 unfold mapsto, umapsto, field_mapsto.
 rewrite TE1.
 apply derives_extract_prop; intro.
@@ -440,12 +437,12 @@ rewrite field_offset_unroll.
 unfold offset_val, always.
 case_eq (field_offset fld fields); intros; try apply FF_left.
 case_eq (eval_lvalue e1 rho); intros; try apply FF_left.
-rewrite <- H1. rewrite H4.
+rewrite <- H1.
 rewrite Heqm.
 repeat apply andp_right; try apply prop_right; auto.
 apply orp_left; auto.
 apply derives_extract_prop; intro.
-rewrite H9 in H4; inv H4.
+rewrite H9 in H4. destruct t2; inv H4.
 Opaque field_mapsto.
 Qed.
 
@@ -945,7 +942,7 @@ rewrite <- later_andp. apply later_derives.
 apply go_lower_lem9.
 go_lowerx.
 rewrite field_mapsto_isptr. normalize.
-rewrite field_mapsto_nonvolatile. normalize.
+rewrite field_mapsto_nonvolatile. normalize.  repeat rewrite prop_and.
 unfold_lift. 
 repeat apply andp_right; try apply prop_right;  auto.
 hnf; simpl. rewrite H0. rewrite H9.
@@ -1017,7 +1014,7 @@ eapply semax_pre_post; [  | | eapply H3].
 apply andp_left2; apply later_derives.
 go_lowerx.
 rewrite field_mapsto__isptr.
-rewrite field_mapsto__nonvolatile. normalize.
+rewrite field_mapsto__nonvolatile. normalize. repeat rewrite prop_and.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. repeat rewrite denote_tc_assert_andp.
 repeat split; auto. rewrite H0; apply I. rewrite H. apply I.

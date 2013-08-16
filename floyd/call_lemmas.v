@@ -151,7 +151,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm.
+autorewrite with norm. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
@@ -201,7 +201,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm.
+autorewrite with norm. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
@@ -306,7 +306,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm.
+autorewrite with norm. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.

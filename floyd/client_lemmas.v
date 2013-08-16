@@ -1268,7 +1268,7 @@ Lemma prop_and {A} {NA: NatDed A}:
 Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
    normalize.
 Qed.
-Hint Rewrite @prop_and : norm.
+(* Hint Rewrite @prop_and : norm. *)
 
 Lemma exp_unfold : forall A P rho,
  @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
@@ -2231,7 +2231,7 @@ Proof.
 change SEPx with SEPx'.
  unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
- apply pred_ext; normalize.
+ apply pred_ext; normalize. repeat rewrite prop_and; normalize. 
 Qed.
 
 
@@ -2246,10 +2246,8 @@ extensionality rho.
 apply equal_f with rho in H.
 change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
 simpl in *.
-revert R H; induction n; destruct R; simpl; intros.
-apply pred_ext; rewrite H; normalize.
-apply pred_ext; rewrite H; normalize.
-apply pred_ext; rewrite H; normalize.
+revert R H; induction n; destruct R; simpl; intros;
+try solve [apply pred_ext; rewrite H; normalize; repeat rewrite prop_and; normalize].
 specialize (IHn _ H).
 do 2 rewrite <- sepcon_andp_prop.
 rewrite IHn.
@@ -2301,7 +2299,7 @@ Proof.
 change SEPx with SEPx'.
  unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
- apply pred_ext; normalize.
+ apply pred_ext; normalize. repeat rewrite prop_and; normalize.
 Qed.
 
 (* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
@@ -2662,14 +2660,20 @@ Ltac subst_any :=
   | H: ?x = ?y |- _ => first [ subst x | subst y ]
  end.
 
-Ltac entailer :=
- go_lower; subst_any;
- match goal with
- |  |- _ |-- _ =>
-    saturate_local;  subst_any; 
-   change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
-   unfold_lift; simpl;
-  gather_prop
- | |- _ => idtac
- end.
+Lemma and_assoc': forall A B C: Prop,
+  ((A /\ B) /\ C) = (A /\ (B /\ C)).
+Proof.
+intros. apply prop_ext; apply and_assoc.
+Qed.
+
+Lemma prop_and_right {A}{NA: NatDed A}:
+ forall (U: A) (X Y: Prop),
+    X ->
+    U |-- !! Y ->
+    U |-- !! (X /\ Y).
+Proof. intros. apply derives_trans with (!!Y); auto.
+apply prop_derives; auto.
+Qed.
+
+
 

@@ -50,7 +50,7 @@ Qed.
 
 Lemma links_eq (ls: listspec list_struct list_link):
   forall sh l v , 
-  typecheck_val v (tptr list_struct) = true ->
+  is_pointer_or_null v ->
     links ls sh l v v = !!(l=nil) && emp.
 Proof.
 intros.
@@ -59,9 +59,8 @@ destruct l.
 f_equal. f_equal.
 unfold ptr_eq.
 unfold typecheck_val in H.
-destruct v; simpl in H; try discriminate; unfold Int.cmpu; rewrite Int.eq_true.
-apply prop_ext; intuition.
-apply prop_ext; intuition.
+destruct v; inv H; unfold Int.cmpu; rewrite Int.eq_true; auto;
+ apply prop_ext; intuition.
 apply pred_ext; repeat (apply derives_extract_prop; intro).
 destruct H0. contradiction H1. destruct v; inv H; simpl; rewrite Int.eq_true; auto.
 inv H0.
@@ -70,13 +69,13 @@ Qed.
 Definition links_cons (ls: listspec list_struct list_link) sh (l: list val) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX r:list val, EX y:val, 
-             !!(l=x::r  /\ typecheck_val y (tptr list_struct) = true) && 
+             !!(l=x::r  /\ is_pointer_or_null y) && 
              field_mapsto sh list_struct list_link x y * 
              |> links ls sh r y z.
 
 Lemma links_neq (ls: listspec list_struct list_link):  forall sh l x z , 
-  typecheck_val x (tptr list_struct) = true ->
-  typecheck_val z (tptr list_struct) = true ->
+  is_pointer_or_null x ->
+  is_pointer_or_null z ->
   ptr_neq x z -> 
     links ls sh l x z = links_cons ls sh l x z.
 Proof.
@@ -98,6 +97,7 @@ apply exp_right with tail.
 repeat rewrite sepcon_andp_prop'; apply andp_right.
 rewrite (field_mapsto_typecheck_val list_struct list_link sh v tail list_structid list_fields noattr)
   by apply list_struct_eq.
+try rewrite typecheck_val_eq.
 rewrite list_link_type.
 rewrite sepcon_andp_prop';
 apply derives_extract_prop; intro;
@@ -132,11 +132,12 @@ apply exp_right with l.
 apply exp_right with tail.
 normalize.
 apply andp_right.
-erewrite (field_mapsto_typecheck_val list_struct list_link sh v tail); try reflexivity.
+erewrite (field_mapsto_typecheck_val list_struct list_link sh v tail).
+try rewrite typecheck_val_eq.
 rewrite list_link_type.
+simpl.
 repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
 apply prop_right; auto.
-normalize in H.
 apply list_struct_eq.
 auto.
 apply orp_left.
@@ -207,7 +208,7 @@ Lemma links_cons_eq (ls: listspec list_struct list_link):
     links ls sh (h::r) x z = 
         !!(h=x /\ ~ ptr_eq x z) &&
          (EX  y : val,
-          !!(typecheck_val y (tptr list_struct) = true) &&
+          !!(is_pointer_or_null y) &&
    field_mapsto sh list_struct list_link x y *
    |>links ls sh r y z).
 Proof.
@@ -331,7 +332,7 @@ rewrite links_cons_eq.
 apply andp_right.  apply prop_right; auto.
 split; auto. intro. apply ptr_eq_e in H0. subst. apply H.
 apply exp_right with nullval.
-rewrite prop_true_andp by auto.
+rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
 rewrite prop_true_andp by reflexivity.
 apply derives_trans with (field_mapsto sh list_struct list_link x nullval * emp).
@@ -342,7 +343,7 @@ apply subp_i1.
 simpl app.
 rewrite links_cons_eq.
 rewrite links_cons_eq.
-autorewrite with norm.
+autorewrite with norm. repeat rewrite prop_and; autorewrite with norm.
 apply exp_left; intro z.
 apply exp_right with z.
 repeat rewrite sepcon_andp_prop'.
@@ -391,7 +392,7 @@ apply derives_extract_prop; intro.
 rewrite prop_true_andp.
 2: split; auto; intro Hx; destruct y; inv H2; inv Hx.
 apply exp_right with nullval.
-rewrite prop_true_andp by auto.
+rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
 rewrite prop_true_andp by reflexivity.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
@@ -495,7 +496,7 @@ apply subp_i1.
 simpl app.
 rewrite links_cons_eq.
 rewrite links_cons_eq.
-autorewrite with norm.
+autorewrite with norm. repeat rewrite prop_and; autorewrite with norm.
 apply exp_left; intro z'.
 apply exp_right with z'.
 repeat rewrite sepcon_andp_prop'.
@@ -621,7 +622,7 @@ Qed.
 
 Lemma lseg_eq (ls: listspec list_struct list_link):
   forall sh l v , 
-  typecheck_val v (tptr list_struct) = true ->
+  is_pointer_or_null v ->
     lseg ls sh l v v = !!(l=nil) && emp.
 Proof.
 intros.
@@ -630,13 +631,7 @@ destruct l.
 f_equal. f_equal.
 apply prop_ext; split; intro; auto.
 unfold ptr_eq.
-unfold typecheck_val in H.
-destruct v; simpl in H; try discriminate.
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
-split; auto. 
-unfold Int.cmpu.
-rewrite Int.eq_true. auto.
+destruct v; inv H; unfold Int.cmpu; rewrite Int.eq_true; auto.
 apply pred_ext;
 apply derives_extract_prop; intro.
 contradiction H0.
@@ -647,7 +642,7 @@ Qed.
 Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (elemtype ls)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
-             !!(l=h::r  /\ typecheck_val y (tptr list_struct) = true) && 
+             !!(l=h::r  /\ is_pointer_or_null y) && 
              list_cell ls sh x h *
              field_mapsto sh list_struct list_link x y * 
              |> lseg ls sh r y z.
@@ -717,6 +712,7 @@ apply exp_right with tail.
 repeat rewrite sepcon_andp_prop'.
 apply andp_right.
 erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
+try rewrite typecheck_val_eq.
 rewrite list_link_type.
 rewrite sepcon_andp_prop.
 rewrite sepcon_andp_prop'.
@@ -756,7 +752,7 @@ Qed.
 Lemma lseg_unroll_nonempty1 (ls: listspec list_struct list_link):
    forall p P sh h tail v1 v2,
     ~ ptr_eq v1 v2 ->
-    typecheck_val p (tptr list_struct) = true ->
+    is_pointer_or_null p ->
     P |-- list_cell ls sh v1 h *
              (field_mapsto sh list_struct list_link v1 p *
                lseg ls sh tail p v2) ->
@@ -835,6 +831,7 @@ inv H0.
  do 2 rewrite sepcon_andp_prop'.
  apply andp_right.
  erewrite (field_mapsto_typecheck_val); [ | apply list_struct_eq].
+ try rewrite typecheck_val_eq.
  rewrite list_link_type.
  rewrite sepcon_andp_prop.
  rewrite sepcon_andp_prop'.
@@ -992,7 +989,7 @@ Lemma lseg_cons_eq (ls: listspec list_struct list_link):
     lseg ls sh (h::r) x z = 
         !!(~ ptr_eq x z) &&
          (EX  y : val,
-          !!(typecheck_val y (tptr list_struct) = true) &&
+          !!(is_pointer_or_null y) &&
    list_cell ls sh x h * field_mapsto sh list_struct list_link x y *
    |>lseg ls sh r y z).
 Proof.

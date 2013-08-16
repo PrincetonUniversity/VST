@@ -10,7 +10,7 @@ change SEPx with SEPx'.
 unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
-normalize.
+normalize. repeat rewrite prop_and.
 rewrite andp_assoc.
 f_equal.
 Qed.
@@ -22,7 +22,7 @@ change SEPx with SEPx'.
 unfold do_canon, PROPx, LOCALx, SEPx'; intros.
 extensionality rho.
 simpl.
-normalize.
+normalize. repeat rewrite prop_and.
 rewrite andp_assoc.
 f_equal.
 Qed.
@@ -140,6 +140,7 @@ Hint Rewrite canon6c using check_nonlocal : canon.
 Lemma canon17 : forall (P: Prop) PP QR, prop P && (PROPx PP QR) = PROPx (P::PP) QR.
 Proof.
 intros. unfold PROPx. simpl. extensionality rho. apply pred_ext; normalize.
+rewrite prop_and; normalize.
 Qed.
 Hint Rewrite canon17 : canon.
 

@@ -95,7 +95,7 @@ rewrite PTree.gso. auto. auto.
 Qed.
 
 Lemma bool_cast : forall e rho,
-   typecheck_val (eval_expr e rho) (typeof e) = true ->
+   tc_val (typeof e) (eval_expr e rho) ->
   eval_cast tbool tint (eval_cast (typeof e) tbool (eval_expr e rho)) =
    match strict_bool_val (eval_expr e rho) (typeof e) with
    | Some true => Vint Int.one
@@ -104,6 +104,7 @@ Lemma bool_cast : forall e rho,
    end.
 Proof.
 intros.
+rewrite tc_val_eq in H.
 unfold eval_cast. simpl.
 remember (eval_expr e rho). destruct v. inv H. simpl.
  unfold eval_cast_neutral.
@@ -731,7 +732,6 @@ apply semax_ifthenelse_PQR.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
-      rewrite typecheck_val_eq.
       eapply expr_lemmas.typecheck_expr_sound; eauto.
     apply tc_expr_init; apply H10.
 Qed.
@@ -802,7 +802,6 @@ apply semax_ifthenelse_PQR.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
-      rewrite typecheck_val_eq.
         eapply expr_lemmas.typecheck_expr_sound; eauto.
     apply tc_expr_init; apply H10.
 - eapply semax_pre. apply derives_refl.

@@ -33,7 +33,7 @@ Next Obligation.
 compute; split; congruence.
 Qed.
 Next Obligation.
- normalize. repeat apply andp_right; try (apply prop_right; compute; congruence).
+ normalize. repeat rewrite prop_and. repeat apply andp_right; try (apply prop_right; compute; congruence).
  change 8 with (sizeof t_struct_intpair). rewrite memory_block_typed. auto.
 Qed.
 
@@ -108,27 +108,23 @@ apply semax_pre with
     `(field_mapsto sh t_struct_intpair _y) (eval_id _p) `(Vint y1);
    `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(0));
    `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1)))).
-go_lower; subst;  rewrite (field_mapsto__isptr). normalize. 
- cancel.
+entailer. cancel.
 repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
  simpl.
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto_; try reflexivity; simpl;
  rewrite offset_offset_val; simpl; f_equal; compute; auto.
- normalize.
-forward. (* x = p->x; *)
-forward. (* y = p->y; *)
+forward_with new_load_tac. (* x = p->x; *)
+forward_with new_load_tac. (* y = p->y; *)
 simpl.
 forward. (*  ((int * )buf)[0]=x; *)
-go_lower. subst. normalize. 
+entailer. cancel.
 forward. (*  ((int * )buf)[1]=y; *)
-go_lower. subst. normalize.
+entailer. repeat split; auto. cancel.
 forward. (* return 8; *)
-go_lower. subst. normalize.
+entailer.
 apply exp_right with 8.
-normalize. simpl_typed_mapsto.
-simpl. 
-cancel.
+gather_prop. simpl_typed_mapsto. cancel.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
 destruct buf0; inv H0.
@@ -163,25 +159,23 @@ apply semax_pre with
    `(mapsto sh' tint)
         (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1))
         `(Vint y1))).
-go_lower; subst.
-simpl_typed_mapsto. simpl.
- rewrite field_mapsto_isptr. normalize.
- cancel.
-repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
+simpl_typed_mapsto.
+entailer.
+repeat  rewrite add_ptr_int_offset by (compute; intuition congruence).
+cancel.
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
  rewrite offset_offset_val; reflexivity.
 normalize.
 forward. (* x = ((int * )buf)[0]; *)
-go_lower; subst buf0 p0; normalize.
+entailer.
 forward. (* y = ((int * )buf)[1]; *)
-go_lower; subst buf0 p0; normalize.
+entailer.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
-go_lower. subst. unfold intpair_message. normalize.
+entailer.
 simpl_typed_mapsto.
-simpl.
 cancel.
 apply sepcon_derives;
 apply derives_refl'; eapply mapsto_field_mapsto;  try (simpl; reflexivity);
@@ -193,7 +187,7 @@ Ltac simpl_stackframe_of :=
   repeat rewrite var_block_typed_mapsto_. 
 
 Ltac get_global_function id :=
-  eapply (semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
+  eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
 
 Lemma slide_func_ptr:
   forall f e R1 R, 
@@ -210,7 +204,7 @@ rewrite emp_sepcon; auto.
 Qed.
 
 Ltac get_global_function' id :=
-  eapply (semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
+  eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
 
 Lemma  create_message_object:
  forall t (msg: message_format t) objid serid desid
@@ -397,7 +391,7 @@ eapply semax_pre with
         `(typed_mapsto sh_p t) (eval_expr e_p) `v;
         `(typed_mapsto_ sh_buf (tarray tuchar (mf_size msg))) (eval_lvalue e_buf))).
 go_lower.
-normalize.
+normalize. rewrite prop_and.
 repeat apply andp_right; auto.
 eapply derives_trans; [ |  apply H6].
 apply prop_right; auto.
@@ -491,7 +485,7 @@ clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
 apply derives_refl.
 eapply semax_seq'.
-apply (semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
+apply (call_lemmas.semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
    (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
    (e_p :: e_buf :: nil)).
@@ -505,7 +499,7 @@ autorewrite with subst.
 clear C1 C2.
 simpl update_tycon.
 eapply semax_post_flipped.
-apply forward_setx.
+apply forward_lemmas.forward_setx.
 apply andp_right; intro rho; apply prop_right.
 hnf.
 clear - H3x.
@@ -653,7 +647,7 @@ forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 rewrite normal_ret_assert_eq. normalize.
 change abbreviate with Delta. (* SHOULD NOT NEED THIS LINE *)
-apply elim_redundant_Delta. (* SHOULD NOT NEED THIS LINE *)
+apply forward_lemmas.elim_redundant_Delta. (* SHOULD NOT NEED THIS LINE *)
 normalize.
 unfold app.
 
