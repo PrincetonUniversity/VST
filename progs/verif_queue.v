@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.queue.
@@ -250,9 +251,8 @@ unfold link_.
 forward. (* p->next = NULL; *)
 simpl typeof. simpl eval_expr. normalize.
 forward. (*   h = Q->head; *)
-apply semax_seq with 
+forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
-forward.  (* if (h==NULL) ... *)
 entailer. cancel.
 (* then clause *)
 simplify_typed_comparison.
@@ -511,7 +511,7 @@ instantiate (1:= `(fifo (p2 :: nil) q2 *
 (field_mapsto Tsh t_struct_elem _a p2 (Vint (Int.repr 2)) *
  field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20))))::nil).
 simpl_typed_mapsto.
-simpl. normalize. cancel.
+normalize. simpl. cancel.
 forward. (* return i+j; *)
 entailer.
 Qed.

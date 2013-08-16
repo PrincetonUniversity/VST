@@ -308,6 +308,18 @@ Ltac forward_while Inv Postcond :=
 
    ]; abbreviate_semax; autorewrite with ret_assert.
 
+Ltac forward_if post :=
+first [ignore (post: environ->mpred) 
+      | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+apply semax_seq with post;
+[match goal with 
+| |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                                 (Sifthenelse ?e _ _) _ => 
+(apply semax_pre with (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
+[ | apply semax_ifthenelse_PQR; 
+    [ reflexivity | | ]] || fail 2 "semax_ifthenelse_PQR did not match"
+end | ].
+
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
  try match goal with |- context[ret_assert] =>  autorewrite with ret_assert typeclass_instances end;
@@ -1022,11 +1034,8 @@ Ltac forward1 :=
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
                                  (Sifthenelse ?e _ _) _ =>
-             first [ semax_logic_and_or |
-            (apply semax_pre
-                     with (PROPx P (LOCALx (tc_expr Delta e :: Q) R));
-             [ | apply semax_ifthenelse_PQR; [ reflexivity | | ]])]
-            || fail 2 "semax_ifthenelse_PQR did not match"
+             semax_logic_and_or ||  fail 2 "Use this tactic:  forward_if POST
+                                            where POST is the post condition"
   | |- @semax _ _ _ (Sreturn _) _ => 
          (eapply semax_pre_simple; [ go_lower1 | apply semax_return ])
           || fail 2 "forward1 Sreturn failed"
