@@ -14,8 +14,8 @@ struct list *insert(int value, struct list *sorted){
   //items we have gone past
   while(guard){
     previous = index;
-    index = sorted -> tail;
-    sortedvalue = index -> head;
+    index = index -> tail;
+    if(index) sortedvalue = index -> head;
     guard = index && (value > sortedvalue);
   }
   

@@ -45,14 +45,29 @@ Check Forall.
 Definition Ilt a b:=
 Int.cmp Cle a b = true.
 (*TODO: add local eval facts to the invariant *) 
+Check logical_and_result.
 Definition insert_invariant sh value contents :=
 EX contents_lt: list int,
 EX contents_rest: list int,
 PROP (Forall (Ilt value) contents_lt; contents_lt ++ contents_rest = contents)
-LOCAL ()
+LOCAL ( `eq (eval_id _guard)
+        (`logical_and_result `(tptr t_struct_list) 
+           (eval_id _index) `tint
+           (`(eval_binop Ogt tint tint) (eval_id _value)
+              (eval_id _sortedvalue))))
 SEP (`(lseg LS sh contents_lt) (eval_id _sorted) (eval_id _index);
      `(lseg LS sh contents_rest) (eval_id _index) `nullval;
       (var_block Tsh (_newitem, t_struct_list))).
+
+Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h::r) v1 v2 = 
+!!isptr v1 && @lseg ls ll LS sh (h::r) v1 v2.
+intros.
+apply pred_ext.
+  + apply andp_right; auto. rewrite lseg_unfold.
+     normalize. rewrite field_mapsto_isptr.
+     normalize. 
+  +  normalize.
+Qed.
 
 Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
 Proof.
@@ -77,17 +92,19 @@ eapply semax_pre with
       |>`(lseg LS sh r) `y `nullval; stackframe_of f_insert)).
 go_lower. subst value index. normalize.
 forward. (*sortedvalue = index -> head;*)
-forward. (*guard = index && (value > sortedvalue);*) 
+forward. (*guard' = index && (value > sortedvalue);*) 
   
-forward. (*guard = guard'*)
+forward. (*guard = guard'*) simpl typeof.
 forward_while (insert_invariant sh v contents) (insert_invariant sh v contents);
   autorewrite with ret_assert.
 (*pre implies invariant*)
-unfold insert_invariant. apply (exp_right nil). eapply (exp_right contents). go_lower.
+unfold insert_invariant. apply (exp_right nil). eapply (exp_right contents). 
+go_lower.
 normalize.
 { repeat apply andp_right. 
   + apply prop_right. auto.
   + normalize. 
+  + rewrite H1. normalize.
   + subst. apply prop_right. apply ptr_eq_refl. auto.
   + subst. rewrite (lseg_unfold LS sh (h::r) sorted nullval).
     normalize. apply (exp_right y).
@@ -98,93 +115,57 @@ normalize.
 go_lower.
 (*invariant implies post *)
 unfold insert_invariant. normalize.
-go_lower.
-apply (exp_right contents_lt). normalize.
-apply (exp_right contents_rest). normalize.
-
-
-
-SearchAbout lseg.
-
-}
-
-    
- forward.
-
-forward0.
-forward0.
-first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
-[ auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto | auto | reflexivity
-| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
-unfold Post0.
-forward.
-eapply semax_logical_and_PQR.
-first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
-[ auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto | auto | reflexivity
-| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
-intro rho. simpl. repeat apply andp_right; try apply prop_right; auto.
-eapply semax_logical_and_PQR; auto 50 with closed.
-simpl. reflexivity.
-go_lower. subst index value. normalize.
-forward. unfold Post. go_lower.
-
-Admitted.
-
-
-
-simpl overridePost.
-unfold  overridePost.
-simpl eq_dec.
-simpl EqDec_exitkind.
-cbv beta iota.
-unfold insert_invariant. normalize.
-apply (exp_right contents_lt). normalize.
+apply (exp_right contents_lt). 
 apply (exp_right contents_rest).
-go_lower.
- normalize.
-
-
-
-SearchAbout lseg.
-
-}
-
-    
- forward.
-
-forward0.
-forward0.
-first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
-[ auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto | auto | reflexivity
-| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
-unfold Post0.
+entailer; normalize; cancel.
+(*precondition across command *) 
 forward.
-eapply semax_logical_and_PQR.
-first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
-[ auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto 50 with closed
-| auto | auto | reflexivity
-| try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
-intro rho. simpl. repeat apply andp_right; try apply prop_right; auto.
-eapply semax_logical_and_PQR; auto 50 with closed.
-simpl. reflexivity.
-go_lower. subst index value. normalize.
-forward. unfold Post. go_lower.
-
+(* unfold the remaining part of the list *)
+focus_SEP 1. apply semax_lseg_nonnull.
+{
+  go_lower. destruct (eval_id _guard rho); inv H4.
+  apply prop_right. normalize. destruct (eval_id _previous rho); inv TC0.
+  unfold logical_and_result in *. simpl in H5. inv H5; inv H7. simpl; auto. 
+}      
+intros. 
+forward. (*    index = index -> tail; *)
+{ 
+  entailer. rewrite isptr_force_ptr; normalize.
+}
+forward. (* if(index) *)
+entailer; normalize; cancel. autorewrite with subst.
+focus_SEP 2. apply semax_lseg_nonnull.
+{
+  entailer;normalize;cancel.
+}
+intros.
+apply semax_pre with
+     (PROP  (Forall (Ilt v) contents_lt;
+      contents_lt ++ contents_rest = contents)
+      LOCAL 
+      (`(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
+         (eval_expr (Etempvar _index (tptr t_struct_list)));
+      `eq (eval_id _index) `y0; `eq (eval_id _previous) `index0;
+      `(typed_true (typeof (Etempvar _guard tint))) (eval_id _guard);
+      `eq (eval_id _guard)
+        (`logical_and_result `(tptr t_struct_list) 
+           `index0 `tint
+           (`(eval_binop Ogt tint tint) (eval_id _value)
+              (eval_id _sortedvalue))))
+      SEP  (`(list_cell LS sh) (eval_id _index) `h1;
+      `(field_mapsto sh t_struct_list _tail) (eval_id _index) `y1;
+      |>`(lseg LS sh r1) `y1 `nullval; `(list_cell LS sh) `index0 `h0;
+      `(field_mapsto sh
+          (Tstruct _struct_list
+             (Fcons _head tint
+                (Fcons _tail (Tcomp_ptr _struct_list noattr) Fnil)) noattr)
+          _tail) `index0 `y0;
+      `(lseg LS sh contents_lt) (eval_id _sorted) `index0;
+      subst _index `index0
+        (subst _previous `x (var_block Tsh (_newitem, t_struct_list))))).
+entailer; normalize; cancel.
+rewrite lift_list_cell_eq.
+forward.
 Admitted.
 
 

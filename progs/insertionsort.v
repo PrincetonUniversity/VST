@@ -67,13 +67,15 @@ Definition f_insert := {|
             (Ssequence
               (Sset _index
                 (Efield
-                  (Ederef (Etempvar _sorted (tptr t_struct_list))
+                  (Ederef (Etempvar _index (tptr t_struct_list))
                     t_struct_list) _tail (tptr t_struct_list)))
               (Ssequence
-                (Sset _sortedvalue
-                  (Efield
-                    (Ederef (Etempvar _index (tptr t_struct_list))
-                      t_struct_list) _head tint))
+                (Sifthenelse (Etempvar _index (tptr t_struct_list))
+                  (Sset _sortedvalue
+                    (Efield
+                      (Ederef (Etempvar _index (tptr t_struct_list))
+                        t_struct_list) _head tint))
+                  Sskip)
                 (Ssequence
                   (Sifthenelse (Etempvar _index (tptr t_struct_list))
                     (Ssequence
