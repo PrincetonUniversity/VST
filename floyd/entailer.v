@@ -35,6 +35,7 @@ Ltac entailer' :=
  subst_any;
  match goal with
  |  |- _ |-- _ =>
+   repeat rewrite <- sepcon_assoc;
    saturate_local;  subst_any; 
    change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
    unfold_lift; simpl;
@@ -62,3 +63,9 @@ Ltac entailer :=
  | |- _ |-- _ => entailer'
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end.
+
+Tactic Notation "entailer" "!" := 
+  entailer; 
+    first [simple apply andp_right; [apply prop_right | cancel ]
+           | apply prop_right
+           | cancel ].

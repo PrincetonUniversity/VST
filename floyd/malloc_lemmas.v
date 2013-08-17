@@ -406,11 +406,58 @@ Proof. reflexivity. Qed.
 
 Definition opaque_sepcon := @sepcon (val->mpred) _ _.
 Global Opaque opaque_sepcon.
+Definition opaque_emp := @emp (val->mpred) _ _.
+Global Opaque opaque_emp.
+
+Lemma distribute_envtrans:
+  forall A (P Q: A -> mpred) (J: environ -> A),
+   @liftx (Tarrow A (LiftEnviron mpred)) 
+   (@sepcon (A -> mpred) _ _ P Q) J = 
+   (@liftx (Tarrow A (LiftEnviron mpred)) P J 
+    * @liftx (Tarrow A (LiftEnviron mpred)) Q J ).
+Proof. reflexivity. Qed.
+Hint Rewrite distribute_envtrans: norm.
+
+Lemma distribute_lifted_sepcon:
+ forall A F G v,
+  (@sepcon (A -> mpred) _ _ F G v) = @sepcon mpred _ _ (F v) (G v).
+Proof. reflexivity. Qed.
 
 Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
                                    (v: val) :=
            rangespec lo hi (fun i => typed_mapsto sh t (add_ptr_int t v i) (f i)).
 
+Ltac simpl_typed_mapsto' T H MA :=
+   try unfold T in H;
+   unfold typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto',
+    structfieldsof, eq_rect_r, withspacer, at_offset, align, Z.max in H;
+   change sepcon with opaque_sepcon in H; 
+   change (@emp (val->mpred) _ _) with opaque_emp in H; 
+   simpl in H;
+   change @opaque_sepcon with (@sepcon (val -> mpred) _ _) in H;
+   change @opaque_emp with (@emp (val->mpred) _ _) in H;
+   repeat
+    match type of H with
+    | context [fun (v1 : val) (v4 : int) =>
+               mapsto ?sh (Tint ?ch ?s noattr) v1 (Vint v4)] =>
+        change
+          (fun (v1 : val) (v4 : int) =>
+           mapsto sh (Tint ch s noattr) v1 (Vint v4))
+         with (typed_mapsto sh (Tint ch s noattr)) in H
+    end;
+    fold tuint in H; fold tint in H;
+    try fold T in H;
+   repeat rewrite sepcon_emp in H || rewrite emp_sepcon in H;
+   subst MA;
+   repeat rewrite distribute_lifted_sepcon;
+   repeat rewrite distribute_envtrans;
+   repeat match goal with 
+    | |- appcontext [array_at' ?t ?sh (typed_mapsto ?sh ?t)] =>
+              change (array_at' t sh (typed_mapsto sh t)) with (array_at t sh)
+      end;
+   repeat flatten_sepcon_in_SEP.
+
+(* OLD
 Ltac simpl_typed_mapsto' T H MA :=
        try unfold T in H;
        unfold  typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto', 
@@ -452,6 +499,7 @@ Ltac simpl_typed_mapsto' T H MA :=
               with (@liftx (LiftEnviron mpred) A1 * @liftx (LiftEnviron mpred) A2)
        end;
        repeat flatten_sepcon_in_SEP.
+*)
 
 Ltac simpl_typed_mapsto1 :=
     let H := fresh "H" in let MA := fresh "MA" in

@@ -160,52 +160,28 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
-match goal with |- semax _ _ _ ?P => set (Post := P) end.
+(* match goal with |- semax _ _ _ ?P => set (Post := P) end. *)
 normalize. intros [hd tl].
 normalize.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
-go_lower.
-clear Delta POSTCONDITION Post.
-subst h q.  
-apply andp_right.
-apply prop_right; simpl; auto.
-unfold fifo. 
+entailer.
+unfold fifo.
 normalize.
-apply exp_right with (hd,tl).
+apply exp_right with (h,tl).
+apply andp_right; auto.
 destruct (isnil contents).
-subst.
-normalize.
-normalize.
-clear n.
-apply exp_right with prefix.
-apply andp_right.
-destruct prefix.
-rewrite links_nil_eq.
-normalize.
-apply prop_right.
-destruct hd,tl; simpl in H; try contradiction.
-unfold eval_binop; simpl.
-destruct (Int.eq i (Int.repr 0)); reflexivity.
- simpl. reflexivity.
-apply prop_right. destruct hd; inv TC; try reflexivity.
-apply andp_right.
-destruct prefix.
-rewrite links_nil_eq.
-normalize.
-unfold link.
-rewrite (field_mapsto_isptr _ _next).
-normalize.
-apply ptr_eq_e in H; subst tl.
-destruct hd; simpl in H0; try contradiction.
-apply prop_right. reflexivity.
-rewrite links_cons_eq.
-normalize.
-rewrite (field_mapsto_isptr _ _next).
-normalize.
-apply prop_right. destruct v; inv H1. reflexivity.
-cancel.
-normalize.
+* normalize. apply prop_right; subst.
+  simpl. auto.
+* normalize. unfold link.
+ entailer.
+ destruct prefix.
+ + rewrite links_nil_eq.
+    entailer. apply ptr_eq_e in H4; subst.
+    destruct tl; inv H2; simpl; auto.
+ + rewrite links_cons_eq.
+     normalize.
+    entailer. apply prop_right; destruct v; inv H6; simpl; auto.
 Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
@@ -215,25 +191,33 @@ name Q _Q.
 name Q' _Q'.
 forward. (* Q' = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
-entailer.
-apply andp_right. apply prop_right. compute; congruence.
-cancel.
-normalize.
+entailer!.
+compute; congruence.
+simpl. normalize.
 forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
    SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
 entailer.
-rewrite memory_block_fifo. normalize.
+rewrite memory_block_fifo.
+normalize.
 forward. (* Q->head = NULL; *)
 forward.  (*  Q->tail = NULL;  *)
 forward. (* return Q; *)
-entailer. auto.
+entailer.
   unfold fifo.
-   destruct (@isnil val nil); [ | congruence].
   apply exp_right with (nullval,nullval).
- normalize.
+   destruct (@isnil val nil); [ | congruence].
+ entailer.
 Qed.
+
+Lemma ptr_eq_True:
+   forall p, is_pointer_or_null p -> ptr_eq p p = True.
+Proof. intros.
+ apply prop_ext; intuition. destruct p; inv H; simpl; auto.
+ rewrite Int.eq_true. auto.
+Qed.
+Hint Rewrite ptr_eq_True using assumption : norm.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
@@ -253,87 +237,57 @@ simpl typeof. simpl eval_expr. normalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
-entailer. cancel.
-(* then clause *)
-simplify_typed_comparison.
-fold t_struct_fifo.
-forward. (*  Q->head=p; *)
-forward. (* Q->tail=p; *)
-entailer.
-destruct (@isnil val contents).
-(* CASE ONE:  isnil contents *)
-subst. normalize.
-unfold fifo. apply exp_right with (p',p').
-simpl.
-destruct (isnil (p' ::nil)); [ congruence | ].
-normalize.
-apply exp_right with nil.
-rewrite links_nil_eq.
-saturate_local; gather_prop.
-split; auto.
-destruct p'; inv H; simpl; split; auto. apply Int.eq_true.
-cancel.
-(* CASE TWO: contents <> nil *)
-unfold link.
-normalize.
-destruct prefix.
-rewrite links_nil_eq.
-normalize.
-apply ptr_eq_e in H4. subst tl.
-saturate_local.
-destruct h; inv H4; inv H0.
-rewrite links_cons_eq.
-normalize.
-repeat rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturate_local *)
-saturate_local.
-normalize; destruct v; inv H7; inv H0.
-(* else clause *)
-simplify_typed_comparison.
-forward. (*  t = Q->tail; *)
-(* simpl classify_cast. cbv iota. *)
-destruct (isnil contents).
-(* CASE THREE: contents = nil *)
-apply semax_pre with FF; [ | apply semax_ff].
-clear_abbrevs.
-entailer.
-  normalize. (* this line shouldn't be necessary *)
-  simpl in H1. inv H1.
-focus_SEP 2.
-change (`(EX  prefix : list val,
-      !!(contents = prefix ++ tl :: nil) &&
-      (links QS Tsh prefix hd tl * link tl nullval)))
- with (EX prefix: list val, 
-      !!(contents = prefix ++ tl :: nil) &&
-      `(links QS Tsh prefix hd tl * link tl nullval)).
-rewrite extract_exists_in_SEP.
-apply extract_exists_pre. intro prefix.
-normalize.
-unfold link.
-replace_SEP 1 ( `(field_mapsto Tsh t_struct_elem _next) (eval_id _t) `nullval).
-clear_abbrevs.
-entailer.
-forward. (*  t->next=p; *)
-simpl.
-sequential.
-forward. (* Q->tail=p; *)
-entailer. clear n.
-unfold fifo.
-apply exp_right with (h, p').
-destruct (isnil ((prefix ++ t :: nil) ++ p' :: nil)).
-destruct prefix; inv e.
-clear n.
-normalize.
-apply exp_right with (prefix ++ t :: nil).
-gather_prop.
-remember (link p' nullval) as A. (* prevent it from canceling! *)
-cancel. subst.
-eapply derives_trans; [ | apply links_cons_right ].
-cancel.
-
-(* after the if *)
+* entailer!.
+* (* then clause *)
+  forward. (*  Q->head=p; *)
+  forward. (* Q->tail=p; *)
+  entailer.
+  destruct (@isnil val contents).
+  + subst. unfold fifo. apply exp_right with (p',p').  
+      simpl.
+      destruct (isnil (p' ::nil)); [ congruence | ].
+      normalize.
+      apply exp_right with nil.
+      simpl. rewrite links_nil_eq.
+      entailer!.
+  + unfold link.
+      normalize.
+      destruct prefix.
+      - rewrite links_nil_eq.
+         normalize.
+         apply ptr_eq_e in H4. subst tl.
+         entailer.
+         destruct h; inv H4; inv H0.
+      - rewrite links_cons_eq.
+         normalize.
+do 2 rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturate_local *)
+         entailer.
+         destruct v; inv H7; inv H0.
+* (* else clause *)
+  forward. (*  t = Q->tail; *)
+  destruct (isnil contents).
+  + apply semax_pre with FF; [ | apply semax_ff].
+      entailer. inv H1.
+  + normalize. intro prefix.
+     normalize. unfold link.
+     forward. (*  t->next=p; *)
+     forward. (* Q->tail=p; *)
+     entailer.
+     unfold fifo.
+     apply exp_right with (h, p').
+     destruct (isnil ((prefix ++ t :: nil) ++ p' :: nil)).
+     destruct prefix; inv e.
+     normalize.
+     apply exp_right with (prefix ++ t :: nil).
+     entailer.
+     remember (link p' nullval) as A. (* prevent it from canceling! *)
+     cancel. subst. 
+     eapply derives_trans; [ | apply links_cons_right ].
+     cancel.
+* (* after the if *)
 unfold_abbrev.  (* FIXME this should not be necessary *)
-forward. (* return ; *)
-entailer.
+    forward. (* return ; *)
+    entailer.
 Qed.
 
 Lemma flip_lifted_eq:
@@ -353,37 +307,35 @@ name n _n.
 unfold fifo at 1.
 normalize.
 intros [hd tl].
-destruct (isnil (p::contents)) as [e3|n3]; [inv e3 | clear n3].
+rewrite if_false by congruence.
 normalize. intro prefix.
 normalize.
- forward. (*   p = Q->head; *)
+forward. (*   p = Q->head; *)
 destruct prefix; inversion H; clear H.
-(* CASE 1: prefix=nil *)
-subst tl.
-rewrite links_nil_eq.
-normalize. apply ptr_eq_e in H. subst hd.
-unfold link.
- forward. (*  n=h->next; *)
- forward. (* Q->head=n; *)
- forward. (* return p; *)
- entailer.
- unfold fifo. normalize. apply exp_right with (nullval, h).
- destruct (@isnil val nil); [ | congruence].
- repeat rewrite prop_true_andp by auto. unfold link_.
- cancel.
-(* CASE 2: prefix <> nil *)
-rewrite links_cons_eq.
-normalize. intro.
-repeat rewrite andp_assoc.
-normalize. destruct H. subst v hd.
-forward. (*  n=h->next; *)
- forward. (* Q->head=n; *)
- forward. (* return p; *)
- entailer.
- unfold fifo. normalize. apply exp_right with (n, tl).
- destruct (isnil (prefix ++ tl :: nil)); [ destruct prefix; inv e | ]. clear n0.
- normalize. apply exp_right with prefix.
- repeat rewrite prop_true_andp by auto. unfold link_. cancel.
++ subst_any.
+   rewrite links_nil_eq.
+   normalize. apply ptr_eq_e in H. subst_any.
+   unfold link.
+   forward. (*  n=h->next; *)
+   forward. (* Q->head=n; *)
+   forward. (* return p; *)
+   entailer!.
+   unfold fifo. normalize. apply exp_right with (nullval, h).
+   rewrite if_true by congruence.
+   unfold link_.
+   entailer!.
++ rewrite links_cons_eq.
+    normalize. intro.
+    normalize. destruct H. subst_any.
+    forward. (*  n=h->next; *)
+    forward. (* Q->head=n; *)
+    forward. (* return p; *)
+    entailer.
+    unfold fifo. normalize. apply exp_right with (n, tl).
+    rewrite if_false by (destruct prefix; simpl; congruence).
+    normalize. apply exp_right with prefix.
+    entailer!.
+    unfold link_. cancel.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.
@@ -395,25 +347,23 @@ name p _p.
 name p' _p'.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
-entailer. rewrite prop_true_andp by (compute; congruence).
-cancel.
+entailer!. compute; congruence.
 normalize.
 forward. (* finish the function call *)
-apply semax_pre with
+change 12 with (sizeof (t_struct_elem)).
+rewrite memory_block_typed.
+simpl_typed_mapsto.
+apply semax_pre with  (* with better store tactic, shouldn't need this *)
   (PROP  ()
    LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
    SEP  (`(field_mapsto_ Tsh t_struct_elem _a) (eval_id _p);
            `(field_mapsto_ Tsh t_struct_elem _b) (eval_id _p);
            `(field_mapsto_ Tsh t_struct_elem _next) (eval_id _p))).
-entailer.
- change 12 with (sizeof t_struct_elem).
- rewrite memory_block_typed.
- simpl_typed_mapsto.
- cancel.
+entailer!.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
-entailer. auto.
+entailer!.
 unfold elemrep.
 cancel.
 Qed.
@@ -496,7 +446,6 @@ apply semax_pre with
    `(field_mapsto Tsh t_struct_elem _a) (eval_id _p) `(Vint (Int.repr 1));
    `(field_mapsto Tsh t_struct_elem _b) (eval_id _p) `(Vint (Int.repr 10)))).
 entailer.
- cancel.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)

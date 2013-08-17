@@ -114,13 +114,13 @@ repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto_; try reflexivity; simpl;
  rewrite offset_offset_val; simpl; f_equal; compute; auto.
-forward_with new_load_tac. (* x = p->x; *)
-forward_with new_load_tac. (* y = p->y; *)
+forward. (* x = p->x; *)
+forward. (* y = p->y; *)
 simpl.
 forward. (*  ((int * )buf)[0]=x; *)
-entailer. cancel.
+entailer.
 forward. (*  ((int * )buf)[1]=y; *)
-entailer. repeat split; auto. cancel.
+entailer. repeat split; auto.
 forward. (* return 8; *)
 entailer.
 apply exp_right with 8.
