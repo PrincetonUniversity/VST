@@ -1157,7 +1157,7 @@ match goal with
                     try simple apply elim_redundant_Delta
                ]; abbreviate_semax
   | |- @semax _ _ _ ?c1 _ => F1;
-                  try (apply drop_tc_environ || rewrite insert_local);
+                  try (simple apply drop_tc_environ || rewrite insert_local);
                   try unfold exit_tycon; 
                   simpl update_tycon;
                   try (apply exp_left; intro_old_var c1);
