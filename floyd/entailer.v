@@ -68,4 +68,5 @@ Tactic Notation "entailer" "!" :=
   entailer; 
     first [simple apply andp_right; [apply prop_right | cancel ]
            | apply prop_right
-           | cancel ].
+           | cancel
+           | idtac ].

@@ -62,6 +62,67 @@ Proof.
  intros. extensionality v. simpl. apply split3_array_at. auto.
 Qed.
 
+Lemma fold_range_split:
+  forall A f (z: A) lo hi delta,
+   lo <= hi -> delta >= 0 ->
+   fold_range f z lo (hi+delta) =
+   fold_range f (fold_range f z hi (hi+delta)) lo hi.
+Proof.
+unfold fold_range; intros.
+replace (hi+delta-hi) with delta by omega.
+replace (hi+delta-lo) with ((hi-lo)+ delta) by omega.
+rewrite nat_of_Z_plus by omega.
+forget (nat_of_Z delta) as d.
+clear delta H0.
+pattern hi at 2.
+replace hi with (hi-lo+lo) by omega.
+remember (hi-lo) as r. 
+replace r with (Z.of_nat (Z.to_nat r))
+ by (rewrite Z2Nat.id; omega).
+forget (Z.to_nat r) as n; clear r hi H Heqr.
+rewrite nat_of_Z_of_nat.
+revert z lo d; induction n; intros.
+reflexivity.
+change (S n + d)%nat with (S (n + d)).
+unfold fold_range' at 1 2; fold @fold_range'.
+f_equal.
+rewrite IHn; clear IHn.
+f_equal. f_equal.
+rewrite Nat2Z.inj_succ.
+omega.
+Qed.
+
+Lemma fold_range_fact1:
+ forall lo hi contents,
+  lo <= hi ->
+  fold_range (add_elem contents) Int.zero lo (Z.succ hi) =
+  Int.add (fold_range (add_elem contents) Int.zero lo hi) (contents hi).
+Proof.
+intros.
+unfold Z.succ.
+rewrite fold_range_split by omega.
+unfold fold_range at 2.
+replace (hi+1-hi) with 1 by omega.
+change (nat_of_Z 1) with 1%nat.
+unfold fold_range'.
+*
+unfold fold_range.
+forget (nat_of_Z (hi-lo)) as n.
+unfold add_elem at 2.
+forget (contents hi) as a.
+rewrite Int.add_zero.
+clear.
+revert lo; induction n; intros.
+simpl. rewrite Int.add_zero_l. auto.
+simpl.
+rewrite (IHn (Z.succ lo)).
+clear IHn.
+forget (fold_range' (add_elem contents) Int.zero (Z.succ lo) n) as B.
+unfold add_elem.
+rewrite Int.add_assoc.
+auto.
+Qed.
+
 Lemma body_sumarray: semax_body Vprog Gtot f_sumarray sumarray_spec.
 Proof.
 start_function.
@@ -79,34 +140,25 @@ forward_while (sumarray_Inv a0 sh contents size)
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
-entailer.
-  apply andp_right.
-  apply prop_right; repeat split; auto; omega.
-  cancel.
+entailer!. omega.
 (* Prove that loop invariant implies typechecking condition *)
-entailer.
+entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer.
- apply andp_right.
-   apply prop_right. f_equal. omega.
-   cancel.
+entailer!. f_equal. omega.
 (* Prove that loop body preserves invariant *)
-simpl.
-forward_with new_load_tac.  (* x = a[i]; *)
-entailer.
-repeat split; auto; rewrite Int.signed_repr by repable_signed; omega.
+forward.  (* x = a[i]; *)
+entailer. rewrite Int.signed_repr by repable_signed; omega.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-entailer.
- apply andp_right; [apply prop_right | cancel].
- inv H2. simpl in H3. inv H3.
+entailer!.
+ inv H2. inv H3.
  rewrite Int.add_signed.
-repeat rewrite Int.signed_repr by repable_signed.
+ repeat rewrite Int.signed_repr by repable_signed.
  repeat split; auto; try omega.
- admit.  (* need simple lemma fold_range_split *)
+ apply fold_range_fact1; omega.
 (* After the loop *)
 forward.  (* return s; *)
 entailer.

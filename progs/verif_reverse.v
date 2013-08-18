@@ -129,29 +129,25 @@ forward_while (sumlist_Inv sh contents)
 (* Prove that current precondition implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with contents.
-entailer. cancel.
+entailer!.
 (* Prove that loop invariant implies typechecking condition *)
-entailer.
+entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer.
+entailer!.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
-entailer.
+entailer!.
 subst cts.
 rewrite lift_list_cell_eq.
-normalize.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with r.
-entailer.
- apply andp_right.
-   apply prop_right. inv H0.
-   rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
+entailer!.
+   inv H0; rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
-  cancel.
 (* After the loop *)
 forward.  (* return s; *)
 entailer. simpl in *; congruence.
@@ -180,11 +176,11 @@ forward_while (reverse_Inv sh contents)
 unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
-entailer.
+entailer!.
 (* loop invariant implies typechecking of loop condition *)
-entailer.
+entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-entailer. rewrite <- app_nil_end, rev_involutive. auto.
+entailer!. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
@@ -197,9 +193,8 @@ forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 {apply exp_right with (h::cts1).
  apply exp_right with r.
- entailer.
- apply andp_right.
- * apply prop_right. rewrite app_ass. auto.
+ entailer!.
+ * rewrite app_ass. auto.
  * rewrite (lseg_unroll _ sh (h::cts1)).
    cancel.
    apply orp_right2.
@@ -210,12 +205,11 @@ forward.  (* v = t; *)
    + apply exp_right with h.
       apply exp_right with cts1.
       apply exp_right with w0.
-      gather_prop. 
-      cancel.
+      entailer!.
 }
 (* after the loop *)
 forward.  (* return w; *)
-entailer.
+entailer!.
 Qed.
 
 (** this setup_globals lemma demonstrates that the initialized global variables
@@ -259,16 +253,16 @@ name r _r.
 name s _s.
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
- entailer.
+ entailer!.
  eapply derives_trans; [apply setup_globals; auto | ].
  cancel.
 auto with closed.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
-entailer. cancel.
+entailer!.
 auto with closed.
 forward.  (* return s; *)
-entailer.
+entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

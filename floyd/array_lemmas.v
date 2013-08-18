@@ -135,7 +135,7 @@ destruct t1,t2; inv H; destruct v; reflexivity.
 Qed. 
 
 Definition in_range (lo hi: Z) (x: Z) := lo <= x < hi.
-
+Arguments in_range lo hi x /.
 
 Lemma SEP_nth_isolate:
   forall n R Rn, nth_error R n = Some Rn ->
@@ -262,9 +262,9 @@ normalize. repeat rewrite prop_and.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
 rewrite H; apply I.
-hnf. unfold_lift. rewrite <- H9.
+hnf. unfold_lift. rewrite <- H10.
 destruct (v2 rho); inv H6.
-destruct (v1 rho); inv H8.
+destruct (v1 rho); inv H9.
 apply I.
 rewrite NONVOL; apply I.
 exists t1',i2; split; auto. apply strictAllowedValCast; auto.
@@ -290,12 +290,12 @@ go_lowerx. normalize.
 destruct (v2 rho); inv H2.
 simpl in H4|-*.
 unfold in_range in H4.
-rewrite (split3_array_at (Int.signed i)  _ _ _ lo hi _ H4).
+rewrite (split3_array_at (Int.signed i)  _ _ _ lo hi _ (conj H4 H5)).
 rewrite (sepcon_comm (array_at t1 sh contents lo (Int.signed i) _)).
 repeat rewrite sepcon_assoc.
 apply sepcon_derives; auto.
-rewrite <- H6.
-destruct (v1 rho); inv H5.
+rewrite <- H7.
+destruct (v1 rho); inv H6.
 simpl.
 rewrite <- repinject_typed_mapsto by auto.
 apply derives_refl'.
@@ -338,13 +338,10 @@ apply H5.
 clear.
 go_lowerx.
 normalize.
-apply andp_right; [ | apply prop_right; auto].
-unfold in_range in H1.
-assert (0<(hi-lo)) by omega.
-clear - H3.
+repeat apply andp_right; try solve [apply prop_right; auto].
 unfold array_at, rangespec.
 destruct (nat_of_Z (hi-lo)) eqn:?.
-elimtype False; clear - H3 Heqn.
+elimtype False; clear - H1 H2 Heqn.
 assert (Z.of_nat (nat_of_Z (hi-lo)) = (hi-lo)).
 apply nat_of_Z_eq; omega.
 rewrite Heqn in H. simpl in H. omega.
@@ -356,5 +353,5 @@ apply typed_mapsto_typed_mapsto_.
 rewrite typed_mapsto__isptr.
 normalize.
 apply prop_right.
-destruct (v1 rho); inv H; reflexivity.
+destruct (v1 rho); inv H4; reflexivity.
 Qed.
