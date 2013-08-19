@@ -201,7 +201,7 @@ apply semax_pre
 entailer.
 rewrite memory_block_fifo.
 normalize.
-forward. (* Q->head = NULL; *)
+forward_with new_store_tac. (* Q->head = NULL; *)
 forward.  (*  Q->tail = NULL;  *)
 forward. (* return Q; *)
 entailer.
@@ -285,7 +285,8 @@ do 2 rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturat
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
 * (* after the if *)
-unfold_abbrev.  (* FIXME this should not be necessary *)
+  unfold_abbrev_ret. (* FIXME this should not be necessary *)
+  unfold_abbrev_commands.  (* FIXME this should not be necessary *)
     forward. (* return ; *)
     entailer.
 Qed.

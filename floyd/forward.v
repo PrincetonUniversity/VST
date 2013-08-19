@@ -34,6 +34,11 @@ Ltac unfold_abbrev_ret :=
                         unfold H, abbreviate; clear H 
             end.
 
+Ltac unfold_abbrev_commands :=
+  repeat match goal with H := @abbreviate statement _ |- _ => 
+                        unfold H, abbreviate; clear H 
+            end.
+
 Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
 Ltac abbreviate_semax :=
@@ -1004,6 +1009,132 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     end
   ].
 
+Definition numbd {A} (n: nat) (x: A) : A := x.
+
+Lemma numbd_eq: forall A n (x: A), numbd n x = x.
+Proof. reflexivity. Qed.
+
+Fixpoint number_list {A} (k: nat)  (xs: list A): list A :=
+ match xs with nil => nil | x::xs' => numbd k x :: number_list (S k) xs' end.
+
+Lemma number_list_eq: forall {A} k (xs: list A), number_list k xs = xs.
+Proof.
+intros. revert k; induction xs; simpl; auto.
+intro; f_equal; auto.
+Qed.
+
+Lemma numbd_derives:
+ forall n (P Q: mpred), P |-- Q -> numbd n P |-- numbd n Q.
+Proof. intros. apply H. Qed.
+Lemma numbd_rewrite1:
+  forall A B n (f: A->B) (x: A), numbd n f x = numbd n (f x).
+Proof. intros. reflexivity. Qed.
+
+Opaque numbd.
+
+Hint Rewrite numbd_rewrite1 : norm.
+Hint Resolve numbd_derives : cancel.
+
+Lemma numbd_lift1:
+  forall A n f v,
+   numbd n ((@liftx (Tarrow A (LiftEnviron mpred)) f) v) = 
+   (@liftx (Tarrow A (LiftEnviron mpred)) (numbd n f)) v.
+Proof. reflexivity. Qed.
+Lemma numbd_lift2:
+  forall A B n f v1 v2 ,
+   numbd n ((@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))) f) v1 v2) = 
+   (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))) (numbd n f)) v1 v2.
+Proof. reflexivity. Qed.
+
+Lemma semax_post_flipped3: 
+  forall R' Espec Delta P c R,
+    @semax Espec Delta P c (normal_ret_assert R') ->
+    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    @semax Espec Delta P c (normal_ret_assert R) .
+Proof.
+intros; eapply semax_post3; eauto.
+Qed.
+
+Lemma semax_store_aux31:
+ forall P Q1 Q R R', 
+    PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- fold_right sepcon emp R' ->
+    PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx Q (SEPx R')).
+Proof.
+intros. 
+apply andp_right. apply andp_left1; auto.
+apply andp_right. apply andp_left2; apply andp_left1.
+intro rho; unfold local, lift1; unfold_lift; apply prop_derives; intros [? ?]; auto.
+apply H.
+Qed.
+
+Lemma semax_pre_later:
+ forall P' Espec Delta P1 P2 P3 c R,
+     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
+     @semax Espec Delta (|> P') c R  -> 
+     @semax Espec Delta (|> (PROPx P1 (LOCALx P2 (SEPx P3)))) c R.
+Proof.
+intros.
+eapply semax_pre_simple; try apply H0.
+eapply derives_trans; [ | apply later_derives; apply H ].
+eapply derives_trans.
+2: apply later_derives; rewrite <- insert_local; apply derives_refl.
+rewrite later_andp; apply andp_derives; auto; apply now_later.
+Qed.
+
+Lemma fast_entail:
+  forall n P Q1 Q Rn Rn' R, 
+      nth_error R n = Some Rn ->
+      PROPx P (LOCALx (Q1::Q) (SEP (Rn))) |-- Rn'  ->
+      PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
+Proof.
+intros.
+go_lowerx.
+specialize (H0 rho).
+change SEPx with SEPx' in H0.
+unfold PROPx, LOCALx, SEPx', local,lift1 in H0.
+unfold_lift in H0. simpl in H0.
+repeat  rewrite prop_true_andp in H0 by auto.
+clear P H1 Q1 Q H3 H2.
+rewrite sepcon_emp in H0.
+revert R H H0; induction n; destruct R; simpl; intros; inv H;
+ apply sepcon_derives; auto.
+Qed.
+
+Ltac new_store_tac := 
+ensure_normal_ret_assert;
+hoist_later_in_pre;
+match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let H := fresh in 
+  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (field_mapsto_ sh (typeof e) fld)) (eval_lvalue e)) * TT);
+  [unfold number_list, n, sh; 
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   solve [entailer; cancel]
+ | clear H ];
+(**** 12.8 seconds to here ****)
+ apply (semax_pre_later (PROPx P (LOCALx Q 
+                (SEPx (replace_nth n R (`(field_mapsto_ sh (typeof e) fld) (eval_lvalue e)))))));
+ [ first [eapply (fast_entail n); [reflexivity | entailer; cancel]
+    | simple apply semax_store_aux31; unfold n,sh,replace_nth; entailer; solve [cancel]
+    ]
+ |];
+(**** 14.2 seconds to here in the fast_entail case; otherwise 25.6 seconds to here *)
+ eapply semax_post_flipped3;
+ [ eapply (semax_store_field'' _ _ n sh); unfold n, sh in *; clear n sh;
+   [auto | reflexivity | reflexivity | reflexivity 
+      | try solve [repeat split; hnf; simpl; intros; congruence]
+      | entailer
+      | entailer
+      | quick_load_equality
+      | reflexivity
+      | simple apply derives_refl]
+ | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl
+ ]
+ (**** 21.1 seconds to here in fast_entail case,  or 32.5 seconds to here *****)
+end.
+
 (* END new semax_load and semax_store tactics *************************)
 
 Ltac semax_logic_and_or :=
@@ -1021,7 +1152,7 @@ Ltac forward1 :=
   end;
   match goal with 
   | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      
-         store_field_tac || fail 2 "store_field_tac failed"
+         new_store_tac || fail 2 "new_store_tac failed"
   | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
          store_tac || fail 2 "store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
@@ -1153,6 +1284,7 @@ match goal with
                | try unfold exit_tycon; 
                    simpl update_tycon; simpl map;
                    try (unfold Post; clear Post);
+                    unfold replace_nth; cbv beta;
                     try (apply extract_exists_pre; intro_old_var c1);
                     try simple apply elim_redundant_Delta
                ]; abbreviate_semax

@@ -186,9 +186,14 @@ normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ?].
 subst cts2.
-forward.  (* t = v->tail; *)
+forward.  (* t = v->tail; *)  
+
 forward. (*  v->tail = w; *)
+unfold replace_nth.
+fold t_struct_list.
+simpl eval_lvalue.
 forward.  (*  w = v; *)
+simpl. autorewrite with subst.
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
 {apply exp_right with (h::cts1).
