@@ -489,9 +489,7 @@ apply andp_left1.
 apply derives_trans with (field_mapsto sh list_struct list_link x z * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
-rewrite prop_true_andp.
 apply now_later.
-clear - H0. destruct z; inv H0; simpl; auto; rewrite Int.eq_true; auto.
 apply subp_i1.
 simpl app.
 rewrite links_cons_eq.

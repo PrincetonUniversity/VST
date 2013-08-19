@@ -1361,3 +1361,20 @@ Opaque andp.
 Arguments overridePost Q R !ek !vl / _ .
 Arguments eq_dec A EqDec / a a' .
 Arguments EqDec_exitkind !a !a'.
+
+Ltac debug_store' := 
+ensure_normal_ret_assert;
+hoist_later_in_pre;
+match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let H := fresh in 
+  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (field_mapsto_ sh (typeof e) fld)) (eval_lvalue e)) * TT);
+  [unfold number_list;
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   gather_entail
+  |  ]
+end.
+
+Ltac debug_store := (forward0; [debug_store' | ]) || debug_store'.

@@ -165,6 +165,7 @@ normalize. intros [hd tl].
 normalize.
 forward. (* h = Q->head;*)
 forward. (* return (h == NULL); *)
+(* goal_1 *)
 entailer.
 unfold fifo.
 normalize.
@@ -180,8 +181,8 @@ destruct (isnil contents).
     entailer. apply ptr_eq_e in H4; subst.
     destruct tl; inv H2; simpl; auto.
  + rewrite links_cons_eq.
-     normalize.
-    entailer. apply prop_right; destruct v; inv H6; simpl; auto.
+ entailer!.
+ destruct h; inv H6; simpl; auto.
 Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
@@ -191,6 +192,7 @@ name Q _Q.
 name Q' _Q'.
 forward. (* Q' = mallocN(sizeof ( *Q)); *) 
 instantiate (1:= Int.repr 8) in (Value of witness).
+(* goal_2 *)
 entailer!.
 compute; congruence.
 simpl. normalize.
@@ -198,26 +200,21 @@ forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
    SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
+(* goal_3 *)
 entailer.
 rewrite memory_block_fifo.
 normalize.
-forward_with new_store_tac. (* Q->head = NULL; *)
+forward. (* Q->head = NULL; *)
+(* goal_4 *)
 forward.  (*  Q->tail = NULL;  *)
 forward. (* return Q; *)
+(* goal_5 *)
 entailer.
   unfold fifo.
   apply exp_right with (nullval,nullval).
    destruct (@isnil val nil); [ | congruence].
  entailer.
 Qed.
-
-Lemma ptr_eq_True:
-   forall p, is_pointer_or_null p -> ptr_eq p p = True.
-Proof. intros.
- apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
-Qed.
-Hint Rewrite ptr_eq_True using assumption : norm.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
 Proof.
@@ -230,17 +227,21 @@ unfold fifo at 1.
 normalize. intros [hd tl].
 normalize.
 replace_SEP 3 (`link_ (eval_id _p)).
+(* goal_6 *)
 entailer.
 unfold link_.
+(* goal_7 *)
 forward. (* p->next = NULL; *)
 simpl typeof. simpl eval_expr. normalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
-* entailer!.
+* (* goal 8 *) entailer!.
 * (* then clause *)
+  (* goal 9 *)
   forward. (*  Q->head=p; *)
   forward. (* Q->tail=p; *)
+  (* goal 10 *)
   entailer.
   destruct (@isnil val contents).
   + subst. unfold fifo. apply exp_right with (p',p').  
@@ -267,11 +268,14 @@ do 2 rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturat
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
+  (* goal 11 *)
       entailer. inv H1.
   + normalize. intro prefix.
      normalize. unfold link.
      forward. (*  t->next=p; *)
+  (* goal 12 *)
      forward. (* Q->tail=p; *)
+  (* goal 13 *)
      entailer.
      unfold fifo.
      apply exp_right with (h, p').
@@ -290,14 +294,6 @@ do 2 rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturat
     forward. (* return ; *)
     entailer.
 Qed.
-
-Lemma flip_lifted_eq:
-  forall (v1: environ -> val) (v2: val),
-    `eq v1 `v2 = `(eq v2) v1.
-Proof.
-intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
-Qed.
-Hint Rewrite flip_lifted_eq : norm.
 
 Lemma body_fifo_get: semax_body Vprog Gtot f_fifo_get fifo_get_spec.
 Proof.

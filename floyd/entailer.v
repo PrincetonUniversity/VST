@@ -40,7 +40,7 @@ Ltac entailer' :=
    change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
    unfold_lift; simpl;
    autorewrite with gather_prop;
-   normalize;
+   normalize; saturate_local;
    autorewrite with gather_prop;
    repeat rewrite and_assoc';
    match goal with 
@@ -70,3 +70,60 @@ Tactic Notation "entailer" "!" :=
            | apply prop_right
            | cancel
            | idtac ].
+
+Lemma ptr_eq_True:
+   forall p, is_pointer_or_null p -> ptr_eq p p = True.
+Proof. intros.
+ apply prop_ext; intuition. destruct p; inv H; simpl; auto.
+ rewrite Int.eq_true. auto.
+Qed.
+Hint Rewrite ptr_eq_True using assumption : norm.
+
+Lemma flip_lifted_eq:
+  forall (v1: environ -> val) (v2: val),
+    `eq v1 `v2 = `(eq v2) v1.
+Proof.
+intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
+Qed.
+Hint Rewrite flip_lifted_eq : norm.
+
+(************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
+
+Definition EVAR (x: Prop) := x.
+Lemma EVAR_e: forall x, EVAR x -> x. 
+Proof. intros. apply H. Qed.
+
+Ltac no_evars := match goal with |- ?A => (has_evar A; fail 1) || idtac end.
+
+
+Ltac gather_entail :=
+repeat match goal with
+ | A := _ |- _ =>  clear A || (revert A; no_evars)
+ | H : ?P |- _ =>
+  match type of P with
+  | Prop => match P with name _ => fail 2 | _ => revert H; no_evars end
+  | _ => clear H || (revert H; no_evars)
+  end
+end;
+repeat match goal with 
+ | x := ?X |- _ => is_evar X; clearbody x; revert x; apply EVAR_e
+end;
+repeat match goal with
+  | H : name _ |- _ => revert H
+ end.
+
+Lemma admit_dammit : forall P, P.
+Admitted.
+
+Lemma EVAR_i: forall P: Prop, P -> EVAR P.
+Proof. intros. apply H. Qed.
+
+Ltac ungather_entail :=
+match goal with
+  | |- EVAR (forall x : ?t, _) => 
+       let x' := fresh x in evar (x' : t);
+       let x'' := fresh x in apply EVAR_i; intro x'';
+       replace x'' with x'; [ungather_entail; clear x'' | apply admit_dammit ]
+  | |- _ => intros
+ end.
+
