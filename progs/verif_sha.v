@@ -283,47 +283,25 @@ Qed.
 
 forward. (* data = in; *)
 
-forward0; [hoist_later_in_pre;
-match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
-   eapply semax_load_array with (v2:= eval_expr e2)
- end;
-   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-   | solve [go_lower; cancel]
-   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
- | abbreviate_semax ];
-[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
- [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   split; omega
- | destruct ctx_; inv H1; simpl; normalize ]
- | apply extract_exists_pre; intro; autorewrite with subst ].
+forward; [
+  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   repeat split; omega | ].
 
-forward0; [hoist_later_in_pre;
-match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
-   eapply semax_load_array with (v2:= eval_expr e2)
- end;
-   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-   | solve [go_lower; cancel]
-   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
- | abbreviate_semax ];
-[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
- [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   split; omega
- | destruct ctx_; inv H1; simpl; normalize ]
- | apply extract_exists_pre; intro; autorewrite with subst ].
+forward; [
+  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   repeat split; omega | ].
 
-forward0; [hoist_later_in_pre;
-match goal with |- semax _ _ (Sset _ (Ederef (Ebinop _ _ ?e2 _ ) _)) _ =>
-   eapply semax_load_array with (v2:= eval_expr e2)
- end;
-   [ reflexivity | reflexivity | reflexivity | reflexivity |  reflexivity
-   | solve [go_lower; cancel]
-   | clear Post; try clear POSTCONDITION MORE_COMMANDS ]
- | abbreviate_semax ];
-[ apply ditch_SEP; go_lower; subst; normalize; try reflexivity;
- [rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   split; omega
- | destruct ctx_; inv H1; simpl; normalize ]
- | apply extract_exists_pre; intro; autorewrite with subst ].
+forward; [
+  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   repeat split; omega | ].
+
+forward; [
+  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   repeat split; omega | ].
+
+forward; [
+  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
+   repeat split; omega | ].
 
 Admitted.
 

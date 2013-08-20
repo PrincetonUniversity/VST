@@ -12,9 +12,6 @@ intros.
 destruct v; simpl; auto.
 Qed.
 
-Lemma isptr_force_ptr: forall v, isptr v -> force_ptr v = v.
-Proof. intros. destruct v; inv H; auto. Qed.
-
 Lemma local_andp_lemma:
   forall P Q, P |-- local Q -> P = local Q && P.
 Proof.
@@ -1053,8 +1050,6 @@ hnf; simpl. rewrite H; simpl.
 repeat rewrite denote_tc_assert_andp.
 repeat split; auto.
 rewrite NONVOL; hnf; unfold_lift; hnf; auto.
-replace (force_ptr (eval_expr e1 rho)) with (eval_expr e1 rho); auto.
-clear - H5; hnf in H5. destruct (eval_expr e1 rho); try contradiction; simpl; auto.
 
 intros ek vl; unfold normal_ret_assert.
 rewrite insert_SEP. go_lowerx.
@@ -1102,7 +1097,6 @@ rewrite H1; apply I.
 hnf. exists t1, i2. split; auto.
 unfold allowedValCast. rewrite CLASSIFY.
 destruct t1; simpl; auto.
-unfold_lift; rewrite mapsto_force_ptr; auto.
 
 intros ek vl.
 apply andp_left2.

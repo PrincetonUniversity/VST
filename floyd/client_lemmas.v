@@ -780,11 +780,6 @@ Proof.
  f_equal; auto.
 Qed.
 
-Lemma isptr_is_pointer_or_null: 
-  forall v, isptr v -> is_pointer_or_null v.
-Proof. intros. destruct v; inv H; simpl; auto.
-Qed.
-Hint Resolve isptr_is_pointer_or_null.
 
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ => True | _ => False end ->

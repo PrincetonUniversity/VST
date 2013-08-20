@@ -92,22 +92,6 @@ Ltac entailer1 :=
            | cancel
            | aggressive ].
 
-Lemma ptr_eq_True:
-   forall p, is_pointer_or_null p -> ptr_eq p p = True.
-Proof. intros.
- apply prop_ext; intuition. destruct p; inv H; simpl; auto.
- rewrite Int.eq_true. auto.
-Qed.
-Hint Rewrite ptr_eq_True using assumption : norm.
-
-Lemma flip_lifted_eq:
-  forall (v1: environ -> val) (v2: val),
-    `eq v1 `v2 = `(eq v2) v1.
-Proof.
-intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
-Qed.
-Hint Rewrite flip_lifted_eq : norm.
-
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
 Definition EVAR (x: Prop) := x.

@@ -1093,6 +1093,28 @@ f_equal.
 pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
 Qed.
 
+Lemma ptr_eq_True:
+   forall p, is_pointer_or_null p -> ptr_eq p p = True.
+Proof. intros.
+ apply prop_ext; intuition. destruct p; inv H; simpl; auto.
+ rewrite Int.eq_true. auto.
+Qed.
+Hint Rewrite ptr_eq_True using assumption : norm.
+
+Lemma flip_lifted_eq:
+  forall (v1: environ -> val) (v2: val),
+    `eq v1 `v2 = `(eq v2) v1.
+Proof.
+intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
+Qed.
+Hint Rewrite flip_lifted_eq : norm.
+
+Lemma isptr_is_pointer_or_null: 
+  forall v, isptr v -> is_pointer_or_null v.
+Proof. intros. destruct v; inv H; simpl; auto.
+Qed.
+Hint Resolve isptr_is_pointer_or_null.
+
 Lemma eval_var_isptr:
   forall Delta t i rho, 
             tc_environ Delta rho ->
@@ -1329,6 +1351,13 @@ unfold deref_noload. rewrite H. reflexivity.
 Qed.
 Hint Rewrite isptr_deref_noload using reflexivity : norm.
 
+Lemma isptr_offset_val_zero:
+  forall v, isptr v -> offset_val Int.zero v = v.
+Proof. intros. destruct v; inv H; subst; simpl.  rewrite Int.add_zero; reflexivity.
+Qed.
+
+Hint Rewrite isptr_offset_val_zero using solve [auto] : norm.
+
 Lemma isptr_offset_val:
  forall i p, isptr (offset_val i p) = isptr p.
 Proof.
@@ -1337,6 +1366,10 @@ unfold isptr.
 destruct p; simpl; auto.
 Qed.
 Hint Rewrite isptr_offset_val : norm.
+
+Lemma isptr_force_ptr: forall v, isptr v -> force_ptr v = v.
+Proof. intros. destruct v; inv H; auto. Qed.
+Hint Rewrite isptr_force_ptr using solve [auto] : norm.
 
 Lemma isptr_force_ptr' : forall p, isptr (force_ptr p) =  isptr p.
 Proof.
