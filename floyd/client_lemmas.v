@@ -12,6 +12,10 @@ apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
 Qed.
 
+Ltac fancy_intro :=
+ let H := fresh in
+ intro H; try simple apply ptr_eq_e in H.
+
 Ltac norm_rewrite := autorewrite with norm.
  (* New version: rewrite_strat (topdown hints norm).
      But this will have to wait for the next version of Coq, probably 8.4pl3,
@@ -71,6 +75,7 @@ Ltac normalize1 :=
                                             by (unfold x; reflexivity); unfold x in *; clear x)
               | |- _ = ?x -> _ => intro; subst x
               | |- ?x = _ -> _ => intro; subst x
+              | |- ptr_eq ?x ?y -> _ => fancy_intro; first [subst x | subst y | idtac]
               |  |- ?ZZ -> ?YY => match type of ZZ with 
                                                | Prop => 
                                                  let Z1 := fresh "YY" in set (Z1:=YY); norm_rewrite; unfold Z1; clear Z1;
@@ -774,6 +779,12 @@ Proof.
  rewrite sepcon_emp; auto.
  f_equal; auto.
 Qed.
+
+Lemma isptr_is_pointer_or_null: 
+  forall v, isptr v -> is_pointer_or_null v.
+Proof. intros. destruct v; inv H; simpl; auto.
+Qed.
+Hint Resolve isptr_is_pointer_or_null.
 
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ => True | _ => False end ->
@@ -2484,6 +2495,14 @@ Lemma saturate_local_aux9:
 Proof. intros. rewrite sepcon_emp. auto.
 Qed.
 
+Ltac saturate_nonredundant := 
+match goal with |- ?A -> _ =>
+ let H := fresh in 
+ assert (H: A); [solve [repeat simple apply conj; simpl; auto ] | ];
+ fail 2
+end
+|| idtac.
+
 Lemma intro_if_new_aux1:
  forall A B C: Prop,  (B -> C) -> (A /\ B) -> C.
 Proof. intuition. Qed.
@@ -2492,20 +2511,18 @@ Lemma intro_if_new_aux2:
  forall A B C: Prop,  (A -> B -> C) -> (A /\ B) -> C.
 Proof. intuition. Qed.
 
-Ltac intro_if_new' := (* this version is happy even if none of them are new *)
-  match goal with
-  |  H: ?A |- (?A /\ ?B) -> _ => apply intro_if_new_aux1; intro_if_new'
-  | |- _ /\ _ -> _ => apply intro_if_new_aux2; intro; intro_if_new'
-  |  H: ?A |- ?A -> _ => intros _
-  | |- _ => intro 
-  end.
-
-Ltac intro_if_new := (* this version fails if none of them are new *)
-  match goal with
-  |  H: ?A |- (?A /\ ?B) -> _ => apply intro_if_new_aux1; (intro_if_new || fail 1)
-  | |- _ /\ _ -> _ => apply intro_if_new_aux2; intro; intro_if_new'
-  |  H: ?A |- ?A -> _ => fail 1 
-  | |- _ => intro 
+Ltac intro_if_new :=
+ repeat match goal with
+  | |- (?A /\ ?B) -> _ => 
+    first [let H := fresh in assert (H: A) by auto; 
+               clear H; apply intro_if_new_aux1
+            | apply intro_if_new_aux2; fancy_intro
+            ]
+  | |- ?A -> _ =>
+    first [let H := fresh in assert (H: A) by auto;
+             clear H; intros _
+            | fancy_intro
+            ]
   end.
 
 Ltac norm_on_left :=
@@ -2520,7 +2537,8 @@ Ltac saturate_local :=
   simple apply saturate_local_aux7;
   repeat (
      try (simple eapply saturate_local_aux3; 
-       [solve [eauto with saturate_local] | norm_on_left; intro_if_new]);
+       [solve [eauto with saturate_local] 
+       | saturate_nonredundant; norm_on_left; intro_if_new]);
      simple apply saturate_local_aux1);
   simple apply saturate_local_aux8;
   repeat simple apply saturate_local_aux6;

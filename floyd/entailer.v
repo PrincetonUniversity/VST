@@ -29,18 +29,19 @@ Ltac and_solvable_left P :=
              end
   end.
 
-Ltac entailer' :=
+Ltac entailer' :=   
+ repeat rewrite <- sepcon_assoc;
  autorewrite with gather_prop;
- repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
+ repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop');
+              fancy_intro);
  subst_any;
  match goal with
  |  |- _ |-- _ =>
-   repeat rewrite <- sepcon_assoc;
    saturate_local;  subst_any; 
    change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
    unfold_lift; simpl;
-   autorewrite with gather_prop;
-   normalize; saturate_local;
+   try (progress (autorewrite with gather_prop; normalize); 
+         saturate_local);
    autorewrite with gather_prop;
    repeat rewrite and_assoc';
    match goal with 
@@ -70,6 +71,26 @@ Tactic Notation "entailer" "!" :=
            | apply prop_right
            | cancel
            | idtac ].
+
+Ltac elim_hyps :=
+ repeat match goal with
+ | H: isptr ?x |- _ =>
+     let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
+     destruct x as [ | | | | x1 x2]; inv H
+ | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; subst_any
+ end.
+
+Ltac aggressive :=
+  repeat split; auto; elim_hyps; simpl; auto;
+  try solve [cbv; clear; congruence].
+
+Ltac entailer1 :=
+  entailer; 
+    first [simple apply andp_right; 
+               [apply prop_right; aggressive | cancel ]
+           | apply prop_right; aggressive
+           | cancel
+           | aggressive ].
 
 Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.

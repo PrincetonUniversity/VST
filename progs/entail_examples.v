@@ -28,6 +28,29 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
    (field_mapsto_ Tsh t_struct_elem _next p)).
 
+
+Lemma link_local_facts:
+ forall x y, link x y |-- !! (isptr x /\ is_pointer_or_null y).
+Proof.
+ intros. unfold link.
+ eapply derives_trans; [eapply field_mapsto_local_facts; reflexivity |].
+ apply prop_derives.
+ simpl. intuition.
+Qed.
+
+Hint Resolve link_local_facts : saturate_local.
+
+Lemma link__local_facts:
+ forall x, link_ x |-- !! isptr x.
+Proof.
+intros.
+unfold link_.
+eapply derives_trans; [eapply field_mapsto__local_facts; reflexivity | ].
+apply prop_derives; intuition.
+Qed.
+
+Hint Resolve link__local_facts : saturate_local.
+
 Lemma goal_1 :
 name _Q ->
 name _h ->
@@ -200,23 +223,13 @@ SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
          (ret_type Delta)) (@id environ)
 . Proof. intros Q h. ungather_entail.
-entailer.
 unfold fifo.
-normalize.
+entailer.
 apply exp_right with (h,tl).
+entailer.
 apply andp_right; auto.
-destruct (isnil contents).
-* normalize. apply prop_right; subst.
-  simpl. auto.
-* normalize. unfold link.
- entailer.
- destruct prefix.
- + rewrite links_nil_eq.
-    entailer. apply ptr_eq_e in H4; subst.
-    destruct tl; inv H2; simpl; auto.
- + rewrite links_cons_eq.
- entailer!.
- destruct h; inv H6; simpl; auto.
+if_tac; entailer; elim_hyps; simpl; auto.
+destruct prefix; entailer1.
 Qed.
 
 Lemma goal_2 :
@@ -390,8 +403,7 @@ EVAR
                             tptr tvoid))))
                    (Econst_int (Int.repr 8) tuint :: @nil expr))) :: Frame)))
 . Proof. intros Q Q'; ungather_entail.
-entailer!.
-compute; congruence.
+entailer1.
 Qed.
 
 Lemma goal_3 :
@@ -971,10 +983,10 @@ SEP
       (cast_expropt (@Some expr (Etempvar _Q (tptr t_struct_fifo)))
          (ret_type Delta)) (@id environ)
 . Proof. intros Q Q'; ungather_entail.
-entailer.
   unfold fifo.
+  entailer.
   apply exp_right with (nullval,nullval).
-   destruct (@isnil val nil); [ | congruence].
+  if_tac; [ | congruence].
  entailer.
 Qed.
 
@@ -1982,15 +1994,12 @@ entailer.
       normalize.
       destruct prefix.
       - rewrite links_nil_eq.
-         normalize.
-         apply ptr_eq_e in H4. subst tl.
          entailer.
-         destruct h; inv H4; inv H0.
+         elim_hyps. inv H0.
       - rewrite links_cons_eq.
-         normalize.
-do 2 rewrite <- sepcon_assoc. (* this line shouldn't be necessary before saturate_local *)
+         normalize.   (* should this really be necessary here? *)
          entailer.
-         destruct v; inv H7; inv H0.
+         elim_hyps. inv H0.
 Qed.
 
 Lemma goal_11 :

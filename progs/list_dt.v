@@ -1103,14 +1103,14 @@ destruct l.
 simpl.
 rewrite lseg_nil_eq.
 apply andp_left2.
-normalize. apply ptr_eq_e in H2. subst z.
+normalize.
 rewrite lseg_cons_eq.
 rewrite field_mapsto_isptr.
 normalize.
 apply exp_right with nullval.
 apply andp_right.
 apply prop_right.
-intro. apply ptr_eq_e in H3. subst. apply H2.
+fancy_intro. subst. apply H2.
 normalize.
 rewrite lseg_nil_eq. normalize.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
@@ -1140,3 +1140,5 @@ Hint Rewrite @lseg_nil_eq : norm.
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
 Ltac simpl_list_cell := unfold list_cell; simpl_typed_mapsto.
+
+Hint Rewrite @links_nil_eq @links_cons_eq : norm.
