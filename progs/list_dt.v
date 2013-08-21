@@ -359,11 +359,8 @@ subst v.
 apply andp_right. apply prop_right; auto.
 rewrite field_mapsto_isptr.
 normalize.
-apply andp_right. apply prop_right; auto.
+apply andp_right. apply prop_right; repeat split; auto.
 intro. apply ptr_eq_e in H2. subst; apply H.
-apply andp_right. apply prop_right; auto.
-normalize in H1.
-rewrite prop_true_andp by auto.
 rewrite sepcon_assoc.
 rewrite andp_comm.
 rewrite unfash_sepcon_distrib.
@@ -514,6 +511,8 @@ repeat rewrite andp_assoc.
 apply derives_extract_prop; intro.
 normalize.
 apply andp_right.
+repeat rewrite prop_and.
+repeat apply andp_right; try solve [apply prop_right; auto].
 rewrite <- andp_assoc.
 apply andp_left1.
 apply not_prop_right. intro. apply ptr_eq_e in H2. subst z.
@@ -526,8 +525,6 @@ eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict];
   apply field_mapsto_field_mapsto_.
 repeat rewrite FF_sepcon; auto.
 normalize in H1.
-rewrite prop_true_andp by auto.
-rewrite prop_true_andp by auto.
 apply andp_right.
 Focus 2. apply andp_left2; apply andp_left1; auto.
 rewrite sepcon_assoc.
@@ -934,8 +931,7 @@ Lemma semax_lseg_neq (ls: listspec list_struct list_link):
        c Post.
 Proof.
 intros.
-eapply semax_pre;  [apply unfold_lseg_neq | ].
-eapply derives_trans; [ | apply H].
+eapply semax_pre;  [apply unfold_lseg_neq; auto |].
 normalize.
 apply extract_exists_pre; intros [[h r] y].
 apply semax_extract_prop; intro; auto.
@@ -1080,13 +1076,11 @@ apply derives_extract_prop; intro.
 rewrite field_mapsto_isptr.
 normalize.
 apply andp_right. apply prop_right; auto.
+repeat split; auto.
 intro. apply ptr_eq_e in H2. subst; apply H1.
-normalize in H0.
-apply andp_right. apply prop_right; auto.
-apply andp_right. apply prop_right; auto.
 forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x z) as A.
-rewrite sepcon_assoc.
 rewrite andp_comm.
+repeat rewrite sepcon_assoc.
 rewrite unfash_sepcon_distrib.
 apply sepcon_derives.
 apply andp_left2; auto.
@@ -1110,7 +1104,8 @@ normalize.
 apply exp_right with nullval.
 apply andp_right.
 apply prop_right.
-fancy_intro. subst. apply H2.
+fancy_intro. subst. subst. apply H3.
+subst.
 normalize.
 rewrite lseg_nil_eq. normalize.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].

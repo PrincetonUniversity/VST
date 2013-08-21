@@ -129,6 +129,9 @@ rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
 destruct buf0; inv H0.
 simpl. rewrite memory_block_zero. rewrite sepcon_emp.
+apply andp_right; auto.
+cancel.
+rewrite sepcon_comm.
 apply sepcon_derives; apply derives_refl';
  eapply mapsto_field_mapsto; simpl; try reflexivity;
  rewrite Int.add_assoc; reflexivity.
@@ -607,8 +610,6 @@ unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
 apply andp_derives; auto.
 unfold_lift.
 normalize.
-repeat rewrite prop_true_andp by auto.
-auto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
@@ -699,13 +700,13 @@ go_lower. subst. simpl. normalize. unfold main_post.
  change (mf_size intpair_message) with 8.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
- simpl in H3. rewrite <- H3. clear len H3.
+ rewrite H1; clear len H1 H3.
  simpl.
  replace (memory_block Tsh (Int.repr 0)
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
   with (@emp mpred _ _).
  rewrite sepcon_emp.
-2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H1;
+2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H2;
  apply memory_block_zero.
 
 repeat rewrite var_block_typed_mapsto_.

@@ -214,13 +214,9 @@ Focus 2.
  apply exp_derives; intro old.
  apply andp_derives.
  apply prop_right; auto.
- intro rho; unfold LOCALx, local,lift1.
-change SEPx with SEPx'.
- simpl. 
-  normalize. unfold_lift.
+ go_lowerx.
  apply sepcon_derives; auto.
  rewrite subst_lift1'.
-(*  normalize. *)
  replace (subst ret (fun _ => old) (get_result1 ret') rho)
    with (get_result1 ret rho); auto.
  destruct (eq_dec ret ret').

@@ -214,7 +214,8 @@ unfold Frame.
  try (auto with typeclass_instances). (* remove this line when it's no longer needed! *)
  auto with closed.
  forward. (* return s; *)
- entailer.
+ entailer!.
+ unfold main_post. entailer.
 Qed.
 
 Existing Instance NullExtension.Espec.

@@ -30,9 +30,10 @@ Ltac and_solvable_left P :=
   end.
 
 Ltac entailer' :=   
- repeat rewrite <- sepcon_assoc;
  autorewrite with gather_prop;
- repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop');
+   repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
+              || simple apply derives_extract_prop 
+              || simple apply derives_extract_prop');
               fancy_intro);
  subst_any;
  match goal with

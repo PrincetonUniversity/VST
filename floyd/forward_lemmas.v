@@ -845,9 +845,9 @@ intros.
 specialize (H3 ek vl). 
 apply andp_left2. apply H3.
 intro rho. specialize (H2 rho). normalize. normalize in H2.
-apply andp_right.
-eapply derives_trans. apply H2.
-normalize. auto.
+apply andp_right; auto.
+eapply derives_trans; [ apply H2 | ].
+normalize.
 Qed.
 
 Lemma semax_logical_or_PQR: 

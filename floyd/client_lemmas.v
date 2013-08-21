@@ -2,6 +2,62 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
+Lemma prop_and {A} {NA: NatDed A}: 
+    forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
+Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
+   normalize.
+Qed.
+
+Hint Rewrite <- prop_and : gather_prop.
+
+Lemma gather_prop_left {A}{NA: NatDed A}:
+  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
+Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
+Qed.
+
+Lemma gather_prop_right {A}{NA: NatDed A}:
+  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
+Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
+Qed.
+Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
+
+Definition not_a_prop {A} (P: A) := True.
+
+Ltac not_a_prop := match goal with
+  | |- not_a_prop  (prop _) => fail 1 
+  | |- _ => apply I 
+end.
+
+Lemma flip_prop {A}{NA: NatDed A}: forall P Q, 
+      not_a_prop P -> (P&& !! Q = !! Q && P).
+Proof. intros. apply andp_comm. Qed.
+
+Hint Rewrite @flip_prop using not_a_prop : gather_prop.
+
+Lemma gather_prop3 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
+Proof. intros. rewrite andp_comm. rewrite andp_assoc.
+        rewrite (andp_comm Q); auto.
+Qed.
+
+Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
+
+
+Lemma gather_prop4 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
+Proof. intros. rewrite andp_assoc. auto. 
+Qed.
+Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
+
+Lemma gather_prop5 {A}{NA: NatDed A}:
+  forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
+Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
+  f_equal; apply andp_comm.
+Qed.
+Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
+
+Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
+
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
 Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
@@ -14,7 +70,11 @@ Qed.
 
 Ltac fancy_intro :=
  let H := fresh in
- intro H; try simple apply ptr_eq_e in H.
+ intro H; 
+ match type of H with
+ | ?x = ?y => first [subst x | subst y | idtac]
+ | _ => try simple apply ptr_eq_e in H
+ end.
 
 Ltac norm_rewrite := autorewrite with norm.
  (* New version: rewrite_strat (topdown hints norm).
@@ -88,7 +148,39 @@ Ltac normalize1 :=
               | |- forall _, _ => let x := fresh "x" in (intro x; repeat normalize1; try generalize dependent x)
               end.
 
-Ltac normalize := repeat normalize1; try contradiction.
+Lemma go_lower_lem1:
+  forall (P1 P: Prop) (QR PQR: mpred),
+      (P1 -> prop P && QR |-- PQR) ->
+      (prop (P1 /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ apply derives_extract_prop; intros [? ?].
+ apply derives_trans with (!!P && QR).
+ apply andp_right; auto. apply prop_right; auto.
+ apply H; auto.
+Qed.
+
+Lemma go_lower_lem1':
+  forall (P1 P2 P: Prop) (QR PQR: mpred),
+      (prop (P1 /\ (P2 /\ P)) && QR |-- PQR) ->
+      (prop ((P1 /\ P2) /\ P ) && QR |-- PQR).
+Proof.
+ intros.
+ eapply derives_trans;  [ | apply H].
+ apply andp_derives; auto.
+ apply prop_derives; intuition.
+Qed.
+
+
+Hint Rewrite <- sepcon_assoc : gather_prop.
+
+Ltac normalize := 
+   autorewrite with gather_prop;
+   repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
+              || simple apply derives_extract_prop
+              || simple apply derives_extract_prop');
+              fancy_intro);
+   repeat normalize1; try contradiction.
 
 (****** END experimental normalize ******************)
 
@@ -341,7 +433,8 @@ Lemma sequential:
           @semax Espec Delta P c Q.
 intros. eapply semax_post; eauto.
  intros. intro rho. unfold local,lift1; simpl.
- unfold normal_ret_assert; simpl; normalize.
+ unfold normal_ret_assert; simpl.
+ normalize.
 Qed.
 
 Lemma sequential': 
@@ -455,17 +548,6 @@ Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
-Lemma go_lower_lem1:
-  forall (P1 P: Prop) (QR PQR: mpred),
-      (P1 -> prop P && QR |-- PQR) ->
-      (prop (P1 /\ P ) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- apply H; auto.
-Qed.
 
 Lemma go_lower_lem2:
   forall  (QR PQR: mpred),
@@ -494,7 +576,7 @@ Lemma go_lower_lem6:
     (forall x, P && Q x |-- PQR) ->
     P && exp Q |-- PQR.
 Proof.
- intros. normalize.
+normalize.
 Qed.
 
 Lemma go_lower_lem7:
@@ -1269,13 +1351,6 @@ Lemma andp_unfold: forall (P Q: environ->mpred) rho,
 Proof. reflexivity. Qed.
 Hint Rewrite andp_unfold: norm.
 
-Lemma prop_and {A} {NA: NatDed A}: 
-    forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
-Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
-   normalize.
-Qed.
-(* Hint Rewrite @prop_and : norm. *)
-
 Lemma exp_unfold : forall A P rho,
  @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
 Proof.
@@ -1586,15 +1661,36 @@ intros.
 apply exp_left; intro x. apply exp_right with x; auto.
 Qed.
 
+Lemma prop_true_andp1 {A}{NA: NatDed A} :
+  forall (P1 P2: Prop) Q ,
+    P1 -> (!! (P1 /\ P2) && Q = !!P2 && Q).
+Proof.
+intros. f_equal; auto.  f_equal.  apply prop_ext; intuition.
+Qed.
+Hint Rewrite prop_true_andp1 using solve [auto 3 with typeclass_instances]: norm.
+
+Lemma and_assoc': forall A B C: Prop,
+  ((A /\ B) /\ C) = (A /\ (B /\ C)).
+Proof.
+intros. apply prop_ext; apply and_assoc.
+Qed.
+
+Lemma and_assoc'' {T}{NT: NatDed T}: forall A B C: Prop,
+  !! ((A /\ B) /\ C) = !! (A /\ (B /\ C)).
+Proof.
+intros. rewrite and_assoc'; auto.
+Qed.
+
+Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm.
+Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
+
 Lemma insert_local: forall Q1 P Q R,
   local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
 Proof.
 intros. extensionality rho.
 change SEPx with SEPx'.
-unfold PROPx, LOCALx, SEPx', lift2.
-normalize.
-unfold_lift. simpl.
-apply pred_ext; normalize; repeat rewrite prop_true_andp; auto.
+unfold PROPx, LOCALx, SEPx', local; super_unfold_lift. simpl.
+apply pred_ext; normalize.
 Qed.
 Hint Rewrite insert_local:  norm.
 
@@ -1882,9 +1978,11 @@ match goal with |- ?A |-- ?B => replace B with A; auto end.
 f_equal.
 change SEPx with SEPx'. unfold PROPx,LOCALx,SEPx'.
 normalize.
-f_equal. f_equal.
-clear; induction R1'; simpl. apply emp_sepcon.
-rewrite sepcon_assoc. f_equal. auto.
+apply pred_ext; normalize.
+clear; induction R1'; simpl. rewrite emp_sepcon. auto.
+rewrite sepcon_assoc. apply sepcon_derives; auto.
+clear; induction R1'; simpl. rewrite emp_sepcon. auto.
+rewrite sepcon_assoc. apply sepcon_derives; auto.
 change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
 normalize.
 f_equal. f_equal.
@@ -2108,8 +2206,7 @@ Proof.
  unfold PROPx, LOCALx, local, lift0, lift1.
  simpl.
  normalize.
- apply pred_ext; normalize;
- repeat rewrite prop_true_andp; auto.
+ apply pred_ext; normalize.
 Qed.
 
 Ltac extract_prop_in_LOCAL :=
@@ -2176,6 +2273,12 @@ Ltac flatten_sepcon_in_SEP :=
 end
 end.
 
+Lemma prop_and1 {A}{NA: NatDed A}:
+  forall P Q : Prop, P -> !!(P /\ Q) = !!Q.
+Proof. intros. f_equal; apply prop_ext; intuition.
+Qed.
+Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm.
+
 Lemma extract_prop_in_SEP:
   forall n P1 Rn P Q R, 
    nth n R emp = prop P1 && Rn -> 
@@ -2185,28 +2288,26 @@ intros.
 extensionality rho.
 change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
 simpl.
-rewrite prop_and.
 apply pred_ext; normalize.
-repeat apply andp_right; auto.
-revert R H; induction n; destruct R; simpl; intros.
-apply equal_f with rho in H.
-rewrite H; apply andp_left1; auto.
-rewrite H. normalize.
-apply equal_f with rho in H.
-rewrite H; apply andp_left1; auto.
-apply derives_trans with (TT * (!!P1 && TT)); [ | normalize].
-apply sepcon_derives; auto.
-specialize (IHn _ H).
-rewrite andp_TT. auto.
-apply prop_right; auto.
-apply prop_right; auto.
-revert R H; clear; induction n; destruct R; simpl; intros; auto.
-rewrite H.
-normalize.
-apply sepcon_derives; auto.
-revert R H; clear - H0; induction n; destruct R; simpl; intros; auto.
-rewrite H. rewrite prop_true_andp; auto.
-apply sepcon_derives; auto.
+* match goal with |- _ |-- !! ?PP && _ => replace PP with P1
+   by (apply prop_ext; intuition)
+  end.
+  clear - H.
+  revert R H; induction n; destruct R; simpl; intros.
+  apply andp_right; auto.
+  apply equal_f with rho in H.
+  rewrite H; apply andp_left1; auto.
+  rewrite H.
+  normalize.
+  apply andp_right; auto.
+  apply equal_f with rho in H.
+  rewrite H; apply andp_left1; auto.
+  rewrite <- sepcon_andp_prop.
+  apply sepcon_derives; auto.
+* clear - H H0.
+  revert R H; induction n; destruct R; simpl; intros; auto. 
+  subst m. rewrite prop_true_andp; auto.
+  apply sepcon_derives; auto.
 Qed.
 
 Lemma insert_SEP: 
@@ -2237,7 +2338,7 @@ Proof.
 change SEPx with SEPx'.
  unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
- apply pred_ext; normalize. repeat rewrite prop_and; normalize. 
+ apply pred_ext; normalize.
 Qed.
 
 
@@ -2251,7 +2352,7 @@ f_equal.
 extensionality rho.
 apply equal_f with rho in H.
 change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
-simpl in *.
+unfold_lift; simpl in *.
 revert R H; induction n; destruct R; simpl; intros;
 try solve [apply pred_ext; rewrite H; normalize; repeat rewrite prop_and; normalize].
 specialize (IHn _ H).
@@ -2259,7 +2360,6 @@ do 2 rewrite <- sepcon_andp_prop.
 rewrite IHn.
 auto.
 Qed.
-
 
 Ltac move_local_from_SEP :=
 match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
@@ -2302,10 +2402,10 @@ Lemma move_local_from_SEP':
 Proof.
  intros.
  extensionality rho.
-change SEPx with SEPx'.
- unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
+ change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local; unfold_lift.
  simpl.
- apply pred_ext; normalize. repeat rewrite prop_and; normalize.
+ f_equal.
+ apply pred_ext; normalize.
 Qed.
 
 (* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
@@ -2601,56 +2701,6 @@ Ltac prop_right_cautious :=
 
 (**********************************************************)
 
-Hint Rewrite <- prop_and : gather_prop.
-
-Lemma gather_prop_left {A}{NA: NatDed A}:
-  forall P Q R,  !! P && (!! Q && R) = !!(P/\Q) && R.
-Proof. intros. rewrite <- andp_assoc. rewrite <- prop_and; auto.
-Qed.
-
-Lemma gather_prop_right {A}{NA: NatDed A}:
-  forall P Q R,  R && !! P && !! Q = !!(P/\Q) && R.
-Proof. intros. rewrite andp_assoc. rewrite andp_comm.  rewrite <- prop_and; auto.
-Qed.
-Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
-
-Definition not_a_prop {A} (P: A) := True.
-
-Ltac not_a_prop := match goal with
-  | |- not_a_prop  (prop _) => fail 1 
-  | |- _ => apply I 
-end.
-
-Lemma flip_prop {A}{NA: NatDed A}: forall P Q, 
-      not_a_prop P -> (P&&Q = Q && P).
-Proof. intros. apply andp_comm. Qed.
-
-Hint Rewrite @flip_prop using not_a_prop : gather_prop.
-
-Lemma gather_prop3 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> R && (!! P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_comm. rewrite andp_assoc.
-        rewrite (andp_comm Q); auto.
-Qed.
-
-Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
-
-
-Lemma gather_prop4 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. auto. 
-Qed.
-Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
-
-Lemma gather_prop5 {A}{NA: NatDed A}:
-  forall P Q R,  not_a_prop R -> not_a_prop Q -> (R && !!P && Q) = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. rewrite andp_comm. rewrite andp_assoc.
-  f_equal; apply andp_comm.
-Qed.
-Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
-
-Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
-
 Ltac gather_prop := autorewrite with gather_prop;
   match goal with 
   | |- _ |-- !! _ && _ => apply andp_right; [ prop_right_cautious | ]
@@ -2672,12 +2722,6 @@ Ltac subst_any :=
  repeat match goal with 
   | H: ?x = ?y |- _ => first [ subst x | subst y ]
  end.
-
-Lemma and_assoc': forall A B C: Prop,
-  ((A /\ B) /\ C) = (A /\ (B /\ C)).
-Proof.
-intros. apply prop_ext; apply and_assoc.
-Qed.
 
 Lemma prop_and_right {A}{NA: NatDed A}:
  forall (U: A) (X Y: Prop),

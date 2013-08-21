@@ -406,20 +406,20 @@ unfold lift1. unfold_lift.
 rewrite TE1. rewrite H4; simpl eval_field.
 rewrite field_offset_unroll in H5. rewrite H5.
 normalize.
-repeat apply andp_right; try apply prop_right; auto.
+repeat apply andp_right; try apply prop_right; 
+  repeat simple apply conj; auto.
 hnf; simpl. rewrite TE1.
 rewrite H5. rewrite tc_andp_TT2.
 rewrite denote_tc_assert_andp.
 split; auto. rewrite H7; auto.
+hnf in H3. simpl in H3.
+rewrite denote_tc_assert_andp in H3. destruct H3.
+rewrite tc_val_eq;
+eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
 apply sepcon_derives; auto.
 simpl.
 apply orp_right2. apply andp_right; try apply prop_right; auto.
 apply exp_right with v0; auto.
-rewrite tc_val_eq.
-repeat apply andp_right; try apply prop_right; auto.
-hnf; simpl. hnf in H3. simpl in H3.
-rewrite denote_tc_assert_andp in H3. destruct H3.
-eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
 
 intros ek vl; unfold normal_ret_assert; go_lowerx.
 normalize.
@@ -1046,9 +1046,9 @@ apply andp_left2. apply later_derives.
 go_lowerx.
 rewrite mapsto__isptr at 1. normalize.
 repeat apply andp_right; try apply prop_right; auto.
-hnf; simpl. rewrite H; simpl.
-repeat rewrite denote_tc_assert_andp.
-repeat split; auto.
+repeat split; simpl; auto.
+hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite H; simpl; auto.
 rewrite NONVOL; hnf; unfold_lift; hnf; auto.
 
 intros ek vl; unfold normal_ret_assert.
@@ -1091,6 +1091,7 @@ go_lowerx.
 rewrite mapsto_isptr.
 normalize.
 repeat apply andp_right; try apply prop_right; auto.
+repeat split; auto.
 hnf; simpl; repeat rewrite denote_tc_assert_andp; repeat split; auto.
 rewrite H; apply I.
 rewrite H1; apply I.
@@ -1238,7 +1239,7 @@ destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
 rewrite <- TC2.
 destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
 normalize.
-apply andp_right; apply prop_right.
+apply prop_right; repeat split; auto.
 rewrite denote_tc_assert_andp; split.
 apply H2. rewrite H4. apply I.
 exists t2,i2. split; auto.
@@ -1264,7 +1265,6 @@ destruct (field_offset fld fields);   try apply FF_left.
 rewrite <- TC2.
 destruct (access_mode t2);   try apply FF_left.
 simpl offset_val. cbv iota.
-rewrite tc_val_eq.
 normalize.
 apply orp_right1.
 auto.

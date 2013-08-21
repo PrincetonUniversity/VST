@@ -274,7 +274,7 @@ apply andp_left1; auto.
 clear. intros ek vl. apply andp_left2. apply normal_ret_assert_derives'.
  apply exp_derives; intro old.
  autorewrite with subst.
- go_lowerx. normalize. repeat rewrite prop_and; normalize.
+ go_lowerx. normalize.
 
 * (* condition for semax_load_37 *)
 eapply derives_trans; [ | eapply derives_trans; [ | ]].
@@ -353,5 +353,5 @@ apply typed_mapsto_typed_mapsto_.
 rewrite typed_mapsto__isptr.
 normalize.
 apply prop_right.
-destruct (v1 rho); inv H4; reflexivity.
+destruct (v1 rho); inv H4; simpl; auto.
 Qed.
