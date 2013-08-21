@@ -41,22 +41,37 @@ Lemma lift_list_cell_eq:
    `(list_cell LS sh) e v = `(field_mapsto sh t_struct_list _head) e (`Vint v).
 Proof. reflexivity. Qed.
 
-Check Forall.
-Definition Ilt a b:=
-Int.cmp Cle a b = true.
-(*TODO: add local eval facts to the invariant *) 
-Check logical_and_result.
+Definition isptrb v := 
+   match v with | Vptr _ _ => true | _ => false end.
+
+
+Definition Igt a b:=
+Int.cmp Cgt a b = true.
+
+(*only two ex allowed? *)
+
+Definition fst_3 {A B C} (a: A* B*C) := fst (fst a).
+Definition snd_3 {A B C} (a: A * B * C) := snd (fst a).
+Definition third_3 {A B C} (a: A * B * C) := snd a.
+
 Definition insert_invariant sh value contents :=
-EX contents_lt: list int,
-EX contents_rest: list int,
-PROP (Forall (Ilt value) contents_lt; contents_lt ++ contents_rest = contents)
-LOCAL ( `eq (eval_id _guard)
+EX all_contents: (list int * list int),
+EX sorted_val__next_ptr: (int * val),
+PROP (Forall (Igt value) (fst all_contents); 
+      (fst all_contents) ++ 
+         (fst sorted_val__next_ptr)::(snd all_contents) = contents)
+LOCAL ( `(eq (Vint value)) (eval_id _value);
+        `(eq (Vint (fst sorted_val__next_ptr))) (eval_id _sortedvalue);
+  `eq (eval_id _guard)
         (`logical_and_result `(tptr t_struct_list) 
            (eval_id _index) `tint
            (`(eval_binop Ogt tint tint) (eval_id _value)
-              (eval_id _sortedvalue))))
-SEP (`(lseg LS sh contents_lt) (eval_id _sorted) (eval_id _index);
-     `(lseg LS sh contents_rest) (eval_id _index) `nullval;
+             (eval_id _sortedvalue))))
+SEP (`(lseg LS sh (fst all_contents)) (eval_id _sorted) (eval_id _index);
+     `(list_cell LS sh) (eval_id _index) `(fst sorted_val__next_ptr);
+      `(field_mapsto sh t_struct_list _tail) (eval_id _index) 
+                           `(snd sorted_val__next_ptr);
+      `(lseg LS sh ((snd all_contents))) `(snd sorted_val__next_ptr) `nullval;
       (var_block Tsh (_newitem, t_struct_list))).
 
 Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h::r) v1 v2 = 
@@ -69,6 +84,25 @@ apply pred_ext.
   +  normalize.
 Qed.
 
+Lemma Forall_app :
+forall {A} P (l1 l2 :list A),
+Forall P (l1 ++ l2) <->
+Forall P l1 /\ Forall P l2.
+intros.
+split; induction l1; intros.
+inv H. destruct l2; inv H0. auto.
+split. auto. simpl in H2. inv H2.
+constructor; auto.
+split. inv H. constructor; auto. apply IHl1 in H3.
+intuition.
+inv H. apply IHl1 in H3. intuition.
+simpl. intuition.
+simpl. constructor.
+destruct H. inv H. auto.
+apply IHl1. intuition.
+inv H0; auto.
+Qed.
+
 Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
 Proof.
 start_function.
@@ -78,94 +112,188 @@ name sorted _sorted.
 forward. (*  index = sorted; *)
 focus_SEP 1.
 apply semax_lseg_nonnull.
-go_lower. normalize. intros h r y ?.
+go_lower. normalize. intros first_val tail_vals tail_ptr ?.
 rewrite lift_list_cell_eq.
-eapply semax_pre with 
-(PROP  ()
-      LOCAL 
-      (`eq (eval_id _index)
-         (eval_expr (Etempvar _sorted (tptr t_struct_list)));
-      `(eq (Vint v)) (eval_id _value); `isptr (eval_id _sorted))
-      SEP 
-      (`(field_mapsto sh t_struct_list _head) (eval_id _index) (`Vint `h);
-      `(field_mapsto sh t_struct_list _tail) (eval_id _sorted) `y;
-      |>`(lseg LS sh r) `y `nullval; stackframe_of f_insert)).
-go_lower. subst value index. normalize.
 forward. (*sortedvalue = index -> head;*)
 forward. (*guard' = index && (value > sortedvalue);*) 
   
-forward. (*guard = guard'*) simpl typeof.
+forward. (*guard = guard'*) 
+simpl typeof.
 forward_while (insert_invariant sh v contents) (insert_invariant sh v contents);
   autorewrite with ret_assert.
 (*pre implies invariant*)
-unfold insert_invariant. apply (exp_right nil). eapply (exp_right contents). 
-go_lower.
-normalize.
-{ repeat apply andp_right. 
-  + apply prop_right. auto.
+unfold insert_invariant. apply (exp_right (nil, tail_vals)). 
+eapply (exp_right (first_val,tail_ptr)). 
+entailer.
+{ apply andp_right. 
+  + rewrite H1. apply prop_right. rewrite <- H3 in *. auto. 
   + normalize. 
-  + rewrite H1. normalize.
-  + subst. apply prop_right. apply ptr_eq_refl. auto.
-  + subst. rewrite (lseg_unfold LS sh (h::r) sorted nullval).
-    normalize. apply (exp_right y).
-    apply andp_right.
-      - apply prop_right. destruct sorted; inv H6; auto.
-      - cancel. }
+}
 (*guard typechecks*)
-go_lower.
+entailer.
 (*invariant implies post *)
-unfold insert_invariant. normalize.
-apply (exp_right contents_lt). 
-apply (exp_right contents_rest).
-entailer; normalize; cancel.
-(*precondition across command *) 
-forward.
+unfold insert_invariant.
+apply (exp_right all_contents). 
+apply (exp_right sorted_val__next_ptr).
+entailer.
+(*invariant across command *) 
+forward. 
 (* unfold the remaining part of the list *)
-focus_SEP 1. apply semax_lseg_nonnull.
-{
-  go_lower. destruct (eval_id _guard rho); inv H4.
-  apply prop_right. normalize. destruct (eval_id _previous rho); inv TC0.
-  unfold logical_and_result in *. simpl in H5. inv H5; inv H7. simpl; auto. 
-}      
-intros. 
+destruct sorted_val__next_ptr as [sorted_val next_ptr]. 
+destruct all_contents as [contents_lt contents_rest]. 
+unfold fst, snd.
 forward. (*    index = index -> tail; *)
-{ 
-  entailer. rewrite isptr_force_ptr; normalize.
-}
-forward. (* if(index) *)
-entailer; normalize; cancel. autorewrite with subst.
-focus_SEP 2. apply semax_lseg_nonnull.
-{
-  entailer;normalize;cancel.
-}
-intros.
-apply semax_pre with
-     (PROP  (Forall (Ilt v) contents_lt;
-      contents_lt ++ contents_rest = contents)
-      LOCAL 
-      (`(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
-         (eval_expr (Etempvar _index (tptr t_struct_list)));
-      `eq (eval_id _index) `y0; `eq (eval_id _previous) `index0;
+(* if(index) *)
+forward_if 
+     (EX index_val2 : elemtype LS,
+      EX index_ptr2 : val,
+      EX rest_index_vals : list (elemtype LS),
+      EX old : val,
+     PROP  (Forall (Igt v) contents_lt;
+       (if( isptrb next_ptr) then
+         contents_lt ++ sorted_val :: index_val2 :: rest_index_vals = contents
+       else 
+         contents_lt ++ sorted_val :: nil = contents);
+      (if(isptrb next_ptr) then
+         index_val2 :: rest_index_vals = contents_rest
+       else 
+         True))
+      LOCAL  (`(eq next_ptr) (eval_id _index);
+      `eq (eval_id _previous) `index0;
       `(typed_true (typeof (Etempvar _guard tint))) (eval_id _guard);
+      `(eq (Vint v)) (eval_id _value);
+      `(eq (Vint sorted_val)) `old;
+      (if (isptrb next_ptr) then
+        `(eq (Vint index_val2)) (eval_id _sortedvalue)
+      else
+        `(eq (Vint sorted_val)) (eval_id _sortedvalue));   
       `eq (eval_id _guard)
         (`logical_and_result `(tptr t_struct_list) 
            `index0 `tint
            (`(eval_binop Ogt tint tint) (eval_id _value)
-              (eval_id _sortedvalue))))
-      SEP  (`(list_cell LS sh) (eval_id _index) `h1;
-      `(field_mapsto sh t_struct_list _tail) (eval_id _index) `y1;
-      |>`(lseg LS sh r1) `y1 `nullval; `(list_cell LS sh) `index0 `h0;
-      `(field_mapsto sh
-          (Tstruct _struct_list
-             (Fcons _head tint
-                (Fcons _tail (Tcomp_ptr _struct_list noattr) Fnil)) noattr)
-          _tail) `index0 `y0;
+              `old)))
+      SEP  (`(list_cell LS sh) `index0 `sorted_val;
+      `(field_mapsto sh t_struct_list _tail) `index0 `next_ptr;
       `(lseg LS sh contents_lt) (eval_id _sorted) `index0;
+      (if (isptrb next_ptr) then
+        (`(list_cell LS sh) `next_ptr `index_val2 *
+         `(field_mapsto sh t_struct_list _tail) `next_ptr `index_ptr2 *
+         `(lseg LS sh rest_index_vals) `index_ptr2 `nullval)
+      else `emp);
       subst _index `index0
         (subst _previous `x (var_block Tsh (_newitem, t_struct_list))))).
-entailer; normalize; cancel.
-rewrite lift_list_cell_eq.
+entailer.
+focus_SEP 3. apply semax_lseg_nonnull.
+entailer.
+intros index_val2 rest_index_vals2 index_ptr2 ?. 
+apply semax_pre with 
+(PROP  (Forall (Igt v) contents_lt;
+      contents_lt ++ sorted_val :: contents_rest = contents)
+      LOCAL 
+      (`(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
+         (eval_expr (Etempvar _index (tptr t_struct_list)));
+      `(eq next_ptr) (eval_id _index); `eq (eval_id _previous) `index0;
+      `(typed_true (typeof (Etempvar _guard tint))) (eval_id _guard);
+      `(eq (Vint v)) (eval_id _value);
+      `(eq  (Vint sorted_val)) (eval_id _sortedvalue);
+      `eq (eval_id _guard)
+        (`logical_and_result `(tptr t_struct_list) 
+           `index0 `tint
+           (`(eval_binop Ogt tint tint) (eval_id _value)
+               (eval_id _sortedvalue))))
+      SEP  (`(list_cell LS sh) `next_ptr `index_val2;
+      `(field_mapsto sh t_struct_list _tail) (eval_id _index) `index_ptr2;
+      |>`(lseg LS sh rest_index_vals2) `index_ptr2 `nullval;
+      `(lseg LS sh contents_lt) (eval_id _sorted) `index0;
+      `(list_cell LS sh) `index0 `sorted_val;
+      `(field_mapsto sh t_struct_list _tail) `index0 `next_ptr;
+      subst _index `index0
+        (subst _previous `x (var_block Tsh (_newitem, t_struct_list))))).
+entailer.
+(*needs work, most of this should be in forward *)
+(*sortedvalue = index -> head;*)
+{ rewrite lift_list_cell_eq.
+  apply sequential'.
+  hoist_later_in_pre.
+  eapply semax_post_flipped.
+  eapply (semax_load_field_37); try reflexivity.
+  go_lower. apply prop_right; auto.
+  entailer.
+  cancel.
+  intros. apply andp_left2.
+  apply normal_ret_assert_derives'.
+  apply (exp_right index_val2).
+  apply (exp_right index_ptr2).
+  apply (exp_right rest_index_vals2).
+  apply (exp_left); intro old.
+  apply (exp_right old).
+  autorewrite with subst.
+  entailer.
+  destruct (eval_id _index rho); inv H4.
+  simpl.
+  entailer.
+  cancel.
+}
+(*also needs work *)
+(*skip*)
+{
+  apply sequential'.
+  eapply semax_post_flipped.
+  eapply semax_skip.
+  intros. apply andp_left2.
+  apply normal_ret_assert_derives'.
+  apply (exp_right sorted_val).
+  (*these don't matter *)
+  apply (exp_right x).
+  apply (exp_right contents_rest).
+  (*this does*)
+  apply (exp_right (Vint sorted_val)).
+  go_lower.
+  rewrite H2 in *.
+  simpl in H7. rewrite H7 in *.
+  entailer.
+  cancel. 
+}
+
+abbreviate_semax.
+apply extract_exists_pre; intro index_val2.
+apply extract_exists_pre; intro index_ptr2.
+apply extract_exists_pre; intro rest_index_vals2.
+apply extract_exists_pre; intro old_sortedvalue.
 forward.
+admit. (* fix this*)
+admit.
+forward.
+(*implies post*)
+unfold insert_invariant.
+unfold loop1_ret_assert.
+unfold subst, fst_3, snd_3, fst, snd in *.
+remember (isptrb next_ptr).
+{ destruct b.
+  + apply (exp_right (contents_lt ++ sorted_val :: [], rest_index_vals2)).
+    apply (exp_right (index_val2, index_ptr2)).
+    entailer.
+    rewrite <- H4 in *.
+    apply andp_right.
+       - apply prop_right.
+         split. rewrite Forall_app. split.
+         auto.
+         simpl in H5.
+         simpl in H8.
+         clear - H8 H7.
+         destruct (eval_id _previous rho); inv H7.
+         unfold logical_and_result in *.
+         simpl in *. constructor. unfold Igt.
+         replace (Int.lt sorted_val value) with
+           (Int.cmp Clt sorted_val value) in * by auto.
+         SearchAbout Int.cmp.
+         remember (Int.cmp Clt sorted_val value).
+         destruct b0; inv H8. SearchAbout Int.cmp.
+         rewrite <- Int.swap_cmp in Heqb0. simpl swap_comparison in Heqb0.
+         auto. auto. 
+         split. 
+         rewrite app_assoc_reverse. simpl. auto. 
+         auto.
+       - cancel. admit. (*seems reasonable *)
+  + 
 Admitted.
-
-
