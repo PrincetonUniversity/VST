@@ -3,6 +3,58 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Local Open Scope logic.
 
+Inductive computable: forall {A}(x: A), Prop :=
+| computable_Zlt: forall x y, computable x -> computable y -> computable (Z.lt x y)
+| computable_Zle: forall x y, computable x -> computable y -> computable (Z.le x y)
+| computable_Zgt: forall x y, computable x -> computable y -> computable (Z.gt x y)
+| computable_Zge: forall x y, computable x -> computable y -> computable (Z.ge x y)
+| computable_eq: forall  A (x y: A), computable x -> computable y -> computable (eq x y)
+| computable_ne: forall  A (x y: A), computable x -> computable y -> computable (x <> y)
+| computable_Zpos: forall x, computable x -> computable (Zpos x)
+| computable_Zneg: forall x, computable x -> computable (Zneg x)
+| computable_Z0: computable Z0
+| computable_xI: forall x, computable x -> computable (xI x)
+| computable_xO: forall x, computable x -> computable (xO x)
+| computable_xH: computable xH
+| computable_Zadd: forall x y, computable x -> computable y -> computable (Z.add x y)
+| computable_Zsub: forall x y, computable x -> computable y -> computable (Z.sub x y)
+| computable_Zmul: forall x y, computable x -> computable y -> computable (Z.mul x y)
+| computable_Zdiv: forall x y, computable x -> computable y -> computable (Z.div x y)
+| computable_Zmod: forall x y, computable x -> computable y -> computable (Zmod x y)
+| computable_Zopp: forall x, computable x -> computable (Z.opp x)
+| computable_Inteq: forall x y, computable x -> computable y -> computable (Int.eq x y)
+| computable_Intlt: forall x y, computable x -> computable y -> computable (Int.lt x y)
+| computable_Intltu: forall x y, computable x -> computable y -> computable (Int.ltu x y)
+| computable_Intadd: forall x y, computable x -> computable y -> computable (Int.add x y)
+| computable_Intsub: forall x y, computable x -> computable y -> computable (Int.sub x y)
+| computable_Intmul: forall x y, computable x -> computable y -> computable (Int.mul x y)
+| computable_Intneg: forall x, computable x  -> computable (Int.neg x)
+| computable_Ceq: computable Ceq
+| computable_Cne: computable Cne
+| computable_Clt: computable Clt
+| computable_Cle: computable Cle
+| computable_Cgt: computable Cgt
+| computable_Cge: computable Cge
+| computable_Intcmp: forall op x y, 
+  computable op -> computable x -> computable y -> computable (Int.cmp op x y)
+| computable_Intcmpu: forall op x y, 
+  computable op -> computable x -> computable y -> computable (Int.cmpu op x y)
+| computable_Intrepr: forall x, computable x -> computable (Int.repr x)
+| computable_Intsigned: forall x, computable x -> computable (Int.signed x)
+| computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x).
+
+Hint Constructors computable : computable. 
+
+Hint Extern 5 (@computable _ _) => 
+   match goal with d := ?x |- computable (?d) => 
+         unfold d; auto 50 with computable 
+    end : computable.
+
+Ltac computable := match goal with |- ?x =>
+ let H := fresh in assert (H: computable x) by auto 50 with computable; 
+ clear H;
+ compute; clear; auto; congruence
+end.
 
 Lemma and_solvable_left:
  forall P Q : Prop,   P -> (P /\ Q) = Q.
@@ -17,13 +69,13 @@ Proof. intros. apply prop_ext; intuition. Qed.
 
 Ltac and_solvable_left P :=
  match P with
-  | ?P1 /\ ?P2 => try rewrite (and_solvable_left P1) by auto;
+  | ?P1 /\ ?P2 => try rewrite (and_solvable_left P1) by (computable || auto);
                            and_solvable_left P2
   | _ => match P with
              | _ /\ _ => fail 1 
-             | _ => first [ rewrite (and_solvable_right P) by auto
-                                | rewrite (prop_true_andp' P) by auto
-                                | apply (prop_right P); solve [auto]
+             | _ => first [ rewrite (and_solvable_right P) by (computable || auto)
+                                | rewrite (prop_true_andp' P) by (computable || auto)
+                                | apply (prop_right P); solve [(computable || auto)]
                                 | idtac
                                 ]
              end
@@ -48,7 +100,8 @@ Ltac entailer' :=
    match goal with 
    | |- _ |-- !! ?P && _ => and_solvable_left P
    | |- _ |-- !! ?P => and_solvable_left P; 
-                               prop_right_cautious; try apply TT_right
+                               prop_right_cautious; try apply TT_right;
+                               repeat simple apply conj; (computable||auto)
    | |- _ => idtac
    end;
    auto
@@ -68,8 +121,9 @@ Ltac entailer :=
 
 Tactic Notation "entailer" "!" := 
   entailer; 
-    first [simple apply andp_right; [apply prop_right | cancel ]
-           | apply prop_right
+    first [simple apply andp_right; 
+               [apply prop_right; repeat simple apply conj; (computable||auto) | cancel ]
+           | apply prop_right; repeat simple apply conj; (computable||auto)
            | cancel
            | idtac ].
 
@@ -82,8 +136,7 @@ Ltac elim_hyps :=
  end.
 
 Ltac aggressive :=
-  repeat split; auto; elim_hyps; simpl; auto;
-  try solve [cbv; clear; congruence].
+  repeat split; auto; elim_hyps; simpl; (computable || auto).
 
 Ltac entailer1 :=
   entailer; 
@@ -92,6 +145,10 @@ Ltac entailer1 :=
            | apply prop_right; aggressive
            | cancel
            | aggressive ].
+
+(**** try this out here, for now ****)
+
+Hint Rewrite Int.signed_repr using repable_signed : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 

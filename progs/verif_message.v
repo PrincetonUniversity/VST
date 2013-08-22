@@ -543,7 +543,7 @@ rewrite sepcon_andp_prop'.
 apply derives_extract_prop; intro.
 assert (MMM: mf_size msg <= Int.max_signed).
 apply mf_size_range.
-rewrite Int.signed_repr by (unfold Int.min_signed; simpl; omega).
+rewrite Int.signed_repr by repable_signed.
 cancel.
 unfold message.
 apply exp_right with (eval_id ser rho, g).

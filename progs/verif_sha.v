@@ -271,37 +271,13 @@ unfold s256_data in H0;
 simpl in H0; destruct H0.
 assert (Zlength r_h = 8) by (rewrite Zlength_correct; omega).
 
-Lemma no_offset:
-  forall v, isptr v -> `v = `(offset_val Int.zero) `v.
-Proof.
-intros.
-rewrite <- lift1more.
-f_equal.
-symmetry.
-rewrite offset_val_force_ptr. apply isptr_force_ptr; auto.
-Qed.
-
 forward. (* data = in; *)
+forward; [entailer! ;  omega | ]. (* a = ctx->h[0]; *)
+forward; [entailer! ;  omega | ]. (* b = ctx->h[1]; *)
+forward; [entailer! ;  omega | ]. (* c = ctx->h[2]; *)
+forward; [entailer! ;  omega | ]. (* d = ctx->h[3]; *)
 
-forward; [
-  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   repeat split; omega | ].
-
-forward; [
-  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   repeat split; omega | ].
-
-forward; [
-  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   repeat split; omega | ].
-
-forward; [
-  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   repeat split; omega | ].
-
-forward; [
-  entailer!; rewrite Int.signed_repr by (unfold Int.min_signed, Int.max_signed; simpl; omega);
-   repeat split; omega | ].
+(* . . . and so on *)
 
 Admitted.
 

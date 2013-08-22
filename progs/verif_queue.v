@@ -210,7 +210,6 @@ forward. (* Q' = mallocN(sizeof ( *Q)); *)
 instantiate (1:= Int.repr 8) in (Value of witness).
 (* goal_2 *)
 entailer!.
-compute; congruence.
 simpl. normalize.
 forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
@@ -350,7 +349,7 @@ name p _p.
 name p' _p'.
 forward. (*  p = mallocN(sizeof ( *p));  *) 
 instantiate (1:=Int.repr 12) in (Value of witness).
-entailer!. compute; congruence.
+entailer!.
 normalize.
 forward. (* finish the function call *)
 change 12 with (sizeof (t_struct_elem)).

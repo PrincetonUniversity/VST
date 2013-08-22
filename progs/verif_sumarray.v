@@ -147,17 +147,18 @@ entailer!.
 entailer!. f_equal. omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* x = a[i]; *)
-entailer. rewrite Int.signed_repr by repable_signed; omega.
+entailer!.  omega.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-entailer!.
- inv H2. inv H3.
- rewrite Int.add_signed.
- repeat rewrite Int.signed_repr by repable_signed.
- repeat split; auto; try omega.
+entailer.
+ apply andp_right; auto.
+ apply prop_right. inv H3; inv H2.
+ rewrite Int.add_signed;
+  repeat rewrite Int.signed_repr by repable_signed.
+ repeat split;  try omega.
  apply fold_range_fact1; omega.
 (* After the loop *)
 forward.  (* return s; *)

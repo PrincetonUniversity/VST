@@ -961,8 +961,17 @@ unfold typed_true in H; simpl in H.
 destruct (Int.cmp op (Int.repr i) (Int.repr j)); inv H; auto.
 Qed.
 
+Lemma int_min_signed_eq: Int.min_signed = -2147483648.
+Proof. reflexivity. Qed.
+
+Lemma int_max_signed_eq: Int.max_signed = 2147483647.
+Proof. reflexivity. Qed.
+
 Ltac repable_signed := 
-  unfold  repable_signed, Int.min_signed, Int.max_signed in *; omega.
+   pose proof int_min_signed_eq; 
+   pose proof int_max_signed_eq; 
+   unfold repable_signed in *;
+   omega.
 
 Ltac simpl_compare H :=
  first [eapply typed_false_cmp'' in H;
