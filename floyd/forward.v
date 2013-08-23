@@ -260,58 +260,95 @@ Qed.
 
 Ltac ignore x := idtac.
 
+
+(*start tactics for forward_while unfolding *)
+Ltac intro_ex_local_derives :=
+(match goal with 
+   | |- local (_) && exp (fun y => _) |-- _ =>
+       rewrite exp_andp2; apply exp_left; let y':=fresh y in intro y'
+end).
+
+Ltac unfold_and_function_derives_left :=
+(repeat match goal with 
+          | |- _ && (exp _) |--  _ => fail 1
+          | |- _ && (PROPx _ _) |-- _ => fail 1
+          | |- _ && (?X _ _ _ _ _) |--  _ => unfold X
+          | |- _ && (?X _ _ _ _) |--  _ => unfold X
+          | |- _ && (?X _ _ _) |--  _ => unfold X
+          | |- _ && (?X _ _) |--  _ => unfold X
+          | |- _ && (?X _) |--  _ => unfold X
+          | |- _ && (?X) |--  _ => unfold X
+end).
+
+Ltac unfold_and_local_derives :=
+try rewrite <- local_lift2_and;
+unfold_and_function_derives_left;
+repeat intro_ex_local_derives;
+try rewrite local_lift2_and;
+repeat (try rewrite andp_assoc; rewrite canonicalize.canon9).
+
+Ltac unfold_function_derives_right :=
+(repeat match goal with 
+          | |- _ |-- (exp _) => fail 1
+          | |- _ |-- (PROPx _ _) => fail 1
+          | |- _ |-- (?X _ _ _ _ _)  => unfold X
+          | |- _ |-- (?X _ _ _ _)  => unfold X
+          | |- _ |-- (?X _ _ _)  => unfold X
+          | |- _ |-- (?X _ _)  => unfold X
+          | |- _ |-- (?X _)  => unfold X
+          | |- _ |-- (?X)  => unfold X
+
+end).
+
+Ltac unfold_pre_local_andp :=
+(repeat match goal with 
+          | |- semax _ ((local _) && exp _) _ _ => fail 1
+          | |- semax _ ((local _) && (PROPx _ _)) _ _ => fail 1
+          | |- semax _ ((local _) && ?X _ _ _ _ _) _ _ => unfold X at 1
+          | |- semax _ ((local _) && ?X _ _ _ _) _ _ => unfold X at 1
+          | |- semax _ ((local _) && ?X _ _ _) _ _ => unfold X at 1
+          | |- semax _ ((local _) && ?X _ _) _ _ => unfold X at 1
+          | |- semax _ ((local _) && ?X _) _ _ => unfold X at 1
+          | |- semax _ ((local _) && ?X) _ _ => unfold X at 1
+        end).
+
+Ltac intro_ex_local_semax :=
+(match goal with 
+   | |- semax _ (local (_) && exp (fun y => _)) _ _  =>
+       rewrite exp_andp2; apply extract_exists_pre; let y':=fresh y in intro y'
+end).
+
+Ltac unfold_and_local_semax :=
+unfold_pre_local_andp;
+repeat intro_ex_local_semax;
+rewrite canonicalize.canon9.
+
+
 Ltac forward_while Inv Postcond :=
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   first [ignore (Postcond: environ->mpred)
          | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
   apply semax_pre with Inv;
-    [ | (apply semax_seq with Postcond;
-            [ apply semax_while' ; [ compute; auto | | | ] 
-            | simpl update_tycon ])
-        || (repeat match goal with 
-         | |- semax _ (exp _) _ _ => fail 1
-         | |- semax _ (?X _ _ _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _ _) _ _ => unfold X
-         | |- semax _ (?X _ _) _ _ => unfold X
-         | |- semax _ (?X _) _ _ => unfold X
-         | |- semax _ ?X _ _ => unfold X
-        end;
-          match goal with
-          | |- semax _  (exp (fun y => _)) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex;
-                  [ compute; auto 
-                  | let y':=fresh y in intro y'
-                  | let y':=fresh y in intro y'
-                  | let y':=fresh y in intro y';
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                  ]
-               | simpl update_tycon ]
-          | |- semax _  (exp (fun y1 => (exp (fun y2 => _)))) _ _ =>
-             (* Note: matching in this special way uses the user's name 'y'  as a hypothesis *)
-              apply semax_seq with Postcond ;
-               [apply semax_whilex2; 
-                 [ compute; auto
-                 | intros y1 y2 
-                 | intros y1 y2 
-                 | intros y1 y2; 
-                     match goal with |- semax _ _ _ (loop1_ret_assert ?S _) =>
-                             change S with Inv
-                     end
-                 ]
-               | simpl update_tycon ]
-        end)
-
-   ]; abbreviate_semax; autorewrite with ret_assert.
+    [  unfold_function_derives_right 
+    | (apply semax_seq with Postcond;
+       [ first 
+          [ apply semax_while' 
+          | apply semax_while
+          ]; 
+          [ compute; auto 
+          | unfold_and_local_derives
+          | unfold_and_local_derives
+          | unfold_and_local_semax
+          ] 
+       | simpl update_tycon 
+       ])
+    ]; abbreviate_semax; autorewrite with ret_assert.
+(*end forward_while *)
 
 Ltac forward_if post :=
 first [ignore (post: environ->mpred) 
-      | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 apply semax_seq with post;
 [match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
