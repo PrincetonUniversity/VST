@@ -100,7 +100,8 @@ FLOYD_FILES= \
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v \
-  sha.v verif_sha.v entail_examples.v 
+  sha.v verif_sha.v entail_examples.v \
+  revarray.v verif_revarray.v 
 
 C_FILES = reverse.c queue.c sumarray.c message.c sha.c
 
@@ -135,6 +136,8 @@ progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 
 ifdef CLIGHTGEN
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
+progs/revarray.v: progs/revarray.c
+	$(CLIGHTGEN) -DCOMPCERT $<
 progs/reverse.v: progs/reverse.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 progs/queue.v: progs/queue.c
