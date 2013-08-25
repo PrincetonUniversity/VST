@@ -55,23 +55,25 @@ Definition snd_3 {A B C} (a: A * B * C) := snd (fst a).
 Definition third_3 {A B C} (a: A * B * C) := snd a.
 
 Definition insert_invariant sh value contents :=
-EX all_contents: (list int * list int),
-EX sorted_val__next_ptr: (int * val),
-PROP (Forall (Igt value) (fst all_contents); 
-      (fst all_contents) ++ 
-         (fst sorted_val__next_ptr)::(snd all_contents) = contents)
+EX contents_lt: list int,
+EX contents_rest : list int,
+EX sorted_val : int,
+EX next_ptr : val,
+PROP (Forall (Igt value) (contents_lt); 
+      (contents_lt) ++ 
+         (sorted_val)::(contents_rest) = contents)
 LOCAL ( `(eq (Vint value)) (eval_id _value);
-        `(eq (Vint (fst sorted_val__next_ptr))) (eval_id _sortedvalue);
+        `(eq (Vint (sorted_val))) (eval_id _sortedvalue);
   `eq (eval_id _guard)
         (`logical_and_result `(tptr t_struct_list) 
            (eval_id _index) `tint
            (`(eval_binop Ogt tint tint) (eval_id _value)
              (eval_id _sortedvalue))))
-SEP (`(lseg LS sh (fst all_contents)) (eval_id _sorted) (eval_id _index);
-     `(list_cell LS sh) (eval_id _index) `(fst sorted_val__next_ptr);
+SEP (`(lseg LS sh (contents_lt)) (eval_id _sorted) (eval_id _index);
+     `(list_cell LS sh) (eval_id _index) `(sorted_val);
       `(field_mapsto sh t_struct_list _tail) (eval_id _index) 
-                           `(snd sorted_val__next_ptr);
-      `(lseg LS sh ((snd all_contents))) `(snd sorted_val__next_ptr) `nullval;
+                           `(next_ptr);
+      `(lseg LS sh (contents_rest)) `(next_ptr) `nullval;
       (var_block Tsh (_newitem, t_struct_list))).
 
 Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h::r) v1 v2 = 
@@ -119,8 +121,14 @@ forward. (*guard' = index && (value > sortedvalue);*)
   
 forward. (*guard = guard'*) 
 simpl typeof.
-forward_while (insert_invariant sh v contents) (insert_invariant sh v contents);
-  autorewrite with ret_assert.
+{
+
+
+
+
+
+
+forward_while (insert_invariant sh v contents) (insert_invariant sh v contents).
 (*pre implies invariant*)
 unfold insert_invariant. apply (exp_right (nil, tail_vals)). 
 eapply (exp_right (first_val,tail_ptr)). 
@@ -295,5 +303,17 @@ remember (isptrb next_ptr).
          rewrite app_assoc_reverse. simpl. auto. 
          auto.
        - cancel. admit. (*seems reasonable *)
-  + 
+  + apply (exp_right (contents_lt , nil)).
+    apply (exp_right (sorted_val, nullval)).
+    entailer.
+    rewrite <- H4 in *.
+    apply andp_right.
+      - apply prop_right.
+         auto.
+      - cancel. 
+        
+
+        
+
+
 Admitted.
