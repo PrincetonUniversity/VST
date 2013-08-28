@@ -1,4 +1,3 @@
-Load loadpath.
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.
@@ -836,7 +835,7 @@ Lemma semax_logical_and_PQR:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-         local (tc_expr Delta e2) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+         (local (`(typed_false (typeof e1)) (eval_expr e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
   (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_and_result 
           `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
    @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
@@ -852,7 +851,7 @@ apply andp_left2. apply H3.
 intro rho. specialize (H2 rho). normalize. normalize in H2.
 apply andp_right; auto.
 eapply derives_trans; [ apply H2 | ].
-normalize.
+normalize. simpl. apply orp_left; normalize.
 Qed.
 
 Lemma semax_logical_or_PQR: 
@@ -865,7 +864,7 @@ Lemma semax_logical_or_PQR:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-         local (tc_expr Delta e2) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+        (local (`(typed_true (typeof e1)) (eval_expr e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
   (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_or_result 
           `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
    @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
@@ -881,5 +880,7 @@ apply andp_left2. apply H3.
 intro rho. specialize (H2 rho). normalize. normalize in H2.
 apply andp_right.
 eapply derives_trans. apply H2.
-normalize. auto.
+normalize. simpl.
+ apply orp_left;
+normalize. normalize.
 Qed.
