@@ -2,32 +2,24 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _previous : ident := 16%positive.
-Definition _insertionsort : ident := 22%positive.
-Definition _newitem : ident := 17%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition ___builtin_subl : ident := 5%positive.
-Definition _head : ident := 12%positive.
-Definition _struct_list : ident := 10%positive.
-Definition ___builtin_negl : ident := 3%positive.
-Definition ___builtin_write32_reversed : ident := 2%positive.
-Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _sorted : ident := 14%positive.
-Definition ___builtin_mull : ident := 6%positive.
-Definition _guard : ident := 19%positive.
-Definition _tail : ident := 11%positive.
-Definition ___builtin_addl : ident := 4%positive.
-Definition ___builtin_fabs : ident := 7%positive.
-Definition _p : ident := 21%positive.
-Definition _sortedvalue : ident := 18%positive.
-Definition ___builtin_annot_intval : ident := 9%positive.
-Definition _value : ident := 13%positive.
-Definition _index : ident := 15%positive.
-Definition _main : ident := 23%positive.
-Definition _insert : ident := 20%positive.
-Definition _guard' : ident := 24%positive.
-Definition _sorted' : ident := 26%positive.
-Definition _guard'1 : ident := 25%positive.
+Definition _p : ident := 15%positive.
+Definition _insert_node : ident := 7%positive.
+Definition ___builtin_annot_intval : ident := 3%positive.
+Definition ___builtin_fabs : ident := 1%positive.
+Definition _insert : ident := 14%positive.
+Definition _index : ident := 9%positive.
+Definition _struct_list : ident := 4%positive.
+Definition _insertionsort : ident := 17%positive.
+Definition _sorted : ident := 8%positive.
+Definition _main : ident := 18%positive.
+Definition _next : ident := 16%positive.
+Definition _insert_value : ident := 13%positive.
+Definition _head : ident := 6%positive.
+Definition _guard : ident := 12%positive.
+Definition _sortedvalue : ident := 11%positive.
+Definition _tail : ident := 5%positive.
+Definition ___builtin_memcpy_aligned : ident := 2%positive.
+Definition _previous : ident := 10%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list
@@ -36,63 +28,73 @@ Definition t_struct_list :=
 
 Definition f_insert := {|
   fn_return := (tptr t_struct_list);
-  fn_params := ((_value, tint) :: (_sorted, (tptr t_struct_list)) :: nil);
-  fn_vars := ((_newitem, t_struct_list) :: nil);
+  fn_params := ((_insert_node, (tptr t_struct_list)) ::
+                (_sorted, (tptr t_struct_list)) :: nil);
+  fn_vars := nil;
   fn_temps := ((_index, (tptr t_struct_list)) ::
                (_previous, (tptr t_struct_list)) :: (_sortedvalue, tint) ::
-               (_guard, tint) :: (_guard'1, tint) :: (_guard', tint) :: nil);
+               (_guard, tint) :: (_insert_value, tint) ::
+               (20%positive, tint) :: (19%positive, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _index (Etempvar _sorted (tptr t_struct_list)))
+  (Sset _insert_value
+    (Efield
+      (Ederef (Etempvar _insert_node (tptr t_struct_list)) t_struct_list)
+      _head tint))
   (Ssequence
-    (Sset _sortedvalue
-      (Efield (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list)
-        _head tint))
+    (Sset _index (Etempvar _sorted (tptr t_struct_list)))
     (Ssequence
+      (Sifthenelse (Etempvar _index (tptr t_struct_list))
+        (Sset _sortedvalue
+          (Efield
+            (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list)
+            _head tint))
+        Sskip)
       (Ssequence
-        (Sifthenelse (Etempvar _index (tptr t_struct_list))
-          (Ssequence
-            (Sset _guard'
-              (Ecast
-                (Ebinop Ogt (Etempvar _value tint)
-                  (Etempvar _sortedvalue tint) tint) tbool))
-            (Sset _guard' (Ecast (Etempvar _guard' tbool) tint)))
-          (Sset _guard' (Econst_int (Int.repr 0) tint)))
-        (Sset _guard (Etempvar _guard' tint)))
-      (Ssequence
-        (Swhile
-          (Etempvar _guard tint)
-          (Ssequence
-            (Sset _previous (Etempvar _index (tptr t_struct_list)))
+        (Ssequence
+          (Sifthenelse (Etempvar _index (tptr t_struct_list))
             (Ssequence
-              (Sset _index
-                (Efield
-                  (Ederef (Etempvar _index (tptr t_struct_list))
-                    t_struct_list) _tail (tptr t_struct_list)))
+              (Sset 19%positive
+                (Ecast
+                  (Ebinop Ogt (Etempvar _insert_value tint)
+                    (Etempvar _sortedvalue tint) tint) tbool))
+              (Sset 19%positive (Ecast (Etempvar 19%positive tbool) tint)))
+            (Sset 19%positive (Econst_int (Int.repr 0) tint)))
+          (Sset _guard (Etempvar 19%positive tint)))
+        (Ssequence
+          (Swhile
+            (Etempvar _guard tint)
+            (Ssequence
+              (Sset _previous (Etempvar _index (tptr t_struct_list)))
               (Ssequence
-                (Sifthenelse (Etempvar _index (tptr t_struct_list))
-                  (Sset _sortedvalue
-                    (Efield
-                      (Ederef (Etempvar _index (tptr t_struct_list))
-                        t_struct_list) _head tint))
-                  Sskip)
+                (Sset _index
+                  (Efield
+                    (Ederef (Etempvar _index (tptr t_struct_list))
+                      t_struct_list) _tail (tptr t_struct_list)))
                 (Ssequence
                   (Sifthenelse (Etempvar _index (tptr t_struct_list))
-                    (Ssequence
-                      (Sset _guard'1
-                        (Ecast
-                          (Ebinop Ogt (Etempvar _value tint)
-                            (Etempvar _sortedvalue tint) tint) tbool))
-                      (Sset _guard'1 (Ecast (Etempvar _guard'1 tbool) tint)))
-                    (Sset _guard'1 (Econst_int (Int.repr 0) tint)))
-                  (Sset _guard (Etempvar _guard'1 tint)))))))
-        (Ssequence
-          (Sassign (Efield (Evar _newitem t_struct_list) _head tint)
-            (Etempvar _value tint))
+                    (Sset _sortedvalue
+                      (Efield
+                        (Ederef (Etempvar _index (tptr t_struct_list))
+                          t_struct_list) _head tint))
+                    Sskip)
+                  (Ssequence
+                    (Sifthenelse (Etempvar _index (tptr t_struct_list))
+                      (Ssequence
+                        (Sset 20%positive
+                          (Ecast
+                            (Ebinop Ogt (Etempvar _insert_value tint)
+                              (Etempvar _sortedvalue tint) tint) tbool))
+                        (Sset 20%positive
+                          (Ecast (Etempvar 20%positive tbool) tint)))
+                      (Sset 20%positive (Econst_int (Int.repr 0) tint)))
+                    (Sset _guard (Etempvar 20%positive tint)))))))
           (Ssequence
             (Sassign
-              (Efield (Evar _newitem t_struct_list) _tail
-                (tptr t_struct_list)) (Etempvar _index (tptr t_struct_list)))
+              (Efield
+                (Ederef (Etempvar _insert_node (tptr t_struct_list))
+                  t_struct_list) _tail (tptr t_struct_list))
+              (Etempvar _index (tptr t_struct_list)))
             (Ssequence
               (Sifthenelse (Etempvar _previous (tptr t_struct_list))
                 (Ssequence
@@ -100,12 +102,10 @@ Definition f_insert := {|
                     (Efield
                       (Ederef (Etempvar _previous (tptr t_struct_list))
                         t_struct_list) _tail (tptr t_struct_list))
-                    (Eaddrof (Evar _newitem t_struct_list)
-                      (tptr t_struct_list)))
+                    (Etempvar _insert_node (tptr t_struct_list)))
                   (Sreturn (Some (Etempvar _sorted (tptr t_struct_list)))))
                 Sskip)
-              (Sreturn (Some (Eaddrof (Evar _newitem t_struct_list)
-                               (tptr t_struct_list)))))))))))
+              (Sreturn (Some (Etempvar _insert_node (tptr t_struct_list)))))))))))
 |}.
 
 Definition f_insertionsort := {|
@@ -113,43 +113,40 @@ Definition f_insertionsort := {|
   fn_params := ((_p, (tptr t_struct_list)) :: nil);
   fn_vars := nil;
   fn_temps := ((_index, (tptr t_struct_list)) ::
-               (_sorted, (tptr t_struct_list)) :: (_value, tint) ::
-               (_sorted', (tptr t_struct_list)) :: nil);
+               (_sorted, (tptr t_struct_list)) ::
+               (_next, (tptr t_struct_list)) ::
+               (19%positive, (tptr t_struct_list)) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _sorted (Etempvar _p (tptr t_struct_list)))
+  (Sset _sorted (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
   (Ssequence
-    (Sassign
-      (Efield (Ederef (Etempvar _sorted (tptr t_struct_list)) t_struct_list)
-        _tail (tptr t_struct_list))
-      (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+    (Sset _index (Etempvar _p (tptr t_struct_list)))
     (Ssequence
-      (Sset _index
-        (Efield (Ederef (Etempvar _p (tptr t_struct_list)) t_struct_list)
-          _tail (tptr t_struct_list)))
-      (Ssequence
-        (Swhile
-          (Etempvar _index (tptr t_struct_list))
+      (Swhile
+        (Etempvar _index (tptr t_struct_list))
+        (Ssequence
+          (Sset _next
+            (Efield
+              (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list)))
           (Ssequence
-            (Sset _value
+            (Sassign
               (Efield
                 (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list)
-                _head tint))
+                _tail (tptr t_struct_list))
+              (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
             (Ssequence
               (Ssequence
-                (Scall (Some _sorted')
+                (Scall (Some 19%positive)
                   (Evar _insert (Tfunction
-                                  (Tcons tint
+                                  (Tcons (tptr t_struct_list)
                                     (Tcons (tptr t_struct_list) Tnil))
                                   (tptr t_struct_list)))
-                  ((Etempvar _value tint) ::
+                  ((Etempvar _index (tptr t_struct_list)) ::
                    (Etempvar _sorted (tptr t_struct_list)) :: nil))
-                (Sset _sorted (Etempvar _sorted' (tptr t_struct_list))))
-              (Sset _index
-                (Efield
-                  (Ederef (Etempvar _index (tptr t_struct_list))
-                    t_struct_list) _tail (tptr t_struct_list))))))
-        (Sreturn (Some (Etempvar _sorted (tptr t_struct_list))))))))
+                (Sset _sorted (Etempvar 19%positive (tptr t_struct_list))))
+              (Sset _index (Etempvar _next (tptr t_struct_list)))))))
+      (Sreturn (Some (Etempvar _sorted (tptr t_struct_list)))))))
 |}.
 
 Definition f_main := {|

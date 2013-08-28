@@ -2,45 +2,45 @@
 
 struct list {int head; struct list *tail;};
 
-struct list *insert(int value, struct list *sorted){
-  struct list *index, *previous, newitem;
-  int sortedvalue, guard;
+struct list *insert(struct list *insert_node, struct list *sorted){
+  struct list *index, *previous;
+  int sortedvalue, guard, insert_value;
   
+  insert_value = insert_node -> head;
   index = sorted;
-  sortedvalue = index -> head;
-  
-  guard = index && (value > sortedvalue); 
-  //sorted list at sorted, list at item, value at index greater than all
-  //items we have gone past
+  if(index){
+    sortedvalue = index -> head;
+  }
+  guard = index && (insert_value > sortedvalue); 
+ 
   while(guard){
     previous = index;
     index = index -> tail;
     if(index) sortedvalue = index -> head;
-    guard = index && (value > sortedvalue);
+    guard = index && (insert_value > sortedvalue);
   }
   
-  newitem.head = value;
-  newitem.tail = index;
+  insert_node -> tail = index;
   if(previous){
-    previous->tail = &newitem;
+    previous->tail = insert_node;
     return sorted;
   }
   
-  return &newitem;
+  return insert_node;
 }
-//sorted list at sorted
+
 
 struct list *insertionsort (struct list *p) {
-  struct list *index, *sorted;
-  int value;
+  struct list *index, *sorted, *next;
   
-  sorted = p;
-  sorted -> tail = NULL;
-  index = p -> tail;
+  sorted = NULL;
+  index = p;
+
   while(index){
-    value = index->head;
-    sorted = insert(value, sorted);
-    index = index -> tail;
+    next = index -> tail;
+    index -> tail = NULL;
+    sorted = insert(index, sorted);
+    index = next;
   }
 
   return sorted;

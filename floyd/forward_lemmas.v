@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.
@@ -658,7 +659,8 @@ Lemma semax_logical_or:
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
+              (`or (`(typed_true (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
    Q) (SEPx (R))))
     (logical_or tid e1 e2)
   (normal_ret_assert (PROPx P (LOCALx 
@@ -689,7 +691,9 @@ apply semax_ifthenelse_PQR.
    try rewrite H3; auto.
   - eapply semax_seq'. 
       + eapply forward_setx.
-         go_lowerx. apply andp_right; apply prop_right; auto.
+         go_lowerx. 
+         destruct H4. congruence.
+         apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
         unfold isCastResultType. destruct (typeof e2); 
@@ -701,7 +705,8 @@ apply semax_ifthenelse_PQR.
            (tc_environ (initialized tid Delta) ::
              `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
             :: `(typed_false (typeof e1)) (eval_expr e1)
-               :: tc_expr Delta e2
+               :: `or (`(typed_true (typeof e1)) (eval_expr e1))
+                    (tc_expr Delta e2)
                   :: Q)
            (SEPx R))))).
        go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
@@ -726,14 +731,12 @@ apply semax_ifthenelse_PQR.
         unfold logical_or_result.
         subst ek vl. simpl in  H2.
         rewrite H9.
-      clear e1 H CLOSE1 H9.
-      clear Q CLOSQ R CLOSR H11.
        unfold subst in *.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
       eapply expr_lemmas.typecheck_expr_sound; eauto.
-    apply tc_expr_init; apply H10.
+    apply tc_expr_init. destruct H10; congruence.
 Qed.
 
 Lemma semax_logical_and:
@@ -745,7 +748,8 @@ Lemma semax_logical_and:
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
-  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::(tc_expr Delta e2)::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+  @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
+    (`or (`(typed_false (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
    Q) (SEPx (R))))
     (logical_and tid e1 e2)
   (normal_ret_assert (PROPx P (LOCALx 
@@ -761,7 +765,8 @@ apply semax_ifthenelse_PQR.
       + eapply forward_setx.
          go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
-        simpl. super_unfold_lift. split. auto. 
+        simpl. super_unfold_lift. split.
+        destruct H4; auto; congruence.         
         unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
@@ -771,7 +776,8 @@ apply semax_ifthenelse_PQR.
            (tc_environ (initialized tid Delta) ::
              `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
             :: `(typed_true (typeof e1)) (eval_expr e1)
-               :: tc_expr Delta e2
+               :: `or (`(typed_false (typeof e1)) (eval_expr e1))
+                    (tc_expr Delta e2)
                   :: Q)
            (SEPx R))))).
        go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
@@ -796,14 +802,13 @@ apply semax_ifthenelse_PQR.
         unfold logical_and_result.
         subst ek vl. simpl in  H2.
         rewrite H9.
-      clear e1 H CLOSE1 H9.
-      clear Q CLOSQ R CLOSR H11.
        unfold subst in *.
        apply bool_cast.
       replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
       by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
         eapply expr_lemmas.typecheck_expr_sound; eauto.
-    apply tc_expr_init; apply H10.
+        destruct H10; try congruence.
+    apply tc_expr_init; congruence.
 - eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 
