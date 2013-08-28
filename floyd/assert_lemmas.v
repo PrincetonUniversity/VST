@@ -1,6 +1,9 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Global Transparent liftx.
+Arguments liftx H f : simpl never.
+
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.

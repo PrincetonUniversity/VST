@@ -360,7 +360,7 @@ apply andp_right. apply prop_right; auto.
 rewrite field_mapsto_isptr.
 normalize.
 apply andp_right. apply prop_right; repeat split; auto.
-intro. apply ptr_eq_e in H2. subst; apply H.
+intro. apply ptr_eq_e in H. subst; apply Px.
 rewrite sepcon_assoc.
 rewrite andp_comm.
 rewrite unfash_sepcon_distrib.
@@ -382,12 +382,12 @@ apply andp_left2.
 repeat rewrite sepcon_andp_prop'.
 apply derives_extract_prop; intro.
 rewrite emp_sepcon.
-apply ptr_eq_e in H2. subst z.
+apply ptr_eq_e in H. subst z.
 rewrite links_cons_eq.
 rewrite field_mapsto_isptr.
 apply derives_extract_prop; intro.
 rewrite prop_true_andp.
-2: split; auto; intro Hx; destruct y; inv H2; inv Hx.
+2: split; auto; intro Hx; destruct y; inv H; inv Hx.
 apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
@@ -1077,7 +1077,7 @@ rewrite field_mapsto_isptr.
 normalize.
 apply andp_right. apply prop_right; auto.
 repeat split; auto.
-intro. apply ptr_eq_e in H2. subst; apply H1.
+intro. apply ptr_eq_e in H1. subst; inv Px.
 forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x z) as A.
 rewrite andp_comm.
 repeat rewrite sepcon_assoc.
@@ -1104,7 +1104,7 @@ normalize.
 apply exp_right with nullval.
 apply andp_right.
 apply prop_right.
-fancy_intro. subst. subst. apply H3.
+fancy_intro. subst. subst. apply Py.
 subst.
 normalize.
 rewrite lseg_nil_eq. normalize.

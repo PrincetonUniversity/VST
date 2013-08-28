@@ -2,6 +2,8 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
+Arguments sem_cmp c !t1 !t2 / v1 v2. (* move this to client_lemmas or earlier *)
+
 Lemma prop_and {A} {NA: NatDed A}: 
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
 Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
@@ -68,14 +70,6 @@ apply pred_ext. apply andp_left2...
 apply andp_right... apply prop_right...
 Qed.
 
-Ltac fancy_intro :=
- let H := fresh in
- intro H; 
- match type of H with
- | ?x = ?y => first [subst x | subst y | idtac]
- | _ => try simple apply ptr_eq_e in H
- end.
-
 Ltac norm_rewrite := autorewrite with norm.
  (* New version: rewrite_strat (topdown hints norm).
      But this will have to wait for the next version of Coq, probably 8.4pl3,
@@ -85,6 +79,150 @@ Ltac norm_rewrite := autorewrite with norm.
     It might be about twice as fast, or 1.7 times as fast, as the old autorewrite.
     And then, maybe use "bottomup" instead of "topdown", see if that's better.
  *)
+
+Lemma typed_false_cmp'':
+  forall i j op e1 e2,
+   typed_false tint (force_val (sem_cmp op tint tint e1  e2 )) ->
+   Vint (Int.repr i) = e1 ->
+   Vint (Int.repr j) = e2 ->
+   repable_signed i -> 
+   repable_signed j -> 
+   Zcmp (negate_comparison op) i j.
+Proof.
+intros. subst.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+eapply int_cmp_repr; auto.
+unfold typed_false in H; simpl in H.
+destruct op; simpl in *;
+match goal with |- negb ?A = true => destruct A; inv H; auto
+                        | |- ?A = true => destruct A; inv H; auto
+ end.
+Qed.
+
+Lemma typed_true_cmp'':
+  forall i j op e1 e2,
+   typed_true tint (force_val (sem_cmp op tint tint e1  e2 )) ->
+   Vint (Int.repr i) = e1 ->
+   Vint (Int.repr j) = e2 ->
+   repable_signed i -> 
+   repable_signed j -> 
+   Zcmp op i j.
+Proof.
+intros. subst.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+eapply int_cmp_repr; auto.
+unfold typed_true in H; simpl in H.
+destruct (Int.cmp op (Int.repr i) (Int.repr j)); inv H; auto.
+Qed.
+
+Lemma int_min_signed_eq: Int.min_signed = -2147483648.
+Proof. reflexivity. Qed.
+
+Lemma int_max_signed_eq: Int.max_signed = 2147483647.
+Proof. reflexivity. Qed.
+
+Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
+Proof. reflexivity. Qed.
+
+
+Ltac repable_signed := 
+   pose proof int_min_signed_eq; 
+   pose proof int_max_signed_eq; 
+   pose proof int_max_unsigned_eq; 
+   unfold repable_signed in *;
+   omega.
+
+Definition nullval : val := Vint Int.zero.
+
+Lemma typed_false_ptr: 
+  forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
+Proof.
+unfold typed_false, strict_bool_val, nullval; simpl; intros.
+destruct v; try discriminate.
+pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
+inv H.
+Qed.
+Lemma typed_false_cmp':
+  forall op i j, 
+   typed_false tint (force_val (sem_cmp op tint tint i j )) ->
+   Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+rewrite Int.negate_cmp.
+destruct i; inv H. 
+destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+destruct j; inv H1.
+Qed.
+
+
+Lemma typed_true_cmp':
+  forall op i j, 
+   typed_true tint (force_val (sem_cmp op tint tint i j)) ->
+   Int.cmp op (force_int i) (force_int j) = true.
+Proof.
+intros.
+unfold sem_cmp in H. 
+unfold classify_cmp in H. simpl in H.
+destruct i; inv H. destruct j; inv H1.
+simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
+destruct j; inv H1.
+Qed.
+
+Lemma typed_true_ptr: 
+  forall {t a v},  typed_true (Tpointer t a) v -> isptr v.
+Proof.
+unfold typed_true, strict_bool_val; simpl; intros.
+destruct v; try discriminate.
+if_tac in H; inv H. simpl. auto.
+Qed.
+
+Lemma int_cmp_repr':
+ forall op i j, repable_signed i -> repable_signed j ->
+   Int.cmp op (Int.repr i) (Int.repr j) = false ->
+   Zcmp (negate_comparison op) i j.
+Proof.
+intros.
+apply int_cmp_repr; auto.
+rewrite Int.negate_cmp.
+rewrite H1; reflexivity.
+Qed.
+
+Lemma typed_false_of_bool:
+ forall x, typed_false tint (Val.of_bool x) -> (x=false).
+Proof.
+unfold typed_false; simpl.
+unfold strict_bool_val, Val.of_bool; simpl.
+destruct x; simpl;  intuition congruence.
+Qed.
+
+Lemma typed_true_of_bool:
+ forall x, typed_true tint (Val.of_bool x) -> (x=true).
+Proof.
+unfold typed_true; simpl.
+unfold strict_bool_val, Val.of_bool; simpl.
+destruct x; simpl;  intuition congruence.
+Qed.
+
+Ltac fancy_intro :=
+ let H := fresh in
+ intro H; 
+ try simple apply ptr_eq_e in H;
+ match type of H with
+ | ?P => clear H; assert (H:P) by auto; clear H
+ | ?x = ?y => first [subst x | subst y | idtac]
+ | isptr ?x => let Hx := fresh "P" x in rename H into Hx
+ | is_pointer_or_null ?x => let Hx := fresh "PN" x in rename H into Hx
+ | typed_false _ (Val.of_bool _) =>  
+                    simple apply typed_false_of_bool in H
+ | typed_true _ (Val.of_bool _) =>  
+                    simple apply typed_true_of_bool in H
+ | _ => try (discriminate H)
+ end.
 
 Ltac normalize1 := 
          match goal with      
@@ -183,7 +321,6 @@ Ltac normalize :=
    repeat normalize1; try contradiction.
 
 (****** END experimental normalize ******************)
-
 
 
 (* The following line should not be needed, and was not needed
@@ -451,8 +588,6 @@ rewrite if_true; auto.
 apply andp_left2; auto.
 Qed.
 
-Definition nullval : val := Vint Int.zero.
-
 Lemma bool_val_int_eq_e: 
   forall i j, Cop.bool_val (Val.of_bool (Int.eq i j)) type_bool = Some true -> i=j.
 Proof.
@@ -474,15 +609,6 @@ Proof.
  destruct v; simpl in H; try discriminate.
  apply bool_val_int_eq_e in H. subst; auto.
  subst. simpl. auto.
-Qed.
-
-Lemma typed_false_ptr: 
-  forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
-Proof.
-unfold typed_false, strict_bool_val, nullval; simpl; intros.
-destruct v; try discriminate.
-pose proof (Int.eq_spec i Int.zero); destruct (Int.eq i Int.zero); subst; auto.
-inv H.
 Qed.
 
 Definition retval : environ -> val := eval_id ret_temp.
@@ -540,7 +666,7 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
 
 Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
 Definition SEPx': forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
-Global Opaque SEPx.
+Arguments SEPx R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
          (at level 8) : logic.
@@ -556,19 +682,6 @@ Lemma go_lower_lem2:
 Proof.
  intros.
  apply derives_extract_prop; intro; auto.
-Qed.
-
-Lemma go_lower_lem3:
-  forall t a v (P: Prop) (QR PQR: mpred),
-      (v=nullval -> prop P && QR |-- PQR) ->
-      (prop (typed_false (Tpointer t a) v /\ P ) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- apply H; auto.
- eapply typed_false_ptr; eauto.
 Qed.
 
 Lemma go_lower_lem6:
@@ -607,42 +720,6 @@ Proof.
  intros. rewrite <- andp_assoc; auto.
 Qed.
 
-Lemma go_lower_lem4:
-  forall (P1 P: Prop) (QR PQR: mpred),
-      prop P && QR |-- PQR ->
-      prop (True /\ P ) && QR |-- PQR.
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- apply H; auto.
-Qed.
-
-Lemma go_lower_lem5:
-  forall (P1 P: Prop) (QR PQR: mpred),
-      prop P && QR |-- PQR ->
-      prop (true=true /\ P ) && QR |-- PQR.
-Proof.
- intros.
- apply derives_extract_prop; intros [? ?].
- apply derives_trans with (!!P && QR).
- apply andp_right; auto. apply prop_right; auto.
- apply H; auto.
-Qed.
-
-
-Lemma go_lower_lem3b:
-  forall t a v (QR PQR: mpred),
-      (v=nullval -> QR |-- PQR) ->
-      (prop (typed_false (Tpointer t a) v) && QR |-- PQR).
-Proof.
- intros.
- apply derives_extract_prop; intro.
- apply H.
- eapply typed_false_ptr; eauto.
-Qed.
-
 Lemma go_lower_lem11:
  forall P R,
    P |-- R ->
@@ -656,23 +733,6 @@ Lemma go_lower_lem20:
     QR |-- QR' ->
     PROPx nil QR |-- QR'.
 Proof. unfold PROPx; intros; intro rho; normalize. Qed.
-
-Lemma go_lower_lem21:
-  forall QR QR',
-    QR |-- QR' ->
-    QR |-- PROPx nil QR'.
-Proof. unfold PROPx; intros; intro rho; normalize. Qed.
-
-Lemma go_lower_lem22:
-  forall (P:Prop)  P' QR PQR',
-    (P -> PROPx P' QR |-- PQR') ->
-    PROPx (P::P') QR |-- PQR'.
-Proof. intros. intro rho. unfold PROPx; simpl.
- normalize.
- unfold PROPx in H.
- eapply derives_trans; [ | apply H; auto].
- normalize.
-Qed.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
 Proof. intros; apply prop_ext; split; intro; congruence. Qed.
@@ -688,21 +748,8 @@ Lemma TT_prop_right {A}{NA: NatDed A}:
 Proof. intros. apply prop_right. auto.
 Qed.
 
-
-Ltac careful_unfold_lift := (* this should replace the unfold_lift in veric/lift.v *)
-  change @liftx with @liftx'; unfold liftx';
-  repeat  match goal with(* This unfolds instances of Tend *)
-  | |- context [lift_uncurry_open (?F _)] => unfold F 
-  | |- context [Tarrow _ (?F _)] => unfold F 
-  end;
-  simpl lift_uncurry_open;  
-    (*  old comment said, "do this first, or the "unfold Tarrow" can blow up";
-        but now maybe it won't blow up, using cbv delta instead of unfold  *)
-  cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
-
 Ltac go_lowerx :=
-   change SEPx with SEPx';
-   unfold PROPx, LOCALx,SEPx', local, lift1; (*careful_*)unfold_lift; intro rho; simpl;
+   unfold PROPx, LOCALx,SEPx,SEPx', local, lift1; unfold_lift; intro rho; simpl;
    repeat rewrite andp_assoc;
    repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
    try apply prop_left;
@@ -740,24 +787,6 @@ Proof. intros.
   normalize.
 Qed.
 
-Lemma go_lower_lem24:
-  forall rho (Q1: environ -> Prop)  Q R PQR,
-  (Q1 rho -> LOCALx Q R rho |-- PQR) ->
-  LOCALx (Q1::Q) R rho |-- PQR.
-Proof.
-   unfold LOCALx,local; super_unfold_lift; simpl; intros.
- normalize. 
- eapply derives_trans;  [ | apply (H H0)].
- normalize.
-Qed.
-
-Lemma go_lower_lem25:
-  forall rho R PQR,
-  R rho |-- PQR ->
-  LOCALx nil R rho |-- PQR.
-Proof. unfold LOCALx; intros; normalize. Qed.
-
-
 Fixpoint fold_right_sepcon rho (l: list(environ->mpred)) : mpred :=
  match l with 
  | nil => emp
@@ -778,25 +807,12 @@ Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
  | b::r => b  /\ fold_right_and P0 r
  end.
 
-Lemma go_lower_lem26:
- forall R PQR' rho,
-  fold_right_sepcon rho R |-- PQR'    ->
-  SEPx R rho |-- PQR'.
-Proof.
- intros. change SEPx with SEPx'.
- eapply derives_trans with (fold_right_sepcon rho R).
- clear. induction R; simpl; auto.
- destruct R. apply derives_trans with (a rho * emp).
- apply sepcon_derives; auto. rewrite sepcon_emp; auto.
- apply sepcon_derives; auto. auto.
-Qed.
-
 Lemma go_lower_lem27a:
  forall P Q' R' rho,
   P |--  andp (prop (fold_right_andp rho Q'))  (fold_right_sepcon rho R') ->
   P |-- LOCALx Q' (SEPx R') rho.
 Proof.
- intros. change SEPx with SEPx'.
+ intros. unfold SEPx.
  eapply derives_trans; [ apply H |].
  clear.
  unfold LOCALx. unfold local. super_unfold_lift; simpl.
@@ -811,46 +827,6 @@ Proof.
  apply sepcon_derives; auto.
  apply sepcon_derives; auto.
 Qed.
-
-Lemma go_lower_lem27c:
- forall P P' Q' R' rho,
-  P |--  andp (prop (fold_right_and (fold_right_andp rho Q') P'))  (fold_right_sepcon rho R') ->
-  P |-- PROPx P' (LOCALx Q' (SEPx R')) rho.
-Proof.
- intros.
- eapply derives_trans; [ apply H |].
- clear.
- unfold PROPx.
- induction P'.
- simpl fold_right_and. normalize. apply go_lower_lem27a.
- apply andp_right; auto. apply prop_right; auto.
- simpl. normalize.
- eapply derives_trans.
- 2: eapply derives_trans; [ apply IHP' | ].
- apply andp_right; auto. apply prop_right; auto.
- apply andp_right; auto.
- normalize.
- simpl. apply andp_left1. 
- apply derives_trans with (!!a && !! (fold_right and True P')).
- apply andp_right. apply prop_right; auto.
- apply derives_refl.
- normalize.
- simpl.
- apply andp_left2; auto.
-Qed.
-
-Lemma go_lower_lem24a:
-  forall rho t a e  Q R PQR,
-  (e rho = nullval -> LOCALx Q R rho |-- PQR) ->
-  LOCALx (`(typed_false (Tpointer t a)) e ::Q) R rho |-- PQR.
-Proof. unfold LOCALx, local; super_unfold_lift; intros.
- simpl. normalize.
- apply typed_false_ptr in H0.
-  eapply derives_trans; [ | apply (H H0)].
- simpl.
-  normalize.
- Qed.
-
 
 Lemma refold_frame:
  forall rho (F: list(environ->mpred)) A, 
@@ -875,42 +851,6 @@ Qed.
 
 Hint Rewrite typed_true_isptr using apply I : norm.
 
-Lemma typed_false_cmp':
-  forall op i j, 
-   typed_false tint (force_val (sem_cmp op tint tint i j )) ->
-   Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
-Proof.
-intros.
-unfold sem_cmp in H. 
-unfold classify_cmp in H. simpl in H.
-rewrite Int.negate_cmp.
-destruct i; inv H. 
-destruct j; inv H1.
-simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
-destruct j; inv H1.
-Qed.
-
-
-Lemma typed_true_cmp':
-  forall op i j, 
-   typed_true tint (force_val (sem_cmp op tint tint i j)) ->
-   Int.cmp op (force_int i) (force_int j) = true.
-Proof.
-intros.
-unfold sem_cmp in H. 
-unfold classify_cmp in H. simpl in H.
-destruct i; inv H. destruct j; inv H1.
-simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
-destruct j; inv H1.
-Qed.
-
-Lemma typed_true_ptr: 
-  forall {t a v},  typed_true (Tpointer t a) v -> isptr v.
-Proof.
-unfold typed_true, strict_bool_val; simpl; intros.
-destruct v; try discriminate.
-if_tac in H; inv H. simpl. auto.
-Qed.
 
 Ltac super_unfold_lift_in H :=
    try change @liftx with @liftx' in H;
@@ -924,106 +864,6 @@ Ltac super_unfold_lift' :=
     lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
     lift1 lift2 lift3] beta iota.
 
-Lemma typed_false_cmp'':
-  forall i j op e1 e2,
-   typed_false tint (force_val (sem_cmp op tint tint e1  e2 )) ->
-   Vint (Int.repr i) = e1 ->
-   Vint (Int.repr j) = e2 ->
-   repable_signed i -> 
-   repable_signed j -> 
-   Zcmp (negate_comparison op) i j.
-Proof.
-intros. subst.
-unfold sem_cmp in H. 
-unfold classify_cmp in H. simpl in H.
-eapply int_cmp_repr; auto.
-unfold typed_false in H; simpl in H.
-destruct op; simpl in *;
-match goal with |- negb ?A = true => destruct A; inv H; auto
-                        | |- ?A = true => destruct A; inv H; auto
- end.
-Qed.
-
-Lemma typed_true_cmp'':
-  forall i j op e1 e2,
-   typed_true tint (force_val (sem_cmp op tint tint e1  e2 )) ->
-   Vint (Int.repr i) = e1 ->
-   Vint (Int.repr j) = e2 ->
-   repable_signed i -> 
-   repable_signed j -> 
-   Zcmp op i j.
-Proof.
-intros. subst.
-unfold sem_cmp in H. 
-unfold classify_cmp in H. simpl in H.
-eapply int_cmp_repr; auto.
-unfold typed_true in H; simpl in H.
-destruct (Int.cmp op (Int.repr i) (Int.repr j)); inv H; auto.
-Qed.
-
-Lemma int_min_signed_eq: Int.min_signed = -2147483648.
-Proof. reflexivity. Qed.
-
-Lemma int_max_signed_eq: Int.max_signed = 2147483647.
-Proof. reflexivity. Qed.
-
-Ltac repable_signed := 
-   pose proof int_min_signed_eq; 
-   pose proof int_max_signed_eq; 
-   unfold repable_signed in *;
-   omega.
-
-Ltac simpl_compare H :=
- first [eapply typed_false_cmp'' in H;
-            [ | eassumption | eassumption | repable_signed | repable_signed ];
-            simpl in H
-         | eapply typed_true_cmp'' in H;
-            [ | eassumption | eassumption | repable_signed | repable_signed ];
-            simpl in H
-         |apply typed_false_ptr in H
-         | apply typed_true_ptr in H
-         | apply typed_false_cmp in H
-         | apply typed_true_cmp in H
-         | apply typed_false_cmp' in H
-         | apply typed_true_cmp' in H 
-         |idtac].
-
-Ltac intro_locals rho :=
-       (simple apply go_lower_lem24;
-        let H := fresh in intro H; super_unfold_lift_in H;
-        match type of H with
-        | typed_false _ _ => 
-               unfold eval_binop in H; simpl in H; intro_locals rho; simpl_compare H
-        | typed_true _ _ => 
-               unfold eval_binop in H; simpl in H; intro_locals rho; simpl_compare H
-        | _ => intro_locals rho
-        end) ||
-       simple apply go_lower_lem25.
-
-Ltac go_lower2 :=
-  match goal with
-  | |- derives (PROPx _ (LOCALx _ (SEPx _))) _ =>
-             idtac
-  | |- _ => fail 1 "go_lower: not in PROP/LOCAL/SEP form"
-  end;
- unfold tc_expr, tc_lvalue;
- try apply trivial_typecheck;
- repeat simple apply overridePost_normal_right;
- repeat (simple apply go_lower_lem22; intro);
- simple apply go_lower_lem20;
- try simple apply go_lower_lem21;
- simpl eval_expr; simpl eval_lvalue; simpl eval_cast;
-  let rho := fresh "rho" in intro rho;
- intro_locals rho;
- simple apply go_lower_lem26;
- try simple apply go_lower_lem27a;  try simple apply go_lower_lem27c;
- unfold fold_right_sepcon, fold_right_andp;
- super_unfold_lift';
- change (TT rho) with (@TT mpred Nveric);
- repeat (unfold ret_type; simpl); 
- unfold local; super_unfold_lift';
- repeat rewrite retval_lemma1;
- try rewrite refold_frame.
 
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
@@ -1258,64 +1098,52 @@ Proof. reflexivity. Qed.
 Hint Rewrite @fold_right_cons : norm.
 Hint Rewrite @fold_right_cons : subst.
 
- (* NOTE:  go_lower2 and go_lower3 do NOT call the "normalize" tactic.
-    This is important for 2 reasons:  normalize is very slow, and it does some
-      undesirable rewritings, especially expanding the scope of existentials *)
+Lemma grab_tc_environ:
+  forall Delta P Q R S rho,
+    (tc_environ Delta rho -> (PROPx P (LOCALx Q R)) rho |-- S) ->
+    (PROPx P (LOCALx (tc_environ Delta :: Q) R)) rho |-- S.
+Proof.
+intros.
+unfold PROPx,LOCALx in *; simpl in *.
+normalize.
+simpl in *.
+ rewrite andp_assoc in *.
+rewrite (prop_true_andp _ _ H0) in H.
+apply derives_extract_prop.
+auto.
+Qed.
 
-Ltac go_lower3 :=
-     unfold tc_exprlist, tc_expr, tc_lvalue, 
-         stackframe_of, Datatypes.id,
-        frame_ret_assert, function_body_ret_assert,
-        get_result1, retval, make_args', bind_ret,tvoid;
-        simpl typecheck_exprlist; simpl typecheck_expr; simpl typecheck_lvalue;
-        super_unfold_lift';
-        simpl make_args; simpl access_mode;
-        simpl @fst; simpl @snd; simpl @map; 
-         (* in Coq 8.4, next line could use simpl, with directives *)
-         repeat rewrite fold_right_cons; repeat rewrite fold_right_nil;
-      simpl  tc_andp; simpl denote_tc_assert;
-        super_unfold_lift';
-       repeat (match goal with
-        | |- context [@andp _ (@LiftNatDed' _ ?ND) ?P ?Q ?rho] =>
-                  change (@andp _ (@LiftNatDed' _ ND) P Q rho) with
-                          (@andp _ ND (P rho) (Q rho))
-        | |- context [@andp _ (@LiftNatDed _ _ ?ND) ?P ?Q ?rho] =>
-                  change (@andp _ (@LiftNatDed _ _ ND) P Q rho) with
-                          (@andp _ ND (P rho) (Q rho))
-        | |- context [@sepcon _ (@LiftNatDed' _ ?ND) (@LiftSepLog' _ _ ?SL) ?P ?Q ?rho] =>
-                  change (@sepcon _ (@LiftNatDed' _ ND) (@LiftSepLog' _ _ SL) P Q rho) with
-                          (@sepcon _ ND SL (P rho) (Q rho))
-        | |- context [@sepcon _ (@LiftNatDed _ _ ?ND) (@LiftSepLog _ _ _ ?SL) ?P ?Q ?rho] =>
-                  change (@sepcon _ (@LiftNatDed _ _ ND) (@LiftSepLog _ _ _ SL) P Q rho) with
-                          (@sepcon _ ND SL (P rho) (Q rho))
-        | |- context [@prop _ (@LiftNatDed _ _ ?ND) ?P ?rho] =>
-                 change (@prop _ (@LiftNatDed _ _ ND) P rho) with (@prop _ ND P)
-        | |- context [@prop _ (@LiftNatDed' _ ?ND) ?P ?rho] =>
-                 change (@prop _ (@LiftNatDed' _ ND) P rho) with (@prop _ ND P)
-        | |- context [@emp _ (@LiftNatDed _ _ ?ND) (@LiftSepLog _ _ _ ?SL) ?rho] =>
-                 change (@emp _ (@LiftNatDed _ _ ND) (@LiftSepLog _ _ ND SL) ?rho)
-                      with (@emp _ ND SL)
-        | |- context [@emp _ (@LiftNatDed' _ ?ND) (@LiftSepLog' _ _ ?SL) ?rho] =>
-                 change (@emp _ (@LiftNatDed' _ ND) (@LiftSepLog' _ ND SL) ?rho)
-                      with (@emp _ ND SL)
-        end; cbv beta);
-        repeat (rewrite eval_id_other by (let H := fresh in intro H; inv H));
-        repeat rewrite eval_id_same;
-        findvars;
-        eval_cast_simpl;
-        try match goal with H: tc_environ _ ?rho |- _ =>
-                           clear H rho
-             end;
-       repeat match goal with H: context [eval_cast ?a ?b ?c] |- _ =>
-                        try change (eval_cast a b c) with c in H
-       end;
-       repeat match goal with |- context [eval_cast ?a ?b ?c] =>
-                     try change (eval_cast a b c) with c
-       end;
-       repeat rewrite Vint_inj' in *;
-       repeat apply TT_andp_right; try apply TT_prop_right; auto.
+Arguments ret_type !Delta /.
 
-Ltac go_lower := go_lower2; go_lower3.
+Ltac go_lower0 := 
+intros ?rho;
+ try (simple apply grab_tc_environ; intro);
+ cbv delta [PROPx LOCALx SEPx SEPx' 
+                       eval_exprlist eval_expr eval_lvalue cast_expropt 
+                       eval_cast eval_binop eval_unop
+                      tc_expropt tc_expr tc_lvalue 
+                      typecheck_expr typecheck_lvalue
+                      function_body_ret_assert 
+                      make_args' bind_ret get_result1 retval
+                      eval_cast classify_cast
+                      denote_tc_assert
+    liftx  liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+    lift_prod lift_last lifted lift_uncurry_open lift_curry 
+     local lift lift0 lift1 lift2 lift3 
+   ] beta iota;
+  simpl.
+
+Ltac go_lower :=
+ go_lower0;
+ autorewrite with go_lower;
+ findvars;
+ simpl;
+ autorewrite with go_lower.
+
+Hint Rewrite eval_id_same : go_lower.
+Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
+Hint Rewrite Vint_inj' : go_lower.
+
 
 
 Lemma closed_wrt_PROPx:
@@ -1697,8 +1525,7 @@ Lemma insert_local: forall Q1 P Q R,
   local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
 Proof.
 intros. extensionality rho.
-change SEPx with SEPx'.
-unfold PROPx, LOCALx, SEPx', local; super_unfold_lift. simpl.
+unfold PROPx, LOCALx, SEPx, SEPx', local; super_unfold_lift. simpl.
 apply pred_ext; normalize.
 Qed.
 Hint Rewrite insert_local:  norm.
@@ -1785,8 +1612,7 @@ Lemma grab_nth_SEP:
 Proof.
 intros.
 f_equal. f_equal.
-change SEPx with SEPx'.
-extensionality rho; unfold SEPx'.
+extensionality rho; unfold SEPx, SEPx'.
 revert R; induction n; intros; destruct R.
 simpl. rewrite sepcon_emp; auto.
 simpl nth.
@@ -1985,14 +1811,14 @@ unfold frame_ret_assert, normal_ret_assert;
  destruct ek; simpl; normalize; try congruence.
 match goal with |- ?A |-- ?B => replace B with A; auto end.
 f_equal.
-change SEPx with SEPx'. unfold PROPx,LOCALx,SEPx'.
+unfold PROPx,LOCALx,SEPx,SEPx'.
 normalize.
 apply pred_ext; normalize.
 clear; induction R1'; simpl. rewrite emp_sepcon. auto.
 rewrite sepcon_assoc. apply sepcon_derives; auto.
 clear; induction R1'; simpl. rewrite emp_sepcon. auto.
 rewrite sepcon_assoc. apply sepcon_derives; auto.
-change SEPx with SEPx'. extensionality rho; unfold PROPx,LOCALx,SEPx'.
+extensionality rho; unfold PROPx,LOCALx,SEPx,SEPx'.
 normalize.
 f_equal. f_equal.
 clear; induction R1; simpl. apply emp_sepcon.
@@ -2019,12 +1845,10 @@ intros.
 eapply derives_trans; [ | eapply derives_trans].
 2: apply sepcon_derives; [ apply H | apply (derives_refl  (fold_right sepcon emp R2))].
 clear H.
-change SEPx with SEPx'; 
-unfold PROPx, LOCALx, SEPx', local; super_unfold_lift; intros.
+unfold PROPx, LOCALx, SEPx,SEPx', local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
-change SEPx with SEPx'; 
-unfold PROPx, LOCALx, SEPx', local; super_unfold_lift; intros.
+unfold PROPx, LOCALx, SEPx,SEPx', local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 Qed.
@@ -2175,7 +1999,7 @@ Lemma SEP_later_derives:
       SEPx Q |-- |> SEPx Q' ->
       SEPx (P::Q) |-- |> SEPx (P'::Q').
 Proof.
-change SEPx with SEPx'.
+unfold SEPx.
 intros.
 intro rho.
 specialize (H0 rho).
@@ -2248,7 +2072,7 @@ Lemma extract_exists_in_SEP:
 Proof.
 intros.
 extensionality rho.
-change SEPx with SEPx'.
+unfold SEPx.
 unfold PROPx, LOCALx, SEPx'; simpl.
 normalize.
 Qed.
@@ -2269,7 +2093,7 @@ Lemma flatten_sepcon_in_SEP:
 Proof.
 intros.
 f_equal. f_equal. extensionality rho.
-change SEPx with SEPx'.
+unfold SEPx.
 simpl. rewrite sepcon_assoc. auto.
 Qed.
 
@@ -2295,7 +2119,7 @@ Lemma extract_prop_in_SEP:
 Proof.
 intros.
 extensionality rho.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
+unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1.
 simpl.
 apply pred_ext; normalize.
 * match goal with |- _ |-- !! ?PP && _ => replace PP with P1
@@ -2323,7 +2147,7 @@ Lemma insert_SEP:
  forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
 Proof.
 intros. 
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1.
+unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1.
 extensionality rho; simpl.
 repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
@@ -2344,7 +2168,7 @@ Lemma move_prop_from_SEP':
 Proof.
  intros.
  extensionality rho.
-change SEPx with SEPx'.
+unfold SEPx.
  unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
  simpl.
  apply pred_ext; normalize.
@@ -2360,7 +2184,7 @@ intros.
 f_equal.
 extensionality rho.
 apply equal_f with rho in H.
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
+unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
 unfold_lift; simpl in *.
 revert R H; induction n; destruct R; simpl; intros;
 try solve [apply pred_ext; rewrite H; normalize; repeat rewrite prop_and; normalize].
@@ -2411,7 +2235,7 @@ Lemma move_local_from_SEP':
 Proof.
  intros.
  extensionality rho.
- change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local; unfold_lift.
+ unfold SEPx; unfold PROPx, LOCALx, SEPx', local; unfold_lift.
  simpl.
  f_equal.
  apply pred_ext; normalize.
@@ -2471,7 +2295,7 @@ f_equal.
 induction Q; simpl; auto.
 autorewrite with subst norm.
 f_equal;  apply IHQ.
-change SEPx with SEPx'.
+unfold SEPx.
 unfold SEPx'.
 induction R; auto.
 autorewrite with subst norm.

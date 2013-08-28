@@ -2185,7 +2185,7 @@ SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
        noattr) _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
 |-- @FF (environ -> mpred) (@LiftNatDed' mpred Nveric)
 . Proof. intros Q p' h t; ungather_entail.
-entailer. inv H2.
+entailer. inv H1.
 Qed.
 
 Lemma goal_12 :

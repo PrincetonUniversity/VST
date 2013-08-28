@@ -3,6 +3,53 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Local Open Scope logic.
 
+Arguments sem_binarith sem_int sem_long sem_float !t1 !t2 / v1 v2.
+Arguments Cop.sem_cast v !t1 !t2 / .
+
+
+Ltac simpl_compare :=
+ match goal with
+ | H: typed_true _ _ |- _ =>
+         revert H; simpl_compare; intro H;
+         first [apply typed_true_ptr in H
+                 | apply typed_true_of_bool in H;
+                   first [apply (int_cmp_repr Clt) in H;
+                            [ | repable_signed ..]; simpl in H
+                          | apply (int_cmp_repr Ceq) in H;
+                             [ | repable_signed ..]; simpl in H
+                          | idtac ]
+                 | idtac ]
+ | H: typed_false _ _ |- _ =>
+         revert H; simpl_compare; intro H;
+         first [ apply typed_false_ptr in H
+                | apply typed_false_of_bool in H;
+                   first [apply (int_cmp_repr' Clt) in H;
+                            [ | repable_signed ..]; simpl in H
+                          | apply (int_cmp_repr' Ceq) in H;
+                            [ | repable_signed ..]; simpl in H
+                          | idtac]
+                 | idtac ]
+ | H : Int.lt _ _ = false |- _ => 
+         revert H; simpl_compare; intro H;
+         try (apply (int_cmp_repr' Clt) in H ;
+                    [ | repable_signed ..]; simpl in H)
+ | H : Int.lt _ _ = true |- _ =>
+         revert H; simpl_compare;  intro H;
+         try (apply (int_cmp_repr Clt) in H ;
+                    [ | repable_signed ..]; simpl in H)
+ | H : Int.eq _ _ = false |- _ => 
+         revert H; simpl_compare;  intro H;
+         try (apply (int_cmp_repr' Ceq) in H ;
+                    [ | repable_signed ..]; simpl in H)
+ | H : Int.eq _ _ = true |- _ => 
+         revert H; simpl_compare;  intro H;
+         try (apply (int_cmp_repr Ceq) in H ;
+                    [ | repable_signed ..]; simpl in H)
+ | |- _ => idtac
+end.
+
+Ltac no_evars P := (has_evar P; fail 1) || idtac.
+
 Inductive computable: forall {A}(x: A), Prop :=
 | computable_Zlt: forall x y, computable x -> computable y -> computable (Z.lt x y)
 | computable_Zle: forall x y, computable x -> computable y -> computable (Z.le x y)
@@ -51,6 +98,7 @@ Hint Extern 5 (@computable _ _) =>
     end : computable.
 
 Ltac computable := match goal with |- ?x =>
+ no_evars x;
  let H := fresh in assert (H: computable x) by auto 50 with computable; 
  clear H;
  compute; clear; auto; congruence
@@ -69,18 +117,17 @@ Proof. intros. apply prop_ext; intuition. Qed.
 
 Ltac and_solvable_left P :=
  match P with
-  | ?P1 /\ ?P2 => try rewrite (and_solvable_left P1) by (computable || auto);
+  | ?P1 /\ ?P2 => try (no_evars P1; try rewrite (and_solvable_left P1) by (computable || auto));
                            and_solvable_left P2
   | _ => match P with
              | _ /\ _ => fail 1 
-             | _ => first [ rewrite (and_solvable_right P) by (computable || auto)
+             | _ => first [ no_evars P; rewrite (and_solvable_right P) by (computable || auto)
                                 | rewrite (prop_true_andp' P) by (computable || auto)
                                 | apply (prop_right P); solve [(computable || auto)]
                                 | idtac
                                 ]
              end
   end.
-
 Ltac entailer' :=   
  autorewrite with gather_prop;
    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
@@ -88,11 +135,10 @@ Ltac entailer' :=
               || simple apply derives_extract_prop');
               fancy_intro);
  subst_any;
+ simpl_compare;
  match goal with
  |  |- _ |-- _ =>
    saturate_local;  subst_any; 
-   change SEPx with SEPx'; unfold PROPx, LOCALx, SEPx', local, lift1;
-   unfold_lift; simpl;
    try (progress (autorewrite with gather_prop; normalize); 
          saturate_local);
    autorewrite with gather_prop;
@@ -107,6 +153,7 @@ Ltac entailer' :=
    auto
  | |- _ => normalize
  end.
+
 
 Ltac entailer :=
  match goal with
@@ -149,6 +196,7 @@ Ltac entailer1 :=
 (**** try this out here, for now ****)
 
 Hint Rewrite Int.signed_repr using repable_signed : norm.
+Hint Rewrite Int.unsigned_repr using repable_signed : norm.
 
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
@@ -156,16 +204,13 @@ Definition EVAR (x: Prop) := x.
 Lemma EVAR_e: forall x, EVAR x -> x. 
 Proof. intros. apply H. Qed.
 
-Ltac no_evars := match goal with |- ?A => (has_evar A; fail 1) || idtac end.
-
-
 Ltac gather_entail :=
 repeat match goal with
- | A := _ |- _ =>  clear A || (revert A; no_evars)
+ | A := _ |- _ =>  clear A || (revert A; match goal with |- ?B => no_evars B end)
  | H : ?P |- _ =>
   match type of P with
-  | Prop => match P with name _ => fail 2 | _ => revert H; no_evars end
-  | _ => clear H || (revert H; no_evars)
+  | Prop => match P with name _ => fail 2 | _ => revert H; match goal with |- ?B => no_evars B end end
+  | _ => clear H || (revert H; match goal with |- ?B => no_evars B end)
   end
 end;
 repeat match goal with 

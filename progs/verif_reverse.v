@@ -150,7 +150,7 @@ entailer!.
              Int.add_neg_zero, Int.add_zero; auto.
 (* After the loop *)
 forward.  (* return s; *)
-entailer. simpl in *; congruence.
+entailer.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -206,7 +206,7 @@ forward.  (* v = t; *)
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct v0; inv H5; simpl; auto.
+      destruct v0; inv Pv0; simpl; auto.
    + apply exp_right with h.
       apply exp_right with cts1.
       apply exp_right with w0.

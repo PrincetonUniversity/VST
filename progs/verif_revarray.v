@@ -9,7 +9,7 @@ Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : Z -> int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP (0 <= size <= Int.max_signed)
+          PROP (0 <= size <= Int.max_signed; writable_share sh)
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
@@ -71,6 +71,89 @@ Proof.
  intros. extensionality v. simpl. apply split3_array_at. auto.
 Qed.
 
+
+Definition typecheck_store' t := 
+(is_int_type t = true -> t = Tint I32 Signed noattr) /\
+(is_float_type t = true -> t = Tfloat F64 noattr).
+
+Lemma semax_store_array:
+forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
+              lo hi   
+              (v1: environ-> val) inject P Q R            
+             e1  e2 (v2: Z) (v: reptype t1),
+    writable_share sh ->
+    typeof e1 =  tptr t1 ->
+    type_is_volatile t1 = false ->
+    typecheck_store' t1 ->
+    repinject t1 = Some inject ->
+    nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+          local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1))
+          && !! (in_range lo hi v2)
+          && local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t1))
+          && local (`(eq (inject v)) (eval_expr (Ecast e2 t1))) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sassign (Ederef e1 t1) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx (replace_nth n R
+                    (`(array_at t1 sh (upd contents v2 v) lo hi) v1)))))).
+Proof.
+intros.
+rewrite (SEP_nth_isolate _ _ _ H4) in H5|-*.
+rewrite (SEP_replace_nth_isolate _ _ _ (`(array_at t1 sh (upd contents v2 v) lo hi) v1) H4).
+forget (@replace_nth (environ -> mpred) n R (@emp _ _ _)) as R'.
+clear n H4 R. rename R' into R.
+eapply semax_pre_post;
+ [ | | apply (semax_store Delta _ _ sh 
+          (PROPx P (LOCALx
+              (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1) ::
+              tc_expr Delta e1 :: tc_expr Delta (Ecast e2 t1) :: `(in_range lo hi v2) ::
+              `(eq (inject v)) (eval_expr (Ecast e2 t1)) :: 
+             Q)
+            (SEPx 
+             (`(array_at t1 sh contents lo v2) v1 ::
+             `(array_at t1 sh contents (Zsucc v2) hi) v1 :: R))))); auto].
+* apply later_left2.
+  rewrite insert_local.
+  rewrite <- (andp_dup (PROPx _ _)).
+  eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H5] |  clear H5].
+  go_lowerx.
+  entailer.
+  apply andp_right.
+  apply prop_right.
+  hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+  rewrite H0; reflexivity. simpl. unfold_lift. rewrite <- H7; simpl. destruct (v1 rho); inv H13; apply I.
+  rewrite H1; reflexivity.
+  apply sepcon_derives; auto.
+  rewrite  (split3_array_at v2).
+  cancel.
+  rewrite <- H7; simpl.
+  destruct (v1 rho); inv H13. simpl.
+  unfold add_ptr_int; simpl.
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  apply mapsto_mapsto_.
+  omega.
+* intros.
+  clear H5.
+  go_lowerx. apply normal_ret_assert_derives. entailer.
+  rewrite  (split3_array_at v2 _ _ _ lo hi).
+  cancel.
+  rewrite (sepcon_comm (mapsto _ _ _ _)).
+  apply sepcon_derives; [apply sepcon_derives | ].
+  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
+  rewrite upd_neq; auto. omega.
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  destruct (eval_expr e1 rho); inv H13.
+  destruct (v1 rho); inv H6.
+  unfold add_ptr_int. simpl.
+  rewrite upd_eq. rewrite H11. unfold_lift; simpl.
+  apply derives_refl.
+  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
+  rewrite upd_neq by omega. auto. omega.
+Qed.
+
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
 Proof.
 start_function.
@@ -103,12 +186,13 @@ auto.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-simpl in H4.
-rewrite Int.sub_signed in H4.
+rename H4 into H5.
+simpl in H5.
+rewrite Int.sub_signed in H5.
+normalize in H5.
+unfold Int.lt in H5.
+if_tac in H5; inv H5.
 normalize in H4.
-unfold Int.lt in H4.
-if_tac in H4; inv H4.
-normalize in H3.
 apply derives_refl'.
 apply equal_f.
 apply array_at_ext.
@@ -125,19 +209,56 @@ forward.  (* t = a[lo]; *)
 entailer!.
 simpl in H4. rewrite Int.sub_signed in H4.
 normalize in H4.
-unfold Int.lt in H4. if_tac in H4; inv H4.
-normalize in H3.
+simpl_compare.
 omega.
 forward.  (* s = a[hi]; *)
 entailer.
-simpl in H5. rewrite Int.sub_signed in H5|-*.
-normalize in H5.
-unfold Int.lt in H5. if_tac in H5; inv H5.
-normalize in H3.
+rename H4 into H6.
+simpl in H6. rewrite Int.sub_signed in H6|-*.
+normalize in H6.
+simpl_compare.
 rewrite (Int.signed_repr (size-j)) by repable_signed.
 rewrite (Int.signed_repr 1) by repable_signed.
 normalize.
 apply prop_right; omega.
+
+normalize. simpl typeof.
+
+Ltac new_array_store_tac :=
+ ensure_normal_ret_assert;
+  hoist_later_in_pre;
+match goal with |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
+     (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let contents := fresh "contents" in evar (contents: Z -> reptype t);
+  let lo := fresh "lo" in evar (lo: Z);
+  let hi := fresh "hi" in evar (hi: Z);
+  let a := fresh "a" in evar (a: val);
+  let H := fresh in 
+  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (array_at t sh contents lo hi a))) * TT);
+  [unfold number_list, n, sh, contents, lo, hi, a; 
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   solve [entailer; cancel]
+ | clear H ];
+ eapply(@semax_store_array Esp Delta n sh t contents lo hi (`a));
+  unfold number_list, n, sh, contents, lo, hi, a;
+  [solve [auto] | reflexivity | reflexivity | hnf; intuition | reflexivity 
+  | autorewrite with norm; reflexivity
+  | ]
+end.
+
+forward_with new_array_store_tac.
+entailer.
+apply (int_cmp_repr Clt) in H5; [ | repable_signed| normalize; repable_signed ].
+unfold Zcmp in H5.
+normalize in H5.
+apply prop_right; split; [reflexivity |].
+normalize.
+omega.
+
+(* forward_with new_array_store_tac. *)
 admit.
 (*
 forward. (*  a[hi-1] = t ; *)

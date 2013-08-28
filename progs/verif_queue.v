@@ -247,6 +247,7 @@ entailer.
 unfold link_.
 (* goal_7 *)
 forward. (* p->next = NULL; *)
+fold t_struct_elem.
 simpl typeof. simpl eval_expr. normalize.
 forward. (*   h = Q->head; *)
 forward_if 
@@ -274,7 +275,7 @@ forward_if
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
   (* goal 11 *)
-      entailer. inv H1.
+      entailer. inv H0.
   + normalize. intro prefix.
      normalize. unfold link.
      forward. (*  t->next=p; *)
@@ -385,6 +386,7 @@ auto with closed.
 forward. (*  p = make_elem(1,10); *)
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
 instantiate (1:= `(fifo nil) (eval_id _Q)::nil) in (Value of Frame).
+unfold Frame.  (* this line should not be necessary *)
 entailer.
 auto with closed.
 apply semax_pre with

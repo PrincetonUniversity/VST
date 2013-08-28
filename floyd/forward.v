@@ -552,8 +552,7 @@ Ltac old_store_field_tac :=
        (apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ try solve [go_lower2; apply andp_right;
-                    [apply prop_right; intuition | apply derives_refl]]
+   [ try solve [entailer!; try intuition]
    | isolate_mapsto__tac_deref (Ederef e t3) fld R; hoist_later_in_pre;
        eapply semax_post''; [ | eapply semax_store_field_deref; 
                                              [ auto | reflexivity | reflexivity | reflexivity |
@@ -564,8 +563,7 @@ Ltac old_store_field_tac :=
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_lvalue Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [  try solve [go_lower2; apply andp_right;
-                    [apply prop_right; intuition | apply derives_refl]]
+   [  try solve [entailer!; try intuition]
    |  isolate_mapsto__tac e fld R; hoist_later_in_pre;
        eapply semax_post''; [ | eapply semax_store_field'; 
                                              [ auto | reflexivity | reflexivity | reflexivity |
@@ -580,8 +578,7 @@ Ltac store_tac :=
        apply (semax_pre (PROPx P 
                 (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
                 (SEPx R))));
-   [ try solve [go_lower2; apply andp_right;
-                    [apply prop_right; intuition | apply derives_refl]]
+   [ try solve [entailer!; try intuition]
    |  isolate_mapsto_tac e R; hoist_later_in_pre;
        eapply semax_post'';  
        [ | first [eapply semax_store_PQR; 
@@ -874,6 +871,17 @@ Ltac find_field_mapsto n R F eq_n xE E :=
  | _ => fail "find_field_mapsto"
   end.
 
+Lemma go_lower_lem24:
+  forall rho (Q1: environ -> Prop)  Q R PQR,
+  (Q1 rho -> LOCALx Q R rho |-- PQR) ->
+  LOCALx (Q1::Q) R rho |-- PQR.
+Proof.
+   unfold LOCALx,local; super_unfold_lift; simpl; intros.
+ normalize. 
+ eapply derives_trans;  [ | apply (H H0)].
+ normalize.
+Qed.
+
 Ltac quick_load_equality :=
  (intros ?rho; apply prop_right; unfold_lift; force_eq_tac) ||
  (apply go_lower_lem20;
@@ -1020,19 +1028,19 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    eapply (semax_load_field_39);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | try apply trivial_typecheck
-   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   | try apply trivial_typecheck; try solve [entailer]
+   | solve [entailer; cancel]
    ]
    | eapply (semax_load_field_38);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
-   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   | solve [entailer; cancel]
    ]
   | eapply (semax_load_field_37);
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | try solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
-   | go_lower; repeat rewrite field_mapsto_force_ptr; subst_any; cancel
+   | try solve [entailer]
+   | solve [entailer; cancel]
    ]
  | match goal with |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
@@ -1133,6 +1141,11 @@ revert R H H0; induction n; destruct R; simpl; intros; inv H;
  apply sepcon_derives; auto.
 Qed.
 
+Lemma local_lifted_reflexivity:
+forall A P (x: environ -> A), P |-- local (`eq x x).
+Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
+Qed.
+
 Ltac new_store_tac := 
 ensure_normal_ret_assert;
 hoist_later_in_pre;
@@ -1160,7 +1173,7 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
       | try solve [repeat split; hnf; simpl; intros; congruence]
       | entailer
       | entailer
-      | quick_load_equality
+      | (apply local_lifted_reflexivity || quick_load_equality)
       | reflexivity
       | simple apply derives_refl]
  | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl

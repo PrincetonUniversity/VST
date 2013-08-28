@@ -118,16 +118,14 @@ forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 simpl.
 forward. (*  ((int * )buf)[0]=x; *)
-entailer.
 forward. (*  ((int * )buf)[1]=y; *)
-entailer. repeat split; auto.
 forward. (* return 8; *)
 entailer.
 apply exp_right with 8.
 gather_prop. simpl_typed_mapsto. cancel.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
-destruct buf0; inv H0.
+destruct buf0; inv H1.
 simpl. rewrite memory_block_zero. rewrite sepcon_emp.
 apply andp_right; auto.
 cancel.
@@ -393,14 +391,12 @@ eapply semax_pre with
   SEP (`(message sh_obj msg) (eval_lvalue e_obj);
         `(typed_mapsto sh_p t) (eval_expr e_p) `v;
         `(typed_mapsto_ sh_buf (tarray tuchar (mf_size msg))) (eval_lvalue e_buf))).
-go_lower.
+go_lowerx.
 normalize. rewrite prop_and.
 repeat apply andp_right; auto.
 eapply derives_trans; [ |  apply H6].
 apply prop_right; auto.
 apply prop_right; auto.
-hnf in H0. simpl in H0.
-rewrite tc_andp_TT2 in H0. apply H0.
 clear H6.
 unfold message at 1.
 normalize.
@@ -412,7 +408,6 @@ replace_SEP (EX fg: val*val,
                  `((Int.repr (mf_size msg), (fst fg, snd fg)))); [ reflexivity |].
 extract_exists_in_SEP. intros [f g].
 simpl @fst; simpl @ snd.
-simpl_typed_mapsto.
 eapply semax_pre with
   (EX p:val, EX buf:val, |>(PROP()
      LOCAL(tc_lvalue Delta e_obj; `(eq p) (eval_expr e_p);
@@ -476,17 +471,24 @@ focus_SEP 3 1.
                        (eval_lvalue e_obj) `(Vint (Int.repr (mf_size msg)));
                `(field_mapsto sh_obj t_struct_message _deserialize)
                             (eval_lvalue e_obj)  `g))).
-go_lower. subst.
-rewrite (temp_types_init_same _ _ _ _ H).
-apply andp_right.
+go_lowerx. subst.
+apply andp_right; auto.
 apply prop_right.
-hnf in H6.  
-simpl in H6.
-split; [solve [hnf; auto] | ].
-split; [ | solve[auto]].
+repeat split; auto.
+hnf. unfold typecheck_expr.
+simpl negb. cbv iota.
+rewrite (temp_types_init_same _ _ _ _ H).
+apply I.
+hnf in H7|-*.
+unfold typecheck_exprlist in H7|-*.
+repeat rewrite denote_tc_assert_andp in H7|-*.
+destruct H7 as [? [? _]]; repeat split; auto.
+apply tc_expr_init; auto.
+apply tc_expr_init; auto.
+(*
 clear - H0 H6 CL_p CL_buf.
 admit.  (* looks OK *)
-apply derives_refl.
+*)
 eapply semax_seq'.
 apply (call_lemmas.semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
@@ -517,12 +519,12 @@ assert (C2:=closed_wrt_Forall_subset _ _ CLid).
 autorewrite with subst.
 normalize.
 autorewrite with subst.
-go_lower. normalize.
+go_lowerx. normalize.
 unfold serialize_post, serialize_spec.
 normalize. rename x0 into len.
 subst.
-rewrite H1;
-rewrite <- H7.
+rewrite H3;
+rewrite <- H9.
 simpl force_int.
 cancel.
 apply derives_trans with
@@ -671,8 +673,7 @@ frame_SEP 1 0 2.
 replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
           ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
             :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
-go_lower.
-apply andp_right; try apply prop_right; auto.
+entailer.
 apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
 intro rho. apply prop_right. hnf. auto.
 simpl update_tycon. unfold app.
@@ -681,10 +682,21 @@ eapply semax_pre0; [apply intpair_message_length | ].
 focus_SEP 1 4.
 rewrite -> seq_assoc.
 eapply semax_seq'.
-apply call_deserialize; auto 50 with closed.
-go_lower. apply andp_right; apply prop_right.
-rewrite <- H0. simpl. omega.
-rewrite <- H0. simpl. reflexivity.
+apply call_deserialize; try reflexivity; auto.
+entailer.
+apply prop_right. rewrite <- H0. omega.
+apply closed_wrt_PROPx.
+apply closed_wrt_LOCALx; [ auto 50 with closed | ].
+apply closed_wrt_SEPx.
+assert (CLX: closed_wrt_vars (eq _des)
+  (`(mf_assert intpair_message Tsh) (eval_var _buf (tarray tuchar 8))
+     (`Int.signed (`force_int (eval_id _len))) `((Int.repr 1, Int.repr 2))))
+  by admit.
+assert (CLY: closed_wrt_vars (eq _des)
+  (`(typed_mapsto Tsh t_struct_intpair) (eval_var _p t_struct_intpair)
+     `((Int.repr 1, Int.repr 2))))
+ by admit.
+auto 50 with closed.
 focus_SEP 1.
 replace_SEP 
   ((`( field_mapsto Tsh t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
@@ -700,7 +712,7 @@ go_lower. subst. simpl. normalize. unfold main_post.
  change (mf_size intpair_message) with 8.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
  apply eval_var_isptr with Delta; auto.
- rewrite H1; clear len H1 H3.
+ rewrite <- H1; clear len H1.
  simpl.
  replace (memory_block Tsh (Int.repr 0)
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
@@ -708,29 +720,15 @@ go_lower. subst. simpl. normalize. unfold main_post.
  rewrite sepcon_emp.
 2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H2;
  apply memory_block_zero.
-
+unfold frame_ret_assert.
+unfold stackframe_of.
+simpl.
 repeat rewrite var_block_typed_mapsto_.
+unfold id.
 normalize.
-eapply derives_trans; [
-  repeat simple apply sepcon_derives; 
-   try simple apply typed_mapsto_typed_mapsto_;
-   try simple apply field_mapsto_field_mapsto_;
-   apply derives_refl 
- | ].
 replace ( typed_mapsto_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
    with (typed_mapsto_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
  by (repeat rewrite <- memory_block_typed; auto).
 simpl_typed_mapsto.
 cancel.
 Qed.
-
-
-
-
-
-
-
-
-
-
-
