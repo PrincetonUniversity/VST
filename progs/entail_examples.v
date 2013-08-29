@@ -227,7 +227,6 @@ unfold fifo.
 entailer.
 apply exp_right with (h,tl).
 entailer.
-apply andp_right; auto.
 if_tac; entailer; elim_hyps; simpl; auto.
 destruct prefix; entailer1.
 Qed.
@@ -2185,7 +2184,7 @@ SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
        noattr) _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
 |-- @FF (environ -> mpred) (@LiftNatDed' mpred Nveric)
 . Proof. intros Q p' h t; ungather_entail.
-entailer. inv H1.
+entailer.
 Qed.
 
 Lemma goal_12 :

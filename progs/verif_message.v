@@ -120,16 +120,13 @@ simpl.
 forward. (*  ((int * )buf)[0]=x; *)
 forward. (*  ((int * )buf)[1]=y; *)
 forward. (* return 8; *)
-entailer.
 apply exp_right with 8.
-gather_prop. simpl_typed_mapsto. cancel.
+entailer.
+simpl_typed_mapsto. cancel.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
 destruct buf0; inv H1.
 simpl. rewrite memory_block_zero. rewrite sepcon_emp.
-apply andp_right; auto.
-cancel.
-rewrite sepcon_comm.
 apply sepcon_derives; apply derives_refl';
  eapply mapsto_field_mapsto; simpl; try reflexivity;
  rewrite Int.add_assoc; reflexivity.
@@ -707,7 +704,9 @@ flatten_sepcon_in_SEP.
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)
-go_lower. subst. simpl. normalize. unfold main_post.
+ unfold frame_ret_assert; simpl.  (* shouldn't need this *)
+ unfold main_post.
+ entailer.
  unfold mf_restbuf.
  change (mf_size intpair_message) with 8.
  assert (isptr (eval_var _buf(tarray tuchar 8) rho)).
@@ -718,14 +717,13 @@ go_lower. subst. simpl. normalize. unfold main_post.
       (offset_val (Int.repr 8) (eval_var _buf (tarray tuchar 8) rho)))
   with (@emp mpred _ _).
  rewrite sepcon_emp.
-2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H2;
+2: symmetry; destruct (eval_var _buf (tarray tuchar 8) rho); inv H3;
  apply memory_block_zero.
-unfold frame_ret_assert.
 unfold stackframe_of.
 simpl.
 repeat rewrite var_block_typed_mapsto_.
 unfold id.
-normalize.
+entailer.
 replace ( typed_mapsto_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
    with (typed_mapsto_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
  by (repeat rewrite <- memory_block_typed; auto).

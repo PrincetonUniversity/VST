@@ -154,15 +154,11 @@ forward. (* i++; *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
 entailer.
- apply andp_right; auto.
- apply prop_right.  inv H4; inv H3.
- rewrite Int.add_signed;
-  repeat rewrite Int.signed_repr by repable_signed.
- repeat split;  try omega.
+ omega.
+ omega.
  apply fold_range_fact1; omega.
 (* After the loop *)
 forward.  (* return s; *)
-entailer.
 Qed.
 
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).

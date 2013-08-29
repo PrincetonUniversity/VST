@@ -1214,7 +1214,8 @@ Ltac forward1 :=
              semax_logic_and_or ||  fail 2 "Use this tactic:  forward_if POST
                                             where POST is the post condition"
   | |- @semax _ _ _ (Sreturn _) _ => 
-         (eapply semax_pre_simple; [ go_lower1 | apply semax_return ])
+         repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
+        (eapply semax_pre; [  | apply semax_return ]; entailer)
           || fail 2 "forward1 Sreturn failed"
   | |-  @semax _ _ _ (Swhile _ _) _ => 
            fail 2 "Use this tactic:  forward_while INV POST

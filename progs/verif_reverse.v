@@ -146,11 +146,10 @@ forward.  (* s = s + h; *)
 unfold sumlist_Inv.
 apply exp_right with r.
 entailer!.
-   inv H0; rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
+   rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
 (* After the loop *)
 forward.  (* return s; *)
-entailer.
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -187,7 +186,6 @@ focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ?].
 subst cts2.
 forward.  (* t = v->tail; *)  
-
 forward. (*  v->tail = w; *)
 unfold replace_nth.
 fold t_struct_list.
@@ -214,7 +212,6 @@ forward.  (* v = t; *)
 }
 (* after the loop *)
 forward.  (* return w; *)
-entailer!.
 Qed.
 
 (** this setup_globals lemma demonstrates that the initialized global variables
@@ -267,7 +264,6 @@ instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value
 entailer!.
 auto with closed.
 forward.  (* return s; *)
-entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

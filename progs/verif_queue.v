@@ -275,7 +275,7 @@ forward_if
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
   (* goal 11 *)
-      entailer. inv H0.
+      entailer.
   + normalize. intro prefix.
      normalize. unfold link.
      forward. (*  t->next=p; *)
@@ -298,7 +298,6 @@ forward_if
   unfold_abbrev_ret. (* FIXME this should not be necessary *)
   unfold_abbrev_commands.  (* FIXME this should not be necessary *)
     forward. (* return ; *)
-    entailer.
 Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gtot f_fifo_get fifo_get_spec.

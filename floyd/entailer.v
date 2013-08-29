@@ -6,9 +6,14 @@ Local Open Scope logic.
 Arguments sem_binarith sem_int sem_long sem_float !t1 !t2 / v1 v2.
 Arguments Cop.sem_cast v !t1 !t2 / .
 
-
 Ltac simpl_compare :=
  match goal with
+ | H: Vint _ = _ |- _ => 
+         revert H; simpl_compare; intro H;
+         try (simpl in H; apply Vint_inj in H;
+               match type of H with ?a = ?b => 
+                  first [subst a | subst b | idtac]
+               end)
  | H: typed_true _ _ |- _ =>
          revert H; simpl_compare; intro H;
          first [apply typed_true_ptr in H
@@ -18,6 +23,7 @@ Ltac simpl_compare :=
                           | apply (int_cmp_repr Ceq) in H;
                              [ | repable_signed ..]; simpl in H
                           | idtac ]
+                 | discriminate H
                  | idtac ]
  | H: typed_false _ _ |- _ =>
          revert H; simpl_compare; intro H;
@@ -28,6 +34,7 @@ Ltac simpl_compare :=
                           | apply (int_cmp_repr' Ceq) in H;
                             [ | repable_signed ..]; simpl in H
                           | idtac]
+                 | discriminate H
                  | idtac ]
  | H : Int.lt _ _ = false |- _ => 
          revert H; simpl_compare; intro H;
@@ -128,43 +135,46 @@ Ltac and_solvable_left P :=
                                 ]
              end
   end.
-Ltac entailer' :=   
- autorewrite with gather_prop;
-   repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
-              || simple apply derives_extract_prop 
-              || simple apply derives_extract_prop');
-              fancy_intro);
- subst_any;
- simpl_compare;
- match goal with
- |  |- _ |-- _ =>
-   saturate_local;  subst_any; 
-   try (progress (autorewrite with gather_prop; normalize); 
-         saturate_local);
-   autorewrite with gather_prop;
-   repeat rewrite and_assoc';
-   match goal with 
+
+Lemma prop_and_same_derives {A}{NA: NatDed A}:
+  forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
+Proof.
+intros. apply andp_right; auto.
+Qed.
+
+
+Ltac ent_iter :=
+    autorewrite with gather_prop;
+    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
+                || simple apply derives_extract_prop 
+                || simple apply derives_extract_prop');
+                fancy_intro);
+   saturate_local;
+   subst_any;
+   simpl_compare;
+   normalize.
+
+Ltac entailer' :=  
+ repeat (progress ent_iter);
+(* ((progress ent_iter; fail 5 "bingo") || idtac); *)
+ try simple apply prop_and_same_derives;
+ repeat rewrite and_assoc';
+ match goal with 
    | |- _ |-- !! ?P && _ => and_solvable_left P
    | |- _ |-- !! ?P => and_solvable_left P; 
                                prop_right_cautious; try apply TT_right;
                                repeat simple apply conj; (computable||auto)
    | |- _ => idtac
-   end;
-   auto
- | |- _ => normalize
- end.
-
+ end;
+ auto.
 
 Ltac entailer :=
  match goal with
- | |- PROPx _ _ |-- _ => 
-       go_lower; 
-       match goal with |- _ |-- _ => entailer' 
-                                 | |- _ => idtac 
-       end
- | |- _ |-- _ => entailer'
+ | |- PROPx _ _ |-- _ => go_lower
+ | |- _ |-- _ => idtac
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
- end.
+ end;
+ entailer'.
 
 Tactic Notation "entailer" "!" := 
   entailer; 

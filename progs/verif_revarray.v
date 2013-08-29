@@ -278,7 +278,6 @@ entailer.
 *)
 (* After the loop *)
 forward. (* return; *)
-entailer.
 Qed.
 
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
