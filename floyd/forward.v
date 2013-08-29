@@ -261,7 +261,6 @@ Qed.
 
 Ltac ignore x := idtac.
 
-
 (*start tactics for forward_while unfolding *)
 Ltac intro_ex_local_derives :=
 (match goal with 
@@ -408,59 +407,10 @@ first [apply forward_setx_closed_now;
            | intros ?ek ?vl; apply after_set_special1 ]
         ].
 
-Ltac isolate_field_tac_deref e fld R := 
-  match R with 
-     | context [|> `(field_mapsto ?sh ?struct fld) ?e' ?v :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_expr e)
-     | context [ `(field_mapsto ?sh ?struct fld) ?e' ?v  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_expr e)
-     end
-  || fail 4 "Could not isolate `(field_mapsto _ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
-
-Ltac isolate_field_tac e fld R := 
-  match R with 
-     | context [|> `(field_mapsto ?sh ?struct fld) ?e' ?v :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_lvalue e)
-     | context [ `(field_mapsto ?sh ?struct fld) ?e' ?v  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_lvalue e)
-     end
-  || fail 4 "Could not isolate `(field_mapsto _ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
-
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
        let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
      end.
-
-Ltac semax_field_tac :=
- idtac;  (* need this bogosity so it can be passed as an argument *)
-match goal with
- |  |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Efield (Ederef ?e _) ?fld _)) _ =>
-     apply (semax_pre_simple (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-     [ apply semax_load_assist1; [reflexivity]
-     | isolate_field_tac_deref e fld R; hoist_later_in_pre;
-       eapply semax_post'; [ | eapply semax_load_field_deref; 
-                               [ reflexivity | reflexivity | simpl; reflexivity 
-                               | reflexivity | reflexivity ]]
-     ]
- |  |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Efield ?e ?fld _)) _ =>
-     apply (semax_pre_simple (PROPx P (LOCALx (tc_lvalue Delta e :: Q) (SEPx R))));
-     [ apply semax_load_assist1; [reflexivity]
-     | isolate_field_tac e fld R; hoist_later_in_pre;
-       eapply semax_post'; [ | eapply semax_load_field'; 
-                               [ reflexivity | reflexivity | simpl; reflexivity 
-                               | reflexivity | reflexivity ] ]
-     ]
-end.
 
 Ltac isolate_mapsto_tac e R := 
   match R with 
@@ -483,110 +433,6 @@ Ltac isolate_mapsto_tac e R :=
      end
   || fail 4 "Could not isolate `(mapsto _ _) (eval_expr " e "), or equivalent, in precondition".
 
-
-Ltac isolate_mapsto__tac_deref e fld R := 
-  match R with 
-     | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change (lift1 force_ptr e') with (eval_lvalue e);
-                apply later_field_mapsto_mapsto__at1
-     | context [ `(field_mapsto ?sh ?struct fld) ?e' _  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change (lift1 force_ptr e') with (eval_lvalue e);
-                apply field_mapsto_mapsto__at1
-     | context [|> `(field_mapsto_ ?sh ?struct fld) ?e' :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change (lift1 force_ptr e') with (eval_lvalue e)
-     | context [ `(field_mapsto_ ?sh ?struct fld) ?e'  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
-                change (lift1 force_ptr e') with (eval_lvalue e)
-     end.
-
-Ltac isolate_mapsto__tac e fld R := 
-  match R with 
-     | context [|> `(field_mapsto ?sh ?struct fld) ?e' _ :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_lvalue e);
-                apply later_field_mapsto_mapsto__at1
-     | context [ `(field_mapsto ?sh ?struct fld) ?e' _  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_lvalue e);
-                apply field_mapsto_mapsto__at1
-     | context [|> `(field_mapsto_ ?sh ?struct fld) ?e' :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                change e' with (eval_lvalue e)
-     | context [ `(field_mapsto_ ?sh ?struct fld) ?e'  :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth; 
-                change e' with (eval_lvalue e)
-     end
-  || fail 4 "Could not isolate `(field_mapsto_ _ " fld ") (eval_expr " e "), or equivalent, in precondition".
-
-
-Ltac old_store_field_tac :=
-  match goal with
-  | |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Efield (Ederef ?e ?t3) ?fld ?t2) ?e2) _ =>
-       (apply (semax_pre (PROPx P 
-                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [ try solve [entailer!; try intuition]
-   | isolate_mapsto__tac_deref (Ederef e t3) fld R; hoist_later_in_pre;
-       eapply semax_post''; [ | eapply semax_store_field_deref; 
-                                             [ auto | reflexivity | reflexivity | reflexivity |
-                                             try solve [hnf; intuition]] ]
-    ]) || fail 1
-  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Efield ?e ?fld ?t2) ?e2) _ =>
-       apply (semax_pre (PROPx P 
-                (LOCALx (tc_lvalue Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [  try solve [entailer!; try intuition]
-   |  isolate_mapsto__tac e fld R; hoist_later_in_pre;
-       eapply semax_post''; [ | eapply semax_store_field'; 
-                                             [ auto | reflexivity | reflexivity | reflexivity |
-                                             try solve [hnf; intuition] ]]
-   ]
-  end.
-
-
-Lemma semax_load_assist2:
- forall P Q1 Q2 Q R,
-  PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- local Q2 ->
-  PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PROPx P (LOCALx (Q2::Q) (SEPx R)).
-Proof.
-intros.
-apply derives_trans with
- (local Q2 && PROPx P (LOCALx Q (SEPx R))).
-apply andp_right; auto.
-apply andp_derives; auto.
-apply andp_derives; auto.
-unfold local,lift1; unfold_lift; intro rho; simpl.
-apply prop_derives. intros [_ ?]; auto.
-normalize.
-Qed.
-
-
-Ltac load_array_tac :=
-  idtac;  (* need this bogosity so it can be passed as an argument *)
-match goal with |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Ederef (Ebinop Oadd ?e1 ?e2 ?t1) _)) _ =>
-     apply (semax_pre 
-              (PROPx P (LOCALx (tc_expr Delta (Ebinop Oadd e1 e2 t1) :: Q) (SEPx R))));
-     [ ((apply semax_load_assist1; [reflexivity])
-        || apply semax_load_assist2; try solve [go_lower; normalize] )
-     | isolate_mapsto_tac (Ebinop Oadd e1 e2 t1) R; hoist_later_in_pre;
-       eapply semax_post'; [ | eapply semax_load'; solve [simpl; reflexivity]]
-     ]
-end.
-
 Ltac intro_old_var' id :=
   match goal with 
   | Name: name id |- _ => 
@@ -602,7 +448,6 @@ Ltac intro_old_var c :=
   | Scall (Some ?id) _ _ => intro_old_var' id
   | _ => intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
   end.
-
 
 Ltac intro_old_var'' id :=
   match goal with 
@@ -799,12 +644,8 @@ Qed.
 Ltac unify_force w x :=
  first [ unify w x | unify w (`force_ptr x)].
 
-(*
-let H := fresh in assert (H: A=B) by reflexivity; clear H.
-*)
 Ltac find_equation E L n F :=
  match L with 
-(*   | `(eq ?x) E :: _ => F n x *)
   | `(eq ?x) ?E' :: _ => unify_force E E'; F n (@liftx (LiftEnviron val) x) E
   | _ :: ?Y => let n' := constr:(S n) in find_equation E Y n' F
   | nil => F O E E
@@ -821,21 +662,6 @@ Ltac find_mapsto n R F eq_n xE E :=
     F n E E' sh v2
  | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
  | _ => fail "find_mapsto"
-  end.
-
-Ltac find_field_mapsto n R F eq_n xE E :=
- match R with
- | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
-     (unify_force E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
-    F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
- | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
-     (unify_force E E' || unify_force xE E'); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    F n E E' sh v2
- | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto n' R' F eq_n xE E
- | _ => fail "find_field_mapsto"
   end.
 
 Lemma go_lower_lem24:
@@ -874,15 +700,6 @@ intros. extensionality y rho. unfold_lift. rewrite field_mapsto_force_ptr.
 auto.
 Qed.
 
-Ltac load_field_aux n' e1' v1' sh' v2' := 
-  eapply semax_post3; [ | 
-      eapply semax_load_field''force  with (n:=n') (sh:=sh')(v1:=v1')(v2:=v2'); 
-       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | try solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto ]
-      | quick_load_equality
-      | reflexivity ]
-].
-
 Ltac found_mapsto n' e1' v1' sh' v2' := idtac.
 
 Ltac semax_load_aux F0 Q R eval_e F :=
@@ -901,92 +718,25 @@ Ltac semax_load_tac :=
  hoist_later_in_pre;
 match goal with 
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Efield ?e1 ?fld ?t2)) _ =>
-     semax_load_aux find_field_mapsto Q R (eval_lvalue e1) load_field_aux; 
-     try (simpl eval_lvalue; rewrite lift_field_mapsto_force_ptr)
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
                     (Sset ?id (Ederef ?e1 _)) _ =>
    semax_load_aux find_mapsto Q R (eval_expr e1) load_aux0
 end.
 
-Ltac find_field_mapsto_ n R F eq_n xE E :=
- match R with
- | `(field_mapsto ?sh ?t ?fld ?x ?v2) :: _ =>
-     (unify E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    change (`(field_mapsto sh t fld x v2)) with (`(field_mapsto sh t fld) `x `v2);
-    F n E (@liftx (LiftEnviron val) x) sh
- | `(field_mapsto_ ?sh ?t ?fld ?x) :: _ =>
-     (unify E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    change (`(field_mapsto sh t fld x)) with (`(field_mapsto sh t fld) `x);
-    F n E (@liftx (LiftEnviron val) x) sh
- | `(field_mapsto ?sh ?t ?fld) ?E' ?v2 :: _ =>
-     (unify E E' || unify xE E'); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    F n E E' sh
- | `(field_mapsto_ ?sh ?t ?fld) ?E' :: _ =>
-     (unify E E' || unify xE E'); 
-   (* pose (bbb := (sh,n,e1,v1,v2)); *)
-    F n E E' sh
- | _ :: ?R' => let n' := constr:(S n) in find_field_mapsto_ n' R' F eq_n xE E
- | _ => fail "find_field_mapsto_"
-  end.
+Lemma sem_add_ptr_int:
+ forall v t i, 
+   isptr v -> 
+   Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite sem_add_ptr_int using assumption : norm.
 
-
-Ltac semax_store_aux Q R eval_e F :=
-   let E := fresh "E" in
-    assert (E := whatever_i eval_e);
-    simpl in E;
-    match type of E with whatever ?E' => 
-        clear E;
-        let F := find_field_mapsto_ O R F in
-         find_equation E' Q O F
-    end;
-    unfold replace_nth.
-
-
-Ltac store_field_aux1  e2' n' e1' v1' sh' :=
- (*   pose (bbb := (e2, n',e1',v1',sh')) ; *)
-  eapply semax_post3; [ | 
-      eapply semax_store_field_deref'' with (n:=n')(sh:=sh')(v1:=v1') (e2:=e2');
-       [auto | reflexivity | reflexivity | reflexivity 
-      | try solve [repeat split; hnf; simpl; intros; congruence]
-      | try solve [go_lower; apply prop_right; auto ] 
-      | try solve [go_lower; apply prop_right; auto ] 
-      | quick_load_equality
-      | reflexivity
-      | intro; unfold_lift; first [apply derives_refl | apply field_mapsto_field_mapsto_]
-      ] ] .
-
-
-Ltac store_field_aux2  e2' n' e1' v1' sh' :=
-   pose (bbb := (e2', n',e1',v1',sh'));
-  eapply semax_post3; [ | 
-      eapply semax_store_field'' with (n:=n')(sh:=sh')(v1:=v1');
-       [auto | reflexivity | reflexivity | reflexivity 
-      | try solve [repeat split; hnf; simpl; intros; congruence]
-      | try solve [go_lower; apply prop_right; auto ] 
-      | try solve [go_lower; apply prop_right; auto ] 
-      | quick_load_equality
-      | reflexivity
-      | intro; unfold_lift; first [apply derives_refl | apply field_mapsto_field_mapsto_]
-      ] ] .
-
-Ltac store_field_tac :=
-  ensure_normal_ret_assert;
+Ltac general_load_tac := 
  hoist_later_in_pre;
-  match goal with
-  | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Efield (Ederef ?e1 ?t1) ?fld ?t2) ?e2) _ =>
-   let F := store_field_aux1 e2 in
-   semax_store_aux  Q R (eval_expr e1) F
-          || fail 2 "store field tac 1"
-  | |- semax ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Efield ?e1 ?fld ?t2) ?e2) _ =>
-   let F := store_field_aux2 e2 in
-   semax_store_aux  Q R (eval_lvalue e1) F
-  end.
+ eapply semax_load_37';
+  [entailer;
+   apply andp_right; [apply prop_right | solve [cancel] ];
+    do 2 eexists; split; reflexivity].
 
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
@@ -1015,6 +765,11 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       | solve [entailer; cancel]
       | ]
     end
+ | eapply semax_load_37';
+   [entailer;
+    try (apply andp_right; [apply prop_right | solve [cancel] ];
+           do 2 eexists; split; reflexivity)
+    ]
   ].
 
 Definition numbd {A} (n: nat) (x: A) : A := x.
@@ -1098,8 +853,7 @@ Proof.
 intros.
 go_lowerx.
 specialize (H0 rho).
-change SEPx with SEPx' in H0.
-unfold PROPx, LOCALx, SEPx', local,lift1 in H0.
+unfold PROPx, LOCALx, SEPx, local,lift1 in H0.
 unfold_lift in H0. simpl in H0.
 repeat  rewrite prop_true_andp in H0 by auto.
 clear P H1 Q1 Q H3 H2.
@@ -1227,7 +981,7 @@ Ltac forward1 :=
            new_load_tac || fail 2 "new_load_tac failed"
   | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
          new_load_tac ||
-         semax_load_tac || fail 2 "semax_load_tac failed" 
+         (* semax_load_tac ||*) fail 2 "new_load_tac failed" 
   | |- @semax _ _ _ (Sset ?id ?e) _ => 
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
@@ -1373,8 +1127,7 @@ Lemma start_function_aux1:
 Proof.
 intros.
 extensionality rho.
-change SEPx with SEPx'.
-unfold PROPx, LOCALx, SEPx'; normalize.
+unfold PROPx, LOCALx, SEPx; normalize.
 f_equal. f_equal. rewrite sepcon_comm. auto.
 Qed. 
 

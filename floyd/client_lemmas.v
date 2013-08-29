@@ -665,7 +665,6 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
          (at level 9) : logic.
 
 Definition SEPx: forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
-Definition SEPx': forall (R: list(environ->mpred)), environ->mpred := fold_right sepcon emp.
 Arguments SEPx R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
@@ -749,7 +748,7 @@ Proof. intros. apply prop_right. auto.
 Qed.
 
 Ltac go_lowerx :=
-   unfold PROPx, LOCALx,SEPx,SEPx', local, lift1; unfold_lift; intro rho; simpl;
+   unfold PROPx, LOCALx,SEPx, local, lift1; unfold_lift; intro rho; simpl;
    repeat rewrite andp_assoc;
    repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
    try apply prop_left;
@@ -851,19 +850,15 @@ Qed.
 
 Hint Rewrite typed_true_isptr using apply I : norm.
 
-
 Ltac super_unfold_lift_in H :=
-   try change @liftx with @liftx' in H;
-   cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+   cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
     lift1 lift2 lift3] beta iota in H.
 
 Ltac super_unfold_lift' := 
- try change @liftx with @liftx';
-  cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+  cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
     lift1 lift2 lift3] beta iota.
-
 
 Lemma tc_eval_id_i:
   forall Delta t i rho, 
@@ -1118,7 +1113,7 @@ Arguments ret_type !Delta /.
 Ltac go_lower0 := 
 intros ?rho;
  try (simple apply grab_tc_environ; intro);
- cbv delta [PROPx LOCALx SEPx SEPx' 
+ cbv delta [PROPx LOCALx SEPx
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        eval_cast eval_binop eval_unop
                       tc_expropt tc_expr tc_lvalue 
@@ -1127,7 +1122,7 @@ intros ?rho;
                       make_args' bind_ret get_result1 retval
                       eval_cast classify_cast
                       denote_tc_assert
-    liftx  liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T
+    liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 
      local lift lift0 lift1 lift2 lift3 
    ] beta iota;
@@ -1273,40 +1268,12 @@ Lemma lift0C_prop {A}{NA: NatDed A}:
                   @prop (environ -> A) _ P.
 Proof. reflexivity. Qed.
 
-(*Lemma lift0C_prop {A}{NA: NatDed A}:
- forall P, @liftx (LiftEnviron A) (@id_for_lift A (@prop A NA P)) = 
-                  @prop (environ -> A) _ P.
-Proof. reflexivity. Qed.
-*)
-(*
-Lemma lift0C_prop {A}{NA: NatDed A}:
- forall P, `(!! P) = !!P.
-Proof. intros. extensionality rho; reflexivity. Qed.
-*)
-
 Lemma lift0_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
  forall P Q, 
   lift0 (@sepcon A NA SA P Q) = sepcon (lift0 P) (lift0 Q).
 Proof.
 intros. extensionality rho. reflexivity.
 Qed.
-
-(*
-Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
- forall P Q, 
-  `(P * Q) = (`P) * (`Q).
-Proof.
-intros. extensionality rho. reflexivity.
-Qed.
-
-Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
- forall P Q N2 S2, 
-  (@liftx (LiftEnviron A) (@id_for_lift A (@sepcon A N2 S2 P Q))) = 
-  (@sepcon (environ->A) _ _ 
-     (@liftx (LiftEnviron A) (@id_for_lift A P))
-     (@liftx (LiftEnviron A) (@id_for_lift A Q))).
-Proof. reflexivity. Qed.
-*)
 
 Lemma lift0C_sepcon {A}{NA: NatDed A}{SA: SepLog A}:
  forall P Q N2 S2, 
@@ -1325,15 +1292,6 @@ Lemma lift0C_later {A}{NA: NatDed A}{IA: Indir A}:
   forall P:A, 
    `(@later A NA IA P) = @later (environ->A) _ _ (`P).
 Proof. intros. reflexivity. Qed.
-
-(*
-Lemma lift1C_lift0C:
-  forall {A}{J: A}{K: environ -> environ},
-     (@coerce (environ -> A) ((environ -> environ) -> (environ -> A))
-            (lift1_C environ A)
-                 (@coerce A (environ -> A) (lift0_C A)  J) K) = `J.
-Proof. intros. extensionality rho. reflexivity. Qed.
-*)
 
 Hint Rewrite (@lift0C_sepcon mpred _ _) : norm.
 Hint Rewrite (@lift0C_andp mpred _) : norm.
@@ -1525,7 +1483,7 @@ Lemma insert_local: forall Q1 P Q R,
   local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
 Proof.
 intros. extensionality rho.
-unfold PROPx, LOCALx, SEPx, SEPx', local; super_unfold_lift. simpl.
+unfold PROPx, LOCALx, SEPx, local; super_unfold_lift. simpl.
 apply pred_ext; normalize.
 Qed.
 Hint Rewrite insert_local:  norm.
@@ -1612,7 +1570,7 @@ Lemma grab_nth_SEP:
 Proof.
 intros.
 f_equal. f_equal.
-extensionality rho; unfold SEPx, SEPx'.
+extensionality rho; unfold SEPx.
 revert R; induction n; intros; destruct R.
 simpl. rewrite sepcon_emp; auto.
 simpl nth.
@@ -1705,7 +1663,7 @@ Lemma grab_indexes_SEP :
   forall (ns: list Z) (xs: list(environ->mpred)),   SEPx xs = SEPx (grab_indexes ns xs).
 Proof.
 intros.
-change SEPx with SEPx'; unfold SEPx'; extensionality rho.
+unfold SEPx; extensionality rho.
 unfold grab_indexes. change @app_alt with  @app.
 forget (grab_calc 0 ns nil) as ks.
 revert xs; induction ks; intro.
@@ -1811,14 +1769,14 @@ unfold frame_ret_assert, normal_ret_assert;
  destruct ek; simpl; normalize; try congruence.
 match goal with |- ?A |-- ?B => replace B with A; auto end.
 f_equal.
-unfold PROPx,LOCALx,SEPx,SEPx'.
+unfold PROPx,LOCALx,SEPx.
 normalize.
 apply pred_ext; normalize.
 clear; induction R1'; simpl. rewrite emp_sepcon. auto.
 rewrite sepcon_assoc. apply sepcon_derives; auto.
 clear; induction R1'; simpl. rewrite emp_sepcon. auto.
 rewrite sepcon_assoc. apply sepcon_derives; auto.
-extensionality rho; unfold PROPx,LOCALx,SEPx,SEPx'.
+extensionality rho; unfold PROPx,LOCALx,SEPx.
 normalize.
 f_equal. f_equal.
 clear; induction R1; simpl. apply emp_sepcon.
@@ -1845,10 +1803,10 @@ intros.
 eapply derives_trans; [ | eapply derives_trans].
 2: apply sepcon_derives; [ apply H | apply (derives_refl  (fold_right sepcon emp R2))].
 clear H.
-unfold PROPx, LOCALx, SEPx,SEPx', local; super_unfold_lift; intros.
+unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
-unfold PROPx, LOCALx, SEPx,SEPx', local; super_unfold_lift; intros.
+unfold PROPx, LOCALx, SEPx, local; super_unfold_lift; intros.
 rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 Qed.
@@ -1880,8 +1838,8 @@ Lemma gather_SEP:
   forall R1 R2, 
     SEPx (R1 ++ R2) = SEPx (fold_right sepcon emp R1 :: R2).
 Proof. 
-intros. change SEPx with SEPx'.
-unfold SEPx'.
+intros.
+unfold SEPx.
 extensionality rho.
 induction R1; simpl. rewrite emp_sepcon; auto.
 rewrite sepcon_assoc; f_equal; auto.
@@ -1926,8 +1884,7 @@ Proof.
 intros.
 eapply semax_pre; [ | apply H0].
 clear - H.
-change SEPx with SEPx' in H|-*;
-unfold PROPx, LOCALx, SEPx' in *; intro rho; specialize (H rho).
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
 unfold local, lift1 in *.
 simpl in *; unfold_lift; unfold_lift in H.
 normalize.
@@ -2003,7 +1960,7 @@ unfold SEPx.
 intros.
 intro rho.
 specialize (H0 rho).
-unfold SEPx' in *; intros; normalize.
+intros; normalize.
 simpl.
 rewrite later_sepcon.
 apply sepcon_derives; auto.
@@ -2072,8 +2029,7 @@ Lemma extract_exists_in_SEP:
 Proof.
 intros.
 extensionality rho.
-unfold SEPx.
-unfold PROPx, LOCALx, SEPx'; simpl.
+unfold PROPx, LOCALx, SEPx; simpl.
 normalize.
 Qed.
 
@@ -2119,7 +2075,7 @@ Lemma extract_prop_in_SEP:
 Proof.
 intros.
 extensionality rho.
-unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1.
+unfold PROPx,LOCALx,SEPx,local,lift1.
 simpl.
 apply pred_ext; normalize.
 * match goal with |- _ |-- !! ?PP && _ => replace PP with P1
@@ -2147,7 +2103,7 @@ Lemma insert_SEP:
  forall R1 P Q R, R1 * PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1::R))).
 Proof.
 intros. 
-unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1.
+unfold PROPx,LOCALx,SEPx,local,lift1.
 extensionality rho; simpl.
 repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
@@ -2168,8 +2124,7 @@ Lemma move_prop_from_SEP':
 Proof.
  intros.
  extensionality rho.
-unfold SEPx.
- unfold PROPx, LOCALx, SEPx', local, lift0, lift1.
+ unfold PROPx, LOCALx, SEPx, local, lift0, lift1.
  simpl.
  apply pred_ext; normalize.
 Qed.
@@ -2184,7 +2139,7 @@ intros.
 f_equal.
 extensionality rho.
 apply equal_f with rho in H.
-unfold SEPx; unfold PROPx,LOCALx,SEPx',local,lift1 in *.
+unfold PROPx,LOCALx,SEPx,local,lift1 in *.
 unfold_lift; simpl in *.
 revert R H; induction n; destruct R; simpl; intros;
 try solve [apply pred_ext; rewrite H; normalize; repeat rewrite prop_and; normalize].
@@ -2235,7 +2190,7 @@ Lemma move_local_from_SEP':
 Proof.
  intros.
  extensionality rho.
- unfold SEPx; unfold PROPx, LOCALx, SEPx', local; unfold_lift.
+ unfold PROPx, LOCALx, SEPx, local; unfold_lift.
  simpl.
  f_equal.
  apply pred_ext; normalize.
@@ -2296,7 +2251,6 @@ induction Q; simpl; auto.
 autorewrite with subst norm.
 f_equal;  apply IHQ.
 unfold SEPx.
-unfold SEPx'.
 induction R; auto.
 autorewrite with subst norm.
 f_equal; auto.

@@ -33,21 +33,16 @@ Set Maximal Implicit Insertion.
 
 Definition lift S {A B} (f : A -> B) (a : S -> A) (x: S) : B := f (a x).
 
-Definition liftx' {H: Lift} (f: lift_T H) : lifted H :=
+Definition liftx {H: Lift} (f: lift_T H) : lifted H :=
   lift_uncurry_open H (lift (lift_curry H f)).
-
-Definition liftx {H: Lift} (f: lift_T H) : lifted H :=   @liftx' H f.
-Global Opaque liftx.
+Arguments liftx H f : simpl never.
 
 (* NOTE: We want unfold_lift to unfold EVERYTHING related to lifting, but NOTHING else.
   Thus we have avoided using any library functions to implement lifting, so that
   we can unfold all of it without interfering with other things the user might be doing. *)
 
-Definition id_for_lift {A} (x: A) := x. (* Obsolete? way of getting
-          `(fun x: A => ...x...) to work. Not in active use right now. *)
-
 Tactic Notation "unfold_lift" := 
-  change @liftx with @liftx'; unfold liftx' (*, id_for_lift*);
+  unfold liftx;
   repeat match goal with(* This unfolds instances of Tend *)
   | |- context [lift_uncurry_open (?F _)] => unfold F 
   | |- context [Tarrow _ (?F _)] => unfold F 
@@ -55,7 +50,7 @@ Tactic Notation "unfold_lift" :=
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
 
 Tactic Notation "unfold_lift" "in" hyp(H) := (* move this to veric/lift.v *)
-  change @liftx with @liftx' in H;  unfold liftx' (*, id_for_lift*) in H;
+  unfold liftx  in H;
   repeat match type of H with(* This unfolds instances of Tend *)
   | context [lift_uncurry_open (?F _)] => unfold F in H
   | context [Tarrow _ (?F _)] => unfold F in H
@@ -63,14 +58,14 @@ Tactic Notation "unfold_lift" "in" hyp(H) := (* move this to veric/lift.v *)
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in H.
 
 Tactic Notation "unfold_lift" "in" "*" :=
-  change @liftx with @liftx' in *;  unfold liftx' (*, id_for_lift *) in *;
+  unfold liftx in *;
   repeat match goal with (* This unfolds instances of Tend *)
              | H: context [lift_uncurry_open (?F _)] |- _ => unfold F in H
              | |- context [Tarrow _ (?F _)] => unfold F 
              end; 
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in *.
 
-(* The reaspon for writing   liftx(x : _) instead 
+(* The reason for writing   liftx(x : _) instead 
   of just (liftx x)  is to get the case  `(fun v => ..v...) to work *)
 Notation "'`' x" := (liftx x) (at level 9).
 Notation "'`(' x ')'" := (liftx (x : _)).

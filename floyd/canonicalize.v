@@ -6,8 +6,7 @@ Local Open Scope logic.
 Lemma canon1: forall P1 B  P Q R,
    do_canon (prop P1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B  (PROPx (P1::P) (LOCALx Q (SEPx R))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -16,8 +15,7 @@ Qed.
 Lemma canon2: forall Q1 B P Q R,
     do_canon (local Q1 && B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx (Q1::Q) (SEPx R))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
 normalize. repeat rewrite prop_and.
@@ -40,8 +38,7 @@ Lemma canon3: forall R1 B P Q R,
     nonlocal R1 ->
     do_canon (B * R1) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 clear H.
 extensionality rho.
 simpl.
@@ -56,8 +53,7 @@ Lemma canon3b: forall R1 B P Q R,
     nonlocal R1 ->
     do_canon (R1* B) (PROPx P (LOCALx Q (SEPx R))) = do_canon B (PROPx (P) (LOCALx Q (SEPx (R1::R)))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 rewrite (sepcon_comm R1 B).
 apply canon3. auto.
 Qed.
@@ -71,8 +67,7 @@ Lemma canon7: forall R1 P Q R,
    nonlocal R1 -> 
    do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
 normalize.
@@ -85,8 +80,7 @@ Qed.
 
 Lemma start_canon: forall P, P  = do_canon P (PROPx nil (LOCALx nil (SEPx nil ))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho; simpl.
 normalize.
 Qed.
@@ -145,8 +139,7 @@ Hint Rewrite canon17 : canon.
 Lemma finish_canon: forall R1 P Q R, 
    do_canon R1 (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx Q (SEPx (R1::R)))).
 Proof.
-change SEPx with SEPx'.
-unfold do_canon, PROPx, LOCALx, SEPx'; intros.
+unfold do_canon, PROPx, LOCALx, SEPx; intros.
 extensionality rho.
 simpl.
 normalize.

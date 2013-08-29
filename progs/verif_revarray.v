@@ -14,7 +14,7 @@ Definition reverse_spec :=
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
           SEP (`(array_at tint sh contents 0 size) (eval_id _a))
-  POST [ tint ]  `(array_at tint sh (flip size contents) 0 size a0).
+  POST [ tvoid ]  `(array_at tint sh (flip size contents) 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -229,7 +229,7 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gtot, Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons; [ reflexivity | apply body_sumarray | ].
+apply semax_func_cons; [ reflexivity | apply body_reverse | ].
 apply semax_func_cons; [ reflexivity | apply body_main | ].
 apply semax_func_nil.
 Qed.

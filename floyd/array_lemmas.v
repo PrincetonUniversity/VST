@@ -141,14 +141,19 @@ Lemma SEP_nth_isolate:
   forall n R Rn, nth_error R n = Some Rn ->
       SEPx R = SEPx (Rn :: replace_nth n R emp).
 Proof.
- change SEPx with SEPx'.
- induction n; destruct R; simpl; intros; inv H; extensionality rho.
- rewrite emp_sepcon; auto.
+ unfold SEPx.
+ induction n; destruct R; intros; inv H; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp R rho).
+ reflexivity.
+ rewrite (IHn R Rn H1).
+ simpl.
  rewrite <- sepcon_assoc.
  rewrite (sepcon_comm (Rn rho)).
- rewrite sepcon_assoc.
- f_equal. rewrite (IHn R Rn H1).
- reflexivity.
+ simpl.
+ repeat rewrite sepcon_assoc.
+ f_equal. rewrite sepcon_comm; reflexivity.
 Qed.
 
 
@@ -157,15 +162,19 @@ Lemma SEP_replace_nth_isolate:
        nth_error R n = Some Rn ->
       SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
 Proof.
+ unfold SEPx.
  intros.
- change SEPx with SEPx'.
  revert R H.
- induction n; destruct R; intros; inv H; simpl; intros; extensionality rho.
- rewrite emp_sepcon; auto.
- rewrite <- sepcon_assoc.
+ induction n; destruct R; intros; inv H; intros; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp (replace_nth n R Rn') rho).
+ reflexivity.
+ rewrite (IHn R H1). clear IHn.
+ simpl.
+ repeat rewrite <- sepcon_assoc.
  rewrite (sepcon_comm (Rn' rho)).
  rewrite sepcon_assoc.
- f_equal. rewrite (IHn R H1).
  reflexivity.
 Qed.
 

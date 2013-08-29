@@ -165,14 +165,12 @@ apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
  rewrite offset_offset_val; reflexivity.
 normalize.
+unfold eval_cast; simpl.
 forward. (* x = ((int * )buf)[0]; *)
-entailer.
 forward. (* y = ((int * )buf)[1]; *)
-entailer.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
-entailer.
 simpl_typed_mapsto.
 cancel.
 apply sepcon_derives;
@@ -191,7 +189,7 @@ Lemma slide_func_ptr:
   forall f e R1 R, 
   SEPx (`(func_ptr' f) e :: R1 :: R) = SEPx ((`(func_ptr f) e && R1)::R).
 Proof.
- intros. change SEPx with SEPx'; unfold SEPx'; unfold_lift.
+ intros. unfold SEPx; unfold_lift.
 extensionality rho.
 simpl. 
 rewrite <- sepcon_assoc.
@@ -604,8 +602,7 @@ Lemma intpair_message_length:
          (SEPx (`(mf_assert intpair_message sh) p len v :: R)))).
 Proof.
 intros.
-change SEPx with SEPx'; 
-unfold PROPx, LOCALx, SEPx', local; intro rho; simpl.
+unfold PROPx, LOCALx, SEPx, local; intro rho; simpl.
 apply andp_derives; auto.
 unfold_lift.
 normalize.

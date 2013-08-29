@@ -1,9 +1,6 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
-Global Transparent liftx.
-Arguments liftx H f : simpl never.
-
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
@@ -291,7 +288,7 @@ specialize (H _ _ H3).
 specialize (H0 _ _ H3).
 specialize (H1 _ _ H3).
 specialize (H2 _ _ H3).
-change @liftx with @liftx'. unfold liftx'; simpl.
+unfold liftx; simpl.
 unfold lift. f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift3C : closed.

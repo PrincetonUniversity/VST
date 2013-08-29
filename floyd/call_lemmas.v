@@ -112,7 +112,7 @@ Proof.
 intros. 
 apply (semax_fun_id id f Delta); auto.
 eapply semax_pre0; [ | apply H0].
-change SEPx with SEPx'; unfold PROPx,LOCALx,SEPx',local, lift1; unfold_lift; simpl;
+unfold PROPx,LOCALx,SEPx,local, lift1; unfold_lift; simpl;
 intro rho; normalize.
 rewrite andp_comm.
 unfold func_ptr'.
@@ -160,7 +160,7 @@ simpl.
 rewrite eqb_typelist_refl.
 simpl. auto.
 unfold_lift; auto.
-change SEPx with SEPx'.
+unfold SEPx.
 simpl.
 intro rho.
 rewrite sepcon_comm.
@@ -211,7 +211,7 @@ rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
 simpl. split; hnf; auto.
 auto.
-change SEPx with SEPx'.
+unfold SEPx.
 simpl.
 intro rho.
 rewrite sepcon_comm.
@@ -265,8 +265,7 @@ split.
 rewrite closed_wrt_subst in H; auto.
 auto.
 clear - CLOSR.
-change SEPx with SEPx'.
-unfold SEPx'. intro rho.
+unfold SEPx. intro rho.
 simpl.
 apply sepcon_derives; auto.
 induction R; simpl; auto.
@@ -316,7 +315,7 @@ rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
 simpl. apply I.
 auto.
-change SEPx with SEPx'.
+unfold SEPx.
 simpl.
 intro rho.
 cancel.

@@ -362,8 +362,7 @@ Lemma field_mapsto_mapsto__at1:
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
- change SEPx with SEPx'.
- intro rho; unfold PROPx, LOCALx, SEPx'.
+ intro rho; unfold PROPx, LOCALx, SEPx.
  simpl.
  apply andp_derives; auto.
  apply andp_derives; auto.
@@ -378,8 +377,7 @@ Lemma later_field_mapsto_mapsto__at1:
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
- change SEPx with SEPx'.
- intro rho; unfold PROPx, LOCALx, SEPx'.
+ intro rho; unfold PROPx, LOCALx, SEPx.
  simpl.
  apply andp_derives; auto.
  apply andp_derives; auto.

@@ -858,16 +858,14 @@ apply derives_trans with
 apply derives_trans with
 (local (`ptr_neq v v2) && PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R)))).
 apply andp_right; auto.
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue; unfold_lift; simpl.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue; unfold_lift; simpl.
 unfold lift1; simpl. 
  repeat (apply derives_extract_prop; intro).
  rewrite prop_true_andp by auto.
  rewrite prop_true_andp by auto.
 apply sepcon_derives; auto.
 rewrite lseg_neq; auto.
-change SEPx with SEPx'.
-intro rho; unfold PROPx,LOCALx,SEPx',local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
+intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; simpl.
  unfold_lift.
  unfold lseg_cons. simpl.
  apply derives_extract_prop; intro.

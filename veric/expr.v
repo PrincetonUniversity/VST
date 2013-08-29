@@ -201,11 +201,8 @@ Definition lift4 {A1 A2 A3 A4 B} (P: A1 -> A2 -> A3 -> A4 -> B)
 (* LIFTING METHOD TWO: *)
 Canonical Structure LiftEnviron := Tend environ.
 
-
-
 Ltac super_unfold_lift :=
-  change @liftx with @liftx' in *; 
-  cbv delta [liftx' id_for_lift LiftEnviron Tarrow Tend lift_S lift_T lift_prod 
+  cbv delta [liftx LiftEnviron Tarrow Tend lift_S lift_T lift_prod 
   lift_last lifted lift_uncurry_open lift_curry lift lift0 lift1 lift2 lift3] beta iota in *.
 
 (** Computational version of type_eq **)
