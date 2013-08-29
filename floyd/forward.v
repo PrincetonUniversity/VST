@@ -4,6 +4,7 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.loadstore_lemmas.
+Require Import floyd.malloc_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.entailer.
 Import Cop.
@@ -461,22 +462,6 @@ match goal with
      ]
 end.
 
-Lemma mapsto_mapsto_: forall sh t v v',
-   mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. unfold mapsto, mapsto_; intros.
-normalize.
-unfold umapsto.
-destruct (access_mode t); auto.
-destruct v; auto.
-apply orp_left.
-apply orp_right2.
-apply andp_right. apply prop_right; auto.
-apply exp_right with v'; auto.
-normalize.
-apply orp_right2. apply exp_right with v2'.
-normalize.
-Qed.
-
 Ltac isolate_mapsto_tac e R := 
   match R with 
      | context [|> `(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
@@ -571,24 +556,6 @@ Ltac old_store_field_tac :=
    ]
   end.
 
-Ltac store_tac :=
- match goal with
-  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
-       apply (semax_pre (PROPx P 
-                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [ try solve [entailer!; try intuition]
-   |  isolate_mapsto_tac e R; hoist_later_in_pre;
-       eapply semax_post'';  
-       [ | first [eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
-                   | eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
-                   ]              
-       ]
-   ]
-  end.
 
 Lemma semax_load_assist2:
  forall P Q1 Q2 Q R,
@@ -1149,7 +1116,31 @@ Qed.
 Ltac new_store_tac := 
 ensure_normal_ret_assert;
 hoist_later_in_pre;
-match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
+match goal with
+| |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
+     (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let contents := fresh "contents" in evar (contents: Z -> reptype t);
+  let lo := fresh "lo" in evar (lo: Z);
+  let hi := fresh "hi" in evar (hi: Z);
+  let a := fresh "a" in evar (a: val);
+  let H := fresh in 
+  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (array_at t sh contents lo hi a))) * TT);
+  [unfold number_list, n, sh, contents, lo, hi, a; 
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   solve [entailer; cancel]
+ | clear H ];
+ eapply(@semax_store_array Esp Delta n sh t contents lo hi (`a));
+  unfold number_list, n, sh, contents, lo, hi, a;
+  clear n sh contents lo hi a;
+  [solve [auto] | reflexivity | reflexivity | hnf; intuition 
+  | reflexivity
+  | autorewrite with norm; try reflexivity;
+    fail 4 "Cannot prove 6th premise of semax_store_array"
+  | ]
+ | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
   let H := fresh in 
@@ -1179,6 +1170,36 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
  | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl
  ]
  (**** 21.1 seconds to here in fast_entail case,  or 32.5 seconds to here *****)
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
+       apply (semax_pre (|> PROPx P 
+                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
+                (SEPx R))));
+   [ apply later_derives; try solve [entailer!; try intuition]
+   |  isolate_mapsto_tac e R;
+       eapply semax_post'';  
+       [ | first [eapply semax_store_PQR; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   | eapply semax_store_PQR; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   ]              
+       ]
+   ]
+  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
+       apply (semax_pre_later (PROPx P 
+                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
+                (SEPx R))));
+   [ solve [entailer!; try intuition]
+   |  isolate_mapsto_tac e R;
+       eapply semax_post'';  
+       [ | first [eapply semax_store_PQR; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   | eapply semax_store_PQR; 
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                   ]              
+       ]
+   ]
 end.
 
 (* END new semax_load and semax_store tactics *************************)
@@ -1200,7 +1221,7 @@ Ltac forward1 :=
   | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      
          new_store_tac || fail 2 "new_store_tac failed"
   | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
-         store_tac || fail 2 "store_tac failed"
+         new_store_tac || fail 2 "new_store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
 (*         semax_load_tac || fail 2 "semax_load_tac failed" *)
            new_load_tac || fail 2 "new_load_tac failed"

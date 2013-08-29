@@ -355,3 +355,145 @@ normalize.
 apply prop_right.
 destruct (v1 rho); inv H4; simpl; auto.
 Qed.
+
+Lemma array_at_ext:
+  forall t sh f  f' lo hi,
+   (forall i, lo <= i < hi -> f i = f' i) ->
+   array_at t sh f lo hi = array_at t sh f' lo hi.
+Proof.
+intros.
+unfold array_at.
+extensionality v.
+unfold rangespec.
+assert ( lo > hi \/ lo <= hi) by omega.
+destruct H0.
+rewrite nat_of_Z_neg by omega.
+simpl. auto.
+assert (hi = lo + Z_of_nat (nat_of_Z (hi-lo))).
+rewrite nat_of_Z_eq by omega.
+omega.
+forget (nat_of_Z (hi-lo)) as n.
+subst hi.
+clear H0.
+revert lo H; induction n; intros; auto.
+simpl. 
+rewrite Nat2Z.inj_succ in H.
+f_equal.
+rewrite H; auto.
+omega.
+apply IHn.
+intros.
+apply H.
+omega.
+Qed.
+
+Definition typecheck_store' t := 
+(is_int_type t = true -> t = Tint I32 Signed noattr) /\
+(is_float_type t = true -> t = Tfloat F64 noattr).
+
+Lemma mapsto_mapsto_: forall sh t v v',
+   mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto, mapsto_; intros.
+normalize.
+unfold umapsto.
+destruct (access_mode t); auto.
+destruct v; auto.
+apply orp_left.
+apply orp_right2.
+apply andp_right. apply prop_right; auto.
+apply exp_right with v'; auto.
+normalize.
+apply orp_right2. apply exp_right with v2'.
+normalize.
+Qed.
+Hint Resolve mapsto_mapsto_ : cancel.
+
+Lemma semax_store_array:
+forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
+              lo hi   
+              (v1: environ-> val) inject P Q R            
+             e1  e2 (v2: Z) (v: reptype t1),
+    writable_share sh ->
+    typeof e1 =  tptr t1 ->
+    type_is_volatile t1 = false ->
+    typecheck_store' t1 ->
+    repinject t1 = Some inject ->
+    nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+          local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1))
+          && !! (in_range lo hi v2)
+          && local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t1))
+          && local (`(eq (inject v)) (eval_expr (Ecast e2 t1))) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sassign (Ederef e1 t1) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx (replace_nth n R
+                    (`(array_at t1 sh (upd contents v2 v) lo hi) v1)))))).
+Proof.
+intros.
+rewrite (SEP_nth_isolate _ _ _ H4) in H5|-*.
+rewrite (SEP_replace_nth_isolate _ _ _ (`(array_at t1 sh (upd contents v2 v) lo hi) v1) H4).
+forget (@replace_nth (environ -> mpred) n R (@emp _ _ _)) as R'.
+clear n H4 R. rename R' into R.
+eapply semax_pre_post;
+ [ | | apply (semax_store Delta _ _ sh 
+          (PROPx P (LOCALx
+              (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1) ::
+              tc_expr Delta e1 :: tc_expr Delta (Ecast e2 t1) :: `(in_range lo hi v2) ::
+              `(eq (inject v)) (eval_expr (Ecast e2 t1)) :: 
+             Q)
+            (SEPx 
+             (`(array_at t1 sh contents lo v2) v1 ::
+             `(array_at t1 sh contents (Zsucc v2) hi) v1 :: R))))); auto].
+* apply loadstore_lemmas.later_left2.
+  rewrite insert_local.
+  rewrite <- (andp_dup (PROPx _ _)).
+  eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H5] |  clear H5].
+  go_lowerx.
+  gather_prop. apply derives_extract_prop.
+  intros [? [? [? [? ?]]]].
+  saturate_local.
+  apply prop_right.
+  repeat split; auto.
+  hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+  rewrite H0; reflexivity. simpl. unfold_lift. rewrite <- H7; simpl.
+  destruct (v1 rho); inv H12; apply I.
+  rewrite H1; reflexivity.
+  omega. omega.
+  apply derives_extract_prop; intros [? [? [? [? ?]]]].
+  saturate_local.
+  apply sepcon_derives; auto.
+  rewrite  (split3_array_at v2).
+  cancel.
+  unfold_lift. rewrite <- H7; simpl.
+  destruct (v1 rho); inv H12. simpl.
+  unfold add_ptr_int; simpl.
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  cancel.
+  omega.
+* intros.
+  clear H5.
+  go_lowerx. apply normal_ret_assert_derives.
+  unfold_lift.
+  autorewrite with gather_prop.
+  apply derives_extract_prop; intros [? [? [? [? [? [? ?]]]]]].
+  saturate_local.  
+  rewrite  (split3_array_at v2 _ _ _ lo hi).
+  apply andp_right; [apply prop_right | ].
+  repeat split; auto.
+  cancel.
+  rewrite (sepcon_comm (mapsto _ _ _ _)).
+  apply sepcon_derives; [apply sepcon_derives | ].
+  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
+  rewrite upd_neq; auto. omega.
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  destruct (eval_expr e1 rho); inv H12.
+  destruct (v1 rho); inv H6.
+  unfold add_ptr_int. simpl.
+  rewrite upd_eq. rewrite H10. unfold_lift; simpl.
+  apply derives_refl.
+  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
+  rewrite upd_neq by omega. auto. omega.
+Qed.
