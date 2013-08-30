@@ -536,7 +536,7 @@ eapply derives_trans; [apply H | clear H].
 apply andp_left2. auto.
 Qed.
 
-Lemma semax_load_field_37:
+Lemma semax_load_field'':
 forall  (sh: share) (v: val)
        Espec (Delta: tycontext) id t1 fld P Q R e1 t2 i2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
@@ -651,7 +651,7 @@ forall  (sh: share) (v: val)
        (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
 Proof.
 intros.
-eapply semax_post';[ | eapply semax_load_field_37; eauto].
+eapply semax_post';[ | eapply semax_load_field''; eauto].
 apply exp_left; intro old.
 autorewrite with subst. auto.
 Qed.

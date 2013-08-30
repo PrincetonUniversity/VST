@@ -166,7 +166,7 @@ intros first_val tail_vals tail_ptr ?.
   apply sequential'.
   hoist_later_in_pre.
   eapply semax_post_flipped.
-  eapply (semax_load_field_37); try reflexivity.
+  eapply (semax_load_field''); try reflexivity.
   go_lower. apply prop_right; auto.
   entailer!.
   intros. apply andp_left2.
@@ -305,7 +305,7 @@ entailer.
   apply sequential'.
   hoist_later_in_pre.
   eapply semax_post_flipped.
-  eapply (semax_load_field_37); try reflexivity.
+  eapply (semax_load_field''); try reflexivity.
   go_lower. apply prop_right; auto.
   entailer.
   cancel.

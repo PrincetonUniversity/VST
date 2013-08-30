@@ -704,7 +704,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | solve [entailer; cancel]
    ]
-  | eapply (semax_load_field_37);
+  | eapply (semax_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; cancel]

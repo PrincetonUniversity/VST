@@ -170,8 +170,11 @@ Ltac entailer' :=
 
 Ltac entailer :=
  match goal with
- | |- PROPx _ _ |-- _ => go_lower
- | |- _ |-- _ => idtac
+ | |- ?P |-- _ => 
+    match type of P with
+    | ?T => unify T (environ->mpred); go_lower
+    | _ => idtac
+    end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
  entailer'.
