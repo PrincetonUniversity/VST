@@ -634,36 +634,6 @@ Ltac ensure_normal_ret_assert :=
  | |- semax _ _ _ _ => apply sequential
  end.
 
-Definition whatever {A: Type} (x: A) := True.
-Opaque whatever.
-Lemma whatever_i {A: Type}: forall x: A, whatever x.
-intro. apply I.
-Qed.
-
-
-Ltac unify_force w x :=
- first [ unify w x | unify w (`force_ptr x)].
-
-Ltac find_equation E L n F :=
- match L with 
-  | `(eq ?x) ?E' :: _ => unify_force E E'; F n (@liftx (LiftEnviron val) x) E
-  | _ :: ?Y => let n' := constr:(S n) in find_equation E Y n' F
-  | nil => F O E E
-  end.
-
-Ltac find_mapsto n R F eq_n xE E :=
- match R with
- | `(mapsto ?sh ?t ?x ?v2) :: _ => 
-     (unify_force E (@liftx (LiftEnviron val) x) || unify xE (@liftx (LiftEnviron val) x)) ;  
-    change (`(mapsto sh t x v2)) with (`(mapsto sh t) `x `v2); 
-    F n E (@liftx (LiftEnviron val) x) sh (@liftx (LiftEnviron val) v2)
- | `(mapsto ?sh ?t) ?E' ?v2 :: _ => 
-     (unify_force E E' || unify xE E'); 
-    F n E E' sh v2
- | _ :: ?R' => let n' := constr:(S n) in find_mapsto n' R' F eq_n xE E
- | _ => fail "find_mapsto"
-  end.
-
 Lemma go_lower_lem24:
   forall rho (Q1: environ -> Prop)  Q R PQR,
   (Q1 rho -> LOCALx Q R rho |-- PQR) ->
@@ -674,6 +644,25 @@ Proof.
  eapply derives_trans;  [ | apply (H H0)].
  normalize.
 Qed.
+Definition force_eq ( x y: val) := force_ptr x = force_ptr y.
+
+
+Lemma force_force_eq:
+  forall v, force_ptr (force_ptr v) = force_ptr v.
+Proof. intros. destruct v; reflexivity. Qed.
+
+Lemma force_eq1: forall v w, force_eq v w -> force_eq (force_ptr v) w .
+Proof. unfold force_eq; intros; rewrite force_force_eq; auto. Qed.
+
+Lemma force_eq2: forall v w, force_eq v w -> force_eq v (force_ptr w).
+Proof. unfold force_eq; intros; rewrite force_force_eq; auto. Qed.
+
+Lemma force_eq0: forall v w, v=w -> force_eq v w.
+Proof. intros. subst. reflexivity. Qed.
+
+Ltac force_eq_tac := repeat first [simple apply force_eq1 | simple apply force_eq2];
+                                 try apply force_eq0;
+                                 first [assumption |  reflexivity].
 
 Ltac quick_load_equality :=
  (intros ?rho; apply prop_right; unfold_lift; force_eq_tac) ||
@@ -682,45 +671,6 @@ Ltac quick_load_equality :=
   simpl derives; repeat (simple apply go_lower_lem24; intro);
   apply prop_right; simpl; unfold_lift; force_eq_tac) ||
   idtac.
-
-Ltac load_aux0 n' e1' v1' sh' v2' := 
-hoist_later_in_pre;
-eapply semax_post3; [ |
- eapply semax_load'' with (n:=n')(sh:=sh')(v1:= v1')(v2:=v2');
-  [ reflexivity | reflexivity | reflexivity | reflexivity
-      | try solve [go_lower; apply prop_right; auto ] 
-  | quick_load_equality |   reflexivity]];
- unfold replace_nth.
-
-Lemma lift_field_mapsto_force_ptr:
- forall sh t fld v, `(field_mapsto sh t fld) (`force_ptr v) = 
-                    `(field_mapsto sh t fld) v.
-Proof.
-intros. extensionality y rho. unfold_lift. rewrite field_mapsto_force_ptr.
-auto.
-Qed.
-
-Ltac found_mapsto n' e1' v1' sh' v2' := idtac.
-
-Ltac semax_load_aux F0 Q R eval_e F :=
-   let E := fresh "E" in
-    assert (E := whatever_i eval_e);
-    simpl in E;
-    match type of E with whatever ?E' => 
-        clear E;
-        let F := F0 O R F in
-         find_equation E' Q O F
-    end;
-    unfold replace_nth.
-
-Ltac semax_load_tac :=
- ensure_normal_ret_assert;
- hoist_later_in_pre;
-match goal with 
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R)))
-                    (Sset ?id (Ederef ?e1 _)) _ =>
-   semax_load_aux find_mapsto Q R (eval_expr e1) load_aux0
-end.
 
 Lemma sem_add_ptr_int:
  forall v t i, 
@@ -977,11 +927,9 @@ Ltac forward1 :=
   | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
          new_store_tac || fail 2 "new_store_tac failed"
   | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-(*         semax_load_tac || fail 2 "semax_load_tac failed" *)
            new_load_tac || fail 2 "new_load_tac failed"
   | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
-         new_load_tac ||
-         (* semax_load_tac ||*) fail 2 "new_load_tac failed" 
+         new_load_tac || fail 2 "new_load_tac failed" 
   | |- @semax _ _ _ (Sset ?id ?e) _ => 
           forward_setx_with_pcmp e || fail 2 "forward_setx failed"
   | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
@@ -1024,24 +972,6 @@ Lemma drop_tc_environ:
 Proof.
 intros. apply andp_left2; auto.
 Qed.
-
-(*
-Ltac redefine_Delta := 
-  match goal with 
-  | Delta:= _: tycontext |- @semax _ (initialized _ _) _ _ _ =>
-       unfold Delta in *; clear Delta;
-       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
-           set (Delta:=D); change tycontext in (type of Delta)
-       end
-  | Delta:= _: tycontext |- @semax _ (join_tycon _ _) _ _ _ =>
-       unfold Delta in *; clear Delta;
-       match goal with |- @semax _ (?D: tycontext) _ _ _ => 
-           set (Delta:=D); change tycontext in (type of Delta)
-       end
-  | |- _ => idtac
-end.
-*)
-
 
 Ltac forward_with F1 :=
 match goal with
