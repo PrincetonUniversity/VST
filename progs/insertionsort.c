@@ -6,6 +6,7 @@ struct list *insert(struct list *insert_node, struct list *sorted){
   struct list *index, *previous;
   int sortedvalue, guard, insert_value;
   
+  previous = NULL;
   insert_value = insert_node -> head;
   index = sorted;
   if(index){
@@ -16,7 +17,9 @@ struct list *insert(struct list *insert_node, struct list *sorted){
   while(guard){
     previous = index;
     index = index -> tail;
-    if(index) sortedvalue = index -> head;
+    if(index) {
+      sortedvalue = index -> head;
+    }
     guard = index && (insert_value > sortedvalue);
   }
   

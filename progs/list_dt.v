@@ -1020,6 +1020,14 @@ Definition lseg_cons_right (ls: listspec list_struct list_link) sh (l: list (ele
              field_mapsto sh list_struct list_link y z * 
              |> lseg ls sh r x y.
 
+
+Lemma lseg_cons_right_neq (ls: listspec list_struct list_link): forall sh l x h y w z, 
+             list_cell ls sh y h * field_mapsto sh list_struct list_link y w * 
+             lseg ls sh l x y * field_mapsto sh list_struct list_link w z
+   |--   lseg ls sh (l++h::nil) x w * field_mapsto sh list_struct list_link w z.
+Admitted.
+
+
 Lemma lseg_cons_right_null (ls: listspec list_struct list_link): forall sh l x h y, 
              list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval * 
              lseg ls sh l x y
