@@ -3,6 +3,10 @@ Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.insertionsort.
 Import ListNotations.
+Require Import Sorted.
+Require Import Omega.
+Require Import Permutation.
+
 
 Local Open Scope logic.
 
@@ -16,6 +20,9 @@ Fixpoint insert x xs :=
     | h :: t => if Int.cmp Cle x h then x :: xs else h :: (insert x t)
   end.
 
+Definition insertion_sort xs :=
+    fold_right insert [] xs.
+
 Definition insert_spec :=
   DECLARE _insert
     WITH sh: share, contents : list int, insert_val : int, sorted_ptr : val
@@ -28,10 +35,26 @@ Definition insert_spec :=
                                                     `(nullval))
     POST [tptr t_struct_list]
         `(lseg LS sh (insert insert_val contents)) retval `nullval.
+
+Definition insertionsort_spec :=
+  DECLARE  _insertionsort
+    WITH sh: share, contents : list int, list_ptr : val
+    PRE [_p OF (tptr t_struct_list)]
+        PROP (writable_share sh)
+        LOCAL (`(eq list_ptr) (eval_id _p))
+        SEP (`(lseg LS sh contents list_ptr nullval))
+    POST [tptr t_struct_list]
+        `(lseg LS sh (insertion_sort contents)) retval `nullval.
+
+Definition main_spec := 
+ DECLARE _main
+  WITH u : unit
+  PRE  [] main_pre prog u
+  POST [ tint ] main_post prog u.
         
 Definition Vprog : varspecs := nil.
 
-Definition Gprog : funspecs := insert_spec :: nil.
+Definition Gprog : funspecs := insert_spec :: insertionsort_spec ::  nil.
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
@@ -263,6 +286,151 @@ Proof.
   auto. destruct (strict_bool_val b1 t1); inv H1. destruct b; simpl; inv H0.
   auto.
 Qed.
+
+
+Lemma body_insertionsort : semax_body Vprog Gtot f_insertionsort insertionsort_spec.
+Proof.
+start_function.
+name p _p.
+name sorted _sorted.
+name index _index.
+name next _next.
+
+forward. (*  sorted = NULL; *)
+forward. (*   index = p; *)
+
+Definition body_invariant sh contents :=
+EX sorted_list : list int,
+EX unsorted_list : list (elemtype LS),
+PROP (contents = sorted_list ++ unsorted_list)
+LOCAL ()
+SEP (`(lseg LS sh (insertion_sort sorted_list)) (eval_id _sorted) `nullval;
+     `(lseg LS sh unsorted_list) (eval_id _index) `nullval).
+
+Definition body_post sh contents :=
+EX sorted_list : list int,
+EX unsorted_list : list (elemtype LS),
+PROP (contents = sorted_list ++ unsorted_list)
+LOCAL (`(typed_false (tptr t_struct_list)) (eval_id _index))
+SEP (`(lseg LS sh (insertion_sort sorted_list)) (eval_id _sorted) `nullval;
+     `(lseg LS sh unsorted_list) (eval_id _index) `nullval).
+
+forward_while (body_invariant sh contents) (body_post sh contents).
+
+(*pre implies invariant*)
+apply (exp_right nil).
+apply (exp_right contents).
+entailer!.
+
+(*invariant implies tc *)
+entailer.
+
+(*invariant implies post *)
+apply (exp_right sorted_list).
+apply (exp_right unsorted_list).
+entailer!.
+compute. auto.
+
+(*invariant across body *)
+focus_SEP 1. apply semax_lseg_nonnull.
+entailer!. intros insert_val unsorted_list2.
+intros. subst. rename unsorted_list2 into unsorted_list.
+forward. (* next = index -> tail; *)
+forward. (* index -> tail = NULL; *)
+fold t_struct_list.
+rewrite lift_list_cell_eq.
+(*put fact about sorted into pre so I can instantiate it with a value later *)
+apply semax_pre with
+(EX v : val,  
+ PROP  (contents =  sorted_list ++ (insert_val :: unsorted_list))
+   LOCAL  (tc_environ Delta; `(eq y) (eval_id _next); `(eq v) (eval_id _sorted);
+   `(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
+     (eval_expr (Etempvar _index (tptr t_struct_list))))
+   SEP 
+   (`(field_mapsto sh t_struct_list _head) (eval_id _index)
+      (`Vint `insert_val);
+   `(field_mapsto sh t_struct_list _tail)
+     (eval_lvalue
+        (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list))
+     (`(eval_cast
+          (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+          (tptr t_struct_list))
+        (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))));
+   `(lseg LS sh unsorted_list) `y `nullval;
+   `(lseg LS sh (insertion_sort sorted_list)) (eval_id _sorted) `nullval)).
+entailer.
+apply (exp_right sorted). entailer!. 
+apply extract_exists_pre. intros sorted_val.
+forward.  (* sorted = insert(index, sorted); *)
+instantiate (1:= (sh, (insertion_sort sorted_list), insert_val, sorted_val)) in (Value of witness).
+unfold witness. 
+entailer!. unfold Frame. cancel.
+match goal with 
+[ |- context[tc_environ ?Delta']] => 
+abbreviate Delta' as Delta2
+end. (*not sure what is going on with this*)
+autorewrite with subst. 
+forward. (* sorted := sorted'; *)
+match goal with 
+[ |- context[tc_environ ?Delta']] => 
+abbreviate Delta' as Delta2
+end. (*not sure what is going on with this*)
+forward. (* index = next;*)
+unfold body_invariant.
+entailer.
+normalize.
+apply (exp_right (sorted_list ++ [insert_val])).
+simpl.
+apply (exp_right (unsorted_list)).
+entailer.
+apply andp_right.
+apply prop_right.
+
+Lemma app_cons : forall {A} l (h:A) t,
+l ++ (h :: t) = (l ++ [h]) ++ t.
+Proof.
+induction l; intros.
+auto.
+simpl. rewrite IHl. auto.
+Qed.
+rewrite app_cons. auto.
+unfold subst. unfold eval_id. simpl. rewrite Map.gsspec. unfold _sorted'. unfold _sorted.
+simpl. rewrite Map.gsspec. unfold _index. simpl. fold _sorted'. fold _index. fold _sorted.
+
+Lemma insert_reorder : forall v1 v2 l,
+insert v1 (insert v2 (l)) = insert v2 (insert v1 l).
+Proof.
+induction l. simpl. remember (Int.lt v2 v1); remember (Int.lt v1 v2).
+destruct b; destruct b0; auto.
+replace (Int.lt v2 v1) with (Int.cmp Clt v2 v1) in * by auto.
+replace (Int.lt v1 v2) with (Int.cmp Clt v1 v2) in * by auto.
+rewrite <- Int.swap_cmp in Heqb. simpl swap_comparison in Heqb.
+symmetry in Heqb.
+rewrite <- negb_false_iff in Heqb.
+rewrite <- Int.negate_cmp in Heqb.
+simpl negate_comparison in *. 
+Admitted.
+
+Lemma insert_insertion_sort : forall v l,
+insert v (insertion_sort l) = insertion_sort (l ++ [v]).
+intros.
+induction l.
+auto.
+simpl. 
+rewrite insert_reorder. rewrite IHl. auto.
+Qed.
+
+rewrite insert_insertion_sort. cancel.
+
+unfold body_invariant.
+
+apply extract_exists_pre. intro sorted_list.
+apply extract_exists_pre. intro unsorted_list.
+forward. rewrite app_nil_r. cancel.
+Qed.
+
+
+
 
 
 Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
@@ -827,13 +995,7 @@ unfold Igt in *. clear - H3 Heqb.
   rewrite <- Int.swap_cmp in Heqb. simpl swap_comparison in Heqb. congruence.
 Qed.
 
-Lemma app_cons : forall {A} l (h:A) t,
-l ++ (h :: t) = (l ++ [h]) ++ t.
-Proof.
-induction l; intros.
-auto.
-simpl. rewrite IHl. auto.
-Qed.
+
 
 rewrite app_cons.
 rewrite insert_value_result. 
@@ -934,5 +1096,6 @@ simpl in H4.
 unfold typed_false, logical_and_result in *.
 simpl in H4. destruct (Int.lt sorted_val insert_value); inv H4; auto.
 } 
-Qed. 
+Qed.
+ 
 
