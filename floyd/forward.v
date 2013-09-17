@@ -356,7 +356,7 @@ apply semax_seq with post;
 (apply semax_pre with (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
 [ | apply semax_ifthenelse_PQR; 
     [ reflexivity | | ]] || fail 2 "semax_ifthenelse_PQR did not match"
-end | ].
+end | ]; abbreviate_semax; autorewrite with ret_assert.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;

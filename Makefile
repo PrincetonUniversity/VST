@@ -44,7 +44,7 @@ COQFLAGS= $(INCLUDE)
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
-COQDEP=coqdep
+COQDEP=coqdep -slash
 COQDOC=coqdoc
 
 MSL_FILES = \
