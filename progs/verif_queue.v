@@ -426,7 +426,7 @@ normalize. gather_prop.
 
 apply extract_exists_pre; intro q2.
 apply extract_exists_pre; intro p2.
-forward.  (* fifo_put(Q,p); *)
+ forward.  (* fifo_put(Q,p); *)
  instantiate (1:= ((q2,(p':: nil)),p2)) in (Value of witness).
  unfold witness.
  entailer.
@@ -462,8 +462,13 @@ unfold Frame.
 instantiate (1:= `(fifo (p2 :: nil) q2 *
 (field_mapsto Tsh t_struct_elem _a p2 (Vint (Int.repr 2)) *
  field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20))))::nil).
+normalize. 
+rename H into H2.
+(*above is a temporary fix for a problem I'm having. Coq seems
+to be using the name H regardless of the fresh in simpl_typed_mapsto1,
+this could be a system specific bug, not sure who else is having it *)
 simpl_typed_mapsto.
-normalize. simpl. cancel.
+cancel.
 forward. (* return i+j; *)
 entailer.
 unfold main_post; simpl; apply TT_right.
