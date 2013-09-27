@@ -1,3 +1,4 @@
+Load loadpath.
 Require Import floyd.proofauto.
 Require Import progs.message.
 
@@ -98,6 +99,7 @@ name x _x.
 name y _y.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
+rename H into H3. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
 apply semax_pre with
@@ -122,6 +124,7 @@ forward. (*  ((int * )buf)[1]=y; *)
 forward. (* return 8; *)
 apply exp_right with 8.
 entailer.
+rename H into H2. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 simpl_typed_mapsto. cancel.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
@@ -143,6 +146,7 @@ name y _y.
 name len0 _length.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
+rename H into H2. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
 apply semax_pre with
@@ -171,11 +175,14 @@ forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
+rename H into H6. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 simpl_typed_mapsto.
 cancel.
 apply sepcon_derives;
 apply derives_refl'; eapply mapsto_field_mapsto;  try (simpl; reflexivity);
- destruct buf0; inv H1; unfold eval_binop; simpl; rewrite Int.add_assoc; reflexivity. 
+ destruct buf0; 
+(*inv H1; simpl_typed_mapsto fix*) inv H6; unfold eval_binop; simpl; 
+rewrite Int.add_assoc; reflexivity. 
 Qed.
 
 Ltac simpl_stackframe_of := 
@@ -546,6 +553,7 @@ unfold message.
 apply exp_right with (eval_id ser rho, g).
 apply andp_right.
 admit.  (* need to preserve these from above *)
+rename H into HYP. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 simpl_typed_mapsto.
 simpl.
 cancel.
@@ -724,6 +732,7 @@ entailer.
 replace ( typed_mapsto_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
    with (typed_mapsto_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
  by (repeat rewrite <- memory_block_typed; auto).
+rename H into HYP. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 simpl_typed_mapsto.
 cancel.
 Qed.
