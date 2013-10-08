@@ -37,7 +37,6 @@ Require Import veric.base.
 
 (** ** Casts and truth values *)
 
-
 Definition sem_cast (t1 t2: type) (v: val) : option val :=
   match Cop.classify_cast t1 t2 with
   | Cop.cast_case_neutral =>
@@ -57,7 +56,7 @@ Definition sem_cast (t1 t2: type) (v: val) : option val :=
       end
   | Cop.cast_case_i2f si1 sz2 =>
       match v with
-      | Vint i => Some (Vfloat (Cop.cast_float_float sz2 (Cop.cast_int_float si1 i)))
+      | Vint i => Some (Vfloat (Cop.cast_int_float si1 sz2 i))
       | _ => None
       end
   | Cop.cast_case_f2i sz2 si2 =>
@@ -104,7 +103,7 @@ Definition sem_cast (t1 t2: type) (v: val) : option val :=
       end
   | Cop.cast_case_l2f si1 sz2 =>
       match v with
-      | Vlong i => Some (Vfloat (Cop.cast_float_float sz2 (Cop.cast_long_float si1 i)))
+      | Vlong i => Some (Vfloat (Cop.cast_long_float si1 sz2 i))
       | _ => None
       end
   | Cop.cast_case_f2l si2 =>

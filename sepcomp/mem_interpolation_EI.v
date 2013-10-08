@@ -162,11 +162,8 @@ assert (Ext12':  Mem.extends m1' m2').
          split. 
          (*mi_perm*) intros. inv H. rewrite Zplus_0_r. 
                      apply (Perm12' _ _ _ _ H0). 
-         (*mi_access*) unfold Mem.valid_access; intros. 
-             destruct H0. inv H. rewrite Zplus_0_r.
-             split; trivial. 
-             intros off Hoff. specialize (H0 _ Hoff). 
-             apply (Perm12' _ _ _ _ H0). 
+         (*align*) unfold Mem.valid_access; intros. 
+             unfold inject_id; inv H; apply align_chunk_0.
          (*mi_memval *) intros. inv H. rewrite Zplus_0_r.
             destruct (CONT b2) as [ContVal [ContInval Default]]; clear CONT.
             apply (valid_split _ _ _ _  (ACCESS b2)); clear ACCESS; intros.
@@ -262,18 +259,13 @@ assert (Inj23': Mem.inject j' m2' m3').
     split. 
     (*mi_perm*) apply MiPerm.
     (*mi_access*)
-       intros. destruct H0.
-       split; intros.
-       (*range_perm*) intros off Hoff. 
-           assert (HoffDelta: ofs <= off - delta < ofs + size_chunk chunk). 
-                    omega. 
-           specialize (H0 _ HoffDelta).
-           specialize (MiPerm _ _ _ _ _ _ H H0).
-           assert (off - delta + delta = off). omega.
-           rewrite H2 in MiPerm. apply MiPerm.
+       intros. 
        (*align*)  
-           eapply inject_aligned_ofs. 
-           apply (inj_implies_inject_aligned _ _ _ Inj13'). apply H. apply H1.
+           generalize (inj_implies_inject_aligned _ _ _ Inj13'); intros H1.
+           unfold inject_aligned in H1. apply H1 with (ch := chunk) in H.
+           apply Z.divide_trans with (m := size_chunk chunk).
+           apply align_size_chunk_divides.
+           apply H.
        (*mi_memval *) intros.
            destruct (CONT b1) as [ContVal [ContInval Default]]; clear CONT.
            assert (NP: Mem.perm m2' b1 ofs Max Nonempty).

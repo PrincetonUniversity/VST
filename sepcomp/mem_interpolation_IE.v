@@ -129,45 +129,8 @@ assert (Ext23': Mem.extends m2' m3').
                      assumption. 
                unfold Mem.perm in *. rewrite Inval2 in H0; clear Inval2.
                apply H0.
-         (*mi_access*) unfold Mem.valid_access in *. 
-            destruct H0. inv H. rewrite Zplus_0_r.
-            split; trivial. 
-               intros off; intros. specialize (H0 _ H). clear H.
-               destruct (ACCESS b2) as [Val2 Inval2].
-               remember (plt b2 (Mem.nextblock m2)) as z.
-               destruct z as [z|z]; clear Heqz.
-                  clear Inval2. specialize (Val2 z Cur off).
-                  remember (source j m1 b2 off) as src. 
-                  destruct src.  
-                      apply source_SomeE in Heqsrc.
-                      destruct Heqsrc as [b1 [delta [ofs1
-                           [PBO [Bounds [J1 [P1 Off2]]]]]]]; subst.
-                      unfold Mem.perm in *.
-                      rewrite Val2 in H0. clear Val2. rewrite po_oo in *.
-                      assert (J1' := InjInc _ _ _  J1).
-                      eapply po_trans. 
-                         apply (inject_permorder _ _ _ Inj13' _ _ _ J1').
-                         assumption. 
-                  unfold Mem.perm in H0. rewrite Val2 in H0. clear Val2.
-                  destruct UnchLOORj1_3 as [U _]. 
-                  rewrite <- U.
-                       unfold Mem.perm. rewrite po_oo in *.
-                          eapply po_trans.  eapply (extends_permorder _ _ Ext23). apply H0.
-                      eapply sourceNone_LOOR. apply Heqsrc. eassumption.
-                      rewrite <- (Mem.valid_block_extends _ _ _ Ext23). apply z.   
-               clear Val2. specialize (Inval2 z Cur off).
-                  remember (source j' m1' b2 off) as src.
-                  destruct src.
-                  apply source_SomeE in Heqsrc.
-                  destruct Heqsrc as [b1 [delta [ofs1
-                            [PBO [Bounds [J1' [P1 Off2]]]]]]]; subst.
-                  unfold Mem.perm in *.
-                  rewrite Inval2 in H0. clear Inval2. rewrite po_oo in *.
-                  eapply po_trans.
-                     apply (inject_permorder _ _ _ Inj13' _ _ _ J1').
-                     assumption. 
-                  unfold Mem.perm in *. rewrite Inval2 in H0; clear Inval2.
-                  apply H0.
+         (*align*) 
+            unfold inject_id in H; inv H. apply align_chunk_0.
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -237,45 +200,12 @@ assert (Inj12': Mem.inject j' m1' m2').
                eapply po_trans. 
                   eapply (inject_permorder _ _ _ Inj13' _ _ _ H ofs k). 
                   apply H0.
-       (*mi_access*) destruct H0. 
-           split.
-              intros off; intros. 
-              destruct (ACCESS b2) as [Val2 Inval2].
-              remember (plt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]; clear Heqz. clear Inval2. 
-                 specialize (Val2 z Cur off).
-                 assert (HJ: j b1 = Some (b2, delta)).
-                    remember (j b1).
-                    destruct o; apply eq_sym in Heqo.
-                          destruct p0. apply InjInc in Heqo. 
-                          rewrite Heqo in H. inv H. reflexivity.
-                    destruct (Sep12 _ _ _ Heqo H). exfalso. apply H4. apply z.
-                 assert (PM1:  Mem.perm m1 b1 (off - delta) Max Nonempty).
-                    eapply Fwd1. 
-                    eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ HJ Minj12). 
-                    eapply Mem.perm_implies. eapply Mem.perm_max. 
-                    apply H0. omega. apply perm_any_N.
-                 specialize (source_SomeI j m1 b2 b1 (off-delta) delta).
-                    intros.
-                    assert (off - delta + delta = off). omega. 
-                    rewrite H4 in H3. 
-                    rewrite H3 in Val2. 
-                       unfold Mem.perm. rewrite Val2. apply H0. omega.
-                       apply Minj12. 
-                       apply HJ. 
-                       apply PM1.
-              clear Val2. specialize (Inval2 z Cur off). 
-                 specialize (source_SomeI j' m1' b2 b1 (off-delta) delta). 
-                 intros.
-                 assert (off - delta + delta = off). omega. 
-                 rewrite H4 in H3. 
-                 rewrite H3 in Inval2. 
-                    unfold Mem.perm. rewrite Inval2. apply H0. omega.
-                    apply Inj13'. 
-                    apply H. 
-                    eapply Mem.perm_implies. eapply Mem.perm_max. 
-                      apply H0. omega. apply perm_any_N. 
-         eapply Inj13'. apply H. split; eassumption.
+       (*mi_access*) 
+           generalize (inj_implies_inject_aligned _ _ _ Inj13'); intros H1.
+           unfold inject_aligned in H1. apply H1 with (ch := chunk) in H.
+           apply Z.divide_trans with (m := size_chunk chunk).
+           apply align_size_chunk_divides.
+           apply H.
    (*memval*)
             destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 

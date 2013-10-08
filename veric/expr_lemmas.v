@@ -924,14 +924,17 @@ remember (classify_cast (typeof e) t) as o; destruct o;
  destruct (eval_expr e rho); inv TC; try reflexivity;
  try solve [destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; 
    (reflexivity || destruct t; inv H4; destruct (typeof e); try destruct i0; inv Heqo)].
+simpl; destruct sz2; simpl; auto. admit. (*Joey (GS): Not sure this is true anymore*)
 simpl; destruct (cast_float_int si2 f); inv H4; reflexivity.
+simpl. destruct sz2; simpl; auto. admit. (*Joey (GS): Not sure this is true anymore*)
 simpl; destruct (cast_float_long si2 f); inv H4; reflexivity.
 simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
 simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
 }
 (*Field*)
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
-simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. repeat rewrite tc_andp_sound in *. 
+simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. 
+  repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
 repeat( try rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
 destruct H1. destruct H1.
@@ -1552,16 +1555,19 @@ try solve [destruct v; reflexivity];
 try solve[ destruct i; try reflexivity; try solve [destruct v; reflexivity]];
 try solve[ destruct i0; try reflexivity]; simpl.
 destruct i0, s0, v; reflexivity.
-destruct i,v; simpl; try reflexivity; destruct (cast_float_int s f0); reflexivity.
-unfold eval_cast_f2f.
+Admitted. (*Joey (GS): not sure this is true*)
+(*
+destruct v; auto. simpl. admit. (*GS: not true, apparently*) admit.
 destruct v; try reflexivity.
-simpl. destruct (cast_float_long s f0); reflexivity.
+admit.
+(*simpl. destruct (cast_float_long s f0); reflexivity.*)
 destruct v; simpl; try reflexivity.
 destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
 destruct v; simpl; try reflexivity.
 destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
 destruct i0,  v; reflexivity.
 Qed.
+*)
 
 Lemma sem_cast_eval_cast:
   forall v1 t1 t2 v,

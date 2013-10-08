@@ -1278,27 +1278,12 @@ assert (Inj12': Mem.inject (removeUndefs j12 j' prej12')  m1' m2').
                     apply H0. apply perm_any_N.
     assert (INJ:Mem.mem_inj  (removeUndefs j12 j' prej12') m1' m2'). 
       split. apply Perm12'.
-      (*valid_access*) 
-          intros. destruct H0.
-          split.
-              intros off; intros.
-              assert (Hoff: ofs <= off-delta < ofs + size_chunk chunk). omega. 
-              specialize (Perm12' _ _ _ _ _ _ H  (H0 _ Hoff)).
-              assert (off - delta + delta = off). omega. 
-              rewrite H3 in Perm12'. apply Perm12'.
-              (*we can't use Mem.aligned_area_inject because we want to 
-                PROVE Mem.inject (removeUndefs j12 j' prej12')  m1' m2').*)
-                (*assert (RP : Mem.range_perm m1' b1 ofs 
-                              (ofs + size_chunk chunk) Cur Nonempty).
-                  intros off Hoff. eapply Mem.perm_implies.
-                    apply (H0 _ Hoff). apply perm_any_N. 
-                   eapply Mem.aligned_area_inject with
-                    (sz:=size_chunk chunk). Focus 5. apply RP. 
-                        Focus 6. apply H. 
-                            apply H1. Focus 4. apply H1.
-                  THIS IS ONE OF THE PLACES WHERE 
-                       inject_aligned_of IS REQUIRED*)
-                   eapply (inject_aligned_ofs _ AL12' _ _ _ _ H _ H1). 
+      (*align*) 
+          intros. 
+          unfold inject_aligned in AL12'. apply AL12' with (ch := chunk) in H.
+          apply Z.divide_trans with (m := size_chunk chunk).
+          apply align_size_chunk_divides.
+          apply H.
       (*memval  j12' m1' m2'.*)
           intros. 
           apply (cont_split _ _ _ _ _ (CONT b2)); intros; clear CONT.
@@ -1614,15 +1599,12 @@ assert (Inj23': Mem.inject j23' m2' m3').
    assert (MI: Mem.mem_inj j23' m2' m3').
       split.
       (*mi_perm *) apply Perm23'.
-      (*valid_access*)
-          intros. destruct H0.
-          split. intros off; intros. 
-                 assert (ofs <= off - delta < ofs + size_chunk chunk). omega.
-                 specialize (H0 _ H3).
-                 specialize (Perm23' _ _ _ _ _ _ H H0).
-                 assert (off - delta + delta = off). omega. 
-               rewrite H4 in Perm23'. apply Perm23'.
-          eapply (inject_aligned_ofs _ AL23' _ _ _ _ H _ H1). 
+      (*align*) 
+          intros. 
+          unfold inject_aligned in AL23'. apply AL23' with (ch := chunk) in H.
+          apply Z.divide_trans with (m := size_chunk chunk).
+          apply align_size_chunk_divides.
+          apply H.
       (*memval j23' m2' m3'*) intros b2 ofs2 b3 delta3 Jb2 Perm2.
           assert (Perm2Max: Mem.perm m2' b2 ofs2  Max Nonempty).
              eapply Mem.perm_max. eapply Mem.perm_implies.

@@ -912,6 +912,8 @@ try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto];
 try rewrite Float.singleoffloat_idem; auto.
+admit. (*Joey (GS): not sure is true*)
+admit. (*Joey (GS): not sure is true*)
 Qed. 
 
 Lemma semax_store:

@@ -222,6 +222,18 @@ Definition mul (v1 v2: val): val :=
   | _, _ => Vundef
   end.
 
+Definition mulhs (v1 v2: val): val :=
+  match v1, v2 with
+  | Vint n1, Vint n2 => Vint(Int.mulhs n1 n2)
+  | _, _ => Vundef
+  end.
+
+Definition mulhu (v1 v2: val): val :=
+  match v1, v2 with
+  | Vint n1, Vint n2 => Vint(Int.mulhu n1 n2)
+  | _, _ => Vundef
+  end.
+
 Definition divs (v1 v2: val): option val :=
   match v1, v2 with
   | Vint n1, Vint n2 =>
@@ -260,6 +272,18 @@ Definition add_carry (v1 v2 cin: val): val :=
   match v1, v2, cin with
   | Vint n1, Vint n2, Vint c => Vint(Int.add_carry n1 n2 c)
   | _, _, _ => Vundef
+  end.
+
+Definition sub_overflow (v1 v2: val) : val :=
+  match v1, v2 with
+  | Vint n1, Vint n2 => Vint(Int.sub_overflow n1 n2 Int.zero)
+  | _, _ => Vundef
+  end.
+
+Definition negative (v: val) : val :=
+  match v with
+  | Vint n => Vint (Int.negative n)
+  | _ => Vundef
   end.
 
 Definition and (v1 v2: val): val :=
@@ -435,6 +459,18 @@ Definition floatoflong (v: val) : option val :=
 Definition floatoflongu (v: val) : option val :=
   match v with
   | Vlong n => Some (Vfloat (Float.floatoflongu n))
+  | _ => None
+  end.
+
+Definition singleoflong (v: val) : option val :=
+  match v with
+  | Vlong n => Some (Vfloat (Float.singleoflong n))
+  | _ => None
+  end.
+
+Definition singleoflongu (v: val) : option val :=
+  match v with
+  | Vlong n => Some (Vfloat (Float.singleoflongu n))
   | _ => None
   end.
 
@@ -1013,11 +1049,6 @@ Theorem rolm_zero:
   rolm x Int.zero m = and x (Vint m).
 Proof.
   intros; destruct x; simpl; auto. decEq. apply Int.rolm_zero.
-Qed.
-
-Theorem addf_commut: forall x y, addf x y = addf y x.
-Proof.
-  destruct x; destruct y; simpl; auto. decEq. apply Float.addf_commut.
 Qed.
 
 Theorem negate_cmp_bool:

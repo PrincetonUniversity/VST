@@ -44,42 +44,10 @@ Qed.
 Lemma mem_inj_id_trans: forall m1 m2 (Inj12: Mem.mem_inj inject_id m1 m2) m3 
           (Inj23: Mem.mem_inj inject_id m2 m3),Mem.mem_inj inject_id m1 m3.
 Proof. intros.
-  destruct Inj12. rename mi_perm into perm12. rename mi_access into access12. 
-  rename mi_memval into memval12.
-  destruct Inj23. rename mi_perm into perm23. rename mi_access into access23. 
-  rename mi_memval into memval23.
-  split; intros.
-  (*mi_perm*)
-  apply (perm12 _ _ _ _  _ _ H) in H0. 
-  assert (inject_id b2 = Some (b2, delta)).
-  unfold inject_id in *. inv H. trivial.
-  apply (perm23 _ _ _ _  _ _ H1) in H0.  inv H. inv H1. rewrite Zplus_0_r in H0. 
-  assumption.
-  (*mi_access*)
-  apply (access12 _ _ _ _  _ _ H) in H0. 
-  assert (inject_id b2 = Some (b2, delta)).
-  unfold inject_id in *. inv H. trivial.
-  apply (access23 _ _ _ _  _ _ H1) in H0.  inv H. inv H1. rewrite Zplus_0_r in H0. 
-  assumption.
-  (*mi_memval*)
-  assert (MV1:= memval12 _ _ _ _  H H0). 
-  assert (inject_id b2 = Some (b2, delta)).
-  unfold inject_id in *. inv H. trivial.
-  assert (R2: Mem.perm m2 b2 ofs Cur Readable).
-  apply (perm12 _ _ _ _  _ _ H) in H0. inv H. rewrite Zplus_0_r in H0. 
-  assumption.
-  assert (MV2:= memval23 _ _ _ _  H1 R2).
-  inv H. inv H1.  rewrite Zplus_0_r in *.
-  remember  (ZMap.get ofs (PMap.get b2 (Mem.mem_contents m2))) as v.
-  destruct v. inv MV1. apply MV2.
-  inv MV1. apply MV2.
-  inv MV2. constructor.
-  inv MV1. inv MV2. inv H3. inv H4. 
-  rewrite Int.add_zero. rewrite Int.add_zero.  
-  econstructor. reflexivity. 
-  rewrite Int.add_zero. trivial.
-  inv MV2. inv H3. rewrite Int.add_zero. 
-  rewrite Int.add_zero in H5. econstructor.
+  assert (inject_id = compose_meminj inject_id inject_id) as ->. 
+    unfold compose_meminj, inject_id.
+    extensionality b; auto.
+  apply Mem.mem_inj_compose with (m2 := m2); auto.
 Qed.
 
 Lemma extends_trans: forall m1 m2 
@@ -95,13 +63,7 @@ rewrite Int.add_zero. trivial.
 Qed.
 
 Lemma extends_refl: forall m, Mem.extends m m.
-Proof. intros.
-  split. trivial.
-  split; intros. 
-     inv H.  rewrite Zplus_0_r. assumption.
-     inv H.  rewrite Zplus_0_r. assumption.
-     inv H.  rewrite Zplus_0_r. apply memval_inject_id_refl.
-Qed.
+Proof. intros. apply Mem.extends_refl. Qed.
 
 Lemma compose_meminj_idR: forall j, j = compose_meminj j inject_id.
 Proof. intros. unfold  compose_meminj, inject_id. 
@@ -132,83 +94,17 @@ Qed.
 Lemma extends_inject_compose:
   forall f m1 m2 m3,
   Mem.extends m1 m2 -> Mem.inject f m2 m3 -> Mem.inject f m1 m3.
-Proof. 
-  intros.
-  inv H. inv mext_inj. inv H0. inv mi_inj.
-  split; intros. 
-  split; intros. 
-  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. rewrite Zplus_0_r in H0.
-  apply (mi_perm0 _ _ _ _ _ _ H H0).
-  apply (mi_access _ _ _ _ _ _ (eq_refl _)) in H0. rewrite Zplus_0_r in H0.
-  apply (mi_access0 _ _ _ _ _ _ H H0).
-  assert (K1:= mi_memval _ _ _ _ (eq_refl _) H0).
-  apply  (mi_perm _ _ _ _ _ _ (eq_refl _)) in H0. rewrite Zplus_0_r in H0.
-  assert (K2:= mi_memval0 _ _ _ _ H H0). rewrite Zplus_0_r in K1.
-  assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite <- compose_meminj_idL in K. apply K.
-  apply mi_freeblocks. unfold Mem.valid_block. rewrite <- mext_next. apply H.
-  eapply mi_mappedblocks. apply H.
-  intros b; intros.  
-  apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H2. 
-  rewrite Zplus_0_r in H2. apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in H3. 
-  rewrite Zplus_0_r in H3.
-  apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
-  eapply mi_representable. apply H.
-  unfold Mem.weak_valid_pointer in H0|-*.
-(* apply orb_true_iff in H0; apply orb_true_iff.*)
- destruct H0; [left | right].
- unfold Mem.valid_pointer in H0|-*.
- apply (mi_perm b b 0 _ _ Nonempty (eq_refl _)) in H0.
- rewrite Zplus_0_r in H0.
- apply H0. 
- apply (mi_perm b b 0 _ _ Nonempty (eq_refl _)) in H0.
- rewrite Zplus_0_r in H0.
- apply H0. 
-Qed.
+Proof. apply Mem.extends_inject_compose. Qed.
 
 Lemma inject_extends_compose:
   forall f m1 m2 m3,
   Mem.inject f m1 m2 -> Mem.extends m2 m3 -> Mem.inject f m1 m3.
-Proof. intros.
-  inv H. inv mi_inj. inv H0. inv mext_inj.
-  split; intros. 
-  split; intros. 
-  apply (mi_perm _ _ _ _ _ _ H) in H0.
-  apply (mi_perm0 _ _ _ _ _ _  (eq_refl _)) in H0.  rewrite Zplus_0_r in H0. 
-   assumption.
-  apply (mi_access _ _ _ _ _ _ H) in H0.
-  apply (mi_access0 _ _ _ _ _ _  (eq_refl _)) in H0. rewrite Zplus_0_r in H0. 
-   assumption.
-  assert (K1:= mi_memval _ _ _ _ H H0).
-  apply  (mi_perm _ _ _ _ _ _ H) in H0. 
-  assert (K2:= mi_memval0 _ _ _ _ (eq_refl _) H0). rewrite Zplus_0_r in K2.
-  assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite <- compose_meminj_idR in K. apply K.
-  apply mi_freeblocks. apply H.
-  unfold Mem.valid_block. rewrite <- mext_next. eapply mi_mappedblocks. apply H.
-  intros b; intros. apply (mi_no_overlap _ _ _ _ _ _ _ _ H H0 H1 H2 H3).
-  eapply mi_representable. apply H. apply H0.
-Qed.
+Proof. apply Mem.inject_extends_compose. Qed.
 
 Lemma extends_extends_compose:
   forall m1 m2 m3,
     Mem.extends m1 m2 -> Mem.extends m2 m3 -> Mem.extends m1 m3.
-Proof. intros.
-  inv H. inv mext_inj. inv H0. inv mext_inj.
-  split; intros. rewrite mext_next; assumption. 
-  split; intros.
-  apply (mi_perm _ _ _ _ _ _ H) in H0. 
-  apply (mi_perm0 _ _ _ _ _ _  (eq_refl _)) in H0. rewrite Zplus_0_r in H0. 
-   assumption.
-  apply (mi_access _ _ _ _ _ _ H) in H0.
-  apply (mi_access0 _ _ _ _ _ _  (eq_refl _)) in H0. rewrite Zplus_0_r in H0. 
-   assumption.
-  assert (K1:= mi_memval _ _ _ _ H H0).
-  apply  (mi_perm _ _ _ _ _ _ H) in H0. 
-  assert (K2:= mi_memval0 _ _ _ _ (eq_refl _) H0). rewrite Zplus_0_r in K2.
-  assert (K:= memval_inject_compose _ _ _ _ _ K1 K2).
-  rewrite <- compose_meminj_idR in K. apply K.
-Qed.
+Proof. apply Mem.extends_extends_compose. Qed.
 
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)), 
   b2=b1 /\ delta=0 /\ Plt b2 b.
@@ -657,6 +553,11 @@ Qed.
 (*memories that do not contain "dangling pointers"*)
 Definition mem_wd m := Mem.inject_neutral (Mem.nextblock m) m.
 
+Lemma align_chunk_0: forall chunk, (align_chunk chunk | 0).
+Proof.
+  intros chunk. destruct chunk; simpl; apply Z.divide_0_r.
+Qed.
+
 Lemma mem_wdI: forall m,
     (forall (b:block) ofs  (R:Mem.perm m b ofs Cur Readable),
                 memval_inject  (Mem.flat_inj (Mem.nextblock m)) 
@@ -665,11 +566,10 @@ Lemma mem_wdI: forall m,
 Proof. intros.
   split; intros.
      apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
-     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
+     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. apply align_chunk_0.
      apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r.
         apply H. apply H1.
 Qed.
-        
         
 Lemma mem_wd_E: forall m, mem_wd m ->  Mem.inject (Mem.flat_inj (Mem.nextblock m)) m m.
 Proof. intros. apply Mem.neutral_inject. apply H. Qed.
@@ -728,7 +628,7 @@ Proof. intros. unfold mem_wd in *.
   inv WDm. 
          split; intros. 
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
-             apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
+             apply flatinj_E in H. destruct H as [? [? ?]]; subst. apply align_chunk_0.
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
                  assert (X: Mem.flat_inj (Mem.nextblock m) b1 = Some (b1, 0)).
                      apply flatinj_I. apply (Mem.perm_valid_block _ _ _ _ _ H0).
@@ -752,7 +652,7 @@ Lemma free_neutral: forall (thr : block) (m : mem) (lo hi : Z) (b : block) (m' :
 Proof. intros. inv H. 
   split; intros.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
-     apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
+     apply flatinj_E in H. destruct H as [? [? ?]]; subst. apply align_chunk_0.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
         assert (X: Mem.flat_inj thr b1 = Some (b1,0)). apply flatinj_I. assumption.
         assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ _ _ H0).
@@ -1196,9 +1096,12 @@ Proof. intros.
     (*mi_perm*)
       apply flatinj_E in H. destruct H as [? [? ?]]; subst.
         apply (Mem.mi_perm _ _ _ mext_inj b1); trivial.
-    (*mi_access*)
-      apply flatinj_E in H. destruct H as [? [? ?]]; subst.
-        apply (Mem.mi_access _ _ _ mext_inj b1); trivial.
+
+    (*align*)
+    unfold Mem.flat_inj in H.
+    destruct (plt b1 (Mem.nextblock m)); try congruence; inv H.
+    apply align_chunk_0.
+
     (*mi_memval*)
       destruct WD as [_ _ MVM]. specialize (MVM _ _ _ _ H H0).
       assert (MM':= Mem.mi_memval _ _ _ mext_inj b1 ofs _ _ (eq_refl _) H0).
