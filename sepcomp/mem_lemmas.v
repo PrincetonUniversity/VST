@@ -91,21 +91,6 @@ solve[f_equal; apply proof_irr].
 solve[elimtype False; auto].
 Qed.
 
-Lemma extends_inject_compose:
-  forall f m1 m2 m3,
-  Mem.extends m1 m2 -> Mem.inject f m2 m3 -> Mem.inject f m1 m3.
-Proof. apply Mem.extends_inject_compose. Qed.
-
-Lemma inject_extends_compose:
-  forall f m1 m2 m3,
-  Mem.inject f m1 m2 -> Mem.extends m2 m3 -> Mem.inject f m1 m3.
-Proof. apply Mem.inject_extends_compose. Qed.
-
-Lemma extends_extends_compose:
-  forall m1 m2 m3,
-    Mem.extends m1 m2 -> Mem.extends m2 m3 -> Mem.extends m1 m3.
-Proof. apply Mem.extends_extends_compose. Qed.
-
 Lemma flatinj_E: forall b b1 b2 delta (H:Mem.flat_inj b b1 = Some (b2, delta)), 
   b2=b1 /\ delta=0 /\ Plt b2 b.
 Proof. 
@@ -480,12 +465,6 @@ Lemma  PermInjNotnonempty: forall j m1 m2 (Inj: Mem.inject j m1 m2) b b2 delta (
 Proof. intros. destruct Inj. destruct mi_inj.
 intros N. apply H. apply (mi_perm _ _ _ _ _ _ J) in N. apply N.
 Qed.
-
-(*now in Memory.v
-Lemma mem_unchanged_on_refl: forall m f, Mem.unchanged_on f m m.
-Proof. intros. split; trivial. 
-   intros; split; trivial.
-Qed.*)
 
 Lemma inject_LOOR_LOOB: forall m1 m2 j (Minj12 : Mem.inject j m1 m2) m3 m3', 
   Mem.unchanged_on (loc_out_of_reach j m1) m3 m3' -> 

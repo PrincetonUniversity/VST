@@ -200,13 +200,8 @@ assert (Inj12': Mem.inject j' m1' m2').
                eapply po_trans. 
                   eapply (inject_permorder _ _ _ Inj13' _ _ _ H ofs k). 
                   apply H0.
-       (*mi_access*) 
-           generalize (inj_implies_inject_aligned _ _ _ Inj13'); intros H1.
-           unfold inject_aligned in H1. apply H1 with (ch := chunk) in H.
-           apply Z.divide_trans with (m := size_chunk chunk).
-           apply align_size_chunk_divides.
-           apply H.
-   (*memval*)
+       (*mi_align*) eapply Inj13'. apply H. apply H0. 
+       (*mi_memval*)
             destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
             remember (plt b2 (Mem.nextblock m2)) as z.

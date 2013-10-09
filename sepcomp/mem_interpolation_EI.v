@@ -74,7 +74,7 @@ Lemma EI_ok: forall (m1 m2 m1':mem)
 Proof. intros.
 assert (VB' : forall b : block, Mem.valid_block m1' b = Mem.valid_block m2' b).
   intros; unfold Mem.valid_block. rewrite NB. trivial.
-assert (Inj13:= extends_inject_compose _ _ _ _ Ext12 Inj23).
+assert (Inj13:= Mem.extends_inject_compose _ _ _ _ Ext12 Inj23).
 assert (MMU_LU: Mem.unchanged_on (loc_unmapped j) m2 m2' ).
    split. intros. 
        destruct (ACCESS b) as [Val _].
@@ -258,15 +258,39 @@ assert (Inj23': Mem.inject j' m2' m3').
          (*end of proof of MiPerm*)
     split. 
     (*mi_perm*) apply MiPerm.
-    (*mi_access*)
-       intros. 
-       (*align*)  
-           generalize (inj_implies_inject_aligned _ _ _ Inj13'); intros H1.
-           unfold inject_aligned in H1. apply H1 with (ch := chunk) in H.
-           apply Z.divide_trans with (m := size_chunk chunk).
-           apply align_size_chunk_divides.
-           apply H.
-       (*mi_memval *) intros.
+    (*mi_align*)  intros.
+       apply (valid_split _ _ _ _  (ACCESS b1)); clear ACCESS; intros.
+       (*case valid*)
+         specialize (H2 Max).
+         remember (j b1) as q.
+         destruct q; apply eq_sym in Heqq.
+           destruct p0.
+           assert (J':= InjInc _ _ _ Heqq). rewrite J' in H. inv H.
+           assert (RNG: Mem.range_perm m2 b1 ofs (ofs + size_chunk chunk) Max p).
+             intros z; intros.
+             destruct (H2 z) as [Perm NoPerm].
+             specialize (H0 _ H). clear H2.
+             destruct (Mem.perm_dec m1 b1 z Max Nonempty).
+               rewrite (perm_subst _ _ _ _ _ _ _ (Perm p0)) in *; clear Perm NoPerm.
+                 eapply (extends_perm _ _ Ext12).
+                 eapply Fwd1. eapply Mem.valid_block_inject_1. apply Heqq. eassumption. 
+                      assumption. 
+             rewrite (perm_subst _ _ _ _ _ _ _ (NoPerm n)) in *; clear Perm NoPerm.
+               assumption.
+           eapply Inj23. apply Heqq. eassumption.
+         destruct (injSep _ _ _ Heqq H).
+            exfalso. apply H3. 
+            eapply (Mem.valid_block_extends _ _ b1 Ext12). assumption.
+       (*case invalid*)
+         assert (RNG: Mem.range_perm m1' b1 ofs (ofs + size_chunk chunk) Max p).
+             intros z; intros.
+             destruct (H2 Max z) as [Perm NoPerm]. clear H2.
+             specialize (H0 _ H3).
+             destruct (Mem.perm_dec m1' b1 z Max Nonempty).             
+               rewrite (perm_subst _ _ _ _ _ _ _ (Perm p0)) in *; clear Perm NoPerm. assumption. 
+             unfold Mem.perm in H0. rewrite (NoPerm n) in H0. simpl in H0. intuition. 
+         eapply Inj13'. apply H. apply RNG. 
+    (*mi_memval *) intros.
            destruct (CONT b1) as [ContVal [ContInval Default]]; clear CONT.
            assert (NP: Mem.perm m2' b1 ofs Max Nonempty).
                    eapply Mem.perm_max. eapply Mem.perm_implies. 

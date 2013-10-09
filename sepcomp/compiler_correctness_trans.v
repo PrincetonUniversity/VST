@@ -498,7 +498,7 @@ induction SIM23; intros; subst.
            destruct (Inj_init23 _ Ini2) as [m3 [Ini3 MIn23]].
            exists m3; split.
                     assumption.
-                    eapply  extends_inject_compose; eassumption.
+                    eapply Mem.extends_inject_compose; eassumption.
        (*entrypoints_ok*)
            eapply ePts_compose2; eassumption.
        (*meminj_preserves_globals*)
@@ -583,7 +583,7 @@ induction SIM23; intros; subst.
          intros m1 Ini1.
            destruct (Inj_init12 _ Ini1) as [m2 [Ini2 MIni12]].
            destruct (Ext_init23 _ Ini2) as [m3 [Ini3 MExt23]]. exists m3. split. assumption.
-           eapply inject_extends_compose; eassumption.
+           eapply Mem.inject_extends_compose; eassumption.
        (*entrypoints_ok*)
            eapply ePts_compose3; eassumption.
        (*sim_injext*) 

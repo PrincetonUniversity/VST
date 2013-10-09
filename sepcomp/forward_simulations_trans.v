@@ -1312,7 +1312,7 @@ Proof. intros.
                     exists v3. split. eapply val_lessdef_inject_compose; eassumption.
                           split. trivial. 
                           split; trivial. 
-                          eapply extends_inject_compose; eassumption.
+                          eapply Mem.extends_inject_compose; eassumption.
              (*atexternal*)
                     intros. rename st2 into st3. rename m2 into m3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
@@ -1320,7 +1320,7 @@ Proof. intros.
                     destruct H0 as [vals2 [Ext12 [LD12 [HTVals2 [AtExt2 VV2]]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
                     destruct AtExt2 as [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 [AtExt3 VV3]]]]]].
-                    split. eapply extends_inject_compose; eassumption.
+                    split. eapply Mem.extends_inject_compose; eassumption.
                     split. admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) j  from meminj_preserves_globals (Genv.globalenv P2) j for any j*)  
                     exists vals3. 
                     split. eapply forall_val_lessdef_inject_compose; eassumption. 
@@ -1803,7 +1803,7 @@ Proof. intros.
                     destruct SH2 as [v3 [V23 [SH3 [Ext23 VV3]]]].
                     exists v3. split. eapply valinject_lessdef; eassumption. 
                        split; trivial. 
-                       split. eapply inject_extends_compose; eassumption.
+                       split. eapply Mem.inject_extends_compose; eassumption.
                        assumption.
              (*atexternal*)
                     intros. rename st2 into st3. rename m2 into m3. 
@@ -1812,7 +1812,7 @@ Proof. intros.
                     destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 [AtExt2 VV2]]]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
                     destruct AtExt2 as [vals3 [Mext23 [LD23 [HT3 [AtExt3 VV3]]]]].
-                    split. eapply inject_extends_compose; eassumption.
+                    split. eapply Mem.inject_extends_compose; eassumption.
                     split; trivial. 
                     exists vals3.  split. eapply forall_valinject_lessdef; eassumption.
                         split. assumption.
@@ -1847,6 +1847,76 @@ Proof. intros.
                     exists c2'. exists m2'.  split; trivial. split; assumption.
 Qed.
 End INJEXT.
+
+Lemma empty_inj: Mem.inject (Mem.flat_inj 1%positive) Mem.empty Mem.empty.
+Proof.
+  split.
+    split. intros. destruct (flatinj_E _ _ _ _ H) as [? [? ?]]. subst.
+          rewrite Zplus_0_r. assumption.
+       intros. destruct (flatinj_E _ _ _ _ H) as [? [? ?]]. subst.
+          apply Z.divide_0_r.
+    intros. destruct (flatinj_E _ _ _ _ H) as [? [? ?]]. subst.
+         exfalso. xomega.
+     intros. unfold Mem.flat_inj.
+          remember (plt b 1).
+          destruct s; trivial. xomega.
+    intros. destruct (flatinj_E _ _ _ _ H) as [? [? ?]]. subst.
+         exfalso. xomega.
+    intros b; intros.
+      destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
+         exfalso. xomega.
+    intros.
+      destruct (flatinj_E _ _ _ _ H) as [? [? ?]]. subst.
+         exfalso. xomega.
+Qed.
+
+Lemma empty_fwd: forall m, mem_forward Mem.empty m.
+Proof. intros m b Vb.
+   unfold Mem.valid_block in Vb. simpl in Vb. exfalso. xomega.
+Qed.
+
+Lemma inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
+  exists m2 j1 j2, j = compose_meminj j1 j2 /\
+       Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3.
+Proof. intros.
+  destruct (MEMAX.interpolate_II _ _ _ empty_inj _ (empty_fwd m1) _ _ empty_inj _ (empty_fwd m3) _ Inj)
+  as [m2 [j1 [j2 [J [Inc1 [Inc2 [Inj12 [? [Inj23 _]]]]]]]]].
+intros b; intros. 
+  destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
+    subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
+         exfalso. xomega.
+intros b; intros.
+   unfold Mem.valid_block; simpl; split; intros N; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+eapply mem_wdI; intros.
+  apply Mem.perm_valid_block in R. unfold Mem.valid_block in R. 
+  simpl in R. exfalso; xomega.
+admit. (*mem_wd m3*) 
+eapply mem_wdI; intros.
+  apply Mem.perm_valid_block in R. unfold Mem.valid_block in R. 
+  simpl in R. exfalso; xomega.
+eapply mem_wdI; intros.
+  apply Mem.perm_valid_block in R. unfold Mem.valid_block in R. 
+  simpl in R. exfalso; xomega.
+admit. (*mem_wd m3*)
+subst. exists m2, j1, j2. auto.
+Qed.  
+
+Lemma forall_val_inject_split: forall j1 j2 vals1 vals3 
+  (V: Forall2 (val_inject (compose_meminj j1 j2)) vals1 vals3),
+  exists vals2, Forall2 (val_inject j1) vals1 vals2
+             /\ Forall2 (val_inject j2) vals2 vals3.
+Proof. intros.
+  induction V; simpl.
+    exists nil; simpl. split; econstructor.
+  destruct IHV as [vals [Vals1 Vals2]].
+    destruct (val_inject_split _ _ _ _ H) as [z [VV1 VV2]].
+    exists (z::vals).
+    split; econstructor; eauto.
+Qed.
 
 Section INJINJ.
 Lemma diagram_injinj: forall
@@ -2084,7 +2154,19 @@ Proof. intros.
   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
-  eapply forall_valinject_hastype; eassumption.
+    eapply forall_valinject_hastype; eassumption.
+(*  destruct (inject_split _ _ _ H1) as [m2 [j1 [j2 [J [Inj12 Inj23]]]]].
+  subst.
+  destruct (forall_val_inject_split _ _ _ _ H4) as [vals2 [ValsInj12 ValsInj23]].
+  destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ H0 Inj12)
+     as [d12 [c2 [Ini2 MC12]]]; try assumption. admit. (*mem_wd m2*)   
+      eapply forall_valinject_hastype; eassumption. 
+  destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ Ini2 Inj23)
+     as [d23 [c3 [Ini3 MC23]]]; try assumption. admit. (*mem_wd m2*)
+  exists (d12,Some c2,d23). exists c3. 
+  split; trivial. 
+  exists c2, m2, j1, j2. auto.
+*)
   destruct (mem_wd_inject_splitL _ _ _ H1 H2) as [Flat1 XX]; rewrite XX.
   assert (ValInjFlat1 := forall_val_inject_flat _ _ _ H1 _ _ H4).
   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 Flat1 H2 H2 ValInjFlat1 HT) 
