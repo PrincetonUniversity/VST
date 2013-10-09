@@ -336,23 +336,22 @@ Qed.
 
 End safety_preservation_lemmas.
 
+Local Open Scope nat_scope.
+
 Section safety_preservation.
 Variables F V G C D Z data : Type.
-
 Variable source : CoreSemantics (Genv.t F V) C mem.
-
 Variable target : CoreSemantics G D mem.
-
 Variable match_state : data -> meminj -> C -> mem -> D -> mem -> Prop.
-
 Variable ord : data -> data -> Prop.
-
 Variable geS : Genv.t F V.
 Variable geT : G.
-
 Variable entry_points : list (val*val*signature).
+Variable (SRC_DET : corestep_fun source).
+Variable (TGT_DET : corestep_fun target).
 
-Variables
+Lemma safety_preservation_less_extcalls:
+  forall
   (sim : Forward_simulation_inject source target geS geT entry_points data match_state ord)
   (c : C)
   (d : D)
@@ -361,24 +360,14 @@ Variables
 
   (P : val -> mem -> Prop)
   (P_good : forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
-
   (MATCH : exists (cd: data) (j: meminj), match_state cd j c m d tm)
+  (source_safe : forall n, safeN source geS P n c m),
 
-  (NEVER_EXTERNAL : forall d, at_external target d = None)
-
-  (SRC_DET : corestep_fun source)
-
-  (TGT_DET : corestep_fun target)
-  
-  (source_safe : forall n, safeN source geS P n c m)
-.
-
-Lemma safety_preservation_less_extcalls:
   forall n, safeN target geT P n d tm.
 Proof.
-intros n.
+intros until n.
 destruct MATCH as [cd [j MATCH2]].
-clear MATCH; revert cd j c m d tm MATCH2 source_safe.
+revert cd j c m d tm MATCH2 source_safe.
 induction n; simpl; auto.
 intros.
 apply (corestep_ord' sim c d m tm P) in MATCH2; auto.
