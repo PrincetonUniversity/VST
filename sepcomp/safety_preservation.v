@@ -170,7 +170,7 @@ Lemma corestep_ord:
                    /\ match_state cd' j' c' m' d tm))).
 Proof.
 destruct sim.
-clear match_memwd0 match_validblocks0 core_halted0 
+clear match_validblocks0 core_halted0 
   core_initial0 core_at_external0 core_after_external0.
 intros.
 revert j c d m tm source_safe H.
@@ -267,7 +267,7 @@ destruct H as [rv HALT].
 left.
 unfold halt_match.
 destruct sim.
-clear match_memwd0 match_validblocks0 core_diagram0 
+clear match_validblocks0 core_diagram0 
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd j c m d tm) in HALT; auto.
@@ -303,7 +303,7 @@ left.
 split; auto.
 unfold halt_match.
 destruct sim.
-clear match_memwd0 match_validblocks0 core_diagram0 
+clear match_validblocks0 core_diagram0 
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd' j' c' m' d tm) in HALT; auto.

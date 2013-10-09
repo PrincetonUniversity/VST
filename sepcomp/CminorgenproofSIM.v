@@ -43,15 +43,6 @@ Mem.storev ch m addr v = Some m' ->
 (forall b, Mem.valid_block m' b -> Mem.valid_block m b).
 Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
 
-(*not needed after all*)
-Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
-Proof. intros.
-unfold Mem.valid_block.
-remember (plt b (Mem.nextblock m)).
-destruct s. left; assumption.
-right. intros N. xomega.
-Qed.
-
 Section TRANSLATION.
 Variable prog: Csharpminor.program.
 Variable tprog: Cminor.program.
@@ -113,14 +104,33 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       match_cores d j (CSharpMin_Returnstate v k) m
                    (CMin_Returnstate tv tk) tm.
 
+(*Lenb -- lemma is new, and needed for the proof of
+Theorem transl_program_correct at the end of this file*)
+Lemma match_cores_valid: 
+forall d j c1 m1 c2 m2,  match_cores d j c1 m1 c2 m2 -> 
+          forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+               (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2).
+Proof.
+intros.
+inv H.
+  split. eapply Mem.valid_block_inject_1; eassumption.
+         eapply Mem.valid_block_inject_2; eassumption.
+  split. eapply Mem.valid_block_inject_1; eassumption.
+         eapply Mem.valid_block_inject_2; eassumption.
+  split. eapply Mem.valid_block_inject_1; eassumption.
+         eapply Mem.valid_block_inject_2; eassumption.
+  split. eapply Mem.valid_block_inject_1; eassumption.
+         eapply Mem.valid_block_inject_2; eassumption.
+Qed.
+
 Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
 (EP: In (v1, v2, sig) entrypoints)
   (vals1 : list val) (c1 : core_data) (m1 : mem) (j : meminj)
   (vals2 : list val) (m2 : mem)
- (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
- (Inj : Mem.inject j m1 m2)
- (VI: Forall2 (val_inject j) vals1 vals2)
- (HT: Forall2 Val.has_type vals2 (sig_args sig)),
+  (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
+  (Inj : Mem.inject j m1 m2)
+  (VI: Forall2 (val_inject j) vals1 vals2)
+  (HT: Forall2 Val.has_type vals2 (sig_args sig)),
 exists c2 : CMin_core,
   initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
   match_cores c1 j c1 m1 c2 m2. 
@@ -2346,9 +2356,8 @@ Proof.
 intros.
  eapply inj_simulation_star with 
   (match_states:=match_cores)(measure:=MC_measure).
-  admit. (*mem_wd*)
-  admit. (*validblocks*)
-  intros. eapply (init_cores _ _ _ entrypoints); eauto.
+ apply match_cores_valid.
+ intros. eapply (init_cores _ _ _ entrypoints); eauto.
  intros. destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
            as [Inc [Presv [vals2 [ValsInj [avlsHT2 AtExt2]]]]].
     split; trivial.

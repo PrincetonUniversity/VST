@@ -308,7 +308,7 @@ Proof. intros.
   apply alloc_forward in H.
   eapply mem_forward_trans; eassumption. 
 Qed.
-
+(*mem_wd deprecated
 Lemma alloc_variables_mem_wd: forall vars m e e2 m'
       (M: alloc_variables e m vars e2 m')
       (WD: mem_wd m), mem_wd m'.
@@ -327,14 +327,14 @@ Proof. intros.
   destruct DL; simpl in *; trivial.
     eapply mem_wd_load; eassumption.
 Qed.
+*)
 
-   
 Definition valid_env (e:env) (m:mem) :=
   forall i b z , e!i = Some (b,z) -> Mem.valid_block m b. 
 
 Definition valid_tempenv (t:temp_env) (m:mem) :=
   forall i v , t!i = Some v -> val_valid v m. 
-
+(*
 Lemma eval_expr_lvalue_valid_aux:
   forall ge e te m
     (VE: valid_env e m) (GE: valid_genv ge m)
@@ -413,7 +413,7 @@ Proof.
      eapply mem_wd_storebytes; try eassumption.
      intros. eapply loadbytes_valid; eassumption. 
 Qed. 
-
+*)
 
 Lemma cl_forward: forall (g : Genv.t fundef type) (c : corestate) 
   (m : mem) (c' : corestate) (m' : mem), 
@@ -474,7 +474,7 @@ Program Definition cl_coop_core_sem :
     cl_coopstep_not_at_external
     cl_coopstep_not_halted _
     cl_after_at_external_excl.
-
+(*
 Lemma coop_mem_wd: forall (g : Genv.t fundef type) (c : corestate) 
   (m : mem) (c' : corestate) (m' : mem)
   (Step: coopstep g c m c' m') (WD: mem_wd m), mem_wd m'.
@@ -488,7 +488,7 @@ Proof. intros.
     eapply alloc_variables_mem_wd; eassumption.
   eapply freelist_mem_wd; eassumption.
 Qed.
-
+*)
 Lemma coop_forward: forall (g : Genv.t fundef type) (c : corestate) 
   (m : mem) (c' : corestate) (m' : mem), 
   coopstep g c m c' m' -> mem_forward m m'.
@@ -502,6 +502,6 @@ Program Definition cl_coop_sem :
   CoopCoreSem (Genv.t fundef type) corestate.
 apply Build_CoopCoreSem with (coopsem := cl_coop_core_sem).
   apply coop_forward.
-  apply coop_mem_wd.
+  (*apply coop_mem_wd.*)
   (*intros. simpl in H. cl_init_mem deprecated*)
 Qed.

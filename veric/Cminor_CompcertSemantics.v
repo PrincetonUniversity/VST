@@ -1,13 +1,15 @@
-Require Import compcert.Coqlib.
-Require Import compcert.AST.
-Require Import compcert.Integers.
-Require Import compcert.Values.
-Require Import compcert.Memory.
-Require Import compcert.Events.
-Require Import compcert.Globalenvs.
-Require Import compcert.Cminor.
-Require Import veric.sim.
+Require Import Coqlib.
+Require Import AST.
+Require Import Integers.
+Require Import Values.
+Require Import Memory.
+Require Import Events.
+Require Import Globalenvs.
+Require Import Cminor.
+Require Import sepcomp.core_semantics. 
 
+
+(*File is Superceded by Cminor_coop*)
 (*Obtained from Cminor.state by deleting the memory components.*)
 Inductive CMin_core: Type :=
   | CMin_State:                      (**r Execution within a function *)
@@ -40,11 +42,11 @@ Definition FromState (c: Cminor.state) : CMin_core * mem :=
    | Callstate f args k m => (CMin_Callstate f args k, m)
    | Returnstate v k m => (CMin_Returnstate v k, m)
   end. 
-
+(*
 Definition CMin_init_mem (ge:genv)  (m:mem) d:  Prop:=
    Genv.alloc_variables ge Mem.empty d = Some m.
 (*Defined initial memory, by adapting the definition of Genv.init_mem*)
-
+*)
 Definition CMin_make_initial_core (ge:genv) (v: val) (args:list val): option CMin_core :=
    match v with
         Vptr b i => if Int.eq_dec i  Int.zero 
@@ -145,14 +147,14 @@ Lemma CMin_corestep_not_at_external:
              contradiction.
   Qed.
 
-Definition CMin_safely_halted (ge:genv)  (q : CMin_core): option int :=
+Definition CMin_halted (q : CMin_core): option val :=
     match q with 
-       CMin_Returnstate (Vint r) Kstop => Some r
+       CMin_Returnstate v Kstop => Some v
      | _ => None
     end.
 
 Lemma CMin_corestep_not_halted : forall ge m q m' q', 
-       CMin_corestep ge q m q' m' -> CMin_safely_halted ge q = None.
+       CMin_corestep ge q m q' m' -> CMin_halted q = None.
   Proof. intros.
      unfold CMin_corestep in H. 
      destruct q; destruct q'; simpl in *; try reflexivity.
@@ -166,21 +168,35 @@ Lemma CMin_corestep_not_halted : forall ge m q m' q',
   Qed.
     
 Lemma CMin_at_external_halted_excl :
-       forall ge q, CMin_at_external q = None \/ CMin_safely_halted ge q = None.
+       forall q, CMin_at_external q = None \/ CMin_halted q = None.
    Proof. intros. destruct q; auto. Qed.
 
-Definition CMin_core_sem : CoreSemantics genv CMin_core mem (list (ident * globvar unit)).
-  eapply @Build_CoreSemantics with (at_external:=CMin_at_external)(corestep:=CMin_corestep)
-                  (safely_halted:=CMin_safely_halted). 
-    apply CMin_init_mem.
+Lemma CMin_after_at: forall retv q q', 
+          CMin_after_external retv q = Some q' ->
+          CMin_at_external q' = None.
+  Proof. intros. destruct q; simpl in *.
+     inv H. destruct f; inv H.
+        destruct retv; inv H1. trivial. trivial.
+       inv H.
+ Qed.
+
+
+Definition CMin_core_sem : CoreSemantics genv CMin_core mem.
+  eapply @Build_CoreSemantics with 
+          (at_external:=CMin_at_external)
+          (after_external:=CMin_after_external)
+           (corestep:=CMin_corestep)
+                  (halted:=CMin_halted). 
+(*    apply CMin_init_mem.*)
     apply CMin_make_initial_core.
-    apply CMin_after_external.
+(*    apply CMin_after_external.*)
     apply CMin_corestep_not_at_external.
     apply CMin_corestep_not_halted.
     apply CMin_at_external_halted_excl.
+    apply CMin_after_at.
 Defined.
 
-(*Not sure whether this holds, but I do assume the leamms below, Cminor_step_fun to hold...*)
+(*Determinism, allowed_trans, and CompcertCoreSem deprecated
 Parameter Mem_free_deterministic: forall m sp f m1 m2,
                    Mem.free m sp 0 (fn_stackspace f) = Some m1 ->
                    Mem.free m sp 0 (fn_stackspace f) = Some m2 -> m1=m2.
@@ -373,3 +389,4 @@ Lemma CompCertStepPlus_2_CMin_corestepPlus: forall (ge : genv)  (q : CMin_core) 
 Qed.
   *)
      
+*)

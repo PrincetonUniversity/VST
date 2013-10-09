@@ -53,7 +53,6 @@ Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j
            (UnchLOORj1_3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3')
            (Inj13' : Mem.inject j' m1' m3')
            (UnchLOOB23_3': Mem.unchanged_on (loc_out_of_bounds m2) m3 m3')
-           (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
            m2'
            (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
            (CONT:  Content_IE_Property j m1 m1' m2 m3' (m2'.(Mem.mem_contents)))
@@ -62,8 +61,7 @@ Lemma IE_ok: forall (m1 m1' m2 m3 m3':Mem.mem) j
        mem_forward m2 m2' /\  
           Mem.extends m2' m3' /\ 
           Mem.inject j' m1' m2' /\ 
-          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
-          (mem_wd m2 -> mem_wd m2').    
+          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2'.    
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
   split; intros; rename b into b2.
@@ -129,8 +127,7 @@ assert (Ext23': Mem.extends m2' m3').
                      assumption. 
                unfold Mem.perm in *. rewrite Inval2 in H0; clear Inval2.
                apply H0.
-         (*align*) 
-            unfold inject_id in H; inv H. apply align_chunk_0.
+         (*mi_align*) inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC Default]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -267,8 +264,7 @@ assert (MUO: Mem.unchanged_on (loc_out_of_reach j m1) m2 m2').
         assert (Arith : ofs1 + delta - delta=ofs1) by omega. 
         rewrite Arith in H. contradiction.
       apply Val.
-split; trivial. 
-  intros. eapply extends_memwd. apply Ext23'. assumption.
+assumption. 
 Qed.
 
 Definition AccessMap_IE_FUN (j12 j12':meminj) (m1 m1' m2 m3':Mem.mem) (b2:block):
@@ -431,71 +427,6 @@ eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
      destruct s. apply a.
     reflexivity.
 Defined.
-(*
-Definition mkIE (j j': meminj) (m1 m1' m2 :Mem.mem)
-                 (Minj12 : Mem.inject j m1 m2) 
-                 (Fwd1: mem_forward m1 m1') 
-                 (InjInc: inject_incr j j')  
-                 (Sep12 : inject_separated j j' m1 m2) 
-                 m3 m3' (Ext23 : Mem.extends m2 m3)
-                 (Fwd3: mem_forward m3 m3') 
-                 (Inj13' : Mem.inject j' m1' m3')
-                 (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3')
-               : Mem.mem'.
-assert (VB': forall (b1 b3 : block) (delta : Z),
-               j' b1 = Some (b3, delta) ->
-               (Mem.valid_block m1' b1 /\ Mem.valid_block m3' b3)).
-    intros.
-    split.
-       eapply (Mem.valid_block_inject_1 _ _ _ _ _ _ H Inj13').
-       eapply (Mem.valid_block_inject_2 _ _ _ _ _ _ H Inj13').
-assert (VB: (Mem.nextblock m2 <= Mem.nextblock m3')%positive).
-  apply forward_nextblock in Fwd3. inv Ext23. 
-  rewrite mext_next. apply Fwd3. 
-destruct (mkAccessMap_IE_existsT j j' m1 m1' m2 m3' VB' VB) as [AM [ADefault PAM]].
-destruct (ContentsMap_IE_existsT j m1 m2 m3') as [CM [CDefault PCM]].
-  
-eapply Mem.mkmem with (nextblock:=m3'.(Mem.nextblock))
-                      (mem_access:=AM)
-                      (mem_contents:=CM).
- (* apply (mkContentsMap_IE_exists j m1 m1' m2 m3').*)
-(*  apply m3'.*)
-  (*access_max*)
-  intros. rewrite PAM. unfold AccessMap_IE_FUN.
-     destruct (plt b (Mem.nextblock m2)).
-     (*valid_block m2 b*)
-        remember (source j m1 b ofs) as src.
-        destruct src. 
-          destruct p0. apply m1'. 
-        apply m2. 
-     (*invalid_block m2 b*)
-        remember (source j' m1' b ofs) as src.
-        destruct src. 
-          destruct p. apply m1'. 
-        apply m3'. 
-  (*nextblock_noaccess*)
-    intros. rewrite PAM.
-    unfold AccessMap_IE_FUN.
-    destruct (plt b (Mem.nextblock m2)).
-      exfalso. apply H; clear - VB p. xomega.
-    remember (source j' m1' b ofs) as src.
-    destruct src.
-      destruct p.
-      exfalso. apply H. clear - Heqsrc VB'.
-      apply source_SomeE in Heqsrc.
-      destruct Heqsrc as [b1 [delta [ofs1
-          [PBO [Bounds [J1 [P1 Off2]]]]]]]; subst.
-        apply (VB' _ _ _ J1).
-      apply m3'. apply H.  
-  (*contents_default*)
-    intros. rewrite PCM. 
-    unfold ContentsMap_IE_FUN.
-    destruct (plt b (Mem.nextblock m3')). 
-     remember (CM_block_IE_existsT j m1 m2 m3' b). 
-     destruct s. apply a.
-    reflexivity.
-Defined.
-*)
 
 Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
                  (Fwd1: mem_forward m1 m1') j' (InjInc: inject_incr j j')
@@ -506,12 +437,10 @@ Lemma interpolate_IE: forall m1 m1' m2 j (Minj12 : Mem.inject j m1 m2)
                  (UnchLOORj1_3: Mem.unchanged_on (loc_out_of_reach j m1) m3 m3')
                  (Inj13' : Mem.inject j' m1' m3')
                  (UnchLOOB23_3': Mem.unchanged_on
-                                  (loc_out_of_bounds m2) m3 m3')
-                 (WD2: mem_wd m2) (WD1' : mem_wd m1') (WD3': mem_wd m3'),
+                                  (loc_out_of_bounds m2) m3 m3'),
          exists m2',  mem_forward m2 m2' /\ Mem.extends m2' m3' /\ 
                       Mem.inject j' m1' m2' /\
-                      Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\
-                      (mem_wd m2 -> mem_wd m2').    
+                      Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' .    
 Proof. intros.
   assert (VB': forall (b1 b3 : block) (delta : Z),
                j' b1 = Some (b3, delta) ->

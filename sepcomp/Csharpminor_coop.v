@@ -10,7 +10,7 @@ Require Import sepcomp.Cminor_coop.
   (*to enable reuse of the lemmas eval_unop_valid and eval_binop_valid*)
 
 Require Import sepcomp.Csharpminor.
-Require Import sepcomp.mem_lemmas. (*for mem_forward and wd_mem*)
+Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
 (*Obtained from Cminor.state by deleting the memory components.*)
@@ -208,15 +208,6 @@ Proof. intros.
   eapply mem_forward_trans; eassumption. 
 Qed.
 
-Lemma alloc_variables_mem_wd: forall vars m e e2 m'
-      (M: alloc_variables e m vars e2 m')
-      (WD: mem_wd m), mem_wd m'.
-Proof. intros.
-  induction M; trivial.
-  apply IHM.
-  eapply mem_wd_alloc; eassumption.
-Qed.
-
 Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
   Proof. intros.
@@ -261,6 +252,7 @@ Proof. intros.
     eapply GE; eassumption.
   Qed.
 
+(*
 Lemma eval_expr_val_valid:
   forall ge te e m
     (TE: valid_tempenv te m)
@@ -281,7 +273,7 @@ Proof.
       
   destruct v1; try inv H1; simpl in *.
     eapply mem_wd_load; eassumption.
-Qed. 
+Qed. *)
 
 Definition valid_corestate (c: CSharpMin_core) (m:mem) : Prop :=
   match c with
@@ -325,19 +317,20 @@ Program Definition csharpmin_core_sem :
     CSharpMin_after_at_external_excl.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
-(*A global assumption we need on external calls, in particular builtins*)
+(*A global assumption we need on external calls, in particular builtins
+  mem_wd deprecated
 Parameter external_call_mem_wd:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-    external_call ef ge vargs m1 t vres m2 -> mem_wd m1 -> mem_wd m2.
- 
+    external_call ef ge vargs m1 t vres m2 -> mem_wd m1 -> mem_wd m2. 
+*)
 
 Lemma csharpmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
 Proof. intros. destruct CS as [GE [VS Step]].
   eapply CSharpMin_forward. apply Step.
 Qed.
-
+(*
 Lemma csharpmin_coop_mem_wd: forall g c m c' m'
   (CS: coopstep g c m c' m') (WD: mem_wd m), mem_wd m'.
 Proof. intros. destruct CS as [GE [VS Step]].
@@ -365,12 +358,12 @@ Proof. intros. destruct CS as [GE [VS Step]].
    destruct Step as [t CS].
        inv CS; simpl in *; try eauto.
 Qed. 
-
+*)
 Program Definition csharpmin_coop_sem : 
   CoopCoreSem Csharpminor.genv CSharpMin_core.
 apply Build_CoopCoreSem with (coopsem := csharpmin_core_sem).
   apply csharpmin_coop_forward.
-  apply csharpmin_coop_mem_wd.
+(*  apply csharpmin_coop_mem_wd.*)
 Defined.
 (*
 Lemma CSharpMin_corestepSN_2_CompCertStepStar: forall (ge : genv) n (q : CSharpMin_core) (m : mem) (q' : CSharpMin_core) (m' : mem),

@@ -105,11 +105,6 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
-    (*Matching memories should be well-defined ie not contain values
-        with invalid/"dangling" block numbers*)
-    match_memwd: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
-      (mem_wd m1 /\ mem_wd m2);
-
     (*The following axiom could be strengthened to extends m1 m2*)
     match_validblocks: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
       forall b, Mem.valid_block m1 b <-> Mem.valid_block m2 b;
@@ -130,7 +125,6 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           Forall2 Val.lessdef vals vals' ->
           Forall2 (Val.has_type) vals' (sig_args sig) ->
           Mem.extends m1 m2 ->
-          mem_wd m1 -> mem_wd m2 ->
           exists cd, exists c1, exists c2,
             initial_core Sem1 ge1 v1 vals = Some c1 /\
             initial_core Sem2 ge2 v2 vals' = Some c2 /\
@@ -175,7 +169,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
 
         Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
-        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
+        val_valid ret1 m1' -> val_valid ret2 m2' ->
 
         exists st1', exists st2', exists cd',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -310,11 +304,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
 
-    (*Matching memories should be well-defined ie not contain values
-        with invalid/"dangling" block numbers*)
-    match_memwd: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
-
     (*The following axiom could be strengthened to inject j m1 m2*)
     match_validblocks: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
@@ -337,7 +326,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
        forall vals1 c1 m1 j vals2 m2,
           initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          mem_wd m1 -> mem_wd m2 ->
           (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
            entry_points -> val_inject j w1 w2) ->*) Forall2
            (val_inject j) vals1 vals2 ->
@@ -386,7 +374,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
          Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
-        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
+        val_valid ret1 m1' -> val_valid ret2 m2' ->
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -414,11 +402,6 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
   Record Forward_simulation_inject := 
   { core_ord_wf : well_founded core_ord;
 
-    (*Matching memories should be well-defined ie not contain values
-        with invalid/"dangling" block numbers*)
-    match_memwd: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2);
-
     (*The following axiom could be strengthened to inject j m1 m2*)
     match_validblocks: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
@@ -441,7 +424,6 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
        forall vals1 c1 m1 j vals2 m2,
           initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          mem_wd m1 -> mem_wd m2 ->
           (*Is this line needed?? (forall w1 w2 sigg, In (w1,w2,sigg)
            entry_points -> val_inject j w1 w2) ->*) Forall2
            (val_inject j) vals1 vals2 ->
@@ -490,7 +472,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
          Val.has_type ret2 (proj_sig_res ef_sig) -> 
 
-        mem_wd m1' -> mem_wd m2' -> val_valid ret1 m1' -> val_valid ret2 m2' ->
+        val_valid ret1 m1' -> val_valid ret2 m2' ->
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\

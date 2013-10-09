@@ -42,15 +42,14 @@ Lemma EE_ok: forall (m1 m1' m2 m3 m3':Mem.mem)
              (Fwd3: mem_forward m3 m3')
              (Ext13' : Mem.extends m1' m3') 
              (UnchOn13 : Mem.unchanged_on (loc_out_of_bounds m1) m3 m3')
-             m2' (WD3': mem_wd m3')
+             m2' 
              (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
              (CONT: Content_EE_Property  m1 m1' m2 (m2'.(Mem.mem_contents)))
              (ACCESS: AccessMap_EE_Property m1 m1' m2 (m2'.(Mem.mem_access))),
          mem_forward m2 m2' /\ 
              Mem.extends m1' m2' /\
              Mem.extends m2' m3' /\
-             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-            (mem_wd m2 -> mem_wd m2').
+             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
     split; intros.
@@ -93,8 +92,8 @@ assert (Ext12':  Mem.extends m1' m2').
                                        apply ZZ. apply perm_any_N.
               clear Val. unfold Mem.perm. rewrite po_oo in *. 
                  rewrite (Inval z k ofs); clear Inval Heqz. apply H0.
-         (*align*)
-         unfold inject_id in H; inv H. apply align_chunk_0.
+         (*mi_align*)  
+             inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [Val [Inval DEFAULT]]; clear CONT.
             remember (plt b2 (Mem.nextblock m2)) as d.
@@ -141,8 +140,7 @@ assert (Ext23': Mem.extends m2' m3').
                  rewrite (Inval z k ofs) in H0; clear Inval.
                        unfold Mem.perm. rewrite po_oo in *.
                       eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
-         (*align*)
-             unfold inject_id in H; inv H; apply align_chunk_0.
+         (*mi_align*) inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC DefaultC]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -182,9 +180,6 @@ assert (Ext23': Mem.extends m2' m3').
                     specialize (mi_memval b2 ofs b2 0 (eq_refl _) H0). 
                     rewrite Zplus_0_r in mi_memval. assumption.
 split; trivial.
-assert (WD2: mem_wd m2').
-  intros. eapply (extends_memwd _ _ Ext23' WD3'). 
-split; intros; trivial. 
 (*unchanged_on (loc_out_of_bounds m1) m2 m2'*)
      destruct UnchOn13 as [UnchP UnchVal].
      split; intros. clear UnchVal. 
@@ -417,12 +412,10 @@ Defined.
 Lemma interpolate_EE: forall m1 m2 (Ext12: Mem.extends m1 m2) m1' 
             (Fwd1: mem_forward m1 m1') m3 (Ext23: Mem.extends m2 m3) m3' 
             (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
-            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3') 
-            (WD3': mem_wd m3'),
+            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3'),
        exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\
                    Mem.extends m2' m3' /\
-                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                   (mem_wd m2 -> mem_wd m2').
+                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros. 
    assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
       intros. apply Fwd3. destruct Ext23. 
@@ -533,15 +526,14 @@ Lemma EE_ok': forall (m1 m1' m2 m3 m3':Mem.mem)
              (Fwd3: mem_forward m3 m3')
              (Ext13' : Mem.extends m1' m3') 
              (UnchOn13 : Mem.unchanged_on (loc_out_of_bounds m1) m3 m3')
-             m2' (WD3': mem_wd m3')
+             m2'
              (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
              (CONT: Content_EE_Property' m1 m1' m2 (m2'.(Mem.mem_contents)))
              (ACCESS: AccessMap_EE_Property m1 m1' m2 (m2'.(Mem.mem_access))),
          mem_forward m2 m2' /\ 
              Mem.extends m1' m2' /\
              Mem.extends m2' m3' /\
-             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-            (mem_wd m2 -> mem_wd m2').
+             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
     split; intros.
@@ -584,8 +576,7 @@ assert (Ext12':  Mem.extends m1' m2').
                                        apply ZZ. apply perm_any_N.
               clear Val. unfold Mem.perm. rewrite po_oo in *. 
                  rewrite (Inval z k ofs); clear Inval Heqz. apply H0.
-         (*align*)
-             unfold inject_id in H; inv H; apply align_chunk_0.
+         (*mi_align*) inv H. apply Z.divide_0_r.
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [Val [Inval DEFAULT]]; clear CONT.
             remember (plt b2 (Mem.nextblock m2)) as d.
@@ -632,8 +623,7 @@ assert (Ext23': Mem.extends m2' m3').
                  rewrite (Inval z k ofs) in H0; clear Inval.
                        unfold Mem.perm. rewrite po_oo in *.
                       eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
-         (*align*)
-             unfold inject_id in H; inv H; apply align_chunk_0.
+         (*mi_align*) inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC DefaultC]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -674,9 +664,6 @@ assert (Ext23': Mem.extends m2' m3').
                     specialize (mi_memval b2 ofs b2 0 (eq_refl _) H0). 
                     rewrite Zplus_0_r in mi_memval. assumption.
 split; trivial.
-assert (WD2: mem_wd m2').
-  intros. eapply (extends_memwd _ _ Ext23' WD3'). 
-split; intros; trivial. 
 (*unchanged_on (loc_out_of_bounds m1) m2 m2'*)
      destruct UnchOn13 as [UnchP UnchVal].
      split; intros. clear UnchVal. 
@@ -697,12 +684,10 @@ Qed.
 Lemma interpolate_EE':forall m1 m2 (Ext12: Mem.extends m1 m2) m1' 
             (Fwd1: mem_forward m1 m1') m3 (Ext23: Mem.extends m2 m3) m3' 
             (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
-            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3') 
-            (WD3': mem_wd m3'),
+            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3'),
        exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\
                    Mem.extends m2' m3' /\
-                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                   (mem_wd m2 -> mem_wd m2'). 
+                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'. 
 Proof. intros. 
    assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
       intros. apply Fwd3. destruct Ext23. 

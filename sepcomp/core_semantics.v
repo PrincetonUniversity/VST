@@ -22,12 +22,6 @@ split; intros. eapply external_call_valid_block; eauto.
 eapply external_call_max_perm; eauto.
 Qed.
 
-Definition external_call_mem_wd:=
-     forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-      (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-      external_call ef ge vargs m1 t vres m2 -> 
-      mem_wd m1 -> mem_wd m2.
-
 Definition val_has_type_opt' (v: option val) (ty: typ) :=
  match v with
  | None => True
@@ -224,9 +218,10 @@ End corestepN.
 Record CoopCoreSem {G C} :=
   { coopsem :> CoreSemantics G C mem;
     corestep_fwd : forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
-      mem_forward m m';
+      mem_forward m m'
+(*;
     corestep_wdmem: forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
-      mem_wd m -> mem_wd m'
+      mem_wd m -> mem_wd m'*)
    (*Doesn't make sense any longer: initial_mem is a property of program, not cores;
     initmem_wd: forall g m d, initial_mem coopsem g m d -> mem_wd m*) 
 }.
@@ -266,34 +261,6 @@ Proof.
    intros. destruct CS.
    eapply corestepN_fwd.
    apply H.
-Qed.
-
-Lemma corestepN_memwd: forall g c m c' m' n
-  (CS: corestepN coopsem g n c m c' m'),
-  mem_wd m -> mem_wd m'.
-Proof.
-  intros until n; revert c m.
-  induction n; simpl; auto.
-    inversion 1; auto.
-  intros c m [c2 [m2 [? ?]]] H1.
-  apply corestep_wdmem in H; auto.
-  eapply IHn; eauto.
-Qed.
-
-Lemma corestep_star_memwd: forall g c m c' m'
-  (CS: corestep_star coopsem g c m c' m'), 
-  mem_wd m -> mem_wd m'.
-Proof.
-   intros. destruct CS.
-   eapply corestepN_memwd; eauto.
-Qed.
-
-Lemma corestep_plus_memwd: forall g c m c' m'
-  (CS: corestep_plus coopsem g c m c' m'),
-  mem_wd m -> mem_wd m'.
-Proof.
-   intros. destruct CS.
-   eapply corestepN_memwd; eauto.
 Qed.
 
 End CoopCoreSemLemmas.

@@ -274,14 +274,10 @@ Qed.
 
 Program Definition RelyGuaranteeCoopSem: CoopCoreSem G (blockmap*C) :=
   Build_CoopCoreSem G (blockmap*C)
-    RelyGuaranteeCoreSem (*_*) _ _.
+    RelyGuaranteeCoreSem (*_ _*) _.
 Next Obligation.
 inv CS.
 apply corestep_fwd in H; auto.
-Qed.
-Next Obligation.
-inv CS.
-apply corestep_wdmem in H0; auto.
 Qed.
 (*Obligion for initial_mem - deprecated
 Next Obligation.

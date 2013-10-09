@@ -158,11 +158,6 @@ Section Sim_EXT_SIMU_DIAGRAMS.
 
   Variable match_states: core_data -> C1 -> mem -> C2 -> mem -> Prop.
 
-  Hypothesis Hyp_wd:
-      forall cd st1 m1 st2 m2,
-        match_states cd st1 m1 st2 m2 ->
-        mem_wd m1 /\ mem_wd m2.
-
   Hypothesis Hyp_valid:
       forall cd c1 m1 c2 m2,
       match_states cd c1 m1 c2 m2 -> forall b,
@@ -241,8 +236,6 @@ Proof.
         (core_ord := order)
         (match_state := fun d c1 m1 c2 m2 => d = c1 /\ match_states d c1 m1 c2 m2).
    apply order_wf.
-   intros. destruct H; subst. 
-           apply (Hyp_wd _ _ _ _ _ H0).
    intros. destruct H; subst. 
            apply (Hyp_valid _ _ _ _ _ H0).
    intros. destruct H0; subst.
@@ -328,10 +321,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
 
   Variable match_states: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop.
    
-  Hypothesis match_memwd: forall d j c1 m1 c2 m2,  
-         match_states d j c1 m1 c2 m2 -> 
-               (mem_wd m1 /\ mem_wd m2).
-
    Hypothesis match_validblocks: forall d j c1 m1 c2 m2,  
           match_states d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
@@ -425,13 +414,12 @@ Proof.
     (core_ord := order)
     (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
   apply order_wf.
-  intros. destruct H; subst. eapply match_memwd; eassumption.
   intros. destruct H; subst. eapply match_validblocks; eassumption.
   intros. destruct H0; subst.
   destruct (inj_simulation _ _ _ _ H _ _ _ H1) as 
     [c2' [m2' [j' [INC [SEP [MC' (*[UNCH1 [UNCH2*) Step]]](*]]*)]]].
   exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
-  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H4 H5) as 
+  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as 
     [c2' [MIC MC]].
   exists c1.  exists c2'. split; eauto.
   intros. destruct H; subst.

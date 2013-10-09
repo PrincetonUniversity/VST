@@ -121,8 +121,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
   (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
-    mem_lemmas.mem_wd m1 -> 
-    mem_lemmas.mem_wd m2 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 

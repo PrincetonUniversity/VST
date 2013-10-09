@@ -1,26 +1,21 @@
 Add LoadPath "..".
 Require Import veric.base.
-Require Import compcert.Errors.
+Require Import Errors.
+Require Import Events.
 
-Require Import compcert.Csharpminor.
-Require Import compcert.Cminor.
-Require Import veric.Cminor_CompcertSemantics.
-Require Import veric.CSharpminor_CompcertSemantics.
+Require Import Csharpminor.
+Require Import Cminor.
+(*Require Import veric.Cminor_CompcertSemantics.
+Require Import veric.CSharpminor_CompcertSemantics.*)
+Require Import veric.Cminor_coop.
+Require Import veric.CSharpminor_coop.
 
-Require Import veric.sim.
-Require Import veric.Sim_starplus.
-Require Import compcert.Cminorgen.
-Require Import compcert.CminorgenproofRestructured.
+Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.core_semantics.
+Require Import Cminorgen.
+Require Import CminorgenproofRestructured.
 
 Require Import Coq.Program.Equality.
-
-(*****Some simple auxiliary facts -- could/should maybe be moved elsewhere****)
-Lemma mem_forward_nextblock: 
-  forall m m' (FWD: mem_forward m m'),
-  Mem.nextblock m <= Mem.nextblock m'.
-Proof. intros.  unfold mem_forward in FWD. unfold Mem.valid_block in FWD. 
-   specialize (FWD (Mem.nextblock m - 1)). omega.
-Qed.
 
 Lemma allocvars_blocks_valid: forall vars E m e m1,
  alloc_variables E m vars e m1 -> 
@@ -46,9 +41,9 @@ Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
 Lemma valid_block_dec: forall m b, {Mem.valid_block m b} +  {~Mem.valid_block m b}.
 Proof. intros.
 unfold Mem.valid_block.
-remember (zlt b (Mem.nextblock m)).
+remember (plt b (Mem.nextblock m)).
 destruct s. left; assumption.
-right. intros N. omega.
+right. intros N. xomega.
 Qed.
 
 Section TRANSLATION.
@@ -56,7 +51,7 @@ Variable prog: Csharpminor.program.
 Variable tprog: Cminor.program.
 Hypothesis TRANSL: transl_program prog = OK tprog.
 Let ge : Csharpminor.genv := Genv.globalenv prog.
-Let gce : compilenv := build_global_compilenv prog.
+(*Let gce : compilenv := build_global_compilenv prog.*)
 Let tge: genv := Genv.globalenv tprog.
 
 Let core_data := CSharpMin_core.
@@ -65,31 +60,31 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
   | MC_states:
       forall d fn s k e le m tfn ts tk sp te tm cenv xenv j lo hi cs sz
       (TRF: transl_funbody cenv sz fn = OK tfn)
-      (TR: transl_stmt fn.(fn_return) cenv xenv s = OK ts)
+      (TR: transl_stmt cenv xenv s = OK ts)
       (MINJ: Mem.inject j m tm)
       (MCS: match_callstack prog j m tm
                (Frame cenv tfn e le te sp lo hi :: cs)
                (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont k tk fn.(fn_return) cenv xenv cs),
+      (MK: match_cont k tk  cenv xenv cs),
       match_cores d j (CSharpMin_State fn s k e le) m
                    (CMin_State tfn ts tk (Vptr sp Int.zero) te) tm
   | MC_state_seq:
       forall d fn s1 s2 k e le m tfn ts1 tk sp te tm cenv xenv j lo hi cs sz
       (TRF: transl_funbody cenv sz fn = OK tfn)
-      (TR: transl_stmt fn.(fn_return) cenv xenv s1 = OK ts1)
+      (TR: transl_stmt cenv xenv s1 = OK ts1)
       (MINJ: Mem.inject j m tm)
       (MCS: match_callstack prog j m tm
                (Frame cenv tfn e le te sp lo hi :: cs)
                (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont (Csharpminor.Kseq s2 k) tk fn.(fn_return) cenv xenv cs),
+      (MK: match_cont (Csharpminor.Kseq s2 k) tk cenv xenv cs),
       match_cores d j (CSharpMin_State fn (Csharpminor.Sseq s1 s2) k e le) m
                    (CMin_State tfn ts1 tk (Vptr sp Int.zero) te) tm
   | MC_callstate:
       forall d fd args k m tfd targs tk tm j cs cenv
-      (TR: transl_fundef gce fd = OK tfd)
+      (TR: transl_fundef fd = OK tfd)
       (MINJ: Mem.inject j m tm)
       (MCS: match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont k tk (Csharpminor.funsig fd).(sig_res) cenv nil cs)
+      (MK: match_cont k tk cenv nil cs)
       (ISCC: Csharpminor.is_call_cont k)
       (ARGSINJ: val_list_inject j args targs)
 
@@ -104,10 +99,10 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       match_cores d j (CSharpMin_Callstate fd args k) m
                    (CMin_Callstate tfd targs tk) tm
   | MC_returnstate:
-      forall d v k m tv tk tm j cs ty cenv
+      forall d v k m tv tk tm j cs cenv
       (MINJ: Mem.inject j m tm)
       (MCS: match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont k tk ty cenv nil cs)
+      (MK: match_cont k tk cenv nil cs)
       (RESINJ: val_inject j v tv),
       match_cores d j (CSharpMin_Returnstate v k) m
                    (CMin_Returnstate tv tk) tm.
@@ -116,15 +111,15 @@ Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
 (EP: In (v1, v2, sig) entrypoints)
   (vals1 : list val) (c1 : core_data) (m1 : mem) (j : meminj)
   (vals2 : list val) (m2 : mem)
- (CSM_Ini : make_initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
+ (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
  (Inj : Mem.inject j m1 m2)
  (VI: Forall2 (val_inject j) vals1 vals2)
  (HT: Forall2 Val.has_type vals2 (sig_args sig)),
 exists c2 : CMin_core,
-  make_initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
+  initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
   match_cores c1 j c1 m1 c2 m2. 
 Proof. intros.
-  inversion CSM_Ini. unfold  CSharpMin_make_initial_core in H0. unfold ge in *. unfold tge in *.
+  inversion CSM_Ini. unfold  CSharpMin_initial_core in H0. unfold ge in *. unfold tge in *.
   destruct v1; inv H0.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. apply eq_sym in Heqzz.
@@ -132,7 +127,34 @@ Proof. intros.
                    remember (Genv.find_symbol (Genv.globalenv prog) CSharpMin_MainIdent) as z; destruct z; try inv H0.
                    remember (Genv.find_funct_ptr  (Genv.globalenv prog) b) as zz; destruct zz; try inv H1. *)
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
-  unfold CMin_core_sem. simpl. unfold CMin_make_initial_core.
+ 
+  exists (CMin_Callstate tf nil Cminor.Kstop).
+  specialize (sig_preserved _ _ TR). intros QQ.
+  rewrite <- QQ in H1. simpl in *.
+  remember (Int.eq_dec Int.zero Int.zero) as r.
+  destruct r. Focus 2. exfalso. apply n. trivial.
+  rewrite Heqzz in CSM_Ini.
+  rewrite <- QQ in CSM_Ini. simpl in *.
+  remember (funsig tf) as F.
+  destruct F; try inv H1. 
+  destruct sig_args; try inv H0.
+  destruct sig_res; try inv H1.
+  destruct t; inv H0.
+   split. admit. (*Entrypoints not yet updated in Compcert*)
+  eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
+  apply mcs_nil with (Mem.nextblock m1). 
+  (*apply match_globalenvs_init*)
+  admit. (*CompCert's globalenvs not yet adapted to noninitial entry points*)
+  xomega. 
+  admit. (*CompCert's globalenvs not yet adapted to noninitial entry points
+            so use of same hi in mcs_nil misleading*)
+  econstructor. 
+  simpl. trivial.
+  simpl. constructor.
+  rewrite <- QQ. simpl. constructor.
+  rewrite <- QQ. simpl. constructor.
+Qed.
+
 (*
   rewrite <- TprogMain. unfold transl_program in TRANSL.
   econstructor; split.
@@ -212,19 +234,21 @@ omega. omega.
   instantiate (1 := gce). constructor.
   red; auto. constructor.  econstructor.
           econstructor.*)*)
-Admitted.
 
 Lemma MC_safely_halted: forall (cd : core_data) (j : meminj) (c1 : CSharpMin_core) (m1 : mem)
-  (c2 : CMin_core) (m2 : mem) (v1 : int),
+  (c2 : CMin_core) (m2 : mem) (v1 : val),
 match_cores cd j c1 m1 c2 m2 ->
-safely_halted CSharpMin_core_sem ge c1 = Some v1 ->
-safely_halted CMin_core_sem tge c2 = Some v1 /\ Mem.inject j m1 m2.
+halted CSharpMin_core_sem  c1 = Some v1 ->
+exists v2,
+halted CMin_core_sem c2 = Some v2 /\ Mem.inject j m1 m2 /\
+val_inject j v1 v2.
 Proof.
   intros.
   inv H; simpl in *; inv H0.
-     inv RESINJ; simpl in *; trivial; inv H1.
-         inv MK; inv H0.
-           split; trivial.
+  destruct k; inv H1. exists tv.
+  split.
+         inv MK. trivial.
+  split; trivial.
 Qed.
 
 Lemma MC_at_external: forall (cd : core_data) (j : meminj) (st1 : CSharpMin_core) (m1 : mem)
@@ -261,9 +285,9 @@ Events.inject_separated j j' m1 m2 ->
 Mem.inject j' m1' m2' ->
 val_inject j' ret1 ret2 ->
 mem_forward m1 m1' ->
-Events.mem_unchanged_on (Events.loc_unmapped j) m1 m1' ->
+Mem.unchanged_on (Events.loc_unmapped j) m1 m1' ->
 mem_forward m2 m2' ->
-Events.mem_unchanged_on (Events.loc_out_of_reach j m1) m2 m2' ->
+Mem.unchanged_on (Events.loc_out_of_reach j m1) m2 m2' ->
 Val.has_type ret2 (proj_sig_res sig) ->
 exists st1' : core_data,
   exists st2' : CMin_core,
@@ -290,25 +314,25 @@ Proof. intros.
       apply match_callstack_incr_bound with (Mem.nextblock m1) (Mem.nextblock m2).
       eapply match_callstack_external_call; eauto.
           intros. eapply H6; eauto.
-          omega.
-          omega.
-         eapply mem_forward_nextblock; assumption.
-         eapply mem_forward_nextblock; assumption.
+          xomega.
+          xomega.
+         eapply forward_nextblock; assumption.
+         eapply forward_nextblock; assumption.
   (*k=Kcall*) 
       inv MK; simpl in *.   
       apply match_callstack_incr_bound with (Mem.nextblock m1) (Mem.nextblock m2).
       eapply match_callstack_external_call; eauto.
           intros. eapply H6; eauto.
-          omega.
-          omega.
-         eapply mem_forward_nextblock; assumption.
-         eapply mem_forward_nextblock; assumption.
+          xomega.
+          xomega.
+         eapply forward_nextblock; assumption.
+         eapply forward_nextblock; assumption.
 Qed.
 
 Lemma MC_MSI: forall d j
        q m q' m',
       match_cores d j q m q' m' -> 
-      match_statesInj prog j  (ToState q m) (Cminor_CompcertSemantics.ToState q' m').
+      match_statesInj prog j  (ToState q m) (Cminor_coop.ToState q' m').
   Proof. intros.
     inv H; simpl in *.
      eapply matchInj_state; try eassumption. 
@@ -318,7 +342,7 @@ Lemma MC_MSI: forall d j
 Qed.  
 
 Lemma MSI_MC: forall j q m q' m' d,
-      match_statesInj prog j (ToState q m) (Cminor_CompcertSemantics.ToState q' m') ->
+      match_statesInj prog j (ToState q m) (Cminor_coop.ToState q' m') ->
       match_cores d j q m q' m'.
   Proof. intros.
     inv H; simpl in *.
@@ -337,16 +361,17 @@ Lemma MSI_MC: forall j q m q' m' d,
 Qed.  
 
 Lemma MSI_atExt: forall j c1 m1 c2 m2
-(H: match_statesInj prog j (ToState c1 m1) (Cminor_CompcertSemantics.ToState c2 m2) ),
+(H: match_statesInj prog j (ToState c1 m1) (Cminor_coop.ToState c2 m2) ),
 (CSharpMin_at_external c1 = None) = (CMin_at_external c2 = None).
 Proof.
   intros.
   destruct c1; destruct c2; inv H; simpl in *; trivial.
   destruct f; destruct f0; simpl in *; trivial.
-     remember (transl_function (build_global_compilenv prog) f) as z.
-     destruct z; simpl in *. inv TR. inv TR.
+   apply bind_inversion in TR. destruct TR as [z [ZZ1 ZZ2]]; subst.
+  inv ZZ2.
   inv TR.
-  apply prop_ext. split; intros; inv H.
+  inv TR.
+  apply prop_ext. split; intros; inv H. 
 Qed.
 
 Parameter MC_order :  core_data -> core_data -> Prop. 
@@ -362,7 +387,7 @@ Lemma MS_step_case_SkipSeq:
 forall cenv sz f tfn j m tm  e lenv te sp lo hi cs s k tk xenv
 (TRF : transl_funbody cenv sz f = OK tfn)
 (MINJ : Mem.inject j m tm)
-(MK : match_cont (Csharpminor.Kseq s k) tk (fn_return f) cenv xenv cs)
+(MK : match_cont (Csharpminor.Kseq s k) tk cenv xenv cs)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm)),
 exists c2' : CMin_core,
@@ -401,7 +426,7 @@ Lemma MS_step_case_SkipBlock:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv 
 (TRF : transl_funbody cenv sz f = OK tfn)
 (MINJ : Mem.inject j m tm)
-(MK : match_cont (Csharpminor.Kblock k) tk (fn_return f) cenv xenv cs)
+(MK : match_cont (Csharpminor.Kblock k) tk cenv xenv cs)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm)),
 exists c2' : CMin_core,
@@ -430,14 +455,14 @@ Proof. intros.
 Qed.
 
 Lemma MS_match_is_call_cont:
-  forall tfn te sp tm k tk ty cenv xenv cs,
-  match_cont k tk ty cenv xenv cs ->
+  forall tfn te sp tm k tk cenv xenv cs,
+  match_cont k tk cenv xenv cs ->
   Csharpminor.is_call_cont k ->
   exists tk',
     corestep_star CMin_core_sem tge (CMin_State tfn Sskip tk sp te) tm
                 (CMin_State tfn Sskip tk' sp te) tm
     /\ is_call_cont tk'
-    /\ match_cont k tk' ty cenv nil cs.
+    /\ match_cont k tk' cenv nil cs.
 Proof.
   induction 1; simpl; intros; try contradiction.
   econstructor; split.
@@ -452,11 +477,10 @@ Qed.
 Lemma MS_step_case_SkipCall:
  forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv m'
 (CC: Csharpminor.is_call_cont k)
-(RET: fn_return f = None)
 (FL: Mem.free_list m (blocks_of_env e) = Some m')
 (TRF : transl_funbody cenv sz f = OK tfn)
 (MINJ : Mem.inject j m tm)
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm)),
 exists c2' : CMin_core,
@@ -472,39 +496,49 @@ Proof. intros.
   eexists. eexists.
   split.
     eapply corestep_star_plus_trans. eexact A. apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. apply step_skip_call. assumption. 
-        rewrite (sig_preserved_body _ _ _ _ TRF). auto.
+      eauto.
     eauto.
     econstructor; eauto.
 
-  simpl in *. (*exists (CSharpMin_Returnstate Vundef k). left. *) econstructor; eauto.
 Qed.
 
 Lemma MS_step_case_Assign:
-forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv m' ts  x a x0 v id
+forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv  x a x0 v id
 (EE:Csharpminor.eval_expr ge e lenv m a v)
-(ASS: exec_assign ge e m id v m')
 (TRF : transl_funbody cenv sz f = OK tfn)
 (MINJ : Mem.inject j m tm)
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(EQ : transl_expr cenv a = OK (x, x0))
-(EQ0 : var_set cenv id x = OK ts),
+(EQ : transl_expr cenv a = OK (x, x0)),
 exists c2' : CMin_core,
   exists m2' : mem,
-        corestep_plus CMin_core_sem tge (CMin_State  tfn  ts tk (Vptr sp Int.zero) te) tm c2' m2' /\
-        match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) j (CSharpMin_State f Csharpminor.Sskip k e lenv) m' c2' m2'.
+    corestep_plus CMin_core_sem tge
+     (CMin_State tfn (Sassign id x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
+   match_cores
+     (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)) j
+     (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)) m c2'
+     m2'.
 (*  exists c' : CSharpMin_core,
        inj_match_states_star unit match_cores MC_measure (tt,c') j (CSharpMin_State f Csharpminor.Sskip k e lenv) m' c2' m2'.*)
 Proof. intros.
+ intros.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
+(*
   exploit var_set_correct; eauto. 
   intros [te' [tm' [EXEC [MINJ' [MCS' OTHER]]]]].
+*)
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eexact EXEC. reflexivity.
-  simpl in *. (*exists (CSharpMin_State f Csharpminor.Sskip k e lenv). left. *) econstructor; eauto.
+     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. 
+         econstructor. eassumption. reflexivity.
+inv MCS.
+  econstructor; eauto.
+econstructor; eauto.
+eapply match_temps_assign; assumption.
 Qed.
 
+
+(*no case set in ocmpCert 2.0
 Lemma MS_step_case_Set:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 v a id
 (H: Csharpminor.eval_expr ge e lenv m a v)
@@ -532,7 +566,7 @@ Proof. intros.
 (*  exists (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)).
     left. econstructor; eauto.*)
 Qed.
-
+*)
 Lemma MS_step_case_Store:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2 
       chunk m' a addr vaddr v
@@ -543,7 +577,7 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
                 (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (EQ : transl_expr cenv addr = OK (x, x0))
 (EQ1 : transl_expr cenv a = OK (x1, x2)),
 exists c2' : CMin_core,
@@ -564,14 +598,15 @@ Proof. intros.
   eexists; eexists; split.
       apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eexact EXEC. reflexivity.
   simpl in *.
-(*    assert (X:= match_callstack_storev_mapped _ _ _ _ _ _ _ _ _ _ _  VINJ1 CH STORE' _ _ _ MCS).
-    exists (CSharpMin_State f Csharpminor.Sskip k e lenv).
-    left.*) econstructor; eauto.
-      eapply match_callstack_storev_mapped. eexact VINJ1. eauto. eauto.
-      rewrite (nextblock_storev _ _ _ _ _ CH).
-      rewrite (nextblock_storev _ _ _ _ _ STORE').
-      eauto.
+  inv VINJ1; simpl in CH; try discriminate.
+  econstructor; eauto. 
+  rewrite (Mem.nextblock_store _ _ _ _ _ _ CH).
+  rewrite (Mem.nextblock_store _ _ _ _ _ _ STORE').
+  eapply match_callstack_invariant (*with f0 m tm*); eauto.
+  intros. eapply Mem.perm_store_2; eauto. 
+  intros. eapply Mem.perm_store_1; eauto.
 Qed. 
+
 
 Lemma MS_step_case_Call:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv  x x0 x1 a vf fd optid vargs bl
@@ -582,13 +617,13 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv  x x0 x1 a vf fd opt
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont tk k (fn_return f) cenv xenv cs)
+(MK : match_cont tk k cenv xenv cs)
 (EQ : transl_expr cenv a = OK (x, x0))
 (EQ1 : transl_exprlist cenv bl = OK x1),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge 
-             (CMin_State  tfn (Scall (option_map for_temp optid) (Csharpminor.funsig fd) x x1)  k (Vptr sp Int.zero) te) tm c2' m2' /\
+             (CMin_State  tfn (Scall optid (Csharpminor.funsig fd) x x1)  k (Vptr sp Int.zero) te) tm c2' m2' /\
        match_cores (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv tk))  j
               (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv tk)) m c2' m2'.
 (* exists c' : CSharpMin_core,
@@ -623,12 +658,12 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x t ef optid vres m'
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (EQ : transl_exprlist cenv bl = OK x),
 exists c2' : CMin_core,
   exists m2' : mem, 
       corestep_plus CMin_core_sem tge
-           (CMin_State tfn (Sbuiltin (option_map for_temp optid) ef x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
+           (CMin_State tfn (Sbuiltin optid ef x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
   exists j' : meminj,
         inject_incr j j' /\
         Events.inject_separated j j' m tm /\
@@ -647,10 +682,9 @@ Proof. intros.
   eexists; eexists; split.
       apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
            econstructor; try eassumption.
-             eapply Events.external_call_symbols_preserved_2; eauto.
+             eapply Events.external_call_symbols_preserved; eauto.
                  eapply symbols_preserved; assumption.
-                 eapply var_info_translated; assumption.
-                 eapply var_info_rev_translated; assumption.
+                 eapply varinfo_preserved; assumption.
            reflexivity.
   assert (MCS': match_callstack prog j' m' tm'
                  (Frame cenv tfn e lenv te sp lo hi :: cs)
@@ -658,9 +692,9 @@ Proof. intros.
     apply match_callstack_incr_bound with (Mem.nextblock m) (Mem.nextblock tm).
     eapply match_callstack_external_call; eauto.
     intros. eapply Events.external_call_max_perm; eauto.
-    omega. omega. 
-    eapply external_call_nextblock_incr; eauto.
-    eapply external_call_nextblock_incr; eauto.
+    xomega. xomega. 
+    eapply external_call_nextblock; eauto.
+    eapply external_call_nextblock; eauto.
 exists j'. split. assumption.  split. assumption. 
   simpl in *. (* exists  (CSharpMin_State f Csharpminor.Sskip k e (set_optvar optid vres lenv)).
   left. *) econstructor; eauto.
@@ -678,10 +712,10 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2 b v a s1 
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (EQ : transl_expr cenv a = OK (x, x0))
-(EQ1 : transl_stmt (fn_return f) cenv xenv s1 = OK x1)
-(EQ0 : transl_stmt (fn_return f) cenv xenv s2 = OK x2),
+(EQ1 : transl_stmt cenv xenv s1 = OK x1)
+(EQ0 : transl_stmt cenv xenv s2 = OK x2),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge
@@ -710,8 +744,8 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x s
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont tk k (fn_return f) cenv xenv cs)
-(EQ : transl_stmt (fn_return f) cenv xenv s = OK x),
+(MK : match_cont tk k cenv xenv cs)
+(EQ : transl_stmt cenv xenv s = OK x),
 exists c2' : CMin_core,
   exists m2' : mem,
       corestep_plus CMin_core_sem tge (CMin_State tfn (Sloop x) k (Vptr sp Int.zero) te) tm c2' m2' /\
@@ -737,8 +771,8 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x s
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont tk k (fn_return f) cenv xenv cs)
-(EQ : transl_stmt (fn_return f) cenv (true :: xenv) s = OK x),
+(MK : match_cont tk k cenv xenv cs)
+(EQ : transl_stmt cenv (true :: xenv) s = OK x),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge (CMin_State tfn (Sblock x) k (Vptr sp Int.zero) te) tm c2' m2' /\
@@ -762,7 +796,7 @@ forall  cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv n s
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont (Csharpminor.Kseq s tk) k (fn_return f) cenv xenv cs),
+(MK : match_cont (Csharpminor.Kseq s tk) k cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge
@@ -803,7 +837,7 @@ forall  cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont (Csharpminor.Kblock tk) k (fn_return f) cenv xenv cs),
+(MK : match_cont (Csharpminor.Kblock tk) k cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' : mem,
        corestep_plus CMin_core_sem tge (CMin_State tfn (Sexit (shift_exit xenv 0)) k (Vptr sp Int.zero) te) tm c2' m2' /\
@@ -834,7 +868,7 @@ forall  cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv n
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
                      (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont (Csharpminor.Kblock tk) k (fn_return f) cenv xenv cs),
+(MK : match_cont (Csharpminor.Kblock tk) k cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge
@@ -858,10 +892,10 @@ Proof. intros.
 Qed.
 
 Lemma MS_switch_descent:
-  forall ty cenv xenv k ls body s,
-  transl_lblstmt ty cenv (switch_env ls xenv) ls body = OK s ->
+  forall cenv xenv k ls body s,
+  transl_lblstmt cenv (switch_env ls xenv) ls body = OK s ->
   exists k',
-  transl_lblstmt_cont ty cenv xenv ls k k'
+  transl_lblstmt_cont cenv xenv ls k k'
   /\ (forall f sp e m,
       corestep_plus CMin_core_sem tge (CMin_State f s k sp e) m (CMin_State f body k' sp e) m).
 Proof.
@@ -884,13 +918,13 @@ Proof.
 Qed.
 
 Lemma MS_switch_ascent:
-  forall f n sp e m ty cenv xenv k ls k1,
+  forall f n sp e m cenv xenv k ls k1,
   let tbl := switch_table ls O in
   let ls' := select_switch n ls in
-  transl_lblstmt_cont ty cenv xenv ls k k1 ->
+  transl_lblstmt_cont cenv xenv ls k k1 ->
   exists k2,
-  corestep_star CMin_core_sem tge (CMin_State f (Sexit (compcert.Switch.switch_target n (length tbl) tbl)) k1 sp e) m  (CMin_State f (Sexit O) k2 sp e) m
-  /\ transl_lblstmt_cont ty cenv xenv ls' k k2.
+  corestep_star CMin_core_sem tge (CMin_State f (Sexit (Switch.switch_target n (length tbl) tbl)) k1 sp e) m  (CMin_State f (Sexit O) k2 sp e) m
+  /\ transl_lblstmt_cont cenv xenv ls' k k2.
 Proof.
   induction ls; intros; unfold tbl, ls'; simpl.
 (*1*)
@@ -916,16 +950,16 @@ Qed.
 Lemma MS_switch_MSI:
   forall fn k e lenv m tfn ts tk sp te tm cenv xenv j lo hi cs sz ls body tk'
     (TRF: transl_funbody cenv sz fn = OK tfn)
-    (TR: transl_lblstmt (fn_return fn) cenv (switch_env ls xenv) ls body = OK ts)
+    (TR: transl_lblstmt cenv (switch_env ls xenv) ls body = OK ts)
     (MINJ: Mem.inject j m tm)
     (MCS: match_callstack prog j m tm
                (Frame cenv tfn e lenv te sp lo hi :: cs)
                (Mem.nextblock m) (Mem.nextblock tm))
-    (MK: match_cont k tk (fn_return fn) cenv xenv cs)
-    (TK: transl_lblstmt_cont (fn_return fn) cenv xenv ls tk tk'),
+    (MK: match_cont k tk cenv xenv cs)
+    (TK: transl_lblstmt_cont cenv xenv ls tk tk'),
   exists S, exists mm,
   corestep_plus CMin_core_sem tge (CMin_State tfn (Sexit O) tk' (Vptr sp Int.zero) te) tm S mm
-  /\ match_statesInj prog j (Csharpminor.State fn (seq_of_lbl_stmt ls) k e lenv m) (Cminor_CompcertSemantics.ToState S mm).
+  /\ match_statesInj prog j (Csharpminor.State fn (seq_of_lbl_stmt ls) k e lenv m) (Cminor_coop.ToState S mm).
 Proof.
   intros. destruct ls; simpl.
 (*1*)
@@ -951,9 +985,9 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv a x x0 ts cases n
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
+(MK : match_cont k tk cenv xenv cs)
 (EQ : transl_expr cenv a = OK (x, x0))
-(EQ0 : transl_lblstmt (fn_return f) cenv (switch_env cases xenv) cases
+(EQ0 : transl_lblstmt cenv (switch_env cases xenv) cases
         (Sswitch x (switch_table cases 0) (length (switch_table cases 0))) =
       OK ts),
 exists c2' : CMin_core,
@@ -987,7 +1021,7 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv m'
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
                  (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont tk k (fn_return f) cenv xenv cs),
+(MK : match_cont tk k cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge (CMin_State tfn (Sreturn None) k (Vptr sp Int.zero) te) tm c2' m2'  /\
@@ -1009,7 +1043,7 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv a x x0 m' v
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont tk k (fn_return f) cenv xenv cs)
+(MK : match_cont tk k cenv xenv cs)
 (EQ : transl_expr cenv a = OK (x, x0)),
 exists c2' : CMin_core,
   exists m2' : mem,
@@ -1031,8 +1065,8 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv lbl x s
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs)
-(EQ : transl_stmt (fn_return f) cenv xenv s = OK x),
+(MK : match_cont k tk cenv xenv cs)
+(EQ : transl_stmt cenv xenv s = OK x),
 exists c2' : CMin_core,
   exists m2' : mem,
        corestep_plus CMin_core_sem tge (CMin_State tfn (Slabel lbl x) tk (Vptr sp Int.zero) te) tm c2' m2' /\ 
@@ -1052,7 +1086,7 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv lbl s' k'
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
         (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv xenv cs),
+(MK : match_cont k tk cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' : mem,
        corestep_plus CMin_core_sem tge (CMin_State tfn (Sgoto lbl) tk (Vptr sp Int.zero) te) tm c2' m2' /\
@@ -1070,6 +1104,163 @@ Qed.
 (******************************Functions required for internal call rule*****************************)
 (****These extend the original lemmas by additional guarantees of the (now exposed) memory injections, in order
     for the overall lemma for internal calls to establish the inject_separated fact******************************)
+
+Lemma MS_match_callstack_alloc_variables_rec:
+  forall tm sp tf cenv le te lo cs,
+  Mem.valid_block tm sp ->
+  fn_stackspace tf <= Int.max_unsigned ->
+  (forall ofs k p, Mem.perm tm sp ofs k p -> 0 <= ofs < fn_stackspace tf) ->
+  (forall ofs k p, 0 <= ofs < fn_stackspace tf -> Mem.perm tm sp ofs k p) ->
+  forall e1 m1 vars e2 m2,
+  alloc_variables e1 m1 vars e2 m2 ->
+  forall f1,
+  list_norepet (map fst vars) ->
+  cenv_compat cenv vars (fn_stackspace tf) ->
+  cenv_separated cenv vars ->
+  cenv_mem_separated cenv vars f1 sp m1 ->
+  (forall id sz, In (id, sz) vars -> e1!id = None) ->
+  match_callstack prog f1 m1 tm
+    (Frame (cenv_remove cenv vars) tf e1 le te sp lo (Mem.nextblock m1) :: cs)
+    (Mem.nextblock m1) (Mem.nextblock tm) ->
+  Mem.inject f1 m1 tm ->
+  exists f2,
+    match_callstack prog f2 m2 tm
+      (Frame cenv tf e2 le te sp lo (Mem.nextblock m2) :: cs)
+      (Mem.nextblock m2) (Mem.nextblock tm)
+  /\ Mem.inject f2 m2 tm
+  /\ (*LENB: THIS IS NEW*) inject_incr f1 f2
+(****************The following three conditions are new******************)
+  /\ (forall b, Mem.valid_block m1 b -> f2 b = f1 b)
+  /\ (forall b b' d', f1 b = None -> f2 b = Some (b',d') -> b' = sp)
+  /\ forall j',  inject_incr f2 j' -> inject_separated f2 j' m2 tm -> 
+                 inject_separated f2 j' m1 tm.
+Proof.
+Proof.
+  intros until cs; intros VALID REPRES STKSIZE STKPERMS.
+  induction 1; intros f1 NOREPET COMPAT SEP1 SEP2 UNBOUND MCS MINJ.
+  (* base case *)
+  simpl in MCS. exists f1.
+   split. assumption. 
+   split. assumption. 
+   split. apply inject_incr_refl. 
+   split. auto. 
+   split. intros. rewrite H in H0; inv H0. 
+   intros. assumption. 
+  (* inductive case *)
+  simpl in NOREPET. inv NOREPET.
+(* exploit Mem.alloc_result; eauto. intros RES.
+  exploit Mem.nextblock_alloc; eauto. intros NB.*)
+  exploit (COMPAT id sz). auto with coqlib. intros [ofs [CENV [ALIGNED [LOB HIB]]]].
+  exploit Mem.alloc_left_mapped_inject. 
+    eexact MINJ.
+    eexact H.
+    eexact VALID.
+    instantiate (1 := ofs). zify. omega. 
+    intros. exploit STKSIZE; eauto. omega. 
+    intros. apply STKPERMS. zify. omega.
+    replace (sz - 0) with sz by omega. auto.
+    intros. eapply SEP2. eauto with coqlib. eexact CENV. eauto. eauto. omega. 
+  intros [f2 [A [B [C D]]]].
+  exploit (IHalloc_variables f2); eauto.
+    red; intros. eapply COMPAT. auto with coqlib.
+    red; intros. eapply SEP1; eauto with coqlib.
+    red; intros. exploit Mem.perm_alloc_inv; eauto. destruct (eq_block b b1); intros P.
+    subst b. rewrite C in H5; inv H5. 
+    exploit SEP1. eapply in_eq. eapply in_cons; eauto. eauto. eauto. 
+    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto. 
+    omega.
+    eapply SEP2. apply in_cons; eauto. eauto. 
+    rewrite D in H5; eauto. eauto. auto. 
+    intros. rewrite PTree.gso. eapply UNBOUND; eauto with coqlib. 
+    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto.
+    eapply match_callstack_alloc_left; eauto. 
+    rewrite cenv_remove_gso; auto. 
+    apply UNBOUND with sz; auto with coqlib.
+  intros. destruct H1 as [f3 [HF1 [HF2 [Hf3 [HF4 [HF5 HF6]]]]]]. 
+    exists f3. split; trivial.
+    split; trivial. 
+    split. eapply inject_incr_trans; eassumption.
+    split. intros.
+        rewrite HF4.
+         apply D.
+           intros N; subst.
+               eapply (Mem.fresh_block_alloc _ _ _ _ _ H H1).
+           apply (Mem.valid_block_alloc _ _ _ _ _ H _ H1).
+    split; intros.
+       destruct (eq_block b b1); subst.
+       rewrite (Hf3 _ _ _ C) in H2. inv H2. trivial.
+       specialize (D _ n).
+         rewrite <- D in H1. apply (HF5 _ _ _ H1 H2).
+    intros b; intros.
+      destruct (H2 _ _ _ H5 H6).
+      split; trivial.
+      intros N. apply H7; clear H7.
+      apply (Mem.valid_block_alloc _ _ _ _ _ H) in N.
+      eapply alloc_variables_forward. eassumption. apply N.
+Qed.
+
+Lemma MS_match_callstack_alloc_variables_aux:
+  forall tm1 sp tm2 m1 vars e m2 cenv f1 cs fn le te,
+  Mem.alloc tm1 0 (fn_stackspace fn) = (tm2, sp) ->
+  fn_stackspace fn <= Int.max_unsigned ->
+  alloc_variables empty_env m1 vars e m2 ->
+  list_norepet (map fst vars) ->
+  cenv_compat cenv vars (fn_stackspace fn) ->
+  cenv_separated cenv vars ->
+  (forall id ofs, cenv!id = Some ofs -> In id (map fst vars)) ->
+  Mem.inject f1 m1 tm1 ->
+  match_callstack prog f1 m1 tm1 cs (Mem.nextblock m1) (Mem.nextblock tm1) ->
+  match_temps f1 le te ->
+  exists f2,
+    match_callstack prog f2 m2 tm2 (Frame cenv fn e le te sp (Mem.nextblock m1) (Mem.nextblock m2) :: cs)
+                    (Mem.nextblock m2) (Mem.nextblock tm2)
+  /\ Mem.inject f2 m2 tm2
+  /\ (*LENB: THIS IS NEW*) inject_incr f1 f2
+(****************The following three conditions are new******************)
+(* In the third clause, we now stepfrom  m' to m, and also from f' to f and from tm' to tm******************)
+  /\ (forall b, Mem.valid_block m1 b -> f2 b = f1 b)
+  /\ (forall b b' d', f1 b = None -> f2 b = Some (b',d') -> b' = sp)
+  /\ forall j',  inject_incr f2 j' -> Events.inject_separated f2 j' m2 tm2 -> 
+          Events.inject_separated f2 j' m1 tm1.
+Proof. clear core_data.
+  intros.
+  unfold build_compilenv in H.
+assert (AR: exists f',
+   match_callstack prog f' m2 tm2
+                     (Frame cenv fn e le te sp (Mem.nextblock m1) (Mem.nextblock m2) :: cs)
+                     (Mem.nextblock m2) (Mem.nextblock tm2) 
+ 
+  /\ Mem.inject f' m2 tm2
+  /\ inject_incr f1 f'
+  /\ (forall b, Mem.valid_block m1 b -> f' b = f1 b)
+  /\ (forall b b' d', f1 b = None -> f' b = Some (b',d') -> b' = sp)
+  /\ forall j',  inject_incr f' j' -> Events.inject_separated f' j' m2 tm2 -> 
+                  Events.inject_separated f' j' m1 tm2).
+
+  eapply MS_match_callstack_alloc_variables_rec; eauto with mem.
+  (*instantiate (1 := f1).*) red; intros. eelim Mem.fresh_block_alloc; eauto.
+  eapply Mem.valid_block_inject_2; eauto. 
+  intros. apply PTree.gempty.
+  eapply match_callstack_alloc_right; eauto. 
+  intros. destruct (In_dec peq id (map fst vars)).
+  apply cenv_remove_gss; auto.
+  rewrite cenv_remove_gso; auto.
+  destruct (cenv!id) as [ofs|] eqn:?; auto. elim n; eauto. 
+  eapply Mem.alloc_right_inject; eauto. 
+
+destruct AR as  [f' [INC [INJ [MC [VB1 [SP SEP]]]]]].
+exists f' ; intuition.
+  intros b; intros.
+  remember (f' b) as z; destruct z; apply eq_sym in Heqz.
+  (*Some p*) destruct p.
+            assert (j' b = Some (b0,z)). apply (H9 _ _ _ Heqz). inv H11. 
+   (*None*) assert (HH:= SEP _ H9 H10).
+                     destruct (HH _ _ _ Heqz H12).
+                     split; trivial. 
+                     intros N. apply H14. eapply Mem.valid_block_alloc; eauto. 
+Qed.
+
+(*Outdated in CompCert 2.0
 Lemma MS_match_callstack_alloc_variable:
   forall atk id lv cenv sz cenv' sz' tm sp e tf m m' b te lenv lo cs f tv,
   assign_variable atk (id, lv) (cenv, sz) = (cenv', sz') ->
@@ -1626,11 +1817,7 @@ Proof.
                  apply TVB1 in N. apply (H7 N).
   split; intros. (*rewrite VB1. apply VB2.*) apply VB2. apply (VB1 _ H2).
            apply TVB2. apply (TVB1 _ H2).
-Qed. 
-
-(***** All the additional conditions in the above auxiliary lemmas were needed for proving
- the condition Events.inject_separated j j' m tmt in his lemma; otherwise, the claim is as before, 
-  just updated by replacing star step by corestep_star, as ususal*)
+Qed.
 Lemma MS_function_entry_ok:
   forall tf fn m e m1 vargs m2 j cs tm cenv tm1 sp tvargs s fn' k,
   list_norepet (fn_params_names fn ++ fn_vars_names fn) ->
@@ -1676,59 +1863,122 @@ Proof.
   intros [j2 [tm2 [EXEC [MINJ2 [MATCH2 [INCR2 [SEP2 [VB2 TVB2]]]]]]]].
   exists j2; exists tm2. 
   split; eauto. split; auto. split; auto. eapply inject_incr_trans; eauto.
+Qed. 
+*)
+
+Lemma MS_match_callstack_alloc_variables:
+  forall tm1 sp tm2 m1 vars e m2 cenv f1 cs fn le te,
+  Mem.alloc tm1 0 (fn_stackspace fn) = (tm2, sp) ->
+  fn_stackspace fn <= Int.max_unsigned ->
+  alloc_variables empty_env m1 vars e m2 ->
+  list_norepet (map fst vars) ->
+  cenv_compat cenv vars (fn_stackspace fn) ->
+  cenv_separated cenv vars ->
+  (forall id ofs, cenv!id = Some ofs -> In id (map fst vars)) ->
+  Mem.inject f1 m1 tm1 ->
+  match_callstack prog f1 m1 tm1 cs (Mem.nextblock m1) (Mem.nextblock tm1) ->
+  match_temps f1 le te ->
+  exists f2,
+    match_callstack prog f2 m2 tm2 (Frame cenv fn e le te sp (Mem.nextblock m1) (Mem.nextblock m2) :: cs)
+                    (Mem.nextblock m2) (Mem.nextblock tm2)
+  /\ Mem.inject f2 m2 tm2
+  /\ (*LENB: THIS IS NEW*) inject_incr f1 f2
+  /\ (*LENB this clause in new in coop-sim proof*) inject_separated f1 f2 m1 tm1.
+Proof.
+  intros.
+  destruct (MS_match_callstack_alloc_variables_aux
+     _ _ _ _ _ _ _ _ _ _ _ _ _ H H0 H1 H2 H3 H4 H5 H6 H7 H8)
+     as [f2 [MCS2 [INJ2 [INC [HH1 [HH2 HH3]]]]]].
+  exists f2.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  intros b; intros.
+  specialize (HH2 _ _ _ H9 H10); subst.
+  split. intros N. rewrite (HH1 _ N) in H10.
+         rewrite H10 in H9; discriminate.
+  eapply (Mem.fresh_block_alloc _ _ _ _ _ H).
+Qed.
+
+(***** All the additional conditions in the above auxiliary lemmas were needed for proving
+ the condition Events.inject_separated j j' m tm in his lemma; otherwise, the claim is as before, 
+  just updated by replacing star step by corestep_star, as ususal*)
+
+Theorem MS_match_callstack_function_entry:
+  forall fn cenv tf m e m' tm tm' sp f cs args targs le,
+  build_compilenv fn = (cenv, tf.(fn_stackspace)) ->
+  tf.(fn_stackspace) <= Int.max_unsigned ->
+  list_norepet (map fst (Csharpminor.fn_vars fn)) ->
+  list_norepet (Csharpminor.fn_params fn) ->
+  list_disjoint (Csharpminor.fn_params fn) (Csharpminor.fn_temps fn) ->
+  alloc_variables Csharpminor.empty_env m (Csharpminor.fn_vars fn) e m' ->
+  bind_parameters (Csharpminor.fn_params fn) args (create_undef_temps fn.(fn_temps)) = Some le ->
+  val_list_inject f args targs ->
+  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
+  match_callstack prog f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
+  Mem.inject f m tm ->
+  let te := set_locals (Csharpminor.fn_temps fn) (set_params targs (Csharpminor.fn_params fn)) in
+  exists f',
+     match_callstack prog f' m' tm'
+                     (Frame cenv tf e le te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
+                     (Mem.nextblock m') (Mem.nextblock tm')
+  /\ Mem.inject f' m' tm' 
+  /\ (*LENB: this clause is new in Restructured Proof*) inject_incr f f'
+  /\ (*LENB this clause in new in coop-sim proof*) inject_separated f f' m tm.
+Proof.
+  intros.
+  exploit build_compilenv_sound; eauto. intros [C1 C2].
+  eapply MS_match_callstack_alloc_variables; eauto.
+  intros. eapply build_compilenv_domain; eauto.
+  eapply bind_parameters_agree; eauto. 
 Qed.
 
 Lemma MS_step_case_InternalCall:
-forall cenv  f j m tm e cs k tk vargs targs x m1 m2
-(Param: list_norepet (fn_params_names f ++ fn_vars_names f))
-(AllocVars : alloc_variables empty_env m (fn_variables f) e m1)
-(BindParams : bind_parameters ge e m1 (Csharpminor.fn_params f) vargs m2)
+forall cenv  f j m tm e cs k tk vargs targs x m1 lenv
+(Param1: list_norepet (map fst (Csharpminor.fn_vars f)))
+(Param2 : list_norepet (Csharpminor.fn_params f))
+(Param3 : list_disjoint (Csharpminor.fn_params f) (fn_temps f))
+(AlocVars : alloc_variables empty_env m (Csharpminor.fn_vars f) e m1)
+(BindParams: bind_parameters (Csharpminor.fn_params f) vargs
+       (create_undef_temps (fn_temps f)) = Some lenv)
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont k tk (fn_return f) cenv nil cs)
-(ISCC: Csharpminor.is_call_cont k)
+(MK : match_cont k tk cenv nil cs)
+(ISCC : Csharpminor.is_call_cont k)
 (ARGSINJ : val_list_inject j vargs targs)
-(EQ : transl_function gce f = OK x),
-exists c2' : CMin_core,
-  exists m2' : mem,
-       corestep_plus CMin_core_sem tge (CMin_Callstate (AST.Internal x) targs tk) tm c2' m2' /\
-  exists j' : meminj,
-        inject_incr j j' /\
-        (*again, have inject-sparatated here, as per definition of match relation*) 
-         Events.inject_separated j j' m tm /\
-         match_cores  (CSharpMin_State f (Csharpminor.fn_body f) k e empty_temp_env)  j'
-           (CSharpMin_State f (Csharpminor.fn_body f) k e empty_temp_env) m2 c2' m2'.
-(*  exists c',
-        inj_match_states_star unit match_cores MC_measure (tt,c') j'
-           (CSharpMin_State f (Csharpminor.fn_body f) k e empty_temp_env) m2 c2' m2'.*)
+(EQ : transl_function f = OK x),
+exists (c2' : CMin_core) (m2' : mem),
+  corestep_plus CMin_core_sem tge (CMin_Callstate (AST.Internal x) targs tk) tm c2' m2'
+ /\ exists (j' : meminj),
+  inject_incr j j' /\
+  inject_separated j j' m tm /\
+  match_cores (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) j'
+    (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) m1 c2' m2'.
 Proof. intros.
   generalize EQ; clear EQ; unfold transl_function.
-  caseEq (build_compilenv gce f). intros ce sz BC.
-  destruct (zle sz Int.max_unsigned). Focus 2. intros. exfalso. clear core_data.  congruence. (*core data versus congruence bug; Xavier's proof has 
+  caseEq (build_compilenv f). intros ce sz BC.
+  destruct (zle sz Int.max_unsigned).
+  Focus 2. intros. exfalso. clear core_data.  congruence. (*core data versus congruence bug; Xavier's proof has 
              destruct (zle sz Int.max_unsigned); try congruence here....*)
   intro TRBODY.
   generalize TRBODY; intro TMP. monadInv TMP.
   set (tf := mkfunction (Csharpminor.fn_sig f) 
-                        (List.map for_var (fn_params_names f))
-                        (List.map for_var (fn_vars_names f)
-                         ++ List.map for_temp (Csharpminor.fn_temps f))
+                        (Csharpminor.fn_params f)
+                        (Csharpminor.fn_temps f)
                         sz
-                        (Sseq x1 x0)) in *.
+                        x0) in *.
   caseEq (Mem.alloc tm 0 (fn_stackspace tf)). intros tm' sp ALLOC'.
-  exploit MS_function_entry_ok; eauto; simpl; auto.  
-  intros [j' [tm2 [EXEC [MINJ2 [IINCR [SEP2 MCS2]]]]]].
-  eexists; eexists; split.
-    eapply corestep_plus_star_trans.
-      eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor; simpl; eauto. reflexivity.  
-    simpl.
-    eapply corestep_star_trans.
-      eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
-    simpl.
-    eapply corestep_star_trans. apply EXEC.
-      simpl. eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
-  simpl in *.
+  exploit MS_match_callstack_function_entry; eauto. simpl; eauto. simpl; auto.
+  intros [j' [MCS2 [MINJ2 [IINCR SEP]]]].
+  exists (CMin_State tf x0 tk (Vptr sp Int.zero)
+     (set_locals (fn_temps f) (set_params targs (Csharpminor.fn_params f)))).
+  exists tm'.
+  split.
+    eapply corestep_plus_one. simpl. 
+    econstructor.
+    constructor. assumption. reflexivity.
   exists j'. split. assumption.
-  split. assumption.
+  split. assumption. 
   econstructor. eexact TRBODY. eauto. eexact MINJ2. 
   eexact MCS2.
   inv MK; simpl in ISCC; contradiction || econstructor; eauto.
@@ -1738,10 +1988,10 @@ Qed.
 (************************************************************************************)
 
 Lemma MS_step_case_Return:
-forall j m tm cs f e lenv k tk ty cenv v tv optid
+forall j m tm cs f e lenv k tk cenv v tv optid
 (MINJ : Mem.inject j m tm)
 (MCS : match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm))
-(MK : match_cont (Csharpminor.Kcall optid f e lenv k) tk ty cenv nil cs)
+(MK : match_cont (Csharpminor.Kcall optid f e lenv k) tk cenv nil cs)
 (RESINJ : val_inject j v tv),
 exists c2' : CMin_core,
   exists m2' : mem,
@@ -1802,8 +2052,8 @@ Proof.
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H11.
-      destruct (MS_step_case_SkipCall  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H3 H5 TRF MINJ MK MCS) as [c2' [m2' [cstepPlus MS]]].
+      destruct c2; simpl in *; try inv H10.
+      destruct (MS_step_case_SkipCall  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H4 TRF MINJ MK MCS) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -1813,30 +2063,35 @@ Proof.
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H10.
-      rename  m1' into m'. rename m1 into m. rename m2 into tm. rename k0 into tk. rename f0 into tfn. rename e0 into te.
-      destruct (MS_step_case_Assign  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H4 TRF MINJ MK MCS EQ EQ0) as [c2' [m2' [cstepPlus MS]]].
+      destruct c2; simpl in *; try inv H9.
+      rename  m1' into m'. rename m' into m. 
+      rename m2 into tm. rename k0 into tk.
+      rename f0 into tfn. rename e0 into te.
+      rename le0 into lenv. 
+      destruct (MS_step_case_Assign  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ id H3 TRF MINJ MK MCS EQ) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
-   (*set*)
+   (*set case has disappeared
       destruct c1; simpl in *; try inv H0. 
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H9.
+      destruct c2; simpl in *; try inv H11.
       destruct (MS_step_case_Set _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ id H3 TRF MINJ MCS MK EQ) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
-      auto.
+      auto.*)
    (*store*)
       destruct c1; simpl in *; try inv H0. 
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H11. rename f0 into tfn. rename m1 into m. rename m2  into tm. rename e0 into te. rename k0 into tk. rename  m1' into m'.
+      destruct c2; simpl in *; try inv H11.
+      rename f0 into tfn. rename m1 into m. rename m2  into tm.
+      rename e0 into te. rename k0 into tk. rename  m1' into m'.
       destruct (MS_step_case_Store _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H5 H2 H3 TRF MINJ MCS MK EQ EQ1) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
@@ -2031,16 +2286,18 @@ Proof.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
-(* internal call *)
+(* internal call *) 
       destruct c1; simpl in *; try inv H0. 
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H9. 
-      rename m1 into m. rename m2 into tm. rename f0 into f. rename e0 into e.
-      rename m0 into m1. rename args into vargs. rename m1' into m2.
-      rename k0 into tk. rename args0 into targs. 
-      destruct (MS_step_case_InternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H3 H5 MINJ MCS MK ISCC ARGSINJ EQ) as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
+      destruct c2; simpl in *; try inv H11. 
+      rename m1 into m. rename m2 into tm.
+      rename f0 into f. rename e0 into e.
+      rename m1' into m1. rename args into vargs.
+      rename k0 into tk. rename le0 into lenv.
+      rename args0 into targs.
+      destruct (MS_step_case_InternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H3 H4 H5 H7 MINJ MCS MK ISCC ARGSINJ EQ) as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
       left. exists c2'. exists m2'. exists j'. auto.
 (* external call *)
       destruct c1; simpl in *; try inv H0. inv H. 
@@ -2059,50 +2316,65 @@ Proof.
       destruct c1; simpl in *; try inv H1. 
       destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
-      destruct c2; simpl in *; try inv H5. rename m1' into m. rename m2 into tm. rename f0 into f. rename e0 into e. rename k into tk. rename k0 into k. rename v into tv. rename v0 into v.
-      destruct (MS_step_case_Return _ _ _ _ _ _ _ _ _ _ _ _ tv optid MINJ MCS MK RESINJ) as [c2' [m2' [cstepPlus MS]]]. 
+      destruct c2; simpl in *; try inv H5.
+      rename m1' into m. rename m2 into tm. rename f0 into f.
+      rename e0 into e. rename k into tk. rename k0 into k.
+      rename v into tv. rename v0 into v.
+      destruct (MS_step_case_Return _ _ _ _ _ _ _ _ _ _ _ tv optid MINJ MCS MK RESINJ) as [c2' [m2' [cstepPlus MS]]]. 
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto. 
 Qed.
 
-Goal forall entrypoints, 
-Sim_inj.Forward_simulation_inject _ _ CSharpMin_core_sem 
+Require Import sepcomp.forward_simulations.
+
+Require Import sepcomp.forward_simulations_lemmas.
+
+Theorem transl_program_correct:
+  forall entrypoints, 
+Forward_simulation_inj.Forward_simulation_inject CSharpMin_core_sem 
    CMin_core_sem ge tge entrypoints.
 Proof.
-intros. apply inj_simulation_star with (match_states:=match_cores)(measure:=MC_measure).
-   intros. eapply (init_cores _ _ _ entrypoints); eauto.
-   apply MC_safely_halted.
-   apply MC_at_external.
-   apply  MC_after_external.
-   apply MS_step.
+intros.
+ eapply inj_simulation_star with 
+  (match_states:=match_cores)(measure:=MC_measure).
+  admit. (*mem_wd*)
+  admit. (*validblocks*)
+  intros. eapply (init_cores _ _ _ entrypoints); eauto.
+ intros. destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
+           as [Inc [Presv [vals2 [ValsInj [avlsHT2 AtExt2]]]]].
+    split; trivial.
+    split; trivial.
+    exists vals2. 
+    split; trivial.
+    split; trivial.
+    split; trivial.
+    admit. (*TODO: val_valid*)
+ intros. 
+    destruct (MC_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0
+             H1 H2 H3 H4 H5 H6 H7 H8 H9 H11)
+           as [dd [core [dd' [afterExtA [afterExtB [ MC X]]]]]].
+     subst. eexists; eexists. eexists.
+        split. eassumption.
+        split. eassumption.
+        split. reflexivity. eassumption.
+  intros. destruct (MS_step _ _ _ _ H _ _ _ H0).
+   destruct H1 as [c2' [m2' [j' [INC [Sep [CSP MC]]]]]].
+      exists c2', m2', j'. 
+       split; trivial.
+       split; trivial.
+       split; trivial.
+       left; trivial. 
+    destruct H1. 
+      exists c2, m2, j.
+      split. apply inject_incr_refl.
+      split. apply inject_separated_same_meminj.
+      split; trivial.
+      right. split; trivial.
+      apply corestep_star_zero. 
 Qed.
 
-Theorem transl_program_correct: forall entrypoints, 
-Sim_inj.Forward_simulation_inject _ _ CSharpMin_core_sem 
-   CMin_core_sem ge tge entrypoints.
-Proof.
-intros. apply inj_simulation_star with (match_states:=match_cores)(measure:=MC_measure).
-   intros. eapply (init_cores _ _ _ entrypoints); eauto.
-   apply MC_safely_halted.
-   apply MC_at_external.
-   apply  MC_after_external.
-  apply MS_step.
-Qed.
-
-Theorem transl_program_correct_CompcertCoreSem: forall entrypoints, 
-Sim_inj.Forward_simulation_inject _ _ CSharpMin_CompcertCoreSem
-   CMin_CompcertCoreSem ge tge entrypoints.
-Proof.
-intros. apply   transl_program_correct. 
-(*Direct proof (literally the same as above theorem:
-apply inj_simulation_star with (match_states:=match_cores)(measure:=MC_measure).
-   intros. eapply (init_cores _ _ _ entrypoints); eauto.
-   apply MC_safely_halted.
-   apply MC_at_external.
-   apply  MC_after_external.
-  apply MS_step.*)
-Qed.
+(*Later, we could lift this the csharpmin_coop etc*)
 
 End TRANSLATION.

@@ -418,8 +418,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
   (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
-    mem_lemmas.mem_wd m1 -> 
-    mem_lemmas.mem_wd m2 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
     Forall2 Val.has_type vals2 (sig_args sig) -> 
@@ -450,14 +448,9 @@ Program Definition extended_simulation:
   @Build_Forward_simulation_inject _ _ _ _ _ 
            esemS esemT ge_S ge_T entry_points 
            core_data match_states core_ord
-           _ _ _ _ _ _ _ _.
+           _ _ _ _ _ _ _.
 Next Obligation. 
 destruct core_simulation; auto.
-Qed.
-Next Obligation.
-destruct core_simulation; auto.
-destruct H.
-eapply match_memwd0; eauto.
 Qed.
 Next Obligation.
 destruct core_simulation; auto.
@@ -589,8 +582,7 @@ clear
  core_after_external0
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 generalize MATCH12 as MATCH12'; intro.
 destruct MATCH12 as [MATCH12 XX].
 specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
@@ -636,8 +628,7 @@ clear
  core_after_external0
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 inv esig_compilable.
 generalize H0 as H0'; intro.
 inv core_compatS.
@@ -665,8 +656,7 @@ destruct core_simulation.
 clear 
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 inv esig_compilable.
 generalize H1 as H1'; intro.
 assert (H2': exists vals2, at_external esemT st2 = Some (e, ef_sig, vals2)).
@@ -688,7 +678,7 @@ assert (H3': meminj_preserves_globals ge_coreS j).
 destruct H0 as [H0 XX].
 specialize (core_after_external0
  _ _ _ _ _ _ _ _ _ _ _ _ _ _
- H H0 H1 H2 H3' H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16).
+ H H0 H1 H2 H3' H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14).
 destruct H2' as [vals2 H2'].
 destruct core_after_external0 
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH]]]]].
@@ -701,13 +691,13 @@ destruct AFTER2 as [s2' [? ?]].
 exists s1', s2'; split; auto.
 split; auto.
 unfold match_states.
-rewrite H18, H20.
+rewrite H16, H18.
 split; auto.
 symmetry.
-eapply Extension.zint_invar_after_external in H19; eauto.
-rewrite <-H19.
 eapply Extension.zint_invar_after_external in H17; eauto.
 rewrite <-H17.
+eapply Extension.zint_invar_after_external in H15; eauto.
+rewrite <-H15.
 auto.
 Qed.
 

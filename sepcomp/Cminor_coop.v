@@ -200,11 +200,14 @@ Definition CMin_core_sem : CoreSemantics genv CMin_core mem.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
-(*A global assumption we need on external calls, in particular builtins*)
+
+(*A global assumption we need on external calls, in particular builtins
+mem_wd deprecated
 Parameter external_call_mem_wd:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
     external_call ef ge vargs m1 t vres m2 -> mem_wd m1 -> mem_wd m2.
+*)
 
 Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
@@ -427,7 +430,7 @@ unfold Val.cmpu in H0.
            Mem.valid_pointer m b1 (Int.unsigned i1)) as q.
        destruct q; try inv H1.
 Qed.
-
+(*
 Lemma eval_expr_val_valid:
   forall ge sp e m
     (SP: val_valid sp m)
@@ -452,7 +455,7 @@ Proof.
   destruct vaddr; try inv H1; simpl in *.
     eapply mem_wd_load; eassumption.
 Qed. 
-
+*)
 Definition valid_corestate (c: CMin_core) (m:mem) : Prop :=
   match c with
     CMin_State f s k sp e => valid_env e m /\ val_valid sp m
@@ -499,7 +502,7 @@ Lemma cmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'),
 Proof. intros. destruct CS as [GE [VS Step]].
   eapply CMin_forward. apply Step.
 Qed.
-
+(*
 Lemma cmin_coop_mem_wd: forall g c m c' m'
   (CS: coopstep g c m c' m') (WD: mem_wd m), mem_wd m'.
 Proof. intros. destruct CS as [GE [VS Step]].
@@ -529,12 +532,12 @@ Proof. intros. destruct CS as [GE [VS Step]].
    destruct Step as [t CS].
        inv CS; simpl in *; try eauto.
 Qed. 
-
+*)
 Program Definition cmin_coop_sem : 
   CoopCoreSem Cminor.genv CMin_core.
 apply Build_CoopCoreSem with (coopsem := cmin_core_sem).
   apply cmin_coop_forward.
-  apply cmin_coop_mem_wd.
+(*  apply cmin_coop_mem_wd.*)
 Defined.
 
 Lemma CMin_corestep_2_CompCertStep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
