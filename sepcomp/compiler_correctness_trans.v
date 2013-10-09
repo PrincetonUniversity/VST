@@ -405,7 +405,7 @@ induction SIM23; intros; subst.
              destruct g23 as [Hyp2A Hyp2B].
              split; intros. rewrite Hyp2A. apply g12. 
                                    rewrite Hyp2B. apply g12.
-       (*externvars*) intros b; intros. admit. (*preservation of externvars by equality phases even if V1->V2 etc*)
+       (*externvars*) intros b; intros. admit. (*genv's not yet updated preservation of externvars by equality phases even if V1->V2 etc*)
 Qed.
 
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
@@ -870,7 +870,7 @@ induction SIM23; intros; subst.
          intros m1 Ini1.
           assert (Mem.flat_inj (Mem.nextblock m1) =
                     compose_meminj (Mem.flat_inj (Mem.nextblock m1)) (Mem.flat_inj (Mem.nextblock m1))).
-             admit.
+             admit. (*admit ok -- initial mems not yet adapted to modules*)
           rewrite H0.
           eapply ePts_compose4; try eassumption.
             eapply ePts12_ok. apply Ini1.

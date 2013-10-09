@@ -248,7 +248,6 @@ Proof.
     constructor.
     constructor.
     assumption.
-    admit. admit. (*mem_wd-conditions*)
     rewrite IniCore1 in K4. inv K4.
     exists d'. exists (c2', m2); simpl. 
     split; auto. 
@@ -281,7 +280,7 @@ Proof.
         apply corestep_star_star_step; eauto.
   (*external_step*) 
     assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok -  this condition is new in our development, 
+       admit. (*admit is ok -  a) val_valid will soon be eliminated b) this condition is new in our development, 
                  so obviously violates backwards compatibility*)
     destruct (@Forward_simulation_ext.core_at_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ H2 H8 ArgsValid1) 
@@ -305,11 +304,7 @@ Proof.
     assumption.
     assumption.
     apply (external_call_well_typed _ _ _ _ _ _ _ extCall2Genv2). 
-       admit. admit. (*both admits are ok -  this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
-       admit. (*admit is ok -  this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
-       admit. (*admit is ok -  this condition is new in our development, 
+       admit. admit. (*both admits are ok - (val_valid's) this condition is new in our development, 
                  so obvously violates backwards compatibility*)
     rewrite AftExt1 in H10. inv H10.
     exists d'. exists (c2', m2'); simpl.
@@ -342,8 +337,6 @@ Proof.
     assert (X := @Forward_simulation_inj.core_initial _ _ _ _ _ Sem1 Sem2  
       (Genv.globalenv P1) (Genv.globalenv P2)  epts R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
     destruct X as [d' [c2 [iniCore2 Match]]].
-       admit. admit. (*both admits are ok -  this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
     constructor.
     constructor. 
     exists d'. exists (c2,m2). simpl in *.
@@ -381,7 +374,7 @@ Proof.
       exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
   (*external_step*) 
     assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok -  this condition is new in our development, 
+       admit. (*admit is ok - (val_valid) this condition is new in our development, 
                  so obvously violates backwards compatibility*)
     destruct (@Forward_simulation_inj.core_at_external _ _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ _ MCJ H7 ArgsValid1) 
@@ -407,11 +400,7 @@ Proof.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
     eapply external_call_well_typed; eauto. 
-       admit. admit. (*both admits are ok -  this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
-       admit. (*admit is ok -  this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
-       admit. (*admit is ok -  this condition is new in our development, 
+       admit. admit. (*both admits are ok - (val_valid) this condition is new in our development, 
                  so obvously violates backwards compatibility*)
     rewrite AftExt1 in H9. inv H9.
     exists d'. exists (c2', m2').
@@ -589,8 +578,7 @@ Proof.
     destruct X as [d' [c1' [c2' [IniCore1 [IniCore2 ExtMatch]]]]].
     constructor.
     constructor.
-    apply (Mem.extends_refl). (*assumption.*)
-    admit. admit. (*mem_wd-conditions*)
+    apply Mem.extends_refl. 
     rewrite IniCore1 in K4. inv K4.
     exists d'. exists (c2', m1); simpl. 
     split; auto. 
@@ -625,7 +613,7 @@ Proof.
         apply corestep_star_star_step; eauto.
   (*external_step*) 
     assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-      admit. (*validity of arguments is new in CoopCoreSem*)
+      admit. (*admit is ok -- val_valid soon to be eliminated*)
      destruct (@Forward_simulation_ext.core_at_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1)) 
       epts R _ _ _ _ _ _ _ _ H0 H6 ArgsValid1) 
@@ -647,10 +635,8 @@ Proof.
       eapply external_call_mem_forward; eauto.
       eapply external_call_mem_forward; eauto.
       apply (external_call_well_typed _ _ _ _ _ _ _ extCall2Genv2). 
-      admit. (*admit is ok --new condition*)
-      admit. (*admit is ok --new condition*)
-      admit. (*admit is ok --new condition*)
-      admit. (*admit is ok --new condition*)
+      admit. (*admit is ok --val_valid condition*)
+      admit. (*admit is ok --val_valid new condition*)
     rewrite AftExt1 in H8. inv H8.
     exists d'. exists (c2', m2'); simpl.
     split; auto. left.  eapply plus_one.
@@ -684,7 +670,6 @@ Proof.
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1)) epts
        R _ _ _ Hfound nil _ _ _ nil _ K4 Inj).
     destruct X as [d' [c2 [iniCore2 Match]]].
-       admit. admit. (*both admits are ok - new conditions*)
     constructor.
     constructor. 
     exists d'. exists (c2,m). simpl in *.
@@ -722,7 +707,7 @@ Proof.
       exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
   (*external_step*) 
     assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok - new condition*)
+       admit. (*admit is ok - val_valid condition*)
     destruct (@Forward_simulation_inj.core_at_external _ _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1))
        epts R _ _ _ _ _ _ _ _ _ MCJ H5 ArgsValid1) 
@@ -748,7 +733,7 @@ Proof.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
     eapply external_call_well_typed; eauto. 
-      admit. admit. admit. admit. (*all 4 admits ok -new condition*)
+      admit. admit. (*both admits ok -val_valid condition*)
     rewrite AftExt1 in H7. inv H7.
     exists d'. exists (c2', m2').
     split. left. apply plus_one.
