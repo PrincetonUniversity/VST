@@ -336,6 +336,84 @@ Qed.
 
 End safety_preservation_lemmas.
 
+Section termination_preservation.
+Context  {F V G C D Z data : Type}
+         {source : CoreSemantics (Genv.t F V) C mem}
+         {target : CoreSemantics G D mem}
+         {match_state : data -> meminj -> C -> mem -> D -> mem -> Prop}
+         {ord : data -> data -> Prop}
+         {geS : Genv.t F V}
+         {geT : G}
+         {entry_points : list (val*val*signature)}
+
+  (sim : Forward_simulation_inject source target geS geT entry_points data match_state ord)
+  (c : C)
+  (d : D)
+  (m : mem)
+  (tm: mem)
+
+  (P : val -> mem -> Prop)
+  (P_good : forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+
+  (SRC_DET : corestep_fun source)
+
+  (TGT_DET : corestep_fun target)
+  
+  (source_safe : forall n, safeN source geS P n c m)
+.
+
+Lemma termination_preservation:
+  forall cd j c' m' rv1,
+  match_state cd j c m d tm -> 
+  corestep_star source geS c m c' m' -> 
+  halted source c' = Some rv1 -> 
+  exists d' tm' rv2, 
+     corestep_star target geT d tm d' tm' 
+  /\ halted target d' = Some rv2.
+Proof.
+intros.
+destruct H0 as [n H0].
+revert cd j c m d tm H H0 source_safe.
+induction n; intros.
+simpl in H0. symmetry in H0; inv H0.
+apply (corestep_ord' sim c d m tm P) in H; auto.
+cut (@halt_match F V G C D source target P c m d tm). intro.
+unfold halt_match in H0.
+destruct H0 as [rv [trv [? [? [? [? ?]]]]]].
+exists d, tm, trv.
+split; auto.
+solve[exists O; simpl; auto].
+destruct H; auto.
+destruct H as [? [? [? [? [STEP ?]]]]].
+destruct STEP as [n STEP].
+simpl in STEP.
+destruct STEP as [c2 [m2 [STEP ?]]].
+apply corestep_not_halted in STEP.
+rewrite STEP in H1; congruence.
+simpl in H0.
+destruct H0 as [c2 [m2 [? ?]]].
+destruct sim.
+clear match_validblocks0 core_halted0 
+  core_initial0 core_at_external0 core_after_external0.
+generalize H0 as H0'; intro.
+eapply core_diagram0 in H0; eauto.
+destruct H0 as [d2 [tm2 [cd2 [j2 [? [? [? ?]]]]]]].
+assert (SAFE: forall n, safeN source geS P n c2 m2). 
+  intros n0.
+  solve[eapply safe_corestep_forward in H0'; eauto].
+specialize (IHn cd2 j2 c2 m2 d2 tm2 H4 H2 SAFE).
+destruct IHn as [d' [tm' [trv [? ?]]]].
+exists d', tm', trv.
+split; auto.
+eapply corestep_star_trans; eauto.
+destruct H5.
+destruct H5 as [n0 H5].
+solve[exists (S n0); auto].
+destruct H5; auto.
+Qed.
+
+End termination_preservation.
+
 Local Open Scope nat_scope.
 
 Section safety_preservation.
@@ -350,7 +428,7 @@ Variable entry_points : list (val*val*signature).
 Variable (SRC_DET : corestep_fun source).
 Variable (TGT_DET : corestep_fun target).
 
-Lemma safety_preservation_less_extcalls:
+Lemma safety_preservation:
   forall
   (sim : Forward_simulation_inject source target geS geT entry_points data match_state ord)
   (c : C)
