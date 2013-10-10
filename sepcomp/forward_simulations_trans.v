@@ -415,11 +415,11 @@ Proof. intros.
            (*halted*)
   intros. rename st2 into c3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
   apply (core_halted12 _ _ _ _ MC12) in H0.
-  apply (core_halted23 _ _ _ _ _ _ MC23) in H0. assumption. assumption.
+  apply (core_halted23 _ _ _ _ _ _ MC23) in H0. assumption. 
            (*atexternal*)
   intros. rename st2 into st3. destruct cd as [[d12 cc2] d23]. destruct H as [st2 [X [MC12 MC23]]].
   apply (core_at_external12 _ _ _ _ _ _ MC12) in H0. destruct H0.
-  apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in H. assumption. assumption.
+  apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in H. assumption. 
            (*after_external*)
   intros. rename st2 into st3. destruct cd as [[d12 cc2] d23]. destruct H as [st2 [X [MC12 MC23]]].
   destruct (core_at_external12 _ _ _ _ _ _ MC12 H0)  as [AtExt2 _].
@@ -427,8 +427,9 @@ Proof. intros.
   assert (HRet1:   Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eauto.
   destruct (core_after_external12 _ _ _ _ _ _ _ MC12 H0 AtExt2 HVals1 HRet1) 
     as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
-  destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ MC23 AtExt2 H1 H2 H3 H4 H5 H6 H7 H8 H9 
-    H10 H11 H12) as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
+  destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ MC23 AtExt2 
+    H1 H2 H3 H4 H5 H6 H7 H8 H9)
+    as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
   rewrite AftExt22 in AftExt2. inv AftExt2.
   exists c1'. exists c3'. exists (d12',Some c2',d23'). 
   split; trivial. split; trivial. exists c2'. split; trivial. split; trivial.
@@ -632,10 +633,12 @@ Proof. intros.
                     destruct (core_after_external12 _ _ _ _ _ _ _ MC12 H1 AtExt2 HVals1 HRet1) as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
                     assert (PG2: meminj_preserves_globals g2 j). 
                     admit. (*meminj_preserves_globals*)
-                destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ _ H MC23 AtExt2 H2 PG2 H4
-                       H5 H6 H7 H8 H9 H10 H11 H12 H13 H14) as [d23' [c22' [c3' [AftExt22 [AftExt3 MS23']]]]].
+                    destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+                        H MC23 AtExt2 PG2 H3 H4 H5 H6 H7 H8 H9 H10 H11) 
+                    as [d23' [c22' [c3' [AftExt22 [AftExt3 MS23']]]]].
                     rewrite AftExt22 in AftExt2. inv AftExt2.
-                    exists (d12',Some c2',d23'). exists c1'. exists c3'. split; trivial. split; trivial. exists c2'. auto.
+                    exists (d12',Some c2',d23'). exists c1'. exists c3'. 
+                    split; trivial. split; trivial. exists c2'. auto.
 Qed.
 End EQINJ.
 
@@ -818,27 +821,31 @@ Proof. intros.
              (*halted*)
                     intros. rename st2 into c3.  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst. 
                     apply (core_halted12 _ _ _ _ _ _ MC12) in H0. destruct H0 as [v2 [LD [SH2 Ext]]].
-                    apply (core_halted23 _ _ _ _ MC23) in SH2. exists v2. split; trivial. split; trivial. assumption.
+                    apply (core_halted23 _ _ _ _ MC23) in SH2. exists v2. split; trivial. split; trivial. 
              (*atexternal*)
                     intros. rename st2 into st3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0. 
-                      destruct H0 as [vals2 [Ext [LD [HT2 [AtExt2 VV2]]]]].
+                      destruct H0 as [vals2 [Ext [LD [HT2 AtExt2]]]].
                       destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2). 
-                      exists vals2. split; trivial. split; trivial. split; trivial. split; assumption.  
-                    assumption.
+                      exists vals2. intuition.
              (*after_external*)
-                    intros. rename st2 into st3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
-                     rename vals2 into vals3. rename ret2 into ret3.
-                    assert (X:=core_at_external12 _ _ _ _ _ _ _ _ MC12 H0 H1). destruct X as [vals2 [Ext [LD [HT2 [AtExt2 VV2]]]]]. 
-                    assert (X:=core_at_external23 _ _ _ _ _ _ MC23 AtExt2). 
-                    destruct X as [AtExt3 HTargs2]. rewrite AtExt3 in H2. inv H2.
-                    destruct (core_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ _ MC12 H0 H1 AtExt2
-                         LD HT2 H5 H6 H7 H8 H9 H10 H11 H12) as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
-                    destruct (core_after_external23 _ _ _ _ _ _ _ MC23 AtExt2 AtExt3 HT2 H10) 
-                         as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
+                    intros. rename st2 into st3. destruct cd as [[d12 cc2] d23].
+                    destruct H as [c2 [X [MC12 MC23]]]; subst.
+                    rename vals2 into vals3. rename ret2 into ret3.
+                    destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H0)
+                       as [vals2 [Ext [LD [HT2 AtExt2]]]]. 
+                    destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2) 
+                       as [AtExt3 HTargs2].
+                    rewrite AtExt3 in H1. inv H1.
+                    destruct (core_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ _ 
+                         MC12 H0 AtExt2 LD HT2 H4 H5 H6 H7 H8 H9)
+                      as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
+                    destruct (core_after_external23 _ _ _ _ _ _ _
+                         MC23 AtExt2 AtExt3 HT2 H9) 
+                      as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
                     rewrite AftExt22 in AftExt2. inv AftExt2.
                     exists c1'. exists c3'. exists (d12',Some c2', d23'). 
-                    split; trivial. split; trivial. exists c2'. split; trivial. split; trivial.
+                    split; trivial. split; trivial. exists c2'. intuition.
 Qed.       
 End EXTEQ.
 
@@ -1021,50 +1028,49 @@ Proof. intros.
   intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
   apply (core_halted12 _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [v2 [V12 [SH2 [Ext12 VV2]]]].
+  destruct H0 as [v2 [V12 [SH2 Ext12]]].
   apply (core_halted23 _ _ _ _ _ _ MC23) in SH2; try assumption. 
-  destruct SH2 as [v3 [V23 [SH3 [Ext23 VV3]]]].
+  destruct SH2 as [v3 [V23 [SH3 Ext23]]].
   exists v3. split. eapply Val.lessdef_trans; eassumption.
   split; trivial. 
-  split. eapply extends_trans; eassumption.
-  assumption.
+  eapply extends_trans; eassumption.
  (*atexternal*)
-  intros. rename st2 into st3. rename m2 into m3. destruct cd as [[d12 cc2] d23]. 
+  intros. rename st2 into st3. rename m2 into m3.
+  destruct cd as [[d12 cc2] d23]. 
   destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
   apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [vals2 [Ext12 [LD12 [HT2 [AtExt2 VV2]]]]].
+  destruct H0 as [vals2 [Ext12 [LD12 [HT2 AtExt2]]]].
   apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-  destruct AtExt2 as [vals3 [Ext23 [LS23 [HT3 [AtExt3 VV3]]]]]. 
+  destruct AtExt2 as [vals3 [Ext23 [LS23 [HT3 AtExt3]]]]. 
   exists vals3. split. eapply extends_trans; eassumption.
   split. eapply forall_lessdef_trans; eassumption.
-  split. assumption.
-  split; assumption.
+  solve[intuition].
  (*after_external*)
   intros. rename st2 into st3. rename m2 into m3. rename m2' into m3'.  
   rename vals2 into vals3. rename ret2 into ret3. 
-  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+  destruct cd as [[d12 cc2] d23].
+  destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
   destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H0) 
-    as [vals2 [Ext12 [ValsLD12 [HTVals2 [AtExt2 VV2]]]]]; try assumption.
+    as [vals2 [Ext12 [ValsLD12 [HTVals2 AtExt2]]]]; try assumption.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2) 
-    as [vals33 [Ext23 [ValsLD23 [HTVals3 [AtExt3 VV3]]]]]; try assumption.
-  rewrite AtExt3 in H2. inv H2.
+    as [vals33 [Ext23 [ValsLD23 [HTVals3 AtExt3]]]]; try assumption.
+  rewrite AtExt3 in H1. inv H1.
   assert (HTR1: Val.has_type ret1 (proj_sig_res ef_sig)). eapply lessdef_hastype; eassumption.
   assert (UnchOn3 :  Mem.unchanged_on (loc_out_of_bounds m2) m3 m3').
-  split; intros; eapply H7; trivial.
-  eapply extends_loc_out_of_bounds; eassumption.
-  eapply extends_loc_out_of_bounds; eassumption. 
-  destruct (MEMAX.interpolate_EE _ _ Ext12 _ H5 _ Ext23 _ H6 H9 H7)
+    split; intros; eapply H6; trivial.
+    eapply extends_loc_out_of_bounds; eassumption.
+    eapply extends_loc_out_of_bounds; eassumption. 
+  destruct (MEMAX.interpolate_EE _ _ Ext12 _ H4 _ Ext23 _ H5 H8 H6)
     as [m2' [Fwd2 [Ext12' [Ext23' UnchOn2]]]].
-  assert (ValV2': val_valid ret1 m2'). eapply (extends_valvalid _ _ Ext12'). apply H11.
-  destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H0 H1 AtExt2 ValsLD12
-    HTVals2 H5 Fwd2 UnchOn2 (Val.lessdef_refl _) Ext12' HTR1 H11 ValV2') 
-  as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]].
-  destruct (core_after_external23 _ _ _ _ _ _ _ _ ret1 ret3 _ _ _ MC23 AtExt2 VV2 AtExt3
-    ValsLD23 HTVals3 Fwd2 H6 UnchOn3 H8 Ext23' H10 ValV2' H12)
-  as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]].
+  destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H0 
+      AtExt2 ValsLD12 HTVals2 H4 Fwd2 UnchOn2 (Val.lessdef_refl _) Ext12' HTR1)
+    as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]].
+  destruct (core_after_external23 _ _ _ _ _ _ _ _ ret1 ret3 _ _ _ MC23 AtExt2 
+      AtExt3 ValsLD23 HTVals3 Fwd2 H5 UnchOn3 H7 Ext23' H9)
+    as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]].
   rewrite AftExt22 in AftExt2. inv AftExt2.
   exists c1'. exists c3'. exists (d12',Some c2', d23'). split; trivial. split; trivial.
-  exists c2'. exists m2'. split; trivial. split; trivial.
+  exists c2'. exists m2'. intuition.
 Qed.
 
 End EXTEXT.
@@ -1288,58 +1294,58 @@ Proof. intros.
                     intros. rename c2 into c3. rename m2 into m3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_halted12 _ _ _ _ _ _ MC12) in H0; try assumption. 
-                    destruct H0 as [v2 [LD12 [SH2 [Ext12 VV2]]]].
+                    destruct H0 as [v2 [LD12 [SH2 Ext12]]].
                     apply (core_halted23 _ _ _ _ _ _ _ MC23) in SH2; try assumption. 
-                    destruct SH2 as [v3 [InjV23 [SH3 [InjM23 VV3]]]].
+                    destruct SH2 as [v3 [InjV23 [SH3 InjM23]]].
                     exists v3. split. eapply val_lessdef_inject_compose; eassumption.
-                          split. trivial. 
                           split; trivial. 
                           eapply Mem.extends_inject_compose; eassumption.
              (*atexternal*)
                     intros. rename st2 into st3. rename m2 into m3.
-                    destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    destruct cd as [[d12 cc2] d23].
+                    destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-                    destruct H0 as [vals2 [Ext12 [LD12 [HTVals2 [AtExt2 VV2]]]]].
+                    destruct H0 as [vals2 [Ext12 [LD12 [HTVals2 AtExt2]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-                    destruct AtExt2 as [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 [AtExt3 VV3]]]]]].
+                    destruct AtExt2 as [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 AtExt3]]]]].
                     split. eapply Mem.extends_inject_compose; eassumption.
                     split. admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) j  from meminj_preserves_globals (Genv.globalenv P2) j for any j*)  
                     exists vals3. 
-                    split. eapply forall_val_lessdef_inject_compose; eassumption. 
-                    split. assumption.
+                    split. eapply forall_val_lessdef_inject_compose; eassumption.
                     split; assumption.
              (*after_external*) 
                     clear core_diagram12 core_diagram23 core_initial12 core_initial23
                           core_halted12 core_halted23.
-                    intros. rename st2 into st3. rename m2 into m3. rename ret2 into ret3. rename m2' into m3'. 
-                    destruct cd as [[d12 cc2] d23]. destruct H0 as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    intros. rename st2 into st3. rename m2 into m3.
+                    rename ret2 into ret3. rename m2' into m3'. 
+                    destruct cd as [[d12 cc2] d23].
+                    destruct H0 as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H1)  as 
-                       [vals2 [Ext12 [LDVals12 [HTVals2 [AtExt2 VV2]]]]]; try assumption; clear core_at_external12.
+                       [vals2 [Ext12 [LDVals12 [HTVals2 AtExt2]]]]; try assumption; clear core_at_external12.
                     destruct (core_at_external23 _ _ _ _ _ _ _ _ _  MC23 AtExt2)  as 
-                       [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 [AtExt3 VV3]]]]]]; try assumption; clear core_at_external23.
+                       [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 AtExt3]]]]]; try assumption; clear core_at_external23.
                     assert (HVals1:  Forall2 Val.has_type vals1 (sig_args ef_sig)). 
                         eapply forall_lessdef_hastype; eassumption.
                     assert (HRet1:   Val.has_type ret1 (proj_sig_res ef_sig)). 
                         eapply valinject_hastype; eassumption.
                     assert (UnchOn3 : Mem.unchanged_on (loc_out_of_reach j m2) m3 m3').
-                        split; intros; eapply H11; trivial.
+                        split; intros; eapply H10; trivial.
                                  eapply extends_loc_out_of_reach; eassumption.
                                  intros.  eapply extends_loc_out_of_reach; eassumption.
                     assert (Sep23: inject_separated j j' m2 m3).
-                         intros b. intros. destruct (H5 _ _ _ H0 H15). split; trivial. 
-                         intros N. apply H16.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
-                    destruct (MEMAX.interpolate_EI _ _ _ Ext12 H8 _ _ Inj23 _ H10 _ H6 H11 H4 H5 H9)
+                         intros b. intros. destruct (H4 _ _ _ H0 H12). split; trivial. 
+                         intros N. apply H13.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
+                    destruct (MEMAX.interpolate_EI _ _ _ Ext12 H7 _ _ Inj23 _ H9 _ H5 H10 H3 H4 H8)
                        as [m2' [Fwd2' [Ext12' [Inj23' [UnchOn2 UnchOn2j]]]]].
-                    assert (ValV2': val_valid ret1 m2'). eapply (extends_valvalid _ _ Ext12'). apply H13. 
-                    destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H1 H2 AtExt2 
-                              LDVals12 HTVals2 H8 Fwd2' UnchOn2 (Val.lessdef_refl _) Ext12' HRet1) 
+                    destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H1 AtExt2 
+                              LDVals12 HTVals2 H7 Fwd2' UnchOn2 (Val.lessdef_refl _) Ext12' HRet1) 
                          as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]]; try assumption; clear core_after_external12.
                     destruct (core_after_external23 _ j j' _ _ _ _ vals2 ret1 _ _ _ ret3 _ Inj23 
-                              MC23 AtExt2 VV2 PG2 H4 Sep23 Inj23' H7 Fwd2' UnchOn2j H10 UnchOn3 H12)
+                              MC23 AtExt2 PG2 H3 Sep23 Inj23' H6 Fwd2' UnchOn2j H9 UnchOn3 H11)
                          as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]]; try assumption; clear core_after_external23.
                     rewrite AftExt22 in AftExt2. inv AftExt2.
                     exists (d12',Some c2', d23'). exists c1'. exists c3'. split; trivial. split; trivial.
-                    exists c2'. exists m2'. split; trivial. split; trivial.
+                    exists c2'. exists m2'. intuition.
 Qed.
 End EXTINJ.
 
@@ -1544,26 +1550,26 @@ Proof. intros.
                     intros. rename st2 into st3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 [AtExt2 VV2]]]]]].
+                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]].
                     destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2); try assumption.
                     split; trivial.
                     split; trivial.
-                    exists vals2. split; trivial. split; trivial. split; trivial.
+                    exists vals2. intuition.
              (*after_external*)
                     intros. rename st2 into st3.
                     destruct cd as [[d12 cc2] d23]. destruct H0 as [c2 [X [MC12 MC23]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 H1) as 
-                       [MInj12 [PG1j [vals2 [VInj12 [HT2 [AtExt2 VV2]]]]]]; try assumption.
+                       [MInj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]]; try assumption.
                     destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2) as [AtExt3 HTargs2]; try assumption. 
                     destruct (core_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ _ _ MInj12 MC12 H1 
-                               H2 PG1j H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14)
+                               PG1j H3 H4 H5 H6 H7 H8 H9 H10 H11)
                              as [d12' [c1' [c2' [AftExt1 [AftExt2 MS12']]]]].
-                    destruct (core_after_external23 _ _ _ _ _ _ _ MC23 AtExt2 AtExt3 HT2 H12) 
+                    destruct (core_after_external23 _ _ _ _ _ _ _ MC23 AtExt2 AtExt3 HT2 H11) 
                         as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
                     rewrite AftExt22 in AftExt2. inv AftExt2.
                     exists (d12',Some c2',d23'). exists c1'. exists c3'.
                     split; trivial. split; trivial.
-                    exists c2'. split; trivial. split; trivial.
+                    exists c2'. intuition.
 Qed.
 End INJEQ.
 
@@ -1771,51 +1777,55 @@ Proof. intros.
                     intros. rename c2 into c3. rename m2 into m3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-                    destruct H0 as [v2 [V12 [SH2 [MInj12 VV2]]]].
+                    destruct H0 as [v2 [V12 [SH2 MInj12]]].
                     apply (core_halted23 _ _ _ _ _ _ MC23) in SH2; try assumption. 
-                    destruct SH2 as [v3 [V23 [SH3 [Ext23 VV3]]]].
+                    destruct SH2 as [v3 [V23 [SH3 Ext23]]].
                     exists v3. split. eapply valinject_lessdef; eassumption. 
                        split; trivial. 
-                       split. eapply Mem.inject_extends_compose; eassumption.
-                       assumption.
+                       eapply Mem.inject_extends_compose; eassumption.
              (*atexternal*)
                     intros. rename st2 into st3. rename m2 into m3. 
-                    destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    destruct cd as [[d12 cc2] d23]. 
+                    destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption.
-                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 [AtExt2 VV2]]]]]].
+                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-                    destruct AtExt2 as [vals3 [Mext23 [LD23 [HT3 [AtExt3 VV3]]]]].
+                    destruct AtExt2 as [vals3 [Mext23 [LD23 [HT3 AtExt3]]]].
                     split. eapply Mem.inject_extends_compose; eassumption.
                     split; trivial. 
-                    exists vals3.  split. eapply forall_valinject_lessdef; eassumption.
-                        split. assumption.
+                    exists vals3.
+                        split. eapply forall_valinject_lessdef; eassumption.
                         split; assumption.
              (*after_external*)
                     clear core_diagram12 core_diagram23 core_initial12 core_initial23
                           core_halted12 core_halted23.
-                    intros. rename st2 into st3. rename m2 into m3. rename m2' into m3'. rename ret2 into ret3. 
-                    destruct cd as [[d12 cc2] d23]. destruct H0 as [c2 [m2 [X [MC12 MC23]]]]; subst.
+                    intros. rename st2 into st3. rename m2 into m3.
+                    rename m2' into m3'. rename ret2 into ret3. 
+                    destruct cd as [[d12 cc2] d23].
+                    destruct H0 as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 H1) 
-                         as [Minj12 [PG1j [vals2 [ValsLD12 [HTVals2 [AtExt2 VV2]]]]]]; try assumption; clear core_at_external12.
+                         as [Minj12 [PG1j [vals2 [ValsLD12 [HTVals2 AtExt2]]]]]; try assumption; clear core_at_external12.
                     destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2)
-                         as [vals3 [MExt23 [ValsLD23 [HTVals3 [AtExt3 VV3]]]]]; try assumption; clear core_at_external23.
+                         as [vals3 [MExt23 [ValsLD23 [HTVals3 AtExt3]]]]; try assumption; clear core_at_external23.
                     assert (Sep12: inject_separated j j' m1 m2).
-                         intros b; intros. destruct (H5 _ _ _ H0 H15). split; trivial.
-                            intros N. apply H17. inv MExt23. unfold Mem.valid_block. rewrite <- mext_next. apply N.
+                         intros b; intros. destruct (H4 _ _ _ H0 H12). split; trivial.
+                            intros N. apply H14. inv MExt23. unfold Mem.valid_block. rewrite <- mext_next. apply N.
                     assert (UnchLOOB23_3': Mem.unchanged_on (loc_out_of_bounds m2) m3 m3'). 
                          eapply inject_LOOR_LOOB; eassumption.
-                    destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H8 _ H4 Sep12 H9 _ _ MExt23 H10 H11 H6 UnchLOOB23_3')
+                    destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H7 _ H3 Sep12 H8 _ _ MExt23 
+                              H9 H10 H5 UnchLOOB23_3')
                           as [m2' [Fwd2' [MExt23' [Minj12' UnchLOORj1_2]]]].
-                    assert (val_valid ret3 m2'). eapply (extends_valvalid _ _ MExt23'). apply H14.
-                    destruct (core_after_external12 _ j j' _ _ _ _ _ ret1 m1' _ m2' ret3 _ Minj12 MC12 H1 H2 PG1j H4 
-                                         Sep12 Minj12' H7 H8 H9 Fwd2' UnchLOORj1_2 H12 H13 H0)
+                    destruct (core_after_external12 _ j j' _ _ _ _ _ ret1 m1' _ m2' ret3 _ 
+                                  Minj12 MC12 H1 PG1j H3 
+                                  Sep12 Minj12' H6 H7 H8 Fwd2' UnchLOORj1_2 H11)
                             as  [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]]; clear core_after_external12.
-                    destruct (core_after_external23 _ _ _ _ _ _ _ _ ret3 ret3 _ _ _ MC23 AtExt2 VV2 AtExt3 ValsLD23
-                                    HTVals3 Fwd2'  H10 UnchLOOB23_3' (Val.lessdef_refl _) MExt23' H12 H0 H14)
+                    destruct (core_after_external23 _ _ _ _ _ _ _ _ ret3 ret3 _ _ _ 
+                                  MC23 AtExt2 AtExt3 ValsLD23
+                                  HTVals3 Fwd2' H9 UnchLOOB23_3' (Val.lessdef_refl _) MExt23' H11)
                             as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]]; clear core_after_external23.
                     rewrite AftExt22 in AftExt2. inv AftExt2.
                     exists (d12',Some c2', d23'). exists c1'. exists c3'. split; trivial. split; trivial.
-                    exists c2'. exists m2'.  split; trivial. split; assumption.
+                    exists c2'. exists m2'. intuition.
 Qed.
 End INJEXT.
 
@@ -2126,21 +2136,20 @@ Proof. intros.
   intros. rename c2 into c3. rename m2 into m3.  
   destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [j12 [j23 [X [Y [MC12 MC23]]]]]]]; subst. 
   apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [v2 [ValsInj12 [SH2 [Minj12 VV2]]]].
+  destruct H0 as [v2 [ValsInj12 [SH2 Minj12]]].
   apply (core_halted23 _ _ _ _ _ _ _ MC23) in SH2; try assumption. 
-  destruct SH2 as [v3 [ValsInj23 [SH3 [MInj23 VV3]]]].
+  destruct SH2 as [v3 [ValsInj23 [SH3 MInj23]]].
   exists v3. split. apply (val_inject_compose _ _ _ _ _ ValsInj12 ValsInj23).
   split. trivial. 
-  split. eapply Mem.inject_compose; eassumption.
-  assumption.
+  eapply Mem.inject_compose; eassumption.
 (*atexternal*)
   intros. rename st2 into st3. rename m2 into m3. 
   destruct cd as [[d12 cc2] d23]. 
   destruct H as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
   apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 [AtExt2 VV2]]]]]].
+  destruct H0 as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 AtExt2]]]]].
   apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-  destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 [AtExt3 VV3]]]]]].
+  destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 AtExt3]]]]].
   split. eapply Mem.inject_compose; eassumption.
   split. 
   admit. 
@@ -2148,46 +2157,45 @@ Proof. intros.
           from meminj_preserves_globals g1 j1
           and meminj_preserves_globals g2 j2*)
   exists vals3. 
-  split.  eapply forall_val_inject_compose; eassumption.
-  split; try assumption.
+  split. eapply forall_val_inject_compose; eassumption.
   split; try assumption.
  (*after_external*) clear core_diagram12 core_initial12 core_halted12 
   core_diagram23 core_initial23 core_halted23. 
-  intros. rename st2 into st3. rename m2 into m3. rename ret2 into ret3. rename m2' into m3'. 
+  intros. rename st2 into st3. rename m2 into m3.
+  rename ret2 into ret3. rename m2' into m3'. 
   destruct cd as [[d12 cc2] d23]. 
   destruct H0 as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
-  rename H1 into AtExt1. rename H2 into VV1.
-  destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExt1 VV1) 
-   as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 [AtExt2 VV2]]]]]].
-  destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2 VV2) 
-   as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 [AtExt3 V3V]]]]]].
+  rename H1 into AtExt1.
+  destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExt1) 
+   as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 AtExt2]]]]].
+  destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2) 
+   as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 AtExt3]]]]].
   clear core_at_external12 core_at_external23.
   assert (HVals1:  Forall2 Val.has_type vals1 (sig_args ef_sig)). 
   eapply forall_valinject_hastype; eassumption.
   assert (HRet1: Val.has_type ret1 (proj_sig_res ef_sig)). 
   eapply valinject_hastype; eassumption.
-  destruct (MEMAX.interpolate_II _ _ _ MInj12 _ H8 _ _ MInj23 _ H10 _ H6 H4 H5 H9 H11)
+  destruct (MEMAX.interpolate_II _ _ _ MInj12 _ H7 _ _ MInj23 _ H9 _ H5 H3 H4 H8 H10)
     as [m2' [j12' [j23' [X [Incr12 [Incr23 [MInj12' [Fwd2 
       [MInj23' [Unch22 [Sep12 [Sep23 [Unch222' Unch2233']]]]]]]]]]]]]. 
   subst.
   assert (exists ret2, val_inject j12' ret1 ret2 /\ val_inject j23' ret2 ret3 /\
-    Val.has_type ret2 (proj_sig_res ef_sig) /\ val_valid ret2 m2'). 
-  apply val_inject_split in H7. destruct H7 as [ret2 [injRet12 injRet23]]. 
-  exists ret2. split; trivial. split; trivial. 
-  split. eapply valinject_hastype; eassumption.
-  eapply inject_valvalid; eassumption. 
-  destruct H0 as [ret2 [injRet12 [injRet23 [HasTp2 ValV2]]]].
+    Val.has_type ret2 (proj_sig_res ef_sig)). 
+    apply val_inject_split in H6. destruct H6 as [ret2 [injRet12 injRet23]]. 
+    exists ret2. split; trivial. split; trivial. 
+    eapply valinject_hastype; eassumption.
+  destruct H0 as [ret2 [injRet12 [injRet23 HasTp2]]].
   assert (Unch111': Mem.unchanged_on (loc_unmapped j1) m1 m1').
-  split; intros; apply H9; unfold compose_meminj, loc_unmapped in *. 
-  rewrite H0. trivial. trivial. 
-  intros. rewrite H0. trivial. trivial.
-  specialize (core_after_external12 _ _ j12' _ _ _ _ _ ret1 m1' m2 m2' ret2 _ MInj12 MC12 AtExt1
-    VV1 PGj1 Incr12 Sep12 MInj12' injRet12 H8 Unch111' Fwd2 Unch22 HasTp2 H13 ValV2).
+    split; intros; apply H8; unfold compose_meminj, loc_unmapped in *. 
+    rewrite H0. trivial. trivial. 
+    intros. rewrite H0. trivial. trivial.
+  specialize (core_after_external12 _ _ j12' _ _ _ _ _ ret1 m1' m2 m2' ret2 _ 
+     MInj12 MC12 AtExt1 PGj1 Incr12 Sep12 MInj12' injRet12 H7 Unch111' Fwd2 
+     Unch22 HasTp2).
   destruct core_after_external12 as [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]].
 
-  specialize (core_after_external23 _ _ j23' _ _ _ _ vals2 ret2 m2' _ m3' ret3 _ MInj23 MC23 
-    AtExt2 VV2 PGj2 Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H10 Unch2233' H12 
-    ValV2 H14).
+  specialize (core_after_external23 _ _ j23' _ _ _ _ vals2 ret2 m2' _ m3' ret3 _ 
+     MInj23 MC23 AtExt2 PGj2 Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H9 Unch2233' H11).
   destruct core_after_external23 as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]].
   rewrite AftExt22 in AftExt2. inv AftExt2.
   exists (d12', Some c2', d23'). exists c1'. exists c3'.

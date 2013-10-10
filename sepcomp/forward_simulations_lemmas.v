@@ -190,8 +190,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
           Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args sig) /\
-          at_external Sem2 st2 = Some (e,sig,vals2) /\
-          (forall v2 : val, In v2 vals2 -> val_valid v2 m2).
+          at_external Sem2 st2 = Some (e,sig,vals2).
 
   Hypothesis ext_after_external:
       forall d st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2' sig,
@@ -229,6 +228,7 @@ Hypothesis ext_simulation:
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
+
 Lemma ext_simulation_star_wf: 
   Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
@@ -243,15 +243,11 @@ Proof.
               exists c2'. exists m2'. exists st1'.  split; eauto.
    intros. destruct (match_initial_cores _ _ _ H _ _ _ _ H0 H1 H2) 
     as [c1' [c2' [MIC1 [MIC2 MC]]]].
-                 exists c1'. exists c1'. exists c2'. split; eauto.
+        exists c1'. exists c1'. exists c2'. split; eauto.
    intros. destruct H; subst.
-     destruct (ext_halted _ _ _ _ _ _ H2 H0)
+     destruct (ext_halted _ _ _ _ _ _ H1 H0)
         as [v2 [LD2 [Halted2 Ext2]]].
      exists v2. split; trivial. split; trivial.
-     split; trivial.
-     inv LD2. destruct v2; simpl in *;  trivial.
-       apply (Mem.valid_block_extends _ _ b Ext2). apply H1.
-         admit. (*need that halted values (in execution 1) are not Vundef*)
    intros. eapply ext_at_external; eauto. 
    intros. eapply ext_after_external; eauto.
 Qed.
@@ -347,7 +343,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
       exists v2, val_inject j v1 v2 /\ 
         halted Sem2 c2 = Some v2 /\
         Val.has_type v2 rty /\
-        Mem.inject j m1 m2 /\ val_valid v2 m2.
+        Mem.inject j m1 m2.
 
   Hypothesis inj_at_external: 
       forall d j st1 m1 st2 m2 e vals1 sig,
@@ -357,8 +353,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
           meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args sig) /\
-          at_external Sem2 st2 = Some (e,sig,vals2) /\
-          (forall v2 : val, In v2 vals2 -> val_valid v2 m2)).
+          at_external Sem2 st2 = Some (e,sig,vals2)).
 
   Hypothesis inj_after_external:
       forall d j j' st1 st2 m1 e vals1 (*vals2*) ret1 m1' m2 m2' ret2 sig,
@@ -426,9 +421,9 @@ Proof.
      admit. (*some type info missing destruct (inj_halted _ _ _ _ _ _ _ _ H2 H0). eauto.*)
   intros.  destruct H; subst. eapply inj_at_external; eauto.
   intros. (*destruct H0; subst.*) clear inj_simulation .
-  assert (HT1:= valinject_hastype _ _ _ H7 _ H12).
+  assert (HT1:= valinject_hastype _ _ _ H6 _ H11).
   specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _
-    H0 H1 H3 H4 H5 H6 H7 H8 H9 H10 H11 HT1 H12).
+    H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 HT1 H11).
   destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
   exists c1'. exists c1'. exists c2'. split; auto.
 Qed.

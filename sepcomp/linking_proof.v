@@ -350,11 +350,12 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
+(*
  Variable at_extern_valid:
   forall c1 m1 c2 m2 cd j ef sig args,
     match_state cd j c1 m1 c2 m2 ->
     at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.
+    forall v, In v args -> val_valid v m1.*)
 
  Import Forward_simulation_inj_exposed.
 
@@ -428,11 +429,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-   mem_lemmas.val_valid v1 m1 -> 
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
-     Mem.inject j m1 m2 /\
-     val_valid v2 m2),
+     Mem.inject j m1 m2),
   internal_compilability_invariant.
 
  Variables 
@@ -586,10 +585,10 @@ clear
 generalize MATCH12 as MATCH12'; intro.
 destruct MATCH12 as [MATCH12 XX].
 specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
-spec core_at_external0.
-solve[eapply at_extern_valid; eauto].
+(*spec core_at_external0.
+solve[eapply at_extern_valid; eauto].*)
 destruct core_at_external0 
- as [INJ [GLOB [val2 [INJ1 [HASTY [ATEXT VALVALID]]]]]].
+ as [INJ [GLOB [val2 [INJ1 [HASTY ATEXT]]]]].
 assert (RUN2': runnable csemT (PROJ_CORE E_T st2) = false).
  unfold runnable.
  solve[rewrite ATEXT; auto].
@@ -637,16 +636,15 @@ generalize H as H'; intro.
 destruct H as [H XX].
 specialize (core_at_external0
  _ _ _ _ _ _ _ _ _ 
- H H0 H1).
-destruct core_at_external0 as [? [? [vals2 [? [? [? ?]]]]]].
-rewrite <-meminj_preserves_genv2blocks in H3.
+ H H0).
+destruct core_at_external0 as [? [? [vals2 [? [? ?]]]]].
+rewrite <-meminj_preserves_genv2blocks in H2.
 eapply genvs_domain_eq_preserves in genvs_domain_eqS.
-rewrite <-genvs_domain_eqS in H3.
-rewrite meminj_preserves_genv2blocks in H3.
+rewrite <-genvs_domain_eqS in H2.
+rewrite meminj_preserves_genv2blocks in H2.
 split; auto.
 split; auto.
 exists vals2.
-split; auto.
 split; auto.
 split; auto.
 solve[exploit at_external_match; eauto].
@@ -663,22 +661,22 @@ assert (H2': exists vals2, at_external esemT st2 = Some (e, ef_sig, vals2)).
  inv core_compatS.
  apply at_external_proj in H1.
  destruct H0.
- specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1 H2).
- destruct core_at_external0 as [? [? [vals2 [? [? [? ?]]]]]].
+ specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1).
+ destruct core_at_external0 as [? [? [vals2 [? [? ?]]]]].
  exists vals2.
  solve[eapply at_external_match; eauto].
 inv core_compatS.
 apply at_external_proj in H1.
 assert (H3': meminj_preserves_globals ge_coreS j).
- rewrite <-meminj_preserves_genv2blocks in H3.
+ rewrite <-meminj_preserves_genv2blocks in H2.
  eapply genvs_domain_eq_preserves in genvs_domain_eqS.
- rewrite genvs_domain_eqS in H3.
- rewrite meminj_preserves_genv2blocks in H3.
+ rewrite genvs_domain_eqS in H2.
+ rewrite meminj_preserves_genv2blocks in H2.
  solve[auto].
 destruct H0 as [H0 XX].
 specialize (core_after_external0
  _ _ _ _ _ _ _ _ _ _ _ _ _ _
- H H0 H1 H2 H3' H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14).
+ H H0 H1 H3' H3 H4 H5 H6 H7 H8 H9 H10 H11).
 destruct H2' as [vals2 H2'].
 destruct core_after_external0 
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH]]]]].
@@ -691,13 +689,13 @@ destruct AFTER2 as [s2' [? ?]].
 exists s1', s2'; split; auto.
 split; auto.
 unfold match_states.
-rewrite H16, H18.
+rewrite H13, H15.
 split; auto.
 symmetry.
-eapply Extension.zint_invar_after_external in H17; eauto.
-rewrite <-H17.
-eapply Extension.zint_invar_after_external in H15; eauto.
-rewrite <-H15.
+eapply Extension.zint_invar_after_external in H12; eauto.
+rewrite <-H12.
+eapply Extension.zint_invar_after_external in H14; eauto.
+rewrite <-H14.
 auto.
 Qed.
 
@@ -732,11 +730,12 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Implicit Arguments match_state [].
  Variable core_ord: core_data -> core_data -> Prop.
 
+(*
  Variable at_extern_valid:
   forall c1 m1 c2 m2 cd j ef sig args,
     match_state cd j c1 m1 c2 m2 ->
     at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.
+    forall v, In v args -> val_valid v m1.*)
 
  Import Extension.
 

@@ -131,11 +131,9 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-   mem_lemmas.val_valid v1 m1 -> 
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
-     Mem.inject j m1 m2 /\
-     val_valid v2 m2),
+     Mem.inject j m1 m2),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
