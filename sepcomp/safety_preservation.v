@@ -30,7 +30,7 @@ Fixpoint safeN (n:nat) (c:C) (m:mem) : Prop :=
           exists c', exists m',
             corestep Hcore ge c m c' m' /\
             safeN n' c' m'
-        | Some i => val_valid i m /\ P i m
+        | Some i => P i m
       end
   end.
 
@@ -120,13 +120,13 @@ Qed.
 End safety.
 
 Section safety_preservation_lemmas.
-Context  {F V G C D Z data : Type}
+Context  {F V TF TV C D Z data : Type}
          {source : CoreSemantics (Genv.t F V) C mem}
-         {target : CoreSemantics G D mem}
+         {target : CoreSemantics (Genv.t TF TV) D mem}
          {match_state : data -> meminj -> C -> mem -> D -> mem -> Prop}
          {ord : data -> data -> Prop}
          {geS : Genv.t F V}
-         {geT : G}
+         {geT : Genv.t TF TV}
          {entry_points : list (val*val*signature)}
 
   (sim : Forward_simulation_inject source target geS geT entry_points data match_state ord)
@@ -245,8 +245,7 @@ Definition halt_match c m d tm :=
     halted source c = Some rv 
     /\ halted target d = Some trv
     /\ P rv m 
-    /\ P trv tm
-    /\ val_valid trv tm.
+    /\ P trv tm.
 
 Lemma corestep_ord':
   forall cd j,
@@ -263,6 +262,7 @@ intros.
 generalize H as MATCH; intro.
 apply corestep_ord in H.
 destruct H.
+{
 destruct H as [rv HALT].
 left.
 unfold halt_match.
@@ -271,21 +271,17 @@ clear match_validblocks0 core_diagram0
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd j c m d tm) in HALT; auto.
-destruct HALT as [rv' [INJ [HALT [INJ2 VAL]]]].
+destruct HALT as [rv' [INJ [HALT INJ2]]].
 exists rv, rv'.
 split; auto.
 split; auto.
 specialize (source_safe (S O)).
 simpl in source_safe.
 rewrite HALT' in source_safe.
-destruct source_safe.
-split; auto.
 split; auto.
 eapply P_good; eauto.
-specialize (source_safe (S O)).
-simpl in source_safe.
-rewrite HALT' in source_safe.
-solve[destruct source_safe; auto].
+}
+{
 destruct H as [cd' [j' [c' [m' [STEPN ?]]]]].
 destruct H as [H|H].
 destruct H as [d' [tm' [TSTEPN MATCH']]].
@@ -307,7 +303,7 @@ clear match_validblocks0 core_diagram0
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd' j' c' m' d tm) in HALT; auto.
-destruct HALT as [rv' [INJ [HALT [INJ2 VAL]]]].
+destruct HALT as [rv' [INJ [HALT INJ2]]].
 exists rv, rv'.
 split; auto.
 split; auto.
@@ -319,31 +315,21 @@ assert (H: forall n, safeN source geS P n c' m').
 specialize (H (S O)).
 simpl in H.
 rewrite HALT' in H.
-destruct H.
-split; auto.
 split; auto.
 eapply P_good; eauto.
-assert (H: forall n, safeN source geS P n c' m').
-  intro n. 
-  destruct STEPN as [n0 STEPN].
-  specialize (source_safe (n + S (S n0))). 
-  solve[eapply safe_corestepN_forward in source_safe; eauto].
-specialize (H (S O)).
-simpl in H.
-rewrite HALT' in H.
-destruct H; auto.
+}
 Qed.
 
 End safety_preservation_lemmas.
 
 Section termination_preservation.
-Context  {F V G C D Z data : Type}
+Context  {F V TF TV C D Z data : Type}
          {source : CoreSemantics (Genv.t F V) C mem}
-         {target : CoreSemantics G D mem}
+         {target : CoreSemantics (Genv.t TF TV) D mem}
          {match_state : data -> meminj -> C -> mem -> D -> mem -> Prop}
          {ord : data -> data -> Prop}
          {geS : Genv.t F V}
-         {geT : G}
+         {geT : (Genv.t TF TV)}
          {entry_points : list (val*val*signature)}
 
   (sim : Forward_simulation_inject source target geS geT entry_points data match_state ord)
@@ -377,9 +363,9 @@ revert cd j c m d tm H H0 source_safe.
 induction n; intros.
 simpl in H0. symmetry in H0; inv H0.
 apply (corestep_ord' sim c d m tm P) in H; auto.
-cut (@halt_match F V G C D source target P c m d tm). intro.
+cut (@halt_match F V _ _ C D source target P c m d tm). intro.
 unfold halt_match in H0.
-destruct H0 as [rv [trv [? [? [? [? ?]]]]]].
+destruct H0 as [rv [trv [? [? [? ?]]]]].
 exists d, tm, trv.
 split; auto.
 solve[exists O; simpl; auto].
@@ -417,13 +403,13 @@ End termination_preservation.
 Local Open Scope nat_scope.
 
 Section safety_preservation.
-Variables F V G C D Z data : Type.
+Variables F V TF TV C D Z data : Type.
 Variable source : CoreSemantics (Genv.t F V) C mem.
-Variable target : CoreSemantics G D mem.
+Variable target : CoreSemantics (Genv.t TF TV) D mem.
 Variable match_state : data -> meminj -> C -> mem -> D -> mem -> Prop.
 Variable ord : data -> data -> Prop.
 Variable geS : Genv.t F V.
-Variable geT : G.
+Variable geT : (Genv.t TF TV).
 Variable entry_points : list (val*val*signature).
 Variable (SRC_DET : corestep_fun source).
 Variable (TGT_DET : corestep_fun target).
@@ -451,13 +437,10 @@ intros.
 apply (corestep_ord' sim c d m tm P) in MATCH2; auto.
 destruct MATCH2 as [H|H].
 destruct H as [rv [rv' [H1 [H2 [H3 H4]]]]].
-rewrite H2. destruct H4.
-split; auto.
+rewrite H2; auto.
 destruct H as [cd' [j' [c' [m' [STEPN [[H1 H2]|H]]]]]].
 destruct H2 as [rv [rv' [A1 [A2 [A3 A4]]]]].
-rewrite A2.
-destruct A4.
-split; auto.
+rewrite A2; auto.
 destruct H as [d' [tm' [TSTEPN MATCH']]].
 destruct TSTEPN as [n0 TSTEPN].
 cut (halted target d = None). intros ->.
@@ -485,7 +468,6 @@ Lemma halted_safe:
   forall c m c' m' (P: val -> mem -> Prop) rv, 
   corestep_star source geS c m c' m' -> 
   halted source c = Some rv -> 
-  val_valid rv m' -> 
   P rv m' -> 
   (forall n, safeN source geS P n c m).
 Proof.
