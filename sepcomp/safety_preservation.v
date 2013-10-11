@@ -481,4 +481,27 @@ destruct TSTEPN as [d2 [tm2 [STEP ?]]].
 solve[apply corestep_not_halted in STEP; auto].
 Qed.
 
+Lemma halted_safe: 
+  forall c m c' m' (P: val -> mem -> Prop) rv, 
+  corestep_star source geS c m c' m' -> 
+  halted source c = Some rv -> 
+  val_valid rv m' -> 
+  P rv m' -> 
+  (forall n, safeN source geS P n c m).
+Proof.
+intros.
+destruct H as [n0 H].
+revert c m H H0.
+induction n0.
+simpl. intros. inv H.
+destruct n; simpl; auto.
+rewrite H0; auto.
+intros.
+simpl in H.
+destruct H as [c2 [m2 [? ?]]].
+apply corestep_not_halted in H.
+rewrite H in H0.
+congruence.
+Qed.
+
 End safety_preservation.

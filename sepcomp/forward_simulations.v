@@ -284,14 +284,21 @@ End Coop_forward_simulation_ext.
 the typing constraint of meminj_preserves_globals ge1 j
 in the at_external clause*)
 
-
 Module Forward_simulation_inj. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 G2 C2:Type}
+  Context {F1 V1 F2 V2 C1 C2:Type}
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
-          {Sem2 : CoreSemantics G2 C2 mem}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}
           {ge1: Genv.t F1 V1}
-          {ge2:G2}
-          {entry_points : list (val * val * signature)}.
+          {ge2: Genv.t F2 V2}
+          {entry_points : list (val * val * signature)}
+          (entry_points_ok : 
+            forall v1 v2 sig,
+              In (v1, v2, sig) entry_points -> 
+              exists b1 b2 f1 f2, 
+                v1 = Vptr b1 Int.zero 
+                /\ v2 = Vptr b2 Int.zero
+                /\ Genv.find_funct_ptr ge1 b1 = Some f1
+                /\ Genv.find_funct_ptr ge2 b2 = Some f2).
 
   Record Forward_simulation_inject := 
   { core_data : Type;
@@ -303,6 +310,9 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
     match_validblocks: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
                (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
+
+    match_genv: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
+          meminj_preserves_globals ge1 j; 
 
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -342,7 +352,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject j m1 m2 /\
-          meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
           at_external Sem2 st2 = Some (e,ef_sig,vals2));
@@ -373,17 +382,25 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
 
 End Forward_simulation_inject. 
 
-Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [G2] [C2]].
+Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [F2] [V2] [C2]].
 
 End Forward_simulation_inj.
 
 Module Forward_simulation_inj_exposed. Section Forward_simulation_inject. 
-  Context {F1 V1 C1 G2 C2:Type}
+  Context {F1 V1 F2 V2 C1 C2:Type}
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
-          {Sem2 : CoreSemantics G2 C2 mem}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}
           {ge1: Genv.t F1 V1}
-          {ge2:G2}
-          {entry_points : list (val * val * signature)}.
+          {ge2: Genv.t F2 V2}
+          {entry_points : list (val * val * signature)}
+          (entry_points_ok : 
+            forall v1 v2 sig,
+              In (v1, v2, sig) entry_points -> 
+              exists b1 b2 f1 f2, 
+                v1 = Vptr b1 Int.zero 
+                /\ v2 = Vptr b2 Int.zero
+                /\ Genv.find_funct_ptr ge1 b1 = Some f1
+                /\ Genv.find_funct_ptr ge2 b2 = Some f2).
   Variables (core_data: Type)
             (match_state: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
             (core_ord: core_data -> core_data -> Prop).
@@ -465,7 +482,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
 
 End Forward_simulation_inject. 
 
-Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [G2] [C2]].
+Implicit Arguments Forward_simulation_inject [[F1] [V1] [C1] [F2] [V2] [C2]].
 
 End Forward_simulation_inj_exposed.
 
@@ -483,7 +500,7 @@ Inductive core_sim G1 G2 entrypoints:Type :=
                     _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           core_sim G1 G2 entrypoints
 | core_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
-                    _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+                    _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           core_sim G1 G2 entrypoints.
 End Core_sim.
 
@@ -500,7 +517,7 @@ Inductive coop_sim G1 G2 entrypoints:Type :=
                     _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           coop_sim G1 G2 entrypoints
 | coop_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
-                    _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+                    _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           coop_sim G1 G2 entrypoints.
 End Coop_sim.
 

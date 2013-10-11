@@ -45,25 +45,6 @@ Require Import sepcomp.compiler_correctness.
 
 Require Import sepcomp.Coqlib2. 
 
-Lemma init_mem_valid_genv: forall (F V : Type) (p : program F V) m,
-  list_norepet (prog_defs_names p) ->
-  Genv.init_mem p = Some m -> valid_genv (Genv.globalenv p) m. 
-Proof. intros. unfold valid_genv; intros. simpl in *.
-
-  assert (ZZ:= Genv.find_symbol_inversion _ _ H1).
-  assert (exists z, In (i,z) (prog_defs p)). clear - ZZ. 
-       destruct p. unfold prog_defs_names in ZZ. unfold AST.prog_defs in *.
-       destruct (List.in_map_iff fst  prog_defs i) as [A _]. destruct (A ZZ) as [z [AA BB]].
-            subst. exists (snd z). destruct z. simpl in *. apply BB.
-  destruct H2 as [z Hz]. destruct z.
-      destruct (Genv.find_funct_ptr_exists _ _ _ H Hz) as [bb [Hb1 Hb2]].
-         rewrite Hb1 in H1. inv H1.
-         eapply Genv.find_funct_ptr_not_fresh. apply H0. apply Hb2.
-      destruct (Genv.find_var_exists _ _ _ H Hz) as [bb [Hb1 Hb2]].
-         rewrite Hb1 in H1. inv H1.
-         eapply Genv.find_var_info_not_fresh. apply H0. apply Hb2.
-Qed.
-
 Section CoreSem_to_semantics.
   Variables (F C V:Type).
   Let genv  := Genv.t F V.
@@ -279,12 +260,9 @@ Proof.
     (*case core_step_star*) right. destruct H1. split; auto.  
         apply corestep_star_star_step; eauto.
   (*external_step*) 
-    assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok -  a) val_valid will soon be eliminated b) this condition is new in our development, 
-                 so obviously violates backwards compatibility*)
     destruct (@Forward_simulation_ext.core_at_external _ _ _ _ Sem1 Sem2 
-      (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ H2 H8 ArgsValid1) 
-      as [args2 [Mextends [lessArgs [TpArgs2 [AtExt2 ArgsVaild2]]]]].
+      (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ H2 H8) 
+      as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
     assert (EXT:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H9 Mextends 
                (forall_lessdef_val_listless _ _ lessArgs)).
     destruct EXT as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].
@@ -296,7 +274,7 @@ Proof.
     clear extCall2.
     assert (DD := @Forward_simulation_ext.core_after_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ 
-      ret ret2 m1' m2' _ H2 H8 ArgsValid1 AtExt2 lessArgs TpArgs2).
+      ret ret2 m1' m2' _ H2 H8 AtExt2 lessArgs TpArgs2).
     destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]].
     eapply external_call_mem_forward; eauto.
     eapply external_call_mem_forward; eauto.
@@ -304,8 +282,6 @@ Proof.
     assumption.
     assumption.
     apply (external_call_well_typed _ _ _ _ _ _ _ extCall2Genv2). 
-       admit. admit. (*both admits are ok - (val_valid's) this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
     rewrite AftExt1 in H10. inv H10.
     exists d'. exists (c2', m2'); simpl.
     split; auto. left.  eapply plus_one.
@@ -353,7 +329,6 @@ Proof.
     destruct H1 as [j [InjJ MCJ]]; simpl in *.
     destruct (Forward_simulation_inj.core_halted R _ _ _ _ _ _ _ MCJ H2) 
       as [r2 [InjR [SH2 InjM]]].
-    solve[simpl; auto].
     inv InjR. assumption.
   (*diagram*) 
     clear GenvInit1 GenvInit2.
@@ -373,12 +348,9 @@ Proof.
       apply corestep_star_star_step; eauto.
       exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
   (*external_step*) 
-    assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok - (val_valid) this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
     destruct (@Forward_simulation_inj.core_at_external _ _ _ _ _ Sem1 Sem2 
-      (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ _ MCJ H7 ArgsValid1) 
-     as[INJ [jPG [args2 [LD [TP [AtExt2 ArgsValid2]]]]]].
+      (Genv.globalenv P1) (Genv.globalenv P2) epts R _ _ _ _ _ _ _ _ _ MCJ H7) 
+     as[INJ [jPG [args2 [LD [TP AtExt2]]]]].
     apply forall_inject_val_list_inject in LD.
     assert (ZZ:= @external_call_mem_inject ef  _ _ 
       (Genv.globalenv P1) _ _ _ _ _ j _ _ jPG H8 INJ LD).
@@ -393,15 +365,13 @@ Proof.
       (Genv.globalenv P1) (Genv.globalenv P2) epts R i j).
     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H8).
     assert (RetInjOpt: val_inject_opt j' (Some ret) (Some ret2)) by auto.
-    destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 ArgsValid1 jPG InjJ' Sep' MInj2 RetInjOpt) 
+    destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H7 jPG InjJ' Sep' MInj2 RetInjOpt) 
       as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
     eapply external_call_well_typed; eauto. 
-       admit. admit. (*both admits are ok - (val_valid) this condition is new in our development, 
-                 so obvously violates backwards compatibility*)
     rewrite AftExt1 in H9. inv H9.
     exists d'. exists (c2', m2').
     split. left. apply plus_one.
@@ -612,16 +582,15 @@ Proof.
     (*case core_step_star*) right. destruct H. split; auto.  
         apply corestep_star_star_step; eauto.
   (*external_step*) 
-    assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-      admit. (*admit is ok -- val_valid soon to be eliminated*)
      destruct (@Forward_simulation_ext.core_at_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1)) 
-      epts R _ _ _ _ _ _ _ _ H0 H6 ArgsValid1) 
-      as [args2 [Mextends [lessArgs [TpArgs2 [AtExt2 ArgsValid2]]]]].
+      epts R _ _ _ _ _ _ _ _ H0 H6) 
+      as [args2 [Mextends [lessArgs [TpArgs2 AtExt2]]]].
     assert (EXTCALL:= @external_call_mem_extends _ _ _ _ _ _ _ _ _  _ _ H7 Mextends 
                (forall_lessdef_val_listless _ _ lessArgs)).
     destruct EXTCALL as [ret2 [m2' [extCall2 [lessRet [Mextends' MunchOn]]]]].
-    assert (extCall2Genv2 : external_call ef (Genv.globalenv (transform_program transf P1)) args2 m2 t ret2 m2').
+    assert (extCall2Genv2 : 
+      external_call ef (Genv.globalenv (transform_program transf P1)) args2 m2 t ret2 m2').
     eapply external_call_symbols_preserved_gen. 
     apply Genv.find_symbol_transf.
     apply transl_program_block_volatile.
@@ -630,13 +599,11 @@ Proof.
     assert (DD := @Forward_simulation_ext.core_after_external _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1)) epts R
        _ _ _ _ _ _ _ args2
-      ret ret2 m1' m2' _ H0 H6 ArgsValid1).
+      ret ret2 m1' m2' _ H0 H6).
     destruct DD as [c1'' [c2' [d' [AftExt1 [AftExt2 Match']]]]]; trivial.
       eapply external_call_mem_forward; eauto.
       eapply external_call_mem_forward; eauto.
       apply (external_call_well_typed _ _ _ _ _ _ _ extCall2Genv2). 
-      admit. (*admit is ok --val_valid condition*)
-      admit. (*admit is ok --val_valid new condition*)
     rewrite AftExt1 in H8. inv H8.
     exists d'. exists (c2', m2'); simpl.
     split; auto. left.  eapply plus_one.
@@ -685,7 +652,6 @@ Proof.
     destruct H as [j [InjJ MCJ]]; simpl in *.
     destruct (Forward_simulation_inj.core_halted R _ _ _ _ _ _ _ MCJ H0) 
       as [r2 [InjR [SH2 InjM]]].
-    solve[simpl; auto].
     inv InjR. assumption.
   (*diagram*) 
     clear GenvInit1 GenvInit2.
@@ -706,17 +672,16 @@ Proof.
       apply corestep_star_star_step; eauto.
       exists j'; split; auto. eapply inject_incr_trans. apply InjJ. apply InjJ'.                    
   (*external_step*) 
-    assert (ArgsValid1: forall v1 : val, In v1 args -> val_valid v1 m1).
-       admit. (*admit is ok - val_valid condition*)
     destruct (@Forward_simulation_inj.core_at_external _ _ _ _ _ Sem1 Sem2 
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1))
-       epts R _ _ _ _ _ _ _ _ _ MCJ H5 ArgsValid1) 
-     as[INJ [jPG [args2 [LD [TP [AtExt2 ArgsValid2]]]]]].
+       epts R _ _ _ _ _ _ _ _ _ MCJ H5) 
+     as[INJ [jPG [args2 [LD [TP AtExt2]]]]].
     apply forall_inject_val_list_inject in LD.
     assert (ZZ:= @external_call_mem_inject ef  _ _ 
       (Genv.globalenv P1) _ _ _ _ _ j _ _ jPG H6 INJ LD).
     destruct ZZ as [j'  [ret2 [m2' [extCall2 [RetInj [MInj2 [Munch1 [Munch2 [InjJ' Sep']]]]]]]]].
-    assert (extCall2Genv2 : external_call ef (Genv.globalenv (transform_program transf P1)) args2 m2 t ret2 m2'). 
+    assert (extCall2Genv2 : 
+      external_call ef (Genv.globalenv (transform_program transf P1)) args2 m2 t ret2 m2'). 
     eapply external_call_symbols_preserved_gen.
     apply Genv.find_symbol_transf.
     apply transl_program_block_volatile.
@@ -726,14 +691,13 @@ Proof.
       (Genv.globalenv P1) (Genv.globalenv (transform_program transf P1)) epts R i j).
     assert (RetTp:= external_call_well_typed _ _ _ _ _ _ _ H6).
     assert (RetInjOpt: val_inject_opt j' (Some ret) (Some ret2)) by auto.
-    destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H5 ArgsValid1 jPG InjJ' Sep' MInj2 RetInjOpt) 
+    destruct (DD j' _ _ _ _ _ _ _ _ _ _ (ef_sig ef) INJ MCJ H5 jPG InjJ' Sep' MInj2 RetInjOpt) 
       as [d' [c1'' [c2' [AftExt1 [AftExt2 Match2]]]]]; clear DD.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_unmapped j); auto.
     eapply external_call_mem_forward; eauto.
     apply mem_unchanged_on_sub with (Q := loc_out_of_reach j m1); auto.
     eapply external_call_well_typed; eauto. 
-      admit. admit. (*both admits ok -val_valid condition*)
     rewrite AftExt1 in H7. inv H7.
     exists d'. exists (c2', m2').
     split. left. apply plus_one.

@@ -591,7 +591,7 @@ Lemma eqinj: forall
 Proof. intros.
          destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
          destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23
-              match_validblock23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+              match_validblock23 match_genv23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
           eapply Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\ match_core12 d1 c1 c2 /\ match_core23 d2 j c2 m1 c3 m3 end).
@@ -600,6 +600,16 @@ Proof. intros.
             (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
                          destruct H as [c2 [X [MC12 MC23]]]; subst.
                          eapply (match_validblock23 _ _ _ _ _ _ MC23); try eassumption.
+            (*match_genvs*)
+                 intros.
+                 clear core_initial23  core_halted23 core_at_external23 
+                       core_after_external23 core_initial12 core_halted12 
+                       core_at_external12 core_after_external12  
+                       core_diagram12 core_diagram23.
+                 rename c2 into st3.
+                 destruct d as [[d12 cc2] d23]. destruct H as [st2 [X [? ?]]]; subst. 
+                   rename m2 into m3.
+                 admit. (*need to add match_genv condition in sim EQ case*)
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                          EPC epts12 epts23 epts13.
@@ -621,18 +631,15 @@ Proof. intros.
                     destruct H as [c2 [X [MC12 MC23]]]; subst. 
                     apply (core_at_external12 _ _ _ _ _ _ MC12) in H0. destruct H0.
                     apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in H; try assumption. 
-                    destruct H as [MInj12 [PG2 X]]. 
-                    split. trivial. 
-                    split; try assumption.                      
-                    admit. (* meminj_preserves_globals (Genv.globalenv P1) j  from meminj_preserves_globals (Genv.globalenv P2) j for any j*)
              (*after_external*)
                     intros. rename st2 into st3. destruct cd as [[d12 cc2] d23]. 
                     destruct H0 as [c2 [X [MC12 MC23]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ MC12 H1)  as [AtExt2 HVals1]; try assumption.
                     assert (HRet1:   Val.has_type ret1 (proj_sig_res ef_sig)). eapply valinject_hastype; eassumption.
-                    destruct (core_after_external12 _ _ _ _ _ _ _ MC12 H1 AtExt2 HVals1 HRet1) as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
-                    assert (PG2: meminj_preserves_globals g2 j). 
-                    admit. (*meminj_preserves_globals*)
+                    destruct (core_after_external12 _ _ _ _ _ _ _ MC12 H1 AtExt2 HVals1 HRet1) 
+                      as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
+                    assert (PG2: meminj_preserves_globals g2 j).
+                      solve[apply (match_genv23 _ _ _ _ _ _ MC23)].
                     destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
                         H MC23 AtExt2 PG2 H3 H4 H5 H6 H7 H8 H9 H10 H11) 
                     as [d23' [c22' [c3' [AftExt22 [AftExt3 MS23']]]]].
@@ -1261,7 +1268,7 @@ Lemma extinj: forall
 Proof. intros.
          destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_validblocks12
                       core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-         destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_validblocks23
+         destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_validblocks23 match_genv23
                       core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
           eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
@@ -1274,6 +1281,8 @@ Proof. intros.
                          destruct (match_validblocks23 _ _ _ _ _ _ MC23 _ _ _ H0). 
                          split; trivial. 
                          eapply (match_validblocks12 _ _ _ _ _ MC12); try eassumption.
+            (*match_genv*)
+                 admit. (*TODO*)
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12 epts23 epts13.
@@ -1307,9 +1316,8 @@ Proof. intros.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
                     destruct H0 as [vals2 [Ext12 [LD12 [HTVals2 AtExt2]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-                    destruct AtExt2 as [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 AtExt3]]]]].
+                    destruct AtExt2 as [Inj23 [vals3 [InjVals23 [HTVals3 AtExt3]]]].
                     split. eapply Mem.extends_inject_compose; eassumption.
-                    split. admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) j  from meminj_preserves_globals (Genv.globalenv P2) j for any j*)  
                     exists vals3. 
                     split. eapply forall_val_lessdef_inject_compose; eassumption.
                     split; assumption.
@@ -1323,7 +1331,7 @@ Proof. intros.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ MC12 H1)  as 
                        [vals2 [Ext12 [LDVals12 [HTVals2 AtExt2]]]]; try assumption; clear core_at_external12.
                     destruct (core_at_external23 _ _ _ _ _ _ _ _ _  MC23 AtExt2)  as 
-                       [Inj23 [PG2 [vals3 [InjVals23 [HTVals3 AtExt3]]]]]; try assumption; clear core_at_external23.
+                       [Inj23 [vals3 [InjVals23 [HTVals3 AtExt3]]]]; try assumption; clear core_at_external23.
                     assert (HVals1:  Forall2 Val.has_type vals1 (sig_args ef_sig)). 
                         eapply forall_lessdef_hastype; eassumption.
                     assert (HRet1:   Val.has_type ret1 (proj_sig_res ef_sig)). 
@@ -1340,6 +1348,8 @@ Proof. intros.
                     destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H1 AtExt2 
                               LDVals12 HTVals2 H7 Fwd2' UnchOn2 (Val.lessdef_refl _) Ext12' HRet1) 
                          as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]]; try assumption; clear core_after_external12.
+                    assert (PG2: meminj_preserves_globals g2 j).
+                      apply (match_genv23 _ _ _ _ _ _ MC23).
                     destruct (core_after_external23 _ j j' _ _ _ _ vals2 ret1 _ _ _ ret3 _ Inj23 
                               MC23 AtExt2 PG2 H3 Sep23 Inj23' H6 Fwd2' UnchOn2j H9 UnchOn3 H11)
                          as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]]; try assumption; clear core_after_external23.
@@ -1514,7 +1524,7 @@ Lemma injeq: forall
       (SimEq23 : Forward_simulation_equals Sem2 Sem3 g2 g3 epts23),
       Forward_simulation_inject Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-  destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12
+  destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12 match_genv12
             core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
    destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
     eapply Forward_simulation_inj.Build_Forward_simulation_inject with
@@ -1526,6 +1536,8 @@ Proof. intros.
             (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
                          destruct H as [c2 [X [MC12 MC23]]]; subst.
                          eapply (match_vb12 _ _ _ _ _ _ MC12); try eassumption.
+            (*match_genv*)
+                 admit. (*TODO*)
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12  epts23 epts13.
@@ -1550,19 +1562,18 @@ Proof. intros.
                     intros. rename st2 into st3.
                     destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]].
+                    destruct H0 as [Minj12 [vals2 [VInj12 [HT2 AtExt2]]]].
                     destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2); try assumption.
-                    split; trivial.
                     split; trivial.
                     exists vals2. intuition.
              (*after_external*)
                     intros. rename st2 into st3.
                     destruct cd as [[d12 cc2] d23]. destruct H0 as [c2 [X [MC12 MC23]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 H1) as 
-                       [MInj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]]; try assumption.
+                       [MInj12 [vals2 [VInj12 [HT2 AtExt2]]]]; try assumption.
                     destruct (core_at_external23 _ _ _ _ _ _ MC23 AtExt2) as [AtExt3 HTargs2]; try assumption. 
                     destruct (core_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ _ _ MInj12 MC12 H1 
-                               PG1j H3 H4 H5 H6 H7 H8 H9 H10 H11)
+                               (match_genv12 _ _ _ _ _ _ MC12) H3 H4 H5 H6 H7 H8 H9 H10 H11)
                              as [d12' [c1' [c2' [AftExt1 [AftExt2 MS12']]]]].
                     destruct (core_after_external23 _ _ _ _ _ _ _ MC23 AtExt2 AtExt3 HT2 H11) 
                         as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
@@ -1731,20 +1742,16 @@ Proof. intros.
                      intros N. apply H2. 
                      eapply MatchHyp23. apply MC23. apply N. 
     split. exists st2'. exists m2'. split. trivial. split. apply MC12'. apply MC23.
-(*    apply extends_refl.
-    inv H4.*)
-(*    split. constructor; auto.*)
     right. split. exists O. simpl; auto.
                        apply t_step. constructor 1; auto.
 Qed.
 
 Lemma injext: forall
-(*      (PG1 : meminj_preserves_globals (g.globalenv P1) j12)*)
       (SimInj12 : Forward_simulation_inject Sem1 Sem2 g1 g2 epts12)
       (SimExt23 : Forward_simulation_extends Sem2 Sem3 g2 g3 epts23),
       Forward_simulation_inject Sem1 Sem3 g1 g3 epts13. 
 Proof. intros.
-    destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12
+    destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12 match_genv12
             core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
     destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_vb23
             core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
@@ -1759,6 +1766,8 @@ Proof. intros.
                          destruct (match_vb12 _ _ _ _ _ _ MC12 _ _ _ H0).
                          split; try eassumption.
                          eapply (match_vb23 _ _ _ _ _ MC23); try eassumption.
+            (*match_genv*) 
+                 admit. (*TODO*)
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12  epts23 epts13.
@@ -1788,11 +1797,10 @@ Proof. intros.
                     destruct cd as [[d12 cc2] d23]. 
                     destruct H as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption.
-                    destruct H0 as [Minj12 [PG1j [vals2 [VInj12 [HT2 AtExt2]]]]].
+                    destruct H0 as [Minj12 [vals2 [VInj12 [HT2 AtExt2]]]].
                     apply (core_at_external23 _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
                     destruct AtExt2 as [vals3 [Mext23 [LD23 [HT3 AtExt3]]]].
                     split. eapply Mem.inject_extends_compose; eassumption.
-                    split; trivial. 
                     exists vals3.
                         split. eapply forall_valinject_lessdef; eassumption.
                         split; assumption.
@@ -1804,7 +1812,7 @@ Proof. intros.
                     destruct cd as [[d12 cc2] d23].
                     destruct H0 as [c2 [m2 [X [MC12 MC23]]]]; subst.
                     destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 H1) 
-                         as [Minj12 [PG1j [vals2 [ValsLD12 [HTVals2 AtExt2]]]]]; try assumption; clear core_at_external12.
+                         as [Minj12 [vals2 [ValsLD12 [HTVals2 AtExt2]]]]; try assumption; clear core_at_external12.
                     destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2)
                          as [vals3 [MExt23 [ValsLD23 [HTVals3 AtExt3]]]]; try assumption; clear core_at_external23.
                     assert (Sep12: inject_separated j j' m1 m2).
@@ -1816,7 +1824,7 @@ Proof. intros.
                               H9 H10 H5 UnchLOOB23_3')
                           as [m2' [Fwd2' [MExt23' [Minj12' UnchLOORj1_2]]]].
                     destruct (core_after_external12 _ j j' _ _ _ _ _ ret1 m1' _ m2' ret3 _ 
-                                  Minj12 MC12 H1 PG1j H3 
+                                  Minj12 MC12 H1 (match_genv12 _ _ _ _ _ _ MC12) H3 
                                   Sep12 Minj12' H6 H7 H8 Fwd2' UnchLOORj1_2 H11)
                             as  [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]]; clear core_after_external12.
                     destruct (core_after_external23 _ _ _ _ _ _ _ _ ret3 ret3 _ _ _ 
@@ -2083,11 +2091,11 @@ Lemma injinj: forall
 Proof. intros.
   destruct SimInj12 
     as [core_data12 match_core12 core_ord12 core_ord_wf12
-      match_validblock12 core_diagram12 
+      match_validblock12 match_genv12 core_diagram12 
       core_initial12 core_halted12 core_at_external12 core_after_external12].  
   destruct SimInj23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
-      match_validblock23 core_diagram23 
+      match_validblock23 match_genv23 core_diagram23 
       core_initial23 core_halted23 core_at_external23 core_after_external23].
   eapply Forward_simulation_inj.Build_Forward_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
@@ -2106,6 +2114,8 @@ Proof. intros.
   destruct H0 as [b11 [ofs11 [ofs12 [Hb [Hb1 Hdelta]]]]]. 
   split. eapply (match_validblock12 _ _ _ _ _ _ MC12); try eassumption.
   eapply (match_validblock23 _ _ _ _ _ _ MC23); try eassumption.
+ (*match_genv*)
+  admit. (*TODO*)
  (*core_diagram*)
   clear core_initial23  core_halted23 core_at_external23 core_after_external23 
     core_initial12  core_halted12 core_at_external12 core_after_external12
@@ -2147,15 +2157,10 @@ Proof. intros.
   destruct cd as [[d12 cc2] d23]. 
   destruct H as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
   apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
-  destruct H0 as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 AtExt2]]]]].
+  destruct H0 as [MInj12 [vals2 [ValsInj12 [HTVals2 AtExt2]]]].
   apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
-  destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 AtExt3]]]]].
+  destruct AtExt2 as [MInj23 [vals3 [ValsInj23 [HTVals3 AtExt3]]]].
   split. eapply Mem.inject_compose; eassumption.
-  split. 
-  admit. 
-   (*need to prove meminj_preserves_globals g1 (compose_meminj j1 j2) 
-          from meminj_preserves_globals g1 j1
-          and meminj_preserves_globals g2 j2*)
   exists vals3. 
   split. eapply forall_val_inject_compose; eassumption.
   split; try assumption.
@@ -2167,9 +2172,9 @@ Proof. intros.
   destruct H0 as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
   rename H1 into AtExt1.
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExt1) 
-   as [MInj12 [PGj1 [vals2 [ValsInj12 [HTVals2 AtExt2]]]]].
+   as [MInj12 [vals2 [ValsInj12 [HTVals2 AtExt2]]]].
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2) 
-   as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 AtExt3]]]]].
+   as [MInj23 [vals3 [ValsInj23 [HTVals3 AtExt3]]]].
   clear core_at_external12 core_at_external23.
   assert (HVals1:  Forall2 Val.has_type vals1 (sig_args ef_sig)). 
   eapply forall_valinject_hastype; eassumption.
@@ -2190,12 +2195,13 @@ Proof. intros.
     rewrite H0. trivial. trivial. 
     intros. rewrite H0. trivial. trivial.
   specialize (core_after_external12 _ _ j12' _ _ _ _ _ ret1 m1' m2 m2' ret2 _ 
-     MInj12 MC12 AtExt1 PGj1 Incr12 Sep12 MInj12' injRet12 H7 Unch111' Fwd2 
-     Unch22 HasTp2).
+     MInj12 MC12 AtExt1 (match_genv12 _ _ _ _ _ _ MC12) 
+     Incr12 Sep12 MInj12' injRet12 H7 Unch111' Fwd2 Unch22 HasTp2).
   destruct core_after_external12 as [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]].
 
   specialize (core_after_external23 _ _ j23' _ _ _ _ vals2 ret2 m2' _ m3' ret3 _ 
-     MInj23 MC23 AtExt2 PGj2 Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H9 Unch2233' H11).
+     MInj23 MC23 AtExt2 (match_genv23 _ _ _ _ _ _ MC23) 
+     Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H9 Unch2233' H11).
   destruct core_after_external23 as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]].
   rewrite AftExt22 in AftExt2. inv AftExt2.
   exists (d12', Some c2', d23'). exists c1'. exists c3'.

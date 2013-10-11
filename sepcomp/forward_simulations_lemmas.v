@@ -20,12 +20,12 @@ Require Import sepcomp.forward_simulations.
 
 Section Sim_EQ_SIMU_DIAGRAMS.
 
-  Context {M G1 C1 M2 G2 C2:Type}
-          {Sem1 : CoreSemantics G1 C1 M}
-          {Sem2 : CoreSemantics G2 C2 M}
+  Context {M F1 V1 C1 M2 F2 V2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 M}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 M}
 
-          {ge1:G1}
-          {ge2:G2}
+          {ge1:Genv.t F1 V1}
+          {ge2:Genv.t F2 V2}
           {entry_points : list (val * val * signature)}.
 
   Let core_data := C1.
@@ -305,12 +305,12 @@ End Sim_EXT_SIMU_DIAGRAMS.
 
 
 Section Sim_INJ_SIMU_DIAGRAMS.
-  Context {F1 V1 C1 G2 C2:Type}
+  Context {F1 V1 C1 F2 V2 C2:Type}
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
-          {Sem2 : CoreSemantics G2 C2 mem}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}
 
           {ge1: Genv.t F1 V1} 
-          {ge2:G2}
+          {ge2: Genv.t F2 V2} 
           {entry_points : list (val * val * signature)}. 
 
   Let core_data := C1.
@@ -321,6 +321,9 @@ Section Sim_INJ_SIMU_DIAGRAMS.
           match_states d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
                (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2).
+
+   Hypothesis match_genv: forall d j c1 m1 c2 m2, match_states d j c1 m1 c2 m2 -> 
+          meminj_preserves_globals ge1 j.
 
   Hypothesis match_initial_cores: forall v1 v2 sig,
         In (v1,v2,sig) entry_points -> 
@@ -350,7 +353,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         d = st1 /\ match_states d j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
-          meminj_preserves_globals ge1 j /\ (*LENB: also added meminj_preserves_global HERE*)
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           Forall2 (Val.has_type) vals2 (sig_args sig) /\
           at_external Sem2 st2 = Some (e,sig,vals2)).
@@ -366,8 +368,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
       require spaeicaliing G1 to Genv.t....  Maybe we can specialize
       G1 and G2 of CompCertCoreSem's to Genv F1 V1/Genv F2 V2, but not
       specialize CoreSem's?*)
-
-        meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
@@ -397,8 +397,6 @@ Hypothesis order_wf: well_founded order.
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\
         match_states c1' j' c1' m1' c2' m2' /\
-        (*Mem.unchanged_on (loc_unmapped j) m1 m1' /\
-        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\*)
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
@@ -410,6 +408,7 @@ Proof.
     (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
   apply order_wf.
   intros. destruct H; subst. eapply match_validblocks; eassumption.
+  intros. destruct H; subst. eapply match_genv; eassumption.
   intros. destruct H0; subst.
   destruct (inj_simulation _ _ _ _ H _ _ _ H1) as 
     [c2' [m2' [j' [INC [SEP [MC' (*[UNCH1 [UNCH2*) Step]]](*]]*)]]].
@@ -418,12 +417,13 @@ Proof.
     [c2' [MIC MC]].
   exists c1.  exists c2'. split; eauto.
   intros. destruct H; subst.
-     admit. (*some type info missing destruct (inj_halted _ _ _ _ _ _ _ _ H2 H0). eauto.*)
+(*  destruct (inj_halted _ _ _ _ _ _ _  H1 H0). eauto.*)
+  admit. (*some type info missing *)
   intros.  destruct H; subst. eapply inj_at_external; eauto.
   intros. (*destruct H0; subst.*) clear inj_simulation .
   assert (HT1:= valinject_hastype _ _ _ H6 _ H11).
-  specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _
-    H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 HT1 H11).
+  specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+    H0 H1 H3 H4 H5 H6 H7 H8 H9 H10 HT1 H11).
   destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
   exists c1'. exists c1'. exists c2'. split; auto.
 Qed.

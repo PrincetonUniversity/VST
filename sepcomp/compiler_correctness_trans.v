@@ -114,7 +114,7 @@ Proof. intros.
   eapply coop_sim_cc_sim.
 Focus 9. eapply (Forward_simulation_trans.coop_sim_trans Sem1 Sem2 Sem3).
            apply EPC. apply SIM12. apply SIM23.
-Admitted. (*admit is ok - claim is an unnamed "goal".*)
+Admitted. (*admit is ok - claim is an unnamed known-false "goal" introduced for didactic purposes.*)
 
 Require Import Wellfounded.
 Require Import Relations.

@@ -350,13 +350,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
-(*
- Variable at_extern_valid:
-  forall c1 m1 c2 m2 cd j ef sig args,
-    match_state cd j c1 m1 c2 m2 ->
-    at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.*)
-
  Import Forward_simulation_inj_exposed.
 
  Variable core_simulation: 
@@ -444,7 +437,7 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 Program Definition extended_simulation: 
   Forward_simulation_inject esemS esemT ge_S ge_T 
            entry_points core_data match_states core_ord :=
-  @Build_Forward_simulation_inject _ _ _ _ _ 
+  @Build_Forward_simulation_inject _ _ _ _ _ _
            esemS esemT ge_S ge_T entry_points 
            core_data match_states core_ord
            _ _ _ _ _ _ _.
@@ -729,13 +722,6 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
  Implicit Arguments match_state [].
  Variable core_ord: core_data -> core_data -> Prop.
-
-(*
- Variable at_extern_valid:
-  forall c1 m1 c2 m2 cd j ef sig args,
-    match_state cd j c1 m1 c2 m2 ->
-    at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.*)
 
  Import Extension.
 

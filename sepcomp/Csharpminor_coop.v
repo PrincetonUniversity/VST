@@ -139,20 +139,14 @@ Qed.
 
 Definition CSharpMin_initial_core (ge:genv) (v: val) (args:list val): option CSharpMin_core :=
    match v with
-        Vptr b i => if Int.eq_dec i  Int.zero 
-                            then 
-                            match Genv.find_funct_ptr ge b with
-                              None => None
-                            | Some f => match funsig f with
-                                                   {| sig_args := sargs; sig_res := sres |} => 
-                                                       match sargs, sres with 
-                                                          nil, Some Tint => Some (CSharpMin_Callstate f nil Kstop) (*args = nil???*)
-                                                       | _ , _ => None
-                                                       end
-                                                 end
-                            end
-                            else None
-   | _ => None
+     | Vptr b i => 
+          if Int.eq_dec i Int.zero 
+          then match Genv.find_funct_ptr ge b with
+                 | None => None
+                 | Some f => Some (CSharpMin_Callstate f args Kstop)
+               end
+          else None
+     | _ => None
     end.
  (*
 Parameter CSharpMin_MainIdent:ident.
@@ -235,34 +229,7 @@ Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'
          inv CS; simpl; try apply mem_forward_refl.
 Qed.
 
-
-Definition valid_env (e:Csharpminor.env) (m:mem) :=
-  forall id b z , Maps.PTree.get id e = Some (b, z) ->
-                  Mem.valid_block m b. 
-
-Definition valid_tempenv (t:temp_env) (m:mem) :=
-  forall id v , Maps.PTree.get id t = Some v -> val_valid v m.
-
-Lemma eval_var_addr_val_valid: forall ge e id b m
-   (VE: valid_env e m) (GE: valid_genv ge m),
-   eval_var_addr ge e id b -> Mem.valid_block m b.
-Proof. intros.
-  inv H.
-    eapply VE; eassumption.
-    eapply GE; eassumption.
-  Qed.
-
-Definition valid_corestate (c: CSharpMin_core) (m:mem) : Prop :=
-  match c with
-    CSharpMin_State f s k e le => valid_env e m /\ valid_tempenv le m
-  | CSharpMin_Callstate f args k => 
-            (forall v, In v args -> val_valid v m) 
-  | CSharpMin_Returnstate v k => val_valid v m  
-  end.
-
 Definition coopstep g c m c' m' :=
-   valid_genv g m /\
-   valid_corestate c m /\ 
    CSharpMin_corestep g c m c' m'.
 
 Lemma csharpmin_coopstep_not_at_external: forall ge m q m' q',
@@ -296,9 +263,7 @@ Program Definition csharpmin_core_sem :
 
 Lemma csharpmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
-Proof. intros. destruct CS as [GE [VS Step]].
-  eapply CSharpMin_forward. apply Step.
-Qed.
+Proof. intros. eapply CSharpMin_forward. apply CS. Qed.
 
 Program Definition csharpmin_coop_sem : 
   CoopCoreSem Csharpminor.genv CSharpMin_core.

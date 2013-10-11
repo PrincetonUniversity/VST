@@ -15,7 +15,6 @@ Require Import Cminor.
 Require Import veric.CSharpminor_CompcertSemantics.*)
 Require Import sepcomp.Cminor_coop.
 Require Import sepcomp.Csharpminor_coop.
-
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import Cminorgen.
@@ -124,7 +123,15 @@ inv H.
 Qed.
 
 Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
-(EP: In (v1, v2, sig) entrypoints)
+  (EP: In (v1, v2, sig) entrypoints)
+  (entry_points_ok : 
+    forall v1 v2 sig,
+      In (v1, v2, sig) entrypoints -> 
+      exists b f1 f2, 
+        v1 = Vptr b Int.zero 
+        /\ v2 = Vptr b Int.zero
+        /\ Genv.find_funct_ptr ge b = Some f1
+        /\ Genv.find_funct_ptr tge b = Some f2)
   (vals1 : list val) (c1 : core_data) (m1 : mem) (j : meminj)
   (vals2 : list val) (m2 : mem)
   (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
@@ -138,118 +145,33 @@ Proof. intros.
   inversion CSM_Ini. unfold  CSharpMin_initial_core in H0. unfold ge in *. unfold tge in *.
   destruct v1; inv H0.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. apply eq_sym in Heqzz.
-  (*
-                   remember (Genv.find_symbol (Genv.globalenv prog) CSharpMin_MainIdent) as z; destruct z; try inv H0.
-                   remember (Genv.find_funct_ptr  (Genv.globalenv prog) b) as zz; destruct zz; try inv H1. *)
+  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
+    apply eq_sym in Heqzz.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
- 
-  exists (CMin_Callstate tf nil Cminor.Kstop).
-  specialize (sig_preserved _ _ TR). intros QQ.
-  rewrite <- QQ in H1. simpl in *.
-  remember (Int.eq_dec Int.zero Int.zero) as r.
-  destruct r. Focus 2. exfalso. apply n. trivial.
-  rewrite Heqzz in CSM_Ini.
-  rewrite <- QQ in CSM_Ini. simpl in *.
-  remember (funsig tf) as F.
-  destruct F; try inv H1. 
-  destruct sig_args; try inv H0.
-  destruct sig_res; try inv H1.
-  destruct t; inv H0.
-   split. admit. (*Entrypoints not yet updated in Compcert*)
+  exists (CMin_Callstate tf vals2 Cminor.Kstop).
+  split.
+  simpl. 
+  destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
+  subst. inv A. rewrite C in Heqzz. inv Heqzz. rewrite D in FIND. inv FIND.
+  unfold CMin_initial_core. 
+  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
+  solve[rewrite D; auto].
+  intros CONTRA.
+  solve[elimtype False; auto].
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
-  apply mcs_nil with (Mem.nextblock m1). 
-  (*apply match_globalenvs_init*)
+  apply mcs_nil with (Mem.nextblock m1).
+  (*apply match_globalenvs_init.*)
   admit. (*CompCert's globalenvs not yet adapted to noninitial entry points*)
   xomega. 
   admit. (*CompCert's globalenvs not yet adapted to noninitial entry points
             so use of same hi in mcs_nil misleading*)
   econstructor. 
   simpl. trivial.
-  simpl. constructor.
-  rewrite <- QQ. simpl. constructor.
-  rewrite <- QQ. simpl. constructor.
+  simpl. apply forall_inject_val_list_inject; auto.
+  (*rewrite <- QQ. simpl. constructor.
+    rewrite <- QQ. simpl. constructor.*)
+  admit. admit. (* Val.hasType conditions *)
 Qed.
-
-(*
-  rewrite <- TprogMain. unfold transl_program in TRANSL.
-  econstructor; split.
-      destruct CMin_core_sem. simpl. destruct csem. simpl. 
-       econstructor.
-       unfold make_initial_core.
-  econstructor.
-  apply (Genv.init_mem_transf_partial2 _ _ _ TRANSL). eauto. 
-  simpl. fold tge. rewrite symbols_preserved.
-  replace (prog_main tprog) with (prog_main prog). eexact H0.
-  symmetry. unfold transl_program in TRANSL.
-  eapply transform_partial_program2_main; eauto.
-  eexact FIND. 
-  rewrite <- H2. apply sig_preserved; auto.
-  eapply match_callstate with (f := Mem.flat_inj (Mem.nextblock m0)) (cs := @nil frame).
-  auto.
-  eapply Genv.initmem_inject; eauto.
-  apply mcs_nil with (Mem.nextblock m0). apply match_globalenvs_init; auto. omega. omega.
-  instantiate (1 := gce). constructor.
-  red; auto. constructor. 
-(*
-v1 v2 vals1 (c1 : CSharpMin_core) m1 j vals2 m2 
-      sig
-      (CSM_Ini : make_initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
-      (Inj : Mem.inject j m1 m2)
-      (VI: Forall2 (val_inject j) vals1 vals2)
-      (HT: Forall2 Val.has_type vals2 (sig_args sig)),
-exists cd : core_data,
-  exists c2 : CMin_core,
-    make_initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
-    match_cores cd j c1 m1 c2 m2.*)
-Proof.
-  intros. inv CSM_Ini. eexists. simpl. unfold CMin_make_initial_core. unfold tge.
-        rewrite <- TprogMain. rewrite <- Heqz.
-  unfold  CSharpMin_make_initial_core in H0.
-                              remember (Genv.find_symbol ge CSharpMin_MainIdent) as z; destruct z; try inv H0.
-                             rewrite <- ProgMain in Heqz. unfold ge in Heqz. unfold tge in Heqz.
-                              rewrite <- (symbols_preserved _ _ TRANSL) in Heqz. 
-                              remember (Genv.find_funct_ptr ge b) as zz; destruct zz; try inv H1. 
-                              apply eq_sym in Heqzz.  unfold ge in Heqzz.
-                              destruct (Genv.find_funct_ptr_transf_partial2 _ _  _ TRANSL b Heqzz) as [tf  [Htf TransF]].
-                              remember (Csharpminor.funsig f) as fs; destruct fs.
-                              destruct sig_args; try inv H0.
-                              destruct sig_res; try inv H1.
-                              destruct t; try inv H0.
-(*  apply eq_sym in Heqzz.*)
-  destruct (function_ptr_translated _ _ TRANSL _ _ Heqzz) as [tff [FIND TR]].
-  rewrite FIND in Htf. inv Htf.  
-    (*unfold core_data. exists (CSharpMin_Callstate f nil Csharpminor.Kstop).*)
-   eexists.
-  split.
-  (*make_initial_core*)
-      simpl. unfold CMin_make_initial_core. unfold tge.
-        rewrite <- TprogMain. rewrite <- Heqz.
-  rewrite (symbols_preserved _ _ TRANSL).
-          rewrite 
-          assert (Z:= sig_preserved _ _ _ TR). apply symbols_preserved; assumption.
-      unfold ge in *. assert (ID: CMin_MainIdent = CSharpMin_MainIdent). admit. rewrite ID in *. 
-              assert (X: Genv.find_symbol tge CSharpMin_MainIdent =  Genv.find_symbol (Genv.globalenv prog) CSharpMin_MainIdent).
-                 apply symbols_preserved; assumption.
-             rewrite <- Heqz in X. rewrite X. unfold tge in *. rewrite FIND. 
-        rewrite (sig_preserved _ _ _ TR). rewrite <- Heqfs. reflexivity.
-  (*match_cores*)
-  eapply MC_callstate with (j := j) (cs := @nil frame); try eassumption.
-     admit. (*some error here wrt initial mems*)
-      econstructor.
-      econstructor.
-      econstructor.
-      rewrite <- Heqfs. simpl. constructor.
-      rewrite <- Heqfs. simpl. constructor.
-(*   
-     destruct Inj. clear HT VI vals1 vals2 Heqz Heqzz Heqfs FIND TR f tf. destruct mi_inj.
-     apply mcs_nil with (Mem.nextblock m1). 
-            
-      apply match_globalenvs_init; auto. can't be right since memories are not necessarily initial
-omega. omega.
-  instantiate (1 := gce). constructor.
-  red; auto. constructor.  econstructor.
-          econstructor.*)*)
 
 Lemma MC_safely_halted: forall (cd : core_data) (j : meminj) (c1 : CSharpMin_core) (m1 : mem)
   (c2 : CMin_core) (m2 : mem) (v1 : val),
@@ -2349,15 +2271,24 @@ Require Import sepcomp.forward_simulations_lemmas.
 
 (*program structure not yet updated to module*)
 Theorem transl_program_correct:
-  forall entrypoints, 
-Forward_simulation_inj.Forward_simulation_inject CSharpMin_core_sem 
-   CMin_core_sem ge tge entrypoints.
+  forall entrypoints 
+         (entry_points_ok : 
+            forall v1 v2 sig,
+              In (v1, v2, sig) entrypoints -> 
+              exists b f1 f2, 
+                v1 = Vptr b Int.zero 
+                /\ v2 = Vptr b Int.zero
+                /\ Genv.find_funct_ptr ge b = Some f1
+                /\ Genv.find_funct_ptr tge b = Some f2),
+  Forward_simulation_inj.Forward_simulation_inject 
+       CSharpMin_core_sem 
+       CMin_core_sem ge tge entrypoints.
 Proof.
 intros.
  eapply inj_simulation_star with 
   (match_states:=match_cores)(measure:=MC_measure).
  apply match_cores_valid.
- intros. eapply (init_cores _ _ _ entrypoints); eauto.
+ intros. eapply (init_cores _ _ _ entrypoints); eauto. 
  intros. destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
            as [Inc [Presv [vals2 [ValsInj [avlsHT2 AtExt2]]]]].
     split; trivial.
@@ -2365,8 +2296,6 @@ intros.
     exists vals2. 
     split; trivial.
     split; trivial.
-    split; trivial.
-    admit. (*val_valid*)
  intros. 
     destruct (MC_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0
              H1 H2 H3 H4 H5 H6 H7 H8 H9 H11)
