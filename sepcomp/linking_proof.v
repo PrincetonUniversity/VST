@@ -37,10 +37,10 @@ destruct (halted csem c).
 intros; left; eexists; eauto.
 congruence.
 Qed.
-
+(*
 Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
 Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
-
+*)
 Section CoreCompatibleLemmas. Variables
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)
@@ -204,104 +204,6 @@ Qed.
 
 End CoreCompatibleLemmas.
 
-(*This is an [F,V]-independent definition of meminj_preserves_globals*)
-Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
-  (forall b, fst globals b -> f b = Some (b, 0)) /\
-  (forall b, snd globals b -> f b = Some (b, 0)) /\
-  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
-
-Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
-  (fun b => exists id, Genv.find_symbol ge id = Some b,
-   fun b => exists gv, Genv.find_var_info ge b = Some gv).
-
-Lemma meminj_preserves_genv2blocks: 
-  forall {F V: Type} (ge: Genv.t F V) j,
-  meminj_preserves_globals_ind (genv2blocks ge) j <->
-  Events.meminj_preserves_globals ge j.
-Proof.
-intros ge; split; intro H1.
-unfold meminj_preserves_globals in H1.
-unfold Events.meminj_preserves_globals.
-destruct H1 as [H1 [H2 H3]].
-split.
-intros.
-apply H1; auto.
-unfold genv2blocks.
-unfold Genv.find_symbol in H.
-simpl; exists id; auto.
-split.
-intros b gv H4.
-apply H2; auto.
-unfold genv2blocks.
-unfold Genv.find_var_info in H4.
-simpl; exists gv; auto.
-intros until gv; intros H4 H5.
-symmetry.
-eapply H3; eauto.
-unfold genv2blocks.
-unfold Genv.find_var_info in H4.
-simpl; exists gv; auto.
-unfold meminj_preserves_globals.
-destruct H1 as [H1 [H2 H3]].
-split. 
-intros b H4.
-unfold genv2blocks in H4.
-destruct H4; eapply H1; eauto.
-split.
-intros b H4.
-destruct H4; eapply H2; eauto.
-intros b1 b2 delta H4 H5.
-unfold genv2blocks in H4.
-destruct H4.
-eapply H3 in H; eauto.
-Qed.
-
-Lemma genvs_domain_eq_preserves:
-  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
-  genvs_domain_eq ge1 ge2 -> 
-  (meminj_preserves_globals_ind (genv2blocks ge1) j <-> 
-   meminj_preserves_globals_ind (genv2blocks ge2) j).
-Proof.
-intros until j; intros H1.
-unfold meminj_preserves_globals.
-destruct H1 as [DE1 DE2].
-split; intros [H2 [H3 H4]].
-split.
-intros b H5.
-cut (fst (genv2blocks ge1) b).
- intros H6.
-apply (H2 b H6).
-apply (DE1 b); auto.
-split.
-intros b H5.
-apply H3; eauto.
-apply DE2; auto.
-intros b1 b2 delta H5 H6.
-eapply H4; eauto.
-apply DE2; auto.
-split.
-intros b H5.
-eapply H2; eauto.
-apply DE1; auto.
-split.
-intros b H5.
-apply H3; auto.
-apply DE2; auto.
-intros until delta; intros H5 H6.
-eapply H4; eauto.
-apply DE2; auto.
-Qed.
-
-Lemma genvs_domain_eq_sym:
-  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2),
-  genvs_domain_eq ge1 ge2 -> genvs_domain_eq ge2 ge1.
-Proof.
-intros until ge2.
-unfold genvs_domain_eq; intros [H1 H2].
-split; intro b; split; intro H3; 
- solve[destruct (H1 b); auto|destruct (H2 b); auto].
-Qed.
-
 Lemma exists_ty: forall v, exists ty, Val.has_type v ty.
 Proof.
 intros v.
@@ -351,6 +253,8 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments core_ord [].
 
  Import Forward_simulation_inj_exposed.
+
+ Variable genvs_dom_eq_ST: genvs_domain_eq ge_S ge_T.
 
  Variable core_simulation: 
    Forward_simulation_inject csemS csemT ge_coreS ge_coreT
@@ -436,11 +340,11 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
 Program Definition extended_simulation: 
   Forward_simulation_inject esemS esemT ge_S ge_T 
-           entry_points core_data match_states core_ord :=
-  @Build_Forward_simulation_inject _ _ _ _ _ _
+           entry_points core_data match_states core_ord:=
+  @Build_Forward_simulation_inject _ _ _ _ _ _  
            esemS esemT ge_S ge_T entry_points 
            core_data match_states core_ord
-           _ _ _ _ _ _ _.
+           _ _ _ _ _ _ _ _ _ .
 Next Obligation. 
 destruct core_simulation; auto.
 Qed.

@@ -32,6 +32,8 @@ Section Sim_EQ_SIMU_DIAGRAMS.
 
   Variable match_cores: core_data -> C1 -> C2 -> Prop.
 
+  Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
+
   Hypothesis match_initial_cores: 
         forall v1 v2 sig, In (v1,v2,sig) entry_points ->
         forall vals,  Forall2 (Val.has_type) vals (sig_args sig) ->
@@ -87,13 +89,14 @@ Hypothesis order_wf: well_founded order.
           (corestep_star Sem2 ge2 c2 m c2' m' /\ order c1' c1)).
 
 Lemma  eq_simulation_star_wf: 
-  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ 
+  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ _ _ 
          Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply Forward_simulation_eq.Build_Forward_simulation_equals with
     (core_ord := order)
         (match_core := fun d c1 c2 => d = c1 /\ match_cores d c1 c2).
   apply order_wf.
+  assumption.
   intros. destruct H0; subst.  destruct (eq_simulation _ _ _ _ H _ H1) as [c2' [MC' Step]].
   exists c2'.  exists st1'.  split; eauto. clear eq_simulation eq_after_external eq_at_external .
   intros. destruct (match_initial_cores _ _ _ H _ H0) as [c1' [c2' [MIC1 [MIC2 MC]]]].
@@ -116,7 +119,7 @@ Section EQ_SIMULATION_STAR.
       \/ (measure c1' < measure c1 /\ m=m' /\ match_cores c1' c1' c2)%nat.
 
 Lemma eq_simulation_star: 
-  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
+  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply eq_simulation_star_wf. apply  (well_founded_ltof _ measure).
   intros. destruct (eq_star_simulation _ _ _ _ H _ H0).
@@ -135,7 +138,7 @@ Section EQ_SIMULATION_PLUS.
       exists c2', corestep_plus Sem2 ge2 c2 m c2' m' /\ match_cores c1' c1' c2'.
 
 Lemma eq_simulation_plus: 
-  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
+  @Forward_simulation_eq.Forward_simulation_equals _ _ _ _ _ _ _ Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply eq_simulation_star with (measure:=measure).
   intros. destruct (eq_plus_simulation _ _ _ _ H _ H0).
@@ -146,17 +149,19 @@ End EQ_SIMULATION_PLUS.
 
 End Sim_EQ_SIMU_DIAGRAMS.
 Section Sim_EXT_SIMU_DIAGRAMS.
-  Context {G1 C1 G2 C2:Type}
-          {Sem1 : CoreSemantics G1 C1 mem}
-          {Sem2 : CoreSemantics G2 C2 mem}
+  Context {F1 V1 C1 F2 V2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}
 
-          {ge1:G1}
-          {ge2:G2}
+          {ge1: Genv.t F1 V1}
+          {ge2: Genv.t F2 V2}
           {entry_points : list (val * val * signature)}.
 
   Let core_data := C1.
 
   Variable match_states: core_data -> C1 -> mem -> C2 -> mem -> Prop.
+
+  Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
 
   Hypothesis Hyp_valid:
       forall cd c1 m1 c2 m2,
@@ -236,6 +241,7 @@ Proof.
         (core_ord := order)
         (match_state := fun d c1 m1 c2 m2 => d = c1 /\ match_states d c1 m1 c2 m2).
    apply order_wf.
+   assumption.
    intros. destruct H; subst. 
            apply (Hyp_valid _ _ _ _ _ H0).
    intros. destruct H0; subst.
@@ -317,6 +323,8 @@ Section Sim_INJ_SIMU_DIAGRAMS.
 
   Variable match_states: core_data -> meminj -> C1 -> mem -> C2 -> mem -> Prop.
    
+  Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
+
    Hypothesis match_validblocks: forall d j c1 m1 c2 m2,  
           match_states d j c1 m1 c2 m2 -> 
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
@@ -408,6 +416,7 @@ Proof.
     (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
   apply order_wf.
   intros. destruct H; subst. eapply match_validblocks; eassumption.
+  assumption.
   intros. destruct H; subst. eapply match_genv; eassumption.
   intros. destruct H0; subst.
   destruct (inj_simulation _ _ _ _ H _ _ _ H1) as 

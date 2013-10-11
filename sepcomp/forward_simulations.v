@@ -21,12 +21,12 @@ Require Import sepcomp.core_semantics.
    memory layout at all. *)
 
 Module Forward_simulation_eq. Section Forward_simulation_equals. 
-  Context {M G1 C1 G2 C2:Type}
-          {Sem1 : CoreSemantics G1 C1 M}
-          {Sem2 : CoreSemantics G2 C2 M}
+  Context {M F1 V1 C1 F2 V2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 M}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 M}
 
-          {ge1:G1}
-          {ge2:G2}
+          {ge1:Genv.t F1 V1}
+          {ge2:Genv.t F2 V2}
           {entry_points : list (val * val * signature)}.
 
   Record Forward_simulation_equals :=
@@ -35,6 +35,8 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
     match_core : core_data -> C1 -> C2 -> Prop;
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
+
+    genvs_dom_eq: genvs_domain_eq ge1 ge2;
 
     core_diagram : 
       forall st1 m st1' m', corestep Sem1 ge1 st1 m st1' m' ->
@@ -81,7 +83,7 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
 End Forward_simulation_equals. 
 
 (*Question: Does this declaration take effect after module import?*)
-Implicit Arguments Forward_simulation_equals [[M] [G1] [C1] [G2] [C2]]. 
+Implicit Arguments Forward_simulation_equals [[M] [F1] [V1] [C1] [F2] [V2] [C2]]. 
 
 End Forward_simulation_eq.
 
@@ -90,12 +92,12 @@ End Forward_simulation_eq.
 for core semantics with (M:=mem)*)
 
 Module Forward_simulation_ext. Section Forward_simulation_extends. 
-  Context {G1 C1 G2 C2:Type}
-          {Sem1 : CoreSemantics G1 C1 mem}
-          {Sem2 : CoreSemantics G2 C2 mem}
+  Context {F1 V1 C1 F2 V2 C2:Type}
+          {Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem}
+          {Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem}
 
-          {ge1:G1}
-          {ge2:G2}
+          {ge1:Genv.t F1 V1}
+          {ge2:Genv.t F2 V2}
           {entry_points : list (val * val * signature)}.
 
   Record Forward_simulation_extends :=
@@ -104,6 +106,8 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
     match_state : core_data -> C1 -> mem -> C2 -> mem -> Prop;
     core_ord : core_data -> core_data -> Prop;
     core_ord_wf : well_founded core_ord;
+
+    genvs_dom_eq: genvs_domain_eq ge1 ge2;
 
     (*The following axiom could be strengthened to extends m1 m2*)
     match_validblocks: forall d c1 m1 c2 m2,  match_state d c1 m1 c2 m2 -> 
@@ -172,7 +176,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
           match_state cd' st1' m1' st2' m2' }.
 End Forward_simulation_extends.
 
-Implicit Arguments Forward_simulation_extends [[G1] [C1] [G2] [C2]].
+Implicit Arguments Forward_simulation_extends [[F1] [V1] [C1] [F2] [V2] [C2]].
 
 End Forward_simulation_ext.
 
@@ -308,6 +312,8 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
                (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
 
+    genvs_dom_eq: genvs_domain_eq ge1 ge2;
+
     match_genv: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
           meminj_preserves_globals ge1 j; 
 
@@ -410,6 +416,11 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
           forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
                (Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2);
 
+    genvs_dom_eq: genvs_domain_eq ge1 ge2;
+
+    match_genv: forall d j c1 m1 c2 m2,  match_state d j c1 m1 c2 m2 -> 
+          meminj_preserves_globals ge1 j; 
+
     core_diagram : 
       forall st1 m1 st1' m1', corestep Sem1 ge1 st1 m1 st1' m1' ->
       forall cd st2 j m2,
@@ -489,16 +500,16 @@ Context {F1 V1 C1 F2 V2 C2:Type}
         (Sem1 : CoreSemantics (Genv.t F1 V1) C1 mem)
         (Sem2 : CoreSemantics (Genv.t F2 V2) C2 mem).
 
-Inductive core_sim G1 G2 entrypoints:Type :=
+Inductive core_sim g1 g2 entrypoints:Type :=
   core_sim_eq: forall (R:@Forward_simulation_eq.Forward_simulation_equals 
-                    mem _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          core_sim G1 G2 entrypoints
+                    mem _ _ _ _ _ _ Sem1 Sem2 g1 g2 entrypoints),
+          core_sim g1 g2 entrypoints
 | core_sim_ext: forall (R:@Forward_simulation_ext.Forward_simulation_extends
-                    _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          core_sim G1 G2 entrypoints
+                    _ _ _ _ _ _ Sem1 Sem2 g1 g2 entrypoints),
+          core_sim g1 g2 entrypoints
 | core_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
-                    _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
-          core_sim G1 G2 entrypoints.
+                    _ _ _ _ _ _ Sem1 Sem2 g1 g2 entrypoints),
+          core_sim g1 g2 entrypoints.
 End Core_sim.
 
 Section Coop_sim.
@@ -508,10 +519,10 @@ Context {F1 V1 C1 F2 V2 C2:Type}
 
 Inductive coop_sim G1 G2 entrypoints:Type :=
   coop_sim_eq: forall (R:@Forward_simulation_eq.Forward_simulation_equals 
-                    mem _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+                    mem _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           coop_sim G1 G2 entrypoints
 | coop_sim_ext: forall (R:@Forward_simulation_ext.Forward_simulation_extends
-                    _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
+                    _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),
           coop_sim G1 G2 entrypoints
 | coop_sim_inj: forall (R:@Forward_simulation_inj.Forward_simulation_inject
                     _ _ _ _ _ _ Sem1 Sem2 G1 G2 entrypoints),

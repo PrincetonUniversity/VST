@@ -396,7 +396,11 @@ induction SIM23; intros; subst.
        (*entrypoints_ok*)
            eapply ePts_compose2; eassumption.
        (*preserves_globals*) 
-         admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) jInit  from meminj_preserves_globals (Genv.globalenv P2) jInit*)
+         apply meminj_preserves_genv2blocks.
+         apply meminj_preserves_genv2blocks in preserves_globals.
+         eapply genvs_domain_eq_preserves.
+         eapply SimEq12.
+         assumption.
        (*sim_eqinj*) 
            eapply Forward_simulation_trans.eqinj; try eassumption.
        (*prog_main*)
@@ -501,8 +505,12 @@ induction SIM23; intros; subst.
                     eapply Mem.extends_inject_compose; eassumption.
        (*entrypoints_ok*)
            eapply ePts_compose2; eassumption.
-       (*meminj_preserves_globals*)
-           admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) jInit  from meminj_preserves_globals (Genv.globalenv P2) jInit*)
+       (*preserves_globals*) 
+         apply meminj_preserves_genv2blocks.
+         apply meminj_preserves_genv2blocks in preserves_globals.
+         eapply genvs_domain_eq_preserves.
+         eapply SimExt12.
+         assumption.
        (*sim_extinj*) 
            eapply Forward_simulation_trans.extinj; try eassumption.
        (*prog_main*)
@@ -610,8 +618,12 @@ induction SIM23; intros; subst.
               eapply Mem.inject_compose; eassumption.
        (*entrypoints_ok*)
            eapply ePts_compose4; eassumption.
-       (*meminj_perserved_globals*)
-         admit. (*need to prove  meminj_preserves_globals (Genv.globalenv P1) jInit  from meminj_preserves_globals (Genv.globalenv P2) jInit*)
+       (*preserves_globals*) 
+         apply meminj_preserves_genv2blocks.
+         apply meminj_preserves_genv2blocks in preserves_globals.
+         apply meminj_preserves_genv2blocks in PG1.
+         eapply meminj_preserves_globals_ind_compose; try eassumption.
+           apply SimInj12.
        (*core_diagram*)
            eapply Forward_simulation_trans.injinj; try eassumption.
        (*prog_main*)

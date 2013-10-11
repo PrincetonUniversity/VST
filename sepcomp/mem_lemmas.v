@@ -739,3 +739,153 @@ remember (plt b (Mem.nextblock m)).
 destruct s. left; assumption.
 right. intros N. xomega.
 Qed.
+
+(*This is an [F,V]-independent definition of meminj_preserves_globals*)
+Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
+  (forall b, fst globals b -> f b = Some (b, 0)) /\
+  (forall b, snd globals b -> f b = Some (b, 0)) /\
+  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
+
+Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
+  (fun b => exists id, Genv.find_symbol ge id = Some b,
+   fun b => exists gv, Genv.find_var_info ge b = Some gv).
+
+Lemma meminj_preserves_genv2blocks: 
+  forall {F V: Type} (ge: Genv.t F V) j,
+  meminj_preserves_globals_ind (genv2blocks ge) j <->
+  Events.meminj_preserves_globals ge j.
+Proof.
+intros ge; split; intro H1.
+unfold meminj_preserves_globals in H1.
+unfold Events.meminj_preserves_globals.
+destruct H1 as [H1 [H2 H3]].
+split.
+intros.
+apply H1; auto.
+unfold genv2blocks.
+unfold Genv.find_symbol in H.
+simpl; exists id; auto.
+split.
+intros b gv H4.
+apply H2; auto.
+unfold genv2blocks.
+unfold Genv.find_var_info in H4.
+simpl; exists gv; auto.
+intros until gv; intros H4 H5.
+symmetry.
+eapply H3; eauto.
+unfold genv2blocks.
+unfold Genv.find_var_info in H4.
+simpl; exists gv; auto.
+unfold meminj_preserves_globals.
+destruct H1 as [H1 [H2 H3]].
+split. 
+intros b H4.
+unfold genv2blocks in H4.
+destruct H4; eapply H1; eauto.
+split.
+intros b H4.
+destruct H4; eapply H2; eauto.
+intros b1 b2 delta H4 H5.
+unfold genv2blocks in H4.
+destruct H4.
+eapply H3 in H; eauto.
+Qed.
+
+Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
+  (forall b, fst (genv2blocks ge1) b <-> fst (genv2blocks ge2) b) /\
+  (forall b, snd (genv2blocks ge1) b <-> snd (genv2blocks ge2) b).
+
+Lemma genvs_domain_eq_preserves:
+  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
+  genvs_domain_eq ge1 ge2 -> 
+  (meminj_preserves_globals_ind (genv2blocks ge1) j <-> 
+   meminj_preserves_globals_ind (genv2blocks ge2) j).
+Proof.
+intros until j; intros H1.
+unfold meminj_preserves_globals.
+destruct H1 as [DE1 DE2].
+split; intros [H2 [H3 H4]].
+split.
+intros b H5.
+cut (fst (genv2blocks ge1) b).
+ intros H6.
+apply (H2 b H6).
+apply (DE1 b); auto.
+split.
+intros b H5.
+apply H3; eauto.
+apply DE2; auto.
+intros b1 b2 delta H5 H6.
+eapply H4; eauto.
+apply DE2; auto.
+split.
+intros b H5.
+eapply H2; eauto.
+apply DE1; auto.
+split.
+intros b H5.
+apply H3; auto.
+apply DE2; auto.
+intros until delta; intros H5 H6.
+eapply H4; eauto.
+apply DE2; auto.
+Qed.
+
+Lemma genvs_domain_eq_sym:
+  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2),
+  genvs_domain_eq ge1 ge2 -> genvs_domain_eq ge2 ge1.
+Proof.
+intros until ge2.
+unfold genvs_domain_eq; intros [H1 H2].
+split; intro b; split; intro H3; 
+ solve[destruct (H1 b); auto|destruct (H2 b); auto].
+Qed.
+
+Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
+Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
+
+Lemma genvs_domain_eq_trans: forall {F1 F2 F3 V1 V2 V3: Type} 
+  (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) (ge3: Genv.t F3 V3),
+  genvs_domain_eq ge1 ge2 -> genvs_domain_eq ge2 ge3 -> genvs_domain_eq ge1 ge3.
+Proof. intros F1 F2 F3 V1 V2 V3 ge1 ge2 ge3; unfold genvs_domain_eq.
+  intros. destruct H; destruct H0.
+  split; intro b. rewrite H. apply H0.
+  rewrite H1. apply H2.
+Qed.
+
+Lemma genvs_domain_eq_match_genvs: forall {F1 V1 F2 V2:Type} 
+  (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2),
+  genvs_domain_eq ge1 ge2 -> genv2blocks ge1 = genv2blocks ge2.
+Proof. intros F1 V1 F2 V2 ge1 ge2.
+  unfold genvs_domain_eq, genv2blocks. simpl; intros. 
+  destruct H. 
+  f_equal; extensionality b. 
+    apply prop_ext. apply H.
+    apply prop_ext. apply H0.
+Qed.
+
+Lemma meminj_preserves_globals_ind_compose:
+   forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2)
+   j1 j2 (G: genvs_domain_eq ge1 ge2)
+   (PG1: meminj_preserves_globals_ind (genv2blocks ge1) j1)
+   (PG2: meminj_preserves_globals_ind (genv2blocks ge2) j2),
+   meminj_preserves_globals_ind (genv2blocks ge1) (compose_meminj j1 j2).
+Proof. intros.
+  destruct PG1 as [A12 [B12 C12]].
+  destruct PG2 as [A23 [B23 C23]].
+  split; intros.
+     unfold compose_meminj. rewrite (A12 _ H).
+     rewrite (A23 b). reflexivity.
+     apply G. apply H.
+  split; intros. unfold compose_meminj.
+     rewrite (B12 _ H).
+     rewrite (B23 b). reflexivity.
+     apply G. apply H.
+  rename b2 into b3. 
+    destruct (compose_meminjD_Some _ _ _ _ _ H0) 
+      as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear H0.
+    assert (snd (genv2blocks ge2) b3). apply G; eassumption.
+    specialize (C23 _ _ _ H0 J2). subst.
+    specialize (C12 _ _ _ H J1). subst. trivial.
+Qed.

@@ -18,16 +18,6 @@ Set Implicit Arguments.
 
 (**  "Compilable" Extensions *)
 
-(*This is an [F,V]-independent definition of meminj_preserves_globals*)
-Definition meminj_preserves_globals (globals: (block->Prop)*(block->Prop)) f :=
-  (forall b, fst globals b -> f b = Some (b, 0)) /\
-  (forall b, snd globals b -> f b = Some (b, 0)) /\
-  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
-
-Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
-  (fun b => exists id, Genv.find_symbol ge id = Some b,
-   fun b => exists gv, Genv.find_var_info ge b = Some gv).
-
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -137,10 +127,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
-
-Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
-  (forall b, fst (genv2blocks ge1) b <-> fst (genv2blocks ge2) b) /\
-  (forall b, snd (genv2blocks ge1) b <-> snd (genv2blocks ge2) b).
 
 Module CompilableExtension. Section CompilableExtension. 
  Variables

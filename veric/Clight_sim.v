@@ -1,3 +1,4 @@
+Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.compiler_correctness.
@@ -1790,6 +1791,8 @@ Proof.
   intros. 
   pose (bogus_measure := (fun x: corestate => O)).
   eapply eq_simulation_plus with (match_cores:=MS); try apply bogus_measure; unfold MS.
+ (*genvs_domain_eq*)
+    apply genvs_domain_eq_refl.
  (* initial states *)
       intros. unfold cl_core_sem, CC_core_sem; simpl. 
       unfold cl_initial_core, CC_initial_core; simpl.

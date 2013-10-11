@@ -209,10 +209,12 @@ Lemma eqeq: forall
    (SimEq23 : Forward_simulation_equals Sem2 Sem3 g2 g3 epts23),
    Forward_simulation_equals Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-  destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 
-    core_initial12 core_halted12 core_at_external12 core_after_external12].  
-  destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 
-    core_initial23 core_halted23 core_at_external23 core_after_external23].
+  destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12
+     genvs_dom_eq12 core_diagram12 core_initial12 core_halted12
+     core_at_external12 core_after_external12].  
+  destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23
+     genvs_dom_eq23 core_diagram23 core_initial23 core_halted23
+     core_at_external23 core_after_external23].
   eapply Forward_simulation_eq.Build_Forward_simulation_equals with
     (core_data:= prod (prod core_data12 (option C2)) core_data23) 
     (match_core := fun d c1 c3 => match d with (d1,X,d2) => 
@@ -220,6 +222,8 @@ Proof. intros.
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2)).
            (*wellfounded*) 
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
+           (*genvs_dom_eq*)
+             eapply genvs_domain_eq_trans; eauto.
            (*core_diagram*) 
   clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  
     core_halted12 core_at_external12 core_after_external12  EPC epts12  epts23 epts13.
@@ -385,8 +389,10 @@ Lemma eqext: forall
    Forward_simulation_extends Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
   destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 
-    core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-  destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_validblocks23
+    genvs_dom_eq12 core_diagram12 core_initial12 core_halted12 
+    core_at_external12 core_after_external12].  
+  destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 
+    genvs_dom_eq23 match_validblocks23
     core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
   eapply Build_Forward_simulation_extends with
     (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => 
@@ -395,7 +401,11 @@ Proof. intros.
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2)). 
            (*well_founded*)
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
-            (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
+           (*genvs_dom_eq*)
+             eapply genvs_domain_eq_trans; eauto.
+            (*match_validblocks*) 
+  intros. rename c2 into c3.  rename m2 into m3.
+  destruct d as [[d12 cc2] d23]. 
   destruct H as [c2 [X [MC12 MC23]]]; subst.
   eapply (match_validblocks23 _ _ _ _ _ MC23); try eassumption.
            (*core_diagram*) 
@@ -436,6 +446,14 @@ Proof. intros.
 Qed.
 
 End EQEXT.
+
+Lemma X: forall {A B} (f g: A ->B) 
+      (H: (fun b => f b) = (fun b => g b)) b,
+       f b = g b.
+Proof. intros. 
+  remember ((fun b => f b) b).
+     rewrite H in Heqb0. trivial.
+Qed.
 
 Section EQINJ.
   Import Forward_simulation_inj.
@@ -589,17 +607,23 @@ Lemma eqinj: forall
    (SimInj23 : Forward_simulation_inject Sem2 Sem3 g2 g3 epts23),
    Forward_simulation_inject Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-         destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
+         destruct SimEq12 as [core_data12 match_core12 core_ord12 core_ord_wf12 
+               genvs_domain_eq12 core_diagram12 core_initial12 core_halted12
+               core_at_external12 core_after_external12].  
          destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23
-              match_validblock23 match_genv23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+              match_validblock23 genvs_dom_eq23 match_genv23 core_diagram23 
+              core_initial23 core_halted23 core_at_external23 core_after_external23].
           eapply Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\ match_core12 d1 c1 c2 /\ match_core23 d2 j c2 m1 c3 m3 end).
             (*well_founded*)
                  eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
-            (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
+            (*match_validblocks*) intros. rename c2 into c3.
+                         rename m2 into m3. destruct d as [[d12 cc2] d23]. 
                          destruct H as [c2 [X [MC12 MC23]]]; subst.
                          eapply (match_validblock23 _ _ _ _ _ _ MC23); try eassumption.
+           (*genvs_dom_eq*)
+             eapply genvs_domain_eq_trans; eauto.
             (*match_genvs*)
                  intros.
                  clear core_initial23  core_halted23 core_at_external23 
@@ -609,7 +633,10 @@ Proof. intros.
                  rename c2 into st3.
                  destruct d as [[d12 cc2] d23]. destruct H as [st2 [X [? ?]]]; subst. 
                    rename m2 into m3.
-                 admit. (*need to add match_genv condition in sim EQ case*)
+                 apply meminj_preserves_genv2blocks.
+                 rewrite (genvs_domain_eq_match_genvs _ _ genvs_domain_eq12). 
+                 apply meminj_preserves_genv2blocks.
+                 apply (match_genv23 _ _ _ _ _ _ H0).
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                          EPC epts12 epts23 epts13.
@@ -800,15 +827,19 @@ Lemma exteq: forall
    (SimEq23 : Forward_simulation_equals Sem2 Sem3 g2 g3 epts23),
    Forward_simulation_extends Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-  destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_validblocks12
-                 core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-  destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23
-                           core_initial23 core_halted23 core_at_external23 core_after_external23].
+  destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 genvs_dom_eq12
+                 match_validblocks12 core_diagram12 core_initial12 core_halted12
+                 core_at_external12 core_after_external12].  
+  destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 
+                       genvs_dom_eq23 core_diagram23 core_initial23 
+                       core_halted23 core_at_external23 core_after_external23].
   eapply Forward_simulation_ext.Build_Forward_simulation_extends with 
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\ match_core12 d1 c1 m1 c2 m3 /\ match_core23 d2 c2 c3 end).
             (*well_founded*)
                  eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
+            (*genvs_dom_eq*)
+                 eapply genvs_domain_eq_trans; eauto.
             (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
                          destruct H as [c2 [X [MC12 MC23]]]; subst.
                          eapply (match_validblocks12 _ _ _ _ _ MC12); try eassumption.
@@ -995,17 +1026,21 @@ Lemma extext: forall
    Forward_simulation_extends Sem1 Sem3 g1 g3 epts13. 
 Proof. intros.
   destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12
-                        match_vb12 core_diagram12 core_initial12
-                        core_halted12 core_at_external12 
+                        genvs_dom_eq12 match_vb12 core_diagram12
+                        core_initial12 core_halted12 core_at_external12 
                         core_after_external12].  
-  destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_vb23
-    core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+  destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23
+                        genvs_dom_eq23 match_vb23 core_diagram23
+                        core_initial23 core_halted23 core_at_external23
+                        core_after_external23].
   eapply Forward_simulation_ext.Build_Forward_simulation_extends with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
     (match_state := fun d c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\
      match_core12 d1 c1 m1 c2 m2 /\ match_core23 d2 c2 m2 c3 m3 end).
  (*well_founded*)
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
+ (*genvs_dom_eq*)
+  eapply genvs_domain_eq_trans; eauto.
  (*match_validblocks*) 
   intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
   destruct H as [c2 [m [X [MC12 MC23]]]]; subst.
@@ -1266,10 +1301,14 @@ Lemma extinj: forall
      (SimInj23 : Forward_simulation_inject Sem2 Sem3 g2 g3 epts23),
       Forward_simulation_inject Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-         destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_validblocks12
-                      core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-         destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_validblocks23 match_genv23
-                      core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+         destruct SimExt12 as [core_data12 match_core12 core_ord12 core_ord_wf12
+                               genvs_dom_eq12 match_validblocks12 core_diagram12
+                               core_initial12 core_halted12 core_at_external12
+                               core_after_external12].  
+         destruct SimInj23 as [core_data23 match_core23 core_ord23 core_ord_wf23 
+                      match_validblocks23 genvs_dom_eq23 match_genv23
+                      core_diagram23 core_initial23
+                      core_halted23 core_at_external23 core_after_external23].
           eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X=Some c2 /\ 
@@ -1281,8 +1320,21 @@ Proof. intros.
                          destruct (match_validblocks23 _ _ _ _ _ _ MC23 _ _ _ H0). 
                          split; trivial. 
                          eapply (match_validblocks12 _ _ _ _ _ MC12); try eassumption.
+            (*genvs_dom_eq*)
+              eapply genvs_domain_eq_trans; eauto.                
             (*match_genv*)
-                 admit. (*TODO*)
+                 clear match_validblocks12 match_validblocks23
+                       core_initial23 core_diagram23 core_halted23
+                       core_at_external23 core_after_external23
+                       core_initial12 core_halted12 core_diagram12
+                       core_at_external12 core_after_external12.
+                 intros. rename c2 into c3. rename m2 into m3.
+                 destruct d as [[d12 cc2] d23].
+                 destruct H as [c2 [m2 [X [? ?]]]]; subst.
+                 apply meminj_preserves_genv2blocks.
+                 specialize (match_genv23 _ _ _ _ _ _ H0).
+                 apply meminj_preserves_genv2blocks in match_genv23.
+                 eapply genvs_domain_eq_preserves; eassumption.
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12 epts23 epts13.
@@ -1519,14 +1571,17 @@ Proof. intros.
 Qed.
 
 Lemma injeq: forall
-(*      (PG1 : meminj_preserves_globals (g.globalenv P1) j12)*)
       (SimInj12 : Forward_simulation_inject Sem1 Sem2 g1 g2 epts12)
       (SimEq23 : Forward_simulation_equals Sem2 Sem3 g2 g3 epts23),
       Forward_simulation_inject Sem1 Sem3 g1 g3 epts13.
 Proof. intros.
-  destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12 match_genv12
-            core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-   destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23 core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+  destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12
+            match_vb12 genvs_dom_eq12 match_genv12
+            core_diagram12 core_initial12 core_halted12
+            core_at_external12 core_after_external12].  
+   destruct SimEq23 as [core_data23 match_core23 core_ord23 core_ord_wf23
+            genvs_dom_eq23 core_diagram23 core_initial23
+            core_halted23 core_at_external23 core_after_external23].
     eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, X=Some c2 /\
@@ -1536,8 +1591,15 @@ Proof. intros.
             (*match_validblocks*) intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
                          destruct H as [c2 [X [MC12 MC23]]]; subst.
                          eapply (match_vb12 _ _ _ _ _ _ MC12); try eassumption.
-            (*match_genv*)
-                 admit. (*TODO*)
+            (*genvs_dom_eq*)
+              eapply genvs_domain_eq_trans; eauto.
+            (*match_genv*) 
+                 clear core_initial23  core_halted23 core_at_external23 core_after_external23 
+                       core_initial12  core_halted12 core_at_external12 core_after_external12
+                       match_vb12 core_diagram12 core_diagram23 EPC epts12  epts23 epts13.
+                 intros. rename c2 into c3.
+                 destruct d as [[d12 cc2] d23]. destruct H as [c2 [X [? ?]]]; subst.
+                 apply (match_genv12 _ _ _ _ _ _ H).
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12  epts23 epts13.
@@ -1751,10 +1813,14 @@ Lemma injext: forall
       (SimExt23 : Forward_simulation_extends Sem2 Sem3 g2 g3 epts23),
       Forward_simulation_inject Sem1 Sem3 g1 g3 epts13. 
 Proof. intros.
-    destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12 match_vb12 match_genv12
-            core_diagram12 core_initial12 core_halted12 core_at_external12 core_after_external12].  
-    destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23 match_vb23
-            core_diagram23 core_initial23 core_halted23 core_at_external23 core_after_external23].
+    destruct SimInj12 as [core_data12 match_core12 core_ord12 core_ord_wf12
+                          match_vb12 genv_dom_eq12 match_genv12
+                          core_diagram12 core_initial12 core_halted12
+                          core_at_external12 core_after_external12].  
+    destruct SimExt23 as [core_data23 match_core23 core_ord23 core_ord_wf23
+                          genv_dom_eq23 match_vb23 core_diagram23
+                          core_initial23 core_halted23 
+                          core_at_external23 core_after_external23].
     eapply Forward_simulation_inj.Build_Forward_simulation_inject with
                  (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
                  (match_state := fun d j c1 m1 c3 m3 => match d with (d1,X,d2) => exists c2, exists m2, X = Some c2 /\
@@ -1766,8 +1832,15 @@ Proof. intros.
                          destruct (match_vb12 _ _ _ _ _ _ MC12 _ _ _ H0).
                          split; try eassumption.
                          eapply (match_vb23 _ _ _ _ _ MC23); try eassumption.
+            (*genvs_dom_eq*)
+              eapply genvs_domain_eq_trans; eauto.
             (*match_genv*) 
-                 admit. (*TODO*)
+                 clear core_initial23  core_halted23 core_at_external23 core_after_external23 
+                       core_initial12  core_halted12 core_at_external12 core_after_external12
+                       core_diagram12 core_diagram23  EPC epts12  epts23 epts13.
+                 intros. rename c2 into c3. rename m2 into m3.
+                 destruct d as [[d12 cc2] d23]. destruct H as [c2 [m2 [X [? ?]]]]; subst.
+                 apply (match_genv12 _ _ _ _ _ _ H).
             (*core_diagram*)
                  clear core_initial23  core_halted23 core_at_external23 core_after_external23 core_initial12  core_halted12 core_at_external12 core_after_external12
                           EPC epts12  epts23 epts13.
@@ -2091,12 +2164,14 @@ Lemma injinj: forall
 Proof. intros.
   destruct SimInj12 
     as [core_data12 match_core12 core_ord12 core_ord_wf12
-      match_validblock12 match_genv12 core_diagram12 
-      core_initial12 core_halted12 core_at_external12 core_after_external12].  
+        match_validblock12 genvs_dom_eq12 match_genv12 
+        core_diagram12 core_initial12 core_halted12
+        core_at_external12 core_after_external12].  
   destruct SimInj23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
-      match_validblock23 match_genv23 core_diagram23 
-      core_initial23 core_halted23 core_at_external23 core_after_external23].
+        match_validblock23 genvs_dom_eq23 match_genv23
+        core_diagram23 core_initial23 core_halted23
+        core_at_external23 core_after_external23].
   eapply Forward_simulation_inj.Build_Forward_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
     (match_state := fun d j c1 m1 c3 m3 => 
@@ -2114,8 +2189,21 @@ Proof. intros.
   destruct H0 as [b11 [ofs11 [ofs12 [Hb [Hb1 Hdelta]]]]]. 
   split. eapply (match_validblock12 _ _ _ _ _ _ MC12); try eassumption.
   eapply (match_validblock23 _ _ _ _ _ _ MC23); try eassumption.
+ (*genvs_dom_eq*)
+  eapply genvs_domain_eq_trans; eauto.
  (*match_genv*)
-  admit. (*TODO*)
+  clear core_initial23  core_halted23 core_at_external23 core_after_external23 
+        core_initial12  core_halted12 core_at_external12 core_after_external12
+        core_diagram12 core_diagram23 match_validblock12 match_validblock23 EPC epts12 epts23 epts13.
+  intros. rename c2 into c3. rename m2 into m3.
+  destruct d as [[d12 cc2] d23]. 
+  destruct H as [c2 [m2 [j12 [j23 [X [? [MC12 MC23]]]]]]]; subst.
+  apply meminj_preserves_genv2blocks.
+  specialize (match_genv12 _ _ _ _ _ _ MC12); clear MC12.
+  specialize (match_genv23 _ _ _ _ _ _ MC23); clear MC23.
+  apply meminj_preserves_genv2blocks in match_genv12.
+  apply meminj_preserves_genv2blocks in match_genv23. 
+  eapply meminj_preserves_globals_ind_compose; eassumption.
  (*core_diagram*)
   clear core_initial23  core_halted23 core_at_external23 core_after_external23 
     core_initial12  core_halted12 core_at_external12 core_after_external12

@@ -52,6 +52,8 @@ Let tge: genv := Genv.globalenv tprog.
 
 Let core_data := CSharpMin_core.
 
+(*Lenb -- meminj_preserves_globales is new, and needed since this property is now
+    required by the simulation realtions, rather than only at/efterexternal clauses*)
 Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core -> mem -> Prop :=
   | MC_states:
       forall d fn s k e le m tfn ts tk sp te tm cenv xenv j lo hi cs sz
@@ -61,7 +63,8 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       (MCS: match_callstack prog j m tm
                (Frame cenv tfn e le te sp lo hi :: cs)
                (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont k tk  cenv xenv cs),
+      (MK: match_cont k tk  cenv xenv cs)
+      (*(PG: meminj_preserves_globals ge j)*),
       match_cores d j (CSharpMin_State fn s k e le) m
                    (CMin_State tfn ts tk (Vptr sp Int.zero) te) tm
   | MC_state_seq:
@@ -72,7 +75,8 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       (MCS: match_callstack prog j m tm
                (Frame cenv tfn e le te sp lo hi :: cs)
                (Mem.nextblock m) (Mem.nextblock tm))
-      (MK: match_cont (Csharpminor.Kseq s2 k) tk cenv xenv cs),
+      (MK: match_cont (Csharpminor.Kseq s2 k) tk cenv xenv cs)
+      (*(PG: meminj_preserves_globals ge j)*),
       match_cores d j (CSharpMin_State fn (Csharpminor.Sseq s1 s2) k e le) m
                    (CMin_State tfn ts1 tk (Vptr sp Int.zero) te) tm
   | MC_callstate:
@@ -90,7 +94,9 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
      these conditions in CSharpminor_CompcertSemantics.CSharpMin_at_external, and
      similarly for Cminor?*)
      (ARGSTYP: Forall2 Val.has_type args (Csharpminor.funsig fd).(sig_args))
-     (TARGSTYP: Forall2 Val.has_type targs (Csharpminor.funsig fd).(sig_args)),
+     (TARGSTYP: Forall2 Val.has_type targs (Csharpminor.funsig fd).(sig_args))
+
+      (*(PG: meminj_preserves_globals ge j)*),
  
       match_cores d j (CSharpMin_Callstate fd args k) m
                    (CMin_Callstate tfd targs tk) tm
@@ -99,7 +105,8 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       (MINJ: Mem.inject j m tm)
       (MCS: match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm))
       (MK: match_cont k tk cenv nil cs)
-      (RESINJ: val_inject j v tv),
+      (RESINJ: val_inject j v tv)
+      (*(PG: meminj_preserves_globals ge j)*),
       match_cores d j (CSharpMin_Returnstate v k) m
                    (CMin_Returnstate tv tk) tm.
 
@@ -137,7 +144,8 @@ Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
   (Inj : Mem.inject j m1 m2)
   (VI: Forall2 (val_inject j) vals1 vals2)
-  (HT: Forall2 Val.has_type vals2 (sig_args sig)),
+  (HT: Forall2 Val.has_type vals2 (sig_args sig))
+  (*(PG: meminj_preserves_globals ge j)*),
 exists c2 : CMin_core,
   initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
   match_cores c1 j c1 m1 c2 m2. 
@@ -265,6 +273,17 @@ Proof. intros.
           xomega.
          eapply forward_nextblock; assumption.
          eapply forward_nextblock; assumption.
+   (*apply meminj_preserves_genv2blocks. 
+     apply meminj_preserves_genv2blocks in PG.
+     destruct PG as [AA [BB CC]].
+     split; intros. apply H2. apply (AA _ H).
+     split; intros. apply H2. apply (BB _ H).
+     specialize (BB _ H).
+     remember (j' b1) as d.
+     destruct d; apply eq_sym in Heqd.
+       destruct p. inv H0. 
+      (*TODO*)
+    inv H0.*)
 Qed.
 
 Lemma MC_MSI: forall d j
@@ -2287,18 +2306,33 @@ Proof.
 intros.
  eapply inj_simulation_star with 
   (match_states:=match_cores)(measure:=MC_measure).
+ (*genvs_dom_eq*)
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
  apply match_cores_valid.
- intros. eapply (init_cores _ _ _ entrypoints); eauto. 
+ (*preserves_globals*)
+   intros. admit. (*TODO*)
+ intros. eapply (init_cores _ _ _ entrypoints); eauto.
  intros. destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
            as [Inc [Presv [vals2 [ValsInj [avlsHT2 AtExt2]]]]].
-    split; trivial.
     split; trivial.
     exists vals2. 
     split; trivial.
     split; trivial.
- intros. 
+ intros.
+    assert (PG: meminj_preserves_globals ge j). admit. (*TODO*) 
     destruct (MC_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0
-             H1 H2 H3 H4 H5 H6 H7 H8 H9 H11)
+             PG H1 H2 H3 H4 H5 H6 H7 H8 H10)
            as [dd [core [dd' [afterExtA [afterExtB [ MC X]]]]]].
      subst. eexists; eexists. eexists.
         split. eassumption.
