@@ -648,6 +648,9 @@ Proof. intros.
                   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). eapply forall_valinject_hastype; eauto.
                   destruct (core_initial12 _ _ _ EP12 _ HT) as [d12 [c11 [c2 [Ini1 [Ini2 MC12]]]]]. rewrite Ini1 in H0. inv H0.
                   destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2 H3) as [d23 [c3 [Ini3 MC23]]].
+                  apply meminj_preserves_genv2blocks.
+                     apply meminj_preserves_genv2blocks in H4.
+                     apply (genvs_domain_eq_preserves g1); assumption.
                   exists (d12,Some c2,d23). exists c3. split; trivial. exists c2. auto.
              (*halted*)
                     intros. rename c2 into c3. destruct cd as [[d12 cc2] d23]. destruct H as [c2 [X [MC12 MC23]]]; subst.
@@ -1349,6 +1352,9 @@ Proof. intros.
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ ( forall_lessdef_refl _) HT (Mem.extends_refl m1))
                       as [d12 [c11 [c2 [Ini1 [Ini2 MC12]]]]]. rewrite Ini1 in H0. inv H0.
                   destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2 H3) as [d23 [c3 [Ini3 MC23]]].
+                  apply meminj_preserves_genv2blocks.
+                     apply meminj_preserves_genv2blocks in H4.
+                     apply (genvs_domain_eq_preserves g1); assumption.
                   exists (d12,Some c2, d23). exists c3. 
                   split; trivial. exists c2. exists m1. split; trivial. split; trivial.
              (*halted*)
@@ -1608,7 +1614,7 @@ Proof. intros.
                  eapply (diagram_injeq _ _ _ core_diagram12 _ _ _ core_diagram23); try eassumption.
              (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-                  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3) as [d12 [c2 [Ini2 MC12]]].
+                  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3 H4) as [d12 [c2 [Ini2 MC12]]].
                   destruct (core_initial23 _ _ _ EP23 _ H3) as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
                   rewrite Ini22 in Ini2. inv Ini2.
                   exists (d12,Some c2,d23). exists c3. split; trivial.
@@ -1849,7 +1855,7 @@ Proof. intros.
                  eapply (diagram_injext _ _ _ core_diagram12 _ _ _ core_diagram23); try eassumption.
            (*initial_core*)
                   intros. rename m2 into m3. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-                  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3) as [d12 [c2 [Ini2 MC12]]].
+                  destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3 H4) as [d12 [c2 [Ini2 MC12]]].
                   destruct (core_initial23 _ _ _ EP23 _ _ _ _ (forall_lessdef_refl _) H3 (extends_refl m3)) 
                          as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
                   rewrite Ini22 in Ini2. inv Ini2.
@@ -1942,7 +1948,7 @@ Lemma inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
        Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3.
 Proof. intros.
   destruct (MEMAX.interpolate_II _ _ _ empty_inj _ (empty_fwd m1) _ _ empty_inj _ (empty_fwd m3) _ Inj)
-  as [m2 [j1 [j2 [J [Inc1 [Inc2 [Inj12 [? [Inj23 _]]]]]]]]].
+  as [m2 [j1 [j2 [J [Inc1 [Inc2 [Inj12 [Sep12 [Inj23 Sep23]]]]]]]]].
 intros b; intros. 
   destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
     subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
@@ -1967,6 +1973,44 @@ Proof. intros.
     destruct (val_inject_split _ _ _ _ H) as [z [VV1 VV2]].
     exists (z::vals).
     split; econstructor; eauto.
+Qed.
+
+Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
+  exists m2 j1 j2, j = compose_meminj j1 j2 /\
+       Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3 /\
+      (forall b1 b2 ofs2, j1 b1 = Some(b2,ofs2) -> (b1=b2 /\ ofs2=0)) /\
+      (forall (b2 b3 : block) (ofs3 : Z),
+      j2 b2 = Some (b3, ofs3) ->
+      Mem.flat_inj 1%positive b2 = Some (b3, ofs3) \/
+      b2 = Mem.nextblock Mem.empty /\
+      compose_meminj j1 j2 (Mem.nextblock Mem.empty) = Some (b3, ofs3) \/
+      (exists m : positive,
+         b2 = (Mem.nextblock Mem.empty + m)%positive /\
+         compose_meminj j1 j2 (Mem.nextblock Mem.empty + m)%positive =
+         Some (b3, ofs3))).
+Proof. intros.
+  destruct (MEMAX.interpolate_II_HeqMKI _ _ _ empty_inj _ (empty_fwd m1) _ _ empty_inj _ (empty_fwd m3) _ Inj)
+  as [m2 [j1 [j2 [J [X [Y [Inc1 [Inc2 [Inj12 [_ [Inj23 [? [? [? [XX3 XX4]]]]]]]]]]]]]]].
+intros b; intros. 
+  destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
+    subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
+         exfalso. xomega.
+intros b; intros.
+   unfold Mem.valid_block; simpl; split; intros N; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+subst. exists m2, j1, j2.
+  split; trivial.
+  split; trivial.
+  split. trivial.
+  split; trivial. 
+  intros. clear - H2 XX3.
+    destruct (XX3 _ _ _ H2) as [AA | [AA | AA]]. 
+    apply flatinj_E in AA. destruct AA as [? [? ?]]; subst. intuition.
+    destruct AA as [? [? ?]]; subst. intuition.
+    destruct AA as [mm [[? ?] ?]]; subst. intuition.
 Qed.
 
 Section INJINJ.
@@ -2156,6 +2200,198 @@ Proof.
    right. split. exists O. simpl; auto.
    apply t_step. constructor 1; auto.
 Qed.
+ 
+Lemma diagram_injinj_injsep: forall
+(core_data12 : Type)
+(match_core12 : core_data12 -> meminj -> C1 -> mem -> C2 -> mem -> Prop)
+(core_ord12 : core_data12 -> core_data12 -> Prop)
+(core_diagram12 : forall (st1 : C1) (m1 : mem) (st1' : C1) (m1' : mem),
+                 corestep Sem1 g1 st1 m1 st1' m1' ->
+                 forall (cd : core_data12) (st2 : C2) (j : meminj) (m2 : mem),
+                 match_core12 cd j st1 m1 st2 m2 ->
+                 exists st2' : C2,
+                   exists m2' : mem,
+                     exists cd' : core_data12,
+                       exists j' : meminj,
+                         inject_incr j j' /\
+                         inject_separated j j' m1 m2 /\
+                         match_core12 cd' j' st1' m1' st2' m2' /\
+                         (corestep_plus Sem2 g2 st2 m2 st2' m2' \/
+                          corestep_star Sem2 g2 st2 m2 st2' m2' /\ core_ord12 cd' cd))
+(core_data23 : Type)
+(match_core23 : core_data23 -> meminj -> C2 -> mem -> C3 -> mem -> Prop)
+(core_ord23 : core_data23 -> core_data23 -> Prop)
+(core_diagram23 : forall (st1 : C2) (m1 : mem) (st1' : C2) (m1' : mem),
+                   corestep Sem2 g2 st1 m1 st1' m1' ->
+                   forall (cd : core_data23) (st2 : C3) 
+                     (j : meminj) (m2 : mem),
+                   match_core23 cd j st1 m1 st2 m2 ->
+                   exists st2' : C3,
+                     exists m2' : mem,
+                       exists cd' : core_data23,
+                         exists j' : meminj,
+                           inject_incr j j' /\
+                           inject_separated j j' m1 m2 /\
+                           match_core23 cd' j' st1' m1' st2' m2' /\
+                           (corestep_plus Sem3 g3 st2 m2
+                              st2' m2' \/
+                            corestep_star Sem3 g3 st2 m2
+                              st2' m2' /\ core_ord23 cd' cd))
+ (MatchHyp12: forall d12 j12 c1 m1 c2 m2,  match_core12 d12 j12 c1 m1 c2 m2 ->  
+                    forall b1 b2 ofs, j12 b1 = Some (b2,ofs) -> Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2)
+ (MatchHyp23: forall d23 j23 c2 m2 c3 m3,  match_core23 d23 j23 c2 m2 c3 m3 ->  
+                    forall b1 b2 ofs, j23 b1 = Some (b2,ofs) -> Mem.valid_block m2 b1 /\ Mem.valid_block m3 b2)
+ (st1 : C1)
+  (m1 : mem)
+  (st1' : C1)
+  (m1' : mem)
+  (CS1 : corestep Sem1 g1 st1 m1 st1' m1')
+  (d12 : core_data12)
+  (d23 : core_data23)
+  (st3 : C3)
+  (m3 : mem)
+  (st2 : C2)
+  (m2 : mem)
+  (j12 : meminj)
+  (j23 : meminj)
+  (MC12 : match_core12 d12 j12 st1 m1 st2 m2)
+  (MC23 : match_core23 d23 j23 st2 m2 st3 m3),
+   exists st3' : C3,
+     exists m3' : mem,
+       exists cd' : core_data12 * option C2 * core_data23,
+         exists j' : meminj,
+           inject_incr (compose_meminj j12 j23) j' /\
+           inject_separated (compose_meminj j12 j23) j' m1 m3 /\
+           (let (y, d2) := cd' in
+            let (d1, X) := y in
+            exists st2' : C2,
+              exists m2' : mem,
+                exists j12' : meminj,
+                  exists j23' : meminj,
+                    X = Some st2' /\
+                    j' = compose_meminj j12' j23' /\
+                    match_core12 d1 j12' st1' m1' st2' m2' /\
+                    match_core23 d2 j23' st2' m2' st3' m3' /\
+                    inject_incr j12 j12' /\
+                    inject_incr j23 j23' /\
+                    inject_separated j12 j12' m1 m2 /\
+                    inject_separated j23 j23' m2 m3) /\
+           (corestep_plus Sem3 g3 st3 m3 st3' m3' \/
+            corestep_star Sem3 g3 st3 m3 st3' m3' /\
+            clos_trans (core_data12 * option C2 * core_data23)
+              (sem_compose_ord_eq_eq core_ord12 core_ord23 C2) cd'
+              (d12, Some st2, d23)).
+Proof. 
+  intros. 
+  destruct (core_diagram12 _ _ _ _ CS1 _ _ _ _ MC12)
+    as [st2' [m2' [d12' [j12' [InjIncr12 [InjSep12 [MC12' Y]]]]]]]; clear core_diagram12.
+  assert (ZZ: corestep_plus Sem2 g2 st2 m2 st2' m2' \/
+    (st2,m2) = (st2',m2') /\ core_ord12 d12' d12).
+  destruct Y. auto.
+  destruct H.
+  destruct H. destruct x.
+  right. split; auto.
+  left. exists x; auto.
+  clear Y. destruct ZZ as [CS2 | [CS2 ord12']].
+ (*case1*) 
+  destruct CS2.
+  clear CS1. 
+  cut (exists st3' : C3,  exists m3' : mem, exists d23':core_data23, exists j23' : meminj, 
+    inject_incr j23 j23' /\ inject_separated j23 j23' m2 m3 /\
+    match_core23 d23' j23' st2' m2' st3' m3' /\
+    (corestep_plus Sem3 g3 st3 m3 st3' m3' \/
+      (corestep_star Sem3 g3 st3 m3 st3' m3' /\
+        clos_trans (core_data12 * option C2 * core_data23)
+        (sem_compose_ord_eq_eq core_ord12 core_ord23 C2) (d12', Some st2', d23')
+        (d12, Some st2, d23)))).
+  intros XX; destruct XX as [st3' [m3' [d23' [j23' [InjIncr23 [InjSep23 [MC23' ZZ]]]]]]].
+  exists st3'. exists m3'. exists (d12', Some st2', d23'). exists (compose_meminj j12' j23').
+  split. eapply compose_meminj_inject_incr. apply InjIncr12. apply InjIncr23. 
+  split. eapply compose_meminj_inject_separated. apply InjSep12. apply InjSep23. 
+  assumption. assumption.
+    eapply (MatchHyp12 _ _ _ _ _ _ MC12).
+    eapply (MatchHyp23 _ _ _ _ _ _ MC23).
+    split. exists st2'. exists m2'. exists j12'. exists j23'. intuition.
+    apply ZZ.
+  clear MC12 InjIncr12 InjSep12 MC12' MatchHyp12. 
+  clear st1 m1 st1' m1' j12 j12'. 
+  clear C1 Sem1 match_core12 g1.
+  revert j23 d23 st2 m2 st3 m3 H MC23. 
+  induction x; intros. 
+   (*base case*) simpl in H.
+    destruct H as [c2 [m2'' [? ?]]].
+    inv H0.
+    destruct (core_diagram23 _ _ _ _ H _ _ _ _ MC23) 
+      as [st3' [m3' [d23' [j23' [InjInc23 [InjSep23 [? ?]]]]]]].
+    exists st3'. exists m3'. exists d23'. exists j23'. 
+    split; trivial.
+    split; trivial.
+    split; trivial.
+    destruct H1. left; assumption.
+    destruct H1. right. split; trivial.
+    apply t_step. constructor 2. apply H2.
+   (*inductive case*)
+    remember (S x) as x'. simpl in H.
+    destruct H as [st2'' [m2'' [? ?]]]. subst x'.
+    destruct (core_diagram23 _ _ _ _  H _ _ _ _ MC23) 
+      as [c3' [m3' [d23' [j23' [InjInc23 [InjSep23 [? ?]]]]]]]. clear core_diagram23.
+    specialize (IHx j23' d23' _ _ c3' m3' H0 H1).
+    destruct IHx as [c3'' [m3'' [d23'' [j23'' [InjIncr' [InjSep' [MC' XX]]]]]]].
+    exists c3''. exists m3''. exists d23''. exists j23''.
+    split. eapply inject_incr_trans. apply InjInc23. apply InjIncr'.
+    split. clear MC' H1. intros b; intros.
+    remember (j23' b).
+    destruct o; apply eq_sym in Heqo. 
+    destruct p. specialize (InjIncr' _ _ _ Heqo). rewrite InjIncr' in H3. inv H3.
+    destruct (InjSep23 _ _ _ H1 Heqo). split; trivial.
+    destruct (InjSep' _ _ _ Heqo H3).
+    split; intros N.
+    apply H4. apply corestep_fwd in H. apply H. apply N.
+    apply H5. destruct H2 as [H2 | [H2 _]].
+    apply corestep_plus_fwd in H2. apply H2. apply N.
+    apply corestep_star_fwd in H2. apply H2. apply N.                      
+    split. apply MC'.
+    destruct H2; destruct XX.
+           (*1/4*)
+              left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                      exists (n1 + S n2)%nat.
+                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
+                      rewrite corestepN_add. eauto.
+           (*2/4*)
+               destruct H3.
+               left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                       exists (n1 + n2)%nat.
+                       change (S (n1 + n2)) with (S n1 + n2)%nat.
+                       rewrite corestepN_add. eauto.
+           (*3/4*)
+               left. destruct H2.
+                       destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                       exists (n1 + n2)%nat.
+                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
+                       rewrite corestepN_add. eauto.
+           (*3/4*)
+               right. destruct H2. destruct H3.
+               split. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
+                         exists (n1 + n2)%nat.
+                         rewrite corestepN_add. eauto.
+              eapply t_trans; eauto.
+          (*4/4*)
+              apply t_step.
+              constructor 2. apply H4.
+  (*case 2*)
+   inv CS2.
+   exists st3. exists m3. exists (d12',Some st2',d23). exists  (compose_meminj j12' j23). 
+   split. eapply compose_meminj_inject_incr.  assumption. apply inject_incr_refl.
+   split. eapply compose_meminj_inject_separated. eassumption.
+   apply inject_separated_same_meminj. 
+   assumption. apply inject_incr_refl.
+   eapply (MatchHyp12 _ _ _ _ _ _ MC12).
+   eapply (MatchHyp23 _ _ _ _ _ _ MC23).
+   split. exists st2'. exists m2'. exists j12'. exists j23. intuition.
+     apply inject_separated_same_meminj.
+   right. split. exists O. simpl; auto.
+   apply t_step. constructor 1; auto.
+Qed.
 
 Lemma injinj: forall
   (SimInj12 : Forward_simulation_inject Sem1 Sem2 g1 g2 epts12)
@@ -2178,13 +2414,15 @@ Proof. intros.
       match d with (d1,X,d2) => 
         exists c2, exists m2, exists j1, exists j2, 
           X=Some c2 /\ j = compose_meminj j1 j2 /\
+          meminj_preserves_globals g1 j1 /\
+          meminj_preserves_globals g2 j2 /\
           match_core12 d1 j1 c1 m1 c2 m2 /\ match_core23 d2 j2 c2 m2 c3 m3 
       end).
  (*well_founded*)
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
  (*match_validblocks*) 
   intros. rename c2 into c3.  rename m2 into m3. destruct d as [[d12 cc2] d23]. 
-  destruct H as [c2 [m2 [j12 [j23 [X [J [MC12 MC23]]]]]]]; subst.
+  destruct H as [c2 [m2 [j12 [j23 [X [J [PG1 [PG2 [MC12 MC23]]]]]]]]]; subst.
   apply compose_meminjD_Some in H0. 
   destruct H0 as [b11 [ofs11 [ofs12 [Hb [Hb1 Hdelta]]]]]. 
   split. eapply (match_validblock12 _ _ _ _ _ _ MC12); try eassumption.
@@ -2197,21 +2435,33 @@ Proof. intros.
         core_diagram12 core_diagram23 match_validblock12 match_validblock23 EPC epts12 epts23 epts13.
   intros. rename c2 into c3. rename m2 into m3.
   destruct d as [[d12 cc2] d23]. 
-  destruct H as [c2 [m2 [j12 [j23 [X [? [MC12 MC23]]]]]]]; subst.
+  destruct H as [c2 [m2 [j12 [j23 [X [? [PG1 [PG2 [MC12 MC23]]]]]]]]]; subst.
   apply meminj_preserves_genv2blocks.
-  specialize (match_genv12 _ _ _ _ _ _ MC12); clear MC12.
-  specialize (match_genv23 _ _ _ _ _ _ MC23); clear MC23.
-  apply meminj_preserves_genv2blocks in match_genv12.
-  apply meminj_preserves_genv2blocks in match_genv23. 
-  eapply meminj_preserves_globals_ind_compose; eassumption.
+  apply meminj_preserves_genv2blocks in PG1.
+  apply meminj_preserves_genv2blocks in PG2.
+  eapply meminj_preserves_globals_ind_compose; try eassumption.
  (*core_diagram*)
   clear core_initial23  core_halted23 core_at_external23 core_after_external23 
     core_initial12  core_halted12 core_at_external12 core_after_external12
     EPC epts12 epts23 epts13.
   intros. rename st2 into st3. rename m2 into m3.
-  destruct cd as [[d12 cc2] d23]. destruct H0 as [st2 [m2 [j12 [j23 [X [? [MC12 MC23]]]]]]]; subst.
-  eapply (diagram_injinj _ _ _ core_diagram12 _ _ _ core_diagram23 
-    match_validblock12 match_validblock23); try eassumption.
+  destruct cd as [[d12 cc2] d23]. 
+  destruct H0 as [st2 [m2 [j12 [j23 [X [? [PG1 [PG2 [MC12 MC23]]]]]]]]]; subst.
+  destruct (diagram_injinj_injsep _ _ _ core_diagram12 _ _ _ core_diagram23 
+    match_validblock12 match_validblock23 _ _ _ _ H _ _ _ _ _ _ _ _ MC12 MC23)
+    as [c3' [m3' [[[d12' cc2'] d23'] [j' [INC [SEP [X CS3]]]]]]].
+  exists c3', m3', ((d12', cc2'), d23'), j'.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  clear CS3.
+  destruct X as [c2' [m2' [j12' [j23' [Y [J' [MC12' [MC23' [INC12 [INC23 [SEP12 SEP23]]]]]]]]]]].
+  exists c2', m2', j12', j23'.
+  split; trivial.
+  split; trivial.
+  split. solve [eapply meminj_preserves_incr_sep_vb; try eassumption; eauto].
+  split. solve [eapply meminj_preserves_incr_sep_vb; try eassumption; eauto].
+  split; trivial.
  (*initial_core*)
   clear core_diagram23  core_halted23 core_at_external23 core_after_external23 
     core_diagram12  core_halted12 core_at_external12 core_after_external12.
@@ -2219,20 +2469,69 @@ Proof. intros.
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
   assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
     eapply forall_valinject_hastype; eassumption.
-  destruct (inject_split _ _ _ H1) as [m2 [j1 [j2 [J [Inj12 Inj23]]]]].
+  destruct (initial_inject_split _ _ _ H1) as [m2 [j1 [j2 [J [Inj12 [Inj23 [XX3 XX4]]]]]]].
   subst.
   destruct (forall_val_inject_split _ _ _ _ H2) as [vals2 [ValsInj12 ValsInj23]].
+  assert (PG1: meminj_preserves_globals g1 j1).
+    clear - XX3 H4.
+    apply meminj_preserves_genv2blocks.
+     apply meminj_preserves_genv2blocks in H4.
+      destruct H4 as [AA [BB CC]].
+      split; intros.
+         specialize (AA _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         destruct (XX3 _ _ _ J1); subst. trivial.
+      split; intros.
+         specialize (BB _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX3 _ _ _ J1); subst. trivial.
+      destruct (XX3 _ _ _ H0); subst. trivial.
+  assert (PG2: meminj_preserves_globals g2 j2).
+    clear - XX4 XX3 PG1 H4 genvs_dom_eq12.
+    apply meminj_preserves_genv2blocks.
+     apply meminj_preserves_genv2blocks in H4.
+      destruct H4 as [AA [BB CC]].
+     apply meminj_preserves_genv2blocks in PG1.
+      destruct PG1 as [AA1 [BB1 CC1]].
+      destruct genvs_dom_eq12.
+      split; intros.
+         apply H in H1.
+         specialize (AA1 _ H1). specialize (AA _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         rewrite J1 in AA1. inv AA1. simpl in D. subst. trivial.
+      split; intros.
+         apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         rewrite J1 in BB1. inv BB1. simpl in D. subst. trivial.
+      apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1). rename b2 into b3.
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX3 _ _ _ J1); subst. simpl in D. subst.
+         clear BB1 XX3.
+         destruct (XX4 _ _ _ H2) as [XX | [XX | XX]].
+           apply flatinj_E in XX. destruct XX as [? [? ?]]; subst. trivial.
+           destruct XX as [? ?]; subst.
+             apply (CC _ _ _ H1 H4).
+           destruct XX as [mm [? ?]]; subst.
+             apply (CC _ _ _ H1 H4).
   destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ H0 Inj12)
      as [d12 [c2 [Ini2 MC12]]]; try assumption.
-      eapply forall_valinject_hastype; eassumption. 
+      eapply forall_valinject_hastype; eassumption.
   destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ Ini2 Inj23)
      as [d23 [c3 [Ini3 MC23]]]; try assumption. 
   exists (d12,Some c2,d23). exists c3. 
   split; trivial. 
-  exists c2, m2, j1, j2. auto.
+  exists c2, m2, j1, j2. intuition.
  (*halted*)
   intros. rename c2 into c3. rename m2 into m3.  
-  destruct cd as [[d12 cc2] d23]. destruct H as [c2 [m2 [j12 [j23 [X [Y [MC12 MC23]]]]]]]; subst. 
+  destruct cd as [[d12 cc2] d23]. 
+  destruct H as [c2 [m2 [j12 [j23 [X [Y [PG1 [PG2 [MC12 MC23]]]]]]]]]; subst. 
   apply (core_halted12 _ _ _ _ _ _ _ MC12) in H0; try assumption. 
   destruct H0 as [v2 [ValsInj12 [SH2 Minj12]]].
   apply (core_halted23 _ _ _ _ _ _ _ MC23) in SH2; try assumption. 
@@ -2243,7 +2542,7 @@ Proof. intros.
 (*atexternal*)
   intros. rename st2 into st3. rename m2 into m3. 
   destruct cd as [[d12 cc2] d23]. 
-  destruct H as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
+  destruct H as [st2 [m2 [j1 [j2 [Y [J [PG1 [PG2 [MC12 MC23]]]]]]]]]. subst.
   apply (core_at_external12 _ _ _ _ _ _ _ _ _ MC12) in H0; try assumption. 
   destruct H0 as [MInj12 [vals2 [ValsInj12 [HTVals2 AtExt2]]]].
   apply (core_at_external23 _ _ _ _ _ _ _ _ _ MC23) in AtExt2; try assumption. 
@@ -2257,7 +2556,7 @@ Proof. intros.
   intros. rename st2 into st3. rename m2 into m3.
   rename ret2 into ret3. rename m2' into m3'. 
   destruct cd as [[d12 cc2] d23]. 
-  destruct H0 as [st2 [m2 [j1 [j2 [Y [J [MC12 MC23]]]]]]]. subst.
+  destruct H0 as [st2 [m2 [j1 [j2 [Y [J [PG1 [PG2 [MC12 MC23]]]]]]]]]. subst.
   rename H1 into AtExt1.
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExt1) 
    as [MInj12 [vals2 [ValsInj12 [HTVals2 AtExt2]]]].
@@ -2295,7 +2594,9 @@ Proof. intros.
   exists (d12', Some c2', d23'). exists c1'. exists c3'.
   split. assumption.
   split. assumption.
-  exists c2'. exists m2'. exists j12'. exists j23'. auto.
+  exists c2'. exists m2'. exists j12'. exists j23'. intuition.
+    eapply (meminj_preserves_incr_sep _ j1); try eassumption. 
+    eapply (meminj_preserves_incr_sep _ j2); try eassumption. 
 Qed.
 End INJINJ.
 

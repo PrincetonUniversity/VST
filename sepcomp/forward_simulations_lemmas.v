@@ -343,6 +343,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
           Forall2 (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          meminj_preserves_globals ge1 j ->
           exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 j c1 m1 c2 m2. 
@@ -422,7 +423,7 @@ Proof.
   destruct (inj_simulation _ _ _ _ H _ _ _ H1) as 
     [c2' [m2' [j' [INC [SEP [MC' (*[UNCH1 [UNCH2*) Step]]](*]]*)]]].
   exists c2'. exists m2'. exists st1'. exists j'. split; auto. 
-  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3) as 
+  intros. destruct (match_initial_cores _ _ _ H _ _ _ _ _ _ H0 H1 H2 H3 H4) as 
     [c2' [MIC MC]].
   exists c1.  exists c2'. split; eauto.
   intros. destruct H; subst.

@@ -889,3 +889,46 @@ Proof. intros.
     specialize (C23 _ _ _ H0 J2). subst.
     specialize (C12 _ _ _ H J1). subst. trivial.
 Qed.
+
+Lemma meminj_preserves_incr_sep:
+  forall {F V:Type} ge j (PG: @meminj_preserves_globals F V ge j)
+         m tm (MINJ : Mem.inject j m tm)
+         j' (INCR : inject_incr j j') (SEP: inject_separated j j' m tm),
+  meminj_preserves_globals ge j'.
+Proof. intros.
+     apply meminj_preserves_genv2blocks. 
+     apply meminj_preserves_genv2blocks in PG.
+     destruct PG as [AA [BB CC]].
+     split; intros. apply INCR. apply (AA _ H).
+     split; intros. apply INCR. apply (BB _ H).
+     remember (j b1) as d.
+     destruct d; apply eq_sym in Heqd.
+       destruct p. rewrite (INCR _ _ _ Heqd) in H0. inv H0.
+       apply (CC _ _ _ H Heqd).
+     destruct (SEP _ _ _ Heqd H0).
+       specialize (BB _ H).
+       exfalso. apply H2; clear - BB MINJ.
+       eapply Mem.valid_block_inject_2; try eassumption.
+Qed.
+
+Lemma meminj_preserves_incr_sep_vb:
+  forall {F V:Type} ge j (PG: @meminj_preserves_globals F V ge j)
+         m tm 
+         (VB: forall b1 b2 ofs, j b1 = Some(b2,ofs) -> 
+               (Mem.valid_block m b1 /\ Mem.valid_block tm b2))
+         j' (INCR : inject_incr j j') (SEP: inject_separated j j' m tm),
+  meminj_preserves_globals ge j'.
+Proof. intros.
+     apply meminj_preserves_genv2blocks. 
+     apply meminj_preserves_genv2blocks in PG.
+     destruct PG as [AA [BB CC]].
+     split; intros. apply INCR. apply (AA _ H).
+     split; intros. apply INCR. apply (BB _ H).
+     remember (j b1) as d.
+     destruct d; apply eq_sym in Heqd.
+       destruct p. rewrite (INCR _ _ _ Heqd) in H0. inv H0.
+       apply (CC _ _ _ H Heqd).
+     destruct (SEP _ _ _ Heqd H0).
+       specialize (BB _ H).
+       destruct (VB _ _ _ BB). contradiction.
+Qed.

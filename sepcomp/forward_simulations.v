@@ -339,6 +339,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
            (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          meminj_preserves_globals ge1 j ->
           exists cd, exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
@@ -443,6 +444,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
            (val_inject j) vals1 vals2 ->
 
           Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          meminj_preserves_globals ge1 j ->
           exists cd, exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_state cd j c1 m1 c2 m2;
