@@ -168,7 +168,9 @@ Proof. intros.
   solve[elimtype False; auto].
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
   destruct INIT_MEM as [m0 [INIT_MEM [A B]]].
-  assert (Genv.init_mem tprog = Some m0). admit. (*Should be provable!!!*)
+  assert (Genv.init_mem tprog = Some m0).
+    unfold transl_program in TRANSL.
+    solve[eapply Genv.init_mem_transf_partial in TRANSL; eauto].
   apply mcs_nil with (Mem.nextblock m0).
   apply match_globalenvs_init'; auto.
   solve[apply forward_nextblock; auto].
