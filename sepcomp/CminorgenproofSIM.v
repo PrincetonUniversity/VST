@@ -87,15 +87,6 @@ Inductive match_cores: core_data -> meminj -> CSharpMin_core -> mem -> CMin_core
       (MK: match_cont k tk cenv nil cs)
       (ISCC: Csharpminor.is_call_cont k)
       (ARGSINJ: val_list_inject j args targs)
-
-(*LENB: added the following 2 conditions , to enable a proof of sim.at_external.
-  Really, the first one should suffice (since the second one should follow from the first one and  
-   (ARGSINJ: val_list_inject j args targs). Maybe we should add a (boolean-valued version of)
-     these conditions in CSharpminor_CompcertSemantics.CSharpMin_at_external, and
-     similarly for Cminor?*)
-     (ARGSTYP: Forall2 Val.has_type args (Csharpminor.funsig fd).(sig_args))
-     (TARGSTYP: Forall2 Val.has_type targs (Csharpminor.funsig fd).(sig_args))
-
       (PG: meminj_preserves_globals ge j),
  
       match_cores d j (CSharpMin_Callstate fd args k) m
@@ -152,8 +143,9 @@ Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (CSM_Ini : initial_core CSharpMin_core_sem ge v1 vals1 = Some c1)
   (Inj : Mem.inject j m1 m2)
   (VI: Forall2 (val_inject j) vals1 vals2)
-  (HT: Forall2 Val.has_type vals2 (sig_args sig))
-  (PG: meminj_preserves_globals ge j),
+  (PG: meminj_preserves_globals ge j)
+  (INIT_MEM: exists m0, Genv.init_mem prog = Some m0 
+    /\ mem_forward m0 m1 /\ mem_forward m0 m2),
 exists c2 : CMin_core,
   initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
   match_cores c1 j c1 m1 c2 m2. 
@@ -175,18 +167,14 @@ Proof. intros.
   intros CONTRA.
   solve[elimtype False; auto].
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
-  apply mcs_nil with (Mem.nextblock m1).
-  (*apply match_globalenvs_init.*)
-  admit. (*CompCert's globalenvs not yet adapted to noninitial entry points*)
-  xomega. 
-  admit. (*CompCert's globalenvs not yet adapted to noninitial entry points
-            so use of same hi in mcs_nil misleading*)
-  econstructor. 
-  simpl. trivial.
+  destruct INIT_MEM as [m0 [INIT_MEM [A B]]].
+  assert (Genv.init_mem tprog = Some m0). admit. (*Should be provable!!!*)
+  apply mcs_nil with (Mem.nextblock m0).
+  apply match_globalenvs_init'; auto.
+  solve[apply forward_nextblock; auto].
+  solve[apply forward_nextblock; auto].
+  econstructor. simpl. trivial.
   simpl. apply forall_inject_val_list_inject; auto.
-  (*rewrite <- QQ. simpl. constructor.
-    rewrite <- QQ. simpl. constructor.*)
-  admit. admit. (* Val.hasType conditions *)
 Qed.
 
 Lemma MC_safely_halted: forall (cd : core_data) (j : meminj) (c1 : CSharpMin_core) (m1 : mem)
@@ -213,7 +201,6 @@ Mem.inject j m1 m2 /\
 Events.meminj_preserves_globals ge j /\
 (exists vals2 : list val,
    Forall2 (val_inject j) vals1 vals2 /\
-   Forall2 Val.has_type vals2 (sig_args sig) /\
    at_external CMin_core_sem st2 = Some (e, sig, vals2)).
 Proof.
   intros. destruct H; subst.
@@ -242,7 +229,6 @@ mem_forward m1 m1' ->
 Mem.unchanged_on (Events.loc_unmapped j) m1 m1' ->
 mem_forward m2 m2' ->
 Mem.unchanged_on (Events.loc_out_of_reach j m1) m2 m2' ->
-Val.has_type ret2 (proj_sig_res sig) ->
 exists st1' : core_data,
   exists st2' : CMin_core,
     exists d' : core_data,
@@ -250,10 +236,11 @@ exists st1' : core_data,
       after_external CMin_core_sem (Some ret2) st2 = Some st2' /\
       d' = st1' /\ match_cores d' j' st1' m1' st2' m2'. 
 Proof. intros.
-  destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0) as [_ [_ [vals2 [ValsInj [vals2Typ AtExt2]]]]].
+  destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0) 
+    as [_ [_ [vals2 [ValsInj AtExt2]]]].
   destruct H as [X MC]; subst.
   inv MC; simpl in *; inv H0.
-  destruct fd; inv H11.
+  destruct fd; inv H10.
   destruct tfd; inv AtExt2.
   exists (CSharpMin_Returnstate ret1 k). eexists. eexists.
     split. reflexivity.
@@ -261,7 +248,7 @@ Proof. intros.
     split. reflexivity.
   simpl in *.
   econstructor; try eassumption.
-  clear TR H11.
+  clear TR H10.
   destruct k; simpl in *; try contradiction. (*cases k = Kseq and k=Kblock eliminated*)
   (*k=Kstop*) 
       inv MK; simpl in *.   
@@ -310,7 +297,7 @@ Lemma MSI_MC: forall j q m q' m' d
         eapply MC_state_seq; try eassumption. 
      destruct q; simpl in *; inv H2.
         destruct q'; simpl in *; inv H3.
-        eapply MC_callstate; try eassumption. admit. admit. (*New conditions ARGSTYP and TARGSTYP*)
+        eapply MC_callstate; try eassumption. 
      destruct q; simpl in *; inv H2.
         destruct q'; simpl in *; inv H3.
         eapply MC_returnstate; try eassumption.
@@ -458,7 +445,6 @@ Proof. intros.
       eauto.
     eauto.
     econstructor; eauto.
-
 Qed.
 
 Lemma MS_step_case_Assign:
@@ -498,7 +484,7 @@ eapply match_temps_assign; assumption.
 Qed.
 
 
-(*no case set in ocmpCert 2.0
+(*no case set in CompCert 2.0
 Lemma MS_step_case_Set:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 v a id
 (H: Csharpminor.eval_expr ge e lenv m a v)
@@ -609,7 +595,6 @@ Proof. intros.
      (*exists  (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv tk)).
      left.*) econstructor; eauto. eapply match_Kcall with (cenv' := cenv); eauto.
             simpl; trivial.
-      admit. admit. (*These are the new conditions in rule MC_Callstate*)
 Qed.
 
 Lemma MS_step_case_Builtin:
@@ -2311,7 +2296,7 @@ Require Import sepcomp.forward_simulations_lemmas.
 
 (*program structure not yet updated to module*)
 Theorem transl_program_correct:
-  forall entrypoints 
+  forall entrypoints
          (entry_points_ok : 
             forall v1 v2 sig,
               In (v1, v2, sig) entrypoints -> 
@@ -2319,7 +2304,8 @@ Theorem transl_program_correct:
                 v1 = Vptr b Int.zero 
                 /\ v2 = Vptr b Int.zero
                 /\ Genv.find_funct_ptr ge b = Some f1
-                /\ Genv.find_funct_ptr tge b = Some f2),
+                /\ Genv.find_funct_ptr tge b = Some f2)
+         (init_mem: exists m0, Genv.init_mem prog = Some m0),
   Forward_simulation_inj.Forward_simulation_inject 
        CSharpMin_core_sem 
        CMin_core_sem ge tge entrypoints.
@@ -2340,21 +2326,32 @@ intros.
       exists id; assumption.
      rewrite (varinfo_preserved _ _ TRANSL) in Hid.
       exists id; assumption.
- apply match_cores_valid.
+  apply match_cores_valid.
  (*preserves_globals*) apply match_cores_genvs.
- intros. eapply (init_cores _ _ _ entrypoints); eauto.
- intros. destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
-           as [Inc [Presv [vals2 [ValsInj [avlsHT2 AtExt2]]]]].
+   intros. eapply (init_cores _ _ _ entrypoints); eauto.
+   admit. (*This follows from the fact that every program starts in init_mem, 
+             and every evolution of the memory is mem_forward w/r/t the previous
+             mem.  This implies that nextblock of m1 is >= nextblock init_mem. 
+             This needs to be exposed as an invariant.*)
+  
+   intros. 
+  (*halted*)
+  { eapply MC_safely_halted in H; eauto.
+    destruct H as [v2 [A [B C]]].
+    solve[exists v2; split; auto]. }
+  (*at_external*)
+  { intros.
+    destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
+           as [Inc [Presv [vals2 [ValsInj AtExt2]]]].
     split; trivial.
     exists vals2. 
-    split; trivial.
-    split; trivial.
+    split; trivial. }
  intros.
     assert (PG: meminj_preserves_globals ge j).
       destruct H; subst.
-      apply (match_cores_genvs _ _ _ _ _ _ H11). 
+      apply (match_cores_genvs _ _ _ _ _ _ H9). 
     destruct (MC_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0
-             PG H1 H2 H3 H4 H5 H6 H7 H8 H10)
+             PG H1 H2 H3 H4 H5 H6 H7 H8)
            as [dd [core [dd' [afterExtA [afterExtB [ MC X]]]]]].
      subst. eexists; eexists. eexists.
         split. eassumption.

@@ -50,7 +50,7 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
     core_initial : forall v1 v2 sig,
       In (v1,v2,sig) entry_points ->
         forall vals,
-          Forall2 (Val.has_type) vals (sig_args sig) ->
+(*          Forall2 (Val.has_type) vals (sig_args sig) ->*)
           exists cd, exists c1, exists c2,
             initial_core Sem1 ge1 v1 vals = Some c1 /\
             initial_core Sem2 ge2 v2 vals = Some c2 /\
@@ -65,16 +65,16 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
       forall d st1 st2 e args ef_sig,
         match_core d st1 st2 ->
         at_external Sem1 st1 = Some (e,ef_sig,args) ->
-        ( at_external Sem2 st2 = Some (e,ef_sig,args) /\
-          Forall2 Val.has_type args (sig_args ef_sig) );
+        at_external Sem2 st2 = Some (e,ef_sig,args);
+(*          Forall2 Val.has_type args (sig_args ef_sig) );*)
 
     core_after_external :
       forall d st1 st2 ret e args ef_sig,
         match_core d st1 st2 ->
         at_external Sem1 st1 = Some (e,ef_sig,args) ->
         at_external Sem2 st2 = Some (e,ef_sig,args) ->
-        Forall2 Val.has_type args (sig_args ef_sig) ->
-        Val.has_type ret (proj_sig_res ef_sig) ->
+(*        Forall2 Val.has_type args (sig_args ef_sig) ->*)
+(*        Val.has_type ret (proj_sig_res ef_sig) ->*)
         exists st1', exists st2', exists d',
           after_external Sem1 (Some ret) st1 = Some st1' /\
           after_external Sem2 (Some ret) st2 = Some st2' /\
@@ -127,7 +127,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
       In (v1,v2,sig) entry_points ->
         forall vals vals' m1 m2,
           Forall2 Val.lessdef vals vals' ->
-          Forall2 (Val.has_type) vals' (sig_args sig) ->
+(*          Forall2 (Val.has_type) vals' (sig_args sig) ->*)
           Mem.extends m1 m2 ->
           exists cd, exists c1, exists c2,
             initial_core Sem1 ge1 v1 vals = Some c1 /\
@@ -149,7 +149,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         exists vals2,
           Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+(*          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\*)
           at_external Sem2 st2 = Some (e,ef_sig,vals2);
 
     core_after_external :
@@ -159,7 +159,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         at_external Sem2 st2 = Some (e,ef_sig,vals2) ->
 
         Forall2 Val.lessdef vals1 vals2 ->
-        Forall2 (Val.has_type) vals2 (sig_args ef_sig) ->
+(*        Forall2 (Val.has_type) vals2 (sig_args ef_sig) ->*)
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
@@ -168,7 +168,7 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
 
-        Val.has_type ret2 (proj_sig_res ef_sig) -> 
+(*        Val.has_type ret2 (proj_sig_res ef_sig) -> *)
 
         exists st1', exists st2', exists cd',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -338,7 +338,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
            entry_points -> val_inject j w1 w2) ->*) Forall2
            (val_inject j) vals1 vals2 ->
 
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+(*          Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
           meminj_preserves_globals ge1 j ->
           exists cd, exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
@@ -357,7 +357,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+(*          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\*)
           at_external Sem2 st2 = Some (e,ef_sig,vals2));
 
     core_after_external :
@@ -376,7 +376,7 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
          Mem.unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+(*         Val.has_type ret2 (proj_sig_res ef_sig) -> *)
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -443,7 +443,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
            entry_points -> val_inject j w1 w2) ->*) Forall2
            (val_inject j) vals1 vals2 ->
 
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+(*          Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
           meminj_preserves_globals ge1 j ->
           exists cd, exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
@@ -463,7 +463,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         ( Mem.inject j m1 m2 /\
           meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+(*          Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\*)
           at_external Sem2 st2 = Some (e,ef_sig,vals2));
 
     core_after_external :
@@ -482,7 +482,7 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
          Mem.unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-         Val.has_type ret2 (proj_sig_res ef_sig) -> 
+(*         Val.has_type ret2 (proj_sig_res ef_sig) -> *)
 
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\

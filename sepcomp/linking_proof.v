@@ -204,17 +204,6 @@ Qed.
 
 End CoreCompatibleLemmas.
 
-Lemma exists_ty: forall v, exists ty, Val.has_type v ty.
-Proof.
-intros v.
-destruct v.
-exists Tint; simpl; auto.
-exists Tint; simpl; auto.
-exists Tlong; simpl; auto.
-exists Tfloat; simpl; auto.
-exists Tint; simpl; auto.
-Qed.
-
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -288,7 +277,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -309,7 +297,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external csemT c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
  
@@ -318,7 +305,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
-    Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
@@ -353,6 +339,9 @@ destruct core_simulation; auto.
 destruct H.
 eapply match_validblocks0; eauto.
 Qed.
+Next Obligation.
+destruct core_simulation.
+Admitted.
 Next Obligation.
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
@@ -485,7 +474,7 @@ specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
 (*spec core_at_external0.
 solve[eapply at_extern_valid; eauto].*)
 destruct core_at_external0 
- as [INJ [GLOB [val2 [INJ1 [HASTY ATEXT]]]]].
+ as [INJ [GLOB [val2 [INJ1 ATEXT]]]].
 assert (RUN2': runnable csemT (PROJ_CORE E_T st2) = false).
  unfold runnable.
  solve[rewrite ATEXT; auto].
@@ -503,7 +492,7 @@ specialize (extension_diagram
  RUN1' RUN2'
  AT_EXT ATEXT
  MATCH12'
- INJ GLOB INJ1 HASTY
+ INJ GLOB INJ1 
  STEP).
 destruct extension_diagram
  as [s2' [m2' [cd' [j' [? [? [? [? [? ?]]]]]]]]].
@@ -534,7 +523,7 @@ destruct H as [H XX].
 specialize (core_at_external0
  _ _ _ _ _ _ _ _ _ 
  H H0).
-destruct core_at_external0 as [? [? [vals2 [? [? ?]]]]].
+destruct core_at_external0 as [? [? [vals2 [? ?]]]].
 rewrite <-meminj_preserves_genv2blocks in H2.
 eapply genvs_domain_eq_preserves in genvs_domain_eqS.
 rewrite <-genvs_domain_eqS in H2.
@@ -542,7 +531,6 @@ rewrite meminj_preserves_genv2blocks in H2.
 split; auto.
 split; auto.
 exists vals2.
-split; auto.
 split; auto.
 solve[exploit at_external_match; eauto].
 Qed.
@@ -559,7 +547,7 @@ assert (H2': exists vals2, at_external esemT st2 = Some (e, ef_sig, vals2)).
  apply at_external_proj in H1.
  destruct H0.
  specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1).
- destruct core_at_external0 as [? [? [vals2 [? [? ?]]]]].
+ destruct core_at_external0 as [? [? [vals2 [? ?]]]].
  exists vals2.
  solve[eapply at_external_match; eauto].
 inv core_compatS.
@@ -573,7 +561,7 @@ assert (H3': meminj_preserves_globals ge_coreS j).
 destruct H0 as [H0 XX].
 specialize (core_after_external0
  _ _ _ _ _ _ _ _ _ _ _ _ _ _
- H H0 H1 H3' H3 H4 H5 H6 H7 H8 H9 H10 H11).
+ H H0 H1 H3' H3 H4 H5 H6 H7 H8 H9 H10).
 destruct H2' as [vals2 H2'].
 destruct core_after_external0 
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH]]]]].
@@ -586,13 +574,13 @@ destruct AFTER2 as [s2' [? ?]].
 exists s1', s2'; split; auto.
 split; auto.
 unfold match_states.
-rewrite H13, H15.
+rewrite H12, H14.
 split; auto.
 symmetry.
-eapply Extension.zint_invar_after_external in H12; eauto.
-rewrite <-H12.
-eapply Extension.zint_invar_after_external in H14; eauto.
-rewrite <-H14.
+eapply Extension.zint_invar_after_external in H11; eauto.
+rewrite <-H11.
+eapply Extension.zint_invar_after_external in H13; eauto.
+rewrite <-H13.
 auto.
 Qed.
 

@@ -91,6 +91,7 @@ Proof. intros.
     apply flatinj_E in H0. apply H0.
 Qed.
 
+(*
 (*It's not quite possible to obtain a transtivity proof for
   cc_sim from the above lemmas plus forward_simulation_trans,
   since the additional condititions on programs also need to
@@ -114,7 +115,8 @@ Proof. intros.
   eapply coop_sim_cc_sim.
 Focus 9. eapply (Forward_simulation_trans.coop_sim_trans Sem1 Sem2 Sem3).
            apply EPC. apply SIM12. apply SIM23.
-Admitted. (*admit is ok - claim is an unnamed known-false "goal" introduced for didactic purposes.*)
+(*is ok - claim is an unnamed known-false "goal" introduced for didactic purposes.*)
+*)
 
 Require Import Wellfounded.
 Require Import Relations.
@@ -409,7 +411,17 @@ induction SIM23; intros; subst.
              destruct g23 as [Hyp2A Hyp2B].
              split; intros. rewrite Hyp2A. apply g12. 
                                    rewrite Hyp2B. apply g12.
-       (*externvars*) intros b; intros. admit. (*genv's not yet updated preservation of externvars by equality phases even if V1->V2 etc*)
+       (*externvars*) intros b; intros. 
+(*         destruct SimEq12.
+         clear core_diagram core_initial core_halted 
+               core_at_external core_after_external.
+         destruct genvs_dom_eq as [A B].
+         
+         unfold CompilerCorrectness.entryPts_ok in ePts12_ok.  
+         destruct (ePts12_ok _ _ Extern1) as [b' [A [B [C D]]]].
+         exists (prog_main P1). 
+         split; auto.*)
+       admit. (*genv's not yet updated preservation of externvars by equality phases even if V1->V2 etc*)
 Qed.
 
 Lemma cc_trans_CaseExtends: forall {F1 C1 V1 F2 C2 V2 F3 C3 V3} 
@@ -882,7 +894,12 @@ induction SIM23; intros; subst.
          intros m1 Ini1.
           assert (Mem.flat_inj (Mem.nextblock m1) =
                     compose_meminj (Mem.flat_inj (Mem.nextblock m1)) (Mem.flat_inj (Mem.nextblock m1))).
-             admit. (*admit ok -- initial mems not yet adapted to modules*)
+            unfold Mem.flat_inj.
+            unfold compose_meminj.
+            extensionality b.
+            remember (plt b (Mem.nextblock m1)) as P.
+            destruct P; auto.
+            rewrite <-HeqP; auto.
           rewrite H0.
           eapply ePts_compose4; try eassumption.
             eapply ePts12_ok. apply Ini1.

@@ -3336,6 +3336,31 @@ Proof.
   intros. eapply Genv.find_var_info_not_fresh; eauto. 
 Qed.
 
+Axiom valid_init_is_global:
+  forall b m,
+  Genv.init_mem prog = Some m ->
+  Mem.valid_block m b -> 
+  (exists v, Genv.find_var_info (Genv.globalenv prog) b = Some v) /\
+  (exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b).
+
+Lemma match_globalenvs_init':
+  forall m j,
+  Genv.init_mem prog = Some m ->
+  meminj_preserves_globals (Genv.globalenv prog) j ->
+  match_globalenvs j (Mem.nextblock m).
+Proof.
+  intros. constructor.
+  intros. 
+  destruct (valid_init_is_global _ _ H H1) as [_ [id H2]].
+  solve[destruct H0; apply (H0 id b); auto].
+  intros. 
+  destruct (valid_init_is_global _ _ H H2) as [[id H3] _].
+  solve[destruct H0 as [A [B C]]; apply (C _ _ _ _ H3) in H1; auto].
+  intros. eapply Genv.find_symbol_not_fresh; eauto.
+  intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
+  intros. eapply Genv.find_var_info_not_fresh; eauto. 
+Qed.
+
 Lemma transl_initial_states:
   forall S, Csharpminor.initial_state prog S ->
   exists R, Cminor.initial_state tprog R /\ match_states S R.

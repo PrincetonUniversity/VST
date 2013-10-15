@@ -12,7 +12,6 @@ Module CC := Clight.
 
 Definition CCstep ge := Clight.step ge Clight.function_entry2.
 
-
 Lemma cc_step_fun: forall ge s1 s2 s2',
    CCstep ge s1 nil s2 -> CCstep ge s1 nil s2' -> s2=s2'.
 Proof.
@@ -1803,34 +1802,24 @@ Proof.
        econstructor. simpl.
           admit. (*Definition of CC_initial_core seems to be wrong here*)
          simpl. assert (myStatement = Sskip). admit. 
-          rewrite H1. econstructor. simpl. constructor. simpl. constructor.
+          rewrite H0. econstructor. simpl. constructor. simpl. constructor.
  (* final states *)  
       intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_halted  in H0. inv H0.
   (*at_external*)
      intros. inv H; subst; simpl in *. 
-          inv H0. simpl in *. inv H2. simpl in *. inv H1.
-          split. unfold CC_at_external. destruct tyres;auto. simpl.
+          inv H0. simpl in *. inv H2. simpl in *. congruence.
+          unfold CC_at_external. destruct tyres;auto. simpl.
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
   (*after_external*) 
          intros. inv H1; simpl in *. 
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
-          intros. destruct H; subst.
-          inv H4. simpl in *. inv H1. simpl in *. inv H0. 
-          admit. (*destruct tyres;auto.
-          inv H1.
-          unfold CC_at_external. destruct tyres;auto. simpl.
-          admit.*) (*HOLE REGARDING ARGUMENT TYPES???*)
+          intros. destruct H0; subst. 
   (*simulation_diag*)
-     intros. destruct H0.
+     intros. 
      (*1/2*) 
        apply (Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ H
                      (CC_core_State f s k' ve te)).
           constructor; assumption.
-        (* inv H.  destruct H.  inv H. 
-      assert (X:= Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ CS _ H).
-      destruct X as [c2' [CSP MS']].
-      exists c2'. exists (O, c). simpl. split. left. 
-            trivial. apply CSP.*)
    (*2/2*) inv H.
   Qed.
 

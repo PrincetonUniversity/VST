@@ -83,7 +83,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -104,7 +103,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external csemT c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
  
@@ -113,7 +111,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
-    Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
