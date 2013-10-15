@@ -145,7 +145,8 @@ Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (VI: Forall2 (val_inject j) vals1 vals2)
   (PG: meminj_preserves_globals ge j)
   (INIT_MEM: exists m0, Genv.init_mem prog = Some m0 
-    /\ mem_forward m0 m1 /\ mem_forward m0 m2),
+    /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
+    /\ Ple (Mem.nextblock m0) (Mem.nextblock m2)),
 exists c2 : CMin_core,
   initial_core CMin_core_sem tge v2 vals2 = Some c2 /\
   match_cores c1 j c1 m1 c2 m2. 
@@ -173,8 +174,7 @@ Proof. intros.
     solve[eapply Genv.init_mem_transf_partial in TRANSL; eauto].
   apply mcs_nil with (Mem.nextblock m0).
   apply match_globalenvs_init'; auto.
-  solve[apply forward_nextblock; auto].
-  solve[apply forward_nextblock; auto].
+  apply A. apply B.
   econstructor. simpl. trivial.
   simpl. apply forall_inject_val_list_inject; auto.
 Qed.
@@ -2330,13 +2330,53 @@ intros.
       exists id; assumption.
   apply match_cores_valid.
  (*preserves_globals*) apply match_cores_genvs.
-   intros. eapply (init_cores _ _ _ entrypoints); eauto.
-   admit. (*This follows from the fact that every program starts in init_mem, 
-             and every evolution of the memory is mem_forward w/r/t the previous
-             mem.  This implies that nextblock of m1 is >= nextblock init_mem. 
-             This needs to be exposed as an invariant.*)
-  
-   intros. 
+ (*init_cores*)
+    intros.
+    eapply (init_cores _ _ _ entrypoints); eauto.
+    destruct init_mem as [m0 INIT].
+    exists m0; split; auto.
+    unfold meminj_preserves_globals in H3.    
+    destruct H3 as [A [B C]].
+
+    assert (forall p q, {Ple p q} + {Plt q p}).
+      intros p q.
+      case_eq (Pos.leb p q).
+      intros TRUE.
+      apply Pos.leb_le in TRUE.
+      left; auto.
+      intros FALSE.
+      apply Pos.leb_gt in FALSE.
+      right; auto.
+
+    cut (forall b, Plt b (Mem.nextblock m0) -> 
+           exists id, Genv.find_symbol ge id = Some b). intro D.
+    
+    split.
+    destruct (H3 (Mem.nextblock m0) (Mem.nextblock m1)); auto.
+    exfalso. 
+    destruct (D _ p).
+    apply A in H4.
+    assert (Mem.valid_block m1 (Mem.nextblock m1)).
+      eapply Mem.valid_block_inject_1; eauto.
+    clear - H5; unfold Mem.valid_block in H5.
+    xomega.
+
+    destruct (H3 (Mem.nextblock m0) (Mem.nextblock m2)); auto.
+    exfalso. 
+    destruct (D _ p).
+    apply A in H4.
+    assert (Mem.valid_block m2 (Mem.nextblock m2)).
+      eapply Mem.valid_block_inject_2; eauto.
+    clear - H5; unfold Mem.valid_block in H5.
+    xomega.
+    
+    intros b LT.    
+    unfold ge.
+    apply valid_init_is_global with (b := b) in INIT.
+    eapply INIT; auto.
+    apply LT.
+
+    intros. 
   (*halted*)
   { eapply MC_safely_halted in H; eauto.
     destruct H as [v2 [A [B C]]].

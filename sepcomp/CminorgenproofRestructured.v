@@ -3336,12 +3336,34 @@ Proof.
   intros. eapply Genv.find_var_info_not_fresh; eauto. 
 Qed.
 
-Axiom valid_init_is_global:
+Lemma valid_init_is_global':
+  forall F V m0 defs,
+  let ge := Genv.add_globals (Genv.empty_genv F V) defs in
+  (forall b, Mem.valid_block m0 b -> 
+    (exists v, Genv.find_var_info ge b = Some v) /\
+    exists id, Genv.find_symbol ge id = Some b) -> 
+  forall m b,
+    Mem.valid_block m b -> 
+    Genv.alloc_globals ge m0 defs = Some m -> 
+    (exists v, Genv.find_var_info ge b = Some v) /\
+    (exists id, Genv.find_symbol ge id = Some b).
+Proof.
+Admitted.
+
+Lemma valid_init_is_global:
   forall b m,
   Genv.init_mem prog = Some m ->
   Mem.valid_block m b -> 
   (exists v, Genv.find_var_info (Genv.globalenv prog) b = Some v) /\
   (exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b).
+Proof.
+intros.
+eapply valid_init_is_global'; eauto.
+intros.
+unfold Mem.valid_block in H1.
+simpl in H1.
+xomega.
+Qed.
 
 Lemma match_globalenvs_init':
   forall m j,
@@ -3354,7 +3376,10 @@ Proof.
   destruct (valid_init_is_global _ _ H H1) as [_ [id H2]].
   solve[destruct H0; apply (H0 id b); auto].
   intros. 
-  destruct (valid_init_is_global _ _ H H2) as [[id H3] _].
+  destruct (valid_init_is_global _ _ H H2) as [_ [id H3]].
+  destruct H0 as [A [B C]]. apply A in H3. 
+
+
   solve[destruct H0 as [A [B C]]; apply (C _ _ _ _ H3) in H1; auto].
   intros. eapply Genv.find_symbol_not_fresh; eauto.
   intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
