@@ -74,7 +74,7 @@ SEPCOMP_FILES= \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
   forward_simulations_lemmas.v rg_forward_simulations.v rg_semantics.v rg_forward_simulations_lemmas.v \
   linking.v linking_simulations.v linking_proof.v \
-  compiler_correctness_trans.v \
+  compiler_correctness_trans.v compiler_correctness_progless_trans.v \
   safety_preservation.v
 # REMOVED TEMPORARILY fs_linking.v
 # extension_proof.v extension_safety.v extension_proof_safety.v
