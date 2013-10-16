@@ -15,6 +15,10 @@ Require Import sepcomp.forward_simulations.
 
 Import Forward_simulation_inj_exposed.
 
+(** * Safety and semantics preservation *)
+
+(** ** Definition of safety w/r/t predicate P *)
+
 Section safety.
 Context { G C D Z : Type }
         (Hcore : CoreSemantics G C mem )
@@ -322,6 +326,8 @@ Qed.
 
 End safety_preservation_lemmas.
 
+(** ** Termination preservation *)
+
 Section termination_preservation.
 Context  {F V TF TV C D Z data : Type}
          {source : CoreSemantics (Genv.t F V) C mem}
@@ -401,6 +407,8 @@ Qed.
 End termination_preservation.
 
 Local Open Scope nat_scope.
+
+(** ** Safety & semantics preservation *)
 
 Section safety_preservation.
 Variables F V TF TV C D Z data : Type.

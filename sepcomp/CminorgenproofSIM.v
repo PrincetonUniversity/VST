@@ -12,8 +12,6 @@ Require Export Maps.
 Require Import Csharpminor.
 Require Import Cminor.
 Require Import Cminorgen.
-(*Require Import veric.Cminor_CompcertSemantics.
-Require Import veric.CSharpminor_CompcertSemantics.*)
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.Cminor_coop.
@@ -436,14 +434,16 @@ exists c2' : CMin_core,
         corestep_plus CMin_core_sem tge (CMin_State  tfn Sskip tk (Vptr sp Int.zero) te) tm c2' m2' /\
          match_cores  (CSharpMin_Returnstate Vundef k)  j (CSharpMin_Returnstate Vundef k) m' c2' m2'.
 (*exists c' : CSharpMin_core,
-       inj_match_states_star unit match_cores MC_measure (tt,c') j (CSharpMin_Returnstate Vundef k) m' c2' m2'.*)
+       inj_match_states_star unit match_cores MC_measure (tt,c') j 
+       (CSharpMin_Returnstate Vundef k) m' c2' m2'.*)
 Proof. intros.
   exploit MS_match_is_call_cont; eauto. intros [tk' [A [B C]]]. 
   exploit match_callstack_freelist; eauto. intros [tm' [P [Q R]]].
 
   eexists. eexists.
   split.
-    eapply corestep_star_plus_trans. eexact A. apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. apply step_skip_call. assumption. 
+    eapply corestep_star_plus_trans. eexact A. apply corestep_plus_one. 
+      eapply CompCertStep_CMin_corestep'. apply step_skip_call. assumption. 
       eauto.
     eauto.
     econstructor; eauto.
@@ -468,7 +468,8 @@ exists c2' : CMin_core,
      (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)) m c2'
      m2'.
 (*  exists c' : CSharpMin_core,
-       inj_match_states_star unit match_cores MC_measure (tt,c') j (CSharpMin_State f Csharpminor.Sskip k e lenv) m' c2' m2'.*)
+       inj_match_states_star unit match_cores MC_measure (tt,c') j 
+       (CSharpMin_State f Csharpminor.Sskip k e lenv) m' c2' m2'.*)
 Proof. intros.
  intros.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
@@ -485,8 +486,7 @@ econstructor; eauto.
 eapply match_temps_assign; assumption.
 Qed.
 
-
-(*no case set in CompCert 2.0
+(*no case Set in CompCert 2.0
 Lemma MS_step_case_Set:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 v a id
 (H: Csharpminor.eval_expr ge e lenv m a v)
@@ -515,6 +515,7 @@ Proof. intros.
     left. econstructor; eauto.*)
 Qed.
 *)
+
 Lemma MS_step_case_Store:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2 
       chunk m' a addr vaddr v
@@ -555,7 +556,6 @@ Proof. intros.
   intros. eapply Mem.perm_store_2; eauto. 
   intros. eapply Mem.perm_store_1; eauto.
 Qed. 
-
 
 Lemma MS_step_case_Call:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv  x x0 x1 a vf fd optid vargs bl
@@ -729,9 +729,11 @@ forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x s
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge (CMin_State tfn (Sblock x) k (Vptr sp Int.zero) te) tm c2' m2' /\
-        match_cores (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv)  j (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) m c2' m2'.
+        match_cores (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) j 
+                    (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) m c2' m2'.
 (*    exists c' ,
-       inj_match_states_star unit match_cores MC_measure (tt,c') j (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) m c2' m2'.*)
+       inj_match_states_star unit match_cores MC_measure (tt,c') j 
+         (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) m c2' m2'.*)
 Proof. intros.
   eexists; eexists; split.
      apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
@@ -795,8 +797,9 @@ forall  cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv
 (*NEW:*) (PG: meminj_preserves_globals ge j),
 exists c2' : CMin_core,
   exists m2' : mem,
-       corestep_plus CMin_core_sem tge (CMin_State tfn (Sexit (shift_exit xenv 0)) k (Vptr sp Int.zero) te) tm c2' m2' /\
-       match_cores  (CSharpMin_State f Csharpminor.Sskip tk e lenv) j
+   corestep_plus CMin_core_sem tge 
+     (CMin_State tfn (Sexit (shift_exit xenv 0)) k (Vptr sp Int.zero) te) tm c2' m2' /\
+   match_cores  (CSharpMin_State f Csharpminor.Sskip tk e lenv) j
                               (CSharpMin_State f Csharpminor.Sskip tk e lenv) m c2' m2'.
 (*    exists c', inj_match_states_star unit match_cores MC_measure (tt,c') j
                                     (CSharpMin_State f Csharpminor.Sskip tk e lenv) m c2' m2'.*)
@@ -828,7 +831,7 @@ forall  cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv n
 exists c2' : CMin_core,
   exists m2' : mem,
         corestep_plus CMin_core_sem tge
-                     (CMin_State tfn (Sexit (shift_exit xenv (S n))) k (Vptr sp Int.zero) te) tm c2' m2' /\ 
+          (CMin_State tfn (Sexit (shift_exit xenv (S n))) k (Vptr sp Int.zero) te) tm c2' m2' /\ 
        match_cores (CSharpMin_State f (Csharpminor.Sexit n) tk e lenv)  j
           (CSharpMin_State f (Csharpminor.Sexit n) tk e lenv) m c2' m2'.
 Proof. intros.
@@ -879,7 +882,9 @@ Lemma MS_switch_ascent:
   let ls' := select_switch n ls in
   transl_lblstmt_cont cenv xenv ls k k1 ->
   exists k2,
-  corestep_star CMin_core_sem tge (CMin_State f (Sexit (Switch.switch_target n (length tbl) tbl)) k1 sp e) m  (CMin_State f (Sexit O) k2 sp e) m
+  corestep_star CMin_core_sem tge 
+    (CMin_State f (Sexit (Switch.switch_target n (length tbl) tbl)) k1 sp e) m  
+    (CMin_State f (Sexit O) k2 sp e) m
   /\ transl_lblstmt_cont cenv xenv ls' k k2.
 Proof.
   induction ls; intros; unfold tbl, ls'; simpl.
@@ -899,8 +904,8 @@ Proof.
   eapply corestep_star_trans.
         eapply corestep_star_one.  eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
         simpl. eapply corestep_star_trans.
-                       eapply corestep_star_one.  eapply CompCertStep_CMin_corestep'. econstructor. reflexivity. 
-                       apply A. 
+          eapply corestep_star_one.  eapply CompCertStep_CMin_corestep'. econstructor. reflexivity. 
+          apply A. 
 Qed.
 
 Lemma MS_switch_MSI:
@@ -1061,7 +1066,6 @@ Proof. intros.
   econstructor; eauto.
 Qed.
 
-
 (******************************Functions required for internal call rule*****************************)
 (****These extend the original lemmas by additional guarantees of the (now exposed) memory injections, in order
     for the overall lemma for internal calls to establish the inject_separated fact******************************)
@@ -1220,612 +1224,6 @@ exists f' ; intuition.
                      split; trivial. 
                      intros N. apply H14. eapply Mem.valid_block_alloc; eauto. 
 Qed.
-
-(*Outdated in CompCert 2.0
-Lemma MS_match_callstack_alloc_variable:
-  forall atk id lv cenv sz cenv' sz' tm sp e tf m m' b te lenv lo cs f tv,
-  assign_variable atk (id, lv) (cenv, sz) = (cenv', sz') ->
-  Mem.valid_block tm sp ->
-  (forall ofs k p,
-    Mem.perm tm sp ofs k p -> 0 <= ofs < tf.(fn_stackspace)) ->
-  Mem.range_perm tm sp 0 tf.(fn_stackspace) Cur Freeable ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  Mem.alloc m 0 (sizeof lv) = (m', b) ->
-  match_callstack prog f m tm 
-                  (Frame cenv tf e lenv te sp lo (Mem.nextblock m) :: cs)
-                  (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  0 <= sz -> sz' <= tf.(fn_stackspace) ->
-  (forall b delta ofs k p,
-     f b = Some(sp, delta) -> Mem.perm m b ofs k p -> ofs + delta < sz) ->
-  e!id = None ->
-  te!(for_var id) = Some tv ->
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm
-  /\ match_callstack prog f' m' tm
-                     (Frame cenv' tf (PTree.set id (b, lv) e) lenv te sp lo (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm)
-  /\ (forall b delta ofs k p,
-      f' b = Some(sp, delta) -> Mem.perm m' b ofs k p -> ofs + delta < sz') 
-(****************The following three conditions are new******************)
-  /\ (forall b, Mem.valid_block m b -> f' b = f b)
-  /\ (forall b b' d', f b = None -> f' b = Some (b',d') -> b' = sp)
-  /\ forall j',  inject_incr f' j' -> Events.inject_separated f' j' m' tm -> Events.inject_separated f' j' m tm.
-Proof.
-  intros until tv. intros ASV VALID BOUNDS PERMS NOOV ALLOC MCS INJ LO HI RANGE E TE.
-  generalize ASV. unfold assign_variable. 
-  caseEq lv.
-  (* 1. lv = LVscalar chunk *)
-  intros chunk LV. case (Identset.mem id atk).
-  (* 1.1 info = Var_stack_scalar chunk ofs *)
-    set (ofs := align sz (size_chunk chunk)).
-    intro EQ; injection EQ; intros; clear EQ. rewrite <- H0.
-    generalize (size_chunk_pos chunk); intro SIZEPOS.
-    generalize (align_le sz (size_chunk chunk) SIZEPOS). fold ofs. intro SZOFS.
-    exploit Mem.alloc_left_mapped_inject.
-      eauto. eauto. eauto. 
-      instantiate (1 := ofs). omega.
-      intros. exploit BOUNDS; eauto. omega. 
-      intros. apply Mem.perm_implies with Freeable; auto with mem. apply Mem.perm_cur. 
-      apply PERMS. rewrite LV in H1. simpl in H1. omega.
-      rewrite LV; simpl. rewrite Zminus_0_r. unfold ofs. 
-      apply inj_offset_aligned_var.
-      intros. generalize (RANGE _ _ _ _ _ H1 H2). omega. 
-    intros [f1 [MINJ1 [INCR1 [SAME OTHER]]]].
-    exists f1; split. auto. split. auto. split. 
-    eapply match_callstack_alloc_left; eauto.
-    rewrite <- LV; auto. 
-    rewrite SAME; constructor.
-  split.
-    intros. exploit Mem.perm_alloc_inv; eauto. destruct (zeq b0 b).
-    subst b0. assert (delta = ofs) by congruence. subst delta.  
-    rewrite LV. simpl. omega.
-    intro. rewrite OTHER in H1; eauto. generalize (RANGE _ _ _ _ _ H1 H3). omega. 
-  assert (XX: forall b0 : Values.block, Mem.valid_block m b0 -> f1 b0 = f b0).
-     intros b0; intros. destruct (eq_block b0 b); subst. 
-                     exfalso. apply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC H1).
-                  apply (OTHER _ n).
-   split; trivial.
-   split; intros. destruct (eq_block b0 b); subst. rewrite SAME in H2. inv H2. trivial.
-                         rewrite (OTHER _ n) in H2. congruence. 
-     intros. intros bb; intros.
-     destruct (H2 _ _ _ H3 H4). split; trivial. intros N. apply H5. eapply Mem.valid_block_alloc; eauto.
-  (* 1.2 info = Var_local chunk *)
-    intro EQ; injection EQ; intros; clear EQ. subst sz'. rewrite <- H0.
-    exploit Mem.alloc_left_unmapped_inject; eauto.
-    intros [f1 [MINJ1 [INCR1 [SAME OTHER]]]].
-    exists f1; split. auto. split. auto. split.
-      eapply match_callstack_alloc_left; eauto.  
-      rewrite <- LV; auto.
-      rewrite SAME; constructor.
-   split.
-      intros. exploit Mem.perm_alloc_inv; eauto. destruct (zeq b0 b).
-      subst b0. congruence.
-      rewrite OTHER in H; eauto.
-  assert (XX: forall b0 : Values.block, Mem.valid_block m b0 -> f1 b0 = f b0).
-     intros b0; intros. destruct (eq_block b0 b); subst. 
-                     exfalso. apply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC H).
-                  apply (OTHER _ n).
-   split; trivial.
-   split; intros. destruct (eq_block b0 b); subst. rewrite SAME in H1. inv H1.
-                         rewrite (OTHER _ n) in H1. congruence. 
-   intros bb; intros.
-     destruct (H1 _ _ _ H2 H3). split; trivial. intros N. apply H4. eapply Mem.valid_block_alloc; eauto.
-  (* 2 info = Var_stack_array ofs *)
-  intros dim al LV EQ. injection EQ; clear EQ; intros. rewrite <- H.
-  assert (0 <= Zmax 0 dim). apply Zmax1. 
-  generalize (align_le sz (array_alignment dim) (array_alignment_pos dim)). intro.
-  set (ofs := align sz (array_alignment dim)) in *.
-  exploit Mem.alloc_left_mapped_inject. eauto. eauto. eauto. 
-    instantiate (1 := ofs). 
-    generalize Int.min_signed_neg. omega.
-    intros. exploit BOUNDS; eauto. generalize Int.min_signed_neg. omega.
-    intros. apply Mem.perm_implies with Freeable; auto with mem. apply Mem.perm_cur.
-    apply PERMS. rewrite LV in H3. simpl in H3. omega.
-    rewrite LV; simpl. rewrite Zminus_0_r. unfold ofs. 
-    apply inj_offset_aligned_array'.
-    intros. generalize (RANGE _ _ _ _ _ H3 H4). omega. 
-  intros [f1 [MINJ1 [INCR1 [SAME OTHER]]]].
-  exists f1; split. auto. split. auto. split. 
-    subst cenv'. eapply match_callstack_alloc_left; eauto.
-    rewrite <- LV; auto. 
-    rewrite SAME; constructor.
-  split.
-    intros. exploit Mem.perm_alloc_inv; eauto. destruct (zeq b0 b).
-    subst b0. assert (delta = ofs) by congruence. subst delta. 
-    rewrite LV. simpl. omega.
-    intro. rewrite OTHER in H3; eauto. generalize (RANGE _ _ _ _ _ H3 H5). omega. 
-  assert (XX: forall b0 : Values.block, Mem.valid_block m b0 -> f1 b0 = f b0).
-     intros b0; intros. destruct (eq_block b0 b); subst. 
-                     exfalso. apply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC H3).
-                  apply (OTHER _ n).
-   split; trivial.
-   split; intros. destruct (eq_block b0 b); subst. rewrite SAME in H4. inv H4. trivial.
-                         rewrite (OTHER _ n) in H4. congruence. 
-   intros bb; intros.
-     destruct (H4 _ _ _ H5 H6). split; trivial. intros N. apply H7. eapply Mem.valid_block_alloc; eauto.
-Qed.
-
-Lemma MS_match_callstack_alloc_variables_rec:
-  forall tm sp cenv' tf lenv te lo cs atk,
-  Mem.valid_block tm sp ->
-  (forall ofs k p,
-    Mem.perm tm sp ofs k p -> 0 <= ofs < tf.(fn_stackspace)) ->
-  Mem.range_perm tm sp 0 tf.(fn_stackspace) Cur Freeable ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  forall e m vars e' m',
-  alloc_variables e m vars e' m' ->
-  forall f cenv sz,
-  assign_variables atk vars (cenv, sz) = (cenv', tf.(fn_stackspace)) ->
-  match_callstack prog f m tm 
-                  (Frame cenv tf e lenv te sp lo (Mem.nextblock m) :: cs)
-                  (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  0 <= sz ->
-  (forall b delta ofs k p,
-     f b = Some(sp, delta) -> Mem.perm m b ofs k p -> ofs + delta < sz) ->
-  (forall id lv, In (id, lv) vars -> te!(for_var id) <> None) ->
-  list_norepet (List.map (@fst ident var_kind) vars) ->
-  (forall id lv, In (id, lv) vars -> e!id = None) ->
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm
-  /\ match_callstack prog f' m' tm
-                     (Frame cenv' tf e' lenv te sp lo (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm)
-(****************The following three conditions are new******************)
-(*** Note that in the third clause, we only "step" from m' to m ***************)
-  /\ (forall b, Mem.valid_block m b -> f' b = f b)
-  /\ (forall b b' d', f b = None -> f' b = Some (b',d') -> b' = sp)
-  /\ forall j',  inject_incr f' j' -> Events.inject_separated f' j' m' tm -> Events.inject_separated f' j' m tm .
-Proof. clear core_data. 
-  intros until atk. intros VALID BOUNDS PERM NOOV.
-  induction 1.
-  (* base case *)
-  intros. simpl in H. inversion H; subst cenv sz.
-  exists f. split. apply inject_incr_refl. split. auto. split. auto.
-    split; trivial.
-    split; trivial. intros. congruence.
-  (* inductive case *)
-  intros until sz.
-  change (assign_variables atk ((id, lv) :: vars) (cenv, sz))
-  with (assign_variables atk vars (assign_variable atk (id, lv) (cenv, sz))).
-  caseEq (assign_variable atk (id, lv) (cenv, sz)).
-  intros cenv1 sz1 ASV1 ASVS MATCH MINJ SZPOS BOUND DEFINED NOREPET UNDEFINED.
-  assert (DEFINED1: forall id0 lv0, In (id0, lv0) vars -> te!(for_var id0) <> None).
-    intros. eapply DEFINED. simpl. right. eauto.
-  assert (exists tv, te!(for_var id) = Some tv).
-    assert (te!(for_var id) <> None). eapply DEFINED. simpl; left; auto.
-    destruct (te!(for_var id)). exists v; auto. congruence. 
-  destruct H1 as [tv TEID].
-  assert (sz1 <= fn_stackspace tf). eapply assign_variables_incr; eauto. 
-  exploit MS_match_callstack_alloc_variable; eauto with coqlib.
-  intros [f1 [INCR1 [INJ1 [MCS1 [BOUND1 [VB [SP SEP]]]]]]].
-  exploit IHalloc_variables; eauto. 
-  apply Zle_trans with sz; auto. eapply assign_variable_incr; eauto.
-  inv NOREPET; auto.
-  intros. rewrite PTree.gso. eapply UNDEFINED; eauto with coqlib.
-  simpl in NOREPET. inversion NOREPET. red; intro; subst id0.
-  elim H5. change id with (fst (id, lv0)). apply List.in_map. auto.
-  intros [f2 [INCR2 [INJ2 [MCS2 [VBF2 [SP2 SEP2]]]]]].
-  assert (X: forall b : Values.block, Mem.valid_block m b -> f2 b = f b).
-           intros. rewrite <- (VB _ H2). apply VBF2. eapply Mem.valid_block_alloc; eauto.
-  assert (Y:  (forall (b b' : Values.block) (d' : Z), f b = None -> f2 b = Some (b', d') -> b' = sp)).
-       clear MCS2 BOUND1 MCS1 DEFINED1 SEP SEP2 IHalloc_variables UNDEFINED.
-          intros. remember (f1 b) as z. destruct z; apply eq_sym in Heqz.
-              destruct p.  assert (Z1 := SP _ _ _ H2 Heqz). subst.
-                 apply INCR2 in Heqz. rewrite Heqz in H3. inv H3. trivial.
-             apply (SP2 _ _ _ Heqz H3).
-  exists f2 ; intuition.
-    eapply inject_incr_trans; eauto.
-    intros b; intros. destruct (H3 _ _ _ H4 H5). split; trivial.
-     intros N. apply H6. apply (Mem.valid_block_alloc _ _ _ _ _ H) in N.
-              eapply allocvars_blocks_valid; eauto.
-Qed. 
-
-Lemma MS_match_callstack_alloc_variables:
-  forall fn cenv tf m e m' tm tm' sp f cs targs,
-  build_compilenv gce fn = (cenv, tf.(fn_stackspace)) ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  list_norepet (fn_params_names fn ++ fn_vars_names fn) ->
-  alloc_variables Csharpminor.empty_env m (fn_variables fn) e m' ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
-  match_callstack prog f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  let tparams := List.map for_var (fn_params_names fn) in
-  let tvars := List.map for_var (fn_vars_names fn) in
-  let ttemps := List.map for_temp (Csharpminor.fn_temps fn) in
-  let te := set_locals (tvars ++ ttemps) (set_params targs tparams) in
-  exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm'
-  /\ match_callstack prog f' m' tm'
-                     (Frame cenv tf e empty_temp_env te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm') 
-(****************The following three conditions are new******************)
-(* In the third clause, we now stepfrom  m' to m, and also from f' to f and from tm' to tm******************)
-  /\ (forall b, Mem.valid_block m b -> f' b = f b)
-  /\ (forall b b' d', f b = None -> f' b = Some (b',d') -> b' = sp)
-  /\ forall j',  inject_incr f' j' -> Events.inject_separated f' j' m' tm' -> Events.inject_separated f j' m tm.
-Proof. clear core_data.
-  intros.
-  unfold build_compilenv in H.
-assert (AR: exists f',
-     inject_incr f f'
-  /\ Mem.inject f' m' tm'
-  /\ match_callstack prog f' m' tm'
-                     (Frame cenv tf e empty_temp_env te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm') 
-  /\ (forall b, Mem.valid_block m b -> f' b = f b)
-  /\ (forall b b' d', f b = None -> f' b = Some (b',d') -> b' = sp)
-  /\ forall j',  inject_incr f' j' -> Events.inject_separated f' j' m' tm' -> Events.inject_separated f' j' m tm').
-  eapply MS_match_callstack_alloc_variables_rec; eauto with mem.
-  red; intros. eapply Mem.perm_alloc_2; eauto. 
-  eapply match_callstack_alloc_right; eauto.
-  eapply Mem.alloc_right_inject; eauto. omega. 
-  intros. elim (Mem.valid_not_valid_diff tm sp sp); eauto with mem.
-  eapply Mem.valid_block_inject_2; eauto.
-  intros. unfold te. apply set_locals_params_defined.
-  elim (in_app_or _ _ _ H6); intros.
-  apply in_or_app; left. unfold tparams. apply List.in_map.
-  change id with (fst (id, lv)). apply List.in_map. auto.
-  apply in_or_app; right. apply in_or_app; left. unfold tvars. apply List.in_map. 
-  change id with (fst (id, lv)). apply List.in_map; auto.
-  (* norepet *)
-  unfold fn_variables. rewrite List.map_app. assumption.
-  (* undef *)
-  intros. unfold empty_env. apply PTree.gempty.
-
-destruct AR as  [f' [INC [INJ [MC [VB1 [SP SEP]]]]]].
-exists f' ; intuition.
-  intros b; intros.
-  remember (f' b) as z; destruct z; apply eq_sym in Heqz.
-  (*Some p*) destruct p.
-            assert (j' b = Some (b0,z)). apply (H6 _ _ _ Heqz). 
-             rewrite H9 in H10; inv H10.
-             assert (Z:= SP _ _ _ H8 Heqz); subst.
-             split; intros N. rewrite (VB1 _ N) in Heqz. congruence.
-             eapply (Mem.fresh_block_alloc _ _ _ _ _ H3 N).
-  (*None*) assert (HH:= SEP _ H6 H7).
-                     destruct (HH _ _ _ Heqz H9).
-                     split; trivial. 
-                     intros N. apply H11. eapply Mem.valid_block_alloc; eauto. 
-Qed.
-
-Lemma MS_var_set_self_correct_scalar:
-  forall cenv id s a f tf e lenv te sp lo hi m cs tm tv v m' fn k,
-  var_set_self cenv id s = OK a ->
-  match_callstack prog f m tm (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m) (Mem.nextblock tm) ->
-  val_inject f v tv ->
-  Mem.inject f m tm ->
-  exec_assign ge e m id v m' ->
-  te!(for_var id) = Some tv ->
-  exists tm',
-    corestep_star CMin_core_sem tge (CMin_State fn a k (Vptr sp Int.zero) te) tm
-                                    (CMin_State fn s k (Vptr sp Int.zero) te) tm' /\
-    Mem.inject f m' tm' /\
-    match_callstack prog f m' tm' (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m') (Mem.nextblock tm') 
-(********* The following 2 conditions are new*****)
-   /\ (forall b, Mem.valid_block m b -> Mem.valid_block m' b) (* actually <-> holds*)
-  /\ (forall b, Mem.valid_block tm b -> Mem.valid_block tm' b). (* actually <-> holds*)
-Proof. clear core_data.
-  intros until k. 
-  intros VS MCS VINJ MINJ ASG VAL.
-  unfold var_set_self in VS. inv ASG. 
-  assert (NEXTBLOCK: Mem.nextblock m' = Mem.nextblock m).
-    eapply Mem.nextblock_store; eauto.
-  assert (MV: match_var prog f id e m te sp cenv!!id).
-    inv MCS. inv MENV. auto.
-  assert (EVAR: eval_expr tge (Vptr sp Int.zero) te tm (Evar (for_var id)) tv).
-    constructor. auto.
-  revert VS; inv MV; intro VS; inv VS; inv H; try congruence. 
-  (* var_local *)
-  assert (b0 = b) by congruence. subst b0. 
-  assert (chunk0 = chunk) by congruence. subst chunk0.
-  exists tm.
-  split. apply corestep_star_zero. 
-  split. eapply Mem.store_unmapped_inject; eauto. 
-  rewrite NEXTBLOCK. 
-  split.
-    apply match_callstack_extensional with (PTree.set (for_var id) tv te).
-    intros. repeat rewrite PTree.gsspec.
-    destruct (peq (for_var id0) (for_var id)). congruence. auto.
-    intros. rewrite PTree.gso; auto. unfold for_temp, for_var. congruence. 
-    eapply match_callstack_store_local; eauto.
-  split; intros; trivial. 
-    (*apply prop_ext.
-    split; intros. *) eapply Mem.store_valid_block_1; eauto.
-     (* eapply Mem.store_valid_block_2; eauto.*)
-  (* var_stack_scalar *)
-  assert (b0 = b) by congruence. subst b0.
-  assert (chunk0 = chunk) by congruence. subst chunk0.
-  assert (Mem.storev chunk m (Vptr b Int.zero) v = Some m'). assumption.
-  exploit make_store_correct.
-    eapply make_stackaddr_correct.
-    eauto. eauto. eauto. eauto. eauto. 
-  intros [tm' [tvrhs' [EVAL' [STORE' MEMINJ]]]].
-  exists tm'.
-  split. eapply corestep_star_trans.
-           eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. econstructor. reflexivity.
-         simpl. 
-         eapply corestep_star_trans.
-           eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. apply EVAL'. reflexivity. 
-         simpl.
-           eapply corestep_star_one. eapply CompCertStep_CMin_corestep. constructor. reflexivity.
-  split. trivial.
-  split.
-    rewrite NEXTBLOCK. rewrite (nextblock_storev _ _ _ _ _ STORE'). 
-    eapply match_callstack_storev_mapped; eauto.
-  split; intros. 
-    (*apply prop_ext; split; intros. *) eapply Mem.store_valid_block_1; eauto.
-           (* eapply Mem.store_valid_block_2; eauto.  *)
-    inv EVAL'.  (*apply prop_ext; split; intros.  *) eapply storev_valid_block_1; eauto.
-                             (*eapply storev_valid_block_2; eauto.   *)
-Qed.
-
-Lemma MS_var_set_self_correct_array:
-  forall cenv id s a f tf e lenv te sp lo hi m cs tm tv b v sz al m' fn k,
-  var_set_self cenv id s = OK a ->
-  match_callstack prog f m tm (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m) (Mem.nextblock tm) ->
-  val_inject f v tv ->
-  Mem.inject f m tm ->
-  PTree.get id e = Some(b, Varray sz al) ->
-  Events.extcall_memcpy_sem sz (Zmin al 4) ge
-                             (Vptr b Int.zero :: v :: nil) m Events.E0 Vundef m' ->
-  te!(for_var id) = Some tv ->
-  exists f', exists tm',
-    corestep_star CMin_core_sem tge (CMin_State fn a k (Vptr sp Int.zero) te) tm
-                                    (CMin_State fn s k (Vptr sp Int.zero) te) tm' /\
-    Mem.inject f' m' tm' /\
-    match_callstack prog f' m' tm' (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m') (Mem.nextblock tm') /\
-    inject_incr f f'  /\
-(******* The following five conditions are new -- but actually, only conditions 3-5 or used below*****)
-    Events.mem_unchanged_on (Events.loc_unmapped f) m m' /\
-    Events.mem_unchanged_on (Events.loc_out_of_reach f m) tm tm' /\
-    Events.inject_separated f f' m tm  /\
-    (forall b, Mem.valid_block m b -> Mem.valid_block m' b) (* actually <-> holds*)
-  /\ (forall b, Mem.valid_block tm b -> Mem.valid_block tm' b). 
-Proof. clear core_data.
-  intros until k. 
-  intros VS MCS VINJ MINJ KIND MEMCPY VAL.
-  assert (MV: match_var prog f id e m te sp cenv!!id).
-    inv MCS. inv MENV. auto.
-  inv MV; try congruence. rewrite KIND in H0; inv H0.
-  (* var_stack_array *)
-  unfold var_set_self in VS. rewrite <- H in VS. inv VS.
-  exploit match_callstack_match_globalenvs; eauto. intros [hi' MG].
-  assert (Events.external_call (EF_memcpy sz0 (Zmin al0 4)) ge (Vptr b0 Int.zero :: v :: nil) m Events.E0 Vundef m').
-    assumption.
-  exploit Events.external_call_mem_inject; eauto. 
-  eapply inj_preserves_globals; eauto.
-  intros [f' [vres' [tm' [EC' [VINJ' [MINJ' [UNMAPPED [OUTOFREACH [INCR SEPARATED]]]]]]]]].
-  exists f'; exists tm'.
-  split. eapply corestep_star_trans.
-           eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
-         simpl.
-         eapply corestep_star_trans.
-           eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. econstructor; eauto. 
-                constructor. apply make_stackaddr_correct. constructor. constructor. eauto. constructor.
-                  eapply Events.external_call_symbols_preserved_2; eauto.
-                  apply symbols_preserved. assumption.
-                  apply var_info_translated. assumption.
-                  apply var_info_rev_translated. assumption.
-               reflexivity.
-         simpl. eapply corestep_star_one. eapply CompCertStep_CMin_corestep. constructor. reflexivity.
-  split. auto.
-  split. apply match_callstack_incr_bound with (Mem.nextblock m) (Mem.nextblock tm).
-  eapply match_callstack_external_call; eauto.
-  intros. eapply Events.external_call_max_perm; eauto.
-  omega. omega.
-  eapply external_call_nextblock_incr; eauto.
-  eapply external_call_nextblock_incr; eauto.
-split.  auto.
-split; trivial.
-split; trivial.
-split; trivial.
-split; intros. inv MEMCPY. eapply Mem.storebytes_valid_block_1; eauto.
-   (*    apply prop_ext; split; intros. eapply Mem.storebytes_valid_block_1; eauto. eapply Mem.storebytes_valid_block_2; eauto.      *)
-eapply Events.external_call_valid_block; eauto. 
-Qed.
-
-(*Lemma appears to be new*)
-Lemma bind_parameters_validblock_2:
-forall gee e params vals m1 m2 (BP: bind_parameters gee e m1 params vals m2)
-b (B1:Mem.valid_block m2 b), Mem.valid_block m1 b.
-Proof. intros gee e params.
-  induction params; intros.
-   inv BP. trivial.
-  destruct vals; inv BP.
-    (*skalar*)
-      eapply Mem.store_valid_block_2. apply H8.
-      eapply (IHparams _ _ _ H9 _ B1). 
-    (*array*)
-      inv H7.
-      eapply Mem.storebytes_valid_block_2. apply H13.
-      eapply (IHparams _ _ _ H8 _ B1). 
-Qed.
-
-(*Lemma appears to be new, but was not needed after all in new proof*)
-Lemma bind_parameters_validblock_1:
-forall gee e params vals m1 m2 (BP: bind_parameters gee e m1 params vals m2)
-b (B1:Mem.valid_block m1 b), Mem.valid_block m2 b.
-Proof. intros gee e params.
-  induction params; intros.
-   inv BP. trivial.
-  destruct vals; inv BP.
-    (*skalar*)
-      eapply (IHparams _ _ _ H9). clear IHparams H9.
-      eapply Mem.store_valid_block_1; eauto.
-    (*array*)
-      eapply (IHparams _ _ _ H8). clear IHparams H8.
-      inv H7. 
-      eapply Mem.storebytes_valid_block_1; eauto.
-Qed.
-
-(*Lemma appears to be new, but was not needed after all in new proof*)
-Lemma bind_parameters_inject_separated_skalar:
-forall gee e params vals m1 m2 f' tm3 j tm1 m tm2 v b ch
-(CH: Mem.store ch m b 0 v = Some m1)
-(BP: bind_parameters gee e m1 params vals m2)
-(MINJ : Mem.inject f' m2 tm3)
-(SEP : Events.inject_separated j f' m1 tm2),
-Events.inject_separated j f' m tm1.
-Proof. intros.
-  intros bb; intros.
-     unfold Events.inject_separated in SEP.
-     destruct (SEP _ _ _ H H0).
-     split; intros XX.  
-       apply H1. eapply Mem.store_valid_block_1; eauto.
-     assert (~ Mem.valid_block m2 bb).
-       intros ZZ. apply H1. apply (bind_parameters_validblock_2 _ _ _ _ _ _ BP _ ZZ). 
-       unfold Mem.inject in MINJ. destruct MINJ.
-         rewrite (mi_freeblocks _ H3) in H0. inv H0.    
-Qed.
-
-(*Lemma appears to be new, but was not needed after all in new proof*)
-Lemma bind_parameters_inject_separated_array:
-forall gee e params vals m1 m2  m cpvals t n sz
-(MemCPY: Events.extcall_memcpy_sem sz n gee cpvals m t Vundef m1)
-(BP: bind_parameters gee e m1 params vals m2) 
-j' tm3 j tm1 tm2 
-(MINJ : Mem.inject j' m2 tm3)
-(SEP : Events.inject_separated j j' m1 tm2),
-Events.inject_separated j j' m tm1.
-Proof. intros. inv MemCPY.
-  intros bb; intros.
-     unfold Events.inject_separated in SEP.
-     destruct (SEP _ _ _ H7 H8).
-     split; intros XX.  
-       apply H9. eapply Mem.storebytes_valid_block_1; eauto.
-     assert (~ Mem.valid_block m2 bb).
-       intros ZZ. apply H9.  apply (bind_parameters_validblock_2 _ _ _ _ _ _ BP _ ZZ). 
-       unfold Mem.inject in MINJ. destruct MINJ.
-         rewrite (mi_freeblocks _ H11) in H8. inv H8.    
-Qed.
-
-Lemma MS_store_parameters_correct:
-  forall e lenv te m1 params vl m2,
-  bind_parameters ge e m1 params vl m2 ->
-  forall s j1 cenv tf sp lo hi cs tm1 fn' k,
-  vars_vals_match j1 params vl te ->
-  list_norepet (List.map variable_name params) ->
-  Mem.inject j1 m1 tm1 ->
-  match_callstack prog j1 m1 tm1 (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m1) (Mem.nextblock tm1) ->
-  store_parameters cenv params = OK s ->
- exists j2, exists tm2,
-     corestep_star CMin_core_sem tge (CMin_State fn' s k (Vptr sp Int.zero) te) tm1
-                 (CMin_State fn' Sskip k (Vptr sp Int.zero) te) tm2
-  /\ Mem.inject j2 m2 tm2
-  /\ match_callstack prog j2 m2 tm2 (Frame cenv tf e lenv te sp lo hi :: cs) (Mem.nextblock m2) (Mem.nextblock tm2)
-  /\ inject_incr j1 j2
-(********* The following 3 conditions are new*****)
-  /\ Events.inject_separated j1 j2 m1 tm1
-  /\ (forall b, Mem.valid_block m1 b -> Mem.valid_block m2 b)
-  /\ (forall b, Mem.valid_block tm1 b -> Mem.valid_block tm2 b).
-Proof.
-  induction 1.
-  (* base case *)
-  intros; simpl. monadInv H3. rename m into m1.
-  exists j1. exists tm1. split. eapply corestep_star_zero.
-       split; trivial.
-       split; trivial.
-       split; trivial.
-       split. apply inject_separated_same_meminj.
-       split; trivial.
-  (* scalar case *)
-  rename m1 into mm1. rename m into m1.
-  intros until k.  intros VVM NOREPET MINJ MATCH STOREP.
-  monadInv STOREP. inv VVM. inv NOREPET. 
-  exploit MS_var_set_self_correct_scalar; eauto.
-    econstructor; eauto. econstructor; eauto.
-  intros [tmm1 [EXEC1 [MINJ1 [MATCH1 [VB TVB]]]]]. 
-  exploit IHbind_parameters; eauto.
-  intros [j2 [tm2 [EXEC2 [MINJ2 [MATCH2 [INJ2 [SEP2 [VB2 TVB2]]]]]]]]. 
-  exists j2; exists tm2.
-  split. eapply corestep_star_trans; eauto.
-  split; trivial.
-  split; trivial.
-  split; trivial.
-  split.
-      intros bb; intros. destruct (SEP2 _ _ _ H3 H4).
-      split; intros N. (*rewrite VB in N. apply (H7 N).*) apply H7. apply (VB _ N).
-                                (*rewrite TVB in N. apply (H9 N). *) apply H9. apply (TVB _ N).
-  split; intros.   (*rewrite VB. apply VB2. *) apply VB2. apply (VB _ H3).
-           apply TVB2. (*rewrite <- TVB. assumption. *) apply (TVB _ H3).
-  (* array case *)
-  intros until k.  intros VVM NOREPET MINJ MATCH STOREP.
-  monadInv STOREP. inv VVM. inv NOREPET.
-  exploit MS_var_set_self_correct_array; eauto.
-  intros [f2 [tm2 [EXEC1 [MINJ1 [MATCH1 [INCR1 [UcOn [TUcOn1 [SEP1 [VB1 TVB1]]]]]]]]]].
-  clear UcOn TUcOn1. (*this shows that the first 2 new conditions of MS_var_set_self_correct_array are in fact superfluous*)
-  exploit IHbind_parameters. eapply vars_vals_match_incr; eauto. auto. eauto. eauto. eauto. 
-  intros [f3 [tm3 [EXEC2 [MINJ2 [MATCH2 [INCR2 [SEP2 [VB2 TVB2]]]]]]]]. 
-  exists f3; exists tm3.
-  split. eapply corestep_star_trans; eauto.
-  split. auto. split. auto. 
-  split. eapply inject_incr_trans; eauto.
-  split. clear EXEC2 MATCH2 EXEC1 MATCH1 IHbind_parameters.
-     intros bb; intros.
-       remember (f2 bb) as z; destruct z; apply eq_sym in Heqz.
-       (*Some p*) destruct p.
-             assert (f3 bb = Some (b0, z)). apply INCR2 in Heqz. assumption.
-             rewrite H6 in H3. inv H3.
-             eapply SEP1. assumption. eassumption.
-       (*None*) 
-             destruct (SEP2 _ _ _ Heqz H3).
-             split; intros N. (*rewrite VB1 in N. apply (H6 N).*) apply H6. apply (VB1 _ N).
-                 apply TVB1 in N. apply (H7 N).
-  split; intros. (*rewrite VB1. apply VB2.*) apply VB2. apply (VB1 _ H2).
-           apply TVB2. apply (TVB1 _ H2).
-Qed.
-Lemma MS_function_entry_ok:
-  forall tf fn m e m1 vargs m2 j cs tm cenv tm1 sp tvargs s fn' k,
-  list_norepet (fn_params_names fn ++ fn_vars_names fn) ->
-  alloc_variables empty_env m (fn_variables fn) e m1 ->
-  bind_parameters ge e m1 fn.(Csharpminor.fn_params) vargs m2 ->
-  match_callstack prog j m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  build_compilenv gce fn = (cenv, tf.(fn_stackspace)) ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm1, sp) ->
-  let tparams := List.map for_var (fn_params_names fn) in
-  let tvars := List.map for_var (fn_vars_names fn) in
-  let ttemps := List.map for_temp (Csharpminor.fn_temps fn) in
-  let te := set_locals (tvars ++ ttemps) (set_params tvargs tparams) in
-  val_list_inject j vargs tvargs ->
-  Mem.inject j m tm ->
-  store_parameters cenv fn.(Csharpminor.fn_params) = OK s ->
-  exists j', exists tm2,
-     corestep_star CMin_core_sem tge (CMin_State fn' s k (Vptr sp Int.zero) te) tm1
-                                 (CMin_State fn' Sskip k (Vptr sp Int.zero) te) tm2
-  /\ Mem.inject j' m2 tm2
-  /\ inject_incr j j'
-
-  (*This condition is new*)
-  /\ Events.inject_separated j j' m tm
-
-  /\ match_callstack prog j' m2 tm2
-       (Frame cenv tf e empty_temp_env te sp (Mem.nextblock m) (Mem.nextblock m1) :: cs)
-       (Mem.nextblock m2) (Mem.nextblock tm2).
-Proof.
-  intros.
-  exploit MS_match_callstack_alloc_variables; eauto.
-  intros [j1 [INCR1 [MINJ1 [MATCH1 [VB1 [SP1 SEP1]]]]]].
-  exploit vars_vals_match_holds.
-    eexact H. 
-    apply val_list_inject_incr with j. eauto. eauto.
-    eapply bind_parameters_normalized; eauto.
-  instantiate (1 := Csharpminor.fn_temps fn). 
-  fold tvars. fold ttemps. fold (fn_params_names fn). fold tparams. fold te.   
-  intro VVM.
-  exploit MS_store_parameters_correct.
-    eauto. eauto. eauto. eapply list_norepet_append_left; eauto.
-    eexact MINJ1. eexact MATCH1. eauto.
-  intros [j2 [tm2 [EXEC [MINJ2 [MATCH2 [INCR2 [SEP2 [VB2 TVB2]]]]]]]].
-  exists j2; exists tm2. 
-  split; eauto. split; auto. split; auto. eapply inject_incr_trans; eauto.
-Qed. 
-*)
 
 Lemma MS_match_callstack_alloc_variables:
   forall tm1 sp tm2 m1 vars e m2 cenv f1 cs fn le te,
@@ -1996,7 +1394,8 @@ Proof.
       inv MSTATE; simpl in *. 
       monadInv TR.
       destruct c2; simpl in *; try inv H8. 
-      destruct (MS_step_case_SkipSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_SkipSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2007,7 +1406,8 @@ Proof.
       inv MSTATE; simpl in *. 
       monadInv TR.
       destruct c2; simpl in *; try inv H8. 
-      destruct (MS_step_case_SkipBlock _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_SkipBlock _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2018,7 +1418,8 @@ Proof.
       inv MSTATE; simpl in *. 
       monadInv TR.
       destruct c2; simpl in *; try inv H10.
-      destruct (MS_step_case_SkipCall  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H4 TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_SkipCall  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H2 H4 TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2033,22 +1434,13 @@ Proof.
       rename m2 into tm. rename k0 into tk.
       rename f0 into tfn. rename e0 into te.
       rename le0 into lenv. 
-      destruct (MS_step_case_Assign  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ id H3 TRF MINJ MK MCS EQ PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Assign  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        id H3 TRF MINJ MK MCS EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
-   (*set case has disappeared
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
-      inv MSTATE; simpl in *.
-      monadInv TR.
-      destruct c2; simpl in *; try inv H11.
-      destruct (MS_step_case_Set _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ id H3 TRF MINJ MCS MK EQ) as [c2' [m2' [cstepPlus MS]]].
-      left. exists c2'. exists m2'. exists j.
-      split. apply inject_incr_refl.
-      split. apply inject_separated_same_meminj.
-      auto.*)
+   (*set case has disappeared*)
    (*store*)
       destruct c1; simpl in *; try inv H0. 
       destruct c1'; simpl in *; try inv H1. 
@@ -2057,7 +1449,8 @@ Proof.
       destruct c2; simpl in *; try inv H11.
       rename f0 into tfn. rename m1 into m. rename m2  into tm.
       rename e0 into te. rename k0 into tk. rename  m1' into m'.
-      destruct (MS_step_case_Store _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H5 H2 H3 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Store _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H5 H2 H3 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2071,7 +1464,8 @@ Proof.
       rename f into fd. rename f0 into f. rename f1 into tfn.
       rename m1' into m. rename m2  into tm. rename e into te.
       rename e0 into e.  rename k0 into tk. rename  le0 into le.
-      destruct (MS_step_case_Call _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ optid _ _ H2 H3 H4 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlusMS]]].
+      destruct (MS_step_case_Call _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        optid _ _ H2 H3 H4 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlusMS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2085,7 +1479,9 @@ Proof.
       rename f0 into tfn. 
       rename m1 into m. rename m2  into tm. rename e into te.
       rename e0 into e.  rename k0 into tk. rename  le0 into le.  rename m1' into m'.
-      destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ optid _ _ _ _ H2 H4 TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
+      destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ optid 
+        _ _ _ _ H2 H4 TRF MINJ MCS MK EQ PG) 
+        as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
       left. exists c2'. exists m2'.  exists j'. auto.
   (* seq *)
       destruct c1; simpl in *; try inv H1. 
@@ -2101,7 +1497,9 @@ Proof.
                 split. apply inject_incr_refl.
                 split. apply inject_separated_same_meminj.
                 split; simpl.
-                    eapply corestep_plus_one.  eapply CompCertStep_CMin_corestep.  econstructor; eauto. reflexivity. 
+                    eapply corestep_plus_one.  
+                    eapply CompCertStep_CMin_corestep.  
+                    econstructor; eauto. reflexivity. 
                 econstructor; eauto.
                           econstructor; eauto.
       (* seq 2 *) 
@@ -2116,7 +1514,8 @@ Proof.
       destruct c2; simpl in *; try inv H10. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm. 
-      destruct (MS_step_case_Ite _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H4 TRF MINJ MCS MK EQ EQ1 EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Ite _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H2 H4 TRF MINJ MCS MK EQ EQ1 EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2129,7 +1528,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm. 
-      destruct (MS_step_case_Loop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Loop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2142,7 +1542,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.  rename s0 into s.
-      destruct (MS_step_case_Block _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Block _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2155,7 +1556,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
-      destruct (MS_step_case_ExitSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n _ TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_ExitSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n _ 
+        TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2168,7 +1570,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
-      destruct (MS_step_case_ExitBlockZero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_ExitBlockZero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2181,7 +1584,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
-      destruct (MS_step_case_ExitBlockNonzero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_ExitBlockNonzero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        n TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2194,7 +1598,8 @@ Proof.
       destruct c2; simpl in *; try inv H9. 
          rename f0 into tfn.  rename e0 into te.
          rename k0 into tk. rename m1' into m. rename m2  into tm.  rename s into ts.
-      destruct (MS_step_case_Switch _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H3 TRF MINJ MCS MK EQ EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Switch _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H3 TRF MINJ MCS MK EQ EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2206,8 +1611,10 @@ Proof.
       monadInv TR.
       destruct c2; simpl in *; try inv H9. 
        rename f into tfn.  rename f0 into f. rename e into te. rename e0 into e.
-         rename k0 into tk. rename m1 into m. rename m2  into tm. rename m1'  into m'.  rename le0 into le.
-      destruct (MS_step_case_ReturnNone _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+         rename k0 into tk. rename m1 into m. rename m2  into tm. 
+         rename m1'  into m'.  rename le0 into le.
+      destruct (MS_step_case_ReturnNone _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2218,9 +1625,12 @@ Proof.
       inv MSTATE. 
       monadInv TR.
       destruct c2; simpl in *; try inv H10. 
-       rename f into tfn.  rename f0 into f. rename e into te. rename e0 into e. rename k into tk.
-         rename k0 into k. rename m1 into m. rename m2  into tm. rename m1'  into m'.  rename le0 into le. rename v0 into v.
-      destruct (MS_step_case_ReturnSome _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H4 TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
+       rename f into tfn.  rename f0 into f. rename e into te. 
+         rename e0 into e. rename k into tk.
+         rename k0 into k. rename m1 into m. rename m2  into tm. 
+         rename m1'  into m'.  rename le0 into le. rename v0 into v.
+      destruct (MS_step_case_ReturnSome _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H2 H4 TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2233,7 +1643,8 @@ Proof.
       destruct c2; simpl in *; try inv H8. 
        rename f0 into tfn. rename e0 into te. 
          rename k0 into tk. rename m1' into m. rename m2  into tm. rename s0 into s.  
-      destruct (MS_step_case_Label _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ lbl _ _ TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
+      destruct (MS_step_case_Label _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        lbl _ _ TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2245,8 +1656,10 @@ Proof.
       monadInv TR.
       destruct c2; simpl in *; try inv H9. 
        rename f0 into tfn. rename e0 into te. 
-         rename k1 into tk. rename s into s'.  rename k into k'. rename k0 into k. rename m1' into m. rename m2  into tm.
-      destruct (MS_step_case_Goto _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+         rename k1 into tk. rename s into s'.  rename k into k'. 
+         rename k0 into k. rename m1' into m. rename m2  into tm.
+      destruct (MS_step_case_Goto _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
@@ -2262,20 +1675,13 @@ Proof.
       rename m1' into m1. rename args into vargs.
       rename k0 into tk. rename le0 into lenv.
       rename args0 into targs.
-      destruct (MS_step_case_InternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ H2 H3 H4 H5 H7 MINJ MCS MK ISCC ARGSINJ EQ PG) as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
+      destruct (MS_step_case_InternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        H2 H3 H4 H5 H7 MINJ MCS MK ISCC ARGSINJ EQ PG) 
+        as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
       left. exists c2'. exists m2'. exists j'. auto.
 (* external call *)
       destruct c1; simpl in *; try inv H0. inv H. 
    (*nothing to show here - cf corestep not at external *) 
- (*     destruct c1'; simpl in *; try inv H1. 
-      inv MSTATE. 
-      monadInv TR.
-      destruct c2; simpl in *; try inv H7.  
-      rename m1 into m. rename m2 into tm. 
-      rename k0 into tk. rename args0 into targs.  rename m1' into m'. 
-  inv MSTATE. monadInv TR. rename f into j.
-  destruct (transl_step_case_ExternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ H MINJ MCS MK ISCC ARGSINJ) as [T2 [Steps [j' [Inc MSI]]]].
-   apply matchInj_Elim in MSI. eauto.*)
 
 (* return *)
       destruct c1; simpl in *; try inv H1. 
@@ -2285,7 +1691,8 @@ Proof.
       rename m1' into m. rename m2 into tm. rename f0 into f.
       rename e0 into e. rename k into tk. rename k0 into k.
       rename v into tv. rename v0 into v.
-      destruct (MS_step_case_Return _ _ _ _ _ _ _ _ _ _ _ tv optid MINJ MCS MK RESINJ PG) as [c2' [m2' [cstepPlus MS]]]. 
+      destruct (MS_step_case_Return _ _ _ _ _ _ _ _ _ _ _ 
+        tv optid MINJ MCS MK RESINJ PG) as [c2' [m2' [cstepPlus MS]]]. 
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.

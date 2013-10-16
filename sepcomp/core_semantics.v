@@ -11,6 +11,8 @@ Require Import Axioms.
 
 Require Import sepcomp.mem_lemmas.
 
+(** * Core semantics *)
+
 Lemma external_call_mem_forward:
   forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),

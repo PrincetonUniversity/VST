@@ -13,11 +13,9 @@ Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations.
 
-(*Proofs that the individual cases of sim (sim_eq, sim_ext and sim_inj are closed under
-   star and plus. Then (presumably) lift this to compilercorrectness.*)
+(* This file provides a series of interfaces to [forward_simulations.v] *)
 
 Section Sim_EQ_SIMU_DIAGRAMS.
-
   Context {M F1 V1 C1 M2 F2 V2 C2:Type}
           {Sem1 : CoreSemantics (Genv.t F1 V1) C1 M}
           {Sem2 : CoreSemantics (Genv.t F2 V2) C2 M}
@@ -38,16 +36,6 @@ Section Sim_EQ_SIMU_DIAGRAMS.
         exists c1 : C1, exists c2 : C2,
                 initial_core Sem1 ge1 v1 vals = Some c1 /\
                 initial_core Sem2 ge2 v2 vals = Some c2 /\ match_cores c1 c1 c2.
-(*Smallstep/old version of this file had
-  Hypothesis match_initial_cores: 
-        forall v1 v2 sig, In (v1,v2,sig) entry_points ->
-        forall vals,  Forall2 (Val.has_type) vals (sig_args sig) ->
-        forall c1, initial_core Sem1 ge1 v1 vals = Some c1 ->
-                   exists c2, exists d, initial_core Sem2 ge2 v2 vals = Some c2 /\
-                                                   match_cores d c1 c2.
-But the core_initial axiom in the record Sim_eq.Forward_simulation_equals currently has an /\
-  in place of the implication -- maybe that should be changed?
-*)
 
   Hypothesis eq_halted:
       forall (cd : core_data) (c1 : C1) (c2 : C2) v ,
@@ -68,8 +56,6 @@ Hypothesis eq_after_external:
     (d = st1 /\ match_cores d st1 st2) ->
     at_external Sem1 st1 = Some (e, ef_sig, args) ->
     at_external Sem2 st2 = Some (e, ef_sig, args) ->
-(*    Forall2 Val.has_type args (sig_args ef_sig) ->*)
-(*    Val.has_type ret (proj_sig_res ef_sig) ->*)
     exists st1', exists st2', exists d',
       after_external Sem1 (Some ret) st1 = Some st1' /\
       after_external Sem2 (Some ret) st2 = Some st2' /\
@@ -170,7 +156,6 @@ Section Sim_EXT_SIMU_DIAGRAMS.
       In (v1,v2,sig) entry_points ->
         forall vals vals' m1 m2,
           Forall2 Val.lessdef vals vals' ->
-(*          Forall2 (Val.has_type) vals' (sig_args sig) ->*)
           Mem.extends m1 m2 ->
           exists c1, exists c2,
             initial_core Sem1 ge1 v1 vals = Some c1 /\
@@ -192,7 +177,6 @@ Section Sim_EXT_SIMU_DIAGRAMS.
          exists vals2,
           Mem.extends m1 m2 /\
           Forall2 Val.lessdef vals1 vals2 /\
-(*          Forall2 (Val.has_type) vals2 (sig_args sig) /\*)
           at_external Sem2 st2 = Some (e,sig,vals2).
 
   Hypothesis ext_after_external:
@@ -202,7 +186,6 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         at_external Sem2 st2 = Some (e,sig,vals2) ->
 
         Forall2 Val.lessdef vals1 vals2 ->
-(*        Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
         mem_forward m1 m1' ->
         mem_forward m2 m2' ->
 
@@ -210,8 +193,6 @@ Section Sim_EXT_SIMU_DIAGRAMS.
        (*ie spill-locations didn't change*)        
         Val.lessdef ret1 ret2 ->
         Mem.extends m1' m2' ->
-
-(*        Val.has_type ret2 (proj_sig_res sig) ->*)
 
         exists st1', exists st2', exists d',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -227,7 +208,6 @@ Hypothesis ext_simulation:
     forall c2 m2, match_states c1 c1 m1 c2 m2 ->
       exists c2', exists m2', 
         match_states c1' c1' m1' c2' m2' /\
-(*        Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\*)
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
           (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
 
@@ -269,7 +249,6 @@ Section EXT_SIMULATION_STAR.
         exists c2' : C2,
           exists m2' : mem,
             match_states c1' c1' m1' c2' m2' /\
-            (*Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\*)
             (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
              corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure c1' c1).
 
@@ -292,14 +271,13 @@ Section EXT_SIMULATION_PLUS.
     forall c2 m2, match_states c1 c1 m1 c2 m2 ->
       exists c2', exists m2', 
         corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' c1' m1' c2' m2'(* /\
-        Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'*).
+        match_states c1' c1' m1' c2' m2'.
 
 Lemma ext_simulation_plus: 
   Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply ext_simulation_star with (measure:=measure).
-  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [MC (*[UNC*) STEP(*]*)]]].
+  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [MC STEP]]].
   eexists; eexists; split; eauto.
 Qed.
 
@@ -336,11 +314,7 @@ Section Sim_INJ_SIMU_DIAGRAMS.
        forall vals1 c1 m1 j vals2 m2,
           initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-          (*Is this line needed?? 
-             (forall w1 w2 sigg,  In (w1,w2,sigg) entry_points -> val_inject j w1 w2) ->*)
           Forall2 (val_inject j) vals1 vals2 ->
-
-(*          Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
           meminj_preserves_globals ge1 j ->
           exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
@@ -359,7 +333,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         ( Mem.inject j m1 m2 /\
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
-(*          Forall2 (Val.has_type) vals2 (sig_args sig) /\*)
           at_external Sem2 st2 = Some (e,sig,vals2)).
 
   Hypothesis inj_after_external:
@@ -383,8 +356,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
          Mem.unchanged_on (loc_unmapped j) m1 m1' ->
          mem_forward m2 m2' -> 
          Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' ->
-(*         Val.has_type ret1 (proj_sig_res sig) ->
-         Val.has_type ret2 (proj_sig_res sig) ->*)
 
       exists st1', exists st2', exists d',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
@@ -443,8 +414,6 @@ Section INJ_SIMULATION_STAR.
       (exists c2', exists m2', exists j', 
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\ 
-        (*Mem.unchanged_on (loc_unmapped j) m1 m1' /\
-        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2' /\*)
         match_states c1' j' c1' m1' c2' m2' /\
         (corestep_plus Sem2 ge2 c2 m2 c2' m2' 
           \/ ((measure c1' < measure c1)%nat /\ corestep_star Sem2 ge2 c2 m2 c2' m2'))).
@@ -455,9 +424,8 @@ Proof.
   eapply inj_simulation_star_wf.
   apply  (well_founded_ltof _ measure).
   intros. destruct (inj_star_simulation _ _ _ _ H _ _ _ H0) as [c2' H1].
-  destruct H1 as [m2' [j' [INC [SEP (* [UNCH1 [UNCH2*) [MC' STEP]]](*]]*)]]. 
+  destruct H1 as [m2' [j' [INC [SEP [MC' STEP]]]]]. 
   exists c2'. exists m2'. exists j'. split; trivial. split; trivial. split; trivial. 
-  (*split; auto. split; auto.*)
   destruct STEP as [X1|X1]; subst. left; auto. 
   right. destruct X1. split; auto.
 Qed.
@@ -473,17 +441,15 @@ Section INJ_SIMULATION_PLUS.
         inject_incr j j' /\
         inject_separated j j' m1 m2 /\ 
         corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' j' c1' m1' c2' m2' (*/\ 
-        Mem.unchanged_on (loc_unmapped j) m1 m1' /\
-        Mem.unchanged_on (loc_out_of_reach j m1) m2 m2'*).
+        match_states c1' j' c1' m1' c2' m2'.
   
 Lemma inj_simulation_plus: 
   Forward_simulation_inj.Forward_simulation_inject Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply inj_simulation_star with (measure:=measure).
   intros. destruct (inj_plus_simulation _ _ _ _ H _ _ _ H0) 
-    as [? [? [? [? [? [? (*[? [?*) ?]](*]]*)]]]].
-  do 3 eexists. split; eauto. (* split; eauto.*)
+    as [? [? [? [? [? [? ?]]]]]].
+  do 3 eexists. split; eauto.
 Qed.
 
 End INJ_SIMULATION_PLUS.
