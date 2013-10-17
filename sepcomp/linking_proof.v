@@ -341,7 +341,15 @@ eapply match_validblocks0; eauto.
 Qed.
 Next Obligation.
 destruct core_simulation.
-Admitted.
+unfold match_states in H.
+destruct H as [H H0].
+apply match_genv0 in H.
+clear - genvs_domain_eqS H.
+rewrite <-meminj_preserves_genv2blocks.
+erewrite genvs_domain_eq_preserves; eauto.
+rewrite meminj_preserves_genv2blocks.
+auto.
+Qed.
 Next Obligation.
 rename H0 into MATCH.
 generalize MATCH as MATCH'; intro.
