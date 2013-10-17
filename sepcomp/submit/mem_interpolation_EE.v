@@ -42,15 +42,14 @@ Lemma EE_ok: forall (m1 m1' m2 m3 m3':Mem.mem)
              (Fwd3: mem_forward m3 m3')
              (Ext13' : Mem.extends m1' m3') 
              (UnchOn13 : Mem.unchanged_on (loc_out_of_bounds m1) m3 m3')
-             m2' (WD3': mem_wd m3')
+             m2' 
              (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
              (CONT: Content_EE_Property  m1 m1' m2 (m2'.(Mem.mem_contents)))
              (ACCESS: AccessMap_EE_Property m1 m1' m2 (m2'.(Mem.mem_access))),
          mem_forward m2 m2' /\ 
              Mem.extends m1' m2' /\
              Mem.extends m2' m3' /\
-             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-            (mem_wd m2 -> mem_wd m2').
+             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
     split; intros.
@@ -93,25 +92,8 @@ assert (Ext12':  Mem.extends m1' m2').
                                        apply ZZ. apply perm_any_N.
               clear Val. unfold Mem.perm. rewrite po_oo in *. 
                  rewrite (Inval z k ofs); clear Inval Heqz. apply H0.
-         (*mi_access*) unfold Mem.valid_access in *. 
-             destruct H0. inv H. rewrite Zplus_0_r.
-             split; trivial. 
-             intros off; intros. specialize (H0 _ H). 
-              destruct (ACCESS b2) as [Val Inval].
-              remember (plt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]. clear Inval.
-                destruct (Val z Cur off); clear Val Heqz. 
-                remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
-                destruct d; clear Heqd.  
-                   clear H1. unfold Mem.perm. rewrite (H2 p0). apply H0. 
-                clear H. unfold Mem.perm. rewrite (H3 n). clear H1.
-                   apply Mem.perm_max in H0.
-                   apply (Mem.valid_block_extends _ _ b2 Ext12) in z. 
-                   assert (ZZ:= fwd_maxperm _ _ Fwd1 _ z _ _ H0).
-                   exfalso. apply n. eapply Mem.perm_implies. 
-                                     apply ZZ. apply perm_any_N.
-              clear Val. unfold Mem.perm.
-                 rewrite (Inval z Cur off); clear Inval Heqz. apply H0.
+         (*mi_align*)  
+             inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [Val [Inval DEFAULT]]; clear CONT.
             remember (plt b2 (Mem.nextblock m2)) as d.
@@ -158,33 +140,7 @@ assert (Ext23': Mem.extends m2' m3').
                  rewrite (Inval z k ofs) in H0; clear Inval.
                        unfold Mem.perm. rewrite po_oo in *.
                       eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
-         (*mi_access*) 
-             unfold Mem.valid_access in *. destruct H0. inv H. 
-             rewrite Zplus_0_r.
-             split; trivial. 
-             intros off; intros. specialize (H0 _ H). clear H.
-              destruct (ACCESS b2) as [Val Inval].
-              remember (plt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]. clear Inval. 
-                destruct (Val z Cur off) as [A B]; clear Val Heqz. 
-                remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
-                destruct d; clear Heqd.  
-                   clear B. unfold Mem.perm in *. rewrite po_oo in *. 
-                   rewrite (A p0) in H0; clear A. 
-                   eapply po_trans. 
-                     eapply (extends_permorder _ _ Ext13' b2 off Cur).
-                   apply H0. 
-                clear A. unfold Mem.perm in H0. rewrite (B n) in H0. clear B.
-                   destruct UnchOn13 as [U _].
-                   rewrite <- U.
-                          unfold Mem.perm. rewrite po_oo in *.
-                            eapply po_trans.  eapply (extends_permorder _ _ Ext23). apply H0.
-                          apply n.
-                          rewrite <- (Mem.valid_block_extends _ _ _ Ext23). apply z. 
-              clear Val Heqz. unfold Mem.perm in H0.
-                 rewrite (Inval z Cur off) in H0; clear Inval.
-                          unfold Mem.perm. rewrite po_oo in *.
-                          eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
+         (*mi_align*) inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC DefaultC]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -224,9 +180,6 @@ assert (Ext23': Mem.extends m2' m3').
                     specialize (mi_memval b2 ofs b2 0 (eq_refl _) H0). 
                     rewrite Zplus_0_r in mi_memval. assumption.
 split; trivial.
-assert (WD2: mem_wd m2').
-  intros. eapply (extends_memwd _ _ Ext23' WD3'). 
-split; intros; trivial. 
 (*unchanged_on (loc_out_of_bounds m1) m2 m2'*)
      destruct UnchOn13 as [UnchP UnchVal].
      split; intros. clear UnchVal. 
@@ -459,12 +412,10 @@ Defined.
 Lemma interpolate_EE: forall m1 m2 (Ext12: Mem.extends m1 m2) m1' 
             (Fwd1: mem_forward m1 m1') m3 (Ext23: Mem.extends m2 m3) m3' 
             (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
-            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3') 
-            (WD3': mem_wd m3'),
+            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3'),
        exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\
                    Mem.extends m2' m3' /\
-                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                   (mem_wd m2 -> mem_wd m2').
+                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros. 
    assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
       intros. apply Fwd3. destruct Ext23. 
@@ -575,15 +526,14 @@ Lemma EE_ok': forall (m1 m1' m2 m3 m3':Mem.mem)
              (Fwd3: mem_forward m3 m3')
              (Ext13' : Mem.extends m1' m3') 
              (UnchOn13 : Mem.unchanged_on (loc_out_of_bounds m1) m3 m3')
-             m2' (WD3': mem_wd m3')
+             m2'
              (NB: m2'.(Mem.nextblock)=m3'.(Mem.nextblock))
              (CONT: Content_EE_Property' m1 m1' m2 (m2'.(Mem.mem_contents)))
              (ACCESS: AccessMap_EE_Property m1 m1' m2 (m2'.(Mem.mem_access))),
          mem_forward m2 m2' /\ 
              Mem.extends m1' m2' /\
              Mem.extends m2' m3' /\
-             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-            (mem_wd m2 -> mem_wd m2').
+             Mem.unchanged_on (loc_out_of_bounds m1) m2 m2'.
 Proof. intros.
 assert (Fwd2: mem_forward m2 m2').
     split; intros.
@@ -626,25 +576,7 @@ assert (Ext12':  Mem.extends m1' m2').
                                        apply ZZ. apply perm_any_N.
               clear Val. unfold Mem.perm. rewrite po_oo in *. 
                  rewrite (Inval z k ofs); clear Inval Heqz. apply H0.
-         (*mi_access*) unfold Mem.valid_access in *. 
-             destruct H0. inv H. rewrite Zplus_0_r.
-             split; trivial. 
-             intros off; intros. specialize (H0 _ H). 
-              destruct (ACCESS b2) as [Val Inval].
-              remember (plt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]. clear Inval.
-                destruct (Val z Cur off); clear Val Heqz. 
-                remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
-                destruct d; clear Heqd.  
-                   clear H1. unfold Mem.perm. rewrite (H2 p0). apply H0. 
-                clear H. unfold Mem.perm. rewrite (H3 n). clear H1.
-                   apply Mem.perm_max in H0.
-                   apply (Mem.valid_block_extends _ _ b2 Ext12) in z. 
-                   assert (ZZ:= fwd_maxperm _ _ Fwd1 _ z _ _ H0).
-                   exfalso. apply n. eapply Mem.perm_implies. 
-                                     apply ZZ. apply perm_any_N.
-              clear Val. unfold Mem.perm.
-                 rewrite (Inval z Cur off); clear Inval Heqz. apply H0.
+         (*mi_align*) inv H. apply Z.divide_0_r.
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [Val [Inval DEFAULT]]; clear CONT.
             remember (plt b2 (Mem.nextblock m2)) as d.
@@ -691,33 +623,7 @@ assert (Ext23': Mem.extends m2' m3').
                  rewrite (Inval z k ofs) in H0; clear Inval.
                        unfold Mem.perm. rewrite po_oo in *.
                       eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
-         (*mi_access*) 
-             unfold Mem.valid_access in *. destruct H0. inv H. 
-             rewrite Zplus_0_r.
-             split; trivial. 
-             intros off; intros. specialize (H0 _ H). clear H.
-              destruct (ACCESS b2) as [Val Inval].
-              remember (plt b2 (Mem.nextblock m2)) as z.
-              destruct z as [z|z]. clear Inval. 
-                destruct (Val z Cur off) as [A B]; clear Val Heqz. 
-                remember (Mem.perm_dec m1 b2 off Max Nonempty) as d. 
-                destruct d; clear Heqd.  
-                   clear B. unfold Mem.perm in *. rewrite po_oo in *. 
-                   rewrite (A p0) in H0; clear A. 
-                   eapply po_trans. 
-                     eapply (extends_permorder _ _ Ext13' b2 off Cur).
-                   apply H0. 
-                clear A. unfold Mem.perm in H0. rewrite (B n) in H0. clear B.
-                   destruct UnchOn13 as [U _].
-                   rewrite <- U.
-                          unfold Mem.perm. rewrite po_oo in *.
-                            eapply po_trans.  eapply (extends_permorder _ _ Ext23). apply H0.
-                          apply n.
-                          rewrite <- (Mem.valid_block_extends _ _ _ Ext23). apply z. 
-              clear Val Heqz. unfold Mem.perm in H0.
-                 rewrite (Inval z Cur off) in H0; clear Inval.
-                          unfold Mem.perm. rewrite po_oo in *.
-                          eapply po_trans.  eapply (extends_permorder _ _ Ext13'). apply H0.
+         (*mi_align*) inv H. apply Z.divide_0_r. 
          (*mi_memval *) inv H. rewrite Zplus_0_r. 
             destruct (CONT b2) as [ValC [InvalC DefaultC]].  
             destruct (ACCESS b2) as [ValA InvalA]. 
@@ -758,9 +664,6 @@ assert (Ext23': Mem.extends m2' m3').
                     specialize (mi_memval b2 ofs b2 0 (eq_refl _) H0). 
                     rewrite Zplus_0_r in mi_memval. assumption.
 split; trivial.
-assert (WD2: mem_wd m2').
-  intros. eapply (extends_memwd _ _ Ext23' WD3'). 
-split; intros; trivial. 
 (*unchanged_on (loc_out_of_bounds m1) m2 m2'*)
      destruct UnchOn13 as [UnchP UnchVal].
      split; intros. clear UnchVal. 
@@ -777,95 +680,3 @@ split; intros; trivial.
             apply (B H).
 Qed. 
 
-
-Lemma interpolate_EE':forall m1 m2 (Ext12: Mem.extends m1 m2) m1' 
-            (Fwd1: mem_forward m1 m1') m3 (Ext23: Mem.extends m2 m3) m3' 
-            (Fwd3: mem_forward m3 m3') (Ext13' : Mem.extends m1' m3')
-            (UnchOn3: Mem.unchanged_on (loc_out_of_bounds m1) m3 m3') 
-            (WD3': mem_wd m3'),
-       exists m2', mem_forward m2 m2' /\ Mem.extends m1' m2' /\
-                   Mem.extends m2' m3' /\
-                   Mem.unchanged_on (loc_out_of_bounds m1) m2 m2' /\
-                   (mem_wd m2 -> mem_wd m2'). 
-Proof. intros. 
-   assert (NB:forall b, Mem.valid_block m2 b -> Mem.valid_block m3' b).
-      intros. apply Fwd3. destruct Ext23. 
-              unfold Mem.valid_block. rewrite <- mext_next. apply H.
-   exists (mkEE m1 m1' m2 m3 m3' Ext12 Fwd1 Ext23 Fwd3 Ext13' UnchOn3).
-     eapply (EE_ok' m1 m1' m2 m3 m3'); trivial.
-     unfold mkEE. simpl. 
-        destruct (mkAccessMap_EE_existsT m1 m1' m2) as [? [? ?]]; simpl.
-        destruct (ContentsMap_EE_existsT m1 m1' m2) as [? [? ?]]. simpl. 
-        reflexivity.
-(*ContentMapOK*) 
-   unfold Content_EE_Property', mkEE.
-   destruct (mkAccessMap_EE_existsT m1 m1' m2) as [AM [ADef AP]]; simpl.
-        destruct (ContentsMap_EE_existsT m1 m1' m2) as [CM [CDef CP]]. simpl. 
-   intros.
-   split; intros.
-   (*valid_block m2 b*)
-     rewrite CP. unfold ContentsMap_EE_FUN.
-     destruct ( plt b (Mem.nextblock m1')).
-       destruct (CM_block_EE_existsT m1 m1' m2 b) as [CMb [CMbDef CMbP]]; simpl.
-       unfold ContentMap_EE_Block_FUN in CMbP.
-       destruct (plt b (Mem.nextblock m2)).
-          unfold ContentMap_EE_ValidBlock_FUN in CMbP.
-          rewrite (CMbP ofs). clear CMbP.
-          destruct (Mem.perm_dec m1 b ofs Max Nonempty).
-          split; intros; try contradiction; trivial.
-          split; intros; try contradiction; trivial.
-       contradiction.
-     exfalso. apply n; clear - H Fwd1 Ext12.
-       apply forward_nextblock in Fwd1.
-       destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
-        unfold Mem.valid_block in H. xomega.
-   split; intros.
-   (*invalid_block m2 b*)
-     rewrite CP.
-     unfold ContentsMap_EE_FUN.
-     destruct (plt b (Mem.nextblock m1')).
-       destruct (CM_block_EE_existsT m1 m1' m2 b) as [CMb [CMbDef CMbP]]; simpl.
-       rewrite CMbP. clear CMbP.
-       unfold ContentMap_EE_Block_FUN.
-       destruct (plt b (Mem.nextblock m2)).
-          contradiction.
-       clear n.
-       unfold ContentMap_EE_InvalidBlock_FUN. trivial.
-     rewrite ZMap.gi. 
-       specialize (pmap_finite_sound_c _ (Mem.mem_contents m1') b). intros.
-(*HERE*)       admit. (*THIS ADMIT IS OK - THE THEOREM IS NOT USED*)
-   (*default*)
-     rewrite CP. 
-     unfold ContentsMap_EE_FUN.
-     destruct ( plt b (Mem.nextblock m1')).
-       destruct (CM_block_EE_existsT m1 m1' m2 b) as [CMb [CMbDef CMbP]]; simpl.
-       assumption. 
-       reflexivity.
-
-(*AccessMapOK*)
-   unfold AccessMap_EE_Property, mkEE.
-   destruct (mkAccessMap_EE_existsT m1 m1' m2) as [AM [ADef AP]]; simpl.
-        destruct (ContentsMap_EE_existsT m1 m1' m2) as [CM [CDef CP]]. simpl. 
-   intros.
-   split; intros.
-   (*valid_block m2 b*)
-     rewrite AP. unfold AccessMap_EE_FUN'.
-     destruct (plt b (Mem.nextblock m2)).
-       destruct (plt b (Mem.nextblock m1')).
-          destruct (Mem.perm_dec m1 b ofs Max Nonempty).
-          split; intros; try contradiction; trivial.
-          split; intros; try contradiction; trivial.
-     exfalso. apply n; clear - H Fwd1 Ext12.
-       apply forward_nextblock in Fwd1.
-       destruct Ext12. rewrite mext_next in Fwd1. clear mext_inj mext_next. 
-        unfold Mem.valid_block in H. xomega.
-    contradiction.
-
-  (*invalid_block m2 b*)
-   rewrite AP. unfold AccessMap_EE_FUN'.
-     destruct (plt b (Mem.nextblock m1')).
-       destruct (plt b (Mem.nextblock m2)).
-        contradiction.
-        trivial.
-     rewrite (Mem.nextblock_noaccess m1'); trivial.
-Qed.

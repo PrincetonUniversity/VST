@@ -247,11 +247,6 @@ Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
  | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
  end.
 
-(*Cores don't have init-mem-conditions any more
-Definition cl_init_mem (ge:genv) (m:mem) (d: list (ident * globdef fundef type) ):  Prop.
- Admitted. not needed
-  (*     Genv.alloc_variables ge Mem.empty d = Some m. *)
-*)
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
   let tl := typed_params 2%positive (length args)
    in Some (State empty_env (temp_bindings 1%positive (v::args))

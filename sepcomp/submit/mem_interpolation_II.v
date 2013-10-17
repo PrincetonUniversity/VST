@@ -222,6 +222,7 @@ Proof. intros N.
      split; try trivial.
 Qed.
 
+
 Lemma mkInjectionsN_5: forall N n1 n2 j k l j' k' n1' n2'
        (HI: mkInjectionsN N n1 n2 j k l = (j',k',n1',n2')) 
        (HJ1: forall b1 b2 ofs2, j b1 = Some(b2,ofs2) -> (b1 < n1)%positive)
@@ -336,26 +337,6 @@ Proof. intros M j' k' l n1' n2' N.
 apply H0.
 Qed.
 
-(*not needed
-Lemma mkInjectionsN_10: forall N n1 n2 j k l j' k' n1' n2'
-    (HI: mkInjectionsN N n1 n2 j k l = (j',k',n1',n2'))
-    (HL: forall b1 b3 ofs3, l b1 = Some(b3,ofs3) -> b1 < n1' - Z_of_nat N)
-    b b2 ofs2,
-    l b = Some(b2,ofs2) -> j' b = Some(b2,ofs2) \/ b < n1  + Z_of_nat N.
-Proof. intros N.
-  induction N; simpl; intros. 
-     inv HI. specialize (HL _ _ _ H). 
-     repeat rewrite Zminus_0_r in HL. rewrite Zplus_0_r. right; trivial.
-  assert (HN: forall (b1 b3 : block) (ofs3 : Z),
-       l b1 = Some (b3, ofs3) -> b1 < n1' - Z_of_nat N). 
-     intros. specialize (HL _ _ _ H0). rewrite Zpos_P_of_succ_nat in HL. omega. 
- specialize (IHN _ _ _ _ _ _ _ _ _ HI HN _ _ _ H). clear HI.
- destruct IHN.
-    left; trivial. 
-    rewrite Zpos_P_of_succ_nat. right. omega.
-Qed.
-*)
-
 Definition mkInjections (m1 m1' m2:mem) (j k l: meminj)
                      :  meminj * meminj * block * block := 
   if plt (Mem.nextblock m1) (Mem.nextblock m1')
@@ -363,13 +344,6 @@ Definition mkInjections (m1 m1' m2:mem) (j k l: meminj)
                 (Mem.nextblock m1)
                 (Mem.nextblock m2) j k l
   else (j,k,Mem.nextblock m1,Mem.nextblock m2).
-(*
-Definition mkInjections (m1 m1' m2:mem) (j k l: meminj)
-                     :  meminj * meminj * Z * Z:= 
-  mkInjectionsN (nat_of_Z ((Mem.nextblock m1') - (Mem.nextblock m1)))
-                (Mem.nextblock m1)
-                (Mem.nextblock m2) j k l.
-*)
 
 Lemma mkInjections_0: forall m1 m1' m2 j k l j' k' n1' n2'
     (HI: mkInjections m1 m1' m2 j k l = (j',k',n1',n2')),
@@ -957,42 +931,10 @@ Definition Content_II_Property (j12 j12' j23':meminj) (m1 m1' m2:Mem.mem)
          end)
    /\ fst CM !! b2 = Undef.
 
-Lemma mkInjections_aligned_1: forall m1 m1' m2 j k l j' k' n1' n2' 
-                       (HI: mkInjections m1 m1' m2 j k l = (j',k',n1',n2')) 
-                       (A: inject_aligned j), inject_aligned j'.
-Proof. intros. intros b; intros.
-  destruct (mkInjections_3  _ _ _ _ _ _ _ _ _ _ HI _ _ _ H)
-  as [KK | [KK | KK]].
-     apply (A _ _  _ KK).
-     destruct KK as [? [? ?]]; subst. apply Zdivide_0.
-     destruct KK as [? [[? ?] ?]]; subst. apply Zdivide_0.
-Qed.
-
-Lemma mkInjections_aligned_2: forall m1 m1' m2 j k l j' k' n1' n2' 
-                       (HI: mkInjections m1 m1' m2 j k l = (j',k',n1',n2')) 
-                       (Ik: inject_aligned k) (Il: inject_aligned l),
-                       inject_aligned k'.
-Proof. intros. intros b; intros.
-  destruct (mkInjections_4  _ _ _ _ _ _ _ _ _ _ HI _ _ _ H)
-  as [KK | [KK | KK]].
-    apply (Ik _ _ _ KK).
-    destruct KK as [? ?]; subst. 
-        apply (Il _ _ _ H1).
-    destruct KK as [? [? ?]]; subst. 
-        apply (Il _ _ _ H1).
-Qed.
-
 Lemma add_no_neutral2: forall (p q:positive), (p <> p + q)%positive.
 Proof. intros. 
   specialize (Pos.add_no_neutral p q).
   intros. rewrite Pos.add_comm. xomega.
-Qed.
-
-Lemma valid_block_dec: forall m b, {Mem.valid_block m b} + {~Mem.valid_block m b}.
-Proof. intros.
-destruct (plt b (Mem.nextblock m)).
-  left. apply p.
-  right. apply n.
 Qed.
 
 Lemma cont_split: forall m b (A B Q: Prop)
@@ -1016,8 +958,6 @@ Lemma II_ok: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                              (loc_unmapped (compose_meminj j12 j23)) m1 m1')
                    (Unch33': Mem.unchanged_on
                          (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3')
-                   (WD1: mem_wd m1) (WD1': mem_wd m1') (WD2: mem_wd m2)
-                   (WD3: mem_wd m3) (WD3' : mem_wd m3')
                    prej12' j23' n1' n2'
                    (HeqMKI: mkInjections m1 m1' m2 j12 j23 j' = 
                             (prej12', j23', n1', n2'))
@@ -1027,11 +967,8 @@ Lemma II_ok: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                    (CONT:  Content_II_Property j12 j12' j23' m1 m1' m2 
                                                (m2'.(Mem.mem_contents)))
                    (ACCESS: AccessMap_II_Property j12 j23 j12' m1 m1' m2 
-                                                  (m2'.(Mem.mem_access)))
-                   (AL12: inject_aligned j12) (AL23: inject_aligned j23)
-                   (AL13': inject_aligned j'), 
+                                                  (m2'.(Mem.mem_access))), 
                 j'=compose_meminj j12' j23' /\
-                     inject_aligned j12'  /\ inject_aligned j23' /\
                      inject_incr j12 j12' /\ inject_incr j23 j23' /\
                      Mem.inject j12' m1' m2' /\ mem_forward m2 m2' /\ 
                      Mem.inject j23' m2' m3' /\
@@ -1039,8 +976,7 @@ Lemma II_ok: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                      inject_separated j12 j12' m1 m2 /\
                      inject_separated j23 j23' m2 m3 /\
                      Mem.unchanged_on (loc_unmapped j23) m2 m2' /\ 
-                     Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3' /\
-                     (mem_wd m2 -> mem_wd m2').
+                     Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3'.
 Proof. intros.  
   assert (VBj12_1: forall (b1 b2 : block) (ofs2 : Z),
                    j12 b1 = Some (b2, ofs2) -> Mem.valid_block m1 b1).
@@ -1084,17 +1020,17 @@ Proof. intros.
       intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj13').
   assert (ID:= RU_composememinj _ _ _ _ _ _ _ _ _ _ HeqMKI 
                InjIncr _ InjSep VBj12_1 VBj12_2 VBj23_1 VBj').
-  assert (preAL12' := mkInjections_aligned_1 _ _ _ _ _ _ _ _ _ _ HeqMKI AL12).
+(*  assert (preAL12' := mkInjections_aligned_1 _ _ _ _ _ _ _ _ _ _ HeqMKI AL12).
   assert (AL12' : inject_aligned  (removeUndefs j12 j' prej12')).
           intros b; intros. apply RU_D in H.  
           eapply preAL12'. apply H. assumption.
   assert (AL23' := mkInjections_aligned_2 _ _ _ _ _ _ _ _ _ _ 
-                   HeqMKI AL23 AL13').
+                   HeqMKI AL23 AL13').*)
 split. assumption.
 split. assumption.
 split. assumption.
-split. assumption.
-split. assumption.
+(*split. assumption.
+split. assumption.*)
 assert (IDextensional: forall b,  
             j' b = compose_meminj (removeUndefs j12 j' prej12') j23' b).
    intros. rewrite <- ID. trivial.
@@ -1167,20 +1103,15 @@ assert (Unch2: Mem.unchanged_on (loc_out_of_reach j12 m1) m2 m2').
             contradiction.
          apply H1.
        (*invalid*)
-          exfalso. (* apply Mem.load_valid_access in H0. apply H1. 
-               apply Mem.valid_access_perm with (k:=Max) in H0.
-              apply (Mem.perm_valid_block _ _ _ _ _  H0).*)
-              apply Mem.perm_valid_block in H0. contradiction.
+          exfalso. 
+          apply Mem.perm_valid_block in H0. contradiction.
 assert (UnchLOM2: Mem.unchanged_on (loc_unmapped j23) m2 m2').
   unfold loc_unmapped.
   split; intros. rename H into HP.
         destruct (ACCESS b) as [Val _].
         specialize (Val H0 k ofs).
         rewrite HP in Val.
-(*          remember (source j12 m1 b ofs) as d.
-          destruct d.
-            destruct p0. *)
-            rewrite (perm_subst _ _ _ _ _ _ _ Val). clear Val. split; auto.
+        rewrite (perm_subst _ _ _ _ _ _ _ Val). clear Val. split; auto.
   apply (cont_split _ _ _ _ _ (CONT b)); intros; clear CONT.
       (*case Mem.valid_block m2 b*)
           specialize (H2 ofs).
@@ -1191,12 +1122,6 @@ assert (UnchLOM2: Mem.unchanged_on (loc_unmapped j23) m2 m2').
           remember (source j12 m1 b ofs) as d.
           destruct d.
              destruct p. subst. rewrite H4 in H2. apply H2. 
-          (* destruct (source_SomeE _ _ _ _ _ Heqd) 
-                   as [bb1 [dd1 [ofs11 [PP [VB [ JJ [PERM Off2]]]]]]]. 
-                 clear Heqd.
-                 subst. apply eq_sym in PP. inv PP. 
-                 unfold compose_meminj in H1. rewrite (inc12 _ _ _ JJ) in H1.
-                 rewrite H2 in H1. apply H1.*)
           apply H2.
       (*case invalid*)
           apply Mem.perm_valid_block in H0. contradiction.
@@ -1278,27 +1203,26 @@ assert (Inj12': Mem.inject (removeUndefs j12 j' prej12')  m1' m2').
                     apply H0. apply perm_any_N.
     assert (INJ:Mem.mem_inj  (removeUndefs j12 j' prej12') m1' m2'). 
       split. apply Perm12'.
-      (*valid_access*) 
-          intros. destruct H0.
-          split.
-              intros off; intros.
-              assert (Hoff: ofs <= off-delta < ofs + size_chunk chunk). omega. 
-              specialize (Perm12' _ _ _ _ _ _ H  (H0 _ Hoff)).
-              assert (off - delta + delta = off). omega. 
-              rewrite H3 in Perm12'. apply Perm12'.
-              (*we can't use Mem.aligned_area_inject because we want to 
-                PROVE Mem.inject (removeUndefs j12 j' prej12')  m1' m2').*)
-                (*assert (RP : Mem.range_perm m1' b1 ofs 
-                              (ofs + size_chunk chunk) Cur Nonempty).
-                  intros off Hoff. eapply Mem.perm_implies.
-                    apply (H0 _ Hoff). apply perm_any_N. 
-                   eapply Mem.aligned_area_inject with
-                    (sz:=size_chunk chunk). Focus 5. apply RP. 
-                        Focus 6. apply H. 
-                            apply H1. Focus 4. apply H1.
-                  THIS IS ONE OF THE PLACES WHERE 
-                       inject_aligned_of IS REQUIRED*)
-                   eapply (inject_aligned_ofs _ AL12' _ _ _ _ H _ H1). 
+      (*mi_align*) 
+          intros. unfold removeUndefs in H.
+          remember (j12 b1) as d.
+          destruct d; apply eq_sym in Heqd.
+            destruct p0 as [bb2 deta2].
+            inv H.
+            eapply MInj12. eassumption.
+            assert (MR: Mem.range_perm m1 b1 ofs (ofs + size_chunk chunk) Max p).
+               intros z. intros. specialize (H0 _ H).
+               eapply Fwd1. eapply VBj12_1. apply Heqd. apply H0.
+            eassumption.
+          remember (j' b1) as q.
+          destruct q; apply eq_sym in Heqq. destruct p0.
+            destruct (mkInjections_3V _ _ _ _ _ _ _ _ _ _ 
+                        HeqMKI VB12 VBj23_1 _ _ _ H)
+              as [HX | [HX | HX]].
+            destruct HX as [J12 [Val1 Val2]]. rewrite J12 in Heqd. inv Heqd. 
+            destruct HX as [? [? [? [? D]]]]. subst. apply Z.divide_0_r. 
+            destruct HX as [? [? [? [? [? D]]]]]. subst.  apply Z.divide_0_r. 
+          inv H.
       (*memval  j12' m1' m2'.*)
           intros. 
           apply (cont_split _ _ _ _ _ (CONT b2)); intros; clear CONT.
@@ -1314,18 +1238,8 @@ assert (Inj12': Mem.inject (removeUndefs j12 j' prej12')  m1' m2').
                    apply (Fwd1 _ Val1). 
                       eapply Mem.perm_max. eapply Mem.perm_implies.
                         apply H0. apply perm_any_N.
-             remember (source j12 m1 b2 (ofs + delta)) as ss.
-             destruct ss.
-             (*source  j12 m1 b2 (ofs + delta)  = Some p *)
-                 destruct (source_SomeE _ _ _ _ _ Heqss)
-                    as [bb1 [dd1 [ofs11 [PP [VB [ JJ [PERM Off2]]]]]]].
-                 clear Heqss. subst.     
-                 destruct (eq_block bb1 b1); subst.
-                 (*case bb1 = b1*)
-                     rewrite J12 in JJ. apply eq_sym in JJ. inv JJ. 
-                     assert (ofs11 = ofs). omega. 
-                     subst. clear Off2. 
-                     remember (j23' b2) as j23'b2.
+             rewrite (source_SomeI j12 _  _ b1) in H2; trivial.
+                   remember (j23' b2) as j23'b2.
                      destruct j23'b2; apply eq_sym in Heqj23'b2.
                      (*j23' b2 = Some p*)
                          destruct p. rewrite H2. clear H2.
@@ -1365,18 +1279,7 @@ assert (Inj12': Mem.inject (removeUndefs j12 j' prej12')  m1' m2').
                             apply (Mem.mi_memval _ _ _ 
                                (Mem.mi_inj _ _ _ MInj12) _ _  _ _ J12 RD).
                             assumption.
-                 (* case bb1 <> b1*)   
-                      exfalso. 
-                      destruct (Mem.mi_no_overlap _ _ _ MInj12
-                             bb1 _ _ _ _ _ _ _ n JJ J12 PERM  Perm1).
-                        apply H4; trivial.
-                        apply H4. rewrite Off2. trivial.
-             (*source  j12 m1 b2 (ofs + delta)  = None *)
-                 exfalso.
-                 apply (source_NoneE _ _ _ _ Heqss _ _  
-                        Val1 J12). 
-                 assert (ofs + delta - delta = ofs). omega.
-                 rewrite H4. apply Perm1.  
+                   apply MInj12. 
          (*case ~ Mem.valid_block m2 b2*)
             specialize (H2 (ofs + delta)).
             assert (J12:  j12 b1 = None).
@@ -1614,15 +1517,122 @@ assert (Inj23': Mem.inject j23' m2' m3').
    assert (MI: Mem.mem_inj j23' m2' m3').
       split.
       (*mi_perm *) apply Perm23'.
-      (*valid_access*)
-          intros. destruct H0.
-          split. intros off; intros. 
-                 assert (ofs <= off - delta < ofs + size_chunk chunk). omega.
-                 specialize (H0 _ H3).
-                 specialize (Perm23' _ _ _ _ _ _ H H0).
-                 assert (off - delta + delta = off). omega. 
-               rewrite H4 in Perm23'. apply Perm23'.
-          eapply (inject_aligned_ofs _ AL23' _ _ _ _ H _ H1). 
+      (*mi_align*) intros.
+          destruct (mkInjections_4Val _ _ _ _ _ _ _ _ _ _ HeqMKI VBj23_1 _ _ _ H)
+            as [HH | [HH | HH]].
+          destruct HH. eapply MInj23. apply H1. 
+             intros z; intros. specialize (H0 _ H3).
+              eapply Fwd2; try eassumption.
+          destruct HH as [? [? ?]]. subst. rename b2 into b3. clear H3.
+            assert (ZZ: compose_meminj (removeUndefs j12 j' prej12') j23'  (Mem.nextblock m1) = Some (b3, delta)).
+                   rewrite IDextensional in H2; trivial. 
+               destruct (compose_meminjD_Some _ _ _ _ _ ZZ) as
+                  [b2 [dd1 [dd2 [JJ1 [JJ2 XX]]]]]. subst; clear ZZ.
+            assert (J12': prej12' (Mem.nextblock m1) = Some(Mem.nextblock m2, 0)).
+               remember (j12 (Mem.nextblock m1)) as q.
+               destruct q; apply eq_sym in Heqq.
+                 destruct p0. rewrite (inc12 _ _ _ Heqq) in JJ1. inv JJ1. 
+                   apply VBj12_1 in Heqq. exfalso. unfold Mem.valid_block in Heqq. xomega.
+                 unfold removeUndefs in JJ1. rewrite Heqq in JJ1. rewrite H2 in JJ1. 
+                 destruct (mkInjections_3V  _ _ _ _ _ _ _ _ _ _ HeqMKI VB12 VBj23_1 _ _ _ JJ1).
+                   destruct H1. rewrite H1 in Heqq. discriminate.
+                   destruct H1. destruct H1 as [_ [? [? [? ?]]]]. subst. assumption.
+                   destruct H1 as [mm [? [? [? [? ?]]]]]; subst.
+                     apply eq_sym in H1. rewrite Pos.add_comm in H1.
+                     apply Pos.add_no_neutral in H1. intuition.
+            assert (prej12' (Mem.nextblock m1) = Some (b2, dd1)). 
+              unfold removeUndefs in JJ1.
+              remember (j12 (Mem.nextblock m1)).
+              destruct o; apply eq_sym in Heqo.
+                destruct p0. apply VBj12_1 in Heqo. exfalso. unfold Mem.valid_block in Heqo. xomega.
+              rewrite H2 in JJ1. assumption.
+            rewrite J12' in H1. inv H1. simpl in *. clear H.  
+            destruct (ACCESS (Mem.nextblock m2)) as [_ ZZ].
+            assert (NVB2: ~ Mem.valid_block m2 (Mem.nextblock m2)).
+                       unfold Mem.valid_block. xomega. 
+            assert (MR: Mem.range_perm m1' (Mem.nextblock m1) ofs (ofs + size_chunk chunk) Max p).
+               intros z; intros.          
+               specialize (ZZ NVB2 Max z).
+               remember (source (removeUndefs j12 j' prej12') m1' (Mem.nextblock m2) z).
+               destruct o.
+               Focus 2. specialize (H0 _ H). unfold Mem.perm in H0. rewrite ZZ in H0. simpl in H0. intuition. 
+               destruct (source_SomeE _ _ _ _ _ Heqo)
+                        as [bb1 [dd1 [ofs11 [PPP [VB [ JJ' [PERM Off2]]]]]]]. clear Heqo.
+               subst. specialize (H0 _ H).
+               rewrite (perm_subst _ _ _ _ _ _ _ ZZ) in H0. clear ZZ.
+               assert (prej12'  bb1 = Some (Mem.nextblock m2, dd1)).
+                 unfold removeUndefs in JJ'.
+                 remember (j12 bb1).
+                 destruct o; apply eq_sym in Heqo.
+                   destruct p0. inv JJ'. apply VBj12_2 in Heqo. contradiction.
+                 remember (j' bb1).
+                 destruct o. destruct p0. assumption. inv JJ'.
+               assert (bb1 = Mem.nextblock m1).
+                 destruct (mkInjections_3V  _ _ _ _ _ _ _ _ _ _ HeqMKI VB12 VBj23_1 _ _ _ H1).
+                 destruct H3. apply VBj12_2 in H3. contradiction.
+                 destruct H3. destruct H3; trivial.
+                 destruct H3 as [mm1 [? [? [? [? ?]]]]]. subst.
+                   apply eq_sym in H4. rewrite Pos.add_comm in H4.
+                   apply Pos.add_no_neutral in H4. intuition.
+               subst. rewrite J12' in H1. inv H1. rewrite Zplus_0_r. assumption.               
+             eapply MInj13'. apply H2. apply MR.   
+          destruct HH as [mm [? [? ?]]]. subst. rename b2 into b3. clear H3.
+            assert (ZZ: compose_meminj (removeUndefs j12 j' prej12') j23' ((Mem.nextblock m1+ mm)%positive) = Some (b3, delta)).
+                   rewrite IDextensional in H2; trivial. 
+               destruct (compose_meminjD_Some _ _ _ _ _ ZZ) as
+                  [b2 [dd1 [dd2 [JJ1 [JJ2 XX]]]]]. subst; clear ZZ.
+            assert (J12': prej12' ((Mem.nextblock m1+ mm)%positive) = Some((Mem.nextblock m2+ mm)%positive, 0)).
+               remember (j12 ((Mem.nextblock m1+ mm)%positive)) as q.
+               destruct q; apply eq_sym in Heqq.
+                 destruct p0. rewrite (inc12 _ _ _ Heqq) in JJ1. inv JJ1. 
+                   apply VBj12_1 in Heqq. exfalso. unfold Mem.valid_block in Heqq. xomega.
+                 unfold removeUndefs in JJ1. rewrite Heqq in JJ1. rewrite H2 in JJ1. 
+                 destruct (mkInjections_3V  _ _ _ _ _ _ _ _ _ _ HeqMKI VB12 VBj23_1 _ _ _ JJ1).
+                   destruct H1. rewrite H1 in Heqq. discriminate.
+                   destruct H1. destruct H1 as [? [? [? [? ?]]]]. subst.
+                     rewrite Pos.add_comm in H1.
+                     apply Pos.add_no_neutral in H1. intuition.
+                   destruct H1 as [mm2 [? [? [? [? ?]]]]]; subst.
+                     apply Pos.add_reg_l in H1. subst. 
+                   assumption.
+            assert (prej12' ((Mem.nextblock m1+ mm)%positive) = Some (b2, dd1)). 
+              unfold removeUndefs in JJ1.
+              remember (j12 ((Mem.nextblock m1+ mm)%positive)).
+              destruct o; apply eq_sym in Heqo.
+                destruct p0. apply VBj12_1 in Heqo. exfalso. unfold Mem.valid_block in Heqo. xomega.
+              rewrite H2 in JJ1. assumption.
+            rewrite J12' in H1. inv H1. simpl in *. clear H.  
+            destruct (ACCESS ((Mem.nextblock m2+ mm)%positive)) as [_ ZZ].
+            assert (NVB2: ~ Mem.valid_block m2 ((Mem.nextblock m2+ mm)%positive)).
+                       unfold Mem.valid_block. xomega. 
+            assert (MR: Mem.range_perm m1' ((Mem.nextblock m1+ mm)%positive) ofs (ofs + size_chunk chunk) Max p).
+               intros z; intros.          
+               specialize (ZZ NVB2 Max z).
+               remember (source (removeUndefs j12 j' prej12') m1'
+                      (Mem.nextblock m2 + mm)%positive z).
+               destruct o.
+               Focus 2. specialize (H0 _ H). unfold Mem.perm in H0. rewrite ZZ in H0. simpl in H0. intuition. 
+               destruct (source_SomeE _ _ _ _ _ Heqo)
+                        as [bb1 [dd1 [ofs11 [PPP [VB [ JJ' [PERM Off2]]]]]]]. clear Heqo.
+               subst. specialize (H0 _ H).
+               rewrite (perm_subst _ _ _ _ _ _ _ ZZ) in H0. clear ZZ.
+               assert (prej12'  bb1 = Some ((Mem.nextblock m2+ mm)%positive, dd1)).
+                 unfold removeUndefs in JJ'.
+                 remember (j12 bb1).
+                 destruct o; apply eq_sym in Heqo.
+                   destruct p0. inv JJ'. apply VBj12_2 in Heqo. contradiction.
+                 remember (j' bb1).
+                 destruct o. destruct p0. assumption. inv JJ'.
+               assert (bb1 = (Mem.nextblock m1+ mm)%positive).
+                 destruct (mkInjections_3V  _ _ _ _ _ _ _ _ _ _ HeqMKI VB12 VBj23_1 _ _ _ H1).
+                 destruct H3. apply VBj12_2 in H3. contradiction.
+                 destruct H3. destruct H3 as [? [? ?]]; subst. 
+                   rewrite Pos.add_comm in H4.
+                   apply Pos.add_no_neutral in H4. intuition.
+                 destruct H3 as [mm1 [? [? [? [? ?]]]]]. subst.
+                   apply Pos.add_reg_l in H4. subst. trivial.
+               subst. rewrite J12' in H1. inv H1. rewrite Zplus_0_r. assumption.               
+             eapply MInj13'. apply H2. apply MR.  
       (*memval j23' m2' m3'*) intros b2 ofs2 b3 delta3 Jb2 Perm2.
           assert (Perm2Max: Mem.perm m2' b2 ofs2  Max Nonempty).
              eapply Mem.perm_max. eapply Mem.perm_implies.
@@ -2314,118 +2324,7 @@ split. trivial.
 split; trivial.           
 split; trivial.           
 split; trivial.           
-split; trivial.           
-split; trivial.            
-intros.  
-  (*mem_wd m2'*)
-   apply mem_wdI. intros.
-   destruct (CONT b) as [ValidCONT [InvalidCONT Default]].
-   apply (valid_split _ _ _ _ (ACCESS b)); intros; clear ACCESS.
-   (*valid*)
-      clear InvalidCONT.
-      specialize (H1 Cur ofs). specialize (ValidCONT H0 ofs).
-      remember (source j12 m1 b ofs) as d.
-      destruct d. 
-      (*source  j12 m1 b ofs = Some p0*) 
-          destruct p. 
-          destruct (source_SomeE _ _ _ _ _ Heqd) 
-             as [bb1 [dd1 [ofs11 [PP [VB [ JJ [PERM Off2]]]]]]]. clear Heqd.
-          subst. apply eq_sym in PP. inv PP.
-          remember (j23' b) as q.
-          destruct q; apply eq_sym in Heqq.
-          (*j23' b = Some p*)
-             destruct p. rewrite ValidCONT. clear ValidCONT.
-             (*The following 19 lines are essentially repated below,
-               in the case INVALID - extract as ausiliary lemma?*)
-             remember (ZMap.get z (PMap.get b0 (Mem.mem_contents m1'))) as v.
-             destruct v; simpl. constructor. constructor. unfold removeUndefs.
-             remember (j12 b2) as d.
-             destruct d; apply eq_sym in Heqd.
-                destruct p. econstructor. eapply flatinj_I.
-                    eapply Fwd2. apply (VBj12_2 _ _ _ Heqd).
-                    rewrite Int.add_zero. trivial.             
-             remember (j' b2) as r.
-             destruct r; apply eq_sym in Heqr.
-                destruct p. rewrite IDextensional in Heqr. 
-                destruct (compose_meminjD_Some _ _ _ _ _ Heqr)
-                    as [bb1 [off1 [off [A [B C]]]]]. subst. clear Heqr.
-                 unfold removeUndefs in A.  
-                 rewrite Heqd in A.
-                 remember (j' b2) as u. 
-                 destruct u; inv A. 
-                   destruct p. rewrite H3.  econstructor. 
-                   eapply flatinj_I. eapply Mem.valid_block_inject_1. 
-                      apply B. apply Inj23'. rewrite Int.add_zero. trivial.
-                    constructor.
-          (*j23' b = None*) rewrite ValidCONT. clear ValidCONT.
-             assert (J23: j23 b = None). 
-                remember (j23 b) as dd.
-                destruct dd; apply eq_sym in Heqdd. 
-                   destruct p. rewrite (inc23 _ _ _ Heqdd) in Heqq.
-                                inv Heqq. trivial.
-                   eapply memval_inject_incr. apply mem_wd_E in WD2. 
-             rewrite J23 in H1. 
-                 rewrite (perm_subst _ _ _ _ _ _ _ H1) in R. clear H1.
-                 assert (MV:= Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ WD2)
-                           b (z+dd1)).
-                 rewrite (flatinj_I _ _ H0) in MV.
-                 specialize (MV _ _ (eq_refl _)).
-                 rewrite Zplus_0_r in MV. apply (MV R).
-                 intros bb; intros. apply flatinj_E in H2. 
-                   destruct H2 as [? [? ?]]; subst. 
-                   apply flatinj_I. apply Fwd2. apply H4.
-      (*source  j12 m1 b ofs = None*) 
-          assert (PMap.get b (Mem.mem_access m2') ofs Cur =
-                      PMap.get b (Mem.mem_access m2) ofs Cur).
-             remember (j23 b) as e.
-             destruct e; trivial. destruct p; trivial.
-          rewrite (perm_subst _ _ _ _ _ _ _ H2) in R. clear H1 H2.
-          rewrite ValidCONT. clear ValidCONT.
-          assert (SRC:= source_NoneE _ _ _ _ Heqd). clear Heqd.
-          eapply memval_inject_incr. apply mem_wd_E in WD2. 
-            assert (MV:= Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ WD2) b ofs). 
-            rewrite (flatinj_I _ _ H0) in MV. 
-            specialize (MV _ _ (eq_refl _) R). 
-            rewrite Zplus_0_r in MV. apply MV.
-         intros bb; intros. apply flatinj_E in H1. 
-             destruct H1 as [? [? ?]]; subst. apply flatinj_I. 
-                 apply Fwd2. apply H3.
-   (*valid*)
-       clear ValidCONT.
-       specialize (H1 Cur ofs). specialize (InvalidCONT H0 ofs).
-       remember (source (removeUndefs j12 j' prej12') m1' b ofs) as d.
-       destruct d. 
-       (*source (removeUndefs j12 j' prej12') m1' b ofs  = Some p*)
-           destruct p. 
-           destruct (source_SomeE _ _ _ _ _ Heqd)
-               as [bb1 [dd1 [ofs11 [PP [VB [ JJ [PERM Off2]]]]]]]. clear Heqd.
-           subst. apply eq_sym in PP. inv PP.
-           rewrite (perm_subst _ _ _ _ _ _ _ H1) in R. clear H1.
-           rewrite InvalidCONT. clear InvalidCONT.
-            (*HERE's the repetition of those 19 lines, for b1 instead of b2*)
-             remember (ZMap.get z (PMap.get b0 (Mem.mem_contents m1'))) as v.
-             destruct v; simpl. constructor. constructor. unfold removeUndefs.
-             remember (j12 b1) as d.
-             destruct d; apply eq_sym in Heqd.
-                destruct p. econstructor. eapply flatinj_I.
-                    eapply Fwd2. apply (VBj12_2 _ _ _ Heqd).
-                    rewrite Int.add_zero. trivial.
-             remember (j' b1) as r.
-             destruct r; apply eq_sym in Heqr.
-                destruct p. rewrite IDextensional in Heqr. 
-                destruct (compose_meminjD_Some _ _ _ _ _ Heqr)
-                    as [bb1 [off1 [off [A [B C]]]]]. subst. clear Heqr.
-                 unfold removeUndefs in A.  
-                 rewrite Heqd in A.
-                 remember (j' b1) as u. 
-                 destruct u; inv A. 
-                   destruct p. rewrite H2.  econstructor. 
-                   eapply flatinj_I. eapply Mem.valid_block_inject_1. 
-                      apply B. apply Inj23'. rewrite Int.add_zero. trivial.
-                    constructor.
-
-       (*source (removeUndefs j12 j' prej12') m1' b ofs = None*)
-            unfold Mem.perm in R. rewrite H1 in R. inv R.
+split; trivial.    
 Qed.
 
 Section MEMORY_CONSTRUCTION_II.
@@ -2501,74 +2400,6 @@ Definition ContentMap_II_Block_FUN b ofs : memval:=
   else ContentMap_II_InvalidBlock_FUN b ofs.
 
 Variable MINMAX_Offset: block -> option (Z * Z).
-(*
-Definition MINMAX1:= forall b2 ,
-                   match MINMAX_Offset b2 with
-                    Some(mn,mx) =>
-                      (forall ofs, ofs < mn \/ ofs > mx->
-                        ZMap.get ofs (Mem.mem_contents m2)!!b2 = Undef) /\
-                      forall b1 delta, j12 b1 = Some(b2,delta) \/ j12' b1 = Some(b2,delta)->
-                       forall z, ZMap.get z (Mem.mem_contents m1')!!b1 <> Undef ->
-                                 mn <= z + delta <= mx
-                   | None => 
-                      (Plt b2 (Mem.nextblock m2) -> 
-                          forall ofs, ZMap.get ofs (Mem.mem_contents m2)!!b2 = Undef)
-                      /\
-                       forall b1 delta, j12 b1 = Some(b2,delta) \/ j12' b1 = Some(b2,delta)->
-                       forall z, ZMap.get z (Mem.mem_contents m1')!!b1 = Undef
-                    end.
-
-Definition MINMAX2:= forall b2 ,
-                   match MINMAX_Offset b2 with
-                    Some(mn,mx) =>
-                      (forall ofs, ofs < mn \/ ofs > mx ->
-                        ZMap.get ofs (Mem.mem_contents m2)!!b2 = Undef) /\
-                      forall b1 delta, j12 b1 = Some(b2,delta) \/ j12' b1 = Some(b2,delta)->
-                       forall z, z + delta < mn \/ z + delta > mx ->
-                                 ZMap.get z (Mem.mem_contents m1')!!b1 = Undef
-                   | None => 
-                      (Plt b2 (Mem.nextblock m2) -> 
-                          forall ofs, ZMap.get ofs (Mem.mem_contents m2)!!b2 = Undef)
-                      /\
-                       forall b1 delta, j12 b1 = Some(b2,delta) \/ j12' b1 = Some(b2,delta)->
-                       forall z, ZMap.get z (Mem.mem_contents m1')!!b1 = Undef
-                    end.
-
-Goal MINMAX1 = MINMAX2.
-  unfold MINMAX1, MINMAX2. apply prop_ext. 
-split; intros; specialize (H b2). 
-  remember (MINMAX_Offset b2) as MM.
-  destruct MM; simpl; trivial.
-   destruct p as [mn mx].
-   destruct H.
-   split; trivial; intros.
-   specialize (H0 _ _ H1 z).
-     remember (ZMap.get z (Mem.mem_contents m1') !! b1).
-     destruct y; trivial; apply eq_sym in Heqy.
-       assert (ZMap.get z (Mem.mem_contents m1') !! b1 <> Undef).
-          intros N. congruence.
-       rewrite Heqy in H3. specialize (H0 H3).
-       exfalso. clear - H0 H2. omega.
-
-       assert (ZMap.get z (Mem.mem_contents m1') !! b1 <> Undef).
-          intros N. congruence.
-       rewrite Heqy in H3. specialize (H0 H3).
-       exfalso. clear - H0 H2. omega.
-remember (MINMAX_Offset b2) as MM.
-  destruct MM; simpl; trivial.
-  destruct p as [mn mx].
-  destruct H.
-   split; trivial; intros.
-   destruct (zlt (z + delta) mn).
-     specialize (H0 _ _ H1 z).
-     rewrite H0 in H2. intuition. left; assumption.
-   destruct (zlt mx (z + delta)).
-     specialize (H0 _ _ H1 z).
-     rewrite H0 in H2. intuition. right. omega. 
-   split. omega. omega.
-Qed. 
-*)
-(*Is formulationMINMAX2*)
 Hypothesis MINMAX: forall b2 ,
                    match MINMAX_Offset b2 with
                     Some(mn,mx) =>
@@ -3052,8 +2883,12 @@ Qed.
 
 End MINMAX_II.
 
-
-Lemma interpolate_II: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
+(*prooves the claim of interpolate_II, plus properties on j12' and j23'
+  corresponding to mkInjections_3 and mkInjections_4. This is usefule for
+  proving Forward_simulations_trans.initial_inject_split in the sufficiently
+  strong form needed to prove that memninj_preserves splits, as required for
+  transitivity_II.*)
+Lemma interpolate_II_HeqMKI: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                   (Fwd1: mem_forward m1 m1') j23 m3
                   (MInj23 : Mem.inject j23 m2 m3) m3' (Fwd3: mem_forward m3 m3')
                   j' (MInj13': Mem.inject j' m1' m3')
@@ -3062,9 +2897,7 @@ Lemma interpolate_II: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                   (Unch11': Mem.unchanged_on 
                             (loc_unmapped (compose_meminj j12 j23)) m1 m1')
                   (Unch33': Mem.unchanged_on
-                        (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3')
-                  (WD1: mem_wd m1) (WD1': mem_wd m1') (WD2: mem_wd m2)
-                  (WD3: mem_wd m3) (WD3' : mem_wd m3'),
+                        (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3'),
          exists m2', exists j12', exists j23', j'=compose_meminj j12' j23' /\
                    inject_incr j12 j12' /\ inject_incr j23 j23' /\
                    Mem.inject j12' m1' m2' /\ mem_forward m2 m2' /\ 
@@ -3074,7 +2907,15 @@ Lemma interpolate_II: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                    inject_separated j23 j23' m2 m3 /\
                    Mem.unchanged_on (loc_unmapped j23) m2 m2' /\ 
                    Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3' /\
-                   (mem_wd m2 -> mem_wd m2').                             
+                   (forall b1 b2 ofs2, j12' b1 = Some(b2,ofs2) -> 
+                     (j12 b1 = Some (b2,ofs2)) \/
+                     (b1 = Mem.nextblock m1 /\ b2 = Mem.nextblock m2 /\ ofs2 = 0) \/ 
+                     (exists m, (b1 = Mem.nextblock m1 + m /\ b2=Mem.nextblock m2 + m)%positive /\ ofs2=0)) /\
+                   (forall b2 b3 ofs3, j23' b2 = Some(b3,ofs3) -> 
+                     (j23 b2 = Some (b3,ofs3)) \/
+                     (b2 = Mem.nextblock m2 /\ j' (Mem.nextblock m1) = Some(b3,ofs3)) \/
+                     (exists m, (b2 = Mem.nextblock m2 + m)%positive /\ 
+                            j' ((Mem.nextblock m1+m)%positive) = Some(b3,ofs3))).            
 Proof. intros.
   remember (mkInjections m1 m1' m2 j12 j23 j') as MKI.
   apply eq_sym in HeqMKI. destruct MKI as [[[j12' j23'] n1'] n2'].
@@ -3092,11 +2933,6 @@ Proof. intros.
   assert (inc23:= mkInjections_2_injinc _ _ _ _ _ _ _ _ _ _ HeqMKI VBj23).
   assert (sep23:= mkInjections_2_injsep _ _ _ _ _ _ _ _ _ _ 
                    HeqMKI VBj12_1 _ InjSep).
-(*  assert (NB1: Mem.nextblock m1' - Mem.nextblock m1 >= 0).
-     assert (B: forall b, b <= Mem.nextblock m1 -> b <= Mem.nextblock m1'). 
-         intros. destruct (Fwd1 (b -1)).  unfold Mem.valid_block. omega. 
-                   unfold Mem.valid_block in H0. omega. 
-     clear -B. specialize (B (Mem.nextblock m1)). omega. *)
   assert (VBj': forall b1 b3 ofs3, j' b1 = Some (b3, ofs3) ->
              (b1 < Mem.nextblock m1')%positive).
       intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj13').
@@ -3116,10 +2952,6 @@ destruct HH as [? [? [? [? ?]]]]. subst.
      auto.
   assert (ID:= RU_composememinj _ _ _ _ _ _ _ _ _ _ HeqMKI InjIncr _ 
                  InjSep VBj12_1 VBj12_2 VBj23 VBj').
-  assert (AL12:= inj_implies_inject_aligned _ _ _  MInj12). 
-  assert (AL23:= inj_implies_inject_aligned _ _ _  MInj23). 
-  assert (AL13':= inj_implies_inject_aligned _ _ _  MInj13').
-
   exists (mkII j12 j23 j12 j23 m1 m1' m2 
                (MINMAX_Offset j12 j12 m1' m2)
                (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12) _ (Pos.le_refl _) VBj12_2).
@@ -3139,12 +2971,12 @@ destruct HH as [? [? [? [? ?]]]]. subst.
                              InjIncr
                              InjSep
                              Unch11'
-                             Unch33' WD1 WD1' WD2 WD3 WD3' _ _ _ _ 
+                             Unch33' _ _ _ _ 
                              HeqMKI _ (eq_refl _)
              (mkII j12 j23 j12 j23 m1 m1' m2 
                (MINMAX_Offset j12 j12 m1' m2)
                (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12) _ (Pos.le_refl _) VBj12_2))
-     as [A [B [C [D [E [F [G [I [J [K [L [M [N P]]]]]]]]]]]]]; trivial.
+     as [A [B [C [D [E [F [G [I [J [K L]]]]]]]]]]; trivial.
    (*nextblock*)
      unfold mkII. 
      destruct (mkAccessMap_II_existsT j12 j23 j12 m1 m1' m2 (Mem.nextblock m2)
@@ -3247,14 +3079,13 @@ destruct HH as [? [? [? [? ?]]]]. subst.
   split; trivial.
   split; trivial.
   split; trivial.
+  split. apply (mkInjections_3 _ _ _ _ _ _ _ _ _ _ HeqMKI).
+  apply (mkInjections_4 _ _ _ _ _ _ _ _ _ _ HeqMKI).
 (*CASE WHERE m2' actually has additional blocks*)
 destruct HH as [N [? [? [? ?]]]]. subst.
   rewrite <- H1 in *.
   assert (ID:= RU_composememinj _ _ _ _ _ _ _ _ _ _ HeqMKI InjIncr _ 
                  InjSep VBj12_1 VBj12_2 VBj23 VBj').
-  assert (AL12:= inj_implies_inject_aligned _ _ _  MInj12). 
-  assert (AL23:= inj_implies_inject_aligned _ _ _  MInj23). 
-  assert (AL13':= inj_implies_inject_aligned _ _ _  MInj13').
   assert (VB2: (Mem.nextblock m2 <= Mem.nextblock m2 + Pos.of_nat N)%positive).
     xomega.
   assert (VBj12: forall (b1 b2 : block) (ofs2 : Z),
@@ -3311,13 +3142,13 @@ destruct HH as [N [? [? [? ?]]]]. subst.
                              InjIncr
                              InjSep
                              Unch11'
-                             Unch33' WD1 WD1' WD2 WD3 WD3' _ _ _ _ 
+                             Unch33' _ _ _ _ 
                              HeqMKI _ (eq_refl _)
                (mkII j12 j23 (removeUndefs j12 j' j12') j23' m1 m1' m2
                      (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
                      (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
                       _ VB2 VBj12'_2))
-     as [A [B [C [D [E [F [G [I [J [K [L [M [NN P]]]]]]]]]]]]]; trivial.
+     as [A [B [C [D [E [F [G [I [J [K L]]]]]]]]]]; trivial.
    (*nextblock*)
      unfold mkII. 
      destruct (mkAccessMap_II_existsT j12 j23 (removeUndefs j12 j' j12') m1 m1' m2
@@ -3433,4 +3264,422 @@ destruct HH as [N [? [? [? ?]]]]. subst.
   split; trivial.
   split; trivial.
   split; trivial.
+  split. intros. eapply (mkInjections_3 _ _ _ _ _ _ _ _ _ _ HeqMKI).
+                 apply RUD. apply H0. 
+  apply (mkInjections_4 _ _ _ _ _ _ _ _ _ _ HeqMKI).
 Qed.
+
+Lemma interpolate_II: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
+                  (Fwd1: mem_forward m1 m1') j23 m3
+                  (MInj23 : Mem.inject j23 m2 m3) m3' (Fwd3: mem_forward m3 m3')
+                  j' (MInj13': Mem.inject j' m1' m3')
+                  (InjIncr: inject_incr (compose_meminj j12 j23) j')
+                  (InjSep: inject_separated (compose_meminj j12 j23) j' m1 m3)
+                  (Unch11': Mem.unchanged_on 
+                            (loc_unmapped (compose_meminj j12 j23)) m1 m1')
+                  (Unch33': Mem.unchanged_on
+                        (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3'),
+         exists m2', exists j12', exists j23', j'=compose_meminj j12' j23' /\
+                   inject_incr j12 j12' /\ inject_incr j23 j23' /\
+                   Mem.inject j12' m1' m2' /\ mem_forward m2 m2' /\ 
+                   Mem.inject j23' m2' m3' /\
+                   Mem.unchanged_on (loc_out_of_reach j12 m1) m2 m2' /\
+                   inject_separated j12 j12' m1 m2 /\ 
+                   inject_separated j23 j23' m2 m3 /\
+                   Mem.unchanged_on (loc_unmapped j23) m2 m2' /\ 
+                   Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3'.                             
+Proof. intros.
+  destruct (interpolate_II_HeqMKI _ _ _ MInj12 _ Fwd1 _ _ MInj23 _ Fwd3 _ MInj13'
+                    InjIncr InjSep Unch11' Unch33')
+  as [m2' [j12' [j23' [A [B [C [D [E [F [G [H [I [J [K _]]]]]]]]]]]]]].
+  exists m2', j12', j23'. intuition.
+Qed.
+
+(*Another variant, needed in effect_simulations_trans.*)
+Lemma interpolate_II_strong: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
+                  (Fwd1: mem_forward m1 m1') j23 m3
+                  (MInj23 : Mem.inject j23 m2 m3) m3' (Fwd3: mem_forward m3 m3')
+                  j' (MInj13': Mem.inject j' m1' m3')
+                  (InjIncr: inject_incr (compose_meminj j12 j23) j')
+                  (InjSep: inject_separated (compose_meminj j12 j23) j' m1 m3)
+                  (Unch11': Mem.unchanged_on 
+                            (loc_unmapped (compose_meminj j12 j23)) m1 m1')
+                  (Unch33': Mem.unchanged_on
+                        (loc_out_of_reach (compose_meminj j12 j23) m1) m3 m3'),
+         exists m2', exists j12', exists j23', j'=compose_meminj j12' j23' /\
+                   (forall b1 b2 d1, j12' b1 = Some(b2,d1) -> 
+                       j12 b1 = Some(b2,d1) \/
+                       exists b3 d, j' b1 = Some(b3,d)) /\
+                   (forall b2 b3 d2, j23' b2 = Some(b3,d2) -> 
+                       j23 b2 = Some(b3,d2) \/
+                       exists b1 d, j' b1 = Some(b3,d)) /\
+                   inject_incr j12 j12' /\ inject_incr j23 j23' /\
+                   Mem.inject j12' m1' m2' /\ mem_forward m2 m2' /\ 
+                   Mem.inject j23' m2' m3' /\
+                   Mem.unchanged_on (loc_out_of_reach j12 m1) m2 m2' /\
+                   inject_separated j12 j12' m1 m2 /\ 
+                   inject_separated j23 j23' m2 m3 /\
+                   Mem.unchanged_on (loc_unmapped j23) m2 m2' /\ 
+                   Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3'.                             
+Proof. intros.
+  remember (mkInjections m1 m1' m2 j12 j23 j') as MKI.
+  apply eq_sym in HeqMKI. destruct MKI as [[[j12' j23'] n1'] n2'].
+  assert (VBj12_1: forall (b1 b2 : block) (ofs2 : Z),
+                j12 b1 = Some (b2, ofs2) -> Mem.valid_block m1 b1).
+      intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj12).
+  assert (VBj12_2: forall (b1 b2 : block) (ofs2 : Z),
+                j12 b1 = Some (b2, ofs2) -> Mem.valid_block m2 b2).
+      intros. apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj12).
+  assert (VBj23: forall (b1 b2 : block) (ofs2 : Z),
+                j23 b1 = Some (b2, ofs2) -> Mem.valid_block m2 b1).
+      intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj23).
+  assert (inc12:= mkInjections_1_injinc _ _ _ _ _ _ _ _ _ _ HeqMKI VBj12_1).
+  assert (sep12:= mkInjections_1_injsep _ _ _ _ _ _ _ _ _ _ HeqMKI).
+  assert (inc23:= mkInjections_2_injinc _ _ _ _ _ _ _ _ _ _ HeqMKI VBj23).
+  assert (sep23:= mkInjections_2_injsep _ _ _ _ _ _ _ _ _ _ 
+                   HeqMKI VBj12_1 _ InjSep).
+  assert (VBj': forall b1 b3 ofs3, j' b1 = Some (b3, ofs3) ->
+             (b1 < Mem.nextblock m1')%positive).
+      intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj13').
+
+destruct (mkInjections_0  _ _ _ _ _ _ _ _ _ _ HeqMKI)
+   as [HH | HH]. 
+destruct HH as [? [? [? [? ?]]]]. subst.
+  assert (Mem.nextblock m1' = Mem.nextblock m1).
+      apply forward_nextblock in Fwd1. eapply Pos.le_antisym; assumption.
+  rewrite H0 in *.
+  assert (VB1': forall (b1 b2 : block) (delta : Z),
+             j12 b1 = Some (b2, delta) -> Mem.valid_block m1' b1).
+     intros. unfold Mem.valid_block. rewrite H0. apply (VBj12_1 _ _ _ H1). 
+  assert (JJ12: forall (b1 b2 : block) (delta : Z),
+                j12 b1 = Some (b2, delta) ->
+                Mem.valid_block m2 b2 -> j12 b1 = Some (b2, delta)).
+     auto.
+  assert (ID:= RU_composememinj _ _ _ _ _ _ _ _ _ _ HeqMKI InjIncr _ 
+                 InjSep VBj12_1 VBj12_2 VBj23 VBj').
+  exists (mkII j12 j23 j12 j23 m1 m1' m2 
+               (MINMAX_Offset j12 j12 m1' m2)
+               (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12) _ (Pos.le_refl _) VBj12_2).
+  exists (removeUndefs j12 j' j12) . exists j23.
+  assert (RUD: removeUndefs j12 j' j12 = j12).
+    extensionality b.
+    unfold removeUndefs.
+    remember (j12 b) as d.
+    destruct d.
+      destruct p. trivial.
+    destruct (j' b); trivial.
+      destruct p; trivial.
+  rewrite RUD in *.
+  destruct (II_ok m1 m2 j12 MInj12 m1' Fwd1 j23 m3
+                             MInj23 m3' Fwd3
+                             j' MInj13'
+                             InjIncr
+                             InjSep
+                             Unch11'
+                             Unch33' _ _ _ _ 
+                             HeqMKI _ (eq_refl _)
+             (mkII j12 j23 j12 j23 m1 m1' m2 
+               (MINMAX_Offset j12 j12 m1' m2)
+               (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12) _ (Pos.le_refl _) VBj12_2))
+     as [A [B [C [D [E [F [G [I [J [K L]]]]]]]]]]; trivial.
+   (*nextblock*)
+     unfold mkII. 
+     destruct (mkAccessMap_II_existsT j12 j23 j12 m1 m1' m2 (Mem.nextblock m2)
+         (Pos.le_refl (Mem.nextblock m2)) VBj12_2) as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 j12 j23 m1 m1' m2 
+                (MINMAX_Offset j12 j12 m1' m2)
+                (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12)
+                (Mem.nextblock m2))
+       as [CM [CDefault PCM]].
+     simpl. reflexivity.
+   (*ContentMapOK*)
+     rewrite RUD in *.
+     unfold Content_II_Property, mkII.
+     destruct (mkAccessMap_II_existsT j12 j23 j12 m1 m1' m2 (Mem.nextblock m2)
+         (Pos.le_refl (Mem.nextblock m2)) VBj12_2) as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 j12 j23 m1 m1' m2
+                 (MINMAX_Offset j12 j12 m1' m2)
+                 (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12)
+                 (Mem.nextblock m2))
+               as [CM [CDefault PCM]].
+     simpl.
+     intros. rewrite PCM; clear PCM.
+        unfold ContentsMap_II_FUN.
+        destruct (CM_block_II_existsT j12 j12 j23 m1 m1' m2 
+                    (MINMAX_Offset j12 j12 m1' m2)
+                    (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12)
+                    b2) 
+                 as [B [FB HB]].
+        simpl in *. 
+        destruct (plt b2 (Mem.nextblock m2)).
+           split; intros.
+             remember (source j12 m1 b2 ofs2) as src.
+             destruct src.
+               destruct p0. rewrite HB.
+               unfold ContentMap_II_Block_FUN.
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_ValidBlock_FUN.
+               rewrite <- Heqsrc.
+               destruct (j23 b2); trivial.
+                 destruct p1. trivial.
+             rewrite HB. 
+               unfold ContentMap_II_Block_FUN. 
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_ValidBlock_FUN.
+               rewrite <- Heqsrc. trivial. 
+          split; intros. contradiction.
+          apply FB.
+        (*invalid m2 b2*)
+          split; intros; try contradiction.
+          split; intros.
+             remember (source j12 m1' b2 ofs2) as src.
+             destruct src.
+               destruct p. 
+               apply source_SomeE in Heqsrc.
+               destruct Heqsrc as [b1 [delta [ofs1
+                  [PBO [Bounds [J1 [P1 Off2]]]]]]].
+               clear ID RUD. inv PBO.
+               exfalso. apply (H1 (VBj12_2 _ _ _ J1)).
+             rewrite ZMap.gi. trivial.
+           reflexivity.
+   (*AccessMapOK*)
+     rewrite RUD in *.
+     unfold AccessMap_II_Property, mkII.
+     destruct (mkAccessMap_II_existsT j12 j23 j12 m1 m1' m2 (Mem.nextblock m2)
+         (Pos.le_refl (Mem.nextblock m2)) VBj12_2) as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 j12 j23 m1 m1' m2
+                  (MINMAX_Offset j12 j12 m1' m2)
+                  (MINMAX j12 j12 m1' m2 inc12 VB1' JJ12)
+                  (Mem.nextblock m2))
+              as [CM [CDefault PCM]].
+     simpl.
+     intros. rewrite PAM; clear PAM.
+        unfold AccessMap_II_FUN.
+        simpl in *. 
+        destruct (plt b2 (Mem.nextblock m2)).
+           split; intros; try contradiction.
+             remember (source j12 m1 b2 ofs2) as src.
+             destruct src.
+               destruct p0.
+               destruct (j23 b2); trivial.
+                 destruct p0. trivial.
+             destruct (j23 b2); trivial.
+                 destruct p0. trivial.
+         split; intros; try contradiction.
+             remember (source j12 m1' b2 ofs2) as src.
+             destruct src; trivial.
+               destruct p; trivial.
+  rewrite RUD in *.
+  split; trivial.
+  split. intros. left; trivial.
+  split. intros. left; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+(*CASE WHERE m2' actually has additional blocks*)
+destruct HH as [N [? [? [? ?]]]]. subst.
+  rewrite <- H1 in *.
+  assert (ID:= RU_composememinj _ _ _ _ _ _ _ _ _ _ HeqMKI InjIncr _ 
+                 InjSep VBj12_1 VBj12_2 VBj23 VBj').
+  assert (VB2: (Mem.nextblock m2 <= Mem.nextblock m2 + Pos.of_nat N)%positive).
+    xomega.
+  assert (VBj12: forall (b1 b2 : block) (ofs2 : Z),
+                 j12 b1 = Some (b2, ofs2) ->
+                 (b1 < Mem.nextblock m1)%positive /\ (b2 < Mem.nextblock m2)%positive).
+     intros; split. apply (VBj12_1 _ _ _ H0). apply (VBj12_2 _ _ _ H0).
+  assert (RUD:= RU_D _ _ inc12 j').
+  assert (VBj12'_2: forall (b1 b2 : block) (delta : Z),
+        (removeUndefs j12 j' j12') b1 = Some (b2, delta) ->
+        (b2 < Mem.nextblock m2 + Pos.of_nat N)%positive).
+    intros. apply RUD in H0.  
+    destruct (mkInjections_3V _ _ _ _ _ _ _ _ _ _ HeqMKI VBj12 VBj23 _ _ _ H0)
+      as [KK | [KK |KK]].
+       destruct KK as [? [? ?]].  xomega.
+       destruct KK as [? [? [? [? U]]]]; apply U.
+       destruct KK as [M [? [? [? [? U]]]]]; apply U. 
+  assert (INC12RU: inject_incr j12 (removeUndefs j12 j' j12')).
+     unfold removeUndefs. intros b; intros.
+     rewrite H0. trivial.
+  assert (VBj12'_1: forall (b1 b2 : block) (delta : Z),
+        (removeUndefs j12 j' j12') b1 = Some (b2, delta) ->
+        (b1 < Mem.nextblock m1 + Pos.of_nat N)%positive).
+    intros. apply RUD in H0.  
+    destruct (mkInjections_3V _ _ _ _ _ _ _ _ _ _ HeqMKI VBj12 VBj23 _ _ _ H0)
+      as [KK | [KK |KK]].
+       destruct KK as [? [? ?]].  xomega.
+       destruct KK as [? [? [? [U ?]]]]; apply U.
+       destruct KK as [M [? [? [? [U ?]]]]]; apply U. 
+  assert (VB1': forall (b1 b2 : block) (delta : Z),
+               removeUndefs j12 j' j12' b1 = Some (b2, delta) -> 
+               Mem.valid_block m1' b1).
+    intros. unfold Mem.valid_block. rewrite <- H1. 
+            eapply VBj12'_1; eassumption.       
+  assert (JJ12: forall (b1 b2 : block) (delta : Z),
+                removeUndefs j12 j' j12' b1 = Some (b2, delta) ->
+                Mem.valid_block m2 b2 -> j12 b1 = Some (b2, delta)).
+     intros. apply RUD in H0.  
+    destruct (mkInjections_3V _ _ _ _ _ _ _ _ _ _ HeqMKI VBj12 VBj23 _ _ _ H0)
+      as [KK | [KK |KK]].
+       destruct KK as [? [? ?]]. assumption.
+       destruct KK as [? [? [? [U ?]]]]. clear ID; subst. 
+         unfold Mem.valid_block in H2. xomega.
+       destruct KK as [M [? [? [? [U ?]]]]]. clear ID; subst. 
+         unfold Mem.valid_block in H2. xomega.
+ exists (mkII j12 j23 (removeUndefs j12 j' j12') j23' m1 m1' m2
+               (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+               (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+                 _ VB2 VBj12'_2).
+  exists (removeUndefs j12 j' j12') . exists j23'.
+
+  destruct (II_ok m1 m2 j12 MInj12 m1' Fwd1 j23 m3
+                             MInj23 m3' Fwd3
+                             j' MInj13'
+                             InjIncr
+                             InjSep
+                             Unch11'
+                             Unch33' _ _ _ _ 
+                             HeqMKI _ (eq_refl _)
+               (mkII j12 j23 (removeUndefs j12 j' j12') j23' m1 m1' m2
+                     (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+                     (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+                      _ VB2 VBj12'_2))
+     as [A [B [C [D [E [F [G [I [J [K L]]]]]]]]]]; trivial.
+   (*nextblock*)
+     unfold mkII. 
+     destruct (mkAccessMap_II_existsT j12 j23 (removeUndefs j12 j' j12') m1 m1' m2
+         (Mem.nextblock m2 + Pos.of_nat N) VB2 VBj12'_2)
+         as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 (removeUndefs j12 j' j12') j23' m1 m1' m2 
+               (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+               (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+               (Mem.nextblock m2 + Pos.of_nat N)%positive)
+           as [CM [CDefault PCM]].
+     simpl. reflexivity. 
+   (*ContentMapOK*)
+     unfold Content_II_Property, mkII.
+     destruct (mkAccessMap_II_existsT j12 j23 (removeUndefs j12 j' j12') m1 m1' m2
+         (Mem.nextblock m2 + Pos.of_nat N) VB2 VBj12'_2)
+         as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 (removeUndefs j12 j' j12') j23' m1 m1' m2 
+               (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+               (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+               (Mem.nextblock m2 + Pos.of_nat N)%positive)
+           as [CM [CDefault PCM]].
+     simpl.
+     intros. rewrite PCM; clear PCM.
+        unfold ContentsMap_II_FUN.
+        destruct (CM_block_II_existsT j12 (removeUndefs j12 j' j12') j23' m1 m1' m2 
+               (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+               (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+                b2) as [B [FB HB]].
+        simpl in *. 
+        destruct (plt b2 ((Mem.nextblock m2 + Pos.of_nat N)%positive)).
+           split; intros.
+             remember (source j12 m1 b2 ofs2) as src.
+             destruct src.
+               destruct p0. rewrite HB.
+               unfold ContentMap_II_Block_FUN.
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_ValidBlock_FUN.
+               rewrite <- Heqsrc.
+               destruct (source_SomeE _ _ _ _ _ Heqsrc)
+                  as [bb1 [dd1 [ofs11 [PP [VBB [ JJ [PERM Off2]]]]]]].
+                 clear Heqsrc; clear ID. subst. apply eq_sym in PP. inv PP.
+               destruct (j23' b2); trivial.
+                 destruct p1. simpl. trivial.
+             rewrite HB. 
+               unfold ContentMap_II_Block_FUN. 
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_ValidBlock_FUN.
+               rewrite <- Heqsrc. trivial. 
+          split; intros.
+             remember (source (removeUndefs j12 j' j12') m1' b2 ofs2) as src.
+             destruct src.
+               destruct p0. rewrite HB.
+               unfold ContentMap_II_Block_FUN.
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_InvalidBlock_FUN.
+               rewrite <- Heqsrc. trivial.
+             rewrite HB. 
+               unfold ContentMap_II_Block_FUN. 
+               destruct (plt b2 (Mem.nextblock m2)); try contradiction.
+               unfold ContentMap_II_InvalidBlock_FUN.
+               rewrite <- Heqsrc. trivial. 
+          apply FB.
+        (*invalid m2' b2*)
+          split; intros. exfalso. clear - H0 n VB2. unfold Mem.valid_block in H0. xomega.
+          split; intros.
+             remember (source (removeUndefs j12 j' j12') m1' b2 ofs2) as src.
+             destruct src.
+               destruct p.
+               apply source_SomeE in Heqsrc.
+               destruct Heqsrc as [b1 [delta [ofs1
+                  [PBO [Bounds [J1 [P1 Off2]]]]]]].
+               clear ID. inv PBO.
+               exfalso. apply (n (VBj12'_2 _ _ _ J1)).
+             rewrite ZMap.gi. trivial.
+           reflexivity.
+   (*AccessMapOK*)
+     unfold AccessMap_II_Property, mkII.
+     destruct (mkAccessMap_II_existsT j12 j23 (removeUndefs j12 j' j12') m1 m1' m2
+         (Mem.nextblock m2 + Pos.of_nat N) VB2 VBj12'_2)
+         as [AM [ADefault PAM]].
+     simpl.
+     destruct (ContentsMap_II_existsT j12 (removeUndefs j12 j' j12') j23' m1 m1' m2
+               (MINMAX_Offset j12 (removeUndefs j12 j' j12') m1' m2)
+               (MINMAX j12 (removeUndefs j12 j' j12') m1' m2 INC12RU VB1' JJ12)
+               (Mem.nextblock m2 + Pos.of_nat N)%positive)
+           as [CM [CDefault PCM]].
+     simpl. 
+     intros. rewrite PAM; clear PAM.
+        unfold AccessMap_II_FUN.
+        simpl in *. 
+        destruct (plt b2 (Mem.nextblock m2)).
+           split; intros; try contradiction.
+             destruct (j23 b2); trivial.
+               destruct p0.
+               remember (source j12 m1 b2 ofs2) as src.
+               destruct src; trivial.
+               destruct p0; trivial.
+         split; intros; try contradiction.
+             remember (source (removeUndefs j12 j' j12') m1' b2 ofs2) as src.
+             destruct src; trivial.
+               destruct p; trivial.
+               
+  split; trivial.
+  split. intros. unfold removeUndefs in H0.
+     remember (j12 b1)  as d.
+     destruct d; apply eq_sym in Heqd. 
+       destruct p. left; trivial.
+     right. destruct (j' b1). destruct p. exists b, z; trivial. inv H0.
+  split. intros. 
+     remember (j23 b2) as d. rewrite A in *; clear A.
+     destruct d; try (left; reflexivity); apply eq_sym in Heqd.
+     destruct p. rewrite (C _ _ _ Heqd) in H0. left; trivial.
+     right. destruct (mkInjections_4Val _ _ _ _ _ _ _ _ _ _ HeqMKI VBj23 _ _ _ H0) as [[J23 _] | [HEQ |HEQ]].
+        rewrite J23 in Heqd. inv Heqd.
+        destruct HEQ as [? [? ?]]; subst. eexists; eexists; eassumption.
+        destruct HEQ as [mm [? [? ?]]]; subst. eexists; eexists; eassumption.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+Qed.
+
+

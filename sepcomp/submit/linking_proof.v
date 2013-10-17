@@ -37,10 +37,10 @@ destruct (halted csem c).
 intros; left; eexists; eauto.
 congruence.
 Qed.
-
+(*
 Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
 Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
-
+*)
 Section CoreCompatibleLemmas. Variables
  (Z: Type) (** external states *)
  (Zint: Type) (** portion of Z implemented by extension *)
@@ -204,115 +204,6 @@ Qed.
 
 End CoreCompatibleLemmas.
 
-(*This is an [F,V]-independent definition of meminj_preserves_globals*)
-Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
-  (forall b, fst globals b -> f b = Some (b, 0)) /\
-  (forall b, snd globals b -> f b = Some (b, 0)) /\
-  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
-
-Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
-  (fun b => exists id, Genv.find_symbol ge id = Some b,
-   fun b => exists gv, Genv.find_var_info ge b = Some gv).
-
-Lemma meminj_preserves_genv2blocks: 
-  forall {F V: Type} (ge: Genv.t F V) j,
-  meminj_preserves_globals_ind (genv2blocks ge) j <->
-  Events.meminj_preserves_globals ge j.
-Proof.
-intros ge; split; intro H1.
-unfold meminj_preserves_globals in H1.
-unfold Events.meminj_preserves_globals.
-destruct H1 as [H1 [H2 H3]].
-split.
-intros.
-apply H1; auto.
-unfold genv2blocks.
-unfold Genv.find_symbol in H.
-simpl; exists id; auto.
-split.
-intros b gv H4.
-apply H2; auto.
-unfold genv2blocks.
-unfold Genv.find_var_info in H4.
-simpl; exists gv; auto.
-intros until gv; intros H4 H5.
-symmetry.
-eapply H3; eauto.
-unfold genv2blocks.
-unfold Genv.find_var_info in H4.
-simpl; exists gv; auto.
-unfold meminj_preserves_globals.
-destruct H1 as [H1 [H2 H3]].
-split. 
-intros b H4.
-unfold genv2blocks in H4.
-destruct H4; eapply H1; eauto.
-split.
-intros b H4.
-destruct H4; eapply H2; eauto.
-intros b1 b2 delta H4 H5.
-unfold genv2blocks in H4.
-destruct H4.
-eapply H3 in H; eauto.
-Qed.
-
-Lemma genvs_domain_eq_preserves:
-  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
-  genvs_domain_eq ge1 ge2 -> 
-  (meminj_preserves_globals_ind (genv2blocks ge1) j <-> 
-   meminj_preserves_globals_ind (genv2blocks ge2) j).
-Proof.
-intros until j; intros H1.
-unfold meminj_preserves_globals.
-destruct H1 as [DE1 DE2].
-split; intros [H2 [H3 H4]].
-split.
-intros b H5.
-cut (fst (genv2blocks ge1) b).
- intros H6.
-apply (H2 b H6).
-apply (DE1 b); auto.
-split.
-intros b H5.
-apply H3; eauto.
-apply DE2; auto.
-intros b1 b2 delta H5 H6.
-eapply H4; eauto.
-apply DE2; auto.
-split.
-intros b H5.
-eapply H2; eauto.
-apply DE1; auto.
-split.
-intros b H5.
-apply H3; auto.
-apply DE2; auto.
-intros until delta; intros H5 H6.
-eapply H4; eauto.
-apply DE2; auto.
-Qed.
-
-Lemma genvs_domain_eq_sym:
-  forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2),
-  genvs_domain_eq ge1 ge2 -> genvs_domain_eq ge2 ge1.
-Proof.
-intros until ge2.
-unfold genvs_domain_eq; intros [H1 H2].
-split; intro b; split; intro H3; 
- solve[destruct (H1 b); auto|destruct (H2 b); auto].
-Qed.
-
-Lemma exists_ty: forall v, exists ty, Val.has_type v ty.
-Proof.
-intros v.
-destruct v.
-exists Tint; simpl; auto.
-exists Tint; simpl; auto.
-exists Tlong; simpl; auto.
-exists Tfloat; simpl; auto.
-exists Tint; simpl; auto.
-Qed.
-
 Module ExtendedSimulations. Section ExtendedSimulations.
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -350,13 +241,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  Implicit Arguments match_state [].
  Implicit Arguments core_ord [].
 
- Variable at_extern_valid:
-  forall c1 m1 c2 m2 cd j ef sig args,
-    match_state cd j c1 m1 c2 m2 ->
-    at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.
-
  Import Forward_simulation_inj_exposed.
+
+ Variable genvs_dom_eq_ST: genvs_domain_eq ge_S ge_T.
 
  Variable core_simulation: 
    Forward_simulation_inject csemS csemT ge_coreS ge_coreT
@@ -390,7 +277,6 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -411,18 +297,14 @@ Module ExtendedSimulations. Section ExtendedSimulations.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external csemT c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
  
   (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
-    mem_lemmas.mem_wd m1 -> 
-    mem_lemmas.mem_wd m2 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
-    Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
@@ -430,11 +312,9 @@ Module ExtendedSimulations. Section ExtendedSimulations.
  (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-   mem_lemmas.val_valid v1 m1 -> 
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
-     Mem.inject j m1 m2 /\
-     val_valid v2 m2),
+     Mem.inject j m1 m2),
   internal_compilability_invariant.
 
  Variables 
@@ -446,23 +326,29 @@ Module ExtendedSimulations. Section ExtendedSimulations.
 
 Program Definition extended_simulation: 
   Forward_simulation_inject esemS esemT ge_S ge_T 
-           entry_points core_data match_states core_ord :=
-  @Build_Forward_simulation_inject _ _ _ _ _ 
+           entry_points core_data match_states core_ord:=
+  @Build_Forward_simulation_inject _ _ _ _ _ _  
            esemS esemT ge_S ge_T entry_points 
            core_data match_states core_ord
-           _ _ _ _ _ _ _ _.
+           _ _ _ _ _ _ _ _ _ .
 Next Obligation. 
 destruct core_simulation; auto.
 Qed.
 Next Obligation.
 destruct core_simulation; auto.
 destruct H.
-eapply match_memwd0; eauto.
+eapply match_validblocks0; eauto.
 Qed.
 Next Obligation.
-destruct core_simulation; auto.
-destruct H.
-eapply match_validblocks0; eauto.
+destruct core_simulation.
+unfold match_states in H.
+destruct H as [H H0].
+apply match_genv0 in H.
+clear - genvs_domain_eqS H.
+rewrite <-meminj_preserves_genv2blocks.
+erewrite genvs_domain_eq_preserves; eauto.
+rewrite meminj_preserves_genv2blocks.
+auto.
 Qed.
 Next Obligation.
 rename H0 into MATCH.
@@ -589,15 +475,14 @@ clear
  core_after_external0
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 generalize MATCH12 as MATCH12'; intro.
 destruct MATCH12 as [MATCH12 XX].
 specialize (@core_at_external0 _ _ _ _ _ _ _ _ _ MATCH12 AT_EXT).
-spec core_at_external0.
-solve[eapply at_extern_valid; eauto].
+(*spec core_at_external0.
+solve[eapply at_extern_valid; eauto].*)
 destruct core_at_external0 
- as [INJ [GLOB [val2 [INJ1 [HASTY [ATEXT VALVALID]]]]]].
+ as [INJ [GLOB [val2 [INJ1 ATEXT]]]].
 assert (RUN2': runnable csemT (PROJ_CORE E_T st2) = false).
  unfold runnable.
  solve[rewrite ATEXT; auto].
@@ -615,7 +500,7 @@ specialize (extension_diagram
  RUN1' RUN2'
  AT_EXT ATEXT
  MATCH12'
- INJ GLOB INJ1 HASTY
+ INJ GLOB INJ1 
  STEP).
 destruct extension_diagram
  as [s2' [m2' [cd' [j' [? [? [? [? [? ?]]]]]]]]].
@@ -636,8 +521,7 @@ clear
  core_after_external0
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 inv esig_compilable.
 generalize H0 as H0'; intro.
 inv core_compatS.
@@ -646,17 +530,15 @@ generalize H as H'; intro.
 destruct H as [H XX].
 specialize (core_at_external0
  _ _ _ _ _ _ _ _ _ 
- H H0 H1).
-destruct core_at_external0 as [? [? [vals2 [? [? [? ?]]]]]].
-rewrite <-meminj_preserves_genv2blocks in H3.
+ H H0).
+destruct core_at_external0 as [? [? [vals2 [? ?]]]].
+rewrite <-meminj_preserves_genv2blocks in H2.
 eapply genvs_domain_eq_preserves in genvs_domain_eqS.
-rewrite <-genvs_domain_eqS in H3.
-rewrite meminj_preserves_genv2blocks in H3.
+rewrite <-genvs_domain_eqS in H2.
+rewrite meminj_preserves_genv2blocks in H2.
 split; auto.
 split; auto.
 exists vals2.
-split; auto.
-split; auto.
 split; auto.
 solve[exploit at_external_match; eauto].
 Qed.
@@ -665,30 +547,29 @@ destruct core_simulation.
 clear 
  core_halted0
  core_initial0
- core_diagram0
- match_memwd0.
+ core_diagram0.
 inv esig_compilable.
 generalize H1 as H1'; intro.
 assert (H2': exists vals2, at_external esemT st2 = Some (e, ef_sig, vals2)).
  inv core_compatS.
  apply at_external_proj in H1.
  destruct H0.
- specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1 H2).
- destruct core_at_external0 as [? [? [vals2 [? [? [? ?]]]]]].
+ specialize (core_at_external0 _ _ _ _ _ _ _ _ _ H0 H1).
+ destruct core_at_external0 as [? [? [vals2 [? ?]]]].
  exists vals2.
  solve[eapply at_external_match; eauto].
 inv core_compatS.
 apply at_external_proj in H1.
 assert (H3': meminj_preserves_globals ge_coreS j).
- rewrite <-meminj_preserves_genv2blocks in H3.
+ rewrite <-meminj_preserves_genv2blocks in H2.
  eapply genvs_domain_eq_preserves in genvs_domain_eqS.
- rewrite genvs_domain_eqS in H3.
- rewrite meminj_preserves_genv2blocks in H3.
+ rewrite genvs_domain_eqS in H2.
+ rewrite meminj_preserves_genv2blocks in H2.
  solve[auto].
 destruct H0 as [H0 XX].
 specialize (core_after_external0
  _ _ _ _ _ _ _ _ _ _ _ _ _ _
- H H0 H1 H2 H3' H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16).
+ H H0 H1 H3' H3 H4 H5 H6 H7 H8 H9 H10).
 destruct H2' as [vals2 H2'].
 destruct core_after_external0 
  as [cd' [c1' [c2' [AFTER1 [AFTER2 MATCH]]]]].
@@ -701,13 +582,13 @@ destruct AFTER2 as [s2' [? ?]].
 exists s1', s2'; split; auto.
 split; auto.
 unfold match_states.
-rewrite H18, H20.
+rewrite H12, H14.
 split; auto.
 symmetry.
-eapply Extension.zint_invar_after_external in H19; eauto.
-rewrite <-H19.
-eapply Extension.zint_invar_after_external in H17; eauto.
-rewrite <-H17.
+eapply Extension.zint_invar_after_external in H11; eauto.
+rewrite <-H11.
+eapply Extension.zint_invar_after_external in H13; eauto.
+rewrite <-H13.
 auto.
 Qed.
 
@@ -741,12 +622,6 @@ Module ExtensionCompilability. Section ExtensionCompilability.
  Variable match_state: core_data -> meminj -> cS -> mem -> cT -> mem -> Prop.
  Implicit Arguments match_state [].
  Variable core_ord: core_data -> core_data -> Prop.
-
- Variable at_extern_valid:
-  forall c1 m1 c2 m2 cd j ef sig args,
-    match_state cd j c1 m1 c2 m2 ->
-    at_external csemS c1 = Some (ef, sig, args) -> 
-    forall v, In v args -> val_valid v m1.
 
  Import Extension.
 

@@ -426,11 +426,34 @@ Qed.
 
 Inductive match_globalenvs (f: meminj) (bound: block): Prop :=
   | mk_match_globalenvs
-      (DOMAIN: forall b, Plt b bound -> f b = Some(b, 0))
-      (IMAGE: forall b1 b2 delta, f b1 = Some(b2, delta) -> Plt b2 bound -> b1 = b2)
+      (DOMAIN: forall b, 
+        Plt b bound -> 
+        ((exists id, Genv.find_symbol ge id = Some b)
+         \/ (exists gv, Genv.find_var_info (Genv.globalenv prog) b = Some gv)
+         \/ (exists fptr, Genv.find_funct_ptr (Genv.globalenv prog) b = Some fptr)) -> 
+        f b = Some(b, 0))
+      (IMAGE: forall b1 b2 delta gv, 
+        Genv.find_var_info ge b2 = Some gv -> 
+        f b1 = Some(b2, delta) -> Plt b2 bound -> b1 = b2)
       (SYMBOLS: forall id b, Genv.find_symbol ge id = Some b -> Plt b bound)
       (FUNCTIONS: forall b fd, Genv.find_funct_ptr ge b = Some fd -> Plt b bound)
       (VARINFOS: forall b gv, Genv.find_var_info ge b = Some gv -> Plt b bound).
+
+(*NOTE (GS): This lemma should be added to Globalenvs.v*)
+Lemma find_var_info_inversion:
+  forall (prog: Csharpminor.program) b v,
+  Genv.find_var_info (Genv.globalenv prog) b = Some v ->
+  exists id, In (id, Gvar v) (prog_defs prog).
+Proof.
+  intros until v. unfold Genv.globalenv. apply Genv.add_globals_preserves. 
+(* preserves *)
+  unfold Genv.find_var_info; simpl; intros. destruct g; auto. 
+  rewrite PTree.gsspec in H1. destruct (peq b (Genv.genv_next ge0)).
+  inv H1. exists id; auto.
+  auto.
+(* base *)
+  unfold Genv.find_var_info; simpl; intros. rewrite PTree.gempty in H. discriminate.
+Qed.
 
 Remark inj_preserves_globals:
   forall f hi,
@@ -438,8 +461,8 @@ Remark inj_preserves_globals:
   meminj_preserves_globals ge f.
 Proof.
   intros. inv H.
-  split. intros. apply DOMAIN. eapply SYMBOLS. eauto.
-  split. intros. apply DOMAIN. eapply VARINFOS. eauto. 
+  split. intros. eapply DOMAIN; eauto. 
+  split. intros. eapply DOMAIN; eauto.
   intros. symmetry. eapply IMAGE; eauto. 
 Qed.
 
@@ -635,10 +658,10 @@ Proof.
   intros UNMAPPED OUTOFREACH INCR SEPARATED MAXPERMS.
   induction 1; intros.
 (* base case *)
-  apply mcs_nil with hi; auto.
-  inv H. constructor; auto.
+  apply mcs_nil with hi; eauto.
+  inv H. constructor; eauto.
   intros. case_eq (f1 b1). 
-  intros [b2' delta'] EQ. rewrite (INCR _ _ _ EQ) in H. inv H. eauto. 
+  intros [b2' delta'] EQ. rewrite (INCR _ _ _ EQ) in H4. inv H4. eauto. 
   intro EQ. exploit SEPARATED; eauto. intros [A B]. elim B. red. xomega. 
 (* inductive case *)
   constructor. auto. auto. 
@@ -2209,7 +2232,8 @@ Remark val_inject_function_pointer:
 Proof.
   intros. exploit Genv.find_funct_inv; eauto. intros [b EQ]. subst v.
   rewrite Genv.find_funct_find_funct_ptr in H.
-  assert (f b = Some(b, 0)). inv H0. apply DOMAIN. eapply FUNCTIONS; eauto.
+  assert (f b = Some(b, 0)). inv H0. 
+  eapply DOMAIN; eauto.
   inv H1. rewrite H2 in H5; inv H5. reflexivity.
 Qed.
 
@@ -3317,7 +3341,7 @@ Proof.
  left; assumption.
  left; assumption.
 Qed.
-  
+
 Lemma match_globalenvs_init:
   forall m,
   Genv.init_mem prog = Some m ->
@@ -3328,9 +3352,9 @@ Proof.
   intros. unfold Mem.flat_inj.
      remember (plt b (Mem.nextblock m)).
      destruct s. trivial. contradiction.
-  intros. unfold Mem.flat_inj in H0. 
+  intros. unfold Mem.flat_inj in H1. 
      remember (plt b1 (Mem.nextblock m)).
-     destruct s; inv H0. trivial.
+     destruct s; inv H1. trivial.
   intros. eapply Genv.find_symbol_not_fresh; eauto.
   intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
   intros. eapply Genv.find_var_info_not_fresh; eauto. 

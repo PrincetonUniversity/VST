@@ -18,16 +18,6 @@ Set Implicit Arguments.
 
 (**  "Compilable" Extensions *)
 
-(*This is an [F,V]-independent definition of meminj_preserves_globals*)
-Definition meminj_preserves_globals (globals: (block->Prop)*(block->Prop)) f :=
-  (forall b, fst globals b -> f b = Some (b, 0)) /\
-  (forall b, snd globals b -> f b = Some (b, 0)) /\
-  (forall b1 b2 delta, snd globals b2 -> f b1 = Some (b2, delta) -> b1=b2).
-
-Definition genv2blocks {F V: Type} (ge: Genv.t F V) := 
-  (fun b => exists id, Genv.find_symbol ge id = Some b,
-   fun b => exists gv, Genv.find_var_info ge b = Some gv).
-
 Module CompilabilityInvariant. Section CompilabilityInvariant. 
  Variables
   (F_S V_S F_T V_T: Type) (** source and target extension global environments *)
@@ -93,7 +83,6 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    corestep esemS ge_S s1 m1 s1' m1' -> 
    exists s2', exists m2', exists cd', exists j',
      inject_incr j j' /\
@@ -114,18 +103,14 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
    Mem.inject j m1 m2 -> 
    Events.meminj_preserves_globals ge_S j -> 
    Forall2 (val_inject j) args1 args2 -> 
-   Forall2 Val.has_type args2 (sig_args sig) -> 
    at_external csemT c2 = Some (ef, sig, args2) -> 
    at_external esemT s2 = Some (ef, sig, args2))
  
   (initial_diagram: forall v1 vals1 s1 m1 v2 vals2 m2 j sig,
     In (v1, v2, sig) entry_points -> 
     initial_core esemS ge_S v1 vals1 = Some s1 -> 
-    mem_lemmas.mem_wd m1 -> 
-    mem_lemmas.mem_wd m2 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 -> 
-    Forall2 Val.has_type vals2 (sig_args sig) -> 
     exists cd, exists s2, 
       initial_core esemT ge_T v2 vals2 = Some s2 /\
       match_states cd j s1 m1 s2 m2)
@@ -133,18 +118,12 @@ Module CompilabilityInvariant. Section CompilabilityInvariant.
  (halted_diagram: forall cd j c1 m1 c2 m2 v1,
    match_states cd j c1 m1 c2 m2 -> 
    halted esemS c1 = Some v1 -> 
-   mem_lemmas.val_valid v1 m1 -> 
    exists v2, val_inject j v1 v2 /\
      halted esemT c2 = Some v2 /\ 
-     Mem.inject j m1 m2 /\
-     val_valid v2 m2),
+     Mem.inject j m1 m2),
  Sig.
 
 End CompilabilityInvariant. End CompilabilityInvariant.
-
-Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
-  (forall b, fst (genv2blocks ge1) b <-> fst (genv2blocks ge2) b) /\
-  (forall b, snd (genv2blocks ge1) b <-> snd (genv2blocks ge2) b).
 
 Module CompilableExtension. Section CompilableExtension. 
  Variables

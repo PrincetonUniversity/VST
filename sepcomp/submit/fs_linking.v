@@ -849,7 +849,7 @@ intros H1; rewrite H1 in H; congruence.
 Qed.
 
 Program Definition FSCoopSem := 
-  Build_CoopCoreSem _ _ FSCoreSem _ _.
+  Build_CoopCoreSem _ _ FSCoreSem _.
 Next Obligation.
 inv CS.
 destruct csem.
@@ -858,6 +858,7 @@ eapply corestep_fwd; eauto.
 solve[apply mem_lemmas.mem_forward_refl].
 solve[eapply mem_lemmas.storebytes_forward; eauto].
 Qed.
+(*
 Next Obligation.
 inv CS.
 destruct csem.
@@ -875,6 +876,7 @@ solve[apply memval_inject_byte].
 apply IHbytes; auto.
 solve[inv H5; auto].
 Qed.
+*)
 
 Definition file_exists (fsys: fs) (fname: int) := isSome (get_fstore fsys fname).
 
@@ -1182,10 +1184,10 @@ rewrite H3 in H.
 inv H.
 solve[simpl; auto].
 destruct H5 as [H5 XX].
-exploit match_memwd0; eauto.
-intros [? ?].
-spec core_after_external0; auto.
-spec core_after_external0; auto.
+(*exploit match_memwd0; eauto.
+intros [? ?].*)
+(*spec core_after_external0; auto.
+spec core_after_external0; auto.*)
 spec core_after_external0; simpl; auto.
 solve[spec core_after_external0; simpl; auto].
 
@@ -1318,7 +1320,7 @@ solve[eapply mem_lemmas.storebytes_forward; eauto].
 spec core_after_external0; auto.
 spec core_after_external0; auto.
 solve[simpl; auto].
-spec core_after_external0; auto.
+(*spec core_after_external0; auto.
 
 eapply mem_lemmas.mem_wd_storebytes; eauto.
 edestruct (FSCoopSem csemS).
@@ -1351,6 +1353,7 @@ destruct v; simpl in H1; try inv H1.
 solve[apply memval_inject_byte].
 apply IHbytes; auto.
 solve[inv H13; auto].
+*)
 spec core_after_external0; auto.
 solve[simpl; auto].
 spec core_after_external0; auto.

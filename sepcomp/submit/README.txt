@@ -1,7 +1,7 @@
 README
 ======
 
-This directory includes files accompanying the POPL'14 submission:
+This directory includes files accompanying the ESOP'14 submission:
 
     Verified Compilation for Shared-Memory C
 
@@ -12,14 +12,13 @@ The files in this directory are excerpted from a larger proof development,
 the VST, or Princeton Verified Software Toolchain.  
 
 To build, and to get a sense of the larger context of the proof development,
-please download revision 5580 of the VST from the SVN repository
-linked at
+please download VST revision 5785, which is linked at
 
     http://vst.cs.princeton.edu/download
 
 and follow the attached build/installation instructions.  Most of the files
-relating to this paper are in directory vst/sepcomp, with the exception of 
-Clight_new.v, which can be found in vst/veric.
+relating to this paper are in directory [vst/sepcomp], with the 
+exception of [Clight_new.v], which is located in [vst/veric].
 
 
 FILES
@@ -27,16 +26,14 @@ FILES
 
 Section 3:
 ----------
-
-- mem_lemmas.v:
-   auxiliary definitions and lemmas used throughout the developent,
-   including definitions for mem_forward and mem_wd ("closed"), 
    
 - core_semantics.v
    definition of core_semantics, cooperative core_semantics,
-   and lemmas on multietep relations
+   and lemmas on multistep relations
 
-- Clight_new.v core semantics for CompCert's Clight language.
+- mem_lemmas.v
+   auxiliary definitions and lemmas used throughout the developent,
+   including definitions for mem_forward and mem_wd ("closed"), 
 
 Section 4:
 ----------
@@ -49,19 +46,17 @@ Section 4:
    the file, for coresemantics and coopsemantics. 
 
 - forward_simulations_lemmas.v
-  lemmas on the definitions...
+  lemmas on the definitions
 
 - compiler_correctness.v
   lifts the simulations to programs
 
 - compcert_compiler_correctness.v
   relates compiler_correctness.v to CompCert 2.0's memory-oblivious
-  whole-program simulations. (admits in this file are on mem_wd etc 
-  are ok, since some of our invariants are simply not satisfied in
-  CompCert2.0)
+  whole-program simulations. 
 
 Files required for proof of transitivity:
-- FiniteMaps.v (auxilary data structure; used in cstructing 
+- FiniteMaps.v (auxilary data structure; used in constructing 
   interpolating memories)
 
 - mem_interpol*.v: files for the interpolation lemmas
@@ -81,6 +76,14 @@ Files required for proof of transitivity:
 Section 5:
 ----------
 
+- safety_preservation.v
+  Safety and semantics preservation, in addition to a restricted 
+  version of program safety for closed whole programs.  General 
+  program safety is defined in step_lemmas.v.
+
+Section 6:
+----------
+
 - Files from CompCert 2.0 (appropriate license applies here!):
   Switch.v, Ordered.v Cminor.v Csharpminor.v Cminorgen.v Cminorgenproof.v
 
@@ -91,22 +94,23 @@ Section 5:
   Cores semantics and cooperative core semantics formulations of the
   two languages
 
-- CminorgenproofSIM.v: the adapted proof of the phase
+- CminorgenproofSIM.v: the adapted proof of CompCert's Cminorgen phase
 
-Section 6:
-----------
+Relevant, but not discussed in the paper due to lack of space:
+--------------------------------------------------------------
 
 - linking.v: 
     extensional model of core semantics linking
 
 - linking_simulations.v:
-    states the linking simulation theorem of Sec. 6
+    states a linking simulation theorem
 
 - linking_proof.v:
-    proves the linking simulation theorem of Sec. 6
+    proves the linking simulation theorem of linking_simulation.v
 
 - fs_linking.v:
-    develops the file system model described in Sec. 6
+    develops a model of a simple file system;
     proves the linking simulation theorem of linking_simulations.v
+    for the file system model
       
 
