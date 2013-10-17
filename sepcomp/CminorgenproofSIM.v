@@ -40,6 +40,126 @@ Mem.storev ch m addr v = Some m' ->
 (forall b, Mem.valid_block m' b -> Mem.valid_block m b).
 Proof. intros. destruct addr; inv H. eapply Mem.store_valid_block_2; eauto. Qed.
 
+(*auxiliary lemmas regarding init_mem and genv*)
+Lemma add_global_find_symbol: forall {F V} (g: Genv.t F V) m0 m x
+    (G: Genv.alloc_global (Genv.add_global g x) m0 x = Some m)
+    (N: Genv.genv_next g = Mem.nextblock m0)
+    b (VB: Mem.valid_block m b),
+    Mem.valid_block m0 b \/ 
+    exists id, Genv.find_symbol (Genv.add_global g x) id = Some b.
+Proof. intros.
+unfold Genv.alloc_global in G.
+destruct x. destruct g0.
+   remember (Mem.alloc m0 0 1) as d.
+   destruct d; inv G. apply eq_sym in Heqd.
+   apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H0) in VB. clear H0.
+   apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqd) in VB. 
+   destruct VB; subst; try (left; assumption).
+     right. unfold Genv.add_global; simpl.
+     unfold Genv.find_symbol; simpl.
+     rewrite N. apply Mem.alloc_result in Heqd. subst.
+     exists i. apply PTree.gss.
+remember (Mem.alloc m0 0 (Genv.init_data_list_size (gvar_init v))) as d.
+  destruct d; inv G. apply eq_sym in Heqd.
+  remember (store_zeros m1 b0 0 (Genv.init_data_list_size (gvar_init v))) as q.
+  destruct q; inv H0. apply eq_sym in Heqq.
+  remember (Genv.store_init_data_list (Genv.add_global g (i, Gvar v)) m2 b0 0
+         (gvar_init v)) as w.
+  destruct w; inv H1. apply eq_sym in Heqw.
+  apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H0) in VB. clear H0.
+  assert (VB2: Mem.valid_block m2 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_init_data_list_nextblock _ _ _ _ _ _ _ _ Heqw).
+    apply VB.
+  clear VB Heqw.
+  assert (VB1: Mem.valid_block m1 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_zeros_nextblock _ _ _ _ _ Heqq).
+    apply VB2.
+  clear VB2 Heqq.
+  apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqd) in VB1. 
+   destruct VB1; subst; try (left; assumption).
+     right. unfold Genv.add_global; simpl.
+     unfold Genv.find_symbol; simpl.
+     rewrite N. apply Mem.alloc_result in Heqd. subst.
+     exists i. apply PTree.gss.
+Qed.
+
+Lemma genv_find_add_global_fresh: forall {F V} (g:Genv.t F V) i i0 v0
+   (I:i0 <> i),
+   Genv.find_symbol (Genv.add_global g (i0, v0)) i =
+   Genv.find_symbol g i.
+Proof. intros.
+    unfold Genv.find_symbol, Genv.genv_symb. simpl. rewrite PTree.gso. reflexivity.
+    intros N. apply I; subst; trivial.
+Qed.
+
+Lemma genv_find_add_globals_fresh: forall {F V} defs (g:Genv.t F V) i
+  (G: ~ In i (map fst defs)), 
+  Genv.find_symbol (Genv.add_globals g defs) i =  Genv.find_symbol g i.
+Proof. intros F V defs.
+  induction defs; simpl; intros. trivial.
+  destruct a.
+  rewrite IHdefs. 
+    unfold Genv.find_symbol, Genv.genv_symb. simpl. rewrite PTree.gso. reflexivity.
+    intros N. apply G; left. subst; simpl; trivial.
+  intros N. apply G; right; trivial.
+Qed.
+
+Lemma add_globals_find_symbol: forall {F V} (defs : list (ident * globdef F V)) 
+    (R: list_norepet (map fst defs)) (g: Genv.t F V) m0 m 
+    (G: Genv.alloc_globals (Genv.add_globals g defs) m0 defs = Some m)
+    (N: Genv.genv_next g = Mem.nextblock m0)
+    b (VB: Mem.valid_block m b),
+    Mem.valid_block m0 b \/ 
+    exists id, Genv.find_symbol (Genv.add_globals g defs) id = Some b.
+Proof. intros F V defs.
+induction defs; simpl; intros.
+  inv G. left; trivial.
+remember (Genv.alloc_global (Genv.add_globals (Genv.add_global g a) defs) m0 a) as d.
+  destruct d; inv G. apply eq_sym in Heqd.
+  inv R.
+  specialize (IHdefs H3 _ _ _ H0). simpl in *.
+  rewrite N in *.
+  assert (P: Pos.succ (Mem.nextblock m0) = Mem.nextblock m1).
+    clear IHdefs N VB H0.
+    rewrite (@Genv.alloc_global_nextblock _ _ _ _ _ _ Heqd). trivial.
+  destruct (IHdefs P _ VB); try (right; assumption).
+  clear IHdefs P VB H0.
+  destruct a. destruct g0. simpl in Heqd.
+   remember (Mem.alloc m0 0 1) as t.
+   destruct t; inv Heqd. apply eq_sym in Heqt.
+   apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H1) in H. clear H1.
+   apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqt) in H. 
+   destruct H; subst; try (left; assumption).
+     right. apply Mem.alloc_result in Heqt. subst.
+     exists i. rewrite genv_find_add_globals_fresh; trivial.
+     unfold Genv.find_symbol, Genv.genv_symb. simpl.
+     rewrite PTree.gss. rewrite N. trivial. 
+simpl in *. 
+  remember (Mem.alloc m0 0 (Genv.init_data_list_size (gvar_init v))) as t.
+  destruct t; inv Heqd. apply eq_sym in Heqt.
+  remember (store_zeros m2 b0 0 (Genv.init_data_list_size (gvar_init v))) as q.
+  destruct q; inv H1. apply eq_sym in Heqq.
+  remember (Genv.store_init_data_list
+         (Genv.add_globals (Genv.add_global g (i, Gvar v)) defs) m3 b0 0
+         (gvar_init v)) as w.
+  destruct w; inv H4. apply eq_sym in Heqw.
+  apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H1) in H. clear H1.
+  assert (VB3: Mem.valid_block m3 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_init_data_list_nextblock _ _ _ _ _ _ _ _ Heqw).
+    apply H.
+  clear H Heqw.
+  assert (VB2: Mem.valid_block m2 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_zeros_nextblock _ _ _ _ _ Heqq).
+    apply VB3.
+  clear VB3 Heqq.
+  apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqt) in VB2. 
+   destruct VB2; subst; try (left; assumption).
+     right. apply Mem.alloc_result in Heqt. subst.
+     exists i. rewrite genv_find_add_globals_fresh; trivial.
+     unfold Genv.find_symbol, Genv.genv_symb. simpl.
+     rewrite PTree.gss. rewrite N. trivial. 
+Qed.
+
 Section TRANSLATION.
 Variable prog: Csharpminor.program.
 Variable tprog: Cminor.program.
@@ -126,6 +246,43 @@ intros.
 inv H; trivial.
 Qed.
 
+(*-----A variant of CminorgenproofRestructured.match_globalenvs_init,
+   used for init_cores---*)
+Lemma valid_init_is_global :
+  forall (R: list_norepet (map fst (prog_defs prog)))
+  m (G: Genv.init_mem prog = Some m)  
+  b (VB: Mem.valid_block m b), 
+  exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b.
+Proof. intros.
+  unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
+  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ ) _ _ G (eq_refl _) _ VB)
+    as [VBEmpty | X]; trivial.
+  exfalso. clear - VBEmpty. unfold Mem.valid_block in VBEmpty.
+    rewrite Mem.nextblock_empty in VBEmpty. xomega.
+Qed.
+    
+Lemma match_globalenvs_init':
+  forall (R: list_norepet (map fst (prog_defs prog)))
+  m j,
+  Genv.init_mem prog = Some m ->
+  meminj_preserves_globals ge j ->
+  match_globalenvs prog j (Mem.nextblock m).
+Proof.
+  intros. 
+  destruct H0 as [A [B C]].
+  constructor. 
+  intros b D. intros [[id E]|[[gv E]|[fptr E]]]; eauto.
+  cut (exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b).
+  intros [id ID].
+  solve[eapply A; eauto].
+  eapply valid_init_is_global; eauto.
+  intros. symmetry. solve[eapply (C _ _ _ _ H0); eauto].
+  intros. eapply Genv.find_symbol_not_fresh; eauto.
+  intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
+  intros. eapply Genv.find_var_info_not_fresh; eauto. 
+Qed.
+(*--------------------------------------------------------------------*)
+
 Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (EP: In (v1, v2, sig) entrypoints)
   (entry_points_ok : 
@@ -142,6 +299,7 @@ Lemma init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (Inj : Mem.inject j m1 m2)
   (VI: Forall2 (val_inject j) vals1 vals2)
   (PG: meminj_preserves_globals ge j)
+  (R: list_norepet (map fst (prog_defs prog)))
   (INIT_MEM: exists m0, Genv.init_mem prog = Some m0 
     /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
     /\ Ple (Mem.nextblock m0) (Mem.nextblock m2)),
@@ -1705,7 +1863,8 @@ Require Import sepcomp.forward_simulations_lemmas.
 
 (*program structure not yet updated to module*)
 Theorem transl_program_correct:
-  forall entrypoints
+  forall (R: list_norepet (map fst (prog_defs prog)))
+         entrypoints
          (entry_points_ok : 
             forall v1 v2 sig,
               In (v1, v2, sig) entrypoints -> 
@@ -1745,7 +1904,7 @@ intros.
     unfold meminj_preserves_globals in H3.    
     destruct H3 as [A [B C]].
 
-    assert (forall p q, {Ple p q} + {Plt q p}).
+    assert (P: forall p q, {Ple p q} + {Plt q p}).
       intros p q.
       case_eq (Pos.leb p q).
       intros TRUE.
@@ -1759,28 +1918,29 @@ intros.
            exists id, Genv.find_symbol ge id = Some b). intro D.
     
     split.
-    destruct (H3 (Mem.nextblock m0) (Mem.nextblock m1)); auto.
+    destruct (P (Mem.nextblock m0) (Mem.nextblock m1)); auto.
     exfalso. 
     destruct (D _ p).
-    apply A in H4.
+    apply A in H3.
     assert (Mem.valid_block m1 (Mem.nextblock m1)).
       eapply Mem.valid_block_inject_1; eauto.
-    clear - H5; unfold Mem.valid_block in H5.
+    clear - H4; unfold Mem.valid_block in H4.
     xomega.
 
-    destruct (H3 (Mem.nextblock m0) (Mem.nextblock m2)); auto.
+    destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
     exfalso. 
     destruct (D _ p).
-    apply A in H4.
+    apply A in H3.
     assert (Mem.valid_block m2 (Mem.nextblock m2)).
       eapply Mem.valid_block_inject_2; eauto.
-    clear - H5; unfold Mem.valid_block in H5.
+    clear - H4; unfold Mem.valid_block in H4.
     xomega.
     
     intros b LT.    
     unfold ge.
     apply valid_init_is_global with (b := b) in INIT.
     eapply INIT; auto.
+    apply R.
     apply LT.
 
     intros. 
