@@ -1943,9 +1943,9 @@ intros.
     apply R.
     apply LT.
 
-    intros. 
   (*halted*)
-  { eapply MC_safely_halted in H; eauto.
+  { intros. 
+    eapply MC_safely_halted in H; eauto.
     destruct H as [v2 [A [B C]]].
     solve[exists v2; split; auto]. }
   (*at_external*)
@@ -1955,7 +1955,8 @@ intros.
     split; trivial.
     exists vals2. 
     split; trivial. }
- intros.
+ (*after_external*)
+ {  intros.
     assert (PG: meminj_preserves_globals ge j).
       destruct H; subst.
       apply (match_cores_genvs _ _ _ _ _ _ H9). 
@@ -1965,9 +1966,10 @@ intros.
      subst. eexists; eexists. eexists.
         split. eassumption.
         split. eassumption.
-        split. reflexivity. eassumption.
-  intros. destruct (MS_step _ _ _ _ H _ _ _ H0).
-   destruct H1 as [c2' [m2' [j' [INC [Sep [CSP MC]]]]]].
+        split. reflexivity. eassumption. }
+  (*core_diagram*)
+  { intros. destruct (MS_step _ _ _ _ H _ _ _ H0).
+    destruct H1 as [c2' [m2' [j' [INC [Sep [CSP MC]]]]]].
       exists c2', m2', j'. 
        split; trivial.
        split; trivial.
@@ -1979,9 +1981,143 @@ intros.
       split. apply inject_separated_same_meminj.
       split; trivial.
       right. split; trivial.
-      apply corestep_star_zero. 
+      apply corestep_star_zero. }
 Qed.
 
-(*Later, we could lift this the csharpmin_coop etc*)
+Lemma MS_step_coopsem: forall (c1 : core_data) (m1 : mem) (c1' : core_data) (m1' : mem),
+corestep csharpmin_coop_sem ge c1 m1 c1' m1' ->
+forall (c2 : CMin_core) (m2 : mem) (j : meminj),
+match_cores c1 j c1 m1 c2 m2 ->
+(exists c2' : CMin_core,
+   exists m2' : mem,
+     exists j' : meminj,
+       inject_incr j j' /\
+       Events.inject_separated j j' m1 m2 /\
+       corestep_plus cmin_coop_sem tge c2 m2 c2' m2' /\
+       match_cores c1' j' c1' m1' c2' m2') \/
+(MC_measure c1' < MC_measure c1)%nat /\ match_cores c1' j c1' m1' c2 m2.
+Proof. intros.
+  eapply MS_step; eauto.
+Qed.
+
+Theorem transl_program_correct_coopsem:
+  forall (R: list_norepet (map fst (prog_defs prog)))
+         entrypoints
+         (entry_points_ok : 
+            forall v1 v2 sig,
+              In (v1, v2, sig) entrypoints -> 
+              exists b f1 f2, 
+                v1 = Vptr b Int.zero 
+                /\ v2 = Vptr b Int.zero
+                /\ Genv.find_funct_ptr ge b = Some f1
+                /\ Genv.find_funct_ptr tge b = Some f2)
+         (init_mem: exists m0, Genv.init_mem prog = Some m0),
+  Forward_simulation_inj.Forward_simulation_inject csharpmin_coop_sem 
+   cmin_coop_sem ge tge entrypoints.
+Proof.
+intros.
+ eapply inj_simulation_star with 
+  (match_states:=match_cores)(measure:=MC_measure).
+ (*genvs_dom_eq*)
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+  apply match_cores_valid.
+ (*preserves_globals*) apply match_cores_genvs.
+ (*init_cores*)
+    intros.
+    eapply (init_cores _ _ _ entrypoints); eauto.
+    destruct init_mem as [m0 INIT].
+    exists m0; split; auto.
+    unfold meminj_preserves_globals in H3.    
+    destruct H3 as [A [B C]].
+
+    assert (P: forall p q, {Ple p q} + {Plt q p}).
+      intros p q.
+      case_eq (Pos.leb p q).
+      intros TRUE.
+      apply Pos.leb_le in TRUE.
+      left; auto.
+      intros FALSE.
+      apply Pos.leb_gt in FALSE.
+      right; auto.
+
+    cut (forall b, Plt b (Mem.nextblock m0) -> 
+           exists id, Genv.find_symbol ge id = Some b). intro D.
+    
+    split.
+    destruct (P (Mem.nextblock m0) (Mem.nextblock m1)); auto.
+    exfalso. 
+    destruct (D _ p).
+    apply A in H3.
+    assert (Mem.valid_block m1 (Mem.nextblock m1)).
+      eapply Mem.valid_block_inject_1; eauto.
+    clear - H4; unfold Mem.valid_block in H4.
+    xomega.
+
+    destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
+    exfalso. 
+    destruct (D _ p).
+    apply A in H3.
+    assert (Mem.valid_block m2 (Mem.nextblock m2)).
+      eapply Mem.valid_block_inject_2; eauto.
+    clear - H4; unfold Mem.valid_block in H4.
+    xomega.
+    
+    intros b LT.    
+    unfold ge.
+    apply valid_init_is_global with (b := b) in INIT.
+    eapply INIT; auto.
+    apply R.
+    apply LT.
+  (*halted*) 
+  { intros.
+    eapply MC_safely_halted in H; eauto.
+    destruct H as [v2 [A [B C]]].
+    solve[exists v2; split; auto]. }
+  (*at_external*)
+  { intros.
+    destruct (MC_at_external _ _ _ _ _ _ _ _ _ H H0)
+           as [Inc [Presv [vals2 [ValsInj AtExt2]]]].
+    split; trivial.
+    exists vals2. 
+    split; trivial. }
+ (*after_external*)
+ {  intros.
+    assert (PG: meminj_preserves_globals ge j).
+      destruct H; subst.
+      apply (match_cores_genvs _ _ _ _ _ _ H9). 
+    destruct (MC_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ H H0
+             PG H1 H2 H3 H4 H5 H6 H7 H8)
+           as [dd [core [dd' [afterExtA [afterExtB [ MC X]]]]]].
+     subst. eexists; eexists. eexists.
+        split. eassumption.
+        split. eassumption.
+        split. reflexivity. eassumption. }
+  (*core_diagram*)
+  { intros. destruct (MS_step_coopsem _ _ _ _ H _ _ _ H0).
+    destruct H1 as [c2' [m2' [j' [INC [Sep [CSP MC]]]]]].
+      exists c2', m2', j'. 
+       split; trivial.
+       split; trivial.
+       split; trivial.
+       left; trivial. 
+    destruct H1. 
+      exists c2, m2, j.
+      split. apply inject_incr_refl.
+      split. apply inject_separated_same_meminj.
+      split; trivial.
+      right. split; trivial.
+      apply corestep_star_zero. }
+Qed.
 
 End TRANSLATION.
