@@ -272,36 +272,36 @@ Record SM_Injection :=
     pubBlocksSrc : block -> bool;
                      (* The blocks allocated by THIS module in the
                         source language SRC that are made public -
-                        must be mapped by pubInj*)
+                        must be mapped by pubInj. Contained in myBlocksSrc.*)
     pubBlocksTgt : block -> bool; 
                      (* The blocks allocated by THIS module in the
-                        target language TGT that are made public - must
-                        contain the image of pubInj*)
+                        target language TGT that are made public - 
+                        contains the image of pubInj. Contained in myBlocksTgt.*)
     frgnBlocksSrc : block -> bool;
                      (* The blocks allocated by OTHER modules in the
-                        source language SRC that are made visible.
+                        source language SRC that are made visible to THIS module.
                         Unchanged by coresteps*)
     frgnBlocksTgt : block -> bool; 
                      (* The blocks allocated by OTHER modules in the
-                        target language TGT that are made visible.
+                        target language TGT that are made visible TO THIS module.
                         Unchanged by coresteps*)
    
     extern_of: meminj; (* a meminj on blocks allocated by OTHER modules; 
                         the injection is not modified by coresteps, and
-                        s partitioned by frgnBlocksSrc/Tgt into leaked/visible 
-                        (formerly: foreign)  and non-leaked (formerly: unknown)
-                        components, where at most the former blocks are 
+                        is partitioned by frgnBlocksSrc/Tgt into 
+                        foreign (leaked to this module) and unknown (non-leaked)
+                        components, where the former blocks are 
                         accessible by THIS module. 
-                        THIS module uniformly over block mentioned by frgnInj, and
+                        THIS module behaves uniformly over block mentioned by frgnInj, and
                         assumes that blocks in frgnInj remain mapped during
                         "compilation of the environment". Compilation of THIS 
                         module neither merges nor unmaps blocks from here, 
-                        not does it spill into them*)
+                        nor does it spill into them*)
     local_of: meminj (* meminj on blocks allocated by THIS module.
                         Remains unchanged by external steps,
-                        and is partitioned by pubBlcoksSrc/Tgt into
-                        visible/exported (formerly: pubInj)
-                        and non-leaked (formerly: privInj) component.  *)
+                        and is partitioned by pubBlocksSrc/Tgt into
+                        exported (public)
+                        and non-exporrted (private) component.  *)
 }.
 
 
@@ -591,26 +591,13 @@ Qed.
 Definition DOM (mu: SM_Injection) (b1: block): Prop := DomSrc mu b1 = true.
   
 Definition RNG (mu: SM_Injection) (b2:block): Prop := DomTgt mu b2 = true.
-(*old definitions:
-Definition DOM (mu: SM_Injection) (b1: block): Prop :=
-  match mu with 
-    Build_SM_Injection BSrc BTgt pSrc pTgt unknown frgn pub priv =>
-       BSrc b1 \/ exists b2 z, extern_of mu b1 = Some (b2,z)
-  end.
-  
-Definition RNG (mu: SM_Injection) (b2:block): Prop :=
-  match mu with 
-    Build_SM_Injection BSrc BTgt pSrc pTgt unknown frgn pub priv =>
-        BTgt b2 \/ exists b1 z, extern_of mu b1 = Some (b2,z)
-  end.
-*)
 
 (*in contrast to effect_simulations2.v, we enforce
   pub_of mu = pub_of mu', via
   pubBlocksSrc/Tgt mu = pubBlocksSrc/Tgt mu': 
   it suffices to reclassify at atExternal.
-  This should simplify/enable the proof of 
-  effect_simulations_trans.diagram_injinj.*)
+  This simplifies/enables the proof of 
+  effect_corediagram_trans.diagram_injinj etc*)
 Definition intern_incr (mu mu': SM_Injection): Prop := 
    inject_incr (local_of mu) (local_of mu') /\
    (extern_of mu = extern_of mu') /\
@@ -1107,9 +1094,9 @@ Proof. intros.
   unfold join. destruct (j b); intuition.
 Qed.
 
+(*an inject_separated-like property wrt DOM/RNG instead of
+  wrt validity in suitable memories*) 
 Definition sm_inject_separated (mu mu' : SM_Injection) (m1 m2:mem):Prop :=
-   (*an inject_separated-like property wrt DOM/RNG instead of
-     wrt validity in suitable memories*) 
   (forall b1 b2 d, as_inj mu b1 = None -> as_inj mu' b1 = Some(b2,d) ->
                    (DomSrc mu b1 = false /\ DomTgt mu b2 = false)) /\
   (forall b1, DomSrc mu b1 = false -> DomSrc mu' b1 = true -> ~Mem.valid_block m1 b1) /\
@@ -1734,7 +1721,7 @@ Proof. intros.
        split; trivial. unfold normalize. rewrite EXT12. trivial.
 Qed. 
 
-Lemma sm_normalize_inject: forall mu12 mu23 
+Goal (*Lemma sm_normalize_inject:*) forall mu12 mu23 
           (WD12: SM_wd mu12) (WD23: SM_wd mu23)
           (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
                               frgnBlocksSrc mu23 b = true)
@@ -1768,7 +1755,8 @@ split; intros.
        specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
        inv H1; try constructor. rename b3 into b. rename delta into d1. rename delta0 into delta.
        assert (local_of  mu12 b0 = Some (b, delta) \/ foreign_of mu12 b0 = Some (b, delta)).
-          admit. (*This would probably be made true if we added the 
+          admit. (*admit is ok - it's in a goal.
+              This could probably be made true if we added the 
               invariant that a location (b, ofs) with myBlock b = true
               and readable permission  does not contain (in the 
               appropriate memory) a pointer to an unknown block. Maybe that's worth doing?*) 
@@ -1812,7 +1800,7 @@ Proof. intros.
   rewrite <- Heqq. rewrite <- Heqw. trivial.
 Qed.
   
-(*Maybe a mmore general form of closure is this:*)
+(*Maybe a more general form of closure is this:*)
 Definition sm_equiv mu mu': Prop :=
   match mu, mu' with 
     Build_SM_Injection DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern local,
