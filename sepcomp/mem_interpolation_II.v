@@ -3295,7 +3295,8 @@ Proof. intros.
   exists m2', j12', j23'. intuition.
 Qed.
 
-(*Another variant, needed in effect_simulations_trans.*)
+(*A variant of interpolation for unstructured injections, needed in 
+   effect_simulations_trans.initial_inject_split*)
 Lemma interpolate_II_strong: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                   (Fwd1: mem_forward m1 m1') j23 m3
                   (MInj23 : Mem.inject j23 m2 m3) m3' (Fwd3: mem_forward m3 m3')

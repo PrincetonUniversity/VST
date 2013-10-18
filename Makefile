@@ -75,7 +75,11 @@ SEPCOMP_FILES= \
   forward_simulations_lemmas.v rg_forward_simulations.v rg_semantics.v rg_forward_simulations_lemmas.v \
   linking.v linking_simulations.v linking_proof.v \
   compiler_correctness_trans.v compiler_correctness_progless_trans.v \
-  safety_preservation.v
+  safety_preservation.v \
+  StructuredInjections.v effect_semantics.v effect_simulations.v \
+  effect_simulations_lemmas.v effect_corediagram_trans.v \
+  effect_interpolants.v effect_simulations_trans.v \
+  effect_interpolation_II.v effect_interpolation_proofs.v
 # REMOVED TEMPORARILY fs_linking.v
 # extension_proof.v extension_safety.v extension_proof_safety.v
 # null_extension.v fs_extension.v linking_extension.v trace_extension.v 
