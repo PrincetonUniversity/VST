@@ -1243,7 +1243,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
           Mem.inject j m1 m2 -> 
 
           Forall2 (val_inject j) vals1 vals2 ->
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+         (* Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
 
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
@@ -1356,7 +1356,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
     core_halted : forall cd mu c1 m1 c2 m2 v1,
       match_state cd mu c1 m1 c2 m2 ->
       halted Sem1 c1 = Some v1 ->
-      (*val_valid v1 m1 ->*)
 
       exists v2, 
              Mem.inject (as_inj mu) m1 m2 /\
@@ -1397,7 +1396,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
       forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
         match_state cd mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
-        (*(forall v1, In v1 vals1 -> val_valid v1 m1) ->*)
         ( 
           Mem.inject (as_inj mu) m1 m2 /\ 
          (*add back later: meminj_preserves_globals ge1 (as_inj mu) /\ *)
@@ -1405,7 +1403,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
          exists vals2, 
             Forall2 (val_inject (as_inj mu)) vals1 vals2 /\ 
 
-            Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\
+            (*Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\*)
             at_external Sem2 c2 = Some (e,ef_sig,vals2)); 
           (*Like in coreHalted, one might consider a variant that
              asserts Mem.inject m1 m2 and val_inject vals1 vals2
@@ -1455,7 +1453,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
-        (RetTypeTgt: Val.has_type ret2 (proj_sig_res ef_sig))
+        (*(RetTypeTgt: Val.has_type ret2 (proj_sig_res ef_sig))*)
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (myBlocksSrc nu' b)) 
@@ -1499,7 +1497,7 @@ Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
           Mem.inject j m1 m2 -> 
 
           Forall2 (val_inject j) vals1 vals2 ->
-          Forall2 (Val.has_type) vals2 (sig_args sig) ->
+          (*Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
 
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
@@ -1518,7 +1516,7 @@ Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
                                        (REACH m1 (getBlocks vals1)) 
                                        (REACH m2 (getBlocks vals2)) j)) m1 m2.
 Proof. intros.
-  destruct (core_initial I _ _ _ H _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5)
+  destruct (core_initial I _ _ _ H _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4)
     as [cd [c2 [IC MS]]].
   exists cd, c2.
   split; trivial.
@@ -1527,62 +1525,62 @@ Proof. intros.
   unfold locvisible_of. simpl.
   split; intros.
     split; intros.
-       apply joinD_Some in H6. 
-       destruct H6; simpl.
+       apply joinD_Some in H5. 
+       destruct H5; simpl.
        remember (REACH m1 (getBlocks vals1) b1).
-       destruct b; try inv H6.
-         eapply H1. apply H9. apply H7.
-       destruct H6; discriminate. 
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
+       destruct b; try inv H5.
+         eapply H1. apply H8. apply H6.
+       destruct H5; discriminate. 
+    apply joinD_Some in H5. 
+       destruct H5; simpl.
        remember (REACH m1 (getBlocks vals1) b1).
-       destruct b; try inv H6.
-         eapply H1. apply H9. apply H7.
-       destruct H6; discriminate.
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
+       destruct b; try inv H5.
+         eapply H1. apply H8. apply H6.
+       destruct H5; discriminate.
+    apply joinD_Some in H5. 
+       destruct H5; simpl.
        remember (REACH m1 (getBlocks vals1) b1).
-       destruct b; try inv H6.
-         specialize (Mem.mi_memval  _ _ _ (Mem.mi_inj _ _ _ H1) _ _ _ _ H9 H7).
-         intros. inv H6; try econstructor.
+       destruct b; try inv H5.
+         specialize (Mem.mi_memval  _ _ _ (Mem.mi_inj _ _ _ H1) _ _ _ _ H8 H6).
+         intros. inv H5; try econstructor.
            apply joinI. left. 
            assert (R: REACH m1 (getBlocks vals1) b0 = true).
              apply REACHAX. apply eq_sym in Heqb. apply REACHAX in Heqb.
              destruct Heqb as [L HL].
-             eexists. eapply reach_cons. apply HL. apply H7. rewrite <- H8. reflexivity.
+             eexists. eapply reach_cons. apply HL. apply H6. rewrite <- H7. reflexivity.
            rewrite R. eassumption.
            trivial.
-       destruct H6; discriminate.
+       destruct H5; discriminate.
 
     unfold join. remember (REACH m1 (getBlocks vals1) b).
       destruct b0; trivial.
       remember (j b). destruct o; trivial. destruct p; apply eq_sym in Heqo.
-       exfalso. apply H6. eapply VB. apply (H4 _ _ _ Heqo).
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
+       exfalso. apply H5. eapply VB. apply (H3 _ _ _ Heqo).
+    apply joinD_Some in H5. 
+       destruct H5; simpl.
        remember (REACH m1 (getBlocks vals1) b).
-       destruct b0; try inv H6. eapply VB. apply (H4 _ _ _ H8).
-       destruct H6; discriminate.
+       destruct b0; try inv H5. eapply VB. apply (H3 _ _ _ H7).
+       destruct H5; discriminate.
 
    intros b1; intros. 
-    apply joinD_Some in H7. 
-      destruct H7; simpl.
+    apply joinD_Some in H6. 
+      destruct H6; simpl.
       remember (REACH m1 (getBlocks vals1) b1).
-       destruct b; try inv H7.
-       apply joinD_Some in H8. 
-         destruct H8; simpl.
+       destruct b; try inv H6.
+       apply joinD_Some in H7. 
+         destruct H7; simpl.
          remember (REACH m1 (getBlocks vals1) b2).
-          destruct b; try inv H7.
+          destruct b; try inv H6.
           eapply H1; eassumption.
-       destruct H7; discriminate. 
-     destruct H7; discriminate.
+       destruct H6; discriminate. 
+     destruct H6; discriminate.
 
-     apply joinD_Some in H6. 
-       destruct H6; simpl.
+     apply joinD_Some in H5. 
+       destruct H5; simpl.
        remember (REACH m1 (getBlocks vals1) b).
-       destruct b0; try inv H6.
+       destruct b0; try inv H5.
          eapply H1; eassumption.
-       destruct H6; discriminate.
+       destruct H5; discriminate.
 Qed.
 
 End SharedMemory_simulation_inject. 

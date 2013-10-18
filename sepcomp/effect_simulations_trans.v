@@ -244,30 +244,32 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     eff_diagram12 eff_diagram23 strong_diagram12 strong_diagram23.
   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-  assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
-  eapply forall_valinject_hastype; eassumption.
-  destruct (initial_inject_split _ _ _ H1) as [m2 [j1 [j2 [J [Inj12 [Inj23 [X Y]]]]]]].
+  (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
+    eapply forall_valinject_hastype; eassumption.*)
+  destruct (initial_inject_split _ _ _ H1) 
+      as [m2 [j1 [j2 [J [Inj12 [Inj23 [X Y]]]]]]].
   subst.
-  destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2) as [vals2 [ValsInj12 ValsInj23]].
+  destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
+      as [vals2 [ValsInj12 ValsInj23]].
   destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
       DomS (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) H0 Inj12)
      as [d12 [c2 [Ini2 MC12]]]; try assumption.
-      eapply forall_valinject_hastype; eassumption.
+      (*eapply forall_valinject_hastype; eassumption.*)
       intros. destruct (X b1) as [_ ?]. 
-              destruct H6 as [b3 [dd COMP]]. exists b2, d; trivial.
-              specialize (H4 _ _ _ COMP).
+              destruct H5 as [b3 [dd COMP]]. exists b2, d; trivial.
+              specialize (H3 _ _ _ COMP).
               destruct (compose_meminjD_Some _ _ _ _ _ COMP)
                 as [bb2 [dd1 [dd2 [J1 [J2 D]]]]]; subst; clear COMP.
-              rewrite J1 in H; inv H. rewrite J2. apply H4.
+              rewrite J1 in H; inv H. rewrite J2. apply H3.
       intros. specialize (getBlocks_inject _ _ _  ValsInj23). intros.
-        destruct (REACH_inject _ _ _ Inj23 (getBlocks vals2) (getBlocks vals3) H6 _ H) as [b3 [d2 [J2 R3]]].
-        rewrite J2. apply (H5 _ R3).
+        destruct (REACH_inject _ _ _ Inj23 (getBlocks vals2) (getBlocks vals3) H5 _ H) as [b3 [d2 [J2 R3]]].
+        rewrite J2. apply (H4 _ R3).
   destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ 
        (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) DomT Ini2 Inj23)
      as [d23 [c3 [Ini3 MC23]]]; try assumption. 
        intros b2 b3 d2 J2. rewrite J2.
          destruct (Y _ _ _ J2) as [b1 [d COMP]].
-         destruct (H4 _ _ _ COMP). split; trivial.
+         destruct (H3 _ _ _ COMP). split; trivial.
   remember ((initial_SM DomS
             (fun b : block =>
              match j2 b with
@@ -358,16 +360,14 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   destruct H as [st2 [m2 [mu12 [mu23 [Hst2 [HMu [GLUEINV [MC12 MC23]]]]]]]]. 
   subst. 
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExtSrc)
-    as [MInj12 [vals2 [ArgsInj12 [ArgsHT2 AtExt2]]]]; clear core_at_external12.
+    as [MInj12 [vals2 [ArgsInj12 (*[ArgsHT2*) AtExt2(*]*)]]]; clear core_at_external12.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2)
-    as [MInj23 [vals3 [ArgsInj23 [ArgsHTTgt AtExtTgt]]]]; clear core_at_external23.
+    as [MInj23 [vals3 [ArgsInj23 (*[ArgsHTTgt*) AtExtTgt(*]*)]]]; clear core_at_external23.
   rewrite compose_sm_as_inj; try eauto.   
     split. eapply Mem.inject_compose; eassumption.
     exists vals3.
     split. eapply forall_val_inject_compose; eassumption.
-    split; assumption.
-  (*apply (match_sm_wd12 _ _ _ _ _ _ MC12).
-  apply (match_sm_wd23 _ _ _ _ _ _ MC23).*)
+    (*split;*) assumption.
   eapply GLUEINV. 
 (*eff_after_external - version using match_eraseUnknown
   clear core_diagram12 core_initial12 core_halted12 eff_diagram12 
@@ -650,9 +650,9 @@ Qed.*)
   assert (mu23_valid:= match_validblock23 _ _ _ _ _ _ MC23).
   rename ret2 into ret3.  
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ NormMC12 AtExtSrc)
-   as [MInj12 [vals2 [ArgsInj12 [ArgsHT2 AtExt2]]]]; clear core_at_external12.
+   as [MInj12 [vals2 [ArgsInj12 (*[ArgsHT2*) AtExt2(*]*)]]]; clear core_at_external12.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2)
-   as [MInj23 [vals3 [ArgsInj23 [ArgsHT3 AtExt3]]]]; clear core_at_external23.
+   as [MInj23 [vals3 [ArgsInj23 (*[ArgsHT3*) AtExt3(*]*)]]]; clear core_at_external23.
   
   (*Prove uniqueness of e, ef_sig, vals3. We do this by hand, instead of 
      rewrite AtExtTgt in AtExt3; inv Atext3 in order to avoid the subst
@@ -782,19 +782,18 @@ Qed.*)
   (*next, prepare for application of eff_after_external12*)
   destruct GLUEINV' as [WDnu12' [WDnu23' [GLUEa' [GLUEb' [GLUEc' GLUEd']]]]].
   assert (exists ret2, val_inject (as_inj nu12') ret1 ret2 /\ 
-                       val_inject (as_inj nu23') ret2 ret3 /\
-                       Val.has_type ret2 (proj_sig_res ef_sig)(* /\
-                       val_valid ret2 m2'*)). 
+                       val_inject (as_inj nu23') ret2 ret3 (*/\
+                       Val.has_type ret2 (proj_sig_res ef_sig)*)). 
     subst. rewrite compose_sm_as_inj in RValInjNu'; trivial.
     destruct (val_inject_split _ _ _ _ RValInjNu')
       as [ret2 [RValInjNu12' RValInjNu23']].  
     exists ret2. repeat (split; trivial).
-    eapply valinject_hastype; eassumption.
-  destruct H as [ret2 [RValInjNu12' [RValInjNu23' RetType2]]].
+    (*eapply valinject_hastype; eassumption.*)
+  destruct H as [ret2 [RValInjNu12' (*[*)RValInjNu23' (*RetType2]*)]].
   subst. 
   specialize (eff_after_external12 nu12' ret1 
      m1' ret2 m2' Incr12 Sep12 WDnu12' nu12'valid MInj12' RValInjNu12'
-     FwdSrc Fwd2 RetType2).
+     FwdSrc Fwd2 (*RetType2*)).
 
   destruct (eff_after_external12 _ (eq_refl _) 
       _ (eq_refl _) _ (eq_refl _))
@@ -807,7 +806,7 @@ Qed.*)
   specialize (eff_after_external23 nu23').
   destruct (eff_after_external23 ret2 m2' 
        ret3 m3' Incr23 Sep23 WDnu23' nu23'valid
-       MInj23' RValInjNu23' Fwd2 FwdTgt RetTypeTgt
+       MInj23' RValInjNu23' Fwd2 FwdTgt (*RetTypeTgt*)
      _ (eq_refl _) _ (eq_refl _) _ (eq_refl _)) as
      [d23' [c22' [c3' [AftExt22 [AftExt3 MC23']]]]];
     subst; clear eff_after_external23.
