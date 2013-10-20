@@ -204,11 +204,13 @@ forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
 instantiate (1:=nil) in (Value of Frame).
 unfold Frame.
- entailer. apply andp_right.
+ entailer.
+ assert (isptr (eval_var _four (tarray tint 4) rho)) 
+  by (eapply eval_var_isptr; eauto).
+ normalize.
+ apply andp_right.
  apply prop_right; repeat split; auto; try solve [ compute; congruence].
- eapply eval_var_isptr; eauto.
  apply setup_globals; auto.
- try (auto with typeclass_instances). (* remove this line when it's no longer needed! *)
  auto with closed.
  forward. (* return s; *)
  entailer!.

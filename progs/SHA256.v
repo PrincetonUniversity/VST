@@ -1,10 +1,10 @@
-(*Stephen Yi-Hsien Lin 05/15/2013,  modified by Andrew Appel, October 2012 *)
+(*Stephen Yi-Hsien Lin 05/15/2013,  modified by Andrew Appel, October 2013 *)
 
 Require Recdef.
-Require Export Integers.
+Require Import Integers.
 Require Import Coqlib.
-Require Export Coq.Strings.String.
-Require Export Coq.Strings.Ascii.
+Require Import Coq.Strings.String.
+Require Import Coq.Strings.Ascii.
 
 Notation "[ ]" := nil.
 Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
@@ -12,16 +12,16 @@ Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
 (* PREPROCESSING: CONVERTING STRINGS TO PADDED MESSAGE BLOCKS *)
 
 (*converting a string to a list of N*)
-Fixpoint str_to_N (str : string) : list N :=
+Fixpoint str_to_Z (str : string) : list Z :=
   match str with
     |EmptyString => nil
-    |String c s => (N_of_ascii c) :: str_to_N s
+    |String c s => Z.of_N (N_of_ascii c) :: str_to_Z s
     end.
 
-(*combining four N into a Integer*)
-Definition N_to_Int (a b c d : N) : Int.int :=
-  Int.or (Int.or (Int.or (Int.shl (Int.repr (Z.of_N a)) (Int.repr 24)) (Int.shl (Int.repr (Z.of_N b)) (Int.repr 16)))
-            (Int.shl (Int.repr (Z.of_N c)) (Int.repr 8))) (Int.repr (Z.of_N d)).
+(*combining four Z into a Integer*)
+Definition Z_to_Int (a b c d : Z) : Int.int :=
+  Int.or (Int.or (Int.or (Int.shl (Int.repr a) (Int.repr 24)) (Int.shl (Int.repr b) (Int.repr 16)))
+            (Int.shl (Int.repr c) (Int.repr 8))) (Int.repr d).
 
 Function zeros (n : Z) {measure Z.to_nat n} : list Int.int :=
  if Z.gtb n 0 then Int.zero :: zeros (n-1) else nil.
@@ -38,39 +38,32 @@ Definition padlen (n: Z) : list Int.int :=
     in let q := 16 - (Zmod p 16)   (* number of zero-pad words *)
       in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
 
-Fixpoint generate_and_pad (n: list N) len : list Int.int :=
+Fixpoint generate_and_pad (n: list Z) len : list Int.int :=
   match n with
-  | nil => N_to_Int 128 0 0 0 :: padlen len
-  | [h1]=> N_to_Int h1 128 0 0 :: padlen (len+1)
-  | [h1, h2] => N_to_Int h1 h2 128 0 :: padlen (len+2)
-  | [h1, h2, h3] => N_to_Int h1 h2 h3 128 :: padlen (len+3)
-  | h1::h2::h3::h4::t => N_to_Int h1 h2 h3 h4 :: generate_and_pad t (len+4)
+  | nil => Z_to_Int 128 0 0 0 :: padlen len
+  | [h1]=> Z_to_Int h1 128 0 0 :: padlen (len+1)
+  | [h1, h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
+  | [h1, h2, h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
+  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: generate_and_pad t (len+4)
   end.
 
-Definition generate_and_pad_msg (n: list N) : list Int.int :=
+Definition generate_and_pad_msg (n: list Z) : list Int.int :=
    generate_and_pad n 0.
 
 (* FUNCTIONS USED ONLY FOR DEBUGGING AND TESTING *)
-Definition hexdigit(a: N) : N :=
- if N.leb 48 a && N.ltb a 58 then N.sub a 48
- else if N.leb 65 a && N.ltb a 71 then N.sub a 55
- else if N.leb 97 a && N.ltb a 103 then N.sub a 87
- else 0%N.
+Definition hexdigit(a: Z) : Z :=
+ if Z.leb 48 a && Z.ltb a 58 then Z.sub a 48
+ else if Z.leb 65 a && Z.ltb a 71 then Z.sub a 55
+ else if Z.leb 97 a && Z.ltb a 103 then Z.sub a 87
+ else 0%Z.
 
-Fixpoint hexlist_to_intlist (s: list N): list int  :=
+Fixpoint hexstring_to_Zlist (s: string): list Z  :=
  match s with
- | a::b::c::d::e::f::g::h:: r =>
-   N_to_Int 
-   (hexdigit a * 16 + hexdigit b)
-   (hexdigit c * 16 + hexdigit d)
-   (hexdigit e * 16 + hexdigit f)
-   (hexdigit g * 16 + hexdigit h)
-  :: hexlist_to_intlist r
+ | String a (String b r) =>  (hexdigit (Z.of_N (N_of_ascii a)) * 16 
+                                         + hexdigit (Z.of_N (N_of_ascii b)))
+                                          :: hexstring_to_Zlist r
  | _ => nil
- end%N.
-
-Definition hexstring_to_intlist (s: string) :=
- hexlist_to_intlist (str_to_N s).
+ end.
 
 (*ROUND FUNCTION*)
 
@@ -192,21 +185,32 @@ Proof.
 Defined.
 
 (*wrapping up everything*)
-Definition SHA_256 (str : string) : registers :=
-    process_msg init_registers (generate_and_pad_msg (str_to_N str)).
+
+Fixpoint intlist_to_Zlist (l: list int) : list Z :=
+ match l with
+ | nil => nil
+ | i::r =>
+     Int.unsigned (Rt 24 i) ::
+     Int.unsigned (Int.and (Rt 16 i) (Int.repr 255)) ::
+     Int.unsigned (Int.and (Rt 8 i) (Int.repr 255)) ::
+     Int.unsigned (Int.and i (Int.repr 255)) ::
+     intlist_to_Zlist r
+ end.
+
+Definition SHA_256 (str : list Z) : list Z :=
+    intlist_to_Zlist (process_msg init_registers (generate_and_pad_msg str)).
 
 (*EXAMPLES*)
 
-Fixpoint intlist_eq (al bl: list int) : bool :=
+Fixpoint listZ_eq (al bl: list Z) : bool :=
  match al, bl with
  | nil, nil => true
- | a::al', b::bl' => Int.eq a b && intlist_eq al' bl'
+ | a::al', b::bl' => Z.eqb a b && listZ_eq al' bl'
  | _, _ => false
   end.
 
-Definition registers_to_intlist (r: registers) : list int := r.
-
-Definition check m h := intlist_eq (registers_to_intlist (SHA_256 m)) (hexstring_to_intlist h) = true.
+Definition check m h := 
+  listZ_eq (SHA_256 (str_to_Z m)) (hexstring_to_Zlist h) = true.
 
 (*This input message is 344 bits long, which would have one message block after padding*)
 Goal  check   "The quick brown fox jumps over the lazy dog"

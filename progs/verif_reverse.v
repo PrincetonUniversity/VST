@@ -262,6 +262,7 @@ auto with closed.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
 entailer!.
+hnf; auto. (* not sure why this is needed now *)
 auto with closed.
 forward.  (* return s; *)
 Qed.

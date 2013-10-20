@@ -452,8 +452,9 @@ Ltac simpl_typed_mapsto' T H MA :=
    repeat rewrite distribute_lifted_sepcon;
    repeat rewrite distribute_envtrans;
    repeat match goal with 
-    | |- appcontext [array_at' ?t ?sh (typed_mapsto ?sh ?t)] =>
-              change (array_at' t sh (typed_mapsto sh t)) with (array_at t sh)
+    | |- appcontext [array_at' ?t ?sh (typed_mapsto ?sh ?t')] =>
+              unify t t';
+              change (array_at' t sh (typed_mapsto sh t')) with (array_at t sh)
       end;
    repeat flatten_sepcon_in_SEP.
 

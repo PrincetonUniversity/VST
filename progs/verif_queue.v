@@ -380,6 +380,7 @@ name p _p.
 forward. (* Q = fifo_new(); *)
 instantiate (1:= tt) in (Value of witness).
 entailer.
+apply andp_right. apply prop_right; apply I. (* this line should not be necessary *)
 cancel.
 auto with closed.
 forward. (*  p = make_elem(1,10); *)
@@ -405,10 +406,12 @@ forward. (* fifo_put(Q,p);*)
  instantiate (1:= ((q,nil),p')) in (Value of witness).
  unfold witness.
 entailer. 
+apply andp_right. apply prop_right; auto.  (* shouldn't be necessary *)
 unfold elemrep. cancel.
 forward. (*  p = make_elem(2,20); *)
 instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
 entailer.
+apply andp_right. apply prop_right; auto.  (* shouldn't be necessary *)
 unfold elemrep. cancel.
 auto with closed.
 apply semax_pre with
@@ -430,6 +433,7 @@ apply extract_exists_pre; intro p2.
  instantiate (1:= ((q2,(p':: nil)),p2)) in (Value of witness).
  unfold witness.
  entailer.
+apply andp_right. apply prop_right; auto.  (* shouldn't be necessary *)
  unfold elemrep. cancel.
 simpl.
 normalize.
@@ -437,6 +441,7 @@ forward. (*   p = fifo_get(Q); *)
  instantiate (1:= ((q2,(p2 :: nil)),p')) in (Value of witness).
 unfold witness.
  entailer.
+apply andp_right. apply prop_right; auto.  (* shouldn't be necessary *)
   cancel.
 auto with closed.
  autorewrite with subst. (* should have been done by forward *)

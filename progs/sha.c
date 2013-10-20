@@ -9,11 +9,7 @@ extern void __builtin_write32_reversed(unsigned int * ptr, unsigned int x);
 #include <stddef.h>
 #include <string.h> /* for memcpy, memset */
 
-#define	DATA_ORDER_IS_BIG_ENDIAN
-
 /* from md32_common.h */
-#if defined(DATA_ORDER_IS_BIG_ENDIAN)
-
 #ifdef COMPCERT
 
 #define HOST_c2l(c,l)	(l=(unsigned long)(__builtin_read32_reversed(((unsigned int *)c))),c+=4,l)
@@ -34,7 +30,7 @@ extern void __builtin_write32_reversed(unsigned int * ptr, unsigned int x);
 			 *((c)++)=(unsigned char)(((l)    )&0xff),	\
 			 l)
 #endif
-#endif
+
 /* end from md32_common.h */
 
 /* excerpts from sha.h ------------------------------------------------*/
@@ -54,7 +50,7 @@ typedef struct SHA256state_st
 	{
 	SHA_LONG h[8];
 	SHA_LONG Nl,Nh;
-	SHA_LONG data[SHA_LBLOCK];
+	unsigned char data[SHA_CBLOCK];
 	unsigned int num;
 	} SHA256_CTX;
 
@@ -152,46 +148,41 @@ void SHA256_Init (SHA256_CTX *c)
 	c->num=0;
 	}
 
-
+void SHA256_addlength(SHA256_CTX *c, size_t len) {
+	SHA_LONG l, cNl,cNh;
+	cNl=c->Nl; cNh=c->Nh; 
+	l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL;
+	if (l < cNl) /* overflow */
+	  {cNh ++;}
+        cNh += (len>>29);
+	c->Nl=l; c->Nh=cNh;
+}
 
 void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len)
 	{
 	const unsigned char *data=data_;
 	unsigned char *p;
-	SHA_LONG l, cNl,cNh;
-	size_t n;
+	size_t   n, fragment;
 
-	if (len==0) return;
-
-	cNl=c->Nl;
-	l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL;
-	if (l < cNl) /* overflow */
-	  {cNh=c->Nh; c->Nh=cNh+1;}
-        cNh=c->Nh; c->Nh=cNh+(len>>29);
-	c->Nl=l;
+        SHA256_addlength(c, len);
 
 	n = c->num;
-	if (n != 0)
-		{
-		p=(unsigned char *)c->data;
-
-		if (len >= SHA_CBLOCK || len+n >= SHA_CBLOCK)
-			{
-			memcpy (p+n,data,SHA_CBLOCK-n);
+        p=c->data;
+	if (n != 0)	{
+                fragment = SHA_CBLOCK-n;
+		if (len >= fragment)  {
+			memcpy (p+n,data,fragment);
 			sha256_block_data_order (c,p);
-			n      = SHA_CBLOCK-n;
-			data  += n;
-			len   -= n;
-			c->num = 0;
+			data  += fragment;
+			len   -= fragment;
 			memset (p,0,SHA_CBLOCK);	/* keep it zeroed */
-			}
-		else
-			{
+		}
+		else  {
 			memcpy (p+n,data,len);
 			c->num = n+(unsigned int)len;
 			return;
-			}
 		}
+	}
 
         while (len >= SHA_CBLOCK) {
 		sha256_block_data_order (c,data);
@@ -199,17 +190,15 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len)
 		len  -= SHA_CBLOCK;
 		}
 
-	if (len != 0) {
-		p = (unsigned char *)c->data;
-		c->num = len;
+        c->num = len;
+	if (len != 0)
 		memcpy (p,data,len);
-		}
 	}
 
 
 void SHA256_Final (unsigned char *md, SHA256_CTX *c)
 	{
-	unsigned char *p = (unsigned char *)c->data;
+	unsigned char *p = c->data;
 	size_t n = c->num;
 	SHA_LONG cNl,cNh;
 

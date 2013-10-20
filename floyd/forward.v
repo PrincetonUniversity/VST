@@ -42,11 +42,18 @@ Ltac unfold_abbrev_commands :=
 
 Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
+Ltac abbreviate_and_evaluate_tycontext D :=
+    let Delta := fresh "Delta" in 
+        pose (Delta:= @abbreviate _ D); 
+        replace D with Delta by reflexivity;
+        cbv delta [initialized] in Delta; 
+        simpl in Delta; fold tycontext in Delta.
+
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ => unfold_abbrev;
         match goal with |- semax ?D _ ?C ?P => 
-            abbreviate D : tycontext as Delta;
+            abbreviate_and_evaluate_tycontext D;
             abbreviate P : ret_assert as POSTCONDITION;
             match C with
             | Ssequence ?C1 ?C2 =>

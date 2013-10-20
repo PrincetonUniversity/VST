@@ -1165,7 +1165,7 @@ Proof.
 Qed.
 
 (** Functions that modify type environments **)
-Definition initialized id (Delta: tycontext) :=
+Definition initialized id (Delta: tycontext) : tycontext :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
                     , var_types Delta, ret_type Delta, glob_types Delta)

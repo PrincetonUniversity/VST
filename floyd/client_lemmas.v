@@ -887,28 +887,29 @@ Definition name (id: ident) := True.
 Tactic Notation "name" ident(s) constr(id) := 
     assert (s: name id) by apply I.
 
-Ltac findvars :=
-repeat 
+Ltac findvar := 
 match goal with
              | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
                 clear Name;
-    first [
-       let Hty := fresh in 
-         assert (Hty: (temp_types Delta) ! J = Some (tint, true)) by (simpl; reflexivity);
-       let Htc := fresh in let Htc' := fresh in
-       assert (Htc: is_int (eval_id J RHO))
-                        by (apply (tc_eval_id_i Delta _ _ _ H Hty));
-       destruct (is_int_e _ Htc) as [Name Htc'];
-       rewrite Htc' in *; clear Hty Htc Htc'
-    | let t := fresh "t" in let TC := fresh "TC" in
-         evar (t: type);
-         assert (TC: tc_val t (eval_id J RHO)) 
-             by (eapply tc_eval_id_i; try eassumption; unfold t; simpl; reflexivity);
-         simpl tc_val in TC;
-         unfold t in *; clear t;
-         forget (eval_id J RHO) as Name
-    ]
-  end.
+  match goal with
+  | |- context [ J ] => 
+     let Hty := fresh in let t := fresh "t" in evar (t : type);
+         assert (Hty: (temp_types Delta) ! J = Some (t, true))
+              by (unfold t; simpl; reflexivity);
+       let TC := fresh "TC" in
+       assert (TC: tc_val t (eval_id J RHO)) 
+            by (exact  (tc_eval_id_i Delta _ _ _ H Hty));
+       unfold t in *; clear t Hty;
+       simpl tc_val in TC; 
+       first [let Htc' := fresh in
+                destruct (is_int_e _ TC) as [Name Htc'];
+                rewrite Htc' in *;
+                clear TC Htc'
+              | forget (eval_id J RHO) as Name
+              ]
+  | _ => idtac
+ end
+end.
 
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
 Proof. congruence. Qed.
@@ -1028,7 +1029,10 @@ intros.
  eapply eval_cast_neutral_var; eauto.
 Qed.
 
-Hint Rewrite eval_cast_neutral_var' using solve[eauto] : norm.
+Hint Rewrite eval_cast_neutral_var' using 
+   match goal with Delta := _ : tycontext |- _ => 
+       exists Delta; split; hnf; solve [auto]
+   end : norm.
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
@@ -1131,7 +1135,7 @@ intros ?rho;
 Ltac go_lower :=
  go_lower0;
  autorewrite with go_lower;
- findvars;
+ repeat findvar;
  simpl;
  autorewrite with go_lower.
 
