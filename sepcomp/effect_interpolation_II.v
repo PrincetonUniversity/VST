@@ -193,7 +193,7 @@ intros N. specialize (H _ H0 _ N).
   rewrite P in H1. discriminate.
 Qed.
 
-Definition AccessEffProperty nu23 nu12 (j23 j12' :meminj) (m1 m1' m2 : mem)
+Definition AccessEffProperty nu23 nu12 (j12' :meminj) (m1 m1' m2 : mem)
            (AM:ZMap.t (Z -> perm_kind -> option permission)):Prop :=
   forall b2, 
     (Mem.valid_block m2 b2 -> forall k ofs2,
@@ -213,7 +213,7 @@ Definition AccessEffProperty nu23 nu12 (j23 j12' :meminj) (m1 m1' m2 : mem)
        else match source (as_inj nu12) m1 b2 ofs2 with
                    Some(b1,ofs1) =>  PMap.get b2 AM ofs2 k = 
                                      PMap.get b1 m1'.(Mem.mem_access) ofs1 k
-                 | None => match j23 b2 with 
+                 | None => match (*j23*) (as_inj nu23) b2 with 
                              None => PMap.get b2 AM ofs2 k  = PMap.get b2 m2.(Mem.mem_access) ofs2 k
                            | Some (b3,d3) =>  PMap.get b2 AM ofs2 k = None (* mem_interpolation_II.v has PMap.get b2 m2.(Mem.mem_access) ofs2 k here 
                                             -- see the comment in the proof script below to see where None is needed*)
@@ -299,7 +299,7 @@ Lemma effect_interp_OK: forall m1 m2 nu12
                (NB: m2'.(Mem.nextblock)=n2')
                (CONT:  ContentEffProperty nu23 nu12 j12' m1 m1' m2 
                                            (m2'.(Mem.mem_contents)))
-               (ACCESS: AccessEffProperty nu23 nu12 (as_inj nu23) j12' m1 m1' m2 
+               (ACCESS: AccessEffProperty nu23 nu12 (*(as_inj nu23)*) j12' m1 m1' m2 
                                                (m2'.(Mem.mem_access))),
 
      Mem.unchanged_on (fun b ofs => myBlocksSrc nu23 b = true /\ 

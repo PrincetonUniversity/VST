@@ -1666,7 +1666,7 @@ Qed.
   
 Lemma sm_extern_normalize_norm: forall mu12 mu23 b1 b2 d1,
           extern_of (sm_extern_normalize mu12 mu23) b1 = Some (b2, d1) -> 
-      extern_of mu12 b1 = Some (b2, d1) /\ exists p, extern_of mu23 b2 = Some p.
+      (extern_of mu12 b1 = Some (b2, d1) /\ exists p, extern_of mu23 b2 = Some p).
 Proof. intros. destruct mu12; simpl in *. 
    apply normalize_norm in H. assumption.
 Qed.
