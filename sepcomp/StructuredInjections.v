@@ -1721,72 +1721,18 @@ Proof. intros.
        split; trivial. unfold normalize. rewrite EXT12. trivial.
 Qed. 
 
-Goal (*Lemma sm_normalize_inject:*) forall mu12 mu23 
+(*Lemma sm_normalize_inject in StructuredInjections.v shows this:
+   forall mu12 mu23 
           (WD12: SM_wd mu12) (WD23: SM_wd mu23)
           (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
                               frgnBlocksSrc mu23 b = true)
           (HypMyblocks: myBlocksTgt mu12 = myBlocksSrc mu23)
-          m1 m2 (Inj12: Mem.inject (as_inj mu12) m1 m2)
+          m1 
+          (RC: reach_closed m1 (fun b => myBlocksSrc mu12 b || frgnBlocksSrc mu12 b))
+          m2 (Inj12: Mem.inject (as_inj mu12) m1 m2)
           m3 (Inj23: Mem.inject (as_inj mu23) m2 m3),
       Mem.inject (as_inj (sm_extern_normalize mu12 mu23)) m1 m2.
-Proof. intros.
-split; intros.
-  split; intros.
-    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
-     eapply Inj12; eassumption.
-    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
-     eapply Inj12; eassumption.
-    destruct (joinD_Some _ _ _ _ _ H) as [NEXT12 | [NEXT12 LOC12]].
-    (*extern*) rewrite sm_extern_normalize_extern in NEXT12.
-       apply normalize_norm in NEXT12. destruct NEXT12 as [EXT12 [[b3 d2] EXT23]].
-       assert (AsInj12 := extern_in_all _ _ _ _ EXT12).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
-       inv H1; try constructor.
-       assert (Perm2: Mem.perm m2 b2 (ofs+delta) Cur Readable).
-         eapply Inj12; eassumption.
-       assert (AsInj23 := extern_in_all _ _ _ _ EXT23).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj23) _ _ _ _ AsInj23 Perm2). intros.
-       rewrite <- H3 in H1. clear H3.
-       inv H1.
-       econstructor. eapply sm_extern_normalize_as_inj_norm2; try eassumption. reflexivity.
-    (*local*) rewrite sm_extern_normalize_extern in NEXT12.
-       rewrite sm_extern_normalize_local in LOC12.
-       assert (AsInj12 := local_in_all _ WD12 _ _ _ LOC12).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
-       inv H1; try constructor. rename b3 into b. rename delta into d1. rename delta0 into delta.
-       assert (local_of  mu12 b0 = Some (b, delta) \/ foreign_of mu12 b0 = Some (b, delta)).
-          admit. (*admit is ok - it's in a goal.
-              This could probably be made true if we added the 
-              invariant that a location (b, ofs) with myBlock b = true
-              and readable permission  does not contain (in the 
-              appropriate memory) a pointer to an unknown block. Maybe that's worth doing?*) 
-       eapply memval_inject_ptr with (delta:=delta).
-         destruct H1. apply joinI; right.
-              rewrite sm_extern_normalize_local, sm_extern_normalize_extern. split; trivial.
-              destruct (disjoint_extern_local _ WD12 b0).
-                  unfold normalize. rewrite H5; trivial.
-              rewrite H5 in H1; discriminate.
-         apply joinI; left. 
-           destruct (foreign_DomRng _ WD12 _ _ _ H1) as [? [? [? [? [? [? ?]]]]]].
-           rewrite sm_extern_normalize_extern.
-           eapply normalize_norm. 
-           split. apply foreign_in_extern; assumption.
-           apply HypFrgn in H10.
-           destruct (frgnSrc _ WD23 _ H10) as [b3 [d2 [F23 T3]]].
-           rewrite (foreign_in_extern _ _ _ _  F23). exists (b3,d2); trivial. reflexivity.
-   assert (as_inj mu12 b = None). eapply Inj12; assumption.
-     remember (as_inj (sm_extern_normalize mu12 mu23) b) as d.
-     destruct d; trivial. apply eq_sym in Heqd. destruct p.
-     apply sm_extern_normalize_as_inj_norm in Heqd; trivial. rewrite Heqd in H0; discriminate.
-   apply sm_extern_normalize_as_inj_norm in H; trivial.
-     eapply Inj12; eassumption.
-   intros b1 b1'; intros. 
-     apply sm_extern_normalize_as_inj_norm in H0; trivial.
-     apply sm_extern_normalize_as_inj_norm in H1; trivial.
-     eapply Inj12; eassumption.
-   apply sm_extern_normalize_as_inj_norm in H; trivial.
-     eapply Inj12; eassumption.
-Qed.
+*)
 
 Lemma normalize_compose_commute: forall f g h,
         normalize (compose_meminj f g) h 

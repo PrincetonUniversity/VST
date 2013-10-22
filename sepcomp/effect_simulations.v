@@ -501,6 +501,88 @@ Proof. intros. apply getBlocks_char in B. destruct B as [off INN].
    apply getBlocks_char. eexists. apply INN2.
 Qed.
 
+Definition reach_closed m (X: Values.block -> bool) : Prop :=
+  (forall b, REACH m X b = true <-> X b = true).
+
+Lemma sm_normalize_inject: forall mu12 mu23 
+          (WD12: SM_wd mu12) (WD23: SM_wd mu23)
+          (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
+                              frgnBlocksSrc mu23 b = true)
+          (HypMyblocks: myBlocksTgt mu12 = myBlocksSrc mu23)
+          m1
+          (RC: reach_closed m1 (fun b => myBlocksSrc mu12 b || frgnBlocksSrc mu12 b))
+          m2 (Inj12: Mem.inject (as_inj mu12) m1 m2)
+          m3 (Inj23: Mem.inject (as_inj mu23) m2 m3),
+      Mem.inject (as_inj (sm_extern_normalize mu12 mu23)) m1 m2.
+Proof. intros.
+split; intros.
+  split; intros.
+    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
+     eapply Inj12; eassumption.
+    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
+     eapply Inj12; eassumption.
+    destruct (joinD_Some _ _ _ _ _ H) as [NEXT12 | [NEXT12 LOC12]].
+    (*extern*) rewrite sm_extern_normalize_extern in NEXT12.
+       apply normalize_norm in NEXT12. destruct NEXT12 as [EXT12 [[b3 d2] EXT23]].
+       assert (AsInj12 := extern_in_all _ _ _ _ EXT12).
+       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
+       inv H1; try constructor.
+       assert (Perm2: Mem.perm m2 b2 (ofs+delta) Cur Readable).
+         eapply Inj12; eassumption.
+       assert (AsInj23 := extern_in_all _ _ _ _ EXT23).
+       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj23) _ _ _ _ AsInj23 Perm2). intros.
+       rewrite <- H3 in H1. clear H3.
+       inv H1.
+       econstructor. eapply sm_extern_normalize_as_inj_norm2; try eassumption. reflexivity.
+    (*local*) rewrite sm_extern_normalize_extern in NEXT12.
+       rewrite sm_extern_normalize_local in LOC12.
+       assert (AsInj12 := local_in_all _ WD12 _ _ _ LOC12).
+       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
+       inv H1; try constructor.
+       rename b3 into b2'. rename b0 into b1'.
+       rename delta into d1. rename delta0 into delta'.
+       assert (local_of mu12 b1' = Some (b2', delta') \/ foreign_of mu12 b1' = Some (b2', delta')).
+         destruct (joinD_Some _ _ _ _ _ H4) as [EXT | [EXT LOC]]; clear H4.
+           destruct (RC b1') as [A _]; clear RC.
+             apply orb_true_iff in A.
+             destruct A.
+               destruct (extern_DomRng _ WD12 _ _ _ EXT). congruence.
+             right. destruct (frgnSrc _ WD12 _ H1) as [bb2 [dd2 [F2 FT3]]].
+               rewrite (foreign_in_extern _ _ _ _ F2) in EXT. inv EXT. assumption.
+           apply REACHAX. clear A.
+             eexists. apply eq_sym in H2.
+             eapply reach_cons; try eassumption. 
+             apply reach_nil. destruct (local_DomRng _ WD12 _ _ _ LOC12).
+                rewrite H1; trivial. 
+         left; assumption. 
+       eapply memval_inject_ptr with (delta:=delta').
+         destruct H1. apply joinI; right.
+              rewrite sm_extern_normalize_local, sm_extern_normalize_extern. split; trivial.
+              destruct (disjoint_extern_local _ WD12 b1').
+                  unfold normalize. rewrite H5; trivial.
+              rewrite H5 in H1; discriminate.
+         apply joinI; left. 
+           destruct (foreign_DomRng _ WD12 _ _ _ H1) as [? [? [? [? [? [? ?]]]]]].
+           rewrite sm_extern_normalize_extern.
+           eapply normalize_norm. 
+           split. apply foreign_in_extern; assumption.
+           apply HypFrgn in H10.
+           destruct (frgnSrc _ WD23 _ H10) as [b3 [d2 [F23 T3]]].
+           rewrite (foreign_in_extern _ _ _ _  F23). exists (b3,d2); trivial. reflexivity.
+   assert (as_inj mu12 b = None). eapply Inj12; assumption.
+     remember (as_inj (sm_extern_normalize mu12 mu23) b) as d.
+     destruct d; trivial. apply eq_sym in Heqd. destruct p.
+     apply sm_extern_normalize_as_inj_norm in Heqd; trivial. rewrite Heqd in H0; discriminate.
+   apply sm_extern_normalize_as_inj_norm in H; trivial.
+     eapply Inj12; eassumption.
+   intros b1 b1'; intros. 
+     apply sm_extern_normalize_as_inj_norm in H0; trivial.
+     apply sm_extern_normalize_as_inj_norm in H1; trivial.
+     eapply Inj12; eassumption.
+   apply sm_extern_normalize_as_inj_norm in H; trivial.
+     eapply Inj12; eassumption.
+Qed.
+
 (*The blocks explicitly exported via call arguments, plus the already shared blocks*)
 Definition exportedSrc mu vals b := orb (getBlocks vals b) (sharedSrc mu b).
 Definition exportedTgt mu vals b := orb (getBlocks vals b) (sharedTgt mu b).
