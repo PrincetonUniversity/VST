@@ -188,12 +188,12 @@ Hypothesis order_wf: well_founded order.
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true))).
 
-  Hypothesis inj_simulation_strong : 
+  Hypothesis inj_effect_diagram_strong : 
       forall st1 m1 st1' m1' U1, 
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
+        (UHyp: forall b z, U1 b z = true -> 
                   (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
@@ -213,6 +213,33 @@ Hypothesis order_wf: well_founded order.
                          (myBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true))).
+
+  Hypothesis inj_effect_diagram_strong_perm : 
+      forall st1 m1 st1' m1' U1, 
+        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
+
+      forall st2 mu m2
+        (UHyp: forall b z, U1 b z = true -> 
+                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        match_states st1 mu st1 m1 st2 m2 ->
+        exists st2', exists m2', exists mu',
+          intern_incr mu mu' /\
+          sm_inject_separated mu mu' m1 m2 /\
+          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
+
+          match_states st1' mu' st1' m1' st2' m2' /\
+
+          exists U2,              
+            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
+              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
+               order st1' st1)) /\
+
+             forall b ofs, U2 b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           U1 b1 (ofs-delta1) = true /\
+                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty))).
 
 Lemma  inj_simulation_star_wf: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2 entry_points.
@@ -239,9 +266,14 @@ clear - inj_effcore_diagram.
   destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H1) as 
     [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
   exists c2'. exists m2'. exists st1'. exists mu'. intuition.
-clear - inj_simulation_strong. 
+clear - inj_effect_diagram_strong. 
   intros. destruct H0; subst.
-  destruct (inj_simulation_strong _ _ _ _ _ H _ _ _ UHyp H1) as 
+  destruct (inj_effect_diagram_strong _ _ _ _ _ H _ _ _ UHyp H1) as 
+    [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
+  exists c2'. exists m2'. exists st1'. exists mu'. intuition.
+clear - inj_effect_diagram_strong_perm. 
+  intros. destruct H0; subst.
+  destruct (inj_effect_diagram_strong_perm _ _ _ _ _ H _ _ _ UHyp H1) as 
     [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
   exists c2'. exists m2'. exists st1'. exists mu'. intuition.
 clear - inj_halted. intros. destruct H; subst.
@@ -330,6 +362,33 @@ Section EFF_INJ_SIMULATION_STAR.
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)).
 
+  Hypothesis inj_simulation_strong_perm : 
+      forall st1 m1 st1' m1' U1, 
+        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
+
+      forall st2 mu m2
+        (UHyp: forall b ofs, U1 b ofs = true -> 
+                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        match_states st1 mu st1 m1 st2 m2 ->
+        exists st2', exists m2', exists mu',
+          intern_incr mu mu' /\
+          sm_inject_separated mu mu' m1 m2 /\
+          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
+
+          match_states st1' mu' st1' m1' st2' m2' /\
+
+          exists U2,              
+            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
+             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
+            /\
+             forall b ofs, U2 b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           U1 b1 (ofs-delta1) = true /\
+                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
+
+
 Lemma inj_simulation_star: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
@@ -348,6 +407,12 @@ clear - inj_effcore_diagram. intros.
   exists U2. intuition.
 clear - inj_simulation_strong. intros.
   destruct (inj_simulation_strong _ _ _ _ _ H _ _ _ UHyp H0) 
+    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
+  exists c2'. exists m2'. exists mu'. intuition.
+  exists U2. intuition.
+  exists U2. intuition.
+clear - inj_simulation_strong_perm. intros.
+  destruct (inj_simulation_strong_perm _ _ _ _ _ H _ _ _ UHyp H0) 
     as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
   exists c2'. exists m2'. exists mu'. intuition.
   exists U2. intuition.
@@ -420,6 +485,32 @@ Section EFF_INJ_SIMULATION_PLUS.
                          (myBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)).
+
+  Hypothesis inj_simulation_strong_perm : 
+      forall st1 m1 st1' m1' U1, 
+        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
+
+      forall st2 mu m2
+        (UHyp: forall b ofs, U1 b ofs = true -> 
+                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        match_states st1 mu st1 m1 st2 m2 ->
+        exists st2', exists m2', exists mu',
+          intern_incr mu mu' /\
+          sm_inject_separated mu mu' m1 m2 /\
+          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
+
+          match_states st1' mu' st1' m1' st2' m2' /\
+
+          exists U2,              
+            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
+             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
+            /\
+             forall b ofs, U2 b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           U1 b1 (ofs-delta1) = true /\
+                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty)).
   
 Lemma inj_simulation_plus: 
   SM_simulation.SM_simulation_inject Sem1 Sem2 ge1 ge2 entry_points.
@@ -438,6 +529,12 @@ clear - inj_effcore_diagram. intros.
   exists U2. intuition.
 clear - inj_simulation_strong. intros.
   destruct (inj_simulation_strong _ _ _ _ _ H _ _ _ UHyp H0) 
+    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
+  exists c2'. exists m2'. exists mu'. intuition.
+  exists U2. intuition.
+  exists U2. intuition.
+clear - inj_simulation_strong_perm. intros.
+  destruct (inj_simulation_strong_perm _ _ _ _ _ H _ _ _ UHyp H0) 
     as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
   exists c2'. exists m2'. exists mu'. intuition.
   exists U2. intuition.

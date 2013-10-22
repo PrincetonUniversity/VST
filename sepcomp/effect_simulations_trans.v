@@ -128,12 +128,14 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   destruct SIM12 
     as [core_data12 match_core12 core_ord12 core_ord_wf12 
       match_sm_wd12 match_norm12 (*match_eraseUnknown12*)
-      match_validblock12 core_initial12 core_diagram12 eff_diagram12 strong_diagram12
+      match_validblock12 core_initial12 core_diagram12 eff_diagram12 
+      strong_diagram12 strongperm_diagram12
       core_halted12 core_at_external12 eff_after_external12].  
   destruct SIM23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
       match_sm_wd23 match_norm23 (*match_eraseUnknown23*)
-      match_validblock23 core_initial23 core_diagram23 eff_diagram23 strong_diagram23
+      match_validblock23 core_initial23 core_diagram23 eff_diagram23
+      strong_diagram23 strongperm_diagram23
       core_halted23 core_at_external23 eff_after_external23].
   eapply Build_SM_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
@@ -326,6 +328,17 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   destruct cd as [[d12 cc2] d23].
   destruct H0 as [c2 [m2 [j12 [j23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
   eapply effdiagram_strong_injinj; try eassumption.
+ (*strongperm_diagram*)
+  clear core_initial23 match_norm12 match_norm23 core_halted23 core_at_external23 
+    (*eff_after_external23*) strong_diagram12 strong_diagram23
+    core_initial12  core_halted12 core_at_external12 (*eff_after_external12*)
+    EPC epts12 epts23 epts13 core_diagram12 core_diagram23
+    eff_after_external12 eff_after_external23 eff_diagram12 eff_diagram23
+    (*eff_after_external_ModEffects12 eff_after_external_ModEffects23*).
+  intros. rename st2 into st3. rename m2 into m3.
+  destruct cd as [[d12 cc2] d23].
+  destruct H0 as [c2 [m2 [j12 [j23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
+  eapply effdiagram_strong_perm_injinj; try eassumption.
 (*halted*)
   clear match_norm12 match_norm23 core_initial23 core_at_external23 eff_after_external23
     core_initial12  core_at_external12 eff_after_external12

@@ -1325,8 +1325,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall cd st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b1 z, U1 b1 z = true -> 
+                  (myBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1352,6 +1352,40 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                          (myBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)));
+
+      effcore_diagram_strong_perm : 
+      forall st1 m1 st1' m1' U1, 
+        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
+
+      forall cd st2 mu m2
+        (UHyp: forall b1 z, U1 b1 z = true -> 
+                  (myBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
+        match_state cd mu st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists mu',
+          intern_incr mu mu' /\
+          sm_inject_separated mu mu' m1 m2 /\
+
+          (*new condition: corestep evolution is soundly and completely 
+                           tracked by the local knowledge*)
+          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
+
+          match_state cd' mu' st1' m1' st2' m2' /\
+
+          (*could add the following 2 assertions here, too, but 
+             we checked already that they're satisfied in the previous
+             clause SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+
+          exists U2,              
+            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
+              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
+               core_ord cd' cd)) /\
+
+             forall b ofs, U2 b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           U1 b1 (ofs-delta1) = true /\ 
+                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty)));
 
     core_halted : forall cd mu c1 m1 c2 m2 v1,
       match_state cd mu c1 m1 c2 m2 ->
@@ -1671,6 +1705,54 @@ Proof. intros.
   rewrite H2 in *. intuition.
 Qed.
 
+Lemma unchanged_on_perm: forall (P:block -> Z -> Prop) m m'
+      (Unch: Mem.unchanged_on P m m'),
+      Mem.unchanged_on (fun b z => P b z /\ Mem.perm m b z Max Nonempty) m m'.
+Proof. intros.
+split; intros; eapply Unch; eauto.
+apply H. apply H.
+Qed.
+
+Lemma unchanged_on_perm': forall (P:block -> Z -> Prop) m m'
+      (Unch: Mem.unchanged_on (fun b z => P b z \/ ~ Mem.perm m b z Max Nonempty) m m'),
+      Mem.unchanged_on P m m'.
+Proof. intros.
+split; intros; eapply Unch; eauto.
+Qed. 
+
+Lemma RelyGuaranteeTgtPerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
+            (TgtHyp: forall b ofs, Etgt b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
+            (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
+            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
+                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            (*m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty)*),
+            Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption; clear Unch2.
+  intros. simpl.
+  case_eq (Etgt b ofs); intros; trivial.
+  destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
+  destruct H.
+  rewrite FLIPmyBlocksTgt in H. apply andb_true_iff in H.
+  destruct H. 
+  destruct F as [b1 [d1 [Frg [ES P]]]].
+    clear -H2.
+    destruct (myBlocksTgt mu b); intuition.
+  rewrite FLIPlocal in H1.
+  destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
+  destruct (SrcHyp _ _ ES); clear SrcHyp.
+    rewrite H3 in *. inv CC.
+  destruct (H1 b1 d1); clear H1.
+     apply foreign_in_extern; assumption.
+     exfalso. apply H4; clear H4.
+     assumption.
+  rewrite FLIPpubBlocksSrc in H4. rewrite H4 in H3. inv H3.
+Qed.
+
 Lemma RelyGuaranteeTgt: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
@@ -1682,7 +1764,7 @@ Lemma RelyGuaranteeTgt: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
                   (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
             m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty),
             Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
-Proof. intros.
+Proof. intros. 
   eapply mem_unchanged_on_sub; try eassumption; clear Unch2.
   intros. simpl. rename b into b2.
   case_eq (Etgt b2 ofs); intros; trivial.
@@ -1704,20 +1786,6 @@ Proof. intros.
   rewrite FLIPpubBlocksSrc in H4. rewrite H4 in H3. inv H3.
 Qed.
 
-Lemma unchanged_on_perm: forall (P:block -> Z -> Prop) m m'
-      (Unch: Mem.unchanged_on P m m'),
-      Mem.unchanged_on (fun b z => P b z /\ Mem.perm m b z Max Nonempty) m m'.
-Proof. intros.
-split; intros; eapply Unch; eauto.
-apply H. apply H.
-Qed.
-
-Lemma unchanged_on_perm': forall (P:block -> Z -> Prop) m m'
-      (Unch: Mem.unchanged_on (fun b z => P b z \/ ~ Mem.perm m b z Max Nonempty) m m'),
-      Mem.unchanged_on P m m'.
-Proof. intros.
-split; intros; eapply Unch; eauto.
-Qed.
 
 Lemma RGSrc_multicore: forall mu Esrc m m'
               (SrcHyp: forall b ofs, Esrc b ofs = true -> 
@@ -1776,5 +1844,41 @@ Proof. intros.
   destruct (H1 b1 d1).
     apply pub_in_local. apply X2.
     exfalso. apply H2. apply (SrcPerm _ _ ES).
+  rewrite (pubSrcContra _ _ H2) in X2. inv X2. 
+Qed.
+
+Lemma RGTgt_multicorePerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
+            (TgtHyp: forall b ofs, Etgt b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (myBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
+            (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
+            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
+                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            nu
+         (X1: forall b, myBlocksTgt nu b = true -> myBlocksTgt mu b = false)
+         (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
+                              myBlocksTgt nu b1 || myBlocksTgt nu b2 = true ->
+                              pub_of nu b1 = Some(b2,d)),
+            Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption; clear Unch2.
+  intros. simpl. rename b into b2.
+  case_eq (Etgt b2 ofs); intros; trivial.
+  destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
+  destruct H.
+  specialize (X1 _ H). 
+  destruct (F X1) as [b1 [d1 [Frg [ES P]]]]; clear F.
+  destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
+  clear DD.
+  destruct (SrcHyp _ _ ES); clear SrcHyp.
+    rewrite H2 in *. inv CC.
+  clear H2.
+  specialize (X2 _ _ _ Frg). rewrite H in X2.
+  rewrite orb_true_r in X2. specialize (X2 (eq_refl _)). 
+  destruct (H1 b1 d1).
+    apply pub_in_local. apply X2.
+    contradiction.
   rewrite (pubSrcContra _ _ H2) in X2. inv X2. 
 Qed.
