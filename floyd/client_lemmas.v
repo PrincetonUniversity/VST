@@ -1114,10 +1114,8 @@ Qed.
 
 Arguments ret_type !Delta /.
 
-Ltac go_lower0 := 
-intros ?rho;
- try (simple apply grab_tc_environ; intro);
- cbv delta [PROPx LOCALx SEPx
+Ltac unfold_for_go_lower :=
+  cbv delta [PROPx LOCALx SEPx
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        eval_cast eval_binop eval_unop
                       tc_expropt tc_expr tc_lvalue 
@@ -1129,8 +1127,12 @@ intros ?rho;
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 
      local lift lift0 lift1 lift2 lift3 
-   ] beta iota;
-  simpl.
+   ] beta iota.
+
+Ltac go_lower0 := 
+intros ?rho;
+ try (simple apply grab_tc_environ; intro);
+ repeat (progress unfold_for_go_lower; simpl).
 
 Ltac go_lower :=
  go_lower0;
