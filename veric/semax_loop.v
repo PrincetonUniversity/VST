@@ -454,6 +454,103 @@ destruct ek; try congruence; auto.
 destruct ek; try congruence; auto.
 Qed.
 
+Lemma control_as_safe_refl:
+  forall psi n k, control_as_safe Espec psi n k k.
+Proof.
+ intros. repeat intro. auto.
+Qed.
+
+Lemma semax_seq_skip:
+  forall Delta P s Q,
+    semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence s Sskip) Q.
+Proof.
+split; intro.
+*
+rewrite semax_unfold in H|-*.
+intros.
+specialize (H psi _ _ TS Prog_OK (Kseq Sskip :: k) F H0). clear TS Prog_OK H0.
+ +
+    spec H; [clear - H1 | ].
+    revert w H1; apply rguard_adj; [reflexivity | ].
+    intros.
+    destruct ek; simpl; try apply control_as_safe_refl.
+    repeat intro.
+    eapply convergent_controls_safe; try apply H0; try reflexivity.
+    intros. simpl. destruct ret; simpl in *; auto.
+    intros. simpl in *.
+    destruct H1 as [? [? ?]]. split3; auto.
+    constructor. auto.
+    eapply guard_safe_adj; try apply H; try reflexivity.
+   intros until n; apply convergent_controls_safe; simpl; auto;
+   intros; destruct q'.
+   destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
+   destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
+* 
+rewrite semax_unfold in H|-*.
+intros.
+specialize (H psi _ _ TS Prog_OK k F H0 H1). clear TS Prog_OK H0 H1.
+eapply guard_safe_adj; try apply H; try reflexivity. clear H.
+intros.
+destruct n; simpl in *; auto.
+destruct H as [st' [m' [? ?]]].
+destruct (corestep_preservation_lemma Espec psi 
+                     (Kseq Sskip :: k)
+                     k
+                     ora ve te m n (Kseq s) nil st' m')
+       as [c2 [m2 [? ?]]]; simpl; auto.
+intros.  apply control_suffix_safe; simpl; auto.
+clear.
+intro; intros.
+eapply convergent_controls_safe; try apply H0; simpl; auto.
+intros.
+destruct H1 as [H1 [H1a H1b]]; split3; auto.
+inv H1; auto.
+clear.
+hnf; intros.
+eapply convergent_controls_safe; try apply H0; simpl; auto.
+clear; intros.
+destruct H as [H1 [H1a H1b]]; split3; auto.
+inv H1; auto.
+destruct H as [H1 [H1a H1b]]; split3; auto.
+inv H1.
+auto.
+eauto.
+Qed. 
+
+Lemma semax_skip_seq:
+  forall Delta P s Q,
+    semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence Sskip s) Q.
+Proof.
+intros.
+split; intro H; rewrite semax_unfold in H|-*; intros;
+ specialize (H psi _ _ TS Prog_OK k F H0);
+ clear TS Prog_OK H0.
+*
+spec H. clear H.
+revert w H1; apply rguard_adj; [reflexivity | ].
+destruct ek; intros; try apply control_as_safe_refl.
+clear H1.
+revert w H; apply guard_safe_adj; [reflexivity | ].
+   intros until n; apply convergent_controls_safe; simpl; auto;
+   intros; destruct q'.
+   destruct H as [? [? ?]]; split3; auto.
+  constructor. constructor. auto.
+   destruct H as [? [? ?]]; split3; auto.
+   constructor; auto. constructor; auto.
+*
+spec H. clear H.
+revert w H1; apply rguard_adj; [reflexivity | ].
+destruct ek; intros; try apply control_as_safe_refl.
+clear H1.
+revert w H; apply guard_safe_adj; [reflexivity | ].
+   intros until n; apply convergent_controls_safe; simpl; auto;
+   intros; destruct q'.
+   destruct H as [? [? ?]]; split3; auto.
+  inv H.  inv H10; auto.
+   destruct H as [? [? ?]]; split3; auto.
+  inv H. inv H10; auto.
+Qed.
+
 Lemma semax_loop : 
 forall Delta Q Q' incr body R,
      semax Espec Delta Q body (loop1_ret_assert Q' R) ->

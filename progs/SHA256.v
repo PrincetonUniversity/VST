@@ -115,6 +115,7 @@ Fixpoint generate_word (msg : list int) (n : nat) {struct n}: list int :=
   |O   => msg 
   |S n' => generate_word (W msg :: msg) n'
   end.
+Arguments generate_word msg n : simpl never.
 
 (*registers that represent intermediate and final hash values*)
 Definition registers := list int.
@@ -151,6 +152,7 @@ Fixpoint rnd_64 (x: registers) (k w : list int) : registers :=
   | k1::k', w1::w' => rnd_64 (rnd_function x k1 w1) k' w'
   | _ , _ => x
   end.
+Arguments rnd_64  x k w : simpl never.  (* blows up otherwise *)
 
 Definition process_block (r: registers) (block: list int) : registers :=
        (registers_add r (rnd_64 r K (rev(generate_word block 48)))).

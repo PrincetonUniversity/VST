@@ -135,7 +135,7 @@ void sha256_block_data_order (SHA256_CTX *ctx, const void *in)
 	t=ctx->h[5]; ctx->h[5]=t+f;
 	t=ctx->h[6]; ctx->h[6]=t+g;
 	t=ctx->h[7]; ctx->h[7]=t+h;
-
+       return;
 }
 
 void SHA256_Init (SHA256_CTX *c)

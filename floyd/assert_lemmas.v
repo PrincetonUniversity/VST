@@ -144,6 +144,8 @@ Lemma eval_expr_unop: forall op a1 t, eval_expr (Eunop op a1 t) =
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_unop : eval.
 
+Hint Unfold closed_wrt_modvars : closed. 
+
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
 Proof.
 intros.

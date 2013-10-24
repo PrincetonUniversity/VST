@@ -330,12 +330,14 @@ Proof.
  intros.
 Admitted.
 
+(*
 Fixpoint eval_ids (ids: list ident) : environ -> list val :=
   match ids with
   |  id::ids' => `cons (eval_id id) (eval_ids ids')
   | nil => `nil
  end.
-  
+*)
+
 Lemma sha256_block_data_order_loop1_proof:
   forall (Espec : OracleKind)
      (b: list int) (data: val) (regs: list int),
@@ -352,7 +354,10 @@ Lemma sha256_block_data_order_loop1_proof:
                                 (initialized _data
    (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
   (PROP ()
-   LOCAL (`(eq (map Vint regs)) (eval_ids [_a,_b,_c,_d,_e,_f,_g,_h]))
+   LOCAL (`(eq (map Vint regs)) 
+                  (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
+                   (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
+))))
    SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16));
@@ -360,12 +365,16 @@ Lemma sha256_block_data_order_loop1_proof:
   block_data_order_loop1
   (normal_ret_assert
     (PROP () 
-     LOCAL(`(eq (map Vint (rnd_64 regs K (rev b)))) (eval_ids [_a,_b,_c,_d,_e,_f,_g,_h]))
+     LOCAL(`(eq (map Vint (rnd_64 regs K (rev b)))) 
+                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
+                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
+))))
      SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(array_at tuint Tsh (@ZnthV tuint b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block (intlist_to_Zlist b) data))) ).
 Admitted.
+
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) (data: val) (regs: list int),
@@ -383,45 +392,95 @@ Lemma sha256_block_data_order_loop2_proof:
                                 (initialized _data
    (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
   (PROP ()
-   LOCAL (`(eq (map Vint (rnd_64 regs K (rev b)))) (eval_ids [_a,_b,_c,_d,_e,_f,_g,_h]))
+   LOCAL (`(eq (map Vint (rnd_64 regs K (rev b)))) 
+                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
+                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
+))))
    SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
-     LOCAL(`(eq (map Vint (rnd_64 regs K (rev (generate_word b 48))))) (eval_ids [_a,_b,_c,_d,_e,_f,_g,_h]))
+     LOCAL(`(eq (map Vint (rnd_64 regs K (rev (generate_word b 48)))))
+                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
+                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
+))))
      SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))).
 Admitted.
 
-Lemma semax_seq_congr:
+Lemma semax_seq_congr:  (* not provable *)
  forall (Espec: OracleKind) s1 s1' s2 s2',
   (forall Delta P R, semax Delta P s1 R <-> semax Delta P s1' R) ->
   (forall Delta P R, semax Delta P s2 R <-> semax Delta P s2' R) ->
  (forall Delta P R, 
     semax Delta P (Ssequence s1 s2) R <->
     semax Delta P (Ssequence s1' s2') R).
-Admitted.
+Abort.
 
-Lemma seq_assoc8:  
-  forall {Espec: OracleKind},
-   forall Delta P s1 s2 s3 s4 s5 s6 s7 s8 s9 R,
-        @semax Espec Delta P 
-     (Ssequence s1 (Ssequence s2 (Ssequence s3 (Ssequence s4
-      (Ssequence s5 (Ssequence s6 (Ssequence s7 (Ssequence s8 s9))))))))
-        R <->
-        @semax Espec Delta P 
-     (Ssequence 
-        (Ssequence s1 (Ssequence s2 (Ssequence s3 (Ssequence s4
-         (Ssequence s5 (Ssequence s6 (Ssequence s7 s8))))))) s9)
-        R.
+Fixpoint sequence (cs: list statement) s :=
+ match cs with
+ | nil => s
+ | c::cs' => Ssequence c (sequence cs' s)
+ end.
+
+Fixpoint rsequence (cs: list statement) s :=
+ match cs with
+ | nil => s
+ | c::cs' => Ssequence (rsequence cs' s) c
+ end.
+
+Lemma sequence_rsequence:
+ forall Espec Delta P cs s0 s R, 
+    @semax Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
+  @semax Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
 Proof.
 intros.
-repeat (rewrite <- seq_assoc; apply semax_seq_congr; intros; [apply iff_refl | ]).
-apply iff_refl.
+revert Delta P R s0 s; induction cs; intros.
+simpl. apply iff_refl.
+simpl.
+rewrite seq_assoc.
+rewrite IHcs; clear IHcs.
+replace (rsequence (rev cs ++ [a]) s0) with
+    (rsequence (rev cs) (Ssequence s0 a)); [apply iff_refl | ].
+revert s0 a; induction (rev cs); simpl; intros; auto.
+rewrite IHl. auto.
 Qed.
+
+Lemma seq_assocN:  
+  forall {Espec: OracleKind},
+   forall Q Delta P cs s R,
+        @semax Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
+         @semax Espec 
+       (update_tycon Delta (sequence cs Sskip)) Q s R ->
+        @semax Espec Delta P (sequence cs s) R.
+Proof.
+intros.
+rewrite semax_skip_seq.
+rewrite sequence_rsequence.
+rewrite semax_skip_seq in H.
+rewrite sequence_rsequence in H.
+rewrite <- semax_seq_skip in H.
+eapply semax_seq'; [apply H | ].
+eapply semax_extensionality_Delta; try apply H0.
+clear.
+revert Delta; induction cs; simpl; intros.
+apply expr_lemmas.tycontext_sub_refl.
+eapply semax_lemmas.tycontext_sub_trans; [apply IHcs | ].
+clear.
+revert Delta; induction (rev cs); simpl; intros.
+apply expr_lemmas.tycontext_sub_refl.
+apply expr_lemmas.update_tycon_sub.
+apply IHl.
+Qed.
+
+Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
+ match n, s with 
+ | S n', Ssequence a s' => a::sequenceN n' s'
+ | _, _ => nil
+ end.
 
 Definition load8 id ofs :=
  (Sset id
@@ -436,16 +495,7 @@ Definition load8 id ofs :=
 Lemma sha256_block_load8:
   forall (Espec : OracleKind) 
      (b: list int) (data: val) (r_h: list int) (r_data: list int)
-        (ctx: val) (r_num r_Nl r_Nh : int) (hashed : list int) 
-   (delta: Z)(data0: list Z)
-(*  (range : 0 <= Zlength data0 < CBLOCK)
-  (H :     Zlength b = LBLOCK)
-  (H0 : sizeof (tarray tuint 16) <= Int.max_unsigned)
-  (H1 : r_h = process_msg init_registers hashed)
-*)  (H2 : Zlength (intlist_to_Zlist hashed) =
-     delta + (Int.unsigned r_Nh * Int.modulus + Int.unsigned r_Nl))
-  (H3 : data0 = map Int.unsigned (firstn (Z.to_nat (Int.unsigned r_num)) r_data))
-  (H4 : Zlength r_data = CBLOCK)
+        (ctx: val)
    (H5 : Zlength r_h = 8),
      semax  
       (initialized _data
@@ -461,17 +511,14 @@ Lemma sha256_block_load8:
      (Ssequence (load8 _e 4)
      (Ssequence (load8 _f 5)
      (Ssequence (load8 _g 6)
-          (load8 _h 7))))))))
+     (Ssequence (load8 _h 7)
+         Sskip))))))))
   (normal_ret_assert 
   (PROP  ()
-   LOCAL  (`(eq (Vint (@ZnthV tuint r_h 7))) (eval_id _h);
-                `(eq (Vint (@ZnthV tuint r_h 6))) (eval_id _g);
-                `(eq (Vint (@ZnthV tuint r_h 5))) (eval_id _f);
-                `(eq (Vint (@ZnthV tuint r_h 4))) (eval_id _e);
-                `(eq (Vint (@ZnthV tuint r_h 3))) (eval_id _d);
-                `(eq (Vint (@ZnthV tuint r_h 2))) (eval_id _c);
-                `(eq (Vint (@ZnthV tuint r_h 1))) (eval_id _b);
-                `(eq (Vint (@ZnthV tuint r_h 0))) (eval_id _a);
+   LOCAL  (`(eq (map Vint r_h))
+                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
+                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
+)));
    `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
    SEP  (`(array_at tuint Tsh (@ZnthV tuint r_h) 0 (Zlength r_h) ctx)))).
@@ -503,20 +550,119 @@ forward; [entailer! ;  omega | ]. (* d = ctx->h[3]; *)
 forward; [entailer! ;  omega | ]. (* e = ctx->h[4]; *)
 forward; [entailer! ;  omega | ]. (* f = ctx->h[5]; *)
 forward; [entailer! ;  omega | ]. (* g = ctx->h[6]; *)
-(* NOTE: the next line exhibits a bug in the forward tactic;
-  it can't handle a load if it's the last command in a sequence. *)
-(* forward; [entailer! ;  omega | ]. (* h = ctx->h[7]; *) *)
+forward; [entailer! ;  omega | ]. (* h = ctx->h[7]; *)
+eapply semax_pre; [ | apply semax_skip].
+entailer.
+do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
+reflexivity.
+repeat rewrite Zlength_cons in H5.
+rewrite Zlength_correct in H5.
+pose proof (seplog.Z_of_nat_ge_O (length r_h)).
+omega.
+Qed.
+
+Definition get_h (n: Z) :=
+    Sset _t
+        (Ederef
+           (Ebinop Oadd
+              (Efield
+                 (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
+                    t_struct_SHA256state_st) _h (tarray tuint 8))
+              (Econst_int (Int.repr n) tint) (tptr tuint)) tuint).
+
+
+Definition add_h (n: Z) (i: ident) :=
+   Sassign
+       (Ederef
+          (Ebinop Oadd
+             (Efield
+                (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
+                   t_struct_SHA256state_st) _h (tarray tuint 8))
+             (Econst_int (Int.repr n) tint) (tptr tuint)) tuint)
+       (Ebinop Oadd (Etempvar _t tuint) (Etempvar i tuint) tuint).
+
+Definition add_them_back :=
+ [get_h 0, add_h 0 _a,
+  get_h 1, add_h 1 _b,
+  get_h 2, add_h 2 _c,
+  get_h 3, add_h 3 _d,
+  get_h 4, add_h 4 _e,
+  get_h 5, add_h 5 _f,
+  get_h 6, add_h 6 _g,
+  get_h 7, add_h 7 _h].
+
+
+Lemma add_them_back_proof:
+  forall (Espec : OracleKind)
+     (b: list int) (r_h: list int)(ctx: val)(hashed: list int),
+     Zlength b = LBLOCK ->
+     semax  
+       (initialized _i
+          (initialized _h
+           (initialized _g
+              (initialized _f
+                 (initialized _e
+                    (initialized _d
+                       (initialized _c
+                          (initialized _b
+                             (initialized _a
+                                (initialized _data
+   (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
+   (PROP  ()
+   LOCAL 
+   (`(eq (map Vint (rnd_64 r_h K (rev (generate_word b 48)))))
+      (`cons (eval_id _a)
+         (`cons (eval_id _b)
+            (`cons (eval_id _c)
+               (`cons (eval_id _d)
+                  (`cons (eval_id _e)
+                     (`cons (eval_id _f)
+                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   SEP 
+   (`(array_at tuint Tsh (@ZnthV tuint (process_msg init_registers hashed)) 0
+       (Zlength (process_msg init_registers hashed)) ctx)))
+   (sequence add_them_back Sskip)
+  (normal_ret_assert
+   (PROP() LOCAL() 
+    SEP (`(array_at tuint Tsh (@ZnthV tuint 
+                   (map2 Int.add (process_msg init_registers hashed)
+                                         (rnd_64 r_h K (rev (generate_word b 48)))))
+            0 (Zlength (process_msg init_registers hashed)) ctx)))).
 Admitted.
 
+(* NOTE: there's a bug in the forward tactic;
+  it can't handle a load if it's the last command in a sequence. *)
 
 Lemma array_at_arrayof_:
   forall t sh f N N' v,
  N' = Z.of_nat N ->
  array_at t sh f 0 N' v |-- arrayof_ (mapsto_ sh t) t N v.
+Proof.
+intros.
 Admitted.
 
 Hint Extern 1 (array_at _ _ _ _ _ _ |-- arrayof_ _ _ _ _) =>
   (apply array_at_arrayof_; reflexivity) : cancel.
+
+Lemma semax_frame1:
+ forall {Espec: OracleKind} Frame Delta 
+     P Q c R P1 Q1 R1 P2 Q2 R2,
+    semax Delta (PROPx P1 (LOCALx Q1 (SEPx R1))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+    PROPx P1 (LOCALx Q1 (SEPx (R1 ++ Frame))) ->
+    closed_wrt_modvars c (SEPx Frame) ->
+    semax Delta (PROPx P (LOCALx Q (SEPx R))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx (R2++Frame))))).
+Proof.
+intros.
+eapply semax_pre.
+apply H0.
+apply semax_frame_PQR; auto.
+Qed.
+
+Opaque generate_word. (* for some reason the Arguments...simpl-never
+   command in SHA256.v does not do the job *)
 
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
@@ -563,78 +709,42 @@ So instead we use the Lemma sha256_block_load8,
  as follows.
 *)
 
-apply seq_assoc8.
-eapply semax_seq'; 
-  [ eapply semax_pre; 
-     [ | apply semax_frame_PQR with (R2:= [
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nl ctx (Vint r_Nl)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nh ctx (Vint r_Nh)),
-   `(array_at tuchar Tsh (@ZnthV tuint r_data) 0 (Zlength r_data)
-       (offset_val (Int.repr 40) ctx)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _num ctx (Vint r_num)),
-   `(arrayof_ (mapsto_ Tsh tuint) tuint (Pos.to_nat 16))
-     (eval_var _X (tarray tuint 16)),
-   `(data_block (intlist_to_Zlist b) data),
-   `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
-     (eval_var _K256 (tarray tuint 64))]);
-      [unfold closed_wrt_modvars; solve [auto 50 with closed] |
-      eapply sha256_block_load8 with (ctx:=ctx); eassumption
-   ]]
-  | ]; [ solve [entailer] | ].
-abbreviate_semax.
-unfold app.
+match goal with |- semax _ _ ?c _ =>
+ eapply seq_assocN with (cs := sequenceN 8 c)
+end.
+eapply semax_frame1.
+eapply sha256_block_load8 with (ctx:=ctx); eassumption.
+entailer!.
+auto 50 with closed.
+unfold app; abbreviate_semax.
 (**** END   the eight load-from-array-h[] commands. *)
 
 forward.  (* i = 0; *)
 
-eapply semax_seq'; 
-  [ eapply semax_pre; 
-     [ | apply semax_frame_PQR with (R2:= 
-            [`(array_at tuint Tsh (@ZnthV tuint r_h) 0 (Zlength r_h) ctx),
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nl ctx (Vint r_Nl)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nh ctx (Vint r_Nh)),
-   `(array_at tuchar Tsh (@ZnthV tuint r_data) 0 (Zlength r_data)
-       (offset_val (Int.repr 40) ctx)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _num ctx (Vint r_num))]); 
-      [unfold closed_wrt_modvars; solve [auto 50 with closed] |
-     apply sha256_block_data_order_loop1_proof
-              with (regs:=r_h)(b:=b)(data:=data); eassumption 
-   ]]
-  | ].
+eapply semax_frame_seq.
+apply sha256_block_data_order_loop1_proof
+              with (regs:=r_h)(b:=b)(data:=data); eassumption.
+entailer!.
+auto 50 with closed.
+unfold app; abbreviate_semax.
 
-entailer.
-apply andp_right.
-apply prop_right; clear - H5.
-forget (process_msg init_registers hashed) as r.
-do 9 (destruct r as [ | ?h r ] ; [inv H5 | ]).
-reflexivity.
-repeat rewrite Zlength_cons in H5.
-rewrite Zlength_correct in H5.
-pose proof (seplog.Z_of_nat_ge_O (length r)).
-omega.
-cancel.
-unfold app.
-abbreviate_semax.
+eapply semax_frame_seq.
+apply sha256_block_data_order_loop2_proof
+              with (regs:=r_h)(b:=b); eassumption.
+entailer!.
+auto 50 with closed.
+unfold app; abbreviate_semax.
+eapply seq_assocN with (cs := add_them_back).
 
-eapply semax_seq'; 
-  [ eapply semax_pre; 
-     [ | apply semax_frame_PQR with (R2:= 
-            [
-   `(data_block (intlist_to_Zlist b) data),
-   `(array_at tuint Tsh (@ZnthV tuint r_h) 0 (Zlength r_h) ctx),
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nl ctx (Vint r_Nl)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _Nh ctx (Vint r_Nh)),
-   `(array_at tuchar Tsh (@ZnthV tuint r_data) 0 (Zlength r_data)
-       (offset_val (Int.repr 40) ctx)),
-   `(field_mapsto Tsh t_struct_SHA256state_st _num ctx (Vint r_num))]); 
-      [unfold closed_wrt_modvars; solve [auto 50 with closed] |
-     apply sha256_block_data_order_loop2_proof
-              with (regs:=r_h)(b:=b); eassumption 
-   ]]
-  | ].
-unfold app.
+eapply semax_frame1.
+apply (add_them_back_proof _ b r_h ctx hashed); eassumption.
+go_lower.
+entailer. cancel.
+auto 50 with closed.
 
-Focus 1.
+Admitted.
+
+(*
 
 Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx
@@ -651,7 +761,6 @@ Ltac unfold_for_go_lower :=
      local lift lift0 lift1 lift2 lift3 
     LiftNatDed' LiftSepLog' LiftClassicalSep' 
     LiftNatDed LiftSepLog
-    fold_right  (* should really make a special version of fold_right *)
    ] beta iota.
 
 Ltac go_lower0 := 
@@ -660,33 +769,7 @@ intros ?rho;
  repeat (progress unfold_for_go_lower;
       simpl andp; simpl prop; simpl sepcon; simpl emp; simpl orp; cbv beta iota).
 
-Ltac go_lower :=
- go_lower0;
- autorewrite with go_lower;
- repeat findvar;
- simpl;
- autorewrite with go_lower.
 
-unfold eval_ids.
-go_lower0.
-autorewrite with go_lower.
-repeat findvar.
-entailer. cancel.
-abbreviate_semax.
-
-
-
-
-(* . . . and so on *)
-
-Admitted.
-
-
-
-
-
-
-(*
 Ltac ff := 
 match goal with Delta := context [initialized ?i (@pair ?u ?v ?w ?x)] |- _ =>
  let D := fresh "D" in

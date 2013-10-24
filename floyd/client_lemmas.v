@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
-Arguments sem_cmp c !t1 !t2 / v1 v2. (* move this to client_lemmas or earlier *)
+Arguments sem_cmp c !t1 !t2 / v1 v2. 
 
 Lemma prop_and {A} {NA: NatDed A}: 
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
@@ -936,41 +936,6 @@ intros.
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
 
-(*
-
-Lemma eval_cast_var:
-  forall Delta rho,
-      tc_environ Delta rho ->
-  forall t1 t2 t3 id,
-  Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  tc_lvalue Delta (Evar id t2) rho ->
-  eval_cast t1 t3 (eval_var id t2 rho) = eval_var id t2 rho.
-Proof.
-intros.
- pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H1 (Tpointer t2 noattr) (eq_refl _)).
- unfold typecheck_val in H2. simpl in H2.
- destruct (eval_var id t2 rho); inv H2.
- pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
-Qed.
-*)
-
-
-(*
-Lemma eval_cast_int:
-  forall v sign, 
-         tc_val (Tint I32 sign noattr) v ->
-         eval_cast (Tint I32 sign noattr) (Tint I32 sign noattr) v = v.
-Proof.
- intros.
- unfold tc_val, eval_cast, Cop.sem_cast, force_val; simpl in *; 
- destruct v; simpl; auto; inv H; auto.
-Qed.
-*)
-
 Lemma eval_cast_pointer2':
   forall (v : val) (t1 t2: type),
   match t1 with Tpointer _ _ | Tint I32 _ _ => True | _ => False end ->
@@ -1068,22 +1033,9 @@ Ltac eval_cast_simpl :=
        repeat first [rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
                | rewrite eval_cast_neutral_isptr by auto
                | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-(*               | rewrite eval_cast_int; [ | assumption] *)
                | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
                ]
      end.
-
-(*
-Ltac eval_cast_simpl :=
-     try match goal with H: tc_environ ?Delta ?rho |- _ =>
-       repeat first [rewrite (eval_cast_var Delta rho H); [ | reflexivity | hnf; simpl; normalize ]
-               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               | rewrite eval_cast_int; [ | assumption]
-               | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
-               ]
-     end.
-*)
-
 
 Lemma fold_right_nil: forall {A B} (f: A -> B -> B) (z: B),
    fold_right f z nil = z.
@@ -1165,8 +1117,6 @@ Lemma closed_wrt_SEPx: forall S P,
 Admitted. 
 Hint Resolve closed_wrt_SEPx: closed.
 
-(* Hint Extern 1 (Forall _ (map (@fst ident type) _)) => simpl map. *)
-
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
 Hint Rewrite local_unfold : norm.
@@ -1219,23 +1169,6 @@ Lemma lift_lift_x:  (* generalizes lift_lift_val *)
   (@liftx (LiftEnviron t') (P v)).
 Proof. reflexivity. Qed.
 Hint Rewrite lift_lift_x : norm.
-
-(*
-Lemma lift_lift_val:
-  forall P v,
-  (@liftx (Tarrow val (LiftEnviron val)) P (@liftx (LiftEnviron val) v)) =
-  (@liftx (LiftEnviron val) (P v)).
-Proof. reflexivity. Qed.
-Hint Rewrite lift_lift_val : norm.
-*)
-
-(* Lemma lift1_lift1_retvalC : forall i (P: val -> environ -> mpred),
-`(@liftx (Tarrow val (LiftEnviron mpred)) P retval) (get_result1 i) = `P (eval_id i).
-Proof. intros.  extensionality rho.
-  unfold coerce, lift1_C, lift1. 
-  f_equal.  
-Qed.
-*)
 
 Lemma lift0_exp {A}{NA: NatDed A}:
   forall (B: Type) (f: B -> A), lift0 (exp f) = EX x:B, lift0 (f x).
@@ -1648,22 +1581,6 @@ Variables (a b c d e f g h i j : assert).
 Eval compute in grab_indexes (1::4::6::nil) (a::b::c::d::e::f::g::h::i::j::nil).
 Eval compute in grab_indexes (1::6::4::nil) (a::b::c::d::e::f::g::h::i::j::nil).
 *) 
-
-(*
-Lemma revapp_sepcon:
- forall al bl: list(environ->mpred), 
-  fold_right sepcon emp (revapp al bl) =
-  fold_right sepcon emp al * fold_right sepcon emp bl.
-Proof.
-induction al; intro bl; extensionality rho; simpl.
-rewrite emp_sepcon; auto.
-rewrite IHal.
-simpl.
-rewrite sepcon_comm.
-do 2 rewrite sepcon_assoc.
-f_equal; auto. rewrite sepcon_comm; auto.
-Qed.
-*)
 
 Lemma grab_indexes_SEP : 
   forall (ns: list Z) (xs: list(environ->mpred)),   SEPx xs = SEPx (grab_indexes ns xs).

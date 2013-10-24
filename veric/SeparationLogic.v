@@ -545,6 +545,16 @@ Axiom seq_assoc:
         @semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
         @semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
 
+Axiom semax_seq_skip:
+  forall {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax Espec Delta P s Q <-> @semax Espec Delta P (Ssequence s Sskip) Q.
+
+Axiom semax_skip_seq:
+  forall {Espec: OracleKind},
+  forall Delta P s Q,
+    @semax Espec Delta P s Q <-> @semax Espec Delta P (Ssequence Sskip s) Q.
+
 Axiom semax_break:
   forall {Espec: OracleKind},
    forall Delta Q,    @semax Espec Delta (Q EK_break None) Sbreak Q.

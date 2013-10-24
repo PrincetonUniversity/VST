@@ -890,22 +890,24 @@ Definition f_sha256_block_data_order := {|
                                                           (Econst_int (Int.repr 7) tint)
                                                           (tptr tuint))
                                                         tuint))
-                                                    (Sassign
-                                                      (Ederef
+                                                    (Ssequence
+                                                      (Sassign
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Efield
+                                                              (Ederef
+                                                                (Etempvar _ctx (tptr t_struct_SHA256state_st))
+                                                                t_struct_SHA256state_st)
+                                                              _h
+                                                              (tarray tuint 8))
+                                                            (Econst_int (Int.repr 7) tint)
+                                                            (tptr tuint))
+                                                          tuint)
                                                         (Ebinop Oadd
-                                                          (Efield
-                                                            (Ederef
-                                                              (Etempvar _ctx (tptr t_struct_SHA256state_st))
-                                                              t_struct_SHA256state_st)
-                                                            _h
-                                                            (tarray tuint 8))
-                                                          (Econst_int (Int.repr 7) tint)
-                                                          (tptr tuint))
-                                                        tuint)
-                                                      (Ebinop Oadd
-                                                        (Etempvar _t tuint)
-                                                        (Etempvar _h tuint)
-                                                        tuint))))))))))))))))))))))))))))
+                                                          (Etempvar _t tuint)
+                                                          (Etempvar _h tuint)
+                                                          tuint))
+                                                      (Sreturn None))))))))))))))))))))))))))))
 |}.
 
 Definition f_SHA256_Init := {|
