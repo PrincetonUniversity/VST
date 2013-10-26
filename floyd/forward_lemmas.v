@@ -263,11 +263,8 @@ Proof.
 apply @closed_wrt_map_subst.
 Qed.
 
-Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : norm.
-Hint Rewrite @closed_wrt_map_subst' using solve [auto with closed] : subst.
-
-
-
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
 
 Lemma forward_setx_closed_now':
   forall Espec Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
@@ -427,6 +424,45 @@ Qed.
 
 Lemma forward_setx:
   forall Espec Delta P Q R id e,
+  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
+  @semax Espec Delta
+             (PROPx P (LOCALx Q (SEPx R)))
+             (Sset id e)
+             (normal_ret_assert
+                  (EX old:val,  
+                    PROPx P
+                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
+                                     map (subst id (`old)) Q)
+                      (SEPx (map (subst id (`old)) R))))).
+Proof.
+ intros.
+intros.
+eapply semax_pre_post;
+   [ | | apply (semax_set_forward Delta (PROPx P (LOCALx (tc_environ Delta :: Q)  (SEPx R))) id e); auto].
++  eapply derives_trans ; [ | apply now_later].
+  rewrite andp_assoc.  repeat rewrite insert_local.
+ rewrite <- (andp_dup (PROPx _ (LOCALx (_ :: Q) _))).
+ eapply derives_trans; [apply andp_derives  | ].
+ apply H. apply derives_refl.
+  rewrite andp_assoc.  repeat rewrite insert_local.
+ apply derives_refl.
++
+ intros ek vl.
+ intro rho.
+ unfold andp at 1. unfold LiftNatDed', LiftNatDed.
+ unfold local at 1. unfold lift1.
+ apply derives_extract_prop. intro.
+ apply normal_ret_assert_derives'.
+ apply exp_derives; intro x.
+  autorewrite with subst.
+ rewrite insert_local.
+ clear.
+ go_lowerx. simpl. apply andp_right; auto.
+ apply prop_right; repeat split; auto. 
+Qed.
+
+Lemma forward_setx_weak:
+  forall Espec Delta P Q R id e,
   (PROPx P (LOCALx Q (SEPx R)) |-- local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ) ->
   @semax Espec Delta
              (PROPx P (LOCALx Q (SEPx R)))
@@ -446,6 +482,7 @@ Proof.
   autorewrite with subst.
  go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 Qed.
+
 
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
@@ -505,7 +542,7 @@ intuition.
 eapply semax_post.
 intros ek vl rho. simpl. apply andp_left2.
 apply H2. 
-apply forward_setx; auto.
+apply forward_setx_weak; auto.
 
 eapply semax_post. intros ek vl rho.
 simpl. apply andp_left2. apply H2.
@@ -708,7 +745,7 @@ apply semax_ifthenelse_PQR.
  destruct (typeof e1), (eval_expr e1 rho); inv H; inv H8; simpl;
    try rewrite H3; auto.
   - eapply semax_seq'. 
-      + eapply forward_setx.
+      + eapply forward_setx_weak.
          go_lowerx. 
          destruct H4. congruence.
          apply andp_right; apply prop_right; auto.
@@ -780,7 +817,7 @@ intros.
 apply semax_ifthenelse_PQR. 
   - auto. 
   - eapply semax_seq'. 
-      + eapply forward_setx.
+      + eapply forward_setx_weak.
          go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split.

@@ -1,6 +1,12 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Ltac safe_auto_with_closed := 
+   (* won't instantiate evars by accident *)
+ match goal with |- ?A => 
+          solve [first [has_evar A | auto with closed]]
+ end.
+
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
 Proof.
@@ -558,8 +564,8 @@ inv H.
 simpl; f_equal; auto.
 apply closed_wrt_subst; auto.
 Qed.
-Hint Rewrite @closed_wrt_map_subst using solve [auto with closed] : subst.
-Hint Rewrite @closed_wrt_subst using solve [auto with closed] : subst.
+Hint Rewrite @closed_wrt_map_subst using safe_auto_with_closed : subst.
+Hint Rewrite @closed_wrt_subst using safe_auto_with_closed : subst.
 
 Lemma lvalue_closed_tempvar:
  forall S i t, ~ S i -> lvalue_closed_wrt_vars S (Etempvar i t).
@@ -619,7 +625,7 @@ Proof.
 Qed.
 
 Hint Rewrite subst_eval_id_eq : subst.
-Hint Rewrite subst_eval_id_neq using (solve [auto with closed]) : subst.
+Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).

@@ -406,12 +406,9 @@ first [apply forward_setx_closed_now;
             | try solve [intro rho; apply prop_right; repeat split]
             | try solve [intro rho; apply prop_right; repeat split]
             |  ]
-        | make_sequential;
-          eapply semax_post_flipped;
-          [ apply forward_setx; 
+        | apply forward_setx; 
             try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
                             repeat split ]
-           | intros ?ek ?vl; apply after_set_special1 ]
         ].
 
 Ltac hoist_later_in_pre :=
@@ -453,6 +450,7 @@ Ltac intro_old_var c :=
   match c with 
   | Sset ?id _ => intro_old_var' id
   | Scall (Some ?id) _ _ => intro_old_var' id
+  | Ssequence _ (Sset ?id _) => intro_old_var' id
   | _ => intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
   end.
 
@@ -869,7 +867,7 @@ match goal with
     ]
  |];
 (**** 14.2 seconds to here in the fast_entail case; otherwise 25.6 seconds to here *)
- eapply semax_post_flipped3;
+ eapply semax_post_flipped';
  [ eapply (semax_store_field'' _ _ n sh); unfold n, sh in *; clear n sh;
    [auto | reflexivity | reflexivity | reflexivity 
       | try solve [repeat split; hnf; simpl; intros; congruence]
@@ -924,39 +922,6 @@ first [ eapply semax_logical_or_PQR | eapply semax_logical_and_PQR];
 | auto | auto | reflexivity
 | try solve [intro rho; simpl; repeat apply andp_right; apply prop_right; auto] | ].
 
-Ltac forward1 :=   
-   match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx _))) _ _ => idtac 
-       | |- _ => fail 2 "precondition is not canonical (PROP _ LOCAL _ SEP _)"
-  end;
-  match goal with 
-  | |- @semax _ _ _ (Sassign (Efield _ _ _) _) _ =>      
-         new_store_tac || fail 2 "new_store_tac failed"
-  | |- @semax _ _ _ (Sassign (Ederef _ _) _) _ =>      
-         new_store_tac || fail 2 "new_store_tac failed"
-  | |- @semax _ _ _ (Sset _ (Efield _ _ _)) _ => 
-           new_load_tac || fail 2 "new_load_tac failed"
-  | |- @semax _ _ _ (Sset _ (Ederef _ _)) _ => 
-         new_load_tac || fail 2 "new_load_tac failed" 
-  | |- @semax _ _ _ (Sset ?id ?e) _ => 
-          forward_setx_with_pcmp e || fail 2 "forward_setx failed"
-  | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q ?R)) 
-                                 (Sifthenelse ?e _ _) _ =>
-             semax_logic_and_or ||  fail 2 "Use this tactic:  forward_if POST
-                                            where POST is the post condition"
-  | |- @semax _ _ _ (Sreturn _) _ => 
-         repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
-        (eapply semax_pre; [  | apply semax_return ]; entailer)
-          || fail 2 "forward1 Sreturn failed"
-  | |-  @semax _ _ _ (Swhile _ _) _ => 
-           fail 2 "Use this tactic:  forward_while INV POST
-    where INV is the loop invariant and POST is the postcondition."
-(* see comment HACK below, in forward tactic...
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl)  _ =>
-                   semax_call_id_tac_aux Espec Delta P Q R id f bl
-*)
-  end.
-
-
 Ltac forward0 :=  (* USE FOR DEBUGGING *)
   match goal with 
   | |- @semax _ _ ?PQR (Ssequence ?c1 ?c2) ?PQR' => 
@@ -980,80 +945,107 @@ Proof.
 intros. apply andp_left2; auto.
 Qed.
 
-Ltac forward_with F1 :=
-match goal with
- (* BEGIN HORRIBLE2.  (see BEGIN HORRIBLE1, above)  *)
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-               (Ssequence (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
-                       (Sset ?id (Etempvar ?id' _))) _) _ =>
-       (* HACK ... need this extra clause, because trying to do it via the general case
-          of the next clause leads to unification difficulties; maybe the general case
-          will work in Coq 8.4 *)
-           eapply semax_seq';
-           [  semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl; [ | apply derives_refl | ] 
-           |  try unfold exit_tycon; 
-                 simpl update_tycon; unfold map; fold @map;
-            try (apply extract_exists_pre; intro_old_var'' id)
-           ]; abbreviate_semax
- (* END HORRIBLE2 *)
-  | |- @semax _ _ _ (Ssequence (Ssequence _ _) _) _ =>
-          apply -> seq_assoc; forward_with F1
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall (Some ?id) (Evar ?f _) ?bl) _) _ =>
-       (* HACK ... need this extra clause, because trying to do it via the general case
-          of the next clause leads to unification difficulties; maybe the general case
-          will work in Coq 8.4 *)
-           eapply semax_seq';
-           [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl  ] 
-           |  try unfold exit_tycon; 
-                 simpl update_tycon; unfold map; fold @map;
-            try (apply extract_exists_pre; intro_old_var'' id)
-            ]; abbreviate_semax
+Ltac forward_return :=
+     repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
+     (eapply semax_pre; [  | apply semax_return ]; entailer).
+
+Ltac forward_ifthenelse :=
+           semax_logic_and_or 
+           ||  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
+
+Ltac forward_while_complain :=
+           fail 2 "Use this tactic:  forward_while INV POST,
+    where INV is the loop invariant and POST is the postcondition.".
+
+Ltac forward_compound_call :=
+  idtac; (* need this to make it sufficiently lazy *)
+   match goal with |-  @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+               (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
+                       (Sset ?id (Etempvar ?id' _))) _ =>
+           semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl; [ | apply derives_refl | ] 
+end.
+
+Ltac forward_call_id :=
+  idtac; (* need this to make it sufficiently lazy *)
+ match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-       (* HACK ... need this extra clause, because trying to do it via the general case
-          of the next clause leads to unification difficulties; maybe the general case
-          will work in Coq 8.4 *)
-               eapply semax_post_flipped';
-               [ semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ] 
-               | try (apply exp_left; intro_old_var'' id)
-               ]; abbreviate_semax
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Ssequence (Scall None (Evar ?f _) ?bl) _) _ =>
-       (* HACK ... need this extra clause, because trying to do it via the general case
-          of the next clause leads to unification difficulties; maybe the general case
-          will work in Coq 8.4 *)
-           eapply semax_seq';
-           [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
-           |  try unfold exit_tycon; 
-                 simpl update_tycon; simpl map
-            ]; abbreviate_semax
+            semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ]
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
-       (* HACK ... need this extra clause, because trying to do it via the general case
-          of the next clause leads to unification difficulties; maybe the general case
-          will work in Coq 8.4 *)
-           eapply semax_post_flipped';
-           [ semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ] 
-           | 
-            ]; abbreviate_semax
-  | |- @semax _ _ _ (Ssequence ?c1 ?c2) _ => 
-           let Post := fresh "Post" in
-              evar (Post : environ->mpred);
-              apply semax_seq' with Post;
-               [ F1; unfold Post; try clear Post;
-                 try (simple apply normal_ret_assert_derives'' || simple apply normal_ret_assert_derives');
-                 try (simple apply drop_tc_environ || apply derives_refl)
-               | try unfold exit_tycon; 
-                   simpl update_tycon; simpl map;
-                   try (unfold Post; clear Post);
-                    unfold replace_nth; cbv beta;
-                    try (apply extract_exists_pre; intro_old_var c1);
-                    try simple apply elim_redundant_Delta
-               ]; abbreviate_semax
-  | |- @semax _ _ _ ?c1 _ => F1;
-                  try (simple apply drop_tc_environ || rewrite insert_local);
-                  try unfold exit_tycon; 
-                  simpl update_tycon;
-                  try (apply exp_left; intro_old_var c1);
-                  abbreviate_semax
+           semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ]
+ end.
+
+Ltac forward1 s :=  (* Note: this should match only those commands that
+                                     can take a normal_ret_assert *)
+  lazymatch s with 
+  | Sassign _ _ => new_store_tac
+  | Sset _ (Efield _ _ _) => new_load_tac
+  | Sset _ (Ederef _ _) => new_load_tac
+  | Sset _ ?e => (bool_compute e; forward_ptr_cmp) || forward_setx
+  | Sifthenelse _ _ _ => forward_ifthenelse
+  |  Swhile _ _ => forward_while_complain
+  |  Ssequence (Scall (Some ?id') (Evar _ _) _) (Sset _ (Etempvar ?id' _)) => 
+         forward_compound_call
+  | Scall _ (Evar _ _) _ => forward_call_id
   end.
+
+Ltac derives_after_forward :=
+             first [ simple apply derives_refl 
+                     | simple apply drop_tc_environ
+                     | simple apply normal_ret_assert_derives'' 
+                     | simple apply normal_ret_assert_derives'
+                     | idtac].
+
+Ltac normalize_postcondition :=
+ match goal with 
+ | P := _ |- semax _ _ _ ?P =>
+     unfold P, abbreviate; clear P; normalize_postcondition
+ | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- _ => apply sequential
+  end.
+
+Ltac forward_with F1 :=
+ match goal with 
+  | |- semax _ _ (Ssequence ?c _) _ =>
+    let ftac := F1 c in
+       ((eapply semax_seq'; 
+             [ftac; derives_after_forward
+             | unfold replace_nth; cbv beta;
+               try (apply extract_exists_pre; intro_old_var c);
+               abbreviate_semax
+             ]) 
+        ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
+  | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
+       apply -> seq_assoc; forward_with F1
+  | |- semax _ _ (Sreturn _) _ =>
+       forward_return
+  | |- semax _ _ ?c _ =>
+     let ftac := F1 c in
+      normalize_postcondition;
+       eapply semax_post_flipped3;
+             [ftac; derives_after_forward
+             | try rewrite exp_andp2;
+               try (apply exp_left; intro_old_var c);
+               try rewrite insert_local
+             ] 
+end.
+
+(* FORWARD_FAILOVER:
+  The first clause of forward_with starts by calling F1, and if it matches,
+  then, in principle, no other clause of forward_with should be needed.
+  The way to enforce "no other clause" is by writing "fail 1".
+  However, there is a small bug in the forward_compound_call tactic:
+  if the second assignment has an _implicit_ cast, then the lemma
+  semax_call_id1_x  is just a bit too weak to work.   An example
+  that demonstrates this is in verif_queue.v, in make_elem at the
+  call to mallocN.   Until this lemma
+  is generalized, then failover is necessary, so we have "fail 0" instead
+  of "fail 1".
+
+  Related remark: 
+  In the tactic semax_call_id_tac_aux_x, the "eapply semax_post' " 
+   is probably redundant, now that forward1 is always called with
+ a standardized postcondition of (normal_ret_assert ?evar).
+*)
 
 Ltac forward := forward_with forward1.
 

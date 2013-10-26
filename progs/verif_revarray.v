@@ -75,7 +75,7 @@ auto.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-rename H4 into H5.
+rename H3 into H5.
 rewrite Int.sub_signed in H5.
 normalize in H5.
 simpl_compare.
@@ -93,13 +93,13 @@ destruct H1; try omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* t = a[lo]; *)
 entailer!.
-rewrite Int.sub_signed in H4.
-normalize in H4.
+rewrite Int.sub_signed in H3.
+normalize in H3.
 simpl_compare.
 omega.
 forward.  (* s = a[hi]; *)
 entailer.
-rename H4 into H6.
+rename H3 into H6.
 rewrite Int.sub_signed in H6|-*.
 normalize in H6.
 simpl_compare.
@@ -111,8 +111,8 @@ apply prop_right; omega.
 normalize. simpl typeof.
 forward. (*  a[hi-1] = t ; *)
 entailer.
-rewrite Int.sub_signed in H5.
-normalize in H5.
+rewrite Int.sub_signed in H4.
+normalize in H4.
 simpl_compare.
 apply prop_right; split; [reflexivity | ].
 normalize.
@@ -121,8 +121,8 @@ omega.
 normalize.
 forward. (*  a[lo] = s; *) 
 entailer.
-rewrite Int.sub_signed in H5.
-normalize in H5.
+rewrite Int.sub_signed in H4.
+normalize in H4.
 simpl_compare.
 apply prop_right; omega.
 
@@ -133,7 +133,7 @@ forward. (* hi--; *)
 unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
- simpl in H7. rewrite Int.sub_signed in H7. normalize in H7.
+ simpl in H6. rewrite Int.sub_signed in H6. normalize in H6.
  simpl_compare.
  apply andp_right.
  apply prop_right.

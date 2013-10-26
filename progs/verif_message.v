@@ -649,11 +649,9 @@ replace (`(typed_mapsto_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
 flatten_sepcon_in_SEP. (* only need this with HACK? *)
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
-rewrite normal_ret_assert_eq. normalize.
-change abbreviate with Delta. (* SHOULD NOT NEED THIS LINE *)
-apply forward_lemmas.elim_redundant_Delta. (* SHOULD NOT NEED THIS LINE *)
-normalize.
-unfold app.
+apply derives_refl.  (* SHOULD NOT NEED THIS LINE *)
+unfold app.  (* SHOULD NOT NEED THIS LINE *)
+autorewrite with subst.  (* SHOULD NOT NEED THIS LINE *)
 
 Ltac gather_SEP' L :=
    grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)
@@ -675,6 +673,23 @@ replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: t
           ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
             :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
 entailer.
+simpl update_tycon.
+unfold_abbrev.
+abbreviate_semax.
+unfold POSTCONDITION, MORE_COMMANDS, abbreviate.
+simpl update_tycon.
+replace_in_pre (tc_environ Delta ::
+   tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
+     (Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
+      :: Evar _buf (tarray tuchar 8) :: nil) :: nil)
+  (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)
+     (Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
+      :: Evar _buf (tarray tuchar 8) :: nil) :: nil).
+rewrite <- insert_local.
+apply andp_left2.
+rewrite <- insert_local.
+apply andp_left2.
+ apply derives_refl.
 apply call_serialize; repeat split; simpl; auto 50 with closed; auto.
 intro rho. apply prop_right. hnf. auto.
 simpl update_tycon. unfold app.

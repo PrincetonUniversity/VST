@@ -1091,7 +1091,8 @@ Ltac go_lower :=
  autorewrite with go_lower;
  repeat findvar;
  simpl;
- autorewrite with go_lower.
+ autorewrite with go_lower;
+ try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
 
 Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.

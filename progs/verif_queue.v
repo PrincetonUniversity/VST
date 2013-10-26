@@ -268,7 +268,7 @@ forward_if
       entailer!.
   + unfold link.
       normalize.
-      destruct prefix; normalize; entailer!; elim_hyps; inv H0.
+      destruct prefix; normalize; entailer!; elim_hyps; inv H.
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).

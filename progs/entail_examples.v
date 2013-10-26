@@ -1993,11 +1993,11 @@ entailer.
       destruct prefix.
       - rewrite links_nil_eq.
          entailer.
-         elim_hyps. inv H0.
+         elim_hyps. inv H.
       - rewrite links_cons_eq.
          normalize.   (* should this really be necessary here? *)
          entailer.
-         elim_hyps. inv H0.
+         elim_hyps. inv H.
 Qed.
 
 Lemma goal_11 :
