@@ -974,6 +974,8 @@ Ltac forward_call_id :=
            semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ]
  end.
 
+Ltac forward_skip := apply semax_skip.
+
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
@@ -986,6 +988,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   |  Ssequence (Scall (Some ?id') (Evar _ _) _) (Sset _ (Etempvar ?id' _)) => 
          forward_compound_call
   | Scall _ (Evar _ _) _ => forward_call_id
+  | Sskip => forward_skip
   end.
 
 Ltac derives_after_forward :=

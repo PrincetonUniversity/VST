@@ -116,6 +116,9 @@ Fixpoint generate_word (msg : list int) (n : nat) {struct n}: list int :=
   |S n' => generate_word (W msg :: msg) n'
   end.
 Arguments generate_word msg n : simpl never.
+Global Opaque generate_word. (* for some reason the Arguments...simpl-never
+   command does not do the job *)
+
 
 (*registers that represent intermediate and final hash values*)
 Definition registers := list int.

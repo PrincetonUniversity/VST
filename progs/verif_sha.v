@@ -1,15 +1,10 @@
 Require Import floyd.proofauto.
 Require Import progs.sha.
 Require Import progs.SHA256.
+Require Import progs.sha_lemmas.
 Local Open Scope logic.
 
 Set Printing Depth 10.
-
-Definition big_endian_integer (contents: Z -> int) : int :=
-  Int.or (Int.shl (contents 3) (Int.repr 24))
-  (Int.or (Int.shl (contents 2) (Int.repr 16))
-   (Int.or (Int.shl (contents 1) (Int.repr 8))
-      (contents 0))).
 
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
@@ -60,9 +55,6 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at tuchar sh (fun _ => c) 0 n p)).
 
-Definition LBLOCK : Z := 16.   (* length of a block, in 32-bit integers *)
-Definition CBLOCK : Z := (LBLOCK * 4)%Z.  (* length of a block, in characters *)
-
 Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
  intros.
  simpl in r.
@@ -71,29 +63,6 @@ Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
  simpl.
 Abort.
 
-Definition s256state := (list int * (int * (int * (list int * int))))%type.
-Definition s256_h (s: s256state) := fst s.
-Definition s256_Nl (s: s256state) := fst (snd s).
-Definition s256_Nh (s: s256state) := fst (snd (snd s)).
-Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
-Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
-
-Inductive s256abs :=  (* SHA-256 abstract state *)
- S256abs: forall (hashed: list int)   (* words hashed, so far *)
-                         (delta: Z) (* length of "hashed" minus the recorded length in hl *)
-                         (data: list Z)  (* bytes in the partial block not yet hashed *)
-                     (range:  0 <= Zlength data < CBLOCK),
-                     s256abs.
-
-Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
-     match a with S256abs hashed delta data _ =>
-         s256_h r = process_msg init_registers hashed 
-       /\ Zlength (intlist_to_Zlist hashed) = 
-             delta + (Int.unsigned (s256_Nh r) * Int.modulus + Int.unsigned (s256_Nl r))
-       /\ data = map Int.unsigned (firstn (Z.to_nat (Int.unsigned (s256_num r))) (s256_data r))
-       /\ Zlength (s256_data r) = CBLOCK
-     end.
-
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  typed_mapsto Tsh t_struct_SHA256state_st c r.
@@ -101,46 +70,26 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
 Definition data_block (contents: list Z) (v: val) :=
   array_at tuchar Tsh (@ZnthV tuchar (map Int.repr contents)) 0 (Zlength contents) v.
 
-Lemma Zlength_process_block:
-  forall r b, Zlength (process_block r b) = 8.
-Proof.
- intros. unfold process_block.
-Admitted.
-
-Definition process_block_abs (b: list int) (a: s256abs) : s256abs :=
-match a with
-| S256abs hashed delta data range =>
-    S256abs (hashed++b) (delta+CBLOCK) data range
-end.
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
     WITH a: s256abs, b: list int, ctx : val, data: val, sh: share
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
-         PROP(Zlength b = LBLOCK) 
+         PROP(length b = LBLOCK) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
          SEP (`(sha256state_ a ctx); `(data_block (intlist_to_Zlist b) data);
                 `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)))
    POST [ tvoid ]
           (`(sha256state_ (process_block_abs b a) ctx) *
-            `(data_block (intlist_to_Zlist b) data)).
-
-Definition init_s256abs : s256abs.
- apply (S256abs nil 0 nil).
- simpl; split; reflexivity.
-Defined.
-
-Definition addlength_rel (n: Z) (a: s256abs) : s256abs :=
- match a with S256abs hashed delta data range =>
-     S256abs hashed (delta-n) data range
- end.
-                                  
+          `(data_block (intlist_to_Zlist b) data) *
+          `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64))).
+                
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
- WITH len : Z, a: s256abs, c: val
+ WITH len : nat, a: s256abs, c: val
  PRE [ _c OF tptr t_struct_SHA256state_st , _len OF tuint ]
    PROP ( ) 
-   LOCAL (`(eq len) (`Int.unsigned (`force_int (eval_id _len))); `(eq c) (eval_id _c))
+   LOCAL (`(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))); `(eq c) (eval_id _c))
    SEP(`(sha256state_ a c))
  POST [ tvoid ]
    SEP(`(sha256state_ (addlength_rel len a) c)).
@@ -168,51 +117,26 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
              x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
 
-Lemma zero_le_Zlength: forall A (l: list A), 0 <= Zlength l.
-Proof.
-intros. rewrite Zlength_correct. omega.
-Qed.
-
-Lemma grab_and_process_block_length:
- forall n r firstr msg r' m',
-    Zlength msg >= Z_of_nat n ->
-    grab_and_process_block n r firstr msg  = (r',m') ->
-    Zlength r' = 8.
-Proof.
- induction n; intros.
- inv H0.
- apply Zlength_process_block.
- rewrite Zlength_correct in H.
- apply Nat2Z.inj_ge in H.
- destruct msg.
- inv H.
- simpl in H.
- apply IHn in H0; auto.
- rewrite Zlength_correct; apply Nat2Z.inj_ge.
- omega.
-Qed.
-
 Inductive update_abs: forall (msg: list Z) (a a': s256abs), Prop :=
-| UA_short: forall msg hashed data range
-         (H: Zlength (data++msg) < CBLOCK),
+| UA_short: forall msg hashed data
+         (H: length (data++msg) < CBLOCK),
          update_abs msg 
-           (S256abs hashed 0 data range)
-           (S256abs hashed 0 (data++msg) (conj (zero_le_Zlength _ _) H))
-| UA_long: forall (msg newblock: list Z) (b: list int) hashed data (msg': list Z) 
-                      range range' a'',
-        newblock = firstn (Z.to_nat CBLOCK) (data++msg) ->
+           (S256abs hashed 0 data)
+           (S256abs hashed 0 (data++msg))
+| UA_long: forall (msg newblock: list Z) (b: list int) hashed data (msg': list Z) a'',
+        newblock = firstn CBLOCK (data++msg) ->
         intlist_to_Zlist b = newblock ->
         newblock ++ msg' = data ++ msg ->
-        update_abs msg' (S256abs (hashed++b) 0 nil range')   a'' ->
-        update_abs msg (S256abs hashed 0 data range) a''.
+        update_abs msg' (S256abs (hashed++b) 0 nil)   a'' ->
+        update_abs msg (S256abs hashed 0 data) a''.
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
-   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z
+   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : nat
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP (len <= Zlength data)
+         PROP ((len <= length data)%nat)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
-                                  `(eq len) (`Int.unsigned (`force_int (eval_id _len))))
+                                  `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
          SEP(`(sha256state_ a c); `(data_block data d))
   POST [ tvoid ] 
          EX a':_, 
@@ -220,18 +144,9 @@ Definition SHA256_Update_spec :=
           SEP(`(sha256state_ a' c); `(data_block data d)).
 
 Definition s256a_regs (a: s256abs) : list int :=
- match a with S256abs hashed _ _ _  => 
+ match a with S256abs hashed _ _  => 
           process_msg init_registers hashed 
  end.
-
-Definition sha_finish (a a': s256abs) :=
- match a, a' with
- | S256abs hashed delta data range,
-   S256abs hashed' delta' data' range' =>
-     hashed' = generate_and_pad (intlist_to_Zlist hashed ++ data) 0
-  /\ data'=nil /\ delta=0 /\ delta'=0
- end.
-   
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
@@ -251,7 +166,7 @@ Definition SHA256_spec :=
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
          PROP (writable_share (snd sh)) 
          LOCAL (`(eq d) (eval_id _data_);
-                     `(eq (Zlength data)) (`Int.unsigned (`force_int (eval_id _n)));
+                     `(eq (Z.of_nat (length data))) (`Int.unsigned (`force_int (eval_id _n)));
                      `(eq md) (eval_id _md))
          SEP(`(data_block data d);
                `(memory_block (snd sh) (Int.repr 32) md))
@@ -284,31 +199,9 @@ simpl_typed_mapsto.
 rewrite field_mapsto_isptr at 1. normalize.
 Qed.
 
-Lemma lift2more {A}{B}{T}:
-  forall (v :A) (v': B) (F: A -> B -> T),
-   @liftx (LiftEnviron T) (F v v') = 
-     @liftx (Tarrow A (Tarrow B (LiftEnviron T))) F `v `v'.
-Proof. reflexivity. Qed.
-
-Lemma lift1more {A}{T}:
-  forall (v :A) (F: A -> T),
-   @liftx (LiftEnviron T) (F v) = 
-     @liftx (Tarrow A (LiftEnviron T)) F `v.
-Proof. reflexivity. Qed.
-
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_typed_mapsto_. 
-
-Lemma ditch_SEP: forall P Q R S,
-   PROPx P (LOCALx Q (SEPx (TT::nil))) |-- S ->
-     PROPx P (LOCALx Q (SEPx R)) |-- S.
-Proof.
-intros.
-eapply derives_trans; [| apply H]; clear H.
-go_lowerx.
-normalize.
-Qed.
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 
@@ -324,12 +217,6 @@ Definition block_data_order_loop1 :=
 Definition block_data_order_loop2 := 
    nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
-Lemma Zlength_process_msg:
-  forall b, Zlength (process_msg init_registers b) = 8.
-Proof.
- intros.
-Admitted.
-
 (*
 Fixpoint eval_ids (ids: list ident) : environ -> list val :=
   match ids with
@@ -341,7 +228,7 @@ Fixpoint eval_ids (ids: list ident) : environ -> list val :=
 Lemma sha256_block_data_order_loop1_proof:
   forall (Espec : OracleKind)
      (b: list int) (data: val) (regs: list int),
-     Zlength b = LBLOCK ->
+     length b = LBLOCK ->
      semax (initialized _i
           (initialized _h
            (initialized _g
@@ -365,7 +252,7 @@ Lemma sha256_block_data_order_loop1_proof:
   block_data_order_loop1
   (normal_ret_assert
     (PROP () 
-     LOCAL(`(eq (map Vint (rnd_64 regs K (rev b)))) 
+     LOCAL(`(eq (map Vint (rnd_64 regs K b))) 
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
@@ -373,12 +260,15 @@ Lemma sha256_block_data_order_loop1_proof:
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(array_at tuint Tsh (@ZnthV tuint b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block (intlist_to_Zlist b) data))) ).
+Proof.
+unfold block_data_order_loop1.
+intros. simpl nth.
 Admitted.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) (data: val) (regs: list int),
-     Zlength b = LBLOCK ->
+     length b = LBLOCK ->
      semax  
        (initialized _i
           (initialized _h
@@ -392,7 +282,7 @@ Lemma sha256_block_data_order_loop2_proof:
                                 (initialized _data
    (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
   (PROP ()
-   LOCAL (`(eq (map Vint (rnd_64 regs K (rev b)))) 
+   LOCAL (`(eq (map Vint (rnd_64 regs K b))) 
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
@@ -402,7 +292,7 @@ Lemma sha256_block_data_order_loop2_proof:
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
-     LOCAL(`(eq (map Vint (rnd_64 regs K (rev (generate_word b 48)))))
+     LOCAL(`(eq (map Vint (rnd_64 regs K (rev (generate_word (rev b) 48)))))
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
@@ -420,68 +310,6 @@ Lemma semax_seq_congr:  (* not provable *)
     semax Delta P (Ssequence s1' s2') R).
 Abort.
 
-Fixpoint sequence (cs: list statement) s :=
- match cs with
- | nil => s
- | c::cs' => Ssequence c (sequence cs' s)
- end.
-
-Fixpoint rsequence (cs: list statement) s :=
- match cs with
- | nil => s
- | c::cs' => Ssequence (rsequence cs' s) c
- end.
-
-Lemma sequence_rsequence:
- forall Espec Delta P cs s0 s R, 
-    @semax Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
-  @semax Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
-Proof.
-intros.
-revert Delta P R s0 s; induction cs; intros.
-simpl. apply iff_refl.
-simpl.
-rewrite seq_assoc.
-rewrite IHcs; clear IHcs.
-replace (rsequence (rev cs ++ [a]) s0) with
-    (rsequence (rev cs) (Ssequence s0 a)); [apply iff_refl | ].
-revert s0 a; induction (rev cs); simpl; intros; auto.
-rewrite IHl. auto.
-Qed.
-
-Lemma seq_assocN:  
-  forall {Espec: OracleKind},
-   forall Q Delta P cs s R,
-        @semax Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
-         @semax Espec 
-       (update_tycon Delta (sequence cs Sskip)) Q s R ->
-        @semax Espec Delta P (sequence cs s) R.
-Proof.
-intros.
-rewrite semax_skip_seq.
-rewrite sequence_rsequence.
-rewrite semax_skip_seq in H.
-rewrite sequence_rsequence in H.
-rewrite <- semax_seq_skip in H.
-eapply semax_seq'; [apply H | ].
-eapply semax_extensionality_Delta; try apply H0.
-clear.
-revert Delta; induction cs; simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-eapply semax_lemmas.tycontext_sub_trans; [apply IHcs | ].
-clear.
-revert Delta; induction (rev cs); simpl; intros.
-apply expr_lemmas.tycontext_sub_refl.
-apply expr_lemmas.update_tycon_sub.
-apply IHl.
-Qed.
-
-Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
- match n, s with 
- | S n', Ssequence a s' => a::sequenceN n' s'
- | _, _ => nil
- end.
-
 Definition load8 id ofs :=
  (Sset id
       (Ederef
@@ -491,12 +319,11 @@ Definition load8 id ofs :=
               t_struct_SHA256state_st) _h (tarray tuint 8))
           (Econst_int (Int.repr ofs) tint) (tptr tuint)) tuint)).
 
-
 Lemma sha256_block_load8:
   forall (Espec : OracleKind) 
      (b: list int) (data: val) (r_h: list int) (r_data: list int)
         (ctx: val)
-   (H5 : Zlength r_h = 8),
+   (H5 : length r_h = 8),
      semax  
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
@@ -543,22 +370,14 @@ name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
 abbreviate_semax.
-forward; [entailer! ;  omega | ]. (* a = ctx->h[0]; *)
-forward; [entailer! ;  omega | ]. (* b = ctx->h[1]; *)
-forward; [entailer! ;  omega | ]. (* c = ctx->h[2]; *)
-forward; [entailer! ;  omega | ]. (* d = ctx->h[3]; *)
-forward; [entailer! ;  omega | ]. (* e = ctx->h[4]; *)
-forward; [entailer! ;  omega | ]. (* f = ctx->h[5]; *)
-forward; [entailer! ;  omega | ]. (* g = ctx->h[6]; *)
-forward; [entailer! ;  omega | ]. (* h = ctx->h[7]; *)
-eapply semax_pre; [ | apply semax_skip].
+assert (H5': Zlength r_h = 8%Z).
+rewrite Zlength_correct; rewrite H5; reflexivity.
+do 8 (forward; [abstract (entailer!; omega) | ]).
+forward.  (* skip; *)
 entailer.
 do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
 reflexivity.
-repeat rewrite Zlength_cons in H5.
-rewrite Zlength_correct in H5.
-pose proof (seplog.Z_of_nat_ge_O (length r_h)).
-omega.
+inv H5.
 Qed.
 
 Definition get_h (n: Z) :=
@@ -595,7 +414,7 @@ Definition add_them_back :=
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
      (b: list int) (r_h: list int)(ctx: val)(hashed: list int),
-     Zlength b = LBLOCK ->
+     length b = LBLOCK ->
      semax  
        (initialized _i
           (initialized _h
@@ -610,7 +429,7 @@ Lemma add_them_back_proof:
    (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
    (PROP  ()
    LOCAL 
-   (`(eq (map Vint (rnd_64 r_h K (rev (generate_word b 48)))))
+   (`(eq (map Vint (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
       (`cons (eval_id _a)
          (`cons (eval_id _b)
             (`cons (eval_id _c)
@@ -626,12 +445,9 @@ Lemma add_them_back_proof:
    (PROP() LOCAL() 
     SEP (`(array_at tuint Tsh (@ZnthV tuint 
                    (map2 Int.add (process_msg init_registers hashed)
-                                         (rnd_64 r_h K (rev (generate_word b 48)))))
+                                         (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
             0 (Zlength (process_msg init_registers hashed)) ctx)))).
 Admitted.
-
-(* NOTE: there's a bug in the forward tactic;
-  it can't handle a load if it's the last command in a sequence. *)
 
 Lemma array_at_arrayof_:
   forall t sh f N N' v,
@@ -661,8 +477,11 @@ apply H0.
 apply semax_frame_PQR; auto.
 Qed.
 
-Opaque generate_word. (* for some reason the Arguments...simpl-never
-   command in SHA256.v does not do the job *)
+Lemma elim_globals_only:
+  forall Delta g i t rho,
+  tc_environ Delta rho /\ (glob_types Delta) ! i = Some g ->
+  eval_var i t (globals_only rho) = eval_var i t rho.
+Admitted.
 
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
@@ -690,8 +509,11 @@ normalize.
 unfold s256_relate in H1. destruct a.
 simpl in H1.
 unfold s256_Nh, s256_Nl, s256_data, s256_num, fst, snd in H1.
-destruct H1 as [? [? [? ?]]].
-assert (Zlength r_h = 8) by (subst r_h; apply Zlength_process_msg).
+destruct H1 as [? [? [? [H4 [H4b H4c]]]]].
+destruct H4b as [n H4b].
+change (length hashed = 16 * n)%nat in H4b.
+assert (length r_h = 8%nat) by (subst r_h; apply length_process_msg).
+(* assert (H5': Zlength r_h = 8) by (rewrite Zlength_correct; rewrite H5; reflexivity). *)
 forward. (* data = in; *)
 
 (**** BEGIN   the eight load-from-array-h[] commands.
@@ -723,7 +545,7 @@ forward.  (* i = 0; *)
 
 eapply semax_frame_seq.
 apply sha256_block_data_order_loop1_proof
-              with (regs:=r_h)(b:=b)(data:=data); eassumption.
+              with (regs:=r_h)(b:=b)(data:=data); try eassumption.
 entailer!.
 auto 50 with closed.
 unfold app; abbreviate_semax.
@@ -737,12 +559,60 @@ unfold app; abbreviate_semax.
 eapply seq_assocN with (cs := add_them_back).
 
 eapply semax_frame1.
-apply (add_them_back_proof _ b r_h ctx hashed); eassumption.
-go_lower.
+apply (add_them_back_proof _ b r_h ctx hashed); try eassumption.
 entailer. cancel.
 auto 50 with closed.
 
-Admitted.
+forward.
+entailer.
+unfold frame_ret_assert; simpl.
+unfold sha256state_.
+normalize.
+remember (map2 Int.add (process_msg init_registers hashed)
+        (rnd_64 (process_msg init_registers hashed) K
+           (rev (generate_word (rev b) 48)))) as regs.
+apply exp_right with (regs, (r_Nl, (r_Nh, (r_data, r_num)))).
+simpl_typed_mapsto. unfold fst,snd.
+autorewrite with norm.
+
+assert (length regs = 8%nat)
+  by (subst; apply length_map2_add_rnd_64; auto).
+rewrite Zlength_correct; rewrite length_process_msg.
+rewrite (Zlength_correct regs); rewrite H1.
+simpl Z.of_nat.
+apply andp_right.
+Focus 2. {
+unfold stackframe_of; simpl.
+rewrite var_block_typed_mapsto_.
+normalize. simpl_typed_mapsto.
+change (Pos.to_nat 16) with 16%nat.
+unfold id.
+erewrite elim_globals_only
+  by (split; [eassumption | reflexivity]).
+cancel.
+} Unfocus.
+apply prop_right.
+repeat split; simpl; auto.
+subst regs.
+apply process_msg_block; auto.
+eauto.
+unfold s256_Nh, s256_Nl; simpl.
+rewrite length_intlist_to_Zlist.
+rewrite app_length.
+rewrite H.
+rewrite length_intlist_to_Zlist in H2.
+change CBLOCK with 64%nat.
+change LBLOCK with 16%nat.
+rewrite mult_plus_distr_l.
+change (4*16)%nat with 64%nat.
+omega.
+exists (S n). rewrite app_length. rewrite H4b; rewrite H.
+change LBLOCK with 16%nat.
+transitivity (16 * n + 16 * 1)%nat; [reflexivity | ].
+rewrite <- mult_plus_distr_l.
+rewrite plus_comm. reflexivity.
+Qed.
+
 
 (*
 
