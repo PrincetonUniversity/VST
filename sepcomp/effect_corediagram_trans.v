@@ -93,7 +93,7 @@ Lemma diagram_injinj: forall
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
   (INV : DomTgt mu12 = DomSrc mu23 /\
-        myBlocksTgt mu12 = myBlocksSrc mu23 /\
+        locBlocksTgt mu12 = locBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -112,7 +112,7 @@ exists
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
      (DomTgt mu1 = DomSrc mu2 /\
-      myBlocksTgt mu1 = myBlocksSrc mu2 /\
+      locBlocksTgt mu1 = locBlocksSrc mu2 /\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -144,7 +144,7 @@ Proof.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
       (DomTgt mu12' = DomSrc mu23' /\
-      myBlocksTgt mu12' = myBlocksSrc mu23' /\
+      locBlocksTgt mu12' = locBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -198,8 +198,8 @@ Proof.
          simpl in *. destruct LocAlloc23 as [? [? [? ?]]]. subst.
          simpl in *. apply ZZ. 
   (*proof of the cut*)
-  assert (myLocAlloc12': myBlocksTgt mu12' =
-                         fun b => orb (myBlocksTgt mu12 b) (freshloc m2 m2' b)).
+  assert (myLocAlloc12': locBlocksTgt mu12' =
+                         fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
          destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
          destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
          simpl in *. subst.
@@ -363,7 +363,7 @@ Proof.
          rewrite LA2. extensionality b.
          rewrite freshloc_irrefl. apply orb_false_r.
        clear LA2.
-       assert (LA4': myBlocksTgt mu12' = (fun b : block => myBlocksTgt mu12 b)).
+       assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
          rewrite LA4. extensionality b.
          rewrite freshloc_irrefl. apply orb_false_r.
        clear LA4.
@@ -414,7 +414,7 @@ Lemma effdiagram_injinj: forall
                         core_ord12 cd' cd))
                     /\ forall b ofs, U2 b ofs = true -> 
                          (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false ->
+                           (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true))))              
 (core_data23 : Type)
@@ -438,7 +438,7 @@ Lemma effdiagram_injinj: forall
                         core_ord23 cd' cd)) 
                     /\ forall b ofs, U2 b ofs = true ->
                          (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false->
+                           (locBlocksTgt mu b = false->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true))))
  (match_sm_wd12 : forall (d : core_data12) (mu : SM_Injection) (c1 : C1)
@@ -468,7 +468,7 @@ Lemma effdiagram_injinj: forall
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
   (INV : DomTgt mu12 = DomSrc mu23/\
-        myBlocksTgt mu12 = myBlocksSrc mu23 /\
+        locBlocksTgt mu12 = locBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -487,7 +487,7 @@ exists
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
      (DomTgt mu1 = DomSrc mu2 /\
-      myBlocksTgt mu1 = myBlocksSrc mu2 /\
+      locBlocksTgt mu1 = locBlocksSrc mu2 /\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -502,7 +502,7 @@ exists
         (d12, Some st2, d23)) /\
     (forall b ofs, U3 b ofs = true -> 
      (Mem.valid_block m3 b /\
-      (myBlocksTgt (compose_sm mu12 mu23) b = false ->
+      (locBlocksTgt (compose_sm mu12 mu23) b = false ->
        exists (b1 : block) (delta1 : Z),
          foreign_of (compose_sm mu12 mu23) b1 = Some (b, delta1) /\
          Mem.valid_block m1 b1 /\ U1 b1 (ofs - delta1) = true)))).
@@ -525,7 +525,7 @@ Proof.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
       (DomTgt mu12' = DomSrc mu23' /\
-      myBlocksTgt mu12' = myBlocksSrc mu23' /\
+      locBlocksTgt mu12' = locBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -541,7 +541,7 @@ Proof.
         (d12, Some st2, d23)))
     /\ forall b ofs, U3 b ofs = true -> 
         (Mem.valid_block m3 b /\
-           (myBlocksTgt mu23 b = false ->
+           (locBlocksTgt mu23 b = false ->
            exists b2 delta2, foreign_of mu23 b2 = Some(b,delta2) /\
                Mem.valid_block m2 b2 /\ U2 b2 (ofs-delta2) = true)))).
   intros XX; destruct XX as [st3' [m3' [d23' [mu23' [INV' [InjIncr23 [InjSep23
@@ -588,7 +588,7 @@ Proof.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
          rewrite INVb in Uhyp21; clear INVb.
          destruct Uhyp21 as [b1 [d1 [Frg1 [vb1 HypU1]]]].
-            eapply frgnBlocksSrc_myBlocksSrc. eauto.
+            eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
          exists b1, (d1 + d2).
            assert (FrgB1 : frgnBlocksSrc mu12 b1 = true).
@@ -600,8 +600,8 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': myBlocksTgt mu12' =
-                         fun b => orb (myBlocksTgt mu12 b) (freshloc m2 m2' b)).
+  assert (myLocAlloc12': locBlocksTgt mu12' =
+                         fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
          destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
          destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
          simpl in *. subst.
@@ -768,7 +768,7 @@ Proof.
          destruct (valid_block_dec m3 b3); try inv H0.
          split; trivial.
          destruct (MOD32' _ _ H) as [vb3' UHyp32']; clear MOD32' StepN3.
-         intros. remember (myBlocksTgt mu23' b3) as d.
+         intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
                    destruct LocAlloc23 as [AA [BB [CC DD]]].
@@ -793,7 +793,7 @@ Proof.
        rewrite LA2. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA2.
-   assert (LA4': myBlocksTgt mu12' = (fun b : block => myBlocksTgt mu12 b)).
+   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
        rewrite LA4. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA4; clear eff_diagram23.
@@ -843,7 +843,7 @@ Lemma effdiagram_strong_injinj: forall
                  forall (cd : core_data12) (st2 : C2) (mu : SM_Injection)
                    (m2 : mem),
                  (forall b ofs, U1 b ofs = true -> 
-                      (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
                  match_core12 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C2) (m2' : mem) (cd' : core_data12) (mu' : SM_Injection),
@@ -858,7 +858,7 @@ Lemma effdiagram_strong_injinj: forall
                     (*/\ (forall b ofs, U2 b ofs = true -> Mem.valid_block m2 b)*)
                     /\ (forall b ofs, U2 b ofs = true -> 
                            (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false ->
+                           (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)))) )          
 (core_data23 : Type)
@@ -870,7 +870,7 @@ Lemma effdiagram_strong_injinj: forall
                  forall (cd : core_data23) (st2 : C3) (mu : SM_Injection)
                    (m2 : mem),
                  (forall b ofs, U1 b ofs = true -> 
-                      (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
                  match_core23 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C3) (m2' : mem) (cd' : core_data23) (mu' : SM_Injection),
@@ -884,7 +884,7 @@ Lemma effdiagram_strong_injinj: forall
                         core_ord23 cd' cd)) 
                     /\ (forall b ofs, U2 b ofs = true ->
                           (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false->
+                           (locBlocksTgt mu b = false->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)))))
  (match_sm_wd12 : forall (d : core_data12) (mu : SM_Injection) (c1 : C1)
@@ -914,7 +914,7 @@ Lemma effdiagram_strong_injinj: forall
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
   (INV : DomTgt mu12 = DomSrc mu23 /\
-        myBlocksTgt mu12 = myBlocksSrc mu23 /\
+        locBlocksTgt mu12 = locBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -922,7 +922,7 @@ Lemma effdiagram_strong_injinj: forall
   (MC12 : match_core12 d12 mu12 st1 m1 st2 m2)
   (MC23 : match_core23 d23 mu23 st2 m2 st3 m3)
   (UHyp : forall b ofs, U1 b ofs = true -> 
-         (myBlocksSrc (compose_sm mu12 mu23) b = true \/
+         (locBlocksSrc (compose_sm mu12 mu23) b = true \/
          frgnBlocksSrc (compose_sm mu12 mu23) b = true)),
 exists
   (st2' : C3) (m2' : mem) (cd' : core_data12 * option C2 * core_data23) (mu' : SM_Injection),
@@ -936,7 +936,7 @@ exists
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
      (DomTgt mu1 = DomSrc mu2 /\
-      myBlocksTgt mu1 = myBlocksSrc mu2/\
+      locBlocksTgt mu1 = locBlocksSrc mu2/\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -951,7 +951,7 @@ exists
         (d12, Some st2, d23)) 
     /\ (forall b ofs, U3 b ofs = true -> 
          (Mem.valid_block m3 b /\
-      (myBlocksTgt (compose_sm mu12 mu23) b = false ->
+      (locBlocksTgt (compose_sm mu12 mu23) b = false ->
       exists (b1 : block) (delta1 : Z),
         foreign_of (compose_sm mu12 mu23) b1 = Some (b, delta1) /\
         U1 b1 (ofs - delta1) = true)))).
@@ -975,7 +975,7 @@ Proof.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
       (DomTgt mu12' = DomSrc mu23' /\
-      myBlocksTgt mu12' = myBlocksSrc mu23' /\
+      locBlocksTgt mu12' = locBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -991,7 +991,7 @@ Proof.
         (d12, Some st2,d23)))
     /\ forall b ofs, U3 b ofs = true -> 
         (Mem.valid_block m3 b /\
-           (myBlocksTgt mu23 b = false ->
+           (locBlocksTgt mu23 b = false ->
            exists b2 delta2, foreign_of mu23 b2 = Some(b,delta2) /\
                U2 b2 (ofs-delta2) = true)))).
   intros XX; destruct XX as [st3' [m3' [d23' [mu23' [INV' [InjIncr23 [InjSep23
@@ -1036,7 +1036,7 @@ Proof.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
          rewrite INVb in Uhyp21; clear INVb.
          destruct Uhyp21 as [b1 [d1 [Frg1 HypU1]]].
-            eapply frgnBlocksSrc_myBlocksSrc. eauto.
+            eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
          exists b1, (d1 + d2).
            assert (FrgB1 : frgnBlocksSrc mu12 b1 = true).
@@ -1048,8 +1048,8 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': myBlocksTgt mu12' =
-                         fun b => orb (myBlocksTgt mu12 b) (freshloc m2 m2' b)).
+  assert (myLocAlloc12': locBlocksTgt mu12' =
+                         fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
          destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
          destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
          simpl in *. subst.
@@ -1072,9 +1072,9 @@ Proof.
   rewrite H1 in *. clear H1.
   subst.
   assert (UHyp2 : forall b2 z, U2 b2 z = true ->
-                myBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
+                locBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
       intros. destruct (MOD21 _ _ H0).
-      remember (myBlocksSrc mu23 b2) as d.
+      remember (locBlocksSrc mu23 b2) as d.
       destruct d; apply eq_sym in Heqd. left; trivial.
       destruct (H4 (eq_refl _)) as [b1 [d1 [Frg1 HU1]]]; clear H2.
       right.
@@ -1141,7 +1141,7 @@ Proof.
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
     assert (U2'Hyp: forall b2 z, U2 b2 z || freshloc m2 m2' b2 = true ->
-                myBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
+                locBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
         intros. clear IHx StepN2.
         apply orb_true_iff in H.
         destruct H.
@@ -1149,7 +1149,7 @@ Proof.
             left. eapply InjInc23. apply H0.
             right. assert (frgnBlocksSrc mu23 = frgnBlocksSrc mu23'). eapply InjInc23.
                    rewrite H1 in H0. apply H0.
-          left. assert (myBlocksSrc mu23' = (fun b : block => myBlocksSrc mu23 b || freshloc m2 m2' b)).
+          left. assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
                    apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
                 rewrite H0; clear H0. rewrite H. apply orb_true_r.
 
@@ -1236,7 +1236,7 @@ Proof.
          destruct (valid_block_dec m3 b3); try inv H0.
          split; trivial.
          destruct (MOD32' _ _ H) as [vb3' UHyp32']; clear MOD32' StepN3.
-         intros. remember (myBlocksTgt mu23' b3) as d.
+         intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
                    destruct LocAlloc23 as [AA [BB [CC DD]]].
@@ -1260,7 +1260,7 @@ Proof.
        rewrite LA2. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA2.
-   assert (LA4': myBlocksTgt mu12' = (fun b : block => myBlocksTgt mu12 b)).
+   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
        rewrite LA4. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA4; clear eff_diagram23.
@@ -1310,7 +1310,7 @@ Lemma effdiagram_strong_perm_injinj: forall
                  forall (cd : core_data12) (st2 : C2) (mu : SM_Injection)
                    (m2 : mem),
                  (forall b ofs, U1 b ofs = true -> 
-                      (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
                  match_core12 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C2) (m2' : mem) (cd' : core_data12) (mu' : SM_Injection),
@@ -1325,7 +1325,7 @@ Lemma effdiagram_strong_perm_injinj: forall
                     (*/\ (forall b ofs, U2 b ofs = true -> Mem.valid_block m2 b)*)
                     /\ (forall b ofs, U2 b ofs = true -> 
                            (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false ->
+                           (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
                            Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))) )          
@@ -1338,7 +1338,7 @@ Lemma effdiagram_strong_perm_injinj: forall
                  forall (cd : core_data23) (st2 : C3) (mu : SM_Injection)
                    (m2 : mem),
                  (forall b ofs, U1 b ofs = true -> 
-                      (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
                  match_core23 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C3) (m2' : mem) (cd' : core_data23) (mu' : SM_Injection),
@@ -1352,7 +1352,7 @@ Lemma effdiagram_strong_perm_injinj: forall
                         core_ord23 cd' cd)) 
                     /\ (forall b ofs, U2 b ofs = true ->
                           (Mem.valid_block m2 b /\
-                           (myBlocksTgt mu b = false->
+                           (locBlocksTgt mu b = false->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
                            Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))))
@@ -1383,7 +1383,7 @@ Lemma effdiagram_strong_perm_injinj: forall
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
   (INV : DomTgt mu12 = DomSrc mu23 /\
-        myBlocksTgt mu12 = myBlocksSrc mu23 /\
+        locBlocksTgt mu12 = locBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -1391,7 +1391,7 @@ Lemma effdiagram_strong_perm_injinj: forall
   (MC12 : match_core12 d12 mu12 st1 m1 st2 m2)
   (MC23 : match_core23 d23 mu23 st2 m2 st3 m3)
   (UHyp : forall b ofs, U1 b ofs = true -> 
-         (myBlocksSrc (compose_sm mu12 mu23) b = true \/
+         (locBlocksSrc (compose_sm mu12 mu23) b = true \/
          frgnBlocksSrc (compose_sm mu12 mu23) b = true)),
 exists
   (st2' : C3) (m2' : mem) (cd' : core_data12 * option C2 * core_data23) (mu' : SM_Injection),
@@ -1405,7 +1405,7 @@ exists
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
      (DomTgt mu1 = DomSrc mu2 /\
-      myBlocksTgt mu1 = myBlocksSrc mu2/\
+      locBlocksTgt mu1 = locBlocksSrc mu2/\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -1420,7 +1420,7 @@ exists
         (d12, Some st2, d23)) 
     /\ (forall b ofs, U3 b ofs = true -> 
          (Mem.valid_block m3 b /\
-      (myBlocksTgt (compose_sm mu12 mu23) b = false ->
+      (locBlocksTgt (compose_sm mu12 mu23) b = false ->
       exists (b1 : block) (delta1 : Z),
         foreign_of (compose_sm mu12 mu23) b1 = Some (b, delta1) /\
         U1 b1 (ofs - delta1) = true /\
@@ -1445,7 +1445,7 @@ Proof.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
       (DomTgt mu12' = DomSrc mu23' /\
-      myBlocksTgt mu12' = myBlocksSrc mu23' /\
+      locBlocksTgt mu12' = locBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -1461,7 +1461,7 @@ Proof.
         (d12, Some st2,d23)))
     /\ forall b ofs, U3 b ofs = true -> 
         (Mem.valid_block m3 b /\
-           (myBlocksTgt mu23 b = false ->
+           (locBlocksTgt mu23 b = false ->
            exists b2 delta2, foreign_of mu23 b2 = Some(b,delta2) /\
                U2 b2 (ofs-delta2) = true /\
                Mem.perm m2 b2 (ofs-delta2) Max Nonempty)))).
@@ -1507,7 +1507,7 @@ Proof.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
          rewrite INVb in Uhyp21; clear INVb.
          destruct Uhyp21 as [b1 [d1 [Frg1 HypU1]]].
-            eapply frgnBlocksSrc_myBlocksSrc. eauto.
+            eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
          exists b1, (d1 + d2).
            assert (FrgB1 : frgnBlocksSrc mu12 b1 = true).
@@ -1519,8 +1519,8 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': myBlocksTgt mu12' =
-                         fun b => orb (myBlocksTgt mu12 b) (freshloc m2 m2' b)).
+  assert (myLocAlloc12': locBlocksTgt mu12' =
+                         fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
          destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
          destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
          simpl in *. subst.
@@ -1543,9 +1543,9 @@ Proof.
   rewrite H1 in *. clear H1.
   subst.
   assert (UHyp2 : forall b2 z, U2 b2 z = true ->
-                myBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
+                locBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
       intros. destruct (MOD21 _ _ H0).
-      remember (myBlocksSrc mu23 b2) as d.
+      remember (locBlocksSrc mu23 b2) as d.
       destruct d; apply eq_sym in Heqd. left; trivial.
       destruct (H4 (eq_refl _)) as [b1 [d1 [Frg1 HU1]]]; clear H2.
       right.
@@ -1612,7 +1612,7 @@ Proof.
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
     assert (U2'Hyp: forall b2 z, U2 b2 z || freshloc m2 m2' b2 = true ->
-                myBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
+                locBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
         intros. clear IHx StepN2.
         apply orb_true_iff in H.
         destruct H.
@@ -1620,7 +1620,7 @@ Proof.
             left. eapply InjInc23. apply H0.
             right. assert (frgnBlocksSrc mu23 = frgnBlocksSrc mu23'). eapply InjInc23.
                    rewrite H1 in H0. apply H0.
-          left. assert (myBlocksSrc mu23' = (fun b : block => myBlocksSrc mu23 b || freshloc m2 m2' b)).
+          left. assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
                    apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
                 rewrite H0; clear H0. rewrite H. apply orb_true_r.
 
@@ -1707,7 +1707,7 @@ Proof.
          destruct (valid_block_dec m3 b3); try inv H0.
          split; trivial.
          destruct (MOD32' _ _ H) as [vb3' UHyp32']; clear MOD32' StepN3.
-         intros. remember (myBlocksTgt mu23' b3) as d.
+         intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
                    destruct LocAlloc23 as [AA [BB [CC DD]]].
@@ -1732,7 +1732,7 @@ Proof.
        rewrite LA2. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA2.
-   assert (LA4': myBlocksTgt mu12' = (fun b : block => myBlocksTgt mu12 b)).
+   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
        rewrite LA4. extensionality b.
        rewrite freshloc_irrefl. apply orb_false_r.
    clear LA4; clear eff_diagram23.

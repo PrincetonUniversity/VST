@@ -144,7 +144,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
         exists c2, exists m2, exists mu1, exists mu2, 
           X=Some c2 /\ mu = compose_sm mu1 mu2 /\
           (DomTgt mu1 = DomSrc mu2 /\
-           myBlocksTgt mu1 = myBlocksSrc mu2 /\
+           locBlocksTgt mu1 = locBlocksSrc mu2 /\
            (forall b, pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
            (forall b, frgnBlocksTgt mu1 b = true -> frgnBlocksSrc mu2 b = true)) /\ 
           match_core12 d1 mu1 c1 m1 c2 m2 /\ match_core23 d2 mu2 c2 m2 c3 m3 
@@ -175,12 +175,12 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     exists (sm_extern_normalize mu12 (sm_extern_normalize mu23 downstreamMu)). 
     exists (sm_extern_normalize mu23 downstreamMu). 
     simpl in *. split. trivial. 
-    rewrite sm_extern_normalize_myBlocksTgt, sm_extern_normalize_DomTgt,
+    rewrite sm_extern_normalize_locBlocksTgt, sm_extern_normalize_DomTgt,
                     sm_extern_normalize_pubBlocksTgt, sm_extern_normalize_frgnBlocksTgt. 
-    rewrite sm_extern_normalize_myBlocksSrc, sm_extern_normalize_DomSrc,
+    rewrite sm_extern_normalize_locBlocksSrc, sm_extern_normalize_DomSrc,
                     sm_extern_normalize_pubBlocksSrc, sm_extern_normalize_frgnBlocksSrc.
     split. destruct mu12; simpl in *. unfold compose_sm; simpl.
-            rewrite sm_extern_normalize_myBlocksTgt, sm_extern_normalize_DomTgt,
+            rewrite sm_extern_normalize_locBlocksTgt, sm_extern_normalize_DomTgt,
                     sm_extern_normalize_pubBlocksTgt, sm_extern_normalize_frgnBlocksTgt.
            destruct mu23; simpl in *. rewrite <- normalize_compose_commute. 
            eapply f_equal.
@@ -190,7 +190,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     apply match_norm12.
       split. eapply sm_extern_normalize_WD.
                 eauto. apply H0. apply H0.
-      rewrite sm_extern_normalize_myBlocksSrc, sm_extern_normalize_DomSrc,
+      rewrite sm_extern_normalize_locBlocksSrc, sm_extern_normalize_DomSrc,
               sm_extern_normalize_pubBlocksSrc, sm_extern_normalize_frgnBlocksSrc.
       apply INV. 
  (*TrimUnknown
@@ -431,31 +431,31 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   specialize (eff_after_external23 _ _ _ _ _ _ _ _ _ 
       _ _ _ MInj23 MC23 AtExt2 AtExtTgt ArgsInj23 _ (eq_refl _) 
       _ (eq_refl _) _ (eq_refl _)).
-  assert (LeakedCompSrc: myBlocksSrc mu = myBlocksSrc nmu12 /\
+  assert (LeakedCompSrc: locBlocksSrc mu = locBlocksSrc nmu12 /\
                         exportedSrc mu vals1 = exportedSrc nmu12 vals1). 
      subst. clear - WDnmu12 WDmu. simpl.  
-        rewrite sm_extern_normalize_myBlocksSrc.
+        rewrite sm_extern_normalize_locBlocksSrc.
         unfold exportedSrc. 
         rewrite sharedSrc_iff_frgnpub; trivial. simpl. 
         rewrite sharedSrc_iff_frgnpub; trivial.
         rewrite sm_extern_normalize_frgnBlocksSrc, sm_extern_normalize_pubBlocksSrc.
         intuition.
   destruct LeakedCompSrc as [LSa LSb]. rewrite LSa, LSb in *. clear LSa LSb.
-  assert (LeakedCompTgt: myBlocksTgt mu = myBlocksTgt mu23 
+  assert (LeakedCompTgt: locBlocksTgt mu = locBlocksTgt mu23 
                        /\ exportedTgt mu vals3 = exportedTgt mu23 vals3).
      subst. clear - WDmu23 WDmu. simpl.  
         unfold exportedTgt, sharedTgt. simpl. intuition. 
   destruct LeakedCompTgt as [LTa LTb]. rewrite LTa, LTb in *. clear LTa LTb.
-   remember (fun b => myBlocksTgt nmu12 b && 
+   remember (fun b => locBlocksTgt nmu12 b && 
              REACH m2 (exportedTgt nmu12 vals2) b) as pubTgtMid'.
-   remember (fun b => myBlocksSrc mu23 b && 
+   remember (fun b => locBlocksSrc mu23 b && 
              REACH m2 (exportedSrc mu23 vals2) b) as pubSrcMid'.
    assert (MID: forall b, pubTgtMid' b = true -> pubSrcMid' b = true).
         clear eff_after_external12 match_validblock23 eff_after_external23.
         rewrite HeqpubTgtMid', HeqpubSrcMid'. 
         destruct GLUEINV as [? [? [? ?]]].
         subst.
-        rewrite sm_extern_normalize_myBlocksTgt, sm_extern_normalize_exportedTgt; trivial.
+        rewrite sm_extern_normalize_locBlocksTgt, sm_extern_normalize_exportedTgt; trivial.
            rewrite H0. intros. rewrite andb_true_iff in *.
         destruct H3. split; trivial.
         eapply REACH_mono; try eassumption.
@@ -468,12 +468,12 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
      clear frgnSrcHyp frgnTgtHyp eff_after_external23.
      subst. unfold compose_sm; simpl.
      rewrite replace_locals_extern, replace_locals_local,
-             replace_locals_myBlocksSrc, replace_locals_myBlocksTgt,
+             replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
             replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt,
             replace_locals_DomSrc, replace_locals_DomTgt.
      rewrite replace_locals_extern, replace_locals_local.
-     rewrite sm_extern_normalize_DomSrc, sm_extern_normalize_myBlocksSrc,
+     rewrite sm_extern_normalize_DomSrc, sm_extern_normalize_locBlocksSrc,
              sm_extern_normalize_local, sm_extern_normalize_extern.
      f_equal. 
 
@@ -487,26 +487,26 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
        subst.
        eapply replace_locals_wd; try eassumption.
          intros. apply andb_true_iff in H.
-           destruct H as [myB R].
+           destruct H as [locB R].
            destruct (REACH_local_REACH _ WDnmu12 _ _ _ _ 
-              MInj12 ArgsInj12 _ R myB) as [b2 [d1 [LOC12 R2]]].
+              MInj12 ArgsInj12 _ R locB) as [b2 [d1 [LOC12 R2]]].
            exists b2, d1; split; trivial.
            rewrite andb_true_iff, R2.
            split; trivial.
-           eapply local_myBlocks; eassumption.
+           eapply local_locBlocks; eassumption.
          intros. apply andb_true_iff in H. apply H. 
   assert (WDnu23: SM_wd (replace_locals mu23 pubSrcMid' pubTgt')).
        subst. 
        eapply replace_locals_wd; try eassumption.
        destruct GLUEINV as [GIa [GIb [GIc GId]]]. subst. 
        intros b2; intros. apply andb_true_iff in H.
-           destruct H as [myB R].
+           destruct H as [locB R].
            destruct (REACH_local_REACH _ WDmu23 _ _ _ _ 
-              MInj23 ArgsInj23 _ R myB) as [b3 [d2 [LOC23 R3]]].
+              MInj23 ArgsInj23 _ R locB) as [b3 [d2 [LOC23 R3]]].
            exists b3, d2; split; trivial.
            rewrite andb_true_iff, R3.
            split; trivial.
-           eapply local_myBlocks; eassumption.
+           eapply local_locBlocks; eassumption.
          intros. apply andb_true_iff in H. apply H.
   assert (nu12_valid: sm_valid (replace_locals nmu12 pubSrc' pubTgtMid') m1 m2).
      split. rewrite replace_locals_DOM. eapply mu12_valid.
@@ -527,13 +527,13 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
        subst. apply UnchLOOR13. 
     (*discharge the GLUE application condition*)
       rewrite replace_locals_DomSrc, replace_locals_DomTgt,
-            replace_locals_myBlocksSrc, replace_locals_myBlocksTgt,
+            replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
             replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt.
       destruct GLUEINV as [GLUEa [GLUEb [GLUEc GLUEd]]].
       repeat (split; trivial).
       subst. rewrite sm_extern_normalize_DomTgt; trivial.
-      subst. rewrite sm_extern_normalize_myBlocksTgt; trivial.
+      subst. rewrite sm_extern_normalize_locBlocksTgt; trivial.
       subst. rewrite sm_extern_normalize_frgnBlocksTgt; trivial.
     (*discharge the Norm Hypothesis*)
       rewrite Heqnmu12. do 2 rewrite replace_locals_extern.
@@ -586,19 +586,19 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   split. assumption.
   exists c2'. exists m2'.
   exists (replace_externs nu12'
-            (fun b => DomSrc nu12' b && (negb (myBlocksSrc nu12' b) 
+            (fun b => DomSrc nu12' b && (negb (locBlocksSrc nu12' b) 
                                      && REACH m1' (exportedSrc nu12' (ret1::nil)) b))
-            (fun b => DomTgt nu12' b && (negb (myBlocksTgt nu12' b) 
+            (fun b => DomTgt nu12' b && (negb (locBlocksTgt nu12' b) 
                                      && REACH m2' (exportedTgt nu12' (ret2::nil)) b))).
   exists (replace_externs nu23'
-            (fun b => DomSrc nu23' b && (negb (myBlocksSrc nu23' b) 
+            (fun b => DomSrc nu23' b && (negb (locBlocksSrc nu23' b) 
                                      && REACH m2' (exportedSrc nu23' (ret2::nil)) b))
-            (fun b => DomTgt nu23' b && (negb (myBlocksTgt nu23' b) 
+            (fun b => DomTgt nu23' b && (negb (locBlocksTgt nu23' b) 
                                      && REACH m3' (exportedTgt nu23' (ret3::nil)) b))).
   split. reflexivity.
   unfold compose_sm. simpl.
          repeat rewrite replace_externs_DomSrc, replace_externs_DomTgt, 
-                 replace_externs_myBlocksSrc, replace_externs_myBlocksTgt,
+                 replace_externs_locBlocksSrc, replace_externs_locBlocksTgt,
                  replace_externs_pubBlocksSrc, replace_externs_pubBlocksTgt,  
                  replace_externs_frgnBlocksSrc, replace_externs_frgnBlocksTgt.
         rewrite replace_externs_extern, replace_externs_local.
@@ -682,31 +682,31 @@ Qed.*)
   specialize (eff_after_external23 _ _ _ _ _ _ _ _ _ 
       _ _ _ MInj23 MC23 AtExt2 AtExtTgt ArgsInj23 _ (eq_refl _) 
       _ (eq_refl _) _ (eq_refl _)).
-  assert (LeakedCompSrc: myBlocksSrc mu = myBlocksSrc nmu12 /\
+  assert (LeakedCompSrc: locBlocksSrc mu = locBlocksSrc nmu12 /\
                         exportedSrc mu vals1 = exportedSrc nmu12 vals1). 
      subst. clear - WDnmu12 WDmu. simpl.  
-        rewrite sm_extern_normalize_myBlocksSrc.
+        rewrite sm_extern_normalize_locBlocksSrc.
         unfold exportedSrc. 
         rewrite sharedSrc_iff_frgnpub; trivial. simpl. 
         rewrite sharedSrc_iff_frgnpub; trivial.
         rewrite sm_extern_normalize_frgnBlocksSrc, sm_extern_normalize_pubBlocksSrc.
         intuition.
   destruct LeakedCompSrc as [LSa LSb]. rewrite LSa, LSb in *. clear LSa LSb.
-  assert (LeakedCompTgt: myBlocksTgt mu = myBlocksTgt mu23 
+  assert (LeakedCompTgt: locBlocksTgt mu = locBlocksTgt mu23 
                        /\ exportedTgt mu vals3 = exportedTgt mu23 vals3).
      subst. clear - WDmu23 WDmu. simpl.  
         unfold exportedTgt, sharedTgt. simpl. intuition. 
   destruct LeakedCompTgt as [LTa LTb]. rewrite LTa, LTb in *. clear LTa LTb.
-   remember (fun b => myBlocksTgt nmu12 b && 
+   remember (fun b => locBlocksTgt nmu12 b && 
              REACH m2 (exportedTgt nmu12 vals2) b) as pubTgtMid'.
-   remember (fun b => myBlocksSrc mu23 b && 
+   remember (fun b => locBlocksSrc mu23 b && 
              REACH m2 (exportedSrc mu23 vals2) b) as pubSrcMid'.
    assert (MID: forall b, pubTgtMid' b = true -> pubSrcMid' b = true).
         clear eff_after_external12 match_validblock23 eff_after_external23.
         rewrite HeqpubTgtMid', HeqpubSrcMid'. 
         destruct GLUEINV as [? [? [? ?]]].
         subst.
-        rewrite sm_extern_normalize_myBlocksTgt, sm_extern_normalize_exportedTgt; trivial.
+        rewrite sm_extern_normalize_locBlocksTgt, sm_extern_normalize_exportedTgt; trivial.
            rewrite H0. intros. rewrite andb_true_iff in *.
         destruct H3. split; trivial.
         eapply REACH_mono; try eassumption.
@@ -719,12 +719,12 @@ Qed.*)
      clear frgnSrcHyp frgnTgtHyp eff_after_external23.
      subst. unfold compose_sm; simpl.
      rewrite replace_locals_extern, replace_locals_local,
-             replace_locals_myBlocksSrc, replace_locals_myBlocksTgt,
+             replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
             replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt,
             replace_locals_DomSrc, replace_locals_DomTgt.
      rewrite replace_locals_extern, replace_locals_local.
-     rewrite sm_extern_normalize_DomSrc, sm_extern_normalize_myBlocksSrc,
+     rewrite sm_extern_normalize_DomSrc, sm_extern_normalize_locBlocksSrc,
              sm_extern_normalize_local, sm_extern_normalize_extern.
      f_equal. 
 
@@ -738,26 +738,26 @@ Qed.*)
        subst.
        eapply replace_locals_wd; try eassumption.
          intros. apply andb_true_iff in H.
-           destruct H as [myB R].
+           destruct H as [locB R].
            destruct (REACH_local_REACH _ WDnmu12 _ _ _ _ 
-              MInj12 ArgsInj12 _ R myB) as [b2 [d1 [LOC12 R2]]].
+              MInj12 ArgsInj12 _ R locB) as [b2 [d1 [LOC12 R2]]].
            exists b2, d1; split; trivial.
            rewrite andb_true_iff, R2.
            split; trivial.
-           eapply local_myBlocks; eassumption.
+           eapply local_locBlocks; eassumption.
          intros. apply andb_true_iff in H. apply H. 
   assert (WDnu23: SM_wd (replace_locals mu23 pubSrcMid' pubTgt')).
        subst. 
        eapply replace_locals_wd; try eassumption.
        destruct GLUEINV as [GIa [GIb [GIc GId]]]. subst. 
        intros b2; intros. apply andb_true_iff in H.
-           destruct H as [myB R].
+           destruct H as [locB R].
            destruct (REACH_local_REACH _ WDmu23 _ _ _ _ 
-              MInj23 ArgsInj23 _ R myB) as [b3 [d2 [LOC23 R3]]].
+              MInj23 ArgsInj23 _ R locB) as [b3 [d2 [LOC23 R3]]].
            exists b3, d2; split; trivial.
            rewrite andb_true_iff, R3.
            split; trivial.
-           eapply local_myBlocks; eassumption.
+           eapply local_locBlocks; eassumption.
          intros. apply andb_true_iff in H. apply H.
   assert (nu12_valid: sm_valid (replace_locals nmu12 pubSrc' pubTgtMid') m1 m2).
      split. rewrite replace_locals_DOM. eapply mu12_valid.
@@ -778,13 +778,13 @@ Qed.*)
        subst. apply UnchLOOR13. 
     (*discharge the GLUE application condition*)
       rewrite replace_locals_DomSrc, replace_locals_DomTgt,
-            replace_locals_myBlocksSrc, replace_locals_myBlocksTgt,
+            replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
             replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt.
       destruct GLUEINV as [GLUEa [GLUEb [GLUEc GLUEd]]].
       repeat (split; trivial).
       subst. rewrite sm_extern_normalize_DomTgt; trivial.
-      subst. rewrite sm_extern_normalize_myBlocksTgt; trivial.
+      subst. rewrite sm_extern_normalize_locBlocksTgt; trivial.
       subst. rewrite sm_extern_normalize_frgnBlocksTgt; trivial.
     (*discharge the Norm Hypothesis*)
       rewrite Heqnmu12. do 2 rewrite replace_locals_extern.
@@ -836,19 +836,19 @@ Qed.*)
   split. assumption.
   exists c2'. exists m2'.
   exists (replace_externs nu12'
-            (fun b => DomSrc nu12' b && (negb (myBlocksSrc nu12' b) 
+            (fun b => DomSrc nu12' b && (negb (locBlocksSrc nu12' b) 
                                      && REACH m1' (exportedSrc nu12' (ret1::nil)) b))
-            (fun b => DomTgt nu12' b && (negb (myBlocksTgt nu12' b) 
+            (fun b => DomTgt nu12' b && (negb (locBlocksTgt nu12' b) 
                                      && REACH m2' (exportedTgt nu12' (ret2::nil)) b))).
   exists (replace_externs nu23'
-            (fun b => DomSrc nu23' b && (negb (myBlocksSrc nu23' b) 
+            (fun b => DomSrc nu23' b && (negb (locBlocksSrc nu23' b) 
                                      && REACH m2' (exportedSrc nu23' (ret2::nil)) b))
-            (fun b => DomTgt nu23' b && (negb (myBlocksTgt nu23' b) 
+            (fun b => DomTgt nu23' b && (negb (locBlocksTgt nu23' b) 
                                      && REACH m3' (exportedTgt nu23' (ret3::nil)) b))).
   split. reflexivity.
   unfold compose_sm. simpl.
          repeat rewrite replace_externs_DomSrc, replace_externs_DomTgt, 
-                 replace_externs_myBlocksSrc, replace_externs_myBlocksTgt,
+                 replace_externs_locBlocksSrc, replace_externs_locBlocksTgt,
                  replace_externs_pubBlocksSrc, replace_externs_pubBlocksTgt,  
                  replace_externs_frgnBlocksSrc, replace_externs_frgnBlocksTgt.
         rewrite replace_externs_extern, replace_externs_local.
@@ -927,7 +927,7 @@ End Eff_sim_trans.
       destruct (REACH_local_REACH _ WDmu12 _ _ (v1::nil) (v2::nil) MInjMu12 VALS12 _ H1 H)
         as [b2 [d1 [LOC12 R2]]].
       exists b2, d1. rewrite LOC12, R2.
-      destruct (local_myBlocks _ WDmu12 _ _ _ LOC12) as [_ [? _]].
+      destruct (local_locBlocks _ WDmu12 _ _ _ LOC12) as [_ [? _]].
       rewrite H2. intuition.
       intros. apply andb_true_iff in H. intuition.
 
@@ -961,7 +961,7 @@ End Eff_sim_trans.
       exists (jb : block) (d : Z),
         join (foreign_of mu12)
           (fun b0 : block =>
-           if myBlocksSrc mu12 b0 &&
+           if locBlocksSrc mu12 b0 &&
               REACH m1 (exportedSrc mu12 (v1 :: nil)) b0
            then local_of mu12 b0
            else None) b = Some (jb, d) /\

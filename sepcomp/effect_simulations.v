@@ -173,7 +173,7 @@ Definition replace_locals (mu:SM_Injection) pSrc' pTgt': SM_Injection :=
 Lemma replace_locals_wd: forall mu (WD: SM_wd mu) pSrc' pTgt'
          (SRC: forall b1, pSrc' b1 = true -> 
                exists b2 d, local_of mu b1 = Some(b2,d) /\ pTgt' b2=true)
-         (TGT: forall b, pTgt' b = true -> myBlocksTgt mu b = true),
+         (TGT: forall b, pTgt' b = true -> locBlocksTgt mu b = true),
       SM_wd (replace_locals mu pSrc' pTgt'). 
 Proof. intros.
   destruct mu as [DomS DomT mySrc myTgt pSrc pTgt fSrc fTgt extern local]; simpl in *. 
@@ -271,15 +271,15 @@ destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern loc
 reflexivity.
 Qed. 
 
-Lemma replace_locals_myBlocksSrc: forall mu pubSrc' pubTgt',
-      myBlocksSrc (replace_locals mu pubSrc' pubTgt') = myBlocksSrc mu.
+Lemma replace_locals_locBlocksSrc: forall mu pubSrc' pubTgt',
+      locBlocksSrc (replace_locals mu pubSrc' pubTgt') = locBlocksSrc mu.
 Proof. intros. 
 destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern local]; simpl in *.
 reflexivity.
 Qed.
 
-Lemma replace_locals_myBlocksTgt: forall mu pubSrc' pubTgt',
-      myBlocksTgt (replace_locals mu pubSrc' pubTgt') = myBlocksTgt mu.
+Lemma replace_locals_locBlocksTgt: forall mu pubSrc' pubTgt',
+      locBlocksTgt (replace_locals mu pubSrc' pubTgt') = locBlocksTgt mu.
 Proof. intros. 
 destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern local]; simpl in *.
 reflexivity.
@@ -325,7 +325,7 @@ Lemma replace_externs_wd: forall mu (WD: SM_wd mu) fSrc' fTgt'
          (SRC: forall b1, fSrc' b1 = true -> 
                exists b2 d, extern_of mu b1 = Some(b2,d) /\ fTgt' b2=true)
          (TGT: forall b, fTgt' b = true -> 
-               myBlocksTgt mu b = false /\ DomTgt mu b = true),
+               locBlocksTgt mu b = false /\ DomTgt mu b = true),
       SM_wd (replace_externs mu fSrc' fTgt'). 
 Proof. intros.
   destruct mu as [DomS DomT mySrc myTgt pSrc pTgt fSrc fTgt extern local]; simpl in *. 
@@ -397,15 +397,15 @@ destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern loc
 reflexivity.
 Qed. 
 
-Lemma replace_externs_myBlocksSrc: forall mu frgSrc' frgTgt',
-      myBlocksSrc (replace_externs mu frgSrc' frgTgt') = myBlocksSrc mu.
+Lemma replace_externs_locBlocksSrc: forall mu frgSrc' frgTgt',
+      locBlocksSrc (replace_externs mu frgSrc' frgTgt') = locBlocksSrc mu.
 Proof. intros. 
 destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern local]; simpl in *.
 reflexivity.
 Qed.
 
-Lemma replace_externs_myBlocksTgt: forall mu frgSrc' frgTgt',
-      myBlocksTgt (replace_externs mu frgSrc' frgTgt') = myBlocksTgt mu.
+Lemma replace_externs_locBlocksTgt: forall mu frgSrc' frgTgt',
+      locBlocksTgt (replace_externs mu frgSrc' frgTgt') = locBlocksTgt mu.
 Proof. intros. 
 destruct mu as [DomS DomT myblocksSrc myblocksTgt pSrc pTgt fSrc fTgt extern local]; simpl in *.
 reflexivity.
@@ -508,9 +508,9 @@ Lemma sm_normalize_inject: forall mu12 mu23
           (WD12: SM_wd mu12) (WD23: SM_wd mu23)
           (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
                               frgnBlocksSrc mu23 b = true)
-          (HypMyblocks: myBlocksTgt mu12 = myBlocksSrc mu23)
+          (HypMyblocks: locBlocksTgt mu12 = locBlocksSrc mu23)
           m1
-          (RC: reach_closed m1 (fun b => myBlocksSrc mu12 b || frgnBlocksSrc mu12 b))
+          (RC: reach_closed m1 (fun b => locBlocksSrc mu12 b || frgnBlocksSrc mu12 b))
           m2 (Inj12: Mem.inject (as_inj mu12) m1 m2)
           m3 (Inj23: Mem.inject (as_inj mu23) m2 m3),
       Mem.inject (as_inj (sm_extern_normalize mu12 mu23)) m1 m2.
@@ -665,7 +665,7 @@ Lemma REACH_local: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2) b1
         (R : REACH m1 (exportedSrc mu vals1) b1 = true)
-         (myBSrc : myBlocksSrc mu b1 = true),
+         (locBSrc : locBlocksSrc mu b1 = true),
       exists b2 d, local_of mu b1 = Some (b2, d).
 Proof. intros.
   destruct (REACH_as_inj _ WD _ _ _ _ MemInjMu ValInjMu 
@@ -673,7 +673,7 @@ Proof. intros.
     trivial.
   exists b2, d.
   destruct (joinD_Some _ _ _ _ _ ASINJ).
-    destruct (extern_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in myBSrc.
+    destruct (extern_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in locBSrc.
     intuition.
   apply H.
 Qed.
@@ -682,7 +682,7 @@ Lemma REACH_extern: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2) b1 
         (R : REACH m1 (exportedSrc mu vals1) b1 = true)
-         (myBSrc : myBlocksSrc mu b1 = false),
+         (locBSrc : locBlocksSrc mu b1 = false),
       exists b2 d, extern_of mu b1 = Some (b2, d).
 Proof. intros.
   destruct (REACH_as_inj _ WD _ _ _ _ MemInjMu ValInjMu 
@@ -691,13 +691,13 @@ Proof. intros.
   exists b2, d.
   destruct (joinD_Some _ _ _ _ _ ASINJ). assumption.
   destruct H.
-  destruct (local_DomRng _ WD _ _ _ H0) as [ZZ _]; rewrite ZZ in myBSrc.
+  destruct (local_DomRng _ WD _ _ _ H0) as [ZZ _]; rewrite ZZ in locBSrc.
   intuition.
 Qed.
 
 (*The following six or so results are key lemmas about REACH - they say
   that blocks exported in SRC are injected, to blocks exported by TGT,
-  preserving the myBlocks-structure, ie distinction betwene public and
+  preserving the locBlocks-structure, ie distinction betwene public and
   foreign*)
 Lemma REACH_as_inj_REACH: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2 
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
@@ -720,7 +720,7 @@ Lemma REACH_local_REACH: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2) b1
         (R : REACH m1 (exportedSrc mu vals1) b1 = true)
-         (myBSrc : myBlocksSrc mu b1 = true),
+         (locBSrc : locBlocksSrc mu b1 = true),
       exists b2 d, local_of mu b1 = Some (b2, d) /\ 
                    REACH m2 (exportedTgt mu vals2) b2 = true.
 Proof. intros.
@@ -728,7 +728,7 @@ Proof. intros.
             _ R) as [b2 [d [ASINJ RR]]].
   exists b2, d. split; trivial.
   destruct (joinD_Some _ _ _ _ _ ASINJ).
-    destruct (extern_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in myBSrc.
+    destruct (extern_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in locBSrc.
     intuition.
   apply H.
 Qed.
@@ -738,11 +738,11 @@ Lemma REACH_local_REACH': forall mu m1 vals1  b1
         (WD: SM_wd mu) m2 vals2 
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
-        (myBSrc : myBlocksSrc mu b1 = true) b2 d
+        (locBSrc : locBlocksSrc mu b1 = true) b2 d
         (LOC: local_of mu b1 = Some (b2, d)), 
      REACH m2 (exportedTgt mu vals2) b2 = true.
 Proof. intros.
-  destruct (REACH_local_REACH _ WD _ _ _ _ MemInjMu ValInjMu _ R myBSrc)
+  destruct (REACH_local_REACH _ WD _ _ _ _ MemInjMu ValInjMu _ R locBSrc)
   as [bb [dd [LL RR]]]. rewrite LL in LOC. inv LOC. trivial.
 Qed.
 
@@ -750,7 +750,7 @@ Lemma REACH_extern_REACH: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
         (MemInjMu : Mem.inject (as_inj mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2) b1
         (R : REACH m1 (exportedSrc mu vals1) b1 = true)
-         (myBSrc : myBlocksSrc mu b1 = false),
+         (locBSrc : locBlocksSrc mu b1 = false),
       exists b2 d, extern_of mu b1 = Some (b2, d) /\ 
                    REACH m2 (exportedTgt mu vals2) b2 = true.
 Proof. intros.
@@ -760,7 +760,7 @@ Proof. intros.
   destruct (joinD_Some _ _ _ _ _ ASINJ).
     apply H.
   destruct H as [_ H]. 
-    destruct (local_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in myBSrc.
+    destruct (local_DomRng _ WD _ _ _ H) as [ZZ _]; rewrite ZZ in locBSrc.
     intuition.
 Qed.
 
@@ -776,10 +776,10 @@ Lemma eff_after_check1:
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         vals2 (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2) 
 
-        pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (myBlocksSrc mu b)
+        pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (locBlocksSrc mu b)
                                                     (REACH m1 (exportedSrc mu vals1) b))
 
-        pubTgt' (pubTgtHyp: pubTgt' = fun b => andb (myBlocksTgt mu b)
+        pubTgt' (pubTgtHyp: pubTgt' = fun b => andb (locBlocksTgt mu b)
                                                     (REACH m2 (exportedTgt mu vals2) b))
 
         nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt')
@@ -789,8 +789,8 @@ Lemma eff_after_check1:
 (*follows: *) Forall2 (val_inject (as_inj nu)) vals1 vals2.
 Proof. intros. subst.
 split. eapply replace_locals_wd; trivial.
-      intros. apply andb_true_iff in H. destruct H as [myBSrc ReachSrc].
-        destruct (REACH_local_REACH _ WD _ _ _ _  MemInjMu ValInjMu _ ReachSrc myBSrc)
+      intros. apply andb_true_iff in H. destruct H as [locBSrc ReachSrc].
+        destruct (REACH_local_REACH _ WD _ _ _ _  MemInjMu ValInjMu _ ReachSrc locBSrc)
             as [b2 [d [Loc ReachTgt]]]; clear ReachSrc.
         exists b2, d; split; trivial. 
         destruct (local_DomRng _ WD _ _ _ Loc). rewrite H0, ReachTgt. trivial.
@@ -810,11 +810,11 @@ Lemma eff_after_check2:
          (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
          frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
-                                                  (andb (negb (myBlocksSrc nu' b)) 
+                                                  (andb (negb (locBlocksSrc nu' b)) 
                                                         (REACH m1' (exportedSrc nu' (ret1::nil)) b)))
 
          frgnTgt' (frgnTgtHyp: frgnTgt' = fun b => andb (DomTgt nu' b)
-                                                  (andb (negb (myBlocksTgt nu' b))
+                                                  (andb (negb (locBlocksTgt nu' b))
                                                         (REACH m2' (exportedTgt nu' (ret2::nil)) b)))
    
          mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
@@ -849,11 +849,11 @@ Lemma eff_after_check3:
 
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
-                                                 (andb (negb (myBlocksSrc nu' b)) 
+                                                 (andb (negb (locBlocksSrc nu' b)) 
                                                        (REACH m1' (exportedSrc nu' (ret1::nil)) b)))
 
         frgnTgt' (frgnTgtHyp: frgnTgt' = fun b => andb (DomTgt nu' b)
-                                                 (andb (negb (myBlocksTgt nu' b))
+                                                 (andb (negb (locBlocksTgt nu' b))
                                                        (REACH m2' (exportedTgt nu' (ret2::nil)) b)))
 
         mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt'),
@@ -941,7 +941,7 @@ rewrite replace_externs_DomTgt in *.
 Qed.
 
 Definition local_out_of_reach mu (m : mem) (b : block) (ofs : Z): Prop := 
-  myBlocksTgt mu b = true /\ 
+  locBlocksTgt mu b = true /\ 
   forall b0 delta, local_of mu b0 = Some (b, delta) -> 
                   (~ Mem.perm m b0 (ofs - delta) Max Nonempty \/
                    pubBlocksSrc mu b0 = false).
@@ -966,7 +966,7 @@ Qed.
 
 Goal forall mu (WD: SM_wd mu) m1 m2 m2'
 (U: Mem.unchanged_on (local_out_of_reach mu m1) m2 m2'),
-Mem.unchanged_on (fun b ofs => myBlocksTgt mu b = true /\ 
+Mem.unchanged_on (fun b ofs => locBlocksTgt mu b = true /\ 
                     pubBlocksTgt mu b = false) m2 m2'.
 intros.
 eapply mem_unchanged_on_sub; try eassumption.
@@ -981,7 +981,7 @@ rewrite TGT in H0. discriminate.
 Qed.
 
 Goal forall mu m1 m2 m2' (WD:SM_wd mu)
-  (U1: Mem.unchanged_on (fun b ofs => myBlocksTgt mu b = true /\ 
+  (U1: Mem.unchanged_on (fun b ofs => locBlocksTgt mu b = true /\ 
                     pubBlocksTgt mu b = false) m2 m2')
   (U2: Mem.unchanged_on (fun b ofs => pubBlocksTgt mu b = true /\ 
                   loc_out_of_reach (pub_of mu) m1 b ofs) m2 m2'),
@@ -991,7 +991,7 @@ destruct U1 as [P1 C1]. destruct U2 as [P2 C2].
 split; intros.
   clear C1 C2.
   specialize (P1 b ofs k p). specialize (P2 b ofs k p).
-  remember (myBlocksTgt mu b) as d.
+  remember (locBlocksTgt mu b) as d.
   destruct d; apply eq_sym in Heqd; simpl in *.
     remember (pubBlocksTgt mu b) as q.
     destruct q; apply eq_sym in Heqq; simpl in *.
@@ -1006,7 +1006,7 @@ split; intros.
   clear P1.
   remember (pubBlocksTgt mu b) as q.
     destruct q; apply eq_sym in Heqq; simpl in *.
-      assert (myBlocksTgt mu b = true). eapply (pubBlocksLocalTgt _ WD). eassumption.
+      assert (locBlocksTgt mu b = true). eapply (pubBlocksLocalTgt _ WD). eassumption.
       rewrite H1 in Heqd. discriminate.
   destruct H. rewrite H in Heqd. discriminate. 
 destruct H.
@@ -1017,7 +1017,7 @@ destruct H.
   destruct d; apply eq_sym in Heqd.
     clear C1. apply C2; trivial; clear C2.
     split; trivial. intros b1; intros.
-     destruct (pub_myBlocks _ WD _ _ _ H2).
+     destruct (pub_locBlocks _ WD _ _ _ H2).
      apply pub_in_local in H2.
      destruct (H1 _ _ H2). assumption. rewrite H5 in *. inv H3.
   clear C2. apply C1; eauto.
@@ -1043,7 +1043,7 @@ Qed.
 Lemma halted_check_aux: forall mu m1 v1 b1 b2 delta (WD: SM_wd mu),
       join (foreign_of mu)
            (fun b =>
-              if myBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b
+              if locBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b
               then local_of mu b
               else None) b1 = Some (b2, delta) ->
       as_inj mu b1= Some (b2, delta).
@@ -1051,7 +1051,7 @@ Proof. intros; apply joinI.
   destruct (joinD_Some _ _ _ _ _ H) as [FRG | [FRG LOC]]; clear H.
     left. apply foreign_in_extern; eassumption.
     right. 
-    remember (myBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
+    remember (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
     destruct d; inv LOC; apply eq_sym in Heqd. rewrite H0.
     destruct (disjoint_extern_local _ WD b1). rewrite H. split; trivial.
     rewrite H in H0; discriminate.
@@ -1061,10 +1061,10 @@ Goal (*Lemma halted_check:*) forall mu m1 m2 v1 v2
       (MInj: Mem.inject (as_inj mu) m1 m2)
       (VInj: val_inject (locvisible_of mu) v1 v2) (WD: SM_wd mu),
       exists pubSrc' pubTgt' nu, 
-        (pubSrc' = fun b => (myBlocksSrc mu b) &&
+        (pubSrc' = fun b => (locBlocksSrc mu b) &&
                             (REACH m1 (exportedSrc mu (v1::nil)) b))
         /\
-        (pubTgt' = fun b => (myBlocksTgt mu b) &&
+        (pubTgt' = fun b => (locBlocksTgt mu b) &&
                             (REACH m2 (exportedTgt mu (v2::nil)) b))
         /\
         (nu = replace_locals mu pubSrc' pubTgt')
@@ -1089,7 +1089,7 @@ Proof. intros. eexists; eexists; eexists.
       destruct (REACH_local_REACH _ WD _ _ (v1::nil) (v2::nil) MInj VALS12 _ H0 H)
         as [b2 [d1 [LOC12 R2]]].
       exists b2, d1. rewrite LOC12, R2.
-      destruct (local_myBlocks _ WD _ _ _ LOC12) as [_ [? _]].
+      destruct (local_locBlocks _ WD _ _ _ LOC12) as [_ [? _]].
       rewrite H1. intuition.
       intros. apply andb_true_iff in H. intuition.
   rewrite replace_locals_shared. 
@@ -1100,10 +1100,10 @@ Proof. intros. eexists; eexists; eexists.
          destruct (joinD_Some _ _ _ _ _ H); clear H.
             left; eassumption.
          destruct H0. right. split; trivial.
-         remember (myBlocksSrc mu b1 && REACH m1 (exportedSrc mu (Vptr b1 ofs1 :: nil)) b1) as d. 
+         remember (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (Vptr b1 ofs1 :: nil)) b1) as d. 
               destruct d; apply eq_sym in Heqd. assumption.
          apply andb_false_iff in Heqd. 
-              destruct (local_myBlocks _ WD _ _ _ H0) as [? [? [? [? ?]]]].
+              destruct (local_locBlocks _ WD _ _ _ H0) as [? [? [? [? ?]]]].
               rewrite H1 in *.
               destruct Heqd; try discriminate.
               assert (REACH m1 (exportedSrc mu (Vptr b1 ofs1 :: nil)) b1 = true).
@@ -1148,7 +1148,7 @@ Qed.
 Lemma halted_loc_check_aux: forall mu m1 v1 b1 b2 delta (WD: SM_wd mu),
       join (foreign_of mu)
            (fun b =>
-              if myBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b
+              if locBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b
               then local_of mu b
               else None) b1 = Some (b2, delta) ->
       locvisible_of mu b1= Some (b2, delta).
@@ -1157,7 +1157,7 @@ Proof. intros; apply joinI.
      rewrite FRG; clear H.
     left; trivial.
     right; split; trivial. 
-    remember (myBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
+    remember (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
     destruct d; inv LOC; apply eq_sym in Heqd. trivial.
 Qed.
 
@@ -1165,10 +1165,10 @@ Lemma halted_loc_check: forall mu m1 m2 v1 v2
       (MInj: Mem.inject (locvisible_of mu)  m1 m2)
       (VInj: val_inject (locvisible_of mu) v1 v2) (WD: SM_wd mu),
       exists pubSrc' pubTgt' nu, 
-        (pubSrc' = fun b => (myBlocksSrc mu b) &&
+        (pubSrc' = fun b => (locBlocksSrc mu b) &&
                             (REACH m1 (exportedSrc mu (v1::nil)) b))
         /\
-        (pubTgt' = fun b => (myBlocksTgt mu b) &&
+        (pubTgt' = fun b => (locBlocksTgt mu b) &&
                             (REACH m2 (exportedTgt mu (v2::nil)) b))
         /\
         (nu = replace_locals mu pubSrc' pubTgt')
@@ -1204,7 +1204,7 @@ Proof. intros. eexists; eexists; eexists.
             destruct (foreign_DomRng _ WD _ _ _ H1) as [? [? [? ?]]].
             rewrite H in H4. inv H4.
          destruct H1. rewrite H2. exists b2, d1. rewrite exp.
-            destruct (local_myBlocks _ WD _ _ _ H2) as [? [? [? [? ?]]]].
+            destruct (local_locBlocks _ WD _ _ _ H2) as [? [? [? [? ?]]]].
              rewrite H4. intuition.
      intros. apply andb_true_iff in H. destruct H; trivial.
    split. rewrite replace_locals_shared.
@@ -1214,7 +1214,7 @@ Proof. intros. eexists; eexists; eexists.
              left; trivial.
           destruct H0 as [FRG LOC]. rewrite FRG, LOC.
           right; split; trivial.
-          destruct (local_myBlocks _ WD _ _ _ LOC) as [? [? [? [? [? ?]]]]].
+          destruct (local_locBlocks _ WD _ _ _ LOC) as [? [? [? [? [? ?]]]]].
           rewrite H. simpl.
           assert (R: REACH m1 (exportedSrc mu (Vptr b1 ofs1:: nil)) b1 = true).
             apply REACHAX. exists nil.
@@ -1237,7 +1237,7 @@ Proof. intros. eexists; eexists; eexists.
                    destruct (joinD_Some _ _ _ _ _ H3) as [FRG | [FRG LOC]]; clear H3; rewrite FRG.
                      left; reflexivity.
                      right; split; trivial.
-                      destruct (local_myBlocks _ WD _ _ _ LOC) as [? [? [? [? [? ?]]]]]. 
+                      destruct (local_locBlocks _ WD _ _ _ LOC) as [? [? [? [? [? ?]]]]]. 
                       rewrite H3, LOC. simpl.
                       destruct (joinD_Some _ _ _ _ _ H) as [FRG1 | [FRG1 LOC1]]; clear H.
                         assert (REACH m1 (exportedSrc mu (v1 :: nil)) b0 = true).
@@ -1247,7 +1247,7 @@ Proof. intros. eexists; eexists; eexists.
                             unfold exportedSrc. apply orb_true_iff; right.  
                             apply sharedSrc_iff. unfold shared_of, join; simpl. rewrite FRG1. exists b2, delta; trivial.
                             assumption. apply H1. rewrite H. trivial. 
-                      remember (myBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
+                      remember (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
                         destruct d; apply eq_sym in Heqd; inv LOC1.
                           apply andb_true_iff in Heqd. destruct Heqd.
                           assert (REACH m1 (exportedSrc mu (v1 :: nil)) b0 = true).
@@ -1260,7 +1260,7 @@ Proof. intros. eexists; eexists; eexists.
             apply joinD_None in LV. destruct LV as [FRG LOC].
             apply joinI_None. trivial.
             rewrite LOC.
-            destruct (myBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b); trivial.
+            destruct (locBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b); trivial.
     intros. rewrite replace_locals_shared in H.
             eapply (Mem.mi_mappedblocks _ _ _ MInj b b' delta).
             apply halted_loc_check_aux in H; trivial.
@@ -1297,7 +1297,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
     match_norm: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
           forall mu23, (SM_wd mu23 /\ DomTgt mu = DomSrc mu23 /\
-                        myBlocksTgt mu = myBlocksSrc mu23 /\
+                        locBlocksTgt mu = locBlocksSrc mu23 /\
                        (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
                        (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
           match_state d (sm_extern_normalize mu mu23) c1 m1 c2 m2;
@@ -1397,7 +1397,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
              forall b ofs, U2 b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true)));
 
@@ -1408,7 +1408,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
       forall cd st2 mu m2
         (UHyp: forall b1 z, U1 b1 z = true -> 
-                  (myBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
+                  (locBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1431,7 +1431,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
              forall b ofs, U2 b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true)));
 
@@ -1441,7 +1441,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
       forall cd st2 mu m2
         (UHyp: forall b1 z, U1 b1 z = true -> 
-                  (myBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
+                  (locBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1464,7 +1464,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
              forall b ofs, U2 b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\ 
                            Mem.perm m1 b1 (ofs-delta1) Max Nonempty)));
@@ -1491,10 +1491,10 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
      (-follows from halted_loc_check:-) 
       /\
       exists pubSrc' pubTgt' nu, 
-        (pubSrc' = fun b => (myBlocksSrc mu b) &&
+        (pubSrc' = fun b => (locBlocksSrc mu b) &&
                             (REACH m1 (exportedSrc mu (v1::nil)) b))
         /\
-        (pubTgt' = fun b => (myBlocksTgt mu b) &&
+        (pubTgt' = fun b => (locBlocksTgt mu b) &&
                             (REACH m2 (exportedTgt mu (v2::nil)) b))
         /\
         (nu = replace_locals mu pubSrc' pubTgt')
@@ -1548,10 +1548,10 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
         (*maybe reactivate later: meminj_preserves_globals ge1 (shared_of mu) ->*)
 
-        pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (myBlocksSrc mu b)
+        pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (locBlocksSrc mu b)
                                                     (REACH m1 (exportedSrc mu vals1) b))
 
-        pubTgt' (pubTgtHyp: pubTgt' = fun b => andb (myBlocksTgt mu b)
+        pubTgt' (pubTgtHyp: pubTgt' = fun b => andb (locBlocksTgt mu b)
                                                     (REACH m2 (exportedTgt mu vals2) b))
 
         nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt'),
@@ -1572,11 +1572,11 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         (*(RetTypeTgt: Val.has_type ret2 (proj_sig_res ef_sig))*)
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
-                                                 (andb (negb (myBlocksSrc nu' b)) 
+                                                 (andb (negb (locBlocksSrc nu' b)) 
                                                        (REACH m1' (exportedSrc nu' (ret1::nil)) b)))
 
         frgnTgt' (frgnTgtHyp: frgnTgt' = fun b => andb (DomTgt nu' b)
-                                                 (andb (negb (myBlocksTgt nu' b))
+                                                 (andb (negb (locBlocksTgt nu' b))
                                                        (REACH m2' (exportedTgt nu' (ret2::nil)) b)))
 
         mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
@@ -1588,7 +1588,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         (*follows, as proven by Lemma eff_after_check4: inject_incr (as_inj mu) (as_inj mu') /\*)
         (*follows, as proven by Lemma eff_after_check5: sm_inject_separated mu mu' m1 m2 /\*)
  
-         (UnchPrivSrc: Mem.unchanged_on (fun b ofs => myBlocksSrc nu b = true /\ 
+         (UnchPrivSrc: Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
          (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
@@ -1721,8 +1721,8 @@ split; intros; simpl in *.
     rewrite H0, H1, H2, H3. simpl. intuition.
   destruct (local_DomRng _ _ _ H) as [? ?].
     rewrite H0, H1. simpl.
-    rewrite (myBlocksDomSrc _ H0).
-    rewrite (myBlocksDomTgt _ H1).
+    rewrite (locBlocksDomSrc _ H0).
+    rewrite (locBlocksDomTgt _ H1).
     simpl. intuition.
   eapply frgnSrc. apply H. 
   eapply pubSrc. apply H.
@@ -1730,19 +1730,19 @@ split; intros; simpl in *.
   apply andb_true_iff in H. apply H.
   destruct (frgnBlocksDomTgt _ H).
     rewrite H0, H1. intuition.
-  specialize (myBlocksDomTgt b). 
+  specialize (locBlocksDomTgt b). 
     rewrite (pubBlocksLocalTgt _ H) in *.
-    rewrite myBlocksDomTgt; intuition.
+    rewrite locBlocksDomTgt; intuition.
 Qed.
 
-Lemma FLIPmyBlocksSrc: forall mu,
-  myBlocksSrc (FLIP mu) = 
-  fun b => DomSrc mu b && negb (myBlocksSrc mu b).
+Lemma FLIPlocBlocksSrc: forall mu,
+  locBlocksSrc (FLIP mu) = 
+  fun b => DomSrc mu b && negb (locBlocksSrc mu b).
 Proof. intros. destruct mu; reflexivity. Qed. 
 
-Lemma FLIPmyBlocksTgt: forall mu,
-  myBlocksTgt (FLIP mu) = 
-  fun b => DomTgt mu b && negb (myBlocksTgt mu b).
+Lemma FLIPlocBlocksTgt: forall mu,
+  locBlocksTgt (FLIP mu) = 
+  fun b => DomTgt mu b && negb (locBlocksTgt mu b).
 Proof. intros. destruct mu; reflexivity. Qed.
 
 Lemma FLIPpubBlocksSrc: forall mu,
@@ -1771,14 +1771,14 @@ Proof. intros. destruct mu; reflexivity. Qed.
 
 Lemma RelyGuaranteeSrc: forall mu Esrc m m'
               (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
                (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m'),
-         Mem.unchanged_on (fun b ofs => myBlocksSrc (FLIP mu) b = true /\ 
+         Mem.unchanged_on (fun b ofs => locBlocksSrc (FLIP mu) b = true /\ 
                                         pubBlocksSrc (FLIP mu) b = false) m m'.
 Proof. intros.
   eapply mem_unchanged_on_sub; try eassumption.
   intros. simpl.
-  rewrite FLIPmyBlocksSrc, FLIPpubBlocksSrc in H.
+  rewrite FLIPlocBlocksSrc, FLIPpubBlocksSrc in H.
   case_eq (Esrc b ofs); intros; trivial; simpl in *.
   destruct H.
   destruct (SrcHyp _ _ H0); clear Unch SrcHyp.
@@ -1805,12 +1805,12 @@ Qed.
 Lemma RelyGuaranteeTgtPerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
             (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
             (*m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty)*),
             Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
 Proof. intros.
@@ -1819,11 +1819,11 @@ Proof. intros.
   case_eq (Etgt b ofs); intros; trivial.
   destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
   destruct H.
-  rewrite FLIPmyBlocksTgt in H. apply andb_true_iff in H.
+  rewrite FLIPlocBlocksTgt in H. apply andb_true_iff in H.
   destruct H. 
   destruct F as [b1 [d1 [Frg [ES P]]]].
     clear -H2.
-    destruct (myBlocksTgt mu b); intuition.
+    destruct (locBlocksTgt mu b); intuition.
   rewrite FLIPlocal in H1.
   destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
   destruct (SrcHyp _ _ ES); clear SrcHyp.
@@ -1838,12 +1838,12 @@ Qed.
 Lemma RelyGuaranteeTgt: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
             (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
             m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty),
             Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
 Proof. intros. 
@@ -1852,11 +1852,11 @@ Proof. intros.
   case_eq (Etgt b2 ofs); intros; trivial.
   destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
   destruct H.
-  rewrite FLIPmyBlocksTgt in H. apply andb_true_iff in H.
+  rewrite FLIPlocBlocksTgt in H. apply andb_true_iff in H.
   destruct H. 
   destruct F as [b1 [d1 [Frg ES]]].
     clear -H2.
-    destruct (myBlocksTgt mu b2); intuition.
+    destruct (locBlocksTgt mu b2); intuition.
   rewrite FLIPlocal in H1.
   destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
   destruct (SrcHyp _ _ ES); clear SrcHyp.
@@ -1871,14 +1871,14 @@ Qed.
 
 Lemma RGSrc_multicore: forall mu Esrc m m'
               (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
                (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
           nu, 
-         (forall b, myBlocksSrc nu b = true -> myBlocksSrc mu b = false) ->
+         (forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) ->
          (forall b, pubBlocksSrc nu b = true <-> 
-                   (frgnBlocksSrc mu b && myBlocksSrc nu b) = true) ->
+                   (frgnBlocksSrc mu b && locBlocksSrc nu b) = true) ->
          (forall b1 b2 d, pub_of nu b1 = Some(b2, d) -> foreign_of mu b1 = Some(b2,d)) ->
-         Mem.unchanged_on (fun b ofs => myBlocksSrc nu b = true /\ 
+         Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                         pubBlocksSrc nu b = false) m m'.
 Proof. intros.
   eapply mem_unchanged_on_sub; try eassumption.
@@ -1895,17 +1895,17 @@ Qed.
 Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
             (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
             m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty)
             nu
-         (X1: forall b, myBlocksTgt nu b = true -> myBlocksTgt mu b = false)
+         (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
          (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
-                              myBlocksTgt nu b1 || myBlocksTgt nu b2 = true ->
+                              locBlocksTgt nu b1 || locBlocksTgt nu b2 = true ->
                               pub_of nu b1 = Some(b2,d)),
             Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
 Proof. intros.
@@ -1932,16 +1932,16 @@ Qed.
 Lemma RGTgt_multicorePerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
-                         (myBlocksTgt mu b = false ->
+                         (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
             (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (myBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
             nu
-         (X1: forall b, myBlocksTgt nu b = true -> myBlocksTgt mu b = false)
+         (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
          (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
-                              myBlocksTgt nu b1 || myBlocksTgt nu b2 = true ->
+                              locBlocksTgt nu b1 || locBlocksTgt nu b2 = true ->
                               pub_of nu b1 = Some(b2,d)),
             Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
 Proof. intros.
