@@ -535,7 +535,6 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  constructor 2 with  (eval_expr  a (construct_rho (filter_genv psi) vx tx)); auto.
  apply eval_expr_relate with Delta; auto.
  pose proof  (cast_exists Delta a _ _ H1 H H0).
- apply sem_cast_eval_cast in H2. rewrite H2.
  apply (cast_exists Delta a _ _ H1 H H0).
 Qed.
 
@@ -708,22 +707,24 @@ rewrite PTree.gss.
 exists (force_val
           (Cop.sem_cast
              (eval_expr e
-                (mkEnviron (filter_genv psi) (make_venv vx)
-                   (fun id0 : positive => tx ! id0))) 
+                (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)
+(*                   (fun id0 : positive => tx ! id0) *) ))
              (typeof e) ty)).
-rewrite cop_2_sem_cast.
-rewrite <- eval_cast_sem_cast. 
-split.
-auto. right. eapply typecheck_val_eval_cast with (Delta := Delta). 
-apply TE. 
-auto. auto. inv Heqp. 
+split. auto.
+ right. eapply typecheck_val_sem_cast; eauto.
+
+admit.
+(*
+inv Heqp. 
 destruct bl.  inv TC2. 
 inv H17.
-simpl in *.  
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-super_unfold_lift. destruct TC2 as [[? ?] ? ].
+simpl in TC2.  
+ repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
+destruct TC2 as [[? ?] ? ].
 assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
 apply in_map with (f := fst) in H. apply H.
+eapply IHl; auto. apply H4.
+*)
 
 (*
 remember (bind_parameter_temps l
@@ -734,7 +735,7 @@ destruct o. inv H21. unfold Map.get. unfold make_tenv at 1.
 assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
 apply in_map with (f := fst) in H. apply H. rewrite PTree.gso; auto. 
 edestruct IHl; eauto. congruence. 
-*) admit.
+*) 
 
 
 (*In temps*)
@@ -1647,7 +1648,6 @@ simpl in H6; rewrite (call_cont_current_function H7) in H6.
 destruct H6 as [_ ?].
 rewrite H6.
 super_unfold_lift.
-rewrite eval_cast_sem_cast.
 apply cast_exists with Delta'; auto.
 
 auto.

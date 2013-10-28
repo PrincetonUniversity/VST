@@ -385,7 +385,7 @@ destruct IHe as [? _].
 rewrite denote_tc_assert_andp in H0.
 destruct H0.
 specialize (H1 H0).
-unfold eval_cast, sem_cast.
+unfold  sem_cast.
 rewrite isCastR in H2.
 revert H2; case_eq (classify_cast (typeof e) t); intros;
 try solve [destruct t; try contradiction;
@@ -710,6 +710,12 @@ try rewrite <- H1 in *; try rewrite <- H2 in *; intuition.
 
 Qed.
 
+Lemma cop2_sem_cast : forall t1 t2 v, Cop.sem_cast v t1 t2 = sem_cast t1 t2 v.
+intros.
+destruct v; destruct t1; destruct t2; auto.
+Qed.
+
+
 Lemma eval_both_relate:
   forall Delta ge te ve rho e m, 
            rho = construct_rho (filter_genv ge) ve te ->
@@ -916,21 +922,31 @@ assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 rewrite tc_val_eq in TC.
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-unfold eval_cast in *; super_unfold_lift; intuition.
+ super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply IHe; auto.
-unfold sem_cast, Cop.sem_cast.
+
+rewrite <- cop2_sem_cast in *.
+destruct (Cop.sem_cast (eval_expr e rho) (typeof e) t). auto.
+inv TC. } 
+(*
 remember (classify_cast (typeof e) t) as o; destruct o;
  destruct (eval_expr e rho); inv TC; try reflexivity;
  try solve [destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; 
    (reflexivity || destruct t; inv H4; destruct (typeof e); try destruct i0; inv Heqo)].
-simpl; destruct sz2; simpl; auto. admit. (*Joey (GS): Not sure this is true anymore*)
+simpl. destruct sz2; simpl; auto. unfold cast_int_float.
+destruct si1; simpl; auto. rewrite Float.singleofint_floatofint. auto.
+rewrite Float.singleofintu_floatofintu. auto.
+simpl; destruct sz2; simpl; auto;
 simpl; destruct (cast_float_int si2 f); inv H4; reflexivity.
-simpl. destruct sz2; simpl; auto. admit. (*Joey (GS): Not sure this is true anymore*)
+simpl. destruct sz2; simpl; auto. unfold cast_long_float.
+simpl. destruct si1; admit. (*possible...*)
 simpl; destruct (cast_float_long si2 f); inv H4; reflexivity.
 simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
 simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
 }
+*)
+
 (*Field*)
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. 
@@ -1543,71 +1559,6 @@ Opaque liftx.
 destruct H1. rewrite H1. auto.
 Qed.
 
-
-Lemma eval_cast_sem_cast:
-  forall v t t', eval_cast t t' v = force_val (sem_cast t t' v).
-Proof.
-unfold sem_cast, eval_cast, classify_cast.
-intros.
-pose (tx:=t); pose (t'x := t'); pose (v' := v).
-destruct t,t'; simpl; try reflexivity;
-try solve [destruct v; reflexivity];
-try solve[ destruct i; try reflexivity; try solve [destruct v; reflexivity]];
-try solve[ destruct i0; try reflexivity]; simpl.
-destruct i0, s0, v; reflexivity.
-Admitted. (*Joey (GS): not sure this is true*)
-(*
-destruct v; auto. simpl. admit. (*GS: not true, apparently*) admit.
-destruct v; try reflexivity.
-admit.
-(*simpl. destruct (cast_float_long s f0); reflexivity.*)
-destruct v; simpl; try reflexivity.
-destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
-destruct v; simpl; try reflexivity.
-destruct (ident_eq i i0 && fieldlist_eq f f0);  reflexivity.
-destruct i0,  v; reflexivity.
-Qed.
-*)
-
-Lemma sem_cast_eval_cast:
-  forall v1 t1 t2 v,
-  sem_cast t1 t2 v1  = Some v -> eval_cast t1 t2 v1 = v.
-Proof.
-intros.
-rewrite eval_cast_sem_cast.
-rewrite H; reflexivity.
-Qed.
-
-Lemma typecheck_val_eval_cast: 
-  forall t2 e2 rho Delta,
-      typecheck_environ Delta rho ->
-      denote_tc_assert (typecheck_expr Delta e2) rho ->
-      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
-      typecheck_val (eval_cast (typeof e2) t2 (eval_expr e2 rho)) t2 = true.
-Proof. intros ? ? ? ? H2 H5 H6.
-assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
-assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
-rewrite tc_val_eq in H8.
-clear - H7 H6 H8.
-rewrite eval_cast_sem_cast. 
-revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7.
-simpl.
-rewrite isCastR in H6.
-case_eq (eval_expr e2 rho); intros; rename H0 into H99;
- destruct t2; inv H8; inv H; simpl; auto;
-hnf in H6; try contradiction; rewrite H99 in *;
-destruct (typeof e2); inv H2; inv H1; auto;
-try (unfold sem_cast in H0; simpl in H0;
-      destruct i0; simpl in*; destruct s; inv H0; simpl; auto);
- try solve [super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction].
-simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
-simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
-simpl in *. unfold isCastResultType in H6. simpl in H6.
-unfold sem_cast in H0. simpl in H0.
-destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
-invSome; simpl; auto.
-Qed.
-
 Definition func_tycontext_t_denote :=
 forall p t id ty b,  list_norepet (map fst p ++ map fst t ) ->   
 ((make_tycontext_t p t) ! id = Some (ty,b) <-> (In (id,ty) p /\ b=true) \/ (In (id,ty) t /\ b=false)). 
@@ -2029,3 +1980,31 @@ repeat split; intros; auto.
 Admitted.
 
 
+Lemma typecheck_val_sem_cast: 
+  forall t2 e2 rho Delta,
+      typecheck_environ Delta rho ->
+      denote_tc_assert (typecheck_expr Delta e2) rho ->
+      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
+      typecheck_val (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))) t2 = true.
+Proof. intros ? ? ? ? H2 H5 H6.
+assert (H7 := cast_exists _ _ _ _ H2 H5 H6).
+assert (H8 := typecheck_expr_sound _ _ _ H2 H5).
+rewrite tc_val_eq in H8.
+clear - H7 H6 H8.
+revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7.
+simpl.
+rewrite isCastR in H6.
+case_eq (eval_expr e2 rho); intros; rename H0 into H99;
+ destruct t2; inv H8; inv H; simpl; auto;
+hnf in H6; try contradiction; rewrite H99 in *;
+destruct (typeof e2); inv H2; inv H1; auto;
+try (unfold sem_cast in H0; simpl in H0;
+      destruct i0; simpl in*; destruct s; inv H0; simpl; auto);
+ try solve [super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction].
+simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
+simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
+simpl in *. unfold isCastResultType in H6. simpl in H6.
+unfold sem_cast in H0. simpl in H0.
+destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
+invSome; simpl; auto.
+Qed.

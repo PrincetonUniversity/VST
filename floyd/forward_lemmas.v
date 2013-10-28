@@ -117,7 +117,7 @@ Qed.
 
 Lemma bool_cast : forall e rho,
    tc_val (typeof e) (eval_expr e rho) ->
-  eval_cast tbool tint (eval_cast (typeof e) tbool (eval_expr e rho)) =
+  force_val (Cop2.sem_cast tbool tint (force_val (Cop2.sem_cast (typeof e) tbool (eval_expr e rho)))) =
    match strict_bool_val (eval_expr e rho) (typeof e) with
    | Some true => Vint Int.one
    | Some false => Vint Int.zero
@@ -126,9 +126,8 @@ Lemma bool_cast : forall e rho,
 Proof.
 intros.
 rewrite tc_val_eq in H.
-unfold eval_cast. simpl.
+ simpl. unfold Cop2.sem_cast.
 remember (eval_expr e rho). destruct v. inv H. simpl.
- unfold eval_cast_neutral.
 remember (typeof e); destruct t; inv H; simpl;
 remember (Int.eq i Int.zero); if_tac; auto; try congruence.
 remember (typeof e); destruct t; inv H; simpl;

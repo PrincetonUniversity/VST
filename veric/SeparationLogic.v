@@ -1,4 +1,3 @@
-
 Require Export Axioms.
 Require Import Coqlib.
 Require Export AST.
@@ -679,7 +678,7 @@ Axiom semax_store:
              (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
           (Sassign e1 e2) 
           (normal_ret_assert 
-               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`(eval_cast (typeof e2) (typeof e1)) (eval_expr e2)) * P)).
+               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
 
 (* THESE RULES FROM semax_lemmas *)
 

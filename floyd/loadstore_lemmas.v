@@ -113,6 +113,15 @@ rewrite tc_val_eq in H3.
 rewrite H4 in H3; inv H3.
 Qed.
 
+(*TODO move to expr_lemmas.v*)
+Lemma typecheck_val_sem_cast: 
+  forall t2 e2 rho Delta,
+      typecheck_environ Delta rho ->
+      denote_tc_assert (typecheck_expr Delta e2) rho ->
+      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
+      typecheck_val (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))) t2 = true.
+Admitted.
+
 Lemma semax_store_field: 
 forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
     writable_share sh ->
@@ -126,7 +135,7 @@ forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
        (Sassign (Efield e1 fld t2) e2) 
        (normal_ret_assert 
           (`(field_mapsto sh (typeof e1) fld) (eval_lvalue e1) 
-                  (`(eval_cast (typeof e2) t2) (eval_expr e2)) * P)).
+                  (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))) * P)).
 Proof.
 Transparent field_mapsto.
 pose proof I. intros until fields. intro WS.
@@ -195,7 +204,7 @@ rewrite H0. rewrite prop_true_andp by auto. auto.
 apply extract_exists_pre; intro v0.
 
 pose proof (semax_store Delta (Efield e1 fld t2) e2 sh 
-               (local (`(tc_val t2) (`(eval_cast (typeof e2) t2) (eval_expr e2))) &&
+               (local (`(tc_val t2) (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2)))) &&
                  !! (type_is_volatile t2 = false) &&   P)).
 simpl typeof in H0. 
 eapply semax_pre_post ; [ | | apply H0; auto]; clear H0.
@@ -229,7 +238,7 @@ split; auto. rewrite H7; auto.
 hnf in H3. simpl in H3.
 rewrite denote_tc_assert_andp in H3. destruct H3.
 rewrite tc_val_eq;
-eapply expr_lemmas.typecheck_val_eval_cast; eassumption.
+eapply typecheck_val_sem_cast; eassumption.
 apply sepcon_derives; auto.
 simpl.
 apply orp_right2. apply andp_right; try apply prop_right; auto.
@@ -270,7 +279,7 @@ forall Espec (Delta: tycontext) sh t1 P Q R e1 e2
        (normal_ret_assert
           (PROPx P (LOCALx Q
               (SEPx  (`(mapsto sh t1) (eval_expr e1) 
-                  (`(eval_cast (typeof e2) t1) (eval_expr e2)) :: R))))).
+                  (`force_val (`(sem_cast (typeof e2) t1) (eval_expr e2))) :: R))))).
 Proof.
 intros.
 pose proof semax_store.
@@ -312,7 +321,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields
        (normal_ret_assert
           (PROPx P (LOCALx Q
               (SEPx (replace_nth n R
-                    (`(field_mapsto sh t1 fld) v1 (`(eval_cast (typeof e2) t2) (eval_expr e2)))))))).
+                    (`(field_mapsto sh t1 fld) v1 (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))))))))).
 Proof.
 intros. rename H7 into H6'.
 assert (SF := semax_store_field). unfold_lift.

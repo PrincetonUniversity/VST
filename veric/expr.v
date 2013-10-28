@@ -365,88 +365,6 @@ Definition deref_noload (ty: type) : val -> val :=
  | _ => always Vundef
  end.
 
-Definition eval_cast_neutral (v: val) : val :=
-   match v with Vint _ | Vptr _ _ => v | _ => Vundef end.
-
-Definition eval_cast_i2i f v := 
-  match v with Vint i => Vint (f i) | _ => Vundef end.
-
-Definition eval_cast_l2l v := 
-  match v with Vlong i => Vlong i | _ => Vundef end.
-
-Definition eval_cast_f2f f v :=
-  match v with Vfloat x => Vfloat (f x) | _ => Vundef end.
-
-Definition eval_cast_i2f (f: float->float) (g: int->float) v :=
-  match v with Vint i => Vfloat (f (g i)) | _ => Vundef end.
-
-Definition eval_cast_f2i (f: float->option int) (g: int->int) v :=
- match v with Vfloat x => match f x with Some i => Vint (g i) | _ => Vundef end 
-                    | _ => Vundef 
- end.
-
-Definition eval_cast_f2bool v :=
- match v with Vfloat f => Vint(if Float.cmp Ceq f Float.zero then Int.zero else Int.one)
-   | _ => Vundef
- end.
-
-Definition eval_cast_p2bool v :=
- match v with Vint i => Vint (Cop.cast_int_int IBool Signed i)
-                    | Vptr _ _ => Vint Int.one
-                    | _ => Vundef
-  end.
-
-Definition eval_cast_i2l f v := 
-     match v with
-      | Vint n => Vlong (f n)
-      | _ => Vundef
-      end.
-
-Definition eval_cast_l2i f v := 
-  match v with Vlong i => Vint (f (Int.repr (Int64.unsigned i))) | _ => Vundef end.
-
-Definition eval_cast_l2f (f: float->float) (g: Int64.int ->float) v :=
-  match v with Vlong i => Vfloat (f (g i)) | _ => Vundef end.
-
-Definition eval_cast_f2l (f: float->option Int64.int)  v :=
- match v with Vfloat x => match f x with Some i => Vlong i | _ => Vundef end 
-                    | _ => Vundef 
- end.
-
-Definition eval_cast_l2bool v :=
-      match v with
-      | Vlong n =>
-            Vint(if Int64.eq n Int64.zero then Int.zero else Int.one)
-      | _ => Vundef
-      end.
-
-Definition eval_cast_struct id1 fld1 id2 fld2 v :=
-      match v with 
-        | Vptr _ _ => if ident_eq id1 id2 && fieldlist_eq fld1 fld2 then v else Vundef
-        | _ => Vundef
-      end.
-
-Definition eval_cast (t1 t2: type) : val->val := 
-  match Cop.classify_cast t1 t2 with
-  | Cop.cast_case_neutral => eval_cast_neutral
-  | Cop.cast_case_i2i sz2 si2 => eval_cast_i2i (Cop.cast_int_int sz2 si2)
-  | Cop.cast_case_l2l  => eval_cast_l2l
-  | Cop.cast_case_i2l si => eval_cast_i2l (Cop.cast_int_long si)
-  | Cop.cast_case_l2i sz2 si2 => eval_cast_l2i (Cop.cast_int_int sz2 si2)
-  | Cop.cast_case_f2f sz2 => eval_cast_f2f (Cop.cast_float_float sz2)
-  | Cop.cast_case_i2f si1 sz2 => eval_cast_i2f (Cop.cast_float_float sz2) (Cop.cast_int_float si1 F64)
-  | Cop.cast_case_l2f si1 sz2 => eval_cast_l2f (Cop.cast_float_float sz2) (Cop.cast_long_float si1 F64)
-  | Cop.cast_case_f2i sz2 si2 => eval_cast_f2i (Cop.cast_float_int si2) (Cop.cast_int_int sz2 si2)
-  | Cop.cast_case_f2l si2 => eval_cast_f2l (Cop.cast_float_long si2)
-  | Cop.cast_case_l2bool => eval_cast_l2bool
-  | Cop.cast_case_f2bool => eval_cast_f2bool
-  | Cop.cast_case_p2bool => eval_cast_p2bool
-  | Cop.cast_case_struct id1 fld1 id2 fld2 => eval_cast_struct id1 fld1 id2 fld2
-  | Cop.cast_case_union id1 fld1 id2 fld2 => eval_cast_struct id1 fld1 id2 fld2
-  | Cop.cast_case_void => Datatypes.id
-  | Cop.cast_case_default => always Vundef
-  end.
-
 Fixpoint eval_expr (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
@@ -457,7 +375,7 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
                   `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a) 
+ | Ecast a ty => `force_val (`(sem_cast (typeof a) ty) (eval_expr a)) 
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
  | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
  | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
@@ -473,7 +391,7 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
 
 Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
- | t::et', e::el' => `(@cons val) (`(eval_cast (typeof e) t) (eval_expr e)) (eval_exprlist et' el')
+ | t::et', e::el' => `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr e))) (eval_exprlist et' el')
  | _, _ => `nil
  end.
 

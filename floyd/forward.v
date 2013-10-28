@@ -386,7 +386,7 @@ Ltac normalize :=
   end.
 
 Ltac unfold_fold_eval_expr :=
-  unfold eval_expr,eval_lvalue, eval_cast; fold eval_cast; fold eval_expr; fold eval_lvalue.
+  unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue.
 
 Ltac forward_setx_aux1 :=
       apply forward_setx; 

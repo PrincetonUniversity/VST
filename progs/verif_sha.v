@@ -537,7 +537,6 @@ end.
 eapply semax_frame1.
 eapply sha256_block_load8 with (ctx:=ctx); eassumption.
 entailer!.
-auto 50 with closed.
 unfold app; abbreviate_semax.
 (**** END   the eight load-from-array-h[] commands. *)
 

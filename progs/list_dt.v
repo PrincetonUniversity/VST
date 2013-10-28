@@ -1025,8 +1025,162 @@ Lemma lseg_cons_right_neq (ls: listspec list_struct list_link): forall sh l x h 
              list_cell ls sh y h * field_mapsto sh list_struct list_link y w * 
              lseg ls sh l x y * field_mapsto sh list_struct list_link w z
    |--   lseg ls sh (l++h::nil) x w * field_mapsto sh list_struct list_link w z.
-Admitted.
+Proof.
+intros.
+assert (TT |-- ALL l: list (elemtype ls), ALL x: val,
+                   ( list_cell ls sh y h * field_mapsto sh list_struct list_link y w *
+                     lseg ls sh l x y * field_mapsto sh list_struct list_link w z)  
+                     >=> lseg ls sh (l ++ h :: nil) x w *
+                   field_mapsto sh list_struct list_link w z).
+Focus 2.
+apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
+clear x l.
+apply loeb.
+apply allp_right; intro l.
+apply allp_right; intro x.
+destruct l.
+rewrite lseg_nil_eq.
+apply derives_trans with TT; auto.
+apply subp_i1.
+rewrite field_mapsto_isptr.
+entailer.
+apply andp_left2.
+ simpl app.
+rewrite lseg_cons_eq.
+entailer. apply (exp_right w). 
+apply andp_right. admit. (*seems true, no idea how to prove it*)
+rewrite field_mapsto_isptr with (x := w). entailer.
+cancel. rewrite lseg_nil_eq. eapply derives_trans; [ | apply now_later].
+entailer. rewrite ptr_eq_True; destruct w; inv Pw; simpl; auto.
+apply subp_i1.
+simpl app.
+rewrite andp_comm.
+rewrite lseg_cons_eq.
+rewrite lseg_cons_eq.
+autorewrite with norm.
+apply exp_left; intro s.
+apply exp_right with s.
+repeat rewrite sepcon_andp_prop'.
+rewrite andp_assoc.
+rewrite sepcon_comm.
+repeat rewrite andp_assoc.
+repeat rewrite sepcon_andp_prop'.
+repeat rewrite andp_assoc.
+apply derives_extract_prop; intro.
+rewrite field_mapsto_isptr.
+normalize.
+apply andp_right. 
+entailer. admit.
+apply derives_trans with (
+   list_cell ls sh x e * field_mapsto sh list_struct list_link x s * 
+   field_mapsto sh list_struct list_link w z * list_cell ls sh y h *
+   field_mapsto sh list_struct list_link y w *
+   |>lseg ls sh l s y &&
+   !|>(ALL  l0 : list (elemtype ls) ,
+       (ALL  x0 : val ,
+        list_cell ls sh y h * field_mapsto sh list_struct list_link y w *
+        lseg ls sh l0 x0 y * field_mapsto sh list_struct list_link w z >=>
+        lseg ls sh (l0 ++ h :: nil) x0 w *
+        field_mapsto sh list_struct list_link w z))
+). apply andp_derives; cancel.
+forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x s) as A.
+rewrite andp_comm.
+repeat rewrite sepcon_assoc.
+rewrite unfash_sepcon_distrib.
+apply sepcon_derives.
+apply andp_left2; auto.
+rewrite <- later_unfash.
+eapply derives_trans.
+apply andp_derives; [apply derives_refl | ].
+apply sepcon_derives; [apply derives_refl | apply now_later].
+(*
+apply derives_trans with 
+(
 
+)
+repeat rewrite later_sepcon. apply andp_derives.
+cancel. cancel.
+rewrite <- later_andp.
+apply derives_trans with (|>(lseg ls sh (l ++ h :: nil) s w *
+       field_mapsto sh list_struct list_link w z)).
+Focus 2. rewrite later_sepcon. cancel. SearchAbout later.
+apply later_derives.
+rewrite unfash_allp.
+rewrite allp_andp1 by apply nil. apply allp_left with l.
+rewrite unfash_allp. rewrite allp_andp1 by apply Vundef. apply allp_left with z.
+destruct l.
+simpl.
+rewrite lseg_nil_eq.
+apply andp_left2.
+normalize.
+rewrite lseg_cons_eq.
+rewrite field_mapsto_isptr.
+normalize.
+apply exp_right with nullval.
+apply andp_right.
+apply prop_right.
+fancy_intro. subst. subst. apply Py.
+subst.
+normalize.
+rewrite lseg_nil_eq. normalize.
+eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
+rewrite sepcon_emp; auto.
+eapply derives_trans.
+apply andp_derives; [apply unfash_fash | apply derives_refl].
+rewrite andp_comm. 
+apply derives_trans
+ with ((list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y ) &&
+   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y 
+     --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
+2: apply modus_ponens.
+apply andp_derives; auto.
+rewrite sepcon_comm.
+auto.
+Qed. *)
+Admitted. 
+(*forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x x0) as A.
+rewrite andp_comm.
+repeat rewrite sepcon_assoc.
+rewrite unfash_sepcon_distrib.
+apply sepcon_derives.
+apply andp_left2; auto.
+rewrite <- later_unfash.
+eapply derives_trans.
+apply andp_derives; [apply derives_refl | ].
+apply sepcon_derives; [apply derives_refl | apply now_later].
+rewrite <- later_sepcon. rewrite <- later_andp.
+apply later_derives.
+rewrite unfash_allp.
+rewrite allp_andp1 by apply nil. apply allp_left with l.
+rewrite unfash_allp. rewrite allp_andp1 by apply Vundef. apply allp_left with z.
+destruct l.
+simpl.
+rewrite lseg_nil_eq.
+apply andp_left2.
+normalize.
+rewrite lseg_cons_eq.
+rewrite field_mapsto_isptr.
+normalize.
+apply exp_right with nullval.
+apply andp_right.
+apply prop_right.
+fancy_intro. subst. subst. apply Py.
+subst.
+normalize.
+rewrite lseg_nil_eq. normalize.
+eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
+rewrite sepcon_emp; auto.
+eapply derives_trans.
+apply andp_derives; [apply unfash_fash | apply derives_refl].
+rewrite andp_comm. 
+apply derives_trans
+ with ((list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y ) &&
+   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y 
+     --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
+2: apply modus_ponens.
+apply andp_derives; auto.
+rewrite sepcon_comm.
+auto.*)
 
 Lemma lseg_cons_right_null (ls: listspec list_struct list_link): forall sh l x h y, 
              list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval * 
@@ -1048,21 +1202,17 @@ rewrite lseg_nil_eq.
 apply derives_trans with TT; auto.
 apply subp_i1.
 apply andp_left2.
-repeat rewrite sepcon_andp_prop.
- apply derives_extract_prop; intro.
- rewrite sepcon_emp. simpl app.
- apply ptr_eq_e in H; subst y.
+entailer.
+  simpl app.
 rewrite field_mapsto_isptr.
-repeat rewrite sepcon_andp_prop.
- apply derives_extract_prop; intro.
+entailer.
 rewrite lseg_cons_eq.
-apply andp_right.  apply prop_right; auto.
-intro. apply ptr_eq_e in H0. subst. apply H.
+apply andp_right.  apply prop_right. destruct y; inv Py; simpl; auto.
 apply exp_right with nullval.
- rewrite prop_true_andp by reflexivity.
+entailer!.
 rewrite lseg_nil_eq.
  rewrite prop_true_andp by reflexivity.
-cancel. apply now_later.
+apply now_later.
 apply subp_i1.
 simpl app.
 rewrite andp_comm.

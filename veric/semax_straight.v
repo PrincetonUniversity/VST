@@ -911,9 +911,15 @@ try destruct (Float.longuoffloat f);
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
 try solve [if_tac; auto];
-try rewrite Float.singleoffloat_idem; auto.
-admit. (*Joey (GS): not sure is true*)
-admit. (*Joey (GS): not sure is true*)
+try solve [try rewrite Float.singleofint_floatofint; rewrite Float.singleoffloat_idem; auto].
+unfold Cop.cast_int_float. destruct s. 
+rewrite Float.singleofint_floatofint.
+rewrite Float.singleoffloat_idem. auto.
+rewrite Float.singleofintu_floatofintu.
+rewrite Float.singleoffloat_idem. auto.
+destruct s.
+simpl. rewrite Float.singleoflong_idem. auto. 
+rewrite Float.singleoflongu_idem. auto.
 Qed. 
 
 Lemma semax_store:
@@ -925,7 +931,7 @@ Lemma semax_store:
              (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))
           (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) 
-                                           (eval_cast  (typeof e2) (typeof e1) (eval_expr e2 rho)) * P rho)).
+                                           (force_val (sem_cast  (typeof e2) (typeof e1) (eval_expr e2 rho))) * P rho)).
 Proof.
 intros until P. intros WS.
 apply semax_pre with
@@ -1041,13 +1047,11 @@ apply andp_right. intros ? ?; unfold prop. simpl.
 destruct TC4 as [TC4 _].
 clear - Hmode TC3 TC2 TC4.
 rewrite tc_val_eq.
-eapply typecheck_val_eval_cast; eauto.
+eapply typecheck_val_sem_cast; eauto.
 
 rewrite Hmode.
 rewrite He1'. apply orp_right1.
 rewrite writable_share_right; auto.
-rewrite cop_2_sem_cast.
-rewrite <- eval_cast_sem_cast. auto.
 clear - H6 H5 H1.
 intros ? ?.
 do 3 red in H.

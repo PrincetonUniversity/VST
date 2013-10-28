@@ -137,6 +137,7 @@ entailer!.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
 entailer!.
+unfold POSTCONDITION, abbreviate.
 subst cts.
 rewrite lift_list_cell_eq.
 forward.  (* h = t->head; *)

@@ -674,11 +674,6 @@ Lemma eval_expr_Econst_int: forall i t, eval_expr (Econst_int i t) = `(Vint i).
 Proof. reflexivity. Qed.
 Hint Rewrite eval_expr_Econst_int : eval.
 
-Lemma eval_expr_Ecast: 
-  forall e t, eval_expr (Ecast e t) = `(eval_cast (typeof e) t) (eval_expr e).
-Proof. reflexivity. Qed.
-Hint Rewrite eval_expr_Ecast : eval.
-
 Lemma subst_eval_var:
   forall id v id' t, subst id v (eval_var id' t) = eval_var id' t.
 Proof.

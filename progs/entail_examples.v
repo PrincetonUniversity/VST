@@ -760,10 +760,8 @@ EVAR
                              noattr)) Fnil)) noattr) _head))
          (eval_lvalue
             (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-         (`(eval_cast
-              (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-              (tptr t_struct_elem))
-            (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))));
+         (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
+            (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
       `(@numbd (lift_T (Tarrow val (LiftEnviron mpred))) 1
           (field_mapsto_ Tsh t_struct_fifo _tail)) (eval_id _Q))
       |-- `(@numbd (val -> mpred) n
@@ -950,9 +948,8 @@ SEP
                           (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                     noattr)) Fnil)) noattr) _head)
    (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-   (`(eval_cast (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-        (tptr t_struct_elem))
-      (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))));
+   (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
+      (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
 `(field_mapsto Tsh
     (Tstruct _struct_fifo
        (Fcons _head
@@ -970,9 +967,9 @@ SEP
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                    noattr)) Fnil)) noattr) _tail)
   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-  (`(eval_cast (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+  (`force_val (`(sem_cast (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
        (tptr t_struct_elem))
-     (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))))
+     (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))))
 |-- local
       (tc_expropt Delta (@Some expr (Etempvar _Q (tptr t_struct_fifo)))
          (ret_type Delta)) &&
@@ -1942,8 +1939,8 @@ SEP
                           (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                     noattr)) Fnil)) noattr) _head)
    (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-   (`(eval_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-        (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem))));
+   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
+        (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
 `(field_mapsto Tsh
     (Tstruct _struct_fifo
        (Fcons _head
@@ -1961,8 +1958,8 @@ SEP
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                    noattr)) Fnil)) noattr) _tail)
   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-  (`(eval_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem))));
+  (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
+       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
 `(if @isnil val contents
   then !!(hd = nullval) && @emp mpred Nveric Sveric
   else
@@ -2399,9 +2396,9 @@ EVAR
                 noattr) _next))
         (eval_lvalue
            (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem))
-        (`(eval_cast (typeof (Etempvar _p (tptr t_struct_elem)))
+        (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
              (tptr t_struct_elem))
-           (eval_expr (Etempvar _p (tptr t_struct_elem))));
+           (eval_expr (Etempvar _p (tptr t_struct_elem)))));
       @numbd (LiftEnviron mpred) 2
         `(field_mapsto Tsh t_struct_fifo _head q hd);
       @numbd (LiftEnviron mpred) 3
@@ -2609,8 +2606,8 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
        noattr) _next)
   (eval_lvalue (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem))
-  (`(eval_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem))));
+  (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
+       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
 `(field_mapsto Tsh t_struct_fifo _head q hd);
 `(field_mapsto Tsh
     (Tstruct _struct_fifo
@@ -2629,8 +2626,8 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                    noattr)) Fnil)) noattr) _tail)
   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-  (`(eval_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem))));
+  (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
+       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
 `(field_mapsto Tsh
     (Tstruct _struct_elem
        (Fcons _a tint

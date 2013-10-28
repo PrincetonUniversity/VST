@@ -98,7 +98,7 @@ name x _x.
 name y _y.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
-rename H into H3. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
+rename H into H3. (*fix for (slightly) older coq versions*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
 apply semax_pre with
@@ -107,8 +107,8 @@ apply semax_pre with
    SEP 
    (`(field_mapsto sh t_struct_intpair _x) (eval_id _p) `(Vint x1);
     `(field_mapsto sh t_struct_intpair _y) (eval_id _p) `(Vint y1);
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(0));
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1)))).
+   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(0));
+   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(1)))).
 entailer. cancel.
 repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
  simpl.
@@ -123,7 +123,7 @@ forward. (*  ((int * )buf)[1]=y; *)
 forward. (* return 8; *)
 apply exp_right with 8.
 entailer.
-rename H into H2. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
+rename H into H2. (*fix for (slightly) older coq versions*)
 simpl_typed_mapsto. cancel.
 rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
@@ -145,7 +145,7 @@ name y _y.
 name len0 _length.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed.
-rename H into H2. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
+rename H into H2. (*fix for (slightly) older coq versions*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
 apply semax_pre with
@@ -155,10 +155,10 @@ apply semax_pre with
    (`(field_mapsto_ sh t_struct_intpair _x) (eval_id _p);
     `(field_mapsto_ sh t_struct_intpair _y) (eval_id _p);
    `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(0))
+        (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(0))
       `(Vint x1);
    `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`(eval_cast (tptr tuchar) (tptr tint)) (eval_id _buf)) `(1))
+        (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(1))
         `(Vint y1))).
 simpl_typed_mapsto.
 entailer.
@@ -168,13 +168,13 @@ apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
  rewrite offset_offset_val; reflexivity.
 normalize.
-unfold eval_cast; simpl.
+unfold sem_cast; simpl.
 forward. (* x = ((int * )buf)[0]; *)
 forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
-rename H into H6. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
+rename H into H6. (*fix for (slightly) older coq versions*)
 simpl_typed_mapsto.
 cancel.
 apply sepcon_derives;
