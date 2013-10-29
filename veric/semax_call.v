@@ -538,57 +538,90 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  apply (cast_exists Delta a _ _ H1 H H0).
 Qed.
 
+
+Lemma bind_parameter_temps_excludes :
+forall l1 l2 t id t1,
+~In id (map fst l1) ->
+(bind_parameter_temps l1 l2 t) = Some t1 ->
+t1 ! id = t ! id.
+Proof.
+induction l1;
+intros.
+simpl in *. destruct l2; inv H0. auto.
+simpl in H0. destruct a. destruct l2; inv H0.
+specialize (IHl1 l2 (PTree.set i v t) id t1). 
+simpl in H. intuition. rewrite PTree.gsspec in H3.
+destruct (peq id i). subst; intuition. auto.
+Qed.
+
 Lemma pass_params_ni :
   forall  l2
      (te' : temp_env) (id : positive) te l,
-   bind_parameter_temps l2
-     l
-     (te) = 
-   Some te' ->
+   bind_parameter_temps l2 l (te) = Some te' ->
    (In id (map fst l2) -> False) ->
    Map.get (make_tenv te') id = te ! id.  
 Proof.
-intros. simpl in *.  generalize dependent l. revert te. 
-revert te'. 
-induction(l2); intros; simpl in *. 
-destruct l.  inv H. 
-unfold make_tenv.  unfold Map.get. auto.
-congruence.
+intros. eapply bind_parameter_temps_excludes in H.
+unfold make_tenv, Map.get.
+apply H. intuition.
+Qed.
 
-simpl in *. destruct a. 
-destruct l.
-congruence. 
-simpl in *. 
-remember (bind_parameter_temps l2 l te). destruct o. inv H.
-intuition. symmetry in Heqo. 
-specialize (H0 _ _ _ Heqo).  rewrite <- H0.  
-unfold Map.get. unfold make_tenv.  
-(* rewrite PTree.gso; auto.  *) admit.
-(* congruence. *) admit.
+Lemma bind_exists_te : forall l1 l2 t1 t2 te,
+bind_parameter_temps l1 l2 t1 = Some te ->
+exists te2, bind_parameter_temps l1 l2 t2 = Some te2.
+Proof.
+induction l1; intros.
++ simpl in H. destruct l2; inv H. simpl. eauto.
 
-Qed. 
++ destruct a. simpl in *. destruct l2; inv H. eapply IHl1.
+apply H1.
+Qed.
 
-Lemma smaller_temps_exists : forall l l1 l2 te id i,
-bind_parameter_temps l l1 (PTree.set id Vundef (create_undef_temps l2)) = Some te ->
+
+Lemma smaller_temps_exists2 : forall l1 l2 t1 t2 te te2 i,
+bind_parameter_temps l1 l2 t1 = Some te ->
+bind_parameter_temps l1 l2 t2 = Some te2 ->
+t1 ! i = t2 ! i -> 
+te ! i = te2 ! i.
+Proof.
+induction l1; intros; simpl in *; try destruct a; destruct l2; inv H; inv H0.
+apply H1.
+eapply IHl1. apply H3. apply H2. 
+repeat rewrite PTree.gsspec. destruct (peq i i0); auto.
+Qed.
+
+
+Lemma smaller_temps_exists' : forall l l1 te te' id i t,
+bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
 i <> id -> 
-exists te', (bind_parameter_temps l l1 (create_undef_temps l2) = Some te' /\ te' ! i = te ! i). 
-Proof. 
-intros. 
-generalize dependent l1. 
-revert l2 te.
-induction l; intros. 
-simpl in *. destruct l1; auto. inv H. eexists. split. auto. 
-rewrite PTree.gso; auto. congruence. 
+(bind_parameter_temps l l1 t = Some te') -> te' ! i = te ! i.
+Proof.
+induction l; intros.
+simpl in *. destruct l1; inv H. inv H1. rewrite PTree.gso; auto.
 
-simpl in *. destruct a. destruct l1. congruence. simpl in *.
-remember (bind_parameter_temps l l1
-          (PTree.set id Vundef (create_undef_temps l2))). 
-destruct o. 
-edestruct IHl. eauto. destruct H1. 
-(* rewrite H1. eexists. split. eauto.  
-inv H. 
-repeat rewrite PTree.gsspec. if_tac. auto. auto. congruence. 
-*) admit. admit.
+simpl in *. destruct a. destruct l1; inv H.
+eapply smaller_temps_exists2. apply H1. apply H3.
+intros. repeat rewrite PTree.gsspec. destruct (peq i i0); auto.
+destruct (peq i id). subst. intuition. auto.
+Qed.
+
+Lemma smaller_temps_exists'' : forall l l1 te id i t,
+bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
+i <> id -> 
+exists te', (bind_parameter_temps l l1 t = Some te').
+Proof.
+intros.
+eapply bind_exists_te; eauto.
+Qed.
+
+Lemma smaller_temps_exists : forall l l1 te id i t,
+bind_parameter_temps l l1 (PTree.set id Vundef t)=  Some te ->
+i <> id -> 
+exists te', (bind_parameter_temps l l1 t = Some te' /\ te' ! i = te ! i). 
+Proof.
+intros. copy H. eapply smaller_temps_exists'' in H; eauto.
+destruct H. exists x. split. auto.
+eapply smaller_temps_exists'; eauto.
 Qed.
 
 
@@ -693,50 +726,38 @@ apply func_tycontext_t_sound in H; auto.
 
 destruct H. (*in params*)
 destruct H. subst.
-generalize dependent (fn_temps f). 
+forget (create_undef_temps (fn_temps f)) as temps.
+generalize dependent temps. 
 generalize dependent l. generalize dependent l0.
-generalize dependent bl. generalize dependent te'. 
-induction (fn_params f); intros.  inv H. simpl in *.
-destruct a. simpl in *. remember (split l). destruct p. 
-simpl in *. destruct H. clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.   
-inv H. inv Heqp. simpl in *. 
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct TC2 as [[? ?] ?].
-rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
-rewrite PTree.gss.
-exists (force_val
+generalize dependent bl. generalize dependent te'.
+{  induction (fn_params f); intros.  
+   + inv H.
+   + simpl in *. 
+     destruct a. simpl in *. remember (split l). destruct p. 
+     simpl in *. destruct H. 
+      - clear IHl. destruct bl. inv H.  inv Heqp. inv TC2.   
+        inv H. inv Heqp. simpl in *. 
+        repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+        destruct TC2 as [[? ?] ?].
+        rewrite (pass_params_ni _ _ id _ _ H21) by (inv H17; contradict H4; apply in_app; auto).
+        rewrite PTree.gss.
+        exists (force_val
           (Cop.sem_cast
              (eval_expr e
-                (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)
-(*                   (fun id0 : positive => tx ! id0) *) ))
+                (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
              (typeof e) ty)).
-split. auto.
- right. eapply typecheck_val_sem_cast; eauto.
-
-admit.
-(*
-inv Heqp. 
-destruct bl.  inv TC2. 
-inv H17.
-simpl in TC2.  
- repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
-destruct TC2 as [[? ?] ? ].
-assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
-apply in_map with (f := fst) in H. apply H.
-eapply IHl; auto. apply H4.
-*)
-
-(*
-remember (bind_parameter_temps l
-            (eval_exprlist l4 bl
-               (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
-            (create_undef_temps l2)). 
-destruct o. inv H21. unfold Map.get. unfold make_tenv at 1. 
-assert (i <> id). intuition. subst. apply H2. apply in_or_app. left.
-apply in_map with (f := fst) in H. apply H. rewrite PTree.gso; auto. 
-edestruct IHl; eauto. congruence. 
-*) 
-
+        split. auto.
+        right. eapply typecheck_val_sem_cast; eauto.
+      - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
+        repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
+        destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
+        apply H2. apply in_or_app. left. apply in_map with (f := fst) in H. apply H.
+        remember (eval_exprlist (t :: l3) (e :: bl)
+            (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx))).
+        destruct l0; inv H21. simpl in Heql0.
+        super_unfold_lift. inv Heql0.  
+        eapply IHl; eauto. 
+}
 
 (*In temps*)
 destruct H. subst.
