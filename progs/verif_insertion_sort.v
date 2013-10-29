@@ -73,7 +73,6 @@ Definition isptrb v :=
 Definition Igt a b:=
 Int.cmp Cgt a b = true.
 
-(*only two ex allowed? *)
 
 Definition fst_3 {A B C} (a: A* B*C) := fst (fst a).
 Definition snd_3 {A B C} (a: A * B * C) := snd (fst a).
@@ -226,17 +225,27 @@ apply IHl1. intuition.
 inv H0; auto.
 Qed.
 
+Locate ptr_eq.
+
 Lemma lseg_is_ptr_or_null : 
-forall {ls ll} LS sh c v1 v2 R, 
-@lseg ls ll LS sh (c) v1 v2 * R |-- !!is_pointer_or_null v1 && (@lseg ls ll LS sh c v1 v2)  * R.
+forall  sh c v1 v2 R, 
+@lseg t_struct_list _tail LS sh (c) v1 v2 * R |-- !!is_pointer_or_null v1 && (@lseg t_struct_list _tail LS sh c v1 v2)  * R.
 Proof.
 intros.
 cancel.
-normalize.
 apply andp_right.
 rewrite lseg_unroll. 
-apply orp_left. rewrite andp_assoc.
-Admitted. (* fix by changing ptr_eq once things are more stable*)
+apply orp_left. rewrite andp_assoc. 
+unfold ptr_eq. destruct v1; normalize. destruct v2; normalize.
+unfold Int.cmpu in *. simpl. 
+destruct H.
+apply int_eq_e in H.
+apply int_eq_e in H0.
+subst. unfold Int.zero. entailer.
+unfold lseg_cons. normalize. 
+assert (X := @list_cell_eq). entailer.
+cancel.
+Qed.
 
 Ltac intro_ex_semax :=
 (match goal with 
@@ -1098,3 +1107,83 @@ simpl in H4. destruct (Int.lt sorted_val insert_value); inv H4; auto.
 Qed.
  
 
+Lemma sorted_sound : forall xs, sorted xs = true <-> LocallySorted Zle xs.
+intuition.
++  induction xs.
+   - constructor.
+   - simpl in H.
+     destruct xs.
+     * constructor.
+     * constructor. simpl in H. apply IHxs. remember (a <=? z)%Z. destruct b.
+       simpl. apply H. congruence.
+       apply Z.leb_le. destruct (a <=? z)%Z; congruence.
++  induction xs.
+   - auto.
+   - simpl. destruct xs. auto.
+     simpl. remember (a <=? z)%Z. destruct b.
+     inv H. intuition.
+     inv H. apply Z.leb_le in H4. congruence.
+Qed.
+
+Lemma insert_sorted : forall x xs, LocallySorted Zle xs -> LocallySorted Zle (insert x xs).
+Proof.
+intros.
+induction xs.
++ constructor.
++ simpl. remember (x <=? a)%Z. 
+    destruct b.
+  - constructor. auto. apply Z.leb_le. auto.
+  - inv H. 
+      * simpl. constructor. constructor.
+        apply Z.leb_le. remember (a <=? x)%Z. destruct b. auto.
+        symmetry in Heqb, Heqb0. rewrite Z.leb_gt in *. omega.
+      * simpl. remember ((x <=? b)%Z). destruct b0.
+          repeat (constructor; simpl). auto. symmetry in Heqb.
+          apply Z.leb_le. auto. symmetry in Heqb. rewrite Z.leb_gt in *.
+          omega.
+          constructor. simpl in IHxs. rewrite <- Heqb0 in IHxs. auto. auto.
+Qed.
+
+Lemma insertion_sort_sorted : forall xs, LocallySorted Zle (insertion_sort xs).
+Proof.
+induction xs.
+  + constructor.
+  + simpl. apply insert_sorted.  auto.
+
+Qed.
+
+Lemma insert_permutation : forall x xs , Permutation (x::xs) (insert x xs).
+Proof.
+intros.
+induction xs.
++ auto.
++ simpl. destruct (x <=? a)%Z. 
+  - auto.
+  - eapply perm_trans. eapply perm_swap. apply perm_skip. apply IHxs.
+Qed.
+
+Lemma insert_permutation2 : forall x xs x2, Permutation xs x2 -> 
+Permutation (x::xs) (insert x x2).
+Proof.
+intros.
+induction xs. 
+destruct x2. auto. apply Permutation_nil in H. inv H.
+apply Permutation_sym.
+eapply perm_trans. eapply Permutation_sym. apply insert_permutation.
+apply perm_skip. apply Permutation_sym. auto.
+Qed.
+
+Lemma insertion_sort_permutation : forall xs, Permutation xs (insertion_sort xs).
+Proof.
+intros.
+induction xs.
++ auto.
++ simpl. apply insert_permutation2. auto.
+Qed.
+
+Lemma insertion_sort_sound : forall xs, LocallySorted Zle (insertion_sort xs) /\ Permutation xs (insertion_sort xs).
+Proof.
+intros.
+split. apply insertion_sort_sorted.
+apply insertion_sort_permutation.
+Qed.

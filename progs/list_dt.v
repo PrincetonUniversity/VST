@@ -179,6 +179,7 @@ repeat (apply derives_extract_prop; intro).
 subst.
 unfold typed_true, strict_bool_val,ptr_eq in *.
 destruct v; simpl in *; try contradiction.
+destruct H0.
 rewrite H0 in H. inv H.
 apply orp_right2. auto.
 Qed.
@@ -266,7 +267,8 @@ Lemma ptr_eq_dec:
   forall x z, {ptr_eq x z}+{~ptr_eq x z}.
 Proof.
 unfold ptr_eq; intros.
-destruct x; simpl; auto. destruct z; simpl; auto. destruct (Int.eq i i0); auto.
+destruct x; simpl; auto. destruct z; simpl; auto. destruct (Int.eq i i0); auto;
+destruct (Int.eq i (Int.repr 0)); simpl; auto; intuition. 
 destruct z; auto. destruct (eq_dec b b0).
 subst. destruct (Int.eq i i0); auto. right; intros [? ?]; auto. inv H0.
 right; intros [? ?]. contradiction.
@@ -334,11 +336,12 @@ split; auto. intro. apply ptr_eq_e in H0. subst. apply H.
 apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
-rewrite prop_true_andp by reflexivity.
+rewrite prop_true_andp. 
 apply derives_trans with (field_mapsto sh list_struct list_link x nullval * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 apply now_later.
+simpl. auto.
 apply subp_i1.
 simpl app.
 rewrite links_cons_eq.
@@ -391,9 +394,10 @@ rewrite prop_true_andp.
 apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
-rewrite prop_true_andp by reflexivity.
+rewrite prop_true_andp.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
 rewrite sepcon_emp; auto.
+simpl. auto.
 eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
 rewrite andp_comm. 
@@ -1211,7 +1215,7 @@ apply andp_right.  apply prop_right. destruct y; inv Py; simpl; auto.
 apply exp_right with nullval.
 entailer!.
 rewrite lseg_nil_eq.
- rewrite prop_true_andp by reflexivity.
+rewrite prop_true_andp by (simpl; auto).
 apply now_later.
 apply subp_i1.
 simpl app.
@@ -1265,6 +1269,7 @@ subst.
 normalize.
 rewrite lseg_nil_eq. normalize.
 eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
+rewrite prop_true_andp by (simpl; auto).
 rewrite sepcon_emp; auto.
 eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].

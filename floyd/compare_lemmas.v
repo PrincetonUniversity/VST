@@ -219,7 +219,7 @@ intros.
  apply prop_derives; intro.
  unfold ptr_neq, ptr_eq; simpl; intro.
  destruct (v rho); try contradiction.
- pose proof (Int.eq_spec Int.zero i). rewrite H0 in H1.
+ pose proof (Int.eq_spec Int.zero i). destruct H0. rewrite H0 in H1.
  subst. inv H.
 Qed.
 
