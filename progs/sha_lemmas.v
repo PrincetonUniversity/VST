@@ -1,6 +1,12 @@
 Require Import proofauto.
 Require Import progs.SHA256.
 
+Definition swap (i: int) : int :=
+ Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
+   (Int.or (Int.shl (Int.and (Rt 8 i) (Int.repr 255)) (Int.repr 16))
+      (Int.or (Int.shl (Int.and (Rt 16 i) (Int.repr 255)) (Int.repr 8))
+         (Rt 24 i))).
+
 Definition big_endian_integer (contents: Z -> int) : int :=
   Int.or (Int.shl (contents 3) (Int.repr 24))
   (Int.or (Int.shl (contents 2) (Int.repr 16))
@@ -9,9 +15,66 @@ Definition big_endian_integer (contents: Z -> int) : int :=
 
 Open Scope nat.
 
+Lemma big_endian_integer_ext:
+ forall f f', (forall z, (0 <= z < 4)%Z -> f z = f' z) ->
+    big_endian_integer f = big_endian_integer f'.
+Proof.
+unfold big_endian_integer;
+intros.
+repeat f_equal; intros; apply H; omega.
+Qed.
+
+Lemma nth_big_endian_int:
+ forall i b, 
+   i <= length b ->
+  big_endian_integer
+    (fun z : Z =>
+     nth (Z.to_nat (z + Z.of_nat i * 4)) (map Int.repr (intlist_to_Zlist b))
+       (default_val tuchar)) =
+   nth i (map swap b) (default_val tuint).
+Proof.
+induction i; destruct b; intros.
+reflexivity.
+unfold big_endian_integer; simpl.
+repeat rewrite Int.repr_unsigned.
+reflexivity.
+simpl in H; omega.
+simpl in H.
+simpl nth at 2.
+rewrite <- IHi by omega.
+clear.
+apply big_endian_integer_ext; intros.
+replace  (Z.to_nat (z + Z.of_nat (S i) * 4))
+  with (S (S (S (S  (Z.to_nat (z + Z.of_nat i * 4)))))); [reflexivity |].
+rewrite inj_S.
+unfold Z.succ.
+rewrite Z.mul_add_distr_r.
+rewrite <- (Zplus_comm (1*4)%Z).
+replace  (z + (1 * 4 + Z.of_nat i * 4))%Z
+  with  (4 + (z + Z.of_nat i * 4))%Z by omega.
+symmetry.
+rewrite Z2Nat.inj_add by omega.
+reflexivity.
+Qed.
+
+
+Lemma firstn_same:
+  forall A n (b: list A), n >= length b -> firstn n b = b.
+Proof.
+induction n; destruct b; simpl; intros; auto.
+inv H.
+f_equal; auto.
+apply IHn.
+omega.
+Qed.
+
 Definition LBLOCK : nat := 16.   (* length of a block, in 32-bit integers *)
 Definition CBLOCK : nat := LBLOCK * 4.  (* length of a block, in characters *)
 
+Lemma LBLOCK_zeq: Z.of_nat LBLOCK = 16%Z.
+Proof. reflexivity. Qed.
+
+Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
 
 Definition s256state := (list int * (int * (int * (list int * int))))%type.
 Definition s256_h (s: s256state) := fst s.

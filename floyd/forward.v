@@ -9,7 +9,61 @@ Require Import floyd.array_lemmas.
 Require Import floyd.entailer.
 Import Cop.
 
+Arguments Int.unsigned n : simpl never.
+
 Local Open Scope logic.
+
+(* Move these elsewhere *)
+
+Lemma normal_ret_assert_elim:
+ forall P, normal_ret_assert P EK_normal None = P.
+Proof.
+intros. unfold normal_ret_assert.
+repeat rewrite prop_true_andp by auto.
+auto.
+Qed.
+
+Lemma lift_identity:
+  forall A f, `(fun v: A => v) f = f.
+Proof. intros. reflexivity. Qed.
+Hint Rewrite lift_identity : norm.
+
+Lemma extract_exists_post:
+  forall {Espec: OracleKind} {A: Type} (x: A) Delta 
+       (P: environ -> mpred) c (R: A -> environ -> mpred),
+  semax Delta P c (normal_ret_assert (R x)) ->
+  semax Delta P c (normal_ret_assert (exp R)).
+Proof.
+intros.
+eapply semax_pre_post; try apply H.
+apply andp_left2; auto.
+intros ek vl rho.
+unfold local, lift1, existential_ret_assert.
+simpl.
+apply andp_left2.
+apply normal_ret_assert_derives.
+apply exp_right with x; auto.
+Qed.
+
+Lemma semax_frame1:
+ forall {Espec: OracleKind} Frame Delta Delta1
+     P Q c R P1 Q1 R1 P2 Q2 R2,
+    semax Delta1 (PROPx P1 (LOCALx Q1 (SEPx R1))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
+    Delta1 = Delta ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+    PROPx P1 (LOCALx Q1 (SEPx (R1 ++ Frame))) ->
+    closed_wrt_modvars c (SEPx Frame) ->
+    semax Delta (PROPx P (LOCALx Q (SEPx R))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx (R2++Frame))))).
+Proof.
+intros. subst.
+eapply semax_pre.
+apply H1.
+apply semax_frame_PQR; auto.
+Qed.
+
+(* end of "stuff to move elsewhere" *)
 
 Definition abbreviate {A:Type} (x:A) := x.
 Implicit Arguments abbreviate [[A][x]].
@@ -42,18 +96,57 @@ Ltac unfold_abbrev_commands :=
 
 Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
-Ltac abbreviate_and_evaluate_tycontext D :=
-    let Delta := fresh "Delta" in 
-        pose (Delta:= @abbreviate _ D); 
-        replace D with Delta by reflexivity;
-        cbv delta [initialized] in Delta; 
-        simpl in Delta; fold tycontext in Delta.
+Ltac simplify_Delta := 
+let x := fresh "x" in
+repeat 
+ match goal with 
+| |- let y := initialized ?i ?D in ?B =>
+      change (let x := D in let y := initialized i x in B)
+| D := _ |- let y := ?D in ?B =>  cbv delta [D]; clear D
+| |- let y := @abbreviate _ ?D in ?B =>
+       intro x; cbv delta [abbreviate] in x; revert x
+| |- let y := update_tycon _ _ in _ => 
+       intro x; simpl update_tycon in x; revert x
+| |- let y := PTree.Node _ _ _ in _ =>
+      intro x; cbv delta [x]; clear x
+| |- let y := PTree.Leaf in _ =>
+      intro x; cbv delta [x]; clear x
+| |- let x := func_tycontext _ _ _ in _ =>
+   intro x;
+   cbv beta iota zeta delta [
+     initialized temp_types
+     func_tycontext make_tycontext
+     make_tycontext_t make_tycontext_v make_tycontext_g
+     fold_right
+     fn_temps
+     PTree.set PTree.get PTree.empty] in x;
+  simpl in x; revert x
+| |- semax ?D ?P ?c ?R =>
+      change (let x := D in semax x P c R)
+| |- ?A = _ => unfold A, abbreviate
+| |- _ = ?B => unfold B, abbreviate
+| |- initialized ?i _ = ?initialized ?i _ => f_equal
+| |- ?A = initialized ?i ?D =>
+     change (let x := D in A = initialized i x)
+| |- initialized ?i ?D = ?B =>
+     change (let x := D in initialized i x = B)
+end;
+repeat 
+match goal with
+| |- let y := initialized _ _ in _ =>
+      intro x; unfold initialized in x; simpl in x;
+      cbv delta [x]; clear x
+| |- let y := (_, _) in _ =>
+       intro x; cbv delta [x]; clear x
+end.
 
 Ltac abbreviate_semax :=
  match goal with
- | |- semax _ _ _ _ => unfold_abbrev;
+ | |- semax _ _ _ _ => 
+        unfold_abbrev;
+        simplify_Delta;
         match goal with |- semax ?D _ ?C ?P => 
-            abbreviate_and_evaluate_tycontext D;
+            abbreviate D : tycontext as Delta;
             abbreviate P : ret_assert as POSTCONDITION;
             match C with
             | Ssequence ?C1 ?C2 =>
@@ -844,7 +937,7 @@ match goal with
  eapply(@semax_store_array Esp Delta n sh t contents lo hi (`a));
   unfold number_list, n, sh, contents, lo, hi, a;
   clear n sh contents lo hi a;
-  [solve [auto] | reflexivity | reflexivity | hnf; intuition 
+  [solve [auto] | reflexivity | reflexivity (* | hnf; intuition  *)
   | reflexivity
   | autorewrite with norm; try reflexivity;
     fail 4 "Cannot prove 6th premise of semax_store_array"

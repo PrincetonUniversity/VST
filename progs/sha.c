@@ -103,9 +103,9 @@ void sha256_block_data_order (SHA256_CTX *ctx, const void *in)
 
 	for (i=0;i<16;i++)
 		{
-		HOST_c2l(data,l); T1 = X[i] = l;
+		HOST_c2l(data,l); X[i] = l;
 		Ki=K256[i];
-		T1 += h + Sigma1(e) + Ch(e,f,g) + Ki;
+		T1 = l + h + Sigma1(e) + Ch(e,f,g) + Ki;
 		T2 = Sigma0(a) + Maj(a,b,c);
 		h = g;	g = f;	f = e;	e = d + T1;
 		d = c;	c = b;	b = a;	a = T1 + T2;

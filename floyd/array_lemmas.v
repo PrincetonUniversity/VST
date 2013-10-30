@@ -425,7 +425,6 @@ forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
     writable_share sh ->
     typeof e1 =  tptr t1 ->
     type_is_volatile t1 = false ->
-    typecheck_store' t1 ->
     repinject t1 = Some inject ->
     nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -441,6 +440,7 @@ forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
               (SEPx (replace_nth n R
                     (`(array_at t1 sh (upd contents v2 v) lo hi) v1)))))).
 Proof.
+pose (H2:=True).
 intros.
 rewrite (SEP_nth_isolate _ _ _ H4) in H5|-*.
 rewrite (SEP_replace_nth_isolate _ _ _ (`(array_at t1 sh (upd contents v2 v) lo hi) v1) H4).

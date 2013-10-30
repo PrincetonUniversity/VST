@@ -56,7 +56,6 @@ Definition _SHA256_Update : ident := 48%positive.
 Definition _l : ident := 35%positive.
 Definition _h : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition _T1' : ident := 56%positive.
 Definition _l' : ident := 55%positive.
 
 Definition t_struct_SHA256state_st :=
@@ -146,8 +145,7 @@ Definition f_sha256_block_data_order := {|
                (_e, tuint) :: (_f, tuint) :: (_g, tuint) :: (_h, tuint) ::
                (_s0, tuint) :: (_s1, tuint) :: (_T1, tuint) ::
                (_T2, tuint) :: (_t, tuint) :: (_l, tuint) :: (_Ki, tuint) ::
-               (_i, tint) :: (_data, (tptr tuchar)) :: (_T1', tuint) ::
-               (_l', tuint) :: nil);
+               (_i, tint) :: (_data, (tptr tuchar)) :: (_l', tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _data (Etempvar _in (tptr tvoid)))
@@ -244,17 +242,11 @@ Definition f_sha256_block_data_order := {|
                                   (Econst_int (Int.repr 4) tint)
                                   (tptr tuchar))))
                             (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Sset _T1' (Etempvar _l tuint))
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Evar _X (tarray tuint 16))
-                                        (Etempvar _i tint) (tptr tuint))
-                                      tuint) (Etempvar _T1' tuint)))
-                                (Sset _T1
-                                  (Ecast (Etempvar _T1' tuint) tuint)))
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _X (tarray tuint 16))
+                                    (Etempvar _i tint) (tptr tuint)) tuint)
+                                (Etempvar _l tuint))
                               (Ssequence
                                 (Sset _Ki
                                   (Ederef
@@ -263,45 +255,17 @@ Definition f_sha256_block_data_order := {|
                                       (Etempvar _i tint) (tptr tuint)) tuint))
                                 (Ssequence
                                   (Sset _T1
-                                    (Ebinop Oadd (Etempvar _T1 tuint)
+                                    (Ebinop Oadd
                                       (Ebinop Oadd
                                         (Ebinop Oadd
-                                          (Ebinop Oadd (Etempvar _h tuint)
+                                          (Ebinop Oadd (Etempvar _l tuint)
+                                            (Etempvar _h tuint) tuint)
+                                          (Ebinop Oxor
                                             (Ebinop Oxor
-                                              (Ebinop Oxor
-                                                (Ebinop Oor
-                                                  (Ebinop Oshl
-                                                    (Etempvar _e tuint)
-                                                    (Econst_int (Int.repr 26) tint)
-                                                    tuint)
-                                                  (Ebinop Oshr
-                                                    (Ebinop Oand
-                                                      (Etempvar _e tuint)
-                                                      (Econst_int (Int.repr (-1)) tuint)
-                                                      tuint)
-                                                    (Ebinop Osub
-                                                      (Econst_int (Int.repr 32) tint)
-                                                      (Econst_int (Int.repr 26) tint)
-                                                      tint) tuint) tuint)
-                                                (Ebinop Oor
-                                                  (Ebinop Oshl
-                                                    (Etempvar _e tuint)
-                                                    (Econst_int (Int.repr 21) tint)
-                                                    tuint)
-                                                  (Ebinop Oshr
-                                                    (Ebinop Oand
-                                                      (Etempvar _e tuint)
-                                                      (Econst_int (Int.repr (-1)) tuint)
-                                                      tuint)
-                                                    (Ebinop Osub
-                                                      (Econst_int (Int.repr 32) tint)
-                                                      (Econst_int (Int.repr 21) tint)
-                                                      tint) tuint) tuint)
-                                                tuint)
                                               (Ebinop Oor
                                                 (Ebinop Oshl
                                                   (Etempvar _e tuint)
-                                                  (Econst_int (Int.repr 7) tint)
+                                                  (Econst_int (Int.repr 26) tint)
                                                   tuint)
                                                 (Ebinop Oshr
                                                   (Ebinop Oand
@@ -310,18 +274,46 @@ Definition f_sha256_block_data_order := {|
                                                     tuint)
                                                   (Ebinop Osub
                                                     (Econst_int (Int.repr 32) tint)
-                                                    (Econst_int (Int.repr 7) tint)
+                                                    (Econst_int (Int.repr 26) tint)
                                                     tint) tuint) tuint)
-                                              tuint) tuint)
-                                          (Ebinop Oxor
-                                            (Ebinop Oand (Etempvar _e tuint)
-                                              (Etempvar _f tuint) tuint)
-                                            (Ebinop Oand
-                                              (Eunop Onotint
-                                                (Etempvar _e tuint) tuint)
-                                              (Etempvar _g tuint) tuint)
-                                            tuint) tuint)
-                                        (Etempvar _Ki tuint) tuint) tuint))
+                                              (Ebinop Oor
+                                                (Ebinop Oshl
+                                                  (Etempvar _e tuint)
+                                                  (Econst_int (Int.repr 21) tint)
+                                                  tuint)
+                                                (Ebinop Oshr
+                                                  (Ebinop Oand
+                                                    (Etempvar _e tuint)
+                                                    (Econst_int (Int.repr (-1)) tuint)
+                                                    tuint)
+                                                  (Ebinop Osub
+                                                    (Econst_int (Int.repr 32) tint)
+                                                    (Econst_int (Int.repr 21) tint)
+                                                    tint) tuint) tuint)
+                                              tuint)
+                                            (Ebinop Oor
+                                              (Ebinop Oshl
+                                                (Etempvar _e tuint)
+                                                (Econst_int (Int.repr 7) tint)
+                                                tuint)
+                                              (Ebinop Oshr
+                                                (Ebinop Oand
+                                                  (Etempvar _e tuint)
+                                                  (Econst_int (Int.repr (-1)) tuint)
+                                                  tuint)
+                                                (Ebinop Osub
+                                                  (Econst_int (Int.repr 32) tint)
+                                                  (Econst_int (Int.repr 7) tint)
+                                                  tint) tuint) tuint) tuint)
+                                          tuint)
+                                        (Ebinop Oxor
+                                          (Ebinop Oand (Etempvar _e tuint)
+                                            (Etempvar _f tuint) tuint)
+                                          (Ebinop Oand
+                                            (Eunop Onotint
+                                              (Etempvar _e tuint) tuint)
+                                            (Etempvar _g tuint) tuint) tuint)
+                                        tuint) (Etempvar _Ki tuint) tuint))
                                   (Ssequence
                                     (Sset _T2
                                       (Ebinop Oadd
