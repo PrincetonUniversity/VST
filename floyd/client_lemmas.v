@@ -564,6 +564,23 @@ apply exp_left; auto.
 apply extract_exists; auto.
 Qed.
 
+Lemma extract_exists_post:
+  forall {Espec: OracleKind} {A: Type} (x: A) Delta 
+       (P: environ -> mpred) c (R: A -> environ -> mpred),
+  semax Delta P c (normal_ret_assert (R x)) ->
+  semax Delta P c (normal_ret_assert (exp R)).
+Proof.
+intros.
+eapply semax_pre_post; try apply H.
+apply andp_left2; auto.
+intros ek vl rho.
+unfold local, lift1, existential_ret_assert.
+simpl.
+apply andp_left2.
+apply normal_ret_assert_derives.
+apply exp_right with x; auto.
+Qed.
+
 Lemma sequential:
   forall Espec Delta P c Q,
         @semax Espec Delta P c (normal_ret_assert (Q EK_normal None)) ->

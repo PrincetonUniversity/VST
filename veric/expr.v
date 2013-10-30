@@ -323,6 +323,11 @@ end.
 
 Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
        force_val (Cop2.sem_binary_operation op t1 t2 v1 v2).
+Arguments eval_binop op t1 t2 / v1 v2.
+
+Definition eval_cast (t1 t2 : type) (v: val) :=
+  force_val (sem_cast t1 t2 v).
+Arguments eval_cast t1 t2 / v.
 
 Definition force_ptr (v: val) : val :=
               match v with Vptr l ofs => v | _ => Vundef  end.
@@ -375,7 +380,7 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
  | Ebinop op a1 a2 ty =>  
                   `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Ecast a ty => `force_val (`(sem_cast (typeof a) ty) (eval_expr a)) 
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
  | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
  | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
@@ -1390,8 +1395,6 @@ Proof.
 intros.
 destruct H as [? [? [? ?]]]; repeat split; auto.
 Qed.
-
-Arguments eval_binop op t1 t2 / v1 v2.
 
 Definition is_int (v: val) := 
  match v with Vint i => True | _ => False end.

@@ -15,36 +15,6 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
-Lemma normal_ret_assert_elim:
- forall P, normal_ret_assert P EK_normal None = P.
-Proof.
-intros. unfold normal_ret_assert.
-repeat rewrite prop_true_andp by auto.
-auto.
-Qed.
-
-Lemma lift_identity:
-  forall A f, `(fun v: A => v) f = f.
-Proof. intros. reflexivity. Qed.
-Hint Rewrite lift_identity : norm.
-
-Lemma extract_exists_post:
-  forall {Espec: OracleKind} {A: Type} (x: A) Delta 
-       (P: environ -> mpred) c (R: A -> environ -> mpred),
-  semax Delta P c (normal_ret_assert (R x)) ->
-  semax Delta P c (normal_ret_assert (exp R)).
-Proof.
-intros.
-eapply semax_pre_post; try apply H.
-apply andp_left2; auto.
-intros ek vl rho.
-unfold local, lift1, existential_ret_assert.
-simpl.
-apply andp_left2.
-apply normal_ret_assert_derives.
-apply exp_right with x; auto.
-Qed.
-
 Lemma semax_frame1:
  forall {Espec: OracleKind} Frame Delta Delta1
      P Q c R P1 Q1 R1 P2 Q2 R2,
@@ -1099,8 +1069,21 @@ Ltac normalize_postcondition :=
  | |- _ => apply sequential
   end.
 
+Ltac forward_break :=
+eapply semax_pre; [ | apply semax_break ];
+  unfold_abbrev_ret;
+  autorewrite with ret_assert.
+
 Ltac forward_with F1 :=
  match goal with 
+  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_return
+  | |- semax _ _ (Sreturn _) _ =>  forward_return
+  | |- semax _ _ (Ssequence Sbreak _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_break
+  | |- semax _ _ Sbreak _ => forward_break
   | |- semax _ _ (Ssequence ?c _) _ =>
     let ftac := F1 c in
        ((eapply semax_seq'; 
@@ -1112,8 +1095,6 @@ Ltac forward_with F1 :=
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
   | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
        apply -> seq_assoc; forward_with F1
-  | |- semax _ _ (Sreturn _) _ =>
-       forward_return
   | |- semax _ _ ?c _ =>
      let ftac := F1 c in
       normalize_postcondition;

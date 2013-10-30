@@ -36,6 +36,7 @@ repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
 apply derives_refl.
 intros.
 autorewrite with ret_assert.
+repeat rewrite normal_ret_assert_eq.
 normalize.
 apply exp_right with old; destruct ret; normalize.
 autorewrite with subst.

@@ -477,11 +477,11 @@ Proof.
  eapply semax_post; [ | apply forward_setx'; auto].
  intros.
  autorewrite with ret_assert subst.
+ repeat rewrite normal_ret_assert_eq.
  repeat rewrite exp_andp2. apply exp_derives; intro x.
   autorewrite with subst.
  go_lowerx. repeat apply andp_right; try apply prop_right; auto.
 Qed.
-
 
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
@@ -579,6 +579,7 @@ Proof.
  eapply semax_post; [ | apply forward_ptr_compare'' with (sh1 := sh1) (sh2 := sh2); auto].
  intros.
  autorewrite with ret_assert subst.
+ repeat rewrite normal_ret_assert_eq.
 repeat rewrite exp_andp2. apply exp_derives; intro x.
  autorewrite with  subst.  go_lowerx.
  repeat apply andp_right; try apply prop_right; auto. 

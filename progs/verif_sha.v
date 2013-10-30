@@ -68,7 +68,7 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
     !!  s256_relate a r  &&  typed_mapsto Tsh t_struct_SHA256state_st c r.
 
 Definition data_block (contents: list Z) (v: val) :=
-  array_at tuchar Tsh (@ZnthV tuchar (map Int.repr contents)) 0 (Zlength contents) v.
+  array_at tuchar Tsh (ZnthV tuchar (map Int.repr contents)) 0 (Zlength contents) v.
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
@@ -77,11 +77,11 @@ Definition sha256_block_data_order_spec :=
          PROP(length b = LBLOCK) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
          SEP (`(sha256state_ a ctx); `(data_block (intlist_to_Zlist b) data);
-                `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)))
+                `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)))
    POST [ tvoid ]
           (`(sha256state_ (process_block_abs b a) ctx) *
           `(data_block (intlist_to_Zlist b) data) *
-          `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64))).
+          `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64))).
                 
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -401,7 +401,7 @@ Lemma rearrange_regs_proof:
    (`(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
    `(eq (Vint (big_endian_integer
              (fun z : Z =>
-              @ZnthV tuchar (map Int.repr (intlist_to_Zlist b)) (z + Z.of_nat i * 4)))))
+              ZnthV tuchar (map Int.repr (intlist_to_Zlist b)) (z + Z.of_nat i * 4)))))
        (eval_id _l);
    `(eq X) (eval_var _X (tarray tuint 16));
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
@@ -443,7 +443,7 @@ Lemma sha256_block_data_order_loop1_proof:
                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                    (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-   SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+   SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16));
            `(data_block (intlist_to_Zlist b) data)))
@@ -454,9 +454,9 @@ Lemma sha256_block_data_order_loop1_proof:
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-     SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+     SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
-           `(array_at tuint Tsh (@ZnthV tuint (map swap b)) 0 16) (eval_var _X (tarray tuint 16));
+           `(array_at tuint Tsh (ZnthV tuint (map swap b)) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block (intlist_to_Zlist b) data))) ).
 Proof.
 unfold block_data_order_loop1, Delta_loop1.
@@ -493,9 +493,9 @@ Definition loop1_inv (rg0: list int) (b: list int) (data X: val) (delta: Z) (i: 
                   (`cons (eval_id _e)
                      (`cons (eval_id _f)
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-     SEP (`(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+     SEP (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
-    `(array_at tuint Tsh (@ZnthV tuint (map swap b)) 0 (Z.of_nat i) X);
+    `(array_at tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) X);
    `(arrayof_' (mapsto_ Tsh tuint) tuint (Z.of_nat i) (LBLOCK-i) X);
    `(data_block (intlist_to_Zlist b) data)).
 
@@ -546,9 +546,9 @@ PROP  (i < 16)
                     (`cons (eval_id _f)
                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP 
-   (`(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+   (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
-   `(array_at tuint Tsh (@ZnthV tuint (map swap b)) 0 (Z.of_nat i) X);
+   `(array_at tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) X);
    `(arrayof_' (mapsto_ Tsh tuint) tuint (Z.of_nat i) (LBLOCK-i) X);
    `(data_block (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
@@ -558,11 +558,7 @@ forward.
 (* 619,968  655,716 *)
 abstract solve [entailer; apply prop_right; clear - H2; split; [omega | f_equal; omega]].
 (* 726,056  709,784 *)
-eapply semax_pre; [ | apply semax_break ].
-unfold POSTCONDITION, abbreviate.
-unfold overridePost. rewrite if_false by congruence.
-unfold loop1_ret_assert.
-rewrite normal_ret_assert_elim.
+forward.  (* break; *)
 (* 738,188  709,784 *)
 abstract solve [entailer; 
  assert (i=16) by omega; subst i; 
@@ -595,12 +591,12 @@ eapply semax_frame_seq
               (`cons (eval_id _e)
                  (`cons (eval_id _f)
                     (`cons (eval_id _g) (`cons (eval_id _h) `[]))))))))])
-         (Frame := [`(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+         (Frame := [`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64)),
-   `(array_at tuint Tsh (@ZnthV tuint (map swap b)) 0 (Z.of_nat i) X),
+   `(array_at tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) X),
    `(arrayof_' (mapsto_ Tsh tuint) tuint (Z.of_nat i) (LBLOCK - i) X)]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ Tsh 
-                     (@ZnthV tuchar (map Int.repr (intlist_to_Zlist b))))
+                     (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))))
    | | | ].
 (* 945,760 834,556 *)
 abstract solve [entailer!; try omega; 
@@ -616,7 +612,7 @@ abstract solve [entailer!].
 (* 1,078,128 849,172 *)
 auto 50 with closed.
 simpl.
-change (array_at tuchar Tsh (@ZnthV tuchar (map Int.repr (intlist_to_Zlist b))) 0
+change (array_at tuchar Tsh (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))) 0
         (Zlength (intlist_to_Zlist b)) data)
   with (data_block  (intlist_to_Zlist b) data).
 
@@ -666,15 +662,15 @@ name l'_ _l'.
 (* 1,371,592 965,884 *)
 solve [entailer!; [eapply eval_var_isptr; eauto | omega | omega]].
 (* 1,433,728 1,066,896 *)
-instantiate (1:= (@ZnthV tuint (map swap b))).
+instantiate (1:= (ZnthV tuint (map swap b))).
 unfold replace_nth; abbreviate_semax.
 (* 1,503,420 1,083,564 *)
 
-rewrite <- (array_at_ext tuint Tsh (@ZnthV tuint (map swap b))
-     (upd (@ZnthV tuint (map swap b)) (Z.of_nat i)
+rewrite <- (array_at_ext tuint Tsh (ZnthV tuint (map swap b))
+     (upd (ZnthV tuint (map swap b)) (Z.of_nat i)
               (big_endian_integer
                  (fun z : Z =>
-                  @ZnthV tuchar (map Int.repr (intlist_to_Zlist b))
+                  ZnthV tuchar (map Int.repr (intlist_to_Zlist b))
                     (z + Z.of_nat i * 4))))).
 Focus 2.
 intros.
@@ -688,7 +684,7 @@ symmetry; apply nth_big_endian_int; omega.
 normalize.
 gather_SEP 4%Z 0%Z.
 replace_SEP 0%Z
-  (`(array_at tuint Tsh (@ZnthV tuint (map swap b))
+  (`(array_at tuint Tsh (ZnthV tuint (map swap b))
         0 (Z.of_nat i + 1) X)).
 apply andp_left2.
 apply andp_left2.
@@ -761,24 +757,13 @@ Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) (data: val) (regs: list int),
      length b = LBLOCK ->
-     semax  
-       (initialized _i
-          (initialized _h
-           (initialized _g
-              (initialized _f
-                 (initialized _e
-                    (initialized _d
-                       (initialized _c
-                          (initialized _b
-                             (initialized _a
-                                (initialized _data
-   (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
-  (PROP ()
+     semax  Delta_loop1
+ (PROP ()
    LOCAL (`(eq (map Vint (rnd_64 regs K b))) 
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-   SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+   SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
@@ -788,7 +773,7 @@ Lemma sha256_block_data_order_loop2_proof:
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-     SEP ( `(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))
+     SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
            `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))).
 Admitted.
@@ -821,7 +806,7 @@ Lemma sha256_block_load8:
   (PROP  ()
    LOCAL  (`eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-   SEP  (`(array_at tuint Tsh (@ZnthV tuint r_h) 0 (Zlength r_h) ctx)))
+   SEP  (`(array_at tuint Tsh (ZnthV tuint r_h) 0 (Zlength r_h) ctx)))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
      (Ssequence (load8 _c 2)
@@ -839,7 +824,7 @@ Lemma sha256_block_load8:
 )));
    `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-   SEP  (`(array_at tuint Tsh (@ZnthV tuint r_h) 0 (Zlength r_h) ctx)))).
+   SEP  (`(array_at tuint Tsh (ZnthV tuint r_h) 0 (Zlength r_h) ctx)))).
 Proof.
 intros.
 simplify_Delta.
@@ -907,18 +892,7 @@ Lemma add_them_back_proof:
   forall (Espec : OracleKind)
      (b: list int) (r_h: list int)(ctx: val)(hashed: list int),
      length b = LBLOCK ->
-     semax  
-       (initialized _i
-          (initialized _h
-           (initialized _g
-              (initialized _f
-                 (initialized _e
-                    (initialized _d
-                       (initialized _c
-                          (initialized _b
-                             (initialized _a
-                                (initialized _data
-   (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))))
+     semax  Delta_loop1
    (PROP  ()
    LOCAL 
    (`(eq (map Vint (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
@@ -930,12 +904,12 @@ Lemma add_them_back_proof:
                      (`cons (eval_id _f)
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP 
-   (`(array_at tuint Tsh (@ZnthV tuint (process_msg init_registers hashed)) 0
+   (`(array_at tuint Tsh (ZnthV tuint (process_msg init_registers hashed)) 0
        (Zlength (process_msg init_registers hashed)) ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
    (PROP() LOCAL() 
-    SEP (`(array_at tuint Tsh (@ZnthV tuint 
+    SEP (`(array_at tuint Tsh (ZnthV tuint 
                    (map2 Int.add (process_msg init_registers hashed)
                                          (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
             0 (Zlength (process_msg init_registers hashed)) ctx)))).
@@ -1009,8 +983,8 @@ abbreviate_semax.
 simpl.
 change (lift1 (arrayof_ (mapsto_ Tsh tuint) tuint (Pos.to_nat 16)))
   with (`(arrayof_ (mapsto_ Tsh tuint) tuint (Pos.to_nat 16))).
-change (lift1 (array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K)))
-    with (`(array_at tuint Tsh (@ZnthV tuint K) 0 (Zlength K))).
+change (lift1 (array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)))
+    with (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))).
 
 forward.  (* i = 0; *)
 

@@ -149,7 +149,7 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tcomp_ptr _ _ => Vundef
   end.
 
-Definition ZnthV {t} (lis: list (reptype t)) (i: Z) : reptype t := 
+Definition ZnthV t (lis: list (reptype t)) (i: Z) : reptype t := 
        nth (Z.to_nat i) lis (default_val t).
 
 Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
@@ -290,7 +290,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
         (fun v (v3 : reptype (Tarray t z a)) => 
                  withspacer sh pos (alignof t)
                   (at_offset (fun v =>
-                          array_at' t sh (typed_mapsto' sh t 0) (ZnthV v3) 0 (Zlength v3) v) (align pos (alignof t))) v)
+                          array_at' t sh (typed_mapsto' sh t 0) (ZnthV _ v3) 0 (Zlength v3) v) (align pos (alignof t))) v)
         H
 | Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>

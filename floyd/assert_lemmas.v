@@ -634,6 +634,11 @@ intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @lift1_lift0 : norm.
 
+Lemma lift_identity:
+  forall A f, `(fun v: A => v) f = f.
+Proof. intros. reflexivity. Qed.
+Hint Rewrite lift_identity : norm.
+
 Lemma tc_eval_gvar_i:
   forall Delta t i rho, tc_environ Delta rho ->
             (var_types Delta) ! i = None ->
@@ -746,7 +751,29 @@ Lemma normal_ret_assert_eq:
   forall P ek vl, normal_ret_assert P ek vl =
              (!! (ek=EK_normal) && (!! (vl=None) && P)).
 Proof. reflexivity. Qed.
-Hint Rewrite normal_ret_assert_eq: ret_assert. 
+(* Hint Rewrite normal_ret_assert_eq: ret_assert.  NO! *)
+
+Lemma normal_ret_assert_elim:
+ forall P, normal_ret_assert P EK_normal None = P.
+Proof.
+intros. unfold normal_ret_assert.
+repeat rewrite prop_true_andp by auto.
+auto.
+Qed.
+
+Lemma overridePost_EK_break:
+ forall P Q, overridePost P Q EK_break None = Q EK_break None.
+Proof. intros. unfold overridePost.
+ rewrite if_false; congruence.
+Qed.
+
+Lemma loop1_ret_assert_EK_break:
+ forall P Q, loop1_ret_assert P Q EK_break None = Q EK_normal None.
+Proof. intros. reflexivity.
+Qed.
+
+Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
+  normal_ret_assert_elim : ret_assert.
 
 Lemma loop1_ret_assert_normal:
   forall P Q, loop1_ret_assert P Q EK_normal None = P.
