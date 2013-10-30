@@ -692,10 +692,11 @@ Proof. intros.
                     rename core_at_external12 into AtExt2.
                     destruct (core_after_external12 _ _ _ ret1 _ _ _ MC12 H1 AtExt2) 
                       as [c1' [c2' [d12' [AftExt1 [AftExt2 MS12']]]]].
-                    assert (PG2: meminj_preserves_globals g2 j).
+                    (*assert (PG2: meminj_preserves_globals g2 j).
                       solve[apply (match_genv23 _ _ _ _ _ _ MC23)].
+                    *)
                     destruct (core_after_external23 _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-                        H MC23 AtExt2 PG2 H3 H4 H5 H6 H7 H8 H9 H10) 
+                        H MC23 AtExt2 H2 H3 H4 H5 H6 H7 H8 H9) 
                     as [d23' [c22' [c3' [AftExt22 [AftExt3 MS23']]]]].
                     rewrite AftExt22 in AftExt2. inv AftExt2.
                     exists (d12',Some c2',d23'). exists c1'. exists c3'. 
@@ -1430,22 +1431,23 @@ Proof. intros.
                  destruct (core_at_external23 _ _ _ _ _ _ _ _ _  MC23 AtExt2)  as 
                    [Inj23 [vals3 [InjVals23 AtExt3]]]; try assumption; clear core_at_external23.
                  assert (UnchOn3 : Mem.unchanged_on (loc_out_of_reach j m2) m3 m3').
-                   split; intros; eapply H10; trivial.
+                   split; intros; eapply H9; trivial.
                    eapply extends_loc_out_of_reach; eassumption.
                    intros.  eapply extends_loc_out_of_reach; eassumption.
                  assert (Sep23: inject_separated j j' m2 m3).
-                 intros b. intros. destruct (H4 _ _ _ H0 H11). split; trivial. 
-                 intros N. apply H12.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
-                 destruct (MEMAX.interpolate_EI _ _ _ Ext12 H7 _ _ Inj23 _ H9 _ H5 H10 H3 H4 H8)
+                 intros b. intros. destruct (H3 _ _ _ H0 H10). split; trivial. 
+                 intros N. apply H11.  inv Ext12. unfold Mem.valid_block. rewrite mext_next. apply N.
+                 destruct (MEMAX.interpolate_EI _ _ _ Ext12 H6 _ _ Inj23 _ H8 _ H4 H9 H2 H3 H7)
                    as [m2' [Fwd2' [Ext12' [Inj23' [UnchOn2 UnchOn2j]]]]].
                  destruct (core_after_external12 _ _ _ _ _ _ _ _ ret1 ret1 _ _ _ MC12 H1 AtExt2 
-                             LDVals12 H7 Fwd2' UnchOn2 (Val.lessdef_refl _) Ext12') 
+                             LDVals12 H6 Fwd2' UnchOn2 (Val.lessdef_refl _) Ext12') 
                    as [c1' [c2' [d12' [AftExt1 [AftExt2 MC12']]]]]; 
                      try assumption; clear core_after_external12.
-                 assert (PG2: meminj_preserves_globals g2 j).
-                 apply (match_genv23 _ _ _ _ _ _ MC23).
+                 (*assert (PG2: meminj_preserves_globals g2 j).
+                   apply (match_genv23 _ _ _ _ _ _ MC23).
+                 *)
                  destruct (core_after_external23 _ j j' _ _ _ _ vals2 ret1 _ _ _ ret3 _ Inj23 
-                             MC23 AtExt2 PG2 H3 Sep23 Inj23' H6 Fwd2' UnchOn2j H9 UnchOn3)
+                             MC23 AtExt2 H2 Sep23 Inj23' H5 Fwd2' UnchOn2j H8 UnchOn3)
                  as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]]; 
                    try assumption; clear core_after_external23.
                  rewrite AftExt22 in AftExt2. inv AftExt2.
@@ -1688,7 +1690,7 @@ Proof. intros.
                 specialize (core_at_external23 _ _ _ _ _ _ MC23 AtExt2).
                 rename core_at_external23 into AtExt3.
                 destruct (core_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ _ _ MInj12 MC12 H1 
-                  (match_genv12 _ _ _ _ _ _ MC12) H3 H4 H5 H6 H7 H8 H9 H10)
+                  (*(match_genv12 _ _ _ _ _ _ MC12)*) H2 H3 H4 H5 H6 H7 H8 H9)
                   as [d12' [c1' [c2' [AftExt1 [AftExt2 MS12']]]]].
                 destruct (core_after_external23 _ _ _ ret2 _ _ _ MC23 AtExt2 AtExt3) 
                   as [c22' [c3' [d23' [AftExt22 [AftExt3 MS23']]]]].
@@ -1952,21 +1954,21 @@ Proof. intros.
                   destruct (core_at_external23 _ _ _ _ _ _ _ _ MC23 AtExt2)
                     as [vals3 [MExt23 [ValsLD23 AtExt3]]]; try assumption; clear core_at_external23.
                   assert (Sep12: inject_separated j j' m1 m2).
-                    intros b; intros. destruct (H4 _ _ _ H0 H11). split; trivial.
-                    intros N. apply H13. inv MExt23. unfold Mem.valid_block. 
+                    intros b; intros. destruct (H3 _ _ _ H0 H10). split; trivial.
+                    intros N. apply H12. inv MExt23. unfold Mem.valid_block. 
                     rewrite <- mext_next. apply N.
                   assert (UnchLOOB23_3': Mem.unchanged_on (loc_out_of_bounds m2) m3 m3'). 
                     eapply inject_LOOR_LOOB; eassumption.
-                  destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H7 _ H3 Sep12 H8 _ _ MExt23 
-                             H9 H10 H5 UnchLOOB23_3')
+                  destruct (MEMAX.interpolate_IE _ _ _ _ Minj12 H6 _ H2 Sep12 H7 _ _ MExt23 
+                             H8 H9 H4 UnchLOOB23_3')
                     as [m2' [Fwd2' [MExt23' [Minj12' UnchLOORj1_2]]]].
                   destruct (core_after_external12 _ j j' _ _ _ _ _ ret1 m1' _ m2' ret3 _ 
-                             Minj12 MC12 H1 (match_genv12 _ _ _ _ _ _ MC12) H3 
-                             Sep12 Minj12' H6 H7 H8 Fwd2' UnchLOORj1_2)
+                             Minj12 MC12 H1 (*(match_genv12 _ _ _ _ _ _ MC12)*) H2 
+                             Sep12 Minj12' H5 H6 H7 Fwd2' UnchLOORj1_2)
                     as  [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]]; clear core_after_external12.
                   destruct (core_after_external23 _ _ _ _ _ _ _ _ ret3 ret3 _ _ _ 
                              MC23 AtExt2 AtExt3 ValsLD23
-                             Fwd2' H9 UnchLOOB23_3' (Val.lessdef_refl _) MExt23')
+                             Fwd2' H8 UnchLOOB23_3' (Val.lessdef_refl _) MExt23')
                     as [cc2' [c3' [d23' [AftExt22 [AftExt3 MC23']]]]]; clear core_after_external23.
                   rewrite AftExt22 in AftExt2. inv AftExt2.
                   exists (d12',Some c2', d23'). exists c1'. exists c3'. 
@@ -2625,26 +2627,26 @@ Proof. intros.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2) 
    as [MInj23 [vals3 [ValsInj23 AtExt3]]].
   clear core_at_external12 core_at_external23.
-  destruct (MEMAX.interpolate_II _ _ _ MInj12 _ H7 _ _ MInj23 _ H9 _ H5 H3 H4 H8 H10)
+  destruct (MEMAX.interpolate_II _ _ _ MInj12 _ H6 _ _ MInj23 _ H8 _ H4 H2 H3 H7 H9)
     as [m2' [j12' [j23' [X [Incr12 [Incr23 [MInj12' [Fwd2 
       [MInj23' [Unch22 [Sep12 [Sep23 [Unch222' Unch2233']]]]]]]]]]]]]. 
   subst.
   assert (exists ret2, val_inject j12' ret1 ret2 /\ val_inject j23' ret2 ret3).
-    apply val_inject_split in H6. destruct H6 as [ret2 [injRet12 injRet23]]. 
+    apply val_inject_split in H5. destruct H5 as [ret2 [injRet12 injRet23]]. 
     exists ret2. split; trivial. 
   destruct H0 as [ret2 [injRet12 injRet23]].
   assert (Unch111': Mem.unchanged_on (loc_unmapped j1) m1 m1').
-    split; intros; apply H8; unfold compose_meminj, loc_unmapped in *. 
+    split; intros; apply H7; unfold compose_meminj, loc_unmapped in *. 
     rewrite H0. trivial. trivial. 
     intros. rewrite H0. trivial. trivial.
   specialize (core_after_external12 _ _ j12' _ _ _ _ _ ret1 m1' m2 m2' ret2 _ 
-     MInj12 MC12 AtExt1 (match_genv12 _ _ _ _ _ _ MC12) 
-     Incr12 Sep12 MInj12' injRet12 H7 Unch111' Fwd2 Unch22).
+     MInj12 MC12 AtExt1 (*(match_genv12 _ _ _ _ _ _ MC12) *)
+     Incr12 Sep12 MInj12' injRet12 H6 Unch111' Fwd2 Unch22).
   destruct core_after_external12 as [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]].
 
   specialize (core_after_external23 _ _ j23' _ _ _ _ vals2 ret2 m2' _ m3' ret3 _ 
-     MInj23 MC23 AtExt2 (match_genv23 _ _ _ _ _ _ MC23) 
-     Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H9 Unch2233').
+     MInj23 MC23 AtExt2 (*(match_genv23 _ _ _ _ _ _ MC23)*) 
+     Incr23 Sep23 MInj23' injRet23 Fwd2 Unch222' H8 Unch2233').
   destruct core_after_external23 as [d23' [cc2' [c3' [AftExt22 [AftExt3 MC23']]]]].
   rewrite AftExt22 in AftExt2. inv AftExt2.
   exists (d12', Some c2', d23'). exists c1'. exists c3'.

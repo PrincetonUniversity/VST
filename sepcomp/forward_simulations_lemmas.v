@@ -340,13 +340,6 @@ Section Sim_INJ_SIMU_DIAGRAMS.
         (d=st1 /\ match_states d j st1 m1 st2 m2) ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
 
-    (* LENB: we may want to add meminj_preserves_globals ge1 j as another
-      asumption here, to get rid of
-      meminj_preserved_globals_inject_incr below. But this would
-      require spaeicaliing G1 to Genv.t....  Maybe we can specialize
-      G1 and G2 of CompCertCoreSem's to Genv F1 V1/Genv F2 V2, but not
-      specialize CoreSem's?*)
-
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
         Mem.inject j' m1' m2' ->
@@ -398,7 +391,7 @@ Proof.
   intros.  destruct H; subst. eapply inj_at_external; eauto.
   intros. (*destruct H0; subst.*) clear inj_simulation .
   specialize (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-    H0 H1 H3 H4 H5 H6 H7 H8 H9 H10).
+    H0 H1 H2 H3 H4 H5 H6 H7 H8 H9).
   destruct inj_after_external as [c1' [c2' [d' [X1 [X2 [X3 X4]]]]]]. subst.
   exists c1'. exists c1'. exists c2'. split; auto.
 Qed.

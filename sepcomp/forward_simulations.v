@@ -259,7 +259,6 @@ Module Forward_simulation_inj. Section Forward_simulation_inject.
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
@@ -354,7 +353,6 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject j m1 m2 /\
-          meminj_preserves_globals ge1 j /\ 
           exists vals2, Forall2 (val_inject j) vals1 vals2 /\
           at_external Sem2 st2 = Some (e,ef_sig,vals2));
 
@@ -363,7 +361,6 @@ Module Forward_simulation_inj_exposed. Section Forward_simulation_inject.
         Mem.inject j m1 m2->
         match_state cd j st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,ef_sig,vals1) ->
-        meminj_preserves_globals ge1 j -> 
 
         inject_incr j j' ->
         inject_separated j j' m1 m2 ->
