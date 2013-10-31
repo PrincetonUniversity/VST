@@ -759,6 +759,44 @@ Ltac general_load_tac :=
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
+ match goal with   
+ | |- semax _ _ (Sset _ (Efield ?e _ _)) _ =>
+ match e with
+ | Ederef _ _ => 
+   (eapply (semax_load_field_40);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [entailer!]
+   ]) || fail 1
+ | _ =>
+   eapply (semax_load_field_38);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
+   | solve [entailer; cancel]
+   ]
+ end
+ | |- semax _ _ (Sset _ (Efield _ _ _)) _ =>
+  eapply (semax_load_field'');
+   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | try solve [entailer]
+   | solve [entailer; cancel]
+   ]
+ | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
+    eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
+      [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      | solve [entailer; cancel]
+      | ]
+ | |- _ => eapply semax_load_37';
+   [entailer;
+    try (apply andp_right; [apply prop_right | solve [cancel] ];
+           do 2 eexists; split; reflexivity)
+    ]
+ end.
+
+Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
  first [
    eapply (semax_load_field_39);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]

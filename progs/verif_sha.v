@@ -224,6 +224,16 @@ Definition block_data_order_loop1 :=
 Definition block_data_order_loop2 := 
    nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
+
+Lemma split_array_at:
+  forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
+    (lo hi : Z) (v : val),
+  (lo <= i <= hi)%Z ->
+  array_at ty sh contents lo hi v =
+  array_at ty sh contents lo i v * array_at ty sh contents i hi v.
+Admitted.
+
+
 Definition Delta_loop1 : tycontext :=
  initialized _i
           (initialized _h
@@ -236,12 +246,54 @@ Definition Delta_loop1 : tycontext :=
                              (initialized _a
                                 (initialized _data
      (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
+Lemma mul_repr:
+ forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
+Proof.
+intros. unfold Int.mul.
+apply Int.eqm_samerepr.
+repeat rewrite Int.unsigned_repr_eq.
+apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
+apply Int.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma offset_val_array_at:
+ forall ofs t sh f lo hi v,
+  array_at t sh (fun i => f (i-ofs)%Z)
+               (ofs + lo) (ofs + hi) v =
+  array_at t sh f lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
+Proof.
+ intros.
+unfold array_at, rangespec.
+ replace (ofs + hi - (ofs + lo))%Z
+   with (hi-lo)%Z by omega.
+forget (nat_of_Z (hi-lo)) as n.
+clear hi.
+revert lo; induction n; simpl; intros; auto.
+f_equal. f_equal.
+2: f_equal; omega.
+unfold add_ptr_int.
+simpl.
+destruct v; simpl; auto.
+f_equal.
+rewrite Int.add_assoc. f_equal.
+rewrite <- add_repr.
+rewrite <- mul_repr.
+rewrite Int.mul_add_distr_r.
+auto.
+replace (Z.succ (ofs + lo))%Z with (ofs + Z.succ lo)%Z by omega.
+apply IHn.
+Qed.
 
 Lemma read32_reversed_in_bytearray:
- forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh contents i P Q, 
- PROPx P (LOCALx (tc_environ Delta :: Q) (SEP ())) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
+ forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh contents i P Q
+ (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 
+ (GS: (glob_types Delta) ! ___builtin_read32_reversed =
+    Some (Global_func (snd __builtin_read32_reversed_spec)))
+ (TE: typeof e = tptr tuint)
+ (CLOQ: Forall (closed_wrt_vars (eq i)) Q),
+ PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
          LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
-         SEP () ->
+         SEP  (TT) ->
  semax Delta  (PROPx P (LOCALx Q (SEP (`(array_at tuchar sh contents lo hi base)))))
         (Scall (Some i)
            (Evar ___builtin_read32_reversed
@@ -252,15 +304,88 @@ Lemma read32_reversed_in_bytearray:
          (LOCALx (`(eq (Vint (big_endian_integer (fun z => contents (z+Int.unsigned ofs)%Z)))) (eval_id i)
                         :: Q)                 
          SEP (`(array_at tuchar sh contents lo hi base))))).
-Admitted.
+Proof.
+intros.
+apply semax_pre with
+ (PROP  ((lo <= Int.unsigned ofs <= hi - 4)%Z)
+        (LOCALx (tc_expr Delta e :: `(eq (offset_val ofs base)) (eval_expr e) :: Q)
+         (SEP(`(array_at tuchar sh contents lo hi base))))).
+rewrite <- (andp_dup (PROPx P _)).
+eapply derives_trans; [ apply andp_derives | ].
+eapply derives_trans; [ | apply H].
+apply andp_derives; auto.
+apply andp_derives; auto.
+go_lowerx.
+apply sepcon_derives; auto.
+apply TT_right.
+instantiate (1:= PROPx nil (LOCALx Q (SEP  (`(array_at tuchar sh contents lo hi base))))).
+go_lowerx. entailer.
+go_lowerx; entailer.
+normalize.
+clear H.
+normalize.
+rewrite (split_array_at (Int.unsigned ofs)) by omega.
+rewrite (split_array_at (Int.unsigned ofs + 4)%Z) with (hi:=hi) by omega.
+normalize.
+match goal with |- semax _ (PROPx _ (LOCALx _ ?A)) _ _ =>
+ replace A  with (SEPx( [
+         `(array_at tuchar sh contents (Int.unsigned ofs)
+             (Int.unsigned ofs + 4) base)] ++
+               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base),
+         `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
+ by (simpl app; apply pred_ext; go_lowerx; cancel)
+end.
+eapply semax_frame1; try reflexivity;
+ [ |  apply derives_refl | auto 50 with closed].
+eapply semax_pre_post.
+Focus 3.
+evar (tl: typelist).
+replace (Tcons (tptr tuint) Tnil) with tl.
+unfold tl.
+eapply semax_call_id1'; try eassumption.
+2: reflexivity.
+apply GS.
+2: reflexivity.
+Unfocus.
+instantiate (3:=nil).
+apply andp_left2.
+instantiate (2:=(offset_val ofs base, sh, fun z => contents (z + Int.unsigned ofs)%Z)).
+cbv beta iota.
+instantiate (1:=nil).
+unfold split; simpl @snd.
+go_lowerx.
+entailer.
+apply andp_right; [apply prop_right; repeat split; auto | ].
+hnf. simpl.
+rewrite TE.
+repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite <- H3.
+rewrite TE.
+destruct base; inv Pbase; reflexivity.
+pattern ofs at 4;
+ replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
+ by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
+rewrite <- offset_val_array_at.
+apply derives_refl'; f_equal.
+extensionality j. f_equal.
+omega.
+omega.
+2: auto with closed.
+intros; apply andp_left2.
+apply normal_ret_assert_derives'.
+go_lowerx.
+entailer.
+apply derives_refl'.
+pattern ofs at 2;
+ replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
+ by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
+rewrite <- offset_val_array_at.
+f_equal.
+extensionality j. f_equal.
+omega.
+omega.
+Qed.
 
-Lemma split_array_at:
-  forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
-    (lo hi : Z) (v : val),
-  (lo <= i <= hi)%Z ->
-  array_at ty sh contents lo hi v =
-  array_at ty sh contents lo i v * array_at ty sh contents i hi v.
-Admitted.
 
 Arguments Int.unsigned n : simpl never. (*  remove this once recompiled forward.v *)
 
@@ -522,7 +647,7 @@ clear POSTCONDITION.
 apply (semax_loop _ _ (EX i:nat, loop1_inv regs b data X 1 i)).
 Focus 2. {
 apply extract_exists_pre; intro i.
-forward.
+forward.  (*  i += 1; *)
 apply exp_right with i.
 (* 452,280  481,476 *)
 abstract
@@ -554,7 +679,7 @@ PROP  (i < 16)
 (* 587,640  592,608 *)
 abstract solve [entailer].
 (* 613,416  655,716 *)
-forward.
+forward.  (* skip; *)
 (* 619,968  655,716 *)
 abstract solve [entailer; apply prop_right; clear - H2; split; [omega | f_equal; omega]].
 (* 726,056  709,784 *)
@@ -598,8 +723,12 @@ eapply semax_frame_seq
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ Tsh 
                      (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))))
    | | | ].
+reflexivity.
+reflexivity.
+reflexivity.
+auto 50 with closed.
 (* 945,760 834,556 *)
-abstract solve [entailer!; try omega; 
+abstract solve [entailer!; repeat split; auto; try omega; 
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist; rewrite H;
  replace (Z.of_nat (4 * LBLOCK) - 4)%Z
   with ((Z.of_nat LBLOCK - 1) * 4)%Z; 

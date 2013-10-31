@@ -501,6 +501,14 @@ Hint Resolve closed_wrt_stackframe_of : closed.
 
 Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
 
+Lemma closed_wrt_TT:
+ forall  (S: ident -> Prop),
+  closed_wrt_vars S (@TT (environ -> mpred) _).
+Proof.
+intros. hnf; intros. reflexivity.
+Qed.
+Hint Resolve closed_wrt_TT : closed.
+
 Lemma closed_wrt_subset:
   forall (S S': ident -> Prop) (H: included S' S) B (f: environ -> B),
        closed_wrt_vars S f -> closed_wrt_vars S' f.

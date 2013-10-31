@@ -665,6 +665,45 @@ apply exp_left; intro old.
 autorewrite with subst. auto.
 Qed.
 
+Lemma semax_load_field_40:
+forall  (sh: share) (v: val)
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 i2 sid fields ,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+    t1 = Tstruct sid fields noattr ->
+    (temp_types Delta) ! id = Some (t2,i2) ->
+   t2 = type_of_field
+             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
+   typeof e1 = tptr t1 ->
+   Cop.classify_cast t2 t2 = Cop.cast_case_neutral ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  local (tc_expr Delta e1) && (`(field_mapsto sh t1 fld) (eval_expr e1) `v * TT) ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Efield (Ederef e1 t1) fld t2))
+       (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
+Proof.
+intros.
+eapply semax_load_field_38; eauto.
+do 2 rewrite <- insert_local. rewrite <- andp_assoc.
+rewrite (andp_comm (local _)).
+rewrite andp_assoc. apply andp_left2. rewrite insert_local.
+apply derives_trans with (local (tc_expr Delta e1) && local (`isptr (eval_expr e1))).
+apply andp_right; auto.
+eapply derives_trans; [ apply H6 | ].
+apply andp_left1; auto.
+eapply derives_trans; [ apply H6 | ].
+apply andp_left2.
+clear; go_lowerx. rewrite field_mapsto_isptr; normalize.
+go_lowerx. intro. apply prop_right.
+unfold tc_lvalue; simpl denote_tc_assert.
+repeat rewrite denote_tc_assert_andp.
+repeat split; auto.
+rewrite H4. apply I.
+rewrite H1; apply I.
+eapply derives_trans; [ apply H6 | ].
+apply andp_left2.
+apply sepcon_derives; auto.
+go_lowerx. unfold_lift. rewrite field_mapsto_force_ptr; eapply derives_refl.
+Qed.
 
 Lemma semax_load_field_39:
 forall  (sh: share) (v: val)
