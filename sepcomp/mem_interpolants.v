@@ -54,11 +54,10 @@ Parameter interpolate_II: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1' (
                              Mem.unchanged_on (loc_unmapped j23) m2 m2' /\ 
                              Mem.unchanged_on (loc_out_of_reach j23 m2) m3 m3'.                                 
 
-
-(*prooves the claim of interpolate_II, plus properties on j12' and j23'
+(*proves the claim of interpolate_II, plus properties on j12' and j23'
   corresponding to mkInjections_3 and mkInjections_4. This is usefule for
   proving Forward_simulations_trans.initial_inject_split in the sufficiently
-  strong form needed to prove that memninj_preserves splits, as required for
+  strong form needed to prove that meminj_preserves splits, as required for
   transitivity_II.*)
 Parameter interpolate_II_HeqMKI: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2) m1'
                   (Fwd1: mem_forward m1 m1') j23 m3
@@ -88,4 +87,11 @@ Parameter interpolate_II_HeqMKI: forall m1 m2 j12 (MInj12 : Mem.inject j12 m1 m2
                      (b2 = Mem.nextblock m2 /\ j' (Mem.nextblock m1) = Some(b3,ofs3)) \/
                      (exists m, (b2 = Mem.nextblock m2 + m)%positive /\ 
                             j' ((Mem.nextblock m1+m)%positive) = Some(b3,ofs3))).
+
+(* mem_interplation_II.v also contains the even stronger result
+   Lemma interpolate_II_strongHeqMKI, which is needed to prove
+   Lemma initial_inject_split for effects in file effect_simulations_trans.v.
+   But it's not necessary to export interpolate_II_strongHeqMKI here.
+   (We do export it in effect_interpolants.v, though. *)
+
 End MemoryInterpolationAxioms.

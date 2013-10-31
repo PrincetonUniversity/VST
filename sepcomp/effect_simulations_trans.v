@@ -71,14 +71,88 @@ Proof. intros.
   destruct f; trivial.
 Qed.
 
-
 Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
   exists m2 j1 j2, j = compose_meminj j1 j2 /\
        Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3 /\
        (forall b1, (exists b3 d, compose_meminj j1 j2 b1 = Some(b3,d))
                    <-> (exists b2 d1, j1 b1 = Some(b2,d1))) /\
-       forall b2 b3 d2, j2 b2 =Some(b3,d2) ->
-                   exists b1 d, compose_meminj j1 j2 b1 = Some(b3,d).
+       (forall b2 b3 d2, j2 b2 =Some(b3,d2) ->
+                   exists b1 d, compose_meminj j1 j2 b1 = Some(b3,d)) /\
+      (forall b1 b2 ofs2, j1 b1 = Some(b2,ofs2) -> (b1=b2 /\ ofs2=0)) /\
+      (forall b2 b3 ofs3, j2 b2 = Some (b3, ofs3) ->
+               Mem.flat_inj 1%positive b2 = Some (b3, ofs3) \/
+               (b2 = Mem.nextblock Mem.empty /\
+                    compose_meminj j1 j2 (Mem.nextblock Mem.empty) = Some (b3, ofs3)) \/
+               (exists m : positive,
+                   b2 = (Mem.nextblock Mem.empty + m)%positive /\
+                   compose_meminj j1 j2 (Mem.nextblock Mem.empty + m)%positive =
+                   Some (b3, ofs3))).
+Proof. intros.
+  destruct (EFFAX.interpolate_II_strongHeqMKI _ _ _ 
+     Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m1) _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m3) _ Inj)
+  as [m2 [j1 [j2 [J [X [Y [Inc1 [Inc2 [Inj12 [_ [Inj23 AA]]]]]]]]]]].
+intros b; intros. 
+  destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
+    subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
+         exfalso. xomega.
+intros b; intros.
+   unfold Mem.valid_block; simpl; split; intros N; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+  apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
+subst. exists m2, j1, j2.
+split; trivial.
+split; trivial.
+split; trivial.
+destruct AA as [_ [_ [_ [_ [_ [XX YY]]]]]].
+split. intros.
+  split; intros. destruct H as [b3 [d COMP]].
+    destruct (compose_meminjD_Some _ _ _ _ _ COMP) as
+        [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear COMP.
+    exists b2, d1; trivial.
+  intros. destruct H as [b2 [d1 J1]].
+    destruct (X _ _ _ J1) as [FL | COMP]; trivial.
+    destruct (flatinj_E _ _ _ _ FL) as [? [? ?]].
+      subst. clear -H1. exfalso. xomega.
+split. intros.
+    destruct (Y _ _ _ H) as [FL | COMP]; trivial.
+    destruct (flatinj_E _ _ _ _ FL) as [? [? ?]].
+      subst. clear -H2. exfalso. xomega.
+split. intros.
+  destruct (XX _ _ _ H) as [AA | [AA | AA]].
+    apply flatinj_E in AA.
+      destruct AA as [? [? ?]]; subst. intuition.
+    destruct AA as [? [? ?]]; subst. intuition.
+    destruct AA as [mm [[? ?] ?]]; subst. intuition.
+apply YY.
+Qed.
+(*
+Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
+  exists m2 j1 j2, j = compose_meminj j1 j2 /\
+       Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3 /\
+       (forall b1, (exists b3 d, compose_meminj j1 j2 b1 = Some(b3,d))
+                   <-> (exists b2 d1, j1 b1 = Some(b2,d1))) /\
+       (forall b2 b3 d2, j2 b2 =Some(b3,d2) ->
+                   exists b1 d, compose_meminj j1 j2 b1 = Some(b3,d)) /\
+      (forall b1 b2 ofs2, j1 b1 = Some(b2,ofs2) -> (b1=b2 /\ ofs2=0)) /\
+      (forall b2 b3 ofs3, j2 b2 = Some (b3, ofs3) ->
+               Mem.flat_inj 1%positive b2 = Some (b3, ofs3) \/
+               (b2 = Mem.nextblock Mem.empty /\
+                    compose_meminj j1 j2 (Mem.nextblock Mem.empty) = Some (b3, ofs3)) \/
+               (exists m : positive,
+                   b2 = (Mem.nextblock Mem.empty + m)%positive /\
+                   compose_meminj j1 j2 (Mem.nextblock Mem.empty + m)%positive =
+                   Some (b3, ofs3))) /\
+      (forall b1 b2 ofs2, j1 b1 = Some(b2,ofs2) -> (b1=b2 /\ ofs2=0)) /\
+      (forall b2 b3 ofs3, j2 b2 = Some (b3, ofs3) ->
+              Mem.flat_inj 1%positive b2 = Some (b3, ofs3) \/
+              (b2 = Mem.nextblock Mem.empty /\
+                compose_meminj j1 j2 (Mem.nextblock Mem.empty) = Some (b3, ofs3)) \/
+              (exists m : positive,
+                b2 = (Mem.nextblock Mem.empty + m)%positive /\
+                compose_meminj j1 j2 (Mem.nextblock Mem.empty + m)%positive =
+                Some (b3, ofs3))).
 Proof. intros.
   destruct (EFFAX.interpolate_II_strong _ _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m1) _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m3) _ Inj)
   as [m2 [j1 [j2 [J [X [Y [Inc1 [Inc2 [Inj12 [_ [Inj23 _]]]]]]]]]]].
@@ -93,8 +167,11 @@ split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
 split; intros. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
   apply Mem.perm_valid_block in H0. unfold Mem.valid_block in H0. simpl in H0. exfalso; xomega.
 subst. exists m2, j1, j2.
-  repeat (split; trivial).
-  intros. destruct H as [b3 [d COMP]].
+split; trivial.
+split; trivial.
+split; trivial.
+split. intros.
+  split; intros. destruct H as [b3 [d COMP]].
     destruct (compose_meminjD_Some _ _ _ _ _ COMP) as
         [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear COMP.
     exists b2, d1; trivial.
@@ -102,11 +179,17 @@ subst. exists m2, j1, j2.
     destruct (X _ _ _ J1) as [FL | COMP]; trivial.
     destruct (flatinj_E _ _ _ _ FL) as [? [? ?]].
       subst. clear -H1. exfalso. xomega.
-  intros.
+split. intros.
     destruct (Y _ _ _ H) as [FL | COMP]; trivial.
     destruct (flatinj_E _ _ _ _ FL) as [? [? ?]].
       subst. clear -H2. exfalso. xomega.
+split; intros.
+  destruct (X _ _ _ H) as [AA | AA].
+    apply flatinj_E in AA.
+      destruct AA as [? [? ?]]; subst. intuition.
+   
 Qed.
+*)
 
 Section Eff_sim_trans.
 Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
@@ -120,20 +203,20 @@ Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
         (EPC : entrypoints_compose epts12 epts23 epts13).
 
 Theorem eff_sim_trans: forall 
-        (SIM12: @SM_simulation_inject _ _ _ _ _ Sem1 Sem2 g1 g2 epts12)
-        (SIM23: @SM_simulation_inject _ _ _ _ _ Sem2 Sem3 g2 g3 epts23),
-        @SM_simulation_inject _ _ _ _ _ Sem1 Sem3 g1 g3 epts13.
+        (SIM12: @SM_simulation_inject _ _ _ _ _ _ Sem1 Sem2 g1 g2 epts12)
+        (SIM23: @SM_simulation_inject _ _ _ _ _ _ Sem2 Sem3 g2 g3 epts23),
+        @SM_simulation_inject _ _ _ _ _ _ Sem1 Sem3 g1 g3 epts13.
 Proof. (*follows structure of forward_simulations_trans.injinj*)
   intros.
   destruct SIM12 
     as [core_data12 match_core12 core_ord12 core_ord_wf12 
-      match_sm_wd12 match_norm12 (*match_eraseUnknown12*)
+      match_sm_wd12 genvs_dom_eq12 match_genv12 match_norm12 (*match_eraseUnknown12*)
       match_validblock12 core_initial12 core_diagram12 eff_diagram12 
       strong_diagram12 strongperm_diagram12
       core_halted12 core_at_external12 eff_after_external12].  
   destruct SIM23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
-      match_sm_wd23 match_norm23 (*match_eraseUnknown23*)
+      match_sm_wd23 genvs_dom_eq23 match_genv23 match_norm23 (*match_eraseUnknown23*)
       match_validblock23 core_initial23 core_diagram23 eff_diagram23
       strong_diagram23 strongperm_diagram23
       core_halted23 core_at_external23 eff_after_external23].
@@ -151,15 +234,47 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
       end).
  (*well_founded*)
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
- (*match_sm_wd*) intros. rename c2 into c3. rename m2 into m3.
+ (*match_sm_wd*) clear - match_sm_wd12 match_sm_wd23.
+  intros. rename c2 into c3. rename m2 into m3.
   destruct d as [[d12 cc2] d23].
   destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
   specialize (match_sm_wd12 _ _ _ _ _ _ MC12).
   specialize (match_sm_wd23 _ _ _ _ _ _ MC23).
   destruct INV as [INVa [INVb [INVc INVd]]].
   eapply (compose_sm_wd); eauto.
+ (*genvs_domain_eq*)
+  eapply genvs_domain_eq_trans; eassumption.
+ (*match_genv for definition using
+       meminj_preserves_globals ge1 (foreign_of mu)
+  clear - genvs_dom_eq12 match_sm_wd12 match_genv12 match_genv23.
+  intros. rename c2 into c3. rename m2 into m3.
+  destruct d as [[d12 cc2] d23].
+  destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
+  specialize (match_genv12 _ _ _ _ _ _ MC12).
+  specialize (match_genv23 _ _ _ _ _ _ MC23).
+  apply meminj_preserves_genv2blocks.
+  apply meminj_preserves_genv2blocks in match_genv12.
+  apply meminj_preserves_genv2blocks in match_genv23.
+  rewrite compose_sm_foreign.
+    solve [eapply meminj_preserves_globals_ind_compose; eassumption].
+    eapply INV.
+    eauto.*)
+ (*match_genv*)
+  clear - genvs_dom_eq12 match_sm_wd12 match_genv12 match_genv23.
+  intros. rename c2 into c3. rename m2 into m3.
+  destruct d as [[d12 cc2] d23].
+  destruct MC as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
+  destruct (match_genv12 _ _ _ _ _ _ MC12) as [GE12a GE12b].
+  destruct (match_genv23 _ _ _ _ _ _ MC23) as [GE23a GE23b].
+  split. apply meminj_preserves_genv2blocks.
+         apply meminj_preserves_genv2blocks in GE12a.
+         apply meminj_preserves_genv2blocks in GE23a.
+         rewrite compose_sm_extern.
+         solve [eapply meminj_preserves_globals_ind_compose; eassumption].
+  apply GE12b.
  (*match_norm*)
-    clear match_validblock12 match_validblock23 core_diagram23  core_halted23 
+    clear genvs_dom_eq12 match_genv12 genvs_dom_eq23 match_genv23 
+    match_validblock12 match_validblock23 core_diagram23  core_halted23 
     core_at_external23 (*eff_after_external23*) core_diagram12 strong_diagram12
     core_halted12 core_at_external12 (*eff_after_external12*)
     eff_diagram12 strong_diagram23 eff_diagram23.
@@ -223,10 +338,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     split. destruct mu12; destruct mu23; simpl in *. apply INV.
     split; assumption.*)
  (*sm_valid*)
-    clear match_norm12 match_norm23 core_diagram23  core_halted23 
+    clear genvs_dom_eq12 match_genv12 genvs_dom_eq23 match_genv23 
+       match_norm12 match_norm23 core_diagram23  core_halted23 
        core_at_external23 (*eff_after_external23 *)
-    core_diagram12  core_halted12 core_at_external12 (*eff_after_external12*)
-    eff_diagram12 eff_diagram23 strong_diagram12 strong_diagram23.
+       core_diagram12  core_halted12 core_at_external12 (*eff_after_external12*)
+       eff_diagram12 eff_diagram23 strong_diagram12 strong_diagram23.
     clear eff_after_external23 (*eff_after_external_ModEffects12 *)
      core_initial23  (*eff_after_external_ModEffects23 *)
      eff_after_external12 core_initial12.
@@ -238,54 +354,127 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     unfold sm_valid, compose_sm. destruct mu12; destruct mu23; simpl in *.
     split; intros. eapply match_validblock12. apply H.
     eapply match_validblock23. apply H.
- (*initial_core*) 
-  intros; trivial. 
-  clear core_diagram23  core_halted23 core_at_external23 
-    eff_after_external23 
-    core_diagram12  core_halted12 core_at_external12 eff_after_external12
-    eff_diagram12 eff_diagram23 strong_diagram12 strong_diagram23.
-  intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
-  rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-  (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
-    eapply forall_valinject_hastype; eassumption.*)
-  destruct (initial_inject_split _ _ _ H1) 
-      as [m2 [j1 [j2 [J [Inj12 [Inj23 [X Y]]]]]]].
-  subst.
-  destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
-      as [vals2 [ValsInj12 ValsInj23]].
-  destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
-      DomS (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) H0 Inj12)
+ (*initial_core*)
+   clear match_genv12  match_genv23 
+     core_diagram23  core_halted23 core_at_external23 
+     eff_after_external23 
+     core_diagram12  core_halted12 core_at_external12 eff_after_external12
+     eff_diagram12 eff_diagram23 strong_diagram12 strong_diagram23
+     strongperm_diagram12 strongperm_diagram23.
+   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
+    rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
+    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
+      eapply forall_valinject_hastype; eassumption.*)
+    destruct (initial_inject_split _ _ _ H1) 
+       as [m2 [j1 [j2 [J [Inj12 [Inj23 [X [Y [XX YY]]]]]]]]].
+    subst.
+    destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
+       as [vals2 [ValsInj12 ValsInj23]].
+    assert (PG1: meminj_preserves_globals g1 j1).
+      clear - X Y XX YY H3 H4.
+      apply meminj_preserves_genv2blocks.
+      apply meminj_preserves_genv2blocks in H3.
+      destruct H3 as [AA [BB CC]].
+      split; intros.
+         specialize (AA _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         destruct (XX _ _ _ J1); subst. trivial.
+      split; intros.
+         specialize (BB _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX _ _ _ J1); subst. trivial.
+      destruct (XX _ _ _ H0); subst. trivial.
+  assert (PG2: meminj_preserves_globals g2 j2).
+    clear - XX YY X Y PG1 H3 genvs_dom_eq12.
+    apply meminj_preserves_genv2blocks.
+     apply meminj_preserves_genv2blocks in H3.
+      destruct H3 as [AA [BB CC]].
+     apply meminj_preserves_genv2blocks in PG1.
+      destruct PG1 as [AA1 [BB1 CC1]].
+      destruct genvs_dom_eq12.
+      split; intros.
+         apply H in H1.
+         specialize (AA1 _ H1). specialize (AA _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         rewrite J1 in AA1. inv AA1. simpl in D. subst. trivial.
+      split; intros.
+         apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         rewrite J1 in BB1. inv BB1. simpl in D. subst. trivial.
+      apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1). rename b2 into b3.
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX _ _ _ J1); subst. simpl in D. subst.
+         clear BB1 XX.
+         destruct (YY _ _ _ H2) as [XX | [XX | XX]].
+           apply flatinj_E in XX. destruct XX as [? [? ?]]; subst. trivial.
+           destruct XX as [? ?]; subst.
+             apply (CC _ _ _ H1 H4).
+           destruct XX as [mm [? ?]]; subst.
+             apply (CC _ _ _ H1 H4).
+    destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
+       DomS (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) H0 Inj12)
      as [d12 [c2 [Ini2 MC12]]]; try assumption.
       (*eapply forall_valinject_hastype; eassumption.*)
-      intros. destruct (X b1) as [_ ?]. 
-              destruct H5 as [b3 [dd COMP]]. exists b2, d; trivial.
-              specialize (H3 _ _ _ COMP).
+      intros. destruct (X b1) as [_ J1Comp]. 
+              destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
+              specialize (H4 _ _ _ COMP).
               destruct (compose_meminjD_Some _ _ _ _ _ COMP)
                 as [bb2 [dd1 [dd2 [J1 [J2 D]]]]]; subst; clear COMP.
-              rewrite J1 in H; inv H. rewrite J2. apply H3.
-      intros. specialize (getBlocks_inject _ _ _  ValsInj23). intros.
-        destruct (REACH_inject _ _ _ Inj23 (getBlocks vals2) (getBlocks vals3) H5 _ H) as [b3 [d2 [J2 R3]]].
-        rewrite J2. apply (H4 _ R3).
-  destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ 
+              rewrite J1 in H; inv H. rewrite J2. apply H4.
+      intros.
+        assert (Q: forall b,  isGlobalBlock g2 b || getBlocks vals2 b = true ->
+                   exists jb d, j2 b = Some (jb, d) /\ 
+                           isGlobalBlock g3 jb || getBlocks vals3 jb = true).
+          intros b' Hb'. apply orb_true_iff in Hb'. 
+          destruct Hb' as [Hb' | Hb'].
+            rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG2 _ Hb').
+              exists b', 0.
+              rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in Hb'.
+              rewrite Hb'. intuition.
+          destruct (getBlocks_inject _ _ _  ValsInj23 _ Hb') as [bb [ofs [J2 GB2]]].
+              exists bb, ofs. intuition.
+        destruct (REACH_inject _ _ _ Inj23 
+            (fun b' : block => isGlobalBlock g2 b' || getBlocks vals2 b')
+            (fun b' : block => isGlobalBlock g3 b' || getBlocks vals3 b')
+            Q _ H) as [b3 [d2 [J2 R3]]].
+        rewrite J2.
+        destruct (Y _ _ _ J2) as [b1 [d COMP]].
+        apply (H4 _ _ _ COMP).
+      intros b2 Hb2. remember (j2 b2) as d.
+        destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
+        eapply Mem.valid_block_inject_1; eassumption.
+    destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ 
        (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) DomT Ini2 Inj23)
      as [d23 [c3 [Ini3 MC23]]]; try assumption. 
        intros b2 b3 d2 J2. rewrite J2.
          destruct (Y _ _ _ J2) as [b1 [d COMP]].
-         destruct (H3 _ _ _ COMP). split; trivial.
-  remember ((initial_SM DomS
+         destruct (H4 _ _ _ COMP). split; trivial.
+    intros b2 Hb2. remember (j2 b2) as d.
+        destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
+        eapply Mem.valid_block_inject_1; eassumption.
+    remember (initial_SM DomS
             (fun b : block =>
              match j2 b with
              | Some (b3, _) => DomT b3
              | None => false
-             end) (REACH m1 (getBlocks vals1)) (REACH m2 (getBlocks vals2))
-            j1)) as mu1.
+             end) (REACH m1 (fun b => isGlobalBlock g1 b || getBlocks vals1 b))
+                  (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))
+            j1) as mu1.
   remember (initial_SM
             (fun b : block =>
              match j2 b with
              | Some (b3, _) => DomT b3
              | None => false
-             end) DomT (REACH m2 (getBlocks vals2))
-            (REACH m3 (getBlocks vals3)) j2) as mu2.
+             end) DomT (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))
+                       (REACH m3 (fun b => isGlobalBlock g3 b || getBlocks vals3 b))
+             j2) as mu2.
   exists (d12,Some c2,d23).
   exists c3. 
   split; trivial. 

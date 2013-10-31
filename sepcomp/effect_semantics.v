@@ -1,4 +1,3 @@
-
 Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
@@ -694,7 +693,7 @@ Qed.
            inv EX1. eapply effstepN_sub. eassumption.
            intros. remember (M b z) as d.
            destruct d. trivial.
-           rewrite H. admit. 
+           rewrite H. admit. admit is OK - it's in a comment
          rewrite effchar in EX1, EX2. rewrite effchar.
          destruct 
 
@@ -944,7 +943,7 @@ Proof. intros n.
     destruct (FWD _ v).  
     destruct (valid_block_dec m2 b). trivial. contradiction.
   remember (valid_block_dec m2 b).
-  destruct s. admit. inv H.
+  destruct s. admit. inv H. admit is OK - it's in a comment
   
  rewrite effax; rewrite effax in E.
   destruct E as [CS Unch].
@@ -1575,7 +1574,8 @@ Proof. (*follows structire of forward_simulations_ytrans.injinj*)
   destruct AtExt2 as [MInj23 [PGj2 [vals3 [ValsInj23 [HTVals3 [AtExt3 VV3]]]]]].
   split. eapply Mem.inject_compose; eassumption.
   split. 
-  admit. (*
+  admit. admit is OK - it's in a comment 
+(*
 Definition meminj_preserves_globals_ind (globals: (block->Prop)*(block->Prop)) f :=
   (forall b, fst globals b -> f b = Some (b, 0)) /\
   (forall b, snd globals b -> f b = Some (b, 0)) /\

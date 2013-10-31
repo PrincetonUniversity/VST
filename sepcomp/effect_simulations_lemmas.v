@@ -28,7 +28,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
   Variable match_states: core_data -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop.
    
-  (*Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.*)
+   Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
 
    Hypothesis match_sm_wd: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
@@ -46,28 +46,30 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           match_states d mu c1 m1 c2 m2 ->
           sm_valid mu m1 m2.
 
-  (*Hypothesis match_genv: forall d j c1 m1 c2 m2, match_states d j c1 m1 c2 m2 -> 
-          meminj_preserves_globals ge1 j.*)
-
+(*
+    Hypothesis match_genv: forall d mu c1 m1 c2 m2,  match_state d mu c1 m1 c2 m2 -> 
+          meminj_preserves_globals ge1 (foreign_of mu); *)
+    Hypothesis match_genv: forall d mu c1 m1 c2 m2 (MC:match_states d mu c1 m1 c2 m2),
+          meminj_preserves_globals ge1 (extern_of mu) /\
+          (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true).
   
    Hypothesis inj_initial_cores: forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
           initial_core Sem1 ge1 v1 vals1 = Some c1 ->
           Mem.inject j m1 m2 -> 
-
           Forall2 (val_inject j) vals1 vals2 ->
-          (*Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
+          meminj_preserves_globals ge1 j ->
 
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
                           DomS b1 = true /\ DomT b2 = true) ->
-         (forall b, REACH m2 (getBlocks vals2) b = true -> DomT b = true) ->
+         (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
        exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 (initial_SM DomS
                                        DomT 
-                                       (REACH m1 (getBlocks vals1)) 
-                                       (REACH m2 (getBlocks vals2)) j)
+                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
                            c1 m1 c2 m2.
 
   Hypothesis inj_halted : forall cd mu c1 m1 c2 m2 v1,
@@ -83,14 +85,9 @@ Section Eff_INJ_SIMU_DIAGRAMS.
       forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
         match_states cd mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
-        ( 
-          Mem.inject (as_inj mu) m1 m2 /\ 
-         (*add back later: meminj_preserves_globals ge1 (as_inj mu) /\ *)
-
-         exists vals2, 
+        ( Mem.inject (as_inj mu) m1 m2 /\ 
+          exists vals2, 
             Forall2 (val_inject (as_inj mu)) vals1 vals2 /\ 
-
-            (*Forall2 (Val.has_type) vals2 (sig_args ef_sig) /\*)
             at_external Sem2 c2 = Some (e,ef_sig,vals2)).
 
 
@@ -122,7 +119,6 @@ Section Eff_INJ_SIMU_DIAGRAMS.
         (RValInjNu': val_inject (as_inj nu') ret1 ret2)
 
         (FwdSrc: mem_forward m1 m1') (FwdTgt: mem_forward m2 m2')
-        (*(RetTypeTgt: Val.has_type ret2 (proj_sig_res ef_sig))*)
 
         frgnSrc' (frgnSrcHyp: frgnSrc' = fun b => andb (DomSrc nu' b)
                                                  (andb (negb (locBlocksSrc nu' b)) 
@@ -134,12 +130,12 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
         mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
  
-         (UnchPrivSrc: Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
+        (UnchPrivSrc: Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
-         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
+        (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
 
-        exists st1', exists st2',
+       exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_states st1' mu' st1' m1' st2' m2'.
@@ -249,11 +245,13 @@ Proof.
     (match_state := fun d j c1 m1 c2 m2 => d = c1 /\ match_states d j c1 m1 c2 m2).
   apply order_wf.
 clear - match_sm_wd. intros. destruct H; subst. eauto.
+assumption.
+clear - match_genv. intros. destruct MC; subst. eauto.
 clear - match_norm. intros. destruct H; subst. split; eauto.
 clear - match_validblocks. intros. destruct H; subst. eauto.
 clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
-         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 (*H5*))
+         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5)
     as [c2 [INI MS]].
   exists c1, c2. intuition. 
 clear - inj_core_diagram.
