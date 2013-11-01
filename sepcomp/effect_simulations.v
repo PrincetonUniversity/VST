@@ -795,7 +795,7 @@ Definition genv2blocksBool {F V : Type} (ge : Genv.t F V):=
                 | None => false
             end).
 
-Lemma genvblocksBool_char1: forall F V (ge : Genv.t F V) b,
+Lemma genv2blocksBool_char1: forall F V (ge : Genv.t F V) b,
      (fst (genv2blocksBool ge)) b = true <-> fst (genv2blocks ge) b.
 Proof. intros.
   remember (genv2blocksBool ge) as X.
@@ -813,7 +813,7 @@ Proof. intros.
     apply Genv.find_invert_symbol in H. congruence.
 Qed.
 
-Lemma genvblocksBool_char2: forall F V (ge : Genv.t F V) b,
+Lemma genv2blocksBool_char2: forall F V (ge : Genv.t F V) b,
      (snd (genv2blocksBool ge)) b = true <-> snd (genv2blocks ge) b.
 Proof. intros.
   remember (genv2blocksBool ge) as X.
@@ -830,24 +830,24 @@ Proof. intros.
     destruct H. congruence.
 Qed.
 
-Lemma genvblocksBool_char1': forall F V (ge : Genv.t F V) b,
+Lemma genv2blocksBool_char1': forall F V (ge : Genv.t F V) b,
      (fst (genv2blocksBool ge)) b = false <-> ~ fst (genv2blocks ge) b.
 Proof. intros.
   split; intros.
-    intros N. apply genvblocksBool_char1 in N. congruence.
+    intros N. apply genv2blocksBool_char1 in N. congruence.
   remember (fst (genv2blocksBool ge) b) as d.
   destruct d; trivial. apply eq_sym in Heqd.
-    apply genvblocksBool_char1 in Heqd. congruence.
+    apply genv2blocksBool_char1 in Heqd. congruence.
 Qed.
 
-Lemma genvblocksBool_char2': forall F V (ge : Genv.t F V) b,
+Lemma genv2blocksBool_char2': forall F V (ge : Genv.t F V) b,
      (snd (genv2blocksBool ge)) b = false <-> ~ snd (genv2blocks ge) b.
 Proof. intros.
   split; intros.
-    intros N. apply genvblocksBool_char2 in N. congruence.
+    intros N. apply genv2blocksBool_char2 in N. congruence.
   remember (snd (genv2blocksBool ge) b) as d.
   destruct d; trivial. apply eq_sym in Heqd.
-    apply genvblocksBool_char2 in Heqd. congruence.
+    apply genv2blocksBool_char2 in Heqd. congruence.
 Qed.
 
 Definition isGlobalBlock {F V : Type} (ge : Genv.t F V) :=
@@ -861,26 +861,26 @@ Proof. intros.
   extensionality b. unfold isGlobalBlock.
   remember (fst (genv2blocksBool ge1) b) as d.
   destruct d; apply eq_sym in Heqd.
-    apply genvblocksBool_char1 in Heqd. 
+    apply genv2blocksBool_char1 in Heqd. 
     apply H in Heqd.
-    apply genvblocksBool_char1 in Heqd.
+    apply genv2blocksBool_char1 in Heqd.
     rewrite Heqd. trivial.
-  apply genvblocksBool_char1' in Heqd.
+  apply genv2blocksBool_char1' in Heqd.
     remember (fst (genv2blocksBool ge2) b) as q.
     destruct q; apply eq_sym in Heqq.  
-      apply genvblocksBool_char1 in Heqq.
+      apply genv2blocksBool_char1 in Heqq.
       apply H in Heqq. contradiction.
   clear Heqd Heqq.
   remember (snd (genv2blocksBool ge1) b) as d.
   destruct d; apply eq_sym in Heqd.
-    apply genvblocksBool_char2 in Heqd. 
+    apply genv2blocksBool_char2 in Heqd. 
     apply H0 in Heqd.
-    apply genvblocksBool_char2 in Heqd.
+    apply genv2blocksBool_char2 in Heqd.
     rewrite Heqd. trivial.
-  apply genvblocksBool_char2' in Heqd.
+  apply genv2blocksBool_char2' in Heqd.
     remember (snd (genv2blocksBool ge2) b) as q.
     destruct q; apply eq_sym in Heqq.  
-      apply genvblocksBool_char2 in Heqq.
+      apply genv2blocksBool_char2 in Heqq.
       apply H0 in Heqq. contradiction.
    trivial.
 Qed.
@@ -895,38 +895,8 @@ Proof. intros.
   destruct PG as [PGa [PGb PGc]].
   apply orb_true_iff in GB.
   destruct GB.
-    apply genvblocksBool_char1 in H. apply (PGa _ H).
-    apply genvblocksBool_char2 in H. apply (PGb _ H).
-Qed.
-
-(*version of Lemma meminj_preserves_globals_initSM below,
-  for the (old) definition of clause match_genv that uses foriegn_of*)
-Lemma meminj_preserves_globals_initSM_frgn: forall {F1 V1} (ge: Genv.t F1 V1) j
-                  (PG : meminj_preserves_globals ge j) DomS DomT m R Y
-                  (HR: forall b, isGlobalBlock ge b = true -> R b = true),
-      meminj_preserves_globals ge (foreign_of (initial_SM DomS DomT (REACH m R) Y j)).
-Proof. intros. 
-    apply meminj_preserves_genv2blocks.
-    apply meminj_preserves_genv2blocks in PG.
-    destruct PG as [PGa [PGb PGc]].
-    unfold initial_SM; split; intros; simpl in *.
-       specialize (PGa _ H). rewrite PGa.
-       assert (REACH m R b = true).
-         apply REACH_increasing. apply HR. 
-         unfold isGlobalBlock, genv2blocksBool; simpl.
-         destruct H as [id ID].
-         apply Genv.find_invert_symbol in ID. rewrite ID. reflexivity.
-       rewrite H0; trivial.
-    split; intros; simpl in *.
-       specialize (PGb _ H). rewrite PGb.
-       assert (REACH m R b = true).
-         apply REACH_increasing. apply HR. 
-         unfold isGlobalBlock, genv2blocksBool; simpl.
-         destruct H as [id ID]. rewrite ID. intuition.
-       rewrite H0; trivial.
-     apply (PGc _ _ delta H).
-       remember (REACH m R b1) as d.
-       destruct d; congruence.
+    apply genv2blocksBool_char1 in H. apply (PGa _ H).
+    apply genv2blocksBool_char2 in H. apply (PGb _ H).
 Qed.
 
 Lemma meminj_preserves_globals_initSM: forall {F1 V1} (ge: Genv.t F1 V1) j
@@ -945,6 +915,8 @@ Proof. intros.
   apply REACH_increasing. apply (HR _ H).
 Qed.
 
+(*Generic proof that the inital structured injection satisfies 
+  the match_genv, match_wd and match_valid conditions of the LSR*)
 Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) 
                                vals1 m1 j vals2 m2 DomS DomT
           (MInj: Mem.inject j m1 m2)
@@ -990,15 +962,7 @@ Proof. intros.
     intuition.
 Qed.
 
-Lemma intern_incr_meminj_preserves_globals_frgn: 
-      forall {F V} (ge: Genv.t F V) mu
-             (PG: meminj_preserves_globals ge (foreign_of mu))
-             mu' (Inc: intern_incr mu mu'),
-      meminj_preserves_globals ge (foreign_of mu').
-Proof. intros.
-  rewrite (intern_incr_foreign _ _ Inc) in PG. trivial.
-Qed.
-
+(*Proof the match_genv is preserved by callsteps*)
 Lemma intern_incr_meminj_preserves_globals: 
       forall {F V} (ge: Genv.t F V) mu
              (PG: meminj_preserves_globals ge (extern_of mu) /\
@@ -1028,6 +992,7 @@ intros. destruct nu; simpl in *.
   apply (FRG _ (FF _ H)). 
 Qed.
 
+(*Proof the match_genv is preserved by callsteps*)
 Lemma after_external_meminj_preserves_globals: 
       forall {F V} (ge: Genv.t F V) mu (WDmu : SM_wd mu)
              (PG: meminj_preserves_globals ge (extern_of mu) /\
@@ -1126,7 +1091,9 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
     that the third condition of mem-inj_preserves_globals be satisfied
     for all of extern_of, bit just foreign_of, so is preserved by
     extern_incr and the adaptation of frgSrc by replaces_externs in 
-    rule afterExternal*)
+    rule afterExternal. It is also equivalent to a formulation that
+    uses as_inj instead of extern_of; see 
+    Lemma match_genv_meminj_preserves_extern_iff_all in effect_properties.v*)
     match_genv: forall d mu c1 m1 c2 m2 (MC:match_state d mu c1 m1 c2 m2),
           meminj_preserves_globals ge1 (extern_of mu) /\
           (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true); 
@@ -1180,8 +1147,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
             (*Lemma StructuredInjections.initial_SM_as_inj implies 
               that Mem.inject (initial_SM DomS
                                        DomT 
-                                       (REACH m1 (getBlocks vals1)) 
-                                       (REACH m2 (getBlocks vals2)) j)
+                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
                               m1 m2 holds*)
             match_state cd (initial_SM DomS
                                        DomT 
@@ -1321,36 +1288,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
              val_inject (as_inj mu) v1 v2 /\
              halted Sem2 c2 = Some v2;
 
-    (*One might consider variants that require Mem.inject j ma m2 on smaller 
-        injections j than as_inj mu, omething like this: 
-    core_halted : forall cd mu c1 m1 c2 m2 v1,
-      match_state cd mu c1 m1 c2 m2 ->
-      halted Sem1 c1 = Some v1 ->
-
-      exists v2, 
-             Mem.inject (locvisible_of mu) m1 m2 /\
-             val_inject (locvisible_of mu) v1 v2;
-
-     (-follows from halted_loc_check:-) 
-      /\
-      exists pubSrc' pubTgt' nu, 
-        (pubSrc' = fun b => (locBlocksSrc mu b) &&
-                            (REACH m1 (exportedSrc mu (v1::nil)) b))
-        /\
-        (pubTgt' = fun b => (locBlocksTgt mu b) &&
-                            (REACH m2 (exportedTgt mu (v2::nil)) b))
-        /\
-        (nu = replace_locals mu pubSrc' pubTgt')
-         /\
-        val_inject (shared_of nu) v1 v2 /\
-        halted Sem2 c2 = Some v2 /\
-        Mem.inject (shared_of nu) m1 m2; (*/\ val_valid v2 m2*)
-     But this would mean to carry the invariant Mem.inject (locvisible_of mu) m1 m2
-         around, ie through corediagram, afterexternal etc (ie require match_state 
-         to imply Mem.inject loc_visible ... 
-       This maybe possible, but is maybe not required.
-    *)
- 
     core_at_external : 
       forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
         match_state cd mu c1 m1 c2 m2 ->
@@ -1366,8 +1303,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
             Again this might be possible, but probably only at the price of
                pushing such an invariant through corediagram etc.*)
 
-    eff_after_external: (*we don't duplicate the claims
-            that follow from the checks above*)
+    eff_after_external: 
       forall cd mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
         (*standard assumptions:*)
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
@@ -1382,11 +1318,11 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
          (in the case where the left value is Vundef) *)
         (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
 
-        (*maybe reactivate later: meminj_preserves_globals ge1 (as_inj mu) -> *)
-
         (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
-        (*maybe reactivate later: meminj_preserves_globals ge1 (shared_of mu) ->*)
 
+        (*Lemma eff_atexternal_check in effect_properties.v shows that 
+            global blocks from ge1 are in REACH m1 (exportedSrc mu vals1 and
+            global blocks from ge1 are in REACH m2 (exportedTgt mu vals2*)
         pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (locBlocksSrc mu b)
                                                     (REACH m1 (exportedSrc mu vals1) b))
 
@@ -1395,9 +1331,11 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
         nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt'),
 
-      (*follows, as proven by Lemma eff_after_check1: SM_wd nu /\ sm_valid nu m1 m2 /\*)
-      (*follows, as proven by Lemma eff_after_check1: Mem.inject (as_inj nu) m1 m2 /\*)
-      (*follows, as proven by Lemma eff_after_check1: Forall2 (val_inject (as_inj nu)) vals1 vals2 /\*)
+      (*Lemma eff_after_check1 in in effect_properties.v shows that 
+                 SM_wd nu /\ sm_valid nu m1 m2 /\
+                 Mem.inject (as_inj nu) m1 m2 /\
+                 Forall2 (val_inject (as_inj nu)) vals1 vals2 holds*)
+
       forall nu' ret1 m1' ret2 m2'
         (INC: extern_incr nu nu')  
         (SEP: sm_inject_separated nu nu' m1 m2)
@@ -1419,12 +1357,15 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
         mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
 
-        (*follows, as proven by Lemma eff_after_check2: SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
-        (*follows, as proven by Lemma eff_after_check3: Mem.inject (as_inj mu') m1' m2' /\*)
-        (*follows, as proven by Lemma eff_after_check3: val_inject (as_inj mu') ret1 ret2 /\*)
+        (*follows, as proven by Lemma eff_after_check2:
+             SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+        (*follows, as proven by Lemma eff_after_check3:
+             Mem.inject (as_inj mu') m1' m2' /\ val_inject (as_inj mu') ret1 ret2*)
 
-        (*follows, as proven by Lemma eff_after_check4: inject_incr (as_inj mu) (as_inj mu') /\*)
-        (*follows, as proven by Lemma eff_after_check5: sm_inject_separated mu mu' m1 m2 /\*)
+        (*follows, as proven by Lemma eff_after_check4: 
+             inject_incr (as_inj mu) (as_inj mu')*)
+        (*follows, as proven by Lemma eff_after_check5:
+             sm_inject_separated mu mu' m1 m2 /\*)
  
          (UnchPrivSrc: Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                                       pubBlocksSrc nu b = false) m1 m1') 
@@ -1442,8 +1383,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 (*End SM_simulation.*)
 
 (*The following lemma shows that the incoming memories are injected not only
-by initial_SM, but by locvisible(initial_SM). The
-above lemma halted_loc_check is the counterpart of this. *)
+by initial_SM, but by locvisible(initial_SM). Lemma halted_loc_check 
+is the counterpart of this. *)
 Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
   In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
@@ -1451,7 +1392,6 @@ Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
           Mem.inject j m1 m2 -> 
           Forall2 (val_inject j) vals1 vals2 ->
           meminj_preserves_globals ge1 j ->
-          (*Forall2 (Val.has_type) vals2 (sig_args sig) ->*)
 
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
@@ -1721,7 +1661,8 @@ Proof. intros.
   rewrite FLIPpubBlocksSrc in H4. rewrite H4 in H3. inv H3.
 Qed.
 
-
+(*Once these RG results are used in a linker/concurrency machine,
+  we will need to remove all blocks b with isGlobalBlock ge from pubBlocks*)
 Lemma RGSrc_multicore: forall mu Esrc m m'
               (SrcHyp: forall b ofs, Esrc b ofs = true -> 
                   (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
