@@ -128,7 +128,6 @@ forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
     typeof e1 = Tstruct sid fields noattr ->
     t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    typecheck_store (Efield e1 fld t2) ->
    @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
           (`(field_mapsto_ sh (typeof e1) fld) (eval_lvalue e1) * P)))
@@ -141,7 +140,6 @@ Transparent field_mapsto.
 pose proof I. intros until fields. intro WS.
 intros.
 rename H0 into TE1.
-rename H2 into TCS.
 unfold field_mapsto_.
 
 apply semax_pre0 with
@@ -269,8 +267,7 @@ Qed.
 Lemma semax_store_PQR:
 forall Espec (Delta: tycontext) sh t1 P Q R e1 e2
     (WS: writable_share sh)
-    (NONVOL: type_is_volatile t1 = false)
-    (TC: typecheck_store (Ederef e1 t1)),
+    (NONVOL: type_is_volatile t1 = false),
     typeof e1 = Tpointer t1 noattr ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx (tc_expr Delta e1::tc_expr Delta (Ecast e2 t1)::Q)
@@ -309,7 +306,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields
     t1 = Tstruct sid fields noattr ->
     typeof e1 = t1 ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    typecheck_store (Efield e1 fld t2) ->
+  (*  typecheck_store (Efield e1 fld t2) -> *)
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_lvalue Delta e1) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta (Ecast e2 t2)) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- local (`eq v1 (eval_lvalue e1)) ->
@@ -323,12 +320,13 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields
               (SEPx (replace_nth n R
                     (`(field_mapsto sh t1 fld) v1 (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))))))))).
 Proof.
+pose (H2:=True).
 intros. rename H7 into H6'.
 assert (SF := semax_store_field). unfold_lift.
 unfold_lift in SF.
 subst t1.
 specialize (SF Espec Delta sh e1 fld (PROPx P (LOCALx Q (SEPx (replace_nth n R emp))))
-   t2 e2 sid fields WS H0 H1 H2).
+   t2 e2 sid fields WS H0 H1).
 eapply semax_pre_post; [ | | eapply SF]; try eassumption; clear SF.
 eapply derives_trans; [apply andp_derives; [ apply now_later | apply derives_refl] | ].
 rewrite <- later_andp.

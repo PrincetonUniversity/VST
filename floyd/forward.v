@@ -886,20 +886,6 @@ intro rho; unfold local, lift1; unfold_lift; apply prop_derives; intros [? ?]; a
 apply H.
 Qed.
 
-Lemma semax_pre_later:
- forall P' Espec Delta P1 P2 P3 c R,
-     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
-     @semax Espec Delta (|> P') c R  -> 
-     @semax Espec Delta (|> (PROPx P1 (LOCALx P2 (SEPx P3)))) c R.
-Proof.
-intros.
-eapply semax_pre_simple; try apply H0.
-eapply derives_trans; [ | apply later_derives; apply H ].
-eapply derives_trans.
-2: apply later_derives; rewrite <- insert_local; apply derives_refl.
-rewrite later_andp; apply andp_derives; auto; apply now_later.
-Qed.
-
 Lemma fast_entail:
   forall n P Q1 Q Rn Rn' R, 
       nth_error R n = Some Rn ->
@@ -970,7 +956,7 @@ match goal with
 (**** 14.2 seconds to here in the fast_entail case; otherwise 25.6 seconds to here *)
  eapply semax_post_flipped';
  [ eapply (semax_store_field'' _ _ n sh); unfold n, sh in *; clear n sh;
-   [auto | reflexivity | reflexivity | reflexivity 
+   [auto | reflexivity | reflexivity (*| reflexivity *)
       | try solve [repeat split; hnf; simpl; intros; congruence]
       | entailer
       | entailer
@@ -989,9 +975,9 @@ match goal with
    |  isolate_mapsto_tac e R;
        eapply semax_post'';  
        [ | first [eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                     [ auto | reflexivity | (*hnf; intuition | *) reflexivity ](*
                    | eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                     [ auto | reflexivity (*| hnf; intuition |*) reflexivity ]*)
                    ]              
        ]
    ]
@@ -1004,9 +990,9 @@ match goal with
    |  isolate_mapsto_tac e R;
        eapply semax_post'';  
        [ | first [eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                     [ auto | reflexivity | (*hnf; intuition |*) reflexivity ](*
                    | eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]
+                     [ auto | reflexivity | hnf; intuition | reflexivity ]*)
                    ]              
        ]
    ]

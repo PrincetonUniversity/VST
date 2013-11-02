@@ -230,6 +230,8 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  
 Definition typed_mapsto_ (sh: Share.t) (ty: type) : val -> mpred :=
         typed_mapsto_' sh 0 ty.
 
+Definition array_at_ t sh lo hi :=
+ arrayof_' (typed_mapsto_ sh t) t (sizeof t * lo) (Z.to_nat (hi-lo)).
 
 Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) (pos: Z) (v: val) :
                      (reptype t -> mpred) -> reptype t -> mpred :=
@@ -914,3 +916,22 @@ Qed.
 
 Hint Extern 2 (@derives _ _ _ _) => 
    simple apply array_at_local_facts; omega : saturate_local.
+
+Lemma array_at__local_facts:
+ forall t sh lo hi v,
+   lo < hi ->
+    array_at_ t sh lo hi v |-- !! isptr v.
+Proof.
+ intros.
+ unfold array_at_.
+ destruct (Z.to_nat (hi-lo)) eqn:?H.
+ elimtype False.
+ admit.  (* easy, see above *)
+ simpl.
+ rewrite typed_mapsto__isptr.
+ normalize. apply prop_right.
+ destruct v; inv H1. apply I.
+Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple apply array_at__local_facts; omega : saturate_local.

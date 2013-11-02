@@ -4,6 +4,7 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.compare_lemmas.
 Require Import floyd.malloc_lemmas.
+Require Import floyd.loadstore_lemmas.
 Local Open Scope logic.
 
 Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
@@ -505,4 +506,273 @@ eapply semax_pre_post;
   apply derives_refl.
   apply derives_refl'; apply equal_f; apply array_at_ext; intros.
   rewrite upd_neq by omega. auto. omega.
+Qed.
+
+Lemma mul_repr:
+ forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
+Proof.
+intros. unfold Int.mul.
+apply Int.eqm_samerepr.
+repeat rewrite Int.unsigned_repr_eq.
+apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
+apply Int.eqmod_mod; compute; congruence.
+Qed.
+
+
+Lemma repinject_typed_mapsto_:
+  forall sh t loc inject,
+   repinject t = Some inject ->
+   typed_mapsto_ sh t loc = mapsto_ sh t loc.
+Proof.
+intros.
+ destruct t; inv H; unfold typed_mapsto_;
+  simpl; rewrite withspacer_spacer;
+ unfold spacer; rewrite align_0; simpl; try rewrite emp_sepcon; auto;
+ try destruct i; try destruct s; try destruct f; auto; omega.
+Qed.
+
+Lemma array_at__array_at:
+ forall t (H: repinject t <> None)
+   sh f lo hi v, 
+  array_at t sh f lo hi v |-- array_at_ t sh lo hi v.
+Proof.
+intros.
+assert (RP := sizeof_pos t).
+assert (lo >= hi \/ lo < hi)%Z by omega.
+destruct H0.
+*
+unfold array_at, rangespec, array_at_.
+change Z.to_nat with nat_of_Z.
+rewrite nat_of_Z_neg by omega.
+apply derives_refl.
+*
+apply derives_trans with (!!isptr v && array_at t sh f lo hi v).
+apply andp_right; auto.
+apply array_at_local_facts; auto.
+normalize.
+unfold array_at, rangespec, array_at_.
+change nat_of_Z with Z.to_nat.
+forget (Z.to_nat (hi-lo)) as n.
+clear H0.
+revert lo; induction n; intros.
+apply derives_refl.
+simpl.
+apply sepcon_derives; auto.
++ clear IHn.
+    unfold add_ptr_int. simpl. unfold sem_add; simpl.
+    destruct v; inv Pv; simpl.
+   rewrite mul_repr.
+   forget (Int.add i (Int.repr (sizeof t * lo))) as z.
+   destruct (repinject t) eqn:?; try congruence.
+   erewrite repinject_typed_mapsto; eauto.
+   erewrite repinject_typed_mapsto_ by eassumption.
+   apply mapsto_mapsto_.
++ replace (sizeof t * lo + sizeof t)%Z with (sizeof t * Z.succ lo)%Z.
+   apply IHn.
+   unfold Z.succ. rewrite Z.mul_add_distr_l.
+   f_equal. apply Z.mul_1_r.
+Qed.
+
+
+Lemma split_array_at:
+  forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
+    (lo hi : Z) (v : val),
+  (lo <= i <= hi)%Z ->
+  array_at ty sh contents lo hi v =
+  array_at ty sh contents lo i v * array_at ty sh contents i hi v.
+Admitted.
+
+Lemma split_array_at_:
+  forall (i : Z) (ty : type) (sh : Share.t)
+    (lo hi : Z) (v : val),
+  (lo <= i <= hi)%Z ->
+  array_at_ ty sh lo hi v = array_at_ ty sh lo i v * array_at_ ty sh i hi v.
+Admitted.
+
+Lemma offset_val_array_at:
+ forall ofs t sh f lo hi v,
+  array_at t sh (fun i => f (i-ofs)%Z)
+               (ofs + lo) (ofs + hi) v =
+  array_at t sh f lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
+Proof.
+ intros.
+unfold array_at, rangespec.
+ replace (ofs + hi - (ofs + lo))%Z
+   with (hi-lo)%Z by omega.
+forget (nat_of_Z (hi-lo)) as n.
+clear hi.
+revert lo; induction n; simpl; intros; auto.
+f_equal. f_equal.
+2: f_equal; omega.
+unfold add_ptr_int.
+simpl.
+destruct v; simpl; auto.
+f_equal.
+rewrite Int.add_assoc. f_equal.
+rewrite <- add_repr.
+rewrite <- mul_repr.
+rewrite Int.mul_add_distr_r.
+auto.
+replace (Z.succ (ofs + lo))%Z with (ofs + Z.succ lo)%Z by omega.
+apply IHn.
+Qed.
+
+Lemma semax_pre_later:
+ forall P' Espec Delta P1 P2 P3 c R,
+     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
+     @semax Espec Delta (|> P') c R  -> 
+     @semax Espec Delta (|> (PROPx P1 (LOCALx P2 (SEPx P3)))) c R.
+Proof.
+intros.
+eapply semax_pre_simple; try apply H0.
+eapply derives_trans; [ | apply later_derives; apply H ].
+eapply derives_trans.
+2: apply later_derives; rewrite <- insert_local; apply derives_refl.
+rewrite later_andp; apply andp_derives; auto; apply now_later.
+Qed.
+
+Definition array_at_partial t sh f lo mid hi v :=
+  array_at t sh f lo mid v * array_at_ t sh mid hi v.
+
+Lemma semax_store_initialize_array:
+forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
+              (lo mid hi: Z)
+              (v1: environ-> val) inject P Q R            
+             e1  e2 (v: reptype t1),
+    writable_share sh ->
+    typeof e1 =  tptr t1 ->
+    type_is_volatile t1 = false ->
+    repinject t1 = Some inject ->
+    nth_error R n = Some (
+              `(array_at_partial t1 sh contents lo mid hi) v1) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+          local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr mid))) (eval_expr e1))
+          && !! (in_range lo hi mid)
+          && local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t1))
+          && local (`(eq (inject v)) (eval_expr (Ecast e2 t1))) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sassign (Ederef e1 t1) e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q
+              (SEPx (replace_nth n R
+                    (`(array_at_partial t1 sh (upd contents mid v) lo (mid+1) hi) v1)))))).
+Proof.
+intros.
+apply semax_pre_later with
+ (PROPx (in_range lo hi mid :: P)
+    (LOCALx (
+   `eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr mid))) (eval_expr e1) ::
+    tc_expr Delta e1 :: tc_expr Delta (Ecast e2 t1) ::
+    `(eq (inject v)) (eval_expr (Ecast e2 t1)) :: Q)
+     (SEPx R))).
+assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+|-- local (`and
+             (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr mid)))
+              (eval_expr e1)) 
+                (`and `(in_range lo hi mid)
+                (`and (tc_expr Delta e1)
+                 (`and (tc_expr Delta (Ecast e2 t1))
+                        (`(eq (inject v)) (eval_expr (Ecast e2 t1)))))))).
+eapply derives_trans; [apply H4 | go_lowerx].
+intros.
+apply prop_right; repeat split; auto.
+rewrite (local_andp_lemma _ _ H5).
+clear H4 H5.
+go_lowerx. repeat apply andp_right; try apply prop_right; auto.
+clear H4.
+rewrite (SEP_nth_isolate _ _ _ H3).
+rewrite (SEP_replace_nth_isolate _ _ _
+ (`(array_at_partial t1 sh (upd contents mid v) lo (mid + 1) hi) v1) H3).
+forget (@replace_nth (environ -> mpred) n R (@emp _ _ _)) as R'.
+clear n H3 R. rename R' into R.
+assert (in_range lo hi mid \/ ~in_range lo hi mid).
+unfold in_range. omega.
+destruct H3. 
+Focus 2. {
+apply semax_pre_later with FF.
+go_lowerx. contradiction H3; apply H4.
+eapply semax_pre0.
+Focus 2.
+eapply semax_post.
+Focus 2.
+apply semax_store; auto.
+apply writable_share_top.
+Unfocus.
+apply later_derives.
+instantiate (1:=FF).
+apply FF_left.
+intros.
+normalize.
+apply andp_left2. apply normal_ret_assert_derives'. apply FF_left.
+} Unfocus.
+destruct H3.
+replace (`(array_at_partial t1 sh contents lo mid hi) v1)
+  with ( `(array_at_ t1 sh mid (mid+1)) v1 *
+           (`(array_at t1 sh contents lo mid) v1 * 
+              `(array_at_ t1 sh (mid+1) hi) v1)).
+Focus 2. {
+unfold array_at_partial.
+extensionality rho.
+unfold_lift. simpl. 
+repeat rewrite <- sepcon_assoc.
+pull_right (array_at t1 sh contents lo mid (v1 rho)).
+f_equal.
+symmetry. apply split_array_at_; omega.
+} Unfocus.
+replace (`(array_at_partial t1 sh (upd contents mid v) lo (mid + 1) hi) v1)
+    with (`(array_at t1 sh (upd contents mid v) mid (mid+ 1)) v1 *
+                (`(array_at t1 sh (upd contents mid v) lo mid) v1 *
+               `(array_at_ t1 sh (mid + 1) hi) v1)).
+Focus 2. {
+unfold array_at_partial.
+extensionality rho.
+unfold_lift. simpl. 
+repeat rewrite <- sepcon_assoc.
+pull_right (array_at_ t1 sh (mid+1) hi (v1 rho)).
+f_equal.
+symmetry. rewrite sepcon_comm. apply split_array_at; omega.
+} Unfocus.
+do 2 rewrite flatten_sepcon_in_SEP with (R:=R).
+replace (array_at t1 sh (upd contents mid v) lo mid)
+  with (array_at t1 sh contents lo mid)
+ by (apply array_at_ext; intros; rewrite upd_neq by omega; reflexivity).
+match goal with |- semax _ _ _ (normal_ret_assert (PROPx _ (LOCALx _ (SEPx (_:: ?A))))) =>
+ forget A as R'
+end.
+eapply semax_pre_post; [ | | apply semax_store_PQR with (sh:=sh); auto].
+apply later_left2.
+rewrite insert_local.
+instantiate (1:=R').
+instantiate (1:= `eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr mid)))
+           (eval_expr e1)
+         :: tc_expr Delta e1
+            :: tc_expr Delta (Ecast e2 t1)
+               :: `(eq (inject v)) (eval_expr (Ecast e2 t1)) :: Q).
+instantiate (1:= P).
+go_lowerx. apply andp_right; [ | cancel ].
+apply prop_right; repeat split; auto.
+destruct H11.
+rewrite <- H8.
+unfold array_at_.
+replace (mid+1-mid)%Z with 1%Z by omega.
+simpl. rewrite sepcon_emp.
+unfold offset_val, sem_add. simpl.
+erewrite repinject_typed_mapsto_ by eassumption.
+destruct (v1 rho); simpl; auto.
+rewrite mul_repr. auto.
+intros.
+apply andp_left2.
+apply normal_ret_assert_derives'.
+go_lowerx. cancel.
+unfold array_at, rangespec.
+replace (mid+1-mid)%Z with 1%Z by omega.
+simpl. rewrite sepcon_emp.
+rewrite <- H6.
+unfold_lift in H9.
+rewrite <- H9.
+rewrite (repinject_typed_mapsto _ _ _ _ _ H2) ; auto.
+unfold add_ptr_int. simpl.
+unfold upd. rewrite if_true by auto.
+auto.
 Qed.

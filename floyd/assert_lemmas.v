@@ -1,6 +1,10 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma writable_share_top: writable_share Tsh.
+Admitted.
+Hint Resolve writable_share_top.
+
 Ltac safe_auto_with_closed := 
    (* won't instantiate evars by accident *)
  match goal with |- ?A => 
