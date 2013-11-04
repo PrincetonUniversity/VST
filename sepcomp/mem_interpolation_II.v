@@ -820,7 +820,7 @@ Proof. intros. intros b; intros.
   unfold removeUndefs. rewrite H. trivial.
 Qed.
 
-Lemma meminij_no_overlap_inject_incr: 
+Lemma meminj_no_overlap_inject_incr: 
    forall j m (NOV: Mem.meminj_no_overlap j m) k (K:inject_incr k j),
   Mem.meminj_no_overlap k m.
 Proof. intros.
@@ -839,7 +839,7 @@ Proof.
 intros.
 specialize (J12'_no_overlap _ _ _ MInj12 _ Fwd1 _ _ MInj23 _ _ _ _ _ HeqMKI). 
 intros.
-  eapply (meminij_no_overlap_inject_incr _ _ H).
+  eapply (meminj_no_overlap_inject_incr _ _ H).
   apply RU_D.
   eapply (mkInjections_1_injinc _ _ _ _ _ _ _ _ _ _ HeqMKI).
   intros. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H0 MInj12).

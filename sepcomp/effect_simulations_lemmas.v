@@ -36,8 +36,9 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
    Hypothesis match_norm: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
-          forall mu23, (SM_wd mu23 /\ DomTgt mu = DomSrc mu23 /\
+          forall mu23, (SM_wd mu23 /\ 
                         locBlocksTgt mu = locBlocksSrc mu23 /\
+                        extBlocksTgt mu = extBlocksSrc mu23 /\
                        (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
                        (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
           match_states d (sm_extern_normalize mu mu23) c1 m1 c2 m2.
@@ -545,12 +546,12 @@ End Eff_INJ_SIMU_DIAGRAMS.
 
 Definition compose_sm (mu1 mu2 : SM_Injection) : SM_Injection :=
  Build_SM_Injection 
-   (DomSrc mu1) (DomTgt mu2)
    (locBlocksSrc mu1) (locBlocksTgt mu2)
    (pubBlocksSrc mu1) (pubBlocksTgt mu2)
+   (compose_meminj (local_of mu1) (local_of mu2))
+   (extBlocksSrc mu1) (extBlocksTgt mu2)
    (frgnBlocksSrc mu1) (frgnBlocksTgt mu2) 
-   (compose_meminj (extern_of mu1) (extern_of mu2))
-   (compose_meminj (local_of mu1) (local_of mu2)).
+   (compose_meminj (extern_of mu1) (extern_of mu2)).
 (*
 Definition compose_sm (mu1 mu2 : SM_Injection) : SM_Injection :=
  Build_SM_Injection 
@@ -579,8 +580,8 @@ Lemma compose_sm_pub: forall mu12 mu23
       compose_meminj (pub_of mu12) (pub_of mu23).
 Proof. intros. unfold compose_sm, pub_of. 
   extensionality b. 
-  destruct mu12 as [DomS1 DomT1 BSrc1 BTgt1 pSrc1 pTgt1 fSrc1 fTgt1 extern1 local1]; simpl.
-  destruct mu23 as [DomS2 DomT2 BSrc2 BTgt2 pSrc2 pTgt2 fSrc2 fTgt2 extern2 local2]; simpl.
+  destruct mu12 as [locBSrc1 locBTgt1 pSrc1 pTgt1 local1 extBSrc1 extBTgt1 fSrc1 fTgt1 extern1]; simpl.
+  destruct mu23 as [locBSrc2 locBTgt2 pSrc2 pTgt2 local2 extBSrc2 extBTgt2 fSrc2 fTgt2 extern2]; simpl.
   remember (pSrc1 b) as d; destruct d; apply eq_sym in Heqd.
     destruct (pubSrc _ WD1 _ Heqd) as [b2 [d1 [LOC1 Tgt1]]]; simpl in *.
     rewrite Heqd in LOC1. apply HypPub in Tgt1. 
@@ -590,6 +591,14 @@ Proof. intros. unfold compose_sm, pub_of.
     rewrite Heqd. trivial.
 Qed.
 
+Lemma compose_sm_DomSrc: forall mu12 mu23,
+  DomSrc (compose_sm mu12 mu23) = DomSrc mu12.
+Proof. intros. unfold compose_sm, DomSrc; simpl. trivial. Qed. 
+
+Lemma compose_sm_DomTgt: forall mu12 mu23,
+  DomTgt (compose_sm mu12 mu23) = DomTgt mu23.
+Proof. intros. unfold compose_sm, DomTgt; simpl. trivial. Qed. 
+
 Lemma compose_sm_foreign: forall mu12 mu23
          (HypFrg: forall b, frgnBlocksTgt mu12 b = true ->
                             frgnBlocksSrc mu23 b = true)
@@ -598,8 +607,8 @@ Lemma compose_sm_foreign: forall mu12 mu23
       compose_meminj (foreign_of mu12) (foreign_of mu23).
 Proof. intros. unfold compose_sm, foreign_of. 
   extensionality b. 
-  destruct mu12 as [DomS1 DomT1 BSrc1 BTgt1 pSrc1 pTgt1 fSrc1 fTgt1 extern1 local1]; simpl.
-  destruct mu23 as [DomS2 DomT2 BSrc2 BTgt2 pSrc2 pTgt2 fSrc2 fTgt2 extern2 local2]; simpl.
+  destruct mu12 as [locBSrc1 locBTgt1 pSrc1 pTgt1 local1 extBSrc1 extBTgt1 fSrc1 fTgt1 extern1]; simpl.
+  destruct mu23 as [locBSrc2 locBTgt2 pSrc2 pTgt2 local2 extBSrc2 extBTgt2 fSrc2 fTgt2 extern2]; simpl.
   remember (fSrc1 b) as d; destruct d; apply eq_sym in Heqd.
     destruct (frgnSrc _ WD1 _ Heqd) as [b2 [d1 [EXT1 Tgt1]]]; simpl in *.
     rewrite Heqd in EXT1. apply HypFrg in Tgt1. 
@@ -614,8 +623,8 @@ Lemma compose_sm_priv: forall mu12 mu23,
    compose_meminj (priv_of mu12) (local_of mu23).
 Proof. intros. unfold priv_of, compose_sm.
   extensionality b.
-  destruct mu12 as [DomS1 DomT1 BSrc1 BTgt1 pSrc1 pTgt1 fSrc1 fTgt1 extern1 local1]; simpl.
-  destruct mu23 as [DomS2 DomT2 BSrc2 BTgt2 pSrc2 pTgt2 fSrc2 fTgt2 extern2 local2]; simpl.
+  destruct mu12 as [locBSrc1 locBTgt1 pSrc1 pTgt1 local1 extBSrc1 extBTgt1 fSrc1 fTgt1 extern1]; simpl.
+  destruct mu23 as [locBSrc2 locBTgt2 pSrc2 pTgt2 local2 extBSrc2 extBTgt2 fSrc2 fTgt2 extern2]; simpl.
   remember (pSrc1 b) as d; destruct d; apply eq_sym in Heqd.
     unfold compose_meminj. rewrite Heqd. trivial.
   unfold compose_meminj.
@@ -627,9 +636,9 @@ Lemma compose_sm_unknown: forall mu12 mu23,
    compose_meminj (unknown_of mu12) (extern_of mu23).
 Proof. intros. unfold unknown_of, compose_sm.
   extensionality b.
-  destruct mu12 as [DomS1 DomT1 BSrc1 BTgt1 pSrc1 pTgt1 fSrc1 fTgt1 extern1 local1]; simpl.
-  destruct mu23 as [DomS2 DomT2 BSrc2 BTgt2 pSrc2 pTgt2 fSrc2 fTgt2 extern2 local2]; simpl.
-  remember (BSrc1 b) as d; destruct d; apply eq_sym in Heqd.
+  destruct mu12 as [locBSrc1 locBTgt1 pSrc1 pTgt1 local1 extBSrc1 extBTgt1 fSrc1 fTgt1 extern1]; simpl.
+  destruct mu23 as [locBSrc2 locBTgt2 pSrc2 pTgt2 local2 extBSrc2 extBTgt2 fSrc2 fTgt2 extern2]; simpl.
+  remember (locBSrc1 b) as d; destruct d; apply eq_sym in Heqd.
     unfold compose_meminj. rewrite Heqd. trivial.
   remember (fSrc1 b) as q; destruct q; apply eq_sym in Heqq.
     unfold compose_meminj. rewrite Heqd. rewrite Heqq. trivial.
@@ -683,9 +692,11 @@ Lemma compose_sm_wd: forall mu1 mu2 (WD1: SM_wd mu1) (WD2:SM_wd mu2)
                             frgnBlocksSrc mu2 b = true),
       SM_wd (compose_sm mu1 mu2).
 Proof. intros.
-destruct mu1 as [DomS1 DomT1 BSrc1 BTgt1 pSrc1 pTgt1 fSrc1 fTgt1 extern1 local1]; simpl.
-destruct mu2 as [DomS2 DomT2 BSrc2 BTgt2 pSrc2 pTgt2 fSrc2 fTgt2 extern2 local2]; simpl.
-split; simpl.
+  destruct mu1 as [locBSrc1 locBTgt1 pSrc1 pTgt1 local1 extBSrc1 extBTgt1 fSrc1 fTgt1 extern1]; simpl.
+  destruct mu2 as [locBSrc2 locBTgt2 pSrc2 pTgt2 local2 extBSrc2 extBTgt2 fSrc2 fTgt2 extern2]; simpl.
+split; simpl in *.
+apply WD1.
+apply WD2.
 (*local_DomRng*)
   intros b1 b3 d H. 
   destruct (compose_meminjD_Some _ _ _ _ _ H) 
@@ -696,8 +707,6 @@ split; simpl.
   intros b1 b3 d H. 
   destruct (compose_meminjD_Some _ _ _ _ _ H) 
     as [b2 [d1 [d2 [EXT1 [EXT2 X]]]]]; subst; clear H.
-  split. eapply WD1. apply EXT1. 
-  split. eapply WD2. apply EXT2. 
   split. eapply WD1. apply EXT1. 
          eapply WD2. apply EXT2. 
 (*pubSrc*)
@@ -714,11 +723,7 @@ split; simpl.
   destruct (frgnSrc _ WD2 _ Tgt1) as [b3 [d2 [Ext2 Tgt2]]]. simpl in *.
   unfold compose_meminj. exists b3, (d1+d2).
   rewrite H in *. rewrite Tgt1 in *. rewrite Ext1. rewrite Ext2. auto.
-(*locBlocksDomSrc*)
-  apply WD1.
 (*locBlocksDomTgt*)
-  apply WD2.
-(*pubBlocksLocalTgt*)
   apply WD2.
 (*frgnBlocksDomTgt*)
   apply WD2.
@@ -768,7 +773,8 @@ Qed.
 *)
 
 Lemma compose_sm_as_inj: forall mu12 mu23 (WD1: SM_wd mu12) (WD2: SM_wd mu23)
-   (SrcTgt: locBlocksTgt mu12 = locBlocksSrc mu23),
+   (SrcTgtLoc: locBlocksTgt mu12 = locBlocksSrc mu23)
+   (SrcTgtExt: extBlocksTgt mu12 = extBlocksSrc mu23),
    as_inj (compose_sm mu12 mu23) = 
    compose_meminj (as_inj mu12) (as_inj mu23).
 Proof. intros.
@@ -783,26 +789,27 @@ Proof. intros.
     destruct (disjoint_extern_local _ WD1 b).
        rewrite H in Heqf. discriminate.
     rewrite H. 
-    destruct (extern_DomRng _ WD1 _ _ _ Heqf) as [A [B [C D]]]. 
-    rewrite SrcTgt in B.
+    destruct (extern_DomRng _ WD1 _ _ _ Heqf) as [A B]. 
+    rewrite SrcTgtExt in B.
     remember (local_of mu23 b2) as q; destruct q; trivial; apply eq_sym in Heqq.
     destruct p as [b3 d2].
     destruct (local_DomRng _ WD2 _ _ _ Heqq) as [AA BB].
-    rewrite AA in *; discriminate.
+    destruct (disjoint_extern_local_Src _ WD2 b2); congruence. 
   remember (local_of mu12 b) as q; destruct q; trivial; apply eq_sym in Heqq.
     destruct p as [b2 d1].
     destruct (local_DomRng _ WD1 _ _ _ Heqq) as [AA BB].
     remember (extern_of mu23 b2) as d; destruct d; trivial; apply eq_sym in Heqd.
       destruct p as [b3 d2].
-      destruct (extern_DomRng _ WD2 _ _ _ Heqd) as [A [B [C D]]]. 
-      rewrite SrcTgt in BB. rewrite BB in A. discriminate.
+      destruct (extern_DomRng _ WD2 _ _ _ Heqd) as [A B]. 
+      rewrite SrcTgtLoc in BB.
+      destruct (disjoint_extern_local_Src _ WD2 b2); congruence.  
 Qed.
 
 Lemma sm_extern_normalize_compose_sm: forall mu12 mu23,
   compose_sm mu12 mu23 = compose_sm (sm_extern_normalize mu12 mu23) mu23.
 Proof. intros.
   unfold compose_sm. 
-  rewrite sm_extern_normalize_DomSrc, sm_extern_normalize_locBlocksSrc,
+  rewrite sm_extern_normalize_extBlocksSrc, sm_extern_normalize_locBlocksSrc,
           sm_extern_normalize_pubBlocksSrc, sm_extern_normalize_frgnBlocksSrc,
           sm_extern_normalize_local, sm_extern_normalize_extern.
     rewrite normalize_compose. apply f_equal. trivial.
@@ -864,8 +871,8 @@ Lemma extern_incr_inject_incr:
       forall nu12 nu23 nu' (WDnu' : SM_wd nu')
           (EXT: extern_incr (compose_sm nu12 nu23) nu')
           (GlueInvNu: SM_wd nu12 /\ SM_wd nu23 /\
-                      DomTgt nu12 = DomSrc nu23 /\ 
                       locBlocksTgt nu12 = locBlocksSrc nu23 /\
+                      extBlocksTgt nu12 = extBlocksSrc nu23 /\
                       (forall b, pubBlocksTgt nu12 b = true -> 
                                  pubBlocksSrc nu23 b = true) /\
                       (forall b, frgnBlocksTgt nu12 b = true -> 
@@ -876,7 +883,7 @@ Proof. intros.
   destruct (compose_meminjD_Some _ _ _ _ _ H)
     as [b2 [d1 [d2 [Nu12 [Nu23 D]]]]]; subst; clear H.
   unfold extern_incr in EXT. simpl in EXT.
-  destruct EXT as [EXT [LOC [Dom12 [Tgt23 [mySrc12 [myTgt23 [pubSrc12 [pubTgt23 [frgnSrc12 frgnTgt23]]]]]]]]].
+  destruct EXT as [EXT [LOC [extBSrc12 [extBTgt23 [locBSrc12 [locBTgt23 [pubBSrc12 [pubBTgt23 [frgnBSrc12 frgnBTgt23]]]]]]]]].
   destruct (joinD_Some _ _ _ _ _ Nu12); clear Nu12.
   (*extern12*)
      destruct (joinD_Some _ _ _ _ _ Nu23); clear Nu23.
@@ -886,9 +893,9 @@ Proof. intros.
      (*local*)
         destruct H0.
         destruct GlueInvNu as [GLa [GLb [GLc [GLd [GLe GLf]]]]].
-        destruct (extern_DomRng' _ GLa _ _ _ H) as [? [? [? [? [? ?]]]]].
-        destruct (local_locBlocks _ GLb _ _ _ H1) as [? [? [? [? [? ?]]]]].
-        rewrite GLd in *. rewrite H8 in H5. inv H5. 
+        destruct (extern_DomRng' _ GLa _ _ _ H) as [? [? [? [? [? [? [? ?]]]]]]].
+        destruct (local_locBlocks _ GLb _ _ _ H1) as [? [? [? [? [? [? [? ?]]]]]]].
+        rewrite GLd in *. congruence.  
   (*local*) 
      destruct H.
      destruct (joinD_Some _ _ _ _ _ Nu23); clear Nu23.
@@ -896,11 +903,12 @@ Proof. intros.
         destruct GlueInvNu as [GLa [GLb [GLc [GLd [GLe GLf]]]]].
         destruct (extern_DomRng' _ GLb _ _ _ H1) as [? [? [? [? [? ?]]]]].
         destruct (local_locBlocks _ GLa _ _ _ H0) as [? [? [? [? [? ?]]]]].
-        rewrite GLd in *. rewrite H9 in H4. inv H4.
+        rewrite GLd in *. congruence. 
      (*local*)
         destruct H1. 
         apply join_incr_right. eapply disjoint_extern_local. apply WDnu'.
-        rewrite <- LOC. unfold compose_meminj. rewrite H0. rewrite H2. trivial.
+        rewrite <- LOC. unfold compose_meminj.
+        rewrite H0, H2. trivial.
 Qed.
 
 Lemma compose_sm_as_injD: forall mu1 mu2 b1 b3 d
@@ -942,8 +950,8 @@ Lemma compose_sm_intern_separated:
         (InjSep12 : sm_inject_separated mu12 mu12' m1 m2)
         (InjSep23 : sm_inject_separated mu23 mu23' m2 m3)
         (WD12: SM_wd mu12) (WD12': SM_wd mu12') (WD23: SM_wd mu23) (WD23': SM_wd mu23')
-        (MYB: locBlocksTgt mu12 = locBlocksSrc mu23)
-        (DOM2: DomTgt mu12 = DomSrc mu23),
+        (BlocksLoc: locBlocksTgt mu12 = locBlocksSrc mu23)
+        (BlocksExt: extBlocksTgt mu12 = extBlocksSrc mu23),
       sm_inject_separated (compose_sm mu12 mu23)
                           (compose_sm mu12' mu23') m1 m3.
 Proof. intros.
@@ -954,16 +962,18 @@ split.
   simpl.
   destruct (compose_sm_as_injD _ _ _ _ _ H0)
      as [b2 [d1 [d2 [AI12' [AI23' X]]]]]; subst; trivial; clear H0.
+  rewrite compose_sm_DomSrc, compose_sm_DomTgt.
   assert (DomSrc (compose_sm mu12' mu23') b1 = true /\
           DomTgt (compose_sm mu12' mu23') b3 = true).
-    simpl.
+    rewrite compose_sm_DomSrc, compose_sm_DomTgt.
     split. eapply as_inj_DomRng; eassumption.
-    eapply as_inj_DomRng; eassumption. 
+           eapply as_inj_DomRng; eassumption. 
   destruct H0 as [DOM1 TGT3]; simpl in *.
   assert (TGT2: DomTgt mu12' b2 = true).
     eapply as_inj_DomRng. eassumption. eapply WD12'.
   assert (DOMB2: DomSrc mu23' b2 = true).
     eapply as_inj_DomRng. eassumption. eapply WD23'.
+  rewrite compose_sm_DomSrc, compose_sm_DomTgt in *.
   remember (as_inj mu12 b1) as q.
   destruct q; apply eq_sym in Heqq.
     destruct p.
@@ -995,16 +1005,18 @@ split.
             destruct p.
             specialize (intern_incr_local _ _ inc23); intros.
             specialize (H0 _ _ _ Heqqq). rewrite H0 in H4. inv H4.
-            destruct (extern_DomRng _ WD12 _ _ _ EXT12) as [A [B [C D]]].
+            destruct (extern_DomRng _ WD12 _ _ _ EXT12) as [A B].
             destruct (local_DomRng _ WD23 _ _ _ Heqqq) as [AA BB].
-            rewrite MYB in B. rewrite B in AA. inv AA.
+            rewrite BlocksExt in B. 
+            destruct (disjoint_extern_local_Src _ WD23 b2); congruence.
          destruct (AsInj23 b2 b3 d2).
             apply joinI_None. assumption. assumption.
             apply join_incr_right.
               apply disjoint_extern_local. assumption.
               assumption.
-         destruct (extern_DomRng _ WD12 _ _ _ EXT12) as [_ [_ [_ XX]]].
-         rewrite DOM2 in XX. rewrite XX in H0. discriminate. 
+         destruct (extern_DomRng _ WD12 _ _ _ EXT12) as [XX YY].
+           rewrite BlocksExt in YY. unfold DomSrc in H0.
+           rewrite YY in H0. rewrite orb_comm in H0. discriminate.
     (*extern12None*)
        destruct H0.
        assert (extern_of mu12' b1 = None).
@@ -1016,11 +1028,11 @@ split.
        destruct (joinD_Some _ _ _ _ _ AI23'); clear AI23'.
        (*extern23'Some*)
          destruct (local_DomRng _ WD12' _ _ _ H3) as [AA BB].
-         destruct (extern_DomRng _ WD23' _ _ _ H) as [A [B [C D]]].
+         destruct (extern_DomRng _ WD23' _ _ _ H) as [A B].
          destruct (local_DomRng _ WD12 _ _ _ H1) as [AAA BBB].
-         rewrite MYB in BBB. 
+         rewrite BlocksLoc in BBB. 
          assert (locBlocksSrc mu23' b2 = true). apply inc23. assumption.
-         rewrite H6 in A. discriminate.
+         destruct (disjoint_extern_local_Src _ WD23' b2); congruence.
        (*extern23'None*)
          destruct H.
          assert (extern_of mu23 b2 = None).
@@ -1039,7 +1051,8 @@ split.
          destruct H4.  
          destruct (local_locBlocks _ WD12 _ _ _ H1) 
            as [AAA [BBB [CCC [DDD [EEE FFF]]]]].
-         rewrite DOM2 in FFF. rewrite FFF in H4. discriminate.
+         rewrite BlocksLoc in BBB. unfold DomSrc in H4.
+             rewrite BBB in H4. discriminate.
    (*as_inj mu12 b1 = None*)
      destruct (AsInj12 _ _ _ Heqq AI12'). split; trivial. clear H.
      remember (as_inj mu23 b2) as d.
@@ -1048,7 +1061,8 @@ split.
        specialize (intern_incr_as_inj _ _ inc23 WD23' _ _ _ Heqd).
        intros ZZ; rewrite AI23' in ZZ. apply eq_sym in ZZ; inv ZZ.
        destruct (as_inj_DomRng _ _ _ _ Heqd WD23).
-       rewrite DOM2 in H1. rewrite H1 in H. discriminate.
+       unfold DomSrc in H. unfold DomTgt in H1.
+       rewrite BlocksLoc, BlocksExt in H1. rewrite H1 in H; discriminate.
      eapply AsInj23. eassumption. eassumption.
 simpl.
   split. apply DomTgt12. apply Sep23.

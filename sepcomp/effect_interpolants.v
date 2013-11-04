@@ -33,8 +33,8 @@ Parameter effect_interp_II: forall m1 m2 nu12
                              (UnchLOOR13: Mem.unchanged_on (local_out_of_reach (compose_sm nu12 nu23) m1) m3 m3')
 
                              (GlueInvNu: SM_wd nu12 /\ SM_wd nu23 /\
-                                         DomTgt nu12 = DomSrc nu23 /\ 
                                          locBlocksTgt nu12 = locBlocksSrc nu23 /\
+                                         extBlocksTgt nu12 = extBlocksSrc nu23 /\
                                          (forall b, pubBlocksTgt nu12 b = true -> 
                                                     pubBlocksSrc nu23 b = true) /\
                                          (forall b, frgnBlocksTgt nu12 b = true -> 
@@ -49,8 +49,8 @@ Parameter effect_interp_II: forall m1 m2 nu12
                              sm_inject_separated nu23 nu23' m2 m3 /\
                              sm_valid nu12' m1' m2' /\ sm_valid nu23' m2' m3' /\
                              (SM_wd nu12' /\ SM_wd nu23' /\
-                              DomTgt nu12' = DomSrc nu23' /\ 
                               locBlocksTgt nu12' = locBlocksSrc nu23' /\
+                              extBlocksTgt nu12' = extBlocksSrc nu23' /\
                               (forall b, pubBlocksTgt nu12' b = true -> 
                                          pubBlocksSrc nu23' b = true) /\
                               (forall b, frgnBlocksTgt nu12' b = true -> 

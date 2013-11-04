@@ -79,9 +79,9 @@ split; intros.
 specialize (PGb _ H).
   destruct (joinD_Some _ _ _ _ _ H0) as [EXT | [EXT LOC]]; clear H0.
     eauto.
-  destruct (extern_DomRng _ WDmu _ _ _ PGb) as [? [? _]].
+  destruct (extern_DomRng _ WDmu _ _ _ PGb) as [? ?].
     destruct (local_DomRng _ WDmu _ _ _ LOC).
-    congruence.
+    destruct (disjoint_extern_local_Tgt _ WDmu b2); congruence.
 Qed.
 
 Lemma meminj_preserves_globals_initSM_all: forall {F1 V1} (ge: Genv.t F1 V1) j
@@ -407,10 +407,12 @@ eapply replace_externs_wd. assumption.
                     ReachB1 notMyB1) as [b2 [d [EXT ReachB2]]].
           exists b2, d; split; trivial.
           do 2 rewrite andb_true_iff. rewrite negb_true_iff.
-          destruct (extern_DomRng _ WD _ _ _ EXT) as [? [? [? ?]]].
-          intuition.
+          destruct (extern_DomRng _ WD _ _ _ EXT) as [? ?].
+          unfold DomTgt. intuition.
+          destruct (disjoint_extern_local_Tgt _ WD b2); congruence.
   intros. do 2 rewrite andb_true_iff in H. rewrite negb_true_iff in H.
-          intuition. 
+          unfold DomTgt in H. destruct H as [? [? ?]].
+          rewrite H0 in H; simpl in H. assumption.
 split; intros.
   rewrite replace_externs_DOM in H. apply SMValid. apply H.
   rewrite replace_externs_RNG in H. apply SMValid. apply H.

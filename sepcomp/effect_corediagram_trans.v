@@ -92,8 +92,8 @@ Lemma diagram_injinj: forall
   (m2 : mem)
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
-  (INV : DomTgt mu12 = DomSrc mu23 /\
-        locBlocksTgt mu12 = locBlocksSrc mu23 /\
+  (INV : locBlocksTgt mu12 = locBlocksSrc mu23 /\
+        extBlocksTgt mu12 = extBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -111,8 +111,8 @@ exists
      (c0 : C2) (m0 : mem) (mu1 mu2 : SM_Injection),
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
-     (DomTgt mu1 = DomSrc mu2 /\
-      locBlocksTgt mu1 = locBlocksSrc mu2 /\
+     (locBlocksTgt mu1 = locBlocksSrc mu2 /\
+      extBlocksTgt mu1 = extBlocksSrc mu2 /\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -143,8 +143,8 @@ Proof.
   clear CS1.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
-      (DomTgt mu12' = DomSrc mu23' /\
-      locBlocksTgt mu12' = locBlocksSrc mu23' /\
+      (locBlocksTgt mu12' = locBlocksSrc mu23' /\
+      extBlocksTgt mu12' = extBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -198,24 +198,18 @@ Proof.
          simpl in *. destruct LocAlloc23 as [? [? [? ?]]]. subst.
          simpl in *. apply ZZ. 
   (*proof of the cut*)
-  assert (myLocAlloc12': locBlocksTgt mu12' =
+  assert (locLocAlloc12': locBlocksTgt mu12' =
                          fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst.
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
-  assert (DomAlloc12': DomTgt mu12' =
-                       fun b => orb (DomTgt mu12 b) (freshloc m2 m2' b)).   
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst. 
+  assert (extLocAlloc12': extBlocksTgt mu12' = extBlocksTgt mu12).
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
   assert (pubAlloc12': pubBlocksTgt mu12 = pubBlocksTgt mu12').
          eapply InjIncr12. 
   assert (frgnAlloc12': frgnBlocksTgt mu12 = frgnBlocksTgt mu12').
          eapply InjIncr12. 
-  rewrite myLocAlloc12' in *. clear myLocAlloc12'.
-  rewrite DomAlloc12' in *. clear DomAlloc12'.
+  rewrite locLocAlloc12', extLocAlloc12' in *. clear locLocAlloc12' extLocAlloc12'.
   clear MC12 InjIncr12 InjSep12 MC12' match_sm_wd12 match_validblock12 (*MatchHyp12*). 
   clear LocAlloc12.
   destruct INV as [? [? [? ?]]]. 
@@ -294,14 +288,10 @@ Proof.
            destruct LocAlloc23 as [LA23a [LA23b [LA23c LA23d]]].
            simpl in *. subst; simpl in *. destruct mu23''.
            destruct LocAlloc23' as [LA23'a [LA23'b [LA23'c LA23'd]]].
-           simpl in *. subst; simpl in *.
-           split. extensionality b.
+           simpl in *. subst; simpl in *. intuition.
+           extensionality b.
                   rewrite <- orb_assoc.
                   rewrite freshloc_trans; trivial.
-           split. extensionality b.
-                  rewrite <- orb_assoc.
-                  rewrite freshloc_trans; trivial.
-           split; assumption. 
     split. solve [eapply intern_incr_trans; eassumption].
     split. eapply intern_separated_incr_fwd2; try eassumption.
            eauto. 
@@ -355,31 +345,22 @@ Proof.
      split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial. 
      split. apply LocAlloc12.
-     extensionality b. rewrite freshloc_irrefl.
+     split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial.
+     intuition.
    split. exists st2'. exists m2'. exists mu12'. exists mu23.
-       destruct LocAlloc12 as [LA1 [LA2 [LA3 LA4]]].
-       assert (LA2': DomTgt mu12' = (fun b : block => DomTgt mu12 b)).
-         rewrite LA2. extensionality b.
+       destruct LocAlloc12 as [LA1 [LA2 [LA3 [LA4 [LA5 LA6]]]]].
+       intuition.
+       rewrite LA4, INVa.
+         extensionality b.
          rewrite freshloc_irrefl. apply orb_false_r.
-       clear LA2.
-       assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
-         rewrite LA4. extensionality b.
-         rewrite freshloc_irrefl. apply orb_false_r.
-       clear LA4.
-       split. reflexivity.
-       split; trivial.
-       split. rewrite LA2'; clear LA2'. rewrite <- INVa.
-              rewrite LA4'; clear LA4'. rewrite <- INVb.
-              split. trivial. 
-              split. trivial. 
-              split. assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
-              rewrite H in *; clear H.
-              apply INVc.
-              assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
-                rewrite H in *; clear H.
-               apply INVd.
-       split; assumption.
+       rewrite LA6. assumption.
+       assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
+              rewrite <- H0 in *; clear H0.
+              apply INVc. trivial.
+       assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
+              rewrite H0 in *; clear H0.
+              apply INVd. trivial.
    split. eapply compose_sm_wd.
                    assumption.
                    eauto.
@@ -467,8 +448,8 @@ Lemma effdiagram_injinj: forall
   (m2 : mem)
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
-  (INV : DomTgt mu12 = DomSrc mu23/\
-        locBlocksTgt mu12 = locBlocksSrc mu23 /\
+  (INV : locBlocksTgt mu12 = locBlocksSrc mu23 /\
+        extBlocksTgt mu12 = extBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -486,8 +467,8 @@ exists
      (c0 : C2) (m0 : mem) (mu1 mu2 : SM_Injection),
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
-     (DomTgt mu1 = DomSrc mu2 /\
-      locBlocksTgt mu1 = locBlocksSrc mu2 /\
+     (locBlocksTgt mu1 = locBlocksSrc mu2 /\
+      extBlocksTgt mu1 = extBlocksSrc mu2 /\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -524,10 +505,10 @@ Proof.
   clear CS1.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
-      (DomTgt mu12' = DomSrc mu23' /\
-      locBlocksTgt mu12' = locBlocksSrc mu23' /\
-      (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
-      (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
+      (locBlocksTgt mu12' = locBlocksSrc mu23' /\
+       extBlocksTgt mu12' = extBlocksSrc mu23' /\
+       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
+       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
     sm_inject_separated mu23 mu23' m2 m3 /\
     sm_locally_allocated mu23 mu23' m2 m3 m2' m3' /\
@@ -554,6 +535,7 @@ Proof.
   split. solve [eapply compose_sm_intern_separated; eauto]. 
   split. clear ZZ. unfold compose_sm; simpl.
          destruct mu12. destruct mu12'. destruct mu23. destruct mu23'.
+         simpl in *.
          destruct INV' as [INVa' [INVb' [INVc' INVd']]].
          subst. simpl in *.
          split; simpl. eapply LocAlloc12.
@@ -564,6 +546,7 @@ Proof.
      split; trivial.
      split. clear ZZ.
          destruct mu12. destruct mu12'. destruct mu23. destruct mu23'.
+         simpl in *. 
          destruct INV' as [INVa' [INVb' [INVc' INVd']]].
          subst. simpl in *.
          split; trivial.
@@ -576,7 +559,7 @@ Proof.
          destruct INV' as [INVa' [INVb' [INVc' INVd']]].
          subst. simpl in *.
          simpl in *. destruct LocAlloc12 as [? [? [? ?]]]. subst.
-         simpl in *. destruct LocAlloc23 as [? [? [? ?]]]. subst.
+         simpl in *. destruct LocAlloc23 as [? [? [? ?]]]. clear H2. subst.
          simpl in *. apply ZZ.
     (*proof of MOD31*) intros b3 ofs HypU3. clear ZZ eff_diagram23.
          destruct INV' as [INVa' [INVb' [INVc' INVd']]].
@@ -586,7 +569,7 @@ Proof.
          intros. 
          destruct (Uhyp32 H0) as [b2 [d2 [Frg2 [VB2 HypU2]]]]; clear Uhyp32.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
-         rewrite INVb in Uhyp21; clear INVb.
+         rewrite INVa in Uhyp21; clear INVa.
          destruct Uhyp21 as [b1 [d1 [Frg1 [vb1 HypU1]]]].
             eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
@@ -600,27 +583,20 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': locBlocksTgt mu12' =
+  assert (locLocAlloc12': locBlocksTgt mu12' =
                          fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst.
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
-  assert (DomAlloc12': DomTgt mu12' =
-                       fun b => orb (DomTgt mu12 b) (freshloc m2 m2' b)).   
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst. 
+  assert (extLocAlloc12': extBlocksTgt mu12' = extBlocksTgt mu12).
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
   assert (pubAlloc12': pubBlocksTgt mu12 = pubBlocksTgt mu12').
          eapply InjIncr12. 
   assert (frgnAlloc12': frgnBlocksTgt mu12 = frgnBlocksTgt mu12').
          eapply InjIncr12. 
-  
-  rewrite myLocAlloc12' in *. clear myLocAlloc12'.
-  rewrite DomAlloc12' in *. clear DomAlloc12'.
+  rewrite locLocAlloc12', extLocAlloc12' in *. clear locLocAlloc12' extLocAlloc12'.
   clear MC12 InjIncr12 InjSep12 MC12' match_sm_wd12 match_validblock12 (*MatchHyp12*). 
-  clear LocAlloc12 (*FRGN12 mySrcTgt*).
+  clear LocAlloc12.
   destruct INV as [? [? [? ?]]]. 
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
@@ -702,14 +678,10 @@ Proof.
            destruct LocAlloc23 as [LA23a [LA23b [LA23c LA23d]]].
            simpl in *. subst; simpl in *. destruct mu23''.
            destruct LocAlloc23' as [LA23'a [LA23'b [LA23'c LA23'd]]].
-           simpl in *. subst; simpl in *.
-           split. extensionality b.
+           simpl in *. subst; simpl in *. intuition.
+           extensionality b.
                   rewrite <- orb_assoc.
                   rewrite freshloc_trans; trivial.
-           split. extensionality b.
-                  rewrite <- orb_assoc.
-                  rewrite freshloc_trans; trivial.
-           split; assumption. 
     split. solve [eapply intern_incr_trans; eassumption].
     split. eapply intern_separated_incr_fwd2; try eassumption.
            eauto.  
@@ -771,7 +743,7 @@ Proof.
          intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
-                   destruct LocAlloc23 as [AA [BB [CC DD]]].
+                   destruct LocAlloc23 as [AA [BB [CC [DD [EE FF]]]]].
                    rewrite DD, H0 in Heqd. simpl in Heqd.
                    apply freshloc_charT in Heqd. destruct Heqd; contradiction.
                  destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' [vb2' UU]]]]; clear UHyp32'.
@@ -788,15 +760,6 @@ Proof.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.
-   destruct LocAlloc12 as [LA1 [LA2 [LA3 LA4]]].
-   assert (LA2': DomTgt mu12' = (fun b : block => DomTgt mu12 b)).
-       rewrite LA2. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA2.
-   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
-       rewrite LA4. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA4; clear eff_diagram23.
    exists st3. exists m3.
    exists (d12',Some st2',d23).
    exists  (compose_sm mu12' mu23). 
@@ -807,26 +770,28 @@ Proof.
             apply intern_incr_refl.
             apply sm_inject_separated_same_sminj.            
    split.
+     clear eff_diagram23.
      apply sm_locally_allocatedChar; simpl.
-     split. assumption.
+     split. apply LocAlloc12.
      split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial. 
-     split. assumption.
-     extensionality b. rewrite freshloc_irrefl.
+     split. apply LocAlloc12.
+     split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial.
+     intuition.
    split. exists st2'. exists m2'. exists mu12'. exists mu23.
-            eexists. eexists.
-            split. reflexivity.
-            split. rewrite LA2'. rewrite INVa.
-                   rewrite LA4'. rewrite INVb.
-                   split. trivial. 
-                   split. trivial. 
-                   assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   split; assumption.
-            split; assumption.
+       destruct LocAlloc12 as [LA1 [LA2 [LA3 [LA4 [LA5 LA6]]]]].
+       intuition.
+       rewrite LA4, INVa.
+         extensionality b.
+         rewrite freshloc_irrefl. apply orb_false_r.
+       rewrite LA6. assumption.
+       assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
+              rewrite <- H0 in *; clear H0.
+              apply INVc. trivial.
+       assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
+              rewrite H0 in *; clear H0.
+              apply INVd. trivial.
    exists (fun b z => false). 
      split. right. split. exists O. simpl; auto.
             apply t_step. constructor 1; auto.
@@ -913,8 +878,8 @@ Lemma effdiagram_strong_injinj: forall
   (m2 : mem)
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
-  (INV : DomTgt mu12 = DomSrc mu23 /\
-        locBlocksTgt mu12 = locBlocksSrc mu23 /\
+  (INV : locBlocksTgt mu12 = locBlocksSrc mu23 /\
+        extBlocksTgt mu12 = extBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -935,8 +900,8 @@ exists
      (c0 : C2) (m0 : mem) (mu1 mu2 : SM_Injection),
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
-     (DomTgt mu1 = DomSrc mu2 /\
-      locBlocksTgt mu1 = locBlocksSrc mu2/\
+     (locBlocksTgt mu1 = locBlocksSrc mu2/\
+      extBlocksTgt mu1 = extBlocksSrc mu2/\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -974,8 +939,8 @@ Proof.
   clear CS1.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
-      (DomTgt mu12' = DomSrc mu23' /\
-      locBlocksTgt mu12' = locBlocksSrc mu23' /\
+      (locBlocksTgt mu12' = locBlocksSrc mu23' /\
+       extBlocksTgt mu12' = extBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -1034,7 +999,7 @@ Proof.
          intros. 
          destruct (Uhyp32 H0) as [b2 [d2 [Frg2 HypU2]]]; clear Uhyp32.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
-         rewrite INVb in Uhyp21; clear INVb.
+         rewrite INVa in Uhyp21; clear INVa.
          destruct Uhyp21 as [b1 [d1 [Frg1 HypU1]]].
             eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
@@ -1048,25 +1013,19 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': locBlocksTgt mu12' =
+  assert (locLocAlloc12': locBlocksTgt mu12' =
                          fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst.
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
-  assert (DomAlloc12': DomTgt mu12' =
-                       fun b => orb (DomTgt mu12 b) (freshloc m2 m2' b)).   
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst. 
+  assert (extLocAlloc12': extBlocksTgt mu12' =extBlocksTgt mu12).
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
   assert (pubAlloc12': pubBlocksTgt mu12 = pubBlocksTgt mu12').
          eapply InjIncr12. 
   assert (frgnAlloc12': frgnBlocksTgt mu12 = frgnBlocksTgt mu12').
          eapply InjIncr12. 
   
-  rewrite myLocAlloc12' in *. clear myLocAlloc12'.
-  rewrite DomAlloc12' in *. clear DomAlloc12'.
+  rewrite locLocAlloc12', extLocAlloc12' in *. clear locLocAlloc12' extLocAlloc12'.
   destruct INV as [? [? [? ?]]]. 
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
@@ -1170,14 +1129,10 @@ Proof.
            destruct LocAlloc23 as [LA23a [LA23b [LA23c LA23d]]].
            simpl in *. subst; simpl in *. destruct mu23''.
            destruct LocAlloc23' as [LA23'a [LA23'b [LA23'c LA23'd]]].
-           simpl in *. subst; simpl in *.
-           split. extensionality b.
+           simpl in *. subst; simpl in *. intuition.
+           extensionality b.
                   rewrite <- orb_assoc.
                   rewrite freshloc_trans; trivial.
-           split. extensionality b.
-                  rewrite <- orb_assoc.
-                  rewrite freshloc_trans; trivial.
-           split; assumption. 
     split. solve [eapply intern_incr_trans; eassumption].
     split. eapply intern_separated_incr_fwd2; try eassumption.
            eauto.  
@@ -1239,7 +1194,7 @@ Proof.
          intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
-                   destruct LocAlloc23 as [AA [BB [CC DD]]].
+                   destruct LocAlloc23 as [AA [BB [CC [DD [EE FF]]]]].
                    rewrite DD, H0 in Heqd. simpl in Heqd.
                    apply freshloc_charT in Heqd. destruct Heqd; contradiction.
                  destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' UU]]]; clear UHyp32'.
@@ -1255,15 +1210,6 @@ Proof.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.
-   destruct LocAlloc12 as [LA1 [LA2 [LA3 LA4]]].
-   assert (LA2': DomTgt mu12' = (fun b : block => DomTgt mu12 b)).
-       rewrite LA2. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA2.
-   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
-       rewrite LA4. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA4; clear eff_diagram23.
    exists st3. exists m3.
    exists (d12',Some st2',d23).
    exists  (compose_sm mu12' mu23). 
@@ -1274,26 +1220,28 @@ Proof.
             apply intern_incr_refl.
             apply sm_inject_separated_same_sminj.            
    split.
+     clear eff_diagram23.
      apply sm_locally_allocatedChar; simpl.
-     split. assumption.
+     split. apply LocAlloc12.
      split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial. 
-     split. assumption.
-     extensionality b. rewrite freshloc_irrefl.
+     split. apply LocAlloc12.
+     split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial.
+     intuition.
    split. exists st2'. exists m2'. exists mu12'. exists mu23.
-            split. reflexivity.
-            split; trivial.
-            split. rewrite LA2'. rewrite INVa.
-                   rewrite LA4'. rewrite INVb.
-                   split. trivial. 
-                   split. trivial. 
-                   assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   split; assumption.
-            split; assumption.
+       destruct LocAlloc12 as [LA1 [LA2 [LA3 [LA4 [LA5 LA6]]]]].
+       intuition.
+       rewrite LA4, INVa.
+         extensionality b.
+         rewrite freshloc_irrefl. apply orb_false_r.
+       rewrite LA6. assumption.
+       assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
+              rewrite <- H0 in *; clear H0.
+              apply INVc. trivial.
+       assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
+              rewrite H0 in *; clear H0.
+              apply INVd. trivial.
    exists (fun b z => false). 
      split. right. split. exists O. simpl; auto.
             apply t_step. constructor 1; auto.
@@ -1382,8 +1330,8 @@ Lemma effdiagram_strong_perm_injinj: forall
   (m2 : mem)
   (mu12 : SM_Injection)
   (mu23 : SM_Injection)
-  (INV : DomTgt mu12 = DomSrc mu23 /\
-        locBlocksTgt mu12 = locBlocksSrc mu23 /\
+  (INV : locBlocksTgt mu12 = locBlocksSrc mu23 /\
+         extBlocksTgt mu12 = extBlocksSrc mu23 /\
         (forall b : block,
          pubBlocksTgt mu12 b = true -> pubBlocksSrc mu23 b = true) /\
         (forall b : block,
@@ -1404,8 +1352,8 @@ exists
      (c0 : C2) (m0 : mem) (mu1 mu2 : SM_Injection),
      X = Some c0 /\
      mu' = compose_sm mu1 mu2 /\
-     (DomTgt mu1 = DomSrc mu2 /\
-      locBlocksTgt mu1 = locBlocksSrc mu2/\
+     (locBlocksTgt mu1 = locBlocksSrc mu2/\
+      extBlocksTgt mu1 = extBlocksSrc mu2/\
       (forall b : block,
        pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
       (forall b : block,
@@ -1444,8 +1392,8 @@ Proof.
   clear CS1.
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
-      (DomTgt mu12' = DomSrc mu23' /\
-      locBlocksTgt mu12' = locBlocksSrc mu23' /\
+      (locBlocksTgt mu12' = locBlocksSrc mu23' /\
+        extBlocksTgt mu12' = extBlocksSrc mu23' /\
       (forall b, pubBlocksTgt mu12' b = true -> pubBlocksSrc mu23' b = true) /\
       (forall b, frgnBlocksTgt mu12' b = true -> frgnBlocksSrc mu23' b = true)) /\ 
     intern_incr mu23 mu23' /\ 
@@ -1505,7 +1453,7 @@ Proof.
          intros. 
          destruct (Uhyp32 H0) as [b2 [d2 [Frg2 [HypU2 HypPerm2]]]]; clear Uhyp32.
          destruct (MOD21 _ _ HypU2) as [vb2 Uhyp21]; clear MOD21.
-         rewrite INVb in Uhyp21; clear INVb.
+         rewrite INVa in Uhyp21; clear INVa.
          destruct Uhyp21 as [b1 [d1 [Frg1 HypU1]]].
             eapply frgnBlocksSrc_locBlocksSrc. eauto.
               eapply foreign_DomRng. eauto. apply Frg2.
@@ -1519,25 +1467,19 @@ Proof.
            assert (Arith: ofs - (d1 + d2) = ofs - d2 - d1) by omega.
            rewrite Arith. eauto.           
   (*proof of the cut*)
-  assert (myLocAlloc12': locBlocksTgt mu12' =
+  assert (locLocAlloc12': locBlocksTgt mu12' =
                          fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst.
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
-  assert (DomAlloc12': DomTgt mu12' =
-                       fun b => orb (DomTgt mu12 b) (freshloc m2 m2' b)).   
-         destruct mu12 as [Dom Tgt BSrc BTgt pSrc pTgt fSrc fTgt extern local]. 
-         destruct mu12' as [Dom' Tgt' BSrc' BTgt' pSrc' pTgt' fSrc' fTgt' extern' local']. 
-         simpl in *. subst. 
+  assert (extLocAlloc12': extBlocksTgt mu12' = extBlocksTgt mu12).
+         destruct mu12; destruct mu12'; simpl in *. subst.
          eapply LocAlloc12.
   assert (pubAlloc12': pubBlocksTgt mu12 = pubBlocksTgt mu12').
          eapply InjIncr12. 
   assert (frgnAlloc12': frgnBlocksTgt mu12 = frgnBlocksTgt mu12').
          eapply InjIncr12. 
   
-  rewrite myLocAlloc12' in *. clear myLocAlloc12'.
-  rewrite DomAlloc12' in *. clear DomAlloc12'.
+  rewrite locLocAlloc12', extLocAlloc12' in *. clear locLocAlloc12' extLocAlloc12'.
   destruct INV as [? [? [? ?]]]. 
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
@@ -1641,14 +1583,10 @@ Proof.
            destruct LocAlloc23 as [LA23a [LA23b [LA23c LA23d]]].
            simpl in *. subst; simpl in *. destruct mu23''.
            destruct LocAlloc23' as [LA23'a [LA23'b [LA23'c LA23'd]]].
-           simpl in *. subst; simpl in *.
-           split. extensionality b.
+           simpl in *. subst; simpl in *. intuition.
+           extensionality b.
                   rewrite <- orb_assoc.
                   rewrite freshloc_trans; trivial.
-           split. extensionality b.
-                  rewrite <- orb_assoc.
-                  rewrite freshloc_trans; trivial.
-           split; assumption. 
     split. solve [eapply intern_incr_trans; eassumption].
     split. eapply intern_separated_incr_fwd2; try eassumption.
            eauto.  
@@ -1710,7 +1648,7 @@ Proof.
          intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
-                   destruct LocAlloc23 as [AA [BB [CC DD]]].
+                   destruct LocAlloc23 as [AA [BB [CC [DD [EE FF]]]]].
                    rewrite DD, H0 in Heqd. simpl in Heqd.
                    apply freshloc_charT in Heqd. destruct Heqd; contradiction.
                  destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' [UU UUPerm]]]]; clear UHyp32'.
@@ -1727,15 +1665,6 @@ Proof.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.
-   destruct LocAlloc12 as [LA1 [LA2 [LA3 LA4]]].
-   assert (LA2': DomTgt mu12' = (fun b : block => DomTgt mu12 b)).
-       rewrite LA2. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA2.
-   assert (LA4': locBlocksTgt mu12' = (fun b : block => locBlocksTgt mu12 b)).
-       rewrite LA4. extensionality b.
-       rewrite freshloc_irrefl. apply orb_false_r.
-   clear LA4; clear eff_diagram23.
    exists st3. exists m3.
    exists (d12',Some st2',d23).
    exists  (compose_sm mu12' mu23). 
@@ -1746,26 +1675,28 @@ Proof.
             apply intern_incr_refl.
             apply sm_inject_separated_same_sminj.            
    split.
+     clear eff_diagram23.
      apply sm_locally_allocatedChar; simpl.
-     split. assumption.
+     split. apply LocAlloc12.
      split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial. 
-     split. assumption.
-     extensionality b. rewrite freshloc_irrefl.
+     split. apply LocAlloc12.
+     split. extensionality b. rewrite freshloc_irrefl.
             rewrite orb_false_r. trivial.
+     intuition.
    split. exists st2'. exists m2'. exists mu12'. exists mu23.
-            split. reflexivity.
-            split; trivial.
-            split. rewrite LA2'. rewrite INVa.
-                   rewrite LA4'. rewrite INVb.
-                   split. trivial. 
-                   split. trivial. 
-                   assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
-                   rewrite H in *; clear H.
-                   split; assumption.
-            split; assumption.
+       destruct LocAlloc12 as [LA1 [LA2 [LA3 [LA4 [LA5 LA6]]]]].
+       intuition.
+       rewrite LA4, INVa.
+         extensionality b.
+         rewrite freshloc_irrefl. apply orb_false_r.
+       rewrite LA6. assumption.
+       assert (pubBlocksTgt mu12 = pubBlocksTgt mu12') by eapply InjIncr12.
+              rewrite <- H0 in *; clear H0.
+              apply INVc. trivial.
+       assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
+              rewrite H0 in *; clear H0.
+              apply INVd. trivial.
    exists (fun b z => false). 
      split. right. split. exists O. simpl; auto.
             apply t_step. constructor 1; auto.
