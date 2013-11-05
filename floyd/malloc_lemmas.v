@@ -149,8 +149,40 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tcomp_ptr _ _ => Vundef
   end.
 
-Definition ZnthV t (lis: list (reptype t)) (i: Z) : reptype t := 
-       nth (Z.to_nat i) lis (default_val t).
+Definition ZnthV t (lis: list (reptype t)) (i: Z) : option (reptype t) := 
+       nth_error lis (Z.to_nat i).
+
+Definition cSome {A}(f: Z -> A) i := Some (f i).
+
+Lemma isSome_cSome: 
+ forall {B} (f: Z -> B) (i: Z), isSome (cSome f i).
+Proof.  intros; apply I. Qed.
+Hint Resolve @isSome_cSome.
+
+Lemma ZnthV_isSome:
+ forall t al i, (0 <= i < Zlength al)%Z -> isSome (ZnthV t al i).
+Proof.
+unfold ZnthV.
+intros.
+replace i with (Z.of_nat (Z.to_nat i)) in *
+ by (apply Z2Nat.id; omega).
+assert (0 <= Z.to_nat i < length al)%nat.
+rewrite Zlength_correct in H.
+change 0%Z with (Z.of_nat O) in H.
+destruct H.
+split; omega.
+rewrite Nat2Z.id.
+clear H; revert al H0; induction (Z.to_nat i); destruct al; simpl; intros;
+ try omega.
+apply I.
+apply IHn. omega.
+Qed.
+
+Ltac apply_ZnthV_isSome := 
+ match goal with |- @isSome _ (ZnthV ?t ?f ?i) =>
+  change (@isSome (reptype t) (ZnthV t f i));
+   apply ZnthV_isSome; simpl
+ end.
 
 Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
   match n with
@@ -230,9 +262,6 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  
 Definition typed_mapsto_ (sh: Share.t) (ty: type) : val -> mpred :=
         typed_mapsto_' sh 0 ty.
 
-Definition array_at_ t sh lo hi :=
- arrayof_' (typed_mapsto_ sh t) t (sizeof t * lo) (Z.to_nat (hi-lo)).
-
 Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) (pos: Z) (v: val) :
                      (reptype t -> mpred) -> reptype t -> mpred :=
 match t as t0 return ((reptype t0 -> mpred) -> reptype t0 -> mpred) with
@@ -255,9 +284,13 @@ end.
 Definition at_offset2 {T} (f: val -> T -> mpred) pos (v2: T) := 
            at_offset (fun v => f v v2) pos.
 
-Definition array_at' (t: type) (sh: Share.t) (tmaps: val -> reptype t -> mpred) (f: Z -> reptype t) (lo hi: Z)
+Definition array_at' (t: type) (sh: Share.t) (tmaps: val -> reptype t -> mpred)
+                 (f: Z -> option (reptype t)) (lo hi: Z)
                                    (v: val) : mpred :=
-           rangespec lo hi (fun i => tmaps (add_ptr_int t v i) (f i)).
+           rangespec lo hi (fun i => 
+            match f i with Some v' => tmaps (add_ptr_int t v i) v'
+                                 | None => typed_mapsto_ sh t (add_ptr_int t v i)
+            end).
 
 Fixpoint typed_mapsto' (sh: Share.t) (t1: type) (pos: Z) : val -> reptype t1 -> mpred :=
 match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
@@ -425,9 +458,63 @@ Lemma distribute_lifted_sepcon:
   (@sepcon (A -> mpred) _ _ F G v) = @sepcon mpred _ _ (F v) (G v).
 Proof. reflexivity. Qed.
 
-Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
-                                   (v: val) :=
-           rangespec lo hi (fun i => typed_mapsto sh t (add_ptr_int t v i) (f i)).
+Definition array_at (t: type) (sh: Share.t) (f: Z -> option (reptype t)) (lo hi: Z)
+                                   (v: val) : mpred :=
+           rangespec lo hi (fun i => 
+            match f i with Some v' => typed_mapsto sh t (add_ptr_int t v i) v'
+                                 | None => typed_mapsto_ sh t (add_ptr_int t v i)
+            end).
+
+Definition array_at_ t sh lo hi := array_at t sh (fun _ => None) lo hi.
+
+
+Lemma typed_mapsto__isptr:
+  forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
+Proof.
+intros.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold typed_mapsto_.
+Admitted. (* straightforward *)
+
+Lemma mul_repr:
+ forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
+Proof.
+intros. unfold Int.mul.
+apply Int.eqm_samerepr.
+repeat rewrite Int.unsigned_repr_eq.
+apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
+apply Int.eqmod_mod; compute; congruence.
+Qed.
+
+Lemma array_at_arrayof': forall t sh lo hi , array_at_ t sh lo hi = 
+ arrayof_' (typed_mapsto_ sh t) t (sizeof t * lo) (Z.to_nat (hi-lo)).
+Proof.
+unfold array_at_, array_at, rangespec; simpl; intros.
+extensionality v.
+change nat_of_Z with Z.to_nat.
+forget (Z.to_nat (hi-lo)) as n. clear hi.
+revert lo; induction n; simpl; intros; auto.
+f_equal.
+unfold add_ptr_int; destruct v; simpl; auto.
+rewrite <- mul_repr; auto.
+replace (sizeof t * lo + sizeof t)%Z with (sizeof t * (Z.succ lo))%Z.
+apply IHn.
+unfold Z.succ.
+rewrite Z.mul_add_distr_l.
+   f_equal. apply Z.mul_1_r.
+Qed.
+
+Lemma arrayof_array_at: forall f t sh n,
+ f = (typed_mapsto_ sh t) ->
+  arrayof_ f t n = array_at_ t sh 0 (Z.of_nat n).
+Proof.
+ intros. subst. unfold arrayof_. rewrite array_at_arrayof'.
+rewrite Z.mul_0_r. f_equal.
+ rewrite Z.sub_0_r.
+ rewrite Nat2Z.id.
+ auto.
+Qed.
 
 Ltac simpl_typed_mapsto' T H MA :=
    try unfold T in H;
@@ -449,6 +536,8 @@ Ltac simpl_typed_mapsto' T H MA :=
     end;
     fold tuint in H; fold tint in H;
     try fold T in H;
+   repeat erewrite arrayof_array_at in H by reflexivity;
+   repeat rewrite positive_nat_Z in H;
    repeat rewrite sepcon_emp in H || rewrite emp_sepcon in H;
    subst MA;
    repeat rewrite distribute_lifted_sepcon;
@@ -459,50 +548,6 @@ Ltac simpl_typed_mapsto' T H MA :=
               change (array_at' t sh (typed_mapsto sh t')) with (array_at t sh)
       end;
    repeat flatten_sepcon_in_SEP.
-
-(* OLD
-Ltac simpl_typed_mapsto' T H MA :=
-       try unfold T in H;
-       unfold  typed_mapsto_, typed_mapsto_', typed_mapsto, typed_mapsto', 
-        structfieldsof, eq_rect_r, withspacer, at_offset, align, Zmax in H;
-     change (@sepcon (val->mpred) _ _) with opaque_sepcon in H;
-        simpl in H;
-     change opaque_sepcon with (@sepcon (val->mpred) _ _) in H;
-  repeat
-  match type of H with context [(fun (v1 : val) (v4 : int) =>
-                                     mapsto ?sh (Tint ?ch ?s noattr) v1 (Vint v4))] =>
-       change (fun (v1 : val) (v4 : int) => mapsto sh (Tint ch s noattr) v1 (Vint v4))
-          with (typed_mapsto sh (Tint ch s noattr)) in H
-    end;
-  fold tuint in H; fold tint in H;
-     change (fun (_: val) => @emp mpred _ _) with (@emp (val->mpred) _ _) in H;
-        try fold T in H;
-       repeat (rewrite sepcon_emp in H || rewrite emp_sepcon in H);
-       repeat match type of H with context [@liftx (Tarrow val (LiftEnviron mpred))(fun v: val => @sepcon mpred _ _ 
-                                   (?A1 ?B1 ?C1 ?D1 v)  (?A2 ?B2 ?C2 ?D2 v)) ?V] =>
-          change (@liftx (Tarrow val (LiftEnviron mpred)) (fun v: val => @sepcon mpred _ _ 
-                                   (A1 B1 C1 D1 v)  (A2 B2 C2 D2 v)) V)
-         with (@liftx (Tarrow val (LiftEnviron mpred)) (A1 B1 C1 D1) V *
-                @liftx (Tarrow val (LiftEnviron mpred)) (A2 B2 C2 D2) V) in H
-       end;
-       repeat change (@sepcon (val -> mpred) _ _) with
-            (fun P Q (v: val) => @sepcon mpred _ _ (P v) (Q v)) in H;
-       subst MA;
-      repeat match goal with 
- | |- appcontext [array_at' ?t ?sh (typed_mapsto ?sh ?t)] =>
-              change (array_at' t sh (typed_mapsto sh t)) with (array_at t sh)
-        | |- context [@liftx (Tarrow val (LiftEnviron mpred))(fun v: val => @sepcon mpred _ _ 
-                                   (?A1 ?B1 ?C1 ?D1 v)  (?A2 ?B2 ?C2 ?D2 v)) ?V] =>
-          change (@liftx (Tarrow val (LiftEnviron mpred)) (fun v: val => @sepcon mpred _ _ 
-                                   (A1 B1 C1 D1 v)  (A2 B2 C2 D2 v)) V)
-              with (@liftx (Tarrow val (LiftEnviron mpred)) (A1 B1 C1 D1) V *
-                      @liftx (Tarrow val (LiftEnviron mpred)) (A2 B2 C2 D2) V)
-        | |- context [@liftx (LiftEnviron mpred)(@sepcon mpred _ _ ?A1 ?A2)] =>
-          change (@liftx (LiftEnviron mpred) (@sepcon mpred _ _ A1 A2))
-              with (@liftx (LiftEnviron mpred) A1 * @liftx (LiftEnviron mpred) A2)
-       end;
-       repeat flatten_sepcon_in_SEP.
-*)
 
 Ltac simpl_typed_mapsto1 :=
     let H := fresh "H" in let MA := fresh "MA" in
@@ -524,7 +569,12 @@ Ltac simpl_typed_mapsto := repeat simpl_typed_mapsto1.
 (*
 Require Import progs.sha.
 
+Goal typed_mapsto_ Tsh t_struct_SHA256state_st = TT.
+simpl_typed_mapsto.
+Abort.
+
 Goal typed_mapsto Tsh t_struct_SHA256state_st = fun _ _ => TT.
+extensionality v w.
 simpl_typed_mapsto.
 Abort.
 *)
@@ -848,14 +898,6 @@ Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
                          Let's hope it goes faster in 8.4 *)
 
 
-Lemma typed_mapsto__isptr:
-  forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
-Proof.
-intros.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold typed_mapsto_.
-Admitted. (* straightforward *)
 
 Lemma memory_block_typed: 
  forall sh ty, memory_block sh (Int.repr (sizeof ty))
@@ -909,6 +951,7 @@ Proof.
  simpl.
  eapply derives_trans with (typed_mapsto_ sh t (add_ptr_int t v lo) * TT).
  apply sepcon_derives; auto.
+ destruct (f lo); auto.
  rewrite typed_mapsto__isptr.
  normalize. apply prop_right.
  destruct v; inv H1. apply I.
@@ -923,14 +966,7 @@ Lemma array_at__local_facts:
     array_at_ t sh lo hi v |-- !! isptr v.
 Proof.
  intros.
- unfold array_at_.
- destruct (Z.to_nat (hi-lo)) eqn:?H.
- elimtype False.
- admit.  (* easy, see above *)
- simpl.
- rewrite typed_mapsto__isptr.
- normalize. apply prop_right.
- destruct v; inv H1. apply I.
+ apply array_at_local_facts; auto.
 Qed.
 
 Hint Extern 2 (@derives _ _ _ _) => 

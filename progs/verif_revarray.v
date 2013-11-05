@@ -13,8 +13,8 @@ Definition reverse_spec :=
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
-          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
-  POST [ tvoid ]  `(array_at tint sh (flip size contents) 0 size a0).
+          SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))
+  POST [ tvoid ]  `(array_at tint sh (cSome (flip size contents)) 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -40,7 +40,7 @@ Definition reverse_Inv a0 sh contents size :=
    LOCAL  (`(eq a0) (eval_id _a);
                 `(eq (Vint (Int.repr j))) (eval_id _lo);
                 `(eq (Vint (Int.repr (size-j)))) (eval_id _hi))
-   SEP (`(array_at tint sh (flip_between size j (size-j) contents) 0 size a0))).
+   SEP (`(array_at tint sh (cSome (flip_between size j (size-j) contents)) 0 size a0))).
 
 
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
@@ -57,7 +57,7 @@ forward.  (* hi = n; *)
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  (isptr a0)
    LOCAL  (`(eq a0) (eval_id _a))
-   SEP (`(array_at tint sh (flip size contents) 0 size a0))).
+   SEP (`(array_at tint sh (cSome (flip size contents)) 0 size a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with 0.
@@ -68,6 +68,7 @@ apply equal_f.
 apply array_at_ext.
 intros.
 unfold flip_between.
+unfold cSome. f_equal.
 rewrite if_false by omega.
 rewrite if_true by omega.
 auto.
@@ -83,6 +84,7 @@ apply derives_refl'.
 apply equal_f.
 apply array_at_ext.
 intros. unfold flip_between, flip.
+unfold cSome; f_equal.
 if_tac; auto.
 if_tac; auto.
 f_equal.
@@ -133,7 +135,7 @@ forward. (* hi--; *)
 unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
- simpl in H6. rewrite Int.sub_signed in H6. normalize in H6.
+ simpl in H7. rewrite Int.sub_signed in H7. normalize in H7.
  simpl_compare.
  apply andp_right.
  apply prop_right.
@@ -143,7 +145,7 @@ entailer.
  apply derives_refl'.
  apply equal_f.
  apply array_at_ext; intros.
- unfold upd. if_tac. subst.
+ unfold upd, cSome. if_tac. subst.
  rewrite Int.sub_signed.
  rewrite (Int.signed_repr 1) by repable_signed.
  rewrite (Int.signed_repr (size-i)) by repable_signed.
@@ -152,11 +154,11 @@ entailer.
  rewrite if_false by omega.
  rewrite if_true by omega.
  rewrite if_true by omega.
- f_equal; omega.
+ f_equal; f_equal; omega.
  if_tac.
  unfold flip_between. rewrite if_false by omega.
  if_tac; try omega. if_tac; try omega. if_tac; try omega.
- f_equal; omega.
+ f_equal; f_equal; omega.
  unfold flip_between.
  if_tac; try omega. if_tac; try omega. auto.
  if_tac; try omega. if_tac; try omega.  if_tac; try omega. auto.
@@ -170,7 +172,7 @@ Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 Lemma  setup_globals:
   forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
      main_pre prog u rho
-      |-- array_at tint Ews four_contents 0 4
+      |-- array_at tint Ews (cSome four_contents) 0 4
                 (eval_var _four (tarray tint 4) rho).
 Proof.
  unfold main_pre.

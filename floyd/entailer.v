@@ -179,11 +179,14 @@ Ltac entailer :=
  end;
  entailer'.
 
+Ltac prop_right_solve := 
+apply prop_right; repeat simple apply conj; 
+  (computable || auto). 
+ 
 Tactic Notation "entailer" "!" := 
   entailer; 
-    first [simple apply andp_right; 
-               [apply prop_right; repeat simple apply conj; (computable||auto) | cancel ]
-           | apply prop_right; repeat simple apply conj; (computable||auto)
+    first [simple apply andp_right; [prop_right_solve | cancel ]
+           | prop_right_solve
            | cancel
            | idtac ].
 

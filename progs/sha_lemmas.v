@@ -24,7 +24,48 @@ intros.
 repeat f_equal; intros; apply H; omega.
 Qed.
 
+Definition force_option {A} (x:A) (i: option A) := 
+  match i with Some y => y | None => x end.
+
 Lemma nth_big_endian_int:
+ forall i b, 
+   i < length b ->
+ nth_error (map swap b) i =
+Some
+  (big_endian_integer
+     (fun z : Z =>
+      force_option Int.zero
+        (nth_error (map Int.repr (intlist_to_Zlist b))
+           (Z.to_nat (z + Z.of_nat i * 4))))).
+Proof.
+induction i; destruct b; intros.
+inv H.
+simpl. apply f_equal_Some.
+unfold big_endian_integer; simpl.
+repeat rewrite Int.repr_unsigned.
+reflexivity.
+inv H.
+simpl in H.
+simpl nth_error at 1.
+rewrite IHi by omega. 
+f_equal.
+apply big_endian_integer_ext; intros.
+f_equal.
+rewrite inj_S.
+replace (Z.to_nat (z + Z.succ (Z.of_nat i) * 4))
+ with (S (S (S (S(Z.to_nat (z + Z.of_nat i * 4))))));
+  [reflexivity | ].
+unfold Z.succ.
+rewrite Z.mul_add_distr_r.
+rewrite <- (Zplus_comm (1*4)%Z).
+replace  (z + (1 * 4 + Z.of_nat i * 4))%Z
+  with  (4 + (z + Z.of_nat i * 4))%Z by omega.
+symmetry.
+rewrite Z2Nat.inj_add  by omega.
+reflexivity.
+Qed.
+
+Lemma nth_big_endian_int':
  forall i b, 
    i <= length b ->
   big_endian_integer

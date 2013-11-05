@@ -854,6 +854,11 @@ Opaque numbd.
 Hint Rewrite numbd_rewrite1 : norm.
 Hint Resolve numbd_derives : cancel.
 
+Lemma numbd_lift0:
+  forall n f,
+   numbd n (@liftx (LiftEnviron mpred) f) = 
+   (@liftx (LiftEnviron mpred)) (numbd n f).
+Proof. reflexivity. Qed.
 Lemma numbd_lift1:
   forall A n f v,
    numbd n ((@liftx (Tarrow A (LiftEnviron mpred)) f) v) = 
@@ -909,10 +914,35 @@ forall A P (x: environ -> A), P |-- local (`eq x x).
 Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
 Qed.
 
+
+
 Ltac new_store_tac := 
 ensure_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
+| |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
+     (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let contents := fresh "contents" in evar (contents: Z -> option (reptype t));
+  let lo := fresh "lo" in evar (lo: Z);
+  let hi := fresh "hi" in evar (hi: Z);
+  let H := fresh in 
+  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (array_at t sh contents lo hi)) (eval_expr e1)) * TT);
+  [unfold number_list, n, sh, contents, lo, hi; 
+   repeat rewrite numbd_lift0; repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   solve [entailer; cancel]
+ | clear H ];
+  eapply(@semax_store_array Esp Delta n sh t contents lo hi);
+  unfold number_list, n, sh, contents, lo, hi;
+  clear n sh contents lo hi;
+  [solve [auto] | reflexivity | reflexivity (* | hnf; intuition  *)
+  | reflexivity
+  | autorewrite with norm; try reflexivity;
+    fail 4 "Cannot prove 6th premise of semax_store_array"
+  | ]
+(*
 | |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
      (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
   let n := fresh "n" in evar (n: nat); 
@@ -936,6 +966,7 @@ match goal with
   | autorewrite with norm; try reflexivity;
     fail 4 "Cannot prove 6th premise of semax_store_array"
   | ]
+*)
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);

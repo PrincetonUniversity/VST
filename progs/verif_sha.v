@@ -4,19 +4,15 @@ Require Import progs.SHA256.
 Require Import progs.sha_lemmas.
 Local Open Scope logic.
 
-(*Set Printing Depth 10. *)
-
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
   WITH p: val, sh: share, contents: Z -> int
   PRE [ 1%positive OF tptr tuint ] 
         PROP() LOCAL (`(eq p) (eval_id 1%positive))
-        SEP (`(array_at tuchar sh contents 0 4 p))
+        SEP (`(array_at tuchar sh (cSome contents) 0 4 p))
   POST [ tuint ] 
      local (`(eq (Vint (big_endian_integer contents))) retval) &&
-     `(array_at tuchar sh contents 0 4 p).
-
-(*        SEP (`(rangespec 0 4 (fun i => mapsto_ sh tuchar (add_ptr_int tuchar p i)))) *)
+     `(array_at tuchar sh (cSome contents) 0 4 p).
 
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
@@ -27,7 +23,7 @@ Definition __builtin_write32_reversed_spec :=
                      `(eq (Vint(big_endian_integer contents))) (eval_id 2%positive))
         SEP (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
-     `(array_at tuchar sh contents 0 4 p).
+     `(array_at tuchar sh (cSome contents) 0 4 p).
 
 Definition memcpy_spec :=
   DECLARE _memcpy
@@ -36,12 +32,12 @@ Definition memcpy_spec :=
        PROP (writable_share (snd sh))
        LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
                     `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))
-       SEP (`(array_at tuchar (fst sh) contents 0 n q);
+       SEP (`(array_at tuchar (fst sh) (cSome contents) 0 n q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at tuchar (fst sh) contents 0 n q) *
-        `(array_at tuchar (snd sh) contents 0 n p)).
+       (`(array_at tuchar (fst sh) (cSome contents) 0 n q) *
+        `(array_at tuchar (snd sh) (cSome contents) 0 n p)).
 
 Definition memset_spec :=
   DECLARE _memset
@@ -53,7 +49,7 @@ Definition memset_spec :=
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at tuchar sh (fun _ => c) 0 n p)).
+       (`(array_at tuchar sh (fun _ => Some c) 0 n p)).
 
 Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
  intros.
@@ -69,6 +65,12 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
 
 Definition data_block (contents: list Z) (v: val) :=
   array_at tuchar Tsh (ZnthV tuchar (map Int.repr contents)) 0 (Zlength contents) v.
+
+Lemma datablock_local_facts:
+ forall f data,
+  data_block f data |-- !! (isptr data).
+Admitted.
+Hint Resolve datablock_local_facts : saturate_local.
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
@@ -101,20 +103,6 @@ Definition SHA256_Init_spec :=
          SEP(`(typed_mapsto_ Tsh t_struct_SHA256state_st c))
   POST [ tvoid ] 
          SEP(`(sha256state_ init_s256abs c)).
-
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6)
-           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => P%logic end)
-           (fun x => match x with (((((x1,x2),x3),x4),x5,x6)) => Q%logic end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
-              x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
-
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6)
-           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => P%logic end)
-           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => Q%logic end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
-             x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
 
 Inductive update_abs: forall (msg: list Z) (a a': s256abs), Prop :=
 | UA_short: forall msg hashed data
@@ -243,7 +231,8 @@ Lemma read32_reversed_in_bytearray:
  (GS: (glob_types Delta) ! ___builtin_read32_reversed =
     Some (Global_func (snd __builtin_read32_reversed_spec)))
  (TE: typeof e = tptr tuint)
- (CLOQ: Forall (closed_wrt_vars (eq i)) Q),
+ (CLOQ: Forall (closed_wrt_vars (eq i)) Q)
+ (Hcontents: forall i, (lo <= i < hi)%Z -> isSome (contents i)),
  PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
          LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
          SEP  (TT) ->
@@ -254,7 +243,7 @@ Lemma read32_reversed_in_bytearray:
            [e])
         (normal_ret_assert
          (PROP () 
-         (LOCALx (`(eq (Vint (big_endian_integer (fun z => contents (z+Int.unsigned ofs)%Z)))) (eval_id i)
+         (LOCALx (`(eq (Vint (big_endian_integer (fun z => force_option Int.zero (contents (z+Int.unsigned ofs)%Z))))) (eval_id i)
                         :: Q)                 
          SEP (`(array_at tuchar sh contents lo hi base))))).
 Proof.
@@ -302,7 +291,7 @@ apply GS.
 Unfocus.
 instantiate (3:=nil).
 apply andp_left2.
-instantiate (2:=(offset_val ofs base, sh, fun z => contents (z + Int.unsigned ofs)%Z)).
+instantiate (2:=(offset_val ofs base, sh, fun z => force_option Int.zero (contents (z + Int.unsigned ofs)%Z))).
 cbv beta iota.
 instantiate (1:=nil).
 unfold split; simpl @snd.
@@ -319,10 +308,12 @@ pattern ofs at 4;
  replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
  by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
 rewrite <- offset_val_array_at.
-apply derives_refl'; f_equal.
-extensionality j. f_equal.
-omega.
-omega.
+apply derives_refl'.
+apply equal_f. rewrite Z.add_0_r. apply array_at_ext.
+intros. unfold cSome. rewrite Z.sub_add.
+clear - H5 H0 Hcontents.
+specialize (Hcontents i0);
+ destruct (contents i0); [ | elimtype False; apply Hcontents; omega]. reflexivity.
 2: auto with closed.
 intros; apply andp_left2.
 apply normal_ret_assert_derives'.
@@ -333,20 +324,16 @@ pattern ofs at 2;
  replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
  by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
 rewrite <- offset_val_array_at.
-f_equal.
-extensionality j. f_equal.
-omega.
-omega.
+apply equal_f. rewrite Z.add_0_r. 
+apply array_at_ext; intros.
+unfold cSome. rewrite Z.sub_add.
+clear - H3 H0 Hcontents.
+specialize (Hcontents i0); destruct (contents i0);
+  [reflexivity | contradiction Hcontents; omega].
 Qed.
 
 
 (* Arguments Int.unsigned n : simpl never.   remove this once recompiled forward.v *)
-
-Lemma numbd_lift0:
-  forall n f,
-   numbd n (@liftx (LiftEnviron mpred) f) = 
-   (@liftx (LiftEnviron mpred)) (numbd n f).
-Proof. reflexivity. Qed.
 
 Definition rearrange_regs :=
 (Ssequence
@@ -443,6 +430,7 @@ Definition rearrange_regs :=
                                 (Ebinop Oadd (Etempvar _T1 tuint)
                                    (Etempvar _T2 tuint) tuint))))))))))).
 
+
 Lemma rearrange_regs_proof:
  forall (Espec: OracleKind) i (data: val) b regs
  (Hdata: isptr data)
@@ -454,7 +442,9 @@ Lemma rearrange_regs_proof:
    (`(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
    `(eq (Vint (big_endian_integer
              (fun z : Z =>
-              ZnthV tuchar (map Int.repr (intlist_to_Zlist b)) (z + Z.of_nat i * 4)))))
+              force_option Int.zero
+                (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))
+                   (z + Z.of_nat i * 4))))))
        (eval_id _l);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
    `(eq (map Vint (rnd_64 regs K (firstn i b))))
@@ -481,39 +471,15 @@ Lemma rearrange_regs_proof:
         SEP())).
 Admitted.
 
-Ltac store_partial_array_tac :=
-match goal with
-| |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
-     (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
-  let n := fresh "n" in evar (n: nat); 
-  let sh := fresh "sh" in evar (sh: share);
-  let contents := fresh "contents" in evar (contents: Z -> reptype t);
-  let lo := fresh "lo" in evar (lo: Z);
-  let mid := fresh "mid" in evar (mid: Z);
-  let hi := fresh "hi" in evar (hi: Z);
-  let H := fresh in 
-  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (array_at_partial t sh contents lo mid hi)) (eval_lvalue e1) * TT));
-  [unfold number_list, n, sh, contents, lo, mid, hi; 
-  repeat rewrite @numbd_lift0; 
-  repeat rewrite @numbd_lift1; repeat rewrite @numbd_lift2;
-  solve [go_lower; repeat apply andp_left2; cancel ]
- | clear H ];
- eapply(@semax_store_initialize_array _ Delta n sh tuint contents lo mid hi (eval_lvalue e1));
- unfold number_list, n, sh, contents, lo, mid, hi;
-  clear n sh contents lo hi mid;
-  [solve [auto] | reflexivity  | reflexivity 
-  | reflexivity
-  | reflexivity;
-    fail 4 "Cannot prove 5th premise of semax_store_initialize_array"
-  |    ]
-end.
+Definition f_upto {A} (f: Z -> option A) (bound: Z) (i: Z) : option A :=
+ if zlt i bound then f i else None.
 
-Lemma array_at_partial_ext: forall t sh (f f': Z -> reptype t) lo mid hi,
-  (forall i, (lo <= i < mid)%Z -> f i = f' i) ->
- array_at_partial t sh f lo mid hi = array_at_partial t sh f' lo mid hi.
-Proof. intros. extensionality v; unfold array_at_partial; f_equal.
-  rewrite (array_at_ext _ _ _ _ _ _ H); auto.
+Lemma array_at_f_upto_lo:
+  forall t sh contents lo hi, 
+  array_at t sh (f_upto contents lo) lo hi = array_at_ t sh lo hi.
+Proof.
+intros; apply array_at_ext; intros.
+unfold f_upto; if_tac; auto. omega.
 Qed.
 
 Lemma sha256_block_data_order_loop1_proof:
@@ -531,7 +497,7 @@ Lemma sha256_block_data_order_loop1_proof:
 ))))
    SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
-           `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16));
+           `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
            `(data_block (intlist_to_Zlist b) data)))
   block_data_order_loop1
   (normal_ret_assert
@@ -581,18 +547,19 @@ Definition loop1_inv (rg0: list int) (b: list int) (data: val) (delta: Z) (i: na
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
      SEP (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
-    `(array_at_partial tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
+    `(array_at tuint Tsh (f_upto (ZnthV tuint (map swap b)) (Z.of_nat i) ) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
    `(data_block (intlist_to_Zlist b) data)).
 
 apply semax_pre with (EX i:nat, loop1_inv regs b data 0 i).
-unfold loop1_inv, array_at_partial.
+unfold loop1_inv.
 apply exp_right with 0.
 (* 345,184   326,392*)
+rewrite array_at_f_upto_lo.
 abstract (solve [entailer!; omega]).
 (* 419,452   431,980 *)
 
 apply semax_post' with (loop1_inv regs b data 0 LBLOCK).
-unfold loop1_inv, array_at_partial.
+unfold loop1_inv.
 (* 419,452  431,980 *)
 abstract 
 solve [entailer! ;
@@ -629,7 +596,7 @@ PROP  (i < 16)
    SEP 
    (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
-   `(array_at_partial tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
+   `(array_at tuint Tsh (f_upto (ZnthV tuint (map swap b)) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
    `(data_block (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
 abstract solve [entailer].
@@ -672,7 +639,7 @@ eapply semax_frame_seq
                     (`cons (eval_id _g) (`cons (eval_id _h) `[]))))))))])
          (Frame := [`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64)),
-   `(array_at_partial tuint Tsh (ZnthV tuint (map swap b)) 0 (Z.of_nat i) (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16))]); 
+   `(array_at tuint Tsh (f_upto (ZnthV tuint (map swap b)) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ Tsh 
                      (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))))
    | | | ].
@@ -681,6 +648,11 @@ reflexivity.
 reflexivity.
 auto 50 with closed.
 (* 945,760 834,556 *)
+intros.
+apply ZnthV_isSome.
+rewrite Zlength_correct. rewrite map_length.
+rewrite Zlength_correct in H1.
+apply H1.
 abstract solve [entailer!; repeat split; auto; try omega; 
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist; rewrite H;
  replace (Z.of_nat (4 * LBLOCK) - 4)%Z
@@ -706,38 +678,39 @@ abstract solve [entailer!].
 normalize.
 (* 1,291,784 894,136 *)
 simpl typeof.
+forward.
+entailer; apply prop_right; repeat split; try omega; eapply eval_var_isptr; eauto.
 
-Ltac ttt' := 
-  ensure_normal_ret_assert;
-  hoist_later_in_pre; 
-  store_partial_array_tac.
-Ltac ttt s := lazymatch s with _ => ttt' end.
-forward_with ttt.
-(* 1,433,728 1,066,896 *)
-solve [entailer; apply prop_right; repeat split; try omega; eapply eval_var_isptr; eauto].
-unfold replace_nth; abbreviate_semax.
-(* 1,503,420 1,083,564 *)
-rewrite <- (array_at_partial_ext tuint Tsh (ZnthV tuint (map swap b))
-     (upd (ZnthV tuint (map swap b)) (Z.of_nat i)
-              (big_endian_integer
+rewrite <- (array_at_ext tuint Tsh 
+    (f_upto (ZnthV tuint (map swap b)) (Z.of_nat (S i)))
+     (upd (f_upto (ZnthV tuint (map swap b)) (Z.of_nat i)) (Z.of_nat i)
+             (Some (big_endian_integer
                  (fun z : Z =>
-                  ZnthV tuchar (map Int.repr (intlist_to_Zlist b))
-                    (z + Z.of_nat i * 4))))).
+                  force_option Int.zero (ZnthV tuchar (map Int.repr (intlist_to_Zlist b))
+                    (z + Z.of_nat i * 4))))))).
+
 Focus 2.
 intros.
 unfold upd.
 if_tac; try auto.
-subst i0.
-unfold ZnthV.
+2: unfold f_upto; rewrite inj_S; if_tac; if_tac; auto; omega.
+unfold f_upto.
+rewrite if_true by (rewrite inj_S; omega).
+unfold ZnthV. subst i0.
 rewrite Nat2Z.id.
-symmetry; apply nth_big_endian_int; omega.
+rewrite <- nth_big_endian_int by omega; reflexivity.
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
+assert (isSome (ZnthV tuint K (Z.of_nat i))).
+apply ZnthV_isSome.  
+split; try omega. apply Z.lt_trans with 16%Z. omega. compute; auto.
+clear H1.
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
-abstract solve [entailer!; 
-  [omega | change (Zlength K) with 64%Z; omega 
-  | eapply eval_var_isptr; eauto]].
+abstract (
+assert (Zlength K = 64%Z) by reflexivity;
+entailer!; try apply_ZnthV_isSome; try omega;
+ eapply eval_var_isptr; eauto).
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
@@ -749,10 +722,14 @@ match goal with
 end.
 apply andp_derives; auto.
 apply andp_derives; auto.
-replace (Z.succ (Z.of_nat i)) with (Z.of_nat i + 1)%Z by omega.
+unfold Z.succ. rewrite inj_S.
 go_lower0; cancel.
 auto 50 with closed.
 (* 1,811,028 1,429,048 *)
+change (match b with
+                | [] => []
+                | a :: l => a :: firstn i l
+                end) with (firstn (S i) b).
 eapply semax_pre; [ | apply rearrange_regs_proof; auto ].
 entailer!.
 destruct data; inv Hdata; simpl; f_equal.
@@ -764,13 +741,7 @@ rewrite <- add_repr.
 f_equal.
 Qed.
 
-Lemma datablock_local_facts:
- forall f data,
-  data_block f data |-- !! (isptr data).
-Admitted.
-Hint Resolve datablock_local_facts : saturate_local.
-
-Lemma local_and_retval:
+Lemma local_and_retval: (* do we need this? *)
  forall (i: ident) (P: val -> Prop) (R: mpred),
     `(local (`P retval) && `R) (get_result1 i) = local (`P (eval_id i)) && `R.
 Proof.
@@ -795,7 +766,7 @@ Lemma sha256_block_data_order_loop2_proof:
 ))))
    SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
-           `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))
+           `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
@@ -805,7 +776,7 @@ Lemma sha256_block_data_order_loop2_proof:
 ))))
      SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
                    (eval_expr (Evar _K256 (tarray tuint 64)));
-           `(arrayof_ (mapsto_ Tsh tuint) tuint 16) (eval_var _X (tarray tuint 16))))).
+           `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
 Admitted.
 
 Lemma semax_seq_congr:  (* not provable *)
@@ -880,7 +851,8 @@ name data_ _data.
 abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
-do 8 (forward; [abstract (entailer!; omega) | ]).
+
+do 8 (forward; [ (entailer!; try apply_ZnthV_isSome; omega) | ]).
 forward.  (* skip; *)
 entailer.
 do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
@@ -945,6 +917,7 @@ Lemma add_them_back_proof:
             0 (Zlength (process_msg init_registers hashed)) ctx)))).
 Admitted.
 
+(*
 Lemma array_at_arrayof_:
   forall t sh f N N' v,
  N' = Z.of_nat N ->
@@ -952,15 +925,114 @@ Lemma array_at_arrayof_:
 Proof.
 intros.
 Admitted.
+*)
 
+(*
 Hint Extern 1 (array_at _ _ _ _ _ _ |-- arrayof_ _ _ _ _) =>
   (apply array_at_arrayof_; reflexivity) : cancel.
+*)
+
+Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at_ _ _ _ _ _) =>
+  (apply array_at__array_at; clear; simpl; congruence) : cancel.
+(* move the Hint to malloc_lemmas.v, 
+  and change the name of array_at__array_at to array_at_array_at_
+*)
 
 Lemma elim_globals_only:
   forall Delta g i t rho,
   tc_environ Delta rho /\ (glob_types Delta) ! i = Some g ->
   eval_var i t (globals_only rho) = eval_var i t rho.
 Admitted.
+
+
+Lemma sha256_block_data_order_return:
+forall (Espec : OracleKind) (hashed : list int) (delta : nat)
+  (data0 : list Z) (b : list int) (ctx data : val) (r_h : list int)
+  (r_Nl r_Nh : int) (r_data : list int) (r_num : int) (n : nat),
+length b = LBLOCK ->
+r_h = process_msg init_registers hashed ->
+length (intlist_to_Zlist hashed) =
+delta + Z.to_nat (Int.unsigned r_Nh * Int.modulus + Int.unsigned r_Nl) ->
+data0 = map Int.unsigned (firstn (Z.to_nat (Int.unsigned r_num)) r_data) ->
+length data0 < CBLOCK ->
+length hashed = (16 * n)%nat ->
+length r_data = CBLOCK ->
+length r_h = 8 ->
+isptr data ->
+semax (initialized _t Delta_loop1)
+  (PROP  ()
+   LOCAL ()
+   SEP 
+   (`(array_at tuint Tsh
+        (ZnthV tuint
+           (map2 Int.add (process_msg init_registers hashed)
+              (rnd_64 r_h K (rev (generate_word (rev b) 48))))) 0
+        (Zlength (process_msg init_registers hashed)) ctx);
+   `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
+     (eval_var _K256 (tarray tuint 64));
+   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
+   `(data_block (intlist_to_Zlist b) data);
+   `(field_mapsto Tsh t_struct_SHA256state_st _Nl ctx (Vint r_Nl));
+   `(field_mapsto Tsh t_struct_SHA256state_st _Nh ctx (Vint r_Nh));
+   `(array_at tuchar Tsh (ZnthV tuchar r_data) 0 (Zlength r_data)
+       (offset_val (Int.repr 40) ctx));
+   `(field_mapsto Tsh t_struct_SHA256state_st _num ctx (Vint r_num))))
+  (Sreturn None)
+  (frame_ret_assert
+     (function_body_ret_assert tvoid
+        (`(sha256state_ (process_block_abs b (S256abs hashed delta data0))
+             ctx) * `(data_block (intlist_to_Zlist b) data) *
+         `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
+           (eval_var _K256 (tarray tuint 64))))
+     (stackframe_of f_sha256_block_data_order)).
+Proof.
+intros.
+forward. (* return; *)
+unfold frame_ret_assert; simpl.
+unfold sha256state_.
+set (regs := map2 Int.add (process_msg init_registers hashed)
+        (rnd_64 (process_msg init_registers hashed) K
+           (rev (generate_word (rev b) 48)))).
+repeat rewrite exp_sepcon1.
+apply exp_right with (regs, (r_Nl, (r_Nh, (r_data, r_num)))).
+simpl_typed_mapsto.
+unfold s256_relate, s256_h, s256_Nh, s256_Nl, s256_data, s256_num.
+unfold fst,snd.
+entailer!.
+* 
+apply process_msg_block; eauto.
+* 
+rewrite length_intlist_to_Zlist.
+rewrite app_length.
+rewrite H.
+rewrite length_intlist_to_Zlist in *.
+change CBLOCK with 64%nat.
+change LBLOCK with 16%nat.
+rewrite mult_plus_distr_l.
+change (4*16)%nat with 64%nat.
+omega.
+*
+exists (S n). rewrite app_length. rewrite H4, H.
+change LBLOCK with 16%nat.
+transitivity (16 * n + 16 * 1)%nat; [reflexivity | ].
+rewrite <- mult_plus_distr_l.
+rewrite plus_comm. reflexivity.
+*
+assert (Lregs: length regs = 8%nat)
+  by (subst; apply length_map2_add_rnd_64; auto).
+rewrite Zlength_correct; rewrite length_process_msg.
+rewrite (Zlength_correct regs); rewrite Lregs.
+simpl Z.of_nat.
+unfold stackframe_of; simpl.
+rewrite var_block_typed_mapsto_.
+normalize. simpl_typed_mapsto.
+change (Pos.to_nat 16) with 16%nat.
+unfold id.
+erewrite elim_globals_only
+  by (split; [eassumption | reflexivity]).
+apply andp_right; [ | cancel].
+apply prop_right; compute; congruence.
+Qed.
 
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
@@ -1010,11 +1082,9 @@ entailer!.
 auto 50 with closed.
 abbreviate_semax.
 simpl.
-change (lift1 (arrayof_ (mapsto_ Tsh tuint) tuint (Pos.to_nat 16)))
-  with (`(arrayof_ (mapsto_ Tsh tuint) tuint (Pos.to_nat 16))).
-change (lift1 (array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)))
-    with (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))).
-
+do 2 match goal with |- appcontext [lift1 ?A] => 
+  change (lift1 A) with (`A)
+end.
 forward.  (* i = 0; *)
 
 eapply semax_frame_seq.
@@ -1041,91 +1111,13 @@ entailer. cancel.
 auto 50 with closed.
 simpl; abbreviate_semax.
 
-forward.
-entailer.
-unfold frame_ret_assert; simpl.
-unfold sha256state_.
-normalize.
-remember (map2 Int.add (process_msg init_registers hashed)
-        (rnd_64 (process_msg init_registers hashed) K
-           (rev (generate_word (rev b) 48)))) as regs.
-apply exp_right with (regs, (r_Nl, (r_Nh, (r_data, r_num)))).
-simpl_typed_mapsto. unfold fst,snd.
-autorewrite with norm.
-
-assert (length regs = 8%nat)
-  by (subst; apply length_map2_add_rnd_64; auto).
-rewrite Zlength_correct; rewrite length_process_msg.
-rewrite (Zlength_correct regs); rewrite H1.
-simpl Z.of_nat.
-apply andp_right.
-Focus 2. {
-unfold stackframe_of; simpl.
-rewrite var_block_typed_mapsto_.
-normalize. simpl_typed_mapsto.
-change (Pos.to_nat 16) with 16%nat.
-unfold id.
-erewrite elim_globals_only
-  by (split; [eassumption | reflexivity]).
-cancel.
-} Unfocus.
-apply prop_right.
-repeat split; simpl; auto.
-subst regs.
-apply process_msg_block; auto.
-eauto.
-unfold s256_Nh, s256_Nl; simpl.
-rewrite length_intlist_to_Zlist.
-rewrite app_length.
-rewrite H.
-rewrite length_intlist_to_Zlist in H2.
-change CBLOCK with 64%nat.
-change LBLOCK with 16%nat.
-rewrite mult_plus_distr_l.
-change (4*16)%nat with 64%nat.
-omega.
-exists (S n). rewrite app_length. rewrite H4b; rewrite H.
-change LBLOCK with 16%nat.
-transitivity (16 * n + 16 * 1)%nat; [reflexivity | ].
-rewrite <- mult_plus_distr_l.
-rewrite plus_comm. reflexivity.
-Qed.
-
-
-(*
-
-Ltac unfold_for_go_lower :=
-  cbv delta [PROPx LOCALx SEPx
-                       eval_exprlist eval_expr eval_lvalue cast_expropt 
-                       eval_cast eval_binop eval_unop
-                      tc_expropt tc_expr tc_lvalue 
-                      typecheck_expr typecheck_lvalue
-                      function_body_ret_assert 
-                      make_args' bind_ret get_result1 retval
-                      eval_cast classify_cast
-                      denote_tc_assert
-    liftx LiftEnviron Tarrow Tend lift_S lift_T
-    lift_prod lift_last lifted lift_uncurry_open lift_curry 
-     local lift lift0 lift1 lift2 lift3 
-    LiftNatDed' LiftSepLog' LiftClassicalSep' 
-    LiftNatDed LiftSepLog
-   ] beta iota.
-
-Ltac go_lower0 := 
-intros ?rho;
- try (simple apply grab_tc_environ; intro);
- repeat (progress unfold_for_go_lower;
-      simpl andp; simpl prop; simpl sepcon; simpl emp; simpl orp; cbv beta iota).
-
-
-Ltac ff := 
-match goal with Delta := context [initialized ?i (@pair ?u ?v ?w ?x)] |- _ =>
- let D := fresh "D" in
-  set (D := initialized i (@pair u v w x)) in Delta;
-  cbv delta [initialized] in D; simpl in D;
-  unfold D in *; clear D
+simpl.
+do 2 match goal with |- appcontext [lift1 ?A] => 
+  change (lift1 A) with (`A)
 end.
-*)
+unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
+eapply sha256_block_data_order_return; eauto.
+Qed.
 
 
 

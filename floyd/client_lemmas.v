@@ -1496,6 +1496,20 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'  [ u , .
            (fun x => match x with ((((x1,x2),x3),x4),x5) => Q%logic end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, x5 at level 0, P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (mk_funspec (nil, tz) (t1*t2*t3*t4*t5*t6)
+           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => P%logic end)
+           (fun x => match x with (((((x1,x2),x3),x4),x5,x6)) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+              x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
+
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) (t1*t2*t3*t4*t5*t6)
+           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => P%logic end)
+           (fun x => match x with (((((x1,x2),x3),x4),x5),x6) => Q%logic end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+             x5 at level 0, x6 at level 0, P at level 100, Q at level 100).
+
 Lemma exp_derives {A}{NA: NatDed A}{B}:
    forall F G: B -> A, (forall x, F x |-- G x) -> exp F |-- exp G.
 Proof.

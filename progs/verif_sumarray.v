@@ -13,10 +13,10 @@ Definition sumarray_spec :=
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
-          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
+          SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))
   POST [ tint ]  
         local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
-                 && `(array_at tint sh contents 0 size a0).
+                 && `(array_at tint sh (cSome contents) 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -38,29 +38,7 @@ Definition sumarray_Inv a0 sh contents size :=
                 `(eq (Vint (Int.repr size))) (eval_id _n);
            `isptr (eval_id _a); 
     `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s))
-   SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
-
-Lemma split3_array_at:
-  forall i ty sh contents lo hi v,
-       lo <= i < hi ->
-     array_at ty sh contents lo hi v =
-     array_at ty sh contents lo i v *
-     typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
-     array_at ty sh contents (Zsucc i) hi v.
-Proof.
- intros.
-Admitted.
-
-Lemma lift_split3_array_at:
-  forall i ty sh contents lo hi,
-       lo <= i < hi ->
-     array_at ty sh contents lo hi =
-     array_at ty sh contents lo i *
-     (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
-     array_at ty sh contents (Zsucc i) hi.
-Proof.
- intros. extensionality v. simpl. apply split3_array_at. auto.
-Qed.
+   SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))).
 
 Lemma fold_range_split:
   forall A f (z: A) lo hi delta,
@@ -136,7 +114,7 @@ forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP() LOCAL (`(eq a0) (eval_id _a);   
      `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))
-     SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
+     SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
@@ -166,7 +144,7 @@ Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 Lemma  setup_globals:
   forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
      main_pre prog u rho
-      |-- array_at tint Ews four_contents 0 4
+      |-- array_at tint Ews (cSome four_contents) 0 4
                 (eval_var _four (tarray tint 4) rho).
 Proof.
  unfold main_pre.
