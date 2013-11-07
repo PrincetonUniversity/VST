@@ -490,7 +490,7 @@ rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
 super_unfold_lift. destruct TC2. 
-unfold tc_bool in *. remember (is_neutral_cast (typeof e) t). 
+unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t). 
 destruct b0; inv H0. 
 apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
 unfold guard_environ in *. destruct TC'; auto. 
@@ -596,7 +596,7 @@ rewrite H in TC2.
 destruct t as [t b]; simpl in *.
 rewrite tc_andp_sound in *; simpl in *. 
 super_unfold_lift. destruct TC2; simpl in *. 
-unfold tc_bool in *. remember (is_neutral_cast (typeof e) t).
+unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
 destruct b0; inv H0. 
 destruct TC'. 
 apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 

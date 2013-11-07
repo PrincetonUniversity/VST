@@ -1748,8 +1748,8 @@ intuition.
 Qed. 
 
 Lemma neutral_cast_typecheck_val : forall e t rho Delta,
-true = is_neutral_cast (typeof e) t ->
-denote_tc_assert (isCastResultType (typeof e) t t e) rho ->
+true = is_neutral_cast (implicit_deref (typeof e)) t ->
+denote_tc_assert (isCastResultType (implicit_deref (typeof e)) t t e) rho ->
 denote_tc_assert (typecheck_expr Delta e) rho ->
 typecheck_environ Delta rho ->
 typecheck_val (eval_expr e rho) t = true. 

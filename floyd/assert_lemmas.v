@@ -1054,19 +1054,24 @@ Lemma cancel_frame1: forall P (rho: environ),
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
+Ltac fixup_lifts := 
+ repeat 
+ match goal with
+ | |- appcontext [@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
+ | |- appcontext [@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
+ | |- appcontext [@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
+ | |- appcontext [@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
+ | |- appcontext [@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
+ end.
+
 Ltac cancel_frame := 
 match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
-    repeat change lift0 with (@liftx (LiftEnviron mpred));
-    repeat change lift1 with (fun A => @liftx (Tarrow A (LiftEnviron mpred)));
-    repeat change lift2 with (fun A B => @liftx (Tarrow A (Tarrow B (LiftEnviron mpred))));
-    repeat change lift3 with (fun A B C => @liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))));
-    repeat change lift4 with (fun A B C D => @liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))));
-    cbv beta;
+   fixup_lifts; cbv beta;
     repeat rewrite sepcon_assoc;
     repeat apply cancel_frame2; 
-    try apply cancel_frame1;
+    try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
  end.
 

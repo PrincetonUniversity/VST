@@ -15,6 +15,18 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
+Lemma expr_closed_field: forall S e f t,
+  lvalue_closed_wrt_vars S e ->
+  expr_closed_wrt_vars S (Efield e f t).
+Proof.
+ unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
+ simpl.
+ super_unfold_lift.
+ f_equal.
+ f_equal. apply H.  auto.
+Qed.
+Hint Resolve expr_closed_field : closed.
+
 Lemma semax_frame1:
  forall {Espec: OracleKind} Frame Delta Delta1
      P Q c R P1 Q1 R1 P2 Q2 R2,
@@ -191,7 +203,7 @@ Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
-   match retty with Tvoid => False | Tcomp_ptr _ _ => False | _ => True end ->
+   match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
@@ -265,13 +277,15 @@ Focus 2.
  subst ret'.
  unfold temp_types. unfold initialized; simpl.
  rewrite H4. simpl. rewrite PTree.gss.
+  replace (implicit_deref retty) with retty by (clear - H0; destruct retty; try contradiction; reflexivity).
  rewrite H5.
  simpl.
  unfold isCastResultType. unfold is_neutral_cast in H5.
  destruct (Cop.classify_cast retty retty); try discriminate.
  rewrite eqb_type_refl. apply I.
  unfold temp_types. unfold initialized; simpl.
- rewrite H4. simpl. rewrite PTree.gso by auto. 
+ rewrite H4. simpl. rewrite PTree.gso by auto.
+  replace (implicit_deref retty) with retty by (clear - H0; destruct retty; try contradiction; reflexivity).
  destruct ((temp_types Delta) ! ret); try discriminate.
  destruct p. apply eqb_type_true in H6.
  subst t. rewrite H5.
@@ -1098,7 +1112,10 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
   | Sassign _ _ => new_store_tac
-  | Sset _ (Efield _ _ _) => new_load_tac
+  | Sset _ (Efield _ _ ?t) => 
+      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
+               forward_setx
+              |new_load_tac]
   | Sset _ (Ederef _ _) => new_load_tac
   | Sset _ ?e => (bool_compute e; forward_ptr_cmp) || forward_setx
   | Sifthenelse _ _ _ => forward_ifthenelse

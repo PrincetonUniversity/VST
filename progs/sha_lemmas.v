@@ -27,15 +27,20 @@ Qed.
 Definition force_option {A} (x:A) (i: option A) := 
   match i with Some y => y | None => x end.
 
+Lemma swap_swap: forall w, swap (swap w) = w.
+Proof.
+unfold swap; intros.
+Admitted.
+
 Lemma nth_big_endian_int:
  forall i b, 
    i < length b ->
- nth_error (map swap b) i =
+ nth_error b i =
 Some
   (big_endian_integer
      (fun z : Z =>
       force_option Int.zero
-        (nth_error (map Int.repr (intlist_to_Zlist b))
+        (nth_error (map Int.repr (intlist_to_Zlist (map swap b)))
            (Z.to_nat (z + Z.of_nat i * 4))))).
 Proof.
 induction i; destruct b; intros.
@@ -43,7 +48,7 @@ inv H.
 simpl. apply f_equal_Some.
 unfold big_endian_integer; simpl.
 repeat rewrite Int.repr_unsigned.
-reflexivity.
+symmetry; apply swap_swap.
 inv H.
 simpl in H.
 simpl nth_error at 1.
@@ -97,6 +102,31 @@ symmetry.
 rewrite Z2Nat.inj_add by omega.
 reflexivity.
 Qed.
+
+Lemma nth_big_endian_integer'':
+  forall i bl w, 
+   nth_error bl i = Some w ->
+    w = big_endian_integer
+                 (fun z : Z =>
+                  force_option Int.zero
+                    (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap bl)))
+                       (z + Z.of_nat i * 4))).
+Proof.
+induction i; destruct bl; intros; inv H.
+simpl.
+unfold big_endian_integer; simpl.
+repeat rewrite Int.repr_unsigned.
+change (w = swap (swap w)).
+symmetry; apply swap_swap.
+specialize (IHi _ _ H1).
+rewrite IHi; clear IHi.
+f_equal.
+f_equal.
+extensionality z.
+f_equal.
+rewrite inj_S.
+unfold Z.succ.
+Admitted.
 
 
 Lemma firstn_same:
@@ -162,6 +192,28 @@ rename H into H0.
 repeat  (destruct r as [ | ? r]; rename H0 into H2; inv H2).
 apply IHk.
 reflexivity.
+Qed.
+
+Lemma length_rnd_64_inv:
+  forall r k w, length (rnd_64 r k w) = 8 -> length r = 8.
+Proof.
+intros.
+revert w r H; induction k; simpl; intros.
+unfold rnd_64 in H; auto.
+unfold rnd_64 in H; fold rnd_64 in H.
+destruct w; inv H; auto.
+rewrite H1.
+apply IHk in H1.
+clear - H1.
+unfold rnd_function in H1.
+rename H1 into H0.
+destruct r; inv H0. destruct r; inv H1.
+destruct r; inv H0. destruct r; inv H1.
+destruct r; inv H0. destruct r; inv H1.
+destruct r; inv H0. destruct r; inv H1.
+destruct r; inv H0.
+simpl.
+auto.
 Qed.
 
 Lemma length_process_block:
@@ -376,6 +428,36 @@ symmetry.
 apply IHn; auto.
 Qed.
  
+Lemma rnd_64_S:
+  forall regs i b k w, 
+    nth_error K i = Some k ->
+    nth_error b i = Some w ->
+    rnd_64 regs K (firstn (S i) b) =
+    rnd_function (rnd_64 regs K (firstn i b)) k w.
+Proof.
+intros.
+forget K as K'.
+assert (firstn (S i) b = firstn i b++[w]).
+clear - H0.
+revert b w H0; induction i; destruct b; simpl; intros; inv H0; auto.
+rewrite <- (IHi _ _ H1).
+reflexivity.
+rewrite H1.
+clear H1.
+pose proof (firstn_length i b).
+rewrite min_l in H1.
+Focus 2.
+clear - H0; revert b H0; induction i; destruct b; simpl; intros; inv H0; try omega.
+specialize (IHi _ H1). omega.
+rewrite <- H1 in H.
+clear H0 H1.
+revert K' k H regs; induction (firstn i b); destruct K'; simpl; intros; inv H.
+unfold rnd_64; simpl; fold rnd_64.
+destruct K'; reflexivity.
+specialize (IHl _ _ H1).
+unfold rnd_64; simpl; fold rnd_64.
+apply IHl.
+Qed.
 
                   
 

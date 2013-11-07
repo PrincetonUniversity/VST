@@ -845,13 +845,17 @@ match e with
  | _  => tc_FF (invalid_lvalue e)
 end.
 
-
-
+Definition implicit_deref (t: type) : type :=
+  match t with
+  | Tarray t' _ _ => Tpointer t' noattr
+  | _ => t
+  end.
 
 Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) => tc_andp (tc_bool (is_neutral_cast ty t) (invalid_cast ty t)) 
-                  (isCastResultType ty t t a)
+  | Some (t,_) => 
+      tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) 
+                  (isCastResultType (implicit_deref ty) t t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
