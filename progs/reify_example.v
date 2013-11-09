@@ -265,11 +265,6 @@ Definition c_option_expr_const := @Expr.Const our_types c_option_expr_type_var
 Definition ret_type_signature := 
 Expr.Sig our_types (cons tycontext_type_var nil)
   c_type_type_var ret_type.
-(*
-Definition tc_expropt_signature : Expr.signature our_types.
-eapply (Expr.Sig _ (cons tycontext_type_var (cons c_option_expr_type_var (cons c_type_type_var (cons environ_type_var nil))))).
-simpl.
-*)
 
 Definition tc_expropt_signature_lifted : Expr.signature our_types :=
 Expr.Sig our_types (cons tycontext_type_var (cons c_option_expr_type_var (cons c_type_type_var nil))) environ2prop_type_var tc_expropt.
@@ -294,19 +289,71 @@ Print Expr.tvar.
 
 Check tc_expropt_signature.
 
-Definition tc_expropt_application : Expr.expr our_types.
+Definition tc_expropt_application_lifted : Expr.expr our_types.
 eapply Expr.Func.
-apply 1%nat.
+apply 2%nat.
 apply (cons delta_const (cons c_option_expr_const (cons ret_type_delta nil))).
 Defined.
 
-Eval compute in (Expr.exprD functions nil nil tc_expropt_application prop_type_var).
+Definition tc_expropt_application_unlifted : Expr.expr our_types.
+eapply Expr.Func.
+apply 1%nat.
+apply (cons delta_const (cons c_option_expr_const (cons ret_type_delta 
+                                                       (cons (Expr.Var 0%nat) nil)))).
+Defined.
 
-(*(tc_expropt Delta
+Definition vars : Expr.env our_types.
+unfold Expr.env.
+apply cons; [ | apply nil].
+unfold Expr.tvarD.
+Set Printing All.
+SearchAbout sigT.
+exists environ_type_var. simpl.
+apply empty_environ.
+apply semax_lemmas.empty_genv.
+Qed.
+
+Print vars. Check projT1.
+
+Definition reflected_tc_expropt :=
+(tc_expropt Delta
          (@Some expr
             (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
                (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
-         (ret_type Delta))*)
+         (ret_type Delta)).
+
+Definition reflected_tc_expropt_unlifted :=
+forall rho,
+(tc_expropt Delta
+         (@Some expr
+            (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
+               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
+         (ret_type Delta) rho).
+
+
+Lemma tc_expropt_reify_reflect_unlifted : (Expr.exprD functions nil vars tc_expropt_application_unlifted 
+prop_type_var) = Some reflected_tc_expropt_unlifted.
+simpl. unfold Expr.lookupAs. simpl.
+Check vars.
+Check projT1.
+Locate value
+Print vars.
+unfold tc_expropt_application_unlifted.
+unfold Expr.exprD.
+simpl (nth_error functions 1).
+unfold value.
+unfold Expr.Range.
+unfold tc_expropt_signature.
+intros. simpl. auto.
+Qed.
+
+Lemma tc_expropt_reify_reflect : (Expr.exprD functions nil nil tc_expropt_application_lifted 
+environ2prop_type_var) = Some reflected_tc_expropt.
+intros. simpl. auto.
+Qed.
+
+
+
 
 
 
