@@ -150,7 +150,7 @@ Fixpoint default_val (t: type) : reptype t :=
   end.
 
 Definition ZnthV t (lis: list (reptype t)) (i: Z) : option (reptype t) := 
-       nth_error lis (Z.to_nat i).
+       if zlt i 0 then None else nth_error lis (Z.to_nat i).
 
 Definition cSome {A}(f: Z -> A) i := Some (f i).
 
@@ -164,6 +164,7 @@ Lemma ZnthV_isSome:
 Proof.
 unfold ZnthV.
 intros.
+if_tac. omega. clear H0.
 replace i with (Z.of_nat (Z.to_nat i)) in *
  by (apply Z2Nat.id; omega).
 assert (0 <= Z.to_nat i < length al)%nat.
@@ -228,8 +229,12 @@ Qed.
 Definition arrayof_ (f: forall (v1: val),  mpred) (t1: type) (n: nat) (v1: val) : mpred :=
              arrayof_' f t1 0 n v1.
 
-Definition force_field_offset id flds : Z :=
-  match field_offset id flds with Errors.OK z  => z | _ => 0 end.
+Definition force_field_offset id t : Z :=
+ match t with
+ | Tstruct _ flds _ =>
+      match field_offset id flds with Errors.OK z  => z | _ => 0 end
+ | _ => 0
+ end.
 
 Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
   match ty with
@@ -240,7 +245,7 @@ Fixpoint typed_mapsto_' (sh: Share.t) (pos: Z) (ty: type) : val -> mpred :=
            end
   | Tarray t z a =>
             withspacer sh pos (alignof t)
-              (arrayof_ (typed_mapsto_' sh (align pos (alignof t)) t) t (Z.to_nat z))
+             (at_offset (arrayof_ (typed_mapsto_' sh 0 t) t (Z.to_nat z)) (align pos (alignof t)))
   | _ => withspacer sh pos (alignof ty)
               match access_mode ty with
               | By_value _ => 
@@ -255,7 +260,7 @@ with fields_mapto_ (sh: Share.t) (pos:Z) (t0: type) (flds: fieldlist) : val ->  
  | Fcons id ty flds' => 
      (if storable_mode ty 
      then withspacer sh pos (alignof ty) (field_mapsto_ sh t0 id)
-     else typed_mapsto_' sh (pos+force_field_offset id flds) ty)
+     else typed_mapsto_' sh (pos+force_field_offset id t0) ty)
      * fields_mapto_ sh pos t0 flds'
   end.
 
@@ -325,7 +330,7 @@ match t1 as t return (t1 = t -> val -> reptype t1 -> mpred) with
         (fun v (v3 : reptype (Tarray t z a)) => 
                  withspacer sh pos (alignof t)
                   (at_offset (fun v =>
-                          array_at' t sh (typed_mapsto' sh t 0) (ZnthV _ v3) 0 (Zlength v3) v) (align pos (alignof t))) v)
+                          array_at' t sh (typed_mapsto' sh t 0) (ZnthV _ v3) 0 z v) (align pos (alignof t))) v)
         H
 | Tfunction t t0 => fun _ => emp
 | Tstruct i f a =>
@@ -467,7 +472,6 @@ Definition array_at (t: type) (sh: Share.t) (f: Z -> option (reptype t)) (lo hi:
 
 Definition array_at_ t sh lo hi := array_at t sh (fun _ => None) lo hi.
 
-
 Lemma typed_mapsto__isptr:
   forall sh t v, typed_mapsto_ sh t v = !!(isptr v) && typed_mapsto_ sh t v.
 Proof.
@@ -476,16 +480,6 @@ apply pred_ext; normalize.
 apply andp_right; auto.
 unfold typed_mapsto_.
 Admitted. (* straightforward *)
-
-Lemma mul_repr:
- forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
-Proof.
-intros. unfold Int.mul.
-apply Int.eqm_samerepr.
-repeat rewrite Int.unsigned_repr_eq.
-apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
-apply Int.eqmod_mod; compute; congruence.
-Qed.
 
 Lemma array_at_arrayof': forall t sh lo hi , array_at_ t sh lo hi = 
  arrayof_' (typed_mapsto_ sh t) t (sizeof t * lo) (Z.to_nat (hi-lo)).
@@ -675,8 +669,8 @@ induction n.
 split; intros; omega.
  assert (ARRAY: forall t sh k i pos v, 
      (typecount t < n)%nat ->
-     arrayof_' (typed_mapsto_' sh (align pos (alignof t)) t) t i k (offset_val (Int.repr 0) v) =
-     arrayof_' (typed_mapsto_' sh (align pos (alignof t)) t) t i k v); [ | auto].
+     arrayof_' (typed_mapsto_' sh pos t) t i k (offset_val (Int.repr 0) v) =
+     arrayof_' (typed_mapsto_' sh pos t) t i k v); [ | auto].
  induction k; simpl; intros; auto.
  f_equal.
  replace (offset_val (Int.repr i) (offset_val (Int.repr 0) v)) with
@@ -702,7 +696,10 @@ split; intros; omega.
                  rewrite <- offset_offset_val);
  try (f_equal; [apply spacer_offset_zero |]);
  try  apply memory_block_offset_zero.
+ repeat rewrite at_offset_eq.
+ rewrite offset_offset_val. rewrite Int.add_zero_l. reflexivity.
  apply ARRAY. simpl in H; omega.
+ rewrite offset_offset_val. reflexivity.
  destruct f0.
  repeat rewrite at_offset_eq by apply memory_block_offset_zero.
  f_equal. rewrite offset_offset_val. f_equal. rewrite Int.add_commut; apply Int.add_zero.
@@ -727,7 +724,9 @@ split; intros; omega.
  try (apply umapsto_offset_zero);
  try apply memory_block_offset_zero.
  apply ARRAY. simpl in H; omega.
+ apply ARRAY. simpl in H; omega.
  rewrite offset_offset_val. rewrite Int.add_zero. auto.
+ apply IHn. simpl in H|-*. generalize (typecount_pos t); intro. simpl. omega.
  apply IHn. simpl in H|-*. generalize (typecount_pos t); intro. simpl. omega.
  rewrite offset_offset_val. rewrite Int.add_zero; auto.
 Qed.

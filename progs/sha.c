@@ -146,6 +146,7 @@ void SHA256_Init (SHA256_CTX *c)
 	c->h[6]=0x1f83d9abUL;	c->h[7]=0x5be0cd19UL;
 	c->Nl=0;	c->Nh=0;
 	c->num=0;
+        return;
 	}
 
 void SHA256_addlength(SHA256_CTX *c, size_t len) {
@@ -156,10 +157,10 @@ void SHA256_addlength(SHA256_CTX *c, size_t len) {
 	  {cNh ++;}
         cNh += (len>>29);
 	c->Nl=l; c->Nh=cNh;
+        return;
 }
 
-void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len)
-	{
+void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 	const unsigned char *data=data_;
 	unsigned char *p;
 	size_t   n, fragment;
@@ -190,14 +191,15 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len)
 		len  -= SHA_CBLOCK;
 		}
 
-        c->num = len;
-	if (len != 0)
+        c->num=len;
+	if (len != 0) {
 		memcpy (p,data,len);
-	}
+        }
+        return;
+}
 
 
-void SHA256_Final (unsigned char *md, SHA256_CTX *c)
-	{
+void SHA256_Final (unsigned char *md, SHA256_CTX *c)  {
 	unsigned char *p = c->data;
 	size_t n = c->num;
 	SHA_LONG cNl,cNh;
@@ -225,15 +227,16 @@ void SHA256_Final (unsigned char *md, SHA256_CTX *c)
 		for (xn=0;xn<SHA256_DIGEST_LENGTH/4;xn++)	
 		{   ll=(c)->h[xn]; HOST_l2c(ll,md);   }
  	 }
-	}
+        return;
+}
 
-void SHA256(const unsigned char *d, size_t n, unsigned char *md)
-	{
+void SHA256(const unsigned char *d, size_t n, unsigned char *md) {
 	SHA256_CTX c;
 	SHA256_Init(&c);
 	SHA256_Update(&c,d,n);
 	SHA256_Final(md,&c);
-	}
+        return;
+}
 
 #if 0
 #define TEST_N 100

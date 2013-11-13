@@ -105,8 +105,8 @@ FLOYD_FILES= \
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v \
-  SHA256.v sha_lemmas.v sha.v spec_sha.v verif_sha_bdo.v \
-   verif_sha_bdo2.v verif_sha_bdo3.v \
+  SHA256.v sha_lemmas.v sha.v spec_sha.v verif_sha_update.v verif_sha_init.v \
+  verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v \
    entail_examples.v \
   revarray.v verif_revarray.v 
 

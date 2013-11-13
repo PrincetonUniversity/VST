@@ -153,24 +153,30 @@ Definition s256_Nl (s: s256state) := fst (snd s).
 Definition s256_Nh (s: s256state) := fst (snd (snd s)).
 Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
 Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
+Arguments s256_h  !s.
+Arguments s256_Nl  !s.
+Arguments s256_Nh  !s.
+Arguments s256_data  !s.
+Arguments s256_num  !s.
+Arguments fst _ _ !p.
+Arguments snd _ _ !p.
 
 Inductive s256abs :=  (* SHA-256 abstract state *)
  S256abs: forall (hashed: list int)   (* words hashed, so far *)
-                         (delta: nat) (* length of "hashed" minus the recorded length in hl *)
                          (data: list Z)  (* bytes in the partial block not yet hashed *),
                      s256abs.
 
-Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
-     match a with S256abs hashed delta data =>
-         s256_h r = process_msg init_registers hashed 
-       /\ length (intlist_to_Zlist hashed) = 
-             delta + Z.to_nat (Int.unsigned (s256_Nh r) * Int.modulus + Int.unsigned (s256_Nl r))
-       /\ data = map Int.unsigned (firstn (Z.to_nat (Int.unsigned (s256_num r))) (s256_data r))
-       /\ length data < CBLOCK
-       /\ (exists n, length hashed = 16*n)
-       /\ length (s256_data r) = CBLOCK
-     end.
+Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 
+Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
+     match a with S256abs hashed data =>
+         s256_h r = process_msg init_registers hashed 
+       /\ (Zlength (intlist_to_Zlist (hashed)++data) = hilo (s256_Nh r) (s256_Nl r))%Z
+       /\ data = map Int.unsigned (s256_data r)
+       /\ length data < CBLOCK
+       /\ NPeano.divide LBLOCK (length hashed)
+       /\ length data = Z.to_nat (Int.unsigned (s256_num r))
+     end.
 
 Lemma length_map2:
  forall A B C (f: A -> B -> C) al bl n,
@@ -272,27 +278,15 @@ Proof.
  omega.
 Qed.
 
-Definition process_block_abs (b: list int) (a: s256abs) : s256abs :=
-match a with
-| S256abs hashed delta data =>
-    S256abs (hashed++b) (delta+ CBLOCK) data
-end.
-
-Definition init_s256abs : s256abs := S256abs nil 0 nil.
-
-Definition addlength_rel (n: nat) (a: s256abs) : s256abs :=
- match a with S256abs hashed delta data =>
-     S256abs hashed (delta-n) data
- end.
+Definition init_s256abs : s256abs := S256abs nil nil.
 
 Definition sha_finish (a a': s256abs) :=
  match a, a' with
- | S256abs hashed delta data,
-   S256abs hashed' delta' data' =>
+ | S256abs hashed data,
+   S256abs hashed' data' =>
      hashed' = generate_and_pad (intlist_to_Zlist hashed ++ data) 0
-  /\ data'=nil /\ delta=0%nat /\ delta'=0
+  /\ data'=nil
  end.
-
 
 Fixpoint sequence (cs: list statement) s :=
  match cs with
@@ -384,7 +378,7 @@ Qed.
 Lemma process_msg_block:
  forall (hashed b: list int), 
    length b = LBLOCK ->
-   (exists n, length hashed = 16*n) ->
+   NPeano.divide LBLOCK (length hashed) ->
    map2 Int.add (process_msg init_registers hashed)
             (rnd_64 (process_msg init_registers hashed) K
                (rev (generate_word (rev b) 48)))
@@ -393,7 +387,8 @@ Proof.
 intros.
 symmetry.
 destruct H0 as [n ?].
-change LBLOCK with 16 in H.
+change LBLOCK with 16 in H,H0.
+rewrite mult_comm in H0.
 transitivity (process_block (process_msg init_registers hashed) (rev b)) ; [ | reflexivity].
 forget init_registers as regs.
 revert hashed H0 b H regs; induction n; intros.
@@ -428,6 +423,26 @@ symmetry.
 apply IHn; auto.
 Qed.
  
+Lemma eval_var_env_set:
+  forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
+Proof. reflexivity. Qed.
+
+Lemma elim_globals_only:
+  forall Delta g i t rho,
+  tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
+  eval_var i t (globals_only rho) = eval_var i t rho.
+Proof.
+intros. 
+destruct H as [H [H8 H0]].
+unfold eval_var, globals_only.
+simpl. 
+destruct H as [_ [? [? ?]]].
+destruct (H2 i g H0).
+unfold Map.get; rewrite H3; auto.
+destruct H3.
+congruence.
+Qed.
+
 Lemma rnd_64_S:
   forall regs i b k w, 
     nth_error K i = Some k ->
@@ -459,7 +474,31 @@ unfold rnd_64; simpl; fold rnd_64.
 apply IHl.
 Qed.
 
-                  
+Lemma intlist_to_Zlist_app:
+ forall al bl, intlist_to_Zlist (al++bl) = intlist_to_Zlist al ++ intlist_to_Zlist bl.
+Proof. intros; induction al; simpl; auto. repeat f_equal; auto. Qed.
+
+Lemma firstn_app:
+ forall {A} n m (al: list A), firstn n al ++ firstn m (list_drop n al) =
+  firstn (n+m) al.
+Proof. induction n; destruct al; intros; simpl; auto.
+destruct m; reflexivity.
+f_equal; auto.
+Qed.
+
+Lemma list_drop_length:
+  forall {A} n (al: list A), length al >= n -> length (list_drop n al) = length al -n.
+Proof.
+ induction n; destruct al; simpl; intros; auto.
+ apply IHn. omega.
+Qed.
+
+Lemma exists_intlist_to_Zlist:
+  forall n (al: list Z), 
+   length al = (n * 4)%nat ->
+   exists bl, al = intlist_to_Zlist bl /\ length bl = n.
+Admitted.
+       
 
 
 

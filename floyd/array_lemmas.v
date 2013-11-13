@@ -448,6 +448,67 @@ apply H.
 omega.
 Qed.
 
+Lemma upd_Znth_next:
+ forall jl i v,
+  Zlength jl = i ->
+  upd (ZnthV tuint jl) i (Some v) = ZnthV tuint (jl++ (v::nil)).
+Proof.
+intros;
+extensionality n.
+unfold ZnthV, upd.
+if_tac.
+subst n.
+if_tac. subst. rewrite Zlength_correct in H0. omega.
+rewrite <- H.
+subst i.
+rewrite Zlength_correct.
+rewrite Nat2Z.id.
+induction jl; simpl; auto.
+apply IHjl.
+rewrite Zlength_correct; omega.
+if_tac; auto.
+subst i.
+assert (Z.to_nat n <> length jl).
+rewrite <- (Z2Nat.id n) in H0 by omega.
+contradict H0. rewrite Zlength_correct; rewrite <- H0. auto.
+clear - H.
+revert jl H; induction (Z.to_nat n); destruct jl; intros; simpl; auto.
+contradiction H; reflexivity.
+rewrite nth_error_nil. reflexivity.
+apply IHn0. simpl in H. contradict H; f_equal; auto. 
+Qed.
+
+Lemma array_at__array_at_None:
+  forall t sh f lo hi,
+  (forall i, lo <= i < hi -> f i = None)%Z ->
+  array_at_ t sh lo hi = 
+  array_at t sh f lo hi.
+Proof.
+intros.
+unfold array_at_, array_at, rangespec.
+extensionality v.
+assert ( lo > hi \/ lo <= hi)%Z by omega.
+destruct H0.
+rewrite nat_of_Z_neg by omega.
+simpl. auto.
+assert (hi = lo + Z_of_nat (nat_of_Z (hi-lo)))%Z.
+rewrite nat_of_Z_eq by omega.
+omega.
+forget (nat_of_Z (hi-lo)) as n.
+subst hi.
+clear H0.
+revert lo H; induction n; intros; auto.
+simpl. 
+rewrite Nat2Z.inj_succ in H.
+f_equal.
+rewrite H; auto.
+omega.
+apply IHn.
+intros.
+apply H.
+omega.
+Qed.
+
 Lemma repinject_typed_mapsto_:
   forall sh t loc inject,
    repinject t = Some inject ->

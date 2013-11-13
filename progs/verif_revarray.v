@@ -102,12 +102,9 @@ omega.
 forward.  (* s = a[hi]; *)
 entailer.
 rename H3 into H6.
-rewrite Int.sub_signed in H6|-*.
+rewrite Int.sub_signed in H6.
 normalize in H6.
 simpl_compare.
-rewrite (Int.signed_repr (size-j)) by repable_signed.
-rewrite (Int.signed_repr 1) by repable_signed.
-normalize.
 apply prop_right; omega.
 
 normalize. simpl typeof.
@@ -116,9 +113,7 @@ entailer.
 rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
-apply prop_right; split; [reflexivity | ].
-normalize.
-omega.
+apply prop_right; omega.
 
 normalize.
 forward. (*  a[lo] = s; *) 
@@ -139,16 +134,12 @@ entailer.
  simpl_compare.
  apply andp_right.
  apply prop_right.
- rewrite Int.sub_signed.
  normalize. repeat split; try omega.
  f_equal; omega.
  apply derives_refl'.
  apply equal_f.
  apply array_at_ext; intros.
  unfold upd, cSome. if_tac. subst.
- rewrite Int.sub_signed.
- rewrite (Int.signed_repr 1) by repable_signed.
- rewrite (Int.signed_repr (size-i)) by repable_signed.
  normalize.
  unfold flip_between.
  rewrite if_false by omega.
