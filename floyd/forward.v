@@ -847,6 +847,12 @@ Definition numbd {A} (n: nat) (x: A) : A := x.
 Lemma numbd_eq: forall A n (x: A), numbd n x = x.
 Proof. reflexivity. Qed.
 
+Lemma saturate_local_numbd:
+ forall n (P Q : mpred), P |-- Q -> numbd n P |-- Q.
+Proof. intros. apply H.
+Qed.
+Hint Resolve saturate_local_numbd: saturate_local.
+
 Fixpoint number_list {A} (k: nat)  (xs: list A): list A :=
  match xs with nil => nil | x::xs' => numbd k x :: number_list (S k) xs' end.
 
