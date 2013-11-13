@@ -547,15 +547,15 @@ Ltac simpl_typed_mapsto1 :=
     let H := fresh "H" in let MA := fresh "MA" in
   match goal with 
   | |- appcontext [typed_mapsto_ ?SH ?T] =>
-         remember (typed_mapsto_  SH T) as MA eqn:H; simpl_typed_mapsto' T H MA
+         remember (typed_mapsto_  SH T) as MA eqn:H in |-*; simpl_typed_mapsto' T H MA
   | |- appcontext [typed_mapsto_' ?SH ?N ?T] =>
-         remember (typed_mapsto_'  SH N T) as MA eqn:H; simpl_typed_mapsto' T H MA
+         remember (typed_mapsto_'  SH N T) as MA eqn:H in |-*; simpl_typed_mapsto' T H MA
   | |- appcontext [typed_mapsto' ?SH ?T ?N] =>
-         remember (typed_mapsto' SH T N) as MA eqn:H; simpl_typed_mapsto' T H MA
+         remember (typed_mapsto' SH T N) as MA eqn:H in |-*; simpl_typed_mapsto' T H MA
   | |- appcontext [typed_mapsto ?SH ?T] =>
-         remember (typed_mapsto SH T) as MA eqn:H; simpl_typed_mapsto' T H MA
+         remember (typed_mapsto SH T) as MA eqn:H in |-*; simpl_typed_mapsto' T H MA
  | |- appcontext [structfieldsof ?SH ?T ?F ?N ?N'] =>
-         remember (structfieldsof SH T F N N') as MA eqn:H; simpl_typed_mapsto' T H MA
+         remember (structfieldsof SH T F N N') as MA eqn:H in |-*; simpl_typed_mapsto' T H MA
   end. 
 
 Ltac simpl_typed_mapsto := repeat simpl_typed_mapsto1.

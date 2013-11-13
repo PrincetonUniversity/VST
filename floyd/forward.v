@@ -103,6 +103,7 @@ repeat
      fn_temps
      PTree.set PTree.get PTree.empty] in x;
   simpl in x; revert x
+| |- let y := ?A in _ => cbv delta [A]
 | |- semax ?D ?P ?c ?R =>
       change (let x := D in semax x P c R)
 | |- ?A = _ => unfold A, abbreviate
@@ -110,8 +111,12 @@ repeat
 | |- initialized ?i _ = ?initialized ?i _ => f_equal
 | |- ?A = initialized ?i ?D =>
      change (let x := D in A = initialized i x)
+| |- ?A = func_tycontext ?a ?b ?c ?D =>
+     change (let x := D in A = func_tycontext a b c)
 | |- initialized ?i ?D = ?B =>
      change (let x := D in initialized i x = B)
+| |- func_tycontext ?a ?b ?c ?D = ?B =>
+     change (let x := D in func_tycontext a b c = B)
 end;
 repeat 
 match goal with

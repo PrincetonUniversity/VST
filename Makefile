@@ -107,7 +107,7 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v \
   SHA256.v sha_lemmas.v sha.v spec_sha.v verif_sha_update.v verif_sha_init.v \
   verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v \
-   entail_examples.v \
+   entail_examples.v entail_examples2.v \
   revarray.v verif_revarray.v 
 
 C_FILES = reverse.c queue.c sumarray.c message.c sha.c

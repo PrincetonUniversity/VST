@@ -5,15 +5,23 @@ Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
 Local Open Scope logic.
 
+Lemma ZnthV_nil_None:
+  forall t, ZnthV t nil = fun _ => None.
+Proof.
+unfold ZnthV; intros.
+extensionality i; if_tac; auto.
+apply nth_error_nil.
+Qed.
+
 Lemma body_SHA256_Init: semax_body Vprog Gtot f_SHA256_Init SHA256_Init_spec.
 Proof.
 start_function.
 name c_ _c.
-revert Delta POSTCONDITION; simpl_typed_mapsto; intros.
+simpl_typed_mapsto.
 normalize.
 
-replace_SEP 0%Z (`(array_at tuint Tsh (ZnthV tuint nil) 0 8 c)).
-entailer.
+replace (array_at_ tuint Tsh) with (array_at tuint Tsh (ZnthV tuint nil))
+ by (rewrite ZnthV_nil_None; reflexivity).
 
 do 8 (forward; [entailer!; [reflexivity | clear; omega .. ]
               | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).

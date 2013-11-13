@@ -284,9 +284,7 @@ replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by (clear; omega).
 rewrite <- HDelta''; unfold Delta'.
 clear HDelta' Delta' HDelta'' Delta.
 subst regs'.
-simple apply rearrange_aux2;
-try apply regs; (* get rid of this line when remove the regs' param of the lemma *)
- assumption. 
+simple apply rearrange_aux2; assumption. 
 Qed.
 
 
