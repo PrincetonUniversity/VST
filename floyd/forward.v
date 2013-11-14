@@ -939,8 +939,6 @@ forall A P (x: environ -> A), P |-- local (`eq x x).
 Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
 Qed.
 
-
-
 Ltac new_store_tac := 
 ensure_normal_ret_assert;
 hoist_later_in_pre;
@@ -962,36 +960,10 @@ match goal with
   eapply(@semax_store_array Esp Delta n sh t contents lo hi);
   unfold number_list, n, sh, contents, lo, hi;
   clear n sh contents lo hi;
-  [solve [auto] | reflexivity | reflexivity (* | hnf; intuition  *)
-  | reflexivity
+  [solve [auto] | reflexivity | reflexivity | reflexivity
   | autorewrite with norm; try reflexivity;
     fail 4 "Cannot prove 6th premise of semax_store_array"
   | ]
-(*
-| |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
-     (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
-  let n := fresh "n" in evar (n: nat); 
-  let sh := fresh "sh" in evar (sh: share);
-  let contents := fresh "contents" in evar (contents: Z -> reptype t);
-  let lo := fresh "lo" in evar (lo: Z);
-  let hi := fresh "hi" in evar (hi: Z);
-  let a := fresh "a" in evar (a: val);
-  let H := fresh in 
-  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (array_at t sh contents lo hi a))) * TT);
-  [unfold number_list, n, sh, contents, lo, hi, a; 
-   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
-   solve [entailer; cancel]
- | clear H ];
- eapply(@semax_store_array Esp Delta n sh t contents lo hi (`a));
-  unfold number_list, n, sh, contents, lo, hi, a;
-  clear n sh contents lo hi a;
-  [solve [auto] | reflexivity | reflexivity (* | hnf; intuition  *)
-  | reflexivity
-  | autorewrite with norm; try reflexivity;
-    fail 4 "Cannot prove 6th premise of semax_store_array"
-  | ]
-*)
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
@@ -1022,6 +994,7 @@ match goal with
  | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl
  ]
  (**** 21.1 seconds to here in fast_entail case,  or 32.5 seconds to here *****)
+(*
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Ederef ?e ?t2) ?e2) _ =>
        apply (semax_pre (|> PROPx P 
@@ -1030,13 +1003,10 @@ match goal with
    [ apply later_derives; try solve [entailer!; try intuition]
    |  isolate_mapsto_tac e R;
        eapply semax_post'';  
-       [ | first [eapply semax_store_PQR; 
-                     [ auto | reflexivity | (*hnf; intuition | *) reflexivity ](*
-                   | eapply semax_store_PQR; 
-                     [ auto | reflexivity (*| hnf; intuition |*) reflexivity ]*)
-                   ]              
+       [ | eapply semax_store_PQR; [ auto | reflexivity | reflexivity ]
        ]
    ]
+*)
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Ederef ?e ?t2) ?e2) _ =>
        apply (semax_pre_later (PROPx P 
@@ -1045,11 +1015,7 @@ match goal with
    [ solve [entailer!; try intuition]
    |  isolate_mapsto_tac e R;
        eapply semax_post'';  
-       [ | first [eapply semax_store_PQR; 
-                     [ auto | reflexivity | (*hnf; intuition |*) reflexivity ](*
-                   | eapply semax_store_PQR; 
-                     [ auto | reflexivity | hnf; intuition | reflexivity ]*)
-                   ]              
+       [ | eapply semax_store_PQR;  [ auto | reflexivity | reflexivity ]
        ]
    ]
 end.

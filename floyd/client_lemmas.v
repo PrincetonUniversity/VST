@@ -906,10 +906,10 @@ Tactic Notation "name" ident(s) constr(id) :=
 
 Ltac findvar := 
 match goal with
-             | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
-                clear Name;
-  match goal with
-  | |- context [ J ] => 
+    | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
+            clear Name; 
+     match goal with
+     | |- context [ J ] => 
      let Hty := fresh in let t := fresh "t" in evar (t : type);
          assert (Hty: (temp_types Delta) ! J = Some (t, true))
               by (unfold t; simpl; reflexivity);
@@ -924,8 +924,10 @@ match goal with
                 clear TC Htc'
               | forget (eval_id J RHO) as Name
               ]
-  | _ => idtac
- end
+     | _ => idtac
+    end
+   | H: tc_environ ?Delta ?RHO |- context [eval_id ?J ?RHO] =>
+            let Name := fresh "_id" in name Name J; findvar
 end.
 
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
