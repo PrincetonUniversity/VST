@@ -5,6 +5,100 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:  (* MOVE THIS TO ANOTHER FILE *)
+ forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
+Proof.
+intros.
+apply derives_trans with (|> (A && B)).
+rewrite later_andp.
+apply andp_derives; auto.
+apply now_later.
+apply later_derives; assumption.
+Qed.
+
+Lemma SEP_nth_isolate:
+  forall n R Rn, nth_error R n = Some Rn ->
+      SEPx R = SEPx (Rn :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ induction n; destruct R; intros; inv H; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp R rho).
+ reflexivity.
+ rewrite (IHn R Rn H1).
+ simpl.
+ rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm (Rn rho)).
+ simpl.
+ repeat rewrite sepcon_assoc.
+ f_equal. rewrite sepcon_comm; reflexivity.
+Qed.
+
+
+Lemma SEP_replace_nth_isolate:
+  forall n R Rn Rn', 
+       nth_error R n = Some Rn ->
+      SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ intros.
+ revert R H.
+ induction n; destruct R; intros; inv H; intros; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp (replace_nth n R Rn') rho).
+ reflexivity.
+ rewrite (IHn R H1). clear IHn.
+ simpl.
+ repeat rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm (Rn' rho)).
+ rewrite sepcon_assoc.
+ reflexivity.
+Qed.
+
+Lemma semax_store_nth:
+forall {Espec: OracleKind} n Delta P Q R e1 e2 Rn sh t1,
+   typeof e1 = t1 ->
+   nth_error R n = Some Rn ->
+   Rn |-- `(mapsto_ sh t1) (eval_lvalue e1) ->
+   forall (WS: writable_share sh),
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+                 local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sassign e1 e2) 
+       (normal_ret_assert
+          (PROPx P (LOCALx Q (SEPx (replace_nth n R
+              (`(mapsto sh t1) (eval_lvalue e1) 
+                  (`force_val (`(sem_cast (typeof e2) t1) (eval_expr e2))))))))).
+Proof.
+intros.
+subst t1.
+eapply semax_pre_post ; [ | | 
+ apply  (semax_store Delta e1 e2 sh 
+       (PROPx P (LOCALx Q (SEPx (replace_nth n R emp)))) WS)].
+apply later_left2.
+repeat rewrite insert_local.
+apply andp_right. auto.
+rewrite <- insert_local.
+apply andp_left2.
+rewrite insert_SEP.
+apply andp_derives; auto.
+apply andp_derives; auto.
+rewrite (SEP_nth_isolate _ _ _ H0).
+go_lowerx; apply sepcon_derives; auto.
+apply H1.
+intros.
+apply andp_left2.
+apply normal_ret_assert_derives'.
+rewrite insert_SEP.
+apply andp_derives; auto.
+apply andp_derives; auto.
+rewrite (SEP_replace_nth_isolate _ _ _ _ H0).
+auto.
+Qed.
+
 Lemma mapsto_force_ptr: forall sh t v v', 
   mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
 Proof.
@@ -441,17 +535,6 @@ apply andp_left2.
 rewrite insert_SEP.
 go_lowerx.
 repeat apply andp_right; try apply prop_right; auto.
-Qed.
-
-Lemma later_left2 {T}{ND: NatDed T}{IT: Indir T}:  (* MOVE THIS TO ANOTHER FILE *)
- forall A B C : T, A && B |-- C -> A && |> B |-- |>C.
-Proof.
-intros.
-apply derives_trans with (|> (A && B)).
-rewrite later_andp.
-apply andp_derives; auto.
-apply now_later.
-apply later_derives; assumption.
 Qed.
 
 Lemma semax_load_37 : 

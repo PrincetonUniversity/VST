@@ -223,21 +223,20 @@ Qed.
  ** this needs improvement.
  **)
 Lemma setup_globals:
-  forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
-   main_pre prog u rho
+  forall rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
+   globvar2pred (_three, v_three) rho
    |-- lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
              (eval_var _three (Tarray t_struct_list 3 noattr) rho)
       nullval.
 Proof.
  unfold main_pre.
- intros _ rho; normalize.
+ intros rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _three _ H (eq_refl _) (eq_refl _))
   as [b [z [H97 H99]]]. simpl in *.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  clear.
- rewrite sepcon_emp.
 repeat match goal with |- _ * (umapsto _ _ _ ?v * _) |-- _ =>
                 apply @lseg_unroll_nonempty1 with v; simpl; auto; 
                 apply sepcon_derives; 

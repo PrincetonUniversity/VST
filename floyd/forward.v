@@ -7,6 +7,7 @@ Require Import floyd.loadstore_lemmas.
 Require Import floyd.malloc_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.entailer.
+Require Import floyd.globals_lemmas.
 Import Cop.
 
 Arguments Int.unsigned n : simpl never.
@@ -721,6 +722,23 @@ Ltac ensure_normal_ret_assert :=
  | |- semax _ _ _ _ => apply sequential
  end.
 
+Lemma sequential': forall Espec Delta Pre c R Post,
+  @semax Espec Delta Pre c (normal_ret_assert R) ->
+  @semax Espec Delta Pre c (overridePost R Post).
+Proof.
+intros.
+eapply semax_post0; [ | apply H].
+unfold normal_ret_assert; intros ek vl rho; simpl; normalize; subst.
+unfold overridePost. rewrite if_true by auto.
+normalize.
+Qed.
+
+Ltac ensure_open_normal_ret_assert :=
+ try simple apply sequential';
+ match goal with 
+ | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
+ end.
+
 Lemma go_lower_lem24:
   forall rho (Q1: environ -> Prop)  Q R PQR,
   (Q1 rho -> LOCALx Q R rho |-- PQR) ->
@@ -940,7 +958,7 @@ Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
 Qed.
 
 Ltac new_store_tac := 
-ensure_normal_ret_assert;
+ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
 | |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
@@ -978,7 +996,8 @@ match goal with
  apply (semax_pre_later (PROPx P (LOCALx Q 
                 (SEPx (replace_nth n R (`(field_mapsto_ sh (typeof e) fld) (eval_lvalue e)))))));
  [ first [eapply (fast_entail n); [reflexivity | entailer; cancel]
-    | simple apply semax_store_aux31; unfold n,sh,replace_nth; entailer; solve [cancel]
+    | match goal with H: (99=99)%Z |- _ => idtac end;
+      simple apply semax_store_aux31; unfold n,sh,replace_nth; entailer; solve [cancel]
     ]
  |];
 (**** 14.2 seconds to here in the fast_entail case; otherwise 25.6 seconds to here *)
@@ -994,19 +1013,22 @@ match goal with
  | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl
  ]
  (**** 21.1 seconds to here in fast_entail case,  or 32.5 seconds to here *****)
+  | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
+                     (Sassign ?e ?e2) _ =>
+
+ let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (mapsto_ sh (typeof e))) (eval_lvalue e)) * TT) as _;
+  [ unfold number_list, n, sh; 
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   solve [entailer; cancel]
+  |  ];
+  eapply (@semax_store_nth Espec n Delta P Q R e e2);
+    (unfold n,sh; clear n sh);
+     [reflexivity | reflexivity |solve [entailer; cancel] | solve [auto] 
+     | try solve [entailer!] ]
 (*
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
-       apply (semax_pre (|> PROPx P 
-                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [ apply later_derives; try solve [entailer!; try intuition]
-   |  isolate_mapsto_tac e R;
-       eapply semax_post'';  
-       [ | eapply semax_store_PQR; [ auto | reflexivity | reflexivity ]
-       ]
-   ]
-*)
   | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign (Ederef ?e ?t2) ?e2) _ =>
        apply (semax_pre_later (PROPx P 
@@ -1018,6 +1040,7 @@ match goal with
        [ | eapply semax_store_PQR;  [ auto | reflexivity | reflexivity ]
        ]
    ]
+*)
 end.
 
 (* END new semax_load and semax_store tactics *************************)
@@ -1228,7 +1251,8 @@ Ltac start_function :=
   | _ => canonicalize_pre 
  end;
  repeat (apply semax_extract_PROP; intro);
- abbreviate_semax.
+ abbreviate_semax;
+ try (rewrite main_pre_eq; simpl fold_right_sepcon').
 
 Opaque sepcon.
 Opaque emp.
