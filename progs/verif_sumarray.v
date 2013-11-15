@@ -142,13 +142,12 @@ Qed.
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 
 Lemma  setup_globals:
-  forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
-     main_pre prog u rho
+  forall rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
+     globvar2pred (_four, v_four) rho
       |-- array_at tint Ews (cSome four_contents) 0 4
                 (eval_var _four (tarray tint 4) rho).
 Proof.
- unfold main_pre.
- intros _ rho; normalize.
+ intro rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _four _ H (eq_refl _) (eq_refl _))
   as [b [z [H97 H99]]]. simpl in *.
@@ -157,8 +156,6 @@ Proof.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  unfold array_at, rangespec; simpl.
  unfold array_at.
- repeat  simpl_typed_mapsto.
- rewrite sepcon_emp.
  unfold four_contents. simpl.
  change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
        with (umapsto Ews tint).

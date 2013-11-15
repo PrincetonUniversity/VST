@@ -125,9 +125,8 @@ apply exp_right with 8.
 entailer.
 rename H into H2. (*fix for (slightly) older coq versions*)
 simpl_typed_mapsto. cancel.
-rewrite sepcon_comm.
 unfold mf_restbuf. simpl.
-destruct buf0; inv H1.
+destruct buf0; inv Pbuf.
 simpl. rewrite memory_block_zero. rewrite sepcon_emp.
 apply sepcon_derives; apply derives_refl';
  eapply mapsto_field_mapsto; simpl; try reflexivity;
@@ -632,7 +631,9 @@ get_global_function' _intpair_serialize.
 eapply semax_pre.
 frame_SEP' (0::nil).
 unfold main_pre, globvars2pred, prog_vars. simpl map.
- rewrite fold_right_cons. rewrite fold_right_nil. rewrite sepcon_emp.
+(*
+ rewrite fold_right_cons. rewrite fold_right_nil. 
+rewrite sepcon_emp.*)
 apply create_message_object; reflexivity.
 unfold app.
 
@@ -664,9 +665,12 @@ gather_SEP' (0::1::nil).
 replace_SEP  (`(typed_mapsto Tsh t_struct_intpair)
                       (eval_var _p t_struct_intpair) `((Int.repr 1, Int.repr 2))).
 simpl_typed_mapsto.
-extensionality rho; unfold_lift; simpl; reflexivity.
+extensionality rho; unfold_lift; simpl.
+rewrite sepcon_emp.
+ reflexivity.
 
-rewrite -> seq_assoc.
+simpl update_tycon.
+rewrite -> seq_assoc. simpl.
 eapply semax_seq'.
 frame_SEP 1 0 2.
 replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil)

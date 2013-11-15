@@ -968,13 +968,12 @@ match goal with
   let contents := fresh "contents" in evar (contents: Z -> option (reptype t));
   let lo := fresh "lo" in evar (lo: Z);
   let hi := fresh "hi" in evar (hi: Z);
-  let H := fresh in 
-  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (array_at t sh contents lo hi)) (eval_expr e1)) * TT);
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (array_at t sh contents lo hi)) (eval_expr e1)) * TT) as _;
   [unfold number_list, n, sh, contents, lo, hi; 
    repeat rewrite numbd_lift0; repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    solve [entailer; cancel]
- | clear H ];
+ |  ];
   eapply(@semax_store_array Esp Delta n sh t contents lo hi);
   unfold number_list, n, sh, contents, lo, hi;
   clear n sh contents lo hi;
@@ -985,34 +984,27 @@ match goal with
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
-  let H := fresh in 
-  assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (field_mapsto_ sh (typeof e) fld)) (eval_lvalue e)) * TT);
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (field_mapsto_ sh (typeof e) fld)) (eval_lvalue e)) * TT) as _;
   [unfold number_list, n, sh; 
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    solve [entailer; cancel]
- | clear H ];
+ |  ];
 (**** 12.8 seconds to here ****)
  apply (semax_pre_later (PROPx P (LOCALx Q 
                 (SEPx (replace_nth n R (`(field_mapsto_ sh (typeof e) fld) (eval_lvalue e)))))));
- [ first [eapply (fast_entail n); [reflexivity | entailer; cancel]
-    | match goal with H: (99=99)%Z |- _ => idtac end;
-      simple apply semax_store_aux31; unfold n,sh,replace_nth; entailer; solve [cancel]
-    ]
- |];
-(**** 14.2 seconds to here in the fast_entail case; otherwise 25.6 seconds to here *)
- eapply semax_post_flipped';
- [ eapply (semax_store_field'' _ _ n sh); unfold n, sh in *; clear n sh;
-   [auto | reflexivity | reflexivity (*| reflexivity *)
+ [ eapply (fast_entail n); [reflexivity | entailer; cancel] | ];
+(**** 14.2 seconds to here  *)
+ eapply (semax_store_field'' _ _ n sh); 
+   [auto | reflexivity | reflexivity 
       | try solve [repeat split; hnf; simpl; intros; congruence]
       | entailer
       | entailer
       | (apply local_lifted_reflexivity || quick_load_equality)
       | reflexivity
-      | simple apply derives_refl]
- | unfold n, sh,replace_nth in *; clear n sh; try simple apply derives_refl
- ]
- (**** 21.1 seconds to here in fast_entail case,  or 32.5 seconds to here *****)
+      | simple apply derives_refl ];
+  unfold n,sh; clear n sh
+ (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>
 
@@ -1028,19 +1020,6 @@ match goal with
     (unfold n,sh; clear n sh);
      [reflexivity | reflexivity |solve [entailer; cancel] | solve [auto] 
      | try solve [entailer!] ]
-(*
-  | |- @semax _ ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
-                     (Sassign (Ederef ?e ?t2) ?e2) _ =>
-       apply (semax_pre_later (PROPx P 
-                (LOCALx (tc_expr Delta e :: tc_expr Delta (Ecast e2 t2) ::Q) 
-                (SEPx R))));
-   [ solve [entailer!; try intuition]
-   |  isolate_mapsto_tac e R;
-       eapply semax_post'';  
-       [ | eapply semax_store_PQR;  [ auto | reflexivity | reflexivity ]
-       ]
-   ]
-*)
 end.
 
 (* END new semax_load and semax_store tactics *************************)
