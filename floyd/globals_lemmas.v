@@ -83,6 +83,7 @@ Lemma tc_globalvar_sound:
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (Global_var t) ->
+   no_attr_type t = true ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = Init_space (sizeof t) :: nil ->
@@ -92,7 +93,7 @@ Lemma tc_globalvar_sound:
    globvar2pred(i, gv) rho |-- 
    typed_mapsto_ Ews t (eval_var i t rho).
 Proof.
-intros.
+intros until 1. intros ? Hno; intros.
 unfold globvar2pred.
 simpl.
 destruct H6 as [? [? [? ?]]].
@@ -107,7 +108,7 @@ rewrite H4.
 simpl.
 change (Share.splice extern_retainer Tsh) with Ews.
 rewrite sepcon_emp.
-rewrite <- memory_block_typed.
+rewrite <- memory_block_typed by auto.
 apply address_mapsto_zeros_memory_block.
 pose (sizeof_pos t); omega.
 Qed.
@@ -116,6 +117,7 @@ Lemma tc_globalvar_sound':
   forall Delta i t gv, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (Global_var t) ->
+   no_attr_type t = true ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = Init_space (sizeof t) :: nil ->
@@ -181,7 +183,7 @@ Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [
     eapply tc_globalvar_sound';
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | apply andp_left2; apply derives_refl
  ].

@@ -125,7 +125,7 @@ Proof.
  extensionality rho. unfold_lift.
  normalize.
  change 8 with (sizeof t_struct_fifo).
- rewrite (memory_block_typed Tsh t_struct_fifo).
+ rewrite (memory_block_typed Tsh t_struct_fifo) by reflexivity.
  simpl_typed_mapsto.
  reflexivity.
 Qed.
@@ -352,7 +352,7 @@ entailer!.
 normalize.
 forward. (* finish the function call *)
 change 12 with (sizeof (t_struct_elem)).
-rewrite memory_block_typed.
+rewrite memory_block_typed by reflexivity.
 simpl_typed_mapsto.
 apply semax_pre with  (* with better store tactic, shouldn't need this *)
   (PROP  ()
@@ -460,7 +460,7 @@ instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
 entailer.
 change 12 with (sizeof t_struct_elem).
-rewrite memory_block_typed.
+rewrite memory_block_typed by reflexivity.
 
 unfold Frame.
 instantiate (1:= `(fifo (p2 :: nil) q2 *

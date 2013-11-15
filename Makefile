@@ -110,7 +110,7 @@ PROGS_FILES= \
    entail_examples.v entail_examples2.v \
   revarray.v verif_revarray.v 
 
-C_FILES = reverse.c queue.c sumarray.c message.c sha.c
+C_FILES = reverse.c queue.c sumarray.c message.c sha.c insertionsort.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -154,6 +154,8 @@ progs/sumarray.v: progs/sumarray.c
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 progs/sha.v: progs/sha.c
+	$(CLIGHTGEN) -DCOMPCERT $<
+progs/insertionsort.v: progs/insertionsort.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 endif
 

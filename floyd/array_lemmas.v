@@ -39,13 +39,15 @@ Definition repinject (t: type) : option (reptype t -> val) :=
 Lemma repinject_typed_mapsto:
   forall sh t loc c inject,
    repinject t = Some inject ->
+   no_attr_type t = true ->
    typed_mapsto sh t loc c = mapsto sh t loc (inject c).
 Proof.
 intros.
  destruct t; inv H; unfold typed_mapsto, typed_mapsto', eq_rect_r; simpl;
   rewrite withspacer_spacer;
  unfold spacer; rewrite align_0; simpl; try rewrite emp_sepcon; auto;
- try destruct i; try destruct f; try omega.
+ try destruct i; try destruct f;
+ apply no_attr_e in H0; subst a; simpl; omega. 
 Qed.
 
 Definition typed_mapsto_opt sh ty v v' :=
@@ -186,11 +188,18 @@ Definition force_reptype (t: type) (v: option (reptype t)) : reptype t :=
 
 (* Definition isSome {A}(v: option A) : Prop := exists v', v = Some v'. *)
 
+Lemma no_attr_type_nonvol:
+ forall t, no_attr_type t = true -> type_is_volatile t = false.
+Proof.
+intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
+destruct i,s; reflexivity. destruct f; reflexivity.
+Qed.
+
 Lemma semax_load_array':
 forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
     (temp_types Delta) ! id = Some (t1',i2) ->
-    type_is_volatile t1 = false ->
+    no_attr_type t1 = true ->
     strictAllowedCast t1 t1' = true ->
     repinject t1 = Some inject ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -211,30 +220,6 @@ forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: 
                             :: map (subst id (`old)) Q)
                 (SEPx 
                   (map (subst id (`old)) R))))).
-(*
-Lemma semax_load_array':
-forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2 y,
-    typeof e1 =  tptr t1 ->
-    (temp_types Delta) ! id = Some (t1',i2) ->
-    type_is_volatile t1 = false ->
-    strictAllowedCast t1 t1' = true ->
-    repinject t1 = Some inject ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-            `(array_at t1 sh contents lo hi) v1 * TT ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-     local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
-     local (`(in_range lo hi) (`force_signed_int v2)) &&
-     local (`eq (`Some y) (`contents (`force_signed_int v2))) && local (`isptr v1) && 
-     local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
-    @semax Espec Delta 
-       (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Ederef e1 t1))
-       (normal_ret_assert 
-        (EX old:val,
-          PROPx P (LOCALx (`eq (eval_id id) (subst id (`old) (`inject y)) :: map (subst id (`old)) Q)
-                (SEPx 
-                  (map (subst id (`old)) R))))).
-*)
 Proof.
  intros until 2. intros NONVOL CLASSIFY H3 H5 H2.
 eapply semax_pre_post;
@@ -272,7 +257,7 @@ hnf. unfold_lift. rewrite <- H11.
 destruct (v2 rho); inv H6.
 destruct (v1 rho); inv H10.
 apply I.
-rewrite NONVOL; apply I.
+rewrite (no_attr_type_nonvol _ NONVOL); apply I.
 exists t1',i2; split; auto. apply strictAllowedValCast; auto.
 apply andp_left1; auto.
 
@@ -318,7 +303,7 @@ Lemma semax_load_array:
 forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
     (temp_types Delta) ! id = Some (t1',i2) ->
-    type_is_volatile t1 = false ->
+    no_attr_type t1 = true ->
     strictAllowedCast t1 t1' = true ->
     repinject t1 = Some inject ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -471,13 +456,15 @@ Qed.
 Lemma repinject_typed_mapsto_:
   forall sh t loc inject,
    repinject t = Some inject ->
+   no_attr_type t = true ->
    typed_mapsto_ sh t loc = mapsto_ sh t loc.
 Proof.
 intros.
  destruct t; inv H; unfold typed_mapsto_, typed_mapsto_', eq_rect_r; simpl;
   rewrite withspacer_spacer;
  unfold spacer; rewrite align_0; simpl; try rewrite emp_sepcon; auto;
- try destruct i; try destruct s; try destruct f; auto; omega.
+ try destruct i; try destruct s; try destruct f; auto;
+ apply no_attr_e in H0; subst a; simpl; omega.
 Qed.
 
 Lemma semax_store_array:
@@ -487,7 +474,7 @@ forall Espec (Delta: tycontext) n sh t1 (contents: Z -> option (reptype t1))
              e1  e2 (v2: Z) (v: reptype t1),
     writable_share sh ->
     typeof e1 =  tptr t1 ->
-    type_is_volatile t1 = false ->
+    no_attr_type t1 = true ->
     repinject t1 = Some inject ->
     nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -532,7 +519,7 @@ eapply semax_pre_post;
   hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
   rewrite H0; reflexivity. simpl. unfold_lift. rewrite <- H7; simpl.
   destruct (v1 rho); inv H12; apply I.
-  rewrite H1; reflexivity.
+  rewrite (no_attr_type_nonvol _ H1); reflexivity.
   omega. omega.
   apply derives_extract_prop; intros [? [? [? [? ?]]]].
   saturate_local.
@@ -543,7 +530,7 @@ eapply semax_pre_post;
   destruct (v1 rho); inv H12. simpl.
   unfold add_ptr_int; simpl.
   destruct (contents v2); simpl.
-  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3); auto.
   cancel.
  rewrite (repinject_typed_mapsto_ _ _ _ _ H3); auto.
  omega.
@@ -564,7 +551,7 @@ eapply semax_pre_post;
   rewrite upd_neq; auto. omega.
   rewrite upd_eq. 
   simpl.
-  rewrite (repinject_typed_mapsto _ _ _ _ _ H3).
+  rewrite (repinject_typed_mapsto _ _ _ _ _ H3) by auto.
   destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.

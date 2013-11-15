@@ -207,9 +207,16 @@ Ltac super_unfold_lift :=
 
 (** Computational version of type_eq **)
 
+Definition eqb_option {A} (f: A -> A -> bool) (x y: option A) : bool :=
+  match x, y with
+  | None, None => true
+  | Some x' , Some y' => f x' y'
+ | _, _ => false
+  end.
+
 Definition eqb_attr (a b: attr) : bool :=
  match a, b with
- | mk_attr av, mk_attr bv => eqb av bv
+ | mk_attr av an, mk_attr bv bn => eqb av bv && eqb_option N.eqb an bn
  end.
 
 Definition eqb_floatsize (a b: floatsize) : bool :=

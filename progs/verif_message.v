@@ -34,7 +34,8 @@ compute; split; congruence.
 Qed.
 Next Obligation.
  normalize. repeat rewrite prop_and. repeat apply andp_right; try (apply prop_right; compute; congruence).
- change 8 with (sizeof t_struct_intpair). rewrite memory_block_typed. auto.
+ change 8 with (sizeof t_struct_intpair). 
+ rewrite memory_block_typed by reflexivity. auto.
 Qed.
 
 Definition serialize_spec {t: type} (format: message_format t) :=
@@ -97,7 +98,7 @@ name buf0 _buf.
 name x _x.
 name y _y.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
-rewrite memory_block_typed.
+rewrite memory_block_typed by reflexivity.
 rename H into H3. (*fix for (slightly) older coq versions*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
@@ -143,7 +144,7 @@ name x _x.
 name y _y.
 name len0 _length.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
-rewrite memory_block_typed.
+rewrite memory_block_typed by reflexivity.
 rename H into H2. (*fix for (slightly) older coq versions*)
 do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
@@ -185,7 +186,7 @@ Qed.
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_typed_mapsto_. 
+  repeat rewrite var_block_typed_mapsto_ by reflexivity. 
 
 Ltac get_global_function id :=
   eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
@@ -744,12 +745,12 @@ forward. (* return x+y; *)
  apply memory_block_zero.
 unfold stackframe_of.
 simpl.
-repeat rewrite var_block_typed_mapsto_.
+repeat rewrite var_block_typed_mapsto_ by reflexivity.
 unfold id.
 entailer.
 replace ( typed_mapsto_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
    with (typed_mapsto_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
- by (repeat rewrite <- memory_block_typed; auto).
+ by (repeat rewrite <- memory_block_typed by reflexivity; auto).
 rename H into HYP. (*remove when simpl_typed_mapsto is fixed (explanation in verif_queue)*)
 simpl_typed_mapsto.
 cancel.

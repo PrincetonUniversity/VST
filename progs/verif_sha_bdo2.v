@@ -43,7 +43,7 @@ set (regs := map2 Int.add (process_msg init_registers hashed)
 erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 entailer!.
 unfold stackframe_of; simpl.
-rewrite var_block_typed_mapsto_.
+rewrite var_block_typed_mapsto_ by reflexivity.
 rewrite prop_true_andp by (compute; congruence).
 simpl_typed_mapsto.
 unfold id.

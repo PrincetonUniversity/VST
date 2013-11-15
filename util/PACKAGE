@@ -1,6 +1,8 @@
 #
 # This script builds a VST distribution as a tgz file.
-# To run it: from some place outside of an svn-checked-out directory,
+# To run it: 
+# FIRST DO AN "svn commit" if necessary.
+# THEN, from some place outside of an svn-checked-out directory,
 #   sh  .../vst/util/PACKAGE
 # the result will be in vst.tgz
 

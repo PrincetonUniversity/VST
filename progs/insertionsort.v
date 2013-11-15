@@ -2,33 +2,33 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _previous : ident := 16%positive.
-Definition _main : ident := 24%positive.
-Definition _next : ident := 22%positive.
-Definition _sortedvalue : ident := 17%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition ___builtin_subl : ident := 5%positive.
-Definition _head : ident := 12%positive.
-Definition _struct_list : ident := 10%positive.
+Definition _index : ident := 15%positive.
+Definition ___builtin_fabs : ident := 7%positive.
 Definition ___builtin_negl : ident := 3%positive.
-Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
 Definition _sorted : ident := 14%positive.
-Definition ___builtin_mull : ident := 6%positive.
 Definition _insert_value : ident := 19%positive.
-Definition _tail : ident := 11%positive.
-Definition ___builtin_addl : ident := 4%positive.
-Definition ___builtin_fabs : ident := 7%positive.
-Definition _p : ident := 21%positive.
-Definition _guard : ident := 18%positive.
 Definition ___builtin_annot_intval : ident := 9%positive.
+Definition ___builtin_addl : ident := 4%positive.
+Definition _sortedvalue : ident := 17%positive.
+Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition _guard : ident := 18%positive.
+Definition _previous : ident := 16%positive.
 Definition _insert_node : ident := 13%positive.
-Definition _index : ident := 15%positive.
+Definition ___builtin_mull : ident := 6%positive.
+Definition _head : ident := 12%positive.
+Definition _main : ident := 24%positive.
 Definition _insertionsort : ident := 23%positive.
+Definition _tail : ident := 11%positive.
+Definition ___builtin_subl : ident := 5%positive.
+Definition ___builtin_write32_reversed : ident := 2%positive.
+Definition _p : ident := 21%positive.
+Definition _struct_list : ident := 10%positive.
+Definition _next : ident := 22%positive.
 Definition _insert : ident := 20%positive.
-Definition _guard'1 : ident := 26%positive.
 Definition _sorted' : ident := 27%positive.
 Definition _guard' : ident := 25%positive.
+Definition _guard'1 : ident := 26%positive.
 
 Definition t_struct_list :=
    (Tstruct _struct_list

@@ -763,18 +763,31 @@ Lemma memory_block_address_mapsto:
       (Share.unrel Share.Rsh sh) (b, Int.unsigned i)).
 Admitted. 
 
+Definition by_value_no_alignof t :=
+ match t with
+ | Tint _ _ (mk_attr false None) => True
+ | Tlong _ (mk_attr false None) => True
+ | Tfloat _ (mk_attr false None) => True
+ | Tpointer _ (mk_attr false None) => True
+ | _ => False
+ end.
+
 Lemma memory_block_mapsto_:
   forall n sh t v, 
-    match access_mode t with By_value _ => True | _ => False end ->
+   by_value_no_alignof t ->
    n = sizeof t ->
    memory_block sh (Int.repr n) v = mapsto_ sh t v.
 Proof.
  intros. subst n.
- destruct t; try contradiction; clear H;  unfold mapsto_, umapsto; simpl;
- try (destruct i,s); try destruct f; rewrite memory_block_isptr by omega;
+ pose proof (sizeof_pos t);
+destruct t; try contradiction; 
+  destruct a as [[|] [|]]; try contradiction; simpl;
+ unfold mapsto_, umapsto; simpl;
+ try (destruct i,s); try destruct f; 
+ rewrite memory_block_isptr by apply H0;
  destruct v; simpl; try  apply FF_andp; 
  rewrite prop_true_andp by auto;
- (apply memory_block_address_mapsto;  reflexivity).
+ (apply memory_block_address_mapsto;  try reflexivity).
 Qed.
  
 Lemma spacer_memory_block:
@@ -792,27 +805,63 @@ destruct pos; auto.
 unfold offset_val; rewrite Int.add_zero; auto.
 Qed.
 
+Definition no_attr (a: attr) :=
+ andb (negb (attr_volatile a))
+ match attr_alignas a with  None => true | _ => false end.
+
+Definition no_attr_e: forall a, no_attr a = true -> a=noattr.
+Proof.
+intros. destruct a. destruct attr_volatile; inv H.
+destruct attr_alignas; inv H1.
+reflexivity.
+Qed.
+
+Fixpoint no_attr_type (t: type) : bool :=
+ match t with 
+ | Tint _ _ a => no_attr a
+ | Tlong _ a => no_attr a
+ | Tfloat _ a => no_attr a
+ | Tpointer _ a => no_attr a
+ | Tarray t _ a => andb (no_attr_type t) (no_attr a)
+ | Tstruct _ flds a => andb (no_attr_fields flds)  (no_attr a)
+ | Tunion _ flds a => andb (no_attr_fields flds)  (no_attr a)
+ | Tcomp_ptr _ a =>  no_attr a
+ | _ => true
+ end
+with no_attr_fields (f: fieldlist) : bool :=
+ match f with Fnil => true 
+    | Fcons _ t f' => andb (no_attr_type t) (no_attr_fields f')
+ end.
+
 Lemma memory_block_typed': forall sh pos ty b ofs, 
+ no_attr_type ty = true ->
    spacer sh pos (alignof ty) (Vptr b ofs) *
    memory_block sh (Int.repr (sizeof ty)) (offset_val (Int.repr (align pos (alignof ty))) (Vptr b ofs) )
      = typed_mapsto_' sh pos ty (Vptr b ofs)
 with memory_block_fields: forall sh pos t fld b ofs,
+ no_attr_fields fld = true ->
   spacer sh (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
   * memory_block sh (Int.repr (sizeof_struct fld pos)) (Vptr b ofs)
   =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
 Proof.
  clear memory_block_typed'.
- intros.
+ intros; rename H into Hno.
  induction ty;
  try solve [simpl; rewrite withspacer_spacer; simpl;
                 rewrite at_offset_eq by (apply memory_block_offset_zero); auto];
  try (unfold typed_mapsto_'; rewrite withspacer_spacer; simpl; f_equal;
-  try destruct i,s; try destruct f; try rewrite at_offset_eq; simpl; try rewrite Int.add_zero; auto;
-       apply memory_block_mapsto_; simpl; auto).
+  try destruct i,s; try destruct f; try rewrite at_offset_eq; 
+       simpl; try rewrite Int.add_zero; auto;
+       apply memory_block_mapsto_; simpl; auto;
+       clear - Hno; destruct a as [[|] [[|]|]]; inv Hno; apply I).
  admit. (* array case *)
  unfold typed_mapsto_'; fold fields_mapto_.
  rewrite withspacer_spacer.
  simpl. f_equal.
+ simpl in Hno.
+ apply andb_true_iff in Hno; destruct Hno as [Hno Ha].
+ apply no_attr_e in Ha; subst a.
+ simpl.
  case_eq f; intros. simpl.
  rewrite at_offset_eq by (apply memory_block_offset_zero); auto.
  rewrite <- H.
@@ -821,8 +870,8 @@ Proof.
    simpl. pose proof (sizeof_struct_incr f0 (sizeof t)).
    rewrite Zmax_spec. rewrite zlt_false; auto. pose proof (sizeof_pos t). omega.
  simpl sizeof. rewrite H0.
- specialize (memory_block_fields sh 0 (Tstruct i f a) f b
-    (Int.add (Int.repr (align pos (alignof (Tstruct i f a)))) ofs)).
+ specialize (memory_block_fields sh 0 (Tstruct i f noattr) f b
+    (Int.add (Int.repr (align pos (alignof (Tstruct i f noattr)))) ofs)).
  simpl.
  rewrite at_offset_eq by (apply fields_mapto__offset_zero).
   rewrite memory_block_zero in memory_block_fields.
@@ -867,9 +916,12 @@ admit.  (* easy *)
 apply align_le.
 apply alignof_fields_pos.
 admit.  (* likely OK  *)
+auto.
 
  clear memory_block_fields.
- intros. revert pos ofs; induction fld; simpl; intros.
+ intros; rename H into Hno.
+ revert pos ofs; induction fld; simpl; intros.
+*
  rewrite sepcon_comm; f_equal.
  unfold spacer.
  destruct (Z.eq_dec (align pos 1 - pos) 0); auto.
@@ -877,6 +929,9 @@ admit.  (* likely OK  *)
  unfold at_offset. destruct pos;  apply memory_block_zero.
  unfold align. replace (pos + 1 - 1) with pos by omega.
  rewrite Zdiv_1_r. rewrite Zmult_1_r. omega.
+*
+ simpl in Hno. apply andb_true_iff in Hno; destruct Hno as [Hty Hno].
+ specialize (IHfld Hno).
  rewrite withspacer_spacer.
  pull_left (fields_mapto_ sh pos t fld (Vptr b ofs)).
  replace ((if storable_mode t0
@@ -899,15 +954,16 @@ Admitted.  (* This proof is done here, but Qed takes forever in Coq 8.3pl5.
 
 
 Lemma memory_block_typed: 
- forall sh ty, memory_block sh (Int.repr (sizeof ty))
-               = typed_mapsto_ sh ty.
+ forall sh ty, 
+  no_attr_type ty = true ->
+   memory_block sh (Int.repr (sizeof ty)) = typed_mapsto_ sh ty.
 Proof.
 intros.
 extensionality v.
 rewrite memory_block_isptr by (apply sizeof_pos).
 rewrite typed_mapsto__isptr.
 destruct v; simpl; normalize.
-unfold typed_mapsto_; rewrite <- memory_block_typed'.
+unfold typed_mapsto_; rewrite <- memory_block_typed'; auto.
 unfold spacer.
 rewrite align_0 by (apply alignof_pos).
 simpl. rewrite emp_sepcon.
@@ -916,13 +972,14 @@ Qed.
 
 Lemma var_block_typed_mapsto_:
   forall  sh id t, 
+  no_attr_type t = true ->
  var_block sh (id, t) = 
    !!(sizeof t <= Int.max_unsigned) &&
             `(typed_mapsto_ sh t) (eval_var id t).
 Proof.
 intros; extensionality rho.
 unfold_lift.
-rewrite <- memory_block_typed.
+rewrite <- memory_block_typed by auto.
 unfold var_block.
 simpl. unfold_lift.
 rewrite memory_block_isptr by apply sizeof_pos.
