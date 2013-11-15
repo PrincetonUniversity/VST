@@ -10,5 +10,5 @@ Require Export floyd.forward_lemmas.
 Require Export floyd.loadstore_lemmas.
 Require Export floyd.array_lemmas.
 Require Export floyd.entailer.
-Require Import floyd.globals_lemmas.
+Require Export floyd.globals_lemmas.
 

@@ -135,3 +135,64 @@ Lemma main_pre_eq:
 Proof.
 intros. rewrite fold_right_sepcon'_eq; reflexivity.
 Qed.
+
+Definition expand_globvars (Delta: tycontext)  (R R': list (environ -> mpred)) :=
+ forall rho, 
+    tc_environ Delta rho ->
+  SEPx R rho |-- SEPx R' rho.
+
+Lemma do_expand_globvars:
+ forall R' Espec Delta P Q R c Post,
+ expand_globvars Delta R R' ->
+ @semax Espec Delta (PROPx P (LOCALx Q (SEPx R'))) c Post ->
+ @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre; [ | apply H0].
+clear H0.
+go_lower.
+normalize.
+Qed.
+
+Lemma do_expand_globvars_cons: 
+   forall Delta A A' R R',
+  local (tc_environ Delta) && A |-- A' ->
+  expand_globvars Delta R R' ->
+  expand_globvars Delta (A::R) (A'::R').
+Proof.
+intros.
+hnf in H|-*.
+intros.
+apply sepcon_derives; auto.
+specialize (H rho).
+simpl in H. unfold local in H.
+eapply derives_trans; [ | apply H].
+apply andp_right; auto. apply prop_right; auto.
+Qed.
+
+Lemma do_expand_globvars_nil:
+  forall Delta, expand_globvars Delta nil nil.
+Proof.
+intros. hnf; intros.
+auto.
+Qed.
+
+Ltac expand_one_globvar :=
+ (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
+first [
+    eapply tc_globalvar_sound';
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+      | reflexivity | compute; congruence ]
+ | apply andp_left2; apply derives_refl
+ ].
+
+Ltac expand_main_pre := 
+ rewrite main_pre_eq; simpl fold_right_sepcon;
+ eapply do_expand_globvars;
+ [repeat 
+   (eapply do_expand_globvars_cons;
+    [ expand_one_globvar | ]);
+   apply do_expand_globvars_nil
+ |  ].
+
+

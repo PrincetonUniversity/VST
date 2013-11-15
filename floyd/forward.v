@@ -1087,21 +1087,48 @@ Ltac forward_call_id :=
 
 Ltac forward_skip := apply semax_skip.
 
+Ltac no_loads_expr e as_lvalue :=
+ match e with
+ | Econst_int _ _ => idtac
+ | Econst_float _ _ => idtac
+ | Econst_long _ _ => idtac
+ | Evar _ _ => match as_lvalue with true => idtac end
+ | Etempvar _ _ => idtac
+ | Eaddrof ?e1 _ => no_loads_expr e1 true
+ | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue
+ | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue; no_loads_expr e2 as_lvalue
+ | Ecast ?e1 _ => no_loads_expr e1 as_lvalue
+ | Efield ?e1 _ _ => match as_lvalue with true =>
+                              no_loads_expr e1 true
+                              end
+ | _ =>
+            let r := fresh "The_expression_or_parameter_list_must_not_contain_any_loads_but_the_following_subexpression_is_an_implicit_or_explicit_load_Please_refactor_this_stament_of_your_program" 
+           in pose (r:=e) 
+end.
+
+Ltac no_loads_exprlist e :=
+ match e with
+ | ?e1::?er => no_loads_expr e1 false; no_loads_exprlist er
+ | nil => idtac
+ end.
+
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
   | Sassign _ _ => new_store_tac
-  | Sset _ (Efield _ _ ?t) => 
+  | Sset _ (Efield ?e _ ?t) => 
+      no_loads_expr e true;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
               |new_load_tac]
-  | Sset _ (Ederef _ _) => new_load_tac
-  | Sset _ ?e => (bool_compute e; forward_ptr_cmp) || forward_setx
-  | Sifthenelse _ _ _ => forward_ifthenelse
+  | Sset _ (Ederef ?e _) => no_loads_expr e true; new_load_tac
+  | Sset _ (Evar _ _) => new_load_tac
+  | Sset _ ?e => no_loads_expr e false; (bool_compute e; forward_ptr_cmp) || forward_setx
+  | Sifthenelse ?e _ _ => no_loads_expr e false; forward_ifthenelse
   |  Swhile _ _ => forward_while_complain
-  |  Ssequence (Scall (Some ?id') (Evar _ _) _) (Sset _ (Etempvar ?id' _)) => 
-         forward_compound_call
-  | Scall _ (Evar _ _) _ => forward_call_id
+  |  Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
+          no_loads_exprlist el; forward_compound_call
+  | Scall _ (Evar _ _) ?el =>  no_loads_exprlist el; forward_call_id
   | Sskip => forward_skip
   end.
 
@@ -1231,7 +1258,7 @@ Ltac start_function :=
  end;
  repeat (apply semax_extract_PROP; intro);
  abbreviate_semax;
- try (rewrite main_pre_eq; simpl fold_right_sepcon').
+ try expand_main_pre.
 
 Opaque sepcon.
 Opaque emp.
