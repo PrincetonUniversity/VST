@@ -5,6 +5,10 @@ Local Open Scope logic.
 
 Definition flip (n: Z) (f: Z -> int) (i: Z) := f (n-1-i).
 
+Lemma flip_flip:  forall n f, flip n (flip n f) = f.
+Proof. intros; extensionality i; unfold flip; f_equal; omega.
+Qed.
+
 Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : Z -> int, size: Z
@@ -41,7 +45,6 @@ Definition reverse_Inv a0 sh contents size :=
                 `(eq (Vint (Int.repr j))) (eval_id _lo);
                 `(eq (Vint (Int.repr (size-j)))) (eval_id _hi))
    SEP (`(array_at tint sh (cSome (flip_between size j (size-j) contents)) 0 size a0))).
-
 
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
 Proof.
@@ -161,13 +164,12 @@ Qed.
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 
 Lemma  setup_globals:
-  forall u rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
-     main_pre prog u rho
-      |-- array_at tint Ews (cSome four_contents) 0 4
-                (eval_var _four (tarray tint 4) rho).
+     local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
+     globvar2pred (_four, v_four)
+      |-- `(array_at tint Ews (cSome four_contents) 0 4)
+                (eval_var _four (tarray tint 4)).
 Proof.
- unfold main_pre.
- intros _ rho; normalize.
+ intro rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _four _ H (eq_refl _) (eq_refl _))
   as [b [H97 H99]]. simpl in *.
@@ -176,8 +178,6 @@ Proof.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  unfold array_at, rangespec; simpl.
  unfold array_at.
- repeat  simpl_typed_mapsto.
- rewrite sepcon_emp.
  unfold four_contents. simpl.
  change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
        with (umapsto Ews tint).
@@ -195,25 +195,21 @@ Qed.
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
-apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
-(*
- THIS forward FAILS, because we don't yet support void functions 
+replace_SEP 0%Z (`(array_at tint Ews (cSome four_contents) 0 4) (eval_var _four (tarray tint 4))).
+entailer.
+eapply derives_trans; [ | apply setup_globals]; entailer.
+eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
 forward.  (*  revarray(four,4); *)
-instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
-instantiate (1:=nil) in (Value of Frame).
-unfold Frame.
- entailer. apply andp_right.
- apply prop_right; repeat split; auto; try solve [ compute; congruence].
- eapply eval_var_isptr; eauto.
- apply setup_globals; auto.
- try (auto with typeclass_instances). (* remove this line when it's no longer needed! *)
- auto with closed.
+instantiate (1:= (a,Ews,four_contents,4)) in (Value of witness).
+entailer!.
+forward.  (*  revarray(four,4); *)
+instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
+entailer!.
+normalize.
+rewrite flip_flip.
  forward. (* return s; *)
- entailer!.
  unfold main_post. entailer.
 Qed.
-*)
-Admitted.
 
 Existing Instance NullExtension.Espec.
 

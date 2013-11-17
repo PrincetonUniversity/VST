@@ -825,6 +825,30 @@ Lemma get_result_None: get_result None = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite get_result_unfold get_result_None : norm.
 
+Lemma elim_globals_only:
+  forall Delta g i t rho,
+  tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
+  eval_var i t (globals_only rho) = eval_var i t rho.
+Proof.
+intros. 
+destruct H as [H [H8 H0]].
+unfold eval_var, globals_only.
+simpl. 
+destruct H as [_ [? [? ?]]].
+destruct (H2 i g H0).
+unfold Map.get; rewrite H3; auto.
+destruct H3.
+congruence.
+Qed.
+
+Hint Rewrite elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
+
+Lemma elim_globals_only': 
+ forall a: mpred, 
+ (@liftx (Tarrow environ (LiftEnviron mpred)) (`a) globals_only) = `a.
+Proof. reflexivity. Qed.
+Hint Rewrite elim_globals_only' : norm.
+
 Lemma eval_expropt_Some: forall e, eval_expropt (Some e) = `Some (eval_expr e).
 Proof. reflexivity. Qed.
 Lemma eval_expropt_None: eval_expropt None = `None.

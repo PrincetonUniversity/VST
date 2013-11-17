@@ -214,7 +214,10 @@ Ltac fancy_intro :=
  try simple apply ptr_eq_e in H;
  match type of H with
  | ?P => clear H; assert (H:P) by auto; clear H
- | ?x = ?y => first [subst x | subst y | idtac]
+ | ?x = ?y => first [subst x | subst y 
+                             | is_var x; rewrite H 
+                             | is_var y; rewrite <- H
+                             | idtac]
  | isptr ?x => let Hx := fresh "P" x in rename H into Hx
  | is_pointer_or_null ?x => let Hx := fresh "PN" x in rename H into Hx
  | typed_false _ (Val.of_bool _) =>  

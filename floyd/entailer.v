@@ -58,6 +58,8 @@ end.
 Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
 Inductive computable: forall {A}(x: A), Prop :=
+| computable_O: computable O
+| computable_S: forall x, computable x -> computable (S x)
 | computable_Zlt: forall x y, computable x -> computable y -> computable (Z.lt x y)
 | computable_Zle: forall x y, computable x -> computable y -> computable (Z.le x y)
 | computable_Zgt: forall x y, computable x -> computable y -> computable (Z.gt x y)
@@ -95,18 +97,22 @@ Inductive computable: forall {A}(x: A), Prop :=
   computable op -> computable x -> computable y -> computable (Int.cmpu op x y)
 | computable_Intrepr: forall x, computable x -> computable (Int.repr x)
 | computable_Intsigned: forall x, computable x -> computable (Int.signed x)
-| computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x).
+| computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x)
+| computable_two_power_nat: forall x, computable x -> computable (two_power_nat x).
 
 Hint Constructors computable : computable. 
+Hint Extern 1 (computable ?A) => (unfold A) : computable.
 
+(*
 Hint Extern 5 (@computable _ _) => 
    match goal with d := ?x |- computable (?d) => 
          unfold d; auto 50 with computable 
     end : computable.
+*)
 
 Ltac computable := match goal with |- ?x =>
  no_evars x;
- let H := fresh in assert (H: computable x) by auto 50 with computable; 
+ let H := fresh in assert (H: computable x) by auto 80 with computable; 
  clear H;
  compute; clear; auto; congruence
 end.

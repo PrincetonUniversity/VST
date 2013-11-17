@@ -142,10 +142,10 @@ Qed.
 Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
 
 Lemma  setup_globals:
-  forall rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
-     globvar2pred (_four, v_four) rho
-      |-- array_at tint Ews (cSome four_contents) 0 4
-                (eval_var _four (tarray tint 4) rho).
+  local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
+     globvar2pred (_four, v_four)
+      |-- `(array_at tint Ews (cSome four_contents) 0 4)
+                (eval_var _four (tarray tint 4)).
 Proof.
  intro rho; normalize.
  simpl.
@@ -174,18 +174,13 @@ Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
 name s _s.
+replace_SEP 0%Z (`(array_at tint Ews (cSome four_contents) 0 4) (eval_var _four (tarray tint 4))).
+entailer.
+eapply derives_trans; [ | apply setup_globals]; entailer.
 apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
 forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
-instantiate (1:=nil) in (Value of Frame).
-unfold Frame.
- entailer.
- assert (isptr (eval_var _four (tarray tint 4) rho)) 
-  by (eapply eval_var_isptr; eauto).
- normalize.
- apply andp_right.
- apply prop_right; repeat split; auto; try solve [ compute; congruence].
- apply setup_globals; auto.
+ entailer!.
  auto with closed.
  forward. (* return s; *)
  entailer!.

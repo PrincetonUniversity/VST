@@ -461,21 +461,16 @@ simpl @fst; simpl @snd.
 entailer.
 change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed by reflexivity.
-
 unfold Frame.
 instantiate (1:= `(fifo (p2 :: nil) q2 *
 (field_mapsto Tsh t_struct_elem _a p2 (Vint (Int.repr 2)) *
  field_mapsto Tsh t_struct_elem _b p2 (Vint (Int.repr 20))))::nil).
-normalize. 
-rename H into H2.
-(*above is a temporary fix for a problem I'm having. Coq seems
-to be using the name H regardless of the fresh in simpl_typed_mapsto1,
-this could be a system specific bug, not sure who else is having it *)
-simpl_typed_mapsto.
-cancel.
+subst.
+entailer!.
+simpl_typed_mapsto; cancel.
 forward. (* return i+j; *)
-entailer.
-unfold main_post; simpl; apply TT_right.
+unfold main_post.
+entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

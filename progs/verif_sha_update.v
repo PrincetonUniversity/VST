@@ -296,11 +296,6 @@ rewrite NPeano.Nat.add_sub_swap by auto.
 apply derives_refl'. f_equal. auto.
 Qed.
 
-Lemma elim_globals_only': 
- forall a: mpred, 
- (@liftx (Tarrow environ (LiftEnviron mpred)) (`a) globals_only) = `a.
-Proof. reflexivity. Qed.
-
 Lemma Zlength_intlist_to_Zlist_app:
  forall al bl,  Zlength (intlist_to_Zlist (al++bl)) =
     (Zlength (intlist_to_Zlist al) + Zlength (intlist_to_Zlist bl))%Z.
@@ -343,7 +338,7 @@ normalize; apply exp_right with r_Nh.
 entailer!.
 cbv beta iota.
 normalize.
-rewrite elim_globals_only'.
+(* rewrite elim_globals_only'. *)
 
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
@@ -535,7 +530,7 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply extract_exists_pre; intro a'.
  forward.
  apply exp_right with a'.
- entailer.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
- cancel.
+ erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]) .
+           (* should try to automate the line above *)
+ entailer!.
 Qed.
