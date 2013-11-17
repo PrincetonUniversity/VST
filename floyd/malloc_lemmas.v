@@ -833,6 +833,13 @@ with no_attr_fields (f: fieldlist) : bool :=
     | Fcons _ t f' => andb (no_attr_type t) (no_attr_fields f')
  end.
 
+Lemma no_attr_type_nonvol:
+ forall t, no_attr_type t = true -> type_is_volatile t = false.
+Proof.
+intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
+destruct i,s; reflexivity. destruct f; reflexivity.
+Qed.
+
 Lemma memory_block_typed': forall sh pos ty b ofs, 
  no_attr_type ty = true ->
    spacer sh pos (alignof ty) (Vptr b ofs) *

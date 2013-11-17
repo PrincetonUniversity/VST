@@ -188,13 +188,6 @@ Definition force_reptype (t: type) (v: option (reptype t)) : reptype t :=
 
 (* Definition isSome {A}(v: option A) : Prop := exists v', v = Some v'. *)
 
-Lemma no_attr_type_nonvol:
- forall t, no_attr_type t = true -> type_is_volatile t = false.
-Proof.
-intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
-destruct i,s; reflexivity. destruct f; reflexivity.
-Qed.
-
 Lemma semax_load_array':
 forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
@@ -423,34 +416,9 @@ apply IHn0. simpl in H. contradict H; f_equal; auto.
 Qed.
 
 Lemma array_at__array_at_None:
-  forall t sh f lo hi,
-  (forall i, lo <= i < hi -> f i = None)%Z ->
-  array_at_ t sh lo hi = 
-  array_at t sh f lo hi.
+  forall t sh,  array_at_ t sh = array_at t sh (fun _ => None).
 Proof.
-intros.
-unfold array_at_, array_at, rangespec.
-extensionality v.
-assert ( lo > hi \/ lo <= hi)%Z by omega.
-destruct H0.
-rewrite nat_of_Z_neg by omega.
-simpl. auto.
-assert (hi = lo + Z_of_nat (nat_of_Z (hi-lo)))%Z.
-rewrite nat_of_Z_eq by omega.
-omega.
-forget (nat_of_Z (hi-lo)) as n.
-subst hi.
-clear H0.
-revert lo H; induction n; intros; auto.
-simpl. 
-rewrite Nat2Z.inj_succ in H.
-f_equal.
-rewrite H; auto.
-omega.
-apply IHn.
-intros.
-apply H.
-omega.
+intros. reflexivity.
 Qed.
 
 Lemma repinject_typed_mapsto_:

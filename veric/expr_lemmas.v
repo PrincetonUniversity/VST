@@ -93,7 +93,7 @@ remember ((glob_types Delta) ! i). destruct o; simpl in *; try congruence.
 super_unfold_lift. right. 
  unfold typecheck_glob_environ in H1.
 symmetry in Heqo2. 
-specialize (H1 _  _ Heqo2). destruct H1 as [b [i0 [? ?]]].
+specialize (H1 _  _ Heqo2). destruct H1 as [b [? ?]].
 rewrite <- H in *.  simpl ge_of in Heqo0. rewrite H1 in *.
 inv Heqo0. eauto. inv H2. 
 
@@ -170,7 +170,7 @@ subst.
 unfold same_env in *. 
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0). 
 destruct H5. simpl in *. unfold Map.get. rewrite H5. 
-unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. destruct H6. 
+unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. 
 rewrite H6. rewrite eqb_type_refl. auto.
 destruct pt; inv H1; reflexivity.
 destruct H5; congruence. inv H0.
@@ -288,7 +288,7 @@ symmetry in Heqo0.  specialize (SM _ _ Heqo0).
 destruct SM. 
 unfold Map.get. rewrite H4. 
 unfold typecheck_glob_environ in *. 
-destruct (H2 i g); auto. destruct H5; destruct H5. 
+destruct (H2 i g); auto. destruct H5. 
 rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.
 inv H0. inv H0. 
 Qed.
@@ -760,14 +760,14 @@ hnf in Hve,Hge.
 revert H1; case_eq ((var_types Delta) ! i); intros; try contradiction.
 destruct (Hve _ _ H0). simpl in *; congruence.
 revert H1; case_eq ((glob_types Delta) ! i); intros; try contradiction.
-destruct (Hge _ _ H1) as [b [ofs [? ?]]].
+destruct (Hge _ _ H1) as [b [? ?]].
 simpl. simpl in H3. 
 rewrite H3.
 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H2. unfold tc_bool in H2.
 if_tac in H2; try contradiction.
-apply Clight.eval_Elvalue with b ofs; [  | econstructor 2; apply MODE].
+apply Clight.eval_Elvalue with b Int.zero; [  | econstructor 2; apply MODE].
 assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.
 apply Clight.eval_Evar_global.
 symmetry in Heqo; apply Heqo.
@@ -821,7 +821,7 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 super_unfold_lift. destruct H1. 
 rename H3 into H4. 
 symmetry in Heqo2. specialize (H4 _ _ Heqo2).  destruct H4. destruct H2. 
-destruct H2. simpl in Heqo0. rewrite H2 in *. inv Heqo0. exists x. exists x0. split; auto. 
+simpl in Heqo0. rewrite H2 in *. inv Heqo0. exists x. exists Int.zero. split; auto. 
 unfold construct_rho in *. inv H. simpl in Heqo. clear H1. 
 remember (filter_genv ge). symmetry in Heqg0. 
 assert (ZO := filter_genv_zero_ofs _ _ _ _ _ Heqg0 _ H2).  subst.

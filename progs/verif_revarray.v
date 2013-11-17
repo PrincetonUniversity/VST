@@ -170,7 +170,7 @@ Proof.
  intros _ rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _four _ H (eq_refl _) (eq_refl _))
-  as [b [z [H97 H99]]]. simpl in *.
+  as [b [H97 H99]]. simpl in *.
  unfold tarray.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.
@@ -181,7 +181,7 @@ Proof.
  unfold four_contents. simpl.
  change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
        with (umapsto Ews tint).
- replace (Vptr b z) with (Vptr b (Int.add z (Int.repr 0)))
+ replace (Vptr b Int.zero) with (Vptr b (Int.add Int.zero (Int.repr 0)))
     by (rewrite Int.add_zero; auto).
 repeat (apply sepcon_derives;
  [unfold mapsto; apply andp_right; [apply prop_right; reflexivity | ];

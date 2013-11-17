@@ -946,12 +946,11 @@ Definition typecheck_var_environ
 forall id ty, tc ! id = Some (ty) ->
 exists v, Map.get ve id = Some(v,ty).
 
-
 Definition typecheck_glob_environ 
 (ge: genviron) (tc: PTree.t global_spec) :=
 forall id  t,  tc ! id = Some t -> 
-((exists b, exists i, 
-(ge id = Some (Vptr b i, globtype t) /\ typecheck_val (Vptr b i) (globtype t) = true))).
+((exists b, 
+(ge id = Some (Vptr b Int.zero, globtype t) /\ typecheck_val (Vptr b Int.zero) (globtype t) = true))).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->

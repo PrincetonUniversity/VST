@@ -213,7 +213,7 @@ Qed.
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_typed_mapsto_. 
+  repeat rewrite var_block_typed_mapsto_ by reflexivity. 
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 

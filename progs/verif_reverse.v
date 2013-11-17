@@ -233,7 +233,7 @@ Proof.
  intros rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _three _ H (eq_refl _) (eq_refl _))
-  as [b [z [H97 H99]]]. simpl in *.
+  as [b [H97 H99]]. simpl in *.
  rewrite H97.
  unfold globvar2pred. simpl. rewrite H99. simpl.
  clear.

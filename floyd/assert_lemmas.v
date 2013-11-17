@@ -651,13 +651,13 @@ Lemma lift_identity:
 Proof. intros. reflexivity. Qed.
 Hint Rewrite lift_identity : norm.
 
-Lemma tc_eval_gvar_i:
+Lemma tc_eval_gvar_zero:
   forall Delta t i rho, tc_environ Delta rho ->
             (var_types Delta) ! i = None ->
             (glob_types Delta) ! i = Some (Global_var t) ->
-             tc_val (Tpointer t noattr) (eval_var i t rho).
+            exists b, eval_var i t rho = Vptr b Int.zero.
 Proof.
- intros. rewrite tc_val_eq. unfold tc_val, eval_var; simpl.
+ intros. unfold eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
   destruct H as [_ [? [? ?]]].
   unfold typecheck_var_environ in  *. 
@@ -665,11 +665,21 @@ Proof.
   unfold same_env in *. 
   destruct (H3 _ _ H1).
   unfold Map.get; rewrite H4.
-  destruct (H2 _ _ H1) as [b [i' [? ?]]].
+  destruct (H2 _ _ H1) as [b [? ?]].
    rewrite H5. simpl. rewrite eqb_type_refl.
-   simpl globtype in H6.
-   auto. 
+  eauto.
   destruct H4; congruence.
+Qed.
+
+Lemma tc_eval_gvar_i:
+  forall Delta t i rho, tc_environ Delta rho ->
+            (var_types Delta) ! i = None ->
+            (glob_types Delta) ! i = Some (Global_var t) ->
+             tc_val (Tpointer t noattr) (eval_var i t rho).
+Proof.
+ intros.
+ destruct (tc_eval_gvar_zero _ _ _ _ H H0 H1) as [b ?].
+ rewrite H2; apply I.
 Qed.
 
 Lemma local_lift2_and: forall P Q, local (`and P Q) = 
@@ -836,8 +846,8 @@ unfold tc_environ, typecheck_environ in H.
 repeat rewrite andb_true_iff in H.
 destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
-exists b; exists i.
+specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
+exists b; exists Int.zero.
 unfold eval_var; simpl.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
@@ -850,14 +860,14 @@ Lemma globvar_eval_var:
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  (Global_var t) ->
-     exists b, exists z,  eval_var id t rho = Vptr b z /\ ge_of rho id = Some (Vptr b z, t).
+     exists b,  eval_var id t rho = Vptr b Int.zero /\ ge_of rho id = Some (Vptr b Int.zero, t).
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
 destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [i [Hc Hc']]].
-exists b; exists i.
+specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
+exists b.
 unfold eval_var; simpl.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
@@ -1205,7 +1215,7 @@ Proof.
   rewrite eqb_type_refl.
   rewrite NONVOL. simpl. auto.
   destruct H0. 
-  destruct (H1 _ _ H3) as [b [i' [? ?]]].
+  destruct (H1 _ _ H3) as [b [? ?]].
   rewrite H4. simpl.
  destruct (H2 _ _ H3).
  unfold Map.get; rewrite H6.

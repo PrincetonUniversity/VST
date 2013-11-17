@@ -462,9 +462,6 @@ Ltac normalize :=
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
   | |- _  => 
- (* simple apply normal_ret_assert_derives
-         | simple apply normal_ret_assert_derives'
-         | simple apply normal_ret_assert_derives'' *)
     floyd.client_lemmas.normalize
   end.
 
@@ -498,27 +495,6 @@ Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
        let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
      end.
-
-Ltac isolate_mapsto_tac e R := 
-  match R with 
-     | context [|> `(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                replace e' with (eval_expr e) by auto
-     | context [`(mapsto ?sh ?ty) ?e' _ :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                replace e' with (eval_expr e) by auto
-     | context [|> `(mapsto_ ?sh ?ty) ?e' :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                replace e' with (eval_expr e) by auto
-     | context [`(mapsto_ ?sh ?ty) ?e' :: ?R'] =>
-          let n := length_of R in let n' := length_of R' 
-             in rewrite (grab_nth_SEP (n- S n')); simpl minus; unfold nth, delete_nth;
-                replace e' with (eval_expr e) by auto
-     end
-  || fail 4 "Could not isolate `(mapsto _ _) (eval_expr " e "), or equivalent, in precondition".
 
 Ltac intro_old_var' id :=
   match goal with 
@@ -995,6 +971,7 @@ match goal with
                 (SEPx (replace_nth n R (`(field_mapsto_ sh (typeof e) fld) (eval_lvalue e)))))));
  [ eapply (fast_entail n); [reflexivity | entailer; cancel] | ];
 (**** 14.2 seconds to here  *)
+(*
  eapply (semax_store_field'' _ _ n sh); 
    [auto | reflexivity | reflexivity 
       | try solve [repeat split; hnf; simpl; intros; congruence]
@@ -1003,6 +980,13 @@ match goal with
       | (apply local_lifted_reflexivity || quick_load_equality)
       | reflexivity
       | simple apply derives_refl ];
+*)
+ eapply (semax_store_field_nth _ _ n sh); 
+   [reflexivity | auto | reflexivity | reflexivity | reflexivity
+      | solve [go_lowerx; auto with cancel] 
+      | (apply local_lifted_reflexivity || solve [entailer])
+      | try solve [entailer]
+     ];
   unfold n,sh; clear n sh
  (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 

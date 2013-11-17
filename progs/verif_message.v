@@ -249,7 +249,7 @@ normalize.
 rewrite andp_assoc.
 apply andp_derives; auto.
 apply andp_derives; auto.
- destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b [z [H97 H99]]].
+ destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b [H97 H99]].
   unfold globvars2pred,globvar2pred. simpl. rewrite H99.
  simpl gvar_volatile. cbv iota.
  simpl gvar_init. simpl readonly2share.
@@ -431,19 +431,14 @@ revert H3; case_eq ((temp_types Delta) ! ser); intros; try contradiction.
 destruct p0.
 subst t0.
 eapply semax_seq'.
-eapply semax_load_field'; try reflexivity. auto.
-apply H.
-apply extract_exists_pre; intro old.
-
-assert (CL_TC: closed_wrt_vars (list2idset(ser::x::id::nil))
-  (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil))).
- admit.  (* should be fine *)
-assert (C1:=closed_wrt_subset _ _ CLser).
-assert (C2:=closed_wrt_Forall_subset _ _ CLser).
-autorewrite with subst.
-simpl eval_exprlist.
-autorewrite with subst. 
-clear C1 C2.
+{
+   eapply (semax_load_field_38); try eassumption; try reflexivity.
+  admit.  (* closed...  should be fine *)
+   admit.  (* closed...  should be fine *)
+ go_lowerx; entailer.
+ go_lowerx; entailer. rewrite H2; cancel.
+}
+ 
 
 focus_SEP 3 1.
    apply semax_pre with 
@@ -480,10 +475,10 @@ hnf. unfold typecheck_expr.
 simpl negb. cbv iota.
 rewrite (temp_types_init_same _ _ _ _ H).
 apply I.
-hnf in H7|-*.
-unfold typecheck_exprlist in H7|-*.
-repeat rewrite denote_tc_assert_andp in H7|-*.
-destruct H7 as [? [? _]]; repeat split; auto.
+hnf in H8|-*.
+unfold typecheck_exprlist in H8|-*.
+repeat rewrite denote_tc_assert_andp in H8|-*.
+destruct H8 as [? [? _]]; repeat split; auto.
 apply tc_expr_init; auto.
 apply tc_expr_init; auto.
 (*

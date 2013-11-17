@@ -29,20 +29,6 @@ apply orp_left; apply derives_refl.
 apply orp_right1; apply derives_refl.
 Qed.
 
-Lemma typecheck_glob_environ_e':
- forall ge tc, typecheck_glob_environ ge tc ->
-   forall id t, tc ! id = Some t ->
-   exists b, ge id = Some (Vptr b Int.zero, globtype t) /\
-                typecheck_val (Vptr b Int.zero) (globtype t) = true.
-Proof.
-intros.
-destruct (H _ _ H0) as [b [j [? ?]]].
-assert (j=Int.zero) by admit.   (* need to work on this.  It's
-   guaranteed by CompCert but our logic loses track of this fact. *)
-subst. eauto.
-Qed.
-
-
 Lemma address_mapsto_zeros_memory_block:
  forall sh n b,
   0 <= n <= Int.max_unsigned ->
@@ -78,8 +64,172 @@ rewrite Int.unsigned_zero.
  apply IHn'. omega. omega.
 Qed.
 
-
 Lemma tc_globalvar_sound:
+  forall Delta i t gv idata rho, 
+   (var_types Delta) ! i = None ->
+   (glob_types Delta) ! i = Some (Global_var t) ->
+   no_attr_type t = true ->
+   gvar_volatile gv = false ->
+   gvar_info gv = t ->
+   gvar_init gv = idata :: nil ->
+   gvar_readonly gv = false ->
+   sizeof t <= Int.max_unsigned ->
+   tc_environ Delta rho ->
+   globvar2pred(i, gv) rho |-- init_data2pred idata Ews (eval_var i t rho) rho.
+Proof.
+intros until 1. intros ? Hno; intros.
+unfold globvar2pred.
+simpl.
+destruct H6 as [? [? [? ?]]].
+destruct (H9 i _ H0); [ | destruct H10; congruence].
+destruct (H8 _ _ H0) as [b [? ?]].
+rewrite H11. rewrite H1.
+rewrite H3; simpl.
+unfold eval_var.
+unfold Map.get. rewrite H10. rewrite H11.
+simpl. rewrite eqb_type_refl.
+rewrite H4.
+simpl.
+change (Share.splice extern_retainer Tsh) with Ews.
+rewrite sepcon_emp.
+auto.
+Qed.
+
+Definition zero_of_type (t: type) : val :=
+ match t with
+  | Tfloat _ _ => Vfloat Float.zero
+  | _ => Vint Int.zero
+ end.
+
+Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (id: ident)(ty: type) : environ -> mpred :=
+ match d with
+  | Init_int8 i => `(mapsto sh tuchar) (eval_var id ty) `(Vint (Int.zero_ext 8 i))
+  | Init_int16 i => `(mapsto sh tushort) (eval_var id ty) ` (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => `(mapsto sh tuint) (eval_var id ty) ` (Vint i)
+  | Init_int64 i => `(mapsto sh tulong) (eval_var id ty) ` (Vlong i)
+  | Init_float32 r =>  `(mapsto sh tfloat) (eval_var id ty) ` (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  `(mapsto sh tdouble) (eval_var id ty) ` (Vfloat r)
+  | Init_space n => 
+     if andb (Z.leb 0 n) (Z.leb n Int.max_unsigned)
+     then
+      match ty  with
+      | Tarray t j att => if zeq n (sizeof ty)
+                                  then `(array_at_ t sh 0 j) (eval_var id ty) (* FIXME *)
+                                  else `(memory_block sh (Int.repr n)) (eval_var id ty) 
+      | Tvoid => TT
+      | Tfunction _ _ => TT
+      | Tstruct _ _ _ => TT (* FIXME *)
+      | Tunion _ _ _ => TT (* FIXME *)
+      | Tcomp_ptr _ _ => TT
+      | t=> if zeq n (sizeof t) 
+                               then `(mapsto sh t) (eval_var id ty) `(zero_of_type t)
+                               else `(memory_block sh (Int.repr n)) (eval_var id ty) 
+      end
+    else TT
+  | Init_addrof symb ofs => 
+      match (var_types Delta) ! symb, (glob_types Delta) ! symb with
+      | None, Some (Global_var (Tarray t _ att)) =>`(memory_block sh (Int.repr 4)) (eval_var id ty)
+      | None, Some (Global_var Tvoid) => TT
+      | None, Some (Global_var t) => `(mapsto sh (Tpointer t noattr)) (eval_var id ty) (`(offset_val ofs) (eval_var symb t))
+      | Some _, Some (Global_var (Tarray t _ att)) => `(memory_block sh (Int.repr 4)) (eval_var id ty)
+      | Some _, Some (Global_var Tvoid) => TT
+      | Some _, Some (Global_var t) => `(memory_block sh (Int.repr 4)) (eval_var id ty) 
+      | _, _ => TT
+      end
+ end.
+
+
+Lemma mapsto_zeros_Tint:
+  forall i s a b,
+   mapsto_zeros (sizeof (Tint i s a)) Ews (Vptr b Int.zero)
+|-- mapsto Ews (Tint i s a) (Vptr b Int.zero) (Vint Int.zero).
+Admitted.
+
+Lemma mapsto_zeros_Tlong:
+  forall s a b,
+   mapsto_zeros (sizeof (Tlong s a)) Ews (Vptr b Int.zero)
+|-- mapsto Ews (Tlong s a) (Vptr b Int.zero) (Vint Int.zero).
+Admitted.
+
+Lemma mapsto_zeros_Tfloat:
+  forall f a b, 
+  mapsto_zeros (sizeof (Tfloat f a)) Ews (Vptr b Int.zero)
+|-- mapsto Ews (Tfloat f a) (Vptr b Int.zero) (Vfloat Float.zero).
+Admitted.
+
+Lemma mapsto_zeros_Tpointer:
+  forall t a b, 
+mapsto_zeros (sizeof (Tpointer t a)) Ews (Vptr b Int.zero)
+|-- mapsto Ews (Tpointer t a) (Vptr b Int.zero) (Vint Int.zero).
+Admitted.
+
+Lemma unpack_globvar_aux1:
+  forall sh t a b v, umapsto sh (Tpointer t a) (Vptr b Int.zero) v
+                   |-- memory_block sh (Int.repr 4) (Vptr b Int.zero).
+Admitted.
+
+Lemma unpack_globvar:
+  forall Delta i t gv idata, 
+   (var_types Delta) ! i = None ->
+   (glob_types Delta) ! i = Some (Global_var t) ->
+   no_attr_type t = true ->
+   gvar_volatile gv = false ->
+   gvar_info gv = t ->
+   gvar_init gv = idata :: nil ->
+   gvar_readonly gv = false ->
+   sizeof t <= Int.max_unsigned ->
+   local (tc_environ Delta) && globvar2pred(i, gv) |-- 
+       init_data2pred' Delta idata Ews i t.
+Proof.
+intros.
+go_lowerx.
+eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
+destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?].
+ unfold init_data2pred', init_data2pred.
+ destruct idata; super_unfold_lift;
+ try solve [apply andp_right; [apply prop_right; apply I | apply derives_refl]].
+ destruct (0 <=? z) eqn:? ; [ | simpl; apply TT_right].
+ destruct (z <=? Int.max_unsigned) eqn:? ; [ | simpl; apply TT_right].
+ apply Zle_bool_imp_le in Heqb0.
+ apply Zle_bool_imp_le in Heqb1.
+* destruct t;
+  try (simpl; apply TT_right);
+  try (simpl andb; cbv iota; if_tac;
+        [rewrite H8; unfold zero_of_type; subst z;
+         first [simple apply mapsto_zeros_Tint | simple apply mapsto_zeros_Tlong 
+                |simple apply mapsto_zeros_Tfloat | simple apply mapsto_zeros_Tpointer
+                ]
+        | rewrite H8; apply address_mapsto_zeros_memory_block; split; auto
+        ]).
+ + simpl andb; cbv iota; if_tac; rewrite H8.
+   eapply derives_trans; [ apply address_mapsto_zeros_memory_block; split; auto | ].
+   subst z.
+ rewrite memory_block_typed.
+ rewrite array_at_arrayof'.
+ unfold typed_mapsto_. simpl.
+ rewrite withspacer_spacer. unfold spacer. rewrite align_0. simpl.
+ rewrite emp_sepcon.
+ rewrite Z.mul_0_r. rewrite Z.sub_0_r.
+ apply derives_refl.
+ apply alignof_pos.
+ apply H1.
+ apply address_mapsto_zeros_memory_block; split; auto.
+* destruct ((var_types Delta) ! i0) eqn:Hv;
+   destruct ((glob_types Delta) ! i0) eqn:Hg; 
+    try destruct g; try solve [simpl; apply TT_right].
+ destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+  rewrite H8.
+ destruct gv0; simpl; try apply TT_right; try rewrite H8;
+   try  apply unpack_globvar_aux1.
+  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+ assert (eval_var i0 gv0 rho = Vptr b' Int.zero)
+   by admit.  (* straightforward *)
+ destruct gv0; simpl; try apply TT_right; try rewrite H8; try rewrite H9;
+ unfold mapsto; try (apply andp_right; [apply prop_right; apply I | apply derives_refl ]).
+apply unpack_globvar_aux1.
+Qed.
+
+Lemma tc_globalvar_sound_space:
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (Global_var t) ->
@@ -94,25 +244,18 @@ Lemma tc_globalvar_sound:
    typed_mapsto_ Ews t (eval_var i t rho).
 Proof.
 intros until 1. intros ? Hno; intros.
-unfold globvar2pred.
+eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
-destruct H6 as [? [? [? ?]]].
-destruct (H9 i _ H0); [ | destruct H10; congruence].
-destruct (typecheck_glob_environ_e' _ _ H8 _ _ H0) as [b [? ?]].
-rewrite H11. rewrite H1.
-rewrite H3; simpl.
-unfold eval_var.
-unfold Map.get. rewrite H10. rewrite H11.
-simpl. rewrite eqb_type_refl.
-rewrite H4.
-simpl.
-change (Share.splice extern_retainer Tsh) with Ews.
-rewrite sepcon_emp.
 rewrite <- memory_block_typed by auto.
+destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
+rewrite H7.
+unfold mapsto_zeros.
+rewrite Int.unsigned_zero.
 apply address_mapsto_zeros_memory_block.
 pose (sizeof_pos t); omega.
 Qed.
 
+(*
 Lemma tc_globalvar_sound':
   forall Delta i t gv, 
    (var_types Delta) ! i = None ->
@@ -130,6 +273,7 @@ intros.
 go_lowerx.
 eapply tc_globalvar_sound; eauto.
 Qed.
+*) 
 
 Lemma main_pre_eq:
  forall prog u, main_pre prog u = 
@@ -182,7 +326,7 @@ Qed.
 Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [
-    eapply tc_globalvar_sound';
+    eapply unpack_globvar;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | apply andp_left2; apply derives_refl
@@ -195,6 +339,7 @@ Ltac expand_main_pre :=
    (eapply do_expand_globvars_cons;
     [ expand_one_globvar | ]);
    apply do_expand_globvars_nil
- |  ].
+ |  ];
+ unfold init_data2pred'; simpl.
 
 
