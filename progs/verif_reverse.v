@@ -223,14 +223,14 @@ Qed.
  ** this needs improvement.
  **)
 Lemma setup_globals:
-  forall rho,  tc_environ (func_tycontext f_main Vprog Gtot) rho ->
-   globvar2pred (_three, v_three) rho
-   |-- lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)
-             (eval_var _three (Tarray t_struct_list 3 noattr) rho)
-      nullval.
+  local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
+   globvar2pred (_three, v_three)
+   |-- `(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+             (eval_var _three (Tarray t_struct_list 3 noattr))
+            `nullval.
 Proof.
  unfold main_pre.
- intros rho; normalize.
+ intro rho; normalize.
  simpl.
  destruct (globvar_eval_var _ _ _three _ H (eq_refl _) (eq_refl _))
   as [b [H97 H99]]. simpl in *.
@@ -253,11 +253,14 @@ Proof.
 start_function.
 name r _r.
 name s _s.
+replace_SEP 0%Z
+ (`(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+             (eval_var _three (Tarray t_struct_list 3 noattr))
+            `nullval).
+entailer; eapply derives_trans; [ | apply setup_globals]; entailer.
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
  entailer!.
- eapply derives_trans; [apply setup_globals; auto | ].
- cancel.
 auto with closed.
 forward.  (* s = sumlist(r); *)
 instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).

@@ -522,6 +522,28 @@ Ltac intro_old_var'' id :=
         intro x
   end.
 
+Ltac ensure_normal_ret_assert :=
+ match goal with 
+ | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- semax _ _ _ _ => apply sequential
+ end.
+
+Lemma sequential': forall Espec Delta Pre c R Post,
+  @semax Espec Delta Pre c (normal_ret_assert R) ->
+  @semax Espec Delta Pre c (overridePost R Post).
+Proof.
+intros.
+eapply semax_post0; [ | apply H].
+unfold normal_ret_assert; intros ek vl rho; simpl; normalize; subst.
+unfold overridePost. rewrite if_true by auto.
+normalize.
+Qed.
+
+Ltac ensure_open_normal_ret_assert :=
+ try simple apply sequential';
+ match goal with 
+ | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
+ end.
 Ltac get_global_fun_def Delta f fsig A Pre Post :=
     let VT := fresh "VT" in let GT := fresh "GT" in  
       assert (VT: (var_types Delta) ! f = None) by 
@@ -532,97 +554,25 @@ Ltac get_global_fun_def Delta f fsig A Pre Post :=
      clear VT GT.
 
 
-Ltac semax_call_id_tac_aux Espec Delta P Q R id f bl :=
-      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig A Pre Post;
- let SCI := fresh "SCI" in
-    let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
-      evar (witness:A); evar (F: list (environ->mpred)); 
-      assert (SCI := semax_call_id1 Espec Delta P Q F id f 
-                 (snd fsig) bl (fst fsig) A witness Pre Post 
-                      (eq_refl _) (eq_refl _) I);
-      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
-     [ unfold fsig, A, Pre, Post
-     |  apply semax_pre_simple with (PROPx P
-                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
-                            F))));
-       [apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
-               ]];
-  clear SCI; try clear H;
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
-
-
-Ltac semax_call0_id_tac_aux Espec Delta P Q R f bl :=
+Ltac forward_call0_id :=
+match goal with 
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
+     ensure_open_normal_ret_assert;
       let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
       evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
        get_global_fun_def Delta f fsig A Pre Post;
- let SCI := fresh "SCI" in
-    let H := fresh in let witness := fresh "witness" in let F := fresh "Frame" in
+ let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
-      assert (SCI := semax_call_id0 Espec Delta P Q F f 
-                  bl (fst fsig) A witness Pre Post 
-                      (eq_refl _)  (eq_refl _) );
-      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
-     [ unfold fsig, A, Pre, Post
-     |  apply semax_pre_simple with (PROPx P
-                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
-                            F))));
-       [ apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | eapply semax_post'; [ unfold  witness,F | unfold F in *; apply SCI] 
-               ]];
-  clear SCI; try clear H;
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
+      apply semax_pre 
+         with (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
+            (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
+          [ 
+          | unfold F in *; apply (semax_call_id0 Espec Delta P Q F f 
+                  bl (fst fsig) A witness Pre Post (eq_refl _)  (eq_refl _))];
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
+end.
 
-(* BEGIN HORRIBLE1.
-  The following tactic is needed because CompCert clightgen
- produces the following AST for function call:
-  (Ssequence (Scall (Some id') ... ) (Sset id (Etempvar id' _)))
-instead of the more natural
-   (Scall id ...)
-Our general tactics are powerful enough to reason about the sequence,
-one statement at a time, but it is not nice to burden the user with knowing
-about id'.  So we handle it all in one gulp.
- See also BEGIN HORRIBLE1 in forward_lemmas.v
-*)
 
-Ltac semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl :=
-         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-         get_global_fun_def Delta f fsig A Pre Post;
-
- let SCI := fresh "SCI" in
-    let H := fresh in let x := fresh "witness" in let F := fresh "Frame" in
-      evar (x:A); evar (F: list (environ->mpred)); 
-
-      assert (SCI := semax_call_id1_x Espec Delta P Q F id id' f 
-                   (snd fsig) bl (fst fsig) A x Pre Post 
-                      (eq_refl _) (eq_refl _) I);
-      assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-                      PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-                                      (SEPx (`(Pre x) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
-     [ unfold fsig, A, Pre, Post
-     |  apply semax_pre_simple with (PROPx P
-                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
-                 (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
-                            F))));
-       [apply (semax_call_id_aux1 _ _ _ _ _ H)
-       | eapply semax_post'; [ unfold  x,F | unfold F in *; 
-              ( apply SCI ; [ (solve[ simpl; auto with closed]  || solve [auto with closed]) (* FIXME!*)
-                                 | (*solve[simpl; auto with closed] PREMATURELY INSTANTIATES FRAME *) 
-                                 | reflexivity | reflexivity | reflexivity | reflexivity ] ) ]
-               ]];
-  clear SCI; try clear H;
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post.
-
-(* END HORRIBLE1.  *)
 
 Ltac check_sequential s :=
  match s with
@@ -692,28 +642,7 @@ Proof.
  simpl; apply andp_right; auto. apply prop_right; auto.
 Qed.
 
-Ltac ensure_normal_ret_assert :=
- match goal with 
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- semax _ _ _ _ => apply sequential
- end.
 
-Lemma sequential': forall Espec Delta Pre c R Post,
-  @semax Espec Delta Pre c (normal_ret_assert R) ->
-  @semax Espec Delta Pre c (overridePost R Post).
-Proof.
-intros.
-eapply semax_post0; [ | apply H].
-unfold normal_ret_assert; intros ek vl rho; simpl; normalize; subst.
-unfold overridePost. rewrite if_true by auto.
-normalize.
-Qed.
-
-Ltac ensure_open_normal_ret_assert :=
- try simple apply sequential';
- match goal with 
- | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
- end.
 
 Lemma go_lower_lem24:
   forall rho (Q1: environ -> Prop)  Q R PQR,
@@ -1052,21 +981,62 @@ Ltac forward_while_complain :=
            fail 2 "Use this tactic:  forward_while INV POST,
     where INV is the loop invariant and POST is the postcondition.".
 
+
+(* The forward_compound_call tactic is needed because CompCert clightgen
+ produces the following AST for function call:
+  (Ssequence (Scall (Some id') ... ) (Sset id (Etempvar id' _)))
+instead of the more natural
+   (Scall id ...)
+Our general tactics are powerful enough to reason about the sequence,
+one statement at a time, but it is not nice to burden the user with knowing
+about id'.  So we handle it all in one gulp.
+ See also BEGIN HORRIBLE1 in forward_lemmas.v
+*)
 Ltac forward_compound_call :=
-  idtac; (* need this to make it sufficiently lazy *)
+  ensure_open_normal_ret_assert;
    match goal with |-  @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
                        (Sset ?id (Etempvar ?id' _))) _ =>
-           semax_call_id_tac_aux_x Espec Delta P Q R id id' f bl; [ | apply derives_refl | ] 
+
+         let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+         evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+         get_global_fun_def Delta f fsig A Pre Post;
+    let x := fresh "witness" in let F := fresh "Frame" in
+      evar (x:A); evar (F: list (environ->mpred)); 
+      apply semax_pre with (PROPx P
+                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
+                 (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                            F))));
+       [
+       | apply (semax_call_id1_x Espec Delta P Q F id id' f 
+                   (snd fsig) bl (fst fsig) A x Pre Post 
+                      (eq_refl _) (eq_refl _) I) ; 
+               [ (solve[ simpl; auto with closed]  || solve [auto with closed]) (* FIXME!*)
+               | unfold F (*solve[simpl; auto with closed] PREMATURELY INSTANTIATES FRAME *) 
+               | reflexivity | reflexivity | reflexivity | reflexivity ]]
+               ;
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
 end.
 
-Ltac forward_call_id :=
-  idtac; (* need this to make it sufficiently lazy *)
+Ltac forward_call1_id :=
+ ensure_open_normal_ret_assert;
  match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-            semax_call_id_tac_aux Espec Delta P Q R id f bl  ; [ | apply derives_refl ]
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
-           semax_call0_id_tac_aux Espec Delta P Q R f bl ; [ | apply derives_refl  ]
+
+      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+      get_global_fun_def Delta f fsig A Pre Post;
+    let witness := fresh "witness" in let F := fresh "Frame" in
+      evar (witness:A); evar (F: list (environ->mpred)); 
+      apply semax_pre with (PROPx P
+                (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl :: Q)
+                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) ::
+                            F))));
+       [
+       | apply (semax_call_id1 Espec Delta P Q F id f 
+                 (snd fsig) bl (fst fsig) A witness Pre Post 
+                      (eq_refl _) (eq_refl _) I) ];
+  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
  end.
 
 Ltac forward_skip := apply semax_skip.
@@ -1112,7 +1082,8 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   |  Swhile _ _ => forward_while_complain
   |  Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
           no_loads_exprlist el; forward_compound_call
-  | Scall _ (Evar _ _) ?el =>  no_loads_exprlist el; forward_call_id
+  | Scall (Some _) (Evar _ _) ?el =>  no_loads_exprlist el; forward_call1_id
+  | Scall None (Evar _ _) ?el =>  no_loads_exprlist el; forward_call0_id
   | Sskip => forward_skip
   end.
 
@@ -1179,11 +1150,6 @@ end.
   call to mallocN.   Until this lemma
   is generalized, then failover is necessary, so we have "fail 0" instead
   of "fail 1".
-
-  Related remark: 
-  In the tactic semax_call_id_tac_aux_x, the "eapply semax_post' " 
-   is probably redundant, now that forward1 is always called with
- a standardized postcondition of (normal_ret_assert ?evar).
 *)
 
 Ltac forward := forward_with forward1.
