@@ -3,22 +3,23 @@ Require Import progs.revarray.
 
 Local Open Scope logic.
 
-Definition flip (n: Z) (f: Z -> int) (i: Z) := f (n-1-i).
+Definition flip {T} (n: Z) (f: Z -> T) (i: Z) := f (n-1-i).
 
-Lemma flip_flip:  forall n f, flip n (flip n f) = f.
+Lemma flip_flip:  forall {T} n (f: Z -> T), flip n (flip n f) = f.
 Proof. intros; extensionality i; unfold flip; f_equal; omega.
 Qed.
 
 Definition reverse_spec :=
  DECLARE _reverse
-  WITH a0: val, sh : share, contents : Z -> int, size: Z
+  WITH a0: val, sh : share, contents : Z -> option int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP (0 <= size <= Int.max_signed; writable_share sh)
+          PROP (0 <= size <= Int.max_signed; writable_share sh;
+                    forall i, 0 <= i < size -> isSome (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
-          SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))
-  POST [ tvoid ]  `(array_at tint sh (cSome (flip size contents)) 0 size a0).
+          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
+  POST [ tvoid ]  `(array_at tint sh (flip size contents) 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -33,7 +34,7 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
  
-Definition flip_between (n: Z)(lo hi: Z) (f: Z -> int) (i: Z) := 
+Definition flip_between {T} (n: Z)(lo hi: Z) (f: Z -> T) (i: Z) := 
    f (if zlt i lo then n-1-i
       else if zlt i hi then i
              else n-1-i).
@@ -44,7 +45,7 @@ Definition reverse_Inv a0 sh contents size :=
    LOCAL  (`(eq a0) (eval_id _a);
                 `(eq (Vint (Int.repr j))) (eval_id _lo);
                 `(eq (Vint (Int.repr (size-j)))) (eval_id _hi))
-   SEP (`(array_at tint sh (cSome (flip_between size j (size-j) contents)) 0 size a0))).
+   SEP (`(array_at tint sh (flip_between size j (size-j) contents) 0 size a0))).
 
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
 Proof.
@@ -57,10 +58,11 @@ name s _s.
 name t _t.
 forward.  (* lo = 0; *) 
 forward.  (* hi = n; *)
+rename H1 into POP.
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  (isptr a0)
    LOCAL  (`(eq a0) (eval_id _a))
-   SEP (`(array_at tint sh (cSome (flip size contents)) 0 size a0))).
+   SEP (`(array_at tint sh (flip size contents) 0 size a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with 0.
@@ -71,7 +73,6 @@ apply equal_f.
 apply array_at_ext.
 intros.
 unfold flip_between.
-unfold cSome. f_equal.
 rewrite if_false by omega.
 rewrite if_true by omega.
 auto.
@@ -97,10 +98,14 @@ assert (j+j=size \/ j+j=size-1) by omega.
 destruct H1; try omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* t = a[lo]; *)
-entailer!.
+entailer.
 rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
+apply prop_right; split.
+apply POP.
+rewrite if_false by omega.
+rewrite if_true by omega. omega.
 omega.
 forward.  (* s = a[hi]; *)
 entailer.
@@ -108,7 +113,9 @@ rename H3 into H6.
 rewrite Int.sub_signed in H6.
 normalize in H6.
 simpl_compare.
-apply prop_right; omega.
+apply prop_right; split.
+apply POP. rewrite if_false by omega. rewrite if_true by omega.
+omega. omega.
 
 normalize. simpl typeof.
 forward. (*  a[hi-1] = t ; *)
@@ -116,7 +123,7 @@ entailer.
 rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
-apply prop_right; omega.
+apply prop_right; split; omega.
 
 normalize.
 forward. (*  a[lo] = s; *) 
@@ -148,11 +155,17 @@ entailer.
  rewrite if_false by omega.
  rewrite if_true by omega.
  rewrite if_true by omega.
- f_equal; f_equal; omega.
+ assert (isSome (contents (size-1-i))).
+ apply POP; omega.
+ replace (size-i-1) with (size-1-i) by omega.
+ destruct (contents (size-1-i)); try contradiction H6. reflexivity.
  if_tac.
  unfold flip_between. rewrite if_false by omega.
  if_tac; try omega. if_tac; try omega. if_tac; try omega.
- f_equal; f_equal; omega.
+ replace (size-1-i) with j by omega.
+ assert (isSome (contents j)).
+ apply POP; omega.
+ destruct (contents j); try contradiction H12; reflexivity.
  unfold flip_between.
  if_tac; try omega. if_tac; try omega. auto.
  if_tac; try omega. if_tac; try omega.  if_tac; try omega. auto.
@@ -161,50 +174,22 @@ entailer.
 forward. (* return; *)
 Qed.
 
-Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
-
-Lemma  setup_globals:
-     local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
-     globvar2pred (_four, v_four)
-      |-- `(array_at tint Ews (cSome four_contents) 0 4)
-                (eval_var _four (tarray tint 4)).
-Proof.
- intro rho; normalize.
- simpl.
- destruct (globvar_eval_var _ _ _four _ H (eq_refl _) (eq_refl _))
-  as [b [H97 H99]]. simpl in *.
- unfold tarray.
- rewrite H97.
- unfold globvar2pred. simpl. rewrite H99. simpl.
- unfold array_at, rangespec; simpl.
- unfold array_at.
- unfold four_contents. simpl.
- change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
-       with (umapsto Ews tint).
- replace (Vptr b Int.zero) with (Vptr b (Int.add Int.zero (Int.repr 0)))
-    by (rewrite Int.add_zero; auto).
-repeat (apply sepcon_derives;
- [unfold mapsto; apply andp_right; [apply prop_right; reflexivity | ];
- unfold add_ptr_int, eval_binop; simpl;
- repeat rewrite Int.add_assoc;
- apply derives_refl
- | ]).
-auto.
-Qed.
+Definition four_contents := (ZnthV tint
+           (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: Int.repr 4 :: nil)).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
-replace_SEP 0%Z (`(array_at tint Ews (cSome four_contents) 0 4) (eval_var _four (tarray tint 4))).
-entailer.
-eapply derives_trans; [ | apply setup_globals]; entailer.
 eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews,four_contents,4)) in (Value of witness).
 entailer!.
+intros. apply (ZnthV_isSome tint). rewrite Zlength_correct; simpl; auto.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
 entailer!.
+intros. unfold flip, four_contents. apply (ZnthV_isSome tint).
+ rewrite Zlength_correct; simpl length. change (Z.of_nat 4) with 4. omega.
 normalize.
 rewrite flip_flip.
  forward. (* return s; *)

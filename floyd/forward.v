@@ -1155,15 +1155,23 @@ end.
 Ltac forward := forward_with forward1.
 
 Lemma start_function_aux1:
-  forall R1 P Q R, 
-      (PROPx P (LOCALx Q (SEPx R))) * R1 = 
-      (PROPx P (LOCALx Q (SEPx (R1::R)))).
+  forall Espec Delta R1 P Q R c Post,
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx (R1::R)))) c Post ->
+   @semax Espec Delta ((PROPx P (LOCALx Q (SEPx R))) * R1) c Post.
 Proof.
 intros.
-extensionality rho.
-unfold PROPx, LOCALx, SEPx; normalize.
-f_equal. f_equal. rewrite sepcon_comm. auto.
-Qed. 
+rewrite sepcon_comm. rewrite insert_SEP. apply H.
+Qed.
+
+Lemma semax_stackframe_emp:
+ forall Espec Delta P c R,
+ @semax Espec Delta P c R ->
+  @semax Espec Delta (P * emp) c (frame_ret_assert R emp) .
+Proof. intros. 
+            rewrite sepcon_emp;
+            rewrite frame_ret_assert_emp;
+   auto.
+Qed.
 
 Ltac unfold_Delta := 
 repeat
@@ -1193,15 +1201,9 @@ Ltac start_function :=
  match goal with |- @semax _ (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G); unfold_Delta
  end;
-  match goal with
-  | |- @semax _ _ (?P * stackframe_of ?F) _ _ =>
-            change (stackframe_of F) with (@emp (environ->mpred) _ _);
-            rewrite sepcon_emp;
-            rewrite frame_ret_assert_emp
-  | |- @semax _ _ ((PROPx ?P (LOCALx ?Q (SEPx ?R))) * stackframe_of ?F) _ _ =>
-        rewrite (start_function_aux1 (stackframe_of F) P Q R)
- | |- _ => idtac
-  end;
+ first [apply semax_stackframe_emp
+        | apply start_function_aux1
+        | idtac];
  match goal with
   | |- @semax _ _ (PROPx _ _) _ _ => idtac 
   | _ => canonicalize_pre 

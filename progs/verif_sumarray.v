@@ -3,20 +3,24 @@ Require Import progs.sumarray.
 
 Local Open Scope logic.
 
-Definition add_elem (f: Z -> int) (i: Z) := Int.add (f i).
+Definition force_option {A} (x:A) (i: option A) := 
+  match i with Some y => y | None => x end.
+
+Definition add_elem (f: Z -> option int) (i: Z) := Int.add (force_option Int.zero (f i)).
 
 Definition sumarray_spec :=
  DECLARE _sumarray
-  WITH a0: val, sh : share, contents : Z -> int, size: Z
+  WITH a0: val, sh : share, contents : Z -> option int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP (0 <= size <= Int.max_signed)
+          PROP (0 <= size <= Int.max_signed;
+                    forall i, 0 <= i < size -> isSome (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
-          SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))
+          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
   POST [ tint ]  
         local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
-                 && `(array_at tint sh (cSome contents) 0 size a0).
+                 && `(array_at tint sh contents 0 size a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -38,7 +42,7 @@ Definition sumarray_Inv a0 sh contents size :=
                 `(eq (Vint (Int.repr size))) (eval_id _n);
            `isptr (eval_id _a); 
     `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s))
-   SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))).
+   SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
 
 Lemma fold_range_split:
   forall A f (z: A) lo hi delta,
@@ -74,7 +78,8 @@ Lemma fold_range_fact1:
  forall lo hi contents,
   lo <= hi ->
   fold_range (add_elem contents) Int.zero lo (Z.succ hi) =
-  Int.add (fold_range (add_elem contents) Int.zero lo hi) (contents hi).
+  Int.add (fold_range (add_elem contents) Int.zero lo hi) 
+                 (force_option Int.zero (contents hi)).
 Proof.
 intros.
 unfold Z.succ.
@@ -114,7 +119,7 @@ forward.  (* s = 0; *)
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP() LOCAL (`(eq a0) (eval_id _a);   
      `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))
-     SEP (`(array_at tint sh (cSome contents) 0 size) (eval_id _a))).
+     SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
@@ -139,52 +144,21 @@ entailer.
 forward.  (* return s; *)
 Qed.
 
-Definition four_contents (z: Z) : int := Int.repr (Zsucc z).
-
-Lemma  setup_globals:
-  local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
-     globvar2pred (_four, v_four)
-      |-- `(array_at tint Ews (cSome four_contents) 0 4)
-                (eval_var _four (tarray tint 4)).
-Proof.
- intro rho; normalize.
- simpl.
- destruct (globvar_eval_var _ _ _four _ H (eq_refl _) (eq_refl _))
-  as [b [H97 H99]]. simpl in *.
- unfold tarray.
- rewrite H97.
- unfold globvar2pred. simpl. rewrite H99. simpl.
- unfold array_at, rangespec; simpl.
- unfold array_at.
- unfold four_contents. simpl.
- change (umapsto  (Share.splice extern_retainer Tsh) (Tint I32 Unsigned noattr))
-       with (umapsto Ews tint).
- replace (Vptr b Int.zero) with (Vptr b (Int.add Int.zero (Int.repr 0)))
-    by (rewrite Int.add_zero; auto).
-repeat (apply sepcon_derives;
- [unfold mapsto; apply andp_right; [apply prop_right; reflexivity | ];
- unfold add_ptr_int, eval_binop; simpl;
- repeat rewrite Int.add_assoc;
- apply derives_refl
- | ]).
-auto.
-Qed.
+Definition four_contents := (ZnthV tint
+           (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: Int.repr 4 :: nil)).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
 name s _s.
-replace_SEP 0%Z (`(array_at tint Ews (cSome four_contents) 0 4) (eval_var _four (tarray tint 4))).
-entailer.
-eapply derives_trans; [ | apply setup_globals]; entailer.
 apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
 forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
- entailer!.
+ entailer!. 
+   intros. apply (ZnthV_isSome tint). rewrite Zlength_correct; simpl; auto.
  auto with closed.
  forward. (* return s; *)
- entailer!.
- unfold main_post. entailer.
+ unfold main_post. entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

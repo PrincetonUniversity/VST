@@ -186,7 +186,8 @@ Ltac entailer :=
  entailer'.
 
 Ltac prop_right_solve := 
-apply prop_right; repeat simple apply conj; 
+apply prop_right; 
+  match goal with |- ?A => (has_evar A; repeat simple apply conj) || (repeat split) end;
   (computable || auto). 
  
 Tactic Notation "entailer" "!" := 
