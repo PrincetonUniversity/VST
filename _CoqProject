@@ -4,4 +4,4 @@
 -R floyd floyd 
 -R progs progs 
 -R compcert compcert
-
+-R ../mirror-core/src mirrorCore
