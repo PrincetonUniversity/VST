@@ -1298,3 +1298,175 @@ Hint Rewrite @lseg_eq using reflexivity: norm.
 Ltac simpl_list_cell := unfold list_cell; simpl_typed_mapsto.
 
 Hint Rewrite @links_nil_eq @links_cons_eq : norm.
+
+(* Some lemmas about a particular specialization of linked lists,
+  with one int and one link.
+ This stuff generally works, but it's just too horrible with all the
+ dependent types.  In contrast, when a particular list structure
+  is instantiated with particular identifiers, then most of the
+ dependent-type stuff simplifies away quite nicely.
+ See the lemma linked_list_in_array in verif_reverse.v
+
+Fixpoint list_init_rep (i: ident) (ofs: Z) (l: list int) :=
+ match l with 
+ | nil => nil
+ | j::nil => Init_int32 j :: Init_int32 Int.zero :: nil
+ | j::jl => Init_int32 j :: Init_addrof i (Int.repr (ofs+8)) :: list_init_rep i (ofs+8) jl
+ end.
+
+Definition intliststruct _struct _head _tail :=
+ Tstruct _struct
+     (Fcons _head tint (Fcons _tail (Tcomp_ptr _struct noattr) Fnil))
+     noattr.
+
+Lemma elemtype_intliststruct:
+  forall ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t),
+            elemtype LS = int.
+Proof.
+intros.
+unfold elemtype; destruct LS; simpl.
+inversion list_struct_eq0.
+subst. simpl.
+rewrite if_false by auto.
+rewrite if_true by auto.
+reflexivity.
+Qed.
+ 
+
+Definition listelem2listint ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t) (d: list (elemtype LS)) : list int 
+  := (eq_rect (elemtype LS) (fun T : Type => list T) d int
+     (elemtype_intliststruct ts _h _t NEht LS)).
+
+Definition elem2int ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t) (d: elemtype LS) : int 
+  := (eq_rect (elemtype LS) (fun T : Type => T) d int (elemtype_intliststruct ts _h _t NEht LS)).
+
+Lemma listelem2listint_cons: 
+  forall ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t) e el,
+           listelem2listint _ _ _ NEht LS (e :: el) =
+           (elem2int _ _ _ NEht LS e) :: (listelem2listint _ _ _ NEht LS el).
+Proof.
+intros. unfold listelem2listint, elem2int.
+unfold eq_rect; simpl.
+destruct (elemtype_intliststruct ts _h _t NEht LS).
+reflexivity.
+Qed.
+
+Lemma listelem2listint_nil: 
+  forall ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t),
+           listelem2listint _ _ _ NEht LS nil = nil.
+Proof.
+intros. unfold listelem2listint, elem2int.
+unfold eq_rect; simpl.
+destruct (elemtype_intliststruct ts _h _t NEht LS).
+reflexivity.
+Qed.
+
+Lemma list_cell_eq: 
+  forall ts _h _t (NEht: _h <> _t) (LS: listspec (intliststruct ts _h _t) _t),
+  forall sh v i,
+   list_cell LS sh v i = field_mapsto sh (intliststruct ts _h _t) _h v 
+         (Vint (elem2int _ _ _ NEht LS i)).
+ intros. unfold list_cell.
+ transitivity (structfieldsof sh (intliststruct ts _h _t) (Fcons _h tint Fnil) 0 0 v 
+                           (elem2int _ _ _ NEht LS i)).
+ admit.  (* how to prove this? *)
+ simpl. rewrite withspacer_spacer. simpl. unfold spacer; simpl.
+ apply emp_sepcon.
+Qed.
+
+Lemma linked_list_in_array:
+ forall _struct _head _tail
+       (NEht: _head <> _tail) 
+       (LS: listspec (intliststruct _struct _head _tail) _tail)
+  Delta i (data: list (elemtype LS)) n,
+  (length data > 0)%nat ->
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i = Some (Global_var (tarray (intliststruct _struct _head _tail) n)) ->
+   id2pred_star Delta Ews (tarray (intliststruct _struct _head _tail) n)
+      (eval_var i (tarray (intliststruct _struct _head _tail) n)) 0 (list_init_rep i 0 (listelem2listint _ _ _ NEht LS data))
+  |-- `(lseg LS Ews data) (eval_var i (tarray (intliststruct _struct _head _tail) n)) `nullval.
+Proof. 
+ pose proof I.
+ intros.
+ intro rho.
+ unfold_lift.
+ clear H.
+ match goal with |- ?A |-- ?B =>
+   assert (A |-- !! isptr (eval_var i (tarray (intliststruct _struct _head _tail) n) rho) && A)
+ end.
+ destruct data; [simpl in H0; omega | ].
+ destruct data; repeat rewrite listelem2listint_cons; try rewrite listelem2listint_nil;
+ simpl list_init_rep; unfold id2pred_star; fold id2pred_star;
+ apply andp_right; auto;
+ match goal with |- (_ * ?A) rho |-- _ => forget A as JJ end;
+ simpl;  entailer!.
+ eapply derives_trans; [apply H | clear H; apply derives_extract_prop; intro ].
+ replace (eval_var i (tarray (intliststruct _struct _head _tail) n) rho)
+   with (offset_val (Int.repr 0) (eval_var i (tarray (intliststruct _struct _head _tail) n) rho))
+  by normalize.
+ set (ofs:=0). clearbody ofs.
+ revert ofs; induction data; intro.
+* simpl in H0. omega.
+*rewrite listelem2listint_cons.
+ unfold list_init_rep; fold list_init_rep.
+ destruct data.
++ clear IHdata.
+ rewrite listelem2listint_nil.
+ simpl.
+ unfold_lift. 
+ rewrite mapsto_isptr; rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
+ destruct (eval_var i (tarray (intliststruct _struct _head _tail) n) rho); inv H. 
+ apply @lseg_unroll_nonempty1 with nullval; simpl; auto.
+ rewrite mapsto_tuint_tint.
+ rewrite (list_cell_eq _ _ _ NEht LS).
+ match goal with |- context [mapsto ?sh tint ?v1 ?v2 * emp] =>
+   replace (mapsto sh tint v1 v2) with 
+       (mapsto sh (tptr (intliststruct _struct _head _tail)) v1 nullval)
+  by (symmetry; apply mapsto_null_mapsto_pointer)
+ end.
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+   unfold offset_val; repeat rewrite Int.add_assoc
+ | ].
+ simpl. rewrite if_true by auto. reflexivity.
+ unfold field_offset; simpl. rewrite if_true by auto. reflexivity.
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+   unfold offset_val; repeat rewrite Int.add_assoc
+ | ].
+ simpl. rewrite if_false by auto; do 2 rewrite if_true by auto. reflexivity.
+ unfold field_offset. simpl. rewrite if_false by auto; rewrite if_true by auto. reflexivity.
+ f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
+ simpl. change (align (align 4 4) 4) with (4+0). rewrite Z.add_assoc.
+reflexivity.
+ rewrite @lseg_nil_eq; auto.
+ entailer. compute; auto.
+ +
+  spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
+ specialize (IHdata (ofs+8)).
+ forget (list_init_rep i (ofs+8)(listelem2listint _struct _head _tail NEht LS (e::data))) as rep'.
+ rewrite listelem2listint_cons.
+ unfold id2pred_star. fold id2pred_star.
+ simpl init_data2pred'.
+ repeat (rewrite H1; rewrite H2). unfold tarray at 2.
+  apply @lseg_unroll_nonempty1 with (offset_val (Int.repr (ofs + 8))
+       (eval_var i (tarray (intliststruct _struct _head _tail) n) rho)).
+  destruct (eval_var i (tarray (intliststruct _struct _head _tail) n) rho); inv H; clear; compute; auto.
+  destruct (eval_var i (tarray (intliststruct _struct _head _tail) n) rho); inv H; clear; compute; auto.
+  rewrite (list_cell_eq _ _ _ NEht LS).
+  rewrite mapsto_tuint_tint.
+ repeat rewrite <- sepcon_assoc.
+ apply sepcon_derives.
+ unfold_lift. simpl.
+apply sepcon_derives; eapply mapsto_field_mapsto'; try reflexivity.
+ simpl. rewrite if_true by auto. reflexivity.
+ unfold field_offset. simpl. rewrite if_true by auto. reflexivity.
+ simpl. rewrite if_false by auto; do 2 rewrite if_true by auto. reflexivity.
+ unfold field_offset. simpl. rewrite if_false by auto; rewrite if_true by auto. reflexivity.
+ normalize. destruct (eval_var i (tarray (intliststruct _struct _head _tail) n) rho); inv H; hnf; auto.
+ replace (ofs + init_data_size (Init_int32 _) +
+   init_data_size (Init_addrof i (Int.repr (ofs + 8))))
+   with (ofs+8).
+ apply IHdata. simpl; omega.
+Qed.
+*)

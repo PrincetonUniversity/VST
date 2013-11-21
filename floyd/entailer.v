@@ -185,17 +185,17 @@ Ltac entailer :=
  end;
  entailer'.
 
-Ltac prop_right_solve := 
-apply prop_right; 
+Ltac prop_solve := 
   match goal with |- ?A => (has_evar A; repeat simple apply conj) || (repeat split) end;
   (computable || auto). 
  
 Tactic Notation "entailer" "!" := 
   entailer; 
-    first [simple apply andp_right; [prop_right_solve | cancel ]
-           | prop_right_solve
-           | cancel
-           | idtac ].
+  first [simple apply andp_right; [apply prop_right; prop_solve | cancel ]
+         | simple apply prop_right; prop_solve
+         | match goal with |- _ |-- _ => try cancel end
+         | prop_solve
+         ].
 
 Ltac elim_hyps :=
  repeat match goal with

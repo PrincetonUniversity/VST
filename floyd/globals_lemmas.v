@@ -29,7 +29,6 @@ Proof. intros. apply pred_ext.
 apply orp_left; apply derives_refl.
 apply orp_right1; apply derives_refl.
 Qed.
-Check mapsto_zeros.
 
 Lemma mapsto_zeros_memory_block:
  forall sh n b ofs,
@@ -122,7 +121,7 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       end
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
-      | None, Some (Global_var (Tarray t _ att)) =>`(memory_block sh (Int.repr 4)) v
+      | None, Some (Global_var (Tarray t n' att)) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
       | None, Some (Global_var Tvoid) => TT
       | None, Some (Global_var t) => `(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb t))
       | Some _, Some (Global_var (Tarray t _ att)) => `(memory_block sh (Int.repr 4)) v
@@ -238,7 +237,6 @@ pose proof (sizeof_pos (Tarray t z0 a)); omega.
       by admit.  (* straightforward *) 
     destruct gv; simpl; try apply TT_right; try rewrite H8; try rewrite H;
     unfold mapsto; try (apply andp_right; [apply prop_right; apply I | apply derives_refl ]).
-apply unpack_globvar_aux1; rewrite sizeof_Tpointer; simpl in H6; omega.
 Qed.
 
 Lemma unpack_globvar:
@@ -278,6 +276,8 @@ Fixpoint id2pred_star (Delta: tycontext) (sh: share) (t: type) (v: environ->val)
                    * id2pred_star Delta sh t v (ofs + init_data_size d) dl'
  | nil => emp
  end.
+
+Arguments id2pred_star Delta sh t v ofs dl rho  / .
 
 Lemma init_data_list_size_pos : forall a, init_data_list_size a >= 0.
 Admitted.
@@ -514,6 +514,13 @@ first [
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence ]
+ | eapply derives_trans;
+    [ apply unpack_globvar_star; 
+        [reflexivity | reflexivity | reflexivity | reflexivity
+        | reflexivity | compute; split; clear; congruence ]
+    |  cbv beta; simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
+      change (Share.splice extern_retainer Tsh) with Ews
+    ]; apply derives_refl
  | apply andp_left2; apply derives_refl
  ].
 

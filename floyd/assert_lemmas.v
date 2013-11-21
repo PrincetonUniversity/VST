@@ -1,6 +1,8 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Definition nullval : val := Vint Int.zero.
+
 Lemma writable_share_top: writable_share Tsh.
 Admitted.
 Hint Resolve writable_share_top.

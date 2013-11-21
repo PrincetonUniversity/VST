@@ -3,6 +3,27 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma mapsto_tuint_tint:
+  forall sh, mapsto sh tuint = mapsto sh tint.
+Proof.
+intros.
+unfold mapsto.
+extensionality v1 v2.
+reflexivity.
+Qed.
+
+Lemma mapsto_null_mapsto_pointer:
+  forall t sh v, 
+             mapsto sh tint v nullval = 
+             mapsto sh (tptr t) v nullval.
+Proof.
+intros.
+unfold mapsto.
+f_equal; try reflexivity.
+f_equal.
+apply prop_ext; split; intro; hnf in *|-*; auto.
+Qed.
+
 Lemma superprecise_mapsto:
   forall sh t v1 v2, predicates_sl.superprecise (mapsto sh t v1 v2).
 Proof.

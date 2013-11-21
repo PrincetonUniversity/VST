@@ -22,9 +22,9 @@ normalize.
 
 replace (array_at_ tuint Tsh) with (array_at tuint Tsh (ZnthV tuint nil))
  by (rewrite ZnthV_nil_None; reflexivity).
-
-do 8 (forward; [entailer!; [reflexivity | clear; omega .. ]
+do 8 (forward; [entailer!
               | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).
+change (fun _ => c) with (`c). normalize.
 forward. (* c->Nl=0; *)
 forward. (* c->Nh=0; *)
 forward. (* c->num=0; *)
@@ -34,7 +34,6 @@ apply exp_right with (init_registers, (Int.zero, (Int.zero, (nil, Int.zero)))).
 simpl_typed_mapsto.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
 entailer!.
-repeat split.
 simpl; change CBLOCK with 64; omega.
 exists 0; simpl; reflexivity.
 apply derives_refl'; f_equal.

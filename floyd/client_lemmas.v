@@ -134,8 +134,6 @@ Ltac repable_signed :=
    unfold repable_signed in *;
    omega.
 
-Definition nullval : val := Vint Int.zero.
-
 Lemma typed_false_ptr: 
   forall {t a v},  typed_false (Tpointer t a) v -> v=nullval.
 Proof.

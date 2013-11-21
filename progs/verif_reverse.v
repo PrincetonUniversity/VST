@@ -215,49 +215,137 @@ forward.  (* v = t; *)
 forward.  (* return w; *)
 Qed.
 
-(** this setup_globals lemma demonstrates that the initialized global variables
- ** satisfy a particular separation-logic predicate.  Here, this lemma is
- ** fairly automated; the "repeat" walks down a list of arbitrary length
- ** (in this case, the initialized array is three elements long).  But
- ** the automation and proof is not very beautiful or self-explanatory;
- ** this needs improvement.
+(** The next two lemmas concern the extern global initializer, 
+ ** struct list three[] = {{1, three+1}, {2, three+2}, {3, NULL}};
+ ** This is equivalent to a linked list of three elements [1,2,3].
+ ** Here is how we prove that.
  **)
-Lemma setup_globals:
-  local (tc_environ (func_tycontext f_main Vprog Gtot)) &&
-   globvar2pred (_three, v_three)
-   |-- `(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-             (eval_var _three (Tarray t_struct_list 3 noattr))
-            `nullval.
-Proof.
- unfold main_pre.
- intro rho; normalize.
- simpl.
- destruct (globvar_eval_var _ _ _three _ H (eq_refl _) (eq_refl _))
-  as [b [H97 H99]]. simpl in *.
- rewrite H97.
- unfold globvar2pred. simpl. rewrite H99. simpl.
+
+(** First, "list_init_rep three 0 [1,2,3]" is computes to the initializer sequence,
+**      {1, three+1, 2, three+2, 3, NULL}
+**) 
+Fixpoint list_init_rep (i: ident) (ofs: Z) (l: list int) :=
+ match l with 
+ | nil => nil
+ | j::nil => Init_int32 j :: Init_int32 Int.zero :: nil
+ | j::jl => Init_int32 j :: Init_addrof i (Int.repr (ofs+8)) :: list_init_rep i (ofs+8) jl
+ end.
+
+(** Second, we prove that in general, no matter how long the list,
+ **  an initializer sequence like that is equivalent to a list-segment
+ **  terminating in nullval.
+**)
+Lemma linked_list_in_array:
+ forall Delta sh i data idata n,
+  (length data > 0)%nat ->
+  (var_types Delta) ! i = None ->
+  (glob_types Delta) ! i = Some (Global_var (tarray t_struct_list n)) ->
+  idata =  list_init_rep i 0 data ->
+   id2pred_star Delta sh (tarray t_struct_list n)
+      (eval_var i (tarray t_struct_list n)) 0 idata
+  |-- `(lseg LS sh data) (eval_var i (tarray t_struct_list n)) `nullval.
+Proof. 
+ pose proof I.
+ intros.
+ subst idata.
+ intro rho.
+ unfold_lift.
+ clear H.
+ match goal with |- ?A |-- ?B =>
+   assert (A |-- !! isptr (eval_var i (tarray t_struct_list n) rho) && A)
+ end.
+ destruct data; [simpl in H0; omega | ].
+ destruct data; simpl list_init_rep; unfold id2pred_star; fold id2pred_star;
+ apply andp_right; auto;
+ match goal with |- (_ * ?A) rho |-- _ => forget A as JJ end;
+ simpl;  entailer!.
+ eapply derives_trans; [apply H | clear H; apply derives_extract_prop; intro ].
+ replace (eval_var i (tarray t_struct_list n) rho)
+   with (offset_val (Int.repr 0) (eval_var i (tarray t_struct_list n) rho))
+  by normalize.
+ set (ofs:=0). clearbody ofs.
+ revert ofs; induction data; intro.
+ simpl in H0. omega.
+ simpl list_init_rep.
+ destruct data.
  clear.
-repeat match goal with |- _ * (umapsto _ _ _ ?v * _) |-- _ =>
-                apply @lseg_unroll_nonempty1 with v; simpl; auto; 
-                apply sepcon_derives; 
-                  [rewrite list_cell_eq; umapsto_field_mapsto_tac
-                  | ];
-                apply sepcon_derives; [umapsto_field_mapsto_tac | ]
-           end.
- rewrite lseg_unroll. apply orp_right1.
- unfold ptr_eq;simpl; normalize.
+ simpl.
+ unfold_lift. 
+ rewrite mapsto_isptr; rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
+ destruct (eval_var i (tarray t_struct_list n) rho); inv H. 
+ apply @lseg_unroll_nonempty1 with nullval; simpl; auto.
+ rewrite mapsto_tuint_tint.
+ rewrite list_cell_eq.
+ match goal with |- context [mapsto ?sh tint ?v1 ?v2 * emp] =>
+   replace (mapsto sh tint v1 v2) with 
+       (mapsto sh (tptr t_struct_list) v1 nullval)
+  by (symmetry; apply mapsto_null_mapsto_pointer)
+ end.
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+   unfold offset_val; repeat rewrite Int.add_assoc
+ | ].
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+   unfold offset_val; repeat rewrite Int.add_assoc
+ | ].
+f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
+ simpl. change (align (align 4 4) 4) with (4+0). rewrite Z.add_assoc.
+reflexivity.
+ rewrite @lseg_nil_eq; auto.
+ entailer. compute; auto.
+ spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
+ specialize (IHdata (ofs+8)).
+ forget (list_init_rep i (ofs+8)(i0::data)) as rep'.
+ unfold id2pred_star. fold id2pred_star.
+ simpl init_data2pred'.
+ repeat (rewrite H1; rewrite H2). unfold tarray at 2.
+  apply @lseg_unroll_nonempty1 with (offset_val (Int.repr (ofs + 8))
+       (eval_var i (tarray t_struct_list n) rho)).
+  destruct (eval_var i (tarray t_struct_list n) rho); inv H; clear; compute; auto.
+  destruct (eval_var i (tarray t_struct_list n) rho); inv H; clear; compute; auto.
+ rewrite mapsto_tuint_tint.
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; apply I
+ | ].
+apply sepcon_derives;
+ [eapply mapsto_field_mapsto'; try reflexivity; try apply I
+ | ].
+ normalize. destruct (eval_var i (tarray t_struct_list n) rho); inv H; hnf; auto.
+ replace (ofs + init_data_size (Init_int32 a) +
+   init_data_size (Init_addrof i (Int.repr (ofs + 8))))
+   with (ofs+8).
+ apply IHdata.
+ simpl. omega.
 Qed.
+
+(**  Third, we specialize it to the precondition of our main function: **)
+Lemma setup_globals:
+  PROP () LOCAL() SEP (
+   id2pred_star (func_tycontext f_main Vprog Gtot) Ews (tarray t_struct_list 3)
+      (eval_var _three (tarray t_struct_list 3)) 0
+      (Init_int32 (Int.repr 1)
+       :: Init_addrof _three (Int.repr 8)
+          :: Init_int32 (Int.repr 2)
+             :: Init_addrof _three (Int.repr 16)
+                :: Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) :: nil))
+  |-- PROP() LOCAL() SEP (
+         `(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+             (eval_var _three (tarray t_struct_list 3))
+            `nullval).
+Proof.
+ intros;  do 2 (apply andp_derives; [entailer |]).
+ apply sepcon_derives; auto.
+ apply linked_list_in_array; try reflexivity.
+ simpl; omega.
+Qed. 
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
 name r _r.
 name s _s.
-replace_SEP 0%Z
- (`(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
-             (eval_var _three (Tarray t_struct_list 3 noattr))
-            `nullval).
-entailer; eapply derives_trans; [ | apply setup_globals]; entailer.
+eapply semax_pre0; [apply setup_globals | ].
 forward.  (*  r = reverse(three); *)
 instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
  entailer!.

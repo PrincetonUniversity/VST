@@ -553,8 +553,23 @@ Ltac get_global_fun_def Delta f fsig A Pre Post :=
                           fail 1 "Function " f " has no specification in the type context");
      clear VT GT.
 
+Ltac all_closed R :=
+ match R with 
+  | @liftx (LiftEnviron mpred) _ :: ?R' => all_closed R'  
+  | nil => idtac
+  end.
+
+Ltac complain_open_sep_terms :=
+ match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+    first [all_closed R 
+            | let H := fresh "WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call"
+                      in assert (H: True) by apply I
+            ]
+ end.
 
 Ltac forward_call0_id :=
+ complain_open_sep_terms;
+ ensure_open_normal_ret_assert;
 match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
      ensure_open_normal_ret_assert;
@@ -993,6 +1008,7 @@ about id'.  So we handle it all in one gulp.
  See also BEGIN HORRIBLE1 in forward_lemmas.v
 *)
 Ltac forward_compound_call :=
+  complain_open_sep_terms;
   ensure_open_normal_ret_assert;
    match goal with |-  @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
@@ -1019,6 +1035,7 @@ Ltac forward_compound_call :=
 end.
 
 Ltac forward_call1_id :=
+ complain_open_sep_terms;
  ensure_open_normal_ret_assert;
  match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>

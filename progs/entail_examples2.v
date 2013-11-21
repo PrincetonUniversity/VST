@@ -125,8 +125,5 @@ intros; ungather_entail;
  set (Delta := func_tycontext f_SHA256_Init Vprog Gtot); revert Delta; simplify_Delta.
 unfold i,j; clear i j.
 entailer!.
-* reflexivity.
-* compute; congruence.
-* compute; congruence.
 Qed.
 
