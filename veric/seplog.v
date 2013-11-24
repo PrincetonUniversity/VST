@@ -68,15 +68,13 @@ Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
-(* "umapsto" stands for "untyped mapsto", i.e. it does not
-   enforce that v2 belongs to type t *)
-Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): pred rmap :=
+Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
     match v1 with
      | Vptr b ofs => 
-          address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
-        || !!(v2=Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+          (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+        || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
     end
   | _ => FF
@@ -86,6 +84,35 @@ Definition mapsto sh t v1 v2 :=
              !! (tc_val t v2)  && umapsto sh t v1 v2.
 
 Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
+
+Lemma mapsto_e:
+ forall sh t v1 v2,
+   mapsto sh t v1 v2 =
+  match access_mode t with
+  | By_value ch => 
+    match v1 with
+     | Vptr b ofs => 
+         !!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+     | _ => FF
+    end
+  | _ => FF
+  end. 
+Proof.
+unfold mapsto, umapsto; intros.
+destruct (access_mode t) eqn:?; simpl;
+ try solve [rewrite andp_comm; apply FF_and];
+destruct v1; simpl;  try solve [rewrite andp_comm; apply FF_and].
+apply pred_ext.
+* apply prop_andp_left; intro.
+ apply orp_left. auto.
+ apply prop_andp_left; intro.
+ subst v2. destruct t; contradiction H.
+* apply prop_andp_left; intro.
+  rewrite prop_true_andp by auto.
+  apply orp_right1.
+  rewrite prop_true_andp by auto.
+  auto.
+Qed.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
@@ -429,14 +456,15 @@ exists l; (split; [ split3; [reflexivity |unfold l; (reflexivity || apply decode
   rewrite EQ; intro loc; specialize (H loc);
  hnf in H|-*; if_tac; auto; subst loc; rewrite Zminus_diag;
  unfold l; simpl nth; auto.
-rewrite prop_true_andp by auto.
 apply orp_left.
+apply andp_left2.
 intros w [l [[? [? ?]] ?]].
  intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
  hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.
  destruct l; inv H. exists m.
  destruct H2 as [H2' H2]; exists H2'; hnf in H2|-*; rewrite H2.
  f_equal. f_equal. rewrite Zminus_diag. reflexivity.
+rewrite prop_true_andp by auto.
 intros w [v2' [l [[? [? ?]] ?]]].
  intros [b' i']; specialize (H2 (b',i')); rewrite EQ in H2;
  hnf in H2|-*;  if_tac; auto. symmetry in H3; inv H3.

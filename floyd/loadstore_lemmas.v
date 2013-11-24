@@ -99,13 +99,6 @@ rewrite (SEP_replace_nth_isolate _ _ _ _ H0).
 auto.
 Qed.
 
-Lemma mapsto_force_ptr: forall sh t v v', 
-  mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
-Proof.
-intros.
-destruct v; simpl; auto.
-Qed.
-
 Lemma local_andp_lemma:
   forall P Q, P |-- local Q -> P = local Q && P.
 Proof.
@@ -154,33 +147,37 @@ apply (semax_pre_post
 go_lowerx.
 apply later_derives.
 apply derives_extract_prop; intro.
-unfold field_mapsto; unfold_lift. 
-case_eq (eval_lvalue e1 rho); intros; 
- try (rewrite FF_sepcon; apply FF_left).
+unfold field_mapsto, field_umapsto; unfold_lift. 
 rewrite H1.
 rewrite field_offset_unroll. rewrite <- TC2.
+normalize.
 case_eq (field_offset fld fields); intros; 
  try (rewrite FF_sepcon; apply FF_left).
+unfold mapsto.
+(*
 case_eq (access_mode t2); intros;
  try (rewrite FF_sepcon; apply FF_left).
 rewrite andp_assoc.
-repeat rewrite sepcon_andp_prop'.
-  repeat (apply derives_extract_prop; intro).
+*)
+rewrite sepcon_andp_prop'.
+  apply derives_extract_prop; intro.
 repeat apply andp_right; try apply prop_right.
 unfold tc_lvalue. 
 unfold typecheck_lvalue; fold typecheck_lvalue. rewrite H1.
-rewrite H8; simpl tc_bool.
+rewrite H6; simpl tc_bool.
 rewrite H5. repeat rewrite tc_andp_TT2.
-apply H3.
+repeat split; auto.
 exists t2; exists i2; split; auto.
 unfold allowedValCast. rewrite CLASSIFY.
-destruct t2; simpl; auto. auto.
-unfold mapsto.
-repeat rewrite prop_true_andp by auto.
+destruct t2; simpl; auto.
 unfold umapsto.
-rewrite H6.
-unfold eval_field. rewrite H5.
-simpl. apply sepcon_derives; auto. apply orp_right1. auto.
+case_eq (access_mode t2); intros;
+ try (rewrite FF_sepcon; apply FF_left).
+simpl. rewrite H5.
+destruct (offset_val (Int.repr z) (eval_lvalue e1 rho)); 
+ try (rewrite FF_sepcon; apply FF_left).
+apply sepcon_derives; auto.
+apply orp_left; normalize. apply orp_right1; auto.
 
 (* POSTCONDITION *)
 intros ek vl.
@@ -189,22 +186,19 @@ apply exp_derives. intro old.
 apply andp_derives; auto.
 unfold subst. go_lowerx.
 rewrite sepcon_andp_prop. apply derives_extract_prop. intro.
-unfold mapsto, field_mapsto, umapsto.
+unfold mapsto, field_mapsto, field_umapsto.
 rewrite sepcon_andp_prop'. apply derives_extract_prop. intro.
-rewrite H1. rewrite <- TC2.
-destruct (access_mode t2) eqn:?; 
- try (rewrite FF_sepcon; apply FF_left).
-simpl eval_field. unfold always.
-rewrite field_offset_unroll. unfold offset_val.
-unfold_lift.
-destruct (field_offset fld fields);  try (rewrite FF_sepcon; apply FF_left).
-destruct (eval_lvalue e1 (env_set rho id old)); try (rewrite FF_sepcon; apply FF_left).
-apply sepcon_derives; auto.
+rewrite H1. 
+ rewrite field_offset_unroll.
+simpl. unfold_lift.
+apply sepcon_derives; auto. 
+unfold always.
+destruct (field_offset fld fields);  simpl; try (rewrite FF_sepcon; apply FF_left).
+rewrite <- TC2.
 repeat apply andp_right; try apply prop_right; auto.
-apply orp_left; auto.
-apply derives_extract_prop; intro.
-rewrite tc_val_eq in H3.
-rewrite H4 in H3; inv H3.
+intro. rewrite H4 in H3; destruct t2; contradiction.
+clear.
+rewrite umapsto_isptr. normalize.
 Qed.
 
 Lemma semax_store_field: 
@@ -225,7 +219,7 @@ Transparent field_mapsto.
 pose proof I. intros until fields. intro WS.
 intros.
 rename H0 into TE1.
-unfold field_mapsto_.
+unfold field_mapsto_, field_umapsto.
 
 apply semax_pre0 with
  (EX v2: val,
@@ -271,19 +265,17 @@ rewrite <- exp_andp2.
 apply andp_derives; auto.
 unfold lift1; intro rho; unfold_lift.
 simpl sepcon. cbv beta.
-case_eq (eval_lvalue e1 rho); intros; try rewrite FF_sepcon; try apply FF_left.
-destruct (typeof e1);  try rewrite FF_sepcon; try apply FF_left.
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
+rewrite TE1. rewrite <- H1. rewrite field_offset_unroll.
+destruct (field_offset fld fields);
    try (rewrite FF_sepcon; apply FF_left).
-destruct ( access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld));
-   try (rewrite FF_sepcon; apply FF_left).
-rewrite sepcon_andp_prop'. apply derives_extract_prop; intro.
-repeat rewrite exp_sepcon1.
-simpl.
-apply exp_derives; intro v2.
-rewrite H0. rewrite prop_true_andp by auto. auto.
-
+normalize.
+unfold umapsto.
+destruct (access_mode t2);    try (rewrite FF_sepcon; apply FF_left).
+case_eq (eval_lvalue e1 rho); simpl; intros; try rewrite FF_sepcon; try apply FF_left.
+rewrite distrib_orp_sepcon.
+apply orp_left.
+normalize. elimtype False; clear - H3; destruct t2; contradiction.
+normalize. apply exp_right with v2'. normalize.
 apply extract_exists_pre; intro v0.
 
 pose proof (semax_store Delta (Efield e1 fld t2) e2 sh 
@@ -330,22 +322,19 @@ apply exp_right with v0; auto.
 intros ek vl; unfold normal_ret_assert; go_lowerx.
 normalize.
 apply sepcon_derives; auto.
-unfold mapsto, umapsto, field_mapsto.
+unfold mapsto, field_mapsto, field_umapsto.
 rewrite TE1.
 apply derives_extract_prop; intro.
-destruct (access_mode t2) eqn:?; try apply FF_left.
-unfold_lift.
-unfold eval_field.
 rewrite field_offset_unroll.
-unfold offset_val, always.
-case_eq (field_offset fld fields); intros; try apply FF_left.
-case_eq (eval_lvalue e1 rho); intros; try apply FF_left.
+simpl.
+case_eq (field_offset fld fields); simpl; intros; try apply FF_left.
 rewrite <- H1.
-rewrite Heqm.
-repeat apply andp_right; try apply prop_right; auto.
-apply orp_left; auto.
-apply derives_extract_prop; intro.
-rewrite H9 in H4. destruct t2; inv H4.
+rewrite prop_true_andp.
+rewrite prop_true_andp by auto.
+auto.
+intro.
+rewrite H8 in H6. clear - H6; destruct t2; contradiction.
+clear; unfold always; rewrite umapsto_isptr; normalize.
 Opaque field_mapsto.
 Qed.
 
@@ -546,7 +535,9 @@ apply andp_right.
 eapply derives_trans; [ | apply TC3].
 apply andp_right. apply andp_left1; auto. apply andp_right; [ |  apply andp_left2; auto].
 eapply derives_trans; [apply H6 | ].
-go_lowerx. unfold field_mapsto.
+go_lowerx. rewrite field_mapsto_isptr. clear; normalize.
+auto.
+(*
 destruct (eval_lvalue e1 rho);  try (rewrite FF_sepcon; apply FF_left).
 rewrite H1. rewrite field_offset_unroll. 
 destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
@@ -554,22 +545,24 @@ rewrite <- TC2.
 destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
 apply TT_right.
 eapply derives_trans; [apply H6 | ].
-apply sepcon_derives; auto.
+apply sepcon_derives; auto.*)
 go_lowerx.
-unfold field_mapsto, tc_lvalue, tc_temp_id_load.
-simpl.
-destruct (eval_lvalue e1 rho);  try (rewrite FF_sepcon; apply FF_left).
-rewrite H1. rewrite field_offset_unroll. 
+unfold field_mapsto, field_umapsto, tc_lvalue, tc_temp_id_load.
+simpl. rewrite H1. rewrite field_offset_unroll.
 destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
 rewrite <- TC2.
-destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
 normalize.
+(*
+destruct (eval_lvalue e1 rho);  try (rewrite FF_sepcon; apply FF_left).
+destruct (access_mode t2);   try (rewrite FF_sepcon; apply FF_left).
+normalize.*)
 apply prop_right; repeat split; auto.
 rewrite denote_tc_assert_andp; split.
 apply H2. rewrite H4. apply I.
 exists t2,i2. split; auto.
 unfold allowedValCast. rewrite CLASSIFY.
 destruct t2; simpl; auto.
+normalize.
 * (* POSTCONDITION *)
 intros ek vl.
 apply andp_left2. apply normal_ret_assert_derives'.
@@ -579,20 +572,23 @@ clear; intro; unfold_lift; apply prop_derives; auto.
 *
  eapply derives_trans; [ apply H6 | ].
 apply sepcon_derives; auto.
-unfold field_mapsto, mapsto, umapsto.
+unfold field_mapsto, mapsto, field_umapsto.
 go_lowerx.
 unfold_lift.
-destruct (eval_lvalue e1 rho); try apply FF_left.
 rewrite H1.
 rewrite field_offset_unroll.
 simpl.
 destruct (field_offset fld fields);   try apply FF_left.
 rewrite <- TC2.
-destruct (access_mode t2);   try apply FF_left.
-simpl offset_val. cbv iota.
 normalize.
-apply orp_right1.
-auto.
+apply andp_right; auto.
+clear - H2.
+unfold umapsto.
+destruct (access_mode t2);   try apply FF_left.
+destruct (offset_val (Int.repr z) (eval_lvalue e1 rho)); try apply FF_left.
+apply orp_left; auto.
+normalize.
+normalize. congruence.
 Qed.
 
 Lemma semax_load_field_38:
@@ -656,7 +652,11 @@ rewrite H1; apply I.
 eapply derives_trans; [ apply H6 | ].
 apply andp_left2.
 apply sepcon_derives; auto.
-go_lowerx. unfold_lift. rewrite field_mapsto_force_ptr; eapply derives_refl.
+go_lowerx.
+unfold_lift. rewrite field_mapsto_force_ptr. 
+unfold field_mapsto.
+apply andp_right; auto.
+apply prop_right; auto.
 Qed.
 
 Lemma semax_load_field_39:
@@ -693,6 +693,8 @@ rewrite H4. apply I.
 rewrite H1; apply I.
 eapply derives_trans; [ apply H7 | ].
 apply sepcon_derives; auto.
-go_lowerx. unfold_lift. rewrite field_mapsto_force_ptr; eapply derives_refl.
+go_lowerx.
+unfold field_mapsto; normalize.
+ unfold_lift. rewrite field_umapsto_force_ptr; eapply derives_refl.
 Qed.
 

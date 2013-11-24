@@ -184,18 +184,18 @@ Qed.
 
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_int64 i => umapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val ofs v)
+       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
-       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val ofs v)
+       | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT
        end
  end.
@@ -579,20 +579,24 @@ Proof.
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
   assert (APOS:= Genv.init_data_size_pos a).
   Transparent load.
-  unfold init_data2pred, umapsto.
+  unfold init_data2pred, mapsto, umapsto.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
     fst,snd.
   rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
   simpl.
   repeat rewrite Share.unrel_splice_R.
   repeat rewrite Share.unrel_splice_L.
-  destruct a; try left; simpl in H; unfold load in H;
+  unfold mapsto, tc_val, is_int, is_long, is_float. 
+  destruct a; 
+  repeat rewrite prop_true_andp by apply I;
+  try left; simpl in H; unfold load in H;
   try (if_tac in H; [ | discriminate H]);
+  repeat rewrite prop_true_andp by apply I;
   try match type of H with Some (decode_val ?ch ?B) = Some (?V) =>
-            exists B; replace V with (decode_val ch B) by (inversion H; auto)
-       end. 
+            exists B; replace V with (decode_val ch B) by (inversion H; auto);
+            clear H; repeat split; auto
+       end.
 (* Int8 *)
-  repeat split; auto; clear H.
   apply Zone_divide.
   intro loc; specialize (H2 loc).
   simpl in H2. hnf. simpl size_chunk. if_tac; auto.
@@ -615,7 +619,6 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
 (* Int16 *)
-  repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -638,7 +641,6 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.  
 (* Int32 *)
-  repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -661,7 +663,6 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
 (* Int64 *)
-  repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -684,7 +685,6 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
 (* Float32 *)
-  repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -707,7 +707,6 @@ Proof.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
 (* Float64 *)
- repeat split; auto; clear H.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
@@ -788,7 +787,7 @@ if_tac; auto.
 
   case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
  (* is an array *)
- destruct t; try left; inv HT.
+ destruct t; repeat rewrite prop_true_andp by apply I; try left; inv HT.
  exists ( (getN (size_chunk_nat Mint32) z (PMap.get b (mem_contents m3)))).
  repeat split; auto.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
@@ -850,7 +849,7 @@ assert ((EX  bl : list memval,
   destruct loc; destruct H; subst b1.
   apply nth_getN; simpl; omega.
   apply H2.
-  destruct t; try left; try apply H. auto.
+  destruct t; repeat rewrite prop_true_andp by apply I; try left; try apply H. auto.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1448,13 +1447,15 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  exists w1'; exists w2'; split3; auto.
  2: eapply IHdl; eauto.
  clear - H1 H4. destruct H4 as [H4' H4].
- destruct a; simpl in *; 
-   try (destruct H1 as [H1 | [H88 _]]; [left | solve [inv H88]]);
+unfold init_data2pred in *;
+destruct a; repeat rewrite mapsto_e in *; simpl in *;
+try (destruct H1 as [H1' H1]; split; [apply I | ]);
  try solve [
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
  if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
              rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
           | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]].
+
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
  rewrite Share.unrel_splice_L in *.
@@ -1470,37 +1471,37 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  destruct (ge_of rho i); try destruct p; auto. 
  destruct (eq_dec t Tvoid). subst; auto. rename n into NT.
  case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
- destruct t; inv HT.
- hnf in H1|-*.
- destruct H1 as [H1 | H1]; [left | right].
+ destruct t; try rewrite mapsto_e in *; inv HT;
+ simpl in *.
+ destruct H1 as [H1' H1]; split; auto.
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- do 3 red in H8|-*. apply H0; auto.
+ intuition.
+(*
+ destruct t; auto.
+ destruct t; try rewrite mapsto_e in *; inv HT;
+ simpl in *.
  destruct H1 as [H1' [v2' H1]]; split; [assumption | exists v2' ].
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
  do 3 red in H8|-*. apply H0; auto.
- assert (umapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
+*)
+ assert (mapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
       (offset_val i0 v) w1'); [ | destruct t; auto].
- assert (H1': umapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
+ assert (H1': mapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
                 (Vptr b z) (offset_val i0 v) w1) by (destruct t; auto; congruence).
  clear H1.
- destruct H1' as [H1' | H1']; [left | right].
+ rewrite mapsto_e in *. simpl.
+ destruct H1' as [H99 H1']; split; auto.
  destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
- destruct (H4 loc).
+ destruct (H4 loc). simpl in *.
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- do 3 red in H8|-*. apply H0; auto.
- destruct H1' as [H1'' [v2' H1']]; split; [assumption | exists v2'].
- destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
- destruct (H4 loc).
- hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
-  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- do 3 red in H8|-*. apply H0; auto.
+ intuition.
 Qed.
 
 Lemma another_hackfun_lemma:

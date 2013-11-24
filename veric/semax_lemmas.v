@@ -1493,6 +1493,7 @@ Proof.
  destruct v1; try contradiction.
  rename H into Hmode.
 destruct H0 as [H0|H0]; [left | right].
+ destruct H0 as [H0' H0]; split; auto.
  destruct H0 as [bl [? ?]]; exists bl; split; auto.
  clear - H0 H1.
   intro loc'; specialize (H0 loc').

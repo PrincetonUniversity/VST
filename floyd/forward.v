@@ -16,6 +16,22 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
+Lemma subst_make_args':
+  forall id v (P: environ->mpred) fsig tl el,
+  length tl = length el ->
+  length (fst fsig) = length el ->
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
+           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
+Proof.
+intros. unfold_lift. extensionality rho; unfold subst.
+f_equal. unfold make_args'.
+revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
+reflexivity.
+specialize (IHl _ _ H2 H1).
+unfold_lift; rewrite IHl. auto.
+Qed.
+Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
+
 Lemma expr_closed_field: forall S e f t,
   lvalue_closed_wrt_vars S e ->
   expr_closed_wrt_vars S (Efield e f t).
@@ -915,19 +931,9 @@ match goal with
                 (SEPx (replace_nth n R (`(field_mapsto_ sh (typeof e) fld) (eval_lvalue e)))))));
  [ eapply (fast_entail n); [reflexivity | entailer; cancel] | ];
 (**** 14.2 seconds to here  *)
-(*
- eapply (semax_store_field'' _ _ n sh); 
-   [auto | reflexivity | reflexivity 
-      | try solve [repeat split; hnf; simpl; intros; congruence]
-      | entailer
-      | entailer
-      | (apply local_lifted_reflexivity || quick_load_equality)
-      | reflexivity
-      | simple apply derives_refl ];
-*)
  eapply (semax_store_field_nth _ _ n sh); 
    [reflexivity | auto | reflexivity | reflexivity | reflexivity
-      | solve [go_lowerx; auto with cancel] 
+      | apply derives_refl (* solve [entailer!]  *) (*if this works, eliminate v1 from lemma *)
       | (apply local_lifted_reflexivity || solve [entailer])
       | try solve [entailer]
      ];

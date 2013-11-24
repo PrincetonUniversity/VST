@@ -124,9 +124,12 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       | None, Some (Global_var (Tarray t n' att)) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
       | None, Some (Global_var Tvoid) => TT
       | None, Some (Global_var t) => `(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb t))
+      | None, Some (Global_func f) => 
+                 `(mapsto sh (Tpointer (type_of_funspec f) noattr)) v (`(offset_val ofs) (eval_var symb (type_of_funspec f)))
       | Some _, Some (Global_var (Tarray t _ att)) => `(memory_block sh (Int.repr 4)) v
       | Some _, Some (Global_var Tvoid) => TT
       | Some _, Some (Global_var t) => `(memory_block sh (Int.repr 4)) v 
+      | Some _, Some (Global_func f) => `(memory_block sh (Int.repr 4)) v 
       | _, _ => TT
       end
  end.
@@ -162,7 +165,7 @@ Admitted.
 Lemma unpack_globvar_aux1:
   forall sh t a b v ofs, 
    ofs + sizeof (Tpointer t a) <= Int.max_unsigned ->
-               umapsto sh (Tpointer t a) (Vptr b (Int.repr ofs)) v
+               mapsto sh (Tpointer t a) (Vptr b (Int.repr ofs)) v
                    |-- memory_block sh (Int.repr 4) (Vptr b (Int.repr ofs)).
 Admitted.
 
@@ -198,10 +201,9 @@ intros H1 H6' H6 H7 H8.
  assert (H8: offset_val (Int.repr ofs) (v rho) = Vptr b (Int.repr ofs)).
  rewrite H8'; simpl. rewrite Int.add_zero_l; auto.
  clear H8'.
- destruct idata; super_unfold_lift;
- try solve [apply andp_right; [apply prop_right; apply I | apply derives_refl]].
+ destruct idata; super_unfold_lift; try apply derives_refl.
 *  
- destruct t; try (apply no_attr_e in H1; subst a);
+ destruct t; try (apply no_attr_e in H1; subst a); 
   try (simpl; apply TT_right);
   try (if_tac;
         [rewrite H8; unfold zero_of_type; subst z; 
@@ -222,21 +224,32 @@ pose proof (sizeof_pos (Tarray t z0 a)); omega.
  rewrite Z.mul_0_r. rewrite Z.sub_0_r.
  apply derives_refl.
  apply alignof_pos.
-*  (*simpl in H5.*)
+* 
    destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg; 
     try destruct g; try solve [simpl; apply TT_right].
+ +     destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+     simpl. destruct fs; simpl.
+     rewrite H8.
+     apply unpack_globvar_aux1.
+     rewrite sizeof_Tpointer; simpl in H6; omega.
  +
     destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
     rewrite H8. (*clear dependent i. *)
     destruct gv; simpl; try apply TT_right; try rewrite H8;
-     try  apply unpack_globvar_aux1; rewrite sizeof_Tpointer; simpl in H6; omega.
- + 
-    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+     try  apply unpack_globvar_aux1;
+     rewrite sizeof_Tpointer; simpl in H6; omega.
+ +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+     simpl. destruct fs; simpl.
+     rewrite H8. 
+    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f)) rho = Vptr b' Int.zero)
+      by admit.  (* straightforward *) 
+    rewrite H. apply derives_refl.
++  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
     assert (eval_var i gv rho = Vptr b' Int.zero)
       by admit.  (* straightforward *) 
     destruct gv; simpl; try apply TT_right; try rewrite H8; try rewrite H;
-    unfold mapsto; try (apply andp_right; [apply prop_right; apply I | apply derives_refl ]).
+    apply derives_refl.
 Qed.
 
 Lemma unpack_globvar:

@@ -59,7 +59,7 @@ Definition deserialize_spec {t: type} (format: message_format t) :=
                         `(eq (Vint (Int.repr len))) (eval_id _length))
           SEP (`(mf_assert format (snd shs) buf len data);
                  `(memory_block (fst shs) (Int.repr (mf_size format)) p))
-  POST [ tint ]
+  POST [ tvoid ]
             `(mf_assert format (snd shs) buf len data) *
             `(typed_mapsto (fst shs) t p data).
 
@@ -110,12 +110,23 @@ apply semax_pre with
     `(field_mapsto sh t_struct_intpair _y) (eval_id _p) `(Vint y1);
    `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(0));
    `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(1)))).
+
+Lemma umapsto_local_facts:
+  forall sh t v1 v2,  umapsto sh t v1 v2 |-- !! (isptr v1).
+Proof.
+intros; unfold umapsto.
+rewrite tc_val_eq.
+destruct (access_mode t); try apply FF_left.
+destruct v1; try apply FF_left.
+apply prop_right; apply I.
+Qed.
+Hint Resolve umapsto_local_facts : saturate_local.
+
 entailer. cancel.
+unfold field_mapsto_;
 repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
  simpl.
-apply sepcon_derives; apply derives_refl'';
- eapply mapsto_field_mapsto_; try reflexivity; simpl;
- rewrite offset_offset_val; simpl; f_equal; compute; auto.
+normalize.
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 simpl.
@@ -227,16 +238,16 @@ SEP
     (`(func_ptr (deserialize_spec msg))
        (eval_var desid
           (globtype (Global_func (deserialize_spec msg)))) &&
-     globvar2pred (objid,  
-         {|gvar_info := t_struct_message;
-           gvar_init := Init_int32 (Int.repr (mf_size msg))
-                 :: Init_addrof serid (Int.repr 0)
-                    :: Init_addrof desid (Int.repr 0) :: nil;
-           gvar_readonly := false;
-           gvar_volatile := false |})))
+  (id2pred_star (func_tycontext f_main Vprog Gtot) Ews t_struct_message
+    (eval_var objid t_struct_message) 0
+    (Init_int32 (Int.repr (mf_size msg))
+     :: Init_addrof serid (Int.repr 0)
+        :: Init_addrof desid (Int.repr 0) :: nil))))
   |-- PROP()  LOCAL() SEP (`(message Ews msg)  (eval_var objid t_struct_message)).
 Proof.
 intros.
+unfold id2pred_star, init_data2pred'.
+ rewrite Vser,Vdes. rewrite Gser,Gdes.
 go_lower.
 normalize.
  unfold message.
@@ -245,26 +256,30 @@ normalize.
      (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint) rho,
  eval_var desid
       (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil)))
-         tint) rho).
+         tvoid) rho).
 rewrite andp_assoc.
 apply andp_derives; auto.
 apply andp_derives; auto.
- destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b [H97 H99]].
-  unfold globvars2pred,globvar2pred. simpl. rewrite H99.
- simpl gvar_volatile. cbv iota.
- simpl gvar_init. simpl readonly2share.
- destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b1 [z1 [EV1 GE1]]].
- destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b2 [z2 [EV2 GE2]]].
- simpl in H97.
- simpl. rewrite H97, GE1, GE2. simpl.
- simpl in EV1; rewrite EV1.
- simpl in EV2; rewrite EV2. 
  simpl_typed_mapsto.
  simpl.
-repeat rewrite Int.add_zero.
- rewrite Int.add_assoc.
- repeat rewrite sepcon_emp.
- repeat apply sepcon_derives; umapsto_field_mapsto_tac.
+ normalize.
+ Lemma mapsto_pointer_offset_val_zero:
+  forall sh t a v1 v2,
+     mapsto sh (Tpointer t a) v1 (offset_val Int.zero v2) |--
+     mapsto sh (Tpointer t a) v1 v2.
+Proof.
+intros; unfold mapsto.
+normalize. destruct v2; inv H; simpl; normalize.
+Qed.
+    rewrite mapsto_tuint_tint.
+ repeat apply sepcon_derives;
+ try (eapply derives_trans; [apply mapsto_pointer_offset_val_zero | ]);
+ try (eapply mapsto_field_mapsto'; 
+   try rewrite offset_offset_val; try reflexivity).
+ destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b1 [z1 [EV1 GE1]]].
+ simpl in EV1; rewrite EV1; apply I.
+ destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b1 [z1 [EV1 GE1]]].
+ simpl in EV1; rewrite EV1; apply I.
 Qed.
 
 Lemma drop_local: forall  P Q1 Q R,
@@ -303,22 +318,6 @@ Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
     Some (t',_) => t' = t
    | _ => False
   end.
-
-Lemma subst_make_args':
-  forall id v (P: environ->mpred) fsig tl el,
-  length tl = length el ->
-  length (fst fsig) = length el ->
-  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
-           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
-Proof.
-intros. unfold_lift. extensionality rho; unfold subst.
-f_equal. unfold make_args'.
-revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
-reflexivity.
-specialize (IHl _ _ H2 H1).
-unfold_lift; rewrite IHl. auto.
-Qed.
-Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
 
 Lemma subst_make_args'x
      : forall (id : ident) (v : environ -> val) 
@@ -627,9 +626,6 @@ get_global_function' _intpair_serialize.
 eapply semax_pre.
 frame_SEP' (0::nil).
 unfold main_pre, globvars2pred, prog_vars. simpl map.
-(*
- rewrite fold_right_cons. rewrite fold_right_nil. 
-rewrite sepcon_emp.*)
 apply create_message_object; reflexivity.
 unfold app.
 

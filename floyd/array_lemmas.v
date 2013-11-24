@@ -346,6 +346,7 @@ destruct (access_mode t); auto.
 destruct v; auto.
 apply orp_left.
 apply orp_right2.
+apply andp_left2.
 apply andp_right. apply prop_right; auto.
 apply exp_right with v'; auto.
 normalize.

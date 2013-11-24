@@ -3,6 +3,14 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma umapsto_tuint_tint:
+  forall sh, umapsto sh tuint = umapsto sh tint.
+Proof.
+intros.
+extensionality v1 v2.
+reflexivity.
+Qed.
+
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
 Proof.
@@ -12,14 +20,38 @@ extensionality v1 v2.
 reflexivity.
 Qed.
 
+Lemma mapsto_e:
+ forall sh t v1 v2,
+   mapsto sh t v1 v2 =
+  match access_mode t with
+  | By_value ch => 
+    match v1 with
+     | Vptr b ofs => 
+         !!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+     | _ => FF
+    end
+  | _ => FF
+  end. 
+Proof.
+unfold mapsto, umapsto; intros.
+destruct (access_mode t) eqn:?; simpl;
+ try solve [rewrite andp_comm; apply FF_andp];
+destruct v1; simpl;  try solve [rewrite andp_comm; apply FF_andp].
+apply pred_ext; normalize.
+* apply orp_left. auto.
+  normalize. destruct t; contradiction H.
+* apply orp_right1. auto.
+Qed.
+
 Lemma mapsto_null_mapsto_pointer:
   forall t sh v, 
              mapsto sh tint v nullval = 
              mapsto sh (tptr t) v nullval.
 Proof.
 intros.
-unfold mapsto.
-f_equal; try reflexivity.
+repeat rewrite mapsto_e.
+simpl.
+destruct v; auto. f_equal; auto.
 f_equal.
 apply prop_ext; split; intro; hnf in *|-*; auto.
 Qed.
@@ -28,38 +60,43 @@ Lemma superprecise_mapsto:
   forall sh t v1 v2, predicates_sl.superprecise (mapsto sh t v1 v2).
 Proof.
 intros.
+rewrite mapsto_e.
 hnf; intros.
-unfold mapsto in *.
-destruct H as [TC H]. destruct H0 as [TC0 H0].
-rewrite tc_val_eq in *.
-unfold umapsto in *.
 destruct (access_mode t); try contradiction.
 destruct v1; try contradiction.
-destruct (eq_dec v2 Vundef).
-subst; inv TC0.
 destruct H.
 destruct H0.
-* eapply res_predicates.superprecise_address_mapsto; eauto.
-* destruct H0. assert (v2=Vundef) by apply H0. congruence. 
-* destruct H. assert (v2=Vundef) by apply H. congruence. 
+eapply res_predicates.superprecise_address_mapsto; eauto.
+intro; subst v2; destruct t; contradiction H.
 Qed.
+
+Lemma umapsto_isptr:
+  forall sh t v1 v2,
+   umapsto sh t v1 v2 = !! (isptr v1) && umapsto sh t v1 v2.
+Proof.
+intros; apply pred_ext; normalize.
+apply andp_right; auto.
+unfold umapsto.
+destruct (access_mode t); normalize.
+destruct v1; normalize.
+apply prop_right; apply I.
+Qed.
+
 
 Lemma mapsto_isptr:
   forall sh t v1 v2,
    mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
 Proof.
-intros; unfold mapsto, umapsto.
-destruct (access_mode t); normalize.
-destruct v1; normalize.
+intros. unfold mapsto. rewrite umapsto_isptr at 1.
+apply pred_ext; normalize.
 Qed.
 
 Lemma mapsto__isptr:
   forall sh t v1,
    mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
 Proof.
-intros; unfold mapsto_, umapsto.
-destruct (access_mode t); normalize.
-destruct v1; normalize.
+intros.
+unfold mapsto_. apply umapsto_isptr.
 Qed.
 
 Lemma field_offset_rec_unroll:
@@ -99,46 +136,40 @@ Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
-Definition field_mapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpred :=
- match v1, t1 with
-  | Vptr l ofs, Tstruct id fList  att =>
+Definition field_umapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpred :=
+ match t1 with
+  |  Tstruct id fList  att =>
     let fList' := unroll_composite_fields id t1 fList in
     let t2 := type_of_field fList' fld in
-     match field_offset fld fList',  access_mode t2 with
-     | Errors.OK delta, By_value ch => 
-          !! (tc_val t2 v2) && !!(type_is_volatile t2 = false) &&
-           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
-     | _, _ => FF
+     match field_offset fld fList' with
+     | Errors.OK delta => 
+            !!(type_is_volatile t2 = false) &&
+               umapsto sh t2 (offset_val (Int.repr delta) v1) v2
+     | _ => FF
      end
-  | _, _  => FF
+  | _  => FF
   end.
 
-Definition field_mapsto_ (sh: Share.t) (t1: type) (fld: ident) (v1: val) : mpred :=
- match v1, t1 with
-  | Vptr l ofs, Tstruct id fList  att =>
-    let fList' := unroll_composite_fields id t1 fList in
-    let t2 := type_of_field fList' fld in
-     match field_offset fld fList',  access_mode t2 with
-     | Errors.OK delta, By_value ch => 
-          !!(type_is_volatile t2 = false) &&
-           EX v2:val,
-           address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh)  (l, Int.unsigned (Int.add ofs (Int.repr delta)))
-     | _, _ => FF
-     end
-  | _, _  => FF
-  end.
+Definition field_mapsto sh t1 fld v1 v2 := !!(v2<>Vundef) && field_umapsto sh t1 fld v1 v2.
+Definition field_mapsto_ sh t1 fld v1 := field_umapsto sh t1 fld v1 Vundef.
+Arguments field_mapsto_ sh t1 fld v1 : simpl never.
 
 Lemma field_mapsto_field_mapsto_:
   forall sh t1 fld v1 v2, field_mapsto sh t1 fld v1 v2 |-- field_mapsto_ sh t1 fld v1.
 Proof.
 intros.
-unfold field_mapsto, field_mapsto_.
-destruct v1; auto.
-destruct t1; auto.
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f)); auto.
-destruct (access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); auto.
+unfold field_mapsto, field_mapsto_, field_umapsto.
 normalize.
+destruct t1; try apply FF_left.
+destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); 
+  try apply FF_left.
+normalize.
+unfold umapsto.
+destruct (access_mode
+    (type_of_field (unroll_composite_fields i (Tstruct i f a) f) fld)); auto.
+destruct (offset_val (Int.repr z) v1); auto.
+apply orp_left; normalize.
+apply orp_right2.
 apply exp_right with v2; normalize.
 Qed.
 
@@ -150,14 +181,33 @@ Proof. extensionality v. destruct v; try reflexivity.
 simpl. rewrite Int.add_zero; auto.
 Qed.
 
+Lemma mapsto_force_ptr: forall sh t v v', 
+  mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
+Proof.
+intros.
+destruct v; simpl; auto.
+Qed.
+
+Lemma umapsto_force_ptr: forall sh t v v', 
+  umapsto sh t (force_ptr v) v' = umapsto sh t v v'.
+Proof.
+intros.
+destruct v; simpl; auto.
+Qed.
+
+Hint Rewrite umapsto_force_ptr mapsto_force_ptr: norm.
+
 Lemma mapsto_field_mapsto_:
-  forall ch v1 v1' sh ofs t structid fld fields,
-  access_mode
+  forall v1 v1' sh ofs t structid fld fields,
+ (type_of_field
+     (unroll_composite_fields structid (Tstruct structid fields noattr)
+        fields) fld) = t ->
+(*  access_mode
         (type_of_field
            (unroll_composite_fields structid (Tstruct structid fields noattr)
               fields) fld) = By_value ch ->
   access_mode t = By_value ch ->
-  field_offset fld fields = Errors.OK ofs ->
+*)  field_offset fld fields = Errors.OK ofs ->
   offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   (type_is_volatile
          (type_of_field
@@ -166,22 +216,13 @@ Lemma mapsto_field_mapsto_:
   mapsto_ sh t v1'  = field_mapsto_ sh (Tstruct structid fields noattr) fld v1.
 Proof.
 intros.
-rewrite offset_val_force_ptr in H2.
-unfold field_mapsto_, mapsto_, umapsto.
-rewrite H0.
-rewrite  H.
-rewrite field_offset_unroll. rewrite H1. rewrite H3.
-destruct v1;
- try solve [apply pred_ext; [apply exp_left; auto | apply FF_left]];
-try solve [destruct v1'; inv H2; simpl; normalize; try apply Vundef].
-rewrite prop_true_andp by auto.
-destruct v1'; inv H2.
-apply pred_ext.
-apply orp_left.
-apply exp_right with Vundef; auto.
-apply andp_left2; auto.
-apply orp_right2. apply andp_right; auto.
-apply prop_right; auto.
+rewrite offset_val_force_ptr in H1.
+unfold field_mapsto_, mapsto_.
+unfold field_umapsto.
+rewrite field_offset_unroll.
+rewrite H0. rewrite H2. rewrite H.
+rewrite <- H1.
+normalize.
 Qed.
 
 Lemma field_mapsto_typecheck_val:
@@ -191,13 +232,50 @@ Lemma field_mapsto_typecheck_val:
                !! (tc_val (type_of_field (unroll_composite_fields id t fList) fld) y) && field_mapsto sh t fld x y.
 Proof.
 intros. subst.
-apply pred_ext; normalize.
-apply andp_right; auto.
 unfold field_mapsto.
-destruct x; normalize.
+apply pred_ext; normalize.
+apply andp_right; [ | normalize].
+unfold field_umapsto.
 destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
+unfold umapsto.
 destruct (access_mode
     (type_of_field (unroll_composite_fields id (Tstruct id fList att) fList) fld)); normalize.
+destruct x; simpl; normalize.
+apply orp_left; normalize.
+Qed.
+
+Lemma field_umapsto_isptr: forall t fld sh x y,
+  field_umapsto sh t fld x y = !!(isptr x) && field_umapsto sh t fld x y.
+Proof.
+intros; apply pred_ext; normalize.
+apply andp_right; auto.
+unfold field_umapsto.
+destruct t; normalize.
+destruct ( field_offset fld (unroll_composite_fields i (Tstruct i f a) f) ); normalize.
+rewrite umapsto_isptr. apply andp_left1; auto.
+destruct x; simpl; normalize.
+Qed.
+
+Lemma field_mapsto_isptr: forall t fld sh x y,
+  field_mapsto sh t fld x y = !!(isptr x) && field_mapsto sh t fld x y.
+Proof.
+intros.
+unfold field_mapsto.
+apply pred_ext; normalize.
+rewrite field_umapsto_isptr; normalize.
+Qed.
+
+Lemma field_umapsto_nonnull:  forall t fld sh x y, 
+     field_umapsto sh t fld x y = 
+               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_umapsto sh t fld x y.
+Proof.
+intros; apply pred_ext; normalize.
+apply andp_right; auto.
+unfold field_umapsto.
+destruct t; normalize.
+destruct ( field_offset fld (unroll_composite_fields i (Tstruct i f a) f) ); normalize.
+rewrite umapsto_isptr. apply andp_left1; auto.
+destruct x; simpl; normalize.
 Qed.
 
 Lemma field_mapsto__nonnull:  forall t fld sh x, 
@@ -205,11 +283,7 @@ Lemma field_mapsto__nonnull:  forall t fld sh x,
                !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_mapsto_ sh t fld x.
 Proof.
 intros.
-apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_mapsto_.
-unfold Cop.bool_val.
-destruct x; normalize.
+apply field_umapsto_nonnull.
 Qed.
 
 Lemma field_mapsto_nonnull:  forall t fld sh x y, 
@@ -217,11 +291,9 @@ Lemma field_mapsto_nonnull:  forall t fld sh x y,
                !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_mapsto sh t fld x y.
 Proof.
 intros.
-apply pred_ext; normalize.
-apply andp_right; auto.
 unfold field_mapsto.
-unfold Cop.bool_val.
-destruct x; normalize.
+rewrite field_umapsto_nonnull.
+apply pred_ext; normalize.
 Qed.
 
 Lemma field_offset_exists1: 
@@ -241,6 +313,25 @@ eauto.
 Qed.
 
 
+Lemma field_umapsto_access_mode:
+  forall sh v t fld v' id fList att,
+   t = Tstruct id fList att ->
+  field_umapsto sh t fld v v' = 
+   !! (exists ch, access_mode (type_of_field (unroll_composite_fields id t fList) fld) = By_value ch) 
+           && field_umapsto sh t fld v v'.
+Proof.
+intros. subst.
+apply pred_ext; normalize.
+apply andp_right; auto.
+unfold field_umapsto.
+destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
+unfold umapsto.
+case_eq (access_mode
+    (type_of_field
+       (unroll_composite_fields id (Tstruct id fList att) fList) fld)); intros; normalize.
+apply prop_right; eauto.
+Qed.
+
 Lemma field_mapsto_access_mode:
   forall sh v t fld v' id fList att,
    t = Tstruct id fList att ->
@@ -248,16 +339,10 @@ Lemma field_mapsto_access_mode:
    !! (exists ch, access_mode (type_of_field (unroll_composite_fields id t fList) fld) = By_value ch) 
            && field_mapsto sh t fld v v'.
 Proof.
-intros. subst.
-apply pred_ext; normalize.
-apply andp_right; auto.
+intros.
 unfold field_mapsto.
-destruct v; normalize.
-destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList)); normalize.
-case_eq (access_mode
-    (type_of_field
-       (unroll_composite_fields id (Tstruct id fList att) fList) fld)); intros; normalize.
-apply prop_right; eauto.
+rewrite (field_umapsto_access_mode _ _ _ _ _ _ _ _ H).
+apply pred_ext; normalize.
 Qed.
 
 Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
@@ -284,17 +369,40 @@ Lemma field_mapsto_offset:
   | _ => FF
   end.
 Proof.
-unfold field_mapsto; simpl; intros.
-rewrite H.
-case_eq (field_offset fld
-    (unroll_composite_fields sid (Tstruct sid fields noattr) fields)); intros.
-2: rewrite field_offset_unroll in H0; rewrite H0; auto.
+unfold field_mapsto, field_umapsto; simpl; intros.
 normalize.
-rewrite field_offset_unroll in H0.
-rewrite H0.
-auto.
+destruct (field_offset fld
+    (unroll_composite_fields sid (Tstruct sid fields noattr) fields)) 
+  eqn:?.
+2: rewrite field_offset_unroll in Heqr; rewrite Heqr; auto.
+normalize.
+rewrite field_offset_unroll in Heqr.
+rewrite Heqr.
+unfold umapsto. rewrite H.
+apply orp_left; normalize.
 Qed.
 
+Lemma umapsto_field_umapsto:
+  forall ch v1 v1' v2 sh ofs t structid fld fields,
+   t = type_of_field
+           (unroll_composite_fields structid (Tstruct structid fields noattr)
+              fields) fld ->
+  access_mode t = By_value ch ->
+  field_offset fld fields = Errors.OK ofs ->
+  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
+  type_is_volatile t = false ->
+  umapsto sh t v1' v2 = field_umapsto sh (Tstruct structid fields noattr) fld v1 v2.
+Proof.
+intros.
+unfold field_umapsto, umapsto.
+rewrite tc_val_eq.
+rewrite <- H.
+rewrite H0.
+rewrite offset_val_force_ptr in H2.
+rewrite field_offset_unroll.
+rewrite H1. normalize. rewrite <- H2.
+destruct v1'; simpl; auto.
+Qed.
 
 Lemma mapsto_field_mapsto:
   forall ch v1 v1' v2 sh ofs t structid fld fields,
@@ -308,21 +416,15 @@ Lemma mapsto_field_mapsto:
   mapsto sh t v1' v2 = field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
 Proof.
 intros.
-unfold field_mapsto, mapsto, umapsto.
-rewrite tc_val_eq.
-rewrite <- H.
+unfold field_mapsto, mapsto.
+erewrite <- umapsto_field_umapsto by eassumption.
+unfold umapsto.
 rewrite H0.
-rewrite offset_val_force_ptr in H2.
-destruct v1; try solve [simpl; normalize];
-destruct v1'; inv H2; normalize.
-rewrite field_offset_unroll. rewrite H1.
-rewrite H3.
-rewrite andp_assoc.
+destruct v1'; normalize.
 apply pred_ext; normalize.
-apply orp_left; auto.
-normalize. inv H.
-apply orp_right1.
-auto.
+apply andp_right; auto.
+apply prop_right; clear - H4; intro; subst; destruct t; contradiction.
+apply orp_left; normalize. apply orp_right1; auto.
 Qed.
 
 (*
@@ -368,17 +470,21 @@ Lemma umapsto_field_mapsto':
 Proof.
 intros.
 rewrite offset_val_force_ptr in H1.
-unfold umapsto, field_mapsto.
+unfold field_mapsto, field_umapsto.
+rewrite field_offset_unroll. rewrite H0.
+rewrite H3.
+unfold umapsto.
 rewrite <- H.
 case_eq (access_mode t); intros; try apply FF_left.
 destruct v1'; normalize.
-simpl in H1.
-destruct v1; inv H1.
-rewrite field_offset_unroll. rewrite H0.
-repeat apply andp_right; try apply prop_right; auto.
-apply orp_left; auto.
-normalize. 
-match type of H2 with (tc_val ?t _) => destruct t; inv H2 end.
+rewrite <- H1; simpl.
+apply orp_left; normalize.
+rewrite prop_true_andp. normalize.
+apply orp_right1; auto.
+clear - H5; intro; subst; destruct t; contradiction.
+destruct (type_of_field
+          (unroll_composite_fields structid (Tstruct structid fields noattr)
+             fields) fld) ; contradiction.
 Qed.
 
 Ltac umapsto_field_mapsto_tac :=  
@@ -406,59 +512,68 @@ intros.
 erewrite mapsto_field_mapsto; eauto.
 Qed.
 
-Lemma field_mapsto_isptr: forall t fld sh x y,
-  field_mapsto sh t fld x y = !!(isptr x) && field_mapsto sh t fld x y.
-Proof.
-unfold field_mapsto; intros.
-destruct x; simpl; normalize.
-Qed.
 
-Global Opaque field_mapsto.
+
+Lemma field_umapsto_force_ptr: 
+   forall sh t fld v, field_umapsto sh t fld (force_ptr v) = field_umapsto sh t fld v.
+Proof.
+intros.
+unfold field_umapsto.
+extensionality y.
+destruct t; normalize.
+destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); normalize.
+destruct v; simpl; reflexivity.
+Qed.
 
 Lemma field_mapsto_force_ptr: 
    forall sh t fld v, field_mapsto sh t fld (force_ptr v) = field_mapsto sh t fld v.
 Proof.
 intros.
-extensionality y. rewrite field_mapsto_nonnull.
-destruct v; simpl; normalize.
+unfold field_mapsto.
+extensionality y.
+rewrite field_umapsto_force_ptr; auto.
 Qed.
 Hint Rewrite field_mapsto_force_ptr : norm.
+
+Global Opaque field_mapsto.
 
 Lemma field_mapsto__isptr: forall t fld sh x,
   field_mapsto_ sh t fld x = !!(isptr x) && field_mapsto_ sh t fld x.
 Proof.
 intros.
-unfold field_mapsto_.
-destruct x; normalize.
+apply field_umapsto_isptr.
 Qed.
 
 Lemma field_mapsto__force_ptr: forall t fld sh x,
   field_mapsto_ sh t fld (force_ptr x) = field_mapsto_ sh t fld x.
 Proof.
 intros.
-symmetry; rewrite field_mapsto__isptr.
-destruct x; simpl; normalize.
+unfold field_mapsto_.
+rewrite field_umapsto_force_ptr. auto.
 Qed.
 Hint Rewrite field_mapsto__force_ptr : norm.
 
 
-Lemma field_mapsto__nonvolatile:
-  forall sh t fld v, field_mapsto_ sh t fld v = !!(type_is_volatile t = false) && field_mapsto_ sh t fld v.
+Lemma field_umapsto_nonvolatile:
+  forall sh t fld v v', field_umapsto sh t fld v v' = !!(type_is_volatile t = false) && field_umapsto sh t fld v v'.
 Proof.
- intros.
+intros.
 apply pred_ext; normalize.
 apply andp_right; auto.
-unfold field_mapsto_.
-destruct v; try apply FF_left.
- destruct t; try apply FF_left.
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f)); try apply FF_left.
-destruct (access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); try apply FF_left.
+unfold field_umapsto.
+destruct t; try apply FF_left.
+destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); try apply FF_left.
 apply andp_left1.
 apply prop_derives.
 induction fld; simpl; auto.
 Qed.
 
+Lemma field_mapsto__nonvolatile:
+  forall sh t fld v, field_mapsto_ sh t fld v = !!(type_is_volatile t = false) && field_mapsto_ sh t fld v.
+Proof.
+ intros.
+apply field_umapsto_nonvolatile.
+Qed.
 
 Lemma field_mapsto_nonvolatile:
   forall sh t fld v v', field_mapsto sh t fld v v' = !!(type_is_volatile t = false) && field_mapsto sh t fld v v'.
@@ -480,31 +595,44 @@ Proof.
  auto.
 Qed.
 
+Lemma umapsto_conflict:
+ forall sh t v v2 v3,
+ umapsto sh t v v2 * umapsto sh t v v3 |-- FF.
+Proof.
+intros.
+unfold umapsto.
+destruct (access_mode t); normalize.
+pose proof (size_chunk_pos m).
+destruct v; normalize.
+rewrite distrib_orp_sepcon.
+apply orp_left; normalize;
+try (rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize;
+      apply address_mapsto_overlap; split; auto; omega).
+rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize; intros;
+apply address_mapsto_overlap; split; auto; omega.
+Qed.
+
+Lemma field_umapsto_conflict:
+  forall sh t fld v v2 v3,
+        field_umapsto sh t fld v v2
+        * field_umapsto sh t fld v v3 |-- FF.
+Proof.
+intros.
+unfold field_umapsto.
+destruct t; try (rewrite FF_sepcon ; apply FF_left).
+destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f));
+ try (rewrite FF_sepcon ; apply FF_left).
+normalize.
+apply umapsto_conflict.
+Qed.
+
 Lemma field_mapsto__conflict:
   forall sh t fld v,
         field_mapsto_ sh t fld v
         * field_mapsto_ sh t fld v |-- FF.
 Proof.
 intros.
-unfold field_mapsto_.
-destruct v; try (rewrite FF_sepcon ; apply FF_left).
-destruct t; try (rewrite FF_sepcon ; apply FF_left).
-destruct (field_offset fld (unroll_composite_fields i0 (Tstruct i0 f a) f));
- try (rewrite FF_sepcon ; apply FF_left).
-destruct (access_mode
-    (type_of_field (unroll_composite_fields i0 (Tstruct i0 f a) f) fld)); 
- try (rewrite FF_sepcon ; apply FF_left).
-repeat rewrite sepcon_andp_prop'.
-apply derives_extract_prop; intro.
-rewrite exp_sepcon1.
-apply exp_left; intro.
-repeat rewrite sepcon_andp_prop.
-apply derives_extract_prop; intro.
-rewrite exp_sepcon2.
-apply exp_left; intro.
-apply address_mapsto_overlap.
-split; auto.
-pose proof (size_chunk_pos m); omega.
+apply field_umapsto_conflict.
 Qed.
 
 Lemma field_mapsto_local_facts:

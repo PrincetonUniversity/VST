@@ -755,7 +755,7 @@ Lemma memory_block_address_mapsto:
   forall n sh ch b i,
   n = Memdata.size_chunk ch ->
   memory_block sh (Int.repr n) (Vptr b i) =
- address_mapsto ch Vundef (Share.unrel Share.Lsh sh)
+ !!False && address_mapsto ch Vundef (Share.unrel Share.Lsh sh)
   (Share.unrel Share.Rsh sh) (b, Int.unsigned i)
 || !!(Vundef = Vundef) &&
    (EX  v2' : val,

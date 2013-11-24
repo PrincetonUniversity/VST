@@ -88,8 +88,8 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | By_value ch => 
     match v1 with
      | Vptr b ofs => 
-          address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
-        || !!(v2=Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
+          (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+        || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
     end
   | _ => FF
@@ -120,18 +120,18 @@ Definition mapsto_zeros (n: Z) (sh: share) (a: val) : mpred :=
 
 Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : mpred :=
  match d with
-  | Init_int8 i => umapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
-  | Init_int16 i => umapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => umapsto sh (Tint I32 Unsigned noattr) a (Vint i)
-  | Init_int64 i => umapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  umapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
-  | Init_float64 r =>  umapsto sh (Tfloat F64 noattr) a (Vfloat r)
+  | Init_int8 i => mapsto sh (Tint I8 Unsigned noattr) a (Vint (Int.zero_ext 8 i))
+  | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
+  | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
+  | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => umapsto sh (Tpointer t att) a (offset_val ofs v)
+       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
-       | Some (v, t) => umapsto sh (Tpointer t noattr) a (offset_val ofs v)
+       | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT
        end
  end.

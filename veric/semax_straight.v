@@ -714,7 +714,7 @@ unfold umapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
 rewrite H2 in H5.
-destruct H5 as [H5 | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
+destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
 assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
 apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 exists m1; exists m2; split3; auto.
@@ -965,7 +965,7 @@ rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
 assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
-        (b0, Int.unsigned i) w1) by (destruct H4 as [H4 |[? [? ?]]]; eauto).
+        (b0, Int.unsigned i) w1) by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].
 
 assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
@@ -1042,20 +1042,22 @@ rewrite resource_at_make_rmap. rewrite <- core_resource_at.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
-unfold mapsto, umapsto.
-apply andp_right. intros ? ?; unfold prop. simpl.
+rewrite mapsto_e.
 destruct TC4 as [TC4 _].
+(*
 clear - Hmode TC3 TC2 TC4.
 rewrite tc_val_eq.
 eapply typecheck_val_sem_cast; eauto.
-
+*)
 rewrite Hmode.
-rewrite He1'. apply orp_right1.
+rewrite He1'. 
 rewrite writable_share_right; auto.
-clear - H6 H5 H1.
-intros ? ?.
-do 3 red in H.
-destruct (nec_join2 H6 H) as [w2' [w' [? [? ?]]]].
+apply andp_right.
+intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.
+intros ? ?. apply H2.
+intros ? ?. 
+do 3 red in H2.
+destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
