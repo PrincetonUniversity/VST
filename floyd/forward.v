@@ -933,7 +933,6 @@ match goal with
 (**** 14.2 seconds to here  *)
  eapply (semax_store_field_nth _ _ n sh); 
    [reflexivity | auto | reflexivity | reflexivity | reflexivity
-      | apply derives_refl (* solve [entailer!]  *) (*if this works, eliminate v1 from lemma *)
       | (apply local_lifted_reflexivity || solve [entailer])
       | try solve [entailer]
      ];

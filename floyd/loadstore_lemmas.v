@@ -344,14 +344,13 @@ Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
 Qed.
 
 Lemma semax_store_field_nth:
-forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields, 
+forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 e2 t2 R1 sid fields, 
     nth_error R n = Some R1 ->
     writable_share sh ->
     t1 = Tstruct sid fields noattr ->
     typeof e1 = t1 ->
     t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    R1 |-- `(field_mapsto_ sh t1 fld) v1 ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |--  local (`eq v1 (eval_lvalue e1)) ->
+    R1 |-- `(field_mapsto_ sh t1 fld) (eval_lvalue e1) ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  
               local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) ->
     @semax Espec Delta 
@@ -360,7 +359,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 v1 e2 t2 R1 sid fields,
        (normal_ret_assert
           (PROPx P (LOCALx Q
               (SEPx (replace_nth n R
-                    (`(field_mapsto sh t1 fld) v1 (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))))))))).
+                    (`(field_mapsto sh t1 fld) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))))))))).
 Proof.
 intros.
 subst t1.
@@ -376,27 +375,17 @@ rewrite insert_SEP.
 rewrite H2.
 match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
 eapply derives_trans; [apply andp_derives; [| apply derives_refl ] | ].
-eapply derives_trans; [ | apply H5].
-apply andp_derives; auto. apply andp_derives; auto.
-apply SEP_TT_right.
-rewrite insert_local.
-apply andp_derives; auto.
+apply H5.
 rewrite (SEP_nth_isolate _ _ _ H).
-go_lowerx. rewrite <- H1; apply sepcon_derives; auto.
+go_lowerx.  apply sepcon_derives; auto.
 apply H4.
 *
 intros ek vl; unfold normal_ret_assert.
-normalize. rewrite insert_SEP. rewrite insert_local.
-unfold exit_tycon.
-simpl update_tycon.
-match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
-eapply derives_trans; [apply andp_derives; [| apply derives_refl ] | ].
-eapply derives_trans; [ | apply H5].
-apply andp_derives; auto. apply andp_derives; auto.
-apply SEP_TT_right.
-rewrite insert_local.
+normalize. rewrite insert_SEP.
+apply andp_left2.
 rewrite (SEP_replace_nth_isolate _ _ _ _ H).
-go_lowerx. rewrite H2; rewrite <- H7; auto.
+unfold exit_tycon.
+rewrite <- H2. auto.
 Qed.
 
 Lemma semax_load_37 : 
