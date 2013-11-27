@@ -581,7 +581,7 @@ Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fiel
 Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link ls list_fields).
 
 Definition list_cell (ls: listspec list_struct list_link) sh p v :=
-   structfieldsof sh list_struct (all_but_link ls list_fields) 0 0 p v.
+   structfieldsof sh list_struct (all_but_link ls list_fields) 0 0 v p.
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
   HORec (fun (R: (list (elemtype ls))*(val*val) -> mpred) (lp: (list (elemtype ls))*(val*val)) =>
@@ -1052,7 +1052,14 @@ apply andp_left2.
  simpl app.
 rewrite lseg_cons_eq.
 entailer. apply (exp_right w). 
-apply andp_right. admit. (*seems true, no idea how to prove it*)
+apply andp_right.
+apply not_prop_right; intro. apply ptr_eq_e in H. subst w.
+unfold list_cell.
+rewrite <- (sepcon_FF TT).
+rewrite sepcon_assoc.
+apply sepcon_derives; auto.
+eapply derives_trans; [ | apply (field_mapsto__conflict sh list_struct list_link y)].
+cancel.
 rewrite field_mapsto_isptr with (x := w). entailer.
 cancel. rewrite lseg_nil_eq. eapply derives_trans; [ | apply now_later].
 entailer. rewrite ptr_eq_True; destruct w; inv Pw; simpl; auto.

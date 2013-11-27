@@ -16,6 +16,55 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
+Lemma isSome_e:
+ forall {A} (x: option A), isSome x -> exists y, x = Some y.
+Proof. intros. destruct x; try contradiction; eauto. Qed.
+
+Lemma ZnthV_map_Some_isSome:
+  forall l i, 0 <= i < Zlength l -> isSome (ZnthV tint (map Some l) i).
+Proof.
+intros.
+unfold ZnthV.
+if_tac; [omega | ].
+assert (Z.to_nat i < length l)%nat.
+destruct H.
+rewrite Zlength_correct in H1.
+apply Z2Nat.inj_lt in H1; try omega.
+rewrite Nat2Z.id in H1. auto.
+clear - H1.
+revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
+omega. auto. omega. apply IHn; omega.
+Qed.
+
+Lemma field_mapsto_field_umapsto':
+ forall sh t id v v', field_mapsto sh t id v v' |-- field_umapsto sh t id v' v.
+Proof.
+intros.
+Transparent field_mapsto.
+unfold field_mapsto.
+Opaque field_mapsto.
+normalize.
+Qed.
+Hint Resolve field_mapsto_field_umapsto': cancel.
+
+Lemma force_rep_Vint:
+  forall i, force_rep Vint (Some i) = Vint i.
+Proof. reflexivity. Qed.
+
+Lemma force_rep_Vlong:
+  forall i, force_rep Vlong (Some i) = Vlong i.
+Proof. reflexivity. Qed.
+
+Lemma force_rep_Vfloat:
+  forall i, force_rep Vfloat (Some i) = Vfloat i.
+Proof. reflexivity. Qed.
+
+(* These three are (now) in the default hint database because
+    of the solve[auto] in new_store_tac (array case) *)
+Hint Extern 1 (force_rep Vint _ = Vint _) => apply force_rep_Vint.
+Hint Extern 1 (force_rep Vlong _ = Vlong _) => apply force_rep_Vlong.
+Hint Extern 1 (force_rep Vfloat _ = Vfloat _) => apply force_rep_Vfloat.
+
 Lemma subst_make_args':
   forall id v (P: environ->mpred) fsig tl el,
   length tl = length el ->
@@ -901,7 +950,7 @@ match goal with
      (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
-  let contents := fresh "contents" in evar (contents: Z -> option (reptype t));
+  let contents := fresh "contents" in evar (contents: Z -> reptype t);
   let lo := fresh "lo" in evar (lo: Z);
   let hi := fresh "hi" in evar (hi: Z);
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 

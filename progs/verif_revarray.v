@@ -103,44 +103,50 @@ rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
 apply prop_right; split.
-apply POP.
+apply isSome_e; apply POP.
 rewrite if_false by omega.
 rewrite if_true by omega. omega.
 omega.
 forward.  (* s = a[hi]; *)
 entailer.
-rename H3 into H6.
-rewrite Int.sub_signed in H6.
-normalize in H6.
+rewrite Int.sub_signed in H4.
+normalize in H4.
 simpl_compare.
 apply prop_right; split.
-apply POP. rewrite if_false by omega. rewrite if_true by omega.
+apply isSome_e; apply POP.
+rewrite if_false by omega. rewrite if_true by omega.
 omega. omega.
 
 normalize. simpl typeof.
 forward. (*  a[hi-1] = t ; *)
 entailer.
-rewrite Int.sub_signed in H4.
-normalize in H4.
+rewrite Int.sub_signed in H4, H6.
+normalize in H4. normalize in H6.
 simpl_compare.
-apply prop_right; split; omega.
-
+apply prop_right; split3.
+symmetry; apply H5. reflexivity. omega.
 normalize.
 forward. (*  a[lo] = s; *) 
 entailer.
-rewrite Int.sub_signed in H4.
-normalize in H4.
+rewrite Int.sub_signed in H4, H6.
+normalize in H4. normalize in H6.
 simpl_compare.
-apply prop_right; omega.
-
+apply prop_right; split3.
+symmetry; apply H4. reflexivity. omega.
 normalize.
+ rewrite (Int.signed_repr 1) by repable_signed.
+ rewrite (Int.signed_repr (size-j)) by repable_signed.
+ rewrite (Int.signed_repr)  by repable_signed.
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
- simpl in H7. rewrite Int.sub_signed in H7. normalize in H7.
+ simpl in H7,H9. rewrite Int.sub_signed in H7,H9.
+ rewrite (Int.signed_repr 1) in H7,H9 by repable_signed.
+ rewrite (Int.signed_repr (size-j)) in H7,H9 by repable_signed.
+ rewrite (Int.signed_repr) in H7 by repable_signed.
  simpl_compare.
  apply andp_right.
  apply prop_right.
@@ -162,20 +168,15 @@ entailer.
  if_tac.
  unfold flip_between. rewrite if_false by omega.
  if_tac; try omega. if_tac; try omega. if_tac; try omega.
- replace (size-1-i) with j by omega.
- assert (isSome (contents j)).
- apply POP; omega.
- destruct (contents j); try contradiction H12; reflexivity.
+ f_equal; omega.
  unfold flip_between.
- if_tac; try omega. if_tac; try omega. auto.
- if_tac; try omega. if_tac; try omega.  if_tac; try omega. auto.
- if_tac; try omega.  if_tac; try omega.  auto.
+ repeat (if_tac; try omega); auto.
 (* After the loop *)
 forward. (* return; *)
 Qed.
 
 Definition four_contents := (ZnthV tint
-           (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: Int.repr 4 :: nil)).
+           (map Some (map Int.repr (1::2::3::4::nil)))).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
@@ -184,11 +185,13 @@ eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews,four_contents,4)) in (Value of witness).
 entailer!.
-intros. apply (ZnthV_isSome tint). rewrite Zlength_correct; simpl; auto.
+intros. apply ZnthV_map_Some_isSome.
+rewrite Zlength_correct; simpl; auto.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
 entailer!.
-intros. unfold flip, four_contents. apply (ZnthV_isSome tint).
+intros. unfold flip, four_contents.
+apply ZnthV_map_Some_isSome.
  rewrite Zlength_correct; simpl length. change (Z.of_nat 4) with 4. omega.
 normalize.
 rewrite flip_flip.

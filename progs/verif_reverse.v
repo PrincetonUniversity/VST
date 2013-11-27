@@ -44,7 +44,7 @@ Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int
   PRE [ _p OF (tptr t_struct_list)] 
-                       `(lseg LS sh contents) (eval_id _p) `nullval
+                       `(lseg LS sh (map Some contents)) (eval_id _p) `nullval
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
 (** This specification has an imprecise and leaky postcondition:
  ** it neglects to say that the original list [p] is still there.
@@ -57,7 +57,7 @@ Definition sumlist_spec :=
 
 Definition reverse_spec :=
  DECLARE _reverse
-  WITH sh : share, contents : list int
+  WITH sh : share, contents : list (option int)
   PRE  [ _p OF (tptr t_struct_list) ] !! writable_share sh &&
               `(lseg LS sh contents) (eval_id _p) `nullval
   POST [ (tptr t_struct_list) ]
@@ -90,19 +90,24 @@ Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh v i,
-   list_cell LS sh v i = field_mapsto sh t_struct_list _head v (Vint i).
-Proof.  reflexivity. Qed.
+   list_cell LS sh v (Some i) = field_mapsto sh t_struct_list _head v (Vint i).
+Proof.  intros. 
+ erewrite field_mapsto_field_umapsto by reflexivity.
+ rewrite prop_true_andp by apply I.
+ reflexivity.
+Qed.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
-   `(list_cell LS sh) e v = `(field_mapsto sh t_struct_list _head) e (`Vint v).
-Proof. reflexivity. Qed.
+   `(list_cell LS sh) e `(Some v)
+     = `(field_mapsto sh t_struct_list _head) e `(Vint v).
+Proof. intros; unfold_lift. extensionality rho. apply list_cell_eq. Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts: list int, 
             PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
-            SEP ( TT ; `(lseg LS sh cts) (eval_id _t) `nullval)).
+            SEP ( TT ; `(lseg LS sh (map Some cts)) (eval_id _t) `nullval)).
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
@@ -134,18 +139,19 @@ entailer!.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
+destruct cts; inv H; normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
 entailer!.
 unfold POSTCONDITION, abbreviate.
-subst cts.
+destruct cts; inv H.
 rewrite lift_list_cell_eq.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
-apply exp_right with r.
+apply exp_right with cts.
 entailer!.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
@@ -153,8 +159,8 @@ entailer!.
 forward.  (* return s; *)
 Qed.
 
-Definition reverse_Inv (sh: share) (contents: list int) : environ->mpred :=
-          (EX cts1: list int, EX cts2 : list int,
+Definition reverse_Inv (sh: share) (contents: list (option int)) : environ->mpred :=
+          (EX cts1: list (option int), EX cts2 : list (option int),
             PROP (contents = rev cts1 ++ cts2) 
             LOCAL ()
             SEP (`(lseg LS sh cts1) (eval_id _w) `nullval;
@@ -243,7 +249,7 @@ Lemma linked_list_in_array:
   idata =  list_init_rep i 0 data ->
    id2pred_star Delta sh (tarray t_struct_list n)
       (eval_var i (tarray t_struct_list n)) 0 idata
-  |-- `(lseg LS sh data) (eval_var i (tarray t_struct_list n)) `nullval.
+  |-- `(lseg LS sh (map Some data)) (eval_var i (tarray t_struct_list n)) `nullval.
 Proof. 
  pose proof I.
  intros.
@@ -305,6 +311,7 @@ reflexivity.
   destruct (eval_var i (tarray t_struct_list n) rho); inv H; clear; compute; auto.
   destruct (eval_var i (tarray t_struct_list n) rho); inv H; clear; compute; auto.
  rewrite mapsto_tuint_tint.
+ rewrite list_cell_eq.
 apply sepcon_derives;
  [eapply mapsto_field_mapsto'; try reflexivity; apply I
  | ].
@@ -330,7 +337,7 @@ Lemma setup_globals:
              :: Init_addrof _three (Int.repr 16)
                 :: Init_int32 (Int.repr 3) :: Init_int32 (Int.repr 0) :: nil))
   |-- PROP() LOCAL() SEP (
-         `(lseg LS Ews (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))
+         `(lseg LS Ews (map Some (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)))
              (eval_var _three (tarray t_struct_list 3))
             `nullval).
 Proof.
@@ -347,7 +354,7 @@ name r _r.
 name s _s.
 eapply semax_pre0; [apply setup_globals | ].
 forward.  (*  r = reverse(three); *)
-instantiate (1:= (Ews, Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)) in (Value of witness).
+instantiate (1:= (Ews, map Some (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))) in (Value of witness).
  entailer!.
 auto with closed.
 forward.  (* s = sumlist(r); *)

@@ -32,9 +32,8 @@ Lemma sha256_block_data_order_loop2_proof:
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-   SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-                   (eval_expr (Evar _K256 (tarray tuint 64)));
-           `(array_at tuint Tsh (ZnthV tuint b) 0 16) (eval_var _X (tarray tuint 16))))
+   SEP ( K_vector;
+           `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
@@ -43,8 +42,7 @@ Lemma sha256_block_data_order_loop2_proof:
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-     SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-                   (eval_expr (Evar _K256 (tarray tuint 64)));
+     SEP (K_vector;
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
 Admitted.
 
@@ -76,7 +74,7 @@ Lemma sha256_block_load8:
   (PROP  ()
    LOCAL  (`eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-   SEP  (`(array_at tuint Tsh (ZnthV tuint r_h) 0 (Zlength r_h) ctx)))
+   SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
      (Ssequence (load8 _c 2)
@@ -94,7 +92,7 @@ Lemma sha256_block_load8:
 )));
    `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-   SEP  (`(array_at tuint Tsh (ZnthV tuint r_h) 0 (Zlength r_h) ctx)))).
+   SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))).
 Proof.
 intros.
 simplify_Delta.
@@ -120,9 +118,12 @@ name data_ _data.
 abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
-do 8 (forward; [ (entailer!; try apply_ZnthV_isSome; omega) | ]).
+do 8 (forward;
+         [ entailer!; [apply isSome_e; apply ZnthV_map_Some_isSome; omega | omega]
+                | ]).
 forward.  (* skip; *)
 entailer.
+rewrite H,H0,H1,H2,H3,H4,H6,H7; clear H H0 H1 H2 H3 H4 H6 H7.
 do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
 reflexivity.
 inv H5.
@@ -174,12 +175,12 @@ Lemma add_them_back_proof:
                      (`cons (eval_id _f)
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP 
-   (`(array_at tuint Tsh (ZnthV tuint (process_msg init_registers hashed)) 0
+   (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0
        (Zlength (process_msg init_registers hashed)) ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
    (PROP() LOCAL(`(eq ctx) (eval_id _ctx)) 
-    SEP (`(array_at tuint Tsh (ZnthV tuint 
+    SEP (`(array_at tuint Tsh (tuints
                    (map2 Int.add (process_msg init_registers hashed)
                                          (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
             0 (Zlength (process_msg init_registers hashed)) ctx)))).
@@ -231,8 +232,7 @@ eapply sha256_block_load8 with (ctx:=ctx); eassumption.
 simplify_Delta; reflexivity.
 rewrite Zregs.
 entailer!.
-instantiate (1:=[`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-  (eval_var _K256 (tarray tuint 64)) ]); simpl; (* this line shouldn't be needed? *)
+instantiate (1:=[K_vector]); simpl; (* this line shouldn't be needed? *)
  cancel.
 auto 50 with closed.
 abbreviate_semax.
@@ -240,7 +240,7 @@ simpl.
 forward.  (* i = 0; *)
 
 eapply semax_frame_seq
- with (Frame:= [`(array_at tuint Tsh (ZnthV tuint (process_msg init_registers hashed)) 0 8) (eval_id _ctx) ]).
+ with (Frame:= [`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8) (eval_id _ctx) ]).
 replace Delta with Delta_loop1
  by (simplify_Delta; reflexivity).
 simple apply (sha256_block_data_order_loop1_proof
@@ -252,7 +252,7 @@ auto 50 with closed.
 simpl; abbreviate_semax.
 
 eapply semax_frame_seq
- with (Frame := [`(array_at tuint Tsh (ZnthV tuint (process_msg init_registers hashed)) 0 8) (eval_id _ctx),
+ with (Frame := [`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8) (eval_id _ctx),
                           `(data_block sh (intlist_to_Zlist (map swap b)) data)]).
 apply sha256_block_data_order_loop2_proof
               with (regs:=regs)(b:=b); eassumption.
@@ -263,8 +263,7 @@ eapply seq_assocN with (cs := add_them_back).
 
 eapply semax_frame1
  with (Frame := [
- `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K) )
-            (eval_var _K256 (tarray tuint 64)),
+   K_vector,
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
   `(data_block sh (intlist_to_Zlist (map swap b)) data)]).
 apply (add_them_back_proof _ b regs ctx hashed); try eassumption.

@@ -40,7 +40,7 @@ LOCAL  (tc_environ Delta'; `(eq ctx) (eval_id _ctx);
        (big_endian_integer
           (fun z : Z =>
            force_option Int.zero
-             (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap bl)))
+             (ZnthV tuchar (map Some (map Int.repr (intlist_to_Zlist (map swap bl))))
                 (z + Z.of_nat i * 4)))))) (eval_id _l);
 `(eq (nth_error K i)) (`Some (`force_int (eval_id _Ki)));
 `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
@@ -76,54 +76,3 @@ entailer!.
 * apply nth_big_endian_integer''; auto .
 * congruence.
 Qed.
-
-Lemma example2:  (* from body_SHA256_Init *)
-name _c ->
-EVAR
-  (forall i : Z,
-   EVAR
-     (forall (j : reptype tuint) (c : val),
-      PROP  ()
-      LOCAL  (tc_environ (func_tycontext f_SHA256_Init Vprog Gtot);
-      `(eq c) (eval_id _c))
-      SEP 
-      (`(array_at tuint Tsh
-           (ZnthV tuint [Int.repr 1779033703, Int.repr (-1150833019)]) 0 8)
-         (fun _ : lift_S (LiftEnviron mpred) => c);
-      `(field_mapsto_ Tsh t_struct_SHA256state_st _Nl c);
-      `(field_mapsto_ Tsh t_struct_SHA256state_st _Nh c);
-      `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-      `(field_mapsto_ Tsh t_struct_SHA256state_st _num c))
-      |-- local
-            (`eq
-               (`(eval_binop Oadd (tptr tuint) tint)
-                  (fun _ : lift_S (LiftEnviron mpred) => c)
-                  `(Vint (Int.repr i)))
-               (eval_expr
-                  (Ebinop Oadd
-                     (Efield
-                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                           t_struct_SHA256state_st) _h (tarray tuint 8))
-                     (Econst_int (Int.repr 2) tint) (tptr tuint)))) &&
-          !!in_range 0 8 i &&
-          local
-            (tc_expr (func_tycontext f_SHA256_Init Vprog Gtot)
-               (Ebinop Oadd
-                  (Efield
-                     (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                        t_struct_SHA256state_st) _h (tarray tuint 8))
-                  (Econst_int (Int.repr 2) tint) (tptr tuint))) &&
-          local
-            (tc_expr (func_tycontext f_SHA256_Init Vprog Gtot)
-               (Ecast (Econst_int (Int.repr 1013904242) tuint) tuint)) &&
-          local
-            (`(eq (Vint j))
-               (eval_expr
-                  (Ecast (Econst_int (Int.repr 1013904242) tuint) tuint))))).
-Proof.
-intros; ungather_entail;
- set (Delta := func_tycontext f_SHA256_Init Vprog Gtot); revert Delta; simplify_Delta.
-unfold i,j; clear i j.
-entailer!.
-Qed.
-

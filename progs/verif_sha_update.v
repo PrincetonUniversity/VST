@@ -26,8 +26,8 @@ Definition sha_update_inv sh hashed len c d (frag: list int) data r_Nh r_Nl (don
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len))
-   SEP  (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
-    `(array_at tuint Tsh (ZnthV tuint (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+   SEP  (K_vector;
+    `(array_at tuint Tsh (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
     `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_mapsto_ Tsh t_struct_SHA256state_st _num c);
@@ -138,9 +138,9 @@ semax Delta
           (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data))))))
      (eval_id _len))
    SEP 
-   (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
+   (K_vector;
     `(array_at tuint Tsh
-        (ZnthV tuint (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+        (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_mapsto_ Tsh t_struct_SHA256state_st _num c);
@@ -194,6 +194,8 @@ instantiate (1:=(hashed++ blocks,
 entailer!.
 rewrite mul_repr in H5; rewrite H5; reflexivity.
 apply divide_length_app; auto.
+unfold K_vector at 2.
+unfold_lift.
  replace (eval_var _K256 (tarray tuint 64)
          (env_set
             (env_set (globals_only rho) _in
@@ -203,24 +205,28 @@ apply divide_length_app; auto.
  by (repeat rewrite eval_var_env_set; 
       erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
        reflexivity).
+change (array_at tuint Tsh (tuints K) 0 (Zlength K)
+      (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
  rewrite <- H6.
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data) by omega.
  cancel.
 
 replace_SEP 0%Z
   (`(array_at tuint Tsh
-          (ZnthV tuint
+          (tuints
              (process_msg init_registers ((hashed ++ blocks) ++ bl))) 0 8 c) *
       `(data_block sh (intlist_to_Zlist (map swap bl))
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
-      `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-        (eval_var _K256 (tarray tuint 64))).
- entailer!.
+      K_vector).
+go_lower.
+unfold K_vector at 1. unfold_lift.
   erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
   auto.
- normalize.
-
+change (array_at tuint Tsh (tuints K) 0 (Zlength K)
+      (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
+entailer.
+normalize.
  forward. (* data += SHA_CBLOCK; *)
  entailer. 
  forward. (* len  -= SHA_CBLOCK; *)
@@ -325,16 +331,21 @@ destruct a as [hashed data0].
 simpl_typed_mapsto.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct H0 as [? [? [? [? [? ?]]]]].
-revert POSTCONDITION; subst data0.
+destruct H1 as [hi [lo [? [? ?]]]].
+subst r_Nh r_Nl.
+destruct H2 as [dd [? ?]].
+revert POSTCONDITION. subst r_data data0.
 intro.
-subst r_h.
+rewrite initial_world.Zlength_map in H5.
+rewrite map_length in H3.
+subst r_h r_num.
 
 forward.  (* SHA256_addlength(c, len); *)
-instantiate (1:= (len,c, hilo r_Nh r_Nl)) in (Value of witness).
+instantiate (1:= (len, c, hilo hi lo)) in (Value of witness).
 entailer!.
 unfold sha256_length.
-normalize; apply exp_right with r_Nl. 
-normalize; apply exp_right with r_Nh.
+normalize; apply exp_right with lo. 
+normalize; apply exp_right with hi.
 entailer!.
 cbv beta iota.
 normalize.
@@ -347,29 +358,29 @@ apply semax_pre with
  (PROP  ( (Z.of_nat len <= Int.max_unsigned)%Z)
    LOCAL 
    (`(eq  (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq (Vint r_num)) (eval_id _n);
+   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
    `(eq c) (eval_id _c); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
-   SEP  (`(array_at tuint Tsh (ZnthV tuint (process_msg init_registers hashed)) 0 8 c);
-    `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
-   `(array_at tuchar Tsh (ZnthV tuchar r_data) 0 64 (offset_val (Int.repr 40) c));
-   `(field_mapsto Tsh t_struct_SHA256state_st _num c (Vint r_num));
-   `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))  (eval_var _K256 (tarray tuint 64));
+   SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
+    `(sha256_length (hilo hi lo + Z.of_nat len) c);
+   `(array_at tuchar Tsh (ZnthV tuchar (map Some dd)) 0 64 (offset_val (Int.repr 40) c));
+   `(field_mapsto Tsh t_struct_SHA256state_st _num c (Vint (Int.repr (Zlength dd))));
+   K_vector;
    `(data_block sh data d))).
 entailer!.
-rewrite H2.
+rewrite H1.
 destruct (Int.unsigned_range_2 len'); auto.
-rewrite H2; apply Int.repr_unsigned.
+rewrite H1; apply Int.repr_unsigned.
 apply semax_extract_PROP; intro Hlen.
 
-forward_if (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl false).
+forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
 * entailer!.   (* cond-expression typechecks *)
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
 rewrite semax_seq_skip.
-forward_if (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl false).
+forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
  + entailer!.  (* cond-expression typechecks *)
-    rewrite H2; reflexivity.
+    rewrite H1; reflexivity.
  + (* then clause: len >= fragment *)
     admit.
  + (* else clause: len < fragment *)
@@ -382,8 +393,15 @@ forward.  (* skip; *)
 rewrite overridePost_normal'.
 apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
- rewrite negb_false_iff in H2;  apply int_eq_e in H2; subst n;
- destruct r_data; inv H5.
+ rewrite negb_false_iff in H1;  apply int_eq_e in H1.
+ rewrite Zlength_correct in H1.
+ destruct dd.
+Focus 2. {
+ elimtype False; clear - H3 H1.
+ assert (Int.unsigned (Int.repr (Z.of_nat (length (i::dd)))) = Int.unsigned (Int.repr 0)) by congruence.
+ rewrite Int.unsigned_repr in H. rewrite Int.unsigned_repr in H by repable_signed.
+ inv H. forget (length (i::dd)) as n. change CBLOCK with 64 in H3. repable_signed.
+} Unfocus.
  apply andp_right; [apply prop_right; repeat split | ].
  + clear; omega.
  + exists 0; reflexivity.
@@ -391,7 +409,7 @@ entailer.
  + rewrite <- app_nil_end. cancel.
 * (* after if (n!=0) *)
 eapply semax_seq' with
-     (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl true).
+     (sha_update_inv sh hashed len c d dd data hi lo true).
 apply semax_while.
 + reflexivity.
 + entailer!.
@@ -401,15 +419,15 @@ apply semax_while.
   rewrite andp_assoc; do 2 rewrite insert_local.
   apply exp_right with blocks.
   entailer.
-  rename H7 into Hblocks;  assert (Hblocks' := Hblocks'lem Hblocks).
+  rename H5 into Hblocks;  assert (Hblocks' := Hblocks'lem Hblocks).
   apply prop_right.
-  change (Int.mul (Int.repr 16) (Int.repr 4)) with (Int.repr 64) in H8;
-  rewrite negb_false_iff in H8;
-  apply Int.ltu_inv in H8.  
-  rewrite Int.unsigned_repr in H8.
-  destruct H8 as [_ H8].
+  change (Int.mul (Int.repr 16) (Int.repr 4)) with (Int.repr 64) in H6;
+  rewrite negb_false_iff in H6;
+  apply Int.ltu_inv in H6.  
+  rewrite Int.unsigned_repr in H6.
+  destruct H6 as [_ H6].
   apply Nat2Z.inj_lt.
- apply H8.
+ apply H6.
   split; [ clear; omega | ].
   rewrite Nat2Z.inj_sub by auto. omega.
 + unfold LOOP_BODY, abbreviate; clear LOOP_BODY MORE_COMMANDS POSTCONDITION.
@@ -419,19 +437,19 @@ apply semax_while.
   rewrite insert_local.
   apply semax_extract_PROP; apply intro_update_inv; intros.
  match goal with |- semax _ (PROPx _ ?QR) _ _ =>
- apply semax_pre with (PROP (len - (length blocks*4 - length r_data) >= CBLOCK) QR)
+ apply semax_pre with (PROP (len - (length blocks*4 - length dd) >= CBLOCK) QR)
  end.
  {entailer.
-  rewrite mul_repr in H2; rewrite H2. 
+  rewrite mul_repr in H1; rewrite H1. 
   apply prop_right; split; [ | reflexivity].
-  rewrite negb_true_iff in H2;
-   unfold Int.ltu in H2;
-  if_tac in H2; inv H2.
-  rewrite Int.unsigned_repr in H6;
+  rewrite negb_true_iff in H1;
+   unfold Int.ltu in H1;
+  if_tac in H1; inv H1.
+  rewrite Int.unsigned_repr in H2;
   change (Int.unsigned (Int.mul (Int.repr 16) (Int.repr 4)))
-    with (Z.of_nat CBLOCK) in H6.
+    with (Z.of_nat CBLOCK) in H2.
   apply Nat2Z.inj_ge.
- apply H6.
+ apply H2.
   split; [clear; omega | ].
   rewrite Nat2Z.inj_sub by auto.
   omega.
@@ -444,30 +462,29 @@ Lemma exists_intlist_to_Zlist':
 Admitted.
 
   apply semax_extract_PROP; intro Hlen_ge.
-  destruct (exists_intlist_to_Zlist' LBLOCK (firstn CBLOCK (list_drop (length blocks*4 - length r_data) data)))
+  destruct (exists_intlist_to_Zlist' LBLOCK (firstn CBLOCK (list_drop (length blocks*4 - length dd) data)))
       as [bl [? ?]].
   rewrite firstn_length.
   rewrite min_l; [reflexivity |].
  rewrite list_drop_length.
-  transitivity (len - (length blocks*4 - length r_data)); [ | clear - H; omega].
+  transitivity (len - (length blocks*4 - length dd)); [ | clear - H; omega].
   apply Hlen_ge.
-  clear - Hlen_ge H H3 H5 ; omega.
- simple apply (SHA256_Update_aux Espec sh hashed r_data data c d len (process_msg init_registers hashed) r_Nl r_Nh Delta blocks bl); 
+  clear - Hlen_ge H H3; omega.
+ simple apply (SHA256_Update_aux Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.
+rewrite map_length; auto.
 +
   abbreviate_semax.
   unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
   apply semax_extract_PROP; apply intro_update_inv; intros.
   forward.    (* c->num=len; *)
   forward_if  (EX  a' : s256abs,
-                    PROP  (update_abs (firstn len data) (S256abs hashed (map Int.unsigned r_data)) a')
+                    PROP  (update_abs (firstn len data) (S256abs hashed (map Int.unsigned dd)) a')
                     LOCAL ()
                     SEP 
-                    (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-                       (eval_var _K256 (tarray tuint 64));
-                    `(sha256state_ a' c); `(data_block sh data d))).
+                    (K_vector; `(sha256state_ a' c); `(data_block sh data d))).
  entailer.
  admit.  (* then-clause *)
  forward. (* else-clause *)
@@ -476,31 +493,32 @@ reflexivity.
  apply exp_right 
    with (S256abs (hashed++blocks) nil).
  entailer.
- rewrite negb_false_iff in H2; apply int_eq_e in H2.
- assert (H2': Int.unsigned (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data)))) = 
-              Int.unsigned Int.zero) by (f_equal; apply H2).
+ rewrite negb_false_iff in H1; apply int_eq_e in H1.
+ assert (H2': Int.unsigned (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd)))) = 
+              Int.unsigned Int.zero) by (f_equal; apply H1).
  rewrite Int.unsigned_zero in H2'.
  rewrite Int.unsigned_repr in H2'
  by (split; [clear; omega | rewrite Nat2Z.inj_sub by auto; clear - Hlen; omega]).
- assert (H7: len = length blocks * 4 - length r_data).
+ assert (H7': len = length blocks * 4 - length dd).
    rewrite Nat2Z.inj_sub in H2' by auto.
     apply Nat2Z.inj. clear - H2'; omega.
  apply andp_right.
  apply prop_right.
  constructor; auto.
+ rewrite map_length; auto.
  change CBLOCK with 64; simpl; clear; omega.
  rewrite <- app_nil_end.
  rewrite Hblocks.
- rewrite <- H7.
+ rewrite <- H7'.
  reflexivity.
  unfold sha256state_.
  cancel.
  unfold sha256_length.
  normalize.
  apply exp_right with 
-              (process_msg init_registers (hashed ++ blocks),
-                (lo, (hi, (nil, 
-                 Int.zero)))).
+              (map Some (process_msg init_registers (hashed ++ blocks)),
+                (Some x, (Some x0, (nil, 
+                 Some Int.zero)))).
  simpl_typed_mapsto; unfold s256_relate.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply andp_right; [apply prop_right | cancel].
@@ -510,25 +528,24 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  replace (Zlength (intlist_to_Zlist blocks)) with
     (Zlength (intlist_to_Zlist (map swap blocks)))
  by (repeat rewrite Zlength_correct, length_intlist_to_Zlist; rewrite map_length; reflexivity).
- rewrite Hblocks.
- rewrite H6.
- rewrite H7.
- rewrite Nat2Z.inj_sub by auto.
- rewrite (Zlength_correct (_ ++ _)).
- rewrite app_length. rewrite map_length. rewrite Nat2Z.inj_add.
- rewrite <- H1.
- repeat rewrite Zlength_correct; rewrite app_length; rewrite map_length.
- rewrite firstn_length.
- rewrite min_l.  rewrite Nat2Z.inj_add.
- rewrite Nat2Z.inj_sub by auto.
- clear; omega.
- omega.
+ exists x0,x. split3; auto.
+ rewrite Hblocks. rewrite H2. rewrite H7'.
+ rewrite <- H7.
+ rewrite initial_world.Zlength_app.
+ rewrite initial_world.Zlength_app.
+ repeat rewrite Z.add_assoc.
+ f_equal. rewrite Zlength_correct.
+ f_equal.
+  rewrite firstn_length.
+ rewrite min_l; auto. rewrite <- H7'; auto.
+ exists nil; split; reflexivity.
  change CBLOCK with 64; clear; omega.
  apply divide_length_app; auto.
  rewrite H2'.
  cancel.
  apply extract_exists_pre; intro a'.
  forward.
+ unfold K_vector; unfold_lift.
  apply exp_right with a'.
  erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]) .
            (* should try to automate the line above *)

@@ -23,10 +23,9 @@ Definition fifo (contents: list val) (p: val) : mpred:=
             &&  (links QS Tsh prefix hd tl * link tl nullval)).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a p (Vint (fst rep)) * 
-  (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
+  field_mapsto Tsh t_struct_elem _a p (force_rep Vint (fst rep)) * 
+  (field_mapsto Tsh t_struct_elem _b p (force_rep Vint (snd rep)) *
    (field_mapsto_ Tsh t_struct_elem _next p)).
-
 
 Lemma link_local_facts:
  forall x y, link x y |-- !! (isptr x /\ is_pointer_or_null y).
@@ -118,7 +117,7 @@ let Delta :=
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                             `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                            [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
                (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -301,7 +300,7 @@ EVAR
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                             `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                            [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
                (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -477,7 +476,7 @@ let Delta :=
                                PROP  ()
                                LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                               [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                         (@PTree.Leaf global_spec)))) (@None global_spec)
                (@PTree.Node global_spec
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -651,7 +650,7 @@ EVAR
                                      (`(@eq val (Vint a)) (eval_id _a);
                                      `(@eq val (Vint b)) (eval_id _b))  
                                      SEP() POST  [tptr t_struct_elem]
-                                     `(elemrep (a, b)) retval)))
+                                     `(elemrep (Some a, Some b)) retval)))
                               (@PTree.Leaf global_spec))))
                      (@None global_spec)
                      (@PTree.Node global_spec
@@ -849,7 +848,7 @@ let Delta :=
                                PROP  ()
                                LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                               [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                         (@PTree.Leaf global_spec)))) (@None global_spec)
                (@PTree.Node global_spec
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -1061,7 +1060,7 @@ let Delta :=
                          PROP  ()
                          LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                          `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                         [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                         [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                   (@PTree.Leaf global_spec)))) (@None global_spec)
          (@PTree.Node global_spec
             (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -1227,7 +1226,7 @@ EVAR
                                PROP  ()
                                LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                               [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                         (@PTree.Leaf global_spec)))) (@None global_spec)
                (@PTree.Node global_spec
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -1416,7 +1415,7 @@ let Delta :=
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                             `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                            [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
                (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -1628,7 +1627,7 @@ EVAR
                                   LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                   `(@eq val (Vint b)) (eval_id _b))  
                                   SEP() POST  [tptr t_struct_elem]
-                                  `(elemrep (a, b)) retval)))
+                                  `(elemrep (Some a, Some b)) retval)))
                            (@PTree.Leaf global_spec)))) (@None global_spec)
                   (@PTree.Node global_spec
                      (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -1833,7 +1832,7 @@ let Delta :=
                             PROP  ()
                             LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                             `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                            [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                      (@PTree.Leaf global_spec)))) (@None global_spec)
             (@PTree.Node global_spec
                (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -2080,7 +2079,7 @@ let Delta :=
                                PROP  ()
                                LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                               [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                         (@PTree.Leaf global_spec)))) (@None global_spec)
                (@PTree.Node global_spec
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)
@@ -2287,7 +2286,7 @@ EVAR
                                      (`(@eq val (Vint a)) (eval_id _a);
                                      `(@eq val (Vint b)) (eval_id _b))  
                                      SEP() POST  [tptr t_struct_elem]
-                                     `(elemrep (a, b)) retval)))
+                                     `(elemrep (Some a, Some b)) retval)))
                               (@PTree.Leaf global_spec))))
                      (@None global_spec)
                      (@PTree.Node global_spec
@@ -2508,7 +2507,7 @@ let Delta :=
                                PROP  ()
                                LOCAL  (`(@eq val (Vint a)) (eval_id _a);
                                `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (a, b)) retval)))
+                               [tptr t_struct_elem]`(elemrep (Some a, Some b)) retval)))
                         (@PTree.Leaf global_spec)))) (@None global_spec)
                (@PTree.Node global_spec
                   (@PTree.Node global_spec (@PTree.Leaf global_spec)

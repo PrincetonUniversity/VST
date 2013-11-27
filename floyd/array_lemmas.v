@@ -27,40 +27,61 @@ simpl. f_equal. apply H. omega.
 apply IHcontents. intros. apply H. omega.
 Qed.
 
-Definition repinject (t: type) : option (reptype t -> val) :=
-  match t as t0 return option (reptype t0 -> val) with
- | Tint _ _ _ => Some Vint
- | Tlong _ _ => Some Vlong
- | Tfloat _ _ => Some Vfloat
-  | Tpointer _ _ => Some (fun x => x)
-  | _ => None
+Definition repinject (t: type) : reptype t -> val :=
+  match t as t0 return reptype t0 -> val with
+ | Tint _ _ _ => force_rep Vint
+ | Tlong _ _ => force_rep Vlong
+ | Tfloat _ _ => force_rep Vfloat
+ | Tpointer _ _ => fun v => v
+  | _ => fun _ => Vundef
  end.
 
-Lemma repinject_typed_mapsto:
-  forall sh t loc c inject,
-   repinject t = Some inject ->
-   no_attr_type t = true ->
-   typed_mapsto sh t loc c = mapsto sh t loc (inject c).
+Definition is_by_value (t: type) :=
+ match t with 
+ | Tint _ _ _ => True
+ | Tlong _ _ => True
+ | Tfloat _ _ => True
+ | Tpointer _ _ => True
+ | _ => False
+ end.
+
+Lemma prop_false_andp {A}{NA :NatDed A}:
+ forall P Q, ~P -> !! P && Q = FF.
 Proof.
 intros.
- destruct t; inv H; unfold typed_mapsto, typed_mapsto', eq_rect_r; simpl;
-  rewrite withspacer_spacer;
- unfold spacer; rewrite align_0; simpl; try rewrite emp_sepcon; auto;
- try destruct i; try destruct f;
- apply no_attr_e in H0; subst a; simpl; omega. 
+apply pred_ext; normalize.
+Qed.
+Lemma orp_FF {A}{NA: NatDed A}:
+ forall Q, Q || FF = Q.
+Proof.
+intros. apply pred_ext. apply orp_left; normalize. apply orp_right1; auto.
+Qed.
+Lemma FF_orp {A}{NA: NatDed A}:
+ forall Q, FF || Q = Q.
+Proof.
+intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
-Definition typed_mapsto_opt sh ty v v' :=
- match v' with None => typed_mapsto_ sh ty v
-    | Some w => typed_mapsto sh ty v w
- end.
+Lemma typed_mapsto_umapsto:
+  forall sh t loc c,
+   is_by_value t ->
+   typed_mapsto sh t loc c = umapsto sh t loc (repinject t c).
+Proof.
+intros.
+ pose proof (alignof_pos t).
+ destruct t; inv H;
+ unfold typed_mapsto, typed_mapsto', eq_rect_r, eq_rect, eq_sym;
+ cbv iota; rewrite withspacer_spacer; 
+ unfold spacer; rewrite align_0 by omega; simpl; rewrite emp_sepcon;
+  auto.
+Qed.
 
 Lemma split3_array_at:
   forall i ty sh contents lo hi v,
        lo <= i < hi ->
      array_at ty sh contents lo hi v =
      array_at ty sh contents lo i v *
-     typed_mapsto_opt sh ty (add_ptr_int ty v i) (contents i) *
+     typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
      array_at ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
@@ -106,14 +127,15 @@ Lemma lift_split3_array_at:
        lo <= i < hi ->
      array_at ty sh contents lo hi =
      array_at ty sh contents lo i *
-     (fun v => typed_mapsto_opt sh ty (add_ptr_int ty v i) (contents i)) *
+     (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
      array_at ty sh contents (Zsucc i) hi.
 Proof.
  intros. extensionality v. simpl. apply split3_array_at; auto.
 Qed.
 
+(*
 Lemma at_offset_array: forall v t1 sh contents lo hi ofs,
-     `(at_offset (array_at t1 sh contents lo hi) ofs) v =
+     `(at_offset ofs (array_at t1 sh contents lo hi)) v =
      `(array_at t1 sh contents lo hi) (`(offset_val (Int.repr ofs)) v).
 Proof.
  intros. extensionality rho. unfold_lift.
@@ -123,6 +145,7 @@ Proof.
  destruct (v rho); simpl; auto.
  f_equal. f_equal. rewrite Int.add_zero. auto.
 Qed.
+*)
 
 Definition strictAllowedCast tfrom tto :=
 match Cop.classify_cast tfrom tto with 
@@ -183,24 +206,45 @@ Qed.
 
 Require floyd.loadstore_lemmas.
 
+(*
 Definition force_reptype (t: type) (v: option (reptype t)) : reptype t :=
  match v with None => default_val t | Some x => x end.
+*)
 
 (* Definition isSome {A}(v: option A) : Prop := exists v', v = Some v'. *)
 
+Definition defined_rep {t} : reptype t -> Prop :=
+match t as t0 return (reptype t0 -> Prop) with
+| Tvoid => fun _ : reptype Tvoid => False
+| Tint i s a =>
+    fun v0 : reptype (Tint i s a) => exists v' : int, v0 = Some v'
+| Tlong s a =>
+    fun v0 : reptype (Tlong s a) => exists v' : int64, v0 = Some v'
+| Tfloat f a =>
+    fun v0 : reptype (Tfloat f a) => exists v' : float, v0 = Some v'
+| Tpointer t0 a => fun v0 : reptype (Tpointer t0 a) => is_pointer_or_null v0
+| Tarray t0 z a => fun _ : reptype (Tarray t0 z a) => False
+| Tfunction t0 t1 => fun _ : reptype (Tfunction t0 t1) => False
+| Tstruct i f a => fun _ : reptype (Tstruct i f a) => False
+| Tunion i f a => fun _ : reptype (Tunion i f a) => False
+| Tcomp_ptr i a => fun _ : reptype (Tcomp_ptr i a) => False
+end.
+
 Lemma semax_load_array':
-forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
+forall Espec (Delta: tycontext) id sh t1 P Q R lo hi 
+       (contents: Z -> reptype t1) e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
     (temp_types Delta) ! id = Some (t1',i2) ->
     no_attr_type t1 = true ->
     strictAllowedCast t1 t1' = true ->
-    repinject t1 = Some inject ->
+    is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && 
-     local (`isSome (`contents (`force_signed_int v2))) && local (`isptr v1) && 
+     local (`defined_rep (`contents (`force_signed_int v2)))  && 
+     local (`isptr v1) && 
      local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
@@ -208,7 +252,7 @@ forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: 
        (normal_ret_assert 
         (EX old:val,
           PROPx P (LOCALx (
-                `eq (eval_id id) (subst id (`old) (`inject (`(force_reptype t1) 
+                `eq (eval_id id) (subst id (`old) (`(repinject t1) ((*`(force_reptype t1) *)
                                           (`contents (`force_signed_int v2)))))
                             :: map (subst id (`old)) Q)
                 (SEPx 
@@ -224,7 +268,7 @@ eapply semax_pre_post;
                     :: `eq (`force_val (`sem_add `(tptr t1)  `tint v1 v2))
                          (eval_expr e1) :: Q)
                 (SEPx R))) (Ederef e1 t1)
-    (`inject (`(force_reptype t1) (`contents (`force_signed_int v2)))))].
+    (`(repinject t1) ((*`(force_reptype t1)*) (`contents (`force_signed_int v2)))))].
 * (* precondition *)
 apply loadstore_lemmas.later_left2.
 rewrite insert_local.
@@ -246,7 +290,7 @@ normalize. repeat rewrite prop_and.
 repeat apply andp_right; try apply prop_right; auto.
 hnf; simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
 rewrite H; apply I.
-hnf. unfold_lift. rewrite <- H11.
+hnf. rewrite <- H11. 
 destruct (v2 rho); inv H6.
 destruct (v1 rho); inv H10.
 apply I.
@@ -280,31 +324,32 @@ apply sepcon_derives; auto.
 rewrite <- H8.
 destruct (v1 rho); inv H7.
 simpl.
-rewrite <- repinject_typed_mapsto by auto.
-apply derives_refl'.
+rewrite typed_mapsto_umapsto by auto.
 simpl in H6.
-destruct (contents (Int.signed i)) as [y|]; [ | contradiction H6].
-simpl.
-f_equal.
-unfold add_ptr_int, eval_binop; simpl.
-f_equal.
+unfold mapsto.
+unfold add_ptr_int. simpl.
 rewrite Int.repr_signed.
-auto.
+apply andp_right; auto.
+apply prop_right.
+clear - H6.
+destruct t1; try contradiction;
+try (destruct H6 as [? H]; rewrite H; apply I).
+apply H6.
 Qed.
 
 Lemma semax_load_array:
-forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
+forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
     typeof e1 =  tptr t1 ->
     (temp_types Delta) ! id = Some (t1',i2) ->
     no_attr_type t1 = true ->
     strictAllowedCast t1 t1' = true ->
-    repinject t1 = Some inject ->
+    is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && 
-     local (`isSome (`contents (`force_signed_int v2))) &&
+     local (`defined_rep (`contents (`force_signed_int v2)))  && 
      local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
@@ -312,8 +357,8 @@ forall Espec (Delta: tycontext) id sh t1 inject P Q R lo hi contents e1 (v1 v2: 
        (normal_ret_assert 
         (EX old:val,
           PROPx P (LOCALx (
-                `eq (eval_id id) (subst id (`old) (`inject (`(force_reptype t1) 
-                                          (`contents (`force_signed_int v2)))))
+                `eq (eval_id id) (subst id (`old) (`(repinject t1)  
+                                          (`contents (`force_signed_int v2))))
                             :: map (subst id (`old)) Q)
                 (SEPx 
                   (map (subst id (`old)) R))))).
@@ -389,7 +434,7 @@ Qed.
 Lemma upd_Znth_next:
  forall jl i v,
   Zlength jl = i ->
-  upd (ZnthV tuint jl) i (Some v) = ZnthV tuint (jl++ (v::nil)).
+  upd (ZnthV tuint jl) i v = ZnthV tuint (jl++ (v::nil)).
 Proof.
 intros;
 extensionality n.
@@ -412,16 +457,17 @@ contradict H0. rewrite Zlength_correct; rewrite <- H0. auto.
 clear - H.
 revert jl H; induction (Z.to_nat n); destruct jl; intros; simpl; auto.
 contradiction H; reflexivity.
-rewrite nth_error_nil. reflexivity.
+destruct n0; reflexivity.
 apply IHn0. simpl in H. contradict H; f_equal; auto. 
 Qed.
 
 Lemma array_at__array_at_None:
-  forall t sh,  array_at_ t sh = array_at t sh (fun _ => None).
+  forall t sh,  array_at_ t sh = array_at t sh (fun _ => default_val t).
 Proof.
 intros. reflexivity.
 Qed.
 
+(*
 Lemma repinject_typed_mapsto_:
   forall sh t loc inject,
    repinject t = Some inject ->
@@ -435,34 +481,47 @@ intros.
  try destruct i; try destruct s; try destruct f; auto;
  apply no_attr_e in H0; subst a; simpl; omega.
 Qed.
+*)
+
+Lemma umapsto_mapsto_ :
+  forall sh t v v', umapsto sh t v v' |-- mapsto_ sh t v.
+Proof.
+intros. unfold mapsto_, umapsto.
+destruct (access_mode t); auto.
+destruct v; auto.
+apply orp_left; apply derives_extract_prop; intro.
+apply orp_right2; rewrite prop_true_andp by auto; apply exp_right with v'; auto.
+subst v'. apply orp_right2. 
+rewrite prop_true_andp by auto; auto.
+Qed.
 
 Lemma semax_store_array:
-forall Espec (Delta: tycontext) n sh t1 (contents: Z -> option (reptype t1))
+forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
               lo hi   
-              (v1: environ-> val) inject P Q R            
+              (v1: environ-> val) P Q R            
              e1  e2 (v2: Z) (v: reptype t1),
     writable_share sh ->
     typeof e1 =  tptr t1 ->
     no_attr_type t1 = true ->
-    repinject t1 = Some inject ->
+    is_by_value t1 -> (*repinject t1 = Some inject -> *)
     nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
           local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1))
           && !! (in_range lo hi v2)
           && local (tc_expr Delta e1) && local (tc_expr Delta (Ecast e2 t1))
-          && local (`(eq (inject v)) (eval_expr (Ecast e2 t1))) ->
+          && local (`(eq (repinject t1 v)) (eval_expr (Ecast e2 t1))) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
        (Sassign (Ederef e1 t1) e2) 
        (normal_ret_assert
           (PROPx P (LOCALx Q
               (SEPx (replace_nth n R
-                    (`(array_at t1 sh (upd contents v2 (Some v)) lo hi) v1)))))).
+                    (`(array_at t1 sh (upd contents v2 v) lo hi) v1)))))).
 Proof.
 pose (H2:=True).
 intros.
 rewrite (SEP_nth_isolate _ _ _ H4) in H5|-*.
-rewrite (SEP_replace_nth_isolate _ _ _ (`(array_at t1 sh (upd contents v2 (Some v)) lo hi) v1) H4).
+rewrite (SEP_replace_nth_isolate _ _ _ (`(array_at t1 sh (upd contents v2 v) lo hi) v1) H4).
 forget (@replace_nth (environ -> mpred) n R (@emp _ _ _)) as R'.
 clear n H4 R. rename R' into R.
 eapply semax_pre_post;
@@ -470,7 +529,7 @@ eapply semax_pre_post;
           (PROPx P (LOCALx
               (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1) ::
               tc_expr Delta e1 :: tc_expr Delta (Ecast e2 t1) :: `(in_range lo hi v2) ::
-              `(eq (inject v)) (eval_expr (Ecast e2 t1)) :: 
+              `(eq (repinject t1 v)) (eval_expr (Ecast e2 t1)) :: 
              Q)
             (SEPx 
              (`(array_at t1 sh contents lo v2) v1 ::
@@ -498,10 +557,8 @@ eapply semax_pre_post;
   unfold_lift. rewrite <- H7; simpl.
   destruct (v1 rho); inv H12. simpl.
   unfold add_ptr_int; simpl.
-  destruct (contents v2); simpl.
-  rewrite (repinject_typed_mapsto _ _ _ _ _ H3); auto.
-  cancel.
- rewrite (repinject_typed_mapsto_ _ _ _ _ H3); auto.
+ rewrite typed_mapsto_umapsto by auto.
+ apply umapsto_mapsto_.
  omega.
 * intros.
   clear H5.
@@ -520,26 +577,32 @@ eapply semax_pre_post;
   rewrite upd_neq; auto. omega.
   rewrite upd_eq. 
   simpl.
-  rewrite (repinject_typed_mapsto _ _ _ _ _ H3) by auto.
+  rewrite (typed_mapsto_umapsto _ _ _ _ H3).
   destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.
   rewrite H10. unfold_lift; simpl.
-  apply derives_refl.
+  unfold mapsto; apply andp_left2; auto.
   apply derives_refl'; apply equal_f; apply array_at_ext; intros.
   rewrite upd_neq by omega. auto. omega.
 Qed.
 
+Lemma repinject_default_val:
+ forall t, repinject t (default_val t) = Vundef.
+Proof.
+destruct t; reflexivity.
+Qed.
+
+
 Lemma array_at__array_at:
- forall t (H: repinject t <> None)
-   sh f lo hi v, 
+ forall t sh f lo hi v, 
   array_at t sh f lo hi v |-- array_at_ t sh lo hi v.
 Proof.
 intros.
 unfold array_at_.
 assert (RP := sizeof_pos t).
 assert (lo >= hi \/ lo < hi)%Z by omega.
-destruct H0.
+destruct H.
 *
 unfold array_at, rangespec, array_at_.
 change Z.to_nat with nat_of_Z.
@@ -553,16 +616,19 @@ normalize.
 unfold array_at, rangespec, array_at_.
 change nat_of_Z with Z.to_nat.
 forget (Z.to_nat (hi-lo)) as n.
-clear H0.
+clear H.
 revert lo; induction n; intros.
 apply derives_refl.
 simpl.
 apply sepcon_derives; auto.
-    destruct (f lo); auto.
+eapply derives_trans; [apply typed_mapsto_typed_mapsto_ | ].
+unfold typed_mapsto_.
+unfold typed_mapsto.
+auto.
 Qed.
 
 Lemma split_array_at:
-  forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> option (reptype ty))
+  forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
     (lo hi : Z) (v : val),
   (lo <= i <= hi)%Z ->
   array_at ty sh contents lo hi v =
@@ -597,12 +663,9 @@ revert lo; induction n; simpl; intros; auto.
 replace (ofs+lo-ofs)%Z with lo by omega.
 f_equal.
 unfold add_ptr_int.
-destruct (f lo);  f_equal; simpl; destruct v; simpl; auto;
-f_equal; rewrite Int.add_assoc; f_equal.
-rewrite <- add_repr.
-rewrite <- mul_repr.
-rewrite Int.mul_add_distr_r.
-auto.
+f_equal. unfold eval_binop. simpl. unfold sem_add; simpl.
+destruct v; auto. simpl. f_equal.
+rewrite Int.add_assoc.  f_equal.
 rewrite <- add_repr.
 rewrite <- mul_repr.
 rewrite Int.mul_add_distr_r.

@@ -16,20 +16,18 @@ Lemma sha256_block_data_order_return:
    LOCAL  (`(eq ctx) (eval_id _ctx))
    SEP 
    (`(array_at tuint Tsh
-        (ZnthV tuint
+        (tuints
            (map2 Int.add regs
               (rnd_64 regs K (rev (generate_word (rev b) 48))))) 0 8 ctx);
-   `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-     (eval_var _K256 (tarray tuint 64));
+   K_vector;
    `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist (map swap b)) data))) (Sreturn None)
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (`(array_at tuint Tsh
-             (ZnthV tuint (process_msg init_registers (hashed ++ b))) 0 8 ctx) *
+             (tuints (process_msg init_registers (hashed ++ b))) 0 8 ctx) *
          `(data_block sh (intlist_to_Zlist (map swap b)) data) *
-         `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-           (eval_var _K256 (tarray tuint 64))))
+         K_vector))
      (stackframe_of f_sha256_block_data_order)).
 Proof.
 intros.
@@ -40,6 +38,7 @@ unfold sha256state_.
 set (regs := map2 Int.add (process_msg init_registers hashed)
         (rnd_64 (process_msg init_registers hashed) K
            (rev (generate_word (rev b) 48)))).
+unfold K_vector; unfold_lift.
 erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 entailer!.
 unfold stackframe_of; simpl.

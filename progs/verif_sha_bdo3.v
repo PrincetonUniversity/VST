@@ -181,7 +181,7 @@ Lemma rearrange_regs_proof:
    `(eq (Vint (big_endian_integer
              (fun z : Z =>
               force_option Int.zero
-                (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap bl)))
+                (tuchars (map Int.repr (intlist_to_Zlist (map swap bl)))
                    (z + Z.of_nat i * 4))))))
        (eval_id _l);
    `(eq (nth_error K i)) (`Some  (`force_int (eval_id _Ki)));
@@ -288,8 +288,8 @@ simple apply rearrange_aux2; assumption.
 Qed.
 
 
-Definition f_upto {A} (f: Z -> option A) (bound: Z) (i: Z) : option A :=
- if zlt i bound then f i else None.
+Definition f_upto {t} (f: Z -> reptype t) (bound: Z) (i: Z) : reptype t :=
+ if zlt i bound then f i else default_val t.
 
 Lemma array_at_f_upto_lo:
   forall t sh contents lo hi, 
@@ -304,17 +304,16 @@ forall sh b i N,
   length b = N ->
   i < N ->
  array_at tuint sh
-       (upd (f_upto (ZnthV tuint b) (Z.of_nat i)) (Z.of_nat i)
+       (upd (f_upto (tuints b) (Z.of_nat i)) (Z.of_nat i)
           (Some
              (big_endian_integer
                 (fun z : Z =>
                  force_option Int.zero
-                   (ZnthV tuchar
-                      (map Int.repr (intlist_to_Zlist (map swap b)))
+                   (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
                       (z + Z.of_nat i * 4))))))
         0 (Z.of_nat N) =
   array_at tuint sh
-               (f_upto (ZnthV tuint b) (Z.of_nat (S i))) 
+               (f_upto (tuints b) (Z.of_nat (S i))) 
               0 (Z.of_nat N).
 Proof.
 intros.
@@ -326,16 +325,19 @@ subst N.
 clear - H0.
 revert b H0; induction i; destruct b; simpl; intros; auto.
 omega.
-exists r; reflexivity. 
+exists i; reflexivity. 
 inv H0.
 apply IHi; auto. clear - H0.
 apply lt_S_n; auto.
 destruct H3 as [w H3].
+unfold tuchars;
 rewrite <- nth_big_endian_integer'' with (w:=w); auto.
 unfold f_upto.
 subst.
 rewrite if_true by (rewrite inj_S; omega).
-unfold ZnthV. rewrite if_false by omega. rewrite Nat2Z.id. auto.
+unfold tuints, ZnthV. rewrite if_false by omega. rewrite Nat2Z.id.
+clear - H3; revert b H3; induction i; destruct b; intros; inv H3; simpl; auto.
+rewrite H0. apply IHi. auto.
 unfold f_upto.
 if_tac. rewrite if_true by (rewrite inj_S; omega); auto.
 rewrite if_false; auto.

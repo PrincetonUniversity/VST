@@ -63,8 +63,11 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  typed_mapsto Tsh t_struct_SHA256state_st c r.
 
+Definition tuints (vl: list int) := ZnthV tuint (map Some vl).
+Definition tuchars (vl: list int) :=  ZnthV tuchar (map Some vl).
+
 Definition data_block (sh: share) (contents: list Z) (v: val) :=
-  array_at tuchar sh (ZnthV tuchar (map Int.repr contents)) 0 (Zlength contents) v.
+  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents) v.
 
 Lemma datablock_local_facts:
  forall sh f data,
@@ -72,19 +75,27 @@ Lemma datablock_local_facts:
 Admitted.
 Hint Resolve datablock_local_facts : saturate_local.
 
+Definition K_vector : environ -> mpred :=
+  `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
+
+Lemma K_vector_closed:
+  forall S, closed_wrt_vars S K_vector.
+Proof. unfold K_vector; auto with closed. Qed.
+Hint Resolve K_vector_closed : closed.
+
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
     WITH hashed: list int, b: list int, ctx : val, data: val, sh: share
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
          PROP(length b = LBLOCK; NPeano.divide LBLOCK (length hashed)) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-         SEP (`(array_at tuint Tsh  (ZnthV tuint (process_msg init_registers hashed)) 0 8 ctx);
+         SEP (`(array_at tuint Tsh  (tuints (process_msg init_registers hashed)) 0 8 ctx);
                 `(data_block sh (intlist_to_Zlist (map swap b)) data);
-                `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)))
+                 K_vector)
    POST [ tvoid ]
-          (`(array_at tuint Tsh  (ZnthV tuint (process_msg init_registers (hashed++b))) 0 8 ctx) *
+          (`(array_at tuint Tsh  (tuints (process_msg init_registers (hashed++b))) 0 8 ctx) *
           `(data_block sh (intlist_to_Zlist (map swap b)) data) *
-          `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64))).
+          K_vector).
  
 Definition sha256_length (len: Z)  (c: val) : mpred :=
    EX lo:int, EX hi:int, 
@@ -136,15 +147,11 @@ Definition SHA256_Update_spec :=
          PROP (len <= length data; (s256a_len a < BOUND)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
                                   `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
-         SEP(`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
-               `(sha256state_ a c);
-               `(data_block sh data d))
+         SEP(K_vector; `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
          EX a':_, 
           PROP (update_abs (firstn len data) a a') LOCAL ()
-          SEP(`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
-                `(sha256state_ a' c);
-                `(data_block sh data d)).
+          SEP(K_vector; `(sha256state_ a' c); `(data_block sh data d)).
 
 Definition s256a_regs (a: s256abs) : list int :=
  match a with S256abs hashed _  => 
@@ -157,11 +164,13 @@ Definition SHA256_Final_spec :=
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
          PROP (writable_share shmd) 
          LOCAL (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
-         SEP(`(sha256state_ a c); `(memory_block shmd (Int.repr 32) md))
+         SEP(K_vector; `(sha256state_ a c);
+               `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX a':s256abs,
          PROP (sha_finish a a') LOCAL ()
-         SEP(`(sha256state_ a' c); `(data_block shmd (intlist_to_Zlist (s256a_regs a')) md)).
+         SEP(K_vector; `(sha256state_ a' c);
+               `(data_block shmd (intlist_to_Zlist (s256a_regs a')) md)).
 
 Definition SHA256_spec :=
   DECLARE _SHA256
@@ -171,11 +180,9 @@ Definition SHA256_spec :=
          LOCAL (`(eq d) (eval_id _data_);
                      `(eq (Z.of_nat (length data))) (`Int.unsigned (`force_int (eval_id _n)));
                      `(eq md) (eval_id _md))
-         SEP(`(data_block dsh data d);
-               `(memory_block msh (Int.repr 32) md))
+         SEP(K_vector; `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
   POST [ tvoid ] 
-         SEP(`(data_block dsh data d); 
-               `(data_block msh (SHA_256 data) md)).
+         SEP(K_vector; `(data_block dsh data d); `(data_block msh (SHA_256 data) md)).
 
 Definition Vprog : varspecs := (_K256, tarray tuint 64)::nil.
 
@@ -208,7 +215,7 @@ rewrite (andp_comm (!!isptr c)).
 rewrite andp_assoc.
 f_equal.
 simpl_typed_mapsto.
-rewrite field_mapsto_isptr at 1. normalize.
+rewrite field_umapsto_isptr at 1. normalize.
 Qed.
 
 Ltac simpl_stackframe_of := 

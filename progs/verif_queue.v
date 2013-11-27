@@ -25,8 +25,8 @@ Definition freeN_spec :=
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a p (Vint (fst rep)) * 
-  (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
+  field_mapsto Tsh t_struct_elem _a p (force_rep Vint (fst rep)) * 
+  (field_mapsto Tsh t_struct_elem _b p (force_rep Vint (snd rep)) *
    (field_mapsto_ Tsh t_struct_elem _next p)).
 
 Definition link := field_mapsto Tsh t_struct_elem _next.
@@ -98,7 +98,7 @@ Definition make_elem_spec :=
   WITH a: int, b: int
   PRE  [ _a OF tint, _b OF tint ] 
         PROP() LOCAL(`(eq (Vint a)) (eval_id _a); `(eq (Vint b)) (eval_id _b)) SEP()
-  POST [ (tptr t_struct_elem) ] `(elemrep (a,b)) retval.
+  POST [ (tptr t_struct_elem) ] `(elemrep (Some a, Some b)) retval.
 
 Definition main_spec := 
  DECLARE _main
@@ -131,8 +131,8 @@ Qed.
 
 Lemma list_cell_eq: forall sh p elem,
   list_cell QS sh p elem = 
-   field_mapsto sh t_struct_elem _a p (Vint (fst elem)) * 
-   field_mapsto sh t_struct_elem _b p (Vint (snd elem)). 
+   field_umapsto sh t_struct_elem _a (force_rep Vint (fst elem)) p* 
+   field_umapsto sh t_struct_elem _b (force_rep Vint (snd elem)) p. 
 Proof. intros. simpl_list_cell. auto. Qed.
 
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.

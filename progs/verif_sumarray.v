@@ -131,6 +131,9 @@ entailer!. f_equal. omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* x = a[i]; *)
 entailer!.
+specialize (H0 _ (conj H1 H3)).
+destruct (contents i0); try contradiction.
+eauto.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
@@ -139,13 +142,15 @@ apply exp_right with (Zsucc i0).
 entailer.
  omega.
  omega.
- apply fold_range_fact1; omega.
+ simpl in H5. rewrite Int.signed_repr in H5 by repable_signed.
+ rewrite fold_range_fact1 by omega.
+ destruct (contents i0); inv H5. simpl. auto.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
 
 Definition four_contents := (ZnthV tint
-           (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: Int.repr 4 :: nil)).
+           (map Some (map Int.repr (1::2::3::4:: nil)))).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
@@ -155,7 +160,7 @@ apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
 forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
  entailer!. 
-   intros. apply (ZnthV_isSome tint). rewrite Zlength_correct; simpl; auto.
+   intros. unfold four_contents. apply ZnthV_map_Some_isSome. apply H2.
  auto with closed.
  forward. (* return s; *)
  unfold main_post. entailer!.

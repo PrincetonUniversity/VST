@@ -70,46 +70,13 @@ rewrite Z2Nat.inj_add  by omega.
 reflexivity.
 Qed.
 
-Lemma nth_big_endian_int':
- forall i b, 
-   i <= length b ->
-  big_endian_integer
-    (fun z : Z =>
-     nth (Z.to_nat (z + Z.of_nat i * 4)) (map Int.repr (intlist_to_Zlist b))
-       (default_val tuchar)) =
-   nth i (map swap b) (default_val tuint).
-Proof.
-induction i; destruct b; intros.
-reflexivity.
-unfold big_endian_integer; simpl.
-repeat rewrite Int.repr_unsigned.
-reflexivity.
-simpl in H; omega.
-simpl in H.
-simpl nth at 2.
-rewrite <- IHi by omega.
-clear.
-apply big_endian_integer_ext; intros.
-replace  (Z.to_nat (z + Z.of_nat (S i) * 4))
-  with (S (S (S (S  (Z.to_nat (z + Z.of_nat i * 4)))))); [reflexivity |].
-rewrite inj_S.
-unfold Z.succ.
-rewrite Z.mul_add_distr_r.
-rewrite <- (Zplus_comm (1*4)%Z).
-replace  (z + (1 * 4 + Z.of_nat i * 4))%Z
-  with  (4 + (z + Z.of_nat i * 4))%Z by omega.
-symmetry.
-rewrite Z2Nat.inj_add by omega.
-reflexivity.
-Qed.
-
 Lemma nth_big_endian_integer'':
   forall i bl w, 
    nth_error bl i = Some w ->
     w = big_endian_integer
                  (fun z : Z =>
                   force_option Int.zero
-                    (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap bl)))
+                    (ZnthV tuchar (map Some (map Int.repr (intlist_to_Zlist (map swap bl))))
                        (z + Z.of_nat i * 4))).
 Proof.
 induction i; destruct bl; intros; inv H.
@@ -120,14 +87,28 @@ change (w = swap (swap w)).
 symmetry; apply swap_swap.
 specialize (IHi _ _ H1).
 rewrite IHi; clear IHi.
-f_equal.
-f_equal.
-extensionality z.
+apply big_endian_integer_ext; intros j ?.
 f_equal.
 rewrite inj_S.
 unfold Z.succ.
-Admitted.
-
+unfold ZnthV.
+assert (i < length bl).
+revert w bl H1; induction i; destruct bl; intros; inv H1; simpl; try omega.
+apply IHi in H2. omega.
+clear w H1.
+if_tac; [rewrite if_true by omega | rewrite if_false by omega]; auto.
+simpl default_val.
+rewrite Z.mul_add_distr_r.
+change (1*4)%Z with 4%Z.
+simpl.
+assert (Z.to_nat (j + (Z.of_nat i * 4 + 4)) = 4 + Z.to_nat (j + Z.of_nat i * 4)).
+repeat rewrite (Z2Nat.inj_add j) by omega.
+rewrite Z2Nat.inj_add by omega.
+change (Z.to_nat 4) with 4.
+omega.
+rewrite H2. simpl.
+auto.
+Qed.
 
 Lemma firstn_same:
   forall A n (b: list A), n >= length b -> firstn n b = b.
@@ -147,7 +128,8 @@ Proof. reflexivity. Qed.
 
 Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
 
-Definition s256state := (list int * (int * (int * (list int * int))))%type.
+Definition s256state := (list (option int) * (option int * (option int
+                                          * (list (option int) * option int))))%type.
 Definition s256_h (s: s256state) := fst s.
 Definition s256_Nl (s: s256state) := fst (snd s).
 Definition s256_Nh (s: s256state) := fst (snd (snd s)).
@@ -170,12 +152,13 @@ Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
-         s256_h r = process_msg init_registers hashed 
-       /\ (Zlength (intlist_to_Zlist (hashed)++data) = hilo (s256_Nh r) (s256_Nl r))%Z
-       /\ data = map Int.unsigned (s256_data r)
+         s256_h r = map Some (process_msg init_registers hashed) 
+       /\ (exists hi, exists lo, s256_Nh r = Some hi /\ s256_Nl r = Some lo /\
+            Zlength (intlist_to_Zlist (hashed)++data) = hilo hi lo)
+       /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Some dd)
        /\ length data < CBLOCK
        /\ NPeano.divide LBLOCK (length hashed)
-       /\ length data = Z.to_nat (Int.unsigned (s256_num r))
+       /\ s256_num r = Some (Int.repr (Zlength data))
      end.
 
 Lemma length_map2:

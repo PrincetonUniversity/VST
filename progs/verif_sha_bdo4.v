@@ -27,7 +27,7 @@ Lemma sha256_block_data_order_loop1_proof:
                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                    (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-   SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
+   SEP ( K_vector;
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist (map swap b)) data)))
   block_data_order_loop1
@@ -38,10 +38,9 @@ Lemma sha256_block_data_order_loop1_proof:
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
 ))))
-     SEP ( `(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64));
-           `(array_at tuint Tsh (ZnthV tuint b) 0 16) (eval_var _X (tarray tuint 16));
+     SEP (K_vector;
+           `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist (map swap b)) data))) ).
-(*Admitted. *)
 Proof.
 unfold block_data_order_loop1, Delta_loop1.
 intros.
@@ -76,9 +75,8 @@ Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) (
                   (`cons (eval_id _e)
                      (`cons (eval_id _f)
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-     SEP (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-      (eval_var _K256 (tarray tuint 64));
-    `(array_at tuint Tsh (f_upto (ZnthV tuint b) (Z.of_nat i) ) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
+     SEP (K_vector;
+    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i) ) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist (map swap b)) data)).
 
 apply semax_pre with (EX i:nat, loop1_inv regs sh b ctx data 0 i).
@@ -121,9 +119,8 @@ PROP  (i < 16)
                     (`cons (eval_id _f)
                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP 
-   (`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-      (eval_var _K256 (tarray tuint 64));
-   `(array_at tuint Tsh (f_upto (ZnthV tuint b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
+   (K_vector;
+   `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist (map swap b)) data))).
 (* 587,640  592,608 *)
 abstract entailer.
@@ -150,7 +147,6 @@ simpl plus.
 normalize.
 
 (* 945,760 834,556 *)
-
 do 2 apply -> seq_assoc.
 eapply semax_frame_seq
  with (P1 := [])
@@ -165,13 +161,12 @@ eapply semax_frame_seq
               (`cons (eval_id _e)
                  (`cons (eval_id _f)
                     (`cons (eval_id _g) (`cons (eval_id _h) `[]))))))))])
-         (Frame := [`(array_at tuint Tsh (ZnthV tuint K) 0 (Zlength K))
-      (eval_var _K256 (tarray tuint 64)),
-   `(array_at tuint Tsh (f_upto (ZnthV tuint b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16))]); 
+         (Frame := [K_vector,
+   `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist (map swap b))) data _ sh 
-                     (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap b)))));
+                     (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))));
     [ reflexivity | reflexivity | reflexivity | auto 50 with closed | 
-      intros; apply ZnthV_isSome; rewrite Zlength_correct, map_length;
+      intros; apply ZnthV_map_Some_isSome; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1
       | ]
    | | | ].
@@ -190,7 +185,7 @@ abstract solve [entailer!].
 (* 1,078,128 849,172 *)
 auto 50 with closed.
 simpl.
-change (array_at tuchar sh (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap b)))) 0
+change (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))) 0
         (Zlength (intlist_to_Zlist (map swap b))) data)
   with (data_block sh (intlist_to_Zlist (map swap b)) data).
 
@@ -205,26 +200,26 @@ simpl typeof.
 forward. (* X[i]=l; *)
 clear POSTCONDITION MORE_COMMANDS.
 instantiate (2:= Z.of_nat i).
-instantiate (1:= big_endian_integer
+instantiate (1:= Some (big_endian_integer
           (fun z : Z =>
            force_option Int.zero
-             (ZnthV tuchar (map Int.repr (intlist_to_Zlist (map swap b)))
-                (z + Z.of_nat i * 4)))).
+             (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
+                (z + Z.of_nat i * 4))))).
 abstract (entailer; apply prop_right; repeat split; try omega; eapply eval_var_isptr; eauto).
 
 rewrite loop1_aux_lemma1; auto.
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
-assert (isSome (ZnthV tuint K (Z.of_nat i))) 
- by abstract (clear - H0; apply ZnthV_isSome;
+assert (isSome (tuints K (Z.of_nat i))) 
+ by abstract (clear - H0; apply ZnthV_map_Some_isSome;
         split; try omega; apply Z.lt_trans with 16%Z; [omega | compute; auto]).
-clear H1.
+unfold K_vector.
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
+
 abstract (
-assert (Zlength K = 64%Z) by reflexivity;
-entailer!; try apply_ZnthV_isSome; try omega;
- eapply eval_var_isptr; eauto).
+  assert (Zlength K = 64%Z) by reflexivity;
+  entailer!; [ apply (isSome_e _ H1) | omega.. ]).
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
@@ -249,6 +244,7 @@ replace Delta with (initialized _Ki (initialized _l (initialized _l' Delta_loop1
  by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
 eapply semax_pre; [ | simple apply rearrange_regs_proof with (bl:=b)(i:=i)(data:=data); auto ].
 Admitted.
+
 (* the rest of this is correct, probably, but runs out of memory.
 abstract (entailer!;
  [destruct data; inv Hdata; simpl; f_equal;

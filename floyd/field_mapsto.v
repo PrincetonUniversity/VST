@@ -3,6 +3,11 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
+Lemma tc_val_Vundef:
+  forall t, ~ tc_val t Vundef.
+Proof. destruct t; intro H; inv H.
+Qed.
+
 Lemma umapsto_tuint_tint:
   forall sh, umapsto sh tuint = umapsto sh tint.
 Proof.
@@ -38,8 +43,7 @@ destruct (access_mode t) eqn:?; simpl;
  try solve [rewrite andp_comm; apply FF_andp];
 destruct v1; simpl;  try solve [rewrite andp_comm; apply FF_andp].
 apply pred_ext; normalize.
-* apply orp_left. auto.
-  normalize. destruct t; contradiction H.
+* apply orp_left. auto. normalize. contradiction (tc_val_Vundef _ H).
 * apply orp_right1. auto.
 Qed.
 
@@ -67,7 +71,7 @@ destruct v1; try contradiction.
 destruct H.
 destruct H0.
 eapply res_predicates.superprecise_address_mapsto; eauto.
-intro; subst v2; destruct t; contradiction H.
+intro; subst v2;  contradiction (tc_val_Vundef _ H).
 Qed.
 
 Lemma umapsto_isptr:
@@ -136,7 +140,7 @@ Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
-Definition field_umapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mpred :=
+Definition field_umapsto (sh: Share.t) (t1: type) (fld: ident) (v2 v1: val) : mpred :=
  match t1 with
   |  Tstruct id fList  att =>
     let fList' := unroll_composite_fields id t1 fList in
@@ -150,8 +154,8 @@ Definition field_umapsto (sh: Share.t) (t1: type) (fld: ident) (v1 v2: val) : mp
   | _  => FF
   end.
 
-Definition field_mapsto sh t1 fld v1 v2 := !!(v2<>Vundef) && field_umapsto sh t1 fld v1 v2.
-Definition field_mapsto_ sh t1 fld v1 := field_umapsto sh t1 fld v1 Vundef.
+Definition field_mapsto sh t1 fld v1 v2 := !!(v2<>Vundef) && field_umapsto sh t1 fld v2 v1.
+Definition field_mapsto_ sh t1 fld := field_umapsto sh t1 fld Vundef.
 Arguments field_mapsto_ sh t1 fld v1 : simpl never.
 
 Lemma field_mapsto_field_mapsto_:
@@ -202,12 +206,7 @@ Lemma mapsto_field_mapsto_:
  (type_of_field
      (unroll_composite_fields structid (Tstruct structid fields noattr)
         fields) fld) = t ->
-(*  access_mode
-        (type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) = By_value ch ->
-  access_mode t = By_value ch ->
-*)  field_offset fld fields = Errors.OK ofs ->
+  field_offset fld fields = Errors.OK ofs ->
   offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   (type_is_volatile
          (type_of_field
@@ -245,7 +244,7 @@ apply orp_left; normalize.
 Qed.
 
 Lemma field_umapsto_isptr: forall t fld sh x y,
-  field_umapsto sh t fld x y = !!(isptr x) && field_umapsto sh t fld x y.
+  field_umapsto sh t fld y x = !!(isptr x) && field_umapsto sh t fld y x.
 Proof.
 intros; apply pred_ext; normalize.
 apply andp_right; auto.
@@ -266,8 +265,8 @@ rewrite field_umapsto_isptr; normalize.
 Qed.
 
 Lemma field_umapsto_nonnull:  forall t fld sh x y, 
-     field_umapsto sh t fld x y = 
-               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_umapsto sh t fld x y.
+     field_umapsto sh t fld y x = 
+               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_umapsto sh t fld y x.
 Proof.
 intros; apply pred_ext; normalize.
 apply andp_right; auto.
@@ -391,7 +390,7 @@ Lemma umapsto_field_umapsto:
   field_offset fld fields = Errors.OK ofs ->
   offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
   type_is_volatile t = false ->
-  umapsto sh t v1' v2 = field_umapsto sh (Tstruct structid fields noattr) fld v1 v2.
+  umapsto sh t v1' v2 = field_umapsto sh (Tstruct structid fields noattr) fld v2 v1.
 Proof.
 intros.
 unfold field_umapsto, umapsto.
@@ -423,34 +422,9 @@ rewrite H0.
 destruct v1'; normalize.
 apply pred_ext; normalize.
 apply andp_right; auto.
-apply prop_right; clear - H4; intro; subst; destruct t; contradiction.
+apply prop_right; clear - H4; intro; subst.  contradiction (tc_val_Vundef _ H4).
 apply orp_left; normalize. apply orp_right1; auto.
 Qed.
-
-(*
-Lemma mapsto_field_mapsto:
-  forall ch v1 v1' v2 sh ofs t structid fld fields,
-   t = type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld ->
-  access_mode t = By_value ch ->
-  field_offset fld fields = Errors.OK ofs ->
-  v1' = offset_val (Int.repr ofs) v1 ->
-  type_is_volatile t = false ->
-  mapsto sh t v1' v2 = field_mapsto sh (Tstruct structid fields noattr) fld v1 v2.
-Proof.
-intros.
-unfold field_mapsto, mapsto, umapsto.
-rewrite <- H.
-rewrite H0.
-subst v1'.
-destruct v1; try solve [simpl; normalize].          
-rewrite field_offset_unroll. rewrite H1.
-rewrite H3.
-rewrite andp_assoc. f_equal.
-normalize.
-Qed.
-*)
 
 Lemma umapsto_field_mapsto':
   forall v1 v1' v2 sh ofs t structid fld fields,
@@ -481,7 +455,7 @@ rewrite <- H1; simpl.
 apply orp_left; normalize.
 rewrite prop_true_andp. normalize.
 apply orp_right1; auto.
-clear - H5; intro; subst; destruct t; contradiction.
+clear - H5; intro; subst;  contradiction (tc_val_Vundef _ H5).
 destruct (type_of_field
           (unroll_composite_fields structid (Tstruct structid fields noattr)
              fields) fld) ; contradiction.
@@ -512,14 +486,11 @@ intros.
 erewrite mapsto_field_mapsto; eauto.
 Qed.
 
-
-
 Lemma field_umapsto_force_ptr: 
-   forall sh t fld v, field_umapsto sh t fld (force_ptr v) = field_umapsto sh t fld v.
+   forall sh t fld v2 v, field_umapsto sh t fld v2 (force_ptr v) = field_umapsto sh t fld v2 v.
 Proof.
 intros.
 unfold field_umapsto.
-extensionality y.
 destruct t; normalize.
 destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); normalize.
 destruct v; simpl; reflexivity.
@@ -534,6 +505,56 @@ extensionality y.
 rewrite field_umapsto_force_ptr; auto.
 Qed.
 Hint Rewrite field_mapsto_force_ptr : norm.
+
+Lemma field_mapsto_field_umapsto:
+ forall sh t fld v v' id fList att,
+  t = Tstruct id fList att ->
+  field_mapsto sh t fld v v' =
+  !! tc_val (type_of_field (unroll_composite_fields id t fList) fld) v' 
+   && field_umapsto sh t fld v' v.
+Proof.
+intros.
+unfold field_mapsto.
+subst t.
+unfold field_umapsto.
+apply pred_ext; normalize.
+* 
+ destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList));
+ normalize.
+ apply andp_right; auto.
+ unfold umapsto.
+ destruct (access_mode
+    (type_of_field (unroll_composite_fields id (Tstruct id fList att) fList)
+       fld)); try apply FF_left.
+ destruct (offset_val (Int.repr z) v); try apply FF_left.
+ apply orp_left.
+ apply andp_left1. apply prop_derives. intros; auto.
+ normalize.
+ apply andp_right; auto. apply prop_right; auto.
+*
+ destruct (field_offset fld (unroll_composite_fields id (Tstruct id fList att) fList));
+   try apply FF_left.
+ normalize.
+ rewrite H0.
+ apply andp_right; auto.
+ apply prop_right. intro Hx; inv Hx. 
+apply (tc_val_Vundef _ H).
+ apply andp_right; auto. apply prop_right; auto.
+Qed.
+
+Lemma field_umapsto_field_mapsto:
+  forall (sh : Share.t) (t : type) (id : ident) (v v' : val),
+  v'<>Vundef ->
+  field_umapsto sh t id v' v |-- field_mapsto sh t id v v'.
+Proof.
+intros.
+unfold field_mapsto.
+apply andp_right; auto.
+apply prop_right; auto.
+Qed.
+
+Hint Extern 2 (field_umapsto _ _ _ _ _ |-- field_mapsto _ _ _ _ _) =>
+    (apply field_umapsto_field_mapsto; congruence) : cancel.
 
 Global Opaque field_mapsto.
 
@@ -555,7 +576,7 @@ Hint Rewrite field_mapsto__force_ptr : norm.
 
 
 Lemma field_umapsto_nonvolatile:
-  forall sh t fld v v', field_umapsto sh t fld v v' = !!(type_is_volatile t = false) && field_umapsto sh t fld v v'.
+  forall sh t fld v v', field_umapsto sh t fld v' v = !!(type_is_volatile t = false) && field_umapsto sh t fld v' v.
 Proof.
 intros.
 apply pred_ext; normalize.
@@ -614,8 +635,8 @@ Qed.
 
 Lemma field_umapsto_conflict:
   forall sh t fld v v2 v3,
-        field_umapsto sh t fld v v2
-        * field_umapsto sh t fld v v3 |-- FF.
+        field_umapsto sh t fld v2 v
+        * field_umapsto sh t fld v3 v |-- FF.
 Proof.
 intros.
 unfold field_umapsto.
