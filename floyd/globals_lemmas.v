@@ -377,7 +377,7 @@ Lemma idpred2_star_ZnthV_tint:
   n = Zlength mdata ->
   mdata = map Init_int32 data ->
   id2pred_star Delta sh (tarray tint n) v 0 mdata |--
-  `(array_at tint sh (ZnthV tint (map Some data)) 0 n) v.
+  `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
 Proof.
 intros. subst n mdata.
 replace (Zlength (map Init_int32 data)) with (Zlength data)
@@ -388,7 +388,7 @@ unfold ofs at 1.
 change 0 with (ofs*4)%Z.
 set (N := Zlength data). unfold N at 2. clearbody N.
 replace (Zlength data) with (ofs + Zlength data) by (unfold ofs; omega).
-replace (ZnthV tint (map Some data)) with (fun i => ZnthV tint (map Some data) (i-ofs))
+replace (ZnthV tint (map Vint data)) with (fun i => ZnthV tint (map Vint data) (i-ofs))
   by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
 clearbody ofs.
 
@@ -405,15 +405,11 @@ rewrite array_at_emp. rewrite emp_sepcon.
 apply sepcon_derives; auto.
 unfold_lift.
 rewrite mapsto_tuint_tint.
-pose proof (typed_mapsto_tint sh (`(offset_val (Int.repr (ofs*4))) v) (`(Some a))).
-match type of H with (?A = ?B) => assert (A rho = B rho) by (apply f_equal; auto) end.
-unfold_lift in H0.  unfold_lift.
 rewrite mapsto_isptr.
 apply derives_extract_prop. intro.
-destruct (v rho); inv H1.
-simpl in H0.
+destruct (v rho); inv H.
 unfold mapsto. apply andp_left2.
-simpl offset_val. rewrite <- H0.
+simpl offset_val.
 unfold add_ptr_int; simpl.
 rewrite mul_repr.
 unfold ZnthV.
@@ -452,7 +448,7 @@ Lemma unpack_globvar_array:
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
       `(array_at tint (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
-    (ZnthV tint (map Some data)) 0 n) (eval_var i (tarray tint n)).
+    (ZnthV tint (map Vint data)) 0 n) (eval_var i (tarray tint n)).
 Proof.
  intros.
  eapply derives_trans.

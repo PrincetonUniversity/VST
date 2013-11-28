@@ -39,8 +39,8 @@ LOCAL  (tc_environ Delta'; `(eq ctx) (eval_id _ctx);
     (Vint
        (big_endian_integer
           (fun z : Z =>
-           force_option Int.zero
-             (ZnthV tuchar (map Some (map Int.repr (intlist_to_Zlist (map swap bl))))
+           force_int
+             (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist (map swap bl))))
                 (z + Z.of_nat i * 4)))))) (eval_id _l);
 `(eq (nth_error K i)) (`Some (`force_int (eval_id _Ki)));
 `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);

@@ -4,15 +4,17 @@ Require Import progs.SHA256.
 Require Import progs.sha_lemmas.
 Local Open Scope logic.
 
+Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
+
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
   WITH p: val, sh: share, contents: Z -> int
   PRE [ 1%positive OF tptr tuint ] 
         PROP() LOCAL (`(eq p) (eval_id 1%positive))
-        SEP (`(array_at tuchar sh (cSome contents) 0 4 p))
+        SEP (`(array_at tuchar sh (cVint contents) 0 4 p))
   POST [ tuint ] 
      local (`(eq (Vint (big_endian_integer contents))) retval) &&
-     `(array_at tuchar sh (cSome contents) 0 4 p).
+     `(array_at tuchar sh (cVint contents) 0 4 p).
 
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
@@ -23,7 +25,7 @@ Definition __builtin_write32_reversed_spec :=
                      `(eq (Vint(big_endian_integer contents))) (eval_id 2%positive))
         SEP (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
-     `(array_at tuchar sh (cSome contents) 0 4 p).
+     `(array_at tuchar sh (cVint contents) 0 4 p).
 
 Definition memcpy_spec :=
   DECLARE _memcpy
@@ -32,12 +34,12 @@ Definition memcpy_spec :=
        PROP (writable_share (snd sh))
        LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
                     `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))
-       SEP (`(array_at tuchar (fst sh) (cSome contents) 0 n q);
+       SEP (`(array_at tuchar (fst sh) (cVint contents) 0 n q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at tuchar (fst sh) (cSome contents) 0 n q) *
-        `(array_at tuchar (snd sh) (cSome contents) 0 n p)).
+       (`(array_at tuchar (fst sh) (cVint contents) 0 n q) *
+        `(array_at tuchar (snd sh) (cVint contents) 0 n p)).
 
 Definition memset_spec :=
   DECLARE _memset
@@ -49,7 +51,7 @@ Definition memset_spec :=
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
-       (`(array_at tuchar sh (fun _ => Some c) 0 n p)).
+       (`(array_at tuchar sh (fun _ => Vint c) 0 n p)).
 
 Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
  intros.
@@ -63,8 +65,8 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  typed_mapsto Tsh t_struct_SHA256state_st c r.
 
-Definition tuints (vl: list int) := ZnthV tuint (map Some vl).
-Definition tuchars (vl: list int) :=  ZnthV tuchar (map Some vl).
+Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
+Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
 
 Definition data_block (sh: share) (contents: list Z) (v: val) :=
   array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents) v.

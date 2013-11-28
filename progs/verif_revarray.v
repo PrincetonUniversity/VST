@@ -11,10 +11,10 @@ Qed.
 
 Definition reverse_spec :=
  DECLARE _reverse
-  WITH a0: val, sh : share, contents : Z -> option int, size: Z
+  WITH a0: val, sh : share, contents : Z -> val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh;
-                    forall i, 0 <= i < size -> isSome (contents i))
+                    forall i, 0 <= i < size -> is_int (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
@@ -103,7 +103,7 @@ rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
 apply prop_right; split.
-apply isSome_e; apply POP.
+apply is_int_e; apply POP.
 rewrite if_false by omega.
 rewrite if_true by omega. omega.
 omega.
@@ -113,7 +113,7 @@ rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
 apply prop_right; split.
-apply isSome_e; apply POP.
+apply is_int_e; apply POP.
 rewrite if_false by omega. rewrite if_true by omega.
 omega. omega.
 
@@ -161,7 +161,7 @@ entailer.
  rewrite if_false by omega.
  rewrite if_true by omega.
  rewrite if_true by omega.
- assert (isSome (contents (size-1-i))).
+ assert (is_int (contents (size-1-i))).
  apply POP; omega.
  replace (size-i-1) with (size-1-i) by omega.
  destruct (contents (size-1-i)); try contradiction H6. reflexivity.
@@ -176,7 +176,7 @@ forward. (* return; *)
 Qed.
 
 Definition four_contents := (ZnthV tint
-           (map Some (map Int.repr (1::2::3::4::nil)))).
+           (map Vint (map Int.repr (1::2::3::4::nil)))).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
@@ -185,13 +185,13 @@ eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews,four_contents,4)) in (Value of witness).
 entailer!.
-intros. apply ZnthV_map_Some_isSome.
+intros. apply ZnthV_map_Vint_is_int.
 rewrite Zlength_correct; simpl; auto.
 forward.  (*  revarray(four,4); *)
 instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
 entailer!.
 intros. unfold flip, four_contents.
-apply ZnthV_map_Some_isSome.
+apply ZnthV_map_Vint_is_int.
  rewrite Zlength_correct; simpl length. change (Z.of_nat 4) with 4. omega.
 normalize.
 rewrite flip_flip.

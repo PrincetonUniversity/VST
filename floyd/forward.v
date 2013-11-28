@@ -16,12 +16,12 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
-Lemma isSome_e:
- forall {A} (x: option A), isSome x -> exists y, x = Some y.
+Lemma is_int_e:
+ forall x, is_int x -> exists y, x = Vint y.
 Proof. intros. destruct x; try contradiction; eauto. Qed.
 
-Lemma ZnthV_map_Some_isSome:
-  forall l i, 0 <= i < Zlength l -> isSome (ZnthV tint (map Some l) i).
+Lemma ZnthV_map_Vint_is_int:
+  forall l i, 0 <= i < Zlength l -> is_int (ZnthV tint (map Vint l) i).
 Proof.
 intros.
 unfold ZnthV.

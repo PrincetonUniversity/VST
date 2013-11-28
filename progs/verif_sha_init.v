@@ -20,7 +20,6 @@ start_function.
 name c_ _c.
 simpl_typed_mapsto.
 normalize.
-
 replace (array_at_ tuint Tsh) with (array_at tuint Tsh (ZnthV tuint nil))
  by (rewrite ZnthV_nil_None; reflexivity).
 
@@ -32,8 +31,8 @@ forward. (* c->Nh=0; *)
 forward. (* c->num=0; *)
 forward. (* return; *)
 unfold sha256state_.
-apply exp_right with (map Some init_registers, 
-      (Some Int.zero, (Some Int.zero, (nil, Some Int.zero)))).
+apply exp_right with (map Vint init_registers, 
+      (Vint Int.zero, (Vint Int.zero, (nil, Vint Int.zero)))).
 simpl_typed_mapsto.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
 entailer!.

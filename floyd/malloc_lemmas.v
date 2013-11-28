@@ -35,9 +35,9 @@ end.
 Fixpoint reptype (ty: type) : Type :=
   match ty with
   | Tvoid => unit
-  | Tint _ _ _ => option int
-  | Tlong _ _ => option Int64.int
-  | Tfloat _ _ => option float
+  | Tint _ _ _ => val
+  | Tlong _ _ => val
+  | Tfloat _ _ => val
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
   | Tfunction t1 t2 => unit
@@ -131,9 +131,9 @@ end.
 Fixpoint default_val (t: type) : reptype t :=
   match t as t0 return (reptype t0) with
   | Tvoid => tt
-  | Tint _ _ _ => None
-  | Tlong _ _ => None
-  | Tfloat _ _ => None
+  | Tint _ _ _ => Vundef
+  | Tlong _ _ => Vundef
+  | Tfloat _ _ => Vundef
   | Tpointer _ _ => Vundef
   | Tarray t0 _ _ => nil
   | Tfunction _ _ => tt
@@ -185,13 +185,13 @@ Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) 
 match t as t0 return ((reptype t0 -> val -> mpred) -> reptype t0 -> val -> mpred) with
 | Tint i s a =>
     fun (_ : reptype (Tint i s a) -> val -> mpred) (v2'0 : reptype (Tint i s a)) =>
-    at_offset' (field_umapsto sh t_str id (force_rep Vint v2'0)) pos
+    at_offset' (field_umapsto sh t_str id v2'0) pos
 | Tlong s a =>
     fun (_ : reptype (Tlong s a) -> val -> mpred) (v2'0 : reptype (Tlong s a)) =>
-    at_offset' (field_umapsto sh t_str id (force_rep Vlong v2'0)) pos
+    at_offset' (field_umapsto sh t_str id v2'0) pos
 | Tfloat f a =>
     fun (_ : reptype (Tfloat f a) -> val -> mpred) (v2'0 : reptype (Tfloat f a)) =>
-    at_offset' (field_umapsto sh t_str id (force_rep Vfloat v2'0)) pos
+    at_offset' (field_umapsto sh t_str id v2'0) pos
 | Tpointer t0 a =>
     fun _ v2 =>  at_offset' (field_umapsto sh t_str id v2) pos
 | Tcomp_ptr _ _ =>
@@ -213,19 +213,19 @@ match t1 as t return (t1 = t -> reptype t1 -> val -> mpred) with
       eq_rect_r (fun t2 : type => reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tint i s a)) =>
                 withspacer sh pos (alignof (Tint i s a))
-                (at_offset2 (umapsto sh (Tint i s a)) (align pos (alignof t1)) (force_rep Vint v3))) H
+                (at_offset2 (umapsto sh (Tint i s a)) (align pos (alignof t1)) v3)) H
 | Tlong s a =>
     fun H : t1 = Tlong s a =>
       eq_rect_r (fun t2 : type => reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tlong s a)) =>
                 withspacer sh pos (alignof (Tlong s a))
-                (at_offset2 (umapsto sh (Tlong s a)) (align pos (alignof t1)) (force_rep Vlong v3))) H
+                (at_offset2 (umapsto sh (Tlong s a)) (align pos (alignof t1)) v3)) H
 | Tfloat f a =>
     fun H : t1 = Tfloat f a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tfloat f a)) =>
                 withspacer sh pos (alignof (Tfloat f a))
-                (at_offset' (fun v => umapsto sh (Tfloat f a) v (force_rep Vfloat v3)) (align pos (alignof t1)))) H
+                (at_offset' (fun v => umapsto sh (Tfloat f a) v v3) (align pos (alignof t1)))) H
 | Tpointer t a => 
     fun H : t1 = Tpointer t a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)
@@ -425,11 +425,10 @@ Ltac simpl_typed_mapsto' T H MA :=
    change @opaque_emp with (@emp (val->mpred) _ _) in H;
    repeat
     match type of H with
-    | appcontext [fun (v1 : val) (v4 : option int) =>
-               umapsto ?sh ?t v1 (@force_rep int Vint v4)] =>
+    | appcontext [fun (v1 : val) (v4 : val) =>
+               umapsto ?sh ?t v1 v4] =>
         change
-          (fun (v1 : val) (v4 : option int) =>
-           umapsto sh t v1 (@force_rep int Vint v4))
+          (fun (v1 : val) (v4 : val) => umapsto sh t v1 v4)
          with (typed_mapsto sh t) in H
     | appcontext [(fun v:val => field_umapsto ?sh ?t ?f Vundef)] =>
           change (fun v :val => field_umapsto sh t f Vundef) with
@@ -571,12 +570,10 @@ Proof.
  rewrite Int.add_zero. auto.
 Qed.
 
-Lemma typed_mapsto_tint: forall sh (v1: environ -> val) (v2: environ -> option int),
-  `(typed_mapsto sh tint) v1 v2 =
-  `(umapsto sh tint)  v1  (`(force_rep Vint) v2).
+Lemma typed_mapsto_tint: forall sh,
+  typed_mapsto sh tint = umapsto sh tint.
 Proof.
- intros.
- extensionality rho. reflexivity. 
+ intros. reflexivity. 
 Qed.
 
 Lemma spacer_offset_zero:

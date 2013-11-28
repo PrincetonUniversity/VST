@@ -30,8 +30,8 @@ Implicit Arguments mf_restbuf [[t]].
 
 
 Program Definition intpair_message: message_format t_struct_intpair :=
-  mf_build 8 (fun data => isSome (fst data) /\ isSome (snd data))
-             (fun sh buf len data => !!(len=8/\ isSome (fst data) /\ isSome (snd data)) 
+  mf_build 8 (fun data => is_int (fst data) /\ is_int (snd data))
+             (fun sh buf len data => !!(len=8/\ is_int (fst data) /\ is_int (snd data)) 
                            && typed_mapsto sh t_struct_intpair buf data)
       _ _.
 Next Obligation.
@@ -87,7 +87,7 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
   EX fg: val*val,
           func_ptr (serialize_spec format) (fst fg) &&
           func_ptr (deserialize_spec format) (snd fg) &&
-       typed_mapsto sh t_struct_message m (Some (Int.repr (mf_size format)), (fst fg, snd fg)).
+       typed_mapsto sh t_struct_message m (Vint (Int.repr (mf_size format)), (fst fg, snd fg)).
 
 Definition Gprog : funspecs := 
     intpair_serialize_spec :: intpair_deserialize_spec :: main_spec::nil.
@@ -115,7 +115,7 @@ name buf0 _buf.
 name x _x.
 name y _y.
 destruct H0 as [Dx Dy].
-destruct data as [[x1|] [y1|]]; try contradiction. clear Dx Dy.
+destruct data as [[|x1 | | | ] [|y1 | | | ]]; try contradiction. clear Dx Dy.
 change (mf_size intpair_message) with (sizeof t_struct_intpair).
 rewrite memory_block_typed by reflexivity.
 (*rename H into H3. (*fix for (slightly) older coq versions*)*)
@@ -168,8 +168,8 @@ do 2 simpl_typed_mapsto.
 destruct data as (x1,y1); simpl in *.
 normalize.
 destruct H1 as [? [? ?]].
-destruct x1 as [x1|]; try contradiction.
-destruct y1 as [y1|]; try contradiction.
+destruct x1 as [|x1| | |]; try contradiction.
+destruct y1 as [|y1| | |]; try contradiction.
 clear H2 H3.
 apply semax_pre with
  (PROP  (isptr buf)
@@ -417,7 +417,7 @@ replace_SEP 0%Z (EX fg: val*val,
             `(func_ptr (deserialize_spec msg) (snd fg)) &&
             `(typed_mapsto sh_obj t_struct_message)
                   (eval_lvalue e_obj)
-                 `((Some (Int.repr (mf_size msg)), (fst fg, snd fg)))).
+                 `((Vint (Int.repr (mf_size msg)), (fst fg, snd fg)))).
 entailer. apply exp_right with x0. entailer.
 extract_exists_in_SEP. intros [f g].
 simpl @fst; simpl @ snd.
@@ -668,7 +668,7 @@ Ltac gather_SEP' L :=
  end.
 gather_SEP' (0::1::nil).
 replace_SEP 0 (`(typed_mapsto Tsh t_struct_intpair)
-                      (eval_var _p t_struct_intpair) `((Some (Int.repr 1), Some (Int.repr 2)))).
+                      (eval_var _p t_struct_intpair) `((Vint (Int.repr 1), Vint (Int.repr 2)))).
 simpl_typed_mapsto.
 entailer. cancel.
 simpl update_tycon.
@@ -712,11 +712,11 @@ apply closed_wrt_LOCALx; [ auto 50 with closed | ].
 apply closed_wrt_SEPx.
 assert (CLX: closed_wrt_vars (eq _des)
   (`(mf_assert intpair_message Tsh) (eval_var _buf (tarray tuchar 8))
-     (`Int.signed (`force_int (eval_id _len))) `((Some (Int.repr 1), Some (Int.repr 2)))))
+     (`Int.signed (`force_int (eval_id _len))) `((Vint (Int.repr 1), Vint (Int.repr 2)))))
   by admit.
 assert (CLY: closed_wrt_vars (eq _des)
   (`(typed_mapsto Tsh t_struct_intpair) (eval_var _p t_struct_intpair)
-     `((Some (Int.repr 1), Some (Int.repr 2)))))
+     `((Vint (Int.repr 1), Vint (Int.repr 2)))))
  by admit.
 auto 50 with closed.
 focus_SEP 1.

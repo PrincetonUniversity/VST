@@ -29,9 +29,9 @@ Qed.
 
 Definition repinject (t: type) : reptype t -> val :=
   match t as t0 return reptype t0 -> val with
- | Tint _ _ _ => force_rep Vint
- | Tlong _ _ => force_rep Vlong
- | Tfloat _ _ => force_rep Vfloat
+ | Tint _ _ _ => fun v => v
+ | Tlong _ _ => fun v => v
+ | Tfloat _ _ => fun v => v
  | Tpointer _ _ => fun v => v
   | _ => fun _ => Vundef
  end.
@@ -217,11 +217,11 @@ Definition defined_rep {t} : reptype t -> Prop :=
 match t as t0 return (reptype t0 -> Prop) with
 | Tvoid => fun _ : reptype Tvoid => False
 | Tint i s a =>
-    fun v0 : reptype (Tint i s a) => exists v' : int, v0 = Some v'
+    fun v0 : reptype (Tint i s a) => exists v' : int, v0 = Vint v'
 | Tlong s a =>
-    fun v0 : reptype (Tlong s a) => exists v' : int64, v0 = Some v'
+    fun v0 : reptype (Tlong s a) => exists v' : int64, v0 = Vlong v'
 | Tfloat f a =>
-    fun v0 : reptype (Tfloat f a) => exists v' : float, v0 = Some v'
+    fun v0 : reptype (Tfloat f a) => exists v' : float, v0 = Vfloat v'
 | Tpointer t0 a => fun v0 : reptype (Tpointer t0 a) => is_pointer_or_null v0
 | Tarray t0 z a => fun _ : reptype (Tarray t0 z a) => False
 | Tfunction t0 t1 => fun _ : reptype (Tfunction t0 t1) => False

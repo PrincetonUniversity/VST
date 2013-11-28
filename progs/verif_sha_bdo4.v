@@ -166,7 +166,7 @@ eapply semax_frame_seq
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist (map swap b))) data _ sh 
                      (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))));
     [ reflexivity | reflexivity | reflexivity | auto 50 with closed | 
-      intros; apply ZnthV_map_Some_isSome; rewrite Zlength_correct, map_length;
+      intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1
       | ]
    | | | ].
@@ -200,9 +200,9 @@ simpl typeof.
 forward. (* X[i]=l; *)
 clear POSTCONDITION MORE_COMMANDS.
 instantiate (2:= Z.of_nat i).
-instantiate (1:= Some (big_endian_integer
+instantiate (1:= Vint (big_endian_integer
           (fun z : Z =>
-           force_option Int.zero
+           force_int
              (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
                 (z + Z.of_nat i * 4))))).
 abstract (entailer; apply prop_right; repeat split; try omega; eapply eval_var_isptr; eauto).
@@ -210,8 +210,8 @@ abstract (entailer; apply prop_right; repeat split; try omega; eapply eval_var_i
 rewrite loop1_aux_lemma1; auto.
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
-assert (isSome (tuints K (Z.of_nat i))) 
- by abstract (clear - H0; apply ZnthV_map_Some_isSome;
+assert (is_int (tuints K (Z.of_nat i))) 
+ by abstract (clear - H0; apply ZnthV_map_Vint_is_int;
         split; try omega; apply Z.lt_trans with 16%Z; [omega | compute; auto]).
 unfold K_vector.
 forward.  (* Ki=K256[i]; *)
@@ -219,7 +219,7 @@ forward.  (* Ki=K256[i]; *)
 
 abstract (
   assert (Zlength K = 64%Z) by reflexivity;
-  entailer!; [ apply (isSome_e _ H1) | omega.. ]).
+  entailer!; [ apply (is_int_e _ H1) | omega.. ]).
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 

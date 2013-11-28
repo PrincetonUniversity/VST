@@ -6,14 +6,14 @@ Local Open Scope logic.
 Definition force_option {A} (x:A) (i: option A) := 
   match i with Some y => y | None => x end.
 
-Definition add_elem (f: Z -> option int) (i: Z) := Int.add (force_option Int.zero (f i)).
+Definition add_elem (f: Z -> val) (i: Z) := Int.add (force_int (f i)).
 
 Definition sumarray_spec :=
  DECLARE _sumarray
-  WITH a0: val, sh : share, contents : Z -> option int, size: Z
+  WITH a0: val, sh : share, contents : Z -> val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed;
-                    forall i, 0 <= i < size -> isSome (contents i))
+                    forall i, 0 <= i < size -> is_int (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
@@ -79,7 +79,7 @@ Lemma fold_range_fact1:
   lo <= hi ->
   fold_range (add_elem contents) Int.zero lo (Z.succ hi) =
   Int.add (fold_range (add_elem contents) Int.zero lo hi) 
-                 (force_option Int.zero (contents hi)).
+                 (force_int (contents hi)).
 Proof.
 intros.
 unfold Z.succ.
@@ -150,7 +150,7 @@ forward.  (* return s; *)
 Qed.
 
 Definition four_contents := (ZnthV tint
-           (map Some (map Int.repr (1::2::3::4:: nil)))).
+           (map Vint (map Int.repr (1::2::3::4:: nil)))).
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
@@ -160,7 +160,7 @@ apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
 forward.  (*  r = sumarray(four,4); *)
 instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
  entailer!. 
-   intros. unfold four_contents. apply ZnthV_map_Some_isSome. apply H2.
+   intros. unfold four_contents. apply ZnthV_map_Vint_is_int. apply H2.
  auto with closed.
  forward. (* return s; *)
  unfold main_post. entailer!.

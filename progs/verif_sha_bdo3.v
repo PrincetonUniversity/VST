@@ -180,7 +180,7 @@ Lemma rearrange_regs_proof:
    `(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
    `(eq (Vint (big_endian_integer
              (fun z : Z =>
-              force_option Int.zero
+              force_int
                 (tuchars (map Int.repr (intlist_to_Zlist (map swap bl)))
                    (z + Z.of_nat i * 4))))))
        (eval_id _l);
@@ -305,10 +305,10 @@ forall sh b i N,
   i < N ->
  array_at tuint sh
        (upd (f_upto (tuints b) (Z.of_nat i)) (Z.of_nat i)
-          (Some
+          (Vint
              (big_endian_integer
                 (fun z : Z =>
-                 force_option Int.zero
+                 force_int
                    (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
                       (z + Z.of_nat i * 4))))))
         0 (Z.of_nat N) =
@@ -337,7 +337,6 @@ subst.
 rewrite if_true by (rewrite inj_S; omega).
 unfold tuints, ZnthV. rewrite if_false by omega. rewrite Nat2Z.id.
 clear - H3; revert b H3; induction i; destruct b; intros; inv H3; simpl; auto.
-rewrite H0. apply IHi. auto.
 unfold f_upto.
 if_tac. rewrite if_true by (rewrite inj_S; omega); auto.
 rewrite if_false; auto.
@@ -346,13 +345,13 @@ omega.
 Qed.
 
 Lemma read32_reversed_in_bytearray:
- forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh contents i P Q
+ forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh (contents: Z -> val) i P Q
  (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 
  (GS: (glob_types Delta) ! ___builtin_read32_reversed =
     Some (Global_func (snd __builtin_read32_reversed_spec)))
  (TE: typeof e = tptr tuint)
  (CLOQ: Forall (closed_wrt_vars (eq i)) Q)
- (Hcontents: forall i, (lo <= i < hi)%Z -> isSome (contents i)),
+ (Hcontents: forall i, (lo <= i < hi)%Z -> is_int (contents i)),
  PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
          LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
          SEP  (TT) ->
@@ -363,10 +362,9 @@ Lemma read32_reversed_in_bytearray:
            [e])
         (normal_ret_assert
          (PROP () 
-         (LOCALx (`(eq (Vint (big_endian_integer (fun z => force_option Int.zero (contents (z+Int.unsigned ofs)%Z))))) (eval_id i)
+         (LOCALx (`(eq (Vint (big_endian_integer (fun z => force_int (contents (z+Int.unsigned ofs)%Z))))) (eval_id i)
                         :: Q)                 
          SEP (`(array_at tuchar sh contents lo hi base))))).
-(*Admitted. *)
 Proof.
 intros.
 apply semax_pre with
@@ -412,7 +410,7 @@ apply GS.
 Unfocus.
 instantiate (3:=nil).
 apply andp_left2.
-instantiate (2:=(offset_val ofs base, sh, fun z => force_option Int.zero (contents (z + Int.unsigned ofs)%Z))).
+instantiate (2:=(offset_val ofs base, sh, fun z => force_int (contents (z + Int.unsigned ofs)%Z))).
 cbv beta iota.
 instantiate (1:=nil).
 unfold split; simpl @snd.
@@ -431,10 +429,11 @@ pattern ofs at 4;
 rewrite <- offset_val_array_at.
 apply derives_refl'.
 apply equal_f. rewrite Z.add_0_r. apply array_at_ext.
-intros. unfold cSome. rewrite Z.sub_add.
+intros. unfold cVint. rewrite Z.sub_add.
 clear - H5 H0 Hcontents.
 specialize (Hcontents i0);
- destruct (contents i0); [ | elimtype False; apply Hcontents; omega]. reflexivity.
+ destruct (contents i0); 
+  try solve [elimtype False; apply Hcontents; omega]. reflexivity.
 2: auto with closed.
 intros; apply andp_left2.
 apply normal_ret_assert_derives'.
@@ -447,8 +446,8 @@ pattern ofs at 2;
 rewrite <- offset_val_array_at.
 apply equal_f. rewrite Z.add_0_r. 
 apply array_at_ext; intros.
-unfold cSome. rewrite Z.sub_add.
+unfold cVint. rewrite Z.sub_add.
 clear - H3 H0 Hcontents.
 specialize (Hcontents i0); destruct (contents i0);
-  [reflexivity | contradiction Hcontents; omega].
+  try reflexivity;  contradiction Hcontents; omega.
 Qed.

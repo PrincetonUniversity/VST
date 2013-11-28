@@ -363,7 +363,7 @@ apply semax_pre with
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
    SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
     `(sha256_length (hilo hi lo + Z.of_nat len) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Some dd)) 0 64 (offset_val (Int.repr 40) c));
+   `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd)) 0 64 (offset_val (Int.repr 40) c));
    `(field_mapsto Tsh t_struct_SHA256state_st _num c (Vint (Int.repr (Zlength dd))));
    K_vector;
    `(data_block sh data d))).
@@ -516,9 +516,9 @@ rewrite map_length; auto.
  unfold sha256_length.
  normalize.
  apply exp_right with 
-              (map Some (process_msg init_registers (hashed ++ blocks)),
-                (Some x, (Some x0, (nil, 
-                 Some Int.zero)))).
+              (map Vint (process_msg init_registers (hashed ++ blocks)),
+                (Vint x, (Vint x0, (nil, 
+                 Vint Int.zero)))).
  simpl_typed_mapsto; unfold s256_relate.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply andp_right; [apply prop_right | cancel].

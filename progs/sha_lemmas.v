@@ -75,8 +75,8 @@ Lemma nth_big_endian_integer'':
    nth_error bl i = Some w ->
     w = big_endian_integer
                  (fun z : Z =>
-                  force_option Int.zero
-                    (ZnthV tuchar (map Some (map Int.repr (intlist_to_Zlist (map swap bl))))
+                  force_int
+                    (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist (map swap bl))))
                        (z + Z.of_nat i * 4))).
 Proof.
 induction i; destruct bl; intros; inv H.
@@ -128,8 +128,7 @@ Proof. reflexivity. Qed.
 
 Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
 
-Definition s256state := (list (option int) * (option int * (option int
-                                          * (list (option int) * option int))))%type.
+Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.
 Definition s256_Nl (s: s256state) := fst (snd s).
 Definition s256_Nh (s: s256state) := fst (snd (snd s)).
@@ -152,13 +151,13 @@ Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
-         s256_h r = map Some (process_msg init_registers hashed) 
-       /\ (exists hi, exists lo, s256_Nh r = Some hi /\ s256_Nl r = Some lo /\
+         s256_h r = map Vint (process_msg init_registers hashed) 
+       /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
             Zlength (intlist_to_Zlist (hashed)++data) = hilo hi lo)
-       /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Some dd)
+       /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Vint dd)
        /\ length data < CBLOCK
        /\ NPeano.divide LBLOCK (length hashed)
-       /\ s256_num r = Some (Int.repr (Zlength data))
+       /\ s256_num r = Vint (Int.repr (Zlength data))
      end.
 
 Lemma length_map2:
