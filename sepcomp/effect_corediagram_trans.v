@@ -13,8 +13,9 @@ Require Import sepcomp.core_semantics.
 Require Import effect_semantics.
 
 Require Import sepcomp.StructuredInjections.
-(*not needed: Require Import effect_simulations.*)
+Require Import effect_simulations.
 Require Import effect_simulations_lemmas.
+Require Import effect_properties.
 Require Import sepcomp.forward_simulations_trans.
 Require Import Wellfounded.
 Require Import Relations.
@@ -807,8 +808,7 @@ Lemma effdiagram_strong_injinj: forall
                  effstep Sem1 g1 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data12) (st2 : C2) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> 
-                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                 (forall b ofs, U1 b ofs = true -> vis mu b = true) ->
                  match_core12 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C2) (m2' : mem) (cd' : core_data12) (mu' : SM_Injection),
@@ -834,8 +834,7 @@ Lemma effdiagram_strong_injinj: forall
                  effstep Sem2 g2 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data23) (st2 : C3) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> 
-                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                 (forall b ofs, U1 b ofs = true -> vis mu b = true) ->
                  match_core23 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C3) (m2' : mem) (cd' : core_data23) (mu' : SM_Injection),
@@ -886,9 +885,7 @@ Lemma effdiagram_strong_injinj: forall
          frgnBlocksTgt mu12 b = true -> frgnBlocksSrc mu23 b = true))
   (MC12 : match_core12 d12 mu12 st1 m1 st2 m2)
   (MC23 : match_core23 d23 mu23 st2 m2 st3 m3)
-  (UHyp : forall b ofs, U1 b ofs = true -> 
-         (locBlocksSrc (compose_sm mu12 mu23) b = true \/
-         frgnBlocksSrc (compose_sm mu12 mu23) b = true)),
+  (UHyp : forall b ofs, U1 b ofs = true -> vis (compose_sm mu12 mu23) b = true),
 exists
   (st2' : C3) (m2' : mem) (cd' : core_data12 * option C2 * core_data23) (mu' : SM_Injection),
   intern_incr (compose_sm mu12 mu23) mu' /\
@@ -921,7 +918,7 @@ exists
         foreign_of (compose_sm mu12 mu23) b1 = Some (b, delta1) /\
         U1 b1 (ofs - delta1) = true)))).
 Proof.
-  intros. simpl in UHyp.
+  intros. rewrite vis_compose_sm in UHyp. simpl in UHyp.
   intros. 
   destruct (eff_diagram12 _ _ _ _ _ CS1 _ _ _ _ UHyp MC12)
     as [st2' [m2' [d12' [mu12' [InjIncr12 [InjSep12 [LocAlloc12
@@ -1030,13 +1027,12 @@ Proof.
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
   subst.
-  assert (UHyp2 : forall b2 z, U2 b2 z = true ->
-                locBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
-      intros. destruct (MOD21 _ _ H0).
+  assert (UHyp2 : forall b2 z, U2 b2 z = true -> vis mu23 b2 = true).
+      intros. unfold vis. destruct (MOD21 _ _ H0).
       remember (locBlocksSrc mu23 b2) as d.
-      destruct d; apply eq_sym in Heqd. left; trivial.
+      destruct d; apply eq_sym in Heqd; trivial.
       destruct (H4 (eq_refl _)) as [b1 [d1 [Frg1 HU1]]]; clear H2.
-      right.
+      simpl. 
       apply H3.
       eapply (foreign_DomRng _ (match_sm_wd12 _ _ _ _ _ _ MC12) _ _ _ Frg1).
   clear MC12 InjIncr12 InjSep12 MC12' match_sm_wd12 match_validblock12 (*MatchHyp12*). 
@@ -1100,17 +1096,14 @@ Proof.
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
     assert (U2'Hyp: forall b2 z, U2 b2 z || freshloc m2 m2' b2 = true ->
-                locBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
+                vis mu23' b2 = true).
         intros. clear IHx StepN2.
         apply orb_true_iff in H.
-        destruct H.
-          destruct (UHyp2 _ _ H).
-            left. eapply InjInc23. apply H0.
-            right. assert (frgnBlocksSrc mu23 = frgnBlocksSrc mu23'). eapply InjInc23.
-                   rewrite H1 in H0. apply H0.
-          left. assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
+        destruct H. apply UHyp2 in H. eapply intern_incr_vis; eassumption. 
+        unfold vis.
+          assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
                    apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
-                rewrite H0; clear H0. rewrite H. apply orb_true_r.
+          rewrite H0; clear H0. rewrite H. intuition. 
 
     destruct (IHx _ _ d23' _ _ c3' m3' StepN2 MC23' XX1 XX2 U2'Hyp)
         as [c3'' [m3'' [d23'' [mu23'' [ZZ [InjIncr' 
@@ -1257,8 +1250,8 @@ Lemma effdiagram_strong_perm_injinj: forall
                  effstep Sem1 g1 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data12) (st2 : C2) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> 
-                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                 (forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
+                                vis mu b = true) ->
                  match_core12 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C2) (m2' : mem) (cd' : core_data12) (mu' : SM_Injection),
@@ -1285,8 +1278,8 @@ Lemma effdiagram_strong_perm_injinj: forall
                  effstep Sem2 g2 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data23) (st2 : C3) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> 
-                      (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)) ->
+                 (forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
+                                vis mu b = true) ->
                  match_core23 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C3) (m2' : mem) (cd' : core_data23) (mu' : SM_Injection),
@@ -1338,9 +1331,8 @@ Lemma effdiagram_strong_perm_injinj: forall
          frgnBlocksTgt mu12 b = true -> frgnBlocksSrc mu23 b = true))
   (MC12 : match_core12 d12 mu12 st1 m1 st2 m2)
   (MC23 : match_core23 d23 mu23 st2 m2 st3 m3)
-  (UHyp : forall b ofs, U1 b ofs = true -> 
-         (locBlocksSrc (compose_sm mu12 mu23) b = true \/
-         frgnBlocksSrc (compose_sm mu12 mu23) b = true)),
+  (UHyp : forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
+          vis (compose_sm mu12 mu23) b = true),
 exists
   (st2' : C3) (m2' : mem) (cd' : core_data12 * option C2 * core_data23) (mu' : SM_Injection),
   intern_incr (compose_sm mu12 mu23) mu' /\
@@ -1374,7 +1366,7 @@ exists
         U1 b1 (ofs - delta1) = true /\
         Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))).
 Proof.
-  intros. simpl in UHyp.
+  intros. rewrite vis_compose_sm in UHyp. simpl in UHyp.
   intros. 
   destruct (eff_diagram12 _ _ _ _ _ CS1 _ _ _ _ UHyp MC12)
     as [st2' [m2' [d12' [mu12' [InjIncr12 [InjSep12 [LocAlloc12
@@ -1484,13 +1476,14 @@ Proof.
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
   subst.
-  assert (UHyp2 : forall b2 z, U2 b2 z = true ->
-                locBlocksSrc mu23 b2 = true \/ frgnBlocksSrc mu23 b2 = true).
-      intros. destruct (MOD21 _ _ H0).
+  assert (UHyp2 : forall b2 z, U2 b2 z = true -> Mem.valid_block m2 b2 ->
+                          vis mu23 b2 = true).
+      intros. clear H1. unfold vis.
+      destruct (MOD21 _ _ H0).
       remember (locBlocksSrc mu23 b2) as d.
-      destruct d; apply eq_sym in Heqd. left; trivial.
+      destruct d; apply eq_sym in Heqd. trivial.
       destruct (H4 (eq_refl _)) as [b1 [d1 [Frg1 HU1]]]; clear H2.
-      right.
+      simpl.
       apply H3.
       eapply (foreign_DomRng _ (match_sm_wd12 _ _ _ _ _ _ MC12) _ _ _ Frg1).
   clear MC12 InjIncr12 InjSep12 MC12' match_sm_wd12 match_validblock12 (*MatchHyp12*). 
@@ -1553,22 +1546,29 @@ Proof.
     assert (FWD3: mem_forward m3 m3').
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
-    assert (U2'Hyp: forall b2 z, U2 b2 z || freshloc m2 m2' b2 = true ->
-                locBlocksSrc mu23' b2 = true \/ frgnBlocksSrc mu23' b2 = true).
+    assert (U2'Hyp: forall b2 z, (U2 b2 z && valid_block_dec m2 b2) || freshloc m2 m2' b2 = true ->
+                Mem.valid_block m2' b2 ->
+                vis mu23' b2 = true).
         intros. clear IHx StepN2.
         apply orb_true_iff in H.
-        destruct H.
-          destruct (UHyp2 _ _ H).
-            left. eapply InjInc23. apply H0.
-            right. assert (frgnBlocksSrc mu23 = frgnBlocksSrc mu23'). eapply InjInc23.
-                   rewrite H1 in H0. apply H0.
-          left. assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
+        destruct H. apply andb_true_iff in H. destruct H. 
+          destruct (valid_block_dec m2 b2); simpl; inv H1.
+            specialize (UHyp2 _ _ H v).
+            eapply intern_incr_vis; eassumption.
+          assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
                    apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
-                rewrite H0; clear H0. rewrite H. apply orb_true_r.
+          unfold vis. rewrite H1; clear H1. rewrite H. intuition.
 
-    destruct (IHx _ _ d23' _ _ c3' m3' StepN2 MC23' XX1 XX2 U2'Hyp)
+    destruct (IHx _ _ d23' _ _ c3' m3' StepN2 MC23' XX1 XX2)
         as [c3'' [m3'' [d23'' [mu23'' [ZZ [InjIncr' 
              [InjSep' [LocAlloc23' [MC23'' [U3' [StepN3 MOD32']]]]]]]]]]]; clear IHx.
+       intros. eapply U2'Hyp. apply orb_true_iff in H. 
+         destruct (valid_block_dec m2 b2); simpl.
+           rewrite freshloc_charT in H. 
+           destruct H. apply orb_true_iff. left. apply andb_true_iff. split; trivial. apply H.
+           destruct H. contradiction.
+         apply orb_true_iff. right. rewrite freshloc_charT. split; trivial.
+        assumption.     
     assert (FWD3': mem_forward m3' m3'').
         destruct StepN3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.

@@ -27,50 +27,6 @@ Declare Module EFFAX : EffectInterpolationAxioms.
 
 Import SM_simulation.
 
-Lemma compose_sm_EraseUnknown: forall mu1 mu2 (WD1: SM_wd mu1)
-   (F: forall b, frgnBlocksTgt mu1 b = true -> frgnBlocksSrc mu2 b = true),
-   EraseUnknown (compose_sm mu1 mu2) =
-   compose_sm (EraseUnknown mu1) (EraseUnknown mu2).
-Proof. intros.
-  unfold compose_sm; simpl.
-  do 2 rewrite EraseUnknown_extern.
-  do 2 rewrite EraseUnknown_local.
-  f_equal; try (destruct mu1; simpl; reflexivity).
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  extensionality b. unfold compose_meminj.
-  remember (frgnBlocksSrc mu1 b) as f.
-  destruct f; trivial; apply eq_sym in Heqf.
-  destruct (frgnSrc _ WD1 _ Heqf) as [b2 [d1 [F1 FT2]]].
-  apply F in FT2; clear F.
-  rewrite (foreign_in_extern _ _ _ _ F1), FT2. trivial.
-Qed.
-
-Lemma compose_sm_TrimUnknown: forall mu1 mu2,
-   TrimUnknown (compose_sm mu1 mu2) =
-   compose_sm mu1 (TrimUnknown mu2).
-Proof. intros.
-  unfold compose_sm; simpl.
-  rewrite TrimUnknown_extern.
-  rewrite TrimUnknown_local.
-  f_equal; try (destruct mu1; simpl; reflexivity).
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  destruct mu2; simpl; reflexivity.
-  extensionality b1. unfold compose_meminj.
-  remember (extern_of mu1 b1) as d.
-  destruct d; apply eq_sym in Heqd; trivial.
-  destruct p as [b2 delta1].
-  remember (extern_of mu2 b2) as w.
-  destruct w; apply eq_sym in Heqw; trivial.
-  destruct p as [b3 delta2].
-  remember (frgnBlocksTgt mu2 b3) as f.
-  destruct f; trivial.
-Qed.
-
 Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
   exists m2 j1 j2, j = compose_meminj j1 j2 /\
        Mem.inject j1 m1 m2 /\ Mem.inject j2 m2 m3 /\
@@ -210,13 +166,15 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   intros.
   destruct SIM12 
     as [core_data12 match_core12 core_ord12 core_ord_wf12 
-      match_sm_wd12 genvs_dom_eq12 match_genv12 match_norm12 (*match_eraseUnknown12*)
+      match_sm_wd12 genvs_dom_eq12 match_genv12
+      match_norm12 match_erase12 (*match_eraseUnknown12*)
       match_validblock12 core_initial12 core_diagram12 eff_diagram12 
       strong_diagram12 strongperm_diagram12
       core_halted12 core_at_external12 eff_after_external12].  
   destruct SIM23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
-      match_sm_wd23 genvs_dom_eq23 match_genv23 match_norm23 (*match_eraseUnknown23*)
+      match_sm_wd23 genvs_dom_eq23 match_genv23
+      match_norm23 match_erase23 (*match_eraseUnknown23*)
       match_validblock23 core_initial23 core_diagram23 eff_diagram23
       strong_diagram23 strongperm_diagram23
       core_halted23 core_at_external23 eff_after_external23].
@@ -273,17 +231,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
          solve [eapply meminj_preserves_globals_ind_compose; eassumption].
   apply GE12b.
  (*match_norm*)
-    clear genvs_dom_eq12 match_genv12 genvs_dom_eq23 match_genv23 
-    match_validblock12 match_validblock23 core_diagram23  core_halted23 
-    core_at_external23 (*eff_after_external23*) core_diagram12 strong_diagram12
-    core_halted12 core_at_external12 (*eff_after_external12*)
-    eff_diagram12 strong_diagram23 eff_diagram23.
-    clear eff_after_external23 core_initial23 eff_after_external12
-          core_initial12.
-    intros. rename c2 into c3.  rename m2 into m3.
-      destruct d as [[d12 cc2] d23]. rename mu23 into downstreamMu.
+    clear - match_norm12 match_norm23 match_sm_wd12 match_sm_wd23.
+    intros. rename c2 into c3. rename m2 into m3.
+      destruct d as [[d12 cc2] d23].
       destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-
+      simpl. rewrite vis_compose_sm. eapply match_norm12. eassumption. (*
     specialize (match_norm23 _ _ _ _ _ _ MC23 downstreamMu H0).
     specialize (match_norm12 _ _ _ _ _ _ MC12 (sm_extern_normalize mu23 downstreamMu)).
     exists c2, m2.
@@ -307,7 +259,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
                 eauto. apply H0. apply H0.
       rewrite sm_extern_normalize_locBlocksSrc, sm_extern_normalize_extBlocksSrc,
               sm_extern_normalize_pubBlocksSrc, sm_extern_normalize_frgnBlocksSrc.
-      apply INV. 
+      apply INV. *)
  (*TrimUnknown
     clear match_norm12 match_norm23 core_diagram23  core_halted23 
        core_at_external23 (*eff_after_external23 *)
@@ -337,6 +289,81 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     split. eapply compose_sm_EraseUnknown. eauto. eapply INV.
     split. destruct mu12; destruct mu23; simpl in *. apply INV.
     split; assumption.*)
+ (*match_restrict*)
+    clear - match_erase12 match_erase23.
+    intros. rename c2 into c3. rename m2 into m3.
+    destruct d as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [mu12 [mu23 [XX [J [INV [MC12 MC23]]]]]]]]; subst.
+    simpl in *.
+    exists c2, m2, (restrict_sm mu12 X), mu23.
+    specialize (match_erase12 _ _ _ _ _ _ X MC12 H0 H1).
+    intuition.
+    unfold compose_sm; simpl. 
+    f_equal; try (destruct mu12; reflexivity).
+      destruct mu12; simpl in *.
+        unfold compose_meminj, restrict. extensionality b.
+        remember (X b) as d.
+        destruct d; trivial.
+      destruct mu12; simpl in *.
+        unfold compose_meminj, restrict. extensionality b.
+        remember (X b) as d.
+        destruct d; trivial.
+      destruct mu12; simpl in *. assumption.
+      destruct mu12; simpl in *. assumption.
+      destruct mu12; simpl in *. apply (H2 _ H4).
+      destruct mu12; simpl in *. apply (H5 _ H4).
+ (*match_erase
+    clear - match_erase12 match_erase23.
+    intros. rename c2 into c3. rename m2 into m3.
+    destruct d as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [mu12 [mu23 [XX [J [INV [MC12 MC23]]]]]]]]; subst.
+     (*assert (ER12: erasable mu12 m1 (fun b => X b && negb(mapped (as_inj mu12) b))).
+      destruct H0 as [ERa ERb]; simpl in ERa, ERb.
+      split; intros.
+         intros b Hb. remember (mapped (as_inj mu12) b).
+              destruct b0; simpl. rewrite negb_true_iff. rewrite andb_false_r. trivial.
+         apply REACHAX in Hb. destruct Hb as [L HL].
+         generalize dependent b.
+         induction L; simpl; intros; inv HL.
+             rewrite andb_true_iff in H.
+             rewrite negb_true_iff in H. destruct H.
+             congruence.
+         specialize (IHL _ H1); clear H1.
+           remember (mapped (as_inj mu12) b') as d.
+           destruct d. 
+      split; assumption.
+    specialize (match_erase12 _ _ _ _ _ _ _ MC12 ER12).
+    exists c2, m2, (Erase mu12 X). exists mu23.
+    simpl. intuition.
+      unfold Erase, compose_sm; simpl. destruct mu12; simpl in *.
+        f_equal. extensionality b. 
+        unfold compose_meminj.
+        remember (X b) as d.
+        destruct d; trivial. 
+      unfold Erase; simpl. destruct mu12; simpl in *. assumption.
+      unfold Erase; simpl. destruct mu12; simpl in *. assumption.
+      unfold Erase in H3; simpl. destruct mu12; simpl in *. apply (H1 _ H3).
+      unfold Erase in H3; simpl. destruct mu12; simpl in *. apply (H4 _ H3).*)
+ *)(*match_erase
+    clear - match_erase12 match_erase23.
+    intros. rename c2 into c3. rename m2 into m3.
+    destruct d as [[d12 cc2] d23].
+    destruct H as [c2 [m2 [mu12 [mu23 [XX [J [INV [MC12 MC23]]]]]]]]; subst.
+    assert (ER12: erasable mu12 m1 X).
+      destruct H0 as [ERa ERb]; simpl in ERa, ERb.
+      split; assumption.
+    specialize (match_erase12 _ _ _ _ _ _ _ MC12 ER12).
+    exists c2, m2, (Erase mu12 X). exists mu23.
+    simpl. intuition.
+      unfold Erase, compose_sm; simpl. destruct mu12; simpl in *.
+        f_equal. extensionality b. 
+        unfold compose_meminj.
+        remember (X b) as d.
+        destruct d; trivial. 
+      unfold Erase; simpl. destruct mu12; simpl in *. assumption.
+      unfold Erase; simpl. destruct mu12; simpl in *. assumption.
+      unfold Erase in H3; simpl. destruct mu12; simpl in *. apply (H1 _ H3).
+      unfold Erase in H3; simpl. destruct mu12; simpl in *. apply (H4 _ H3).*)
  (*sm_valid*)
     clear genvs_dom_eq12 match_genv12 genvs_dom_eq23 match_genv23 
        match_norm12 match_norm23 core_diagram23  core_halted23 
@@ -527,7 +554,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
   destruct H0 as [c2 [m2 [j12 [j23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-  eapply effdiagram_strong_perm_injinj; try eassumption.
+  eapply effdiagram_strong_perm_injinj; eassumption.
 (*halted*)
   clear match_norm12 match_norm23 core_initial23 core_at_external23 eff_after_external23
     core_initial12  core_at_external12 eff_after_external12
@@ -826,29 +853,90 @@ Qed.*)
 (*eff_after_external - version using match_norm*)
   clear core_diagram12 core_initial12 core_halted12 eff_diagram12 
         core_diagram23 core_initial23 core_halted23 eff_diagram23
-        strong_diagram23 strong_diagram12 match_norm23 
-        (*match_eraseUnknown12 match_eraseUnknown23*).
+        strong_diagram23 strong_diagram12 
+        strongperm_diagram23 strongperm_diagram12 (*match_eraseUnknown12 match_eraseUnknown23*).
   intros. rename st2 into st3. rename m2 into m3. 
           rename vals2 into vals3'. rename m2' into m3'.
           rename UnchLOOR into UnchLOOR13.
   destruct cd as [[d12 cc2] d23].
   destruct MatchMu as [st2 [m2 [mu12 [mu23 [Hst2 [HMu [GLUEINV [MC12 MC23]]]]]]]].
-  assert (NormMC12: match_core12 d12 (sm_extern_normalize mu12 mu23) st1 m1 st2 m2).
-      eapply (match_norm12 _ _ _ _ _ _ MC12 mu23).
-      split. eauto. apply GLUEINV.
-  
   assert (WDmu12:= match_sm_wd12 _ _ _ _ _ _ MC12).
-  clear MC12. remember (sm_extern_normalize mu12 mu23) as nmu12.
-  assert (WDnmu12:= match_sm_wd12 _ _ _ _ _ _ NormMC12).
   assert (WDmu23:= match_sm_wd23 _ _ _ _ _ _ MC23).
+  remember (fun b => locBlocksSrc mu12 b || frgnBlocksSrc mu12 b || mapped (as_inj (compose_sm mu12 mu23)) b)
+      as RESTR.
+  assert (NormMC12: match_core12 d12 (restrict_sm mu12 RESTR) st1 m1 st2 m2).
+     apply match_erase12. apply MC12.
+     subst RESTR. clear. intuition.
+     subst RESTR.
+     clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
+              SMvalNu' WDnu' SEP INC m3' ret2 m1' ret1 nu' NuHyp nu
+              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt 
+              AtExtSrc eff_after_external23 core_at_external23 
+              match_genv23 genvs_dom_eq23 
+              eff_after_external12 core_at_external12
+              match_genv12 genvs_dom_eq12. 
+     subst. intros b Hb. rewrite REACHAX in Hb.
+      destruct Hb as [L HL].
+      generalize dependent b.
+      induction L; simpl; intros; inv HL.
+        apply H.
+      specialize (IHL _ H1); clear H1.
+        apply orb_true_iff in IHL. apply orb_true_iff.
+        destruct IHL.
+          left. eapply (match_norm12 _ _ _ _ _ _ MC12).
+                eapply REACH_cons; try eassumption.
+                apply REACH_nil. apply H.
+          right. eapply (inject_REACH_closed _ _ _ MemInjMu).
+                eapply REACH_cons; try eassumption.
+                apply REACH_nil. apply H.
+  remember (restrict_sm mu12 RESTR) as nmu12.
   assert (HmuNorm: mu = compose_sm nmu12 mu23).
-     subst. apply sm_extern_normalize_compose_sm.
+     clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
+              SMvalNu' WDnu' SEP INC m3' ret2 m1' ret1 nu' NuHyp nu
+              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt 
+              AtExtSrc eff_after_external23 core_at_external23 
+              match_genv23 genvs_dom_eq23 
+              eff_after_external12 core_at_external12
+              match_genv12 genvs_dom_eq12. 
+      subst nmu12 mu RESTR. unfold compose_sm; simpl.
+          rewrite restrict_sm_extern.
+          rewrite (restrict_sm_local' _ WDmu12).
+          Focus 2. clear. intuition.
+          unfold restrict_sm; simpl. 
+          destruct mu12; simpl in *.
+          f_equal. 
+          extensionality b. unfold compose_meminj, restrict, mapped, as_inj, join; simpl.
+          remember (extern_of b) as d.
+          specialize (disjoint_extern_local _ WDmu12 b); simpl; intros DD.
+          destruct d; trivial; apply eq_sym in Heqd.
+            destruct p as [b2 d1].
+            destruct DD; try congruence.
+            rewrite H.
+            destruct (extern_DomRng _ WDmu12 _ _ _ Heqd); simpl in *.
+            assert (EE:= extBlocksSrc_locBlocksSrc _ WDmu12 _ H0); simpl in *.
+            rewrite EE; simpl.
+            remember (frgnBlocksSrc b) as q.
+            destruct q; apply eq_sym in Heqq; simpl in *. reflexivity.
+            remember (StructuredInjections.extern_of mu23 b2) as w.
+            destruct w; trivial. destruct p. rewrite <- Heqw. trivial.    
+         remember (locBlocksSrc b) as q. 
+         destruct q; simpl; trivial.
+         remember (frgnBlocksSrc b) as w.
+         destruct w; trivial; simpl; apply eq_sym in Heqw.
+         remember (local_of b) as t.
+         destruct t; simpl; trivial.
+         destruct p; apply eq_sym in Heqt.
+         destruct (local_DomRng _ WDmu12 _ _ _ Heqt); simpl in *. congruence.  
+  clear MC12. 
+  assert (WDnmu12:= match_sm_wd12 _ _ _ _ _ _ NormMC12).
   clear HMu.
   assert (WDmu: SM_wd (compose_sm nmu12 mu23)).
     eapply compose_sm_wd; try eassumption.
-      subst. rewrite sm_extern_normalize_pubBlocksTgt. apply GLUEINV.
-      subst. rewrite sm_extern_normalize_frgnBlocksTgt. apply GLUEINV.
-  clear match_norm12.
+      subst. unfold restrict_sm, restrict; simpl. destruct mu12; simpl in *. apply GLUEINV.
+      subst. unfold restrict_sm, restrict; simpl. destruct mu12; simpl in *. apply GLUEINV.
+  clear match_norm12 match_norm12.
   assert (mu12_valid:= match_validblock12 _ _ _ _ _ _ NormMC12).
   assert (mu23_valid:= match_validblock23 _ _ _ _ _ _ MC23).
   rename ret2 into ret3.  
@@ -876,22 +964,22 @@ Qed.*)
                          extBlocksSrc mu = extBlocksSrc nmu12 /\
                         exportedSrc mu vals1 = exportedSrc nmu12 vals1). 
      subst. clear - WDnmu12 WDmu. simpl.  
-        rewrite sm_extern_normalize_locBlocksSrc.
-        rewrite sm_extern_normalize_extBlocksSrc.
+        rewrite restrict_sm_locBlocksSrc.
+        rewrite restrict_sm_extBlocksSrc.
         unfold exportedSrc. 
         rewrite sharedSrc_iff_frgnpub; trivial. simpl. 
         rewrite sharedSrc_iff_frgnpub; trivial.
-        rewrite sm_extern_normalize_frgnBlocksSrc, sm_extern_normalize_pubBlocksSrc.
+        rewrite restrict_sm_frgnBlocksSrc, restrict_sm_pubBlocksSrc.
         intuition.
   destruct LeakedCompSrc as [LSa [LSb LSc]]. 
-    rewrite LSa, LSc in *. clear LSa LSc.
+    rewrite LSa, LSc in *. clear LSa LSb LSc.
   assert (LeakedCompTgt: locBlocksTgt mu = locBlocksTgt mu23 
                        /\ extBlocksTgt mu = extBlocksTgt mu23 
                        /\ exportedTgt mu vals3 = exportedTgt mu23 vals3).
      subst. clear - WDmu23 WDmu. simpl.  
         unfold exportedTgt, sharedTgt. simpl. intuition. 
   destruct LeakedCompTgt as [LTa [LTb LTc]]. 
-    rewrite LTa, LTc in *. clear LTa LTc.
+    rewrite LTa, LTc in *. clear LTa LTb LTc.
    remember (fun b => locBlocksTgt nmu12 b && 
              REACH m2 (exportedTgt nmu12 vals2) b) as pubTgtMid'.
    remember (fun b => locBlocksSrc mu23 b && 
@@ -899,13 +987,16 @@ Qed.*)
    assert (MID: forall b, pubTgtMid' b = true -> pubSrcMid' b = true).
         clear eff_after_external12 match_validblock23 eff_after_external23.
         rewrite HeqpubTgtMid', HeqpubSrcMid'. 
-        destruct GLUEINV as [? [? [? ?]]].
+        destruct GLUEINV as [GlueA [GlueB [GlueC GlueD]]].
         subst.
-        rewrite sm_extern_normalize_locBlocksTgt, sm_extern_normalize_exportedTgt; trivial.
-           rewrite H. intros. rewrite andb_true_iff in *.
-        destruct H3. split; trivial.
+        clear UnchLOOR13 UnchPrivSrc SEP INC MemInjMu ArgsInj12 MInj12.
+              
+        rewrite restrict_sm_locBlocksTgt. (*sm_extern_normalize_exportedTgt; trivial.*)
+           rewrite GlueA. intros b Hb. rewrite andb_true_iff in *.
+        destruct Hb. split; trivial.
         eapply REACH_mono; try eassumption.
         unfold exportedTgt, exportedSrc, sharedTgt.
+        rewrite restrict_sm_frgnBlocksTgt, restrict_sm_pubBlocksTgt.
         rewrite sharedSrc_iff_frgnpub; trivial.
         intros. repeat rewrite orb_true_iff in *.
         intuition.
@@ -919,8 +1010,8 @@ Qed.*)
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt,
             replace_locals_extBlocksSrc, replace_locals_extBlocksTgt.
      rewrite replace_locals_extern, replace_locals_local.
-     rewrite sm_extern_normalize_extBlocksSrc, sm_extern_normalize_locBlocksSrc,
-             sm_extern_normalize_local, sm_extern_normalize_extern.
+     rewrite restrict_sm_extBlocksSrc, restrict_sm_locBlocksSrc,
+             restrict_sm_local, restrict_sm_extern.
      f_equal. 
 
   clear NuHyp.
@@ -978,15 +1069,40 @@ Qed.*)
             replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt.
       destruct GLUEINV as [GLUEa [GLUEb [GLUEc GLUEd]]].
       repeat (split; trivial).
-      subst. rewrite sm_extern_normalize_locBlocksTgt; trivial.
-      subst. rewrite sm_extern_normalize_extBlocksTgt; trivial.
-      subst. rewrite sm_extern_normalize_frgnBlocksTgt; trivial.
+      subst. rewrite restrict_sm_locBlocksTgt; trivial.
+      subst. rewrite restrict_sm_extBlocksTgt; trivial.
+      subst. rewrite restrict_sm_frgnBlocksTgt; trivial.
     (*discharge the Norm Hypothesis*)
       rewrite Heqnmu12. do 2 rewrite replace_locals_extern.
-      intros.
-      destruct (sm_extern_normalize_norm _ _ _ _ _ H) as [EXT1 [[b3 d2] EXT2]].
-      exists b3, d2; trivial.
-
+      rewrite restrict_sm_extern.
+      intros. destruct (restrictD_Some _ _ _ _ _ H) as [EX12 RR]; clear H.
+      subst RESTR nmu12.
+     clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
+              SMvalNu' WDnu' SEP INC m3' m1' ret1 nu' 
+              pubTgtHyp pubSrcHyp ValInjMu AtExtTgt 
+              AtExtSrc eff_after_external23 
+              match_genv23 genvs_dom_eq23 
+              eff_after_external12 MinjNu23
+              match_genv12 genvs_dom_eq12. 
+      destruct (extern_DomRng _ WDmu12 _ _ _ EX12).
+      rewrite (extBlocksSrc_locBlocksSrc _ WDmu12 _ H) in RR; simpl in *.
+      remember (frgnBlocksSrc mu12 b1) as d.
+      destruct d; apply eq_sym in Heqd.
+        destruct (frgnSrc _ WDmu12 _ Heqd) as [bb2 [dd1 [Frg1 FT2]]]; clear Heqd.
+        apply foreign_in_extern in Frg1. rewrite Frg1 in EX12; inv EX12.
+        destruct GLUEINV as [_ [_ [_ FF]]]. apply FF in FT2.
+        destruct (frgnSrc _ WDmu23 _ FT2) as [b3 [d2 [Frg2 FT3]]]; clear FT2.
+        rewrite (foreign_in_extern _ _ _ _ Frg2). exists b3, d2; trivial.
+      simpl in RR. destruct (mappedD_true _ _ RR) as [[bb dd] M]; clear RR.
+        destruct (joinD_Some _ _ _ _ _ M) as [EXT | [EXT LOC]]; clear M;
+          rewrite compose_sm_extern in EXT.
+          destruct (compose_meminjD_Some _ _ _ _ _ EXT) as [bb2 [dd1 [dd2 [E1 [E2 D]]]]].
+          rewrite EX12 in E1. inv E1. rewrite E2. exists bb, dd2; trivial.
+        rewrite compose_sm_local in LOC.
+          destruct (compose_meminjD_Some _ _ _ _ _ LOC) as [bb2 [dd1 [dd2 [E1 [E2 D]]]]].
+          destruct (disjoint_extern_local _ WDmu12 b1); congruence.
+           
   (*next, prepare for application of eff_after_external12*)
   destruct GLUEINV' as [WDnu12' [WDnu23' [GLUEa' [GLUEb' [GLUEc' GLUEd']]]]].
   assert (exists ret2, val_inject (as_inj nu12') ret1 ret2 /\ 
@@ -1080,110 +1196,3 @@ Qed.*)
 Qed.
 
 End Eff_sim_trans.
-(*stuff for more complex coreHalted-rule:
-
-  eexists; eexists; eexists.
-   split. reflexivity.
-   split. reflexivity.
-   split. reflexivity.
-   assert (MidLeak: forall b,
-                  REACH m2 (exportedTgt mu12 (v2 :: nil)) b = true ->
-                  REACH m2 (exportedSrc mu23 (v2 :: nil)) b = true).
-             intros. eapply REACH_mono; try eassumption.
-             unfold exportedSrc, exportedTgt, sharedTgt.
-             rewrite sharedSrc_iff_frgnpub.
-             simpl; intros.
-             destruct (getBlocks (v2 :: nil) b0); simpl in *. 
-                trivial.
-             remember (frgnBlocksTgt mu12 b0) as d.
-             destruct d; apply eq_sym in Heqd; simpl in *.
-                rewrite (INVf _ Heqd). trivial.
-                rewrite (INVe _ H1).
-                destruct (frgnBlocksSrc mu23 b0); trivial.
-            eauto.
-   assert (PUBnu12: forall b : block, pubBlocksTgt nu12 b = true -> pubBlocksSrc nu23 b = true).
-            subst. clear MInjSH12 MInjSH23 RValsInject12 RValsInject23.
-            rewrite replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt.
-            intros. rewrite andb_true_iff. rewrite andb_true_iff in H.
-            destruct H. split. rewrite <- INVc; trivial.
-            apply (MidLeak _ H1). 
-   assert (FRGNnu12:forall b : block, frgnBlocksTgt nu12 b = true -> frgnBlocksSrc nu23 b = true).
-            subst. clear MInjSH12 MInjSH23 RValsInject12 RValsInject23.
-            rewrite replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt.
-            apply INVf.
-
-   assert (WDnu12: SM_wd nu12).
-      subst.
-      apply replace_locals_wd; trivial.
-      clear FRGNnu12. rewrite replace_locals_pubBlocksTgt, replace_locals_pubBlocksSrc in PUBnu12.
-      intros. rewrite andb_true_iff in H. destruct H. 
-      assert (VALS12: Forall2 (val_inject (as_inj mu12)) (v1 :: nil) (v2 :: nil)).
-        constructor. assumption. constructor.
-      destruct (REACH_local_REACH _ WDmu12 _ _ (v1::nil) (v2::nil) MInjMu12 VALS12 _ H1 H)
-        as [b2 [d1 [LOC12 R2]]].
-      exists b2, d1. rewrite LOC12, R2.
-      destruct (local_locBlocks _ WDmu12 _ _ _ LOC12) as [_ [? _]].
-      rewrite H2. intuition.
-      intros. apply andb_true_iff in H. intuition.
-
-    assert (SH: sharedSrc (compose_sm mu12 mu23) = sharedSrc mu12).
-        clear MidLeak HpubTgt123' HpubSrc23' MInj12 MInj12 HpubTgt12' HpubSrc12'.
-        rewrite sharedSrc_iff_frgnpub. simpl. 
-        rewrite sharedSrc_iff_frgnpub. trivial.
-        eauto. eauto. ??. (*TODO*)
-    split. 
-       assert (VI:= val_inject_compose _ _ _ _ _ RValsInject12 RValsInject23).
-       rewrite <- compose_sm_shared in VI. subst. simpl.
-       unfold compose_sm in VI. simpl in *.
-       unfold shared_of. unfold shared_of in VI. simpl in *. 
-       rewrite replace_locals_local, replace_locals_pubBlocksSrc, replace_locals_extern, replace_locals_frgnBlocksSrc in VI.
-       rewrite replace_locals_local,replace_locals_extern in VI.  simpl.
-       assert (exportedSrc (compose_sm mu12 mu23) (v1 :: nil) = exportedSrc mu12 (v1 :: nil)).
-          unfold exportedSrc. rewrite SH. trivial.
-       rewrite H1. apply VI.
-       apply PUBnu12. 
-       apply FRGNnu12. 
-      eauto. eauto. eauto. eauto. 
-
-       subst. eapply replace_locals_wd. eauto.
-         intros. rewrite replace_locals_shared in MInj12.
-         apply andb_true_iff in H1. destruct H1. 
-         specialize (REACH_inject _ _ _ MInj12 
-           (exportedSrc mu12 (v1 :: nil)) (exportedTgt mu12 (v2 :: nil))).
-         intros.
-        assert (forall b : block,
-      exportedSrc mu12 (v1 :: nil) b = true ->
-      exists (jb : block) (d : Z),
-        join (foreign_of mu12)
-          (fun b0 : block =>
-           if locBlocksSrc mu12 b0 &&
-              REACH m1 (exportedSrc mu12 (v1 :: nil)) b0
-           then local_of mu12 b0
-           else None) b = Some (jb, d) /\
-        exportedTgt mu12 (v2 :: nil) jb = true).
-           clear H6; intros. unfold exportedSrc in H6.
-             
-
-         eauto. assumption.       intros. apply andb_true_iff in H. destruct H.
-        apply andb_true_iff. 
-        destruct INV as [? [? [? [? [? ?]]]]]. rewrite H4 in *. rewrite <- H5 in *.
-        split; trivial. unfold exportedSrc. unfold exportedTgt, sharedTgt in H1.
-          rewrite sharedSrc_iff_frgnpub.
-          eapply REACH_mono; try eassumption.
-           simpl; intros.
-           destruct (getBlocks (v2 :: nil) b0); simpl in *. 
-              trivial.
-           remember (frgnBlocksTgt mu12 b0) as d.
-           destruct d; apply eq_sym in Heqd; simpl in *.
-              rewrite (H7 _ Heqd). trivial.
-              rewrite (H6 _ H8).
-              destruct (frgnBlocksSrc mu23 b0); trivial.
-            eauto.
-              
-           apply orb_true_iff in H8.
-           destruct H8. rewrite H8. reflexivity.  apply H.
-         eauto. intros. trivial. 
-  split. eapply Mem.inject_compose; eassumption.
-  assumption. subst.
-   split.
-  *)

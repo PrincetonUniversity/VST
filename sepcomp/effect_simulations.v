@@ -14,6 +14,8 @@ Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
+
+Definition vis mu := fun b => locBlocksSrc mu b || frgnBlocksSrc mu b.
   
 Inductive reach (m:mem) (B:block -> Prop): list (block * Z) -> block -> Prop :=
   reach_nil: forall b, B b -> reach m B nil b
@@ -139,10 +141,22 @@ Parameter REACH : mem -> (block -> bool) -> block -> bool.
 Axioms REACHAX: forall m B b, REACH m B b = true 
                     <-> exists L, reach m (fun bb => B bb = true) L b.
 
-Lemma REACH_increasing: forall m B b, B b = true -> REACH m B b = true.
-Proof. intros.
-  apply REACHAX. exists nil. constructor. assumption.
+Lemma REACH_nil: forall m B b, B b = true -> REACH m B b = true.
+Proof. intros. apply REACHAX.
+ exists nil. constructor. assumption.
 Qed.
+
+Lemma REACH_cons: forall m B b b' z off n,
+                     REACH m B b' = true ->
+                     Mem.perm m b' z Cur Readable ->
+                     ZMap.get z (PMap.get b' (Mem.mem_contents m)) = 
+                        Pointer b off n ->
+                  REACH m B b = true.
+Proof. intros.
+  apply REACHAX in H. destruct H as [L HL].
+  apply REACHAX. eexists.
+  eapply reach_cons; eassumption.
+Qed. 
 
 Lemma REACH_inject: forall m1 m2 j (J: Mem.inject j m1 m2) B1 B2
                  (HB: forall b, B1 b = true -> exists jb d, j b = Some(jb,d) /\ B2 jb = true)
@@ -500,6 +514,12 @@ Proof. intros.
         end) nil V)). trivial. trivial.  
 Qed.
 
+Lemma getBlocksD_nil: forall b, 
+  getBlocks nil b = false.
+Proof. intros.
+  reflexivity.
+Qed.
+
 Lemma getBlocks_char: forall V b, getBlocks V b = true <-> 
    exists off, In (Vptr b off) V.
 Proof.
@@ -536,111 +556,307 @@ Proof. intros. apply getBlocks_char in B. destruct B as [off INN].
    apply getBlocks_char. eexists. apply INN2.
 Qed.
 
-Definition reach_closed m (X: Values.block -> bool) : Prop :=
-  (forall b, REACH m X b = true <-> X b = true).
+Definition REACH_closed m (X: Values.block -> bool) : Prop :=
+  (forall b, REACH m X b = true -> X b = true).
 
-Lemma sm_normalize_inject: forall mu12 mu23 
-          (WD12: SM_wd mu12) (WD23: SM_wd mu23)
-          (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
-                              frgnBlocksSrc mu23 b = true)
-          (HypLocblocks: locBlocksTgt mu12 = locBlocksSrc mu23)
-          (HypExtblocks: extBlocksTgt mu12 = extBlocksSrc mu23)
-          m1
-          (RC: reach_closed m1 (fun b => locBlocksSrc mu12 b || frgnBlocksSrc mu12 b))
-          m2 (Inj12: Mem.inject (as_inj mu12) m1 m2)
-          m3 (Inj23: Mem.inject (as_inj mu23) m2 m3),
-      Mem.inject (as_inj (sm_extern_normalize mu12 mu23)) m1 m2.
+Definition mapped (j:meminj) b : bool :=
+  match j b with None => false | Some _ => true end.
+
+Lemma mappedD_true : forall j b (M: mapped j b = true),
+                     exists p, j b = Some p.
+Proof. intros.
+  unfold mapped in M.
+  remember (j b) as d. destruct d; inv M. exists p; trivial.
+Qed.
+Lemma mappedD_false : forall j b (M: mapped j b = false),
+                      j b = None.
+Proof. intros.
+  unfold mapped in M.
+  remember (j b) as d. destruct d; inv M. trivial.
+Qed.
+Lemma mappedI_true : forall j b p (J: j b = Some p),
+                      mapped j b = true.
+Proof. intros.
+  unfold mapped; rewrite J; trivial.
+Qed.
+Lemma mappedI_false : forall j b (J:j b = None),
+                       mapped j b = false.
+Proof. intros.
+  unfold mapped; rewrite J; trivial.
+Qed.
+Lemma mapped_charT: forall j b, (mapped j b = true) <-> (exists p, j b = Some p).
+Proof. intros.
+  split; intros.
+    apply mappedD_true; assumption.
+  destruct H. eapply mappedI_true; eassumption.
+Qed.
+Lemma mapped_charF: forall j b, (mapped j b = false) <-> (j b = None).
+Proof. intros.
+  split; intros.
+    apply mappedD_false; assumption.
+    apply mappedI_false; assumption.
+Qed.
+
+Lemma inject_mapped: forall j m1 m2 (Inj12: Mem.inject j m1 m2) k
+          (RC: REACH_closed m1 (mapped k))
+          (INC: inject_incr k j),
+      Mem.inject k m1 m2.
 Proof. intros.
 split; intros.
   split; intros.
-    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
-     eapply Inj12; eassumption.
-    apply (sm_extern_normalize_as_inj_norm _ _ WD12) in H.
-     eapply Inj12; eassumption.
-    destruct (joinD_Some _ _ _ _ _ H) as [NEXT12 | [NEXT12 LOC12]].
-    (*extern*) rewrite sm_extern_normalize_extern in NEXT12.
-       apply normalize_norm in NEXT12. destruct NEXT12 as [EXT12 [[b3 d2] EXT23]].
-       assert (AsInj12 := extern_in_all _ _ _ _ EXT12).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
-       inv H1; try constructor.
-       assert (Perm2: Mem.perm m2 b2 (ofs+delta) Cur Readable).
-         eapply Inj12; eassumption.
-       assert (AsInj23 := extern_in_all _ _ _ _ EXT23).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj23) _ _ _ _ AsInj23 Perm2). intros.
-       rewrite <- H3 in H1. clear H3.
-       inv H1.
-       econstructor. eapply sm_extern_normalize_as_inj_norm2; try eassumption. reflexivity.
-    (*local*) rewrite sm_extern_normalize_extern in NEXT12.
-       rewrite sm_extern_normalize_local in LOC12.
-       assert (AsInj12 := local_in_all _ WD12 _ _ _ LOC12).
-       specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) _ _ _ _ AsInj12 H0). intros.
-       inv H1; try constructor.
-       rename b3 into b2'. rename b0 into b1'.
-       rename delta into d1. rename delta0 into delta'.
-       assert (local_of mu12 b1' = Some (b2', delta') \/ foreign_of mu12 b1' = Some (b2', delta')).
-         destruct (joinD_Some _ _ _ _ _ H4) as [EXT | [EXT LOC]]; clear H4.
-           destruct (RC b1') as [A _]; clear RC.
-             apply orb_true_iff in A.
-             destruct A.
-               destruct (extern_DomRng _ WD12 _ _ _ EXT).
-               destruct (disjoint_extern_local_Src _ WD12 b1'); congruence.
-             right. destruct (frgnSrc _ WD12 _ H1) as [bb2 [dd2 [F2 FT3]]].
-               rewrite (foreign_in_extern _ _ _ _ F2) in EXT. inv EXT. assumption.
-           apply REACHAX. clear A.
-             eexists. apply eq_sym in H2.
-             eapply reach_cons; try eassumption. 
-             apply reach_nil. destruct (local_DomRng _ WD12 _ _ _ LOC12).
-                rewrite H1; trivial. 
-         left; assumption. 
-       eapply memval_inject_ptr with (delta:=delta').
-         destruct H1. apply joinI; right.
-              rewrite sm_extern_normalize_local, sm_extern_normalize_extern. split; trivial.
-              destruct (disjoint_extern_local _ WD12 b1').
-                  unfold normalize. rewrite H5; trivial.
-              rewrite H5 in H1; discriminate.
-         apply joinI; left. 
-           destruct (foreign_DomRng _ WD12 _ _ _ H1) as [? [? [? [? [? [? ?]]]]]].
-           rewrite sm_extern_normalize_extern.
-           eapply normalize_norm. 
-           split. apply foreign_in_extern; assumption.
-           apply HypFrgn in H10.
-           destruct (frgnSrc _ WD23 _ H10) as [b3 [d2 [F23 T3]]].
-           rewrite (foreign_in_extern _ _ _ _  F23). exists (b3,d2); trivial. reflexivity.
-   assert (as_inj mu12 b = None). eapply Inj12; assumption.
-     remember (as_inj (sm_extern_normalize mu12 mu23) b) as d.
-     destruct d; trivial. apply eq_sym in Heqd. destruct p.
-     apply sm_extern_normalize_as_inj_norm in Heqd; trivial. rewrite Heqd in H0; discriminate.
-   apply sm_extern_normalize_as_inj_norm in H; trivial.
-     eapply Inj12; eassumption.
+     eapply Inj12; try eassumption. eapply INC; eassumption.
+     eapply Inj12; try eassumption. eapply INC; eassumption.
+     specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) b1).
+        rewrite (INC _ _ _ H). intros.
+        specialize (H1 _ _ _ (eq_refl _) H0).
+        inv H1; try constructor.
+        assert (R: REACH m1 (mapped k) b0 = true).
+           apply eq_sym in H2.
+           eapply REACH_cons; try eassumption.
+           apply REACH_nil. eapply mappedI_true; eassumption.
+        specialize (RC _ R). 
+          destruct (mappedD_true _ _ RC) as [[bb dd] RR]; clear RC.
+          rewrite (INC _ _ _ RR) in H4; inv H4. 
+        econstructor; try eassumption. trivial.
+   remember (k b) as d.
+     destruct d; apply eq_sym in Heqd; trivial.
+     destruct p. apply INC in Heqd.
+     exfalso. apply H. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ Heqd Inj12).
+   apply INC in H. eapply Inj12; eauto.
    intros b1 b1'; intros. 
-     apply sm_extern_normalize_as_inj_norm in H0; trivial.
-     apply sm_extern_normalize_as_inj_norm in H1; trivial.
+     apply INC in H0; apply INC in H1.
      eapply Inj12; eassumption.
-   apply sm_extern_normalize_as_inj_norm in H; trivial.
+   apply INC in H.
      eapply Inj12; eassumption.
+Qed.
+
+Definition restrict (j: meminj) (X:block -> bool) : meminj :=
+  fun b => if X b then j b else None.
+
+Lemma restrictD_Some: forall j X b1 b2 d (R:restrict j X b1 = Some(b2,d)),
+                      j b1 = Some(b2,d) /\ X b1 = true.
+Proof. intros.
+  unfold restrict in R.
+  remember (X b1) as dd.
+  destruct dd; inv R. split; trivial.
+Qed.
+Lemma restrictI_Some: forall j X b b2 d (J:j b = Some(b2,d)) 
+                            (Hb: X b = true),
+                      restrict j X b = Some(b2,d).
+Proof. intros.
+  unfold restrict. rewrite Hb; trivial.
+Qed.
+Lemma restrictD_None: forall j X b1 b2 d (R:restrict j X b1 = None)
+                      (J: j b1 = Some(b2,d)), X b1 = false.
+Proof. intros.
+  unfold restrict in R. rewrite J in R.
+  remember (X b1) as dd.
+  destruct dd; inv R; trivial.
+Qed.
+Lemma restrictD_None': forall j X b1 (R:restrict j X b1 = None),
+                         j b1 = None \/ 
+                        (exists b2 d, j b1 =Some(b2,d) /\ X b1 = false).
+Proof. intros.
+  remember (j b1) as d.
+  destruct d; try (left; reflexivity).
+  destruct p; apply eq_sym in Heqd. right.
+  rewrite (restrictD_None _ _ _ _ _ R Heqd).
+  exists b, z; split; trivial.
+Qed.
+Lemma restrictI_None: forall j X b (Hb: j b = None \/ X b = false),
+                      restrict j X b = None.
+Proof. intros.
+  unfold restrict.
+  remember (X b) as d.
+  destruct d; trivial.
+  destruct Hb; trivial; congruence.
+Qed.
+
+Lemma join_restrict: forall j k X, 
+      join (restrict j X) (restrict k X) = restrict (join j k) X.
+Proof. intros.
+  unfold join, restrict. extensionality b.
+  remember (X b) as d.
+  destruct d; trivial.
+Qed.
+
+Lemma restrict_outside: forall j X
+        (HX: forall b1 b2 d, j b1 = Some(b2, d) -> X b1 = true),
+      restrict j X = j.
+Proof. intros. unfold restrict.
+  extensionality b.
+  remember (X b) as d.
+  destruct d; trivial.
+  remember (j b) as q.
+  destruct q; trivial.
+  apply eq_sym in Heqq. destruct p.
+  apply HX in Heqq. congruence.
+Qed.
+
+Lemma restrict_incr: forall j X, inject_incr (restrict j X) j.
+Proof. intros j X b b2 d Hb. eapply restrictD_Some; eassumption. Qed.
+
+Lemma restrict_com: forall j X Y,
+      restrict (restrict j X) Y = restrict (restrict j Y) X.
+Proof. intros. unfold restrict.
+  extensionality b.
+  destruct (Y b); destruct (X b); trivial.
+Qed.
+
+Lemma restrict_nest: forall j X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict (restrict j X) Y = restrict j Y.
+Proof. intros. unfold restrict.
+  extensionality b.
+  remember (Y b) as d.
+  destruct d; trivial. apply eq_sym in Heqd.
+  rewrite (HXY _ Heqd). trivial.
+Qed.
+Lemma restrict_nest': forall j X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict (restrict j Y) X = restrict j Y.
+Proof. intros. rewrite restrict_com.
+  apply restrict_nest; assumption. 
+Qed.
+
+Lemma restrict_val_inject: forall j val1 val2
+     (Inj : val_inject j val1 val2)
+     X (HR: forall b, getBlocks (val1::nil) b = true -> X b = true),
+   val_inject (restrict j X) val1 val2.
+Proof. intros.
+  inv Inj; try constructor.
+      econstructor; trivial.
+        eapply restrictI_Some; try eassumption.
+         apply HR; simpl. rewrite getBlocksD.
+         remember (eq_block b1 b1) .
+         destruct s. trivial. exfalso. apply n; trivial.
+Qed. 
+Lemma restrict_forall_vals_inject: forall j vals1 vals2
+     (Inj : Forall2 (val_inject j) vals1 vals2)
+     X (HR: forall b, getBlocks vals1 b = true -> X b = true),
+ Forall2 (val_inject (restrict j X)) vals1 vals2.
+Proof. intros.
+  induction Inj. constructor.
+  constructor.
+    apply restrict_val_inject. assumption. 
+       intros. apply HR.
+         rewrite getBlocksD in H0. 
+         rewrite getBlocksD_nil in H0.
+         rewrite getBlocksD.
+         destruct x; try congruence.
+         apply orb_true_iff in H0. destruct H0; intuition.
+   apply IHInj. intros. apply HR.
+      rewrite getBlocksD. rewrite H0.
+      destruct x; trivial. intuition.
+Qed.
+
+Lemma val_inject_restrictD: forall j v v' X
+       (V: val_inject (restrict j X) v v'),
+     val_inject j v v'.
+Proof. intros.
+  inv V; try econstructor.
+  eapply restrict_incr.  apply H. 
+trivial. 
+Qed.
+ 
+Lemma forall_vals_inject_restrictD: forall j vals1 vals2 X
+     (Inj : Forall2 (val_inject (restrict j X)) vals1 vals2),
+ Forall2 (val_inject j) vals1 vals2.
+Proof. intros.
+  induction Inj. constructor.
+  constructor; trivial.
+    eapply val_inject_restrictD; eassumption.
+Qed.
+
+Lemma restrict_mapped_closed: forall j m X 
+      (RC: REACH_closed m (mapped j))
+      (RX: REACH_closed m X),
+      REACH_closed m (mapped (restrict j X)).
+Proof. intros.
+  intros b Hb. 
+  apply REACHAX in Hb.
+  destruct Hb as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL. 
+     assumption.
+  specialize (IHL _ H1); clear H1.
+    destruct (mappedD_true _ _ IHL) as [[bb' dd'] M']; clear IHL.
+    unfold restrict in M'.
+    remember (X b') as d; destruct d; inv M'.
+    assert (Rb: REACH m (mapped j) b = true).
+      eapply REACH_cons; try eassumption.
+      apply REACH_nil. eapply mappedI_true; eassumption. 
+    specialize (RC _ Rb).
+      destruct (mappedD_true _ _ RC) as [[bb dd] M]; clear RC.
+    assert (Xb: REACH m X b = true).
+      eapply REACH_cons; try eassumption.
+      apply REACH_nil. rewrite Heqd; trivial.
+    specialize (RX _ Xb).       
+    eapply mappedI_true. unfold restrict. rewrite M, RX. reflexivity.
+Qed.
+
+Lemma restrict_mapped_closed_triv: forall j m X, 
+      REACH_closed m (fun b => mapped j b && X b) = 
+      REACH_closed m (mapped (restrict j X)).
+Proof. intros.
+  assert ((fun b => mapped j b && X b) = (mapped (restrict j X))).
+    extensionality b. unfold mapped, restrict.
+    destruct (j b); simpl; destruct (X b); trivial.
+  rewrite H. trivial.
+Qed.
+
+Lemma REACH_closed_intersection: forall m X Y
+        (HX: REACH_closed m X) (HY: REACH_closed m Y), 
+      REACH_closed m (fun b => X b && Y b).
+Proof. intros. intros b Hb.
+  rewrite REACHAX in Hb.
+  destruct Hb as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL; trivial.
+  specialize (IHL _ H1); clear H1.
+  apply andb_true_iff in IHL. destruct IHL.
+  apply andb_true_iff.
+  split.
+    apply HX. eapply REACH_cons; try eassumption.
+      apply REACH_nil; eassumption.
+    apply HY. eapply REACH_cons; try eassumption.
+      apply REACH_nil; eassumption.
+Qed.
+
+Lemma REACH_closed_union: forall m X Y
+        (HX: REACH_closed m X) (HY: REACH_closed m Y), 
+      REACH_closed m (fun b => X b || Y b).
+Proof. intros. intros b Hb.
+  rewrite REACHAX in Hb.
+  destruct Hb as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL; trivial.
+  specialize (IHL _ H1); clear H1.
+  apply orb_true_iff in IHL.
+  apply orb_true_iff.
+  destruct IHL.
+    left.
+    apply HX. eapply REACH_cons; try eassumption.
+      apply REACH_nil; eassumption.
+  right. apply HY. eapply REACH_cons; try eassumption.
+      apply REACH_nil; eassumption.
+Qed.
+
+Lemma inject_REACH_closed: forall j m1 m2 (Inj: Mem.inject j m1 m2),
+      REACH_closed m1 (mapped j).
+Proof. intros. intros b Hb.
+  destruct (REACH_inject _ _ _ Inj (mapped j)  (fun b => true)) 
+    with (b1:=b) as [b2 [dd [ZZ _]]].
+    intros; simpl.
+      destruct (mappedD_true _ _ H) as [[bb d] J]; clear H.
+      exists bb, d; split; trivial.
+    assumption.
+  eapply mappedI_true; eassumption. 
 Qed.
 
 (*The blocks explicitly exported via call arguments, plus the already shared blocks*)
 Definition exportedSrc mu vals b := orb (getBlocks vals b) (sharedSrc mu b).
 Definition exportedTgt mu vals b := orb (getBlocks vals b) (sharedTgt mu b).
-
-Lemma sm_extern_normalize_exportedTgt: forall mu12 mu23
-          (WD12: SM_wd mu12) (WD23: SM_wd mu23)
-          (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
-                              frgnBlocksSrc mu23 b = true),
-   exportedTgt (sm_extern_normalize mu12 mu23) = exportedTgt mu12.
-Proof. intros. unfold exportedTgt.
-  rewrite sm_extern_normalize_sharedTgt; trivial.
-Qed.
-
-Lemma sm_extern_normalize_exportedSrc: forall mu12 mu23
-          (WD12: SM_wd mu12) (WD23: SM_wd mu23)
-          (HypFrgn: forall b, frgnBlocksTgt mu12 b = true -> 
-                              frgnBlocksSrc mu23 b = true),
-   exportedSrc (sm_extern_normalize mu12 mu23) = exportedSrc mu12.
-Proof. intros. unfold exportedSrc.
-  rewrite sm_extern_normalize_sharedSrc; trivial.
-Qed.
 
 Lemma exported_inject: forall mu (WD: SM_wd mu) vals1 vals2
           (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2) b
@@ -801,7 +1017,7 @@ Qed.
 
 Goal forall m1 mu (WD: SM_wd mu) vals b, pubBlocksSrc mu b = true ->
            REACH m1 (exportedSrc mu vals) b = true.
-Proof. intros. apply REACH_increasing.
+Proof. intros. apply REACH_nil.
   apply orb_true_iff. right. apply pubSrc_shared; trivial. 
 Qed.
 
@@ -880,6 +1096,30 @@ Qed.
 Definition isGlobalBlock {F V : Type} (ge : Genv.t F V) :=
   fun b => (fst (genv2blocksBool ge)) b || (snd (genv2blocksBool ge)) b.
 
+Lemma restrict_preserves_globals: forall {F V} (ge:Genv.t F V) j X
+  (PG : meminj_preserves_globals ge j)
+  (Glob : forall b, isGlobalBlock ge b = true -> X b = true),
+meminj_preserves_globals ge (restrict j X).
+Proof. intros.
+  apply meminj_preserves_genv2blocks in PG.
+  destruct PG as [PGa [PGb PGc]].
+  apply meminj_preserves_genv2blocks.
+  split; intros.
+    specialize (PGa _ H).
+    apply restrictI_Some. assumption.
+    apply Glob. 
+    unfold isGlobalBlock.
+      apply genv2blocksBool_char1 in H. rewrite H. intuition.
+  split; intros.
+    specialize (PGb _ H).
+    apply restrictI_Some. assumption.
+    apply Glob. 
+    unfold isGlobalBlock.
+      apply genv2blocksBool_char2 in H. rewrite H. intuition.
+  destruct (restrictD_Some _ _ _ _ _ H0) as [AU XX]; clear H0.
+     apply (PGc _ _ _ H AU). 
+Qed.
+
 Lemma genvs_domain_eq_isGlobal: forall {F1 V1 F2 V2} ge1 ge2
                        (DomainEQ: @genvs_domain_eq F1 V1 F2 V2 ge1 ge2),
        isGlobalBlock ge1 = isGlobalBlock ge2.
@@ -939,7 +1179,18 @@ Lemma meminj_preserves_globals_init_REACH_frgn:
                  frgnBlocksSrc (initial_SM DomS DomT (REACH m R) Y j) b = true).
 Proof. intros.
   unfold initial_SM; simpl.
-  apply REACH_increasing. apply (HR _ H).
+  apply REACH_nil. apply (HR _ H).
+Qed.
+
+Lemma REACH_is_closed: forall R m1, 
+  REACH_closed m1 (fun b : block => REACH m1 R b).
+Proof. intros. unfold REACH_closed. intros.
+  apply REACHAX. apply REACHAX in H. destruct H as [L HL].
+  generalize dependent b. 
+  induction L; intros; simpl in *; inv HL.
+     apply REACHAX in H. apply H.
+  specialize (IHL _ H1). destruct IHL as [LL HLL].
+    eexists. eapply reach_cons; eassumption.
 Qed.
 
 (*Generic proof that the inital structured injection satisfies 
@@ -962,7 +1213,9 @@ Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2
                   DomS b = true) /\
        SM_wd mu /\ sm_valid mu m1 m2 /\ 
        meminj_preserves_globals ge1 (extern_of mu) /\
-       (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true).
+       (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true) /\
+       REACH_closed m1 (vis mu) /\
+       REACH_closed m1 (mapped (as_inj mu)).
 Proof. intros.
   specialize (getBlocks_inject _ _ _ VInj); intros.
   assert (HR: forall b1, REACH m1 (fun b : block => isGlobalBlock ge1 b || getBlocks vals1 b) b1 = true ->
@@ -985,8 +1238,11 @@ Proof. intros.
              apply (HypJ _ _ _ J).
   split. split; intros. apply (HS _ H0). apply (HT _ H0). 
   split. eapply meminj_preserves_globals_initSM; intuition.
-  apply meminj_preserves_globals_init_REACH_frgn; try eassumption.
+  split. apply meminj_preserves_globals_init_REACH_frgn; try eassumption.
     intuition.
+  split. simpl. apply REACH_is_closed.
+  rewrite initial_SM_as_inj. 
+    apply (inject_REACH_closed _ _ _ MInj).     
 Qed.
 
 (*Proof the match_genv is preserved by callsteps*)
@@ -1087,7 +1343,178 @@ intros.
   unfold DomSrc. 
   rewrite L', (frgnBlocksSrc_extBlocksSrc _ WDnu' _ F'); simpl.
   apply (frgnSrc_shared _ WDnu') in F'.
-  apply REACH_increasing. unfold exportedSrc. intuition.
+  apply REACH_nil. unfold exportedSrc. intuition.
+Qed.
+
+Definition restrict_sm mu (X:block -> bool) :=
+match mu with
+  Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
+  Build_SM_Injection locBSrc locBTgt pSrc pTgt (restrict local X) 
+                     extBSrc extBTgt fSrc fTgt (restrict extern X)
+end.
+
+Lemma restrict_sm_com: forall mu X Y,
+      restrict_sm (restrict_sm mu X) Y = restrict_sm (restrict_sm mu Y) X.
+Proof. intros. unfold restrict_sm.
+  destruct mu.
+  f_equal; apply restrict_com.
+Qed.
+
+Lemma restrict_sm_nest: forall mu X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict_sm (restrict_sm mu X) Y = restrict_sm mu Y.
+Proof. intros. unfold restrict_sm.
+  destruct mu; simpl in *.
+  f_equal; apply restrict_nest; assumption.
+Qed.
+
+Lemma restrict_sm_nest': forall mu X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict_sm (restrict_sm mu Y) X = restrict_sm mu Y.
+Proof. intros. rewrite restrict_sm_com.
+  apply restrict_sm_nest; assumption. 
+Qed.
+
+Lemma restrict_sm_local: forall mu X, 
+      local_of (restrict_sm mu X) = restrict (local_of mu) X.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_pub: forall mu X, 
+      pub_of (restrict_sm mu X) = restrict (pub_of mu) X.
+Proof. intros. unfold pub_of. 
+       extensionality b. destruct mu; simpl.
+       unfold restrict.
+       remember (pubBlocksSrc b) as d.
+       destruct d; trivial.
+       destruct (X b); trivial.
+Qed.
+
+Lemma restrict_sm_extern: forall mu X, 
+      extern_of (restrict_sm mu X) = restrict (extern_of mu) X.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_foreign: forall mu X, 
+      foreign_of (restrict_sm mu X) = restrict (foreign_of mu) X.
+Proof. intros. unfold foreign_of. 
+       extensionality b. destruct mu; simpl.
+       unfold restrict.
+       remember (frgnBlocksSrc b) as d.
+       destruct d; trivial.
+       destruct (X b); trivial.
+Qed.
+
+Lemma restrict_sm_all: forall mu X,
+       as_inj (restrict_sm mu X) = restrict (as_inj mu) X.
+Proof. intros. unfold as_inj.
+   rewrite restrict_sm_local, restrict_sm_extern.
+   apply join_restrict. 
+Qed.
+
+Lemma restrict_sm_local': forall mu (WD: SM_wd mu) X
+      (HX: forall b, vis mu b = true -> X b = true), 
+      local_of (restrict_sm mu X) = local_of mu.
+Proof. intros. rewrite restrict_sm_local.
+ apply restrict_outside. intros.
+ apply HX.
+ destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition.
+Qed.
+
+Lemma restrict_sm_pub': forall mu (WD: SM_wd mu) X
+      (HX: forall b, vis mu b = true ->
+                     X b = true), 
+      pub_of (restrict_sm mu X) = pub_of mu.
+Proof. intros. rewrite restrict_sm_pub.
+ apply restrict_outside. intros.
+ apply HX. apply pub_in_local in H. 
+ destruct (local_DomRng _ WD _ _ _ H). unfold vis. intuition.
+Qed. 
+
+Lemma restrict_sm_foreign': forall mu (WD: SM_wd mu) X
+      (HX: forall b, vis mu b = true -> X b = true), 
+      foreign_of (restrict_sm mu X) = foreign_of mu.
+Proof. intros. rewrite restrict_sm_foreign.
+ apply restrict_outside. intros.
+ apply HX. unfold vis. rewrite orb_true_iff.
+ right. eapply (foreign_DomRng _ WD _ _ _ H).
+Qed. 
+
+Lemma restrict_sm_locBlocksSrc: forall mu X, 
+      locBlocksSrc (restrict_sm mu X) = locBlocksSrc mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_extBlocksSrc: forall mu X, 
+      extBlocksSrc (restrict_sm mu X) = extBlocksSrc mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_pubBlocksSrc: forall mu X, 
+      pubBlocksSrc (restrict_sm mu X) = pubBlocksSrc mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_frgnBlocksSrc: forall mu X, 
+      frgnBlocksSrc (restrict_sm mu X) = frgnBlocksSrc mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_DomSrc: forall mu X, 
+      DomSrc (restrict_sm mu X) = DomSrc mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_DOM: forall mu X, 
+      DOM (restrict_sm mu X) = DOM mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+
+Lemma restrict_sm_locBlocksTgt: forall mu X, 
+      locBlocksTgt (restrict_sm mu X) = locBlocksTgt mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_extBlocksTgt: forall mu X, 
+      extBlocksTgt (restrict_sm mu X) = extBlocksTgt mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_pubBlocksTgt: forall mu X, 
+      pubBlocksTgt (restrict_sm mu X) = pubBlocksTgt mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_frgnBlocksTgt: forall mu X, 
+      frgnBlocksTgt (restrict_sm mu X) = frgnBlocksTgt mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_DomTgt: forall mu X, 
+      DomTgt (restrict_sm mu X) = DomTgt mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+Lemma restrict_sm_RNG: forall mu X, 
+      RNG (restrict_sm mu X) = RNG mu.
+Proof. intros. destruct mu; reflexivity. Qed.
+
+Lemma restrict_sm_WD:
+      forall mu (WD: SM_wd mu) X
+          (HX: forall b, vis mu b = true -> X b = true),
+      SM_wd (restrict_sm mu X).
+Proof. intros.
+split; intros.
+  rewrite restrict_sm_locBlocksSrc, restrict_sm_extBlocksSrc.
+    apply WD.
+  rewrite restrict_sm_locBlocksTgt, restrict_sm_extBlocksTgt.
+    apply WD.
+  rewrite restrict_sm_locBlocksSrc, restrict_sm_locBlocksTgt.
+    rewrite restrict_sm_local in H.
+    eapply WD. eapply restrictD_Some. apply H.
+  rewrite restrict_sm_extBlocksSrc, restrict_sm_extBlocksTgt.
+    rewrite restrict_sm_extern in H.
+    eapply WD. eapply restrictD_Some. apply H.
+  rewrite restrict_sm_pubBlocksSrc in H. 
+    destruct (pubSrc _ WD _ H) as [b2 [d1 [PUB1 PT2]]].
+    rewrite restrict_sm_pubBlocksTgt. 
+    exists b2, d1. 
+    rewrite restrict_sm_pub'; intuition.
+  rewrite restrict_sm_frgnBlocksSrc in H. 
+    destruct (frgnSrc _ WD _ H) as [b2 [d1 [FRG1 FT2]]].
+    rewrite restrict_sm_frgnBlocksTgt. 
+    exists b2, d1. 
+    rewrite restrict_sm_foreign'; intuition.
+  rewrite restrict_sm_locBlocksTgt. 
+    rewrite restrict_sm_pubBlocksTgt in H.
+    apply (pubBlocksLocalTgt _ WD _ H).
+  rewrite restrict_sm_extBlocksTgt. 
+    rewrite restrict_sm_frgnBlocksTgt in H.
+    apply (frgnBlocksExternTgt _ WD _ H).
+Qed.
+
+
+Lemma restrict_sm_preserves_globals: forall {F V} (ge:Genv.t F V) mu X
+  (PG : meminj_preserves_globals ge (as_inj mu))
+  (Glob : forall b, isGlobalBlock ge b = true -> X b = true),
+meminj_preserves_globals ge (as_inj (restrict_sm mu X)).
+Proof. intros. rewrite restrict_sm_all.
+  eapply restrict_preserves_globals; assumption.
 Qed.
 
 Module SM_simulation. Section SharedMemory_simulation_inject. 
@@ -1127,15 +1554,17 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
     (*match-state is closed wrt all normalization wrt potential downstream 
       structured injections. This is our current way of saying that the core 
       doesn't care about blocks in "unknown" region*)
-    match_norm: forall d mu c1 m1 c2 m2, 
-          match_state d mu c1 m1 c2 m2 ->
-          forall mu23, (SM_wd mu23 /\ 
+    (*match_norm: forall d mu c1 m1 c2 m2, 
+          match_state d mu c1 m1 c2 m2 -> 
+          (mapped_closed m1 mu /\
+          (forall mu23, (SM_wd mu23 /\ 
                         locBlocksTgt mu = locBlocksSrc mu23 /\
                         extBlocksTgt mu = extBlocksSrc mu23 /\
                        (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
                        (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
-          match_state d (sm_extern_normalize mu mu23) c1 m1 c2 m2;
-
+                       mapped_closed m2 mu23 ->
+           match_state d (sm_extern_normalize mu mu23) c1 m1 c2 m2));
+*)
    (*an alternative to match_norm might be this, but it does not 
      seem to be transitive:
     match_TrimUnknown: forall d mu c1 m1 c2 m2, 
@@ -1144,9 +1573,23 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
    (*another alternative to match_norm might be this, but it does not seem
      to work in the transitivity proof of afterExternal:
-    match_EeraseUnknown: forall d mu c1 m1 c2 m2, 
+    match_EraseUnknown: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
           match_state d (TrimUnknown mu) c1 m1 c2 m2;*)
+    match_norm: forall d mu c1 m1 c2 m2, 
+          match_state d mu c1 m1 c2 m2 -> 
+          REACH_closed m1 (vis mu);
+(*
+    match_erase: forall d mu c1 m1 c2 m2 X, 
+          match_state d mu c1 m1 c2 m2 -> 
+          erasable mu m1 X ->
+          match_state d (Erase mu X) c1 m1 c2 m2;
+*)
+    match_restrict: forall d mu c1 m1 c2 m2 X, 
+          match_state d mu c1 m1 c2 m2 -> 
+          (forall b, vis mu b = true -> X b = true) ->
+          REACH_closed m1 X ->
+          match_state d (restrict_sm mu X) c1 m1 c2 m2;
 
     match_validblocks: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
@@ -1244,8 +1687,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall cd st2 mu m2
-        (UHyp: forall b1 z, U1 b1 z = true -> 
-                  (locBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
+        (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1277,8 +1719,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall cd st2 mu m2
-        (UHyp: forall b1 z, U1 b1 z = true -> 
-                  (locBlocksSrc mu b1 = true \/ frgnBlocksSrc mu b1 = true)),
+        (UHyp: forall b1 z, U1 b1 z = true -> Mem.valid_block m1 b1 ->
+                            vis mu b1 = true),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1398,7 +1840,11 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
          (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
+(*         (CONF :forall b, sharedSrc nu' b -> Mem.valid_block m1 b -> sharedSrc nu b = true)
 
+         (CONF :forall b, REACH m1' (exportedSrc nu' (ret1 :: nil)) b = true ->
+                          Mem.valid_block m1 b -> sharedSrc nu b = true)
+*)
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
@@ -1582,7 +2028,7 @@ Proof. intros. destruct mu; reflexivity. Qed.
 
 Lemma RelyGuaranteeSrc: forall mu (WD: SM_wd mu) Esrc m m'
               (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+                                     vis mu b = true)
                (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m'),
          Mem.unchanged_on (fun b ofs => locBlocksSrc (FLIP mu) b = true /\ 
                                         pubBlocksSrc (FLIP mu) b = false) m m'.
@@ -1593,7 +2039,7 @@ Proof. intros.
   case_eq (Esrc b ofs); intros; trivial; simpl in *.
   destruct H.
   destruct (disjoint_extern_local_Src _ WD b). 
-  destruct (SrcHyp _ _ H0); congruence.
+  apply SrcHyp in H0. unfold vis in H0. rewrite H2, H1 in H0. discriminate. 
   congruence.
 Qed.
 
@@ -1619,8 +2065,7 @@ Lemma RelyGuaranteeTgtPerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
-            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
             (*m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty)*),
             Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
 Proof. intros.
@@ -1631,7 +2076,7 @@ Proof. intros.
   destruct H.
   rewrite FLIPlocBlocksTgt in H. 
   destruct F as [b1 [d1 [Frg [ES P]]]].
-    apply (extBlocksSrc_locBlocksTgt _ WD _ H).
+    apply (extBlocksTgt_locBlocksTgt _ WD _ H).
   destruct (H1 b1 d1); clear H1.
      rewrite FLIPlocal.
      apply foreign_in_extern; assumption.
@@ -1648,8 +2093,7 @@ Lemma RelyGuaranteeTgt: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
-            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
             m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty),
             Mem.unchanged_on (local_out_of_reach (FLIP mu) m1) m2 m2'.
 Proof. intros. 
@@ -1660,24 +2104,23 @@ Proof. intros.
   destruct H.
   rewrite FLIPlocBlocksTgt in H.
   destruct F as [b1 [d1 [Frg ES]]].
-    apply (extBlocksSrc_locBlocksTgt _ WD _ H).
+    apply (extBlocksTgt_locBlocksTgt _ WD _ H).
   rewrite FLIPlocal in H1.
   destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
-  destruct (SrcHyp _ _ ES); clear SrcHyp.
-    rewrite H2 in *. inv CC.
+(*  apply SrcHyp in ES. unfold vis in ES.
+    rewrite CC in ES; simpl in ES.(* rewrite H2 in *. inv CC.*)*)
   specialize (SrcPerm _ _ ES).
   destruct (H1 b1 d1); clear H1.
      apply foreign_in_extern; assumption.
      contradiction.
-  rewrite FLIPpubBlocksSrc in H3. congruence. 
+  rewrite FLIPpubBlocksSrc in H2. congruence. 
 Qed.
 
 (*Once these RG results are used in a linker/concurrency machine,
   we will need to remove all blocks b with isGlobalBlock ge from pubBlocks*)
 Lemma RGSrc_multicore: forall mu Esrc m m'
-              (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
-               (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
+         (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
+         (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
           nu, 
          (forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) ->
          (forall b, pubBlocksSrc nu b = true <-> 
@@ -1690,11 +2133,11 @@ Proof. intros.
   intros. simpl.
   destruct H2. rename b into b1. specialize (H _ H2).
   case_eq (Esrc b1 ofs); intros; trivial; simpl in *.
-  destruct (SrcHyp _ _ H4); clear Unch SrcHyp.
-    congruence.
+  apply SrcHyp in H4. unfold vis in H4. rewrite H in H4. simpl in H4.  
+  clear Unch SrcHyp.
   destruct (H0 b1) as [_ ?].
-    rewrite H5, H2 in H6.
-    rewrite H6 in H3; intuition.
+    rewrite H4, H2 in H5. simpl in H5.
+    rewrite H5 in H3; intuition.
 Qed.
 
 Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
@@ -1704,8 +2147,7 @@ Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
-            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            (*(SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)*)
             m1 (SrcPerm: forall b1 z, Esrc b1 z = true -> Mem.perm m1 b1 z Max Nonempty)
             nu
          (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
@@ -1723,9 +2165,9 @@ Proof. intros.
   destruct (F X1) as [b1 [d1 [Frg ES]]]; clear F.
   destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
   clear DD.
-  destruct (SrcHyp _ _ ES); clear SrcHyp.
+(*  apply SrcHyp in ES. clear SrcHyp.
     rewrite H2 in *. inv CC.
-  clear H2.
+  clear H2.*)
   specialize (X2 _ _ _ Frg). rewrite H in X2.
   rewrite orb_true_r in X2. specialize (X2 (eq_refl _)). 
   destruct (H1 b1 d1).
@@ -1741,8 +2183,7 @@ Lemma RGTgt_multicorePerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
             (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
-            (SrcHyp: forall b ofs, Esrc b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true))
+            (*(SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)*)
             nu
          (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
          (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
@@ -1759,9 +2200,9 @@ Proof. intros.
   destruct (F X1) as [b1 [d1 [Frg [ES P]]]]; clear F.
   destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
   clear DD.
-  destruct (SrcHyp _ _ ES); clear SrcHyp.
+  (*destruct (SrcHyp _ _ ES); clear SrcHyp.
     rewrite H2 in *. inv CC.
-  clear H2.
+  clear H2.*)
   specialize (X2 _ _ _ Frg). rewrite H in X2.
   rewrite orb_true_r in X2. specialize (X2 (eq_refl _)). 
   destruct (H1 b1 d1).

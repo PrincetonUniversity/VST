@@ -112,7 +112,7 @@ Proof. intros.
     unfold initial_SM; split; intros; simpl in *.
        specialize (PGa _ H). rewrite PGa.
        assert (REACH m R b = true).
-         apply REACH_increasing. apply HR. 
+         apply REACH_nil. apply HR. 
          unfold isGlobalBlock, genv2blocksBool; simpl.
          destruct H as [id ID].
          apply Genv.find_invert_symbol in ID. rewrite ID. reflexivity.
@@ -120,7 +120,7 @@ Proof. intros.
     split; intros; simpl in *.
        specialize (PGb _ H). rewrite PGb.
        assert (REACH m R b = true).
-         apply REACH_increasing. apply HR. 
+         apply REACH_nil. apply HR. 
          unfold isGlobalBlock, genv2blocksBool; simpl.
          destruct H as [id ID]. rewrite ID. intuition.
        rewrite H0; trivial.
@@ -334,7 +334,7 @@ destruct MatchGenv as [PG GF].
 assert (forall b,
        isGlobalBlock ge1 b = true -> REACH m1 (exportedSrc mu vals1) b = true).
   intros.
-  apply REACH_increasing. unfold exportedSrc.
+  apply REACH_nil. unfold exportedSrc.
   apply GF in H. rewrite (frgnSrc_shared _ WDmu _ H). intuition.
 split; trivial. intros.
   rewrite <- (genvs_domain_eq_isGlobal _ _ GenvsDomEq) in *.
@@ -779,4 +779,153 @@ Proof. intros. eexists; eexists; eexists.
     rewrite replace_locals_shared; intros.
             apply halted_loc_check_aux in H; trivial.
             eapply MInj; eassumption. 
+Qed.
+
+  
+Lemma get_freelist:
+  forall fbl m m' (FL: Mem.free_list m fbl = Some m') b
+  (H: forall b' lo hi, In (b', lo, hi) fbl -> b' <> b) z,
+  ZMap.get z (Mem.mem_contents m') !! b = 
+  ZMap.get z (Mem.mem_contents m) !! b.
+Proof. intros fbl.
+  induction fbl; simpl; intros; inv FL; trivial.
+  destruct a. destruct p.
+  remember (Mem.free m b0 z1 z0) as d.
+  destruct d; inv H1. apply eq_sym in Heqd.
+  rewrite (IHfbl _ _ H2 b).
+     clear IHfbl H2.
+     case_eq (eq_block b0 b); intros.
+      exfalso. eapply (H b0). left. reflexivity. assumption.
+     apply Mem.free_result in Heqd. subst. reflexivity.
+  eauto.
+Qed.
+
+Lemma intern_incr_vis_inv: forall mu nu (WDmu: SM_wd mu) (WDnu: SM_wd nu)
+      (INC: intern_incr mu nu) 
+       b1 b2 d (AI: as_inj mu b1 = Some(b2,d))
+      (VIS: vis nu b1 = true), vis mu b1 = true.
+Proof. unfold vis; simpl. intros.
+  destruct INC as [L [E [LS [_ [_ [_ [F _]]]]]]].
+  rewrite F in *.
+  apply orb_true_iff in VIS. destruct VIS; intuition.
+  destruct (joinD_Some _ _ _ _ _ AI) as [EXT | [_ LOC]]; clear AI.
+    rewrite E in EXT.
+    destruct (extern_DomRng _ WDnu _ _ _ EXT) as [? ?].
+    rewrite (extBlocksSrc_locBlocksSrc _ WDnu _ H0) in H. discriminate.
+  destruct (local_DomRng _ WDmu _ _ _ LOC).
+    intuition. 
+Qed.
+
+Lemma intern_incr_vis: forall mu nu (INC: intern_incr mu nu) 
+       b (VIS: vis mu b = true), vis nu b = true.
+Proof. unfold vis; simpl. intros.
+  destruct INC as [_ [_ [L [_ [_ [_ [F _]]]]]]].
+    apply orb_true_iff in VIS. destruct VIS.
+    apply L in H. intuition.
+    rewrite F in H. intuition.
+Qed.
+
+Lemma restrict_sm_intern_incr: forall mu1 mu2 (WD2 : SM_wd mu2)
+          (INC : intern_incr mu1 mu2),
+      intern_incr (restrict_sm mu1 (vis mu1))
+                  (restrict_sm mu2 (vis mu2)).
+Proof.
+     red; intros. destruct INC. 
+     destruct mu1; destruct mu2; simpl in *.
+        unfold restrict_sm, vis in *; simpl in *. intuition.
+     red; intros. 
+       destruct (restrictD_Some _ _ _ _ _ H8) as [f M]; clear H8.
+       eapply restrictI_Some. eapply H; eassumption.
+       apply orb_true_iff in M.
+       destruct M as [M | M]. apply H0 in M. intuition.
+       rewrite H5 in M. rewrite M. intuition.
+     rewrite <- H1 in *.
+       extensionality b.
+       remember (restrict extern_of (fun b0 : block => locBlocksSrc b0 || frgnBlocksSrc b0) b) as d.
+       destruct d; apply eq_sym in Heqd.
+         destruct p. destruct (restrictD_Some _ _ _ _ _ Heqd) as [f M]; clear Heqd.
+         apply eq_sym. eapply restrictI_Some; try eassumption.
+         apply orb_true_iff in M.
+         destruct M as [M | M]. apply H0 in M. intuition.
+         rewrite H5 in M. rewrite M. intuition.
+       apply eq_sym. apply restrictI_None.
+         apply restrictD_None' in Heqd. destruct Heqd.
+         left; trivial.
+         destruct H8 as [b2 [dd [EXT M]]].
+         apply orb_false_iff in M. destruct M.
+         destruct (extern_DomRng _ WD2 _ _ _ EXT). simpl in *.
+           apply (extBlocksSrc_locBlocksSrc _ WD2) in H11. simpl in H11.
+           rewrite H5 in H10. rewrite H10, H11. right; reflexivity.
+Qed.
+Lemma intern_incr_restrict: forall mu1 mu2 (WD2 : SM_wd mu2)
+          (INC : intern_incr mu1 mu2),
+      inject_incr (restrict (as_inj mu1) (vis mu1))
+                  (restrict (as_inj mu2) (vis mu2)).
+Proof.
+     red; intros. destruct (restrictD_Some _ _ _ _ _ H).
+     apply (intern_incr_as_inj _ _ INC) in H0; trivial.
+     eapply restrictI_Some; try eassumption.
+     eapply intern_incr_vis; eassumption.
+Qed.
+
+Lemma vis_restrict_sm: forall mu X, 
+      vis (restrict_sm mu X) = vis mu.
+Proof. intros. unfold vis. destruct mu; trivial. Qed.
+
+Lemma REACH_split: forall m X Y b
+      (RCH:REACH m (fun b' => X b' || Y b') b = true),
+      REACH m X b = true \/ REACH m Y b = true.
+Proof. intros.
+  rewrite REACHAX in RCH.
+  destruct RCH as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL.
+    apply orb_true_iff in H. 
+    destruct H.
+       left. apply REACH_nil. trivial. 
+       right. apply REACH_nil. trivial.
+  destruct (IHL _ H1); clear IHL H1.
+    left. eapply REACH_cons; try eassumption.
+    right. eapply REACH_cons; try eassumption.
+Qed.
+
+Lemma REACH_Store: forall m chunk b i v m'
+     (ST: Mem.store chunk m b (Int.unsigned i) v = Some m')
+     Roots (VISb: Roots b = true)
+     (VISv : forall b', getBlocks (v :: nil) b' = true -> 
+             Roots b' = true)
+     (R: REACH_closed m Roots),
+     REACH_closed m' Roots.
+Proof. intros.
+intros bb Hbb.
+assert (REQ: Roots = (fun b' : Values.block =>
+       eq_block b' b || (if eq_block b' b then false else Roots b'))).
+  extensionality b'.
+  remember (eq_block b' b).
+  destruct s; simpl; trivial. subst; trivial.
+rewrite REQ in Hbb; clear REQ.
+apply REACH_split in Hbb.
+destruct Hbb.
+(*bb is reachable in m' from b*)
+   admit.
+(*bb is reachable in m' from Roots - b*)
+  admit.
+Qed.
+
+Lemma REACH_load_vis: forall chunk m b i b1 ofs1
+        (LD: Mem.load chunk m b (Int.unsigned i) = Some (Vptr b1 ofs1))
+        mu b2 delta (AI: as_inj mu b = Some (b2, delta))
+        (VIS: vis mu b = true),
+      REACH m (vis mu) b1 = true.
+Proof. 
+  intros.
+  eapply REACH_cons with(z:=Int.unsigned i)(off:=ofs1). 
+    apply REACH_nil. apply VIS.
+    eapply Mem.load_valid_access. apply LD. 
+    split. omega. destruct chunk; simpl; omega.
+    apply Mem.load_result in LD. 
+    apply eq_sym in LD. 
+    destruct (decode_val_pointer_inv _ _ _ _ LD); clear LD; subst.
+    simpl in *.
+    inv H0. eassumption. 
 Qed.

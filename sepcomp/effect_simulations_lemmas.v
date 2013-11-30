@@ -33,15 +33,33 @@ Section Eff_INJ_SIMU_DIAGRAMS.
    Hypothesis match_sm_wd: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           SM_wd mu.
-
+(*
    Hypothesis match_norm: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
-          forall mu23, (SM_wd mu23 /\ 
+          (mapped_closed m1 mu /\
+          (forall mu23, (SM_wd mu23 /\ 
                         locBlocksTgt mu = locBlocksSrc mu23 /\
                         extBlocksTgt mu = extBlocksSrc mu23 /\
                        (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
                        (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
-          match_states d (sm_extern_normalize mu mu23) c1 m1 c2 m2.
+                       mapped_closed m2 mu23 ->
+           match_states d (sm_extern_normalize mu mu23) c1 m1 c2 m2)).
+*)
+    Hypothesis match_norm: forall d mu c1 m1 c2 m2, 
+          match_states d mu c1 m1 c2 m2 -> 
+          REACH_closed m1 (vis mu).
+(*
+    Hypothesis match_erase: forall d mu c1 m1 c2 m2 X, 
+          match_states d mu c1 m1 c2 m2 -> 
+          erasable mu m1 X ->
+          match_states d (Erase mu X) c1 m1 c2 m2.
+*)
+
+    Hypothesis match_restrict: forall d mu c1 m1 c2 m2 X, 
+          match_states d mu c1 m1 c2 m2 -> 
+          (forall b, vis mu b = true -> X b = true) ->
+          REACH_closed m1 X ->
+          match_states d (restrict_sm mu X) c1 m1 c2 m2.
 
    Hypothesis match_validblocks: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
@@ -62,9 +80,15 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           Forall2 (val_inject j) vals1 vals2 ->
           meminj_preserves_globals ge1 j ->
 
+        (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
                           DomS b1 = true /\ DomT b2 = true) ->
          (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
+
+        (*the next two conditions ensure the initialSM satisfies sm_valid*)
+         (forall b, DomS b = true -> Mem.valid_block m1 b) ->
+         (forall b, DomT b = true -> Mem.valid_block m2 b) ->
+
        exists c2, 
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 (initial_SM DomS
@@ -83,8 +107,8 @@ Section Eff_INJ_SIMU_DIAGRAMS.
              halted Sem2 c2 = Some v2.
 
   Hypothesis inj_at_external : 
-      forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
-        match_states cd mu c1 m1 c2 m2 ->
+      forall mu c1 m1 c2 m2 e vals1 ef_sig,
+        match_states c1 mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject (as_inj mu) m1 m2 /\ 
           exists vals2, 
@@ -93,9 +117,9 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
 
   Hypothesis inj_after_external:
-      forall cd mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
-        (MatchMu: match_states cd mu st1 m1 st2 m2)
+        (MatchMu: match_states st1 mu st1 m1 st2 m2)
         (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
 
         (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
@@ -135,7 +159,10 @@ Section Eff_INJ_SIMU_DIAGRAMS.
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
-
+(*
+        (CONF :forall b, REACH m1' (exportedSrc nu' (ret1 :: nil)) b = true ->
+                          Mem.valid_block m1 b -> sharedSrc nu b = true),
+*)
        exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
@@ -190,8 +217,7 @@ Hypothesis order_wf: well_founded order.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b z, U1 b z = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b z, U1 b z = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -216,8 +242,8 @@ Hypothesis order_wf: well_founded order.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b z, U1 b z = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b z, U1 b z = true -> Mem.valid_block m1 b ->
+                           vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -248,11 +274,18 @@ Proof.
 clear - match_sm_wd. intros. destruct H; subst. eauto.
 assumption.
 clear - match_genv. intros. destruct MC; subst. eauto.
-clear - match_norm. intros. destruct H; subst. split; eauto.
-clear - match_validblocks. intros. destruct H; subst. eauto.
+(*clear - match_norm. intros. destruct H; subst.
+     destruct (match_norm _ _ _ _ _ _ H0).
+     split; trivial.
+     intros. split; trivial.  eauto.*)
+clear - match_norm. intros. destruct H; subst. eauto.
+(*clear - match_erase. intros. destruct H; subst. eauto.*)
+clear - match_restrict. intros. destruct H; subst. eauto.
+clear - match_validblocks. intros.
+    destruct H; subst. eauto.
 clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
-         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5)
+         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
     as [c2 [INI MS]].
   exists c1, c2. intuition. 
 clear - inj_core_diagram.
@@ -279,16 +312,17 @@ clear - inj_halted. intros. destruct H; subst.
   destruct (inj_halted _ _ _ _ _ _ _ H1 H0) as [v2 [INJ [VAL HH]]].
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
-  destruct (inj_at_external _ _ _ _ _ _ _ _ _ H1 H0)
+  destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
     as [INJ [vals2 [VALS AtExt2]]].
   split. trivial. exists vals2. intuition.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
-  destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _ _
+  destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _
       MemInjMu matchMu AtExtSrc AtExtTgt ValInjMu _
       pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ INC SEP
       WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt 
-      _ frgnSrcHyp _ frgnTgtHyp _ Mu'Hyp UnchPrivSrc UnchLOOR)
+      _ frgnSrcHyp _ frgnTgtHyp _ Mu'Hyp 
+      UnchPrivSrc UnchLOOR (*CONF*))
     as [st1' [st2' [AftExt1 [AftExt2 MS']]]].
   exists st1', st1', st2'. intuition.
 Qed.
@@ -341,8 +375,7 @@ Section EFF_INJ_SIMULATION_STAR.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -366,8 +399,8 @@ Section EFF_INJ_SIMULATION_STAR.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
+                  vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -465,8 +498,7 @@ Section EFF_INJ_SIMULATION_PLUS.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -490,8 +522,8 @@ Section EFF_INJ_SIMULATION_PLUS.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> 
-                  (locBlocksSrc mu b = true \/ frgnBlocksSrc mu b = true)),
+        (UHyp: forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
+                             vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -803,16 +835,6 @@ Proof. intros.
       destruct (extern_DomRng _ WD2 _ _ _ Heqd) as [A B]. 
       rewrite SrcTgtLoc in BB.
       destruct (disjoint_extern_local_Src _ WD2 b2); congruence.  
-Qed.
-
-Lemma sm_extern_normalize_compose_sm: forall mu12 mu23,
-  compose_sm mu12 mu23 = compose_sm (sm_extern_normalize mu12 mu23) mu23.
-Proof. intros.
-  unfold compose_sm. 
-  rewrite sm_extern_normalize_extBlocksSrc, sm_extern_normalize_locBlocksSrc,
-          sm_extern_normalize_pubBlocksSrc, sm_extern_normalize_frgnBlocksSrc,
-          sm_extern_normalize_local, sm_extern_normalize_extern.
-    rewrite normalize_compose. apply f_equal. trivial.
 Qed.
 
 Lemma compose_sm_intern_incr:
@@ -1333,3 +1355,6 @@ Proof. intros.
 Qed.
 
 *)
+
+Lemma vis_compose_sm: forall mu nu, vis (compose_sm mu nu) = vis mu.
+Proof. intros. unfold vis. destruct mu; simpl. reflexivity. Qed.

@@ -1258,7 +1258,6 @@ Lemma MS_match_callstack_alloc_variables_rec:
   /\ forall j',  inject_incr f2 j' -> inject_separated f2 j' m2 tm -> 
                  inject_separated f2 j' m1 tm.
 Proof.
-Proof.
   intros until cs; intros VALID REPRES STKSIZE STKPERMS.
   induction 1; intros f1 NOREPET COMPAT SEP1 SEP2 UNBOUND MCS MINJ.
   (* base case *)
@@ -1347,7 +1346,6 @@ Lemma MS_match_callstack_alloc_variables_aux:
           Events.inject_separated f2 j' m1 tm1.
 Proof. clear core_data.
   intros.
-  unfold build_compilenv in H.
 assert (AR: exists f',
    match_callstack prog f' m2 tm2
                      (Frame cenv fn e le te sp (Mem.nextblock m1) (Mem.nextblock m2) :: cs)
@@ -1823,7 +1821,7 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
 (* internal call *) 
-      destruct c1; simpl in *; try inv H0. 
+      destruct c1; simpl in *; try inv H0.
       destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
