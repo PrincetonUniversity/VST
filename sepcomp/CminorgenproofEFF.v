@@ -703,7 +703,7 @@ Proof.
     apply MC.
 Qed.
 
-Lemma Match_norm: forall d mu c1 m1 c2 m2, 
+Lemma Match_visible: forall d mu c1 m1 c2 m2, 
           Match_cores d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu).
 Proof. intros. apply H. Qed.
@@ -4786,8 +4786,8 @@ assert (GDE: genvs_domain_eq ge tge).
   apply GDE.
 (*match_wd*)
   apply Match_sm_wd.
-(*match_norm*)
-  apply Match_norm.
+(*match_visible*)
+  apply Match_visible.
 (*match_restrict*)
   apply Match_restrict.
 (*match_restrict*)

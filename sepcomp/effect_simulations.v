@@ -1576,7 +1576,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
     match_EraseUnknown: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
           match_state d (TrimUnknown mu) c1 m1 c2 m2;*)
-    match_norm: forall d mu c1 m1 c2 m2, 
+    match_visible: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu);
 (*

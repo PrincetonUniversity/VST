@@ -45,7 +45,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
                        mapped_closed m2 mu23 ->
            match_states d (sm_extern_normalize mu mu23) c1 m1 c2 m2)).
 *)
-    Hypothesis match_norm: forall d mu c1 m1 c2 m2, 
+    Hypothesis match_visible: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu).
 (*
@@ -278,7 +278,7 @@ clear - match_genv. intros. destruct MC; subst. eauto.
      destruct (match_norm _ _ _ _ _ _ H0).
      split; trivial.
      intros. split; trivial.  eauto.*)
-clear - match_norm. intros. destruct H; subst. eauto.
+clear - match_visible. intros. destruct H; subst. eauto.
 (*clear - match_erase. intros. destruct H; subst. eauto.*)
 clear - match_restrict. intros. destruct H; subst. eauto.
 clear - match_validblocks. intros.
