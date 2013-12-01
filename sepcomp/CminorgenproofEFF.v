@@ -28,9 +28,13 @@ Require Import sepcomp.Csharpminor_eff.
 
 Require Import sepcomp.CminorgenproofRestructured.
 
-Axiom AllocContentsUndef: forall m1 lo hi m2 b
+Axiom AllocContentsUndef2: forall m1 lo hi m2 b
       (ALLOC:Mem.alloc m1 lo hi = (m2, b)),
      (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Lemma AllocContentsUndef1: forall m1 lo hi m2 b
+      (ALLOC:Mem.alloc m1 lo hi = (m2, b)) z,
+     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
 
 (*The axiom can easily be proven in Memory.v, in section
   ALLOC, but repeating the proof here doesn't work, evem if 
@@ -1605,9 +1609,8 @@ Proof.
       destruct (eq_block b b1); try subst b. elim n; trivial.
       apply H9.
     destruct (eq_block b' b1); try subst b'.
-     clear - H0 H12 H14 n.
-     apply AllocContentsUndef in H0. rewrite H0 in H14.
-       rewrite ZMap.gi in H14. inv H14.   
+      clear - H0 H12 H14 n. 
+      rewrite (AllocContentsUndef1 _ _ _ _ _ H0) in H14. inv H14. 
     specialize (IHL _ H11 n1); clear H11.
       apply (Mem.perm_alloc_4 _ _ _ _ _ H0) in H12; trivial. 
       destruct (Mem.alloc_unchanged_on (fun bb zz => True)
@@ -2686,8 +2689,8 @@ Lemma Builtin_mem_inject:
     /\ intern_incr mu mu'
     /\ sm_inject_separated mu mu' m1 m1'
     /\ sm_locally_allocated mu mu' m1 m1' m2 m2' .
-
-
+*)
+(*
 Lemma MS_step_case_Builtin:
 forall x t ef optid vres m' bl vargs
 (EvalArgs: Csharpminor.eval_exprlist ge e lenv m bl vargs)
@@ -2711,8 +2714,13 @@ exists c2' : CMin_core,
 Proof. intros.
   exploit transl_exprlist_correct; try eassumption; try eapply PRE. 
   intros [tvargs [EVAL2 VINJ2]].
-  exploit structured_match_callstack_match_globalenvs; eauto. intros [hi' MG].
-  exploit Events.external_call_mem_inject; try eassumption. ???
+  exploit structured_match_callstack_match_globalenvs; try eassumption.
+  intros [hi' MG].
+  exploit Events.external_call_mem_inject; try eassumption.
+     eapply restrict_preserves_globals. eapply PRE.
+            unfold vis; simpl; intros. 
+            apply orb_true_iff. right.
+            eapply PRE. apply H.
      eapply inject_mapped. 
        eapply PRE.
        eapply restrict_mapped_closed.
@@ -4438,121 +4446,30 @@ induction EFFSTEP; simpl in *.
              trivial.
           destruct (local_DomRng _ H13 _ _ _ LOC).
             rewrite H12 in H18. discriminate.
+      rewrite encode_val_length in Hoff. rewrite <- size_chunk_conv in Hoff.
       assert (Arith: Int.unsigned i <= ofs - delta < Int.unsigned i + size_chunk chunk).
-          admit. (*ToDo: arithmetic*)
+         clear - H16 Hoff H15 H1.
+         
+         assert (DD: delta >= 0 /\ 0 <= Int.unsigned i + delta <= Int.max_unsigned).
+                 eapply H16. apply H1. left.
+                 apply Mem.store_valid_access_3 in H15.
+                 eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
+         destruct DD as [DD1 DD2].
+         specialize (Int.unsigned_range i); intros I.
+         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+            apply Int.unsigned_repr. split. omega. omega.
+
+         rewrite Int.add_unsigned in Hoff. rewrite URdelta in Hoff.
+         rewrite (Int.unsigned_repr _ DD2) in Hoff. omega.
+
       split. unfold StoreEffect.
         destruct (eq_block bSrc bSrc); try congruence. simpl; clear e0.
-        destruct Arith. rewrite encode_val_length. rewrite <- size_chunk_conv.
+        destruct Arith. rewrite encode_val_length . rewrite <- size_chunk_conv.
         destruct (zle (Int.unsigned i) (ofs - delta)); try omega.
           destruct (zlt (ofs - delta) (Int.unsigned i + size_chunk chunk)); try omega. trivial.
       apply Mem.store_valid_access_3 in H15. 
             eapply Mem.perm_implies. 
             eapply Mem.perm_max. eapply H15. assumption. constructor. 
-(*some stuf for the above arithmetic goal:
-       assert (delta >= 0 /\ 0 <= Int.unsigned i + delta <= Int.max_unsigned).
-                 eapply H16. apply H1. left.
-                 apply Mem.store_valid_access_3 in H20.
-                 eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
-               specialize (Int.unsigned_range_2 i); intros.
-               specialize (Int.unsigned_range i); intros.
-         
-               assert (delta <= Int.max_unsigned). omega.  
-
-         unfold StoreEffect in H15.
-         repeat rewrite andb_true_iff in H15. destruct H15 as [[_ HH2] HH3].
-         destruct (zle (Int.unsigned (Int.add i (Int.repr delta))) ofs); try discriminate. clear HH2.
-         destruct (zlt ofs
-        (Int.unsigned (Int.add i (Int.repr delta)) +
-         Z.of_nat (length (encode_val chunk u)))); try discriminate. clear HH3.
-         exists (Z.sub ofs delta). split. xomega.
-         split. unfold StoreEffect.
-            destruct (eq_block b0 b0). simpl. clear e0.
-            apply andb_true_iff.
-               split.
-            assert ((Int.unsigned i) <= (ofs - delta)).
-               clear H1 l0 H4 H3 H18 H12.
-               apply Z.le_add_le_sub_r.
-destruct (Int.unsigned_add_either i (Int.repr delta)).
-    rewrite H1 in l. clear H1.
-     rewrite Int.unsigned_repr in l. apply l.
-     split. destruct H19. omega. assumption. 
-   rewrite H1 in l; clear H1. 
-     rewrite Int.unsigned_repr in l.
-     unfold Int.max_unsigned in *. apply arith. omega. 
-     destruct H19 as [A [B C]]. unfold Int.max_unsigned in C. 
-     remember (Int.unsigned i + delta) as dd. clear - l C. 
- omega.
- rewrite <- Z.add_sub_assoc in l.
-           
-     split. destruct H19. omega. assumption.  apply H1.
-specialize ().
-            destruct (zle (Int.unsigned i) (ofs - delta)). simpl.
-            destruct ().
-
-        exists (Int.unsigned (Int.add i (Int.repr delta)) +
-     Z.of_nat (length (encode_val chunk u)) - ofs).
-        split.
-         
-        exfalso. clear - l l0.   Focus 2. (Int.unsigned (Int.add i (Int.repr delta))) ofs); try discriminate. clear HH2.
-         rewrite H21. 
-clear b2.         subst. Focus 2.
-
-destruct vv. inv H15.
-        exists b0, delta. rewrite H20.
-        repeat rewrite andb_true_iff in H20.
-        destruct H20 as [[HH1 HH2] HH3].
-
-
-
-      unfold StoreEffect in H15. destruct vv; inv H15.
-      assert (exists b1 delta1 z, ofs = z+delta1 /\
-             foreign_of mu b1 = Some (b, delta1) /\
-  StoreEffect vaddr (encode_val chunk v) b1 z = true  /\
-  Mem.perm m1 b1 z Max Nonempty).
-
-        destruct vaddr; inv H1. inv H3.
-        destruct (restrictD_Some _ _ _ _ _ H22); clear H22.
-        exists b1, delta. rewrite H20.
-        repeat rewrite andb_true_iff in H20.
-        destruct H20 as [[HH1 HH2] HH3].
-        destruct (eq_block b0 b); subst; simpl in *; try discriminate.
-        clear HH1.
-        split. destruct (joinD_Some _ _ _ _ _ H1) as [EXT | [EXT LOC]]; clear H1.
-             unfold vis in H3.
-             destruct (extern_DomRng' _ H13 _ _ _ EXT) as [_ [_ [? _]]].
-             rewrite H1 in H3. simpl in H3.
-             destruct (frgnSrc _ H13 _ H3) as [bb [dd [FF FT]]].
-             rewrite (foreign_in_extern _ _ _ _ FF) in EXT. inv EXT.
-             trivial.
-          destruct (local_DomRng _ H13 _ _ _ LOC).
-            rewrite H15 in H18. discriminate.
-        repeat rewrite andb_true_iff.
-        assert ((Int.unsigned i0) <= (ofs - delta) < (Int.unsigned i0 + Z.of_nat (length (encode_val chunk v)))).
-            clear -MCS  HH2 HH3 STORE' H1 H19 H16.
-            assert (delta >= 0 /\ 0 <= Int.unsigned i0 + delta <= Int.max_unsigned).
-                 eapply H16. apply H1. left.
-                 apply Mem.store_valid_access_3 in H19.
-                 eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
-               clear - HH2 HH3 H1 H. destruct H.
-               specialize (Int.unsigned_range_2 i0); intros.
-               specialize (Int.unsigned_range i0); intros.
-               assert (delta <= Int.max_unsigned). omega.              
-               split. destruct (zle (Int.unsigned i0) (ofs - delta)); trivial. simpl.
-                      destruct (zle (Int.unsigned (Int.add i0 (Int.repr delta))) ofs); try discriminate.
-                      clear HH2 HH3.
-                      destruct (zle (ofs - delta) (Int.unsigned i0)).
-                      assert ( ofs - delta < Int.unsigned i0). clear -g. omega.  clear g.
-                      rewrite Z.lt_sub_lt_add_r in H5.
-                      exfalso.
-specialize (Int.eqm_unsigned_repr delta). intros.
-  rewrite Int.add_unsigned in l.
-  apply Int.unsigned_repr in H0. rewrite <- H0 in H3. clear H0.
-                      omega. rewrite <- Int.add_unsigned in H3.
-apply Int.unsigned_repr in H0.
- destruct (Int.unsigned_add_either i0 (Int.repr delta)).
-                   rewrite H in l. clear H. xomega. unfold Z.gt in g. apply Z.lt_sub_lt_add_l in g.
-               specialize (Z.le_add_le_sub_l delta ofs (Int.unsigned i0)).*)
-
    (*call*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 

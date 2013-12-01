@@ -1112,3 +1112,12 @@ Proof. intros.
        destruct (zlt ofs (Int.unsigned i + z)); simpl in *. inv H. apply g.
   rewrite PMap.gso. trivial. intros N; subst. elim n; trivial. 
 Qed.
+
+Axiom BuiltinEffect : forall (F V: Type) (ge: Genv.t F V) (sg: signature) 
+                    (vargs:list val) (m:mem), block -> Z -> bool.
+
+Axiom BUILTIN: forall (name: ident) (F V: Type) (ge: Genv.t F V) (sg: signature) 
+                    (vargs:list val)
+                       (m:mem) (t:trace) (v: val) (m': mem),
+      extcall_io_sem name sg ge vargs m t v m' ->
+      Mem.unchanged_on (fun b z => BuiltinEffect F V ge sg vargs m b z = false) m m'.

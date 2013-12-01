@@ -63,7 +63,7 @@ Inductive cmin_effstep (g: Cminor.genv):  (block -> Z -> bool) ->
   | cmin_effstep_builtin: forall f optid ef bl k sp e m vargs t vres m',
       eval_exprlist g sp e m bl vargs ->
       external_call ef g vargs m t vres m' ->
-      cmin_effstep g EmptyEffect (CMin_State f (Sbuiltin optid ef bl) k sp e) m
+      cmin_effstep g (BuiltinEffect fundef unit g (ef_sig ef) vargs m) (CMin_State f (Sbuiltin optid ef bl) k sp e) m
           (CMin_State f Sskip k sp (set_optvar optid vres e)) m'
 
   | cmin_effstep_seq: forall f s1 s2 k sp e m,
@@ -162,8 +162,19 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. eexists. econstructor; try eassumption. 
-admit. (*TODO: builtin - modify spec*)
+  split. unfold corestep, coopsem; simpl. eexists. econstructor; try eassumption.
+  (*       destruct ef; inv H0.
+         eapply BUILTIN. econstructor; eauto. 
+         eapply BUILTIN. econstructor; eauto.
+         admit. (*volatile load*) 
+         admit. (*volatile store*) 
+         admit. (*volatile load*) 
+         admit. (*volatile store*) 
+         eapply BUILTIN. econstructor; eauto.
+         eapply BUILTIN. econstructor; eauto.
+         eapply BUILTIN. econstructor; eauto.
+         eapply BUILTIN. econstructor; eauto. simpl. eassumption.  *) 
+admit. (*TODO: builtin - correct spec and treatment of volatiles*)
   split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.

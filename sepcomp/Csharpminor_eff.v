@@ -66,7 +66,8 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
   | csharpmin_effstep_builtin: forall f optid ef bl k e le m vargs t vres m',
       eval_exprlist g e le m bl vargs ->
       external_call ef g vargs m t vres m' ->
-      csharpmin_effstep g EmptyEffect (CSharpMin_State f (Sbuiltin optid ef bl) k e le) m
+      csharpmin_effstep g (BuiltinEffect fundef unit g (ef_sig ef) vargs m)
+         (CSharpMin_State f (Sbuiltin optid ef bl) k e le) m
          (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'
 
   | csharpmin_effstep_seq: forall f s1 s2 k e le m,

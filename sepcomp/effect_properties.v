@@ -889,6 +889,70 @@ Proof. intros.
     right. eapply REACH_cons; try eassumption.
 Qed.
 
+Lemma reachD: forall m R L b (RCH :reach m (fun u => R u = true) L b),
+      exists r, R r = true /\ reach m (fun bb => bb=r) L b.
+Proof. intros m R L.
+  induction L; simpl; intros; inv RCH.
+    exists b. split; trivial. constructor. trivial.
+  destruct (IHL _ H1) as [r [Rr RCH]]; clear IHL H1.
+    exists r. split; trivial.
+    econstructor; eassumption.
+Qed.
+
+Lemma reachD': forall m R L b (RCH :reach m (fun u => R u = true)  L b),
+      exists r, R r = true /\ reach m (fun bb => bb=r) L b /\
+         match rev L with nil => True
+           | HD::TL => exists z, HD = (r,z)
+         end. 
+Proof. intros m R L.
+  induction L; simpl; intros; inv RCH.
+    exists b. intuition. constructor. trivial.
+  destruct (IHL _ H1) as [r [Rr [RCH1 RCH2]]]; clear IHL H1.
+    exists r. split; trivial.
+    split. econstructor; eassumption.
+    remember (rev L) as d. destruct d; simpl in *.
+      destruct L; simpl in *. inv RCH1. eexists; reflexivity.
+      apply app_cons_not_nil in Heqd. contradiction.
+    apply RCH2.
+Qed.
+
+(*We can always "normalize" a reach-chain so that there's only a single root,
+  and the root at most occurs once in the chain*)
+Lemma reachD'': forall m R L b (RCH :reach m (fun u => R u = true) L b),
+      exists r M, R r = true /\ reach m (fun bb => bb=r) M b /\
+         match rev M with nil => True
+           | HD::TL => exists z, HD = (r,z) /\ (forall zz, ~ In (r,zz) TL) /\
+                       (forall x zx, R x = true -> In (x,zx) M -> x=r)
+         end. 
+Proof. intros m R L.
+  induction L; simpl; intros; inv RCH.
+    exists b, nil; simpl. intuition. constructor. trivial.
+  destruct (IHL _ H1) as [r [M [Rr [RCH1 RCH2]]]]; clear IHL H1.
+    remember (R b) as Rb.
+    destruct Rb; apply eq_sym in HeqRb.
+      exists b, nil; simpl. intuition. constructor; trivial.
+    remember (R b') as Rb'.
+    destruct Rb'; apply eq_sym in HeqRb'.
+      exists b'; eexists. split; trivial.
+      split. eapply reach_cons; try eassumption. 
+               eapply reach_nil. trivial.
+      simpl. exists z; intuition. inv H1. trivial.
+    exists r; eexists.
+      split. trivial. 
+      split. eapply reach_cons; try eassumption.
+      simpl. 
+      remember (rev M) as d. destruct d; simpl in *.
+        destruct M. inv RCH1. congruence.
+        simpl in Heqd. apply app_cons_not_nil in Heqd. contradiction.
+      destruct RCH2 as [zz [Hzz1 [Hzz2 Hzz3]]].
+      exists zz; intuition.
+      apply in_app_or in H.   
+        destruct H. apply (Hzz2 _ H).
+        destruct H; try contradiction. inv H. congruence. 
+      subst. inv H1. congruence. 
+      subst. apply (Hzz3 _ _ H H1).
+Qed. 
+
 Lemma REACH_Store: forall m chunk b i v m'
      (ST: Mem.store chunk m b (Int.unsigned i) v = Some m')
      Roots (VISb: Roots b = true)
@@ -898,24 +962,86 @@ Lemma REACH_Store: forall m chunk b i v m'
      REACH_closed m' Roots.
 Proof. intros.
 intros bb Hbb.
-assert (REQ: Roots = (fun b' : Values.block =>
-       eq_block b' b || (if eq_block b' b then false else Roots b'))).
-  extensionality b'.
-  remember (eq_block b' b).
-  destruct s; simpl; trivial. subst; trivial.
-rewrite REQ in Hbb; clear REQ.
-apply REACH_split in Hbb.
-destruct Hbb.
-(*bb is reachable in m' from b*)
-   admit.
-(*bb is reachable in m' from Roots - b*)
-  admit.
+apply R. clear R.
+rewrite REACHAX.
+remember (Roots bb) as Rb. destruct Rb; apply eq_sym in HeqRb.
+  eexists. eapply reach_nil; trivial. 
+rewrite REACHAX in Hbb.
+destruct Hbb as [L HL].
+destruct (reachD'' _ _ _ _ HL) as [r [M [Rr [RCH HM]]]]; clear HL L.
+destruct (eq_block r b); subst. 
+(*we stored into the root of the access path to bb*)
+  clear VISb.
+  generalize dependent bb.
+  induction M; simpl in *; intros.
+  inv RCH. congruence. 
+  inv RCH.    
+  apply (Mem.perm_store_2 _ _ _ _ _ _ ST) in H2.
+  remember (rev M) as rm.
+  destruct rm; simpl in *. destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+        inv Hzz1.
+        assert (v = Vptr bb off). 
+          rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4. clear ST IHM H1.
+          rewrite PMap.gss in H4.
+        subst. admit. (*This is slightly wrong - the zz and v are not necessary aligned, 
+                        I think (also, zz may be entierly outside the region affected by the store operation *)
+        eexists. 
+           apply reach_nil. apply VISv. apply getBlocks_char. 
+              exists off. left.  trivial. 
+  destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+    subst.
+    remember (Roots b') as q.
+    destruct q; apply eq_sym in Heqq.
+      assert (b' = b). apply (Hzz3 _ z Heqq). left; trivial.
+      subst. elim (Hzz2 z). apply in_or_app. right. left. trivial.
+    destruct (eq_block b' b); try congruence.
+        rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4.
+        rewrite PMap.gso in H4; trivial.
+        assert (Hb': exists L : list (block * Z),
+            reach m (fun bb0 : block => Roots bb0 = true) L b').
+          apply IHM; trivial. clear IHM.
+          exists zz. intuition.
+          eapply (Hzz2 zz0). apply in_or_app. left; trivial.
+          eapply (Hzz3 _ zx H). right; trivial.
+        destruct Hb' as [L HL].
+          eexists. eapply reach_cons; try eassumption.  
+(*we stored elsewhere*)
+generalize dependent bb.
+induction M; simpl in *; intros.
+  inv RCH. congruence. 
+  inv RCH.    
+  apply (Mem.perm_store_2 _ _ _ _ _ _ ST) in H2.
+  rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4.
+  remember (rev M) as rm.
+  destruct rm; simpl in *. destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+        inv Hzz1.
+        rewrite PMap.gso in H4; trivial.
+        eexists. eapply reach_cons; try eassumption.
+           apply reach_nil. assumption.
+  destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+    subst.
+    remember (Roots b') as q.
+    destruct q; apply eq_sym in Heqq.
+      assert (b' = r). apply (Hzz3 _ z Heqq). left; trivial.
+      subst. 
+        rewrite PMap.gso in H4; trivial.
+          eexists. eapply reach_cons; try eassumption.
+           apply reach_nil. assumption.
+    destruct (eq_block b' b); try congruence.
+        rewrite PMap.gso in H4; trivial.
+        assert (Hb': exists L : list (block * Z),
+            reach m (fun bb0 : block => Roots bb0 = true) L b').
+          apply IHM; trivial. clear IHM.
+          exists zz. intuition.
+          eapply (Hzz2 zz0). apply in_or_app. left; trivial.
+          eapply (Hzz3 _ zx H). right; trivial.
+        destruct Hb' as [L HL].
+          eexists. eapply reach_cons; try eassumption.
 Qed.
 
 Lemma REACH_load_vis: forall chunk m b i b1 ofs1
         (LD: Mem.load chunk m b (Int.unsigned i) = Some (Vptr b1 ofs1))
-        mu b2 delta (AI: as_inj mu b = Some (b2, delta))
-        (VIS: vis mu b = true),
+         mu (VIS: vis mu b = true),
       REACH m (vis mu) b1 = true.
 Proof. 
   intros.
