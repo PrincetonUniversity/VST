@@ -81,10 +81,8 @@ not CORES.
     4) after external calls, cores are back in a "runnable" state
        (NOTE: this axiom may be removed at some point) *)
 
-Record CoreSemantics {G C M (*D only needed in initial_mem*):Type}: Type :=
-  { (*Removed: is a propert of programs, not of cores
-      initial_mem: G -> M -> D -> Prop;*)
-    initial_core : G -> val -> list val -> option C;
+Record CoreSemantics {G C M : Type} : Type :=
+  { initial_core : G -> val -> list val -> option C;
     at_external : C -> option (external_function * signature * list val);
     after_external : option val -> C -> option C;
     halted : C -> option val; 
@@ -101,6 +99,28 @@ Record CoreSemantics {G C M (*D only needed in initial_mem*):Type}: Type :=
   }.
 
 Implicit Arguments CoreSemantics [].
+
+(** This module defines a core semantics typeclass, for building 
+    functors over coresem-like objects.  *)
+
+Module Coresem.
+Class Coresem {G C M : Type} : Type :=
+  { initial_core : G -> val -> list val -> option C
+  ; at_external : C -> option (external_function * signature * list val)
+  ; after_external : option val -> C -> option C
+  ; halted : C -> option val 
+  ; corestep : G -> C -> M -> C -> M -> Prop
+
+  ; corestep_not_at_external : 
+      forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+  ; corestep_not_halted: 
+      forall ge m q m' q', corestep ge q m q' m' -> halted q = None
+  ; at_external_halted_excl: 
+      forall q, at_external q = None \/ halted q = None
+  ; after_at_external_excl : 
+      forall retv q q', after_external retv q = Some q' -> at_external q' = None
+  }.
+End Coresem.
 
 (**  Multistepping *)
 

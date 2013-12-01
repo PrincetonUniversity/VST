@@ -1,6 +1,8 @@
+Add LoadPath "..".
 Require Import sepcomp.extspec.
 Require Import sepcomp.Address.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.effect_semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.forward_simulations.
 
@@ -56,14 +58,16 @@ Definition all_pop   := StackDefs.all_pop.
 
 Implicit Arguments empty [T].
 
+Import Coresem.
+
 (* Dummy signatures, external functions, and core semantics *)
 
 Definition dummy_sig := mksignature [::] None.
 
 Definition dummy_ef  := EF_external xH dummy_sig.
 
-Program Definition dummy_coreSem {G C M: Type} : @CoreSemantics G C M :=
-  Build_CoreSemantics G C M
+Program Definition dummy_coreSem {G C M: Type} : @Coresem G C M :=
+  Build_Coresem G C M
     (fun _ _ _ => None)
     (fun _ => Some (dummy_ef, dummy_sig, [::]))
     (fun _ _ => None)
@@ -81,7 +85,7 @@ Record t (M: Type) := mk
   { F   : Type
   ; V   : Type
   ; C   : Type
-  ; sem : @CoreSemantics (Genv.t F V) C M
+  ; sem : @Coresem (Genv.t F V) C M
   ; ge  :  Genv.t F V
   ; c   :> C
   }.
@@ -101,7 +105,7 @@ End Core.
 
 Definition atExternal {M: Type} (c: Core.t M) :=
   let: (Core.mk F V C coreSem ge c) := c in
-  if at_external coreSem c is Some (ef, dep_sig, args) then true
+  if at_external c is Some (ef, dep_sig, args) then true
   else false.
 
 (* Linker invariants: 
@@ -109,7 +113,7 @@ Definition atExternal {M: Type} (c: Core.t M) :=
    -2: the call stack always contains at least one core *)
 
 Definition wf_callStack {M: Type} (stk: Stack.t (Core.t M)) :=
-  [&& all [pred c | atExternal c] (pop stk) & size stk > 0].
+  [&& all atExternal (pop stk) & size stk > 0].
 
 (* Call stacks are [stack]s satisfying the [wf_callStack] invariant. *)
 
@@ -150,7 +154,7 @@ Record t (M: Type) := mk
   ; V   : Type
   ; ge  : Genv.t F V
   ; C   : Type
-  ; coreSem : @CoreSemantics (Genv.t F V) C M
+  ; coreSem : @Coresem (Genv.t F V) C M
   ; c   : C
   }.
 
@@ -245,7 +249,7 @@ Proof. by rewrite/peekCore/peek/emptyStack/StackDefs.peek; case: (callStack _). 
 
 Definition initCore (ix: 'I_N) (v: val) (args: list val): option (Core.t M) :=
   let: Payload.mk F V ge C coreSem c := l.(cores) ix in
-  if initial_core coreSem ge v args is Some c then Some (Core.mk coreSem ge c)
+  if initial_core ge v args is Some c then Some (Core.mk coreSem ge c)
   else None.
 
 End linkerDefs.
@@ -269,8 +273,8 @@ Variables (id: ident) (l: linker M N) (args: list val).
 Import CallStack.
 
 Definition handle :=
-  (match all [pred c | atExternal c] l.(stack).(callStack) as pf 
-        return (pf = all [pred c | atExternal c] l.(stack).(callStack) 
+  (match all atExternal l.(stack).(callStack) as pf 
+        return (pf = all atExternal l.(stack).(callStack) 
                -> option (linker M N)) with
     | true => fun pf => 
         if l.(fn_tbl) id is Some ix then
@@ -291,20 +295,20 @@ Definition initial_core (tt: unit) (v: val) (args: list val)
 
 Definition at_external0 (l: linker M N) :=
   let: mc := peekCore l in
-  if mc is Some c then at_external (Core.sem c) (Core.c c) else None.
+  if mc is Some c then @at_external _ _ _ (Core.sem c) (Core.c c) else None.
 
 (* Is the running core halted? *)
 
 Definition halted0 (l: linker M N) :=
   let: mc := peekCore l in
-  if mc is Some c then halted (Core.sem c) (Core.c c) else None.
+  if mc is Some c then @halted _ _ _ (Core.sem c) (Core.c c) else None.
 
 (* Lift a running core step to linker step *)
 
 Definition corestep0 (l: linker M N) (m: M) (l': linker M N) (m': M) := 
   let: mc := peekCore l in
   if mc is Some c then 
-    exists c', corestep (Core.sem c) (Core.ge c) (Core.c c) m c' m'
+    exists c', @corestep _ _ _ (Core.sem c) (Core.ge c) (Core.c c) m c' m'
             /\ l' = updCore l (Core.upd c c')
   else False.
 
@@ -325,7 +329,7 @@ Definition at_external (l: linker M N) :=
 Definition after_external (mv: option val) (l: linker M N) :=
   let: mc := peekCore l in
   if mc is Some c then 
-    if after_external (Core.sem c) mv (Core.c c) is Some c' then 
+    if @after_external _ _ _ (Core.sem c) mv (Core.c c) is Some c' then 
       Some (updCore l (Core.upd c c'))
     else None
   else None.
@@ -429,15 +433,15 @@ Lemma after_at_external_excl rv c c' :
   after_external rv c = Some c' -> at_external c' = None.
 Proof.
 rewrite/after_external/at_external; case: (peekCore c)=>// a. 
-case Heq: (core_semantics.after_external _ _ _)=>//.
+case Heq: (Coresem.after_external _ _)=>//.
 inversion 1; subst.
 case Hat: (at_external0 _)=>//[[[ef sig] args]].
 move: Hat; rewrite/at_external0=>/= H2.
 by apply after_at_external_excl in Heq; rewrite Heq in H2; congruence.
 Qed.
 
-Definition coreSem := 
-  Build_CoreSemantics unit (linker M N) M 
+Definition coreSem : Coresem := 
+  Build_Coresem unit (linker M N) M 
     initial_core
     at_external
     after_external
@@ -449,3 +453,4 @@ Definition coreSem :=
     after_at_external_excl.
 
 End linkerSem. End LinkerSem.
+
