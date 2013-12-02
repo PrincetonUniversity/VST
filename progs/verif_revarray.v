@@ -88,7 +88,7 @@ apply derives_refl'.
 apply equal_f.
 apply array_at_ext.
 intros. unfold flip_between, flip.
-unfold cSome; f_equal.
+f_equal.
 if_tac; auto.
 if_tac; auto.
 f_equal.
@@ -102,8 +102,7 @@ entailer.
 rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
-apply prop_right; split.
-apply is_int_e; apply POP.
+apply prop_right; split. apply POP.
 rewrite if_false by omega.
 rewrite if_true by omega. omega.
 omega.
@@ -113,7 +112,7 @@ rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
 apply prop_right; split.
-apply is_int_e; apply POP.
+apply POP.
 rewrite if_false by omega. rewrite if_true by omega.
 omega. omega.
 
@@ -155,7 +154,7 @@ entailer.
  apply derives_refl'.
  apply equal_f.
  apply array_at_ext; intros.
- unfold upd, cSome. if_tac. subst.
+ unfold upd. if_tac. subst.
  normalize.
  unfold flip_between.
  rewrite if_false by omega.

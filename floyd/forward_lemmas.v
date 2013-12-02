@@ -370,7 +370,7 @@ Qed.
 Lemma field_mapsto_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) e v :: R)))) c Post.
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
@@ -385,7 +385,7 @@ Qed.
 Lemma later_field_mapsto_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) e v :: R)))) c Post.
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].

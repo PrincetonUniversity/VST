@@ -102,8 +102,8 @@ Definition sha256_block_data_order_spec :=
 Definition sha256_length (len: Z)  (c: val) : mpred :=
    EX lo:int, EX hi:int, 
      !! (hilo hi lo = len) &&
-     (field_mapsto Tsh t_struct_SHA256state_st _Nl c (Vint lo) *
-      field_mapsto Tsh t_struct_SHA256state_st _Nh c (Vint hi)).
+     (field_mapsto Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
+      field_mapsto Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
 
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -217,7 +217,7 @@ rewrite (andp_comm (!!isptr c)).
 rewrite andp_assoc.
 f_equal.
 simpl_typed_mapsto.
-rewrite field_umapsto_isptr at 1. normalize.
+rewrite field_mapsto_isptr at 1. normalize.
 Qed.
 
 Ltac simpl_stackframe_of := 

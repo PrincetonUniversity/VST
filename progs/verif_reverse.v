@@ -89,19 +89,9 @@ Definition Gprog : funspecs :=
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 (** Two little equations about the list_cell predicate *)
-Lemma list_cell_eq: forall sh v i,
-   list_cell LS sh v (Vint i) = field_mapsto sh t_struct_list _head v (Vint i).
-Proof.  intros. 
- erewrite field_mapsto_field_umapsto by reflexivity.
- rewrite prop_true_andp by apply I.
- reflexivity.
-Qed.
-
-Lemma lift_list_cell_eq:
-  forall sh e v,
-   `(list_cell LS sh) e `(Vint v)
-     = `(field_mapsto sh t_struct_list _head) e `(Vint v).
-Proof. intros; unfold_lift. extensionality rho. apply list_cell_eq. Qed.
+Lemma list_cell_eq: forall sh i,
+   list_cell LS sh (Vint i) = field_mapsto sh t_struct_list _head (Vint i).
+Proof.  intros. reflexivity. Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -141,11 +131,11 @@ entailer!.
 entailer!.
 destruct cts; inv H; normalize.
 (* Prove that loop body preserves invariant *)
-focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ?].
+focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 unfold POSTCONDITION, abbreviate.
 destruct cts; inv H.
-rewrite lift_list_cell_eq.
+rewrite list_cell_eq.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 forward.  (* s = s + h; *)
@@ -190,7 +180,7 @@ entailer!. rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
-        [entailer | intros h r y ?].
+        [entailer | intros h r y ? ?].
 subst cts2.
 forward.  (* t = v->tail; *)  
 forward. (*  v->tail = w; *)
@@ -206,7 +196,6 @@ forward.  (* v = t; *)
  entailer!.
  * rewrite app_ass. auto.
  * rewrite (lseg_unroll _ sh (h::cts1)).
-   cancel.
    apply orp_right2.
    unfold lseg_cons.
    apply andp_right.

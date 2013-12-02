@@ -364,7 +364,7 @@ apply semax_pre with
    SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
     `(sha256_length (hilo hi lo + Z.of_nat len) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd)) 0 64 (offset_val (Int.repr 40) c));
-   `(field_mapsto Tsh t_struct_SHA256state_st _num c (Vint (Int.repr (Zlength dd))));
+   `(field_mapsto Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
    K_vector;
    `(data_block sh data d))).
 entailer!.

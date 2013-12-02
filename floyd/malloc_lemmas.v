@@ -158,13 +158,6 @@ with struct_default_val flds : reptype_structlist flds :=
 Definition ZnthV t (lis: list (reptype t)) (i: Z) : reptype t := 
        if zlt i 0 then default_val t else nth (Z.to_nat i) lis (default_val t).
 
-Definition cSome {A}(f: Z -> A) i := Some (f i).
-
-Lemma isSome_cSome: 
- forall {B} (f: Z -> B) (i: Z), isSome (cSome f i).
-Proof.  intros; apply I. Qed.
-Hint Resolve @isSome_cSome.
-
 Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
   match n with
   | O => emp
@@ -177,25 +170,22 @@ Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
 Definition at_offset2 {T} (f: val -> T -> mpred) pos (v2: T) := 
            at_offset' (fun v => f v v2) pos.
 
-Definition force_rep {T} (f: T -> val) (i: option T) :=
-  match i with Some i' => f i' | None => Vundef end.
-
 Definition maybe_field_mapsto (sh: Share.t) (t: type) (t_str: type) (id: ident) (pos: Z) :
                      (reptype t -> val -> mpred) -> reptype t -> val -> mpred :=
 match t as t0 return ((reptype t0 -> val -> mpred) -> reptype t0 -> val -> mpred) with
 | Tint i s a =>
     fun (_ : reptype (Tint i s a) -> val -> mpred) (v2'0 : reptype (Tint i s a)) =>
-    at_offset' (field_umapsto sh t_str id v2'0) pos
+    at_offset' (field_mapsto sh t_str id v2'0) pos
 | Tlong s a =>
     fun (_ : reptype (Tlong s a) -> val -> mpred) (v2'0 : reptype (Tlong s a)) =>
-    at_offset' (field_umapsto sh t_str id v2'0) pos
+    at_offset' (field_mapsto sh t_str id v2'0) pos
 | Tfloat f a =>
     fun (_ : reptype (Tfloat f a) -> val -> mpred) (v2'0 : reptype (Tfloat f a)) =>
-    at_offset' (field_umapsto sh t_str id v2'0) pos
+    at_offset' (field_mapsto sh t_str id v2'0) pos
 | Tpointer t0 a =>
-    fun _ v2 =>  at_offset' (field_umapsto sh t_str id v2) pos
+    fun _ v2 =>  at_offset' (field_mapsto sh t_str id v2) pos
 | Tcomp_ptr _ _ =>
-    fun _ v2 => at_offset' (field_umapsto sh t_str id v2) pos
+    fun _ v2 => at_offset' (field_mapsto sh t_str id v2) pos
 | t' => fun (alt1 : reptype t' -> val -> mpred)  => alt1 
 end.
 
@@ -213,25 +203,25 @@ match t1 as t return (t1 = t -> reptype t1 -> val -> mpred) with
       eq_rect_r (fun t2 : type => reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tint i s a)) =>
                 withspacer sh pos (alignof (Tint i s a))
-                (at_offset2 (umapsto sh (Tint i s a)) (align pos (alignof t1)) v3)) H
+                (at_offset2 (mapsto sh (Tint i s a)) (align pos (alignof t1)) v3)) H
 | Tlong s a =>
     fun H : t1 = Tlong s a =>
       eq_rect_r (fun t2 : type => reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tlong s a)) =>
                 withspacer sh pos (alignof (Tlong s a))
-                (at_offset2 (umapsto sh (Tlong s a)) (align pos (alignof t1)) v3)) H
+                (at_offset2 (mapsto sh (Tlong s a)) (align pos (alignof t1)) v3)) H
 | Tfloat f a =>
     fun H : t1 = Tfloat f a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tfloat f a)) =>
                 withspacer sh pos (alignof (Tfloat f a))
-                (at_offset' (fun v => umapsto sh (Tfloat f a) v v3) (align pos (alignof t1)))) H
+                (at_offset' (fun v => mapsto sh (Tfloat f a) v v3) (align pos (alignof t1)))) H
 | Tpointer t a => 
     fun H : t1 = Tpointer t a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)
         (fun (v3 : reptype (Tpointer t a)) =>
                 withspacer sh pos (alignof (Tpointer t a))
-                (at_offset' (fun v => umapsto sh (Tpointer t a) v v3)  (align pos (alignof t1)))) H
+                (at_offset' (fun v => mapsto sh (Tpointer t a) v v3)  (align pos (alignof t1)))) H
 | Tarray t z a =>
     fun H : t1 = Tarray t z a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)
@@ -341,24 +331,12 @@ Ltac abstract_env T rho P :=
 *)
 
 
-Lemma field_umapsto_offset_zero:
+Lemma field_mapsto_offset_zero:
   forall sh ty id v v', 
-   field_umapsto sh ty id v' (offset_val (Int.repr 0) v) =
-   field_umapsto sh ty id v' v.
+   field_mapsto sh ty id v' (offset_val (Int.repr 0) v) =
+   field_mapsto sh ty id v' v.
 Proof.
  intros.
- destruct v; try solve [simpl; auto].
- simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
-Qed.
-Hint Rewrite field_umapsto_offset_zero: norm.
-
-
-Lemma field_mapsto_offset_zero:
-  forall sh ty id v, 
-   field_mapsto sh ty id (offset_val (Int.repr 0) v) =
-   field_mapsto sh ty id v.
-Proof.
- unfold field_mapsto_; intros. extensionality v2.
  destruct v; try solve [simpl; auto].
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
@@ -403,17 +381,6 @@ apply andp_right; auto.
 unfold typed_mapsto_.
 Admitted. (* straightforward *)
 
-Lemma field_umapsto_Vint:
-  forall sh t i x v', field_umapsto sh t i (Vint x) v' = field_mapsto sh t i v' (Vint x).
-Proof.
-intros.
-Transparent field_mapsto.
-unfold field_mapsto.
-Opaque field_mapsto.
-rewrite prop_true_andp by congruence.
-auto.
-Qed.
-
 Ltac simpl_typed_mapsto' T H MA :=
    try unfold T in H;
    unfold typed_mapsto_, typed_mapsto, typed_mapsto',
@@ -426,15 +393,15 @@ Ltac simpl_typed_mapsto' T H MA :=
    repeat
     match type of H with
     | appcontext [fun (v1 : val) (v4 : val) =>
-               umapsto ?sh ?t v1 v4] =>
+               mapsto ?sh ?t v1 v4] =>
         change
-          (fun (v1 : val) (v4 : val) => umapsto sh t v1 v4)
+          (fun (v1 : val) (v4 : val) => mapsto sh t v1 v4)
          with (typed_mapsto sh t) in H
-    | appcontext [(fun v:val => field_umapsto ?sh ?t ?f Vundef)] =>
-          change (fun v :val => field_umapsto sh t f Vundef) with
+    | appcontext [(fun v:val => field_mapsto ?sh ?t ?f Vundef)] =>
+          change (fun v :val => field_mapsto sh t f Vundef) with
                (field_mapsto_ sh t f) in H
-    | appcontext [(field_umapsto ?sh ?t ?i Vundef)] =>
-     change (field_umapsto sh t i Vundef) with (field_mapsto_ sh t i) in H
+    | appcontext [(field_mapsto ?sh ?t ?i Vundef)] =>
+     change (field_mapsto sh t i Vundef) with (field_mapsto_ sh t i) in H
     end;
     fold tuint in H; fold tint in H;
     try fold T in H;
@@ -449,9 +416,7 @@ Ltac simpl_typed_mapsto' T H MA :=
               change (array_at' t sh (typed_mapsto sh t')) with (array_at t sh)
       end;
    repeat flatten_sepcon_in_SEP;
-   simpl @fst; simpl @snd;  simpl @force_rep;
-    repeat rewrite field_umapsto_Vint.
-
+   simpl @fst; simpl @snd.
 
 Ltac simpl_typed_mapsto1 :=
     let H := fresh "H" in let MA := fresh "MA" in
@@ -467,9 +432,6 @@ Ltac simpl_typed_mapsto1 :=
   end. 
 
 Ltac simpl_typed_mapsto := repeat simpl_typed_mapsto1.
-
-Arguments field_umapsto sh t1 fld v2 v1 : simpl never.
-
 
 (* TESTING
 
@@ -571,7 +533,7 @@ Proof.
 Qed.
 
 Lemma typed_mapsto_tint: forall sh,
-  typed_mapsto sh tint = umapsto sh tint.
+  typed_mapsto sh tint = mapsto sh tint.
 Proof.
  intros. reflexivity. 
 Qed.
@@ -610,16 +572,6 @@ Proof.
  destruct t; simpl; auto; omega.
 Qed.
 
-Lemma umapsto_offset_zero:
-  forall sh t v v', umapsto sh t (offset_val (Int.repr 0) v) v' = umapsto sh t v v'.
-Proof.
- intros.
- unfold umapsto.
- destruct (access_mode t); auto.
- destruct v; auto.
- unfold offset_val. rewrite Int.add_zero; auto.
-Qed. 
-
 Definition fields_mapto_ sh pos t f v :=
  structfieldsof sh t f pos pos (struct_default_val f) v.
 
@@ -654,7 +606,7 @@ induction n; [split; intros; omega | ].
  { intros. change (Int.repr 0) with Int.zero.
     destruct t0; auto;
     try (apply at_offset'_zero; intros); 
-   try apply field_umapsto_offset_zero;
+   try apply field_mapsto_offset_zero;
    unfold maybe_field_mapsto;
    apply IHn; omega.
  }
@@ -674,7 +626,7 @@ induction n; [split; intros; omega | ].
  repeat rewrite withspacer_spacer; simpl;
  try(f_equal; [apply spacer_offset_zero |]);
  try (apply at_offset'_zero; intros); 
- try apply umapsto_offset_zero;
+ try apply mapsto_offset_zero;
  try apply memory_block_offset_zero.
  + simpl in v'.
     unfold array_at'. unfold rangespec.
@@ -739,7 +691,7 @@ Proof.
  pose proof (sizeof_pos t);
 destruct t; try contradiction; 
   destruct a as [[|] [|]]; try contradiction; simpl;
- unfold mapsto_, umapsto; simpl;
+ unfold mapsto_, mapsto; simpl;
  try (destruct i,s); try destruct f; 
  rewrite memory_block_isptr by apply H0;
  destruct v; simpl; try  apply FF_andp; 

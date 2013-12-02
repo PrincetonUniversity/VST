@@ -21,7 +21,8 @@ Definition links' (ls: listspec list_struct list_link) (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (h=first /\ ~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           field_mapsto sh list_struct list_link first tail
+                           !! (is_pointer_or_null tail) &&
+                           field_mapsto sh list_struct list_link tail first
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -34,7 +35,8 @@ Lemma links_unfold (ls: listspec list_struct list_link): forall sh contents v1 v
   links ls sh contents v1 v2 = 
   match contents with
   | h::t => !!(h=v1 /\ ~ptr_eq v1 v2) && EX tail: val, 
-                           field_mapsto sh list_struct list_link v1 tail
+                           !! (is_pointer_or_null tail) &&
+                           field_mapsto sh list_struct list_link tail v1
                            * |> links ls sh t tail v2
   | nil => !! (ptr_eq v1 v2) && emp
  end.
@@ -70,7 +72,7 @@ Definition links_cons (ls: listspec list_struct list_link) sh (l: list val) (x z
         !! (~ ptr_eq x z) && 
        EX r:list val, EX y:val, 
              !!(l=x::r  /\ is_pointer_or_null y) && 
-             field_mapsto sh list_struct list_link x y * 
+             field_mapsto sh list_struct list_link y x * 
              |> links ls sh r y z.
 
 Lemma links_neq (ls: listspec list_struct list_link):  forall sh l x z , 
@@ -95,14 +97,8 @@ apply andp_right; try apply prop_right; auto.
 apply exp_right with l.
 apply exp_right with tail.
 repeat rewrite sepcon_andp_prop'; apply andp_right.
-rewrite (field_mapsto_typecheck_val list_struct list_link sh v tail list_structid list_fields noattr)
-  by apply list_struct_eq.
-try rewrite typecheck_val_eq.
-rewrite list_link_type.
-rewrite sepcon_andp_prop';
-apply derives_extract_prop; intro;
- apply prop_right; auto.
-auto.
+normalize.
+normalize.
 apply exp_left; intro r'.
 apply exp_left; intro y.
 repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
@@ -110,7 +106,7 @@ inv H3.
 apply andp_right.
 apply prop_right; auto.
 apply exp_right with y.
- auto.
+normalize.
 Qed.
 
 Lemma links_unroll (ls: listspec list_struct list_link): forall sh l x z , 
@@ -127,19 +123,11 @@ unfold links_cons.
 apply derives_extract_prop; intros [? ?].
 apply exp_left; intro tail.
 subst x.
-rewrite prop_true_andp by auto.
+normalize.
 apply exp_right with l.
+rewrite TT_andp.
 apply exp_right with tail.
 normalize.
-apply andp_right.
-erewrite (field_mapsto_typecheck_val list_struct list_link sh v tail).
-try rewrite typecheck_val_eq.
-rewrite list_link_type.
-simpl.
-repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intro.
-apply prop_right; auto.
-apply list_struct_eq.
-auto.
 apply orp_left.
 rewrite andp_assoc.
 repeat (apply derives_extract_prop; intro).
@@ -162,7 +150,7 @@ repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
 symmetry in H0; inv H0.
 rewrite prop_true_andp by auto.
 apply exp_right with y.
-auto.
+normalize.
 Qed.
 
 Lemma links_nonnull (ls: listspec list_struct list_link):
@@ -210,7 +198,7 @@ Lemma links_cons_eq (ls: listspec list_struct list_link):
         !!(h=x /\ ~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
-   field_mapsto sh list_struct list_link x y *
+   field_mapsto sh list_struct list_link y x *
    |>links ls sh r y z).
 Proof.
  intros. rewrite links_unroll.
@@ -304,13 +292,13 @@ f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
 Lemma links_cons_right_null (ls: listspec list_struct list_link): forall sh l x y, 
-             field_mapsto sh list_struct list_link y nullval * 
+             field_mapsto sh list_struct list_link nullval y * 
              links ls sh l x y
    |--   links ls sh (l++y::nil) x nullval.
 Proof.
 intros.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   (field_mapsto sh list_struct list_link y nullval * links ls sh l x y)  
+                   (field_mapsto sh list_struct list_link nullval y * links ls sh l x y)  
                      >=> links ls sh (l++y::nil) x nullval).
 Focus 2.
 apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
@@ -337,7 +325,7 @@ apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
 rewrite prop_true_andp. 
-apply derives_trans with (field_mapsto sh list_struct list_link x nullval * emp).
+apply derives_trans with (field_mapsto sh list_struct list_link nullval x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 apply now_later.
@@ -402,8 +390,8 @@ eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
 rewrite andp_comm. 
 apply derives_trans
- with ((field_mapsto sh list_struct list_link y nullval *  links ls sh (v::l) z y ) &&
-   (field_mapsto sh list_struct list_link y nullval *  links ls sh (v::l) z y 
+ with ((field_mapsto sh list_struct list_link nullval y *  links ls sh (v::l) z y ) &&
+   (field_mapsto sh list_struct list_link nullval y *  links ls sh (v::l) z y 
      --> links ls sh ((v::l) ++ y :: nil) z nullval)).
 2: apply modus_ponens.
 apply andp_derives; auto.
@@ -434,21 +422,25 @@ Admitted.
 
 
 Lemma links_cons_right (ls: listspec list_struct list_link): forall sh l x y z w, 
-             field_mapsto sh list_struct list_link y z * 
-             field_mapsto sh list_struct list_link z w * 
+             field_mapsto sh list_struct list_link z y * 
+             field_mapsto sh list_struct list_link w z * 
              links ls sh l x y
-   |--   links ls sh (l++y::nil) x z * field_mapsto sh list_struct list_link z w.
+   |--   links ls sh (l++y::nil) x z * field_mapsto sh list_struct list_link w z.
 Proof.
 intros.
+rewrite (field_mapsto_isptr _ _ _ z).
+normalize.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   ((field_mapsto sh list_struct list_link y z * links ls sh l x y)  
-                          && (ewand (field_mapsto sh list_struct list_link z w) TT))
-                     >=> (links ls sh (l++y::nil) x z && (ewand (field_mapsto sh list_struct list_link z w) TT))).
+                   (((field_mapsto sh list_struct list_link z y) * links ls sh l x y)  
+                          && (ewand (field_mapsto sh list_struct list_link w z) TT))
+                     >=> (links ls sh (l++y::nil) x z 
+                                 && (ewand (field_mapsto sh list_struct list_link w z) TT))).
 Focus 2.
-apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
-forget (field_mapsto sh list_struct list_link y z) as A.
+apply subp_e; eapply derives_trans;
+   [apply H | apply allp_left with l; apply allp_left with x; auto].
+forget (field_mapsto sh list_struct list_link z y) as A.
 forget (links ls sh (l ++ y :: nil) x z) as B.
-forget (field_mapsto sh list_struct list_link z w) as C.
+forget (field_mapsto sh list_struct list_link w z) as C.
 forget (links ls sh l x y) as D.
 rewrite (sepcon_assoc). rewrite (sepcon_comm C). rewrite <- sepcon_assoc.
 apply another_ewand_TT_lemma.
@@ -481,16 +473,14 @@ eapply derives_trans; [apply sepcon_derives | apply field_mapsto__conflict];
 apply exp_right with z.
 normalize.
 rewrite links_nil_eq.
-erewrite field_mapsto_typecheck_val at 1.
-2: apply list_struct_eq.
-rewrite list_link_type.
-normalize.
-simpl in H0.
+rewrite prop_true_andp by (destruct z; try contradiction; simpl; auto).
 apply andp_left1.
-apply derives_trans with (field_mapsto sh list_struct list_link x z * emp).
+apply derives_trans with (field_mapsto sh list_struct list_link z x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
+rewrite prop_true_andp.
 apply now_later.
+apply ptr_eq_refl; auto.
 apply subp_i1.
 simpl app.
 rewrite links_cons_eq.
@@ -564,8 +554,8 @@ Lemma links_unroll_right (ls: listspec list_struct list_link): forall sh l x z ,
              (!! (ptr_eq x z) && !! (l=nil) && emp) 
            || (!! (~ ptr_eq x z) && 
                 EX h:val, EX r:list val, EX y:val, 
-                    !!(l=r++h::nil)  && 
-             field_mapsto sh list_struct list_link y z * 
+                    !!(l=r++h::nil /\ is_pointer_or_null z)  && 
+             field_mapsto sh list_struct list_link z y * 
              |> links ls sh r x y).
 Proof.
 Abort.  (* probably not true *)
@@ -580,7 +570,7 @@ Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fiel
 
 Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link ls list_fields).
 
-Definition list_cell (ls: listspec list_struct list_link) sh p v :=
+Definition list_cell (ls: listspec list_struct list_link) sh v p :=
    structfieldsof sh list_struct (all_but_link ls list_fields) 0 0 v p.
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
@@ -589,8 +579,9 @@ Definition lseg' (ls: listspec list_struct list_link) (sh: share) :=
         | (h::hs, (first,last)) =>
                 (!! (~ (ptr_eq first last)) && 
                         EX tail:val, 
-                           list_cell ls sh first h
-                           * field_mapsto sh list_struct list_link first tail
+                           !! is_pointer_or_null tail &&
+                           list_cell ls sh h first
+                           * field_mapsto sh list_struct list_link tail first
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -603,8 +594,9 @@ Lemma lseg_unfold (ls: listspec list_struct list_link): forall sh contents v1 v2
     lseg ls sh contents v1 v2 = 
      match contents with
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
-                      list_cell ls sh v1 h
-                      * field_mapsto sh list_struct list_link v1 tail
+                      !! is_pointer_or_null tail &&
+                      list_cell ls sh h v1
+                      * field_mapsto sh list_struct list_link tail v1
                       * |> lseg ls sh t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
      end.
@@ -642,56 +634,13 @@ Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (elemtype 
         !! (~ ptr_eq x z) && 
        EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
              !!(l=h::r  /\ is_pointer_or_null y) && 
-             list_cell ls sh x h *
-             field_mapsto sh list_struct list_link x y * 
+             list_cell ls sh h x *
+             field_mapsto sh list_struct list_link y x * 
              |> lseg ls sh r y z.
 
-(*
-Lemma lseg_neq (ls: listspec list_struct list_link):  forall sh l x z , 
-  typecheck_val x (tptr list_struct) = true ->
-  typecheck_val z (tptr list_struct) = true ->
-  ptr_neq x z -> 
-    lseg ls sh l x z = lseg_cons ls sh l x z.
-Proof.
-unfold lseg_cons, ptr_neq; intros.
-rewrite lseg_unfold at 1; auto.
-destruct l.
-apply pred_ext; apply derives_extract_prop; intro.
-contradiction. clear H2.
-apply exp_left; intro h.
-apply exp_left; intro r.
-apply exp_left; intro y.
-repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
-inv H2.
-apply pred_ext; apply derives_extract_prop; intro.
-clear H2.
-apply exp_left; intro tail.
-apply andp_right; try apply prop_right; auto.
-apply exp_right with e.
-apply exp_right with l.
-apply exp_right with tail.
-repeat rewrite sepcon_andp_prop'; apply andp_right.
-rewrite (field_mapsto_typecheck_val list_struct list_link sh x tail list_structid list_fields noattr)
-  by apply list_struct_eq.
-rewrite list_link_type.
-rewrite sepcon_andp_prop.
-rewrite sepcon_andp_prop'.
-apply derives_extract_prop; intro.
-apply prop_right; auto.
-auto.
-apply exp_left; intro h.
-apply exp_left; intro r'.
-apply exp_left; intro y.
-repeat rewrite sepcon_andp_prop'; apply derives_extract_prop; intros [? ?].
-inv H3.
-apply andp_right.
-apply prop_right; auto.
-apply exp_right with y.
- auto.
-Qed.*)
-
 Lemma lseg_unroll (ls: listspec list_struct list_link): forall sh l x z , 
-    lseg ls sh l x z = (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons ls sh l x z.
+    lseg ls sh l x z = 
+      (!! (ptr_eq x z) && !! (l=nil) && emp) || lseg_cons ls sh l x z.
 Proof.
 intros.
 rewrite lseg_unfold at 1.
@@ -704,20 +653,13 @@ apply orp_right2.
 unfold lseg_cons.
 apply derives_extract_prop; intros. 
 apply exp_left; intro tail.
-rewrite prop_true_andp by auto.
-apply exp_right with e.
+normalize.
+apply exp_right with e. rewrite TT_andp.
 apply exp_right with l.
 apply exp_right with tail.
 repeat rewrite sepcon_andp_prop'.
 apply andp_right.
-erewrite (field_mapsto_typecheck_val list_struct list_link sh x tail); try reflexivity.
-try rewrite typecheck_val_eq.
-rewrite list_link_type.
-rewrite sepcon_andp_prop.
-rewrite sepcon_andp_prop'.
-apply derives_extract_prop; intro. 
 apply prop_right; split; auto.
-apply list_struct_eq.
 auto.
 apply orp_left.
 rewrite andp_assoc;
@@ -745,15 +687,15 @@ apply derives_extract_prop; intros [? ?].
 symmetry in H0; inv H0.
  rewrite prop_true_andp by auto.
 apply exp_right with y.
-auto.
+normalize.
 Qed.
 
 Lemma lseg_unroll_nonempty1 (ls: listspec list_struct list_link):
    forall p P sh h tail v1 v2,
     ~ ptr_eq v1 v2 ->
     is_pointer_or_null p ->
-    P |-- list_cell ls sh v1 h *
-             (field_mapsto sh list_struct list_link v1 p *
+    P |-- list_cell ls sh h v1 *
+             (field_mapsto sh list_struct list_link p v1 *
                lseg ls sh tail p v2) ->
     P |-- lseg ls sh (h::tail) v1 v2.
 Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
@@ -793,54 +735,6 @@ inv H1.
 intro. simpl in H. congruence.
 Qed.
 
-
-Lemma lift2_lseg_cons (ls: listspec list_struct list_link): 
- forall sh s p q, `(lseg_cons ls sh s)  p q =
-    EX hry:(elemtype ls * list (elemtype ls) * val),
-      match hry with (h,r,y) =>
-       !! (s = h::r) &&
-       (local (`ptr_neq p q) &&
-       (`(list_cell ls sh) p (`h) *
-        `(field_mapsto sh list_struct list_link) p (`y) *
-        |> `(lseg ls sh r) (`y) q))
-     end.
-Proof.
- intros.
- unfold lseg_cons, ptr_neq; unfold_lift. extensionality rho. simpl.
- apply pred_ext.
- apply derives_extract_prop; intro.
- apply exp_left; intro h.
- apply exp_left; intro r.
- apply exp_left; intro y.
-do 2 rewrite sepcon_andp_prop'.
-apply derives_extract_prop; intros [? ?].
-inv H0. 
- apply exp_right with (h, r, y).
- rewrite prop_true_andp by auto.
- normalize.
- apply exp_left; intros [[h r] y].
- apply derives_extract_prop; intro.
- inv H.
- unfold local, lift1.
- apply derives_extract_prop; intro.
- rewrite prop_true_andp by auto.
- apply exp_right with h.
- apply exp_right with r.
- apply exp_right with y.
- do 2 rewrite sepcon_andp_prop'.
- apply andp_right.
- erewrite (field_mapsto_typecheck_val); [ | apply list_struct_eq].
- try rewrite typecheck_val_eq.
- rewrite list_link_type.
- rewrite sepcon_andp_prop.
- rewrite sepcon_andp_prop'.
- apply derives_extract_prop; intro.
- apply prop_right; auto.
- auto.
-Qed.
-
-
-
 Lemma unfold_lseg_neq (ls: listspec list_struct list_link):
    forall P Q1 Q R v v2 sh s,
       PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |-- 
@@ -848,10 +742,10 @@ Lemma unfold_lseg_neq (ls: listspec list_struct list_link):
       PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) v v2 :: R))) |--
      EX hry: elemtype ls * list (elemtype ls) * val,
       match hry with (h,r,y) => 
-       !! (s=h::r) &&
+       !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh) v (`h) ::
-                  `(field_mapsto sh list_struct list_link) v (`y) ::
+        (SEPx (`(list_cell ls sh h) v::
+                  `(field_mapsto sh list_struct list_link y) v ::
                   |> `(lseg ls sh r) (`y) (v2) ::
                   R)))
         end.
@@ -888,7 +782,6 @@ intro rho; unfold PROPx,LOCALx,SEPx,local,tc_expr,tc_lvalue,lift2,lift1,lift0; s
  auto.
 Qed.
 
-
 Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
    forall P Q1 Q R e sh s,
       PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
@@ -896,10 +789,10 @@ Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
       PROPx P (LOCALx (Q1::Q) (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |--
      EX hry: elemtype ls * list (elemtype ls) * val,
       match hry with (h,r,y) => 
-       !! (s=h::r) &&
+       !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh) e (`h) ::
-                  `(field_mapsto sh list_struct list_link) e (`y) ::
+        (SEPx (`(list_cell ls sh h) e ::
+                  `(field_mapsto sh list_struct list_link y) e ::
                   |> `(lseg ls sh r) (`y) (`nullval) ::
                   R)))
         end.
@@ -921,11 +814,12 @@ Lemma semax_lseg_neq (ls: listspec list_struct list_link):
    PROPx P (LOCALx (tc_environ Delta :: Q)
             (SEPx (`(lseg ls sh s) v v2 :: R))) |-- 
                         local (`ptr_neq v v2)  ->
-  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), s=h::r ->
+  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), 
+    s=h::r -> is_pointer_or_null y ->
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh) v (`h) ::
-                  `(field_mapsto sh list_struct list_link) v (`y) ::
+        (SEPx (`(list_cell ls sh h) v ::
+                  `(field_mapsto sh list_struct list_link y) v ::
                   |> `(lseg ls sh r) (`y) v2 ::
                   R)))) c Post) ->
    semax Delta 
@@ -936,7 +830,7 @@ intros.
 eapply semax_pre;  [apply unfold_lseg_neq; auto |].
 normalize.
 apply extract_exists_pre; intros [[h r] y].
-apply semax_extract_prop; intro; auto.
+apply semax_extract_prop; intros [? ?]; auto.
 Qed.
 
 Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
@@ -945,11 +839,12 @@ Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
    PROPx P (LOCALx (tc_environ Delta :: Q)
             (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
                         local (`(typed_true (tptr list_struct)) e)  ->
-  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), s=h::r ->
+  (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), 
+    s=h::r -> is_pointer_or_null y -> 
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh) e (`h) ::
-                  `(field_mapsto sh list_struct list_link) e (`y) ::
+        (SEPx (`(list_cell ls sh h) e ::
+                  `(field_mapsto sh list_struct list_link y) e ::
                   |> `(lseg ls sh r) (`y) `nullval ::
                   R)))) c Post) ->
    semax Delta 
@@ -986,7 +881,7 @@ Lemma lseg_cons_eq (ls: listspec list_struct list_link):
         !!(~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
-   list_cell ls sh x h * field_mapsto sh list_struct list_link x y *
+   list_cell ls sh h x * field_mapsto sh list_struct list_link y x *
    |>lseg ls sh r y z).
 Proof.
  intros. rewrite lseg_unroll.
@@ -1019,25 +914,32 @@ Qed.
 Definition lseg_cons_right (ls: listspec list_struct list_link) sh (l: list (elemtype ls)) (x z: val) : mpred :=
         !! (~ ptr_eq x z) && 
        EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
-             !!(l=r++h::nil)  && 
-                       list_cell ls sh y h *
-             field_mapsto sh list_struct list_link y z * 
+             !!(l=r++h::nil /\ is_pointer_or_null y)  && 
+                       list_cell ls sh h y *
+             field_mapsto sh list_struct list_link z y * 
              |> lseg ls sh r x y.
 
-
 Lemma lseg_cons_right_neq (ls: listspec list_struct list_link): forall sh l x h y w z, 
-             list_cell ls sh y h * field_mapsto sh list_struct list_link y w * 
+             list_cell ls sh h y * field_mapsto sh list_struct list_link z y * 
              lseg ls sh l x y * field_mapsto sh list_struct list_link w z
-   |--   lseg ls sh (l++h::nil) x w * field_mapsto sh list_struct list_link w z.
+   |--   lseg ls sh (l++h::nil) x z * field_mapsto sh list_struct list_link w z.
 Proof.
 intros.
-assert (TT |-- ALL l: list (elemtype ls), ALL x: val,
-                   ( list_cell ls sh y h * field_mapsto sh list_struct list_link y w *
-                     lseg ls sh l x y * field_mapsto sh list_struct list_link w z)  
-                     >=> lseg ls sh (l ++ h :: nil) x w *
-                   field_mapsto sh list_struct list_link w z).
+rewrite (field_mapsto_isptr _ _ _ z).
+normalize.
+assert (TT |-- ALL l: _, ALL x: val,
+                   (((list_cell ls sh h y * field_mapsto sh list_struct list_link z y) * lseg ls sh l x y)  
+                          && (ewand (field_mapsto sh list_struct list_link w z) TT))
+                     >=> (lseg ls sh (l++h::nil) x z 
+                                 && (ewand (field_mapsto sh list_struct list_link w z) TT))).
 Focus 2.
-apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
+apply subp_e; eapply derives_trans;
+   [apply H | apply allp_left with l; apply allp_left with x; auto].
+forget (list_cell ls sh h y * field_mapsto sh list_struct list_link z y) as A.
+forget (lseg ls sh (l ++ h :: nil) x z) as B.
+forget (field_mapsto sh list_struct list_link w z) as C.
+forget (lseg ls sh l x y) as D.
+apply another_ewand_TT_lemma.
 clear x l.
 apply loeb.
 apply allp_right; intro l.
@@ -1046,161 +948,108 @@ destruct l.
 rewrite lseg_nil_eq.
 apply derives_trans with TT; auto.
 apply subp_i1.
-rewrite field_mapsto_isptr.
-entailer.
 apply andp_left2.
- simpl app.
+rewrite sepcon_andp_prop.
+rewrite andp_assoc.
+apply derives_extract_prop; intro.
+rewrite sepcon_emp.
+simpl.
+apply ptr_eq_e in H; subst y.
+rewrite field_mapsto_isptr.
+normalize.
 rewrite lseg_cons_eq.
-entailer. apply (exp_right w). 
+apply andp_right; [ | apply andp_left2; auto].
 apply andp_right.
-apply not_prop_right; intro. apply ptr_eq_e in H. subst w.
-unfold list_cell.
-rewrite <- (sepcon_FF TT).
+apply not_prop_right; intro. apply ptr_eq_e in H; subst z.
+apply ewand_conflict.
 rewrite sepcon_assoc.
+eapply derives_trans; [apply sepcon_derives; [apply derives_refl | ] | ].
+apply field_mapsto_conflict.
+normalize.
+apply exp_right with z.
+rewrite prop_true_andp by normalize.
+rewrite lseg_nil_eq.
+apply andp_left1.
+rewrite prop_true_andp by (apply ptr_eq_refl; auto).
+rewrite <- (sepcon_emp) at 1.
 apply sepcon_derives; auto.
-eapply derives_trans; [ | apply (field_mapsto__conflict sh list_struct list_link y)].
-cancel.
-rewrite field_mapsto_isptr with (x := w). entailer.
-cancel. rewrite lseg_nil_eq. eapply derives_trans; [ | apply now_later].
-entailer. rewrite ptr_eq_True; destruct w; inv Pw; simpl; auto.
+apply now_later.
 apply subp_i1.
 simpl app.
-rewrite andp_comm.
 rewrite lseg_cons_eq.
 rewrite lseg_cons_eq.
-autorewrite with norm.
-apply exp_left; intro s.
-apply exp_right with s.
+autorewrite with norm. repeat rewrite prop_and; autorewrite with norm.
+apply exp_left; intro z'.
+apply exp_right with z'.
 repeat rewrite sepcon_andp_prop'.
-rewrite andp_assoc.
+rewrite andp_comm. rewrite andp_assoc.
 rewrite sepcon_comm.
 repeat rewrite andp_assoc.
 repeat rewrite sepcon_andp_prop'.
 repeat rewrite andp_assoc.
 apply derives_extract_prop; intro.
+apply derives_extract_prop; intro.
+(* apply derives_extract_prop; intro. *)
 rewrite field_mapsto_isptr.
+repeat rewrite sepcon_andp_prop'.
+repeat rewrite sepcon_andp_prop.
+repeat rewrite sepcon_andp_prop'.
+repeat rewrite andp_assoc.
+apply derives_extract_prop; intro.
 normalize.
-apply andp_right. 
-entailer. admit.
-apply derives_trans with (
-   list_cell ls sh x e * field_mapsto sh list_struct list_link x s * 
-   field_mapsto sh list_struct list_link w z * list_cell ls sh y h *
-   field_mapsto sh list_struct list_link y w *
-   |>lseg ls sh l s y &&
-   !|>(ALL  l0 : list (elemtype ls) ,
-       (ALL  x0 : val ,
-        list_cell ls sh y h * field_mapsto sh list_struct list_link y w *
-        lseg ls sh l0 x0 y * field_mapsto sh list_struct list_link w z >=>
-        lseg ls sh (l0 ++ h :: nil) x0 w *
-        field_mapsto sh list_struct list_link w z))
-). apply andp_derives; cancel.
-forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x s) as A.
-rewrite andp_comm.
-repeat rewrite sepcon_assoc.
-rewrite unfash_sepcon_distrib.
+apply andp_right.
+repeat rewrite prop_and.
+repeat apply andp_right; try solve [apply prop_right; auto].
+rewrite <- andp_assoc.
+apply andp_left1.
+apply not_prop_right. intro. apply ptr_eq_e in H2. subst z.
+apply ewand_conflict.
+pull_left (field_mapsto sh list_struct list_link z' x).
+pull_left (field_mapsto sh list_struct list_link w x).
+do 3 rewrite sepcon_assoc.
+eapply derives_trans; [ apply sepcon_derives ; [ | apply derives_refl ]| ].
+apply field_mapsto_conflict.
+normalize.
+rename H into H'; rename H1 into H; rename H0 into H1; rename H' into H0.
+apply andp_right.
+2: apply andp_left2; apply andp_left1; auto.
+do 2 rewrite sepcon_assoc.
+rewrite <- andp_assoc.
+eapply derives_trans.
+apply andp_derives; [ | apply derives_refl].
+apply ewand_TT_sepcon.
+rewrite andp_comm. rewrite unfash_sepcon_distrib.
 apply sepcon_derives.
-apply andp_left2; auto.
+apply andp_left2. apply andp_left1; auto.
 rewrite <- later_unfash.
 eapply derives_trans.
-apply andp_derives; [apply derives_refl | ].
-apply sepcon_derives; [apply derives_refl | apply now_later].
-(*
-apply derives_trans with 
-(
-
-)
-repeat rewrite later_sepcon. apply andp_derives.
-cancel. cancel.
-rewrite <- later_andp.
-apply derives_trans with (|>(lseg ls sh (l ++ h :: nil) s w *
-       field_mapsto sh list_struct list_link w z)).
-Focus 2. rewrite later_sepcon. cancel. SearchAbout later.
+eapply andp_derives. apply derives_refl. apply andp_derives.
+apply sepcon_derives. apply derives_refl. apply now_later.
+apply now_later.
+rewrite <- later_sepcon.
+repeat rewrite <- later_andp.
 apply later_derives.
 rewrite unfash_allp.
 rewrite allp_andp1 by apply nil. apply allp_left with l.
-rewrite unfash_allp. rewrite allp_andp1 by apply Vundef. apply allp_left with z.
-destruct l.
-simpl.
-rewrite lseg_nil_eq.
-apply andp_left2.
-normalize.
-rewrite lseg_cons_eq.
-rewrite field_mapsto_isptr.
-normalize.
-apply exp_right with nullval.
-apply andp_right.
-apply prop_right.
-fancy_intro. subst. subst. apply Py.
-subst.
-normalize.
-rewrite lseg_nil_eq. normalize.
-eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
-rewrite sepcon_emp; auto.
-eapply derives_trans.
-apply andp_derives; [apply unfash_fash | apply derives_refl].
-rewrite andp_comm. 
-apply derives_trans
- with ((list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y ) &&
-   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y 
-     --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
-2: apply modus_ponens.
-apply andp_derives; auto.
-rewrite sepcon_comm.
-auto.
-Qed. *)
-Admitted. 
-(*forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x x0) as A.
-rewrite andp_comm.
-repeat rewrite sepcon_assoc.
-rewrite unfash_sepcon_distrib.
-apply sepcon_derives.
-apply andp_left2; auto.
-rewrite <- later_unfash.
-eapply derives_trans.
-apply andp_derives; [apply derives_refl | ].
-apply sepcon_derives; [apply derives_refl | apply now_later].
-rewrite <- later_sepcon. rewrite <- later_andp.
-apply later_derives.
 rewrite unfash_allp.
-rewrite allp_andp1 by apply nil. apply allp_left with l.
-rewrite unfash_allp. rewrite allp_andp1 by apply Vundef. apply allp_left with z.
-destruct l.
-simpl.
-rewrite lseg_nil_eq.
-apply andp_left2.
-normalize.
-rewrite lseg_cons_eq.
-rewrite field_mapsto_isptr.
-normalize.
-apply exp_right with nullval.
-apply andp_right.
-apply prop_right.
-fancy_intro. subst. subst. apply Py.
-subst.
-normalize.
-rewrite lseg_nil_eq. normalize.
-eapply derives_trans; [ | apply sepcon_derives; [ apply derives_refl | apply now_later]].
-rewrite sepcon_emp; auto.
+rewrite allp_andp1 by apply Vundef. apply allp_left with z'.
 eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
-rewrite andp_comm. 
-apply derives_trans
- with ((list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y ) &&
-   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y 
-     --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
-2: apply modus_ponens.
-apply andp_derives; auto.
-rewrite sepcon_comm.
-auto.*)
+rewrite (sepcon_comm (_ * field_mapsto _ _ _ _ _)).
+rewrite andp_comm.
+eapply derives_trans; [ apply modus_ponens |  ].
+apply andp_left1; auto.
+Qed.
 
 Lemma lseg_cons_right_null (ls: listspec list_struct list_link): forall sh l x h y, 
-             list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval * 
+             list_cell ls sh h y * field_mapsto sh list_struct list_link nullval y * 
              lseg ls sh l x y
    |--   lseg ls sh (l++h::nil) x nullval.
 Proof.
 intros.
+rewrite field_mapsto_isptr; normalize.
 assert (TT |-- ALL l: list (elemtype ls), ALL x: val,
-                   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval * lseg ls sh l x y)  
+                   (list_cell ls sh h y * field_mapsto sh list_struct list_link nullval y * lseg ls sh l x y)  
                      >=> lseg ls sh (l++h::nil) x nullval).
 Focus 2.
 apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
@@ -1245,7 +1094,7 @@ normalize.
 apply andp_right. apply prop_right; auto.
 repeat split; auto.
 intro. apply ptr_eq_e in H1. subst; inv Px.
-forget (list_cell ls sh x e * field_mapsto sh list_struct list_link x z) as A.
+forget (list_cell ls sh e x * field_mapsto sh list_struct list_link z x) as A.
 rewrite andp_comm.
 repeat rewrite sepcon_assoc.
 rewrite unfash_sepcon_distrib.
@@ -1282,8 +1131,8 @@ eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
 rewrite andp_comm. 
 apply derives_trans
- with ((list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y ) &&
-   (list_cell ls sh y h * field_mapsto sh list_struct list_link y nullval *  lseg ls sh (e0::l) z y 
+ with ((list_cell ls sh h y * field_mapsto sh list_struct list_link nullval y *  lseg ls sh (e0::l) z y ) &&
+   (list_cell ls sh h y * field_mapsto sh list_struct list_link nullval y *  lseg ls sh (e0::l) z y 
      --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
 2: apply modus_ponens.
 apply andp_derives; auto.
@@ -1305,6 +1154,54 @@ Hint Rewrite @lseg_eq using reflexivity: norm.
 Ltac simpl_list_cell := unfold list_cell; simpl_typed_mapsto.
 
 Hint Rewrite @links_nil_eq @links_cons_eq : norm.
+
+Lemma links_local_facts: 
+  forall t fld LS sh contents p q, 
+     @links t fld LS sh contents p q |--
+     !! (is_pointer_or_null p).
+Proof.
+intros.
+rewrite links_unfold.
+destruct contents.
+apply derives_extract_prop; intro.
+unfold ptr_eq in H. 
+apply prop_right.
+destruct p; try contradiction; simpl; auto.
+destruct q; try contradiction; auto.
+destruct H.
+simpl in H0.
+apply int_eq_e in H0. auto.
+normalize.
+rewrite field_mapsto_isptr.
+normalize.
+apply prop_right.
+destruct p; try contradiction; apply I.
+Qed.
+Hint Resolve links_local_facts : saturate_local.
+
+Lemma lseg_local_facts: 
+  forall t fld LS sh contents p q, 
+     @lseg t fld LS sh contents p q |--
+     !! (is_pointer_or_null p).
+Proof.
+intros.
+rewrite lseg_unfold.
+destruct contents.
+apply derives_extract_prop; intro.
+unfold ptr_eq in H. 
+apply prop_right.
+destruct p; try contradiction; simpl; auto.
+destruct q; try contradiction; auto.
+destruct H.
+simpl in H0.
+apply int_eq_e in H0. auto.
+normalize.
+rewrite field_mapsto_isptr.
+normalize.
+apply prop_right.
+destruct p; try contradiction; apply I.
+Qed.
+Hint Resolve lseg_local_facts : saturate_local.
 
 (* Some lemmas about a particular specialization of linked lists,
   with one int and one link.

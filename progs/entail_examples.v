@@ -9,45 +9,21 @@ Proof. eapply mk_listspec; reflexivity. Defined.
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
-Definition link := field_mapsto Tsh t_struct_elem _next.
-Definition link_ := field_mapsto_ Tsh t_struct_elem _next.
-
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
-      field_mapsto Tsh t_struct_fifo _head p hd *
-      field_mapsto Tsh t_struct_fifo _tail p tl *
+      !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
+      field_mapsto Tsh t_struct_fifo _head hd p *
+      field_mapsto Tsh t_struct_fifo _tail tl p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
               !!(contents = prefix++tl::nil)
-            &&  (links QS Tsh prefix hd tl * link tl nullval)).
+            &&  (links QS Tsh prefix hd tl * field_mapsto Tsh t_struct_elem _next nullval tl)).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a p  (fst rep) * 
-  (field_mapsto Tsh t_struct_elem _b p (snd rep) *
+  field_mapsto Tsh t_struct_elem _a  (fst rep) p * 
+  (field_mapsto Tsh t_struct_elem _b (snd rep) p *
    (field_mapsto_ Tsh t_struct_elem _next p)).
-
-Lemma link_local_facts:
- forall x y, link x y |-- !! (isptr x /\ is_pointer_or_null y).
-Proof.
- intros. unfold link.
- eapply derives_trans; [eapply field_mapsto_local_facts; reflexivity |].
- apply prop_derives.
- simpl. intuition.
-Qed.
-
-Hint Resolve link_local_facts : saturate_local.
-
-Lemma link__local_facts:
- forall x, link_ x |-- !! isptr x.
-Proof.
-intros.
-unfold link_.
-eapply derives_trans; [eapply field_mapsto__local_facts; reflexivity | ].
-apply prop_derives; intuition.
-Qed.
-
-Hint Resolve link__local_facts : saturate_local.
 
 Lemma goal_1 :
 name _Q ->
@@ -95,7 +71,8 @@ let Delta :=
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `(link_ p))) POST 
+                             SEP  (`(fifo contents0 q0);
+                                     `(field_mapsto_ Tsh t_struct_elem _next p))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p :: @nil val) q0)))))
@@ -180,7 +157,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p) retval) rho &&
-                             `(fifo contents0 q0) rho * `link_ retval rho))))
+                             `(fifo contents0 q0) rho * `(field_mapsto Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -204,7 +181,7 @@ SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
   else
    EX  prefix : list val,
    !!(contents = prefix ++ tl :: @nil val) &&
-   (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval)))
+   (@links t_struct_elem _next QS Tsh prefix hd tl * field_mapsto Tsh t_struct_elem _next nullval tl)))
 |-- local
       (tc_expropt Delta
          (@Some expr
@@ -1291,7 +1268,7 @@ EVAR
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `link_ retval rho))))
+                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func
@@ -1393,7 +1370,7 @@ let Delta :=
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `(link_ p1))) POST 
+                             SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1478,7 +1455,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `link_ retval rho))))
+                             `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -1603,7 +1580,7 @@ EVAR
                                    PROP  ()
                                    LOCAL  (`(@eq val q0) (eval_id _Q);
                                    `(@eq val p1) (eval_id _p))
-                                   SEP  (`(fifo contents0 q0); `(link_ p1)))
+                                   SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
                                   POST  [tvoid]
                                   (let (q0, contents0) := p0 in
                                    `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1694,7 +1671,7 @@ EVAR
                                    fun rho : environ =>
                                    local (`(@eq val p1) retval) rho &&
                                    `(fifo contents0 q0) rho *
-                                   `link_ retval rho))))
+                                   `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                            (@PTree.Leaf global_spec)))
                      (@Some global_spec
                         (Global_func
@@ -1810,7 +1787,7 @@ let Delta :=
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `(link_ p1))) POST 
+                             SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1895,7 +1872,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `link_ retval rho))))
+                             `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -2057,7 +2034,7 @@ let Delta :=
                                 PROP  ()
                                 LOCAL  (`(@eq val q0) (eval_id _Q);
                                 `(@eq val p1) (eval_id _p))
-                                SEP  (`(fifo contents0 q0); `(link_ p1)))
+                                SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
                                POST  [tvoid]
                                (let (q0, contents0) := p0 in
                                 `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -2143,7 +2120,7 @@ let Delta :=
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `link_ retval rho))))
+                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func
@@ -2262,7 +2239,7 @@ EVAR
                                       LOCAL  (`(@eq val q0) (eval_id _Q);
                                       `(@eq val p1) (eval_id _p))
                                       SEP  (`(fifo contents0 q0);
-                                      `(link_ p1))) POST  [tvoid]
+                                      `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST  [tvoid]
                                      (let (q0, contents0) := p0 in
                                       `(fifo (contents0 ++ p1 :: @nil val) q0)))))
                               (@PTree.Leaf global_spec))) (@None global_spec)
@@ -2357,7 +2334,7 @@ EVAR
                                       fun rho : environ =>
                                       local (`(@eq val p1) retval) rho &&
                                       `(fifo contents0 q0) rho *
-                                      `link_ retval rho))))
+                                      `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                               (@PTree.Leaf global_spec)))
                         (@Some global_spec
                            (Global_func
@@ -2485,7 +2462,7 @@ let Delta :=
                                 PROP  ()
                                 LOCAL  (`(@eq val q0) (eval_id _Q);
                                 `(@eq val p1) (eval_id _p))
-                                SEP  (`(fifo contents0 q0); `(link_ p1)))
+                                SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
                                POST  [tvoid]
                                (let (q0, contents0) := p0 in
                                 `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -2572,7 +2549,7 @@ let Delta :=
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `link_ retval rho))))
+                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func

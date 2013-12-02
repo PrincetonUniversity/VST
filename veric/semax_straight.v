@@ -126,7 +126,7 @@ valid_pointer (m_dry jm) b (Int.unsigned o) = true.
 intros.
 
 destruct H. destruct H. destruct H. destruct H0.
-unfold mapsto_,umapsto in H0.  unfold umapsto in *. 
+unfold mapsto_,mapsto in H0.  unfold mapsto in *. 
 destruct (access_mode t); try solve [ inv H0].
 assert (exists v,  address_mapsto m v (Share.unrel Share.Lsh sh)
         (Share.unrel Share.Rsh sh) (b, Int.unsigned o) x).
@@ -167,7 +167,7 @@ Lemma mapsto_is_pointer : forall sh t m v,
 mapsto_ sh t v m ->
 exists b, exists o, v = Vptr b o. 
 Proof.
-intros. unfold mapsto_, umapsto in H.
+intros. unfold mapsto_, mapsto in H.
 destruct (access_mode t); try contradiction.
 destruct v; try contradiction.
 destruct H as [? | [? [v ?]]]; eauto.
@@ -640,8 +640,10 @@ Lemma semax_load :
 forall (Delta: tycontext) sh id P e1 v2,
     semax Espec Delta 
        (fun rho => |>
-        (tc_lvalue Delta e1 rho  && (tc_temp_id_load id (typeof e1) Delta v2 rho) &&
-          (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
+        (tc_lvalue Delta e1 rho  
+        && (tc_temp_id_load id (typeof e1) Delta v2 rho)
+        && (!! tc_val (typeof e1) (v2 rho))
+        &&  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id e1)
        (normal_ret_assert (fun rho => 
         EX old:val, (!!(eval_id id rho = subst id old v2 rho) &&
@@ -650,19 +652,20 @@ Proof.
 intros until v2.  
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
   tc_temp_id_load id (typeof e1) Delta v2 rho ) && 
+  !! (tc_val (typeof e1) (v2 rho)) &&
   (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
  with (fun rho : environ => 
    ( |> tc_lvalue Delta e1 rho && 
      |> tc_temp_id_load id (typeof e1) Delta v2 rho &&
      |> !! (typecheck_val (v2 rho) (typeof e1) = true) && 
-     |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
+     |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
 Focus 2.
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
-repeat rewrite andp_assoc. f_equal. f_equal.
-rewrite tc_val_eq'.
-unfold mapsto, umapsto. normalize.
+repeat rewrite andp_assoc.
+rewrite tc_val_eq'. reflexivity.
+unfold mapsto.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
 intros jm jm1 Delta' ge ve te rho k F TS [[TC2 TC1] TC3] TC' Hcl Hge ? ?.
@@ -702,7 +705,7 @@ unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
 (* typechecking proof *)
 apply Clight.eval_Elvalue with b ofs; auto. 
 destruct H0 as [H0 _].
-assert ((|> (F rho * (umapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
+assert ((|> (F rho * (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))%pred
        (m_phi jm)).
 rewrite later_sepcon.
 eapply sepcon_derives; try apply H0; auto.
@@ -710,7 +713,7 @@ specialize (H3 _ (age_laterR (age_jm_phi H))).
 rewrite sepcon_comm in H3.
 rewrite sepcon_assoc in H3.
 destruct H3 as [m1 [m2 [? [? _]]]].
-unfold umapsto in H4.
+unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename m into ch.
 rewrite H2 in H5.
@@ -751,10 +754,6 @@ rewrite H4.
 apply andp_right; auto.
 intros ? ?; simpl.
 unfold eval_id, force_val. simpl. rewrite Map.gss. auto.
-apply sepcon_derives; auto.
-unfold mapsto. apply andp_right; auto.
-intros ? ?; unfold prop; auto.
-rewrite tc_val_eq; auto.
 
 intro i; destruct (eq_dec id i); [left; auto | right; rewrite Map.gso; auto].
 subst; unfold modifiedvars. simpl.
@@ -938,7 +937,7 @@ apply semax_pre with
   (fun rho : environ =>
    EX v3: val, 
       |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      |> (umapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
+      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
 intro. apply andp_left2. 
 unfold mapsto_. apply exp_right with Vundef.
 repeat rewrite later_andp; auto.
@@ -957,7 +956,7 @@ apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.
 destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
-unfold umapsto in H4.
+unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
@@ -1042,16 +1041,12 @@ rewrite resource_at_make_rmap. rewrite <- core_resource_at.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
-rewrite mapsto_e.
+unfold mapsto.
 destruct TC4 as [TC4 _].
-(*
-clear - Hmode TC3 TC2 TC4.
-rewrite tc_val_eq.
-eapply typecheck_val_sem_cast; eauto.
-*)
 rewrite Hmode.
 rewrite He1'. 
 rewrite writable_share_right; auto.
+apply orp_right1.
 apply andp_right.
 intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.
 intros ? ?. apply H2.

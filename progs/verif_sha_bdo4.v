@@ -219,7 +219,7 @@ forward.  (* Ki=K256[i]; *)
 
 abstract (
   assert (Zlength K = 64%Z) by reflexivity;
-  entailer!; [ apply (is_int_e _ H1) | omega.. ]).
+  entailer!; omega).
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 

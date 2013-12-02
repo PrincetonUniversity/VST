@@ -475,6 +475,17 @@ Proof.
 Qed.
 Hint Resolve expr_closed_cast : closed.
 
+Lemma expr_closed_field: forall S e f t,
+  lvalue_closed_wrt_vars S e ->
+  expr_closed_wrt_vars S (Efield e f t).
+Proof.
+ unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
+ simpl.
+ super_unfold_lift.
+ f_equal.
+ f_equal. apply H.  auto.
+Qed.
+Hint Resolve expr_closed_field : closed.
 
 Lemma expr_closed_binop: forall S op e1 e2 t, 
      expr_closed_wrt_vars S e1 -> 

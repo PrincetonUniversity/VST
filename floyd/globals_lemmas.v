@@ -53,7 +53,7 @@ repeat rewrite Int.unsigned_repr by omega.
  simpl; auto.
  rewrite inj_S in H2. unfold Z.succ in H2.
  apply sepcon_derives; auto.
- unfold mapsto_, umapsto.
+ unfold mapsto_, mapsto.
  apply orp_right2.
  rewrite prop_true_andp by auto.
  apply exp_right with (Vint Int.zero).
@@ -408,7 +408,6 @@ rewrite mapsto_tuint_tint.
 rewrite mapsto_isptr.
 apply derives_extract_prop. intro.
 destruct (v rho); inv H.
-unfold mapsto. apply andp_left2.
 simpl offset_val.
 unfold add_ptr_int; simpl.
 rewrite mul_repr.

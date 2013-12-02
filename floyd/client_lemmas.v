@@ -2156,6 +2156,7 @@ extensionality rho; simpl.
 repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
 
+(*
 Ltac move_prop_from_SEP :=
 match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
   match R with context [(prop ?P1 && ?Rn) :: ?R'] =>
@@ -2176,7 +2177,7 @@ Proof.
  simpl.
  apply pred_ext; normalize.
 Qed.
-
+*)
 
 Lemma extract_local_in_SEP:
   forall n Q1 Rn P Q R, 
@@ -2218,8 +2219,8 @@ match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
   | context [(prop ?P1 && ?Rn) :: ?R'] =>
       let n := length_of R in let n' := length_of R' in 
         rewrite (extract_prop_in_SEP (n-S n')%nat P1 Rn) by reflexivity;
-        simpl minus; unfold replace_nth;
-        try (apply semax_extract_PROP; intro)
+        simpl minus; unfold replace_nth (*;
+        try (apply semax_extract_PROP; intro)*)
   | context [ exp ?z :: _] =>
         let n := find_in_list (exp z) R 
          in rewrite (grab_nth_SEP n); unfold nth, delete_nth; rewrite extract_exists_in_SEP;
@@ -2245,6 +2246,22 @@ Proof.
 Qed.
 
 (* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
+
+Lemma subst_make_args':
+  forall id v (P: environ->mpred) fsig tl el,
+  length tl = length el ->
+  length (fst fsig) = length el ->
+  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
+           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
+Proof.
+intros. unfold_lift. extensionality rho; unfold subst.
+f_equal. unfold make_args'.
+revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
+reflexivity.
+specialize (IHl _ _ H2 H1).
+unfold_lift; rewrite IHl. auto.
+Qed.
+Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
@@ -2475,11 +2492,11 @@ Ltac saturate_local :=
   simple apply saturate_local_aux9.
 
 Lemma mapsto_local_facts:
-  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1 /\ tc_val t v2).
+  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
+  (* could make this slightly stronger by adding the fact
+     (tc_val t v2 \/ v2=Vundef)  *)
 Proof.
-intros; unfold mapsto, umapsto.
-rewrite tc_val_eq.
-apply derives_extract_prop; intro.
+intros; unfold mapsto.
 destruct (access_mode t); try apply FF_left.
 destruct v1; try apply FF_left.
 apply prop_right; split; auto; apply I.
@@ -2488,10 +2505,7 @@ Qed.
 Lemma mapsto__local_facts:
   forall sh t v1, mapsto_ sh t v1 |-- !! (isptr v1).
 Proof.
-intros; unfold mapsto_, umapsto.
-destruct (access_mode t); try apply FF_left.
-destruct v1; try apply FF_left.
-apply prop_right; apply I.
+intros; apply mapsto_local_facts.
 Qed.
 Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 (*********************************************************)

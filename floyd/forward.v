@@ -15,83 +15,30 @@ Arguments Int.unsigned n : simpl never.
 Local Open Scope logic.
 
 (* Move these elsewhere *)
+Definition not_conj_notation (P: Prop) := True.
 
-Lemma is_int_e:
- forall x, is_int x -> exists y, x = Vint y.
-Proof. intros. destruct x; try contradiction; eauto. Qed.
+Ltac not_conj_notation :=
+ match goal with 
+ | |- not_conj_notation (_ <= _ <= _)%Z => fail 1
+ | |- not_conj_notation (_ <= _ < _)%Z => fail 1
+ | |- not_conj_notation (_ < _ <= _)%Z => fail 1
+ | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
+ | |- not_conj_notation (_ <= _ < _)%nat => fail 1
+ | |- not_conj_notation (_ < _ <= _)%nat => fail 1
+ | |- _ => apply I
+ end.
 
-Lemma ZnthV_map_Vint_is_int:
-  forall l i, 0 <= i < Zlength l -> is_int (ZnthV tint (map Vint l) i).
+Lemma split_first_PROP:
+  forall P Q R S, 
+  not_conj_notation (P/\Q) ->
+  PROPx ((P/\Q)::R) S = PROPx (P::Q::R) S.
 Proof.
-intros.
-unfold ZnthV.
-if_tac; [omega | ].
-assert (Z.to_nat i < length l)%nat.
-destruct H.
-rewrite Zlength_correct in H1.
-apply Z2Nat.inj_lt in H1; try omega.
-rewrite Nat2Z.id in H1. auto.
-clear - H1.
-revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
-omega. auto. omega. apply IHn; omega.
+intros. unfold PROPx; simpl.
+extensionality rho.
+apply pred_ext; apply andp_derives; auto;
+  apply prop_derives; intuition.
 Qed.
-
-Lemma field_mapsto_field_umapsto':
- forall sh t id v v', field_mapsto sh t id v v' |-- field_umapsto sh t id v' v.
-Proof.
-intros.
-Transparent field_mapsto.
-unfold field_mapsto.
-Opaque field_mapsto.
-normalize.
-Qed.
-Hint Resolve field_mapsto_field_umapsto': cancel.
-
-Lemma force_rep_Vint:
-  forall i, force_rep Vint (Some i) = Vint i.
-Proof. reflexivity. Qed.
-
-Lemma force_rep_Vlong:
-  forall i, force_rep Vlong (Some i) = Vlong i.
-Proof. reflexivity. Qed.
-
-Lemma force_rep_Vfloat:
-  forall i, force_rep Vfloat (Some i) = Vfloat i.
-Proof. reflexivity. Qed.
-
-(* These three are (now) in the default hint database because
-    of the solve[auto] in new_store_tac (array case) *)
-Hint Extern 1 (force_rep Vint _ = Vint _) => apply force_rep_Vint.
-Hint Extern 1 (force_rep Vlong _ = Vlong _) => apply force_rep_Vlong.
-Hint Extern 1 (force_rep Vfloat _ = Vfloat _) => apply force_rep_Vfloat.
-
-Lemma subst_make_args':
-  forall id v (P: environ->mpred) fsig tl el,
-  length tl = length el ->
-  length (fst fsig) = length el ->
-  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
-           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
-Proof.
-intros. unfold_lift. extensionality rho; unfold subst.
-f_equal. unfold make_args'.
-revert tl el H H0; induction (fst fsig); destruct tl,el; simpl; intros; inv H; inv H0.
-reflexivity.
-specialize (IHl _ _ H2 H1).
-unfold_lift; rewrite IHl. auto.
-Qed.
-Hint Rewrite subst_make_args' using (solve[reflexivity]) : subst.
-
-Lemma expr_closed_field: forall S e f t,
-  lvalue_closed_wrt_vars S e ->
-  expr_closed_wrt_vars S (Efield e f t).
-Proof.
- unfold lvalue_closed_wrt_vars, expr_closed_wrt_vars; intros.
- simpl.
- super_unfold_lift.
- f_equal.
- f_equal. apply H.  auto.
-Qed.
-Hint Resolve expr_closed_field : closed.
+Hint Rewrite split_first_PROP using not_conj_notation : norm.
 
 Lemma semax_frame1:
  forall {Espec: OracleKind} Frame Delta Delta1
@@ -789,6 +736,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [entailer!]
+   | try apply I; try assumption; reflexivity
    ]) || fail 1
  | _ =>
    eapply (semax_load_field_38);
@@ -796,6 +744,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | solve [entailer; cancel]
+   | try apply I; try assumption; reflexivity
    ]
  end
  | |- semax _ _ (Sset _ (Efield _ _ _)) _ =>
@@ -803,6 +752,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; cancel]
+   | try apply I; try assumption; reflexivity
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
@@ -816,39 +766,6 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     ]
  end.
 
-Ltac load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
- ensure_normal_ret_assert;
- hoist_later_in_pre;
- first [
-   eapply (semax_load_field_39);
-   [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | try apply trivial_typecheck; try solve [entailer]
-   | solve [entailer; cancel]
-   ]
-   | eapply (semax_load_field_38);
-   [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
-   | solve [entailer; cancel]
-   ]
-  | eapply (semax_load_field'');
-   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | try solve [entailer]
-   | solve [entailer; cancel]
-   ]
- | match goal with |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
-    eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | solve [entailer; cancel]
-      | ]
-    end
- | eapply semax_load_37';
-   [entailer;
-    try (apply andp_right; [apply prop_right | solve [cancel] ];
-           do 2 eexists; split; reflexivity)
-    ]
-  ].
 
 Definition numbd {A} (n: nat) (x: A) : A := x.
 

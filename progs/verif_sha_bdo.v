@@ -119,7 +119,7 @@ abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward;
-         [ entailer!; [apply is_int_e; apply ZnthV_map_Vint_is_int; omega | omega]
+         [ entailer!; [apply ZnthV_map_Vint_is_int; omega | omega]
                 | ]).
 forward.  (* skip; *)
 entailer.

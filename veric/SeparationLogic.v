@@ -83,7 +83,7 @@ match (temp_types Delta) ! id with
 | None => false
 end. 
 
-Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
+Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
     match v1 with
@@ -95,9 +95,7 @@ Definition umapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   | _ => FF
   end. 
 
-Definition mapsto sh t v1 v2 :=  !! tc_val t v2    && umapsto sh t v1 v2.
-
-Definition mapsto_ sh t v1 := umapsto sh t v1 Vundef.
+Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition Tsh : share := Share.top.
 
@@ -664,6 +662,7 @@ forall (Delta: tycontext) sh id P e1 v2,
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
        local (tc_temp_id_load id (typeof e1) Delta v2) && 
+       local ( `(tc_val (typeof e1)) v2) &&
        (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&

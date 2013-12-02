@@ -7,6 +7,22 @@ Require Import floyd.malloc_lemmas.
 Require Import floyd.loadstore_lemmas.
 Local Open Scope logic.
 
+Lemma ZnthV_map_Vint_is_int:
+  forall l i, 0 <= i < Zlength l -> is_int (ZnthV tint (map Vint l) i).
+Proof.
+intros.
+unfold ZnthV.
+if_tac; [omega | ].
+assert (Z.to_nat i < length l)%nat.
+destruct H.
+rewrite Zlength_correct in H1.
+apply Z2Nat.inj_lt in H1; try omega.
+rewrite Nat2Z.id in H1. auto.
+clear - H1.
+revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
+omega. auto. omega. apply IHn; omega.
+Qed.
+
 Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
  match n with
   | O => zero
@@ -62,10 +78,10 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
-Lemma typed_mapsto_umapsto:
+Lemma typed_mapsto_mapsto:
   forall sh t loc c,
    is_by_value t ->
-   typed_mapsto sh t loc c = umapsto sh t loc (repinject t c).
+   typed_mapsto sh t loc c = mapsto sh t loc (repinject t c).
 Proof.
 intros.
  pose proof (alignof_pos t).
@@ -206,13 +222,6 @@ Qed.
 
 Require floyd.loadstore_lemmas.
 
-(*
-Definition force_reptype (t: type) (v: option (reptype t)) : reptype t :=
- match v with None => default_val t | Some x => x end.
-*)
-
-(* Definition isSome {A}(v: option A) : Prop := exists v', v = Some v'. *)
-
 Definition defined_rep {t} : reptype t -> Prop :=
 match t as t0 return (reptype t0 -> Prop) with
 | Tvoid => fun _ : reptype Tvoid => False
@@ -243,7 +252,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && 
-     local (`defined_rep (`contents (`force_signed_int v2)))  && 
+     local (`(tc_val t1) (`(repinject t1) (`contents (`force_signed_int v2))))  && 
      local (`isptr v1) && 
      local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
     @semax Espec Delta 
@@ -252,7 +261,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi
        (normal_ret_assert 
         (EX old:val,
           PROPx P (LOCALx (
-                `eq (eval_id id) (subst id (`old) (`(repinject t1) ((*`(force_reptype t1) *)
+                `eq (eval_id id) (subst id (`old) (`(repinject t1) (
                                           (`contents (`force_signed_int v2)))))
                             :: map (subst id (`old)) Q)
                 (SEPx 
@@ -268,7 +277,7 @@ eapply semax_pre_post;
                     :: `eq (`force_val (`sem_add `(tptr t1)  `tint v1 v2))
                          (eval_expr e1) :: Q)
                 (SEPx R))) (Ederef e1 t1)
-    (`(repinject t1) ((*`(force_reptype t1)*) (`contents (`force_signed_int v2)))))].
+    (`(repinject t1) ((`contents (`force_signed_int v2)))))].
 * (* precondition *)
 apply loadstore_lemmas.later_left2.
 rewrite insert_local.
@@ -324,17 +333,11 @@ apply sepcon_derives; auto.
 rewrite <- H8.
 destruct (v1 rho); inv H7.
 simpl.
-rewrite typed_mapsto_umapsto by auto.
+rewrite typed_mapsto_mapsto by auto.
 simpl in H6.
-unfold mapsto.
 unfold add_ptr_int. simpl.
 rewrite Int.repr_signed.
-apply andp_right; auto.
-apply prop_right.
-clear - H6.
-destruct t1; try contradiction;
-try (destruct H6 as [? H]; rewrite H; apply I).
-apply H6.
+auto.
 Qed.
 
 Lemma semax_load_array:
@@ -349,7 +352,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
      local (tc_expr Delta e1) && local (`(tc_val tint) v2) && 
      local (`(in_range lo hi) (`force_signed_int v2)) && 
-     local (`defined_rep (`contents (`force_signed_int v2)))  && 
+     local (`(tc_val t1) (`(repinject t1) (`contents (`force_signed_int v2))))  && 
      local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 v2) (eval_expr e1)) ->
     @semax Espec Delta 
        (|> PROPx P (LOCALx Q (SEPx R)))
@@ -384,9 +387,9 @@ Qed.
 
 Lemma mapsto_mapsto_: forall sh t v v',
    mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. unfold mapsto, mapsto_; intros.
+Proof. unfold mapsto_; intros.
 normalize.
-unfold umapsto.
+unfold mapsto.
 destruct (access_mode t); auto.
 destruct v; auto.
 apply orp_left.
@@ -467,34 +470,6 @@ Proof.
 intros. reflexivity.
 Qed.
 
-(*
-Lemma repinject_typed_mapsto_:
-  forall sh t loc inject,
-   repinject t = Some inject ->
-   no_attr_type t = true ->
-   typed_mapsto_ sh t loc = mapsto_ sh t loc.
-Proof.
-intros.
- destruct t; inv H; unfold typed_mapsto_, typed_mapsto_', eq_rect_r; simpl;
-  rewrite withspacer_spacer;
- unfold spacer; rewrite align_0; simpl; try rewrite emp_sepcon; auto;
- try destruct i; try destruct s; try destruct f; auto;
- apply no_attr_e in H0; subst a; simpl; omega.
-Qed.
-*)
-
-Lemma umapsto_mapsto_ :
-  forall sh t v v', umapsto sh t v v' |-- mapsto_ sh t v.
-Proof.
-intros. unfold mapsto_, umapsto.
-destruct (access_mode t); auto.
-destruct v; auto.
-apply orp_left; apply derives_extract_prop; intro.
-apply orp_right2; rewrite prop_true_andp by auto; apply exp_right with v'; auto.
-subst v'. apply orp_right2. 
-rewrite prop_true_andp by auto; auto.
-Qed.
-
 Lemma semax_store_array:
 forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
               lo hi   
@@ -557,8 +532,8 @@ eapply semax_pre_post;
   unfold_lift. rewrite <- H7; simpl.
   destruct (v1 rho); inv H12. simpl.
   unfold add_ptr_int; simpl.
- rewrite typed_mapsto_umapsto by auto.
- apply umapsto_mapsto_.
+ rewrite typed_mapsto_mapsto by auto.
+ apply mapsto_mapsto_.
  omega.
 * intros.
   clear H5.
@@ -577,12 +552,11 @@ eapply semax_pre_post;
   rewrite upd_neq; auto. omega.
   rewrite upd_eq. 
   simpl.
-  rewrite (typed_mapsto_umapsto _ _ _ _ H3).
+  rewrite (typed_mapsto_mapsto _ _ _ _ H3).
   destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.
-  rewrite H10. unfold_lift; simpl.
-  unfold mapsto; apply andp_left2; auto.
+  rewrite H10. unfold_lift; simpl. auto.
   apply derives_refl'; apply equal_f; apply array_at_ext; intros.
   rewrite upd_neq by omega. auto. omega.
 Qed.

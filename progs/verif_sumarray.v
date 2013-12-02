@@ -131,9 +131,6 @@ entailer!. f_equal. omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* x = a[i]; *)
 entailer!.
-specialize (H0 _ (conj H1 H3)).
-destruct (contents i0); try contradiction.
-eauto.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)

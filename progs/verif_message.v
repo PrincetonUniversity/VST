@@ -94,17 +94,6 @@ Definition Gprog : funspecs :=
 
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
-Lemma umapsto_local_facts:
-  forall sh t v1 v2,  umapsto sh t v1 v2 |-- !! (isptr v1).
-Proof.
-intros; unfold umapsto.
-rewrite tc_val_eq.
-destruct (access_mode t); try apply FF_left.
-destruct v1; try apply FF_left.
-apply prop_right; apply I.
-Qed.
-Hint Resolve umapsto_local_facts : saturate_local.
-
 Lemma body_intpair_serialize: semax_body Vprog Gtot f_intpair_serialize intpair_serialize_spec.
 Proof.
 unfold intpair_serialize_spec.
@@ -116,38 +105,26 @@ name x _x.
 name y _y.
 destruct H0 as [Dx Dy].
 destruct data as [[|x1 | | | ] [|y1 | | | ]]; try contradiction. clear Dx Dy.
-change (mf_size intpair_message) with (sizeof t_struct_intpair).
+change (mf_size intpair_message) with (sizeof (tarray tint 2)).
 rewrite memory_block_typed by reflexivity.
-(*rename H into H3. (*fix for (slightly) older coq versions*)*)
 do 2 simpl_typed_mapsto.
-apply semax_pre with
- (PROP  (isptr buf)
-   LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf))
-   SEP 
-   (`(field_mapsto sh t_struct_intpair _x) (eval_id _p) `(Vint x1);
-    `(field_mapsto sh t_struct_intpair _y) (eval_id _p) `(Vint y1);
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(0));
-   `(mapsto_ sh' tint) (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(1)))).
-entailer. cancel.
-unfold field_mapsto_, mapsto_.
-unfold field_umapsto. simpl.
-normalize.
-repeat  rewrite add_ptr_int_offset; [ | compute; intuition congruence ..].
- simpl.
-normalize.
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
-simpl.
 forward. (*  ((int * )buf)[0]=x; *)
+entailer!.
 forward. (*  ((int * )buf)[1]=y; *)
+entailer!. 
 forward. (* return 8; *)
 apply exp_right with 8.
 entailer.
-(* rename H into H2. (*fix for (slightly) older coq versions*)*)
-simpl_typed_mapsto. cancel.
+simpl_typed_mapsto.
 unfold mf_restbuf. simpl.
-destruct buf0; inv Pbuf.
-simpl. rewrite memory_block_zero. rewrite sepcon_emp.
+destruct buf0; inv Pbuf0.
+simpl. rewrite memory_block_zero.
+unfold array_at, rangespec; simpl.
+repeat (rewrite upd_eq || rewrite upd_neq by congruence).
+cancel.
+rewrite typed_mapsto_tint.
 apply sepcon_derives; apply derives_refl';
  eapply mapsto_field_mapsto; simpl; try reflexivity;
  rewrite Int.add_assoc; reflexivity.
@@ -177,32 +154,37 @@ apply semax_pre with
    SEP 
    (`(field_mapsto_ sh t_struct_intpair _x) (eval_id _p);
     `(field_mapsto_ sh t_struct_intpair _y) (eval_id _p);
-   `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(0))
-      `(Vint x1);
-   `(mapsto sh' tint)
-        (`(add_ptr_int tint) (`force_val (`(sem_cast (tptr tuchar) (tptr tint)) (eval_id _buf))) `(1))
-        `(Vint y1))).
+    `(array_at tint sh' (ZnthV tint (Vint x1 :: Vint y1:: nil)) 0 2) (eval_id _buf))).
 simpl_typed_mapsto.
 entailer.
-repeat  rewrite add_ptr_int_offset by (compute; intuition congruence).
+unfold array_at, rangespec; simpl.
+unfold ZnthV; simpl. simpl_typed_mapsto.
+rewrite typed_mapsto_tint.
 cancel.
 apply sepcon_derives; apply derives_refl'';
- eapply mapsto_field_mapsto; unfold field_offset; try (simpl; reflexivity);
- rewrite offset_offset_val; reflexivity.
-normalize.
-unfold sem_cast; simpl.
+ eapply mapsto_field_mapsto; try (simpl; reflexivity);
+ destruct buf0; try contradiction; simpl; repeat rewrite Int.add_assoc; reflexivity.
 forward. (* x = ((int * )buf)[0]; *)
+ entailer!.
 forward. (* y = ((int * )buf)[1]; *)
+ entailer!.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)
 simpl_typed_mapsto.
+fold t_struct_intpair.
+unfold array_at, rangespec; simpl.
+unfold ZnthV.
+rewrite if_false by omega. rewrite if_false by omega.
+simpl.
+inv H1; inv H2.
+rewrite typed_mapsto_tint.
 cancel.
-apply sepcon_derives;
-apply derives_refl'; eapply mapsto_field_mapsto;  try (simpl; reflexivity);
- destruct buf0; try reflexivity;
- simpl; rewrite Int.add_assoc; reflexivity.
+repeat apply sepcon_derives;
+apply derives_refl';
+ eapply mapsto_field_mapsto;  try (simpl; reflexivity);
+ destruct buf0;
+ simpl; try rewrite Int.add_assoc; reflexivity.
 Qed.
 
 Ltac simpl_stackframe_of := 
@@ -228,15 +210,6 @@ Qed.
 
 Ltac get_global_function' id :=
   eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
-
-Lemma mapsto_pointer_offset_val_zero: (* not needed *)
-  forall sh t a v1 v2,
-     mapsto sh (Tpointer t a) v1 (offset_val Int.zero v2) |--
-     mapsto sh (Tpointer t a) v1 v2.
-Proof.
-intros; unfold mapsto.
-normalize. destruct v2; inv H; simpl; normalize.
-Qed.
 
 Lemma  create_message_object:
  forall t (msg: message_format t) objid serid desid
@@ -291,18 +264,11 @@ apply andp_derives; auto.
  simpl in Edes; rewrite Edes; clear dependent desid.
  repeat apply sepcon_derives.
  eapply mapsto_field_mapsto'; try rewrite offset_offset_val; reflexivity.
- unfold mapsto; normalize;
- apply derives_refl'; eapply umapsto_field_umapsto; try reflexivity.
- unfold mapsto; normalize;
- apply derives_refl'; eapply umapsto_field_umapsto; try reflexivity.
+ normalize;
+ apply derives_refl'; simpl; rewrite Int.add_zero; eapply mapsto_field_mapsto; try reflexivity.
+ normalize;
+ apply derives_refl'; simpl; rewrite Int.add_zero; eapply mapsto_field_mapsto; try reflexivity.
 Qed.
-
-(*
-Ltac replace_SEP R :=
-match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?R1::_)))) _ _ =>
- let H := fresh in assert (H: R1 = R); [ | rewrite H; clear H]
-end.
-*)
 
 Definition serialize_A {t}  (msg: message_format t) : Type := 
   match serialize_spec msg with mk_funspec _ A _ _ => A  end.
@@ -349,6 +315,12 @@ specialize (IHl _ _ H2 H1).
 unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite subst_make_args'x using (solve[reflexivity]) : subst.
+
+Lemma func_ptr_isptr:
+ forall spec f, func_ptr spec f |-- !! isptr f.
+Proof.
+Admitted.  (* needs to go in veric *)
+Hint Resolve func_ptr_isptr: saturate_local.
 
 Lemma call_serialize:
  forall Espec (Delta: tycontext) (ser id x: ident)
@@ -421,20 +393,28 @@ replace_SEP 0%Z (EX fg: val*val,
 entailer. apply exp_right with x0. entailer.
 extract_exists_in_SEP. intros [f g].
 simpl @fst; simpl @ snd.
+match goal with |- semax _ (PROPx nil ?QR) _ _ =>
+ apply semax_pre with (PROP (isptr f) QR)
+end.
+go_lowerx. entailer. 
+eapply derives_trans. repeat apply sepcon_derives.
+apply andp_left1. apply func_ptr_isptr.
+apply derives_refl. apply derives_refl. entailer.
+normalize.
 eapply semax_pre with
   (EX p:val, EX buf:val, |>(PROP()
      LOCAL(tc_lvalue Delta e_obj; `(eq p) (eval_expr e_p);
                      `(eq buf) (eval_lvalue e_buf);
                      (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil)))
       SEP
-  (`(field_mapsto sh_obj t_struct_message _serialize) (eval_lvalue e_obj) `f;
+  (`(field_mapsto sh_obj t_struct_message _serialize f) (eval_lvalue e_obj);
       `(func_ptr' (serialize_spec msg)) `f;
-    `(field_mapsto sh_obj t_struct_message _bufsize) (eval_lvalue e_obj)
-                        `(Vint (Int.repr (mf_size msg)));
+    `(field_mapsto sh_obj t_struct_message _bufsize (Vint (Int.repr (mf_size msg))))
+                            (eval_lvalue e_obj);
      `(serialize_pre msg (v,p,buf,sh_p,sh_buf))
        (make_args' (serialize_fsig msg)
          (eval_exprlist (snd (split (fst (serialize_fsig msg)))) (e_p :: e_buf :: nil)));
-      `(field_mapsto sh_obj t_struct_message _deserialize) (eval_lvalue e_obj) `g))).
+      `(field_mapsto sh_obj t_struct_message _deserialize g) (eval_lvalue e_obj)))).
 admit.  (* might work *)
 apply extract_exists_pre; intro p.
 apply extract_exists_pre; intro buf.
@@ -449,9 +429,9 @@ eapply semax_seq'.
    admit.  (* closed...  should be fine *)
  go_lowerx; entailer.
  go_lowerx; entailer. rewrite H2; cancel.
+ simpl. auto. 
 }
- 
-
+rename H into H'. 
 focus_SEP 3 1.
    apply semax_pre with 
      (P':=PROP () LOCAL (tc_expr (initialized ser Delta)
@@ -473,19 +453,19 @@ focus_SEP 3 1.
                                (Tfunction
                                   (Tcons (tptr tvoid)
                                      (Tcons (tptr tuchar) Tnil)) tint))));
-             `(field_mapsto sh_obj t_struct_message _serialize)
-                            (eval_lvalue e_obj)  (eval_id ser);
-              `(field_mapsto sh_obj t_struct_message _bufsize)
-                       (eval_lvalue e_obj) `(Vint (Int.repr (mf_size msg)));
-               `(field_mapsto sh_obj t_struct_message _deserialize)
-                            (eval_lvalue e_obj)  `g))).
+             `(field_mapsto sh_obj t_struct_message _serialize)  (eval_id ser)
+                            (eval_lvalue e_obj);
+              `(field_mapsto sh_obj t_struct_message _bufsize (Vint (Int.repr (mf_size msg))))
+                       (eval_lvalue e_obj);
+               `(field_mapsto sh_obj t_struct_message _deserialize g)
+                            (eval_lvalue e_obj)))).
 go_lowerx. subst.
 apply andp_right; auto.
 apply prop_right.
 repeat split; auto.
 hnf. unfold typecheck_expr.
 simpl negb. cbv iota.
-rewrite (temp_types_init_same _ _ _ _ H).
+rewrite (temp_types_init_same _ _ _ _ H0).
 apply I.
 hnf in H8|-*.
 unfold typecheck_exprlist in H8|-*.
@@ -493,10 +473,6 @@ repeat rewrite denote_tc_assert_andp in H8|-*.
 destruct H8 as [? [? _]]; repeat split; auto.
 apply tc_expr_init; auto.
 apply tc_expr_init; auto.
-(*
-clear - H0 H6 CL_p CL_buf.
-admit.  (* looks OK *)
-*)
 eapply semax_seq'.
 apply (call_lemmas.semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
@@ -539,11 +515,13 @@ apply derives_trans with
 ((!!(0 <= len <= mf_size msg) && 
   mf_assert msg sh_buf (eval_lvalue e_buf rho) len v ) *
 mf_restbuf msg sh_buf (eval_lvalue e_buf rho) len *
-field_mapsto sh_obj t_struct_message _serialize (eval_lvalue e_obj rho)
-  (eval_id ser rho) *
-field_mapsto sh_obj t_struct_message _bufsize (eval_lvalue e_obj rho)
-  (Vint (Int.repr (mf_size msg))) *
-field_mapsto sh_obj t_struct_message _deserialize (eval_lvalue e_obj rho) g).
+field_mapsto sh_obj t_struct_message _serialize 
+    (eval_id ser rho) (eval_lvalue e_obj rho)
+  *
+field_mapsto sh_obj t_struct_message _bufsize
+    (Vint (Int.repr (mf_size msg))) (eval_lvalue e_obj rho)
+  *
+field_mapsto sh_obj t_struct_message _deserialize g (eval_lvalue e_obj rho)).
 repeat apply sepcon_derives; auto.
 apply andp_right; auto.
 eapply derives_trans; [ apply mf_bufprop | ].
@@ -670,7 +648,7 @@ gather_SEP' (0::1::nil).
 replace_SEP 0 (`(typed_mapsto Tsh t_struct_intpair)
                       (eval_var _p t_struct_intpair) `((Vint (Int.repr 1), Vint (Int.repr 2)))).
 simpl_typed_mapsto.
-entailer. cancel.
+entailer.
 simpl update_tycon.
 rewrite -> seq_assoc. simpl.
 eapply semax_seq'.
@@ -721,11 +699,10 @@ assert (CLY: closed_wrt_vars (eq _des)
 auto 50 with closed.
 focus_SEP 1.
 replace_SEP 0
-  ((`( field_mapsto Tsh t_struct_intpair _x) (eval_var _q t_struct_intpair) `(Vint (Int.repr 1)) *
-   `( field_mapsto Tsh t_struct_intpair _y) (eval_var _q t_struct_intpair) `(Vint (Int.repr 2)))
+  ((`( field_mapsto Tsh t_struct_intpair _x (Vint (Int.repr 1))) (eval_var _q t_struct_intpair) *
+   `( field_mapsto Tsh t_struct_intpair _y (Vint (Int.repr 2))) (eval_var _q t_struct_intpair))
     ).
 simpl_typed_mapsto; entailer!.
-repeat erewrite field_mapsto_field_umapsto by reflexivity.
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)

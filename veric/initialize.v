@@ -579,7 +579,7 @@ Proof.
     apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
   assert (APOS:= Genv.init_data_size_pos a).
   Transparent load.
-  unfold init_data2pred, mapsto, umapsto.
+  unfold init_data2pred, mapsto.
   unfold mapsto_zeros, address_mapsto, res_predicates.address_mapsto,
     fst,snd.
   rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
@@ -611,7 +611,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly. (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -633,7 +632,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -655,7 +653,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -677,7 +674,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -699,7 +695,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -721,7 +716,6 @@ Proof.
   unfold inflate_initial_mem'. rewrite H4.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H; subst b0.
   apply nth_getN; simpl; omega.
@@ -767,7 +761,6 @@ if_tac; auto.
     f_equal.
    apply zero_ext_inj. forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H7; auto.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
 
 (* symbol case *)
  rewrite RHO.
@@ -805,7 +798,6 @@ if_tac; auto.
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H.  subst b1.
   apply nth_getN; simpl; omega.
@@ -841,7 +833,6 @@ assert ((EX  bl : list memval,
   unfold inflate_initial_mem'. rewrite H7.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
-  try apply read_sh_readonly.  (* Coq 8.3/8.4 compatibility *)
   rewrite H0.
   destruct loc; destruct H.  subst b1.
   apply nth_getN; simpl; omega.
@@ -1447,9 +1438,11 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
  exists w1'; exists w2'; split3; auto.
  2: eapply IHdl; eauto.
  clear - H1 H4. destruct H4 as [H4' H4].
+
 unfold init_data2pred in *;
-destruct a; repeat rewrite mapsto_e in *; simpl in *;
-try (destruct H1 as [H1' H1]; split; [apply I | ]);
+destruct a; simpl in *;
+try (destruct H1 as [[_ H1]|[H1x _]]; [|solve[inv H1x]];
+      left; split; [apply I | ]);
  try solve [
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
  if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
@@ -1471,37 +1464,35 @@ try (destruct H1 as [H1' H1]; split; [apply I | ]);
  destruct (ge_of rho i); try destruct p; auto. 
  destruct (eq_dec t Tvoid). subst; auto. rename n into NT.
  case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
- destruct t; try rewrite mapsto_e in *; inv HT;
+ destruct t; inv HT.
  simpl in *.
- destruct H1 as [H1' H1]; split; auto.
- destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto;
+ destruct H1 as [bl [? H8]].
+ exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
   rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
  intuition.
-(*
- destruct t; auto.
- destruct t; try rewrite mapsto_e in *; inv HT;
- simpl in *.
- destruct H1 as [H1' [v2' H1]]; split; [assumption | exists v2' ].
- destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
+ exists bl,x. destruct H8 as [H8' H8].
+ split; [assumption | ]; intro loc; specialize (H8 loc).
  destruct (H4 loc).
  hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
-  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- do 3 red in H8|-*. apply H0; auto.
-*)
+  rewrite <- H4'. rewrite <- H0. rewrite H8. reflexivity.
+ rewrite H8.
+ apply YES_not_identity.
+ intuition.
  assert (mapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
       (offset_val i0 v) w1'); [ | destruct t; auto].
  assert (H1': mapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
                 (Vptr b z) (offset_val i0 v) w1) by (destruct t; auto; congruence).
  clear H1.
- rewrite mapsto_e in *. simpl.
- destruct H1' as [H99 H1']; split; auto.
- destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
- destruct (H4 loc). simpl in *.
- hnf in H8|-*; if_tac. destruct H8 as [p H8]; exists p; hnf in H8|-*.
-  rewrite <- H4'; rewrite <- H1; auto. rewrite H8; apply YES_not_identity.
- intuition.
+ destruct H1' as [[H7 H1']|[H7 [v2 H1']]]; [left|right]; split; auto;
+ try exists v2;
+ (destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
+  destruct (H4 loc); simpl in *;
+  hnf in H8|-*; if_tac; [ | intuition];
+  destruct H8 as [p H8]; exists p; hnf in H8|-*;
+  rewrite <- H4'; rewrite <- H1; auto; rewrite H8; apply YES_not_identity).
 Qed.
 
 Lemma another_hackfun_lemma:
