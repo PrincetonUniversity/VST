@@ -246,7 +246,7 @@ replace Delta with Delta_loop1
 simple apply (sha256_block_data_order_loop1_proof
   _ sh b ctx data regs); auto.
 rewrite Zregs.
-simpl_typed_mapsto.
+simpl_data_at.
 entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.

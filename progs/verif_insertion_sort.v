@@ -29,8 +29,8 @@ Definition insert_spec :=
         PROP (writable_share sh)
         LOCAL (`eq (eval_id _sorted) `sorted_ptr)
         SEP (`(lseg LS sh contents) (eval_id _sorted) `nullval;
-             `(field_mapsto sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
-             `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) 
+             `(field_at sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
+             `(field_at sh t_struct_list _tail) (eval_id _insert_node) 
                                                     `(nullval))
     POST [tptr t_struct_list]
         `(lseg LS sh (insert insert_val contents)) retval `nullval.
@@ -58,12 +58,12 @@ Definition Gprog : funspecs := insert_spec :: insertionsort_spec ::  nil.
 Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 Lemma list_cell_eq: forall sh v i,
-   list_cell LS sh v i = field_mapsto sh t_struct_list _head v (Vint i).
+   list_cell LS sh v i = field_at sh t_struct_list _head v (Vint i).
 Proof.  reflexivity.  Qed.
 
 Lemma lift_list_cell_eq:
   forall sh e v,
-   `(list_cell LS sh) e v = `(field_mapsto sh t_struct_list _head) e (`Vint v).
+   `(list_cell LS sh) e v = `(field_at sh t_struct_list _head) e (`Vint v).
 Proof. reflexivity. Qed.
 
 Definition isptrb v := 
@@ -122,17 +122,17 @@ SEP (
      (if(isptrb index_ptr)
       then
        (`(list_cell LS sh (index_ptr) (sorted_val)) *
-        `(field_mapsto sh t_struct_list _tail (index_ptr) (next_ptr)))
+        `(field_at sh t_struct_list _tail (index_ptr) (next_ptr)))
       else
          emp);
       (if(isptrb prev_ptr)
        then  `(lseg LS sh (contents_lt)) (eval_id _sorted) `(prev_ptr) *
              `(list_cell LS sh (prev_ptr) (prev_val)) *
-             `(field_mapsto sh t_struct_list _tail (prev_ptr) (index_ptr))
+             `(field_at sh t_struct_list _tail (prev_ptr) (index_ptr))
        else emp);
      `(lseg LS sh (contents_rest)) `(next_ptr) `nullval;
-      `(field_mapsto sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
-     `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) 
+      `(field_at sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
+     `(field_at sh t_struct_list _tail) (eval_id _insert_node) 
                          `(nullval)).
 
 Definition insert_post sh insert_val contents :=
@@ -183,17 +183,17 @@ SEP (
       then
         (*NOTE:: Can't use (eval_expr _index) here or it will be missed by go_lower *)
        (`(list_cell LS sh (index_ptr) (sorted_val)) *
-        `(field_mapsto sh t_struct_list _tail (index_ptr) (next_ptr)))
+        `(field_at sh t_struct_list _tail (index_ptr) (next_ptr)))
       else
          emp);
       (if(isptrb prev_ptr)
        then  `(lseg LS sh (contents_lt)) (eval_id _sorted) `(prev_ptr) *
              `(list_cell LS sh (prev_ptr) (prev_val)) *
-             `(field_mapsto sh t_struct_list _tail (prev_ptr) (index_ptr))
+             `(field_at sh t_struct_list _tail (prev_ptr) (index_ptr))
        else emp);
      `(lseg LS sh (contents_rest)) `(next_ptr) `nullval;
-      `(field_mapsto sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
-     `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) 
+      `(field_at sh t_struct_list _head) (eval_id _insert_node) `(Vint insert_val);
+     `(field_at sh t_struct_list _tail) (eval_id _insert_node) 
                          `(nullval)).
 
 Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h::r) v1 v2 = 
@@ -201,7 +201,7 @@ Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h
 intros.
 apply pred_ext.
   + apply andp_right; auto. rewrite lseg_unfold.
-     normalize. rewrite field_mapsto_isptr.
+     normalize. rewrite field_at_isptr.
      normalize. 
   +  normalize.
 Qed.
@@ -355,9 +355,9 @@ apply semax_pre with
    `(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
      (eval_expr (Etempvar _index (tptr t_struct_list))))
    SEP 
-   (`(field_mapsto sh t_struct_list _head) (eval_id _index)
+   (`(field_at sh t_struct_list _head) (eval_id _index)
       (`Vint `insert_val);
-   `(field_mapsto sh t_struct_list _tail)
+   `(field_at sh t_struct_list _tail)
      (eval_lvalue
         (Ederef (Etempvar _index (tptr t_struct_list)) t_struct_list))
      (`(eval_cast
@@ -471,15 +471,15 @@ PROP  (if(isptrb sorted_ptr)
        `eq (eval_id _sorted) `sorted_ptr)
       SEP  (
        if(isptrb sorted_ptr) then
-         `(field_mapsto sh t_struct_list _head) (eval_id _sorted) 
+         `(field_at sh t_struct_list _head) (eval_id _sorted) 
             `(Vint first_val) *
-         `(field_mapsto sh t_struct_list _tail) (eval_id _sorted) `tail_ptr *
+         `(field_at sh t_struct_list _tail) (eval_id _sorted) `tail_ptr *
          `(lseg LS sh tail_vals) `tail_ptr `nullval
          else
           `(lseg LS sh tail_vals nullval nullval);
-      `(field_mapsto sh t_struct_list _head) (eval_id _insert_node)
+      `(field_at sh t_struct_list _head) (eval_id _insert_node)
         (`Vint `insert_val);
-      `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) `nullval)).
+      `(field_at sh t_struct_list _tail) (eval_id _insert_node) `nullval)).
 entailer.
 apply semax_lseg_nonnull.
 entailer.
@@ -609,14 +609,14 @@ eapply semax_pre with
       then
        `(lseg LS sh contents_lt) (eval_id _sorted) `prev_ptr *
        `(list_cell LS sh prev_ptr prev_val) *
-       `(field_mapsto sh t_struct_list _tail prev_ptr index_ptr)
+       `(field_at sh t_struct_list _tail prev_ptr index_ptr)
       else emp;
            `(list_cell LS sh index_ptr sorted_val);
-       `(field_mapsto sh t_struct_list _tail index_ptr next_ptr);
+       `(field_at sh t_struct_list _tail index_ptr next_ptr);
        `(lseg LS sh contents_rest) `next_ptr `nullval;
-      `(field_mapsto sh t_struct_list _head) (eval_id _insert_node)
+      `(field_at sh t_struct_list _head) (eval_id _insert_node)
         `(Vint insert_val);
-      `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) `nullval)).
+      `(field_at sh t_struct_list _tail) (eval_id _insert_node) `nullval)).
 entailer. rewrite H5 in *. clear H5. 
 unfold logical_and_result in *.
 destruct index; inv H3. destruct (Int.eq i Int.zero); inv H7.
@@ -663,21 +663,21 @@ forward_if
               `old));
 if isptrb prev_ptr then `True else `(eq index_ptr) (eval_id _sorted))
       SEP  (`(list_cell LS sh) `index0 `sorted_val;
-      `(field_mapsto sh t_struct_list _tail) `index_ptr `next_ptr;
+      `(field_at sh t_struct_list _tail) `index_ptr `next_ptr;
       (if isptrb prev_ptr
              then
               `(lseg LS sh contents_lt) (eval_id _sorted) `prev_ptr *
               `(list_cell LS sh prev_ptr prev_val) *
-              `(field_mapsto sh t_struct_list _tail prev_ptr index_ptr)
+              `(field_at sh t_struct_list _tail prev_ptr index_ptr)
              else emp);
       (if (isptrb next_ptr) then
         (`(list_cell LS sh) `next_ptr `index_val2 *
-         `(field_mapsto sh t_struct_list _tail) `next_ptr `index_ptr2 *
+         `(field_at sh t_struct_list _tail) `next_ptr `index_ptr2 *
          `(lseg LS sh rest_index_vals) `index_ptr2 `nullval)
       else `emp);
-       `(field_mapsto sh t_struct_list _head) (eval_id _insert_node)
+       `(field_at sh t_struct_list _head) (eval_id _insert_node)
         `(Vint insert_val);
-      `(field_mapsto sh t_struct_list _tail) (eval_id _insert_node) `nullval)).    
+      `(field_at sh t_struct_list _tail) (eval_id _insert_node) `nullval)).    
 entailer.
 focus_SEP 3. apply semax_lseg_nonnull.
 entailer.
@@ -774,13 +774,13 @@ remember (isptrb next_ptr).
               auto. 
             * unfold subst. 
               rewrite eval_id_other; try solve [unfold _guard; unfold _sorted; congruence].
-              remember ( field_mapsto sh t_struct_list _tail (Vptr b i) index).
+              remember ( field_at sh t_struct_list _tail (Vptr b i) index).
               rewrite Heqm at 1. cancel. rewrite Heqm.
               apply derives_trans with 
               (list_cell LS sh prev_ptr prev_val *
-               field_mapsto sh t_struct_list _tail prev_ptr (Vptr b i) *
+               field_at sh t_struct_list _tail prev_ptr (Vptr b i) *
                lseg LS sh contents_lt (eval_id _sorted rho) prev_ptr *
-               field_mapsto sh t_struct_list _tail (Vptr b i) index
+               field_at sh t_struct_list _tail (Vptr b i) index
               ).
               cancel.
               apply @lseg_cons_right_neq.
@@ -812,13 +812,13 @@ remember (isptrb next_ptr).
                * auto.
                * simpl. unfold subst. 
                  rewrite eval_id_other; try solve [unfold _guard; unfold _sorted; congruence].
-                 remember ( field_mapsto sh t_struct_list _tail (Vptr b i) index).
+                 remember ( field_at sh t_struct_list _tail (Vptr b i) index).
                  rewrite Heqm at 1. cancel. rewrite Heqm.
                  apply derives_trans with 
                  (list_cell LS sh prev_ptr prev_val *
-                  field_mapsto sh t_struct_list _tail prev_ptr (Vptr b i) *
+                  field_at sh t_struct_list _tail prev_ptr (Vptr b i) *
                   lseg LS sh contents_lt (eval_id _sorted rho) prev_ptr *
-                  field_mapsto sh t_struct_list _tail (Vptr b i) index
+                  field_at sh t_struct_list _tail (Vptr b i) index
                  ).
                  cancel.
                  apply @lseg_cons_right_neq.
@@ -863,12 +863,12 @@ forward_if (
     (if isptrb index_ptr
      then
       `(list_cell LS sh index_ptr sorted_val) *
-      `(field_mapsto sh t_struct_list _tail index_ptr next_ptr)
+      `(field_at sh t_struct_list _tail index_ptr next_ptr)
      else emp;
     `(lseg LS sh contents_rest) `next_ptr `nullval;
-    `(field_mapsto sh t_struct_list _head) (eval_id _insert_node)
+    `(field_at sh t_struct_list _head) (eval_id _insert_node)
       `(Vint insert_val);
-    `(field_mapsto sh
+    `(field_at sh
         (Tstruct _struct_list
            (Fcons _head tint
               (Fcons _tail (Tcomp_ptr _struct_list noattr) Fnil)) noattr)
@@ -909,15 +909,15 @@ entailer!.
       (if isptrb index_ptr
        then
         `(list_cell LS sh index_ptr sorted_val) *
-        `(field_mapsto sh t_struct_list _tail index_ptr next_ptr)
+        `(field_at sh t_struct_list _tail index_ptr next_ptr)
        else emp;
        `(lseg LS sh contents_lt) (eval_id _sorted) `prev_ptr;
        `(list_cell LS sh prev_ptr prev_val);
-       `(field_mapsto sh t_struct_list _tail prev_ptr index_ptr);
+       `(field_at sh t_struct_list _tail prev_ptr index_ptr);
        `(lseg LS sh contents_rest) `next_ptr `nullval;
-       `(field_mapsto sh t_struct_list _head) (eval_id _insert_node)
+       `(field_at sh t_struct_list _head) (eval_id _insert_node)
         `(Vint insert_val);
-       `(field_mapsto sh
+       `(field_at sh
           (Tstruct _struct_list
              (Fcons _head tint
                 (Fcons _tail (Tcomp_ptr _struct_list noattr) Fnil)) noattr)
@@ -941,17 +941,17 @@ rewrite H5. fold nullval.
 apply derives_trans with 
 (lseg LS sh (contents_lt ++ [prev_val]) sorted insert_node *  
  lseg LS sh contents_rest nullval nullval *
- field_mapsto sh t_struct_list _head insert_node (Vint insert_value) *
- field_mapsto sh t_struct_list _tail insert_node nullval).
-remember (field_mapsto sh t_struct_list _tail insert_node nullval).
+ field_at sh t_struct_list _head insert_node (Vint insert_value) *
+ field_at sh t_struct_list _tail insert_node nullval).
+remember (field_at sh t_struct_list _tail insert_node nullval).
 rewrite Heqm at 1.
 cancel.
 rewrite Heqm.
 apply derives_trans with 
 ( list_cell LS sh (eval_id _previous rho) prev_val *
-  field_mapsto sh t_struct_list _tail (eval_id _previous rho) insert_node *
+  field_at sh t_struct_list _tail (eval_id _previous rho) insert_node *
   lseg LS sh contents_lt sorted (eval_id _previous rho) *
-  field_mapsto sh t_struct_list _tail insert_node nullval
+  field_at sh t_struct_list _tail insert_node nullval
 ). cancel.
 apply @lseg_cons_right_neq.
 rewrite <- list_cell_eq.
@@ -973,7 +973,7 @@ apply insert_value_right in H1. subst. rewrite H1.
 
 apply derives_trans with 
 (list_cell LS sh insert_node insert_value *
- field_mapsto sh t_struct_list _tail insert_node nullval *
+ field_at sh t_struct_list _tail insert_node nullval *
  lseg LS sh (contents_lt ++ [prev_val]) sorted insert_node).
 cancel. rewrite lseg_eq. normalize. simpl. auto.
 apply @lseg_cons_right_null. 
@@ -1010,28 +1010,28 @@ rewrite insert_value_result.
 
 apply derives_trans with
 ( list_cell LS sh (Vptr b i) sorted_val *
-   field_mapsto sh t_struct_list _tail (Vptr b i) next_ptr *
+   field_at sh t_struct_list _tail (Vptr b i) next_ptr *
    lseg LS sh (contents_lt ++ [prev_val]) sorted insert_node *
    lseg LS sh contents_rest next_ptr nullval *
-   field_mapsto sh t_struct_list _head insert_node (Vint insert_value) *
-   field_mapsto sh t_struct_list _tail insert_node (Vptr b i)
+   field_at sh t_struct_list _head insert_node (Vint insert_value) *
+   field_at sh t_struct_list _tail insert_node (Vptr b i)
 ).
-remember (field_mapsto sh t_struct_list _tail insert_node (Vptr b i)).
+remember (field_at sh t_struct_list _tail insert_node (Vptr b i)).
 rewrite Heqm at 1.
 cancel.
 rewrite Heqm.
 eapply derives_trans with 
 ( list_cell LS sh (eval_id _previous rho) prev_val *
-  field_mapsto sh t_struct_list _tail (eval_id _previous rho) insert_node *
+  field_at sh t_struct_list _tail (eval_id _previous rho) insert_node *
   lseg LS sh contents_lt sorted (eval_id _previous rho) *
-  field_mapsto sh t_struct_list _tail insert_node (Vptr b i)).
+  field_at sh t_struct_list _tail insert_node (Vptr b i)).
 cancel.
 apply @lseg_cons_right_neq.
 apply derives_trans with
 (  lseg LS sh (contents_lt ++ [prev_val]) sorted insert_node *
    lseg LS sh (sorted_val :: contents_rest) (Vptr b i) nullval *
-   field_mapsto sh t_struct_list _head insert_node (Vint insert_value) *
-   field_mapsto sh t_struct_list _tail insert_node (Vptr b i)).
+   field_at sh t_struct_list _head insert_node (Vint insert_value) *
+   field_at sh t_struct_list _tail insert_node (Vptr b i)).
 cancel.
 rewrite lseg_unfold with (contents :=sorted_val :: contents_rest).
 entailer!. apply (exp_right next_ptr).
@@ -1080,8 +1080,8 @@ rewrite <- (app_nil_l (sorted_val :: contents_rest)).
 rewrite insert_value_result. simpl.
 apply derives_trans with 
 (  lseg LS sh (sorted_val :: contents_rest) (Vptr b i) nullval *
-   field_mapsto sh t_struct_list _head insert_node (Vint insert_value) *
-   field_mapsto sh t_struct_list _tail insert_node (Vptr b i)
+   field_at sh t_struct_list _head insert_node (Vint insert_value) *
+   field_at sh t_struct_list _tail insert_node (Vptr b i)
 ).
 cancel.
 rewrite lseg_unfold with (contents := (sorted_val :: contents_rest)).
@@ -1089,7 +1089,7 @@ entailer. apply (exp_right next_ptr).
 entailer!. rewrite <- list_cell_eq.
 apply derives_trans with
 (  list_cell LS sh insert_node insert_value *
-   field_mapsto sh t_struct_list _tail insert_node (Vptr b i) *
+   field_at sh t_struct_list _tail insert_node (Vptr b i) *
 lseg LS sh (sorted_val :: contents_rest) (Vptr b i) nullval 
 ) .
 cancel.

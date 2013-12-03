@@ -30,7 +30,7 @@ Definition sha_update_inv sh hashed len c d (frag: list int) data r_Nh r_Nl (don
     `(array_at tuint Tsh (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
     `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_mapsto_ Tsh t_struct_SHA256state_st _num c);
+   `(field_at_ Tsh t_struct_SHA256state_st _num c);
    `(data_block sh data d))).
 
 Lemma Hblocks'lem:
@@ -143,7 +143,7 @@ semax Delta
         (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_mapsto_ Tsh t_struct_SHA256state_st _num c);
+   `(field_at_ Tsh t_struct_SHA256state_st _num c);
    `(data_block sh data d)))
   (Ssequence
      (Scall None
@@ -184,7 +184,7 @@ instantiate (1:=(hashed++ blocks,
  instantiate (1:= [
    `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c),
   `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c)),
-  `(field_mapsto_ Tsh t_struct_SHA256state_st _num c),
+  `(field_at_ Tsh t_struct_SHA256state_st _num c),
   `(data_block sh (firstn (length blocks * 4 - length r_data)  data) d),
   `(data_block sh (list_drop (length blocks * 4 - length r_data + CBLOCK) data) 
                  (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data + CBLOCK))) d))])
@@ -328,7 +328,7 @@ normalize.
 unfold s256a_len.
 unfold s256_relate in H0.
 destruct a as [hashed data0].
-simpl_typed_mapsto.
+simpl_data_at.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct H0 as [? [? [? [? [? ?]]]]].
 destruct H1 as [hi [lo [? [? ?]]]].
@@ -364,7 +364,7 @@ apply semax_pre with
    SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
     `(sha256_length (hilo hi lo + Z.of_nat len) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd)) 0 64 (offset_val (Int.repr 40) c));
-   `(field_mapsto Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
+   `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
    K_vector;
    `(data_block sh data d))).
 entailer!.
@@ -519,7 +519,7 @@ rewrite map_length; auto.
               (map Vint (process_msg init_registers (hashed ++ blocks)),
                 (Vint x, (Vint x0, (nil, 
                  Vint Int.zero)))).
- simpl_typed_mapsto; unfold s256_relate.
+ simpl_data_at; unfold s256_relate.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply andp_right; [apply prop_right | cancel].
  repeat split; simpl; auto.

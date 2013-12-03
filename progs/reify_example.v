@@ -220,14 +220,14 @@ Check (isnil nil).
 Instance QS: listspec t_struct_elem _next. 
 Proof. eapply mk_listspec; reflexivity. Defined.
 
-Definition link := field_mapsto Tsh t_struct_elem _next.
-Definition link_ := field_mapsto_ Tsh t_struct_elem _next.
+Definition link := field_at Tsh t_struct_elem _next.
+Definition link_ := field_at_ Tsh t_struct_elem _next.
 
 
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
-      field_mapsto Tsh t_struct_fifo _head p hd *
-      field_mapsto Tsh t_struct_fifo _tail p tl *
+      field_at Tsh t_struct_fifo _head p hd *
+      field_at Tsh t_struct_fifo _tail p tl *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
@@ -235,16 +235,16 @@ Definition fifo (contents: list val) (p: val) : mpred:=
             &&  (links QS Tsh prefix hd tl * link tl nullval)).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a p (Vint (fst rep)) * 
-  (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
-   (field_mapsto_ Tsh t_struct_elem _next p)).
+  field_at Tsh t_struct_elem _a p (Vint (fst rep)) * 
+  (field_at Tsh t_struct_elem _b p (Vint (snd rep)) *
+   (field_at_ Tsh t_struct_elem _next p)).
 
 
 Lemma link_local_facts:
  forall x y, link x y |-- !! (isptr x /\ is_pointer_or_null y).
 Proof.
  intros. unfold link.
- eapply derives_trans; [eapply field_mapsto_local_facts; reflexivity |].
+ eapply derives_trans; [eapply field_at_local_facts; reflexivity |].
  apply prop_derives.
  simpl. intuition.
 Qed.
@@ -256,7 +256,7 @@ Lemma link__local_facts:
 Proof.
 intros.
 unfold link_.
-eapply derives_trans; [eapply field_mapsto__local_facts; reflexivity | ].
+eapply derives_trans; [eapply field_at__local_facts; reflexivity | ].
 apply prop_derives; intuition.
 Qed.
 
@@ -722,8 +722,8 @@ let Delta :=
 PROP  ()
 LOCAL  (tc_environ Delta; `(@eq val hd) (eval_id _h);
 `(@eq val q) (eval_id _Q))
-SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
-`(field_mapsto Tsh t_struct_fifo _tail q tl);
+SEP  (`(field_at Tsh t_struct_fifo _head q hd);
+`(field_at Tsh t_struct_fifo _tail q tl);
 `(if @isnil val contents
   then !!(hd = nullval) && @emp mpred Nveric Sveric
   else

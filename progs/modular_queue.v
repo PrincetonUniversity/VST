@@ -138,9 +138,9 @@ Definition freeN_spec :=
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a p (Vint (fst rep)) * 
-  (field_mapsto Tsh t_struct_elem _b p (Vint (snd rep)) *
-   (field_mapsto_ Tsh t_struct_elem _next p)).
+  field_at Tsh t_struct_elem _a p (Vint (fst rep)) * 
+  (field_at Tsh t_struct_elem _b p (Vint (snd rep)) *
+   (field_at_ Tsh t_struct_elem _next p)).
 
 Definition fifotype := forall  (contents: list (elemtype QS)) (p: val), mpred.
 
@@ -174,8 +174,8 @@ Definition fifo_get_spec  (fifo: fifotype) :=
 
 Definition fifo (contents: list (elemtype QS)) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
-      field_mapsto Tsh t_struct_fifo _head p hd *
-      field_mapsto Tsh t_struct_fifo _tail p tl *
+      field_at Tsh t_struct_fifo _head p hd *
+      field_at Tsh t_struct_fifo _tail p tl *
       if isnil contents
       then (!!(tl=p) && emp)
       else (EX prefix: list (elemtype QS), EX ult:val, EX elem: elemtype QS,

@@ -12,18 +12,18 @@ Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      field_mapsto Tsh t_struct_fifo _head hd p *
-      field_mapsto Tsh t_struct_fifo _tail tl p *
+      field_at Tsh t_struct_fifo _head hd p *
+      field_at Tsh t_struct_fifo _tail tl p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
               !!(contents = prefix++tl::nil)
-            &&  (links QS Tsh prefix hd tl * field_mapsto Tsh t_struct_elem _next nullval tl)).
+            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl)).
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_mapsto Tsh t_struct_elem _a  (fst rep) p * 
-  (field_mapsto Tsh t_struct_elem _b (snd rep) p *
-   (field_mapsto_ Tsh t_struct_elem _next p)).
+  field_at Tsh t_struct_elem _a  (fst rep) p * 
+  (field_at Tsh t_struct_elem _b (snd rep) p *
+   (field_at_ Tsh t_struct_elem _next p)).
 
 Lemma goal_1 :
 name _Q ->
@@ -72,7 +72,7 @@ let Delta :=
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p) (eval_id _p))
                              SEP  (`(fifo contents0 q0);
-                                     `(field_mapsto_ Tsh t_struct_elem _next p))) POST 
+                                     `(field_at_ Tsh t_struct_elem _next p))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p :: @nil val) q0)))))
@@ -157,7 +157,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_mapsto Tsh t_struct_elem _next) retval rho))))
+                             `(fifo contents0 q0) rho * `(field_at Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -174,14 +174,14 @@ let Delta :=
 PROP  ()
 LOCAL  (tc_environ Delta; `(@eq val hd) (eval_id _h);
 `(@eq val q) (eval_id _Q))
-SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
-`(field_mapsto Tsh t_struct_fifo _tail q tl);
+SEP  (`(field_at Tsh t_struct_fifo _head q hd);
+`(field_at Tsh t_struct_fifo _tail q tl);
 `(if @isnil val contents
   then !!(hd = nullval) && @emp mpred Nveric Sveric
   else
    EX  prefix : list val,
    !!(contents = prefix ++ tl :: @nil val) &&
-   (@links t_struct_elem _next QS Tsh prefix hd tl * field_mapsto Tsh t_struct_elem _next nullval tl)))
+   (@links t_struct_elem _next QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl)))
 |-- local
       (tc_expropt Delta
          (@Some expr
@@ -717,7 +717,7 @@ EVAR
       LOCAL  (tc_environ Delta)
       SEP 
       (`(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 0
-           (field_mapsto Tsh
+           (field_at Tsh
               (Tstruct _struct_fifo
                  (Fcons _head
                     (tptr
@@ -739,9 +739,9 @@ EVAR
          (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
             (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
       `(@numbd (lift_T (Tarrow val (LiftEnviron mpred))) 1
-          (field_mapsto_ Tsh t_struct_fifo _tail)) (eval_id _Q))
+          (field_at_ Tsh t_struct_fifo _tail)) (eval_id _Q))
       |-- `(@numbd (val -> mpred) n
-              (field_mapsto_ sh
+              (field_at_ sh
                  (typeof
                     (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
                  _tail))
@@ -907,7 +907,7 @@ let Delta :=
 PROP  ()
 LOCAL  (tc_environ Delta)
 SEP 
-(`(field_mapsto Tsh
+(`(field_at Tsh
      (Tstruct _struct_fifo
         (Fcons _head
            (tptr
@@ -926,7 +926,7 @@ SEP
    (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
    (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
       (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
           (tptr
@@ -1268,7 +1268,7 @@ EVAR
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                                `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func
@@ -1288,9 +1288,9 @@ EVAR
       `(@eq val p) (eval_id _p))
       SEP 
       (@numbd (LiftEnviron mpred) 0
-         `(field_mapsto Tsh t_struct_fifo _head q hd);
+         `(field_at Tsh t_struct_fifo _head q hd);
       @numbd (LiftEnviron mpred) 1
-        `(field_mapsto Tsh t_struct_fifo _tail q tl);
+        `(field_at Tsh t_struct_fifo _tail q tl);
       @numbd (LiftEnviron mpred) 2
         `(if @isnil val contents
           then !!(hd = nullval) && @emp mpred Nveric Sveric
@@ -1299,9 +1299,9 @@ EVAR
            !!(contents = prefix ++ tl :: @nil val) &&
            (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
       `(@numbd (lift_T (Tarrow val (LiftEnviron mpred))) 3
-          (field_mapsto_ Tsh t_struct_elem _next)) (eval_id _p))
+          (field_at_ Tsh t_struct_elem _next)) (eval_id _p))
       |-- `(@numbd (val -> mpred) n
-              (field_mapsto_ sh
+              (field_at_ sh
                  (typeof
                     (Ederef (Etempvar _p (tptr t_struct_elem)) t_struct_elem))
                  _next))
@@ -1370,7 +1370,7 @@ let Delta :=
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST 
+                             SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1455,7 +1455,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                             `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -1472,15 +1472,15 @@ let Delta :=
 PROP  ()
 LOCAL  (tc_environ Delta; `(@eq val hd) (eval_id _h);
 `(@eq val q) (eval_id _Q); `(@eq val p) (eval_id _p))
-SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
-`(field_mapsto Tsh t_struct_fifo _tail q tl);
+SEP  (`(field_at Tsh t_struct_fifo _head q hd);
+`(field_at Tsh t_struct_fifo _tail q tl);
 `(if @isnil val contents
   then !!(hd = nullval) && @emp mpred Nveric Sveric
   else
    EX  prefix : list val,
    !!(contents = prefix ++ tl :: @nil val) &&
    (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
@@ -1492,15 +1492,15 @@ SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
           (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint);
     `(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
     `(@eq val p) (eval_id _p))
-    SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
-    `(field_mapsto Tsh t_struct_fifo _tail q tl);
+    SEP  (`(field_at Tsh t_struct_fifo _head q hd);
+    `(field_at Tsh t_struct_fifo _tail q tl);
     `(if @isnil val contents
       then !!(hd = nullval) && @emp mpred Nveric Sveric
       else
        EX  prefix : list val,
        !!(contents = prefix ++ tl :: @nil val) &&
        (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-    `(field_mapsto Tsh
+    `(field_at Tsh
         (Tstruct _struct_elem
            (Fcons _a tint
               (Fcons _b tint
@@ -1580,7 +1580,7 @@ EVAR
                                    PROP  ()
                                    LOCAL  (`(@eq val q0) (eval_id _Q);
                                    `(@eq val p1) (eval_id _p))
-                                   SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
+                                   SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1)))
                                   POST  [tvoid]
                                   (let (q0, contents0) := p0 in
                                    `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1671,7 +1671,7 @@ EVAR
                                    fun rho : environ =>
                                    local (`(@eq val p1) retval) rho &&
                                    `(fifo contents0 q0) rho *
-                                   `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                                   `(field_at_ Tsh t_struct_elem _next) retval rho))))
                            (@PTree.Leaf global_spec)))
                      (@Some global_spec
                         (Global_func
@@ -1699,9 +1699,9 @@ EVAR
       `(@eq val p) (eval_id _p))
       SEP 
       (@numbd (LiftEnviron mpred) 0
-         `(field_mapsto Tsh t_struct_fifo _head q hd);
+         `(field_at Tsh t_struct_fifo _head q hd);
       @numbd (LiftEnviron mpred) 1
-        `(field_mapsto Tsh t_struct_fifo _tail q tl);
+        `(field_at Tsh t_struct_fifo _tail q tl);
       @numbd (LiftEnviron mpred) 2
         `(if @isnil val contents
           then !!(hd = nullval) && @emp mpred Nveric Sveric
@@ -1710,7 +1710,7 @@ EVAR
            !!(contents = prefix ++ tl :: @nil val) &&
            (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
       `(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 3
-          (field_mapsto Tsh
+          (field_at Tsh
              (Tstruct _struct_elem
                 (Fcons _a tint
                    (Fcons _b tint
@@ -1718,7 +1718,7 @@ EVAR
                 noattr) _next)) (`force_ptr (eval_id _p))
         `(Vint (Int.repr 0)))
       |-- `(@numbd (val -> mpred) n
-              (field_mapsto_ sh
+              (field_at_ sh
                  (typeof
                     (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
                  _head))
@@ -1787,7 +1787,7 @@ let Delta :=
                              PROP  ()
                              LOCAL  (`(@eq val q0) (eval_id _Q);
                              `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST 
+                             SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1))) POST 
                             [tvoid]
                             (let (q0, contents0) := p0 in
                              `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1872,7 +1872,7 @@ let Delta :=
                             (let (q0, contents0) := p0 in
                              fun rho : environ =>
                              local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                             `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                      (@PTree.Leaf global_spec)))
                (@Some global_spec
                   (Global_func
@@ -1898,7 +1898,7 @@ LOCAL  (tc_environ Delta;
 `(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
 `(@eq val p) (eval_id _p))
 SEP 
-(`(field_mapsto Tsh
+(`(field_at Tsh
      (Tstruct _struct_fifo
         (Fcons _head
            (tptr
@@ -1917,7 +1917,7 @@ SEP
    (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
    (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
         (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
           (tptr
@@ -1942,7 +1942,7 @@ SEP
    EX  prefix : list val,
    !!(contents = prefix ++ tl :: @nil val) &&
    (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
@@ -2034,7 +2034,7 @@ let Delta :=
                                 PROP  ()
                                 LOCAL  (`(@eq val q0) (eval_id _Q);
                                 `(@eq val p1) (eval_id _p))
-                                SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
+                                SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1)))
                                POST  [tvoid]
                                (let (q0, contents0) := p0 in
                                 `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -2120,7 +2120,7 @@ let Delta :=
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                                `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func
@@ -2146,10 +2146,10 @@ LOCAL  (tc_environ Delta; `(@eq val tl) (eval_id _t);
         (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint));
 `(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
 `(@eq val p) (eval_id _p))
-SEP  (`(field_mapsto Tsh t_struct_fifo _head q hd);
-`(field_mapsto Tsh t_struct_fifo _tail q tl);
+SEP  (`(field_at Tsh t_struct_fifo _head q hd);
+`(field_at Tsh t_struct_fifo _tail q tl);
 `(!!(hd = nullval) && @emp mpred Nveric Sveric);
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
@@ -2239,7 +2239,7 @@ EVAR
                                       LOCAL  (`(@eq val q0) (eval_id _Q);
                                       `(@eq val p1) (eval_id _p))
                                       SEP  (`(fifo contents0 q0);
-                                      `((field_mapsto_ Tsh t_struct_elem _next) p1))) POST  [tvoid]
+                                      `((field_at_ Tsh t_struct_elem _next) p1))) POST  [tvoid]
                                      (let (q0, contents0) := p0 in
                                       `(fifo (contents0 ++ p1 :: @nil val) q0)))))
                               (@PTree.Leaf global_spec))) (@None global_spec)
@@ -2334,7 +2334,7 @@ EVAR
                                       fun rho : environ =>
                                       local (`(@eq val p1) retval) rho &&
                                       `(fifo contents0 q0) rho *
-                                      `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                                      `(field_at_ Tsh t_struct_elem _next) retval rho))))
                               (@PTree.Leaf global_spec)))
                         (@Some global_spec
                            (Global_func
@@ -2364,7 +2364,7 @@ EVAR
       (@numbd (LiftEnviron mpred) 0
          `(@links t_struct_elem _next QS Tsh prefix hd tl);
       `(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 1
-          (field_mapsto Tsh
+          (field_at Tsh
              (Tstruct _struct_elem
                 (Fcons _a tint
                    (Fcons _b tint
@@ -2376,11 +2376,11 @@ EVAR
              (tptr t_struct_elem))
            (eval_expr (Etempvar _p (tptr t_struct_elem)))));
       @numbd (LiftEnviron mpred) 2
-        `(field_mapsto Tsh t_struct_fifo _head q hd);
+        `(field_at Tsh t_struct_fifo _head q hd);
       @numbd (LiftEnviron mpred) 3
-        `(field_mapsto Tsh t_struct_fifo _tail q tl);
+        `(field_at Tsh t_struct_fifo _tail q tl);
       `(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 4
-          (field_mapsto Tsh
+          (field_at Tsh
              (Tstruct _struct_elem
                 (Fcons _a tint
                    (Fcons _b tint
@@ -2388,7 +2388,7 @@ EVAR
                 noattr) _next)) (`force_ptr (eval_id _p))
         `(Vint (Int.repr 0)))
       |-- `(@numbd (val -> mpred) n0
-              (field_mapsto_ sh
+              (field_at_ sh
                  (typeof
                     (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
                  _tail))
@@ -2462,7 +2462,7 @@ let Delta :=
                                 PROP  ()
                                 LOCAL  (`(@eq val q0) (eval_id _Q);
                                 `(@eq val p1) (eval_id _p))
-                                SEP  (`(fifo contents0 q0); `((field_mapsto_ Tsh t_struct_elem _next) p1)))
+                                SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1)))
                                POST  [tvoid]
                                (let (q0, contents0) := p0 in
                                 `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -2549,7 +2549,7 @@ let Delta :=
                                (let (q0, contents0) := p0 in
                                 fun rho : environ =>
                                 local (`(@eq val p1) retval) rho &&
-                                `(fifo contents0 q0) rho * `(field_mapsto_ Tsh t_struct_elem _next) retval rho))))
+                                `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                         (@PTree.Leaf global_spec)))
                   (@Some global_spec
                      (Global_func
@@ -2576,7 +2576,7 @@ LOCAL  (tc_environ Delta; `(@eq val tl) (eval_id _t);
 `(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
 `(@eq val p) (eval_id _p))
 SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
@@ -2584,8 +2584,8 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
   (eval_lvalue (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem))
   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
        (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(field_mapsto Tsh t_struct_fifo _head q hd);
-`(field_mapsto Tsh
+`(field_at Tsh t_struct_fifo _head q hd);
+`(field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
           (tptr
@@ -2604,7 +2604,7 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
        (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(field_mapsto Tsh
+`(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))

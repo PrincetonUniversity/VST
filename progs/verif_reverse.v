@@ -90,7 +90,7 @@ Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
-   list_cell LS sh (Vint i) = field_mapsto sh t_struct_list _head (Vint i).
+   list_cell LS sh (Vint i) = field_at sh t_struct_list _head (Vint i).
 Proof.  intros. reflexivity. Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
@@ -277,11 +277,11 @@ Proof.
   by (symmetry; apply mapsto_null_mapsto_pointer)
  end.
 apply sepcon_derives;
- [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+ [eapply mapsto_field_at'; try reflexivity; try apply I;
    unfold offset_val; repeat rewrite Int.add_assoc
  | ].
 apply sepcon_derives;
- [eapply mapsto_field_mapsto'; try reflexivity; try apply I;
+ [eapply mapsto_field_at'; try reflexivity; try apply I;
    unfold offset_val; repeat rewrite Int.add_assoc
  | ].
 f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
@@ -302,10 +302,10 @@ reflexivity.
  rewrite mapsto_tuint_tint.
  rewrite list_cell_eq.
 apply sepcon_derives;
- [eapply mapsto_field_mapsto'; try reflexivity; apply I
+ [eapply mapsto_field_at'; try reflexivity; apply I
  | ].
 apply sepcon_derives;
- [eapply mapsto_field_mapsto'; try reflexivity; try apply I
+ [eapply mapsto_field_at'; try reflexivity; try apply I
  | ].
  normalize. destruct (eval_var i (tarray t_struct_list n) rho); inv H; hnf; auto.
  replace (ofs + init_data_size (Init_int32 a) +

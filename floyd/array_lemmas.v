@@ -78,15 +78,16 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
-Lemma typed_mapsto_mapsto:
-  forall sh t loc c,
+Lemma data_at_mapsto:
+  forall sh t,
    is_by_value t ->
-   typed_mapsto sh t loc c = mapsto sh t loc (repinject t c).
+   data_at sh t = fun c loc => mapsto sh t loc (repinject t c).
 Proof.
 intros.
  pose proof (alignof_pos t).
+ extensionality c loc.
  destruct t; inv H;
- unfold typed_mapsto, typed_mapsto', eq_rect_r, eq_rect, eq_sym;
+ unfold data_at, data_at', eq_rect_r, eq_rect, eq_sym;
  cbv iota; rewrite withspacer_spacer; 
  unfold spacer; rewrite align_0 by omega; simpl; rewrite emp_sepcon;
   auto.
@@ -97,7 +98,7 @@ Lemma split3_array_at:
        lo <= i < hi ->
      array_at ty sh contents lo hi v =
      array_at ty sh contents lo i v *
-     typed_mapsto sh ty (add_ptr_int ty v i) (contents i) *
+     data_at sh ty  (contents i) (add_ptr_int ty v i)*
      array_at ty sh contents (Zsucc i) hi v.
 Proof.
  intros.
@@ -143,7 +144,7 @@ Lemma lift_split3_array_at:
        lo <= i < hi ->
      array_at ty sh contents lo hi =
      array_at ty sh contents lo i *
-     (fun v => typed_mapsto sh ty (add_ptr_int ty v i) (contents i)) *
+     (fun v => data_at sh ty  (contents i) (add_ptr_int ty v i)) *
      array_at ty sh contents (Zsucc i) hi.
 Proof.
  intros. extensionality v. simpl. apply split3_array_at; auto.
@@ -333,7 +334,7 @@ apply sepcon_derives; auto.
 rewrite <- H8.
 destruct (v1 rho); inv H7.
 simpl.
-rewrite typed_mapsto_mapsto by auto.
+rewrite data_at_mapsto by auto.
 simpl in H6.
 unfold add_ptr_int. simpl.
 rewrite Int.repr_signed.
@@ -532,7 +533,7 @@ eapply semax_pre_post;
   unfold_lift. rewrite <- H7; simpl.
   destruct (v1 rho); inv H12. simpl.
   unfold add_ptr_int; simpl.
- rewrite typed_mapsto_mapsto by auto.
+ rewrite data_at_mapsto by auto.
  apply mapsto_mapsto_.
  omega.
 * intros.
@@ -552,7 +553,7 @@ eapply semax_pre_post;
   rewrite upd_neq; auto. omega.
   rewrite upd_eq. 
   simpl.
-  rewrite (typed_mapsto_mapsto _ _ _ _ H3).
+  rewrite (data_at_mapsto _ _ H3).
   destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.
@@ -595,9 +596,9 @@ revert lo; induction n; intros.
 apply derives_refl.
 simpl.
 apply sepcon_derives; auto.
-eapply derives_trans; [apply typed_mapsto_typed_mapsto_ | ].
-unfold typed_mapsto_.
-unfold typed_mapsto.
+eapply derives_trans; [apply data_at_data_at_ | ].
+unfold data_at_.
+unfold data_at.
 auto.
 Qed.
 

@@ -53,17 +53,17 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at tuchar sh (fun _ => Vint c) 0 n p)).
 
-Goal forall c r,  typed_mapsto Tsh t_struct_SHA256state_st c r = TT.
+Goal forall c r,  data_at Tsh t_struct_SHA256state_st r c = TT.
  intros.
  simpl in r.
- simpl_typed_mapsto.
+ simpl_data_at.
  destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
  simpl.
 Abort.
 
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
-    !!  s256_relate a r  &&  typed_mapsto Tsh t_struct_SHA256state_st c r.
+    !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
 
 Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
 Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
@@ -102,8 +102,8 @@ Definition sha256_block_data_order_spec :=
 Definition sha256_length (len: Z)  (c: val) : mpred :=
    EX lo:int, EX hi:int, 
      !! (hilo hi lo = len) &&
-     (field_mapsto Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
-      field_mapsto Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
+     (field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
+      field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
 
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -121,7 +121,7 @@ Definition SHA256_Init_spec :=
    WITH c : val 
    PRE [ _c OF tptr t_struct_SHA256state_st ]
          PROP () LOCAL (`(eq c) (eval_id _c))
-         SEP(`(typed_mapsto_ Tsh t_struct_SHA256state_st c))
+         SEP(`(data_at_ Tsh t_struct_SHA256state_st c))
   POST [ tvoid ] 
           (`(sha256state_ init_s256abs c)).
 
@@ -216,13 +216,13 @@ rewrite <- andp_assoc.
 rewrite (andp_comm (!!isptr c)).
 rewrite andp_assoc.
 f_equal.
-simpl_typed_mapsto.
-rewrite field_mapsto_isptr at 1. normalize.
+simpl_data_at.
+rewrite field_at_isptr at 1. normalize.
 Qed.
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_typed_mapsto_ by reflexivity. 
+  repeat rewrite var_block_data_at_ by reflexivity. 
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 

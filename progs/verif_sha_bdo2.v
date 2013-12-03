@@ -42,9 +42,9 @@ unfold K_vector; unfold_lift.
 erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 entailer!.
 unfold stackframe_of; simpl.
-rewrite var_block_typed_mapsto_ by reflexivity.
+rewrite var_block_data_at_ by reflexivity.
 rewrite prop_true_andp by (compute; congruence).
-simpl_typed_mapsto.
+simpl_data_at.
 unfold id.
 cancel.
 apply derives_refl'; f_equal.

@@ -367,10 +367,10 @@ Proof.
  apply H4.
 Qed.
 
-Lemma field_mapsto_mapsto__at1:
+Lemma field_at_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_mapsto sh ty fld) v e :: R)))) c Post.
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at_ sh ty fld) e :: R)))) c Post ->
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
@@ -379,13 +379,13 @@ intros.
  apply andp_derives; auto.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
- unfold_lift; apply field_mapsto_field_mapsto_.
+ unfold_lift; apply field_at_field_at_.
 Qed.
 
-Lemma later_field_mapsto_mapsto__at1:
+Lemma later_field_at_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_mapsto_ sh ty fld) e :: R)))) c Post ->
-    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_mapsto sh ty fld) v e :: R)))) c Post.
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_at_ sh ty fld) e :: R)))) c Post ->
+    @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_at sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
  eapply semax_pre0; [ | apply H].
@@ -395,7 +395,7 @@ intros.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
  apply later_derives; auto.
- unfold_lift; apply field_mapsto_field_mapsto_.
+ unfold_lift; apply field_at_field_at_.
 Qed.
 
 Lemma forward_setx':

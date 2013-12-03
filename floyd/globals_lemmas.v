@@ -217,7 +217,7 @@ intros H1 H6' H6 H7 H8.
 +  eapply derives_trans; [ apply mapsto_zeros_memory_block; try omega | ].
 pose proof (sizeof_pos (Tarray t z0 a)); omega.
  rewrite memory_block_typed by assumption.
- unfold typed_mapsto_. simpl. unfold eq_rect_r, eq_rect. simpl.
+ unfold data_at_, data_at. simpl. unfold eq_rect_r, eq_rect. simpl.
  rewrite withspacer_spacer. unfold spacer.
  rewrite align_0 by (apply alignof_pos). simpl.
  rewrite emp_sepcon.
@@ -349,7 +349,7 @@ Lemma tc_globalvar_sound_space:
    sizeof t <= Int.max_unsigned ->
    tc_environ Delta rho ->
    globvar2pred(i, gv) rho |-- 
-   typed_mapsto_ Ews t (eval_var i t rho).
+   data_at_ Ews t (eval_var i t rho).
 Proof.
 intros until 1. intros ? Hno; intros.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
