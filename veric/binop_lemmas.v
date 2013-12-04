@@ -405,7 +405,7 @@ Lemma typecheck_val_sem_cmp:
  typecheck_numeric_val v2 t2 ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op t1 t2 v1 v2))
+     (Cop2.sem_cmp op t1 t2 true2 v1 v2))
   (Tint i3 s3 a3) = true.
 Proof.
 destruct op; intros;
@@ -435,21 +435,21 @@ Lemma typecheck_val_cmp_eqne_ip:
  typecheck_val v2 (Tpointer t0 a0) = true ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2))
+     (Cop2.sem_cmp op t1 (Tpointer t0 a0) true2 v1 v2))
   (Tint i2 s0 a1) = true.
 Proof.
-intros until 1; rename H into CMP; intros.
+intros until 1; rename H into CMP; intros;
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s; 
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, sem_cast, classify_cast;
+  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
+try  match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
   destruct A; reflexivity
- end.
+ end.  
 Qed.
 
 Lemma typecheck_val_cmp_eqne_pi:
@@ -463,7 +463,7 @@ Lemma typecheck_val_cmp_eqne_pi:
  typecheck_val v2 (Tpointer t0 a0) = true ->
 typecheck_val
   (force_val
-     (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1))
+     (Cop2.sem_cmp op (Tpointer t0 a0) t1 true2 v2 v1))
   (Tint i2 s0 a1) = true.
 Proof.
 intros until 1; rename H into CMP; intros.
@@ -472,7 +472,7 @@ intros until 1; rename H into CMP; intros.
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s; 
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  sem_binarith, sem_cast, classify_cast;
+  sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
  match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
@@ -491,7 +491,7 @@ match t1 with
   | Tlong ?s _ => destruct s
   | _ => idtac
   end;
-  unfold Cop2.sem_cmp; simpl;
+  unfold Cop2.sem_cmp, sem_cmp_pp, sem_cmp_pl, sem_cmp_lp; simpl;
  repeat match goal with H: _ = true |- _ =>
                 try rewrite H; clear H
             end;
@@ -675,7 +675,7 @@ rewrite den_isBinOpR in IBR; simpl in IBR;
  destruct (typeof e2) as [ | i2 s2 ? | s2 ? | i2 ? | | | | | | ];
  try solve [inv IBR];
  destruct (eval_expr e2 rho) eqn:E2; inv TV2;
-unfold eval_binop, Cop2.sem_binary_operation;
+unfold eval_binop, Cop2.sem_binary_operation';
 unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv,
   binarithType, classify_binarith in IBR;
  rewrite <- denote_tc_assert'_eq in IBR;
@@ -690,13 +690,23 @@ try match goal with
 | |- context [Cop2.sem_add] =>
   unfold Cop2.sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
   reflexivity
- | |- typecheck_val (force_val ((Cop2.sem_cmp _ ?t1 ?t2 _ _ ))) _ = true =>
+ | |- typecheck_val (force_val ((Cop2.sem_cmp _ ?t1 ?t2 _ _ _ ))) _ = true =>
         sem_cmp_solver t1 t2
+| |- typecheck_val (force_val (sem_cmp_default _ ?t1 ?t2 _ _)) _ = true =>
+         sem_cmp_solver t1 t2
 | |- context [Cop2.sem_sub] =>
-     unfold Cop2.sem_sub; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
+     unfold Cop2.sem_sub, sem_sub_pp; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
      try rewrite peq_true;
      try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
     reflexivity
+ | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ _ _ (Vint ?i0))) _ = true =>
+       unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
+       simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
+       reflexivity
+ | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ _ _ _ (Vint ?i0))) _ = true =>
+       unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
+     rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
+  simpl; rewrite H; reflexivity
  | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
        simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
@@ -705,6 +715,8 @@ try match goal with
        unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
      rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
   simpl; rewrite H; reflexivity
-end).
+| |- typecheck_val (force_val ( _ ?t1 ?t2 _ _)) _ = true => sem_cmp_solver t1 t2 
+end). 
 
 Qed.
+

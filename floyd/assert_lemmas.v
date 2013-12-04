@@ -1358,7 +1358,7 @@ Qed.
 
 Lemma typed_false_cmp:
   forall op i j , 
-   typed_false tint (force_val (sem_cmp op tint tint (Vint i) (Vint j))) ->
+   typed_false tint (force_val (sem_cmp op tint tint true2 (Vint i) (Vint j))) ->
    Int.cmp (negate_comparison op) i j = true.
 Proof.
 intros.
@@ -1370,7 +1370,7 @@ Qed.
 
 Lemma typed_true_cmp:
   forall op i j, 
-   typed_true tint (force_val (sem_cmp op tint tint (Vint i) (Vint j))) ->
+   typed_true tint (force_val (sem_cmp op tint tint true2 (Vint i) (Vint j))) ->
    Int.cmp op i j = true.
 Proof.
 intros.
@@ -1426,7 +1426,7 @@ Qed.
 Lemma typed_false_cmp_repr:
   forall op i j, 
    repable_signed i -> repable_signed j -> 
-   typed_false tint (force_val (sem_cmp op tint tint 
+   typed_false tint (force_val (sem_cmp op tint tint true2
                               (Vint (Int.repr i)) 
                               (Vint (Int.repr j)) )) ->
    Zcmp (negate_comparison op) i j.
@@ -1439,7 +1439,7 @@ Qed.
 Lemma typed_true_cmp_repr:
   forall op i j, 
    repable_signed i -> repable_signed j -> 
-   typed_true tint (force_val (sem_cmp op tint tint 
+   typed_true tint (force_val (sem_cmp op tint tint true2
                               (Vint (Int.repr i)) 
                               (Vint (Int.repr j)) )) ->
    Zcmp op i j.

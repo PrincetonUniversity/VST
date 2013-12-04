@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Local Open Scope logic.
 
-Arguments sem_cmp c !t1 !t2 / v1 v2. 
+Arguments sem_cmp c !t1 !t2 valid_pointer / v1 v2.  
 
 Lemma prop_and {A} {NA: NatDed A}: 
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
@@ -82,7 +82,7 @@ Ltac norm_rewrite := autorewrite with norm.
 
 Lemma typed_false_cmp'':
   forall i j op e1 e2,
-   typed_false tint (force_val (sem_cmp op tint tint e1  e2 )) ->
+   typed_false tint (force_val (sem_cmp op tint tint true2 e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 
@@ -102,7 +102,7 @@ Qed.
 
 Lemma typed_true_cmp'':
   forall i j op e1 e2,
-   typed_true tint (force_val (sem_cmp op tint tint e1  e2 )) ->
+   typed_true tint (force_val (sem_cmp op tint tint true2 e1  e2 )) ->
    Vint (Int.repr i) = e1 ->
    Vint (Int.repr j) = e2 ->
    repable_signed i -> 
@@ -144,7 +144,7 @@ inv H.
 Qed.
 Lemma typed_false_cmp':
   forall op i j, 
-   typed_false tint (force_val (sem_cmp op tint tint i j )) ->
+   typed_false tint (force_val (sem_cmp op tint tint true2 i j )) ->
    Int.cmp (negate_comparison op) (force_int i) (force_int j) = true.
 Proof.
 intros.
@@ -160,7 +160,7 @@ Qed.
 
 Lemma typed_true_cmp':
   forall op i j, 
-   typed_true tint (force_val (sem_cmp op tint tint i j)) ->
+   typed_true tint (force_val (sem_cmp op tint tint true2 i j)) ->
    Int.cmp op (force_int i) (force_int j) = true.
 Proof.
 intros.
@@ -1046,6 +1046,46 @@ Qed.
 Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm.
 
 
+Lemma is_pointer_force_int_ptr:
+   forall v, isptr v -> (force_val
+        match v with
+        | Vundef => None
+        | Vint _ => Some v
+        | Vlong _ => None
+        | Vfloat _ => None
+        | Vptr _ _ => Some v end) = v.
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite is_pointer_force_int_ptr using assumption : norm.
+
+
+Lemma is_pointer_or_null_match :
+   forall v, is_pointer_or_null v -> 
+        (match v with
+        | Vundef => None
+        | Vint _ => Some v
+        | Vlong _ => None
+        | Vfloat _ => None
+        | Vptr _ _ => Some v end) = Some v.
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite is_pointer_or_null_match using assumption : norm.
+
+Lemma is_pointer_force_int_ptr2:
+   forall v, isptr v -> 
+        match v with
+        | Vundef => None
+        | Vint _ => Some v
+        | Vlong _ => None
+        | Vfloat _ => None
+        | Vptr _ _ => Some v end = Some v.
+Proof.
+intros. destruct v; inv H; reflexivity.
+Qed.
+Hint Rewrite is_pointer_force_int_ptr2 using assumption : norm.
+
 Lemma is_pointer_or_null_force_int_ptr2:
    forall v, is_pointer_or_null (force_val
         match v with
@@ -1065,13 +1105,34 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 
 Hint Rewrite is_pointer_or_null_force_int_ptr2 using assumption : norm.
-(*
+
+Lemma isptr_match : forall w0,
+is_pointer_or_null
+         match
+           match w0 with
+           | Vundef => None
+           | Vint _ => Some w0
+           | Vlong _ => None
+           | Vfloat _ => None
+           | Vptr _ _ => Some w0
+           end
+         with
+         | Some v' => v'
+         | None => Vundef
+         end
+= is_pointer_or_null w0.
+intros.
+destruct w0; auto.
+Qed.
+
+Hint Rewrite isptr_match : norm.
+
 Lemma eval_cast_neutral_var:
  forall Delta rho, 
   tc_environ Delta rho -> 
   forall i t,
    tc_lvalue Delta (Evar i t) rho ->
-  eval_cast_neutral (eval_var i t rho) = eval_var i t rho.
+  sem_cast_neutral (eval_var i t rho) = Some (eval_var i t rho).
 Proof.
 intros.
  pose proof (expr_lemmas.typecheck_lvalue_sound _ _ _ H H0).
@@ -1083,7 +1144,7 @@ Lemma eval_cast_neutral_var':
  forall i t rho,
   (exists Delta,
     tc_environ Delta rho /\  tc_lvalue Delta (Evar i t) rho) ->
-  eval_cast_neutral (eval_var i t rho) = eval_var i t rho.
+  sem_cast_neutral (eval_var i t rho) = Some (eval_var i t rho).
 Proof.
 intros.
  destruct H as [Delta [? ?]];
@@ -1097,7 +1158,7 @@ Hint Rewrite eval_cast_neutral_var' using
 
 Lemma eval_cast_neutral_tc_val:
    forall v, (exists t, tc_val t v /\ is_pointer_type t = true) -> 
-       eval_cast_neutral v = v.
+       sem_cast_neutral v = Some v.
 Proof.
 intros. destruct H as [t [? ?]]; destruct t,v; inv H0; inv H; reflexivity.
 Qed.
@@ -1105,20 +1166,20 @@ Qed.
 Hint Rewrite eval_cast_neutral_tc_val using solve [eauto] : norm.
 
 Lemma eval_cast_neutral_is_pointer_or_null:
-   forall v, is_pointer_or_null v -> eval_cast_neutral v = v.
+   forall v, is_pointer_or_null v -> sem_cast_neutral v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite eval_cast_neutral_is_pointer_or_null using assumption : norm.
 
-
 Lemma is_pointer_or_null_eval_cast_neutral:
-  forall v, is_pointer_or_null (eval_cast_neutral v) = is_pointer_or_null v.
+  forall v, is_pointer_or_null (force_val (sem_cast_neutral v)) = is_pointer_or_null v.
 Proof. destruct v; reflexivity. Qed.
 Hint Rewrite is_pointer_or_null_eval_cast_neutral : norm.
 
+
 Lemma eval_cast_neutral_isptr:
-   forall v, isptr v -> eval_cast_neutral v = v.
+   forall v, isptr v -> sem_cast_neutral v = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1129,8 +1190,8 @@ Ltac eval_cast_simpl :=
      try match goal with H: tc_environ ?Delta ?rho |- _ =>
        repeat first [rewrite (eval_cast_neutral_var Delta rho H) by reflexivity
                | rewrite eval_cast_neutral_isptr by auto
-               | rewrite (eval_cast_id Delta rho H); [ | reflexivity | reflexivity ]
-               | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
+               | rewrite (sem_cast_id Delta rho H); [ | reflexivity | reflexivity ]
+               | erewrite sem_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
                ]
      end.
 
@@ -1143,7 +1204,6 @@ Ltac eval_cast_simpl :=
                | erewrite eval_cast_pointer2; [ | | | eassumption ]; [ | reflexivity | reflexivity ]
                ]
      end.
-*)
 *)
 
 
@@ -1184,7 +1244,7 @@ Ltac unfold_for_go_lower :=
                       typecheck_expr typecheck_lvalue
                       function_body_ret_assert 
                       make_args' bind_ret get_result1 retval
-                       classify_cast
+                       classify_cast force_val sem_cast_neutral
                       denote_tc_assert
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 

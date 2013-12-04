@@ -204,7 +204,7 @@ forward.  (* v = t; *)
    + apply exp_right with h.
       apply exp_right with cts1.
       apply exp_right with w0.
-      entailer!.
+      entailer!. 
 }
 (* after the loop *)
 forward.  (* return w; *)

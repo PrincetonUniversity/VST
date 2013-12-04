@@ -599,24 +599,85 @@ destruct b; simpl in *; auto;
 Qed.
 *)
 
+
+Ltac unfold_cop2_sem_cmp :=
+unfold Cop2.sem_cmp, Cop2.sem_cmp_pp, Cop2.sem_cmp_pl, Cop2.sem_cmp_lp.
+
+Lemma bin_arith_relate :
+forall a b c v1 v2 t1 t2, 
+Cop.sem_binarith a b c v1 t1 v2 t2 =
+sem_binarith a b c t1 t2 v1 v2.
+Proof.
+intros. 
+unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast. simpl.
+destruct (classify_binarith t1 t2); destruct t1; simpl; auto;
+destruct v1; auto; destruct t2; auto.
+Qed.
+
 Lemma tc_binaryop_relate : forall b e1 e2 m1 t rho,
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
 Cop.sem_binary_operation b  (eval_expr e1 rho) (typeof e1) (eval_expr e2 rho)
   (typeof e2) (m1) =
-sem_binary_operation b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho).
+sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho).
 Proof.
-intros.
-destruct b; simpl in *; auto;
- unfold sem_cmp, Cop.sem_cmp; destruct (classify_cmp (typeof e1) (typeof e2));
-   try destruct i; try destruct s; auto; try contradiction;
-   try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
-   ((intuition; unfold denote_tc_iszero in *));
- rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
-  destruct H0.
-* destruct (eval_expr e1 rho); try contradiction; auto.
-* destruct (eval_expr e2 rho); try contradiction; auto.
-* destruct (eval_expr e1 rho); try contradiction; auto.
-* destruct (eval_expr e2 rho); try contradiction; auto.
+intros. 
+destruct b; auto;
+repeat match goal with 
+    |- ?op1 _ _ _ _ = ?op2 _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate] 
+  | |- ?op1 _ _ _ _ _ _  = ?op2 _ _ _ _ _ _ =>  unfold op1, op2; 
+                                               try solve [apply bin_arith_relate]
+  | |- ?op1 _ _ _ _ _ _ = ?op2 _ _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate]
+ end; simpl in *.
+* destruct (classify_add (typeof e1) (typeof e2)); try reflexivity. 
+  apply bin_arith_relate.
+* destruct (classify_sub (typeof e1) (typeof e2)); try reflexivity;
+  apply bin_arith_relate.
+* destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
+* destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
+*  {simpl in *; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
+      destruct H0.
+      destruct (eval_expr e1 rho); try contradiction; auto.
+      destruct (eval_expr e2 rho); try contradiction; auto.
+      apply bin_arith_relate.
+   } 
+* {simpl in *; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
+      destruct H0.
+      destruct (eval_expr e1 rho); try contradiction; auto.
+      destruct (eval_expr e2 rho); try contradiction; auto.
+      apply bin_arith_relate.
+   }
+* {destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      apply bin_arith_relate.
+   } 
+* {destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      apply bin_arith_relate.
+   }
+* {destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      apply bin_arith_relate.
+   }
+* {destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction;
+     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+     ((intuition; unfold denote_tc_iszero in *)).
+      apply bin_arith_relate.
+   }
 Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -666,7 +727,7 @@ denote_tc_assert (typecheck_expr Delta e2) rho ->
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->
 denote_tc_assert (typecheck_expr Delta e1) rho ->
 None =
-sem_binary_operation b  (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho) ->
+sem_binary_operation' b  (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te m e2 (eval_expr e2 rho) ->
 Clight.eval_expr ge ve te m e1 (eval_expr e1 rho) ->
 Clight.eval_expr ge ve te m (Ebinop b e1 e2 t) Vundef.
@@ -711,7 +772,8 @@ try rewrite <- H1 in *; try rewrite <- H2 in *; intuition.
 Qed.
 
 Lemma cop2_sem_cast : forall t1 t2 v, Cop.sem_cast v t1 t2 = sem_cast t1 t2 v.
-intros.
+intros. unfold Cop.sem_cast, sem_cast.
+destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
 Qed.
 
@@ -869,11 +931,22 @@ destruct H10. destruct H9. destruct H6. destruct H6. destruct H9.  simpl in *.
 intuition. rewrite H6 in *. constructor. inv H10. auto.
 
 (*unop*)
+
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_unop in *. intuition. unfold force_val. 
 remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
-destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo. auto.
+destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo.
+
+unfold sem_unary_operation. unfold Cop.sem_unary_operation. destruct u; auto.
+unfold sem_notbool. unfold Cop.sem_notbool. unfold sem_notbool_i, sem_notbool_f,
+sem_notbool_p, sem_notbool_l. 
+destruct (classify_bool (typeof e)); auto. unfold sem_notint, Cop.sem_notint.
+destruct (classify_notint (typeof e)); reflexivity.
+unfold sem_neg, Cop.sem_neg. 
+destruct (classify_neg (typeof e)); reflexivity.
+
+
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
 destruct u. simpl in *. remember (typeof e); destruct t0; try inv H2;
 try destruct i;try destruct s; try inv H2; simpl in *; destruct t; intuition;
@@ -890,11 +963,12 @@ try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuit
 destruct (eval_expr e rho); intuition; unfold sem_neg in *;
 simpl in *; inv Heqo.
 
+
 (*binop*)
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val.
-remember (sem_binary_operation b (typeof e1) (typeof e2)(eval_expr e1 rho) (eval_expr e2 rho)).
+remember (sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho)).
 { destruct o. 
   + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
     eapply IHe2. apply H. apply H3.
@@ -1499,8 +1573,8 @@ Qed.
 Lemma cop_2_sem_cast : forall t1 t2 e,
 Cop.sem_cast (e) t1 t2 = Cop2.sem_cast t1 t2 e.
 Proof.
-intros.
-destruct t1; destruct t2; destruct e; auto.
+intros. unfold Cop.sem_cast, sem_cast.
+destruct t1; destruct t2; destruct e; simpl; try destruct i; try destruct i0; auto.   
 Qed.
 
 Lemma cast_exists : forall Delta e2 t rho 

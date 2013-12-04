@@ -328,8 +328,10 @@ match op with
   | _ => false
 end.
 
+Definition true2 (b : block) (i : Z) := true.
+
 Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       force_val (Cop2.sem_binary_operation op t1 t2 v1 v2).
+       force_val (Cop2.sem_binary_operation' op t1 t2 true2 v1 v2).
 Arguments eval_binop op t1 t2 / v1 v2.
 
 Definition eval_cast (t1 t2 : type) (v: val) :=

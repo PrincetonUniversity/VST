@@ -535,6 +535,8 @@ destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl i
  constructor 2 with  (eval_expr  a (construct_rho (filter_genv psi) vx tx)); auto.
  apply eval_expr_relate with Delta; auto.
  pose proof  (cast_exists Delta a _ _ H1 H H0).
+
+rewrite cop2_sem_cast.
  apply (cast_exists Delta a _ _ H1 H H0).
 Qed.
 
@@ -746,8 +748,8 @@ generalize dependent bl. generalize dependent te'.
              (eval_expr e
                 (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
              (typeof e) ty)).
-        split. auto.
-        right. eapply typecheck_val_sem_cast; eauto.
+        split. rewrite cop2_sem_cast. auto.
+        right. rewrite cop2_sem_cast. eapply typecheck_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
@@ -1669,6 +1671,7 @@ simpl in H6; rewrite (call_cont_current_function H7) in H6.
 destruct H6 as [_ ?].
 rewrite H6.
 super_unfold_lift.
+rewrite cop2_sem_cast.
 apply cast_exists with Delta'; auto.
 
 auto.

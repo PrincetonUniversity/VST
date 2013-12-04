@@ -15,7 +15,7 @@ Ltac simpl_compare :=
                   first [subst a | subst b | idtac]
                end)
  | H: typed_true _ _ |- _ =>
-         revert H; simpl_compare; intro H;
+         simpl in H; revert H; simpl_compare; intro H;
          first [apply typed_true_ptr in H
                  | apply typed_true_of_bool in H;
                    first [apply (int_cmp_repr Clt) in H;
@@ -26,7 +26,7 @@ Ltac simpl_compare :=
                  | discriminate H
                  | idtac ]
  | H: typed_false _ _ |- _ =>
-         revert H; simpl_compare; intro H;
+         simpl in H; revert H; simpl_compare; intro H;
          first [ apply typed_false_ptr in H
                 | apply typed_false_of_bool in H;
                    first [apply (int_cmp_repr' Clt) in H;

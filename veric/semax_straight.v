@@ -188,7 +188,7 @@ Lemma pointer_cmp_eval :
      (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
   Some
      (force_val
-        (sem_binary_operation cmp (typeof e1) (typeof e2) 
+        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2 
            (eval_expr e1 rho) (eval_expr e2 rho))). 
 Proof.
 intros until rho. intros ? ? BM.  intros.
@@ -225,11 +225,11 @@ apply mapsto_valid_pointer in MT_1.
 apply mapsto_valid_pointer in MT_2.
  
 
-unfold sem_binary_operation, sem_cmp. 
+unfold sem_binary_operation', sem_cmp. 
 
 destruct cmp; inv H; try rewrite H3 in *; 
 try rewrite H4 in *; subst;
-unfold Cop.sem_cmp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
+unfold Cop.sem_cmp, sem_cmp_pp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 Qed.
 
@@ -253,7 +253,7 @@ Lemma pointer_cmp_no_mem_bool_type :
    typecheck_environ Delta rho ->
     is_int 
      (force_val
-        (sem_binary_operation cmp (typeof e1) (typeof e2)
+        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2
            (eval_expr e1 rho)
            (eval_expr e2 rho))).
 Proof.
@@ -263,12 +263,12 @@ apply typecheck_both_sound in H3; auto.
 rewrite tc_val_eq' in *.
 rewrite H0 in *. 
 rewrite H1 in *. 
-unfold sem_binary_operation.
+unfold sem_binary_operation'.
 destruct (typeof e1); try solve[simpl in *; try contradiction; try congruence]; 
 destruct (typeof e2); try solve[simpl in *; try contradiction; try congruence].
-
+unfold sem_cmp. unfold sem_cmp_pp.
 destruct cmp; inv H;
-unfold sem_cmp; simpl; 
+unfold sem_cmp; simpl;
 if_tac; auto; simpl; try of_bool_destruct; auto.
 Qed.
  
@@ -1006,6 +1006,7 @@ apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
 instantiate (1:= eval_expr e2 rho).
 auto.
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
+rewrite cop2_sem_cast.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
 apply Hmode.
@@ -1043,9 +1044,10 @@ rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
 unfold mapsto.
 destruct TC4 as [TC4 _].
+
 rewrite Hmode.
 rewrite He1'. 
-rewrite writable_share_right; auto.
+rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
 apply orp_right1.
 apply andp_right.
 intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.
