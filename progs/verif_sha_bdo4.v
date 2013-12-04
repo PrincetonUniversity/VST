@@ -125,9 +125,10 @@ PROP  (i < 16)
 (* 587,640  592,608 *)
 abstract entailer.
 (* 613,416  655,716 *)
+Focus 1.
 abstract (forward; (* skip; *)
 (* 619,968  655,716 *)
-   entailer; apply prop_right; clear - H2; split; [omega | f_equal; omega]).
+   entailer; apply prop_right; rewrite Z.sub_0_r; auto).
 (* 726,056  709,784 *)
 abstract (forward;  (* break; *)
 (* 738,188  709,784 *)

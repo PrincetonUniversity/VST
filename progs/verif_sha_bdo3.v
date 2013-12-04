@@ -269,12 +269,12 @@ apply semax_pre with
                     (`cons (eval_id _f)
                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP()).
-abstract (entailer;
+abstract (entailer; split3;
   [(exists a_, b_, c_, d_, e_, f_, g_, h_;
     clear - H4; rename H4 into H0;
     do 8 (destruct regs' as [ | ? regs']; [inv H0 | ]);
     destruct regs'; inv H0; reflexivity)
-  | apply nth_big_endian_integer''; auto 
+  | apply nth_big_endian_integer; auto 
   | congruence]).
 apply semax_extract_PROP; 
    intros [a [b [c [d [e [f [g [h Hregs]]]]]]]].
@@ -331,7 +331,7 @@ apply IHi; auto. clear - H0.
 apply lt_S_n; auto.
 destruct H3 as [w H3].
 unfold tuchars;
-rewrite <- nth_big_endian_integer'' with (w:=w); auto.
+rewrite <- nth_big_endian_integer with (w:=w); auto.
 unfold f_upto.
 subst.
 rewrite if_true by (rewrite inj_S; omega).

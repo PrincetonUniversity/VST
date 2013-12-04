@@ -180,7 +180,7 @@ end.
 
 Definition array_at' (t: type) (sh: Share.t) (tmaps: reptype t -> val -> mpred)
                  (f: Z -> reptype t) (lo hi: Z) (v: val) : mpred :=
-           rangespec lo hi (fun i => tmaps (f i) (add_ptr_int t v i)).
+           !! isptr v && rangespec lo hi (fun i => tmaps (f i) (add_ptr_int t v i)).
 
 Fixpoint data_at' (sh: Share.t) (t1: type) (pos: Z) : reptype t1 -> val -> mpred :=
 match t1 as t return (t1 = t -> reptype t1 -> val -> mpred) with
@@ -320,7 +320,7 @@ Proof. reflexivity. Qed.
 
 Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
                                    (v: val) : mpred :=
-           rangespec lo hi (fun i => data_at sh t  (f i) (add_ptr_int t v i)).
+           !! isptr v && rangespec lo hi (fun i => data_at sh t  (f i) (add_ptr_int t v i)).
 
 Definition array_at_ t sh lo hi := array_at t sh (fun _ => default_val t) lo hi.
 
@@ -772,36 +772,20 @@ Hint Resolve field_at_field_at_.
 
 Lemma array_at_local_facts:
  forall t sh f lo hi v,
-   lo < hi ->
     array_at t sh f lo hi v |-- !! isptr v.
 Proof.
  intros.
- unfold array_at, rangespec.
- destruct (nat_of_Z (hi-lo)) eqn:?H.
- elimtype False.
- assert (hi - lo = 1 +  (hi-lo-1)) by omega.
- rewrite H1 in H0. clear H1.
- rewrite Z2Nat.inj_add in H0 by omega.
- simpl in H0. inv H0.
- simpl.
- eapply derives_trans with (data_at_ sh t (add_ptr_int t v lo) * TT).
- apply sepcon_derives; auto.
- rewrite data_at__isptr. normalize.
- destruct v; inv H1. apply prop_right; apply I.
+ unfold array_at; normalize.
 Qed.
 
-Hint Extern 2 (@derives _ _ _ _) => 
-   simple apply array_at_local_facts; omega : saturate_local.
+Hint Resolve array_at_local_facts : saturate_local.
 
 Lemma array_at__local_facts:
  forall t sh lo hi v,
-   lo < hi ->
     array_at_ t sh lo hi v |-- !! isptr v.
 Proof.
  intros.
  apply array_at_local_facts; auto.
 Qed.
 
-Hint Extern 2 (@derives _ _ _ _) => 
-   simple apply array_at__local_facts; omega : saturate_local.
-
+Hint Resolve array_at__local_facts : saturate_local.

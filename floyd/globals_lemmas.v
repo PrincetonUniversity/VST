@@ -366,7 +366,7 @@ pose (sizeof_pos t); omega. omega. omega.
 Qed.
 
 Lemma array_at_emp:
- forall t sh f lo v, array_at t sh f lo lo v = emp.
+ forall t sh f lo v, array_at t sh f lo lo v = !!isptr v && emp.
 Proof. intros. unfold array_at, rangespec.
 replace (lo-lo) with 0 by omega.
 simpl. auto.
@@ -376,7 +376,7 @@ Lemma idpred2_star_ZnthV_tint:
  forall Delta sh n v (data: list int) mdata,
   n = Zlength mdata ->
   mdata = map Init_int32 data ->
-  id2pred_star Delta sh (tarray tint n) v 0 mdata |--
+  local (`isptr v) && id2pred_star Delta sh (tarray tint n) v 0 mdata |--
   `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
 Proof.
 intros. subst n mdata.
@@ -391,17 +391,19 @@ replace (Zlength data) with (ofs + Zlength data) by (unfold ofs; omega).
 replace (ZnthV tint (map Vint data)) with (fun i => ZnthV tint (map Vint data) (i-ofs))
   by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
 clearbody ofs.
+rename H into H'.
 
 revert ofs;
 induction data; intros; simpl; auto.
 * rewrite Zlength_nil. unfold array_at, rangespec; simpl.
- replace (ofs+0-ofs) with 0 by omega. simpl. auto.
+ replace (ofs+0-ofs) with 0 by omega. simpl. normalize.
 * rewrite Zlength_cons.
 replace (ofs*4+4) with ((Z.succ ofs) * 4)%Z 
  by (unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity).
 replace (ofs + Z.succ (Zlength data)) with (Z.succ ofs + Zlength data) by omega.
 rewrite (split3_array_at ofs).
-rewrite array_at_emp. rewrite emp_sepcon.
+rewrite array_at_emp.
+rewrite prop_true_andp by auto. rewrite emp_sepcon.
 apply sepcon_derives; auto.
 unfold_lift.
 rewrite mapsto_tuint_tint.
@@ -450,13 +452,21 @@ Lemma unpack_globvar_array:
     (ZnthV tint (map Vint data)) 0 n) (eval_var i (tarray tint n)).
 Proof.
  intros.
- eapply derives_trans.
- apply unpack_globvar_star; try eassumption; try reflexivity.
- rewrite H1; reflexivity.
+ match goal with |- ?A |-- _ =>
+ eapply derives_trans with (local (`isptr (eval_var i (tarray tint n))) && A)
+ end.
+ apply andp_right; auto.
+ go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
+ right; split; auto. rewrite <- H1; auto.
+ eapply derives_trans;[ apply andp_derives; 
+                                    [ apply derives_refl 
+                                    | eapply unpack_globvar_star; try eassumption; try reflexivity ] |].
+rewrite H1; reflexivity.
  rewrite H1. rewrite H3. rewrite H5.
  change (Share.splice extern_retainer (readonly2share false)) with Ews. 
- apply idpred2_star_ZnthV_tint; auto.
- rewrite <- H5. auto.
+ eapply derives_trans; [ |  apply idpred2_star_ZnthV_tint].
+ apply derives_refl.
+ rewrite <- H5. auto. auto.
 Qed.
 
 Lemma main_pre_eq:

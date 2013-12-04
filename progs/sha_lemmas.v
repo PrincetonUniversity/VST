@@ -7,6 +7,11 @@ Definition swap (i: int) : int :=
       (Int.or (Int.shl (Int.and (Rt 16 i) (Int.repr 255)) (Int.repr 8))
          (Rt 24 i))).
 
+Lemma swap_swap: forall w, swap (swap w) = w.
+Proof.
+unfold swap; intros.
+Admitted.
+
 Definition big_endian_integer (contents: Z -> int) : int :=
   Int.or (Int.shl (contents 3) (Int.repr 24))
   (Int.or (Int.shl (contents 2) (Int.repr 16))
@@ -24,53 +29,7 @@ intros.
 repeat f_equal; intros; apply H; omega.
 Qed.
 
-Definition force_option {A} (x:A) (i: option A) := 
-  match i with Some y => y | None => x end.
-
-Lemma swap_swap: forall w, swap (swap w) = w.
-Proof.
-unfold swap; intros.
-Admitted.
-
-Lemma nth_big_endian_int:
- forall i b, 
-   i < length b ->
- nth_error b i =
-Some
-  (big_endian_integer
-     (fun z : Z =>
-      force_option Int.zero
-        (nth_error (map Int.repr (intlist_to_Zlist (map swap b)))
-           (Z.to_nat (z + Z.of_nat i * 4))))).
-Proof.
-induction i; destruct b; intros.
-inv H.
-simpl. apply f_equal_Some.
-unfold big_endian_integer; simpl.
-repeat rewrite Int.repr_unsigned.
-symmetry; apply swap_swap.
-inv H.
-simpl in H.
-simpl nth_error at 1.
-rewrite IHi by omega. 
-f_equal.
-apply big_endian_integer_ext; intros.
-f_equal.
-rewrite inj_S.
-replace (Z.to_nat (z + Z.succ (Z.of_nat i) * 4))
- with (S (S (S (S(Z.to_nat (z + Z.of_nat i * 4))))));
-  [reflexivity | ].
-unfold Z.succ.
-rewrite Z.mul_add_distr_r.
-rewrite <- (Zplus_comm (1*4)%Z).
-replace  (z + (1 * 4 + Z.of_nat i * 4))%Z
-  with  (4 + (z + Z.of_nat i * 4))%Z by omega.
-symmetry.
-rewrite Z2Nat.inj_add  by omega.
-reflexivity.
-Qed.
-
-Lemma nth_big_endian_integer'':
+Lemma nth_big_endian_integer:
   forall i bl w, 
    nth_error bl i = Some w ->
     w = big_endian_integer
@@ -146,6 +105,14 @@ Inductive s256abs :=  (* SHA-256 abstract state *)
  S256abs: forall (hashed: list int)   (* words hashed, so far *)
                          (data: list Z)  (* bytes in the partial block not yet hashed *),
                      s256abs.
+
+Definition s256a_regs (a: s256abs) : list int :=
+ match a with S256abs hashed _  => 
+          process_msg init_registers hashed 
+ end.
+
+Definition s256a_len (a: s256abs) := 
+  match a with S256abs hashed data => Zlength hashed end.
 
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 
@@ -262,12 +229,10 @@ Qed.
 
 Definition init_s256abs : s256abs := S256abs nil nil.
 
-Definition sha_finish (a a': s256abs) :=
- match a, a' with
- | S256abs hashed data,
-   S256abs hashed' data' =>
-     hashed' = generate_and_pad (intlist_to_Zlist hashed ++ data) 0
-  /\ data'=nil
+Definition sha_finish (a: s256abs) : list Z :=
+ match a with
+ | S256abs hashed data => 
+      intlist_to_Zlist (generate_and_pad (intlist_to_Zlist (process_msg init_registers hashed) ++ data) 0)
  end.
 
 Fixpoint sequence (cs: list statement) s :=

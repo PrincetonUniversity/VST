@@ -117,6 +117,7 @@ Ltac computable := match goal with |- ?x =>
  compute; clear; auto; congruence
 end.
 
+(*
 Lemma and_solvable_left:
  forall P Q : Prop,   P -> (P /\ Q) = Q.
 Proof. intros. apply prop_ext; intuition. Qed.
@@ -141,6 +142,7 @@ Ltac and_solvable_left P :=
                                 ]
              end
   end.
+*)
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
   forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.
@@ -148,6 +150,64 @@ Proof.
 intros. apply andp_right; auto.
 Qed.
 
+(* try_conjuncts.  The purpose of this is to avoid splitting any
+  goal into two subgoals, for the reason that perhaps the 
+  user wants to simplify things above the line before splitting.
+   On the other hand, if the current goal is  A/\B/\C/\D
+  where B and D are easily provable, one wants to leave the
+  goal A/\C.
+*)
+Lemma try_conjuncts_lem2: forall A B : Prop,
+   B -> A -> (A /\ B).
+Proof. intuition. Qed.
+
+Lemma try_conjuncts_lem: forall A B A' B' : Prop,
+   (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
+Proof. intuition. Qed.
+
+Lemma try_conjuncts_start: forall A B: Prop,
+   (A -> B) -> (A -> B).
+ Proof. intuition. Qed.
+
+Ltac try_conjuncts_solver :=
+    match goal with |- ?A => no_evars A end;
+    first [apply I | computable | solve [auto] | omega ].
+
+Ltac try_conjuncts :=
+ first [ simple eapply conj;
+                [try_conjuncts_solver | try_conjuncts ]
+        | simple eapply try_conjuncts_lem2;
+                [try_conjuncts_solver | match goal with H:_ |- _ => apply H end ]
+        | simple eapply try_conjuncts_lem; 
+            [intro; try_conjuncts | intro; try_conjuncts 
+            |match goal with H:_ |- _ => apply H end ]
+        | match goal with H:_ |- _ => instantiate (1:=True) in H; 
+                try_conjuncts_solver
+          end
+        | match goal with H:_ |- _ => apply H end
+        ].
+
+Lemma try_conjuncts_prop_and:
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q, 
+      (P' -> P) ->
+      S |-- !! P' && Q ->
+      S |-- !! P && Q.
+Proof. intros. 
+ eapply derives_trans; [apply H0 |].
+ apply andp_derives; auto.
+ apply prop_derives; auto.
+Qed.
+
+
+Lemma try_conjuncts_prop:
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop), 
+      (P' -> P) ->
+      S |-- !! P' ->
+      S |-- !! P .
+Proof. intros. 
+ eapply derives_trans; [apply H0 |].
+ apply prop_derives; auto.
+Qed.
 
 Ltac ent_iter :=
     autorewrite with gather_prop;
@@ -165,14 +225,14 @@ Ltac entailer' :=
 (* ((progress ent_iter; fail 5 "bingo") || idtac); *)
  try simple apply prop_and_same_derives;
  repeat rewrite and_assoc';
- match goal with 
-   | |- _ |-- !! ?P && _ => and_solvable_left P
-   | |- _ |-- !! ?P => and_solvable_left P; 
-                               prop_right_cautious; try apply TT_right;
-                               repeat simple apply conj; (computable||auto)
-   | |- _ => idtac
- end;
- auto.
+ first [simple eapply try_conjuncts_prop; 
+              [intro; try_conjuncts 
+              | cbv beta; repeat rewrite and_True; prop_right_cautious ]
+         | simple eapply try_conjuncts_prop_and;
+              [intro; try_conjuncts 
+              | cbv beta; repeat rewrite and_True; try simple apply go_lower_lem1]
+         | idtac];
+  auto.
 
 Ltac entailer :=
  match goal with

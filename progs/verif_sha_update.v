@@ -5,18 +5,6 @@ Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
 Local Open Scope logic.
 
-
-Lemma liftSEPlift1:
- forall (R:  mpred) f, 
-     `(SEP (`R)) f = `R.
-Proof. intros. 
-unfold SEPx. 
- super_unfold_lift.
-extensionality rho.
-simpl. rewrite sepcon_emp.
-auto.
-Qed.
-
 Definition sha_update_inv sh hashed len c d (frag: list int) data r_Nh r_Nl (done: bool) :=
    (EX blocks:list int,
    PROP  (len >= length blocks*4 - length frag /\
@@ -181,30 +169,13 @@ instantiate (1:=(hashed++ blocks,
                            c, 
                            offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d,
                            sh)) in (Value of witness).
- instantiate (1:= [
-   `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c),
-  `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c)),
-  `(field_at_ Tsh t_struct_SHA256state_st _num c),
-  `(data_block sh (firstn (length blocks * 4 - length r_data)  data) d),
-  `(data_block sh (list_drop (length blocks * 4 - length r_data + CBLOCK) data) 
-                 (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data + CBLOCK))) d))])
-    in (Value of Frame).
- unfold Frame, witness; clear Frame witness.
- cbv beta iota.
 entailer!.
 rewrite mul_repr in H5; rewrite H5; reflexivity.
 apply divide_length_app; auto.
 unfold K_vector at 2.
 unfold_lift.
- replace (eval_var _K256 (tarray tuint 64)
-         (env_set
-            (env_set (globals_only rho) _in
-               (offset_val
-                  (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d))
-            _ctx c')) with (eval_var _K256 (tarray tuint 64) rho)
- by (repeat rewrite eval_var_env_set; 
-      erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
-       reflexivity).
+repeat rewrite eval_var_env_set.
+erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 change (array_at tuint Tsh (tuints K) 0 (Zlength K)
       (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
  rewrite <- H6.
@@ -218,17 +189,18 @@ replace_SEP 0%Z
       `(data_block sh (intlist_to_Zlist (map swap bl))
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
-      K_vector).
-go_lower.
-unfold K_vector at 1. unfold_lift.
+      K_vector). {
+  go_lower.
+  unfold K_vector at 1. unfold_lift.
   erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
   auto.
-change (array_at tuint Tsh (tuints K) 0 (Zlength K)
+  change (array_at tuint Tsh (tuints K) 0 (Zlength K)
       (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
-entailer.
-normalize.
+  entailer.
+}
+ normalize.
  forward. (* data += SHA_CBLOCK; *)
- entailer. 
+ entailer.
  forward. (* len  -= SHA_CBLOCK; *)
  unfold loop1_ret_assert.
  unfold sha_update_inv.
@@ -403,7 +375,6 @@ Focus 2. {
  inv H. forget (length (i::dd)) as n. change CBLOCK with 64 in H3. repable_signed.
 } Unfocus.
  apply andp_right; [apply prop_right; repeat split | ].
- + clear; omega.
  + exists 0; reflexivity.
  +  repeat f_equal; omega.
  + rewrite <- app_nil_end. cancel.

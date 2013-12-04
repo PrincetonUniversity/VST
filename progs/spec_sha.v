@@ -6,6 +6,24 @@ Local Open Scope logic.
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
+Goal forall c r,  data_at Tsh t_struct_SHA256state_st r c = TT.
+ intros.
+ simpl in r.
+ simpl_data_at.
+ destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
+ simpl.
+Abort.
+
+Definition sha256_length (len: Z)  (c: val) : mpred :=
+   EX lo:int, EX hi:int, 
+     !! (hilo hi lo = len) &&
+     (field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
+      field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
+
+Definition sha256state_ (a: s256abs) (c: val) : mpred :=
+   EX r:s256state, 
+    !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
+
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
   WITH p: val, sh: share, contents: Z -> int
@@ -53,29 +71,21 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at tuchar sh (fun _ => Vint c) 0 n p)).
 
-Goal forall c r,  data_at Tsh t_struct_SHA256state_st r c = TT.
- intros.
- simpl in r.
- simpl_data_at.
- destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
- simpl.
-Abort.
-
-Definition sha256state_ (a: s256abs) (c: val) : mpred :=
-   EX r:s256state, 
-    !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
-
 Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
 Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
 
-Definition data_block (sh: share) (contents: list Z) (v: val) :=
-  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents) v.
+Definition data_block (sh: share) (contents: list Z) :=
+  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
 
 Lemma datablock_local_facts:
  forall sh f data,
   data_block sh f data |-- !! (isptr data).
-Admitted.
+Proof.
+intros. unfold data_block.
+entailer.
+Qed.
 Hint Resolve datablock_local_facts : saturate_local.
+
 
 Definition K_vector : environ -> mpred :=
   `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
@@ -99,12 +109,6 @@ Definition sha256_block_data_order_spec :=
           `(data_block sh (intlist_to_Zlist (map swap b)) data) *
           K_vector).
  
-Definition sha256_length (len: Z)  (c: val) : mpred :=
-   EX lo:int, EX hi:int, 
-     !! (hilo hi lo = len) &&
-     (field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
-      field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
-
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
  WITH len : nat, c: val, n: Z
@@ -136,9 +140,6 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
    update_abs msg (S256abs hashed oldfrag) 
                               (S256abs (hashed++blocks) newfrag).
 
-Definition s256a_len (a: s256abs) := 
-  match a with S256abs hashed data => Zlength hashed end.
-
 Definition BOUND : Z := (Int64.modulus - Int.modulus)%Z.
 Opaque BOUND.
 
@@ -155,11 +156,6 @@ Definition SHA256_Update_spec :=
           PROP (update_abs (firstn len data) a a') LOCAL ()
           SEP(K_vector; `(sha256state_ a' c); `(data_block sh data d)).
 
-Definition s256a_regs (a: s256abs) : list int :=
- match a with S256abs hashed _  => 
-          process_msg init_registers hashed 
- end.
-
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
    WITH a: s256abs, md: val, c : val,  shmd: share, sh: share
@@ -169,10 +165,9 @@ Definition SHA256_Final_spec :=
          SEP(K_vector; `(sha256state_ a c);
                `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
-         EX a':s256abs,
-         PROP (sha_finish a a') LOCAL ()
-         SEP(K_vector; `(sha256state_ a' c);
-               `(data_block shmd (intlist_to_Zlist (s256a_regs a')) md)).
+         PROP () LOCAL ()
+         SEP(K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
+               `(data_block shmd (sha_finish a) md)).
 
 Definition SHA256_spec :=
   DECLARE _SHA256
@@ -206,19 +201,6 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
  end.
 
 Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.
-
-Lemma sha256state__isptr:
- forall a c, sha256state_ a c = !!(isptr c) && sha256state_ a c.
-Proof.
-intros. unfold sha256state_. normalize. apply f_equal.
-extensionality r.
-rewrite <- andp_assoc.
-rewrite (andp_comm (!!isptr c)).
-rewrite andp_assoc.
-f_equal.
-simpl_data_at.
-rewrite field_at_isptr at 1. normalize.
-Qed.
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;

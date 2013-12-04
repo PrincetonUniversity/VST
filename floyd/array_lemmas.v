@@ -116,6 +116,8 @@ Focus 2. {
  rewrite Z2Nat.inj_add by omega.
  simpl. auto.
  } Unfocus.
+ normalize.
+ f_equal. f_equal. apply prop_ext; intuition.
  revert lo Heqn H; induction n; simpl; intros.
 * destruct (zlt 0 (i-lo)).
   destruct (i-lo); try omega.
@@ -123,7 +125,7 @@ Focus 2. {
   generalize (Pos2Nat.is_pos p); omega.
   generalize (Pos2Z.neg_is_neg p); omega.
   assert (i=lo) by omega. subst i.
-  rewrite emp_sepcon.
+   rewrite emp_sepcon.
   simpl. f_equal; auto.
 * repeat rewrite sepcon_assoc.
   f_equal; auto.
@@ -412,6 +414,7 @@ Proof.
 intros.
 unfold array_at.
 extensionality v.
+f_equal.
 unfold rangespec.
 assert ( lo > hi \/ lo <= hi) by omega.
 destruct H0.
@@ -554,7 +557,7 @@ eapply semax_pre_post;
   rewrite upd_eq. 
   simpl.
   rewrite (data_at_mapsto _ _ H3).
-  destruct (eval_expr e1 rho); inv H12.
+  destruct (eval_expr e1 rho); inv H13.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.
   rewrite H10. unfold_lift; simpl. auto.
@@ -576,22 +579,10 @@ Proof.
 intros.
 unfold array_at_.
 assert (RP := sizeof_pos t).
-assert (lo >= hi \/ lo < hi)%Z by omega.
-destruct H.
-*
-unfold array_at, rangespec, array_at_.
-change Z.to_nat with nat_of_Z.
-rewrite nat_of_Z_neg by omega.
-apply derives_refl.
-*
-apply derives_trans with (!!isptr v && array_at t sh f lo hi v).
-apply andp_right; auto.
-apply array_at_local_facts; auto.
-normalize.
-unfold array_at, rangespec, array_at_.
+unfold array_at; normalize.
+unfold rangespec.
 change nat_of_Z with Z.to_nat.
 forget (Z.to_nat (hi-lo)) as n.
-clear H.
 revert lo; induction n; intros.
 apply derives_refl.
 simpl.
@@ -622,6 +613,10 @@ apply split_array_at.
 auto.
 Qed.
 
+Lemma False_andp:
+  forall {A}{NA: NatDed A} (P: A), !! False && P = FF.
+Proof. intros. apply pred_ext; normalize. Qed.
+
 Lemma offset_val_array_at:
  forall ofs t sh f lo hi v,
   array_at t sh (fun i => f (i-ofs)%Z)
@@ -634,21 +629,25 @@ unfold array_at, rangespec.
    with (hi-lo)%Z by omega.
 forget (nat_of_Z (hi-lo)) as n.
 clear hi.
+replace (isptr (offset_val (Int.repr (sizeof t * ofs)) v))
+             with (isptr v)
+ by (apply prop_ext; destruct v; intuition).
 revert lo; induction n; simpl; intros; auto.
 replace (ofs+lo-ofs)%Z with lo by omega.
-f_equal.
-unfold add_ptr_int.
-f_equal. unfold eval_binop. simpl. unfold sem_add; simpl.
-destruct v; auto. simpl. f_equal.
+unfold add_ptr_int; simpl. unfold sem_add; simpl.
+destruct v; simpl; repeat rewrite False_andp; auto.
+f_equal. f_equal.
 rewrite Int.add_assoc.  f_equal.
 rewrite <- add_repr.
 rewrite <- mul_repr.
 rewrite Int.mul_add_distr_r.
 auto.
 replace (Z.succ (ofs + lo))%Z with (ofs + Z.succ lo)%Z by omega.
-apply IHn.
+specialize (IHn (Z.succ lo)).
+simpl  in IHn. normalize in IHn.
 Qed.
 
+(* move this elsewhere *)
 Lemma semax_pre_later:
  forall P' Espec Delta P1 P2 P3 c R,
      (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->

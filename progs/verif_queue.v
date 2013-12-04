@@ -367,11 +367,6 @@ simpl @fst; simpl @snd.
 entailer.
 change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed by reflexivity.
-instantiate (1:= `(fifo (p2 :: nil) q *
-(field_at Tsh t_struct_elem _a (Vint (Int.repr 2)) p2 *
- field_at Tsh t_struct_elem _b (Vint (Int.repr 20)) p2))::nil) 
- in (Value of Frame). (* Need this explicitly because simpl_data_at does
-                                      not work in the presence of evars *)
 simpl_data_at.
 entailer!.
 forward. (* return i+j; *)

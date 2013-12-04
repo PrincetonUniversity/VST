@@ -121,7 +121,7 @@ simpl_data_at.
 unfold mf_restbuf. simpl.
 destruct buf0; inv Pbuf0.
 simpl. rewrite memory_block_zero.
-unfold array_at, rangespec; simpl.
+unfold array_at, rangespec; simpl. rewrite prop_true_andp by auto.
 repeat (rewrite upd_eq || rewrite upd_neq by congruence).
 cancel.
 rewrite data_at_tint.
@@ -160,6 +160,7 @@ entailer.
 unfold array_at, rangespec; simpl.
 unfold ZnthV; simpl. simpl_data_at.
 rewrite data_at_tint.
+rewrite prop_true_andp by auto.
 cancel.
 apply sepcon_derives; apply derives_refl'';
  eapply mapsto_field_at; try (simpl; reflexivity);
@@ -179,6 +180,7 @@ rewrite if_false by omega. rewrite if_false by omega.
 simpl.
 inv H1; inv H2.
 rewrite data_at_tint.
+ rewrite prop_true_andp by auto.
 cancel.
 repeat apply sepcon_derives;
 apply derives_refl';
@@ -622,14 +624,7 @@ unfold app.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
-(* HACK: the following "replace" should be just
-    "simpl_data_at", but that does not work in Coq 8.4
-    until bug 2997 is fixed *)
-replace (`(data_at_ Tsh t_struct_intpair) (eval_var _p t_struct_intpair))
- with (`(field_at_ Tsh t_struct_intpair _x) (eval_var _p t_struct_intpair) *
-    `(field_at_ Tsh t_struct_intpair _y) (eval_var _p t_struct_intpair))
- by (clear; simpl_data_at; reflexivity).
-flatten_sepcon_in_SEP. (* only need this with HACK? *)
+simpl_data_at.
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 apply derives_refl.  (* SHOULD NOT NEED THIS LINE *)
@@ -656,6 +651,7 @@ replace_in_pre (nil: list (environ -> Prop)) (tc_exprlist Delta (tptr tvoid :: t
           ((Eaddrof (Evar _p t_struct_intpair) (tptr t_struct_intpair)
             :: Evar _buf (tarray tuchar 8) ::  nil))::nil).
 entailer.
+try (apply prop_right; apply I). (* temporary, should soon not be needed *)
 simpl update_tycon.
 unfold_abbrev.
 abbreviate_semax.
@@ -683,7 +679,6 @@ rewrite -> seq_assoc.
 eapply semax_seq'.
 apply call_deserialize; try reflexivity; auto.
 entailer.
-apply prop_right. rewrite <- H0. omega.
 apply closed_wrt_PROPx.
 apply closed_wrt_LOCALx; [ auto 50 with closed | ].
 apply closed_wrt_SEPx.

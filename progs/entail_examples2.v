@@ -73,6 +73,6 @@ intros; ungather_entail; revert Delta'; simplify_Delta.
 entailer!.
 * do 8 (destruct regs' as [ | ? regs']; [inv H9 | ]);
      destruct regs'; inv H9;  repeat eexists; reflexivity.
-* apply nth_big_endian_integer''; auto .
+* apply nth_big_endian_integer; auto .
 * congruence.
 Qed.
