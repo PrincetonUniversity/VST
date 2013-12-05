@@ -4,7 +4,7 @@ Require Import sepcomp.Address.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.step_lemmas.
-Require Import sepcomp.forward_simulations.
+Require Import sepcomp.effect_simulations.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -78,19 +78,29 @@ Next Obligation. by []. Qed.
 
 Axiom dummy_genv: forall F V, Genv.t F V. (*FIXME*)
 
+Module Type CORESEM.
+Axiom t: Type -> Type -> Type -> Type.
+Axiom dummy: forall (G C M: Type), t G C M.
+Axiom instance: forall G C M, @Coresem G C M.
+End CORESEM.
+
+(**** BEGIN big functor over CORESEM type ****)
+
+Module CoresemFunctor (Coresem: CORESEM).
+
 (* Cores are runtime execution units *)
 
 Module Core.
-Record t (M: Type) := mk
+  Record t (M: Type) := mk
   { F   : Type
   ; V   : Type
   ; C   : Type
-  ; sem : @Coresem (Genv.t F V) C M
-  ; ge  :  Genv.t F V
+  ; sem : Coresem.t (Genv.t F V) C M
+  ; ge  : Genv.t F V
   ; c   :> C
   }.
 
-Definition upd {M: Type} (core : t M) (newC : core.(C)) :=
+  Definition upd {M: Type} (core : t M) (newC : core.(C)) :=
   {| F     := core.(F)
    ; V     := core.(V)
    ; C     := core.(C)
@@ -99,18 +109,17 @@ Definition upd {M: Type} (core : t M) (newC : core.(C)) :=
    ; c     := newC 
    |}.
 
-Definition dummy {M: Type} : t M := mk dummy_coreSem (dummy_genv unit unit) tt.
-
+  Definition dummy {M: Type} : t M := mk (Coresem.dummy _ _ _) (dummy_genv unit unit) tt.
 End Core.
-
-Definition atExternal {M: Type} (c: Core.t M) :=
-  let: (Core.mk F V C coreSem ge c) := c in
-  if at_external c is Some (ef, dep_sig, args) then true
-  else false.
 
 (* Linker invariants: 
    -1: all cores except the topmost one are at_external 
    -2: the call stack always contains at least one core *)
+
+Definition atExternal {M: Type} (c: Core.t M) :=
+  let: (Core.mk F V C coreSem ge c) := c in
+  if @at_external (Genv.t F V) C M _ c is Some (ef, dep_sig, args) then true
+  else false.
 
 Definition wf_callStack {M: Type} (stk: Stack.t (Core.t M)) :=
   [&& all atExternal (pop stk) & size stk > 0].
@@ -118,49 +127,44 @@ Definition wf_callStack {M: Type} (stk: Stack.t (Core.t M)) :=
 (* Call stacks are [stack]s satisfying the [wf_callStack] invariant. *)
 
 Module CallStack.
-Record t (M: Type) : Type := mk
+  Record t (M: Type) : Type := mk
   { callStack :> Stack.t (Core.t M)
   ; _         :  wf_callStack callStack 
   }.
 
+  Section callStackDefs.
+    Context {M: Type} (stack: CallStack.t M).
+
+    Definition callStackSize := size stack.(callStack).
+
+    Program Definition singl_callStack (core: Core.t M) := 
+      CallStack.mk [:: core] _.
+
+    Definition dummy_callStack := singl_callStack Core.dummy.
+
+    Lemma callStack_wf : wf_callStack stack.
+    Proof. by case: stack. Qed.
+
+    Lemma callStack_ext : all [pred c | atExternal c] (pop stack).
+    Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
+
+    Lemma callStack_size : callStackSize > 0.
+    Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
+  End callStackDefs. 
 End CallStack.
 
-Section callStackDefs.
-Context {M: Type} (stack: CallStack.t M).
-
-Import CallStack.
-
-Definition callStackSize := size stack.(callStack).
-
-Program Definition singl_callStack (core: Core.t M) := 
-  CallStack.mk [:: core] _.
-
-Definition dummy_callStack := singl_callStack Core.dummy.
-
-Lemma callStack_wf : wf_callStack stack.
-Proof. by case: stack. Qed.
-
-Lemma callStack_ext : all [pred c | atExternal c] (pop stack).
-Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
-
-Lemma callStack_size : callStackSize > 0.
-Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
-
-End callStackDefs.
-
 Module Payload.
-Record t (M: Type) := mk
+  Record t (M: Type) := mk
   { F   : Type
   ; V   : Type
   ; ge  : Genv.t F V
   ; C   : Type
-  ; coreSem : @Coresem (Genv.t F V) C M
+  ; coreSem : Coresem.t (Genv.t F V) C M
   ; c   : C
   }.
 
-Definition dummy (M: Type) := 
-  @mk M unit unit (dummy_genv _ _) unit dummy_coreSem tt.
-
+  Definition dummy (M: Type) := 
+  @mk M unit unit (dummy_genv _ _) unit (Coresem.dummy _ _ _) tt.
 End Payload.
 
 (* The first two fields of this record are static configuration data:  
@@ -170,13 +174,17 @@ End Payload.
    [stack] is used to maintain a stack of cores, at runtime. 
    Parameter [N] is the number of static modules in the program. *)
 
-Record linker (M: Type) (N: nat) := mkLinker
+Module Linker.
+  Record t (M: Type) (N: nat) := mkLinker
   { cores : 'I_N  -> Payload.t M
   ; fn_tbl: ident -> option 'I_N
   ; stack : CallStack.t M
   }.
+End Linker.
 
-Implicit Arguments mkLinker [M N].
+Import Linker.
+
+Notation linker := Linker.t.
 
 Section linkerDefs.
 Context {M: Type} {N: nat} (l: linker M N).
@@ -187,14 +195,9 @@ Definition dummy_linker :=
   mkLinker (fun _ : 'I_N => Payload.dummy M) (fun id => None) dummy_callStack.
 
 Section emptyLinker.
-Variables (my_cores: 'I_N -> Payload.t M) (my_fun_tbl : ident -> option 'I_N).
+  Variables (my_cores: 'I_N -> Payload.t M) (my_fun_tbl : ident -> option 'I_N).
 
-Definition empty_linker := mkLinker my_cores my_fun_tbl dummy_callStack.
-
-Lemma empty_linker_ext :
-  all [pred c | atExternal c] empty_linker.(stack).(CallStack.callStack).
-Proof. by []. Qed.  
-
+  Definition empty_linker := mkLinker my_cores my_fun_tbl dummy_callStack.
 End emptyLinker.
 
 Definition updStack (newStack: CallStack.t M) :=
@@ -249,7 +252,7 @@ Proof. by rewrite/peekCore/peek/emptyStack/StackDefs.peek; case: (callStack _). 
 
 Definition initCore (ix: 'I_N) (v: val) (args: list val): option (Core.t M) :=
   let: Payload.mk F V ge C coreSem c := l.(cores) ix in
-  if initial_core ge v args is Some c then Some (Core.mk coreSem ge c)
+  if @initial_core _ _ M _ ge v args is Some c then Some (Core.mk coreSem ge c)
   else None.
 
 End linkerDefs.
@@ -257,8 +260,8 @@ End linkerDefs.
 (* The linking semantics *)
 
 Module LinkerSem. Section linkerSem.
-Variables M : Type.
-Variable  N : nat.  (* Number of (compile-time) modules *)
+Variable M : Type.
+Variable N : nat.  (* Number of (compile-time) modules *)
 Variable my_cores : 'I_N  -> Payload.t M.
 Variable my_fn_tbl: ident -> option 'I_N.
 
@@ -268,11 +271,11 @@ Variable my_fn_tbl: ident -> option 'I_N.
    is pushed onto the call stack. *)
 
 Section handle.
-Variables (id: ident) (l: linker M N) (args: list val).
+  Variables (id: ident) (l: linker M N) (args: list val).
 
-Import CallStack.
+  Import CallStack.
 
-Definition handle :=
+  Definition handle :=
   (match all atExternal l.(stack).(callStack) as pf 
         return (pf = all atExternal l.(stack).(callStack) 
                -> option (linker M N)) with
@@ -283,7 +286,6 @@ Definition handle :=
         else None else None
     | false => fun _ => None
   end) Logic.eq_refl.
-
 End handle.
 
 Definition initial_core (tt: unit) (v: val) (args: list val)
@@ -295,20 +297,20 @@ Definition initial_core (tt: unit) (v: val) (args: list val)
 
 Definition at_external0 (l: linker M N) :=
   let: mc := peekCore l in
-  if mc is Some c then @at_external _ _ _ (Core.sem c) (Core.c c) else None.
+  if mc is Some c then @at_external (Genv.t (Core.F c) (Core.V c)) _ M _ (Core.c c) else None.
 
 (* Is the running core halted? *)
 
 Definition halted0 (l: linker M N) :=
   let: mc := peekCore l in
-  if mc is Some c then @halted _ _ _ (Core.sem c) (Core.c c) else None.
+  if mc is Some c then @halted (Genv.t (Core.F c) (Core.V c)) _ M _ (Core.c c) else None.
 
 (* Lift a running core step to linker step *)
 
 Definition corestep0 (l: linker M N) (m: M) (l': linker M N) (m': M) := 
   let: mc := peekCore l in
   if mc is Some c then 
-    exists c', @corestep _ _ _ (Core.sem c) (Core.ge c) (Core.c c) m c' m'
+    exists c', @corestep (Genv.t (Core.F c) (Core.V c)) _ M _ (Core.ge c) (Core.c c) m c' m'
             /\ l' = updCore l (Core.upd c c')
   else False.
 
@@ -329,7 +331,7 @@ Definition at_external (l: linker M N) :=
 Definition after_external (mv: option val) (l: linker M N) :=
   let: mc := peekCore l in
   if mc is Some c then 
-    if @after_external _ _ _ (Core.sem c) mv (Core.c c) is Some c' then 
+    if @after_external (Genv.t (Core.F c) (Core.V c)) _ M _ mv (Core.c c) is Some c' then 
       Some (updCore l (Core.upd c c'))
     else None
   else None.
@@ -368,7 +370,6 @@ Definition corestep (ge: unit) (l: linker M N) (m: M) (l': linker M N) (m': M) :
       else False else False else False
 
    else False).
-
 
 Lemma corestep_not_at_external0 m c m' c' :
   corestep0 c m c' m' -> at_external0 c = None.
@@ -440,7 +441,7 @@ move: Hat; rewrite/at_external0=>/= H2.
 by apply after_at_external_excl in Heq; rewrite Heq in H2; congruence.
 Qed.
 
-Definition coreSem : Coresem := 
+Definition coresem : Coresem := 
   Build_Coresem unit (linker M N) M 
     initial_core
     at_external
@@ -454,3 +455,6 @@ Definition coreSem : Coresem :=
 
 End linkerSem. End LinkerSem.
 
+End CoresemFunctor.
+
+(**** END big functor over CORESEM type ****)
