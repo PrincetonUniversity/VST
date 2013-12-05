@@ -55,6 +55,16 @@ Expr.Sig all_types nil share_tv sh.
 Definition make_list_int_signature (li :list int) :=
 Expr.Sig all_types nil list_int_tv li.
 
+Definition int_sub_signature :=
+Expr.Sig all_types (int_tv :: int_tv :: nil) int_tv Int.sub.
+
+Definition Vint_signature :=
+Expr.Sig all_types (int_tv :: nil) val_tv Vint.
+
+Definition map_Vint_signature := 
+Expr.Sig all_types (list_int_tv :: nil) list_val_tv (map Vint).
+
+
 Definition functions :=
  cons tc_environ_signature
 (cons eq_val_signature
@@ -63,8 +73,11 @@ Definition functions :=
 (cons eval_id_signature
 (cons and_signature
 (cons eq_list_val_signature
-(cons cons_val_signature nil
-))))))).
+(cons cons_val_signature 
+(cons int_sub_signature 
+(cons Vint_signature 
+(cons map_Vint_signature nil
+)))))))))).
 
 Definition tc_environ_f := 0%nat.
 Definition eq_val_f := 1%nat.
@@ -74,11 +87,14 @@ Definition eval_id_f := 4%nat.
 Definition and_f := 5%nat.
 Definition eq_list_val_f := 6%nat.
 Definition cons_val_f := 7%nat.
+Definition int_sub_f := 8%nat.
+Definition vint_f := 9%nat.
+Definition map_Vint_f := 10%nat.
 
 (*Separation Logic predicates *)
 Definition sep_predicates : list (Sep.predicate all_types) := nil.
 
-(*Some common functions *)
+(*functions to build Exprs *)
 Definition eval_id_func id rho :=
 @Expr.Func all_types eval_id_f 
 (cons id (cons rho nil)).
@@ -92,5 +108,16 @@ Definition and_func p1 p2 :=
 Definition nullary_func f :=
 @Expr.Func all_types f nil.
 
+Definition vint_func i :=
+@Expr.Func all_types vint_f (i :: nil).
+
+Definition int_sub_func i1 i2 :=
+@Expr.Func all_types int_sub_f (i1 :: i2 :: nil).
+
+Definition tc_environ_func delta rho :=
+@Expr.Func all_types tc_environ_f (delta :: rho :: nil).
+
+Definition map_vint_func i :=
+@Expr.Func all_types map_Vint_f (i :: nil).
 
 End funcs.

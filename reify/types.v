@@ -39,6 +39,8 @@ Definition list_val_type : Expr.type := no_eqb_type (list val).
 
 Definition list_int_type := no_eqb_type (list int).
 
+Definition int_type := no_eqb_type int.
+
 Module Type unknown_types.
 Parameter (unknown_types : (list Expr.type)).
 End unknown_types.
@@ -54,8 +56,9 @@ Definition our_types :=(cons tycontext_type
                        (cons share_type 
                        (cons ident_type
                        (cons list_val_type 
-                       (cons list_int_type  nil
-                       ))))))))).
+                       (cons list_int_type  
+                       (cons int_type nil
+                       )))))))))).
 
 Definition all_types := our_types ++ unknown_types.
 
@@ -78,7 +81,9 @@ Definition list_val_tv := Expr.tvType 7.
 
 Definition list_int_tv := Expr.tvType 8.
 
-Definition mpred_tv := Expr.tvType 9.
+Definition int_tv := Expr.tvType 9.
+
+Definition mpred_tv := Expr.tvType 10.
 
 (*Some common consts *)
 Definition our_const tv val :=
@@ -104,6 +109,9 @@ our_const list_int_tv li.
 
 Definition prop_const p :=
 our_const Expr.tvProp p.
+
+Definition tycontext_const Delta :=
+our_const tycontext_tv Delta.
 
 End our_types.
 
