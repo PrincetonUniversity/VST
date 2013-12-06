@@ -439,9 +439,9 @@ omega.
 Qed.
 
 Lemma upd_Znth_next:
- forall jl i v,
+ forall t jl i v,
   Zlength jl = i ->
-  upd (ZnthV tuint jl) i v = ZnthV tuint (jl++ (v::nil)).
+  upd (ZnthV t jl) i v = ZnthV t (jl++ (v::nil)).
 Proof.
 intros;
 extensionality n.

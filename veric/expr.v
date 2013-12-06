@@ -298,22 +298,15 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
 
-Definition eval_unop (op: Cop.unary_operation) (t1 : type) (v1 : val) :=
-       force_val (Cop2.sem_unary_operation op t1 v1).
-(*
-Definition cmp_ptr_no_mem c v1 v2  :=
-match v1, v2 with
-Vptr b o, Vptr b1 o1 => 
-  if peq b b1 then
-    Val.of_bool (Int.cmpu c o o1)
-  else
-    match Val.cmp_different_blocks c with
-    | Some b => Val.of_bool b
-    | None => Vundef
-    end
-| _, _ => Vundef
-end. 
-*)
+Definition force_val1 (f: val -> option val) (v: val) := force_val (f v).
+Definition force_val2 (f: val -> val -> option val) (v1 v2: val) := force_val (f v1 v2).
+
+Arguments force_val1 f v /.
+Arguments force_val2 f v1 v2 /.
+
+Definition eval_unop (op: Cop.unary_operation) (t1 : type) :=
+       force_val1 (Cop2.sem_unary_operation op t1).
+
 Definition op_to_cmp cop :=
 match cop with 
 | Cop.Oeq => Ceq | Cop.One =>  Cne
@@ -330,12 +323,12 @@ end.
 
 Definition true2 (b : block) (i : Z) := true.
 
-Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) (v1 v2: val) :=
-       force_val (Cop2.sem_binary_operation' op t1 t2 true2 v1 v2).
+Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) :=
+       force_val2 (Cop2.sem_binary_operation' op t1 t2 true2).
 Arguments eval_binop op t1 t2 / v1 v2.
 
-Definition eval_cast (t1 t2 : type) (v: val) :=
-  force_val (sem_cast t1 t2 v).
+Definition eval_cast (t1 t2 : type) :=
+  force_val1 (sem_cast t1 t2).
 Arguments eval_cast t1 t2 / v.
 
 Definition force_ptr (v: val) : val :=

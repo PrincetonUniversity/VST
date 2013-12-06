@@ -321,7 +321,7 @@ clear - H2 H.
 assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
   by (destruct b; reflexivity).
 unfold isUnOpResultType in H.
-unfold eval_unop, sem_unary_operation.
+unfold eval_unop, sem_unary_operation, force_val1.
 unfold classify_bool in H.
 destruct u; try solve [inv H]; simpl.
 (* notbool case *)
@@ -385,7 +385,7 @@ destruct IHe as [? _].
 rewrite denote_tc_assert_andp in H0.
 destruct H0.
 specialize (H1 H0).
-unfold  sem_cast.
+unfold  sem_cast, force_val1.
 rewrite isCastR in H2.
 revert H2; case_eq (classify_cast (typeof e) t); intros;
 try solve [destruct t; try contradiction;
@@ -609,7 +609,7 @@ Cop.sem_binarith a b c v1 t1 v2 t2 =
 sem_binarith a b c t1 t2 v1 v2.
 Proof.
 intros. 
-unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast. simpl.
+unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast.
 destruct (classify_binarith t1 t2); destruct t1; simpl; auto;
 destruct v1; auto; destruct t2; auto.
 Qed.
@@ -627,57 +627,51 @@ repeat match goal with
   | |- ?op1 _ _ _ _ _ _  = ?op2 _ _ _ _ _ _ =>  unfold op1, op2; 
                                                try solve [apply bin_arith_relate]
   | |- ?op1 _ _ _ _ _ _ = ?op2 _ _ _ _ _ => unfold op1, op2; try solve [apply bin_arith_relate]
- end; simpl in *.
+ end.
 * destruct (classify_add (typeof e1) (typeof e2)); try reflexivity. 
   apply bin_arith_relate.
 * destruct (classify_sub (typeof e1) (typeof e2)); try reflexivity;
   apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
 * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
-*  {simpl in *; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
       destruct H0.
       destruct (eval_expr e1 rho); try contradiction; auto.
       destruct (eval_expr e2 rho); try contradiction; auto.
       apply bin_arith_relate.
-   } 
-* {simpl in *; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       rewrite denote_tc_assert_orp in H0; repeat rewrite denote_tc_assert_iszero in H0;
       destruct H0.
       destruct (eval_expr e1 rho); try contradiction; auto.
       destruct (eval_expr e2 rho); try contradiction; auto.
       apply bin_arith_relate.
-   }
-* {destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       apply bin_arith_relate.
-   } 
-* {destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       apply bin_arith_relate.
-   }
-* {destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       apply bin_arith_relate.
-   }
-* {destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction;
-     try rewrite tc_andp_sound in *; simpl in H; super_unfold_lift;
+* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
+     try destruct i; try destruct s; auto; try contradiction; simpl in H;
+     try rewrite denote_tc_assert_andp in *; super_unfold_lift;
      ((intuition; unfold denote_tc_iszero in *)).
       apply bin_arith_relate.
-   }
 Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
@@ -934,7 +928,7 @@ intuition. rewrite H6 in *. constructor. inv H10. auto.
 
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-unfold eval_unop in *. intuition. unfold force_val. 
+unfold eval_unop in *. intuition. unfold force_val1, force_val. 
 remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
 destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo.
 
@@ -967,7 +961,7 @@ simpl in *; inv Heqo.
 (*binop*)
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val.
+unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val2, force_val.
 remember (sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rho) (eval_expr e2 rho)).
 { destruct o. 
   + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
@@ -996,7 +990,7 @@ assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 rewrite tc_val_eq in TC.
 simpl in *; 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
- super_unfold_lift; intuition.
+unfold force_val1, force_val in *; super_unfold_lift; intuition.
 eapply Clight.eval_Ecast.
 eapply IHe; auto.
 
@@ -2026,7 +2020,7 @@ repeat split; intros; auto.
     revert h id Delta'.
     induction h; intros; try apply H; simpl; try destruct o;
      auto.
-    -          destruct (eq_dec id i). subst.
+    - destruct (eq_dec id i). subst.
         rewrite temp_types_same_type'.
         specialize (H i).
         destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?.
@@ -2038,8 +2032,7 @@ repeat split; intros; auto.
         destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
           rewrite <- initialized_ne by auto. 
         destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
-  -  repeat rewrite temp_types_update_dist.
-       specialize (H id).
+  -   specialize (H id).
         destruct (eq_dec id i). subst.
         rewrite temp_types_same_type'.
         destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; auto.
@@ -2050,9 +2043,25 @@ repeat split; intros; auto.
         destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
           rewrite <- initialized_ne by auto. 
         destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
-  -
-Admitted.
-
+  - apply H.
+  - apply IHh2. intro.  apply IHh1. apply H.
+  - repeat rewrite temp_types_update_dist.
+     repeat rewrite join_te_denote2.
+     unfold te_one_denote.
+     destruct ((temp_types (update_tycon Delta h1)) ! id) as [[? ?]|] eqn:?; auto.
+     destruct ((temp_types (update_tycon Delta h2)) ! id) as [[? ?]|] eqn:?; auto.
+      specialize (IHh1 id Delta' Delta H). rewrite Heqo in IHh1.
+     destruct ((temp_types (update_tycon Delta' h1)) ! id) as [[? ?]|] eqn:?; auto.
+      specialize (IHh2 id Delta' Delta H). rewrite Heqo0 in IHh2.
+     destruct ((temp_types (update_tycon Delta' h2)) ! id) as [[? ?]|] eqn:?; auto.
+     destruct IHh1, IHh2; subst.
+     clear - H1 H3; split; auto.
+     destruct b,b1; inv H1; simpl; auto.
+ -  admit. (* need a mutual induction to handle join_tycon_labeled *)
++ repeat rewrite update_tycon_eqv_ve. auto.
++ repeat rewrite update_tycon_eqv_ret. auto.
++ repeat rewrite update_tycon_eqv_ge. auto.
+Qed.
 
 Lemma typecheck_val_sem_cast: 
   forall t2 e2 rho Delta,

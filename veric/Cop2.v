@@ -647,20 +647,30 @@ Definition sem_incrdecr (id: Cop.incr_or_decr) (ty: type) (v: val)  :=
   end.
 
 (*We can always simplify if the types are known *)
-Arguments sem_cast !t1 !t2 / v : simpl nomatch.
+Arguments Cop.classify_cast tfrom tto / .
+Arguments Cop.classify_bool ty / .
+Arguments Cop.classify_neg ty / .
+Arguments Cop.classify_notint ty / .
+Arguments Cop.classify_binarith ty1 ty2 / .
+Arguments Cop.classify_add ty1 ty2 / .
+Arguments Cop.classify_sub ty1 ty2 / .
+Arguments Cop.classify_shift ty1 ty2 / .
+Arguments Cop.classify_cmp ty1 ty2 / .
+Arguments Cop.classify_fun ty / .
+Arguments sem_cast t1 t2 / v : simpl nomatch.
 Arguments bool_val t / v  : simpl nomatch.
 Arguments sem_notbool t / v  : simpl nomatch.
 Arguments sem_neg t / v : simpl nomatch.
 Arguments sem_notint t / v : simpl nomatch.
-Arguments sem_add !t1 !t2 / v1 v2 : simpl nomatch.
-Arguments sem_sub !t1 !t2 / v1 v2 : simpl nomatch.
-Arguments sem_shift !t1 !t2 _ _  / v1 v2 : simpl nomatch.
-Arguments sem_shl !t1 !t2  / v1 v2 : simpl nomatch.
-Arguments sem_shr !t1 !t2  / v1 v2 : simpl nomatch.
-Arguments sem_cmp c !t1 !t2 / _ v1 v2 : simpl nomatch.
+Arguments sem_add t1 t2 / v1 v2 : simpl nomatch.
+Arguments sem_sub t1 t2 / v1 v2 : simpl nomatch.
+Arguments sem_shift t1 t2 _ _  / v1 v2 : simpl nomatch.
+Arguments sem_shl t1 t2  / v1 v2 : simpl nomatch.
+Arguments sem_shr t1 t2  / v1 v2 : simpl nomatch.
+Arguments sem_cmp c t1 t2 / _ v1 v2 : simpl nomatch.
 Arguments sem_unary_operation op ty / v : simpl nomatch.
-Arguments sem_binary_operation' op !t1 !t2 / valid_pointer v1 v2 : simpl nomatch.
-Arguments sem_binary_operation op !t1 !t2 / m v1 v2 : simpl nomatch.
+Arguments sem_binary_operation' op t1 t2 / valid_pointer v1 v2 : simpl nomatch.
+Arguments sem_binary_operation op t1 t2 / m v1 v2 : simpl nomatch.
 
 
 

@@ -1547,10 +1547,11 @@ Lemma bool_val_Cnot:
 Proof.
  intros.
  unfold Cnot. simpl.
- unfold eval_unop; super_unfold_lift; simpl.
+ unfold eval_unop, force_val1; super_unfold_lift; simpl.
  destruct (eval_expr a rho); simpl in *; try congruence.
  destruct (typeof a); simpl in *; try congruence.
- inv H0.  rewrite  negb_involutive. unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
+ inv H0.  rewrite  negb_involutive.
+ unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
  destruct i0; simpl; auto; destruct (Int.eq i Int.zero); auto;
  destruct s; simpl; auto.
   destruct (Int.eq i Int.zero);  inv H0; reflexivity.

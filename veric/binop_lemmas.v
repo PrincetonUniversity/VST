@@ -675,7 +675,7 @@ rewrite den_isBinOpR in IBR; simpl in IBR;
  destruct (typeof e2) as [ | i2 s2 ? | s2 ? | i2 ? | | | | | | ];
  try solve [inv IBR];
  destruct (eval_expr e2 rho) eqn:E2; inv TV2;
-unfold eval_binop, Cop2.sem_binary_operation';
+unfold eval_binop, Cop2.sem_binary_operation', force_val2;
 unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv,
   binarithType, classify_binarith in IBR;
  rewrite <- denote_tc_assert'_eq in IBR;

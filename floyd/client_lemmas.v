@@ -1239,7 +1239,7 @@ Arguments ret_type !Delta /.
 Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
-                       sem_cast eval_binop eval_unop
+                       sem_cast eval_binop eval_unop force_val1 force_val2
                       tc_expropt tc_expr tc_lvalue 
                       typecheck_expr typecheck_lvalue
                       function_body_ret_assert 

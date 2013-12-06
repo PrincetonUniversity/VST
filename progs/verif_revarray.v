@@ -141,10 +141,10 @@ forward. (* hi--; *)
 unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
- simpl in H7,H9. rewrite Int.sub_signed in H7,H9.
- rewrite (Int.signed_repr 1) in H7,H9 by repable_signed.
- rewrite (Int.signed_repr (size-j)) in H7,H9 by repable_signed.
- rewrite (Int.signed_repr) in H7 by repable_signed.
+ simpl in H6,H8. rewrite Int.sub_signed in H6,H8.
+ rewrite (Int.signed_repr 1) in H6,H8 by repable_signed.
+ rewrite (Int.signed_repr (size-j)) in H6,H8 by repable_signed.
+ rewrite (Int.signed_repr) in H6 by repable_signed.
  simpl_compare.
  apply andp_right.
  apply prop_right.
@@ -162,7 +162,7 @@ entailer.
  assert (is_int (contents (size-1-i))).
  apply POP; omega.
  replace (size-i-1) with (size-1-i) by omega.
- destruct (contents (size-1-i)); try contradiction H6. reflexivity.
+ reflexivity.
  if_tac.
  unfold flip_between. rewrite if_false by omega.
  if_tac; try omega. if_tac; try omega. if_tac; try omega.

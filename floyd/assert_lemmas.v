@@ -307,6 +307,14 @@ unfold lift. f_equal; auto.
 Qed.
 Hint Resolve @closed_wrt_lift3C : closed.
 
+Lemma closed_wrt_const: 
+ forall A (P: A) S, closed_wrt_vars S (fun rho: environ => P).
+Proof.
+intros. hnf; intros.
+simpl. auto.
+Qed.
+Hint Resolve @closed_wrt_const : closed.
+
 Lemma closed_wrt_eval_var:
   forall S id t, closed_wrt_vars S (eval_var id t).
 Proof.
@@ -495,7 +503,6 @@ Proof.
  unfold expr_closed_wrt_vars; intros.
  simpl.
  super_unfold_lift. f_equal; auto.
- f_equal; auto.
 Qed.
 Hint Resolve expr_closed_binop : closed.
 
@@ -1305,7 +1312,7 @@ Proof.
  unfold add_ptr_int, add_ptr_int'.
  rewrite if_true by auto.
  destruct v; simpl; auto.
- unfold eval_binop; simpl; auto.
+ unfold force_val2; simpl; auto.
  f_equal. f_equal.
  destruct (Z.eq_dec i 0).
     subst. rewrite Int.mul_zero. rewrite Zmult_0_r. auto.
@@ -1326,7 +1333,7 @@ Lemma add_ptr_int_offset:
   add_ptr_int t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  unfold add_ptr_int; intros.
- unfold eval_binop; destruct v; simpl; auto.
+ unfold eval_binop, force_val2; destruct v; simpl; auto.
  rewrite Int.mul_signed.
  rewrite Int.signed_repr by auto.
   rewrite Int.signed_repr by auto.
@@ -1345,7 +1352,7 @@ Proof.
  rewrite if_true. destruct v; simpl; auto. auto.
  rewrite add_ptr_int_eq by auto.
  unfold add_ptr_int; intros.
- unfold eval_binop; destruct v; simpl; auto.
+ unfold eval_binop, force_val2; destruct v; simpl; auto.
  rewrite Int.mul_signed.
  rewrite Int.signed_repr.
   rewrite Int.signed_repr.

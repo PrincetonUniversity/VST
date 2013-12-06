@@ -22,9 +22,7 @@ simpl_data_at.
 normalize.
 replace (array_at_ tuint Tsh) with (array_at tuint Tsh (ZnthV tuint nil))
  by (rewrite ZnthV_nil_None; reflexivity).
-
-do 8 (forward; [entailer!; [reflexivity | omega..]
-              | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).
+do 8 (forward; [entailer! | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).
 change (fun _ => c) with (`c). normalize.
 forward. (* c->Nl=0; *)
 forward. (* c->Nh=0; *)
