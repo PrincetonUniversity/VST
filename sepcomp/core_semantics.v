@@ -104,7 +104,7 @@ Implicit Arguments CoreSemantics [].
     functors over coresem-like objects.  *)
 
 Module Coresem.
-Class Coresem {G C M : Type} : Type :=
+Class t {G C M : Type} : Type :=
   { initial_core : G -> val -> list val -> option C
   ; at_external : C -> option (external_function * signature * list val)
   ; after_external : option val -> C -> option C
@@ -121,6 +121,18 @@ Class Coresem {G C M : Type} : Type :=
       forall retv q q', after_external retv q = Some q' -> at_external q' = None
   }.
 End Coresem.
+
+Instance core_instance (G C M: Type) (csem: @CoreSemantics G C M) : @Coresem.t G C M :=
+  Coresem.Build_t G C M 
+    (initial_core csem) 
+    (at_external csem)
+    (after_external csem)
+    (halted csem)
+    (corestep csem)
+    (corestep_not_at_external csem)
+    (corestep_not_halted csem)
+    (at_external_halted_excl csem)
+    (after_at_external_excl csem).
 
 (**  Multistepping *)
 
