@@ -39,4 +39,28 @@ entailer!. rewrite Zlength_correct; omega.
 forward. (* n++; *)
 rewrite upd_Znth_next.
 simpl.
+change (fun _ : environ => offset_val (Int.repr 40) c)
+  with (`(offset_val (Int.repr 40) c)).
+normalize.
+subst r_h n0. simpl. rewrite add_repr.
+change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
+forward_if   
+   (EX hashed':list int, EX dd': list int,
+   PROP  (length (map Int.unsigned dd') + 8 <= CBLOCK;
+              NPeano.divide LBLOCK (length hashed');
+              intlist_to_Zlist hashed' ++ map Int.unsigned dd' =
+              intlist_to_Zlist hashed ++ map Int.unsigned dd ++ 1%Z ::nil)             
+   LOCAL 
+   (`(eq (Vint (Int.repr (Zlength (map Int.unsigned dd) + 1)))) (eval_id _n);
+   `eq (eval_id _p)
+     (`(offset_val (Int.repr (align 40 1))) (`force_ptr (eval_id _c)));
+   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
+   `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
+   `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
+   `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) 0 64 
+                          (offset_val (Int.repr 40) c));
+   `(field_at Tsh t_struct_SHA256state_st _num
+       (Vint (Int.repr (Zlength (map Int.unsigned dd)))) c); K_vector;
+   `(memory_block shmd (Int.repr 32) md))).
 Admitted.

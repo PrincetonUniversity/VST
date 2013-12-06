@@ -341,24 +341,15 @@ normalize. autorewrite with subst.
  instantiate (1:= ((q,(p':: nil)),p2)) in (Value of witness).
  unfold elemrep. entailer!.
 normalize.
-forward. (*   p' = fifo_get(Q); *)
+forward. (*   p' = fifo_get(Q); p = p'; *)
  instantiate (1:= ((q,(p2 :: nil)),p')) in (Value of witness).
  entailer!.
+ auto 50 with closed.
  normalize. autorewrite with subst. (* should have been done by forward *)
  change (fun rho => local (`(eq p') retval) rho && `(fifo (p2 :: nil) q) rho * `(field_at_ Tsh t_struct_elem _next) retval rho)
    with (local (`(eq p') retval) && `(fifo (p2::nil) q) * `(field_at_ Tsh t_struct_elem _next) retval).
  normalize.
- forward. (* p = p'; *)
- (* BUG:  normalize does not extract pure propositions from LOCAL *)
- apply semax_pre with   (PROP  ()
-   LOCAL  (`(eq p') (eval_id _p); `(eq q) (eval_id _Q))
-   SEP  (`(fifo (p2 :: nil) q); `(field_at_ Tsh t_struct_elem _next p');
-   `(field_at Tsh t_struct_elem _a (Vint (Int.repr 2)) p2);
-   `(field_at Tsh t_struct_elem _b (Vint (Int.repr 20)) p2);
-   `(field_at Tsh t_struct_elem _a (Vint (Int.repr 1)) p');
-   `(field_at Tsh t_struct_elem _b (Vint (Int.repr 10)) p')));
-  [entailer! | ].
-clear p0 p1 x p3.
+ subst p1 p3.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)

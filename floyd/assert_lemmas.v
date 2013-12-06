@@ -659,6 +659,27 @@ Qed.
 Hint Rewrite subst_eval_id_eq : subst.
 Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
+
+Lemma liftx3_liftx2:
+ forall {A1 A2 A3 B} f (x: A1),
+  @liftx (Tarrow A1 (Tarrow A2 (Tarrow A3 (LiftEnviron B)))) f (@liftx (LiftEnviron A1) x) =
+  @liftx (Tarrow A2 (Tarrow A3 (LiftEnviron B))) (f x).
+Proof. reflexivity. Qed.
+
+Lemma liftx2_liftx1:
+ forall {A1 A2 B} f (x: A1),
+  @liftx (Tarrow A1 (Tarrow A2 (LiftEnviron B))) f (@liftx (LiftEnviron A1) x) =
+  @liftx (Tarrow A2 (LiftEnviron B)) (f x).
+Proof. reflexivity. Qed.
+
+Lemma liftx1_liftx0:
+  forall {A1 B} f (x: A1),
+  @liftx (Tarrow A1 (LiftEnviron B)) f (@liftx (LiftEnviron A1) x) =
+  @liftx (LiftEnviron B) (f x).
+Proof. reflexivity. Qed.
+
+Hint Rewrite @liftx3_liftx2 @liftx2_liftx1 @liftx1_liftx0 : norm.
+
 Lemma lift1_lift0:
  forall {A1 B} (f: A1 -> B) (x: A1), lift1 f (lift0 x) = lift0 (f x).
 Proof.

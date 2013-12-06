@@ -470,7 +470,7 @@ Ltac normalize :=
   (first [ simpl_tc_expr
          | simple apply semax_extract_PROP_True; [solve [auto] | ]
          | simple apply semax_extract_PROP; intro
-         | extract_prop_in_LOCAL
+         | extract_prop_from_LOCAL
          | move_from_SEP
          ]; cbv beta; msl.log_normalize.normalize)
   | |- _  => 

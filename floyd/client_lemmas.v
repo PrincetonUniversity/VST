@@ -2107,19 +2107,22 @@ Proof.
  apply pred_ext; normalize.
 Qed.
 
-Ltac extract_prop_in_LOCAL :=
+Ltac extract_prop_from_LOCAL :=
  match goal with |- @semax _ _ (PROPx _ (LOCALx ?Q _)) _ _ =>
    match Q with 
     | context [ lift0 ?z :: _ ] =>
         let n := find_in_list (lift0 z) Q
-         in rewrite (grab_nth_LOCAL n); rewrite move_prop_from_LOCAL
+         in rewrite (grab_nth_LOCAL n); 
+             unfold nth, delete_nth; 
+             rewrite move_prop_from_LOCAL
    | context [@liftx (LiftEnviron Prop) ?z :: _ ] =>
-        change (@liftx (LiftEnviron Prop) z) with (@lift0 Prop z);
-        let n := find_in_list (lift0 z) Q
-         in rewrite (grab_nth_LOCAL n); rewrite move_prop_from_LOCAL
+       let n := find_in_list (@liftx (LiftEnviron Prop) z) Q
+         in rewrite (grab_nth_LOCAL n); 
+             change (@liftx (LiftEnviron Prop) z) with (@lift0 Prop z);
+             unfold nth, delete_nth; 
+             rewrite move_prop_from_LOCAL
   end
 end.
-
 
 Ltac repeat_extract_exists_pre :=
    first [(apply extract_exists_pre;
