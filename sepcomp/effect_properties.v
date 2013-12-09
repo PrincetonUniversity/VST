@@ -16,6 +16,145 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 
+Lemma FreeEffect_validblock: forall m lo hi sp b ofs
+        (EFF: FreeEffect m lo hi sp b ofs = true),
+      Mem.valid_block m b.
+Proof. intros.
+  unfold FreeEffect in EFF.
+  destruct (valid_block_dec m b); trivial; inv EFF.
+Qed.
+
+Lemma StoreEffectD: forall vaddr v b ofs
+      (STE: StoreEffect vaddr v b ofs = true),
+      exists i, vaddr = Vptr b i /\
+        (Int.unsigned i) <= ofs < (Int.unsigned i + Z.of_nat (length v)).
+Proof. intros.
+  unfold StoreEffect in STE. destruct vaddr; inv STE.
+  destruct (eq_block b0 b); inv H0.
+  exists i.
+  destruct (zle (Int.unsigned i) ofs); inv H1.
+  destruct (zlt ofs (Int.unsigned i + Z.of_nat (length v))); inv H0.
+  intuition.
+Qed.
+
+Lemma StoreEffect_PropagateLeft: forall chunk m vaddr v m'
+          (ST: Mem.storev chunk m vaddr v = Some m')
+          mu m2 (WD: SM_wd mu) (INJ : Mem.inject (as_inj mu) m m2)
+          vaddr' 
+          (VINJ : val_inject (restrict (as_inj mu) (vis mu)) vaddr vaddr')
+          v' m2' (ST2: Mem.storev chunk m2 vaddr' v' = Some m2')
+          b2 ofs 
+          (EFF : StoreEffect vaddr' (encode_val chunk v') b2 ofs = true)
+          (LBT2: locBlocksTgt mu b2 = false),
+      exists b1 delta, foreign_of mu b1 = Some (b2, delta) /\
+          StoreEffect vaddr (encode_val chunk v) b1 (ofs - delta) = true /\
+          Mem.perm m b1 (ofs - delta) Max Nonempty.
+Proof. intros.
+      apply StoreEffectD in EFF. destruct EFF as [i [VADDR' Hoff]]. subst.
+        simpl in ST2. inv VINJ. Focus 2. inv ST.
+      destruct (restrictD_Some _ _ _ _ _ H2); clear H2.
+      exists b1, delta.
+      split. destruct (joinD_Some _ _ _ _ _ H) as [EXT | [EXT LOC]]; clear H.
+             unfold vis in H0.
+             destruct (extern_DomRng' _ WD _ _ _ EXT) as [_ [_ [? _]]].
+             rewrite H in H0. simpl in H0.
+             destruct (frgnSrc _ WD _ H0) as [bb [dd [FF FT]]].
+             rewrite (foreign_in_extern _ _ _ _ FF) in EXT. inv EXT.
+             trivial.
+          destruct (local_DomRng _ WD _ _ _ LOC).
+            congruence.
+      rewrite encode_val_length in Hoff. rewrite <- size_chunk_conv in Hoff.
+      assert (Arith: Int.unsigned ofs1 <= ofs - delta < Int.unsigned ofs1 + size_chunk chunk).
+         assert (DD: delta >= 0 /\ 0 <= Int.unsigned ofs1 + delta <= Int.max_unsigned).
+                 eapply INJ. apply H. left.
+                 apply Mem.store_valid_access_3 in ST.
+                 eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
+         destruct DD as [DD1 DD2].
+         specialize (Int.unsigned_range ofs1); intros I.
+         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+            apply Int.unsigned_repr. split. omega. omega.
+
+         rewrite Int.add_unsigned in Hoff. rewrite URdelta in Hoff.
+         rewrite (Int.unsigned_repr _ DD2) in Hoff. omega.
+
+      split. unfold StoreEffect.
+        destruct (eq_block b1 b1); try congruence. simpl; clear e.
+        destruct Arith. rewrite encode_val_length . rewrite <- size_chunk_conv.
+        destruct (zle (Int.unsigned ofs1) (ofs - delta)); try omega.
+          destruct (zlt (ofs - delta) (Int.unsigned ofs1 + size_chunk chunk)); try omega. trivial.
+      apply Mem.store_valid_access_3 in ST. 
+            eapply Mem.perm_implies. 
+            eapply Mem.perm_max. eapply ST. eassumption. constructor.
+Qed.
+
+Lemma free_free_inject : forall f m1 m1' m2 b1 lo hi b2 d m2'
+       (INJ: Mem.inject f m1 m2) 
+       (FREE1: Mem.free m1 b1 lo hi = Some m1')
+       (FREE2: Mem.free m2 b2 (lo+d) (hi+d) = Some m2')
+       (B: f b1 = Some(b2,d)),
+      Mem.inject f m1' m2'.
+Proof. intros.
+       eapply Mem.free_inject with (l:=(b1,lo,hi)::nil); try eassumption.
+       simpl. rewrite FREE1. trivial.
+       intros.
+          destruct (eq_block b0 b1); subst. rewrite H in B. inv B.
+            exists lo, hi. intuition.
+          assert (P1: Mem.perm m1 b0 ofs Max Nonempty).
+            eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. apply perm_any_N.
+          assert (PM: Mem.perm m1 b1 (ofs - d + delta) Max Nonempty).
+            eapply Mem.perm_implies. eapply Mem.perm_max. 
+              eapply (Mem.free_range_perm _ _ _ _ _ FREE1). omega.
+              constructor.
+          exfalso.
+          destruct (Mem.mi_no_overlap _ _ _ INJ b0 _ _ _ _ _ _ _ n 
+               H B P1 PM) as [X | X]; apply X; trivial. omega.
+Qed.
+
+Lemma free_free_inject_same_block : forall f m1 m1' m2 b lo hi m2'
+       (INJ: Mem.inject f m1 m2) 
+       (FREE1: Mem.free m1 b lo hi = Some m1')
+       (FREE2: Mem.free m2 b lo hi = Some m2')
+       (B: f b = Some(b,0)),
+      Mem.inject f m1' m2'.
+Proof. intros. eapply free_free_inject; try eassumption.
+   repeat rewrite Zplus_0_r. trivial. 
+Qed.
+
+Lemma FreeEffect_PropagateLeft: forall
+   m sp lo hi m'
+   (FREE : Mem.free m sp lo hi = Some m')
+   mu m2 (SMV : sm_valid mu m m2)
+   (WD: SM_wd mu) spb'
+   (AI: as_inj mu sp = Some (spb', 0))
+   (VIS : vis mu sp = true) b2 ofs
+   (EFF : FreeEffect m2 lo hi spb' b2 ofs = true)
+   (LB: locBlocksTgt mu b2 = false),
+  exists b1 delta,
+    foreign_of mu b1 = Some (b2, delta) /\
+    FreeEffect m lo hi sp b1 (ofs - delta) = true /\
+    Mem.perm m b1 (ofs - delta) Max Nonempty.
+Proof. intros.
+      unfold FreeEffect in EFF.
+        destruct (valid_block_dec m2 b2); inv EFF.
+        destruct (eq_block b2 spb'); simpl in *; inv H0.
+        exists sp, 0. rewrite Zminus_0_r.
+        split. unfold vis in VIS.
+               destruct (joinD_Some _ _ _ _ _ AI) as [EXT | [NEXT LOC]]; clear H1.
+                 assert (LSP: locBlocksSrc mu sp = false). eapply (extern_DomRng' _ WD _ _ _ EXT).
+                 rewrite LSP in *. simpl in VIS. 
+                 destruct (frgnSrc _ WD _ VIS) as [bb2 [dd [F1 F2]]].
+                   rewrite (foreign_in_extern _ _ _ _ F1) in EXT. inv EXT. apply F1.
+               destruct (local_DomRng _ WD _ _ _ LOC); congruence.
+        split. unfold FreeEffect. 
+               destruct (valid_block_dec m sp).
+                 destruct (eq_block sp sp); trivial. elim n; trivial.
+               elim n; clear n. apply SMV. eapply as_inj_DomRng; eassumption.
+        eapply Mem.perm_implies. eapply Mem.perm_max. 
+           eapply (Mem.free_range_perm _ _ _ _ _ FREE).
+              destruct (zle lo ofs); simpl in H1; try discriminate.
+              destruct (zlt ofs hi); try discriminate. split; trivial.
+             constructor.
+Qed.
 
 (***** Some results on meminj_preserves_globals and variants of 
         LSR-clause match_genv  ************************************)
@@ -953,6 +1092,43 @@ Proof. intros m R L.
       subst. apply (Hzz3 _ _ H H1).
 Qed. 
 
+Lemma getsetVptr: forall z bb off n M v chunk k
+      (GET : ZMap.get ((Z.of_nat k) + z) 
+             (Mem.setN (encode_val chunk v) z M) = Pointer bb off n)
+      (HK: (k < (size_chunk_nat chunk))%nat), 
+     exists ofs, v=Vptr bb ofs.
+Proof. intros z bb off n M v chunk.
+destruct chunk. simpl in *.
+intros.
+Admitted.
+(* 
+induction k. 
+  simpl. rewrite ZMap.gss. intros; congruence.
+rewrite ZMap.gsspec; intros.
+  destruct (ZIndexed.eq (Z.of_nat (S k) + z) z). inv GET. 
+  simpl. ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
+                destruct (ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
+                destruct (ZIndexed.eq zz (Int.unsigned i+1)). inv H4.
+                  rewrite ZMap.gsspec in H4.
+ 
+  
+
+ unfold Z.of_nat in GET. simpl in *.
+rewrite Mem.setN_outside in GET. admit.
+  bb off n M i N.
+ induction N; simpl.
+   intros. inv HK.
+ intros k.
+ induction k; simpl in *; intros.
+      simpl in *. rewrite ZMap.gss in GET.
+  unfld Mem.setN in GET.
+  destruct (zlt zz (Int.unsigned i + Z.of_nat N)).
+   
+  rewrite ZMap.gsspec in GET.
+                  destruct (ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
+           *)  
+
+
 Lemma REACH_Store: forall m chunk b i v m'
      (ST: Mem.store chunk m b (Int.unsigned i) v = Some m')
      Roots (VISb: Roots b = true)
@@ -980,14 +1156,42 @@ destruct (eq_block r b); subst.
   remember (rev M) as rm.
   destruct rm; simpl in *. destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
         inv Hzz1.
-        assert (v = Vptr bb off). 
-          rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4. clear ST IHM H1.
+        intuition. 
+        assert (M= nil). destruct M; trivial. 
+             assert (@length (block * Z) nil = length (rev (p :: M))). rewrite Heqrm; trivial.
+             rewrite rev_length in H3. simpl in H3. inv H3.
+        subst. simpl in *. clear H Heqrm H0 H1.
+          rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4. 
+          apply Mem.store_valid_access_3 in ST. destruct ST as [RP ALGN].
           rewrite PMap.gss in H4.
-        subst. admit. (*This is slightly wrong - the zz and v are not necessary aligned, 
-                        I think (also, zz may be entierly outside the region affected by the store operation *)
-        eexists. 
-           apply reach_nil. apply VISv. apply getBlocks_char. 
-              exists off. left.  trivial. 
+          destruct (zlt zz (Int.unsigned i)).
+            rewrite Mem.setN_outside in H4.
+            eexists. eapply reach_cons; try eassumption.
+                     apply reach_nil. assumption.
+            left; trivial. 
+          destruct (zlt zz ((Int.unsigned i) + Z.of_nat (length (encode_val chunk v)))).
+          Focus 2.
+            rewrite Mem.setN_outside in H4.
+            eexists. eapply reach_cons; try eassumption.
+                     apply reach_nil. assumption.
+            right; trivial.
+          rewrite encode_val_length in *. rewrite <- size_chunk_conv in *.
+          cut (exists ofs, v = Vptr bb ofs).
+             intros [ofs V]. subst. rewrite VISv in HeqRb. discriminate.
+             rewrite getBlocks_char. exists ofs; left. trivial.             
+          clear VISv Hzz3 H2 HeqRb Rr RP m'.
+          rewrite size_chunk_conv in l.
+         remember ((Mem.mem_contents m) !! b) as M. clear HeqM.
+(*          destruct v; simpl in *; try (eexists; reflexivity).
+          (*Undef*)*)
+           assert (exists k, zz = Z.of_nat k + Int.unsigned i).
+             assert (exists zn, zz = zn + Int.unsigned i /\ 0<=zn).
+               exists (zz-Int.unsigned i). omega.
+             destruct H as [? [? ?]]. destruct (Z_of_nat_complete _ H0).
+             subst. exists x0; trivial.   
+           destruct H. subst.
+           apply (getsetVptr (Int.unsigned i) bb off n M v chunk x H4). 
+           omega.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
     remember (Roots b') as q.
@@ -1054,4 +1258,581 @@ Proof.
     destruct (decode_val_pointer_inv _ _ _ _ LD); clear LD; subst.
     simpl in *.
     inv H0. eassumption. 
+Qed.
+
+Axiom AllocContentsUndef2: forall m1 lo hi m2 b
+      (ALLOC:Mem.alloc m1 lo hi = (m2, b)),
+     (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Lemma AllocContentsUndef1: forall m1 lo hi m2 b
+      (ALLOC:Mem.alloc m1 lo hi = (m2, b)) z,
+     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
+
+(*The axiom can easily be proven in Memory.v, in section
+  ALLOC, but repeating the proof here doesn't work, evem if 
+  we do Opaque Mem.alloc. 
+Section ALLOC.
+
+Variable m1: mem.
+Variables lo hi: Z.
+Variable m2: mem.
+Variable b: Values.block.
+Hypothesis ALLOC: Mem.alloc m1 lo hi = (m2, b).
+
+Lemma AllocContentsUndef: (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Proof.
+   injection ALLOC. intros. simpl in H0. subst.
+   simpl. rewrite PMap.gss. reflexivity.
+Qed.
+End ALLOC.
+*)
+
+(*The following 2 lemmas are from Cminorgenproof.v*)
+Lemma nextblock_storev:
+  forall chunk m addr v m',
+  Mem.storev chunk m addr v = Some m' -> Mem.nextblock m' = Mem.nextblock m.
+Proof.
+  unfold Mem.storev; intros. destruct addr; try discriminate. 
+  eapply Mem.nextblock_store; eauto.
+Qed.
+Lemma nextblock_freelist:
+  forall fbl m m',
+  Mem.free_list m fbl = Some m' ->
+  Mem.nextblock m' = Mem.nextblock m.
+Proof.
+  induction fbl; intros until m'; simpl.
+  congruence.
+  destruct a as [[b lo] hi]. 
+  case_eq (Mem.free m b lo hi); intros; try congruence.
+  transitivity (Mem.nextblock m0). eauto. eapply Mem.nextblock_free; eauto.
+Qed.
+Lemma perm_freelist:
+  forall fbl m m' b ofs k p,
+  Mem.free_list m fbl = Some m' ->
+  Mem.perm m' b ofs k p ->
+  Mem.perm m b ofs k p.
+Proof.
+  induction fbl; simpl; intros until p.
+  congruence.
+  destruct a as [[b' lo] hi]. case_eq (Mem.free m b' lo hi); try congruence.
+  intros. eauto with mem.
+Qed.
+
+
+Lemma store_freshloc: forall ch m addr v m' 
+         (ST: Mem.storev ch m addr v = Some m'),
+         freshloc m m' = fun b => false.
+Proof. intros.
+  extensionality b.
+  apply nextblock_storev in ST.
+  (*specialize (storev_valid_block_2 _ _ _ _ _ ST b); intros.
+  specialize (storev_valid_block_1 _ _ _ _ _ ST b); intros.*)
+  apply freshloc_charF.
+  unfold Mem.valid_block. rewrite ST. xomega.
+Qed.
+
+Lemma freshloc_alloc: forall m1 lo hi m2 b 
+      (ALLOC: Mem.alloc m1 lo hi = (m2, b)),
+      freshloc m1 m2 = fun bb => eq_block bb b.
+Proof. intros.
+  unfold freshloc. extensionality bb.
+  destruct (eq_block bb b); subst; simpl.
+    specialize (Mem.valid_new_block _ _ _ _ _ ALLOC).
+    apply Mem.fresh_block_alloc in ALLOC.
+    intros.
+    destruct (valid_block_dec m2 b); try contradiction; simpl.
+    destruct (valid_block_dec m1 b); try contradiction; trivial.
+  destruct (valid_block_dec m2 bb); simpl; trivial.
+    destruct (Mem.valid_block_alloc_inv _ _ _ _ _ ALLOC _ v); try contradiction.
+    destruct (valid_block_dec m1 bb); try contradiction; trivial.
+Qed.
+
+Lemma freshloc_free: forall m sp i n m' 
+      (F: Mem.free m sp i n = Some m'),
+      freshloc m m' = fun b => false.
+Proof. intros.
+  unfold freshloc. extensionality b.
+  remember (valid_block_dec m' b) as d'.
+  destruct d'; simpl; trivial; clear Heqd'.
+    apply (Mem.valid_block_free_2 _ _ _ _ _ F ) in v.
+    remember (valid_block_dec m b) as d.
+    destruct d; trivial. congruence.
+Qed.
+
+Lemma freshloc_free_list: forall m n m' 
+      (F: Mem.free_list m n = Some m'),
+      freshloc m m' = fun b => false.
+Proof. intros.
+  unfold freshloc. apply nextblock_freelist in F.
+  extensionality b.
+  remember (valid_block_dec m' b) as d'.
+  destruct d'; simpl; trivial; clear Heqd'.
+    remember (valid_block_dec m b) as d.
+    destruct d; trivial. unfold Mem.valid_block in *.
+    rewrite F in v. congruence.
+Qed.
+
+(*new lemma*)
+Lemma free_parallel_inject:
+  forall j (m1 m2 : mem) (b : block) (lo hi : Z) (m1' : mem) ,
+  Mem.inject j m1 m2 ->
+  Mem.free m1 b lo hi = Some m1' -> 
+  forall b2 d (J: j b = Some(b2,d)),
+    exists m2' : mem, Mem.free m2 b2 (lo+d) (hi+d) = Some m2' /\ 
+                Mem.inject j m1' m2'.
+Proof. intros.
+  destruct (Mem.range_perm_free m2 b2 (lo+d) (hi+d)) as [m2' Hm2'].
+    intros. intros off; intros. 
+    specialize (Mem.perm_inject _ _ _ _ _ _ (off-d) Cur Freeable J H). intros.
+    assert (off - d + d = off) by omega. rewrite H3 in H2.
+    apply H2. clear H2 H3.
+    eapply (Mem.free_range_perm _ _ _ _ _ H0). omega.
+  exists m2'; split; trivial.
+  eapply (Mem.free_inject _ _ ((b,lo,hi)::nil)); try eassumption.
+    simpl. rewrite H0. trivial.
+  intros.
+  destruct (eq_block b1 b); subst.
+    rewrite H1 in J; inv J. exists lo, hi; split. left; trivial. omega.
+  assert (P: Mem.perm m1 b (ofs + delta - d) Max Nonempty).
+    eapply Mem.perm_implies. 
+      eapply Mem.perm_max.
+      apply (Mem.free_range_perm _ _ _ _ _ H0). omega.
+    constructor.
+  assert (P1: Mem.perm m1 b1 ofs Max Nonempty).
+    eapply Mem.perm_implies. 
+      eapply Mem.perm_max. eassumption. eapply perm_any_N.
+  exfalso.
+  destruct (Mem.mi_no_overlap _ _ _ H b1 _ _ _ _ _ _ _ n H1 J P1 P)
+    as [X | X]; apply X; trivial. omega.
+Qed.
+
+Lemma REACH_closed_free: forall m1 b lo hi m2 
+       (F: Mem.free m1 b lo hi = Some m2) X
+       (RC: REACH_closed m1 X),
+      REACH_closed m2 X.
+Proof. intros.
+      red; intros. apply RC; clear RC. 
+          rewrite REACHAX in H. destruct H as [L HL].
+          generalize dependent b0.
+          induction L; simpl; intros; inv HL.
+            apply REACH_nil. assumption.
+          specialize (IHL _ H1); clear H1.
+            eapply REACH_cons; try eassumption.
+            eapply Mem.perm_free_3; eassumption. 
+            rewrite (Mem.free_result _ _ _ _ _ F) in H4.
+            apply H4.
+Qed.
+
+Definition alloc_right_sm (mu: SM_Injection) sp: SM_Injection :=
+  Build_SM_Injection (locBlocksSrc mu)
+                     (fun b => eq_block b sp || locBlocksTgt mu b) 
+                     (pubBlocksSrc mu) (pubBlocksTgt mu)
+                     (local_of mu)
+                     (extBlocksSrc mu) (extBlocksTgt mu)
+                     (frgnBlocksSrc mu) (frgnBlocksTgt mu) (extern_of mu).
+
+Lemma alloc_right_sm_wd: forall mu sp (WD: SM_wd mu)
+      (NEW1: DomTgt mu sp = false),
+      SM_wd (alloc_right_sm mu sp).
+Proof. intros. 
+econstructor; simpl in *; try solve [eapply WD].
+  intros. unfold DomTgt in NEW1.
+    apply orb_false_iff in NEW1.
+    destruct NEW1.
+    remember (eq_block b sp) as d.
+    destruct d; simpl in *; apply eq_sym in Heqd.
+      subst. right. assumption.
+      eapply WD.
+  intros.
+    destruct (local_DomRng _ WD _ _ _ H). intuition.
+  intros.
+    destruct (pubSrc _ WD _ H) as [bb [dd [PB PT]]].
+    rewrite H in *.
+    exists bb, dd. rewrite (pub_in_local _ _ _ _ PB).
+    split; trivial.
+  intros. rewrite H. destruct (frgnSrc _ WD _ H) as [bb [dd [FRG FT]]].
+       rewrite (foreign_in_extern _ _ _ _ FRG). exists bb, dd; split; trivial. 
+  intros. rewrite (pubBlocksLocalTgt _ WD _ H). intuition. 
+Qed.
+
+Lemma alloc_right_sm_locBlocksTgt: forall mu sp,
+  locBlocksTgt (alloc_right_sm mu sp) = fun b => eq_block b sp || locBlocksTgt mu b.
+Proof. intros. reflexivity. Qed.
+
+Lemma alloc_right_sm_DomSrc: forall mu sp,
+      DomSrc (alloc_right_sm mu sp) = DomSrc mu.
+Proof. intros. extensionality b. 
+  unfold DomSrc, alloc_right_sm; simpl. trivial.
+Qed. 
+
+Lemma alloc_right_sm_DomTgt: forall mu sp,
+      DomTgt (alloc_right_sm mu sp) = fun b => eq_block b sp || DomTgt mu b.
+Proof. intros. extensionality b. 
+  unfold DomTgt, alloc_right_sm; simpl.
+  rewrite <- orb_assoc. trivial.
+Qed.
+
+Lemma alloc_right_sm_as_inj: forall mu sp,
+      as_inj (alloc_right_sm mu sp) = as_inj mu.
+Proof. intros. unfold alloc_right_sm, as_inj; reflexivity. Qed.
+
+Lemma alloc_right_sm_intern_incr: forall mu sp,
+      intern_incr mu (alloc_right_sm mu sp).
+Proof. intros. red; intros. simpl. intuition. Qed. 
+
+
+Definition alloc_left_sm (mu: SM_Injection) b1 b2 delta: SM_Injection :=
+  Build_SM_Injection (fun b => eq_block b b1 || locBlocksSrc mu b)
+                     (locBlocksTgt mu) (*b2 is already in locBlocksTgt!*)
+                     (pubBlocksSrc mu) (pubBlocksTgt mu)
+                     (fun b => if eq_block b b1 then Some(b2, delta) 
+                               else local_of mu b)
+                     (extBlocksSrc mu) (extBlocksTgt mu)
+                     (frgnBlocksSrc mu) (frgnBlocksTgt mu) (extern_of mu).
+
+Lemma alloc_left_sm_wd: forall mu b1 b2 delta (WD: SM_wd mu)
+      (NEW1: DomSrc mu b1 = false) (NEW2: locBlocksTgt mu b2 = true),
+      SM_wd (alloc_left_sm mu b1 b2 delta).
+Proof. intros. 
+econstructor; simpl in *; try solve [eapply WD].
+  intros. apply orb_false_iff in NEW1.
+    remember (eq_block b b1) as d.
+    destruct d; simpl in *; apply eq_sym in Heqd.
+      subst. right. apply NEW1.
+      apply WD.
+  intros. 
+    remember (eq_block b0 b1) as d.
+      destruct d; simpl in *; apply eq_sym in Heqd. inv H. split; trivial.
+    apply (local_DomRng _ WD _ _ _ H). 
+  intros.
+    destruct (pubSrc _ WD _ H) as [bb [dd [PB PT]]].
+    rewrite H in *.
+    exists bb, dd.
+    remember (eq_block b0 b1) as d.
+      destruct d; simpl in *; apply eq_sym in Heqd.
+        subst. unfold DomSrc in NEW1.
+        rewrite (pubBlocksLocalSrc _ WD _ H) in NEW1. simpl in *. discriminate.
+      rewrite (pub_in_local _ _ _ _ PB).
+      split; trivial.
+  intros. rewrite H. destruct (frgnSrc _ WD _ H) as [bb [dd [FRG FT]]].
+       rewrite (foreign_in_extern _ _ _ _ FRG). exists bb, dd; split; trivial. 
+  (*intros. rewrite (pubBlocksLocalTgt _ WD _ H). intuition. *)
+Qed.
+
+Lemma alloc_left_sm_as_inj_same: forall mu b1 b2 delta (WD: SM_wd mu)
+      (NEW1: DomSrc mu b1 = false),
+      as_inj (alloc_left_sm mu b1 b2 delta) b1 = Some(b2,delta). 
+Proof. intros.
+  unfold as_inj, join; simpl.
+  remember (extern_of mu b1) as d.
+  destruct d; apply eq_sym in Heqd; simpl. destruct p.
+    destruct (extern_DomRng' _ WD _ _ _ Heqd). rewrite NEW1 in H0. intuition.
+  destruct (eq_block b1 b1); subst; trivial.
+    elim n. trivial.
+Qed.
+
+Lemma alloc_left_sm_as_inj_other: forall mu b1 b2 delta b (H: b<>b1),
+      as_inj (alloc_left_sm mu b1 b2 delta) b = as_inj mu b.
+Proof. intros.
+  unfold as_inj, join; simpl.
+  destruct (eq_block b b1); subst; trivial. elim H. trivial.
+Qed.
+
+Lemma alloc_left_sm_intern_incr: 
+      forall mu b1 b2 delta (H: as_inj mu b1 = None) (WD: SM_wd mu),
+      intern_incr mu (alloc_left_sm mu b1 b2 delta).
+Proof. intros.
+  specialize (local_in_all _ WD); intros.
+  red; intros. destruct mu; simpl in *.
+  intuition.
+  red; intros.
+  destruct (eq_block b b1); subst.
+     rewrite (H0 _ _ _ H1) in H. inv H.
+  assumption.
+Qed.
+
+Lemma alloc_left_sm_inject_incr: 
+      forall mu b1 b2 delta (H: as_inj mu b1 = None),
+      inject_incr (as_inj mu) (as_inj (alloc_left_sm mu b1 b2 delta)).
+Proof. intros.
+  red; intros.
+  destruct (eq_block b b1); subst. congruence.
+  rewrite alloc_left_sm_as_inj_other; trivial.
+Qed.
+
+Lemma alloc_DomSrc: forall mu m1 m2 (SMV: sm_valid mu m1 m2) lo hi m1' b1
+      (ALLOC: Mem.alloc m1 lo hi = (m1', b1)),
+      DomSrc mu b1 = false.
+Proof. intros.
+  remember (DomSrc mu b1) as d.
+  destruct d; trivial; apply eq_sym in Heqd.
+  apply Mem.fresh_block_alloc in ALLOC.
+  elim ALLOC. apply SMV. apply Heqd.
+Qed.
+
+Lemma alloc_left_sm_DomSrc: forall mu b1 b2 delta,
+      DomSrc (alloc_left_sm mu b1 b2 delta) = fun b => eq_block b b1 || DomSrc mu b.
+Proof. intros. extensionality b. 
+  unfold DomSrc, alloc_left_sm; simpl.
+  rewrite <- orb_assoc. trivial.
+Qed.
+
+Lemma alloc_left_sm_DomTgt: forall mu b1 b2 delta,
+      DomTgt (alloc_left_sm mu b1 b2 delta) = DomTgt mu.
+Proof. intros. reflexivity. Qed.
+
+Lemma REACH_closed_alloc_left_sm: forall m lo hi sp m'
+          (ALLOC : Mem.alloc m lo hi = (m', sp))
+          mu (RC: REACH_closed m (vis mu)) b' delta,
+      REACH_closed m' (vis (alloc_left_sm mu sp b' delta)).
+Proof.
+  red; intros.
+  unfold vis. simpl.
+  destruct (eq_block b sp); try subst b. trivial.
+  simpl.
+  apply RC. rewrite REACHAX in H. 
+  destruct H as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL.
+    apply REACH_nil.
+      unfold vis in H. simpl in H.
+      destruct (eq_block b sp); try subst b. elim n; trivial.
+      apply H.
+    destruct (eq_block b'0 sp); try subst b'0.
+      clear - ALLOC H2 H4 n. 
+      rewrite (AllocContentsUndef1 _ _ _ _ _ ALLOC) in H4. inv H4. 
+    specialize (IHL _ H1 n1); clear H1.
+      apply (Mem.perm_alloc_4 _ _ _ _ _ ALLOC) in H2; trivial. 
+      destruct (Mem.alloc_unchanged_on (fun bb zz => True)
+         _ _ _ _ _ ALLOC) as [UP UC].
+      rewrite UC in H4; trivial. 
+        eapply REACH_cons; eassumption. 
+Qed.
+
+Theorem alloc_left_mapped_sm_inject:
+  forall mu m1 m2 lo hi m1' b1 b2 delta (WD: SM_wd mu)
+        (SMV: sm_valid mu m1 m2) (RC: REACH_closed m1 (vis mu))
+        (Locb2: locBlocksTgt mu b2 = true),
+  Mem.inject (as_inj mu) m1 m2 ->
+  Mem.alloc m1 lo hi = (m1', b1) ->
+  Mem.valid_block m2 b2 ->
+  0 <= delta <= Int.max_unsigned ->
+  (forall ofs k p, Mem.perm m2 b2 ofs k p -> delta = 0 \/ 0 <= ofs < Int.max_unsigned) ->
+  (forall ofs k p, lo <= ofs < hi -> Mem.perm m2 b2 (ofs + delta) k p) ->
+  Mem.inj_offset_aligned delta (hi-lo) ->
+  (forall b delta' ofs k p,
+   as_inj mu b = Some (b2, delta') -> 
+   Mem.perm m1 b ofs k p ->
+   lo + delta <= ofs + delta' < hi + delta -> False) ->
+  exists mu',
+     Mem.inject (as_inj mu') m1' m2
+  /\ intern_incr mu mu'
+  /\ as_inj mu' b1 = Some(b2, delta)
+  /\ (forall b, b <> b1 -> as_inj mu' b = as_inj mu b)
+  /\ SM_wd mu' /\ sm_valid mu' m1' m2
+  /\ sm_locally_allocated mu mu' m1 m2 m1' m2 
+  /\ REACH_closed m1' (vis mu').
+Proof.
+  intros. inversion H.
+  assert (AIb: as_inj mu b1 = None). eauto with mem.
+  assert (DS:= alloc_DomSrc _ _ _ SMV _ _ _ _ H0).
+  set (mu' := alloc_left_sm mu b1 b2 delta).
+  assert (intern_incr mu mu').
+    red; unfold mu'; intros. simpl.
+    intuition.
+    red; intros. destruct (eq_block b b1). subst b.
+       apply (local_in_all _ WD) in H2. congruence.
+    auto.
+  assert (Mem.mem_inj (as_inj mu') m1 m2).
+    inversion mi_inj; constructor; eauto with mem.
+    unfold mu'; intros. destruct (eq_block b0 b1).
+      subst b0.
+      elim (Mem.fresh_block_alloc _ _ _ _ _ H0). eauto with mem.
+    rewrite alloc_left_sm_as_inj_other in H8; trivial.
+      eauto.
+    unfold mu'; simpl. intros. destruct (eq_block b0 b1).
+      subst b0.
+      elim (Mem.fresh_block_alloc _ _ _ _ _ H0).
+      eapply Mem.perm_valid_block with (ofs := ofs). apply H9. generalize (size_chunk_pos chunk); omega.
+    rewrite alloc_left_sm_as_inj_other in H8; trivial.
+      eauto.
+    unfold mu'; simpl; intros. destruct (eq_block b0 b1).
+      subst b0.
+      elim (Mem.fresh_block_alloc _ _ _ _ _ H0). eauto with mem.
+    rewrite alloc_left_sm_as_inj_other in H8; trivial.
+      apply memval_inject_incr with (as_inj mu); auto.
+      apply alloc_left_sm_inject_incr; assumption. 
+  exists mu'. split. constructor.
+(* inj *)
+  eapply Mem.alloc_left_mapped_inj; eauto. 
+  unfold mu'; simpl. rewrite alloc_left_sm_as_inj_same; trivial.
+(* freeblocks *)
+  unfold mu'; simpl; intros. destruct (eq_block b b1). subst b. 
+  elim H9. eauto with mem.
+  rewrite alloc_left_sm_as_inj_other; trivial.
+  eauto with mem.
+(* mappedblocks *)
+  unfold mu'; simpl; intros.
+  destruct (eq_block b b1). 
+    subst. rewrite alloc_left_sm_as_inj_same in H9; trivial.
+     congruence. eauto.
+  rewrite alloc_left_sm_as_inj_other in H9; trivial.
+    eauto.
+(* overlap *)
+  unfold mu'; red; intros.
+  exploit Mem.perm_alloc_inv. eauto. eexact H12. intros P1.
+  exploit Mem.perm_alloc_inv. eauto. eexact H13. intros P2.
+  destruct (eq_block b0 b1); try subst b0; destruct (eq_block b3 b1); try subst b3. 
+    elim H9; trivial.
+    rewrite alloc_left_sm_as_inj_same in H10; trivial.
+    inversion H10. subst b1' delta1.
+    rewrite alloc_left_sm_as_inj_other in H11; trivial. 
+    destruct (eq_block b2 b2'); auto. subst b2'. right; red; intros.
+    eapply H6; eauto. omega.
+  
+  rewrite alloc_left_sm_as_inj_same in H11; trivial. 
+    rewrite alloc_left_sm_as_inj_other in H10; trivial.
+    inversion H11. subst b2' delta2.
+    destruct (eq_block b1' b2); auto. subst b1'. right; red; intros.
+    eapply H6; eauto. omega.
+  rewrite alloc_left_sm_as_inj_other in H10; trivial.
+  rewrite alloc_left_sm_as_inj_other in H11; trivial.
+  eauto.
+(* representable *)
+  unfold mu'; intros.
+  destruct (eq_block b b1).
+   subst. 
+    rewrite alloc_left_sm_as_inj_same in H9; trivial.
+    injection H9; intros; subst b' delta0. clear H9; destruct H10.
+    exploit Mem.perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
+    exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
+    generalize (Int.unsigned_range_2 ofs). omega.
+   exploit Mem.perm_alloc_inv; eauto; rewrite dec_eq_true; intro.
+   exploit H3. apply H4 with (k := Max) (p := Nonempty); eauto.
+   generalize (Int.unsigned_range_2 ofs). omega.
+  rewrite alloc_left_sm_as_inj_other in H9; trivial.
+  eapply mi_representable; try eassumption.
+  destruct H10; eauto using Mem.perm_alloc_4.
+(* incr *)
+  split. auto.
+(* image of b1 *)
+  split. unfold mu'; simpl.
+    rewrite alloc_left_sm_as_inj_same; trivial.
+(* image of others *)
+  split. intros. unfold mu'; simpl.
+  rewrite alloc_left_sm_as_inj_other; trivial.
+(* SM_wd*)
+  split. unfold mu'. eapply alloc_left_sm_wd; try eassumption.
+ (* sm_valid*)
+  split. red.
+  split; intros. unfold mu' in H9; simpl in H9.
+    unfold DOM, DomSrc in H9; simpl in H9.
+    destruct (eq_block b0 b1); try subst b0.
+      apply (Mem.valid_new_block _ _ _ _ _ H0).
+    simpl in H9.
+    apply (Mem.valid_block_alloc _ _ _ _ _ H0).
+    apply SMV. apply H9.
+  unfold mu' in H9; simpl in H9. unfold RNG, DomTgt in H9; simpl in H9.
+    destruct (eq_block b0 b2); try subst b0.
+      assumption.
+    simpl in H9.
+    apply SMV. apply H9.
+(*sm_locally_allocated*)
+  split. apply sm_locally_allocatedChar. unfold mu'; simpl.
+  repeat split; extensionality bb; 
+   try rewrite (freshloc_irrefl m2); 
+   try rewrite (freshloc_alloc _ _ _ _ _ H0); simpl. 
+  unfold DomSrc; simpl. rewrite <- orb_assoc. rewrite orb_comm. trivial.
+  unfold DomTgt; simpl. destruct (eq_block bb b2); try subst bb; simpl.
+    rewrite Locb2. trivial.
+    intuition.
+  intuition.
+  destruct (eq_block bb b2); try subst bb; simpl.
+    rewrite Locb2. trivial.
+  intuition.
+(* REACH_closed*)
+  clear - RC H0.
+  eapply REACH_closed_alloc_left_sm; eassumption.
+Qed.
+
+Lemma genv_find_add_globals_fresh: forall {F V} defs (g:Genv.t F V) i
+  (G: ~ In i (map fst defs)), 
+  Genv.find_symbol (Genv.add_globals g defs) i =  Genv.find_symbol g i.
+Proof. intros F V defs.
+  induction defs; simpl; intros. trivial.
+  destruct a.
+  rewrite IHdefs. 
+    unfold Genv.find_symbol, Genv.genv_symb. simpl. rewrite PTree.gso. reflexivity.
+    intros N. apply G; left. subst; simpl; trivial.
+  intros N. apply G; right; trivial.
+Qed.
+
+Lemma add_globals_find_symbol: forall {F V} (defs : list (ident * globdef F V)) 
+    (R: list_norepet (map fst defs)) (g: Genv.t F V) m0 m 
+    (G: Genv.alloc_globals (Genv.add_globals g defs) m0 defs = Some m)
+    (N: Genv.genv_next g = Mem.nextblock m0)
+    b (VB: Mem.valid_block m b),
+    Mem.valid_block m0 b \/ 
+    exists id, Genv.find_symbol (Genv.add_globals g defs) id = Some b.
+Proof. intros F V defs.
+induction defs; simpl; intros.
+  inv G. left; trivial.
+remember (Genv.alloc_global (Genv.add_globals (Genv.add_global g a) defs) m0 a) as d.
+  destruct d; inv G. apply eq_sym in Heqd.
+  inv R.
+  specialize (IHdefs H3 _ _ _ H0). simpl in *.
+  rewrite N in *.
+  assert (P: Pos.succ (Mem.nextblock m0) = Mem.nextblock m1).
+    clear IHdefs N VB H0.
+    rewrite (@Genv.alloc_global_nextblock _ _ _ _ _ _ Heqd). trivial.
+  destruct (IHdefs P _ VB); try (right; assumption).
+  clear IHdefs P VB H0.
+  destruct a. destruct g0. simpl in Heqd.
+   remember (Mem.alloc m0 0 1) as t.
+   destruct t; inv Heqd. apply eq_sym in Heqt.
+   apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H1) in H. clear H1.
+   apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqt) in H. 
+   destruct H; subst; try (left; assumption).
+     right. apply Mem.alloc_result in Heqt. subst.
+     exists i. rewrite genv_find_add_globals_fresh; trivial.
+     unfold Genv.find_symbol, Genv.genv_symb. simpl.
+     rewrite PTree.gss. rewrite N. trivial. 
+simpl in *. 
+  remember (Mem.alloc m0 0 (Genv.init_data_list_size (gvar_init v))) as t.
+  destruct t; inv Heqd. apply eq_sym in Heqt.
+  remember (store_zeros m2 b0 0 (Genv.init_data_list_size (gvar_init v))) as q.
+  destruct q; inv H1. apply eq_sym in Heqq.
+  remember (Genv.store_init_data_list
+         (Genv.add_globals (Genv.add_global g (i, Gvar v)) defs) m3 b0 0
+         (gvar_init v)) as w.
+  destruct w; inv H4. apply eq_sym in Heqw.
+  apply (Mem.drop_perm_valid_block_2 _ _ _ _ _ _ H1) in H. clear H1.
+  assert (VB3: Mem.valid_block m3 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_init_data_list_nextblock _ _ _ _ _ _ _ _ Heqw).
+    apply H.
+  clear H Heqw.
+  assert (VB2: Mem.valid_block m2 b). unfold Mem.valid_block.
+    rewrite <- (@Genv.store_zeros_nextblock _ _ _ _ _ Heqq).
+    apply VB3.
+  clear VB3 Heqq.
+  apply (Mem.valid_block_alloc_inv _ _ _ _ _ Heqt) in VB2. 
+   destruct VB2; subst; try (left; assumption).
+     right. apply Mem.alloc_result in Heqt. subst.
+     exists i. rewrite genv_find_add_globals_fresh; trivial.
+     unfold Genv.find_symbol, Genv.genv_symb. simpl.
+     rewrite PTree.gss. rewrite N. trivial. 
+Qed.
+
+Lemma valid_init_is_global :
+  forall {F V} (prog:AST.program F V)
+         (R: list_norepet (map fst (prog_defs prog)))
+  m (G: Genv.init_mem prog = Some m)  
+  b (VB: Mem.valid_block m b), 
+  exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b.
+Proof. intros.
+  unfold Genv.init_mem, Genv.globalenv in G. simpl in *.
+  destruct (add_globals_find_symbol _ R (@Genv.empty_genv _ _ ) _ _ G (eq_refl _) _ VB)
+    as [VBEmpty | X]; trivial.
+  exfalso. clear - VBEmpty. unfold Mem.valid_block in VBEmpty.
+    rewrite Mem.nextblock_empty in VBEmpty. xomega.
 Qed.

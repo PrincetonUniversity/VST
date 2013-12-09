@@ -1,0 +1,32 @@
+The following files in this directory come from the CompCert 
+distribution http://compcert.inria.fr and are covered by the 
+non-commercial license given in ../compcert/LICENSE. 
+This is not an open-souce license.
+
+Ordered.v
+Switch.v
+
+Csharpminor.v
+Cminor.v 
+Cminorgen.v
+Cminorgenproof.v
+
+CminorSel.v
+Selection.v
+SelectDiv.v
+SelectDivproof.v
+SelectLong.v
+SelectLongproof.v
+SelectOp.v (IA32)
+SelectOpproof.v
+
+Op.v
+Registers.v
+RTL.v
+
+Please refer to the following files for further details about the license.
+
+../LICENSE
+../README
+../compcert/LICENSE
+../compcert/README

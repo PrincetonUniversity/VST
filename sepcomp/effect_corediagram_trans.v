@@ -20,6 +20,9 @@ Require Import sepcomp.forward_simulations_trans.
 Require Import Wellfounded.
 Require Import Relations.
 
+Definition Munch m m' (b:block) (ofs:Z) :=
+  Mem.unchanged_on (fun (b' : block) (ofs' : Z) => b' = b /\ ofs' = ofs) m m'.
+
 Section CoreDiagrams_trans.
 Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
         (Sem1 : @EffectSem (Genv.t F1 V1) C1)
@@ -141,7 +144,7 @@ Proof.
   clear Y. destruct ZZ as [CS2 | [CS2 ord12']].
  (*case1*) 
   destruct CS2.
-  clear CS1.
+  clear CS1. 
   cut (exists st3' : C3,  exists m3' : mem, 
     exists d23':core_data23, exists mu23',
       (locBlocksTgt mu12' = locBlocksSrc mu23' /\
@@ -198,6 +201,7 @@ Proof.
          simpl in *. destruct LocAlloc12 as [? [? [? ?]]]. subst.
          simpl in *. destruct LocAlloc23 as [? [? [? ?]]]. subst.
          simpl in *. apply ZZ. 
+    
   (*proof of the cut*)
   assert (locLocAlloc12': locBlocksTgt mu12' =
                          fun b => orb (locBlocksTgt mu12 b) (freshloc m2 m2' b)).
@@ -217,9 +221,9 @@ Proof.
   rewrite H0 in *. clear H0.
   rewrite H1 in *. clear H1.
   subst.
-  clear st1 m1 st1' m1' SMVal12'.
   rewrite pubAlloc12' in *; clear pubAlloc12'.
   rewrite frgnAlloc12' in *; clear frgnAlloc12'.
+  clear st1 m1 st1' m1' SMVal12'.
   clear mu12.
   remember (pubBlocksTgt mu12') as pubTgt12'.
   remember (frgnBlocksTgt mu12') as frgnTgt12'.
@@ -253,8 +257,8 @@ Proof.
     split; trivial.
     split; trivial.
     destruct H1. left; assumption.
-    destruct H1. right. split; trivial.
-    apply t_step. constructor 2. apply H2.
+           destruct H1. right. split; trivial.
+           apply t_step. constructor 2. apply H2.
    (*inductive case*)
     remember (S x) as x'. simpl in H.
     destruct H as [st2'' [m2'' [? ?]]]. subst x'.

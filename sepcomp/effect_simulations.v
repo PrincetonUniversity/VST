@@ -1551,40 +1551,10 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
           meminj_preserves_globals ge1 (extern_of mu) /\
           (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true); 
 
-    (*match-state is closed wrt all normalization wrt potential downstream 
-      structured injections. This is our current way of saying that the core 
-      doesn't care about blocks in "unknown" region*)
-    (*match_norm: forall d mu c1 m1 c2 m2, 
-          match_state d mu c1 m1 c2 m2 -> 
-          (mapped_closed m1 mu /\
-          (forall mu23, (SM_wd mu23 /\ 
-                        locBlocksTgt mu = locBlocksSrc mu23 /\
-                        extBlocksTgt mu = extBlocksSrc mu23 /\
-                       (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
-                       (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
-                       mapped_closed m2 mu23 ->
-           match_state d (sm_extern_normalize mu mu23) c1 m1 c2 m2));
-*)
-   (*an alternative to match_norm might be this, but it does not 
-     seem to be transitive:
-    match_TrimUnknown: forall d mu c1 m1 c2 m2, 
-          match_state d mu c1 m1 c2 m2 ->
-          match_state d (TrimUnknown mu) c1 m1 c2 m2;*)
-
-   (*another alternative to match_norm might be this, but it does not seem
-     to work in the transitivity proof of afterExternal:
-    match_EraseUnknown: forall d mu c1 m1 c2 m2, 
-          match_state d mu c1 m1 c2 m2 ->
-          match_state d (TrimUnknown mu) c1 m1 c2 m2;*)
     match_visible: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu);
-(*
-    match_erase: forall d mu c1 m1 c2 m2 X, 
-          match_state d mu c1 m1 c2 m2 -> 
-          erasable mu m1 X ->
-          match_state d (Erase mu X) c1 m1 c2 m2;
-*)
+
     match_restrict: forall d mu c1 m1 c2 m2 X, 
           match_state d mu c1 m1 c2 m2 -> 
           (forall b, vis mu b = true -> X b = true) ->
@@ -1648,7 +1618,25 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            core_ord cd' cd);
+            core_ord cd' cd)
+
+        (*One would suspect that we could add the following confinement guarantees
+          to this rule:
+          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
+                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
+          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
+              forall b2 d, foreign_of mu b = Some(b2,d) -> 
+                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'
+         Indeed, as RGTgt_multicoreNOEFFECTS at the end of this file shows, these
+         guarantees suffice for establishing the afterEtxernal-rely (under the mild
+         axiom DECIBILITYAXIOM). However, these guarantees cannot be pushed through
+         the transitivity proof (inductive step of "case1"), since Mem_unchanged_on does not decompose, ie for
+            step m m' /\ step m' m'' /\ UnchOn P m m'' does not imply
+           UnchOn P m m' /\ UnchOn P m' m''. But such decomposition would be needed
+           to apply the induction hypotheses of core_diagram in file effect_corediagram_trans.v
+          The advantage of/reason for using effects is to have such decomposition, as
+            step m m' /\ step m' m'' /\ Estep E m m'' does imply 
+            Estep E m m' /\ Estep E m' m''.*);
 
     effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -1840,11 +1828,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
          (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
-(*         (CONF :forall b, sharedSrc nu' b -> Mem.valid_block m1 b -> sharedSrc nu b = true)
-
-         (CONF :forall b, REACH m1' (exportedSrc nu' (ret1 :: nil)) b = true ->
-                          Mem.valid_block m1 b -> sharedSrc nu b = true)
-*)
         exists cd', exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
@@ -2152,7 +2135,7 @@ Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             nu
          (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
          (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
-                              locBlocksTgt nu b1 || locBlocksTgt nu b2 = true ->
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
                               pub_of nu b1 = Some(b2,d)),
             Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
 Proof. intros.
@@ -2187,7 +2170,7 @@ Lemma RGTgt_multicorePerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             nu
          (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
          (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
-                              locBlocksTgt nu b1 || locBlocksTgt nu b2 = true ->
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
                               pub_of nu b1 = Some(b2,d)),
             Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
 Proof. intros.
@@ -2209,4 +2192,88 @@ Proof. intros.
     apply pub_in_local. apply X2.
     contradiction.
   rewrite (pubSrcContra _ _ H2) in X2. inv X2. 
+Qed.
+
+Lemma Fwd_unch: forall m m' (FWD: mem_forward m m')
+           b ofs (P: ~ Mem.perm m b ofs Max Nonempty),
+     Mem.unchanged_on (fun b' ofs' => b' = b /\ ofs' = ofs) m m'.
+Proof. intros.
+split; intros. 
+  destruct H; subst. 
+  split; intros; elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
+      eapply FWD. assumption. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+destruct H; subst. 
+  elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+Qed.
+
+Lemma unchanged_on_union:
+      forall m m' P Q (HP: Mem.unchanged_on P m m') (HQ: Mem.unchanged_on Q m m')
+             (PQ: block -> Z -> Prop) (HPQ: forall b ofs, PQ b ofs -> P b ofs \/ Q b ofs),
+      Mem.unchanged_on PQ m m'.
+Proof. intros.
+  split; intros.
+    destruct (HPQ _ _ H).
+      eapply HP; eassumption.
+      eapply HQ; eassumption.
+    destruct (HPQ _ _ H).
+      eapply HP; eassumption.
+      eapply HQ; eassumption.
+Qed.
+
+Lemma RGTgt_multicoreNOEFFECTS: forall mu m2 m2' (WD: SM_wd mu)
+            (TgtHyp1: Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
+                                           ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2')
+            m1 m1' 
+            (TgtHyp2: forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
+                      forall b2 d, foreign_of mu b = Some(b2,d) -> 
+                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2')
+            nu (WDnu: SM_wd nu)
+           (FWD1: mem_forward m1 m1')
+           (X1: forall b, locBlocksTgt nu b = true ->
+                        DomTgt mu b = true /\ locBlocksTgt mu b = false)
+           (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
+                              pub_of nu b1 = Some(b2,d))
+            (Unch1: Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
+                                           pubBlocksSrc nu b = false) m1 m1')
+           (DECIDABILITYAXIOM: forall b2 (E: extBlocksTgt mu b2 = true),
+                (exists b1 d, foreign_of mu b1 = Some(b2,d)) \/
+                (~ exists b1 d, foreign_of mu b1=Some (b2,d))),
+            Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
+Proof. intros. 
+split; intros b2; intros.
+(*permissions*)
+  destruct H.
+  destruct (X1 _ H); clear X1.
+  assert (extBlocksTgt mu b2 = true).
+    unfold DomTgt in H2. rewrite H3 in H2; simpl in H2. assumption.
+  destruct (DECIDABILITYAXIOM _ H4); clear DECIDABILITYAXIOM.
+    destruct H5 as [b1 [dd FRGN]].
+    specialize (X2 _ _ _ FRGN). rewrite H in X2.
+    assert (local_of nu b1 = Some(b2,dd)). apply pub_in_local. apply X2; intuition. 
+    eapply TgtHyp2; clear TgtHyp2; try eassumption.
+    Focus 2. split. trivial. instantiate (1:=ofs-dd). omega.
+    destruct (H1 _ _ H5); clear H1.
+      eapply Fwd_unch; assumption.      
+    eapply mem_unchanged_on_sub; try eassumption.
+      intros. destruct H1; subst. split; trivial.
+      eapply (local_DomRng _ WDnu _ _ _ H5).
+  eapply TgtHyp1. split; trivial. assumption.
+(*Values - same proof*)
+  destruct H.
+  destruct (X1 _ H); clear X1.
+  assert (extBlocksTgt mu b2 = true).
+    unfold DomTgt in H2. rewrite H3 in H2; simpl in H2. assumption.
+  destruct (DECIDABILITYAXIOM _ H4); clear DECIDABILITYAXIOM.
+    destruct H5 as [b1 [dd FRGN]].
+    specialize (X2 _ _ _ FRGN). rewrite H in X2.
+    assert (local_of nu b1 = Some(b2,dd)). apply pub_in_local. apply X2; intuition. 
+    eapply TgtHyp2; clear TgtHyp2; try eassumption.
+    Focus 2. split. trivial. instantiate (1:=ofs-dd). omega.
+    destruct (H1 _ _ H5); clear H1.
+      eapply Fwd_unch; assumption.      
+    eapply mem_unchanged_on_sub; try eassumption.
+      intros. destruct H1; subst. split; trivial.
+      eapply (local_DomRng _ WDnu _ _ _ H5).
+  eapply TgtHyp1. split; trivial. assumption.
 Qed.

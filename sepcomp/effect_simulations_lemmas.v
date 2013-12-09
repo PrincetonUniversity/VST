@@ -33,27 +33,10 @@ Section Eff_INJ_SIMU_DIAGRAMS.
    Hypothesis match_sm_wd: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           SM_wd mu.
-(*
-   Hypothesis match_norm: forall d mu c1 m1 c2 m2, 
-          match_states d mu c1 m1 c2 m2 ->
-          (mapped_closed m1 mu /\
-          (forall mu23, (SM_wd mu23 /\ 
-                        locBlocksTgt mu = locBlocksSrc mu23 /\
-                        extBlocksTgt mu = extBlocksSrc mu23 /\
-                       (forall b, pubBlocksTgt mu b = true -> pubBlocksSrc mu23 b = true) /\
-                       (forall b, frgnBlocksTgt mu b = true -> frgnBlocksSrc mu23 b = true)) ->
-                       mapped_closed m2 mu23 ->
-           match_states d (sm_extern_normalize mu mu23) c1 m1 c2 m2)).
-*)
+
     Hypothesis match_visible: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu).
-(*
-    Hypothesis match_erase: forall d mu c1 m1 c2 m2 X, 
-          match_states d mu c1 m1 c2 m2 -> 
-          erasable mu m1 X ->
-          match_states d (Erase mu X) c1 m1 c2 m2.
-*)
 
     Hypothesis match_restrict: forall d mu c1 m1 c2 m2 X, 
           match_states d mu c1 m1 c2 m2 -> 
@@ -159,10 +142,6 @@ Section Eff_INJ_SIMU_DIAGRAMS.
                                                       pubBlocksSrc nu b = false) m1 m1') 
 
         (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
-(*
-        (CONF :forall b, REACH m1' (exportedSrc nu' (ret1 :: nil)) b = true ->
-                          Mem.valid_block m1 b -> sharedSrc nu b = true),
-*)
        exists st1', exists st2',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
@@ -187,7 +166,13 @@ Hypothesis order_wf: well_founded order.
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            order st1' st1).
+            order st1' st1)
+(*
+          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
+                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
+          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
+              forall b2 d, foreign_of mu b = Some(b2,d) -> 
+                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
 
     Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -346,7 +331,13 @@ Section EFF_INJ_SIMULATION_STAR.
           SM_wd mu' /\ sm_valid mu' m1' m2' /\
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
+            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2'))
+(*
+          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
+                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
+          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
+              forall b2 d, foreign_of mu b = Some(b2,d) -> 
+                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
 
     Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -469,7 +460,13 @@ Section EFF_INJ_SIMULATION_PLUS.
           SM_wd mu' /\ sm_valid mu' m1' m2' /\
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
+            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2'))
+(*
+          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
+                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
+          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
+              forall b2 d, foreign_of mu b = Some(b2,d) -> 
+                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
 
     Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -584,21 +581,7 @@ Definition compose_sm (mu1 mu2 : SM_Injection) : SM_Injection :=
    (extBlocksSrc mu1) (extBlocksTgt mu2)
    (frgnBlocksSrc mu1) (frgnBlocksTgt mu2) 
    (compose_meminj (extern_of mu1) (extern_of mu2)).
-(*
-Definition compose_sm (mu1 mu2 : SM_Injection) : SM_Injection :=
- Build_SM_Injection 
-   (DomSrc mu1) (DomTgt mu2)
-   (locBlocksSrc mu1) (locBlocksTgt mu2)
-   (fun b1 => exists b3 z, 
-      compose_meminj (pubInj mu1) (pubInj mu2) b1 = Some(b3,z))
-   (fun b3 => exists b1 z, 
-      compose_meminj (local_of mu1) (local_of mu2) b1 = Some(b3,z) /\
-      locBlocksTgt mu2 b3)
-   (compose_meminj (unknown_of mu1) (extern_of mu2))
-   (compose_meminj (foreign_of mu1) (foreign_of mu2))
-   (compose_meminj (pub_of mu1) (pub_of mu2))
-   (compose_meminj (priv_of mu1) (local_of mu2)).
-*)
+
 Lemma compose_sm_valid: forall mu1 mu2 m1 m2 m2' m3
           (SMV1: sm_valid mu1 m1 m2) (SMV2: sm_valid mu2 m2' m3),
        sm_valid (compose_sm mu1 mu2) m1 m3.
@@ -760,49 +743,6 @@ apply WD2.
 (*frgnBlocksDomTgt*)
   apply WD2.
 Qed.
- (*   
-Lemma compose_sm_initial: forall m j,
-  initial_SM (compose_meminj (Mem.flat_inj (Mem.nextblock m)) j) =
-  compose_sm (initial_SM (Mem.flat_inj (Mem.nextblock m))) (initial_SM j).
-Proof. intros.
-(*remember (initial_SM (compose_meminj (Mem.flat_inj (Mem.nextblock m)) j)) as R1.
-remember (compose_sm (initial_SM (Mem.flat_inj (Mem.nextblock m))) (initial_SM j)) as R2.
-*)
-unfold compose_sm, initial_SM. simpl.
-f_equal.
-extensionality b.
-  apply prop_ext.
-  split; intros; intuition.
-  destruct H as [b3 [z H]].
-  destruct (compose_meminjD_Some _ _ _ _ _ H)
-   as [b2 [z1 [z2 [J1 [J2 X]]]]]; subst.
-  inv J1.
-extensionality b.
-  apply prop_ext.
-  split; intros; intuition.
-  destruct H as [b3 [z H]].
-  destruct (compose_meminjD_Some _ _ _ _ _ H)
-   as [b2 [z1 [z2 [J1 [J2 X]]]]]; subst.
-  inv J1.
-(*
-assert (locBlocksSrc R1  = locBlocksSrc R2).
-  subst. unfold compose_sm, initial_SM. simpl. trivial.
-assert (locBlocksTgt R1  = locBlocksTgt R2).
-  subst. unfold compose_sm, initial_SM. simpl. trivial.
-assert (frgnInj R1  = frgnInj R2).
-  subst. unfold compose_sm, initial_SM. simpl. trivial.
-assert (pubInj R1  = pubInj R2).
-  subst. unfold compose_sm, initial_SM. simpl.
-  extensionality b1.
-  unfold compose_meminj. trivial.
-assert (privInj R1  = privInj R2).
-  subst. unfold compose_sm, initial_SM. simpl.
-  extensionality b1.
-  unfold compose_meminj. trivial.
-apply f_equal. congruence.
-(*Rest of this proof is proof irrelevance...*)*)
-Qed.
-*)
 
 Lemma compose_sm_as_inj: forall mu12 mu23 (WD1: SM_wd mu12) (WD2: SM_wd mu23)
    (SrcTgtLoc: locBlocksTgt mu12 = locBlocksSrc mu23)
