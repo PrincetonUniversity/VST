@@ -79,11 +79,21 @@ SEPCOMP_FILES= \
   StructuredInjections.v effect_semantics.v effect_simulations.v \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
   effect_interpolants.v effect_simulations_trans.v \
-  effect_interpolation_II.v effect_interpolation_proofs.v
+  effect_interpolation_II.v effect_interpolation_proofs.v \
+  effect_properties.v
 # REMOVED TEMPORARILY fs_linking.v
 # extension_proof.v extension_safety.v extension_proof_safety.v
 # null_extension.v fs_extension.v linking_extension.v trace_extension.v 
 
+COMPCOMP_FILES= \
+  Ordered.v Switch.v Cminor.v Cminor_coop.v Cminor_eff.v \
+  Csharpminor.v Csharpminor_coop.v Csharpminor_eff.v \
+  Cminorgen.v CminorgenproofRestructured.v CminorgenproofSIM.v CminorgenproofEFF.v \
+  Op.v CminorSel.v CminorSel_coop.v CminorSel_eff.v \
+  SelectOp.v SelectDiv.v SelectLong.v \
+  SelectOpproof.v SelectDivproof.v SelectLongproof.v \
+  Selection.v SelectionproofEFF.v Registers.v RTL.v
+#Selectionproof.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
@@ -140,6 +150,8 @@ sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+compcomp: .loadpath $(COMPCOMP_FILES:%.v=sepcomp/%.vo)
+
 
 ifdef CLIGHTGEN
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
