@@ -67,25 +67,6 @@ intros.
  apply Hblocks'lem in Hblocks; auto.
 Qed.
 
-Lemma split3_data_block:
-  forall lo n sh data d,
-  lo+n <= length data ->
-  data_block sh data d = 
-  data_block sh (firstn lo data) d *
-  data_block sh (firstn n (list_drop lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
-  data_block sh (list_drop (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d).
-Admitted.
-
- Lemma divide_length_app:
- forall {A} n (al bl: list A), 
-      NPeano.divide n (length al) -> 
-      NPeano.divide n (length bl) ->
-      NPeano.divide n (length (al++bl)).
-Proof.
- intros. destruct H,H0. exists (x+x0).
- rewrite app_length,H,H0;  rewrite  mult_plus_distr_r; omega.
-Qed.
-
 Lemma SHA256_Update_aux:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (r_data: list int) (data : list Z) (c d : val)
   (len : nat) (r_h : list int) (r_Nl r_Nh : int)
@@ -426,12 +407,6 @@ apply semax_while.
   omega.
 }
 
-Lemma exists_intlist_to_Zlist':
-  forall n (al: list Z), 
-   length al = (n * 4)%nat ->
-   exists bl, al = intlist_to_Zlist (map swap bl) /\ length bl = n.
-Admitted.
-
   apply semax_extract_PROP; intro Hlen_ge.
   destruct (exists_intlist_to_Zlist' LBLOCK (firstn CBLOCK (list_drop (length blocks*4 - length dd) data)))
       as [bl [? ?]].
@@ -445,6 +420,9 @@ Admitted.
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.
+rewrite initial_world.Zlength_app.
+rewrite <- H7; f_equal.
+clear; admit.  (* easy *)
 rewrite map_length; auto.
 +
   abbreviate_semax.
@@ -494,21 +472,17 @@ rewrite map_length; auto.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply andp_right; [apply prop_right | cancel].
  repeat split; simpl; auto.
- rewrite <- app_nil_end.
- rewrite Zlength_intlist_to_Zlist_app.
- replace (Zlength (intlist_to_Zlist blocks)) with
-    (Zlength (intlist_to_Zlist (map swap blocks)))
- by (repeat rewrite Zlength_correct, length_intlist_to_Zlist; rewrite map_length; reflexivity).
  exists x0,x. split3; auto.
- rewrite Hblocks. rewrite H2. rewrite H7'.
+ rewrite Zlength_nil. rewrite H2. 
  rewrite <- H7.
+ rewrite H7'.
  rewrite initial_world.Zlength_app.
- rewrite initial_world.Zlength_app.
- repeat rewrite Z.add_assoc.
- f_equal. rewrite Zlength_correct.
- f_equal.
-  rewrite firstn_length.
- rewrite min_l; auto. rewrite <- H7'; auto.
+ rewrite initial_world.Zlength_map.
+ rewrite Z.mul_add_distr_r.
+ rewrite Nat2Z.inj_sub by omega.
+ rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4%Z.
+ rewrite (Zlength_correct blocks), (Zlength_correct dd).
+ clear; omega.
  exists nil; split; reflexivity.
  change CBLOCK with 64; clear; omega.
  apply divide_length_app; auto.

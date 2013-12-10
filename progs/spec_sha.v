@@ -71,22 +71,6 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at tuchar sh (fun _ => Vint c) 0 n p)).
 
-Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
-Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
-
-Definition data_block (sh: share) (contents: list Z) :=
-  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
-
-Lemma datablock_local_facts:
- forall sh f data,
-  data_block sh f data |-- !! (isptr data).
-Proof.
-intros. unfold data_block.
-entailer.
-Qed.
-Hint Resolve datablock_local_facts : saturate_local.
-
-
 Definition K_vector : environ -> mpred :=
   `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
 

@@ -9,16 +9,16 @@ Definition _Nh : ident := 15%positive.
 Definition ___builtin_fabs : ident := 7%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _ll : ident := 50%positive.
+Definition _ignore : ident := 50%positive.
 Definition _SHA256_addlength : ident := 43%positive.
 Definition _in : ident := 21%positive.
 Definition ___builtin_read32_reversed : ident := 10%positive.
-Definition _SHA256_Final : ident := 52%positive.
+Definition _xn : ident := 52%positive.
 Definition _SHA256_Init : ident := 39%positive.
 Definition _K256 : ident := 19%positive.
 Definition ___builtin_annot_intval : ident := 9%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _main : ident := 54%positive.
+Definition _SHA256 : ident := 54%positive.
 Definition _T2 : ident := 32%positive.
 Definition _fragment : ident := 47%positive.
 Definition _b : ident := 23%positive.
@@ -35,9 +35,9 @@ Definition _c : ident := 24%positive.
 Definition _data_ : ident := 44%positive.
 Definition _n : ident := 46%positive.
 Definition _g : ident := 28%positive.
-Definition _SHA256 : ident := 53%positive.
+Definition _SHA256_Final : ident := 53%positive.
 Definition _e : ident := 26%positive.
-Definition _xn : ident := 51%positive.
+Definition _ll : ident := 51%positive.
 Definition _d : ident := 25%positive.
 Definition _memset : ident := 12%positive.
 Definition _t : ident := 33%positive.
@@ -47,6 +47,7 @@ Definition _cNl : ident := 41%positive.
 Definition _ctx : ident := 20%positive.
 Definition _s0 : ident := 29%positive.
 Definition _data : ident := 14%positive.
+Definition _main : ident := 55%positive.
 Definition _i : ident := 37%positive.
 Definition _f : ident := 27%positive.
 Definition _num : ident := 13%positive.
@@ -56,7 +57,10 @@ Definition _SHA256_Update : ident := 48%positive.
 Definition _l : ident := 35%positive.
 Definition _h : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition _l' : ident := 55%positive.
+Definition _ignore'2 : ident := 59%positive.
+Definition _ignore' : ident := 57%positive.
+Definition _l' : ident := 56%positive.
+Definition _ignore'1 : ident := 58%positive.
 
 Definition t_struct_SHA256state_st :=
    (Tstruct _struct_SHA256state_st
@@ -1194,7 +1198,9 @@ Definition f_SHA256_Final := {|
                 (_c, (tptr t_struct_SHA256state_st)) :: nil);
   fn_vars := nil;
   fn_temps := ((_p, (tptr tuchar)) :: (_n, tuint) :: (_cNl, tuint) ::
-               (_cNh, tuint) :: (_ll, tuint) :: (_xn, tuint) :: nil);
+               (_cNh, tuint) :: (_ignore, (tptr tvoid)) :: (_ll, tuint) ::
+               (_xn, tuint) :: (_ignore'2, (tptr tvoid)) ::
+               (_ignore'1, (tptr tvoid)) :: (_ignore', (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p
@@ -1222,17 +1228,20 @@ Definition f_SHA256_Final := {|
                              (Econst_int (Int.repr 4) tint) tint)
                            (Econst_int (Int.repr 8) tint) tint) tint)
             (Ssequence
-              (Scall None
-                (Evar _memset (Tfunction
-                                (Tcons (tptr tvoid)
-                                  (Tcons tint (Tcons tuint Tnil)))
-                                (tptr tvoid)))
-                ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
-                   (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
-                 (Ebinop Osub
-                   (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                     (Econst_int (Int.repr 4) tint) tint) (Etempvar _n tuint)
-                   tuint) :: nil))
+              (Ssequence
+                (Scall (Some _ignore')
+                  (Evar _memset (Tfunction
+                                  (Tcons (tptr tvoid)
+                                    (Tcons tint (Tcons tuint Tnil)))
+                                  (tptr tvoid)))
+                  ((Ebinop Oadd (Etempvar _p (tptr tuchar))
+                     (Etempvar _n tuint) (tptr tuchar)) ::
+                   (Econst_int (Int.repr 0) tint) ::
+                   (Ebinop Osub
+                     (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                       (Econst_int (Int.repr 4) tint) tint)
+                     (Etempvar _n tuint) tuint) :: nil))
+                (Sset _ignore (Etempvar _ignore' (tptr tvoid))))
               (Ssequence
                 (Sset _n (Econst_int (Int.repr 0) tint))
                 (Scall None
@@ -1245,19 +1254,21 @@ Definition f_SHA256_Final := {|
                    (Etempvar _p (tptr tuchar)) :: nil))))
             Sskip)
           (Ssequence
-            (Scall None
-              (Evar _memset (Tfunction
-                              (Tcons (tptr tvoid)
-                                (Tcons tint (Tcons tuint Tnil)))
-                              (tptr tvoid)))
-              ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
-                 (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
-               (Ebinop Osub
+            (Ssequence
+              (Scall (Some _ignore'1)
+                (Evar _memset (Tfunction
+                                (Tcons (tptr tvoid)
+                                  (Tcons tint (Tcons tuint Tnil)))
+                                (tptr tvoid)))
+                ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
+                   (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
                  (Ebinop Osub
-                   (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                     (Econst_int (Int.repr 4) tint) tint)
-                   (Econst_int (Int.repr 8) tint) tint) (Etempvar _n tuint)
-                 tuint) :: nil))
+                   (Ebinop Osub
+                     (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                       (Econst_int (Int.repr 4) tint) tint)
+                     (Econst_int (Int.repr 8) tint) tint) (Etempvar _n tuint)
+                   tuint) :: nil))
+              (Sset _ignore (Etempvar _ignore'1 (tptr tvoid))))
             (Ssequence
               (Sset _p
                 (Ebinop Oadd (Etempvar _p (tptr tuchar))
@@ -1326,17 +1337,21 @@ Definition f_SHA256_Final := {|
                                   t_struct_SHA256state_st) _num tuint)
                               (Econst_int (Int.repr 0) tint))
                             (Ssequence
-                              (Scall None
-                                (Evar _memset (Tfunction
-                                                (Tcons (tptr tvoid)
-                                                  (Tcons tint
-                                                    (Tcons tuint Tnil)))
-                                                (tptr tvoid)))
-                                ((Etempvar _p (tptr tuchar)) ::
-                                 (Econst_int (Int.repr 0) tint) ::
-                                 (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                                   (Econst_int (Int.repr 4) tint) tint) ::
-                                 nil))
+                              (Ssequence
+                                (Scall (Some _ignore'2)
+                                  (Evar _memset (Tfunction
+                                                  (Tcons (tptr tvoid)
+                                                    (Tcons tint
+                                                      (Tcons tuint Tnil)))
+                                                  (tptr tvoid)))
+                                  ((Etempvar _p (tptr tuchar)) ::
+                                   (Econst_int (Int.repr 0) tint) ::
+                                   (Ebinop Omul
+                                     (Econst_int (Int.repr 16) tint)
+                                     (Econst_int (Int.repr 4) tint) tint) ::
+                                   nil))
+                                (Sset _ignore
+                                  (Etempvar _ignore'2 (tptr tvoid))))
                               (Ssequence
                                 (Ssequence
                                   (Sset _xn (Econst_int (Int.repr 0) tint))

@@ -120,7 +120,7 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (process_msg init_registers hashed) 
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
-            Zlength (intlist_to_Zlist (hashed)++data) = hilo hi lo)
+             Zlength hashed * 4 + Zlength data = hilo hi lo)%Z
        /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Vint dd)
        /\ length data < CBLOCK
        /\ NPeano.divide LBLOCK (length hashed)
@@ -232,7 +232,7 @@ Definition init_s256abs : s256abs := S256abs nil nil.
 Definition sha_finish (a: s256abs) : list Z :=
  match a with
  | S256abs hashed data => 
-      intlist_to_Zlist (generate_and_pad (intlist_to_Zlist (process_msg init_registers hashed) ++ data) 0)
+     SHA_256 (intlist_to_Zlist (map swap hashed) ++ data)
  end.
 
 Fixpoint sequence (cs: list statement) s :=
@@ -440,12 +440,53 @@ Proof.
  apply IHn. omega.
 Qed.
 
+Lemma exists_intlist_to_Zlist': 
+  forall n (al: list Z), 
+   length al = (n * 4)%nat ->
+   exists bl, al = intlist_to_Zlist (map swap bl) /\ length bl = n.
+Admitted.
+
+
 Lemma exists_intlist_to_Zlist:
   forall n (al: list Z), 
    length al = (n * 4)%nat ->
    exists bl, al = intlist_to_Zlist bl /\ length bl = n.
+Abort.  (* provable, but any use of it is probably wrong. *)
+
+Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
+Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
+
+Definition data_block (sh: share) (contents: list Z) :=
+  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
+
+Lemma datablock_local_facts:
+ forall sh f data,
+  data_block sh f data |-- prop (isptr data).
+Proof.
+intros. unfold data_block.
+entailer.
+Qed.
+Hint Resolve datablock_local_facts : saturate_local.
+
+Lemma split3_data_block:
+  forall lo n sh data d,
+  lo+n <= length data ->
+  data_block sh data d = 
+  (data_block sh (firstn lo data) d *
+  data_block sh (firstn n (list_drop lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
+  data_block sh (list_drop (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d))%logic.
 Admitted.
-       
+
+ Lemma divide_length_app:
+ forall {A} n (al bl: list A), 
+      NPeano.divide n (length al) -> 
+      NPeano.divide n (length bl) ->
+      NPeano.divide n (length (al++bl)).
+Proof.
+ intros. destruct H,H0. exists (x+x0).
+ rewrite app_length,H,H0;  rewrite  mult_plus_distr_r; omega.
+Qed.
+
 
 
 

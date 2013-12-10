@@ -202,18 +202,18 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 void SHA256_Final (unsigned char *md, SHA256_CTX *c)  {
 	unsigned char *p = c->data;
 	size_t n = c->num;
-	SHA_LONG cNl,cNh;
+	SHA_LONG cNl,cNh; void *ignore;
 
 	p[n] = 0x80; /* there is always room for one */
 	n++;
 
 	if (n > (SHA_CBLOCK-8))
 		{
-		memset (p+n,0,SHA_CBLOCK-n);
+		ignore=memset (p+n,0,SHA_CBLOCK-n);
 		n=0;
 		sha256_block_data_order (c,p);
 		}
-	memset (p+n,0,SHA_CBLOCK-8-n);
+	ignore=memset (p+n,0,SHA_CBLOCK-8-n);
 
 	p += SHA_CBLOCK-8;
 	cNh=c->Nh; (void)HOST_l2c(cNh,p);
@@ -221,7 +221,7 @@ void SHA256_Final (unsigned char *md, SHA256_CTX *c)  {
 	p -= SHA_CBLOCK;
 	sha256_block_data_order (c,p);
 	c->num=0;
-	memset (p,0,SHA_CBLOCK);
+	ignore=memset (p,0,SHA_CBLOCK);
         {unsigned long ll;
          unsigned int  xn;
 		for (xn=0;xn<SHA256_DIGEST_LENGTH/4;xn++)	
