@@ -55,6 +55,12 @@ Expr.Sig all_types nil share_tv sh.
 Definition make_list_int_signature (li :list int) :=
 Expr.Sig all_types nil list_int_tv li.
 
+Definition make_int_signature i :=
+Expr.Sig all_types nil int_tv i.
+
+Definition make_val_signature v :=
+Expr.Sig all_types nil val_tv v.
+
 Definition int_sub_signature :=
 Expr.Sig all_types (int_tv :: int_tv :: nil) int_tv Int.sub.
 
@@ -63,6 +69,15 @@ Expr.Sig all_types (int_tv :: nil) val_tv Vint.
 
 Definition map_Vint_signature := 
 Expr.Sig all_types (list_int_tv :: nil) list_val_tv (map Vint).
+
+Check typed_true.
+
+Definition typed_true_signature :=
+Expr.Sig all_types (c_type_tv :: val_tv :: nil) tvProp typed_true.
+
+Definition int_add_signature :=
+Expr.Sig all_types (int_tv :: int_tv :: nil) int_tv Int.add.
+
 
 
 Definition functions :=
@@ -76,8 +91,10 @@ Definition functions :=
 (cons cons_val_signature 
 (cons int_sub_signature 
 (cons Vint_signature 
-(cons map_Vint_signature nil
-)))))))))).
+(cons map_Vint_signature 
+(cons typed_true_signature 
+(cons int_add_signature nil
+)))))))))))).
 
 Definition tc_environ_f := 0%nat.
 Definition eq_val_f := 1%nat.
@@ -90,9 +107,18 @@ Definition cons_val_f := 7%nat.
 Definition int_sub_f := 8%nat.
 Definition vint_f := 9%nat.
 Definition map_Vint_f := 10%nat.
+Definition typed_true_f := 11%nat.
+Definition int_add_f := 12%nat.
 
+Check field_at.
 (*Separation Logic predicates *)
-Definition sep_predicates : list (Sep.predicate all_types) := nil.
+Definition field_at_f :=
+Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
+field_at.
+
+Definition sep_predicates : list (Sep.predicate all_types) := field_at_f :: nil.
+
+Definition field_at_p := 0%nat.
 
 (*functions to build Exprs *)
 Definition eval_id_func id rho :=
@@ -114,10 +140,21 @@ Definition vint_func i :=
 Definition int_sub_func i1 i2 :=
 @Expr.Func all_types int_sub_f (i1 :: i2 :: nil).
 
+Definition int_add_func i1 i2 :=
+@Expr.Func all_types int_add_f (i1 :: i2 :: nil).
+
+
 Definition tc_environ_func delta rho :=
 @Expr.Func all_types tc_environ_f (delta :: rho :: nil).
 
 Definition map_vint_func i :=
 @Expr.Func all_types map_Vint_f (i :: nil).
+
+Definition typed_true_func t v :=
+@Expr.Func all_types typed_true_f (t :: v :: nil).
+
+Definition field_at_func sh ty id v1 v2:= @Sep.Func all_types field_at_p
+(sh :: ty :: id :: v1 :: v2 :: nil).
+
 
 End funcs.

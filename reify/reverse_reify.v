@@ -254,6 +254,8 @@ Definition Delta :=
                            main_post prog u))) PTree.Leaf) None PTree.Leaf)))).
 
 
+
+
 (*types we need that aren't defined yet... 
 this is just an example, we don't really need this one*)
 Definition LS_type := cons (no_eqb_type (listspec t_struct_list _tail)) nil.
@@ -276,12 +278,13 @@ Sep.PSig all_types (cons share_tv
                    (cons list_val_tv (cons val_tv (cons val_tv nil))))
 (lseg LS).
 
-Definition predicates := lseg_signature :: nil.
+Definition predicates := (lseg_signature :: nil).
 Definition lseg_p := length sep_predicates.
+
+
 
 (*Functions just for this file. These three represent variables
   that are above the line. *)
-
 Definition sum_int_signature :=
 Expr.Sig all_types (list_int_tv :: nil)
 int_tv sum_int.
@@ -291,19 +294,36 @@ Definition more_funcs rho contents sh :=
 make_environ_signature rho ::
 make_list_int_signature contents ::
 make_share_signature sh ::
-sum_int_signature :: nil.
+sum_int_signature ::
+nil.
+
+Definition more_funcs2 rho contents sh i cts y :=
+make_environ_signature rho ::
+make_list_int_signature contents ::
+make_share_signature sh ::
+sum_int_signature :: 
+make_int_signature i ::
+make_list_int_signature cts ::
+make_val_signature y ::
+nil.
 
 
 Definition rho_f := length functions.
 Definition contents_f := S rho_f.
 Definition sh_f := S contents_f.
 Definition sum_int_f := S sh_f.
+Definition i_f := S sum_int_f.
+Definition cts_f := S i_f.
+Definition y_f := S cts_f.
 
 Definition rho_func := nullary_func rho_f.
 Definition contents_func := nullary_func contents_f.
 Definition sh_func := nullary_func sh_f.
 Definition sum_int_func i1  := 
 @Expr.Func all_types sum_int_f (i1  :: nil).
+Definition i_func := nullary_func i_f.
+Definition cts_func := nullary_func cts_f.
+Definition y_func := nullary_func y_f.
 
 (*Some constants we will use *)
 
@@ -325,12 +345,15 @@ Definition eq2 := val_eq eval_id_s zero_c.
 
 Definition pure := and_func true_c (and_func eq1 (and_func eq2 true_c)).
 
-Definition lseg_func := @Sep.Func all_types lseg_p
-(sh_func :: (map_vint_func contents_func) :: eval_id_p :: nullval_c :: nil).
+Definition lseg_func sh cts v1 v2 := @Sep.Func all_types lseg_p
+(sh :: cts :: v1 :: v2 :: nil).
+
+Definition lseg_func2 :=  lseg_func sh_func (map_vint_func contents_func)
+eval_id_p nullval_c.
 
 Definition left_side :=
 (Sep.Star (Sep.Inj pure)
-(Sep.Star lseg_func (Sep.Emp all_types))).
+(Sep.Star lseg_func2 (Sep.Emp all_types))).
 
 Definition sum_int_contents :=
 sum_int_func (contents_func).
@@ -403,6 +426,54 @@ match goal with
 start_goalD;
 rev_reify.
 
+Ltac get_types :=
+match goal with 
+| [ H := ?X : (list Expr.type) |- _] => X
+end.
+
+Ltac get_funcs t := 
+match goal with
+[ _ := ?X : list (Expr.signature t) |- _ ] => X end.
+
+Ltac get_predicates t :=
+match goal with
+[ _ := ?X : list (Sep.predicate t) |- _] => X end.
+
+Ltac get_uenv t := 
+match goal with 
+| [ _ := ?X : Expr.env t |- _ ] => X
+| [ _ := ?X : list (sigT (Expr.tvarD t)) |- _ ] => X
+| [ _ : _ |- _ ] => constr:(@nil (sigT (Expr.tvarD all_types)))
+end.
+
+Ltac replace_reify_e H v r :=
+let types := get_types in
+let funcs := get_funcs types in
+let uenv := get_uenv types in
+replace v with 
+(force_Opt (@Expr.exprD types funcs uenv nil r Expr.tvProp)False) in H; [ | try reflexivity]. 
+
+Ltac reify_assumption H r:=
+match goal with
+[ H : ?X |- _] => replace_reify_e H X r
+end.
+
+Ltac replace_reify_s e r :=
+let types := get_types in
+let funcs := get_funcs types in
+let preds := get_predicates types in 
+let uenv := get_uenv types in 
+replace e with
+(@Sep.sexprD types funcs preds uenv  nil r); [ | try reflexivity ].
+
+Ltac reify_derives l r :=
+prepare_reify;
+match goal with
+[ |- ?ls |-- ?rs ] => 
+replace_reify_s ls l; replace_reify_s rs r
+end;
+try finish_reify.
+
 
 Lemma while_entail1 :
   name _t ->
@@ -426,29 +497,85 @@ Lemma while_entail1 :
 Proof.
 intros.
 go_lower0.
-prepare_reify.
+pose (functions := (functions ++ (more_funcs rho contents sh))).
+pose (types := all_types).
+pose (preds := sep_predicates ++ predicates).
+reify_assumption H3 tc_environ_r.
+reify_derives left_side right_side.
+Admitted.
 
-replace
-(!!(True /\
-      eval_id _t rho = eval_id _p rho /\
-      eval_id _s rho = Vint (Int.repr 0) /\ True) && emp *
-   (lseg LS sh (map Vint contents) (eval_id _p rho) nullval * emp))
-with
-(@Sep.sexprD all_types (functions ++ (more_funcs rho contents sh))  
-predicates nil nil (left_side)) by reflexivity.
+Definition typed_true_t :=
+typed_true_func (c_type_const (tptr t_struct_list)) (eval_id_t).
 
-replace
-(!!(True /\
-          Vint (Int.sub (sum_int contents) (sum_int contents)) =
-          eval_id _s rho /\ True) && emp *
-       (!!True * lseg LS sh (map Vint contents) (eval_id _t rho) nullval * emp))
-with
-(@Sep.sexprD all_types (functions ++ (more_funcs rho contents sh))
-predicates nil nil (right_side)) by reflexivity.
+Definition sub_int_val :=
+vint_func (int_sub_func sum_int_contents 
+(int_add_func i_func (sum_int_func cts_func))).
 
-replace 
-(tc_environ Delta rho) with 
-(force_Opt (@Expr.exprD all_types (functions ++ (more_funcs rho contents sh)) nil nil tc_environ_r Expr.tvProp)False) in H3 by reflexivity.
-finish_reify.
+Definition field_at1 :=
+field_at_func sh_func (c_type_const t_struct_list) 
+(id_const _head) (vint_func i_func) eval_id_t.
 
+Definition field_at2 :=
+field_at_func sh_func (c_type_const t_struct_list) 
+(id_const _tail) y_func eval_id_t.
+
+Definition lseg_cts :=
+lseg_func sh_func (map_vint_func cts_func) y_func nullval_c.
+
+Definition left_side_sep :=
+Sep.Star
+(Sep.Star 
+(Sep.Star
+(Sep.Star field_at1 field_at2) lseg_cts) (Sep.Const all_types TT))
+(Sep.Emp all_types) .
+
+Definition left_side_pure :=
+Sep.Inj
+(and_func true_c (and_func typed_true_t (and_func (val_eq sub_int_val eval_id_s)  true_c))).
+
+Definition left_side2 := Sep.Star left_side_pure left_side_sep.
+
+Definition right_side2 :=
+Sep.Star 
+(Sep.Inj true_c)
+(Sep.Star
+   (field_at_func (Expr.UVar 0%nat) (c_type_const t_struct_list)
+                 (id_const _head) (Expr.UVar 1%nat) (eval_id_t))
+   (Sep.Const all_types (!!True))).
+
+(*Only for next example. Probably an unfortunate necessity of doing 
+this by hand*)
+Ltac ugly_create_uenv := 
+match goal with [ |- _ |-- _ && (field_at ?u1 _ _ ?u2 _ * !!True) ]=>
+pose (uenv := existT (Expr.tvarD all_types) share_tv u1
+:: existT (Expr.tvarD all_types) val_tv u2 :: nil)
+end. 
+
+Lemma example_2 : False.
+evar (e1 : share).
+evar (e2 : val).
+assert ( forall (sh : share) (contents : list int) (i : int) 
+     (cts : list int) (y : val) (t : name _t) (p : name _p) 
+     (s : name _s) (h : name _h),
+   PROP  ()
+   LOCAL  (tc_environ Delta;
+   `(typed_true (typeof (Etempvar _t (tptr t_struct_list))))
+     (eval_expr (Etempvar _t (tptr t_struct_list)));
+   `(eq (Vint (Int.sub (sum_int contents) (sum_int (i :: cts)))))
+     (eval_id _s))
+   SEP  (`(field_at sh t_struct_list _head (Vint i)) (eval_id _t);
+   `(field_at sh t_struct_list _tail y) (eval_id _t);
+   `(lseg LS sh (map Vint cts)) `y `nullval; TT)
+   |-- local (tc_expr Delta (Etempvar _t (tptr t_struct_list))) &&
+       (`(field_at e1 t_struct_list _head e2)
+          (eval_expr (Etempvar _t (tptr t_struct_list))) * TT)).
+unfold e1. unfold e2. clear e1 e2.
+intros.
+go_lower0.
+pose (functions := (functions ++ (more_funcs2 rho contents sh i cts y))).
+pose (types := all_types).
+pose (preds := sep_predicates ++ predicates).
+ugly_create_uenv.
+reify_assumption H3 tc_environ_r.
+reify_derives left_side2 right_side2.
 Admitted.
