@@ -861,8 +861,8 @@ Proof. intros F1 V1 F2 V2 ge1 ge2.
   unfold genvs_domain_eq, genv2blocks. simpl; intros. 
   destruct H. 
   f_equal; extensionality b. 
-    apply prop_ext. apply H.
-    apply prop_ext. apply H0.
+    apply prop_ext. apply H. (*We use Axiom prop_ext here, but Lemma genvs_domain_eq_match_genvsB in effect_simulations.v shows the same result of this lemma for Bool rather than Prop*)
+    apply prop_ext. apply H0. (*We use Axiom prop_ext here, but Lemma genvs_domain_eq_match_genvsB in effect_simulations.v shows the same result of this lemma for Bool rather than Prop*)
 Qed.
 
 Lemma meminj_preserves_globals_ind_compose:

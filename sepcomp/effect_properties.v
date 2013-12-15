@@ -188,10 +188,9 @@ Qed.
 Lemma match_genv_meminj_preserves_extern_iff_all: 
       forall {F V} (ge: Genv.t F V) mu (WDmu : SM_wd mu)
              (GF: forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true),
-      meminj_preserves_globals ge (as_inj mu) =
+      meminj_preserves_globals ge (as_inj mu) <->
       meminj_preserves_globals ge (extern_of mu).
 Proof. intros.
-  apply prop_ext.
 split; intros PG;
        apply meminj_preserves_genv2blocks;
        apply meminj_preserves_genv2blocks in PG;
@@ -1092,42 +1091,72 @@ Proof. intros m R L.
       subst. apply (Hzz3 _ _ H H1).
 Qed. 
 
-Lemma getsetVptr: forall z bb off n M v chunk k
-      (GET : ZMap.get ((Z.of_nat k) + z) 
-             (Mem.setN (encode_val chunk v) z M) = Pointer bb off n)
-      (HK: (k < (size_chunk_nat chunk))%nat), 
-     exists ofs, v=Vptr bb ofs.
-Proof. intros z bb off n M v chunk.
-destruct chunk. simpl in *.
-intros.
-Admitted.
-(* 
-induction k. 
-  simpl. rewrite ZMap.gss. intros; congruence.
-rewrite ZMap.gsspec; intros.
-  destruct (ZIndexed.eq (Z.of_nat (S k) + z) z). inv GET. 
-  simpl. ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
-                destruct (ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
-                destruct (ZIndexed.eq zz (Int.unsigned i+1)). inv H4.
-                  rewrite ZMap.gsspec in H4.
- 
-  
+Lemma encode_val_pointer_inv':
+  forall chunk v b ofs n B1 mvl,
+  encode_val chunk v = B1++Pointer b ofs n :: mvl ->
+  chunk = Mint32 /\ v = Vptr b ofs.
+Proof.
+  intros until B1.
+  assert (A: forall mvl, list_repeat (size_chunk_nat chunk) Undef = B1++Pointer b ofs n :: mvl ->
+            chunk = Mint32 /\ v = Vptr b ofs).
+    intros. destruct (size_chunk_nat_pos chunk) as [sz SZ]. rewrite SZ in H. simpl in H.
+         clear SZ. generalize dependent sz. 
+         induction B1. simpl; intros. inv H.
+         simpl; intros. inv H.
+           destruct sz; simpl in *. destruct B1; inv H2.
+         apply (IHB1 _ H2).
+  intros mvl.
+  assert (B: forall bl, inj_bytes bl = B1++Pointer b ofs n :: mvl ->
+            chunk = Mint32 /\ v = Vptr b ofs).
+    clear A. intros bl. generalize dependent B1.
+       induction bl. simpl; intros. destruct B1; inv H.
+       simpl; intros.
+       destruct B1; simpl in *. inv H. 
+       inv H. eapply IHbl. eassumption.  
+  intros.
+  specialize (A mvl).
+  unfold encode_val; destruct v; destruct chunk; 
+  (apply A; assumption) ||
+  (eapply B; rewrite encode_int_length; congruence) || idtac.
 
- unfold Z.of_nat in GET. simpl in *.
-rewrite Mem.setN_outside in GET. admit.
-  bb off n M i N.
- induction N; simpl.
-   intros. inv HK.
- intros k.
- induction k; simpl in *; intros.
-      simpl in *. rewrite ZMap.gss in GET.
-  unfld Mem.setN in GET.
-  destruct (zlt zz (Int.unsigned i + Z.of_nat N)).
-   
-  rewrite ZMap.gsspec in GET.
-                  destruct (ZIndexed.eq zz (Int.unsigned i)). inv H4. omega.
-           *)  
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  eapply B. simpl in H. eassumption.
+  simpl in H. clear -H.
+  assert (forall L, (forall mv, In mv L -> exists n, mv = Pointer b0 i n) ->
+          forall  mv, In mv L -> exists n, mv = Pointer b0 i n).
+    intros. apply H0. trivial.
+  assert (exists k, Pointer b ofs n = Pointer b0 i k).
+    apply (H0 (B1 ++ Pointer b ofs n :: mvl)).
+    intros. rewrite <- H in H1. clear -H1.
+    destruct H1. subst. eexists; reflexivity.
+    destruct H. subst. eexists; reflexivity.
+    destruct H. subst. eexists; reflexivity.
+    destruct H. subst. eexists; reflexivity.
+    inv H.
+  apply in_or_app. right. left. trivial.
+  destruct H1. inv H1. split; trivial.
+Qed.
 
+Lemma list_split: forall {A} n (L:list A) (Hn : (n < length L)%nat),
+      exists vl1 u vl2,
+                     L = vl1 ++ u :: vl2 /\
+                     length vl1 = n.
+Proof. intros A n.
+  induction n; simpl; intros.
+    exists nil; simpl. destruct L; simpl in *. inv Hn.
+     exists a, L. split; trivial.
+  destruct L; simpl in Hn. inv Hn.
+    destruct (IHn L) as [L1 [u [L2 [HL LL]]]].
+       omega.
+    subst. exists (a::L1), u, L2; simpl. split; trivial.
+Qed.
 
 Lemma REACH_Store: forall m chunk b i v m'
      (ST: Mem.store chunk m b (Int.unsigned i) v = Some m')
@@ -1161,7 +1190,10 @@ destruct (eq_block r b); subst.
              assert (@length (block * Z) nil = length (rev (p :: M))). rewrite Heqrm; trivial.
              rewrite rev_length in H3. simpl in H3. inv H3.
         subst. simpl in *. clear H Heqrm H0 H1.
-          rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4. 
+          specialize (Mem.loadbytes_store_same _ _ _ _ _ _ ST). intros LD.
+          apply loadbytes_D in LD. destruct LD.
+
+     rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4, H0. 
           apply Mem.store_valid_access_3 in ST. destruct ST as [RP ALGN].
           rewrite PMap.gss in H4.
           destruct (zlt zz (Int.unsigned i)).
@@ -1176,22 +1208,31 @@ destruct (eq_block r b); subst.
                      apply reach_nil. assumption.
             right; trivial.
           rewrite encode_val_length in *. rewrite <- size_chunk_conv in *.
-          cut (exists ofs, v = Vptr bb ofs).
-             intros [ofs V]. subst. rewrite VISv in HeqRb. discriminate.
-             rewrite getBlocks_char. exists ofs; left. trivial.             
-          clear VISv Hzz3 H2 HeqRb Rr RP m'.
-          rewrite size_chunk_conv in l.
-         remember ((Mem.mem_contents m) !! b) as M. clear HeqM.
-(*          destruct v; simpl in *; try (eexists; reflexivity).
-          (*Undef*)*)
-           assert (exists k, zz = Z.of_nat k + Int.unsigned i).
-             assert (exists zn, zz = zn + Int.unsigned i /\ 0<=zn).
-               exists (zz-Int.unsigned i). omega.
-             destruct H as [? [? ?]]. destruct (Z_of_nat_complete _ H0).
-             subst. exists x0; trivial.   
-           destruct H. subst.
-           apply (getsetVptr (Int.unsigned i) bb off n M v chunk x H4). 
-           omega.
+            rewrite PMap.gss in H0.
+            remember ((Mem.setN (encode_val chunk v) (Int.unsigned i)
+          (Mem.mem_contents m) !! b)) as c. apply eq_sym in H0.
+          specialize (getN_aux (nat_of_Z ((size_chunk chunk))) (Int.unsigned i) c).
+          assert (exists z, zz = Int.unsigned i + z /\ z>=0 /\ z < size_chunk chunk).
+            exists (zz - Int.unsigned i). omega.
+          destruct H1 as [z [Z1 [Z2 Z3]]]. clear g l. subst zz.
+          rewrite <- (nat_of_Z_eq _ Z2) in H4.
+          assert (SPLIT: exists vl1 u vl2,
+                     encode_val chunk v = vl1 ++ u :: vl2 /\
+                     length vl1 = nat_of_Z z).
+            eapply list_split. rewrite encode_val_length.
+                 rewrite size_chunk_conv in Z3.
+            remember (size_chunk_nat chunk) as k. clear Heqk H2 H4 Hzz3.
+            specialize (Z2Nat.inj_lt z (Z.of_nat k)); intros.
+            rewrite Nat2Z.id in H1. apply H1. omega. omega.  assumption.
+            
+          destruct SPLIT as [B1 [u [B2 [EE LL]]]].
+          rewrite EE in *. rewrite <- LL in H4.
+          intros. apply H1 in H0. clear H1.
+          rewrite <- H0 in H4. clear H0. subst u.
+          destruct (encode_val_pointer_inv' _ _ _ _ _ _ _ EE).
+          subst.
+          rewrite VISv in HeqRb. discriminate.
+             rewrite getBlocks_char. exists off; left. trivial.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
     remember (Roots b') as q.
@@ -1268,9 +1309,9 @@ Lemma AllocContentsUndef1: forall m1 lo hi m2 b
      ZMap.get z (Mem.mem_contents m2) !! b = Undef.
 Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
 
-(*The axiom can easily be proven in Memory.v, in section
-  ALLOC, but repeating the proof here doesn't work, evem if 
-  we do Opaque Mem.alloc. 
+(*Axiom AllocContentsUndef2 can easily be proven in Memory.v,
+   in section ALLOC, but repeating the proof here doesn't 
+   work, even if we do Opaque Mem.alloc. 
 Section ALLOC.
 
 Variable m1: mem.

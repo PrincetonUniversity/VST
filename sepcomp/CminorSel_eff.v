@@ -69,7 +69,7 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
   | cminsel_effstep_builtin: forall f optid ef al k sp e m vl t v m',
       CminorSel.eval_exprlist g sp e m nil al vl ->
       external_call ef g vl m t v m' ->
-      cminsel_effstep g (BuiltinEffect fundef unit g (ef_sig ef) vl m)
+      cminsel_effstep g (BuiltinEffect g (ef_sig ef) vl m)
           (CMinSel_State f (Sbuiltin optid ef al) k sp e) m
           (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m'
 

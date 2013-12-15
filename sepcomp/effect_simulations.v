@@ -1038,6 +1038,37 @@ Definition genv2blocksBool {F V : Type} (ge : Genv.t F V):=
                 | None => false
             end).
 
+Lemma genvs_domain_eq_match_genvsB: forall {F1 V1 F2 V2:Type} 
+  (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2),
+  genvs_domain_eq ge1 ge2 -> genv2blocksBool ge1 = genv2blocksBool ge2.
+Proof. intros F1 V1 F2 V2 ge1 ge2.
+  unfold genvs_domain_eq, genv2blocksBool. simpl; intros. 
+  destruct H. 
+  f_equal; extensionality b.
+    destruct (H b); clear H.
+    remember (Genv.invert_symbol ge1 b) as d.
+      destruct d; apply eq_sym in Heqd.
+      apply Genv.invert_find_symbol in Heqd.
+        destruct H1. eexists; eassumption.
+        apply Genv.find_invert_symbol in H.
+        rewrite H. trivial.
+    remember (Genv.invert_symbol ge2 b) as q.
+     destruct q; trivial; apply eq_sym in Heqq.
+      apply Genv.invert_find_symbol in Heqq.
+        destruct H2. eexists; eassumption.
+        apply Genv.find_invert_symbol in H.
+        rewrite H in Heqd. discriminate.
+   destruct (H0 b); clear H0.
+     remember (Genv.find_var_info ge1 b) as d.
+       destruct d; apply eq_sym in Heqd.
+         destruct H1. eexists; reflexivity.
+         rewrite H0. trivial.
+       remember (Genv.find_var_info ge2 b) as q.
+         destruct q; apply eq_sym in Heqq; trivial.
+           destruct H2. eexists; reflexivity.
+           discriminate.
+Qed.
+
 Lemma genv2blocksBool_char1: forall F V (ge : Genv.t F V) b,
      (fst (genv2blocksBool ge)) b = true <-> fst (genv2blocks ge) b.
 Proof. intros.

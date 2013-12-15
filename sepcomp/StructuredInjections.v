@@ -70,8 +70,8 @@ destruct (H b); rewrite H0.
   destruct (f b); intuition.
 Qed. 
 
-Lemma disjoint_com: forall f g, disjoint f g = disjoint g f.
-Proof. intros. unfold disjoint. apply prop_ext. 
+Lemma disjoint_com: forall f g, disjoint f g <-> disjoint g f.
+Proof. intros. unfold disjoint.
  split; intros. destruct (H b); intuition. destruct (H b); intuition.
 Qed.
 

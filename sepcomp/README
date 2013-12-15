@@ -7,6 +7,8 @@ Ordered.v
 Switch.v
 
 Csharpminor.v
+Cshmgen.v
+
 Cminor.v 
 Cminorgen.v
 Cminorgenproof.v
@@ -23,6 +25,12 @@ SelectOpproof.v
 Op.v
 Registers.v
 RTL.v
+
+Machregs.v
+Conventions.v
+Conventions1.v
+Locations.v
+LTL.v
 
 Please refer to the following files for further details about the license.
 

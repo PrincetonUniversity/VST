@@ -88,17 +88,20 @@ SEPCOMP_FILES= \
 COMPCOMP_FILES= \
   Ordered.v Switch.v Cminor.v Cminor_coop.v Cminor_eff.v \
   Csharpminor.v Csharpminor_coop.v Csharpminor_eff.v \
+  Cshmgen.v \
   Cminorgen.v CminorgenproofRestructured.v CminorgenproofSIM.v CminorgenproofEFF.v \
   Op.v CminorSel.v CminorSel_coop.v CminorSel_eff.v \
   SelectOp.v SelectDiv.v SelectLong.v \
   SelectOpproof.v SelectDivproof.v SelectLongproof.v \
-  Selection.v SelectionproofEFF.v Registers.v RTL.v
+  Selection.v SelectionproofEFF.v Registers.v RTL.v \
+  Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
+  LTL_coop.v LTL_eff.v
 #Selectionproof.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
   lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v \
-  Clight_lemmas.v Clight_new.v Clight_coop.v Clight_sim.v \
+  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \

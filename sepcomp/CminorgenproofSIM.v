@@ -463,16 +463,19 @@ Qed.
 
 Lemma MSI_atExt: forall j c1 m1 c2 m2
 (H: match_statesInj prog j (ToState c1 m1) (Cminor_coop.ToState c2 m2) ),
-(CSharpMin_at_external c1 = None) = (CMin_at_external c2 = None).
+(CSharpMin_at_external c1 = None) <-> (CMin_at_external c2 = None).
 Proof.
   intros.
-  destruct c1; destruct c2; inv H; simpl in *; trivial.
-  destruct f; destruct f0; simpl in *; trivial.
-   apply bind_inversion in TR. destruct TR as [z [ZZ1 ZZ2]]; subst.
-  inv ZZ2.
-  inv TR.
-  inv TR.
-  apply prop_ext. split; intros; inv H. 
+  destruct c1; destruct c2; simpl in *; inv H; simpl in *; trivial.
+    intuition.
+    intuition. 
+    destruct f; destruct f0; simpl in *. intuition.
+    apply bind_inversion in TR. destruct TR as [z [ZZ1 ZZ2]]; subst.
+     inv ZZ2.
+     inv TR.
+     inv TR.
+     split; intros; inv H.
+    intuition. 
 Qed.
 
 Parameter MC_order :  core_data -> core_data -> Prop. 
