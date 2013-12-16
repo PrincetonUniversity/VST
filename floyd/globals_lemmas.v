@@ -105,20 +105,27 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
   | Init_int64 i => `(mapsto sh tulong) v ` (Vlong i)
   | Init_float32 r =>  `(mapsto sh tfloat) v ` (Vfloat ((Float.singleoffloat r)))
   | Init_float64 r =>  `(mapsto sh tdouble) v ` (Vfloat r)
-  | Init_space n => 
+  | Init_space n => if zeq n (sizeof ty)
+                                   then `(data_at_ sh ty) v
+                                   else if zlt n 0 then TT
+                                   else`(memory_block sh (Int.repr n)) v
+(*
       match ty  with
       | Tarray t j att => if zeq n (sizeof ty)
                                   then `(array_at_ t sh 0 j) v (* FIXME *)
                                   else TT
       | Tvoid => TT
       | Tfunction _ _ => TT
-      | Tstruct _ _ _ => TT (* FIXME *)
+      | Tstruct _ _ _ => if zeq n (sizeof ty)
+                                   then `(data_at_ sh ty) v
+                                   else TT
       | Tunion _ _ _ => TT (* FIXME *)
       | Tcomp_ptr _ _ => TT
       | t=> if zeq n (sizeof t) 
                                then `(mapsto sh t) v `(zero_of_type t)
                                else  TT
       end
+*)
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Global_var (Tarray t n' att)) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
@@ -202,26 +209,17 @@ intros H1 H6' H6 H7 H8.
  rewrite H8'; simpl. rewrite Int.add_zero_l; auto.
  clear H8'.
  destruct idata; super_unfold_lift; try apply derives_refl.
-*  
- destruct t; try (apply no_attr_e in H1; subst a); 
-  try (simpl; apply TT_right);
-  try (if_tac;
-        [rewrite H8; unfold zero_of_type; subst z; 
-         rewrite init_data_size_space in H6
-        | simpl; apply TT_right
-        ]).
-+ apply mapsto_zeros_Tint; auto.
-+ apply mapsto_zeros_Tlong; auto.
-+ apply mapsto_zeros_Tfloat; auto.
-+ apply mapsto_zeros_Tpointer; auto.
-+  eapply derives_trans; [ apply mapsto_zeros_memory_block; try omega | ].
-pose proof (sizeof_pos (Tarray t z0 a)); omega.
- rewrite memory_block_typed by assumption.
- unfold data_at_, data_at. simpl. unfold eq_rect_r, eq_rect. simpl.
- rewrite withspacer_spacer. unfold spacer.
- rewrite align_0 by (apply alignof_pos). simpl.
- rewrite emp_sepcon.
- apply array_at__array_at.
+*  repeat if_tac; try rewrite H8; 
+    [subst z; rewrite init_data_size_space in H6;
+     rewrite <- memory_block_typed  by auto;
+      apply mapsto_zeros_memory_block; auto;
+      pose proof (sizeof_pos t); omega
+    | simpl; apply TT_right
+    |   
+     ].
+ simpl in H6. rewrite Z.max_l in H6 by omega.
+     apply mapsto_zeros_memory_block; auto.
+   omega.
 * 
    destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg; 
@@ -274,9 +272,12 @@ destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?].
  replace (eval_var i t rho) with (offset_val Int.zero (eval_var i t rho)) by (rewrite H8; reflexivity).
  eapply derives_trans; [eapply init_data2pred_rejigger; eauto; omega | ].
  unfold init_data2pred'.
- destruct idata; unfold_lift; try destruct t; try if_tac;
+ destruct idata; unfold_lift;
    try (rewrite H8; simpl; rewrite Int.add_zero_l; auto);
- try apply derives_refl;
+ try apply derives_refl.
+ if_tac. rewrite H8. simpl; rewrite Int.add_zero_l; auto.
+ if_tac; auto.  rewrite H8. simpl; rewrite Int.add_zero_l; auto.
+ destruct ((var_types Delta)!i0); auto;
  destruct ( (glob_types Delta) ! i0); try destruct g;try destruct gv0; try apply derives_refl;
    try (rewrite H8; simpl; rewrite Int.add_zero_l; auto).
 Qed.
@@ -538,14 +539,23 @@ first [
  | apply andp_left2; apply derives_refl
  ].
 
-Ltac expand_main_pre := 
- rewrite main_pre_eq; simpl fold_right_sepcon;
+Lemma start_main_pre:
+  forall p u Q, main_pre p u * Q = PROP() LOCAL() (SEP (main_pre p u;Q)).
+Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
+Qed.
+
+Ltac expand_main_pre :=
+ rewrite start_main_pre, main_pre_eq; simpl map; 
+  unfold fold_right_sepcon'; repeat flatten_sepcon_in_SEP;
  eapply do_expand_globvars;
- [repeat 
+ [ repeat 
    (eapply do_expand_globvars_cons;
     [ expand_one_globvar | ]);
    apply do_expand_globvars_nil
- |  ];
- unfold init_data2pred'; simpl.
+ | ];
+ cbv beta;
+ simpl init_data2pred';
+ change (Share.splice extern_retainer Tsh) with Ews.
+
 
 

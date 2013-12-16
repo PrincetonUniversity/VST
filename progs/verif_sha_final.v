@@ -501,7 +501,6 @@ f_equal.
 clear - H0.
 admit.  (* easy enough *)
 rewrite (split_array_at (Zlength dd') tuchar).
-Check split_array_at.
 rewrite (split_array_at (Z.of_nat CBLOCK - 8)%Z tuchar _ _ _ 64%Z).
 repeat rewrite <- sepcon_assoc.
 pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) (Zlength dd') (Z.of_nat CBLOCK - 8)%Z

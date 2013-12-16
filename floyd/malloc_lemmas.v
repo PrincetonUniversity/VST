@@ -60,6 +60,76 @@ with reptype_unionlist (fld: fieldlist) : Type :=
   | Fcons id ty fld' => sum (reptype ty) (reptype_unionlist fld')
   end.
 
+
+Fixpoint reptype' (ty: type) : Type :=
+  match ty with
+  | Tvoid => unit
+  | Tint _ _ _ => int
+  | Tlong _ _ => Int64.int
+  | Tfloat _ _ => float
+  | Tpointer t1 a => val
+  | Tarray t1 sz a => list (reptype' t1)
+  | Tfunction t1 t2 => unit
+  | Tstruct id fld a => reptype'_structlist fld
+  | Tunion id fld a => reptype'_unionlist fld
+  | Tcomp_ptr id a => val
+  end
+
+with reptype'_structlist (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => 
+          if is_Fnil fld' 
+                      then reptype' ty
+                      else prod (reptype' ty) (reptype'_structlist fld')
+  end
+with reptype'_unionlist (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => sum (reptype' ty) (reptype'_unionlist fld')
+  end.
+
+Fixpoint repinj (t: type): reptype' t -> reptype t :=
+match t as t0 return (reptype' t0 -> reptype t0) with
+| Tvoid => id
+| Tint _ _ _ => id Vint
+| Tlong _ _ => id Vlong
+| Tfloat _ _ => id Vfloat
+| Tpointer _ _ => id
+| Tarray t0 _ _ => id (map (repinj t0))
+| Tfunction _ _ => id
+| Tstruct _ f _ => id (repinj_structlist f)
+| Tunion _ f _ => id (repinj_unionlist f)
+| Tcomp_ptr _ _ => id
+end
+with repinj_structlist (fld: fieldlist) : reptype'_structlist fld -> reptype_structlist fld :=
+match fld as f return (reptype'_structlist f -> reptype_structlist f) with
+| Fnil => id
+| Fcons _ t fld0 =>
+    (if is_Fnil fld0  as b0
+      return
+        (is_Fnil fld0 = b0 ->
+         (if b0
+          then reptype' t
+          else (reptype' t * reptype'_structlist fld0)%type) ->
+         if b0 then reptype t else (reptype t * reptype_structlist fld0)%type)
+     then fun _ : is_Fnil fld0 = true => repinj t
+     else
+      fun (_ : is_Fnil fld0 = false)
+        (v : reptype' t * reptype'_structlist fld0) =>
+      (repinj t (fst v), repinj_structlist fld0 (snd v))) eq_refl
+end
+with repinj_unionlist (fld: fieldlist) : reptype'_unionlist fld -> reptype_unionlist fld :=
+match fld as f return (reptype'_unionlist f -> reptype_unionlist f) with
+| Fnil => id
+| Fcons _ t fld0 =>
+    fun X : reptype' t + reptype'_unionlist fld0 =>
+    match X with
+    | inl v1 => inl (repinj t v1)
+    | inr v2 => inr (repinj_unionlist fld0 v2)
+    end
+end.
+
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
 Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.

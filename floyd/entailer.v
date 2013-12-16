@@ -77,6 +77,7 @@ Inductive computable: forall {A}(x: A), Prop :=
 | computable_Zmul: forall x y, computable x -> computable y -> computable (Z.mul x y)
 | computable_Zdiv: forall x y, computable x -> computable y -> computable (Z.div x y)
 | computable_Zmod: forall x y, computable x -> computable y -> computable (Zmod x y)
+| computable_Zmax: forall x y, computable x -> computable y -> computable (Z.max x y)
 | computable_Zopp: forall x, computable x -> computable (Z.opp x)
 | computable_Inteq: forall x y, computable x -> computable y -> computable (Int.eq x y)
 | computable_Intlt: forall x y, computable x -> computable y -> computable (Int.lt x y)
@@ -98,7 +99,9 @@ Inductive computable: forall {A}(x: A), Prop :=
 | computable_Intrepr: forall x, computable x -> computable (Int.repr x)
 | computable_Intsigned: forall x, computable x -> computable (Int.signed x)
 | computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x)
-| computable_two_power_nat: forall x, computable x -> computable (two_power_nat x).
+| computable_two_power_nat: forall x, computable x -> computable (two_power_nat x)
+| computable_max_unsigned: computable (Int.max_unsigned)
+| computable_align: forall x y, computable x -> computable y -> computable (align x y).
 
 Hint Constructors computable : computable. 
 Hint Extern 1 (computable ?A) => (unfold A) : computable.

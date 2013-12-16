@@ -29,181 +29,314 @@ Lemma goal_1 :
 name _Q ->
 name _h ->
 forall (q : val) (contents : list val) (hd tl : val),
+is_pointer_or_null hd ->
+is_pointer_or_null tl ->
+forall rho : environ,
 let Delta :=
-  @abbreviate tycontext
-    (initialized _h
-       (@PTree.Node (type * bool)
-          (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-             (@None (type * bool))
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))))) (@None (type * bool))
-          (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-             (@None (type * bool))
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_fifo, true))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))) (@None (type * bool))
-                (@PTree.Leaf (type * bool)))), PTree.empty type, tint,
-       @PTree.Node global_spec
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tptr tvoid), (3%positive, tuint),
-                         (4%positive, tuint)](fun _ : environ => !!False)
-                         POST  [tvoid](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
-                            [(_Q, tptr t_struct_fifo),
-                            (_p, tptr t_struct_elem)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q);
-                             `(@eq val p) (eval_id _p))
-                             SEP  (`(fifo contents0 q0);
-                                     `(field_at_ Tsh t_struct_elem _next p))) POST 
-                            [tvoid]
-                            (let (q0, contents0) := p0 in
-                             `(fifo (contents0 ++ p :: @nil val) q0)))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  []
-                            (fun _ : environ => @emp mpred Nveric Sveric)
-                            POST  [tptr t_struct_fifo]
-                            `(fifo (@nil val)) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  a : int, b : int PRE  [(_a, tint),
-                            (_b, tint)]
+  (fun (A : Type) (x : A) => x) tycontext
+    (PTree.Node
+       (PTree.Node PTree.Leaf None
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                   PTree.Leaf) None PTree.Leaf))) None
+       (PTree.Node PTree.Leaf None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                   PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+    var_types
+      (PTree.Node
+         (PTree.Node PTree.Leaf None
+            (PTree.Node PTree.Leaf None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                     PTree.Leaf) None PTree.Leaf))) None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                     PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+      PTree.empty type, tint,
+      PTree.Node
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tptr tvoid), (3%positive, tuint),
+                        (4%positive, tuint)](fun _ : environ => !!False)
+                        POST  [tvoid](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo),
+                           (_p, tptr t_struct_elem)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                     (@PTree.Leaf global_spec)))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH n : int PRE  [(1%positive, tint)]
-                         PROP  (4 <= Int.signed n)
-                         LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                         SEP() POST  [tptr tvoid]`(memory_block Tsh n) retval)))
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Leaf global_spec))) (@None global_spec)
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tschar),
-                         (2%positive, tint)](fun _ : environ => !!False)
-                         POST  [tint](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  q0 : val, contents0 : list val PRE 
-                            [(_Q, tptr t_struct_fifo)]
+                            LOCAL  (`(eq q0) (eval_id _Q);
+                            `(eq p) (eval_id _p))
+                            SEP  (`(fifo contents0 q0);
+                            `(field_at_ Tsh t_struct_elem _next p))) POST 
+                           [tvoid]
+                           (let (q0, contents0) := p0 in
+                            `(fifo (contents0 ++ p :: nil) q0))))) PTree.Leaf))
+              None
+              (PTree.Node
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [](fun _ : environ => emp)
+                           POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                    PTree.Leaf) None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  a : int, b : int PRE  [(_a, tint),
+                           (_b, tint)]
+                           PROP  ()
+                           LOCAL  (`(eq (Vint a)) (eval_id _a);
+                           `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                           [tptr t_struct_elem]
+                           `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+           None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH n : int PRE  [(1%positive, tint)]
+                        PROP  (4 <= Int.signed n)
+                        LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                        POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                 PTree.Leaf) None PTree.Leaf)) None
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                        (2%positive, tint)](fun _ : environ => !!False) POST 
+                        [tint](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  q0 : val, contents0 : list val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           PROP  ()
+                           LOCAL  (`(eq q0) (eval_id _Q))
+                           SEP  (`(fifo contents0 q0)) POST  [tint]
+                           (fun x0 : environ =>
+                            local
+                              (`(eq
+                                   (if isnil contents0 then Vtrue else Vfalse))
+                                 retval) x0 && `(fifo contents0 q0) x0))))
+                    PTree.Leaf)) None PTree.Leaf) None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tint)]
+                        PROP  ()
+                        LOCAL ()
+                        SEP 
+                        (`(memory_block Tsh)
+                           (`force_int (eval_id 2%positive))
+                           (eval_id 1%positive)) POST  [tvoid]
+                        (fun _ : environ => emp))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val q0) (eval_id _Q))
-                            SEP  (`(fifo contents0 q0)) POST  [tint]
-                            (fun x0 : environ =>
-                             local
-                               (`(@eq val
-                                    (if @isnil val contents0
-                                     then Vtrue
-                                     else Vfalse)) retval) x0 &&
-                             `(fifo contents0 q0) x0))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Leaf global_spec)) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tint)]
-                         PROP  ()
-                         LOCAL ()
-                         SEP 
-                         (`(memory_block Tsh)
-                            (`force_int (eval_id 2%positive))
-                            (eval_id 1%positive)) POST  [tvoid]
-                         (fun _ : environ => @emp mpred Nveric Sveric))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p : val PRE 
-                            [(_Q, tptr t_struct_fifo)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q))
-                             SEP  (`(fifo (p :: contents0) q0))) POST 
-                            [tptr t_struct_elem]
-                            (let (q0, contents0) := p0 in
-                             fun rho : environ =>
-                             local (`(@eq val p) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_at Tsh t_struct_elem _next) retval rho))))
-                     (@PTree.Leaf global_spec)))
-               (@Some global_spec
+                            LOCAL  (`(eq q0) (eval_id _Q))
+                            SEP  (`(fifo (p :: contents0) q0))) POST 
+                           [tptr t_struct_elem]
+                           (let (q0, contents0) := p0 in
+                            fun rho0 : environ =>
+                            local (`(eq p) retval) rho0 &&
+                            `(fifo contents0 q0) rho0 *
+                            `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                    PTree.Leaf))
+              (Some
+                 (Global_func
+                    (WITH _ : unit PRE  [(1%positive, tdouble)]
+                     (fun _ : environ => !!False) POST  [tdouble]
+                     (fun _ : environ => !!False))))
+              (PTree.Node PTree.Leaf None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                           main_post prog u))) PTree.Leaf))))), tint,
+    PTree.Node
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
                   (Global_func
-                     (WITH _ : unit PRE  [(1%positive, tdouble)]
-                      (fun _ : environ => !!False) POST  [tdouble]
-                      (fun _ : environ => !!False))))
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH u : unit PRE  []main_pre prog u POST  [tint]
-                            main_post prog u))) (@PTree.Leaf global_spec))))))) in
-PROP  ()
-LOCAL  (tc_environ Delta; `(@eq val hd) (eval_id _h);
-`(@eq val q) (eval_id _Q))
-SEP  (`(field_at Tsh t_struct_fifo _head q hd);
-`(field_at Tsh t_struct_fifo _tail q tl);
-`(if @isnil val contents
-  then !!(hd = nullval) && @emp mpred Nveric Sveric
-  else
-   EX  prefix : list val,
-   !!(contents = prefix ++ tl :: @nil val) &&
-   (@links t_struct_elem _next QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl)))
-|-- local
-      (tc_expropt Delta
-         (@Some expr
-            (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
-         (ret_type Delta)) &&
-    `(function_body_ret_assert tint
-        (local
-           (`(@eq val (if @isnil val contents then Vtrue else Vfalse)) retval) &&
-         `(fifo contents q)) EK_return)
-      (cast_expropt
-         (@Some expr
-            (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-               (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint))
-         (ret_type Delta)) (@id environ)
-. Proof. intros Q h. ungather_entail.
-unfold fifo.
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tptr tvoid), (3%positive, tuint),
+                      (4%positive, tuint)](fun _ : environ => !!False) POST 
+                      [tvoid](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo), (_p, tptr t_struct_elem)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q);
+                          `(eq p) (eval_id _p))
+                          SEP  (`(fifo contents0 q0);
+                          `(field_at_ Tsh t_struct_elem _next p))) POST 
+                         [tvoid]
+                         (let (q0, contents0) := p0 in
+                          `(fifo (contents0 ++ p :: nil) q0))))) PTree.Leaf))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH _ : unit PRE  [](fun _ : environ => emp) POST 
+                         [tptr t_struct_fifo]`(fifo nil) retval))) PTree.Leaf)
+               None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  a : int, b : int PRE  [(_a, tint), (_b, tint)]
+                         PROP  ()
+                         LOCAL  (`(eq (Vint a)) (eval_id _a);
+                         `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                         [tptr t_struct_elem]
+                         `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+         None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH n : int PRE  [(1%positive, tint)]
+                      PROP  (4 <= Int.signed n)
+                      LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                      POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+               PTree.Leaf) None PTree.Leaf)) None
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                      (2%positive, tint)](fun _ : environ => !!False) POST 
+                      [tint](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  q0 : val, contents0 : list val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         PROP  ()
+                         LOCAL  (`(eq q0) (eval_id _Q))
+                         SEP  (`(fifo contents0 q0)) POST  [tint]
+                         (fun x0 : environ =>
+                          local
+                            (`(eq (if isnil contents0 then Vtrue else Vfalse))
+                               retval) x0 && `(fifo contents0 q0) x0))))
+                  PTree.Leaf)) None PTree.Leaf) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tint)]
+                      PROP  ()
+                      LOCAL ()
+                      SEP 
+                      (`(memory_block Tsh) (`force_int (eval_id 2%positive))
+                         (eval_id 1%positive)) POST  [tvoid]
+                      (fun _ : environ => emp))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q))
+                          SEP  (`(fifo (p :: contents0) q0))) POST 
+                         [tptr t_struct_elem]
+                         (let (q0, contents0) := p0 in
+                          fun rho0 : environ =>
+                          local (`(eq p) retval) rho0 &&
+                          `(fifo contents0 q0) rho0 *
+                          `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                  PTree.Leaf))
+            (Some
+               (Global_func
+                  (WITH _ : unit PRE  [(1%positive, tdouble)]
+                   (fun _ : environ => !!False) POST  [tdouble]
+                   (fun _ : environ => !!False))))
+            (PTree.Node PTree.Leaf None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                         main_post prog u))) PTree.Leaf))))) in
+tc_environ Delta rho ->
+!!True &&
+(!!(hd = eval_id _h rho /\ q = eval_id _Q rho /\ True) &&
+ (field_at Tsh t_struct_fifo _head hd q *
+  (field_at Tsh t_struct_fifo _tail tl q *
+   ((if isnil contents
+     then !!(hd = nullval) && emp
+     else
+      EX  prefix : list val,
+      !!(contents = prefix ++ tl :: nil) &&
+      (links QS Tsh prefix hd tl *
+       field_at Tsh t_struct_elem _next nullval tl)) * (emp * emp)))))
+|-- !!(denote_tc_iszero (eval_id _h rho) \/
+       is_true (Int.eq (Int.repr 0) Int.zero)) &&
+    (!!is_int
+         (force_val
+            (sem_cast_neutral
+               (force_val
+                  (sem_cmp_pp Ceq true2 (eval_id _h rho) (Vint (Int.repr 0)))))) &&
+     (!!((if isnil contents then Vtrue else Vfalse) =
+         eval_id ret_temp
+           (env_set (globals_only (id rho)) ret_temp
+              (force_val
+                 (sem_cast_neutral
+                    (force_val
+                       (sem_cmp_pp Ceq true2 (eval_id _h rho)
+                          (Vint (Int.repr 0)))))))) &&
+      (EX  ht : val * val,
+       (let (hd0, tl0) := ht in
+        !!is_pointer_or_null hd0 && !!is_pointer_or_null tl0 &&
+        field_at Tsh t_struct_fifo _head hd0 q *
+        field_at Tsh t_struct_fifo _tail tl0 q *
+        (if isnil contents
+         then !!(hd0 = nullval) && emp
+         else
+          EX  prefix : list val,
+          !!(contents = prefix ++ tl0 :: nil) &&
+          (links QS Tsh prefix hd0 tl0 *
+           field_at Tsh t_struct_elem _next nullval tl0)))))).
+Proof.
+ungather_entail.
+entailer!.
+apply exp_right with (eval_id _h rho, tl).
 entailer.
-apply exp_right with (h,tl).
-entailer.
-if_tac; entailer; elim_hyps; simpl; auto.
-destruct prefix; entailer1.
+apply prop_and_right.
+destruct (eval_id _h rho); inv H1; reflexivity.
+if_tac.
+entailer; elim_hyps; simpl; auto.
+rewrite H6; reflexivity.
+normalize.
+destruct prefix; entailer.
+destruct (eval_id _h rho); try contradiction; reflexivity.
+apply prop_right; destruct (eval_id _h rho); try contradiction; reflexivity.
 Qed.
 
 Lemma goal_2 :
@@ -212,111 +345,99 @@ name _Q' ->
 EVAR
   (forall Frame : list (environ -> mpred),
    let Delta :=
-     @abbreviate tycontext
-       (@PTree.Node (type * bool)
-          (@PTree.Node (type * bool)
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                         (@Some (type * bool) (tptr tvoid, false))
-                         (@PTree.Leaf (type * bool))) (@None (type * bool))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))) (@None (type * bool))
-                (@PTree.Leaf (type * bool))) (@None (type * bool))
-             (@PTree.Leaf (type * bool))) (@None (type * bool))
-          (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-             (@None (type * bool))
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_fifo, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))) (@None (type * bool))
-                (@PTree.Leaf (type * bool)))), PTree.empty type,
-       tptr t_struct_fifo,
-       @PTree.Node global_spec
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
+     (fun (A : Type) (x : A) => x) tycontext
+       (PTree.Node
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf (Some (tptr tvoid, false))
+                         PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+                PTree.Leaf) None PTree.Leaf) None
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node
+                   (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, false))
+                      PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+       PTree.empty type, tptr t_struct_fifo,
+       PTree.Node
+         (PTree.Node
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
                      (Global_func
                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
                          (2%positive, tptr tvoid), (3%positive, tuint),
                          (4%positive, tuint)](fun _ : environ => !!False)
                          POST  [tvoid](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH  p0 : val * list val, p : val PRE 
                             [(_Q, tptr t_struct_fifo),
                             (_p, tptr t_struct_elem)]
                             (let (q, contents) := p0 in
                              PROP  ()
-                             LOCAL  (`(@eq val q) (eval_id _Q);
-                             `(@eq val p) (eval_id _p))
-                             SEP  (`(fifo contents q); `(link_ p))) POST 
+                             LOCAL  (`(eq q) (eval_id _Q);
+                             `(eq p) (eval_id _p))
+                             SEP  (`(fifo contents q);
+                             `(field_at_ Tsh t_struct_elem _next p))) POST 
                             [tvoid]
                             (let (q, contents) := p0 in
-                             `(fifo (contents ++ p :: @nil val) q)))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                             `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+               None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
-                           (WITH _ : unit PRE  []
-                            (fun _ : environ => @emp mpred Nveric Sveric)
-                            POST  [tptr t_struct_fifo]
-                            `(fifo (@nil val)) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                           (WITH _ : unit PRE  [](fun _ : environ => emp)
+                            POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                     PTree.Leaf) None
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH  a : int, b : int PRE  [(_a, tint),
                             (_b, tint)]
                             PROP  ()
-                            LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                     (@PTree.Leaf global_spec)))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
+                            LOCAL  (`(eq (Vint a)) (eval_id _a);
+                            `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                            [tptr t_struct_elem]
+                            `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
                      (Global_func
                         (WITH n : int PRE  [(1%positive, tint)]
                          PROP  (4 <= Int.signed n)
-                         LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                         SEP() POST  [tptr tvoid]`(memory_block Tsh n) retval)))
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Leaf global_spec))) (@None global_spec)
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
+                         LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                         POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                  PTree.Leaf) None PTree.Leaf)) None
+         (PTree.Node
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
                      (Global_func
                         (WITH _ : unit PRE  [(1%positive, tptr tschar),
                          (2%positive, tint)](fun _ : environ => !!False)
                          POST  [tint](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH  q : val, contents : list val PRE 
                             [(_Q, tptr t_struct_fifo)]
                             PROP  ()
-                            LOCAL  (`(@eq val q) (eval_id _Q))
+                            LOCAL  (`(eq q) (eval_id _Q))
                             SEP  (`(fifo contents q)) POST  [tint]
                             (fun x0 : environ =>
                              local
-                               (`(@eq val
-                                    (if @isnil val contents
-                                     then Vtrue
-                                     else Vfalse)) retval) x0 &&
-                             `(fifo contents q) x0))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Leaf global_spec)) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
+                               (`(eq
+                                    (if isnil contents then Vtrue else Vfalse))
+                                  retval) x0 && `(fifo contents q) x0))))
+                     PTree.Leaf)) None PTree.Leaf) None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
                      (Global_func
                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
                          (2%positive, tint)]
@@ -326,220 +447,458 @@ EVAR
                          (`(memory_block Tsh)
                             (`force_int (eval_id 2%positive))
                             (eval_id 1%positive)) POST  [tvoid]
-                         (fun _ : environ => @emp mpred Nveric Sveric))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                         (fun _ : environ => emp))))
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH  p0 : val * list val, p : val PRE 
                             [(_Q, tptr t_struct_fifo)]
                             (let (q, contents) := p0 in
                              PROP  ()
-                             LOCAL  (`(@eq val q) (eval_id _Q))
+                             LOCAL  (`(eq q) (eval_id _Q))
                              SEP  (`(fifo (p :: contents) q))) POST 
                             [tptr t_struct_elem]
                             (let (q, contents) := p0 in
                              fun rho : environ =>
-                             local (`(@eq val p) retval) rho &&
-                             `(fifo contents q) rho * `link_ retval rho))))
-                     (@PTree.Leaf global_spec)))
-               (@Some global_spec
+                             local (`(eq p) retval) rho &&
+                             `(fifo contents q) rho *
+                             `(field_at_ Tsh t_struct_elem _next) retval rho))))
+                     PTree.Leaf))
+               (Some
                   (Global_func
                      (WITH _ : unit PRE  [(1%positive, tdouble)]
                       (fun _ : environ => !!False) POST  [tdouble]
                       (fun _ : environ => !!False))))
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH u : unit PRE  []main_pre prog u POST  [tint]
-                            main_post prog u))) (@PTree.Leaf global_spec)))))) in
+                            main_post prog u))) PTree.Leaf))))) in
    let witness := Int.repr 8 in
    PROP  ()  LOCAL  (tc_environ Delta)  SEP()
    |-- PROP  ()
        LOCAL 
        (tc_exprlist Delta
-          (@snd (list ident) (list type)
-             (@split ident type
-                (@fst (list (ident * type)) type
-                   ((1%positive, tint) :: @nil (positive * type), tptr tvoid))))
-          (Econst_int (Int.repr 8) tuint :: @nil expr))
+          (snd (split (fst ((1%positive, tint) :: nil, tptr tvoid))))
+          (Econst_int (Int.repr 8) tuint :: nil))
        (SEPx
           (`(PROP  (4 <= Int.signed witness)
-             LOCAL  (`(@eq val (Vint witness)) (eval_id 1%positive))  SEP())
-             (make_args'
-                ((1%positive, tint) :: @nil (positive * type), tptr tvoid)
+             LOCAL  (`(eq (Vint witness)) (eval_id 1%positive))  SEP())
+             (make_args' ((1%positive, tint) :: nil, tptr tvoid)
                 (eval_exprlist
-                   (@snd (list ident) (list type)
-                      (@split ident type
-                         (@fst (list (ident * type)) type
-                            ((1%positive, tint) :: @nil (positive * type),
-                            tptr tvoid))))
-                   (Econst_int (Int.repr 8) tuint :: @nil expr))) :: Frame)))
-. Proof. intros Q Q'; ungather_entail.
+                   (snd (split (fst ((1%positive, tint) :: nil, tptr tvoid))))
+                   (Econst_int (Int.repr 8) tuint :: nil))) :: Frame))).
+Proof. intros Q Q'; ungather_entail.
 entailer1.
 Qed.
 
 Lemma goal_3 :
 name _Q ->
 name _Q' ->
+forall rho : environ,
 let Delta :=
-  @abbreviate tycontext
-    (initialized _Q
-       (initialized _Q'
-          (@PTree.Node (type * bool)
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool)
-                         (@PTree.Node (type * bool)
-                            (@PTree.Leaf (type * bool))
-                            (@Some (type * bool) (tptr tvoid, false))
-                            (@PTree.Leaf (type * bool)))
-                         (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                      (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                   (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                (@None (type * bool)) (@PTree.Leaf (type * bool)))
-             (@None (type * bool))
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                         (@Some (type * bool) (tptr t_struct_fifo, false))
-                         (@PTree.Leaf (type * bool))) (@None (type * bool))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool)))), PTree.empty type,
-          tptr t_struct_fifo,
-          @PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                            (2%positive, tptr tvoid), (3%positive, tuint),
-                            (4%positive, tuint)](fun _ : environ => !!False)
-                            POST  [tvoid](fun _ : environ => !!False))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH  p0 : val * list val, p : val PRE 
-                               [(_Q, tptr t_struct_fifo),
-                               (_p, tptr t_struct_elem)]
-                               (let (q, contents) := p0 in
-                                PROP  ()
-                                LOCAL  (`(@eq val q) (eval_id _Q);
-                                `(@eq val p) (eval_id _p))
-                                SEP  (`(fifo contents q); `(link_ p))) POST 
-                               [tvoid]
-                               (let (q, contents) := p0 in
-                                `(fifo (contents ++ p :: @nil val) q)))))
-                        (@PTree.Leaf global_spec))) (@None global_spec)
-                  (@PTree.Node global_spec
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH _ : unit PRE  []
-                               (fun _ : environ => @emp mpred Nveric Sveric)
-                               POST  [tptr t_struct_fifo]
-                               `(fifo (@nil val)) retval)))
-                        (@PTree.Leaf global_spec)) (@None global_spec)
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH  a : int, b : int PRE  [(_a, tint),
-                               (_b, tint)]
-                               PROP  ()
-                               LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                               `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                        (@PTree.Leaf global_spec)))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH n : int PRE  [(1%positive, tint)]
-                            PROP  (4 <= Int.signed n)
-                            LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                              SEP() POST  [tptr tvoid]
-                            `(memory_block Tsh n) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Leaf global_spec))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  [(1%positive, tptr tschar),
-                            (2%positive, tint)](fun _ : environ => !!False)
-                            POST  [tint](fun _ : environ => !!False))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH  q : val, contents : list val PRE 
-                               [(_Q, tptr t_struct_fifo)]
-                               PROP  ()
-                               LOCAL  (`(@eq val q) (eval_id _Q))
-                               SEP  (`(fifo contents q)) POST  [tint]
-                               (fun x0 : environ =>
-                                local
-                                  (`(@eq val
-                                       (if @isnil val contents
-                                        then Vtrue
-                                        else Vfalse)) retval) x0 &&
-                                `(fifo contents q) x0))))
-                        (@PTree.Leaf global_spec))) (@None global_spec)
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                            (2%positive, tint)]
+  (fun (A : Type) (x : A) => x) tycontext
+    (PTree.Node
+       (PTree.Node
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node
+                   (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                      PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+             PTree.Leaf) None PTree.Leaf) None
+       (PTree.Node PTree.Leaf None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                   PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+    var_types
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                        PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+               PTree.Leaf) None PTree.Leaf) None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, false))
+                     PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+      var_types
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node
+                       (PTree.Node PTree.Leaf (Some (tptr tvoid, false))
+                          PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+                 PTree.Leaf) None PTree.Leaf) None
+           (PTree.Node PTree.Leaf None
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, false))
+                       PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+        PTree.empty type, tptr t_struct_fifo,
+        PTree.Node
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                          (2%positive, tptr tvoid), (3%positive, tuint),
+                          (4%positive, tuint)](fun _ : environ => !!False)
+                          POST  [tvoid](fun _ : environ => !!False))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  p0 : val * list val, p : val PRE 
+                             [(_Q, tptr t_struct_fifo),
+                             (_p, tptr t_struct_elem)]
+                             (let (q, contents) := p0 in
+                              PROP  ()
+                              LOCAL  (`(eq q) (eval_id _Q);
+                              `(eq p) (eval_id _p))
+                              SEP  (`(fifo contents q);
+                              `(field_at_ Tsh t_struct_elem _next p))) POST 
+                             [tvoid]
+                             (let (q, contents) := p0 in
+                              `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+                None
+                (PTree.Node
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH _ : unit PRE  [](fun _ : environ => emp)
+                             POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                      PTree.Leaf) None
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  a : int, b : int PRE  [(_a, tint),
+                             (_b, tint)]
+                             PROP  ()
+                             LOCAL  (`(eq (Vint a)) (eval_id _a);
+                             `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                             [tptr t_struct_elem]
+                             `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+             None
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH n : int PRE  [(1%positive, tint)]
+                          PROP  (4 <= Int.signed n)
+                          LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                          POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                   PTree.Leaf) None PTree.Leaf)) None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                          (2%positive, tint)](fun _ : environ => !!False)
+                          POST  [tint](fun _ : environ => !!False))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  q : val, contents : list val PRE 
+                             [(_Q, tptr t_struct_fifo)]
+                             PROP  ()
+                             LOCAL  (`(eq q) (eval_id _Q))
+                             SEP  (`(fifo contents q)) POST  [tint]
+                             (fun x0 : environ =>
+                              local
+                                (`(eq
+                                     (if isnil contents
+                                      then Vtrue
+                                      else Vfalse)) retval) x0 &&
+                              `(fifo contents q) x0)))) PTree.Leaf)) None
+                PTree.Leaf) None
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                          (2%positive, tint)]
+                          PROP  ()
+                          LOCAL ()
+                          SEP 
+                          (`(memory_block Tsh)
+                             (`force_int (eval_id 2%positive))
+                             (eval_id 1%positive)) POST  [tvoid]
+                          (fun _ : environ => emp))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  p0 : val * list val, p : val PRE 
+                             [(_Q, tptr t_struct_fifo)]
+                             (let (q, contents) := p0 in
+                              PROP  ()
+                              LOCAL  (`(eq q) (eval_id _Q))
+                              SEP  (`(fifo (p :: contents) q))) POST 
+                             [tptr t_struct_elem]
+                             (let (q, contents) := p0 in
+                              fun rho0 : environ =>
+                              local (`(eq p) retval) rho0 &&
+                              `(fifo contents q) rho0 *
+                              `(field_at_ Tsh t_struct_elem _next) retval
+                                rho0)))) PTree.Leaf))
+                (Some
+                   (Global_func
+                      (WITH _ : unit PRE  [(1%positive, tdouble)]
+                       (fun _ : environ => !!False) POST  [tdouble]
+                       (fun _ : environ => !!False))))
+                (PTree.Node PTree.Leaf None
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH u : unit PRE  []main_pre prog u POST 
+                             [tint]main_post prog u))) PTree.Leaf))))),
+      tptr t_struct_fifo,
+      PTree.Node
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tptr tvoid), (3%positive, tuint),
+                        (4%positive, tuint)](fun _ : environ => !!False)
+                        POST  [tvoid](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo),
+                           (_p, tptr t_struct_elem)]
+                           (let (q, contents) := p0 in
                             PROP  ()
-                            LOCAL ()
-                            SEP 
-                            (`(memory_block Tsh)
-                               (`force_int (eval_id 2%positive))
-                               (eval_id 1%positive)) POST  [tvoid]
-                            (fun _ : environ => @emp mpred Nveric Sveric))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH  p0 : val * list val, p : val PRE 
-                               [(_Q, tptr t_struct_fifo)]
-                               (let (q, contents) := p0 in
-                                PROP  ()
-                                LOCAL  (`(@eq val q) (eval_id _Q))
-                                SEP  (`(fifo (p :: contents) q))) POST 
-                               [tptr t_struct_elem]
-                               (let (q, contents) := p0 in
-                                fun rho : environ =>
-                                local (`(@eq val p) retval) rho &&
-                                `(fifo contents q) rho * `link_ retval rho))))
-                        (@PTree.Leaf global_spec)))
-                  (@Some global_spec
+                            LOCAL  (`(eq q) (eval_id _Q);
+                            `(eq p) (eval_id _p))
+                            SEP  (`(fifo contents q);
+                            `(field_at_ Tsh t_struct_elem _next p))) POST 
+                           [tvoid]
+                           (let (q, contents) := p0 in
+                            `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+              None
+              (PTree.Node
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [](fun _ : environ => emp)
+                           POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                    PTree.Leaf) None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  a : int, b : int PRE  [(_a, tint),
+                           (_b, tint)]
+                           PROP  ()
+                           LOCAL  (`(eq (Vint a)) (eval_id _a);
+                           `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                           [tptr t_struct_elem]
+                           `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+           None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH n : int PRE  [(1%positive, tint)]
+                        PROP  (4 <= Int.signed n)
+                        LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                        POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                 PTree.Leaf) None PTree.Leaf)) None
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                        (2%positive, tint)](fun _ : environ => !!False) POST 
+                        [tint](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  q : val, contents : list val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           PROP  ()
+                           LOCAL  (`(eq q) (eval_id _Q))
+                           SEP  (`(fifo contents q)) POST  [tint]
+                           (fun x0 : environ =>
+                            local
+                              (`(eq
+                                   (if isnil contents then Vtrue else Vfalse))
+                                 retval) x0 && `(fifo contents q) x0))))
+                    PTree.Leaf)) None PTree.Leaf) None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tint)]
+                        PROP  ()
+                        LOCAL ()
+                        SEP 
+                        (`(memory_block Tsh)
+                           (`force_int (eval_id 2%positive))
+                           (eval_id 1%positive)) POST  [tvoid]
+                        (fun _ : environ => emp))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           (let (q, contents) := p0 in
+                            PROP  ()
+                            LOCAL  (`(eq q) (eval_id _Q))
+                            SEP  (`(fifo (p :: contents) q))) POST 
+                           [tptr t_struct_elem]
+                           (let (q, contents) := p0 in
+                            fun rho0 : environ =>
+                            local (`(eq p) retval) rho0 &&
+                            `(fifo contents q) rho0 *
+                            `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                    PTree.Leaf))
+              (Some
+                 (Global_func
+                    (WITH _ : unit PRE  [(1%positive, tdouble)]
+                     (fun _ : environ => !!False) POST  [tdouble]
+                     (fun _ : environ => !!False))))
+              (PTree.Node PTree.Leaf None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                           main_post prog u))) PTree.Leaf))))),
+    tptr t_struct_fifo,
+    PTree.Node
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tptr tvoid), (3%positive, tuint),
+                      (4%positive, tuint)](fun _ : environ => !!False) POST 
+                      [tvoid](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
                      (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tdouble)]
-                         (fun _ : environ => !!False) POST  [tdouble]
-                         (fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@None global_spec)
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
-                           (Global_func
-                              (WITH u : unit PRE  []main_pre prog u POST 
-                               [tint]main_post prog u)))
-                        (@PTree.Leaf global_spec)))))))) in
-PROP  ()
-LOCAL  (tc_environ Delta;
-`(@eq val) (eval_id _Q)
-  (eval_expr (Ecast (Etempvar _Q' (tptr tvoid)) (tptr t_struct_fifo))))
-SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q'))
-|-- PROP  ()  LOCAL ()  SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))
-. Proof. intros Q Q'; ungather_entail.
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo), (_p, tptr t_struct_elem)]
+                         (let (q, contents) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
+                          
+                          SEP  (`(fifo contents q);
+                          `(field_at_ Tsh t_struct_elem _next p))) POST 
+                         [tvoid]
+                         (let (q, contents) := p0 in
+                          `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH _ : unit PRE  [](fun _ : environ => emp) POST 
+                         [tptr t_struct_fifo]`(fifo nil) retval))) PTree.Leaf)
+               None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  a : int, b : int PRE  [(_a, tint), (_b, tint)]
+                         PROP  ()
+                         LOCAL  (`(eq (Vint a)) (eval_id _a);
+                         `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                         [tptr t_struct_elem]
+                         `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+         None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH n : int PRE  [(1%positive, tint)]
+                      PROP  (4 <= Int.signed n)
+                      LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                      POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+               PTree.Leaf) None PTree.Leaf)) None
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                      (2%positive, tint)](fun _ : environ => !!False) POST 
+                      [tint](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  q : val, contents : list val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         PROP  ()
+                         LOCAL  (`(eq q) (eval_id _Q))
+                         SEP  (`(fifo contents q)) POST  [tint]
+                         (fun x0 : environ =>
+                          local
+                            (`(eq (if isnil contents then Vtrue else Vfalse))
+                               retval) x0 && `(fifo contents q) x0))))
+                  PTree.Leaf)) None PTree.Leaf) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tint)]
+                      PROP  ()
+                      LOCAL ()
+                      SEP 
+                      (`(memory_block Tsh) (`force_int (eval_id 2%positive))
+                         (eval_id 1%positive)) POST  [tvoid]
+                      (fun _ : environ => emp))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         (let (q, contents) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q) (eval_id _Q))
+                          SEP  (`(fifo (p :: contents) q))) POST 
+                         [tptr t_struct_elem]
+                         (let (q, contents) := p0 in
+                          fun rho0 : environ =>
+                          local (`(eq p) retval) rho0 &&
+                          `(fifo contents q) rho0 *
+                          `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                  PTree.Leaf))
+            (Some
+               (Global_func
+                  (WITH _ : unit PRE  [(1%positive, tdouble)]
+                   (fun _ : environ => !!False) POST  [tdouble]
+                   (fun _ : environ => !!False))))
+            (PTree.Node PTree.Leaf None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                         main_post prog u))) PTree.Leaf))))) in
+tc_environ Delta rho ->
+!!True &&
+(!!(eval_id _Q rho = force_val (sem_cast_neutral (eval_id _Q' rho)) /\ True) &&
+ (memory_block Tsh (Int.repr 8)
+    (eval_id ret_temp (env_set (globals_only rho) ret_temp (eval_id _Q' rho))) *
+  (emp * emp)))
+|-- !!True &&
+    (!!True && (memory_block Tsh (Int.repr 8) (eval_id _Q rho) * emp)).
+Proof. intros Q Q'; ungather_entail.
+rewrite memory_block_isptr by computable.
 entailer.
+rewrite H0.
+destruct (eval_id _Q' rho); try (contradiction H1); auto.
 Qed.
 
 Lemma goal_4 :
@@ -548,324 +907,380 @@ name _Q' ->
 EVAR
   (forall n : nat,
    EVAR
-     (forall sh : share,
+     (forall (sh : share) (rho : environ),
       let Delta :=
-        @abbreviate tycontext
-          (initialized _Q
-             (initialized _Q'
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool)
-                         (@PTree.Node (type * bool)
-                            (@PTree.Node (type * bool)
-                               (@PTree.Node (type * bool)
-                                  (@PTree.Leaf (type * bool))
-                                  (@Some (type * bool) (tptr tvoid, false))
-                                  (@PTree.Leaf (type * bool)))
-                               (@None (type * bool))
-                               (@PTree.Leaf (type * bool)))
-                            (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                         (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                      (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                   (@None (type * bool))
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@None (type * bool))
-                      (@PTree.Node (type * bool)
-                         (@PTree.Node (type * bool)
-                            (@PTree.Node (type * bool)
-                               (@PTree.Leaf (type * bool))
-                               (@Some (type * bool)
-                                  (tptr t_struct_fifo, false))
-                               (@PTree.Leaf (type * bool)))
-                            (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                         (@None (type * bool)) (@PTree.Leaf (type * bool)))),
-                PTree.empty type, tptr t_struct_fifo,
-                @PTree.Node global_spec
-                  (@PTree.Node global_spec
-                     (@PTree.Node global_spec
-                        (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                           (@Some global_spec
-                              (Global_func
-                                 (WITH _ : unit PRE 
-                                  [(1%positive, tptr tvoid),
-                                  (2%positive, tptr tvoid),
-                                  (3%positive, tuint), (4%positive, tuint)]
-                                  (fun _ : environ => !!False) POST  [tvoid]
-                                  (fun _ : environ => !!False))))
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH  p0 : val * list val, p : val PRE 
-                                     [(_Q, tptr t_struct_fifo),
-                                     (_p, tptr t_struct_elem)]
-                                     (let (q, contents) := p0 in
-                                      PROP  ()
-                                      LOCAL  (`(@eq val q) (eval_id _Q);
-                                      `(@eq val p) (eval_id _p))
-                                      SEP  (`(fifo contents q); `(link_ p)))
-                                     POST  [tvoid]
-                                     (let (q, contents) := p0 in
-                                      `(fifo (contents ++ p :: @nil val) q)))))
-                              (@PTree.Leaf global_spec))) (@None global_spec)
-                        (@PTree.Node global_spec
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH _ : unit PRE  []
-                                     (fun _ : environ =>
-                                      @emp mpred Nveric Sveric) POST 
-                                     [tptr t_struct_fifo]
-                                     `(fifo (@nil val)) retval)))
-                              (@PTree.Leaf global_spec)) (@None global_spec)
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH  a : int, b : int PRE  [(_a, tint),
-                                     (_b, tint)]
-                                     PROP  ()
-                                     LOCAL 
-                                     (`(@eq val (Vint a)) (eval_id _a);
-                                     `(@eq val (Vint b)) (eval_id _b))  
-                                     SEP() POST  [tptr t_struct_elem]
-                                     `(elemrep (Vint a, Vint b)) retval)))
-                              (@PTree.Leaf global_spec))))
-                     (@None global_spec)
-                     (@PTree.Node global_spec
-                        (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                           (@Some global_spec
-                              (Global_func
-                                 (WITH n0 : int PRE  [(1%positive, tint)]
-                                  PROP  (4 <= Int.signed n0)
-                                  LOCAL 
-                                  (`(@eq val (Vint n0)) (eval_id 1%positive))
-                                    SEP() POST  [tptr tvoid]
-                                  `(memory_block Tsh n0) retval)))
-                           (@PTree.Leaf global_spec)) (@None global_spec)
-                        (@PTree.Leaf global_spec))) (@None global_spec)
-                  (@PTree.Node global_spec
-                     (@PTree.Node global_spec
-                        (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                           (@Some global_spec
-                              (Global_func
-                                 (WITH _ : unit PRE 
-                                  [(1%positive, tptr tschar),
-                                  (2%positive, tint)]
-                                  (fun _ : environ => !!False) POST  [tint]
-                                  (fun _ : environ => !!False))))
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH  q : val, contents : list val PRE 
-                                     [(_Q, tptr t_struct_fifo)]
-                                     PROP  ()
-                                     LOCAL  (`(@eq val q) (eval_id _Q))
-                                     SEP  (`(fifo contents q)) POST  [tint]
-                                     (fun x0 : environ =>
-                                      local
-                                        (`(@eq val
-                                             (if @isnil val contents
-                                              then Vtrue
-                                              else Vfalse)) retval) x0 &&
-                                      `(fifo contents q) x0))))
-                              (@PTree.Leaf global_spec))) (@None global_spec)
-                        (@PTree.Leaf global_spec)) (@None global_spec)
-                     (@PTree.Node global_spec
-                        (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                           (@Some global_spec
-                              (Global_func
-                                 (WITH _ : unit PRE 
-                                  [(1%positive, tptr tvoid),
-                                  (2%positive, tint)]
+        (fun (A : Type) (x : A) => x) tycontext
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node
+                   (PTree.Node
+                      (PTree.Node
+                         (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                            PTree.Leaf) None PTree.Leaf) None PTree.Leaf)
+                   None PTree.Leaf) None PTree.Leaf) None
+             (PTree.Node PTree.Leaf None
+                (PTree.Node
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf
+                         (Some (tptr t_struct_fifo, true)) PTree.Leaf) None
+                      PTree.Leaf) None PTree.Leaf)),
+          var_types
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node
+                     (PTree.Node
+                        (PTree.Node
+                           (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                              PTree.Leaf) None PTree.Leaf) None PTree.Leaf)
+                     None PTree.Leaf) None PTree.Leaf) None
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node
+                     (PTree.Node
+                        (PTree.Node PTree.Leaf
+                           (Some (tptr t_struct_fifo, false)) PTree.Leaf)
+                        None PTree.Leaf) None PTree.Leaf)),
+            var_types
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node
+                       (PTree.Node
+                          (PTree.Node
+                             (PTree.Node PTree.Leaf
+                                (Some (tptr tvoid, false)) PTree.Leaf) None
+                             PTree.Leaf) None PTree.Leaf) None PTree.Leaf)
+                    None PTree.Leaf) None
+                 (PTree.Node PTree.Leaf None
+                    (PTree.Node
+                       (PTree.Node
+                          (PTree.Node PTree.Leaf
+                             (Some (tptr t_struct_fifo, false)) PTree.Leaf)
+                          None PTree.Leaf) None PTree.Leaf)),
+              PTree.empty type, tptr t_struct_fifo,
+              PTree.Node
+                (PTree.Node
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf
+                         (Some
+                            (Global_func
+                               (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                                (2%positive, tptr tvoid),
+                                (3%positive, tuint), (4%positive, tuint)]
+                                (fun _ : environ => !!False) POST  [tvoid]
+                                (fun _ : environ => !!False))))
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH  p0 : val * list val, p : val PRE 
+                                   [(_Q, tptr t_struct_fifo),
+                                   (_p, tptr t_struct_elem)]
+                                   (let (q, contents) := p0 in
+                                    PROP  ()
+                                    LOCAL  (`(eq q) (eval_id _Q);
+                                    `(eq p) (eval_id _p))
+                                    SEP  (`(fifo contents q);
+                                    `(field_at_ Tsh t_struct_elem _next p)))
+                                   POST  [tvoid]
+                                   (let (q, contents) := p0 in
+                                    `(fifo (contents ++ p :: nil) q)))))
+                            PTree.Leaf)) None
+                      (PTree.Node
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH _ : unit PRE  []
+                                   (fun _ : environ => emp) POST 
+                                   [tptr t_struct_fifo]`(fifo nil) retval)))
+                            PTree.Leaf) None
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH  a : int, b : int PRE  [(_a, tint),
+                                   (_b, tint)]
+                                   PROP  ()
+                                   LOCAL  (`(eq (Vint a)) (eval_id _a);
+                                   `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                                   [tptr t_struct_elem]
+                                   `(elemrep (Vint a, Vint b)) retval)))
+                            PTree.Leaf))) None
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf
+                         (Some
+                            (Global_func
+                               (WITH n0 : int PRE  [(1%positive, tint)]
+                                PROP  (4 <= Int.signed n0)
+                                LOCAL  (`(eq (Vint n0)) (eval_id 1%positive))
+                                  SEP() POST  [tptr tvoid]
+                                `(memory_block Tsh n0) retval))) PTree.Leaf)
+                      None PTree.Leaf)) None
+                (PTree.Node
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf
+                         (Some
+                            (Global_func
+                               (WITH _ : unit PRE 
+                                [(1%positive, tptr tschar),
+                                (2%positive, tint)]
+                                (fun _ : environ => !!False) POST  [tint]
+                                (fun _ : environ => !!False))))
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH  q : val, contents : list val PRE 
+                                   [(_Q, tptr t_struct_fifo)]
+                                   PROP  ()
+                                   LOCAL  (`(eq q) (eval_id _Q))
+                                   SEP  (`(fifo contents q)) POST  [tint]
+                                   (fun x0 : environ =>
+                                    local
+                                      (`(eq
+                                           (if isnil contents
+                                            then Vtrue
+                                            else Vfalse)) retval) x0 &&
+                                    `(fifo contents q) x0)))) PTree.Leaf))
+                      None PTree.Leaf) None
+                   (PTree.Node
+                      (PTree.Node PTree.Leaf
+                         (Some
+                            (Global_func
+                               (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                                (2%positive, tint)]
+                                PROP  ()
+                                LOCAL ()
+                                SEP 
+                                (`(memory_block Tsh)
+                                   (`force_int (eval_id 2%positive))
+                                   (eval_id 1%positive)) POST  [tvoid]
+                                (fun _ : environ => emp))))
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH  p0 : val * list val, p : val PRE 
+                                   [(_Q, tptr t_struct_fifo)]
+                                   (let (q, contents) := p0 in
+                                    PROP  ()
+                                    LOCAL  (`(eq q) (eval_id _Q))
+                                    SEP  (`(fifo (p :: contents) q))) POST 
+                                   [tptr t_struct_elem]
+                                   (let (q, contents) := p0 in
+                                    fun rho0 : environ =>
+                                    local (`(eq p) retval) rho0 &&
+                                    `(fifo contents q) rho0 *
+                                    `(field_at_ Tsh t_struct_elem _next)
+                                      retval rho0)))) PTree.Leaf))
+                      (Some
+                         (Global_func
+                            (WITH _ : unit PRE  [(1%positive, tdouble)]
+                             (fun _ : environ => !!False) POST  [tdouble]
+                             (fun _ : environ => !!False))))
+                      (PTree.Node PTree.Leaf None
+                         (PTree.Node PTree.Leaf
+                            (Some
+                               (Global_func
+                                  (WITH u : unit PRE  []main_pre prog u POST 
+                                   [tint]main_post prog u))) PTree.Leaf))))),
+            tptr t_struct_fifo,
+            PTree.Node
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf
+                       (Some
+                          (Global_func
+                             (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                              (2%positive, tptr tvoid), (3%positive, tuint),
+                              (4%positive, tuint)]
+                              (fun _ : environ => !!False) POST  [tvoid]
+                              (fun _ : environ => !!False))))
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH  p0 : val * list val, p : val PRE 
+                                 [(_Q, tptr t_struct_fifo),
+                                 (_p, tptr t_struct_elem)]
+                                 (let (q, contents) := p0 in
                                   PROP  ()
-                                  LOCAL ()
-                                  SEP 
-                                  (`(memory_block Tsh)
-                                     (`force_int (eval_id 2%positive))
-                                     (eval_id 1%positive)) POST  [tvoid]
-                                  (fun _ : environ =>
-                                   @emp mpred Nveric Sveric))))
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH  p0 : val * list val, p : val PRE 
-                                     [(_Q, tptr t_struct_fifo)]
-                                     (let (q, contents) := p0 in
-                                      PROP  ()
-                                      LOCAL  (`(@eq val q) (eval_id _Q))
-                                      SEP  (`(fifo (p :: contents) q))) POST 
-                                     [tptr t_struct_elem]
-                                     (let (q, contents) := p0 in
-                                      fun rho : environ =>
-                                      local (`(@eq val p) retval) rho &&
-                                      `(fifo contents q) rho *
-                                      `link_ retval rho))))
-                              (@PTree.Leaf global_spec)))
-                        (@Some global_spec
-                           (Global_func
-                              (WITH _ : unit PRE  [(1%positive, tdouble)]
-                               (fun _ : environ => !!False) POST  [tdouble]
-                               (fun _ : environ => !!False))))
-                        (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                           (@None global_spec)
-                           (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                              (@Some global_spec
-                                 (Global_func
-                                    (WITH u : unit PRE  []main_pre prog u
-                                     POST  [tint]main_post prog u)))
-                              (@PTree.Leaf global_spec)))))))) in
-      PROP  ()
-      LOCAL  (tc_environ Delta)
-      SEP 
-      (`(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 0
-           (field_at Tsh
-              (Tstruct _struct_fifo
-                 (Fcons _head
-                    (tptr
-                       (Tstruct _struct_elem
-                          (Fcons _a tint
-                             (Fcons _b tint
-                                (Fcons _next (Tcomp_ptr _struct_elem noattr)
-                                   Fnil))) noattr))
-                    (Fcons _tail
-                       (tptr
-                          (Tstruct _struct_elem
-                             (Fcons _a tint
-                                (Fcons _b tint
-                                   (Fcons _next
-                                      (Tcomp_ptr _struct_elem noattr) Fnil)))
-                             noattr)) Fnil)) noattr) _head))
-         (eval_lvalue
-            (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-         (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
-            (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
-      `(@numbd (lift_T (Tarrow val (LiftEnviron mpred))) 1
-          (field_at_ Tsh t_struct_fifo _tail)) (eval_id _Q))
-      |-- `(@numbd (val -> mpred) n
-              (field_at_ sh
-                 (typeof
-                    (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-                 _tail))
-            (eval_lvalue
-               (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)) *
-          @TT (LiftEnviron mpred) (@LiftNatDed' mpred Nveric)))
-. Proof. intros Q Q'; ungather_entail.
-unfold sh,n; entailer; cancel.
-Qed.
-
-Lemma goal_5 :
-name _Q ->
-name _Q' ->
-let Delta :=
-  @abbreviate tycontext
-    (initialized _Q
-       (initialized _Q'
-          (@PTree.Node (type * bool)
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool)
-                         (@PTree.Node (type * bool)
-                            (@PTree.Leaf (type * bool))
-                            (@Some (type * bool) (tptr tvoid, false))
-                            (@PTree.Leaf (type * bool)))
-                         (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                      (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                   (@None (type * bool)) (@PTree.Leaf (type * bool)))
-                (@None (type * bool)) (@PTree.Leaf (type * bool)))
-             (@None (type * bool))
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool)
-                      (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                         (@Some (type * bool) (tptr t_struct_fifo, false))
-                         (@PTree.Leaf (type * bool))) (@None (type * bool))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool)))), PTree.empty type,
+                                  LOCAL  (`(eq q) (eval_id _Q);
+                                  `(eq p) (eval_id _p))
+                                  SEP  (`(fifo contents q);
+                                  `(field_at_ Tsh t_struct_elem _next p)))
+                                 POST  [tvoid]
+                                 (let (q, contents) := p0 in
+                                  `(fifo (contents ++ p :: nil) q)))))
+                          PTree.Leaf)) None
+                    (PTree.Node
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH _ : unit PRE  []
+                                 (fun _ : environ => emp) POST 
+                                 [tptr t_struct_fifo]`(fifo nil) retval)))
+                          PTree.Leaf) None
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH  a : int, b : int PRE  [(_a, tint),
+                                 (_b, tint)]
+                                 PROP  ()
+                                 LOCAL  (`(eq (Vint a)) (eval_id _a);
+                                 `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                                 [tptr t_struct_elem]
+                                 `(elemrep (Vint a, Vint b)) retval)))
+                          PTree.Leaf))) None
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf
+                       (Some
+                          (Global_func
+                             (WITH n0 : int PRE  [(1%positive, tint)]
+                              PROP  (4 <= Int.signed n0)
+                              LOCAL  (`(eq (Vint n0)) (eval_id 1%positive))
+                              SEP() POST  [tptr tvoid]
+                              `(memory_block Tsh n0) retval))) PTree.Leaf)
+                    None PTree.Leaf)) None
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf
+                       (Some
+                          (Global_func
+                             (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                              (2%positive, tint)](fun _ : environ => !!False)
+                              POST  [tint](fun _ : environ => !!False))))
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH  q : val, contents : list val PRE 
+                                 [(_Q, tptr t_struct_fifo)]
+                                 PROP  ()
+                                 LOCAL  (`(eq q) (eval_id _Q))
+                                 SEP  (`(fifo contents q)) POST  [tint]
+                                 (fun x0 : environ =>
+                                  local
+                                    (`(eq
+                                         (if isnil contents
+                                          then Vtrue
+                                          else Vfalse)) retval) x0 &&
+                                  `(fifo contents q) x0)))) PTree.Leaf)) None
+                    PTree.Leaf) None
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf
+                       (Some
+                          (Global_func
+                             (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                              (2%positive, tint)]
+                              PROP  ()
+                              LOCAL ()
+                              SEP 
+                              (`(memory_block Tsh)
+                                 (`force_int (eval_id 2%positive))
+                                 (eval_id 1%positive)) POST  [tvoid]
+                              (fun _ : environ => emp))))
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH  p0 : val * list val, p : val PRE 
+                                 [(_Q, tptr t_struct_fifo)]
+                                 (let (q, contents) := p0 in
+                                  PROP  ()
+                                  LOCAL  (`(eq q) (eval_id _Q))
+                                  SEP  (`(fifo (p :: contents) q))) POST 
+                                 [tptr t_struct_elem]
+                                 (let (q, contents) := p0 in
+                                  fun rho0 : environ =>
+                                  local (`(eq p) retval) rho0 &&
+                                  `(fifo contents q) rho0 *
+                                  `(field_at_ Tsh t_struct_elem _next) retval
+                                    rho0)))) PTree.Leaf))
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [(1%positive, tdouble)]
+                           (fun _ : environ => !!False) POST  [tdouble]
+                           (fun _ : environ => !!False))))
+                    (PTree.Node PTree.Leaf None
+                       (PTree.Node PTree.Leaf
+                          (Some
+                             (Global_func
+                                (WITH u : unit PRE  []main_pre prog u POST 
+                                 [tint]main_post prog u))) PTree.Leaf))))),
           tptr t_struct_fifo,
-          @PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+          PTree.Node
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH _ : unit PRE  [(1%positive, tptr tvoid),
                             (2%positive, tptr tvoid), (3%positive, tuint),
                             (4%positive, tuint)](fun _ : environ => !!False)
                             POST  [tvoid](fun _ : environ => !!False))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
                               (WITH  p0 : val * list val, p : val PRE 
                                [(_Q, tptr t_struct_fifo),
                                (_p, tptr t_struct_elem)]
                                (let (q, contents) := p0 in
                                 PROP  ()
-                                LOCAL  (`(@eq val q) (eval_id _Q);
-                                `(@eq val p) (eval_id _p))
-                                SEP  (`(fifo contents q); `(link_ p))) POST 
-                               [tvoid]
+                                LOCAL  (`(eq q) (eval_id _Q);
+                                `(eq p) (eval_id _p))
+                                SEP  (`(fifo contents q);
+                                `(field_at_ Tsh t_struct_elem _next p)))
+                               POST  [tvoid]
                                (let (q, contents) := p0 in
-                                `(fifo (contents ++ p :: @nil val) q)))))
-                        (@PTree.Leaf global_spec))) (@None global_spec)
-                  (@PTree.Node global_spec
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                                `(fifo (contents ++ p :: nil) q)))))
+                        PTree.Leaf)) None
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
-                              (WITH _ : unit PRE  []
-                               (fun _ : environ => @emp mpred Nveric Sveric)
-                               POST  [tptr t_struct_fifo]
-                               `(fifo (@nil val)) retval)))
-                        (@PTree.Leaf global_spec)) (@None global_spec)
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                              (WITH _ : unit PRE  [](fun _ : environ => emp)
+                               POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                        PTree.Leaf) None
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
                               (WITH  a : int, b : int PRE  [(_a, tint),
                                (_b, tint)]
                                PROP  ()
-                               LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                               `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                               [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                        (@PTree.Leaf global_spec)))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                               LOCAL  (`(eq (Vint a)) (eval_id _a);
+                               `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                               [tptr t_struct_elem]
+                               `(elemrep (Vint a, Vint b)) retval)))
+                        PTree.Leaf))) None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
-                           (WITH n : int PRE  [(1%positive, tint)]
-                            PROP  (4 <= Int.signed n)
-                            LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                              SEP() POST  [tptr tvoid]
-                            `(memory_block Tsh n) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Leaf global_spec))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                           (WITH n0 : int PRE  [(1%positive, tint)]
+                            PROP  (4 <= Int.signed n0)
+                            LOCAL  (`(eq (Vint n0)) (eval_id 1%positive))
+                            SEP() POST  [tptr tvoid]
+                            `(memory_block Tsh n0) retval))) PTree.Leaf) None
+                  PTree.Leaf)) None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH _ : unit PRE  [(1%positive, tptr tschar),
                             (2%positive, tint)](fun _ : environ => !!False)
                             POST  [tint](fun _ : environ => !!False))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
                               (WITH  q : val, contents : list val PRE 
                                [(_Q, tptr t_struct_fifo)]
                                PROP  ()
-                               LOCAL  (`(@eq val q) (eval_id _Q))
+                               LOCAL  (`(eq q) (eval_id _Q))
                                SEP  (`(fifo contents q)) POST  [tint]
                                (fun x0 : environ =>
                                 local
-                                  (`(@eq val
-                                       (if @isnil val contents
+                                  (`(eq
+                                       (if isnil contents
                                         then Vtrue
                                         else Vfalse)) retval) x0 &&
-                                `(fifo contents q) x0))))
-                        (@PTree.Leaf global_spec))) (@None global_spec)
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
+                                `(fifo contents q) x0)))) PTree.Leaf)) None
+                  PTree.Leaf) None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf
+                     (Some
                         (Global_func
                            (WITH _ : unit PRE  [(1%positive, tptr tvoid),
                             (2%positive, tint)]
@@ -875,58 +1290,442 @@ let Delta :=
                             (`(memory_block Tsh)
                                (`force_int (eval_id 2%positive))
                                (eval_id 1%positive)) POST  [tvoid]
-                            (fun _ : environ => @emp mpred Nveric Sveric))))
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                            (fun _ : environ => emp))))
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
                               (WITH  p0 : val * list val, p : val PRE 
                                [(_Q, tptr t_struct_fifo)]
                                (let (q, contents) := p0 in
                                 PROP  ()
-                                LOCAL  (`(@eq val q) (eval_id _Q))
+                                LOCAL  (`(eq q) (eval_id _Q))
                                 SEP  (`(fifo (p :: contents) q))) POST 
                                [tptr t_struct_elem]
                                (let (q, contents) := p0 in
-                                fun rho : environ =>
-                                local (`(@eq val p) retval) rho &&
-                                `(fifo contents q) rho * `link_ retval rho))))
-                        (@PTree.Leaf global_spec)))
-                  (@Some global_spec
+                                fun rho0 : environ =>
+                                local (`(eq p) retval) rho0 &&
+                                `(fifo contents q) rho0 *
+                                `(field_at_ Tsh t_struct_elem _next) retval
+                                  rho0)))) PTree.Leaf))
+                  (Some
                      (Global_func
                         (WITH _ : unit PRE  [(1%positive, tdouble)]
                          (fun _ : environ => !!False) POST  [tdouble]
                          (fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@None global_spec)
-                     (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                        (@Some global_spec
+                  (PTree.Node PTree.Leaf None
+                     (PTree.Node PTree.Leaf
+                        (Some
                            (Global_func
                               (WITH u : unit PRE  []main_pre prog u POST 
-                               [tint]main_post prog u)))
-                        (@PTree.Leaf global_spec)))))))) in
-PROP  ()
-LOCAL  (tc_environ Delta)
-SEP 
-(`(field_at Tsh
-     (Tstruct _struct_fifo
-        (Fcons _head
-           (tptr
-              (Tstruct _struct_elem
-                 (Fcons _a tint
-                    (Fcons _b tint
-                       (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                 noattr))
-           (Fcons _tail
-              (tptr
-                 (Tstruct _struct_elem
-                    (Fcons _a tint
-                       (Fcons _b tint
-                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                    noattr)) Fnil)) noattr) _head)
-   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-   (`force_val (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
-      (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))));
-`(field_at Tsh
+                               [tint]main_post prog u))) PTree.Leaf))))) in
+      tc_environ Delta rho ->
+      !!True &&
+      (!!True &&
+       (numbd 0 (field_at_ Tsh t_struct_fifo _head) (eval_id _Q rho) *
+        (numbd 1 (field_at_ Tsh t_struct_fifo _tail) (eval_id _Q rho) * emp)))
+      |-- numbd n (field_at_ sh t_struct_fifo _head)
+            (force_ptr (eval_id _Q rho)) * !!True)).
+Proof. intros Q Q'; ungather_entail.
+unfold sh,n; entailer; cancel.
+Qed.
+
+Lemma goal_5 :
+name _Q ->
+name _Q' ->
+forall rho : environ,
+let Delta :=
+  (fun (A : Type) (x : A) => x) tycontext
+    (PTree.Node
+       (PTree.Node
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node
+                   (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                      PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+             PTree.Leaf) None PTree.Leaf) None
+       (PTree.Node PTree.Leaf None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                   PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+    var_types
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf (Some (tptr tvoid, true))
+                        PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+               PTree.Leaf) None PTree.Leaf) None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, false))
+                     PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+      var_types
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node
+                       (PTree.Node PTree.Leaf (Some (tptr tvoid, false))
+                          PTree.Leaf) None PTree.Leaf) None PTree.Leaf) None
+                 PTree.Leaf) None PTree.Leaf) None
+           (PTree.Node PTree.Leaf None
+              (PTree.Node
+                 (PTree.Node
+                    (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, false))
+                       PTree.Leaf) None PTree.Leaf) None PTree.Leaf)),
+        PTree.empty type, tptr t_struct_fifo,
+        PTree.Node
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                          (2%positive, tptr tvoid), (3%positive, tuint),
+                          (4%positive, tuint)](fun _ : environ => !!False)
+                          POST  [tvoid](fun _ : environ => !!False))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  p0 : val * list val, p : val PRE 
+                             [(_Q, tptr t_struct_fifo),
+                             (_p, tptr t_struct_elem)]
+                             (let (q, contents) := p0 in
+                              PROP  ()
+                              LOCAL  (`(eq q) (eval_id _Q);
+                              `(eq p) (eval_id _p))
+                              SEP  (`(fifo contents q);
+                              `(field_at_ Tsh t_struct_elem _next p))) POST 
+                             [tvoid]
+                             (let (q, contents) := p0 in
+                              `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+                None
+                (PTree.Node
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH _ : unit PRE  [](fun _ : environ => emp)
+                             POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                      PTree.Leaf) None
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  a : int, b : int PRE  [(_a, tint),
+                             (_b, tint)]
+                             PROP  ()
+                             LOCAL  (`(eq (Vint a)) (eval_id _a);
+                             `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                             [tptr t_struct_elem]
+                             `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+             None
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH n : int PRE  [(1%positive, tint)]
+                          PROP  (4 <= Int.signed n)
+                          LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                          POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                   PTree.Leaf) None PTree.Leaf)) None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                          (2%positive, tint)](fun _ : environ => !!False)
+                          POST  [tint](fun _ : environ => !!False))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  q : val, contents : list val PRE 
+                             [(_Q, tptr t_struct_fifo)]
+                             PROP  ()
+                             LOCAL  (`(eq q) (eval_id _Q))
+                             SEP  (`(fifo contents q)) POST  [tint]
+                             (fun x0 : environ =>
+                              local
+                                (`(eq
+                                     (if isnil contents
+                                      then Vtrue
+                                      else Vfalse)) retval) x0 &&
+                              `(fifo contents q) x0)))) PTree.Leaf)) None
+                PTree.Leaf) None
+             (PTree.Node
+                (PTree.Node PTree.Leaf
+                   (Some
+                      (Global_func
+                         (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                          (2%positive, tint)]
+                          PROP  ()
+                          LOCAL ()
+                          SEP 
+                          (`(memory_block Tsh)
+                             (`force_int (eval_id 2%positive))
+                             (eval_id 1%positive)) POST  [tvoid]
+                          (fun _ : environ => emp))))
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH  p0 : val * list val, p : val PRE 
+                             [(_Q, tptr t_struct_fifo)]
+                             (let (q, contents) := p0 in
+                              PROP  ()
+                              LOCAL  (`(eq q) (eval_id _Q))
+                              SEP  (`(fifo (p :: contents) q))) POST 
+                             [tptr t_struct_elem]
+                             (let (q, contents) := p0 in
+                              fun rho0 : environ =>
+                              local (`(eq p) retval) rho0 &&
+                              `(fifo contents q) rho0 *
+                              `(field_at_ Tsh t_struct_elem _next) retval
+                                rho0)))) PTree.Leaf))
+                (Some
+                   (Global_func
+                      (WITH _ : unit PRE  [(1%positive, tdouble)]
+                       (fun _ : environ => !!False) POST  [tdouble]
+                       (fun _ : environ => !!False))))
+                (PTree.Node PTree.Leaf None
+                   (PTree.Node PTree.Leaf
+                      (Some
+                         (Global_func
+                            (WITH u : unit PRE  []main_pre prog u POST 
+                             [tint]main_post prog u))) PTree.Leaf))))),
+      tptr t_struct_fifo,
+      PTree.Node
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tptr tvoid), (3%positive, tuint),
+                        (4%positive, tuint)](fun _ : environ => !!False)
+                        POST  [tvoid](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo),
+                           (_p, tptr t_struct_elem)]
+                           (let (q, contents) := p0 in
+                            PROP  ()
+                            LOCAL  (`(eq q) (eval_id _Q);
+                            `(eq p) (eval_id _p))
+                            SEP  (`(fifo contents q);
+                            `(field_at_ Tsh t_struct_elem _next p))) POST 
+                           [tvoid]
+                           (let (q, contents) := p0 in
+                            `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+              None
+              (PTree.Node
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [](fun _ : environ => emp)
+                           POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                    PTree.Leaf) None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  a : int, b : int PRE  [(_a, tint),
+                           (_b, tint)]
+                           PROP  ()
+                           LOCAL  (`(eq (Vint a)) (eval_id _a);
+                           `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                           [tptr t_struct_elem]
+                           `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+           None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH n : int PRE  [(1%positive, tint)]
+                        PROP  (4 <= Int.signed n)
+                        LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                        POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                 PTree.Leaf) None PTree.Leaf)) None
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                        (2%positive, tint)](fun _ : environ => !!False) POST 
+                        [tint](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  q : val, contents : list val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           PROP  ()
+                           LOCAL  (`(eq q) (eval_id _Q))
+                           SEP  (`(fifo contents q)) POST  [tint]
+                           (fun x0 : environ =>
+                            local
+                              (`(eq
+                                   (if isnil contents then Vtrue else Vfalse))
+                                 retval) x0 && `(fifo contents q) x0))))
+                    PTree.Leaf)) None PTree.Leaf) None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tint)]
+                        PROP  ()
+                        LOCAL ()
+                        SEP 
+                        (`(memory_block Tsh)
+                           (`force_int (eval_id 2%positive))
+                           (eval_id 1%positive)) POST  [tvoid]
+                        (fun _ : environ => emp))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p : val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           (let (q, contents) := p0 in
+                            PROP  ()
+                            LOCAL  (`(eq q) (eval_id _Q))
+                            SEP  (`(fifo (p :: contents) q))) POST 
+                           [tptr t_struct_elem]
+                           (let (q, contents) := p0 in
+                            fun rho0 : environ =>
+                            local (`(eq p) retval) rho0 &&
+                            `(fifo contents q) rho0 *
+                            `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                    PTree.Leaf))
+              (Some
+                 (Global_func
+                    (WITH _ : unit PRE  [(1%positive, tdouble)]
+                     (fun _ : environ => !!False) POST  [tdouble]
+                     (fun _ : environ => !!False))))
+              (PTree.Node PTree.Leaf None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                           main_post prog u))) PTree.Leaf))))),
+    tptr t_struct_fifo,
+    PTree.Node
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tptr tvoid), (3%positive, tuint),
+                      (4%positive, tuint)](fun _ : environ => !!False) POST 
+                      [tvoid](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo), (_p, tptr t_struct_elem)]
+                         (let (q, contents) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q) (eval_id _Q); `(eq p) (eval_id _p))
+                          
+                          SEP  (`(fifo contents q);
+                          `(field_at_ Tsh t_struct_elem _next p))) POST 
+                         [tvoid]
+                         (let (q, contents) := p0 in
+                          `(fifo (contents ++ p :: nil) q))))) PTree.Leaf))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH _ : unit PRE  [](fun _ : environ => emp) POST 
+                         [tptr t_struct_fifo]`(fifo nil) retval))) PTree.Leaf)
+               None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  a : int, b : int PRE  [(_a, tint), (_b, tint)]
+                         PROP  ()
+                         LOCAL  (`(eq (Vint a)) (eval_id _a);
+                         `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                         [tptr t_struct_elem]
+                         `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+         None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH n : int PRE  [(1%positive, tint)]
+                      PROP  (4 <= Int.signed n)
+                      LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                      POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+               PTree.Leaf) None PTree.Leaf)) None
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                      (2%positive, tint)](fun _ : environ => !!False) POST 
+                      [tint](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  q : val, contents : list val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         PROP  ()
+                         LOCAL  (`(eq q) (eval_id _Q))
+                         SEP  (`(fifo contents q)) POST  [tint]
+                         (fun x0 : environ =>
+                          local
+                            (`(eq (if isnil contents then Vtrue else Vfalse))
+                               retval) x0 && `(fifo contents q) x0))))
+                  PTree.Leaf)) None PTree.Leaf) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tint)]
+                      PROP  ()
+                      LOCAL ()
+                      SEP 
+                      (`(memory_block Tsh) (`force_int (eval_id 2%positive))
+                         (eval_id 1%positive)) POST  [tvoid]
+                      (fun _ : environ => emp))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p : val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         (let (q, contents) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q) (eval_id _Q))
+                          SEP  (`(fifo (p :: contents) q))) POST 
+                         [tptr t_struct_elem]
+                         (let (q, contents) := p0 in
+                          fun rho0 : environ =>
+                          local (`(eq p) retval) rho0 &&
+                          `(fifo contents q) rho0 *
+                          `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                  PTree.Leaf))
+            (Some
+               (Global_func
+                  (WITH _ : unit PRE  [(1%positive, tdouble)]
+                   (fun _ : environ => !!False) POST  [tdouble]
+                   (fun _ : environ => !!False))))
+            (PTree.Node PTree.Leaf None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                         main_post prog u))) PTree.Leaf))))) in
+tc_environ Delta rho ->
+!!True &&
+(!!True &&
+ (field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
           (tptr
@@ -941,24 +1740,38 @@ SEP
                    (Fcons _a tint
                       (Fcons _b tint
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                   noattr)) Fnil)) noattr) _tail)
-  (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-  (`force_val (`(sem_cast (typeof (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-       (tptr t_struct_elem))
-     (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))))
-|-- local
-      (tc_expropt Delta (@Some expr (Etempvar _Q (tptr t_struct_fifo)))
-         (ret_type Delta)) &&
-    `(function_body_ret_assert (tptr t_struct_fifo)
-        (`(fifo (@nil val)) retval) EK_return)
-      (cast_expropt (@Some expr (Etempvar _Q (tptr t_struct_fifo)))
-         (ret_type Delta)) (@id environ)
-. Proof. intros Q Q'; ungather_entail.
+                   noattr)) Fnil)) noattr) _head (Vint (Int.repr 0))
+    (force_ptr (eval_id _Q rho)) *
+  (field_at Tsh
+     (Tstruct _struct_fifo
+        (Fcons _head
+           (tptr
+              (Tstruct _struct_elem
+                 (Fcons _a tint
+                    (Fcons _b tint
+                       (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
+                 noattr))
+           (Fcons _tail
+              (tptr
+                 (Tstruct _struct_elem
+                    (Fcons _a tint
+                       (Fcons _b tint
+                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
+                    noattr)) Fnil)) noattr) _tail (Vint (Int.repr 0))
+     (force_ptr (eval_id _Q rho)) * emp)))
+|-- !!True &&
+    (!!is_pointer_or_null (force_val (sem_cast_neutral (eval_id _Q rho))) &&
+     fifo nil
+       (eval_id ret_temp
+          (env_set (globals_only (id rho)) ret_temp
+             (force_val (sem_cast_neutral (eval_id _Q rho)))))).
+Proof. intros Q Q'; ungather_entail.
   unfold fifo.
   entailer.
   apply exp_right with (nullval,nullval).
   if_tac; [ | congruence].
  entailer.
+split; reflexivity.
 Qed.
 
 Lemma goal_6 :
@@ -1017,7 +1830,7 @@ let Delta :=
                           PROP  ()
                           LOCAL  (`(@eq val q0) (eval_id _Q);
                           `(@eq val p1) (eval_id _p))
-                          SEP  (`(fifo contents q0); `(link_ p1))) POST 
+                          SEP  (`(fifo contents q0); `((field_at_ Tsh t_struct_elem _next) p1))) POST 
                          [tvoid]
                          (let (q0, contents) := p0 in
                           `(fifo (contents ++ p1 :: @nil val) q0)))))
@@ -1099,7 +1912,7 @@ let Delta :=
                          (let (q0, contents) := p0 in
                           fun rho : environ =>
                           local (`(@eq val p1) retval) rho &&
-                          `(fifo contents q0) rho * `link_ retval rho))))
+                          `(fifo contents q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
                   (@PTree.Leaf global_spec)))
             (@Some global_spec
                (Global_func
@@ -1115,7 +1928,7 @@ let Delta :=
                          main_post prog u))) (@PTree.Leaf global_spec)))))) in
 PROP  ()
 LOCAL  (tc_environ Delta; `(@eq val q) (eval_id _Q);
-`(@eq val p) (eval_id _p))  SEP  (`(link_ p)) |-- `link_ (eval_id _p)
+`(@eq val p) (eval_id _p))  SEP  (`((field_at_ Tsh t_struct_elem _next p))) |-- `(field_at_ Tsh t_struct_elem _next) (eval_id _p)
 . Proof. intros Q p h t; ungather_entail.
 entailer.
 Qed.
@@ -1181,7 +1994,7 @@ EVAR
                                 PROP  ()
                                 LOCAL  (`(@eq val q0) (eval_id _Q);
                                 `(@eq val p1) (eval_id _p))
-                                SEP  (`(fifo contents0 q0); `(link_ p1)))
+                                SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1)))
                                POST  [tvoid]
                                (let (q0, contents0) := p0 in
                                 `(fifo (contents0 ++ p1 :: @nil val) q0)))))
@@ -1297,7 +2110,7 @@ EVAR
           else
            EX  prefix : list val,
            !!(contents = prefix ++ tl :: @nil val) &&
-           (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
+           (@links t_struct_elem _next QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl));
       `(@numbd (lift_T (Tarrow val (LiftEnviron mpred))) 3
           (field_at_ Tsh t_struct_elem _next)) (eval_id _p))
       |-- `(@numbd (val -> mpred) n
@@ -1318,195 +2131,305 @@ name _p ->
 name _h ->
 name _t ->
 forall (q : val) (contents : list val) (p hd tl : val),
+is_pointer_or_null hd ->
+is_pointer_or_null tl ->
+forall rho : environ,
 let Delta :=
-  @abbreviate tycontext
-    (initialized _h
-       (@PTree.Node (type * bool)
-          (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-             (@None (type * bool))
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))))) (@None (type * bool))
-          (@PTree.Node (type * bool)
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, true))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool)))) (@None (type * bool))
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_fifo, true))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))) (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))))), PTree.empty type, tvoid,
-       @PTree.Node global_spec
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tptr tvoid), (3%positive, tuint),
-                         (4%positive, tuint)](fun _ : environ => !!False)
-                         POST  [tvoid](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p1 : val PRE 
-                            [(_Q, tptr t_struct_fifo),
-                            (_p, tptr t_struct_elem)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q);
-                             `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1))) POST 
-                            [tvoid]
-                            (let (q0, contents0) := p0 in
-                             `(fifo (contents0 ++ p1 :: @nil val) q0)))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  []
-                            (fun _ : environ => @emp mpred Nveric Sveric)
-                            POST  [tptr t_struct_fifo]
-                            `(fifo (@nil val)) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  a : int, b : int PRE  [(_a, tint),
-                            (_b, tint)]
+  (fun (A : Type) (x : A) => x) tycontext
+    (PTree.Node
+       (PTree.Node PTree.Leaf None
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                   PTree.Leaf) None PTree.Leaf))) None
+       (PTree.Node
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                   PTree.Leaf) None PTree.Leaf)) None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                   PTree.Leaf) None PTree.Leaf) None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                   PTree.Leaf) None PTree.Leaf))),
+    var_types
+      (PTree.Node
+         (PTree.Node PTree.Leaf None
+            (PTree.Node PTree.Leaf None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                     PTree.Leaf) None PTree.Leaf))) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                     PTree.Leaf) None PTree.Leaf)) None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                     PTree.Leaf) None PTree.Leaf) None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                     PTree.Leaf) None PTree.Leaf))), PTree.empty type, tvoid,
+      PTree.Node
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tptr tvoid), (3%positive, tuint),
+                        (4%positive, tuint)](fun _ : environ => !!False)
+                        POST  [tvoid](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p1 : val PRE 
+                           [(_Q, tptr t_struct_fifo),
+                           (_p, tptr t_struct_elem)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                     (@PTree.Leaf global_spec)))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH n : int PRE  [(1%positive, tint)]
-                         PROP  (4 <= Int.signed n)
-                         LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                         SEP() POST  [tptr tvoid]`(memory_block Tsh n) retval)))
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Leaf global_spec))) (@None global_spec)
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tschar),
-                         (2%positive, tint)](fun _ : environ => !!False)
-                         POST  [tint](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  q0 : val, contents0 : list val PRE 
-                            [(_Q, tptr t_struct_fifo)]
+                            LOCAL  (`(eq q0) (eval_id _Q);
+                            `(eq p1) (eval_id _p))
+                            SEP  (`(fifo contents0 q0);
+                            `(field_at_ Tsh t_struct_elem _next p1))) POST 
+                           [tvoid]
+                           (let (q0, contents0) := p0 in
+                            `(fifo (contents0 ++ p1 :: nil) q0)))))
+                    PTree.Leaf)) None
+              (PTree.Node
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [](fun _ : environ => emp)
+                           POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                    PTree.Leaf) None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  a : int, b : int PRE  [(_a, tint),
+                           (_b, tint)]
+                           PROP  ()
+                           LOCAL  (`(eq (Vint a)) (eval_id _a);
+                           `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                           [tptr t_struct_elem]
+                           `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+           None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH n : int PRE  [(1%positive, tint)]
+                        PROP  (4 <= Int.signed n)
+                        LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                        POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                 PTree.Leaf) None PTree.Leaf)) None
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                        (2%positive, tint)](fun _ : environ => !!False) POST 
+                        [tint](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  q0 : val, contents0 : list val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           PROP  ()
+                           LOCAL  (`(eq q0) (eval_id _Q))
+                           SEP  (`(fifo contents0 q0)) POST  [tint]
+                           (fun x0 : environ =>
+                            local
+                              (`(eq
+                                   (if isnil contents0 then Vtrue else Vfalse))
+                                 retval) x0 && `(fifo contents0 q0) x0))))
+                    PTree.Leaf)) None PTree.Leaf) None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tint)]
+                        PROP  ()
+                        LOCAL ()
+                        SEP 
+                        (`(memory_block Tsh)
+                           (`force_int (eval_id 2%positive))
+                           (eval_id 1%positive)) POST  [tvoid]
+                        (fun _ : environ => emp))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p1 : val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val q0) (eval_id _Q))
-                            SEP  (`(fifo contents0 q0)) POST  [tint]
-                            (fun x0 : environ =>
-                             local
-                               (`(@eq val
-                                    (if @isnil val contents0
-                                     then Vtrue
-                                     else Vfalse)) retval) x0 &&
-                             `(fifo contents0 q0) x0))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Leaf global_spec)) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tint)]
-                         PROP  ()
-                         LOCAL ()
-                         SEP 
-                         (`(memory_block Tsh)
-                            (`force_int (eval_id 2%positive))
-                            (eval_id 1%positive)) POST  [tvoid]
-                         (fun _ : environ => @emp mpred Nveric Sveric))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p1 : val PRE 
-                            [(_Q, tptr t_struct_fifo)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q))
-                             SEP  (`(fifo (p1 :: contents0) q0))) POST 
-                            [tptr t_struct_elem]
-                            (let (q0, contents0) := p0 in
-                             fun rho : environ =>
-                             local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
-                     (@PTree.Leaf global_spec)))
-               (@Some global_spec
+                            LOCAL  (`(eq q0) (eval_id _Q))
+                            SEP  (`(fifo (p1 :: contents0) q0))) POST 
+                           [tptr t_struct_elem]
+                           (let (q0, contents0) := p0 in
+                            fun rho0 : environ =>
+                            local (`(eq p1) retval) rho0 &&
+                            `(fifo contents0 q0) rho0 *
+                            `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                    PTree.Leaf))
+              (Some
+                 (Global_func
+                    (WITH _ : unit PRE  [(1%positive, tdouble)]
+                     (fun _ : environ => !!False) POST  [tdouble]
+                     (fun _ : environ => !!False))))
+              (PTree.Node PTree.Leaf None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                           main_post prog u))) PTree.Leaf))))), tvoid,
+    PTree.Node
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
                   (Global_func
-                     (WITH _ : unit PRE  [(1%positive, tdouble)]
-                      (fun _ : environ => !!False) POST  [tdouble]
-                      (fun _ : environ => !!False))))
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH u : unit PRE  []main_pre prog u POST  [tint]
-                            main_post prog u))) (@PTree.Leaf global_spec))))))) in
-PROP  ()
-LOCAL  (tc_environ Delta; `(@eq val hd) (eval_id _h);
-`(@eq val q) (eval_id _Q); `(@eq val p) (eval_id _p))
-SEP  (`(field_at Tsh t_struct_fifo _head q hd);
-`(field_at Tsh t_struct_fifo _tail q tl);
-`(if @isnil val contents
-  then !!(hd = nullval) && @emp mpred Nveric Sveric
-  else
-   EX  prefix : list val,
-   !!(contents = prefix ++ tl :: @nil val) &&
-   (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-`(field_at Tsh
-    (Tstruct _struct_elem
-       (Fcons _a tint
-          (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-       noattr) _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
-|-- PROP  ()
-    LOCAL 
-    (tc_expr Delta
-       (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint);
-    `(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
-    `(@eq val p) (eval_id _p))
-    SEP  (`(field_at Tsh t_struct_fifo _head q hd);
-    `(field_at Tsh t_struct_fifo _tail q tl);
-    `(if @isnil val contents
-      then !!(hd = nullval) && @emp mpred Nveric Sveric
-      else
-       EX  prefix : list val,
-       !!(contents = prefix ++ tl :: @nil val) &&
-       (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-    `(field_at Tsh
-        (Tstruct _struct_elem
-           (Fcons _a tint
-              (Fcons _b tint
-                 (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil))) noattr)
-        _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
-. Proof.  intros Q p h t; ungather_entail.
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tptr tvoid), (3%positive, tuint),
+                      (4%positive, tuint)](fun _ : environ => !!False) POST 
+                      [tvoid](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p1 : val PRE 
+                         [(_Q, tptr t_struct_fifo), (_p, tptr t_struct_elem)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q);
+                          `(eq p1) (eval_id _p))
+                          SEP  (`(fifo contents0 q0);
+                          `(field_at_ Tsh t_struct_elem _next p1))) POST 
+                         [tvoid]
+                         (let (q0, contents0) := p0 in
+                          `(fifo (contents0 ++ p1 :: nil) q0))))) PTree.Leaf))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH _ : unit PRE  [](fun _ : environ => emp) POST 
+                         [tptr t_struct_fifo]`(fifo nil) retval))) PTree.Leaf)
+               None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  a : int, b : int PRE  [(_a, tint), (_b, tint)]
+                         PROP  ()
+                         LOCAL  (`(eq (Vint a)) (eval_id _a);
+                         `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                         [tptr t_struct_elem]
+                         `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+         None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH n : int PRE  [(1%positive, tint)]
+                      PROP  (4 <= Int.signed n)
+                      LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                      POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+               PTree.Leaf) None PTree.Leaf)) None
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                      (2%positive, tint)](fun _ : environ => !!False) POST 
+                      [tint](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  q0 : val, contents0 : list val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         PROP  ()
+                         LOCAL  (`(eq q0) (eval_id _Q))
+                         SEP  (`(fifo contents0 q0)) POST  [tint]
+                         (fun x0 : environ =>
+                          local
+                            (`(eq (if isnil contents0 then Vtrue else Vfalse))
+                               retval) x0 && `(fifo contents0 q0) x0))))
+                  PTree.Leaf)) None PTree.Leaf) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tint)]
+                      PROP  ()
+                      LOCAL ()
+                      SEP 
+                      (`(memory_block Tsh) (`force_int (eval_id 2%positive))
+                         (eval_id 1%positive)) POST  [tvoid]
+                      (fun _ : environ => emp))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p1 : val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q))
+                          SEP  (`(fifo (p1 :: contents0) q0))) POST 
+                         [tptr t_struct_elem]
+                         (let (q0, contents0) := p0 in
+                          fun rho0 : environ =>
+                          local (`(eq p1) retval) rho0 &&
+                          `(fifo contents0 q0) rho0 *
+                          `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                  PTree.Leaf))
+            (Some
+               (Global_func
+                  (WITH _ : unit PRE  [(1%positive, tdouble)]
+                   (fun _ : environ => !!False) POST  [tdouble]
+                   (fun _ : environ => !!False))))
+            (PTree.Node PTree.Leaf None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                         main_post prog u))) PTree.Leaf))))) in
+tc_environ Delta rho ->
+!!True &&
+(!!(hd = eval_id _h rho /\ q = eval_id _Q rho /\ p = eval_id _p rho /\ True) &&
+ (field_at Tsh t_struct_fifo _head hd q *
+  (field_at Tsh t_struct_fifo _tail tl q *
+   ((if isnil contents
+     then !!(hd = nullval) && emp
+     else
+      EX  prefix : list val,
+      !!(contents = prefix ++ tl :: nil) &&
+      (links QS Tsh prefix hd tl *
+       field_at Tsh t_struct_elem _next nullval tl)) *
+    (field_at Tsh t_struct_elem _next (Vint (Int.repr 0))
+       (force_ptr (eval_id _p rho)) * emp)))))
+|-- !!True &&
+    (!!((denote_tc_iszero (eval_id _h rho) \/
+         is_true (Int.eq (Int.repr 0) Int.zero)) /\
+        hd = eval_id _h rho /\
+        q = eval_id _Q rho /\ p = eval_id _p rho /\ True) &&
+     (field_at Tsh t_struct_fifo _head hd q *
+      (field_at Tsh t_struct_fifo _tail tl q *
+       ((if isnil contents
+         then !!(hd = nullval) && emp
+         else
+          EX  prefix : list val,
+          !!(contents = prefix ++ tl :: nil) &&
+          (links QS Tsh prefix hd tl *
+           field_at Tsh t_struct_elem _next nullval tl)) *
+        (field_at Tsh t_struct_elem _next (Vint (Int.repr 0))
+           (force_ptr (eval_id _p rho)) * emp))))).
+Proof.  intros Q p h t; ungather_entail.
 entailer!.
 Qed.
 
@@ -1699,24 +2622,22 @@ EVAR
       `(@eq val p) (eval_id _p))
       SEP 
       (@numbd (LiftEnviron mpred) 0
-         `(field_at Tsh t_struct_fifo _head q hd);
+         `(field_at Tsh t_struct_fifo _head hd q);
       @numbd (LiftEnviron mpred) 1
-        `(field_at Tsh t_struct_fifo _tail q tl);
+        `(field_at Tsh t_struct_fifo _tail tl q);
       @numbd (LiftEnviron mpred) 2
         `(if @isnil val contents
           then !!(hd = nullval) && @emp mpred Nveric Sveric
           else
            EX  prefix : list val,
            !!(contents = prefix ++ tl :: @nil val) &&
-           (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
+           (@links t_struct_elem _next QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl));
       `(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 3
-          (field_at Tsh
-             (Tstruct _struct_elem
-                (Fcons _a tint
-                   (Fcons _b tint
-                      (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                noattr) _next)) (`force_ptr (eval_id _p))
-        `(Vint (Int.repr 0)))
+          (field_at Tsh t_struct_elem _next))
+         (`force_val
+          (`(sem_cast (tptr tvoid) (tptr t_struct_elem))
+           (`(force_val1 sem_cast_neutral) `(Vint (Int.repr 0)))))
+              (`force_ptr (eval_id _p)))
       |-- `(@numbd (val -> mpred) n
               (field_at_ sh
                  (typeof
@@ -1726,198 +2647,293 @@ EVAR
                (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)) *
           @TT (LiftEnviron mpred) (@LiftNatDed' mpred Nveric)))
 . Proof. intros Q p h t; ungather_entail.
-unfold n,sh. entailer. cancel.
+unfold n, sh; entailer. cancel.
 Qed.
 
-Lemma goal_10 :
-name _Q ->
+Lemma goal_10 :name _Q ->
 name _p ->
 name _h ->
 name _t ->
 forall (q : val) (contents : list val) (p hd tl : val),
+is_pointer_or_null hd ->
+is_pointer_or_null tl ->
+forall rho : environ,
 let Delta :=
-  @abbreviate tycontext
-    (initialized _h
-       (@PTree.Node (type * bool)
-          (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-             (@None (type * bool))
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))))) (@None (type * bool))
-          (@PTree.Node (type * bool)
-             (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, true))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool)))) (@None (type * bool))
-             (@PTree.Node (type * bool)
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_fifo, true))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))) (@None (type * bool))
-                (@PTree.Node (type * bool)
-                   (@PTree.Node (type * bool) (@PTree.Leaf (type * bool))
-                      (@Some (type * bool) (tptr t_struct_elem, false))
-                      (@PTree.Leaf (type * bool))) (@None (type * bool))
-                   (@PTree.Leaf (type * bool))))), PTree.empty type, tvoid,
-       @PTree.Node global_spec
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tptr tvoid), (3%positive, tuint),
-                         (4%positive, tuint)](fun _ : environ => !!False)
-                         POST  [tvoid](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p1 : val PRE 
-                            [(_Q, tptr t_struct_fifo),
-                            (_p, tptr t_struct_elem)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q);
-                             `(@eq val p1) (eval_id _p))
-                             SEP  (`(fifo contents0 q0); `((field_at_ Tsh t_struct_elem _next) p1))) POST 
-                            [tvoid]
-                            (let (q0, contents0) := p0 in
-                             `(fifo (contents0 ++ p1 :: @nil val) q0)))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Node global_spec
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH _ : unit PRE  []
-                            (fun _ : environ => @emp mpred Nveric Sveric)
-                            POST  [tptr t_struct_fifo]
-                            `(fifo (@nil val)) retval)))
-                     (@PTree.Leaf global_spec)) (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  a : int, b : int PRE  [(_a, tint),
-                            (_b, tint)]
+  (fun (A : Type) (x : A) => x) tycontext
+    (PTree.Node
+       (PTree.Node PTree.Leaf None
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                   PTree.Leaf) None PTree.Leaf))) None
+       (PTree.Node
+          (PTree.Node PTree.Leaf None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                   PTree.Leaf) None PTree.Leaf)) None
+          (PTree.Node
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                   PTree.Leaf) None PTree.Leaf) None
+             (PTree.Node
+                (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                   PTree.Leaf) None PTree.Leaf))),
+    var_types
+      (PTree.Node
+         (PTree.Node PTree.Leaf None
+            (PTree.Node PTree.Leaf None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                     PTree.Leaf) None PTree.Leaf))) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, true))
+                     PTree.Leaf) None PTree.Leaf)) None
+            (PTree.Node
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_fifo, true))
+                     PTree.Leaf) None PTree.Leaf) None
+               (PTree.Node
+                  (PTree.Node PTree.Leaf (Some (tptr t_struct_elem, false))
+                     PTree.Leaf) None PTree.Leaf))), PTree.empty type, tvoid,
+      PTree.Node
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tptr tvoid), (3%positive, tuint),
+                        (4%positive, tuint)](fun _ : environ => !!False)
+                        POST  [tvoid](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p1 : val PRE 
+                           [(_Q, tptr t_struct_fifo),
+                           (_p, tptr t_struct_elem)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val (Vint a)) (eval_id _a);
-                            `(@eq val (Vint b)) (eval_id _b))  SEP() POST 
-                            [tptr t_struct_elem]`(elemrep (Vint a, Vint b)) retval)))
-                     (@PTree.Leaf global_spec)))) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH n : int PRE  [(1%positive, tint)]
-                         PROP  (4 <= Int.signed n)
-                         LOCAL  (`(@eq val (Vint n)) (eval_id 1%positive))
-                         SEP() POST  [tptr tvoid]`(memory_block Tsh n) retval)))
-                  (@PTree.Leaf global_spec)) (@None global_spec)
-               (@PTree.Leaf global_spec))) (@None global_spec)
-         (@PTree.Node global_spec
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tschar),
-                         (2%positive, tint)](fun _ : environ => !!False)
-                         POST  [tint](fun _ : environ => !!False))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  q0 : val, contents0 : list val PRE 
-                            [(_Q, tptr t_struct_fifo)]
+                            LOCAL  (`(eq q0) (eval_id _Q);
+                            `(eq p1) (eval_id _p))
+                            SEP  (`(fifo contents0 q0);
+                            `(field_at_ Tsh t_struct_elem _next p1))) POST 
+                           [tvoid]
+                           (let (q0, contents0) := p0 in
+                            `(fifo (contents0 ++ p1 :: nil) q0)))))
+                    PTree.Leaf)) None
+              (PTree.Node
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH _ : unit PRE  [](fun _ : environ => emp)
+                           POST  [tptr t_struct_fifo]`(fifo nil) retval)))
+                    PTree.Leaf) None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  a : int, b : int PRE  [(_a, tint),
+                           (_b, tint)]
+                           PROP  ()
+                           LOCAL  (`(eq (Vint a)) (eval_id _a);
+                           `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                           [tptr t_struct_elem]
+                           `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+           None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH n : int PRE  [(1%positive, tint)]
+                        PROP  (4 <= Int.signed n)
+                        LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                        POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+                 PTree.Leaf) None PTree.Leaf)) None
+        (PTree.Node
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                        (2%positive, tint)](fun _ : environ => !!False) POST 
+                        [tint](fun _ : environ => !!False))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  q0 : val, contents0 : list val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           PROP  ()
+                           LOCAL  (`(eq q0) (eval_id _Q))
+                           SEP  (`(fifo contents0 q0)) POST  [tint]
+                           (fun x0 : environ =>
+                            local
+                              (`(eq
+                                   (if isnil contents0 then Vtrue else Vfalse))
+                                 retval) x0 && `(fifo contents0 q0) x0))))
+                    PTree.Leaf)) None PTree.Leaf) None
+           (PTree.Node
+              (PTree.Node PTree.Leaf
+                 (Some
+                    (Global_func
+                       (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                        (2%positive, tint)]
+                        PROP  ()
+                        LOCAL ()
+                        SEP 
+                        (`(memory_block Tsh)
+                           (`force_int (eval_id 2%positive))
+                           (eval_id 1%positive)) POST  [tvoid]
+                        (fun _ : environ => emp))))
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH  p0 : val * list val, p1 : val PRE 
+                           [(_Q, tptr t_struct_fifo)]
+                           (let (q0, contents0) := p0 in
                             PROP  ()
-                            LOCAL  (`(@eq val q0) (eval_id _Q))
-                            SEP  (`(fifo contents0 q0)) POST  [tint]
-                            (fun x0 : environ =>
-                             local
-                               (`(@eq val
-                                    (if @isnil val contents0
-                                     then Vtrue
-                                     else Vfalse)) retval) x0 &&
-                             `(fifo contents0 q0) x0))))
-                     (@PTree.Leaf global_spec))) (@None global_spec)
-               (@PTree.Leaf global_spec)) (@None global_spec)
-            (@PTree.Node global_spec
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@Some global_spec
-                     (Global_func
-                        (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                         (2%positive, tint)]
-                         PROP  ()
-                         LOCAL ()
-                         SEP 
-                         (`(memory_block Tsh)
-                            (`force_int (eval_id 2%positive))
-                            (eval_id 1%positive)) POST  [tvoid]
-                         (fun _ : environ => @emp mpred Nveric Sveric))))
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH  p0 : val * list val, p1 : val PRE 
-                            [(_Q, tptr t_struct_fifo)]
-                            (let (q0, contents0) := p0 in
-                             PROP  ()
-                             LOCAL  (`(@eq val q0) (eval_id _Q))
-                             SEP  (`(fifo (p1 :: contents0) q0))) POST 
-                            [tptr t_struct_elem]
-                            (let (q0, contents0) := p0 in
-                             fun rho : environ =>
-                             local (`(@eq val p1) retval) rho &&
-                             `(fifo contents0 q0) rho * `(field_at_ Tsh t_struct_elem _next) retval rho))))
-                     (@PTree.Leaf global_spec)))
-               (@Some global_spec
+                            LOCAL  (`(eq q0) (eval_id _Q))
+                            SEP  (`(fifo (p1 :: contents0) q0))) POST 
+                           [tptr t_struct_elem]
+                           (let (q0, contents0) := p0 in
+                            fun rho0 : environ =>
+                            local (`(eq p1) retval) rho0 &&
+                            `(fifo contents0 q0) rho0 *
+                            `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                    PTree.Leaf))
+              (Some
+                 (Global_func
+                    (WITH _ : unit PRE  [(1%positive, tdouble)]
+                     (fun _ : environ => !!False) POST  [tdouble]
+                     (fun _ : environ => !!False))))
+              (PTree.Node PTree.Leaf None
+                 (PTree.Node PTree.Leaf
+                    (Some
+                       (Global_func
+                          (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                           main_post prog u))) PTree.Leaf))))), tvoid,
+    PTree.Node
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
                   (Global_func
-                     (WITH _ : unit PRE  [(1%positive, tdouble)]
-                      (fun _ : environ => !!False) POST  [tdouble]
-                      (fun _ : environ => !!False))))
-               (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                  (@None global_spec)
-                  (@PTree.Node global_spec (@PTree.Leaf global_spec)
-                     (@Some global_spec
-                        (Global_func
-                           (WITH u : unit PRE  []main_pre prog u POST  [tint]
-                            main_post prog u))) (@PTree.Leaf global_spec))))))) in
-PROP  ()
-LOCAL  (tc_environ Delta;
-`(typed_true
-    (typeof
-       (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)))
-  (eval_expr
-     (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-        (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint));
-`(@eq val hd) (eval_id _h); `(@eq val q) (eval_id _Q);
-`(@eq val p) (eval_id _p))
-SEP 
-(`(field_at Tsh
-     (Tstruct _struct_fifo
-        (Fcons _head
-           (tptr
-              (Tstruct _struct_elem
-                 (Fcons _a tint
-                    (Fcons _b tint
-                       (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                 noattr))
-           (Fcons _tail
-              (tptr
-                 (Tstruct _struct_elem
-                    (Fcons _a tint
-                       (Fcons _b tint
-                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                    noattr)) Fnil)) noattr) _head)
-   (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-        (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(field_at Tsh
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tptr tvoid), (3%positive, tuint),
+                      (4%positive, tuint)](fun _ : environ => !!False) POST 
+                      [tvoid](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p1 : val PRE 
+                         [(_Q, tptr t_struct_fifo), (_p, tptr t_struct_elem)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q);
+                          `(eq p1) (eval_id _p))
+                          SEP  (`(fifo contents0 q0);
+                          `(field_at_ Tsh t_struct_elem _next p1))) POST 
+                         [tvoid]
+                         (let (q0, contents0) := p0 in
+                          `(fifo (contents0 ++ p1 :: nil) q0))))) PTree.Leaf))
+            None
+            (PTree.Node
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH _ : unit PRE  [](fun _ : environ => emp) POST 
+                         [tptr t_struct_fifo]`(fifo nil) retval))) PTree.Leaf)
+               None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  a : int, b : int PRE  [(_a, tint), (_b, tint)]
+                         PROP  ()
+                         LOCAL  (`(eq (Vint a)) (eval_id _a);
+                         `(eq (Vint b)) (eval_id _b))  SEP() POST 
+                         [tptr t_struct_elem]
+                         `(elemrep (Vint a, Vint b)) retval))) PTree.Leaf)))
+         None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH n : int PRE  [(1%positive, tint)]
+                      PROP  (4 <= Int.signed n)
+                      LOCAL  (`(eq (Vint n)) (eval_id 1%positive))  SEP()
+                      POST  [tptr tvoid]`(memory_block Tsh n) retval)))
+               PTree.Leaf) None PTree.Leaf)) None
+      (PTree.Node
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tschar),
+                      (2%positive, tint)](fun _ : environ => !!False) POST 
+                      [tint](fun _ : environ => !!False))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  q0 : val, contents0 : list val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         PROP  ()
+                         LOCAL  (`(eq q0) (eval_id _Q))
+                         SEP  (`(fifo contents0 q0)) POST  [tint]
+                         (fun x0 : environ =>
+                          local
+                            (`(eq (if isnil contents0 then Vtrue else Vfalse))
+                               retval) x0 && `(fifo contents0 q0) x0))))
+                  PTree.Leaf)) None PTree.Leaf) None
+         (PTree.Node
+            (PTree.Node PTree.Leaf
+               (Some
+                  (Global_func
+                     (WITH _ : unit PRE  [(1%positive, tptr tvoid),
+                      (2%positive, tint)]
+                      PROP  ()
+                      LOCAL ()
+                      SEP 
+                      (`(memory_block Tsh) (`force_int (eval_id 2%positive))
+                         (eval_id 1%positive)) POST  [tvoid]
+                      (fun _ : environ => emp))))
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH  p0 : val * list val, p1 : val PRE 
+                         [(_Q, tptr t_struct_fifo)]
+                         (let (q0, contents0) := p0 in
+                          PROP  ()
+                          LOCAL  (`(eq q0) (eval_id _Q))
+                          SEP  (`(fifo (p1 :: contents0) q0))) POST 
+                         [tptr t_struct_elem]
+                         (let (q0, contents0) := p0 in
+                          fun rho0 : environ =>
+                          local (`(eq p1) retval) rho0 &&
+                          `(fifo contents0 q0) rho0 *
+                          `(field_at_ Tsh t_struct_elem _next) retval rho0))))
+                  PTree.Leaf))
+            (Some
+               (Global_func
+                  (WITH _ : unit PRE  [(1%positive, tdouble)]
+                   (fun _ : environ => !!False) POST  [tdouble]
+                   (fun _ : environ => !!False))))
+            (PTree.Node PTree.Leaf None
+               (PTree.Node PTree.Leaf
+                  (Some
+                     (Global_func
+                        (WITH u : unit PRE  []main_pre prog u POST  [tint]
+                         main_post prog u))) PTree.Leaf))))) in
+tc_environ
+  (update_tycon Delta
+     (Sassign
+        (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+           _tail (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem))))
+  rho ->
+!!True &&
+(!!(typed_true tint
+      (force_val (sem_cmp_pp Ceq true2 (eval_id _h rho) (Vint (Int.repr 0)))) /\
+    hd = eval_id _h rho /\ q = eval_id _Q rho /\ p = eval_id _p rho /\ True) &&
+ (field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
           (tptr
@@ -1932,45 +2948,59 @@ SEP
                    (Fcons _a tint
                       (Fcons _b tint
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                   noattr)) Fnil)) noattr) _tail)
-  (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
-  (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(if @isnil val contents
-  then !!(hd = nullval) && @emp mpred Nveric Sveric
-  else
-   EX  prefix : list val,
-   !!(contents = prefix ++ tl :: @nil val) &&
-   (@links t_struct_elem _next QS Tsh prefix hd tl * link tl nullval));
-`(field_at Tsh
-    (Tstruct _struct_elem
-       (Fcons _a tint
-          (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-       noattr) _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
-|-- overridePost
-      (PROP  ()  LOCAL ()  SEP  (`(fifo (contents ++ p :: @nil val) q)))
-      (function_body_ret_assert tvoid `(fifo (contents ++ p :: @nil val) q))
-      EK_normal (@None val)
-. Proof. intros Q p' h t; ungather_entail.
+                   noattr)) Fnil)) noattr) _head
+    (force_val (sem_cast_neutral (eval_id _p rho)))
+    (force_ptr (eval_id _Q rho)) *
+  (field_at Tsh
+     (Tstruct _struct_fifo
+        (Fcons _head
+           (tptr
+              (Tstruct _struct_elem
+                 (Fcons _a tint
+                    (Fcons _b tint
+                       (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
+                 noattr))
+           (Fcons _tail
+              (tptr
+                 (Tstruct _struct_elem
+                    (Fcons _a tint
+                       (Fcons _b tint
+                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
+                    noattr)) Fnil)) noattr) _tail
+     (force_val (sem_cast_neutral (eval_id _p rho)))
+     (force_ptr (eval_id _Q rho)) *
+   ((if isnil contents
+     then !!(hd = nullval) && emp
+     else
+      EX  prefix : list val,
+      !!(contents = prefix ++ tl :: nil) &&
+      (links QS Tsh prefix hd tl *
+       field_at Tsh t_struct_elem _next nullval tl)) *
+    (field_at Tsh t_struct_elem _next (Vint (Int.repr 0))
+       (force_ptr (eval_id _p rho)) * emp)))))
+|--
+    (!!True && (!!True && (fifo (contents ++ p :: nil) q * emp))).
+Proof. intros Q p' h t; ungather_entail.
 entailer.
   destruct (@isnil val contents).
-  + subst. unfold fifo. apply exp_right with (p',p').  
+  + subst. unfold fifo. apply exp_right with (eval_id _p rho, eval_id _p rho).  
       simpl.
-      destruct (isnil (p' ::nil)); [ congruence | ].
+      destruct (isnil (eval_id _p rho ::nil)); [ congruence | ].
       normalize.
       apply exp_right with nil.
       simpl. rewrite links_nil_eq.
       entailer!.
-  + unfold link.
-      normalize.
+      apply ptr_eq_refl; auto.
+  +  normalize.
       destruct prefix.
       - rewrite links_nil_eq.
          entailer.
-         elim_hyps. inv H.
+         elim_hyps. destruct (eval_id _h rho); try contradiction H5; inv  H2.
       - rewrite links_cons_eq.
          normalize.   (* should this really be necessary here? *)
          entailer.
-         elim_hyps. inv H.
+         elim_hyps.
+         destruct (eval_id _h rho); try contradiction H5; inv  H2.
 Qed.
 
 Lemma goal_11 :
@@ -2378,15 +3408,15 @@ EVAR
       @numbd (LiftEnviron mpred) 2
         `(field_at Tsh t_struct_fifo _head q hd);
       @numbd (LiftEnviron mpred) 3
-        `(field_at Tsh t_struct_fifo _tail q tl);
+        `(field_at Tsh t_struct_fifo _tail tl q);
       `(@numbd (lift_T (Tarrow val (Tarrow val (LiftEnviron mpred)))) 4
           (field_at Tsh
              (Tstruct _struct_elem
                 (Fcons _a tint
                    (Fcons _b tint
                       (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-                noattr) _next)) (`force_ptr (eval_id _p))
-        `(Vint (Int.repr 0)))
+                noattr) _next))
+        `(Vint (Int.repr 0))  (`force_ptr (eval_id _p)))
       |-- `(@numbd (val -> mpred) n0
               (field_at_ sh
                  (typeof
@@ -2581,10 +3611,10 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
        noattr) _next)
-  (eval_lvalue (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem))
   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
-`(field_at Tsh t_struct_fifo _head q hd);
+       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))))
+  (eval_lvalue (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem));
+`(field_at Tsh t_struct_fifo _head hd q);
 `(field_at Tsh
     (Tstruct _struct_fifo
        (Fcons _head
@@ -2601,14 +3631,14 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
                       (Fcons _b tint
                          (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
                    noattr)) Fnil)) noattr) _tail)
-  (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo))
   (`force_val (`(sem_cast (typeof (Etempvar _p (tptr t_struct_elem)))
-       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))));
+       (tptr t_struct_elem)) (eval_expr (Etempvar _p (tptr t_struct_elem)))))
+  (eval_lvalue (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo));
 `(field_at Tsh
     (Tstruct _struct_elem
        (Fcons _a tint
           (Fcons _b tint (Fcons _next (Tcomp_ptr _struct_elem noattr) Fnil)))
-       noattr) _next) (`force_ptr (eval_id _p)) `(Vint (Int.repr 0)))
+       noattr) _next)`(Vint (Int.repr 0)) (`force_ptr (eval_id _p)) )
 |-- overridePost
       (PROP  ()  LOCAL ()  SEP  (`(fifo (contents ++ p :: @nil val) q)))
       (function_body_ret_assert tvoid `(fifo (contents ++ p :: @nil val) q))
@@ -2622,7 +3652,7 @@ SEP  (`(@links t_struct_elem _next QS Tsh prefix hd tl);
      normalize.
      apply exp_right with (prefix ++ t :: nil).
      entailer.
-     remember (link p' nullval) as A. (* prevent it from canceling! *)
+     remember (field_at Tsh t_struct_elem _next nullval p') as A. (* prevent it from canceling! *)
      cancel. subst. 
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.

@@ -15,6 +15,93 @@ Arguments Int.unsigned n : simpl never.
 Local Open Scope logic.
 
 (* Move these elsewhere *)
+
+
+Lemma delete_emp_in_SEP:
+  forall n (R: list (environ->mpred)), 
+    nth_error R n = Some emp ->
+    SEPx R = SEPx (firstn n R ++ list_drop (S n) R).
+Proof.
+intros.
+unfold SEPx; extensionality rho.
+revert R H; induction n; destruct R; simpl; intros; auto.
+inv H. rewrite emp_sepcon; auto.
+f_equal; auto.
+etransitivity.
+apply IHn; auto.
+reflexivity.
+Qed.
+
+Ltac delete_emp_in_SEP :=
+ change (@liftx (LiftEnviron mpred) (@emp mpred _ _)) with 
+       (@emp (environ->mpred) _ _); 
+ repeat  
+ match goal with |- context [SEPx ?R] =>
+   match R with context [emp:: ?R'] =>
+     rewrite (delete_emp_in_SEP (length R - S (length R')) R) by reflexivity;
+     simpl length; simpl minus; unfold firstn, app, list_drop; fold app
+   end
+ end.
+
+Ltac simpl_stackframe_of := 
+  unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
+  repeat rewrite var_block_data_at_ by reflexivity;
+  repeat rewrite prop_true_andp by (simpl sizeof; computable).
+
+Lemma PROP_LOCAL_SEP_f:
+  forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
+     PROPx P (LOCALx (map (fun q : environ -> Prop => `q f) Q)
+            (SEPx (map (fun r : environ -> mpred => `r f) R))).
+Proof. intros. extensionality rho.
+unfold_for_go_lower.
+simpl. f_equal. f_equal.
+f_equal.
+induction Q; simpl; auto. f_equal; auto.
+induction R; simpl; auto. f_equal; auto.
+Qed.
+Hint Rewrite PROP_LOCAL_SEP_f: norm.
+
+Lemma SEP_PROP:
+ forall P Q R P' Q' R', 
+     PROPx P (LOCALx Q (SEPx (PROPx P' (LOCALx Q' (SEPx R')) :: R))) =
+    PROPx (P++P') (LOCALx (Q++Q') (SEPx (R'++R))).
+Proof.
+intros.
+unfold_for_go_lower; extensionality rho.
+apply pred_ext; normalize.
+rewrite prop_true_andp.
+rewrite prop_true_andp; auto.
+clear; induction R'; simpl; normalize.
+rewrite sepcon_assoc; apply sepcon_derives; auto.
+revert H0; induction Q; simpl; intros; auto.
+destruct H0; split; auto.
+induction P; simpl; auto. destruct H; split; auto.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+induction R'; simpl. normalize.
+rewrite sepcon_assoc; apply sepcon_derives; auto.
+induction Q; simpl; auto. destruct H0. auto.
+induction P; simpl; auto. destruct H; auto.
+induction Q; simpl; auto.
+destruct H0; split; auto.
+induction P; simpl; auto. destruct H; split; auto.
+Qed.
+Hint Rewrite SEP_PROP: norm.
+
+Lemma simpl_get_result1:
+ forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
+Proof.
+intros; extensionality rho.
+unfold_lift; unfold retval, get_result1.
+f_equal.
+Qed.
+Hint Rewrite simpl_get_result1: norm.
+
+Hint Rewrite @subst_lift0' : subst.
+Hint Rewrite @subst_lift0' : norm.
+
 Definition not_conj_notation (P: Prop) := True.
 
 Ltac not_conj_notation :=
@@ -423,7 +510,7 @@ end).
 Ltac unfold_and_local_semax :=
 unfold_pre_local_andp;
 repeat intro_ex_local_semax;
-rewrite canonicalize.canon9.
+try rewrite canonicalize.canon9.
 
 
 Ltac forward_while Inv Postcond :=
@@ -568,6 +655,7 @@ Ltac get_global_fun_def Delta f fsig A Pre Post :=
 Ltac all_closed R :=
  match R with 
   | @liftx (LiftEnviron mpred) _ :: ?R' => all_closed R'  
+  | @liftx (Tarrow val (LiftEnviron mpred)) _ (eval_var _ _) :: ?R' => all_closed R'
   | nil => idtac
   end.
 
@@ -1189,16 +1277,19 @@ Ltac start_function :=
  match goal with |- @semax _ (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G); unfold_Delta
  end;
- first [apply semax_stackframe_emp
-        | apply start_function_aux1
-        | idtac];
+ try expand_main_pre;
+ try match goal with |- context [stackframe_of ?F] => 
+            change (stackframe_of F) with (@emp (environ->mpred) _ _);
+            rewrite frame_ret_assert_emp;
+            try rewrite sepcon_emp;  delete_emp_in_SEP
+          end;
+ try apply start_function_aux1;
  match goal with
   | |- @semax _ _ (PROPx _ _) _ _ => idtac 
   | _ => canonicalize_pre 
  end;
  repeat (apply semax_extract_PROP; intro);
- abbreviate_semax;
- try expand_main_pre.
+ abbreviate_semax.
 
 Opaque sepcon.
 Opaque emp.

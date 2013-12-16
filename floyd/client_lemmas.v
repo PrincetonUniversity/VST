@@ -1244,7 +1244,8 @@ Ltac unfold_for_go_lower :=
                       typecheck_expr typecheck_lvalue
                       function_body_ret_assert 
                       make_args' bind_ret get_result1 retval
-                       classify_cast force_val sem_cast_neutral
+                       classify_cast 
+                       (* force_val sem_cast_neutral ... NOT THESE TWO!  *) 
                       denote_tc_assert
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 

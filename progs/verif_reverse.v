@@ -331,7 +331,7 @@ Lemma setup_globals:
             `nullval).
 Proof.
  intros;  do 2 (apply andp_derives; [entailer |]).
- apply sepcon_derives; auto.
+ apply sepcon_derives; [ |  normalize].
  apply linked_list_in_array; try reflexivity.
  simpl; omega.
 Qed. 
