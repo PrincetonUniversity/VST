@@ -16,6 +16,31 @@ Local Open Scope logic.
 
 (* Move these elsewhere *)
 
+Lemma mapsto_mapsto__int32:
+  forall sh p v s1 s2,
+  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto_ sh (Tint I32 s2 noattr) p.
+Proof.
+intros.
+eapply derives_trans; [ apply mapsto_mapsto_ | ].
+destruct s1,s2; fold tuint; fold tint; 
+  repeat rewrite mapsto_tuint_tint; auto.
+Qed.
+
+Hint Extern 2 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+   (apply mapsto_mapsto__int32)  : cancel.
+
+Lemma mapsto_mapsto_int32:
+  forall sh p v s1 s2,
+  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto sh (Tint I32 s2 noattr) p v.
+Proof.
+intros.
+destruct s1,s2; fold tuint; fold tint; 
+  repeat rewrite mapsto_tuint_tint; auto.
+Qed.
+
+Hint Extern 2 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+   (apply mapsto_mapsto_int32)  : cancel.
+
 
 Lemma delete_emp_in_SEP:
   forall n (R: list (environ->mpred)), 
@@ -962,7 +987,7 @@ match goal with
      |-- (`(numbd n (array_at t sh contents lo hi)) (eval_expr e1)) * TT) as _;
   [unfold number_list, n, sh, contents, lo, hi; 
    repeat rewrite numbd_lift0; repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
-   solve [entailer; cancel]
+   unfold at_offset; solve [entailer; cancel]
  |  ];
   eapply(@semax_store_array Esp Delta n sh t contents lo hi);
   unfold number_list, n, sh, contents, lo, hi;
@@ -978,7 +1003,7 @@ match goal with
      |-- (`(numbd n (field_at_ sh (typeof e) fld)) (eval_lvalue e)) * TT) as _;
   [unfold number_list, n, sh; 
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
-   solve [entailer; cancel]
+   unfold at_offset; solve [entailer; cancel]
  |  ];
 (**** 12.8 seconds to here ****)
  apply (semax_pre_later (PROPx P (LOCALx Q 
@@ -1001,7 +1026,7 @@ match goal with
      |-- (`(numbd n (mapsto_ sh (typeof e))) (eval_lvalue e)) * TT) as _;
   [ unfold number_list, n, sh; 
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
-   solve [entailer; cancel]
+   unfold at_offset; solve [entailer; cancel]
   |  ];
   eapply (@semax_store_nth Espec n Delta P Q R e e2);
     (unfold n,sh; clear n sh);
