@@ -1,6 +1,45 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Arguments sem_cmp_default c t1 t2 v1 v2 / .
+
+Lemma nth_map':
+  forall {A B} (f: A -> B) d d' i al,
+  (i < length al)%nat ->
+   nth i (map f al) d = f (nth i al d').
+Proof.
+induction i; destruct al; simpl; intros; try omega; auto.
+apply IHi; omega.
+Qed.
+
+Lemma isptr_offset_val':
+ forall i p, isptr p -> isptr (offset_val i p).
+Proof. intros. destruct p; try contradiction; apply I. Qed.
+Hint Resolve isptr_offset_val': norm.
+
+Lemma sem_add_pi_ptr:
+   forall t p i, 
+    isptr p ->
+    sem_add_pi t p (Vint i) = Some (offset_val (Int.mul (Int.repr (sizeof t)) i) p).
+Proof. intros. destruct p; try contradiction. reflexivity. Qed.
+Hint Rewrite sem_add_pi_ptr using (solve [auto with norm]) : norm.
+
+Lemma force_val_e:
+ forall v, force_val (Some v) = v. 
+Proof. reflexivity. Qed.
+Hint Rewrite force_val_e: norm.
+
+Lemma sem_cast_neutral_ptr:
+  forall p, isptr p -> sem_cast_neutral p = Some p.
+Proof. intros. destruct p; try contradiction; reflexivity. Qed.
+Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
+
+Lemma sizeof_tuchar: sizeof tuchar = 1%Z.
+Proof. reflexivity. Qed.
+Hint Rewrite sizeof_tuchar: norm.
+
+Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
+
 Definition nullval : val := Vint Int.zero.
 
 Lemma writable_share_top: writable_share Tsh.
@@ -10,8 +49,20 @@ Hint Resolve writable_share_top.
 Ltac safe_auto_with_closed := 
    (* won't instantiate evars by accident *)
  match goal with |- ?A => 
-          solve [first [has_evar A | auto with closed]]
+          solve [first [has_evar A | auto 50 with closed]]
  end.
+
+Lemma closed_env_set:
+ forall {B} i v (P: environ -> B) rho, 
+     closed_wrt_vars (eq i) P -> 
+     P (env_set rho i v) = P rho.
+Proof.
+ intros. hnf in H.
+ symmetry; destruct rho; apply H.
+ intros; simpl; destruct (ident_eq i i0). left; auto.
+ right; rewrite Map.gso; auto.
+Qed.
+Hint Rewrite @closed_env_set using safe_auto_with_closed : norm.
 
 Lemma subst_derives:
   forall id e P Q, P |-- Q -> subst id e P |-- subst id e Q.
@@ -687,6 +738,11 @@ intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @lift1_lift0 : norm.
 
+Lemma const_liftx0:
+  forall B (P: B), (fun _ : environ => P) = `P.
+Proof. reflexivity. Qed.
+Hint Rewrite const_liftx0 : norm.
+
 Lemma lift_identity:
   forall A f, `(fun v: A => v) f = f.
 Proof. intros. reflexivity. Qed.
@@ -990,6 +1046,26 @@ Proof.
  apply Int.eqm_sub; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
 Qed.
 Hint Rewrite sub_repr : norm.
+
+Lemma ltu_repr: forall i j, 
+ (0 <= i <= Int.max_unsigned -> 
+  0 <= j <= Int.max_unsigned -> 
+  Int.ltu (Int.repr i) (Int.repr j) = true -> i<j)%Z.
+Proof.
+intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int.unsigned_repr in H2 by assumption.
+auto.
+Qed.
+
+Lemma ltu_repr_false: forall i j, 
+ (0 <= i <= Int.max_unsigned -> 
+  0 <= j <= Int.max_unsigned -> 
+  Int.ltu (Int.repr i) (Int.repr j) = false -> i>=j)%Z.
+Proof.
+intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
+repeat rewrite Int.unsigned_repr in H2 by assumption.
+auto.
+Qed.
 
 Lemma int_add_assoc1:
   forall z i j, Int.add (Int.add z (Int.repr i)) (Int.repr j) = Int.add z (Int.repr (i+j)).

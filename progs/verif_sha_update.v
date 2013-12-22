@@ -226,17 +226,15 @@ replace_SEP 0%Z
  apply firstn_app.
 *
  destruct d; inv Pd; simpl. f_equal.
- rewrite Int.add_assoc. f_equal.
- rewrite mul_repr.
+  f_equal.
  rewrite app_length.
  rewrite H7.
- rewrite add_repr.
  f_equal.
  rewrite  mult_plus_distr_r.
- change (LBLOCK*4) with CBLOCK.
+ change (LBLOCK*4)%nat with CBLOCK.
 rewrite NPeano.Nat.add_sub_swap by auto.
  rewrite Nat2Z.inj_add.
- f_equal.
+ reflexivity.
 *
  f_equal.
  rewrite app_length. rewrite mult_plus_distr_r. rewrite H7.

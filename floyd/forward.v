@@ -15,58 +15,7 @@ Arguments Int.unsigned n : simpl never.
 Local Open Scope logic.
 
 (* Move these elsewhere *)
-
-Lemma mapsto_mapsto__int32:
-  forall sh p v s1 s2,
-  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto_ sh (Tint I32 s2 noattr) p.
-Proof.
-intros.
-eapply derives_trans; [ apply mapsto_mapsto_ | ].
-destruct s1,s2; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint; auto.
-Qed.
-
-Hint Extern 2 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
-   (apply mapsto_mapsto__int32)  : cancel.
-
-Lemma mapsto_mapsto_int32:
-  forall sh p v s1 s2,
-  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto sh (Tint I32 s2 noattr) p v.
-Proof.
-intros.
-destruct s1,s2; fold tuint; fold tint; 
-  repeat rewrite mapsto_tuint_tint; auto.
-Qed.
-
-Hint Extern 2 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
-   (apply mapsto_mapsto_int32)  : cancel.
-
-
-Lemma delete_emp_in_SEP:
-  forall n (R: list (environ->mpred)), 
-    nth_error R n = Some emp ->
-    SEPx R = SEPx (firstn n R ++ list_drop (S n) R).
-Proof.
-intros.
-unfold SEPx; extensionality rho.
-revert R H; induction n; destruct R; simpl; intros; auto.
-inv H. rewrite emp_sepcon; auto.
-f_equal; auto.
-etransitivity.
-apply IHn; auto.
-reflexivity.
-Qed.
-
-Ltac delete_emp_in_SEP :=
- change (@liftx (LiftEnviron mpred) (@emp mpred _ _)) with 
-       (@emp (environ->mpred) _ _); 
- repeat  
- match goal with |- context [SEPx ?R] =>
-   match R with context [emp:: ?R'] =>
-     rewrite (delete_emp_in_SEP (length R - S (length R')) R) by reflexivity;
-     simpl length; simpl minus; unfold firstn, app, list_drop; fold app
-   end
- end.
+Arguments Pos.to_nat !x / .
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;

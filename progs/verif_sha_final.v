@@ -95,8 +95,7 @@ instantiate (1:= (hashed',
         c, (offset_val (Int.repr 40) c), Tsh))
   in (Value of witness).
 entailer!.
-unfold K_vector. normalize.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
+ erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
 cancel.
 normalize.
 replace_SEP 0%Z  (`(array_at tuint Tsh
@@ -110,8 +109,7 @@ replace_SEP 0%Z  (`(array_at tuint Tsh
       `(at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c) *
       K_vector).
 entailer!.
-unfold K_vector. normalize.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
+ erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
 cancel.
 unfold data_block.
 rewrite array_at_ZnthV_nil.
@@ -137,14 +135,11 @@ forward. (* ignore=memset (p,0,SHA_CBLOCK); *)
 instantiate (1:= (Tsh, (offset_val (Int.repr 40) c), 64%Z, Int.zero))
   in (Value of witness).
 entailer!.
-change (Int.repr 64) with (Int.repr (sizeof (tarray tuchar 64))).
-rewrite memory_block_typed.
-simpl_data_at.
+ rewrite (memory_block_array_tuchar _ 64%Z) by Omega1.
 pull_left (at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c).
 repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
 unfold at_offset.
 cancel.
-reflexivity.
 autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
           (offset_val (Int.repr 40) c))).
@@ -246,56 +241,29 @@ intros H4 H3 H3' H0 H1 H2 H5 Lhi Llo H7 Pc_ Hhilo.
 + repeat rewrite map_app.
    rewrite app_nth2. rewrite app_nth1.
   rewrite nth_map_zeros. auto.
-  change (Z.of_nat CBLOCK) with 64%Z. 
-  rewrite Nat2Z.inj_sub.
-  rewrite Z2Nat.id by omega.
-  omega.
-  apply Nat2Z.inj_le.
-  rewrite Z2Nat.id by omega.
-  omega.
+  rewrite Nat2Z.inj_sub by Omega1. Omega1.
   rewrite (map_length _ (zeros _)).
   rewrite length_zeros.
-  change (Z.of_nat CBLOCK - 8)%Z with 56%Z.
-  apply Nat2Z.inj_lt.
-  rewrite Z2Nat.id by omega.
-  rewrite Nat2Z.inj_sub.
-  rewrite Z2Nat.id by omega.
-  omega.
-  apply Nat2Z.inj_le; try omega.
-  rewrite Z2Nat.id by omega.
-  omega.
- change (Z.of_nat CBLOCK - 8)%Z with 56%Z; omega.
-  apply Nat2Z.inj_ge; try omega.
-  rewrite Z2Nat.id by omega.
-  omega.
+  apply Nat2Z.inj_lt; rewrite Nat2Z.inj_sub; Omega1.
+  Omega1.
 + repeat rewrite map_app.
    rewrite <- app_ass.
    rewrite app_nth2. rewrite app_nth1.
-   f_equal.
-   rewrite Z2Nat.inj_sub by omega.
-   f_equal.
-   rewrite app_length.
-   rewrite H6.
-  repeat rewrite map_length.
-  rewrite length_zeros.
-  change (Z.of_nat CBLOCK - 8)%Z with 56%Z.
-  rewrite Z2Nat.inj_sub; try omega.
-  rewrite Nat2Z.id; try omega.
-  assert (length dd' <= Z.to_nat 56); [ | omega].
-  rewrite map_length in H0; change CBLOCK with 64 in H0.
-  change (Z.to_nat 56) with 56; omega.
-  auto. 
+   f_equal.    rewrite app_length.  
+   repeat rewrite map_length; rewrite map_length in H6.
+   rewrite length_zeros.
+   rewrite H6. Omega1.
   rewrite app_length; rewrite (map_length _ (zeros _)); rewrite length_zeros.
   rewrite H6. repeat rewrite map_length.
   rewrite Lhi.
-    change (Z.of_nat CBLOCK - 8)%Z with 56%Z.
+    change (Z.of_nat CBLOCK - 8)%Z with 56%Z. 
   apply Nat2Z.inj_lt; try omega.
-  clear - H9; admit.  (* tedious *)
-  rewrite Zlength_correct; omega.
+  rewrite Nat2Z.inj_sub; try Omega1.
+(*  clear - H9; admit.  (* tedious *)
+  rewrite Zlength_correct; omega.*)
   rewrite H6; repeat rewrite app_length; repeat rewrite map_length;
    rewrite length_zeros.
-  clear - H9; admit.  (* tedious *)
-  auto.
+  Omega1.
 + admit.  (* tedious *)
 Qed.
 
@@ -466,7 +434,7 @@ clear - H0 H9.
  apply Z2Nat.inj_le in H; try omega.
  change (Z.to_nat 56) with 56 in H; omega.
  forward. (* p += 4; *)
- entailer!. destruct c_; try (contradiction Pc_); apply I.
+ entailer!.
  forward. (* cNl=c->Nl; *)
  forward. (* (void)HOST_l2c(cNl,p); *)
  instantiate (1:=(offset_val (Int.repr 60) (offset_val (Int.repr 40) c),
@@ -716,16 +684,17 @@ instantiate (1:= (Tsh,
      Int.zero)) in (Value of witness).
 unfold tc_exprlist. simpl typecheck_exprlist. simpl denote_tc_assert. (* this line should not be necessary *)
 entailer!.
-destruct c; try contradiction.
+(*destruct c; try contradiction.
 unfold offset_val, sem_add_pi.
 f_equal. rewrite Int.add_assoc; f_equal.
 rewrite mul_repr, add_repr.
 change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l.
 reflexivity.
+*)
 rewrite Int.unsigned_repr.
-f_equal.
+Omega1.
 clear - H0.
-admit.  (* easy enough *)
+rewrite map_length in H0. Omega1.
 rewrite (split_array_at (Zlength dd') tuchar).
 rewrite (split_array_at (Z.of_nat CBLOCK - 8)%Z tuchar _ _ _ 64%Z).
 repeat rewrite <- sepcon_assoc.

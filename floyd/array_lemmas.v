@@ -388,24 +388,6 @@ destruct (v1 rho); inv H5.
 apply prop_right; repeat split; try eassumption.
 Qed.
 
-Lemma mapsto_mapsto_: forall sh t v v',
-   mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. unfold mapsto_; intros.
-normalize.
-unfold mapsto.
-destruct (access_mode t); auto.
-destruct v; auto.
-apply orp_left.
-apply orp_right2.
-apply andp_left2.
-apply andp_right. apply prop_right; auto.
-apply exp_right with v'; auto.
-normalize.
-apply orp_right2. apply exp_right with v2'.
-normalize.
-Qed.
-Hint Resolve mapsto_mapsto_ : cancel.
-
 Lemma array_at_ext:
   forall t sh f  f' lo hi,
    (forall i, lo <= i < hi -> f i = f' i) ->
@@ -660,4 +642,44 @@ eapply derives_trans; [ | apply later_derives; apply H ].
 eapply derives_trans.
 2: apply later_derives; rewrite <- insert_local; apply derives_refl.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
+Qed.
+
+Lemma array_at_ZnthV_nil:
+  forall t sh, array_at t sh (ZnthV t nil) = array_at_ t sh.
+Proof. intros.
+unfold array_at_.
+extensionality lo hi.
+apply array_at_ext; intros.
+unfold ZnthV. if_tac; auto. rewrite nth_overflow; auto.
+simpl; omega.
+Qed.
+
+Lemma sizeof_tarray_tuchar:
+ forall (n:Z), (n>0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
+Proof. intros.
+ unfold sizeof,tarray; cbv beta iota.
+  rewrite Z.max_r by omega.
+  unfold alignof, tuchar; cbv beta iota.
+  repeat  rewrite align_1. rewrite Z.mul_1_l. auto.
+Qed.
+
+Lemma memory_block_array_tuchar:
+ forall sh n, (n>0)%Z -> memory_block sh (Int.repr n) = array_at_ tuchar sh 0 n.
+Proof.
+ intros. replace (Int.repr n) with (Int.repr (sizeof (tarray tuchar n))).
+ rewrite memory_block_typed by reflexivity.
+ simpl_data_at. rewrite array_at_ZnthV_nil.
+  auto.
+  rewrite sizeof_tarray_tuchar; auto.
+Qed.
+
+Lemma offset_val_array_at_:
+ forall ofs t sh lo hi v,
+  array_at_ t sh (ofs + lo) (ofs + hi) v =
+  array_at_ t sh lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
+Proof.
+intros.
+unfold array_at_.
+etransitivity; [ | apply offset_val_array_at].
+f_equal.
 Qed.

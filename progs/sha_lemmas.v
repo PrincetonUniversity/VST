@@ -85,6 +85,9 @@ Definition CBLOCK : nat := LBLOCK * 4.  (* length of a block, in characters *)
 Lemma LBLOCK_zeq: Z.of_nat LBLOCK = 16%Z.
 Proof. reflexivity. Qed.
 
+Lemma CBLOCK_zeq: (Z.of_nat CBLOCK = 64%Z).
+Proof. reflexivity. Qed.
+
 Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
@@ -486,6 +489,87 @@ Proof.
  intros. destruct H,H0. exists (x+x0).
  rewrite app_length,H,H0;  rewrite  mult_plus_distr_r; omega.
 Qed.
+
+Lemma Zlength_zeros: 
+    forall n, (n>=0)%Z -> Zlength (zeros n) = n.
+Proof.
+intros.
+rewrite <- (Z2Nat.id n) in * by omega.
+clear H.
+induction (Z.to_nat n).
+reflexivity.
+rewrite inj_S.
+rewrite zeros_equation.
+pose proof (Zgt_cases (Z.succ (Z.of_nat n0)) 0).
+destruct (Z.succ (Z.of_nat n0) >? 0); try omega.
+rewrite Zlength_cons.
+f_equal.  rewrite <- IHn0.
+f_equal. f_equal. omega.
+Qed.
+
+Lemma nth_map_zeros:
+ forall i j v, (Z.of_nat i < j)%Z -> nth i (map Vint (zeros j)) v = Vint Int.zero.
+Proof.
+intros.
+rewrite <- (Z2Nat.id j) in * by omega.
+apply Nat2Z.inj_lt in H.
+replace (Z.to_nat j) with (Z.to_nat j - S i + S i) by omega.
+forget (Z.to_nat j - S i) as k.
+clear j H.
+rewrite Nat2Z.inj_add.
+rewrite inj_S.
+induction i.
+rewrite zeros_equation.
+pose proof (Zgt_cases (Z.of_nat k + Z.succ (Z.of_nat 0)) 0).
+destruct (Z.of_nat k + Z.succ (Z.of_nat 0) >? 0); try omega.
+simpl. reflexivity.
+rewrite zeros_equation.
+pose proof (Zgt_cases (Z.of_nat k + Z.succ (Z.of_nat (S i))) 0).
+destruct (Z.of_nat k + Z.succ (Z.of_nat (S i)) >? 0); try omega.
+rewrite map_cons.
+unfold nth.
+rewrite <- IHi.
+unfold nth.
+f_equal.
+f_equal.
+f_equal.
+rewrite inj_S.
+omega.
+Qed.
+
+
+Lemma length_zeros: forall n:Z, length (zeros n) = Z.to_nat n.
+Proof.
+intros. destruct (zlt n 0).
+rewrite zeros_equation. 
+pose proof (Zgt_cases n 0).
+destruct (n>?0). omega.
+destruct n. inv l. inv l. simpl. reflexivity.
+rename g into H.
+pose proof (Zlength_zeros n H). 
+rewrite Zlength_correct in H0.
+rewrite <- H0 at 2.
+rewrite Nat2Z.id. auto.
+Qed.
+
+Hint Rewrite length_zeros : norm.
+
+(*** Application of Omega stuff ***)
+
+Lemma CBLOCK_eq: CBLOCK=64%nat.
+Proof. reflexivity. Qed.
+Lemma LBLOCK_eq: LBLOCK=16%nat.
+Proof. reflexivity. Qed.
+
+Ltac helper2 := 
+ match goal with
+   | |- context [CBLOCK] => add_nonredundant (CBLOCK_eq)
+   | |- context [LBLOCK] => add_nonredundant (LBLOCK_eq)
+  end.
+
+(*** End Omega stuff ***)
+
+Ltac Omega1 := Omega (helper1 || helper2).
 
 
 

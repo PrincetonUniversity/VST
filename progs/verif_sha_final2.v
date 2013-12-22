@@ -5,100 +5,7 @@ Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
 Local Open Scope logic.
 
-Lemma const_liftx0:
-  forall B (P: B), (fun _ : environ => P) = `P.
-Proof. reflexivity. Qed.
-Hint Rewrite const_liftx0 : norm.
-
-Lemma sizeof_tarray_tuchar:
- forall (n:Z), (n>0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
-Proof. intros.
- unfold sizeof,tarray; cbv beta iota.
-  rewrite Z.max_r by omega.
-  unfold alignof, tuchar; cbv beta iota.
-  repeat  rewrite align_1. rewrite Z.mul_1_l. auto.
-Qed.
-
-Lemma Zlength_zeros: 
-    forall n, (n>=0)%Z -> Zlength (zeros n) = n.
-Proof.
-intros.
-rewrite <- (Z2Nat.id n) in * by omega.
-clear H.
-induction (Z.to_nat n).
-reflexivity.
-rewrite inj_S.
-rewrite zeros_equation.
-pose proof (Zgt_cases (Z.succ (Z.of_nat n0)) 0).
-destruct (Z.succ (Z.of_nat n0) >? 0); try omega.
-rewrite Zlength_cons.
-f_equal.  rewrite <- IHn0.
-f_equal. f_equal. omega.
-Qed.
-
-Lemma nth_map_zeros:
- forall i j v, (Z.of_nat i < j)%Z -> nth i (map Vint (zeros j)) v = Vint Int.zero.
-Proof.
-intros.
-rewrite <- (Z2Nat.id j) in * by omega.
-apply Nat2Z.inj_lt in H.
-replace (Z.to_nat j) with (Z.to_nat j - S i + S i) by omega.
-forget (Z.to_nat j - S i) as k.
-clear j H.
-rewrite Nat2Z.inj_add.
-rewrite inj_S.
-induction i.
-rewrite zeros_equation.
-pose proof (Zgt_cases (Z.of_nat k + Z.succ (Z.of_nat 0)) 0).
-destruct (Z.of_nat k + Z.succ (Z.of_nat 0) >? 0); try omega.
-simpl. reflexivity.
-rewrite zeros_equation.
-pose proof (Zgt_cases (Z.of_nat k + Z.succ (Z.of_nat (S i))) 0).
-destruct (Z.of_nat k + Z.succ (Z.of_nat (S i)) >? 0); try omega.
-rewrite map_cons.
-unfold nth.
-rewrite <- IHi.
-unfold nth.
-f_equal.
-f_equal.
-f_equal.
-rewrite inj_S.
-omega.
-Qed.
-
 Hint Rewrite eval_var_env_set : norm. (* needed? *)
-
-Arguments sem_cmp_default c t1 t2 v1 v2 / .
-
-Lemma closed_env_set:
- forall {B} i v (P: environ -> B) rho, 
-     closed_wrt_vars (eq i) P -> 
-     P (env_set rho i v) = P rho.
-Proof.
- intros. hnf in H.
- symmetry; destruct rho; apply H.
- intros; simpl; destruct (ident_eq i i0). left; auto.
- right; rewrite Map.gso; auto.
-Qed.
-Hint Rewrite @closed_env_set using (solve[auto 50 with closed]) : norm.
-
-Lemma ltu_repr: forall i j, 
- (0 <= i <= Int.max_unsigned -> 
-  0 <= j <= Int.max_unsigned -> 
-  Int.ltu (Int.repr i) (Int.repr j) = true -> i<j)%Z.
-Proof.
-intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
-repeat rewrite Int.unsigned_repr in H2 by assumption.
-auto.
-Qed.
-
-Lemma length_zeros: forall n,  (n >= 0)%Z -> length (zeros n) = Z.to_nat n.
-Proof.
-intros. pose proof (Zlength_zeros n H). 
-rewrite Zlength_correct in H0.
-rewrite <- H0 at 2.
-rewrite Nat2Z.id. auto.
-Qed.
 
 Definition Delta_final_if1 : tycontext :=
  initialized _n
@@ -162,6 +69,16 @@ Proof. intros.
  apply map_id. extensionality x. symmetry; apply swap_swap.
 Qed.
 
+Lemma K_vector_globals:
+  forall Delta rho g,  tc_environ Delta rho /\
+       (var_types Delta) ! _K256 = None /\ (glob_types Delta) ! _K256 = Some g ->
+       K_vector (globals_only rho) = K_vector rho.
+Proof. 
+  intros; unfold K_vector.
+  unfold_lift.
+  erewrite elim_globals_only; eauto.
+Qed.
+
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (hi lo : int) (dd : list int)
@@ -202,14 +119,9 @@ name cNl _cNl.
 name cNh _cNh.
 name ignore _ignore.
 intros.
-assert (Hddlen: (0 <= Zlength dd < 64)%Z).
-  split; auto; rewrite Zlength_correct; try omega.
- apply Z2Nat.inj_lt; try omega. rewrite Nat2Z.id. apply H3.
+assert (Hddlen: (0 <= Zlength dd < 64)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
-intros.
-assert (H3': (ddlen < 64)%Z)
- by (unfold ddlen; rewrite Zlength_correct; change 64%Z with (Z.of_nat CBLOCK);
-  apply Nat2Z.inj_lt; auto).
+assert (H3': (ddlen < 64)%Z) by Omega1.
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
  forward.
   {instantiate (1:= (Tsh,
@@ -218,11 +130,7 @@ assert (H3': (ddlen < 64)%Z)
      Int.zero)) in (Value of witness).
   unfold tc_exprlist. simpl denote_tc_assert.  (* this line should not be necessary *)
   entailer!.
-  + hnf. rewrite mul_repr, sub_repr in H1. rewrite H1. reflexivity.
-  + simpl. destruct c; try (contradiction Pc); simpl.
-       f_equal; rewrite mul_repr. rewrite Int.add_assoc; f_equal.
-       rewrite add_repr; change (align 1 1)%Z with 1%Z.
-       rewrite Z.mul_1_l. f_equal; apply Z.add_comm.
+  + normalize in H1; rewrite H1; reflexivity.
   + rewrite (split_array_at (ddlen+1) tuchar) by omega.
    repeat rewrite <- sepcon_assoc;
     pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint dd ++ [Vint (Int.repr 128)]))
@@ -236,32 +144,14 @@ Focus 2. {
  destruct c; try (contradiction Pc). simpl. 
  rewrite memory_block_zero. normalize.
  } Unfocus.
-    replace (64 - (ddlen + 1))%Z
-     with (sizeof (tarray tuchar (64 - (ddlen + 1))))%Z
-    by (apply sizeof_tarray_tuchar; omega).
-   rewrite memory_block_typed.
-    replace (offset_val (Int.repr (40 + (ddlen+1))) c)%Z
-    with (offset_val (Int.repr (sizeof tuchar * (ddlen+1))) (offset_val (Int.repr 40) c))%Z.
-  set (jj:= (64-(ddlen+1))%Z).
-  simpl_data_at.
-   rewrite <- offset_val_array_at.
+ rewrite memory_block_array_tuchar by Omega1.
+ replace (offset_val (Int.repr (40 + (ddlen+1))) c)%Z
+  with (offset_val (Int.repr (sizeof tuchar * (ddlen+1))) (offset_val (Int.repr 40) c))%Z
+  by (normalize; Omega1).
+   rewrite <- offset_val_array_at_.
   rewrite Z.add_0_r.
- replace (ddlen + 1 + jj)%Z with 64%Z by (unfold jj; omega). clear jj.
- apply derives_refl'; apply equal_f; apply array_at_ext; intros.
- unfold ZnthV.
- rewrite if_false by omega.
- rewrite if_false by omega.
- repeat rewrite nth_overflow; auto.
- simpl; omega.
- rewrite app_length; rewrite map_length; simpl.
-apply Nat2Z.inj_le. rewrite Z2Nat.id by omega.
- rewrite Nat2Z.inj_add. replace (Z.of_nat (length dd)) with ddlen.
- change (Z.of_nat 1) with 1%Z; omega.
- unfold ddlen. rewrite Zlength_correct; auto.
- rewrite offset_offset_val; f_equal.
- rewrite add_repr; simpl sizeof. change (align 1 1) with 1%Z.
- rewrite Z.mul_1_l. auto.
-   reflexivity.
+ replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
+ apply array_at__array_at.
  }
   forward. (* finish the call *)
   forward.  (* n=0; *)
@@ -276,10 +166,8 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
         (offset_val (Int.repr 40) c))).
 {entailer!.
- rewrite mul_repr, sub_repr in H0.
- apply ltu_repr in H0.
- 2: split; computable.
- 2: assert (64 < Int.max_unsigned)%Z by computable; omega.
+ normalize in H0. (* rewrite mul_repr, sub_repr in H0. *)
+ apply ltu_repr in H0; [ | Omega1 | Omega1].
  change (16*4)%Z with (Z.of_nat CBLOCK) in H0.
  rewrite (split_array_at (ddlen+1) tuchar _ _ 0 64).
  apply sepcon_derives.
@@ -291,15 +179,14 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
    rewrite app_nth1. auto. 
    unfold dd1; rewrite app_length. 
    clear - H1; unfold ddlen in *; rewrite Zlength_correct in *;
-   rewrite map_length in *. simpl. 
-   apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
-   rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z. omega.
+   rewrite map_length in *. simpl.
+    apply Nat2Z.inj_lt. rewrite Z2Nat.id by Omega1.
+  rewrite Nat2Z.inj_add; Omega1.
  +  clear - Pc_ Hddlen.
  assert (ddlen = Zlength dd) by reflexivity.
   replace (Int.repr (40+(ddlen+1))%Z)
    with (Int.add  (Int.repr 40) (Int.repr (sizeof tuchar * (ddlen+1))))%Z
-  by (rewrite add_repr;  change (sizeof tuchar) with 1%Z;
-  rewrite Z.mul_1_l; auto).
+  by normalize.
  rewrite <- offset_offset_val.
  rewrite <- offset_val_array_at.
  rewrite Z.add_0_r.
@@ -309,40 +196,22 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  symmetry.
  unfold ZnthV. rewrite if_false by omega.
  unfold ddz. clear ddz. rewrite map_app.
- rewrite app_nth2.
+ rewrite app_nth2;  rewrite map_length; rewrite app_length.
  rewrite nth_map_zeros; [reflexivity |].
- change (Z.of_nat CBLOCK) with 64%Z.
- rewrite map_length; rewrite app_length.
- apply Z2Nat.inj_lt; try omega.
- rewrite Nat2Z.id.
- replace (length dd + length [Int.repr 128]) with (Z.to_nat (ddlen + 1)).
- rewrite <- Z2Nat.inj_sub.
- apply Z2Nat.inj_lt; try omega. omega.
- rewrite H; simpl. rewrite Zlength_correct.
- rewrite Z2Nat.inj_add by omega. rewrite Nat2Z.id. f_equal.
- rewrite map_length, app_length.
-  replace (length dd + length [Int.repr 128]) with (Z.to_nat (ddlen + 1)).
- apply Nat2Z.inj_ge; try omega.
- rewrite Z2Nat.id by omega.
- rewrite Z2Nat.id by omega.
- omega.
- rewrite H; simpl. rewrite Zlength_correct.
- rewrite Z2Nat.inj_add by omega. rewrite Nat2Z.id. f_equal.
- + omega.
+ simpl. Omega1.
+ simpl. Omega1.
+ + Omega1.
  }
 
 destruct (exists_intlist_to_Zlist' LBLOCK (map Int.unsigned ddz))
   as [ddzw [? ?]].
-apply Nat2Z.inj. rewrite map_length.
+rewrite map_length. 
+apply Nat2Z.inj.
 unfold ddz; repeat rewrite app_length.
-repeat rewrite Nat2Z.inj_add.
-repeat rewrite <- Zlength_correct.
-rewrite Zlength_zeros.
-rewrite Zlength_cons; rewrite Zlength_nil.
-unfold ddlen.
+rewrite length_zeros.
+simpl.
 change (LBLOCK*4)%nat with CBLOCK.
-clear; omega.
- change (Z.of_nat CBLOCK) with 64%Z; omega.
+Omega1.
  forward. (* sha256_block_data_order (c,p); *)
  match goal with H : True |- _ => clear H 
             (* WARNING__ is a bit over-eager;
@@ -356,10 +225,8 @@ instantiate (1:=(hashed,
                            offset_val (Int.repr 40) c,
                            Tsh)) in (Value of witness).
 {entailer!.
-* subst;  simpl in *.
- rewrite mul_repr, sub_repr in H5. apply H5.
-* unfold K_vector. normalize.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
+* subst;  simpl in *. normalize in H5.
+* erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
  cancel.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
  unfold data_block.
@@ -379,10 +246,8 @@ set (pad := (Z.of_nat CBLOCK - (ddlen+1))%Z) in *.
  apply exp_right with (@nil int).
  apply exp_right with pad.
 entailer.
-rewrite mul_repr, sub_repr in H5.
-apply ltu_repr in H5.
-2: split; computable.
-2: assert (64 < Int.max_unsigned)%Z by computable; omega.
+normalize in H5.
+apply ltu_repr in H5; [ | split; computable | Omega1].
 simpl in H2.
 assert (0 <= pad < 8)%Z.
 unfold pad.
@@ -391,11 +256,10 @@ change (64)%Z with (Z.of_nat CBLOCK) in Hddlen; omega.
 assert (length (zeros pad) < 8). 
 rewrite length_zeros.
 apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. 
-change (Z.of_nat 8) with 8%Z. omega.
-omega.
+rewrite Z2Nat.id by omega.
+Omega1. 
 entailer!.
-* change CBLOCK with 64; clear; omega.
+* clear; Omega1.
 * apply divide_length_app.
   auto. exists 1; rewrite H1; reflexivity.
 * rewrite <- app_nil_end.
@@ -410,8 +274,7 @@ entailer!.
   simpl.
   rewrite Int.unsigned_repr; auto.
   repable_signed.
-* unfold K_vector. normalize.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
+* erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
   cancel.
   unfold data_block.
   replace (Zlength (intlist_to_Zlist (map swap ddzw))) with 64%Z.
@@ -421,15 +284,6 @@ entailer!.
  reflexivity.
 Qed.
 
-Lemma ltu_repr_false: forall i j, 
- (0 <= i <= Int.max_unsigned -> 
-  0 <= j <= Int.max_unsigned -> 
-  Int.ltu (Int.repr i) (Int.repr j) = false -> i>=j)%Z.
-Proof.
-intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
-repeat rewrite Int.unsigned_repr in H2 by assumption.
-auto.
-Qed.
 
 Definition final_loop :=
  (Ssequence (Sset _xn (Econst_int (Int.repr 0) tint))
@@ -491,97 +345,7 @@ Proof.
 intros.
 Admitted.
 
-Lemma nth_map':
-  forall {A B} (f: A -> B) d d' i al,
-  i < length al ->
-   nth i (map f al) d = f (nth i al d').
-Proof.
-induction i; destruct al; simpl; intros; try omega; auto.
-apply IHi; omega.
-Qed.
 
-
-Lemma array_at_ZnthV_nil:
-  forall t sh, array_at t sh (ZnthV t nil) = array_at_ t sh.
-Proof. intros.
-unfold array_at_.
-extensionality lo hi.
-apply array_at_ext; intros.
-unfold ZnthV. if_tac; auto. rewrite nth_overflow; auto.
-simpl; omega.
-Qed.
-
-
-Lemma semax_for : 
- forall Espec Delta Q test body incr PreIncr Post,
-     bool_type (typeof test) = true ->
-     local (tc_environ Delta) && Q |-- local (tc_expr Delta test) ->
-     local (tc_environ Delta) 
-      && local (`(typed_false (typeof test)) (eval_expr test)) 
-      && Q |-- Post EK_normal None ->
-     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)
-             body (loop1_ret_assert PreIncr Post) ->
-     @semax Espec Delta PreIncr incr (normal_ret_assert Q) ->
-     @semax Espec Delta Q
-       (Sloop (Ssequence (Sifthenelse test Sskip Sbreak) body) incr)
-       Post.
-Proof.
-intros.
-apply semax_loop with PreIncr.
-eapply semax_seq.
-apply semax_pre_simple with  (local (tc_expr Delta test) && Q).
-apply andp_right; auto.
-apply andp_left2; auto.
-apply semax_ifthenelse; auto.
-eapply semax_post_flipped.
-apply semax_skip.
-intros.
-unfold normal_ret_assert.
-normalize. simpl exit_tycon.
-unfold overridePost. rewrite if_true by auto. rewrite prop_true_andp by auto.
-apply derives_refl.
-eapply semax_pre_simple; [ | apply semax_break].
-unfold overridePost. rewrite if_false by congruence.
-unfold loop1_ret_assert.
-eapply derives_trans; [ | apply H1].
-rewrite andp_assoc.
-apply andp_derives; auto.
-rewrite andp_comm.
-auto.
-simpl update_tycon. 
-apply semax_extensionality_Delta with Delta.
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm.
-apply join_tycon_same.
-eapply semax_pre_simple; [ | apply H2].
-apply andp_left2.
-apply andp_left2.
-rewrite andp_comm. auto.
-eapply semax_post_flipped. apply H3.
-intros.
-apply andp_left2.
-unfold normal_ret_assert, loop2_ret_assert.
-normalize.
-Qed.
-
-Lemma semax_for' : 
- forall Espec Delta P Q R test body incr PreIncr Post,
-     bool_type (typeof test) = true ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))
-             body (loop1_ret_assert PreIncr Post) ->
-     @semax Espec Delta PreIncr incr (normal_ret_assert (PROPx P (LOCALx Q (SEPx R)))) ->
-     @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) 
-       (Sloop (Ssequence (Sifthenelse test Sskip Sbreak) body) incr)
-       Post.
-Proof.
-intros.
-apply semax_for with PreIncr; auto.
-rewrite insert_local; auto.
-rewrite andp_assoc; repeat rewrite insert_local; auto.
-rewrite insert_local; auto.
-Qed.
 
 Ltac forward_for Inv PreIncr Postcond :=
   first [ignore (Inv: environ->mpred) 
@@ -738,17 +502,6 @@ forward_for
   by (f_equal; f_equal; apply Z.mul_1_l).
  rewrite array_at_ZnthV_nil.
 
-Lemma offset_val_array_at_:
- forall ofs t sh lo hi v,
-  array_at_ t sh (ofs + lo) (ofs + hi) v =
-  array_at_ t sh lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
-Proof.
-intros.
-unfold array_at_.
-etransitivity; [ | apply offset_val_array_at].
-f_equal.
-Qed.
-
  rewrite <- offset_val_array_at_.
  rewrite Z.add_0_r.
  replace  (Z.of_nat (S i) * 4)%Z  with (Z.of_nat i * 4 + 4)%Z; 
@@ -763,8 +516,7 @@ Qed.
  entailer!.
  f_equal; omega.
  destruct md; try (contradiction Hmd); simpl; f_equal.
- rewrite Int.add_assoc; f_equal.
- normalize. f_equal. 
+ f_equal. f_equal.
  unfold Z.succ. rewrite Z.mul_add_distr_r. reflexivity.
  replace (match hashedmsg with
                | [] => []

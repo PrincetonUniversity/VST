@@ -3,10 +3,23 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
-Lemma tc_val_Vundef:
-  forall t, ~ tc_val t Vundef.
-Proof. destruct t; intro H; inv H.
+Lemma mapsto_mapsto_: forall sh t v v',
+   mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto_; intros.
+normalize.
+unfold mapsto.
+destruct (access_mode t); auto.
+destruct v; auto.
+apply orp_left.
+apply orp_right2.
+apply andp_left2.
+apply andp_right. apply prop_right; auto.
+apply exp_right with v'; auto.
+normalize.
+apply orp_right2. apply exp_right with v2'.
+normalize.
 Qed.
+Hint Resolve mapsto_mapsto_ : cancel.
 
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
@@ -14,6 +27,36 @@ Proof.
 intros.
 extensionality v1 v2.
 reflexivity.
+Qed.
+
+Lemma mapsto_mapsto__int32:
+  forall sh p v s1 s2,
+  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto_ sh (Tint I32 s2 noattr) p.
+Proof.
+intros.
+eapply derives_trans; [ apply mapsto_mapsto_ | ].
+destruct s1,s2; fold tuint; fold tint; 
+  repeat rewrite mapsto_tuint_tint; auto.
+Qed.
+
+Hint Extern 2 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+   (apply mapsto_mapsto__int32)  : cancel.
+
+Lemma mapsto_mapsto_int32:
+  forall sh p v s1 s2,
+  mapsto sh (Tint I32 s1 noattr) p v |-- mapsto sh (Tint I32 s2 noattr) p v.
+Proof.
+intros.
+destruct s1,s2; fold tuint; fold tint; 
+  repeat rewrite mapsto_tuint_tint; auto.
+Qed.
+
+Hint Extern 2 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+   (apply mapsto_mapsto_int32)  : cancel.
+
+Lemma tc_val_Vundef:
+  forall t, ~ tc_val t Vundef.
+Proof. destruct t; intro H; inv H.
 Qed.
 
 Lemma mapsto_null_mapsto_pointer:

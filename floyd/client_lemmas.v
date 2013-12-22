@@ -2220,6 +2220,32 @@ extensionality rho; simpl.
 repeat rewrite sepcon_andp_prop. f_equal; auto.
 Qed.
 
+Lemma delete_emp_in_SEP:
+  forall n (R: list (environ->mpred)), 
+    nth_error R n = Some emp ->
+    SEPx R = SEPx (firstn n R ++ list_drop (S n) R).
+Proof.
+intros.
+unfold SEPx; extensionality rho.
+revert R H; induction n; destruct R; simpl; intros; auto.
+inv H. rewrite emp_sepcon; auto.
+f_equal; auto.
+etransitivity.
+apply IHn; auto.
+reflexivity.
+Qed.
+
+Ltac delete_emp_in_SEP :=
+ change (@liftx (LiftEnviron mpred) (@emp mpred _ _)) with 
+       (@emp (environ->mpred) _ _); 
+ repeat  
+ match goal with |- context [SEPx ?R] =>
+   match R with context [emp:: ?R'] =>
+     rewrite (delete_emp_in_SEP (length R - S (length R')) R) by reflexivity;
+     simpl length; simpl minus; unfold firstn, app, list_drop; fold app
+   end
+ end.
+
 (*
 Ltac move_prop_from_SEP :=
 match goal with |- context [PROPx _ (LOCALx _ (SEPx ?R))] =>
