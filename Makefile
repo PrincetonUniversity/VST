@@ -68,22 +68,25 @@ MSL_FILES = \
 
 SEPCOMP_FILES= \
   Address.v step_lemmas.v Coqlib2.v extspec.v FiniteMaps.v \
-  wf_lemmas.v mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
+  mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v compiler_correctness.v \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
   forward_simulations_lemmas.v rg_forward_simulations.v rg_semantics.v rg_forward_simulations_lemmas.v \
-  linking.v linking_simulations.v linking_proof.v \
   compiler_correctness_trans.v compiler_correctness_progless_trans.v \
   safety_preservation.v \
   StructuredInjections.v effect_semantics.v effect_simulations.v \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
   effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
-  effect_properties.v
-# REMOVED TEMPORARILY fs_linking.v
-# extension_proof.v extension_safety.v extension_proof_safety.v
-# null_extension.v fs_extension.v linking_extension.v trace_extension.v 
+  wf_lemmas_old.v linking_old.v linking_simulations_old.v linking_proof_old.v
+
+LINKING_FILES= \
+  pos.v \
+  stack.v \
+  wf_lemmas.v \
+  linking.v \
+  linking_sim.v
 
 COMPCOMP_FILES= \
   Ordered.v Switch.v Cminor.v Cminor_coop.v Cminor_eff.v \
@@ -150,6 +153,7 @@ all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
+linking: .loadpath $(CC_TARGET) $(LINKING_FILES:%.v=sepcomp/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)

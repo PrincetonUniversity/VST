@@ -3,10 +3,10 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.forward_simulations. 
 Require Import sepcomp.step_lemmas. 
 Require Import sepcomp.extspec. 
-Require Import sepcomp.linking.
-Require Import sepcomp.linking_simulations.
+Require Import sepcomp.linking_old.
+Require Import sepcomp.linking_simulations_old.
 Require Import sepcomp.Coqlib2.
-Require Import sepcomp.wf_lemmas.
+Require Import sepcomp.wf_lemmas_old.
 
 Require Import compcert.common.AST.
 Require Import compcert.common.Values.

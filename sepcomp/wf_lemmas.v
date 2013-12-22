@@ -1,142 +1,210 @@
-Require Import Coqlib.
-
+Add LoadPath "..".
+Require Import compcert.lib.Coqlib.
 Require Import sepcomp.Coqlib2.
+Require Import sepcomp.pos.
 
 Require Import Coq.Wellfounded.Inclusion.
 Require Import Coq.Wellfounded.Inverse_Image.
 
-Section lex_ord.
- Variables types: nat -> Type.
- Variable max: nat.
- Variable ords: forall n: nat, types n -> types n -> Prop.
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun tuple.
+Set Implicit Arguments.
 
- Definition gen_lex_ord: (forall n, types n) -> (forall n, types n) -> Prop :=
-   fun data1 data2 => 
-   exists i: nat, 
-     (i < max)%nat /\
-     @ords i (data1 i) (data2 i) /\
-     (forall j, (j < i)%nat -> data1 j = data2 j).
+(* file: wf_lemmas.v
 
- Fixpoint data_ty' (n max: nat): Type :=
-   match n with 
-   | O => unit
-   | S n' => (types (max - S n') * data_ty' n' max)%type
-   end.
+This file defines a generalized lexicographic order on dependently typed
+products.  It exposes the following interface:
 
- Fixpoint data_prod' (n max: nat) (data: forall n: nat, types n): data_ty' n max  :=
-   match n as m in nat return data_ty' m max with 
-   | O => tt
-   | S n' => (data (max - S n')%nat, data_prod' n' max data)
-   end.
+Assumptions:
+Variable N : nat.
+Variable N_pos : (0 < N)%coq_nat.
+Variable types : 'I_N -> Type.
+Variable ords  : forall i : 'I_N, types i -> types i -> Prop.
+Variable wf_ords : forall i : 'I_N, well_founded (@ords i).
 
- Fixpoint prod_ord' (n max: nat): data_ty' n max -> data_ty' n max -> Prop :=
-   match n as m in nat return data_ty' m max -> data_ty' m max -> Prop with
-   | O => fun d1 d2 => False
-   | S n' => fun d1 d2 => lex_ord (@ords (max - S n')) (prod_ord' n' max) d1 d2
-   end.
+Exported:
+t        : Type
+mk       : (forall i : 'I_N, types i) -> t
+get      : (i : 'I_N) (d : t), types i
+set      : {i : 'I_N} (d : t) (x : types i), t
 
- Lemma wf_eta {A: Type}{f: A -> A -> Prop}: 
-   well_founded f -> well_founded (fun a1 a2 => f a1 a2).
- Proof.
- intros H1; solve[assert ((fun a1 a2 => f a1 a2) = f) as -> 
-  by (do 2 extensionality; auto); auto].
- Qed.
+ord      : t -> t -> Prop
+wf_ord   : well_founded ord
+ord_set  : (i : 'I_N) (d : t) (x : types i), ords i x (get i d) -> ord (set d x) d
+*)
 
- Lemma wf_eta' {A: Type}{f: A -> A -> Prop}: 
-   well_founded (fun a1 a2 => f a1 a2) -> well_founded f.
- Proof.
- intros H1; solve[assert ((fun a1 a2 => f a1 a2) = f) as -> 
-  by (do 2 extensionality; auto); auto].
- Qed.
+Lemma ord_dec (N : nat) (i j : 'I_N) : {i=j} + {~i=j}.
+Proof. 
+case: i; case: j=> m pf n pf'; move: pf pf'; case: (eq_nat_dec n m). 
+by move=> -> pf pf'; left; f_equal; apply: proof_irr.
+by move=> neq pf pf'; right; case.
+Qed.
 
- Lemma wf_funct {A B: Type}{R: B -> B -> Prop}(f: A -> B): 
-   well_founded R -> well_founded (fun a1 a2 => R (f a1) (f a2)).
- Proof. 
- intros H1.
- set (F := fun a b => f a = b).
- apply wf_incl with (R2 := (fun x y: A => 
-   exists2 b : B, F x b & forall c : B, F y c -> R b c)).
- intros a1 a2 HR.
- exists (f a1); unfold F; auto.
- intros b H2.
- solve[subst b; auto].
- solve[apply wf_inverse_rel; auto].
- Qed.
+Lemma wf_eta {A: Type}{f: A -> A -> Prop} : 
+  well_founded f -> well_founded (fun a1 a2 => f a1 a2).
+Proof. by move=> H1; have ->: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. Qed.
 
- Lemma wf_prod_ord n (wf_ords: forall i: nat, well_founded (@ords i)): 
-   well_founded (prod_ord' n max).
- Proof.
- unfold prod_ord'.
- revert wf_ords.
- revert dependent ords.
- clear ords.
- induction n; intros.
- solve[constructor; intros; elimtype False; auto].
- apply wf_eta.
- apply wf_lex_ord; auto.
- specialize (IHn ords).
- solve[spec IHn; auto].
- Qed.
+Lemma wf_eta' {A: Type}{f: A -> A -> Prop} : 
+  well_founded (fun a1 a2 => f a1 a2) -> well_founded f.
+Proof. by move=> H1; have <-: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. Qed.
 
- Definition data_upd i (new_i: types i) (data: forall i:nat, types i): 
-  forall i:nat, types i := fun j: nat => 
-     match eq_nat_dec i j as pf in sumbool _ _ return types j with
-     | left pf => match pf with
-                  | eq_refl => new_i 
-                  end
-     | right pf => data j
-     end.
- Implicit Arguments data_upd [].
+Lemma wf_funct {A B: Type}{R: B -> B -> Prop}(f: A -> B) : 
+  well_founded R -> well_founded (fun a1 a2 => R (f a1) (f a2)).
+Proof. 
+move=> H1; set (F := fun a b => f a = b).
+apply: (wf_incl _ _ 
+ (fun x y: A => exists2 b : B, F x b & forall c : B, F y c -> R b c)).
+by move=> a1 a2 HR; exists (f a1); rewrite/F=> //; move=> b <-.
+by apply: wf_inverse_rel.
+Qed.
 
- Lemma data_upd_same i new_i data: (data_upd i new_i data) i = new_i.
- Proof.
- unfold data_upd.
- destruct (eq_nat_dec i i).
- rewrite (UIP_refl _ _ e); auto.
- elimtype False; auto.
- Qed.
+Module Type LEX. 
 
- Lemma data_upd_other i j new_i data: i<>j -> (data_upd i new_i data) j = data j.
- Proof.
- unfold data_upd.
- destruct (eq_nat_dec i j).
- intros; elimtype False; auto.
- auto.
- Qed.
+Parameter t : forall (N : pos) (types : 'I_N -> Type), Type.
 
- Local Open Scope nat_scope.
+Arguments t {N} types.
 
- Lemma prod_ord_upd': forall i data1 data2 num_cores, 
-   @ords i (data2 i) (data1 i) -> 
-   (max - num_cores <= i < max)%nat -> (num_cores <= max)%nat -> 
-   (forall j, j < i -> data1 j=data2 j) -> 
-   prod_ord' num_cores max 
-    (data_prod' num_cores max data2) (data_prod' num_cores max data1).
- Proof.
- intros until num_cores.
- intros H1 H2 H3 H4.
- induction num_cores as [|n].
- solve[simpl; intros; elimtype False; omega].
- simpl; intros.
- destruct (eq_nat_dec i (max - S n)).
- solve[subst; apply lex_ord_left; auto]. 
- assert (max - S n < i) by (destruct H2; omega).
- rewrite H4; auto.
- apply lex_ord_right.
- assert (n <> 0) by omega.
- apply IHn; try omega.
- Qed.
+Parameter ord : forall (N : pos)  
+  (types : 'I_N -> Type) (ords : forall i : 'I_N, types i -> types i -> Prop),
+  t types -> t types -> Prop.
 
- Lemma prod_ord_upd: forall i new_i data,
-   @ords i new_i (data i) -> (O <= i < max) -> 
-   prod_ord' max max (data_prod' max max (data_upd i new_i data)) 
-     (data_prod' max max data).
- Proof.
- intros.
- apply prod_ord_upd' with (i := i); try solve[auto|omega].
- rewrite data_upd_same; auto.
- intros j Hlt.
- rewrite data_upd_other; try solve[auto|omega].
- Qed.
+Parameter wf_ord : forall (N : pos) 
+  (types : 'I_N -> Type) (ords : forall i : 'I_N, types i -> types i -> Prop)
+  (wf_ords : forall i : 'I_N, well_founded (ords i)),
+  well_founded (ord ords).
 
-End lex_ord.
+Section lex.
+
+Variable N : pos.
+Variable types : 'I_N -> Type.
+Variable ords  : forall i : 'I_N, types i -> types i -> Prop.
+Variable wf_ords : forall i : 'I_N, well_founded (@ords i).
+
+Notation t   := (t types).
+Notation ord := (@ord N types ords).
+
+Parameter mk  : (forall i : 'I_N, types i) -> t.
+Parameter get : forall i : 'I_N, t -> types i.
+Parameter set : forall (i : 'I_N) (x : types i), t -> t.
+Parameter ord_upd : 
+  forall (i : 'I_N) (x : types i) (d : t),
+  ords x (get i d) -> ord (set x d) d.
+
+End lex. End LEX.
+
+Module Lex : LEX. Section lex.
+
+Variable N : pos.
+Variable types : 'I_N -> Type.
+Variable ords  : forall i : 'I_N, types i -> types i -> Prop.
+Variable wf_ords : forall i : 'I_N, well_founded (@ords i).
+
+Lemma N_minus_lt (n : nat) : ((N - S n) < N)%N.
+Proof. case: N=> m pf; rewrite -minusE; apply/ltP=> /=; omega. Qed.
+
+Definition t : Type := forall i : 'I_N, types i.
+
+Definition mk : t -> t := id.
+
+Fixpoint ty' (n : nat) : Type :=
+  match n with 
+    | O => unit
+    | S n' => (types (Ordinal (N_minus_lt n')) * ty' n')%type
+  end.
+
+Fixpoint ty_intro' (n : nat) (data : t) : ty' n :=
+  match n as m in nat return ty' m with 
+    | O => tt
+    | S n' => (data (Ordinal (N_minus_lt n')), ty_intro' n' data)
+  end.
+
+Definition ty := ty' N.
+
+Definition ty_intro := ty_intro' N.
+
+Fixpoint ord' (n : nat) : ty' n -> ty' n -> Prop :=
+  match n as m in nat return ty' m -> ty' m -> Prop with
+    | O => fun d1 d2 => False
+    | S n' => fun d1 d2 => 
+        lex_ord (@ords (Ordinal (N_minus_lt n'))) (ord' n') d1 d2
+  end.
+
+Lemma wf_ord' n : well_founded (ord' n).
+Proof.
+rewrite/ord'; move: wf_ords; move: ords; clear ords wf_ords.
+induction n=> ords WF; first by constructor.
+apply: wf_eta; apply: wf_lex_ord; first by [].
+by apply: (IHn ords).
+Qed.
+
+Definition ord (d1 d2 : t) := ord' N (ty_intro d1) (ty_intro d2).
+
+Lemma wf_ord : well_founded ord.
+Proof. by rewrite/ord; apply: wf_funct; apply: wf_ord'. Qed.
+
+Definition cast_ty (T1 T2: Type) (pf: T1=T2) (x : T1) : T2.
+rewrite pf in x; refine x.
+Defined. 
+
+Lemma types_eq (i j : 'I_N) : i=j -> types i=types j.
+Proof. by move=> ->. Defined.
+
+Definition get i (d : t) : types i := d i.
+
+Definition set i (new_i : types i) (d : t) : t := 
+  fun j : 'I_N => 
+    match ord_dec i j with 
+      | left pf => cast_ty (types_eq pf) new_i
+      | right _ => d j
+    end.
+Implicit Arguments set [].
+
+Lemma gss i x d : get i (set i x d) = x.
+Proof.
+rewrite/get/set; case: (ord_dec i i)=> //.
+rewrite/cast_ty/eq_rect_r/eq_rect/types_eq/eq_ind_r/eq_ind/eq_rect=> e. 
+by rewrite (UIP_refl _ _ e).
+Qed.
+
+Lemma gso i j x d : i<>j -> get j (set i x d) = get j d.
+Proof. by rewrite/get/set; case: (ord_dec i j). Qed.
+
+Local Open Scope nat_scope.
+
+Lemma ord_upd' : forall i data1 data2 num_cores, 
+  @ords i (get i data2) (get i data1) -> 
+  (N - num_cores <= i < N)%nat -> (num_cores <= N)%nat -> 
+  (forall j : 'I_N, j < i -> get j data1=get j data2) -> 
+  ord' num_cores (ty_intro' num_cores data2) (ty_intro' num_cores data1).
+Proof.
+move=> [i pf] d1 d2 num_cores H1; move/andP=> []; move/leP=> H2; move/ltP.
+induction num_cores as [|n]; first by rewrite -minusE /= in H2=> /= H3; omega.
+move=> /= H3 H4 H5; case: (ord_dec (Ordinal pf) (Ordinal (N_minus_lt n))).
+by move=> EQ; apply: lex_ord_left; rewrite -EQ.
+rewrite/get in H5; move=> NEQ; rewrite -H5; have NEQ2: (i <> N - n.+1)
+  by move=> H6; apply: NEQ; subst; f_equal; apply: proof_irr.
+have: (N - S n < i) by apply/ltP; simpl in H2; omega. 
+move/ltP=> H6; apply lex_ord_right; apply: IHn=> //=.
+by move: H6; rewrite -minusE=> H6; omega.
+by move: (ltP H4)=> H7; apply/leP; omega.
+have H6: (i <> N - n.+1)
+  by move=> H6; apply: NEQ; subst; f_equal; apply: proof_irr.
+by move: H2=> /= H2; apply/ltP; omega.
+Qed.
+
+Lemma ord_upd i x d : ords x (get i d) -> ord (set i x d) d.
+Proof.
+move=> A; apply ord_upd' with (i := i)=> //. 
+rewrite gss=> //. 
+have B: (O <= i < N) by apply/andP; split.
+rewrite -minusE; move: (andP B)=> {A B}[]A B. 
+move: (leP A)=> A'; move: (ltP B)=> B'; apply/andP; split. 
+- by apply/leP; omega.
+- by apply/ltP; omega. 
+move=> j Hlt; rewrite gso=> //.
+case: i x A Hlt; case: j=> /= i pf new_i A Hlt j pf'=> H1.
+by move: pf'; case: H1=> ->; move/ltP=> ?; omega.
+Qed.
+
+End lex. 
+
+End Lex.
