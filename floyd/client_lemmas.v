@@ -154,7 +154,6 @@ rewrite Int.negate_cmp.
 destruct i; inv H. 
 destruct j; inv H1.
 simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
-destruct j; inv H1.
 Qed.
 
 
@@ -168,7 +167,6 @@ unfold sem_cmp in H.
 unfold classify_cmp in H. simpl in H.
 destruct i; inv H. destruct j; inv H1.
 simpl in *. destruct (Int.cmp op i i0); inv H0; auto.
-destruct j; inv H1.
 Qed.
 
 Lemma typed_true_ptr: 

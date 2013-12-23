@@ -121,7 +121,7 @@ name ignore _ignore.
 intros.
 assert (Hddlen: (0 <= Zlength dd < 64)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
-assert (H3': (ddlen < 64)%Z) by Omega1.
+(*assert (H3': (ddlen < 64)%Z) by Omega1. *)
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
  forward.
   {instantiate (1:= (Tsh,
@@ -344,30 +344,6 @@ map Int.repr (intlist_to_Zlist (map swap [hi, lo])).
 Proof.
 intros.
 Admitted.
-
-
-
-Ltac forward_for Inv PreIncr Postcond :=
-  first [ignore (Inv: environ->mpred) 
-         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
-  apply semax_pre with Inv;
-    [  unfold_function_derives_right 
-    | (apply semax_seq with Postcond;
-       [ first 
-          [ apply semax_for' with PreIncr
-          | apply semax_for with PreIncr
-          ]; 
-          [ compute; auto 
-          | unfold_and_local_derives
-          | unfold_and_local_derives
-          | unfold_and_local_semax
-          | unfold_and_local_semax
-          ] 
-       | simpl update_tycon 
-       ])
-    ]; abbreviate_semax; autorewrite with ret_assert.
 
 Lemma final_part4:
  forall (Espec: OracleKind) md c shmd hashedmsg,

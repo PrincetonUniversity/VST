@@ -52,8 +52,6 @@ Definition  binary_operation_to_comparison (op: binary_operation) :=
  | _ => None
  end.
 
-Definition force_signed_int v := Int.signed (force_int v).
-
 Lemma typed_true_binop_int:
   forall op op' e1 e2 Espec Delta P Q R c Post,
    binary_operation_to_comparison op = Some op' ->
@@ -297,9 +295,6 @@ match goal with
     |  ]
 | |- _ => idtac
 end.
-
-Arguments force_signed_int !v / .
-Arguments force_int !v / .
 
 (*
 Goal forall i, force_signed_int (Vint i) = Int.signed i.

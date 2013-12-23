@@ -609,9 +609,18 @@ Cop.sem_binarith a b c v1 t1 v2 t2 =
 sem_binarith a b c t1 t2 v1 v2.
 Proof.
 intros. 
-unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast.
+unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast, both_int,both_long,both_float.
 destruct (classify_binarith t1 t2); destruct t1; simpl; auto;
-destruct v1; auto; destruct t2; auto.
+destruct v1; auto; destruct t2; simpl; auto;
+repeat match goal with 
+| |- context [match ?v with| Vundef => None| Vint _ => None| Vlong _ => None| Vfloat _ => None| Vptr _ _ => None end] =>
+       destruct v; simpl
+| |- context [match ?A with Some _ => None | None => None end] =>
+ destruct A; simpl
+ end;
+ try (destruct (cast_float_int s f0); reflexivity);
+ try (destruct (cast_float_long s f0); reflexivity);
+ auto.
 Qed.
 
 Lemma tc_binaryop_relate : forall b e1 e2 m1 t rho,

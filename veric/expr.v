@@ -7,6 +7,28 @@ Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 Require Export veric.Cop2.
 
+Definition force_val (v: option val) : val :=
+ match v with Some v' => v' | None => Vundef end.
+
+Definition force_val1 (f: val -> option val) (v: val) := force_val (f v).
+Definition force_val2 (f: val -> val -> option val) (v1 v2: val) := force_val (f v1 v2).
+
+Arguments force_val1 f v /.
+Arguments force_val2 f v1 v2 /.
+
+Definition force_int (v: val) := 
+ match v with
+ | Vint i => i | _ => Int.zero 
+ end.
+Arguments force_int !v / .
+
+Definition force_signed_int v := Int.signed (force_int v).
+Arguments force_signed_int !v / .
+
+Lemma force_Vint:  forall i, force_int (Vint i) = i.
+Proof.  reflexivity. Qed.
+Hint Rewrite force_Vint : norm.
+
 (** GENERAL KV-Maps **)
 
 Set Implicit Arguments.
@@ -94,9 +116,6 @@ Definition te_of (rho: environ) : tenviron :=
 Definition opt2list (A: Type) (x: option A) :=
   match x with Some a => a::nil | None => nil end.
 Implicit Arguments opt2list.
-
-Definition force_val (v: option val) : val :=
- match v with Some v' => v' | None => Vundef end.
 
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
@@ -297,12 +316,6 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    end.
 
 Definition eval_id (id: ident) (rho: environ) := force_val (Map.get (te_of rho) id).
-
-Definition force_val1 (f: val -> option val) (v: val) := force_val (f v).
-Definition force_val2 (f: val -> val -> option val) (v1 v2: val) := force_val (f v1 v2).
-
-Arguments force_val1 f v /.
-Arguments force_val2 f v1 v2 /.
 
 Definition eval_unop (op: Cop.unary_operation) (t1 : type) :=
        force_val1 (Cop2.sem_unary_operation op t1).

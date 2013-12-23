@@ -507,7 +507,28 @@ Ltac forward_while Inv Postcond :=
        | simpl update_tycon 
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
-(*end forward_while *)
+
+Ltac forward_for Inv PreIncr Postcond :=
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (last argument to forward_for) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [  unfold_function_derives_right 
+    | (apply semax_seq with Postcond;
+       [ first 
+          [ apply semax_for' with PreIncr
+          | apply semax_for with PreIncr
+          ]; 
+          [ compute; auto 
+          | unfold_and_local_derives
+          | unfold_and_local_derives
+          | unfold_and_local_semax
+          | unfold_and_local_semax
+          ] 
+       | simpl update_tycon 
+       ])
+    ]; abbreviate_semax; autorewrite with ret_assert.
 
 Ltac forward_if post :=
 first [ignore (post: environ->mpred) 
@@ -1027,8 +1048,12 @@ Ltac forward_ifthenelse :=
 
 Ltac forward_while_complain :=
            fail 2 "Use this tactic:  forward_while INV POST,
-    where INV is the loop invariant and POST is the postcondition.".
+    where INV is the loop invariant and POST is the postcondition".
 
+Ltac forward_for_complain := 
+           fail 2 "Use this tactic:  forward_for INV PRE_INCR POST,
+      where INV is the loop invariant, PRE_INCR is the invariant at the increment,
+      and POST is the postcondition".
 
 (* The forward_compound_call tactic is needed because CompCert clightgen
  produces the following AST for function call:
@@ -1129,8 +1154,9 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sset _ (Evar _ _) => new_load_tac
   | Sset _ ?e => no_loads_expr e false; (bool_compute e; forward_ptr_cmp) || forward_setx
   | Sifthenelse ?e _ _ => no_loads_expr e false; forward_ifthenelse
-  |  Swhile _ _ => forward_while_complain
-  |  Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
+  | Swhile _ _ => forward_while_complain
+  | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
+  | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
           no_loads_exprlist el; forward_compound_call
   | Scall (Some _) (Evar _ _) ?el =>  no_loads_exprlist el; forward_call1_id
   | Scall None (Evar _ _) ?el =>  no_loads_exprlist el; forward_call0_id

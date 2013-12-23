@@ -1,8 +1,6 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
-Arguments sem_cmp_default c t1 t2 v1 v2 / .
-
 Lemma nth_map':
   forall {A B} (f: A -> B) d d' i al,
   (i < length al)%nat ->
@@ -165,15 +163,6 @@ unfold temp_types; simpl.
 rewrite PTree.gss; auto.
 Qed.
 
-
-Definition force_int (v: val) := 
- match v with
- | Vint i => i | _ => Int.zero 
- end.
-
-Lemma force_Vint:  forall i, force_int (Vint i) = i.
-Proof.  reflexivity. Qed.
-Hint Rewrite force_Vint : norm.
 
 Lemma type_eq_refl:
  forall t, proj_sumbool (type_eq t t) = true.

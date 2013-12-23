@@ -300,37 +300,28 @@ Definition sem_notint (t: type)  : val -> option val :=
   | notint_default => fun v => None
   end.
 
+Definition both_int (f: int -> int -> option val) (cast1 cast2: val -> option val) (v1 v2: val) :=
+ match cast1 v1, cast2 v2 with Some (Vint v1'), Some (Vint v2') => f v1' v2' | _, _ => None end.
+
+Definition both_long (f: int64 -> int64 -> option val) (cast1 cast2: val -> option val) (v1 v2: val) :=
+ match cast1 v1, cast2 v2 with Some (Vlong v1'), Some (Vlong v2') => f v1' v2' | _, _ => None end.
+
+Definition both_float (f: float -> float -> option val) (cast1 cast2: val -> option val) (v1 v2: val) :=
+ match cast1 v1, cast2 v2 with Some (Vfloat v1'), Some (Vfloat v2') => f v1' v2' | _, _ => None end.
+
 Definition sem_binarith
     (sem_int: signedness -> int -> int -> option val)
     (sem_long: signedness -> int64 -> int64 -> option val)
     (sem_float: float -> float -> option val)
-    (t1: type) (t2: type) (v1: val) (v2: val)  : option val :=
+    (t1: type) (t2: type) : forall (v1: val) (v2: val), option val :=
   let c := Cop.classify_binarith t1 t2 in
   let t := Cop.binarith_type c in
-  match sem_cast t1 t v1 with
-  | None => None
-  | Some v1' =>
-  match sem_cast t2 t v2 with
-  | None => None
-  | Some v2' =>
-  match Cop.classify_binarith t1 t2 with
-  | Cop.bin_case_i sg =>
-      match v1', v2' with
-      | Vint n1, Vint n2 => sem_int sg n1 n2
-      | _,  _ => None
-      end
-  | Cop.bin_case_f =>
-      match v1', v2' with
-      | Vfloat n1, Vfloat n2 => sem_float n1 n2
-      | _,  _ => None
-      end
-  | Cop.bin_case_l sg =>
-      match v1', v2' with
-      | Vlong n1, Vlong n2 => sem_long sg n1 n2
-      | _,  _ => None
-      end
-  | bin_default => None
-  end end end.
+  match c with
+  | Cop.bin_case_i sg => both_int (sem_int sg) (sem_cast t1 t) (sem_cast t2 t)
+  | Cop.bin_case_f => both_float (sem_float) (sem_cast t1 t) (sem_cast t2 t)
+  | Cop.bin_case_l sg => both_long (sem_long sg) (sem_cast t1 t) (sem_cast t2 t)
+  | bin_default => fun _ _ => None
+  end.
 
 (** *** Addition *)
 
@@ -619,7 +610,7 @@ Definition sem_binary_operation'
     (t1:type) (t2: type) (valid_pointer : block -> Z -> bool) : val -> val -> option val :=
   match op with
   | Cop.Oadd => sem_add t1 t2
-  | Cop.Osub => (fun v1 v2 => sem_sub t1 t2 v1 v2)
+  | Cop.Osub => sem_sub t1 t2
   | Cop.Omul => sem_mul t1 t2
   | Cop.Omod => sem_mod t1 t2
   | Cop.Odiv => sem_div t1 t2 
@@ -671,6 +662,10 @@ Arguments sem_cmp c t1 t2 / _ v1 v2 : simpl nomatch.
 Arguments sem_unary_operation op ty / v : simpl nomatch.
 Arguments sem_binary_operation' op t1 t2 / valid_pointer v1 v2 : simpl nomatch.
 Arguments sem_binary_operation op t1 t2 / m v1 v2 : simpl nomatch.
+Arguments sem_cmp_default c t1 t2 / v1 v2 : simpl nomatch.
+Arguments sem_binarith sem_int sem_long sem_float t1 t2 / v1 v2 : simpl nomatch.
+Arguments Cop.sem_cast v !t1 !t2 / .
+
 
 
 

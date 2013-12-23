@@ -509,8 +509,10 @@ Lemma typecheck_sem_div_sound:
   (force_val (Cop2.sem_div (Tint i1 s1 a1) (Tint i2 s2 a2) (Vint i)  (Vint i0))) (Tint i3 s3 a3) = true.
 Proof.
  intros.
- unfold Cop2.sem_div, Cop2.sem_binarith, Cop2.sem_cast.
- destruct i1,s1,i2,s2; simpl; rewrite H; try rewrite H0; reflexivity.
+ unfold Cop2.sem_div, Cop2.sem_binarith, Cop2.sem_cast, force_val,
+  both_int, both_long, both_float;
+ simpl;
+ destruct i1,s1,i2,s2; simpl; try rewrite H; try rewrite H0; try reflexivity.
 Qed.
 
 Lemma typecheck_sem_mod_sound:
@@ -521,8 +523,9 @@ Lemma typecheck_sem_mod_sound:
   (force_val (Cop2.sem_mod (Tint i1 s1 a1) (Tint i2 s2 a2) (Vint i) (Vint i0))) (Tint i3 s3 a3) = true.
 Proof.
  intros.
- unfold Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast.
- destruct i1,s1,i2,s2; simpl; rewrite H; try rewrite H0; reflexivity.
+ unfold Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast, force_val,
+  both_int, both_long, both_float.
+ destruct i1,s1,i2,s2; simpl; try rewrite H; try rewrite H0; reflexivity.
 Qed.
 (*
 
@@ -656,6 +659,10 @@ repeat (
   | |- typecheck_val (Val.of_bool ?A) _ = _ => destruct A
   end).
 
+Lemma typecheck_val_of_bool:
+ forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true.
+Proof. destruct b; reflexivity. Qed.
+
 Lemma typecheck_binop_sound:
 forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho)
@@ -683,10 +690,13 @@ crunchp;
 try rewrite E1 in *; 
 try rewrite E2 in *; 
 simpl in *; crunchp;
+cbv beta;
+first [ apply typecheck_val_sem_cmp; apply I
+       |  apply typecheck_sem_div_sound; assumption 
+       |  apply typecheck_sem_mod_sound; assumption
+       | destruct s1; try destruct s2; simpl; apply typecheck_val_of_bool
+       | idtac];
 try match goal with
-| |- _ => first [simple apply typecheck_val_sem_cmp; apply I
-                         |  simple apply typecheck_sem_div_sound; assumption 
-                         |  simple apply typecheck_sem_mod_sound; assumption]
 | |- context [Cop2.sem_add] =>
   unfold Cop2.sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
   reflexivity
@@ -699,9 +709,9 @@ try match goal with
      try rewrite peq_true;
      try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
     reflexivity
- | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ _ _ (Vint ?i0))) _ = true =>
+ | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
-       simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
+       simpl;  unfold both_int,both_long; simpl; ((rewrite H; try rewrite Heqb) || rewrite cast_int_long_nonzero by assumption); 
        reflexivity
  | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
@@ -709,14 +719,13 @@ try match goal with
   simpl; rewrite H; reflexivity
  | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
-       simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
+       simpl; unfold both_int,both_long; simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
        reflexivity
  | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
      rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
   simpl; rewrite H; reflexivity
 | |- typecheck_val (force_val ( _ ?t1 ?t2 _ _)) _ = true => sem_cmp_solver t1 t2 
-end). 
-
+end).
 Qed.
 

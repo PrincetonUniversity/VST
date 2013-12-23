@@ -3,9 +3,6 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Local Open Scope logic.
 
-Arguments sem_binarith sem_int sem_long sem_float !t1 !t2 / v1 v2.
-Arguments Cop.sem_cast v !t1 !t2 / .
-
 Ltac simpl_compare :=
  match goal with
  | H: Vint _ = _ |- _ => 
