@@ -85,6 +85,7 @@ LINKING_FILES= \
   pos.v \
   stack.v \
   wf_lemmas.v \
+  core_semantics_lemmas.v \
   linking.v \
   linking_sim.v
 
