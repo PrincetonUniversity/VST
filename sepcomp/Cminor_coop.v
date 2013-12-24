@@ -4,6 +4,8 @@ Require Import Integers.
 Require Import compcert.common.Values.
 Require Import Memory.
 Require Import Events.
+Require Import Maps.
+Require Import Switch.
 Require Import Globalenvs.
 
 Require Import sepcomp.Cminor.
@@ -108,6 +110,122 @@ Definition CMin_after_external (vret: option val) (c: CMin_core) : option CMin_c
   | _ => None
   end.
 
+Inductive CMin_corestep (ge : genv) : CMin_core -> mem -> CMin_core -> mem -> Prop:=
+  | cmin_corestep_skip_seq: forall f s k sp e m,
+      CMin_corestep ge (CMin_State f Sskip (Kseq s k) sp e) m
+       (CMin_State f s k sp e) m
+  | cmin_corestep_skip_block: forall f k sp e m,
+      CMin_corestep ge (CMin_State f Sskip (Kblock k) sp e) m
+       (CMin_State f Sskip k sp e) m
+  | cmin_corestep_skip_call: forall f k sp e m m',
+      is_call_cont k ->
+      Mem.free m sp 0 f.(fn_stackspace) = Some m' ->
+      CMin_corestep ge (CMin_State f Sskip k (Vptr sp Int.zero) e) m
+       (CMin_Returnstate Vundef k) m'
+
+  | cmin_corestep_assign: forall f id a k sp e m v,
+      eval_expr ge sp e m a v ->
+      CMin_corestep ge (CMin_State f (Sassign id a) k sp e) m
+       (CMin_State f Sskip k sp (PTree.set id v e)) m
+
+  | cmin_corestep_store: forall f chunk addr a k sp e m vaddr v m',
+      eval_expr ge sp e m addr vaddr ->
+      eval_expr ge sp e m a v ->
+      Mem.storev chunk m vaddr v = Some m' ->
+      CMin_corestep ge (CMin_State f (Sstore chunk addr a) k sp e) m
+       (CMin_State f Sskip k sp e) m'
+
+  | cmin_corestep_call: forall f optid sig a bl k sp e m vf vargs fd,
+      eval_expr ge sp e m a vf ->
+      eval_exprlist ge sp e m bl vargs ->
+      Genv.find_funct ge vf = Some fd ->
+      funsig fd = sig ->
+      CMin_corestep ge (CMin_State f (Scall optid sig a bl) k sp e) m
+       (CMin_Callstate fd vargs (Kcall optid f sp e k)) m
+
+  | cmin_corestep_tailcall: forall f sig a bl k sp e m vf vargs fd m',
+      eval_expr ge (Vptr sp Int.zero) e m a vf ->
+      eval_exprlist ge (Vptr sp Int.zero) e m bl vargs ->
+      Genv.find_funct ge vf = Some fd ->
+      funsig fd = sig ->
+      Mem.free m sp 0 f.(fn_stackspace) = Some m' ->
+      CMin_corestep ge (CMin_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
+       (CMin_Callstate fd vargs (call_cont k)) m'
+
+  | cmin_corestep_builtin: forall f optid ef bl k sp e m vargs t vres m',
+      eval_exprlist ge sp e m bl vargs ->
+      external_call ef ge vargs m t vres m' ->
+      CMin_corestep ge (CMin_State f (Sbuiltin optid ef bl) k sp e) m
+         (CMin_State f Sskip k sp (set_optvar optid vres e)) m'
+
+  | cmin_corestep_seq: forall f s1 s2 k sp e m,
+      CMin_corestep ge (CMin_State f (Sseq s1 s2) k sp e) m
+       (CMin_State f s1 (Kseq s2 k) sp e) m
+
+  | cmin_corestep_ifthenelse: forall f a s1 s2 k sp e m v b,
+      eval_expr ge sp e m a v ->
+      Val.bool_of_val v b ->
+      CMin_corestep ge (CMin_State f (Sifthenelse a s1 s2) k sp e) m
+       (CMin_State f (if b then s1 else s2) k sp e) m
+
+  | cmin_corestep_loop: forall f s k sp e m,
+      CMin_corestep ge (CMin_State f (Sloop s) k sp e) m
+       (CMin_State f s (Kseq (Sloop s) k) sp e) m
+
+  | cmin_corestep_block: forall f s k sp e m,
+      CMin_corestep ge (CMin_State f (Sblock s) k sp e) m
+       (CMin_State f s (Kblock k) sp e) m
+
+  | cmin_corestep_exit_seq: forall f n s k sp e m,
+      CMin_corestep ge (CMin_State f (Sexit n) (Kseq s k) sp e) m
+       (CMin_State f (Sexit n) k sp e) m
+  | cmin_corestep_exit_block_0: forall f k sp e m,
+      CMin_corestep ge (CMin_State f (Sexit O) (Kblock k) sp e) m
+       (CMin_State f Sskip k sp e) m
+  | cmin_corestep_exit_block_S: forall f n k sp e m,
+      CMin_corestep ge (CMin_State f (Sexit (S n)) (Kblock k) sp e) m
+       (CMin_State f (Sexit n) k sp e) m
+
+  | cmin_corestep_switch: forall f a cases default k sp e m n,
+      eval_expr ge sp e m a (Vint n) ->
+      CMin_corestep ge (CMin_State f (Sswitch a cases default) k sp e) m
+       (CMin_State f (Sexit (switch_target n default cases)) k sp e) m
+
+  | cmin_corestep_return_0: forall f k sp e m m',
+      Mem.free m sp 0 f.(fn_stackspace) = Some m' ->
+      CMin_corestep ge (CMin_State f (Sreturn None) k (Vptr sp Int.zero) e) m
+       (CMin_Returnstate Vundef (call_cont k)) m'
+  | cmin_corestep_return_1: forall f a k sp e m v m',
+      eval_expr ge (Vptr sp Int.zero) e m a v ->
+      Mem.free m sp 0 f.(fn_stackspace) = Some m' ->
+      CMin_corestep ge (CMin_State f (Sreturn (Some a)) k (Vptr sp Int.zero) e) m
+       (CMin_Returnstate v (call_cont k)) m'
+
+  | cmin_corestep_label: forall f lbl s k sp e m,
+      CMin_corestep ge (CMin_State f (Slabel lbl s) k sp e) m
+       (CMin_State f s k sp e) m
+
+  | cmin_corestep_goto: forall f lbl k sp e m s' k',
+      find_label lbl f.(fn_body) (call_cont k) = Some(s', k') ->
+      CMin_corestep ge (CMin_State f (Sgoto lbl) k sp e) m
+       (CMin_State f s' k' sp e) m
+
+  | cmin_corestep_internal_function: forall f vargs k m m' sp e,
+      Mem.alloc m 0 f.(fn_stackspace) = (m', sp) ->
+      set_locals f.(fn_vars) (set_params vargs f.(fn_params)) = e ->
+      CMin_corestep ge (CMin_Callstate (Internal f) vargs k) m
+       (CMin_State f f.(fn_body) k (Vptr sp Int.zero) e) m'
+(*no external call
+  | step_external_function: forall ef vargs k m t vres m',
+      external_call ef ge vargs m t vres m' ->
+      sCMin_coretep (CMin_Callstate (External ef) vargs k) m
+         t (CMin_Returnstate vres k m') *)     
+
+  | cmin_corestep_return: forall v optid f sp e k m,
+      CMin_corestep ge (CMin_Returnstate v (Kcall optid f sp e k)) m
+       (CMin_State f Sskip k sp (set_optvar optid v e)) m.
+
+(*
 Definition CMin_corestep (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) : Prop.
   destruct q; destruct q'.
   (*State - State*)
@@ -148,13 +266,18 @@ Lemma CMin_corestep_not_at_external:
        (*Call - Return: no case in Cmin_corestep*)
              contradiction.
   Qed.
+*)
+Lemma CMin_corestep_not_at_external:
+       forall ge m q m' q', CMin_corestep ge q m q' m' -> CMin_at_external q = None.
+  Proof. intros. inv H; reflexivity. Qed.
 
+(*LENB: Cminor.v requires v to be Vint i -should we keep this condition?*)
 Definition CMin_halted (q : CMin_core): option val :=
     match q with 
        CMin_Returnstate v Kstop => Some v
      | _ => None
     end.
-
+(*
 Lemma CMin_corestep_not_halted : forall ge m q m' q', 
        CMin_corestep ge q m q' m' -> CMin_halted q = None.
   Proof. intros.
@@ -168,6 +291,10 @@ Lemma CMin_corestep_not_halted : forall ge m q m' q',
        (*Returnstate - Returnstate: no case in Cmin_corestep*)
              contradiction.
   Qed.
+*)
+Lemma CMin_corestep_not_halted : forall ge m q m' q', 
+       CMin_corestep ge q m q' m' -> CMin_halted q = None.
+  Proof. intros. inv H; reflexivity. Qed.
     
 Lemma CMin_at_external_halted_excl :
        forall q, CMin_at_external q = None \/ CMin_halted q = None.
@@ -201,7 +328,7 @@ Parameter external_call_mem_wd:
     (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
     external_call ef ge vargs m1 t vres m2 -> mem_wd m1 -> mem_wd m2.
 *)
-
+(*
 Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
   Proof. intros.
@@ -229,6 +356,22 @@ Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'),
          eapply alloc_forward. apply H4.
        destruct CS as [t CS].
          inv CS; simpl; try apply mem_forward_refl.
+Qed.
+*)
+Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
+      mem_lemmas.mem_forward m m'.
+  Proof. intros.
+     inv CS; try apply mem_forward_refl.
+         eapply free_forward; eassumption.
+         (*Storev*)
+          destruct vaddr; simpl in H1; inv H1. 
+          eapply store_forward; eassumption. 
+         eapply free_forward; eassumption.
+         (*builtin*) 
+          eapply external_call_mem_forward; eassumption.
+         eapply free_forward; eassumption.
+         eapply free_forward; eassumption.
+         eapply alloc_forward; eassumption. 
 Qed.
 
 Definition coopstep g c m c' m' :=
@@ -271,7 +414,7 @@ Program Definition cmin_coop_sem :
 apply Build_CoopCoreSem with (coopsem := cmin_core_sem).
   apply cmin_coop_forward.
 Defined.
-
+(*
 Lemma CMin_corestep_2_CompCertStep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
    CMin_corestep ge q m q' m' -> 
    exists t, step ge (ToState q m) t (ToState q' m').
@@ -281,7 +424,8 @@ Proof.
      destruct f; try contradiction.
         apply H.
 Qed.
-
+*)
+(*
 Lemma CompCertStep_CMin_corestep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem)  t,
    step ge (ToState q m) t (ToState q' m') ->
    CMin_at_external q = None ->
@@ -307,6 +451,7 @@ Proof.
      inv H.
      inv H.
 Qed.
+*)
 (*
 Lemma CMin_corestepSN_2_CompCertStepStar: forall (ge : genv) n (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem),
    corestepN CMin_corestepN ge n q m q' m' -> 
@@ -349,6 +494,7 @@ Proof.
   eapply CMin_corestepSN_2_CompCertStepStar. apply Hn. 
 Qed.
 *)
+(*
 Lemma CompCertStep_2_CMin_corestep: forall (ge : genv)  (q : CMin_core) (m : mem) t c',
    step ge (ToState q m) t c' ->
    CMin_at_external q = None ->
@@ -367,7 +513,7 @@ Proof.
      inv H. 
      inv H.
 Qed.
-
+*)
 Lemma CMin_core2state_injective: forall q m q' m', 
  ToState q m = ToState q' m' -> q'=q /\ m'=m.
   Proof. intros.

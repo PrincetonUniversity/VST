@@ -24,6 +24,19 @@ Proof. intros.
   destruct (valid_block_dec m b); trivial; inv EFF.
 Qed.
 
+Lemma FreelistEffect_validblock: forall l m b ofs
+        (EFF: FreelistEffect m l b ofs = true),
+      Mem.valid_block m b.
+Proof. intros l.
+  induction l; unfold FreelistEffect; simpl; intros.
+     unfold EmptyEffect in EFF. inv EFF.
+  destruct a as [[bb lo] hi].
+  apply orb_true_iff in EFF.
+  destruct EFF.
+  apply IHl in H. assumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
+
 Lemma StoreEffectD: forall vaddr v b ofs
       (STE: StoreEffect vaddr v b ofs = true),
       exists i, vaddr = Vptr b i /\
@@ -118,6 +131,32 @@ Lemma free_free_inject_same_block : forall f m1 m1' m2 b lo hi m2'
       Mem.inject f m1' m2'.
 Proof. intros. eapply free_free_inject; try eassumption.
    repeat rewrite Zplus_0_r. trivial. 
+Qed.
+
+Inductive match_freelists (j:meminj): list (block * Z * Z) -> list (block * Z * Z) -> Prop :=
+  match_freelists_nil: match_freelists j nil nil
+| match_freelists_cons: forall b1 lo1 hi1 t1 b2 lo2 hi2 t2 delta,
+        j b1 = Some (b2,delta) ->
+        lo2 = lo1+delta -> hi2 = hi1+delta ->
+        match_freelists j t1 t2 ->
+        match_freelists j ((b1,lo1,hi1)::t1) ((b2,lo2,hi2)::t2).
+
+Lemma freelist_freelist_inject : forall f l1 l2
+       (F: match_freelists f l1 l2)  m1 m1' m2 m2'
+       (INJ: Mem.inject f m1 m2) 
+       (FREE1: Mem.free_list m1 l1 = Some m1')
+       (FREE2: Mem.free_list m2 l2 = Some m2'),
+      Mem.inject f m1' m2'.
+Proof. intros f l1 l2 F.
+  induction F; simpl; intros.
+    inv FREE1; inv FREE2. assumption.
+  remember (Mem.free m1 b1 lo1 hi1) as F1.
+  destruct F1; inv FREE1; apply eq_sym in HeqF1.
+  remember (Mem.free m2 b2 (lo1 + delta) (hi1 + delta)) as F2.
+  destruct F2; inv FREE2; apply eq_sym in HeqF2.
+  assert (Mem.inject f m m0). 
+    eapply free_free_inject; eassumption.
+  eapply (IHF _ _ _ _ H0); try eassumption.
 Qed.
 
 Lemma FreeEffect_PropagateLeft: forall
@@ -1464,6 +1503,20 @@ Proof. intros.
             apply H4.
 Qed.
 
+Lemma REACH_closed_freelist: forall X l m m'
+  (FL : Mem.free_list m l = Some m')
+  (RC : REACH_closed m X),
+  REACH_closed m' X.
+Proof. intros X l.
+ induction l; simpl; intros.
+   inv FL. trivial.
+ destruct a as [[b lo] hi].
+ remember (Mem.free m b lo hi).
+ destruct o; inv FL. apply eq_sym in Heqo.
+ eapply (IHl _ _ H0).
+ eapply REACH_closed_free; eassumption.
+Qed.
+ 
 Definition alloc_right_sm (mu: SM_Injection) sp: SM_Injection :=
   Build_SM_Injection (locBlocksSrc mu)
                      (fun b => eq_block b sp || locBlocksTgt mu b) 
@@ -1876,4 +1929,141 @@ Proof. intros.
     as [VBEmpty | X]; trivial.
   exfalso. clear - VBEmpty. unfold Mem.valid_block in VBEmpty.
     rewrite Mem.nextblock_empty in VBEmpty. xomega.
+Qed.
+
+Lemma find_symbol_isGlobal: forall {V F} (ge : Genv.t F V) x b
+       (Find: Genv.find_symbol ge x = Some b),
+     isGlobalBlock ge b = true.
+Proof. intros.
+  unfold isGlobalBlock.
+  unfold genv2blocksBool. simpl.
+  rewrite (Genv.find_invert_symbol _ _ Find). reflexivity.
+Qed.
+
+
+(*New Lemma, based on (proof of) Mem.alloc_parallel_inject*)
+Theorem alloc_parallel_intern:
+  forall mu m1 m2 lo1 hi1 m1' b1 lo2 hi2 
+        (SMV: sm_valid mu m1 m2) (WD: SM_wd mu),
+  Mem.inject (as_inj mu) m1 m2 ->
+  Mem.alloc m1 lo1 hi1 = (m1', b1) ->
+  lo2 <= lo1 -> hi1 <= hi2 ->
+  exists mu', exists m2', exists b2,
+  Mem.alloc m2 lo2 hi2 = (m2', b2)
+  /\ Mem.inject (as_inj mu') m1' m2'
+  /\ intern_incr mu mu'
+  /\ as_inj mu' b1 = Some(b2, 0)
+  /\ (forall b, b <> b1 -> as_inj mu' b = as_inj mu b)
+  /\ sm_inject_separated mu mu' m1 m2 
+  /\ sm_locally_allocated mu mu' m1 m2 m1' m2'
+  /\ SM_wd mu' /\ sm_valid mu' m1' m2' /\
+  (REACH_closed m1 (vis mu) -> REACH_closed m1' (vis mu')). 
+Proof.
+  intros.
+  case_eq (Mem.alloc m2 lo2 hi2). intros m2' b2 ALLOC.
+  exploit Mem.alloc_left_mapped_inject. 
+  eapply Mem.alloc_right_inject; eauto.
+  eauto.
+  instantiate (1 := b2). eauto with mem.
+  instantiate (1 := 0). unfold Int.max_unsigned. generalize Int.modulus_pos; omega.
+  auto.
+  intros. apply Mem.perm_implies with Freeable; auto with mem.
+  eapply Mem.perm_alloc_2; eauto. omega.
+  red; intros. apply Zdivide_0.
+  intros. eapply Mem.fresh_block_alloc; try eassumption.
+          eapply SMV. eapply as_inj_DomRng in H3. eapply H3. assumption. 
+  intros [j' [A [B [C D]]]].
+  exists (alloc_left_sm (alloc_right_sm mu b2) b1 b2 0).
+  assert (WDr: SM_wd (alloc_right_sm mu b2)).
+    eapply alloc_right_sm_wd; try eassumption.
+      remember (DomTgt mu b2) as d.
+      destruct d; trivial. apply eq_sym in Heqd.
+      exfalso. apply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC). 
+                 apply SMV. apply Heqd.
+  assert (DomSP:= alloc_DomSrc _ _ _ SMV _ _ _ _ H0).
+  assert (TgtB2: DomTgt mu b2 = false).
+    remember (DomTgt mu b2) as d.
+    destruct d; trivial; apply eq_sym in Heqd.
+    elim (Mem.fresh_block_alloc _ _ _ _ _ ALLOC).
+      apply SMV. assumption.
+  exists m2'; exists b2; auto.
+  assert (J': (as_inj (alloc_left_sm (alloc_right_sm mu b2) b1 b2 0)) = j').
+    extensionality b.
+     destruct (eq_block b b1); subst.
+        rewrite alloc_left_sm_as_inj_same, C; trivial.
+     rewrite alloc_left_sm_as_inj_other; trivial.
+        rewrite alloc_right_sm_as_inj. rewrite <- (D _ n). trivial.
+  rewrite J'. intuition.
+  split; simpl; intuition.
+  red; intros.
+       destruct (eq_block b b1); subst.
+         assert (DomSrc mu b1 = true).
+           eapply as_inj_DomRng. eapply local_in_all; eassumption.
+           assumption.
+         congruence. 
+       assumption.
+(*inject_separated*)
+  red. split; intros.
+    destruct (eq_block b0 b1); subst.
+      rewrite alloc_left_sm_as_inj_same in H4. inv H4.
+      split; trivial.
+      trivial.
+      rewrite alloc_right_sm_DomSrc. assumption.
+    rewrite (D _ n) in H4. congruence.
+  split; intros. rewrite alloc_left_sm_DomSrc, alloc_right_sm_DomSrc in H4.
+    destruct (eq_block b0 b1); subst; simpl in *.
+      eapply (Mem.fresh_block_alloc _ _ _ _ _ H0).
+    congruence.
+  rewrite alloc_left_sm_DomTgt, alloc_right_sm_DomTgt in H4.
+    destruct (eq_block b0 b2); subst; simpl in *.
+      eapply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC).
+    congruence.
+(*locally_separated*)
+  rewrite sm_locally_allocatedChar. unfold DomSrc, DomTgt.
+  rewrite (freshloc_alloc _ _ _ _ _ H0).
+  rewrite (freshloc_alloc _ _ _ _ _ ALLOC).
+  destruct mu; simpl. intuition.
+    extensionality b. rewrite <- orb_assoc. rewrite orb_comm. trivial.
+    extensionality b. rewrite <- orb_assoc. rewrite orb_comm. trivial.
+    extensionality b. rewrite orb_comm. trivial.
+    extensionality b. rewrite orb_comm. trivial.
+(*SM_wd*)
+  eapply alloc_left_sm_wd. assumption. apply DomSP. 
+   destruct mu; simpl. destruct (eq_block b2 b2); try reflexivity.
+   elim n; trivial.
+(*sm_valid*)
+  split; intros. unfold DOM in H3. rewrite alloc_left_sm_DomSrc in H3.
+    destruct (eq_block b0 b1); simpl in *; subst.
+       eapply (Mem.valid_new_block _ _ _ _ _ H0).
+     eapply (Mem.valid_block_alloc _ _ _ _ _ H0).
+       eapply SMV. apply H3.
+  unfold RNG in H3. rewrite alloc_left_sm_DomTgt, alloc_right_sm_DomTgt in H3.
+    destruct (eq_block b0 b2); simpl in *; subst.
+       eapply (Mem.valid_new_block _ _ _ _ _ ALLOC).
+     eapply (Mem.valid_block_alloc _ _ _ _ _ ALLOC).
+       eapply SMV. apply H3.
+(*REACH_closed*)
+  eapply REACH_closed_alloc_left_sm; eassumption.
+Qed.
+
+Lemma freelist_right_inject: forall j m1 l m2 m2'
+       (F:Mem.free_list m2 l = Some m2')
+       (Inj : Mem.inject j m1 m2)
+       (Hyp: forall b2 lo2 hi2 (L:In ((b2,lo2),hi2) l)
+                    b1 delta ofs k p 
+                    (J:j b1 = Some (b2, delta))
+                    (P: Mem.perm m1 b1 ofs k p)
+                    (OFS: lo2 <= ofs + delta < hi2),
+                    False),
+     Mem.inject j m1 m2'.
+Proof. intros j m1 l.
+  induction l; simpl; intros.
+    inv F; trivial.
+  destruct a as [[b2 lo2] hi2].
+  remember (Mem.free m2 b2 lo2 hi2) as d.
+  destruct d; inv F; apply eq_sym in Heqd.
+  eapply (IHl _ _ H0).
+  eapply Mem.free_right_inject; try eassumption.
+    intros. eapply Hyp; try eassumption. left; trivial.
+  intros. eapply Hyp; try eassumption. right; trivial.
 Qed.

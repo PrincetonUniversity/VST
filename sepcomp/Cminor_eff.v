@@ -148,21 +148,21 @@ Lemma cminstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
 Proof. 
 intros.
   induction H.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor.
+  split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor.
+  split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption. 
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply StoreEffect_Storev; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption. trivial.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption. trivial.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. eexists. econstructor; try eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
   (*       destruct ef; inv H0.
          eapply BUILTIN. econstructor; eauto. 
          eapply BUILTIN. econstructor; eauto.
@@ -175,34 +175,34 @@ intros.
          eapply BUILTIN. econstructor; eauto.
          eapply BUILTIN. econstructor; eauto. simpl. eassumption.  *) 
 admit. (*TODO: builtin - correct spec and treatment of volatiles*)
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption. trivial.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply Mem.alloc_unchanged_on; eassumption.
   (*no external call*) 
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   (*effstep_sub_val*)
     destruct IHcmin_effstep.
@@ -217,13 +217,14 @@ Lemma cminstep_effax2: forall  g c m c' m',
       corestep cmin_coop_sem g c m c' m' ->
       exists M, cmin_effstep g M c m c' m'.
 Proof.
-intros. unfold corestep, coopsem in H; simpl in H.
-  destruct c; destruct c'; try inv H.
-  { inv H0.
+intros. inv H.
     eexists. eapply cmin_effstep_skip_seq.
     eexists. eapply cmin_effstep_skip_block.
+    eexists. eapply cmin_effstep_skip_call; try eassumption.
     eexists. eapply cmin_effstep_assign; eassumption.
     eexists. eapply cmin_effstep_store; eassumption.
+    eexists. eapply cmin_effstep_call; try eassumption. reflexivity.
+    eexists. eapply cmin_effstep_tailcall; try eassumption. reflexivity.
     eexists. eapply cmin_effstep_builtin; eassumption.
     eexists. eapply cmin_effstep_seq.
     eexists. eapply cmin_effstep_ifthenelse; eassumption.
@@ -233,20 +234,12 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply cmin_effstep_exit_block_0.
     eexists. eapply cmin_effstep_exit_block_S.
     eexists. eapply cmin_effstep_switch; eassumption.
-    eexists. eapply cmin_effstep_label.
-    eexists. eapply cmin_effstep_goto; eassumption. }
-  { inv H0.
-    eexists. eapply cmin_effstep_call; try eassumption. reflexivity.
-    eexists. eapply cmin_effstep_tailcall; try eassumption. reflexivity. }
-  { inv H0.
-    eexists. eapply cmin_effstep_skip_call; try eassumption.
     eexists. eapply cmin_effstep_return_0; try eassumption.
-    eexists. eapply cmin_effstep_return_1; try eassumption. }
-  { destruct f; inv H.
-    inv H0.
-    eexists. eapply cmin_effstep_internal_function; try eassumption. reflexivity. }
-  { inv H0.
-    eexists. eapply cmin_effstep_return; try eassumption. }
+    eexists. eapply cmin_effstep_return_1; try eassumption.
+    eexists. eapply cmin_effstep_label.
+    eexists. eapply cmin_effstep_goto; eassumption. 
+    eexists. eapply cmin_effstep_internal_function; try eassumption. reflexivity. 
+    eexists. eapply cmin_effstep_return; try eassumption. 
 Qed.
 (*
 Lemma cmin_effstep_sub: forall g U V c m c' m'

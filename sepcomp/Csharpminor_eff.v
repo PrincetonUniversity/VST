@@ -161,47 +161,47 @@ Lemma csharpminstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
 Proof. 
 intros.
   induction H.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor.
+  split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor.
+  split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreelistEffect_freelist; eassumption. 
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply StoreEffect_Storev; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
 admit. (*TODO: builtin - modify spec*)
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreelistEffect_freelist; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreelistEffect_freelist; eassumption.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; try eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          eapply EmptyEffect_allocvariables; eassumption. 
   (*no external call*) 
-  split. unfold corestep, coopsem; simpl. exists E0. econstructor; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   (*rule effstep_sub_val*)
   (*effstep_sub_val*)
@@ -217,13 +217,13 @@ Lemma csharpminstep_effax2: forall  g c m c' m',
       corestep csharpmin_coop_sem g c m c' m' ->
       exists M, csharpmin_effstep g M c m c' m'.
 Proof.
-intros. unfold corestep, coopsem in H; simpl in H.
-  destruct c; destruct c'; try inv H.
-  { inv H0.
+intros. inv H.
     eexists. eapply csharpmin_effstep_skip_seq.
     eexists. eapply csharpmin_effstep_skip_block.
+    eexists. eapply csharpmin_effstep_skip_call; try eassumption.
     eexists. eapply csharpmin_effstep_set; eassumption.
     eexists. eapply csharpmin_effstep_store; eassumption.
+    eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity. 
     eexists. eapply csharpmin_effstep_builtin; eassumption.
     eexists. eapply csharpmin_effstep_seq.
     eexists. eapply csharpmin_effstep_ifthenelse; eassumption.
@@ -233,18 +233,12 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply csharpmin_effstep_exit_block_0.
     eexists. eapply csharpmin_effstep_exit_block_S.
     eexists. eapply csharpmin_effstep_switch; eassumption.
-    eexists. eapply csharpmin_effstep_label.
-    eexists. eapply csharpmin_effstep_goto; eassumption. }
-  { inv H0.
-    eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity. }
-  { inv H0.
-    eexists. eapply csharpmin_effstep_skip_call; try eassumption.
     eexists. eapply csharpmin_effstep_return_0; try eassumption.
-    eexists. eapply csharpmin_effstep_return_1; try eassumption. }
-  { destruct f; inv H0.
-    eexists. eapply csharpmin_effstep_internal_function; try eassumption. }
-  { inv H0.
-    eexists. eapply csharpmin_effstep_return. }
+    eexists. eapply csharpmin_effstep_return_1; try eassumption.
+    eexists. eapply csharpmin_effstep_label.
+    eexists. eapply csharpmin_effstep_goto; eassumption.
+    eexists. eapply csharpmin_effstep_internal_function; try eassumption.
+    eexists. eapply csharpmin_effstep_return.
 Qed.
 
 Program Definition csharpmin_eff_sem : 

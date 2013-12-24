@@ -28,30 +28,6 @@ Require Import sepcomp.Csharpminor_eff.
 
 Require Import sepcomp.CminorgenproofRestructured.
 
-Lemma freelist_REACH_closed: forall m e m' X
-  (FL : Mem.free_list m (blocks_of_env e) = Some m')
-  (RC : REACH_closed m X)
-  (BOUND : match_bounds e m),
-  REACH_closed m' X.
-Proof. intros.
- intros b; intros.
-      apply RC. rewrite REACHAX in H. clear - BOUND FL H.
-      destruct H as [L HL].
-      generalize dependent b.
-      induction L; simpl; intros; inv HL.
-        apply REACH_nil. assumption.
-      specialize (IHL _ H1); clear H1.
-        eapply REACH_cons; try eassumption.
-          eapply perm_freelist; eassumption. 
-     destruct (Mem.perm_free_list _ _ _ _ _ _ _ FL H2). 
-       rewrite <- (get_freelist _ _ _ FL).
-       eassumption.
-       intros. intros N. subst.
-       apply (H0 _ _ H1).
-       destruct (in_blocks_of_env_inv _ _ _ _ H1) as [id [Hid XX]]; subst.
-       eapply BOUND; eauto. eapply Mem.perm_max. eassumption.
-Qed. 
-
 Require Import Coq.Program.Equality.
 Require Import sepcomp.CminorgenproofSIM.
 
@@ -322,6 +298,33 @@ Proof. intros mu m tm cs.
   xomega. xomega.
 Qed.
 
+Lemma replace_locals_extern_incr_vis: forall mu nu pubS pubT
+      (Hnu: nu = replace_locals mu pubS pubT)
+      nu' (INC : extern_incr nu nu') (WDnu' : SM_wd nu') l m1'
+       b (VIS: vis mu b = true),
+    locBlocksSrc nu' b || DomSrc nu' b &&
+        (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' l) b) = true.
+Proof. intros.
+    subst.
+        destruct INC as [EINC [LINC INC]]. 
+        rewrite replace_locals_extern in EINC.
+        rewrite replace_locals_local in LINC.
+        rewrite replace_locals_extBlocksSrc, replace_locals_extBlocksTgt,
+                replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
+                replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
+                replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt in INC.
+        destruct INC as [INC_ES [INC_ET [INC_LS [INC_LT [INC_PS [INC_PT [INC_FS INC_FT]]]]]]].
+        intros. unfold vis in VIS.
+        apply orb_true_iff in VIS.
+        destruct VIS.
+          rewrite <- INC_LS in *. rewrite H; trivial.
+        destruct (frgnSrc _ WDnu' _ (INC_FS _ H)) as [b2 [dd [FOR FT]]]; clear H. 
+        destruct (foreign_DomRng _ WDnu' _ _ _ FOR) as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
+        rewrite H7, H1. simpl.
+        apply REACH_nil. unfold exportedSrc.
+             rewrite (sharedSrc_iff_frgnpub _ WDnu'). rewrite H3. intuition.
+Qed.
+
 Lemma structured_match_callstack_ext: forall mu m1 m2 cs bound 
   tbound
   (MCS : structured_match_callstack mu m1 m2 cs bound tbound)
@@ -359,27 +362,7 @@ structured_match_callstack
    m1' m2' cs bound tbound.
 Proof.
 intros.
-assert (VisMuNu': forall b (VIS: vis mu b = true),
-    locBlocksSrc nu' b || DomSrc nu' b &&
-        (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b) = true).
-    subst.
-        destruct INC as [EINC [LINC INC]]. 
-        rewrite replace_locals_extern in EINC.
-        rewrite replace_locals_local in LINC.
-        rewrite replace_locals_extBlocksSrc, replace_locals_extBlocksTgt,
-                replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
-                replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt,
-                replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt in INC.
-        destruct INC as [INC_ES [INC_ET [INC_LS [INC_LT [INC_PS [INC_PT [INC_FS INC_FT]]]]]]].
-        intros. unfold vis in VIS.
-        apply orb_true_iff in VIS.
-        destruct VIS.
-          rewrite <- INC_LS in *. rewrite H; trivial.
-        destruct (frgnSrc _ WDnu' _ (INC_FS _ H)) as [b2 [dd [FOR FT]]]; clear H. 
-        destruct (foreign_DomRng _ WDnu' _ _ _ FOR) as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
-        rewrite H7, H1. simpl.
-        apply REACH_nil. unfold exportedSrc.
-             rewrite (sharedSrc_iff_frgnpub _ WDnu'). rewrite H3. intuition.
+assert (VisMuNu':=replace_locals_extern_incr_vis _ _ _ _ Hnu _ INC WDnu' (ret1::nil) m1').  
 
 assert (IncRestr: inject_incr (restrict (as_inj mu) (vis mu))
   (restrict (as_inj nu')
@@ -1903,13 +1886,16 @@ Proof. intros.
   exists tm', mu'.
   split.
     eapply corestep_plus_one. simpl. 
-    econstructor.
-    constructor. assumption. reflexivity.
+    econstructor. assumption.
   intuition.
   split; intuition.
+    econstructor.
     econstructor. eexact TRBODY. eauto. eassumption.
     inv MK; simpl in ISCC; contradiction || econstructor; eauto.
-  apply intern_incr_as_inj in IINCR; trivial.
+  (*apply intern_incr_as_inj in IINCR; trivial.
+    apply sm_inject_separated_mem in SEP; trivial.*)
+  split; intuition.
+    apply intern_incr_as_inj in IINCR; trivial.
     apply sm_inject_separated_mem in SEP; trivial.
     eapply meminj_preserves_incr_sep; eassumption. 
   assert (frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply IINCR.
@@ -1962,8 +1948,7 @@ Proof. intros.
   eexists. eexists. exists mu. 
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl.
-        econstructor. reflexivity.
+        econstructor. 
   simpl. (* exists (CSharpMin_State f s k e le).
      left. *) intuition. 
     apply intern_incr_refl.
@@ -1977,8 +1962,7 @@ Proof. intros.
   eexists. eexists. exists mu. 
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl.
-        econstructor. reflexivity.
+        econstructor. 
    simpl. (*exists (CSharpMin_State f (Csharpminor.Sseq s1 s2) k e le).
       left.  *) intuition. 
     apply intern_incr_refl.
@@ -1994,8 +1978,8 @@ Proof. intros.
   exists T2. exists m2. exists nu. 
   split.
      eapply corestep_star_plus_trans.
-        apply corestep_star_one. eapply CompCertStep_CMin_corestep'. simpl.
-        constructor. reflexivity.
+        apply corestep_star_one. 
+        constructor.
         simpl. apply A. 
   apply C.
 Qed.
@@ -2021,8 +2005,7 @@ Proof. intros.
   eexists. eexists. exists mu. 
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl.
-        constructor. reflexivity.  
+        constructor. 
    simpl. (*exists (CSharpMin_State f Csharpminor.Sskip k e le).
       left.  *) intuition. 
     apply intern_incr_refl.
@@ -2038,8 +2021,8 @@ Proof. intros.
   exists T2; exists m2; exists nu.
   split.
      eapply corestep_star_plus_trans.
-        apply corestep_star_one.  eapply CompCertStep_CMin_corestep'.  simpl.
-        constructor. reflexivity.
+        apply corestep_star_one. 
+        constructor. 
         simpl. apply A. 
   (* simpl in *. exists c'.*) apply C.
 Qed.
@@ -2062,7 +2045,7 @@ Proof. intros MCS.
      apply corestep_star_zero. split. exact I. econstructor; eauto.
   exploit IHMK; eauto.
   intros [tk' [A B]]. exists tk'; split.
-  eapply corestep_star_trans; eauto. apply corestep_star_one. simpl. eexists. constructor. auto.
+  eapply corestep_star_trans; eauto. apply corestep_star_one. simpl. constructor. auto.
 
   econstructor; split. apply corestep_star_zero. split. exact I. econstructor; eauto.
 Qed.
@@ -2092,7 +2075,7 @@ Proof. intros.
   eexists. eexists. exists mu.
   split.
     eapply corestep_star_plus_trans. eexact A. apply corestep_plus_one. 
-      eapply CompCertStep_CMin_corestep'. apply step_skip_call. assumption. 
+      apply cmin_corestep_skip_call. assumption. 
       eauto.
     eauto.
   assert (SMV': sm_valid mu m' tm').
@@ -2114,8 +2097,7 @@ Proof. intros.
     econstructor; eauto.
       econstructor; eauto.
     intuition.
- eapply freelist_REACH_closed; try eassumption.
-  inv MCS. assumption.
+ eapply REACH_closed_freelist; try eassumption.
 Qed.
 
 Lemma MS_step_case_Assign: forall 
@@ -2148,8 +2130,8 @@ Proof. intros.
   eexists. eexists. exists mu.
   split.
       apply corestep_plus_one. 
-      eapply CompCertStep_CMin_corestep'. constructor.
-           eassumption. econstructor. 
+      constructor.
+           eassumption.
   intuition; simpl.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
@@ -2196,8 +2178,7 @@ Proof. intros.
      eapply val_inject_restrictD; try eassumption. 
   intros [tm' [tv' [EXEC [STORE' MINJ']]]].
   eexists. eexists. exists mu.
-  split. apply corestep_plus_one. 
-         eapply CompCertStep_CMin_corestep'. eapply EXEC. trivial.
+  split. apply corestep_plus_one.  eapply EXEC.
   assert (SMV': sm_valid mu m' tm').
     destruct PRE as [_ [_ [_ [SMV _]]]].
     split; intros. 
@@ -2278,10 +2259,9 @@ Proof. intros.
   intros [tvargs [EVAL2 VINJ2]].
   eexists; eexists; exists mu. 
   split.
-      apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
-          eapply step_call. eassumption. eassumption. apply FIND.
+      apply corestep_plus_one. 
+          eapply cmin_corestep_call. eassumption. eassumption. apply FIND.
                       eapply sig_preserved; eauto.
-          econstructor; eauto.
   intuition; simpl.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
@@ -2403,9 +2383,9 @@ Proof. intros.
   intros [tv [EVAL [VINJ APP]]].
   exists (CMin_State tfn (if b then x1 else x2) tk (Vptr sp Int.zero) te).
   exists tm. exists mu. intuition.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep.
-              eapply step_ifthenelse; eauto. eapply bool_of_val_inject; eauto.
-        reflexivity.
+     apply corestep_plus_one. 
+              eapply cmin_corestep_ifthenelse; eauto.
+              eapply bool_of_val_inject; eauto.
      apply intern_incr_refl.
      apply sm_inject_separated_same_sminj.
      apply sm_locally_allocatedChar.
@@ -2438,9 +2418,8 @@ exists c2' : CMin_core,
 Proof. intros.
   eexists; eexists; exists mu.
   split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one.
         econstructor; eauto.
-        reflexivity.
   simpl in *. intuition.
      apply intern_incr_refl.
      apply sm_inject_separated_same_sminj.
@@ -2473,9 +2452,8 @@ exists c2' : CMin_core,
   sm_valid mu' m m2'.
 Proof. intros.
   eexists; eexists; exists mu; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one. 
         econstructor; eauto.
-        reflexivity.
   simpl in *. intuition.
      apply intern_incr_refl.
      apply sm_inject_separated_same_sminj.
@@ -2508,9 +2486,8 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; exists mu; split. 
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one. 
         econstructor; eauto.
-        reflexivity.
   simpl in *; intuition.
       split; intuition.
       econstructor; eauto. reflexivity.
@@ -2524,14 +2501,14 @@ Proof. intros.
   exists c2'. exists m2'. exists mu'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor.
          simpl. apply A.
 
   exploit IHMK; eauto.  intros [c2' [m2' [mu' [A B]]]].
   exists c2'. exists m2'. exists mu'.
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor. 
          simpl. apply A.
 Qed.
 
@@ -2555,7 +2532,7 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; exists mu; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+     apply corestep_plus_one. constructor. 
   simpl in *; intuition.
     econstructor; eauto.
       econstructor; eauto.
@@ -2570,7 +2547,7 @@ Proof. intros.
   exists c2'. exists m2', mu'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor. 
          simpl. apply A.
 Qed.
 
@@ -2594,7 +2571,7 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; exists mu; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+     apply corestep_plus_one. constructor. 
   simpl in *; intuition.
     econstructor; eauto. 
       econstructor; eauto. auto.
@@ -2609,7 +2586,7 @@ Proof. intros.
   exists c2'. exists m2', mu'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor. 
          simpl. apply A.
 Qed.
 
@@ -2636,8 +2613,8 @@ Proof.
 (*1*)
   inv TK. eexists; eexists; exists mu; split. 
      eapply corestep_plus_trans.
-         eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
-         simpl. eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+         eapply corestep_plus_one. constructor. 
+         simpl. eapply corestep_plus_one. constructor. 
     intuition. econstructor; eauto. econstructor; eauto.
     intuition.
      apply intern_incr_refl.
@@ -2648,8 +2625,8 @@ Proof.
 (*2*) 
   inv TK. econstructor; eexists; exists mu; split.
      eapply corestep_plus_trans.
-         eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
-         simpl. eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+         eapply corestep_plus_one. constructor. 
+         simpl. eapply corestep_plus_one. constructor.
      simpl; split. split. eapply SMC_state_seq; try eassumption.
           simpl. eapply  switch_match_cont; eauto. 
           intuition.
@@ -2697,7 +2674,7 @@ Proof. intros.
       eapply corestep_plus_star_trans.
           eapply B. 
       eapply corestep_star_trans.
-         eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. eassumption. reflexivity. 
+         eapply corestep_star_one. constructor. eassumption. 
       simpl.
         eapply corestep_star_trans.
          apply C.
@@ -2719,13 +2696,12 @@ Lemma Match_corestep: forall st1 m1 st1' m1'
             corestep_star cmin_eff_sem tge st2 m2 st2' m2').
 Proof.
   intros. unfold core_data in *.
-   destruct (CSharpMin_corestep_2_CompCertStep _ _ _ _ _ CS1) as [t Ht].
+   (*destruct (CSharpMin_corestep_2_CompCertStep _ _ _ _ _ CS1) as [t Ht].
    simpl in *.
    apply CSharpMin_corestep_not_at_external in CS1.
-   inv Ht; simpl in *.
+   inv Ht; simpl in *.*)
+   inv CS1.
   (*skip seq*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
@@ -2734,8 +2710,6 @@ Proof.
       exists c2'. exists m2'. exists mu'. 
       intuition.
   (*skip Block*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
@@ -2744,43 +2718,35 @@ Proof.
       exists c2'. exists m2'. exists mu'. 
       intuition.
   (*skip Call*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
       destruct (MS_step_case_SkipCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        PRE TRF MCS _ H1 H3 MK) as [c2' [m2' [mu' [cstepPlus MS]]]].
+        PRE TRF MCS _ H H0 MK) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'. 
       intuition.
   (*assign*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
       destruct (MS_step_case_Assign _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        PRE TRF MCS _ _ id _ _ H2 MK EQ) as [c2' [m2' [mu' [cstepPlus MS]]]].
+        PRE TRF MCS _ _ id _ _ H MK EQ) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'. 
       intuition.
   (*store*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
       destruct (MS_step_case_Store _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        PRE TRF MCS _ _ _ _ _ _ _ _ _ _ H4 MK H1 H2 EQ EQ1) as [c2' [m2' [mu' [cstepPlus MS]]]].
+        PRE TRF MCS _ _ _ _ _ _ _ _ _ _ H1 MK H H0 EQ EQ1) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'. 
       intuition. 
    (*call*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR.
       destruct (MS_step_case_Call _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-       PRE TRF MCS _ _ _ _ _ _ optid args _ MK H1 H2 H3 EQ EQ1) as [c2' [m2' [mu' [cstepPlus MS]]]].
+       PRE TRF MCS _ _ _ _ _ _ optid _ _ MK H H0 H1 EQ EQ1) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'. 
       intuition. 
    (*builtin*) admit. (* TODO: case builtin *)
@@ -2794,9 +2760,6 @@ Proof.
       exists c2'. exists m2'. exists mu'. 
       intuition. *)
   (* seq *)
-     destruct st1; simpl in *; try inv H0. 
-     destruct st1'; simpl in *; try inv H. 
-     rename k0 into k.
      destruct MC as [SMC PRE].
      inv SMC. 
       (*Case 1*) 
@@ -2814,9 +2777,8 @@ Proof.
                   econstructor; eauto.
                   intuition. 
          left. simpl.
-               eapply corestep_plus_one.  
-                 eapply CompCertStep_CMin_corestep.  
-                 econstructor; eauto. reflexivity. 
+               eapply corestep_plus_one.    
+                 econstructor; eauto. 
       (* seq 2 *) 
          exists (CMin_State tfn ts1 tk (Vptr sp Int.zero) te).
          exists m2; exists mu. intuition. 
@@ -2828,21 +2790,17 @@ Proof.
                 econstructor; eauto.
                   econstructor; eauto.
                   intuition. 
-         right. split. omega.
+         right. split. simpl. omega.
                 exists O. constructor.
 (* ifthenelse *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
       destruct (MS_step_case_Ite _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        PRE TRF MCS _ _ _ _ _ _ _ _ _ H1 H3 MK EQ EQ1 EQ0) as [c2' [m2' [mu' [cstepPlus MS]]]].
+        PRE TRF MCS _ _ _ _ _ _ _ _ _ H H0 MK EQ EQ1 EQ0) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'.
       intuition.
-(* loop *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
+(* loop *) 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2851,8 +2809,6 @@ Proof.
       exists c2'. exists m2'. exists mu'.
       intuition.
 (* block *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2861,8 +2817,6 @@ Proof.
       exists c2'. exists m2'. exists mu'.
       intuition.
   (*exit seq*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2871,8 +2825,6 @@ Proof.
       exists c2'. exists m2'. exists mu'.
       intuition.
   (*exit block zero*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC.
       monadInv TR.
@@ -2881,8 +2833,6 @@ Proof.
       exists c2'. exists m2'. exists mu'.
       intuition.
   (*exit block nonzero*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC.
       monadInv TR.
@@ -2891,18 +2841,14 @@ Proof.
       exists c2'. exists m2'. exists mu'.
       intuition.
   (*switch*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC.
       monadInv TR.
       destruct (MS_step_case_Switch _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-          PRE TRF MCS _ _ _ _ _ _ MK H2 EQ EQ0) as [c2' [m2' [mu' [cstepPlus MS]]]].
+          PRE TRF MCS _ _ _ _ _ _ MK H EQ EQ0) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'.
       intuition.
   (*return none*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2911,30 +2857,28 @@ Proof.
       assert (SMV': sm_valid mu m1' tm').
         destruct PRE as [? [? [? [SMV _]]]]. 
         split; intros.
-          red. rewrite (nextblock_freelist _ _ _ H2).
+          red. rewrite (nextblock_freelist _ _ _ H).
             eapply SMV. apply H3.
           apply (Mem.valid_block_free_1 _ _ _ _ _ A).
             eapply SMV. apply H3.
       eexists; eexists; exists mu; intuition; simpl.
-       Focus 6. left. apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eapply step_return_0. eauto. reflexivity.
+       Focus 6. left. apply corestep_plus_one. 
+                eapply cmin_corestep_return_0. eauto.
        apply intern_incr_refl.
         apply sm_inject_separated_same_sminj.
         apply sm_locally_allocatedChar.
-          apply freshloc_free_list in H2. 
+          apply freshloc_free_list in H. 
           apply freshloc_free in A.
           repeat split; try extensionality bb; simpl;
-          try rewrite H2; try rewrite A; intuition.
+          try rewrite H; try rewrite A; intuition.
        split; simpl.
          eapply SMC_returnstate. apply B.
          eapply match_call_cont; eauto.
          constructor.
          intuition. 
-           eapply freelist_REACH_closed; try eassumption.
-            inv MCS. assumption.
+           eapply REACH_closed_freelist; try eassumption.
        apply SMV'.
   (*return some*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2945,40 +2889,36 @@ Proof.
       assert (SMV': sm_valid mu m1' tm').
         destruct PRE as [? [? [? [SMV _]]]]. 
         split; intros.
-          red. rewrite (nextblock_freelist _ _ _ H3).
+          red. rewrite (nextblock_freelist _ _ _ H0).
             eapply SMV. apply H4.
           apply (Mem.valid_block_free_1 _ _ _ _ _ A).
             eapply SMV. apply H4.
   eexists; eexists; exists mu.
   intuition. 
   Focus 6. left.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eapply step_return_1. eauto. eauto. reflexivity. 
+     apply corestep_plus_one. eapply cmin_corestep_return_1. eauto. eauto. 
         apply intern_incr_refl.
         apply sm_inject_separated_same_sminj.
         apply sm_locally_allocatedChar.
-          apply freshloc_free_list in H3. 
+          apply freshloc_free_list in H0. 
           apply freshloc_free in A.
           repeat split; try extensionality bb; simpl;
-          try rewrite H3; try rewrite A; intuition.
+          try rewrite H0; try rewrite A; intuition.
        split; simpl.
          eapply SMC_returnstate. apply B.
          eapply match_call_cont; eauto.
          assumption.
          intuition. 
-           eapply freelist_REACH_closed; try eassumption.
-            inv MCS. assumption.
+           eapply REACH_closed_freelist; try eassumption.
        apply SMV'.
   (*label*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
       eexists; eexists; exists mu. 
       intuition.
       Focus 6. left. eapply corestep_plus_one.
-               eapply CompCertStep_CMin_corestep'. 
-               constructor. reflexivity.
+               constructor. 
       apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
@@ -2987,10 +2927,8 @@ Proof.
       econstructor; eauto.
         econstructor; eauto.
         intuition.
-       apply H2.
+       assumption.
   (*goto*)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
@@ -2999,8 +2937,7 @@ Proof.
       eexists; eexists; exists mu. 
       intuition.
       Focus 6. left. eapply corestep_plus_one.
-               eapply CompCertStep_CMin_corestep'.
-               apply step_goto. eexact A. reflexivity.
+               apply cmin_corestep_goto. eexact A. 
       apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
@@ -3009,28 +2946,23 @@ Proof.
       econstructor; eauto.
         econstructor; eauto.
         intuition.
-       apply H3.
+       assumption.
 (* internal call *) 
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0. 
       destruct MC as [SMC PRE].
       inv SMC. 
-      monadInv TR. clear CS1.
+      monadInv TR. 
       exploit MS_step_case_InternalCall; try eassumption.
-      intros. destruct H as [c2' [m2' [mu' XX]]].
+      intros. destruct H4 as [c2' [m2' [mu' XX]]].
       exists c2', m2', mu'. intuition.
-(* external call *) 
-      destruct st1; simpl in *; try inv H. 
-      discriminate. 
+(* external call - no case*) 
+      
 (* return *) 
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC.
   inv MK. simpl.
   eexists; eexists; exists mu; intuition. 
   Focus 6. left. eapply corestep_plus_one.
-           eapply CompCertStep_CMin_corestep'. econstructor; eauto. reflexivity.
+            econstructor; eauto. 
       apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
@@ -3041,7 +2973,7 @@ Proof.
         unfold set_optvar. destruct optid; simpl option_map; econstructor; eauto.
         eapply match_temps_assign. assumption. assumption.
       simpl; intuition.
-      apply H2.
+      assumption.
 Qed. 
 
 Lemma EFF_switch_descent:
@@ -3336,8 +3268,7 @@ Proof. intros.
     econstructor; eauto.
       econstructor; eauto.
     intuition.
- eapply freelist_REACH_closed; try eassumption.
-  inv MCS. assumption.
+ eapply REACH_closed_freelist; try eassumption.
 Qed.
 
 Lemma EFF_step_case_Assign: forall 
@@ -4207,8 +4138,7 @@ induction EFFSTEP; simpl in *.
          eapply match_call_cont; eauto.
          constructor.
          intuition. 
-           eapply freelist_REACH_closed; try eassumption.
-            inv MCS. assumption.
+           eapply REACH_closed_freelist; try eassumption.
   (*return some*)
       destruct MC as [SMC PRE].
       inv SMC. 
@@ -4250,8 +4180,7 @@ induction EFFSTEP; simpl in *.
          eapply match_call_cont; eauto.
          assumption.
          intuition. 
-           eapply freelist_REACH_closed; try eassumption.
-            inv MCS. assumption.
+           eapply REACH_closed_freelist; try eassumption.
   (*label*)
       destruct MC as [SMC PRE].
       inv SMC. 

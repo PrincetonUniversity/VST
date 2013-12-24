@@ -507,14 +507,14 @@ Proof. intros.
   eexists. eexists. 
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl.  econstructor. reflexivity.
+       econstructor. 
   simpl. (* exists (CSharpMin_State f s k e le).
      left. *) eapply MC_states; eauto.
  
   eexists. eexists.
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl.  econstructor. reflexivity.
+       econstructor. 
    simpl. (*exists (CSharpMin_State f (Csharpminor.Sseq s1 s2) k e le).
       left.  *) eapply MC_state_seq; eauto.
 
@@ -522,7 +522,7 @@ Proof. intros.
   exists T2; exists m2.
   split.
      eapply corestep_star_plus_trans.
-        apply corestep_star_one.  eapply CompCertStep_CMin_corestep'.  simpl.  constructor. reflexivity.
+        apply corestep_star_one. constructor.
         simpl. apply A. 
   apply C.
 Qed.
@@ -547,7 +547,7 @@ Proof. intros.
   eexists. eexists. 
   split.
     apply corestep_plus_one. 
-        eapply CompCertStep_CMin_corestep'.  simpl. constructor. reflexivity.  
+       econstructor.
    simpl. (*exists (CSharpMin_State f Csharpminor.Sskip k e le).
       left.  *) eapply MC_states; eauto.
 
@@ -555,7 +555,7 @@ Proof. intros.
   exists T2; exists m2.
   split.
      eapply corestep_star_plus_trans.
-        apply corestep_star_one.  eapply CompCertStep_CMin_corestep'.  simpl.  constructor. reflexivity.
+        apply corestep_star_one. constructor.
         simpl. apply A. 
   (* simpl in *. exists c'.*) apply C.
 Qed.
@@ -575,7 +575,7 @@ Proof.
      apply corestep_star_zero. split. exact I. econstructor; eauto.
   exploit IHmatch_cont; eauto.
   intros [tk' [A B]]. exists tk'; split.
-  eapply corestep_star_trans; eauto. apply corestep_star_one. simpl. eexists. constructor. auto.
+  eapply corestep_star_trans; eauto. apply corestep_star_one. simpl. constructor. auto.
 
   econstructor; split. apply corestep_star_zero. split. exact I. econstructor; eauto.
 Qed.
@@ -604,7 +604,7 @@ Proof. intros.
   eexists. eexists.
   split.
     eapply corestep_star_plus_trans. eexact A. apply corestep_plus_one. 
-      eapply CompCertStep_CMin_corestep'. apply step_skip_call. assumption. 
+      apply cmin_corestep_skip_call. assumption. 
       eauto.
     eauto.
     econstructor; eauto.
@@ -639,8 +639,8 @@ Proof. intros.
   intros [te' [tm' [EXEC [MINJ' [MCS' OTHER]]]]].
 *)
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. 
-         econstructor. eassumption. reflexivity.
+     apply corestep_plus_one. 
+         econstructor. eassumption.
 inv MCS.
   econstructor; eauto.
 econstructor; eauto.
@@ -677,6 +677,30 @@ Proof. intros.
 Qed.
 *)
 
+Lemma make_store_correct:
+  forall f sp te tm addr tvaddr rhs tvrhs chunk m vaddr vrhs m' fn k,
+  eval_expr tge sp te tm addr tvaddr ->
+  eval_expr tge sp te tm rhs tvrhs ->
+  Mem.storev chunk m vaddr vrhs = Some m' ->
+  Mem.inject f m tm ->
+  val_inject f vaddr tvaddr ->
+  val_inject f vrhs tvrhs ->
+  exists tm', exists tvrhs',
+  corestep CMin_core_sem tge (CMin_State fn (make_store chunk addr rhs) k sp te) tm
+        (CMin_State fn Sskip k sp te) tm'
+  /\ Mem.storev chunk tm tvaddr tvrhs' = Some tm'
+  /\ Mem.inject f m' tm'.
+Proof.
+  intros. unfold make_store.
+  exploit eval_store_arg. eexact H0. eauto. 
+  intros [tv [EVAL VCINJ]].
+  exploit storev_mapped_content_inject; eauto.
+  intros [tm' [STORE MEMINJ]].
+  exists tm'; exists tv.
+  split. eapply cmin_corestep_store; eauto.
+  auto.
+Qed.
+
 Lemma MS_step_case_Store:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2 
       chunk m' a addr vaddr v
@@ -707,7 +731,7 @@ Proof. intros.
   exploit make_store_correct. eexact EVAL1. eexact EVAL2. eauto. eauto. auto. auto.
   intros [tm' [tv' [EXEC [STORE' MINJ']]]].
   eexists; eexists; split.
-      apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eexact EXEC. reflexivity.
+      apply corestep_plus_one. eexact EXEC. 
   simpl in *.
   inv VINJ1; simpl in CH; try discriminate.
   econstructor; eauto. 
@@ -750,13 +774,12 @@ Proof. intros.
   exploit transl_exprlist_correct; eauto.
   intros [tvargs [EVAL2 VINJ2]].
   eexists; eexists; split.
-      apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
-          eapply step_call. eassumption. eassumption. apply FIND.
+      apply corestep_plus_one. 
+          eapply cmin_corestep_call. eassumption. eassumption. apply FIND.
                       eapply sig_preserved; eauto.
-          econstructor; eauto.
   simpl in *.
      (*exists  (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv tk)).
-     left.*) econstructor; eauto. eapply match_Kcall with (cenv' := cenv); eauto.
+     left.*) econstructor; eauto. eapply match_Kcall with (cenv' := cenv); eauto. 
             simpl; trivial.
 Qed.
 
@@ -790,12 +813,11 @@ Proof. intros.
   exploit Events.external_call_mem_inject; eauto.
   intros [j' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH [INCR SEPARATED]]]]]]]]].
   eexists; eexists; split.
-      apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+      apply corestep_plus_one. 
            econstructor; try eassumption.
              eapply Events.external_call_symbols_preserved; eauto.
                  eapply symbols_preserved; assumption.
                  eapply varinfo_preserved; assumption.
-           reflexivity.
   assert (MCS': match_callstack prog j' m' tm'
                  (Frame cenv tfn e lenv te sp lo hi :: cs)
                  (Mem.nextblock m') (Mem.nextblock tm')).
@@ -841,9 +863,8 @@ Proof. intros.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
   exists (CMin_State tfn (if b then x1 else x2) tk (Vptr sp Int.zero) te). exists tm.
   split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep.
-              eapply step_ifthenelse; eauto. eapply bool_of_val_inject; eauto.
-        econstructor; eauto.
+     apply corestep_plus_one. 
+        eapply cmin_corestep_ifthenelse; eauto. eapply bool_of_val_inject; eauto.
   simpl in *.
  (*   exists (CSharpMin_State f (if b then s1 else s2) k e lenv).
     left. *) econstructor; eauto.
@@ -869,9 +890,8 @@ exists c2' : CMin_core,
 Proof. intros.
   eexists; eexists.
   split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one.
         econstructor; eauto.
-        reflexivity.
   simpl in *.
 (*      exists  (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) tk) e lenv).
       left.*)
@@ -897,9 +917,8 @@ exists c2' : CMin_core,
          (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv) m c2' m2'.*)
 Proof. intros.
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one.
         econstructor; eauto.
-        reflexivity.
   simpl in *.
 (*      exists  (CSharpMin_State f s (Csharpminor.Kblock tk) e lenv).
       left.*)
@@ -926,9 +945,8 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; split. 
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'.
+     apply corestep_plus_one. 
         econstructor; eauto.
-        reflexivity.
   simpl in *.
       (*exists   (CSharpMin_State f (Csharpminor.Sexit n) tk e lenv).
       left.*) econstructor; eauto. reflexivity.
@@ -937,14 +955,14 @@ Proof. intros.
   exists c2'. exists m2'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor.
          simpl. apply A.
 
   exploit IHMK; eauto.  intros [c2' [m2' [A B]]].
   exists c2'. exists m2'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor.
          simpl. apply A.
 Qed.
 
@@ -968,7 +986,7 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+     apply corestep_plus_one. constructor. 
   simpl in *.
     (*exists  (CSharpMin_State f Csharpminor.Sskip tk e lenv). 
     left.*) econstructor; eauto.
@@ -977,7 +995,7 @@ Proof. intros.
   exists c2'. exists m2'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor. 
          simpl. apply A.
 Qed.
 
@@ -999,7 +1017,7 @@ Proof. intros.
   dependent induction MK.
 
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+     apply corestep_plus_one. constructor. 
   simpl in *.
     econstructor; eauto. auto.
 
@@ -1007,7 +1025,7 @@ Proof. intros.
   exists c2'. exists m2'. 
   split; auto. 
      eapply corestep_plus_trans. 
-         apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+         apply corestep_plus_one. constructor.
          simpl. apply A.
 Qed.
 
@@ -1025,16 +1043,16 @@ Proof.
   eexists; split.
       econstructor; eauto.
   intros. eapply corestep_plus_trans. 
-                   apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
-                   simpl.  apply corestep_plus_one. eapply CompCertStep_CMin_corestep.  constructor. reflexivity.
+                   apply corestep_plus_one. constructor. 
+                   simpl.  apply corestep_plus_one. constructor. 
 (*2*)
   monadInv H. exploit IHls; eauto. intros [k' [A B]]. 
   eexists; split.
       econstructor; eauto.
   intros. eapply corestep_plus_star_trans. eauto. 
   eapply corestep_star_trans. 
-      apply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
-      simpl. apply corestep_star_one. eapply CompCertStep_CMin_corestep.  constructor. reflexivity. 
+      apply corestep_star_one. constructor.
+      simpl. apply corestep_star_one. constructor.
 Qed.
 
 Lemma MS_switch_ascent:
@@ -1063,9 +1081,9 @@ Proof.
   rewrite switch_table_shift.
   exists k2; split; try exact B.
   eapply corestep_star_trans.
-        eapply corestep_star_one.  eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+        eapply corestep_star_one. constructor.
         simpl. eapply corestep_star_trans.
-          eapply corestep_star_one.  eapply CompCertStep_CMin_corestep'. econstructor. reflexivity. 
+          eapply corestep_star_one. econstructor. 
           apply A. 
 Qed.
 
@@ -1087,14 +1105,14 @@ Proof.
 (*1*)
   inv TK. econstructor; eexists; split. 
      eapply corestep_plus_trans.
-         eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
-         simpl. eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+         eapply corestep_plus_one. constructor. 
+         simpl. eapply corestep_plus_one. constructor.
     simpl. eapply matchInj_state; eauto.
 (*2*) 
   inv TK. econstructor; eexists; split.
      eapply corestep_plus_trans.
-         eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
-         simpl. eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity. 
+         eapply corestep_plus_one. constructor. 
+         simpl. eapply corestep_plus_one. constructor. 
     simpl. 
        eapply matchInj_state_seq; eauto.
         simpl. eapply  switch_match_cont; eauto. 
@@ -1129,7 +1147,7 @@ Proof. intros.
       eapply corestep_plus_star_trans.
           eapply B. 
       eapply corestep_star_trans.
-         eapply corestep_star_one. eapply CompCertStep_CMin_corestep'. constructor. eassumption. reflexivity. 
+         eapply corestep_star_one. constructor. eassumption. 
       simpl.
         eapply corestep_star_trans.
          apply C.
@@ -1154,7 +1172,7 @@ exists c2' : CMin_core,
 Proof. intros.
   exploit match_callstack_freelist; eauto. intros [tm' [A [B C]]].
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eapply step_return_0. eauto. reflexivity. 
+     apply corestep_plus_one. eapply cmin_corestep_return_0. eauto. 
   simpl in *.
     econstructor; eauto. eapply match_call_cont; eauto.
 Qed.
@@ -1179,7 +1197,7 @@ Proof. intros.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
   exploit match_callstack_freelist; eauto. intros [tm' [A [B C]]].
   eexists; eexists; split.
-     apply corestep_plus_one. eapply CompCertStep_CMin_corestep'. eapply step_return_1. eauto. eauto. reflexivity. 
+     apply corestep_plus_one. eapply cmin_corestep_return_1. eauto. eauto. 
   simpl in *.
     econstructor; eauto. eapply match_call_cont; eauto.
 Qed.
@@ -1199,7 +1217,7 @@ exists c2' : CMin_core,
       match_cores (CSharpMin_State f s k e lenv)  j (CSharpMin_State f s k e lenv) m c2' m2'.
 Proof. intros.
   eexists; eexists; split.
-    eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. constructor. reflexivity.
+    eapply corestep_plus_one. constructor. 
   simpl.
   econstructor; eauto.
 Qed.
@@ -1222,7 +1240,7 @@ Proof. intros.
   exploit transl_find_label_body; eauto. 
   intros [ts' [tk' [xenv' [A [B C]]]]].
   eexists; eexists; split.
-    eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. apply step_goto. eexact A. reflexivity.
+    eapply corestep_plus_one. apply cmin_corestep_goto. eexact A. 
   simpl.
   econstructor; eauto.
 Qed.
@@ -1494,8 +1512,7 @@ Proof. intros.
   exists tm'.
   split.
     eapply corestep_plus_one. simpl. 
-    econstructor.
-    constructor. assumption. reflexivity.
+    econstructor. assumption. reflexivity.
   exists j'. split. assumption.
   split. assumption. 
   econstructor. eexact TRBODY. eauto. eexact MINJ2. 
@@ -1522,7 +1539,7 @@ exists c2' : CMin_core,
 Proof. intros.
   inv MK. simpl.
   eexists; eexists; split.
-       eapply corestep_plus_one. eapply CompCertStep_CMin_corestep'. econstructor; eauto. reflexivity.
+       eapply corestep_plus_one. econstructor; eauto.
   simpl.
   unfold set_optvar. destruct optid; simpl option_map; econstructor; eauto.              
          eapply match_callstack_set_temp; eauto. 
@@ -1542,17 +1559,14 @@ match_cores c1 j c1 m1 c2 m2 ->
 (MC_measure c1' < MC_measure c1)%nat /\ match_cores c1' j c1' m1' c2 m2.
 Proof.
   intros. unfold core_data in *.
-   destruct (CSharpMin_corestep_2_CompCertStep _ _ _ _ _ H) as [t Ht]. simpl in *.
-  apply CSharpMin_corestep_not_at_external in H.
+  assert (NE:= CSharpMin_corestep_not_at_external _ _ _ _ _ H).
    assert (PG:= match_cores_genvs _ _ _ _ _ _ H0).
    apply MC_MSI in H0. rename H0 into MSTATE.
-   inv Ht; simpl in *.
+   inv H; simpl in *.
   (*skip seq*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3.
       inv MSTATE; simpl in *. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
       destruct (MS_step_case_SkipSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
         TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
@@ -1560,11 +1574,9 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*skip Block*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE; simpl in *. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
       destruct (MS_step_case_SkipBlock _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
         TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
@@ -1572,119 +1584,95 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*skip Call*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H10.
+      destruct c2; simpl in *; try inv H9.
       destruct (MS_step_case_SkipCall  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H2 H4 TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 H1 TRF MINJ MK MCS PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
    (*assign*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H9.
+      destruct c2; simpl in *; try inv H8.
       rename  m1' into m'. rename m' into m. 
       rename m2 into tm. rename k0 into tk.
       rename f0 into tfn. rename e0 into te.
-      rename le0 into lenv. 
+      rename le into lenv. 
       destruct (MS_step_case_Assign  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        id H3 TRF MINJ MK MCS EQ PG) as [c2' [m2' [cstepPlus MS]]].
+        id H0 TRF MINJ MK MCS EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
    (*set case has disappeared*)
    (*store*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H11.
+      destruct c2; simpl in *; try inv H10.
       rename f0 into tfn. rename m1 into m. rename m2  into tm.
       rename e0 into te. rename k0 into tk. rename  m1' into m'.
       destruct (MS_step_case_Store _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H5 H2 H3 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlus MS]]].
+        H2 H0 H1 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
    (*call*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE; simpl in *.
       monadInv TR.
-      destruct c2; simpl in *; try inv H11. 
-      rename f into fd. rename f0 into f. rename f1 into tfn.
-      rename m1' into m. rename m2  into tm. rename e into te.
-      rename e0 into e.  rename k0 into tk. rename  le0 into le.
+      destruct c2; simpl in *; try inv H10. 
       destruct (MS_step_case_Call _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        optid _ _ H2 H3 H4 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlusMS]]].
+        optid _ _ H0 H1 H2 TRF MINJ MCS MK EQ EQ1 PG) as [c2' [m2' [cstepPlusMS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
   (*builtin*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1.
       inv MSTATE; simpl in *. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H10.
-      rename f0 into tfn. 
-      rename m1 into m. rename m2  into tm. rename e into te.
-      rename e0 into e.  rename k0 into tk. rename  le0 into le.  rename m1' into m'.
+      destruct c2; simpl in *; try inv H9.
       destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ optid 
-        _ _ _ _ H2 H4 TRF MINJ MCS MK EQ PG) 
+        _ _ _ _ H0 H1 TRF MINJ MCS MK EQ PG) 
         as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
       left. exists c2'. exists m2'.  exists j'. auto.
   (* seq *)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
-     rename k0 into k.
       inv MSTATE. 
       (*Case 1*) 
          monadInv TR. left.
-         destruct c2; simpl in *; try inv H8.
+         destruct c2; simpl in *; try inv H7.
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
          exists  (CMin_State tfn x (Kseq x0 tk) (Vptr sp Int.zero) te). exists m2. 
          exists j. 
                 split. apply inject_incr_refl.
                 split. apply inject_separated_same_meminj.
                 split; simpl.
-                    eapply corestep_plus_one.  
-                    eapply CompCertStep_CMin_corestep.  
-                    econstructor; eauto. reflexivity. 
+                    eapply corestep_plus_one.
+                    econstructor; eauto.
                 econstructor; eauto.
                           econstructor; eauto.
       (* seq 2 *) 
-         destruct c2; simpl in *; try inv H9.
+         destruct c2; simpl in *; try inv H8.
          right. split. omega.
                    econstructor; eauto.
 (* ifthenelse *)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H10. 
+      destruct c2; simpl in *; try inv H9. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm. 
       destruct (MS_step_case_Ite _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H2 H4 TRF MINJ MCS MK EQ EQ1 EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 H1 TRF MINJ MCS MK EQ EQ1 EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
   (*loop*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm. 
       destruct (MS_step_case_Loop _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
@@ -1694,13 +1682,11 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*block*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
-      rename m1' into m. rename m2  into tm.  rename s0 into s.
+      rename m1' into m. rename m2  into tm.
       destruct (MS_step_case_Block _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
         TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
@@ -1708,11 +1694,9 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*exit seq*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
       destruct (MS_step_case_ExitSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ n _ 
@@ -1722,11 +1706,9 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*exit block 0*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
       destruct (MS_step_case_ExitBlockZero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
@@ -1736,11 +1718,9 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*exit block n+1*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
          rename f0 into tfn. rename e0 into te. rename k0 into tk.
       rename m1' into m. rename m2  into tm.
       destruct (MS_step_case_ExitBlockNonzero _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
@@ -1750,58 +1730,50 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*switch*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H9. 
+      destruct c2; simpl in *; try inv H8. 
          rename f0 into tfn.  rename e0 into te.
          rename k0 into tk. rename m1' into m. rename m2  into tm.  rename s into ts.
       destruct (MS_step_case_Switch _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H3 TRF MINJ MCS MK EQ EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 TRF MINJ MCS MK EQ EQ0 PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
   (*return none*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H9. 
+      destruct c2; simpl in *; try inv H8. 
        rename f into tfn.  rename f0 into f. rename e into te. rename e0 into e.
          rename k0 into tk. rename m1 into m. rename m2  into tm. 
-         rename m1'  into m'.  rename le0 into le.
+         rename m1'  into m'. 
       destruct (MS_step_case_ReturnNone _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
-  (*return some*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
+  (*return some*) 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H10. 
+      destruct c2; simpl in *; try inv H9. 
        rename f into tfn.  rename f0 into f. rename e into te. 
          rename e0 into e. rename k into tk.
          rename k0 into k. rename m1 into m. rename m2  into tm. 
-         rename m1'  into m'.  rename le0 into le. rename v0 into v.
+         rename m1'  into m'.
       destruct (MS_step_case_ReturnSome _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H2 H4 TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 H1 TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
   (*label*)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H8. 
+      destruct c2; simpl in *; try inv H7. 
        rename f0 into tfn. rename e0 into te. 
-         rename k0 into tk. rename m1' into m. rename m2  into tm. rename s0 into s.  
+         rename k0 into tk. rename m1' into m. rename m2  into tm. 
       destruct (MS_step_case_Label _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
         lbl _ _ TRF MINJ MCS MK EQ PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
@@ -1809,47 +1781,37 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*goto*)
-      destruct c1; simpl in *; try inv H0. 
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H9. 
+      destruct c2; simpl in *; try inv H8. 
        rename f0 into tfn. rename e0 into te. 
-         rename k1 into tk. rename s into s'.  rename k into k'. 
-         rename k0 into k. rename m1' into m. rename m2  into tm.
+        rename m1' into m. rename m2  into tm.
       destruct (MS_step_case_Goto _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H3 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
+        H0 TRF MINJ MCS MK PG) as [c2' [m2' [cstepPlus MS]]].
       left. exists c2'. exists m2'. exists j.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
 (* internal call *) 
-      destruct c1; simpl in *; try inv H0.
-      destruct c1'; simpl in *; try inv H1. 
       inv MSTATE. 
       monadInv TR.
-      destruct c2; simpl in *; try inv H11. 
+      destruct c2; simpl in *; try inv H10. 
       rename m1 into m. rename m2 into tm.
-      rename f0 into f. rename e0 into e.
-      rename m1' into m1. rename args into vargs.
-      rename k0 into tk. rename le0 into lenv.
-      rename args0 into targs.
+      rename m1' into m1.
+      rename k0 into tk.
       destruct (MS_step_case_InternalCall _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-        H2 H3 H4 H5 H7 MINJ MCS MK ISCC ARGSINJ EQ PG) 
+        H0 H1 H2 H3 H4 MINJ MCS MK ISCC ARGSINJ EQ PG) 
         as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
       left. exists c2'. exists m2'. exists j'. auto.
 (* external call *)
-      destruct c1; simpl in *; try inv H0. inv H. 
    (*nothing to show here - cf corestep not at external *) 
 
 (* return *)
-      destruct c1; simpl in *; try inv H1. 
-      destruct c1'; simpl in *; try inv H3. 
       inv MSTATE. 
-      destruct c2; simpl in *; try inv H5.
-      rename m1' into m. rename m2 into tm. rename f0 into f.
-      rename e0 into e. rename k into tk. rename k0 into k.
-      rename v into tv. rename v0 into v.
+      destruct c2; simpl in *; try inv H4.
+      rename m1' into m. rename m2 into tm. 
+      rename k into tk. rename k0 into k.
+      rename v0 into tv.
       destruct (MS_step_case_Return _ _ _ _ _ _ _ _ _ _ _ 
         tv optid MINJ MCS MK RESINJ PG) as [c2' [m2' [cstepPlus MS]]]. 
       left. exists c2'. exists m2'. exists j.

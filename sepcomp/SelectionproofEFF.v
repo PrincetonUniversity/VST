@@ -60,111 +60,6 @@ Proof.
 Qed.
 *)
 
-(*New Lemma, based on (proof of) Mem.alloc_parallel_inject*)
-Theorem alloc_parallel_intern:
-  forall mu m1 m2 lo1 hi1 m1' b1 lo2 hi2 
-        (SMV: sm_valid mu m1 m2) (WD: SM_wd mu),
-  Mem.inject (as_inj mu) m1 m2 ->
-  Mem.alloc m1 lo1 hi1 = (m1', b1) ->
-  lo2 <= lo1 -> hi1 <= hi2 ->
-  exists mu', exists m2', exists b2,
-  Mem.alloc m2 lo2 hi2 = (m2', b2)
-  /\ Mem.inject (as_inj mu') m1' m2'
-  /\ intern_incr mu mu'
-  /\ as_inj mu' b1 = Some(b2, 0)
-  /\ (forall b, b <> b1 -> as_inj mu' b = as_inj mu b)
-  /\ sm_inject_separated mu mu' m1 m2 
-  /\ sm_locally_allocated mu mu' m1 m2 m1' m2'
-  /\ SM_wd mu' /\ sm_valid mu' m1' m2' /\
-  (REACH_closed m1 (vis mu) -> REACH_closed m1' (vis mu')). 
-Proof.
-  intros.
-  case_eq (Mem.alloc m2 lo2 hi2). intros m2' b2 ALLOC.
-  exploit Mem.alloc_left_mapped_inject. 
-  eapply Mem.alloc_right_inject; eauto.
-  eauto.
-  instantiate (1 := b2). eauto with mem.
-  instantiate (1 := 0). unfold Int.max_unsigned. generalize Int.modulus_pos; omega.
-  auto.
-  intros. apply Mem.perm_implies with Freeable; auto with mem.
-  eapply Mem.perm_alloc_2; eauto. omega.
-  red; intros. apply Zdivide_0.
-  intros. eapply Mem.fresh_block_alloc; try eassumption.
-          eapply SMV. eapply as_inj_DomRng in H3. eapply H3. assumption. 
-  intros [j' [A [B [C D]]]].
-  exists (alloc_left_sm (alloc_right_sm mu b2) b1 b2 0).
-  assert (WDr: SM_wd (alloc_right_sm mu b2)).
-    eapply alloc_right_sm_wd; try eassumption.
-      remember (DomTgt mu b2) as d.
-      destruct d; trivial. apply eq_sym in Heqd.
-      exfalso. apply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC). 
-                 apply SMV. apply Heqd.
-  assert (DomSP:= alloc_DomSrc _ _ _ SMV _ _ _ _ H0).
-  assert (TgtB2: DomTgt mu b2 = false).
-    remember (DomTgt mu b2) as d.
-    destruct d; trivial; apply eq_sym in Heqd.
-    elim (Mem.fresh_block_alloc _ _ _ _ _ ALLOC).
-      apply SMV. assumption.
-  exists m2'; exists b2; auto.
-  assert (J': (as_inj (alloc_left_sm (alloc_right_sm mu b2) b1 b2 0)) = j').
-    extensionality b.
-     destruct (eq_block b b1); subst.
-        rewrite alloc_left_sm_as_inj_same, C; trivial.
-     rewrite alloc_left_sm_as_inj_other; trivial.
-        rewrite alloc_right_sm_as_inj. rewrite <- (D _ n). trivial.
-  rewrite J'. intuition.
-  split; simpl; intuition.
-  red; intros.
-       destruct (eq_block b b1); subst.
-         assert (DomSrc mu b1 = true).
-           eapply as_inj_DomRng. eapply local_in_all; eassumption.
-           assumption.
-         congruence. 
-       assumption.
-(*inject_separated*)
-  red. split; intros.
-    destruct (eq_block b0 b1); subst.
-      rewrite alloc_left_sm_as_inj_same in H4. inv H4.
-      split; trivial.
-      trivial.
-      rewrite alloc_right_sm_DomSrc. assumption.
-    rewrite (D _ n) in H4. congruence.
-  split; intros. rewrite alloc_left_sm_DomSrc, alloc_right_sm_DomSrc in H4.
-    destruct (eq_block b0 b1); subst; simpl in *.
-      eapply (Mem.fresh_block_alloc _ _ _ _ _ H0).
-    congruence.
-  rewrite alloc_left_sm_DomTgt, alloc_right_sm_DomTgt in H4.
-    destruct (eq_block b0 b2); subst; simpl in *.
-      eapply (Mem.fresh_block_alloc _ _ _ _ _ ALLOC).
-    congruence.
-(*locally_separated*)
-  rewrite sm_locally_allocatedChar. unfold DomSrc, DomTgt.
-  rewrite (freshloc_alloc _ _ _ _ _ H0).
-  rewrite (freshloc_alloc _ _ _ _ _ ALLOC).
-  destruct mu; simpl. intuition.
-    extensionality b. rewrite <- orb_assoc. rewrite orb_comm. trivial.
-    extensionality b. rewrite <- orb_assoc. rewrite orb_comm. trivial.
-    extensionality b. rewrite orb_comm. trivial.
-    extensionality b. rewrite orb_comm. trivial.
-(*SM_wd*)
-  eapply alloc_left_sm_wd. assumption. apply DomSP. 
-   destruct mu; simpl. destruct (eq_block b2 b2); try reflexivity.
-   elim n; trivial.
-(*sm_valid*)
-  split; intros. unfold DOM in H3. rewrite alloc_left_sm_DomSrc in H3.
-    destruct (eq_block b0 b1); simpl in *; subst.
-       eapply (Mem.valid_new_block _ _ _ _ _ H0).
-     eapply (Mem.valid_block_alloc _ _ _ _ _ H0).
-       eapply SMV. apply H3.
-  unfold RNG in H3. rewrite alloc_left_sm_DomTgt, alloc_right_sm_DomTgt in H3.
-    destruct (eq_block b0 b2); simpl in *; subst.
-       eapply (Mem.valid_new_block _ _ _ _ _ ALLOC).
-     eapply (Mem.valid_block_alloc _ _ _ _ _ ALLOC).
-       eapply SMV. apply H3.
-(*REACH_closed*)
-  eapply REACH_closed_alloc_left_sm; eassumption.
-Qed.
-
 Section PRESERVATION.
 
 Variable prog: Cminor.program.
@@ -344,19 +239,19 @@ Proof.
   eapply eval_Eload; eauto. 
 Qed.
 
-Lemma eval_store:
+Lemma eval_coopstore:
   forall chunk a1 a2 v1 v2 f k m',
   eval_expr tge sp e m nil a1 v1 ->
   eval_expr tge sp e m nil a2 v2 ->
   Mem.storev chunk m v1 v2 = Some m' ->
-  step tge (State f (store chunk a1 a2) k sp e m)
-        E0 (State f Sskip k sp e m').
+  coopstep tge (CMinSel_State f (store chunk a1 a2) k sp e) m
+        (CMinSel_State f Sskip k sp e) m'.
 Proof.
   intros. generalize H1; destruct v1; simpl; intro; try discriminate.
   unfold store.
   generalize (eval_addressing _ _ _ _ _ chunk _ _ _ _ H (refl_equal _)).
   destruct (addressing chunk a1). intros [vl [EV EQ]]. 
-  eapply step_store; eauto. 
+  eapply cminsel_corestep_store; eauto. 
 Qed.
 
 Lemma eval_effstore:
@@ -503,7 +398,7 @@ Ltac TrivialExists :=
   | _ => idtac
   end.
 
-Goal (*Lemma eval_unop_lessdef:*)
+(*Lemma eval_unop_lessdef:
   forall op v1 v1' v,
   eval_unop op v1 = Some v -> Val.lessdef v1 v1' ->
   exists v', eval_unop op v1' = Some v' /\ Val.lessdef v v'.
@@ -511,7 +406,7 @@ Proof.
   intros until v; intros EV LD. inv LD. 
   exists v; auto.
   destruct op; simpl in *; inv EV; TrivialExists.
-Qed.
+Qed.*)
 
 (** Lenb: replace eval_unop_lessdef with eval_unop from
     Cminorgenproof; this requires the additio of Require Import Float above
@@ -552,7 +447,7 @@ Proof.
   inv H0; simpl in H; inv H. simpl. TrivialExists.
 Qed.
 
-Goal (*Lemma eval_binop_lessdef:*)
+(*Lemma eval_binop_lessdef:
   forall op v1 v1' v2 v2' v m m',
   eval_binop op v1 v2 m = Some v -> 
   Val.lessdef v1 v1' -> Val.lessdef v2 v2' -> Mem.extends m m' ->
@@ -568,7 +463,7 @@ Proof.
   intros. apply Val.cmpu_bool_lessdef with (Mem.valid_pointer m) v1 v2; auto.
   intros; eapply Mem.valid_pointer_extends; eauto.
 Qed.
-
+*)
 (** Lenb: same for binops
     Compatibility of [eval_binop] with respect to [val_inject]. *)
 
@@ -758,6 +653,7 @@ Proof. intros.
   apply Hv. rewrite getBlocks_char. exists i; left. reflexivity.
   apply eq_sym. apply Int.add_zero. 
 Qed.
+(*
 Lemma inject_lessdef: forall v j
    (Hv: forall b1, getBlocks (v::nil) b1 = true -> 
                    j b1 = Some(b1,0))
@@ -768,7 +664,7 @@ Proof. intros.
     rewrite Int.add_zero. constructor.
   rewrite getBlocks_char. exists ofs1; left. reflexivity.
 Qed.
-
+*)
 (** Semantic preservation for expressions. *)
 
 (*NEW*)
@@ -1260,21 +1156,14 @@ Lemma Match_corestep: forall (GDE : genvs_domain_eq ge tge)
      sm_valid mu' m1' m2'.
 Proof.
   intros. 
-   destruct (CMin_corestep_2_CompCertStep _ _ _ _ _ CS) as [t Ht].
-   simpl in *.
-   apply CMin_corestep_not_at_external in CS.
-   inv Ht; simpl in *.
+   inv CS; simpl in *.
   (*skip seq*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
-      inv SMC; simpl in *. inv H8.
+      inv SMC; simpl in *; inv H8. 
       eexists. eexists.
       split. left.  
-         apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
-           simpl. econstructor; eauto. reflexivity. 
-            reflexivity. reflexivity. 
+         apply corestep_plus_one.
+           econstructor; eauto. 
       simpl. exists mu; intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -1285,16 +1174,12 @@ Proof.
         econstructor; eauto.
         intuition.
   (*skip block*)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. inv H8.
       eexists. eexists.
       split. left.  
          apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
-           simpl. econstructor; eauto. reflexivity. 
-            reflexivity. reflexivity. 
+           econstructor; eauto. 
       simpl. exists mu; intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -1305,10 +1190,8 @@ Proof.
         econstructor; eauto.
         intuition.
   (* skip call *)
-      destruct st1; simpl in *; inv H.
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
-      inv SMC; simpl in *.
+      inv SMC; simpl in *. 
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
       destruct H13 as [spp [i [spp' [X [X' Jsp]]]]]. inv X.
       rename spp into sp. rename spp' into sp'.
@@ -1318,10 +1201,8 @@ Proof.
       simpl in A. rewrite Zplus_0_r in A.
       eexists. eexists.
       split. left.  
-         apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
+         apply corestep_plus_one.  
            econstructor; eauto. inv H10; trivial.
-            reflexivity. reflexivity. reflexivity. 
       simpl. exists mu.
       assert (SMV': sm_valid mu m1' m2').
         split; intros;
@@ -1334,10 +1215,11 @@ Proof.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
         rewrite (freshloc_free _ _ _ _ _  A).
-        rewrite (freshloc_free _ _ _ _ _  H3).
+        rewrite (freshloc_free _ _ _ _ _  H0).
         repeat split; extensionality b; intuition.
       econstructor.
-        econstructor; eauto. eapply free_free_inject; try eassumption.
+        econstructor; eauto. 
+            eapply free_free_inject; try eassumption.
           simpl; rewrite Zplus_0_r. assumption.
         (*another proof of this Mem.inject fact is this:
             eapply inject_mapped; try eassumption.
@@ -1349,8 +1231,6 @@ Proof.
         destruct (restrictD_Some _ _ _ _ _ Jsp). 
         eapply free_free_inject; eassumption. *)
   (* assign *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1363,9 +1243,7 @@ Proof.
       eexists; eexists. 
       split. left.
          apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
-           simpl. econstructor; eauto. 
-            reflexivity. reflexivity. reflexivity. 
+           econstructor; eauto. 
       simpl. exists mu. intuition.
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -1375,13 +1253,11 @@ Proof.
       econstructor.
         econstructor; trivial. 
           red; intros. rewrite PTree.gsspec in *. destruct (peq id0 id).
-            inv H. exists v'; auto.
+            inv H0. exists v'; auto.
             eauto.
           (*WAS:apply set_var_lessdef; auto.*)
       intuition.
   (* store *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1390,19 +1266,17 @@ Proof.
         eapply restrict_sm_preserves_globals; try eassumption.
           unfold vis. intuition.  
       (*WAS:exploit sel_expr_correct.*)
-      exploit sel_expr_inject. eexact H1. eauto. eauto. assumption. assumption.
+      exploit sel_expr_inject. eexact H. eauto. eauto. assumption. assumption.
           assumption. eassumption. intros [vaddr' [A B]].
       (*WAS: exploit sel_expr_correct.*) 
-      exploit sel_expr_inject. eexact H2. eauto. eauto. assumption. assumption.
+      exploit sel_expr_inject. eexact H0. eauto. eauto. assumption. assumption.
           assumption. eassumption. intros [v' [C D]].
       (*WAS:exploit Mem.storev_extends; eauto. intros [m2' [P Q]].*)
       exploit Mem.storev_mapped_inject; eauto. intros [m2' [P Q]]. 
       eexists; eexists. 
       split. left.
          apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
-            eapply eval_store; eauto. 
-            reflexivity. reflexivity. reflexivity. 
+            eapply eval_coopstore; eauto. 
       simpl. exists mu.
       assert (SMV': sm_valid mu m1' m2').
         split; intros; 
@@ -1414,15 +1288,15 @@ Proof.
       apply sm_locally_allocatedChar.
         repeat split; extensionality b; 
           try rewrite (store_freshloc _ _ _ _ _ P);
-          try rewrite (store_freshloc _ _ _ _ _ H4); intuition.
+          try rewrite (store_freshloc _ _ _ _ _ H1); intuition.
       econstructor.
         econstructor; trivial. 
       intuition.
-      destruct vaddr; inv H4.
+      destruct vaddr; inv H1.
         eapply REACH_Store; try eassumption. 
           inv B. destruct (restrictD_Some _ _ _ _ _ H4); trivial.
-          intros. rewrite getBlocks_char in H. destruct H.
-                  destruct H; try contradiction. subst.   
+          intros b' Hb'. rewrite getBlocks_char in Hb'. destruct Hb' as [off Hoff].
+                  destruct Hoff; try contradiction. subst.   
                   inv D. destruct (restrictD_Some _ _ _ _ _ H4); trivial.
       assert (VaddrMu: val_inject (as_inj mu) vaddr vaddr').
         eapply val_inject_incr; try eassumption.
@@ -1431,11 +1305,9 @@ Proof.
         eapply val_inject_incr; try eassumption.
         apply restrict_incr. 
       destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ 
-          INJ H4 VaddrMu VMu) as [mm [Hmm1 Hmm2]].
+          INJ H1 VaddrMu VMu) as [mm [Hmm1 Hmm2]].
       rewrite Hmm1 in P. inv P. assumption.
   (* Scall *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1452,13 +1324,11 @@ Proof.
        (*exploit sel_expr_correct; eauto.*) intros [vf' [A B]].
        eexists; eexists. 
        split. left. 
-         apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
+         apply corestep_plus_one.  
             econstructor. econstructor; eauto. apply C. 
             eapply functions_translated; eauto.
             eapply restrict_GFP_vis; eassumption.
              apply sig_function_translated.
-            reflexivity. reflexivity. reflexivity. 
        simpl. exists mu. intuition.
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1478,12 +1348,10 @@ Proof.
        eexists; eexists. 
        split. left. rewrite <- symbols_preserved in U. 
          apply corestep_plus_one. 
-           eapply CompCertStep_CMinSel_corestep'. 
             econstructor. econstructor; eauto. apply C. 
             eapply functions_translated; eauto.
             eapply restrict_GFP_vis; eassumption.
-            apply sig_function_translated.
-         reflexivity. reflexivity. reflexivity. 
+            apply sig_function_translated. 
        simpl. exists mu. intuition.
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1495,7 +1363,7 @@ Proof.
            exists spb, i, spb'. intuition.
          intuition. 
      (* turned into Sbuiltin *)
-       intros EQ. subst f.  
+       intros EQ. subst fd.  
        eexists; eexists. 
        split. right. split. omega.
            eapply corestep_star_zero. 
@@ -1509,8 +1377,6 @@ Proof.
          eapply match_builtin_1; try eassumption. 
          intuition.
   (* Stailcall *) 
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1532,24 +1398,20 @@ Proof.
         apply corestep_plus_one. 
         exploit classify_call_correct; eauto.    
         destruct (classify_call ge a) as [ | id | ef]; intros.
-          eapply CompCertStep_CMinSel_corestep'. 
             econstructor. econstructor; eauto. apply C. 
             eapply functions_translated; eauto. 
             apply sig_function_translated.
             eassumption.
-            reflexivity. reflexivity. reflexivity.
-        destruct H4 as [b [U V]]. 
-          eapply CompCertStep_CMinSel_corestep'. 
+        destruct H5 as [b [U V]].  
             econstructor; eauto. econstructor; eauto.
             rewrite symbols_preserved; eauto.
             eapply functions_translated; eauto. subst vf; auto.
-            rewrite Genv.find_funct_find_funct_ptr in H3.
-               destruct (GFPR _ _ H3).
-               inv B. rewrite H9 in H4; inv H4. eauto.
+            rewrite Genv.find_funct_find_funct_ptr in H1.
+               destruct (GFPR _ _ H1).
+               inv B. rewrite H9 in H5; inv H5. eauto.
             apply sig_function_translated.
-            reflexivity. reflexivity. reflexivity.
         simpl. econstructor; auto. econstructor; auto. 
-           econstructor; auto. eassumption. 
+           eassumption. 
             eapply functions_translated; eauto.
             apply sig_function_translated.
        exists mu. simpl.
@@ -1562,7 +1424,7 @@ Proof.
        apply sm_inject_separated_same_sminj.
        apply sm_locally_allocatedChar.
         rewrite (freshloc_free _ _ _ _ _  P).
-        rewrite (freshloc_free _ _ _ _ _  H6).
+        rewrite (freshloc_free _ _ _ _ _  H3).
         repeat split; extensionality bb; intuition.
        assert (RC': REACH_closed m1' (vis mu)).
          eapply REACH_closed_free; eassumption.
@@ -1575,8 +1437,6 @@ Proof.
              apply restrict_incr.             
          intuition.
   (* Sbuiltin *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1590,11 +1450,10 @@ Proof.
       intros [j' [vres' [m2' [EXCALL2 [InjRes [Minj' [Unch1 [Unch2 [INC SEP]]]]]]]]].
       eexists; eexists. 
       split. left.
-        apply corestep_plus_one.
-          eapply CompCertStep_CMinSel_corestep'. 
-          econstructor. eauto. eapply external_call_symbols_preserved; eauto.
+        apply corestep_plus_one. 
+          econstructor. eauto.
+          eapply external_call_symbols_preserved; eauto.
           exact symbols_preserved. exact varinfo_preserved.
-        reflexivity. reflexivity. reflexivity.
       simpl.
       remember (sm_add_intern (restrict_sm mu (vis mu)) j' (freshloc m1 m1') (freshloc m2 m2')) as mu'.
 (*      exists mu'.
@@ -1763,8 +1622,6 @@ intern_incr mu mu'
       constructor; intuition.
        constructor; eauto.*)
   (* Seq *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [Glob [SMV [WD INJ]]]]].
@@ -1775,8 +1632,7 @@ intern_incr mu mu'
       eexists; eexists. 
       split. left.
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
-            econstructor. reflexivity. reflexivity. reflexivity.
+            econstructor. 
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1787,8 +1643,6 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
          intuition.
   (* Sifthenelse *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1799,15 +1653,13 @@ intern_incr mu mu'
       exploit sel_expr_inject; eauto. intros [v' [A B]].
       destruct H13 as [spb [i [spb' [X [Y Hsp]]]]]; subst.
       assert (Val.bool_of_val v' b). 
-        inv H3; inv B; econstructor.
+        inv H0; inv B; econstructor.
       exists (CMinSel_State (sel_function hf ge f) 
            (if b then sel_stmt hf ge s1 else sel_stmt hf ge s2) k' (Vptr spb' i) e').
       exists m2.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto. eapply eval_condexpr_of_expr; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1819,16 +1671,12 @@ intern_incr mu mu'
          exists spb, i, spb'. split; trivial. split; trivial.
        intuition.
   (* Sloop *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1839,16 +1687,12 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
        intuition.
   (* Sblock *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1859,16 +1703,12 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
        intuition.
   (* Sexit_seq *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. inv H8.
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1879,16 +1719,12 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
        intuition.
   (* Sexit0_block *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. inv H8.
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1899,16 +1735,12 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
        intuition.
   (* Sexit_seq *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. inv H8.
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1919,8 +1751,6 @@ intern_incr mu mu'
          econstructor; eauto. econstructor; eauto. 
        intuition.
   (* Sswitch *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1932,9 +1762,7 @@ intern_incr mu mu'
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1945,8 +1773,6 @@ intern_incr mu mu'
          econstructor; eauto. 
        intuition.
  (* Sreturn None *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1962,9 +1788,7 @@ intern_incr mu mu'
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl.
       assert (SMV': sm_valid mu m1' m2').
         split; intros;
@@ -1975,7 +1799,7 @@ intern_incr mu mu'
        apply sm_inject_separated_same_sminj.
        apply sm_locally_allocatedChar.
          rewrite (freshloc_free _ _ _ _ _  P).
-         rewrite (freshloc_free _ _ _ _ _  H2).
+         rewrite (freshloc_free _ _ _ _ _  H).
          repeat split; extensionality bb; intuition.
        constructor.
          constructor; auto. 
@@ -1986,8 +1810,6 @@ intern_incr mu mu'
         eapply free_free_inject; try eassumption.
           simpl.  rewrite Zplus_0_r. apply P. 
   (* Sreturn Some *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -2004,9 +1826,7 @@ intern_incr mu mu'
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl.
       assert (SMV': sm_valid mu m1' m2').
         split; intros;
@@ -2017,7 +1837,7 @@ intern_incr mu mu'
        apply sm_inject_separated_same_sminj.
        apply sm_locally_allocatedChar.
          rewrite (freshloc_free _ _ _ _ _  P).
-         rewrite (freshloc_free _ _ _ _ _  H3).
+         rewrite (freshloc_free _ _ _ _ _  H0).
          repeat split; extensionality bb; intuition.
        constructor.
          constructor; auto. 
@@ -2028,8 +1848,6 @@ intern_incr mu mu'
         eapply free_free_inject; try eassumption. 
           simpl. rewrite Zplus_0_r. apply P. 
   (* Slabel *)
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -2040,9 +1858,7 @@ intern_incr mu mu'
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -2053,8 +1869,6 @@ intern_incr mu mu'
          econstructor; eauto. 
        intuition. 
   (* Sgoto *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -2062,18 +1876,17 @@ intern_incr mu mu'
         rewrite <- restrict_sm_all.
         eapply restrict_sm_preserves_globals; try eassumption.
           unfold vis. intuition. 
-      exploit (find_label_commut (restrict (as_inj mu) (vis mu)) lbl (Cminor.fn_body f) (Cminor.call_cont k0)).
+      exploit (find_label_commut (restrict (as_inj mu) (vis mu)) lbl 
+              (Cminor.fn_body f) (Cminor.call_cont k)).
         apply call_cont_commut; eauto.
-      rewrite H2. 
-      destruct (find_label lbl (sel_stmt hf ge (Cminor.fn_body f)) (call_cont k'))
+      rewrite H. 
+      destruct (find_label lbl (sel_stmt hf ge (Cminor.fn_body f)) (call_cont k'0))
           as [[s'' k'']|] eqn:?; intros; try contradiction.
       destruct H. 
       eexists; eexists.
       split. left. 
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       exists mu; simpl; intuition. 
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -2084,8 +1897,6 @@ intern_incr mu mu'
          econstructor; eauto. 
        intuition.
   (* internal function *)
-      destruct st1; simpl in *; try inv H. 
-      destruct st1'; simpl in *; try inv H0.
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -2099,11 +1910,9 @@ intern_incr mu mu'
       eexists; eexists.
       split. left.
         apply corestep_plus_one. 
-          eapply CompCertStep_CMinSel_corestep'.
             econstructor; eauto.
-            reflexivity. reflexivity. reflexivity.
       simpl.
-      assert (DomSP:= alloc_DomSrc _ _ _ SMV _ _ _ _ H1).
+      assert (DomSP:= alloc_DomSrc _ _ _ SMV _ _ _ _ H).
       assert (TgtB2: DomTgt mu b' = false).
         remember (DomTgt mu b') as d.
         destruct d; trivial; apply eq_sym in Heqd.
@@ -2131,7 +1940,7 @@ intern_incr mu mu'
          rewrite <- E in EXT.
          assert (DomSrc mu sp = true). eapply extern_DomRng'; eassumption.
          congruence.
-      destruct (local_DomRng _ H0 _ _ _ LOC). rewrite H6; trivial.
+      destruct (local_DomRng _ H1 _ _ _ LOC). rewrite H6; trivial.
   intuition.
     apply meminj_preserves_incr_sep_vb with (j:=as_inj mu)(m:=m1)(tm:=m2); try eassumption. 
       intros. apply as_inj_DomRng in H6.
@@ -2144,19 +1953,14 @@ intern_incr mu mu'
          eapply intern_incr_as_inj; eassumption.
     assert (FF: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply IntInc'.
       apply Glob in H6. rewrite <-FF; trivial.
-(* external call *) 
-      destruct st1; simpl in *; try inv H. 
-      discriminate. 
+(* external call  no case*) 
 (* return *) 
-      destruct st1; simpl in *; try inv H0. 
-      destruct st1'; simpl in *; try inv H. 
       destruct MC as [SMC PRE].
       inv SMC.
      inv H1.
   eexists; eexists. 
     split. left. eapply corestep_plus_one.
-          eapply CompCertStep_CMinSel_corestep'.
-          econstructor. reflexivity. reflexivity. reflexivity.
+          econstructor. 
     exists mu; simpl. intuition.
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
