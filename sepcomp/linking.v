@@ -163,6 +163,9 @@ Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
 Lemma callStack_size : callStackSize > 0.
 Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
 
+Lemma callStack_nonempty : nonempty stack.
+Proof. by case: stack=> //; case. Qed.
+
 End callStackDefs. 
 
 End callStack. End CallStack.
@@ -242,7 +245,6 @@ Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
 
 Lemma inContext_wf (stk : Stack.t (Core.t my_cores)) : 
   size stk > 1 -> wf_callStack stk -> wf_callStack (pop stk).
-
 Proof.
 rewrite/wf_callStack=> H1; move/andP=> [H2 H3]; apply/andP; split.
 - by apply: all_pop.

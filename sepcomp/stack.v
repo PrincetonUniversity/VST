@@ -24,6 +24,15 @@ Lemma peek_nonempty (stack : Stack.t T) :
   nonempty stack -> exists t, peek stack = Some t.
 Proof. by case: stack=>// a l _; exists a. Qed.
 
+Lemma nonempty_nempty (stack: Stack.t T) : nonempty stack -> [::] = stack -> T.
+Proof. by case: stack. Qed.
+
+Definition head (stack: Stack.t T) (pf: nonempty stack) : T :=
+  (match stack as s return (s = stack -> T) with 
+    | nil => fun pf' => nonempty_nempty pf pf'
+    | s :: stack' => fun pf' => s
+  end) erefl.
+
 Lemma all_pop (stack : Stack.t T) p : all p stack -> all p (pop stack).
 Proof. by case: stack=>//= a l; move/andP=> [H1 H2]. Qed.
 
@@ -34,6 +43,7 @@ End stackDefs. End StackDefs.
 Definition push      := StackDefs.push.
 Definition pop       := StackDefs.pop.
 Definition peek      := StackDefs.peek.
+Definition head      := StackDefs.head.
 Definition empty     := StackDefs.empty.
 Definition nonempty  := StackDefs.nonempty.
 Definition peek_nonempty := StackDefs.peek_nonempty.
