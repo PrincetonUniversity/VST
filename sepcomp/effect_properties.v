@@ -1323,6 +1323,128 @@ induction M; simpl in *; intros.
           eexists. eapply reach_cons; try eassumption.
 Qed.
 
+(*similar proof as Lemma REACH_Store. *)
+Lemma REACH_Storebytes: forall m b i bytes m'
+     (ST: Mem.storebytes m b (Int.unsigned i) bytes = Some m')
+     Roots (VISb: Roots b = true)
+     (VISv : forall b' z n, In (Pointer b' z n) bytes -> 
+             Roots b' = true)
+     (R: REACH_closed m Roots),
+     REACH_closed m' Roots.
+Proof. intros.
+intros bb Hbb.
+apply R. clear R.
+rewrite REACHAX.
+remember (Roots bb) as Rb. destruct Rb; apply eq_sym in HeqRb.
+  eexists. eapply reach_nil; trivial. 
+rewrite REACHAX in Hbb.
+destruct Hbb as [L HL].
+destruct (reachD'' _ _ _ _ HL) as [r [M [Rr [RCH HM]]]]; clear HL L.
+destruct (eq_block r b); subst. 
+(*we stored into the root of the access path to bb*)
+  clear VISb.
+  generalize dependent bb.
+  induction M; simpl in *; intros.
+  inv RCH. congruence. 
+  inv RCH.    
+  apply (Mem.perm_storebytes_2 _ _ _ _ _ ST) in H2.
+  remember (rev M) as rm.
+  destruct rm; simpl in *. destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+        inv Hzz1.
+        intuition. 
+        assert (M= nil). destruct M; trivial. 
+             assert (@length (block * Z) nil = length (rev (p :: M))). rewrite Heqrm; trivial.
+             rewrite rev_length in H3. simpl in H3. inv H3.
+        subst. simpl in *. clear H Heqrm H0 H1.
+          specialize (Mem.loadbytes_storebytes_same _ _ _ _ _ ST). intros LD.
+          apply loadbytes_D in LD. destruct LD.
+
+     rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST) in H4, H0. 
+          apply Mem.storebytes_range_perm in ST. (*destruct ST as [RP ALGN].*)
+          rewrite PMap.gss in H4.
+          destruct (zlt zz (Int.unsigned i)).
+            rewrite Mem.setN_outside in H4.
+            eexists. eapply reach_cons; try eassumption.
+                     apply reach_nil. assumption.
+            left; trivial. 
+          destruct (zlt zz ((Int.unsigned i) + Z.of_nat (length bytes))).
+          Focus 2.
+            rewrite Mem.setN_outside in H4.
+            eexists. eapply reach_cons; try eassumption.
+                     apply reach_nil. assumption.
+            right; trivial.
+          rewrite nat_of_Z_of_nat in H0. rewrite PMap.gss in H0.
+            remember ((Mem.setN bytes (Int.unsigned i)
+          (Mem.mem_contents m) !! b)) as c. apply eq_sym in H0.
+          specialize (getN_aux (length bytes) (Int.unsigned i) c).
+          assert (exists z, zz = Int.unsigned i + z /\ z>=0 /\ z < Z.of_nat(length bytes)).
+            exists (zz - Int.unsigned i). omega.
+          destruct H1 as [z [Z1 [Z2 Z3]]]. clear g l. subst zz.
+          rewrite <- (nat_of_Z_eq _ Z2) in H4.
+          assert (SPLIT: exists vl1 u vl2,
+                     bytes = vl1 ++ u :: vl2 /\
+                     length vl1 = nat_of_Z z).
+            eapply list_split.
+            specialize (Z2Nat.inj_lt z (Z.of_nat (length bytes))); intros.
+            rewrite Nat2Z.id in H1. apply H1. omega. omega.  assumption.
+          destruct SPLIT as [B1 [u [B2 [EE LL]]]].
+          rewrite EE in *. rewrite <- LL in H4.
+          intros. apply H1 in H0. clear H1.
+          rewrite <- H0 in H4. clear H0. subst u.
+          subst.
+          rewrite (VISv bb off n) in HeqRb. discriminate.
+             eapply in_or_app. right. left. trivial.
+  destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+    subst.
+    remember (Roots b') as q.
+    destruct q; apply eq_sym in Heqq.
+      assert (b' = b). apply (Hzz3 _ z Heqq). left; trivial.
+      subst. elim (Hzz2 z). apply in_or_app. right. left. trivial.
+    destruct (eq_block b' b); try congruence.
+        rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST) in H4.
+        rewrite PMap.gso in H4; trivial.
+        assert (Hb': exists L : list (block * Z),
+            reach m (fun bb0 : block => Roots bb0 = true) L b').
+          apply IHM; trivial. clear IHM.
+          exists zz. intuition.
+          eapply (Hzz2 zz0). apply in_or_app. left; trivial.
+          eapply (Hzz3 _ zx H). right; trivial.
+        destruct Hb' as [L HL].
+          eexists. eapply reach_cons; try eassumption.  
+(*we stored elsewhere*)
+generalize dependent bb.
+induction M; simpl in *; intros.
+  inv RCH. congruence. 
+  inv RCH.    
+  apply (Mem.perm_storebytes_2 _ _ _ _ _ ST) in H2.
+  rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST) in H4.
+  remember (rev M) as rm.
+  destruct rm; simpl in *. destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+        inv Hzz1.
+        rewrite PMap.gso in H4; trivial.
+        eexists. eapply reach_cons; try eassumption.
+           apply reach_nil. assumption.
+  destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
+    subst.
+    remember (Roots b') as q.
+    destruct q; apply eq_sym in Heqq.
+      assert (b' = r). apply (Hzz3 _ z Heqq). left; trivial.
+      subst. 
+        rewrite PMap.gso in H4; trivial.
+          eexists. eapply reach_cons; try eassumption.
+           apply reach_nil. assumption.
+    destruct (eq_block b' b); try congruence.
+        rewrite PMap.gso in H4; trivial.
+        assert (Hb': exists L : list (block * Z),
+            reach m (fun bb0 : block => Roots bb0 = true) L b').
+          apply IHM; trivial. clear IHM.
+          exists zz. intuition.
+          eapply (Hzz2 zz0). apply in_or_app. left; trivial.
+          eapply (Hzz3 _ zx H). right; trivial.
+        destruct Hb' as [L HL].
+          eexists. eapply reach_cons; try eassumption.
+Qed.
+
 Lemma REACH_load_vis: forall chunk m b i b1 ofs1
         (LD: Mem.load chunk m b (Int.unsigned i) = Some (Vptr b1 ofs1))
          mu (VIS: vis mu b = true),

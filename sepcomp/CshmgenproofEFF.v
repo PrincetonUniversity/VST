@@ -30,6 +30,25 @@ Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
+Lemma storebytes_freshloc: forall m b z bytes m'
+  (SB: Mem.storebytes m b z bytes = Some m'),
+  freshloc m m' = (fun _ : block => false).
+Proof. intros.
+  extensionality bb. apply freshloc_charF.
+  destruct (valid_block_dec m bb).
+    left; trivial. 
+  right; intros N. 
+  apply n. 
+  apply (Mem.storebytes_valid_block_2 _ _ _ _ _ SB _ N).
+Qed.
+
+Lemma assign_loc_freshloc: forall ty m b ofs v m' (AL:assign_loc ty m b ofs v m'),
+  freshloc m m' = fun b => false.
+Proof. intros.
+  inv AL. apply (store_freshloc _ _ _ _ _ H0).
+  apply (storebytes_freshloc _ _ _ _ _ H4).
+Qed. 
+
 (** * Properties of operations over types *)
 
 Remark transl_params_types:
@@ -2069,7 +2088,7 @@ Proof. intros.
      econstructor. eassumption. trivial. 
   destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ MInj H0 Jb V) as [m2' [ST' MInj']].
   exists m2'. split; trivial. eapply assign_loc_value; eassumption.
-(*By_copy*) Admitted. (*here - use alignof_blockcopy
+(*By_copy*) 
   assert (Jb: val_inject j (Vptr b1 ofs) (Vptr b2 (Int.add ofs (Int.repr delta)))).
      econstructor. eassumption. trivial.
   inv V. 
@@ -2078,15 +2097,6 @@ Proof. intros.
   destruct (Mem.storebytes_mapped_inject _ _ _ _ _ _ _ _ _ bytes2 MInj H4 J BytesInj)
    as [m2' [StoreBytes2 Inj']].
   exists m2'. split; trivial.
-  eapply assign_loc_copy; try eassumption.
-  assert (P': Mem.perm m1 b' (Int.unsigned ofs') Max Nonempty).
-              eapply Mem.perm_implies.
-                eapply Mem.perm_max.
-                   eapply Mem.loadbytes_range_perm. eassumption.
-                    split. omega. specialize (sizeof_pos ty); intros. omega.
-                constructor.
-  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' H7).
-        left; trivial.
   assert (P: Mem.perm m1 b1 (Int.unsigned ofs) Max Nonempty).
              eapply Mem.perm_implies.
                 eapply Mem.perm_max.
@@ -2098,10 +2108,52 @@ Proof. intros.
                 constructor.
   destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs J).
         left; trivial. 
-  specialize (Int.unsigned_range_2 ofs'); intros.
-  assert (D0: delta0 <= Int.max_unsigned). omega.
   specialize (Int.unsigned_range_2 ofs); intros.
   assert (D: delta <= Int.max_unsigned). omega.
+  assert (Arith: Int.unsigned (Int.add ofs (Int.repr delta)) =
+                  Int.unsigned ofs + delta).
+    unfold Int.add.
+      rewrite (Int.unsigned_repr delta); try omega.
+      rewrite Int.unsigned_repr; trivial.
+  rewrite <- Arith in StoreBytes2.
+  assert (P': Mem.perm m1 b' (Int.unsigned ofs') Max Nonempty).
+              eapply Mem.perm_implies.
+                eapply Mem.perm_max.
+                   eapply Mem.loadbytes_range_perm. eassumption.
+                    split. omega. specialize (sizeof_pos ty); intros. omega.
+                constructor.
+  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' H7).
+        left; trivial.
+  specialize (Int.unsigned_range_2 ofs'); intros.
+  assert (D0: delta0 <= Int.max_unsigned). omega.
+  assert (Arith': Int.unsigned (Int.add ofs' (Int.repr delta0)) =
+                  Int.unsigned ofs' + delta0).
+    unfold Int.add.
+      rewrite (Int.unsigned_repr delta0); try omega.
+      rewrite Int.unsigned_repr; trivial.
+  rewrite <- Arith' in LoadBytes2.
+  destruct (eq_block b' b1); subst.
+    rewrite J in H7; inv H7.
+    eapply assign_loc_copy; try eassumption.
+      rewrite Arith'.
+       eapply Z.divide_add_r. eassumption.
+       specialize (alignof_blockcopy_1248 ty); intros.
+     (*  eapply Z.divide_trans.
+         eapply alignof_blockcopy_divides.
+       eapply Z.divide_trans.
+         eapply sizeof_alignof_compat. alignof_blockcopy_divides.
+       apply Mem.loadbytes_range_perm in H3.
+        Z.divide_trans
+      rewrite Int.unsigned_repr; trivial.
+      destruct (zeq (Int.unsigned ofs' + delta0) (Int.unsigned ofs + delta)).
+        left; trivial.
+      right. 
+      destruct (zle (Int.unsigned ofs' + delta0 + sizeof ty) (Int.unsigned ofs + delta)).
+        left; trivial.
+      right. 
+      destruct (zle (Int.unsigned ofs + delta + sizeof ty) (Int.unsigned ofs' + delta0)).
+        trivial.
+  eapply assign_loc_copy; try eassumption.
   eapply assign_loc_copy; try eassumption.
     admit. admit.
     destruct (eq_block b3 b2); subst; try (left; assumption).
@@ -2144,6 +2196,7 @@ Proof. intros.
       rewrite Int.unsigned_repr; trivial.
  eassumption.
 *)
+Admitted.
 (*
 Lemma assign_loc_inject: forall ty m1 b1 ofs v m1'
   (ASS: assign_loc ty m1 b1 ofs v m1')
@@ -2267,6 +2320,21 @@ Proof. intros.
 
  constructor. eassumption.
    *)
+Lemma assign_loc_unique: forall t m b z v m1 m2
+  (AL1: assign_loc t m b z v m1)
+  (AL2: assign_loc t m b z v m2), m1=m2.
+Proof. intros.
+  inv AL1; inv AL2.
+  rewrite H1 in H; inv H. rewrite H2 in H0; inv H0; trivial.
+  rewrite H1 in H; inv H. 
+  rewrite H5 in H; inv H.
+  rewrite H7 in H; inv H.
+    destruct (loadbytes_D _ _ _ _ _ H3).
+    destruct (loadbytes_D _ _ _ _ _ H11).
+    rewrite <- H5 in H12. clear H5. subst.
+    rewrite H4 in H13; inv H13; trivial.
+Qed.   
+
 Definition MATCH (d:CL_core) mu c1 m1 c2 m2:Prop :=
   match_states (restrict (as_inj mu) (vis mu)) c1 m1 c2 m2 /\
   REACH_closed m1 (vis mu) /\
@@ -2397,15 +2465,13 @@ Proof. intros.
 
     intros CONTRA.
     solve[elimtype False; auto].
-(*  assert (funsig tf = signature_of_type Tnil type_int32s).
-    eapply transl_fundef_sig2. eassumption. eauto. simpl. 
-  destruct InitMem as [m0 [INIT_MEM [A B]]].*)
-assert (exists xx yy, type_of_fundef f = Tfunction xx yy).
-  admit. (*TODO: delete type constrains from rule match_callstate above? or add typing info somehere?*)
-destruct H as [xx [yy Hxxyy]].
- destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
-   as [AA [BB [CC [DD [EE [FF GG]]]]]].
+  assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
+         destruct f; simpl. eexists; eexists. reflexivity.
+         eexists; eexists. reflexivity.
+  destruct H as [targs [tres Tfun]].
+  destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
+     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+    as [AA [BB [CC [DD [EE [FF GG]]]]]].
   intuition.
   split.
     eapply match_callstate; try eassumption.
@@ -2432,6 +2498,7 @@ destruct H as [xx [yy Hxxyy]].
             simpl. exists id; eassumption.
     rewrite initial_SM_as_inj; assumption.
 Qed.
+
 
 Lemma MATCH_afterExternal: forall
       (FE : Clight.function -> list val -> mem -> 
@@ -2484,16 +2551,15 @@ Lemma MATCH_afterExternal: forall
   after_external csharpmin_eff_sem (Some ret2) st2 = Some st2' /\
   MATCH st1' mu' st1' m1' st2' m2'.
 Proof. intros.
+simpl.
  destruct MatchMu as [MC [RC [PG [GF [Glob [VAL [WDmu INJ]]]]]]].
- inv MC; simpl in *; inv AtExtSrc.
- destruct fd; inv H0.
+ simpl in *. inv MC; simpl in *; inv AtExtSrc.
+ destruct fd; inv H0. 
  destruct tfd; inv AtExtTgt.
- destruct k; inv ISCC.
-   admit. (*error in Def of returnstate in Clight_coop?*)
  eexists. eexists.
     split. reflexivity.
     split. reflexivity.
-  simpl in *.
+ simpl in *.
  inv TY.
  assert (INCvisNu': inject_incr
   (restrict (as_inj nu')
@@ -2656,13 +2722,13 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
           unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ FF). intuition.
           apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ FF). intuition.
-split. admit. (*TODO: correct afterExternal definition in Clight_coop
+split. 
   unfold vis in *.
   rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.
   econstructor; try eassumption.
-    eapply match_cont_sub; try eassumption.
+    eapply match_cont_inject_incr; try eassumption.
       rewrite (*restrict_sm_all, *)replace_externs_as_inj.
-      clear RRC RR1 RC' PHnu' INCvisNu' H0 UnchLOOR UnchPrivSrc H1 H.
+      clear RRC RR1 RC' PHnu' INCvisNu' UnchLOOR UnchPrivSrc.
       destruct INC. rewrite replace_locals_extern in H.
         rewrite replace_locals_frgnBlocksTgt, replace_locals_frgnBlocksSrc,
                 replace_locals_pubBlocksTgt, replace_locals_pubBlocksSrc,
@@ -2678,7 +2744,7 @@ split. admit. (*TODO: correct afterExternal definition in Clight_coop
             destruct H9. right. rewrite H0 in H12.
               split; trivial.
               destruct (disjoint_extern_local _ WDnu' b); trivial. congruence.
-          rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. 
+          (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
           rewrite H3 in H11.
             remember (locBlocksSrc nu' b) as d.
             destruct d; trivial; simpl in *.
@@ -2687,7 +2753,7 @@ split. admit. (*TODO: correct afterExternal definition in Clight_coop
             split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
                apply REACH_nil. unfold exportedSrc. 
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
-      rewrite replace_externs_as_inj. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. 
+      rewrite replace_externs_as_inj. (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
        eapply restrict_val_inject; try eassumption.
        intros.
         destruct (getBlocks_inject (as_inj nu') (ret1::nil) (ret2::nil))
@@ -2697,11 +2763,7 @@ split. admit. (*TODO: correct afterExternal definition in Clight_coop
         destruct d; simpl; trivial. apply andb_true_iff.
         split. eapply as_inj_DomRng; eassumption.
         apply REACH_nil. unfold exportedSrc.
-           rewrite H2. trivial.
-  rewrite replace_externs_as_inj. 
-    eapply inject_mapped; try eassumption.
-      rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc.
-      eapply restrict_mapped_closed; try eassumption.*)
+           rewrite H. trivial.
 unfold vis.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj.
@@ -2787,17 +2849,18 @@ Proof. intros.
 Qed.
 
 Lemma MATCH_corestep: forall
- (FE : Clight.function -> list val -> 
+ (*(FE : Clight.function -> list val -> 
         mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
  (FE_FWD : forall f vargs m e lenv m',
          FE f vargs m e lenv m' -> mem_forward m m')
  (FE_UNCH : forall f vargs m e lenv m',
          FE f vargs m e lenv m' ->(
           Mem.unchanged_on
-            (fun b z => EmptyEffect b z = false) m m'))
+            (fun b z => EmptyEffect b z = false) m m'))*)
   (GDE : genvs_domain_eq ge tge)
   (st1 : CL_core) (m1 : mem) (st1' : CL_core) (m1' : mem)
-  (CS: corestep (clight_eff_sem FE FE_FWD FE_UNCH) ge st1 m1 st1' m1')
+(*  (CS: corestep (clight_eff_sem FE FE_FWD FE_UNCH) ge st1 m1 st1' m1')*)
+  (CS: corestep CL_eff_sem2 ge st1 m1 st1' m1')
   (st2 : CSharpMin_core) (mu : SM_Injection) (m2 : mem)
   (MC: MATCH st1 mu st1 m1 st2 m2),
 exists (st2' : CSharpMin_core) (m2' : mem) (mu' : SM_Injection),
@@ -2810,7 +2873,6 @@ exists (st2' : CSharpMin_core) (m2' : mem) (mu' : SM_Injection),
   SM_wd mu' /\ sm_valid mu' m1' m2'.
 Proof.
   intros. 
-(*  assert (NE:= CL_corestep_not_at_external FE _ _ _ _ _ CS).*)
   inv CS; simpl in *.
 (*corestep_assign*)
       destruct MC as [SMC PRE].
@@ -2830,35 +2892,77 @@ Proof.
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            rewrite <- restrict_sm_all. 
            eapply restrict_sm_preserves_globals; try eassumption.
-           unfold vis. intuition. admit. (*
-      eexists. eexists. exists mu.
-      split.              
-         destruct (transl_lvalue_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ _ H _ EQ)
+           unfold vis. intuition.    
+      destruct (transl_lvalue_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ _ H _ EQ)
             as [vv [Hvv1 EvalX]]; inv Hvv1. 
-         destruct (transl_expr_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ H0 _ EQ1)
+      destruct (transl_expr_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ H0 _ EQ1)
             as [uu [VinjU EvalX0]].
-         destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
+      destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
          assert (EVAL:= make_cast_correct _ _ _ _ _ _ _ _ _ _ EQ0 EvalX0 H3).
+      destruct (assign_loc_inject _ _ _ _ _ _ H2 _ _ H4 _ _ H5 _ MinjR)
+            as [m2' [AL2 MINJ']].
+      eexists. eexists. exists mu.
+      split.          
          apply corestep_plus_one.
-         eapply make_store_correct. eassumption. eassumption. eassumption.
-       
-         unfold make_store in EQ3. 
-         inv H2. rewrite H6 in *. inv EQ3.
-clear - H2. x
-           eapply transl_lvalue_correct; eauto. eassumption. 
-         unfold csharpmin_core_sem. simpl. unfold coopstep. 
-unfold make_store in EQ3.
-         eapply csharpmin_corestep_skip_seq. csharpmin_corestep_set. econstructor; eauto. reflexivity. 
-            reflexivity. reflexivity. 
-      simpl. exists mu; intuition. 
+         eapply make_store_correct. eapply EQ3. eassumption. eassumption. eassumption.
+      assert (SMV': sm_valid mu m1' m2').
+        inv H2. 
+        (*by_value*)
+        inv AL2.
+          split; intros.   
+            eapply storev_valid_block_1; try eassumption.
+            eapply SMV; assumption.
+          eapply storev_valid_block_1; try eassumption.
+            eapply SMV; assumption.
+        rewrite H2 in H6. discriminate.
+        (*by_chunk*)
+        inv AL2.
+          rewrite H2 in H6. discriminate.
+        split; intros.   
+            eapply Mem.storebytes_valid_block_1; try eassumption.
+            eapply SMV; assumption.
+          eapply Mem.storebytes_valid_block_1; try eassumption.
+            eapply SMV; assumption.
+      intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
         repeat split; extensionality b; 
-        try rewrite freshloc_irrefl; intuition.
-      econstructor.
-        econstructor; eauto.
-        intuition.*)
+        try rewrite (assign_loc_freshloc _ _ _ _ _ _ AL2);
+        try rewrite (assign_loc_freshloc _ _ _ _ _ _ H2); intuition.
+      econstructor. 
+        eapply match_states_skip; eauto.
+        intuition.
+        (*REACH_closed*)
+          inv H2.
+          (*by_value*)
+             inv H7. 
+             eapply REACH_Store; try eassumption.
+             apply (restrictD_Some _ _ _ _ _ H5).
+             intros b' Hb'. rewrite getBlocksD, getBlocksD_nil in Hb'.
+               destruct v; inv Hb'. rewrite orb_false_r in H7.
+               rewrite H7. simpl.
+              assert (b=b').
+                remember (eq_block b b') as d.
+                destruct d; intuition.
+              subst. inv H4. apply (restrictD_Some _ _ _ _ _ H10).
+          (*by_copy*)
+             eapply REACH_Storebytes; try eassumption.
+             apply (restrictD_Some _ _ _ _ _ H5).
+             intros bb off n Hbb. inv H4.
+             destruct (Mem.loadbytes_inject _ _ _ _ _ _ _ _ _ MinjR H10 H13)
+                as [bytes2 [LoadBytes2 MapBytes]].
+             clear - Hbb MapBytes.
+               induction MapBytes; inv Hbb.
+               inv H. apply (restrictD_Some _ _ _ _ _ H4).
+               apply (IHMapBytes H0).
+        assert (VI: val_inject (as_inj mu) v x2).
+           eapply val_inject_incr; try eassumption.
+           eapply restrict_incr.
+        destruct (restrictD_Some _ _ _ _ _ H5). 
+        destruct (assign_loc_inject _ _ _ _ _ _ H2 _ _ VI _ _ H6 _ INJ)
+           as [m2'' [AL2' INJ'']]. 
+        rewrite (assign_loc_unique _ _ _ _ _ _ _ AL2 AL2'). assumption.
   (*clight_corestep_set*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
@@ -3374,8 +3478,8 @@ unfold make_store in EQ3.
   destruct MC as [SMC PRE].
   inv SMC; simpl in *.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
-assert (FE = function_entry2). admit. (*TODO: What about other cases?*)
-subst FE.
+(*assert (FE = function_entry2). admit. (*admit is in comment What about other cases?*)
+subst FE.*)
   inv H. monadInv TR. monadInv EQ.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   exploit match_env_alloc_variables; try eassumption. 
@@ -3434,7 +3538,7 @@ subst FE.
 Qed.
 
 Lemma Match_eff_diagram_strong_perm: forall
-  (FE : Clight.function ->
+(*  (FE : Clight.function ->
      list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
   (FE_FWD : forall (f : Clight.function) (vargs : list val) (m : mem)
            (e : Clight.env) (lenv : Clight.temp_env) (m' : mem),
@@ -3443,11 +3547,12 @@ Lemma Match_eff_diagram_strong_perm: forall
             (e : Clight.env) (lenv : Clight.temp_env) (m' : mem),
           FE f vargs m e lenv m' ->
           Mem.unchanged_on
-            (fun (b : block) (z : Z) => EmptyEffect b z = false) m m')
+            (fun (b : block) (z : Z) => EmptyEffect b z = false) m m')*)
   (GDE : genvs_domain_eq ge tge)
   (st1 : CL_core) (m1 : mem) (st1' : CL_core) (m1' : mem)
   (U1 : block -> Z -> bool)
-  (EFFSTEP: effstep (clight_eff_sem FE FE_FWD FE_UNCH) ge U1 st1 m1 st1' m1')
+(*  (EFFSTEP: effstep (clight_eff_sem FE FE_FWD FE_UNCH) ge U1 st1 m1 st1' m1')*)
+  (EFFSTEP: effstep CL_eff_sem2 ge U1 st1 m1 st1' m1')
   (st2 : CSharpMin_core) (mu : SM_Injection) (m2 : mem)
   (UHyp: forall b z, U1 b z = true -> 
           Mem.valid_block m1 b -> vis mu b = true) 
@@ -4079,8 +4184,8 @@ unfold make_store in EQ3.
   destruct MC as [SMC PRE].
   inv SMC; simpl in *.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
-assert (FE = function_entry2). admit. (*TODO: What about other cases?*)
-subst FE.
+(*assert (FE = function_entry2). admit. (*admit is in comment -  What about other cases?*)
+subst FE.*)
   inv H. monadInv TR. monadInv EQ.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   exploit match_env_alloc_variables; try eassumption. 
@@ -4168,12 +4273,15 @@ Theorem transl_program_correct:
                 /\ Genv.find_funct_ptr ge b = Some f1
                 /\ Genv.find_funct_ptr tge b = Some f2)
          (init_mem: exists m0, Genv.init_mem prog = Some m0)
-         (FE: Clight.function -> list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
+(*         (FE: Clight.function -> list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
          (FE_FWD: forall f vargs m e lenv m', FE f vargs m e lenv m' -> 
                          mem_forward m m')
          (FE_UNCH: forall f vargs m e lenv m', FE f vargs m e lenv m' ->
                     Mem.unchanged_on (fun b z => EmptyEffect b z = false) m m'),
 SM_simulation.SM_simulation_inject (clight_eff_sem FE FE_FWD FE_UNCH)
+   csharpmin_eff_sem ge tge entrypoints.*)
+,
+SM_simulation.SM_simulation_inject CL_eff_sem2
    csharpmin_eff_sem ge tge entrypoints.
 Proof.
 intros.

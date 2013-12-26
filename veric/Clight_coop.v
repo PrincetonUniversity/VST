@@ -44,6 +44,21 @@ Definition CL_at_external (c: CL_core) : option (external_function * signature *
 
 Definition CL_after_external (rv: option val) (c: CL_core) : option CL_core :=
   match c with
+     CL_Callstate fd vargs k =>
+        match fd with
+          Internal _ => None
+        | External ef tps tp =>
+            match rv with
+              Some v => Some(CL_Returnstate v k)
+            | None  => Some(CL_Returnstate Vundef k)
+            end
+        end
+   | _ => None
+  end.
+(*Previously we had this: but afterEtxernal clause in ChmgenproofEFF (MATCH)
+  requires to have Returnstates
+Definition CL_after_external (rv: option val) (c: CL_core) : option CL_core :=
+  match c with
      CL_Callstate fd vargs (Clight.Kcall optid f e lenv k) =>
         match fd with
           Internal _ => None
@@ -56,6 +71,7 @@ Definition CL_after_external (rv: option val) (c: CL_core) : option CL_core :=
         end
    | _ => None
   end.
+*)
 (*
 Definition CL_after_external (vret: option val) (c: CL_core) : option CL_core :=
   match c with 
@@ -215,10 +231,9 @@ Lemma CL_after_at_external_excl : forall retv q q',
       CL_after_external retv q = Some q' -> CL_at_external q' = None.
   Proof. intros.
        destruct q; simpl in *; try inv H.
-       destruct k; inv H1.
-       destruct fd; inv H0.
-       destruct retv; inv H1; simpl; trivial.
-       destruct o; inv H0; simpl; trivial.
+       destruct fd; inv H1.
+       destruct retv; inv H0; simpl; trivial.
+(*       destruct o; inv H0; simpl; trivial.*)
 Qed.
 
 Definition CL_initial_core (v: val) (args:list val): option CL_core :=
