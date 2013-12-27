@@ -1,4 +1,6 @@
 Add LoadPath "..".
+Require Import msl.Axioms. (*for proof_irr*)
+
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
@@ -73,7 +75,7 @@ Section frame_inv.
 Import Core.
 
 Variables (c : t cores_S) (d : t cores_T). 
-Variable  (pf : c.(i)=d.(i)).
+Variable  pf : c.(i)=d.(i).
 
 Require Import compcert.lib.Coqlib. (*for Forall2*)
 
@@ -113,7 +115,22 @@ Record head_inv cd mu m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu c.(Core.c) m1 (cast pf d.(Core.c)) m2 }.
 
 End head_inv.
-    
+
+Section head_inv_lems.
+
+Context c d pf cd mu m1 m2 (inv : head_inv c d pf cd mu m1 m2).
+
+Lemma head_inv_restrict (X : block -> bool) : 
+  (forall b : block, vis mu b -> X b) -> 
+  REACH_closed m1 X -> 
+  head_inv c d pf cd (restrict_sm mu X) m1 m2.
+Proof.
+case: inv=> H H2 H3; apply: Build_head_inv.
+by apply: (match_restrict _ _ _ _ _ (sims (Core.i c))).
+Qed.
+
+End head_inv_lems.
+
 Fixpoint tail_inv mu (s1 : Stack.t (Core.t cores_S)) (s2 : Stack.t (Core.t cores_T)) m1 m2 :=
   match s1, s2 with
     | c :: s1', d :: s2' => 
@@ -124,6 +141,32 @@ Fixpoint tail_inv mu (s1 : Stack.t (Core.t cores_S)) (s2 : Stack.t (Core.t cores
         & tail_inv mu s1' s2' m1 m2]
     | _, _ => False
   end.
+
+Section tail_inv_lems.
+
+Context mu s1 s2 m1 m2 (inv : tail_inv mu s1 s2 m1 m2).
+
+Lemma tail_len_eq : length s1 = length s2.
+Proof.
+move: s2 inv; elim: s1=> // a s1' IH /= s0; case: s0=> // b s2' [] _ H2. 
+by rewrite (IH _ H2).
+Qed.
+
+Lemma tail_inv_restrict (X : block -> bool) : 
+  (forall b : block, vis mu b -> X b) -> 
+  REACH_closed m1 X -> 
+  tail_inv (restrict_sm mu X) s1 s2 m1 m2.
+Proof.
+move=> H H2; move: s2 tail_len_eq inv.
+elim: s1=> // a s1' IH s0; case: s0=> // b s2' H3.
+have H4: length s1' = length s2' by move: H3=> /=; case.
+move=> /= [] H5; split; last by apply: IH.
+move: H5=> [pf][cd][mu0][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
+exists pf, cd, (restrict_sm mu0 X), m10, e1, sig1, vals1, m20, e2, sig2, vals2.
+apply: Build_frame_inv=> //.
+Admitted. (*TODO*)
+
+End tail_inv_lems.
 
 Section R.
 
@@ -144,9 +187,12 @@ Record R (data : Lex.t types) mu (x1 : linker N cores_S) m1 (x2 : linker N cores
 
 End R.
 
-Section R_defs.
+Section R_lems.
 
 Context data mu x1 m1 x2 m2 (pf : R data mu x1 m1 x2 m2).
+
+Import CallStack.
+Import Linker.
 
 Lemma R_wd : SM_wd mu.
 Proof. 
@@ -154,7 +200,43 @@ move: (R_head pf)=> [A][B]; move/head_match.
 by apply: (match_sm_wd _ _ _ _ _ (sims (Core.i (c pf)))).
 Qed.
 
-End R_defs.
+Lemma R_pres_globs : Events.meminj_preserves_globals my_ge (extern_of mu).
+Proof. 
+move: (R_head pf)=> [A][B]; move/head_match=> H. 
+move: (match_genv _ _ _ _ _ (sims (Core.i (c pf))) _ _ _ _ _ _ H)=> []H2 H3.
+rewrite -meminj_preserves_genv2blocks.
+rewrite (genvs_domain_eq_preserves _ _ (extern_of mu) (my_ge_S (Core.i (c pf)))).
+rewrite meminj_preserves_genv2blocks.
+by apply: H2.
+Qed.
+
+Lemma R_match_genv :
+  Events.meminj_preserves_globals my_ge (extern_of mu) /\
+  forall b : block, isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
+Proof.
+move: (R_head pf)=> [A][B]; move/head_match=> H.
+split; first by apply: R_pres_globs.
+rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
+by move: (match_genv _ _ _ _ _ (sims (Core.i (c pf))) _ _ _ _ _ _ H)=> [] _.
+Qed.
+
+Lemma R_match_visible : REACH_closed m1 (vis mu).
+move: (R_head pf)=> [A][B]; move/head_match=> H. 
+by apply: (@match_visible _ _ _ _ _ _ _ _ _ _ _ (sims (Core.i (c pf))) _ _ _ _ _ _ H).
+Qed.
+
+Lemma R_match_restrict (X : block -> bool) : 
+  (forall b : block, vis mu b -> X b) -> REACH_closed m1 X -> 
+  R data (restrict_sm mu X) x1 m1 x2 m2.
+Proof.
+move: (R_head pf)=> [A][B]; move/head_inv_restrict=> H H2 H3; move: (H _ H2 H3)=> H'.
+admit. (*by tail_inv_restrict*)
+Qed.
+
+Lemma R_match_validblocks : sm_valid mu m1 m2.
+Proof. by move: (R_head pf)=> [A][B]; move/head_match; apply: match_validblocks. Qed.
+
+End R_lems.
 
 Lemma link : SM_simulation_inject linker_S linker_T my_ge my_ge entry_points.
 Proof.
@@ -169,6 +251,34 @@ eapply Build_SM_simulation_inject
 
 (* match -> SM_wd mu *)
 - by apply: R_wd. 
+
+(* genvs_domain_eq *)
+- by apply: genvs_domain_eq_refl.
+
+(* match_genv *)
+- by move=> data mu c1 m1 c2 m2; apply: R_match_genv.
+
+(* match_visible *)
+- by apply: R_match_visible.
+
+(* match_restrict *)
+- by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H).
+
+(* match_validblocks *)
+- by move=> ? ? ? ? ? ?; apply: R_match_validblocks.
+
+(* core_initial *)
+- by admit.
+
+(* NOT NEEDED diagram1 *)
+- by admit.
+(* NOT NEEDED diagram2 *)
+- by admit.
+(* NOT NEEDED diagram3 *)
+- by admit.
+
+(* real diagram *)
+- admit. 
 
 Admitted. (*WORK-IN-PROGRESS*)
 
