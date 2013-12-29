@@ -25,6 +25,8 @@ SelectOpproof.v
 Op.v
 Registers.v
 RTL.v
+RTLgen.v
+RTLgenspec.v
 
 Machregs.v
 Conventions.v

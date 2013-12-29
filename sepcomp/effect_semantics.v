@@ -606,12 +606,12 @@ Qed.
   Qed. 
 
   Lemma effstep_star_sub: forall c m c' m' (U V : block -> Z -> bool),
-     effstep_plus U c m c' m' ->
+     effstep_star U c m c' m' ->
      (forall b z, U b z = true -> V b z = true) ->
      effstep_star V c m c' m'.
   Proof. intros.
     destruct H as [n H].
-    exists (S n). eapply effstepN_sub; eassumption.
+    exists n. eapply effstepN_sub; eassumption.
   Qed. 
 
   Lemma effstepN_sub_val: forall n c m c' m' (U V : block -> Z -> bool),

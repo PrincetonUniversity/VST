@@ -225,7 +225,6 @@ Lemma CMinSel_corestep_not_at_external:
        forall ge m q m' q', CMinSel_corestep ge q m q' m' -> CMinSel_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
 
-(*LENB: Cminor.v requires v to be Vint i -should we keep this condition?*)
 Definition CMinSel_halted (q : CMinSel_core): option val :=
     match q with 
        CMinSel_Returnstate v Kstop => Some v
@@ -249,7 +248,7 @@ Lemma CMinSel_corestep_not_halted : forall ge m q m' q',
 
 Lemma CMinSel_corestep_not_halted : forall ge m q m' q', 
        CMinSel_corestep ge q m q' m' -> CMinSel_halted q = None.
-  Proof. intros. inv H; reflexivity. Qed.
+  Proof. intros. inv H; try reflexivity. Qed.
 
 Lemma CMinSel_at_external_halted_excl :
        forall q, CMinSel_at_external q = None \/ CMinSel_halted q = None.

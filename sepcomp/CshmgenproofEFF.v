@@ -854,20 +854,6 @@ Record match_env (j:meminj) (e: Clight.env) (te: Csharpminor.env) : Prop :=
                              j b' = Some(b,0) /\e!id = Some(b', ty)
   }.
 
-Lemma match_env_restrictD: forall j X e te 
-       (MENV : match_env (restrict j X) e te),
-     match_env j e te.
-Proof. intros.
-  destruct MENV as [MENVa MENVb].
-  split; intros.
-    destruct (MENVa _ _ _ H) as [b' [Rb Eb]].
-      destruct (restrictD_Some _ _ _ _ _ Rb); clear Rb.
-      exists b'; split; trivial.
-    destruct (MENVb _ _ _ H) as [b' [tp [Rb Eb]]].
-      destruct (restrictD_Some _ _ _ _ _ Rb); clear Rb.
-      exists b', tp; split; trivial.
-Qed.
-
 Lemma match_env_inject_incr: forall j e te 
        (MENV : match_env j e te) j'
        (INC: inject_incr j j'),
@@ -881,6 +867,14 @@ Proof. intros.
     destruct (MENVb _ _ _ H) as [b' [tp [J Eb]]].
       apply INC in J.
       exists b', tp; split; trivial.
+Qed.
+
+Lemma match_env_restrictD: forall j X e te 
+       (MENV : match_env (restrict j X) e te),
+     match_env j e te.
+Proof. intros.
+  eapply match_env_inject_incr; try eassumption.
+  eapply restrict_incr.
 Qed.
 
 Lemma match_env_globals:
