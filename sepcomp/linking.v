@@ -24,6 +24,7 @@ Require Import compcert.lib.Integers.
 Require Import ZArith.
 
 (** file: linking.v
+    ~~~~~~~~~~~~~~~
 
 This file gives the operational semantics of multi-language linking
 via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the 
@@ -229,6 +230,17 @@ Program Definition updCore (newCore: Core.t my_cores) :=
   updStack (CallStack.mk (push (pop l.(stack)) newCore) _).  
 
 Next Obligation. apply/andP; split=>/=; last by []; by apply: callStack_ext. Qed.
+
+Lemma updCore_inj newCore newCore' : 
+  updCore newCore = updCore newCore' -> newCore=newCore'.
+Proof. by rewrite/updCore/updStack; case. Qed.
+
+Lemma updCore_inj_upd c c1 c2 : 
+  updCore (Core.upd c c1) = updCore (Core.upd c c2) -> c1=c2.
+Proof.
+move/updCore_inj; rewrite/Core.upd; case=> H1.
+by move: (EqdepFacts.eq_sigT_snd H1); move=> <-; rewrite -Eqdep.Eq_rect_eq.eq_rect_eq.
+Qed.
 
 (** [pushCore]: Push a new core onto the call stack.  
     Succeeds only if all cores are currently at_external. *)
