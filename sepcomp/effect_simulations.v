@@ -1,14 +1,15 @@
-Require Import Events.
-Require Import Memory.
-Require Import Coqlib.
+Add LoadPath "..".
+Require Import compcert.common.Events.
+Require Import compcert.common.Memory.
+Require Import compcert.lib.Coqlib.
 Require Import compcert.common.Values.
-Require Import Maps.
-Require Import Integers.
-Require Import AST.
+Require Import compcert.lib.Maps.
+Require Import compcert.lib.Integers.
+Require Import compcert.common.AST.
 
-Require Import Globalenvs.
+Require Import compcert.common.Globalenvs.
 
-Require Import Axioms.
+Require Import compcert.lib.Axioms.
 
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
@@ -2139,13 +2140,16 @@ Lemma RGSrc_multicore: forall mu Esrc m m'
          (forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) ->
          (forall b, pubBlocksSrc nu b = true <-> 
                    (frgnBlocksSrc mu b && locBlocksSrc nu b) = true) ->
-         (forall b1 b2 d, pub_of nu b1 = Some(b2, d) -> foreign_of mu b1 = Some(b2,d)) ->
+         (*This hypothesis is not needed (GS):
+           (forall b1 b2 d, pub_of nu b1 = Some(b2, d) 
+           -> foreign_of mu b1 = Some(b2,d)) ->*)
          Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                         pubBlocksSrc nu b = false) m m'.
 Proof. intros.
+  assert (H1: True). refine I.
   eapply mem_unchanged_on_sub; try eassumption.
-  intros. simpl.
-  destruct H2. rename b into b1. specialize (H _ H2).
+  intros b ofs H2. simpl.
+  destruct H2. rename b into b1. specialize (H _ H2). 
   case_eq (Esrc b1 ofs); intros; trivial; simpl in *.
   apply SrcHyp in H4. unfold vis in H4. rewrite H in H4. simpl in H4.  
   clear Unch SrcHyp.
