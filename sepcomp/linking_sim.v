@@ -35,7 +35,8 @@ Import Static.
 
 Arguments core_data {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2} _ _.
 Arguments core_ord  {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} _ _ _.
-Arguments match_state {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} _ _ _ _ _ _ _.
+Arguments match_state {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} 
+  _ _ _ _ _ _ _.
 
 Variable N : pos.
 Variable (cores_S cores_T : 'I_N -> Static.t). 
@@ -64,11 +65,13 @@ Definition cast_ty (T1 T2: Type) (pf: T1=T2) (x : T1) : T2.
 rewrite pf in x; refine x.
 Defined. 
 
-Lemma types_eq {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
+Lemma types_eq 
+  {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
   C (cores_T (Core.i d))=C (cores_T (Core.i c)).
 Proof. by rewrite pf. Defined.
 
-Lemma types_eq' {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
+Lemma types_eq' 
+  {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
   C (cores_T (Core.i c))=C (cores_T (Core.i d)).
 Proof. by rewrite pf. Defined.
 
@@ -80,6 +83,62 @@ Lemma cast_cast'_eq
   {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) 
   (x : C (cores_T c.(Core.i))) : cast pf (cast' pf x) = x.
 Proof. Admitted. (* TODO *)
+
+(** These lemmas on [restrict_sm] should go elsewhere. *)
+
+Lemma restrict_some {mu b1 b2 d X} : 
+  (restrict mu X) b1 = Some (b2, d) -> mu b1 = Some (b2, d).
+Proof. by rewrite/restrict; case: (X b1). Qed.
+
+Lemma restrict_sm_domsrc {mu b1 X} : 
+  DomSrc (restrict_sm mu X) b1 -> DomSrc mu b1.
+Proof. by rewrite/restrict_sm; case: mu. Qed.
+
+Lemma restrict_sm_domtgt {mu b2 X} : 
+  DomTgt (restrict_sm mu X) b2 -> DomTgt mu b2.
+Proof. by rewrite/restrict_sm; case: mu. Qed.
+
+Lemma sm_inject_separated_restrict mu mu' m1 m2 X : 
+  sm_inject_separated mu mu' m1 m2 -> 
+  sm_inject_separated mu (restrict_sm mu' X) m1 m2.
+Proof.
+move=>[]H []H2 H3; split.
+move=> b1 b2 d A; rewrite restrict_sm_all; move/restrict_some=> B.
+by apply: (H _ _ _ A B).
+split; first by move=> b1 A; move/restrict_sm_domsrc=> B; apply: (H2 _ A B).
+by move=> b2 A; move/restrict_sm_domtgt=> B; apply: (H3 _ A B).
+Qed.
+
+(** Domain Invariant: 
+    ~~~~~~~~~~~~~~~~~
+
+    The [dom_inv] invariant enforces disjointness conditions between the local, 
+    public and foreign block sets declared by [mu0], an [SM_injection] appearing at 
+    existentially quantified positions in the callstack invariant, and those 
+    declared by [mu], the [SM_injection] of the currently running core. 
+*)
+
+Record dom_inv mu0 mu : Type := 
+  { dom_locdisj_src : [predI (locBlocksSrc mu0) & locBlocksSrc mu] =i pred0
+  ; dom_pubfrgn_src : pubBlocksSrc mu0 
+                      =i [predI (frgnBlocksSrc mu) & locBlocksSrc mu0] 
+  ; dom_locdisj_tgt : pred0 [predI (locBlocksTgt mu0) & locBlocksTgt mu] 
+  ; dom_pubfrgn_tgt : forall b1 b2 d, 
+                      foreign_of mu b1 = Some (b2, d) -> 
+                      (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
+                      pub_of mu0 b1 = Some (b2, d) }.                  
+
+Definition dom_inv_opt mu0 (omu : option SM_Injection) :=
+  if omu is Some mu then dom_inv mu0 mu else True.
+
+Lemma dom_inv_restrict nu mu X : dom_inv nu mu -> dom_inv nu (restrict_sm mu X).
+Proof.
+case=> H H2 H3 H4; apply: Build_dom_inv. 
+by rewrite restrict_sm_locBlocksSrc.
+by rewrite restrict_sm_frgnBlocksSrc.
+by rewrite restrict_sm_locBlocksTgt.
+by rewrite restrict_sm_foreign; move=> b1 b2 d; move/restrict_some; apply: H4.
+Qed.
 
 Section frame_inv.
 
@@ -110,73 +169,64 @@ Require Import compcert.lib.Coqlib. (*for Forall2*)
    -[mu]: The [SM_injection] of the currently running core (/not/ this
     one).  Things to note:
 
-     +When we resume a core, we do not use [mu] directly.  Instead, we
+     + Resuming a core:
+     ~~~~~~~~~~~~~~~~~~
+
+     When we resume a core, we do not use [mu] directly.  Instead, we
      employ the derived [SM_injection]:
-
-       nu := { local_of  := local_of nu0
-             ; extern_of := extern_of nu0 
-                            + {extern_of mu | REACH m1' m2' ret1 ret2}
-             ; ... }
-
-     This [SM_injection] satisfies [extern_incr nu0 nu], among other
+       mu' := { local_of  := local_of mu0
+              ; extern_of := extern_of mu0 
+                             + {extern_of mu | REACH m1' m2' ret1 ret2}
+              ; ... }
+     This [SM_injection] satisfies [extern_incr mu0 mu'], among other
      properties required by the [after_external] clause of structured
      simulations.
+
+
+     + The [frame_dom] invariant [dom_inv mu0 mu]: 
+     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     [mu0] is always disjoint, in the way specified by [dom_inv], 
+     from the active injection [mu].  This is to ensure that we can 
+     re-establish over steps of the active core the [frame_unch1] 
+     and [frame_unch2] invariants given below (which in turn are 
+     required by [after_external]).
+     
+     In order to re-establish [dom_inv] when a core returns to its
+     context, we track as an additional invariant that [dom_inv mu0
+     mu_head], where [mu_head] is the existentially quantified
+     injection of the callee.
 
    -[m1], [m2]: Active memories. 
 *)
 
-Record frame_inv cd0 mu0 mu m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Type :=
+Record frame_inv cd0 mu0 mu_head mu 
+                 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
   { (* local definitions *)
-    pubSrc := fun b => [&& locBlocksSrc mu0 b & REACH m10 (exportedSrc mu0 vals1) b] 
-  ; pubTgt := fun b => [&& locBlocksTgt mu0 b & REACH m20 (exportedTgt mu0 vals2) b] 
+    pubSrc := [predI (locBlocksSrc mu0) & REACH m10 (exportedSrc mu0 vals1)] 
+  ; pubTgt := [predI (locBlocksTgt mu0) & REACH m20 (exportedTgt mu0 vals2)] 
   ; nu0    := replace_locals mu0 pubSrc pubTgt
 
     (* invariants required to instantiate at_external *)
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_inj   : Mem.inject (as_inj mu0) m1 m2
-
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
                     c.(Core.c) m10 (cast pf d.(Core.c)) m20 
-
   ; frame_at1   : at_external (cores_S c.(i)).(coreSem) c.(Core.c) 
                     = Some (e1, ef_sig1, vals1) 
   ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf d.(Core.c)) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
-
   ; frame_fwd1  : mem_forward m10 m1
   ; frame_fwd2  : mem_forward m20 m2
-
+  ; frame_dom1  : dom_inv mu0 mu
+  ; frame_dom2  : dom_inv_opt mu0 mu_head
   ; frame_unch1 : Mem.unchanged_on [fun b ofs => 
                     [/\ locBlocksSrc nu0 b & pubBlocksSrc nu0 b=false]] m10 m1
   ; frame_unch2 : Mem.unchanged_on (local_out_of_reach nu0 m10) m20 m2 
-
-  ; frame_sep  : StructuredInjections.sm_inject_separated nu0 mu m10 m20 }.
+  ; frame_sep   : StructuredInjections.sm_inject_separated nu0 mu m10 m20 }.
 
 End frame_inv.
-
-(** These lemmas on [restrict_sm] should go elsewhere. *)
-
-Lemma restrict_some {mu b1 b2 d X} : 
-  (restrict mu X) b1 = Some (b2, d) -> mu b1 = Some (b2, d).
-Proof. by rewrite/restrict; case: (X b1). Qed.
-
-Lemma restrict_sm_domsrc {mu b1 X} : DomSrc (restrict_sm mu X) b1 -> DomSrc mu b1.
-Proof. by rewrite/restrict_sm; case: mu. Qed.
-
-Lemma restrict_sm_domtgt {mu b2 X} : DomTgt (restrict_sm mu X) b2 -> DomTgt mu b2.
-Proof. by rewrite/restrict_sm; case: mu. Qed.
-
-Lemma sm_inject_separated_restrict mu mu' m1 m2 X : 
-  sm_inject_separated mu mu' m1 m2 -> 
-  sm_inject_separated mu (restrict_sm mu' X) m1 m2.
-Proof.
-move=>[]H []H2 H3; split.
-move=> b1 b2 d A; rewrite restrict_sm_all; move/restrict_some=> B.
-by apply: (H _ _ _ A B).
-split; first by move=> b1 A; move/restrict_sm_domsrc=> B; apply: (H2 _ A B).
-by move=> b2 A; move/restrict_sm_domtgt=> B; apply: (H3 _ A B).
-Qed.
 
 Section head_inv.
 
@@ -187,7 +237,7 @@ Variable  (pf : c.(i)=d.(i)).
 
 Record head_inv cd mu m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
-                   c.(Core.c) m1 (cast pf d.(Core.c)) m2 }.
+                 c.(Core.c) m1 (cast pf d.(Core.c)) m2 }.
 
 End head_inv.
 
@@ -206,41 +256,46 @@ Qed.
 
 End head_inv_lems.
 
-Fixpoint tail_inv mu 
+Fixpoint tail_inv_aux mu_head mu
   (s1 : Stack.t (Core.t cores_S)) (s2 : Stack.t (Core.t cores_T)) m1 m2 :=
   match s1, s2 with
     | c :: s1', d :: s2' => 
-      [/\ exists (pf : c.(Core.i)=d.(Core.i)) cd0 mu0,
+      exists mu0,
+      [/\ exists (pf : c.(Core.i)=d.(Core.i)) cd0,
           exists m10 e1 ef_sig1 vals1,
           exists m20 e2 ef_sig2 vals2, 
-            frame_inv c d pf cd0 mu0 mu m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
-        & tail_inv mu s1' s2' m1 m2]
+          frame_inv c d pf cd0 mu0 mu_head mu 
+                    m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
+       & tail_inv_aux (Some mu0) mu s1' s2' m1 m2]
     | _, _ => False
   end.
 
+Notation tail_inv := (tail_inv_aux None).
+
 Section tail_inv_lems.
 
-Context mu s1 s2 m1 m2 (inv : tail_inv mu s1 s2 m1 m2).
+Context mu_head mu s1 s2 m1 m2 (inv : tail_inv_aux mu_head mu s1 s2 m1 m2).
 
 Lemma tail_len_eq : length s1 = length s2.
 Proof.
-move: s2 inv; elim: s1=> // a s1' IH /= s0; case: s0=> // b s2' [] _ H2. 
-by rewrite (IH _ H2).
+move: s2 mu_head mu inv; elim: s1=> // a s1' IH /= s0 mu_head' mu'. 
+case: s0=> // b s2' [] /= mu0 []? H2.
+by rewrite (IH _ _ _ H2).
 Qed.
 
 Lemma tail_inv_restrict (X : block -> bool) : 
   (forall b : block, vis mu b -> X b) -> 
   REACH_closed m1 X -> 
-  tail_inv (restrict_sm mu X) s1 s2 m1 m2.
+  tail_inv_aux mu_head (restrict_sm mu X) s1 s2 m1 m2.
 Proof.
-move=> H H2; move: s2 tail_len_eq inv; elim: s1=> // a s1' IH s0. 
+move=> H H2; move: s2 tail_len_eq mu_head mu inv; elim: s1=> // a s1' IH s0. 
 case: s0=> // b s2' H3.
 have H4: length s1' = length s2' by move: H3=> /=; case.
-move=> /= [] H5; split; last by apply: IH.
-move: H5=> [pf][cd][mu0][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
-exists pf, cd, mu0, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
-apply: Build_frame_inv=> //.
-by apply: sm_inject_separated_restrict.
+move=> mu_head' mu' /= [] mu0 []H5 H6; exists mu0; split; last by apply: IH.
+move: H5=> [pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
+exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
+apply: Build_frame_inv=> //; last by apply: sm_inject_separated_restrict.
+by apply: dom_inv_restrict.
 Qed.
 
 End tail_inv_lems.
@@ -250,7 +305,8 @@ Section R.
 Import CallStack.
 Import Linker.
 
-Record R (data : Lex.t types) mu (x1 : linker N cores_S) m1 (x2 : linker N cores_T) m2 := 
+Record R (data : Lex.t types) mu 
+         (x1 : linker N cores_S) m1 (x2 : linker N cores_T) m2 := 
   { (* local defns. *)
     s1  := x1.(stack) 
   ; s2  := x2.(stack) 
@@ -292,7 +348,8 @@ Lemma peek_peek c1 :
   exists c2, Core.i c1=Core.i c2 /\ peekCore x2 = Some c2.
 Proof.
 move: (R_head pf)=> [A][B]; move/head_match=> MATCH H.
-have ->: (c1 = c pf) by rewrite/c/stack.head (StackDefs.peeksome_head _ H (pf1 pf)).
+have ->: (c1 = c pf) 
+ by rewrite/c/stack.head (StackDefs.peeksome_head _ H (pf1 pf)).
 exists (d pf); split=> //.
 rewrite/peekCore/peek StackDefs.nonempty_peek; first by apply: (pf2 pf).
 by move=> C; rewrite/d/stack.head/s2; f_equal; f_equal; apply: proof_irr.
@@ -302,7 +359,8 @@ Lemma peek_peekmatch c1 :
   peekCore x1 = Some c1 -> 
   exists c2 (pf0: Core.i c1=Core.i c2) cd,
   peekCore x2 = Some c2
-  /\ match_state (sims (Core.i c1)) cd mu (Core.c c1) m1 (cast pf0 (Core.c c2)) m2.
+  /\ match_state (sims (Core.i c1)) cd mu 
+     (Core.c c1) m1 (cast pf0 (Core.c c2)) m2.
 Proof.
 move=> H1; move: (peek_peek H1)=> []c2 []pf0 H2. 
 by move: (peekpeek_match pf0 H1 H2)=> []cd MATCH; exists c2, pf0, cd; split.
@@ -319,7 +377,8 @@ Proof.
 move: (R_head pf)=> [A][B]; move/head_match=> H. 
 move: (match_genv _ _ _ _ _ (sims (Core.i (c pf))) _ _ _ _ _ _ H)=> []H2 H3.
 rewrite -meminj_preserves_genv2blocks.
-rewrite (genvs_domain_eq_preserves _ _ (extern_of mu) (my_ge_S (Core.i (c pf)))).
+rewrite (genvs_domain_eq_preserves _ _ 
+        (extern_of mu) (my_ge_S (Core.i (c pf)))).
 rewrite meminj_preserves_genv2blocks.
 by apply: H2.
 Qed.
@@ -336,20 +395,24 @@ Qed.
 
 Lemma R_match_visible : REACH_closed m1 (vis mu).
 move: (R_head pf)=> [A][B]; move/head_match=> H. 
-by apply: (@match_visible _ _ _ _ _ _ _ _ _ _ _ (sims (Core.i (c pf))) _ _ _ _ _ _ H).
+by apply: (@match_visible _ _ _ _ _ _ _ _ _ _ _ 
+          (sims (Core.i (c pf))) _ _ _ _ _ _ H).
 Qed.
 
 Lemma R_match_restrict (X : block -> bool) : 
   (forall b : block, vis mu b -> X b) -> REACH_closed m1 X -> 
   R data (restrict_sm mu X) x1 m1 x2 m2.
 Proof.
-move: (R_head pf)=> [A][B]; move/head_inv_restrict=> H H2 H3; move: (H _ H2 H3)=> H'.
-apply: Build_R; first by exists A, B; apply: H'. 
+move: (R_head pf)=> [A][B]; move/head_inv_restrict=> H H2 H3. 
+move: (H _ H2 H3)=> H'; apply: Build_R; first by exists A, B; apply: H'. 
 by apply: tail_inv_restrict=> //; apply: (R_tail pf). 
 Qed.
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
-Proof. by move: (R_head pf)=> [A][B]; move/head_match; apply: match_validblocks. Qed.
+Proof. 
+move: (R_head pf)=> [A][B]; move/head_match. 
+by apply: match_validblocks. 
+Qed.
 
 End R_lems.
 
@@ -380,10 +443,10 @@ eapply Build_SM_simulation_inject
 - by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H).
 
 (* match_validblocks *)
-- by move=> ? ? ? ? ? ?; apply: R_match_validblocks.
+- by move=> ??; apply: R_match_validblocks.
 
 (* core_initial *)
-- by admit.
+- by admit. (* TODO *)
 
 (* NOT NEEDED diagram1 *)
 - by admit.
@@ -400,11 +463,13 @@ case: STEP.
  + move=> STEP. 
 
  have [c1 A]: exists c, peekCore st1 = Some c. 
-  { by move: STEP; rewrite/Sem.corestep0; case: (peekCore st1)=> // a; exists a. }
+  { move: STEP; rewrite/Sem.corestep0; case: (peekCore st1)=> // a. 
+    by exists a. }
 
  have [c1' [STEP0 ST1']]: 
          exists c' : C (cores_S (Core.i c1)), 
-         Coresem.corestep (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
+         Coresem.corestep 
+            (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
             (ge (cores_S (Core.i c1))) (Core.c c1) m1 c' m1' 
          /\ st1' = updCore st1 (Core.upd c1 c').
   { by move: STEP; rewrite/Sem.corestep0 A=> [][]c' []B C; exists c'; split. }
@@ -421,7 +486,6 @@ case: STEP.
  move/(_ _ _ _ _ U1_DEF).
  move: (peek_peekmatch INV A)=> []c2 []pf0 []cd []B MATCH.
  move/(_ _ _ _ MATCH).
-
  move=> []c2' []m2' []cd' []mu'.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
@@ -429,18 +493,12 @@ case: STEP.
  set c2''  := cast' pf0 c2'.
  set st2'  := updCore st2 (Core.upd c2 c2'').
  set data' := Lex.set (Core.i c1) cd' data.
-
- exists st2', m2', data', mu'.
- split=> //.
- split=> //.
- split=> //.
- split. 
+ exists st2', m2', data', mu'; do 4 split=> //.
 
  (* re-establish invariant *)
  have A' : peekCore st1' = Some (Core.upd c1 c1') by rewrite ST1'.
  have B' : peekCore st2' = Some (Core.upd c2 c2'') by rewrite/st2'.
  rewrite/peekCore in A' B'.
-
  apply: Build_R; rewrite/stack.head. 
  rewrite (StackDefs.peeksome_head _ A') (StackDefs.peeksome_head _ B')=> /=. 
 
@@ -451,8 +509,7 @@ case: STEP.
  (* tail_inv *)
  + { admit. (* TODO *)}
 
- exists U2.
- split=> //.
+ exists U2; split=> //.
  case: STEP'=> STEP'. left. admit. (* TODO: -->+  implies  ==>+ *)
  
 Admitted. (*WORK-IN-PROGRESS*)
