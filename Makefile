@@ -84,9 +84,11 @@ SEPCOMP_FILES= \
 LINKING_FILES= \
   pos.v \
   stack.v \
+  cast.v \
   wf_lemmas.v \
   core_semantics_lemmas.v \
   linking.v \
+  linking_lemmas.v \
   linking_sim.v
 
 COMPCOMP_FILES= \
