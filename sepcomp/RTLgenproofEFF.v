@@ -2015,10 +2015,7 @@ split.
     apply (H0 _ H1).
 split. assumption.
   rewrite restrict_sm_all.
-  eapply inject_mapped; try eassumption.
-    eapply restrict_mapped_closed; try eassumption.
-    eapply inject_REACH_closed; try eassumption.
-  apply restrict_incr.
+  eapply inject_restrict; eassumption.
 Qed.
 
 Lemma MATCH_valid: forall d mu c1 m1 c2 m2 
@@ -2107,10 +2104,7 @@ Proof. intros.
           intros. apply REACH_nil. rewrite H; intuition.
     rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.
-      eapply inject_mapped; try eassumption.
-      eapply restrict_mapped_closed; try eassumption.
-      eapply inject_REACH_closed; try eassumption.
-      apply restrict_incr.
+      eapply inject_restrict; eassumption.
   intuition.
     rewrite match_genv_meminj_preserves_extern_iff_all.
       assumption.
@@ -2981,10 +2975,7 @@ Proof. intros.
                        exists spb, spb'; split; trivial. split; trivial.
                        eapply IncVis; eassumption.                                          
                      eapply match_env_inject_incr; try eassumption.
-           eapply inject_mapped; try eassumption.
-             eapply restrict_mapped_closed; try eassumption.
-             eapply inject_REACH_closed; try eassumption. 
-             apply restrict_incr.
+           eapply inject_restrict; eassumption.
            exists sp, b'. split; trivial. split; trivial.
              eapply restrictI_Some; try eassumption.  
            destruct (as_inj_DomRng _ _ _ _ mu'SP); trivial.
@@ -3674,10 +3665,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
                        exists spb, spb'; split; trivial. split; trivial.
                        eapply IncVis; eassumption.                                          
                      eapply match_env_inject_incr; try eassumption.
-           eapply inject_mapped; try eassumption.
-             eapply restrict_mapped_closed; try eassumption.
-             eapply inject_REACH_closed; try eassumption. 
-             apply restrict_incr.
+           eapply inject_restrict; eassumption.
            exists sp, b'. split; trivial. split; trivial.
              eapply restrictI_Some; try eassumption.  
            destruct (as_inj_DomRng _ _ _ _ mu'SP); trivial.

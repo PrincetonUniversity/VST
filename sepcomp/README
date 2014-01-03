@@ -34,6 +34,16 @@ Conventions1.v
 Locations.v
 LTL.v
 
+Subtyping.v
+FSetAVLplus.v
+RTLtyping.v
+Lattice.v 
+Wfsimpl.v 
+Iteration.v 
+Heaps.v
+Kildall.v
+Allocation.v
+
 Please refer to the following files for further details about the license.
 
 ../LICENSE

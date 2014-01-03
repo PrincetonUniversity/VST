@@ -2378,10 +2378,7 @@ split.
     apply (H0 _ H1).
 split. assumption.
   rewrite restrict_sm_all.
-  eapply inject_mapped; try eassumption.
-    eapply restrict_mapped_closed; try eassumption.
-    eapply inject_REACH_closed; try eassumption.
-  apply restrict_incr.
+  eapply inject_restrict; eassumption.
 Qed.
 
 Lemma MATCH_valid: forall d mu c1 m1 c2 m2 
@@ -2783,10 +2780,7 @@ Lemma transl_expr_correctMu: forall e le m a v te tle tm mu
             eval_expr tge te tle tm ta tv.
 Proof. intros.
          assert (MinjR:  Mem.inject (restrict (as_inj mu) (vis mu)) m tm).
-           eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+           eapply inject_restrict; eassumption.
          assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            assert (PGR': meminj_preserves_globals ge (as_inj (restrict_sm mu (vis mu)))).
               eapply restrict_sm_preserves_globals; try eassumption.
@@ -2809,10 +2803,7 @@ Lemma transl_arglist_correctMu:
   Csharpminor.eval_exprlist tge te tle tm tal tvl.
 Proof. intros.
          assert (MinjR:  Mem.inject (restrict (as_inj mu) (vis mu)) m tm).
-           eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+           eapply inject_restrict; eassumption.
          assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            assert (PGR': meminj_preserves_globals ge (as_inj (restrict_sm mu (vis mu)))).
               eapply restrict_sm_preserves_globals; try eassumption.
@@ -2879,10 +2870,7 @@ Proof.
         destruct (access_mode (typeof a1)); congruence.
       destruct SAME; subst ts' tk'.
       assert (MinjR:  Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2).
-           eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+           eapply inject_restrict; eassumption.
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            rewrite <- restrict_sm_all. 
            eapply restrict_sm_preserves_globals; try eassumption.
@@ -3103,10 +3091,7 @@ Proof.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   exploit make_boolean_inject; eauto.
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+      eapply inject_restrict; eassumption.
       assert (PGR': meminj_preserves_globals ge (as_inj (restrict_sm mu (vis mu)))).
               eapply restrict_sm_preserves_globals; try eassumption.
               unfold vis. intuition. 
@@ -3250,10 +3235,7 @@ Proof.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]]. 
   exploit match_env_free_blocks_parallel_inject; eauto.
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.
+      eapply inject_restrict; eassumption.
     intros [m2' [FL2 Inj']].   
   eexists; eexists. exists mu.
   split. apply corestep_plus_one. constructor. eassumption.
@@ -3283,10 +3265,7 @@ Proof.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
      rewrite <- restrict_sm_all. 
      eapply restrict_sm_preserves_globals; try eassumption.
@@ -3327,10 +3306,7 @@ Proof.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   destruct (match_env_free_blocks_parallel_inject _ _ _ _ _ _ MENV InjR H0) as [m2' [FL2 Inj']].
   eexists; eexists. exists mu.
   split. apply corestep_plus_one.
@@ -3361,10 +3337,7 @@ Proof.
   monadInv TR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m1' m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
      rewrite <- restrict_sm_all. 
      eapply restrict_sm_preserves_globals; try eassumption.
@@ -3581,10 +3554,7 @@ Proof.
         destruct (access_mode (typeof a1)); congruence.
       destruct SAME; subst ts' tk'.
       assert (MinjR:  Mem.inject (restrict (as_inj mu) (vis mu)) m m2).
-           eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+           eapply inject_restrict; eassumption.
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            rewrite <- restrict_sm_all. 
            eapply restrict_sm_preserves_globals; try eassumption.
@@ -3775,10 +3745,7 @@ unfold make_store in EQ3.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   exploit make_boolean_inject; eauto.
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; try eassumption.
-           apply restrict_incr.   
+      eapply inject_restrict; eassumption.
       assert (PGR': meminj_preserves_globals ge (as_inj (restrict_sm mu (vis mu)))).
               eapply restrict_sm_preserves_globals; try eassumption.
               unfold vis. intuition. 
@@ -3934,10 +3901,7 @@ unfold make_store in EQ3.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]]. 
   exploit match_env_free_blocks_parallel_inject; eauto.
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.
+      eapply inject_restrict; eassumption.
     intros [m2' [FL2 Inj']].   
   eexists; eexists. exists mu.
   split. eexists; split.
@@ -3971,10 +3935,7 @@ unfold make_store in EQ3.
   monadInv TR. inv MTR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
      rewrite <- restrict_sm_all. 
      eapply restrict_sm_preserves_globals; try eassumption.
@@ -4019,10 +3980,7 @@ unfold make_store in EQ3.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   destruct (match_env_free_blocks_parallel_inject _ _ _ _ _ _ MENV InjR H0) as [m2' [FL2 Inj']].
   eexists; eexists. exists mu.
   split. eexists; split.
@@ -4057,10 +4015,7 @@ unfold make_store in EQ3.
   monadInv TR.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
   assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m m2).
-      eapply inject_mapped; try eassumption.
-           eapply restrict_mapped_closed; try eassumption.
-           eapply inject_REACH_closed; eassumption.
-           apply restrict_incr.  
+      eapply inject_restrict; eassumption.
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
      rewrite <- restrict_sm_all. 
      eapply restrict_sm_preserves_globals; try eassumption.

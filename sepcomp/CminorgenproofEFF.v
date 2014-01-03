@@ -693,12 +693,8 @@ split.
   rewrite restrict_sm_RNG in H1.
     apply (H0 _ H1).
 split. assumption.
-eapply inject_mapped. eassumption.
-    rewrite restrict_sm_all.
-      apply inject_REACH_closed in INJ.
-      apply (restrict_mapped_closed _ _ _ INJ RC).
-    rewrite restrict_sm_all.
-      apply (restrict_incr (as_inj mu) X). 
+rewrite restrict_sm_all.
+  eapply inject_restrict; eassumption.
 Qed.
 
 Lemma Match_validblocks: 
@@ -1200,10 +1196,7 @@ Proof.
   exploit IHeval_expr1; eauto. intros [tv1 [EVAL1 [INJ1 APP1]]].
   exploit IHeval_expr2; eauto. intros [tv2 [EVAL2 [INJ2 APP2]]].
   exploit eval_binop_compat; eauto.
-    eapply inject_mapped. eassumption.
-      apply inject_REACH_closed in MINJ.
-      apply (restrict_mapped_closed _ _ _ MINJ RC).
-      apply restrict_incr.
+    eapply inject_restrict; eassumption.
   intros [tv [EVAL INJ]].
   exists tv; split. econstructor; eauto. split. auto. eapply approx_of_binop_sound; eauto.
   (* Eload *)

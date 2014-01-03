@@ -855,6 +855,17 @@ Proof. intros. intros b Hb.
   eapply mappedI_true; eassumption. 
 Qed.
 
+Lemma inject_restrict: forall j m1 m2 X
+        (INJ : Mem.inject j m1 m2)
+        (RC : REACH_closed m1 X),
+      Mem.inject (restrict j X) m1 m2.
+Proof. intros.
+  eapply inject_mapped; try eassumption.
+    eapply restrict_mapped_closed; try eassumption.
+    eapply inject_REACH_closed; try eassumption.
+  apply restrict_incr.
+Qed.
+
 (*The blocks explicitly exported via call arguments, plus the already shared blocks*)
 Definition exportedSrc mu vals b := orb (getBlocks vals b) (sharedSrc mu b).
 Definition exportedTgt mu vals b := orb (getBlocks vals b) (sharedTgt mu b).

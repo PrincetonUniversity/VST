@@ -98,8 +98,11 @@ COMPCOMP_FILES= \
   SelectOp.v SelectDiv.v SelectLong.v \
   SelectOpproof.v SelectDivproof.v SelectLongproof.v \
   Selection.v SelectionproofEFF.v Registers.v RTL.v \
+  RTL_coop.v RTL_eff.v RTLgen.v RTLgenspec.v RTLgenproofEFF.v \
   Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
-  LTL_coop.v LTL_eff.v
+  Subtyping.v RTLtyping.v LTL_coop.v LTL_eff.v \
+  Lattice.v Wfsimpl.v Iteration.v Heaps.v Kildall.v \
+  FSetAVLplus.v Allocation.v AllocproofEFF.v
 #Selectionproof.v
 
 VERIC_FILES= \

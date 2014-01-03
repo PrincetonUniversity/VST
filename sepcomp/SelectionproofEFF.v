@@ -979,11 +979,9 @@ split.
     apply (H0 _ H1).
 split. assumption.
   rewrite restrict_sm_all.
-  eapply inject_mapped; try eassumption.
-    eapply restrict_mapped_closed; try eassumption.
-    eapply inject_REACH_closed; try eassumption.
-  apply restrict_incr.
+  eapply inject_restrict; eassumption.
 Qed.
+
 
 Lemma Match_genv: forall d mu c1 m1 c2 m2
                   (MC:Match_cores d mu c1 m1 c2 m2),
@@ -1431,10 +1429,7 @@ Proof.
        constructor.
          constructor; auto. 
            apply call_cont_commut; auto.
-           eapply inject_mapped; try eassumption.
-             eapply restrict_mapped_closed; try eassumption.
-             eapply inject_REACH_closed; eassumption.
-             apply restrict_incr.             
+           eapply inject_restrict; eassumption.
          intuition.
   (* Sbuiltin *)
       destruct MC as [SMC PRE].
@@ -1929,10 +1924,7 @@ intern_incr mu mu'
       eapply match_cont_sub; try eassumption.
       eapply env_inject_sub; try eassumption. 
       apply set_locals_inject. apply set_params_inject. assumption.
-    eapply inject_mapped; try eassumption.
-      eapply restrict_mapped_closed; try eassumption.
-        eapply inject_REACH_closed; eassumption.
-      apply restrict_incr.
+    eapply inject_restrict; eassumption. 
     red. exists sp, Int.zero, b'. intuition.
       apply restrictI_Some; trivial. unfold vis.
       destruct (joinD_Some _ _ _ _ _ A) as [EXT | [EXT LOC]].
@@ -2389,10 +2381,7 @@ induction CS; simpl in *.
        constructor.
          constructor; auto. 
            apply call_cont_commut; auto.
-           eapply inject_mapped; try eassumption.
-             eapply restrict_mapped_closed; try eassumption.
-             eapply inject_REACH_closed; eassumption.
-             apply restrict_incr.             
+           eapply inject_restrict; eassumption.
          intuition.
          eapply FreeEffect_validblock; eassumption.
       eapply FreeEffect_PropagateLeft; eassumption.         
@@ -2712,10 +2701,7 @@ induction CS; simpl in *.
       eapply match_cont_sub; try eassumption.
       eapply env_inject_sub; try eassumption. 
       apply set_locals_inject. apply set_params_inject. assumption.
-    eapply inject_mapped; try eassumption.
-      eapply restrict_mapped_closed; try eassumption.
-        eapply inject_REACH_closed; eassumption.
-      apply restrict_incr.
+    eapply inject_restrict; eassumption.
     red. exists sp, Int.zero, b'. intuition.
       apply restrictI_Some; trivial. unfold vis.
       destruct (joinD_Some _ _ _ _ _ A) as [EXT | [EXT LOC]].

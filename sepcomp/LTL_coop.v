@@ -205,15 +205,24 @@ Definition check_signature (sig: signature): bool :=
    | _, _ => false
   end.
 
+(*LENB: we do not require argtype=nil and res_type =vint, and
+instead create an loc-list containing all agruments*) 
 Definition LTL_initial_core (ge:genv) (v: val) (args:list val): option LTL_core :=
    match v with
      | Vptr b i => 
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => if check_signature (funsig f) 
+                 | Some f => (*if check_signature (funsig f) 
                              then Some (LTL_Callstate nil f (Locmap.init Vundef))
-                             else None
+                             else None*)
+                             Some (LTL_Callstate
+                                      nil
+                                      f 
+                                      (Locmap.setlist
+                                          (loc_arguments (funsig f)) 
+                                          args 
+                                          (Locmap.init Vundef)))
                end
           else None
      | _ => None
