@@ -1,25 +1,42 @@
 Add LoadPath "..".
+
+(* standard Coq libraries *)
+
+Require Import JMeq.
+
+(* msl imports *)
+
 Require Import msl.Axioms. (*for proof_irr*)
+
+(* sepcomp imports *)
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
-
 Require Import sepcomp.pos.
 Require Import sepcomp.stack.
+Require Import sepcomp.cast.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.linking.
+Require Import sepcomp.linking_lemmas.
+
+(* ssreflect *)
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
-Set Implicit Arguments.
+
+(* compcert imports *)
 
 Require Import compcert.common.AST.    (*for ident*)
 Require Import compcert.common.Values.   
 Require Import compcert.common.Globalenvs.   
 Require Import compcert.common.Memory.   
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
 
 (** * Linking simulation proof 
 
@@ -54,47 +71,28 @@ Let types := fun i : 'I_N => (sims i).(core_data entry_points).
 Let ords : forall i : 'I_N, types i -> types i -> Prop 
   := fun i : 'I_N => (sims i).(core_ord).
 
-Variable wf_ords : forall i : 'I_N, well_founded (ords i).
+Variable wf_ords : forall i : 'I_N, well_founded (@ords i).
 
 Let linker_S := effsem N cores_S fun_tbl.
 Let linker_T := effsem N cores_T fun_tbl.
 
 Let ord := @Lex.ord N types ords.
 
-Definition cast_ty (T1 T2: Type) (pf: T1=T2) (x : T1) : T2.
-rewrite pf in x; refine x.
-Defined. 
+Notation cast' pf x := (cast (C \o cores_T) pf x).
 
-Lemma types_eq 
-  {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
-  C (cores_T (Core.i d))=C (cores_T (Core.i c)).
-Proof. by rewrite pf. Defined.
-
-Lemma types_eq' 
-  {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) : 
-  C (cores_T (Core.i c))=C (cores_T (Core.i d)).
-Proof. by rewrite pf. Defined.
-
-Notation cast pf x := (cast_ty (types_eq pf) x).
-
-Notation cast' pf x := (cast_ty (types_eq' pf) x).
-
-Lemma cast_cast'_eq 
-  {c : Core.t cores_S} {d : Core.t cores_T} (pf : c.(Core.i)=d.(Core.i)) 
-  (x : C (cores_T c.(Core.i))) : cast pf (cast' pf x) = x.
-Proof. Admitted. (* TODO *)
+Notation cast pf x := (cast (C \o cores_T) (sym_eq pf) x).
 
 (** These lemmas on [restrict_sm] should go elsewhere. *)
 
-Lemma restrict_some {mu b1 b2 d X} : 
+Lemma restrict_some mu b1 b2 d X : 
   (restrict mu X) b1 = Some (b2, d) -> mu b1 = Some (b2, d).
 Proof. by rewrite/restrict; case: (X b1). Qed.
 
-Lemma restrict_sm_domsrc {mu b1 X} : 
+Lemma restrict_sm_domsrc mu b1 X : 
   DomSrc (restrict_sm mu X) b1 -> DomSrc mu b1.
 Proof. by rewrite/restrict_sm; case: mu. Qed.
 
-Lemma restrict_sm_domtgt {mu b2 X} : 
+Lemma restrict_sm_domtgt mu b2 X : 
   DomTgt (restrict_sm mu X) b2 -> DomTgt mu b2.
 Proof. by rewrite/restrict_sm; case: mu. Qed.
 
@@ -112,10 +110,11 @@ Qed.
 (** Domain Invariant: 
     ~~~~~~~~~~~~~~~~~
 
-    The [dom_inv] invariant enforces disjointness conditions between the local, 
-    public and foreign block sets declared by [mu0], an [SM_injection] appearing at 
-    existentially quantified positions in the callstack invariant, and those 
-    declared by [mu], the [SM_injection] of the currently running core. 
+    The [dom_inv] invariant enforces disjointness conditions between
+    the local, public and foreign block sets declared by [mu0], an
+    [SM_injection] appearing at existentially quantified positions in
+    the callstack invariant, and those declared by [mu], the
+    [SM_injection] of the currently running core.  
 *)
 
 Record dom_inv mu0 mu : Type := 
@@ -243,12 +242,12 @@ End head_inv.
 
 Section head_inv_lems.
 
-Context c d pf cd mu m1 m2 (inv : head_inv c d pf cd mu m1 m2).
+Context c d pf cd mu m1 m2 (inv : @head_inv c d pf cd mu m1 m2).
 
 Lemma head_inv_restrict (X : block -> bool) : 
   (forall b : block, vis mu b -> X b) -> 
   REACH_closed m1 X -> 
-  head_inv c d pf cd (restrict_sm mu X) m1 m2.
+  @head_inv c d pf cd (restrict_sm mu X) m1 m2.
 Proof.
 case: inv=> H H2 H3; apply: Build_head_inv.
 by apply: (match_restrict _ _ _ _ _ (sims (Core.i c))).
@@ -264,7 +263,7 @@ Fixpoint tail_inv_aux mu_head mu
       [/\ exists (pf : c.(Core.i)=d.(Core.i)) cd0,
           exists m10 e1 ef_sig1 vals1,
           exists m20 e2 ef_sig2 vals2, 
-          frame_inv c d pf cd0 mu0 mu_head mu 
+          @frame_inv c d pf cd0 mu0 mu_head mu 
                     m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
        & tail_inv_aux (Some mu0) mu s1' s2' m1 m2]
     | _, _ => False
@@ -315,7 +314,7 @@ Record R (data : Lex.t types) mu
   ; c   := stack.head _ pf1 
   ; d   := stack.head _ pf2 
     (* invariants *)
-  ; R_head : exists (pf : c.(Core.i)=d.(Core.i)) cd, head_inv c d pf cd mu m1 m2 
+  ; R_head : exists (pf : c.(Core.i)=d.(Core.i)) cd, @head_inv c d pf cd mu m1 m2 
   ; R_tail : tail_inv mu (pop s1.(callStack)) (pop s2.(callStack)) m1 m2 }.
 
 End R.
@@ -503,15 +502,24 @@ case: STEP.
  rewrite (StackDefs.peeksome_head _ A') (StackDefs.peeksome_head _ B')=> /=. 
 
  (* head_inv *)
- + { exists pf0, cd'; apply: Build_head_inv=> /=.
-     by rewrite /c2''; rewrite cast_cast'_eq; apply: MATCH'. }
+ + exists pf0, cd'; apply: Build_head_inv. 
+   have ->: cast pf0 (cast' pf0 c2') = c2' by apply: cast_cast_eq.
+   by apply: MATCH'. 
 
  (* tail_inv *)
- + { admit. (* TODO *)}
+ + admit. (* TODO *) 
 
- exists U2; split=> //.
- case: STEP'=> STEP'. left. admit. (* TODO: -->+  implies  ==>+ *)
- 
+ (* matching execution *)
+ + exists U2; split=> //; case: STEP'=> STEP'. 
+   left; apply: stepPLUS_STEPPLUS=> //.
+   set (T := C \o cores_T).
+   set (P := fun ix (x : T ix) (y : T ix) => 
+               effect_semantics.effstep_plus 
+               (coreSem (cores_T ix)) (ge (cores_T ix)) U2 x m2 y m2').
+   change (P (Core.i c2) (Core.c c2) (cast.cast T pf0 c2')).
+   by apply: cast_indnatdep2.
+   admit. (* TODO: ord case *) 
+
 Admitted. (*WORK-IN-PROGRESS*)
 
 End linkingSimulation.
