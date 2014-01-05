@@ -801,13 +801,6 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite sem_add_ptr_int using assumption : norm.
 
-Ltac general_load_tac := 
- hoist_later_in_pre;
- eapply semax_load_37';
-  [entailer;
-   apply andp_right; [apply prop_right | solve [cancel] ];
-    do 2 eexists; split; reflexivity].
-
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
@@ -830,8 +823,33 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try apply I; try assumption; reflexivity
    ]
  end
+ | |- semax _ _ (Sset _ (Ecast (Efield ?e _ _) _)) _ =>
+ match e with
+ | Ederef _ _ => 
+   (eapply (semax_cast_load_field_40);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [entailer!]
+   | try apply I; try assumption; reflexivity
+   ]) || fail 1
+ | _ =>
+   eapply (semax_cast_load_field_38);
+   [ solve [auto 50 with closed] | solve [auto 50 with closed]
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
+   | solve [entailer; cancel]
+   | try apply I; try assumption; reflexivity
+   ]
+ end
  | |- semax _ _ (Sset _ (Efield _ _ _)) _ =>
   eapply (semax_load_field'');
+   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | try solve [entailer]
+   | solve [entailer; cancel]
+   | try apply I; try assumption; reflexivity
+   ]
+ | |- semax _ _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
+  eapply (semax_cast_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; cancel]
@@ -843,6 +861,11 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       | solve [entailer; cancel]
       | ]
  | |- _ => eapply semax_load_37';
+   [entailer;
+    try (apply andp_right; [apply prop_right | solve [cancel] ];
+           do 2 eexists; split; reflexivity)
+    ]
+ | |- _ => eapply semax_cast_load_37';
    [entailer;
     try (apply andp_right; [apply prop_right | solve [cancel] ];
            do 2 eexists; split; reflexivity)
@@ -1145,13 +1168,22 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
   lazymatch s with 
   | Sassign _ _ => new_store_tac
-  | Sset _ (Efield ?e _ ?t) => 
+  | Sset _ (Efield ?e _ ?t)  => 
       no_loads_expr e true;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
               |new_load_tac]
-  | Sset _ (Ederef ?e _) => no_loads_expr e true; new_load_tac
-  | Sset _ (Evar _ _) => new_load_tac
+  | Sset _ (Ecast (Efield ?e _ ?t) _) => 
+      no_loads_expr e true;
+      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
+               forward_setx
+              |new_load_tac]
+  | Sset _ (Ederef ?e _) => 
+         no_loads_expr e true; new_load_tac
+  | Sset (Ecast (Ederef ?e _) _) => 
+         no_loads_expr e true; new_load_tac
+  | Sset _ (Evar _ _)  => new_load_tac
+  | Sset _ (Ecast (Evar _ _) _) => new_load_tac
   | Sset _ ?e => no_loads_expr e false; (bool_compute e; forward_ptr_cmp) || forward_setx
   | Sifthenelse ?e _ _ => no_loads_expr e false; forward_ifthenelse
   | Swhile _ _ => forward_while_complain

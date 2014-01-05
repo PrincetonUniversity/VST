@@ -23,7 +23,32 @@ Proof.
 start_function.
 name x1 _x1.
 name y1 _y1.
+unfold v_s.
+apply semax_pre with (PROP() LOCAL () 
+            SEP(`(data_at Ews t_struct_foo (Vint (Int.repr 5), Vfloat (Float.singleoffloat (Float.double_of_bits
+                              (Int64.repr 4614861056357957632))))) (eval_var _s t_struct_foo))).
+go_lower. apply andp_derives; auto. apply andp_derives; auto.
+simpl_data_at.
+normalize.
+apply sepcon_derives.
+eapply mapsto_field_at'.
+reflexivity.
+reflexivity.
+simpl.
+rewrite offset_offset_val. reflexivity.
+apply I.
+reflexivity.
+eapply mapsto_field_at'.
+reflexivity.
+reflexivity.
+simpl.
+rewrite offset_offset_val. reflexivity.
+apply I.
+reflexivity.
+simpl_data_at.
 forward.
-unfold tc_expr, typecheck_expr.
-Admitted.
-
+forward.
+forward.
+unfold main_post.
+entailer!.
+Qed.

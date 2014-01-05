@@ -77,7 +77,7 @@ SEPCOMP_FILES= \
   safety_preservation.v \
   StructuredInjections.v effect_semantics.v effect_simulations.v \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
-  effect_interpolants.v effect_simulations_trans.v \
+  effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
   wf_lemmas_old.v linking_old.v linking_simulations_old.v linking_proof_old.v
 
@@ -131,7 +131,7 @@ PROGS_FILES= \
   verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v verif_sha_final2.v verif_sha_final.v \
    entail_examples.v entail_examples2.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.c
+  verif_float.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c sha.c insertionsort.c float.c
 

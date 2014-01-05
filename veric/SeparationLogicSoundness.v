@@ -93,6 +93,7 @@ Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 Definition semax_store := @semax_store.
 Definition semax_load := @semax_load.
+Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.
 Definition semax_pre_post := @semax_pre_post.

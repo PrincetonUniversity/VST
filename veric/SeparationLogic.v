@@ -668,6 +668,19 @@ forall (Delta: tycontext) sh id P e1 v2,
        (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
                                           (subst id (`old) (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
 
+
+Axiom semax_cast_load : 
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P e1 t1 v2,
+    @semax Espec Delta 
+       (|> (local (tc_lvalue Delta e1) && 
+       local (tc_temp_id_load id t1 Delta (`(eval_cast (typeof e1) t1) v2)) && 
+       local ( `(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
+       (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       (Sset id (Ecast e1 t1))
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
+                                          (subst id (`old) (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
+
 Axiom semax_store:
   forall {Espec: OracleKind},
  forall Delta e1 e2 sh P,
