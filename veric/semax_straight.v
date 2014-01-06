@@ -635,13 +635,54 @@ right.
 rewrite Map.gso; auto. rewrite Hge. simpl. auto.
 Qed.
 
+Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
+ match (temp_types Delta) ! id with
+ | Some (t, _) => Some t
+ | None => None
+ end.
+
+Lemma typeof_temp_sub:
+ forall (Delta Delta': tycontext),
+    tycontext_sub Delta Delta' ->
+   forall i t, 
+    typeof_temp Delta i = Some t ->
+    typeof_temp Delta' i = Some t.
+Proof.
+intros.
+destruct H as [? _].
+specialize (H i).
+unfold typeof_temp in *.
+destruct ((temp_types Delta) ! i); inv H0. destruct p. inv H2.
+destruct ((temp_types Delta') ! i); try contradiction.
+destruct p. destruct H; subst; auto.
+Qed.
+
+Lemma eval_cast_Vundef:
+ forall t1 t2, eval_cast t1 t2 Vundef = Vundef.
+Proof.
+destruct t1,t2; 
+ try destruct i; try destruct s; try destruct f;
+ try destruct i0; try destruct s0; try destruct f0;
+ reflexivity.
+Qed.
+
+Lemma neutral_cast_lemma2: forall t1 t2 v,
+  is_neutral_cast t1 t2 = true -> 
+  tc_val t1 v -> tc_val t2 v.
+Proof.
+intros.
+destruct t1,t2; inv H;
+try solve [destruct i; discriminate];
+ try solve [destruct v; apply H0].
+Qed.
 
 Lemma semax_load : 
-forall (Delta: tycontext) sh id P e1 v2,
+forall (Delta: tycontext) sh id P e1 t2 v2,
+    typeof_temp Delta id = Some t2 ->
+    is_neutral_cast (typeof e1) t2 = true ->
     semax Espec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  
-        && (tc_temp_id_load id (typeof e1) Delta v2 rho)
         && (!! tc_val (typeof e1) (v2 rho))
         &&  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id e1)
@@ -649,14 +690,13 @@ forall (Delta: tycontext) sh id P e1 v2,
         EX old:val, (!!(eval_id id rho = subst id old v2 rho) &&
                          (subst id old (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho) rho)))).
 Proof.
-intros until v2.  
+intros until v2.
+intros Hid TC1. 
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
-  tc_temp_id_load id (typeof e1) Delta v2 rho ) && 
-  !! (tc_val (typeof e1) (v2 rho)) &&
-  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
+  !! tc_val (typeof e1) (v2 rho) &&
+  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))))
  with (fun rho : environ => 
    ( |> tc_lvalue Delta e1 rho && 
-     |> tc_temp_id_load id (typeof e1) Delta v2 rho &&
      |> !! (typecheck_val (v2 rho) (typeof e1) = true) && 
      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
 Focus 2.
@@ -668,38 +708,35 @@ rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [[TC2 TC1] TC3] TC' Hcl Hge ? ?.
-specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi H))).
+intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 apply (tc_lvalue_sub _ _ TS) in TC2.
-apply (tc_temp_id_load_sub _ _ TS) in TC1.
+hnf in TC3.
+apply (typeof_temp_sub _ _ TS) in Hid.
 clear Delta TS.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
-exists (PTree.set id (v2 rho) (te)).
-econstructor.
-split.
-reflexivity.
+exists (PTree.set id (v2 rho) te).
+econstructor; split; [reflexivity | ].
 split3.
 apply age_level; auto. simpl. 
 rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. 
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - TC1 TC2 TC3 TC' H2 Hge H0.
+clear - Hid TC1 TC2 TC3 TC' H2 Hge H0.
 intros. simpl in TC1.
-rewrite H in TC1. 
 destruct t as [t x].
-destruct TC1 as [t0 [x0 [TC1 TC4]]].
-inv TC1. simpl.  simpl in TC3.  
-eapply allowed_val_cast_sound; eauto. 
+unfold typeof_temp in Hid. rewrite H in Hid.
+inv Hid.
+rewrite tc_val_eq' in TC3|-*.
+apply (neutral_cast_lemma2 _ t2 _ TC1 TC3).
 (* typechecking proof *)
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
    assert (NONVOL: type_is_volatile (typeof e1) = false).
-   unfold typecheck_temp_id in *.
    unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
    apply Clight.eval_Elvalue with b ofs; auto.
    destruct H0 as [H0 _].
@@ -740,12 +777,13 @@ split; [split3 | ].
          (eval_id id rho) = rho).
   unfold env_set. simpl.
   rewrite Map.override. unfold eval_id.
-  unfold tc_temp_id_load in TC1.  simpl in TC1.
-  destruct TC1 as [t0 [x0 [TC1 TC4]]].
   destruct TC' as [TC' _].
   unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [TC'[ _ _]].
   unfold typecheck_temp_environ in *. 
-  specialize (TC' _ _ _ TC1). destruct TC'. destruct H4. rewrite H4. simpl.
+  specialize (TC' id).
+  unfold typeof_temp in Hid. destruct ((temp_types Delta') ! id); inv Hid.
+  destruct p. specialize (TC' _ _ (eq_refl _)).
+   destruct TC'. destruct H4. rewrite H4. simpl.
   rewrite Map.override_same; subst; auto.
   unfold subst.
   rewrite H4.
@@ -758,21 +796,13 @@ split; [split3 | ].
    subst. auto.
 Qed.
 
-Lemma eval_cast_Vundef:
- forall t1 t2, eval_cast t1 t2 Vundef = Vundef.
-Proof.
-destruct t1,t2; 
- try destruct i; try destruct s; try destruct f;
- try destruct i0; try destruct s0; try destruct f0;
- reflexivity.
-Qed.
-
 Lemma semax_cast_load : 
-forall (Delta: tycontext) sh id P e1 t1 v2,
+forall (Delta: tycontext) sh id P e1 t1 t2 v2,
+    typeof_temp Delta id = Some t2 ->
+    is_neutral_cast t1 t2 = true ->
     semax Espec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  
-        && (tc_temp_id_load id t1 Delta (`(eval_cast (typeof e1) t1) v2) rho)
         && (!! tc_val t1 (`(eval_cast (typeof e1) t1) v2 rho))
         &&  (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
        (Sset id (Ecast e1 t1))
@@ -783,13 +813,12 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
                          * P rho) rho)))).
 Proof.
 intros until v2.  
+intros Hid TC1.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
-  tc_temp_id_load id t1 Delta  (`(eval_cast (typeof e1) t1) v2) rho ) &&
        (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
-       (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho)))
+       (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))))
  with (fun rho : environ => 
    ( |> tc_lvalue Delta e1 rho && 
-     |> tc_temp_id_load id t1 Delta  (`(eval_cast (typeof e1) t1) v2) rho &&
      |> !! (typecheck_val (eval_cast (typeof e1) t1 (v2 rho)) t1 = true) && 
      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * P rho))).
 Focus 2.
@@ -801,12 +830,12 @@ rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [[TC2 TC1] TC3] TC' Hcl Hge ? ?.
-specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi H))).
+intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ?.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
 apply (tc_lvalue_sub _ _ TS) in TC2.
-apply (tc_temp_id_load_sub _ _ TS) in TC1.
+hnf in TC3.
+apply (typeof_temp_sub _ _ TS) in Hid.
 clear Delta TS.
 destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
@@ -817,18 +846,17 @@ reflexivity.
 split3.
 apply age_level; auto. simpl. 
 rewrite <- map_ptree_rel.
-apply guard_environ_put_te'. 
+apply guard_environ_put_te'.
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - TC1 TC2 TC3 TC' H2 Hge H0.
-intros. simpl in TC1.
-rewrite H in TC1. 
+clear - Hid TC1 TC2 TC3 TC' H2 Hge H0.
+intros.
 destruct t as [t x].
-destruct TC1 as [t0 [x0 [TC1 TC4]]].
-inv TC1. simpl.  simpl in TC3.  
-eapply allowed_val_cast_sound; eauto.
-(* typechecking proof *)
-
+unfold typeof_temp in Hid. rewrite H in Hid.
+inv Hid.
+simpl.
+rewrite tc_val_eq' in TC3|-*.
+apply (neutral_cast_lemma2 t1 t2 _ TC1 TC3).
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
@@ -879,12 +907,13 @@ split; [split3 | ].
          (eval_id id rho) = rho).
   unfold env_set. simpl.
   rewrite Map.override. unfold eval_id.
-  unfold tc_temp_id_load in TC1.  simpl in TC1.
-  destruct TC1 as [t0 [x0 [TC1 TC4]]].
   destruct TC' as [TC' _].
   unfold typecheck_environ in TC'. repeat rewrite andb_true_iff in TC'. destruct TC' as [TC'[ _ _]].
   unfold typecheck_temp_environ in *. 
-  specialize (TC' _ _ _ TC1). destruct TC'. destruct H4. rewrite H4. simpl.
+  specialize (TC' id).
+  unfold typeof_temp in Hid. destruct ((temp_types Delta') ! id); inv Hid.
+  destruct p. specialize (TC' _ _ (eq_refl _)).
+   destruct TC'. destruct H4. rewrite H4. simpl.
   rewrite Map.override_same; subst; auto.
   unfold subst.
   rewrite H4.
@@ -896,7 +925,6 @@ split; [split3 | ].
    unfold insert_idset; rewrite PTree.gss; hnf; auto.
    subst. auto.
 Qed.
-
 
 Lemma res_option_core: forall r, res_option (core r) = None.
 Proof.

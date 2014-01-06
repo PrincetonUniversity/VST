@@ -166,6 +166,7 @@ Proof.
 Qed.
 *)
 
+(*
 Definition strictAllowedCast tfrom tto :=
 match Cop.classify_cast tfrom tto with 
 | Cop.cast_case_neutral => 
@@ -183,6 +184,7 @@ Proof.
 intros.
 destruct t1,t2; inv H; destruct v; reflexivity.
 Qed. 
+*)
 
 Definition in_range (lo hi: Z) (x: Z) := lo <= x < hi.
 Arguments in_range lo hi x /.
@@ -244,11 +246,11 @@ end.
 
 Lemma semax_load_array':
 forall Espec (Delta: tycontext) id sh t1 P Q R lo hi 
-       (contents: Z -> reptype t1) e1 (v1 v2: environ->val) t1' i2,
+       (contents: Z -> reptype t1) e1 (v1 v2: environ->val) t1',
     typeof e1 =  tptr t1 ->
-    (temp_types Delta) ! id = Some (t1',i2) ->
+    typeof_temp Delta id = Some t1' ->
     no_attr_type t1 = true ->
-    strictAllowedCast t1 t1' = true ->
+    is_neutral_cast t1 t1' = true ->
     is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
@@ -280,7 +282,7 @@ eapply semax_pre_post;
                     :: `eq (`force_val (`sem_add `(tptr t1)  `tint v1 v2))
                          (eval_expr e1) :: Q)
                 (SEPx R))) (Ederef e1 t1)
-    (`(repinject t1) ((`contents (`force_signed_int v2)))))].
+    t1' (`(repinject t1) ((`contents (`force_signed_int v2))))); auto].
 * (* precondition *)
 apply loadstore_lemmas.later_left2.
 rewrite insert_local.
@@ -307,7 +309,6 @@ destruct (v2 rho); inv H6.
 destruct (v1 rho); inv H10.
 apply I.
 rewrite (no_attr_type_nonvol _ NONVOL); apply I.
-exists t1',i2; split; auto. apply strictAllowedValCast; auto.
 apply andp_left1; auto.
 
 * (* postcondition *)
@@ -344,11 +345,11 @@ auto.
 Qed.
 
 Lemma semax_load_array:
-forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ->val) t1' i2,
+forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ->val) t1',
     typeof e1 =  tptr t1 ->
-    (temp_types Delta) ! id = Some (t1',i2) ->
+    typeof_temp Delta id = Some t1' ->
     no_attr_type t1 = true ->
-    strictAllowedCast t1 t1' = true ->
+    is_neutral_cast t1 t1' = true ->
     is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->

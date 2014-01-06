@@ -428,6 +428,8 @@ eapply semax_seq'.
    eapply (semax_load_field_38); try eassumption; try reflexivity.
   admit.  (* closed...  should be fine *)
    admit.  (* closed...  should be fine *)
+ unfold typeof_temp; rewrite H0. reflexivity.
+ reflexivity.
  go_lowerx; entailer.
  go_lowerx; entailer. rewrite H2; cancel.
  simpl. auto. 

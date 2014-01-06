@@ -732,23 +732,58 @@ match Cop.classify_cast tfrom tto with
       end
 end.
 
-Definition allowedValCast v tfrom tto :=
-match Cop.classify_cast tfrom tto with 
-| Cop.cast_case_neutral => if (is_int_type tfrom) && 
-                          (is_pointer_type tto) 
-                          then 
-                            match v with 
-                              | Vint i => (Int.eq i Int.zero)
-                              | _ => false 
-                            end
-                          else if eqb (is_int_type tfrom) 
-                                      (is_int_type tto)
-                               then true else false
-| Cop.cast_case_i2i _ _ => true
-| Cop.cast_case_l2l => true
-| Cop.cast_case_f2f _ => true
-| _  => false
-end. 
+Definition is_int (v: val) := 
+ match v with Vint i => True | _ => False end.
+Definition is_long (v: val) := 
+ match v with Vlong i => True | _ => False end.
+Definition is_float (v: val) := 
+ match v with Vfloat i => True | _ => False end.
+Definition is_pointer_or_null (v: val) := 
+ match v with 
+ | Vint i => i = Int.zero
+ | Vptr _ _ => True
+ | _ => False
+ end.
+ 
+Definition isptr v := 
+   match v with | Vptr _ _ => True | _ => False end.
+
+Definition tc_val (ty: type) : val -> Prop :=
+ match ty with 
+ | Tint _ _ _ => is_int
+ | Tlong _ _ => is_long 
+ | Tfloat _ _ => is_float
+ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
+ | Tstruct _ _ _ => isptr
+ | Tunion _ _ _ => isptr
+ | _ => fun _ => False
+ end.
+
+(* A "neutral cast" from t1 to t2 is such that
+  it satisfies the neutral_cast_lemma, i.e. if v already typechecks as t1
+  then it will not be modified by casting to t2. *)
+Definition is_neutral_cast t1 t2 :=
+ match t1, t2 with
+ | Tint I32 _ _, Tint I32 _ _ => true
+ | Tlong _ _, Tlong _ _ => true
+ | Tfloat _ _, Tfloat F64 _ => true
+ | Tpointer _ _, Tpointer _ _ => true
+ | _, _ => false
+ end.
+
+Lemma neutral_cast_lemma: forall t1 t2 v,
+  is_neutral_cast t1 t2 = true -> 
+  tc_val t1 v -> eval_cast t1 t2 v = v.
+Proof.
+intros.
+ destruct t1, t2;
+ inv H;
+ try solve [destruct i; inv H2].
+ * destruct i,i0; inv H2; destruct v; inv H0; reflexivity.
+ * destruct v; inv H0; reflexivity.
+ * destruct f0; inv H2; destruct v; inv H0; reflexivity.
+ * destruct v; inv H0; reflexivity.
+Qed. 
 
 Definition globtype (g: global_spec) : type :=
 match g with 
@@ -764,16 +799,20 @@ match (var_types Delta) ! id with
            end
 end.
 
+(*
+
 Definition is_neutral_cast tfrom tto : bool :=
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_neutral => true
 | _ => false
 end. 
+*)
 
 
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
   Tint _ _ _, Tint _ _ _ 
+| Tlong _ _, Tlong _ _
 | Tfloat _ _, Tfloat _ _  => true
 | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _), 
    (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => true
@@ -931,17 +970,6 @@ Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
  | _, _ => false
 end.
 
-(*Belongs in expr_lemmas.v*)
-Lemma allowed_val_cast_sound : forall v tfrom tto,
-allowedValCast v tfrom tto = true -> 
-typecheck_val v tfrom = true ->
-typecheck_val v tto = true. 
-Proof. 
-intros. destruct tfrom; destruct tto; destruct v; intuition; 
- try destruct i; try destruct i0; destruct s; inv H.
-Qed. 
-
-
 
 (** Environment typechecking functions **)
 
@@ -1000,9 +1028,6 @@ Definition denote_tc_iszero v :=
 Definition denote_tc_nonzero v := 
          match v with Vint i => if negb (Int.eq i Int.zero) then True else False
                                                | _ => False end.
-
-Definition isptr v := 
-   match v with | Vptr _ _ => True | _ => False end.
 
 Definition denote_tc_igt i v :=
      match v with | Vint i1 => is_true (Int.ltu i1 i)
@@ -1413,30 +1438,6 @@ Proof.
 intros.
 destruct H as [? [? [? ?]]]; repeat split; auto.
 Qed.
-
-Definition is_int (v: val) := 
- match v with Vint i => True | _ => False end.
-Definition is_long (v: val) := 
- match v with Vlong i => True | _ => False end.
-Definition is_float (v: val) := 
- match v with Vfloat i => True | _ => False end.
-Definition is_pointer_or_null (v: val) := 
- match v with 
- | Vint i => i = Int.zero
- | Vptr _ _ => True
- | _ => False
- end.
- 
-Definition tc_val (ty: type) : val -> Prop :=
- match ty with 
- | Tint _ _ _ => is_int
- | Tlong _ _ => is_long 
- | Tfloat _ _ => is_float
- | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
- | Tstruct _ _ _ => isptr
- | Tunion _ _ _ => isptr
- | _ => fun _ => False
- end.
 
 Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
 Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.

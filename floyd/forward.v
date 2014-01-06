@@ -277,6 +277,17 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
  See also BEGIN HORRIBLE1 , later in this file
 *)
  
+Lemma neutral_isCastResultType:
+ forall t v rho, is_neutral_cast t t = true -> 
+   denote_tc_assert (isCastResultType t t t v) rho.
+Proof.
+intros.
+ unfold isCastResultType;
+ destruct t; inv H; try apply I.
+* destruct i; inv H1; simpl. if_tac; apply I.
+* admit. (* Tlong case *)
+* simpl. if_tac; apply I.
+Qed.
 
 Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
@@ -348,8 +359,8 @@ Focus 2.
  rewrite PTree.gss. auto.
  (* End Focus 2 *)
  unfold local; apply prop_right.
- simpl.  destruct retty; simpl; inv H5; try apply I.
- contradiction.
+ simpl.
+  destruct retty; simpl; try inv H5; apply I.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.
  destruct (eq_dec ret' ret).
@@ -359,20 +370,18 @@ Focus 2.
   replace (implicit_deref retty) with retty by (clear - H0; destruct retty; try contradiction; reflexivity).
  rewrite H5.
  simpl.
- unfold isCastResultType. unfold is_neutral_cast in H5.
- destruct (Cop.classify_cast retty retty); try discriminate.
- rewrite eqb_type_refl. apply I.
- unfold temp_types. unfold initialized; simpl.
- rewrite H4. simpl. rewrite PTree.gso by auto.
-  replace (implicit_deref retty) with retty by (clear - H0; destruct retty; try contradiction; reflexivity).
- destruct ((temp_types Delta) ! ret); try discriminate.
+ apply neutral_isCastResultType; auto.
+ replace (implicit_deref retty) with retty by (clear - H0; destruct retty; try contradiction; reflexivity).
+ destruct ((temp_types Delta) ! ret) eqn:?; try discriminate.
  destruct p. apply eqb_type_true in H6.
- subst t. rewrite H5.
- simpl.
- unfold isCastResultType. unfold is_neutral_cast in H5.
- destruct (Cop.classify_cast retty retty); try discriminate.
- rewrite eqb_type_refl. apply I.
+ subst t.
+ unfold temp_types, initialized.  rewrite H4. simpl. rewrite PTree.gso by auto.
+ rewrite Heqo.
+ rewrite denote_tc_assert_andp; split.
+ rewrite H5; reflexivity.
+ apply neutral_isCastResultType; auto.
  auto.
+
  intros.
  apply andp_left2. apply normal_ret_assert_derives'.
  apply exp_derives; intro old.
@@ -861,12 +870,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       | solve [entailer; cancel]
       | ]
  | |- _ => eapply semax_load_37';
-   [entailer;
+   [reflexivity | reflexivity
+   | entailer;
     try (apply andp_right; [apply prop_right | solve [cancel] ];
            do 2 eexists; split; reflexivity)
     ]
  | |- _ => eapply semax_cast_load_37';
-   [entailer;
+   [reflexivity | reflexivity
+   |entailer;
     try (apply andp_right; [apply prop_right | solve [cancel] ];
            do 2 eexists; split; reflexivity)
     ]

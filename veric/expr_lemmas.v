@@ -1844,15 +1844,6 @@ try rewrite <- Heqv in *;  unfold denote_tc_iszero in *;
 try apply H0; try contradiction.
 Qed. 
 
-Lemma allowed_val_cast_sound : forall v tfrom tto,
-allowedValCast v tfrom tto = true -> 
-typecheck_val v tfrom = true ->
-typecheck_val v tto = true. 
-Proof. 
-intros. 
-destruct v; destruct tfrom; destruct tto; try solve [simpl in *; try congruence]; auto;  first  [destruct i1 | destruct i0 | destruct i]; try destruct s; unfold allowedValCast in *; try solve [simpl in *; try congruence].
-Qed.
-
 Definition typecheck_tid_ptr_compare
 Delta id := 
 match (temp_types Delta) ! id with

@@ -653,13 +653,39 @@ Definition tc_exprlist (Delta: tycontext) (t : list type) (e: list expr) : asser
 Definition tc_lvalue (Delta: tycontext) (e: expr) : assert := 
      fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
 
+Definition allowedValCast v tfrom tto :=
+match Cop.classify_cast tfrom tto with 
+| Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto) 
+                          then 
+                            match v with 
+                              | Vint i => (Int.eq i Int.zero)
+                              | _ => false 
+                            end
+                          else if eqb (is_int_type tfrom) 
+                                      (is_int_type tto)
+                               then true else false
+| Cop.cast_case_i2i _ _ => true
+| Cop.cast_case_l2l => true
+| Cop.cast_case_f2f _ => true
+| _  => false
+end. 
+
+Lemma allowed_val_cast_sound : forall v tfrom tto,
+allowedValCast v tfrom tto = true -> 
+typecheck_val v tfrom = true ->
+typecheck_val v tto = true. 
+Proof. 
+intros. destruct tfrom; destruct tto; destruct v; intuition; 
+ try destruct i; try destruct i0; destruct s; inv H.
+Qed. 
 
 Definition tc_temp_id (id : positive) (ty : type) 
   (Delta : tycontext) (e : expr) : assert  :=
      fun rho => !! denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
 
 Definition tc_temp_id_load id tfrom Delta v : assert  :=
-fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) /\ (allowedValCast (v rho) (tfrom) tto)= true).
+fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) 
+                      /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
 Lemma extend_prop: forall P, boxy extendM (prop P).
 Proof.
