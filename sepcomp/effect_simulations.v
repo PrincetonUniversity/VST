@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
