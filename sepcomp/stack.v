@@ -20,7 +20,8 @@ Definition empty : Stack.t T := [::].
 Definition nonempty : pred (Stack.t T) := 
   [pred s | if s is [::] then false else true].
 
-Lemma peek_nonempty (stack : Stack.t T) t : peek stack = Some t -> nonempty stack.
+Lemma peek_nonempty (stack : Stack.t T) t : 
+  peek stack = Some t -> nonempty stack.
 Proof. by rewrite/peek; case: stack. Qed.
 
 Lemma nonempty_nempty (stack: Stack.t T) : nonempty stack -> [::] = stack -> T.
@@ -48,13 +49,18 @@ End stackDefs. End StackDefs.
 
 (** Export push, pop, empty, nonempty, push_pop, pop_nonempty *)
 
-Definition push      := StackDefs.push.
-Definition pop       := StackDefs.pop.
-Definition peek      := StackDefs.peek.
-Definition head      := StackDefs.head.
-Definition empty     := StackDefs.empty.
-Definition nonempty  := StackDefs.nonempty.
-Definition peek_nonempty := StackDefs.peek_nonempty.
-Definition all_pop   := StackDefs.all_pop.
+Notation push      := StackDefs.push.
+Notation pop       := StackDefs.pop.
+Notation peek      := StackDefs.peek.
+Notation head      := StackDefs.head.
+Notation empty     := StackDefs.empty.
+Notation nonempty  := StackDefs.nonempty.
+Notation peek_nonempty := StackDefs.peek_nonempty.
+Notation all_pop   := StackDefs.all_pop.
 
-Implicit Arguments empty [T].
+Arguments StackDefs.updStack {T} !_ /.
+Arguments push {T} _ _ /.
+Arguments pop {T} !_ /.
+Arguments peek {T} !_ /.
+Arguments head {T} !_ _ /.
+Arguments empty / {T}.

@@ -1,5 +1,3 @@
-Add LoadPath "..".
-
 (* standard Coq libraries *)
 
 Require Import JMeq.
@@ -264,7 +262,7 @@ Fixpoint tail_inv_aux mu_head mu
           exists m10 e1 ef_sig1 vals1,
           exists m20 e2 ef_sig2 vals2, 
           @frame_inv c d pf cd0 mu0 mu_head mu 
-                    m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
+                     m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
        & tail_inv_aux (Some mu0) mu s1' s2' m1 m2]
     | _, _ => False
   end.
@@ -297,6 +295,22 @@ apply: Build_frame_inv=> //; last by apply: sm_inject_separated_restrict.
 by apply: dom_inv_restrict.
 Qed.
 
+(*
+Lemma tail_inv_step mu0 mu' m1' m2' : tail_inv_aux (Some mu0) mu' s1 s2 m1' m2'.
+Proof.
+move: mu0 mu_head inv.
+elim: s1 s2=> // a s1' IH s2' mu0 mu_head0.
+case: s2'=> //= b s2'.
+move=> []mu00 [][]eq_ab []data0 []m10 []e1 []sig1 []vals1. 
+move=> []m20 []e2 []sig2 []vals2 FRM_INV TL_INV.
+exists mu00. 
+split; last by apply: (IH _ mu00 (Some mu00)).
+exists eq_ab, data0, m10, e1, sig1, vals1.
+exists m20, e2, sig2, vals2.
+case: FRM_INV=> ?? ?? ?? ?? ?? ?? ?? ??.
+apply: Build_frame_inv=> //.
+*)
+
 End tail_inv_lems.
 
 Section R.
@@ -326,43 +340,19 @@ Context data mu x1 m1 x2 m2 (pf : R data mu x1 m1 x2 m2).
 Import CallStack.
 Import Linker.
 
-Lemma peekpeek_match c1 c2 (pf0 : Core.i c1=Core.i c2) : 
-  peekCore x1 = Some c1 -> 
-  peekCore x2 = Some c2 -> 
+Lemma peek_ieq : Core.i (peekCore x1) = Core.i (peekCore x2).
+Proof. by move: (R_head pf)=> []A []cd=> _; apply: A. Qed.
+
+Lemma peek_match :
   exists cd, 
-  match_state (sims (Core.i c1)) cd mu (Core.c c1) m1 (cast pf0 (Core.c c2)) m2.
+  match_state (sims (Core.i (peekCore x1))) cd mu 
+  (Core.c (peekCore x1)) m1 
+  (cast peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
-move: (R_head pf)=> [A][B]; move/head_match=> MATCH H1 H2.
-move: A B MATCH; rewrite/c/d/s1/s2/stack.head.
-rewrite (StackDefs.peeksome_head _ H1 (pf1 pf)). 
-rewrite (StackDefs.peeksome_head _ H2 (pf2 pf)).
-move=> A cd MATCH; exists cd. 
-have ->: (cast pf0 (Core.c c2) = cast A (Core.c c2)).
+move: (R_head pf)=> []A []cd; move/head_match=> MATCH.
+have ->: (cast peek_ieq (Core.c (peekCore x2)) = cast A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
-by [].
-Qed.
-
-Lemma peek_peek c1 : 
-  peekCore x1 = Some c1 -> 
-  exists c2, Core.i c1=Core.i c2 /\ peekCore x2 = Some c2.
-Proof.
-move: (R_head pf)=> [A][B]; move/head_match=> MATCH H.
-have ->: (c1 = c pf) 
- by rewrite/c/stack.head (StackDefs.peeksome_head _ H (pf1 pf)).
-exists (d pf); split=> //.
-rewrite/peekCore/peek StackDefs.nonempty_peek; first by apply: (pf2 pf).
-by move=> C; rewrite/d/stack.head/s2; f_equal; f_equal; apply: proof_irr.
-Qed.
-
-Lemma peek_peekmatch c1 : 
-  peekCore x1 = Some c1 -> 
-  exists c2 (pf0: Core.i c1=Core.i c2) cd,
-  peekCore x2 = Some c2
-  /\ match_state (sims (Core.i c1)) cd mu 
-     (Core.c c1) m1 (cast pf0 (Core.c c2)) m2.
-Proof.
-move=> H1; move: (peek_peek H1)=> []c2 []pf0 H2. 
-by move: (peekpeek_match pf0 H1 H2)=> []cd MATCH; exists c2, pf0, cd; split.
+by exists cd.
 Qed.
 
 Lemma R_wd : SM_wd mu.
@@ -460,63 +450,67 @@ case: STEP=> STEP STEP_EFFSTEP.
 case: STEP.
  (* Case: corestep0 *)
  + move=> STEP. 
-
- have [c1 A]: exists c, peekCore st1 = Some c. 
+(*
+ have [c A]: exists c, peekCore st1 = Some c. 
   { move: STEP; rewrite/Sem.corestep0; case: (peekCore st1)=> // a. 
     by exists a. }
-
+*)
+ set c1 := peekCore st1.
  have [c1' [STEP0 ST1']]: 
          exists c' : C (cores_S (Core.i c1)), 
          Coresem.corestep 
             (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
             (ge (cores_S (Core.i c1))) (Core.c c1) m1 c' m1' 
          /\ st1' = updCore st1 (Core.upd c1 c').
-  { by move: STEP; rewrite/Sem.corestep0 A=> [][]c' []B C; exists c'; split. }
+  { by move: STEP; rewrite/Sem.corestep0=> [][]c' []B C; exists c'; split. }
 
  have EFFSTEP: 
         effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
         (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
-  { move: (STEP_EFFSTEP STEP); rewrite/effstep0 A=> [][] c1'' [] STEP0' ST1''.
+  { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''.
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram_strong_perm _ _ _ _ _ (sims (Core.i c1))).  
  move/(_ _ _ _ _ _ EFFSTEP).
  move/(_ _ _ _ _ U1_DEF).
- move: (peek_peekmatch INV A)=> []c2 []pf0 []cd []B MATCH.
+ move: (peek_match INV)=> []cd MATCH.
  move/(_ _ _ _ MATCH).
  move=> []c2' []m2' []cd' []mu'.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
  (* instantiate existentials *)
- set c2''  := cast' pf0 c2'.
- set st2'  := updCore st2 (Core.upd c2 c2'').
+ set c2''  := cast' (peek_ieq INV) c2'.
+ set st2'  := updCore st2 (Core.upd (peekCore st2) c2'').
  set data' := Lex.set (Core.i c1) cd' data.
  exists st2', m2', data', mu'; do 4 split=> //.
 
  (* re-establish invariant *)
- have A' : peekCore st1' = Some (Core.upd c1 c1') by rewrite ST1'.
- have B' : peekCore st2' = Some (Core.upd c2 c2'') by rewrite/st2'.
- rewrite/peekCore in A' B'.
- apply: Build_R; rewrite/stack.head. 
- rewrite (StackDefs.peeksome_head _ A') (StackDefs.peeksome_head _ B')=> /=. 
+ apply: Build_R; rewrite ST1'; rewrite /st2' /=.
 
  (* head_inv *)
- + exists pf0, cd'; apply: Build_head_inv. 
-   have ->: cast pf0 (cast' pf0 c2') = c2' by apply: cast_cast_eq.
+ + exists (peek_ieq INV), cd'; apply: Build_head_inv. 
+   have ->: cast (peek_ieq INV) (cast' (peek_ieq INV) c2') = c2' 
+     by apply: cast_cast_eq.
    by apply: MATCH'. 
 
  (* tail_inv *)
- + admit. (* TODO *) 
+ + move: (R_tail INV); rewrite/s1/s2/st2'; generalize dependent st1.
+   case=> ?; case; case=> //; case=> ai a l1 pf1. 
+   case: st2=> ?; case; case=> //; case=> bi b l2 pf2 /= INV A B c1' D EQ.
+   move: EQ A B D=> -> /= STEP_EFFSTEP STEP0.
+   move=> STEP EFFSTEP cd MATCH c2' cd' MATCH' STEP_ORD. 
+   admit. (*hole: tail_inv lemma*)
 
  (* matching execution *)
  + exists U2; split=> //; case: STEP'=> STEP'. 
    left; apply: stepPLUS_STEPPLUS=> //.
-   set (T := C \o cores_T).
-   set (P := fun ix (x : T ix) (y : T ix) => 
+   set T := C \o cores_T.
+   set P := fun ix (x : T ix) (y : T ix) => 
                effect_semantics.effstep_plus 
-               (coreSem (cores_T ix)) (ge (cores_T ix)) U2 x m2 y m2').
-   change (P (Core.i c2) (Core.c c2) (cast.cast T pf0 c2')).
+               (coreSem (cores_T ix)) (ge (cores_T ix)) U2 x m2 y m2'.
+   set c2 := peekCore st2.
+   change (P (Core.i c2) (Core.c c2) (cast.cast T (peek_ieq INV) c2')).
    by apply: cast_indnatdep2.
    admit. (* TODO: ord case *) 
 

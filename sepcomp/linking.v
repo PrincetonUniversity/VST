@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import sepcomp.extspec.
 Require Import sepcomp.Address.
 Require Import sepcomp.core_semantics.
@@ -27,31 +26,37 @@ Require Import ZArith.
     ~~~~~~~~~~~~~~~
 
 This file gives the operational semantics of multi-language linking
-via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the 
+via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the
 following types/modules:
 
-  -[Static.t]: the type of compile-time semantics corresponding to a particular 
-  translation unit, written in a particular programming language and w/ a 
-  particular statically allocated initial global environment
+  -[Static.t]: the type of compile-time semantics corresponding to a
+  particular translation unit, written in a particular programming
+  language and w/ a particular statically allocated initial global
+  environment
 
-  -[Core.t]: Runtime states corresponding to dynamic invocations of [Static.t]s, 
-  initialized from a [Static] module to handle a particular external function 
-  call made by another [Core]
+  -[Core.t]: Runtime states corresponding to dynamic invocations of
+  [Static.t]s, initialized from a [Static] module to handle a
+  particular external function call made by another [Core]
 
-  -[CallStack.t]: just lists of [Core.t]s satisfying a few well-formedness 
-  properties 
+  -[CallStack.t]: just lists of [Core.t]s satisfying a few
+  well-formedness properties
 
   -[Linker.t]: The type of linker corestates.  Linker states contain:
-     =[cores], a function from module id's ('I_N, or integers in the range [0..N-1]) 
-      to genvs and core semantics 
-     =[fn_tbl], a table mapping external function id's to module id's, and
-     =[stack], a callstack used to maintain a stack of cores at runtime. 
-  Above, parameter [N] is the number of static modules in the program. 
 
-  -[LinkerSem]: defines the actual linking semantics. In later parts of the 
-  file, the [LinkerSem] semantics is shown to be both a [CoopCoreSem] and an 
-  [EffectSem] (cf. core_semantics.v, effect_semantics.v).
-*)
+     =[cores], a function from module id's ('I_N, or integers in the
+      range [0..N-1]) to genvs and core semantics
+
+     =[fn_tbl], a table mapping external function id's to module id's,
+     and
+
+     =[stack], a callstack used to maintain a stack of cores at
+    runtime.  Above, parameter [N] is the number of static modules in
+    the program.
+
+  -[LinkerSem]: defines the actual linking semantics. In later parts
+  of the file, the [LinkerSem] semantics is shown to be both a
+  [CoopCoreSem] and an [EffectSem] (cf. core_semantics.v,
+  effect_semantics.v).  *)
 
 (** * Linking semantics *)
 
@@ -94,7 +99,7 @@ Record t := mk
 Definition upd (core : t) (newC : (cores core.(i)).(C)) :=
   {| i := core.(i)
    ; c := newC 
-  |}.
+   |}.
 
 Definition dummy : t := mk (i0 N) (cores (i0 N)).(init).
 
@@ -103,6 +108,12 @@ End core. End Core.
 Arguments Core.t {N} cores.
 
 Arguments Core.dummy {N} cores. 
+
+Arguments Core.i {N cores} !t /.
+
+Arguments Core.c {N cores} !t /.
+
+Arguments Core.upd {N cores} !core _ /.
 
 (** Linking semantics invariants: 
     -All cores except the topmost one are at_external. 
@@ -218,7 +229,7 @@ End emptyLinker.
 Definition updStack (newStack : CallStack.t my_cores) :=
   {| fn_tbl := l.(fn_tbl)
    ; stack  := newStack
-  |}.
+   |}.
 
 (** [inContext]: The top core on the call stack has a return context *)
 
@@ -233,13 +244,13 @@ Next Obligation. apply/andP; split=>/=; last by []; by apply: callStack_ext. Qed
 
 Lemma updCore_inj newCore newCore' : 
   updCore newCore = updCore newCore' -> newCore=newCore'.
-Proof. by rewrite/updCore/updStack; case. Qed.
+Proof. by case. Qed.
 
 Lemma updCore_inj_upd c c1 c2 : 
   updCore (Core.upd c c1) = updCore (Core.upd c c2) -> c1=c2.
-Proof.
-move/updCore_inj; rewrite/Core.upd; case=> H1.
-by move: (EqdepFacts.eq_sigT_snd H1); move=> <-; rewrite -Eqdep.Eq_rect_eq.eq_rect_eq.
+Proof. 
+case=> H1; move: (EqdepFacts.eq_sigT_snd H1); move=> <-. 
+by rewrite -Eqdep.Eq_rect_eq.eq_rect_eq.
 Qed.
 
 (** [pushCore]: Push a new core onto the call stack.  
@@ -272,12 +283,14 @@ Program Definition popCore : option (linker N my_cores) :=
 
 Next Obligation. by apply: callStack_wf. Qed.
 
-Definition peekCore := peek l.(stack).
+(*Definition peekCore := peek l.(stack).*)
+
+Definition peekCore := stack.head l.(stack) (callStack_nonempty l.(stack)).
 
 Definition emptyStack := if l.(stack).(callStack) is [::] then true else false.
 
-Lemma peekCore_nempty c : peekCore = Some c -> emptyStack = false.
-Proof. by rewrite/peekCore/peek/emptyStack/StackDefs.peek; case: (callStack _). Qed.
+(*Lemma peekCore_nempty c : peekCore = Some c -> emptyStack = false.
+Proof. by rewrite/peekCore/peek/emptyStack/StackDefs.peek; case: (callStack _). Qed.*)
 
 Import Static.
 
@@ -293,6 +306,16 @@ Definition initCore (ix: 'I_N) (v: val) (args: list val)
 End linkerDefs.
 
 Notation ge_ty := (Genv.t unit unit).
+
+Arguments updStack {N} {my_cores} !_ _ /.
+
+Arguments updCore {N} {my_cores} !_ _ /.
+
+Arguments pushCore {N} {my_cores} !l _ _ /.
+
+Arguments peekCore {N} {my_cores} !l /.
+
+Arguments emptyStack {N} {my_cores} !l /.
 
 (** The linking semantics *)
 
@@ -337,42 +360,42 @@ Definition initial_core (tt: ge_ty) (v: val) (args: list val)
 (** Is the running core at_external? *)
 
 Definition at_external0 (l: linker N my_cores) :=
-  let: mc := peekCore l in
-  if mc is Some c then 
-    let: ix  := c.(Core.i) in
-    let: sem := (my_cores ix).(Static.coreSem) in
-    let: F   := (my_cores ix).(Static.F) in
-    let: V   := (my_cores ix).(Static.V) in
-    @at_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c) 
-  else None.
+  let: c   := peekCore l in
+  let: ix  := c.(Core.i) in
+  let: sem := (my_cores ix).(Static.coreSem) in
+  let: F   := (my_cores ix).(Static.F) in
+  let: V   := (my_cores ix).(Static.V) in
+    @at_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
+
+Arguments at_external0 !l.
 
 (** Is the running core halted? *)
 
 Definition halted0 (l: linker N my_cores) :=
-  let: mc := peekCore l in
-  if mc is Some c then 
-    let: ix  := c.(Core.i) in
-    let: sem := (my_cores ix).(Static.coreSem) in
-    let: F   := (my_cores ix).(Static.F) in
-    let: V   := (my_cores ix).(Static.V) in
-    @halted (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c) 
-  else None.
+  let: c   := peekCore l in
+  let: ix  := c.(Core.i) in
+  let: sem := (my_cores ix).(Static.coreSem) in
+  let: F   := (my_cores ix).(Static.F) in
+  let: V   := (my_cores ix).(Static.V) in
+    @halted (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
+
+Arguments halted0 !l.
 
 (** Lift a running core step to linker step *)
 
 Definition corestep0 
   (l: linker N my_cores) (m: Csem.M) (l': linker N my_cores) (m': Csem.M) := 
-  let: mc := peekCore l in
-  if mc is Some c then 
-    let: ix  := c.(Core.i) in
-    let: sem := (my_cores ix).(Static.coreSem) in
-    let: F   := (my_cores ix).(Static.F) in
-    let: V   := (my_cores ix).(Static.V) in
-    let: ge  := (my_cores ix).(Static.ge) in
+  let: c   := peekCore l in
+  let: ix  := c.(Core.i) in
+  let: sem := (my_cores ix).(Static.coreSem) in
+  let: F   := (my_cores ix).(Static.F) in
+  let: V   := (my_cores ix).(Static.V) in
+  let: ge  := (my_cores ix).(Static.ge) in
     exists c', 
       @corestep (Genv.t F V) _ _ (Csem.instance (T:=sem)) ge (Core.c c) m c' m'
-   /\ l' = updCore l (Core.upd c c')
-  else False.
+   /\ l' = updCore l (Core.upd c c').
+
+Arguments corestep0 !l m l' m'.
 
 Definition fun_id (ef: external_function) : option ident :=
   if ef is (EF_external id sig) then Some id else None.
@@ -389,17 +412,15 @@ Definition at_external (l: linker N my_cores) :=
   else at_external0 l.
 
 Definition after_external (mv: option val) (l: linker N my_cores) :=
-  let: mc := peekCore l in
-  if mc is Some c then 
-    let: ix  := c.(Core.i) in
-    let: sem := (my_cores ix).(Static.coreSem) in
-    let: F   := (my_cores ix).(Static.F) in
-    let: V   := (my_cores ix).(Static.V) in
-    let: ge  := (my_cores ix).(Static.ge) in
-      if @after_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) mv (Core.c c) 
-        is Some c' then Some (updCore l (Core.upd c c'))
-      else None
-  else None.
+  let: c   := peekCore l in
+  let: ix  := c.(Core.i) in
+  let: sem := (my_cores ix).(Static.coreSem) in
+  let: F   := (my_cores ix).(Static.F) in
+  let: V   := (my_cores ix).(Static.V) in
+  let: ge  := (my_cores ix).(Static.ge) in
+    if @after_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) mv (Core.c c) 
+      is Some c' then Some (updCore l (Core.upd c c'))
+    else None.
 
 (** The linker is [halted] when the last core on the call stack is halted. *)
 
@@ -445,34 +466,25 @@ Definition corestep
 
 Lemma corestep_not_at_external0 m c m' c' :
   corestep0 c m c' m' -> at_external0 c = None.
-Proof.
-rewrite/corestep0/at_external0; case: (peekCore c)=>// a [newCore][H1 H2].
-by apply corestep_not_at_external in H1.
-Qed.
+Proof. by move=>[]newCore []H1 H2; apply corestep_not_at_external in H1. Qed.
 
-Lemma at_external_halted_excl0 c :
-  at_external0 c = None \/ halted0 c = None.
-Proof.
-rewrite/at_external0/halted0; case: (peekCore c); last by right.
-by move=> a; apply: at_external_halted_excl.
-Qed.
+Lemma at_external_halted_excl0 c : at_external0 c = None \/ halted0 c = None.
+Proof. by apply: at_external_halted_excl. Qed.
 
-Lemma corestep_not_halted0 m c m' c' :
-  corestep0 c m c' m' -> halted c = None.
+Lemma corestep_not_halted0 m c m' c' : corestep0 c m c' m' -> halted c = None.
 Proof.
-rewrite/corestep0/halted; case Heq: (peekCore c)=>//[a].
-move=> [newCore [H1 H2]]. 
+move=> []newCore []H1 H2; rewrite/halted.
 case Hcx: (~~ inContext _)=>//; case Hht: (halted0 _)=>//.
-by move: Hht; apply corestep_not_halted in H1; rewrite/halted0 Heq H1.
+by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite /= H1.
 Qed.
 
-Lemma corestep_not_at_external ge m c m' c' :
+Lemma corestep_not_at_external ge m c m' c' : 
   corestep ge c m c' m' -> at_external c = None.
 Proof.
-rewrite/corestep/at_external. 
-move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_at_external0=> ->.
+rewrite/corestep/at_external.
+move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_at_external0=> /= ->.
 move: H; case Hcx: (inContext _)=>//.
-case Heq: (at_external0 c)=>//[[[ef sig] args]].
+case Heq: (at_external0 c)=>[[[ef sig] args]|//].
 move: Heq; case: (at_external_halted_excl0 c)=> [H|H]; first by rewrite H.
 by move=> H2; case: (fun_id ef)=>// id; case: (handle _ _ _).
 Qed.
@@ -505,7 +517,7 @@ Qed.
 Lemma after_at_external_excl rv c c' :
   after_external rv c = Some c' -> at_external c' = None.
 Proof.
-rewrite/after_external/at_external; case: (peekCore c)=>// a. 
+rewrite/after_external/at_external.
 case Heq: (Coresem.after_external _ _)=>//.
 inversion 1; subst.
 case Hat: (at_external0 _)=>//[[[ef sig] args]].
@@ -543,30 +555,28 @@ Variable my_fun_tbl : ident -> option 'I_N.
 Import Linker.
 
 Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' := 
-  let: mc := peekCore l in
-  if mc is Some c then 
-    let: ix  := c.(Core.i) in
-    let: sem := (my_cores ix).(Static.coreSem) in
-    let: F   := (my_cores ix).(Static.F) in
-    let: V   := (my_cores ix).(Static.V) in
-    let: ge  := (my_cores ix).(Static.ge) in
+  let: c   := peekCore l in
+  let: ix  := c.(Core.i) in
+  let: sem := (my_cores ix).(Static.coreSem) in
+  let: F   := (my_cores ix).(Static.F) in
+  let: V   := (my_cores ix).(Static.V) in
+  let: ge  := (my_cores ix).(Static.ge) in
     exists c', 
       @effstep (Genv.t F V) _ sem ge U (Core.c c) m c' m'
-    /\ l' = updCore l (Core.upd c c')
-  else False.
+   /\ l' = updCore l (Core.upd c c').
 
 Lemma effstep0_unchanged U l m l' m' : 
   effstep0 U l m l' m' ->
   Memory.Mem.unchanged_on (fun b ofs => U b ofs = false) m m'.
 Proof. 
-rewrite/effstep0; case: (peekCore l)=> // n [c'][STEP].
+rewrite/effstep0; case=> ? [STEP].
 by move: {STEP}(effax1 _ _ _ _ _ _ _ STEP)=> [STEP]UNCH H2.
 Qed.
 
 Lemma effstep0_corestep0 U l m l' m' : 
   effstep0 U l m l' m' -> Sem.corestep0 l m l' m'.
 Proof. 
-rewrite/effstep0/Sem.corestep0; case: (peekCore l)=> // c0 [c'][STEP].
+rewrite/effstep0/Sem.corestep0; case=> c' [STEP].
 move: {STEP}(effax1 _ _ _ _ _ _ _ STEP)=> [STEP]UNCH H2.
 by exists c'; split.
 Qed.
@@ -574,9 +584,8 @@ Qed.
 Lemma effstep0_forward U l m l' m' : 
   effstep0 U l m l' m' -> mem_forward m m'.
 Proof. 
-move/(effstep0_corestep0 _); rewrite/Sem.corestep0. 
-case: (peekCore l)=> // c0 [c'][STEP] H1. 
-by apply: {STEP}(corestep_fwd _ _ _ _ _ _ STEP). 
+move/effstep0_corestep0; rewrite/Sem.corestep0. 
+by move=> []c' []STEP H1; apply: {STEP}(corestep_fwd _ _ _ _ _ _ STEP). 
 Qed.
 
 Definition inner_effstep (ge: ge_ty)
@@ -622,7 +631,7 @@ Program Definition coopsem := Build_CoopCoreSem _ _ csem _.
 
 Next Obligation. 
 move: CS; case; move=>[H1|[<- [H0 H1]]]. 
-by move/(_ H1)=>{H1} [U EFF]; apply (effstep0_forward _ _ _ _ EFF).
+by move/(_ H1)=>{H1} [U EFF]; apply (effstep0_forward EFF).
 by move=> ?; apply mem_forward_refl.
 Qed.
 
@@ -634,26 +643,20 @@ Next Obligation.
 move: H=>[H1]H2; split. 
 by split=> //; move=> H3; move: {H2 H3}(H2 H3)=> STEP; exists M.
 case: H1=> [H1|[<- [H0 H1]]]=> //. 
-by move: (H2 H1)=> H3; apply: (effstep0_unchanged _ _ _ _ _ H3).
+by move: (H2 H1)=> H3; apply: (effstep0_unchanged H3).
 Qed.
 
 Next Obligation.
 move: H; rewrite/inner_effstep=> [[[H1|[<- [H0 H1]]]]] H2=> //.
 move: (H2 H1)=> {H2}[U H3]; exists U; split=> //.
-by left; apply: (effstep0_corestep0 _ _ _ _ _ H3).
+by left; apply: (effstep0_corestep0 H3).
 by exists [fun _ _ => false]; split=> //; right.
 Qed.
 
 Next Obligation.
 move: H; rewrite/effstep=>[[H1]] H2; split=> // H3; move: (H2 H3). 
-rewrite/effstep0; case: (peekCore c)=> // c0 [] x [] STEP ->.
+rewrite/effstep0=> [][]x []STEP ->.
 by move: (effstep_sub_val _ _ _ _ _ _ _ _ UV STEP)=> STEP'; exists x; split.
 Qed.
 
 End effingLinker.
-
-
-
-
-
-

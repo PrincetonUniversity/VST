@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import compcert.lib.Coqlib.
 Require Import sepcomp.Coqlib2.
 Require Import sepcomp.pos.

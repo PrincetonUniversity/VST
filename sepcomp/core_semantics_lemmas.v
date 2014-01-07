@@ -1,4 +1,3 @@
-Add LoadPath "..".
 Require Import ZArith.
 
 Require Import compcert.common.AST. (*for mksignature*)
