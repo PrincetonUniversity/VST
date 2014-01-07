@@ -630,95 +630,6 @@ split; intros.
      eapply Inj12; eassumption.
 Qed.
 
-Definition restrict (j: meminj) (X:block -> bool) : meminj :=
-  fun b => if X b then j b else None.
-
-Lemma restrictD_Some: forall j X b1 b2 d (R:restrict j X b1 = Some(b2,d)),
-                      j b1 = Some(b2,d) /\ X b1 = true.
-Proof. intros.
-  unfold restrict in R.
-  remember (X b1) as dd.
-  destruct dd; inv R. split; trivial.
-Qed.
-Lemma restrictI_Some: forall j X b b2 d (J:j b = Some(b2,d)) 
-                            (Hb: X b = true),
-                      restrict j X b = Some(b2,d).
-Proof. intros.
-  unfold restrict. rewrite Hb; trivial.
-Qed.
-Lemma restrictD_None: forall j X b1 b2 d (R:restrict j X b1 = None)
-                      (J: j b1 = Some(b2,d)), X b1 = false.
-Proof. intros.
-  unfold restrict in R. rewrite J in R.
-  remember (X b1) as dd.
-  destruct dd; inv R; trivial.
-Qed.
-Lemma restrictD_None': forall j X b1 (R:restrict j X b1 = None),
-                         j b1 = None \/ 
-                        (exists b2 d, j b1 =Some(b2,d) /\ X b1 = false).
-Proof. intros.
-  remember (j b1) as d.
-  destruct d; try (left; reflexivity).
-  destruct p; apply eq_sym in Heqd. right.
-  rewrite (restrictD_None _ _ _ _ _ R Heqd).
-  exists b, z; split; trivial.
-Qed.
-Lemma restrictI_None: forall j X b (Hb: j b = None \/ X b = false),
-                      restrict j X b = None.
-Proof. intros.
-  unfold restrict.
-  remember (X b) as d.
-  destruct d; trivial.
-  destruct Hb; trivial; congruence.
-Qed.
-
-Lemma join_restrict: forall j k X, 
-      join (restrict j X) (restrict k X) = restrict (join j k) X.
-Proof. intros.
-  unfold join, restrict. extensionality b.
-  remember (X b) as d.
-  destruct d; trivial.
-Qed.
-
-Lemma restrict_outside: forall j X
-        (HX: forall b1 b2 d, j b1 = Some(b2, d) -> X b1 = true),
-      restrict j X = j.
-Proof. intros. unfold restrict.
-  extensionality b.
-  remember (X b) as d.
-  destruct d; trivial.
-  remember (j b) as q.
-  destruct q; trivial.
-  apply eq_sym in Heqq. destruct p.
-  apply HX in Heqq. congruence.
-Qed.
-
-Lemma restrict_incr: forall j X, inject_incr (restrict j X) j.
-Proof. intros j X b b2 d Hb. eapply restrictD_Some; eassumption. Qed.
-
-Lemma restrict_com: forall j X Y,
-      restrict (restrict j X) Y = restrict (restrict j Y) X.
-Proof. intros. unfold restrict.
-  extensionality b.
-  destruct (Y b); destruct (X b); trivial.
-Qed.
-
-Lemma restrict_nest: forall j X Y 
-         (HXY: forall b, Y b = true -> X b = true),
-      restrict (restrict j X) Y = restrict j Y.
-Proof. intros. unfold restrict.
-  extensionality b.
-  remember (Y b) as d.
-  destruct d; trivial. apply eq_sym in Heqd.
-  rewrite (HXY _ Heqd). trivial.
-Qed.
-Lemma restrict_nest': forall j X Y 
-         (HXY: forall b, Y b = true -> X b = true),
-      restrict (restrict j Y) X = restrict j Y.
-Proof. intros. rewrite restrict_com.
-  apply restrict_nest; assumption. 
-Qed.
-
 Lemma restrict_val_inject: forall j val1 val2
      (Inj : val_inject j val1 val2)
      X (HR: forall b, getBlocks (val1::nil) b = true -> X b = true),
@@ -731,6 +642,7 @@ Proof. intros.
          remember (eq_block b1 b1) .
          destruct s. trivial. exfalso. apply n; trivial.
 Qed. 
+
 Lemma restrict_forall_vals_inject: forall j vals1 vals2
      (Inj : Forall2 (val_inject j) vals1 vals2)
      X (HR: forall b, getBlocks vals1 b = true -> X b = true),
@@ -748,24 +660,6 @@ Proof. intros.
    apply IHInj. intros. apply HR.
       rewrite getBlocksD. rewrite H0.
       destruct x; trivial. intuition.
-Qed.
-
-Lemma val_inject_restrictD: forall j v v' X
-       (V: val_inject (restrict j X) v v'),
-     val_inject j v v'.
-Proof. intros.
-  inv V; try econstructor.
-  eapply restrict_incr.  apply H. 
-trivial. 
-Qed.
- 
-Lemma forall_vals_inject_restrictD: forall j vals1 vals2 X
-     (Inj : Forall2 (val_inject (restrict j X)) vals1 vals2),
- Forall2 (val_inject j) vals1 vals2.
-Proof. intros.
-  induction Inj. constructor.
-  constructor; trivial.
-    eapply val_inject_restrictD; eassumption.
 Qed.
 
 Lemma restrict_mapped_closed: forall j m X 
@@ -1814,7 +1708,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
          at_external clause, but omitting the hypothesis AtExtTgt would
          result in in 2 not necesssarily equal target argument lists
          in language 3 in the transitivity, as val_inject is not functional
-         (in the case where the left value is Vundef) *)
+         in the case where the left value is Vundef. (And we need to keep
+            ValInjMu since vals2 occurs in pubTgtHyp) *)
         (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
@@ -2146,26 +2041,21 @@ Qed.
 Lemma RGSrc_multicore: forall mu Esrc m m'
          (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
          (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
-          nu, 
-         (forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) ->
-         (forall b, pubBlocksSrc nu b = true <-> 
-                   (frgnBlocksSrc mu b && locBlocksSrc nu b) = true) ->
-         (*This hypothesis is not needed (GS):
-           (forall b1 b2 d, pub_of nu b1 = Some(b2, d) 
-           -> foreign_of mu b1 = Some(b2,d)) ->*)
+          nu
+         (LB: forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) 
+         (PB: forall b, frgnBlocksSrc mu b && locBlocksSrc nu b = true ->
+                        pubBlocksSrc nu b = true),
          Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                         pubBlocksSrc nu b = false) m m'.
 Proof. intros.
-  assert (H1: True). refine I.
   eapply mem_unchanged_on_sub; try eassumption.
-  intros b ofs H2. simpl.
-  destruct H2. rename b into b1. specialize (H _ H2). 
-  case_eq (Esrc b1 ofs); intros; trivial; simpl in *.
-  apply SrcHyp in H4. unfold vis in H4. rewrite H in H4. simpl in H4.  
+  intros b1 ofs H2. simpl.
+  case_eq (Esrc b1 ofs); intros; trivial; simpl in *. 
+  apply SrcHyp in H. unfold vis in H.  
   clear Unch SrcHyp.
-  destruct (H0 b1) as [_ ?].
-    rewrite H4, H2 in H5. simpl in H5.
-    rewrite H5 in H3; intuition.
+  destruct H2. 
+  rewrite LB in H; trivial; clear LB.
+  rewrite PB in H1; trivial. intuition.
 Qed.
 
 Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
@@ -2322,3 +2212,43 @@ split; intros b2; intros.
       eapply (local_DomRng _ WDnu _ _ _ H5).
   eapply TgtHyp1. split; trivial. assumption.
 Qed.
+
+Record LinkInv (mu0 mu: SM_Injection) :=
+  { LinkInv_WD0: SM_wd mu0;
+    LinkInv_WD:  SM_wd mu;
+    LinkInv_DomSrc: forall b, DomSrc mu0 b = true -> DomSrc mu b = true;
+    LinkInv_DomTgt: forall b, DomTgt mu0 b = true -> DomTgt mu b = true;
+    LinkInv_Restrict: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0;
+    LinkInv_Sep: forall b1 b2 d, as_inj mu0 b1 = None -> as_inj mu b1 = Some(b2,d) ->
+                       (DomSrc mu0 b1 = false /\ DomTgt mu0 b2 = false) }.
+
+Lemma LinkInv_sound: forall mu0 mu (LI : LinkInv mu0 mu)
+         nu (NU: nu = reestablish mu0 mu), 
+      SM_wd nu /\ DomSrc nu = DomSrc mu /\ DomTgt nu = DomTgt mu /\ 
+      extern_incr mu0 nu /\ as_inj nu = as_inj mu /\
+      (forall m1 m2, sm_inject_separated mu0 mu m1 m2 ->
+              sm_inject_separated mu0 nu m1 m2) /\
+      (forall m1 m2, sm_valid mu m1 m2 ->
+              sm_valid (reestablish mu0 mu) m1 m2) /\
+      (forall mu', SM_wd mu' -> intern_incr mu mu' -> 
+                   extern_incr mu0 (reestablish mu0 mu')).
+Proof. intros. subst.
+assert (LocSrc: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true).
+   intros. eapply (LinkInv_DomSrc _ _ LI); unfold DomSrc; intuition.
+assert (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true).
+   intros. eapply (LinkInv_DomSrc _ _ LI); unfold DomSrc; intuition.
+assert (LocTgt: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true).
+   intros. eapply (LinkInv_DomTgt _ _ LI); unfold DomTgt; intuition.
+assert (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true).
+   intros. eapply (LinkInv_DomTgt _ _ LI); unfold DomTgt; intuition.
+assert (DS:= reestablish_DomSrc _ _ LocSrc).
+assert (DT:= reestablish_DomTgt _ _ LocTgt).
+intuition.
+  eapply reestablish_wd; try eassumption; eapply LI.
+  eapply reestablish_extern_incr; eassumption.
+  eapply reestablish_as_inj; eassumption.
+  eapply reestablish_sm_injsep; try eassumption.
+  eapply reestablish_sm_valid; try eassumption.
+  eapply (reestablish_internstep mu0 mu mu'); try eassumption.
+Qed.
+

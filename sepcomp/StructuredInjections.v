@@ -1151,6 +1151,21 @@ Proof.
   split; eapply B; assumption.
 Qed. 
 
+Lemma sm_inject_separated_asinj_same: forall mu nu m1 m2
+         (SEP: sm_inject_separated mu nu m1 m2)
+          nu' (Hnu: as_inj nu = as_inj nu')
+          (HSrc: DomSrc nu = DomSrc nu')
+          (HTgt: DomTgt nu = DomTgt nu'),
+      sm_inject_separated mu nu' m1 m2.
+Proof. intros.
+  destruct SEP as [SEPa [SEPb SEPc]].
+  split; intros. rewrite <- Hnu in H0. eapply SEPa; eassumption.
+  split; intros. rewrite <- HSrc in H0.
+    eapply SEPb; eassumption.
+  rewrite <- HTgt in H0.
+    eapply SEPc; eassumption.
+Qed.
+
 Definition freshloc m m' b := andb (valid_block_dec m' b) (negb (valid_block_dec m b)).
 Lemma freshloc_charT: forall m m' b, 
       (freshloc m m' b = true) <-> (Mem.valid_block m' b /\ ~Mem.valid_block m b).
@@ -1578,3 +1593,393 @@ Proof. intros.
   unfold as_inj; simpl. extensionality b. 
   unfold join. destruct (j b); intuition.
 Qed.
+
+Definition restrict (j: meminj) (X:block -> bool) : meminj :=
+  fun b => if X b then j b else None.
+
+Lemma restrictD_Some: forall j X b1 b2 d (R:restrict j X b1 = Some(b2,d)),
+                      j b1 = Some(b2,d) /\ X b1 = true.
+Proof. intros.
+  unfold restrict in R.
+  remember (X b1) as dd.
+  destruct dd; inv R. split; trivial.
+Qed.
+Lemma restrictI_Some: forall j X b b2 d (J:j b = Some(b2,d)) 
+                            (Hb: X b = true),
+                      restrict j X b = Some(b2,d).
+Proof. intros.
+  unfold restrict. rewrite Hb; trivial.
+Qed.
+Lemma restrictD_None: forall j X b1 b2 d (R:restrict j X b1 = None)
+                      (J: j b1 = Some(b2,d)), X b1 = false.
+Proof. intros.
+  unfold restrict in R. rewrite J in R.
+  remember (X b1) as dd.
+  destruct dd; inv R; trivial.
+Qed.
+Lemma restrictD_None': forall j X b1 (R:restrict j X b1 = None),
+                         j b1 = None \/ 
+                        (exists b2 d, j b1 =Some(b2,d) /\ X b1 = false).
+Proof. intros.
+  remember (j b1) as d.
+  destruct d; try (left; reflexivity).
+  destruct p; apply eq_sym in Heqd. right.
+  rewrite (restrictD_None _ _ _ _ _ R Heqd).
+  exists b, z; split; trivial.
+Qed.
+Lemma restrictI_None: forall j X b (Hb: j b = None \/ X b = false),
+                      restrict j X b = None.
+Proof. intros.
+  unfold restrict.
+  remember (X b) as d.
+  destruct d; trivial.
+  destruct Hb; trivial; congruence.
+Qed.
+
+Lemma join_restrict: forall j k X, 
+      join (restrict j X) (restrict k X) = restrict (join j k) X.
+Proof. intros.
+  unfold join, restrict. extensionality b.
+  remember (X b) as d.
+  destruct d; trivial.
+Qed.
+
+Lemma restrict_outside: forall j X
+        (HX: forall b1 b2 d, j b1 = Some(b2, d) -> X b1 = true),
+      restrict j X = j.
+Proof. intros. unfold restrict.
+  extensionality b.
+  remember (X b) as d.
+  destruct d; trivial.
+  remember (j b) as q.
+  destruct q; trivial.
+  apply eq_sym in Heqq. destruct p.
+  apply HX in Heqq. congruence.
+Qed.
+
+Lemma restrict_incr: forall j X, inject_incr (restrict j X) j.
+Proof. intros j X b b2 d Hb. eapply restrictD_Some; eassumption. Qed.
+
+Lemma restrict_com: forall j X Y,
+      restrict (restrict j X) Y = restrict (restrict j Y) X.
+Proof. intros. unfold restrict.
+  extensionality b.
+  destruct (Y b); destruct (X b); trivial.
+Qed.
+
+Lemma restrict_nest: forall j X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict (restrict j X) Y = restrict j Y.
+Proof. intros. unfold restrict.
+  extensionality b.
+  remember (Y b) as d.
+  destruct d; trivial. apply eq_sym in Heqd.
+  rewrite (HXY _ Heqd). trivial.
+Qed.
+Lemma restrict_nest': forall j X Y 
+         (HXY: forall b, Y b = true -> X b = true),
+      restrict (restrict j Y) X = restrict j Y.
+Proof. intros. rewrite restrict_com.
+  apply restrict_nest; assumption. 
+Qed.
+
+Lemma val_inject_restrictD: forall j v v' X
+       (V: val_inject (restrict j X) v v'),
+     val_inject j v v'.
+Proof. intros.
+  inv V; try econstructor.
+  eapply restrict_incr.  apply H. 
+trivial. 
+Qed.
+ 
+Lemma forall_vals_inject_restrictD: forall j vals1 vals2 X
+     (Inj : Forall2 (val_inject (restrict j X)) vals1 vals2),
+ Forall2 (val_inject j) vals1 vals2.
+Proof. intros.
+  induction Inj. constructor.
+  constructor; trivial.
+    eapply val_inject_restrictD; eassumption.
+Qed.
+
+Definition reestablish (mu0 mu: SM_Injection): SM_Injection :=
+  match mu0, mu with 
+    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                       extBSrc0 extBTgt0 fSrc0 fTgt0 extern0,
+    Build_SM_Injection locBSrc locBTgt pSrc pTgt local 
+                       extBSrc extBTgt fSrc fTgt extern => 
+    Build_SM_Injection locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                       (fun b => if locBSrc0 b then false else locBSrc b || extBSrc b)
+                       (fun b => if locBTgt0 b then false else locBTgt b || extBTgt b)
+                       fSrc0 fTgt0 (*We have not YET learned about additional blocks - that's
+                          done by replace_externs in AfterEtxernal!*)
+                       (fun b => if locBSrc0 b then None else join extern local b)
+  end.
+
+Lemma reestablish_DomSrc: forall mu0 mu
+      (D: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true),
+      DomSrc (reestablish mu0 mu) = DomSrc mu.
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  unfold DomSrc  in *; simpl in *. extensionality b.
+  remember (locBSrc0 b) as d.
+  destruct d; simpl; trivial. apply eq_sym in Heqd.
+  rewrite (D _ Heqd). trivial.
+Qed.
+
+Lemma reestablish_DomTgt: forall mu0 mu
+      (D: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true),
+      DomTgt (reestablish mu0 mu) = DomTgt mu.
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  unfold DomTgt in *; simpl in *. extensionality b.
+  remember (locBTgt0 b) as d.
+  destruct d; simpl; trivial. apply eq_sym in Heqd.
+  rewrite (D _ Heqd). trivial.
+Qed.
+
+Lemma reestablish_wd: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
+          (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
+          (SEP: forall b1 b2 d, as_inj mu0 b1 = None -> as_inj mu b1 = Some(b2,d) ->
+                                (DomSrc mu0 b1 = false /\ DomTgt mu0 b2 = false))
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true), 
+      SM_wd (reestablish mu0 mu).
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  specialize (as_inj_DomRng mu); intros ADR.
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  unfold DomSrc, DomTgt, as_inj in *; simpl in *.
+  split; intros; simpl in *.
+    remember (locBSrc0 b) as d. destruct d; intuition. 
+    remember (locBTgt0 b) as d. destruct d; intuition.
+    apply (local_DomRng _ WD0 _ _ _ H).  
+    remember (locBSrc0 b1) as d. destruct d; inv H.
+      destruct (ADR b1 b2 z H1 WD).
+      split; trivial.
+      remember (join extern0 local0 b1) as w.
+      destruct w; apply eq_sym in Heqw.
+        destruct p.
+        assert (JJ: join extern local b1 = Some (b, z0) /\ locBSrc0 b1 || extBSrc0 b1 = true).
+          rewrite <- REST in Heqw. apply (restrictD_Some _ _ _ _ _ Heqw).
+        destruct JJ. rewrite H2 in H1; inv H1.
+        rewrite <- Heqd in *; simpl in *. 
+        destruct (joinD_Some _ _ _ _ _ Heqw).
+          specialize (extern_DomRng' _ WD0 _ _ _ H1); unfold DomSrc, DomTgt; simpl; intros.
+          destruct H4 as [_ [_ [_ [? [? [? _]]]]]]. rewrite H4. apply H0.
+        destruct H1. 
+          destruct (local_DomRng _ WD0 _ _ _ H4); simpl in *.
+          rewrite H5 in Heqd. discriminate.
+      destruct (SEP _ _ _ Heqw H1). apply orb_false_iff in H3. destruct H3.
+        rewrite H3. apply H0.
+    apply (pubSrc _ WD0 _ H). 
+    rewrite H. 
+      specialize (frgnBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
+      rewrite H0.
+      destruct (frgnSrc _ WD0 _ H) as [b2 [z [FRG FT]]]; simpl in *.
+        rewrite H in FRG. exists b2, z. split; trivial.
+        assert (J: join extern0 local0 b1 = Some(b2,z)). 
+          apply joinI; left; assumption. 
+        rewrite <- REST in J. apply (restrictD_Some _ _ _ _ _ J).
+    apply (pubBlocksLocalTgt _ WD0 _ H).
+    specialize (frgnBlocksTgt_locBlocksTgt _ WD0 _ H); simpl; intros.
+      rewrite H0.
+      apply ExtTgt. eapply (frgnBlocksExternTgt _ WD0 _ H).
+Qed.
+
+Lemma reestablish_wd': forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
+                      (INC: inject_incr (as_inj mu0) (as_inj mu))
+                      (Hmu: forall b1 b2 z (A:as_inj mu b1 = Some(b2,z)), 
+                            locBlocksSrc mu0 b1 = locBlocksTgt mu0 b2 /\
+                            extBlocksSrc mu0 b1 = extBlocksTgt mu0 b2)
+                      (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true), 
+                      SM_wd (reestablish mu0 mu).
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  simpl in *.
+  split; intros; simpl in *.
+    remember (locBSrc0 b) as d. destruct d; intuition. 
+    remember (locBTgt0 b) as d. destruct d; intuition.
+    apply (local_DomRng _ WD0 _ _ _ H).  
+    remember (locBSrc0 b1) as d. destruct d; inv H.
+      unfold as_inj in Hmu; simpl in *.
+      destruct (Hmu _ _ _ H1) as [LB EB]; clear Hmu.
+      rewrite LB in *. rewrite <- Heqd. 
+      destruct (joinD_Some _ _ _ _ _ H1) as [EXT | [EXT LOC]]; clear H1.
+        destruct (extern_DomRng _ WD _ _ _ EXT); simpl in *.
+          rewrite H, H0. split; intuition. 
+      destruct (local_DomRng _ WD _ _ _ LOC); simpl in *. 
+        rewrite H, H0; simpl. split; trivial.
+    apply (pubSrc _ WD0 _ H). 
+    rewrite H. 
+      specialize (frgnBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
+      rewrite H0.
+      destruct (frgnSrc _ WD0 _ H) as [b2 [z [FRG FT]]]; simpl in *.
+        rewrite H in FRG. exists b2, z. split; trivial.
+        eapply INC. apply joinI; simpl; left. assumption.
+    apply (pubBlocksLocalTgt _ WD0 _ H).
+    specialize (frgnBlocksTgt_locBlocksTgt _ WD0 _ H); simpl; intros.
+      rewrite H0.
+      apply ExtTgt. eapply (frgnBlocksExternTgt _ WD0 _ H).
+Qed.
+
+Lemma reestablish_extern_incr': forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
+          (INC: inject_incr (as_inj mu0) (as_inj mu))
+          (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true),
+      extern_incr mu0 (reestablish mu0 mu).
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  simpl in *. unfold as_inj in *; simpl in *.
+  split; simpl in *; intuition.
+    red; intros.
+      destruct (extern_DomRng' _ WD0 _ _ _ H) as [_ [_ [? _]]]; simpl in *. 
+      rewrite H0. apply INC. eapply joinI; left; assumption.
+    specialize (extBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
+        rewrite H0. apply (ExtSrc _ H).
+    specialize (extBlocksTgt_locBlocksTgt _ WD0 _ H); simpl; intros.
+        rewrite H0. apply (ExtTgt _ H). 
+Qed.
+
+Lemma reestablish_extern_incr: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu)
+          (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
+          (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true),
+      extern_incr mu0 (reestablish mu0 mu).
+Proof. intros.
+  eapply reestablish_extern_incr'; try eassumption.
+  rewrite <- REST. apply restrict_incr. 
+Qed.
+
+Lemma reestablish_internstep': forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu') 
+          (INC: inject_incr (as_inj mu0) (as_inj mu))
+          (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true)
+          (II: intern_incr mu mu'),
+      extern_incr mu0 (reestablish mu0 mu').
+Proof. intros.
+eapply reestablish_extern_incr'; trivial.
+  eapply inject_incr_trans; try eassumption. 
+     eapply intern_incr_as_inj; eassumption.
+  intros. apply ExtSrc in H. eapply intern_incr_DomSrc; eassumption.
+  intros. apply ExtTgt in H. eapply intern_incr_DomTgt; eassumption.
+Qed.
+  
+Lemma reestablish_internstep: forall mu0 mu mu' (WD0:SM_wd mu0) (WD:SM_wd mu) (WD:SM_wd mu') 
+          (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
+          (ExtSrc: forall b, extBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (ExtTgt: forall b, extBlocksTgt mu0 b = true -> DomTgt mu b = true)
+          (II: intern_incr mu mu'),
+      extern_incr mu0 (reestablish mu0 mu').
+Proof. intros.
+eapply (reestablish_internstep' mu0 mu mu'); try eassumption.
+  rewrite <- REST. apply restrict_incr. 
+Qed.
+  
+Lemma reestablish_as_inj: forall mu0 mu (WD0:SM_wd mu0) 
+          (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0),
+      as_inj (reestablish mu0 mu) = as_inj mu.
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  simpl in *. unfold as_inj, DomSrc  in *; simpl in *.
+  extensionality b1; unfold join.
+  remember (locBSrc0 b1) as d.
+  destruct d; apply eq_sym in Heqd.
+    remember (local0 b1) as w.
+    destruct w; apply eq_sym in Heqw.
+      destruct p. apply (local_in_all _ WD0) in Heqw.
+         unfold as_inj in Heqw; simpl in Heqw.
+         rewrite <- REST in Heqw.
+         destruct (restrictD_Some _ _ _ _ _ Heqw).
+         apply eq_sym. apply H. 
+      assert (JN: join extern0 local0 b1 = None).
+        unfold join. specialize (locBlocksSrc_externNone _ WD0 _ Heqd). simpl.
+              intros XX; rewrite XX. assumption.
+        rewrite <- REST in JN.
+        destruct (restrictD_None' _ _ b1 JN).
+          apply eq_sym. apply H.
+        destruct H as [b2 [z [JJ LE]]].
+         rewrite Heqd in LE; simpl in LE. discriminate.
+ remember (extern b1) as q.
+   destruct q.
+     destruct p. trivial.
+   remember (local b1) as w. destruct w. destruct p; trivial.
+   remember (local0 b1) as t.
+   destruct t; trivial. apply eq_sym in Heqt; destruct p.
+   destruct (local_DomRng _ WD0 _ _ _ Heqt); simpl in *.
+   rewrite H in Heqd. discriminate.
+Qed.
+
+Lemma reestablish_as_inj': forall mu0 mu (WD0:SM_wd mu0) 
+           (HINC: inject_incr (as_inj mu0) (as_inj mu))
+           (H: forall b, locBlocksSrc mu0 b = true -> local_of mu0 b = None ->
+                         as_inj mu b = None),
+      as_inj (reestablish mu0 mu) = as_inj mu.
+Proof. intros.
+  destruct mu0 as [locBSrc0 locBTgt0 pSrc0 pTgt0 local0 
+                   extBSrc0 extBTgt0 fSrc0 fTgt0 extern0].
+  destruct mu as [locBSrc locBTgt pSrc pTgt local 
+                  extBSrc extBTgt fSrc fTgt extern].
+  simpl in *. unfold as_inj, DomSrc  in *; simpl in *.
+  extensionality b1; unfold join.
+  remember (locBSrc0 b1) as d.
+  destruct d; apply eq_sym in Heqd.
+    remember (local0 b1) as w.
+    destruct w; apply eq_sym in Heqw.
+      destruct p. apply (local_in_all _ WD0) in Heqw.
+         unfold as_inj in Heqw; simpl in Heqw.
+         apply HINC in Heqw.
+         apply eq_sym. apply Heqw.
+      apply eq_sym. apply (H _ Heqd Heqw).
+ remember (extern b1) as q.
+   destruct q.
+     destruct p. trivial.
+   remember (local b1) as w. destruct w. destruct p; trivial.
+   remember (local0 b1) as t.
+   destruct t; trivial. apply eq_sym in Heqt; destruct p.
+   destruct (local_DomRng _ WD0 _ _ _ Heqt); simpl in *.
+   rewrite H0 in Heqd. discriminate.
+Qed.
+
+Lemma reestablish_sm_injsep: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu) 
+          (REST: restrict (as_inj mu) (DomSrc mu0) = as_inj mu0)
+          (LocSrc: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (LocTgt: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true)
+          m1 m2 (SEP: sm_inject_separated mu0 mu m1 m2),
+      sm_inject_separated mu0 (reestablish mu0 mu) m1 m2.
+Proof. intros.
+  eapply sm_inject_separated_asinj_same; try eassumption.
+  rewrite reestablish_as_inj; trivial.
+  rewrite reestablish_DomSrc; trivial.
+  rewrite reestablish_DomTgt; trivial.
+Qed.
+
+Lemma reestablish_sm_valid: forall mu0 mu (WD0:SM_wd mu0) (WD:SM_wd mu) 
+          (LocSrc: forall b, locBlocksSrc mu0 b = true -> DomSrc mu b = true)
+          (DomTgt: forall b, locBlocksTgt mu0 b = true -> DomTgt mu b = true)
+          m1 m2 (VAL: sm_valid mu m1 m2),
+      sm_valid (reestablish mu0 mu) m1 m2.
+Proof. intros. destruct VAL.
+  split; intros.
+    unfold DOM in *.
+    rewrite reestablish_DomSrc in H1; eauto.
+  unfold RNG in *.
+    rewrite reestablish_DomTgt in H1; eauto.
+Qed.
+
+
