@@ -7,7 +7,7 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
 
 Require Import sepcomp.pos.
-Require Import sepcomp.stack.
+Require Import sepcomp.stack. 
 Require Import sepcomp.core_semantics_lemmas.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
@@ -138,8 +138,8 @@ Definition atExternal (c: Core.t cores) :=
     Some (ef, dep_sig, args) then true
   else false.
 
-Definition wf_callStack (stk: Stack.t (Core.t cores)) :=
-  [&& all atExternal (pop stk) & size stk > 0].
+Definition wf_callStack (stk : Stack.t (Core.t cores)) := 
+  [&& all atExternal (STACK.pop stk) & size stk > 0].
 
 End coreDefs.
 
@@ -169,13 +169,13 @@ Definition callStackSize := size stack.(callStack).
 Lemma callStack_wf : wf_callStack stack.
 Proof. by case: stack. Qed.
 
-Lemma callStack_ext : all (atExternal cores) (pop stack).
+Lemma callStack_ext : all (atExternal cores) (STACK.pop stack).
 Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
 
 Lemma callStack_size : callStackSize > 0.
 Proof. by move: callStack_wf; move/andP=> [H1 H2]. Qed.
 
-Lemma callStack_nonempty : nonempty stack.
+Lemma callStack_nonempty : STACK.nonempty stack.
 Proof. by case: stack=> //; case. Qed.
 
 End callStackDefs. 
@@ -238,7 +238,7 @@ Definition inContext (l0 : linker N my_cores) := callStackSize l0.(stack) > 1.
 (** [updCore]: Replace the top core on the call stack with [newCore] *)
 
 Program Definition updCore (newCore: Core.t my_cores) := 
-  updStack (CallStack.mk (push (pop l.(stack)) newCore) _).  
+  updStack (CallStack.mk (STACK.push (STACK.pop l.(stack)) newCore) _).  
 
 Next Obligation. apply/andP; split=>/=; last by []; by apply: callStack_ext. Qed.
 
@@ -259,7 +259,7 @@ Qed.
 Program Definition pushCore 
   (newCore: Core.t my_cores) 
   (_ : all (atExternal my_cores) l.(stack).(callStack)) := 
-  updStack (CallStack.mk (push l.(stack) newCore) _).
+  updStack (CallStack.mk (STACK.push l.(stack) newCore) _).
 
 Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
 
@@ -267,30 +267,25 @@ Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
     Succeeds only if the top core is running in a return context. *)
 
 Lemma inContext_wf (stk : Stack.t (Core.t my_cores)) : 
-  size stk > 1 -> wf_callStack stk -> wf_callStack (pop stk).
+  size stk > 1 -> wf_callStack stk -> wf_callStack (STACK.pop stk).
 Proof.
 rewrite/wf_callStack=> H1; move/andP=> [H2 H3]; apply/andP; split.
-- by apply: all_pop.
+- by apply: STACK.all_pop.
 - by move: H1 H2 H3; case: stk.
 Qed.
 
 Program Definition popCore : option (linker N my_cores) := 
   (match inContext l as pf return (pf = inContext l -> option (linker N my_cores)) with
     | true => fun pf => 
-        Some (updStack (CallStack.mk (pop l.(stack)) (inContext_wf _ _ _)))
+        Some (updStack (CallStack.mk (STACK.pop l.(stack)) (inContext_wf _ _ _)))
     | false => fun pf => None
   end) Logic.eq_refl.
 
 Next Obligation. by apply: callStack_wf. Qed.
 
-(*Definition peekCore := peek l.(stack).*)
-
-Definition peekCore := stack.head l.(stack) (callStack_nonempty l.(stack)).
+Definition peekCore := STACK.head l.(stack) (callStack_nonempty l.(stack)).
 
 Definition emptyStack := if l.(stack).(callStack) is [::] then true else false.
-
-(*Lemma peekCore_nempty c : peekCore = Some c -> emptyStack = false.
-Proof. by rewrite/peekCore/peek/emptyStack/StackDefs.peek; case: (callStack _). Qed.*)
 
 Import Static.
 

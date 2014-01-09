@@ -294,11 +294,13 @@ Record R (data : Lex.t types) mu
   ; s2  := x2.(stack) 
   ; pf1 := CallStack.callStack_nonempty s1 
   ; pf2 := CallStack.callStack_nonempty s2 
-  ; c   := stack.head _ pf1 
-  ; d   := stack.head _ pf2 
+  ; c   := STACK.head _ pf1 
+  ; d   := STACK.head _ pf2 
     (* invariants *)
-  ; R_head : exists (pf : c.(Core.i)=d.(Core.i)) cd, @head_inv c d pf cd mu m1 m2 
-  ; R_tail : tail_inv mu (pop s1.(callStack)) (pop s2.(callStack)) m1 m2 }.
+  ; R_head : exists (pf : c.(Core.i)=d.(Core.i)) cd, 
+             @head_inv c d pf cd mu m1 m2 
+  ; R_tail : tail_inv mu (STACK.pop s1.(callStack)) 
+                         (STACK.pop s2.(callStack)) m1 m2 }.
 
 End R.
 
