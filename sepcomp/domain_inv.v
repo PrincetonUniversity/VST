@@ -8,36 +8,67 @@ Require Import sepcomp.effect_simulations.
 Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.mem_lemmas.
 
+Require Import msl.Axioms.
+
 (** Domain Invariant: 
     ~~~~~~~~~~~~~~~~~
 
-    The [dom_inv] invariant enforces disjointness conditions between
+    The [dominv] invariant enforces disjointness conditions between
     the local, public and foreign block sets declared by [mu0], an
     [SM_injection] appearing at existentially quantified positions in
     the callstack invariant, and those declared by [mu], the
     [SM_injection] of the currently running core.  
 *)
 
-Record dominv mu0 mu : Type := 
-  { dom_locdisj_src : [predI (locBlocksSrc mu0) & locBlocksSrc mu] =i pred0
-  ; dom_pubfrgn_src : {subset [predI (frgnBlocksSrc mu) & locBlocksSrc mu0] 
+Record disjinv mu0 mu : Type := 
+  { disj_locsrc : [predI (locBlocksSrc mu0) & locBlocksSrc mu] =i pred0
+  ; disj_pubfrgnsrc : {subset [predI (frgnBlocksSrc mu) & locBlocksSrc mu0] 
                       <= pubBlocksSrc mu0}
-  ; dom_locdisj_tgt : [predI (locBlocksTgt mu0) & locBlocksTgt mu] =i pred0
-  ; dom_pubfrgn_tgt : forall b1 b2 d, 
+  ; disj_loctgt : [predI (locBlocksTgt mu0) & locBlocksTgt mu] =i pred0
+  ; disj_pubfrgntgt : forall b1 b2 d, 
                       foreign_of mu b1 = Some (b2, d) -> 
                       (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
-                      pub_of mu0 b1 = Some (b2, d) }.                  
+                      pub_of mu0 b1 = Some (b2, d) }.
 
-Definition dominv_opt mu0 (omu : option SM_Injection) :=
-  if omu is Some mu then dominv mu0 mu else True.
+Record relinv mu0 mu : Type := 
+  { rel_src      : {subset (DomSrc mu0) <= DomSrc mu}
+  ; rel_tgt      : {subset (DomTgt mu0) <= DomTgt mu}
+  ; rel_restrict : restrict (as_inj mu) (DomSrc mu0) = as_inj mu0 
+  ; rel_sep      : forall b1 b2 d, 
+                   (as_inj mu0) b1 = None -> (as_inj mu) b1 = Some (b2, d) -> 
+                   [/\ DomSrc mu0 b1 = false & DomTgt mu0 b2 = false] }.
 
-Lemma dominv_restrict nu mu X : dominv nu mu -> dominv nu (restrict_sm mu X).
+Definition dominv mu0 mu := [/\ disjinv mu0 mu & relinv mu0 mu].
+
+Lemma disjinv_restrict mu0 mu X : 
+  disjinv mu0 mu -> disjinv (restrict_sm mu0 X) (restrict_sm mu X).
 Proof.
-case=> H H2 H3 H4; apply: Build_dominv. 
-by rewrite restrict_sm_locBlocksSrc.
-by rewrite restrict_sm_frgnBlocksSrc.
-by rewrite restrict_sm_locBlocksTgt.
-by rewrite restrict_sm_foreign; move=> b1 b2 d; move/restrict_some; apply: H4.
+case=> H H2 H3 H4; apply: Build_disjinv. 
+by rewrite !restrict_sm_locBlocksSrc.
+by rewrite restrict_sm_frgnBlocksSrc restrict_sm_pubBlocksSrc 
+           restrict_sm_locBlocksSrc.
+by rewrite !restrict_sm_locBlocksTgt.
+rewrite !restrict_sm_foreign=> b1 b2 d. 
+rewrite !restrict_sm_pub; rewrite/restrict; case: (X b1)=> //.
+by rewrite restrict_sm_locBlocksSrc restrict_sm_locBlocksTgt; apply: H4.
+Qed.
+
+Lemma relinv_restrict mu0 mu X : 
+  relinv mu0 mu -> relinv (restrict_sm mu0 X) (restrict_sm mu X).
+Proof.
+case=> H H2 H3 H4; apply: Build_relinv. 
+by rewrite !restrict_sm_DomSrc.
+by rewrite !restrict_sm_DomTgt.
+by rewrite !restrict_sm_all restrict_sm_DomSrc; rewrite -H3 restrict_com.
+move=> b1 b2 d; rewrite !restrict_sm_all restrict_sm_DomSrc restrict_sm_DomTgt.
+by rewrite/restrict; case: (X b1)=> //; apply: H4.
+Qed.
+
+Lemma dominv_restrict mu0 mu X : 
+  dominv mu0 mu -> dominv (restrict_sm mu0 X) (restrict_sm mu X).
+Proof.
+case=> A B; split; first by apply: disjinv_restrict. 
+by apply: relinv_restrict.
 Qed.
 
 (* I'm probably missing these in the ssreflect libraries ... *)
@@ -70,26 +101,26 @@ Qed.
 
 End pred_lems.
 
-Lemma dominv_relat_empty mu : dominv mu (reestablish SMInj.empty mu).
+Lemma disjinv_relat_empty mu : disjinv mu (reestablish SMInj.empty mu).
 Proof.
-apply: Build_dominv; case: mu=> //=.
+apply: Build_disjinv; case: mu=> //=.
 by move=> s _ _ _ _ _ _ _ _ _; apply: predI0.
 by move=> _ t _ _ _ _ _ _ _ _; apply: predI0. 
 Qed.
 
-Lemma dominv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
-  dominv mu0 mu -> 
+Lemma disjinv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+  disjinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
   mem_forward m20 m2 ->   
   sm_inject_separated mu0 mu m10 m20 -> 
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu0 m10 m20 -> 
-  dominv mu0 mu'.
+  disjinv mu0 mu'.
 Proof.
 move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2.
 move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16.
-apply: Build_dominv.
+apply: Build_disjinv.
 move=> b; case: H6=> []_ []; move/(_ b)=> H17 _; rewrite in_predI.
 case A: (b \in locBlocksSrc mu).
 by case: inv; move/(_ b); rewrite in_predI A; case (b \in locBlocksSrc mu0).
@@ -129,11 +160,72 @@ case; case=> /= ? ? ? ? ? ? ? ? ? ? ?.
 by move=> ? ? ? -> ? ? ? ? ->. 
 Qed.
 
-(* The analogous lemma for extern_incr doesn't appear to hold: *)
+Lemma relinv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+  relinv mu0 mu -> 
+  intern_incr mu mu' -> 
+  mem_forward m10 m1 -> 
+  mem_forward m20 m2 ->   
+  sm_inject_separated mu0 mu m10 m20 -> 
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu0 m10 m20 -> 
+  relinv mu0 mu'.
+Proof.
+move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2.
+move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16.
+apply: Build_relinv.
+move=> b A; move: {A}(rel_src inv A).
+rewrite/DomSrc /in_mem /=; move/orP; case=> A; apply/orP. 
+by left; apply: H9. 
+by right; rewrite -H15.
+move=> b A; move: {A}(rel_tgt inv A).
+rewrite/DomTgt /in_mem /=; move/orP; case=> A; apply/orP.
+by left; apply: H10. by right; rewrite -H16.
+rewrite -(rel_restrict inv) /restrict.
+extensionality b; case DOM: (DomSrc _ _)=> //; rewrite/as_inj /join -H8.
+case E: (extern_of mu b)=> //.
+case A: (local_of mu b)=> [[b' d']|].
+by move: (H7 _ _ _ A).
+case B: (local_of mu' b)=> // [[b' d']]; case: H6; move/(_ b b' d').
+rewrite/as_inj/join E; move/(_ A); rewrite -H8 E; move/(_ B)=> [C D] [].
+move/(_ b C).
+have F: DomSrc mu' b. 
+  by rewrite/DomSrc; move: (local_locBlocks _ (SMInj_wd mu') _ _ _ B)=> []->.
+move/(_ F)=> G _.
+have H: Memory.Mem.valid_block m10 b.
+  by case: Hvalid; move/(_ b)=> H _; apply: H.
+by elimtype False; apply: G; case: (H3 b).
+move=> b1 b2 d A B.
+move: (@rel_sep _ _ inv b1 b2 d A).
+case C: (as_inj mu b1)=> [[b1' d']|].
+move: C B; rewrite/as_inj/join -H8.
+case B: (extern_of mu b1)=> [[b1'' d'']|].
+by case=> <- <-; case=> <- <-; case.
+move=> C D.
+move: (H7 _ _ _ C).
+by rewrite D; case=> <- <-; case.
+move=> _.
+have M: ~Memory.Mem.valid_block m10 b1.
+  have N: ~Memory.Mem.valid_block m1 b1.
+    case: H6; move/(_ b1 b2 d C B); case=> D E.
+    case: (as_inj_DomRng _ _ _ _ B (SMInj_wd mu'))=> O ?.
+    by case; move/(_ b1 D O).
+  by move=> M; apply: N; case: (H3 b1 M). 
+have N: ~Memory.Mem.valid_block m20 b2.
+  have P: ~Memory.Mem.valid_block m2 b2.
+    case: H6; move/(_ b1 b2 d C B); case=> D E.
+    case: (as_inj_DomRng _ _ _ _ B (SMInj_wd mu'))=> ? O.
+    by case=> _; move/(_ b2 E O).
+  by move=> Q; apply: P; case: (H4 b2 Q). 
+case: Hvalid. move/(_ b1)=> E. move/(_ b2)=> F; split.
+case G: (DomSrc mu0 b1)=> //.
+by elimtype False; apply: M; apply: (E G).
+case G: (DomTgt mu0 b2)=> //.
+by elimtype False; apply: N; apply: (F G).
+Qed.
 
-Lemma dominv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma dominv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
   dominv mu0 mu -> 
-  extern_incr mu mu' -> 
+  intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
   mem_forward m20 m2 ->   
   sm_inject_separated mu0 mu m10 m20 -> 
@@ -141,21 +233,38 @@ Lemma dominv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
   sm_valid mu0 m10 m20 -> 
   dominv mu0 mu'.
 Proof.
+case=> A B C D E F G H.
+split; first by apply: (disjinv_intern_step A C D E F G H).
+by apply: (relinv_intern_step B C D E F G H).
+Qed.
+
+(* The analogous lemma for extern_incr doesn't appear to hold: *)
+
+Lemma disjinv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+  disjinv mu0 mu -> 
+  extern_incr mu mu' -> 
+  mem_forward m10 m1 -> 
+  mem_forward m20 m2 ->   
+  sm_inject_separated mu0 mu m10 m20 -> 
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu0 m10 m20 -> 
+  disjinv mu0 mu'.
+Proof.
 move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2.
 move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16.
-apply: Build_dominv.
-by rewrite -H11; apply: (dom_locdisj_src inv).
-move=> b A; apply: (dom_pubfrgn_src inv). 
+apply: Build_disjinv.
+by rewrite -H11; apply: (disj_locsrc inv).
+move=> b A; apply: (disj_pubfrgnsrc inv). 
 move: A; rewrite !in_predI; move/andP=> []. 
 rewrite/in_mem /= => A B; apply/andP; split=> //.
 admit. (*not true?*)
-by rewrite -H12; apply: (dom_locdisj_tgt inv).
+by rewrite -H12; apply: (disj_loctgt inv).
 move=> b1 b2 d A B. 
 case C: (foreign_of mu b1)=> [[b2' d']|].
 have D: extern_of mu b1 = Some (b2', d') by apply: foreign_in_extern.
 have E: extern_of mu' b1 = Some (b2, d)  by apply: foreign_in_extern.
 move: (H7 _ _ _ D) B; rewrite E; case=> -> ->.
-by apply: (dom_pubfrgn_tgt inv).
+by apply: (disj_pubfrgntgt inv).
 case D: (pub_of mu0 b1)=> [[b2' d']|]. admit. (*easy case*)
 admit. (*not true?*)
 Abort.

@@ -18,24 +18,25 @@ Require Import sepcomp.stack.
 Require Import sepcomp.cast.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
+Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.domain_inv.
 Require Import sepcomp.linking.
 Require Import sepcomp.linking_lemmas.
 
-(* ssreflect *)
-
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
-
 (* compcert imports *)
 
 Require Import compcert.common.AST.    (*for ident*)
-Require Import compcert.common.Values.   
 Require Import compcert.common.Globalenvs.   
 Require Import compcert.common.Memory.   
 
+(* ssreflect *)
+
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+
+Require Import compcert.common.Values.   
 
 (** * Linking simulation proof 
 
@@ -166,14 +167,14 @@ Require Import compcert.lib.Coqlib. (*for Forall2*)
    -[m1], [m2]: Active memories. 
 *)
 
-Record frame_inv cd0 mu0 mu_head mu 
+Record frame_inv cd0 mu0 mu 
                  m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
   { (* local definitions *)
     pubSrc := [predI (locBlocksSrc mu0) & REACH m10 (exportedSrc mu0 vals1)] 
   ; pubTgt := [predI (locBlocksTgt mu0) & REACH m20 (exportedTgt mu0 vals2)] 
   ; nu0    := replace_locals mu0 pubSrc pubTgt
 
-    (* invariants required to instantiate at_external *)
+    (* invariants required to instantiate after_external *)
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_inj   : Mem.inject (as_inj mu0) m1 m2
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
@@ -185,8 +186,6 @@ Record frame_inv cd0 mu0 mu_head mu
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
   ; frame_fwd1  : mem_forward m10 m1
   ; frame_fwd2  : mem_forward m20 m2
-  ; frame_dom1  : dominv mu0 mu
-  ; frame_dom2  : dominv_opt mu0 mu_head
   ; frame_unch1 : Mem.unchanged_on [fun b ofs => 
                     [/\ locBlocksSrc nu0 b & pubBlocksSrc nu0 b=false]] m10 m1
   ; frame_unch2 : Mem.unchanged_on (local_out_of_reach nu0 m10) m20 m2 
@@ -222,46 +221,53 @@ Qed.
 
 End head_inv_lems.
 
-Fixpoint tail_inv_aux mu_head mu
+Fixpoint tail_inv_aux mus mu 
   (s1 : Stack.t (Core.t cores_S)) (s2 : Stack.t (Core.t cores_T)) m1 m2 :=
-  match s1, s2 with
-    | c :: s1', d :: s2' => 
-      exists mu0,
+  match mus, s1, s2 with
+    | mu0 :: mus', c :: s1', d :: s2' => 
       [/\ exists (pf : c.(Core.i)=d.(Core.i)) cd0,
           exists m10 e1 ef_sig1 vals1,
           exists m20 e2 ef_sig2 vals2, 
-          @frame_inv c d pf cd0 mu0 mu_head mu 
+          @frame_inv c d pf cd0 mu0 mu 
                      m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
-       & tail_inv_aux (Some mu0) mu s1' s2' m1 m2]
-    | _, _ => False
+       & tail_inv_aux mus' mu s1' s2' m1 m2]
+    | _, _, _ => False
   end.
 
-Notation tail_inv := (tail_inv_aux None).
+Definition one_disjoint mu0 mus := List.Forall (dominv mu0) mus.
+
+Fixpoint all_disjoint mus : Prop :=
+  match mus with 
+    | mu0 :: mus' => [/\ one_disjoint mu0 mus' & all_disjoint mus']
+    | nil => True
+  end.
+
+Definition tail_inv mu s1 s2 m1 m2 := 
+  exists mus, [/\ all_disjoint mus & tail_inv_aux mus mu s1 s2 m1 m2].
 
 Section tail_inv_lems.
 
-Context mu_head mu s1 s2 m1 m2 (inv : tail_inv_aux mu_head mu s1 s2 m1 m2).
+Context mus mu s1 s2 m1 m2 (inv : tail_inv_aux mus mu s1 s2 m1 m2).
 
 Lemma tail_len_eq : length s1 = length s2.
 Proof.
-move: s2 mu_head mu inv; elim: s1=> // a s1' IH /= s0 mu_head' mu'. 
-case: s0=> // b s2' [] /= mu0 []? H2.
+move: s1 s2 mu inv; elim: mus=> // mu0 mus' IH s1' s2' mu'.
+case: s1'=> // a s1'.
+case: s2'=> // b s2' /= [] ? H2.
 by rewrite (IH _ _ _ H2).
 Qed.
 
-Lemma tail_inv_restrict (X : block -> bool) : 
+Lemma tail_inv_aux_restrict (X : block -> bool) : 
   (forall b : block, vis mu b -> X b) -> 
   REACH_closed m1 X -> 
-  tail_inv_aux mu_head (restrict_sm mu X) s1 s2 m1 m2.
+  tail_inv_aux mus (restrict_sm mu X) s1 s2 m1 m2.
 Proof.
-move=> H H2; move: s2 tail_len_eq mu_head mu inv; elim: s1=> // a s1' IH s0. 
-case: s0=> // b s2' H3.
-have H4: length s1' = length s2' by move: H3=> /=; case.
-move=> mu_head' mu' /= [] mu0 []H5 H6; exists mu0; split; last by apply: IH.
-move: H5=> [pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
+move=> A B; move: mu s1 s2 inv; elim: mus=> // mu0 mus' IH mu'.
+case=> // a s1'; case=> // b s2'.
+move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split.
 exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
 apply: Build_frame_inv=> //; last by apply: sm_inject_separated_restrict.
-by apply: dominv_restrict.
+by apply: IH.
 Qed.
 
 (*
@@ -282,6 +288,16 @@ apply: Build_frame_inv=> //.
 
 End tail_inv_lems.
 
+Lemma tail_inv_restrict (X : block -> bool)  mu s1 s2 m1 m2 : 
+  tail_inv mu s1 s2 m1 m2 ->
+  (forall b : block, vis mu b -> X b) -> 
+  REACH_closed m1 X -> 
+  tail_inv (restrict_sm mu X) s1 s2 m1 m2.
+Proof. 
+move=> [] mus []A B C; exists mus; split=> //.
+by apply: tail_inv_aux_restrict.
+Qed.
+
 Section R.
 
 Import CallStack.
@@ -299,8 +315,8 @@ Record R (data : Lex.t types) mu
     (* invariants *)
   ; R_head : exists (pf : c.(Core.i)=d.(Core.i)) cd, 
              @head_inv c d pf cd mu m1 m2 
-  ; R_tail : tail_inv mu (STACK.pop s1.(callStack)) 
-                         (STACK.pop s2.(callStack)) m1 m2 }.
+  ; R_tail : tail_inv mu (STACK.pop s1.(callStack)) (STACK.pop s2.(callStack)) 
+                         m1 m2 }.
 
 End R.
 
@@ -364,7 +380,7 @@ Lemma R_match_restrict (X : block -> bool) :
   R data (restrict_sm mu X) x1 m1 x2 m2.
 Proof.
 move: (R_head pf)=> [A][B]; move/head_inv_restrict=> H H2 H3. 
-move: (H _ H2 H3)=> H'; apply: Build_R; first by exists A, B; apply: H'. 
+move: (H _ H2 H3)=> H'; apply: Build_R; first by exists A, B; apply: H'.
 by apply: tail_inv_restrict=> //; apply: (R_tail pf). 
 Qed.
 
@@ -421,7 +437,6 @@ case: STEP=> STEP STEP_EFFSTEP.
 case: STEP.
  (* Case: corestep0 *)
  + move=> STEP. 
-
  set c1 := peekCore st1.
  have [c1' [STEP0 ST1']]: 
          exists c' : C (cores_S (Core.i c1)), 
