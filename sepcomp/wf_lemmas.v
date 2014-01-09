@@ -40,11 +40,15 @@ Qed.
 
 Lemma wf_eta {A: Type}{f: A -> A -> Prop} : 
   well_founded f -> well_founded (fun a1 a2 => f a1 a2).
-Proof. by move=> H1; have ->: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. Qed.
+Proof. 
+by move=> H1; have ->: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. 
+Qed.
 
 Lemma wf_eta' {A: Type}{f: A -> A -> Prop} : 
   well_founded (fun a1 a2 => f a1 a2) -> well_founded f.
-Proof. by move=> H1; have <-: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. Qed.
+Proof. 
+by move=> H1; have <-: ((fun a1 a2 => f a1 a2) = f) by do 2 extensionality. 
+Qed.
 
 Lemma wf_funct {A B: Type}{R: B -> B -> Prop}(f: A -> B) : 
   well_founded R -> well_founded (fun a1 a2 => R (f a1) (f a2)).

@@ -18,6 +18,7 @@ Require Import sepcomp.stack.
 Require Import sepcomp.cast.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
+Require Import sepcomp.domain_inv.
 Require Import sepcomp.linking.
 Require Import sepcomp.linking_lemmas.
 
@@ -105,38 +106,6 @@ split; first by move=> b1 A; move/restrict_sm_domsrc=> B; apply: (H2 _ A B).
 by move=> b2 A; move/restrict_sm_domtgt=> B; apply: (H3 _ A B).
 Qed.
 
-(** Domain Invariant: 
-    ~~~~~~~~~~~~~~~~~
-
-    The [dom_inv] invariant enforces disjointness conditions between
-    the local, public and foreign block sets declared by [mu0], an
-    [SM_injection] appearing at existentially quantified positions in
-    the callstack invariant, and those declared by [mu], the
-    [SM_injection] of the currently running core.  
-*)
-
-Record dom_inv mu0 mu : Type := 
-  { dom_locdisj_src : [predI (locBlocksSrc mu0) & locBlocksSrc mu] =i pred0
-  ; dom_pubfrgn_src : pubBlocksSrc mu0 
-                      =i [predI (frgnBlocksSrc mu) & locBlocksSrc mu0] 
-  ; dom_locdisj_tgt : pred0 [predI (locBlocksTgt mu0) & locBlocksTgt mu] 
-  ; dom_pubfrgn_tgt : forall b1 b2 d, 
-                      foreign_of mu b1 = Some (b2, d) -> 
-                      (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
-                      pub_of mu0 b1 = Some (b2, d) }.                  
-
-Definition dom_inv_opt mu0 (omu : option SM_Injection) :=
-  if omu is Some mu then dom_inv mu0 mu else True.
-
-Lemma dom_inv_restrict nu mu X : dom_inv nu mu -> dom_inv nu (restrict_sm mu X).
-Proof.
-case=> H H2 H3 H4; apply: Build_dom_inv. 
-by rewrite restrict_sm_locBlocksSrc.
-by rewrite restrict_sm_frgnBlocksSrc.
-by rewrite restrict_sm_locBlocksTgt.
-by rewrite restrict_sm_foreign; move=> b1 b2 d; move/restrict_some; apply: H4.
-Qed.
-
 Section frame_inv.
 
 Import Core.
@@ -180,17 +149,17 @@ Require Import compcert.lib.Coqlib. (*for Forall2*)
      simulations.
 
 
-     + The [frame_dom] invariant [dom_inv mu0 mu]: 
+     + The [frame_dom] invariant [dominv mu0 mu]: 
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-     [mu0] is always disjoint, in the way specified by [dom_inv], 
+     [mu0] is always disjoint, in the way specified by [dominv], 
      from the active injection [mu].  This is to ensure that we can 
      re-establish over steps of the active core the [frame_unch1] 
      and [frame_unch2] invariants given below (which in turn are 
      required by [after_external]).
      
-     In order to re-establish [dom_inv] when a core returns to its
-     context, we track as an additional invariant that [dom_inv mu0
+     In order to re-establish [dominv] when a core returns to its
+     context, we track as an additional invariant that [dominv mu0
      mu_head], where [mu_head] is the existentially quantified
      injection of the callee.
 
@@ -216,8 +185,8 @@ Record frame_inv cd0 mu0 mu_head mu
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
   ; frame_fwd1  : mem_forward m10 m1
   ; frame_fwd2  : mem_forward m20 m2
-  ; frame_dom1  : dom_inv mu0 mu
-  ; frame_dom2  : dom_inv_opt mu0 mu_head
+  ; frame_dom1  : dominv mu0 mu
+  ; frame_dom2  : dominv_opt mu0 mu_head
   ; frame_unch1 : Mem.unchanged_on [fun b ofs => 
                     [/\ locBlocksSrc nu0 b & pubBlocksSrc nu0 b=false]] m10 m1
   ; frame_unch2 : Mem.unchanged_on (local_out_of_reach nu0 m10) m20 m2 
@@ -292,7 +261,7 @@ move=> mu_head' mu' /= [] mu0 []H5 H6; exists mu0; split; last by apply: IH.
 move: H5=> [pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
 exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
 apply: Build_frame_inv=> //; last by apply: sm_inject_separated_restrict.
-by apply: dom_inv_restrict.
+by apply: dominv_restrict.
 Qed.
 
 (*
@@ -450,11 +419,7 @@ case: STEP=> STEP STEP_EFFSTEP.
 case: STEP.
  (* Case: corestep0 *)
  + move=> STEP. 
-(*
- have [c A]: exists c, peekCore st1 = Some c. 
-  { move: STEP; rewrite/Sem.corestep0; case: (peekCore st1)=> // a. 
-    by exists a. }
-*)
+
  set c1 := peekCore st1.
  have [c1' [STEP0 ST1']]: 
          exists c' : C (cores_S (Core.i c1)), 
