@@ -14,207 +14,187 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolation_defs.
 Require Import sepcomp.mem_interpolation_II.
 
-(*Inserts ALL new injection entries into foreign component*)
-Definition insert_as_foreign (mu: SM_Injection) (j: meminj) (DomJ TgtJ fDomJ fTgtJ:block->bool)
+(*Inserts the new injection entries into extern component, but not into foreign*)
+Definition insert_as_extern (mu: SM_Injection) (j: meminj) (DomJ TgtJ:block->bool)
           : SM_Injection:=
   match mu with 
     Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern => 
     Build_SM_Injection locBSrc locBTgt pSrc pTgt local
-
       (fun b => orb (extBSrc b) (DomJ b))
       (fun b => orb (extBTgt b) (TgtJ b))
-(*      (fun b => orb (fSrc b) (fDomJ b))
-      (fun b => orb (fTgt b) (fTgtJ b))*)
       fSrc
       fTgt
       (join extern (fun b => match local b with Some _ => None
                                               | None => j b end))
   end.
 
-Definition convertL (nu12 nu': SM_Injection) (j12':meminj) FreshSrc FreshMid FrgnMid:= 
-  insert_as_foreign nu12 j12' FreshSrc FreshMid
-                   (frgnBlocksSrc nu') 
-                   FrgnMid. 
+Definition convertL (nu12: SM_Injection) (j12':meminj) FreshSrc FreshMid:= 
+  insert_as_extern nu12 j12' FreshSrc FreshMid. 
 
-Definition convertR (nu23 nu': SM_Injection) (j23':meminj) FreshMid FreshTgt FrgnMid := 
-  insert_as_foreign nu23 j23' FreshMid FreshTgt
-                   FrgnMid
-                   (frgnBlocksTgt nu').
+Definition convertR (nu23: SM_Injection) (j23':meminj) FreshMid FreshTgt:= 
+  insert_as_extern nu23 j23' FreshMid FreshTgt.
 
-Lemma convertL_local: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            local_of (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_local: forall nu12 j12' FreshSrc FreshMid,
+            local_of (convertL nu12 j12' FreshSrc FreshMid) =
             local_of nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_pub: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            pub_of (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_pub: forall nu12 j12' FreshSrc FreshMid,
+            pub_of (convertL nu12 j12' FreshSrc FreshMid) =
             pub_of nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_priv: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            priv_of (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_priv: forall nu12 j12' FreshSrc FreshMid,
+            priv_of (convertL nu12 j12' FreshSrc FreshMid) =
             priv_of nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_extern: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            extern_of (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_extern: forall nu12 j12' FreshSrc FreshMid,
+            extern_of (convertL nu12 j12' FreshSrc FreshMid) =
             join (extern_of nu12)
                  (fun b => match (local_of nu12) b with Some _ => None | None => j12' b end).
 Proof. intros. destruct nu12; simpl. reflexivity. Qed. 
 
-Lemma convertL_locBlocksSrc: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            locBlocksSrc (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_locBlocksSrc: forall nu12 j12' FreshSrc FreshMid,
+            locBlocksSrc (convertL nu12 j12' FreshSrc FreshMid) =
             locBlocksSrc nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_locBlocksTgt: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            locBlocksTgt (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_locBlocksTgt: forall nu12 j12' FreshSrc FreshMid,
+            locBlocksTgt (convertL nu12 j12' FreshSrc FreshMid) =
             locBlocksTgt nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_extBlocksSrc: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            extBlocksSrc (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_extBlocksSrc: forall nu12 j12' FreshSrc FreshMid,
+            extBlocksSrc (convertL nu12 j12' FreshSrc FreshMid) =
             fun b => orb (extBlocksSrc nu12 b) (FreshSrc b).
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_extBlocksTgt: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            extBlocksTgt (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_extBlocksTgt: forall nu12 j12' FreshSrc FreshMid,
+            extBlocksTgt (convertL nu12 j12' FreshSrc FreshMid) =
             fun b => orb (extBlocksTgt nu12 b) (FreshMid b).
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_DomSrc: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            DomSrc (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_DomSrc: forall nu12 j12' FreshSrc FreshMid,
+            DomSrc (convertL nu12 j12' FreshSrc FreshMid) =
             (fun b => orb (DomSrc nu12 b) (FreshSrc b)).
 Proof. intros. destruct nu12. unfold DomSrc; simpl in *. 
        extensionality b. rewrite orb_assoc. reflexivity. Qed. 
 
-Lemma convertL_DomTgt: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            DomTgt (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_DomTgt: forall nu12 j12' FreshSrc FreshMid,
+            DomTgt (convertL nu12 j12' FreshSrc FreshMid) =
             (fun b => orb (DomTgt nu12 b) (FreshMid b)).
 Proof. intros. destruct nu12. unfold DomTgt; simpl in *. 
        extensionality b. rewrite orb_assoc. reflexivity. Qed. 
 
-Lemma convertL_pubBlocksSrc: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            pubBlocksSrc (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_pubBlocksSrc: forall nu12 j12' FreshSrc FreshMid,
+            pubBlocksSrc (convertL nu12 j12' FreshSrc FreshMid) =
             pubBlocksSrc nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_pubBlocksTgt: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            pubBlocksTgt (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_pubBlocksTgt: forall nu12 j12' FreshSrc FreshMid,
+            pubBlocksTgt (convertL nu12 j12' FreshSrc FreshMid) =
             pubBlocksTgt nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_frgnBlocksSrc: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            frgnBlocksSrc (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_frgnBlocksSrc: forall nu12 j12' FreshSrc FreshMid,
+            frgnBlocksSrc (convertL nu12 j12' FreshSrc FreshMid) =
             frgnBlocksSrc nu12.
 Proof. intros. destruct nu12. simpl. reflexivity. Qed. 
 
-Lemma convertL_frgnBlocksTgt: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid,
-            frgnBlocksTgt (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
+Lemma convertL_frgnBlocksTgt: forall nu12 j12' FreshSrc FreshMid,
+            frgnBlocksTgt (convertL nu12 j12' FreshSrc FreshMid) =
             frgnBlocksTgt nu12.
 Proof. intros. destruct nu12. reflexivity. Qed. 
 
-Lemma convertL_foreign: forall nu12 nu' j12' FreshSrc FreshMid FrgnMid (WD12:SM_wd nu12),
-            foreign_of (convertL nu12 nu' j12' FreshSrc FreshMid FrgnMid) =
-            foreign_of nu12. (*(fun b => if frgnBlocksSrc nu23 b || FrgnMid b 
-                      then join (extern_of nu23)
-                             (fun b'=> match local_of nu23 b' with
-                                  | Some _ => None
-                                  | None => j23' b'
-                                end) b
-                     else None).*)
+Lemma convertL_foreign: forall nu12 j12' FreshSrc FreshMid (WD12:SM_wd nu12),
+            foreign_of (convertL nu12 j12' FreshSrc FreshMid) =
+            foreign_of nu12. 
 Proof. intros. destruct nu12; simpl in *. extensionality b.
   remember (frgnBlocksSrc b) as d.
   destruct d; trivial. apply eq_sym in Heqd.
   destruct (frgnSrc _ WD12 _ Heqd) as [b2 [z [Frg _]]]. simpl in Frg.
   rewrite Heqd in Frg; unfold join. rewrite Frg; trivial. Qed.
 
-Lemma convertR_local: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            local_of (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_local: forall nu23 j23' FreshMid FreshTgt,
+            local_of (convertR nu23 j23' FreshMid FreshTgt) =
             local_of nu23.
 Proof. intros. destruct nu23; simpl. reflexivity. Qed.
  
-Lemma convertR_pub: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            pub_of (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_pub: forall nu23 j23' FreshMid FreshTgt,
+            pub_of (convertR nu23 j23' FreshMid FreshTgt) =
             pub_of nu23.
 Proof. intros. destruct nu23; simpl. reflexivity. Qed. 
 
-Lemma convertR_priv: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            priv_of (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_priv: forall nu23 j23' FreshMid FreshTgt,
+            priv_of (convertR nu23 j23' FreshMid FreshTgt) =
             priv_of nu23.
 Proof. intros. destruct nu23; simpl. reflexivity. Qed. 
 
-Lemma convertR_extern: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            extern_of (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_extern: forall nu23 j23' FreshMid FreshTgt,
+            extern_of (convertR nu23 j23' FreshMid FreshTgt) =
             join (extern_of nu23)
                  (fun b => match (local_of nu23) b with Some _ => None | None => j23' b end).
 Proof. intros. destruct nu23; simpl. reflexivity. Qed.
 
-Lemma convertR_foreign: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid (WD23:SM_wd nu23),
-            foreign_of (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
-            foreign_of nu23. (*(fun b => if frgnBlocksSrc nu23 b || FrgnMid b 
-                      then join (extern_of nu23)
-                             (fun b'=> match local_of nu23 b' with
-                                  | Some _ => None
-                                  | None => j23' b'
-                                end) b
-                     else None).*)
+Lemma convertR_foreign: forall nu23 j23' FreshMid FreshTgt (WD23:SM_wd nu23),
+            foreign_of (convertR nu23 j23' FreshMid FreshTgt) =
+            foreign_of nu23.
 Proof. intros. destruct nu23; simpl in *. extensionality b.
   remember (frgnBlocksSrc b) as d.
   destruct d; trivial. apply eq_sym in Heqd.
   destruct (frgnSrc _ WD23 _ Heqd) as [b2 [z [Frg _]]]. simpl in Frg.
   rewrite Heqd in Frg; unfold join. rewrite Frg; trivial. Qed.
 
-
-Lemma convertR_locBlocksSrc: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            locBlocksSrc (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_locBlocksSrc: forall nu23 j23' FreshMid FreshTgt,
+            locBlocksSrc (convertR nu23 j23' FreshMid FreshTgt) =
             locBlocksSrc nu23.
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_locBlocksTgt: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            locBlocksTgt (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_locBlocksTgt: forall nu23 j23' FreshMid FreshTgt,
+            locBlocksTgt (convertR nu23 j23' FreshMid FreshTgt) =
             locBlocksTgt nu23.
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_extBlocksSrc: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            extBlocksSrc (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_extBlocksSrc: forall nu23 j23' FreshMid FreshTgt,
+            extBlocksSrc (convertR nu23 j23' FreshMid FreshTgt) =
             fun b => orb (extBlocksSrc nu23 b) (FreshMid b).
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_extBlocksTgt: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            extBlocksTgt (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_extBlocksTgt: forall nu23 j23' FreshMid FreshTgt,
+            extBlocksTgt (convertR nu23 j23' FreshMid FreshTgt) =
             fun b => orb (extBlocksTgt nu23 b) (FreshTgt b).
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_DomSrc: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            DomSrc (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_DomSrc: forall nu23 j23' FreshMid FreshTgt,
+            DomSrc (convertR nu23 j23' FreshMid FreshTgt) =
             (fun b => orb (DomSrc nu23 b) (FreshMid b)).
 Proof. intros. destruct nu23; simpl. unfold DomSrc; simpl.
        extensionality b. rewrite orb_assoc. reflexivity. Qed. 
 
-Lemma convertR_DomTgt: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            DomTgt (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_DomTgt: forall nu23 j23' FreshMid FreshTgt,
+            DomTgt (convertR nu23 j23' FreshMid FreshTgt) =
             (fun b => orb (DomTgt nu23 b) (FreshTgt b)).
 Proof. intros. destruct nu23; simpl. unfold DomTgt; simpl.
        extensionality b. rewrite orb_assoc. reflexivity. Qed. 
 
-Lemma convertR_pubBlocksSrc: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            pubBlocksSrc (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_pubBlocksSrc: forall nu23 j23' FreshMid FreshTgt,
+            pubBlocksSrc (convertR nu23 j23' FreshMid FreshTgt) =
             pubBlocksSrc nu23.
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_pubBlocksTgt: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            pubBlocksTgt (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_pubBlocksTgt: forall nu23 j23' FreshMid FreshTgt,
+            pubBlocksTgt (convertR nu23 j23' FreshMid FreshTgt) =
             pubBlocksTgt nu23.
 Proof. intros. destruct nu23. reflexivity. Qed. 
 
-Lemma convertR_frgnBlocksSrc: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            frgnBlocksSrc (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_frgnBlocksSrc: forall nu23 j23' FreshMid FreshTgt,
+            frgnBlocksSrc (convertR nu23 j23' FreshMid FreshTgt) =
             frgnBlocksSrc nu23.
 Proof. intros. destruct nu23. simpl. reflexivity. Qed. 
 
-Lemma convertR_frgnBlocksTgt: forall nu23 nu' j23' FreshMid FreshTgt FrgnMid,
-            frgnBlocksTgt (convertR nu23 nu' j23' FreshMid FreshTgt FrgnMid) =
+Lemma convertR_frgnBlocksTgt: forall nu23 j23' FreshMid FreshTgt,
+            frgnBlocksTgt (convertR nu23 j23' FreshMid FreshTgt) =
             frgnBlocksTgt nu23.
 Proof. intros. destruct nu23; simpl. reflexivity. Qed. 
 
@@ -362,21 +342,13 @@ Lemma effect_interp_OK: forall m1 m2 nu12
                                     pubBlocksSrc nu23 b = false) m2 m2' /\
      Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' /\
      Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3' /\
-     exists nu12', exists nu23', 
-           nu12'  = (convertL nu12 nu' (removeUndefs (as_inj nu12) (as_inj nu') prej12')
+     exists (nu12' nu23':SM_Injection), 
+           nu12'  = (convertL nu12 (removeUndefs (as_inj nu12) (as_inj nu') prej12')
                     (*FreshSrc:*) (fun b => andb (DomSrc nu' b) (negb (DomSrc nu12 b)))
-                    (*FreshMid:*) (FreshDom (as_inj nu23) j23')
-                    (*frgnMid (includes frgnMid in precall ie in wrt nu23):*) 
-                        (fun b => match j23' b with
-                                        None => false
-                                     | Some (b',z) => frgnBlocksTgt nu' b' end))
-       /\ nu23' = (convertR nu23 nu' j23'
+                    (*FreshMid:*) (FreshDom (as_inj nu23) j23'))
+       /\ nu23' = (convertR nu23 j23'
                       (*FreshMid:*) (FreshDom (as_inj nu23) j23')
-                      (*FreshTgt:*) (fun b => andb (DomTgt nu' b) (negb (DomTgt nu23 b)))
-                      (*frgnMid (includes frgnMid in precall ie in wrt nu23):*) 
-                        (fun b => match j23' b with
-                                        None => false
-                                     | Some (b',z) => frgnBlocksTgt nu' b' end))
+                      (*FreshTgt:*) (fun b => andb (DomTgt nu' b) (negb (DomTgt nu23 b))))
                       /\ nu'=compose_sm nu12' nu23' /\
                              extern_incr nu12 nu12' /\ extern_incr nu23 nu23' /\
                              sm_inject_separated nu12 nu12' m1 m2 /\ 
@@ -631,33 +603,20 @@ assert (Val23: (forall (b2 b3 : block) (ofs3 : Z),
    intros. eapply SMV23. eapply as_inj_DomRng; eassumption.
 assert (NOVj12':= RU_no_overlap _ _ _ MInj12 _ Fwd1 _ _ 
                   MInj23 _ _ _ _ _ HeqMKI).
-exists (convertL nu12 nu' (removeUndefs (as_inj nu12) (as_inj nu') prej12')
+exists (convertL nu12 (removeUndefs (as_inj nu12) (as_inj nu') prej12')
           (*FreshSrc:*) (fun b => andb (DomSrc nu' b) (negb (DomSrc nu12 b)))
+          (*FreshMid:*) (FreshDom (as_inj nu23) j23')).
+exists (convertR nu23 j23'
           (*FreshMid:*) (FreshDom (as_inj nu23) j23')
-          (*frgnMid (includes frgnMid in precall ie in wrt nu23):*) 
-                        (fun b => match j23' b with
-                                        None => false
-                                     | Some (b',z) => frgnBlocksTgt nu' b' end)).
-exists (convertR nu23 nu' j23'
-          (*FreshMid:*) (FreshDom (as_inj nu23) j23')
-          (*FreshTgt:*) (fun b => andb (DomTgt nu' b) (negb (DomTgt nu23 b)))
-          (*frgnMid (includes frgnMid in precall ie in wrt nu23):*) 
-                   (fun b => match j23' b with
-                                        None => false
-                                     | Some (b',z) => frgnBlocksTgt nu' b' end)).
+          (*FreshTgt:*) (fun b => andb (DomTgt nu' b) (negb (DomTgt nu23 b)))).
 split; trivial.
 split; trivial.
 remember (removeUndefs (as_inj nu12) (as_inj nu') prej12') as j12'.
 assert (ConvertL_J12': 
     as_inj
-     (convertL nu12 nu' j12'
+     (convertL nu12 j12'
         (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-        (FreshDom (as_inj nu23) j23')
-        (fun b : block =>
-         match j23' b with
-         | Some (b', _) => frgnBlocksTgt nu' b'
-         | None => false
-         end)) = j12').
+        (FreshDom (as_inj nu23) j23')) = j12').
     extensionality b.
     intros. unfold as_inj.
      rewrite convertL_extern, convertL_local.
@@ -1052,13 +1011,8 @@ assert (Inj12': Mem.inject j12' m1' m2').
                         rewrite Zplus_0_r. apply Int.unsigned_range_2.
        inv H. 
 assert (ConvertR_J23': as_inj
-     (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-        (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-        (fun b : block =>
-         match j23' b with
-         | Some (b', _) => frgnBlocksTgt nu' b'
-         | None => false
-         end)) = j23').
+     (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+        (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))) = j23').
    clear ConvertL_J12'. unfold as_inj.
    rewrite convertR_extern, convertR_local.
    extensionality b. unfold join.
@@ -2189,21 +2143,11 @@ specialize (mkInjections_5 _ _ _ _ _ _ _ _ _ _ HeqMKI VBj12_1 VBj12_2 VBj23_1 VB
 clear CONT ACCESS HeqMKI.
 assert (GOAL1: nu' =
 compose_sm
-  (convertL nu12 nu' j12'
+  (convertL nu12 j12'
      (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).
+     (FreshDom (as_inj nu23) j23'))
+  (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b)))).
   destruct ExtIncr as [AA [BB [CC [DD [EE [FF [GG [HH [II JJ]]]]]]]]]; simpl in *.
   unfold compose_sm; simpl in *. clear ConvertL_J12'. clear ConvertR_J23'.
   rewrite convertL_extern, convertL_local, convertL_frgnBlocksSrc, 
@@ -2213,7 +2157,7 @@ compose_sm
   destruct nu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern'].
   simpl in *. unfold as_inj in *; simpl in *.
   f_equal; simpl; subst; simpl in *; trivial.
-  (*1/5*) 
+  (*1/3*) 
      extensionality b. 
      specialize (disjoint_extern_local_Src _ WDnu' b). intros.
      unfold DomSrc, DomTgt in *; simpl in *.
@@ -2224,7 +2168,7 @@ compose_sm
      destruct q; destruct t; simpl in *; intuition.
      rewrite andb_true_r. trivial.
      rewrite andb_true_r. trivial.
-  (*2/5*)
+  (*2/3*)
      extensionality b.
      specialize (disjoint_extern_local_Tgt _ WDnu' b). intros.
      unfold DomSrc, DomTgt in *; simpl in *.
@@ -2235,13 +2179,7 @@ compose_sm
      destruct q; destruct t; simpl in *; intuition.
      rewrite andb_true_r. trivial.
      rewrite andb_true_r. trivial.
-  (*3/5
-     extensionality b.
-     rewrite orb_diag. trivial.
-  (*4/5*)
-     extensionality b.
-     rewrite orb_diag. trivial.*)
-  (*5/5*)
+  (*3/3*)
      clear Inj12' NOVj12' Inj23' UNCHC MemInjNu' Fwd2 MInj23 Fwd1 MInj12 UnchPrivSrc UnchLOOR13 VBj'
            Fwd1 Fwd3 SMV12 SMV23 SMvalNu' InjSep VBj23_2 sep23 NB1 SMInjSep
            VBj23' Val12 Val23 mkiVal3 m3 m1' m3'.
@@ -2362,190 +2300,10 @@ compose_sm
                 unfold join. rewrite H0, Loc1. trivial.
               rewrite H0 in Loc1. inv Loc1.
 split; trivial.
-(*assert (GOAL1: nu' =
-compose_sm
-  (convertL nu12 nu' j12'
-     (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).
-  destruct ExtIncr as [AA [BB [CC [DD [EE [FF [GG [HH [II JJ]]]]]]]]]; simpl in *.
-  unfold compose_sm; simpl in *. clear ConvertL_J12'. clear ConvertR_J23'.
-  rewrite convertL_extern, convertL_local, convertL_frgnBlocksSrc, 
-          convertL_pubBlocksSrc, convertL_locBlocksSrc, convertL_extBlocksSrc.
-  rewrite convertR_extern, convertR_local, convertR_frgnBlocksTgt, 
-          convertR_pubBlocksTgt, convertR_locBlocksTgt, convertR_extBlocksTgt.
-  destruct nu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern'].
-  simpl in *. unfold as_inj in *; simpl in *.
-  f_equal; simpl; subst; simpl in *; trivial.
-  (*1/5*) 
-     extensionality b. 
-     specialize (disjoint_extern_local_Src _ WDnu' b). intros.
-     unfold DomSrc, DomTgt in *; simpl in *.
-     specialize (CC b).  
-     clear - CC H.    
-     remember (locBlocksSrc nu12 b) as q.
-     remember (extBlocksSrc nu12 b) as t.
-     destruct q; destruct t; simpl in *; intuition.
-     rewrite andb_true_r. trivial.
-     rewrite andb_true_r. trivial.
-  (*2/5*)
-     extensionality b.
-     specialize (disjoint_extern_local_Tgt _ WDnu' b). intros.
-     unfold DomSrc, DomTgt in *; simpl in *.
-     specialize (DD b).
-     clear - DD H. 
-     remember (locBlocksTgt nu23 b) as q.
-     remember (extBlocksTgt nu23 b) as t.
-     destruct q; destruct t; simpl in *; intuition.
-     rewrite andb_true_r. trivial.
-     rewrite andb_true_r. trivial.
-  (*3/5*)
-     extensionality b.
-     rewrite orb_diag. trivial.
-  (*4/5*)
-     extensionality b.
-     rewrite orb_diag. trivial.
-  (*5/5*)
-     clear Inj12' NOVj12' Inj23' UNCHC MemInjNu' Fwd2 MInj23 Fwd1 MInj12 UnchPrivSrc UnchLOOR13 VBj'
-           Fwd1 Fwd3 SMV12 SMV23 SMvalNu' InjSep VBj23_2 sep23 NB1 SMInjSep
-           VBj23' Val12 Val23 mkiVal3 m3 m1' m3'.
-     extensionality b1.
-     remember (extern' b1) as d.
-     destruct d; apply eq_sym in Heqd.
-     (*case externNu' b1 = Some p*)
-       destruct p as [b3 delta].
-       assert (J: join extern' (compose_meminj (local_of nu12) (local_of nu23)) b1 = Some (b3, delta)).
-         apply join_incr_left. apply Heqd.
-       rewrite ID in J; clear ID.
-       destruct (compose_meminjD_Some _ _ _ _ _ J) 
-        as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear J.
-       apply eq_sym. 
-       eapply compose_meminjI_Some with (b2:=b2).
-       (*condition 1*)
-         remember (extern_of nu12 b1) as q.
-         destruct q; apply eq_sym in Heqq.
-         (*case extern_of nu12 b1 = Some p*)
-           destruct p as [bb2 dd1].
-           unfold join. rewrite Heqq.
-           apply extern_in_all in Heqq.
-           apply inc12 in Heqq. unfold as_inj in Heqq. simpl in *. 
-             rewrite Heqq in J1. apply J1.
-         (*case extern_of nu12 b1 = Some p*)
-           unfold join. rewrite Heqq.
-           remember (local_of nu12 b1) as w.
-           destruct w; trivial; apply eq_sym in Heqw.
-           destruct p as [bb dd].
-           assert (locBlocksSrc nu12 b1 = true).
-             eapply local_locBlocks; eassumption.
-           assert (locBlocksSrc nu12 b1 = false).
-             eapply (extern_DomRng' _ WDnu'). simpl. apply Heqd.
-           rewrite H0 in H. inv H.
-       (*condition 2*)      
-         unfold join.
-         remember (extern_of nu23 b2) as q.
-         destruct q; apply eq_sym in Heqq.
-           destruct p.
-           rewrite (inject_incr_coincide _ _ inc23 _ _ J2 _ 
-               (extern_in_all _ _ _ _ Heqq)). trivial.
-         remember (local_of nu23 b2) as w.
-         destruct w; apply eq_sym in Heqw; trivial.
-         destruct p. 
-         assert (E:= inject_incr_coincide _ _ inc23 _ _ J2 _ 
-               (local_in_all _ WDnu23 _ _ _ Heqw)); inv E.
-         assert (locBlocksTgt nu23 b = true).
-           eapply local_locBlocks; eassumption.
-         assert (locBlocksTgt nu23 b = false).
-           eapply (extern_DomRng' _ WDnu'). simpl. apply Heqd.
-         rewrite H0 in H. inv H.
-     (*externNu' b1 = None*)
-        unfold as_inj in inc12. simpl in inc12.
-        remember (compose_meminj (local_of nu12) (local_of nu23) b1) as q.
-        destruct q; apply eq_sym in Heqq.
-        (*case compose_meminj (local_of nu12) (local_of nu23) b1 = Some p*)
-          destruct p as [b3 delta].
-          destruct (compose_meminjD_Some _ _ _ _ _ Heqq) 
-            as [b2 [d1 [d2 [Loc12 [Loc23 D]]]]]; subst; clear Heqq.
-          apply eq_sym.
-          destruct (disjoint_extern_local _ WDnu12 b1).
-            unfold compose_meminj, join. rewrite H, Loc12. trivial.
-          rewrite H in Loc12. inv Loc12.
-        (*case compose_meminj (local_of nu12) (local_of nu23) b1 = None*)
-          assert (compose_meminj
-            (removeUndefs (join (extern_of nu12) (local_of nu12))
-               (join extern' (compose_meminj (local_of nu12) (local_of nu23))) prej12')
-            j23' b1 = None).
-              rewrite <- ID. unfold join. rewrite Heqd. trivial.
-          clear ID.
-          remember (extern_of nu12 b1) as w.
-          destruct w; apply eq_sym in Heqw.
-          (*case extern_of nu12 b1 = Some p*)
-            destruct p as [b2 d1].
-            assert (R: removeUndefs (join (extern_of nu12) (local_of nu12))
-                        (join extern' (compose_meminj (local_of nu12) (local_of nu23)))
-                         prej12' b1 = Some (b2, d1)).
-                apply inc12. apply extern_in_all. apply Heqw.
-            destruct (compose_meminjD_None _ _ _ H); clear H.
-               rewrite H0 in R. inv R.
-            destruct H0 as [bb2 [dd1 [XX J23']]].
-            rewrite R in XX. apply eq_sym in XX. inv XX.
-            apply eq_sym.
-            apply compose_meminjI_None. right.  
-            exists b2, d1; split. apply join_incr_left. assumption.          
-            remember (extern_of nu23 b2) as t.
-            destruct t; apply eq_sym in Heqt.
-               destruct p as [b3 d2].
-               apply extern_in_all in Heqt. apply inc23 in Heqt.
-               rewrite Heqt in J23'. discriminate.
-            unfold join. rewrite Heqt, J23'.
-              destruct (local_of nu23 b2); trivial.
-          (*case extern_of nu12 b1 = None*)
-            destruct (compose_meminjD_None _ _ _ Heqq); clear Heqq.
-            (*case local_of nu12 b1 = None*)
-              clear inc12.
-              destruct (compose_meminjD_None _ _ _ H); clear H.
-              (*case removeUndefs ... = None*)
-                apply eq_sym.
-                apply compose_meminjI_None. left.
-                apply joinI_None. assumption.
-                rewrite H0. apply H1.
-              (*case removeUndefs ... = Some*)
-                destruct H1 as [b2 [d1 [R J23']]]. 
-                apply eq_sym.
-                apply compose_meminjI_None. right.
-                exists b2, d1; split.
-                  unfold join. rewrite Heqw. rewrite H0. apply R.
-                assert (as_inj nu23 b2 = None).
-                  apply (inject_incr_inv _ _ inc23 _ J23').
-                destruct (joinD_None _ _ _ H).
-                unfold join. rewrite H1, H2. apply J23'.
-            (*case local_of nu12 b1 = Some*)
-              destruct H0 as [b2 [d1 [Loc1 Loc2]]].
-              apply eq_sym.
-              apply compose_meminjI_None. left.
-              destruct (disjoint_extern_local _ WDnu12 b1).
-                unfold join. rewrite H0, Loc1. trivial.
-              rewrite H0 in Loc1. inv Loc1.
-split; trivial.*)
 assert (GOAL2: extern_incr nu12
-  (convertL nu12 nu' (removeUndefs (as_inj nu12) (as_inj nu') prej12')
+  (convertL nu12 (removeUndefs (as_inj nu12) (as_inj nu') prej12')
      (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).
+     (FreshDom (as_inj nu23) j23'))).
   split. rewrite convertL_extern. apply join_incr_left.
   split. rewrite convertL_local. trivial.
   split. rewrite convertL_extBlocksSrc. intuition.
@@ -2556,39 +2314,10 @@ assert (GOAL2: extern_incr nu12
   split. rewrite convertL_pubBlocksTgt. trivial.
   split. rewrite convertL_frgnBlocksSrc. trivial. 
   rewrite convertL_frgnBlocksTgt. trivial. 
-(*assert (GOAL2: extern_incr nu12
-  (convertL nu12 nu' (removeUndefs (as_inj nu12) (as_inj nu') prej12')
-     (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).
-  split. rewrite convertL_extern. apply join_incr_left.
-  split. rewrite convertL_local. trivial.
-  split. rewrite convertL_extBlocksSrc. intuition.
-  split. rewrite convertL_extBlocksTgt. intuition. 
-  split. rewrite convertL_locBlocksSrc. trivial.
-  split. rewrite convertL_locBlocksTgt. trivial. 
-  split. rewrite convertL_pubBlocksSrc. trivial.
-  split. rewrite convertL_pubBlocksTgt. trivial.
-  split. rewrite convertL_frgnBlocksSrc. 
-     extensionality b. 
-     rewrite <- (extern_incr_frgnBlocksSrc _ _ ExtIncr).
-     simpl. rewrite orb_diag. trivial.
-  rewrite convertL_frgnBlocksTgt. 
-     rewrite <- (extern_incr_frgnBlocksTgt _ _ ExtIncr).
-     simpl. rewrite orb_diag. trivial.*)
 split. rewrite <- Heqj12' in GOAL2. assumption.
 assert (GOAL3: (extern_incr nu23
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end)))).
+  (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))))).
   clear GOAL1 GOAL2 ConvertL_J12' ConvertR_J23'.
   split. rewrite convertR_extern. apply join_incr_left.
   split. rewrite convertR_local. trivial.
@@ -2599,26 +2328,12 @@ assert (GOAL3: (extern_incr nu23
   split. rewrite convertR_pubBlocksSrc. trivial.
   split. rewrite convertR_pubBlocksTgt. trivial.
   split. rewrite convertR_frgnBlocksSrc. trivial.
-     (*extensionality b.
-     assert (FrgnSrc:= extern_incr_frgnBlocksSrc _ _ ExtIncr).
-     assert (FrgnTgt:= extern_incr_frgnBlocksTgt _ _ ExtIncr).
-     simpl in *. rewrite <- FrgnTgt.
-     remember (j23' b) as d.
-     destruct d; apply eq_sym in Heqd.
-       destruct p as [b2 z]. clear mkiVal5.
-       remember (frgnBlocksSrc nu23 b) as w.
-       destruct w; trivial; apply eq_sym in Heqw; simpl. rewrite  intuition.*)
-  rewrite convertR_frgnBlocksTgt. trivial. (*intuition.*)
+  rewrite convertR_frgnBlocksTgt. trivial. 
 split. assumption.
 assert (GOAL4: sm_inject_separated nu12
-  (convertL nu12 nu' j12'
+  (convertL nu12 j12'
      (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end)) m1 m2).
+     (FreshDom (as_inj nu23) j23')) m1 m2).
   split. rewrite ConvertL_J12'; clear ConvertL_J12' GOAL1 ConvertR_J23'.
          intros.
          destruct (sep12 _ _ _ H H0) as [NV1 NV2].
@@ -2643,13 +2358,8 @@ assert (GOAL4: sm_inject_separated nu12
            inv H0.
 split. assumption.
 assert (GOAL5: sm_inject_separated nu23
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end)) m2 m3).
+  (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))) m2 m3).
   split. rewrite ConvertR_J23'; clear ConvertL_J12' GOAL1 ConvertR_J23'. 
          intros.
          destruct (sep23 _ _ _ H H0) as [NV1 NV2].
@@ -2674,14 +2384,9 @@ assert (GOAL5: sm_inject_separated nu23
            eapply SMInjSep. apply H. apply H0.
 split. assumption.
 assert (GOAL6: sm_valid
-  (convertL nu12 nu' j12'
+  (convertL nu12 j12'
      (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end)) m1' m2').
+     (FreshDom (as_inj nu23) j23')) m1' m2').
   split. unfold DOM. rewrite convertL_DomSrc.
          clear ConvertL_J12' GOAL1 ConvertR_J23'. 
          intros.
@@ -2707,13 +2412,8 @@ assert (GOAL6: sm_valid
             inv H.
 split. assumption.
 split. (*This is GOAL7: sm_valid
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end)) m2' m3').*)
+  (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))) m2' m3').*)
   split. unfold DOM. rewrite convertR_DomSrc.
          clear ConvertL_J12' GOAL1 ConvertR_J23'. 
          intros.
@@ -2739,14 +2439,9 @@ split. (*This is GOAL7: sm_valid
            eapply SMvalNu'. apply H.
 split. (*Glue invariant*) 
   split. (*This is GOAL8: SM_wd
-  (convertL nu12 nu' f
+  (convertL nu12 f
      (fun b : block => DomSrc nu' b && negb (DomSrc nu12 b))
-     (FreshDom (as_inj nu23) j23')
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).*)
+     (FreshDom (as_inj nu23) j23'))).*)
    clear ConvertL_J12' ConvertR_J23'. 
    split. 
    (*1/8*) rewrite convertL_locBlocksSrc, convertL_extBlocksSrc.
@@ -2827,75 +2522,13 @@ split. (*Glue invariant*)
             apply WDnu12.
    (*6/8*) rewrite convertL_frgnBlocksSrc, convertL_frgnBlocksTgt.
             rewrite convertL_foreign; trivial. apply WDnu12.
-            (*unfold convertL, insert_as_foreign, foreign_of. simpl.
-            intros. destruct nu12; simpl in *. rewrite H.
-            apply orb_true_iff in H.
-            remember (frgnBlocksSrc b1) as d.
-            destruct d; apply eq_sym in Heqd.
-              clear H.
-              destruct (frgnSrc _ WDnu12 _ Heqd) as [b2 [dd [Frg1 FT2]]].
-              simpl in *. rewrite Heqd in Frg1. exists b2, dd.
-              unfold join. rewrite Frg1, FT2. split; trivial.
-            destruct H. inv H.
-            destruct (frgnSrc _ WDnu' _ H) as [b3 [dd [Frg FT3]]].
-            rewrite GOAL1 in Frg; simpl in Frg; clear GOAL1.
-            rewrite Heqd, H in Frg. simpl in Frg.
-            rewrite convertR_extern in Frg.
-            destruct (compose_meminjD_Some _ _ _ _ _ Frg)
-              as [b2 [d1 [d2 [JJ1 [JJ2 D]]]]]; clear Frg.
-            rewrite JJ1. exists b2, d1; split; trivial.
-            assert (j23' b2 = Some (b3, d2)).
-               destruct (joinD_Some _ _ _ _ _ JJ2); clear JJ2.
-                 apply inc23. apply join_incr_left. assumption.
-               destruct H0. 
-               remember (StructuredInjections.local_of nu23 b2) as q.
-               destruct q; trivial. inv H1.
-            rewrite H0, FT3. apply orb_true_r.*)
    (*7/8*) rewrite convertL_pubBlocksTgt, convertL_locBlocksTgt.
            apply WDnu12.
    (*8/8*) rewrite convertL_frgnBlocksTgt, convertL_extBlocksTgt.
            intros. rewrite (frgnBlocksExternTgt _ WDnu12 _ H). trivial.
-           (*apply orb_true_iff in H.
-            destruct H. rewrite (frgnBlocksExternTgt _ WDnu12 _ H).
-               trivial. 
-            rewrite GlueExt.
-            remember (j23' b) as d.
-            destruct d; apply eq_sym in Heqd; try inv H.
-            destruct p as [b3 d2].
-            remember (as_inj nu23 b) as q.
-            destruct q; apply eq_sym in Heqq.
-              destruct p. 
-              assert (b0 = b3 /\ z= d2). 
-                 rewrite (inc23 _ _ _ Heqq) in Heqd. clear GOAL1. inv Heqd. split; trivial.
-              destruct H0. rewrite H0, H1 in *. clear H0 H1. 
-              destruct (joinD_Some _ _ _ _ _ Heqq).
-                   destruct (extern_DomRng _ WDnu23 _ _ _ H0). rewrite H1. trivial.
-              destruct H0 as [_ LOC].
-                destruct (local_locBlocks _ WDnu23 _ _ _ LOC) 
-                   as [? [? [? [? [? [? [? ?]]]]]]].
-                rewrite GOAL1 in H; clear ID.
-                   unfold compose_sm in H. simpl in H. 
-                   rewrite convertR_frgnBlocksTgt in H. 
-                   apply orb_true_iff in H.
-                   destruct H. rewrite H in H5. discriminate.
-                   apply (frgnBlocksExternTgt _ WDnu') in  H.
-                   rewrite GOAL1 in H. 
-                   unfold compose_sm in H. simpl in H. 
-                   rewrite convertR_extBlocksTgt in H. 
-                   apply orb_true_iff in H.
-                   destruct H. congruence.
-                   rewrite andb_true_iff in H. 
-                   rewrite H7 in H. simpl in H. destruct H; discriminate.
-               (*as_inj nu23 b = None*)
-                  unfold FreshDom. rewrite Heqd, Heqq. intuition.*)
 split. (*This is GOAL9: SM_wd
-  (convertR nu23 nu' j23' (FreshDom (as_inj nu23) j23')
-     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b))
-     (fun b : block =>
-      match j23' b with
-      | Some (b', _) => frgnBlocksTgt nu' b'
-      | None => false
-      end))).*)
+  (convertR nu23 j23' (FreshDom (as_inj nu23) j23')
+     (fun b : block => DomTgt nu' b && negb (DomTgt nu23 b)))).*)
    clear ConvertL_J12' ConvertR_J23'.
    split.
    (*1/8*) rewrite convertR_locBlocksSrc, convertR_extBlocksSrc.
@@ -2956,64 +2589,15 @@ split. (*This is GOAL9: SM_wd
    (*5/8*) rewrite convertR_pubBlocksTgt, convertR_pubBlocksSrc, convertR_pub.
            apply WDnu23. 
    (*6/8*) rewrite convertR_frgnBlocksTgt, convertR_frgnBlocksSrc.
-           rewrite convertR_foreign; trivial. apply WDnu23.
-           (*intros. apply orb_true_iff in H.
-           assert (FrgnTgtNu':= extern_incr_frgnBlocksTgt _ _ ExtIncr). simpl in *.
-           rewrite <- FrgnTgtNu'. 
-           destruct H. destruct (frgnSrc _ WDnu23 _ H) as [b2 [d2 [Frg2 FT3]]].
-              exists b2, d2. rewrite FT3. split; trivial.
-              unfold convertR, insert_as_foreign; simpl.
-              destruct nu23; simpl in *.
-               rewrite H in *. simpl. unfold join.
-               rewrite Frg2. trivial.
-              (*rewrite (extern_incr_foreign _ _ GOAL3 _ _ _ Frg2).
-              intuition.*)
-           remember (j23' b1) as d.
-           destruct d; try inv H. destruct p; apply eq_sym in Heqd.
-           rewrite convertR_foreign.
-           rewrite Heqd, FrgnTgtNu', H. rewrite orb_true_r. unfold join. rewrite Heqd.
-           remember (extern_of nu23 b1) as q.
-           destruct q; apply eq_sym in Heqq.
-             destruct p. apply extern_in_all in Heqq. 
-             rewrite (inc23 _ _ _ Heqq) in Heqd. exists b, z. intuition.
-           remember (local_of nu23 b1) as t.
-           destruct t; apply eq_sym in Heqt.
-             destruct p. destruct (local_DomRng _ WDnu23 _ _ _ Heqt).
-             apply local_in_all in Heqt.
-             assert (L: locBlocksTgt (compose_sm nu12 nu23) = locBlocksTgt nu') by apply ExtIncr . 
-             unfold compose_sm in L; simpl in L. rewrite L in H1. clear L.
-             clear GOAL1. rewrite (inc23 _ _ _ Heqt) in Heqd. inv Heqd.
-             rewrite (locBlocksTgt_frgnBlocksTgt _ WDnu' _ H1) in H. discriminate.
-
-           assert (L: locBlocksTgt (compose_sm nu12 nu23) = locBlocksTgt nu') by apply ExtIncr . 
-             unfold compose_sm in L; simpl in L. rewrite L in H1. clear L.
-             clear GOAL1. apply local_in_all in Heqt. rewrite (inc23 _ _ _ Heqt) in Heqd. inv Heqd.
-             rewrite (locBlocksTgt_frgnBlocksTgt _ WDnu' _ H1) in H. discriminate.           
-             assumption.
-
-           exists b, z. rewrite H. intuition.*)
+           rewrite convertR_foreign; trivial. apply WDnu23.           
    (*7/8*) rewrite convertR_locBlocksTgt, convertR_pubBlocksTgt.
             apply WDnu23.
    (*8/8*) rewrite convertR_frgnBlocksTgt, convertR_extBlocksTgt.
             intros. rewrite (frgnBlocksExternTgt _ WDnu23 _ H); trivial.
-            (*apply orb_true_iff in H.
-            destruct H. 
-              rewrite (frgnBlocksExternTgt _ WDnu23 _ H); simpl. trivial.
-            specialize (frgnBlocksExternTgt _ WDnu' _ H); intros.
-            unfold DomTgt. rewrite H0; simpl. rewrite orb_true_r. simpl.
-            remember (extBlocksTgt nu23 b) as q.
-            destruct q; simpl. trivial.
-            remember (locBlocksTgt nu23 b) as t.
-            destruct t; apply eq_sym in Heqt; simpl; trivial.
-            assert (L: locBlocksTgt (compose_sm nu12 nu23) = locBlocksTgt nu') by apply ExtIncr . 
-            unfold compose_sm in L; simpl in L. rewrite L in Heqt. clear L.
-            destruct (disjoint_extern_local_Tgt _ WDnu' b); congruence.*)
   split. assumption. 
   split. rewrite GlueExt. trivial. 
   split. assumption. 
-  intros. apply GlueFrgn; trivial. (* apply orb_true_iff in H. apply orb_true_iff.
-         destruct H. left. apply GlueFrgn. apply H.
-         right. apply H.*)
+  intros. apply GlueFrgn; trivial.
 split. intros. (*Proof of NORM*) clear GOAL1 ConvertR_J23'.
    subst.
    destruct (joinD_Some _ _ _ _ _ H) as [EXT | [EXT LOC]]; clear H.
