@@ -1271,10 +1271,11 @@ split.
          destruct (extern_DomRng' _ WDmu _ _ _ PGb) as [? [? [? [? [? [? [? ?]]]]]]].
          congruence.
 intros. 
-  specialize (FF _ H). subst. 
-  assert (F': frgnBlocksSrc nu' b = true).
-    eapply INC. rewrite replace_locals_frgnBlocksSrc. assumption.
+  specialize (FF _ H).
   rewrite replace_externs_frgnBlocksSrc.
+  assert (F': frgnBlocksSrc nu' b = true).
+    destruct INC as [_ [_ [_ [_ [_ [_ [_ [_ [FRG _]]]]]]]]].
+    rewrite replace_locals_frgnBlocksSrc in FRG. rewrite <- FRG; trivial.
   assert (L' := frgnBlocksSrc_locBlocksSrc _ WDnu' _ F').
   unfold DomSrc. 
   rewrite L', (frgnBlocksSrc_extBlocksSrc _ WDnu' _ F'); simpl.

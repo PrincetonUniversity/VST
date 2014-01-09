@@ -2282,12 +2282,12 @@ assert (RR1: REACH_closed m1'
            apply REACH_nil. unfold vis. rewrite Heql; trivial.
         specialize (RC _ Rb). unfold vis in RC.
            rewrite Heqq in RC; simpl in *.
-        assert (frgnBlocksSrc nu' b = true).
-          apply FRGnu'. rewrite replace_locals_frgnBlocksSrc. assumption.
+        rewrite replace_locals_frgnBlocksSrc in FRGnu'.
+        rewrite FRGnu' in RC.
         apply andb_true_iff.  
-        split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H). intuition.
+        split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ RC). intuition.
         apply REACH_nil. unfold exportedSrc.
-          rewrite (frgnSrc_shared _ WDnu' _ H). intuition.
+          rewrite (frgnSrc_shared _ WDnu' _ RC). intuition.
   (*case DomSrc nu' b' &&
     (negb (locBlocksSrc nu' b') &&
      REACH m1' (exportedSrc nu' (ret1 :: nil)) b') = true*)
@@ -2329,14 +2329,15 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
                DomSrc nu' b &&
                (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b) = true).
      intros. specialize (Glob _ H).
-       assert (FF: frgnBlocksSrc nu' b = true).
-           eapply INC. rewrite replace_locals_frgnBlocksSrc. eassumption.
-       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ FF). 
+       assert (FSRC:= extern_incr_frgnBlocksSrc _ _ INC).
+          rewrite replace_locals_frgnBlocksSrc in FSRC.
+       rewrite FSRC in Glob.
+       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ Glob). 
        apply andb_true_iff; simpl.
         split.
-          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ FF). intuition.
+          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ Glob). intuition.
           apply REACH_nil. unfold exportedSrc.
-          rewrite (frgnSrc_shared _ WDnu' _ FF). intuition.
+          rewrite (frgnSrc_shared _ WDnu' _ Glob). intuition.
 split. 
   econstructor; try eassumption.
     eapply match_stacks_inject_incr; try eassumption.
@@ -2360,10 +2361,9 @@ split.
               split; trivial.
               destruct (disjoint_extern_local _ WDnu' b); trivial. congruence.
           (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
-          rewrite H3 in H11.
+          rewrite H3, H7 in H11.
             remember (locBlocksSrc nu' b) as d.
             destruct d; trivial; simpl in *.
-            apply H7 in H11.
             apply andb_true_iff.
             split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
                apply REACH_nil. unfold exportedSrc. 

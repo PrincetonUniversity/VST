@@ -740,8 +740,8 @@ Definition extern_incr (mu mu': SM_Injection): Prop :=
    (locBlocksTgt mu = locBlocksTgt mu') /\
    (pubBlocksSrc mu = pubBlocksSrc mu') /\
    (pubBlocksTgt mu = pubBlocksTgt mu') /\
-   (forall b, frgnBlocksSrc mu b = true -> frgnBlocksSrc mu' b = true) /\
-   (forall b, frgnBlocksTgt mu b = true -> frgnBlocksTgt mu' b = true).
+   (frgnBlocksSrc mu = frgnBlocksSrc mu') /\
+   (frgnBlocksTgt mu = frgnBlocksTgt mu').
 
 Lemma extern_incr_DomSrc: 
       forall mu mu' (Inc: extern_incr mu mu') b,
@@ -787,11 +787,21 @@ Proof. intros.
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
   remember (locBSrc' b) as d; destruct d; trivial. inv H. apply eq_sym in Heqd.
-  remember (fSrc b) as q; destruct q; trivial. inv H.
+  remember (fSrc' b) as q; destruct q; trivial. inv H.
   apply (H0 _ _ _ H).
 Qed.
 
-Lemma extern_incr_foreign: forall mu mu' (INC: extern_incr mu mu'),
+Lemma extern_incr_frgnBlocksSrc: forall 
+          mu nu (INC: extern_incr mu nu),
+       frgnBlocksSrc mu = frgnBlocksSrc nu.
+Proof. intros. eapply INC. Qed.
+
+Lemma extern_incr_frgnBlocksTgt: forall 
+          mu nu (INC: extern_incr mu nu),
+       frgnBlocksTgt mu = frgnBlocksTgt nu.
+Proof. intros. eapply INC. Qed.
+
+Lemma extern_incr_foreign': forall mu mu' (INC: extern_incr mu mu'),
    inject_incr (foreign_of mu) (foreign_of mu').
 Proof. intros.
   unfold foreign_of.
@@ -800,10 +810,24 @@ Proof. intros.
   intros b; intros. 
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
-  remember (fSrc b) as q; destruct q; apply eq_sym in Heqq.
-    rewrite (H8 _ Heqq).
+  remember (fSrc' b) as q; destruct q; apply eq_sym in Heqq.
     apply (H0 _ _ _ H).
   inv H.
+Qed.
+
+Lemma extern_incr_foreign: forall mu mu' (INC: extern_incr mu mu') (WDmu: SM_wd mu),
+   foreign_of mu = foreign_of mu'.
+Proof. intros.
+  specialize (extern_incr_frgnBlocksSrc _ _ INC). intros.
+  unfold foreign_of.
+  destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
+  destruct mu' as [locBSrc' locBTgt' pSrc' pTgt' local' extBSrc' extBTgt' fSrc' fTgt' extern']; simpl in *.
+  extensionality b.
+  remember (fSrc b) as q; destruct q; apply eq_sym in Heqq; trivial.
+    destruct (frgnSrc _ WDmu _ Heqq) as [b2 [z [FRG FT]]]. simpl in *.
+    rewrite <- H. rewrite Heqq in *. rewrite FRG; apply eq_sym.
+     eapply INC. apply FRG.
+  rewrite <- H. rewrite Heqq. trivial.
 Qed.
 
 Lemma extern_incr_pub: forall mu mu' (INC: extern_incr mu mu'),
@@ -1334,7 +1358,7 @@ split. rewrite (extern_incr_local _ _ Inc).
 destruct Inc as [A [B [C [D [E [F [G [H [I J]]]]]]]]].
 destruct Inc' as [A' [B' [C' [D' [E' [F' [G' [H' [I' J']]]]]]]]].
 simpl in *. subst.
-rewrite E, F, G, H in *.
+rewrite E, F, G, H, I, J in *.
 repeat (split; eauto).
 Qed.
 

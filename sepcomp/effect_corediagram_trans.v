@@ -20,9 +20,6 @@ Require Import sepcomp.forward_simulations_trans.
 Require Import Wellfounded.
 Require Import Relations.
 
-Definition Munch m m' (b:block) (ofs:Z) :=
-  Mem.unchanged_on (fun (b' : block) (ofs' : Z) => b' = b /\ ofs' = ofs) m m'.
-
 Section CoreDiagrams_trans.
 Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
         (Sem1 : @EffectSem (Genv.t F1 V1) C1)
