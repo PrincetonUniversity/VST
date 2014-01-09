@@ -87,6 +87,8 @@ LINKING_FILES= \
   cast.v \
   wf_lemmas.v \
   core_semantics_lemmas.v \
+  domain_inv.v \
+  sminj_lemmas.v \
   linking.v \
   linking_lemmas.v \
   linking_sim.v
@@ -138,6 +140,7 @@ C_FILES = reverse.c queue.c sumarray.c message.c sha.c insertionsort.c float.c
 FILES = \
  $(MSL_FILES:%=msl/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
+ $(LINKING_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) 
@@ -204,6 +207,9 @@ depend:
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+
+clean-linking:
+	rm -f $(LINKING_FILES:%.v=sepcomp/%.vo) $(LINKING_FILES:%.v=sepcomp/%.glob) 
 
 count:
 	wc $(FILES)
