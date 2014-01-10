@@ -598,11 +598,11 @@ Definition DomTgt (mu: SM_Injection) (b2: block): bool :=
      locBlocksTgt mu b2 || extBlocksTgt mu b2.
 Definition RNG (mu: SM_Injection) (b2:block): Prop := DomTgt mu b2 = true.
 
-(*in contrast to effect_simulations2.v, we enforce
+(*we enforce
   pub_of mu = pub_of mu', via
   pubBlocksSrc/Tgt mu = pubBlocksSrc/Tgt mu': 
-  it suffices to reclassify at atExternal.
-  This simplifies/enables the proof of 
+  it suffices to reclassify leakage at at/afterExternal.
+  This enables the proof of 
   effect_corediagram_trans.diagram_injinj etc*)
 Definition intern_incr (mu mu': SM_Injection): Prop := 
    inject_incr (local_of mu) (local_of mu') /\
@@ -770,15 +770,8 @@ Lemma extern_incr_RNG:
       RNG mu b -> RNG mu' b.
 Proof. intros. apply (extern_incr_DomTgt _ _ Inc _ H). Qed.
 
-
-(* although coherence with intern_incr would suggest to prove
-   inject_incr (unknown_of mu) (unknown_of mu') instead of
-   inject_incr (unknown_of mu) (extern_of mu'), we prove the
-   latter, since additional intermediate external calls 
-   may trigger reclassification of unknown entries as 
-   foreign in third-part cores*)
 Lemma extern_incr_unknown: forall mu mu' (INC: extern_incr mu mu'),
-   inject_incr (unknown_of mu) (extern_of mu').
+   inject_incr (unknown_of mu) (unknown_of mu').
 Proof. intros.
   unfold unknown_of.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *.
@@ -786,8 +779,8 @@ Proof. intros.
   intros b; intros. 
   destruct INC as [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
   simpl in *. subst.
-  remember (locBSrc' b) as d; destruct d; trivial. inv H. apply eq_sym in Heqd.
-  remember (fSrc' b) as q; destruct q; trivial. inv H.
+  remember (locBSrc' b) as d; destruct d; trivial.
+  remember (fSrc' b) as q; destruct q; trivial.
   apply (H0 _ _ _ H).
 Qed.
 
@@ -801,7 +794,7 @@ Lemma extern_incr_frgnBlocksTgt: forall
        frgnBlocksTgt mu = frgnBlocksTgt nu.
 Proof. intros. eapply INC. Qed.
 
-Lemma extern_incr_foreign': forall mu mu' (INC: extern_incr mu mu'),
+Lemma extern_incr_foreign_inc: forall mu mu' (INC: extern_incr mu mu'),
    inject_incr (foreign_of mu) (foreign_of mu').
 Proof. intros.
   unfold foreign_of.
